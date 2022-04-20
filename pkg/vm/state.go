@@ -44,7 +44,7 @@ func (s State) String() string {
 	return strings.Join(ss, ", ")
 }
 
-// StateFromString converts string into the VM State.
+// StateFromString converts a string into the VM State.
 func StateFromString(s string) (st State, err error) {
 	if s = strings.TrimSpace(s); s == "NONE" {
 		return NoneState, nil

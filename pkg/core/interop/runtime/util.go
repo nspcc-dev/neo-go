@@ -15,7 +15,7 @@ import (
 	"github.com/twmb/murmur3"
 )
 
-// GasLeft returns remaining amount of GAS.
+// GasLeft returns the remaining amount of GAS.
 func GasLeft(ic *interop.Context) error {
 	if ic.VM.GasLimit == -1 {
 		ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(ic.VM.GasLimit)))
@@ -25,7 +25,7 @@ func GasLeft(ic *interop.Context) error {
 	return nil
 }
 
-// GetNotifications returns notifications emitted by current contract execution.
+// GetNotifications returns notifications emitted in the current execution context.
 func GetNotifications(ic *interop.Context) error {
 	item := ic.VM.Estack().Pop().Item()
 	notifications := ic.Notifications
@@ -61,7 +61,7 @@ func GetNotifications(ic *interop.Context) error {
 	return nil
 }
 
-// GetInvocationCounter returns how many times current contract was invoked during current tx execution.
+// GetInvocationCounter returns how many times the current contract has been invoked during the current tx execution.
 func GetInvocationCounter(ic *interop.Context) error {
 	currentScriptHash := ic.VM.GetCurrentScriptHash()
 	count, ok := ic.Invocations[currentScriptHash]

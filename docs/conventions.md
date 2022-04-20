@@ -1,9 +1,9 @@
 # Conventions
 
 This document will list conventions that this repo should follow. These are
-guidelines and if you believe that one should not be followed, then please state
+the guidelines, and if you believe that one should not be followed, please state
 why in your PR. If you believe that a piece of code does not follow one of the
-conventions listed, then please open an issue before making any changes. 
+conventions listed, please open an issue before making any changes. 
 
 When submitting a new convention, please open an issue for discussion, if
 possible please highlight parts in the code where this convention could help the

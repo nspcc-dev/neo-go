@@ -23,7 +23,7 @@ type (
 		Nonce     uint32
 		UserAgent string
 		Protocol  Protocol
-		// StateRootInHeader is true if state root is contained in block header.
+		// StateRootInHeader is true if state root is contained in the block header.
 		// Deprecated: use Protocol.StateRootInHeader instead
 		StateRootInHeader bool
 	}

@@ -29,7 +29,7 @@ import (
 
 var errNetworkNotInitialized = errors.New("RPC client network is not initialized")
 
-// CalculateNetworkFee calculates network fee for transaction. The transaction may
+// CalculateNetworkFee calculates network fee for the transaction. The transaction may
 // have empty witnesses for contract signers and may have only verification scripts
 // filled for standard sig/multisig signers.
 func (c *Client) CalculateNetworkFee(tx *transaction.Transaction) (int64, error) {
@@ -43,7 +43,7 @@ func (c *Client) CalculateNetworkFee(tx *transaction.Transaction) (int64, error)
 	return resp.Value, nil
 }
 
-// GetApplicationLog returns the contract log based on the specified txid.
+// GetApplicationLog returns a contract log based on the specified txid.
 func (c *Client) GetApplicationLog(hash util.Uint256, trig *trigger.Type) (*result.ApplicationLog, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
@@ -58,7 +58,7 @@ func (c *Client) GetApplicationLog(hash util.Uint256, trig *trigger.Type) (*resu
 	return resp, nil
 }
 
-// GetBestBlockHash returns the hash of the tallest block in the main chain.
+// GetBestBlockHash returns the hash of the tallest block in the blockchain.
 func (c *Client) GetBestBlockHash() (util.Uint256, error) {
 	var resp = util.Uint256{}
 	if err := c.performRequest("getbestblockhash", request.NewRawParams(), &resp); err != nil {
@@ -67,7 +67,7 @@ func (c *Client) GetBestBlockHash() (util.Uint256, error) {
 	return resp, nil
 }
 
-// GetBlockCount returns the number of blocks in the main chain.
+// GetBlockCount returns the number of blocks in the blockchain.
 func (c *Client) GetBlockCount() (uint32, error) {
 	var resp uint32
 	if err := c.performRequest("getblockcount", request.NewRawParams(), &resp); err != nil {
@@ -139,7 +139,7 @@ func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error
 	return resp, nil
 }
 
-// GetBlockHash returns the hash value of the corresponding block, based on the specified index.
+// GetBlockHash returns the hash value of the corresponding block based on the specified index.
 func (c *Client) GetBlockHash(index uint32) (util.Uint256, error) {
 	var (
 		params = request.NewRawParams(index)
@@ -151,9 +151,9 @@ func (c *Client) GetBlockHash(index uint32) (util.Uint256, error) {
 	return resp, nil
 }
 
-// GetBlockHeader returns the corresponding block header information from serialized hex string
+// GetBlockHeader returns the corresponding block header information from a serialized hex string
 // according to the specified script hash. You should initialize network magic
-// // with Init before calling GetBlockHeader.
+// with Init before calling GetBlockHeader.
 func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
@@ -186,7 +186,7 @@ func (c *Client) GetBlockHeaderCount() (uint32, error) {
 	return resp, nil
 }
 
-// GetBlockHeaderVerbose returns the corresponding block header information from Json format string
+// GetBlockHeaderVerbose returns the corresponding block header information from a Json format string
 // according to the specified script hash.
 func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error) {
 	var (
@@ -199,7 +199,7 @@ func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error
 	return resp, nil
 }
 
-// GetBlockSysFee returns the system fees of the block, based on the specified index.
+// GetBlockSysFee returns the system fees of the block based on the specified index.
 func (c *Client) GetBlockSysFee(index uint32) (fixedn.Fixed8, error) {
 	var (
 		params = request.NewRawParams(index)
@@ -211,7 +211,7 @@ func (c *Client) GetBlockSysFee(index uint32) (fixedn.Fixed8, error) {
 	return resp, nil
 }
 
-// GetConnectionCount returns the current number of connections for the node.
+// GetConnectionCount returns the current number of the connections for the node.
 func (c *Client) GetConnectionCount() (int, error) {
 	var (
 		params = request.NewRawParams()
@@ -223,7 +223,7 @@ func (c *Client) GetConnectionCount() (int, error) {
 	return resp, nil
 }
 
-// GetCommittee returns the current public keys of NEO nodes in committee.
+// GetCommittee returns the current public keys of NEO nodes in the committee.
 func (c *Client) GetCommittee() (keys.PublicKeys, error) {
 	var (
 		params = request.NewRawParams()
@@ -235,17 +235,17 @@ func (c *Client) GetCommittee() (keys.PublicKeys, error) {
 	return *resp, nil
 }
 
-// GetContractStateByHash queries contract information, according to the contract script hash.
+// GetContractStateByHash queries contract information according to the contract script hash.
 func (c *Client) GetContractStateByHash(hash util.Uint160) (*state.Contract, error) {
 	return c.getContractState(hash.StringLE())
 }
 
-// GetContractStateByAddressOrName queries contract information, according to the contract address or name.
+// GetContractStateByAddressOrName queries contract information according to the contract address or name.
 func (c *Client) GetContractStateByAddressOrName(addressOrName string) (*state.Contract, error) {
 	return c.getContractState(addressOrName)
 }
 
-// GetContractStateByID queries contract information, according to the contract ID.
+// GetContractStateByID queries contract information according to the contract ID.
 func (c *Client) GetContractStateByID(id int32) (*state.Contract, error) {
 	return c.getContractState(id)
 }
@@ -303,10 +303,10 @@ func (c *Client) GetNEP17Balances(address util.Uint160) (*result.NEP17Balances, 
 }
 
 // GetNEP11Properties is a wrapper for getnep11properties RPC. We recommend using
-// NEP11Properties method instead of this to receive and work with proper VM types,
-// this method is provided mostly for the sake of completeness. For well-known
+// NEP11Properties method instead of this to receive proper VM types and work with them.
+// This method is provided mostly for the sake of completeness. For well-known
 // attributes like "description", "image", "name" and "tokenURI" it returns strings,
-// while for all other ones []byte (which can be nil).
+// while for all others []byte (which can be nil).
 func (c *Client) GetNEP11Properties(asset util.Uint160, token []byte) (map[string]interface{}, error) {
 	params := request.NewRawParams(asset.StringLE(), hex.EncodeToString(token))
 	resp := make(map[string]interface{})
@@ -334,7 +334,7 @@ func (c *Client) GetNEP11Properties(asset util.Uint160, token []byte) (map[strin
 }
 
 // GetNEP11Transfers is a wrapper for getnep11transfers RPC. Address parameter
-// is mandatory, while all the others are optional. Limit and page parameters are
+// is mandatory, while all others are optional. Limit and page parameters are
 // only supported by NeoGo servers and can only be specified with start and stop.
 func (c *Client) GetNEP11Transfers(address util.Uint160, start, stop *uint64, limit, page *int) (*result.NEP11Transfers, error) {
 	params, err := packTransfersParams(address, start, stop, limit, page)
@@ -372,10 +372,10 @@ func packTransfersParams(address util.Uint160, start, stop *uint64, limit, page 
 }
 
 // GetNEP17Transfers is a wrapper for getnep17transfers RPC. Address parameter
-// is mandatory, while all the others are optional. Start and stop parameters
+// is mandatory while all the others are optional. Start and stop parameters
 // are supported since neo-go 0.77.0 and limit and page since neo-go 0.78.0.
-// These parameters are positional in the JSON-RPC call, you can't specify limit
-// and not specify start/stop for example.
+// These parameters are positional in the JSON-RPC call. For example, you can't specify the limit
+// without specifying start/stop first.
 func (c *Client) GetNEP17Transfers(address util.Uint160, start, stop *uint64, limit, page *int) (*result.NEP17Transfers, error) {
 	params, err := packTransfersParams(address, start, stop, limit, page)
 	if err != nil {
@@ -388,7 +388,7 @@ func (c *Client) GetNEP17Transfers(address util.Uint160, start, stop *uint64, li
 	return resp, nil
 }
 
-// GetPeers returns the list of nodes that the node is currently connected/disconnected from.
+// GetPeers returns a list of the nodes that the node is currently connected to/disconnected from.
 func (c *Client) GetPeers() (*result.GetPeers, error) {
 	var (
 		params = request.NewRawParams()
@@ -400,7 +400,7 @@ func (c *Client) GetPeers() (*result.GetPeers, error) {
 	return resp, nil
 }
 
-// GetRawMemPool returns the list of unconfirmed transactions in memory.
+// GetRawMemPool returns a list of unconfirmed transactions in the memory.
 func (c *Client) GetRawMemPool() ([]util.Uint256, error) {
 	var (
 		params = request.NewRawParams()
@@ -458,9 +458,9 @@ func (c *Client) GetState(stateroot util.Uint256, historicalContractHash util.Ui
 }
 
 // FindStates returns historical contract storage item states by the given stateroot,
-// historical contract hash and historical prefix. If `start` path is specified, then items
+// historical contract hash and historical prefix. If `start` path is specified, items
 // starting from `start` path are being returned (excluding item located at the start path).
-// If `maxCount` specified, then maximum number of items to be returned equals to `maxCount`.
+// If `maxCount` specified, the maximum number of items to be returned equals to `maxCount`.
 func (c *Client) FindStates(stateroot util.Uint256, historicalContractHash util.Uint160, historicalPrefix []byte,
 	start []byte, maxCount *int) (result.FindStates, error) {
 	if historicalPrefix == nil {
@@ -485,12 +485,12 @@ func (c *Client) FindStates(stateroot util.Uint256, historicalContractHash util.
 	return resp, nil
 }
 
-// GetStateRootByHeight returns state root for the specified height.
+// GetStateRootByHeight returns the state root for the specified height.
 func (c *Client) GetStateRootByHeight(height uint32) (*state.MPTRoot, error) {
 	return c.getStateRoot(request.NewRawParams(height))
 }
 
-// GetStateRootByBlockHash returns state root for block with specified hash.
+// GetStateRootByBlockHash returns the state root for the block with the specified hash.
 func (c *Client) GetStateRootByBlockHash(hash util.Uint256) (*state.MPTRoot, error) {
 	return c.getStateRoot(request.NewRawParams(hash))
 }
@@ -503,7 +503,7 @@ func (c *Client) getStateRoot(params request.RawParams) (*state.MPTRoot, error) 
 	return resp, nil
 }
 
-// GetStateHeight returns current validated and local node state height.
+// GetStateHeight returns the current validated and local node state height.
 func (c *Client) GetStateHeight() (*result.StateHeight, error) {
 	var (
 		params = request.NewRawParams()
@@ -515,12 +515,12 @@ func (c *Client) GetStateHeight() (*result.StateHeight, error) {
 	return resp, nil
 }
 
-// GetStorageByID returns the stored value, according to the contract ID and the stored key.
+// GetStorageByID returns the stored value according to the contract ID and the stored key.
 func (c *Client) GetStorageByID(id int32, key []byte) ([]byte, error) {
 	return c.getStorage(request.NewRawParams(id, key))
 }
 
-// GetStorageByHash returns the stored value, according to the contract script hash and the stored key.
+// GetStorageByHash returns the stored value according to the contract script hash and the stored key.
 func (c *Client) GetStorageByHash(hash util.Uint160, key []byte) ([]byte, error) {
 	return c.getStorage(request.NewRawParams(hash.StringLE(), key))
 }
@@ -533,7 +533,7 @@ func (c *Client) getStorage(params request.RawParams) ([]byte, error) {
 	return resp, nil
 }
 
-// GetTransactionHeight returns the block index in which the transaction is found.
+// GetTransactionHeight returns the block index where the transaction is found.
 func (c *Client) GetTransactionHeight(hash util.Uint256) (uint32, error) {
 	var (
 		params = request.NewRawParams(hash.StringLE())
@@ -545,7 +545,7 @@ func (c *Client) GetTransactionHeight(hash util.Uint256) (uint32, error) {
 	return resp, nil
 }
 
-// GetUnclaimedGas returns unclaimed GAS amount for the specified address.
+// GetUnclaimedGas returns the unclaimed GAS amount for the specified address.
 func (c *Client) GetUnclaimedGas(address string) (result.UnclaimedGas, error) {
 	var (
 		params = request.NewRawParams(address)
@@ -745,17 +745,17 @@ func (c *Client) SubmitBlock(b block.Block) (util.Uint256, error) {
 	return resp.Hash, nil
 }
 
-// SubmitRawOracleResponse submits raw oracle response to the oracle node.
+// SubmitRawOracleResponse submits a raw oracle response to the oracle node.
 // Raw params are used to avoid excessive marshalling.
 func (c *Client) SubmitRawOracleResponse(ps request.RawParams) error {
 	return c.performRequest("submitoracleresponse", ps, new(result.RelayResult))
 }
 
-// SignAndPushInvocationTx signs and pushes given script as an invocation
-// transaction using given wif to sign it and given cosigners to cosign it if
+// SignAndPushInvocationTx signs and pushes the given script as an invocation
+// transaction using the given wif to sign it and the given cosigners to cosign it if
 // possible. It spends the amount of gas specified. It returns a hash of the
 // invocation transaction and an error. If one of the cosigners accounts is
-// neither contract-based nor unlocked an error is returned.
+// neither contract-based nor unlocked, an error is returned.
 func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee fixedn.Fixed8, cosigners []SignerAccount) (util.Uint256, error) {
 	tx, err := c.CreateTxFromScript(script, acc, sysfee, int64(netfee), cosigners)
 	if err != nil {
@@ -764,9 +764,9 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 	return c.SignAndPushTx(tx, acc, cosigners)
 }
 
-// SignAndPushTx signs given transaction using given wif and cosigners and pushes
+// SignAndPushTx signs the given transaction using the given wif and cosigners and pushes
 // it to the chain. It returns a hash of the transaction and an error. If one of
-// the cosigners accounts is neither contract-based nor unlocked an error is
+// the cosigners accounts is neither contract-based nor unlocked, an error is
 // returned.
 func (c *Client) SignAndPushTx(tx *transaction.Transaction, acc *wallet.Account, cosigners []SignerAccount) (util.Uint256, error) {
 	var (
@@ -842,12 +842,12 @@ func getSigners(sender *wallet.Account, cosigners []SignerAccount) ([]transactio
 	return signers, accounts, nil
 }
 
-// SignAndPushP2PNotaryRequest creates and pushes P2PNotary request constructed from the main
-// and fallback transactions using given wif to sign it. It returns the request and an error.
+// SignAndPushP2PNotaryRequest creates and pushes a P2PNotary request constructed from the main
+// and fallback transactions using the given wif to sign it. It returns the request and an error.
 // Fallback transaction is constructed from the given script using the amount of gas specified.
 // For successful fallback transaction validation at least 2*transaction.NotaryServiceFeePerKey
-// GAS should be deposited to Notary contract.
-// Main transaction should be constructed by the user. Several rules need to be met for
+// GAS should be deposited to the Notary contract.
+// Main transaction should be constructed by the user. Several rules should be met for
 // successful main transaction acceptance:
 // 1. Native Notary contract should be a signer of the main transaction.
 // 2. Notary signer should have None scope.
@@ -1089,7 +1089,7 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 	return nil
 }
 
-// GetNetwork returns the network magic of the RPC node client connected to.
+// GetNetwork returns the network magic of the RPC node the client connected to.
 func (c *Client) GetNetwork() (netmode.Magic, error) {
 	c.cacheLock.RLock()
 	defer c.cacheLock.RUnlock()
@@ -1100,7 +1100,7 @@ func (c *Client) GetNetwork() (netmode.Magic, error) {
 	return c.cache.network, nil
 }
 
-// StateRootInHeader returns true if state root is contained in block header.
+// StateRootInHeader returns true if the state root is contained in the block header.
 // You should initialize Client cache with Init() before calling StateRootInHeader.
 func (c *Client) StateRootInHeader() (bool, error) {
 	c.cacheLock.RLock()

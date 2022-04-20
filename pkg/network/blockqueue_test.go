@@ -26,7 +26,7 @@ func TestBlockQueue(t *testing.T) {
 	// nothing should be put into the blockchain
 	assert.Equal(t, uint32(0), chain.BlockHeight())
 	assert.Equal(t, 2, bq.length())
-	// now added expected ones (with duplicates)
+	// now added the expected ones (with duplicates)
 	for i := 1; i < 5; i++ {
 		assert.NoError(t, bq.putBlock(blocks[i]))
 	}

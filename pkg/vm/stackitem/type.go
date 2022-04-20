@@ -2,10 +2,10 @@ package stackitem
 
 import "errors"
 
-// ErrInvalidType is returned on attempts to deserialize some unknown item type.
+// ErrInvalidType is returned upon attempts to deserialize some unknown item type.
 var ErrInvalidType = errors.New("invalid type")
 
-// Type represents type of the stack item.
+// Type represents a type of the stack item.
 type Type byte
 
 // This block defines all known stack item types.
@@ -23,7 +23,7 @@ const (
 	InvalidT   Type = 0xFF
 )
 
-// String implements fmt.Stringer interface.
+// String implements the fmt.Stringer interface.
 func (t Type) String() string {
 	switch t {
 	case AnyT:
@@ -61,7 +61,7 @@ func (t Type) IsValid() bool {
 	}
 }
 
-// FromString returns stackitem type from string.
+// FromString returns stackitem type from the string.
 func FromString(s string) (Type, error) {
 	switch s {
 	case "Any":

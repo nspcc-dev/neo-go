@@ -52,13 +52,13 @@ type NeoCache struct {
 	// committee contains cached committee members and their votes.
 	// It is updated once in a while depending on committee size
 	// (every 28 blocks for mainnet). It's value
-	// is always equal to value stored by `prefixCommittee`.
+	// is always equal to the value stored by `prefixCommittee`.
 	committee keysWithVotes
-	// committeeHash contains script hash of the committee.
+	// committeeHash contains the script hash of the committee.
 	committeeHash util.Uint160
 
-	// gasPerVoteCache contains last updated value of GAS per vote reward for candidates.
-	// It is set in state-modifying methods only and read in `PostPersist` thus is not protected
+	// gasPerVoteCache contains the last updated value of GAS per vote reward for candidates.
+	// It is set in state-modifying methods only and read in `PostPersist`, thus is not protected
 	// by any mutex.
 	gasPerVoteCache map[string]big.Int
 }
@@ -67,7 +67,7 @@ const (
 	neoContractID = -5
 	// NEOTotalSupply is the total amount of NEO in the system.
 	NEOTotalSupply = 100000000
-	// DefaultRegisterPrice is default price for candidate register.
+	// DefaultRegisterPrice is the default price for candidate register.
 	DefaultRegisterPrice = 1000 * GASFactor
 	// prefixCandidate is a prefix used to store validator's data.
 	prefixCandidate = 33
@@ -139,7 +139,7 @@ func copyNeoCache(src, dst *NeoCache) {
 	}
 }
 
-// makeValidatorKey creates a key from account script hash.
+// makeValidatorKey creates a key from the account script hash.
 func makeValidatorKey(key *keys.PublicKey) []byte {
 	b := key.Bytes()
 	// Don't create a new buffer.
@@ -228,7 +228,7 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	return n
 }
 
-// Initialize initializes NEO contract.
+// Initialize initializes a NEO contract.
 func (n *NEO) Initialize(ic *interop.Context) error {
 	if err := n.nep17TokenNative.Initialize(ic); err != nil {
 		return err
@@ -276,8 +276,8 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	return nil
 }
 
-// InitializeCache initializes all NEO cache with the proper values from storage.
-// Cache initialisation should be done apart from Initialize because Initialize is
+// InitializeCache initializes all NEO cache with the proper values from the storage.
+// Cache initialization should be done apart from Initialize because Initialize is
 // called only when deploying native contracts.
 func (n *NEO) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	cache := &NeoCache{
@@ -344,7 +344,7 @@ func (n *NEO) updateCommittee(cache *NeoCache, ic *interop.Context) error {
 	return nil
 }
 
-// OnPersist implements Contract interface.
+// OnPersist implements the Contract interface.
 func (n *NEO) OnPersist(ic *interop.Context) error {
 	if n.cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
 		cache := ic.DAO.GetRWCache(n.ID).(*NeoCache)
@@ -361,7 +361,7 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
-// PostPersist implements Contract interface.
+// PostPersist implements the Contract interface.
 func (n *NEO) PostPersist(ic *interop.Context) error {
 	gas := n.GetGASPerBlock(ic.DAO, ic.Block.Index)
 	cache := ic.DAO.GetROCache(n.ID).(*NeoCache)

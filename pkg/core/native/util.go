@@ -44,7 +44,7 @@ func getIntWithKey(id int32, dao *dao.Simple, key []byte) int64 {
 	return bigint.FromBytes(si).Int64()
 }
 
-// makeUint160Key creates a key from account script hash.
+// makeUint160Key creates a key from the account script hash.
 func makeUint160Key(prefix byte, h util.Uint160) []byte {
 	k := make([]byte, util.Uint160Size+1)
 	k[0] = prefix

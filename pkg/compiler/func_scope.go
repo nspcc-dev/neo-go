@@ -6,7 +6,7 @@ import (
 )
 
 // A funcScope represents the scope within the function context.
-// It holds al the local variables along with the initialized struct positions.
+// It holds all the local variables along with the initialized struct positions.
 type funcScope struct {
 	// Identifier of the function.
 	name string

@@ -16,7 +16,7 @@ import (
 // DefaultTimeout is the default timeout used for RPC requests.
 const DefaultTimeout = 10 * time.Second
 
-// RPCEndpointFlag is a long flag name for RPC endpoint. It can be used to
+// RPCEndpointFlag is a long flag name for an RPC endpoint. It can be used to
 // check for flag presence in the context.
 const RPCEndpointFlag = "rpc-endpoint"
 
@@ -60,7 +60,7 @@ func GetNetwork(ctx *cli.Context) netmode.Magic {
 	return net
 }
 
-// GetTimeoutContext returns a context.Context with default of user-set timeout.
+// GetTimeoutContext returns a context.Context with the default or a user-set timeout.
 func GetTimeoutContext(ctx *cli.Context) (context.Context, func()) {
 	dur := ctx.Duration("timeout")
 	if dur == 0 {

@@ -220,7 +220,7 @@ func TestSetGetRecord(t *testing.T) {
 	c.Invoke(t, "1.2.3.4", "getRecord", "neo.com", int64(nns.A))
 
 	t.Run("SetRecord_compatibility", func(t *testing.T) {
-		// tests are got from the NNS C# implementation and changed accordingly to non-native implementation behaviour
+		// tests are got from the NNS C# implementation and changed accordingly to non-native implementation behavior
 		testCases := []struct {
 			Type       nns.RecordType
 			Name       string

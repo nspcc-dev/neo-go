@@ -38,20 +38,20 @@ type Client struct {
 	requestF func(*request.Raw) (*response.Raw, error)
 
 	cacheLock sync.RWMutex
-	// cache stores RPC node related information client is bound to.
+	// cache stores RPC node related information the client is bound to.
 	// cache is mostly filled in during Init(), but can also be updated
 	// during regular Client lifecycle.
 	cache cache
 
 	latestReqID *atomic.Uint64
-	// getNextRequestID returns ID to be used for subsequent request creation.
-	// It is defined on Client so that our testing code can override this method
-	// for the sake of more predictable request IDs generation behaviour.
+	// getNextRequestID returns an ID to be used for the subsequent request creation.
+	// It is defined on Client, so that our testing code can override this method
+	// for the sake of more predictable request IDs generation behavior.
 	getNextRequestID func() uint64
 }
 
 // Options defines options for the RPC client.
-// All values are optional. If any duration is not specified
+// All values are optional. If any duration is not specified,
 // a default of 4 seconds will be used.
 type Options struct {
 	// Cert is a client-side certificate, it doesn't work at the moment along
@@ -74,7 +74,7 @@ type cache struct {
 	nativeHashes             map[string]util.Uint160
 }
 
-// calculateValidUntilBlockCache stores cached number of validators and
+// calculateValidUntilBlockCache stores a cached number of validators and
 // cache expiration value in blocks.
 type calculateValidUntilBlockCache struct {
 	validatorsCount uint32
@@ -215,8 +215,8 @@ func (c *Client) makeHTTPRequest(r *request.Raw) (*response.Raw, error) {
 	}
 	defer resp.Body.Close()
 
-	// The node might send us proper JSON anyway, so look there first and if
-	// it parses, then it has more relevant data than HTTP error code.
+	// The node might send us a proper JSON anyway, so look there first and if
+	// it parses, it has more relevant data than HTTP error code.
 	err = json.NewDecoder(resp.Body).Decode(raw)
 	if err != nil {
 		if resp.StatusCode != http.StatusOK {
@@ -231,8 +231,8 @@ func (c *Client) makeHTTPRequest(r *request.Raw) (*response.Raw, error) {
 	return raw, nil
 }
 
-// Ping attempts to create a connection to the endpoint.
-// and returns an error if there is one.
+// Ping attempts to create a connection to the endpoint
+// and returns an error if there is any.
 func (c *Client) Ping() error {
 	conn, err := net.DialTimeout("tcp", c.endpoint.Host, defaultDialTimeout)
 	if err != nil {

@@ -10,7 +10,7 @@ type Conflicts struct {
 	Hash util.Uint256 `json:"hash"`
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (c *Conflicts) DecodeBinary(br *io.BinReader) {
 	bytes := br.ReadVarBytes(util.Uint256Size)
 	if br.Err != nil {
@@ -24,7 +24,7 @@ func (c *Conflicts) DecodeBinary(br *io.BinReader) {
 	c.Hash = hash
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (c *Conflicts) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(c.Hash.BytesBE())
 }

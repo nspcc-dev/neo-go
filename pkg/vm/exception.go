@@ -33,53 +33,53 @@ func newExceptionHandlingContext(cOffset, fOffset int) *exceptionHandlingContext
 	}
 }
 
-// HasCatch returns true iff context has `catch` block.
+// HasCatch returns true iff the context has a `catch` block.
 func (c *exceptionHandlingContext) HasCatch() bool { return c.CatchOffset >= 0 }
 
-// HasFinally returns true iff context has `finally` block.
+// HasFinally returns true iff the context has a `finally` block.
 func (c *exceptionHandlingContext) HasFinally() bool { return c.FinallyOffset >= 0 }
 
-// String implements stackitem.Item interface.
+// String implements the stackitem.Item interface.
 func (c *exceptionHandlingContext) String() string {
 	return "exception handling context"
 }
 
-// Value implements stackitem.Item interface.
+// Value implements the stackitem.Item interface.
 func (c *exceptionHandlingContext) Value() interface{} {
 	return c
 }
 
-// Dup implements stackitem.Item interface.
+// Dup implements the stackitem.Item interface.
 func (c *exceptionHandlingContext) Dup() stackitem.Item {
 	return c
 }
 
-// TryBool implements stackitem.Item interface.
+// TryBool implements the stackitem.Item interface.
 func (c *exceptionHandlingContext) TryBool() (bool, error) {
 	panic("can't convert exceptionHandlingContext to Bool")
 }
 
-// TryBytes implements stackitem.Item interface.
+// TryBytes implements the stackitem.Item interface.
 func (c *exceptionHandlingContext) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert exceptionHandlingContext to ByteArray")
 }
 
-// TryInteger implements stackitem.Item interface.
+// TryInteger implements the stackitem.Item interface.
 func (c *exceptionHandlingContext) TryInteger() (*big.Int, error) {
 	return nil, errors.New("can't convert exceptionHandlingContext to Integer")
 }
 
-// Type implements stackitem.Item interface.
+// Type implements the stackitem.Item interface.
 func (c *exceptionHandlingContext) Type() stackitem.Type {
 	panic("exceptionHandlingContext cannot appear on evaluation stack")
 }
 
-// Convert implements stackitem.Item interface.
+// Convert implements the stackitem.Item interface.
 func (c *exceptionHandlingContext) Convert(_ stackitem.Type) (stackitem.Item, error) {
 	panic("exceptionHandlingContext cannot be converted to anything")
 }
 
-// Equals implements stackitem.Item interface.
+// Equals implements the stackitem.Item interface.
 func (c *exceptionHandlingContext) Equals(s stackitem.Item) bool {
 	return c == s
 }

@@ -27,7 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// Designate represents designation contract.
+// Designate represents a designation contract.
 type Designate struct {
 	interop.ContractMD
 	NEO *NEO
@@ -36,9 +36,9 @@ type Designate struct {
 	p2pSigExtensionsEnabled bool
 
 	OracleService atomic.Value
-	// NotaryService represents Notary node module.
+	// NotaryService represents a Notary node module.
 	NotaryService atomic.Value
-	// StateRootService represents StateRoot node module.
+	// StateRootService represents a StateRoot node module.
 	StateRootService *stateroot.Module
 }
 
@@ -64,7 +64,7 @@ const (
 	// maxNodeCount is the maximum number of nodes to set the role for.
 	maxNodeCount = 32
 
-	// DesignationEventName is the name of a designation event.
+	// DesignationEventName is the name of the designation event.
 	DesignationEventName = "Designation"
 )
 
@@ -150,12 +150,12 @@ func (s *Designate) InitializeCache(d *dao.Simple) error {
 	return nil
 }
 
-// OnPersist implements Contract interface.
+// OnPersist implements the Contract interface.
 func (s *Designate) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
-// PostPersist implements Contract interface.
+// PostPersist implements the Contract interface.
 func (s *Designate) PostPersist(ic *interop.Context) error {
 	cache := ic.DAO.GetRWCache(s.ID).(*DesignationCache)
 	if !cache.rolesChangedFlag {
@@ -268,7 +268,7 @@ func getCachedRoleData(cache *DesignationCache, r noderoles.Role) *roleData {
 	return nil
 }
 
-// GetLastDesignatedHash returns last designated hash of a given role.
+// GetLastDesignatedHash returns the last designated hash of the given role.
 func (s *Designate) GetLastDesignatedHash(d *dao.Simple, r noderoles.Role) (util.Uint160, error) {
 	if !s.isValidRole(r) {
 		return util.Uint160{}, ErrInvalidRole

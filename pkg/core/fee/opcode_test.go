@@ -8,7 +8,7 @@ import (
 
 const feeFactor = 30
 
-// The most common Opcode() use case is to get price for single opcode.
+// The most common Opcode() use case is to get price for a single opcode.
 func BenchmarkOpcode1(t *testing.B) {
 	// Just so that we don't always test the same opcode.
 	script := []opcode.Opcode{opcode.NOP, opcode.ADD, opcode.SYSCALL, opcode.APPEND}

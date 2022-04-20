@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// DumperRestorer in the interface to get/add blocks from/to.
+// DumperRestorer is an interface to get/add blocks from/to.
 type DumperRestorer interface {
 	AddBlock(block *block.Block) error
 	GetBlock(hash util.Uint256) (*block.Block, error)
@@ -18,7 +18,7 @@ type DumperRestorer interface {
 }
 
 // Dump writes count blocks from start to the provided writer.
-// Note: header needs to be written separately by client.
+// Note: header needs to be written separately by a client.
 func Dump(bc DumperRestorer, w *io.BinWriter, start, count uint32) error {
 	for i := start; i < start+count; i++ {
 		bh := bc.GetHeaderHash(int(i))
@@ -38,7 +38,7 @@ func Dump(bc DumperRestorer, w *io.BinWriter, start, count uint32) error {
 	return nil
 }
 
-// Restore restores blocks from provided reader.
+// Restore restores blocks from the provided reader.
 // f is called after addition of every block.
 func Restore(bc DumperRestorer, r *io.BinReader, skip, count uint32, f func(b *block.Block) error) error {
 	readBlock := func(r *io.BinReader) ([]byte, error) {

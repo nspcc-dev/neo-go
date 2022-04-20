@@ -21,13 +21,13 @@ var (
 	}
 )
 
-// newGlobal creates new global variable.
+// newGlobal creates a new global variable.
 func (c *codegen) newGlobal(pkg string, name string) {
 	name = c.getIdentName(pkg, name)
 	c.globals[name] = len(c.globals)
 }
 
-// getIdentName returns fully-qualified name for a variable.
+// getIdentName returns a fully-qualified name for a variable.
 func (c *codegen) getIdentName(pkg string, name string) string {
 	if fullName, ok := c.importMap[pkg]; ok {
 		pkg = fullName
@@ -92,7 +92,7 @@ func (c *codegen) traverseGlobals() bool {
 			}
 		}
 		// because we reuse `convertFuncDecl` for init funcs,
-		// we need to cleare scope, so that global variables
+		// we need to clear scope, so that global variables
 		// encountered after will be recognized as globals.
 		c.scope = nil
 	})
@@ -133,7 +133,7 @@ func (c *codegen) traverseGlobals() bool {
 
 // countGlobals counts the global variables in the program to add
 // them with the stack size of the function.
-// Second returned argument contains amount of global constants.
+// Second returned argument contains the amount of global constants.
 func countGlobals(f ast.Node) (int, int) {
 	var numVar, numConst int
 	ast.Inspect(f, func(node ast.Node) bool {
@@ -141,7 +141,7 @@ func countGlobals(f ast.Node) (int, int) {
 		// Skip all function declarations if we have already encountered `defer`.
 		case *ast.FuncDecl:
 			return false
-		// After skipping all funcDecls we are sure that each value spec
+		// After skipping all funcDecls, we are sure that each value spec
 		// is a global declared variable or constant.
 		case *ast.GenDecl:
 			isVar := n.Tok == token.VAR
@@ -172,7 +172,7 @@ func isExprNil(e ast.Expr) bool {
 }
 
 // indexOfStruct returns the index of the given field inside that struct.
-// If the struct does not contain that field it will return -1.
+// If the struct does not contain that field, it will return -1.
 func indexOfStruct(strct *types.Struct, fldName string) int {
 	for i := 0; i < strct.NumFields(); i++ {
 		if strct.Field(i).Name() == fldName {
@@ -189,7 +189,7 @@ func (f funcUsage) funcUsed(name string) bool {
 	return ok
 }
 
-// lastStmtIsReturn checks if last statement of the declaration was return statement..
+// lastStmtIsReturn checks if the last statement of the declaration was return statement.
 func lastStmtIsReturn(body *ast.BlockStmt) (b bool) {
 	if l := len(body.List); l != 0 {
 		switch inner := body.List[l-1].(type) {
@@ -240,11 +240,11 @@ func (c *codegen) fillDocumentInfo() {
 	})
 }
 
-// analyzeFuncUsage traverses all code and returns map with functions
+// analyzeFuncUsage traverses all code and returns a map with functions
 // which should be present in the emitted code.
 // This is done using BFS starting from exported functions or
-// function used in variable declarations (graph edge corresponds to
-// function being called in declaration).
+// the function used in variable declarations (graph edge corresponds to
+// the function being called in declaration).
 func (c *codegen) analyzeFuncUsage() funcUsage {
 	type declPair struct {
 		decl      *ast.FuncDecl
@@ -376,8 +376,8 @@ func canConvert(s string) bool {
 	return true
 }
 
-// canInline returns true if function is to be inlined.
-// Currently there is a static list of function which are inlined,
+// canInline returns true if the function is to be inlined.
+// Currently, there is a static list of functions which are inlined,
 // this may change in future.
 func canInline(s string, name string) bool {
 	if strings.HasPrefix(s, "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline") {

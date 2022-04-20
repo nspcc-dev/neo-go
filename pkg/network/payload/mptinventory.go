@@ -5,12 +5,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// MaxMPTHashesCount is the maximum number of requested MPT nodes hashes.
+// MaxMPTHashesCount is the maximum number of the requested MPT nodes hashes.
 const MaxMPTHashesCount = 32
 
 // MPTInventory payload.
 type MPTInventory struct {
-	// A list of requested MPT nodes hashes.
+	// A list of the requested MPT nodes hashes.
 	Hashes []util.Uint256
 }
 
@@ -21,12 +21,12 @@ func NewMPTInventory(hashes []util.Uint256) *MPTInventory {
 	}
 }
 
-// DecodeBinary implements Serializable interface.
+// DecodeBinary implements the Serializable interface.
 func (p *MPTInventory) DecodeBinary(br *io.BinReader) {
 	br.ReadArray(&p.Hashes, MaxMPTHashesCount)
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (p *MPTInventory) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteArray(p.Hashes)
 }

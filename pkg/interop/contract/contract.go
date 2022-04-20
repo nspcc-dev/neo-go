@@ -24,27 +24,27 @@ const (
 	NoneFlag CallFlag = 0
 )
 
-// CreateMultisigAccount calculates script hash of an m out of n multisignature
-// script using given m and a set of public keys bytes. This function uses
+// CreateMultisigAccount calculates a script hash of an m out of n multisignature
+// script using the given m and a set of public keys bytes. This function uses
 // `System.Contract.CreateMultisigAccount` syscall.
 func CreateMultisigAccount(m int, pubs []interop.PublicKey) []byte {
 	return neogointernal.Syscall2("System.Contract.CreateMultisigAccount", m, pubs).([]byte)
 }
 
-// CreateStandardAccount calculates script hash of a given public key.
+// CreateStandardAccount calculates a script hash of the given public key.
 // This function uses `System.Contract.CreateStandardAccount` syscall.
 func CreateStandardAccount(pub interop.PublicKey) []byte {
 	return neogointernal.Syscall1("System.Contract.CreateStandardAccount", pub).([]byte)
 }
 
-// GetCallFlags returns calling flags which execution context was created with.
+// GetCallFlags returns the calling flags which execution context was created with.
 // This function uses `System.Contract.GetCallFlags` syscall.
 func GetCallFlags() CallFlag {
 	return neogointernal.Syscall0("System.Contract.GetCallFlags").(CallFlag)
 }
 
-// Call executes previously deployed blockchain contract with specified hash
-// (20 bytes in BE form) using provided arguments and call flags.
+// Call executes the previously deployed blockchain contract with the specified hash
+// (20 bytes in BE form) using the provided arguments and call flags.
 // It returns whatever this contract returns. This function uses
 // `System.Contract.Call` syscall.
 func Call(scriptHash interop.Hash160, method string, f CallFlag, args ...interface{}) interface{} {

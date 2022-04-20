@@ -44,7 +44,7 @@ type permissionAux struct {
 	Methods  WildStrings    `json:"methods"`
 }
 
-// NewPermission returns new permission of a given type.
+// NewPermission returns a new permission of the given type.
 func NewPermission(typ PermissionType, args ...interface{}) *Permission {
 	return &Permission{
 		Contract: *newPermissionDesc(typ, args...),
@@ -88,7 +88,7 @@ func (d *PermissionDesc) Group() *keys.PublicKey {
 	return d.Value.(*keys.PublicKey)
 }
 
-// Less returns true if this value is less than given PermissionDesc value.
+// Less returns true if this value is less than the given PermissionDesc value.
 func (d *PermissionDesc) Less(d1 PermissionDesc) bool {
 	if d.Type < d1.Type {
 		return true
@@ -158,7 +158,7 @@ func (ps Permissions) AreValid() error {
 	return nil
 }
 
-// IsAllowed checks if method is allowed to be executed.
+// IsAllowed checks if the method is allowed to be executed.
 func (p *Permission) IsAllowed(hash util.Uint160, m *Manifest, method string) bool {
 	switch p.Contract.Type {
 	case PermissionWildcard:
@@ -187,7 +187,7 @@ func (p *Permission) IsAllowed(hash util.Uint160, m *Manifest, method string) bo
 	return p.Methods.Contains(method)
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (p *Permission) UnmarshalJSON(data []byte) error {
 	aux := new(permissionAux)
 	if err := json.Unmarshal(data, aux); err != nil {
@@ -198,7 +198,7 @@ func (p *Permission) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (d *PermissionDesc) MarshalJSON() ([]byte, error) {
 	switch d.Type {
 	case PermissionHash:
@@ -210,7 +210,7 @@ func (d *PermissionDesc) MarshalJSON() ([]byte, error) {
 	}
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (d *PermissionDesc) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {

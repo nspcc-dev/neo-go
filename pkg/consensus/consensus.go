@@ -40,7 +40,7 @@ const defaultTimePerBlock = 15 * time.Second
 // Number of nanoseconds in millisecond.
 const nsInMs = 1000000
 
-// Category is message category for extensible payloads.
+// Category is a message category for extensible payloads.
 const Category = "dBFT"
 
 // Ledger is the interface to Blockchain sufficient for Service.
@@ -61,19 +61,19 @@ type Ledger interface {
 	mempool.Feer
 }
 
-// Service represents consensus instance.
+// Service represents a consensus instance.
 type Service interface {
 	// Name returns service name.
 	Name() string
 	// Start initializes dBFT and starts event loop for consensus service.
-	// It must be called only when sufficient amount of peers are connected.
+	// It must be called only when the sufficient amount of peers are connected.
 	Start()
 	// Shutdown stops dBFT event loop.
 	Shutdown()
 
-	// OnPayload is a callback to notify Service about new received payload.
+	// OnPayload is a callback to notify the Service about a newly received payload.
 	OnPayload(p *npayload.Extensible) error
-	// OnTransaction is a callback to notify Service about new received transaction.
+	// OnTransaction is a callback to notify the Service about a newly received transaction.
 	OnTransaction(tx *transaction.Transaction)
 }
 
@@ -100,8 +100,8 @@ type service struct {
 	finished chan struct{}
 	// lastTimestamp contains timestamp for the last processed block.
 	// We can't rely on timestamp from dbft context because it is changed
-	// before block is accepted, so in case of change view it will contain
-	// updated value.
+	// before the block is accepted. So, in case of change view, it will contain
+	// an updated value.
 	lastTimestamp uint64
 }
 
@@ -109,23 +109,23 @@ type service struct {
 type Config struct {
 	// Logger is a logger instance.
 	Logger *zap.Logger
-	// Broadcast is a callback which is called to notify server
-	// about new consensus payload to sent.
+	// Broadcast is a callback which is called to notify the server
+	// about a new consensus payload to be sent.
 	Broadcast func(p *npayload.Extensible)
 	// Chain is a Ledger instance.
 	Chain Ledger
 	// ProtocolConfiguration contains protocol settings.
 	ProtocolConfiguration config.ProtocolConfiguration
 	// RequestTx is a callback to which will be called
-	// when a node lacks transactions present in a block.
+	// when a node lacks transactions present in the block.
 	RequestTx func(h ...util.Uint256)
-	// TimePerBlock minimal time that should pass before next block is accepted.
+	// TimePerBlock is minimal time that should pass before the next block is accepted.
 	TimePerBlock time.Duration
 	// Wallet is a local-node wallet configuration.
 	Wallet *config.Wallet
 }
 
-// NewService returns new consensus.Service instance.
+// NewService returns a new consensus.Service instance.
 func NewService(cfg Config) (Service, error) {
 	if cfg.TimePerBlock <= 0 {
 		cfg.TimePerBlock = defaultTimePerBlock
@@ -155,7 +155,7 @@ func NewService(cfg Config) (Service, error) {
 		return nil, err
 	}
 
-	// Check that wallet password is correct for at least one account.
+	// Check that the wallet password is correct for at least one account.
 	var ok bool
 	for _, acc := range srv.wallet.Accounts {
 		err := acc.Decrypt(srv.Config.Wallet.Password, srv.wallet.Scrypt)
@@ -213,7 +213,7 @@ var (
 	_ block.Block       = (*neoBlock)(nil)
 )
 
-// NewPayload creates new consensus payload for the provided network.
+// NewPayload creates a new consensus payload for the provided network.
 func NewPayload(m netmode.Magic, stateRootEnabled bool) *Payload {
 	return &Payload{
 		Extensible: npayload.Extensible{
@@ -272,7 +272,7 @@ func (s *service) Start() {
 	}
 }
 
-// Shutdown implements Service interface.
+// Shutdown implements the Service interface.
 func (s *service) Shutdown() {
 	if s.started.Load() {
 		close(s.quit)

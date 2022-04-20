@@ -13,17 +13,17 @@ import (
 // (including itself).
 const MaxDeserialized = 2048
 
-// typicalNumOfItems is the number of items covering most serializaton needs.
-// It's a hint used for map creation, so it's not limiting anything, it's just
+// typicalNumOfItems is the number of items covering most serialization needs.
+// It's a hint used for map creation, so it does not limit anything, it's just
 // a microoptimization to avoid excessive reallocations. Most of the serialized
 // items are structs, so there is at least one of them.
 const typicalNumOfItems = 4
 
-// ErrRecursive is returned on attempts to serialize some recursive stack item
-// (like array including an item with reference to the same array).
+// ErrRecursive is returned upon an attempt to serialize some recursive stack item
+// (like an array including an item with the reference to the same array).
 var ErrRecursive = errors.New("recursive item")
 
-// ErrUnserializable is returned on attempt to serialize some item that can't
+// ErrUnserializable is returned upon an attempt to serialize some item that can't
 // be serialized (like Interop item or Pointer).
 var ErrUnserializable = errors.New("unserializable")
 
@@ -42,7 +42,7 @@ type deserContext struct {
 	limit        int
 }
 
-// Serialize encodes given Item into the byte slice.
+// Serialize encodes the given Item into a byte slice.
 func Serialize(item Item) ([]byte, error) {
 	sc := serContext{
 		allowInvalid: false,
@@ -55,8 +55,8 @@ func Serialize(item Item) ([]byte, error) {
 	return sc.data, nil
 }
 
-// EncodeBinary encodes given Item into the given BinWriter. It's
-// similar to io.Serializable's EncodeBinary, but works with Item
+// EncodeBinary encodes the given Item into the given BinWriter. It's
+// similar to io.Serializable's EncodeBinary but works with Item
 // interface.
 func EncodeBinary(item Item, w *io.BinWriter) {
 	data, err := Serialize(item)
@@ -67,11 +67,11 @@ func EncodeBinary(item Item, w *io.BinWriter) {
 	w.WriteBytes(data)
 }
 
-// EncodeBinaryProtected encodes given Item into the given BinWriter. It's
+// EncodeBinaryProtected encodes the given Item into the given BinWriter. It's
 // similar to EncodeBinary but allows to encode interop items (only type,
-// value is lost) and doesn't return any errors in w, instead if error
-// (like recursive array) is encountered it just writes special InvalidT
-// type of element to w.
+// value is lost) and doesn't return any errors in the w. Instead, if an error
+// (like recursive array) is encountered, it just writes the special InvalidT
+// type of an element to the w.
 func EncodeBinaryProtected(item Item, w *io.BinWriter) {
 	sc := serContext{
 		allowInvalid: true,
@@ -185,7 +185,7 @@ func (w *serContext) appendVarUint(val uint64) {
 	w.data = append(w.data, w.uv[:n]...)
 }
 
-// Deserialize decodes Item from the given byte slice.
+// Deserialize decodes the Item from the given byte slice.
 func Deserialize(data []byte) (Item, error) {
 	r := io.NewBinReaderFromBuf(data)
 	item := DecodeBinary(r)
@@ -195,8 +195,8 @@ func Deserialize(data []byte) (Item, error) {
 	return item, nil
 }
 
-// DecodeBinary decodes previously serialized Item from the given
-// reader. It's similar to the io.Serializable's DecodeBinary(), but implemented
+// DecodeBinary decodes the previously serialized Item from the given
+// reader. It's similar to the io.Serializable's DecodeBinary() but implemented
 // as a function because Item itself is an interface. Caveat: always check
 // reader's error value before using the returned Item.
 func DecodeBinary(r *io.BinReader) Item {

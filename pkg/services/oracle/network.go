@@ -51,16 +51,16 @@ func getDefaultClient(cfg config.OracleConfiguration) *http.Client {
 	d := &net.Dialer{}
 	if !cfg.AllowPrivateHost {
 		// Control is used after request URI is resolved and network connection (network
-		// file descriptor) is created, but right before the moment listening/dialing
+		// file descriptor) is created, but right before listening/dialing
 		// is started.
-		// `address` represents resolved IP address in the format of ip:port. `address`
+		// `address` represents a resolved IP address in the format of ip:port. `address`
 		// is presented in its final (resolved) form that was used directly for network
 		// connection establishing.
 		// Control is called for each item in the set of IP addresses got from request
 		// URI resolving. The first network connection with address that passes Control
 		// function will be used for further request processing. Network connection
 		// with address that failed Control will be ignored. If all the connections
-		// fail Control then the most relevant error (the one from the first address)
+		// fail Control, the most relevant error (the one from the first address)
 		// will be returned after `Client.Do`.
 		d.Control = func(network, address string, c syscall.RawConn) error {
 			host, _, err := net.SplitHostPort(address)
@@ -81,7 +81,7 @@ func getDefaultClient(cfg config.OracleConfiguration) *http.Client {
 	client.Transport = &http.Transport{
 		DisableKeepAlives: true,
 		// Do not set DialTLSContext, so that DialContext will be used to establish the
-		// connection. After that TLS connection will be added to a persistent connection
+		// connection. After that, TLS connection will be added to a persistent connection
 		// by standard library code and handshaking will be performed.
 		DialContext: d.DialContext,
 	}

@@ -10,7 +10,7 @@ import (
 // PprofService https://golang.org/pkg/net/http/pprof/.
 type PprofService Service
 
-// NewPprofService created new service for gathering pprof metrics.
+// NewPprofService creates a new service for gathering pprof metrics.
 func NewPprofService(cfg Config, log *zap.Logger) *Service {
 	if log == nil {
 		return nil

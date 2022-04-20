@@ -12,7 +12,7 @@ import (
 // It is taken from https://github.com/neo-project/neo/blob/master/neo/IO/Helper.cs#L130
 const MaxArraySize = 0x1000000
 
-// BinReader is a convenient wrapper around a io.Reader and err object.
+// BinReader is a convenient wrapper around an io.Reader and err object.
 // Used to simplify error handling when reading into a struct with many fields.
 type BinReader struct {
 	r   io.Reader
@@ -25,7 +25,7 @@ func NewBinReaderFromIO(ior io.Reader) *BinReader {
 	return &BinReader{r: ior}
 }
 
-// NewBinReaderFromBuf makes a BinReader from byte buffer.
+// NewBinReaderFromBuf makes a BinReader from a byte buffer.
 func NewBinReaderFromBuf(b []byte) *BinReader {
 	r := bytes.NewReader(b)
 	return NewBinReaderFromIO(r)
@@ -98,7 +98,7 @@ func (r *BinReader) ReadBool() bool {
 	return r.ReadB() != 0
 }
 
-// ReadArray reads array into value which must be
+// ReadArray reads an array into a value which must be
 // a pointer to a slice.
 func (r *BinReader) ReadArray(t interface{}, maxSize ...int) {
 	value := reflect.ValueOf(t)
@@ -187,7 +187,7 @@ func (r *BinReader) ReadVarBytes(maxSize ...int) []byte {
 	return b
 }
 
-// ReadBytes copies fixed-size buffer from the reader to provided slice.
+// ReadBytes copies a fixed-size buffer from the reader to the provided slice.
 func (r *BinReader) ReadBytes(buf []byte) {
 	if r.Err != nil {
 		return

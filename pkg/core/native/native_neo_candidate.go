@@ -11,7 +11,7 @@ type candidate struct {
 	Votes      big.Int
 }
 
-// FromBytes unmarshals candidate from byte array.
+// FromBytes unmarshals a candidate from the byte array.
 func (c *candidate) FromBytes(data []byte) *candidate {
 	err := stackitem.DeserializeConvertible(data, c)
 	if err != nil {

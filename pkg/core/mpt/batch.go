@@ -5,7 +5,7 @@ import (
 	"sort"
 )
 
-// Batch is batch of storage changes.
+// Batch is a batch of storage changes.
 // It stores key-value pairs in a sorted state.
 type Batch struct {
 	kv []keyValue
@@ -16,7 +16,7 @@ type keyValue struct {
 	value []byte
 }
 
-// MapToMPTBatch makes a Batch from unordered set of storage changes.
+// MapToMPTBatch makes a Batch from an unordered set of storage changes.
 func MapToMPTBatch(m map[string][]byte) Batch {
 	var b Batch
 
@@ -31,13 +31,13 @@ func MapToMPTBatch(m map[string][]byte) Batch {
 	return b
 }
 
-// PutBatch puts batch to trie.
+// PutBatch puts a batch to a trie.
 // It is not atomic (and probably cannot be without substantial slow-down)
-// and returns number of elements processed.
+// and returns the number of elements processed.
 // If an error is returned, the trie may be in the inconsistent state in case of storage failures.
 // This is due to the fact that we can remove multiple children from the branch node simultaneously
 // and won't strip the resulting branch node.
-// However it is used mostly after the block processing to update MPT and error is not expected.
+// However, it is used mostly after block processing to update MPT, and error is not expected.
 func (t *Trie) PutBatch(b Batch) (int, error) {
 	if len(b.kv) == 0 {
 		return 0, nil
@@ -150,13 +150,13 @@ func (t *Trie) addToBranch(b *BranchNode, kv []keyValue, inTrie bool) (Node, int
 		t.removeRef(b.Hash(), b.bytes)
 	}
 
-	// Error during iterate means some storage failure (i.e. some hash node cannot be
-	// retrieved from storage). This can leave trie in inconsistent state, because
-	// it can be impossible to strip branch node after it has been changed.
+	// An error during iterate means some storage failure (i.e. some hash node cannot be
+	// retrieved from storage). This can leave the trie in an inconsistent state because
+	// it can be impossible to strip the branch node after it has been changed.
 	// Consider a branch with 10 children, first 9 of which are deleted and the remaining one
-	// is a leaf node replaced by a hash node missing from storage.
-	// This can't be fixed easily because we need to _revert_ changes in reference counts
-	// for children which were updated successfully. But storage access errors means we are
+	// is a leaf node replaced by a hash node missing from the storage.
+	// This can't be fixed easily because we need to _revert_ changes in the reference counts
+	// for children which have been updated successfully. But storage access errors means we are
 	// in a bad state anyway.
 	n, err := t.iterateBatch(kv, func(c byte, kv []keyValue) (int, error) {
 		child, n, err := t.putBatchIntoNode(b.Children[c], kv)
@@ -167,8 +167,8 @@ func (t *Trie) addToBranch(b *BranchNode, kv []keyValue, inTrie bool) (Node, int
 		b.invalidateCache()
 	}
 
-	// Even if some of the children can't be put, we need to try to strip branch
-	// and possibly update refcounts.
+	// Even if some of the children can't be put, we need to try to strip the branch
+	// and possibly update the refcounts.
 	nd, bErr := t.stripBranch(b)
 	if err == nil {
 		err = bErr
@@ -176,8 +176,8 @@ func (t *Trie) addToBranch(b *BranchNode, kv []keyValue, inTrie bool) (Node, int
 	return nd, n, err
 }
 
-// stripsBranch strips branch node after incomplete batch put.
-// It assumes there is no reference to b in trie.
+// stripsBranch strips the branch node after incomplete batch put.
+// It assumes there is no reference to b in the trie.
 func (t *Trie) stripBranch(b *BranchNode) (Node, error) {
 	var n int
 	var lastIndex byte
@@ -232,12 +232,12 @@ func (t *Trie) putBatchIntoHash(curr *HashNode, kv []keyValue) (Node, int, error
 	return t.putBatchIntoNode(result, kv)
 }
 
-// Creates new subtrie from provided key-value pairs.
+// Creates a new subtrie from the provided key-value pairs.
 // Items in kv must have no common prefix.
-// If there are any deletions in kv, return error.
+// If there are any deletions in kv, error is returned.
 // kv is not empty.
 // kv is sorted by key.
-// value is current value stored by prefix.
+// value is the current value stored by prefix.
 func (t *Trie) newSubTrieMany(prefix []byte, kv []keyValue, value []byte) (Node, int, error) {
 	if len(kv[0].key) == 0 {
 		if kv[0].value == nil {

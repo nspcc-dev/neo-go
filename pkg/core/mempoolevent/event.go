@@ -17,7 +17,7 @@ const (
 	TransactionRemoved Type = 0x02
 )
 
-// Event represents one of mempool events: transaction was added or removed from mempool.
+// Event represents one of mempool events: transaction was added or removed from the mempool.
 type Event struct {
 	Type Type
 	Tx   *transaction.Transaction
@@ -36,7 +36,7 @@ func (e Type) String() string {
 	}
 }
 
-// GetEventTypeFromString converts input string into an Type if it's possible.
+// GetEventTypeFromString converts the input string into the Type if it's possible.
 func GetEventTypeFromString(s string) (Type, error) {
 	switch s {
 	case "added":
@@ -48,12 +48,12 @@ func GetEventTypeFromString(s string) (Type, error) {
 	}
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (e Type) MarshalJSON() ([]byte, error) {
 	return json.Marshal(e.String())
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (e *Type) UnmarshalJSON(b []byte) error {
 	var s string
 

@@ -51,12 +51,12 @@ func (c OracleResponseCode) IsValid() bool {
 		c == InsufficientFunds || c == ContentTypeNotSupported || c == Error
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (c OracleResponseCode) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + c.String() + `"`), nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (c *OracleResponseCode) UnmarshalJSON(data []byte) error {
 	var js string
 	if err := json.Unmarshal(data, &js); err != nil {
@@ -90,7 +90,7 @@ func (c *OracleResponseCode) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (r *OracleResponse) DecodeBinary(br *io.BinReader) {
 	r.ID = br.ReadU64LE()
 	r.Code = OracleResponseCode(br.ReadB())
@@ -104,7 +104,7 @@ func (r *OracleResponse) DecodeBinary(br *io.BinReader) {
 	}
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (r *OracleResponse) EncodeBinary(w *io.BinWriter) {
 	w.WriteU64LE(r.ID)
 	w.WriteB(byte(r.Code))

@@ -15,13 +15,13 @@ type UnclaimedGas struct {
 	Unclaimed big.Int
 }
 
-// unclaimedGas is an auxiliary struct for JSON marhsalling.
+// unclaimedGas is an auxiliary struct for JSON marshalling.
 type unclaimedGas struct {
 	Address   string `json:"address"`
 	Unclaimed string `json:"unclaimed"`
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (g UnclaimedGas) MarshalJSON() ([]byte, error) {
 	gas := &unclaimedGas{
 		Address:   address.Uint160ToString(g.Address),
@@ -30,7 +30,7 @@ func (g UnclaimedGas) MarshalJSON() ([]byte, error) {
 	return json.Marshal(gas)
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (g *UnclaimedGas) UnmarshalJSON(data []byte) error {
 	gas := new(unclaimedGas)
 	if err := json.Unmarshal(data, gas); err != nil {

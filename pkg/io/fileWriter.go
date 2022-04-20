@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-// MakeDirForFile creates directory provided in filePath.
+// MakeDirForFile creates a directory provided in the filePath.
 func MakeDirForFile(filePath string, creator string) error {
 	fileName := filePath
 	dir := filepath.Dir(fileName)

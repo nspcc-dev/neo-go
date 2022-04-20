@@ -27,8 +27,8 @@ func (o *Oracle) getResponse(reqID uint64, create bool) *incompleteTx {
 	return incTx
 }
 
-// AddResponse processes oracle response from node pub.
-// sig is response transaction signature.
+// AddResponse handles an oracle response (transaction signature for some identified request) signed by the given key.
+// sig is a response transaction signature.
 func (o *Oracle) AddResponse(pub *keys.PublicKey, reqID uint64, txSig []byte) {
 	incTx := o.getResponse(reqID, true)
 	if incTx == nil {
@@ -63,7 +63,7 @@ func (o *Oracle) AddResponse(pub *keys.PublicKey, reqID uint64, txSig []byte) {
 	}
 }
 
-// ErrResponseTooLarge is returned when response exceeds max allowed size.
+// ErrResponseTooLarge is returned when a response exceeds the max allowed size.
 var ErrResponseTooLarge = errors.New("too big response")
 
 func readResponse(rc gio.ReadCloser, limit int) ([]byte, error) {
@@ -80,7 +80,7 @@ func readResponse(rc gio.ReadCloser, limit int) ([]byte, error) {
 	return nil, err
 }
 
-// CreateResponseTx creates unsigned oracle response transaction.
+// CreateResponseTx creates an unsigned oracle response transaction.
 func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transaction.OracleResponse) (*transaction.Transaction, error) {
 	tx := transaction.New(o.oracleResponse, 0)
 	tx.Nonce = uint32(resp.ID)
@@ -134,9 +134,9 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transa
 }
 
 func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool) {
-	// (*Blockchain).GetTestVM calls Hash() method of provided transaction; once being called, this
+	// (*Blockchain).GetTestVM calls Hash() method of the provided transaction; once being called, this
 	// method caches transaction hash, but tx building is not yet completed and hash will be changed.
-	// So make a copy of tx to avoid wrong hash caching.
+	// So, make a copy of the tx to avoid wrong hash caching.
 	cp := *tx
 	ic := o.Chain.GetTestVM(trigger.Verification, &cp, nil)
 	ic.VM.GasLimit = o.Chain.GetMaxVerificationGAS()

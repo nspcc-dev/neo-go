@@ -4,7 +4,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// refCounter represents reference counter for the VM.
+// refCounter represents a reference counter for the VM.
 type refCounter int
 
 type (
@@ -43,7 +43,7 @@ func (r *refCounter) Add(item stackitem.Item) {
 	}
 }
 
-// Remove removes item from the reference counter.
+// Remove removes an item from the reference counter.
 func (r *refCounter) Remove(item stackitem.Item) {
 	if r == nil {
 		return

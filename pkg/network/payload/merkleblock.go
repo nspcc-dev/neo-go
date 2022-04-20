@@ -16,7 +16,7 @@ type MerkleBlock struct {
 	Flags   []byte
 }
 
-// DecodeBinary implements Serializable interface.
+// DecodeBinary implements the Serializable interface.
 func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
 	m.Header = &block.Header{}
 	m.Header.DecodeBinary(br)
@@ -34,7 +34,7 @@ func (m *MerkleBlock) DecodeBinary(br *io.BinReader) {
 	m.Flags = br.ReadVarBytes((txCount + 7) / 8)
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (m *MerkleBlock) EncodeBinary(bw *io.BinWriter) {
 	m.Header.EncodeBinary(bw)
 

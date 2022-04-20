@@ -2,7 +2,7 @@ package management
 
 import "github.com/nspcc-dev/neo-go/pkg/interop"
 
-// Contract represents deployed contract.
+// Contract represents a deployed contract.
 type Contract struct {
 	ID            int
 	UpdateCounter int
@@ -49,7 +49,7 @@ type ABI struct {
 	Events  []Event
 }
 
-// Method represents contract method.
+// Method represents a contract method.
 type Method struct {
 	Name       string
 	Params     []Parameter
@@ -58,13 +58,13 @@ type Method struct {
 	Safe       bool
 }
 
-// Event represents contract event.
+// Event represents a contract event.
 type Event struct {
 	Name   string
 	Params []Parameter
 }
 
-// Parameter represents method parameter.
+// Parameter represents a method parameter.
 type Parameter struct {
 	Name string
 	Type ParameterType
@@ -76,7 +76,7 @@ type Permission struct {
 	Methods  []string
 }
 
-// Group represents manifest group.
+// Group represents a manifest group.
 type Group struct {
 	PublicKey interop.PublicKey
 	Signature interop.Signature

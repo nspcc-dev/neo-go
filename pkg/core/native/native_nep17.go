@@ -22,12 +22,12 @@ import (
 // prefixAccount is the standard prefix used to store account data.
 const prefixAccount = 20
 
-// makeAccountKey creates a key from account script hash.
+// makeAccountKey creates a key from the account script hash.
 func makeAccountKey(h util.Uint160) []byte {
 	return makeUint160Key(prefixAccount, h)
 }
 
-// nep17TokenNative represents NEP-17 token contract.
+// nep17TokenNative represents a NEP-17 token contract.
 type nep17TokenNative struct {
 	interop.ContractMD
 	symbol       string
@@ -165,8 +165,8 @@ func (c *nep17TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint
 	ic.Notifications = append(ic.Notifications, ne)
 }
 
-// updateAccBalance adds specified amount to the acc's balance. If requiredBalance
-// is set and amount is 0, then acc's balance is checked against requiredBalance.
+// updateAccBalance adds the specified amount to the acc's balance. If requiredBalance
+// is set and amount is 0, the acc's balance is checked against requiredBalance.
 func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint160, amount *big.Int, requiredBalance *big.Int) error {
 	key := makeAccountKey(acc)
 	si := ic.DAO.GetStorageItem(c.ID, key)
@@ -175,7 +175,7 @@ func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint16
 			return errors.New("insufficient funds")
 		}
 		if amount.Sign() == 0 {
-			// it's OK to transfer 0 if the balance 0, no need to put si to the storage
+			// it's OK to transfer 0 if the balance is 0, no need to put si to the storage
 			return nil
 		}
 		si = state.StorageItem{}
@@ -196,7 +196,7 @@ func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint16
 	return nil
 }
 
-// TransferInternal transfers NEO between accounts.
+// TransferInternal transfers NEO across accounts.
 func (c *nep17TokenNative) TransferInternal(ic *interop.Context, from, to util.Uint160, amount *big.Int, data stackitem.Item) error {
 	if amount.Sign() == -1 {
 		return errors.New("negative amount")

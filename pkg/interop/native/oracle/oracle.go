@@ -1,5 +1,5 @@
 /*
-Package oracle provides interface to OracleContract native contract.
+Package oracle provides an interface to OracleContract native contract.
 Oracles allow you to get external (non-blockchain) data using HTTPS or NeoFS
 protocols.
 */
@@ -28,12 +28,12 @@ const (
 // Hash represents Oracle contract hash.
 const Hash = "\x58\x87\x17\x11\x7e\x0a\xa8\x10\x72\xaf\xab\x71\xd2\xdd\x89\xfe\x7c\x4b\x92\xfe"
 
-// MinimumResponseGas is the minimum response fee permitted for request (that is
+// MinimumResponseGas is the minimum response fee permitted for a request (that is
 // you can't attach less than that to your request). It's 0.1 GAS at the moment.
 const MinimumResponseGas = 10_000_000
 
 // Request makes an oracle request. It can only be successfully invoked by
-// deployed contract and it takes the following parameters:
+// a deployed contract and it takes the following parameters:
 //
 //   url
 //       URL to fetch, only https and neofs URLs are supported like
@@ -41,7 +41,7 @@ const MinimumResponseGas = 10_000_000
 //       neofs:6pJtLUnGqDxE2EitZYLsDzsfTDVegD6BrRUn8QAFZWyt/5Cyxb3wrHDw5pqY63hb5otCSsJ24ZfYmsA8NAjtho2gr
 //
 //   filter
-//       JSONPath filter to process the result, if specified it will be
+//       JSONPath filter to process the result; if specified, it will be
 //       applied to the data returned from HTTP/NeoFS and you'll only get
 //       filtered data in your callback method.
 //
@@ -54,7 +54,7 @@ const MinimumResponseGas = 10_000_000
 //
 //       where url is the same url specified for Request, userData is anything
 //       passed in the next parameter, code is the status of the reply and
-//       result is data returned from request if any.
+//       result is the data returned from the request if any.
 //
 //   userData
 //       data to pass to the callback function.
@@ -71,12 +71,12 @@ func Request(url string, filter []byte, cb string, userData interface{}, gasForR
 		url, filter, cb, userData, gasForResponse)
 }
 
-// GetPrice returns current oracle request price.
+// GetPrice returns the current oracle request price.
 func GetPrice() int {
 	return neogointernal.CallWithToken(Hash, "getPrice", int(contract.ReadStates)).(int)
 }
 
-// SetPrice allows to set oracle request price. This method can only be
+// SetPrice allows to set the oracle request price. This method can only be
 // successfully invoked by the committee.
 func SetPrice(amount int) {
 	neogointernal.CallWithTokenNoRet(Hash, "setPrice", int(contract.States), amount)

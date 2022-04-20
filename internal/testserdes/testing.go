@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// MarshalUnmarshalJSON checks if expected stays the same after
+// MarshalUnmarshalJSON checks if the expected stays the same after
 // marshal/unmarshal via JSON.
 func MarshalUnmarshalJSON(t *testing.T, expected, actual interface{}) {
 	data, err := json.Marshal(expected)
@@ -18,7 +18,7 @@ func MarshalUnmarshalJSON(t *testing.T, expected, actual interface{}) {
 	require.Equal(t, expected, actual)
 }
 
-// EncodeDecodeBinary checks if expected stays the same after
+// EncodeDecodeBinary checks if the expected stays the same after
 // serializing/deserializing via io.Serializable methods.
 func EncodeDecodeBinary(t *testing.T, expected, actual io.Serializable) {
 	data, err := EncodeBinary(expected)
@@ -27,7 +27,7 @@ func EncodeDecodeBinary(t *testing.T, expected, actual io.Serializable) {
 	require.Equal(t, expected, actual)
 }
 
-// ToFromStackItem checks if expected stays the same after converting to/from
+// ToFromStackItem checks if the expected stays the same after converting to/from
 // StackItem.
 func ToFromStackItem(t *testing.T, expected, actual stackitem.Convertible) {
 	item, err := expected.ToStackItem()
@@ -58,7 +58,7 @@ type encodable interface {
 	Decode(*io.BinReader) error
 }
 
-// EncodeDecode checks if expected stays the same after
+// EncodeDecode checks if the expected stays the same after
 // serializing/deserializing via encodable methods.
 func EncodeDecode(t *testing.T, expected, actual encodable) {
 	data, err := Encode(expected)

@@ -14,13 +14,13 @@ const (
 	InvalidEventID EventID = iota
 	// BlockEventID is a `block_added` event.
 	BlockEventID
-	// TransactionEventID corresponds to `transaction_added` event.
+	// TransactionEventID corresponds to the `transaction_added` event.
 	TransactionEventID
 	// NotificationEventID represents `notification_from_execution` events.
 	NotificationEventID
 	// ExecutionEventID is used for `transaction_executed` events.
 	ExecutionEventID
-	// NotaryRequestEventID is used for `notary_request_event` event.
+	// NotaryRequestEventID is used for the `notary_request_event` event.
 	NotaryRequestEventID
 	// MissedEventID notifies user of missed events.
 	MissedEventID EventID = 255
@@ -46,7 +46,7 @@ func (e EventID) String() string {
 	}
 }
 
-// GetEventIDFromString converts input string into an EventID if it's possible.
+// GetEventIDFromString converts an input string into an EventID if it's possible.
 func GetEventIDFromString(s string) (EventID, error) {
 	switch s {
 	case "block_added":
@@ -66,12 +66,12 @@ func GetEventIDFromString(s string) (EventID, error) {
 	}
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (e EventID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(e.String())
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (e *EventID) UnmarshalJSON(b []byte) error {
 	var s string
 

@@ -39,7 +39,7 @@ const (
 	compilerFieldSize = 64
 )
 
-// File represents compiled contract file structure according to the NEF3 standard.
+// File represents a compiled contract file structure according to the NEF3 standard.
 type File struct {
 	Header
 	Source   string        `json:"source"`
@@ -48,13 +48,13 @@ type File struct {
 	Checksum uint32        `json:"checksum"`
 }
 
-// Header represents File header.
+// Header represents a File header.
 type Header struct {
 	Magic    uint32 `json:"magic"`
 	Compiler string `json:"compiler"`
 }
 
-// NewFile returns new NEF3 file with script specified.
+// NewFile returns a new NEF3 file with the script specified.
 func NewFile(script []byte) (*File, error) {
 	file := &File{
 		Header: Header{
@@ -71,7 +71,7 @@ func NewFile(script []byte) (*File, error) {
 	return file, nil
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (h *Header) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(h.Magic)
 	if len(h.Compiler) > compilerFieldSize {
@@ -83,7 +83,7 @@ func (h *Header) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(b)
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (h *Header) DecodeBinary(r *io.BinReader) {
 	h.Magic = r.ReadU32LE()
 	if h.Magic != Magic {
@@ -107,7 +107,7 @@ func (n *File) CalculateChecksum() uint32 {
 	return binary.LittleEndian.Uint32(hash.Checksum(bb[:len(bb)-4]))
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (n *File) EncodeBinary(w *io.BinWriter) {
 	n.Header.EncodeBinary(w)
 	if len(n.Source) > MaxSourceURLLength {
@@ -124,7 +124,7 @@ func (n *File) EncodeBinary(w *io.BinWriter) {
 
 var errInvalidReserved = errors.New("reserved bytes must be 0")
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (n *File) DecodeBinary(r *io.BinReader) {
 	n.Header.DecodeBinary(r)
 	n.Source = r.ReadString(MaxSourceURLLength)
@@ -152,7 +152,7 @@ func (n *File) DecodeBinary(r *io.BinReader) {
 	}
 }
 
-// Bytes returns byte array with serialized NEF File.
+// Bytes returns a byte array with a serialized NEF File.
 func (n File) Bytes() ([]byte, error) {
 	buf := io.NewBufBinWriter()
 	n.EncodeBinary(buf.BinWriter)
@@ -162,7 +162,7 @@ func (n File) Bytes() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// FileFromBytes returns NEF File deserialized from given bytes.
+// FileFromBytes returns a NEF File deserialized from the given bytes.
 func FileFromBytes(source []byte) (File, error) {
 	result := File{}
 	r := io.NewBinReaderFromBuf(source)

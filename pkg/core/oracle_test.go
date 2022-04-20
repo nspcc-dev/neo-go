@@ -477,7 +477,7 @@ type (
 	}
 )
 
-// Get implements oracle.HTTPClient interface.
+// Get implements the oracle.HTTPClient interface.
 func (c *httpClient) Do(req *http.Request) (*http.Response, error) {
 	if c.returnOracleRedirectionErrOn != nil && c.returnOracleRedirectionErrOn(req.URL.String()) {
 		return nil, fmt.Errorf("%w: private network", oracle.ErrRestrictedRedirect)

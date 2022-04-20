@@ -19,13 +19,13 @@ var (
 	errStop          = errors.New("stop condition is met")
 )
 
-// Billet is a part of MPT trie with missing hash nodes that need to be restored.
+// Billet is a part of an MPT trie with missing hash nodes that need to be restored.
 // Billet is based on the following assumptions:
-// 1. Refcount can only be incremented (we don't change MPT structure during restore,
+// 1. Refcount can only be incremented (we don't change the MPT structure during restore,
 //    thus don't need to decrease refcount).
-// 2. Each time the part of Billet is completely restored, it is collapsed into
+// 2. Each time a part of a Billet is completely restored, it is collapsed into
 //    HashNode.
-// 3. Pair (node, path) must be restored only once. It's a duty of MPT pool to manage
+// 3. Any pair (node, path) must be restored only once. It's a duty of an MPT pool to manage
 //    MPT paths in order to provide this assumption.
 type Billet struct {
 	TempStoragePrefix storage.KeyPrefix
@@ -35,9 +35,9 @@ type Billet struct {
 	mode TrieMode
 }
 
-// NewBillet returns new billet for MPT trie restoring. It accepts a MemCachedStore
+// NewBillet returns a new billet for MPT trie restoring. It accepts a MemCachedStore
 // to decouple storage errors from logic errors so that all storage errors are
-// processed during `store.Persist()` at the caller. This also has the benefit,
+// processed during `store.Persist()` at the caller. Another benifit is
 // that every `Put` can be considered an atomic operation.
 func NewBillet(rootHash util.Uint256, mode TrieMode, prefix storage.KeyPrefix, store *storage.MemCachedStore) *Billet {
 	return &Billet{
@@ -49,8 +49,8 @@ func NewBillet(rootHash util.Uint256, mode TrieMode, prefix storage.KeyPrefix, s
 }
 
 // RestoreHashNode replaces HashNode located at the provided path by the specified Node
-// and stores it. It also maintains MPT as small as possible by collapsing those parts
-// of MPT that have been completely restored.
+// and stores it. It also maintains the MPT as small as possible by collapsing those parts
+// of the MPT that have been completely restored.
 func (b *Billet) RestoreHashNode(path []byte, node Node) error {
 	if _, ok := node.(*HashNode); ok {
 		return fmt.Errorf("%w: unable to restore node into HashNode", ErrRestoreFailed)
@@ -75,7 +75,7 @@ func (b *Billet) RestoreHashNode(path []byte, node Node) error {
 	return nil
 }
 
-// putIntoNode puts val with provided path inside curr and returns updated node.
+// putIntoNode puts val with the provided path inside curr and returns an updated node.
 // Reference counters are updated for both curr and returned value.
 func (b *Billet) putIntoNode(curr Node, path []byte, val Node) (Node, error) {
 	switch n := curr.(type) {
@@ -102,7 +102,7 @@ func (b *Billet) putIntoLeaf(curr *LeafNode, path []byte, val Node) (Node, error
 		return nil, fmt.Errorf("%w: bad Leaf node hash: expected %s, got %s", ErrRestoreFailed, curr.Hash().StringBE(), val.Hash().StringBE())
 	}
 	// Once Leaf node is restored, it will be collapsed into HashNode forever, so
-	// there shouldn't be such situation when we try to restore Leaf node.
+	// there shouldn't be such situation when we try to restore a Leaf node.
 	panic("bug: can't restore LeafNode")
 }
 
@@ -143,15 +143,15 @@ func (b *Billet) putIntoExtension(curr *ExtensionNode, path []byte, val Node) (N
 }
 
 func (b *Billet) putIntoHash(curr *HashNode, path []byte, val Node) (Node, error) {
-	// Once a part of MPT Billet is completely restored, it will be collapsed forever, so
+	// Once a part of the MPT Billet is completely restored, it will be collapsed forever, so
 	// it's an MPT pool duty to avoid duplicating restore requests.
 	if len(path) != 0 {
 		return nil, fmt.Errorf("%w: node has already been collapsed", ErrRestoreFailed)
 	}
 
 	// `curr` hash node can be either of
-	// 1) saved in storage (i.g. if we've already restored node with the same hash from the
-	//    other part of MPT), so just add it to local in-memory MPT.
+	// 1) saved in the storage (i.g. if we've already restored a node with the same hash from the
+	//    other part of the MPT), so just add it to the local in-memory MPT.
 	// 2) missing from the storage. It's OK because we're syncing MPT state, and the purpose
 	//    is to store missing hash nodes.
 	// both cases are OK, but we still need to validate `val` against `curr`.

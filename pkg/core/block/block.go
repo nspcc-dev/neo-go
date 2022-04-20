@@ -143,7 +143,7 @@ func (b *Block) EncodeBinary(bw *io.BinWriter) {
 	}
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (b Block) MarshalJSON() ([]byte, error) {
 	auxb, err := json.Marshal(auxBlockOut{
 		Transactions: b.Transactions,
@@ -165,7 +165,7 @@ func (b Block) MarshalJSON() ([]byte, error) {
 	return baseBytes, nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (b *Block) UnmarshalJSON(data []byte) error {
 	// As Base and auxb are at the same level in json,
 	// do unmarshalling separately for both structs.
@@ -192,7 +192,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// GetExpectedBlockSize returns expected block size which should be equal to io.GetVarSize(b).
+// GetExpectedBlockSize returns the expected block size which should be equal to io.GetVarSize(b).
 func (b *Block) GetExpectedBlockSize() int {
 	var transactionsSize int
 	for _, tx := range b.Transactions {
@@ -201,7 +201,7 @@ func (b *Block) GetExpectedBlockSize() int {
 	return b.GetExpectedBlockSizeWithoutTransactions(len(b.Transactions)) + transactionsSize
 }
 
-// GetExpectedBlockSizeWithoutTransactions returns expected block size without transactions size.
+// GetExpectedBlockSizeWithoutTransactions returns the expected block size without transactions size.
 func (b *Block) GetExpectedBlockSizeWithoutTransactions(txCount int) int {
 	size := expectedHeaderSizeWithEmptyWitness - 1 - 1 + // 1 is for the zero-length (new(Header)).Script.Invocation/Verification
 		io.GetVarSize(&b.Script) +

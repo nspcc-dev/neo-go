@@ -12,10 +12,10 @@ type Peer interface {
 	RemoteAddr() net.Addr
 	// PeerAddr returns the remote address that should be used to establish
 	// a new connection to the node. It can differ from the RemoteAddr
-	// address in case where the remote node is a client and its current
+	// address in case the remote node is a client and its current
 	// connection port is different from the one the other node should use
-	// to connect to it. It's only valid after the handshake is completed,
-	// before that it returns the same address as RemoteAddr.
+	// to connect to it. It's only valid after the handshake is completed.
+	// Before that, it returns the same address as RemoteAddr.
 	PeerAddr() net.Addr
 	Disconnect(error)
 
@@ -24,9 +24,9 @@ type Peer interface {
 	EnqueueMessage(*Message) error
 
 	// EnqueuePacket is a blocking packet enqueuer, it doesn't return until
-	// it puts given packet into the queue. It accepts a slice of bytes that
+	// it puts the given packet into the queue. It accepts a slice of bytes that
 	// can be shared with other queues (so that message marshalling can be
-	// done once for all peers). Does nothing is the peer is not yet
+	// done once for all peers). It does nothing if the peer has not yet
 	// completed handshaking.
 	EnqueuePacket(bool, []byte) error
 
@@ -35,17 +35,17 @@ type Peer interface {
 	EnqueueP2PMessage(*Message) error
 
 	// EnqueueP2PPacket is a blocking packet enqueuer, it doesn't return until
-	// it puts given packet into the queue. It accepts a slice of bytes that
+	// it puts the given packet into the queue. It accepts a slice of bytes that
 	// can be shared with other queues (so that message marshalling can be
-	// done once for all peers). Does nothing is the peer is not yet
+	// done once for all peers). It does nothing if the peer has not yet
 	// completed handshaking. This queue is intended to be used for unicast
 	// peer to peer communication that is more important than broadcasts
-	// (handled by EnqueuePacket), but less important than high-priority
+	// (handled by EnqueuePacket) but less important than high-priority
 	// messages (handled by EnqueueHPPacket).
 	EnqueueP2PPacket([]byte) error
 
 	// EnqueueHPPacket is a blocking high priority packet enqueuer, it
-	// doesn't return until it puts given packet into the high-priority
+	// doesn't return until it puts the given packet into the high-priority
 	// queue.
 	EnqueueHPPacket(bool, []byte) error
 	Version() *payload.Version

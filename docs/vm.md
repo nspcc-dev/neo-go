@@ -4,7 +4,7 @@ A cross platform virtual machine implementation for `NEF` compatible programs.
 
 # Installation
 
-VM is provided as part of neo-go binary, so usual neo-go build instructions
+VM is provided as a part of neo-go binary, so usual neo-go build instructions
 are applicable.
 
 # Running the VM
@@ -118,7 +118,7 @@ NEO-GO-VM > run
 ```
 
 ## Running programs with arguments
-You can invoke smart contracts with arguments. Take the following ***roll the dice*** smartcontract as example. 
+You can invoke smart contracts with arguments. Take the following ***roll the dice*** smart contract as an example. 
 
 ```
 package rollthedice
@@ -144,9 +144,9 @@ func RollDice(number int) {
 To invoke this contract we need to specify both the method and the arguments.
 
 The first parameter (called method or operation) is always of type
-string. Notice that arguments can have different types, they can inferred
-automatically (please refer to the `run` command help), but in you need to
-pass parameter of specific type you can specify it in `run`'s arguments:
+string. Notice that arguments can have different types. They can be inferred
+automatically (please refer to the `run` command help), but if you need to
+pass a parameter of a specific type you can specify it in `run`'s arguments:
 
 ```
 NEO-GO-VM > run rollDice int:1

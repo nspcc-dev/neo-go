@@ -21,7 +21,7 @@ type policyChecker interface {
 	IsBlocked(*dao.Simple, util.Uint160) bool
 }
 
-// LoadToken calls method specified by token id.
+// LoadToken calls method specified by the token id.
 func LoadToken(ic *interop.Context) func(id int32) error {
 	return func(id int32) error {
 		ctx := ic.VM.Context()
@@ -91,7 +91,7 @@ func callInternal(ic *interop.Context, cs *state.Contract, name string, f callfl
 	return callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, name, args, f, hasReturn)
 }
 
-// callExFromNative calls a contract with flags using provided calling hash.
+// callExFromNative calls a contract with flags using the provided calling hash.
 func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract,
 	name string, args []stackitem.Item, f callflag.CallFlag, hasReturn bool) error {
 	for _, nc := range ic.Natives {

@@ -27,13 +27,13 @@ type Contracts struct {
 	Crypto     *Crypto
 	Std        *Std
 	Contracts  []interop.Contract
-	// persistScript is vm script which executes "onPersist" method of every native contract.
+	// persistScript is a vm script which executes "onPersist" method of every native contract.
 	persistScript []byte
-	// postPersistScript is vm script which executes "postPersist" method of every native contract.
+	// postPersistScript is a vm script which executes "postPersist" method of every native contract.
 	postPersistScript []byte
 }
 
-// ByHash returns native contract with the specified hash.
+// ByHash returns a native contract with the specified hash.
 func (cs *Contracts) ByHash(h util.Uint160) interop.Contract {
 	for _, ctr := range cs.Contracts {
 		if ctr.Metadata().Hash.Equals(h) {
@@ -43,7 +43,7 @@ func (cs *Contracts) ByHash(h util.Uint160) interop.Contract {
 	return nil
 }
 
-// ByName returns native contract with the specified name.
+// ByName returns a native contract with the specified name.
 func (cs *Contracts) ByName(name string) interop.Contract {
 	name = strings.ToLower(name)
 	for _, ctr := range cs.Contracts {
@@ -54,7 +54,7 @@ func (cs *Contracts) ByName(name string) interop.Contract {
 	return nil
 }
 
-// NewContracts returns new set of native contracts with new GAS, NEO, Policy, Oracle,
+// NewContracts returns a new set of native contracts with new GAS, NEO, Policy, Oracle,
 // Designate and (optional) Notary contracts.
 func NewContracts(cfg config.ProtocolConfiguration) *Contracts {
 	cs := new(Contracts)
@@ -122,7 +122,7 @@ func NewContracts(cfg config.ProtocolConfiguration) *Contracts {
 	return cs
 }
 
-// GetPersistScript returns VM script calling "onPersist" syscall for native contracts.
+// GetPersistScript returns a VM script calling "onPersist" syscall for native contracts.
 func (cs *Contracts) GetPersistScript() []byte {
 	if cs.persistScript != nil {
 		return cs.persistScript
@@ -133,7 +133,7 @@ func (cs *Contracts) GetPersistScript() []byte {
 	return cs.persistScript
 }
 
-// GetPostPersistScript returns VM script calling "postPersist" syscall for native contracts.
+// GetPostPersistScript returns a VM script calling "postPersist" syscall for native contracts.
 func (cs *Contracts) GetPostPersistScript() []byte {
 	if cs.postPersistScript != nil {
 		return cs.postPersistScript

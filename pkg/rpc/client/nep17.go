@@ -29,22 +29,22 @@ type SignerAccount struct {
 	Account *wallet.Account
 }
 
-// NEP17Decimals invokes `decimals` NEP-17 method on a specified contract.
+// NEP17Decimals invokes `decimals` NEP-17 method on the specified contract.
 func (c *Client) NEP17Decimals(tokenHash util.Uint160) (int64, error) {
 	return c.nepDecimals(tokenHash)
 }
 
-// NEP17Symbol invokes `symbol` NEP-17 method on a specified contract.
+// NEP17Symbol invokes `symbol` NEP-17 method on the specified contract.
 func (c *Client) NEP17Symbol(tokenHash util.Uint160) (string, error) {
 	return c.nepSymbol(tokenHash)
 }
 
-// NEP17TotalSupply invokes `totalSupply` NEP-17 method on a specified contract.
+// NEP17TotalSupply invokes `totalSupply` NEP-17 method on the specified contract.
 func (c *Client) NEP17TotalSupply(tokenHash util.Uint160) (int64, error) {
 	return c.nepTotalSupply(tokenHash)
 }
 
-// NEP17BalanceOf invokes `balanceOf` NEP-17 method on a specified contract.
+// NEP17BalanceOf invokes `balanceOf` NEP-17 method on the specified contract.
 func (c *Client) NEP17BalanceOf(tokenHash, acc util.Uint160) (int64, error) {
 	return c.nepBalanceOf(tokenHash, acc, nil)
 }
@@ -55,8 +55,8 @@ func (c *Client) NEP17TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 }
 
 // CreateNEP17TransferTx creates an invocation transaction for the 'transfer'
-// method of a given contract (token) to move specified amount of NEP-17 assets
-// (in FixedN format using contract's number of decimals) to given account and
+// method of the given contract (token) to move the specified amount of NEP-17 assets
+// (in FixedN format using contract's number of decimals) to the given account and
 // returns it. The returned transaction is not signed.
 func (c *Client) CreateNEP17TransferTx(acc *wallet.Account, to util.Uint160,
 	token util.Uint160, amount int64, gas int64, data interface{}, cosigners []SignerAccount) (*transaction.Transaction, error) {
@@ -71,7 +71,7 @@ func (c *Client) CreateNEP17TransferTx(acc *wallet.Account, to util.Uint160,
 
 // CreateNEP17MultiTransferTx creates an invocation transaction for performing
 // NEP-17 transfers from a single sender to multiple recipients with the given
-// data and cosigners. Transaction's sender is included with the CalledByEntry
+// data and cosigners. The transaction sender is included with the CalledByEntry
 // scope by default.
 func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64,
 	recipients []TransferTarget, cosigners []SignerAccount) (*transaction.Transaction, error) {
@@ -134,11 +134,11 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 }
 
 // TransferNEP17 creates an invocation transaction that invokes 'transfer' method
-// on a given token to move specified amount of NEP-17 assets (in FixedN format
-// using contract's number of decimals) to given account with data specified and
+// on the given token to move the specified amount of NEP-17 assets (in FixedN format
+// using contract's number of decimals) to the given account with the data specified and
 // sends it to the network returning just a hash of it. Cosigners argument
 // specifies a set of the transaction cosigners (may be nil or may include sender)
-// with proper scope and accounts to cosign the transaction. If cosigning is
+// with a proper scope and the accounts to cosign the transaction. If cosigning is
 // impossible (e.g. due to locked cosigner's account) an error is returned.
 func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.Uint160,
 	amount int64, gas int64, data interface{}, cosigners []SignerAccount) (util.Uint256, error) {

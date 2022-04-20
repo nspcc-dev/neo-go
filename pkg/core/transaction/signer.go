@@ -20,7 +20,7 @@ type Signer struct {
 	Rules            []WitnessRule     `json:"rules,omitempty"`
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (c *Signer) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(c.Account[:])
 	bw.WriteB(byte(c.Scopes))
@@ -35,7 +35,7 @@ func (c *Signer) EncodeBinary(bw *io.BinWriter) {
 	}
 }
 
-// DecodeBinary implements Serializable interface.
+// DecodeBinary implements the Serializable interface.
 func (c *Signer) DecodeBinary(br *io.BinReader) {
 	br.ReadBytes(c.Account[:])
 	c.Scopes = WitnessScope(br.ReadB())

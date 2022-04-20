@@ -8,10 +8,10 @@ import (
 )
 
 type (
-	// pathTokenType represents single JSONPath token.
+	// pathTokenType represents a single JSONPath token.
 	pathTokenType byte
 
-	// pathParser combines JSONPath and a position to start parsing from.
+	// pathParser combines a JSONPath and a position to start parsing from.
 	pathParser struct {
 		s     string
 		i     int
@@ -39,7 +39,7 @@ const (
 )
 
 // Get returns substructures of value selected by path.
-// The result is always non-nil unless path is invalid.
+// The result is always non-nil unless the path is invalid.
 func Get(path string, value interface{}) ([]interface{}, bool) {
 	if path == "" {
 		return []interface{}{value}, true
@@ -128,8 +128,8 @@ func (p *pathParser) nextToken() (pathTokenType, string) {
 	return typ, value
 }
 
-// parseString parses JSON string surrounded by single quotes.
-// It returns number of characters were consumed and true on success.
+// parseString parses a JSON string surrounded by single quotes.
+// It returns the number of characters consumed and true on success.
 func (p *pathParser) parseString() (string, int, bool) {
 	var end int
 	for end = p.i + 1; end < len(p.s); end++ {
@@ -141,8 +141,8 @@ func (p *pathParser) parseString() (string, int, bool) {
 	return "", 0, false
 }
 
-// parseIdent parses alphanumeric identifier.
-// It returns number of characters were consumed and true on success.
+// parseIdent parses an alphanumeric identifier.
+// It returns the number of characters consumed and true on success.
 func (p *pathParser) parseIdent() (string, int, bool) {
 	var end int
 	for end = p.i + 1; end < len(p.s); end++ {
@@ -156,9 +156,9 @@ func (p *pathParser) parseIdent() (string, int, bool) {
 	return p.s[p.i:end], end - p.i, true
 }
 
-// parseNumber parses integer number.
+// parseNumber parses an integer number.
 // Only string representation is returned, size-checking is done on the first use.
-// It also returns number of characters were consumed and true on success.
+// It also returns the number of characters consumed and true on success.
 func (p *pathParser) parseNumber() (string, int, bool) {
 	var end int
 	for end = p.i + 1; end < len(p.s); end++ {
@@ -402,7 +402,7 @@ func (p *pathParser) processUnion(objs []interface{}, firstTyp pathTokenType, fi
 	}
 }
 
-// processSlice processes slice with the specified start index.
+// processSlice processes a slice with the specified start index.
 func (p *pathParser) processSlice(objs []interface{}, start int) ([]interface{}, bool) {
 	typ, val := p.nextToken()
 	switch typ {

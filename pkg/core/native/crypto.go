@@ -137,22 +137,22 @@ func curveFromStackitem(si stackitem.Item) (elliptic.Curve, error) {
 	}
 }
 
-// Metadata implements Contract interface.
+// Metadata implements the Contract interface.
 func (c *Crypto) Metadata() *interop.ContractMD {
 	return &c.ContractMD
 }
 
-// Initialize implements Contract interface.
+// Initialize implements the Contract interface.
 func (c *Crypto) Initialize(ic *interop.Context) error {
 	return nil
 }
 
-// OnPersist implements Contract interface.
+// OnPersist implements the Contract interface.
 func (c *Crypto) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
-// PostPersist implements Contract interface.
+// PostPersist implements the Contract interface.
 func (c *Crypto) PostPersist(ic *interop.Context) error {
 	return nil
 }

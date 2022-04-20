@@ -42,7 +42,7 @@ type Oracle struct {
 
 	// Module is an oracle module capable of talking with the external world.
 	Module atomic.Value
-	// newRequests contains new requests created during current block.
+	// newRequests contains new requests created during the current block.
 	newRequests map[uint64]*state.OracleRequest
 }
 
@@ -59,10 +59,10 @@ const (
 	// maxRequestsCount is the maximum number of requests per URL.
 	maxRequestsCount = 256
 
-	// DefaultOracleRequestPrice is default amount GAS needed for oracle request.
+	// DefaultOracleRequestPrice is the default amount GAS needed for an oracle request.
 	DefaultOracleRequestPrice = 5000_0000
 
-	// MinimumResponseGas is the minimum response fee permitted for request.
+	// MinimumResponseGas is the minimum response fee permitted for a request.
 	MinimumResponseGas = 10_000_000
 )
 
@@ -141,12 +141,12 @@ func newOracle() *Oracle {
 	return o
 }
 
-// GetOracleResponseScript returns script for transaction with oracle response.
+// GetOracleResponseScript returns a script for the transaction with an oracle response.
 func (o *Oracle) GetOracleResponseScript() []byte {
 	return slice.Copy(o.oracleScript)
 }
 
-// OnPersist implements Contract interface.
+// OnPersist implements the Contract interface.
 func (o *Oracle) OnPersist(ic *interop.Context) error {
 	var err error
 	if o.newRequests == nil {
@@ -227,7 +227,7 @@ func (o *Oracle) Metadata() *interop.ContractMD {
 	return &o.ContractMD
 }
 
-// Initialize initializes Oracle contract.
+// Initialize initializes an Oracle contract.
 func (o *Oracle) Initialize(ic *interop.Context) error {
 	setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0)
 	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, DefaultOracleRequestPrice)
@@ -262,7 +262,7 @@ func (o *Oracle) finish(ic *interop.Context, _ []stackitem.Item) stackitem.Item 
 	return stackitem.Null{}
 }
 
-// FinishInternal processes oracle response.
+// FinishInternal processes an oracle response.
 func (o *Oracle) FinishInternal(ic *interop.Context) error {
 	resp := getResponse(ic.Tx)
 	if resp == nil {
@@ -338,7 +338,7 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 	return stackitem.Null{}
 }
 
-// RequestInternal processes oracle request.
+// RequestInternal processes an oracle request.
 func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string, cb string, userData stackitem.Item, gas *big.Int) error {
 	if len(url) > maxURLLength || (filter != nil && len(*filter) > maxFilterLength) || len(cb) > maxCallbackLength || !gas.IsInt64() {
 		return ErrBigArgument
@@ -362,7 +362,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	si = bigint.ToPreallocatedBytes(itemID, si)
 	ic.DAO.PutStorageItem(o.ID, prefixRequestID, si)
 
-	// Should be executed from contract.
+	// Should be executed from the contract.
 	_, err := ic.GetContract(ic.VM.GetCallingScriptHash())
 	if err != nil {
 		return err
@@ -404,7 +404,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	return o.PutRequestInternal(id, req, ic.DAO)
 }
 
-// PutRequestInternal puts oracle request with the specified id to d.
+// PutRequestInternal puts the oracle request with the specified id to d.
 func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d *dao.Simple) error {
 	reqKey := makeRequestKey(id)
 	if err := putConvertibleToDAO(o.ID, d, reqKey, req); err != nil {
@@ -425,7 +425,7 @@ func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d *dao.
 	return putConvertibleToDAO(o.ID, d, key, lst)
 }
 
-// GetScriptHash returns script hash or oracle nodes.
+// GetScriptHash returns script hash of oracle nodes.
 func (o *Oracle) GetScriptHash(d *dao.Simple) (util.Uint160, error) {
 	return o.Desig.GetLastDesignatedHash(d, noderoles.Oracle)
 }
@@ -436,14 +436,14 @@ func (o *Oracle) GetOracleNodes(d *dao.Simple) (keys.PublicKeys, error) {
 	return nodes, err
 }
 
-// GetRequestInternal returns request by ID and key under which it is stored.
+// GetRequestInternal returns the request by ID and key under which it is stored.
 func (o *Oracle) GetRequestInternal(d *dao.Simple, id uint64) (*state.OracleRequest, error) {
 	key := makeRequestKey(id)
 	req := new(state.OracleRequest)
 	return req, o.getConvertibleFromDAO(d, key, req)
 }
 
-// GetIDListInternal returns request by ID and key under which it is stored.
+// GetIDListInternal returns the request by ID and key under which it is stored.
 func (o *Oracle) GetIDListInternal(d *dao.Simple, url string) (*IDList, error) {
 	key := makeIDListKey(url)
 	idList := new(IDList)
@@ -546,7 +546,7 @@ func (o *Oracle) updateCache(d *dao.Simple) error {
 	return nil
 }
 
-// CreateOracleResponseScript returns script that is used to create native Oracle
+// CreateOracleResponseScript returns a script that is used to create the native Oracle
 // response.
 func CreateOracleResponseScript(nativeOracleHash util.Uint160) []byte {
 	w := io.NewBufBinWriter()

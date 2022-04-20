@@ -12,7 +12,7 @@ import (
 // IDList is a list of oracle request IDs.
 type IDList []uint64
 
-// NodeList represents list or oracle nodes.
+// NodeList represents a list of oracle nodes.
 type NodeList keys.PublicKeys
 
 // ToStackItem implements stackitem.Convertible. It never returns an error.
@@ -41,7 +41,7 @@ func (l *IDList) FromStackItem(it stackitem.Item) error {
 	return nil
 }
 
-// Remove removes id from list.
+// Remove removes id from the list.
 func (l *IDList) Remove(id uint64) bool {
 	for i := range *l {
 		if id == (*l)[i] {

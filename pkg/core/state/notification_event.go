@@ -12,15 +12,15 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// NotificationEvent is a tuple of scripthash that emitted the Item as a
-// notification and that item itself.
+// NotificationEvent is a tuple of the scripthash that has emitted the Item as a
+// notification and the item itself.
 type NotificationEvent struct {
 	ScriptHash util.Uint160     `json:"contract"`
 	Name       string           `json:"eventname"`
 	Item       *stackitem.Array `json:"state"`
 }
 
-// AppExecResult represent the result of the script execution, gathering together
+// AppExecResult represents the result of the script execution, gathering together
 // all resulting notifications, state, stack and other metadata.
 type AppExecResult struct {
 	Container util.Uint256
@@ -100,7 +100,7 @@ type notificationEventAux struct {
 	Item       json.RawMessage `json:"state"`
 }
 
-// MarshalJSON implements implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (ne NotificationEvent) MarshalJSON() ([]byte, error) {
 	item, err := stackitem.ToJSONWithTypes(ne.Item)
 	if err != nil {
@@ -113,7 +113,7 @@ func (ne NotificationEvent) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (ne *NotificationEvent) UnmarshalJSON(data []byte) error {
 	aux := new(notificationEventAux)
 	if err := json.Unmarshal(data, aux); err != nil {
@@ -137,7 +137,7 @@ type appExecResultAux struct {
 	Container util.Uint256 `json:"container"`
 }
 
-// MarshalJSON implements implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (aer *AppExecResult) MarshalJSON() ([]byte, error) {
 	h, err := json.Marshal(&appExecResultAux{
 		Container: aer.Container,
@@ -158,7 +158,7 @@ func (aer *AppExecResult) MarshalJSON() ([]byte, error) {
 	return h, nil
 }
 
-// UnmarshalJSON implements implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (aer *AppExecResult) UnmarshalJSON(data []byte) error {
 	aux := new(appExecResultAux)
 	if err := json.Unmarshal(data, aux); err != nil {
@@ -192,7 +192,7 @@ type executionAux struct {
 	FaultException string              `json:"exception,omitempty"`
 }
 
-// MarshalJSON implements implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (e Execution) MarshalJSON() ([]byte, error) {
 	arr := make([]json.RawMessage, len(e.Stack))
 	for i := range arr {
@@ -216,7 +216,7 @@ func (e Execution) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// UnmarshalJSON implements implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (e *Execution) UnmarshalJSON(data []byte) error {
 	aux := new(executionAux)
 	if err := json.Unmarshal(data, aux); err != nil {

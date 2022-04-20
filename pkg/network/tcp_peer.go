@@ -81,7 +81,7 @@ func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 	}
 }
 
-// putPacketIntoQueue puts given message into the given queue if the peer has
+// putPacketIntoQueue puts the given message into the given queue if the peer has
 // done handshaking.
 func (p *TCPPeer) putPacketIntoQueue(queue chan<- []byte, block bool, msg []byte) error {
 	if !p.Handshaked() {
@@ -110,7 +110,7 @@ func (p *TCPPeer) EnqueuePacket(block bool, msg []byte) error {
 	return p.putPacketIntoQueue(p.sendQ, block, msg)
 }
 
-// putMessageIntoQueue serializes given Message and puts it into given queue if
+// putMessageIntoQueue serializes the given Message and puts it into given queue if
 // the peer has done handshaking.
 func (p *TCPPeer) putMsgIntoQueue(queue chan<- []byte, msg *Message) error {
 	b, err := msg.Bytes()
@@ -154,7 +154,7 @@ func (p *TCPPeer) writeMsg(msg *Message) error {
 }
 
 // handleConn handles the read side of the connection, it should be started as
-// a goroutine right after the new peer setup.
+// a goroutine right after a new peer setup.
 func (p *TCPPeer) handleConn() {
 	var err error
 
@@ -162,7 +162,7 @@ func (p *TCPPeer) handleConn() {
 
 	go p.handleQueues()
 	go p.handleIncoming()
-	// When a new peer is connected we send out our version immediately.
+	// When a new peer is connected, we send out our version immediately.
 	err = p.SendVersion()
 	if err == nil {
 		r := io.NewBinReaderFromIO(p.conn)
@@ -435,14 +435,14 @@ func (p *TCPPeer) Version() *payload.Version {
 	return p.version
 }
 
-// LastBlockIndex returns last block index.
+// LastBlockIndex returns the last block index.
 func (p *TCPPeer) LastBlockIndex() uint32 {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	return p.lastBlockIndex
 }
 
-// SendPing sends a ping message to the peer and does appropriate accounting of
+// SendPing sends a ping message to the peer and does an appropriate accounting of
 // outstanding pings and timeouts.
 func (p *TCPPeer) SendPing(msg *Message) error {
 	if !p.Handshaked() {
@@ -467,7 +467,7 @@ func (p *TCPPeer) HandlePing(ping *payload.Ping) error {
 	return nil
 }
 
-// HandlePong handles a pong message received from the peer and does appropriate
+// HandlePong handles a pong message received from the peer and does an appropriate
 // accounting of outstanding pings and timeouts.
 func (p *TCPPeer) HandlePong(pong *payload.Ping) error {
 	p.lock.Lock()
@@ -484,8 +484,8 @@ func (p *TCPPeer) HandlePong(pong *payload.Ping) error {
 	return nil
 }
 
-// AddGetAddrSent increments internal outstanding getaddr requests counter. The
-// peer can only send then one addr reply per getaddr request.
+// AddGetAddrSent increments internal outstanding getaddr requests counter. Then,
+// the peer can only send one addr reply per getaddr request.
 func (p *TCPPeer) AddGetAddrSent() {
 	p.getAddrSent.Inc()
 }

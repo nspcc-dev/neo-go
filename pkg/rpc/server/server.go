@@ -87,7 +87,7 @@ type (
 )
 
 const (
-	// Message limit for receiving side.
+	// Message limit for a receiving side.
 	wsReadLimit = 4096
 
 	// Disconnection timeout.
@@ -100,7 +100,7 @@ const (
 	wsWriteLimit = wsPingPeriod / 2
 
 	// Maximum number of subscribers per Server. Each websocket client is
-	// treated like subscriber, so technically it's a limit on websocket
+	// treated like a subscriber, so technically it's a limit on websocket
 	// connections.
 	maxSubscribers = 64
 
@@ -987,17 +987,17 @@ func (s *Server) getTokenTransfers(ps request.Params, isNEP11 bool) (interface{}
 	}
 	cache := make(map[int32]util.Uint160)
 	var resCount, frameCount int
-	// handleTransfer returns items to be added into received and sent arrays
+	// handleTransfer returns items to be added into the received and sent arrays
 	// along with a continue flag and error.
 	var handleTransfer = func(tr *state.NEP17Transfer) (*result.NEP17Transfer, *result.NEP17Transfer, bool, error) {
 		var received, sent *result.NEP17Transfer
 
-		// Iterating from newest to oldest, not yet reached required
+		// Iterating from the newest to the oldest, not yet reached required
 		// time frame, continue looping.
 		if tr.Timestamp > end {
 			return nil, nil, true, nil
 		}
-		// Iterating from newest to oldest, moved past required
+		// Iterating from the newest to the oldest, moved past required
 		// time frame, stop looping.
 		if tr.Timestamp < start {
 			return nil, nil, false, nil
@@ -1804,8 +1804,8 @@ func (s *Server) getFakeNextBlock(nextBlockHeight uint32) (*block.Block, error) 
 	return b, nil
 }
 
-// runScriptInVM runs given script in a new test VM and returns the invocation
-// result. The script is either a simple script in case of `application` trigger
+// runScriptInVM runs the given script in a new test VM and returns the invocation
+// result. The script is either a simple script in case of `application` trigger,
 // witness invocation script in case of `verification` trigger (it pushes `verify`
 // arguments on stack before verification). In case of contract verification
 // contractScriptHash should be specified.

@@ -25,7 +25,7 @@ import (
 	uatomic "go.uber.org/atomic"
 )
 
-// FakeChain implements Blockchainer interface, but does not provide real functionality.
+// FakeChain implements the Blockchainer interface, but does not provide real functionality.
 type FakeChain struct {
 	config.ProtocolConfiguration
 	*mempool.Pool
@@ -44,7 +44,7 @@ type FakeChain struct {
 	UtilityTokenBalance      *big.Int
 }
 
-// FakeStateSync implements StateSync interface.
+// FakeStateSync implements the StateSync interface.
 type FakeStateSync struct {
 	IsActiveFlag      uatomic.Bool
 	IsInitializedFlag uatomic.Bool
@@ -54,12 +54,12 @@ type FakeStateSync struct {
 	AddMPTNodesFunc   func(nodes [][]byte) error
 }
 
-// NewFakeChain returns new FakeChain structure.
+// NewFakeChain returns a new FakeChain structure.
 func NewFakeChain() *FakeChain {
 	return NewFakeChainWithCustomCfg(nil)
 }
 
-// NewFakeChainWithCustomCfg returns new FakeChain structure with specified protocol configuration.
+// NewFakeChainWithCustomCfg returns a new FakeChain structure with the specified protocol configuration.
 func NewFakeChainWithCustomCfg(protocolCfg func(c *config.ProtocolConfiguration)) *FakeChain {
 	cfg := config.ProtocolConfiguration{Magic: netmode.UnitTestNet, P2PNotaryRequestPayloadPoolSize: 10}
 	if protocolCfg != nil {
@@ -76,29 +76,29 @@ func NewFakeChainWithCustomCfg(protocolCfg func(c *config.ProtocolConfiguration)
 	}
 }
 
-// PutBlock implements Blockchainer interface.
+// PutBlock implements the Blockchainer interface.
 func (chain *FakeChain) PutBlock(b *block.Block) {
 	chain.blocks[b.Hash()] = b
 	chain.hdrHashes[b.Index] = b.Hash()
 	atomic.StoreUint32(&chain.Blockheight, b.Index)
 }
 
-// PutHeader implements Blockchainer interface.
+// PutHeader implements the Blockchainer interface.
 func (chain *FakeChain) PutHeader(b *block.Block) {
 	chain.hdrHashes[b.Index] = b.Hash()
 }
 
-// PutTx implements Blockchainer interface.
+// PutTx implements the Blockchainer interface.
 func (chain *FakeChain) PutTx(tx *transaction.Transaction) {
 	chain.txs[tx.Hash()] = tx
 }
 
-// ApplyPolicyToTxSet implements Blockchainer interface.
+// ApplyPolicyToTxSet implements the Blockchainer interface.
 func (chain *FakeChain) ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction {
 	panic("TODO")
 }
 
-// IsTxStillRelevant implements Blockchainer interface.
+// IsTxStillRelevant implements the Blockchainer interface.
 func (chain *FakeChain) IsTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool, isPartialTx bool) bool {
 	panic("TODO")
 }
@@ -108,17 +108,17 @@ func (chain *FakeChain) InitVerificationContext(ic *interop.Context, hash util.U
 	panic("TODO")
 }
 
-// IsExtensibleAllowed implements Blockchainer interface.
+// IsExtensibleAllowed implements the Blockchainer interface.
 func (*FakeChain) IsExtensibleAllowed(uint160 util.Uint160) bool {
 	return true
 }
 
-// GetNatives implements blockchainer.Blockchainer interface.
+// GetNatives implements the blockchainer.Blockchainer interface.
 func (*FakeChain) GetNatives() []state.NativeContract {
 	panic("TODO")
 }
 
-// GetNotaryDepositExpiration implements Blockchainer interface.
+// GetNotaryDepositExpiration implements the Blockchainer interface.
 func (chain *FakeChain) GetNotaryDepositExpiration(acc util.Uint160) uint32 {
 	if chain.NotaryDepositExpiration != 0 {
 		return chain.NotaryDepositExpiration
@@ -126,7 +126,7 @@ func (chain *FakeChain) GetNotaryDepositExpiration(acc util.Uint160) uint32 {
 	panic("TODO")
 }
 
-// GetNotaryContractScriptHash implements Blockchainer interface.
+// GetNotaryContractScriptHash implements the Blockchainer interface.
 func (chain *FakeChain) GetNotaryContractScriptHash() util.Uint160 {
 	if !chain.NotaryContractScriptHash.Equals(util.Uint160{}) {
 		return chain.NotaryContractScriptHash
@@ -134,27 +134,27 @@ func (chain *FakeChain) GetNotaryContractScriptHash() util.Uint160 {
 	panic("TODO")
 }
 
-// GetNotaryBalance implements Blockchainer interface.
+// GetNotaryBalance implements the Blockchainer interface.
 func (chain *FakeChain) GetNotaryBalance(acc util.Uint160) *big.Int {
 	panic("TODO")
 }
 
-// GetNotaryServiceFeePerKey implements Blockchainer interface.
+// GetNotaryServiceFeePerKey implements the Blockchainer interface.
 func (chain *FakeChain) GetNotaryServiceFeePerKey() int64 {
 	panic("TODO")
 }
 
-// GetBaseExecFee implements Policer interface.
+// GetBaseExecFee implements the Policer interface.
 func (chain *FakeChain) GetBaseExecFee() int64 {
 	return interop.DefaultBaseExecFee
 }
 
-// GetStoragePrice implements Policer interface.
+// GetStoragePrice implements the Policer interface.
 func (chain *FakeChain) GetStoragePrice() int64 {
 	return native.DefaultStoragePrice
 }
 
-// GetMaxVerificationGAS implements Policer interface.
+// GetMaxVerificationGAS implements the Policer interface.
 func (chain *FakeChain) GetMaxVerificationGAS() int64 {
 	if chain.MaxVerificationGAS != 0 {
 		return chain.MaxVerificationGAS
@@ -162,22 +162,22 @@ func (chain *FakeChain) GetMaxVerificationGAS() int64 {
 	panic("TODO")
 }
 
-// PoolTxWithData implements Blockchainer interface.
+// PoolTxWithData implements the Blockchainer interface.
 func (chain *FakeChain) PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data interface{}) error) error {
 	return chain.poolTxWithData(t, data, mp)
 }
 
-// RegisterPostBlock implements Blockchainer interface.
+// RegisterPostBlock implements the Blockchainer interface.
 func (chain *FakeChain) RegisterPostBlock(f func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block)) {
 	chain.PostBlock = append(chain.PostBlock, f)
 }
 
-// GetConfig implements Blockchainer interface.
+// GetConfig implements the Blockchainer interface.
 func (chain *FakeChain) GetConfig() config.ProtocolConfiguration {
 	return chain.ProtocolConfiguration
 }
 
-// CalculateClaimable implements Blockchainer interface.
+// CalculateClaimable implements the Blockchainer interface.
 func (chain *FakeChain) CalculateClaimable(util.Uint160, uint32) (*big.Int, error) {
 	panic("TODO")
 }
@@ -192,12 +192,12 @@ func (chain *FakeChain) P2PSigExtensionsEnabled() bool {
 	return true
 }
 
-// AddHeaders implements Blockchainer interface.
+// AddHeaders implements the Blockchainer interface.
 func (chain *FakeChain) AddHeaders(...*block.Header) error {
 	panic("TODO")
 }
 
-// AddBlock implements Blockchainer interface.
+// AddBlock implements the Blockchainer interface.
 func (chain *FakeChain) AddBlock(block *block.Block) error {
 	if block.Index == atomic.LoadUint32(&chain.Blockheight)+1 {
 		chain.PutBlock(block)
@@ -205,27 +205,27 @@ func (chain *FakeChain) AddBlock(block *block.Block) error {
 	return nil
 }
 
-// BlockHeight implements Feer interface.
+// BlockHeight implements the Feer interface.
 func (chain *FakeChain) BlockHeight() uint32 {
 	return atomic.LoadUint32(&chain.Blockheight)
 }
 
-// Close implements Blockchainer interface.
+// Close implements the Blockchainer interface.
 func (chain *FakeChain) Close() {
 	panic("TODO")
 }
 
-// HeaderHeight implements Blockchainer interface.
+// HeaderHeight implements the Blockchainer interface.
 func (chain *FakeChain) HeaderHeight() uint32 {
 	return atomic.LoadUint32(&chain.Blockheight)
 }
 
-// GetAppExecResults implements Blockchainer interface.
+// GetAppExecResults implements the Blockchainer interface.
 func (chain *FakeChain) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]state.AppExecResult, error) {
 	panic("TODO")
 }
 
-// GetBlock implements Blockchainer interface.
+// GetBlock implements the Blockchainer interface.
 func (chain *FakeChain) GetBlock(hash util.Uint256) (*block.Block, error) {
 	if b, ok := chain.blocks[hash]; ok {
 		return b, nil
@@ -233,27 +233,27 @@ func (chain *FakeChain) GetBlock(hash util.Uint256) (*block.Block, error) {
 	return nil, errors.New("not found")
 }
 
-// GetCommittee implements Blockchainer interface.
+// GetCommittee implements the Blockchainer interface.
 func (chain *FakeChain) GetCommittee() (keys.PublicKeys, error) {
 	panic("TODO")
 }
 
-// GetContractState implements Blockchainer interface.
+// GetContractState implements the Blockchainer interface.
 func (chain *FakeChain) GetContractState(hash util.Uint160) *state.Contract {
 	panic("TODO")
 }
 
-// GetContractScriptHash implements Blockchainer interface.
+// GetContractScriptHash implements the Blockchainer interface.
 func (chain *FakeChain) GetContractScriptHash(id int32) (util.Uint160, error) {
 	panic("TODO")
 }
 
-// GetNativeContractScriptHash implements Blockchainer interface.
+// GetNativeContractScriptHash implements the Blockchainer interface.
 func (chain *FakeChain) GetNativeContractScriptHash(name string) (util.Uint160, error) {
 	panic("TODO")
 }
 
-// GetHeaderHash implements Blockchainer interface.
+// GetHeaderHash implements the Blockchainer interface.
 func (chain *FakeChain) GetHeaderHash(n int) util.Uint256 {
 	if n < 0 || n > math.MaxUint32 {
 		return util.Uint256{}
@@ -261,7 +261,7 @@ func (chain *FakeChain) GetHeaderHash(n int) util.Uint256 {
 	return chain.hdrHashes[uint32(n)]
 }
 
-// GetHeader implements Blockchainer interface.
+// GetHeader implements the Blockchainer interface.
 func (chain *FakeChain) GetHeader(hash util.Uint256) (*block.Header, error) {
 	b, err := chain.GetBlock(hash)
 	if err != nil {
@@ -270,84 +270,84 @@ func (chain *FakeChain) GetHeader(hash util.Uint256) (*block.Header, error) {
 	return &b.Header, nil
 }
 
-// GetNextBlockValidators implements Blockchainer interface.
+// GetNextBlockValidators implements the Blockchainer interface.
 func (chain *FakeChain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
 	panic("TODO")
 }
 
-// GetNEP17Contracts implements Blockchainer interface.
+// GetNEP17Contracts implements the Blockchainer interface.
 func (chain *FakeChain) GetNEP11Contracts() []util.Uint160 {
 	panic("TODO")
 }
 
-// GetNEP17Contracts implements Blockchainer interface.
+// GetNEP17Contracts implements the Blockchainer interface.
 func (chain *FakeChain) GetNEP17Contracts() []util.Uint160 {
 	panic("TODO")
 }
 
-// GetNEP17LastUpdated implements Blockchainer interface.
+// GetNEP17LastUpdated implements the Blockchainer interface.
 func (chain *FakeChain) GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, error) {
 	panic("TODO")
 }
 
-// ForEachNEP17Transfer implements Blockchainer interface.
+// ForEachNEP17Transfer implements the Blockchainer interface.
 func (chain *FakeChain) ForEachNEP11Transfer(util.Uint160, uint64, func(*state.NEP11Transfer) (bool, error)) error {
 	panic("TODO")
 }
 
-// ForEachNEP17Transfer implements Blockchainer interface.
+// ForEachNEP17Transfer implements the Blockchainer interface.
 func (chain *FakeChain) ForEachNEP17Transfer(util.Uint160, uint64, func(*state.NEP17Transfer) (bool, error)) error {
 	panic("TODO")
 }
 
-// GetValidators implements Blockchainer interface.
+// GetValidators implements the Blockchainer interface.
 func (chain *FakeChain) GetValidators() ([]*keys.PublicKey, error) {
 	panic("TODO")
 }
 
-// GetEnrollments implements Blockchainer interface.
+// GetEnrollments implements the Blockchainer interface.
 func (chain *FakeChain) GetEnrollments() ([]state.Validator, error) {
 	panic("TODO")
 }
 
-// GetStateModule implements Blockchainer interface.
+// GetStateModule implements the Blockchainer interface.
 func (chain *FakeChain) GetStateModule() blockchainer.StateRoot {
 	return nil
 }
 
-// GetStorageItem implements Blockchainer interface.
+// GetStorageItem implements the Blockchainer interface.
 func (chain *FakeChain) GetStorageItem(id int32, key []byte) state.StorageItem {
 	panic("TODO")
 }
 
-// GetTestVM implements Blockchainer interface.
+// GetTestVM implements the Blockchainer interface.
 func (chain *FakeChain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
 	panic("TODO")
 }
 
-// CurrentHeaderHash implements Blockchainer interface.
+// CurrentHeaderHash implements the Blockchainer interface.
 func (chain *FakeChain) CurrentHeaderHash() util.Uint256 {
 	return util.Uint256{}
 }
 
-// CurrentBlockHash implements Blockchainer interface.
+// CurrentBlockHash implements the Blockchainer interface.
 func (chain *FakeChain) CurrentBlockHash() util.Uint256 {
 	return util.Uint256{}
 }
 
-// HasBlock implements Blockchainer interface.
+// HasBlock implements the Blockchainer interface.
 func (chain *FakeChain) HasBlock(h util.Uint256) bool {
 	_, ok := chain.blocks[h]
 	return ok
 }
 
-// HasTransaction implements Blockchainer interface.
+// HasTransaction implements the Blockchainer interface.
 func (chain *FakeChain) HasTransaction(h util.Uint256) bool {
 	_, ok := chain.txs[h]
 	return ok
 }
 
-// GetTransaction implements Blockchainer interface.
+// GetTransaction implements the Blockchainer interface.
 func (chain *FakeChain) GetTransaction(h util.Uint256) (*transaction.Transaction, uint32, error) {
 	if tx, ok := chain.txs[h]; ok {
 		return tx, 1, nil
@@ -355,12 +355,12 @@ func (chain *FakeChain) GetTransaction(h util.Uint256) (*transaction.Transaction
 	return nil, 0, errors.New("not found")
 }
 
-// GetMemPool implements Blockchainer interface.
+// GetMemPool implements the Blockchainer interface.
 func (chain *FakeChain) GetMemPool() *mempool.Pool {
 	return chain.Pool
 }
 
-// GetGoverningTokenBalance implements Blockchainer interface.
+// GetGoverningTokenBalance implements the Blockchainer interface.
 func (chain *FakeChain) GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32) {
 	panic("TODO")
 }
@@ -373,52 +373,52 @@ func (chain *FakeChain) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 	panic("TODO")
 }
 
-// ManagementContractHash implements Blockchainer interface.
+// ManagementContractHash implements the Blockchainer interface.
 func (chain FakeChain) ManagementContractHash() util.Uint160 {
 	panic("TODO")
 }
 
-// PoolTx implements Blockchainer interface.
+// PoolTx implements the Blockchainer interface.
 func (chain *FakeChain) PoolTx(tx *transaction.Transaction, _ ...*mempool.Pool) error {
 	return chain.PoolTxF(tx)
 }
 
-// SetOracle implements Blockchainer interface.
+// SetOracle implements the Blockchainer interface.
 func (chain FakeChain) SetOracle(services.Oracle) {
 	panic("TODO")
 }
 
-// SetNotary implements Blockchainer interface.
+// SetNotary implements the Blockchainer interface.
 func (chain *FakeChain) SetNotary(notary services.Notary) {
 	panic("TODO")
 }
 
-// SubscribeForBlocks implements Blockchainer interface.
+// SubscribeForBlocks implements the Blockchainer interface.
 func (chain *FakeChain) SubscribeForBlocks(ch chan<- *block.Block) {
 	chain.blocksCh = append(chain.blocksCh, ch)
 }
 
-// SubscribeForExecutions implements Blockchainer interface.
+// SubscribeForExecutions implements the Blockchainer interface.
 func (chain *FakeChain) SubscribeForExecutions(ch chan<- *state.AppExecResult) {
 	panic("TODO")
 }
 
-// SubscribeForNotifications implements Blockchainer interface.
+// SubscribeForNotifications implements the Blockchainer interface.
 func (chain *FakeChain) SubscribeForNotifications(ch chan<- *subscriptions.NotificationEvent) {
 	panic("TODO")
 }
 
-// SubscribeForTransactions implements Blockchainer interface.
+// SubscribeForTransactions implements the Blockchainer interface.
 func (chain *FakeChain) SubscribeForTransactions(ch chan<- *transaction.Transaction) {
 	panic("TODO")
 }
 
-// VerifyTx implements Blockchainer interface.
+// VerifyTx implements the Blockchainer interface.
 func (chain *FakeChain) VerifyTx(*transaction.Transaction) error {
 	panic("TODO")
 }
 
-// VerifyWitness implements Blockchainer interface.
+// VerifyWitness implements the Blockchainer interface.
 func (chain *FakeChain) VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error) {
 	if chain.VerifyWitnessF != nil {
 		return chain.VerifyWitnessF()
@@ -426,7 +426,7 @@ func (chain *FakeChain) VerifyWitness(util.Uint160, hash.Hashable, *transaction.
 	panic("TODO")
 }
 
-// UnsubscribeFromBlocks implements Blockchainer interface.
+// UnsubscribeFromBlocks implements the Blockchainer interface.
 func (chain *FakeChain) UnsubscribeFromBlocks(ch chan<- *block.Block) {
 	for i, c := range chain.blocksCh {
 		if c == ch {
@@ -438,32 +438,32 @@ func (chain *FakeChain) UnsubscribeFromBlocks(ch chan<- *block.Block) {
 	}
 }
 
-// UnsubscribeFromExecutions implements Blockchainer interface.
+// UnsubscribeFromExecutions implements the Blockchainer interface.
 func (chain *FakeChain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult) {
 	panic("TODO")
 }
 
-// UnsubscribeFromNotifications implements Blockchainer interface.
+// UnsubscribeFromNotifications implements the Blockchainer interface.
 func (chain *FakeChain) UnsubscribeFromNotifications(ch chan<- *subscriptions.NotificationEvent) {
 	panic("TODO")
 }
 
-// UnsubscribeFromTransactions implements Blockchainer interface.
+// UnsubscribeFromTransactions implements the Blockchainer interface.
 func (chain *FakeChain) UnsubscribeFromTransactions(ch chan<- *transaction.Transaction) {
 	panic("TODO")
 }
 
-// AddBlock implements StateSync interface.
+// AddBlock implements the StateSync interface.
 func (s *FakeStateSync) AddBlock(block *block.Block) error {
 	panic("TODO")
 }
 
-// AddHeaders implements StateSync interface.
+// AddHeaders implements the StateSync interface.
 func (s *FakeStateSync) AddHeaders(...*block.Header) error {
 	panic("TODO")
 }
 
-// AddMPTNodes implements StateSync interface.
+// AddMPTNodes implements the StateSync interface.
 func (s *FakeStateSync) AddMPTNodes(nodes [][]byte) error {
 	if s.AddMPTNodesFunc != nil {
 		return s.AddMPTNodesFunc(nodes)
@@ -471,20 +471,20 @@ func (s *FakeStateSync) AddMPTNodes(nodes [][]byte) error {
 	panic("TODO")
 }
 
-// BlockHeight implements StateSync interface.
+// BlockHeight implements the StateSync interface.
 func (s *FakeStateSync) BlockHeight() uint32 {
 	return 0
 }
 
-// IsActive implements StateSync interface.
+// IsActive implements the StateSync interface.
 func (s *FakeStateSync) IsActive() bool { return s.IsActiveFlag.Load() }
 
-// IsInitialized implements StateSync interface.
+// IsInitialized implements the StateSync interface.
 func (s *FakeStateSync) IsInitialized() bool {
 	return s.IsInitializedFlag.Load()
 }
 
-// Init implements StateSync interface.
+// Init implements the StateSync interface.
 func (s *FakeStateSync) Init(currChainHeight uint32) error {
 	if s.InitFunc != nil {
 		return s.InitFunc(currChainHeight)
@@ -492,15 +492,15 @@ func (s *FakeStateSync) Init(currChainHeight uint32) error {
 	panic("TODO")
 }
 
-// NeedHeaders implements StateSync interface.
+// NeedHeaders implements the StateSync interface.
 func (s *FakeStateSync) NeedHeaders() bool { return s.RequestHeaders.Load() }
 
-// NeedMPTNodes implements StateSync interface.
+// NeedMPTNodes implements the StateSync interface.
 func (s *FakeStateSync) NeedMPTNodes() bool {
 	panic("TODO")
 }
 
-// Traverse implements StateSync interface.
+// Traverse implements the StateSync interface.
 func (s *FakeStateSync) Traverse(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error {
 	if s.TraverseFunc != nil {
 		return s.TraverseFunc(root, process)
@@ -508,7 +508,7 @@ func (s *FakeStateSync) Traverse(root util.Uint256, process func(node mpt.Node, 
 	panic("TODO")
 }
 
-// GetUnknownMPTNodesBatch implements StateSync interface.
+// GetUnknownMPTNodesBatch implements the StateSync interface.
 func (s *FakeStateSync) GetUnknownMPTNodesBatch(limit int) []util.Uint256 {
 	panic("TODO")
 }

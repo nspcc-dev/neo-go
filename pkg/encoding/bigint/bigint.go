@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	// MaxBytesLen is the maximum length of serialized integer suitable for Neo VM.
-	MaxBytesLen = 33 // 32 bytes for 256-bit integer plus 1 if padding needed
+	// MaxBytesLen is the maximum length of a serialized integer suitable for Neo VM.
+	MaxBytesLen = 33 // 32 bytes for a 256-bit integer plus 1 if padding needed
 	// wordSizeBytes is a size of a big.Word (uint) in bytes.
 	wordSizeBytes = bits.UintSize / 8
 )
@@ -78,7 +78,7 @@ func FromBytes(data []byte) *big.Int {
 	return n.SetBits(ws)
 }
 
-// getEffectiveSize returns minimal number of bytes required
+// getEffectiveSize returns the minimal number of bytes required
 // to represent a number (two's complement for negatives).
 func getEffectiveSize(buf []byte, isNeg bool) int {
 	var b byte
@@ -96,7 +96,7 @@ func getEffectiveSize(buf []byte, isNeg bool) int {
 	return size
 }
 
-// ToBytes converts integer to a slice in little-endian format.
+// ToBytes converts an integer to a slice in little-endian format.
 // Note: NEO3 serialization differs from default C# BigInteger.ToByteArray()
 //   when n == 0. For zero is equal to empty slice in NEO3.
 // https://github.com/neo-project/neo-vm/blob/master/src/neo-vm/Types/Integer.cs#L16
@@ -104,7 +104,7 @@ func ToBytes(n *big.Int) []byte {
 	return ToPreallocatedBytes(n, []byte{})
 }
 
-// ToPreallocatedBytes converts integer to a slice in little-endian format using given
+// ToPreallocatedBytes converts an integer to a slice in little-endian format using the given
 // byte array for conversion result.
 func ToPreallocatedBytes(n *big.Int, data []byte) []byte {
 	sign := n.Sign()

@@ -157,7 +157,7 @@ func (c *ParameterContext) getItemForContract(h util.Uint160, ctr *wallet.Contra
 	return item
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (c ParameterContext) MarshalJSON() ([]byte, error) {
 	verif, err := c.Verifiable.EncodeHashableFields()
 	if err != nil {
@@ -181,7 +181,7 @@ func (c ParameterContext) MarshalJSON() ([]byte, error) {
 	return json.Marshal(pc)
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 	pc := new(paramContext)
 	if err := json.Unmarshal(data, pc); err != nil {

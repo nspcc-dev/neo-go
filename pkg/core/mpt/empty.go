@@ -8,14 +8,14 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// EmptyNode represents empty node.
+// EmptyNode represents an empty node.
 type EmptyNode struct{}
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (e EmptyNode) DecodeBinary(*io.BinReader) {
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (e EmptyNode) EncodeBinary(*io.BinWriter) {
 }
 

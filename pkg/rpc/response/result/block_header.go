@@ -10,8 +10,8 @@ import (
 )
 
 type (
-	// Header wrapper used for the representation of
-	// block header on the RPC Server.
+	// Header wrapper used for a representation of
+	// the block header on the RPC Server.
 	Header struct {
 		block.Header
 		BlockMetadata
@@ -35,7 +35,7 @@ func NewHeader(h *block.Header, chain LedgerAux) Header {
 	return res
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (h Header) MarshalJSON() ([]byte, error) {
 	output, err := json.Marshal(h.BlockMetadata)
 	if err != nil {
@@ -57,7 +57,7 @@ func (h Header) MarshalJSON() ([]byte, error) {
 	return output, nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (h *Header) UnmarshalJSON(data []byte) error {
 	// As block.Block and BlockMetadata are at the same level in json,
 	// do unmarshalling separately for both structs.

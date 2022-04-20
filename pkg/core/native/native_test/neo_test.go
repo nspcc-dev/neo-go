@@ -78,7 +78,7 @@ func TestNEO_Vote(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, standBySorted, keys.PublicKeys(pubs))
 
-	// voters vote for candidates. The aim of this test is to check that voting
+	// voters vote for candidates. The aim of this test is to check if voting
 	// reward is proportional to the NEO balance.
 	voters := make([]neotest.Signer, committeeSize+1)
 	// referenceAccounts perform the same actions as voters except voting, i.e. we

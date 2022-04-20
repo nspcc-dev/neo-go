@@ -29,7 +29,7 @@ type Iterator struct {
 	prefix []byte
 }
 
-// NewIterator creates a new Iterator with given options for a given channel of store.Seek results.
+// NewIterator creates a new Iterator with the given options for the given channel of store.Seek results.
 func NewIterator(seekCh chan storage.KeyValue, prefix []byte, opts int64) *Iterator {
 	return &Iterator{
 		seekCh: seekCh,

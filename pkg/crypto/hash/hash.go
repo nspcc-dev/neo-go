@@ -8,7 +8,7 @@ import (
 	"golang.org/x/crypto/ripemd160" //nolint:staticcheck // SA1019: package golang.org/x/crypto/ripemd160 is deprecated
 )
 
-// Hashable represents an object which can be hashed. Usually these objects
+// Hashable represents an object which can be hashed. Usually, these objects
 // are io.Serializable and signable. They tend to cache the hash inside for
 // effectiveness, providing this accessor method. Anything that can be
 // identified with a hash can then be signed and verified.
@@ -24,7 +24,7 @@ func getSignedData(net uint32, hh Hashable) []byte {
 	return b
 }
 
-// NetSha256 calculates network-specific hash of Hashable item that can then
+// NetSha256 calculates a network-specific hash of the Hashable item that can then
 // be signed/verified.
 func NetSha256(net uint32, hh Hashable) util.Uint256 {
 	return Sha256(getSignedData(net, hh))

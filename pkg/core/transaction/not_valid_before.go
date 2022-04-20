@@ -12,7 +12,7 @@ type NotValidBefore struct {
 	Height uint32 `json:"height"`
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (n *NotValidBefore) DecodeBinary(br *io.BinReader) {
 	bytes := br.ReadVarBytes(4)
 	if br.Err != nil {
@@ -25,7 +25,7 @@ func (n *NotValidBefore) DecodeBinary(br *io.BinReader) {
 	n.Height = binary.LittleEndian.Uint32(bytes)
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (n *NotValidBefore) EncodeBinary(w *io.BinWriter) {
 	bytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(bytes, n.Height)

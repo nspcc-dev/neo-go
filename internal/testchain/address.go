@@ -24,20 +24,20 @@ var privNetKeys = []string{
 	"KxyjQ8eUa4FHt3Gvioyt1Wz29cTUrE4eTqX3yFSk1YFCsPL8uNsY",
 	"L2oEXKRAAMiPEZukwR5ho2S6SMeQLhcK9mF71ZnF7GvT8dU4Kkgz",
 
-	// Provide 2 committee extra members so that committee address differs from
+	// Provide 2 committee extra members so that the committee address differs from
 	// the validators one.
 	"L1Tr1iq5oz1jaFaMXP21sHDkJYDDkuLtpvQ4wRf1cjKvJYvnvpAb",
 	"Kz6XTUrExy78q8f4MjDHnwz8fYYyUE8iPXwPRAkHa3qN2JcHYm7e",
 }
 
-// ValidatorsCount returns number of validators in the testchain.
+// ValidatorsCount returns the number of validators in the testchain.
 const ValidatorsCount = 4
 
 var (
 	// ids maps validators order by public key sorting to validators ID.
-	// which is an order of the validator in the StandByValidators list.
+	// That is the order of the validator in the StandByValidators list.
 	ids = []int{1, 3, 0, 2, 4, 5}
-	// orders maps to validators id to it's order by public key sorting.
+	// orders maps validators id to its order by public key sorting.
 	orders = []int{2, 0, 3, 1, 4, 5}
 )
 
@@ -56,12 +56,12 @@ func IDToOrder(id int) int {
 	return orders[id]
 }
 
-// WIF returns unencrypted wif of the specified validator.
+// WIF returns the unencrypted wif of the specified validator.
 func WIF(i int) string {
 	return privNetKeys[i]
 }
 
-// PrivateKey returns private key of node #i.
+// PrivateKey returns the private key of node #i.
 func PrivateKey(i int) *keys.PrivateKey {
 	wif := WIF(i)
 	priv, err := keys.NewPrivateKeyFromWIF(wif)
@@ -154,7 +154,7 @@ func SignCommittee(h hash.Hashable) []byte {
 	return buf.Bytes()
 }
 
-// NewBlock creates new block for the given blockchain with the given offset
+// NewBlock creates a new block for the given blockchain with the given offset
 // (usually, 1), primary node index and transactions.
 func NewBlock(t *testing.T, bc blockchainer.Blockchainer, offset uint32, primary uint32, txs ...*transaction.Transaction) *block.Block {
 	witness := transaction.Witness{VerificationScript: MultisigVerificationScript()}

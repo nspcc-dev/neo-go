@@ -5,7 +5,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// Token represents imported token contract.
+// Token represents an imported token contract.
 type Token struct {
 	Name     string       `json:"name"`
 	Hash     util.Uint160 `json:"script_hash"`
@@ -14,7 +14,7 @@ type Token struct {
 	Standard string       `json:"standard"`
 }
 
-// NewToken returns new token contract info.
+// NewToken returns the new token contract info.
 func NewToken(tokenHash util.Uint160, name, symbol string, decimals int64, standardName string) *Token {
 	return &Token{
 		Name:     name,

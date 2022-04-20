@@ -113,8 +113,8 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 	return nil
 }
 
-// sendVote attempts to send vote if it's still valid and if stateroot message
-// was not sent yet. It must be called with ir locked.
+// sendVote attempts to send a vote if it's still valid and if stateroot message
+// has not been sent yet. It must be called with the ir locked.
 func (s *service) sendVote(ir *incompleteRoot) {
 	if ir.isSent || ir.retries >= s.maxRetries ||
 		s.chain.HeaderHeight() >= ir.myVote.ValidBlockEnd {
@@ -133,7 +133,7 @@ func (s *service) sendVote(ir *incompleteRoot) {
 	ir.retries++
 }
 
-// getAccount returns current index and account for the node running this service.
+// getAccount returns the current index and account for the node running this service.
 func (s *service) getAccount() (byte, *wallet.Account) {
 	s.accMtx.RLock()
 	defer s.accMtx.RUnlock()
