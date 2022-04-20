@@ -286,9 +286,8 @@ func (m *Management) markUpdated(d *dao.Simple, hash util.Uint160, cs *state.Con
 // It doesn't run _deploy method and doesn't emit notification.
 func (m *Management) Deploy(d *dao.Simple, sender util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	h := state.CreateContractHash(sender, neff.Checksum, manif.Name)
-	key := MakeContractKey(h)
-	si := d.GetStorageItem(m.ID, key)
-	if si != nil {
+	_, err := m.GetContract(d, h)
+	if err == nil {
 		return nil, errors.New("contract already exists")
 	}
 	id, err := m.getNextContractID(d)
