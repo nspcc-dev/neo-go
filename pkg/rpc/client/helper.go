@@ -141,19 +141,19 @@ func topIterableFromStack(st []stackitem.Item, resultItemType interface{}) ([]in
 			}
 			name, err := rs[0].TryBytes()
 			if err != nil {
-				return nil, fmt.Errorf("failed to deocde RecordState from stackitem #%d: %w", i, err)
+				return nil, fmt.Errorf("failed to decode RecordState from stackitem #%d: %w", i, err)
 			}
 			typ, err := rs[1].TryInteger()
 			if err != nil {
-				return nil, fmt.Errorf("failed to deocde RecordState from stackitem #%d: %w", i, err)
+				return nil, fmt.Errorf("failed to decode RecordState from stackitem #%d: %w", i, err)
 			}
 			data, err := rs[2].TryBytes()
 			if err != nil {
-				return nil, fmt.Errorf("failed to deocde RecordState from stackitem #%d: %w", i, err)
+				return nil, fmt.Errorf("failed to decode RecordState from stackitem #%d: %w", i, err)
 			}
 			u64Typ := typ.Uint64()
 			if !typ.IsUint64() || u64Typ > 255 {
-				return nil, fmt.Errorf("failed to deocde RecordState from stackitem #%d: bad type", i)
+				return nil, fmt.Errorf("failed to decode RecordState from stackitem #%d: bad type", i)
 			}
 			result[i] = nns.RecordState{
 				Name: string(name),
