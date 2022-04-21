@@ -46,6 +46,7 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemRuntimeCheckWitness, Func: runtime.CheckWitness, Price: 1 << 10,
 		RequiredFlags: callflag.NoneFlag, ParamCount: 1},
 	{Name: interopnames.SystemRuntimeGasLeft, Func: runtime.GasLeft, Price: 1 << 4},
+	{Name: interopnames.SystemRuntimeGetAddressVersion, Func: runtime.GetAddressVersion, Price: 1 << 3},
 	{Name: interopnames.SystemRuntimeGetCallingScriptHash, Func: runtime.GetCallingScriptHash, Price: 1 << 4},
 	{Name: interopnames.SystemRuntimeGetEntryScriptHash, Func: runtime.GetEntryScriptHash, Price: 1 << 4},
 	{Name: interopnames.SystemRuntimeGetExecutingScriptHash, Func: runtime.GetExecutingScriptHash, Price: 1 << 4},

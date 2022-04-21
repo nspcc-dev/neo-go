@@ -46,6 +46,14 @@ func Notify(name string, args ...interface{}) {
 	neogointernal.Syscall2NoReturn("System.Runtime.Notify", name, args)
 }
 
+// GetAddressVersion returns the address version of the current protocol. The
+// address version represents the byte used to prepend to Neo addresses when
+// encoding them. The default value for Neo3 is 53 (0x35). This function uses
+// `System.Runtime.GetAddressVersion` syscall.
+func GetAddressVersion() int {
+	return neogointernal.Syscall0("System.Runtime.GetAddressVersion").(int)
+}
+
 // GetNetwork returns network magic number. This function uses
 // `System.Runtime.GetNetwork` syscall.
 func GetNetwork() int {

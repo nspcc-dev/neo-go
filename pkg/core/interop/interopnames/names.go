@@ -16,6 +16,7 @@ const (
 	SystemRuntimeBurnGas                = "System.Runtime.BurnGas"
 	SystemRuntimeCheckWitness           = "System.Runtime.CheckWitness"
 	SystemRuntimeGasLeft                = "System.Runtime.GasLeft"
+	SystemRuntimeGetAddressVersion      = "System.Runtime.GetAddressVersion"
 	SystemRuntimeGetCallingScriptHash   = "System.Runtime.GetCallingScriptHash"
 	SystemRuntimeGetEntryScriptHash     = "System.Runtime.GetEntryScriptHash"
 	SystemRuntimeGetExecutingScriptHash = "System.Runtime.GetExecutingScriptHash"
@@ -51,6 +52,7 @@ var names = []string{
 	SystemRuntimeBurnGas,
 	SystemRuntimeCheckWitness,
 	SystemRuntimeGasLeft,
+	SystemRuntimeGetAddressVersion,
 	SystemRuntimeGetCallingScriptHash,
 	SystemRuntimeGetEntryScriptHash,
 	SystemRuntimeGetExecutingScriptHash,

@@ -71,6 +71,7 @@ func TestSyscallExecution(t *testing.T) {
 		"runtime.BurnGas":                  {interopnames.SystemRuntimeBurnGas, []string{"1"}, true},
 		"runtime.CheckWitness":             {interopnames.SystemRuntimeCheckWitness, []string{b}, false},
 		"runtime.GasLeft":                  {interopnames.SystemRuntimeGasLeft, nil, false},
+		"runtime.GetAddressVersion":        {interopnames.SystemRuntimeGetAddressVersion, nil, false},
 		"runtime.GetCallingScriptHash":     {interopnames.SystemRuntimeGetCallingScriptHash, nil, false},
 		"runtime.GetEntryScriptHash":       {interopnames.SystemRuntimeGetEntryScriptHash, nil, false},
 		"runtime.GetExecutingScriptHash":   {interopnames.SystemRuntimeGetExecutingScriptHash, nil, false},
