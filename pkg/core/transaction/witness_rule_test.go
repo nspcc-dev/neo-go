@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,5 +53,23 @@ func TestWitnessRuleBadJSON(t *testing.T) {
 		actual := &WitnessRule{}
 		err := json.Unmarshal([]byte(cases[i]), actual)
 		require.Errorf(t, err, "case %d, json %s", i, cases[i])
+	}
+}
+
+func TestWitnessRule_ToStackItem(t *testing.T) {
+	var b bool
+	for _, act := range []WitnessAction{WitnessDeny, WitnessAllow} {
+		expected := stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(int64(act)),
+			stackitem.Make([]stackitem.Item{
+				stackitem.Make(WitnessBoolean),
+				stackitem.Make(b),
+			}),
+		})
+		actual := (&WitnessRule{
+			Action:    act,
+			Condition: (*ConditionBoolean)(&b),
+		}).ToStackItem()
+		require.Equal(t, expected, actual, act)
 	}
 }

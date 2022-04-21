@@ -6,6 +6,8 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -170,5 +172,40 @@ func TestLedger_GetBlock(t *testing.T) {
 	t.Run("isn't traceable", func(t *testing.T) {
 		e.GenerateNewBlocks(t, int(e.Chain.GetConfig().MaxTraceableBlocks))
 		ledgerInvoker.Invoke(t, stackitem.Null{}, "getBlock", b.Hash())
+	})
+}
+
+func TestLedger_GetTransactionSigners(t *testing.T) {
+	c := newLedgerClient(t)
+	e := c.Executor
+	ledgerInvoker := c.WithSigners(c.Committee)
+
+	txHash := ledgerInvoker.Invoke(t, e.Chain.BlockHeight(), "currentIndex")
+
+	t.Run("good", func(t *testing.T) {
+		s := &transaction.Signer{
+			Account: c.CommitteeHash,
+			Scopes:  transaction.Global,
+		}
+		bw := io.NewBufBinWriter()
+		s.EncodeBinary(bw.BinWriter)
+		require.NoError(t, bw.Err)
+		expected := stackitem.NewArray([]stackitem.Item{
+			stackitem.NewArray([]stackitem.Item{
+				stackitem.NewByteArray(bw.Bytes()),
+				stackitem.NewByteArray(s.Account.BytesBE()),
+				stackitem.NewBigInteger(big.NewInt(int64(s.Scopes))),
+				stackitem.NewArray([]stackitem.Item{}),
+				stackitem.NewArray([]stackitem.Item{}),
+				stackitem.NewArray([]stackitem.Item{}),
+			}),
+		})
+		ledgerInvoker.Invoke(t, expected, "getTransactionSigners", txHash)
+	})
+	t.Run("unknown transaction", func(t *testing.T) {
+		ledgerInvoker.Invoke(t, stackitem.Null{}, "getTransactionSigners", util.Uint256{1, 2, 3})
+	})
+	t.Run("not a hash", func(t *testing.T) {
+		ledgerInvoker.InvokeFail(t, "expected []byte of size 32", "getTransactionSigners", []byte{1, 2, 3})
 	})
 }

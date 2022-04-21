@@ -3,8 +3,10 @@ package transaction
 import (
 	"encoding/json"
 	"errors"
+	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 //go:generate stringer -type=WitnessAction -linecomment
@@ -83,4 +85,12 @@ func (w *WitnessRule) UnmarshalJSON(data []byte) error {
 	w.Action = action
 	w.Condition = cond
 	return nil
+}
+
+// ToStackItem implements Convertible interface.
+func (w *WitnessRule) ToStackItem() stackitem.Item {
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.NewBigInteger(big.NewInt(int64(w.Action))),
+		w.Condition.ToStackItem(),
+	})
 }
