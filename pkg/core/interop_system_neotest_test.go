@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
@@ -205,6 +206,16 @@ func TestSystemRuntimeGetNetwork(t *testing.T) {
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetNetwork)
 	require.NoError(t, w.Err)
 	e.InvokeScriptCheckHALT(t, w.Bytes(), []neotest.Signer{acc}, stackitem.NewBigInteger(big.NewInt(int64(bc.GetConfig().Magic))))
+}
+
+func TestSystemRuntimeGetAddressVersion(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	w := io.NewBufBinWriter()
+
+	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetAddressVersion)
+	require.NoError(t, w.Err)
+	e.InvokeScriptCheckHALT(t, w.Bytes(), []neotest.Signer{acc}, stackitem.NewBigInteger(big.NewInt(int64(address.NEO3Prefix))))
 }
 
 func TestSystemRuntimeBurnGas(t *testing.T) {

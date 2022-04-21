@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -69,6 +70,12 @@ func GetInvocationCounter(ic *interop.Context) error {
 		ic.Invocations[currentScriptHash] = count
 	}
 	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(count))))
+	return nil
+}
+
+// GetAddressVersion returns the address version of the current protocol.
+func GetAddressVersion(ic *interop.Context) error {
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(address.NEO3Prefix))))
 	return nil
 }
 
