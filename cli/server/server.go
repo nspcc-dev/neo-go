@@ -504,11 +504,11 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log)
 	errChan := make(chan error)
+	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
 
 	go serv.Start(errChan)
-	rpcServer.Start(errChan)
+	rpcServer.Start()
 
 	sighupCh := make(chan os.Signal, 1)
 	signal.Notify(sighupCh, syscall.SIGHUP)
@@ -528,20 +528,14 @@ Main:
 			switch sig {
 			case syscall.SIGHUP:
 				log.Info("SIGHUP received, restarting rpc-server")
-				serverErr := rpcServer.Shutdown()
-				if serverErr != nil {
-					errChan <- fmt.Errorf("error while restarting rpc-server: %w", serverErr)
-					break
-				}
-				rpcServer = server.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log)
-				rpcServer.Start(errChan)
+				rpcServer.Shutdown()
+				rpcServer = server.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
+				rpcServer.Start()
 			}
 		case <-grace.Done():
 			signal.Stop(sighupCh)
 			serv.Shutdown()
-			if serverErr := rpcServer.Shutdown(); serverErr != nil {
-				shutdownErr = fmt.Errorf("error on shutdown: %w", serverErr)
-			}
+			rpcServer.Shutdown()
 			break Main
 		}
 	}

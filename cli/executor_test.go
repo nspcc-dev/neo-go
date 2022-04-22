@@ -151,9 +151,9 @@ func newTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 	require.NoError(t, err)
 	netSrv.AddExtensibleHPService(cons, consensus.Category, cons.OnPayload, cons.OnTransaction)
 	go netSrv.Start(make(chan error, 1))
-	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, netSrv, nil, logger)
 	errCh := make(chan error, 2)
-	rpcServer.Start(errCh)
+	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, netSrv, nil, logger, errCh)
+	rpcServer.Start()
 
 	return chain, &rpcServer, netSrv
 }
@@ -187,7 +187,7 @@ func newExecutorWithConfig(t *testing.T, needChain, runChain bool, f func(*confi
 func (e *executor) Close(t *testing.T) {
 	input.Terminal = nil
 	if e.RPC != nil {
-		require.NoError(t, e.RPC.Shutdown())
+		e.RPC.Shutdown()
 	}
 	if e.NetSrv != nil {
 		e.NetSrv.Shutdown()

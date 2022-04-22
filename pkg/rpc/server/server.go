@@ -68,6 +68,7 @@ type (
 		https            *http.Server
 		shutdown         chan struct{}
 		started          *atomic.Bool
+		errChan          chan error
 
 		subsLock          sync.RWMutex
 		subscribers       map[*subscriber]bool
@@ -164,7 +165,7 @@ var upgrader = websocket.Upgrader{}
 
 // New creates a new Server struct.
 func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.Server,
-	orc *oracle.Oracle, log *zap.Logger) Server {
+	orc *oracle.Oracle, log *zap.Logger, errChan chan error) Server {
 	httpServer := &http.Server{
 		Addr: conf.Address + ":" + strconv.FormatUint(uint64(conf.Port), 10),
 	}
@@ -191,6 +192,7 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 		https:            tlsServer,
 		shutdown:         make(chan struct{}),
 		started:          atomic.NewBool(false),
+		errChan:          errChan,
 
 		subscribers: make(map[*subscriber]bool),
 		// These are NOT buffered to preserve original order of events.
@@ -202,10 +204,9 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 	}
 }
 
-// Start creates a new JSON-RPC server listening on the configured port. It's
-// supposed to be run as a separate goroutine (like http.Server's Serve) and it
-// returns its errors via given errChan.
-func (s *Server) Start(errChan chan error) {
+// Start creates a new JSON-RPC server listening on the configured port. It creates
+// goroutines needed internally and it returns its errors via errChan passed to New().
+func (s *Server) Start() {
 	if !s.config.Enabled {
 		s.log.Info("RPC server is not enabled")
 		return
@@ -224,20 +225,20 @@ func (s *Server) Start(errChan chan error) {
 		go func() {
 			ln, err := net.Listen("tcp", s.https.Addr)
 			if err != nil {
-				errChan <- err
+				s.errChan <- err
 				return
 			}
 			s.https.Addr = ln.Addr().String()
 			err = s.https.ServeTLS(ln, cfg.CertFile, cfg.KeyFile)
 			if err != http.ErrServerClosed {
 				s.log.Error("failed to start TLS RPC server", zap.Error(err))
-				errChan <- err
+				s.errChan <- err
 			}
 		}()
 	}
 	ln, err := net.Listen("tcp", s.Addr)
 	if err != nil {
-		errChan <- err
+		s.errChan <- err
 		return
 	}
 	s.Addr = ln.Addr().String() // set Addr to the actual address
@@ -245,34 +246,35 @@ func (s *Server) Start(errChan chan error) {
 		err = s.Serve(ln)
 		if err != http.ErrServerClosed {
 			s.log.Error("failed to start RPC server", zap.Error(err))
-			errChan <- err
+			s.errChan <- err
 		}
 	}()
 }
 
-// Shutdown overrides the http.Server Shutdown
-// method.
-func (s *Server) Shutdown() error {
+// Shutdown stops the RPC server. It can only be called once.
+func (s *Server) Shutdown() {
 	var httpsErr error
 
 	// Signal to websocket writer routines and handleSubEvents.
 	close(s.shutdown)
 
 	if s.config.TLSConfig.Enabled {
-		s.log.Info("shutting down rpc-server (https)", zap.String("endpoint", s.https.Addr))
+		s.log.Info("shutting down RPC server (https)", zap.String("endpoint", s.https.Addr))
 		httpsErr = s.https.Shutdown(context.Background())
 	}
 
-	s.log.Info("shutting down rpc-server", zap.String("endpoint", s.Addr))
+	s.log.Info("shutting down RPC server", zap.String("endpoint", s.Addr))
 	err := s.Server.Shutdown(context.Background())
 
 	// Wait for handleSubEvents to finish.
 	<-s.executionCh
 
-	if err == nil {
-		return httpsErr
+	if httpsErr != nil {
+		s.errChan <- httpsErr
 	}
-	return err
+	if err != nil {
+		s.errChan <- err
+	}
 }
 
 func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Request) {
