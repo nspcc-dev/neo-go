@@ -506,9 +506,12 @@ func startServer(ctx *cli.Context) error {
 	}
 	errChan := make(chan error)
 	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
+	serv.AddService(&rpcServer)
 
 	go serv.Start(errChan)
-	rpcServer.Start()
+	if !cfg.ApplicationConfiguration.RPC.StartWhenSynchronized {
+		rpcServer.Start()
+	}
 
 	sighupCh := make(chan os.Signal, 1)
 	signal.Notify(sighupCh, syscall.SIGHUP)
@@ -530,12 +533,14 @@ Main:
 				log.Info("SIGHUP received, restarting rpc-server")
 				rpcServer.Shutdown()
 				rpcServer = server.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
-				rpcServer.Start()
+				serv.AddService(&rpcServer) // Replaces old one by service name.
+				if !cfg.ApplicationConfiguration.RPC.StartWhenSynchronized || serv.IsInSync() {
+					rpcServer.Start()
+				}
 			}
 		case <-grace.Done():
 			signal.Stop(sighupCh)
 			serv.Shutdown()
-			rpcServer.Shutdown()
 			break Main
 		}
 	}

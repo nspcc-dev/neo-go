@@ -136,6 +136,7 @@ RPC:
   MaxFindResultItems: 100
   MaxNEP11Tokens: 100
   Port: 10332
+  StartWhenSynchronized: false
   TLSConfig:
     Address: ""
     CertFile: serv.crt
@@ -158,6 +159,10 @@ where:
 - `MaxNEP11Tokens` - limit for the number of tokens returned from
   `getnep11balances` call.
 - `Port` is an RPC server port it should be bound to.
+- `StartWhenSynchronized` controls when RPC server will be started, by default
+  (`false` setting) it's started immediately and RPC is availabe during node
+  synchronization. Setting it to `true` will make the node start RPC service only
+  after full synchronization.
 - `TLS` section configures TLS protocol.
 
 ### State Root Configuration

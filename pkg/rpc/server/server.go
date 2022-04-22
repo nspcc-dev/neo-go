@@ -260,6 +260,9 @@ func (s *Server) Start() {
 func (s *Server) Shutdown() {
 	var httpsErr error
 
+	if !s.started.Load() {
+		return
+	}
 	// Signal to websocket writer routines and handleSubEvents.
 	close(s.shutdown)
 

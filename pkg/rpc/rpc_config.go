@@ -17,6 +17,7 @@ type (
 		MaxFindResultItems     int           `yaml:"MaxFindResultItems"`
 		MaxNEP11Tokens         int           `yaml:"MaxNEP11Tokens"`
 		Port                   uint16        `yaml:"Port"`
+		StartWhenSynchronized  bool          `yaml:"StartWhenSynchronized"`
 		TLSConfig              TLSConfig     `yaml:"TLSConfig"`
 	}
 

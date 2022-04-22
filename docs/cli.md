@@ -55,6 +55,17 @@ Or specify a different network with appropriate flag like this:
 By default, the node will run in foreground using current standard output for
 logging.
 
+
+### Node synchronization
+
+Most of the services (state validation, oracle, consensus and RPC if
+configured with `StartWhenSynchronized` option) are only started after the
+node is completely synchronizaed because running them before that is either
+pointless or even dangerous. The node considers itself to be fully
+synchronized with the network if it has more than `MinPeers` neighbours and if
+at least 2/3 of them are known to have a height less than or equal to the
+current height of the node.
+
 ### Restarting node services
 
 To restart some node services without full node restart, send the SIGHUP 
