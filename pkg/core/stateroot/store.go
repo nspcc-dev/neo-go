@@ -51,7 +51,7 @@ func (s *Module) getStateRoot(key []byte) (*state.MPTRoot, error) {
 func makeStateRootKey(index uint32) []byte {
 	key := make([]byte, 5)
 	key[0] = byte(storage.DataMPTAux)
-	binary.BigEndian.PutUint32(key, index)
+	binary.BigEndian.PutUint32(key[1:], index)
 	return key
 }
 

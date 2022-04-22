@@ -277,7 +277,7 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 		cache := storage.NewMemCachedStore(ps) // Extra wrapper to avoid good DB corruption.
 		key := make([]byte, 5)
 		key[0] = byte(storage.DataMPTAux)
-		binary.BigEndian.PutUint32(key, h)
+		binary.BigEndian.PutUint32(key[1:], h)
 		cache.Delete(key)
 
 		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, cache)
