@@ -105,10 +105,13 @@ func (bq *blockQueue) run() {
 func (bq *blockQueue) putBlock(block *block.Block) error {
 	h := bq.chain.BlockHeight()
 	bq.queueLock.Lock()
+	defer bq.queueLock.Unlock()
+	if bq.discarded.Load() {
+		return nil
+	}
 	if block.Index <= h || h+blockCacheSize < block.Index {
 		// can easily happen when fetching the same blocks from
 		// different peers, thus not considered as error
-		bq.queueLock.Unlock()
 		return nil
 	}
 	pos := indexToPosition(block.Index)
@@ -122,7 +125,6 @@ func (bq *blockQueue) putBlock(block *block.Block) error {
 		}
 	}
 	l := bq.len
-	bq.queueLock.Unlock()
 	// update metrics
 	updateBlockQueueLenMetric(l)
 	select {
@@ -142,8 +144,8 @@ func (bq *blockQueue) lastQueued() uint32 {
 
 func (bq *blockQueue) discard() {
 	if bq.discarded.CAS(false, true) {
-		close(bq.checkBlocks)
 		bq.queueLock.Lock()
+		close(bq.checkBlocks)
 		// Technically we could bq.queue = nil, but this would cost
 		// another if in run().
 		for i := 0; i < len(bq.queue); i++ {
