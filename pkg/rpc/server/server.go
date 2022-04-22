@@ -204,6 +204,11 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 	}
 }
 
+// Name returns service name.
+func (s *Server) Name() string {
+	return "rpc"
+}
+
 // Start creates a new JSON-RPC server listening on the configured port. It creates
 // goroutines needed internally and it returns its errors via errChan passed to New().
 func (s *Server) Start() {

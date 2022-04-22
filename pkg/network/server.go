@@ -75,6 +75,7 @@ type (
 
 	// Service is a service abstraction (oracle, state root, consensus, etc).
 	Service interface {
+		Name() string
 		Start()
 		Shutdown()
 	}
@@ -100,7 +101,7 @@ type (
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
 		notaryFeer        NotaryFeer
-		services          []Service
+		services          map[string]Service
 		extensHandlers    map[string]func(*payload.Extensible) error
 		extensHighPrio    string
 		txCallback        func(*transaction.Transaction)
@@ -177,6 +178,7 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		extensiblePool: extpool.New(chain, config.ExtensiblePoolSize),
 		log:            log,
 		transactions:   make(chan *transaction.Transaction, 64),
+		services:       make(map[string]Service),
 		extensHandlers: make(map[string]func(*payload.Extensible) error),
 		stateSync:      stSync,
 	}
@@ -270,7 +272,7 @@ func (s *Server) Shutdown() {
 
 // AddService allows to add a service to be started/stopped by Server.
 func (s *Server) AddService(svc Service) {
-	s.services = append(s.services, svc)
+	s.services[svc.Name()] = svc
 }
 
 // AddExtensibleService register a service that handles extensible payload of some kind.

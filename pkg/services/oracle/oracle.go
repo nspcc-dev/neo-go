@@ -174,6 +174,11 @@ func NewOracle(cfg Config) (*Oracle, error) {
 	return o, nil
 }
 
+// Name returns service name.
+func (o *Oracle) Name() string {
+	return "oracle"
+}
+
 // Shutdown shutdowns Oracle.
 func (o *Oracle) Shutdown() {
 	close(o.close)

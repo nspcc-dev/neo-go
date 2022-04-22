@@ -152,6 +152,11 @@ func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction fu
 	}, nil
 }
 
+// Name returns service name.
+func (n *Notary) Name() string {
+	return "notary"
+}
+
 // Start runs Notary module in a separate goroutine.
 func (n *Notary) Start() {
 	n.Config.Log.Info("starting notary service")

@@ -28,6 +28,7 @@ type (
 
 	// Service represents state root service.
 	Service interface {
+		Name() string
 		OnPayload(p *payload.Extensible) error
 		AddSignature(height uint32, validatorIndex int32, sig []byte) error
 		GetConfig() config.StateRoot
