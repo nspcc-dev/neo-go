@@ -50,6 +50,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -66,6 +67,7 @@ type (
 		log              *zap.Logger
 		https            *http.Server
 		shutdown         chan struct{}
+		started          *atomic.Bool
 
 		subsLock          sync.RWMutex
 		subscribers       map[*subscriber]bool
@@ -188,6 +190,7 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 		oracle:           orc,
 		https:            tlsServer,
 		shutdown:         make(chan struct{}),
+		started:          atomic.NewBool(false),
 
 		subscribers: make(map[*subscriber]bool),
 		// These are NOT buffered to preserve original order of events.
@@ -205,6 +208,10 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 func (s *Server) Start(errChan chan error) {
 	if !s.config.Enabled {
 		s.log.Info("RPC server is not enabled")
+		return
+	}
+	if !s.started.CAS(false, true) {
+		s.log.Info("RPC server already started")
 		return
 	}
 	s.Handler = http.HandlerFunc(s.handleHTTPRequest)
