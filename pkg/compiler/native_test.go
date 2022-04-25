@@ -89,6 +89,32 @@ func TestOracleContractValues(t *testing.T) {
 	require.EqualValues(t, oracle.MinimumResponseGas, native.MinimumResponseGas)
 }
 
+func TestLedgerTransactionWitnessScope(t *testing.T) {
+	require.EqualValues(t, ledger.None, transaction.None)
+	require.EqualValues(t, ledger.CalledByEntry, transaction.CalledByEntry)
+	require.EqualValues(t, ledger.CustomContracts, transaction.CustomContracts)
+	require.EqualValues(t, ledger.CustomGroups, transaction.CustomGroups)
+	require.EqualValues(t, ledger.Rules, transaction.Rules)
+	require.EqualValues(t, ledger.Global, transaction.Global)
+}
+
+func TestLedgerTransactionWitnessAction(t *testing.T) {
+	require.EqualValues(t, ledger.WitnessAllow, transaction.WitnessAllow)
+	require.EqualValues(t, ledger.WitnessDeny, transaction.WitnessDeny)
+}
+
+func TestLedgerTransactionWitnessCondition(t *testing.T) {
+	require.EqualValues(t, ledger.WitnessBoolean, transaction.WitnessBoolean)
+	require.EqualValues(t, ledger.WitnessNot, transaction.WitnessNot)
+	require.EqualValues(t, ledger.WitnessAnd, transaction.WitnessAnd)
+	require.EqualValues(t, ledger.WitnessOr, transaction.WitnessOr)
+	require.EqualValues(t, ledger.WitnessScriptHash, transaction.WitnessScriptHash)
+	require.EqualValues(t, ledger.WitnessGroup, transaction.WitnessGroup)
+	require.EqualValues(t, ledger.WitnessCalledByEntry, transaction.WitnessCalledByEntry)
+	require.EqualValues(t, ledger.WitnessCalledByContract, transaction.WitnessCalledByContract)
+	require.EqualValues(t, ledger.WitnessCalledByGroup, transaction.WitnessCalledByGroup)
+}
+
 func TestLedgerVMStates(t *testing.T) {
 	require.EqualValues(t, ledger.NoneState, vm.NoneState)
 	require.EqualValues(t, ledger.HaltState, vm.HaltState)
@@ -158,6 +184,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"getTransaction", []string{u256}},
 		{"getTransactionFromBlock", []string{u256, "1"}},
 		{"getTransactionHeight", []string{u256}},
+		{"getTransactionSigners", []string{u256}},
 		{"getTransactionVMState", []string{u256}},
 	})
 	runNativeTestCases(t, cs.Notary.ContractMD, "notary", []nativeTestCase{
