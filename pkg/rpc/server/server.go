@@ -258,8 +258,6 @@ func (s *Server) Start() {
 
 // Shutdown stops the RPC server. It can only be called once.
 func (s *Server) Shutdown() {
-	var httpsErr error
-
 	if !s.started.Load() {
 		return
 	}
@@ -268,21 +266,20 @@ func (s *Server) Shutdown() {
 
 	if s.config.TLSConfig.Enabled {
 		s.log.Info("shutting down RPC server (https)", zap.String("endpoint", s.https.Addr))
-		httpsErr = s.https.Shutdown(context.Background())
+		err := s.https.Shutdown(context.Background())
+		if err != nil {
+			s.log.Warn("error during RPC (https) server shutdown", zap.Error(err))
+		}
 	}
 
 	s.log.Info("shutting down RPC server", zap.String("endpoint", s.Addr))
 	err := s.Server.Shutdown(context.Background())
+	if err != nil {
+		s.log.Warn("error during RPC (http) server shutdown", zap.Error(err))
+	}
 
 	// Wait for handleSubEvents to finish.
 	<-s.executionCh
-
-	if httpsErr != nil {
-		s.errChan <- httpsErr
-	}
-	if err != nil {
-		s.errChan <- err
-	}
 }
 
 func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Request) {
