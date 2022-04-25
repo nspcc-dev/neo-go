@@ -59,6 +59,12 @@ func GetTransactionFromBlock(indexOrHash interface{}, txIndex int) *Transaction 
 		indexOrHash, txIndex).(*Transaction)
 }
 
+// GetTransactionSigners represents `getTransactionSigners` method of Ledger native contract.
+func GetTransactionSigners(hash interop.Hash256) []TransactionSigner {
+	return neogointernal.CallWithToken(Hash, "getTransactionSigners", int(contract.ReadStates),
+		hash).([]TransactionSigner)
+}
+
 // GetTransactionVMState represents `getTransactionVMState` method of Ledger native contract.
 func GetTransactionVMState(hash interop.Hash256) VMState {
 	return neogointernal.CallWithToken(Hash, "getTransactionVMState", int(contract.ReadStates), hash).(VMState)
