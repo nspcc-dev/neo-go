@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"strings"
@@ -137,6 +138,7 @@ func newTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 	}
 
 	serverConfig := network.NewServerConfig(cfg)
+	serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.3-test")
 	netSrv, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), zap.NewNop())
 	require.NoError(t, err)
 	cons, err := consensus.NewService(consensus.Config{

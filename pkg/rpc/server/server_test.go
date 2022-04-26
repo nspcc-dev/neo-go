@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
@@ -849,7 +850,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, ver interface{}) {
 				resp, ok := ver.(*result.Version)
 				require.True(t, ok)
-				require.Equal(t, "/NEO-GO:/", resp.UserAgent)
+				require.Equal(t, "/NEO-GO:0.98.3-test/", resp.UserAgent)
 
 				cfg := e.chain.GetConfig()
 				require.EqualValues(t, address.NEO3Prefix, resp.Protocol.AddressVersion)
@@ -2605,6 +2606,7 @@ func BenchmarkHandleIn(b *testing.B) {
 	chain, orc, cfg, logger := getUnitTestChain(b, false, false)
 
 	serverConfig := network.NewServerConfig(cfg)
+	serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.3-test")
 	serverConfig.LogLevel = zapcore.FatalLevel
 	server, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), logger)
 	require.NoError(b, err)

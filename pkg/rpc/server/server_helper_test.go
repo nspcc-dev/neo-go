@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -101,6 +102,7 @@ func initClearServerWithServices(t testing.TB, needOracle bool, needNotary bool)
 	chain, orc, cfg, logger := getUnitTestChain(t, needOracle, needNotary)
 
 	serverConfig := network.NewServerConfig(cfg)
+	serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.3-test")
 	serverConfig.Port = 0
 	server, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), logger)
 	require.NoError(t, err)
