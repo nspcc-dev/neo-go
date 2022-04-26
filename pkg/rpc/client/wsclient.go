@@ -243,12 +243,6 @@ func (c *WSClient) wsWriter() {
 	}
 }
 
-func (c *WSClient) registerRespChannel(id uint64, ch chan *response.Raw) {
-	c.respLock.Lock()
-	defer c.respLock.Unlock()
-	c.respChannels[id] = ch
-}
-
 func (c *WSClient) unregisterRespChannel(id uint64) {
 	c.respLock.Lock()
 	defer c.respLock.Unlock()
@@ -266,8 +260,15 @@ func (c *WSClient) getResponseChannel(id uint64) chan *response.Raw {
 
 func (c *WSClient) makeWsRequest(r *request.Raw) (*response.Raw, error) {
 	ch := make(chan *response.Raw)
-	c.registerRespChannel(r.ID, ch)
-
+	c.respLock.Lock()
+	select {
+	case <-c.done:
+		c.respLock.Unlock()
+		return nil, errors.New("connection lost before registering response channel")
+	default:
+		c.respChannels[r.ID] = ch
+		c.respLock.Unlock()
+	}
 	select {
 	case <-c.done:
 		return nil, errors.New("connection lost before sending the request")
