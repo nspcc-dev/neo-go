@@ -104,9 +104,9 @@ func initClearServerWithServices(t testing.TB, needOracle bool, needNotary bool)
 	serverConfig.Port = 0
 	server, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), logger)
 	require.NoError(t, err)
-	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, orc, logger)
 	errCh := make(chan error, 2)
-	rpcServer.Start(errCh)
+	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, orc, logger, errCh)
+	rpcServer.Start()
 
 	handler := http.HandlerFunc(rpcServer.handleHTTPRequest)
 	srv := httptest.NewServer(handler)

@@ -63,6 +63,8 @@ type Ledger interface {
 
 // Service represents consensus instance.
 type Service interface {
+	// Name returns service name.
+	Name() string
 	// Start initializes dBFT and starts event loop for consensus service.
 	// It must be called only when sufficient amount of peers are connected.
 	Start()
@@ -254,6 +256,11 @@ func (s *service) newPrepareRequest() payload.PrepareRequest {
 		}
 	}
 	return r
+}
+
+// Name returns service name.
+func (s *service) Name() string {
+	return "consensus"
 }
 
 func (s *service) Start() {

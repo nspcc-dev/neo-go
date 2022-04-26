@@ -1304,7 +1304,7 @@ func TestRPC(t *testing.T) {
 func TestSubmitOracle(t *testing.T) {
 	chain, rpcSrv, httpSrv := initClearServerWithServices(t, true, false)
 	defer chain.Close()
-	defer func() { _ = rpcSrv.Shutdown() }()
+	defer rpcSrv.Shutdown()
 
 	rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitoracleresponse", "params": %s}`
 	runCase := func(t *testing.T, fail bool, params ...string) func(t *testing.T) {
@@ -1340,7 +1340,7 @@ func TestSubmitNotaryRequest(t *testing.T) {
 	t.Run("disabled P2PSigExtensions", func(t *testing.T) {
 		chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false)
 		defer chain.Close()
-		defer func() { _ = rpcSrv.Shutdown() }()
+		defer rpcSrv.Shutdown()
 		req := fmt.Sprintf(rpc, "[]")
 		body := doRPCCallOverHTTP(req, httpSrv.URL, t)
 		checkErrGetResult(t, body, true)
@@ -1348,7 +1348,7 @@ func TestSubmitNotaryRequest(t *testing.T) {
 
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true)
 	defer chain.Close()
-	defer func() { _ = rpcSrv.Shutdown() }()
+	defer rpcSrv.Shutdown()
 
 	runCase := func(t *testing.T, fail bool, params ...string) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -1459,7 +1459,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 
 	defer chain.Close()
-	defer func() { _ = rpcSrv.Shutdown() }()
+	defer rpcSrv.Shutdown()
 
 	e := &executor{chain: chain, httpSrv: httpSrv}
 	t.Run("single request", func(t *testing.T) {
@@ -2608,7 +2608,7 @@ func BenchmarkHandleIn(b *testing.B) {
 	serverConfig.LogLevel = zapcore.FatalLevel
 	server, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), logger)
 	require.NoError(b, err)
-	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, orc, logger)
+	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, orc, logger, make(chan error))
 	defer chain.Close()
 
 	do := func(b *testing.B, req []byte) {

@@ -38,8 +38,9 @@ type fakeConsensus struct {
 
 var _ consensus.Service = (*fakeConsensus)(nil)
 
-func (f *fakeConsensus) Start()    { f.started.Store(true) }
-func (f *fakeConsensus) Shutdown() { f.stopped.Store(true) }
+func (f *fakeConsensus) Name() string { return "fake" }
+func (f *fakeConsensus) Start()       { f.started.Store(true) }
+func (f *fakeConsensus) Shutdown()    { f.stopped.Store(true) }
 func (f *fakeConsensus) OnPayload(p *payload.Extensible) error {
 	f.payloads = append(f.payloads, p)
 	return nil
@@ -114,12 +115,12 @@ func TestServerStartAndShutdown(t *testing.T) {
 		p := newLocalPeer(t, s)
 		s.register <- p
 
-		assert.True(t, s.services[0].(*fakeConsensus).started.Load())
+		assert.True(t, s.services["fake"].(*fakeConsensus).started.Load())
 
 		s.Shutdown()
 		<-ch
 
-		require.True(t, s.services[0].(*fakeConsensus).stopped.Load())
+		require.True(t, s.services["fake"].(*fakeConsensus).stopped.Load())
 	})
 }
 
@@ -431,13 +432,13 @@ func TestConsensus(t *testing.T) {
 
 	s.chain.(*fakechain.FakeChain).VerifyWitnessF = func() (int64, error) { return 0, nil }
 	require.NoError(t, s.handleMessage(p, msg))
-	require.Contains(t, s.services[0].(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
+	require.Contains(t, s.services["fake"].(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
 
 	t.Run("small ValidUntilBlockEnd", func(t *testing.T) {
 		t.Run("current height", func(t *testing.T) {
 			msg := newConsensusMessage(0, s.chain.BlockHeight())
 			require.NoError(t, s.handleMessage(p, msg))
-			require.NotContains(t, s.services[0].(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
+			require.NotContains(t, s.services["fake"].(*fakeConsensus).payloads, msg.Payload.(*payload.Extensible))
 		})
 		t.Run("invalid", func(t *testing.T) {
 			msg := newConsensusMessage(0, s.chain.BlockHeight()-1)
@@ -468,13 +469,13 @@ func TestTransaction(t *testing.T) {
 		s.register <- p
 
 		s.testHandleMessage(t, nil, CMDTX, tx)
-		require.Contains(t, s.services[0].(*fakeConsensus).txs, tx)
+		require.Contains(t, s.services["fake"].(*fakeConsensus).txs, tx)
 	})
 	t.Run("bad", func(t *testing.T) {
 		tx := newDummyTx()
 		s.chain.(*fakechain.FakeChain).PoolTxF = func(*transaction.Transaction) error { return core.ErrInsufficientFunds }
 		s.testHandleMessage(t, nil, CMDTX, tx)
-		require.Contains(t, s.services[0].(*fakeConsensus).txs, tx) // Consensus receives everything.
+		require.Contains(t, s.services["fake"].(*fakeConsensus).txs, tx) // Consensus receives everything.
 	})
 }
 

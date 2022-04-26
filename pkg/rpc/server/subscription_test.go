@@ -94,7 +94,7 @@ func TestSubscriptions(t *testing.T) {
 
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 	defer chain.Close()
-	defer func() { _ = rpcSrv.Shutdown() }()
+	defer rpcSrv.Shutdown()
 
 	go rpcSrv.coreServer.Start(make(chan error))
 	defer rpcSrv.coreServer.Shutdown()
@@ -261,7 +261,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 			chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 			defer chain.Close()
-			defer func() { _ = rpcSrv.Shutdown() }()
+			defer rpcSrv.Shutdown()
 
 			// It's used as an end-of-event-stream, so it's always present.
 			blockSubID := callSubscribe(t, c, respMsgs, `["block_added"]`)
@@ -353,7 +353,7 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 	go rpcSrv.coreServer.Start(make(chan error, 1))
 
 	defer chain.Close()
-	defer func() { _ = rpcSrv.Shutdown() }()
+	defer rpcSrv.Shutdown()
 
 	// blocks are needed to make GAS deposit for priv0
 	blocks := getTestBlocks(t)
@@ -395,7 +395,7 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	defer chain.Close()
-	defer func() { _ = rpcSrv.Shutdown() }()
+	defer rpcSrv.Shutdown()
 
 	blockSubID := callSubscribe(t, c, respMsgs, `["block_added", {"primary":3}]`)
 
@@ -433,7 +433,7 @@ func TestMaxSubscriptions(t *testing.T) {
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	defer chain.Close()
-	defer func() { _ = rpcSrv.Shutdown() }()
+	defer rpcSrv.Shutdown()
 
 	for i := 0; i < maxFeeds+1; i++ {
 		var s string
@@ -479,7 +479,7 @@ func TestBadSubUnsub(t *testing.T) {
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	defer chain.Close()
-	defer func() { _ = rpcSrv.Shutdown() }()
+	defer rpcSrv.Shutdown()
 
 	testF := func(t *testing.T, cases map[string]string) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -513,7 +513,7 @@ func doSomeWSRequest(t *testing.T, ws *websocket.Conn) {
 func TestWSClientsLimit(t *testing.T) {
 	chain, rpcSrv, httpSrv := initClearServerWithInMemoryChain(t)
 	defer chain.Close()
-	defer func() { _ = rpcSrv.Shutdown() }()
+	defer rpcSrv.Shutdown()
 
 	dialer := websocket.Dialer{HandshakeTimeout: time.Second}
 	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
@@ -552,7 +552,7 @@ func TestSubscriptionOverflow(t *testing.T) {
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	defer chain.Close()
-	defer func() { _ = rpcSrv.Shutdown() }()
+	defer rpcSrv.Shutdown()
 
 	resp := callWSGetRaw(t, c, `{"jsonrpc": "2.0","method": "subscribe","params": ["block_added"],"id": 1}`, respMsgs)
 	require.Nil(t, resp.Error)

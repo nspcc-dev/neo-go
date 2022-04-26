@@ -17,6 +17,11 @@ const (
 	firstVoteResendDelay = 3 * time.Second
 )
 
+// Name returns service name.
+func (s *service) Name() string {
+	return "stateroot"
+}
+
 // Start runs service instance in a separate goroutine.
 func (s *service) Start() {
 	s.log.Info("starting state validation service")
