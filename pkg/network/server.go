@@ -273,13 +273,13 @@ func (s *Server) AddService(svc Service) {
 	s.services = append(s.services, svc)
 }
 
-// AddExtensibleService register a service that handles extensible payload of some kind.
+// AddExtensibleService register a service that handles an extensible payload of some kind.
 func (s *Server) AddExtensibleService(svc Service, category string, handler func(*payload.Extensible) error) {
 	s.extensHandlers[category] = handler
 	s.AddService(svc)
 }
 
-// AddExtensibleHPService registers a high-priority service that handles extensible payload of some kind.
+// AddExtensibleHPService registers a high-priority service that handles an extensible payload of some kind.
 func (s *Server) AddExtensibleHPService(svc Service, category string, handler func(*payload.Extensible) error, txCallback func(*transaction.Transaction)) {
 	s.txCallback = txCallback
 	s.extensHighPrio = category
@@ -297,7 +297,7 @@ func (s *Server) UnconnectedPeers() []string {
 	return s.discovery.UnconnectedPeers()
 }
 
-// BadPeers returns a list of peers the are flagged as "bad" peers.
+// BadPeers returns a list of peers that are flagged as "bad" peers.
 func (s *Server) BadPeers() []string {
 	return s.discovery.BadPeers()
 }
@@ -430,9 +430,9 @@ func (s *Server) tryStartServices() {
 	}
 }
 
-// SubscribeForNotaryRequests adds given channel to a notary request event
+// SubscribeForNotaryRequests adds the given channel to a notary request event
 // broadcasting, so when a new P2PNotaryRequest is received or an existing
-// P2PNotaryRequest is removed from pool you'll receive it via this channel.
+// P2PNotaryRequest is removed from the pool you'll receive it via this channel.
 // Make sure it's read from regularly as not reading these events might affect
 // other Server functions.
 // Ensure that P2PSigExtensions are enabled before calling this method.
@@ -443,7 +443,7 @@ func (s *Server) SubscribeForNotaryRequests(ch chan<- mempoolevent.Event) {
 	s.notaryRequestPool.SubscribeForTransactions(ch)
 }
 
-// UnsubscribeFromNotaryRequests unsubscribes given channel from notary request
+// UnsubscribeFromNotaryRequests unsubscribes the given channel from notary request
 // notifications, you can close it afterwards. Passing non-subscribed channel
 // is a no-op.
 // Ensure that P2PSigExtensions are enabled before calling this method.
@@ -454,7 +454,7 @@ func (s *Server) UnsubscribeFromNotaryRequests(ch chan<- mempoolevent.Event) {
 	s.notaryRequestPool.UnsubscribeFromTransactions(ch)
 }
 
-// getPeers returns current list of peers connected to the server filtered by
+// getPeers returns the current list of the peers connected to the server filtered by
 // isOK function if it's given.
 func (s *Server) getPeers(isOK func(Peer) bool) []Peer {
 	s.lock.RLock()
@@ -471,14 +471,14 @@ func (s *Server) getPeers(isOK func(Peer) bool) []Peer {
 	return peers
 }
 
-// PeerCount returns the number of current connected peers.
+// PeerCount returns the number of the currently connected peers.
 func (s *Server) PeerCount() int {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	return len(s.peers)
 }
 
-// HandshakedPeersCount returns the number of connected peers
+// HandshakedPeersCount returns the number of the connected peers
 // which have already performed handshake.
 func (s *Server) HandshakedPeersCount() int {
 	s.lock.RLock()
@@ -495,7 +495,7 @@ func (s *Server) HandshakedPeersCount() int {
 	return count
 }
 
-// getVersionMsg returns current version message.
+// getVersionMsg returns the current version message.
 func (s *Server) getVersionMsg() (*Message, error) {
 	port, err := s.Port()
 	if err != nil {
@@ -530,8 +530,8 @@ func (s *Server) getVersionMsg() (*Message, error) {
 // IsInSync answers the question of whether the server is in sync with the
 // network or not (at least how the server itself sees it). The server operates
 // with the data that it has, the number of peers (that has to be more than
-// minimum number) and height of these peers (our chain has to be not lower
-// than 2/3 of our peers have). Ideally we would check for the highest of the
+// minimum number) and the height of these peers (our chain has to be not lower
+// than 2/3 of our peers have). Ideally, we would check for the highest of the
 // peers, but the problem is that they can lie to us and send whatever height
 // they want to.
 func (s *Server) IsInSync() bool {
@@ -564,7 +564,7 @@ func (s *Server) IsInSync() bool {
 	return peersNumber >= s.MinPeers && (3*notHigher > 2*peersNumber) // && s.bQueue.length() == 0
 }
 
-// When a peer sends out his version we reply with verack after validating
+// When a peer sends out its version, we reply with verack after validating
 // the version.
 func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 	err := p.HandleVersion(version)
@@ -574,7 +574,7 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 	if s.id == version.Nonce {
 		return errIdenticalID
 	}
-	// Make sure both server and peer are operating on
+	// Make sure both the server and the peer are operating on
 	// the same network.
 	if s.Net != version.Magic {
 		return errInvalidNetwork
@@ -597,7 +597,7 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 	return p.SendVersionAck(NewMessage(CMDVerack, payload.NewNullPayload()))
 }
 
-// handleBlockCmd processes the received block received from its peer.
+// handleBlockCmd processes the block received from its peer.
 func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 	if s.stateSync.IsActive() {
 		return s.bSyncQueue.putBlock(block)
@@ -605,7 +605,7 @@ func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 	return s.bQueue.putBlock(block)
 }
 
-// handlePing processes ping request.
+// handlePing processes a ping request.
 func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
 	err := p.HandlePing(ping)
 	if err != nil {
@@ -652,7 +652,7 @@ func (s *Server) requestHeaders(p Peer) error {
 	return p.EnqueueP2PMessage(NewMessage(CMDGetHeaders, pl))
 }
 
-// handlePing processes pong request.
+// handlePing processes a pong request.
 func (s *Server) handlePong(p Peer, pong *payload.Ping) error {
 	err := p.HandlePong(pong)
 	if err != nil {
@@ -816,8 +816,8 @@ func (s *Server) handleMPTDataCmd(p Peer, data *payload.MPTData) error {
 	return s.stateSync.AddMPTNodes(data.Nodes)
 }
 
-// requestMPTNodes requests specified MPT nodes from the peer or broadcasts
-// request if peer is not specified.
+// requestMPTNodes requests the specified MPT nodes from the peer or broadcasts
+// request if no peer is specified.
 func (s *Server) requestMPTNodes(p Peer, itms []util.Uint256) error {
 	if len(itms) == 0 {
 		return nil
@@ -914,7 +914,7 @@ func (s *Server) handleHeadersCmd(p Peer, h *payload.Headers) error {
 	return s.stateSync.AddHeaders(h.Hdrs...)
 }
 
-// handleExtensibleCmd processes received extensible payload.
+// handleExtensibleCmd processes the received extensible payload.
 func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
 	if !s.syncReached.Load() {
 		return nil
@@ -948,7 +948,7 @@ func (s *Server) advertiseExtensible(e *payload.Extensible) {
 	}
 }
 
-// handleTxCmd processes received transaction.
+// handleTxCmd processes the received transaction.
 // It never returns an error.
 func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	// It's OK for it to fail for various reasons like tx already existing
@@ -973,7 +973,7 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	return nil
 }
 
-// handleP2PNotaryRequestCmd process received P2PNotaryRequest payload.
+// handleP2PNotaryRequestCmd process the received P2PNotaryRequest payload.
 func (s *Server) handleP2PNotaryRequestCmd(r *payload.P2PNotaryRequest) error {
 	if !s.chain.P2PSigExtensionsEnabled() {
 		return errors.New("P2PNotaryRequestCMD was received, but P2PSignatureExtensions are disabled")
@@ -984,7 +984,7 @@ func (s *Server) handleP2PNotaryRequestCmd(r *payload.P2PNotaryRequest) error {
 	return nil
 }
 
-// RelayP2PNotaryRequest adds given request to the pool and relays. It does not check
+// RelayP2PNotaryRequest adds the given request to the pool and relays. It does not check
 // P2PSigExtensions enabled.
 func (s *Server) RelayP2PNotaryRequest(r *payload.P2PNotaryRequest) error {
 	err := s.verifyAndPoolNotaryRequest(r)
@@ -1023,7 +1023,7 @@ func (s *Server) broadcastP2PNotaryRequestPayload(_ *transaction.Transaction, da
 	s.broadcastMessage(msg)
 }
 
-// handleAddrCmd will process received addresses.
+// handleAddrCmd will process the received addresses.
 func (s *Server) handleAddrCmd(p Peer, addrs *payload.AddressList) error {
 	if !p.CanProcessAddr() {
 		return errors.New("unexpected addr received")
@@ -1056,15 +1056,15 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 }
 
 // requestBlocks sends a CMDGetBlockByIndex message to the peer
-// to sync up in blocks. A maximum of maxBlockBatch will
-// send at once. Two things we need to take care of:
+// to sync up in blocks. A maximum of maxBlockBatch will be
+// sent at once. There are two things we need to take care of:
 // 1. If possible, blocks should be fetched in parallel.
 //    height..+500 to one peer, height+500..+1000 to another etc.
-// 2. Every block must eventually be fetched even if peer sends no answer.
-// Thus the following algorithm is used:
+// 2. Every block must eventually be fetched even if the peer sends no answer.
+// Thus, the following algorithm is used:
 // 1. Block range is divided into chunks of payload.MaxHashesCount.
 // 2. Send requests for chunk in increasing order.
-// 3. After all requests were sent, request random height.
+// 3. After all requests have been sent, request random height.
 func (s *Server) requestBlocks(bq Blockqueuer, p Peer) error {
 	h := bq.BlockHeight()
 	pl := getRequestBlocksPayload(p, h, &s.lastRequestedBlock)
@@ -1224,7 +1224,7 @@ func (s *Server) tryInitStateSync() {
 	}
 	s.lock.RUnlock()
 	if peersNumber >= s.MinPeers && len(heights) > 0 {
-		// choose the height of the median peer as current chain's height
+		// choose the height of the median peer as the current chain's height
 		h := heights[len(heights)/2]
 		err := s.stateSync.Init(h)
 		if err != nil {
@@ -1242,7 +1242,7 @@ func (s *Server) tryInitStateSync() {
 	}
 }
 
-// BroadcastExtensible add locally-generated Extensible payload to the pool
+// BroadcastExtensible add a locally-generated Extensible payload to the pool
 // and advertises it to peers.
 func (s *Server) BroadcastExtensible(p *payload.Extensible) {
 	_, err := s.extensiblePool.Add(p)
@@ -1254,7 +1254,7 @@ func (s *Server) BroadcastExtensible(p *payload.Extensible) {
 	s.advertiseExtensible(p)
 }
 
-// RequestTx asks for given transactions from Server peers using GetData message.
+// RequestTx asks for the given transactions from Server peers using GetData message.
 func (s *Server) RequestTx(hashes ...util.Uint256) {
 	if len(hashes) == 0 {
 		return
@@ -1276,7 +1276,7 @@ func (s *Server) RequestTx(hashes ...util.Uint256) {
 	}
 }
 
-// iteratePeersWithSendMsg sends given message to all peers using two functions
+// iteratePeersWithSendMsg sends the given message to all peers using two functions
 // passed, one is to send the message and the other is to filtrate peers (the
 // peer is considered invalid if it returns false).
 func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []byte) error, peerOK func(Peer) bool) {
@@ -1461,7 +1461,7 @@ func (s *Server) broadcastTxLoop() {
 }
 
 // Port returns a server port that should be used in P2P version exchange. In
-// case if `AnnouncedPort` is set in the server.Config, the announced node port
+// case `AnnouncedPort` is set in the server.Config, the announced node port
 // will be returned (e.g. consider the node running behind NAT). If `AnnouncedPort`
 // isn't set, the port returned may still differs from that of server.Config.
 func (s *Server) Port() (uint16, error) {

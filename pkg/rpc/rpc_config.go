@@ -10,8 +10,8 @@ type (
 		Address              string `yaml:"Address"`
 		Enabled              bool   `yaml:"Enabled"`
 		EnableCORSWorkaround bool   `yaml:"EnableCORSWorkaround"`
-		// MaxGasInvoke is a maximum amount of gas which
-		// can be spent during RPC call.
+		// MaxGasInvoke is the maximum amount of gas which
+		// can be spent during an RPC call.
 		MaxGasInvoke           fixedn.Fixed8 `yaml:"MaxGasInvoke"`
 		MaxIteratorResultItems int           `yaml:"MaxIteratorResultItems"`
 		MaxFindResultItems     int           `yaml:"MaxFindResultItems"`

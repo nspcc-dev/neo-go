@@ -15,12 +15,12 @@ import (
 // CompressionMinSize is the lower bound to apply compression.
 const CompressionMinSize = 1024
 
-// Message is the complete message send between nodes.
+// Message is a complete message send between nodes.
 type Message struct {
 	// Flags that represents whether a message is compressed.
 	// 0 for None, 1 for Compressed.
 	Flags MessageFlag
-	// Command is byte command code.
+	// Command is a byte command code.
 	Command CommandType
 
 	// Payload send with the message.
@@ -29,12 +29,12 @@ type Message struct {
 	// Compressed message payload.
 	compressedPayload []byte
 
-	// StateRootInHeader specifies if state root is included in block header.
+	// StateRootInHeader specifies if the state root is included in the block header.
 	// This is needed for correct decoding.
 	StateRootInHeader bool
 }
 
-// MessageFlag represents compression level of message payload.
+// MessageFlag represents compression level of a message payload.
 type MessageFlag byte
 
 // Possible message flags.
@@ -212,8 +212,8 @@ func (m *Message) Bytes() ([]byte, error) {
 	return w.Bytes(), nil
 }
 
-// tryCompressPayload sets message's compressed payload to serialized
-// payload and compresses it in case if its size exceeds CompressionMinSize.
+// tryCompressPayload sets the message's compressed payload to a serialized
+// payload and compresses it in case its size exceeds CompressionMinSize.
 func (m *Message) tryCompressPayload() error {
 	if m.Payload == nil {
 		return nil

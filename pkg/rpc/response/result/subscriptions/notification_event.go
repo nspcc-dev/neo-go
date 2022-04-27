@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// NotificationEvent represents wrapper for notification from script execution.
+// NotificationEvent represents a wrapper for a notification from script execution.
 type NotificationEvent struct {
 	// Container hash is the hash of script container which is either a block or a transaction.
 	Container util.Uint256
@@ -21,7 +21,7 @@ type notificationEventAux struct {
 	Container util.Uint256 `json:"container"`
 }
 
-// MarshalJSON implements implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (ne *NotificationEvent) MarshalJSON() ([]byte, error) {
 	h, err := json.Marshal(&notificationEventAux{
 		Container: ne.Container,
@@ -42,7 +42,7 @@ func (ne *NotificationEvent) MarshalJSON() ([]byte, error) {
 	return h, nil
 }
 
-// UnmarshalJSON implements implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (ne *NotificationEvent) UnmarshalJSON(data []byte) error {
 	aux := new(notificationEventAux)
 	if err := json.Unmarshal(data, aux); err != nil {

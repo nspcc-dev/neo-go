@@ -109,7 +109,7 @@ func getTxMoveNeo() *result.TransactionOutputRaw {
 }
 
 // rpcClientTestCases contains `serverResponse` json data fetched from examples
-// published in official C# JSON-RPC API v2.10.3 reference
+// published in the official C# JSON-RPC API v2.10.3 reference
 // (see https://docs.neo.org/docs/en-us/reference/rpc/latest-version/api.html)
 var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getapplicationlog": {

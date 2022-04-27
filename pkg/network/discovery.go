@@ -28,7 +28,7 @@ type Discoverer interface {
 	GoodPeers() []AddressWithCapabilities
 }
 
-// AddressWithCapabilities represents node address with its capabilities.
+// AddressWithCapabilities represents a node address with its capabilities.
 type AddressWithCapabilities struct {
 	Address      string
 	Capabilities capability.Capabilities
@@ -73,7 +73,7 @@ func newDefaultDiscovery(addrs []string, dt time.Duration, ts Transporter) Disco
 	return NewDefaultDiscovery(addrs, dt, ts)
 }
 
-// BackFill implements the Discoverer interface and will backfill the
+// BackFill implements the Discoverer interface and will backfill
 // the pool with the given addresses.
 func (d *DefaultDiscovery) BackFill(addrs ...string) {
 	d.lock.Lock()
@@ -88,12 +88,12 @@ func (d *DefaultDiscovery) BackFill(addrs ...string) {
 	d.lock.Unlock()
 }
 
-// PoolCount returns the number of available node addresses.
+// PoolCount returns the number of the available node addresses.
 func (d *DefaultDiscovery) PoolCount() int {
 	return len(d.pool)
 }
 
-// pushToPoolOrDrop tries to push address given into the pool, but if the pool
+// pushToPoolOrDrop tries to push the address given into the pool, but if the pool
 // is already full, it just drops it.
 func (d *DefaultDiscovery) pushToPoolOrDrop(addr string) {
 	select {
@@ -165,7 +165,7 @@ func (d *DefaultDiscovery) GoodPeers() []AddressWithCapabilities {
 	return addrs
 }
 
-// RegisterGoodAddr registers good known connected address that passed
+// RegisterGoodAddr registers a known good connected address that has passed
 // handshake successfully.
 func (d *DefaultDiscovery) RegisterGoodAddr(s string, c capability.Capabilities) {
 	d.lock.Lock()
@@ -174,15 +174,15 @@ func (d *DefaultDiscovery) RegisterGoodAddr(s string, c capability.Capabilities)
 	d.lock.Unlock()
 }
 
-// UnregisterConnectedAddr tells discoverer that this address is no longer
-// connected, but it still is considered as good one.
+// UnregisterConnectedAddr tells the discoverer that this address is no longer
+// connected, but it is still considered a good one.
 func (d *DefaultDiscovery) UnregisterConnectedAddr(s string) {
 	d.lock.Lock()
 	delete(d.connectedAddrs, s)
 	d.lock.Unlock()
 }
 
-// RegisterConnectedAddr tells discoverer that given address is now connected.
+// RegisterConnectedAddr tells discoverer that the given address is now connected.
 func (d *DefaultDiscovery) RegisterConnectedAddr(addr string) {
 	d.lock.Lock()
 	delete(d.unconnectedAddrs, addr)
@@ -201,7 +201,7 @@ func (d *DefaultDiscovery) tryAddress(addr string) {
 	}
 }
 
-// Close stops discoverer pool processing making discoverer almost useless.
+// Close stops discoverer pool processing, which makes the discoverer almost useless.
 func (d *DefaultDiscovery) Close() {
 	d.closeMtx.Lock()
 	d.isDead = true

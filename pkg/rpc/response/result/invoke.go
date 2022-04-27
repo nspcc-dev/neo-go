@@ -13,7 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// Invoke represents code invocation result and is used by several RPC calls
+// Invoke represents a code invocation result and is used by several RPC calls
 // that invoke functions, scripts and generic bytecode.
 type Invoke struct {
 	State                  string
@@ -34,7 +34,7 @@ type InvokeDiag struct {
 	Invocations []*vm.InvocationTree `json:"invokedcontracts"`
 }
 
-// NewInvoke returns new Invoke structure with the given fields set.
+// NewInvoke returns a new Invoke structure with the given fields set.
 func NewInvoke(ic *interop.Context, script []byte, faultException string, maxIteratorResultItems int) *Invoke {
 	var diag *InvokeDiag
 	tree := ic.VM.GetInvocationTree()
@@ -78,7 +78,7 @@ type iteratorAux struct {
 	Truncated bool              `json:"truncated"`
 }
 
-// Iterator represents deserialized VM iterator values with truncated flag.
+// Iterator represents deserialized VM iterator values with a truncated flag.
 type Iterator struct {
 	Values    []stackitem.Item
 	Truncated bool
@@ -92,7 +92,7 @@ func (r *Invoke) Finalize() {
 	}
 }
 
-// MarshalJSON implements json.Marshaler.
+// MarshalJSON implements the json.Marshaler.
 func (r Invoke) MarshalJSON() ([]byte, error) {
 	defer r.Finalize()
 	var st json.RawMessage
@@ -153,7 +153,7 @@ func (r Invoke) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements the json.Unmarshaler.
 func (r *Invoke) UnmarshalJSON(data []byte) error {
 	var err error
 	aux := new(invokeAux)

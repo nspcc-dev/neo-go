@@ -18,17 +18,17 @@ type Ledger interface {
 	VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
 }
 
-// Pool represents pool of extensible payloads.
+// Pool represents a pool of extensible payloads.
 type Pool struct {
 	lock     sync.RWMutex
 	verified map[util.Uint256]*list.Element
 	senders  map[util.Uint160]*list.List
-	// singleCap represents maximum number of payloads from the single sender.
+	// singleCap represents the maximum number of payloads from a single sender.
 	singleCap int
 	chain     Ledger
 }
 
-// New returns new payload pool using provided chain.
+// New returns a new payload pool using the provided chain.
 func New(bc Ledger, capacity int) *Pool {
 	if capacity <= 0 {
 		panic("invalid capacity")
@@ -47,9 +47,9 @@ var (
 	errInvalidHeight    = errors.New("invalid height")
 )
 
-// Add adds extensible payload to the pool.
-// First return value specifies if payload was new.
-// Second one is nil if and only if payload is valid.
+// Add adds an extensible payload to the pool.
+// First return value specifies if the payload was new.
+// Second one is nil if and only if the payload is valid.
 func (p *Pool) Add(e *payload.Extensible) (bool, error) {
 	if ok, err := p.verify(e); err != nil || !ok {
 		return ok, err
@@ -82,8 +82,8 @@ func (p *Pool) verify(e *payload.Extensible) (bool, error) {
 	}
 	h := p.chain.BlockHeight()
 	if h < e.ValidBlockStart || e.ValidBlockEnd <= h {
-		// We can receive consensus payload for the last or next block
-		// which leads to unwanted node disconnect.
+		// We can receive a consensus payload for the last or next block
+		// which leads to an unwanted node disconnect.
 		if e.ValidBlockEnd == h {
 			return false, nil
 		}

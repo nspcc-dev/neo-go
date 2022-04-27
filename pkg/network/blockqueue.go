@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Blockqueuer is the interface for block queue.
+// Blockqueuer is an interface for a block queue.
 type Blockqueuer interface {
 	AddBlock(block *block.Block) error
 	AddHeaders(...*block.Header) error
@@ -28,8 +28,8 @@ type blockQueue struct {
 }
 
 const (
-	// blockCacheSize is the amount of blocks above current height
-	// which are stored in queue.
+	// blockCacheSize is the amount of blocks above the current height
+	// which are stored in the queue.
 	blockCacheSize = 2000
 )
 
@@ -80,7 +80,7 @@ func (bq *blockQueue) run() {
 
 			err := bq.chain.AddBlock(b)
 			if err != nil {
-				// The block might already be added by consensus.
+				// The block might already be added by the consensus.
 				if bq.chain.BlockHeight() < b.Index {
 					bq.log.Warn("blockQueue: failed adding block into the blockchain",
 						zap.String("error", err.Error()),
@@ -107,12 +107,12 @@ func (bq *blockQueue) putBlock(block *block.Block) error {
 	bq.queueLock.Lock()
 	if block.Index <= h || h+blockCacheSize < block.Index {
 		// can easily happen when fetching the same blocks from
-		// different peers, thus not considered as error
+		// different peers, thus not considered an error
 		bq.queueLock.Unlock()
 		return nil
 	}
 	pos := indexToPosition(block.Index)
-	// If we already have it, keep the old block, throw away new one.
+	// If we already have it, keep the old block, throw away the new one.
 	if bq.queue[pos] == nil || bq.queue[pos].Index < block.Index {
 		bq.len++
 		bq.queue[pos] = block

@@ -21,7 +21,7 @@ type P2PNotaryRequest struct {
 	hash util.Uint256
 }
 
-// NewP2PNotaryRequestFromBytes decodes P2PNotaryRequest from the given bytes.
+// NewP2PNotaryRequestFromBytes decodes a P2PNotaryRequest from the given bytes.
 func NewP2PNotaryRequestFromBytes(b []byte) (*P2PNotaryRequest, error) {
 	req := &P2PNotaryRequest{}
 	br := io.NewBinReaderFromBuf(b)
@@ -63,7 +63,7 @@ func (r *P2PNotaryRequest) createHash() error {
 	return nil
 }
 
-// DecodeBinaryUnsigned reads payload from w excluding signature.
+// DecodeBinaryUnsigned reads payload from the w excluding signature.
 func (r *P2PNotaryRequest) decodeHashableFields(br *io.BinReader) {
 	r.MainTransaction = &transaction.Transaction{}
 	r.FallbackTransaction = &transaction.Transaction{}
@@ -77,7 +77,7 @@ func (r *P2PNotaryRequest) decodeHashableFields(br *io.BinReader) {
 	}
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (r *P2PNotaryRequest) DecodeBinary(br *io.BinReader) {
 	r.decodeHashableFields(br)
 	if br.Err == nil {
@@ -85,13 +85,13 @@ func (r *P2PNotaryRequest) DecodeBinary(br *io.BinReader) {
 	}
 }
 
-// encodeHashableFields writes payload to w excluding signature.
+// encodeHashableFields writes payload to the w excluding signature.
 func (r *P2PNotaryRequest) encodeHashableFields(bw *io.BinWriter) {
 	r.MainTransaction.EncodeBinary(bw)
 	r.FallbackTransaction.EncodeBinary(bw)
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (r *P2PNotaryRequest) EncodeBinary(bw *io.BinWriter) {
 	r.encodeHashableFields(bw)
 	r.Witness.EncodeBinary(bw)

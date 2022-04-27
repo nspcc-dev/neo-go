@@ -1,6 +1,6 @@
 package nns
 
-// RecordState is a type that registered entities are saved to.
+// RecordState is a type that registered entities are saved as.
 type RecordState struct {
 	Name string
 	Type RecordType
@@ -10,7 +10,7 @@ type RecordState struct {
 // RecordType is domain name service record types.
 type RecordType byte
 
-// Record types defined in [RFC 1035](https://tools.ietf.org/html/rfc1035)
+// Record types are defined in [RFC 1035](https://tools.ietf.org/html/rfc1035)
 const (
 	// A represents address record type.
 	A RecordType = 1
@@ -20,7 +20,7 @@ const (
 	TXT RecordType = 16
 )
 
-// Record types defined in [RFC 3596](https://tools.ietf.org/html/rfc3596)
+// Record types are defined in [RFC 3596](https://tools.ietf.org/html/rfc3596)
 const (
 	// AAAA represents IPv6 address record type.
 	AAAA RecordType = 28

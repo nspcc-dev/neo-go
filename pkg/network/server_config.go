@@ -11,17 +11,17 @@ import (
 type (
 	// ServerConfig holds the server configuration.
 	ServerConfig struct {
-		// MinPeers is the minimum number of peers for normal operation,
-		// when the node has less than this number of peers it tries to
+		// MinPeers is the minimum number of peers for normal operation.
+		// When a node has less than this number of peers, it tries to
 		// connect with some new ones.
 		MinPeers int
 
-		// AttemptConnPeers it the number of connection to try to
+		// AttemptConnPeers is the number of connection to try to
 		// establish when the connection count drops below the MinPeers
 		// value.
 		AttemptConnPeers int
 
-		// MaxPeers it the maximum numbers of peers that can
+		// MaxPeers is the maximum number of peers that can
 		// be connected to the server.
 		MaxPeers int
 
@@ -46,7 +46,7 @@ type (
 		// Relay determines whether the server is forwarding its inventory.
 		Relay bool
 
-		// Seeds are a list of initial nodes used to establish connectivity.
+		// Seeds is a list of initial nodes used to establish connectivity.
 		Seeds []string
 
 		// Maximum duration a single dial may take.
@@ -79,7 +79,7 @@ type (
 		// StateRootCfg is stateroot module configuration.
 		StateRootCfg config.StateRoot
 
-		// ExtensiblePoolSize is size of the pool for extensible payloads from a single sender.
+		// ExtensiblePoolSize is the size of the pool for extensible payloads from a single sender.
 		ExtensiblePoolSize int
 	}
 )

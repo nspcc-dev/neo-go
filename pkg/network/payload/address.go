@@ -31,21 +31,21 @@ func NewAddressAndTime(e *net.TCPAddr, t time.Time, c capability.Capabilities) *
 	return &aat
 }
 
-// DecodeBinary implements Serializable interface.
+// DecodeBinary implements the Serializable interface.
 func (p *AddressAndTime) DecodeBinary(br *io.BinReader) {
 	p.Timestamp = br.ReadU32LE()
 	br.ReadBytes(p.IP[:])
 	p.Capabilities.DecodeBinary(br)
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (p *AddressAndTime) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteU32LE(p.Timestamp)
 	bw.WriteBytes(p.IP[:])
 	p.Capabilities.EncodeBinary(bw)
 }
 
-// GetTCPAddress makes a string from IP and port specified in TCPCapability.
+// GetTCPAddress makes a string from the IP and the port specified in TCPCapability.
 // It returns an error if there's no such capability.
 func (p *AddressAndTime) GetTCPAddress() (string, error) {
 	var netip = make(net.IP, 16)
@@ -77,7 +77,7 @@ func NewAddressList(n int) *AddressList {
 	return &alist
 }
 
-// DecodeBinary implements Serializable interface.
+// DecodeBinary implements the Serializable interface.
 func (p *AddressList) DecodeBinary(br *io.BinReader) {
 	br.ReadArray(&p.Addrs, MaxAddrsCount)
 	if len(p.Addrs) == 0 {
@@ -85,7 +85,7 @@ func (p *AddressList) DecodeBinary(br *io.BinReader) {
 	}
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (p *AddressList) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteArray(p.Addrs)
 }

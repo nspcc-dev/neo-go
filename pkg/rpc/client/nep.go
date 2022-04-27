@@ -8,7 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
-// nepDecimals invokes `decimals` NEP* method on a specified contract.
+// nepDecimals invokes `decimals` NEP* method on the specified contract.
 func (c *Client) nepDecimals(tokenHash util.Uint160) (int64, error) {
 	result, err := c.InvokeFunction(tokenHash, "decimals", []smartcontract.Parameter{}, nil)
 	if err != nil {
@@ -22,7 +22,7 @@ func (c *Client) nepDecimals(tokenHash util.Uint160) (int64, error) {
 	return topIntFromStack(result.Stack)
 }
 
-// nepSymbol invokes `symbol` NEP* method on a specified contract.
+// nepSymbol invokes `symbol` NEP* method on the specified contract.
 func (c *Client) nepSymbol(tokenHash util.Uint160) (string, error) {
 	result, err := c.InvokeFunction(tokenHash, "symbol", []smartcontract.Parameter{}, nil)
 	if err != nil {
@@ -36,7 +36,7 @@ func (c *Client) nepSymbol(tokenHash util.Uint160) (string, error) {
 	return topStringFromStack(result.Stack)
 }
 
-// nepTotalSupply invokes `totalSupply` NEP* method on a specified contract.
+// nepTotalSupply invokes `totalSupply` NEP* method on the specified contract.
 func (c *Client) nepTotalSupply(tokenHash util.Uint160) (int64, error) {
 	result, err := c.InvokeFunction(tokenHash, "totalSupply", []smartcontract.Parameter{}, nil)
 	if err != nil {
@@ -50,7 +50,7 @@ func (c *Client) nepTotalSupply(tokenHash util.Uint160) (int64, error) {
 	return topIntFromStack(result.Stack)
 }
 
-// nepBalanceOf invokes `balanceOf` NEP* method on a specified contract.
+// nepBalanceOf invokes `balanceOf` NEP* method on the specified contract.
 func (c *Client) nepBalanceOf(tokenHash, acc util.Uint160, tokenID []byte) (int64, error) {
 	params := []smartcontract.Parameter{{
 		Type:  smartcontract.Hash160Type,

@@ -10,7 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// ApplicationLog represent the results of the script executions for block or transaction.
+// ApplicationLog represent the results of the script executions for a block or a transaction.
 type ApplicationLog struct {
 	Container     util.Uint256
 	IsTransaction bool
@@ -24,7 +24,7 @@ type applicationLogAux struct {
 	Executions []json.RawMessage `json:"executions"`
 }
 
-// MarshalJSON implements implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (l ApplicationLog) MarshalJSON() ([]byte, error) {
 	result := &applicationLogAux{
 		Executions: make([]json.RawMessage, len(l.Executions)),
@@ -44,7 +44,7 @@ func (l ApplicationLog) MarshalJSON() ([]byte, error) {
 	return json.Marshal(result)
 }
 
-// UnmarshalJSON implements implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (l *ApplicationLog) UnmarshalJSON(data []byte) error {
 	aux := new(applicationLogAux)
 	if err := json.Unmarshal(data, aux); err != nil {
@@ -68,7 +68,7 @@ func (l *ApplicationLog) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// NewApplicationLog creates ApplicationLog from a set of several application execution results
+// NewApplicationLog creates an ApplicationLog from a set of several application execution results
 // including only the results with the specified trigger.
 func NewApplicationLog(hash util.Uint256, aers []state.AppExecResult, trig trigger.Type) ApplicationLog {
 	result := ApplicationLog{

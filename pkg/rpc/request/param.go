@@ -20,7 +20,7 @@ import (
 
 type (
 	// Param represents a param either passed to
-	// the server or to send to a server using
+	// the server or to sent to a server using
 	// the client.
 	Param struct {
 		json.RawMessage
@@ -33,18 +33,18 @@ type (
 		Type  smartcontract.ParamType `json:"type"`
 		Value Param                   `json:"value"`
 	}
-	// BlockFilter is a wrapper structure for block event filter. The only
+	// BlockFilter is a wrapper structure for the block event filter. The only
 	// allowed filter is primary index.
 	BlockFilter struct {
 		Primary int `json:"primary"`
 	}
-	// TxFilter is a wrapper structure for transaction event filter. It
+	// TxFilter is a wrapper structure for the transaction event filter. It
 	// allows to filter transactions by senders and signers.
 	TxFilter struct {
 		Sender *util.Uint160 `json:"sender,omitempty"`
 		Signer *util.Uint160 `json:"signer,omitempty"`
 	}
-	// NotificationFilter is a wrapper structure representing filter used for
+	// NotificationFilter is a wrapper structure representing a filter used for
 	// notifications generated during transaction execution. Notifications can
 	// be filtered by contract hash and by name.
 	NotificationFilter struct {
@@ -80,7 +80,7 @@ func (p Param) String() string {
 	return str
 }
 
-// GetStringStrict returns string value of the parameter.
+// GetStringStrict returns a string value of the parameter.
 func (p *Param) GetStringStrict() (string, error) {
 	if p == nil {
 		return "", errMissingParameter
@@ -102,7 +102,7 @@ func (p *Param) GetStringStrict() (string, error) {
 	return "", errNotAString
 }
 
-// GetString returns string value of the parameter or tries to cast parameter to a string value.
+// GetString returns a string value of the parameter or tries to cast the parameter to a string value.
 func (p *Param) GetString() (string, error) {
 	if p == nil {
 		return "", errMissingParameter
@@ -162,7 +162,7 @@ func (p *Param) GetBooleanStrict() (bool, error) {
 	return false, errNotABool
 }
 
-// GetBoolean returns boolean value of the parameter or tries to cast parameter to a bool value.
+// GetBoolean returns a boolean value of the parameter or tries to cast the parameter to a bool value.
 func (p *Param) GetBoolean() (bool, error) {
 	if p == nil {
 		return false, errMissingParameter
@@ -203,7 +203,7 @@ func (p *Param) GetBoolean() (bool, error) {
 	}
 }
 
-// GetIntStrict returns int value of the parameter if the parameter is integer.
+// GetIntStrict returns an int value of the parameter if the parameter is an integer.
 func (p *Param) GetIntStrict() (int, error) {
 	if p == nil {
 		return 0, errMissingParameter
@@ -251,7 +251,7 @@ func (p *Param) fillIntCache() (interface{}, error) {
 	return nil, errNotAnInt
 }
 
-// GetInt returns int value of the parameter or tries to cast parameter to an int value.
+// GetInt returns an int value of the parameter or tries to cast the parameter to an int value.
 func (p *Param) GetInt() (int, error) {
 	if p == nil {
 		return 0, errMissingParameter
@@ -281,7 +281,7 @@ func (p *Param) GetInt() (int, error) {
 	}
 }
 
-// GetBigInt returns big-interer value of the parameter.
+// GetBigInt returns a big-integer value of the parameter.
 func (p *Param) GetBigInt() (*big.Int, error) {
 	if p == nil {
 		return nil, errMissingParameter
@@ -334,7 +334,7 @@ func (p *Param) GetArray() ([]Param, error) {
 	return nil, errNotAnArray
 }
 
-// GetUint256 returns Uint256 value of the parameter.
+// GetUint256 returns a Uint256 value of the parameter.
 func (p *Param) GetUint256() (util.Uint256, error) {
 	s, err := p.GetString()
 	if err != nil {
@@ -344,7 +344,7 @@ func (p *Param) GetUint256() (util.Uint256, error) {
 	return util.Uint256DecodeStringLE(strings.TrimPrefix(s, "0x"))
 }
 
-// GetUint160FromHex returns Uint160 value of the parameter encoded in hex.
+// GetUint160FromHex returns a Uint160 value of the parameter encoded in hex.
 func (p *Param) GetUint160FromHex() (util.Uint160, error) {
 	s, err := p.GetString()
 	if err != nil {
@@ -354,7 +354,7 @@ func (p *Param) GetUint160FromHex() (util.Uint160, error) {
 	return util.Uint160DecodeStringLE(strings.TrimPrefix(s, "0x"))
 }
 
-// GetUint160FromAddress returns Uint160 value of the parameter that was
+// GetUint160FromAddress returns a Uint160 value of the parameter that was
 // supplied as an address.
 func (p *Param) GetUint160FromAddress() (util.Uint160, error) {
 	s, err := p.GetString()
@@ -365,7 +365,7 @@ func (p *Param) GetUint160FromAddress() (util.Uint160, error) {
 	return address.StringToUint160(s)
 }
 
-// GetUint160FromAddressOrHex returns Uint160 value of the parameter that was
+// GetUint160FromAddressOrHex returns a Uint160 value of the parameter that was
 // supplied either as raw hex or as an address.
 func (p *Param) GetUint160FromAddressOrHex() (util.Uint160, error) {
 	u, err := p.GetUint160FromHex()
@@ -375,7 +375,7 @@ func (p *Param) GetUint160FromAddressOrHex() (util.Uint160, error) {
 	return p.GetUint160FromAddress()
 }
 
-// GetFuncParam returns current parameter as a function call parameter.
+// GetFuncParam returns the current parameter as a function call parameter.
 func (p *Param) GetFuncParam() (FuncParam, error) {
 	if p == nil {
 		return FuncParam{}, errMissingParameter
@@ -386,7 +386,7 @@ func (p *Param) GetFuncParam() (FuncParam, error) {
 	return fp, err
 }
 
-// GetBytesHex returns []byte value of the parameter if
+// GetBytesHex returns a []byte value of the parameter if
 // it is a hex-encoded string.
 func (p *Param) GetBytesHex() ([]byte, error) {
 	s, err := p.GetString()
@@ -397,7 +397,7 @@ func (p *Param) GetBytesHex() ([]byte, error) {
 	return hex.DecodeString(s)
 }
 
-// GetBytesBase64 returns []byte value of the parameter if
+// GetBytesBase64 returns a []byte value of the parameter if
 // it is a base64-encoded string.
 func (p *Param) GetBytesBase64() ([]byte, error) {
 	s, err := p.GetString()
@@ -408,7 +408,7 @@ func (p *Param) GetBytesBase64() ([]byte, error) {
 	return base64.StdEncoding.DecodeString(s)
 }
 
-// GetSignerWithWitness returns SignerWithWitness value of the parameter.
+// GetSignerWithWitness returns a SignerWithWitness value of the parameter.
 func (p *Param) GetSignerWithWitness() (SignerWithWitness, error) {
 	// This one doesn't need to be cached, it's used only once.
 	aux := new(signerWithWitnessAux)
@@ -440,7 +440,7 @@ func (p *Param) GetSignerWithWitness() (SignerWithWitness, error) {
 }
 
 // GetSignersWithWitnesses returns a slice of SignerWithWitness with CalledByEntry
-// scope from array of Uint160 or array of serialized transaction.Signer stored
+// scope from an array of Uint160 or an array of serialized transaction.Signer stored
 // in the parameter.
 func (p Param) GetSignersWithWitnesses() ([]transaction.Signer, []transaction.Witness, error) {
 	hashes, err := p.GetArray()
@@ -474,12 +474,12 @@ func (p Param) GetSignersWithWitnesses() ([]transaction.Signer, []transaction.Wi
 	return signers, witnesses, nil
 }
 
-// IsNull returns whether parameter represents JSON nil value.
+// IsNull returns whether the parameter represents JSON nil value.
 func (p *Param) IsNull() bool {
 	return bytes.Equal(p.RawMessage, jsonNullBytes)
 }
 
-// signerWithWitnessAux is an auxiluary struct for JSON marshalling. We need it because of
+// signerWithWitnessAux is an auxiliary struct for JSON marshalling. We need it because of
 // DisallowUnknownFields JSON marshaller setting.
 type signerWithWitnessAux struct {
 	Account            string                    `json:"account"`
@@ -491,7 +491,7 @@ type signerWithWitnessAux struct {
 	VerificationScript []byte                    `json:"verification,omitempty"`
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (s *SignerWithWitness) MarshalJSON() ([]byte, error) {
 	signer := &signerWithWitnessAux{
 		Account:            s.Account.StringLE(),

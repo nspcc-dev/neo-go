@@ -12,7 +12,7 @@ type GetBlockByIndex struct {
 	Count      int16
 }
 
-// NewGetBlockByIndex returns GetBlockByIndex payload with specified start index and count.
+// NewGetBlockByIndex returns GetBlockByIndex payload with the specified start index and count.
 func NewGetBlockByIndex(indexStart uint32, count int16) *GetBlockByIndex {
 	return &GetBlockByIndex{
 		IndexStart: indexStart,
@@ -20,7 +20,7 @@ func NewGetBlockByIndex(indexStart uint32, count int16) *GetBlockByIndex {
 	}
 }
 
-// DecodeBinary implements Serializable interface.
+// DecodeBinary implements the Serializable interface.
 func (d *GetBlockByIndex) DecodeBinary(br *io.BinReader) {
 	d.IndexStart = br.ReadU32LE()
 	d.Count = int16(br.ReadU16LE())
@@ -29,7 +29,7 @@ func (d *GetBlockByIndex) DecodeBinary(br *io.BinReader) {
 	}
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (d *GetBlockByIndex) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteU32LE(d.IndexStart)
 	bw.WriteU16LE(uint16(d.Count))

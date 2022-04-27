@@ -5,7 +5,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// The node can broadcast the object information it owns by this message.
+// A node can broadcast the object information it owns by this message.
 // The message can be sent automatically or can be used to answer getblock messages.
 
 // InventoryType is the type of an object in the Inventory message.
@@ -42,14 +42,14 @@ const (
 
 // Inventory payload.
 type Inventory struct {
-	// Type if the object hash.
+	// Type of the object hash.
 	Type InventoryType
 
 	// A list of hashes.
 	Hashes []util.Uint256
 }
 
-// NewInventory return a pointer to an Inventory.
+// NewInventory returns a pointer to an Inventory.
 func NewInventory(typ InventoryType, hashes []util.Uint256) *Inventory {
 	return &Inventory{
 		Type:   typ,
@@ -57,13 +57,13 @@ func NewInventory(typ InventoryType, hashes []util.Uint256) *Inventory {
 	}
 }
 
-// DecodeBinary implements Serializable interface.
+// DecodeBinary implements the Serializable interface.
 func (p *Inventory) DecodeBinary(br *io.BinReader) {
 	p.Type = InventoryType(br.ReadB())
 	br.ReadArray(&p.Hashes, MaxHashesCount)
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (p *Inventory) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteB(byte(p.Type))
 	bw.WriteArray(p.Hashes)

@@ -12,7 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// getInvocationError returns an error in case of bad VM state or empty stack.
+// getInvocationError returns an error in case of bad VM state or an empty stack.
 func getInvocationError(result *result.Invoke) error {
 	if result.State != "HALT" {
 		return fmt.Errorf("invocation failed: %s", result.FaultException)
@@ -23,7 +23,7 @@ func getInvocationError(result *result.Invoke) error {
 	return nil
 }
 
-// topBoolFromStack returns the top boolean value from stack.
+// topBoolFromStack returns the top boolean value from the stack.
 func topBoolFromStack(st []stackitem.Item) (bool, error) {
 	index := len(st) - 1 // top stack element is last in the array
 	result, ok := st[index].Value().(bool)
@@ -33,7 +33,7 @@ func topBoolFromStack(st []stackitem.Item) (bool, error) {
 	return result, nil
 }
 
-// topIntFromStack returns the top integer value from stack.
+// topIntFromStack returns the top integer value from the stack.
 func topIntFromStack(st []stackitem.Item) (int64, error) {
 	index := len(st) - 1 // top stack element is last in the array
 	bi, err := st[index].TryInteger()
@@ -43,7 +43,7 @@ func topIntFromStack(st []stackitem.Item) (int64, error) {
 	return bi.Int64(), nil
 }
 
-// topPublicKeysFromStack returns the top array of public keys from stack.
+// topPublicKeysFromStack returns the top array of public keys from the stack.
 func topPublicKeysFromStack(st []stackitem.Item) (keys.PublicKeys, error) {
 	index := len(st) - 1 // top stack element is last in the array
 	var (
@@ -68,7 +68,7 @@ func topPublicKeysFromStack(st []stackitem.Item) (keys.PublicKeys, error) {
 	return pks, nil
 }
 
-// top string from stack returns the top string from stack.
+// top string from stack returns the top string from the stack.
 func topStringFromStack(st []stackitem.Item) (string, error) {
 	index := len(st) - 1 // top stack element is last in the array
 	bs, err := st[index].TryBytes()
@@ -78,7 +78,7 @@ func topStringFromStack(st []stackitem.Item) (string, error) {
 	return string(bs), nil
 }
 
-// topUint160FromStack returns the top util.Uint160 from stack.
+// topUint160FromStack returns the top util.Uint160 from the stack.
 func topUint160FromStack(st []stackitem.Item) (util.Uint160, error) {
 	index := len(st) - 1 // top stack element is last in the array
 	bs, err := st[index].TryBytes()
@@ -88,7 +88,7 @@ func topUint160FromStack(st []stackitem.Item) (util.Uint160, error) {
 	return util.Uint160DecodeBytesBE(bs)
 }
 
-// topMapFromStack returns the top stackitem.Map from stack.
+// topMapFromStack returns the top stackitem.Map from the stack.
 func topMapFromStack(st []stackitem.Item) (*stackitem.Map, error) {
 	index := len(st) - 1 // top stack element is last in the array
 	if t := st[index].Type(); t != stackitem.MapT {
@@ -97,7 +97,7 @@ func topMapFromStack(st []stackitem.Item) (*stackitem.Map, error) {
 	return st[index].(*stackitem.Map), nil
 }
 
-// topIterableFromStack returns top list of elements of `resultItemType` type from stack.
+// topIterableFromStack returns top list of elements of `resultItemType` type from the stack.
 func topIterableFromStack(st []stackitem.Item, resultItemType interface{}) ([]interface{}, error) {
 	index := len(st) - 1 // top stack element is last in the array
 	if t := st[index].Type(); t != stackitem.InteropT {

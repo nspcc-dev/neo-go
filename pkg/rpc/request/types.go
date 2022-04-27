@@ -12,12 +12,12 @@ const (
 	// JSONRPCVersion is the only JSON-RPC protocol version supported.
 	JSONRPCVersion = "2.0"
 
-	// maxBatchSize is the maximum number of request per batch.
+	// maxBatchSize is the maximum number of requests per batch.
 	maxBatchSize = 100
 )
 
 // RawParams is just a slice of abstract values, used to represent parameters
-// passed from client to server.
+// passed from the client to a server.
 type RawParams struct {
 	Values []interface{}
 }
@@ -61,7 +61,7 @@ type In struct {
 // batch: https://www.jsonrpc.org/specification#batch.
 type Batch []In
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (r Request) MarshalJSON() ([]byte, error) {
 	if r.In != nil {
 		return json.Marshal(r.In)
@@ -69,7 +69,7 @@ func (r Request) MarshalJSON() ([]byte, error) {
 	return json.Marshal(r.Batch)
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (r *Request) UnmarshalJSON(data []byte) error {
 	var (
 		in    *In

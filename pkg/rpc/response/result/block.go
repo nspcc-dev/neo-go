@@ -22,7 +22,7 @@ type (
 		BlockMetadata
 	}
 
-	// BlockMetadata is an additional metadata added to standard
+	// BlockMetadata is an additional metadata added to the standard
 	// block.Block.
 	BlockMetadata struct {
 		Size          int           `json:"size"`
@@ -49,7 +49,7 @@ func NewBlock(b *block.Block, chain LedgerAux) Block {
 	return res
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (b Block) MarshalJSON() ([]byte, error) {
 	output, err := json.Marshal(b.BlockMetadata)
 	if err != nil {
@@ -62,7 +62,7 @@ func (b Block) MarshalJSON() ([]byte, error) {
 
 	// We have to keep both "fields" at the same level in json in order to
 	// match C# API, so there's no way to marshall Block correctly with
-	// standard json.Marshaller tool.
+	// the standard json.Marshaller tool.
 	if output[len(output)-1] != '}' || baseBytes[0] != '{' {
 		return nil, errors.New("can't merge internal jsons")
 	}
@@ -71,7 +71,7 @@ func (b Block) MarshalJSON() ([]byte, error) {
 	return output, nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (b *Block) UnmarshalJSON(data []byte) error {
 	// As block.Block and BlockMetadata are at the same level in json,
 	// do unmarshalling separately for both structs.

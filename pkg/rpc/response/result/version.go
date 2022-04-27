@@ -16,7 +16,7 @@ type (
 		Nonce     uint32        `json:"nonce"`
 		UserAgent string        `json:"useragent"`
 		Protocol  Protocol      `json:"protocol"`
-		// StateRootInHeader is true if state root is contained in block header.
+		// StateRootInHeader is true if the state root is contained in the block header.
 		// Deprecated: use Protocol.StateRootInHeader instead
 		StateRootInHeader bool `json:"staterootinheader,omitempty"`
 	}
@@ -32,7 +32,7 @@ type (
 		MemoryPoolMaxTransactions   int           `json:"memorypoolmaxtransactions"`
 		ValidatorsCount             byte          `json:"validatorscount"`
 		InitialGasDistribution      int64         `json:"initialgasdistribution"`
-		// StateRootInHeader is true if state root is contained in block header.
+		// StateRootInHeader is true if the state root is contained in the block header.
 		StateRootInHeader bool `json:"staterootinheader,omitempty"`
 	}
 )
