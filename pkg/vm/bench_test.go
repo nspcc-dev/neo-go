@@ -21,7 +21,7 @@ func benchScript(t *testing.B, script []byte) {
 	}
 }
 
-// Shared as is by @ixje once upon a time (compiled from Python).
+// Shared as it is by @ixje once upon a time (compiled from Python).
 func BenchmarkScriptFibonacci(t *testing.B) {
 	var script = []byte{87, 5, 0, 16, 112, 17, 113, 105, 104, 18, 192, 114, 16, 115, 34, 28, 104, 105, 158, 116, 106, 108, 75,
 		217, 48, 38, 5, 139, 34, 5, 207, 34, 3, 114, 105, 112, 108, 113, 107, 17, 158, 115, 107, 12, 2, 94, 1,

@@ -30,7 +30,7 @@ func (s slot) Set(i int, item stackitem.Item, refs *refCounter) {
 	refs.Add(item)
 }
 
-// Get returns item contained in i-th slot.
+// Get returns the item contained in the i-th slot.
 func (s slot) Get(i int) stackitem.Item {
 	if item := s[i]; item != nil {
 		return item
@@ -38,14 +38,14 @@ func (s slot) Get(i int) stackitem.Item {
 	return stackitem.Null{}
 }
 
-// Clear removes all slot variables from reference counter.
+// Clear removes all slot variables from the reference counter.
 func (s slot) Clear(refs *refCounter) {
 	for _, item := range s {
 		refs.Remove(item)
 	}
 }
 
-// Size returns slot size.
+// Size returns the slot size.
 func (s slot) Size() int {
 	if s == nil {
 		panic("not initialized")
@@ -53,7 +53,7 @@ func (s slot) Size() int {
 	return len(s)
 }
 
-// MarshalJSON implements JSON marshalling interface.
+// MarshalJSON implements the JSON marshalling interface.
 func (s slot) MarshalJSON() ([]byte, error) {
 	arr := make([]json.RawMessage, len(s))
 	for i := range s {

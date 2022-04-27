@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	// MaxBigIntegerSizeBits is the maximum size of BigInt item in bits.
+	// MaxBigIntegerSizeBits is the maximum size of a BigInt item in bits.
 	MaxBigIntegerSizeBits = 32 * 8
 	// MaxSize is the maximum item size allowed in the VM.
 	MaxSize = 1024 * 1024
@@ -26,10 +26,10 @@ const (
 	MaxComparableNumOfItems = MaxDeserialized
 	// MaxClonableNumOfItems is the maximum number of items that can be cloned in structs.
 	MaxClonableNumOfItems = MaxDeserialized
-	// MaxByteArrayComparableSize is the maximum allowed length of ByteArray for Equals method.
+	// MaxByteArrayComparableSize is the maximum allowed length of a ByteArray for Equals method.
 	// It is set to be the maximum uint16 value.
 	MaxByteArrayComparableSize = math.MaxUint16
-	// MaxKeySize is the maximum size of map key.
+	// MaxKeySize is the maximum size of a map key.
 	MaxKeySize = 64
 )
 
@@ -61,13 +61,13 @@ type Convertible interface {
 }
 
 var (
-	// ErrInvalidConversion is returned on attempt to make an incorrect
+	// ErrInvalidConversion is returned upon an attempt to make an incorrect
 	// conversion between item types.
 	ErrInvalidConversion = errors.New("invalid conversion")
 
-	// ErrTooBig is returned when item exceeds some size constraints like
-	// maximum allowed integer value of number of elements in array. It
-	// can also be returned by serialization functions if resulting
+	// ErrTooBig is returned when an item exceeds some size constraints, like
+	// the maximum allowed integer value of the number of elements in an array. It
+	// can also be returned by serialization functions if the resulting
 	// value exceeds MaxSize.
 	ErrTooBig = errors.New("too big")
 
@@ -78,13 +78,13 @@ var (
 	errTooBigElements   = fmt.Errorf("%w: many elements", ErrTooBig)
 )
 
-// mkInvConversion creates conversion error with additional metadata (from and
+// mkInvConversion creates a conversion error with additional metadata (from and
 // to types).
 func mkInvConversion(from Item, to Type) error {
 	return fmt.Errorf("%w: %s/%s", ErrInvalidConversion, from, to)
 }
 
-// Make tries to make appropriate stack item from provided value.
+// Make tries to make an appropriate stack item from the provided value.
 // It will panic if it's not possible.
 func Make(v interface{}) Item {
 	switch val := v.(type) {
@@ -136,7 +136,7 @@ func Make(v interface{}) Item {
 	}
 }
 
-// ToString converts Item to string if it is a valid UTF-8.
+// ToString converts an Item to a string if it is a valid UTF-8.
 func ToString(item Item) (string, error) {
 	bs, err := item.TryBytes()
 	if err != nil {
@@ -148,7 +148,7 @@ func ToString(item Item) (string, error) {
 	return string(bs), nil
 }
 
-// convertPrimitive converts primitive item to a specified type.
+// convertPrimitive converts a primitive item to the specified type.
 func convertPrimitive(item Item, typ Type) (Item, error) {
 	if item.Type() == typ {
 		return item, nil
@@ -187,64 +187,64 @@ type Struct struct {
 	rc
 }
 
-// NewStruct returns an new Struct object.
+// NewStruct returns a new Struct object.
 func NewStruct(items []Item) *Struct {
 	return &Struct{
 		value: items,
 	}
 }
 
-// Value implements Item interface.
+// Value implements the Item interface.
 func (i *Struct) Value() interface{} {
 	return i.value
 }
 
-// Remove removes element at `pos` index from Struct value.
-// It will panics on bad index.
+// Remove removes the element at `pos` index from the Struct value.
+// It will panic if bad index.
 func (i *Struct) Remove(pos int) {
 	i.value = append(i.value[:pos], i.value[pos+1:]...)
 }
 
-// Append adds Item at the end of Struct value.
+// Append adds an Item at the end of the Struct value.
 func (i *Struct) Append(item Item) {
 	i.value = append(i.value, item)
 }
 
-// Clear removes all elements from Struct item value.
+// Clear removes all elements from the Struct item value.
 func (i *Struct) Clear() {
 	i.value = i.value[:0]
 }
 
-// Len returns length of Struct value.
+// Len returns the length of the Struct value.
 func (i *Struct) Len() int {
 	return len(i.value)
 }
 
-// String implements Item interface.
+// String implements the Item interface.
 func (i *Struct) String() string {
 	return "Struct"
 }
 
-// Dup implements Item interface.
+// Dup implements the Item interface.
 func (i *Struct) Dup() Item {
 	// it's a reference type, so no copying here.
 	return i
 }
 
-// TryBool implements Item interface.
+// TryBool implements the Item interface.
 func (i *Struct) TryBool() (bool, error) { return true, nil }
 
-// TryBytes implements Item interface.
+// TryBytes implements the Item interface.
 func (i *Struct) TryBytes() ([]byte, error) {
 	return nil, mkInvConversion(i, ByteArrayT)
 }
 
-// TryInteger implements Item interface.
+// TryInteger implements the Item interface.
 func (i *Struct) TryInteger() (*big.Int, error) {
 	return nil, mkInvConversion(i, IntegerT)
 }
 
-// Equals implements Item interface.
+// Equals implements the Item interface.
 func (i *Struct) Equals(s Item) bool {
 	if s == nil {
 		return false
@@ -281,10 +281,10 @@ func (i *Struct) equalStruct(s *Struct, limit *int) bool {
 	return true
 }
 
-// Type implements Item interface.
+// Type implements the Item interface.
 func (i *Struct) Type() Type { return StructT }
 
-// Convert implements Item interface.
+// Convert implements the Item interface.
 func (i *Struct) Convert(typ Type) (Item, error) {
 	switch typ {
 	case StructT:
@@ -300,7 +300,7 @@ func (i *Struct) Convert(typ Type) (Item, error) {
 	}
 }
 
-// Clone returns a Struct with all Struct fields copied by value.
+// Clone returns a Struct with all Struct fields copied by a value.
 // Array fields are still copied by reference.
 func (i *Struct) Clone() (*Struct, error) {
 	var limit = MaxClonableNumOfItems - 1 // For this struct itself.
@@ -332,46 +332,46 @@ func (i *Struct) clone(limit *int) (*Struct, error) {
 // Null represents null on the stack.
 type Null struct{}
 
-// String implements Item interface.
+// String implements the Item interface.
 func (i Null) String() string {
 	return "Null"
 }
 
-// Value implements Item interface.
+// Value implements the Item interface.
 func (i Null) Value() interface{} {
 	return nil
 }
 
-// Dup implements Item interface.
-// There is no need to perform a real copy here,
-// as Null has no internal state.
+// Dup implements the Item interface.
+// There is no need to perform a real copy here
+// since Null has no internal state.
 func (i Null) Dup() Item {
 	return i
 }
 
-// TryBool implements Item interface.
+// TryBool implements the Item interface.
 func (i Null) TryBool() (bool, error) { return false, nil }
 
-// TryBytes implements Item interface.
+// TryBytes implements the Item interface.
 func (i Null) TryBytes() ([]byte, error) {
 	return nil, mkInvConversion(i, ByteArrayT)
 }
 
-// TryInteger implements Item interface.
+// TryInteger implements the Item interface.
 func (i Null) TryInteger() (*big.Int, error) {
 	return nil, mkInvConversion(i, IntegerT)
 }
 
-// Equals implements Item interface.
+// Equals implements the Item interface.
 func (i Null) Equals(s Item) bool {
 	_, ok := s.(Null)
 	return ok
 }
 
-// Type implements Item interface.
+// Type implements the Item interface.
 func (i Null) Type() Type { return AnyT }
 
-// Convert implements Item interface.
+// Convert implements the Item interface.
 func (i Null) Convert(typ Type) (Item, error) {
 	if typ == AnyT || !typ.IsValid() {
 		return nil, mkInvConversion(i, typ)
@@ -390,9 +390,9 @@ func NewBigInteger(value *big.Int) *BigInteger {
 	return (*BigInteger)(value)
 }
 
-// CheckIntegerSize checks that value size doesn't exceed VM limit for Interer.
+// CheckIntegerSize checks that the value size doesn't exceed the VM limit for Interer.
 func CheckIntegerSize(value *big.Int) error {
-	// There are 2 cases, when `BitLen` differs from actual size:
+	// There are 2 cases when `BitLen` differs from the actual size:
 	// 1. Positive integer with the highest bit on byte boundary = 1.
 	// 2. Negative integer with the highest bit on byte boundary = 1
 	//    minus some value. (-0x80 -> 0x80, -0x7F -> 0x81, -0x81 -> 0x7FFF).
@@ -420,22 +420,22 @@ func (i *BigInteger) Bytes() []byte {
 	return bigint.ToBytes(i.Big())
 }
 
-// TryBool implements Item interface.
+// TryBool implements the Item interface.
 func (i *BigInteger) TryBool() (bool, error) {
 	return i.Big().Sign() != 0, nil
 }
 
-// TryBytes implements Item interface.
+// TryBytes implements the Item interface.
 func (i *BigInteger) TryBytes() ([]byte, error) {
 	return i.Bytes(), nil
 }
 
-// TryInteger implements Item interface.
+// TryInteger implements the Item interface.
 func (i *BigInteger) TryInteger() (*big.Int, error) {
 	return i.Big(), nil
 }
 
-// Equals implements Item interface.
+// Equals implements the Item interface.
 func (i *BigInteger) Equals(s Item) bool {
 	if i == s {
 		return true
@@ -446,7 +446,7 @@ func (i *BigInteger) Equals(s Item) bool {
 	return ok && i.Big().Cmp(val.Big()) == 0
 }
 
-// Value implements Item interface.
+// Value implements the Item interface.
 func (i *BigInteger) Value() interface{} {
 	return i.Big()
 }
@@ -455,16 +455,16 @@ func (i *BigInteger) String() string {
 	return "BigInteger"
 }
 
-// Dup implements Item interface.
+// Dup implements the Item interface.
 func (i *BigInteger) Dup() Item {
 	n := new(big.Int)
 	return (*BigInteger)(n.Set(i.Big()))
 }
 
-// Type implements Item interface.
+// Type implements the Item interface.
 func (i *BigInteger) Type() Type { return IntegerT }
 
-// Convert implements Item interface.
+// Convert implements the Item interface.
 func (i *BigInteger) Convert(typ Type) (Item, error) {
 	return convertPrimitive(i, typ)
 }
@@ -482,7 +482,7 @@ func NewBool(val bool) Bool {
 	return Bool(val)
 }
 
-// Value implements Item interface.
+// Value implements the Item interface.
 func (i Bool) Value() interface{} {
 	return bool(i)
 }
@@ -496,12 +496,12 @@ func (i Bool) String() string {
 	return "Boolean"
 }
 
-// Dup implements Item interface.
+// Dup implements the Item interface.
 func (i Bool) Dup() Item {
 	return i
 }
 
-// TryBool implements Item interface.
+// TryBool implements the Item interface.
 func (i Bool) TryBool() (bool, error) { return bool(i), nil }
 
 // Bytes converts Bool to bytes.
@@ -512,12 +512,12 @@ func (i Bool) Bytes() []byte {
 	return []byte{0}
 }
 
-// TryBytes implements Item interface.
+// TryBytes implements the Item interface.
 func (i Bool) TryBytes() ([]byte, error) {
 	return i.Bytes(), nil
 }
 
-// TryInteger implements Item interface.
+// TryInteger implements the Item interface.
 func (i Bool) TryInteger() (*big.Int, error) {
 	if i {
 		return big.NewInt(1), nil
@@ -525,7 +525,7 @@ func (i Bool) TryInteger() (*big.Int, error) {
 	return big.NewInt(0), nil
 }
 
-// Equals implements Item interface.
+// Equals implements the Item interface.
 func (i Bool) Equals(s Item) bool {
 	if i == s {
 		return true
@@ -536,10 +536,10 @@ func (i Bool) Equals(s Item) bool {
 	return ok && i == val
 }
 
-// Type implements Item interface.
+// Type implements the Item interface.
 func (i Bool) Type() Type { return BooleanT }
 
-// Convert implements Item interface.
+// Convert implements the Item interface.
 func (i Bool) Convert(typ Type) (Item, error) {
 	return convertPrimitive(i, typ)
 }
@@ -552,7 +552,7 @@ func NewByteArray(b []byte) *ByteArray {
 	return (*ByteArray)(&b)
 }
 
-// Value implements Item interface.
+// Value implements the Item interface.
 func (i *ByteArray) Value() interface{} {
 	return []byte(*i)
 }
@@ -566,7 +566,7 @@ func (i *ByteArray) String() string {
 	return "ByteString"
 }
 
-// TryBool implements Item interface.
+// TryBool implements the Item interface.
 func (i *ByteArray) TryBool() (bool, error) {
 	if len(*i) > MaxBigIntegerSizeBits/8 {
 		return false, errTooBigInteger
@@ -579,12 +579,12 @@ func (i *ByteArray) TryBool() (bool, error) {
 	return false, nil
 }
 
-// TryBytes implements Item interface.
+// TryBytes implements the Item interface.
 func (i ByteArray) TryBytes() ([]byte, error) {
 	return i, nil
 }
 
-// TryInteger implements Item interface.
+// TryInteger implements the Item interface.
 func (i ByteArray) TryInteger() (*big.Int, error) {
 	if len(i) > MaxBigIntegerSizeBits/8 {
 		return nil, errTooBigInteger
@@ -592,7 +592,7 @@ func (i ByteArray) TryInteger() (*big.Int, error) {
 	return bigint.FromBytes(i), nil
 }
 
-// Equals implements Item interface.
+// Equals implements the Item interface.
 func (i *ByteArray) Equals(s Item) bool {
 	if len(*i) > MaxByteArrayComparableSize {
 		panic(errTooBigComparable)
@@ -612,16 +612,16 @@ func (i *ByteArray) Equals(s Item) bool {
 	return bytes.Equal(*i, *val)
 }
 
-// Dup implements Item interface.
+// Dup implements the Item interface.
 func (i *ByteArray) Dup() Item {
 	ba := slice.Copy(*i)
 	return (*ByteArray)(&ba)
 }
 
-// Type implements Item interface.
+// Type implements the Item interface.
 func (i *ByteArray) Type() Type { return ByteArrayT }
 
-// Convert implements Item interface.
+// Convert implements the Item interface.
 func (i *ByteArray) Convert(typ Type) (Item, error) {
 	return convertPrimitive(i, typ)
 }
@@ -639,23 +639,23 @@ func NewArray(items []Item) *Array {
 	}
 }
 
-// Value implements Item interface.
+// Value implements the Item interface.
 func (i *Array) Value() interface{} {
 	return i.value
 }
 
-// Remove removes element at `pos` index from Array value.
+// Remove removes the element at `pos` index from Array value.
 // It will panics on bad index.
 func (i *Array) Remove(pos int) {
 	i.value = append(i.value[:pos], i.value[pos+1:]...)
 }
 
-// Append adds Item at the end of Array value.
+// Append adds an Item at the end of the Array value.
 func (i *Array) Append(item Item) {
 	i.value = append(i.value, item)
 }
 
-// Clear removes all elements from Array item value.
+// Clear removes all elements from the Array item value.
 func (i *Array) Clear() {
 	i.value = i.value[:0]
 }
@@ -674,34 +674,34 @@ func (i *Array) String() string {
 	return "Array"
 }
 
-// TryBool implements Item interface.
+// TryBool implements the Item interface.
 func (i *Array) TryBool() (bool, error) { return true, nil }
 
-// TryBytes implements Item interface.
+// TryBytes implements the Item interface.
 func (i *Array) TryBytes() ([]byte, error) {
 	return nil, mkInvConversion(i, ByteArrayT)
 }
 
-// TryInteger implements Item interface.
+// TryInteger implements the Item interface.
 func (i *Array) TryInteger() (*big.Int, error) {
 	return nil, mkInvConversion(i, IntegerT)
 }
 
-// Equals implements Item interface.
+// Equals implements the Item interface.
 func (i *Array) Equals(s Item) bool {
 	return i == s
 }
 
-// Dup implements Item interface.
+// Dup implements the Item interface.
 func (i *Array) Dup() Item {
 	// reference type
 	return i
 }
 
-// Type implements Item interface.
+// Type implements the Item interface.
 func (i *Array) Type() Type { return ArrayT }
 
-// Convert implements Item interface.
+// Convert implements the Item interface.
 func (i *Array) Convert(typ Type) (Item, error) {
 	switch typ {
 	case ArrayT:
@@ -723,24 +723,24 @@ type MapElement struct {
 	Value Item
 }
 
-// Map represents Map object. It's ordered, so we use slice representation
+// Map represents a Map object. It's ordered, so we use slice representation,
 // which should be fine for maps with less than 32 or so elements. Given that
 // our VM has quite low limit of overall stack items, it should be good enough,
 // but it can be extended with a real map for fast random access in the future
-// if need be.
+// if needed.
 type Map struct {
 	value []MapElement
 	rc
 }
 
-// NewMap returns new Map object.
+// NewMap returns a new Map object.
 func NewMap() *Map {
 	return &Map{
 		value: make([]MapElement, 0),
 	}
 }
 
-// NewMapWithValue returns new Map object filled with specified value.
+// NewMapWithValue returns a new Map object filled with the specified value.
 func NewMapWithValue(value []MapElement) *Map {
 	if value != nil {
 		return &Map{
@@ -750,35 +750,35 @@ func NewMapWithValue(value []MapElement) *Map {
 	return NewMap()
 }
 
-// Value implements Item interface.
+// Value implements the Item interface.
 func (i *Map) Value() interface{} {
 	return i.value
 }
 
-// Clear removes all elements from Map item value.
+// Clear removes all elements from the Map item value.
 func (i *Map) Clear() {
 	i.value = i.value[:0]
 }
 
-// Len returns length of Map value.
+// Len returns the length of the Map value.
 func (i *Map) Len() int {
 	return len(i.value)
 }
 
-// TryBool implements Item interface.
+// TryBool implements the Item interface.
 func (i *Map) TryBool() (bool, error) { return true, nil }
 
-// TryBytes implements Item interface.
+// TryBytes implements the Item interface.
 func (i *Map) TryBytes() ([]byte, error) {
 	return nil, mkInvConversion(i, ByteArrayT)
 }
 
-// TryInteger implements Item interface.
+// TryInteger implements the Item interface.
 func (i *Map) TryInteger() (*big.Int, error) {
 	return nil, mkInvConversion(i, IntegerT)
 }
 
-// Equals implements Item interface.
+// Equals implements the Item interface.
 func (i *Map) Equals(s Item) bool {
 	return i == s
 }
@@ -797,21 +797,21 @@ func (i *Map) Index(key Item) int {
 	return -1
 }
 
-// Has checks if map has specified key.
+// Has checks if the map has the specified key.
 func (i *Map) Has(key Item) bool {
 	return i.Index(key) >= 0
 }
 
-// Dup implements Item interface.
+// Dup implements the Item interface.
 func (i *Map) Dup() Item {
 	// reference type
 	return i
 }
 
-// Type implements Item interface.
+// Type implements the Item interface.
 func (i *Map) Type() Type { return MapT }
 
-// Convert implements Item interface.
+// Convert implements the Item interface.
 func (i *Map) Convert(typ Type) (Item, error) {
 	switch typ {
 	case MapT:
@@ -823,7 +823,7 @@ func (i *Map) Convert(typ Type) (Item, error) {
 	}
 }
 
-// Add adds key-value pair to the map.
+// Add adds a key-value pair to the map.
 func (i *Map) Add(key, value Item) {
 	if err := IsValidMapKey(key); err != nil {
 		panic(err)
@@ -836,13 +836,13 @@ func (i *Map) Add(key, value Item) {
 	}
 }
 
-// Drop removes given index from the map (no bounds check done here).
+// Drop removes the given index from the map (no bounds check done here).
 func (i *Map) Drop(index int) {
 	copy(i.value[index:], i.value[index+1:])
 	i.value = i.value[:len(i.value)-1]
 }
 
-// IsValidMapKey checks whether it's possible to use given Item as a Map
+// IsValidMapKey checks whether it's possible to use the given Item as a Map
 // key.
 func IsValidMapKey(key Item) error {
 	switch key.(type) {
@@ -864,14 +864,14 @@ type Interop struct {
 	value interface{}
 }
 
-// NewInterop returns new Interop object.
+// NewInterop returns a new Interop object.
 func NewInterop(value interface{}) *Interop {
 	return &Interop{
 		value: value,
 	}
 }
 
-// Value implements Item interface.
+// Value implements the Item interface.
 func (i *Interop) Value() interface{} {
 	return i.value
 }
@@ -881,26 +881,26 @@ func (i *Interop) String() string {
 	return "Interop"
 }
 
-// Dup implements Item interface.
+// Dup implements the Item interface.
 func (i *Interop) Dup() Item {
 	// reference type
 	return i
 }
 
-// TryBool implements Item interface.
+// TryBool implements the Item interface.
 func (i *Interop) TryBool() (bool, error) { return true, nil }
 
-// TryBytes implements Item interface.
+// TryBytes implements the Item interface.
 func (i *Interop) TryBytes() ([]byte, error) {
 	return nil, mkInvConversion(i, ByteArrayT)
 }
 
-// TryInteger implements Item interface.
+// TryInteger implements the Item interface.
 func (i *Interop) TryInteger() (*big.Int, error) {
 	return nil, mkInvConversion(i, IntegerT)
 }
 
-// Equals implements Item interface.
+// Equals implements the Item interface.
 func (i *Interop) Equals(s Item) bool {
 	if i == s {
 		return true
@@ -911,10 +911,10 @@ func (i *Interop) Equals(s Item) bool {
 	return ok && i.value == val.value
 }
 
-// Type implements Item interface.
+// Type implements the Item interface.
 func (i *Interop) Type() Type { return InteropT }
 
-// Convert implements Item interface.
+// Convert implements the Item interface.
 func (i *Interop) Convert(typ Type) (Item, error) {
 	switch typ {
 	case InteropT:
@@ -931,14 +931,14 @@ func (i *Interop) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.value)
 }
 
-// Pointer represents VM-level instruction pointer.
+// Pointer represents a VM-level instruction pointer.
 type Pointer struct {
 	pos    int
 	script []byte
 	hash   util.Uint160
 }
 
-// NewPointer returns new pointer on the specified position.
+// NewPointer returns a new pointer on the specified position.
 func NewPointer(pos int, script []byte) *Pointer {
 	return &Pointer{
 		pos:    pos,
@@ -947,9 +947,9 @@ func NewPointer(pos int, script []byte) *Pointer {
 	}
 }
 
-// NewPointerWithHash returns new pointer on the specified position of the
+// NewPointerWithHash returns a new pointer on the specified position of the
 // specified script. It differs from NewPointer in that the script hash is being
-// passed explicitly to save on hash calculcation. This hash is then being used
+// passed explicitly to save on hash calculation. This hash is then being used
 // for pointer comparisons.
 func NewPointerWithHash(pos int, script []byte, h util.Uint160) *Pointer {
 	return &Pointer{
@@ -959,17 +959,17 @@ func NewPointerWithHash(pos int, script []byte, h util.Uint160) *Pointer {
 	}
 }
 
-// String implements Item interface.
+// String implements the Item interface.
 func (p *Pointer) String() string {
 	return "Pointer"
 }
 
-// Value implements Item interface.
+// Value implements the Item interface.
 func (p *Pointer) Value() interface{} {
 	return p.pos
 }
 
-// Dup implements Item interface.
+// Dup implements the Item interface.
 func (p *Pointer) Dup() Item {
 	return &Pointer{
 		pos:    p.pos,
@@ -978,22 +978,22 @@ func (p *Pointer) Dup() Item {
 	}
 }
 
-// TryBool implements Item interface.
+// TryBool implements the Item interface.
 func (p *Pointer) TryBool() (bool, error) {
 	return true, nil
 }
 
-// TryBytes implements Item interface.
+// TryBytes implements the Item interface.
 func (p *Pointer) TryBytes() ([]byte, error) {
 	return nil, mkInvConversion(p, ByteArrayT)
 }
 
-// TryInteger implements Item interface.
+// TryInteger implements the Item interface.
 func (p *Pointer) TryInteger() (*big.Int, error) {
 	return nil, mkInvConversion(p, IntegerT)
 }
 
-// Equals implements Item interface.
+// Equals implements the Item interface.
 func (p *Pointer) Equals(s Item) bool {
 	if p == s {
 		return true
@@ -1002,12 +1002,12 @@ func (p *Pointer) Equals(s Item) bool {
 	return ok && p.pos == ptr.pos && p.hash == ptr.hash
 }
 
-// Type implements Item interface.
+// Type implements the Item interface.
 func (p *Pointer) Type() Type {
 	return PointerT
 }
 
-// Convert implements Item interface.
+// Convert implements the Item interface.
 func (p *Pointer) Convert(typ Type) (Item, error) {
 	switch typ {
 	case PointerT:
@@ -1019,17 +1019,17 @@ func (p *Pointer) Convert(typ Type) (Item, error) {
 	}
 }
 
-// ScriptHash returns pointer item hash.
+// ScriptHash returns the pointer item hash.
 func (p *Pointer) ScriptHash() util.Uint160 {
 	return p.hash
 }
 
-// Position returns pointer item position.
+// Position returns the pointer item position.
 func (p *Pointer) Position() int {
 	return p.pos
 }
 
-// Buffer represents represents Buffer stack item.
+// Buffer represents represents a Buffer stack item.
 type Buffer []byte
 
 // NewBuffer returns a new Buffer object.
@@ -1037,37 +1037,37 @@ func NewBuffer(b []byte) *Buffer {
 	return (*Buffer)(&b)
 }
 
-// Value implements Item interface.
+// Value implements the Item interface.
 func (i *Buffer) Value() interface{} {
 	return []byte(*i)
 }
 
-// String implements fmt.Stringer interface.
+// String implements the fmt.Stringer interface.
 func (i *Buffer) String() string {
 	return "Buffer"
 }
 
-// TryBool implements Item interface.
+// TryBool implements the Item interface.
 func (i *Buffer) TryBool() (bool, error) {
 	return true, nil
 }
 
-// TryBytes implements Item interface.
+// TryBytes implements the Item interface.
 func (i *Buffer) TryBytes() ([]byte, error) {
 	return *i, nil
 }
 
-// TryInteger implements Item interface.
+// TryInteger implements the Item interface.
 func (i *Buffer) TryInteger() (*big.Int, error) {
 	return nil, mkInvConversion(i, IntegerT)
 }
 
-// Equals implements Item interface.
+// Equals implements the Item interface.
 func (i *Buffer) Equals(s Item) bool {
 	return i == s
 }
 
-// Dup implements Item interface.
+// Dup implements the Item interface.
 func (i *Buffer) Dup() Item {
 	return i
 }
@@ -1077,10 +1077,10 @@ func (i *Buffer) MarshalJSON() ([]byte, error) {
 	return json.Marshal(hex.EncodeToString(*i))
 }
 
-// Type implements Item interface.
+// Type implements the Item interface.
 func (i *Buffer) Type() Type { return BufferT }
 
-// Convert implements Item interface.
+// Convert implements the Item interface.
 func (i *Buffer) Convert(typ Type) (Item, error) {
 	switch typ {
 	case BooleanT:
@@ -1099,12 +1099,12 @@ func (i *Buffer) Convert(typ Type) (Item, error) {
 	}
 }
 
-// Len returns length of Buffer value.
+// Len returns the length of the Buffer value.
 func (i *Buffer) Len() int {
 	return len(*i)
 }
 
-// DeepCopy returns new deep copy of the provided item.
+// DeepCopy returns a new deep copy of the provided item.
 // Values of Interop items are not deeply copied.
 // It does preserve duplicates only for non-primitive types.
 func DeepCopy(item Item) Item {

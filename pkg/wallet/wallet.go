@@ -115,12 +115,12 @@ func (w *Wallet) RemoveAccount(addr string) error {
 	return errors.New("account wasn't found")
 }
 
-// AddToken adds new token to a wallet.
+// AddToken adds a new token to a wallet.
 func (w *Wallet) AddToken(tok *Token) {
 	w.Extra.Tokens = append(w.Extra.Tokens, tok)
 }
 
-// RemoveToken removes token with the specified hash from the wallet.
+// RemoveToken removes the token with the specified hash from the wallet.
 func (w *Wallet) RemoveToken(h util.Uint160) error {
 	for i, tok := range w.Extra.Tokens {
 		if tok.Hash.Equals(h) {
@@ -149,7 +149,7 @@ func (w *Wallet) Save() error {
 	return w.writeRaw(data)
 }
 
-// savePretty saves wallet in a beautiful JSON.
+// savePretty saves the wallet in a beautiful JSON.
 func (w *Wallet) savePretty() error {
 	data, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
@@ -172,7 +172,7 @@ func (w *Wallet) JSON() ([]byte, error) {
 func (w *Wallet) Close() {
 }
 
-// GetAccount returns account corresponding to the provided scripthash.
+// GetAccount returns an account corresponding to the provided scripthash.
 func (w *Wallet) GetAccount(h util.Uint160) *Account {
 	addr := address.Uint160ToString(h)
 	for _, acc := range w.Accounts {

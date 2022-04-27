@@ -11,7 +11,7 @@ func init() {
 	}
 }
 
-// FromString converts string representation to and opcode itself.
+// FromString converts string representation to an opcode itself.
 func FromString(s string) (Opcode, error) {
 	if op, ok := stringToOpcode[s]; ok {
 		return op, nil

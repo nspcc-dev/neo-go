@@ -12,7 +12,7 @@ import (
 	"strconv"
 )
 
-// decoder is a wrapper around json.Decoder helping to mimic C# json decoder behaviour.
+// decoder is a wrapper around json.Decoder helping to mimic C# json decoder behavior.
 type decoder struct {
 	json.Decoder
 
@@ -23,10 +23,10 @@ type decoder struct {
 // MaxAllowedInteger is the maximum integer allowed to be encoded.
 const MaxAllowedInteger = 2<<53 - 1
 
-// MaxJSONDepth is the maximum allowed nesting level of encoded/decoded JSON.
+// MaxJSONDepth is the maximum allowed nesting level of an encoded/decoded JSON.
 const MaxJSONDepth = 10
 
-// ErrInvalidValue is returned when item value doesn't fit some constraints
+// ErrInvalidValue is returned when an item value doesn't fit some constraints
 // during serialization or deserialization.
 var ErrInvalidValue = errors.New("invalid value")
 
@@ -47,8 +47,8 @@ func ToJSON(item Item) ([]byte, error) {
 	return toJSON(nil, seen, item)
 }
 
-// sliceNoPointer represents sub-slice of a known slice.
-// It doesn't contain pointer and uses less memory than `[]byte`.
+// sliceNoPointer represents a sub-slice of a known slice.
+// It doesn't contain any pointer and uses less memory than `[]byte`.
 type sliceNoPointer struct {
 	start, end int
 }
@@ -138,8 +138,8 @@ func toJSON(data []byte, seen map[Item]sliceNoPointer, item Item) ([]byte, error
 	return data, nil
 }
 
-// itemToJSONString converts it to string
-// surrounded in quotes with control characters escaped.
+// itemToJSONString converts it to a string
+// in quotation marks with control characters escaped.
 func itemToJSONString(it Item) ([]byte, error) {
 	s, err := ToString(it)
 	if err != nil {
@@ -151,7 +151,7 @@ func itemToJSONString(it Item) ([]byte, error) {
 	return bytes.Replace(data, []byte{'+'}, []byte("\\u002B"), -1), nil
 }
 
-// FromJSON decodes Item from JSON.
+// FromJSON decodes an Item from JSON.
 // It behaves as following:
 //   string -> ByteArray from base64
 //   number -> BigInteger
