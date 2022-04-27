@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	// NEO2Prefix is the first byte of address for NEO2.
+	// NEO2Prefix is the first byte of an address for NEO2.
 	NEO2Prefix byte = 0x17
-	// NEO3Prefix is the first byte of address for NEO3.
+	// NEO3Prefix is the first byte of an address for NEO3.
 	NEO3Prefix byte = 0x35
 )
 
@@ -20,13 +20,13 @@ var Prefix = NEO3Prefix
 
 // Uint160ToString returns the "NEO address" from the given Uint160.
 func Uint160ToString(u util.Uint160) string {
-	// Dont forget to prepend the Address version 0x17 (23) A
+	// Don't forget to prepend the Address version 0x17 (23) A
 	b := append([]byte{Prefix}, u.BytesBE()...)
 	return base58.CheckEncode(b)
 }
 
 // StringToUint160 attempts to decode the given NEO address string
-// into an Uint160.
+// into a Uint160.
 func StringToUint160(s string) (u util.Uint160, err error) {
 	b, err := base58.CheckDecode(s)
 	if err != nil {

@@ -50,8 +50,8 @@ type syscallTestCase struct {
 	isVoid bool
 }
 
-// This test ensures that our wrappers have necessary number of parameters
-// and execute needed syscall. Because of lack of typing (compared to native contracts)
+// This test ensures that our wrappers have the necessary number of parameters
+// and execute the needed syscall. Because of lack of typing (compared to native contracts),
 // parameter types can't be checked.
 func TestSyscallExecution(t *testing.T) {
 	b := `[]byte{1}`

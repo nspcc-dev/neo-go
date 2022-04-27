@@ -20,7 +20,7 @@ type prepareRequest struct {
 
 var _ payload.PrepareRequest = (*prepareRequest)(nil)
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(p.version)
 	w.WriteBytes(p.prevHash[:])
@@ -32,7 +32,7 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 	}
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	p.version = r.ReadU32LE()
 	r.ReadBytes(p.prevHash[:])
@@ -44,46 +44,46 @@ func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	}
 }
 
-// Version implements payload.PrepareRequest interface.
+// Version implements the payload.PrepareRequest interface.
 func (p prepareRequest) Version() uint32 {
 	return p.version
 }
 
-// SetVersion implements payload.PrepareRequest interface.
+// SetVersion implements the payload.PrepareRequest interface.
 func (p *prepareRequest) SetVersion(v uint32) {
 	p.version = v
 }
 
-// PrevHash implements payload.PrepareRequest interface.
+// PrevHash implements the payload.PrepareRequest interface.
 func (p prepareRequest) PrevHash() util.Uint256 {
 	return p.prevHash
 }
 
-// SetPrevHash implements payload.PrepareRequest interface.
+// SetPrevHash implements the payload.PrepareRequest interface.
 func (p *prepareRequest) SetPrevHash(h util.Uint256) {
 	p.prevHash = h
 }
 
-// Timestamp implements payload.PrepareRequest interface.
+// Timestamp implements the payload.PrepareRequest interface.
 func (p *prepareRequest) Timestamp() uint64 { return p.timestamp * nsInMs }
 
-// SetTimestamp implements payload.PrepareRequest interface.
+// SetTimestamp implements the payload.PrepareRequest interface.
 func (p *prepareRequest) SetTimestamp(ts uint64) { p.timestamp = ts / nsInMs }
 
-// Nonce implements payload.PrepareRequest interface.
+// Nonce implements the payload.PrepareRequest interface.
 func (p *prepareRequest) Nonce() uint64 { return p.nonce }
 
-// SetNonce implements payload.PrepareRequest interface.
+// SetNonce implements the payload.PrepareRequest interface.
 func (p *prepareRequest) SetNonce(nonce uint64) { p.nonce = nonce }
 
-// TransactionHashes implements payload.PrepareRequest interface.
+// TransactionHashes implements the payload.PrepareRequest interface.
 func (p *prepareRequest) TransactionHashes() []util.Uint256 { return p.transactionHashes }
 
-// SetTransactionHashes implements payload.PrepareRequest interface.
+// SetTransactionHashes implements the payload.PrepareRequest interface.
 func (p *prepareRequest) SetTransactionHashes(hs []util.Uint256) { p.transactionHashes = hs }
 
-// NextConsensus implements payload.PrepareRequest interface.
+// NextConsensus implements the payload.PrepareRequest interface.
 func (p *prepareRequest) NextConsensus() util.Uint160 { return util.Uint160{} }
 
-// SetNextConsensus implements payload.PrepareRequest interface.
+// SetNextConsensus implements the payload.PrepareRequest interface.
 func (p *prepareRequest) SetNextConsensus(_ util.Uint160) {}

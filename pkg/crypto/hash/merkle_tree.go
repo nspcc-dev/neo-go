@@ -12,7 +12,7 @@ type MerkleTree struct {
 	depth int
 }
 
-// NewMerkleTree returns new MerkleTree object.
+// NewMerkleTree returns a new MerkleTree object.
 func NewMerkleTree(hashes []util.Uint256) (*MerkleTree, error) {
 	if len(hashes) == 0 {
 		return nil, errors.New("length of the hashes cannot be zero")
@@ -66,12 +66,12 @@ func buildMerkleTree(leaves []*MerkleTreeNode) *MerkleTreeNode {
 	return buildMerkleTree(parents)
 }
 
-// CalcMerkleRoot calculcates Merkle root hash value for a given slice of hashes.
-// It doesn't create a full MerkleTree structure and it uses given slice as a
+// CalcMerkleRoot calculates the Merkle root hash value for the given slice of hashes.
+// It doesn't create a full MerkleTree structure and it uses the given slice as a
 // scratchpad, so it will destroy its contents in the process. But it's much more
-// memory efficient if you only need root hash value, while NewMerkleTree would
-// make 3*N allocations for N hashes, this function will only make 4. It also is
-// an error to call this function for zero-length hashes slice, the function will
+// memory efficient if you only need a root hash value. While NewMerkleTree would
+// make 3*N allocations for N hashes, this function will only make 4. It is also
+// an error to call this function for a zero-length hashes slice, the function will
 // panic.
 func CalcMerkleRoot(hashes []util.Uint256) util.Uint256 {
 	if len(hashes) == 0 {

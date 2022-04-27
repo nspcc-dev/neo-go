@@ -24,7 +24,7 @@ import (
 
 const fileExt = "nef"
 
-// Options contains all the parameters that affect the behaviour of the compiler.
+// Options contains all the parameters that affect the behavior of the compiler.
 type Options struct {
 	// The extension of the output file default set to .nef
 	Ext string
@@ -51,10 +51,10 @@ type Options struct {
 	// This setting has effect only if manifest is emitted.
 	NoPermissionsCheck bool
 
-	// Name is contract's name to be written to manifest.
+	// Name is a contract's name to be written to manifest.
 	Name string
 
-	// SourceURL is contract's source URL to be written to manifest.
+	// SourceURL is a contract's source URL to be written to manifest.
 	SourceURL string
 
 	// Runtime notifications.
@@ -63,10 +63,10 @@ type Options struct {
 	// The list of standards supported by the contract.
 	ContractSupportedStandards []string
 
-	// SafeMethods contains list of methods which will be marked as safe in manifest.
+	// SafeMethods contains a list of methods which will be marked as safe in manifest.
 	SafeMethods []string
 
-	// Overloads contains mapping from compiled method name to the name emitted in manifest.
+	// Overloads contains mapping from the compiled method name to the name emitted in manifest.
 	// It can be used to provide method overloads as Go doesn't have such capability.
 	Overloads map[string]string
 
@@ -94,7 +94,7 @@ func (c *codegen) ForEachPackage(fn func(*packages.Package)) {
 	}
 }
 
-// ForEachFile executes fn on each file used in current program.
+// ForEachFile executes fn on each file used in the current program.
 func (c *codegen) ForEachFile(fn func(*ast.File, *types.Package)) {
 	c.ForEachPackage(func(pkg *packages.Package) {
 		for _, f := range pkg.Syntax {
@@ -173,7 +173,7 @@ func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
 
 	conf.ParseFile = func(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
 		// When compiling a single file we can or can not load other files from the same package.
-		// Here we chose the latter which is consistent with `go run` behaviour.
+		// Here we chose the latter which is consistent with `go run` behavior.
 		// Other dependencies should still be processed.
 		if singleFile && filepath.Dir(filename) == filepath.Dir(absName) && filename != absName {
 			return nil, nil
@@ -196,9 +196,9 @@ func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
 	}, nil
 }
 
-// Compile compiles a Go program into bytecode that can run on the NEO virtual machine.
+// Compile compiles a Go program into a bytecode that can run on the NEO virtual machine.
 // If `r != nil`, `name` is interpreted as a filename, and `r` as file contents.
-// Otherwise `name` is either file name or name of the directory containing source files.
+// Otherwise `name` is either a file name or a name of the directory containing source files.
 func Compile(name string, r io.Reader) ([]byte, error) {
 	f, _, err := CompileWithOptions(name, r, nil)
 	if err != nil {
@@ -208,7 +208,7 @@ func Compile(name string, r io.Reader) ([]byte, error) {
 	return f.Script, nil
 }
 
-// CompileWithOptions compiles a Go program into bytecode with provided compiler options.
+// CompileWithOptions compiles a Go program into bytecode with the provided compiler options.
 func CompileWithOptions(name string, r io.Reader, o *Options) (*nef.File, *DebugInfo, error) {
 	ctx, err := getBuildInfo(name, r)
 	if err != nil {

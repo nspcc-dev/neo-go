@@ -21,10 +21,10 @@ type Contract struct {
 	Manifest *manifest.Manifest
 }
 
-// contracts caches compiled contracts from FS across multiple tests.
+// contracts caches the compiled contracts from FS across multiple tests.
 var contracts = make(map[string]*Contract)
 
-// CompileSource compiles contract from reader and returns it's NEF, manifest and hash.
+// CompileSource compiles a contract from the reader and returns its NEF, manifest and hash.
 func CompileSource(t testing.TB, sender util.Uint160, src io.Reader, opts *compiler.Options) *Contract {
 	// nef.NewFile() cares about version a lot.
 	config.Version = "neotest"
@@ -42,7 +42,7 @@ func CompileSource(t testing.TB, sender util.Uint160, src io.Reader, opts *compi
 	}
 }
 
-// CompileFile compiles contract from file and returns it's NEF, manifest and hash.
+// CompileFile compiles a contract from the file and returns its NEF, manifest and hash.
 func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath string) *Contract {
 	if c, ok := contracts[srcPath]; ok {
 		return c

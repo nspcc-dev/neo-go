@@ -16,43 +16,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Signer is a generic interface which can be either simple- or multi-signature signer.
+// Signer is a generic interface which can be either a simple- or multi-signature signer.
 type Signer interface {
-	// ScriptHash returns signer script hash.
+	// ScriptHash returns a signer script hash.
 	Script() []byte
-	// Script returns signer verification script.
+	// Script returns a signer verification script.
 	ScriptHash() util.Uint160
-	// SignHashable returns invocation script for signing an item.
+	// SignHashable returns an invocation script for signing an item.
 	SignHashable(uint32, hash.Hashable) []byte
 	// SignTx signs a transaction.
 	SignTx(netmode.Magic, *transaction.Transaction) error
 }
 
-// SingleSigner is a generic interface for simple one-signature signer.
+// SingleSigner is a generic interface for a simple one-signature signer.
 type SingleSigner interface {
 	Signer
-	// Account returns underlying account which can be used to
-	// get public key and/or sign arbitrary things.
+	// Account returns the underlying account which can be used to
+	// get a public key and/or sign arbitrary things.
 	Account() *wallet.Account
 }
 
-// MultiSigner is the interface for multisignature signing account.
+// MultiSigner is an interface for multisignature signing account.
 type MultiSigner interface {
 	Signer
-	// Single returns simple-signature signer for n-th account in list.
+	// Single returns a simple-signature signer for the n-th account in a list.
 	Single(n int) SingleSigner
 }
 
-// signer represents simple-signature signer.
+// signer represents a simple-signature signer.
 type signer wallet.Account
 
-// multiSigner represents single multi-signature signer consisting of provided accounts.
+// multiSigner represents a single multi-signature signer consisting of the provided accounts.
 type multiSigner struct {
 	accounts []*wallet.Account
 	m        int
 }
 
-// NewSingleSigner returns multi-signature signer for the provided account.
+// NewSingleSigner returns a multi-signature signer for the provided account.
 // It must contain exactly as many accounts as needed to sign the script.
 func NewSingleSigner(acc *wallet.Account) SingleSigner {
 	if !vm.IsSignatureContract(acc.Contract.Script) {
@@ -87,7 +87,7 @@ func (s *signer) Account() *wallet.Account {
 	return (*wallet.Account)(s)
 }
 
-// NewMultiSigner returns multi-signature signer for the provided account.
+// NewMultiSigner returns a multi-signature signer for the provided account.
 // It must contain at least as many accounts as needed to sign the script.
 func NewMultiSigner(accs ...*wallet.Account) MultiSigner {
 	if len(accs) == 0 {

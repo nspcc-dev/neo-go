@@ -1,4 +1,4 @@
 /*
-Package address implements conversion of script hash to/from Neo address.
+Package address implements conversion of a script hash to/from a Neo address.
 */
 package address

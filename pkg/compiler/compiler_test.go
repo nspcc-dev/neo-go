@@ -28,7 +28,7 @@ type compilerTestCase struct {
 }
 
 func TestCompiler(t *testing.T) {
-	// CompileAndSave use config.Version for proper .nef generation.
+	// CompileAndSave uses config.Version for proper .nef generation.
 	config.Version = "0.90.0-test"
 	testCases := []compilerTestCase{
 		{
@@ -53,7 +53,7 @@ func TestCompiler(t *testing.T) {
 				for _, info := range infos {
 					if !info.IsDir() {
 						// example smart contracts are located in the `examplePath` subdirectories, but
-						// there are also a couple of files inside the `examplePath` which doesn't need to be compiled
+						// there is also a couple of files inside the `examplePath` which don't need to be compiled
 						continue
 					}
 

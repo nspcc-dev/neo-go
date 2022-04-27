@@ -31,7 +31,7 @@ type DebugInfo struct {
 	EmittedEvents map[string][][]string `json:"-"`
 	// InvokedContracts contains foreign contract invocations.
 	InvokedContracts map[util.Uint160][]string `json:"-"`
-	// StaticVariables contains list of static variable names and types.
+	// StaticVariables contains a list of static variable names and types.
 	StaticVariables []string `json:"static-variables"`
 }
 
@@ -43,19 +43,19 @@ type MethodDebugInfo struct {
 	// together with the namespace it belongs to. We need to keep the first letter
 	// lowercased to match manifest standards.
 	Name DebugMethodName `json:"name"`
-	// IsExported defines whether method is exported.
+	// IsExported defines whether the method is exported.
 	IsExported bool `json:"-"`
-	// IsFunction defines whether method has no receiver.
+	// IsFunction defines whether the method has no receiver.
 	IsFunction bool `json:"-"`
 	// Range is the range of smart-contract's opcodes corresponding to the method.
 	Range DebugRange `json:"range"`
-	// Parameters is a list of method's parameters.
+	// Parameters is a list of the method's parameters.
 	Parameters []DebugParam `json:"params"`
-	// ReturnType is method's return type.
+	// ReturnType is the method's return type.
 	ReturnType string `json:"return"`
-	// ReturnTypeReal is method's return type as specified in Go code.
+	// ReturnTypeReal is the method's return type as specified in Go code.
 	ReturnTypeReal binding.Override `json:"-"`
-	// ReturnTypeSC is return type to use in manifest.
+	// ReturnTypeSC is a return type to use in manifest.
 	ReturnTypeSC smartcontract.ParamType `json:"-"`
 	Variables    []string                `json:"variables"`
 	// SeqPoints is a map between source lines and byte-code instruction offsets.
@@ -92,13 +92,13 @@ type DebugSeqPoint struct {
 	EndCol int
 }
 
-// DebugRange represents method's section in bytecode.
+// DebugRange represents the method's section in bytecode.
 type DebugRange struct {
 	Start uint16
 	End   uint16
 }
 
-// DebugParam represents variables's name and type.
+// DebugParam represents the variables's name and type.
 type DebugParam struct {
 	Name     string                  `json:"name"`
 	Type     string                  `json:"type"`
@@ -362,13 +362,13 @@ func (c *codegen) scAndVMTypeFromType(t types.Type) (smartcontract.ParamType, st
 	}
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (d *DebugRange) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + strconv.FormatUint(uint64(d.Start), 10) + `-` +
 		strconv.FormatUint(uint64(d.End), 10) + `"`), nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (d *DebugRange) UnmarshalJSON(data []byte) error {
 	startS, endS, err := parsePairJSON(data, "-")
 	if err != nil {
@@ -389,12 +389,12 @@ func (d *DebugRange) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (d *DebugParam) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + d.Name + `,` + d.Type + `"`), nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (d *DebugParam) UnmarshalJSON(data []byte) error {
 	startS, endS, err := parsePairJSON(data, ",")
 	if err != nil {
@@ -431,12 +431,12 @@ func (m *MethodDebugInfo) ToManifestMethod() manifest.Method {
 	return result
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (d *DebugMethodName) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + d.Namespace + `,` + d.Name + `"`), nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (d *DebugMethodName) UnmarshalJSON(data []byte) error {
 	startS, endS, err := parsePairJSON(data, ",")
 	if err != nil {
@@ -449,14 +449,14 @@ func (d *DebugMethodName) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (d *DebugSeqPoint) MarshalJSON() ([]byte, error) {
 	s := fmt.Sprintf("%d[%d]%d:%d-%d:%d", d.Opcode, d.Document,
 		d.StartLine, d.StartCol, d.EndLine, d.EndCol)
 	return []byte(`"` + s + `"`), nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (d *DebugSeqPoint) UnmarshalJSON(data []byte) error {
 	_, err := fmt.Sscanf(string(data), `"%d[%d]%d:%d-%d:%d"`,
 		&d.Opcode, &d.Document, &d.StartLine, &d.StartCol, &d.EndLine, &d.EndCol)
@@ -475,7 +475,7 @@ func parsePairJSON(data []byte, sep string) (string, string, error) {
 	return ss[0], ss[1], nil
 }
 
-// ConvertToManifest converts contract to the manifest.Manifest struct for debugger.
+// ConvertToManifest converts a contract to the manifest.Manifest struct for debugger.
 // Note: manifest is taken from the external source, however it can be generated ad-hoc. See #1038.
 func (di *DebugInfo) ConvertToManifest(o *Options) (*manifest.Manifest, error) {
 	methods := make([]manifest.Method, 0)

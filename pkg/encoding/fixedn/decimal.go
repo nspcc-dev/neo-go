@@ -36,7 +36,7 @@ func pow10(n int) *big.Int {
 	return p
 }
 
-// ToString converts big decimal with specified precision to string.
+// ToString converts a big decimal with the specified precision to a string.
 func ToString(bi *big.Int, precision int) string {
 	var dp, fp big.Int
 	dp.QuoRem(bi, pow10(precision), &fp)
@@ -53,7 +53,7 @@ func ToString(bi *big.Int, precision int) string {
 	return s + "." + fmt.Sprintf("%0"+strconv.FormatUint(uint64(precision-trimmed), 10)+"d", frac)
 }
 
-// FromString converts string to a big decimal with specified precision.
+// FromString converts a string to a big decimal with the specified precision.
 func FromString(s string, precision int) (*big.Int, error) {
 	parts := strings.SplitN(s, ".", 2)
 	bi, ok := new(big.Int).SetString(parts[0], 10)

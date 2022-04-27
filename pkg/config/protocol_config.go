@@ -28,7 +28,7 @@ type (
 		// P2PNotaryRequestPayloadPoolSize specifies the memory pool size for P2PNotaryRequestPayloads.
 		// It is valid only if P2PSigExtensions are enabled.
 		P2PNotaryRequestPayloadPoolSize int `yaml:"P2PNotaryRequestPayloadPoolSize"`
-		// KeepOnlyLatestState specifies if MPT should only store latest state.
+		// KeepOnlyLatestState specifies if MPT should only store the latest state.
 		// If true, DB size will be smaller, but older roots won't be accessible.
 		// This value should remain the same for the same database.
 		KeepOnlyLatestState bool `yaml:"KeepOnlyLatestState"`
@@ -46,7 +46,7 @@ type (
 		// exceeding that a transaction should fail validation. It is set to estimated daily number
 		// of blocks with 15s interval.
 		MaxValidUntilBlockIncrement uint32 `yaml:"MaxValidUntilBlockIncrement"`
-		// NativeUpdateHistories is the list of histories of native contracts updates.
+		// NativeUpdateHistories is a list of histories of native contracts updates.
 		NativeUpdateHistories map[string][]uint32 `yaml:"NativeActivations"`
 		// P2PSigExtensions enables additional signature-related logic.
 		P2PSigExtensions bool `yaml:"P2PSigExtensions"`
@@ -69,7 +69,7 @@ type (
 		ValidatorsHistory map[uint32]int `yaml:"ValidatorsHistory"`
 		// Whether to verify received blocks.
 		VerifyBlocks bool `yaml:"VerifyBlocks"`
-		// Whether to verify transactions in received blocks.
+		// Whether to verify transactions in the received blocks.
 		VerifyTransactions bool `yaml:"VerifyTransactions"`
 	}
 )
@@ -81,7 +81,7 @@ type heightNumber struct {
 }
 
 // Validate checks ProtocolConfiguration for internal consistency and returns
-// error if anything inappropriate found. Other methods can rely on protocol
+// an error if anything inappropriate found. Other methods can rely on protocol
 // validity after this.
 func (p *ProtocolConfiguration) Validate() error {
 	var err error

@@ -40,7 +40,7 @@ func NEP2ScryptParams() ScryptParams {
 	}
 }
 
-// NEP2Encrypt encrypts a the PrivateKey using a given passphrase
+// NEP2Encrypt encrypts a the PrivateKey using the given passphrase
 // under the NEP-2 standard.
 func NEP2Encrypt(priv *PrivateKey, passphrase string, params ScryptParams) (s string, err error) {
 	address := priv.Address()
@@ -75,7 +75,7 @@ func NEP2Encrypt(priv *PrivateKey, passphrase string, params ScryptParams) (s st
 	return base58.CheckEncode(buf.Bytes()), nil
 }
 
-// NEP2Decrypt decrypts an encrypted key using a given passphrase
+// NEP2Decrypt decrypts an encrypted key using the given passphrase
 // under the NEP-2 standard.
 func NEP2Decrypt(key, passphrase string, params ScryptParams) (*PrivateKey, error) {
 	b, err := base58.CheckDecode(key)

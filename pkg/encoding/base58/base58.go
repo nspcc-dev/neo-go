@@ -8,7 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 )
 
-// CheckDecode implements a base58-encoded string decoding with hash-based
+// CheckDecode implements base58-encoded string decoding with a hash-based
 // checksum check.
 func CheckDecode(s string) (b []byte, err error) {
 	b, err = base58.Decode(s)
@@ -24,13 +24,13 @@ func CheckDecode(s string) (b []byte, err error) {
 		return nil, errors.New("invalid base-58 check string: invalid checksum")
 	}
 
-	// Strip the 4 byte long hash.
+	// Strip is a 4 byte long hash.
 	b = b[:len(b)-4]
 
 	return b, nil
 }
 
-// CheckEncode encodes given byte slice into a base58 string with hash-based
+// CheckEncode encodes the given byte slice into a base58 string with a hash-based
 // checksum appended to it.
 func CheckEncode(b []byte) string {
 	b = append(b, hash.Checksum(b)...)

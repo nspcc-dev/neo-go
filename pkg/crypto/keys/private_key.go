@@ -124,7 +124,7 @@ func (p *PrivateKey) Address() string {
 	return pk.Address()
 }
 
-// GetScriptHash returns verification script hash for public key associated with
+// GetScriptHash returns verification script hash for the public key associated with
 // the private key.
 func (p *PrivateKey) GetScriptHash() util.Uint160 {
 	pk := p.PublicKey()
@@ -140,7 +140,7 @@ func (p *PrivateKey) Sign(data []byte) []byte {
 	return p.SignHash(digest)
 }
 
-// SignHash signs particular hash the private key.
+// SignHash signs a particular hash with the private key.
 func (p *PrivateKey) SignHash(digest util.Uint256) []byte {
 	r, s := rfc6979.SignECDSA(&p.PrivateKey, digest[:], sha256.New)
 	return getSignatureSlice(p.PrivateKey.Curve, r, s)

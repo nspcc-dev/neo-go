@@ -23,7 +23,7 @@ type WIF struct {
 	// A reference to the PrivateKey which this WIF is created from.
 	PrivateKey *PrivateKey
 
-	// The string representation of the WIF.
+	// A string representation of the WIF.
 	S string
 }
 

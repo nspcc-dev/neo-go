@@ -44,83 +44,83 @@ const (
 	payloadGasLimit = 2000000 // 0.02 GAS
 )
 
-// ViewNumber implements payload.ConsensusPayload interface.
+// ViewNumber implements the payload.ConsensusPayload interface.
 func (p Payload) ViewNumber() byte {
 	return p.message.ViewNumber
 }
 
-// SetViewNumber implements payload.ConsensusPayload interface.
+// SetViewNumber implements the payload.ConsensusPayload interface.
 func (p *Payload) SetViewNumber(view byte) {
 	p.message.ViewNumber = view
 }
 
-// Type implements payload.ConsensusPayload interface.
+// Type implements the payload.ConsensusPayload interface.
 func (p Payload) Type() payload.MessageType {
 	return payload.MessageType(p.message.Type)
 }
 
-// SetType implements payload.ConsensusPayload interface.
+// SetType implements the payload.ConsensusPayload interface.
 func (p *Payload) SetType(t payload.MessageType) {
 	p.message.Type = messageType(t)
 }
 
-// Payload implements payload.ConsensusPayload interface.
+// Payload implements the payload.ConsensusPayload interface.
 func (p Payload) Payload() interface{} {
 	return p.payload
 }
 
-// SetPayload implements payload.ConsensusPayload interface.
+// SetPayload implements the payload.ConsensusPayload interface.
 func (p *Payload) SetPayload(pl interface{}) {
 	p.payload = pl.(io.Serializable)
 }
 
-// GetChangeView implements payload.ConsensusPayload interface.
+// GetChangeView implements the payload.ConsensusPayload interface.
 func (p Payload) GetChangeView() payload.ChangeView { return p.payload.(payload.ChangeView) }
 
-// GetPrepareRequest implements payload.ConsensusPayload interface.
+// GetPrepareRequest implements the payload.ConsensusPayload interface.
 func (p Payload) GetPrepareRequest() payload.PrepareRequest {
 	return p.payload.(payload.PrepareRequest)
 }
 
-// GetPrepareResponse implements payload.ConsensusPayload interface.
+// GetPrepareResponse implements the payload.ConsensusPayload interface.
 func (p Payload) GetPrepareResponse() payload.PrepareResponse {
 	return p.payload.(payload.PrepareResponse)
 }
 
-// GetCommit implements payload.ConsensusPayload interface.
+// GetCommit implements the payload.ConsensusPayload interface.
 func (p Payload) GetCommit() payload.Commit { return p.payload.(payload.Commit) }
 
-// GetRecoveryRequest implements payload.ConsensusPayload interface.
+// GetRecoveryRequest implements the payload.ConsensusPayload interface.
 func (p Payload) GetRecoveryRequest() payload.RecoveryRequest {
 	return p.payload.(payload.RecoveryRequest)
 }
 
-// GetRecoveryMessage implements payload.ConsensusPayload interface.
+// GetRecoveryMessage implements the payload.ConsensusPayload interface.
 func (p Payload) GetRecoveryMessage() payload.RecoveryMessage {
 	return p.payload.(payload.RecoveryMessage)
 }
 
-// ValidatorIndex implements payload.ConsensusPayload interface.
+// ValidatorIndex implements the payload.ConsensusPayload interface.
 func (p Payload) ValidatorIndex() uint16 {
 	return uint16(p.message.ValidatorIndex)
 }
 
-// SetValidatorIndex implements payload.ConsensusPayload interface.
+// SetValidatorIndex implements the payload.ConsensusPayload interface.
 func (p *Payload) SetValidatorIndex(i uint16) {
 	p.message.ValidatorIndex = byte(i)
 }
 
-// Height implements payload.ConsensusPayload interface.
+// Height implements the payload.ConsensusPayload interface.
 func (p Payload) Height() uint32 {
 	return p.message.BlockIndex
 }
 
-// SetHeight implements payload.ConsensusPayload interface.
+// SetHeight implements the payload.ConsensusPayload interface.
 func (p *Payload) SetHeight(h uint32) {
 	p.message.BlockIndex = h
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (p *Payload) EncodeBinary(w *io.BinWriter) {
 	p.encodeData()
 	p.Extensible.EncodeBinary(w)
@@ -140,7 +140,7 @@ func (p *Payload) Sign(key *privateKey) error {
 	return nil
 }
 
-// Hash implements payload.ConsensusPayload interface.
+// Hash implements the payload.ConsensusPayload interface.
 func (p *Payload) Hash() util.Uint256 {
 	if p.Extensible.Data == nil {
 		p.encodeData()
@@ -148,7 +148,7 @@ func (p *Payload) Hash() util.Uint256 {
 	return p.Extensible.Hash()
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (p *Payload) DecodeBinary(r *io.BinReader) {
 	p.Extensible.DecodeBinary(r)
 	if r.Err == nil {
@@ -156,7 +156,7 @@ func (p *Payload) DecodeBinary(r *io.BinReader) {
 	}
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (m *message) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(m.Type))
 	w.WriteU32LE(m.BlockIndex)
@@ -165,7 +165,7 @@ func (m *message) EncodeBinary(w *io.BinWriter) {
 	m.payload.EncodeBinary(w)
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (m *message) DecodeBinary(r *io.BinReader) {
 	m.Type = messageType(r.ReadB())
 	m.BlockIndex = r.ReadU32LE()
