@@ -34,15 +34,15 @@ Filters use conjunctional logic.
    announcing the block itself
  * transaction notifications are only announced for successful transactions
  * all announcements are being done in the same order they happen on the chain
-   At first transaction execution is announced, then followed by notifications
-   generated during this execution, then followed by transaction announcement.
+   First, transaction execution is announced. Then, follow notifications
+   generated during this execution. Next, follows the transaction announcement.
    Transaction announcements are ordered the same way they're in the block.
  * unsubscription may not cancel pending, but not yet sent events
 
 ## Subscription management
 
-To receive events clients need to subscribe to them first via `subscribe`
-method. Upon successful subscription clients receive subscription ID for
+To receive events, clients need to subscribe to them first via `subscribe`
+method. Upon successful subscription, clients receive subscription ID for
 subsequent management of this subscription. Subscription is only valid for
 connection lifetime, no long-term client identification is being made.
 
@@ -59,18 +59,18 @@ Recognized stream names:
    Filter: `primary` as an integer with primary (speaker) node index from
    ConsensusData.
  * `transaction_added`
-   Filter: `sender` field containing string with hex-encoded Uint160 (LE
+   Filter: `sender` field containing a string with hex-encoded Uint160 (LE
    representation) for transaction's `Sender` and/or `signer` in the same
    format for one of transaction's `Signers`.
  * `notification_from_execution`
-   Filter: `contract` field containing string with hex-encoded Uint160 (LE
-   representation) and/or `name` field containing string with execution 
-   notification name.   
+   Filter: `contract` field containing a string with hex-encoded Uint160 (LE
+   representation) and/or `name` field containing a string with execution 
+   notification name.
  * `transaction_executed`
    Filter: `state` field containing `HALT` or `FAULT` string for successful
    and failed executions respectively.
  * `notary_request_event`
-   Filter: `sender` field containing string with hex-encoded Uint160 (LE
+   Filter: `sender` field containing a string with hex-encoded Uint160 (LE
    representation) for notary request's `Sender` and/or `signer` in the same
    format for one of main transaction's `Signers`.
 
@@ -133,21 +133,22 @@ Example response:
 Events are sent as JSON-RPC notifications from the server with `method` field
 being used for notification names. Notification names are identical to stream
 names described for `subscribe` method with one important addition for
-`event_missed` which can be sent for any subscription to signify that some
-events were not delivered (usually when client isn't able to keep up with
-event flow).
+`event_missed`, which can be sent for any subscription to signify that some
+events have not been delivered (usually when a client is unable to keep up with
+the event flow).
 
 Verbose responses for various structures like blocks and transactions are used
-to simplify working with notifications on client side. Returned structures
-mostly follow the one used by standard Neo RPC calls, but may have some minor
+to simplify working with notifications on the client side. Returned structures
+mostly follow the one used by standard Neo RPC calls but may have some minor
 differences.
 
 If a server-side event matches several subscriptions from one client, it's
 only sent once.
 
 ### `block_added` notification
-As a first parameter (`params` section) contains block converted to JSON
-structure which is similar to verbose `getblock` response but with the
+
+The first parameter (`params` section) contains a block converted to a JSON
+structure, which is similar to a verbose `getblock` response but with the
 following differences:
  * it doesn't have `size` field (you can calculate it client-side)
  * it doesn't have `nextblockhash` field (it's supposed to be the latest one
@@ -238,8 +239,8 @@ Example:
 
 ### `transaction_added` notification
 
-In the first parameter (`params` section) contains transaction converted to
-JSON which is similar to verbose `getrawtransaction` response, but with the
+The first parameter (`params` section) contains a transaction converted to
+JSON, which is similar to a verbose `getrawtransaction` response, but with the
 following differences:
  * block's metadata is missing (`blockhash`, `confirmations`, `blocktime`)
 
@@ -337,8 +338,8 @@ Example:
 
 ### `transaction_executed` notification
 
-Contains the same result as from `getapplicationlog` method in the first
-parameter and no other parameters. One difference from `getapplicationlog` is
+It contains the same result as from `getapplicationlog` method in the first
+parameter and no other parameters. The only difference from `getapplicationlog` is
 that it always contains zero in the `contract` field.
 
 Example:
@@ -424,7 +425,7 @@ Example:
 
 ### `notary_request_event` notification
 
-Contains two parameters: event type which could be one of "added" or "removed" and
+It contains two parameters: event type, which could be one of "added" or "removed", and
 added (or removed) notary request.
 
 Example:

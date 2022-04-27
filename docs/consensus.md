@@ -1,14 +1,14 @@
 # NeoGo consensus node
 
-NeoGo node can act as a consensus node. A consensus node differs from regular
+NeoGo node can act as a consensus node. A consensus node differs from a regular
 one in that it participates in block acceptance process using dBFT
-protocol. Any committee node can also be elected as CN therefore they're
+protocol. Any committee node can also be elected as a CN; therefore, they're
 expected to follow the same setup process as CNs (to be ready to become CNs
 if/when they're elected).
 
-While regular nodes on Neo network don't need any special keys CNs always have
-one used to sign dBFT messages and blocks. So the main difference between
-regular node and consensus/committee node is that it should be configured to
+While regular nodes on Neo network don't need any special keys, CNs always have
+one used to sign dBFT messages and blocks. So, the main difference between
+a regular node and a consensus/committee node is that it should be configured to
 use some key from some wallet.
 
 ## Running a CN on public networks
@@ -27,7 +27,7 @@ be enough for the first year of blockchain).
 
 NeoGo is a single binary that can be run on any modern GNU/Linux
 distribution. We recommend using major well-supported OSes like CentOS, Debian
-or Ubuntu, make sure they're updated with the latest security patches.
+or Ubuntu. Make sure they're updated with the latest security patches.
 
 No additional packages are needed for NeoGo CN.
 
@@ -38,9 +38,9 @@ Github](https://github.com/nspcc-dev/neo-go/releases) or use [Docker
 image](https://hub.docker.com/r/nspccdev/neo-go). It has everything included,
 no additional plugins needed.
 
-Take appropriate (mainnet/testnet) configuration [from the
+Take an appropriate (mainnet/testnet) configuration [from the
 repository](https://github.com/nspcc-dev/neo-go/tree/master/config) and save
-in some directory (we'll assume that it's available in the same directory as
+it in some directory (we'll assume that it's available in the same directory as
 neo-go binary).
 
 ### Configuration and execution
@@ -59,24 +59,24 @@ is a password to your CN key. Run the node in a regular way after that:
 $ neo-go node --mainnet --config-path ./
 ```
 where `--mainnet` is your network (can be `--testnet` for testnet) and
-`--config-path` is a path to configuration file directory. If the node starts
-fine it'll be logging events like synchronized blocks. The node doesn't have
+`--config-path` is a path to a configuration file directory. If the node starts
+fine, it'll be logging events like synchronized blocks. The node doesn't have
 any interactive CLI, it only outputs logs so you can wrap this command in a
 systemd service file to run automatically on system startup.
 
-Notice that the default configuration has RPC and Prometheus services enabled,
-you can turn them off for security purposes or restrict access to them with a
-firewall. Carefuly review all other configuration options to see if they meet
+Notice that the default configuration has RPC and Prometheus services enabled.
+You can turn them off for security purposes or restrict access to them with a
+firewall. Carefully review all other configuration options to see if they meet
 your expectations. Details on various configuration options are provided in the
 [node configuration documentation](node-configuration.md), CLI commands are
 provided in the [CLI documentation](cli.md).
 
 ### Registration
 
-To register as a candidate use neo-go as CLI command with an external RPC
+To register as a candidate, use neo-go as CLI command with an external RPC
 server for it to connect to (for chain data and transaction submission). You
 can use any public RPC server or an RPC server of your own like the node
-started at previous step. We'll assume that you're running the next command on
+started at the previous step. We'll assume that you run the next command on
 the same node in default configuration with RPC interface available at port
 10332.
 
@@ -91,15 +91,15 @@ path to NEP-6 wallet file and `http://localhost:10332` is an RPC node to
 use.
 
 This command will create and send appropriate transaction to the network and
-you should then wait for it to settle in a block. If all goes well it'll end
+you should then wait for it to settle in a block. If all goes well, it'll end
 with "HALT" state and your registration will be completed. You can use
 `query tx` command to see transaction status or `query candidates` to see if
-your candidate was added.
+your candidate has been added.
 
 ### Voting
 
-After registration completion if you own some NEO you can also vote for your
-candidate to help it become CN and receive additional voter GAS. To do that
+After registration is completed, if you own some NEO, you can also vote for your
+candidate to help it become a CN and receive additional voter GAS. To do that,
 you need to know the public key of your candidate, which can either be seen in
 `query candidates` command output or extracted from wallet `wallet dump-keys`
 command:
@@ -117,10 +117,10 @@ use:
 $ neo-go wallet candidate vote -a NiKEkwz6i9q6gqfCizztDoHQh9r9BtdCNa -w wallet.json -r http://localhost:10332 -c 0363f6678ea4c59e292175c67e2b75c9ba7bb73e47cd97cdf5abaf45de157133f5
 
 ```
-where `NiKEkwz6i9q6gqfCizztDoHQh9r9BtdCNa` is voter's address, `wallet.json`
-is NEP-6 wallet file path, `http://localhost:10332` is RPC node address and
-`0363f6678ea4c59e292175c67e2b75c9ba7bb73e47cd97cdf5abaf45de157133f5` is a
-public key voter votes for. This command also returns transaction hash and you
+where `NiKEkwz6i9q6gqfCizztDoHQh9r9BtdCNa` is the voter's address, `wallet.json`
+is the NEP-6 wallet file path, `http://localhost:10332` is the RPC node address and
+`0363f6678ea4c59e292175c67e2b75c9ba7bb73e47cd97cdf5abaf45de157133f5` is the
+public key the voter votes for. This command also returns transaction hash and you
 need to wait for this transaction to be accepted into one of subsequent blocks.
 
 ## Private NeoGo network
@@ -135,11 +135,11 @@ Four-node setup uses ports 20333-20336 for P2P communication and ports
 20001-20004). Single-node is on ports 20333/30333/20001 for
 P2P/RPC/Prometheus.
 
-NeoGo default privnet configuration is made to work with four node consensus,
+NeoGo default privnet configuration is made to work with four-node consensus,
 you have to modify it if you're to use single consensus node.
 
 Node wallets are located in the `.docker/wallets` directory where
-`wallet1_solo.json` is used for single-node setup and all the other ones for
+`wallet1_solo.json` is used for single-node setup and all others for
 four-node setup.
 
 #### Prerequisites
@@ -148,7 +148,7 @@ four-node setup.
 - `go` compiler
 
 #### Instructions
-You can use existing docker-compose file located in `.docker/docker-compose.yml`:
+You can use an existing docker-compose file located in `.docker/docker-compose.yml`:
 ```bash
 make env_image # build image
 make env_up    # start containers, use "make env_single" for single CN
@@ -170,12 +170,12 @@ make env_clean
 
 ### Start nodes manually
 1. Create a separate config directory for every node and
-place corresponding config named `protocol.privnet.yml` there.
+place the corresponding config named `protocol.privnet.yml` there.
 
 2. Edit configuration file for every node.
 Examples can be found at `config/protocol.privnet.docker.one.yml` (`two`, `three` etc.).
     1. Add `UnlockWallet` section with `Path` and `Password` strings for NEP-6
-       wallet path and password for the account to be used for consensus node.
+       wallet path and the password for the account to be used for the consensus node.
     2. Make sure that your `MinPeers` setting is equal to
        the number of nodes participating in consensus.
        This requirement is needed for nodes to correctly

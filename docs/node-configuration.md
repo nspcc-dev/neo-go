@@ -1,7 +1,7 @@
 # NeoGo node configuration file
 
 This section contains detailed NeoGo node configuration file description
-including default config values and tips to set up configurable values.
+including default config values and some tips to set up configurable values.
 
 Each config file contains two sections. `ApplicationConfiguration` describes node-related
 settings and `ProtocolConfiguration` contains protocol-related settings. See the
@@ -17,14 +17,14 @@ node-related settings described in the table below.
 | Section | Type | Default value | Description |
 | --- | --- | --- | --- |
 | Address | `string` | `127.0.0.1` | Node address that P2P protocol handler binds to. |
-| AnnouncedPort | `uint16` | Same as the `NodePort` | Node port which should be used to announce node's port on P2P layer, can differ from `NodePort` node is bound to (for example, if your node is behind NAT). |
-| AttemptConnPeers | `int` | `20` |  Number of connection to try to establish when the connection count drops below the `MinPeers` value.|
+| AnnouncedPort | `uint16` | Same as `NodePort` | Node port which should be used to announce node's port on P2P layer, it can differ from the `NodePort` the node is bound to (for example, if your node is behind NAT). |
+| AttemptConnPeers | `int` | `20` | Number of connection to try to establish when the connection count drops below the `MinPeers` value.|
 | DBConfiguration | [DB Configuration](#DB-Configuration) |  | Describes configuration for database. See the [DB Configuration](#DB-Configuration) section for details. |
 | DialTimeout | `int64` | `0` | Maximum duration a single dial may take in seconds. |
 | ExtensiblePoolSize | `int` | `20` | Maximum amount of the extensible payloads from a single sender stored in a local pool. |
 | LogPath | `string` | "", so only console logging | File path where to store node logs. |
 | MaxPeers | `int` | `100` | Maximum numbers of peers that can be connected to the server. |
-| MinPeers | `int` | `5` | Minimum number of peers for normal operation, when the node has less than this number of peers it tries to connect with some new ones. |
+| MinPeers | `int` | `5` | Minimum number of peers for normal operation; when the node has less than this number of peers it tries to connect with some new ones. |
 | NodePort | `uint16` | `0`, which is any free port | The actual node port it is bound to. |
 | Oracle | [Oracle Configuration](#Oracle-Configuration) | | Oracle module configuration. See the [Oracle Configuration](#Oracle-Configuration) section for details. |
 | P2PNotary | [P2P Notary Configuration](#P2P-Notary-Configuration) | | P2P Notary module configuration. See the [P2P Notary Configuration](#P2P-Notary-Configuration) section for details. |
@@ -144,7 +144,7 @@ RPC:
     KeyFile: serv.key
 ```
 where:
-- `Enabled` denotes whether RPC server should be started.
+- `Enabled` denotes whether an RPC server should be started.
 - `Address` is an RPC server address to be running at.
 - `EnableCORSWorkaround` enables Cross-Origin Resource Sharing and is useful if
   you're accessing RPC interface from the browser.
@@ -197,29 +197,29 @@ protocol-related settings described in the table below.
 
 | Section | Type | Default value | Description | Notes |
 | --- | --- | --- | --- | --- |
-| CommitteeHistory | map[uint32]int | none | Number of committee members after given height, for example `{0: 1, 20: 4}` sets up a chain with one committee member since the genesis and then changes the setting to 4 committee members at the height of 20. `StandbyCommittee` committee setting must have the number of keys equal or exceeding the highest value in this option. Blocks numbers where the change happens must be divisble by the old and by the new values simultaneously. If not set, committee size is derived from the `StandbyCommittee` setting and never changes. |
+| CommitteeHistory | map[uint32]int | none | Number of committee members after the given height, for example `{0: 1, 20: 4}` sets up a chain with one committee member since the genesis and then changes the setting to 4 committee members at the height of 20. `StandbyCommittee` committee setting must have the number of keys equal or exceeding the highest value in this option. Blocks numbers where the change happens must be divisible by the old and by the new values simultaneously. If not set, committee size is derived from the `StandbyCommittee` setting and never changes. |
 | GarbageCollectionPeriod | `uint32` | 10000 | Controls MPT garbage collection interval (in blocks) for configurations with `RemoveUntraceableBlocks` enabled and `KeepOnlyLatestState` disabled. In this mode the node stores a number of MPT trees (corresponding to `MaxTraceableBlocks` and `StateSyncInterval`), but the DB needs to be clean from old entries from time to time. Doing it too often will cause too much processing overhead, doing it too rarely will leave more useless data in the DB. |
 | KeepOnlyLatestState | `bool` | `false` | Specifies if MPT should only store latest state. If true, DB size will be smaller, but older roots won't be accessible. This value should remain th
 e same for the same database. | Conflicts with `P2PStateExchangeExtensions`. |
 | Magic | `uint32` | `0` | Magic number which uniquely identifies NEO network. |
 | MaxBlockSize | `uint32` | `262144` | Maximum block size in bytes. |
 | MaxBlockSystemFee | `int64` | `900000000000` | Maximum overall transactions system fee per block. |
-| MaxTraceableBlocks | `uint32` | `2102400` |  Length of the chain accessible to smart contracts. | `RemoveUntraceableBlocks` should be enabled to use this setting. |
+| MaxTraceableBlocks | `uint32` | `2102400` | Length of the chain accessible to smart contracts. | `RemoveUntraceableBlocks` should be enabled to use this setting. |
 | MaxTransactionsPerBlock | `uint16` | `512` | Maximum number of transactions per block. |
 | MemPoolSize | `int` | `50000` | Size of the node's memory pool where transactions are stored before they are added to block. |
 | NativeActivations | `map[string][]uint32` | ContractManagement: [0]<br>StdLib: [0]<br>CryptoLib: [0]<br>LedgerContract: [0]<br>NeoToken: [0]<br>GasToken: [0]<br>PolicyContract: [0]<br>RoleManagement: [0]<br>OracleContract: [0] | The list of histories of native contracts updates. Each list item shod be presented as a known native contract name with the corresponding list of chain's heights. The contract is not active until chain reaches the first height value specified in the list. | `Notary` is supported. |
 | P2PNotaryRequestPayloadPoolSize | `int` | `1000` | Size of the node's P2P Notary request payloads memory pool where P2P Notary requests are stored before main or fallback transaction is completed and added to the chain.<br>This option is valid only if `P2PSigExtensions` are enabled. | Not supported by the C# node, thus may affect heterogeneous networks functionality. |
 | P2PSigExtensions | `bool` | `false` | Enables following additional Notary service related logic:<br>• Transaction attributes `NotValidBefore`, `Conflicts` and `NotaryAssisted`<br>• Network payload of the `P2PNotaryRequest` type<br>• Native `Notary` contract<br>• Notary node module | Not supported by the C# node, thus may affect heterogeneous networks functionality. |
 | P2PStateExchangeExtensions | `bool` | `false` | Enables following P2P MPT state data exchange logic: <br>• `StateSyncInterval` protocol setting <br>• P2P commands `GetMPTDataCMD` and `MPTDataCMD` | Not supported by the C# node, thus may affect heterogeneous networks functionality. Conflicts with `KeepOnlyLatestState`. |
-| RemoveUntraceableBlocks | `bool`| `false` | Denotes whether old blocks should be removed from cache and database. If enabled, then only last `MaxTraceableBlocks` are stored and accessible to smart contracts. Old MPT data is also deleted in accordance with `GarbageCollectionPeriod` setting. |
+| RemoveUntraceableBlocks | `bool`| `false` | Denotes whether old blocks should be removed from cache and database. If enabled, then only last `MaxTraceableBlocks` are stored and accessible to smart contracts. Old MPT data is also deleted regarding `GarbageCollectionPeriod` setting. |
 | ReservedAttributes | `bool` | `false` | Allows to have reserved attributes range for experimental or private purposes. |
 | SaveStorageBatch | `bool` | `false` | Enables storage batch saving before every persist. It is similar to StorageDump plugin for C# node. |
 | SecondsPerBlock | `int` | `15` | Minimal time that should pass before next block is accepted. |
 | SeedList | `[]string` | [] | List of initial nodes addresses used to establish connectivity. |
 | StandbyCommittee | `[]string` | [] | List of public keys of standby committee validators are chosen from. |
 | StateRootInHeader | `bool` | `false` | Enables storing state root in block header. | Experimental protocol extension! |
-| StateSyncInterval | `int` | `40000` | The number of blocks between state heights available for MPT state data synchronization. | `P2PStateExchangeExtensions` should be enabled to use this setting.  |
+| StateSyncInterval | `int` | `40000` | The number of blocks between state heights available for MPT state data synchronization. | `P2PStateExchangeExtensions` should be enabled to use this setting. |
 | ValidatorsCount | `int` | `0` | Number of validators set for the whole network lifetime, can't be set if `ValidatorsHistory` setting is used. |
 | ValidatorsHistory | map[uint32]int | none | Number of consensus nodes to use after given height (see `CommitteeHistory` also). Heights where the change occurs must be divisible by the number of committee members at that height. Can't be used with `ValidatorsCount` not equal to zero. |
-| VerifyBlocks | `bool` | `false` | Denotes whether to verify received blocks. |
-| VerifyTransactions | `bool` | `false` | Denotes whether to verify transactions in received blocks. |
+| VerifyBlocks | `bool` | `false` | Denotes whether to verify the received blocks. |
+| VerifyTransactions | `bool` | `false` | Denotes whether to verify transactions in the received blocks. |

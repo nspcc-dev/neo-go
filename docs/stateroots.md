@@ -3,11 +3,11 @@
 NeoGo supports state validation using N3 stateroots and can also act as state
 validator (run state validation service).
 
-All NeoGo nodes always calculate MPT root hash for data stored by contracts,
-unlike in Neo Legacy this behavior can't be turned off. They also process
+All NeoGo nodes always calculate MPT root hash for data stored by contracts.
+Unlike in Neo Legacy, this behavior can't be turned off. They also process
 stateroot messages broadcasted through the network and save validated
-signatures from them if state root hash specified there matches the one signed
-by validators (or shouts loud in the log if it doesn't, because it should be
+signatures from them if the state root hash specified there matches the one signed
+by validators (or shouts loud in the log if it doesn't because it should be
 the same).
 
 ## State validation service
@@ -37,7 +37,7 @@ Parameters:
 
 To run state validation service on your network you need to:
  * set state validation node keys in `RoleManagement` contract
- * configure and run appropriate number of state validation nodes with keys
+ * configure and run an appropriate number of state validation nodes with the keys
    specified in `RoleManagement` contract
 
 
@@ -46,7 +46,7 @@ To run state validation service on your network you need to:
 NeoGo also supports protocol extension to include state root hashes right into
 header blocks. It's not compatible with regular Neo N3 state validation
 service and it's not compatible with public Neo N3 networks, but you can use
-it on private networks if there is a need to.
+it on private networks if needed.
 
 The option is `StateRootInHeader` and it's specified in
 `ProtocolConfiguration` section, set it to true and run your network with it

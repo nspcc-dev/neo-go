@@ -1,10 +1,10 @@
 # NeoGo CLI interface
 
-NeoGo CLI provides all functionality from one binary, so it's used to run
-node, create/compile/deploy/invoke/debug smart contracts, run vm and operate
-with the wallet. The standard setup assumes that you're running a node as a
-separate process, and it doesn't provide any CLI of its own, instead it just
-makes RPC interface available for you. To perform any actions you invoke NeoGo
+NeoGo CLI provides all functionality from one binary. It's used to run
+a node, create/compile/deploy/invoke/debug smart contracts, run vm and operate
+with a wallet. Standard setup assumes that you run a node as a
+separate process, and it doesn't provide any CLI of its own. Instead, it just
+makes RPC interface available for you. To perform any actions, you invoke NeoGo
 as a client that connects to this RPC node and does things you want it to do
 (like transferring some NEP-17 asset).
 
@@ -40,19 +40,19 @@ detailed configuration file description.
 
 ### Starting a node
 
-To start Neo node on private network use:
+To start Neo node on private network, use:
 
 ```
 ./bin/neo-go node
 ```
 
-Or specify a different network with appropriate flag like this:
+Or specify a different network with an appropriate flag like this:
 
 ```
 ./bin/neo-go node --mainnet
 ```
 
-By default, the node will run in foreground using current standard output for
+By default, the node will run in the foreground using current standard output for
 logging.
 
 ### Restarting node services
@@ -67,8 +67,8 @@ signal. List of the services to be restarted on SIGHUP receiving:
 ### DB import/exports
 
 Node operates using some database as a backend to store blockchain data. NeoGo
-allows to dump chain into file from the database (when node is stopped) or to
-import blocks from file into the database (also when node is stopped). Use
+allows to dump chain into a file from the database (when node is stopped) or to
+import blocks from a file into the database (also when node is stopped). Use
 `db` command for that.
 
 ## Smart contracts
@@ -90,7 +90,7 @@ special `-` path can be used to read the wallet from the standard input.
 
 #### Create wallet
 
-Use `wallet init` command to create new wallet:
+Use `wallet init` command to create a new wallet:
 ```
 ./bin/neo-go wallet init -w wallet.nep6
 
@@ -110,8 +110,8 @@ Use `wallet init` command to create new wallet:
 wallet successfully created, file location is wallet.nep6
 ```
 
-where "wallet.nep6" is a wallet file name. This wallet will be empty, to
-generate a new key pair and add an account for it use `-a` option:
+where "wallet.nep6" is a wallet file name. This wallet will be empty. To
+generate a new key pair and add an account for it, use `-a` option:
 ```
 ./bin/neo-go wallet init -w wallet.nep6 -a
 Enter the name of the account > Name
@@ -152,7 +152,7 @@ Confirm passphrase >
 wallet successfully created, file location is wallet.nep6
 ```
 
-or use `wallet create` command to create new account in existing wallet:
+or use `wallet create` command to create a new account in an existing wallet:
 ```
 ./bin/neo-go wallet create -w wallet.nep6
 Enter the name of the account > Joe Random
@@ -171,7 +171,7 @@ just allows to reuse the old key on N3 network).
 ```
 
 #### Check wallet contents
-`wallet dump` can be used to see wallet contents in more user-friendly way,
+`wallet dump` can be used to see wallet contents in a more user-friendly way,
 its output is the same NEP-6 JSON, but better formatted. You can also decrypt
 keys at the same time with `-d` option (you'll be prompted for password):
 ```
@@ -219,7 +219,7 @@ NMe64G6j6nkPZby26JAgpaCNrn1Ee4wW6E (simple signature contract):
 ```
 
 #### Private key export
-`wallet export` allows you to export private key in NEP-2 encrypted or WIF
+`wallet export` allows you to export a private key in NEP-2 encrypted or WIF
 (unencrypted) form (`-d` flag).
 ```
 $ ./bin/neo-go wallet export -w wallet.nep6 -d NMe64G6j6nkPZby26JAgpaCNrn1Ee4wW6E
@@ -240,8 +240,8 @@ Confirm passphrase >
 
 #### Special accounts
 Multisignature accounts can be imported with `wallet import-multisig`, you'll
-need all public keys and one private key to do that. Then you could sign
-transactions for this multisignature account with imported key.
+need all public keys and one private key to do that. Then, you could sign
+transactions for this multisignature account with the imported key.
 
 `wallet import-deployed` can be used to create wallet accounts for deployed
 contracts. They also can have WIF keys associated with them (in case your
@@ -283,8 +283,8 @@ OnChain:		true
 BlockHash:		fabcd46e93b8f4e1bc5689e3e0cc59704320494f7a0265b91ae78b4d747ee93b
 Success:		true
 ```
-`OnChain` is true if transaction was included in block and `Success` is true
-if it was executed successfully.
+`OnChain` is true if the transaction has been included in the block; and `Success` is true
+if it has been executed successfully.
 
 #### Committee members
 `query commitee` returns a list of current committee members:
@@ -342,8 +342,8 @@ Key                                                                 Votes    Com
 ```
 
 #### Voter data
-`query voter` returns additional data about NEO holder: amount of NEO he has,
-candidate he voted for (if any) and block number of the last transactions
+`query voter` returns additional data about NEO holder: the amount of NEO it has,
+the candidate it voted for (if any) and the block number of the last transactions
 involving NEO on this account:
 ```
 $ ./bin/neo-go query voter -r http://localhost:20332 Nj91C8TxQSxW1jCE1ytFre6mg5qxTypg1Y
@@ -362,7 +362,7 @@ NEP-17 commands are designed to work with any NEP-17 tokens, but NeoGo needs
 some metadata for these tokens to function properly. Native NEO or GAS are
 known to NeoGo by default, but other tokens are not. NeoGo can get this
 metadata from the specified RPC server, but that's an additional request to
-make, so if you care about command processing delay you can import token
+make. So, if you care about command processing delay, you can import token
 metadata into the wallet with `wallet nep17 import` command. It'll be stored
 in the `extra` section of the wallet.
 ```
@@ -380,7 +380,7 @@ Getting balance is easy:
 
 By default, you'll get data for all tokens for the default wallet's
 address. You can select non-default address with `-a` flag and/or select token
-with `--token` flag (token hash or name can be used as parameter)
+with `--token` flag (token hash or name can be used as parameter).
 
 #### Transfers
 
@@ -394,15 +394,15 @@ parties). For example, transferring 100 GAS looks like this:
 
 You can omit `--from` parameter (default wallet's address will be used in this
 case), you can add `--gas` for extra network fee (raising priority of your
-transaction). And you can save transaction to file with `--out` instead of
+transaction). And you can save the transaction to a file with `--out` instead of
 sending it to the network if it needs to be signed by multiple parties.
 
-To add optional `data` transfer parameter specify `data` positional argument
+To add optional `data` transfer parameter, specify `data` positional argument
 after all required flags. Refer to `wallet nep17 transfer --help` command
 description for details.
 
-One `transfer` invocation creates one transaction, but in case you need to do
-many transfers you can save on network fees by doing multiple token moves with
+One `transfer` invocation creates one transaction. Yet, in case you need to do
+many transfers, you can save on network fees by doing multiple token moves with
 one transaction by using `wallet nep17 multitransfer` command. It can transfer
 things from one account to many, its syntax differs from `transfer` in that
 you don't have `--token`, `--to` and `--amount` options, but instead you can
@@ -415,7 +415,7 @@ transfer as above can be done with `multitransfer` by doing this:
 #### GAS claims
 
 While Neo N3 doesn't have any notion of "claim transaction" and has GAS
-automatically distributed with every NEO transfer for NEO owners you still
+automatically distributed with every NEO transfer for NEO owners, you still
 won't get GAS if you don't do any actions. So the old `wallet claim` command
 was updated to be an easier way to do NEO "flipping" when you send a
 transaction that transfers all of your NEO to yourself thereby triggering GAS
@@ -440,7 +440,7 @@ By default, no token ID specified, i.e. common `balanceOf` method is called.
 
 #### Transfers
 
-Specify token ID via `--id` flag to transfer NEP-11 token. Specify amount to
+Specify token ID via `--id` flag to transfer NEP-11 token. Specify the amount to
 transfer divisible NEP-11 token:
 
 ```
@@ -451,7 +451,7 @@ By default, no amount is specified, i.e. the whole token is transferred for
 non-divisible tokens and 100% of the token is transferred if there is only one
 owner of this token for divisible tokens.
 
-Unlike NEP-17 tokens functionality, `multitransfer` command currently not
+Unlike NEP-17 tokens functionality, `multitransfer` command is currently not
 supported on NEP-11 tokens.
 
 #### Tokens Of
@@ -525,7 +525,7 @@ Some basic commands available there:
 - `ops` -- show the opcodes of currently loaded contract
 - `run` -- executes currently loaded contract
 
-Use `help` command to get more detailed information on all possibilities and
+Use `help` command to get more detailed information on all options and
 particular commands. Note that this VM is completely disconnected from the
 blockchain, so you won't have all interop functionality available for smart
 contracts (use test invocations via RPC for that).
