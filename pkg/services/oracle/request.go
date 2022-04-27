@@ -87,7 +87,7 @@ func (o *Oracle) AddRequests(reqs map[uint64]*state.OracleRequest) {
 	}
 }
 
-// ProcessRequestsInternal processes provided requests synchronously.
+// ProcessRequestsInternal processes the provided requests synchronously.
 func (o *Oracle) ProcessRequestsInternal(reqs map[uint64]*state.OracleRequest) {
 	acc := o.getAccount()
 	if acc == nil {
@@ -194,7 +194,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 		if !errors.Is(err, storage.ErrKeyNotFound) {
 			return err
 		}
-		// The only reason tx can be not found is if it wasn't yet persisted from DAO.
+		// The only reason tx can be not found is that it hasn't been persisted from DAO yet.
 		h = currentHeight
 	}
 	h += vubInc // Main tx is only valid for RequestHeight + ValidUntilBlock.

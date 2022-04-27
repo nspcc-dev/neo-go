@@ -14,12 +14,12 @@ type Item struct {
 	Signatures map[string][]byte         `json:"signatures"`
 }
 
-// GetSignature returns signature for pub if present.
+// GetSignature returns a signature for the pub if present.
 func (it *Item) GetSignature(pub *keys.PublicKey) []byte {
 	return it.Signatures[hex.EncodeToString(pub.Bytes())]
 }
 
-// AddSignature adds a signature for pub.
+// AddSignature adds a signature for the pub.
 func (it *Item) AddSignature(pub *keys.PublicKey, sig []byte) {
 	pubHex := hex.EncodeToString(pub.Bytes())
 	it.Signatures[pubHex] = sig

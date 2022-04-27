@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// CallFlag represents call flag.
+// CallFlag represents a call flag.
 type CallFlag byte
 
 // Default flags.
@@ -34,12 +34,12 @@ var flagString = map[CallFlag]string{
 }
 
 // basicFlags are all flags except All and None. It's used to stringify CallFlag
-// where its bits are matched against these values from values with sets of bits
-// to simple flags which is important to produce proper string representation
+// where its bits are matched against these values from the values with sets of bits
+// to simple flags, which is important to produce proper string representation
 // matching C# Enum handling.
 var basicFlags = []CallFlag{ReadOnly, States, ReadStates, WriteStates, AllowCall, AllowNotify}
 
-// FromString parses input string and returns corresponding CallFlag.
+// FromString parses an input string and returns a corresponding CallFlag.
 func FromString(s string) (CallFlag, error) {
 	flags := strings.Split(s, ",")
 	if len(flags) == 0 {
@@ -74,7 +74,7 @@ func FromString(s string) (CallFlag, error) {
 	return res, nil
 }
 
-// Has returns true iff all bits set in cf are also set in f.
+// Has returns true if all bits set in cf are also set in f.
 func (f CallFlag) Has(cf CallFlag) bool {
 	return f&cf == cf
 }
@@ -99,12 +99,12 @@ func (f CallFlag) String() string {
 	return res
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (f CallFlag) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + f.String() + `"`), nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (f *CallFlag) UnmarshalJSON(data []byte) error {
 	var js string
 	if err := json.Unmarshal(data, &js); err != nil {

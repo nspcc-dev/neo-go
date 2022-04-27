@@ -38,7 +38,7 @@ var (
 	ErrInvalidCommand   = errors.New("invalid command")
 )
 
-// Get returns neofs object from the provided url.
+// Get returns a neofs object from the provided url.
 // URI scheme is "neofs:<Container-ID>/<Object-ID/<Command>/<Params>".
 // If Command is not provided, full object is requested.
 func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string) ([]byte, error) {

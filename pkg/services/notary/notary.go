@@ -36,7 +36,7 @@ type (
 		VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
 	}
 
-	// Notary represents Notary module.
+	// Notary represents a Notary module.
 	Notary struct {
 		Config Config
 
@@ -45,12 +45,12 @@ type (
 		// onTransaction is a callback for completed transactions (mains or fallbacks) sending.
 		onTransaction func(tx *transaction.Transaction) error
 		// newTxs is a channel where new transactions are sent
-		// to be processed in a `onTransaction` callback.
+		// to be processed in an `onTransaction` callback.
 		newTxs chan txHashPair
 
 		// reqMtx protects requests list.
 		reqMtx sync.RWMutex
-		// requests represents the map of main transactions which needs to be completed
+		// requests represents a map of main transactions which needs to be completed
 		// with the associated fallback transactions grouped by the main transaction hash
 		requests map[util.Uint256]*request
 
@@ -79,21 +79,21 @@ const defaultTxChannelCapacity = 100
 type (
 	// request represents Notary service request.
 	request struct {
-		// isSent indicates whether main transaction was successfully sent to the network.
+		// isSent indicates whether the main transaction was successfully sent to the network.
 		isSent bool
 		main   *transaction.Transaction
 		// minNotValidBefore is the minimum NVB value among fallbacks transactions.
-		// We stop trying to send mainTx to the network if the chain reaches minNotValidBefore height.
+		// We stop trying to send the mainTx to the network if the chain reaches the minNotValidBefore height.
 		minNotValidBefore uint32
 		fallbacks         []*transaction.Transaction
 
 		witnessInfo []witnessInfo
 	}
 
-	// witnessInfo represents information about signer and its witness.
+	// witnessInfo represents information about the signer and its witness.
 	witnessInfo struct {
 		typ RequestType
-		// nSigsLeft is the number of signatures left to collect to complete main transaction.
+		// nSigsLeft is the number of signatures left to collect to complete the main transaction.
 		// Initial nSigsLeft value is defined as following:
 		// nSigsLeft == nKeys for standard signature request;
 		// nSigsLeft <= nKeys for multisignature request;
@@ -119,7 +119,7 @@ func (r request) isMainCompleted() bool {
 	return true
 }
 
-// NewNotary returns new Notary module.
+// NewNotary returns a new Notary module.
 func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction func(tx *transaction.Transaction) error) (*Notary, error) {
 	w := cfg.MainCfg.UnlockWallet
 	wallet, err := wallet.NewWalletFromFile(w.Path)
@@ -152,7 +152,7 @@ func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction fu
 	}, nil
 }
 
-// Start runs Notary module in a separate goroutine.
+// Start runs a Notary module in a separate goroutine.
 func (n *Notary) Start() {
 	n.Config.Log.Info("starting notary service")
 	n.Config.Chain.SubscribeForBlocks(n.blocksCh)
@@ -178,18 +178,18 @@ func (n *Notary) mainLoop() {
 				}
 			}
 		case <-n.blocksCh:
-			// new block was added, need to check for valid fallbacks
+			// a new block was added, we need to check for valid fallbacks
 			n.PostPersist()
 		}
 	}
 }
 
-// Shutdown stops Notary module.
+// Shutdown stops a Notary module.
 func (n *Notary) Shutdown() {
 	close(n.stopCh)
 }
 
-// OnNewRequest is a callback method which is called after new notary request is added to the notary request pool.
+// OnNewRequest is a callback method which is called after a new notary request is added to the notary request pool.
 func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 	acc := n.getAccount()
 	if acc == nil {
@@ -218,7 +218,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 			r.minNotValidBefore = nvbFallback
 		}
 	} else {
-		// Avoid changes in main transaction witnesses got from notary request pool to
+		// Avoid changes in the main transaction witnesses got from the notary request pool to
 		// keep the pooled tx valid. We will update its copy => the copy's size will be changed.
 		cp := *payload.MainTransaction
 		cp.Scripts = make([]transaction.Witness, len(payload.MainTransaction.Scripts))
@@ -234,7 +234,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 	if r.witnessInfo == nil && validationErr == nil {
 		r.witnessInfo = newInfo
 	}
-	// Allow modification of fallback transaction got from notary request pool.
+	// Allow modification of a fallback transaction got from the notary request pool.
 	// It has dummy Notary witness attached => its size won't be changed.
 	r.fallbacks = append(r.fallbacks, payload.FallbackTransaction)
 	if exists && r.isMainCompleted() || validationErr != nil {
@@ -320,7 +320,7 @@ func (n *Notary) OnRequestRemoval(pld *payload.P2PNotaryRequest) {
 	}
 }
 
-// PostPersist is a callback which is called after new block event is received.
+// PostPersist is a callback which is called after a new block event is received.
 // PostPersist must not be called under the blockchain lock, because it uses finalization function.
 func (n *Notary) PostPersist() {
 	acc := n.getAccount()
@@ -438,7 +438,7 @@ func (n *Notary) newTxCallbackLoop() {
 	}
 }
 
-// updateTxSize returns transaction with re-calculated size and an error.
+// updateTxSize returns a transaction with re-calculated size and an error.
 func updateTxSize(tx *transaction.Transaction) (*transaction.Transaction, error) {
 	bw := io.NewBufBinWriter()
 	tx.EncodeBinary(bw.BinWriter)
@@ -448,8 +448,8 @@ func updateTxSize(tx *transaction.Transaction) (*transaction.Transaction, error)
 	return transaction.NewTransactionFromBytes(tx.Bytes())
 }
 
-// verifyIncompleteWitnesses checks that tx either doesn't have all witnesses attached (in this case none of them
-// can be multisignature), or it only has a partial multisignature. It returns the request type (sig/multisig), the
+// verifyIncompleteWitnesses checks that the tx either doesn't have all witnesses attached (in this case none of them
+// can be multisignature) or it only has a partial multisignature. It returns the request type (sig/multisig), the
 // number of signatures to be collected, sorted public keys (for multisig request only) and an error.
 func (n *Notary) verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExpected uint8) ([]witnessInfo, error) {
 	var nKeysActual uint8
@@ -461,8 +461,8 @@ func (n *Notary) verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExp
 	}
 	result := make([]witnessInfo, len(tx.Signers))
 	for i, w := range tx.Scripts {
-		// Do not check witness for Notary contract -- it will be replaced by proper witness in any case.
-		// Also do not check other contract-based witnesses (they can be combined with anything)
+		// Do not check witness for a Notary contract -- it will be replaced by proper witness in any case.
+		// Also, do not check other contract-based witnesses (they can be combined with anything)
 		if len(w.VerificationScript) == 0 {
 			result[i] = witnessInfo{
 				typ:       Contract,

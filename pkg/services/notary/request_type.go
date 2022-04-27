@@ -1,6 +1,6 @@
 package notary
 
-// RequestType represents the type of Notary request.
+// RequestType represents type of Notary request.
 type RequestType byte
 
 const (

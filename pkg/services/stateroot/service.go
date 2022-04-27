@@ -18,7 +18,7 @@ import (
 )
 
 type (
-	// Ledger is the interface to Blockchain sufficient for Service.
+	// Ledger is an interface to Blockchain sufficient for Service.
 	Ledger interface {
 		GetConfig() config.ProtocolConfiguration
 		HeaderHeight() uint32
@@ -26,7 +26,7 @@ type (
 		UnsubscribeFromBlocks(ch chan<- *block.Block)
 	}
 
-	// Service represents state root service.
+	// Service represents a state root service.
 	Service interface {
 		OnPayload(p *payload.Extensible) error
 		AddSignature(height uint32, validatorIndex int32, sig []byte) error
@@ -61,11 +61,11 @@ type (
 )
 
 const (
-	// Category is message category for extensible payloads.
+	// Category is a message category for extensible payloads.
 	Category = "StateService"
 )
 
-// New returns new state root service instance using underlying module.
+// New returns a new state root service instance using the underlying module.
 func New(cfg config.StateRoot, sm *stateroot.Module, log *zap.Logger, bc Ledger, cb RelayCallback) (Service, error) {
 	bcConf := bc.GetConfig()
 	s := &service{

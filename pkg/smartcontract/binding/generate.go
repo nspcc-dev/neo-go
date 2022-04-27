@@ -78,7 +78,7 @@ type (
 	}
 )
 
-// NewConfig initializes and returns new config instance.
+// NewConfig initializes and returns a new config instance.
 func NewConfig() Config {
 	return Config{
 		Overrides: make(map[string]Override),

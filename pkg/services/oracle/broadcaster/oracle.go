@@ -25,7 +25,7 @@ type oracleBroadcaster struct {
 	rpcbroadcaster.RPCBroadcaster
 }
 
-// New returns new struct capable of broadcasting oracle responses.
+// New returns a new struct capable of broadcasting oracle responses.
 func New(cfg config.OracleConfiguration, log *zap.Logger) oracle.Broadcaster {
 	if cfg.ResponseTimeout == 0 {
 		cfg.ResponseTimeout = defaultSendTimeout

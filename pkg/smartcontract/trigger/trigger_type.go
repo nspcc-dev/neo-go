@@ -7,23 +7,23 @@ import (
 
 //go:generate stringer -type=Type -output=trigger_type_string.go
 
-// Type represents trigger type used in C# reference node: https://github.com/neo-project/neo/blob/c64748ecbac3baeb8045b16af0d518398a6ced24/neo/SmartContract/TriggerType.cs#L3
+// Type represents a trigger type used in C# reference node: https://github.com/neo-project/neo/blob/c64748ecbac3baeb8045b16af0d518398a6ced24/neo/SmartContract/TriggerType.cs#L3
 type Type byte
 
-// Viable list of supported trigger type constants.
+// Viable a list of supported trigger type constants.
 const (
-	// OnPersist is a trigger type that indicates that script is being invoked
+	// OnPersist is a trigger type that indicates that the script is being invoked
 	// internally by the system during block persistence (before transaction
 	// processing).
 	OnPersist Type = 0x01
 
-	// PostPersist is a trigger type that indicates that script is being invoked
+	// PostPersist is a trigger type that indicates that the script is being invoked
 	// by the system after block persistence (transcation processing) has
 	// finished.
 	PostPersist Type = 0x02
 
 	// The verification trigger indicates that the contract is being invoked as a verification function.
-	// The verification function can accept multiple parameters, and should return a boolean value that indicates the validity of the transaction or block.
+	// The verification function can accept multiple parameters and should return a boolean value that indicates the validity of the transaction or block.
 	// The entry point of the contract will be invoked if the contract is triggered by Verification:
 	//     main(...);
 	// The entry point of the contract must be able to handle this type of invocation.
@@ -40,7 +40,7 @@ const (
 	All Type = OnPersist | PostPersist | Verification | Application
 )
 
-// FromString converts string to trigger Type.
+// FromString converts a string to the trigger Type.
 func FromString(str string) (Type, error) {
 	triggers := []Type{OnPersist, PostPersist, Verification, Application, All}
 	str = strings.ToLower(str)

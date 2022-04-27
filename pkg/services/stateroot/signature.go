@@ -18,11 +18,11 @@ type (
 		sync.RWMutex
 		// svList is a list of state validator keys for this stateroot.
 		svList keys.PublicKeys
-		// isSent is true state root was already broadcasted.
+		// isSent is true if the state root was already broadcasted.
 		isSent bool
-		// request is oracle request.
+		// request is an oracle request.
 		root *state.MPTRoot
-		// sigs contains signature from every oracle node.
+		// sigs contains a signature from every oracle node.
 		sigs map[string]*rootSig
 		// myIndex is the index of validator for this root.
 		myIndex int
@@ -33,11 +33,11 @@ type (
 	}
 
 	rootSig struct {
-		// pub is cached public key.
+		// pub is a cached public key.
 		pub *keys.PublicKey
-		// ok is true if signature was verified.
+		// ok is true if the signature was verified.
 		ok bool
-		// sig is state root signature.
+		// sig is a state root signature.
 		sig []byte
 	}
 )
@@ -73,7 +73,7 @@ func (r *incompleteRoot) isSenderNow() bool {
 	return ind == r.myIndex
 }
 
-// finalize checks is either main or backup tx has sufficient number of signatures and returns
+// finalize checks if either main or backup tx has sufficient number of signatures and returns
 // tx and bool value indicating if it is ready to be broadcasted.
 func (r *incompleteRoot) finalize() (*state.MPTRoot, bool) {
 	if r.root == nil {

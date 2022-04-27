@@ -28,14 +28,14 @@ type Parameter struct {
 	Value interface{} `json:"value"`
 }
 
-// ParameterPair represents key-value pair, a slice of which is stored in
+// ParameterPair represents a key-value pair, a slice of which is stored in
 // MapType Parameter.
 type ParameterPair struct {
 	Key   Parameter `json:"key"`
 	Value Parameter `json:"value"`
 }
 
-// NewParameter returns a Parameter with proper initialized Value
+// NewParameter returns a Parameter with a proper initialized Value
 // of the given ParamType.
 func NewParameter(t ParamType) Parameter {
 	return Parameter{
@@ -49,7 +49,7 @@ type rawParameter struct {
 	Value json.RawMessage `json:"value,omitempty"`
 }
 
-// MarshalJSON implements Marshaler interface.
+// MarshalJSON implements the Marshaler interface.
 func (p Parameter) MarshalJSON() ([]byte, error) {
 	var (
 		resultRawValue json.RawMessage
@@ -101,7 +101,7 @@ func (p Parameter) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// UnmarshalJSON implements Unmarshaler interface.
+// UnmarshalJSON implements the Unmarshaler interface.
 func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 	var (
 		r       rawParameter
@@ -313,7 +313,7 @@ func bytesToUint64(b []byte, size int) (uint64, error) {
 
 // NewParameterFromString returns a new Parameter initialized from the given
 // string in neo-go-specific format. It is intended to be used in user-facing
-// interfaces and has some heuristics in it to simplify parameter passing. Exact
+// interfaces and has some heuristics in it to simplify parameter passing. The exact
 // syntax is documented in the cli documentation.
 func NewParameterFromString(in string) (*Parameter, error) {
 	var (
@@ -375,8 +375,8 @@ func NewParameterFromString(in string) (*Parameter, error) {
 	return res, nil
 }
 
-// ExpandParameterToEmitable converts parameter to a type which can be handled as
-// an array item by emit.Array. It correlates with the way RPC server handles
+// ExpandParameterToEmitable converts a parameter to a type which can be handled as
+// an array item by emit.Array. It correlates with the way an RPC server handles
 // FuncParams for invoke* calls inside the request.ExpandArrayIntoScript function.
 func ExpandParameterToEmitable(param Parameter) (interface{}, error) {
 	var err error

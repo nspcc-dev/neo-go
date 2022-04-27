@@ -11,26 +11,26 @@ type Field []uint64
 // Bits and bytes count in a basic element of Field.
 const elemBits = 64
 
-// New creates a new bit field of specified length. Actual field length
+// New creates a new bit field of the specified length. Actual field length
 // can be rounded to the next multiple of 64, so it's a responsibility
 // of the user to deal with that.
 func New(n int) Field {
 	return make(Field, 1+(n-1)/elemBits)
 }
 
-// Set sets one bit at specified offset. No bounds checking is done.
+// Set sets one bit at the specified offset. No bounds checking is done.
 func (f Field) Set(i int) {
 	addr, offset := (i / elemBits), (i % elemBits)
 	f[addr] |= (1 << offset)
 }
 
-// IsSet returns true if the bit with specified offset is set.
+// IsSet returns true if the bit with the specified offset is set.
 func (f Field) IsSet(i int) bool {
 	addr, offset := (i / elemBits), (i % elemBits)
 	return (f[addr] & (1 << offset)) != 0
 }
 
-// Copy makes a copy of current Field.
+// Copy makes a copy of the current Field.
 func (f Field) Copy() Field {
 	fn := make(Field, len(f))
 	copy(fn, f)

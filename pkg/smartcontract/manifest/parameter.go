@@ -17,7 +17,7 @@ type Parameter struct {
 // Parameters is just an array of Parameter.
 type Parameters []Parameter
 
-// NewParameter returns new parameter of specified name and type.
+// NewParameter returns a new parameter of the specified name and type.
 func NewParameter(name string, typ smartcontract.ParamType) Parameter {
 	return Parameter{
 		Name: name,
@@ -91,7 +91,7 @@ func (p Parameters) AreValid() error {
 	return nil
 }
 
-// stringsHaveDups checks given set of strings for duplicates. It modifies the slice given!
+// stringsHaveDups checks the given set of strings for duplicates. It modifies the slice given!
 func stringsHaveDups(strings []string) bool {
 	sort.Strings(strings)
 	for i := range strings {
@@ -105,7 +105,7 @@ func stringsHaveDups(strings []string) bool {
 	return false
 }
 
-// permissionDescsHaveDups checks given set of strings for duplicates. It modifies the slice given!
+// permissionDescsHaveDups checks the given set of strings for duplicates. It modifies the slice given!
 func permissionDescsHaveDups(descs []PermissionDesc) bool {
 	sort.Slice(descs, func(i, j int) bool {
 		return descs[i].Less(descs[j])
