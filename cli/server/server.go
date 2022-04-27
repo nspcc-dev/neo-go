@@ -120,8 +120,8 @@ func newGraceContext() context.Context {
 	return ctx
 }
 
-// getConfigFromContext looks at path and mode flags in the given config and
-// returns appropriate config.
+// getConfigFromContext looks at the path and the mode flags in the given config and
+// returns an appropriate config.
 func getConfigFromContext(ctx *cli.Context) (config.Config, error) {
 	configPath := "./config"
 	if argCp := ctx.String("config-path"); argCp != "" {
@@ -131,10 +131,10 @@ func getConfigFromContext(ctx *cli.Context) (config.Config, error) {
 }
 
 // handleLoggingParams reads logging parameters.
-// If user selected debug level -- function enables it.
-// If logPath is configured -- function creates dir and file for logging.
+// If a user selected debug level -- function enables it.
+// If logPath is configured -- function creates a dir and a file for logging.
 // If logPath is configured on Windows -- function returns closer to be
-// able to close sink for opened log output file.
+// able to close sink for the opened log output file.
 func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) (*zap.Logger, func() error, error) {
 	level := zapcore.InfoLevel
 	if ctx.Bool("debug") {

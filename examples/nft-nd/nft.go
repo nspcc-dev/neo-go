@@ -1,7 +1,7 @@
 /*
 Package nft contains non-divisible non-fungible NEP-11-compatible token
 implementation. This token can be minted with GAS transfer to contract address,
-it will hash some data (including data provided in transfer) and produce
+it will hash some data (including data provided in transfer) and produce a
 base64-encoded string that is your NFT. Since it's based on hashing and basically
 you own a hash it's HASHY.
 */
@@ -54,7 +54,7 @@ func TotalSupply() int {
 }
 
 // totalSupply is an internal implementation of TotalSupply operating with
-// given context. The number itself is stored raw in the DB with totalSupplyPrefix
+// the given context. The number itself is stored raw in the DB with totalSupplyPrefix
 // key.
 func totalSupply(ctx storage.Context) int {
 	var res int
@@ -66,28 +66,28 @@ func totalSupply(ctx storage.Context) int {
 	return res
 }
 
-// mkAccountPrefix creates DB key-prefix for account tokens specified
+// mkAccountPrefix creates DB key-prefix for the account tokens specified
 // by concatenating accountPrefix and account address.
 func mkAccountPrefix(holder interop.Hash160) []byte {
 	res := []byte(accountPrefix)
 	return append(res, holder...)
 }
 
-// mkBalanceKey creates DB key for account specified by concatenating balancePrefix
+// mkBalanceKey creates DB key for the account specified by concatenating balancePrefix
 // and account address.
 func mkBalanceKey(holder interop.Hash160) []byte {
 	res := []byte(balancePrefix)
 	return append(res, holder...)
 }
 
-// mkTokenKey creates DB key for token specified by concatenating tokenPrefix
+// mkTokenKey creates DB key for the token specified by concatenating tokenPrefix
 // and token ID.
 func mkTokenKey(tokenID []byte) []byte {
 	res := []byte(tokenPrefix)
 	return append(res, tokenID...)
 }
 
-// BalanceOf returns the number of tokens owned by specified address.
+// BalanceOf returns the number of tokens owned by the specified address.
 func BalanceOf(holder interop.Hash160) int {
 	if len(holder) != 20 {
 		panic("bad owner address")
@@ -96,7 +96,7 @@ func BalanceOf(holder interop.Hash160) int {
 	return getBalanceOf(ctx, mkBalanceKey(holder))
 }
 
-// getBalanceOf returns balance of the account using database key.
+// getBalanceOf returns the balance of an account using database key.
 func getBalanceOf(ctx storage.Context, balanceKey []byte) int {
 	val := storage.Get(ctx, balanceKey)
 	if val != nil {
@@ -105,7 +105,7 @@ func getBalanceOf(ctx storage.Context, balanceKey []byte) int {
 	return 0
 }
 
-// addToBalance adds amount to the account balance. Amount can be negative.
+// addToBalance adds an amount to the account balance. Amount can be negative.
 func addToBalance(ctx storage.Context, holder interop.Hash160, amount int) {
 	key := mkBalanceKey(holder)
 	old := getBalanceOf(ctx, key)
@@ -117,13 +117,13 @@ func addToBalance(ctx storage.Context, holder interop.Hash160, amount int) {
 	}
 }
 
-// addToken adds token to the account.
+// addToken adds a token to the account.
 func addToken(ctx storage.Context, holder interop.Hash160, token []byte) {
 	key := mkAccountPrefix(holder)
 	storage.Put(ctx, append(key, token...), token)
 }
 
-// removeToken removes token from the account.
+// removeToken removes a token from the account.
 func removeToken(ctx storage.Context, holder interop.Hash160, token []byte) {
 	key := mkAccountPrefix(holder)
 	storage.Delete(ctx, append(key, token...))
@@ -137,7 +137,7 @@ func Tokens() iterator.Iterator {
 	return iter
 }
 
-// TokensOf returns an iterator with all tokens held by specified address.
+// TokensOf returns an iterator with all tokens held by the specified address.
 func TokensOf(holder interop.Hash160) iterator.Iterator {
 	if len(holder) != 20 {
 		panic("bad owner address")
@@ -148,8 +148,8 @@ func TokensOf(holder interop.Hash160) iterator.Iterator {
 	return iter
 }
 
-// getOwnerOf returns current owner of the specified token or panics if token
-// ID is invalid. Owner is stored as value of the token key (prefix + token ID).
+// getOwnerOf returns the current owner of the specified token or panics if token
+// ID is invalid. The owner is stored as a value of the token key (prefix + token ID).
 func getOwnerOf(ctx storage.Context, token []byte) interop.Hash160 {
 	key := mkTokenKey(token)
 	val := storage.Get(ctx, key)
@@ -159,13 +159,13 @@ func getOwnerOf(ctx storage.Context, token []byte) interop.Hash160 {
 	return val.(interop.Hash160)
 }
 
-// setOwnerOf writes current owner of the specified token into the DB.
+// setOwnerOf writes the current owner of the specified token into the DB.
 func setOwnerOf(ctx storage.Context, token []byte, holder interop.Hash160) {
 	key := mkTokenKey(token)
 	storage.Put(ctx, key, holder)
 }
 
-// OwnerOf returns owner of specified token.
+// OwnerOf returns the owner of the specified token.
 func OwnerOf(token []byte) interop.Hash160 {
 	ctx := storage.GetReadOnlyContext()
 	return getOwnerOf(ctx, token)
@@ -248,14 +248,14 @@ func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
 	postTransfer(nil, from, []byte(token), nil) // no `data` during minting
 }
 
-// Verify allows owner to manage contract's address, including earned GAS
-// transfer from contract's address to somewhere else. It just checks for transaction
-// to also be signed by contract owner, so contract's witness should be empty.
+// Verify allows an owner to manage a contract's address, including earned GAS
+// transfer from the contract's address to somewhere else. It just checks for a transaction
+// to also be signed by the contract owner, so contract's witness should be empty.
 func Verify() bool {
 	return runtime.CheckWitness(contractOwner)
 }
 
-// Destroy destroys the contract, only owner can do that.
+// Destroy destroys the contract, only its owner can do that.
 func Destroy() {
 	if !Verify() {
 		panic("only owner can destroy")
@@ -263,7 +263,7 @@ func Destroy() {
 	management.Destroy()
 }
 
-// Update updates the contract, only owner can do that.
+// Update updates the contract, only its owner can do that.
 func Update(nef, manifest []byte) {
 	if !Verify() {
 		panic("only owner can update")

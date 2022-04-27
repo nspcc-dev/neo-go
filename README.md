@@ -19,7 +19,7 @@
 # Overview
 
 This project aims to be a full port of the original C# [Neo project](https://github.com/neo-project).
-A complete toolkit for the NEO blockchain, including:
+A complete toolkit for the NEO blockchain includes the following:
 
 - [Consensus node](docs/consensus.md)
 - [RPC node & client](docs/rpc.md)
@@ -59,7 +59,7 @@ The resulting binary is `bin/neo-go`.
 #### Building on Windows
 
 To build NeoGo on Windows platform we recommend you to install `make` from [MinGW
-package](https://osdn.net/projects/mingw/). Then you can build NeoGo with:
+package](https://osdn.net/projects/mingw/). Then, you can build NeoGo with:
 
 ```
 make build
@@ -77,13 +77,13 @@ is stored in a file and NeoGo allows you to store multiple files in one
 directory (`./config` by default) and easily switch between them using network
 flags.
 
-To start Neo node on private network use:
+To start Neo node on a private network, use:
 
 ```
 ./bin/neo-go node
 ```
 
-Or specify a different network with appropriate flag like this:
+Or specify a different network with an appropriate flag like this:
 
 ```
 ./bin/neo-go node --mainnet
@@ -94,12 +94,12 @@ Available network flags:
 - `--privnet, -p`
 - `--testnet, -t`
 
-To run a consensus/committee node refer to [consensus
+To run a consensus/committee node, refer to [consensus
 documentation](docs/consensus.md).
 
 ### Docker
 
-By default the `CMD` is set to run a node on `privnet`, so to do this simply run:
+By default, the `CMD` is set to run a node on `privnet`. So, to do this, simply run:
 
 ```bash
 docker run -d --name neo-go -p 20332:20332 -p 20331:20331 nspccdev/neo-go
@@ -111,16 +111,15 @@ protocol) and `20331` (JSON-RPC server).
 ### Importing mainnet/testnet dump files
 
 If you want to jump-start your mainnet or testnet node with [chain archives
-provided by NGD](https://sync.ngd.network/) follow these instructions (when
-they'd be available for 3.0 networks):
+provided by NGD](https://sync.ngd.network/), follow these instructions:
 ```
 $ wget .../chain.acc.zip # chain dump file
 $ unzip chain.acc.zip
 $ ./bin/neo-go db restore -m -i chain.acc # for testnet use '-t' flag instead of '-m'
 ```
 
-The process differs from the C# node in that block importing is a separate
-mode, after it ends the node can be started normally.
+The process differs from the C# node in that a block importing is a separate
+mode. After it ends, the node can be started normally.
 
 ## Running a private network
 
@@ -131,8 +130,8 @@ Refer to [consensus node documentation](docs/consensus.md).
 Please refer to [neo-go smart contract development
 workshop](https://github.com/nspcc-dev/neo-go-sc-wrkshp) that shows some
 simple contracts that can be compiled/deployed/run using neo-go compiler, SDK
-and private network. For details on how Go code is translated to Neo VM
-bytecode and what you can and can not do in smart contract please refer to the
+and a private network. For details on how Go code is translated to Neo VM
+bytecode and what you can and can not do in a smart contract, please refer to the
 [compiler documentation](docs/compiler.md).
 
 Refer to [examples](examples/README.md) for more NEO smart contract examples 
@@ -145,9 +144,9 @@ wallets. NeoGo wallet is just a
 [NEP-6](https://github.com/neo-project/proposals/blob/68398d28b6932b8dd2b377d5d51bca7b0442f532/nep-6.mediawiki)
 file that is used by CLI commands to sign various things. There is no database
 behind it, the blockchain is the database and CLI commands use RPC to query
-data from it. At the same time it's not required to open the wallet on RPC
-node to perform various actions (unless your node is providing some service
-for the network like consensus or oracle nodes).
+data from it. At the same time, it's not required to open a wallet on an RPC
+node to perform various actions (unless your node provides some service
+for the network like consensus or oracle nodes do).
 
 # Developer notes
 Nodes have such features as [Prometheus](https://prometheus.io/docs/guides/go-application) and 
@@ -167,7 +166,7 @@ where you can switch on/off and define port. Prometheus is enabled and Pprof is 
 Feel free to contribute to this project after reading the
 [contributing guidelines](CONTRIBUTING.md).
 
-Before starting to work on a certain topic, create an new issue first,
+Before starting to work on a certain topic, create an new issue first
 describing the feature/topic you are going to implement.
 
 # Contact

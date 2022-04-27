@@ -36,9 +36,9 @@ func TestGenerateHelperContracts(t *testing.T) {
 	require.False(t, saveState)
 }
 
-// generateOracleContract generates helper contract that is able to call
-// native Oracle contract and has callback method. It uses test chain to define
-// Oracle and StdLib native hashes and saves generated NEF and manifest to `oracle_contract` folder.
+// generateOracleContract generates a helper contract that is able to call
+// a native Oracle contract and has callback method. It uses testchain to define
+// Oracle and StdLib native hashes and saves the generated NEF and manifest to `oracle_contract` folder.
 // Set `saveState` flag to true and run the test to rewrite NEF and manifest files.
 func generateOracleContract(t *testing.T, saveState bool) {
 	bc, validator, committee := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
@@ -131,9 +131,9 @@ func generateOracleContract(t *testing.T, saveState bool) {
 	}
 }
 
-// generateManagementHelperContracts generates 2 helper contracts second of which is
-// allowed to call the first. It uses test chain to define Management and StdLib
-// native hashes and saves generated NEF and manifest to `management_contract` folder.
+// generateManagementHelperContracts generates 2 helper contracts, second of which is
+// allowed to call the first. It uses testchain to define Management and StdLib
+// native hashes and saves the generated NEF and manifest to `management_contract` folder.
 // Set `saveState` flag to true and run the test to rewrite NEF and manifest files.
 func generateManagementHelperContracts(t *testing.T, saveState bool) {
 	bc, validator, committee := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {

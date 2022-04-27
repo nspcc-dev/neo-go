@@ -10,7 +10,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-// Address is a wrapper for Uint160 with flag.Value methods.
+// Address is a wrapper for a Uint160 with flag.Value methods.
 type Address struct {
 	IsSet bool
 	Value util.Uint160
@@ -28,12 +28,12 @@ var (
 	_ cli.Flag   = AddressFlag{}
 )
 
-// String implements fmt.Stringer interface.
+// String implements the fmt.Stringer interface.
 func (a Address) String() string {
 	return address.Uint160ToString(a.Value)
 }
 
-// Set implements flag.Value interface.
+// Set implements the flag.Value interface.
 func (a *Address) Set(s string) error {
 	addr, err := ParseAddress(s)
 	if err != nil {
@@ -44,7 +44,7 @@ func (a *Address) Set(s string) error {
 	return nil
 }
 
-// Uint160 casts address to Uint160.
+// Uint160 casts an address to Uint160.
 func (a *Address) Uint160() (u util.Uint160) {
 	if !a.IsSet {
 		// It is a programmer error to call this method without
@@ -82,7 +82,7 @@ func (f AddressFlag) GetName() string {
 	return f.Name
 }
 
-// Apply populates the flag given the flag set and environment
+// Apply populates the flag given the flag set and environment.
 // Ignores errors.
 func (f AddressFlag) Apply(set *flag.FlagSet) {
 	eachName(f.Name, func(name string) {
@@ -90,7 +90,7 @@ func (f AddressFlag) Apply(set *flag.FlagSet) {
 	})
 }
 
-// ParseAddress parses Uint160 form either LE string or address.
+// ParseAddress parses a Uint160 form either an LE string or an address.
 func ParseAddress(s string) (util.Uint160, error) {
 	const uint160size = 2 * util.Uint160Size
 	switch len(s) {

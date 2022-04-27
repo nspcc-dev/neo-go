@@ -15,8 +15,8 @@ import (
 // validUntilBlockIncrement is the number of extra blocks to add to an exported transaction.
 const validUntilBlockIncrement = 50
 
-// InitAndSave creates incompletely signed transaction which can used
-// as input to `multisig sign`.
+// InitAndSave creates an incompletely signed transaction which can be used
+// as an input to `multisig sign`.
 func InitAndSave(net netmode.Magic, tx *transaction.Transaction, acc *wallet.Account, filename string) error {
 	// avoid fast transaction expiration
 	tx.ValidUntilBlock += validUntilBlockIncrement
@@ -34,7 +34,7 @@ func InitAndSave(net netmode.Magic, tx *transaction.Transaction, acc *wallet.Acc
 	return Save(scCtx, filename)
 }
 
-// Read reads parameter context from file.
+// Read reads the parameter context from the file.
 func Read(filename string) (*context.ParameterContext, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -48,7 +48,7 @@ func Read(filename string) (*context.ParameterContext, error) {
 	return c, nil
 }
 
-// Save writes parameter context to file.
+// Save writes the parameter context to the file.
 func Save(c *context.ParameterContext, filename string) error {
 	if data, err := json.Marshal(c); err != nil {
 		return fmt.Errorf("can't marshal transaction: %w", err)

@@ -50,12 +50,12 @@ func Notify(event interface{}) {
 	runtime.Notify("Event", event)
 }
 
-// Verify method is used when contract is being used as a signer of transaction,
+// Verify method is used when a contract is being used as a signer of transaction,
 // it can have parameters (that then need to be present in invocation script)
 // and it returns simple pass/fail result. This implementation just checks for
-// owner's signature presence.
+// the owner's signature presence.
 func Verify() bool {
-	// Technically this restriction is not needed, but you can see the difference
+	// Technically, this restriction is not needed, but you can see the difference
 	// between invokefunction and invokecontractverify RPC methods with it.
 	if runtime.GetTrigger() != runtime.Verification {
 		return false
@@ -63,7 +63,7 @@ func Verify() bool {
 	return CheckWitness()
 }
 
-// Destroy destroys the contract, only owner can do that.
+// Destroy destroys the contract, only the owner can do that.
 func Destroy() {
 	if !Verify() {
 		panic("only owner can destroy")
@@ -71,7 +71,7 @@ func Destroy() {
 	management.Destroy()
 }
 
-// Update updates the contract, only owner can do that. _deploy will be called
+// Update updates the contract, only the owner can do that. _deploy will be called
 // after update.
 func Update(nef, manifest []byte) {
 	if !Verify() {

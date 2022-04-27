@@ -21,7 +21,7 @@ type ReadWriter struct {
 	io.Writer
 }
 
-// ReadLine reads line from the input without trailing '\n'.
+// ReadLine reads a line from the input without trailing '\n'.
 func ReadLine(prompt string) (string, error) {
 	trm := Terminal
 	if trm == nil {
@@ -46,7 +46,7 @@ func readLine(trm *term.Terminal, prompt string) (string, error) {
 	return trm.ReadLine()
 }
 
-// ReadPassword reads user password with prompt.
+// ReadPassword reads the user's password with prompt.
 func ReadPassword(prompt string) (string, error) {
 	trm := Terminal
 	if trm == nil {
@@ -60,7 +60,7 @@ func ReadPassword(prompt string) (string, error) {
 	return trm.ReadPassword(prompt)
 }
 
-// ConfirmTx asks for a confirmation to send tx.
+// ConfirmTx asks for a confirmation to send the tx.
 func ConfirmTx(w io.Writer, tx *transaction.Transaction) error {
 	fmt.Fprintf(w, "Network fee: %s\n", fixedn.Fixed8(tx.NetworkFee))
 	fmt.Fprintf(w, "System fee: %s\n", fixedn.Fixed8(tx.SystemFee))

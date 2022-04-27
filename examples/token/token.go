@@ -18,7 +18,7 @@ var (
 	ctx   storage.Context
 )
 
-// init initializes the Token Interface and storage context for the Smart
+// init initializes Token Interface and storage context for the Smart
 // Contract to operate with
 func init() {
 	token = nep17.Token{

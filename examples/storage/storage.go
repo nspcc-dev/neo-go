@@ -16,19 +16,19 @@ func init() {
 	ctx = storage.GetContext()
 }
 
-// Put puts value at key.
+// Put puts a value at a key.
 func Put(key, value []byte) []byte {
 	storage.Put(ctx, key, value)
 	return key
 }
 
-// PutDefault puts value to the default key.
+// PutDefault puts a value to the default key.
 func PutDefault(value []byte) []byte {
 	storage.Put(ctx, defaultKey, value)
 	return defaultKey
 }
 
-// Get returns the value at passed key.
+// Get returns the value at the passed key.
 func Get(key []byte) interface{} {
 	return storage.Get(ctx, key)
 }
@@ -38,13 +38,13 @@ func GetDefault() interface{} {
 	return storage.Get(ctx, defaultKey)
 }
 
-// Delete deletes the value at passed key.
+// Delete deletes the value at the passed key.
 func Delete(key []byte) bool {
 	storage.Delete(ctx, key)
 	return true
 }
 
-// Find returns an array of key-value pairs with key that matched the passed value
+// Find returns an array of key-value pairs with the key that matched the passed value
 func Find(value []byte) []string {
 	iter := storage.Find(ctx, value, storage.None)
 	result := []string{}
