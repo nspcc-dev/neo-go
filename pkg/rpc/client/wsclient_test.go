@@ -453,3 +453,18 @@ func TestWSDoubleClose(t *testing.T) {
 		c.Close()
 	})
 }
+
+func TestWS_RequestAfterClose(t *testing.T) {
+	srv := initTestServer(t, "")
+
+	c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+	require.NoError(t, err)
+
+	c.Close()
+
+	require.NotPanics(t, func() {
+		_, err = c.GetBlockCount()
+	})
+	require.Error(t, err)
+	require.True(t, strings.Contains(err.Error(), "connection lost before registering response channel"))
+}
