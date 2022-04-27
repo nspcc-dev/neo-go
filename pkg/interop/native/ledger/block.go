@@ -2,9 +2,9 @@ package ledger
 
 import "github.com/nspcc-dev/neo-go/pkg/interop"
 
-// Block represents a NEO block, it's a data structure that you can get
+// Block represents a NEO block, it's a data structure where you can get
 // block-related data from. It's similar to the Block class in the Neo .net
-// framework. To use it you need to get it via GetBlock function call.
+// framework. To use it, you need to get it via GetBlock function call.
 type Block struct {
 	// Hash represents the hash (256 bit BE value in a 32 byte slice) of the
 	// given block.
@@ -23,7 +23,7 @@ type Block struct {
 	Nonce int
 	// Index represents the height of the block.
 	Index int
-	// NextConsensus represents contract address of the next miner (160 bit BE
+	// NextConsensus represents the contract address of the next miner (160 bit BE
 	// value in a 20 byte slice).
 	NextConsensus interop.Hash160
 	// TransactionsLength represents the length of block's transactions array.

@@ -15,13 +15,13 @@ type Transaction struct {
 	// Sender represents the sender (160 bit BE value in a 20 byte slice) of the
 	// given Transaction.
 	Sender interop.Hash160
-	// SysFee represents fee to be burned.
+	// SysFee represents the fee to be burned.
 	SysFee int
-	// NetFee represents fee to be distributed to consensus nodes.
+	// NetFee represents the fee to be distributed to consensus nodes.
 	NetFee int
 	// ValidUntilBlock is the maximum blockchain height exceeding which
-	// transaction should fail verification.
+	// a transaction should fail verification.
 	ValidUntilBlock int
-	// Script represents code to run in NeoVM for this transaction.
+	// Script represents a code to run in NeoVM for this transaction.
 	Script []byte
 }

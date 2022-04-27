@@ -1,5 +1,5 @@
 /*
-Package policy provides interface to PolicyContract native contract.
+Package policy provides an interface to PolicyContract native contract.
 This contract holds various network-wide settings.
 */
 package policy

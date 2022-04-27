@@ -1,5 +1,5 @@
 /*
-Package ledger provides interface to LedgerContract native contract.
+Package ledger provides an interface to LedgerContract native contract.
 It allows to access ledger contents like transactions and blocks.
 */
 package ledger

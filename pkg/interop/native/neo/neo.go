@@ -1,5 +1,5 @@
 /*
-Package neo provides interface to NeoToken native contract.
+Package neo provides an interface to NeoToken native contract.
 NEO token is special, it's not just a regular NEP-17 contract, it also
 provides access to chain-specific settings and implements committee
 voting system.
@@ -12,7 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
 )
 
-// AccountState contains info about NEO holder.
+// AccountState contains info about a NEO holder.
 type AccountState struct {
 	Balance int
 	Height  int
