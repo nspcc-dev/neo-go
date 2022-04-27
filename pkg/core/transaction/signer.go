@@ -39,7 +39,7 @@ func (c *Signer) EncodeBinary(bw *io.BinWriter) {
 func (c *Signer) DecodeBinary(br *io.BinReader) {
 	br.ReadBytes(c.Account[:])
 	c.Scopes = WitnessScope(br.ReadB())
-	if c.Scopes & ^(Global|CalledByEntry|CustomContracts|CustomGroups|None) != 0 {
+	if c.Scopes & ^(Global|CalledByEntry|CustomContracts|CustomGroups|Rules|None) != 0 {
 		br.Err = errors.New("unknown witness scope")
 		return
 	}
