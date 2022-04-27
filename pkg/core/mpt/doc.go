@@ -1,14 +1,14 @@
 /*
-Package mpt implements MPT (Merkle-Patricia Tree).
+Package mpt implements MPT (Merkle-Patricia Trie).
 
-MPT stores key-value pairs and is a trie over 16-symbol alphabet. https://en.wikipedia.org/wiki/Trie
-Trie is a tree where values are stored in leafs and keys are paths from root to the leaf node.
-MPT consists of 4 type of nodes:
-- Leaf node contains only value.
-- Extension node contains both key and value.
+An MPT stores key-value pairs and is a trie over 16-symbol alphabet. https://en.wikipedia.org/wiki/Trie
+A trie is a tree where values are stored in leafs and keys are paths from the root to the leaf node.
+An MPT consists of 4 types of nodes:
+- Leaf node only contains a value.
+- Extension node contains both a key and a value.
 - Branch node contains 2 or more children.
-- Hash node is a compressed node and contains only actual node's hash.
-  The actual node must be retrieved from storage or over the network.
+- Hash node is a compressed node and only contains the actual node's hash.
+  The actual node must be retrieved from the storage or over the network.
 
 As an example here is a trie containing 3 pairs:
 - 0x1201 -> val1
@@ -31,15 +31,15 @@ BranchNode [0, 1, 2, ...], Last -> Leaf(val4)
 
 There are 3 invariants that this implementation has:
 - Branch node cannot have <= 1 children
-- Extension node cannot have zero-length key
-- Extension node cannot have another Extension node in it's next field
+- Extension node cannot have a zero-length key
+- Extension node cannot have another Extension node in its next field
 
-Thank to these restrictions, there is a single root hash for every set of key-value pairs
-irregardless of the order they were added/removed with.
+Thanks to these restrictions, there is a single root hash for every set of key-value pairs
+irregardless of the order they were added/removed in.
 The actual trie structure can vary because of node -> HashNode compressing.
 
-There is also one optimization which cost us almost nothing in terms of complexity but is very beneficial:
-When we perform get/put/delete on a speficic path, every Hash node which was retreived from storage is
-replaced by its uncompressed form, so that subsequent hits of this not don't use storage.
+There is also one optimization which cost us almost nothing in terms of complexity but is quite beneficial:
+When we perform get/put/delete on a specific path, every Hash node which was retrieved from the storage is
+replaced by its uncompressed form, so that subsequent hits of this don't use storage.
 */
 package mpt

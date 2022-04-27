@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// OracleRequest represents oracle request.
+// OracleRequest represents an oracle request.
 type OracleRequest struct {
 	OriginalTxID     util.Uint256
 	GasForResponse   uint64

@@ -4,7 +4,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-// Opcode returns the deployment coefficients of specified opcodes.
+// Opcode returns the deployment coefficients of the specified opcodes.
 func Opcode(base int64, opcodes ...opcode.Opcode) int64 {
 	var result int64
 	for _, op := range opcodes {

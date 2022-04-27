@@ -15,24 +15,24 @@ import (
 )
 
 var (
-	// ErrInsufficientFunds is returned when Sender is not able to pay for
-	// transaction being added irrespective of the other contents of the
+	// ErrInsufficientFunds is returned when the Sender is not able to pay for
+	// the transaction being added irrespective of the other contents of the
 	// pool.
 	ErrInsufficientFunds = errors.New("insufficient funds")
-	// ErrConflict is returned when transaction being added is incompatible
+	// ErrConflict is returned when the transaction being added is incompatible
 	// with the contents of the memory pool (Sender doesn't have enough GAS
 	// to pay for all transactions in the pool).
 	ErrConflict = errors.New("conflicts: insufficient funds for all pooled tx")
-	// ErrDup is returned when transaction being added is already present
+	// ErrDup is returned when the transaction being added is already present
 	// in the memory pool.
 	ErrDup = errors.New("already in the memory pool")
-	// ErrOOM is returned when transaction just doesn't fit in the memory
+	// ErrOOM is returned when the transaction just doesn't fit in the memory
 	// pool because of its capacity constraints.
 	ErrOOM = errors.New("out of memory")
-	// ErrConflictsAttribute is returned when transaction conflicts with other transactions
+	// ErrConflictsAttribute is returned when the transaction conflicts with other transactions
 	// due to its (or theirs) Conflicts attributes.
 	ErrConflictsAttribute = errors.New("conflicts with memory pool due to Conflicts attribute")
-	// ErrOracleResponse is returned when mempool already contains transaction
+	// ErrOracleResponse is returned when the mempool already contains a transaction
 	// with the same oracle response ID and higher network fee.
 	ErrOracleResponse = errors.New("conflicts with memory pool due to OracleResponse attribute")
 )
@@ -44,25 +44,25 @@ type item struct {
 	data       interface{}
 }
 
-// items is a slice of item.
+// items is a slice of an item.
 type items []item
 
-// utilityBalanceAndFees stores sender's balance and overall fees of
-// sender's transactions which are currently in mempool.
+// utilityBalanceAndFees stores the sender's balance and overall fees of
+// the sender's transactions which are currently in the mempool.
 type utilityBalanceAndFees struct {
 	balance uint256.Int
 	feeSum  uint256.Int
 }
 
-// Pool stores the unconfirms transactions.
+// Pool stores the unconfirmed transactions.
 type Pool struct {
 	lock         sync.RWMutex
 	verifiedMap  map[util.Uint256]*transaction.Transaction
 	verifiedTxes items
 	fees         map[util.Uint160]utilityBalanceAndFees
-	// conflicts is a map of hashes of transactions which are conflicting with the mempooled ones.
+	// conflicts is a map of the hashes of the transactions which are conflicting with the mempooled ones.
 	conflicts map[util.Uint256][]util.Uint256
-	// oracleResp contains ids of oracle responses for tx in pool.
+	// oracleResp contains the ids of oracle responses for the tx in the pool.
 	oracleResp map[uint64]util.Uint256
 
 	capacity   int
@@ -106,7 +106,7 @@ func (p item) CompareTo(otherP item) int {
 	return int(p.txn.NetworkFee - otherP.txn.NetworkFee)
 }
 
-// Count returns the total number of uncofirm transactions.
+// Count returns the total number of uncofirmed transactions.
 func (mp *Pool) Count() int {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
@@ -118,7 +118,7 @@ func (mp *Pool) count() int {
 	return len(mp.verifiedTxes)
 }
 
-// ContainsKey checks if a transactions hash is in the Pool.
+// ContainsKey checks if the transactions hash is in the Pool.
 func (mp *Pool) ContainsKey(hash util.Uint256) bool {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
@@ -135,8 +135,8 @@ func (mp *Pool) containsKey(hash util.Uint256) bool {
 	return false
 }
 
-// HasConflicts returns true if transaction is already in pool or in the Conflicts attributes
-// of pooled transactions or has Conflicts attributes for pooled transactions.
+// HasConflicts returns true if the transaction is already in the pool or in the Conflicts attributes
+// of the pooled transactions or has Conflicts attributes against the pooled transactions.
 func (mp *Pool) HasConflicts(t *transaction.Transaction, fee Feer) bool {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
@@ -158,8 +158,8 @@ func (mp *Pool) HasConflicts(t *transaction.Transaction, fee Feer) bool {
 	return false
 }
 
-// tryAddSendersFee tries to add system fee and network fee to the total sender`s fee in mempool
-// and returns false if both balance check is required and sender has not enough GAS to pay.
+// tryAddSendersFee tries to add system fee and network fee to the total sender`s fee in the mempool
+// and returns false if both balance check is required and the sender does not have enough GAS to pay.
 func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needCheck bool) bool {
 	payer := tx.Signers[mp.payerIndex].Account
 	senderFee, ok := mp.fees[payer]
@@ -180,8 +180,8 @@ func (mp *Pool) tryAddSendersFee(tx *transaction.Transaction, feer Feer, needChe
 	return true
 }
 
-// checkBalance returns new cumulative fee balance for account or an error in
-// case sender doesn't have enough GAS to pay for the transaction.
+// checkBalance returns a new cumulative fee balance for the account or an error in
+// case the sender doesn't have enough GAS to pay for the transaction.
 func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) (uint256.Int, error) {
 	var txFee uint256.Int
 
@@ -196,7 +196,7 @@ func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) (u
 	return txFee, nil
 }
 
-// Add tries to add given transaction to the Pool.
+// Add tries to add the given transaction to the Pool.
 func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) error {
 	var pItem = item{
 		txn:        t,
@@ -234,9 +234,9 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) e
 			mp.removeInternal(conflictingTx.Hash(), fee)
 		}
 	}
-	// Insert into sorted array (from max to min, that could also be done
+	// Insert into a sorted array (from max to min, that could also be done
 	// using sort.Sort(sort.Reverse()), but it incurs more overhead. Notice
-	// also that we're searching for position that is strictly more
+	// also that we're searching for a position that is strictly more
 	// prioritized than our new item because we do expect a lot of
 	// transactions with the same priority and appending to the end of the
 	// slice is always more efficient.
@@ -299,7 +299,7 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) e
 	return nil
 }
 
-// Remove removes an item from the mempool, if it exists there (and does
+// Remove removes an item from the mempool if it exists there (and does
 // nothing if it doesn't).
 func (mp *Pool) Remove(hash util.Uint256, feer Feer) {
 	mp.lock.Lock()
@@ -346,8 +346,8 @@ func (mp *Pool) removeInternal(hash util.Uint256, feer Feer) {
 }
 
 // RemoveStale filters verified transactions through the given function keeping
-// only the transactions for which it returns a true result. It's used to quickly
-// drop part of the mempool that is now invalid after the block acceptance.
+// only the transactions for which it returns true result. It's used to quickly
+// drop a part of the mempool that is now invalid after the block acceptance.
 func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer) {
 	mp.lock.Lock()
 	policyChanged := mp.loadPolicy(feer)
@@ -372,7 +372,7 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 				}
 			}
 			if mp.resendThreshold != 0 {
-				// item is resend at resendThreshold, 2*resendThreshold, 4*resendThreshold ...
+				// item is resent at resendThreshold, 2*resendThreshold, 4*resendThreshold ...
 				// so quotient must be a power of two.
 				diff := (height - itm.blockStamp)
 				if diff%mp.resendThreshold == 0 && bits.OnesCount32(diff/mp.resendThreshold) == 1 {
@@ -400,7 +400,7 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 	mp.lock.Unlock()
 }
 
-// loadPolicy updates feePerByte field and returns whether policy has been
+// loadPolicy updates feePerByte field and returns whether the policy has been
 // changed.
 func (mp *Pool) loadPolicy(feer Feer) bool {
 	newFeePerByte := feer.FeePerByte()
@@ -411,7 +411,7 @@ func (mp *Pool) loadPolicy(feer Feer) bool {
 	return false
 }
 
-// checkPolicy checks whether transaction fits policy.
+// checkPolicy checks whether the transaction fits the policy.
 func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) bool {
 	if !policyChanged || tx.FeePerByte() >= mp.feePerByte {
 		return true
@@ -439,7 +439,7 @@ func New(capacity int, payerIndex int, enableSubscriptions bool) *Pool {
 	return mp
 }
 
-// SetResendThreshold sets threshold after which transaction will be considered stale
+// SetResendThreshold sets a threshold after which the transaction will be considered stale
 // and returned for retransmission by `GetStaleTransactions`.
 func (mp *Pool) SetResendThreshold(h uint32, f func(*transaction.Transaction, interface{})) {
 	mp.lock.Lock()
@@ -555,10 +555,10 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*tran
 	return conflictsToBeRemoved, err
 }
 
-// Verify checks if a Sender of tx is able to pay for it (and all the other
+// Verify checks if the Sender of the tx is able to pay for it (and all the other
 // transactions in the pool). If yes, the transaction tx is a valid
 // transaction and the function returns true. If no, the transaction tx is
-// considered to be invalid the function returns false.
+// considered to be invalid, the function returns false.
 func (mp *Pool) Verify(tx *transaction.Transaction, feer Feer) bool {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
@@ -566,7 +566,7 @@ func (mp *Pool) Verify(tx *transaction.Transaction, feer Feer) bool {
 	return err == nil
 }
 
-// removeConflictsOf removes hash of the given transaction from the conflicts list
+// removeConflictsOf removes the hash of the given transaction from the conflicts list
 // for each Conflicts attribute.
 func (mp *Pool) removeConflictsOf(tx *transaction.Transaction) {
 	// remove all conflicting hashes from mp.conflicts list

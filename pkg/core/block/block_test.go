@@ -23,7 +23,7 @@ func trim0x(value interface{}) string {
 	return strings.TrimPrefix(s, "0x")
 }
 
-// Test blocks are blocks from testnet with their corresponding index.
+// Test blocks are blocks from testnet with their corresponding indices.
 func TestDecodeBlock1(t *testing.T) {
 	data, err := getBlockData(1)
 	require.NoError(t, err)
@@ -126,12 +126,12 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 
 	assert.Equal(t, len(expected), len(hashes))
 
-	// changes value in map to true, if hash found
+	// changes value in map to true, if hash is found
 	for _, hash := range hashes {
 		expected[hash] = true
 	}
 
-	// iterate map; all vlaues should be true
+	// iterate map; all values should be true
 	val := true
 	for _, v := range expected {
 		if v == false {
@@ -151,7 +151,7 @@ func TestBlockSizeCalculation(t *testing.T) {
 	// block taken from C# privnet: 02d7c7801742cd404eb178780c840477f1eef4a771ecc8cc9434640fe8f2bb09
 	// The Size in golang is given by counting the number of bytes of an object. (len(Bytes))
 	// its implementation is different from the corresponding C# and python implementations. But the result should
-	// should be the same.In this test we provide more details then necessary because in case of failure we can easily debug the
+	// be the same. In this test we provide more details then necessary because in case of failure we can easily debug the
 	// root cause of the size calculation missmatch.
 
 	rawBlock := "AAAAAAwIVa2D6Yha3tArd5XnwkAf7deJBsdyyvpYb2xMZGBbkOUNHAsfre0rKA/F+Ox05/bQSXmcRZnzK3M6Z+/TxJUh0MNFeAEAAAAAAAAAAAAAAQAAAADe7nnBifMAmLC6ai65CzqSWKbH/wHGDEDgwCcXkcaFw5MGOp1cpkgApzDTX2/RxKlmPeXTgWYtfEA8g9svUSbZA4TeoGyWvX8LiN0tJKrzajdMGvTVGqVmDEDp6PBmZmRx9CxswtLht6oWa2Uq4rl5diPsLtqXZeZepMlxUSbaCdlFTB7iWQG9yKXWR5hc0sScevvuVwwsUYdlDEDwlhwZrP07E5fEQKttVMYAiL7edd/eW2yoMGZe6Q95g7yXQ69edVHfQb61fBw3DjCpMDZ5lsxp3BgzXglJwMSKkxMMIQIQOn990BZVhZf3lg0nxRakOU/ZaLnmUVXrSwE+QEBAbgwhAqe8Vf6GhOARl2jRBLoweVvcyGYZ6GSt0mFWcj7Rhc1iDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIMIQPZDAffY+aQzneRLhCrUazJRLZoYCN7YIxPj4MJ5x7mmRRBe85spQIAWNC7C8DYpwAAAAAAIKpEAAAAAADoAwAAAd7uecGJ8wCYsLpqLrkLOpJYpsf/AQBbCwIA4fUFDBSAzse29bVvUFePc38WLTqxTUZlDQwU3u55wYnzAJiwumouuQs6klimx/8UwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQHGDEC4UIzT61GYPx0LdksrF6C2ioYai6fbwpjv3BGAqiyagxiomYGZRLeXZyD67O5FJ86pXRFtSbVYu2YDG+T5ICIgDEDzm/wl+BnHvQXaHQ1rGLtdUMc41wN6I48kPPM7F23gL9sVxGziQIMRLnpTbWHrnzaU9Sy0fXkvIrdJy1KABkSQDEDBwuBuVK+nsZvn1oAscPj6d3FJiUGK9xiHpX9Ipp/5jTnXRBAyzyGc8IZMBVql4WS8kwFe6ojA/9BvFb5eWXnEkxMMIQIQOn990BZVhZf3lg0nxRakOU/ZaLnmUVXrSwE+QEBAbgwhAqe8Vf6GhOARl2jRBLoweVvcyGYZ6GSt0mFWcj7Rhc1iDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIMIQPZDAffY+aQzneRLhCrUazJRLZoYCN7YIxPj4MJ5x7mmRRBe85spQDYJLwZwNinAAAAAAAgqkQAAAAAAOgDAAAB3u55wYnzAJiwumouuQs6klimx/8BAF8LAwBA2d2ITQoADBSAzse29bVvUFePc38WLTqxTUZlDQwU3u55wYnzAJiwumouuQs6klimx/8UwB8MCHRyYW5zZmVyDBTPduKL0AYsSkeO41VhARMZ88+k0kFifVtSOQHGDEDWn0D7z2ELqpN8ghcM/PtfFwo56/BfEasfHuSKECJMYxvU47r2ZtSihg59lGxSZzHsvxTy6nsyvJ22ycNhINdJDECl61cg937N/HujKsLMu2wJMS7C54bzJ3q22Czqllvw3Yp809USgKDs+W+3QD7rI+SFs0OhIn0gooCUU6f/13WjDEDr9XdeT5CGTO8CL0JigzcTcucs0GBcqHs8fToO6zPuuCfS7Wh6dyxSCijT4A4S+7BUdW3dsO7828ke1fj8oNxmkxMMIQIQOn990BZVhZf3lg0nxRakOU/ZaLnmUVXrSwE+QEBAbgwhAqe8Vf6GhOARl2jRBLoweVvcyGYZ6GSt0mFWcj7Rhc1iDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIMIQPZDAffY+aQzneRLhCrUazJRLZoYCN7YIxPj4MJ5x7mmRRBe85spQ=="

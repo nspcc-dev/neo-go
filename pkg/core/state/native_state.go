@@ -11,19 +11,19 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// NEP17Balance represents balance state of a NEP-17-token.
+// NEP17Balance represents the balance state of a NEP-17-token.
 type NEP17Balance struct {
 	Balance big.Int
 }
 
-// NEOBalance represents balance state of a NEO-token.
+// NEOBalance represents the balance state of a NEO-token.
 type NEOBalance struct {
 	NEP17Balance
 	BalanceHeight uint32
 	VoteTo        *keys.PublicKey
 }
 
-// NEP17BalanceFromBytes converts serialized NEP17Balance to structure.
+// NEP17BalanceFromBytes converts the serialized NEP17Balance to a structure.
 func NEP17BalanceFromBytes(b []byte) (*NEP17Balance, error) {
 	if len(b) < 4 {
 		if len(b) == 0 {
@@ -100,7 +100,7 @@ func (s *NEP17Balance) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
-// NEOBalanceFromBytes converts serialized NEOBalance to structure.
+// NEOBalanceFromBytes converts the serialized NEOBalance to a structure.
 func NEOBalanceFromBytes(b []byte) (*NEOBalance, error) {
 	balance := new(NEOBalance)
 	err := balanceFromBytes(b, balance)
@@ -110,7 +110,7 @@ func NEOBalanceFromBytes(b []byte) (*NEOBalance, error) {
 	return balance, nil
 }
 
-// Bytes returns serialized NEOBalance.
+// Bytes returns a serialized NEOBalance.
 func (s *NEOBalance) Bytes() []byte {
 	return balanceToBytes(s)
 }

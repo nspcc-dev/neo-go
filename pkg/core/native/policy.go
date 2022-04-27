@@ -54,9 +54,9 @@ type Policy struct {
 	interop.ContractMD
 	NEO  *NEO
 	lock sync.RWMutex
-	// isValid defies whether cached values were changed during the current
+	// isValid defies whether the cached values were changed during the current
 	// consensus iteration. If false, these values will be updated after
-	// blockchain DAO persisting. If true, we can safely use cached values.
+	// blockchain DAO persisting. If true, we can safely use the cached values.
 	isValid            bool
 	execFeeFactor      uint32
 	feePerByte         int64
@@ -117,12 +117,12 @@ func newPolicy() *Policy {
 	return p
 }
 
-// Metadata implements Contract interface.
+// Metadata implements the Contract interface.
 func (p *Policy) Metadata() *interop.ContractMD {
 	return &p.ContractMD
 }
 
-// Initialize initializes Policy native contract and implements Contract interface.
+// Initialize initializes Policy native contract and implements the Contract interface.
 func (p *Policy) Initialize(ic *interop.Context) error {
 	setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte)
 	setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor)
@@ -138,12 +138,12 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 	return nil
 }
 
-// OnPersist implements Contract interface.
+// OnPersist implements the Contract interface.
 func (p *Policy) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
-// PostPersist implements Contract interface.
+// PostPersist implements the Contract interface.
 func (p *Policy) PostPersist(ic *interop.Context) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -173,7 +173,7 @@ func (p *Policy) PostPersist(ic *interop.Context) error {
 	return fErr
 }
 
-// getFeePerByte is Policy contract method and returns required transaction's fee
+// getFeePerByte is a Policy contract method and returns the required transaction's fee
 // per byte.
 func (p *Policy) getFeePerByte(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
 	return stackitem.NewBigInteger(big.NewInt(p.GetFeePerByteInternal(ic.DAO)))
@@ -189,7 +189,7 @@ func (p *Policy) GetFeePerByteInternal(dao *dao.Simple) int64 {
 	return getIntWithKey(p.ID, dao, feePerByteKey)
 }
 
-// GetMaxVerificationGas returns maximum gas allowed to be burned during verificaion.
+// GetMaxVerificationGas returns the maximum gas allowed to be burned during verification.
 func (p *Policy) GetMaxVerificationGas(_ *dao.Simple) int64 {
 	if p.isValid {
 		return p.maxVerificationGas
@@ -279,7 +279,7 @@ func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) sta
 	return stackitem.Null{}
 }
 
-// setFeePerByte is Policy contract method and sets transaction's fee per byte.
+// setFeePerByte is a Policy contract method and sets transaction's fee per byte.
 func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	value := toBigInt(args[0]).Int64()
 	if value < 0 || value > maxFeePerByte {
@@ -295,7 +295,7 @@ func (p *Policy) setFeePerByte(ic *interop.Context, args []stackitem.Item) stack
 	return stackitem.Null{}
 }
 
-// blockAccount is Policy contract method and adds given account hash to the list
+// blockAccount is a Policy contract method and adds the given account hash to the list
 // of blocked accounts.
 func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	if !p.NEO.checkCommittee(ic) {
@@ -318,7 +318,7 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 	return stackitem.NewBool(true)
 }
 
-// unblockAccount is Policy contract method and removes given account hash from
+// unblockAccount is a Policy contract method and removes the given account hash from
 // the list of blocked accounts.
 func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	if !p.NEO.checkCommittee(ic) {
@@ -336,8 +336,8 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 	return stackitem.NewBool(true)
 }
 
-// CheckPolicy checks whether transaction conforms to current policy restrictions
-// like not being signed by blocked account or not exceeding block-level system
+// CheckPolicy checks whether a transaction conforms to the current policy restrictions,
+// like not being signed by a blocked account or not exceeding the block-level system
 // fee limit.
 func (p *Policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error {
 	for _, signer := range tx.Signers {

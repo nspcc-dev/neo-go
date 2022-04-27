@@ -36,7 +36,7 @@ func (b *BaseNode) setCache(bs []byte, h util.Uint256) {
 	b.hashValid = true
 }
 
-// getHash returns a hash of this BaseNode.
+// getHash returns the hash of this BaseNode.
 func (b *BaseNode) getHash(n Node) util.Uint256 {
 	if !b.hashValid {
 		b.updateHash(n)
@@ -52,7 +52,7 @@ func (b *BaseNode) getBytes(n Node) []byte {
 	return b.bytes
 }
 
-// updateHash updates hash field for this BaseNode.
+// updateHash updates the hash field for this BaseNode.
 func (b *BaseNode) updateHash(n Node) {
 	if n.Type() == HashT || n.Type() == EmptyT {
 		panic("can't update hash for empty or hash node")
@@ -61,7 +61,7 @@ func (b *BaseNode) updateHash(n Node) {
 	b.hashValid = true
 }
 
-// updateCache updates hash and bytes fields for this BaseNode.
+// updateCache updates the hash and bytes fields for this BaseNode.
 func (b *BaseNode) updateBytes(n Node) {
 	bw := io.NewBufBinWriter()
 	bw.Grow(1 + n.Size())
@@ -85,13 +85,13 @@ func encodeBinaryAsChild(n Node, w *io.BinWriter) {
 	w.WriteBytes(n.Hash().BytesBE())
 }
 
-// encodeNodeWithType encodes node together with it's type.
+// encodeNodeWithType encodes a node together with its type.
 func encodeNodeWithType(n Node, w *io.BinWriter) {
 	w.WriteB(byte(n.Type()))
 	n.EncodeBinary(w)
 }
 
-// DecodeNodeWithType decodes node together with it's type.
+// DecodeNodeWithType decodes a node together with its type.
 func DecodeNodeWithType(r *io.BinReader) Node {
 	if r.Err != nil {
 		return nil

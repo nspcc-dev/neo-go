@@ -82,7 +82,7 @@ func (g *GAS) balanceFromBytes(si *state.StorageItem) (*big.Int, error) {
 	return &acc.Balance, err
 }
 
-// Initialize initializes GAS contract.
+// Initialize initializes a GAS contract.
 func (g *GAS) Initialize(ic *interop.Context) error {
 	if err := g.nep17TokenNative.Initialize(ic); err != nil {
 		return err
@@ -99,7 +99,7 @@ func (g *GAS) Initialize(ic *interop.Context) error {
 	return nil
 }
 
-// OnPersist implements Contract interface.
+// OnPersist implements the Contract interface.
 func (g *GAS) OnPersist(ic *interop.Context) error {
 	if len(ic.Block.Transactions) == 0 {
 		return nil
@@ -127,7 +127,7 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
-// PostPersist implements Contract interface.
+// PostPersist implements the Contract interface.
 func (g *GAS) PostPersist(ic *interop.Context) error {
 	return nil
 }

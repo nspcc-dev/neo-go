@@ -7,7 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// HashNode represents MPT's hash node.
+// HashNode represents an MPT's hash node.
 type HashNode struct {
 	BaseNode
 	Collapsed bool
@@ -15,7 +15,7 @@ type HashNode struct {
 
 var _ Node = (*HashNode)(nil)
 
-// NewHashNode returns hash node with the specified hash.
+// NewHashNode returns a hash node with the specified hash.
 func NewHashNode(h util.Uint256) *HashNode {
 	return &HashNode{
 		BaseNode: BaseNode{
@@ -61,12 +61,12 @@ func (h HashNode) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(h.hash[:])
 }
 
-// MarshalJSON implements json.Marshaler.
+// MarshalJSON implements the json.Marshaler.
 func (h *HashNode) MarshalJSON() ([]byte, error) {
 	return []byte(`{"hash":"` + h.hash.StringLE() + `"}`), nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements the json.Unmarshaler.
 func (h *HashNode) UnmarshalJSON(data []byte) error {
 	var obj NodeObject
 	if err := obj.UnmarshalJSON(data); err != nil {

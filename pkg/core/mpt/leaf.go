@@ -10,10 +10,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// MaxValueLength is a max length of a leaf node value.
+// MaxValueLength is the max length of a leaf node value.
 const MaxValueLength = 3 + storage.MaxStorageValueLen + 1
 
-// LeafNode represents MPT's leaf node.
+// LeafNode represents an MPT's leaf node.
 type LeafNode struct {
 	BaseNode
 	value []byte
@@ -21,7 +21,7 @@ type LeafNode struct {
 
 var _ Node = (*LeafNode)(nil)
 
-// NewLeafNode returns hash node with the specified value.
+// NewLeafNode returns a hash node with the specified value.
 func NewLeafNode(value []byte) *LeafNode {
 	return &LeafNode{value: value}
 }
@@ -61,12 +61,12 @@ func (n *LeafNode) Size() int {
 	return io.GetVarSize(len(n.value)) + len(n.value)
 }
 
-// MarshalJSON implements json.Marshaler.
+// MarshalJSON implements the json.Marshaler.
 func (n *LeafNode) MarshalJSON() ([]byte, error) {
 	return []byte(`{"value":"` + hex.EncodeToString(n.value) + `"}`), nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements the json.Unmarshaler.
 func (n *LeafNode) UnmarshalJSON(data []byte) error {
 	var obj NodeObject
 	if err := obj.UnmarshalJSON(data); err != nil {

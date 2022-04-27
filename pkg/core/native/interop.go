@@ -10,7 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// Call calls specified native contract method.
+// Call calls the specified native contract method.
 func Call(ic *interop.Context) error {
 	version := ic.VM.Estack().Pop().BigInt().Int64()
 	if version != 0 {

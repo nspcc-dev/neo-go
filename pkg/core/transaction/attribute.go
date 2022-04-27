@@ -26,7 +26,7 @@ type attrJSON struct {
 	Type string `json:"type"`
 }
 
-// DecodeBinary implements Serializable interface.
+// DecodeBinary implements the Serializable interface.
 func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 	attr.Type = AttrType(br.ReadB())
 
@@ -52,7 +52,7 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 	attr.Value.DecodeBinary(br)
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteB(byte(attr.Type))
 	switch t := attr.Type; t {

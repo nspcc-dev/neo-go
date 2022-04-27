@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// Deposit represents GAS deposit from Notary contract.
+// Deposit represents GAS deposit from a Notary contract.
 type Deposit struct {
 	Amount *big.Int
 	Till   uint32

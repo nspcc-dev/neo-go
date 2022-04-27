@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	// DefaultBaseExecFee specifies default multiplier for opcode and syscall prices.
+	// DefaultBaseExecFee specifies the default multiplier for opcode and syscall prices.
 	DefaultBaseExecFee = 30
 )
 
@@ -103,7 +103,7 @@ func (ic *Context) UseSigners(s []transaction.Signer) {
 	ic.signers = s
 }
 
-// Signers returns signers witnessing current execution context.
+// Signers returns signers witnessing the current execution context.
 func (ic *Context) Signers() []transaction.Signer {
 	if ic.signers != nil {
 		return ic.signers
@@ -114,7 +114,7 @@ func (ic *Context) Signers() []transaction.Signer {
 	return nil
 }
 
-// Function binds function name, id with the function itself and price,
+// Function binds function name, id with the function itself and the price,
 // it's supposed to be inited once for all interopContexts, so it doesn't use
 // vm.InteropFuncPrice directly.
 type Function struct {
@@ -150,7 +150,7 @@ type Contract interface {
 	PostPersist(*Context) error
 }
 
-// ContractMD represents native contract instance.
+// ContractMD represents a native contract instance.
 type ContractMD struct {
 	state.NativeContract
 	Name    string
@@ -163,8 +163,8 @@ func NewContractMD(name string, id int32) *ContractMD {
 
 	c.ID = id
 
-	// NEF is now stored in contract state and affects state dump.
-	// Therefore values are taken from C# node.
+	// NEF is now stored in the contract state and affects state dump.
+	// Therefore, values are taken from C# node.
 	c.NEF.Header.Compiler = "neo-core-v3.0"
 	c.NEF.Header.Magic = nef.Magic
 	c.NEF.Tokens = []nef.MethodToken{} // avoid `nil` result during JSON marshalling
@@ -174,7 +174,7 @@ func NewContractMD(name string, id int32) *ContractMD {
 	return c
 }
 
-// UpdateHash creates native contract script and updates hash.
+// UpdateHash creates a native contract script and updates hash.
 func (c *ContractMD) UpdateHash() {
 	w := io.NewBufBinWriter()
 	for i := range c.Methods {
@@ -194,7 +194,7 @@ func (c *ContractMD) UpdateHash() {
 	c.NEF.Checksum = c.NEF.CalculateChecksum()
 }
 
-// AddMethod adds new method to a native contract.
+// AddMethod adds a new method to a native contract.
 func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 	md.MD = desc
 	desc.Safe = md.RequiredFlags&(callflag.All^callflag.ReadOnly) == 0
@@ -216,7 +216,7 @@ func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 	c.Methods[index] = *md
 }
 
-// GetMethodByOffset returns with the provided offset.
+// GetMethodByOffset returns method with the provided offset.
 // Offset is offset of `System.Contract.CallNative` syscall.
 func (c *ContractMD) GetMethodByOffset(offset int) (MethodAndPrice, bool) {
 	for k := range c.Methods {
@@ -227,7 +227,7 @@ func (c *ContractMD) GetMethodByOffset(offset int) (MethodAndPrice, bool) {
 	return MethodAndPrice{}, false
 }
 
-// GetMethod returns method `name` with specified number of parameters.
+// GetMethod returns method `name` with the specified number of parameters.
 func (c *ContractMD) GetMethod(name string, paramCount int) (MethodAndPrice, bool) {
 	index := sort.Search(len(c.Methods), func(i int) bool {
 		md := c.Methods[i]
@@ -248,7 +248,7 @@ func (c *ContractMD) GetMethod(name string, paramCount int) (MethodAndPrice, boo
 	return MethodAndPrice{}, false
 }
 
-// AddEvent adds new event to a native contract.
+// AddEvent adds a new event to a native contract.
 func (c *ContractMD) AddEvent(name string, ps ...manifest.Parameter) {
 	c.Manifest.ABI.Events = append(c.Manifest.ABI.Events, manifest.Event{
 		Name:       name,
@@ -256,7 +256,7 @@ func (c *ContractMD) AddEvent(name string, ps ...manifest.Parameter) {
 	})
 }
 
-// IsActive returns true iff the contract was deployed by the specified height.
+// IsActive returns true if the contract was deployed by the specified height.
 func (c *ContractMD) IsActive(height uint32) bool {
 	history := c.UpdateHistory
 	return len(history) != 0 && history[0] <= height
@@ -267,7 +267,7 @@ func Sort(fs []Function) {
 	sort.Slice(fs, func(i, j int) bool { return fs[i].ID < fs[j].ID })
 }
 
-// GetContract returns contract by its hash in current interop context.
+// GetContract returns a contract by its hash in the current interop context.
 func (ic *Context) GetContract(hash util.Uint160) (*state.Contract, error) {
 	return ic.getContract(ic.DAO, hash)
 }
@@ -309,7 +309,7 @@ func (ic *Context) SyscallHandler(_ *vm.VM, id uint32) error {
 	return f.Func(ic)
 }
 
-// SpawnVM spawns new VM with the specified gas limit and set context.VM field.
+// SpawnVM spawns a new VM with the specified gas limit and set context.VM field.
 func (ic *Context) SpawnVM() *vm.VM {
 	v := vm.NewWithTrigger(ic.Trigger)
 	v.GasLimit = -1
@@ -318,7 +318,7 @@ func (ic *Context) SpawnVM() *vm.VM {
 	return v
 }
 
-// RegisterCancelFunc adds given function to the list of functions to be called after VM
+// RegisterCancelFunc adds the given function to the list of functions to be called after the VM
 // finishes script execution.
 func (ic *Context) RegisterCancelFunc(f context.CancelFunc) {
 	if f != nil {

@@ -12,14 +12,14 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
-// TrieMode is the storage mode of trie, it affects the DB scheme.
+// TrieMode is the storage mode of a trie, it affects the DB scheme.
 type TrieMode byte
 
-// TrieMode is the storage mode of trie.
+// TrieMode is the storage mode of a trie.
 const (
 	// ModeAll is used to store everything.
 	ModeAll TrieMode = 0
-	// ModeLatest is used to only store the latest root.
+	// ModeLatest is used to store the latest root only.
 	ModeLatest TrieMode = 0x01
 	// ModeGCFlag is a flag for GC.
 	ModeGCFlag TrieMode = 0x02
@@ -43,7 +43,7 @@ type cachedNode struct {
 	refcount int32
 }
 
-// ErrNotFound is returned when requested trie item is missing.
+// ErrNotFound is returned when the requested trie item is missing.
 var ErrNotFound = errors.New("item not found")
 
 // RC returns true when reference counting is enabled.
@@ -56,9 +56,9 @@ func (m TrieMode) GC() bool {
 	return m&ModeGCFlag != 0
 }
 
-// NewTrie returns new MPT trie. It accepts a MemCachedStore to decouple storage errors from logic errors
+// NewTrie returns a new MPT trie. It accepts a MemCachedStore to decouple storage errors from logic errors,
 // so that all storage errors are processed during `store.Persist()` at the caller.
-// This also has the benefit, that every `Put` can be considered an atomic operation.
+// Another benefit is that every `Put` can be considered an atomic operation.
 func NewTrie(root Node, mode TrieMode, store *storage.MemCachedStore) *Trie {
 	if root == nil {
 		root = EmptyNode{}
@@ -73,7 +73,7 @@ func NewTrie(root Node, mode TrieMode, store *storage.MemCachedStore) *Trie {
 	}
 }
 
-// Get returns value for the provided key in t.
+// Get returns the value for the provided key in t.
 func (t *Trie) Get(key []byte) ([]byte, error) {
 	if len(key) > MaxKeyLength {
 		return nil, errors.New("key is too big")
@@ -87,11 +87,11 @@ func (t *Trie) Get(key []byte) ([]byte, error) {
 	return slice.Copy(leaf.(*LeafNode).value), nil
 }
 
-// getWithPath returns a current node with all hash nodes along the path replaced
-// to their "unhashed" counterparts. It also returns node the provided path in a
-// subtrie rooting in curr points to. In case of `strict` set to `false` the
-// provided path can be incomplete, so it also returns full path that points to
-// the node found at the specified incomplete path. In case of `strict` set to `true`
+// getWithPath returns the current node with all hash nodes along the path replaced
+// with their "unhashed" counterparts. It also returns node which the provided path in a
+// subtrie rooting in curr points to. In case of `strict` set to `false`, the
+// provided path can be incomplete, so it also returns the full path that points to
+// the node found at the specified incomplete path. In case of `strict` set to `true`,
 // the resulting path matches the provided one.
 func (t *Trie) getWithPath(curr Node, path []byte, strict bool) (Node, Node, []byte, error) {
 	switch n := curr.(type) {
@@ -159,8 +159,8 @@ func (t *Trie) Put(key, value []byte) error {
 	return nil
 }
 
-// putIntoLeaf puts val to trie if current node is a Leaf.
-// It returns Node if curr needs to be replaced and error if any.
+// putIntoLeaf puts the val to the trie if the current node is a Leaf.
+// It returns a Node if curr needs to be replaced and an error occurs, if any.
 func (t *Trie) putIntoLeaf(curr *LeafNode, path []byte, val Node) (Node, error) {
 	v := val.(*LeafNode)
 	if len(path) == 0 {
@@ -176,8 +176,8 @@ func (t *Trie) putIntoLeaf(curr *LeafNode, path []byte, val Node) (Node, error) 
 	return b, nil
 }
 
-// putIntoBranch puts val to trie if current node is a Branch.
-// It returns Node if curr needs to be replaced and error if any.
+// putIntoBranch puts the val to the trie if the current node is a Branch.
+// It returns the Node if curr needs to be replaced and an error occurs, if any.
 func (t *Trie) putIntoBranch(curr *BranchNode, path []byte, val Node) (Node, error) {
 	i, path := splitPath(path)
 	t.removeRef(curr.Hash(), curr.bytes)
@@ -191,8 +191,8 @@ func (t *Trie) putIntoBranch(curr *BranchNode, path []byte, val Node) (Node, err
 	return curr, nil
 }
 
-// putIntoExtension puts val to trie if current node is an Extension.
-// It returns Node if curr needs to be replaced and error if any.
+// putIntoExtension puts the val to the trie if the current node is an Extension.
+// It returns the Node if curr needs to be replaced and an error occurs, if any.
 func (t *Trie) putIntoExtension(curr *ExtensionNode, path []byte, val Node) (Node, error) {
 	t.removeRef(curr.Hash(), curr.bytes)
 	if bytes.HasPrefix(path, curr.key) {
@@ -232,8 +232,8 @@ func (t *Trie) putIntoEmpty(path []byte, val Node) (Node, error) {
 	return t.newSubTrie(path, val, true), nil
 }
 
-// putIntoHash puts val to trie if current node is a HashNode.
-// It returns Node if curr needs to be replaced and error if any.
+// putIntoHash puts the val to the trie if the current node is a HashNode.
+// It returns the Node if curr needs to be replaced and an error occurs, if any.
 func (t *Trie) putIntoHash(curr *HashNode, path []byte, val Node) (Node, error) {
 	result, err := t.getFromStore(curr.hash)
 	if err != nil {
@@ -242,7 +242,7 @@ func (t *Trie) putIntoHash(curr *HashNode, path []byte, val Node) (Node, error) 
 	return t.putIntoNode(result, path, val)
 }
 
-// newSubTrie create new trie containing node at provided path.
+// newSubTrie creates a new trie containing a node at the provided path.
 func (t *Trie) newSubTrie(path []byte, val Node, newVal bool) Node {
 	if newVal {
 		t.addRef(val.Hash(), val.Bytes())
@@ -255,7 +255,7 @@ func (t *Trie) newSubTrie(path []byte, val Node, newVal bool) Node {
 	return e
 }
 
-// putIntoNode puts val with provided path inside curr and returns updated node.
+// putIntoNode puts a val with the provided path inside curr and returns an updated node.
 // Reference counters are updated for both curr and returned value.
 func (t *Trie) putIntoNode(curr Node, path []byte, val Node) (Node, error) {
 	switch n := curr.(type) {
@@ -274,8 +274,8 @@ func (t *Trie) putIntoNode(curr Node, path []byte, val Node) (Node, error) {
 	}
 }
 
-// Delete removes key from trie.
-// It returns no error on missing key.
+// Delete removes the key from the trie.
+// It returns no error on a missing key.
 func (t *Trie) Delete(key []byte) error {
 	if len(key) > MaxKeyLength {
 		return errors.New("key is too big")
@@ -363,7 +363,7 @@ func (t *Trie) deleteFromExtension(n *ExtensionNode, path []byte) (Node, error) 
 	return n, nil
 }
 
-// deleteFromNode removes value with provided path from curr and returns an updated node.
+// deleteFromNode removes the value with the provided path from curr and returns an updated node.
 // Reference counters are updated for both curr and returned value.
 func (t *Trie) deleteFromNode(curr Node, path []byte) (Node, error) {
 	switch n := curr.(type) {
@@ -402,9 +402,9 @@ func makeStorageKey(mptKey util.Uint256) []byte {
 	return append([]byte{byte(storage.DataMPT)}, mptKey[:]...)
 }
 
-// Flush puts every node in the trie except Hash ones to the storage.
-// Because we care only about block-level changes, there is no need to put every
-// new node to storage. Normally, flush should be called with every StateRoot persist, i.e.
+// Flush puts every node (except Hash ones) in the trie to the storage.
+// Because we care about block-level changes only, there is no need to put every
+// new node to the storage. Normally, flush should be called with every StateRoot persist, i.e.
 // after every block.
 func (t *Trie) Flush(index uint32) {
 	key := makeStorageKey(util.Uint256{})
@@ -571,7 +571,7 @@ func collapse(depth int, node Node) Node {
 	return node
 }
 
-// Find returns list of storage key-value pairs whose key is prefixed by the specified
+// Find returns a list of storage key-value pairs whose key is prefixed by the specified
 // prefix starting from the specified `prefix`+`from` path (not including the item at
 // the specified `prefix`+`from` path if so). The `max` number of elements is returned at max.
 func (t *Trie) Find(prefix, from []byte, max int) ([]storage.KeyValue, error) {

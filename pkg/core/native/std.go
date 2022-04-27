@@ -20,7 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// Std represents StdLib contract.
+// Std represents an StdLib contract.
 type Std struct {
 	interop.ContractMD
 }
@@ -33,11 +33,11 @@ const (
 )
 
 var (
-	// ErrInvalidBase is returned when base is invalid.
+	// ErrInvalidBase is returned when the base is invalid.
 	ErrInvalidBase = errors.New("invalid base")
-	// ErrInvalidFormat is returned when string is not a number.
+	// ErrInvalidFormat is returned when the string is not a number.
 	ErrInvalidFormat = errors.New("invalid format")
-	// ErrTooBigInput is returned when input exceeds size limit.
+	// ErrTooBigInput is returned when the input exceeds the size limit.
 	ErrTooBigInput = errors.New("input is too big")
 )
 
@@ -420,22 +420,22 @@ func (s *Std) stringSplitAux(str, sep string, removeEmpty bool) []stackitem.Item
 	return result
 }
 
-// Metadata implements Contract interface.
+// Metadata implements the Contract interface.
 func (s *Std) Metadata() *interop.ContractMD {
 	return &s.ContractMD
 }
 
-// Initialize implements Contract interface.
+// Initialize implements the Contract interface.
 func (s *Std) Initialize(ic *interop.Context) error {
 	return nil
 }
 
-// OnPersist implements Contract interface.
+// OnPersist implements the Contract interface.
 func (s *Std) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
-// PostPersist implements Contract interface.
+// PostPersist implements the Contract interface.
 func (s *Std) PostPersist(ic *interop.Context) error {
 	return nil
 }

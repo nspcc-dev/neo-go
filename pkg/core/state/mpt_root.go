@@ -7,7 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// MPTRoot represents storage state root together with sign info.
+// MPTRoot represents the storage state root together with sign info.
 type MPTRoot struct {
 	Version byte                  `json:"version"`
 	Index   uint32                `json:"index"`
@@ -15,21 +15,21 @@ type MPTRoot struct {
 	Witness []transaction.Witness `json:"witnesses"`
 }
 
-// Hash returns hash of s.
+// Hash returns the hash of s.
 func (s *MPTRoot) Hash() util.Uint256 {
 	buf := io.NewBufBinWriter()
 	s.EncodeBinaryUnsigned(buf.BinWriter)
 	return hash.Sha256(buf.Bytes())
 }
 
-// DecodeBinaryUnsigned decodes hashable part of state root.
+// DecodeBinaryUnsigned decodes the hashable part of the state root.
 func (s *MPTRoot) DecodeBinaryUnsigned(r *io.BinReader) {
 	s.Version = r.ReadB()
 	s.Index = r.ReadU32LE()
 	s.Root.DecodeBinary(r)
 }
 
-// EncodeBinaryUnsigned encodes hashable part of state root..
+// EncodeBinaryUnsigned encodes the hashable part of the state root..
 func (s *MPTRoot) EncodeBinaryUnsigned(w *io.BinWriter) {
 	w.WriteB(s.Version)
 	w.WriteU32LE(s.Index)

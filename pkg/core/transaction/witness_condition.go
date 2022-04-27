@@ -96,30 +96,30 @@ type conditionAux struct {
 	Type        string            `json:"type"`
 }
 
-// Type implements WitnessCondition interface and returns condition type.
+// Type implements the WitnessCondition interface and returns condition type.
 func (c *ConditionBoolean) Type() WitnessConditionType {
 	return WitnessBoolean
 }
 
-// Match implements WitnessCondition interface checking whether this condition
+// Match implements the WitnessCondition interface checking whether this condition
 // matches given context.
 func (c *ConditionBoolean) Match(_ MatchContext) (bool, error) {
 	return bool(*c), nil
 }
 
-// EncodeBinary implements WitnessCondition interface allowing to serialize condition.
+// EncodeBinary implements the WitnessCondition interface allowing to serialize condition.
 func (c *ConditionBoolean) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(c.Type()))
 	w.WriteBool(bool(*c))
 }
 
-// DecodeBinarySpecific implements WitnessCondition interface allowing to
+// DecodeBinarySpecific implements the WitnessCondition interface allowing to
 // deserialize condition-specific data.
 func (c *ConditionBoolean) DecodeBinarySpecific(r *io.BinReader, maxDepth int) {
 	*c = ConditionBoolean(r.ReadBool())
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (c *ConditionBoolean) MarshalJSON() ([]byte, error) {
 	boolJSON, _ := json.Marshal(bool(*c)) // Simple boolean can't fail.
 	aux := conditionAux{
@@ -129,31 +129,31 @@ func (c *ConditionBoolean) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// Type implements WitnessCondition interface and returns condition type.
+// Type implements the WitnessCondition interface and returns condition type.
 func (c *ConditionNot) Type() WitnessConditionType {
 	return WitnessNot
 }
 
-// Match implements WitnessCondition interface checking whether this condition
+// Match implements the WitnessCondition interface checking whether this condition
 // matches given context.
 func (c *ConditionNot) Match(ctx MatchContext) (bool, error) {
 	res, err := c.Condition.Match(ctx)
 	return ((err == nil) && !res), err
 }
 
-// EncodeBinary implements WitnessCondition interface allowing to serialize condition.
+// EncodeBinary implements the WitnessCondition interface allowing to serialize condition.
 func (c *ConditionNot) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(c.Type()))
 	c.Condition.EncodeBinary(w)
 }
 
-// DecodeBinarySpecific implements WitnessCondition interface allowing to
+// DecodeBinarySpecific implements the WitnessCondition interface allowing to
 // deserialize condition-specific data.
 func (c *ConditionNot) DecodeBinarySpecific(r *io.BinReader, maxDepth int) {
 	c.Condition = decodeBinaryCondition(r, maxDepth-1)
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (c *ConditionNot) MarshalJSON() ([]byte, error) {
 	condJSON, err := json.Marshal(c.Condition)
 	if err != nil {
@@ -166,12 +166,12 @@ func (c *ConditionNot) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// Type implements WitnessCondition interface and returns condition type.
+// Type implements the WitnessCondition interface and returns condition type.
 func (c *ConditionAnd) Type() WitnessConditionType {
 	return WitnessAnd
 }
 
-// Match implements WitnessCondition interface checking whether this condition
+// Match implements the WitnessCondition interface checking whether this condition
 // matches given context.
 func (c *ConditionAnd) Match(ctx MatchContext) (bool, error) {
 	for _, cond := range *c {
@@ -186,7 +186,7 @@ func (c *ConditionAnd) Match(ctx MatchContext) (bool, error) {
 	return true, nil
 }
 
-// EncodeBinary implements WitnessCondition interface allowing to serialize condition.
+// EncodeBinary implements the WitnessCondition interface allowing to serialize condition.
 func (c *ConditionAnd) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(c.Type()))
 	w.WriteArray([]WitnessCondition(*c))
@@ -212,7 +212,7 @@ func readArrayOfConditions(r *io.BinReader, maxDepth int) []WitnessCondition {
 	return a
 }
 
-// DecodeBinarySpecific implements WitnessCondition interface allowing to
+// DecodeBinarySpecific implements the WitnessCondition interface allowing to
 // deserialize condition-specific data.
 func (c *ConditionAnd) DecodeBinarySpecific(r *io.BinReader, maxDepth int) {
 	a := readArrayOfConditions(r, maxDepth)
@@ -237,17 +237,17 @@ func arrayToJSON(c WitnessCondition, a []WitnessCondition) ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (c *ConditionAnd) MarshalJSON() ([]byte, error) {
 	return arrayToJSON(c, []WitnessCondition(*c))
 }
 
-// Type implements WitnessCondition interface and returns condition type.
+// Type implements the WitnessCondition interface and returns condition type.
 func (c *ConditionOr) Type() WitnessConditionType {
 	return WitnessOr
 }
 
-// Match implements WitnessCondition interface checking whether this condition
+// Match implements the WitnessCondition interface checking whether this condition
 // matches given context.
 func (c *ConditionOr) Match(ctx MatchContext) (bool, error) {
 	for _, cond := range *c {
@@ -262,13 +262,13 @@ func (c *ConditionOr) Match(ctx MatchContext) (bool, error) {
 	return false, nil
 }
 
-// EncodeBinary implements WitnessCondition interface allowing to serialize condition.
+// EncodeBinary implements the WitnessCondition interface allowing to serialize condition.
 func (c *ConditionOr) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(c.Type()))
 	w.WriteArray([]WitnessCondition(*c))
 }
 
-// DecodeBinarySpecific implements WitnessCondition interface allowing to
+// DecodeBinarySpecific implements the WitnessCondition interface allowing to
 // deserialize condition-specific data.
 func (c *ConditionOr) DecodeBinarySpecific(r *io.BinReader, maxDepth int) {
 	a := readArrayOfConditions(r, maxDepth)
@@ -277,35 +277,35 @@ func (c *ConditionOr) DecodeBinarySpecific(r *io.BinReader, maxDepth int) {
 	}
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (c *ConditionOr) MarshalJSON() ([]byte, error) {
 	return arrayToJSON(c, []WitnessCondition(*c))
 }
 
-// Type implements WitnessCondition interface and returns condition type.
+// Type implements the WitnessCondition interface and returns condition type.
 func (c *ConditionScriptHash) Type() WitnessConditionType {
 	return WitnessScriptHash
 }
 
-// Match implements WitnessCondition interface checking whether this condition
+// Match implements the WitnessCondition interface checking whether this condition
 // matches given context.
 func (c *ConditionScriptHash) Match(ctx MatchContext) (bool, error) {
 	return util.Uint160(*c).Equals(ctx.GetCurrentScriptHash()), nil
 }
 
-// EncodeBinary implements WitnessCondition interface allowing to serialize condition.
+// EncodeBinary implements the WitnessCondition interface allowing to serialize condition.
 func (c *ConditionScriptHash) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(c.Type()))
 	w.WriteBytes(c[:])
 }
 
-// DecodeBinarySpecific implements WitnessCondition interface allowing to
+// DecodeBinarySpecific implements the WitnessCondition interface allowing to
 // deserialize condition-specific data.
 func (c *ConditionScriptHash) DecodeBinarySpecific(r *io.BinReader, _ int) {
 	r.ReadBytes(c[:])
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (c *ConditionScriptHash) MarshalJSON() ([]byte, error) {
 	aux := conditionAux{
 		Type: c.Type().String(),
@@ -314,30 +314,30 @@ func (c *ConditionScriptHash) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// Type implements WitnessCondition interface and returns condition type.
+// Type implements the WitnessCondition interface and returns condition type.
 func (c *ConditionGroup) Type() WitnessConditionType {
 	return WitnessGroup
 }
 
-// Match implements WitnessCondition interface checking whether this condition
+// Match implements the WitnessCondition interface checking whether this condition
 // matches given context.
 func (c *ConditionGroup) Match(ctx MatchContext) (bool, error) {
 	return ctx.CurrentScriptHasGroup((*keys.PublicKey)(c))
 }
 
-// EncodeBinary implements WitnessCondition interface allowing to serialize condition.
+// EncodeBinary implements the WitnessCondition interface allowing to serialize condition.
 func (c *ConditionGroup) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(c.Type()))
 	(*keys.PublicKey)(c).EncodeBinary(w)
 }
 
-// DecodeBinarySpecific implements WitnessCondition interface allowing to
+// DecodeBinarySpecific implements the WitnessCondition interface allowing to
 // deserialize condition-specific data.
 func (c *ConditionGroup) DecodeBinarySpecific(r *io.BinReader, _ int) {
 	(*keys.PublicKey)(c).DecodeBinary(r)
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (c *ConditionGroup) MarshalJSON() ([]byte, error) {
 	aux := conditionAux{
 		Type:  c.Type().String(),
@@ -346,29 +346,29 @@ func (c *ConditionGroup) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// Type implements WitnessCondition interface and returns condition type.
+// Type implements the WitnessCondition interface and returns condition type.
 func (c ConditionCalledByEntry) Type() WitnessConditionType {
 	return WitnessCalledByEntry
 }
 
-// Match implements WitnessCondition interface checking whether this condition
+// Match implements the WitnessCondition interface checking whether this condition
 // matches given context.
 func (c ConditionCalledByEntry) Match(ctx MatchContext) (bool, error) {
 	entry := ctx.GetEntryScriptHash()
 	return entry.Equals(ctx.GetCallingScriptHash()) || entry.Equals(ctx.GetCurrentScriptHash()), nil
 }
 
-// EncodeBinary implements WitnessCondition interface allowing to serialize condition.
+// EncodeBinary implements the WitnessCondition interface allowing to serialize condition.
 func (c ConditionCalledByEntry) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(c.Type()))
 }
 
-// DecodeBinarySpecific implements WitnessCondition interface allowing to
+// DecodeBinarySpecific implements the WitnessCondition interface allowing to
 // deserialize condition-specific data.
 func (c ConditionCalledByEntry) DecodeBinarySpecific(_ *io.BinReader, _ int) {
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (c ConditionCalledByEntry) MarshalJSON() ([]byte, error) {
 	aux := conditionAux{
 		Type: c.Type().String(),
@@ -376,30 +376,30 @@ func (c ConditionCalledByEntry) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// Type implements WitnessCondition interface and returns condition type.
+// Type implements the WitnessCondition interface and returns condition type.
 func (c *ConditionCalledByContract) Type() WitnessConditionType {
 	return WitnessCalledByContract
 }
 
-// Match implements WitnessCondition interface checking whether this condition
+// Match implements the WitnessCondition interface checking whether this condition
 // matches given context.
 func (c *ConditionCalledByContract) Match(ctx MatchContext) (bool, error) {
 	return util.Uint160(*c).Equals(ctx.GetCallingScriptHash()), nil
 }
 
-// EncodeBinary implements WitnessCondition interface allowing to serialize condition.
+// EncodeBinary implements the WitnessCondition interface allowing to serialize condition.
 func (c *ConditionCalledByContract) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(c.Type()))
 	w.WriteBytes(c[:])
 }
 
-// DecodeBinarySpecific implements WitnessCondition interface allowing to
+// DecodeBinarySpecific implements the WitnessCondition interface allowing to
 // deserialize condition-specific data.
 func (c *ConditionCalledByContract) DecodeBinarySpecific(r *io.BinReader, _ int) {
 	r.ReadBytes(c[:])
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (c *ConditionCalledByContract) MarshalJSON() ([]byte, error) {
 	aux := conditionAux{
 		Type: c.Type().String(),
@@ -408,30 +408,30 @@ func (c *ConditionCalledByContract) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// Type implements WitnessCondition interface and returns condition type.
+// Type implements the WitnessCondition interface and returns condition type.
 func (c *ConditionCalledByGroup) Type() WitnessConditionType {
 	return WitnessCalledByGroup
 }
 
-// Match implements WitnessCondition interface checking whether this condition
+// Match implements the WitnessCondition interface checking whether this condition
 // matches given context.
 func (c *ConditionCalledByGroup) Match(ctx MatchContext) (bool, error) {
 	return ctx.CallingScriptHasGroup((*keys.PublicKey)(c))
 }
 
-// EncodeBinary implements WitnessCondition interface allowing to serialize condition.
+// EncodeBinary implements the WitnessCondition interface allowing to serialize condition.
 func (c *ConditionCalledByGroup) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(c.Type()))
 	(*keys.PublicKey)(c).EncodeBinary(w)
 }
 
-// DecodeBinarySpecific implements WitnessCondition interface allowing to
+// DecodeBinarySpecific implements the WitnessCondition interface allowing to
 // deserialize condition-specific data.
 func (c *ConditionCalledByGroup) DecodeBinarySpecific(r *io.BinReader, _ int) {
 	(*keys.PublicKey)(c).DecodeBinary(r)
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (c *ConditionCalledByGroup) MarshalJSON() ([]byte, error) {
 	aux := conditionAux{
 		Type:  c.Type().String(),

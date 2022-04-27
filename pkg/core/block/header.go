@@ -25,8 +25,8 @@ type Header struct {
 	MerkleRoot util.Uint256
 
 	// Timestamp is a millisecond-precision timestamp.
-	// The time stamp of each block must be later than previous block's time stamp.
-	// Generally the difference of two block's time stamp is about 15 seconds and imprecision is allowed.
+	// The time stamp of each block must be later than the previous block's time stamp.
+	// Generally, the difference between two block's time stamps is about 15 seconds and imprecision is allowed.
 	// The height of the block must be exactly equal to the height of the previous block plus 1.
 	Timestamp uint64
 
@@ -42,11 +42,11 @@ type Header struct {
 	// Script used to validate the block
 	Script transaction.Witness
 
-	// StateRootEnabled specifies if header contains state root.
+	// StateRootEnabled specifies if the header contains state root.
 	StateRootEnabled bool
-	// PrevStateRoot is state root of the previous block.
+	// PrevStateRoot is the state root of the previous block.
 	PrevStateRoot util.Uint256
-	// PrimaryIndex is the index of primary consensus node for this block.
+	// PrimaryIndex is the index of the primary consensus node for this block.
 	PrimaryIndex byte
 
 	// Hash of this block, created when binary encoded (double SHA256).
@@ -78,7 +78,7 @@ func (b *Header) Hash() util.Uint256 {
 	return b.hash
 }
 
-// DecodeBinary implements Serializable interface.
+// DecodeBinary implements the Serializable interface.
 func (b *Header) DecodeBinary(br *io.BinReader) {
 	b.decodeHashableFields(br)
 	witnessCount := br.ReadVarUint()
@@ -90,19 +90,19 @@ func (b *Header) DecodeBinary(br *io.BinReader) {
 	b.Script.DecodeBinary(br)
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (b *Header) EncodeBinary(bw *io.BinWriter) {
 	b.encodeHashableFields(bw)
 	bw.WriteVarUint(1)
 	b.Script.EncodeBinary(bw)
 }
 
-// createHash creates the hash of the block.
+// createHash creates a hash of a block.
 // When calculating the hash value of the block, instead of calculating the entire block,
 // only first seven fields in the block head will be calculated, which are
 // version, PrevBlock, MerkleRoot, timestamp, and height, the nonce, NextMiner.
 // Since MerkleRoot already contains the hash value of all transactions,
-// the modification of transaction will influence the hash value of the block.
+// the modification of the transaction will influence the hash value of the block.
 func (b *Header) createHash() {
 	buf := io.NewBufBinWriter()
 	// No error can occur while encoding hashable fields.
@@ -149,7 +149,7 @@ func (b *Header) decodeHashableFields(br *io.BinReader) {
 	}
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (b Header) MarshalJSON() ([]byte, error) {
 	aux := baseAux{
 		Hash:          b.Hash(),
@@ -169,7 +169,7 @@ func (b Header) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (b *Header) UnmarshalJSON(data []byte) error {
 	var aux = new(baseAux)
 	var nextC util.Uint160

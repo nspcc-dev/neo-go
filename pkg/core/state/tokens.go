@@ -45,8 +45,8 @@ type NEP11Transfer struct {
 	ID []byte
 }
 
-// TokenTransferInfo stores map of the contract IDs to the balance's last updated
-// block trackers along with information about NEP-17 and NEP-11 transfer batch.
+// TokenTransferInfo stores a map of the contract IDs to the balance's last updated
+// block trackers along with the information about NEP-17 and NEP-11 transfer batch.
 type TokenTransferInfo struct {
 	LastUpdated map[int32]uint32
 	// NextNEP11Batch stores the index of the next NEP-17 transfer batch.
@@ -72,7 +72,7 @@ func NewTokenTransferInfo() *TokenTransferInfo {
 	}
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (bs *TokenTransferInfo) DecodeBinary(r *io.BinReader) {
 	bs.NextNEP11Batch = r.ReadU32LE()
 	bs.NextNEP17Batch = r.ReadU32LE()
@@ -89,7 +89,7 @@ func (bs *TokenTransferInfo) DecodeBinary(r *io.BinReader) {
 	bs.LastUpdated = m
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (bs *TokenTransferInfo) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(bs.NextNEP11Batch)
 	w.WriteU32LE(bs.NextNEP17Batch)
@@ -104,7 +104,7 @@ func (bs *TokenTransferInfo) EncodeBinary(w *io.BinWriter) {
 	}
 }
 
-// Append appends single transfer to a log.
+// Append appends a single transfer to a log.
 func (lg *TokenTransferLog) Append(tr io.Serializable) error {
 	// The first entry, set up counter.
 	if len(lg.Raw) == 0 {
@@ -123,7 +123,7 @@ func (lg *TokenTransferLog) Append(tr io.Serializable) error {
 	return nil
 }
 
-// ForEachNEP11 iterates over transfer log returning on first error.
+// ForEachNEP11 iterates over a transfer log returned upon the first error.
 func (lg *TokenTransferLog) ForEachNEP11(f func(*NEP11Transfer) (bool, error)) (bool, error) {
 	if lg == nil || len(lg.Raw) == 0 {
 		return true, nil
@@ -145,7 +145,7 @@ func (lg *TokenTransferLog) ForEachNEP11(f func(*NEP11Transfer) (bool, error)) (
 	return true, nil
 }
 
-// ForEachNEP17 iterates over transfer log returning on first error.
+// ForEachNEP17 iterates over a transfer log returned upon the first error.
 func (lg *TokenTransferLog) ForEachNEP17(f func(*NEP17Transfer) (bool, error)) (bool, error) {
 	if lg == nil || len(lg.Raw) == 0 {
 		return true, nil
@@ -167,7 +167,7 @@ func (lg *TokenTransferLog) ForEachNEP17(f func(*NEP17Transfer) (bool, error)) (
 	return true, nil
 }
 
-// Size returns an amount of transfer written in log.
+// Size returns the amount of the transfer written in the log.
 func (lg *TokenTransferLog) Size() int {
 	if len(lg.Raw) == 0 {
 		return 0
@@ -175,7 +175,7 @@ func (lg *TokenTransferLog) Size() int {
 	return int(lg.Raw[0])
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (t *NEP17Transfer) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(uint32(t.Asset))
 	w.WriteBytes(t.Tx[:])
@@ -187,7 +187,7 @@ func (t *NEP17Transfer) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(amount)
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (t *NEP17Transfer) DecodeBinary(r *io.BinReader) {
 	t.Asset = int32(r.ReadU32LE())
 	r.ReadBytes(t.Tx[:])
@@ -199,13 +199,13 @@ func (t *NEP17Transfer) DecodeBinary(r *io.BinReader) {
 	t.Amount = *bigint.FromBytes(amount)
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (t *NEP11Transfer) EncodeBinary(w *io.BinWriter) {
 	t.NEP17Transfer.EncodeBinary(w)
 	w.WriteVarBytes(t.ID)
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (t *NEP11Transfer) DecodeBinary(r *io.BinReader) {
 	t.NEP17Transfer.DecodeBinary(r)
 	t.ID = r.ReadVarBytes(storage.MaxStorageKeyLen)

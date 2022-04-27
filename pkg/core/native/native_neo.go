@@ -32,7 +32,7 @@ type NEO struct {
 	nep17TokenNative
 	GAS *GAS
 
-	// gasPerBlock represents current value of generated gas per block.
+	// gasPerBlock represents the current value of the generated gas per block.
 	// It is append-only and doesn't need to be copied when used.
 	gasPerBlock        atomic.Value
 	gasPerBlockChanged atomic.Value
@@ -46,13 +46,13 @@ type NEO struct {
 	// committee contains cached committee members and their votes.
 	// It is updated once in a while depending on committee size
 	// (every 28 blocks for mainnet). It's value
-	// is always equal to value stored by `prefixCommittee`.
+	// is always equal to the value stored by `prefixCommittee`.
 	committee atomic.Value
-	// committeeHash contains script hash of the committee.
+	// committeeHash contains the script hash of the committee.
 	committeeHash atomic.Value
 
-	// gasPerVoteCache contains last updated value of GAS per vote reward for candidates.
-	// It is set in state-modifying methods only and read in `PostPersist` thus is not protected
+	// gasPerVoteCache contains the last updated value of GAS per vote reward for candidates.
+	// It is set in state-modifying methods only and read in `PostPersist`, thus is not protected
 	// by any mutex.
 	gasPerVoteCache map[string]big.Int
 	// Configuration and standby keys are set during initialization and then
@@ -65,7 +65,7 @@ const (
 	neoContractID = -5
 	// NEOTotalSupply is the total amount of NEO in the system.
 	NEOTotalSupply = 100000000
-	// DefaultRegisterPrice is default price for candidate register.
+	// DefaultRegisterPrice is the default price for candidate register.
 	DefaultRegisterPrice = 1000 * GASFactor
 	// prefixCandidate is a prefix used to store validator's data.
 	prefixCandidate = 33
@@ -102,7 +102,7 @@ var (
 	big100                   = big.NewInt(100)
 )
 
-// makeValidatorKey creates a key from account script hash.
+// makeValidatorKey creates a key from the account script hash.
 func makeValidatorKey(key *keys.PublicKey) []byte {
 	b := key.Bytes()
 	// Don't create a new buffer.
@@ -193,7 +193,7 @@ func newNEO() *NEO {
 	return n
 }
 
-// Initialize initializes NEO contract.
+// Initialize initializes a NEO contract.
 func (n *NEO) Initialize(ic *interop.Context) error {
 	err := n.initConfigCache(ic.Chain)
 	if err != nil {
@@ -238,8 +238,8 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	return nil
 }
 
-// InitializeCache initializes all NEO cache with the proper values from storage.
-// Cache initialisation should be done apart from Initialize because Initialize is
+// InitializeCache initializes all NEO cache with the proper values from the storage.
+// Cache initialization should be done apart from Initialize because Initialize is
 // called only when deploying native contracts.
 func (n *NEO) InitializeCache(bc interop.Ledger, d *dao.Simple) error {
 	err := n.initConfigCache(bc)
@@ -306,7 +306,7 @@ func (n *NEO) updateCommittee(ic *interop.Context) error {
 	return nil
 }
 
-// OnPersist implements Contract interface.
+// OnPersist implements the Contract interface.
 func (n *NEO) OnPersist(ic *interop.Context) error {
 	if n.cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
 		oldKeys := n.nextValidators.Load().(keys.PublicKeys)
@@ -322,7 +322,7 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
-// PostPersist implements Contract interface.
+// PostPersist implements the Contract interface.
 func (n *NEO) PostPersist(ic *interop.Context) error {
 	gas := n.GetGASPerBlock(ic.DAO, ic.Block.Index)
 	pubs := n.GetCommitteeMembers()

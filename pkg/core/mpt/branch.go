@@ -9,13 +9,13 @@ import (
 )
 
 const (
-	// childrenCount represents a number of children of a branch node.
+	// childrenCount represents the number of children of a branch node.
 	childrenCount = 17
 	// lastChild is the index of the last child.
 	lastChild = childrenCount - 1
 )
 
-// BranchNode represents MPT's branch node.
+// BranchNode represents an MPT's branch node.
 type BranchNode struct {
 	BaseNode
 	Children [childrenCount]Node
@@ -23,7 +23,7 @@ type BranchNode struct {
 
 var _ Node = (*BranchNode)(nil)
 
-// NewBranchNode returns new branch node.
+// NewBranchNode returns a new branch node.
 func NewBranchNode() *BranchNode {
 	b := new(BranchNode)
 	for i := 0; i < childrenCount; i++ {
@@ -32,20 +32,20 @@ func NewBranchNode() *BranchNode {
 	return b
 }
 
-// Type implements Node interface.
+// Type implements the Node interface.
 func (b *BranchNode) Type() NodeType { return BranchT }
 
-// Hash implements BaseNode interface.
+// Hash implements the BaseNode interface.
 func (b *BranchNode) Hash() util.Uint256 {
 	return b.getHash(b)
 }
 
-// Bytes implements BaseNode interface.
+// Bytes implements the BaseNode interface.
 func (b *BranchNode) Bytes() []byte {
 	return b.getBytes(b)
 }
 
-// Size implements Node interface.
+// Size implements the Node interface.
 func (b *BranchNode) Size() int {
 	sz := childrenCount
 	for i := range b.Children {
@@ -72,12 +72,12 @@ func (b *BranchNode) DecodeBinary(r *io.BinReader) {
 	}
 }
 
-// MarshalJSON implements json.Marshaler.
+// MarshalJSON implements the json.Marshaler.
 func (b *BranchNode) MarshalJSON() ([]byte, error) {
 	return json.Marshal(b.Children)
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements the json.Unmarshaler.
 func (b *BranchNode) UnmarshalJSON(data []byte) error {
 	var obj NodeObject
 	if err := obj.UnmarshalJSON(data); err != nil {
