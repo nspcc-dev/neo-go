@@ -536,7 +536,7 @@ func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
 	}
 
 	cfg := s.chain.GetConfig()
-	return result.Version{
+	return &result.Version{
 		Magic:             s.network,
 		TCPPort:           port,
 		Nonce:             s.coreServer.ID(),
@@ -551,7 +551,7 @@ func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
 			MaxTransactionsPerBlock:     cfg.MaxTransactionsPerBlock,
 			MemoryPoolMaxTransactions:   cfg.MemPoolSize,
 			ValidatorsCount:             byte(cfg.GetNumOfCNs(s.chain.BlockHeight())),
-			InitialGasDistribution:      int64(cfg.InitialGASSupply),
+			InitialGasDistribution:      cfg.InitialGASSupply,
 			StateRootInHeader:           cfg.StateRootInHeader,
 		},
 	}, nil

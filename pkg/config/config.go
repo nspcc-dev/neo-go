@@ -9,7 +9,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const userAgentFormat = "/NEO-GO:%s/"
+const (
+	// UserAgentWrapper is a string that user agent string should be wrapped into.
+	UserAgentWrapper = "/"
+	// UserAgentPrefix is a prefix used to generate user agent string.
+	UserAgentPrefix = "NEO-GO:"
+	// UserAgentFormat is a formatted string used to generate user agent string.
+	UserAgentFormat = UserAgentWrapper + UserAgentPrefix + "%s" + UserAgentWrapper
+)
 
 // Version the version of the node, set at build time.
 var Version string
@@ -23,7 +30,7 @@ type Config struct {
 
 // GenerateUserAgent creates user agent string based on build time environment.
 func (c Config) GenerateUserAgent() string {
-	return fmt.Sprintf(userAgentFormat, Version)
+	return fmt.Sprintf(UserAgentFormat, Version)
 }
 
 // Load attempts to load the config from the given
