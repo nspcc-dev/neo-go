@@ -107,8 +107,8 @@ func (e *Executor) SignTx(t testing.TB, tx *transaction.Transaction, sysFee int6
 			Scopes:  transaction.Global,
 		})
 	}
-	addNetworkFee(e.Chain, tx, signers...)
-	addSystemFee(e.Chain, tx, sysFee)
+	AddNetworkFee(e.Chain, tx, signers...)
+	AddSystemFee(e.Chain, tx, sysFee)
 
 	for _, acc := range signers {
 		require.NoError(t, acc.SignTx(e.Chain.GetConfig().Magic, tx))
@@ -276,12 +276,14 @@ func NewDeployTxBy(t testing.TB, bc blockchainer.Blockchainer, signer Signer, c 
 		Account: signer.ScriptHash(),
 		Scopes:  transaction.Global,
 	}}
-	addNetworkFee(bc, tx, signer)
+	AddNetworkFee(bc, tx, signer)
 	require.NoError(t, signer.SignTx(netmode.UnitTestNet, tx))
 	return tx
 }
 
-func addSystemFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, sysFee int64) {
+// AddSystemFee adds system fee to the transaction. If negative value specified,
+// then system fee is defined by test invocation.
+func AddSystemFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, sysFee int64) {
 	if sysFee >= 0 {
 		tx.SystemFee = sysFee
 		return
@@ -290,7 +292,8 @@ func addSystemFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, sys
 	tx.SystemFee = v.GasConsumed()
 }
 
-func addNetworkFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, signers ...Signer) {
+// AddNetworkFee adds network fee to the transaction.
+func AddNetworkFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, signers ...Signer) {
 	baseFee := bc.GetBaseExecFee()
 	size := io.GetVarSize(tx)
 	for _, sgr := range signers {
