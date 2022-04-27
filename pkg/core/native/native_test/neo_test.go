@@ -49,6 +49,7 @@ func TestNEO_RegisterPrice(t *testing.T) {
 func TestNEO_Vote(t *testing.T) {
 	neoCommitteeInvoker := newNeoCommitteeClient(t, 100_0000_0000)
 	neoValidatorsInvoker := neoCommitteeInvoker.WithSigners(neoCommitteeInvoker.Validator)
+	policyInvoker := neoCommitteeInvoker.CommitteeInvoker(neoCommitteeInvoker.NativeHash(t, nativenames.Policy))
 	e := neoCommitteeInvoker.Executor
 
 	cfg := e.Chain.GetConfig()
@@ -71,23 +72,23 @@ func TestNEO_Vote(t *testing.T) {
 
 	// voters vote for candidates. The aim of this test is to check that voting
 	// reward is proportional to the NEO balance.
-	voters := make([]neotest.Signer, committeeSize)
+	voters := make([]neotest.Signer, committeeSize+1)
 	// referenceAccounts perform the same actions as voters except voting, i.e. we
 	// will transfer the same amount of NEO to referenceAccounts and see how much
 	// GAS they receive for NEO ownership. We need these values to be able to define
 	// how much GAS voters receive for NEO ownership.
-	referenceAccounts := make([]neotest.Signer, committeeSize)
-	candidates := make([]neotest.Signer, committeeSize)
-	for i := 0; i < committeeSize; i++ {
+	referenceAccounts := make([]neotest.Signer, committeeSize+1)
+	candidates := make([]neotest.Signer, committeeSize+1)
+	for i := 0; i < committeeSize+1; i++ {
 		voters[i] = e.NewAccount(t, 10_0000_0000)
 		referenceAccounts[i] = e.NewAccount(t, 10_0000_0000)
 		candidates[i] = e.NewAccount(t, 2000_0000_0000) // enough for one registration
 	}
 	txes := make([]*transaction.Transaction, 0, committeeSize*4-2)
-	for i := 0; i < committeeSize; i++ {
-		transferTx := neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(committeeSize-i)*1000000, nil)
+	for i := 0; i < committeeSize+1; i++ {
+		transferTx := neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(committeeSize+1-i)*1000000, nil)
 		txes = append(txes, transferTx)
-		transferTx = neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), referenceAccounts[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(committeeSize-i)*1000000, nil)
+		transferTx = neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), referenceAccounts[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(committeeSize+1-i)*1000000, nil)
 		txes = append(txes, transferTx)
 		if i > 0 {
 			registerTx := neoValidatorsInvoker.WithSigners(candidates[i]).PrepareInvoke(t, "registerCandidate", candidates[i].(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes())
@@ -96,6 +97,7 @@ func TestNEO_Vote(t *testing.T) {
 			txes = append(txes, voteTx)
 		}
 	}
+	txes = append(txes, policyInvoker.PrepareInvoke(t, "blockAccount", candidates[len(candidates)-1].(neotest.SingleSigner).Account().PrivateKey().PublicKey().GetScriptHash()))
 	neoValidatorsInvoker.AddNewBlock(t, txes...)
 	for _, tx := range txes {
 		e.CheckHalt(t, tx.Hash(), stackitem.Make(true)) // luckily, both `transfer`, `registerCandidate` and `vote` return boolean values
@@ -137,12 +139,12 @@ func TestNEO_Vote(t *testing.T) {
 	require.EqualValues(t, sortedCandidates, pubs)
 
 	t.Run("check voter rewards", func(t *testing.T) {
-		gasBalance := make([]*big.Int, len(voters))
-		referenceGASBalance := make([]*big.Int, len(referenceAccounts))
-		neoBalance := make([]*big.Int, len(voters))
-		txes = make([]*transaction.Transaction, 0, len(voters))
+		gasBalance := make([]*big.Int, len(voters)-1)
+		referenceGASBalance := make([]*big.Int, len(referenceAccounts)-1)
+		neoBalance := make([]*big.Int, len(voters)-1)
+		txes = make([]*transaction.Transaction, 0, len(voters)-1)
 		var refTxFee int64
-		for i := range voters {
+		for i := range voters[:len(voters)-1] {
 			h := voters[i].ScriptHash()
 			refH := referenceAccounts[i].ScriptHash()
 			gasBalance[i] = e.Chain.GetUtilityTokenBalance(h)
@@ -169,7 +171,7 @@ func TestNEO_Vote(t *testing.T) {
 
 		// GAS increase consists of 2 parts: NEO holding + voting for committee nodes.
 		// Here we check that 2-nd part exists and is proportional to the amount of NEO given.
-		for i := range voters {
+		for i := range voters[:len(voters)-1] {
 			newGAS := e.Chain.GetUtilityTokenBalance(voters[i].ScriptHash())
 			newGAS.Sub(newGAS, gasBalance[i])
 			gasForHold := referenceGASBalance[i]
@@ -197,6 +199,7 @@ func TestNEO_Vote(t *testing.T) {
 	require.NoError(t, err)
 	for i := range pubs {
 		require.NotEqual(t, candidates[0], pubs[i])
+		require.NotEqual(t, candidates[len(candidates)-1], pubs[i])
 	}
 }
 
