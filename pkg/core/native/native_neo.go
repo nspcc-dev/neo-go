@@ -365,7 +365,7 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 // PostPersist implements Contract interface.
 func (n *NEO) PostPersist(ic *interop.Context) error {
 	gas := n.GetGASPerBlock(ic.DAO, ic.Block.Index)
-	cache := ic.DAO.GetRWCache(n.ID).(*NeoCache)
+	cache := ic.DAO.GetROCache(n.ID).(*NeoCache)
 	pubs := getCommitteeMembers(cache)
 	committeeSize := n.cfg.GetCommitteeSize(ic.Block.Index)
 	index := int(ic.Block.Index) % committeeSize
@@ -380,8 +380,11 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 		voterReward.Div(voterReward, big.NewInt(int64(committeeSize+validatorsCount)))
 		voterReward.Div(voterReward, big100)
 
-		var cs = cache.committee
-		var key = make([]byte, 38)
+		var (
+			cs        = cache.committee
+			isCacheRW bool
+			key       = make([]byte, 38)
+		)
 		for i := range cs {
 			if cs[i].Votes.Sign() > 0 {
 				var tmp = new(big.Int)
@@ -405,6 +408,10 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 				tmp.Add(tmp, r)
 
 				binary.BigEndian.PutUint32(key[34:], ic.Block.Index+1)
+				if !isCacheRW {
+					cache = ic.DAO.GetRWCache(n.ID).(*NeoCache)
+					isCacheRW = true
+				}
 				cache.gasPerVoteCache[cs[i].Key] = *tmp
 
 				ic.DAO.PutStorageItem(n.ID, key, bigint.ToBytes(tmp))
