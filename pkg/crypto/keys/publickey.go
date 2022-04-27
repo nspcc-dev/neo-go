@@ -12,7 +12,6 @@ import (
 
 	"github.com/btcsuite/btcd/btcec"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -319,8 +318,7 @@ func (p *PublicKey) GetVerificationScript() []byte {
 		buf.WriteB(0xAC) // CHECKSIG
 		return buf.Bytes()
 	}
-	emit.Bytes(buf.BinWriter, b)
-	emit.Syscall(buf.BinWriter, interopnames.SystemCryptoCheckSig)
+	emit.CheckSig(buf.BinWriter, b)
 
 	return buf.Bytes()
 }
