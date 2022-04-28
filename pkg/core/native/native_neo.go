@@ -585,15 +585,11 @@ func (n *NEO) dropCandidateIfZero(d *dao.Simple, pub *keys.PublicKey, c *candida
 	}
 	d.DeleteStorageItem(n.ID, makeValidatorKey(pub))
 
-	var toRemove []string
 	voterKey := makeVoterKey(pub.Bytes())
 	d.Seek(n.ID, storage.SeekRange{Prefix: voterKey}, func(k, v []byte) bool {
-		toRemove = append(toRemove, string(k))
+		d.DeleteStorageItem(n.ID, append(voterKey, k...)) // d.Seek cuts prefix, thus need to append it again.
 		return true
 	})
-	for i := range toRemove {
-		d.DeleteStorageItem(n.ID, []byte(toRemove[i]))
-	}
 	delete(n.gasPerVoteCache, string(voterKey))
 
 	return true, nil
