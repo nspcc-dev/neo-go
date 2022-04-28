@@ -118,11 +118,11 @@ func (c *NeoCache) Copy() dao.NativeContractCache {
 
 func copyNeoCache(src, dst *NeoCache) {
 	dst.votesChanged = src.votesChanged
-	dst.nextValidators = src.nextValidators.Copy()
-	dst.validators = src.validators.Copy()
-
-	dst.committee = make(keysWithVotes, len(src.committee))
-	copy(dst.committee, src.committee)
+	// Can safely omit copying because the new array is created each time
+	// validators list, nextValidators and committee are updated.
+	dst.nextValidators = src.nextValidators
+	dst.validators = src.validators
+	dst.committee = src.committee
 	dst.committeeHash = src.committeeHash
 
 	dst.registerPrice = src.registerPrice
@@ -941,10 +941,13 @@ func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stacki
 // ComputeNextBlockValidators returns an actual list of current validators.
 func (n *NEO) ComputeNextBlockValidators(bc interop.Ledger, d *dao.Simple) (keys.PublicKeys, error) {
 	numOfCNs := n.cfg.GetNumOfCNs(bc.BlockHeight() + 1)
-	cache := d.GetRWCache(n.ID).(*NeoCache)
+	// Most of the time it should be OK with RO cache, thus try to retrieve
+	// validators without RW cache creation to avoid cached values copying.
+	cache := d.GetROCache(n.ID).(*NeoCache)
 	if vals := cache.validators; vals != nil && numOfCNs == len(vals) {
 		return vals.Copy(), nil
 	}
+	cache = d.GetRWCache(n.ID).(*NeoCache)
 	result, _, err := n.computeCommitteeMembers(bc, d)
 	if err != nil {
 		return nil, err
