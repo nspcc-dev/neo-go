@@ -20,17 +20,20 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // NEO represents NEO native contract.
 type NEO struct {
 	nep17TokenNative
-	GAS *GAS
+	GAS    *GAS
+	Policy *Policy
 
 	// gasPerBlock represents current value of generated gas per block.
 	// It is append-only and doesn't need to be copied when used.
@@ -822,11 +825,14 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalance, d *dao.Simple, value *bi
 
 func (n *NEO) getCandidates(d *dao.Simple, sortByKey bool) ([]keyWithVotes, error) {
 	arr := make([]keyWithVotes, 0)
+	buf := io.NewBufBinWriter()
 	d.Seek(n.ID, storage.SeekRange{Prefix: []byte{prefixCandidate}}, func(k, v []byte) bool {
 		c := new(candidate).FromBytes(v)
-		if c.Registered {
+		emit.CheckSig(buf.BinWriter, k)
+		if c.Registered && !n.Policy.IsBlockedInternal(d, hash.Hash160(buf.Bytes())) {
 			arr = append(arr, keyWithVotes{Key: string(k), Votes: &c.Votes})
 		}
+		buf.Reset()
 		return true
 	})
 

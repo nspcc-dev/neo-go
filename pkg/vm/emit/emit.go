@@ -219,6 +219,14 @@ func AppCall(w *io.BinWriter, scriptHash util.Uint160, operation string, f callf
 	AppCallNoArgs(w, scriptHash, operation, f)
 }
 
+// CheckSig emits a single-key verification script using given []bytes as a key.
+// It does not check for key correctness, so you can get an invalid script if the
+// data passed is not really a public key.
+func CheckSig(w *io.BinWriter, key []byte) {
+	Bytes(w, key)
+	Syscall(w, interopnames.SystemCryptoCheckSig)
+}
+
 func isInstructionJmp(op opcode.Opcode) bool {
 	return opcode.JMP <= op && op <= opcode.CALLL || op == opcode.ENDTRYL
 }
