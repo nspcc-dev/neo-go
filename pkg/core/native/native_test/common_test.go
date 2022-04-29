@@ -8,9 +8,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -75,6 +78,38 @@ func testGetSet(t *testing.T, c *neotest.ContractInvoker, name string, defaultVa
 			randomInvoker.Invoke(t, defaultValue+1, getName)
 		}
 	})
+}
+
+func testGetSetCache(t *testing.T, c *neotest.ContractInvoker, name string, defaultValue int64) {
+	getName := "get" + name
+	setName := "set" + name
+
+	committeeInvoker := c.WithSigners(c.Committee)
+
+	newVal := defaultValue - 1
+
+	// Change fee, abort the transaction and check that contract cache wasn't persisted
+	// for FAULTed tx at the same block.
+	w := io.NewBufBinWriter()
+	emit.AppCall(w.BinWriter, committeeInvoker.Hash, setName, callflag.All, newVal)
+	emit.Opcodes(w.BinWriter, opcode.ABORT)
+	tx1 := committeeInvoker.PrepareInvocation(t, w.Bytes(), committeeInvoker.Signers)
+	tx2 := committeeInvoker.PrepareInvoke(t, getName)
+	committeeInvoker.AddNewBlock(t, tx1, tx2)
+	committeeInvoker.CheckFault(t, tx1.Hash(), "ABORT")
+	committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(defaultValue))
+
+	// Change fee and check that change is available for the next tx.
+	tx1 = committeeInvoker.PrepareInvoke(t, setName, newVal)
+	tx2 = committeeInvoker.PrepareInvoke(t, getName)
+	committeeInvoker.AddNewBlock(t, tx1, tx2)
+	committeeInvoker.CheckHalt(t, tx1.Hash())
+	if name != "GasPerBlock" {
+		committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(newVal))
+	} else {
+		committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(defaultValue))
+		committeeInvoker.Invoke(t, newVal, getName)
+	}
 }
 
 func setNodesByRole(t *testing.T, designateInvoker *neotest.ContractInvoker, ok bool, r noderoles.Role, nodes keys.PublicKeys) {

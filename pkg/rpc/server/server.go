@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
@@ -108,46 +109,49 @@ const (
 )
 
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
-	"calculatenetworkfee":    (*Server).calculateNetworkFee,
-	"findstates":             (*Server).findStates,
-	"getapplicationlog":      (*Server).getApplicationLog,
-	"getbestblockhash":       (*Server).getBestBlockHash,
-	"getblock":               (*Server).getBlock,
-	"getblockcount":          (*Server).getBlockCount,
-	"getblockhash":           (*Server).getBlockHash,
-	"getblockheader":         (*Server).getBlockHeader,
-	"getblockheadercount":    (*Server).getBlockHeaderCount,
-	"getblocksysfee":         (*Server).getBlockSysFee,
-	"getcommittee":           (*Server).getCommittee,
-	"getconnectioncount":     (*Server).getConnectionCount,
-	"getcontractstate":       (*Server).getContractState,
-	"getnativecontracts":     (*Server).getNativeContracts,
-	"getnep11balances":       (*Server).getNEP11Balances,
-	"getnep11properties":     (*Server).getNEP11Properties,
-	"getnep11transfers":      (*Server).getNEP11Transfers,
-	"getnep17balances":       (*Server).getNEP17Balances,
-	"getnep17transfers":      (*Server).getNEP17Transfers,
-	"getpeers":               (*Server).getPeers,
-	"getproof":               (*Server).getProof,
-	"getrawmempool":          (*Server).getRawMempool,
-	"getrawtransaction":      (*Server).getrawtransaction,
-	"getstate":               (*Server).getState,
-	"getstateheight":         (*Server).getStateHeight,
-	"getstateroot":           (*Server).getStateRoot,
-	"getstorage":             (*Server).getStorage,
-	"gettransactionheight":   (*Server).getTransactionHeight,
-	"getunclaimedgas":        (*Server).getUnclaimedGas,
-	"getnextblockvalidators": (*Server).getNextBlockValidators,
-	"getversion":             (*Server).getVersion,
-	"invokefunction":         (*Server).invokeFunction,
-	"invokescript":           (*Server).invokescript,
-	"invokecontractverify":   (*Server).invokeContractVerify,
-	"sendrawtransaction":     (*Server).sendrawtransaction,
-	"submitblock":            (*Server).submitBlock,
-	"submitnotaryrequest":    (*Server).submitNotaryRequest,
-	"submitoracleresponse":   (*Server).submitOracleResponse,
-	"validateaddress":        (*Server).validateAddress,
-	"verifyproof":            (*Server).verifyProof,
+	"calculatenetworkfee":          (*Server).calculateNetworkFee,
+	"findstates":                   (*Server).findStates,
+	"getapplicationlog":            (*Server).getApplicationLog,
+	"getbestblockhash":             (*Server).getBestBlockHash,
+	"getblock":                     (*Server).getBlock,
+	"getblockcount":                (*Server).getBlockCount,
+	"getblockhash":                 (*Server).getBlockHash,
+	"getblockheader":               (*Server).getBlockHeader,
+	"getblockheadercount":          (*Server).getBlockHeaderCount,
+	"getblocksysfee":               (*Server).getBlockSysFee,
+	"getcommittee":                 (*Server).getCommittee,
+	"getconnectioncount":           (*Server).getConnectionCount,
+	"getcontractstate":             (*Server).getContractState,
+	"getnativecontracts":           (*Server).getNativeContracts,
+	"getnep11balances":             (*Server).getNEP11Balances,
+	"getnep11properties":           (*Server).getNEP11Properties,
+	"getnep11transfers":            (*Server).getNEP11Transfers,
+	"getnep17balances":             (*Server).getNEP17Balances,
+	"getnep17transfers":            (*Server).getNEP17Transfers,
+	"getpeers":                     (*Server).getPeers,
+	"getproof":                     (*Server).getProof,
+	"getrawmempool":                (*Server).getRawMempool,
+	"getrawtransaction":            (*Server).getrawtransaction,
+	"getstate":                     (*Server).getState,
+	"getstateheight":               (*Server).getStateHeight,
+	"getstateroot":                 (*Server).getStateRoot,
+	"getstorage":                   (*Server).getStorage,
+	"gettransactionheight":         (*Server).getTransactionHeight,
+	"getunclaimedgas":              (*Server).getUnclaimedGas,
+	"getnextblockvalidators":       (*Server).getNextBlockValidators,
+	"getversion":                   (*Server).getVersion,
+	"invokefunction":               (*Server).invokeFunction,
+	"invokefunctionhistoric":       (*Server).invokeFunctionHistoric,
+	"invokescript":                 (*Server).invokescript,
+	"invokescripthistoric":         (*Server).invokescripthistoric,
+	"invokecontractverify":         (*Server).invokeContractVerify,
+	"invokecontractverifyhistoric": (*Server).invokeContractVerifyHistoric,
+	"sendrawtransaction":           (*Server).sendrawtransaction,
+	"submitblock":                  (*Server).submitBlock,
+	"submitnotaryrequest":          (*Server).submitNotaryRequest,
+	"submitoracleresponse":         (*Server).submitOracleResponse,
+	"validateaddress":              (*Server).validateAddress,
+	"verifyproof":                  (*Server).verifyProof,
 }
 
 var rpcWsHandlers = map[string]func(*Server, request.Params, *subscriber) (interface{}, *response.Error){
@@ -866,7 +870,7 @@ func (s *Server) invokeReadOnly(bw *io.BufBinWriter, h util.Uint160, method stri
 	}
 	script := bw.Bytes()
 	tx := &transaction.Transaction{Script: script}
-	b, err := s.getFakeNextBlock()
+	b, err := s.getFakeNextBlock(s.chain.BlockHeight() + 1)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1571,16 +1575,40 @@ func (s *Server) getCommittee(_ request.Params) (interface{}, *response.Error) {
 
 // invokeFunction implements the `invokeFunction` RPC call.
 func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *response.Error) {
+	tx, verbose, respErr := s.getInvokeFunctionParams(reqParams)
+	if respErr != nil {
+		return nil, respErr
+	}
+	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, nil, verbose)
+}
+
+// invokeFunctionHistoric implements the `invokeFunctionHistoric` RPC call.
+func (s *Server) invokeFunctionHistoric(reqParams request.Params) (interface{}, *response.Error) {
+	b, respErr := s.getHistoricParams(reqParams)
+	if respErr != nil {
+		return nil, respErr
+	}
 	if len(reqParams) < 2 {
 		return nil, response.ErrInvalidParams
 	}
+	tx, verbose, respErr := s.getInvokeFunctionParams(reqParams[1:])
+	if respErr != nil {
+		return nil, respErr
+	}
+	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, b, verbose)
+}
+
+func (s *Server) getInvokeFunctionParams(reqParams request.Params) (*transaction.Transaction, bool, *response.Error) {
+	if len(reqParams) < 2 {
+		return nil, false, response.ErrInvalidParams
+	}
 	scriptHash, responseErr := s.contractScriptHashFromParam(reqParams.Value(0))
 	if responseErr != nil {
-		return nil, responseErr
+		return nil, false, responseErr
 	}
 	method, err := reqParams[1].GetString()
 	if err != nil {
-		return nil, response.ErrInvalidParams
+		return nil, false, response.ErrInvalidParams
 	}
 	var params *request.Param
 	if len(reqParams) > 2 {
@@ -1590,7 +1618,7 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 	if len(reqParams) > 3 {
 		signers, _, err := reqParams[3].GetSignersWithWitnesses()
 		if err != nil {
-			return nil, response.ErrInvalidParams
+			return nil, false, response.ErrInvalidParams
 		}
 		tx.Signers = signers
 	}
@@ -1598,7 +1626,7 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 	if len(reqParams) > 4 {
 		verbose, err = reqParams[4].GetBoolean()
 		if err != nil {
-			return nil, response.ErrInvalidParams
+			return nil, false, response.ErrInvalidParams
 		}
 	}
 	if len(tx.Signers) == 0 {
@@ -1606,28 +1634,48 @@ func (s *Server) invokeFunction(reqParams request.Params) (interface{}, *respons
 	}
 	script, err := request.CreateFunctionInvocationScript(scriptHash, method, params)
 	if err != nil {
-		return nil, response.NewInternalServerError("can't create invocation script", err)
+		return nil, false, response.NewInternalServerError("can't create invocation script", err)
 	}
 	tx.Script = script
-	return s.runScriptInVM(trigger.Application, script, util.Uint160{}, tx, verbose)
+	return tx, verbose, nil
 }
 
 // invokescript implements the `invokescript` RPC call.
 func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.Error) {
-	if len(reqParams) < 1 {
+	tx, verbose, respErr := s.getInvokeScriptParams(reqParams)
+	if respErr != nil {
+		return nil, respErr
+	}
+	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, nil, verbose)
+}
+
+// invokescripthistoric implements the `invokescripthistoric` RPC call.
+func (s *Server) invokescripthistoric(reqParams request.Params) (interface{}, *response.Error) {
+	b, respErr := s.getHistoricParams(reqParams)
+	if respErr != nil {
+		return nil, respErr
+	}
+	if len(reqParams) < 2 {
 		return nil, response.ErrInvalidParams
 	}
+	tx, verbose, respErr := s.getInvokeScriptParams(reqParams[1:])
+	if respErr != nil {
+		return nil, respErr
+	}
+	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, b, verbose)
+}
 
-	script, err := reqParams[0].GetBytesBase64()
+func (s *Server) getInvokeScriptParams(reqParams request.Params) (*transaction.Transaction, bool, *response.Error) {
+	script, err := reqParams.Value(0).GetBytesBase64()
 	if err != nil {
-		return nil, response.ErrInvalidParams
+		return nil, false, response.ErrInvalidParams
 	}
 
 	tx := &transaction.Transaction{}
 	if len(reqParams) > 1 {
 		signers, witnesses, err := reqParams[1].GetSignersWithWitnesses()
 		if err != nil {
-			return nil, response.ErrInvalidParams
+			return nil, false, response.ErrInvalidParams
 		}
 		tx.Signers = signers
 		tx.Scripts = witnesses
@@ -1636,33 +1684,57 @@ func (s *Server) invokescript(reqParams request.Params) (interface{}, *response.
 	if len(reqParams) > 2 {
 		verbose, err = reqParams[2].GetBoolean()
 		if err != nil {
-			return nil, response.ErrInvalidParams
+			return nil, false, response.ErrInvalidParams
 		}
 	}
 	if len(tx.Signers) == 0 {
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{}, Scopes: transaction.None}}
 	}
 	tx.Script = script
-	return s.runScriptInVM(trigger.Application, script, util.Uint160{}, tx, verbose)
+	return tx, verbose, nil
 }
 
 // invokeContractVerify implements the `invokecontractverify` RPC call.
 func (s *Server) invokeContractVerify(reqParams request.Params) (interface{}, *response.Error) {
+	scriptHash, tx, invocationScript, respErr := s.getInvokeContractVerifyParams(reqParams)
+	if respErr != nil {
+		return nil, respErr
+	}
+	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx, nil, false)
+}
+
+// invokeContractVerifyHistoric implements the `invokecontractverifyhistoric` RPC call.
+func (s *Server) invokeContractVerifyHistoric(reqParams request.Params) (interface{}, *response.Error) {
+	b, respErr := s.getHistoricParams(reqParams)
+	if respErr != nil {
+		return nil, respErr
+	}
+	if len(reqParams) < 2 {
+		return nil, response.ErrInvalidParams
+	}
+	scriptHash, tx, invocationScript, respErr := s.getInvokeContractVerifyParams(reqParams[1:])
+	if respErr != nil {
+		return nil, respErr
+	}
+	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx, b, false)
+}
+
+func (s *Server) getInvokeContractVerifyParams(reqParams request.Params) (util.Uint160, *transaction.Transaction, []byte, *response.Error) {
 	scriptHash, responseErr := s.contractScriptHashFromParam(reqParams.Value(0))
 	if responseErr != nil {
-		return nil, responseErr
+		return util.Uint160{}, nil, nil, responseErr
 	}
 
 	bw := io.NewBufBinWriter()
 	if len(reqParams) > 1 {
 		args, err := reqParams[1].GetArray() // second `invokecontractverify` parameter is an array of arguments for `verify` method
 		if err != nil {
-			return nil, response.WrapErrorWithData(response.ErrInvalidParams, err)
+			return util.Uint160{}, nil, nil, response.WrapErrorWithData(response.ErrInvalidParams, err)
 		}
 		if len(args) > 0 {
 			err := request.ExpandArrayIntoScript(bw.BinWriter, args)
 			if err != nil {
-				return nil, response.NewRPCError("can't create witness invocation script", err.Error(), err)
+				return util.Uint160{}, nil, nil, response.NewRPCError("can't create witness invocation script", err.Error(), err)
 			}
 		}
 	}
@@ -1672,7 +1744,7 @@ func (s *Server) invokeContractVerify(reqParams request.Params) (interface{}, *r
 	if len(reqParams) > 2 {
 		signers, witnesses, err := reqParams[2].GetSignersWithWitnesses()
 		if err != nil {
-			return nil, response.ErrInvalidParams
+			return util.Uint160{}, nil, nil, response.ErrInvalidParams
 		}
 		tx.Signers = signers
 		tx.Scripts = witnesses
@@ -1680,16 +1752,51 @@ func (s *Server) invokeContractVerify(reqParams request.Params) (interface{}, *r
 		tx.Signers = []transaction.Signer{{Account: scriptHash}}
 		tx.Scripts = []transaction.Witness{{InvocationScript: invocationScript, VerificationScript: []byte{}}}
 	}
-	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx, false)
+	return scriptHash, tx, invocationScript, nil
 }
 
-func (s *Server) getFakeNextBlock() (*block.Block, error) {
+// getHistoricParams checks that historic calls are supported and returns fake block
+// with the specified index to perform the historic call. It also checks that
+// specified stateroot is stored at the specified height for further request
+// handling consistency.
+func (s *Server) getHistoricParams(reqParams request.Params) (*block.Block, *response.Error) {
+	if s.chain.GetConfig().KeepOnlyLatestState {
+		return nil, response.NewInvalidRequestError("only latest state is supported", errKeepOnlyLatestState)
+	}
+	if len(reqParams) < 1 {
+		return nil, response.ErrInvalidParams
+	}
+	height, respErr := s.blockHeightFromParam(reqParams.Value(0))
+	if respErr != nil {
+		hash, err := reqParams.Value(0).GetUint256()
+		if err != nil {
+			return nil, response.NewInvalidParamsError("invalid block hash or index or stateroot hash", err)
+		}
+		b, err := s.chain.GetBlock(hash)
+		if err != nil {
+			stateH, err := s.chain.GetStateModule().GetLatestStateHeight(hash)
+			if err != nil {
+				return nil, response.NewInvalidParamsError(fmt.Sprintf("unknown block or stateroot: %s", err), err)
+			}
+			height = int(stateH)
+		} else {
+			height = int(b.Index)
+		}
+	}
+	b, err := s.getFakeNextBlock(uint32(height))
+	if err != nil {
+		return nil, response.NewInternalServerError(fmt.Sprintf("can't create fake block for height %d: %s", height, err.Error()), err)
+	}
+	return b, nil
+}
+
+func (s *Server) getFakeNextBlock(nextBlockHeight uint32) (*block.Block, error) {
 	// When transferring funds, script execution does no auto GAS claim,
 	// because it depends on persisting tx height.
 	// This is why we provide block here.
 	b := block.New(s.stateRootEnabled)
-	b.Index = s.chain.BlockHeight() + 1
-	hdr, err := s.chain.GetHeader(s.chain.GetHeaderHash(int(s.chain.BlockHeight())))
+	b.Index = nextBlockHeight
+	hdr, err := s.chain.GetHeader(s.chain.GetHeaderHash(int(nextBlockHeight - 1)))
 	if err != nil {
 		return nil, err
 	}
@@ -1702,12 +1809,23 @@ func (s *Server) getFakeNextBlock() (*block.Block, error) {
 // witness invocation script in case of `verification` trigger (it pushes `verify`
 // arguments on stack before verification). In case of contract verification
 // contractScriptHash should be specified.
-func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, verbose bool) (*result.Invoke, *response.Error) {
-	b, err := s.getFakeNextBlock()
-	if err != nil {
-		return nil, response.NewInternalServerError("can't create fake block", err)
+func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, b *block.Block, verbose bool) (*result.Invoke, *response.Error) {
+	var (
+		err error
+		ic  *interop.Context
+	)
+	if b == nil {
+		b, err = s.getFakeNextBlock(s.chain.BlockHeight() + 1)
+		if err != nil {
+			return nil, response.NewInternalServerError("can't create fake block", err)
+		}
+		ic = s.chain.GetTestVM(t, tx, b)
+	} else {
+		ic, err = s.chain.GetTestHistoricVM(t, tx, b)
+		if err != nil {
+			return nil, response.NewInternalServerError("failed to create historic VM", err)
+		}
 	}
-	ic := s.chain.GetTestVM(t, tx, b)
 	if verbose {
 		ic.VM.EnableInvocationTree()
 	}
@@ -1720,9 +1838,9 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 			ic.VM.GasLimit = gasPolicy
 		}
 
-		err := s.chain.InitVerificationContext(ic, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})
+		err = s.chain.InitVerificationContext(ic, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})
 		if err != nil {
-			return nil, response.NewInternalServerError("can't prepare verification VM", err)
+			return nil, response.NewInternalServerError(fmt.Sprintf("can't prepare verification VM: %s", err.Error()), err)
 		}
 	} else {
 		ic.VM.LoadScriptWithFlags(script, callflag.All)

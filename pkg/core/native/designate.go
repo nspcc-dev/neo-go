@@ -3,6 +3,7 @@ package native
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -31,12 +32,6 @@ type Designate struct {
 	interop.ContractMD
 	NEO *NEO
 
-	rolesChangedFlag atomic.Value
-	oracles          atomic.Value
-	stateVals        atomic.Value
-	neofsAlphabet    atomic.Value
-	notaries         atomic.Value
-
 	// p2pSigExtensionsEnabled defines whether the P2P signature extensions logic is relevant.
 	p2pSigExtensionsEnabled bool
 
@@ -51,6 +46,16 @@ type roleData struct {
 	nodes  keys.PublicKeys
 	addr   util.Uint160
 	height uint32
+}
+
+type DesignationCache struct {
+	// rolesChangedFlag shows whether any of designated nodes were changed within the current block.
+	// It is used to notify dependant services about updated node roles during PostPersist.
+	rolesChangedFlag bool
+	oracles          roleData
+	stateVals        roleData
+	neofsAlphabet    roleData
+	notaries         roleData
 }
 
 const (
@@ -72,6 +77,22 @@ var (
 	ErrLargeNodeList     = errors.New("node list is too large")
 	ErrNoBlock           = errors.New("no persisting block in the context")
 )
+
+var (
+	_ interop.Contract        = (*Designate)(nil)
+	_ dao.NativeContractCache = (*DesignationCache)(nil)
+)
+
+// Copy implements NativeContractCache interface.
+func (c *DesignationCache) Copy() dao.NativeContractCache {
+	cp := &DesignationCache{}
+	copyDesignationCache(c, cp)
+	return cp
+}
+
+func copyDesignationCache(src, dst *DesignationCache) {
+	*dst = *src
+}
 
 func (s *Designate) isValidRole(r noderoles.Role) bool {
 	return r == noderoles.Oracle || r == noderoles.StateValidator ||
@@ -102,8 +123,30 @@ func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
 	return s
 }
 
-// Initialize initializes Oracle contract.
+// Initialize initializes Designation contract. It is called once at native Management's OnPersist
+// at the genesis block, and we can't properly fill the cache at this point, as there are no roles
+// data in the storage.
 func (s *Designate) Initialize(ic *interop.Context) error {
+	cache := &DesignationCache{}
+	ic.DAO.SetCache(s.ID, cache)
+	return nil
+}
+
+// InitializeCache fills native Designate cache from DAO. It is called at non-zero height, thus
+// we can fetch the roles data right from the storage.
+func (s *Designate) InitializeCache(d *dao.Simple) error {
+	cache := &DesignationCache{}
+	roles := []noderoles.Role{noderoles.Oracle, noderoles.NeoFSAlphabet, noderoles.StateValidator}
+	if s.p2pSigExtensionsEnabled {
+		roles = append(roles, noderoles.P2PNotary)
+	}
+	for _, r := range roles {
+		err := s.updateCachedRoleData(cache, d, r)
+		if err != nil {
+			return fmt.Errorf("failed to get nodes from storage for %d role: %w", r, err)
+		}
+	}
+	d.SetCache(s.ID, cache)
 	return nil
 }
 
@@ -114,26 +157,19 @@ func (s *Designate) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements Contract interface.
 func (s *Designate) PostPersist(ic *interop.Context) error {
-	if !s.rolesChanged() {
+	cache := ic.DAO.GetRWCache(s.ID).(*DesignationCache)
+	if !cache.rolesChangedFlag {
 		return nil
 	}
 
-	if err := s.updateCachedRoleData(&s.oracles, ic.DAO, noderoles.Oracle); err != nil {
-		return err
-	}
-	if err := s.updateCachedRoleData(&s.stateVals, ic.DAO, noderoles.StateValidator); err != nil {
-		return err
-	}
-	if err := s.updateCachedRoleData(&s.neofsAlphabet, ic.DAO, noderoles.NeoFSAlphabet); err != nil {
-		return err
-	}
+	s.notifyRoleChanged(&cache.oracles, noderoles.Oracle)
+	s.notifyRoleChanged(&cache.stateVals, noderoles.StateValidator)
+	s.notifyRoleChanged(&cache.neofsAlphabet, noderoles.NeoFSAlphabet)
 	if s.p2pSigExtensionsEnabled {
-		if err := s.updateCachedRoleData(&s.notaries, ic.DAO, noderoles.P2PNotary); err != nil {
-			return err
-		}
+		s.notifyRoleChanged(&cache.notaries, noderoles.P2PNotary)
 	}
 
-	s.rolesChangedFlag.Store(false)
+	cache.rolesChangedFlag = false
 	return nil
 }
 
@@ -152,7 +188,7 @@ func (s *Designate) getDesignatedByRole(ic *interop.Context, args []stackitem.It
 		panic(ErrInvalidIndex)
 	}
 	index := ind.Uint64()
-	if index > uint64(ic.Chain.BlockHeight()+1) {
+	if index > uint64(ic.BlockHeight()+1) {
 		panic(ErrInvalidIndex)
 	}
 	pubs, _, err := s.GetDesignatedByRole(ic.DAO, r, uint32(index))
@@ -160,11 +196,6 @@ func (s *Designate) getDesignatedByRole(ic *interop.Context, args []stackitem.It
 		panic(err)
 	}
 	return pubsToArray(pubs)
-}
-
-func (s *Designate) rolesChanged() bool {
-	rc := s.rolesChangedFlag.Load()
-	return rc == nil || rc.(bool)
 }
 
 func (s *Designate) hashFromNodes(r noderoles.Role, nodes keys.PublicKeys) util.Uint160 {
@@ -181,47 +212,58 @@ func (s *Designate) hashFromNodes(r noderoles.Role, nodes keys.PublicKeys) util.
 	return hash.Hash160(script)
 }
 
-func (s *Designate) updateCachedRoleData(v *atomic.Value, d *dao.Simple, r noderoles.Role) error {
-	nodeKeys, height, err := s.GetDesignatedByRole(d, r, math.MaxUint32)
+// updateCachedRoleData fetches the most recent role data from the storage and
+// updates the given cache.
+func (s *Designate) updateCachedRoleData(cache *DesignationCache, d *dao.Simple, r noderoles.Role) error {
+	var v *roleData
+	switch r {
+	case noderoles.Oracle:
+		v = &cache.oracles
+	case noderoles.StateValidator:
+		v = &cache.stateVals
+	case noderoles.NeoFSAlphabet:
+		v = &cache.neofsAlphabet
+	case noderoles.P2PNotary:
+		v = &cache.notaries
+	}
+	nodeKeys, height, err := s.getDesignatedByRoleFromStorage(d, r, math.MaxUint32)
 	if err != nil {
 		return err
 	}
-	v.Store(&roleData{
-		nodes:  nodeKeys,
-		addr:   s.hashFromNodes(r, nodeKeys),
-		height: height,
-	})
-	switch r {
-	case noderoles.Oracle:
-		if orc, _ := s.OracleService.Load().(services.Oracle); orc != nil {
-			orc.UpdateOracleNodes(nodeKeys.Copy())
-		}
-	case noderoles.P2PNotary:
-		if ntr, _ := s.NotaryService.Load().(services.Notary); ntr != nil {
-			ntr.UpdateNotaryNodes(nodeKeys.Copy())
-		}
-	case noderoles.StateValidator:
-		if s.StateRootService != nil {
-			s.StateRootService.UpdateStateValidators(height, nodeKeys.Copy())
-		}
-	}
+	v.nodes = nodeKeys
+	v.addr = s.hashFromNodes(r, nodeKeys)
+	v.height = height
+	cache.rolesChangedFlag = true
 	return nil
 }
 
-func (s *Designate) getCachedRoleData(r noderoles.Role) *roleData {
-	var val interface{}
+func (s *Designate) notifyRoleChanged(v *roleData, r noderoles.Role) {
 	switch r {
 	case noderoles.Oracle:
-		val = s.oracles.Load()
-	case noderoles.StateValidator:
-		val = s.stateVals.Load()
-	case noderoles.NeoFSAlphabet:
-		val = s.neofsAlphabet.Load()
+		if orc, _ := s.OracleService.Load().(services.Oracle); orc != nil {
+			orc.UpdateOracleNodes(v.nodes.Copy())
+		}
 	case noderoles.P2PNotary:
-		val = s.notaries.Load()
+		if ntr, _ := s.NotaryService.Load().(services.Notary); ntr != nil {
+			ntr.UpdateNotaryNodes(v.nodes.Copy())
+		}
+	case noderoles.StateValidator:
+		if s.StateRootService != nil {
+			s.StateRootService.UpdateStateValidators(v.height, v.nodes.Copy())
+		}
 	}
-	if val != nil {
-		return val.(*roleData)
+}
+
+func getCachedRoleData(cache *DesignationCache, r noderoles.Role) *roleData {
+	switch r {
+	case noderoles.Oracle:
+		return &cache.oracles
+	case noderoles.StateValidator:
+		return &cache.stateVals
+	case noderoles.NeoFSAlphabet:
+		return &cache.neofsAlphabet
+	case noderoles.P2PNotary:
+		return &cache.notaries
 	}
 	return nil
 }
@@ -231,17 +273,11 @@ func (s *Designate) GetLastDesignatedHash(d *dao.Simple, r noderoles.Role) (util
 	if !s.isValidRole(r) {
 		return util.Uint160{}, ErrInvalidRole
 	}
-	if !s.rolesChanged() {
-		if val := s.getCachedRoleData(r); val != nil {
-			return val.addr, nil
-		}
+	cache := d.GetROCache(s.ID).(*DesignationCache)
+	if val := getCachedRoleData(cache, r); val != nil {
+		return val.addr, nil
 	}
-	nodes, _, err := s.GetDesignatedByRole(d, r, math.MaxUint32)
-	if err != nil {
-		return util.Uint160{}, err
-	}
-	// We only have hashing defined for oracles now.
-	return s.hashFromNodes(r, nodes), nil
+	return util.Uint160{}, nil
 }
 
 // GetDesignatedByRole returns nodes for role r.
@@ -249,11 +285,22 @@ func (s *Designate) GetDesignatedByRole(d *dao.Simple, r noderoles.Role, index u
 	if !s.isValidRole(r) {
 		return nil, 0, ErrInvalidRole
 	}
-	if !s.rolesChanged() {
-		if val := s.getCachedRoleData(r); val != nil && val.height <= index {
+	cache := d.GetROCache(s.ID).(*DesignationCache)
+	if val := getCachedRoleData(cache, r); val != nil {
+		if val.height <= index {
 			return val.nodes.Copy(), val.height, nil
 		}
+	} else {
+		// Cache is always valid, thus if there's no cache then there's no designated nodes for this role.
+		return nil, 0, nil
 	}
+	// Cache stores only latest designated nodes, so if the old info is requested, then we still need
+	// to search in the storage.
+	return s.getDesignatedByRoleFromStorage(d, r, index)
+}
+
+// getDesignatedByRoleFromStorage returns nodes for role r from the storage.
+func (s *Designate) getDesignatedByRoleFromStorage(d *dao.Simple, r noderoles.Role, index uint32) (keys.PublicKeys, uint32, error) {
 	var (
 		ns        NodeList
 		bestIndex uint32
@@ -310,7 +357,7 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 	if !s.isValidRole(r) {
 		return ErrInvalidRole
 	}
-	h := s.NEO.GetCommitteeAddress()
+	h := s.NEO.GetCommitteeAddress(ic.DAO)
 	if ok, err := runtime.CheckHashedWitness(ic, h); err != nil || !ok {
 		return ErrInvalidWitness
 	}
@@ -327,10 +374,16 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 	}
 	sort.Sort(pubs)
 	nl := NodeList(pubs)
-	s.rolesChangedFlag.Store(true)
+
 	err := putConvertibleToDAO(s.ID, ic.DAO, key, &nl)
 	if err != nil {
 		return err
+	}
+
+	cache := ic.DAO.GetRWCache(s.ID).(*DesignationCache)
+	err = s.updateCachedRoleData(cache, ic.DAO, r)
+	if err != nil {
+		return fmt.Errorf("failed to update Designation role data cache: %w", err)
 	}
 
 	ic.Notifications = append(ic.Notifications, state.NotificationEvent{
@@ -354,9 +407,4 @@ func (s *Designate) getRole(item stackitem.Item) (noderoles.Role, bool) {
 	}
 	u := bi.Uint64()
 	return noderoles.Role(u), u <= math.MaxUint8 && s.isValidRole(noderoles.Role(u))
-}
-
-// InitializeCache invalidates native Designate cache.
-func (s *Designate) InitializeCache() {
-	s.rolesChangedFlag.Store(true)
 }

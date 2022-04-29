@@ -89,8 +89,11 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 	d := dao.NewSimple(storage.NewMemoryStore(), false, false)
 	err := mgmt.Initialize(&interop.Context{DAO: d})
 	require.NoError(t, err)
+	err = mgmt.InitializeCache(d)
+	require.NoError(t, err)
 
-	require.Empty(t, mgmt.GetNEP17Contracts())
+	require.Empty(t, mgmt.GetNEP17Contracts(d))
+	private := d.GetPrivate()
 
 	// Deploy NEP-17 contract
 	script := []byte{byte(opcode.RET)}
@@ -104,29 +107,46 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 		Parameters: []manifest.Parameter{},
 	})
 	manif.SupportedStandards = []string{manifest.NEP17StandardName}
-	c1, err := mgmt.Deploy(d, sender, ne, manif)
+	c1, err := mgmt.Deploy(private, sender, ne, manif)
 	require.NoError(t, err)
 
-	// PostPersist is not yet called, thus no NEP-17 contracts are expected
-	require.Empty(t, mgmt.GetNEP17Contracts())
+	// c1 contract hash should be returned, as private DAO already contains changed cache.
+	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts(private))
 
-	// Call PostPersist, check c1 contract hash is returned
-	require.NoError(t, mgmt.PostPersist(&interop.Context{DAO: d}))
-	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts())
+	// Lower DAO still shouldn't contain c1, as no Persist was called.
+	require.Empty(t, mgmt.GetNEP17Contracts(d))
+
+	// Call Persist, check c1 contract hash is returned
+	_, err = private.Persist()
+	require.NoError(t, err)
+	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts(d))
 
 	// Update contract
+	private = d.GetPrivate()
 	manif.ABI.Methods = append(manif.ABI.Methods, manifest.Method{
 		Name:       "dummy2",
 		ReturnType: smartcontract.VoidType,
 		Parameters: []manifest.Parameter{},
 	})
-	c2, err := mgmt.Update(d, c1.Hash, ne, manif)
+	c1Updated, err := mgmt.Update(private, c1.Hash, ne, manif)
 	require.NoError(t, err)
+	require.Equal(t, c1.Hash, c1Updated.Hash)
 
-	// No changes expected before PostPersist call.
-	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts())
+	// No changes expected in lower store.
+	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts(d))
+	c1Lower, err := mgmt.GetContract(d, c1.Hash)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(c1Lower.Manifest.ABI.Methods))
+	require.Equal(t, []util.Uint160{c1Updated.Hash}, mgmt.GetNEP17Contracts(private))
+	c1Upper, err := mgmt.GetContract(private, c1Updated.Hash)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(c1Upper.Manifest.ABI.Methods))
 
-	// Call PostPersist, check c2 contract hash is returned
-	require.NoError(t, mgmt.PostPersist(&interop.Context{DAO: d}))
-	require.Equal(t, []util.Uint160{c2.Hash}, mgmt.GetNEP17Contracts())
+	// Call Persist, check c1Updated state is returned from lower.
+	_, err = private.Persist()
+	require.NoError(t, err)
+	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts(d))
+	c1Lower, err = mgmt.GetContract(d, c1.Hash)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(c1Lower.Manifest.ABI.Methods))
 }

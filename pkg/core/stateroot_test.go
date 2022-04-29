@@ -296,3 +296,20 @@ func checkVoteBroadcasted(t *testing.T, bc *core.Blockchain, p *payload.Extensib
 	require.True(t, len(pubs) > int(valIndex))
 	require.True(t, pubs[valIndex].VerifyHashable(vote.Signature, uint32(netmode.UnitTestNet), r))
 }
+
+func TestStateroot_GetLatestStateHeight(t *testing.T) {
+	bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+		c.P2PSigExtensions = true
+	})
+	e := neotest.NewExecutor(t, bc, validators, committee)
+	initBasicChain(t, e)
+
+	m := bc.GetStateModule()
+	for i := uint32(0); i < bc.BlockHeight(); i++ {
+		r, err := m.GetStateRoot(i)
+		require.NoError(t, err)
+		h, err := bc.GetStateModule().GetLatestStateHeight(r.Root)
+		require.NoError(t, err, i)
+		require.Equal(t, i, h)
+	}
+}

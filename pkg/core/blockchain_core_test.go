@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -329,7 +328,7 @@ func TestBlockchain_BaseExecFeeBaseStoragePrice_Compat(t *testing.T) {
 	bc := newTestChain(t)
 
 	check := func(t *testing.T) {
-		ic := bc.newInteropContext(trigger.Application, dao.NewSimple(storage.NewMemoryStore(), bc.config.StateRootInHeader, bc.config.P2PSigExtensions), bc.topBlock.Load().(*block.Block), nil)
+		ic := bc.newInteropContext(trigger.Application, bc.dao, bc.topBlock.Load().(*block.Block), nil)
 		require.Equal(t, bc.GetBaseExecFee(), ic.BaseExecFee())
 		require.Equal(t, bc.GetStoragePrice(), ic.BaseStorageFee())
 	}

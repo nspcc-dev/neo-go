@@ -1,6 +1,7 @@
 package stateroot
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -99,6 +100,34 @@ func (s *Module) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) 
 // GetStateRoot returns state root for a given height.
 func (s *Module) GetStateRoot(height uint32) (*state.MPTRoot, error) {
 	return s.getStateRoot(makeStateRootKey(height))
+}
+
+// GetLatestStateHeight returns the latest blockchain height by the given stateroot.
+func (s *Module) GetLatestStateHeight(root util.Uint256) (uint32, error) {
+	rootBytes := root.BytesBE()
+	rootStartOffset := 1 + 4 // stateroot version (1 byte) + stateroot index (4 bytes)
+	rootEndOffset := rootStartOffset + util.Uint256Size
+	var (
+		h       uint32
+		found   bool
+		rootKey = makeStateRootKey(s.localHeight.Load())
+	)
+	s.Store.Seek(storage.SeekRange{
+		Prefix:    []byte{rootKey[0]}, // DataMPTAux
+		Start:     rootKey[1:],        // Start is a value that should be appended to the Prefix
+		Backwards: true,
+	}, func(k, v []byte) bool {
+		if len(k) == 5 && bytes.Equal(v[rootStartOffset:rootEndOffset], rootBytes) {
+			h = binary.BigEndian.Uint32(k[1:]) // cut prefix DataMPTAux
+			found = true
+			return false
+		}
+		return true
+	})
+	if found {
+		return h, nil
+	}
+	return h, storage.ErrKeyNotFound
 }
 
 // CurrentLocalStateRoot returns hash of the local state root.

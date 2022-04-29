@@ -19,12 +19,24 @@ func TestPolicy_FeePerByte(t *testing.T) {
 	testGetSet(t, newPolicyClient(t), "FeePerByte", 1000, 0, 100_000_000)
 }
 
+func TestPolicy_FeePerByteCache(t *testing.T) {
+	testGetSetCache(t, newPolicyClient(t), "FeePerByte", 1000)
+}
+
 func TestPolicy_ExecFeeFactor(t *testing.T) {
 	testGetSet(t, newPolicyClient(t), "ExecFeeFactor", interop.DefaultBaseExecFee, 1, 1000)
 }
 
+func TestPolicy_ExecFeeFactorCache(t *testing.T) {
+	testGetSetCache(t, newPolicyClient(t), "ExecFeeFactor", interop.DefaultBaseExecFee)
+}
+
 func TestPolicy_StoragePrice(t *testing.T) {
 	testGetSet(t, newPolicyClient(t), "StoragePrice", native.DefaultStoragePrice, 1, 10000000)
+}
+
+func TestPolicy_StoragePriceCache(t *testing.T) {
+	testGetSetCache(t, newPolicyClient(t), "StoragePrice", native.DefaultStoragePrice)
 }
 
 func TestPolicy_BlockedAccounts(t *testing.T) {

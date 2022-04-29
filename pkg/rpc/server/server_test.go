@@ -75,6 +75,7 @@ const (
 	nfsoContractHash           = "5f9ebd6b001b54c7bc70f96e0412fcf415dfe09f"
 	nfsoToken1ID               = "7e244ffd6aa85fb1579d2ed22e9b761ab62e3486"
 	invokescriptContractAVM    = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
+	block20StateRootLE         = "19ec3c3d01afe5274e8bb4a393c97da708c5608c5b0ad116c16108b6a04fb08e"
 )
 
 var (
@@ -999,6 +1000,134 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:   true,
 		},
 	},
+	"invokefunctionhistoric": {
+		{
+			name:   "positive, by index",
+			params: `[20, "50befd26fdf6e4d957c11e078b24ebce6291456f", "test", []]`,
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.NotNil(t, res.Script)
+				assert.NotEqual(t, "", res.State)
+				assert.NotEqual(t, 0, res.GasConsumed)
+			},
+		},
+		{
+			name:   "positive, by stateroot",
+			params: `["` + block20StateRootLE + `", "50befd26fdf6e4d957c11e078b24ebce6291456f", "test", []]`,
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.NotNil(t, res.Script)
+				assert.NotEqual(t, "", res.State)
+				assert.NotEqual(t, 0, res.GasConsumed)
+			},
+		},
+		{
+			name:   "positive, with notifications",
+			params: `[20, "` + nnsContractHash + `", "transfer", [{"type":"Hash160", "value":"0x0bcd2978634d961c24f5aea0802297ff128724d6"},{"type":"String", "value":"neo.com"},{"type":"Any", "value":null}],["0xb248508f4ef7088e10c48f14d04be3272ca29eee"]]`,
+			result: func(e *executor) interface{} {
+				script := []byte{0x0b, 0x0c, 0x07, 0x6e, 0x65, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x0c, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb, 0x13, 0xc0, 0x1f, 0xc, 0x8, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0xc, 0x14, 0x1f, 0xe2, 0x37, 0x5c, 0xdc, 0xdb, 0xb2, 0x80, 0x40, 0x78, 0x65, 0x35, 0xd5, 0xef, 0xe4, 0x3, 0x39, 0x56, 0x92, 0xee, 0x41, 0x62, 0x7d, 0x5b, 0x52}
+				return &result.Invoke{
+					State:       "HALT",
+					GasConsumed: 32167260,
+					Script:      script,
+					Stack:       []stackitem.Item{stackitem.Make(true)},
+					Notifications: []state.NotificationEvent{{
+						ScriptHash: nnsHash,
+						Name:       "Transfer",
+						Item: stackitem.NewArray([]stackitem.Item{
+							stackitem.Make([]byte{0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x08, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2}),
+							stackitem.Make([]byte{0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0x0b}),
+							stackitem.Make(1),
+							stackitem.Make("neo.com"),
+						}),
+					}},
+				}
+			},
+		},
+		{
+			name:   "positive, verbose",
+			params: `[20, "` + nnsContractHash + `", "resolve", [{"type":"String", "value":"neo.com"},{"type":"Integer","value":1}], [], true]`,
+			result: func(e *executor) interface{} {
+				script := []byte{0x11, 0xc, 0x7, 0x6e, 0x65, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x12, 0xc0, 0x1f, 0xc, 0x7, 0x72, 0x65, 0x73, 0x6f, 0x6c, 0x76, 0x65, 0xc, 0x14, 0x1f, 0xe2, 0x37, 0x5c, 0xdc, 0xdb, 0xb2, 0x80, 0x40, 0x78, 0x65, 0x35, 0xd5, 0xef, 0xe4, 0x3, 0x39, 0x56, 0x92, 0xee, 0x41, 0x62, 0x7d, 0x5b, 0x52}
+				stdHash, _ := e.chain.GetNativeContractScriptHash(nativenames.StdLib)
+				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
+				return &result.Invoke{
+					State:         "HALT",
+					GasConsumed:   15928320,
+					Script:        script,
+					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
+					Notifications: []state.NotificationEvent{},
+					Diagnostics: &result.InvokeDiag{
+						Changes: []storage.Operation{},
+						Invocations: []*vm.InvocationTree{{
+							Current: hash.Hash160(script),
+							Calls: []*vm.InvocationTree{
+								{
+									Current: nnsHash,
+									Calls: []*vm.InvocationTree{
+										{
+											Current: stdHash,
+										},
+										{
+											Current: cryptoHash,
+										},
+										{
+											Current: stdHash,
+										},
+										{
+											Current: cryptoHash,
+										},
+										{
+											Current: cryptoHash,
+										},
+									},
+								},
+							},
+						}},
+					},
+				}
+			},
+		},
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "no args",
+			params: `[20]`,
+			fail:   true,
+		},
+		{
+			name:   "not a string",
+			params: `[20, 42, "test", []]`,
+			fail:   true,
+		},
+		{
+			name:   "not a scripthash",
+			params: `[20,"qwerty", "test", []]`,
+			fail:   true,
+		},
+		{
+			name:   "bad params",
+			params: `[20,"50befd26fdf6e4d957c11e078b24ebce6291456f", "test", [{"type": "Integer", "value": "qwerty"}]]`,
+			fail:   true,
+		},
+		{
+			name:   "bad height",
+			params: `[100500,"50befd26fdf6e4d957c11e078b24ebce6291456f", "test", [{"type": "Integer", "value": 1}]]`,
+			fail:   true,
+		},
+		{
+			name:   "bad stateroot",
+			params: `["` + util.Uint256{1, 2, 3}.StringLE() + `","50befd26fdf6e4d957c11e078b24ebce6291456f", "test", [{"type": "Integer", "value": 1}]]`,
+			fail:   true,
+		},
+	},
 	"invokescript": {
 		{
 			name:   "positive",
@@ -1095,6 +1224,132 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "bas string",
 			params: `["qwerty"]`,
+			fail:   true,
+		},
+	},
+	"invokescripthistoric": {
+		{
+			name:   "positive, by index",
+			params: `[20,"UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY="]`,
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.NotEqual(t, "", res.Script)
+				assert.NotEqual(t, "", res.State)
+				assert.NotEqual(t, 0, res.GasConsumed)
+			},
+		},
+		{
+			name:   "positive, by stateroot",
+			params: `["` + block20StateRootLE + `","UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY="]`,
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.NotEqual(t, "", res.Script)
+				assert.NotEqual(t, "", res.State)
+				assert.NotEqual(t, 0, res.GasConsumed)
+			},
+		},
+		{
+			name:   "positive,verbose",
+			params: `[20, "UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY=",[],true]`,
+			result: func(e *executor) interface{} {
+				script := []byte{0x51, 0xc5, 0x6b, 0xd, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x68, 0xf, 0x4e, 0x65, 0x6f, 0x2e, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x2e, 0x4c, 0x6f, 0x67, 0x61, 0x6c, 0x75, 0x66}
+				return &result.Invoke{
+					State:          "FAULT",
+					GasConsumed:    60,
+					Script:         script,
+					Stack:          []stackitem.Item{},
+					FaultException: "at instruction 0 (ROT): too big index",
+					Notifications:  []state.NotificationEvent{},
+					Diagnostics: &result.InvokeDiag{
+						Changes: []storage.Operation{},
+						Invocations: []*vm.InvocationTree{{
+							Current: hash.Hash160(script),
+						}},
+					},
+				}
+			},
+		},
+		{
+			name: "positive, good witness",
+			// script is base64-encoded `invokescript_contract.avm` representation, hashes are hex-encoded LE bytes of hashes used in the contract with `0x` prefix
+			params: fmt.Sprintf(`[20,"%s",["0x0000000009070e030d0f0e020d0c06050e030c01","0x090c060e00010205040307030102000902030f0d"]]`, invokescriptContractAVM),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Equal(t, "HALT", res.State)
+				require.Equal(t, 1, len(res.Stack))
+				require.Equal(t, big.NewInt(3), res.Stack[0].Value())
+			},
+		},
+		{
+			name:   "positive, bad witness of second hash",
+			params: fmt.Sprintf(`[20,"%s",["0x0000000009070e030d0f0e020d0c06050e030c01"]]`, invokescriptContractAVM),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Equal(t, "HALT", res.State)
+				require.Equal(t, 1, len(res.Stack))
+				require.Equal(t, big.NewInt(2), res.Stack[0].Value())
+			},
+		},
+		{
+			name:   "positive, no good hashes",
+			params: fmt.Sprintf(`[20,"%s"]`, invokescriptContractAVM),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Equal(t, "HALT", res.State)
+				require.Equal(t, 1, len(res.Stack))
+				require.Equal(t, big.NewInt(1), res.Stack[0].Value())
+			},
+		},
+		{
+			name:   "positive, bad hashes witness",
+			params: fmt.Sprintf(`[20,"%s",["0x0000000009070e030d0f0e020d0c06050e030c02"]]`, invokescriptContractAVM),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Equal(t, "HALT", res.State)
+				assert.Equal(t, 1, len(res.Stack))
+				assert.Equal(t, big.NewInt(1), res.Stack[0].Value())
+			},
+		},
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "no script",
+			params: `[20]`,
+			fail:   true,
+		},
+		{
+			name:   "not a string",
+			params: `[20,42]`,
+			fail:   true,
+		},
+		{
+			name:   "bas string",
+			params: `[20, "qwerty"]`,
+			fail:   true,
+		},
+		{
+			name:   "bas height",
+			params: `[100500,"qwerty"]`,
+			fail:   true,
+		},
+		{
+			name:   "bas stateroot",
+			params: `["` + util.Uint256{1, 2, 3}.StringLE() + `","UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY="]`,
 			fail:   true,
 		},
 	},
@@ -1200,6 +1455,129 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "not a string",
 			params: `[42, []]`,
+			fail:   true,
+		},
+	},
+	"invokecontractverifyhistoric": {
+		{
+			name:   "positive, by index",
+			params: fmt.Sprintf(`[20,"%s", [], [{"account":"%s"}]]`, verifyContractHash, testchain.PrivateKeyByID(0).PublicKey().GetScriptHash().StringLE()),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Nil(t, res.Script) // empty witness invocation script (pushes args of `verify` on stack, but this `verify` don't have args)
+				assert.Equal(t, "HALT", res.State)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				assert.Equal(t, true, res.Stack[0].Value().(bool), fmt.Sprintf("check address in verification_contract.go: expected %s", testchain.PrivateKeyByID(0).Address()))
+			},
+		},
+		{
+			name:   "positive, by stateroot",
+			params: fmt.Sprintf(`["`+block20StateRootLE+`","%s", [], [{"account":"%s"}]]`, verifyContractHash, testchain.PrivateKeyByID(0).PublicKey().GetScriptHash().StringLE()),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Nil(t, res.Script) // empty witness invocation script (pushes args of `verify` on stack, but this `verify` don't have args)
+				assert.Equal(t, "HALT", res.State)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				assert.Equal(t, true, res.Stack[0].Value().(bool), fmt.Sprintf("check address in verification_contract.go: expected %s", testchain.PrivateKeyByID(0).Address()))
+			},
+		},
+		{
+			name:   "positive, no signers",
+			params: fmt.Sprintf(`[20,"%s", []]`, verifyContractHash),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Nil(t, res.Script)
+				assert.Equal(t, "HALT", res.State, res.FaultException)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				assert.Equal(t, false, res.Stack[0].Value().(bool))
+			},
+		},
+		{
+			name:   "positive, no arguments",
+			params: fmt.Sprintf(`[20,"%s"]`, verifyContractHash),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Nil(t, res.Script)
+				assert.Equal(t, "HALT", res.State, res.FaultException)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				assert.Equal(t, false, res.Stack[0].Value().(bool))
+			},
+		},
+		{
+			name:   "positive, with signers and scripts",
+			params: fmt.Sprintf(`[20,"%s", [], [{"account":"%s", "invocation":"MQo=", "verification": ""}]]`, verifyContractHash, testchain.PrivateKeyByID(0).PublicKey().GetScriptHash().StringLE()),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				assert.Nil(t, res.Script)
+				assert.Equal(t, "HALT", res.State)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				assert.Equal(t, true, res.Stack[0].Value().(bool))
+			},
+		},
+		{
+			name:   "positive, with arguments, result=true",
+			params: fmt.Sprintf(`[20,"%s", [{"type": "String", "value": "good_string"}, {"type": "Integer", "value": "4"}, {"type":"Boolean", "value": false}]]`, verifyWithArgsContractHash),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				expectedInvScript := io.NewBufBinWriter()
+				emit.Int(expectedInvScript.BinWriter, 0)
+				emit.Int(expectedInvScript.BinWriter, int64(4))
+				emit.String(expectedInvScript.BinWriter, "good_string")
+				require.NoError(t, expectedInvScript.Err)
+				assert.Equal(t, expectedInvScript.Bytes(), res.Script) // witness invocation script (pushes args of `verify` on stack)
+				assert.Equal(t, "HALT", res.State, res.FaultException)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				assert.Equal(t, true, res.Stack[0].Value().(bool))
+			},
+		},
+		{
+			name:   "positive, with arguments, result=false",
+			params: fmt.Sprintf(`[20, "%s", [{"type": "String", "value": "invalid_string"}, {"type": "Integer", "value": "4"}, {"type":"Boolean", "value": false}]]`, verifyWithArgsContractHash),
+			result: func(e *executor) interface{} { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv interface{}) {
+				res, ok := inv.(*result.Invoke)
+				require.True(t, ok)
+				expectedInvScript := io.NewBufBinWriter()
+				emit.Int(expectedInvScript.BinWriter, 0)
+				emit.Int(expectedInvScript.BinWriter, int64(4))
+				emit.String(expectedInvScript.BinWriter, "invalid_string")
+				require.NoError(t, expectedInvScript.Err)
+				assert.Equal(t, expectedInvScript.Bytes(), res.Script)
+				assert.Equal(t, "HALT", res.State, res.FaultException)
+				assert.NotEqual(t, 0, res.GasConsumed)
+				assert.Equal(t, false, res.Stack[0].Value().(bool))
+			},
+		},
+		{
+			name:   "unknown contract",
+			params: fmt.Sprintf(`[20, "%s", []]`, util.Uint160{}.String()),
+			fail:   true,
+		},
+		{
+			name:   "no params",
+			params: `[]`,
+			fail:   true,
+		},
+		{
+			name:   "no args",
+			params: `[20]`,
+			fail:   true,
+		},
+		{
+			name:   "not a string",
+			params: `[20,42, []]`,
 			fail:   true,
 		},
 	},

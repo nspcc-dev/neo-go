@@ -76,7 +76,7 @@ func TestCreateBasicChain(t *testing.T) {
 
 func initBasicChain(t *testing.T, e *neotest.Executor) {
 	if !e.Chain.GetConfig().P2PSigExtensions {
-		t.Fatal("P2PSitExtensions should be enabled to init basic chain")
+		t.Fatal("P2PSigExtensions should be enabled to init basic chain")
 	}
 
 	const neoAmount = 99999000

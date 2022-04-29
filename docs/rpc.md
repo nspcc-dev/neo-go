@@ -168,6 +168,28 @@ block. It can be removed in future versions, but at the moment you can use it
 to see how much GAS is burned with particular block (because system fees are
 burned).
 
+#### `invokecontractverifyhistoric`, `invokefunctionhistoric` and `invokescripthistoric` calls
+
+These methods provide the ability of *historical* calls and accept block hash or
+block index or stateroot hash as the first parameter and the list of parameters
+that is the same as of `invokecontractverify`, `invokefunction` and
+`invokescript` correspondingly. The historical call assumes that the contracts'
+storage state has all its values got from MPT with the specified stateroot and
+the transaction will be invoked using interop context with block of the specified
+height. This allows to perform test invocation using the specified past chain
+state. These methods may be useful for debugging purposes.
+
+Behavior note: any historical RPC call need the historical chain state to be
+presented in the node storage, thus if the node keeps only latest MPT state
+the historical call can not be handled properly.The historical calls only
+guaranteed to correctly work on archival node that stores all MPT data. If a
+node keeps the number of latest states and has the GC on (this setting
+corresponds to the `RemoveUntraceableBlocks` set to `true`), then the behaviour
+of historical RPC call is undefined. GC can always kick some data out of the
+storage while the historical call is executing, thus keep in mind that the call
+can be processed with `RemoveUntraceableBlocks` only with limitations on
+available data.
+
 #### `submitnotaryrequest` call
 
 This method can be used on P2P Notary enabled networks to submit new notary

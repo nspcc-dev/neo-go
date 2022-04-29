@@ -103,19 +103,19 @@ func (l *Ledger) PostPersist(ic *interop.Context) error {
 
 // currentHash implements currentHash SC method.
 func (l *Ledger) currentHash(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.Make(ic.Chain.CurrentBlockHash().BytesBE())
+	return stackitem.Make(ic.CurrentBlockHash().BytesBE())
 }
 
 // currentIndex implements currentIndex SC method.
 func (l *Ledger) currentIndex(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.Make(ic.Chain.BlockHeight())
+	return stackitem.Make(ic.BlockHeight())
 }
 
 // getBlock implements getBlock SC method.
 func (l *Ledger) getBlock(ic *interop.Context, params []stackitem.Item) stackitem.Item {
-	hash := getBlockHashFromItem(ic.Chain, params[0])
-	block, err := ic.Chain.GetBlock(hash)
-	if err != nil || !isTraceableBlock(ic.Chain, block.Index) {
+	hash := getBlockHashFromItem(ic, params[0])
+	block, err := ic.GetBlock(hash)
+	if err != nil || !isTraceableBlock(ic, block.Index) {
 		return stackitem.Null{}
 	}
 	return BlockToStackItem(block)
@@ -124,7 +124,7 @@ func (l *Ledger) getBlock(ic *interop.Context, params []stackitem.Item) stackite
 // getTransaction returns transaction to the SC.
 func (l *Ledger) getTransaction(ic *interop.Context, params []stackitem.Item) stackitem.Item {
 	tx, h, err := getTransactionAndHeight(ic.DAO, params[0])
-	if err != nil || !isTraceableBlock(ic.Chain, h) {
+	if err != nil || !isTraceableBlock(ic, h) {
 		return stackitem.Null{}
 	}
 	return TransactionToStackItem(tx)
@@ -133,7 +133,7 @@ func (l *Ledger) getTransaction(ic *interop.Context, params []stackitem.Item) st
 // getTransactionHeight returns transaction height to the SC.
 func (l *Ledger) getTransactionHeight(ic *interop.Context, params []stackitem.Item) stackitem.Item {
 	_, h, err := getTransactionAndHeight(ic.DAO, params[0])
-	if err != nil || !isTraceableBlock(ic.Chain, h) {
+	if err != nil || !isTraceableBlock(ic, h) {
 		return stackitem.Make(-1)
 	}
 	return stackitem.Make(h)
@@ -142,10 +142,10 @@ func (l *Ledger) getTransactionHeight(ic *interop.Context, params []stackitem.It
 // getTransactionFromBlock returns transaction with the given index from the
 // block with height or hash specified.
 func (l *Ledger) getTransactionFromBlock(ic *interop.Context, params []stackitem.Item) stackitem.Item {
-	hash := getBlockHashFromItem(ic.Chain, params[0])
+	hash := getBlockHashFromItem(ic, params[0])
 	index := toUint32(params[1])
-	block, err := ic.Chain.GetBlock(hash)
-	if err != nil || !isTraceableBlock(ic.Chain, block.Index) {
+	block, err := ic.GetBlock(hash)
+	if err != nil || !isTraceableBlock(ic, block.Index) {
 		return stackitem.Null{}
 	}
 	if index >= uint32(len(block.Transactions)) {
@@ -157,7 +157,7 @@ func (l *Ledger) getTransactionFromBlock(ic *interop.Context, params []stackitem
 // getTransactionSigners returns transaction signers to the SC.
 func (l *Ledger) getTransactionSigners(ic *interop.Context, params []stackitem.Item) stackitem.Item {
 	tx, h, err := getTransactionAndHeight(ic.DAO, params[0])
-	if err != nil || !isTraceableBlock(ic.Chain, h) {
+	if err != nil || !isTraceableBlock(ic, h) {
 		return stackitem.Null{}
 	}
 	return SignersToStackItem(tx.Signers)
@@ -170,7 +170,7 @@ func (l *Ledger) getTransactionVMState(ic *interop.Context, params []stackitem.I
 		panic(err)
 	}
 	h, _, aer, err := ic.DAO.GetTxExecResult(hash)
-	if err != nil || !isTraceableBlock(ic.Chain, h) {
+	if err != nil || !isTraceableBlock(ic, h) {
 		return stackitem.Make(vm.NoneState)
 	}
 	return stackitem.Make(aer.VMState)
@@ -178,9 +178,9 @@ func (l *Ledger) getTransactionVMState(ic *interop.Context, params []stackitem.I
 
 // isTraceableBlock defines whether we're able to give information about
 // the block with index specified.
-func isTraceableBlock(bc interop.Ledger, index uint32) bool {
-	height := bc.BlockHeight()
-	MaxTraceableBlocks := bc.GetConfig().MaxTraceableBlocks
+func isTraceableBlock(ic *interop.Context, index uint32) bool {
+	height := ic.BlockHeight()
+	MaxTraceableBlocks := ic.Chain.GetConfig().MaxTraceableBlocks
 	return index <= height && index+MaxTraceableBlocks > height
 }
 
@@ -188,17 +188,17 @@ func isTraceableBlock(bc interop.Ledger, index uint32) bool {
 // Ledger if needed. Interop functions accept both block numbers and
 // block hashes as parameters, thus this function is needed. It's supposed to
 // be called within VM context, so it panics if anything goes wrong.
-func getBlockHashFromItem(bc interop.Ledger, item stackitem.Item) util.Uint256 {
+func getBlockHashFromItem(ic *interop.Context, item stackitem.Item) util.Uint256 {
 	bigindex, err := item.TryInteger()
 	if err == nil && bigindex.IsUint64() {
 		index := bigindex.Uint64()
 		if index > math.MaxUint32 {
 			panic("bad block index")
 		}
-		if uint32(index) > bc.BlockHeight() {
+		if uint32(index) > ic.BlockHeight() {
 			panic(fmt.Errorf("no block with index %d", index))
 		}
-		return bc.GetHeaderHash(int(index))
+		return ic.Chain.GetHeaderHash(int(index))
 	}
 	hash, err := getUint256FromItem(item)
 	if err != nil {

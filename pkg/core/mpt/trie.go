@@ -625,7 +625,7 @@ func (t *Trie) Find(prefix, from []byte, max int) ([]storage.KeyValue, error) {
 		}
 		return count >= max
 	}
-	_, err = b.traverse(start, path, fromP, process, false)
+	_, err = b.traverse(start, path, fromP, process, false, false)
 	if err != nil && !errors.Is(err, errStop) {
 		return nil, err
 	}

@@ -42,8 +42,16 @@ func TestNEO_GasPerBlock(t *testing.T) {
 	testGetSet(t, newNeoCommitteeClient(t, 100_0000_0000), "GasPerBlock", 5*native.GASFactor, 0, 10*native.GASFactor)
 }
 
+func TestNEO_GasPerBlockCache(t *testing.T) {
+	testGetSetCache(t, newNeoCommitteeClient(t, 100_0000_0000), "GasPerBlock", 5*native.GASFactor)
+}
+
 func TestNEO_RegisterPrice(t *testing.T) {
 	testGetSet(t, newNeoCommitteeClient(t, 100_0000_0000), "RegisterPrice", native.DefaultRegisterPrice, 1, math.MaxInt64)
+}
+
+func TestNEO_RegisterPriceCache(t *testing.T) {
+	testGetSetCache(t, newNeoCommitteeClient(t, 100_0000_0000), "RegisterPrice", native.DefaultRegisterPrice)
 }
 
 func TestNEO_Vote(t *testing.T) {

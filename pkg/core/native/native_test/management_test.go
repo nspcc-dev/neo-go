@@ -20,6 +20,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -32,6 +34,43 @@ func newManagementClient(t *testing.T) *neotest.ContractInvoker {
 
 func TestManagement_MinimumDeploymentFee(t *testing.T) {
 	testGetSet(t, newManagementClient(t), "MinimumDeploymentFee", 10_00000000, 0, 0)
+}
+
+func TestManagement_MinimumDeploymentFeeCache(t *testing.T) {
+	c := newManagementClient(t)
+	testGetSetCache(t, c, "MinimumDeploymentFee", 10_00000000)
+}
+
+func TestManagement_ContractCache(t *testing.T) {
+	c := newManagementClient(t)
+	managementInvoker := c.WithSigners(c.Committee)
+
+	cs1, _ := contracts.GetTestContractState(t, pathToInternalContracts, 1, 2, c.Committee.ScriptHash())
+	manifestBytes, err := json.Marshal(cs1.Manifest)
+	require.NoError(t, err)
+	nefBytes, err := cs1.NEF.Bytes()
+	require.NoError(t, err)
+
+	// Deploy contract, abort the transaction and check that Management cache wasn't persisted
+	// for FAULTed tx at the same block.
+	w := io.NewBufBinWriter()
+	emit.AppCall(w.BinWriter, managementInvoker.Hash, "deploy", callflag.All, nefBytes, manifestBytes)
+	emit.Opcodes(w.BinWriter, opcode.ABORT)
+	tx1 := managementInvoker.PrepareInvocation(t, w.Bytes(), managementInvoker.Signers)
+	tx2 := managementInvoker.PrepareInvoke(t, "getContract", cs1.Hash.BytesBE())
+	managementInvoker.AddNewBlock(t, tx1, tx2)
+	managementInvoker.CheckFault(t, tx1.Hash(), "ABORT")
+	managementInvoker.CheckHalt(t, tx2.Hash(), stackitem.Null{})
+
+	// Deploy the contract and check that cache was persisted for HALTed transaction at the same block.
+	tx1 = managementInvoker.PrepareInvoke(t, "deploy", nefBytes, manifestBytes)
+	tx2 = managementInvoker.PrepareInvoke(t, "getContract", cs1.Hash.BytesBE())
+	managementInvoker.AddNewBlock(t, tx1, tx2)
+	managementInvoker.CheckHalt(t, tx1.Hash())
+	aer, err := managementInvoker.Chain.GetAppExecResults(tx2.Hash(), trigger.Application)
+	require.NoError(t, err)
+	require.Equal(t, vm.HaltState, aer[0].VMState, aer[0].FaultException)
+	require.NotEqual(t, stackitem.Null{}, aer[0].Stack)
 }
 
 func TestManagement_ContractDeploy(t *testing.T) {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -32,12 +31,9 @@ type Notary struct {
 	GAS   *GAS
 	NEO   *NEO
 	Desig *Designate
+}
 
-	lock sync.RWMutex
-	// isValid defies whether cached values were changed during the current
-	// consensus iteration. If false, these values will be updated after
-	// blockchain DAO persisting. If true, we can safely use cached values.
-	isValid                bool
+type NotaryCache struct {
 	maxNotValidBeforeDelta uint32
 	notaryServiceFeePerKey int64
 }
@@ -55,6 +51,22 @@ var (
 	maxNotValidBeforeDeltaKey = []byte{10}
 	notaryServiceFeeKey       = []byte{5}
 )
+
+var (
+	_ interop.Contract        = (*Notary)(nil)
+	_ dao.NativeContractCache = (*NotaryCache)(nil)
+)
+
+// Copy implements NativeContractCache interface.
+func (c *NotaryCache) Copy() dao.NativeContractCache {
+	cp := &NotaryCache{}
+	copyNotaryCache(c, cp)
+	return cp
+}
+
+func copyNotaryCache(src, dst *NotaryCache) {
+	*dst = *src
+}
 
 // newNotary returns Notary native contract.
 func newNotary() *Notary {
@@ -125,9 +137,22 @@ func (n *Notary) Metadata() *interop.ContractMD {
 func (n *Notary) Initialize(ic *interop.Context) error {
 	setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
 	setIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey, defaultNotaryServiceFeePerKey)
-	n.isValid = true
-	n.maxNotValidBeforeDelta = defaultMaxNotValidBeforeDelta
-	n.notaryServiceFeePerKey = defaultNotaryServiceFeePerKey
+
+	cache := &NotaryCache{
+		maxNotValidBeforeDelta: defaultMaxNotValidBeforeDelta,
+		notaryServiceFeePerKey: defaultNotaryServiceFeePerKey,
+	}
+	ic.DAO.SetCache(n.ID, cache)
+	return nil
+}
+
+func (n *Notary) InitializeCache(d *dao.Simple) error {
+	cache := &NotaryCache{
+		maxNotValidBeforeDelta: uint32(getIntWithKey(n.ID, d, maxNotValidBeforeDeltaKey)),
+		notaryServiceFeePerKey: getIntWithKey(n.ID, d, notaryServiceFeeKey),
+	}
+
+	d.SetCache(n.ID, cache)
 	return nil
 }
 
@@ -176,15 +201,6 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements Contract interface.
 func (n *Notary) PostPersist(ic *interop.Context) error {
-	n.lock.Lock()
-	defer n.lock.Unlock()
-	if n.isValid {
-		return nil
-	}
-
-	n.maxNotValidBeforeDelta = uint32(getIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey))
-	n.notaryServiceFeePerKey = getIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey)
-	n.isValid = true
 	return nil
 }
 
@@ -207,7 +223,7 @@ func (n *Notary) onPayment(ic *interop.Context, args []stackitem.Item) stackitem
 	}
 
 	allowedChangeTill := ic.Tx.Sender() == to
-	currentHeight := ic.Chain.BlockHeight()
+	currentHeight := ic.BlockHeight()
 	deposit := n.GetDepositFor(ic.DAO, to)
 	till := toUint32(additionalParams[1])
 	if till < currentHeight {
@@ -250,7 +266,7 @@ func (n *Notary) lockDepositUntil(ic *interop.Context, args []stackitem.Item) st
 		return stackitem.NewBool(false)
 	}
 	till := toUint32(args[1])
-	if till < ic.Chain.BlockHeight() {
+	if till < ic.BlockHeight() {
 		return stackitem.NewBool(false)
 	}
 	deposit := n.GetDepositFor(ic.DAO, addr)
@@ -286,7 +302,7 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	if deposit == nil {
 		return stackitem.NewBool(false)
 	}
-	if ic.Chain.BlockHeight() < deposit.Till {
+	if ic.BlockHeight() < deposit.Till {
 		return stackitem.NewBool(false)
 	}
 	cs, err := ic.GetContract(n.GAS.Hash)
@@ -391,12 +407,8 @@ func (n *Notary) getMaxNotValidBeforeDelta(ic *interop.Context, _ []stackitem.It
 
 // GetMaxNotValidBeforeDelta is an internal representation of Notary getMaxNotValidBeforeDelta method.
 func (n *Notary) GetMaxNotValidBeforeDelta(dao *dao.Simple) uint32 {
-	n.lock.RLock()
-	defer n.lock.RUnlock()
-	if n.isValid {
-		return n.maxNotValidBeforeDelta
-	}
-	return uint32(getIntWithKey(n.ID, dao, maxNotValidBeforeDeltaKey))
+	cache := dao.GetROCache(n.ID).(*NotaryCache)
+	return cache.maxNotValidBeforeDelta
 }
 
 // setMaxNotValidBeforeDelta is Notary contract method and sets the maximum NotValidBefore delta.
@@ -404,16 +416,15 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 	value := toUint32(args[0])
 	cfg := ic.Chain.GetConfig()
 	maxInc := cfg.MaxValidUntilBlockIncrement
-	if value > maxInc/2 || value < uint32(cfg.GetNumOfCNs(ic.Chain.BlockHeight())) {
-		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", maxInc/2, cfg.GetNumOfCNs(ic.Chain.BlockHeight())))
+	if value > maxInc/2 || value < uint32(cfg.GetNumOfCNs(ic.BlockHeight())) {
+		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", maxInc/2, cfg.GetNumOfCNs(ic.BlockHeight())))
 	}
 	if !n.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
 	}
-	n.lock.Lock()
-	defer n.lock.Unlock()
 	setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, int64(value))
-	n.isValid = false
+	cache := ic.DAO.GetRWCache(n.ID).(*NotaryCache)
+	cache.maxNotValidBeforeDelta = value
 	return stackitem.Null{}
 }
 
@@ -424,12 +435,8 @@ func (n *Notary) getNotaryServiceFeePerKey(ic *interop.Context, _ []stackitem.It
 
 // GetNotaryServiceFeePerKey is an internal representation of Notary getNotaryServiceFeePerKey method.
 func (n *Notary) GetNotaryServiceFeePerKey(dao *dao.Simple) int64 {
-	n.lock.RLock()
-	defer n.lock.RUnlock()
-	if n.isValid {
-		return n.notaryServiceFeePerKey
-	}
-	return getIntWithKey(n.ID, dao, notaryServiceFeeKey)
+	cache := dao.GetROCache(n.ID).(*NotaryCache)
+	return cache.notaryServiceFeePerKey
 }
 
 // setNotaryServiceFeePerKey is Notary contract method and sets a reward per notary request key for notary nodes.
@@ -441,10 +448,9 @@ func (n *Notary) setNotaryServiceFeePerKey(ic *interop.Context, args []stackitem
 	if !n.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
 	}
-	n.lock.Lock()
-	defer n.lock.Unlock()
 	setIntWithKey(n.ID, ic.DAO, notaryServiceFeeKey, int64(value))
-	n.isValid = false
+	cache := ic.DAO.GetRWCache(n.ID).(*NotaryCache)
+	cache.notaryServiceFeePerKey = value
 	return stackitem.Null{}
 }
 

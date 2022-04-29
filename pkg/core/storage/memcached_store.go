@@ -365,7 +365,6 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	if !isSync {
 		s.mut.Unlock()
 	}
-
 	err = tempstore.ps.PutChangeSet(tempstore.mem, tempstore.stor)
 
 	if !isSync {

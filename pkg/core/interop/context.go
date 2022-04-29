@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -338,4 +339,32 @@ func (ic *Context) Finalize() {
 func (ic *Context) Exec() error {
 	defer ic.Finalize()
 	return ic.VM.Run()
+}
+
+// BlockHeight returns current block height got from Context's block if it's set.
+func (ic *Context) BlockHeight() uint32 {
+	if ic.Block != nil {
+		return ic.Block.Index - 1 // Persisting block is not yet stored.
+	}
+	return ic.Chain.BlockHeight()
+}
+
+// CurrentBlockHash returns current block hash got from Context's block if it's set.
+func (ic *Context) CurrentBlockHash() util.Uint256 {
+	if ic.Block != nil {
+		return ic.Chain.GetHeaderHash(int(ic.Block.Index - 1)) // Persisting block is not yet stored.
+	}
+	return ic.Chain.CurrentBlockHash()
+}
+
+// GetBlock returns block if it exists and available at the current Context's height.
+func (ic *Context) GetBlock(hash util.Uint256) (*block.Block, error) {
+	block, err := ic.Chain.GetBlock(hash)
+	if err != nil {
+		return nil, err
+	}
+	if block.Index > ic.BlockHeight() {
+		return nil, storage.ErrKeyNotFound
+	}
+	return block, nil
 }
