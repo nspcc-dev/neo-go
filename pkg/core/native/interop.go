@@ -31,7 +31,7 @@ func Call(ic *interop.Context) error {
 	if len(history) == 0 {
 		return fmt.Errorf("native contract %s is disabled", c.Metadata().Name)
 	}
-	if history[0] > ic.Chain.BlockHeight() {
+	if history[0] > ic.BlockHeight() {
 		return fmt.Errorf("native contract %s is active after height = %d", c.Metadata().Name, history[0])
 	}
 	m, ok := c.Metadata().GetMethodByOffset(ic.VM.Context().IP())

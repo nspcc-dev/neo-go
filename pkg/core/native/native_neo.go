@@ -249,7 +249,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 
 	committee0 := n.standbyKeys[:n.cfg.GetCommitteeSize(ic.Block.Index)]
 	cvs := toKeysWithVotes(committee0)
-	err := n.updateCache(cache, cvs, ic.Chain)
+	err := n.updateCache(cache, cvs, ic.BlockHeight())
 	if err != nil {
 		return err
 	}
@@ -279,7 +279,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 // InitializeCache initializes all NEO cache with the proper values from storage.
 // Cache initialisation should be done apart from Initialize because Initialize is
 // called only when deploying native contracts.
-func (n *NEO) InitializeCache(bc interop.Ledger, d *dao.Simple) error {
+func (n *NEO) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	cache := &NeoCache{
 		gasPerVoteCache: make(map[string]big.Int),
 		votesChanged:    true,
@@ -290,7 +290,7 @@ func (n *NEO) InitializeCache(bc interop.Ledger, d *dao.Simple) error {
 	if err := committee.DecodeBytes(si); err != nil {
 		return fmt.Errorf("failed to decode committee: %w", err)
 	}
-	if err := n.updateCache(cache, committee, bc); err != nil {
+	if err := n.updateCache(cache, committee, blockHeight); err != nil {
 		return fmt.Errorf("failed to update cache: %w", err)
 	}
 
@@ -309,7 +309,7 @@ func (n *NEO) initConfigCache(cfg config.ProtocolConfiguration) error {
 	return err
 }
 
-func (n *NEO) updateCache(cache *NeoCache, cvs keysWithVotes, bc interop.Ledger) error {
+func (n *NEO) updateCache(cache *NeoCache, cvs keysWithVotes, blockHeight uint32) error {
 	cache.committee = cvs
 
 	var committee = getCommitteeMembers(cache)
@@ -319,8 +319,7 @@ func (n *NEO) updateCache(cache *NeoCache, cvs keysWithVotes, bc interop.Ledger)
 	}
 	cache.committeeHash = hash.Hash160(script)
 
-	// TODO: use block height from interop context for proper historical calls handling.
-	nextVals := committee[:n.cfg.GetNumOfCNs(bc.BlockHeight()+1)].Copy()
+	nextVals := committee[:n.cfg.GetNumOfCNs(blockHeight+1)].Copy()
 	sort.Sort(nextVals)
 	cache.nextValidators = nextVals
 	return nil
@@ -333,11 +332,11 @@ func (n *NEO) updateCommittee(cache *NeoCache, ic *interop.Context) error {
 		return nil
 	}
 
-	_, cvs, err := n.computeCommitteeMembers(ic.Chain, ic.DAO)
+	_, cvs, err := n.computeCommitteeMembers(ic.BlockHeight(), ic.DAO)
 	if err != nil {
 		return err
 	}
-	if err := n.updateCache(cache, cvs, ic.Chain); err != nil {
+	if err := n.updateCache(cache, cvs, ic.BlockHeight()); err != nil {
 		return err
 	}
 	cache.votesChanged = false
@@ -939,8 +938,8 @@ func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stacki
 }
 
 // ComputeNextBlockValidators returns an actual list of current validators.
-func (n *NEO) ComputeNextBlockValidators(bc interop.Ledger, d *dao.Simple) (keys.PublicKeys, error) {
-	numOfCNs := n.cfg.GetNumOfCNs(bc.BlockHeight() + 1)
+func (n *NEO) ComputeNextBlockValidators(blockHeight uint32, d *dao.Simple) (keys.PublicKeys, error) {
+	numOfCNs := n.cfg.GetNumOfCNs(blockHeight + 1)
 	// Most of the time it should be OK with RO cache, thus try to retrieve
 	// validators without RW cache creation to avoid cached values copying.
 	cache := d.GetROCache(n.ID).(*NeoCache)
@@ -948,7 +947,7 @@ func (n *NEO) ComputeNextBlockValidators(bc interop.Ledger, d *dao.Simple) (keys
 		return vals.Copy(), nil
 	}
 	cache = d.GetRWCache(n.ID).(*NeoCache)
-	result, _, err := n.computeCommitteeMembers(bc, d)
+	result, _, err := n.computeCommitteeMembers(blockHeight, d)
 	if err != nil {
 		return nil, err
 	}
@@ -1007,7 +1006,7 @@ func toKeysWithVotes(pubs keys.PublicKeys) keysWithVotes {
 }
 
 // computeCommitteeMembers returns public keys of nodes in committee.
-func (n *NEO) computeCommitteeMembers(bc interop.Ledger, d *dao.Simple) (keys.PublicKeys, keysWithVotes, error) {
+func (n *NEO) computeCommitteeMembers(blockHeight uint32, d *dao.Simple) (keys.PublicKeys, keysWithVotes, error) {
 	key := []byte{prefixVotersCount}
 	si := d.GetStorageItem(n.ID, key)
 	if si == nil {
@@ -1019,7 +1018,7 @@ func (n *NEO) computeCommitteeMembers(bc interop.Ledger, d *dao.Simple) (keys.Pu
 	_, totalSupply := n.getTotalSupply(d)
 	voterTurnout := votersCount.Div(votersCount, totalSupply)
 
-	count := n.cfg.GetCommitteeSize(bc.BlockHeight() + 1)
+	count := n.cfg.GetCommitteeSize(blockHeight + 1)
 	// Can be sorted and/or returned to outside users, thus needs to be copied.
 	sbVals := keys.PublicKeys(n.standbyKeys[:count]).Copy()
 	cs, err := n.getCandidates(d, false)

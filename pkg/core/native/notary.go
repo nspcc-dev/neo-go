@@ -223,7 +223,7 @@ func (n *Notary) onPayment(ic *interop.Context, args []stackitem.Item) stackitem
 	}
 
 	allowedChangeTill := ic.Tx.Sender() == to
-	currentHeight := ic.Chain.BlockHeight()
+	currentHeight := ic.BlockHeight()
 	deposit := n.GetDepositFor(ic.DAO, to)
 	till := toUint32(additionalParams[1])
 	if till < currentHeight {
@@ -266,7 +266,7 @@ func (n *Notary) lockDepositUntil(ic *interop.Context, args []stackitem.Item) st
 		return stackitem.NewBool(false)
 	}
 	till := toUint32(args[1])
-	if till < ic.Chain.BlockHeight() {
+	if till < ic.BlockHeight() {
 		return stackitem.NewBool(false)
 	}
 	deposit := n.GetDepositFor(ic.DAO, addr)
@@ -302,7 +302,7 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	if deposit == nil {
 		return stackitem.NewBool(false)
 	}
-	if ic.Chain.BlockHeight() < deposit.Till {
+	if ic.BlockHeight() < deposit.Till {
 		return stackitem.NewBool(false)
 	}
 	cs, err := ic.GetContract(n.GAS.Hash)
@@ -416,8 +416,8 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 	value := toUint32(args[0])
 	cfg := ic.Chain.GetConfig()
 	maxInc := cfg.MaxValidUntilBlockIncrement
-	if value > maxInc/2 || value < uint32(cfg.GetNumOfCNs(ic.Chain.BlockHeight())) {
-		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", maxInc/2, cfg.GetNumOfCNs(ic.Chain.BlockHeight())))
+	if value > maxInc/2 || value < uint32(cfg.GetNumOfCNs(ic.BlockHeight())) {
+		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", maxInc/2, cfg.GetNumOfCNs(ic.BlockHeight())))
 	}
 	if !n.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")

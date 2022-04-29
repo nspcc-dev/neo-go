@@ -433,7 +433,7 @@ func (bc *Blockchain) init() error {
 		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
 	}
 
-	err = bc.initializeNativeCache(bc.dao)
+	err = bc.initializeNativeCache(bc.blockHeight, bc.dao)
 	if err != nil {
 		return fmt.Errorf("can't init natives cache: %w", err)
 	}
@@ -570,7 +570,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 		Root:  block.PrevStateRoot,
 	})
 
-	err = bc.initializeNativeCache(bc.dao)
+	err = bc.initializeNativeCache(block.Index, bc.dao)
 	if err != nil {
 		return fmt.Errorf("failed to initialize natives cache: %w", err)
 	}
@@ -585,8 +585,8 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 	return nil
 }
 
-func (bc *Blockchain) initializeNativeCache(d *dao.Simple) error {
-	err := bc.contracts.NEO.InitializeCache(bc, d)
+func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) error {
+	err := bc.contracts.NEO.InitializeCache(blockHeight, d)
 	if err != nil {
 		return fmt.Errorf("can't init cache for NEO native contract: %w", err)
 	}
@@ -2143,7 +2143,7 @@ func (bc *Blockchain) GetCommittee() (keys.PublicKeys, error) {
 
 // GetValidators returns current validators.
 func (bc *Blockchain) GetValidators() ([]*keys.PublicKey, error) {
-	return bc.contracts.NEO.ComputeNextBlockValidators(bc, bc.dao)
+	return bc.contracts.NEO.ComputeNextBlockValidators(bc.blockHeight, bc.dao)
 }
 
 // GetNextBlockValidators returns next block validators.
@@ -2189,7 +2189,7 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 	dTrie.Version = bc.dao.Version
 	// Initialize native cache before passing DAO to interop context constructor, because
 	// the constructor will call BaseExecFee/StoragePrice policy methods on the passed DAO.
-	err = bc.initializeNativeCache(dTrie)
+	err = bc.initializeNativeCache(b.Index, dTrie)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize native cache backed by historic DAO: %w", err)
 	}
