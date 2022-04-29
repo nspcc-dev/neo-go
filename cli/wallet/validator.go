@@ -204,7 +204,7 @@ func getDecryptedAccount(ctx *cli.Context, wall *wallet.Wallet, addr util.Uint16
 		return nil, fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addr))
 	}
 
-	if pass, err := input.ReadPassword("Password > "); err != nil {
+	if pass, err := input.ReadPassword(EnterPasswordPrompt); err != nil {
 		fmt.Println("Error reading password", err)
 		return nil, err
 	} else if err := acc.Decrypt(pass, wall.Scrypt); err != nil {
