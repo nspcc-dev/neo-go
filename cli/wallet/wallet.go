@@ -22,6 +22,18 @@ import (
 	"github.com/urfave/cli"
 )
 
+const (
+	// EnterPasswordPrompt is a prompt used to ask the user for a password.
+	EnterPasswordPrompt = "Enter password > "
+	// EnterNewPasswordPrompt is a prompt used to ask the user for a password on
+	// account creation.
+	EnterNewPasswordPrompt = "Enter new password > "
+	// EnterOldPasswordPrompt is a prompt used to ask the user for an old password.
+	EnterOldPasswordPrompt = "Enter old password > "
+	// ConfirmPasswordPrompt is a prompt used to confirm the password.
+	ConfirmPasswordPrompt = "Confirm password > "
+)
+
 var (
 	errNoPath         = errors.New("wallet path is mandatory and should be passed using (--wallet, -w) flags")
 	errPhraseMismatch = errors.New("the entered pass-phrases do not match. Maybe you have misspelled them")
@@ -315,7 +327,7 @@ func changePassword(ctx *cli.Context) error {
 		}
 	}
 
-	oldPass, err := input.ReadPassword("Enter password > ")
+	oldPass, err := input.ReadPassword(EnterOldPasswordPrompt)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("Error reading old password: %w", err), 1)
 	}
@@ -368,7 +380,7 @@ func convertWallet(ctx *cli.Context) error {
 	newWallet.Scrypt = wall.Scrypt
 
 	for _, acc := range wall.Accounts {
-		pass, err := input.ReadPassword(fmt.Sprintf("Enter passphrase for account %s (label '%s') > ", acc.Address, acc.Label))
+		pass, err := input.ReadPassword(fmt.Sprintf("Enter password for account %s (label '%s') > ", acc.Address, acc.Label))
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("Error reading password: %w", err), 1)
 		}
@@ -438,7 +450,7 @@ loop:
 
 	for _, wif := range wifs {
 		if decrypt {
-			pass, err := input.ReadPassword("Enter password > ")
+			pass, err := input.ReadPassword(EnterPasswordPrompt)
 			if err != nil {
 				return cli.NewExitError(fmt.Errorf("Error reading password: %w", err), 1)
 			}
@@ -634,7 +646,7 @@ func dumpWallet(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	if ctx.Bool("decrypt") {
-		pass, err := input.ReadPassword("Enter wallet password > ")
+		pass, err := input.ReadPassword(EnterPasswordPrompt)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("Error reading password: %w", err), 1)
 		}
@@ -734,11 +746,11 @@ func readAccountInfo() (string, string, error) {
 }
 
 func readNewPassword() (string, error) {
-	phrase, err := input.ReadPassword("Enter passphrase > ")
+	phrase, err := input.ReadPassword(EnterNewPasswordPrompt)
 	if err != nil {
 		return "", fmt.Errorf("Error reading password: %w", err)
 	}
-	phraseCheck, err := input.ReadPassword("Confirm passphrase > ")
+	phraseCheck, err := input.ReadPassword(ConfirmPasswordPrompt)
 	if err != nil {
 		return "", fmt.Errorf("Error reading password: %w", err)
 	}
@@ -785,7 +797,7 @@ func newAccountFromWIF(w io.Writer, wif string, scrypt keys.ScryptParams) (*wall
 	// note: NEP2 strings always have length of 58 even though
 	// base58 strings can have different lengths even if slice lengths are equal
 	if len(wif) == 58 {
-		pass, err := input.ReadPassword("Enter password > ")
+		pass, err := input.ReadPassword(EnterPasswordPrompt)
 		if err != nil {
 			return nil, fmt.Errorf("Error reading password: %w", err)
 		}
