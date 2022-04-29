@@ -318,6 +318,9 @@ func changePassword(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	if len(wall.Accounts) == 0 {
+		return cli.NewExitError("wallet has no accounts", 1)
+	}
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if addrFlag.IsSet {
 		// Check for account presence first before asking for password.
