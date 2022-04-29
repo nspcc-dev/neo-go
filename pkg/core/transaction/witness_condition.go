@@ -3,10 +3,12 @@ package transaction
 import (
 	"encoding/json"
 	"errors"
+	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 //go:generate stringer -type=WitnessConditionType -linecomment
@@ -50,6 +52,8 @@ type WitnessCondition interface {
 	// DecodeBinarySpecific decodes type-specific binary data from the given
 	// reader (not including type data).
 	DecodeBinarySpecific(*io.BinReader, int)
+	// ToStackItem converts WitnessCondition to stackitem.Item.
+	ToStackItem() stackitem.Item
 
 	json.Marshaler
 }
@@ -129,6 +133,12 @@ func (c *ConditionBoolean) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
+// ToStackItem implements WitnessCondition interface allowing to convert
+// to stackitem.Item.
+func (c *ConditionBoolean) ToStackItem() stackitem.Item {
+	return condToStackItem(c.Type(), bool(*c))
+}
+
 // Type implements WitnessCondition interface and returns condition type.
 func (c *ConditionNot) Type() WitnessConditionType {
 	return WitnessNot
@@ -164,6 +174,12 @@ func (c *ConditionNot) MarshalJSON() ([]byte, error) {
 		Expression: json.RawMessage(condJSON),
 	}
 	return json.Marshal(aux)
+}
+
+// ToStackItem implements WitnessCondition interface allowing to convert
+// to stackitem.Item.
+func (c *ConditionNot) ToStackItem() stackitem.Item {
+	return condToStackItem(c.Type(), c.Condition)
 }
 
 // Type implements WitnessCondition interface and returns condition type.
@@ -242,6 +258,12 @@ func (c *ConditionAnd) MarshalJSON() ([]byte, error) {
 	return arrayToJSON(c, []WitnessCondition(*c))
 }
 
+// ToStackItem implements WitnessCondition interface allowing to convert
+// to stackitem.Item.
+func (c *ConditionAnd) ToStackItem() stackitem.Item {
+	return condToStackItem(c.Type(), []WitnessCondition(*c))
+}
+
 // Type implements WitnessCondition interface and returns condition type.
 func (c *ConditionOr) Type() WitnessConditionType {
 	return WitnessOr
@@ -282,6 +304,12 @@ func (c *ConditionOr) MarshalJSON() ([]byte, error) {
 	return arrayToJSON(c, []WitnessCondition(*c))
 }
 
+// ToStackItem implements WitnessCondition interface allowing to convert
+// to stackitem.Item.
+func (c *ConditionOr) ToStackItem() stackitem.Item {
+	return condToStackItem(c.Type(), []WitnessCondition(*c))
+}
+
 // Type implements WitnessCondition interface and returns condition type.
 func (c *ConditionScriptHash) Type() WitnessConditionType {
 	return WitnessScriptHash
@@ -312,6 +340,12 @@ func (c *ConditionScriptHash) MarshalJSON() ([]byte, error) {
 		Hash: (*util.Uint160)(c),
 	}
 	return json.Marshal(aux)
+}
+
+// ToStackItem implements WitnessCondition interface allowing to convert
+// to stackitem.Item.
+func (c *ConditionScriptHash) ToStackItem() stackitem.Item {
+	return condToStackItem(c.Type(), util.Uint160(*c))
 }
 
 // Type implements WitnessCondition interface and returns condition type.
@@ -346,6 +380,12 @@ func (c *ConditionGroup) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
+// ToStackItem implements WitnessCondition interface allowing to convert
+// to stackitem.Item.
+func (c *ConditionGroup) ToStackItem() stackitem.Item {
+	return condToStackItem(c.Type(), keys.PublicKey(*c))
+}
+
 // Type implements WitnessCondition interface and returns condition type.
 func (c ConditionCalledByEntry) Type() WitnessConditionType {
 	return WitnessCalledByEntry
@@ -374,6 +414,12 @@ func (c ConditionCalledByEntry) MarshalJSON() ([]byte, error) {
 		Type: c.Type().String(),
 	}
 	return json.Marshal(aux)
+}
+
+// ToStackItem implements WitnessCondition interface allowing to convert
+// to stackitem.Item.
+func (c ConditionCalledByEntry) ToStackItem() stackitem.Item {
+	return condToStackItem(c.Type(), nil)
 }
 
 // Type implements WitnessCondition interface and returns condition type.
@@ -408,6 +454,12 @@ func (c *ConditionCalledByContract) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
+// ToStackItem implements WitnessCondition interface allowing to convert
+// to stackitem.Item.
+func (c *ConditionCalledByContract) ToStackItem() stackitem.Item {
+	return condToStackItem(c.Type(), util.Uint160(*c))
+}
+
 // Type implements WitnessCondition interface and returns condition type.
 func (c *ConditionCalledByGroup) Type() WitnessConditionType {
 	return WitnessCalledByGroup
@@ -438,6 +490,12 @@ func (c *ConditionCalledByGroup) MarshalJSON() ([]byte, error) {
 		Group: (*keys.PublicKey)(c),
 	}
 	return json.Marshal(aux)
+}
+
+// ToStackItem implements WitnessCondition interface allowing to convert
+// to stackitem.Item.
+func (c *ConditionCalledByGroup) ToStackItem() stackitem.Item {
+	return condToStackItem(c.Type(), keys.PublicKey(*c))
 }
 
 // DecodeBinaryCondition decodes and returns condition from the given binary stream.
@@ -572,4 +630,30 @@ func unmarshalConditionJSON(data []byte, maxDepth int) (WitnessCondition, error)
 		return nil, errors.New("invalid condition type")
 	}
 	return res, nil
+}
+
+func condToStackItem(typ WitnessConditionType, c interface{}) stackitem.Item {
+	res := make([]stackitem.Item, 0, 2)
+	res = append(res, stackitem.NewBigInteger(big.NewInt(int64(typ))))
+	switch typ {
+	case WitnessBoolean:
+		res = append(res, stackitem.NewBool(c.(bool)))
+	case WitnessNot:
+		res = append(res, c.(WitnessCondition).ToStackItem())
+	case WitnessAnd, WitnessOr:
+		v := c.([]WitnessCondition)
+		operands := make([]stackitem.Item, len(v))
+		for i, op := range v {
+			operands[i] = op.ToStackItem()
+		}
+		res = append(res, stackitem.NewArray(operands))
+	case WitnessScriptHash, WitnessCalledByContract:
+		res = append(res, stackitem.NewByteArray(c.(util.Uint160).BytesBE()))
+	case WitnessGroup, WitnessCalledByGroup:
+		g := c.(keys.PublicKey)
+		res = append(res, stackitem.NewByteArray((&g).Bytes()))
+	case WitnessCalledByEntry:
+		// No additional item should be added.
+	}
+	return stackitem.NewArray(res)
 }

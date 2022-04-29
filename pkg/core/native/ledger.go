@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -61,6 +62,11 @@ func newLedger() *Ledger {
 		manifest.NewParameter("blockIndexOrHash", smartcontract.ByteArrayType),
 		manifest.NewParameter("txIndex", smartcontract.IntegerType))
 	md = newMethodAndPrice(l.getTransactionFromBlock, 1<<16, callflag.ReadStates)
+	l.AddMethod(md, desc)
+
+	desc = newDescriptor("getTransactionSigners", smartcontract.ArrayType,
+		manifest.NewParameter("hash", smartcontract.Hash256Type))
+	md = newMethodAndPrice(l.getTransactionSigners, 1<<15, callflag.ReadStates)
 	l.AddMethod(md, desc)
 
 	desc = newDescriptor("getTransactionVMState", smartcontract.IntegerType,
@@ -146,6 +152,15 @@ func (l *Ledger) getTransactionFromBlock(ic *interop.Context, params []stackitem
 		panic("wrong transaction index")
 	}
 	return TransactionToStackItem(block.Transactions[index])
+}
+
+// getTransactionSigners returns transaction signers to the SC.
+func (l *Ledger) getTransactionSigners(ic *interop.Context, params []stackitem.Item) stackitem.Item {
+	tx, h, err := getTransactionAndHeight(ic.DAO, params[0])
+	if err != nil || !isTraceableBlock(ic.Chain, h) {
+		return stackitem.Null{}
+	}
+	return SignersToStackItem(tx.Signers)
 }
 
 // getTransactionVMState returns VM state got after transaction invocation.
@@ -241,4 +256,38 @@ func TransactionToStackItem(t *transaction.Transaction) stackitem.Item {
 		stackitem.NewBigInteger(big.NewInt(int64(t.ValidUntilBlock))),
 		stackitem.NewByteArray(t.Script),
 	})
+}
+
+// SignersToStackItem converts transaction.Signers to stackitem.Item.
+func SignersToStackItem(signers []transaction.Signer) stackitem.Item {
+	res := make([]stackitem.Item, len(signers))
+	bw := io.NewBufBinWriter()
+	for i, s := range signers {
+		s.EncodeBinary(bw.BinWriter)
+		if bw.Err != nil {
+			panic(fmt.Errorf("failed to serialize signer %d to stackitem: %w", i, bw.Err))
+		}
+		contracts := make([]stackitem.Item, len(s.AllowedContracts))
+		for j, c := range s.AllowedContracts {
+			contracts[j] = stackitem.NewByteArray(c.BytesBE())
+		}
+		groups := make([]stackitem.Item, len(s.AllowedGroups))
+		for j, g := range s.AllowedGroups {
+			groups[j] = stackitem.NewByteArray(g.Bytes())
+		}
+		rules := make([]stackitem.Item, len(s.Rules))
+		for j, r := range s.Rules {
+			rules[j] = r.ToStackItem()
+		}
+		res[i] = stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray(bw.Bytes()),
+			stackitem.NewByteArray(s.Account.BytesBE()),
+			stackitem.NewBigInteger(big.NewInt(int64(s.Scopes))),
+			stackitem.NewArray(contracts),
+			stackitem.NewArray(groups),
+			stackitem.NewArray(rules),
+		})
+		bw.Reset()
+	}
+	return stackitem.NewArray(res)
 }

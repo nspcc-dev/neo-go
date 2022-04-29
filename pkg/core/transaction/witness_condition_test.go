@@ -8,6 +8,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,10 +32,14 @@ func (c InvalidCondition) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(aux)
 }
+func (c InvalidCondition) ToStackItem() stackitem.Item {
+	panic("invalid")
+}
 
 type condCase struct {
-	condition WitnessCondition
-	success   bool
+	condition         WitnessCondition
+	success           bool
+	expectedStackItem []stackitem.Item
 }
 
 func TestWitnessConditionSerDes(t *testing.T) {
@@ -41,19 +47,25 @@ func TestWitnessConditionSerDes(t *testing.T) {
 	pk, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 	var cases = []condCase{
-		{(*ConditionBoolean)(&someBool), true},
-		{&ConditionNot{(*ConditionBoolean)(&someBool)}, true},
-		{&ConditionAnd{(*ConditionBoolean)(&someBool), (*ConditionBoolean)(&someBool)}, true},
-		{&ConditionOr{(*ConditionBoolean)(&someBool), (*ConditionBoolean)(&someBool)}, true},
-		{&ConditionScriptHash{1, 2, 3}, true},
-		{(*ConditionGroup)(pk.PublicKey()), true},
-		{ConditionCalledByEntry{}, true},
-		{&ConditionCalledByContract{1, 2, 3}, true},
-		{(*ConditionCalledByGroup)(pk.PublicKey()), true},
-		{InvalidCondition{}, false},
-		{&ConditionAnd{}, false},
-		{&ConditionOr{}, false},
-		{&ConditionNot{&ConditionNot{&ConditionNot{(*ConditionBoolean)(&someBool)}}}, false},
+		{(*ConditionBoolean)(&someBool), true, []stackitem.Item{stackitem.Make(WitnessBoolean), stackitem.Make(someBool)}},
+		{&ConditionNot{(*ConditionBoolean)(&someBool)}, true, []stackitem.Item{stackitem.Make(WitnessNot), stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessBoolean), stackitem.Make(someBool)})}},
+		{&ConditionAnd{(*ConditionBoolean)(&someBool), (*ConditionBoolean)(&someBool)}, true, []stackitem.Item{stackitem.Make(WitnessAnd), stackitem.Make([]stackitem.Item{
+			stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessBoolean), stackitem.Make(someBool)}),
+			stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessBoolean), stackitem.Make(someBool)}),
+		})}},
+		{&ConditionOr{(*ConditionBoolean)(&someBool), (*ConditionBoolean)(&someBool)}, true, []stackitem.Item{stackitem.Make(WitnessOr), stackitem.Make([]stackitem.Item{
+			stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessBoolean), stackitem.Make(someBool)}),
+			stackitem.NewArray([]stackitem.Item{stackitem.Make(WitnessBoolean), stackitem.Make(someBool)}),
+		})}},
+		{&ConditionScriptHash{1, 2, 3}, true, []stackitem.Item{stackitem.Make(WitnessScriptHash), stackitem.Make(util.Uint160{1, 2, 3}.BytesBE())}},
+		{(*ConditionGroup)(pk.PublicKey()), true, []stackitem.Item{stackitem.Make(WitnessGroup), stackitem.Make(pk.PublicKey().Bytes())}},
+		{ConditionCalledByEntry{}, true, []stackitem.Item{stackitem.Make(WitnessCalledByEntry)}},
+		{&ConditionCalledByContract{1, 2, 3}, true, []stackitem.Item{stackitem.Make(WitnessCalledByContract), stackitem.Make(util.Uint160{1, 2, 3}.BytesBE())}},
+		{(*ConditionCalledByGroup)(pk.PublicKey()), true, []stackitem.Item{stackitem.Make(WitnessCalledByGroup), stackitem.Make(pk.PublicKey().Bytes())}},
+		{InvalidCondition{}, false, nil},
+		{&ConditionAnd{}, false, nil},
+		{&ConditionOr{}, false, nil},
+		{&ConditionNot{&ConditionNot{&ConditionNot{(*ConditionBoolean)(&someBool)}}}, false, nil},
 	}
 	var maxSubCondAnd = &ConditionAnd{}
 	var maxSubCondOr = &ConditionAnd{}
@@ -61,8 +73,8 @@ func TestWitnessConditionSerDes(t *testing.T) {
 		*maxSubCondAnd = append(*maxSubCondAnd, (*ConditionBoolean)(&someBool))
 		*maxSubCondOr = append(*maxSubCondOr, (*ConditionBoolean)(&someBool))
 	}
-	cases = append(cases, condCase{maxSubCondAnd, false})
-	cases = append(cases, condCase{maxSubCondOr, false})
+	cases = append(cases, condCase{maxSubCondAnd, false, nil})
+	cases = append(cases, condCase{maxSubCondOr, false, nil})
 	t.Run("binary", func(t *testing.T) {
 		for i, c := range cases {
 			w := io.NewBufBinWriter()
@@ -92,6 +104,15 @@ func TestWitnessConditionSerDes(t *testing.T) {
 			}
 			require.NoErrorf(t, err, "case %d, json %s", i, jj)
 			require.Equal(t, c.condition, res)
+		}
+	})
+	t.Run("stackitem", func(t *testing.T) {
+		for i, c := range cases[1:] {
+			if c.expectedStackItem != nil {
+				expected := stackitem.NewArray(c.expectedStackItem)
+				actual := c.condition.ToStackItem()
+				assert.Equal(t, expected, actual, i)
+			}
 		}
 	})
 }
