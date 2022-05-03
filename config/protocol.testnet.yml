@@ -1,6 +1,9 @@
 ProtocolConfiguration:
   Magic: 877933390
+  MaxBlockSize: 2097152
+  MaxBlockSystemFee: 150000000000
   MaxTraceableBlocks: 2102400
+  MaxTransactionsPerBlock: 5000
   InitialGASSupply: 52000000
   SecondsPerBlock: 15
   MemPoolSize: 50000
