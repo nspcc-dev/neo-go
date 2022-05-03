@@ -110,7 +110,7 @@ const (
 	defaultRefreshInterval = time.Minute * 3
 
 	// maxRedirections is the number of allowed redirections for Oracle HTTPS request.
-	maxRedirections = 5
+	maxRedirections = 2
 )
 
 // ErrRestrictedRedirect is returned when redirection to forbidden address occurs
