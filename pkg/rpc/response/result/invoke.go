@@ -95,21 +95,26 @@ func (r *Invoke) Finalize() {
 // MarshalJSON implements json.Marshaler.
 func (r Invoke) MarshalJSON() ([]byte, error) {
 	defer r.Finalize()
-	var st json.RawMessage
-	arr := make([]json.RawMessage, len(r.Stack))
+	var (
+		st       json.RawMessage
+		err      error
+		faultSep string
+		arr      = make([]json.RawMessage, len(r.Stack))
+	)
+	if len(r.FaultException) != 0 {
+		faultSep = " / "
+	}
+arrloop:
 	for i := range arr {
-		var (
-			data []byte
-			err  error
-		)
+		var data []byte
 		if (r.Stack[i].Type() == stackitem.InteropT) && iterator.IsIterator(r.Stack[i]) {
 			iteratorValues, truncated := iterator.Values(r.Stack[i], r.maxIteratorResultItems)
 			value := make([]json.RawMessage, len(iteratorValues))
 			for j := range iteratorValues {
 				value[j], err = stackitem.ToJSONWithTypes(iteratorValues[j])
 				if err != nil {
-					st = []byte(fmt.Sprintf(`"error: %v"`, err))
-					break
+					r.FaultException += fmt.Sprintf("%sjson error: %v", faultSep, err)
+					break arrloop
 				}
 			}
 			data, err = json.Marshal(iteratorAux{
@@ -123,15 +128,14 @@ func (r Invoke) MarshalJSON() ([]byte, error) {
 		} else {
 			data, err = stackitem.ToJSONWithTypes(r.Stack[i])
 			if err != nil {
-				st = []byte(fmt.Sprintf(`"error: %v"`, err))
+				r.FaultException += fmt.Sprintf("%sjson error: %v", faultSep, err)
 				break
 			}
 		}
 		arr[i] = data
 	}
 
-	var err error
-	if st == nil {
+	if err == nil {
 		st, err = json.Marshal(arr)
 		if err != nil {
 			return nil, err
