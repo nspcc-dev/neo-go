@@ -28,7 +28,8 @@ import (
 // Management is contract-managing native contract.
 type Management struct {
 	interop.ContractMD
-	NEO *NEO
+	NEO    *NEO
+	Policy *Policy
 }
 
 type ManagementCache struct {
@@ -286,6 +287,9 @@ func (m *Management) markUpdated(d *dao.Simple, hash util.Uint160, cs *state.Con
 // It doesn't run _deploy method and doesn't emit notification.
 func (m *Management) Deploy(d *dao.Simple, sender util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	h := state.CreateContractHash(sender, neff.Checksum, manif.Name)
+	if m.Policy.IsBlocked(d, h) {
+		return nil, fmt.Errorf("the contract %s has been blocked", h.StringLE())
+	}
 	_, err := m.GetContract(d, h)
 	if err == nil {
 		return nil, errors.New("contract already exists")
@@ -349,6 +353,9 @@ func (m *Management) Update(d *dao.Simple, hash util.Uint160, neff *nef.File, ma
 	if err != nil {
 		return nil, errors.New("contract doesn't exist")
 	}
+	if oldcontract.UpdateCounter == math.MaxUint16 {
+		return nil, errors.New("the contract reached the maximum number of updates")
+	}
 
 	contract = *oldcontract // Make a copy, don't ruin (potentially) cached contract.
 	// if NEF was provided, update the contract script
@@ -404,6 +411,7 @@ func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 		d.DeleteStorageItem(contract.ID, k)
 		return true
 	})
+	m.Policy.blockAccountInternal(d, hash)
 	m.markUpdated(d, hash, nil)
 	return nil
 }

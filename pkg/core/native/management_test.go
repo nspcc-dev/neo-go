@@ -17,9 +17,11 @@ import (
 
 func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	mgmt := newManagement()
+	mgmt.Policy = newPolicy()
 	d := dao.NewSimple(storage.NewMemoryStore(), false, false)
 	err := mgmt.Initialize(&interop.Context{DAO: d})
 	require.NoError(t, err)
+	require.NoError(t, mgmt.Policy.Initialize(&interop.Context{DAO: d}))
 	script := []byte{byte(opcode.RET)}
 	sender := util.Uint160{1, 2, 3}
 	ne, err := nef.NewFile(script)
@@ -86,9 +88,11 @@ func TestManagement_Initialize(t *testing.T) {
 
 func TestManagement_GetNEP17Contracts(t *testing.T) {
 	mgmt := newManagement()
+	mgmt.Policy = newPolicy()
 	d := dao.NewSimple(storage.NewMemoryStore(), false, false)
 	err := mgmt.Initialize(&interop.Context{DAO: d})
 	require.NoError(t, err)
+	require.NoError(t, mgmt.Policy.Initialize(&interop.Context{DAO: d}))
 	err = mgmt.InitializeCache(d)
 	require.NoError(t, err)
 

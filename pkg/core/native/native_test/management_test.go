@@ -563,5 +563,7 @@ func TestManagement_ContractDestroy(t *testing.T) {
 		t.Run("check contract", func(t *testing.T) {
 			managementInvoker.Invoke(t, stackitem.Null{}, "getContract", cs1.Hash.BytesBE())
 		})
+		// deploy after destroy should fail
+		managementInvoker.InvokeFail(t, fmt.Sprintf("the contract %s has been blocked", cs1.Hash.StringLE()), "deploy", nefBytes, manifestBytes)
 	})
 }
