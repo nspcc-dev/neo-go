@@ -6,7 +6,7 @@ const (
 	// MainNet contains magic code used in the NEO main official network.
 	MainNet Magic = 0x334f454e // NEO3
 	// TestNet contains magic code used in the NEO testing network.
-	TestNet Magic = 0x3454334e // N3T4
+	TestNet Magic = 0x3554334e // N3T5
 	// PrivNet contains magic code usually used for NEO private networks.
 	PrivNet Magic = 56753 // docker privnet
 	// UnitTestNet is a stub magic code used for testing purposes.
