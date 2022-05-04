@@ -87,7 +87,7 @@ func getDefaultClient(cfg config.OracleConfiguration) *http.Client {
 	}
 	client.Timeout = cfg.RequestTimeout
 	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-		if len(via) >= maxRedirections { // from https://github.com/neo-project/neo-modules/pull/694
+		if len(via) > maxRedirections { // from https://github.com/neo-project/neo-modules/pull/698
 			return fmt.Errorf("%w: %d redirections are reached", ErrRestrictedRedirect, maxRedirections)
 		}
 		return nil
