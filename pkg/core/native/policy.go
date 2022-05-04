@@ -317,20 +317,23 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 			panic("cannot block native contract")
 		}
 	}
-	i, blocked := p.isBlockedInternal(ic.DAO, hash)
+	return stackitem.NewBool(p.blockAccountInternal(ic.DAO, hash))
+}
+func (p *Policy) blockAccountInternal(d *dao.Simple, hash util.Uint160) bool {
+	i, blocked := p.isBlockedInternal(d, hash)
 	if blocked {
-		return stackitem.NewBool(false)
+		return false
 	}
 	key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
-	ic.DAO.PutStorageItem(p.ID, key, state.StorageItem{})
-	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	d.PutStorageItem(p.ID, key, state.StorageItem{})
+	cache := d.GetRWCache(p.ID).(*PolicyCache)
 	if len(cache.blockedAccounts) == i {
 		cache.blockedAccounts = append(cache.blockedAccounts, hash)
 	} else {
 		cache.blockedAccounts = append(cache.blockedAccounts[:i+1], cache.blockedAccounts[i:]...)
 		cache.blockedAccounts[i] = hash
 	}
-	return stackitem.NewBool(true)
+	return true
 }
 
 // unblockAccount is Policy contract method and removes given account hash from
