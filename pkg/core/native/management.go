@@ -353,6 +353,9 @@ func (m *Management) Update(d *dao.Simple, hash util.Uint160, neff *nef.File, ma
 	if err != nil {
 		return nil, errors.New("contract doesn't exist")
 	}
+	if oldcontract.UpdateCounter == math.MaxUint16 {
+		return nil, errors.New("the contract reached the maximum number of updates")
+	}
 
 	contract = *oldcontract // Make a copy, don't ruin (potentially) cached contract.
 	// if NEF was provided, update the contract script
