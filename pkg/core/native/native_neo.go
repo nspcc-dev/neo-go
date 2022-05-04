@@ -1,6 +1,7 @@
 package native
 
 import (
+	"context"
 	"crypto/elliptic"
 	"encoding/binary"
 	"errors"
@@ -13,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -91,6 +93,10 @@ const (
 	committeeRewardRatio = 10
 	// neoHolderRewardRatio is a percent of generated GAS that is distributed to voters.
 	voterRewardRatio = 80
+
+	// maxGetCandidatesRespLen is the maximum number of candidates to return from the
+	// getCandidates method.
+	maxGetCandidatesRespLen = 256
 )
 
 var (
@@ -192,6 +198,15 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 
 	desc = newDescriptor("getCandidates", smartcontract.ArrayType)
 	md = newMethodAndPrice(n.getCandidatesCall, 1<<22, callflag.ReadStates)
+	n.AddMethod(md, desc)
+
+	desc = newDescriptor("getAllCandidates", smartcontract.InteropInterfaceType)
+	md = newMethodAndPrice(n.getAllCandidatesCall, 1<<22, callflag.ReadStates)
+	n.AddMethod(md, desc)
+
+	desc = newDescriptor("getCandidateVote", smartcontract.IntegerType,
+		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
+	md = newMethodAndPrice(n.getCandidateVoteCall, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getAccountState", smartcontract.ArrayType,
@@ -851,7 +866,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalance, d *dao.Simple, value *bi
 	return nil
 }
 
-func (n *NEO) getCandidates(d *dao.Simple, sortByKey bool) ([]keyWithVotes, error) {
+func (n *NEO) getCandidates(d *dao.Simple, sortByKey bool, max int) ([]keyWithVotes, error) {
 	arr := make([]keyWithVotes, 0)
 	buf := io.NewBufBinWriter()
 	d.Seek(n.ID, storage.SeekRange{Prefix: []byte{prefixCandidate}}, func(k, v []byte) bool {
@@ -861,7 +876,7 @@ func (n *NEO) getCandidates(d *dao.Simple, sortByKey bool) ([]keyWithVotes, erro
 			arr = append(arr, keyWithVotes{Key: string(k), Votes: &c.Votes})
 		}
 		buf.Reset()
-		return true
+		return !sortByKey || max > 0 && len(arr) < max
 	})
 
 	if !sortByKey {
@@ -893,7 +908,7 @@ func (n *NEO) getCandidates(d *dao.Simple, sortByKey bool) ([]keyWithVotes, erro
 // GetCandidates returns current registered validators list with keys
 // and votes.
 func (n *NEO) GetCandidates(d *dao.Simple) ([]state.Validator, error) {
-	kvs, err := n.getCandidates(d, true)
+	kvs, err := n.getCandidates(d, true, maxGetCandidatesRespLen)
 	if err != nil {
 		return nil, err
 	}
@@ -909,7 +924,7 @@ func (n *NEO) GetCandidates(d *dao.Simple) ([]state.Validator, error) {
 }
 
 func (n *NEO) getCandidatesCall(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	validators, err := n.getCandidates(ic.DAO, true)
+	validators, err := n.getCandidates(ic.DAO, true, maxGetCandidatesRespLen)
 	if err != nil {
 		panic(err)
 	}
@@ -921,6 +936,51 @@ func (n *NEO) getCandidatesCall(ic *interop.Context, _ []stackitem.Item) stackit
 		})
 	}
 	return stackitem.NewArray(arr)
+}
+
+func (n *NEO) getAllCandidatesCall(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	ctx, cancel := context.WithCancel(context.Background())
+	prefix := []byte{prefixCandidate}
+	buf := io.NewBufBinWriter()
+	keep := func(kv storage.KeyValue) bool {
+		c := new(candidate).FromBytes(kv.Value)
+		emit.CheckSig(buf.BinWriter, kv.Key)
+		if c.Registered && !n.Policy.IsBlocked(ic.DAO, hash.Hash160(buf.Bytes())) {
+			buf.Reset()
+			return true
+		}
+		buf.Reset()
+		return false
+	}
+	seekres := ic.DAO.SeekAsync(ctx, n.ID, storage.SeekRange{Prefix: prefix})
+	filteredRes := make(chan storage.KeyValue)
+	go func() {
+		for kv := range seekres {
+			if keep(kv) {
+				filteredRes <- kv
+			}
+		}
+		close(filteredRes)
+	}()
+
+	opts := istorage.FindRemovePrefix | istorage.FindDeserialize | istorage.FindPick1
+	item := istorage.NewIterator(filteredRes, prefix, int64(opts))
+	ic.RegisterCancelFunc(cancel)
+	return stackitem.NewInterop(item)
+}
+
+func (n *NEO) getCandidateVoteCall(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	pub := toPublicKey(args[0])
+	key := makeValidatorKey(pub)
+	si := ic.DAO.GetStorageItem(n.ID, key)
+	if si == nil {
+		return stackitem.NewBigInteger(big.NewInt(-1))
+	}
+	c := new(candidate).FromBytes(si)
+	if !c.Registered {
+		return stackitem.NewBigInteger(big.NewInt(-1))
+	}
+	return stackitem.NewBigInteger(&c.Votes)
 }
 
 func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -1021,7 +1081,7 @@ func (n *NEO) computeCommitteeMembers(blockHeight uint32, d *dao.Simple) (keys.P
 	count := n.cfg.GetCommitteeSize(blockHeight + 1)
 	// Can be sorted and/or returned to outside users, thus needs to be copied.
 	sbVals := keys.PublicKeys(n.standbyKeys[:count]).Copy()
-	cs, err := n.getCandidates(d, false)
+	cs, err := n.getCandidates(d, false, -1)
 	if err != nil {
 		return nil, nil, err
 	}
