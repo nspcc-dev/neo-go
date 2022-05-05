@@ -53,9 +53,10 @@ func GetCommittee() []interop.PublicKey {
 	return neogointernal.CallWithToken(Hash, "getCommittee", int(contract.ReadStates)).([]interop.PublicKey)
 }
 
-// GetCandidates represents `getCandidates` method of NEO native contract.
-func GetCandidates() []interop.PublicKey {
-	return neogointernal.CallWithToken(Hash, "getCandidates", int(contract.ReadStates)).([]interop.PublicKey)
+// GetCandidates represents `getCandidates` method of NEO native contract. It
+// returns up to 256 candidates.
+func GetCandidates() []Candidate {
+	return neogointernal.CallWithToken(Hash, "getCandidates", int(contract.ReadStates)).([]Candidate)
 }
 
 // GetNextBlockValidators represents `getNextBlockValidators` method of NEO native contract.
