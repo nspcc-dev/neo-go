@@ -22,7 +22,7 @@ type Config struct {
 	Port    string `yaml:"Port"`
 }
 
-// Start runs http service with exposed endpoint on configured port.
+// Start runs http service with the exposed endpoint on the configured port.
 func (ms *Service) Start() {
 	if ms.config.Enabled {
 		ms.log.Info("service is running", zap.String("endpoint", ms.Addr))
@@ -35,7 +35,7 @@ func (ms *Service) Start() {
 	}
 }
 
-// ShutDown stops service.
+// ShutDown stops the service.
 func (ms *Service) ShutDown() {
 	ms.log.Info("shutting down service", zap.String("endpoint", ms.Addr))
 	err := ms.Shutdown(context.Background())

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	// MaxManifestSize is a max length for a valid contract manifest.
+	// MaxManifestSize is the max length for a valid contract manifest.
 	MaxManifestSize = math.MaxUint16
 
 	// NEP11StandardName represents the name of NEP-11 smartcontract standard.
@@ -44,7 +44,7 @@ type Manifest struct {
 	Extra json.RawMessage `json:"extra"`
 }
 
-// NewManifest returns new manifest with necessary fields initialized.
+// NewManifest returns a new manifest with necessary fields initialized.
 func NewManifest(name string) *Manifest {
 	m := &Manifest{
 		Name: name,
@@ -62,15 +62,15 @@ func NewManifest(name string) *Manifest {
 	return m
 }
 
-// DefaultManifest returns default contract manifest.
+// DefaultManifest returns the default contract manifest.
 func DefaultManifest(name string) *Manifest {
 	m := NewManifest(name)
 	m.Permissions = []Permission{*NewPermission(PermissionWildcard)}
 	return m
 }
 
-// CanCall returns true is current contract is allowed to call
-// method of another contract with specified hash.
+// CanCall returns true if the current contract is allowed to call
+// the method of another contract with the specified hash.
 func (m *Manifest) CanCall(hash util.Uint160, toCall *Manifest, method string) bool {
 	for i := range m.Permissions {
 		if m.Permissions[i].IsAllowed(hash, toCall, method) {
@@ -119,7 +119,7 @@ func (m *Manifest) IsValid(hash util.Uint160) error {
 	return Permissions(m.Permissions).AreValid()
 }
 
-// IsStandardSupported denotes whether the specified standard supported by the contract.
+// IsStandardSupported denotes whether the specified standard is supported by the contract.
 func (m *Manifest) IsStandardSupported(standard string) bool {
 	for _, st := range m.SupportedStandards {
 		if st == standard {

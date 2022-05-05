@@ -1,5 +1,5 @@
 /*
-Package roles provides interface to RoleManagement native contract.
+Package roles provides an interface to RoleManagement native contract.
 Role management contract is used by committee to designate some nodes as
 providing some service on the network.
 */
@@ -14,7 +14,7 @@ import (
 // Hash represents RoleManagement contract hash.
 const Hash = "\xe2\x95\xe3\x91\x54\x4c\x17\x8a\xd9\x4f\x03\xec\x4d\xcd\xff\x78\x53\x4e\xcf\x49"
 
-// Role represents node role.
+// Role represents a node role.
 type Role byte
 
 // Various node roles.

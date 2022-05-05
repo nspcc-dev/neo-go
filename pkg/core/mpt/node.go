@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// NodeType represents node type..
+// NodeType represents a node type..
 type NodeType byte
 
 // Node types definitions.
@@ -21,14 +21,14 @@ const (
 	EmptyT     NodeType = 0x04
 )
 
-// NodeObject represents Node together with it's type.
+// NodeObject represents a Node together with it's type.
 // It is used for serialization/deserialization where type info
 // is also expected.
 type NodeObject struct {
 	Node
 }
 
-// Node represents common interface of all MPT nodes.
+// Node represents a common interface of all MPT nodes.
 type Node interface {
 	io.Serializable
 	json.Marshaler
@@ -48,7 +48,7 @@ func (n *NodeObject) DecodeBinary(r *io.BinReader) {
 	n.Node = DecodeNodeWithType(r)
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements the json.Unmarshaler.
 func (n *NodeObject) UnmarshalJSON(data []byte) error {
 	var m map[string]json.RawMessage
 	err := json.Unmarshal(data, &m)

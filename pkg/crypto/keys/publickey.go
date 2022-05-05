@@ -22,7 +22,7 @@ import (
 // coordLen is the number of bytes in serialized X or Y coordinate.
 const coordLen = 32
 
-// SignatureLen is the length of standard signature for 256-bit EC key.
+// SignatureLen is the length of a standard signature for 256-bit EC key.
 const SignatureLen = 64
 
 // PublicKeys is a list of public keys.
@@ -68,7 +68,7 @@ func (keys *PublicKeys) Bytes() []byte {
 	return buf.Bytes()
 }
 
-// Contains checks whether passed param contained in PublicKeys.
+// Contains checks whether the passed param is contained in PublicKeys.
 func (keys PublicKeys) Contains(pKey *PublicKey) bool {
 	for _, key := range keys {
 		if key.Equal(pKey) {
@@ -78,14 +78,14 @@ func (keys PublicKeys) Contains(pKey *PublicKey) bool {
 	return false
 }
 
-// Copy returns copy of keys.
+// Copy returns a copy of keys.
 func (keys PublicKeys) Copy() PublicKeys {
 	res := make(PublicKeys, len(keys))
 	copy(res, keys)
 	return res
 }
 
-// Unique returns set of public keys.
+// Unique returns a set of public keys.
 func (keys PublicKeys) Unique() PublicKeys {
 	unique := PublicKeys{}
 	for _, publicKey := range keys {
@@ -133,7 +133,7 @@ func init() {
 	keycache, _ = lru.New(1024)
 }
 
-// NewPublicKeyFromBytes returns public key created from b using given EC.
+// NewPublicKeyFromBytes returns a public key created from b using the given EC.
 func NewPublicKeyFromBytes(b []byte, curve elliptic.Curve) (*PublicKey, error) {
 	var pubKey *PublicKey
 	cachedKey, ok := keycache.Get(string(b))
@@ -194,12 +194,12 @@ func NewPublicKeyFromASN1(data []byte) (*PublicKey, error) {
 	return &result, nil
 }
 
-// decodeCompressedY performs decompression of Y coordinate for given X and Y's least significant bit.
+// decodeCompressedY performs decompression of Y coordinate for the given X and Y's least significant bit.
 // We use here a short-form Weierstrass curve (https://www.hyperelliptic.org/EFD/g1p/auto-shortw.html)
 // y² = x³ + ax + b. Two types of elliptic curves are supported:
 // 1. Secp256k1 (Koblitz curve): y² = x³ + b,
 // 2. Secp256r1 (Random curve): y² = x³ - 3x + b.
-// To decode compressed curve point we perform the following operation: y = sqrt(x³ + ax + b mod p)
+// To decode a compressed curve point, we perform the following operation: y = sqrt(x³ + ax + b mod p)
 // where `p` denotes the order of the underlying curve field.
 func decodeCompressedY(x *big.Int, ylsb uint, curve elliptic.Curve) (*big.Int, error) {
 	var a *big.Int
@@ -371,7 +371,7 @@ func (p PublicKey) MarshalJSON() ([]byte, error) {
 	return json.Marshal(hex.EncodeToString(p.Bytes()))
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (p *PublicKey) UnmarshalJSON(data []byte) error {
 	l := len(data)
 	if l < 2 || data[0] != '"' || data[l-1] != '"' {

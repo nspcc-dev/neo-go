@@ -25,8 +25,8 @@ var checks = map[string][]*Standard{
 	manifest.NEP17Payable:      {nep17payable},
 }
 
-// Check checks if manifest complies with all provided standards.
-// Currently only NEP-17 is supported.
+// Check checks if the manifest complies with all provided standards.
+// Currently, only NEP-17 is supported.
 func Check(m *manifest.Manifest, standards ...string) error {
 	return check(m, true, standards...)
 }

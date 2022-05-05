@@ -17,7 +17,7 @@ const Uint256Size = 32
 // Uint256 is a 32 byte long unsigned integer.
 type Uint256 [Uint256Size]uint8
 
-// Uint256DecodeStringLE attempts to decode the given string (in LE representation) into an Uint256.
+// Uint256DecodeStringLE attempts to decode the given string (in LE representation) into a Uint256.
 func Uint256DecodeStringLE(s string) (u Uint256, err error) {
 	if len(s) != Uint256Size*2 {
 		return u, fmt.Errorf("expected string size of %d got %d", Uint256Size*2, len(s))
@@ -31,7 +31,7 @@ func Uint256DecodeStringLE(s string) (u Uint256, err error) {
 }
 
 // Uint256DecodeStringBE attempts to decode the given string (in BE representation)
-// into an Uint256.
+// into a Uint256.
 func Uint256DecodeStringBE(s string) (u Uint256, err error) {
 	if len(s) != Uint256Size*2 {
 		return u, fmt.Errorf("expected string size of %d got %d", Uint256Size*2, len(s))
@@ -45,7 +45,7 @@ func Uint256DecodeStringBE(s string) (u Uint256, err error) {
 	return Uint256DecodeBytesBE(b)
 }
 
-// Uint256DecodeBytesBE attempts to decode the given string (in BE representation) into an Uint256.
+// Uint256DecodeBytesBE attempts to decode the given string (in BE representation) into a Uint256.
 func Uint256DecodeBytesBE(b []byte) (u Uint256, err error) {
 	if len(b) != Uint256Size {
 		return u, fmt.Errorf("expected []byte of size %d got %d", Uint256Size, len(b))
@@ -54,7 +54,7 @@ func Uint256DecodeBytesBE(b []byte) (u Uint256, err error) {
 	return u, nil
 }
 
-// Uint256DecodeBytesLE attempts to decode the given string (in LE representation) into an Uint256.
+// Uint256DecodeBytesLE attempts to decode the given string (in LE representation) into a Uint256.
 func Uint256DecodeBytesLE(b []byte) (u Uint256, err error) {
 	b = slice.CopyReverse(b)
 	return Uint256DecodeBytesBE(b)
@@ -118,12 +118,12 @@ func (u Uint256) MarshalJSON() ([]byte, error) {
 //  0 implies  u = other.
 func (u Uint256) CompareTo(other Uint256) int { return bytes.Compare(u[:], other[:]) }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (u *Uint256) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(u[:])
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (u *Uint256) DecodeBinary(r *io.BinReader) {
 	r.ReadBytes(u[:])
 }

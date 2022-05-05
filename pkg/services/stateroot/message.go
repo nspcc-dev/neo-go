@@ -11,7 +11,7 @@ type (
 	// MessageType represents message type.
 	MessageType byte
 
-	// Message represents state-root related message.
+	// Message represents a state-root related message.
 	Message struct {
 		Type    MessageType
 		Payload io.Serializable
@@ -24,7 +24,7 @@ const (
 	RootT MessageType = 1
 )
 
-// NewMessage creates new message of specified type.
+// NewMessage creates a new message of the specified type.
 func NewMessage(typ MessageType, p io.Serializable) *Message {
 	return &Message{
 		Type:    typ,
@@ -32,13 +32,13 @@ func NewMessage(typ MessageType, p io.Serializable) *Message {
 	}
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (m *Message) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(m.Type))
 	m.Payload.EncodeBinary(w)
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (m *Message) DecodeBinary(r *io.BinReader) {
 	switch m.Type = MessageType(r.ReadB()); m.Type {
 	case VoteT:

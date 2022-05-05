@@ -10,7 +10,7 @@ import (
 // PrometheusService https://prometheus.io/docs/guides/go-application.
 type PrometheusService Service
 
-// NewPrometheusService creates new service for gathering prometheus metrics.
+// NewPrometheusService creates a new service for gathering prometheus metrics.
 func NewPrometheusService(cfg Config, log *zap.Logger) *Service {
 	if log == nil {
 		return nil

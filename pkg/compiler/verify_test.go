@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// In this test we only check that needed interop
+// In this test, we only check that needed interop
 // is called with the provided arguments in the right order.
 func TestVerifyGood(t *testing.T) {
 	msg := []byte("test message")

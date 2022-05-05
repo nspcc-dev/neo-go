@@ -11,15 +11,15 @@ import (
 
 const maxExtensibleCategorySize = 32
 
-// Extensible represents payload containing arbitrary data.
+// Extensible represents a payload containing arbitrary data.
 type Extensible struct {
-	// Category is payload type.
+	// Category is the payload type.
 	Category string
-	// ValidBlockStart is starting height for payload to be valid.
+	// ValidBlockStart is the starting height for a payload to be valid.
 	ValidBlockStart uint32
-	// ValidBlockEnd is height after which payload becomes invalid.
+	// ValidBlockEnd is the height after which a payload becomes invalid.
 	ValidBlockEnd uint32
-	// Sender is payload sender or signer.
+	// Sender is the payload sender or signer.
 	Sender util.Uint160
 	// Data is custom payload data.
 	Data []byte
@@ -31,7 +31,7 @@ type Extensible struct {
 
 var errInvalidPadding = errors.New("invalid padding")
 
-// NewExtensible creates new extensible payload.
+// NewExtensible creates a new extensible payload.
 func NewExtensible() *Extensible {
 	return &Extensible{}
 }

@@ -10,12 +10,12 @@ import (
 )
 
 // Stack implementation for the neo-go virtual machine. The stack with its LIFO
-// semantics is emulated from simple slice where the top of the stack corresponds
+// semantics is emulated from a simple slice, where the top of the stack corresponds
 // to the latest element of this slice. Pushes are appends to this slice, pops are
 // slice resizes.
 
-// Element represents an element on the stack, technically it's a wrapper around
-// stackitem.Item interface to provide some API simplification for VM.
+// Element represents an element on the stack. Technically, it's a wrapper around
+// stackitem.Item interface to provide some API simplification for the VM.
 type Element struct {
 	value stackitem.Item
 }
@@ -26,18 +26,18 @@ func NewElement(v interface{}) Element {
 	return Element{stackitem.Make(v)}
 }
 
-// Item returns Item contained in the element.
+// Item returns the Item contained in the element.
 func (e Element) Item() stackitem.Item {
 	return e.value
 }
 
-// Value returns value of the Item contained in the element.
+// Value returns the value of the Item contained in the element.
 func (e Element) Value() interface{} {
 	return e.value.Value()
 }
 
 // BigInt attempts to get the underlying value of the element as a big integer.
-// Will panic if the assertion failed which will be caught by the VM.
+// It will panic if the assertion has failed, which will be caught by the VM.
 func (e Element) BigInt() *big.Int {
 	val, err := e.value.TryInteger()
 	if err != nil {
@@ -46,8 +46,8 @@ func (e Element) BigInt() *big.Int {
 	return val
 }
 
-// Bool converts an underlying value of the element to a boolean if it's
-// possible to do so, it will panic otherwise.
+// Bool converts the underlying value of the element to a boolean if it's
+// possible to do so. Otherwise, it will panic.
 func (e Element) Bool() bool {
 	b, err := e.value.TryBool()
 	if err != nil {
@@ -57,7 +57,7 @@ func (e Element) Bool() bool {
 }
 
 // Bytes attempts to get the underlying value of the element as a byte array.
-// Will panic if the assertion failed which will be caught by the VM.
+// It will panic if the assertion has failed, which will be caught by the VM.
 func (e Element) Bytes() []byte {
 	bs, err := e.value.TryBytes()
 	if err != nil {
@@ -67,7 +67,7 @@ func (e Element) Bytes() []byte {
 }
 
 // BytesOrNil attempts to get the underlying value of the element as a byte array or nil.
-// Will panic if the assertion failed which will be caught by the VM.
+// It will panic if the assertion has failed, which will be caught by the VM.
 func (e Element) BytesOrNil() []byte {
 	if _, ok := e.value.(stackitem.Null); ok {
 		return nil
@@ -79,8 +79,8 @@ func (e Element) BytesOrNil() []byte {
 	return bs
 }
 
-// String attempts to get string from the element value.
-// It is assumed to be use in interops and panics if string is not a valid UTF-8 byte sequence.
+// String attempts to get a string from the element value.
+// It is assumed to be used in interops and panics if the string is not a valid UTF-8 byte sequence.
 func (e Element) String() string {
 	s, err := stackitem.ToString(e.value)
 	if err != nil {
@@ -90,7 +90,7 @@ func (e Element) String() string {
 }
 
 // Array attempts to get the underlying value of the element as an array of
-// other items. Will panic if the item type is different which will be caught
+// other items. It will panic if the item type is different, which will be caught
 // by the VM.
 func (e Element) Array() []stackitem.Item {
 	switch t := e.value.(type) {
@@ -170,7 +170,7 @@ func (s *Stack) Push(e Element) {
 	s.refs.Add(e.value)
 }
 
-// PushItem pushed an Item to the stack.
+// PushItem pushes an Item to the stack.
 func (s *Stack) PushItem(i stackitem.Item) {
 	s.Push(Element{i})
 }
@@ -181,7 +181,7 @@ func (s *Stack) PushVal(v interface{}) {
 	s.Push(NewElement(v))
 }
 
-// Pop removes and returns the element on top of the stack. Panics if stack is
+// Pop removes and returns the element on top of the stack. It panics if the stack is
 // empty.
 func (s *Stack) Pop() Element {
 	l := len(s.elems)
@@ -210,7 +210,7 @@ func (s *Stack) Back() Element {
 }
 
 // Peek returns the element (n) far in the stack beginning from
-// the top of the stack. For n == 0 it's effectively the same as Top,
+// the top of the stack. For n == 0 it's, effectively, the same as Top,
 // but it'll panic if the stack is empty.
 func (s *Stack) Peek(n int) Element {
 	n = len(s.elems) - n - 1
@@ -218,7 +218,7 @@ func (s *Stack) Peek(n int) Element {
 }
 
 // RemoveAt removes the element (n) deep on the stack beginning
-// from the top of the stack. Panics if called with out of bounds n.
+// from the top of the stack. It panics if called with out of bounds n.
 func (s *Stack) RemoveAt(n int) Element {
 	l := len(s.elems)
 	e := s.elems[l-1-n]
@@ -228,15 +228,15 @@ func (s *Stack) RemoveAt(n int) Element {
 }
 
 // Dup duplicates and returns the element at position n.
-// Dup is used for copying elements on to the top of its own stack.
-// 	s.Push(s.Peek(0)) // will result in unexpected behaviour.
+// Dup is used for copying elements on the top of its own stack.
+// 	s.Push(s.Peek(0)) // will result in unexpected behavior.
 // 	s.Push(s.Dup(0)) // is the correct approach.
 func (s *Stack) Dup(n int) Element {
 	e := s.Peek(n)
 	return Element{e.value.Dup()}
 }
 
-// Iter iterates over all the elements int the stack, starting from the top
+// Iter iterates over all elements int the stack, starting from the top
 // of the stack.
 // 	s.Iter(func(elem *Element) {
 //		// do something with the element.
@@ -247,7 +247,7 @@ func (s *Stack) Iter(f func(Element)) {
 	}
 }
 
-// IterBack iterates over all the elements of the stack, starting from the bottom
+// IterBack iterates over all elements of the stack, starting from the bottom
 // of the stack.
 // 	s.IterBack(func(elem *Element) {
 //		// do something with the element.
@@ -288,8 +288,8 @@ func (s *Stack) ReverseTop(n int) error {
 	return nil
 }
 
-// Roll brings an item with the given index to the top of the stack, moving all
-// the other elements down accordingly. It does all of that without popping and
+// Roll brings an item with the given index to the top of the stack moving all
+// other elements down accordingly. It does all of that without popping and
 // pushing elements.
 func (s *Stack) Roll(n int) error {
 	if n < 0 {
@@ -344,7 +344,7 @@ func (s *Stack) PopSigElements() ([][]byte, error) {
 	return elems, nil
 }
 
-// ToArray converts stack to an array of stackitems with top item being the last.
+// ToArray converts the stack to an array of stackitems with the top item being the last.
 func (s *Stack) ToArray() []stackitem.Item {
 	items := make([]stackitem.Item, 0, len(s.elems))
 	s.IterBack(func(e Element) {
@@ -353,7 +353,7 @@ func (s *Stack) ToArray() []stackitem.Item {
 	return items
 }
 
-// MarshalJSON implements JSON marshalling interface.
+// MarshalJSON implements the JSON marshalling interface.
 func (s *Stack) MarshalJSON() ([]byte, error) {
 	items := s.ToArray()
 	arr := make([]json.RawMessage, len(items))

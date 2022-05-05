@@ -35,8 +35,8 @@ type (
 	}
 )
 
-// newWalletV2FromFile reads NEO2 wallet from file.
-// This should be used read-only, no operations are supported on returned wallet.
+// newWalletV2FromFile reads a NEO2 wallet from the file.
+// This should be used read-only, no operations are supported on the returned wallet.
 func newWalletV2FromFile(path string) (*walletV2, error) {
 	file, err := os.OpenFile(path, os.O_RDWR, os.ModeAppend)
 	if err != nil {
@@ -64,7 +64,7 @@ func (a *accountV2) convert(pass string, scrypt keys.ScryptParams) (*wallet.Acco
 		if err != nil {
 			return nil, err
 		}
-		// If it is simple signature script, newAcc does already have it.
+		// If it is a simple signature script, a newAcc does already have it.
 		if len(script) != simpleSigLen {
 			nsigs, pubs, ok := parseMultisigContract(script)
 			if !ok {
@@ -112,8 +112,8 @@ func getNumOfThingsFromInstr(script []byte) (int, int, bool) {
 
 const minMultisigLen = 37
 
-// parseMultisigContract accepts multisig verification script from NEO2
-// and returns list of public keys in the same order as in script..
+// parseMultisigContract accepts a multisig verification script from NEO2
+// and returns a list of public keys in the same order as in the script.
 func parseMultisigContract(script []byte) (int, keys.PublicKeys, bool) {
 	// It should contain at least 1 public key.
 	if len(script) < minMultisigLen {

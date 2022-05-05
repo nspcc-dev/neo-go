@@ -11,7 +11,7 @@ type tokenTransfers struct {
 	Address  string        `json:"address"`
 }
 
-// nep17TransferToNEP11 adds an ID to provided NEP-17 transfer and returns a new
+// nep17TransferToNEP11 adds an ID to the provided NEP-17 transfer and returns a new
 // NEP-11 structure.
 func nep17TransferToNEP11(t17 *result.NEP17Transfer, id string) result.NEP11Transfer {
 	return result.NEP11Transfer{

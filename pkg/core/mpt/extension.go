@@ -15,12 +15,12 @@ const (
 	// maxPathLength is the max length of the extension node key.
 	maxPathLength = (storage.MaxStorageKeyLen + 4) * 2
 
-	// MaxKeyLength is the max length of the key to put in trie
+	// MaxKeyLength is the max length of the key to put in the trie
 	// before transforming to nibbles.
 	MaxKeyLength = maxPathLength / 2
 )
 
-// ExtensionNode represents MPT's extension node.
+// ExtensionNode represents an MPT's extension node.
 type ExtensionNode struct {
 	BaseNode
 	key  []byte
@@ -29,8 +29,8 @@ type ExtensionNode struct {
 
 var _ Node = (*ExtensionNode)(nil)
 
-// NewExtensionNode returns hash node with the specified key and next node.
-// Note: because it is a part of Trie, key must be mangled, i.e. must contain only bytes with high half = 0.
+// NewExtensionNode returns a hash node with the specified key and the next node.
+// Note: since it is a part of a Trie, the key must be mangled, i.e. must contain only bytes with high half = 0.
 func NewExtensionNode(key []byte, next Node) *ExtensionNode {
 	return &ExtensionNode{
 		key:  key,
@@ -78,7 +78,7 @@ func (e *ExtensionNode) Size() int {
 		1 + util.Uint256Size // e.next is never empty
 }
 
-// MarshalJSON implements json.Marshaler.
+// MarshalJSON implements the json.Marshaler.
 func (e *ExtensionNode) MarshalJSON() ([]byte, error) {
 	m := map[string]interface{}{
 		"key":  hex.EncodeToString(e.key),
@@ -87,7 +87,7 @@ func (e *ExtensionNode) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements the json.Unmarshaler.
 func (e *ExtensionNode) UnmarshalJSON(data []byte) error {
 	var obj NodeObject
 	if err := obj.UnmarshalJSON(data); err != nil {

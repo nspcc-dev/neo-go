@@ -14,7 +14,7 @@ const (
 	StdLib      = "StdLib"
 )
 
-// IsValid checks that name is a valid native contract's name.
+// IsValid checks if the name is a valid native contract's name.
 func IsValid(name string) bool {
 	return name == Management ||
 		name == Ledger ||

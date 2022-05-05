@@ -17,28 +17,28 @@ import (
 type (
 	incompleteTx struct {
 		sync.RWMutex
-		// isSent is true tx was already broadcasted.
+		// isSent is true if tx has been already broadcasted.
 		isSent bool
-		// attempts is how many times request was processed.
+		// attempts is how many times the request was processed.
 		attempts int
-		// time is the time when request was last processed.
+		// time is the time when the request was last processed.
 		time time.Time
-		// request is oracle request.
+		// request is an oracle request.
 		request *state.OracleRequest
-		// tx is oracle response transaction.
+		// tx is an oracle response transaction.
 		tx *transaction.Transaction
-		// sigs contains signature from every oracle node.
+		// sigs contains a signature from every oracle node.
 		sigs map[string]*txSignature
-		// backupTx is backup transaction.
+		// backupTx is a backup transaction.
 		backupTx *transaction.Transaction
 		// backupSigs contains signatures of backup tx.
 		backupSigs map[string]*txSignature
 	}
 
 	txSignature struct {
-		// pub is cached public key.
+		// pub is a cached public key.
 		pub *keys.PublicKey
-		// ok is true if signature was verified.
+		// ok is true if the signature was verified.
 		ok bool
 		// sig is tx signature.
 		sig []byte
@@ -81,7 +81,7 @@ func (t *incompleteTx) addResponse(pub *keys.PublicKey, sig []byte, isBackup boo
 	}
 }
 
-// finalize checks is either main or backup tx has sufficient number of signatures and returns
+// finalize checks if either main or backup tx has sufficient number of signatures and returns
 // tx and bool value indicating if it is ready to be broadcasted.
 func (t *incompleteTx) finalize(oracleNodes keys.PublicKeys, backupOnly bool) (*transaction.Transaction, bool) {
 	if !backupOnly && finalizeTx(oracleNodes, t.tx, t.sigs) {

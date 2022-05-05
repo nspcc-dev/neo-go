@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// RPCBroadcaster represent generic RPC broadcaster.
+// RPCBroadcaster represents a generic RPC broadcaster.
 type RPCBroadcaster struct {
 	Clients   map[string]*RPCClient
 	Log       *zap.Logger
@@ -17,7 +17,7 @@ type RPCBroadcaster struct {
 	sendTimeout time.Duration
 }
 
-// NewRPCBroadcaster returns new RPC broadcaster instance.
+// NewRPCBroadcaster returns a new RPC broadcaster instance.
 func NewRPCBroadcaster(log *zap.Logger, sendTimeout time.Duration) *RPCBroadcaster {
 	return &RPCBroadcaster{
 		Clients:     make(map[string]*RPCClient),

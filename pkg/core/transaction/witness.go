@@ -22,13 +22,13 @@ type Witness struct {
 	VerificationScript []byte `json:"verification"`
 }
 
-// DecodeBinary implements Serializable interface.
+// DecodeBinary implements the Serializable interface.
 func (w *Witness) DecodeBinary(br *io.BinReader) {
 	w.InvocationScript = br.ReadVarBytes(MaxInvocationScript)
 	w.VerificationScript = br.ReadVarBytes(MaxVerificationScript)
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (w *Witness) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteVarBytes(w.InvocationScript)
 	bw.WriteVarBytes(w.VerificationScript)

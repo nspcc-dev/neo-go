@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestNewMulti checks that transaction and block is signed correctly for multi-node setup.
+// TestNewMulti checks that the transaction and the block are signed correctly for multi-node setup.
 func TestNewMulti(t *testing.T) {
 	bc, vAcc, cAcc := NewMulti(t)
 	e := neotest.NewExecutor(t, bc, vAcc, cAcc)

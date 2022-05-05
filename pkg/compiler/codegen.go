@@ -35,7 +35,7 @@ type codegen struct {
 
 	// Type information.
 	typeInfo *types.Info
-	// pkgInfoInline is stack of type information for packages containing inline functions.
+	// pkgInfoInline is a stack of type information for packages containing inline functions.
 	pkgInfoInline []*packages.Package
 
 	// A mapping of func identifiers with their scope.
@@ -63,9 +63,9 @@ type codegen struct {
 	// A list of nested label names together with evaluation stack depth.
 	labelList []labelWithStackSize
 	// inlineLabelOffsets contains size of labelList at the start of inline call processing.
-	// For such calls we need to drop only newly created part of stack.
+	// For such calls, we need to drop only the newly created part of stack.
 	inlineLabelOffsets []int
-	// globalInlineCount contains amount of auxiliary variables introduced by
+	// globalInlineCount contains the amount of auxiliary variables introduced by
 	// function inlining during global variables initialization.
 	globalInlineCount int
 
@@ -76,7 +76,7 @@ type codegen struct {
 	// A label to be used in the next statement.
 	nextLabel string
 
-	// sequencePoints is mapping from method name to a slice
+	// sequencePoints is a mapping from the method name to a slice
 	// containing info about mapping from opcode's offset
 	// to a text span in the source file.
 	sequencePoints map[string][]DebugSeqPoint
@@ -92,25 +92,25 @@ type codegen struct {
 	// constMap contains constants from foreign packages.
 	constMap map[string]types.TypeAndValue
 
-	// currPkg is current package being processed.
+	// currPkg is the current package being processed.
 	currPkg *packages.Package
 
-	// mainPkg is a main package metadata.
+	// mainPkg is the main package metadata.
 	mainPkg *packages.Package
 
 	// packages contains packages in the order they were loaded.
 	packages     []string
 	packageCache map[string]*packages.Package
 
-	// exceptionIndex is the index of static slot where exception is stored.
+	// exceptionIndex is the index of the static slot where the exception is stored.
 	exceptionIndex int
 
 	// documents contains paths to all files used by the program.
 	documents []string
-	// docIndex maps file path to an index in documents array.
+	// docIndex maps the file path to the index in the documents array.
 	docIndex map[string]int
 
-	// emittedEvents contains all events emitted by contract.
+	// emittedEvents contains all events emitted by the contract.
 	emittedEvents map[string][][]string
 
 	// invokedContracts contains invoked methods of other contracts.
@@ -166,7 +166,7 @@ func (c *codegen) newLabel() (l uint16) {
 	return
 }
 
-// newNamedLabel creates a new label with a specified name.
+// newNamedLabel creates a new label with the specified name.
 func (c *codegen) newNamedLabel(typ labelOffsetType, name string) (l uint16) {
 	l = c.newLabel()
 	lt := labelWithType{name: name, typ: typ}
@@ -223,8 +223,8 @@ func (c *codegen) emitStoreStructField(i int) {
 	emit.Opcodes(c.prog.BinWriter, opcode.ROT, opcode.SETITEM)
 }
 
-// getVarIndex returns variable type and position in corresponding slot,
-// according to current scope.
+// getVarIndex returns variable type and position in the corresponding slot,
+// according to the current scope.
 func (c *codegen) getVarIndex(pkg string, name string) *varInfo {
 	if pkg == "" {
 		if c.scope != nil {
@@ -255,7 +255,7 @@ func getBaseOpcode(t varType) (opcode.Opcode, opcode.Opcode) {
 	}
 }
 
-// emitLoadVar loads specified variable to the evaluation stack.
+// emitLoadVar loads the specified variable to the evaluation stack.
 func (c *codegen) emitLoadVar(pkg string, name string) {
 	vi := c.getVarIndex(pkg, name)
 	if vi.ctx != nil && c.typeAndValueOf(vi.ctx.expr).Value != nil {
@@ -284,7 +284,7 @@ func (c *codegen) emitLoadVar(pkg string, name string) {
 	c.emitLoadByIndex(vi.refType, vi.index)
 }
 
-// emitLoadByIndex loads specified variable type with index i.
+// emitLoadByIndex loads the specified variable type with index i.
 func (c *codegen) emitLoadByIndex(t varType, i int) {
 	base, _ := getBaseOpcode(t)
 	if i < 7 {
@@ -341,7 +341,7 @@ func (c *codegen) emitDefault(t types.Type) {
 }
 
 // convertGlobals traverses the AST and only converts global declarations.
-// If we call this in convertFuncDecl then it will load all global variables
+// If we call this in convertFuncDecl, it will load all global variables
 // into the scope of the function.
 func (c *codegen) convertGlobals(f *ast.File, _ *types.Package) {
 	ast.Inspect(f, func(node ast.Node) bool {
@@ -375,7 +375,7 @@ func (c *codegen) clearSlots(n int) {
 }
 
 // convertInitFuncs converts `init()` functions in file f and returns
-// number of locals in last processed definition as well as maximum locals number encountered.
+// the number of locals in the last processed definition as well as maximum locals number encountered.
 func (c *codegen) convertInitFuncs(f *ast.File, pkg *types.Package, lastCount int) (int, int) {
 	maxCount := -1
 	ast.Inspect(f, func(node ast.Node) bool {
@@ -479,10 +479,10 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	defer f.vars.dropScope()
 
 	// We need to handle methods, which in Go, is just syntactic sugar.
-	// The method receiver will be passed in as first argument.
-	// We check if this declaration has a receiver and load it into scope.
+	// The method receiver will be passed in as the first argument.
+	// We check if this declaration has a receiver and load it into the scope.
 	//
-	// FIXME: For now we will hard cast this to a struct. We can later fine tune this
+	// FIXME: For now, we will hard cast this to a struct. We can later fine tune this
 	// to support other types.
 	if decl.Recv != nil {
 		for _, arg := range decl.Recv.List {
@@ -915,12 +915,12 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			}
 		case *ast.SelectorExpr:
 			// If this is a method call we need to walk the AST to load the struct locally.
-			// Otherwise this is a function call from a imported package and we can call it
+			// Otherwise, this is a function call from an imported package and we can call it
 			// directly.
 			name, isMethod := c.getFuncNameFromSelector(fun)
 			if isMethod {
 				ast.Walk(c, fun.X)
-				// Dont forget to add 1 extra argument when its a method.
+				// Don't forget to add 1 extra argument when its a method.
 				numArgs++
 			}
 
@@ -983,7 +983,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			// We can be sure builtins are of type *ast.Ident.
 			c.convertBuiltin(n)
 		case name != "":
-			// Function was not found thus is can be only an invocation of func-typed variable or type conversion.
+			// Function was not found, thus it can only be an invocation of a func-typed variable or type conversion.
 			// We care only about string conversions because all others are effectively no-op in NeoVM.
 			// E.g. one cannot write `bool(int(a))`, only `int32(int(a))`.
 			if isString(c.typeOf(n.Fun)) {
@@ -1096,7 +1096,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		ast.Walk(c, n.X)
 		c.emitToken(n.Tok, c.typeOf(n.X))
 
-		// For now only identifiers are supported for (post) for stmts.
+		// For now, only identifiers are supported for (post) for stmts.
 		// for i := 0; i < 10; i++ {}
 		// Where the post stmt is ( i++ )
 		if ident, ok := n.X.(*ast.Ident); ok {
@@ -1218,8 +1218,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		ast.Walk(c, n.X)
 
 		// Implementation is a bit different for slices and maps:
-		// For slices we iterate index from 0 to len-1, storing array, len and index on stack.
-		// For maps we iterate index from 0 to len-1, storing map, keyarray, size and index on stack.
+		// For slices, we iterate through indices from 0 to len-1, storing array, len and index on stack.
+		// For maps, we iterate through indices from 0 to len-1, storing map, keyarray, size and index on stack.
 		_, isMap := c.typeOf(n.X).Underlying().(*types.Map)
 		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
 		if isMap {
@@ -1281,10 +1281,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		return nil
 
-	// We dont really care about assertions for the core logic.
+	// We don't really care about assertions for the core logic.
 	// The only thing we need is to please the compiler type checking.
 	// For this to work properly, we only need to walk the expression
-	// not the assertion type.
+	// which is not the assertion type.
 	case *ast.TypeAssertExpr:
 		ast.Walk(c, n.X)
 		if c.isCallExprSyscall(n.X) {
@@ -1302,7 +1302,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 }
 
 // packVarArgs packs variadic arguments into an array
-// and returns amount of arguments packed.
+// and returns the amount of arguments packed.
 func (c *codegen) packVarArgs(n *ast.CallExpr, typ *types.Signature) int {
 	varSize := len(n.Args) - typ.Params().Len() + 1
 	c.emitReverse(varSize)
@@ -1332,12 +1332,12 @@ func (c *codegen) isCallExprSyscall(e ast.Expr) bool {
 // Go `defer` statements are a bit different:
 // 1. `defer` is always executed irregardless of whether an exception has occurred.
 // 2. `recover` can or can not handle a possible exception.
-// Thus we use the following approach:
-// 1. Throwed exception is saved in a static field X, static fields Y and is set to true.
+// Thus, we use the following approach:
+// 1. Throwed exception is saved in a static field X, static fields Y and it is set to true.
 // 2. For each defer local there is a dedicated local variable which is set to 1 if `defer` statement
 //    is encountered during an actual execution.
 // 3. CATCH and FINALLY blocks are the same, and both contain the same CALLs.
-// 4. Right before the CATCH block check a variable from (2). If it is null, jump to the end of CATCH+FINALLY block.
+// 4. Right before the CATCH block, check a variable from (2). If it is null, jump to the end of CATCH+FINALLY block.
 // 5. In CATCH block we set Y to true and emit default return values if it is the last defer.
 // 6. Execute FINALLY block only if Y is false.
 func (c *codegen) processDefers() {
@@ -1386,7 +1386,7 @@ func (c *codegen) processDefers() {
 // emitExplicitConvert handles `someType(someValue)` conversions between string/[]byte.
 // Rules for conversion:
 // 1. interop.* types are converted to ByteArray if not already.
-// 2. Otherwise convert between ByteArray/Buffer.
+// 2. Otherwise, convert between ByteArray/Buffer.
 // 3. Rules for types which are not string/[]byte should already
 //    be enforced by go parser.
 func (c *codegen) emitExplicitConvert(from, to types.Type) {
@@ -1847,8 +1847,8 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 // There are special cases for builtins:
 // 1. With FromAddress, parameter conversion is happening at compile-time
 //    so there is no need to push parameters on stack and perform an actual call
-// 2. With panic, generated code depends on if argument was nil or a string so
-//    it should be handled accordingly.
+// 2. With panic, the generated code depends on the fact if an argument was nil or a string;
+//    so, it should be handled accordingly.
 func transformArgs(fs *funcScope, fun ast.Expr, args []ast.Expr) []ast.Expr {
 	switch f := fun.(type) {
 	case *ast.SelectorExpr:
@@ -1868,7 +1868,7 @@ func transformArgs(fs *funcScope, fun ast.Expr, args []ast.Expr) []ast.Expr {
 	return args
 }
 
-// emitConvert converts top stack item to the specified type.
+// emitConvert converts the top stack item to the specified type.
 func (c *codegen) emitConvert(typ stackitem.Type) {
 	emit.Opcodes(c.prog.BinWriter, opcode.DUP)
 	emit.Instruction(c.prog.BinWriter, opcode.ISTYPE, []byte{byte(typ)})
@@ -2297,7 +2297,7 @@ func (c *codegen) replaceLabelWithOffset(ip int, arg []byte) (int, error) {
 // By pure coincidence, this is also the size of `INITSLOT` instruction.
 const longToShortRemoveCount = 3
 
-// shortenJumps returns converts b to a program where all long JMP*/CALL* specified by absolute offsets,
+// shortenJumps converts b to a program where all long JMP*/CALL* specified by absolute offsets
 // are replaced with their corresponding short counterparts. It panics if either b or offsets are invalid.
 // This is done in 2 passes:
 // 1. Alter jump offsets taking into account parts to be removed.

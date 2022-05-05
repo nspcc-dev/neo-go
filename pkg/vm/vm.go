@@ -39,7 +39,7 @@ func newError(ip int, op opcode.Opcode, err interface{}) *errorAtInstruct {
 	return &errorAtInstruct{ip: ip, op: op, err: err}
 }
 
-// StateMessage is a vm state message which could be used as additional info for example by cli.
+// StateMessage is a vm state message which could be used as an additional info, for example by cli.
 type StateMessage string
 
 const (
@@ -122,18 +122,18 @@ func (v *VM) GasConsumed() int64 {
 	return v.gasConsumed
 }
 
-// AddGas consumes specified amount of gas. It returns true iff gas limit wasn't exceeded.
+// AddGas consumes the specified amount of gas. It returns true if gas limit wasn't exceeded.
 func (v *VM) AddGas(gas int64) bool {
 	v.gasConsumed += gas
 	return v.GasLimit < 0 || v.gasConsumed <= v.GasLimit
 }
 
-// Estack returns the evaluation stack so interop hooks can utilize this.
+// Estack returns the evaluation stack, so interop hooks can utilize this.
 func (v *VM) Estack() *Stack {
 	return v.estack
 }
 
-// Istack returns the invocation stack so interop hooks can utilize this.
+// Istack returns the invocation stack, so interop hooks can utilize this.
 func (v *VM) Istack() *Stack {
 	return &v.istack
 }
@@ -250,7 +250,7 @@ func (v *VM) EnableInvocationTree() {
 	v.invTree = &InvocationTree{}
 }
 
-// GetInvocationTree returns current invocation tree structure.
+// GetInvocationTree returns the current invocation tree structure.
 func (v *VM) GetInvocationTree() *InvocationTree {
 	return v.invTree
 }
@@ -283,18 +283,18 @@ func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0)
 }
 
-// LoadScriptWithHash if similar to the LoadScriptWithFlags method, but it also loads
-// given script hash directly into the Context to avoid its recalculations and to make
-// is possible to override it for deployed contracts with special hashes (the function
+// LoadScriptWithHash is similar to the LoadScriptWithFlags method, but it also loads
+// the given script hash directly into the Context to avoid its recalculations and to make
+// it possible to override it for deployed contracts with special hashes (the function
 // assumes that it is used for deployed contracts setting context's parameters
-// accordingly). It's up to user of this function to make sure the script and hash match
+// accordingly). It's up to the user of this function to make sure the script and hash match
 // each other.
 func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f callflag.CallFlag) {
 	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), hash, f, 1, 0)
 }
 
 // LoadNEFMethod allows to create a context to execute a method from the NEF
-// file with specified caller and executing hash, call flags, return value,
+// file with the specified caller and executing hash, call flags, return value,
 // method and _initialize offsets.
 func (v *VM) LoadNEFMethod(exe *nef.File, caller util.Uint160, hash util.Uint160, f callflag.CallFlag,
 	hasReturn bool, methodOff int, initOff int) {
@@ -349,7 +349,7 @@ func (v *VM) Context() *Context {
 }
 
 // PopResult is used to pop the first item of the evaluation stack. This allows
-// us to test compiler and vm in a bi-directional way.
+// us to test the compiler and the vm in a bi-directional way.
 func (v *VM) PopResult() interface{} {
 	if v.estack.Len() == 0 {
 		return nil
@@ -378,13 +378,13 @@ func (v *VM) State() State {
 	return v.state
 }
 
-// Ready returns true if the VM ready to execute the loaded program.
-// Will return false if no program is loaded.
+// Ready returns true if the VM is ready to execute the loaded program.
+// It will return false if no program is loaded.
 func (v *VM) Ready() bool {
 	return v.istack.Len() > 0
 }
 
-// Run starts the execution of the loaded program.
+// Run starts execution of the loaded program.
 func (v *VM) Run() error {
 	var ctx *Context
 
@@ -432,7 +432,7 @@ func (v *VM) Step() error {
 	return v.step(ctx)
 }
 
-// step executes one instruction in given context.
+// step executes one instruction in the given context.
 func (v *VM) step(ctx *Context) error {
 	op, param, err := ctx.Next()
 	if err != nil {
@@ -442,7 +442,7 @@ func (v *VM) step(ctx *Context) error {
 	return v.execute(ctx, op, param)
 }
 
-// StepInto behaves the same as “step over” in case if the line does not contain a function. Otherwise
+// StepInto behaves the same as “step over” in case the line does not contain a function. Otherwise,
 // the debugger will enter the called function and continue line-by-line debugging there.
 func (v *VM) StepInto() error {
 	ctx := v.Context()
@@ -491,8 +491,8 @@ func (v *VM) StepOut() error {
 	return err
 }
 
-// StepOver takes the debugger to the line that will step over a given line.
-// If the line contains a function the function will be executed and the result returned without debugging each line.
+// StepOver takes the debugger to the line that will step over the given line.
+// If the line contains a function, the function will be executed and the result is returned without debugging each line.
 func (v *VM) StepOver() error {
 	var err error
 	if v.HasStopped() {
@@ -518,23 +518,23 @@ func (v *VM) StepOver() error {
 	return err
 }
 
-// HasFailed returns whether VM is in the failed state now. Usually used to
+// HasFailed returns whether the VM is in the failed state now. Usually, it's used to
 // check status after Run.
 func (v *VM) HasFailed() bool {
 	return v.state.HasFlag(FaultState)
 }
 
-// HasStopped returns whether VM is in Halt or Failed state.
+// HasStopped returns whether the VM is in the Halt or Failed state.
 func (v *VM) HasStopped() bool {
 	return v.state.HasFlag(HaltState) || v.state.HasFlag(FaultState)
 }
 
-// HasHalted returns whether VM is in Halt state.
+// HasHalted returns whether the VM is in the Halt state.
 func (v *VM) HasHalted() bool {
 	return v.state.HasFlag(HaltState)
 }
 
-// AtBreakpoint returns whether VM is at breakpoint.
+// AtBreakpoint returns whether the VM is at breakpoint.
 func (v *VM) AtBreakpoint() bool {
 	return v.state.HasFlag(BreakState)
 }
@@ -1315,7 +1315,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.SIZE:
 		elem := v.estack.Pop()
 		var res int
-		// Cause there is no native (byte) item type here, hence we need to check
+		// Cause there is no native (byte) item type here, we need to check
 		// the type of the item for array size operations.
 		switch t := elem.Value().(type) {
 		case []stackitem.Item:
@@ -1348,7 +1348,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.CALL, opcode.CALLL:
-		// Note: jump offset must be calculated regarding to new context,
+		// Note: jump offset must be calculated regarding the new context,
 		// but it is cloned and thus has the same script and instruction pointer.
 		v.call(ctx, getJumpOffset(ctx, parameter))
 
@@ -1579,13 +1579,13 @@ func (v *VM) throw(item stackitem.Item) {
 	v.handleException()
 }
 
-// Call calls method by offset using new execution context.
+// Call calls a method by offset using the new execution context.
 func (v *VM) Call(offset int) {
 	v.call(v.Context(), offset)
 }
 
 // call is an internal representation of Call, which does not
-// affect the invocation counter and is only being used by vm
+// affect the invocation counter and is only used by vm
 // package.
 func (v *VM) call(ctx *Context, offset int) {
 	v.checkInvocationStackSize()
@@ -1594,7 +1594,7 @@ func (v *VM) call(ctx *Context, offset int) {
 	newCtx.local = nil
 	newCtx.arguments = nil
 	// If memory for `elems` is reused, we can end up
-	// with incorrect exception context state in the caller.
+	// with an incorrect exception context state in the caller.
 	newCtx.tryStack.elems = nil
 	initStack(&newCtx.tryStack, "exception", nil)
 	newCtx.NEF = ctx.NEF
@@ -1602,8 +1602,8 @@ func (v *VM) call(ctx *Context, offset int) {
 	newCtx.Jump(offset)
 }
 
-// getJumpOffset returns instruction number in a current context
-// to a which JMP should be performed.
+// getJumpOffset returns an instruction number in the current context
+// to which JMP should be performed.
 // parameter should have length either 1 or 4 and
 // is interpreted as little-endian.
 func getJumpOffset(ctx *Context, parameter []byte) int {
@@ -1614,8 +1614,8 @@ func getJumpOffset(ctx *Context, parameter []byte) int {
 	return offset
 }
 
-// calcJumpOffset returns absolute and relative offset of JMP/CALL/TRY instructions
-// either in short (1-byte) or long (4-byte) form.
+// calcJumpOffset returns an absolute and a relative offset of JMP/CALL/TRY instructions
+// either in a short (1-byte) or a long (4-byte) form.
 func calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 	var rOffset int32
 	switch l := len(parameter); l {
@@ -1666,7 +1666,7 @@ func (v *VM) handleException() {
 	throwUnhandledException(v.uncaughtException)
 }
 
-// throwUnhandledException gets exception message from the provided stackitem and panics.
+// throwUnhandledException gets an exception message from the provided stackitem and panics.
 func throwUnhandledException(item stackitem.Item) {
 	msg := "unhandled exception"
 	switch item.Type() {
@@ -1686,7 +1686,7 @@ func throwUnhandledException(item stackitem.Item) {
 	panic(msg)
 }
 
-// CheckMultisigPar checks if sigs contains sufficient valid signatures.
+// CheckMultisigPar checks if the sigs contains sufficient valid signatures.
 func CheckMultisigPar(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sigs [][]byte) bool {
 	if len(sigs) == 1 {
 		return checkMultisig1(v, curve, h, pkeys, sigs[0])
@@ -1849,17 +1849,17 @@ func bytesToPublicKey(b []byte, curve elliptic.Curve) *keys.PublicKey {
 	return pkey
 }
 
-// GetCallingScriptHash implements ScriptHashGetter interface.
+// GetCallingScriptHash implements the ScriptHashGetter interface.
 func (v *VM) GetCallingScriptHash() util.Uint160 {
 	return v.Context().callingScriptHash
 }
 
-// GetEntryScriptHash implements ScriptHashGetter interface.
+// GetEntryScriptHash implements the ScriptHashGetter interface.
 func (v *VM) GetEntryScriptHash() util.Uint160 {
 	return v.getContextScriptHash(v.istack.Len() - 1)
 }
 
-// GetCurrentScriptHash implements ScriptHashGetter interface.
+// GetCurrentScriptHash implements the ScriptHashGetter interface.
 func (v *VM) GetCurrentScriptHash() util.Uint160 {
 	return v.getContextScriptHash(0)
 }

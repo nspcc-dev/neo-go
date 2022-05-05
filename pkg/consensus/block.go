@@ -11,7 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// neoBlock is a wrapper of core.Block which implements
+// neoBlock is a wrapper of a core.Block which implements
 // methods necessary for dBFT library.
 type neoBlock struct {
 	coreb.Block
@@ -22,7 +22,7 @@ type neoBlock struct {
 
 var _ block.Block = (*neoBlock)(nil)
 
-// Sign implements block.Block interface.
+// Sign implements the block.Block interface.
 func (n *neoBlock) Sign(key crypto.PrivateKey) error {
 	k := key.(*privateKey)
 	sig := k.PrivateKey.SignHashable(uint32(n.network), &n.Block)
@@ -30,7 +30,7 @@ func (n *neoBlock) Sign(key crypto.PrivateKey) error {
 	return nil
 }
 
-// Verify implements block.Block interface.
+// Verify implements the block.Block interface.
 func (n *neoBlock) Verify(key crypto.PublicKey, sign []byte) error {
 	k := key.(*publicKey)
 	if k.PublicKey.VerifyHashable(sign, uint32(n.network), &n.Block) {
@@ -39,7 +39,7 @@ func (n *neoBlock) Verify(key crypto.PublicKey, sign []byte) error {
 	return errors.New("verification failed")
 }
 
-// Transactions implements block.Block interface.
+// Transactions implements the block.Block interface.
 func (n *neoBlock) Transactions() []block.Transaction {
 	txes := make([]block.Transaction, len(n.Block.Transactions))
 	for i, tx := range n.Block.Transactions {
@@ -49,7 +49,7 @@ func (n *neoBlock) Transactions() []block.Transaction {
 	return txes
 }
 
-// SetTransactions implements block.Block interface.
+// SetTransactions implements the block.Block interface.
 func (n *neoBlock) SetTransactions(txes []block.Transaction) {
 	n.Block.Transactions = make([]*transaction.Transaction, len(txes))
 	for i, tx := range txes {
@@ -57,26 +57,26 @@ func (n *neoBlock) SetTransactions(txes []block.Transaction) {
 	}
 }
 
-// Version implements block.Block interface.
+// Version implements the block.Block interface.
 func (n *neoBlock) Version() uint32 { return n.Block.Version }
 
-// PrevHash implements block.Block interface.
+// PrevHash implements the block.Block interface.
 func (n *neoBlock) PrevHash() util.Uint256 { return n.Block.PrevHash }
 
-// MerkleRoot implements block.Block interface.
+// MerkleRoot implements the block.Block interface.
 func (n *neoBlock) MerkleRoot() util.Uint256 { return n.Block.MerkleRoot }
 
-// Timestamp implements block.Block interface.
+// Timestamp implements the block.Block interface.
 func (n *neoBlock) Timestamp() uint64 { return n.Block.Timestamp * nsInMs }
 
-// Index implements block.Block interface.
+// Index implements the block.Block interface.
 func (n *neoBlock) Index() uint32 { return n.Block.Index }
 
-// ConsensusData implements block.Block interface.
+// ConsensusData implements the block.Block interface.
 func (n *neoBlock) ConsensusData() uint64 { return n.Block.Nonce }
 
-// NextConsensus implements block.Block interface.
+// NextConsensus implements the block.Block interface.
 func (n *neoBlock) NextConsensus() util.Uint160 { return n.Block.NextConsensus }
 
-// Signature implements block.Block interface.
+// Signature implements the block.Block interface.
 func (n *neoBlock) Signature() []byte { return n.signature }

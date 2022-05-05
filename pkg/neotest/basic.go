@@ -35,7 +35,7 @@ type Executor struct {
 	Contracts     map[string]*Contract
 }
 
-// NewExecutor creates new executor instance from provided blockchain and committee.
+// NewExecutor creates a new executor instance from the provided blockchain and committee.
 func NewExecutor(t testing.TB, bc blockchainer.Blockchainer, validator, committee Signer) *Executor {
 	checkMultiSigner(t, validator)
 	checkMultiSigner(t, committee)
@@ -49,28 +49,28 @@ func NewExecutor(t testing.TB, bc blockchainer.Blockchainer, validator, committe
 	}
 }
 
-// TopBlock returns block with the highest index.
+// TopBlock returns the block with the highest index.
 func (e *Executor) TopBlock(t testing.TB) *block.Block {
 	b, err := e.Chain.GetBlock(e.Chain.GetHeaderHash(int(e.Chain.BlockHeight())))
 	require.NoError(t, err)
 	return b
 }
 
-// NativeHash returns native contract hash by name.
+// NativeHash returns a native contract hash by the name.
 func (e *Executor) NativeHash(t testing.TB, name string) util.Uint160 {
 	h, err := e.Chain.GetNativeContractScriptHash(name)
 	require.NoError(t, err)
 	return h
 }
 
-// ContractHash returns contract hash by ID.
+// ContractHash returns a contract hash by the ID.
 func (e *Executor) ContractHash(t testing.TB, id int32) util.Uint160 {
 	h, err := e.Chain.GetContractScriptHash(id)
 	require.NoError(t, err)
 	return h
 }
 
-// NativeID returns native contract ID by name.
+// NativeID returns a native contract ID by the name.
 func (e *Executor) NativeID(t testing.TB, name string) int32 {
 	h := e.NativeHash(t, name)
 	cs := e.Chain.GetContractState(h)
@@ -78,7 +78,7 @@ func (e *Executor) NativeID(t testing.TB, name string) int32 {
 	return cs.ID
 }
 
-// NewUnsignedTx creates new unsigned transaction which invokes method of contract with hash.
+// NewUnsignedTx creates a new unsigned transaction which invokes the method of the contract with the hash.
 func (e *Executor) NewUnsignedTx(t testing.TB, hash util.Uint160, method string, args ...interface{}) *transaction.Transaction {
 	w := io.NewBufBinWriter()
 	emit.AppCall(w.BinWriter, hash, method, callflag.All, args...)
@@ -91,15 +91,15 @@ func (e *Executor) NewUnsignedTx(t testing.TB, hash util.Uint160, method string,
 	return tx
 }
 
-// NewTx creates new transaction which invokes contract method.
-// Transaction is signed with signer.
+// NewTx creates a new transaction which invokes the contract method.
+// The transaction is signed by the signers.
 func (e *Executor) NewTx(t testing.TB, signers []Signer,
 	hash util.Uint160, method string, args ...interface{}) *transaction.Transaction {
 	tx := e.NewUnsignedTx(t, hash, method, args...)
 	return e.SignTx(t, tx, -1, signers...)
 }
 
-// SignTx signs a transaction using provided signers.
+// SignTx signs a transaction using the provided signers.
 func (e *Executor) SignTx(t testing.TB, tx *transaction.Transaction, sysFee int64, signers ...Signer) *transaction.Transaction {
 	for _, acc := range signers {
 		tx.Signers = append(tx.Signers, transaction.Signer{
@@ -116,7 +116,7 @@ func (e *Executor) SignTx(t testing.TB, tx *transaction.Transaction, sysFee int6
 	return tx
 }
 
-// NewAccount returns new signer holding 100.0 GAS (or given amount is specified).
+// NewAccount returns a new signer holding 100.0 GAS (or given amount is specified).
 // This method advances the chain by one block with a transfer transaction.
 func (e *Executor) NewAccount(t testing.TB, expectedGASBalance ...int64) Signer {
 	acc, err := wallet.NewAccount()
@@ -134,24 +134,24 @@ func (e *Executor) NewAccount(t testing.TB, expectedGASBalance ...int64) Signer 
 	return NewSingleSigner(acc)
 }
 
-// DeployContract compiles and deploys contract to bc. It also checks that
-// precalculated contract hash matches the actual one.
+// DeployContract compiles and deploys a contract to the bc. It also checks that
+// the precalculated contract hash matches the actual one.
 // data is an optional argument to `_deploy`.
-// Returns hash of the deploy transaction.
+// It returns the hash of the deploy transaction.
 func (e *Executor) DeployContract(t testing.TB, c *Contract, data interface{}) util.Uint256 {
 	return e.DeployContractBy(t, e.Validator, c, data)
 }
 
-// DeployContractBy compiles and deploys contract to bc using provided signer.
-// It also checks that precalculated contract hash matches the actual one.
+// DeployContractBy compiles and deploys a contract to the bc using the provided signer.
+// It also checks that the precalculated contract hash matches the actual one.
 // data is an optional argument to `_deploy`.
-// Returns hash of the deploy transaction.
+// It returns the hash of the deploy transaction.
 func (e *Executor) DeployContractBy(t testing.TB, signer Signer, c *Contract, data interface{}) util.Uint256 {
 	tx := NewDeployTxBy(t, e.Chain, signer, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckHalt(t, tx.Hash())
 
-	// Check that precalculated hash matches the real one.
+	// Check that the precalculated hash matches the real one.
 	e.CheckTxNotificationEvent(t, tx.Hash(), -1, state.NotificationEvent{
 		ScriptHash: e.NativeHash(t, nativenames.Management),
 		Name:       "Deploy",
@@ -163,15 +163,15 @@ func (e *Executor) DeployContractBy(t testing.TB, signer Signer, c *Contract, da
 	return tx.Hash()
 }
 
-// DeployContractCheckFAULT compiles and deploys contract to bc using validator
-// account. It checks that deploy transaction FAULTed with the specified error.
+// DeployContractCheckFAULT compiles and deploys a contract to the bc using the validator
+// account. It checks that the deploy transaction FAULTed with the specified error.
 func (e *Executor) DeployContractCheckFAULT(t testing.TB, c *Contract, data interface{}, errMessage string) {
 	tx := e.NewDeployTx(t, e.Chain, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckFault(t, tx.Hash(), errMessage)
 }
 
-// InvokeScript adds transaction with the specified script to the chain and
+// InvokeScript adds a transaction with the specified script to the chain and
 // returns its hash. It does no faults check.
 func (e *Executor) InvokeScript(t testing.TB, script []byte, signers []Signer) util.Uint256 {
 	tx := e.PrepareInvocation(t, script, signers)
@@ -179,7 +179,7 @@ func (e *Executor) InvokeScript(t testing.TB, script []byte, signers []Signer) u
 	return tx.Hash()
 }
 
-// PrepareInvocation creates transaction with the specified script and signs it
+// PrepareInvocation creates a transaction with the specified script and signs it
 // by the provided signer.
 func (e *Executor) PrepareInvocation(t testing.TB, script []byte, signers []Signer, validUntilBlock ...uint32) *transaction.Transaction {
 	tx := transaction.New(script, 0)
@@ -192,21 +192,21 @@ func (e *Executor) PrepareInvocation(t testing.TB, script []byte, signers []Sign
 	return tx
 }
 
-// InvokeScriptCheckHALT adds transaction with the specified script to the chain
-// and checks it's HALTed with the specified items on stack.
+// InvokeScriptCheckHALT adds a transaction with the specified script to the chain
+// and checks if it's HALTed with the specified items on stack.
 func (e *Executor) InvokeScriptCheckHALT(t testing.TB, script []byte, signers []Signer, stack ...stackitem.Item) {
 	hash := e.InvokeScript(t, script, signers)
 	e.CheckHalt(t, hash, stack...)
 }
 
-// InvokeScriptCheckFAULT adds transaction with the specified script to the
-// chain and checks it's FAULTed with the specified error.
+// InvokeScriptCheckFAULT adds a transaction with the specified script to the
+// chain and checks if it's FAULTed with the specified error.
 func (e *Executor) InvokeScriptCheckFAULT(t testing.TB, script []byte, signers []Signer, errMessage string) {
 	hash := e.InvokeScript(t, script, signers)
 	e.CheckFault(t, hash, errMessage)
 }
 
-// CheckHalt checks that transaction persisted with HALT state.
+// CheckHalt checks that the transaction is persisted with HALT state.
 func (e *Executor) CheckHalt(t testing.TB, h util.Uint256, stack ...stackitem.Item) *state.AppExecResult {
 	aer, err := e.Chain.GetAppExecResults(h, trigger.Application)
 	require.NoError(t, err)
@@ -217,8 +217,8 @@ func (e *Executor) CheckHalt(t testing.TB, h util.Uint256, stack ...stackitem.It
 	return &aer[0]
 }
 
-// CheckFault checks that transaction persisted with FAULT state.
-// Raised exception is also checked to contain s as a substring.
+// CheckFault checks that the transaction is persisted with FAULT state.
+// The raised exception is also checked to contain the s as a substring.
 func (e *Executor) CheckFault(t testing.TB, h util.Uint256, s string) {
 	aer, err := e.Chain.GetAppExecResults(h, trigger.Application)
 	require.NoError(t, err)
@@ -227,7 +227,7 @@ func (e *Executor) CheckFault(t testing.TB, h util.Uint256, s string) {
 		"expected: %s, got: %s", s, aer[0].FaultException)
 }
 
-// CheckTxNotificationEvent checks that specified event was emitted at the specified position
+// CheckTxNotificationEvent checks that the specified event was emitted at the specified position
 // during transaction script execution. Negative index corresponds to backwards enumeration.
 func (e *Executor) CheckTxNotificationEvent(t testing.TB, h util.Uint256, index int, expected state.NotificationEvent) {
 	aer, err := e.Chain.GetAppExecResults(h, trigger.Application)
@@ -240,24 +240,24 @@ func (e *Executor) CheckTxNotificationEvent(t testing.TB, h util.Uint256, index 
 	require.Equal(t, expected, aer[0].Events[index])
 }
 
-// CheckGASBalance ensures that provided account owns specified amount of GAS.
+// CheckGASBalance ensures that the provided account owns the specified amount of GAS.
 func (e *Executor) CheckGASBalance(t testing.TB, acc util.Uint160, expected *big.Int) {
 	actual := e.Chain.GetUtilityTokenBalance(acc)
 	require.Equal(t, expected, actual, fmt.Errorf("invalid GAS balance: expected %s, got %s", expected.String(), actual.String()))
 }
 
-// EnsureGASBalance ensures that provided account owns amount of GAS that satisfies provided condition.
+// EnsureGASBalance ensures that the provided account owns the amount of GAS that satisfies the provided condition.
 func (e *Executor) EnsureGASBalance(t testing.TB, acc util.Uint160, isOk func(balance *big.Int) bool) {
 	actual := e.Chain.GetUtilityTokenBalance(acc)
 	require.True(t, isOk(actual), fmt.Errorf("invalid GAS balance: got %s, condition is not satisfied", actual.String()))
 }
 
-// NewDeployTx returns new deployment tx for contract signed by committee.
+// NewDeployTx returns a new deployment tx for the contract signed by the committee.
 func (e *Executor) NewDeployTx(t testing.TB, bc blockchainer.Blockchainer, c *Contract, data interface{}) *transaction.Transaction {
 	return NewDeployTxBy(t, bc, e.Validator, c, data)
 }
 
-// NewDeployTxBy returns new deployment tx for contract signed by the specified signer.
+// NewDeployTxBy returns a new deployment tx for the contract signed by the specified signer.
 func NewDeployTxBy(t testing.TB, bc blockchainer.Blockchainer, signer Signer, c *Contract, data interface{}) *transaction.Transaction {
 	rawManifest, err := json.Marshal(c.Manifest)
 	require.NoError(t, err)
@@ -304,7 +304,7 @@ func AddNetworkFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, si
 	tx.NetworkFee += int64(size) * bc.FeePerByte()
 }
 
-// NewUnsignedBlock creates new unsigned block from txs.
+// NewUnsignedBlock creates a new unsigned block from txs.
 func (e *Executor) NewUnsignedBlock(t testing.TB, txs ...*transaction.Transaction) *block.Block {
 	lastBlock := e.TopBlock(t)
 	b := &block.Block{
@@ -327,7 +327,7 @@ func (e *Executor) NewUnsignedBlock(t testing.TB, txs ...*transaction.Transactio
 	return b
 }
 
-// AddNewBlock creates a new block from provided transactions and adds it on bc.
+// AddNewBlock creates a new block from the provided transactions and adds it on the bc.
 func (e *Executor) AddNewBlock(t testing.TB, txs ...*transaction.Transaction) *block.Block {
 	b := e.NewUnsignedBlock(t, txs...)
 	e.SignBlock(b)
@@ -335,7 +335,7 @@ func (e *Executor) AddNewBlock(t testing.TB, txs ...*transaction.Transaction) *b
 	return b
 }
 
-// GenerateNewBlocks adds specified number of empty blocks to the chain.
+// GenerateNewBlocks adds the specified number of empty blocks to the chain.
 func (e *Executor) GenerateNewBlocks(t testing.TB, count int) []*block.Block {
 	blocks := make([]*block.Block, count)
 	for i := 0; i < count; i++ {
@@ -360,7 +360,7 @@ func (e *Executor) AddBlockCheckHalt(t testing.TB, txs ...*transaction.Transacti
 	return b
 }
 
-// TestInvoke creates a test VM with dummy block and executes transaction in it.
+// TestInvoke creates a test VM with a dummy block and executes a transaction in it.
 func TestInvoke(bc blockchainer.Blockchainer, tx *transaction.Transaction) (*vm.VM, error) {
 	lastBlock, err := bc.GetBlock(bc.GetHeaderHash(int(bc.BlockHeight())))
 	if err != nil {
@@ -373,8 +373,8 @@ func TestInvoke(bc blockchainer.Blockchainer, tx *transaction.Transaction) (*vm.
 		},
 	}
 
-	// `GetTestVM` as well as `Run` can use transaction hash which will set cached value.
-	// This is unwanted behaviour so we explicitly copy transaction to perform execution.
+	// `GetTestVM` as well as `Run` can use a transaction hash which will set a cached value.
+	// This is unwanted behavior, so we explicitly copy the transaction to perform execution.
 	ttx := *tx
 	ic := bc.GetTestVM(trigger.Application, &ttx, b)
 	defer ic.Finalize()
@@ -384,14 +384,14 @@ func TestInvoke(bc blockchainer.Blockchainer, tx *transaction.Transaction) (*vm.
 	return ic.VM, err
 }
 
-// GetTransaction returns transaction and its height by the specified hash.
+// GetTransaction returns a transaction and its height by the specified hash.
 func (e *Executor) GetTransaction(t testing.TB, h util.Uint256) (*transaction.Transaction, uint32) {
 	tx, height, err := e.Chain.GetTransaction(h)
 	require.NoError(t, err)
 	return tx, height
 }
 
-// GetBlockByIndex returns block by the specified index.
+// GetBlockByIndex returns a block by the specified index.
 func (e *Executor) GetBlockByIndex(t testing.TB, idx int) *block.Block {
 	h := e.Chain.GetHeaderHash(idx)
 	require.NotEmpty(t, h)

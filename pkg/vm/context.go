@@ -48,9 +48,9 @@ type Context struct {
 	// Call flags this context was created with.
 	callFlag callflag.CallFlag
 
-	// retCount specifies number of return values.
+	// retCount specifies the number of return values.
 	retCount int
-	// NEF represents NEF file for the current contract.
+	// NEF represents a NEF file for the current contract.
 	NEF *nef.File
 	// invTree is an invocation tree (or branch of it) for this context.
 	invTree *InvocationTree
@@ -78,19 +78,19 @@ func (c *Context) Estack() *Stack {
 	return c.estack
 }
 
-// NextIP returns next instruction pointer.
+// NextIP returns the next instruction pointer.
 func (c *Context) NextIP() int {
 	return c.nextip
 }
 
-// Jump unconditionally moves the next instruction pointer to specified location.
+// Jump unconditionally moves the next instruction pointer to the specified location.
 func (c *Context) Jump(pos int) {
 	c.nextip = pos
 }
 
 // Next returns the next instruction to execute with its parameter if any.
-// The parameter is not copied and shouldn't be written to. After its invocation
-// the instruction pointer points to the instruction being returned.
+// The parameter is not copied and shouldn't be written to. After its invocation,
+// the instruction pointer points to the instruction returned.
 func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	var err error
 
@@ -170,7 +170,7 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	return instr, parameter, nil
 }
 
-// IP returns current instruction offset in the context script.
+// IP returns the current instruction offset in the context script.
 func (c *Context) IP() int {
 	return c.ip
 }
@@ -201,7 +201,7 @@ func (c *Context) Copy() *Context {
 	return ctx
 }
 
-// GetCallFlags returns calling flags context was created with.
+// GetCallFlags returns the calling flags which the context was created with.
 func (c *Context) GetCallFlags() callflag.CallFlag {
 	return c.callFlag
 }
@@ -219,38 +219,38 @@ func (c *Context) ScriptHash() util.Uint160 {
 	return c.scriptHash
 }
 
-// Value implements stackitem.Item interface.
+// Value implements the stackitem.Item interface.
 func (c *Context) Value() interface{} {
 	return c
 }
 
-// Dup implements stackitem.Item interface.
+// Dup implements the stackitem.Item interface.
 func (c *Context) Dup() stackitem.Item {
 	return c
 }
 
-// TryBool implements stackitem.Item interface.
+// TryBool implements the stackitem.Item interface.
 func (c *Context) TryBool() (bool, error) { panic("can't convert Context to Bool") }
 
-// TryBytes implements stackitem.Item interface.
+// TryBytes implements the stackitem.Item interface.
 func (c *Context) TryBytes() ([]byte, error) {
 	return nil, errors.New("can't convert Context to ByteArray")
 }
 
-// TryInteger implements stackitem.Item interface.
+// TryInteger implements the stackitem.Item interface.
 func (c *Context) TryInteger() (*big.Int, error) {
 	return nil, errors.New("can't convert Context to Integer")
 }
 
-// Type implements stackitem.Item interface.
+// Type implements the stackitem.Item interface.
 func (c *Context) Type() stackitem.Type { panic("Context cannot appear on evaluation stack") }
 
-// Convert implements stackitem.Item interface.
+// Convert implements the stackitem.Item interface.
 func (c *Context) Convert(_ stackitem.Type) (stackitem.Item, error) {
 	panic("Context cannot be converted to anything")
 }
 
-// Equals implements stackitem.Item interface.
+// Equals implements the stackitem.Item interface.
 func (c *Context) Equals(s stackitem.Item) bool {
 	return c == s
 }
@@ -268,7 +268,7 @@ func (c *Context) String() string {
 	return "execution context"
 }
 
-// IsDeployed returns whether this context contains deployed contract.
+// IsDeployed returns whether this context contains a deployed contract.
 func (c *Context) IsDeployed() bool {
 	return c.NEF != nil
 }
@@ -309,8 +309,8 @@ func (v *VM) getContextScriptHash(n int) util.Uint160 {
 	return ctx.ScriptHash()
 }
 
-// PushContextScriptHash pushes to evaluation stack the script hash of the
-// invocation stack element number n.
+// PushContextScriptHash pushes the script hash of the
+// invocation stack element number n to the evaluation stack.
 func (v *VM) PushContextScriptHash(n int) error {
 	h := v.getContextScriptHash(n)
 	v.Estack().PushItem(stackitem.NewByteArray(h.BytesBE()))

@@ -14,8 +14,8 @@ import (
 )
 
 // Group represents a group of smartcontracts identified by a public key.
-// Every SC in a group must provide signature of it's hash to prove
-// it belongs to a group.
+// Every SC in a group must provide signature of its hash to prove
+// it belongs to the group.
 type Group struct {
 	PublicKey *keys.PublicKey `json:"pubkey"`
 	Signature []byte          `json:"signature"`
@@ -29,7 +29,7 @@ type groupAux struct {
 	Signature []byte `json:"signature"`
 }
 
-// IsValid checks whether group's signature corresponds to the given hash.
+// IsValid checks whether the group's signature corresponds to the given hash.
 func (g *Group) IsValid(h util.Uint160) error {
 	if !g.PublicKey.Verify(g.Signature, hash.Sha256(h.BytesBE()).BytesBE()) {
 		return errors.New("incorrect group signature")
@@ -73,7 +73,7 @@ func (g Groups) Contains(k *keys.PublicKey) bool {
 	return false
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (g *Group) MarshalJSON() ([]byte, error) {
 	aux := &groupAux{
 		PublicKey: hex.EncodeToString(g.PublicKey.Bytes()),
@@ -82,7 +82,7 @@ func (g *Group) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (g *Group) UnmarshalJSON(data []byte) error {
 	aux := new(groupAux)
 	if err := json.Unmarshal(data, aux); err != nil {

@@ -88,12 +88,12 @@ func scopesToString(scopes WitnessScope) string {
 	return res
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (s WitnessScope) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + scopesToString(s) + `"`), nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (s *WitnessScope) UnmarshalJSON(data []byte) error {
 	var js string
 	if err := json.Unmarshal(data, &js); err != nil {

@@ -21,7 +21,7 @@ type Contract struct {
 	UpdateCounter uint16 `json:"updatecounter"`
 }
 
-// ContractBase represents part shared by native and user-deployed contracts.
+// ContractBase represents a part shared by native and user-deployed contracts.
 type ContractBase struct {
 	ID       int32             `json:"id"`
 	Hash     util.Uint160      `json:"hash"`
@@ -29,7 +29,7 @@ type ContractBase struct {
 	Manifest manifest.Manifest `json:"manifest"`
 }
 
-// NativeContract holds information about native contract.
+// NativeContract holds information about the native contract.
 type NativeContract struct {
 	ContractBase
 	UpdateHistory []uint32 `json:"updatehistory"`
@@ -54,7 +54,7 @@ func (c *Contract) ToStackItem() (stackitem.Item, error) {
 	}), nil
 }
 
-// FromStackItem fills Contract's data from given stack itemized contract
+// FromStackItem fills Contract's data from the given stack itemized contract
 // representation.
 func (c *Contract) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
@@ -102,8 +102,8 @@ func (c *Contract) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
-// CreateContractHash creates deployed contract hash from transaction sender
-// and contract script.
+// CreateContractHash creates a deployed contract hash from the transaction sender
+// and the contract script.
 func CreateContractHash(sender util.Uint160, checksum uint32, name string) util.Uint160 {
 	w := io.NewBufBinWriter()
 	emit.Opcodes(w.BinWriter, opcode.ABORT)

@@ -1,6 +1,6 @@
 package noderoles
 
-// Role represents type of participant.
+// Role represents the type of the participant.
 type Role byte
 
 // Role enumeration.

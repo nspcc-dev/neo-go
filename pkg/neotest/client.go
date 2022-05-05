@@ -12,14 +12,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ContractInvoker is a client for specific contract.
+// ContractInvoker is a client for a specific contract.
 type ContractInvoker struct {
 	*Executor
 	Hash    util.Uint160
 	Signers []Signer
 }
 
-// NewInvoker creates new ContractInvoker for contract with hash h and specified signers.
+// NewInvoker creates a new ContractInvoker for the contract with hash h and the specified signers.
 func (e *Executor) NewInvoker(h util.Uint160, signers ...Signer) *ContractInvoker {
 	return &ContractInvoker{
 		Executor: e,
@@ -28,7 +28,7 @@ func (e *Executor) NewInvoker(h util.Uint160, signers ...Signer) *ContractInvoke
 	}
 }
 
-// CommitteeInvoker creates new ContractInvoker for contract with hash h and committee multisignature signer.
+// CommitteeInvoker creates a new ContractInvoker for the contract with hash h and a committee multisignature signer.
 func (e *Executor) CommitteeInvoker(h util.Uint160) *ContractInvoker {
 	return &ContractInvoker{
 		Executor: e,
@@ -37,7 +37,7 @@ func (e *Executor) CommitteeInvoker(h util.Uint160) *ContractInvoker {
 	}
 }
 
-// ValidatorInvoker creates new ContractInvoker for contract with hash h and validators multisignature signer.
+// ValidatorInvoker creates a new ContractInvoker for the contract with hash h and a validators multisignature signer.
 func (e *Executor) ValidatorInvoker(h util.Uint160) *ContractInvoker {
 	return &ContractInvoker{
 		Executor: e,
@@ -46,7 +46,7 @@ func (e *Executor) ValidatorInvoker(h util.Uint160) *ContractInvoker {
 	}
 }
 
-// TestInvoke creates test VM and invokes method with args.
+// TestInvoke creates test the VM and invokes the method with the args.
 func (c *ContractInvoker) TestInvoke(t testing.TB, method string, args ...interface{}) (*vm.Stack, error) {
 	tx := c.PrepareInvokeNoSign(t, method, args...)
 	b := c.NewUnsignedBlock(t, tx)
@@ -58,24 +58,24 @@ func (c *ContractInvoker) TestInvoke(t testing.TB, method string, args ...interf
 	return ic.VM.Estack(), err
 }
 
-// WithSigners creates new client with the provided signer.
+// WithSigners creates a new client with the provided signer.
 func (c *ContractInvoker) WithSigners(signers ...Signer) *ContractInvoker {
 	newC := *c
 	newC.Signers = signers
 	return &newC
 }
 
-// PrepareInvoke creates new invocation transaction.
+// PrepareInvoke creates a new invocation transaction.
 func (c *ContractInvoker) PrepareInvoke(t testing.TB, method string, args ...interface{}) *transaction.Transaction {
 	return c.Executor.NewTx(t, c.Signers, c.Hash, method, args...)
 }
 
-// PrepareInvokeNoSign creates new unsigned invocation transaction.
+// PrepareInvokeNoSign creates a new unsigned invocation transaction.
 func (c *ContractInvoker) PrepareInvokeNoSign(t testing.TB, method string, args ...interface{}) *transaction.Transaction {
 	return c.Executor.NewUnsignedTx(t, c.Hash, method, args...)
 }
 
-// Invoke invokes method with args, persists transaction and checks the result.
+// Invoke invokes the method with the args, persists the transaction and checks the result.
 // Returns transaction hash.
 func (c *ContractInvoker) Invoke(t testing.TB, result interface{}, method string, args ...interface{}) util.Uint256 {
 	tx := c.PrepareInvoke(t, method, args...)
@@ -84,8 +84,8 @@ func (c *ContractInvoker) Invoke(t testing.TB, result interface{}, method string
 	return tx.Hash()
 }
 
-// InvokeAndCheck invokes method with args, persists transaction and checks the result
-// using provided function. Returns transaction hash.
+// InvokeAndCheck invokes the method with the args, persists the transaction and checks the result
+// using the provided function. It returns the transaction hash.
 func (c *ContractInvoker) InvokeAndCheck(t testing.TB, checkResult func(t testing.TB, stack []stackitem.Item), method string, args ...interface{}) util.Uint256 {
 	tx := c.PrepareInvoke(t, method, args...)
 	c.AddNewBlock(t, tx)
@@ -98,7 +98,7 @@ func (c *ContractInvoker) InvokeAndCheck(t testing.TB, checkResult func(t testin
 	return tx.Hash()
 }
 
-// InvokeWithFeeFail is like InvokeFail but sets custom system fee for the transaction.
+// InvokeWithFeeFail is like InvokeFail but sets the custom system fee for the transaction.
 func (c *ContractInvoker) InvokeWithFeeFail(t testing.TB, message string, sysFee int64, method string, args ...interface{}) util.Uint256 {
 	tx := c.PrepareInvokeNoSign(t, method, args...)
 	c.Executor.SignTx(t, tx, sysFee, c.Signers...)
@@ -107,8 +107,8 @@ func (c *ContractInvoker) InvokeWithFeeFail(t testing.TB, message string, sysFee
 	return tx.Hash()
 }
 
-// InvokeFail invokes method with args, persists transaction and checks the error message.
-// Returns transaction hash.
+// InvokeFail invokes the method with the args, persists the transaction and checks the error message.
+// It returns the transaction hash.
 func (c *ContractInvoker) InvokeFail(t testing.TB, message string, method string, args ...interface{}) {
 	tx := c.PrepareInvoke(t, method, args...)
 	c.AddNewBlock(t, tx)

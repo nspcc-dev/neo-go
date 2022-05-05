@@ -28,7 +28,7 @@ type Ledger struct {
 
 const ledgerContractID = -4
 
-// newLedger creates new Ledger native contract.
+// newLedger creates a new Ledger native contract.
 func newLedger() *Ledger {
 	var l = &Ledger{
 		ContractMD: *interop.NewContractMD(nativenames.Ledger, ledgerContractID),
@@ -77,17 +77,17 @@ func newLedger() *Ledger {
 	return l
 }
 
-// Metadata implements Contract interface.
+// Metadata implements the Contract interface.
 func (l *Ledger) Metadata() *interop.ContractMD {
 	return &l.ContractMD
 }
 
-// Initialize implements Contract interface.
+// Initialize implements the Contract interface.
 func (l *Ledger) Initialize(ic *interop.Context) error {
 	return nil
 }
 
-// OnPersist implements Contract interface.
+// OnPersist implements the Contract interface.
 func (l *Ledger) OnPersist(ic *interop.Context) error {
 	// Actual block/tx processing is done in Blockchain.storeBlock().
 	// Even though C# node add them to storage here, they're not
@@ -96,7 +96,7 @@ func (l *Ledger) OnPersist(ic *interop.Context) error {
 	return nil
 }
 
-// PostPersist implements Contract interface.
+// PostPersist implements the Contract interface.
 func (l *Ledger) PostPersist(ic *interop.Context) error {
 	return nil // Actual block/tx processing is done in Blockchain.storeBlock().
 }
@@ -139,8 +139,8 @@ func (l *Ledger) getTransactionHeight(ic *interop.Context, params []stackitem.It
 	return stackitem.Make(h)
 }
 
-// getTransactionFromBlock returns transaction with the given index from the
-// block with height or hash specified.
+// getTransactionFromBlock returns a transaction with the given index from the
+// block with the height or hash specified.
 func (l *Ledger) getTransactionFromBlock(ic *interop.Context, params []stackitem.Item) stackitem.Item {
 	hash := getBlockHashFromItem(ic, params[0])
 	index := toUint32(params[1])
@@ -177,14 +177,14 @@ func (l *Ledger) getTransactionVMState(ic *interop.Context, params []stackitem.I
 }
 
 // isTraceableBlock defines whether we're able to give information about
-// the block with index specified.
+// the block with the index specified.
 func isTraceableBlock(ic *interop.Context, index uint32) bool {
 	height := ic.BlockHeight()
 	MaxTraceableBlocks := ic.Chain.GetConfig().MaxTraceableBlocks
 	return index <= height && index+MaxTraceableBlocks > height
 }
 
-// getBlockHashFromItem converts given stackitem.Item to block hash using given
+// getBlockHashFromItem converts the given stackitem.Item to a block hash using the given
 // Ledger if needed. Interop functions accept both block numbers and
 // block hashes as parameters, thus this function is needed. It's supposed to
 // be called within VM context, so it panics if anything goes wrong.
@@ -219,7 +219,7 @@ func getUint256FromItem(item stackitem.Item) (util.Uint256, error) {
 	return hash, nil
 }
 
-// getTransactionAndHeight returns transaction and its height if it's present
+// getTransactionAndHeight returns a transaction and its height if it's present
 // on the chain. It panics if anything goes wrong.
 func getTransactionAndHeight(d *dao.Simple, item stackitem.Item) (*transaction.Transaction, uint32, error) {
 	hash, err := getUint256FromItem(item)

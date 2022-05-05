@@ -11,7 +11,7 @@ type NotaryAssisted struct {
 	NKeys uint8 `json:"nkeys"`
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (n *NotaryAssisted) DecodeBinary(br *io.BinReader) {
 	bytes := br.ReadVarBytes(1)
 	if br.Err != nil {
@@ -24,7 +24,7 @@ func (n *NotaryAssisted) DecodeBinary(br *io.BinReader) {
 	n.NKeys = bytes[0]
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (n *NotaryAssisted) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes([]byte{n.NKeys})
 }

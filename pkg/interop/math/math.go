@@ -11,7 +11,7 @@ func Pow(a, b int) int {
 	return neogointernal.Opcode2("POW", a, b).(int)
 }
 
-// Sqrt returns positive square root of x rounded down.
+// Sqrt returns a positive square root of x rounded down.
 func Sqrt(x int) int {
 	return neogointernal.Opcode1("SQRT", x).(int)
 }
@@ -25,17 +25,17 @@ func Sign(a int) int {
 	return neogointernal.Opcode1("SIGN", a).(int)
 }
 
-// Abs returns absolute value of a.
+// Abs returns an absolute value of a.
 func Abs(a int) int {
 	return neogointernal.Opcode1("ABS", a).(int)
 }
 
-// Max returns maximum of a, b.
+// Max returns the maximum of a, b.
 func Max(a, b int) int {
 	return neogointernal.Opcode2("MAX", a, b).(int)
 }
 
-// Min returns minimum of a, b.
+// Min returns the minimum of a, b.
 func Min(a, b int) int {
 	return neogointernal.Opcode2("MIN", a, b).(int)
 }

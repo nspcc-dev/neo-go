@@ -1,7 +1,7 @@
 # NeoGo Oracle service
 
-NeoGo node can act as oracle service node for https and neofs protocols. It
-has to have a wallet with key belonging to one of network's designated oracle
+NeoGo node can act as an oracle service node for https and neofs protocols. It
+has to have a wallet with a key belonging to one of the network's designated oracle
 nodes (stored in `RoleManagement` native contract).
 
 It needs [RPC service](rpc.md) to be enabled and configured properly because
@@ -10,7 +10,7 @@ transaction.
 
 ## Configuration
 
-To enable oracle service add `Oracle` subsection to `ApplicationConfiguration`
+To enable oracle service, add `Oracle` subsection to `ApplicationConfiguration`
 section of your node config.
 
 Parameters:
@@ -19,14 +19,14 @@ Parameters:
  * `AllowPrivateHost`: boolean value, enables/disables private IPs (like
    127.0.0.1 or 192.168.0.1) for https requests, it defaults to false and it's
    false on public networks, but you can enable it for private ones.
- * `AllowedContentTypes`: list of allowed MIME types. Only `application/json`
+ * `AllowedContentTypes`: a list of allowed MIME types. Only `application/json`
    is allowed by default. Can be left empty to allow everything.
- * `Nodes`: list of oracle node RPC endpoints, it's used for oracle node
+ * `Nodes`: a list of oracle node RPC endpoints, it's used for oracle node
    communication. All oracle nodes should be specified there.
  * `NeoFS`: a subsection of its own for NeoFS configuration with two
    parameters:
      - `Timeout`: request timeout, like "5s"
-     - `Nodes`: list of NeoFS nodes (their gRPC interfaces) to get data from,
+     - `Nodes`: a list of NeoFS nodes (their gRPC interfaces) to get data from,
        one node is enough to operate, but they're used in round-robin fashion,
        so you can spread the load by specifying multiple nodes
  * `MaxTaskTimeout`: maximum time a request can be active (retried to
@@ -67,7 +67,7 @@ Parameters:
 
 ## Operation
 
-To run oracle service on your network you need to:
+To run oracle service on your network, you need to:
  * set oracle node keys in `RoleManagement` contract
- * configure and run appropriate number of oracle nodes with keys specified in
+ * configure and run an appropriate number of oracle nodes with keys specified in
    `RoleManagement` contract

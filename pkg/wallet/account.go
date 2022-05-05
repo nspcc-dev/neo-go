@@ -15,7 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-// Account represents a NEO account. It holds the private and public key
+// Account represents a NEO account. It holds the private and the public key
 // along with some metadata.
 type Account struct {
 	// NEO private key.

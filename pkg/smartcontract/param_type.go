@@ -96,7 +96,7 @@ func (pt ParamType) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + pt.String() + `"`), nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (pt *ParamType) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
@@ -129,12 +129,12 @@ func (pt *ParamType) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return err
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (pt ParamType) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(byte(pt))
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (pt *ParamType) DecodeBinary(r *io.BinReader) {
 	*pt = ParamType(r.ReadB())
 }
@@ -246,7 +246,7 @@ func adjustValToType(typ ParamType, val string) (interface{}, error) {
 }
 
 // inferParamType tries to infer the value type from its contents. It returns
-// IntegerType for anything that looks like decimal integer (can be converted
+// IntegerType for anything that looks like a decimal integer (can be converted
 // with strconv.Atoi), BoolType for true and false values, Hash160Type for
 // addresses and hex strings encoding 20 bytes long values, PublicKeyType for
 // valid hex-encoded public keys, Hash256Type for hex-encoded 32 bytes values,
@@ -291,7 +291,7 @@ func inferParamType(val string) ParamType {
 	return StringType
 }
 
-// ConvertToParamType converts provided value to parameter type if it's a valid type.
+// ConvertToParamType converts the provided value to the parameter type if it's a valid type.
 func ConvertToParamType(val int) (ParamType, error) {
 	if validParamTypes[ParamType(val)] {
 		return ParamType(val), nil

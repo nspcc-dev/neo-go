@@ -12,10 +12,10 @@ type (
 		Bad         Peers `json:"bad"`
 	}
 
-	// Peers represent a slice of peers.
+	// Peers represents a slice of peers.
 	Peers []Peer
 
-	// Peer represents the peer.
+	// Peer represents a peer.
 	Peer struct {
 		Address string `json:"address"`
 		Port    string `json:"port"`

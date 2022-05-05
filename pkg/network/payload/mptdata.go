@@ -6,7 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
-// MPTData represents the set of serialized MPT nodes.
+// MPTData represents a set of serialized MPT nodes.
 type MPTData struct {
 	Nodes [][]byte
 }

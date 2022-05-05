@@ -25,7 +25,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// Management is contract-managing native contract.
+// Management is a contract-managing native contract.
 type Management struct {
 	interop.ContractMD
 	NEO    *NEO
@@ -85,12 +85,12 @@ func (c *ManagementCache) Copy() dao.NativeContractCache {
 	return cp
 }
 
-// MakeContractKey creates a key from account script hash.
+// MakeContractKey creates a key from the account script hash.
 func MakeContractKey(h util.Uint160) []byte {
 	return makeUint160Key(prefixContract, h)
 }
 
-// newManagement creates new Management native contract.
+// newManagement creates a new Management native contract.
 func newManagement() *Management {
 	var m = &Management{
 		ContractMD: *interop.NewContractMD(nativenames.Management, ManagementContractID),
@@ -169,7 +169,7 @@ func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) sta
 	return contractToStack(ctr)
 }
 
-// GetContract returns contract with given hash from given DAO.
+// GetContract returns a contract with the given hash from the given DAO.
 func (m *Management) GetContract(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
 	cache := d.GetROCache(m.ID).(*ManagementCache)
 	cs, ok := cache.contracts[hash]
@@ -199,7 +199,7 @@ func getLimitedSlice(arg stackitem.Item, max int) ([]byte, error) {
 }
 
 // getNefAndManifestFromItems converts input arguments into NEF and manifest
-// adding appropriate deployment GAS price and sanitizing inputs.
+// adding an appropriate deployment GAS price and sanitizing inputs.
 func (m *Management) getNefAndManifestFromItems(ic *interop.Context, args []stackitem.Item, isDeploy bool) (*nef.File, *manifest.Manifest, error) {
 	nefBytes, err := getLimitedSlice(args[0], math.MaxInt32) // Upper limits are checked during NEF deserialization.
 	if err != nil {
@@ -283,7 +283,7 @@ func (m *Management) markUpdated(d *dao.Simple, hash util.Uint160, cs *state.Con
 	updateContractCache(cache, cs)
 }
 
-// Deploy creates contract's hash/ID and saves new contract into the given DAO.
+// Deploy creates a contract's hash/ID and saves a new contract into the given DAO.
 // It doesn't run _deploy method and doesn't emit notification.
 func (m *Management) Deploy(d *dao.Simple, sender util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	h := state.CreateContractHash(sender, neff.Checksum, manif.Name)
@@ -397,7 +397,7 @@ func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackite
 	return stackitem.Null{}
 }
 
-// Destroy drops given contract from DAO along with its storage. It doesn't emit notification.
+// Destroy drops the given contract from DAO along with its storage. It doesn't emit notification.
 func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 	contract, err := m.GetContract(d, hash)
 	if err != nil {
@@ -456,12 +456,12 @@ func contractToStack(cs *state.Contract) stackitem.Item {
 	return si
 }
 
-// Metadata implements Contract interface.
+// Metadata implements the Contract interface.
 func (m *Management) Metadata() *interop.ContractMD {
 	return &m.ContractMD
 }
 
-// updateContractCache saves contract in the common and NEP-related caches. It's
+// updateContractCache saves the contract in the common and NEP-related caches. It's
 // an internal method that must be called with m.mtx lock taken.
 func updateContractCache(cache *ManagementCache, cs *state.Contract) {
 	cache.contracts[cs.Hash] = cs
@@ -473,7 +473,7 @@ func updateContractCache(cache *ManagementCache, cs *state.Contract) {
 	}
 }
 
-// OnPersist implements Contract interface.
+// OnPersist implements the Contract interface.
 func (m *Management) OnPersist(ic *interop.Context) error {
 	var cache *ManagementCache
 	for _, native := range ic.Natives {
@@ -503,7 +503,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 }
 
 // InitializeCache initializes contract cache with the proper values from storage.
-// Cache initialisation should be done apart from Initialize because Initialize is
+// Cache initialization should be done apart from Initialize because Initialize is
 // called only when deploying native contracts.
 func (m *Management) InitializeCache(d *dao.Simple) error {
 	cache := &ManagementCache{
@@ -529,7 +529,7 @@ func (m *Management) InitializeCache(d *dao.Simple) error {
 	return nil
 }
 
-// PostPersist implements Contract interface.
+// PostPersist implements the Contract interface.
 func (m *Management) PostPersist(ic *interop.Context) error {
 	return nil
 }
@@ -558,7 +558,7 @@ func (m *Management) GetNEP17Contracts(d *dao.Simple) []util.Uint160 {
 	return result
 }
 
-// Initialize implements Contract interface.
+// Initialize implements the Contract interface.
 func (m *Management) Initialize(ic *interop.Context) error {
 	setIntWithKey(m.ID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee)
 	setIntWithKey(m.ID, ic.DAO, keyNextAvailableID, 1)

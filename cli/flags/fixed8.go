@@ -8,7 +8,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-// Fixed8 is a wrapper for Uint160 with flag.Value methods.
+// Fixed8 is a wrapper for a Uint160 with flag.Value methods.
 type Fixed8 struct {
 	Value fixedn.Fixed8
 }
@@ -25,12 +25,12 @@ var (
 	_ cli.Flag   = Fixed8Flag{}
 )
 
-// String implements fmt.Stringer interface.
+// String implements the fmt.Stringer interface.
 func (a Fixed8) String() string {
 	return a.Value.String()
 }
 
-// Set implements flag.Value interface.
+// Set implements the flag.Value interface.
 func (a *Fixed8) Set(s string) error {
 	f, err := fixedn.Fixed8FromString(s)
 	if err != nil {
@@ -40,7 +40,7 @@ func (a *Fixed8) Set(s string) error {
 	return nil
 }
 
-// Fixed8 casts address to util.Fixed8.
+// Fixed8 casts the address to util.Fixed8.
 func (a *Fixed8) Fixed8() fixedn.Fixed8 {
 	return a.Value
 }
@@ -61,7 +61,7 @@ func (f Fixed8Flag) GetName() string {
 	return f.Name
 }
 
-// Apply populates the flag given the flag set and environment
+// Apply populates the flag given the flag set and environment.
 // Ignores errors.
 func (f Fixed8Flag) Apply(set *flag.FlagSet) {
 	eachName(f.Name, func(name string) {
@@ -69,7 +69,7 @@ func (f Fixed8Flag) Apply(set *flag.FlagSet) {
 	})
 }
 
-// Fixed8FromContext returns parsed util.Fixed8 value provided flag name.
+// Fixed8FromContext returns a parsed util.Fixed8 value provided flag name.
 func Fixed8FromContext(ctx *cli.Context, name string) fixedn.Fixed8 {
 	return ctx.Generic(name).(*Fixed8).Value
 }

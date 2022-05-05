@@ -21,17 +21,17 @@ import (
 
 // WSClient is a websocket-enabled RPC client that can be used with appropriate
 // servers. It's supposed to be faster than Client because it has persistent
-// connection to the server and at the same time is exposes some functionality
+// connection to the server and at the same time it exposes some functionality
 // that is only provided via websockets (like event subscription mechanism).
 // WSClient is thread-safe and can be used from multiple goroutines to perform
 // RPC requests.
 type WSClient struct {
 	Client
 	// Notifications is a channel that is used to send events received from
-	// server. Client's code is supposed to be reading from this channel if
-	// it wants to use subscription mechanism, failing to do so will cause
+	// the server. Client's code is supposed to be reading from this channel if
+	// it wants to use subscription mechanism. Failing to do so will cause
 	// WSClient to block even regular requests. This channel is not buffered.
-	// In case of protocol error or upon connection closure this channel will
+	// In case of protocol error or upon connection closure, this channel will
 	// be closed, so make sure to handle this.
 	Notifications chan Notification
 
@@ -48,7 +48,7 @@ type WSClient struct {
 	respChannels map[uint64]chan *response.Raw
 }
 
-// Notification represents server-generated notification for client subscriptions.
+// Notification represents a server-generated notification for client subscriptions.
 // Value can be one of block.Block, state.AppExecResult, subscriptions.NotificationEvent
 // transaction.Transaction or subscriptions.NotaryRequestEvent based on Type.
 type Notification struct {
@@ -80,7 +80,7 @@ const (
 
 // NewWS returns a new WSClient ready to use (with established websocket
 // connection). You need to use websocket URL for it like `ws://1.2.3.4/ws`.
-// You should call Init method to initialize network magic the client is
+// You should call Init method to initialize the network magic the client is
 // operating on.
 func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error) {
 	dialer := websocket.Dialer{HandshakeTimeout: opts.DialTimeout}
@@ -117,9 +117,9 @@ func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error
 // unusable.
 func (c *WSClient) Close() {
 	if c.closeCalled.CAS(false, true) {
-		// Closing shutdown channel send signal to wsWriter to break out of the
+		// Closing shutdown channel sends a signal to wsWriter to break out of the
 		// loop. In doing so it does ws.Close() closing the network connection
-		// which in turn makes wsReader receieve err from ws,ReadJSON() and also
+		// which in turn makes wsReader receive an err from ws.ReadJSON() and also
 		// break out of the loop closing c.done channel in its shutdown sequence.
 		close(c.shutdown)
 	}
@@ -156,7 +156,7 @@ readloop:
 			case response.BlockEventID:
 				sr, err := c.StateRootInHeader()
 				if err != nil {
-					// Client is not initialised.
+					// Client is not initialized.
 					break
 				}
 				val = block.New(sr)
@@ -317,7 +317,7 @@ func (c *WSClient) performUnsubscription(id string) error {
 }
 
 // SubscribeForNewBlocks adds subscription for new block events to this instance
-// of client. It can filtered by primary consensus node index, nil value doesn't
+// of the client. It can be filtered by primary consensus node index, nil value doesn't
 // add any filters.
 func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
 	params := request.NewRawParams("block_added")
@@ -328,7 +328,7 @@ func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
 }
 
 // SubscribeForNewTransactions adds subscription for new transaction events to
-// this instance of client. It can be filtered by sender and/or signer, nil
+// this instance of the client. It can be filtered by the sender and/or the signer, nil
 // value is treated as missing filter.
 func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, signer *util.Uint160) (string, error) {
 	params := request.NewRawParams("transaction_added")
@@ -339,8 +339,8 @@ func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, signer *uti
 }
 
 // SubscribeForExecutionNotifications adds subscription for notifications
-// generated during transaction execution to this instance of client. It can be
-// filtered by contract's hash (that emits notifications), nil value puts no such
+// generated during transaction execution to this instance of the client. It can be
+// filtered by the contract's hash (that emits notifications), nil value puts no such
 // restrictions.
 func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160, name *string) (string, error) {
 	params := request.NewRawParams("notification_from_execution")
@@ -351,7 +351,7 @@ func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160, na
 }
 
 // SubscribeForTransactionExecutions adds subscription for application execution
-// results generated during transaction execution to this instance of client. Can
+// results generated during transaction execution to this instance of the client. It can
 // be filtered by state (HALT/FAULT) to check for successful or failing
 // transactions, nil value means no filtering.
 func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, error) {
@@ -377,12 +377,12 @@ func (c *WSClient) SubscribeForNotaryRequests(sender *util.Uint160, mainSigner *
 	return c.performSubscription(params)
 }
 
-// Unsubscribe removes subscription for given event stream.
+// Unsubscribe removes subscription for the given event stream.
 func (c *WSClient) Unsubscribe(id string) error {
 	return c.performUnsubscription(id)
 }
 
-// UnsubscribeAll removes all active subscriptions of current client.
+// UnsubscribeAll removes all active subscriptions of the current client.
 func (c *WSClient) UnsubscribeAll() error {
 	c.subscriptionsLock.Lock()
 	defer c.subscriptionsLock.Unlock()

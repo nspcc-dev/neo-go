@@ -13,7 +13,7 @@ import (
 // Hash represents CryptoLib contract hash.
 const Hash = "\x1b\xf5\x75\xab\x11\x89\x68\x84\x13\x61\x0a\x35\xa1\x28\x86\xcd\xe0\xb6\x6c\x72"
 
-// NamedCurve represents named elliptic curve.
+// NamedCurve represents a named elliptic curve.
 type NamedCurve byte
 
 // Various named elliptic curves.
@@ -39,7 +39,7 @@ func Murmur32(b []byte, seed int) []byte {
 }
 
 // VerifyWithECDsa calls `verifyWithECDsa` method of native CryptoLib contract and checks that sig is
-// correct msg's signature for a given pub (serialized public key on a given curve).
+// a correct msg's signature for the given pub (serialized public key on the given curve).
 func VerifyWithECDsa(msg []byte, pub interop.PublicKey, sig interop.Signature, curve NamedCurve) bool {
 	return neogointernal.CallWithToken(Hash, "verifyWithECDsa", int(contract.NoneFlag), msg, pub, sig, curve).(bool)
 }

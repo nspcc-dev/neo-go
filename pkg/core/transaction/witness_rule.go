@@ -33,13 +33,13 @@ type witnessRuleAux struct {
 	Condition json.RawMessage `json:"condition"`
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (w *WitnessRule) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteB(byte(w.Action))
 	w.Condition.EncodeBinary(bw)
 }
 
-// DecodeBinary implements Serializable interface.
+// DecodeBinary implements the Serializable interface.
 func (w *WitnessRule) DecodeBinary(br *io.BinReader) {
 	w.Action = WitnessAction(br.ReadB())
 	if br.Err == nil && w.Action != WitnessDeny && w.Action != WitnessAllow {
@@ -49,7 +49,7 @@ func (w *WitnessRule) DecodeBinary(br *io.BinReader) {
 	w.Condition = DecodeBinaryCondition(br)
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (w *WitnessRule) MarshalJSON() ([]byte, error) {
 	cond, err := w.Condition.MarshalJSON()
 	if err != nil {
@@ -62,7 +62,7 @@ func (w *WitnessRule) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (w *WitnessRule) UnmarshalJSON(data []byte) error {
 	aux := &witnessRuleAux{}
 	err := json.Unmarshal(data, aux)

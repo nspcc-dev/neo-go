@@ -44,7 +44,7 @@ func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, 
 	return result
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (t TransactionOutputRaw) MarshalJSON() ([]byte, error) {
 	output, err := json.Marshal(t.TransactionMetadata)
 	if err != nil {
@@ -65,7 +65,7 @@ func (t TransactionOutputRaw) MarshalJSON() ([]byte, error) {
 	return output, nil
 }
 
-// UnmarshalJSON implements json.Marshaler interface.
+// UnmarshalJSON implements the json.Marshaler interface.
 func (t *TransactionOutputRaw) UnmarshalJSON(data []byte) error {
 	// As transaction.Transaction and tranactionOutputRaw are at the same level in json,
 	// do unmarshalling separately for both structs.

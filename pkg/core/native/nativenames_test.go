@@ -10,7 +10,7 @@ import (
 )
 
 func TestNativenamesIsValid(t *testing.T) {
-	// test that all native names has been added to IsValid
+	// test that all native names have been added to IsValid
 	cfg := config.ProtocolConfiguration{P2PSigExtensions: true}
 	contracts := NewContracts(cfg)
 	for _, c := range contracts.Contracts {

@@ -21,7 +21,7 @@ import (
 )
 
 type (
-	// Ledger is the interface to Blockchain sufficient for Oracle.
+	// Ledger is an interface to Blockchain sufficient for Oracle.
 	Ledger interface {
 		BlockHeight() uint32
 		FeePerByte() int64
@@ -32,7 +32,7 @@ type (
 		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	}
 
-	// Oracle represents oracle module capable of talking
+	// Oracle represents an oracle module capable of talking
 	// with the external world.
 	Oracle struct {
 		Config
@@ -100,13 +100,13 @@ type (
 )
 
 const (
-	// defaultRequestTimeout is default request timeout.
+	// defaultRequestTimeout is the default request timeout.
 	defaultRequestTimeout = time.Second * 5
 
-	// defaultMaxTaskTimeout is default timeout for the request to be dropped if it can't be processed.
+	// defaultMaxTaskTimeout is the default timeout for the request to be dropped if it can't be processed.
 	defaultMaxTaskTimeout = time.Hour
 
-	// defaultRefreshInterval is default timeout for the failed request to be reprocessed.
+	// defaultRefreshInterval is the default timeout for the failed request to be reprocessed.
 	defaultRefreshInterval = time.Minute * 3
 
 	// maxRedirections is the number of allowed redirections for Oracle HTTPS request.

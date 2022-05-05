@@ -18,7 +18,7 @@ const (
 	UserAgentFormat = UserAgentWrapper + UserAgentPrefix + "%s" + UserAgentWrapper
 )
 
-// Version the version of the node, set at build time.
+// Version is the version of the node, set at the build time.
 var Version string
 
 // Config top level struct representing the config
@@ -28,7 +28,7 @@ type Config struct {
 	ApplicationConfiguration ApplicationConfiguration `yaml:"ApplicationConfiguration"`
 }
 
-// GenerateUserAgent creates user agent string based on build time environment.
+// GenerateUserAgent creates a user agent string based on the build time environment.
 func (c Config) GenerateUserAgent() string {
 	return fmt.Sprintf(UserAgentFormat, Version)
 }

@@ -17,7 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// Blockchainer is an interface that abstract the implementation
+// Blockchainer is an interface that abstracts the implementation
 // of the blockchain.
 type Blockchainer interface {
 	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction

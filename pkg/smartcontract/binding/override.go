@@ -4,9 +4,9 @@ import (
 	"strings"
 )
 
-// Override contains package and type to replace manifest method parameter type with.
+// Override contains a package and a type to replace manifest method parameter type with.
 type Override struct {
-	// Package contains fully-qualified package name.
+	// Package contains a fully-qualified package name.
 	Package string
 	// TypeName contains type name together with a package alias.
 	TypeName string

@@ -12,7 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// MaxMultisigKeys is the maximum number of used keys for correct multisig contract.
+// MaxMultisigKeys is the maximum number of keys allowed for correct multisig contract.
 const MaxMultisigKeys = 1024
 
 var (
@@ -48,7 +48,7 @@ func IsMultiSigContract(script []byte) bool {
 	return ok
 }
 
-// ParseMultiSigContract returns number of signatures and list of public keys
+// ParseMultiSigContract returns the number of signatures and a list of public keys
 // from the verification script of the contract.
 func ParseMultiSigContract(script []byte) (int, [][]byte, bool) {
 	var nsigs, nkeys int
@@ -111,8 +111,8 @@ func IsSignatureContract(script []byte) bool {
 	return ok
 }
 
-// ParseSignatureContract parses simple signature contract and returns
-// public key.
+// ParseSignatureContract parses a simple signature contract and returns
+// a public key.
 func ParseSignatureContract(script []byte) ([]byte, bool) {
 	if len(script) != 40 {
 		return nil, false
@@ -137,8 +137,8 @@ func IsStandardContract(script []byte) bool {
 	return IsSignatureContract(script) || IsMultiSigContract(script)
 }
 
-// IsScriptCorrect checks script for errors and mask provided for correctness wrt
-// instruction boundaries. Normally it returns nil, but can return some specific
+// IsScriptCorrect checks the script for errors and mask provided for correctness wrt
+// instruction boundaries. Normally, it returns nil, but it can return some specific
 // error if there is any.
 func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 	var (

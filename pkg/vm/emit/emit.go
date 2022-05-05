@@ -29,7 +29,7 @@ func Opcodes(w *io.BinWriter, ops ...opcode.Opcode) {
 	}
 }
 
-// Bool emits a bool type the given buffer.
+// Bool emits a bool type to the given buffer.
 func Bool(w *io.BinWriter, ok bool) {
 	if ok {
 		Opcodes(w, opcode.PUSHT)
@@ -50,7 +50,7 @@ func padRight(s int, buf []byte) []byte {
 	return buf
 }
 
-// Int emits a int type to the given buffer.
+// Int emits an int type to the given buffer.
 func Int(w *io.BinWriter, i int64) {
 	if smallInt(w, i) {
 		return
@@ -58,7 +58,7 @@ func Int(w *io.BinWriter, i int64) {
 	bigInt(w, big.NewInt(i), false)
 }
 
-// BigInt emits big-integer to the given buffer.
+// BigInt emits a big-integer to the given buffer.
 func BigInt(w *io.BinWriter, n *big.Int) {
 	bigInt(w, n, true)
 }
@@ -99,7 +99,7 @@ func bigInt(w *io.BinWriter, n *big.Int, trySmall bool) {
 	w.WriteBytes(padRight(1<<padSize, buf))
 }
 
-// Array emits array of elements to the given buffer.
+// Array emits an array of elements to the given buffer.
 func Array(w *io.BinWriter, es ...interface{}) {
 	if len(es) == 0 {
 		Opcodes(w, opcode.NEWARRAY0)
@@ -187,12 +187,12 @@ func Syscall(w *io.BinWriter, api string) {
 	Instruction(w, opcode.SYSCALL, buf)
 }
 
-// Call emits a call Instruction with label to the given buffer.
+// Call emits a call Instruction with the label to the given buffer.
 func Call(w *io.BinWriter, op opcode.Opcode, label uint16) {
 	Jmp(w, op, label)
 }
 
-// Jmp emits a jump Instruction along with label to the given buffer.
+// Jmp emits a jump Instruction along with the label to the given buffer.
 func Jmp(w *io.BinWriter, op opcode.Opcode, label uint16) {
 	if w.Err != nil {
 		return
@@ -205,7 +205,7 @@ func Jmp(w *io.BinWriter, op opcode.Opcode, label uint16) {
 	Instruction(w, op, buf)
 }
 
-// AppCallNoArgs emits call to provided contract.
+// AppCallNoArgs emits a call to the provided contract.
 func AppCallNoArgs(w *io.BinWriter, scriptHash util.Uint160, operation string, f callflag.CallFlag) {
 	Int(w, int64(f))
 	String(w, operation)
@@ -213,7 +213,7 @@ func AppCallNoArgs(w *io.BinWriter, scriptHash util.Uint160, operation string, f
 	Syscall(w, interopnames.SystemContractCall)
 }
 
-// AppCall emits an APPCALL with the default parameters given operation and arguments.
+// AppCall emits an APPCALL with the default parameters to the given operation and arguments.
 func AppCall(w *io.BinWriter, scriptHash util.Uint160, operation string, f callflag.CallFlag, args ...interface{}) {
 	Array(w, args...)
 	AppCallNoArgs(w, scriptHash, operation, f)

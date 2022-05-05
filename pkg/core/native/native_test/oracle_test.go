@@ -136,8 +136,8 @@ func TestOracle_Request(t *testing.T) {
 		stackitem.NewByteArray(tx.Attributes[0].Value.(*transaction.OracleResponse).Result),
 	}), actual)
 
-	// Check that processed request is removed. We can't access GetRequestInternal directly,
-	// but adding response to this request should fail due to invalid request error.
+	// Check that the processed request is removed. We can't access GetRequestInternal directly,
+	// but adding a response to this request should fail due to invalid request error.
 	tx = prepareResponseTx(t, 0)
 	err = e.Chain.VerifyTx(tx)
 	require.Error(t, err)
@@ -149,8 +149,8 @@ func TestOracle_Request(t *testing.T) {
 		e.AddNewBlock(t, tx)
 		e.CheckFault(t, tx.Hash(), "ABORT")
 
-		// Check that processed request is cleaned up even if callback failed. We can't
-		// access GetRequestInternal directly, but adding response to this request
+		// Check that the processed request is cleaned up even if callback failed. We can't
+		// access GetRequestInternal directly, but adding a response to this request
 		// should fail due to invalid request error.
 		tx = prepareResponseTx(t, 1)
 		err = e.Chain.VerifyTx(tx)

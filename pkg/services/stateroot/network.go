@@ -19,7 +19,7 @@ const rootValidEndInc = 100
 // RelayCallback represents callback for sending validated state roots.
 type RelayCallback = func(*payload.Extensible)
 
-// AddSignature adds state root signature.
+// AddSignature adds a state root signature.
 func (s *service) AddSignature(height uint32, validatorIndex int32, sig []byte) error {
 	if !s.MainCfg.Enabled {
 		return nil
@@ -73,7 +73,7 @@ func (s *service) getIncompleteRoot(height uint32, myIndex byte) *incompleteRoot
 	return incRoot
 }
 
-// trySendRoot attempts to finalize and send MPTRoot, it must be called with ir locked.
+// trySendRoot attempts to finalize and send MPTRoot, it must be called with the ir locked.
 func (s *service) trySendRoot(ir *incompleteRoot, acc *wallet.Account) {
 	if !ir.isSenderNow() {
 		return

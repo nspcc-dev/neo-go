@@ -28,7 +28,7 @@ var (
 	ownerScript = MultisigVerificationScript()
 )
 
-// NewTransferFromOwner returns transaction transferring funds from NEO and GAS owner.
+// NewTransferFromOwner returns a transaction transferring funds from NEO and GAS owner.
 func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Uint160, amount int64,
 	nonce, validUntil uint32) (*transaction.Transaction, error) {
 	w := io.NewBufBinWriter()
@@ -51,8 +51,8 @@ func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Ui
 	return tx, SignTx(bc, tx)
 }
 
-// NewDeployTx returns new deployment for contract with source from r and name equal to
-// filename without '.go' suffix.
+// NewDeployTx returns a new deployment transaction for a contract with the source from r and a name equal to
+// the filename without '.go' suffix.
 func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160, r gio.Reader, confFile *string) (*transaction.Transaction, util.Uint160, []byte, error) {
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
@@ -110,7 +110,7 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 	return tx, h, ne.Script, nil
 }
 
-// SignTx signs provided transactions with validator keys.
+// SignTx signs the provided transactions with validator keys.
 func SignTx(bc blockchainer.Blockchainer, txs ...*transaction.Transaction) error {
 	signTxGeneric(bc, Sign, ownerScript, txs...)
 	return nil

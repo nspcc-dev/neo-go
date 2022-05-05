@@ -20,10 +20,10 @@ func Next(it Iterator) bool {
 }
 
 // Value returns iterator's current value. It's only valid to call after
-// successful Next call. This function uses `System.Iterator.Value` syscall.
-// For slices the result is just value.
-// For maps the result can be casted to a slice of 2 elements: key and value.
-// For storage iterators refer to `storage.FindFlags` documentation.
+// a successful Next call. This function uses `System.Iterator.Value` syscall.
+// For slices, the result is just value.
+// For maps, the result can be casted to a slice of 2 elements: a key and a value.
+// For storage iterators, refer to `storage.FindFlags` documentation.
 func Value(it Iterator) interface{} {
 	return neogointernal.Syscall1("System.Iterator.Value", it)
 }

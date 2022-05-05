@@ -205,7 +205,7 @@ func (t *Transaction) decodeBinaryNoSize(br *io.BinReader, buf []byte) {
 	}
 }
 
-// DecodeBinary implements Serializable interface.
+// DecodeBinary implements the Serializable interface.
 func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	t.decodeBinaryNoSize(br, nil)
 
@@ -214,7 +214,7 @@ func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	}
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (t *Transaction) EncodeBinary(bw *io.BinWriter) {
 	t.encodeHashableFields(bw)
 	bw.WriteVarUint(uint64(len(t.Scripts)))
@@ -350,7 +350,7 @@ type transactionJSON struct {
 	Scripts         []Witness    `json:"witnesses"`
 }
 
-// MarshalJSON implements json.Marshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (t *Transaction) MarshalJSON() ([]byte, error) {
 	tx := transactionJSON{
 		TxID:            t.Hash(),
@@ -369,7 +369,7 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 	return json.Marshal(tx)
 }
 
-// UnmarshalJSON implements json.Unmarshaler interface.
+// UnmarshalJSON implements the json.Unmarshaler interface.
 func (t *Transaction) UnmarshalJSON(data []byte) error {
 	tx := new(transactionJSON)
 	if err := json.Unmarshal(data, tx); err != nil {

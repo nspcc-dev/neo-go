@@ -16,7 +16,7 @@ const Uint160Size = 20
 // Uint160 is a 20 byte long unsigned integer.
 type Uint160 [Uint160Size]uint8
 
-// Uint160DecodeStringBE attempts to decode the given string into an Uint160.
+// Uint160DecodeStringBE attempts to decode the given string into a Uint160.
 func Uint160DecodeStringBE(s string) (Uint160, error) {
 	var u Uint160
 	if len(s) != Uint160Size*2 {
@@ -30,7 +30,7 @@ func Uint160DecodeStringBE(s string) (Uint160, error) {
 }
 
 // Uint160DecodeStringLE attempts to decode the given string
-// in little-endian hex encoding into an Uint160.
+// in little-endian hex encoding into a Uint160.
 func Uint160DecodeStringLE(s string) (Uint160, error) {
 	var u Uint160
 	if len(s) != Uint160Size*2 {
@@ -45,7 +45,7 @@ func Uint160DecodeStringLE(s string) (Uint160, error) {
 	return Uint160DecodeBytesLE(b)
 }
 
-// Uint160DecodeBytesBE attempts to decode the given bytes into an Uint160.
+// Uint160DecodeBytesBE attempts to decode the given bytes into a Uint160.
 func Uint160DecodeBytesBE(b []byte) (u Uint160, err error) {
 	if len(b) != Uint160Size {
 		return u, fmt.Errorf("expected byte size of %d got %d", Uint160Size, len(b))
@@ -55,7 +55,7 @@ func Uint160DecodeBytesBE(b []byte) (u Uint160, err error) {
 }
 
 // Uint160DecodeBytesLE attempts to decode the given bytes in little-endian
-// into an Uint160.
+// into a Uint160.
 func Uint160DecodeBytesLE(b []byte) (u Uint160, err error) {
 	if len(b) != Uint160Size {
 		return u, fmt.Errorf("expected byte size of %d got %d", Uint160Size, len(b))
@@ -93,7 +93,7 @@ func (u Uint160) StringLE() string {
 	return hex.EncodeToString(u.BytesLE())
 }
 
-// Reverse returns reversed representation of u.
+// Reverse returns a reversed representation of u.
 func (u Uint160) Reverse() (r Uint160) {
 	for i := 0; i < Uint160Size; i++ {
 		r[i] = u[Uint160Size-i-1]
@@ -107,7 +107,7 @@ func (u Uint160) Equals(other Uint160) bool {
 	return u == other
 }
 
-// Less returns true if this value is less than given Uint160 value. It's
+// Less returns true if this value is less than the given Uint160 value. It's
 // primarily intended to be used for sorting purposes.
 func (u Uint160) Less(other Uint160) bool {
 	for k := range u {
@@ -154,12 +154,12 @@ func (u Uint160) MarshalYAML() (interface{}, error) {
 	return "0x" + u.StringLE(), nil
 }
 
-// EncodeBinary implements Serializable interface.
+// EncodeBinary implements the Serializable interface.
 func (u *Uint160) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteBytes(u[:])
 }
 
-// DecodeBinary implements Serializable interface.
+// DecodeBinary implements the Serializable interface.
 func (u *Uint160) DecodeBinary(br *io.BinReader) {
 	br.ReadBytes(u[:])
 }

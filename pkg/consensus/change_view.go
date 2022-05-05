@@ -14,32 +14,32 @@ type changeView struct {
 
 var _ payload.ChangeView = (*changeView)(nil)
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (c *changeView) EncodeBinary(w *io.BinWriter) {
 	w.WriteU64LE(c.timestamp)
 	w.WriteB(byte(c.reason))
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (c *changeView) DecodeBinary(r *io.BinReader) {
 	c.timestamp = r.ReadU64LE()
 	c.reason = payload.ChangeViewReason(r.ReadB())
 }
 
-// NewViewNumber implements payload.ChangeView interface.
+// NewViewNumber implements the payload.ChangeView interface.
 func (c changeView) NewViewNumber() byte { return c.newViewNumber }
 
-// SetNewViewNumber implements payload.ChangeView interface.
+// SetNewViewNumber implements the payload.ChangeView interface.
 func (c *changeView) SetNewViewNumber(view byte) { c.newViewNumber = view }
 
-// Timestamp implements payload.ChangeView interface.
+// Timestamp implements the payload.ChangeView interface.
 func (c changeView) Timestamp() uint64 { return c.timestamp * nsInMs }
 
-// SetTimestamp implements payload.ChangeView interface.
+// SetTimestamp implements the payload.ChangeView interface.
 func (c *changeView) SetTimestamp(ts uint64) { c.timestamp = ts / nsInMs }
 
-// Reason implements payload.ChangeView interface.
+// Reason implements the payload.ChangeView interface.
 func (c changeView) Reason() payload.ChangeViewReason { return c.reason }
 
-// SetReason implements payload.ChangeView interface.
+// SetReason implements the payload.ChangeView interface.
 func (c *changeView) SetReason(reason payload.ChangeViewReason) { c.reason = reason }

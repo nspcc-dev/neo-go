@@ -7,8 +7,8 @@ import (
 	"reflect"
 )
 
-// BinWriter is a convenient wrapper around a io.Writer and err object.
-// Used to simplify error handling when writing into a io.Writer
+// BinWriter is a convenient wrapper around an io.Writer and err object.
+// Used to simplify error handling when writing into an io.Writer
 // from a struct with many fields.
 type BinWriter struct {
 	w   io.Writer
@@ -21,28 +21,28 @@ func NewBinWriterFromIO(iow io.Writer) *BinWriter {
 	return &BinWriter{w: iow}
 }
 
-// WriteU64LE writes an uint64 value into the underlying io.Writer in
+// WriteU64LE writes a uint64 value into the underlying io.Writer in
 // little-endian format.
 func (w *BinWriter) WriteU64LE(u64 uint64) {
 	binary.LittleEndian.PutUint64(w.uv[:8], u64)
 	w.WriteBytes(w.uv[:8])
 }
 
-// WriteU32LE writes an uint32 value into the underlying io.Writer in
+// WriteU32LE writes a uint32 value into the underlying io.Writer in
 // little-endian format.
 func (w *BinWriter) WriteU32LE(u32 uint32) {
 	binary.LittleEndian.PutUint32(w.uv[:4], u32)
 	w.WriteBytes(w.uv[:4])
 }
 
-// WriteU16LE writes an uint16 value into the underlying io.Writer in
+// WriteU16LE writes a uint16 value into the underlying io.Writer in
 // little-endian format.
 func (w *BinWriter) WriteU16LE(u16 uint16) {
 	binary.LittleEndian.PutUint16(w.uv[:2], u16)
 	w.WriteBytes(w.uv[:2])
 }
 
-// WriteU16BE writes an uint16 value into the underlying io.Writer in
+// WriteU16BE writes a uint16 value into the underlying io.Writer in
 // big-endian format.
 func (w *BinWriter) WriteU16BE(u16 uint16) {
 	binary.BigEndian.PutUint16(w.uv[:2], u16)
@@ -66,7 +66,7 @@ func (w *BinWriter) WriteBool(b bool) {
 }
 
 // WriteArray writes a slice or an array arr into w. Note that nil slices and
-// empty slices are gonna be treated the same resulting in equal zero-length
+// empty slices are gonna be treated the same resulting in an equal zero-length
 // array encoded.
 func (w *BinWriter) WriteArray(arr interface{}) {
 	switch val := reflect.ValueOf(arr); val.Kind() {
@@ -104,7 +104,7 @@ func (w *BinWriter) WriteVarUint(val uint64) {
 	w.WriteBytes(w.uv[:n])
 }
 
-// PutVarUint puts val in varint form to the pre-allocated buffer.
+// PutVarUint puts a val in the varint form to the pre-allocated buffer.
 func PutVarUint(data []byte, val uint64) int {
 	_ = data[8]
 	if val < 0xfd {
@@ -150,7 +150,7 @@ func (w *BinWriter) WriteString(s string) {
 	_, w.Err = io.WriteString(w.w, s)
 }
 
-// Grow tries to increase underlying buffer capacity so that at least n bytes
+// Grow tries to increase the underlying buffer capacity so that at least n bytes
 // can be written without reallocation. If the writer is not a buffer, this is a no-op.
 func (w *BinWriter) Grow(n int) {
 	if b, ok := w.w.(*bytes.Buffer); ok {

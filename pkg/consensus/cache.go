@@ -7,7 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// relayCache is a payload cache which is used to store
+// relayCache is payload cache which is used to store
 // last consensus payloads.
 type relayCache struct {
 	*sync.RWMutex
@@ -17,7 +17,7 @@ type relayCache struct {
 	queue  *list.List
 }
 
-// hashable is a type of items which can be stored in the relayCache.
+// hashable is the type of items which can be stored in the relayCache.
 type hashable interface {
 	Hash() util.Uint256
 }
@@ -32,7 +32,7 @@ func newFIFOCache(capacity int) *relayCache {
 	}
 }
 
-// Add adds payload into a cache if it doesn't already exist.
+// Add adds payload into cache if it doesn't already exist there.
 func (c *relayCache) Add(p hashable) {
 	c.Lock()
 	defer c.Unlock()
@@ -52,7 +52,7 @@ func (c *relayCache) Add(p hashable) {
 	c.elems[h] = e
 }
 
-// Has checks if an item is already in cache.
+// Has checks if the item is already in cache.
 func (c *relayCache) Has(h util.Uint256) bool {
 	c.RLock()
 	defer c.RUnlock()

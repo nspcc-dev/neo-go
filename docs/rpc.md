@@ -78,14 +78,14 @@ which would yield the response:
 
 ##### `invokefunction`
 
-neo-go's implementation of `invokefunction` does not return `tx`
+neo-go implementation of `invokefunction` does not return `tx`
 field in the answer because that requires signing the transaction with some
-key in the server which doesn't fit the model of our node-client interactions.
-Lacking this signature the transaction is almost useless, so there is no point
+key in the server, which doesn't fit the model of our node-client interactions.
+If this signature is lacking, the transaction is almost useless, so there is no point
 in returning it.
 
-It's possible to use `invokefunction` not only with contract scripthash, but also 
-with contract name (for native contracts) or contract ID (for all contracts). This
+It's possible to use `invokefunction` not only with a contract scripthash, but also 
+with a contract name (for native contracts) or a contract ID (for all contracts). This
 feature is not supported by the C# node.
 
 ##### `getcontractstate`
@@ -95,7 +95,7 @@ it only works for native contracts.
 
 ##### `getrawtransaction`
 
-VM state is included to verbose response along with other transaction fields if
+VM state is included into verbose response along with other transaction fields if
 the transaction is already on chain.
 
 ##### `getstateroot`
@@ -107,30 +107,30 @@ where only index is accepted.
 
 This method doesn't work for the Ledger contract, you can get data via regular
 `getblock` and `getrawtransaction` calls. This method is able to get storage of
-the native contract by its name (case-insensitive), unlike the C# node where
+a native contract by its name (case-insensitive), unlike the C# node where
 it only possible for index or hash.
 
 #### `getnep11balances` and `getnep17balances`
-neo-go's implementation of `getnep11balances` and `getnep17balances` does not
+neo-go implementation of `getnep11balances` and `getnep17balances` does not
 perform tracking of NEP-11 and NEP-17 balances for each account as it is done
-in the C# node. Instead, neo-go node maintains the list of standard-compliant
+in the C# node. Instead, a neo-go node maintains a list of standard-compliant
 contracts, i.e. those contracts that have `NEP-11` or `NEP-17` declared in the
 supported standards section of the manifest. Each time balances are queried,
-neo-go node asks every NEP-11/NEP-17 contract for the account balance by
+the neo-go node asks every NEP-11/NEP-17 contract for the account balance by
 invoking `balanceOf` method with the corresponding args. Invocation GAS limit
 is set to be 3 GAS. All non-zero balances are included in the RPC call result.
 
-Thus, if token contract doesn't have proper standard declared in the list of
+Thus, if a token contract doesn't have proper standard declared in the list of
 supported standards but emits compliant NEP-11/NEP-17 `Transfer`
 notifications, the token balance won't be shown in the list of balances
 returned by the neo-go node (unlike the C# node behavior). However, transfer
 logs of such tokens are still available via respective `getnepXXtransfers` RPC
 calls.
 
-The behaviour of the `LastUpdatedBlock` tracking for archival nodes as far as for
+The behavior of the `LastUpdatedBlock` tracking for archival nodes as far as for
 governing token balances matches the C# node's one. For non-archival nodes and
-other NEP-11/NEP-17 tokens if transfer's `LastUpdatedBlock` is lower than the
-latest state synchronization point P the node working against, then
+other NEP-11/NEP-17 tokens, if transfer's `LastUpdatedBlock` is lower than the
+latest state synchronization point P the node working against,
 `LastUpdatedBlock` equals P. For NEP-11 NFTs `LastUpdatedBlock` is equal for
 all tokens of the same asset.
 
@@ -139,7 +139,7 @@ all tokens of the same asset.
 
 ### Unsupported methods
 
-Methods listed down below are not going to be supported for various reasons
+Methods listed below are not going to be supported for various reasons
 and we're not accepting issues related to them.
 
 | Method  | Reason |
@@ -165,7 +165,7 @@ Some additional extensions are implemented as a part of this RPC server.
 
 This method returns cumulative system fee for all transactions included in a
 block. It can be removed in future versions, but at the moment you can use it
-to see how much GAS is burned with particular block (because system fees are
+to see how much GAS is burned with a particular block (because system fees are
 burned).
 
 #### `invokecontractverifyhistoric`, `invokefunctionhistoric` and `invokescripthistoric` calls
@@ -198,11 +198,11 @@ payloads to be relayed from RPC to P2P.
 #### Limits and paging for getnep11transfers and getnep17transfers
 
 `getnep11transfers` and `getnep17transfers` RPC calls never return more than
-1000 results for one request (within specified time frame). You can pass your
+1000 results for one request (within the specified time frame). You can pass your
 own limit via an additional parameter and then use paging to request the next
 batch of transfers.
 
-Example requesting 10 events for address NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc
+An example of requesting 10 events for address NbTiM6h8r99kpRtb428XcsUk1TzKed2gTc
 within 0-1600094189000 timestamps:
 
 ```json

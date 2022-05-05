@@ -9,14 +9,14 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// gasIndexPair contains block index together with generated gas per block.
+// gasIndexPair contains the block index together with the generated gas per block.
 // It is used to cache NEO GASRecords.
 type gasIndexPair struct {
 	Index       uint32
 	GASPerBlock big.Int
 }
 
-// gasRecord contains history of gas per block changes. It is used only by NEO cache.
+// gasRecord contains the history of gas per block changes. It is used only by NEO cache.
 type gasRecord []gasIndexPair
 
 type (
@@ -33,7 +33,7 @@ type (
 	keysWithVotes []keyWithVotes
 )
 
-// PublicKey unmarshals and returns public key of k.
+// PublicKey unmarshals and returns the public key of k.
 func (k keyWithVotes) PublicKey() (*keys.PublicKey, error) {
 	if k.UnmarshaledKey != nil {
 		return k.UnmarshaledKey, nil

@@ -14,7 +14,7 @@ import (
 )
 
 // ExpandArrayIntoScript pushes all FuncParam parameters from the given array
-// into the given buffer in reverse order.
+// into the given buffer in the reverse order.
 func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 	for j := len(slice) - 1; j >= 0; j-- {
 		fp, err := slice[j].GetFuncParam()
@@ -100,8 +100,8 @@ func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 	return script.Err
 }
 
-// CreateFunctionInvocationScript creates a script to invoke given contract with
-// given parameters.
+// CreateFunctionInvocationScript creates a script to invoke the given contract with
+// the given parameters.
 func CreateFunctionInvocationScript(contract util.Uint160, method string, param *Param) ([]byte, error) {
 	script := io.NewBufBinWriter()
 	if param == nil {

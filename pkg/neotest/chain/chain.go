@@ -29,21 +29,21 @@ const (
 
 const singleValidatorWIF = "KxyjQ8eUa4FHt3Gvioyt1Wz29cTUrE4eTqX3yFSk1YFCsPL8uNsY"
 
-// committeeWIFs is a list of unencrypted WIFs sorted by public key.
+// committeeWIFs is a list of unencrypted WIFs sorted by the public key.
 var committeeWIFs = []string{
 	"KzfPUYDC9n2yf4fK5ro4C8KMcdeXtFuEnStycbZgX3GomiUsvX6W",
 	"KzgWE3u3EDp13XPXXuTKZxeJ3Gi8Bsm8f9ijY3ZsCKKRvZUo1Cdn",
 	singleValidatorWIF,
 	"L2oEXKRAAMiPEZukwR5ho2S6SMeQLhcK9mF71ZnF7GvT8dU4Kkgz",
 
-	// Provide 2 committee extra members so that committee address differs from
+	// Provide 2 committee extra members so that the committee address differs from
 	// the validators one.
 	"L1Tr1iq5oz1jaFaMXP21sHDkJYDDkuLtpvQ4wRf1cjKvJYvnvpAb",
 	"Kz6XTUrExy78q8f4MjDHnwz8fYYyUE8iPXwPRAkHa3qN2JcHYm7e",
 }
 
 var (
-	// committeeAcc is an account used to sign tx as a committee.
+	// committeeAcc is an account used to sign a tx as a committee.
 	committeeAcc *wallet.Account
 
 	// multiCommitteeAcc contains committee accounts used in a multi-node setup.
@@ -52,7 +52,7 @@ var (
 	// multiValidatorAcc contains validator accounts used in a multi-node setup.
 	multiValidatorAcc []*wallet.Account
 
-	// standByCommittee contains list of committee public keys to use in config.
+	// standByCommittee contains a list of committee public keys to use in config.
 	standByCommittee []string
 )
 
@@ -115,11 +115,11 @@ func init() {
 	}
 }
 
-// NewSingle creates new blockchain instance with a single validator and
+// NewSingle creates a new blockchain instance with a single validator and
 // setups cleanup functions. The configuration used is with netmode.UnitTestNet
-// magic, and SecondsPerBlock/MaxTraceableBlocks options defined by constants in
+// magic and SecondsPerBlock/MaxTraceableBlocks options defined by constants in
 // this package. MemoryStore is used as the backend storage, so all of the chain
-// contents is always in RAM. The Signer returned is validator (and committee at
+// contents is always in RAM. The Signer returned is the validator (and the committee at
 // the same time).
 func NewSingle(t testing.TB) (*core.Blockchain, neotest.Signer) {
 	return NewSingleWithCustomConfig(t, nil)
@@ -133,9 +133,9 @@ func NewSingleWithCustomConfig(t testing.TB, f func(*config.ProtocolConfiguratio
 
 // NewSingleWithCustomConfigAndStore is similar to NewSingleWithCustomConfig, but
 // also allows to override backend Store being used. The last parameter controls if
-// Run method is called on the Blockchain instance, if not then it's caller's
-// responsibility to do that before using the chain and its caller's responsibility
-// also to properly Close the chain when done.
+// Run method is called on the Blockchain instance. If not, it is its caller's
+// responsibility to do that before using the chain and
+// to properly Close the chain when done.
 func NewSingleWithCustomConfigAndStore(t testing.TB, f func(cfg *config.ProtocolConfiguration), st storage.Store, run bool) (*core.Blockchain, neotest.Signer) {
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
@@ -162,14 +162,14 @@ func NewSingleWithCustomConfigAndStore(t testing.TB, f func(cfg *config.Protocol
 	return bc, neotest.NewMultiSigner(committeeAcc)
 }
 
-// NewMulti creates new blockchain instance with four validators and six
-// committee members, otherwise not differring much from NewSingle. The
-// second value returned contains validators Signer, the third -- committee one.
+// NewMulti creates a new blockchain instance with four validators and six
+// committee members. Otherwise, it does not differ much from NewSingle. The
+// second value returned contains the validators Signer, the third -- the committee one.
 func NewMulti(t testing.TB) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 	return NewMultiWithCustomConfig(t, nil)
 }
 
-// NewMultiWithCustomConfig is similar to NewMulti except it allows to override the
+// NewMultiWithCustomConfig is similar to NewMulti, except it allows to override the
 // default configuration.
 func NewMultiWithCustomConfig(t testing.TB, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 	return NewMultiWithCustomConfigAndStore(t, f, nil, true)
@@ -177,9 +177,9 @@ func NewMultiWithCustomConfig(t testing.TB, f func(*config.ProtocolConfiguration
 
 // NewMultiWithCustomConfigAndStore is similar to NewMultiWithCustomConfig, but
 // also allows to override backend Store being used. The last parameter controls if
-// Run method is called on the Blockchain instance, if not then it's caller's
-// responsibility to do that before using the chain and its caller's responsibility
-// also to properly Close the chain when done.
+// Run method is called on the Blockchain instance. If not, it is its caller's
+// responsibility to do that before using the chain and
+// to properly Close the chain when done.
 func NewMultiWithCustomConfigAndStore(t testing.TB, f func(*config.ProtocolConfiguration), st storage.Store, run bool) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 	bc, validator, committee, err := NewMultiWithCustomConfigAndStoreNoCheck(t, f, st)
 	require.NoError(t, err)

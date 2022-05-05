@@ -1,5 +1,5 @@
 /*
-Package management provides interface to ContractManagement native contract.
+Package management provides an interface to ContractManagement native contract.
 It allows to get/deploy/update contracts as well as get/set deployment fee.
 */
 package management

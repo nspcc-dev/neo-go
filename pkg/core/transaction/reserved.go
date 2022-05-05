@@ -9,12 +9,12 @@ type Reserved struct {
 	Value []byte
 }
 
-// DecodeBinary implements io.Serializable interface.
+// DecodeBinary implements the io.Serializable interface.
 func (e *Reserved) DecodeBinary(br *io.BinReader) {
 	e.Value = br.ReadVarBytes()
 }
 
-// EncodeBinary implements io.Serializable interface.
+// EncodeBinary implements the io.Serializable interface.
 func (e *Reserved) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(e.Value)
 }

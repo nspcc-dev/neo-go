@@ -17,7 +17,7 @@ const (
 	// MethodVerify is a name for default verification method.
 	MethodVerify = "verify"
 
-	// MethodOnNEP17Payment is name of the method which is called when contract receives NEP-17 tokens.
+	// MethodOnNEP17Payment is the name of the method which is called when contract receives NEP-17 tokens.
 	MethodOnNEP17Payment = "onNEP17Payment"
 
 	// MethodOnNEP11Payment is the name of the method which is called when contract receives NEP-11 tokens.
@@ -40,7 +40,7 @@ func (a *ABI) GetMethod(name string, paramCount int) *Method {
 	return nil
 }
 
-// GetEvent returns event with the specified name.
+// GetEvent returns the event with the specified name.
 func (a *ABI) GetEvent(name string) *Event {
 	for i := range a.Events {
 		if a.Events[i].Name == name {

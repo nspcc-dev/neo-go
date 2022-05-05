@@ -2,7 +2,7 @@ package mpt
 
 import "github.com/nspcc-dev/neo-go/pkg/util"
 
-// lcp returns longest common prefix of a and b.
+// lcp returns the longest common prefix of a and b.
 // Note: it does no allocations.
 func lcp(a, b []byte) []byte {
 	if len(a) < len(b) {
@@ -33,7 +33,7 @@ func lcpMany(kv []keyValue) []byte {
 	return p
 }
 
-// toNibbles mangles path by splitting every byte into 2 containing low- and high- 4-byte part.
+// toNibbles mangles the path by splitting every byte into 2 containing low- and high- 4-byte part.
 func toNibbles(path []byte) []byte {
 	result := make([]byte, len(path)*2)
 	for i := range path {
@@ -43,7 +43,7 @@ func toNibbles(path []byte) []byte {
 	return result
 }
 
-// strToNibbles mangles path by splitting every byte into 2 containing low- and high- 4-byte part,
+// strToNibbles mangles the path by splitting every byte into 2 containing low- and high- 4-byte part,
 // ignoring the first byte (prefix).
 func strToNibbles(path string) []byte {
 	result := make([]byte, (len(path)-1)*2)
@@ -54,7 +54,7 @@ func strToNibbles(path string) []byte {
 	return result
 }
 
-// fromNibbles performs operation opposite to toNibbles and does no path validity checks.
+// fromNibbles performs an operation opposite to toNibbles and runs no path validity checks.
 func fromNibbles(path []byte) []byte {
 	result := make([]byte, len(path)/2)
 	for i := range result {
@@ -63,7 +63,7 @@ func fromNibbles(path []byte) []byte {
 	return result
 }
 
-// GetChildrenPaths returns a set of paths to node's children who are non-empty HashNodes
+// GetChildrenPaths returns a set of paths to the node's children who are non-empty HashNodes
 // based on the node's path.
 func GetChildrenPaths(path []byte, node Node) map[util.Uint256][][]byte {
 	res := make(map[util.Uint256][][]byte)
