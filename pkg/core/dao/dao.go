@@ -839,14 +839,13 @@ func (dao *Simple) getDataBuf() *io.BufBinWriter {
 // underlying store. It doesn't block accesses to DAO from other threads.
 func (dao *Simple) Persist() (int, error) {
 	if dao.nativeCachePS != nil {
-		if !dao.private {
-			dao.nativeCacheLock.Lock()
-			defer dao.nativeCacheLock.Unlock()
-		}
-		if !dao.nativeCachePS.private {
-			dao.nativeCachePS.nativeCacheLock.Lock()
-			defer dao.nativeCachePS.nativeCacheLock.Unlock()
-		}
+		dao.nativeCacheLock.Lock()
+		dao.nativeCachePS.nativeCacheLock.Lock()
+		defer func() {
+			dao.nativeCachePS.nativeCacheLock.Unlock()
+			dao.nativeCacheLock.Unlock()
+		}()
+
 		dao.persistNativeCache()
 	}
 	return dao.Store.Persist()
@@ -881,10 +880,8 @@ func (dao *Simple) persistNativeCache() {
 // GetROCache returns native contact cache. The cache CAN NOT be modified by
 // the caller. It's the caller's duty to keep it unmodified.
 func (dao *Simple) GetROCache(id int32) NativeContractCache {
-	if !dao.private {
-		dao.nativeCacheLock.RLock()
-		defer dao.nativeCacheLock.RUnlock()
-	}
+	dao.nativeCacheLock.RLock()
+	defer dao.nativeCacheLock.RUnlock()
 
 	return dao.getCache(id, true)
 }
@@ -892,10 +889,8 @@ func (dao *Simple) GetROCache(id int32) NativeContractCache {
 // GetRWCache returns native contact cache. The cache CAN BE safely modified
 // by the caller.
 func (dao *Simple) GetRWCache(id int32) NativeContractCache {
-	if !dao.private {
-		dao.nativeCacheLock.Lock()
-		defer dao.nativeCacheLock.Unlock()
-	}
+	dao.nativeCacheLock.Lock()
+	defer dao.nativeCacheLock.Unlock()
 
 	return dao.getCache(id, false)
 }

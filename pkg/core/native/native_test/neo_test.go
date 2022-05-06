@@ -1,6 +1,7 @@
 package native_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"math"
 	"math/big"
@@ -9,15 +10,20 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -481,4 +487,89 @@ func TestNEO_CalculateBonus(t *testing.T) {
 		e.CheckGASBalance(t, accH, big.NewInt(initialGASBalance.Int64()-
 			claimTx.SystemFee-claimTx.NetworkFee + +firstPart + secondPart))
 	})
+}
+
+func TestNEO_GetCandidates(t *testing.T) {
+	neoCommitteeInvoker := newNeoCommitteeClient(t, 100_0000_0000)
+	neoValidatorsInvoker := neoCommitteeInvoker.WithSigners(neoCommitteeInvoker.Validator)
+	policyInvoker := neoCommitteeInvoker.CommitteeInvoker(neoCommitteeInvoker.NativeHash(t, nativenames.Policy))
+	e := neoCommitteeInvoker.Executor
+
+	cfg := e.Chain.GetConfig()
+	candidatesCount := cfg.GetCommitteeSize(0) - 1
+
+	// Register a set of candidates and vote for them.
+	voters := make([]neotest.Signer, candidatesCount)
+	candidates := make([]neotest.Signer, candidatesCount)
+	for i := 0; i < candidatesCount; i++ {
+		voters[i] = e.NewAccount(t, 10_0000_0000)
+		candidates[i] = e.NewAccount(t, 2000_0000_0000) // enough for one registration
+	}
+	txes := make([]*transaction.Transaction, 0, candidatesCount*3)
+	for i := 0; i < candidatesCount; i++ {
+		transferTx := neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(candidatesCount+1-i)*1000000, nil)
+		txes = append(txes, transferTx)
+		registerTx := neoValidatorsInvoker.WithSigners(candidates[i]).PrepareInvoke(t, "registerCandidate", candidates[i].(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes())
+		txes = append(txes, registerTx)
+		voteTx := neoValidatorsInvoker.WithSigners(voters[i]).PrepareInvoke(t, "vote", voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[i].(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes())
+		txes = append(txes, voteTx)
+	}
+
+	neoValidatorsInvoker.AddNewBlock(t, txes...)
+	for _, tx := range txes {
+		e.CheckHalt(t, tx.Hash(), stackitem.Make(true)) // luckily, both `transfer`, `registerCandidate` and `vote` return boolean values
+	}
+	expected := make([]stackitem.Item, candidatesCount)
+	for i := range expected {
+		pub := candidates[i].(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes()
+		v := stackitem.NewBigInteger(big.NewInt(int64(candidatesCount-i+1) * 1000000))
+		expected[i] = stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray(pub),
+			v,
+		})
+		neoCommitteeInvoker.Invoke(t, v, "getCandidateVote", pub)
+	}
+	sort.Slice(expected, func(i, j int) bool {
+		return bytes.Compare(expected[i].Value().([]stackitem.Item)[0].Value().([]byte), expected[j].Value().([]stackitem.Item)[0].Value().([]byte)) < 0
+	})
+	neoCommitteeInvoker.Invoke(t, stackitem.NewArray(expected), "getCandidates")
+
+	// Check that GetAllCandidates works the same way as GetCandidates.
+	checkGetAllCandidates := func(t *testing.T, expected []stackitem.Item) {
+		for i := 0; i < len(expected)+1; i++ {
+			w := io.NewBufBinWriter()
+			emit.AppCall(w.BinWriter, neoCommitteeInvoker.Hash, "getAllCandidates", callflag.All)
+			for j := 0; j < i+1; j++ {
+				emit.Opcodes(w.BinWriter, opcode.DUP)
+				emit.Syscall(w.BinWriter, interopnames.SystemIteratorNext)
+				emit.Opcodes(w.BinWriter, opcode.DROP) // drop the value returned from Next.
+			}
+			emit.Syscall(w.BinWriter, interopnames.SystemIteratorValue)
+			require.NoError(t, w.Err)
+			h := neoCommitteeInvoker.InvokeScript(t, w.Bytes(), neoCommitteeInvoker.Signers)
+			if i < len(expected) {
+				e.CheckHalt(t, h, expected[i])
+			} else {
+				e.CheckFault(t, h, "iterator index out of range") // ensure there are no extra elements.
+			}
+			w.Reset()
+		}
+	}
+	checkGetAllCandidates(t, expected)
+
+	// Block candidate and check it won't be returned from getCandidates and getAllCandidates.
+	unlucky := candidates[len(candidates)-1].(neotest.SingleSigner).Account().PrivateKey().PublicKey()
+	policyInvoker.Invoke(t, true, "blockAccount", unlucky.GetScriptHash())
+	for i := range expected {
+		if bytes.Equal(expected[i].Value().([]stackitem.Item)[0].Value().([]byte), unlucky.Bytes()) {
+			if i != len(expected)-1 {
+				expected = append(expected[:i], expected[i+1:]...)
+			} else {
+				expected = expected[:i]
+			}
+			break
+		}
+	}
+	neoCommitteeInvoker.Invoke(t, expected, "getCandidates")
+	checkGetAllCandidates(t, expected)
 }

@@ -9,6 +9,7 @@ package neo
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
 )
 
@@ -53,9 +54,26 @@ func GetCommittee() []interop.PublicKey {
 	return neogointernal.CallWithToken(Hash, "getCommittee", int(contract.ReadStates)).([]interop.PublicKey)
 }
 
-// GetCandidates represents `getCandidates` method of NEO native contract.
-func GetCandidates() []interop.PublicKey {
-	return neogointernal.CallWithToken(Hash, "getCandidates", int(contract.ReadStates)).([]interop.PublicKey)
+// GetCandidates represents `getCandidates` method of NEO native contract. It
+// returns up to 256 candidates. Use GetAllCandidates in case if you need the
+// whole set of candidates.
+func GetCandidates() []Candidate {
+	return neogointernal.CallWithToken(Hash, "getCandidates", int(contract.ReadStates)).([]Candidate)
+}
+
+// GetAllCandidates represents `getAllCandidates` method of NEO native contract.
+// It returns Iterator over the whole set of Neo candidates sorted by public key
+// bytes. Each iterator value can be cast to Candidate. Use iterator interop
+// package to work with the returned Iterator.
+func GetAllCandidates() iterator.Iterator {
+	return neogointernal.CallWithToken(Hash, "getAllCandidates", int(contract.ReadStates)).(iterator.Iterator)
+}
+
+// GetCandidateVote represents `getCandidateVote` method of NEO native contract.
+// It returns -1 if the candidate hasn't been registered or voted for and the
+// overall candidate votes otherwise.
+func GetCandidateVote(pub interop.PublicKey) int {
+	return neogointernal.CallWithToken(Hash, "getCandidateVote", int(contract.ReadStates), pub).(int)
 }
 
 // GetNextBlockValidators represents `getNextBlockValidators` method of NEO native contract.

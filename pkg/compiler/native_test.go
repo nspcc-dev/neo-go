@@ -144,6 +144,8 @@ func TestNativeHelpersCompile(t *testing.T) {
 	}
 	runNativeTestCases(t, cs.NEO.ContractMD, "neo", append([]nativeTestCase{
 		{"getCandidates", nil},
+		{"getAllCandidates", nil},
+		{"getCandidateVote", []string{pub}},
 		{"getCommittee", nil},
 		{"getGasPerBlock", nil},
 		{"getNextBlockValidators", nil},
