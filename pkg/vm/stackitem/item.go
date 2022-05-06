@@ -263,19 +263,31 @@ func (i *Struct) equalStruct(s *Struct, limit *int) bool {
 	} else if len(i.value) != len(s.value) {
 		return false
 	}
+	var maxComparableSize = MaxByteArrayComparableSize
 	for j := range i.value {
 		*limit--
 		if *limit == 0 {
 			panic(errTooBigElements)
 		}
-		sa, oka := i.value[j].(*Struct)
-		sb, okb := s.value[j].(*Struct)
-		if oka && okb {
-			if !sa.equalStruct(sb, limit) {
+		arr, ok := i.value[j].(*ByteArray)
+		if ok {
+			if !arr.equalsLimited(s.value[j], &maxComparableSize) {
 				return false
 			}
-		} else if !i.value[j].Equals(s.value[j]) {
-			return false
+		} else {
+			if maxComparableSize == 0 {
+				panic(errTooBigComparable)
+			}
+			maxComparableSize--
+			sa, oka := i.value[j].(*Struct)
+			sb, okb := s.value[j].(*Struct)
+			if oka && okb {
+				if !sa.equalStruct(sb, limit) {
+					return false
+				}
+			} else if !i.value[j].Equals(s.value[j]) {
+				return false
+			}
 		}
 	}
 	return true
@@ -594,19 +606,39 @@ func (i ByteArray) TryInteger() (*big.Int, error) {
 
 // Equals implements the Item interface.
 func (i *ByteArray) Equals(s Item) bool {
-	if len(*i) > MaxByteArrayComparableSize {
+	var limit = MaxByteArrayComparableSize
+	return i.equalsLimited(s, &limit)
+}
+
+// equalsLimited compares ByteArray with provided stackitem using the limit.
+func (i *ByteArray) equalsLimited(s Item, limit *int) bool {
+	if i == nil {
+		return s == nil
+	}
+	lCurr := len(*i)
+	if lCurr > *limit || *limit == 0 {
 		panic(errTooBigComparable)
 	}
-	if i == s {
-		return true
-	} else if s == nil {
+
+	var comparedSize = 1
+	defer func() { *limit -= comparedSize }()
+
+	if s == nil {
 		return false
 	}
 	val, ok := s.(*ByteArray)
 	if !ok {
 		return false
 	}
-	if len(*val) > MaxByteArrayComparableSize {
+	comparedSize = lCurr
+	lOther := len(*val)
+	if lOther > comparedSize {
+		comparedSize = lOther
+	}
+	if i == val {
+		return true
+	}
+	if lOther > *limit {
 		panic(errTooBigComparable)
 	}
 	return bytes.Equal(*i, *val)

@@ -809,6 +809,63 @@ func TestEQUAL(t *testing.T) {
 	t.Run("Buffer", getTestFuncForVM(prog, false, stackitem.NewBuffer([]byte{42}), stackitem.NewBuffer([]byte{42})))
 }
 
+func TestEQUALByteArrayWithLimit(t *testing.T) {
+	prog := makeProgram(opcode.EQUAL)
+	t.Run("fits limit, equal", func(t *testing.T) {
+		args := make([]stackitem.Item, 2)
+		for i := range args {
+			args[i] = stackitem.NewStruct([]stackitem.Item{
+				stackitem.NewByteArray(make([]byte, stackitem.MaxByteArrayComparableSize/2)),
+				stackitem.NewByteArray(make([]byte, stackitem.MaxByteArrayComparableSize/2+1)), // MaxByteArrayComparableSize is even, thus use +1
+			})
+		}
+		getTestFuncForVM(prog, true, args[0], args[1])(t)
+	})
+	t.Run("exceeds limit", func(t *testing.T) {
+		args := make([]stackitem.Item, 2)
+		for i := range args {
+			args[i] = stackitem.NewStruct([]stackitem.Item{
+				stackitem.NewByteArray(make([]byte, stackitem.MaxByteArrayComparableSize/2+2)),
+				stackitem.NewByteArray(make([]byte, stackitem.MaxByteArrayComparableSize/2)),
+			})
+		}
+		getTestFuncForVM(prog, nil, args[0], args[1])(t) // should FAULT due to comparable limit exceeding
+	})
+	t.Run("fits limit, second elements are not equal", func(t *testing.T) {
+		args := make([]stackitem.Item, 2)
+		for i := range args {
+			args[i] = stackitem.NewStruct([]stackitem.Item{
+				stackitem.NewByteArray(make([]byte, stackitem.MaxByteArrayComparableSize-1)),
+				stackitem.NewBuffer(make([]byte, 1)),
+			})
+		}
+		getTestFuncForVM(prog, false, args[0], args[1])(t) // no limit is exceeded, but the second struct item is a Buffer.
+	})
+	t.Run("fits limit, equal", func(t *testing.T) {
+		args := make([]stackitem.Item, 2)
+		buf := stackitem.NewBuffer(make([]byte, 100500)) // takes only 1 comparable unit despite its length
+		for i := range args {
+			args[i] = stackitem.NewStruct([]stackitem.Item{
+				stackitem.NewByteArray(make([]byte, stackitem.MaxByteArrayComparableSize-1)),
+				buf,
+			})
+		}
+		getTestFuncForVM(prog, true, args[0], args[1])(t) // should HALT, because no limit exceeded
+	})
+	t.Run("exceeds limit, equal", func(t *testing.T) {
+		args := make([]stackitem.Item, 2)
+		buf := stackitem.NewBuffer(make([]byte, 100500)) // takes only 1 comparable unit despite its length
+		for i := range args {
+			args[i] = stackitem.NewStruct([]stackitem.Item{
+				stackitem.NewByteArray(make([]byte, stackitem.MaxByteArrayComparableSize-1)), // MaxByteArrayComparableSize-1 comparable  units
+				buf, // 1 comparable unit
+				buf, // 1 comparable unit
+			})
+		}
+		getTestFuncForVM(prog, nil, args[0], args[1])(t) // should FAULT, because limit is exceeded:
+	})
+}
+
 func runWithArgs(t *testing.T, prog []byte, result interface{}, args ...interface{}) {
 	getTestFuncForVM(prog, result, args...)(t)
 }
