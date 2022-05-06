@@ -27,8 +27,8 @@ const (
 	// MaxClonableNumOfItems is the maximum number of items that can be cloned in structs.
 	MaxClonableNumOfItems = MaxDeserialized
 	// MaxByteArrayComparableSize is the maximum allowed length of a ByteArray for Equals method.
-	// It is set to be the maximum uint16 value.
-	MaxByteArrayComparableSize = math.MaxUint16
+	// It is set to be the maximum uint16 value + 1.
+	MaxByteArrayComparableSize = math.MaxUint16 + 1
 	// MaxKeySize is the maximum size of a map key.
 	MaxKeySize = 64
 )

@@ -816,7 +816,7 @@ func TestEQUALByteArrayWithLimit(t *testing.T) {
 		for i := range args {
 			args[i] = stackitem.NewStruct([]stackitem.Item{
 				stackitem.NewByteArray(make([]byte, stackitem.MaxByteArrayComparableSize/2)),
-				stackitem.NewByteArray(make([]byte, stackitem.MaxByteArrayComparableSize/2+1)), // MaxByteArrayComparableSize is even, thus use +1
+				stackitem.NewByteArray(make([]byte, stackitem.MaxByteArrayComparableSize/2)),
 			})
 		}
 		getTestFuncForVM(prog, true, args[0], args[1])(t)
@@ -825,7 +825,7 @@ func TestEQUALByteArrayWithLimit(t *testing.T) {
 		args := make([]stackitem.Item, 2)
 		for i := range args {
 			args[i] = stackitem.NewStruct([]stackitem.Item{
-				stackitem.NewByteArray(make([]byte, stackitem.MaxByteArrayComparableSize/2+2)),
+				stackitem.NewByteArray(make([]byte, stackitem.MaxByteArrayComparableSize/2+1)),
 				stackitem.NewByteArray(make([]byte, stackitem.MaxByteArrayComparableSize/2)),
 			})
 		}
