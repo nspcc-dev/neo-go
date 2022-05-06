@@ -1675,7 +1675,7 @@ func (s *Server) getInvokeScriptParams(reqParams request.Params) (*transaction.T
 	if len(reqParams) > 1 {
 		signers, witnesses, err := reqParams[1].GetSignersWithWitnesses()
 		if err != nil {
-			return nil, false, response.ErrInvalidParams
+			return nil, false, response.WrapErrorWithData(response.ErrInvalidParams, err)
 		}
 		tx.Signers = signers
 		tx.Scripts = witnesses
@@ -1684,7 +1684,7 @@ func (s *Server) getInvokeScriptParams(reqParams request.Params) (*transaction.T
 	if len(reqParams) > 2 {
 		verbose, err = reqParams[2].GetBoolean()
 		if err != nil {
-			return nil, false, response.ErrInvalidParams
+			return nil, false, response.WrapErrorWithData(response.ErrInvalidParams, err)
 		}
 	}
 	if len(tx.Signers) == 0 {

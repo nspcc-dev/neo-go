@@ -1,6 +1,6 @@
 package transaction
 
-//go:generate stringer -type=WitnessScope -output=witness_scope_string.go
+//go:generate stringer -type=WitnessScope -linecomment -output=witness_scope_string.go
 import (
 	"encoding/json"
 	"fmt"
@@ -23,7 +23,7 @@ const (
 	// CustomGroups define custom pubkey for group members.
 	CustomGroups WitnessScope = 0x20
 	// Rules is a set of conditions with boolean operators.
-	Rules WitnessScope = 0x40
+	Rules WitnessScope = 0x40 // WitnessRules
 	// Global allows this witness in all contexts (default Neo2 behavior).
 	// This cannot be combined with other flags.
 	Global WitnessScope = 0x80

@@ -549,7 +549,7 @@ func unmarshalArrayOfConditionJSONs(arr []json.RawMessage, maxDepth int) ([]Witn
 	if l == 0 {
 		return nil, errors.New("empty array of conditions")
 	}
-	if l >= maxSubitems {
+	if l > maxSubitems {
 		return nil, errors.New("too many elements")
 	}
 	res := make([]WitnessCondition, l)
