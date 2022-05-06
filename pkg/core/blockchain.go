@@ -259,6 +259,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.NativeUpdateHistories = map[string][]uint32{}
 		log.Info("NativeActivations are not set, using default values")
 	}
+	if cfg.Hardforks == nil {
+		cfg.Hardforks = map[string]uint32{}
+		log.Info("Hardforks are not set, using default value")
+	}
 	bc := &Blockchain{
 		config:      cfg,
 		dao:         dao.NewSimple(s, cfg.StateRootInHeader, cfg.P2PSigExtensions),
