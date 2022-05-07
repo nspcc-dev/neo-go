@@ -2,6 +2,27 @@
 
 This document outlines major changes between releases.
 
+## 0.98.3 "Liquidation" (07 May 2022)
+
+This is a hotfix release to fix t4 testnet incompatibility at block
+1589202. The actual problem was found and fixed during 0.99.0 development
+cycle, but 0.99.0 is expected to be incompatible with t4 testnet. This release
+allows to continue working with it as well as mainnet (and contains some other
+fixes for known problems). It does not require resynchronizing a node.
+
+Improvements:
+ * double call to `WSClient.Close()` method won't cause a panic (#2420)
+
+Bugs fixed:
+ * Rules scope considered as invalid in binary representation (#2452)
+ * incorrect compressed P2P message could lead to panic (#2409)
+ * notary-assisted transaction could be in inconsistent state on the Notary
+   node (#2424)
+ * WSClient panics if request is made after connection breakage (#2450)
+ * Rules scope JSON representation wasn't compatible with C# implementation
+   (#2466)
+ * JSONized Rules scope could only contain 15 conditions instead of 16 (#2466)
+
 ## 0.98.2 "Karstification" (21 Mar 2022)
 
 We've decided to release one more 3.1.0-compatible version bringing all of the
