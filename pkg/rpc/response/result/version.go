@@ -98,7 +98,7 @@ type (
 
 // latestNonBreakingVersion is a latest NeoGo revision that keeps older RPC
 // clients compatibility with newer RPC servers (https://github.com/nspcc-dev/neo-go/pull/2435).
-var latestNonBreakingVersion = *semver.New("0.98.2")
+var latestNonBreakingVersion = *semver.New("0.98.3")
 
 // MarshalJSON implements the json marshaller interface.
 func (v *Version) MarshalJSON() ([]byte, error) {
