@@ -117,9 +117,9 @@ func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error
 // unusable.
 func (c *WSClient) Close() {
 	if c.closeCalled.CAS(false, true) {
-		// Closing shutdown channel send signal to wsWriter to break out of the
+		// Closing shutdown channel sends a signal to wsWriter to break out of the
 		// loop. In doing so it does ws.Close() closing the network connection
-		// which in turn makes wsReader receieve err from ws,ReadJSON() and also
+		// which in turn makes wsReader receive an err from ws.ReadJSON() and also
 		// break out of the loop closing c.done channel in its shutdown sequence.
 		close(c.shutdown)
 	}
