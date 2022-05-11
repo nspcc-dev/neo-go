@@ -227,9 +227,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 		// keep the pooled tx valid. We will update its copy => the copy's size will be changed.
 		cp := *payload.MainTransaction
 		cp.Scripts = make([]transaction.Witness, len(payload.MainTransaction.Scripts))
-		for i, w := range payload.MainTransaction.Scripts {
-			cp.Scripts[i] = w
-		}
+		copy(cp.Scripts, payload.MainTransaction.Scripts)
 		r = &request{
 			main:              &cp,
 			minNotValidBefore: nvbFallback,
