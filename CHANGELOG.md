@@ -5,7 +5,7 @@ This document outlines major changes between releases.
 ## 0.98.4 "Mesmerization" (11 May 2022)
 
 An urgent release to fix incompatibility with mainnet at block 1528989. The
-actual pair of problems leading to inability to process this block occured
+actual pair of problems leading to inability to process this block occurred
 earilier than that, so to fix this you need to resynchronize your node. Fixed
 node is confirmed to have identical state as 3.1.0 C# node up to block
 1529810.
