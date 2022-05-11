@@ -238,7 +238,6 @@ func (s *Std) itoa(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 		if pad := bs[0] & 0xF8; pad == 0 || pad == 0xF8 {
 			str = str[1:]
 		}
-		str = strings.ToUpper(str)
 	default:
 		panic(ErrInvalidBase)
 	}
