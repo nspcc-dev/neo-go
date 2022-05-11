@@ -90,6 +90,10 @@ func getDefaultClient(cfg config.OracleConfiguration) *http.Client {
 		if len(via) > maxRedirections { // from https://github.com/neo-project/neo-modules/pull/698
 			return fmt.Errorf("%w: %d redirections are reached", ErrRestrictedRedirect, maxRedirections)
 		}
+		if len(via) > 0 && via[0].URL.Scheme == "https" && req.URL.Scheme != "https" {
+			lastHop := via[len(via)-1].URL
+			return fmt.Errorf("%w: redirected from secure URL %s to insecure URL %s", ErrRestrictedRedirect, lastHop, req.URL)
+		}
 		return nil
 	}
 	return &client
