@@ -89,7 +89,12 @@ type VM struct {
 	invTree *InvocationTree
 }
 
-var bigOne = big.NewInt(1)
+var (
+	bigMinusOne = big.NewInt(-1)
+	bigZero     = big.NewInt(0)
+	bigOne      = big.NewInt(1)
+	bigTwo      = big.NewInt(2)
+)
 
 // New returns a new VM object ready to load AVM bytecode scripts.
 func New() *VM {
@@ -949,6 +954,44 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Sqrt(a)))
+
+	case opcode.MODMUL:
+		modulus := v.estack.Pop().BigInt()
+		if modulus.Sign() == 0 {
+			panic("zero modulus")
+		}
+		x2 := v.estack.Pop().BigInt()
+		x1 := v.estack.Pop().BigInt()
+
+		res := new(big.Int).Mul(x1, x2)
+		v.estack.PushItem(stackitem.NewBigInteger(res.Mod(res, modulus)))
+
+	case opcode.MODPOW:
+		modulus := v.estack.Pop().BigInt()
+		exponent := v.estack.Pop().BigInt()
+		base := v.estack.Pop().BigInt()
+		res := new(big.Int)
+		switch exponent.Cmp(bigMinusOne) {
+		case -1:
+			panic("exponent should be >= -1")
+		case 0:
+			if base.Cmp(bigZero) <= 0 {
+				panic("invalid base")
+			}
+			if modulus.Cmp(bigTwo) < 0 {
+				panic("invalid modulus")
+			}
+			if res.ModInverse(base, modulus) == nil {
+				panic("base and modulus are not relatively prime")
+			}
+		case 1:
+			if modulus.Sign() == 0 {
+				panic("zero modulus") // https://docs.microsoft.com/en-us/dotnet/api/system.numerics.biginteger.modpow?view=net-6.0#exceptions
+			}
+			res.Exp(base, exponent, modulus)
+		}
+
+		v.estack.PushItem(stackitem.NewBigInteger(res))
 
 	case opcode.SHL, opcode.SHR:
 		b := toInt(v.estack.Pop().BigInt())

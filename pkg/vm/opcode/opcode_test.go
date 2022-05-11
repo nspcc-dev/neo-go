@@ -33,5 +33,5 @@ func TestIsValid(t *testing.T) {
 	require.True(t, IsValid(ADD))
 	require.True(t, IsValid(CONVERT))
 	require.False(t, IsValid(0xff))
-	require.False(t, IsValid(0xa5))
+	require.False(t, IsValid(0xa7))
 }

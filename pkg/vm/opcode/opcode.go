@@ -179,6 +179,8 @@ const (
 	MOD         Opcode = 0xA2
 	POW         Opcode = 0xA3
 	SQRT        Opcode = 0xA4
+	MODMUL      Opcode = 0xA5
+	MODPOW      Opcode = 0xA6
 	SHL         Opcode = 0xA8
 	SHR         Opcode = 0xA9
 	NOT         Opcode = 0xAA
