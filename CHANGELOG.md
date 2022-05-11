@@ -2,6 +2,20 @@
 
 This document outlines major changes between releases.
 
+## 0.98.4 "Mesmerization" (11 May 2022)
+
+An urgent release to fix incompatibility with mainnet at block 1528989. The
+actual pair of problems leading to inability to process this block occured
+earilier than that, so to fix this you need to resynchronize your node. Fixed
+node is confirmed to have identical state as 3.1.0 C# node up to block
+1529810.
+
+Bugs fixed:
+ * StdLib itoa() implementation emitted uppercase letters instead of lowercase
+   (#2478)
+ * StdLib jsonDeserialize() implementation couldn't handle properly integers
+   larger than 64-bit signed (#2478)
+
 ## 0.98.3 "Liquidation" (07 May 2022)
 
 This is a hotfix release to fix t4 testnet incompatibility at block
