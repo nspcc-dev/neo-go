@@ -42,7 +42,7 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
             "validatorscount": 7
         },
         "tcpport": 10333,
-        "useragent": "/NEO-GO:0.98.4/",
+        "useragent": "/NEO-GO:0.98.5/",
         "wsport": 10334
     }`
 	responseFromSharp := `{
@@ -67,7 +67,7 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 		TCPPort:   10333,
 		WSPort:    10334,
 		Nonce:     1677922561,
-		UserAgent: "/NEO-GO:0.98.4/",
+		UserAgent: "/NEO-GO:0.98.5/",
 		Protocol: Protocol{
 			AddressVersion:              53,
 			Network:                     860833102,
@@ -123,12 +123,12 @@ func TestVersionFromUserAgent(t *testing.T) {
 	}
 	var testcases = map[string]testCase{
 		"/Neo:3.1.0/":               {success: false},
-		"/NEO-GO:0.98.5":            {success: true, cmpWithBreaking: 1},
-		"/NEO-GO:0.98.4-pre-12344/": {success: true, cmpWithBreaking: 1},
-		"/NEO-GO:0.98.4/":           {success: true, cmpWithBreaking: 1},
-		"/NEO-GO:0.98.4-pre-123/":   {success: true, cmpWithBreaking: 1},
-		"/NEO-GO:0.98.3/":           {success: true, cmpWithBreaking: 0},
-		"/NEO-GO:0.98.3-pre-12345/": {success: true, cmpWithBreaking: -1},
+		"/NEO-GO:0.98.6":            {success: true, cmpWithBreaking: 1},
+		"/NEO-GO:0.98.6-pre-12344/": {success: true, cmpWithBreaking: 1},
+		"/NEO-GO:0.98.5/":           {success: true, cmpWithBreaking: 1},
+		"/NEO-GO:0.98.5-pre-123/":   {success: true, cmpWithBreaking: 1},
+		"/NEO-GO:0.98.4/":           {success: true, cmpWithBreaking: 0},
+		"/NEO-GO:0.98.4-pre-12345/": {success: true, cmpWithBreaking: -1},
 		"/NEO-GO:123456":            {success: false},
 	}
 	for str, tc := range testcases {

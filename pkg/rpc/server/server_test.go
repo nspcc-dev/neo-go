@@ -851,7 +851,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			check: func(t *testing.T, e *executor, ver interface{}) {
 				resp, ok := ver.(*result.Version)
 				require.True(t, ok)
-				require.Equal(t, "/NEO-GO:0.98.4-test/", resp.UserAgent)
+				require.Equal(t, "/NEO-GO:0.98.5-test/", resp.UserAgent)
 
 				cfg := e.chain.GetConfig()
 				require.EqualValues(t, address.NEO3Prefix, resp.Protocol.AddressVersion)
@@ -2984,7 +2984,7 @@ func BenchmarkHandleIn(b *testing.B) {
 	chain, orc, cfg, logger := getUnitTestChain(b, false, false)
 
 	serverConfig := network.NewServerConfig(cfg)
-	serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.4-test")
+	serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.5-test")
 	serverConfig.LogLevel = zapcore.FatalLevel
 	server, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), logger)
 	require.NoError(b, err)
