@@ -133,7 +133,7 @@ func cliMain(c *cli.Context) error {
 		})
 		fmt.Println(diff)
 	}
-	return nil
+	return errors.New("different state found")
 }
 
 func main() {
@@ -145,7 +145,6 @@ func main() {
 
 	if err := ctl.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		fmt.Fprintln(os.Stderr, ctl.Usage)
 		os.Exit(1)
 	}
 }
