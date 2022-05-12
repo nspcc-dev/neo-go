@@ -13,6 +13,8 @@ import (
 	"github.com/urfave/cli"
 )
 
+var errStateMatches = errors.New("state matches")
+
 func initClient(addr string, name string) (*client.Client, uint32, error) {
 	c, err := client.New(context.Background(), addr, client.Options{})
 	if err != nil {
@@ -57,7 +59,7 @@ func bisectState(ca *client.Client, cb *client.Client, h uint32) (uint32, error)
 	}
 	fmt.Printf("at %d: %s vs %s\n", h, ra.StringLE(), rb.StringLE())
 	if ra.Equals(rb) {
-		return 0, fmt.Errorf("state matches at %d", h)
+		return 0, fmt.Errorf("%w at %d", errStateMatches, h)
 	}
 	bad := h
 	for bad-good > 1 {
@@ -93,11 +95,22 @@ func cliMain(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	var refHeight = ha
 	if ha != hb {
-		return errors.New("chains have different heights")
+		var diff = hb - ha
+		if ha > hb {
+			refHeight = hb
+			diff = ha - hb
+		}
+		if diff > 10 && !c.Bool("ignore-height") { // Allow some height drift.
+			return fmt.Errorf("chains have different heights: %d vs %d", ha, hb)
+		}
 	}
-	h, err := bisectState(ca, cb, ha-1)
+	h, err := bisectState(ca, cb, refHeight-1)
 	if err != nil {
+		if errors.Is(err, errStateMatches) {
+			return nil
+		}
 		return err
 	}
 	blk, err := ca.GetBlockByIndex(h)
@@ -128,7 +141,7 @@ func cliMain(c *cli.Context) error {
 		})
 		fmt.Println(diff)
 	}
-	return nil
+	return errors.New("different state found")
 }
 
 func main() {
@@ -137,10 +150,15 @@ func main() {
 	ctl.Version = "1.0"
 	ctl.Usage = "compare-states RPC_A RPC_B"
 	ctl.Action = cliMain
+	ctl.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "ignore-height, g",
+			Usage: "ignore height difference",
+		},
+	}
 
 	if err := ctl.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		fmt.Fprintln(os.Stderr, ctl.Usage)
 		os.Exit(1)
 	}
 }
