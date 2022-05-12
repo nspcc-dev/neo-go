@@ -48,6 +48,7 @@ type Context struct {
 	Chain          Ledger
 	Container      hash.Hashable
 	Network        uint32
+	Hardforks      map[string]uint32
 	Natives        []Contract
 	Trigger        trigger.Type
 	Block          *block.Block
@@ -71,9 +72,11 @@ func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, bas
 	getContract func(*dao.Simple, util.Uint160) (*state.Contract, error), natives []Contract,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
 	dao := d.GetPrivate()
+	cfg := bc.GetConfig()
 	return &Context{
 		Chain:          bc,
-		Network:        uint32(bc.GetConfig().Magic),
+		Network:        uint32(cfg.Magic),
+		Hardforks:      cfg.Hardforks,
 		Natives:        natives,
 		Trigger:        trigger,
 		Block:          block,
@@ -367,4 +370,13 @@ func (ic *Context) GetBlock(hash util.Uint256) (*block.Block, error) {
 		return nil, storage.ErrKeyNotFound
 	}
 	return block, nil
+}
+
+// IsHardforkEnabled tells whether specified hard-fork enabled at the current context height.
+func (ic *Context) IsHardforkEnabled(hf config.Hardfork) bool {
+	height, ok := ic.Hardforks[hf.String()]
+	if ok {
+		return ic.BlockHeight() >= height
+	}
+	return len(ic.Hardforks) == 0 // Enable each hard-fork by default.
 }

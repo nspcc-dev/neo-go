@@ -23,6 +23,9 @@ type (
 		Magic       netmode.Magic `yaml:"Magic"`
 		MemPoolSize int           `yaml:"MemPoolSize"`
 
+		// Hardforks is a map of hardfork names that enables version-specific application
+		// logic dependent on the specified height.
+		Hardforks map[string]uint32 `yaml:"Hardforks"`
 		// InitialGASSupply is the amount of GAS generated in the genesis block.
 		InitialGASSupply fixedn.Fixed8 `yaml:"InitialGASSupply"`
 		// P2PNotaryRequestPayloadPoolSize specifies the memory pool size for P2PNotaryRequestPayloads.
@@ -92,6 +95,11 @@ func (p *ProtocolConfiguration) Validate() error {
 	for name := range p.NativeUpdateHistories {
 		if !nativenames.IsValid(name) {
 			return fmt.Errorf("NativeActivations configuration section contains unexpected native contract name: %s", name)
+		}
+	}
+	for name := range p.Hardforks {
+		if !IsHardforkValid(name) {
+			return fmt.Errorf("Hardforks configuration section contains unexpected hardfork: %s", name)
 		}
 	}
 	if p.ValidatorsCount != 0 && len(p.ValidatorsHistory) != 0 {

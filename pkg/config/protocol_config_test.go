@@ -101,6 +101,12 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 	}
 	require.Error(t, p.Validate())
 	p = &ProtocolConfiguration{
+		Hardforks: map[string]uint32{
+			"HF_Unknown": 123, // Unknown hard-fork.
+		},
+	}
+	require.Error(t, p.Validate())
+	p = &ProtocolConfiguration{
 		StandbyCommittee: []string{
 			"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2",
 			"02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e",

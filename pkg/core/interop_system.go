@@ -8,7 +8,9 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -215,6 +217,16 @@ func contractCreateMultisigAccount(ic *interop.Context) error {
 		}
 		pubs[i] = p
 	}
+	var invokeFee int64
+	if ic.IsHardforkEnabled(config.HF2712FixSyscallFees) {
+		invokeFee = fee.ECDSAVerifyPrice * int64(len(pubs))
+	} else {
+		invokeFee = 1 << 8
+	}
+	invokeFee *= ic.BaseExecFee()
+	if !ic.VM.AddGas(invokeFee) {
+		return errors.New("gas limit exceeded")
+	}
 	script, err := smartcontract.CreateMultiSigRedeemScript(int(mu64), pubs)
 	if err != nil {
 		return err
@@ -229,6 +241,16 @@ func contractCreateStandardAccount(ic *interop.Context) error {
 	p, err := keys.NewPublicKeyFromBytes(h, elliptic.P256())
 	if err != nil {
 		return err
+	}
+	var invokeFee int64
+	if ic.IsHardforkEnabled(config.HF2712FixSyscallFees) {
+		invokeFee = fee.ECDSAVerifyPrice
+	} else {
+		invokeFee = 1 << 8
+	}
+	invokeFee *= ic.BaseExecFee()
+	if !ic.VM.AddGas(invokeFee) {
+		return errors.New("gas limit exceeded")
 	}
 	ic.VM.Estack().PushItem(stackitem.NewByteArray(p.GetScriptHash().BytesBE()))
 	return nil
