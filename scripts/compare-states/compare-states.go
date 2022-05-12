@@ -13,6 +13,8 @@ import (
 	"github.com/urfave/cli"
 )
 
+var errStateMatches = errors.New("state matches")
+
 func initClient(addr string, name string) (*client.Client, uint32, error) {
 	c, err := client.New(context.Background(), addr, client.Options{})
 	if err != nil {
@@ -57,7 +59,7 @@ func bisectState(ca *client.Client, cb *client.Client, h uint32) (uint32, error)
 	}
 	fmt.Printf("at %d: %s vs %s\n", h, ra.StringLE(), rb.StringLE())
 	if ra.Equals(rb) {
-		return 0, fmt.Errorf("state matches at %d", h)
+		return 0, fmt.Errorf("%w at %d", errStateMatches, h)
 	}
 	bad := h
 	for bad-good > 1 {
@@ -98,6 +100,9 @@ func cliMain(c *cli.Context) error {
 	}
 	h, err := bisectState(ca, cb, ha-1)
 	if err != nil {
+		if errors.Is(err, errStateMatches) {
+			return nil
+		}
 		return err
 	}
 	blk, err := ca.GetBlockByIndex(h)
