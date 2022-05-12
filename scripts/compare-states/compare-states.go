@@ -95,10 +95,18 @@ func cliMain(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	var refHeight = ha
 	if ha != hb {
-		return errors.New("chains have different heights")
+		var diff = hb - ha
+		if ha > hb {
+			refHeight = hb
+			diff = ha - hb
+		}
+		if diff > 10 && !c.Bool("ignore-height") { // Allow some height drift.
+			return fmt.Errorf("chains have different heights: %d vs %d", ha, hb)
+		}
 	}
-	h, err := bisectState(ca, cb, ha-1)
+	h, err := bisectState(ca, cb, refHeight-1)
 	if err != nil {
 		if errors.Is(err, errStateMatches) {
 			return nil
@@ -142,6 +150,12 @@ func main() {
 	ctl.Version = "1.0"
 	ctl.Usage = "compare-states RPC_A RPC_B"
 	ctl.Action = cliMain
+	ctl.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "ignore-height, g",
+			Usage: "ignore height difference",
+		},
+	}
 
 	if err := ctl.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
