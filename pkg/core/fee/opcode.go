@@ -165,6 +165,8 @@ var coefficients = [256]uint16{
 	opcode.MOD:          1 << 3,
 	opcode.POW:          1 << 6,
 	opcode.SQRT:         1 << 6,
+	opcode.MODMUL:       1 << 5,
+	opcode.MODPOW:       1 << 11,
 	opcode.SHL:          1 << 3,
 	opcode.SHR:          1 << 3,
 	opcode.NOT:          1 << 2,
