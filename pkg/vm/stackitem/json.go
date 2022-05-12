@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 	gio "io"
-	"math"
 	"math/big"
 	"strconv"
+	"strings"
 )
 
 // decoder is a wrapper around json.Decoder helping to mimic C# json decoder behavior.
@@ -164,6 +164,7 @@ func FromJSON(data []byte, maxCount int) (Item, error) {
 		Decoder: *json.NewDecoder(bytes.NewReader(data)),
 		count:   maxCount,
 	}
+	d.UseNumber()
 	if item, err := d.decode(); err != nil {
 		return nil, err
 	} else if _, err := d.Token(); err != gio.EOF {
@@ -208,11 +209,24 @@ func (d *decoder) decode() (Item, error) {
 		}
 	case string:
 		return NewByteArray([]byte(t)), nil
-	case float64:
-		if math.Floor(t) != t {
-			return nil, fmt.Errorf("%w (real value for int)", ErrInvalidValue)
+	case json.Number:
+		ts := t.String()
+		dot := strings.IndexByte(ts, '.')
+		if dot != -1 {
+			// As a special case numbers like 123.000 are allowed (SetString rejects them).
+			// And yes, that's the way C# code works also.
+			for _, r := range ts[dot+1:] {
+				if r != '0' {
+					return nil, fmt.Errorf("%w (real value for int)", ErrInvalidValue)
+				}
+			}
+			ts = ts[:dot]
 		}
-		return NewBigInteger(big.NewInt(int64(t))), nil
+		num, ok := new(big.Int).SetString(ts, 10)
+		if !ok {
+			return nil, fmt.Errorf("%w (integer)", ErrInvalidValue)
+		}
+		return NewBigInteger(num), nil
 	case bool:
 		return NewBool(t), nil
 	default:

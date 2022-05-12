@@ -35,9 +35,9 @@ func TestStdLibItoaAtoi(t *testing.T) {
 			{big.NewInt(1), big.NewInt(16), "1"},
 			{big.NewInt(7), big.NewInt(16), "7"},
 			{big.NewInt(8), big.NewInt(16), "08"},
-			{big.NewInt(65535), big.NewInt(16), "0FFFF"},
-			{big.NewInt(15), big.NewInt(16), "0F"},
-			{big.NewInt(-1), big.NewInt(16), "F"},
+			{big.NewInt(65535), big.NewInt(16), "0ffff"},
+			{big.NewInt(15), big.NewInt(16), "0f"},
+			{big.NewInt(-1), big.NewInt(16), "f"},
 		}
 
 		for _, tc := range testCases {
