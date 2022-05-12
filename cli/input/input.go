@@ -49,15 +49,10 @@ func readLine(trm *term.Terminal, prompt string) (string, error) {
 // ReadPassword reads the user's password with prompt.
 func ReadPassword(prompt string) (string, error) {
 	trm := Terminal
-	if trm == nil {
-		s, err := term.MakeRaw(int(syscall.Stdin))
-		if err != nil {
-			return "", err
-		}
-		defer func() { _ = term.Restore(int(syscall.Stdin), s) }()
-		trm = term.NewTerminal(ReadWriter{os.Stdin, os.Stdout}, prompt)
+	if trm != nil {
+		return trm.ReadPassword(prompt)
 	}
-	return trm.ReadPassword(prompt)
+	return readSecurePassword(prompt)
 }
 
 // ConfirmTx asks for a confirmation to send the tx.
