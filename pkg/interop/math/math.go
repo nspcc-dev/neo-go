@@ -44,3 +44,14 @@ func Min(a, b int) int {
 func Within(x, a, b int) bool {
 	return neogointernal.Opcode3("WITHIN", x, a, b).(bool)
 }
+
+// ModMul returns the result of modulus division on a*b.
+func ModMul(a, b, mod int) int {
+	return neogointernal.Opcode3("MODMUL", a, b, mod).(int)
+}
+
+// ModPow returns the result of modulus division on a^b. If b is -1,
+// it returns the modular inverse of a.
+func ModPow(a, b, mod int) int {
+	return neogointernal.Opcode3("MODPOW", a, b, mod).(int)
+}
