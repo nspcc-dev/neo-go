@@ -291,7 +291,7 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	h := neoValidatorsInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), cs.Hash, amount, nil)
 	aer := e.GetTxExecResult(t, h)
 	require.Equal(t, 3, len(aer.Events)) // transfer + GAS claim for sender + onPayment
-	e.CheckTxNotificationEvent(t, h, 2, state.NotificationEvent{
+	e.CheckTxNotificationEvent(t, h, 1, state.NotificationEvent{
 		ScriptHash: cs.Hash,
 		Name:       "LastPayment",
 		Item: stackitem.NewArray([]stackitem.Item{
@@ -305,23 +305,23 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	h = neoValidatorsInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), cs.Hash, amount, nil)
 	aer = e.GetTxExecResult(t, h)
 	require.Equal(t, 5, len(aer.Events))                         // Now we must also have GAS claim for contract and corresponding `onPayment`.
-	e.CheckTxNotificationEvent(t, h, 2, state.NotificationEvent{ // onPayment for GAS claim
-		ScriptHash: cs.Hash,
-		Name:       "LastPayment",
-		Item: stackitem.NewArray([]stackitem.Item{
-			stackitem.NewByteArray(e.NativeHash(t, nativenames.Gas).BytesBE()),
-			stackitem.Null{},
-			stackitem.NewBigInteger(big.NewInt(1)),
-			stackitem.Null{},
-		}),
-	})
-	e.CheckTxNotificationEvent(t, h, 4, state.NotificationEvent{ // onPayment for NEO transfer
+	e.CheckTxNotificationEvent(t, h, 1, state.NotificationEvent{ // onPayment for NEO transfer
 		ScriptHash: cs.Hash,
 		Name:       "LastPayment",
 		Item: stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(e.NativeHash(t, nativenames.Neo).BytesBE()),
 			stackitem.NewByteArray(e.Validator.ScriptHash().BytesBE()),
 			stackitem.NewBigInteger(big.NewInt(amount)),
+			stackitem.Null{},
+		}),
+	})
+	e.CheckTxNotificationEvent(t, h, 4, state.NotificationEvent{ // onPayment for GAS claim
+		ScriptHash: cs.Hash,
+		Name:       "LastPayment",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray(e.NativeHash(t, nativenames.Gas).BytesBE()),
+			stackitem.Null{},
+			stackitem.NewBigInteger(big.NewInt(1)),
 			stackitem.Null{},
 		}),
 	})
@@ -406,7 +406,7 @@ func TestNEO_TransferZeroWithNonZeroBalance(t *testing.T) {
 		aer, err := e.Chain.GetAppExecResults(h, trigger.Application)
 		require.NoError(t, err)
 		require.Equal(t, 2, len(aer[0].Events))                                                                       // roundtrip + GAS claim
-		require.Equal(t, stackitem.NewBigInteger(big.NewInt(0)), aer[0].Events[1].Item.Value().([]stackitem.Item)[2]) // amount is 0
+		require.Equal(t, stackitem.NewBigInteger(big.NewInt(0)), aer[0].Events[0].Item.Value().([]stackitem.Item)[2]) // amount is 0
 		// check balance wasn't changed and height was updated
 		updatedBalance, updatedHeight := e.Chain.GetGoverningTokenBalance(acc.ScriptHash())
 		require.Equal(t, initialBalance, updatedBalance)

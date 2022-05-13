@@ -51,19 +51,19 @@ func newGAS(init int64, p2pSigExtensionsEnabled bool) *GAS {
 	return g
 }
 
-func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.StorageItem, amount *big.Int, checkBal *big.Int) error {
+func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.StorageItem, amount *big.Int, checkBal *big.Int) (func(), error) {
 	acc, err := state.NEP17BalanceFromBytes(*si)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if sign := amount.Sign(); sign == 0 {
 		// Requested self-transfer amount can be higher than actual balance.
 		if checkBal != nil && acc.Balance.Cmp(checkBal) < 0 {
 			err = errors.New("insufficient funds")
 		}
-		return err
+		return nil, err
 	} else if sign == -1 && acc.Balance.CmpAbs(amount) == -1 {
-		return errors.New("insufficient funds")
+		return nil, errors.New("insufficient funds")
 	}
 	acc.Balance.Add(&acc.Balance, amount)
 	if acc.Balance.Sign() != 0 {
@@ -71,7 +71,7 @@ func (g *GAS) increaseBalance(_ *interop.Context, _ util.Uint160, si *state.Stor
 	} else {
 		*si = nil
 	}
-	return nil
+	return nil, nil
 }
 
 func (g *GAS) balanceFromBytes(si *state.StorageItem) (*big.Int, error) {
