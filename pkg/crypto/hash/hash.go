@@ -67,7 +67,8 @@ func Hash160(data []byte) util.Uint160 {
 }
 
 // Checksum returns the checksum for a given piece of data
-// using sha256 twice as the hash algorithm.
+// using DoubleSha256 as the hash algorithm. It returns the
+// first 4 bytes of the resulting slice.
 func Checksum(data []byte) []byte {
 	hash := DoubleSha256(data)
 	return hash[:4]
