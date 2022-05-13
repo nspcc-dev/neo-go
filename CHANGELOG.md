@@ -2,6 +2,15 @@
 
 This document outlines major changes between releases.
 
+## 0.98.5 "Neutralization" (13 May 2022)
+
+An urgent update to fix the same security issue that was fixed in 3.1.0.1 C#
+node release. Please upgrade as soon as possible, resynchronization is not
+needed for mainnet.
+
+Bugs fixed:
+ * GAS emission now happens after NEO transfer is finished (#2488)
+
 ## 0.98.4 "Mesmerization" (11 May 2022)
 
 An urgent release to fix incompatibility with mainnet at block 1528989. The
