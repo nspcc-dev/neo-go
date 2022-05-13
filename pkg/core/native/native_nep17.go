@@ -177,8 +177,8 @@ func (c *nep17TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint
 	ic.Notifications = append(ic.Notifications, ne)
 }
 
-// updateAccBalance adds specified amount to the acc's balance. If requiredBalance
-// is set and amount is 0, then acc's balance is checked against requiredBalance.
+// updateAccBalance adds the specified amount to the acc's balance. If requiredBalance
+// is set and amount is 0, the acc's balance is checked against requiredBalance.
 func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint160, amount *big.Int, requiredBalance *big.Int) (func(), error) {
 	key := makeAccountKey(acc)
 	si := ic.DAO.GetStorageItem(c.ID, key)
@@ -187,7 +187,7 @@ func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint16
 			return nil, errors.New("insufficient funds")
 		}
 		if amount.Sign() == 0 {
-			// it's OK to transfer 0 if the balance 0, no need to put si to the storage
+			// it's OK to transfer 0 if the balance is 0, no need to put si to the storage
 			return nil, nil
 		}
 		si = state.StorageItem{}
