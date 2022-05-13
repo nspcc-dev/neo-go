@@ -33,7 +33,7 @@ type nep17TokenNative struct {
 	symbol       string
 	decimals     int64
 	factor       int64
-	incBalance   func(*interop.Context, util.Uint160, *state.StorageItem, *big.Int, *big.Int) error
+	incBalance   func(*interop.Context, util.Uint160, *state.StorageItem, *big.Int, *big.Int) (func(), error)
 	balFromBytes func(item *state.StorageItem) (*big.Int, error)
 }
 
@@ -128,7 +128,18 @@ func addrToStackItem(u *util.Uint160) stackitem.Item {
 }
 
 func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint160, amount *big.Int,
-	data stackitem.Item, callOnPayment bool) {
+	data stackitem.Item, callOnPayment bool, postCalls ...func()) {
+	var skipPostCalls bool
+	defer func() {
+		if skipPostCalls {
+			return
+		}
+		for _, f := range postCalls {
+			if f != nil {
+				f()
+			}
+		}
+	}()
 	c.emitTransfer(ic, from, to, amount)
 	if to == nil || !callOnPayment {
 		return
@@ -148,6 +159,7 @@ func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint
 		data,
 	}
 	if err := contract.CallFromNative(ic, c.Hash, cs, manifest.MethodOnNEP17Payment, args, false); err != nil {
+		skipPostCalls = true
 		panic(err)
 	}
 }
@@ -167,37 +179,39 @@ func (c *nep17TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint
 
 // updateAccBalance adds the specified amount to the acc's balance. If requiredBalance
 // is set and amount is 0, the acc's balance is checked against requiredBalance.
-func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint160, amount *big.Int, requiredBalance *big.Int) error {
+func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint160, amount *big.Int, requiredBalance *big.Int) (func(), error) {
 	key := makeAccountKey(acc)
 	si := ic.DAO.GetStorageItem(c.ID, key)
 	if si == nil {
 		if amount.Sign() < 0 {
-			return errors.New("insufficient funds")
+			return nil, errors.New("insufficient funds")
 		}
 		if amount.Sign() == 0 {
 			// it's OK to transfer 0 if the balance is 0, no need to put si to the storage
-			return nil
+			return nil, nil
 		}
 		si = state.StorageItem{}
 	}
 
-	err := c.incBalance(ic, acc, &si, amount, requiredBalance)
+	postF, err := c.incBalance(ic, acc, &si, amount, requiredBalance)
 	if err != nil {
 		if si != nil && amount.Sign() <= 0 {
 			ic.DAO.PutStorageItem(c.ID, key, si)
 		}
-		return err
+		return nil, err
 	}
 	if si == nil {
 		ic.DAO.DeleteStorageItem(c.ID, key)
 	} else {
 		ic.DAO.PutStorageItem(c.ID, key, si)
 	}
-	return nil
+	return postF, nil
 }
 
 // TransferInternal transfers NEO across accounts.
 func (c *nep17TokenNative) TransferInternal(ic *interop.Context, from, to util.Uint160, amount *big.Int, data stackitem.Item) error {
+	var postF1, postF2 func()
+
 	if amount.Sign() == -1 {
 		return errors.New("negative amount")
 	}
@@ -218,17 +232,20 @@ func (c *nep17TokenNative) TransferInternal(ic *interop.Context, from, to util.U
 	} else {
 		inc = new(big.Int).Neg(inc)
 	}
-	if err := c.updateAccBalance(ic, from, inc, amount); err != nil {
+
+	postF1, err := c.updateAccBalance(ic, from, inc, amount)
+	if err != nil {
 		return err
 	}
 
 	if !isEmpty {
-		if err := c.updateAccBalance(ic, to, amount, nil); err != nil {
+		postF2, err = c.updateAccBalance(ic, to, amount, nil)
+		if err != nil {
 			return err
 		}
 	}
 
-	c.postTransfer(ic, &from, &to, amount, data, true)
+	c.postTransfer(ic, &from, &to, amount, data, true, postF1, postF2)
 	return nil
 }
 
@@ -254,8 +271,8 @@ func (c *nep17TokenNative) mint(ic *interop.Context, h util.Uint160, amount *big
 	if amount.Sign() == 0 {
 		return
 	}
-	c.addTokens(ic, h, amount)
-	c.postTransfer(ic, nil, &h, amount, stackitem.Null{}, callOnPayment)
+	postF := c.addTokens(ic, h, amount)
+	c.postTransfer(ic, nil, &h, amount, stackitem.Null{}, callOnPayment, postF)
 }
 
 func (c *nep17TokenNative) burn(ic *interop.Context, h util.Uint160, amount *big.Int) {
@@ -263,14 +280,14 @@ func (c *nep17TokenNative) burn(ic *interop.Context, h util.Uint160, amount *big
 		return
 	}
 	amount.Neg(amount)
-	c.addTokens(ic, h, amount)
+	postF := c.addTokens(ic, h, amount)
 	amount.Neg(amount)
-	c.postTransfer(ic, &h, nil, amount, stackitem.Null{}, false)
+	c.postTransfer(ic, &h, nil, amount, stackitem.Null{}, false, postF)
 }
 
-func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount *big.Int) {
+func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount *big.Int) func() {
 	if amount.Sign() == 0 {
-		return
+		return nil
 	}
 
 	key := makeAccountKey(h)
@@ -278,7 +295,8 @@ func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount
 	if si == nil {
 		si = state.StorageItem{}
 	}
-	if err := c.incBalance(ic, h, &si, amount, nil); err != nil {
+	postF, err := c.incBalance(ic, h, &si, amount, nil)
+	if err != nil {
 		panic(err)
 	}
 	if si == nil {
@@ -290,6 +308,7 @@ func (c *nep17TokenNative) addTokens(ic *interop.Context, h util.Uint160, amount
 	buf, supply := c.getTotalSupply(ic.DAO)
 	supply.Add(supply, amount)
 	c.saveTotalSupply(ic.DAO, buf, supply)
+	return postF
 }
 
 func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Parameter) *manifest.Method {

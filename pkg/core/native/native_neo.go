@@ -464,28 +464,34 @@ func (n *NEO) getGASPerVote(d *dao.Simple, key []byte, indexes []uint32) []big.I
 	return reward
 }
 
-func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int, checkBal *big.Int) error {
+func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int, checkBal *big.Int) (func(), error) {
+	var postF func()
+
 	acc, err := state.NEOBalanceFromBytes(*si)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if (amount.Sign() == -1 && acc.Balance.CmpAbs(amount) == -1) ||
 		(amount.Sign() == 0 && checkBal != nil && acc.Balance.Cmp(checkBal) == -1) {
-		return errors.New("insufficient funds")
+		return nil, errors.New("insufficient funds")
 	}
-	if err := n.distributeGas(ic, h, acc); err != nil {
-		return err
+	newGas, err := n.distributeGas(ic, acc)
+	if err != nil {
+		return nil, err
+	}
+	if newGas != nil { // Can be if it was already distributed in the same block.
+		postF = func() { n.GAS.mint(ic, h, newGas, true) }
 	}
 	if amount.Sign() == 0 {
 		*si = acc.Bytes()
-		return nil
+		return postF, nil
 	}
 	if err := n.ModifyAccountVotes(acc, ic.DAO, amount, false); err != nil {
-		return err
+		return nil, err
 	}
 	if acc.VoteTo != nil {
 		if err := n.modifyVoterTurnout(ic.DAO, amount); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	acc.Balance.Add(&acc.Balance, amount)
@@ -494,7 +500,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 	} else {
 		*si = nil
 	}
-	return nil
+	return postF, nil
 }
 
 func (n *NEO) balanceFromBytes(si *state.StorageItem) (*big.Int, error) {
@@ -505,23 +511,17 @@ func (n *NEO) balanceFromBytes(si *state.StorageItem) (*big.Int, error) {
 	return &acc.Balance, err
 }
 
-func (n *NEO) distributeGas(ic *interop.Context, h util.Uint160, acc *state.NEOBalance) error {
+func (n *NEO) distributeGas(ic *interop.Context, acc *state.NEOBalance) (*big.Int, error) {
 	if ic.Block == nil || ic.Block.Index == 0 || ic.Block.Index == acc.BalanceHeight {
-		return nil
+		return nil, nil
 	}
 	gen, err := n.calculateBonus(ic.DAO, acc.VoteTo, &acc.Balance, acc.BalanceHeight, ic.Block.Index)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	acc.BalanceHeight = ic.Block.Index
 
-	// Must store acc before GAS distribution to fix acc's BalanceHeight value in the storage for
-	// further acc's queries from `onNEP17Payment` if so, see https://github.com/nspcc-dev/neo-go/pull/2181.
-	key := makeAccountKey(h)
-	ic.DAO.PutStorageItem(n.ID, key, acc.Bytes())
-
-	n.GAS.mint(ic, h, gen, true)
-	return nil
+	return gen, nil
 }
 
 func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -827,7 +827,8 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 			return err
 		}
 	}
-	if err := n.distributeGas(ic, h, acc); err != nil {
+	newGas, err := n.distributeGas(ic, acc)
+	if err != nil {
 		return err
 	}
 	if err := n.ModifyAccountVotes(acc, ic.DAO, new(big.Int).Neg(&acc.Balance), false); err != nil {
@@ -838,6 +839,9 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 		return err
 	}
 	ic.DAO.PutStorageItem(n.ID, key, acc.Bytes())
+	if newGas != nil { // Can be if it was already distributed in the same block.
+		n.GAS.mint(ic, h, newGas, true)
+	}
 	return nil
 }
 
