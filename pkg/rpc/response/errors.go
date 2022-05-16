@@ -17,6 +17,9 @@ type (
 	}
 )
 
+// InternalServerErrorCode is returned for internal RPC server error.
+const InternalServerErrorCode = -32603
+
 var (
 	// ErrInvalidParams represents a generic 'invalid parameters' error.
 	ErrInvalidParams = NewInvalidParamsError("", nil)
@@ -73,7 +76,7 @@ func NewInvalidParamsError(data string, cause error) *Error {
 // NewInternalServerError creates a new error with
 // code -32603.
 func NewInternalServerError(data string, cause error) *Error {
-	return NewError(-32603, http.StatusInternalServerError, "Internal error", data, cause)
+	return NewError(InternalServerErrorCode, http.StatusInternalServerError, "Internal error", data, cause)
 }
 
 // NewRPCError creates a new error with
