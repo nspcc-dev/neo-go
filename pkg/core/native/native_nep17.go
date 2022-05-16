@@ -165,16 +165,11 @@ func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint
 }
 
 func (c *nep17TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint160, amount *big.Int) {
-	ne := state.NotificationEvent{
-		ScriptHash: c.Hash,
-		Name:       "Transfer",
-		Item: stackitem.NewArray([]stackitem.Item{
-			addrToStackItem(from),
-			addrToStackItem(to),
-			stackitem.NewBigInteger(amount),
-		}),
-	}
-	ic.Notifications = append(ic.Notifications, ne)
+	ic.AddNotification(c.Hash, "Transfer", stackitem.NewArray([]stackitem.Item{
+		addrToStackItem(from),
+		addrToStackItem(to),
+		stackitem.NewBigInteger(amount),
+	}))
 }
 
 // updateAccBalance adds the specified amount to the acc's balance. If requiredBalance
