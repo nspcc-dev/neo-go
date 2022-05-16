@@ -380,3 +380,14 @@ func (ic *Context) IsHardforkEnabled(hf config.Hardfork) bool {
 	}
 	return len(ic.Hardforks) == 0 // Enable each hard-fork by default.
 }
+
+// AddNotification creates notification event, adds it to the notification list and
+// performs item refcounting.
+func (ic *Context) AddNotification(hash util.Uint160, name string, item *stackitem.Array) {
+	ic.VM.AddRef(item)
+	ic.Notifications = append(ic.Notifications, state.NotificationEvent{
+		ScriptHash: hash,
+		Name:       name,
+		Item:       item,
+	})
+}

@@ -1907,6 +1907,11 @@ func (v *VM) GetCurrentScriptHash() util.Uint160 {
 	return v.getContextScriptHash(0)
 }
 
+// AddRef adds provided stackitem to the reference counter.
+func (v *VM) AddRef(item stackitem.Item) {
+	v.refs.Add(item)
+}
+
 // toInt converts an item to a 32-bit int.
 func toInt(i *big.Int) int {
 	if !i.IsInt64() {

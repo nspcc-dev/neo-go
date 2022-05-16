@@ -164,6 +164,11 @@ func TestNotify(t *testing.T) {
 		ev := ic.Notifications[0]
 		require.Equal(t, "good event", ev.Name)
 		require.Equal(t, h, ev.ScriptHash)
+		// Check refcount should be incremented (notifications are fercounted).
+		type rcInc interface {
+			IncRC() int
+		}
+		stackitem.Item(arr).(rcInc).IncRC()
 		require.Equal(t, arr, ev.Item)
 		// Check deep copy.
 		arr.Value().([]stackitem.Item)[0] = stackitem.Null{}
