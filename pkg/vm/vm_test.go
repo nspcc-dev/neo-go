@@ -387,8 +387,8 @@ func TestStackLimit(t *testing.T) {
 		inst opcode.Opcode
 		size int
 	}{
-		{opcode.PUSH2, 1},
-		{opcode.NEWARRAY, 3}, // array + 2 items
+		{opcode.PUSH2, 2},    // 1 from INITSSLOT and 1 for integer 2
+		{opcode.NEWARRAY, 4}, // array + 2 items
 		{opcode.STSFLD0, 3},
 		{opcode.LDSFLD0, 4},
 		{opcode.NEWMAP, 5},

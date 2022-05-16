@@ -616,7 +616,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if parameter[0] == 0 {
 			panic("zero argument")
 		}
-		ctx.static.init(int(parameter[0]))
+		ctx.static.init(int(parameter[0]), &v.refs)
 
 	case opcode.INITSLOT:
 		if ctx.local != nil || ctx.arguments != nil {
@@ -626,11 +626,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("zero argument")
 		}
 		if parameter[0] > 0 {
-			ctx.local.init(int(parameter[0]))
+			ctx.local.init(int(parameter[0]), &v.refs)
 		}
 		if parameter[1] > 0 {
 			sz := int(parameter[1])
-			ctx.arguments.init(sz)
+			ctx.arguments.init(sz, &v.refs)
 			for i := 0; i < sz; i++ {
 				ctx.arguments.Set(i, v.estack.Pop().Item(), &v.refs)
 			}
@@ -1582,14 +1582,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 func (v *VM) unloadContext(ctx *Context) {
 	if ctx.local != nil {
-		ctx.local.Clear(&v.refs)
+		ctx.local.ClearRefs(&v.refs)
 	}
 	if ctx.arguments != nil {
-		ctx.arguments.Clear(&v.refs)
+		ctx.arguments.ClearRefs(&v.refs)
 	}
 	currCtx := v.Context()
 	if ctx.static != nil && currCtx != nil && ctx.static != currCtx.static {
-		ctx.static.Clear(&v.refs)
+		ctx.static.ClearRefs(&v.refs)
 	}
 }
 
