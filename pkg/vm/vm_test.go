@@ -395,13 +395,13 @@ func TestStackLimit(t *testing.T) {
 		{opcode.DUP, 6},
 		{opcode.PUSH2, 7},
 		{opcode.LDSFLD0, 8},
-		{opcode.SETITEM, 6}, // -3 items and 1 new element in map
-		{opcode.DUP, 7},
-		{opcode.PUSH2, 8},
-		{opcode.LDSFLD0, 9},
-		{opcode.SETITEM, 6}, // -3 items and no new elements in map
-		{opcode.DUP, 7},
-		{opcode.PUSH2, 8},
+		{opcode.SETITEM, 7}, // -3 items and 1 new kv pair in map
+		{opcode.DUP, 8},
+		{opcode.PUSH2, 9},
+		{opcode.LDSFLD0, 10},
+		{opcode.SETITEM, 7}, // -3 items and no new elements in map
+		{opcode.DUP, 8},
+		{opcode.PUSH2, 9},
 		{opcode.REMOVE, 5}, // as we have right after NEWMAP
 		{opcode.DROP, 4},   // DROP map with no elements
 	}
@@ -1402,7 +1402,7 @@ func TestSETITEMBigMapBad(t *testing.T) {
 // 2. SETITEM each of them to a map.
 // 3. Replace each of them with a scalar value.
 func TestSETITEMMapStackLimit(t *testing.T) {
-	size := MaxStackSize/2 - 3
+	size := MaxStackSize/2 - 4
 	m := stackitem.NewMap()
 	m.Add(stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewArray(makeArrayOfType(size, stackitem.BooleanT)))
 	m.Add(stackitem.NewBigInteger(big.NewInt(2)), stackitem.NewArray(makeArrayOfType(size, stackitem.BooleanT)))
@@ -2036,8 +2036,8 @@ func TestPACKMAP_UNPACK_PACKMAP_MaxSize(t *testing.T) {
 	}
 	vm.estack.PushVal(len(elements))
 	runVM(t, vm)
-	// check reference counter = 1+1+1024
-	assert.Equal(t, 1+1+len(elements), int(vm.refs))
+	// check reference counter = 1+1+1024*2
+	assert.Equal(t, 1+1+len(elements)*2, int(vm.refs))
 	assert.Equal(t, 2, vm.estack.Len())
 	m := vm.estack.Peek(0).value.(*stackitem.Map).Value().([]stackitem.MapElement)
 	assert.Equal(t, len(elements), len(m))

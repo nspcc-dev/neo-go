@@ -1250,6 +1250,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		case *stackitem.Map:
 			if i := t.Index(key.value); i >= 0 {
 				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
+			} else {
+				v.refs.Add(key.value)
 			}
 			t.Add(key.value, item)
 			v.refs.Add(item)
@@ -1312,7 +1314,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			index := t.Index(key.Item())
 			// NEO 2.0 doesn't error on missing key.
 			if index >= 0 {
-				v.refs.Remove(t.Value().([]stackitem.MapElement)[index].Value)
+				elems := t.Value().([]stackitem.MapElement)
+				v.refs.Remove(elems[index].Key)
+				v.refs.Remove(elems[index].Value)
 				t.Drop(index)
 			}
 		default:
@@ -1333,8 +1337,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 			t.Clear()
 		case *stackitem.Map:
-			for i := range t.Value().([]stackitem.MapElement) {
-				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
+			elems := t.Value().([]stackitem.MapElement)
+			for i := range elems {
+				v.refs.Remove(elems[i].Key)
+				v.refs.Remove(elems[i].Value)
 			}
 			t.Clear()
 		default:
