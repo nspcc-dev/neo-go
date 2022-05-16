@@ -50,9 +50,12 @@ func Call(ic *interop.Context) error {
 	ctx := ic.VM.Context()
 	args := make([]stackitem.Item, len(m.MD.Parameters))
 	for i := range args {
-		args[i] = ic.VM.Estack().Pop().Item()
+		args[i] = ic.VM.Estack().Peek(i).Item()
 	}
 	result := m.Func(ic, args)
+	for range m.MD.Parameters {
+		ic.VM.Estack().Pop()
+	}
 	if m.MD.ReturnType != smartcontract.VoidType {
 		ctx.Estack().PushItem(result)
 	}
