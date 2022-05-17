@@ -2718,6 +2718,35 @@ func TestNestedStructEquals(t *testing.T) {
 	checkVMFailed(t, vm)
 }
 
+func TestRemoveReferrer(t *testing.T) {
+	h := "560110c34a10c36058cf4540" // #2501
+	prog, err := hex.DecodeString(h)
+	require.NoError(t, err)
+	vm := load(prog)
+	require.NoError(t, vm.StepInto()) // INITSSLOT
+	assert.Equal(t, 1, int(vm.refs))
+	require.NoError(t, vm.StepInto()) // PUSH0
+	assert.Equal(t, 2, int(vm.refs))
+	require.NoError(t, vm.StepInto()) // NEWARRAY
+	assert.Equal(t, 2, int(vm.refs))
+	require.NoError(t, vm.StepInto()) // DUP
+	assert.Equal(t, 3, int(vm.refs))
+	require.NoError(t, vm.StepInto()) // PUSH0
+	assert.Equal(t, 4, int(vm.refs))
+	require.NoError(t, vm.StepInto()) // NEWARRAY
+	assert.Equal(t, 4, int(vm.refs))
+	require.NoError(t, vm.StepInto()) // STSFLD0
+	assert.Equal(t, 3, int(vm.refs))
+	require.NoError(t, vm.StepInto()) // LDSFLD0
+	assert.Equal(t, 4, int(vm.refs))
+	require.NoError(t, vm.StepInto()) // APPEND
+	assert.Equal(t, 3, int(vm.refs))
+	require.NoError(t, vm.StepInto()) // DROP
+	assert.Equal(t, 1, int(vm.refs))
+	require.NoError(t, vm.StepInto()) // RET
+	assert.Equal(t, 0, int(vm.refs))
+}
+
 func makeProgram(opcodes ...opcode.Opcode) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
 	for i := 0; i < len(opcodes); i++ {

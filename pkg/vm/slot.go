@@ -23,13 +23,8 @@ func (s slot) Set(i int, item stackitem.Item, refs *refCounter) {
 	if s[i] == item {
 		return
 	}
-	old := s[i]
+	refs.Remove(s[i])
 	s[i] = item
-	if old != nil {
-		refs.Remove(old)
-	} else {
-		*refs-- // Not really existing, but counted Null element.
-	}
 	refs.Add(item)
 }
 
