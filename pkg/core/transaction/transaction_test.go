@@ -109,7 +109,7 @@ func TestNewTransactionFromBytes(t *testing.T) {
 
 func TestEncodingTXWithNoScript(t *testing.T) {
 	_, err := testserdes.EncodeBinary(new(Transaction))
-	require.Error(t, err)
+	require.NoError(t, err) // Garbage in -> garbage out.
 }
 
 func TestDecodingTXWithNoScript(t *testing.T) {
