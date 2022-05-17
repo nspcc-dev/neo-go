@@ -513,7 +513,7 @@ func (s *Server) getBlock(reqParams request.Params) (interface{}, *response.Erro
 
 	block, err := s.chain.GetBlock(hash)
 	if err != nil {
-		return nil, response.NewInternalServerError(fmt.Sprintf("Problem locating block with hash: %s", hash), err)
+		return nil, response.NewRPCError(fmt.Sprintf("Problem locating block with hash: %s", hash), err.Error(), err)
 	}
 
 	if v, _ := reqParams.Value(1).GetBoolean(); v {
@@ -1235,7 +1235,7 @@ func (s *Server) getState(ps request.Params) (interface{}, *response.Error) {
 	sKey := makeStorageKey(cs.ID, key)
 	res, err := s.chain.GetStateModule().GetState(root, sKey)
 	if err != nil {
-		return nil, response.NewInternalServerError("failed to get historical item state", err)
+		return nil, response.NewRPCError("failed to get historical item state", err.Error(), err)
 	}
 	return res, nil
 }
@@ -1317,7 +1317,7 @@ func (s *Server) findStates(ps request.Params) (interface{}, *response.Error) {
 	if len(kvs) > 1 {
 		proof, err := s.chain.GetStateModule().GetStateProof(root, kvs[len(kvs)-1].Key)
 		if err != nil {
-			return nil, response.NewInternalServerError("failed to get first proof", err)
+			return nil, response.NewInternalServerError("failed to get last proof", err)
 		}
 		res.LastProof = &result.ProofWithKey{
 			Key:   kvs[len(kvs)-1].Key,
@@ -1338,7 +1338,7 @@ func (s *Server) getHistoricalContractState(root util.Uint256, csHash util.Uint1
 	csKey := makeStorageKey(native.ManagementContractID, native.MakeContractKey(csHash))
 	csBytes, err := s.chain.GetStateModule().GetState(root, csKey)
 	if err != nil {
-		return nil, response.NewInternalServerError("failed to get historical contract state", err)
+		return nil, response.NewRPCError("failed to get historical contract state", err.Error(), err)
 	}
 	contract := new(state.Contract)
 	err = stackitem.DeserializeConvertible(csBytes, contract)
@@ -1533,7 +1533,7 @@ func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Erro
 	}
 	gas, err := s.chain.CalculateClaimable(u, s.chain.BlockHeight()+1) // +1 as in C#, for the next block.
 	if err != nil {
-		return nil, response.NewInternalServerError("can't calculate claimable", err)
+		return nil, response.NewRPCError("can't calculate claimable", err.Error(), err)
 	}
 	return result.UnclaimedGas{
 		Address:   u,
@@ -1734,7 +1734,7 @@ func (s *Server) getInvokeContractVerifyParams(reqParams request.Params) (util.U
 		if len(args) > 0 {
 			err := request.ExpandArrayIntoScript(bw.BinWriter, args)
 			if err != nil {
-				return util.Uint160{}, nil, nil, response.NewRPCError("can't create witness invocation script", err.Error(), err)
+				return util.Uint160{}, nil, nil, response.NewInternalServerError("can't create witness invocation script", err)
 			}
 		}
 	}
@@ -1882,7 +1882,7 @@ func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.E
 // submitNotaryRequest broadcasts P2PNotaryRequest over the NEO network.
 func (s *Server) submitNotaryRequest(ps request.Params) (interface{}, *response.Error) {
 	if !s.chain.P2PSigExtensionsEnabled() {
-		return nil, response.NewInternalServerError("P2PNotaryRequest was received, but P2PSignatureExtensions are disabled", nil)
+		return nil, response.NewRPCError("P2PNotaryRequest was received, but P2PSignatureExtensions are disabled", "", nil)
 	}
 
 	bytePayload, err := ps.Value(0).GetBytesBase64()
@@ -1916,7 +1916,7 @@ func getRelayResult(err error, hash util.Uint256) (interface{}, *response.Error)
 
 func (s *Server) submitOracleResponse(ps request.Params) (interface{}, *response.Error) {
 	if s.oracle == nil {
-		return nil, response.NewInternalServerError("oracle is not enabled", nil)
+		return nil, response.NewRPCError("oracle is not enabled", "", nil)
 	}
 	var pub *keys.PublicKey
 	pubBytes, err := ps.Value(0).GetBytesBase64()
@@ -2274,7 +2274,13 @@ func (s *Server) logRequestError(r *request.Request, jsonErr *response.Error) {
 		logFields = append(logFields, zap.Any("params", params))
 	}
 
-	s.log.Error("Error encountered with rpc request", logFields...)
+	logText := "Error encountered with rpc request"
+	switch jsonErr.Code {
+	case response.InternalServerErrorCode:
+		s.log.Error(logText, logFields...)
+	default:
+		s.log.Info(logText, logFields...)
+	}
 }
 
 // writeHTTPErrorResponse writes an error response to the ResponseWriter.
