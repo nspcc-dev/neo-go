@@ -30,6 +30,20 @@ func TestRefCounter_Add(t *testing.T) {
 
 	r.Remove(arr)
 	require.Equal(t, 2, int(*r))
+
+	m := stackitem.NewMap()
+	m.Add(stackitem.NewByteArray([]byte("some")), stackitem.NewBool(false))
+	r.Add(m)
+	require.Equal(t, 5, int(*r)) // map + key + value
+
+	r.Add(m)
+	require.Equal(t, 6, int(*r)) // map only
+
+	r.Remove(m)
+	require.Equal(t, 5, int(*r))
+
+	r.Remove(m)
+	require.Equal(t, 2, int(*r))
 }
 
 func BenchmarkRefCounter_Add(b *testing.B) {

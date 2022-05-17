@@ -10,11 +10,12 @@ import (
 type slot []stackitem.Item
 
 // init sets static slot size to n. It is intended to be used only by INITSSLOT.
-func (s *slot) init(n int) {
+func (s *slot) init(n int, rc *refCounter) {
 	if *s != nil {
 		panic("already initialized")
 	}
 	*s = make([]stackitem.Item, n)
+	*rc += refCounter(n) // Virtual "Null" elements.
 }
 
 // Set sets i-th storage slot.
@@ -26,6 +27,8 @@ func (s slot) Set(i int, item stackitem.Item, refs *refCounter) {
 	s[i] = item
 	if old != nil {
 		refs.Remove(old)
+	} else {
+		*refs-- // Not really existing, but counted Null element.
 	}
 	refs.Add(item)
 }
@@ -38,8 +41,8 @@ func (s slot) Get(i int) stackitem.Item {
 	return stackitem.Null{}
 }
 
-// Clear removes all slot variables from the reference counter.
-func (s slot) Clear(refs *refCounter) {
+// ClearRefs removes all slot variables from the reference counter.
+func (s slot) ClearRefs(refs *refCounter) {
 	for _, item := range s {
 		refs.Remove(item)
 	}

@@ -37,8 +37,10 @@ func (r *refCounter) Add(item stackitem.Item) {
 			r.Add(it)
 		}
 	case *stackitem.Map:
-		for i := range t.Value().([]stackitem.MapElement) {
-			r.Add(t.Value().([]stackitem.MapElement)[i].Value)
+		elems := t.Value().([]stackitem.MapElement)
+		for i := range elems {
+			r.Add(elems[i].Key)
+			r.Add(elems[i].Value)
 		}
 	}
 }
@@ -60,8 +62,10 @@ func (r *refCounter) Remove(item stackitem.Item) {
 			r.Remove(it)
 		}
 	case *stackitem.Map:
-		for i := range t.Value().([]stackitem.MapElement) {
-			r.Remove(t.Value().([]stackitem.MapElement)[i].Value)
+		elems := t.Value().([]stackitem.MapElement)
+		for i := range elems {
+			r.Remove(elems[i].Key)
+			r.Remove(elems[i].Value)
 		}
 	}
 }

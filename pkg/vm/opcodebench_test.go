@@ -56,11 +56,11 @@ func opParamSlotsPushVM(op opcode.Opcode, param []byte, sslot int, slotloc int, 
 			return nil
 		}
 		if sslot != 0 {
-			v.Context().static.init(sslot)
+			v.Context().static.init(sslot, &v.refs)
 		}
 		if slotloc != 0 && slotarg != 0 {
-			v.Context().local.init(slotloc)
-			v.Context().arguments.init(slotarg)
+			v.Context().local.init(slotloc, &v.refs)
+			v.Context().arguments.init(slotarg, &v.refs)
 		}
 		for i := range items {
 			item, ok := items[i].(stackitem.Item)

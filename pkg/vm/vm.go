@@ -616,7 +616,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if parameter[0] == 0 {
 			panic("zero argument")
 		}
-		ctx.static.init(int(parameter[0]))
+		ctx.static.init(int(parameter[0]), &v.refs)
 
 	case opcode.INITSLOT:
 		if ctx.local != nil || ctx.arguments != nil {
@@ -626,11 +626,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("zero argument")
 		}
 		if parameter[0] > 0 {
-			ctx.local.init(int(parameter[0]))
+			ctx.local.init(int(parameter[0]), &v.refs)
 		}
 		if parameter[1] > 0 {
 			sz := int(parameter[1])
-			ctx.arguments.init(sz)
+			ctx.arguments.init(sz, &v.refs)
 			for i := 0; i < sz; i++ {
 				ctx.arguments.Set(i, v.estack.Pop().Item(), &v.refs)
 			}
@@ -1250,6 +1250,8 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		case *stackitem.Map:
 			if i := t.Index(key.value); i >= 0 {
 				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
+			} else {
+				v.refs.Add(key.value)
 			}
 			t.Add(key.value, item)
 			v.refs.Add(item)
@@ -1312,7 +1314,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			index := t.Index(key.Item())
 			// NEO 2.0 doesn't error on missing key.
 			if index >= 0 {
-				v.refs.Remove(t.Value().([]stackitem.MapElement)[index].Value)
+				elems := t.Value().([]stackitem.MapElement)
+				v.refs.Remove(elems[index].Key)
+				v.refs.Remove(elems[index].Value)
 				t.Drop(index)
 			}
 		default:
@@ -1333,8 +1337,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 			t.Clear()
 		case *stackitem.Map:
-			for i := range t.Value().([]stackitem.MapElement) {
-				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
+			elems := t.Value().([]stackitem.MapElement)
+			for i := range elems {
+				v.refs.Remove(elems[i].Key)
+				v.refs.Remove(elems[i].Value)
 			}
 			t.Clear()
 		default:
@@ -1576,14 +1582,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 func (v *VM) unloadContext(ctx *Context) {
 	if ctx.local != nil {
-		ctx.local.Clear(&v.refs)
+		ctx.local.ClearRefs(&v.refs)
 	}
 	if ctx.arguments != nil {
-		ctx.arguments.Clear(&v.refs)
+		ctx.arguments.ClearRefs(&v.refs)
 	}
 	currCtx := v.Context()
 	if ctx.static != nil && currCtx != nil && ctx.static != currCtx.static {
-		ctx.static.Clear(&v.refs)
+		ctx.static.ClearRefs(&v.refs)
 	}
 }
 
