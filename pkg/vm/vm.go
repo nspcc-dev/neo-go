@@ -1588,7 +1588,7 @@ func (v *VM) unloadContext(ctx *Context) {
 		ctx.arguments.ClearRefs(&v.refs)
 	}
 	currCtx := v.Context()
-	if ctx.static != nil && currCtx != nil && ctx.static != currCtx.static {
+	if ctx.static != nil && (currCtx == nil || ctx.static != currCtx.static) {
 		ctx.static.ClearRefs(&v.refs)
 	}
 }
