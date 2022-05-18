@@ -195,7 +195,14 @@ func storageFind(ic *interop.Context) error {
 	seekres := ic.DAO.SeekAsync(ctx, stc.ID, storage.SeekRange{Prefix: prefix})
 	item := istorage.NewIterator(seekres, prefix, opts)
 	ic.VM.Estack().PushItem(stackitem.NewInterop(item))
-	ic.RegisterCancelFunc(cancel)
+	ic.RegisterCancelFunc(func() {
+		cancel()
+		// Underlying persistent store is likely to be a private MemCachedStore. Thus,
+		// to avoid concurrent map iteration and map write we need to wait until internal
+		// seek goroutine is finished, because it can access underlying persistent store.
+		for range seekres {
+		}
+	})
 
 	return nil
 }

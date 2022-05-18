@@ -969,7 +969,11 @@ func (n *NEO) getAllCandidatesCall(ic *interop.Context, _ []stackitem.Item) stac
 
 	opts := istorage.FindRemovePrefix | istorage.FindDeserialize | istorage.FindPick1
 	item := istorage.NewIterator(filteredRes, prefix, int64(opts))
-	ic.RegisterCancelFunc(cancel)
+	ic.RegisterCancelFunc(func() {
+		cancel()
+		for range seekres {
+		}
+	})
 	return stackitem.NewInterop(item)
 }
 
