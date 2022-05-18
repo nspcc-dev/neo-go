@@ -59,8 +59,10 @@ type (
 	// Server represents the JSON-RPC 2.0 server.
 	Server struct {
 		*http.Server
-		chain            blockchainer.Blockchainer
-		config           rpc.Config
+		chain  blockchainer.Blockchainer
+		config rpc.Config
+		// wsReadLimit represents web-socket message limit for a receiving side.
+		wsReadLimit      int64
 		network          netmode.Magic
 		stateRootEnabled bool
 		coreServer       *network.Server
@@ -87,9 +89,6 @@ type (
 )
 
 const (
-	// Message limit for a receiving side.
-	wsReadLimit = 4096
-
 	// Disconnection timeout.
 	wsPongLimit = 60 * time.Second
 
@@ -188,6 +187,7 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 		Server:           httpServer,
 		chain:            chain,
 		config:           conf,
+		wsReadLimit:      int64(chain.GetConfig().MaxBlockSize*4)/3 + 1024, // Enough for Base64-encoded content of `submitblock` and `submitp2pnotaryrequest`.
 		network:          chain.GetConfig().Magic,
 		stateRootEnabled: chain.GetConfig().StateRootInHeader,
 		coreServer:       coreServer,
@@ -437,7 +437,7 @@ drainloop:
 }
 
 func (s *Server) handleWsReads(ws *websocket.Conn, resChan chan<- response.AbstractResult, subscr *subscriber) {
-	ws.SetReadLimit(wsReadLimit)
+	ws.SetReadLimit(s.wsReadLimit)
 	err := ws.SetReadDeadline(time.Now().Add(wsPongLimit))
 	ws.SetPongHandler(func(string) error { return ws.SetReadDeadline(time.Now().Add(wsPongLimit)) })
 requestloop:
