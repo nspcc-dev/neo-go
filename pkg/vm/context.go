@@ -54,22 +54,32 @@ type Context struct {
 	NEF *nef.File
 	// invTree is an invocation tree (or branch of it) for this context.
 	invTree *InvocationTree
+	// notificationsCount stores number of notifications emitted during current context
+	// handling.
+	notificationsCount *int
+	// isWrapped tells whether the context's DAO was wrapped into another layer of
+	// MemCachedStore on creation and whether it should be unwrapped on context unloading.
+	isWrapped bool
 }
 
 var errNoInstParam = errors.New("failed to read instruction parameter")
 
 // NewContext returns a new Context object.
 func NewContext(b []byte) *Context {
-	return NewContextWithParams(b, -1, 0)
+	return NewContextWithParams(b, -1, 0, nil)
 }
 
 // NewContextWithParams creates new Context objects using script, parameter count,
 // return value count and initial position in script.
-func NewContextWithParams(b []byte, rvcount int, pos int) *Context {
+func NewContextWithParams(b []byte, rvcount int, pos int, notificationsCount *int) *Context {
+	if notificationsCount == nil {
+		notificationsCount = new(int)
+	}
 	return &Context{
-		prog:     b,
-		retCount: rvcount,
-		nextip:   pos,
+		prog:               b,
+		retCount:           rvcount,
+		nextip:             pos,
+		notificationsCount: notificationsCount,
 	}
 }
 
