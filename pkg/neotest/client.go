@@ -109,8 +109,9 @@ func (c *ContractInvoker) InvokeWithFeeFail(t testing.TB, message string, sysFee
 
 // InvokeFail invokes the method with the args, persists the transaction and checks the error message.
 // It returns the transaction hash.
-func (c *ContractInvoker) InvokeFail(t testing.TB, message string, method string, args ...interface{}) {
+func (c *ContractInvoker) InvokeFail(t testing.TB, message string, method string, args ...interface{}) util.Uint256 {
 	tx := c.PrepareInvoke(t, method, args...)
 	c.AddNewBlock(t, tx)
 	c.CheckFault(t, tx.Hash(), message)
+	return tx.Hash()
 }
