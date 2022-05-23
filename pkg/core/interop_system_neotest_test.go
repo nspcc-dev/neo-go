@@ -507,3 +507,150 @@ func TestSnapshotIsolation_CallToItself(t *testing.T) {
 	// unwrapped and persisted during the previous call.
 	ctrInvoker.Invoke(t, stackitem.Null{}, "check")
 }
+
+// This test is written to check https://github.com/nspcc-dev/neo-go/issues/2509
+// and https://github.com/neo-project/neo/pull/2745#discussion_r879167180.
+func TestRET_after_FINALLY_PanicInsideVoidMethod(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	// Contract A throws catchable exception. It also has a non-void method.
+	srcA := `package contractA
+		func Panic() {
+			panic("panic from A")
+		}
+		func ReturnSomeValue() int {
+			return 5
+		}`
+	ctrA := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(srcA), &compiler.Options{
+		NoEventsCheck:      true,
+		NoPermissionsCheck: true,
+		Name:               "contractA",
+	})
+	e.DeployContract(t, ctrA, nil)
+
+	var hashAStr string
+	for i := 0; i < util.Uint160Size; i++ {
+		hashAStr += fmt.Sprintf("%#x", ctrA.Hash[i])
+		if i != util.Uint160Size-1 {
+			hashAStr += ", "
+		}
+	}
+	// Contract B calls A and catches the exception thrown by A.
+	srcB := `package contractB
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop"
+			"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+		)
+		func Catch() {
+			defer func() {
+				if r := recover(); r != nil {
+					// Call method with return value to check https://github.com/neo-project/neo/pull/2745#discussion_r879167180.
+					contract.Call(interop.Hash160{` + hashAStr + `}, "returnSomeValue", contract.All)
+				}
+			}()
+			contract.Call(interop.Hash160{` + hashAStr + `}, "panic", contract.All)
+		}`
+	ctrB := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(srcB), &compiler.Options{
+		Name:               "contractB",
+		NoEventsCheck:      true,
+		NoPermissionsCheck: true,
+		Permissions: []manifest.Permission{
+			{
+				Methods: manifest.WildStrings{Value: nil},
+			},
+		},
+	})
+	e.DeployContract(t, ctrB, nil)
+
+	ctrInvoker := e.NewInvoker(ctrB.Hash, e.Committee)
+	ctrInvoker.Invoke(t, stackitem.Null{}, "catch")
+}
+
+// This test is written to check https://github.com/neo-project/neo/pull/2745#discussion_r879125733.
+func TestRET_after_FINALLY_CallNonVoidAfterVoidMethod(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	// Contract A has two methods. One of them has no return value, and the other has it.
+	srcA := `package contractA
+		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		func NoRet() {
+			runtime.Notify("no ret")
+		}
+		func HasRet() int {
+			runtime.Notify("ret")
+			return 5
+		}`
+	ctrA := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(srcA), &compiler.Options{
+		NoEventsCheck:      true,
+		NoPermissionsCheck: true,
+		Name:               "contractA",
+	})
+	e.DeployContract(t, ctrA, nil)
+
+	var hashAStr string
+	for i := 0; i < util.Uint160Size; i++ {
+		hashAStr += fmt.Sprintf("%#x", ctrA.Hash[i])
+		if i != util.Uint160Size-1 {
+			hashAStr += ", "
+		}
+	}
+	// Contract B calls A in try-catch block.
+	srcB := `package contractB
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop"
+			"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+			"github.com/nspcc-dev/neo-go/pkg/interop/util"
+		)
+		func CallAInTryCatch() {
+			defer func() {
+				if r := recover(); r != nil {
+					util.Abort() // should never happen
+				}
+			}()
+			contract.Call(interop.Hash160{` + hashAStr + `}, "noRet", contract.All)
+			contract.Call(interop.Hash160{` + hashAStr + `}, "hasRet", contract.All)
+		}`
+	ctrB := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(srcB), &compiler.Options{
+		Name:               "contractB",
+		NoEventsCheck:      true,
+		NoPermissionsCheck: true,
+		Permissions: []manifest.Permission{
+			{
+				Methods: manifest.WildStrings{Value: nil},
+			},
+		},
+	})
+	e.DeployContract(t, ctrB, nil)
+
+	ctrInvoker := e.NewInvoker(ctrB.Hash, e.Committee)
+	h := ctrInvoker.Invoke(t, stackitem.Null{}, "callAInTryCatch")
+	aer := e.GetTxExecResult(t, h)
+
+	require.Equal(t, 1, len(aer.Stack))
+}
+
+// This test is created to check https://github.com/neo-project/neo/pull/2755#discussion_r880087983.
+func TestCALLL_from_VoidContext(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	// Contract A has void method `CallHasRet` which calls non-void method `HasRet`.
+	srcA := `package contractA
+		func CallHasRet() { // Creates a context with non-nil onUnload.
+			HasRet()
+		}
+		func HasRet() int { // CALL_L clones parent context, check that onUnload is not cloned.
+			return 5
+		}`
+	ctrA := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(srcA), &compiler.Options{
+		NoEventsCheck:      true,
+		NoPermissionsCheck: true,
+		Name:               "contractA",
+	})
+	e.DeployContract(t, ctrA, nil)
+
+	ctrInvoker := e.NewInvoker(ctrA.Hash, e.Committee)
+	ctrInvoker.Invoke(t, stackitem.Null{}, "callHasRet")
+}

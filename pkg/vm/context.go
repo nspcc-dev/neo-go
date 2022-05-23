@@ -63,7 +63,13 @@ type Context struct {
 	// isWrapped tells whether the context's DAO was wrapped into another layer of
 	// MemCachedStore on creation and whether it should be unwrapped on context unloading.
 	isWrapped bool
+	// onUnload is a callback that should be called after current context unloading
+	// if no exception occurs.
+	onUnload ContextUnloadCallback
 }
+
+// ContextUnloadCallback is a callback method used on context unloading from istack.
+type ContextUnloadCallback func(parentEstack *Stack)
 
 var errNoInstParam = errors.New("failed to read instruction parameter")
 
