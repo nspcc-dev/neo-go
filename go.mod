@@ -10,7 +10,7 @@ require (
 	github.com/holiman/uint256 v1.2.0
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mr-tron/base58 v1.2.0
-	github.com/nspcc-dev/dbft v0.0.0-20220414131237-e497bbf7868e
+	github.com/nspcc-dev/dbft v0.0.0-20220523093034-c35adf004e6f
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20220111165707-25110be27d22
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20220523110142-d8f7d5d5b67c
 	github.com/nspcc-dev/neofs-sdk-go v0.0.0-20220113123743-7f3162110659
