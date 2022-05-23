@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -190,12 +189,8 @@ func TestLedger_GetTransactionSigners(t *testing.T) {
 			Account: c.CommitteeHash,
 			Scopes:  transaction.Global,
 		}
-		bw := io.NewBufBinWriter()
-		s.EncodeBinary(bw.BinWriter)
-		require.NoError(t, bw.Err)
 		expected := stackitem.NewArray([]stackitem.Item{
 			stackitem.NewArray([]stackitem.Item{
-				stackitem.NewByteArray(bw.Bytes()),
 				stackitem.NewByteArray(s.Account.BytesBE()),
 				stackitem.NewBigInteger(big.NewInt(int64(s.Scopes))),
 				stackitem.NewArray([]stackitem.Item{}),

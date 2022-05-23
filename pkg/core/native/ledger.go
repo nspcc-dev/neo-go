@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -261,12 +260,7 @@ func TransactionToStackItem(t *transaction.Transaction) stackitem.Item {
 // SignersToStackItem converts transaction.Signers to stackitem.Item.
 func SignersToStackItem(signers []transaction.Signer) stackitem.Item {
 	res := make([]stackitem.Item, len(signers))
-	bw := io.NewBufBinWriter()
 	for i, s := range signers {
-		s.EncodeBinary(bw.BinWriter)
-		if bw.Err != nil {
-			panic(fmt.Errorf("failed to serialize signer %d to stackitem: %w", i, bw.Err))
-		}
 		contracts := make([]stackitem.Item, len(s.AllowedContracts))
 		for j, c := range s.AllowedContracts {
 			contracts[j] = stackitem.NewByteArray(c.BytesBE())
@@ -280,14 +274,12 @@ func SignersToStackItem(signers []transaction.Signer) stackitem.Item {
 			rules[j] = r.ToStackItem()
 		}
 		res[i] = stackitem.NewArray([]stackitem.Item{
-			stackitem.NewByteArray(bw.Bytes()),
 			stackitem.NewByteArray(s.Account.BytesBE()),
 			stackitem.NewBigInteger(big.NewInt(int64(s.Scopes))),
 			stackitem.NewArray(contracts),
 			stackitem.NewArray(groups),
 			stackitem.NewArray(rules),
 		})
-		bw.Reset()
 	}
 	return stackitem.NewArray(res)
 }
