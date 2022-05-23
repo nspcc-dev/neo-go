@@ -357,9 +357,9 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 	ctx.scriptHash = hash
 	ctx.callingScriptHash = caller
 	ctx.NEF = exe
+	parent := v.Context()
 	if v.invTree != nil {
 		curTree := v.invTree
-		parent := v.Context()
 		if parent != nil {
 			curTree = parent.invTree
 		}
@@ -368,9 +368,22 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 		ctx.invTree = newTree
 	}
 	if v.wrapDao != nil {
-		v.wrapDao()
-		ctx.isWrapped = true
+		needWrap := f&(callflag.All^callflag.ReadOnly) != 0 // If the method is safe, then it's read-only and doesn't perform storage changes or emit notifications.
+		if !needWrap && parent != nil {                     // If the method is not wrapped into try-catch block, then changes should be discarded anyway if exception occurs.
+			for i := 0; i < parent.tryStack.Len(); i++ {
+				eCtx := parent.tryStack.Peek(i).Value().(*exceptionHandlingContext)
+				if eCtx.State == eTry {
+					needWrap = true // TODO: is it correct to wrap it only once and break after the first occurrence?
+					break
+				}
+			}
+		}
+		if needWrap {
+			v.wrapDao()
+			ctx.isWrapped = true
+		}
 	}
+	ctx.persistNotificationsCountOnUnloading = true
 	v.istack.PushItem(ctx)
 }
 
@@ -1621,7 +1634,7 @@ func (v *VM) unloadContext(ctx *Context) {
 	if ctx.static != nil && (currCtx == nil || ctx.static != currCtx.static) {
 		ctx.static.ClearRefs(&v.refs)
 	}
-	if currCtx == nil || ctx.isWrapped { // In case of CALL, CALLA, CALLL we don't need to commit/discard changes, unwrap DAO and change notificationsCount.
+	if ctx.isWrapped { // In case of CALL, CALLA, CALLL we don't need to commit/discard changes, unwrap DAO and change notificationsCount.
 		if v.uncaughtException == nil {
 			if v.commitChanges != nil {
 				if err := v.commitChanges(); err != nil {
@@ -1629,14 +1642,14 @@ func (v *VM) unloadContext(ctx *Context) {
 					panic(fmt.Errorf("failed to commit changes: %w", err))
 				}
 			}
-			if currCtx != nil {
-				*currCtx.notificationsCount += *ctx.notificationsCount
-			}
 		} else {
 			if v.revertChanges != nil {
 				v.revertChanges(*ctx.notificationsCount)
 			}
 		}
+	}
+	if currCtx != nil && ctx.persistNotificationsCountOnUnloading && !(ctx.isWrapped && v.uncaughtException != nil) {
+		*currCtx.notificationsCount += *ctx.notificationsCount
 	}
 }
 
@@ -1699,6 +1712,7 @@ func (v *VM) call(ctx *Context, offset int) {
 	// unloadContext without unnecessary DAO unwrapping and notificationsCount changes.
 	newCtx.notificationsCount = ctx.notificationsCount
 	newCtx.isWrapped = false
+	newCtx.persistNotificationsCountOnUnloading = false
 	v.istack.PushItem(newCtx)
 	newCtx.Jump(offset)
 }

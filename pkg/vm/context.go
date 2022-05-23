@@ -57,6 +57,9 @@ type Context struct {
 	// notificationsCount stores number of notifications emitted during current context
 	// handling.
 	notificationsCount *int
+	// persistNotificationsCountOnUnloading denotes whether notificationsCount should be
+	// persisted to the parent context on current context unloading.
+	persistNotificationsCountOnUnloading bool
 	// isWrapped tells whether the context's DAO was wrapped into another layer of
 	// MemCachedStore on creation and whether it should be unwrapped on context unloading.
 	isWrapped bool
