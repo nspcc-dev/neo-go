@@ -324,29 +324,27 @@ func (ic *Context) SpawnVM() *vm.VM {
 		}
 		ic.DAO = ic.DAO.GetPrivate()
 	}
-	committer := func() error {
+	unwrapper := func(commit bool, ntfToRemove int) error {
+		if !commit {
+			have := len(ic.Notifications)
+			if have < ntfToRemove {
+				panic(fmt.Errorf("inconsistent notifications count: should remove %d, have %d", ntfToRemove, len(ic.Notifications)))
+			}
+			ic.Notifications = ic.Notifications[:have-ntfToRemove]
+		}
 		if ic.DAO == nil {
 			return nil
 		}
-		_, err := ic.DAO.Persist()
-		if err != nil {
-			return fmt.Errorf("failed to persist changes %w", err)
+		if commit {
+			_, err := ic.DAO.Persist()
+			if err != nil {
+				return fmt.Errorf("failed to persist changes %w", err)
+			}
 		}
 		ic.DAO = ic.DAO.GetUnwrapped()
 		return nil
 	}
-	reverter := func(ntfToRemove int) {
-		have := len(ic.Notifications)
-		if have < ntfToRemove {
-			panic(fmt.Errorf("inconsistent notifications count: should remove %d, have %d", ntfToRemove, len(ic.Notifications)))
-		}
-		ic.Notifications = ic.Notifications[:have-ntfToRemove]
-		if ic.DAO == nil {
-			return
-		}
-		ic.DAO = ic.DAO.GetUnwrapped() // Discard all changes made in this layer.
-	}
-	v.SetIsolationCallbacks(wrapper, committer, reverter)
+	v.SetIsolationCallbacks(wrapper, unwrapper)
 	ic.VM = v
 	return v
 }

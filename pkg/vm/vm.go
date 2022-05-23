@@ -69,10 +69,8 @@ type VM struct {
 
 	// wraps DAO with private MemCachedStore
 	wrapDao func()
-	// commits DAO changes and unwraps DAO.
-	commitChanges func() error
-	// unwraps DAO and removes last notificationsCount notifications from the context
-	revertChanges func(notificationsCount int)
+	// either commits or discards changes made in the current context; performs DAO unwrapping.
+	unwrapDAO func(commit bool, notificationsCount int) error
 
 	istack Stack  // invocation stack.
 	estack *Stack // execution stack.
@@ -136,10 +134,9 @@ func (v *VM) EmitNotification() {
 // wrapper performs DAO cloning;
 // committer persists changes made in the upper snapshot to the underlying DAO;
 // reverter rolls back the whole set of changes made in the current snapshot.
-func (v *VM) SetIsolationCallbacks(wrapper func(), committer func() error, reverter func(ntfToRemove int)) {
+func (v *VM) SetIsolationCallbacks(wrapper func(), unwrapper func(commit bool, notificationsCount int) error) {
 	v.wrapDao = wrapper
-	v.commitChanges = committer
-	v.revertChanges = reverter
+	v.unwrapDAO = unwrapper
 }
 
 // SetPriceGetter registers the given PriceGetterFunc in v.
@@ -1635,18 +1632,10 @@ func (v *VM) unloadContext(ctx *Context) {
 	if ctx.static != nil && (currCtx == nil || ctx.static != currCtx.static) {
 		ctx.static.ClearRefs(&v.refs)
 	}
-	if ctx.isWrapped { // In case of CALL, CALLA, CALLL we don't need to commit/discard changes, unwrap DAO and change notificationsCount.
-		if v.uncaughtException == nil {
-			if v.commitChanges != nil {
-				if err := v.commitChanges(); err != nil {
-					// TODO: return an error instead?
-					panic(fmt.Errorf("failed to commit changes: %w", err))
-				}
-			}
-		} else {
-			if v.revertChanges != nil {
-				v.revertChanges(*ctx.notificationsCount)
-			}
+	if ctx.isWrapped && v.unwrapDAO != nil { // In case of CALL, CALLA, CALLL we don't need to commit/discard changes, unwrap DAO and change notificationsCount.
+		err := v.unwrapDAO(v.uncaughtException == nil, *ctx.notificationsCount)
+		if err != nil {
+			panic(fmt.Errorf("failed to unwrap DAO: %w", err))
 		}
 	}
 	if currCtx != nil && ctx.persistNotificationsCountOnUnloading && !(ctx.isWrapped && v.uncaughtException != nil) {
