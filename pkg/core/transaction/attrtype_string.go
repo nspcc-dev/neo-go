@@ -10,9 +10,9 @@ func _() {
 	var x [1]struct{}
 	_ = x[HighPriority-1]
 	_ = x[OracleResponseT-17]
-	_ = x[NotValidBeforeT-224]
-	_ = x[ConflictsT-225]
-	_ = x[NotaryAssistedT-226]
+	_ = x[NotValidBeforeT-32]
+	_ = x[ConflictsT-33]
+	_ = x[NotaryAssistedT-34]
 }
 
 const (
@@ -31,8 +31,8 @@ func (i AttrType) String() string {
 		return _AttrType_name_0
 	case i == 17:
 		return _AttrType_name_1
-	case 224 <= i && i <= 226:
-		i -= 224
+	case 32 <= i && i <= 34:
+		i -= 32
 		return _AttrType_name_2[_AttrType_index_2[i]:_AttrType_index_2[i+1]]
 	default:
 		return "AttrType(" + strconv.FormatInt(int64(i), 10) + ")"
