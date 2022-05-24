@@ -15,6 +15,8 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
@@ -467,4 +469,37 @@ func TestWS_RequestAfterClose(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(), "connection lost before registering response channel"))
+}
+
+func TestWSClient_ConnClosedError(t *testing.T) {
+	srv := initTestServer(t, "")
+
+	t.Run("standard closing", func(t *testing.T) {
+		c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+		require.NoError(t, err)
+
+		c.Close()
+
+		err = c.GetError()
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "use of closed network connection"))
+	})
+
+	t.Run("malformed request", func(t *testing.T) {
+		c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+		require.NoError(t, err)
+
+		defaultMaxBlockSize := 262144
+		_, err = c.SubmitP2PNotaryRequest(&payload.P2PNotaryRequest{
+			MainTransaction: &transaction.Transaction{
+				Script: make([]byte, defaultMaxBlockSize*3),
+			},
+			FallbackTransaction: &transaction.Transaction{},
+		})
+		require.Error(t, err)
+
+		err = c.GetError()
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "failed to read JSON response (timeout/connection loss/malformed response)"), err.Error())
+	})
 }
