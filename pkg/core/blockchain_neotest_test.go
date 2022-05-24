@@ -25,13 +25,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeprices"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/interop/native/roles"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
@@ -1454,7 +1454,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				keys = append(keys, p.Bytes())
 			}
 			designateSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-				int64(roles.Oracle), keys)
+				int64(noderoles.Oracle), keys)
 
 			t.Run("Valid", func(t *testing.T) {
 				tx := getOracleTx(t)
@@ -1671,7 +1671,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			notary, err := wallet.NewAccount()
 			require.NoError(t, err)
 			designateSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-				int64(roles.P2PNotary), []interface{}{notary.PrivateKey().PublicKey().Bytes()})
+				int64(noderoles.P2PNotary), []interface{}{notary.PrivateKey().PublicKey().Bytes()})
 			txSetNotary := transaction.New([]byte{byte(opcode.RET)}, 0)
 			txSetNotary.Signers = []transaction.Signer{
 				{

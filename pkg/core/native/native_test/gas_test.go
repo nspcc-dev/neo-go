@@ -6,9 +6,9 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/interop/native/roles"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -85,7 +85,7 @@ func TestGAS_RewardWithP2PSigExtensionsEnabled(t *testing.T) {
 		require.NoError(t, err)
 		notaryNodesPublicKeys[i] = notaryNodes[i].PublicKey().Bytes()
 	}
-	e.CommitteeInvoker(e.NativeHash(t, nativenames.Designation)).Invoke(t, stackitem.Null{}, "designateAsRole", int(roles.P2PNotary), notaryNodesPublicKeys)
+	e.CommitteeInvoker(e.NativeHash(t, nativenames.Designation)).Invoke(t, stackitem.Null{}, "designateAsRole", int(noderoles.P2PNotary), notaryNodesPublicKeys)
 	for _, notaryNode := range notaryNodes {
 		e.CheckGASBalance(t, notaryNode.GetScriptHash(), big.NewInt(0))
 	}
