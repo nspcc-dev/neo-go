@@ -270,6 +270,10 @@ func initBasicChain(t *testing.T, e *neotest.Executor) {
 	bw.Reset()
 	txSendRaw.EncodeBinary(bw.BinWriter)
 	t.Logf("sendrawtransaction: \n\tbase64: %s\n\tHash LE: %s", base64.StdEncoding.EncodeToString(bw.Bytes()), txSendRaw.Hash().StringLE())
+
+	sr20, err := e.Chain.GetStateModule().GetStateRoot(20)
+	require.NoError(t, err)
+	t.Logf("Block #20 stateroot LE: %s", sr20.Root.StringLE())
 }
 
 func newDeployTx(t *testing.T, e *neotest.Executor, sender neotest.Signer, sourcePath, configPath string, deploy bool) (util.Uint256, util.Uint160) {
