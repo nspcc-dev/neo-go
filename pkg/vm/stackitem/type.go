@@ -45,7 +45,7 @@ func (t Type) String() string {
 	case MapT:
 		return "Map"
 	case InteropT:
-		return "Interop"
+		return "InteropInterface"
 	default:
 		return "INVALID"
 	}
@@ -82,7 +82,7 @@ func FromString(s string) (Type, error) {
 		return StructT, nil
 	case "Map":
 		return MapT, nil
-	case "Interop":
+	case "InteropInterface":
 		return InteropT, nil
 	default:
 		return 0xFF, ErrInvalidType
