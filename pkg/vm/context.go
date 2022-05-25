@@ -54,41 +54,28 @@ type Context struct {
 	NEF *nef.File
 	// invTree is an invocation tree (or branch of it) for this context.
 	invTree *InvocationTree
-	// notificationsCount stores number of notifications emitted during current context
-	// handling.
-	notificationsCount *int
-	// persistNotificationsCountOnUnloading denotes whether notificationsCount should be
-	// persisted to the parent context on current context unloading.
-	persistNotificationsCountOnUnloading bool
-	// isWrapped tells whether the context's DAO was wrapped into another layer of
-	// MemCachedStore on creation and whether it should be unwrapped on context unloading.
-	isWrapped bool
 	// onUnload is a callback that should be called after current context unloading
 	// if no exception occurs.
 	onUnload ContextUnloadCallback
 }
 
 // ContextUnloadCallback is a callback method used on context unloading from istack.
-type ContextUnloadCallback func(parentEstack *Stack)
+type ContextUnloadCallback func(commit bool) error
 
 var errNoInstParam = errors.New("failed to read instruction parameter")
 
 // NewContext returns a new Context object.
 func NewContext(b []byte) *Context {
-	return NewContextWithParams(b, -1, 0, nil)
+	return NewContextWithParams(b, -1, 0)
 }
 
 // NewContextWithParams creates new Context objects using script, parameter count,
 // return value count and initial position in script.
-func NewContextWithParams(b []byte, rvcount int, pos int, notificationsCount *int) *Context {
-	if notificationsCount == nil {
-		notificationsCount = new(int)
-	}
+func NewContextWithParams(b []byte, rvcount int, pos int) *Context {
 	return &Context{
-		prog:               b,
-		retCount:           rvcount,
-		nextip:             pos,
-		notificationsCount: notificationsCount,
+		prog:     b,
+		retCount: rvcount,
+		nextip:   pos,
 	}
 }
 
@@ -334,4 +321,14 @@ func (v *VM) PushContextScriptHash(n int) error {
 	h := v.getContextScriptHash(n)
 	v.Estack().PushItem(stackitem.NewByteArray(h.BytesBE()))
 	return nil
+}
+
+func (c *Context) HasTryBlock() bool {
+	for i := 0; i < c.tryStack.Len(); i++ {
+		eCtx := c.tryStack.Peek(i).Value().(*exceptionHandlingContext)
+		if eCtx.State == eTry {
+			return true
+		}
+	}
+	return false
 }

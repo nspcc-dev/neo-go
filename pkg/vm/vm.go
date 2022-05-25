@@ -67,11 +67,6 @@ type VM struct {
 	// callback to get interop price
 	getPrice func(opcode.Opcode, []byte) int64
 
-	// wraps DAO with private MemCachedStore
-	wrapDao func()
-	// either commits or discards changes made in the current context; performs DAO unwrapping.
-	unwrapDAO func(commit bool, notificationsCount int) error
-
 	istack Stack  // invocation stack.
 	estack *Stack // execution stack.
 
@@ -119,24 +114,6 @@ func NewWithTrigger(t trigger.Type) *VM {
 	vm.istack.elems = make([]Element, 0, 8) // Most of invocations use one-two contracts, but they're likely to have internal calls.
 	vm.estack = newStack("evaluation", &vm.refs)
 	return vm
-}
-
-func (v *VM) EmitNotification() {
-	currCtx := v.Context()
-	if currCtx == nil {
-		return
-	}
-	*currCtx.notificationsCount++
-}
-
-// SetIsolationCallbacks registers given callbacks to perform DAO and interop context
-// isolation between contract calls.
-// wrapper performs DAO cloning;
-// committer persists changes made in the upper snapshot to the underlying DAO;
-// reverter rolls back the whole set of changes made in the current snapshot.
-func (v *VM) SetIsolationCallbacks(wrapper func(), unwrapper func(commit bool, notificationsCount int) error) {
-	v.wrapDao = wrapper
-	v.unwrapDAO = unwrapper
 }
 
 // SetPriceGetter registers the given PriceGetterFunc in v.
@@ -343,7 +320,7 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 	var sl slot
 
 	v.checkInvocationStackSize()
-	ctx := NewContextWithParams(b, rvcount, offset, nil)
+	ctx := NewContextWithParams(b, rvcount, offset)
 	if rvcount != -1 || v.estack.Len() != 0 {
 		v.estack = newStack("evaluation", &v.refs)
 	}
@@ -354,9 +331,9 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 	ctx.scriptHash = hash
 	ctx.callingScriptHash = caller
 	ctx.NEF = exe
-	parent := v.Context()
 	if v.invTree != nil {
 		curTree := v.invTree
+		parent := v.Context()
 		if parent != nil {
 			curTree = parent.invTree
 		}
@@ -364,23 +341,6 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 		curTree.Calls = append(curTree.Calls, newTree)
 		ctx.invTree = newTree
 	}
-	if v.wrapDao != nil {
-		needWrap := f&(callflag.All^callflag.ReadOnly) != 0 // If the method is safe, then it's read-only and doesn't perform storage changes or emit notifications.
-		if !needWrap && parent != nil {                     // If the method is not wrapped into try-catch block, then changes should be discarded anyway if exception occurs.
-			for i := 0; i < parent.tryStack.Len(); i++ {
-				eCtx := parent.tryStack.Peek(i).Value().(*exceptionHandlingContext)
-				if eCtx.State == eTry {
-					needWrap = true // TODO: is it correct to wrap it only once and break after the first occurrence?
-					break
-				}
-			}
-		}
-		if needWrap {
-			v.wrapDao()
-			ctx.isWrapped = true
-		}
-	}
-	ctx.persistNotificationsCountOnUnloading = true
 	ctx.onUnload = onContextUnload
 	v.istack.PushItem(ctx)
 }
@@ -1632,20 +1592,11 @@ func (v *VM) unloadContext(ctx *Context) {
 	if ctx.static != nil && (currCtx == nil || ctx.static != currCtx.static) {
 		ctx.static.ClearRefs(&v.refs)
 	}
-	if ctx.isWrapped && v.unwrapDAO != nil { // In case of CALL, CALLA, CALLL we don't need to commit/discard changes, unwrap DAO and change notificationsCount.
-		err := v.unwrapDAO(v.uncaughtException == nil, *ctx.notificationsCount)
+	if ctx.onUnload != nil {
+		err := ctx.onUnload(v.uncaughtException == nil)
 		if err != nil {
-			panic(fmt.Errorf("failed to unwrap DAO: %w", err))
+			panic(fmt.Errorf("context unload callback failed: %w", err))
 		}
-	}
-	if currCtx != nil && ctx.persistNotificationsCountOnUnloading && !(ctx.isWrapped && v.uncaughtException != nil) {
-		*currCtx.notificationsCount += *ctx.notificationsCount
-	}
-	if currCtx != nil && ctx.onUnload != nil {
-		if v.uncaughtException == nil {
-			ctx.onUnload(currCtx.Estack()) // Use the estack of current context.
-		}
-		ctx.onUnload = nil
 	}
 }
 
@@ -1703,12 +1654,7 @@ func (v *VM) call(ctx *Context, offset int) {
 	newCtx.tryStack.elems = nil
 	initStack(&newCtx.tryStack, "exception", nil)
 	newCtx.NEF = ctx.NEF
-	// Use exactly the same counter and don't use v.wrapDao() for this context.
-	// Unloading of such unwrapped context will be properly handled inside
-	// unloadContext without unnecessary DAO unwrapping and notificationsCount changes.
-	newCtx.notificationsCount = ctx.notificationsCount
-	newCtx.isWrapped = false
-	newCtx.persistNotificationsCountOnUnloading = false
+	// Do not clone unloading callback, new context does not require any actions to perform on unloading.
 	newCtx.onUnload = nil
 	v.istack.PushItem(newCtx)
 	newCtx.Jump(offset)

@@ -318,33 +318,6 @@ func (ic *Context) SpawnVM() *vm.VM {
 	v := vm.NewWithTrigger(ic.Trigger)
 	v.GasLimit = -1
 	v.SyscallHandler = ic.SyscallHandler
-	wrapper := func() {
-		if ic.DAO == nil {
-			return
-		}
-		ic.DAO = ic.DAO.GetPrivate()
-	}
-	unwrapper := func(commit bool, ntfToRemove int) error {
-		if !commit {
-			have := len(ic.Notifications)
-			if have < ntfToRemove {
-				panic(fmt.Errorf("inconsistent notifications count: should remove %d, have %d", ntfToRemove, len(ic.Notifications)))
-			}
-			ic.Notifications = ic.Notifications[:have-ntfToRemove]
-		}
-		if ic.DAO == nil {
-			return nil
-		}
-		if commit {
-			_, err := ic.DAO.Persist()
-			if err != nil {
-				return fmt.Errorf("failed to persist changes %w", err)
-			}
-		}
-		ic.DAO = ic.DAO.GetUnwrapped()
-		return nil
-	}
-	v.SetIsolationCallbacks(wrapper, unwrapper)
 	ic.VM = v
 	return v
 }
@@ -415,5 +388,4 @@ func (ic *Context) AddNotification(hash util.Uint160, name string, item *stackit
 		Name:       name,
 		Item:       item,
 	})
-	ic.VM.EmitNotification()
 }

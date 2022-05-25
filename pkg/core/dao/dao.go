@@ -89,11 +89,6 @@ func (dao *Simple) GetWrapped() *Simple {
 	return d
 }
 
-// GetUnwrapped returns the underlying DAO. It does not perform changes persist.
-func (dao *Simple) GetUnwrapped() *Simple {
-	return dao.nativeCachePS
-}
-
 // GetPrivate returns a new DAO instance with another layer of private
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetPrivate() *Simple {

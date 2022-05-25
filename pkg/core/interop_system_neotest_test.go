@@ -456,6 +456,59 @@ func TestSnapshotIsolation_Exceptions(t *testing.T) {
 	require.Equal(t, nNtfBBeforePanic+nNtfBAfterPanic, len(aer.Events))
 }
 
+// This test is written to test nested calls with try-catch block and proper notifications handling.
+func TestSnapshotIsolation_NestedContextException(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	srcA := `package contractA
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+			"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		)
+		func CallA() {
+			runtime.Notify("Calling A")
+			contract.Call(runtime.GetExecutingScriptHash(), "a", contract.All)
+			runtime.Notify("Finish")
+		}
+		func A() {
+			defer func() {
+				if r := recover(); r != nil {
+					runtime.Notify("Caught")
+				}
+			}()
+			runtime.Notify("A")
+			contract.Call(runtime.GetExecutingScriptHash(), "b", contract.All)
+			runtime.Notify("Unreachable A")
+		}
+		func B() int {
+			runtime.Notify("B")
+			contract.Call(runtime.GetExecutingScriptHash(), "c", contract.All)
+			runtime.Notify("Unreachable B")
+			return 5
+		}
+		func C() {
+			runtime.Notify("C")
+			panic("exception from C")
+		}`
+	ctrA := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(srcA), &compiler.Options{
+		NoEventsCheck:      true,
+		NoPermissionsCheck: true,
+		Name:               "contractA",
+		Permissions:        []manifest.Permission{{Methods: manifest.WildStrings{Value: nil}}},
+	})
+	e.DeployContract(t, ctrA, nil)
+
+	ctrInvoker := e.NewInvoker(ctrA.Hash, e.Committee)
+	h := ctrInvoker.Invoke(t, stackitem.Null{}, "callA")
+	aer := e.GetTxExecResult(t, h)
+	require.Equal(t, 4, len(aer.Events))
+	require.Equal(t, "Calling A", aer.Events[0].Name)
+	require.Equal(t, "A", aer.Events[1].Name)
+	require.Equal(t, "Caught", aer.Events[2].Name)
+	require.Equal(t, "Finish", aer.Events[3].Name)
+}
+
 // This test is written to avoid https://github.com/neo-project/neo/issues/2746.
 func TestSnapshotIsolation_CallToItself(t *testing.T) {
 	bc, acc := chain.NewSingle(t)
