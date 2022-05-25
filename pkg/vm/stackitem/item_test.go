@@ -126,7 +126,7 @@ var stringerTestCases = []struct {
 	},
 	{
 		input:  NewInterop(nil),
-		result: "Interop",
+		result: "InteropInterface",
 	},
 	{
 		input:  NewPointer(0, nil),

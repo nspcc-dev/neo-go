@@ -235,7 +235,7 @@ func TestToJSONWithTypes(t *testing.T) {
 			`{"type":"Map","value":[{"key":{"type":"Integer","value":"42"},` +
 				`"value":{"type":"Boolean","value":false}}]}`},
 		{"Interop", NewInterop(nil),
-			`{"type":"Interop"}`},
+			`{"type":"InteropInterface"}`},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -385,7 +385,7 @@ func TestFromJSONWithTypes(t *testing.T) {
 		item Item
 	}{
 		{"Pointer", `{"type":"Pointer","value":3}`, NewPointer(3, nil)},
-		{"Interop", `{"type":"Interop"}`, NewInterop(nil)},
+		{"Interop", `{"type":"InteropInterface"}`, NewInterop(nil)},
 		{"Null", `{"type":"Any"}`, Null{}},
 		{"Array", `{"type":"Array","value":[{"type":"Any"}]}`, NewArray([]Item{Null{}})},
 	}

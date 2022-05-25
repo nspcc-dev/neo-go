@@ -299,7 +299,7 @@ func toJSONWithTypes(data []byte, item Item, seen map[Item]sliceNoPointer) ([]by
 	case Null:
 		val = `{"type":"Any"}`
 	case *Interop:
-		val = `{"type":"Interop"}`
+		val = `{"type":"InteropInterface"}`
 	default:
 		val = `{"type":"` + item.Type().String() + `","value":`
 		hasValue = true

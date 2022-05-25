@@ -910,7 +910,7 @@ func (i *Interop) Value() interface{} {
 
 // String implements stringer interface.
 func (i *Interop) String() string {
-	return "Interop"
+	return "InteropInterface"
 }
 
 // Dup implements the Item interface.
