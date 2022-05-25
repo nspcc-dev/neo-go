@@ -40,6 +40,7 @@ func TestInvoke_MarshalJSON(t *testing.T) {
 			{"type":"Integer","value":"1"}
 		],
 		"notifications":[],
+		"exception": null,
 		"tx":"` + base64.StdEncoding.EncodeToString(tx.Bytes()) + `"
 }`
 	require.JSONEq(t, expected, string(data))

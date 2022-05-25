@@ -66,7 +66,7 @@ type invokeAux struct {
 	GasConsumed    int64                     `json:"gasconsumed,string"`
 	Script         []byte                    `json:"script"`
 	Stack          json.RawMessage           `json:"stack"`
-	FaultException string                    `json:"exception,omitempty"`
+	FaultException *string                   `json:"exception"`
 	Notifications  []state.NotificationEvent `json:"notifications"`
 	Transaction    []byte                    `json:"tx,omitempty"`
 	Diagnostics    *InvokeDiag               `json:"diagnostics,omitempty"`
@@ -145,16 +145,19 @@ arrloop:
 	if r.Transaction != nil {
 		txbytes = r.Transaction.Bytes()
 	}
-	return json.Marshal(&invokeAux{
-		GasConsumed:    r.GasConsumed,
-		Script:         r.Script,
-		State:          r.State,
-		Stack:          st,
-		FaultException: r.FaultException,
-		Notifications:  r.Notifications,
-		Transaction:    txbytes,
-		Diagnostics:    r.Diagnostics,
-	})
+	aux := &invokeAux{
+		GasConsumed:   r.GasConsumed,
+		Script:        r.Script,
+		State:         r.State,
+		Stack:         st,
+		Notifications: r.Notifications,
+		Transaction:   txbytes,
+		Diagnostics:   r.Diagnostics,
+	}
+	if len(r.FaultException) != 0 {
+		aux.FaultException = &r.FaultException
+	}
+	return json.Marshal(aux)
 }
 
 // UnmarshalJSON implements the json.Unmarshaler.
@@ -207,7 +210,9 @@ func (r *Invoke) UnmarshalJSON(data []byte) error {
 	r.GasConsumed = aux.GasConsumed
 	r.Script = aux.Script
 	r.State = aux.State
-	r.FaultException = aux.FaultException
+	if aux.FaultException != nil {
+		r.FaultException = *aux.FaultException
+	}
 	r.Notifications = aux.Notifications
 	r.Transaction = tx
 	r.Diagnostics = aux.Diagnostics
