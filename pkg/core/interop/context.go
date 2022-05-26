@@ -45,26 +45,27 @@ type Ledger interface {
 
 // Context represents context in which interops are executed.
 type Context struct {
-	Chain          Ledger
-	Container      hash.Hashable
-	Network        uint32
-	Hardforks      map[string]uint32
-	Natives        []Contract
-	Trigger        trigger.Type
-	Block          *block.Block
-	NonceData      [16]byte
-	Tx             *transaction.Transaction
-	DAO            *dao.Simple
-	Notifications  []state.NotificationEvent
-	Log            *zap.Logger
-	VM             *vm.VM
-	Functions      []Function
-	Invocations    map[util.Uint160]int
-	cancelFuncs    []context.CancelFunc
-	getContract    func(*dao.Simple, util.Uint160) (*state.Contract, error)
-	baseExecFee    int64
-	baseStorageFee int64
-	signers        []transaction.Signer
+	Chain            Ledger
+	Container        hash.Hashable
+	Network          uint32
+	Hardforks        map[string]uint32
+	Natives          []Contract
+	Trigger          trigger.Type
+	Block            *block.Block
+	NonceData        [16]byte
+	Tx               *transaction.Transaction
+	DAO              *dao.Simple
+	Notifications    []state.NotificationEvent
+	Log              *zap.Logger
+	VM               *vm.VM
+	Functions        []Function
+	Invocations      map[util.Uint160]int
+	cancelFuncs      []context.CancelFunc
+	getContract      func(*dao.Simple, util.Uint160) (*state.Contract, error)
+	baseExecFee      int64
+	baseStorageFee   int64
+	GetRandomCounter uint32
+	signers          []transaction.Signer
 }
 
 // NewContext returns new interop context.

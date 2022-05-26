@@ -6,11 +6,10 @@ package config
 type Hardfork byte
 
 const (
-	// HF2712FixSyscallFees represents hard-fork introduced in #2469 (ported from
-	// https://github.com/neo-project/neo/pull/2712) changing the prices of
-	// System.Contract.CreateStandardAccount and
-	// System.Contract.CreateMultisigAccount interops.
-	HF2712FixSyscallFees Hardfork = 1 << iota // HF_2712_FixSyscallFees
+	// HFAspidochelone represents hard-fork introduced in #2469 (ported from
+	// https://github.com/neo-project/neo/pull/2712) and #2519 (ported from
+	// https://github.com/neo-project/neo/pull/2749).
+	HFAspidochelone Hardfork = 1 << iota // HF_Aspidochelone
 )
 
 // hardforks holds a map of Hardfork string representation to its type.
@@ -18,7 +17,7 @@ var hardforks map[string]Hardfork
 
 func init() {
 	hardforks = make(map[string]Hardfork)
-	for _, hf := range []Hardfork{HF2712FixSyscallFees} {
+	for _, hf := range []Hardfork{HFAspidochelone} {
 		hardforks[hf.String()] = hf
 	}
 }

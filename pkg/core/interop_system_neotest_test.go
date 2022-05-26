@@ -261,7 +261,7 @@ func TestSystemContractCreateAccount_Hardfork(t *testing.T) {
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
 		c.P2PSigExtensions = true // `initBasicChain` requires Notary enabled
 		c.Hardforks = map[string]uint32{
-			config.HF2712FixSyscallFees.String(): 2,
+			config.HFAspidochelone.String(): 2,
 		}
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)

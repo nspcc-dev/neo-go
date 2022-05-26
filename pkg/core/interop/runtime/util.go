@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -88,9 +89,26 @@ func GetNetwork(ic *interop.Context) error {
 
 // GetRandom returns pseudo-random number which depends on block nonce and transaction hash.
 func GetRandom(ic *interop.Context) error {
-	res := murmur128(ic.NonceData[:], ic.Network)
+	var (
+		price int64
+		seed  = ic.Network
+	)
+	isHF := ic.IsHardforkEnabled(config.HFAspidochelone)
+	if isHF {
+		price = 1 << 13
+		seed += ic.GetRandomCounter
+		ic.GetRandomCounter++
+	} else {
+		price = 1 << 4
+	}
+	res := murmur128(ic.NonceData[:], seed)
+	if !isHF {
+		copy(ic.NonceData[:], res)
+	}
+	if !ic.VM.AddGas(ic.BaseExecFee() * price) {
+		return errors.New("gas limit exceeded")
+	}
 	ic.VM.Estack().PushItem(stackitem.NewBigInteger(bigint.FromBytesUnsigned(res)))
-	copy(ic.NonceData[:], res)
 	return nil
 }
 

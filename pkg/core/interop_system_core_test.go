@@ -46,25 +46,26 @@ func TestRuntimeGetRandomCompatibility(t *testing.T) {
 	b := getSharpTestGenesis(t)
 	tx := getSharpTestTx(util.Uint160{})
 	ic := bc.newInteropContext(trigger.Application, bc.dao.GetWrapped(), b, tx)
-	ic.Network = 5195086 // Old mainnet magic used by C# tests.
+	ic.Network = 860833102 // Old mainnet magic used by C# tests.
 
 	ic.VM = vm.New()
 	ic.VM.LoadScript([]byte{0x01})
+	ic.VM.GasLimit = 1100_00000000
 
 	require.NoError(t, runtime.GetRandom(ic))
-	require.Equal(t, "225932872514876835587448704843370203748", ic.VM.Estack().Pop().BigInt().String())
+	require.Equal(t, "271339657438512451304577787170704246350", ic.VM.Estack().Pop().BigInt().String())
 
 	require.NoError(t, runtime.GetRandom(ic))
-	require.Equal(t, "190129535548110356450238097068474508661", ic.VM.Estack().Pop().BigInt().String())
+	require.Equal(t, "98548189559099075644778613728143131367", ic.VM.Estack().Pop().BigInt().String())
 
 	require.NoError(t, runtime.GetRandom(ic))
-	require.Equal(t, "48930406787011198493485648810190184269", ic.VM.Estack().Pop().BigInt().String())
+	require.Equal(t, "247654688993873392544380234598471205121", ic.VM.Estack().Pop().BigInt().String())
 
 	require.NoError(t, runtime.GetRandom(ic))
-	require.Equal(t, "66199389469641263539889463157823839112", ic.VM.Estack().Pop().BigInt().String())
+	require.Equal(t, "291082758879475329976578097236212073607", ic.VM.Estack().Pop().BigInt().String())
 
 	require.NoError(t, runtime.GetRandom(ic))
-	require.Equal(t, "217172703763162599519098299724476526911", ic.VM.Estack().Pop().BigInt().String())
+	require.Equal(t, "247152297361212656635216876565962360375", ic.VM.Estack().Pop().BigInt().String())
 }
 
 func getSharpTestTx(sender util.Uint160) *transaction.Transaction {
@@ -74,7 +75,8 @@ func getSharpTestTx(sender util.Uint160) *transaction.Transaction {
 		Account: sender,
 		Scopes:  transaction.CalledByEntry,
 	})
-	tx.Scripts = append(tx.Scripts, transaction.Witness{})
+	tx.Attributes = []transaction.Attribute{}
+	tx.Scripts = append(tx.Scripts, transaction.Witness{InvocationScript: []byte{}, VerificationScript: []byte{}})
 	return tx
 }
 
