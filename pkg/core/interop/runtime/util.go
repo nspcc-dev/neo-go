@@ -93,7 +93,7 @@ func GetRandom(ic *interop.Context) error {
 		price int64
 		seed  = ic.Network
 	)
-	isHF := ic.IsHardforkEnabled(config.HF2712FixSyscallFees)
+	isHF := ic.IsHardforkEnabled(config.HFAspidochelone)
 	if isHF {
 		price = 1 << 13
 		seed += ic.GetRandomCounter

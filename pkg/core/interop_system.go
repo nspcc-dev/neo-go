@@ -225,7 +225,7 @@ func contractCreateMultisigAccount(ic *interop.Context) error {
 		pubs[i] = p
 	}
 	var invokeFee int64
-	if ic.IsHardforkEnabled(config.HF2712FixSyscallFees) {
+	if ic.IsHardforkEnabled(config.HFAspidochelone) {
 		invokeFee = fee.ECDSAVerifyPrice * int64(len(pubs))
 	} else {
 		invokeFee = 1 << 8
@@ -250,7 +250,7 @@ func contractCreateStandardAccount(ic *interop.Context) error {
 		return err
 	}
 	var invokeFee int64
-	if ic.IsHardforkEnabled(config.HF2712FixSyscallFees) {
+	if ic.IsHardforkEnabled(config.HFAspidochelone) {
 		invokeFee = fee.ECDSAVerifyPrice
 	} else {
 		invokeFee = 1 << 8
