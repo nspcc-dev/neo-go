@@ -1595,7 +1595,11 @@ func (v *VM) unloadContext(ctx *Context) {
 	if ctx.onUnload != nil {
 		err := ctx.onUnload(v.uncaughtException == nil)
 		if err != nil {
-			panic(fmt.Errorf("context unload callback failed: %w", err))
+			errMessage := fmt.Sprintf("context unload callback failed: %s", err)
+			if v.uncaughtException != nil {
+				errMessage = fmt.Sprintf("%s, uncaught exception: %s", errMessage, v.uncaughtException)
+			}
+			panic(errors.New(errMessage))
 		}
 	}
 }

@@ -85,12 +85,12 @@ func callInternal(ic *interop.Context, cs *state.Contract, name string, f callfl
 			}
 		}
 	}
-	return callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, name, args, f, hasReturn, pushNullOnUnloading)
+	return callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, name, args, f, hasReturn, pushNullOnUnloading, false)
 }
 
 // callExFromNative calls a contract with flags using the provided calling hash.
 func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract,
-	name string, args []stackitem.Item, f callflag.CallFlag, hasReturn bool, pushNullOnUnloading bool) error {
+	name string, args []stackitem.Item, f callflag.CallFlag, hasReturn bool, pushNullOnUnloading bool, callFromNative bool) error {
 	for _, nc := range ic.Natives {
 		if nc.Metadata().Name == nativenames.Policy {
 			var pch = nc.(policyChecker)
@@ -140,6 +140,9 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 		if pushNullOnUnloading && commit {
 			ic.VM.Context().Estack().PushItem(stackitem.Null{}) // Must use current context stack.
 		}
+		if callFromNative && !commit {
+			return fmt.Errorf("unhandled exception")
+		}
 		return nil
 	}
 	ic.VM.LoadNEFMethod(&cs.NEF, caller, cs.Hash, f,
@@ -157,7 +160,7 @@ var ErrNativeCall = errors.New("failed native call")
 // CallFromNative performs synchronous call from native contract.
 func CallFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract, method string, args []stackitem.Item, hasReturn bool) error {
 	startSize := ic.VM.Istack().Len()
-	if err := callExFromNative(ic, caller, cs, method, args, callflag.All, hasReturn, false); err != nil {
+	if err := callExFromNative(ic, caller, cs, method, args, callflag.All, hasReturn, false, true); err != nil {
 		return err
 	}
 
