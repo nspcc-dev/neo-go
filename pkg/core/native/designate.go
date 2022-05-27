@@ -15,7 +15,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -386,14 +385,10 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 		return fmt.Errorf("failed to update Designation role data cache: %w", err)
 	}
 
-	ic.Notifications = append(ic.Notifications, state.NotificationEvent{
-		ScriptHash: s.Hash,
-		Name:       DesignationEventName,
-		Item: stackitem.NewArray([]stackitem.Item{
-			stackitem.NewBigInteger(big.NewInt(int64(r))),
-			stackitem.NewBigInteger(big.NewInt(int64(ic.Block.Index))),
-		}),
-	})
+	ic.AddNotification(s.Hash, DesignationEventName, stackitem.NewArray([]stackitem.Item{
+		stackitem.NewBigInteger(big.NewInt(int64(r))),
+		stackitem.NewBigInteger(big.NewInt(int64(ic.Block.Index))),
+	}))
 	return nil
 }
 

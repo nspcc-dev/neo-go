@@ -40,7 +40,7 @@ func LoadToken(ic *interop.Context) func(id int32) error {
 		if err != nil {
 			return fmt.Errorf("token contract %s not found: %w", tok.Hash.StringLE(), err)
 		}
-		return callInternal(ic, cs, tok.Method, tok.CallFlag, tok.HasReturn, args)
+		return callInternal(ic, cs, tok.Method, tok.CallFlag, tok.HasReturn, args, false)
 	}
 }
 
@@ -69,14 +69,11 @@ func Call(ic *interop.Context) error {
 		return fmt.Errorf("method not found: %s/%d", method, len(args))
 	}
 	hasReturn := md.ReturnType != smartcontract.VoidType
-	if !hasReturn {
-		ic.VM.Estack().PushItem(stackitem.Null{})
-	}
-	return callInternal(ic, cs, method, fs, hasReturn, args)
+	return callInternal(ic, cs, method, fs, hasReturn, args, !hasReturn)
 }
 
 func callInternal(ic *interop.Context, cs *state.Contract, name string, f callflag.CallFlag,
-	hasReturn bool, args []stackitem.Item) error {
+	hasReturn bool, args []stackitem.Item, pushNullOnUnloading bool) error {
 	md := cs.Manifest.ABI.GetMethod(name, len(args))
 	if md.Safe {
 		f &^= (callflag.WriteStates | callflag.AllowNotify)
@@ -88,12 +85,12 @@ func callInternal(ic *interop.Context, cs *state.Contract, name string, f callfl
 			}
 		}
 	}
-	return callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, name, args, f, hasReturn)
+	return callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, name, args, f, hasReturn, pushNullOnUnloading, false)
 }
 
 // callExFromNative calls a contract with flags using the provided calling hash.
 func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract,
-	name string, args []stackitem.Item, f callflag.CallFlag, hasReturn bool) error {
+	name string, args []stackitem.Item, f callflag.CallFlag, hasReturn bool, pushNullOnUnloading bool, callFromNative bool) error {
 	for _, nc := range ic.Natives {
 		if nc.Metadata().Name == nativenames.Policy {
 			var pch = nc.(policyChecker)
@@ -119,8 +116,37 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 		initOff = md.Offset
 	}
 	ic.Invocations[cs.Hash]++
-	ic.VM.LoadNEFMethod(&cs.NEF, caller, cs.Hash, ic.VM.Context().GetCallFlags()&f,
-		hasReturn, methodOff, initOff)
+	f = ic.VM.Context().GetCallFlags() & f
+
+	wrapped := f&(callflag.All^callflag.ReadOnly) != 0 || // If the method is safe, then it's read-only and doesn't perform storage changes or emit notifications.
+		ic.VM.Context().HasTryBlock() // If the method is not wrapped into try-catch block, then changes should be discarded anyway if exception occurs.
+	baseNtfCount := len(ic.Notifications)
+	baseDAO := ic.DAO
+	if wrapped {
+		ic.DAO = ic.DAO.GetPrivate()
+	}
+	onUnload := func(commit bool) error {
+		if wrapped {
+			if commit {
+				_, err := ic.DAO.Persist()
+				if err != nil {
+					return fmt.Errorf("failed to persist changes %w", err)
+				}
+			} else {
+				ic.Notifications = ic.Notifications[:baseNtfCount] // Rollback all notification changes made by current context.
+			}
+			ic.DAO = baseDAO
+		}
+		if pushNullOnUnloading && commit {
+			ic.VM.Context().Estack().PushItem(stackitem.Null{}) // Must use current context stack.
+		}
+		if callFromNative && !commit {
+			return fmt.Errorf("unhandled exception")
+		}
+		return nil
+	}
+	ic.VM.LoadNEFMethod(&cs.NEF, caller, cs.Hash, f,
+		hasReturn, methodOff, initOff, onUnload)
 
 	for e, i := ic.VM.Estack(), len(args)-1; i >= 0; i-- {
 		e.PushItem(args[i])
@@ -134,7 +160,7 @@ var ErrNativeCall = errors.New("failed native call")
 // CallFromNative performs synchronous call from native contract.
 func CallFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract, method string, args []stackitem.Item, hasReturn bool) error {
 	startSize := ic.VM.Istack().Len()
-	if err := callExFromNative(ic, caller, cs, method, args, callflag.All, hasReturn); err != nil {
+	if err := callExFromNative(ic, caller, cs, method, args, callflag.All, hasReturn, false, true); err != nil {
 		return err
 	}
 

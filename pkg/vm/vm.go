@@ -285,7 +285,7 @@ func (v *VM) LoadScript(b []byte) {
 
 // LoadScriptWithFlags loads script and sets call flag to f.
 func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
-	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0)
+	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, nil)
 }
 
 // LoadScriptWithHash is similar to the LoadScriptWithFlags method, but it also loads
@@ -295,19 +295,19 @@ func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 // accordingly). It's up to the user of this function to make sure the script and hash match
 // each other.
 func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f callflag.CallFlag) {
-	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), hash, f, 1, 0)
+	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), hash, f, 1, 0, nil)
 }
 
 // LoadNEFMethod allows to create a context to execute a method from the NEF
 // file with the specified caller and executing hash, call flags, return value,
 // method and _initialize offsets.
 func (v *VM) LoadNEFMethod(exe *nef.File, caller util.Uint160, hash util.Uint160, f callflag.CallFlag,
-	hasReturn bool, methodOff int, initOff int) {
+	hasReturn bool, methodOff int, initOff int, onContextUnload ContextUnloadCallback) {
 	var rvcount int
 	if hasReturn {
 		rvcount = 1
 	}
-	v.loadScriptWithCallingHash(exe.Script, exe, caller, hash, f, rvcount, methodOff)
+	v.loadScriptWithCallingHash(exe.Script, exe, caller, hash, f, rvcount, methodOff, onContextUnload)
 	if initOff >= 0 {
 		v.Call(initOff)
 	}
@@ -316,7 +316,7 @@ func (v *VM) LoadNEFMethod(exe *nef.File, caller util.Uint160, hash util.Uint160
 // loadScriptWithCallingHash is similar to LoadScriptWithHash but sets calling hash explicitly.
 // It should be used for calling from native contracts.
 func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint160,
-	hash util.Uint160, f callflag.CallFlag, rvcount int, offset int) {
+	hash util.Uint160, f callflag.CallFlag, rvcount int, offset int, onContextUnload ContextUnloadCallback) {
 	var sl slot
 
 	v.checkInvocationStackSize()
@@ -341,6 +341,7 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 		curTree.Calls = append(curTree.Calls, newTree)
 		ctx.invTree = newTree
 	}
+	ctx.onUnload = onContextUnload
 	v.istack.PushItem(ctx)
 }
 
@@ -1591,6 +1592,16 @@ func (v *VM) unloadContext(ctx *Context) {
 	if ctx.static != nil && (currCtx == nil || ctx.static != currCtx.static) {
 		ctx.static.ClearRefs(&v.refs)
 	}
+	if ctx.onUnload != nil {
+		err := ctx.onUnload(v.uncaughtException == nil)
+		if err != nil {
+			errMessage := fmt.Sprintf("context unload callback failed: %s", err)
+			if v.uncaughtException != nil {
+				errMessage = fmt.Sprintf("%s, uncaught exception: %s", errMessage, v.uncaughtException)
+			}
+			panic(errors.New(errMessage))
+		}
+	}
 }
 
 // getTryParams splits TRY(L) instruction parameter into offsets for catch and finally blocks.
@@ -1647,6 +1658,8 @@ func (v *VM) call(ctx *Context, offset int) {
 	newCtx.tryStack.elems = nil
 	initStack(&newCtx.tryStack, "exception", nil)
 	newCtx.NEF = ctx.NEF
+	// Do not clone unloading callback, new context does not require any actions to perform on unloading.
+	newCtx.onUnload = nil
 	v.istack.PushItem(newCtx)
 	newCtx.Jump(offset)
 }

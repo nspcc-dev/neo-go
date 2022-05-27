@@ -54,7 +54,13 @@ type Context struct {
 	NEF *nef.File
 	// invTree is an invocation tree (or branch of it) for this context.
 	invTree *InvocationTree
+	// onUnload is a callback that should be called after current context unloading
+	// if no exception occurs.
+	onUnload ContextUnloadCallback
 }
+
+// ContextUnloadCallback is a callback method used on context unloading from istack.
+type ContextUnloadCallback func(commit bool) error
 
 var errNoInstParam = errors.New("failed to read instruction parameter")
 
@@ -315,4 +321,14 @@ func (v *VM) PushContextScriptHash(n int) error {
 	h := v.getContextScriptHash(n)
 	v.Estack().PushItem(stackitem.NewByteArray(h.BytesBE()))
 	return nil
+}
+
+func (c *Context) HasTryBlock() bool {
+	for i := 0; i < c.tryStack.Len(); i++ {
+		eCtx := c.tryStack.Peek(i).Value().(*exceptionHandlingContext)
+		if eCtx.State == eTry {
+			return true
+		}
+	}
+	return false
 }

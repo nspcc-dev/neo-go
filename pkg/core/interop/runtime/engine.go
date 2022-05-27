@@ -6,7 +6,6 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
@@ -69,12 +68,7 @@ func Notify(ic *interop.Context) error {
 	if len(bytes) > MaxNotificationSize {
 		return fmt.Errorf("notification size shouldn't exceed %d", MaxNotificationSize)
 	}
-	ne := state.NotificationEvent{
-		ScriptHash: ic.VM.GetCurrentScriptHash(),
-		Name:       name,
-		Item:       stackitem.DeepCopy(stackitem.NewArray(args)).(*stackitem.Array),
-	}
-	ic.Notifications = append(ic.Notifications, ne)
+	ic.AddNotification(ic.VM.GetCurrentScriptHash(), name, stackitem.DeepCopy(stackitem.NewArray(args)).(*stackitem.Array))
 	return nil
 }
 

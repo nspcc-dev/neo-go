@@ -607,12 +607,7 @@ func (m *Management) getNextContractID(d *dao.Simple) (int32, error) {
 }
 
 func (m *Management) emitNotification(ic *interop.Context, name string, hash util.Uint160) {
-	ne := state.NotificationEvent{
-		ScriptHash: m.Hash,
-		Name:       name,
-		Item:       stackitem.NewArray([]stackitem.Item{addrToStackItem(&hash)}),
-	}
-	ic.Notifications = append(ic.Notifications, ne)
+	ic.AddNotification(m.Hash, name, stackitem.NewArray([]stackitem.Item{addrToStackItem(&hash)}))
 }
 
 func checkScriptAndMethods(script []byte, methods []manifest.Method) error {
