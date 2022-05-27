@@ -60,6 +60,61 @@ func TestNEO_RegisterPriceCache(t *testing.T) {
 	testGetSetCache(t, newNeoCommitteeClient(t, 100_0000_0000), "RegisterPrice", native.DefaultRegisterPrice)
 }
 
+func TestNEO_CandidateEvents(t *testing.T) {
+	c := newNativeClient(t, nativenames.Neo)
+	singleSigner := c.Signers[0].(neotest.MultiSigner).Single(0)
+	cc := c.WithSigners(c.Signers[0], singleSigner)
+	e := c.Executor
+	pkb := singleSigner.Account().PrivateKey().PublicKey().Bytes()
+
+	// Register 1 -> event
+	tx := cc.Invoke(t, true, "registerCandidate", pkb)
+	e.CheckTxNotificationEvent(t, tx, 0, state.NotificationEvent{
+		ScriptHash: c.Hash,
+		Name:       "CandidateStateChanged",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray(pkb),
+			stackitem.NewBool(true),
+			stackitem.Make(0),
+		}),
+	})
+
+	// Register 2 -> no event
+	tx = cc.Invoke(t, true, "registerCandidate", pkb)
+	aer := e.GetTxExecResult(t, tx)
+	require.Equal(t, 0, len(aer.Events))
+
+	// Vote -> event
+	tx = c.Invoke(t, true, "vote", c.Signers[0].ScriptHash().BytesBE(), pkb)
+	e.CheckTxNotificationEvent(t, tx, 0, state.NotificationEvent{
+		ScriptHash: c.Hash,
+		Name:       "Vote",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray(c.Signers[0].ScriptHash().BytesBE()),
+			stackitem.Null{},
+			stackitem.NewByteArray(pkb),
+			stackitem.Make(100000000),
+		}),
+	})
+
+	// Unregister 1 -> event
+	tx = cc.Invoke(t, true, "unregisterCandidate", pkb)
+	e.CheckTxNotificationEvent(t, tx, 0, state.NotificationEvent{
+		ScriptHash: c.Hash,
+		Name:       "CandidateStateChanged",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray(pkb),
+			stackitem.NewBool(false),
+			stackitem.Make(100000000),
+		}),
+	})
+
+	// Unregister 2 -> no event
+	tx = cc.Invoke(t, true, "unregisterCandidate", pkb)
+	aer = e.GetTxExecResult(t, tx)
+	require.Equal(t, 0, len(aer.Events))
+}
+
 func TestNEO_Vote(t *testing.T) {
 	neoCommitteeInvoker := newNeoCommitteeClient(t, 100_0000_0000)
 	neoValidatorsInvoker := neoCommitteeInvoker.WithSigners(neoCommitteeInvoker.Validator)
