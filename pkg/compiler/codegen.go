@@ -593,7 +593,6 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.AssignStmt:
 		multiRet := len(n.Rhs) != len(n.Lhs)
-		c.saveSequencePoint(n)
 		// Assign operations are grouped https://github.com/golang/go/blob/master/src/go/types/stmt.go#L160
 		isAssignOp := token.ADD_ASSIGN <= n.Tok && n.Tok <= token.AND_NOT_ASSIGN
 		if isAssignOp {
@@ -708,8 +707,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		c.processDefers()
 
-		c.saveSequencePoint(n)
 		if len(c.pkgInfoInline) == 0 {
+			c.saveSequencePoint(n)
 			emit.Opcodes(c.prog.BinWriter, opcode.RET)
 		}
 		return nil

@@ -21,6 +21,11 @@ import (
 //      <inline body of f directly>
 //   }
 func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
+	// Save sequence point for the debugger. Not having NOP can result in
+	// one instruction being used by multiple sequence points.
+	c.saveSequencePoint(n)
+	emit.Opcodes(c.prog.BinWriter, opcode.NOP)
+
 	labelSz := len(c.labelList)
 	offSz := len(c.inlineLabelOffsets)
 	c.inlineLabelOffsets = append(c.inlineLabelOffsets, labelSz)
