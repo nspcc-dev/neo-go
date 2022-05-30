@@ -5,6 +5,8 @@ package vm
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
@@ -32,6 +34,35 @@ func FuzzIsScriptCorrect(f *testing.F) {
 		require.NotPanics(t, func() {
 			_ = IsScriptCorrect(script, nil)
 		})
+	})
+}
+
+func FuzzParseMultiSigContract(f *testing.F) {
+	pubs := make(keys.PublicKeys, 10)
+	for i := range pubs {
+		p, _ := keys.NewPrivateKey()
+		pubs[i] = p.PublicKey()
+	}
+
+	s, _ := smartcontract.CreateMultiSigRedeemScript(1, pubs[:1])
+	f.Add(s)
+
+	s, _ = smartcontract.CreateMultiSigRedeemScript(3, pubs[:6])
+	f.Add(s)
+
+	s, _ = smartcontract.CreateMultiSigRedeemScript(1, pubs)
+	f.Add(s)
+
+	f.Fuzz(func(t *testing.T, script []byte) {
+		var b [][]byte
+		var ok bool
+		var n int
+		require.NotPanics(t, func() {
+			n, b, ok = ParseMultiSigContract(script)
+		})
+		if ok {
+			require.True(t, n <= len(b))
+		}
 	})
 }
 
