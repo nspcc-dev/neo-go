@@ -240,6 +240,18 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	md = newMethodAndPrice(n.setRegisterPrice, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
+	n.AddEvent("CandidateStateChanged",
+		manifest.NewParameter("pubkey", smartcontract.PublicKeyType),
+		manifest.NewParameter("registered", smartcontract.BoolType),
+		manifest.NewParameter("votes", smartcontract.IntegerType),
+	)
+	n.AddEvent("Vote",
+		manifest.NewParameter("account", smartcontract.Hash160Type),
+		manifest.NewParameter("from", smartcontract.PublicKeyType),
+		manifest.NewParameter("to", smartcontract.PublicKeyType),
+		manifest.NewParameter("amount", smartcontract.IntegerType),
+	)
+
 	return n
 }
 
@@ -733,6 +745,8 @@ func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stac
 
 // RegisterCandidateInternal registers pub as a new candidate.
 func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey) error {
+	var emitEvent = true
+
 	key := makeValidatorKey(pub)
 	si := ic.DAO.GetStorageItem(n.ID, key)
 	var c *candidate
@@ -740,9 +754,18 @@ func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey
 		c = &candidate{Registered: true}
 	} else {
 		c = new(candidate).FromBytes(si)
+		emitEvent = !c.Registered
 		c.Registered = true
 	}
-	return putConvertibleToDAO(n.ID, ic.DAO, key, c)
+	err := putConvertibleToDAO(n.ID, ic.DAO, key, c)
+	if emitEvent {
+		ic.AddNotification(n.Hash, "CandidateStateChanged", stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray(pub.Bytes()),
+			stackitem.NewBool(c.Registered),
+			stackitem.NewBigInteger(&c.Votes),
+		}))
+	}
+	return err
 }
 
 func (n *NEO) unregisterCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -759,6 +782,8 @@ func (n *NEO) unregisterCandidate(ic *interop.Context, args []stackitem.Item) st
 
 // UnregisterCandidateInternal unregisters pub as a candidate.
 func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey) error {
+	var err error
+
 	key := makeValidatorKey(pub)
 	si := ic.DAO.GetStorageItem(n.ID, key)
 	if si == nil {
@@ -767,12 +792,20 @@ func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicK
 	cache := ic.DAO.GetRWCache(n.ID).(*NeoCache)
 	cache.validators = nil
 	c := new(candidate).FromBytes(si)
+	emitEvent := c.Registered
 	c.Registered = false
 	ok := n.dropCandidateIfZero(ic.DAO, cache, pub, c)
-	if ok {
-		return nil
+	if !ok {
+		err = putConvertibleToDAO(n.ID, ic.DAO, key, c)
 	}
-	return putConvertibleToDAO(n.ID, ic.DAO, key, c)
+	if emitEvent {
+		ic.AddNotification(n.Hash, "CandidateStateChanged", stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray(pub.Bytes()),
+			stackitem.NewBool(c.Registered),
+			stackitem.NewBigInteger(&c.Votes),
+		}))
+	}
+	return err
 }
 
 func (n *NEO) vote(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -834,15 +867,31 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	if err := n.ModifyAccountVotes(acc, ic.DAO, new(big.Int).Neg(&acc.Balance), false); err != nil {
 		return err
 	}
+	oldVote := acc.VoteTo
 	acc.VoteTo = pub
 	if err := n.ModifyAccountVotes(acc, ic.DAO, &acc.Balance, true); err != nil {
 		return err
 	}
 	ic.DAO.PutStorageItem(n.ID, key, acc.Bytes())
+
+	ic.AddNotification(n.Hash, "Vote", stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray(h.BytesBE()),
+		keyToStackItem(oldVote),
+		keyToStackItem(pub),
+		stackitem.NewBigInteger(&acc.Balance),
+	}))
+
 	if newGas != nil { // Can be if it was already distributed in the same block.
 		n.GAS.mint(ic, h, newGas, true)
 	}
 	return nil
+}
+
+func keyToStackItem(k *keys.PublicKey) stackitem.Item {
+	if k == nil {
+		return stackitem.Null{}
+	}
+	return stackitem.NewByteArray(k.Bytes())
 }
 
 // ModifyAccountVotes modifies votes of the specified account by value (can be negative).
