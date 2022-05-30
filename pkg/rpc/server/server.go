@@ -301,7 +301,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 			s.writeHTTPErrorResponse(
 				request.NewIn(),
 				w,
-				response.NewInternalServerError("websocket users limit reached", nil),
+				response.NewInternalServerError("websocket users limit reached", fmt.Errorf("%d subscribers are allowed at max", maxSubscribers)),
 			)
 			return
 		}
@@ -326,7 +326,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 			request.NewIn(),
 			w,
 			response.NewInvalidParamsError(
-				fmt.Sprintf("Invalid method '%s', please retry with 'POST'", httpRequest.Method), nil,
+				fmt.Sprintf("Invalid method '%s', please retry with 'POST'", httpRequest.Method), errors.New("unsupported HTTP request method"),
 			),
 		)
 		return
@@ -370,7 +370,7 @@ func (s *Server) handleIn(req *request.In, sub *subscriber) response.Abstract {
 
 	incCounter(req.Method)
 
-	resErr = response.NewMethodNotFoundError(fmt.Sprintf("Method %q not supported", req.Method), nil)
+	resErr = response.NewMethodNotFoundError(fmt.Sprintf("Method %q not supported", req.Method), errors.New("unsupported method call"))
 	handler, ok := rpcHandlers[req.Method]
 	if ok {
 		res, resErr = handler(s, reqParams)
@@ -726,7 +726,7 @@ contract_loop:
 		if !ok {
 			cfg := s.chain.GetConfig()
 			if !cfg.P2PStateExchangeExtensions && cfg.RemoveUntraceableBlocks {
-				return nil, response.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token", cs.Hash.StringLE()), nil)
+				return nil, response.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token", cs.Hash.StringLE()), errors.New("internal database inconsistency"))
 			}
 			lub = stateSyncPoint
 		}
@@ -845,7 +845,7 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 		if !ok {
 			cfg := s.chain.GetConfig()
 			if !cfg.P2PStateExchangeExtensions && cfg.RemoveUntraceableBlocks {
-				return nil, response.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token", cs.Hash.StringLE()), nil)
+				return nil, response.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token", cs.Hash.StringLE()), errors.New("internal database inconsistency"))
 			}
 			lub = stateSyncPoint
 		}
@@ -1363,7 +1363,7 @@ func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error)
 func (s *Server) getStateRoot(ps request.Params) (interface{}, *response.Error) {
 	p := ps.Value(0)
 	if p == nil {
-		return nil, response.NewRPCError("Invalid parameter.", "", nil)
+		return nil, response.NewInvalidParamsError("Invalid parameter.", errors.New("missing stateroot identifier "))
 	}
 	var rt *state.MPTRoot
 	var h util.Uint256
@@ -1432,7 +1432,7 @@ func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *resp
 			return nil, response.NewRPCError("Failed to get application log for the transaction", err.Error(), err)
 		}
 		if len(aers) == 0 {
-			return nil, response.NewRPCError("Application log for the transaction is empty", "", nil)
+			return nil, response.NewRPCError("Application log for the transaction is empty", "", errors.New("inconsistent application log"))
 		}
 		return result.NewTransactionOutputRaw(tx, header, &aers[0], s.chain), nil
 	}
@@ -1447,7 +1447,7 @@ func (s *Server) getTransactionHeight(ps request.Params) (interface{}, *response
 
 	_, height, err := s.chain.GetTransaction(h)
 	if err != nil || height == math.MaxUint32 {
-		return nil, response.NewRPCError("Unknown transaction", "", nil)
+		return nil, response.NewRPCError("Unknown transaction", "", errors.New("transaction not found"))
 	}
 
 	return height, nil
@@ -1462,7 +1462,7 @@ func (s *Server) getContractState(reqParams request.Params) (interface{}, *respo
 	}
 	cs := s.chain.GetContractState(scriptHash)
 	if cs == nil {
-		return nil, response.NewRPCError("Unknown contract", "", nil)
+		return nil, response.NewRPCError("Unknown contract", "", errors.New("contract not found"))
 	}
 	return cs, nil
 }
@@ -1475,13 +1475,13 @@ func (s *Server) getNativeContracts(_ request.Params) (interface{}, *response.Er
 func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, *response.Error) {
 	num, err := s.blockHeightFromParam(reqParams.Value(0))
 	if err != nil {
-		return 0, response.NewRPCError("Invalid height", "", nil)
+		return 0, response.NewRPCError("Invalid height", "", errors.New("invalid block identifier"))
 	}
 
 	headerHash := s.chain.GetHeaderHash(num)
 	block, errBlock := s.chain.GetBlock(headerHash)
 	if errBlock != nil {
-		return 0, response.NewRPCError(errBlock.Error(), "", nil)
+		return 0, response.NewRPCError(errBlock.Error(), "", errors.New("unknown block"))
 	}
 
 	var blockSysFee int64
@@ -1503,7 +1503,7 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *respons
 	verbose, _ := reqParams.Value(1).GetBoolean()
 	h, err := s.chain.GetHeader(hash)
 	if err != nil {
-		return nil, response.NewRPCError("unknown block", "", nil)
+		return nil, response.NewRPCError("unknown block", "", errors.New("unknown header"))
 	}
 
 	if verbose {
@@ -1882,7 +1882,7 @@ func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.E
 // submitNotaryRequest broadcasts P2PNotaryRequest over the NEO network.
 func (s *Server) submitNotaryRequest(ps request.Params) (interface{}, *response.Error) {
 	if !s.chain.P2PSigExtensionsEnabled() {
-		return nil, response.NewRPCError("P2PNotaryRequest was received, but P2PSignatureExtensions are disabled", "", nil)
+		return nil, response.NewRPCError("P2PNotaryRequest was received, but P2PSignatureExtensions are disabled", "", errors.New("P2PSignatureExtensions are disabled"))
 	}
 
 	bytePayload, err := ps.Value(0).GetBytesBase64()
@@ -1916,7 +1916,7 @@ func getRelayResult(err error, hash util.Uint256) (interface{}, *response.Error)
 
 func (s *Server) submitOracleResponse(ps request.Params) (interface{}, *response.Error) {
 	if s.oracle == nil {
-		return nil, response.NewRPCError("oracle is not enabled", "", nil)
+		return nil, response.NewRPCError("oracle is not enabled", "", errors.New("oracle service is disabled"))
 	}
 	var pub *keys.PublicKey
 	pubBytes, err := ps.Value(0).GetBytesBase64()
@@ -1940,7 +1940,7 @@ func (s *Server) submitOracleResponse(ps request.Params) (interface{}, *response
 	}
 	data := broadcaster.GetMessage(pubBytes, uint64(reqID), txSig)
 	if !pub.Verify(msgSig, hash.Sha256(data).BytesBE()) {
-		return nil, response.NewRPCError("Invalid sign", "", nil)
+		return nil, response.NewRPCError("Invalid sign", "", errors.New("invalid request signature"))
 	}
 	s.oracle.AddResponse(pub, uint64(reqID), txSig)
 	return json.RawMessage([]byte("{}")), nil
@@ -1948,7 +1948,7 @@ func (s *Server) submitOracleResponse(ps request.Params) (interface{}, *response
 
 func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, *response.Error) {
 	if len(reqParams) < 1 {
-		return nil, response.NewInvalidParamsError("not enough parameters", nil)
+		return nil, response.NewInvalidParamsError("not enough parameters", errors.New("invalid parameters"))
 	}
 	byteTx, err := reqParams[0].GetBytesBase64()
 	if err != nil {
@@ -2011,7 +2011,8 @@ func (s *Server) subscribe(reqParams request.Params, sub *subscriber) (interface
 	defer s.subsLock.Unlock()
 	select {
 	case <-s.shutdown:
-		return nil, response.NewInternalServerError("server is shutting down", nil)
+		err = errors.New("server is shutting down")
+		return nil, response.NewInternalServerError(err.Error(), err)
 	default:
 	}
 	var id int
@@ -2021,7 +2022,7 @@ func (s *Server) subscribe(reqParams request.Params, sub *subscriber) (interface
 		}
 	}
 	if id == len(sub.feeds) {
-		return nil, response.NewInternalServerError("maximum number of subscriptions is reached", nil)
+		return nil, response.NewInternalServerError("maximum number of subscriptions is reached", fmt.Errorf("%d subscriptions are allowed at max", len(sub.feeds)))
 	}
 	sub.feeds[id].event = event
 	sub.feeds[id].filter = filter

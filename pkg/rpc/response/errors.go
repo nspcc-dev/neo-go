@@ -1,6 +1,7 @@
 package response
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -22,7 +23,7 @@ const InternalServerErrorCode = -32603
 
 var (
 	// ErrInvalidParams represents a generic 'invalid parameters' error.
-	ErrInvalidParams = NewInvalidParamsError("", nil)
+	ErrInvalidParams = NewInvalidParamsError("", errors.New("invalid params"))
 	// ErrAlreadyExists represents SubmitError with code -501.
 	ErrAlreadyExists = NewSubmitError(-501, "Block or transaction already exists and cannot be sent repeatedly.")
 	// ErrOutOfMemory represents SubmitError with code -502.
