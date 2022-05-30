@@ -68,7 +68,7 @@ func Notify(ic *interop.Context) error {
 	if len(bytes) > MaxNotificationSize {
 		return fmt.Errorf("notification size shouldn't exceed %d", MaxNotificationSize)
 	}
-	ic.AddNotification(ic.VM.GetCurrentScriptHash(), name, stackitem.DeepCopy(stackitem.NewArray(args)).(*stackitem.Array))
+	ic.AddNotification(ic.VM.GetCurrentScriptHash(), name, stackitem.DeepCopy(stackitem.NewArray(args), false).(*stackitem.Array))
 	return nil
 }
 

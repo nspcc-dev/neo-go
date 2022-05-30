@@ -530,7 +530,10 @@ func TestDeepCopy(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			actual := DeepCopy(tc.item)
+			actual := DeepCopy(tc.item, false)
+			if immut, ok := tc.item.(Immutable); ok {
+				immut.MarkAsReadOnly() // tiny hack for test to be able to compare object references.
+			}
 			require.Equal(t, tc.item, actual)
 			if tc.item.Type() != BooleanT {
 				require.False(t, actual == tc.item)
@@ -539,7 +542,7 @@ func TestDeepCopy(t *testing.T) {
 	}
 
 	t.Run("Null", func(t *testing.T) {
-		require.Equal(t, Null{}, DeepCopy(Null{}))
+		require.Equal(t, Null{}, DeepCopy(Null{}, false))
 	})
 
 	t.Run("Array", func(t *testing.T) {
@@ -547,7 +550,8 @@ func TestDeepCopy(t *testing.T) {
 		arr.value[0] = NewBool(true)
 		arr.value[1] = arr
 
-		actual := DeepCopy(arr)
+		actual := DeepCopy(arr, false)
+		arr.isReadOnly = true // tiny hack for test to be able to compare object references.
 		require.Equal(t, arr, actual)
 		require.False(t, arr == actual)
 		require.True(t, actual == actual.(*Array).value[1])
@@ -558,7 +562,8 @@ func TestDeepCopy(t *testing.T) {
 		arr.value[0] = NewBool(true)
 		arr.value[1] = arr
 
-		actual := DeepCopy(arr)
+		actual := DeepCopy(arr, false)
+		arr.isReadOnly = true // tiny hack for test to be able to compare object references.
 		require.Equal(t, arr, actual)
 		require.False(t, arr == actual)
 		require.True(t, actual == actual.(*Struct).value[1])
@@ -569,7 +574,8 @@ func TestDeepCopy(t *testing.T) {
 		m.value[0] = MapElement{Key: NewBool(true), Value: m}
 		m.value[1] = MapElement{Key: NewBigInteger(big.NewInt(1)), Value: NewByteArray([]byte{1, 2, 3})}
 
-		actual := DeepCopy(m)
+		actual := DeepCopy(m, false)
+		m.isReadOnly = true // tiny hack for test to be able to compare object references.
 		require.Equal(t, m, actual)
 		require.False(t, m == actual)
 		require.True(t, actual == actual.(*Map).value[0].Value)

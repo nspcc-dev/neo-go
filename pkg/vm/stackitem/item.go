@@ -70,6 +70,8 @@ var (
 	// can also be returned by serialization functions if the resulting
 	// value exceeds MaxSize.
 	ErrTooBig = errors.New("too big")
+	// ErrReadOnly is returned on attempt to modify immutable stack item.
+	ErrReadOnly = errors.New("item is read-only")
 
 	errTooBigComparable = fmt.Errorf("%w: uncomparable", ErrTooBig)
 	errTooBigInteger    = fmt.Errorf("%w: integer", ErrTooBig)
@@ -185,6 +187,7 @@ func convertPrimitive(item Item, typ Type) (Item, error) {
 type Struct struct {
 	value []Item
 	rc
+	ro
 }
 
 // NewStruct returns a new Struct object.
@@ -202,16 +205,25 @@ func (i *Struct) Value() interface{} {
 // Remove removes the element at `pos` index from the Struct value.
 // It will panic if a bad index given.
 func (i *Struct) Remove(pos int) {
+	if i.IsReadOnly() {
+		panic(ErrReadOnly)
+	}
 	i.value = append(i.value[:pos], i.value[pos+1:]...)
 }
 
 // Append adds an Item to the end of the Struct value.
 func (i *Struct) Append(item Item) {
+	if i.IsReadOnly() {
+		panic(ErrReadOnly)
+	}
 	i.value = append(i.value, item)
 }
 
 // Clear removes all elements from the Struct item value.
 func (i *Struct) Clear() {
+	if i.IsReadOnly() {
+		panic(ErrReadOnly)
+	}
 	i.value = i.value[:0]
 }
 
@@ -662,6 +674,7 @@ func (i *ByteArray) Convert(typ Type) (Item, error) {
 type Array struct {
 	value []Item
 	rc
+	ro
 }
 
 // NewArray returns a new Array object.
@@ -679,16 +692,25 @@ func (i *Array) Value() interface{} {
 // Remove removes the element at `pos` index from Array value.
 // It will panics on bad index.
 func (i *Array) Remove(pos int) {
+	if i.IsReadOnly() {
+		panic(ErrReadOnly)
+	}
 	i.value = append(i.value[:pos], i.value[pos+1:]...)
 }
 
 // Append adds an Item to the end of the Array value.
 func (i *Array) Append(item Item) {
+	if i.IsReadOnly() {
+		panic(ErrReadOnly)
+	}
 	i.value = append(i.value, item)
 }
 
 // Clear removes all elements from the Array item value.
 func (i *Array) Clear() {
+	if i.IsReadOnly() {
+		panic(ErrReadOnly)
+	}
 	i.value = i.value[:0]
 }
 
@@ -763,6 +785,7 @@ type MapElement struct {
 type Map struct {
 	value []MapElement
 	rc
+	ro
 }
 
 // NewMap returns a new Map object.
@@ -789,6 +812,9 @@ func (i *Map) Value() interface{} {
 
 // Clear removes all elements from the Map item value.
 func (i *Map) Clear() {
+	if i.IsReadOnly() {
+		panic(ErrReadOnly)
+	}
 	i.value = i.value[:0]
 }
 
@@ -860,6 +886,9 @@ func (i *Map) Add(key, value Item) {
 	if err := IsValidMapKey(key); err != nil {
 		panic(err)
 	}
+	if i.IsReadOnly() {
+		panic(ErrReadOnly)
+	}
 	index := i.Index(key)
 	if index >= 0 {
 		i.value[index].Value = value
@@ -870,6 +899,9 @@ func (i *Map) Add(key, value Item) {
 
 // Drop removes the given index from the map (no bounds check done here).
 func (i *Map) Drop(index int) {
+	if i.IsReadOnly() {
+		panic(ErrReadOnly)
+	}
 	copy(i.value[index:], i.value[index+1:])
 	i.value = i.value[:len(i.value)-1]
 }
@@ -1139,12 +1171,12 @@ func (i *Buffer) Len() int {
 // DeepCopy returns a new deep copy of the provided item.
 // Values of Interop items are not deeply copied.
 // It does preserve duplicates only for non-primitive types.
-func DeepCopy(item Item) Item {
+func DeepCopy(item Item, asImmutable bool) Item {
 	seen := make(map[Item]Item, typicalNumOfItems)
-	return deepCopy(item, seen)
+	return deepCopy(item, seen, asImmutable)
 }
 
-func deepCopy(item Item, seen map[Item]Item) Item {
+func deepCopy(item Item, seen map[Item]Item, asImmutable bool) Item {
 	if it := seen[item]; it != nil {
 		return it
 	}
@@ -1155,24 +1187,28 @@ func deepCopy(item Item, seen map[Item]Item) Item {
 		arr := NewArray(make([]Item, len(it.value)))
 		seen[item] = arr
 		for i := range it.value {
-			arr.value[i] = deepCopy(it.value[i], seen)
+			arr.value[i] = deepCopy(it.value[i], seen, asImmutable)
 		}
+		arr.MarkAsReadOnly()
 		return arr
 	case *Struct:
 		arr := NewStruct(make([]Item, len(it.value)))
 		seen[item] = arr
 		for i := range it.value {
-			arr.value[i] = deepCopy(it.value[i], seen)
+			arr.value[i] = deepCopy(it.value[i], seen, asImmutable)
 		}
+		arr.MarkAsReadOnly()
 		return arr
 	case *Map:
 		m := NewMap()
 		seen[item] = m
 		for i := range it.value {
-			key := deepCopy(it.value[i].Key, seen)
-			value := deepCopy(it.value[i].Value, seen)
+			key := deepCopy(it.value[i].Key, seen,
+				false) // Key is always primitive and not a Buffer.
+			value := deepCopy(it.value[i].Value, seen, asImmutable)
 			m.Add(key, value)
 		}
+		m.MarkAsReadOnly()
 		return m
 	case *BigInteger:
 		bi := new(big.Int).Set(it.Big())
@@ -1180,6 +1216,9 @@ func deepCopy(item Item, seen map[Item]Item) Item {
 	case *ByteArray:
 		return NewByteArray(slice.Copy(*it))
 	case *Buffer:
+		if asImmutable {
+			return NewByteArray(slice.Copy(*it)) // TODO: ported as is from C#, but is this correct?
+		}
 		return NewBuffer(slice.Copy(*it))
 	case Bool:
 		return it

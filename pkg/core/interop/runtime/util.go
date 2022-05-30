@@ -53,7 +53,7 @@ func GetNotifications(ic *interop.Context) error {
 		ev := stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(notifications[i].ScriptHash.BytesBE()),
 			stackitem.Make(notifications[i].Name),
-			stackitem.DeepCopy(notifications[i].Item).(*stackitem.Array),
+			stackitem.DeepCopy(notifications[i].Item, false).(*stackitem.Array),
 		})
 		arr.Append(ev)
 	}
