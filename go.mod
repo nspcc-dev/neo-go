@@ -29,7 +29,7 @@ require (
 	golang.org/x/term v0.0.0-20210429154555-c04ba851c2a4
 	golang.org/x/text v0.3.7
 	golang.org/x/tools v0.1.8
-	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 go 1.16

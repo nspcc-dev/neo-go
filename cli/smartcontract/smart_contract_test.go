@@ -11,7 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func TestInitSmartContract(t *testing.T) {
@@ -57,19 +57,19 @@ func RuntimeNotify(args []interface{}) {
 
 	manifest, err := os.ReadFile(contractName + "/" + files[2].Name())
 	require.NoError(t, err)
-	require.Equal(t,
-		`name: testContract
+	expected := `name: testContract
 sourceurl: http://example.com/
 safemethods: []
 supportedstandards: []
 events:
-- name: Hello world!
-  parameters:
-  - name: args
-    type: Array
+    - name: Hello world!
+      parameters:
+        - name: args
+          type: Array
 permissions:
-- methods: '*'
-`, string(manifest))
+    - methods: '*'
+`
+	require.Equal(t, expected, string(manifest))
 }
 
 func testPermissionMarshal(t *testing.T, p *manifest.Permission, expected string) {
@@ -110,7 +110,7 @@ func TestPermissionMarshal(t *testing.T) {
 		p.Methods.Add("lamao")
 		testPermissionMarshal(t, p,
 			"group: "+hex.EncodeToString(priv.PublicKey().Bytes())+"\n"+
-				"methods:\n- abc\n- lamao\n")
+				"methods:\n    - abc\n    - lamao\n")
 	})
 }
 

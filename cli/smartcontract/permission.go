@@ -8,7 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type permission manifest.Permission
@@ -20,20 +20,18 @@ const (
 )
 
 func (p permission) MarshalYAML() (interface{}, error) {
-	m := make(yaml.MapSlice, 0, 2)
+	m := yaml.Node{Kind: yaml.MappingNode}
 	switch p.Contract.Type {
 	case manifest.PermissionWildcard:
 	case manifest.PermissionHash:
-		m = append(m, yaml.MapItem{
-			Key:   permHashKey,
-			Value: p.Contract.Value.(util.Uint160).StringLE(),
-		})
+		m.Content = append(m.Content,
+			&yaml.Node{Kind: yaml.ScalarNode, Value: permHashKey},
+			&yaml.Node{Kind: yaml.ScalarNode, Value: p.Contract.Value.(util.Uint160).StringLE()})
 	case manifest.PermissionGroup:
 		bs := p.Contract.Value.(*keys.PublicKey).Bytes()
-		m = append(m, yaml.MapItem{
-			Key:   permGroupKey,
-			Value: hex.EncodeToString(bs),
-		})
+		m.Content = append(m.Content,
+			&yaml.Node{Kind: yaml.ScalarNode, Value: permGroupKey},
+			&yaml.Node{Kind: yaml.ScalarNode, Value: hex.EncodeToString(bs)})
 	default:
 		return nil, fmt.Errorf("invalid permission type: %d", p.Contract.Type)
 	}
@@ -43,10 +41,15 @@ func (p permission) MarshalYAML() (interface{}, error) {
 		val = p.Methods.Value
 	}
 
-	m = append(m, yaml.MapItem{
-		Key:   permMethodKey,
-		Value: val,
-	})
+	n := &yaml.Node{Kind: yaml.ScalarNode}
+	err := n.Encode(val)
+	if err != nil {
+		return nil, err
+	}
+	m.Content = append(m.Content,
+		&yaml.Node{Kind: yaml.ScalarNode, Value: permMethodKey},
+		n)
+
 	return m, nil
 }
 
