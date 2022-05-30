@@ -319,7 +319,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		ScriptHash: verifyH,
 		Name:       "OnNEP11Payment",
 		Item: stackitem.NewArray([]stackitem.Item{
-			stackitem.NewBuffer(nftOwnerHash.BytesBE()),
+			stackitem.NewByteArray(nftOwnerHash.BytesBE()),
 			stackitem.NewBigInteger(big.NewInt(1)),
 			stackitem.NewByteArray(tokenID1),
 			stackitem.NewByteArray([]byte("some_data")),

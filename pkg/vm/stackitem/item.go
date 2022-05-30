@@ -1217,7 +1217,7 @@ func deepCopy(item Item, seen map[Item]Item, asImmutable bool) Item {
 		return NewByteArray(slice.Copy(*it))
 	case *Buffer:
 		if asImmutable {
-			return NewByteArray(slice.Copy(*it)) // TODO: ported as is from C#, but is this correct?
+			return NewByteArray(slice.Copy(*it))
 		}
 		return NewBuffer(slice.Copy(*it))
 	case Bool:
