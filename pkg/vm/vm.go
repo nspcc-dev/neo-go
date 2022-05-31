@@ -1301,24 +1301,28 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			v.refs.Remove(a[k])
+			toRemove := a[k]
 			t.Remove(k)
+			v.refs.Remove(toRemove)
 		case *stackitem.Struct:
 			a := t.Value().([]stackitem.Item)
 			k := toInt(key.BigInt())
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			v.refs.Remove(a[k])
+			toRemove := a[k]
 			t.Remove(k)
+			v.refs.Remove(toRemove)
 		case *stackitem.Map:
 			index := t.Index(key.Item())
 			// NEO 2.0 doesn't error on missing key.
 			if index >= 0 {
 				elems := t.Value().([]stackitem.MapElement)
-				v.refs.Remove(elems[index].Key)
-				v.refs.Remove(elems[index].Value)
+				key := elems[index].Key
+				val := elems[index].Value
 				t.Drop(index)
+				v.refs.Remove(key)
+				v.refs.Remove(val)
 			}
 		default:
 			panic("REMOVE: invalid type")
@@ -1353,6 +1357,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		elems := arr.Value().([]stackitem.Item)
 		index := len(elems) - 1
 		elem := elems[index]
+		v.estack.PushItem(elem) // push item on stack firstly, to match the reference behaviour.
 		switch item := arr.(type) {
 		case *stackitem.Array:
 			item.Remove(index)
@@ -1360,7 +1365,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			item.Remove(index)
 		}
 		v.refs.Remove(elem)
-		v.estack.PushItem(elem)
 
 	case opcode.SIZE:
 		elem := v.estack.Pop()
