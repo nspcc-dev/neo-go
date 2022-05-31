@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -133,7 +134,7 @@ func TestLog(t *testing.T) {
 func TestNotify(t *testing.T) {
 	h := random.Uint160()
 	newIC := func(name string, args interface{}) *interop.Context {
-		ic := &interop.Context{VM: vm.New()}
+		ic := &interop.Context{VM: vm.New(), DAO: &dao.Simple{}}
 		ic.VM.LoadScriptWithHash([]byte{1}, h, callflag.NoneFlag)
 		ic.VM.Estack().PushVal(args)
 		ic.VM.Estack().PushVal(name)

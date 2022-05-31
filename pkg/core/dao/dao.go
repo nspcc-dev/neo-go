@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // HasTransaction errors.
@@ -44,6 +45,7 @@ type Simple struct {
 	nativeCachePS *Simple
 
 	private bool
+	serCtx  *stackitem.SerializationContext
 	keyBuf  []byte
 	dataBuf *io.BufBinWriter
 }
@@ -96,6 +98,7 @@ func (dao *Simple) GetPrivate() *Simple {
 		Version: dao.Version,
 		keyBuf:  dao.keyBuf,
 		dataBuf: dao.dataBuf,
+		serCtx:  dao.serCtx,
 	} // Inherit everything...
 	d.Store = storage.NewPrivateMemCachedStore(dao.Store) // except storage, wrap another layer.
 	d.private = true
@@ -710,10 +713,10 @@ func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, a
 	buf.WriteB(storage.ExecBlock)
 	block.EncodeTrimmed(buf.BinWriter)
 	if aer1 != nil {
-		aer1.EncodeBinary(buf.BinWriter)
+		aer1.EncodeBinaryWithContext(buf.BinWriter, dao.GetItemCtx())
 	}
 	if aer2 != nil {
-		aer2.EncodeBinary(buf.BinWriter)
+		aer2.EncodeBinaryWithContext(buf.BinWriter, dao.GetItemCtx())
 	}
 	if buf.Err != nil {
 		return buf.Err
@@ -790,7 +793,7 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 	buf.WriteU32LE(index)
 	tx.EncodeBinary(buf.BinWriter)
 	if aer != nil {
-		aer.EncodeBinary(buf.BinWriter)
+		aer.EncodeBinaryWithContext(buf.BinWriter, dao.GetItemCtx())
 	}
 	if buf.Err != nil {
 		return buf.Err
@@ -833,6 +836,16 @@ func (dao *Simple) getDataBuf() *io.BufBinWriter {
 		return dao.dataBuf
 	}
 	return io.NewBufBinWriter()
+}
+
+func (dao *Simple) GetItemCtx() *stackitem.SerializationContext {
+	if dao.private {
+		if dao.serCtx == nil {
+			dao.serCtx = stackitem.NewSerializationContext()
+		}
+		return dao.serCtx
+	}
+	return stackitem.NewSerializationContext()
 }
 
 // Persist flushes all the changes made into the (supposedly) persistent

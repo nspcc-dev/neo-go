@@ -364,13 +364,14 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 		return err
 	}
 
-	data, err := stackitem.Serialize(userData)
+	data, err := ic.DAO.GetItemCtx().Serialize(userData, false)
 	if err != nil {
 		return err
 	}
 	if len(data) > maxUserDataLength {
 		return ErrBigArgument
 	}
+	data = slice.Copy(data) // Serialization context will be used in PutRequestInternal again.
 
 	var filterNotif stackitem.Item
 	if filter != nil {

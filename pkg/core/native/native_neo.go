@@ -281,7 +281,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 		return err
 	}
 
-	ic.DAO.PutStorageItem(n.ID, prefixCommittee, cvs.Bytes())
+	ic.DAO.PutStorageItem(n.ID, prefixCommittee, cvs.Bytes(ic.DAO.GetItemCtx()))
 
 	h, err := getStandbyValidatorsHash(ic)
 	if err != nil {
@@ -355,7 +355,7 @@ func (n *NEO) updateCache(cache *NeoCache, cvs keysWithVotes, blockHeight uint32
 func (n *NEO) updateCommittee(cache *NeoCache, ic *interop.Context) error {
 	if !cache.votesChanged {
 		// We need to put in storage anyway, as it affects dumps
-		ic.DAO.PutStorageItem(n.ID, prefixCommittee, cache.committee.Bytes())
+		ic.DAO.PutStorageItem(n.ID, prefixCommittee, cache.committee.Bytes(ic.DAO.GetItemCtx()))
 		return nil
 	}
 
@@ -367,7 +367,7 @@ func (n *NEO) updateCommittee(cache *NeoCache, ic *interop.Context) error {
 		return err
 	}
 	cache.votesChanged = false
-	ic.DAO.PutStorageItem(n.ID, prefixCommittee, cvs.Bytes())
+	ic.DAO.PutStorageItem(n.ID, prefixCommittee, cvs.Bytes(ic.DAO.GetItemCtx()))
 	return nil
 }
 
@@ -495,7 +495,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 		postF = func() { n.GAS.mint(ic, h, newGas, true) }
 	}
 	if amount.Sign() == 0 {
-		*si = acc.Bytes()
+		*si = acc.Bytes(ic.DAO.GetItemCtx())
 		return postF, nil
 	}
 	if err := n.ModifyAccountVotes(acc, ic.DAO, amount, false); err != nil {
@@ -508,7 +508,7 @@ func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.Sto
 	}
 	acc.Balance.Add(&acc.Balance, amount)
 	if acc.Balance.Sign() != 0 {
-		*si = acc.Bytes()
+		*si = acc.Bytes(ic.DAO.GetItemCtx())
 	} else {
 		*si = nil
 	}
@@ -872,7 +872,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	if err := n.ModifyAccountVotes(acc, ic.DAO, &acc.Balance, true); err != nil {
 		return err
 	}
-	ic.DAO.PutStorageItem(n.ID, key, acc.Bytes())
+	ic.DAO.PutStorageItem(n.ID, key, acc.Bytes(ic.DAO.GetItemCtx()))
 
 	ic.AddNotification(n.Hash, "Vote", stackitem.NewArray([]stackitem.Item{
 		stackitem.NewByteArray(h.BytesBE()),

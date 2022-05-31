@@ -27,8 +27,8 @@ var ErrRecursive = errors.New("recursive item")
 // be serialized (like Interop item or Pointer).
 var ErrUnserializable = errors.New("unserializable")
 
-// serContext is an internal serialization context.
-type serContext struct {
+// SerializationContext is a serialization context.
+type SerializationContext struct {
 	uv           [9]byte
 	data         []byte
 	allowInvalid bool
@@ -44,7 +44,7 @@ type deserContext struct {
 
 // Serialize encodes the given Item into a byte slice.
 func Serialize(item Item) ([]byte, error) {
-	sc := serContext{
+	sc := SerializationContext{
 		allowInvalid: false,
 		seen:         make(map[Item]sliceNoPointer, typicalNumOfItems),
 	}
@@ -73,7 +73,7 @@ func EncodeBinary(item Item, w *io.BinWriter) {
 // (like recursive array) is encountered, it just writes the special InvalidT
 // type of an element to the w.
 func EncodeBinaryProtected(item Item, w *io.BinWriter) {
-	sc := serContext{
+	sc := SerializationContext{
 		allowInvalid: true,
 		seen:         make(map[Item]sliceNoPointer, typicalNumOfItems),
 	}
@@ -85,7 +85,7 @@ func EncodeBinaryProtected(item Item, w *io.BinWriter) {
 	w.WriteBytes(sc.data)
 }
 
-func (w *serContext) writeArray(item Item, arr []Item, start int) error {
+func (w *SerializationContext) writeArray(item Item, arr []Item, start int) error {
 	w.seen[item] = sliceNoPointer{}
 	w.appendVarUint(uint64(len(arr)))
 	for i := range arr {
@@ -97,7 +97,36 @@ func (w *serContext) writeArray(item Item, arr []Item, start int) error {
 	return nil
 }
 
-func (w *serContext) serialize(item Item) error {
+// NewSerializationContext returns reusable stack item serialization context.
+func NewSerializationContext() *SerializationContext {
+	return &SerializationContext{
+		seen: make(map[Item]sliceNoPointer, typicalNumOfItems),
+	}
+}
+
+// Serialize returns flat slice of bytes with the given item. The process can be protected
+// from bad elements if appropriate flag is given (otherwise an error is returned on
+// encountering any of them). The buffer returned is only valid until the call to Serialize.
+func (w *SerializationContext) Serialize(item Item, protected bool) ([]byte, error) {
+	w.allowInvalid = protected
+	if w.data != nil {
+		w.data = w.data[:0]
+	}
+	for k := range w.seen {
+		delete(w.seen, k)
+	}
+	err := w.serialize(item)
+	if err != nil && protected {
+		if w.data == nil {
+			w.data = make([]byte, 0, 1)
+		}
+		w.data = append(w.data[:0], byte(InvalidT))
+		err = nil
+	}
+	return w.data, err
+}
+
+func (w *SerializationContext) serialize(item Item) error {
 	if v, ok := w.seen[item]; ok {
 		if v.start == v.end {
 			return ErrRecursive
@@ -180,7 +209,7 @@ func (w *serContext) serialize(item Item) error {
 	return nil
 }
 
-func (w *serContext) appendVarUint(val uint64) {
+func (w *SerializationContext) appendVarUint(val uint64) {
 	n := io.PutVarUint(w.uv[:], val)
 	w.data = append(w.data, w.uv[:n]...)
 }
