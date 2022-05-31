@@ -112,17 +112,15 @@ func ToPreallocatedBytes(n *big.Int, data []byte) []byte {
 		return data
 	}
 
-	var ws []big.Word
-	if sign == 1 {
-		ws = n.Bits()
-	} else {
-		n1 := new(big.Int).Add(n, bigOne)
-		if n1.Sign() == 0 { // n == -1
+	if sign < 0 {
+		n.Add(n, bigOne)
+		defer func() { n.Sub(n, bigOne) }()
+		if n.Sign() == 0 { // n == -1
 			return append(data, 0xFF)
 		}
-
-		ws = n1.Bits()
 	}
+
+	var ws = n.Bits()
 
 	lb := len(ws) * wordSizeBytes
 	if c := cap(data); c < lb {
