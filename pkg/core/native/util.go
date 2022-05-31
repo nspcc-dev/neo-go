@@ -37,7 +37,7 @@ func putConvertibleToDAO(id int32, d *dao.Simple, key []byte, conv stackitem.Con
 }
 
 func setIntWithKey(id int32, dao *dao.Simple, key []byte, value int64) {
-	dao.PutStorageItem(id, key, bigint.ToBytes(big.NewInt(value)))
+	dao.PutBigInt(id, key, big.NewInt(value))
 }
 
 func getIntWithKey(id int32, dao *dao.Simple, key []byte) int64 {

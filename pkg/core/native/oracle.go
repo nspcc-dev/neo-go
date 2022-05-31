@@ -355,8 +355,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	itemID := bigint.FromBytes(si)
 	id := itemID.Uint64()
 	itemID.Add(itemID, intOne)
-	si = bigint.ToPreallocatedBytes(itemID, si)
-	ic.DAO.PutStorageItem(o.ID, prefixRequestID, si)
+	ic.DAO.PutBigInt(o.ID, prefixRequestID, itemID)
 
 	// Should be executed from the contract.
 	_, err := ic.GetContract(ic.VM.GetCallingScriptHash())

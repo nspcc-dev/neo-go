@@ -1,7 +1,6 @@
 package bigint
 
 import (
-	"encoding/binary"
 	"math/big"
 	"math/bits"
 
@@ -109,36 +108,26 @@ func ToBytes(n *big.Int) []byte {
 func ToPreallocatedBytes(n *big.Int, data []byte) []byte {
 	sign := n.Sign()
 	if sign == 0 {
-		return data
+		return data[:0]
 	}
 
 	if sign < 0 {
 		n.Add(n, bigOne)
 		defer func() { n.Sub(n, bigOne) }()
 		if n.Sign() == 0 { // n == -1
-			return append(data, 0xFF)
+			return append(data[:0], 0xFF)
 		}
 	}
 
-	var ws = n.Bits()
+	lb := n.BitLen()/8 + 1
 
-	lb := len(ws) * wordSizeBytes
 	if c := cap(data); c < lb {
-		data = make([]byte, lb, lb+1)
+		data = make([]byte, lb)
 	} else {
 		data = data[:lb]
 	}
-	data = wordsToBytes(ws, data)
-
-	size := len(data)
-	for ; data[size-1] == 0; size-- {
-	}
-
-	data = data[:size]
-
-	if data[size-1]&0x80 != 0 {
-		data = append(data, 0)
-	}
+	_ = n.FillBytes(data)
+	slice.Reverse(data)
 
 	if sign == -1 {
 		for i := range data {
@@ -147,18 +136,4 @@ func ToPreallocatedBytes(n *big.Int, data []byte) []byte {
 	}
 
 	return data
-}
-
-func wordsToBytes(ws []big.Word, bs []byte) []byte {
-	if wordSizeBytes == 8 {
-		for i := range ws {
-			binary.LittleEndian.PutUint64(bs[i*wordSizeBytes:], uint64(ws[i]))
-		}
-	} else {
-		for i := range ws {
-			binary.LittleEndian.PutUint32(bs[i*wordSizeBytes:], uint32(ws[i]))
-		}
-	}
-
-	return bs
 }

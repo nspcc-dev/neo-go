@@ -108,8 +108,7 @@ func (c *nep17TokenNative) getTotalSupply(d *dao.Simple) (state.StorageItem, *bi
 }
 
 func (c *nep17TokenNative) saveTotalSupply(d *dao.Simple, si state.StorageItem, supply *big.Int) {
-	si = state.StorageItem(bigint.ToPreallocatedBytes(supply, si))
-	d.PutStorageItem(c.ID, totalSupplyKey, si)
+	d.PutBigInt(c.ID, totalSupplyKey, supply)
 }
 
 func (c *nep17TokenNative) Transfer(ic *interop.Context, args []stackitem.Item) stackitem.Item {

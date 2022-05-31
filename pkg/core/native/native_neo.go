@@ -440,7 +440,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 				}
 				cache.gasPerVoteCache[cs[i].Key] = *tmp
 
-				ic.DAO.PutStorageItem(n.ID, key, bigint.ToBytes(tmp))
+				ic.DAO.PutBigInt(n.ID, key, tmp)
 			}
 		}
 	}
@@ -1088,8 +1088,7 @@ func (n *NEO) modifyVoterTurnout(d *dao.Simple, amount *big.Int) error {
 	}
 	votersCount := bigint.FromBytes(si)
 	votersCount.Add(votersCount, amount)
-	si = bigint.ToPreallocatedBytes(votersCount, si)
-	d.PutStorageItem(n.ID, key, si)
+	d.PutBigInt(n.ID, key, votersCount)
 	return nil
 }
 
@@ -1218,5 +1217,5 @@ func (n *NEO) putGASRecord(dao *dao.Simple, index uint32, value *big.Int) {
 	key := make([]byte, 5)
 	key[0] = prefixGASPerBlock
 	binary.BigEndian.PutUint32(key[1:], index)
-	dao.PutStorageItem(n.ID, key, bigint.ToBytes(value))
+	dao.PutBigInt(n.ID, key, value)
 }

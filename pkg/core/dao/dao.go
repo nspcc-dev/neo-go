@@ -7,12 +7,14 @@ import (
 	"errors"
 	"fmt"
 	iocore "io"
+	"math/big"
 	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -385,6 +387,14 @@ func (dao *Simple) GetStorageItem(id int32, key []byte) state.StorageItem {
 func (dao *Simple) PutStorageItem(id int32, key []byte, si state.StorageItem) {
 	stKey := dao.makeStorageItemKey(id, key)
 	dao.Store.Put(stKey, si)
+}
+
+// PutBigInt serializaed and puts the given integer for the given id with the given
+// key into the given store.
+func (dao *Simple) PutBigInt(id int32, key []byte, n *big.Int) {
+	var buf [bigint.MaxBytesLen]byte
+	stData := bigint.ToPreallocatedBytes(n, buf[:])
+	dao.PutStorageItem(id, key, stData)
 }
 
 // DeleteStorageItem drops a storage item for the given id with the
