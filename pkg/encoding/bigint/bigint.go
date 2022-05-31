@@ -10,7 +10,7 @@ import (
 
 const (
 	// MaxBytesLen is the maximum length of a serialized integer suitable for Neo VM.
-	MaxBytesLen = 33 // 32 bytes for a 256-bit integer plus 1 if padding needed
+	MaxBytesLen = 32 // 256-bit signed integer
 	// wordSizeBytes is a size of a big.Word (uint) in bytes.
 	wordSizeBytes = bits.UintSize / 8
 )
