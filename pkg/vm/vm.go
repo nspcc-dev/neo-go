@@ -322,7 +322,7 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 	v.checkInvocationStackSize()
 	ctx := NewContextWithParams(b, rvcount, offset)
 	if rvcount != -1 || v.estack.Len() != 0 {
-		v.estack = newStack("evaluation", &v.refs)
+		v.estack = subStack(v.estack)
 	}
 	ctx.estack = v.estack
 	initStack(&ctx.tryStack, "exception", nil)

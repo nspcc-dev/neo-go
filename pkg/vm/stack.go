@@ -132,6 +132,14 @@ func newStack(n string, refc *refCounter) *Stack {
 	initStack(s, n, refc)
 	return s
 }
+
+func subStack(old *Stack) *Stack {
+	s := new(Stack)
+	*s = *old
+	s.elems = s.elems[len(s.elems):]
+	return s
+}
+
 func initStack(s *Stack, n string, refc *refCounter) {
 	s.name = n
 	s.refs = refc
