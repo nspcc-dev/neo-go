@@ -161,6 +161,7 @@ func TestNotify(t *testing.T) {
 		require.NoError(t, Notify(ic))
 		require.Equal(t, 1, len(ic.Notifications))
 
+		arr.MarkAsReadOnly() // tiny hack for test to be able to compare object references.
 		ev := ic.Notifications[0]
 		require.Equal(t, "good event", ev.Name)
 		require.Equal(t, h, ev.ScriptHash)

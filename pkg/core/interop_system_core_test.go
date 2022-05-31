@@ -111,6 +111,7 @@ func TestRuntimeGetNotifications(t *testing.T) {
 			name, err := stackitem.ToString(elem[1])
 			require.NoError(t, err)
 			require.Equal(t, ic.Notifications[i].Name, name)
+			ic.Notifications[i].Item.MarkAsReadOnly() // tiny hack for test to be able to compare object references.
 			require.Equal(t, ic.Notifications[i].Item, elem[2])
 		}
 	})

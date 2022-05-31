@@ -1245,10 +1245,16 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				v.throw(stackitem.NewByteArray([]byte(msg)))
 				return
 			}
+			if t.(stackitem.Immutable).IsReadOnly() {
+				panic(stackitem.ErrReadOnly)
+			}
 			v.refs.Remove(arr[index])
 			arr[index] = item
 			v.refs.Add(arr[index])
 		case *stackitem.Map:
+			if t.IsReadOnly() {
+				panic(stackitem.ErrReadOnly)
+			}
 			if i := t.Index(key.value); i >= 0 {
 				v.refs.Remove(t.Value().([]stackitem.MapElement)[i].Value)
 			} else {
@@ -1279,6 +1285,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		item := v.estack.Pop()
 		switch t := item.value.(type) {
 		case *stackitem.Array, *stackitem.Struct:
+			if t.(stackitem.Immutable).IsReadOnly() {
+				panic(stackitem.ErrReadOnly)
+			}
 			a := t.Value().([]stackitem.Item)
 			for i, j := 0, len(a)-1; i < j; i, j = i+1, j-1 {
 				a[i], a[j] = a[j], a[i]
@@ -1301,24 +1310,28 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			v.refs.Remove(a[k])
+			toRemove := a[k]
 			t.Remove(k)
+			v.refs.Remove(toRemove)
 		case *stackitem.Struct:
 			a := t.Value().([]stackitem.Item)
 			k := toInt(key.BigInt())
 			if k < 0 || k >= len(a) {
 				panic("REMOVE: invalid index")
 			}
-			v.refs.Remove(a[k])
+			toRemove := a[k]
 			t.Remove(k)
+			v.refs.Remove(toRemove)
 		case *stackitem.Map:
 			index := t.Index(key.Item())
 			// NEO 2.0 doesn't error on missing key.
 			if index >= 0 {
 				elems := t.Value().([]stackitem.MapElement)
-				v.refs.Remove(elems[index].Key)
-				v.refs.Remove(elems[index].Value)
+				key := elems[index].Key
+				val := elems[index].Value
 				t.Drop(index)
+				v.refs.Remove(key)
+				v.refs.Remove(val)
 			}
 		default:
 			panic("REMOVE: invalid type")
@@ -1328,16 +1341,25 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		elem := v.estack.Pop()
 		switch t := elem.value.(type) {
 		case *stackitem.Array:
+			if t.IsReadOnly() {
+				panic(stackitem.ErrReadOnly)
+			}
 			for _, item := range t.Value().([]stackitem.Item) {
 				v.refs.Remove(item)
 			}
 			t.Clear()
 		case *stackitem.Struct:
+			if t.IsReadOnly() {
+				panic(stackitem.ErrReadOnly)
+			}
 			for _, item := range t.Value().([]stackitem.Item) {
 				v.refs.Remove(item)
 			}
 			t.Clear()
 		case *stackitem.Map:
+			if t.IsReadOnly() {
+				panic(stackitem.ErrReadOnly)
+			}
 			elems := t.Value().([]stackitem.MapElement)
 			for i := range elems {
 				v.refs.Remove(elems[i].Key)
@@ -1353,6 +1375,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		elems := arr.Value().([]stackitem.Item)
 		index := len(elems) - 1
 		elem := elems[index]
+		v.estack.PushItem(elem) // push item on stack firstly, to match the reference behaviour.
 		switch item := arr.(type) {
 		case *stackitem.Array:
 			item.Remove(index)
@@ -1360,7 +1383,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			item.Remove(index)
 		}
 		v.refs.Remove(elem)
-		v.estack.PushItem(elem)
 
 	case opcode.SIZE:
 		elem := v.estack.Pop()
