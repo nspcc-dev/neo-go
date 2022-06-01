@@ -37,7 +37,7 @@ ProtocolConfiguration:
   VerifyTransactions: false
   P2PSigExtensions: false
   Hardforks:
-    HF_Aspidochelone: 2000000
+    HF_Aspidochelone: 1730000
   NativeActivations:
     ContractManagement: [0]
     StdLib: [0]
