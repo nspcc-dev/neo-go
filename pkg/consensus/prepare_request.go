@@ -26,7 +26,10 @@ func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
 	w.WriteBytes(p.prevHash[:])
 	w.WriteU64LE(p.timestamp)
 	w.WriteU64LE(p.nonce)
-	w.WriteArray(p.transactionHashes)
+	w.WriteVarUint(uint64(len(p.transactionHashes)))
+	for i := range p.transactionHashes {
+		w.WriteBytes(p.transactionHashes[i][:])
+	}
 	if p.stateRootEnabled {
 		w.WriteBytes(p.stateRoot[:])
 	}
