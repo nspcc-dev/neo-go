@@ -52,14 +52,9 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 			}
 			testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
 		})
-		t.Run("bad format: too long", func(t *testing.T) {
-			bw := io.NewBufBinWriter()
-			bw.WriteVarBytes([]byte{1, 2, 3, 4, 5})
-			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(NotValidBefore)))
-		})
 		t.Run("bad format: too short", func(t *testing.T) {
 			bw := io.NewBufBinWriter()
-			bw.WriteVarBytes([]byte{1, 2, 3})
+			bw.WriteBytes([]byte{1, 2, 3})
 			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(NotValidBefore)))
 		})
 	})
@@ -96,14 +91,9 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 			}
 			testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
 		})
-		t.Run("negative: too long", func(t *testing.T) {
-			bw := io.NewBufBinWriter()
-			bw.WriteVarBytes(make([]byte, util.Uint256Size+1))
-			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(Conflicts)))
-		})
 		t.Run("negative: bad uint256", func(t *testing.T) {
 			bw := io.NewBufBinWriter()
-			bw.WriteVarBytes(make([]byte, util.Uint256Size-1))
+			bw.WriteBytes(make([]byte, util.Uint256Size-1))
 			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(Conflicts)))
 		})
 	})
@@ -117,14 +107,9 @@ func TestAttribute_EncodeBinary(t *testing.T) {
 			}
 			testserdes.EncodeDecodeBinary(t, attr, new(Attribute))
 		})
-		t.Run("bad format: too long", func(t *testing.T) {
-			bw := io.NewBufBinWriter()
-			bw.WriteVarBytes(make([]byte, 2))
-			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(NotaryAssisted)))
-		})
 		t.Run("bad format: too short", func(t *testing.T) {
 			bw := io.NewBufBinWriter()
-			bw.WriteVarBytes([]byte{})
+			bw.WriteBytes([]byte{})
 			require.Error(t, testserdes.DecodeBinary(bw.Bytes(), new(NotaryAssisted)))
 		})
 	})

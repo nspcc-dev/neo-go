@@ -11,9 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 )
 
-// reservedContractID represents the upper bound of the reserved IDs for native contracts.
-const reservedContractID = -100
-
 // Contracts is a set of registered native contracts.
 type Contracts struct {
 	Management *Management

@@ -14,8 +14,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
-	"github.com/nspcc-dev/neo-go/pkg/interop/native/roles"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
@@ -186,7 +186,7 @@ func initBasicChain(t *testing.T, e *neotest.Executor) {
 	require.NoError(t, err)
 	require.NoError(t, ntr.Accounts[0].Decrypt("one", ntr.Scrypt))
 	designateSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-		int64(roles.P2PNotary), []interface{}{ntr.Accounts[0].PrivateKey().PublicKey().Bytes()})
+		int64(noderoles.P2PNotary), []interface{}{ntr.Accounts[0].PrivateKey().PublicKey().Bytes()})
 	t.Logf("Designated Notary node: %s", hex.EncodeToString(ntr.Accounts[0].PrivateKey().PublicKey().Bytes()))
 
 	// Block #10: push verification contract with arguments into the chain.
@@ -270,6 +270,10 @@ func initBasicChain(t *testing.T, e *neotest.Executor) {
 	bw.Reset()
 	txSendRaw.EncodeBinary(bw.BinWriter)
 	t.Logf("sendrawtransaction: \n\tbase64: %s\n\tHash LE: %s", base64.StdEncoding.EncodeToString(bw.Bytes()), txSendRaw.Hash().StringLE())
+
+	sr20, err := e.Chain.GetStateModule().GetStateRoot(20)
+	require.NoError(t, err)
+	t.Logf("Block #20 stateroot LE: %s", sr20.Root.StringLE())
 }
 
 func newDeployTx(t *testing.T, e *neotest.Executor, sender neotest.Signer, sourcePath, configPath string, deploy bool) (util.Uint256, util.Uint160) {

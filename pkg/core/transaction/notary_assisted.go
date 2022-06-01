@@ -1,8 +1,6 @@
 package transaction
 
 import (
-	"fmt"
-
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
@@ -13,20 +11,12 @@ type NotaryAssisted struct {
 
 // DecodeBinary implements the io.Serializable interface.
 func (n *NotaryAssisted) DecodeBinary(br *io.BinReader) {
-	bytes := br.ReadVarBytes(1)
-	if br.Err != nil {
-		return
-	}
-	if len(bytes) != 1 {
-		br.Err = fmt.Errorf("expected 1 byte, got %d", len(bytes))
-		return
-	}
-	n.NKeys = bytes[0]
+	n.NKeys = br.ReadB()
 }
 
 // EncodeBinary implements the io.Serializable interface.
 func (n *NotaryAssisted) EncodeBinary(w *io.BinWriter) {
-	w.WriteVarBytes([]byte{n.NKeys})
+	w.WriteB(n.NKeys)
 }
 
 func (n *NotaryAssisted) toJSONMap(m map[string]interface{}) {

@@ -72,10 +72,10 @@ const (
 	verifyWithArgsContractHash = "0dce75f52adb1a4c5c6eaa6a34eb26db2e5b3781"
 	nnsContractHash            = "ee92563903e4efd53565784080b2dbdc5c37e21f"
 	nnsToken1ID                = "6e656f2e636f6d"
-	nfsoContractHash           = "5f9ebd6b001b54c7bc70f96e0412fcf415dfe09f"
+	nfsoContractHash           = "c7ec8e0fb4d669913e4ffdd4ba4fa3502e5d2d10"
 	nfsoToken1ID               = "7e244ffd6aa85fb1579d2ed22e9b761ab62e3486"
 	invokescriptContractAVM    = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
-	block20StateRootLE         = "cda0adf452c190700f792bcac29973b85532b7c27192e96172cfa0c8acaa4f9e"
+	block20StateRootLE         = "93ebfc8b030de02c5548ae08ac4a0ea39c12c82e62609ae07bdf3d803bcf9ffd"
 )
 
 var (
@@ -917,7 +917,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				chg := []storage.Operation{{
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0xb},
-					Value: []byte{0x1e, 0xb, 0xca, 0xeb, 0x53, 0x79, 0x12},
+					Value: []byte{0x58, 0xe0, 0x6f, 0xeb, 0x53, 0x79, 0x12},
 				}, {
 					State: "Added",
 					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb},
@@ -929,7 +929,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
-					Value: []byte{0x41, 0x01, 0x21, 0x05, 0xf6, 0x99, 0x28, 0x2d, 0xb},
+					Value: []byte{0x41, 0x01, 0x21, 0x05, 0x50, 0x28, 0x27, 0x2d, 0x0b},
 				}}
 				// Can be returned in any order.
 				assert.ElementsMatch(t, chg, res.Diagnostics.Changes)
@@ -2465,7 +2465,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "47102293830",
+				Amount:      "47102199200",
 				LastUpdated: 19,
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),

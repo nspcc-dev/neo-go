@@ -8,5 +8,5 @@ const (
 	StateValidator Role = 4
 	Oracle         Role = 8
 	NeoFSAlphabet  Role = 16
-	P2PNotary      Role = 128
+	P2PNotary      Role = 32
 )

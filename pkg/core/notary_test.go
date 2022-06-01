@@ -17,10 +17,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/interop/native/roles"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
@@ -158,7 +158,7 @@ func TestNotary(t *testing.T) {
 
 	notaryNodes := []interface{}{acc1.PrivateKey().PublicKey().Bytes(), acc2.PrivateKey().PublicKey().Bytes()}
 	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-		int64(roles.P2PNotary), notaryNodes)
+		int64(noderoles.P2PNotary), notaryNodes)
 
 	type requester struct {
 		accounts []*wallet.Account
