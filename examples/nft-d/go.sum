@@ -1,2 +1,2 @@
-github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20220523110142-d8f7d5d5b67c h1:3e7iTZ2/wssMdIkpGb6KMhLJiBiQVxEQDKM+6K1VCLM=
-github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20220523110142-d8f7d5d5b67c/go.mod h1:QBE0I30F2kOAISNpT5oks82yF4wkkUq3SCfI3Hqgx/Y=
+github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20220601120906-3bec6657f5c5 h1:bWau94hHSkztNF7EDTkvQAc8xjsxGMnaFf1DrXguvX8=
+github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20220601120906-3bec6657f5c5/go.mod h1:QBE0I30F2kOAISNpT5oks82yF4wkkUq3SCfI3Hqgx/Y=
