@@ -132,7 +132,12 @@ func (u *Uint160) UnmarshalJSON(data []byte) (err error) {
 
 // MarshalJSON implements the json marshaller interface.
 func (u Uint160) MarshalJSON() ([]byte, error) {
-	return []byte(`"0x` + u.StringLE() + `"`), nil
+	r := make([]byte, 3+Uint160Size*2+1)
+	copy(r, `"0x`)
+	r[len(r)-1] = '"'
+	slice.Reverse(u[:]) // u is a copy, so we can mangle it in any way.
+	hex.Encode(r[3:], u[:])
+	return r, nil
 }
 
 // UnmarshalYAML implements the YAML Unmarshaler interface.
