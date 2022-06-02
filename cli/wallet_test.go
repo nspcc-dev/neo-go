@@ -33,6 +33,9 @@ func TestWalletAccountRemove(t *testing.T) {
 	e.In.WriteString("pass\r")
 	e.Run(t, "neo-go", "wallet", "create", "--wallet", walletPath)
 
+	e.In.WriteString("acc3\r")
+	e.Run(t, "neo-go", "wallet", "create", "--wallet", walletPath, "--empty-password")
+
 	w, err := wallet.NewWalletFromFile(walletPath)
 	require.NoError(t, err)
 
@@ -62,7 +65,7 @@ func TestWalletAccountRemove(t *testing.T) {
 
 	actual, err := wallet.NewWalletFromFile(walletPath)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(actual.Accounts))
+	require.Equal(t, 2, len(actual.Accounts))
 	require.Equal(t, w.Accounts[1], actual.Accounts[0])
 }
 

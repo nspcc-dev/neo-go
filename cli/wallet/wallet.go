@@ -73,6 +73,10 @@ var (
 		Name:  "force",
 		Usage: "Do not ask for a confirmation",
 	}
+	emptyPasswordFlag = cli.BoolFlag{
+		Name:  "empty-password",
+		Usage: "Use empty password",
+	}
 )
 
 // NewCommands returns 'wallet' command.
@@ -115,6 +119,7 @@ func NewCommands() []cli.Command {
 						Name:  "account, a",
 						Usage: "Create a new account",
 					},
+					emptyPasswordFlag,
 				},
 			},
 			{
@@ -147,6 +152,7 @@ func NewCommands() []cli.Command {
 				Action: addAccount,
 				Flags: []cli.Flag{
 					walletPathFlag,
+					emptyPasswordFlag,
 				},
 			},
 			{
@@ -407,7 +413,7 @@ func addAccount(ctx *cli.Context) error {
 
 	defer wall.Close()
 
-	if err := createAccount(wall); err != nil {
+	if err := createAccount(wall, ctx.Bool("empty-password")); err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
@@ -726,7 +732,7 @@ func createWallet(ctx *cli.Context) error {
 	}
 
 	if ctx.Bool("account") {
-		if err := createAccount(wall); err != nil {
+		if err := createAccount(wall, ctx.Bool("empty-password")); err != nil {
 			return cli.NewExitError(err, 1)
 		}
 	}
@@ -736,14 +742,17 @@ func createWallet(ctx *cli.Context) error {
 	return nil
 }
 
-func readAccountInfo() (string, string, error) {
+func readAccountInfo(useEmptyPass bool) (string, string, error) {
 	name, err := input.ReadLine("Enter the name of the account > ")
 	if err != nil {
 		return "", "", err
 	}
-	phrase, err := readNewPassword()
-	if err != nil {
-		return "", "", err
+	var phrase string
+	if !useEmptyPass {
+		phrase, err = readNewPassword()
+		if err != nil {
+			return "", "", err
+		}
 	}
 	return name, phrase, nil
 }
@@ -764,8 +773,8 @@ func readNewPassword() (string, error) {
 	return phrase, nil
 }
 
-func createAccount(wall *wallet.Wallet) error {
-	name, phrase, err := readAccountInfo()
+func createAccount(wall *wallet.Wallet, useEmptyPass bool) error {
+	name, phrase, err := readAccountInfo(useEmptyPass)
 	if err != nil {
 		return err
 	}
@@ -814,7 +823,7 @@ func newAccountFromWIF(w io.Writer, wif string, scrypt keys.ScryptParams) (*wall
 	}
 
 	fmt.Fprintln(w, "Provided WIF was unencrypted. Wallet can contain only encrypted keys.")
-	name, pass, err := readAccountInfo()
+	name, pass, err := readAccountInfo(false)
 	if err != nil {
 		return nil, err
 	}
