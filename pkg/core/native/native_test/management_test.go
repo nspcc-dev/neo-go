@@ -160,6 +160,26 @@ func TestManagement_ContractDeploy(t *testing.T) {
 
 		managementInvoker.InvokeFail(t, "some methods point to wrong offsets (not to instruction boundary)", "deploy", nefBytes, manifB)
 	})
+	t.Run("duplicated methods in manifest 1", func(t *testing.T) {
+		badManifest := cs1.Manifest
+		badManifest.ABI.Methods = make([]manifest.Method, len(cs1.Manifest.ABI.Methods))
+		copy(badManifest.ABI.Methods, cs1.Manifest.ABI.Methods)
+		badManifest.ABI.Methods[0] = badManifest.ABI.Methods[1] // duplicates
+		manifB, err := json.Marshal(&badManifest)
+		require.NoError(t, err)
+
+		managementInvoker.InvokeFail(t, "duplicate method specifications", "deploy", nefBytes, manifB)
+	})
+	t.Run("duplicated events in manifest 1", func(t *testing.T) {
+		badManifest := cs1.Manifest
+		badManifest.ABI.Methods = make([]manifest.Method, len(cs1.Manifest.ABI.Methods))
+		copy(badManifest.ABI.Methods, cs1.Manifest.ABI.Methods)
+		badManifest.ABI.Events = []manifest.Event{{Name: "event"}, {Name: "event"}} // duplicates
+		manifB, err := json.Marshal(&badManifest)
+		require.NoError(t, err)
+
+		managementInvoker.InvokeFail(t, "duplicate event names", "deploy", nefBytes, manifB)
+	})
 
 	t.Run("not enough GAS", func(t *testing.T) {
 		tx := managementInvoker.NewUnsignedTx(t, managementInvoker.Hash, "deploy", nefBytes, manifestBytes)
