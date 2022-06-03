@@ -102,7 +102,7 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 	require.Error(t, p.Validate())
 	p = &ProtocolConfiguration{
 		Hardforks: map[string]uint32{
-			"HF_Unknown": 123, // Unknown hard-fork.
+			"Unknown": 123, // Unknown hard-fork.
 		},
 	}
 	require.Error(t, p.Validate())

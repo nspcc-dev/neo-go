@@ -9,7 +9,7 @@ const (
 	// HFAspidochelone represents hard-fork introduced in #2469 (ported from
 	// https://github.com/neo-project/neo/pull/2712) and #2519 (ported from
 	// https://github.com/neo-project/neo/pull/2749).
-	HFAspidochelone Hardfork = 1 << iota // HF_Aspidochelone
+	HFAspidochelone Hardfork = 1 << iota // Aspidochelone
 )
 
 // hardforks holds a map of Hardfork string representation to its type.
