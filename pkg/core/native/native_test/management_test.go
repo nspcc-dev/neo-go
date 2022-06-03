@@ -135,13 +135,20 @@ func TestManagement_ContractDeploy(t *testing.T) {
 		badManifest := cs1.Manifest
 		badManifest.ABI.Methods = make([]manifest.Method, len(cs1.Manifest.ABI.Methods))
 		copy(badManifest.ABI.Methods, cs1.Manifest.ABI.Methods)
-		badManifest.ABI.Methods[0].Offset = 100500 // out of bounds
+		badManifest.ABI.Methods[0].Offset = 100500 // out of bounds, but it's OK, this method will not be checked then.
 		manifB, err := json.Marshal(&badManifest)
 		require.NoError(t, err)
 
-		managementInvoker.InvokeFail(t, "out of bounds method offset", "deploy", nefBytes, manifB)
-	})
+		tx := c.PrepareInvokeNoSign(t, "deploy", nefBytes, manifB)
+		tx.Signers = []transaction.Signer{{}} // Need dummy signer to deploy.
+		b := c.NewUnsignedBlock(t, tx)
+		ic := c.Chain.GetTestVM(trigger.Application, tx, b)
+		t.Cleanup(ic.Finalize)
 
+		ic.VM.LoadWithFlags(tx.Script, callflag.All)
+		err = ic.VM.Run()
+		require.NoError(t, err)
+	})
 	t.Run("bad methods in manifest 2", func(t *testing.T) {
 		var badManifest = cs1.Manifest
 		badManifest.ABI.Methods = make([]manifest.Method, len(cs1.Manifest.ABI.Methods))
@@ -152,6 +159,26 @@ func TestManagement_ContractDeploy(t *testing.T) {
 		require.NoError(t, err)
 
 		managementInvoker.InvokeFail(t, "some methods point to wrong offsets (not to instruction boundary)", "deploy", nefBytes, manifB)
+	})
+	t.Run("duplicated methods in manifest 1", func(t *testing.T) {
+		badManifest := cs1.Manifest
+		badManifest.ABI.Methods = make([]manifest.Method, len(cs1.Manifest.ABI.Methods))
+		copy(badManifest.ABI.Methods, cs1.Manifest.ABI.Methods)
+		badManifest.ABI.Methods[0] = badManifest.ABI.Methods[1] // duplicates
+		manifB, err := json.Marshal(&badManifest)
+		require.NoError(t, err)
+
+		managementInvoker.InvokeFail(t, "duplicate method specifications", "deploy", nefBytes, manifB)
+	})
+	t.Run("duplicated events in manifest 1", func(t *testing.T) {
+		badManifest := cs1.Manifest
+		badManifest.ABI.Methods = make([]manifest.Method, len(cs1.Manifest.ABI.Methods))
+		copy(badManifest.ABI.Methods, cs1.Manifest.ABI.Methods)
+		badManifest.ABI.Events = []manifest.Event{{Name: "event"}, {Name: "event"}} // duplicates
+		manifB, err := json.Marshal(&badManifest)
+		require.NoError(t, err)
+
+		managementInvoker.InvokeFail(t, "duplicate event names", "deploy", nefBytes, manifB)
 	})
 
 	t.Run("not enough GAS", func(t *testing.T) {

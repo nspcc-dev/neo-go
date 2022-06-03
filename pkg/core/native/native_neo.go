@@ -205,7 +205,7 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getCandidateVote", smartcontract.IntegerType,
-		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
+		manifest.NewParameter("pubKey", smartcontract.PublicKeyType))
 	md = newMethodAndPrice(n.getCandidateVoteCall, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
