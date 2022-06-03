@@ -19,9 +19,9 @@ anything else you might be interested in.
 Please also pay attention to configuration files used by your node, mainnet
 ones must have Aspidochelone hardfork enabled at height 1730000 to be
 compatible and T5 testnet enables it at height 210000. T5 testnet is different
-from T4, it uses different magic number, different seed nodes different
-protocol configuration settings. 0.99.0 won't work for T4 testnet, use 0.98.5
-for it.
+from T4, it uses different magic number, different seed nodes and different
+protocol configuration settings. 0.99.0 won't work for T4 testnet, please
+use 0.98.5 for it.
 
 New features:
  * new methods in native contracts:
