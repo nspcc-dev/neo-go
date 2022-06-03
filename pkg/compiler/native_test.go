@@ -282,7 +282,7 @@ func getMethod(t *testing.T, ctr interop.ContractMD, name string, params []strin
 	}
 
 	md, ok := ctr.GetMethod(name, paramLen)
-	require.True(t, ok)
+	require.True(t, ok, ctr.Manifest.Name, name, paramLen)
 	return md
 }
 
