@@ -1454,7 +1454,7 @@ func appendTokenTransfer(cache *dao.Simple, transCache map[util.Uint160]transfer
 		*nextBatch++
 		*currTimestamp = bTimestamp
 		// Put makes a copy of it anyway.
-		log.Raw = log.Raw[:0]
+		log.Reset()
 	}
 	transCache[addr] = transferData
 	return nil
