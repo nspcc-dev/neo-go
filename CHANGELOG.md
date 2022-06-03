@@ -2,6 +2,120 @@
 
 This document outlines major changes between releases.
 
+## 0.99.0 "Overextrapolation" (03 Jun 2022)
+
+A big NeoGo upgrade that is made to be compatible with C# node version
+3.3.0. All of the protocol changes are implemented there with the main one
+being the Aspidochelone hardfork that will happen on mainnet
+soon. Compatibility is confirmed for current T5 testnet and mainnet, but this
+version requires a resynchronization so schedule your updates accordingly.
+
+But it's not just about the protocol changes, this release introduces an
+ability to perform historic invocations via RPC for nodes that store old MPT
+data. Using `invokefunctionhistoric` you can perform some invocation with the
+chain state at the given height, retreiving old balances, ownership data or
+anything else you might be interested in.
+
+Please also pay attention to configuration files used by your node, mainnet
+ones must have Aspidochelone hardfork enabled at height 1730000 to be
+compatible and T5 testnet enables it at height 210000. T5 testnet is different
+from T4, it uses different magic number, different seed nodes different
+protocol configuration settings. 0.99.0 won't work for T4 testnet, use 0.98.5
+for it.
+
+New features:
+ * new methods in native contracts:
+   - getTransactionVMState and getTransactionSigners in LedgerContract (#2417,
+     #2447, #2511)
+   - murmur32 in CryptoLib (#2417)
+   - getAllCandidates and getCandidateVote in NeoToken (#2465)
+ * System.Runtime.GetAddressVersion syscall (#2443)
+ * StartWhenSynchronized option for RPC server (defaults to the old behaviour,
+   #2445)
+ * historic RPC invocations (invokefunctionhistoric, invokescripthistoric and
+   invokecontractverifyhistoric APIs, #2431)
+ * protocol hardforks, with Aspidochelone being the first supported (#2469,
+   #2519, #2530, #2535)
+ * MODMUL and MODPOW VM instructions (#2474)
+ * ability to get connection closure error from WSClient (#2510)
+ * isolated contract calls with state rollback on exception (#2508)
+ * vote and candidate state change events in the NEO contract (#2523)
+ * immutable compound types in VM (#2525)
+
+Behavior changes:
+ * ContractManagement deploy and update methods now require AllowCall flag
+   (#2402)
+ * GetStorageItems* APIs are no longer available in dao package, use Seek*
+   (#2414)
+ * committee candidates are now checked against the Policy contract block list
+   (#2453)
+ * getCandidates NEO method returns no more than 256 results now (#2465)
+ * EQUAL checks are limited to 64K of data in VM now irrespective of the
+   number of elements compared (#2467)
+ * Create[Standard/Multisig]Account prices were raised to avoid DoS attacks
+   (#2469)
+ * System.Runtime.GetNotifications syscall costs 16 times more GAS now (#2513)
+ * System.Runtime.GetRandom syscall now costs more and uses more secure seed
+   (#2519)
+
+Improvements:
+ * better messages for some CLI commands (#2411, #2405, #2455)
+ * fixes and extensions for example contracts (#2408)
+ * better neotest documentation (#2408)
+ * internal tests now use neotest framework more extensively (#2393)
+ * neotest can now be used for benchmark code and has more multi-validator
+   chain methods (#2393)
+ * big (>64 bit) integers can now be used for RPC calls (#2413)
+ * no error is logged now when notary-assisted transaction is already in the
+   mempool (it's not an error, #2426)
+ * T5 testnet with more aggressive protocol parameters (#2457)
+ * destroyed contracts are blocked now (#2462)
+ * JSONization errors for invoke* RPCs are now returned in exception field of
+   the answer (#2461)
+ * typos, grammar and spelling fixes in documentation, comments and messages
+   (#2441, #2442)
+ * faster RPC client initialization (#2468)
+ * RPC processing errors use ERROR log severity now only if there is a
+   server-side error occurred (2484)
+ * increased server-side websocket message limit to fit any request (#2507)
+ * invalid PrepareRequest now doesn't require other nodes to be alive to send
+   ChangeView (#2512)
+ * updated YAML library dependency (#2527)
+ * notary subsystem compatibility fixes, using new IDs and options (#2380)
+ * minor performance improvements (#2531)
+
+Bugs fixed:
+ * websocket-based RPCs were not counted in Prometheus metrics (#2404)
+ * input data escaping missing for RPC log messages (#2404)
+ * compiler panic in notification checking code (#2408)
+ * missing 'hash' field in the debug data (#2427)
+ * debug data used relative paths that are not compatible with neo-debugger
+   (#2427)
+ * getversion RPC method wasn't compatible with C# implementation (#2435,
+   #2448)
+ * old BaseExecFee and StoragePrice values could be used by transactions in
+   the same block with transactions that change any of them (#2432)
+ * context initialization race in dbft (#2439)
+ * some stateroot data functions used incorrect keys in the DB (#2446)
+ * voter reward data could not be deleted in NEO contract in some cases
+   (#2454)
+ * the maximum number of HTTPS oracle redirections is limited to 2 (and only
+   using HTTPS) for C# compatibility (#2456, #2389)
+ * maximum number of contract updates wasn't limited leading to overflow (#2462)
+ * incorrect interop signature for getCandidates NEO contract method (#2465)
+ * next instruction validitiy check is performed now before instruction
+   pointer move to be compatible with C# implementation (#2475)
+ * concurrent map access in Seek leading to panic (#2495, #2499)
+ * insecure password reads (#2480)
+ * minor VM reference counting fixes (#2498, #2502, #2525)
+ * panic during serialization of transaction with empty script (#2485)
+ * 'exception' field was missing in the invoke* RPC call output when there is
+   no exception which differed from C# node behaviour (#2514)
+ * interop interfaces used incompatible (wrt C# node) type string in JSON
+   (#2515)
+ * minor genesis block state differences wrt C# implementation (#2532)
+ * incompatible (wrt C#) method offset check (#2532)
+
 ## 0.98.5 "Neutralization" (13 May 2022)
 
 An urgent update to fix the same security issue that was fixed in 3.1.0.1 C#
