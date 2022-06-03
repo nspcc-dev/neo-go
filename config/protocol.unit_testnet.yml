@@ -30,7 +30,7 @@ ProtocolConfiguration:
     OracleContract: [0]
     Notary: [0]
   Hardforks:
-    HF_Aspidochelone: 25
+    Aspidochelone: 25
 
 ApplicationConfiguration:
   # LogPath could be set up in case you need stdout logs to some proper file.

@@ -11,9 +11,9 @@ func _() {
 	_ = x[HFAspidochelone-1]
 }
 
-const _Hardfork_name = "HF_Aspidochelone"
+const _Hardfork_name = "Aspidochelone"
 
-var _Hardfork_index = [...]uint8{0, 16}
+var _Hardfork_index = [...]uint8{0, 13}
 
 func (i Hardfork) String() string {
 	i -= 1
