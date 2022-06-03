@@ -1365,6 +1365,7 @@ func (bc *Blockchain) processTokenTransfer(cache *dao.Simple, transCache map[uti
 	if !isNEP11 {
 		nep17xfer = &state.NEP17Transfer{
 			Asset:     id,
+			Amount:    *amount,
 			From:      from,
 			To:        to,
 			Block:     b.Index,
@@ -1376,6 +1377,7 @@ func (bc *Blockchain) processTokenTransfer(cache *dao.Simple, transCache map[uti
 		nep11xfer := &state.NEP11Transfer{
 			NEP17Transfer: state.NEP17Transfer{
 				Asset:     id,
+				Amount:    *amount,
 				From:      from,
 				To:        to,
 				Block:     b.Index,
@@ -1388,13 +1390,14 @@ func (bc *Blockchain) processTokenTransfer(cache *dao.Simple, transCache map[uti
 		nep17xfer = &nep11xfer.NEP17Transfer
 	}
 	if !from.Equals(util.Uint160{}) {
-		_ = nep17xfer.Amount.Neg(amount) // We already have the Int.
-		if appendTokenTransfer(cache, transCache, from, transfer, id, b.Index, b.Timestamp, isNEP11) != nil {
+		_ = nep17xfer.Amount.Neg(&nep17xfer.Amount)
+		err := appendTokenTransfer(cache, transCache, from, transfer, id, b.Index, b.Timestamp, isNEP11)
+		_ = nep17xfer.Amount.Neg(&nep17xfer.Amount)
+		if err != nil {
 			return
 		}
 	}
 	if !to.Equals(util.Uint160{}) {
-		_ = nep17xfer.Amount.Set(amount)                                                            // We already have the Int.
 		_ = appendTokenTransfer(cache, transCache, to, transfer, id, b.Index, b.Timestamp, isNEP11) // Nothing useful we can do.
 	}
 }
