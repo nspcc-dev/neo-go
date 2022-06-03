@@ -118,8 +118,8 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 	ic.Invocations[cs.Hash]++
 	f = ic.VM.Context().GetCallFlags() & f
 
-	wrapped := f&(callflag.All^callflag.ReadOnly) != 0 || // If the method is safe, then it's read-only and doesn't perform storage changes or emit notifications.
-		ic.VM.Context().HasTryBlock() // If the method is not wrapped into try-catch block, then changes should be discarded anyway if exception occurs.
+	wrapped := ic.VM.Context().HasTryBlock() && // If the method is not wrapped into try-catch block, then changes should be discarded anyway if exception occurs.
+		f&(callflag.All^callflag.ReadOnly) != 0 // If the method is safe, then it's read-only and doesn't perform storage changes or emit notifications.
 	baseNtfCount := len(ic.Notifications)
 	baseDAO := ic.DAO
 	if wrapped {

@@ -160,8 +160,8 @@ func newStd() *Std {
 	return s
 }
 
-func (s *Std) serialize(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	data, err := stackitem.Serialize(args[0])
+func (s *Std) serialize(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	data, err := ic.DAO.GetItemCtx().Serialize(args[0], false)
 	if err != nil {
 		panic(err)
 	}
@@ -169,7 +169,7 @@ func (s *Std) serialize(_ *interop.Context, args []stackitem.Item) stackitem.Ite
 		panic(errors.New("too big item"))
 	}
 
-	return stackitem.NewByteArray(data)
+	return stackitem.NewByteArray(slice.Copy(data)) // Serialization context can be reused.
 }
 
 func (s *Std) deserialize(_ *interop.Context, args []stackitem.Item) stackitem.Item {

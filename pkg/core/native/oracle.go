@@ -355,8 +355,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	itemID := bigint.FromBytes(si)
 	id := itemID.Uint64()
 	itemID.Add(itemID, intOne)
-	si = bigint.ToPreallocatedBytes(itemID, si)
-	ic.DAO.PutStorageItem(o.ID, prefixRequestID, si)
+	ic.DAO.PutBigInt(o.ID, prefixRequestID, itemID)
 
 	// Should be executed from the contract.
 	_, err := ic.GetContract(ic.VM.GetCallingScriptHash())
@@ -364,13 +363,14 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 		return err
 	}
 
-	data, err := stackitem.Serialize(userData)
+	data, err := ic.DAO.GetItemCtx().Serialize(userData, false)
 	if err != nil {
 		return err
 	}
 	if len(data) > maxUserDataLength {
 		return ErrBigArgument
 	}
+	data = slice.Copy(data) // Serialization context will be used in PutRequestInternal again.
 
 	var filterNotif stackitem.Item
 	if filter != nil {

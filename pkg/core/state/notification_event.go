@@ -29,9 +29,20 @@ type AppExecResult struct {
 
 // EncodeBinary implements the Serializable interface.
 func (ne *NotificationEvent) EncodeBinary(w *io.BinWriter) {
+	ne.EncodeBinaryWithContext(w, stackitem.NewSerializationContext())
+}
+
+// EncodeBinaryWithContext is the same as EncodeBinary, but allows to efficiently reuse
+// stack item serialization context.
+func (ne *NotificationEvent) EncodeBinaryWithContext(w *io.BinWriter, sc *stackitem.SerializationContext) {
 	ne.ScriptHash.EncodeBinary(w)
 	w.WriteString(ne.Name)
-	stackitem.EncodeBinary(ne.Item, w)
+	b, err := sc.Serialize(ne.Item, false)
+	if err != nil {
+		w.Err = err
+		return
+	}
+	w.WriteBytes(b)
 }
 
 // DecodeBinary implements the Serializable interface.
@@ -52,6 +63,12 @@ func (ne *NotificationEvent) DecodeBinary(r *io.BinReader) {
 
 // EncodeBinary implements the Serializable interface.
 func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
+	aer.EncodeBinaryWithContext(w, stackitem.NewSerializationContext())
+}
+
+// EncodeBinaryWithContext is the same as EncodeBinary, but allows to efficiently reuse
+// stack item serialization context.
+func (aer *AppExecResult) EncodeBinaryWithContext(w *io.BinWriter, sc *stackitem.SerializationContext) {
 	w.WriteBytes(aer.Container[:])
 	w.WriteB(byte(aer.Trigger))
 	w.WriteB(byte(aer.VMState))
@@ -59,11 +76,16 @@ func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 	// Stack items are expected to be marshaled one by one.
 	w.WriteVarUint(uint64(len(aer.Stack)))
 	for _, it := range aer.Stack {
-		stackitem.EncodeBinaryProtected(it, w)
+		b, err := sc.Serialize(it, true)
+		if err != nil {
+			w.Err = err
+			return
+		}
+		w.WriteBytes(b)
 	}
 	w.WriteVarUint(uint64(len(aer.Events)))
 	for i := range aer.Events {
-		aer.Events[i].EncodeBinary(w)
+		aer.Events[i].EncodeBinaryWithContext(w, sc)
 	}
 	w.WriteVarBytes([]byte(aer.FaultException))
 }

@@ -70,14 +70,6 @@ func balanceFromBytes(b []byte, item stackitem.Convertible) error {
 	return stackitem.DeserializeConvertible(b, item)
 }
 
-func balanceToBytes(item stackitem.Convertible) []byte {
-	data, err := stackitem.SerializeConvertible(item)
-	if err != nil {
-		panic(err)
-	}
-	return data
-}
-
 // ToStackItem implements stackitem.Convertible. It never returns an error.
 func (s *NEP17Balance) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct([]stackitem.Item{stackitem.NewBigInteger(&s.Balance)}), nil
@@ -111,8 +103,13 @@ func NEOBalanceFromBytes(b []byte) (*NEOBalance, error) {
 }
 
 // Bytes returns a serialized NEOBalance.
-func (s *NEOBalance) Bytes() []byte {
-	return balanceToBytes(s)
+func (s *NEOBalance) Bytes(sc *stackitem.SerializationContext) []byte {
+	item, _ := s.ToStackItem() // Never returns an error.
+	data, err := sc.Serialize(item, false)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }
 
 // ToStackItem implements stackitem.Convertible interface. It never returns an error.

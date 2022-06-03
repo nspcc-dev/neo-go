@@ -601,8 +601,7 @@ func (m *Management) getNextContractID(d *dao.Simple) (int32, error) {
 	id := bigint.FromBytes(si)
 	ret := int32(id.Int64())
 	id.Add(id, intOne)
-	si = bigint.ToPreallocatedBytes(id, si)
-	d.PutStorageItem(m.ID, keyNextAvailableID, si)
+	d.PutBigInt(m.ID, keyNextAvailableID, id)
 	return ret, nil
 }
 

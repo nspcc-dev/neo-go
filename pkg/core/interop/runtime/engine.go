@@ -61,7 +61,7 @@ func Notify(ic *interop.Context) error {
 	// But it has to be serializable, otherwise we either have some broken
 	// (recursive) structure inside or an interop item that can't be used
 	// outside of the interop subsystem anyway.
-	bytes, err := stackitem.Serialize(elem.Item())
+	bytes, err := ic.DAO.GetItemCtx().Serialize(elem.Item(), false)
 	if err != nil {
 		return fmt.Errorf("bad notification: %w", err)
 	}

@@ -1,7 +1,6 @@
 package bigint
 
 import (
-	"encoding/binary"
 	"math/big"
 	"math/bits"
 
@@ -10,7 +9,7 @@ import (
 
 const (
 	// MaxBytesLen is the maximum length of a serialized integer suitable for Neo VM.
-	MaxBytesLen = 33 // 32 bytes for a 256-bit integer plus 1 if padding needed
+	MaxBytesLen = 32 // 256-bit signed integer
 	// wordSizeBytes is a size of a big.Word (uint) in bytes.
 	wordSizeBytes = bits.UintSize / 8
 )
@@ -109,38 +108,26 @@ func ToBytes(n *big.Int) []byte {
 func ToPreallocatedBytes(n *big.Int, data []byte) []byte {
 	sign := n.Sign()
 	if sign == 0 {
-		return data
+		return data[:0]
 	}
 
-	var ws []big.Word
-	if sign == 1 {
-		ws = n.Bits()
-	} else {
-		n1 := new(big.Int).Add(n, bigOne)
-		if n1.Sign() == 0 { // n == -1
-			return append(data, 0xFF)
+	if sign < 0 {
+		n.Add(n, bigOne)
+		defer func() { n.Sub(n, bigOne) }()
+		if n.Sign() == 0 { // n == -1
+			return append(data[:0], 0xFF)
 		}
-
-		ws = n1.Bits()
 	}
 
-	lb := len(ws) * wordSizeBytes
+	lb := n.BitLen()/8 + 1
+
 	if c := cap(data); c < lb {
-		data = make([]byte, lb, lb+1)
+		data = make([]byte, lb)
 	} else {
 		data = data[:lb]
 	}
-	data = wordsToBytes(ws, data)
-
-	size := len(data)
-	for ; data[size-1] == 0; size-- {
-	}
-
-	data = data[:size]
-
-	if data[size-1]&0x80 != 0 {
-		data = append(data, 0)
-	}
+	_ = n.FillBytes(data)
+	slice.Reverse(data)
 
 	if sign == -1 {
 		for i := range data {
@@ -149,18 +136,4 @@ func ToPreallocatedBytes(n *big.Int, data []byte) []byte {
 	}
 
 	return data
-}
-
-func wordsToBytes(ws []big.Word, bs []byte) []byte {
-	if wordSizeBytes == 8 {
-		for i := range ws {
-			binary.LittleEndian.PutUint64(bs[i*wordSizeBytes:], uint64(ws[i]))
-		}
-	} else {
-		for i := range ws {
-			binary.LittleEndian.PutUint32(bs[i*wordSizeBytes:], uint32(ws[i]))
-		}
-	}
-
-	return bs
 }

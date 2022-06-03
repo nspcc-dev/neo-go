@@ -24,7 +24,11 @@ func getConvertibleFromDAO(id int32, d *dao.Simple, key []byte, conv stackitem.C
 }
 
 func putConvertibleToDAO(id int32, d *dao.Simple, key []byte, conv stackitem.Convertible) error {
-	data, err := stackitem.SerializeConvertible(conv)
+	item, err := conv.ToStackItem()
+	if err != nil {
+		return err
+	}
+	data, err := d.GetItemCtx().Serialize(item, false)
 	if err != nil {
 		return err
 	}
@@ -33,7 +37,7 @@ func putConvertibleToDAO(id int32, d *dao.Simple, key []byte, conv stackitem.Con
 }
 
 func setIntWithKey(id int32, dao *dao.Simple, key []byte, value int64) {
-	dao.PutStorageItem(id, key, bigint.ToBytes(big.NewInt(value)))
+	dao.PutBigInt(id, key, big.NewInt(value))
 }
 
 func getIntWithKey(id int32, dao *dao.Simple, key []byte) int64 {

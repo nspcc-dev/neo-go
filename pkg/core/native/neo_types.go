@@ -82,8 +82,8 @@ func (k *keysWithVotes) fromStackItem(item stackitem.Item) error {
 }
 
 // Bytes serializes keys with votes slice.
-func (k keysWithVotes) Bytes() []byte {
-	buf, err := stackitem.Serialize(k.toStackItem())
+func (k keysWithVotes) Bytes(sc *stackitem.SerializationContext) []byte {
+	buf, err := sc.Serialize(k.toStackItem(), false)
 	if err != nil {
 		panic(err)
 	}

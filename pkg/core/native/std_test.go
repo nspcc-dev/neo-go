@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/mr-tron/base58"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	base58neogo "github.com/nspcc-dev/neo-go/pkg/encoding/base58"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -19,7 +20,7 @@ import (
 
 func TestStdLibItoaAtoi(t *testing.T) {
 	s := newStd()
-	ic := &interop.Context{VM: vm.New()}
+	ic := &interop.Context{VM: vm.New(), DAO: &dao.Simple{}}
 	var actual stackitem.Item
 
 	t.Run("itoa-atoi", func(t *testing.T) {
@@ -251,7 +252,7 @@ func TestStdLibEncodeDecode(t *testing.T) {
 
 func TestStdLibSerialize(t *testing.T) {
 	s := newStd()
-	ic := &interop.Context{VM: vm.New()}
+	ic := &interop.Context{VM: vm.New(), DAO: &dao.Simple{}}
 
 	t.Run("recursive", func(t *testing.T) {
 		arr := stackitem.NewArray(nil)
@@ -294,7 +295,7 @@ func TestStdLibSerialize(t *testing.T) {
 
 func TestStdLibSerializeDeserialize(t *testing.T) {
 	s := newStd()
-	ic := &interop.Context{VM: vm.New()}
+	ic := &interop.Context{VM: vm.New(), DAO: &dao.Simple{}}
 	var actual stackitem.Item
 
 	checkSerializeDeserialize := func(t *testing.T, value interface{}, expected stackitem.Item) {
@@ -381,7 +382,7 @@ func TestStdLibSerializeDeserialize(t *testing.T) {
 
 func TestMemoryCompare(t *testing.T) {
 	s := newStd()
-	ic := &interop.Context{VM: vm.New()}
+	ic := &interop.Context{VM: vm.New(), DAO: &dao.Simple{}}
 
 	check := func(t *testing.T, result int64, s1, s2 string) {
 		actual := s.memoryCompare(ic, []stackitem.Item{stackitem.Make(s1), stackitem.Make(s2)})

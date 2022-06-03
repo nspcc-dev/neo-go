@@ -177,13 +177,15 @@ func (lg *TokenTransferLog) Size() int {
 
 // EncodeBinary implements the io.Serializable interface.
 func (t *NEP17Transfer) EncodeBinary(w *io.BinWriter) {
+	var buf [bigint.MaxBytesLen]byte
+
 	w.WriteU32LE(uint32(t.Asset))
 	w.WriteBytes(t.Tx[:])
 	w.WriteBytes(t.From[:])
 	w.WriteBytes(t.To[:])
 	w.WriteU32LE(t.Block)
 	w.WriteU64LE(t.Timestamp)
-	amount := bigint.ToBytes(&t.Amount)
+	amount := bigint.ToPreallocatedBytes(&t.Amount, buf[:])
 	w.WriteVarBytes(amount)
 }
 

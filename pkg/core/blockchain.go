@@ -1094,6 +1094,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		}
 		close(aerdone)
 	}()
+	_ = cache.GetItemCtx() // Prime serialization context cache (it'll be reused by upper layer DAOs).
 	aer, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache, trigger.OnPersist)
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
