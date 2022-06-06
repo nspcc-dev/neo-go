@@ -1110,7 +1110,6 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		v := systemInterop.SpawnVM()
 		v.LoadScriptWithFlags(tx.Script, callflag.All)
 		v.SetPriceGetter(systemInterop.GetPrice)
-		v.LoadToken = contract.LoadToken(systemInterop)
 		v.GasLimit = tx.SystemFee
 
 		err := systemInterop.Exec()
@@ -2169,7 +2168,6 @@ func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *
 	systemInterop := bc.newInteropContext(t, bc.dao, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(systemInterop.GetPrice)
-	vm.LoadToken = contract.LoadToken(systemInterop)
 	return systemInterop
 }
 
@@ -2204,7 +2202,6 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 	systemInterop := bc.newInteropContext(t, dTrie, b, tx)
 	vm := systemInterop.SpawnVM()
 	vm.SetPriceGetter(systemInterop.GetPrice)
-	vm.LoadToken = contract.LoadToken(systemInterop)
 	return systemInterop, nil
 }
 
@@ -2280,7 +2277,6 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 
 	vm := interopCtx.SpawnVM()
 	vm.SetPriceGetter(interopCtx.GetPrice)
-	vm.LoadToken = contract.LoadToken(interopCtx)
 	vm.GasLimit = gas
 	if err := bc.InitVerificationContext(interopCtx, hash, witness); err != nil {
 		return 0, err
@@ -2376,7 +2372,7 @@ func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, blo
 		// changes that were not yet persisted to Blockchain's dao.
 		baseStorageFee = bc.contracts.Policy.GetStoragePriceInternal(d)
 	}
-	ic := interop.NewContext(trigger, bc, d, baseExecFee, baseStorageFee, bc.contracts.Management.GetContract, bc.contracts.Contracts, block, tx, bc.log)
+	ic := interop.NewContext(trigger, bc, d, baseExecFee, baseStorageFee, bc.contracts.Management.GetContract, bc.contracts.Contracts, contract.LoadToken, block, tx, bc.log)
 	ic.Functions = systemInterops
 	switch {
 	case tx != nil:
