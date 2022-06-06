@@ -22,7 +22,7 @@ IMAGE_REPO=nspccdev/neo-go
 
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
-.PHONY: build deps image image-latest image-push image-push-latest check-version clean-cluster push-tag \
+.PHONY: build bin deps image image-latest image-push image-push-latest check-version clean-cluster push-tag \
 	test vet lint fmt cover
 
 build: deps
@@ -31,6 +31,8 @@ build: deps
 		&& export GOGC=off \
 		&& export CGO_ENABLED=0 \
 		&& go build -trimpath -v -ldflags $(BUILD_FLAGS) -o ${BINARY} ./cli/main.go
+
+bin: build
 
 neo-go.service: neo-go.service.template
 	@sed -r -e 's_BINDIR_$(BINDIR)_' -e 's_UNITWORKDIR_$(UNITWORKDIR)_' -e 's_SYSCONFIGDIR_$(SYSCONFIGDIR)_' $< >$@
