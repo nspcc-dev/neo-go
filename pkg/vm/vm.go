@@ -122,6 +122,24 @@ func (v *VM) SetPriceGetter(f func(opcode.Opcode, []byte) int64) {
 	v.getPrice = f
 }
 
+// Reset allows to reuse existing VM for subsequent executions making them somewhat
+// more efficient. It reuses invocation and evaluation stacks as well as VM structure
+// itself.
+func (v *VM) Reset(t trigger.Type) {
+	v.state = NoneState
+	v.getPrice = nil
+	v.istack.elems = v.istack.elems[:0]
+	v.estack.elems = v.estack.elems[:0]
+	v.uncaughtException = nil
+	v.refs = 0
+	v.gasConsumed = 0
+	v.GasLimit = 0
+	v.SyscallHandler = nil
+	v.LoadToken = nil
+	v.trigger = t
+	v.invTree = nil
+}
+
 // GasConsumed returns the amount of GAS consumed during execution.
 func (v *VM) GasConsumed() int64 {
 	return v.gasConsumed

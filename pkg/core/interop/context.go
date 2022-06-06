@@ -326,12 +326,22 @@ func (ic *Context) SyscallHandler(_ *vm.VM, id uint32) error {
 // SpawnVM spawns a new VM with the specified gas limit and set context.VM field.
 func (ic *Context) SpawnVM() *vm.VM {
 	v := vm.NewWithTrigger(ic.Trigger)
+	ic.initVM(v)
+	return v
+}
+
+func (ic *Context) initVM(v *vm.VM) {
 	v.LoadToken = ic.LoadToken
 	v.GasLimit = -1
 	v.SyscallHandler = ic.SyscallHandler
 	v.SetPriceGetter(ic.GetPrice)
 	ic.VM = v
-	return v
+}
+
+// ReuseVM resets given VM and allows to reuse it in the current context.
+func (ic *Context) ReuseVM(v *vm.VM) {
+	v.Reset(ic.Trigger)
+	ic.initVM(v)
 }
 
 // RegisterCancelFunc adds the given function to the list of functions to be called after the VM

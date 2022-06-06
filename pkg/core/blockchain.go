@@ -1095,7 +1095,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		close(aerdone)
 	}()
 	_ = cache.GetItemCtx() // Prime serialization context cache (it'll be reused by upper layer DAOs).
-	aer, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache, trigger.OnPersist)
+	aer, v, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache, trigger.OnPersist, nil)
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
 		close(aerchan)
@@ -1107,7 +1107,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 
 	for _, tx := range block.Transactions {
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
-		v := systemInterop.SpawnVM()
+		systemInterop.ReuseVM(v)
 		v.LoadScriptWithFlags(tx.Script, callflag.All)
 		v.GasLimit = tx.SystemFee
 
@@ -1143,7 +1143,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		aerchan <- aer
 	}
 
-	aer, err = bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache, trigger.PostPersist)
+	aer, _, err = bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache, trigger.PostPersist, v)
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
 		close(aerchan)
@@ -1278,14 +1278,18 @@ func (bc *Blockchain) IsExtensibleAllowed(u util.Uint160) bool {
 	return n < len(us)
 }
 
-func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Simple, trig trigger.Type) (*state.AppExecResult, error) {
+func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Simple, trig trigger.Type, v *vm.VM) (*state.AppExecResult, *vm.VM, error) {
 	systemInterop := bc.newInteropContext(trig, cache, block, nil)
-	v := systemInterop.SpawnVM()
+	if v == nil {
+		v = systemInterop.SpawnVM()
+	} else {
+		systemInterop.ReuseVM(v)
+	}
 	v.LoadScriptWithFlags(script, callflag.All)
 	if err := systemInterop.Exec(); err != nil {
-		return nil, fmt.Errorf("VM has failed: %w", err)
+		return nil, v, fmt.Errorf("VM has failed: %w", err)
 	} else if _, err := systemInterop.DAO.Persist(); err != nil {
-		return nil, fmt.Errorf("can't save changes: %w", err)
+		return nil, v, fmt.Errorf("can't save changes: %w", err)
 	}
 	return &state.AppExecResult{
 		Container: block.Hash(), // application logs can be retrieved by block hash
@@ -1296,7 +1300,7 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.S
 			Stack:       v.Estack().ToArray(),
 			Events:      systemInterop.Notifications,
 		},
-	}, nil
+	}, v, nil
 }
 
 func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.Simple,
