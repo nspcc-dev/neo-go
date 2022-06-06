@@ -75,7 +75,7 @@ const (
 	nfsoContractHash           = "c7ec8e0fb4d669913e4ffdd4ba4fa3502e5d2d10"
 	nfsoToken1ID               = "7e244ffd6aa85fb1579d2ed22e9b761ab62e3486"
 	invokescriptContractAVM    = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
-	block20StateRootLE         = "3cba730383c4c2c34475939a4efe9de9ac377bffaf0abdb6f8a1a8fe145d8f69"
+	block20StateRootLE         = "af7fad57fc622305b162c4440295964168a07967d07244964e4ed0121b247dee"
 )
 
 var (
