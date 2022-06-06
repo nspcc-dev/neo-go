@@ -329,6 +329,7 @@ func (ic *Context) SpawnVM() *vm.VM {
 	v.LoadToken = ic.LoadToken
 	v.GasLimit = -1
 	v.SyscallHandler = ic.SyscallHandler
+	v.SetPriceGetter(ic.GetPrice)
 	ic.VM = v
 	return v
 }

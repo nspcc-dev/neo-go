@@ -1109,7 +1109,6 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 		v := systemInterop.SpawnVM()
 		v.LoadScriptWithFlags(tx.Script, callflag.All)
-		v.SetPriceGetter(systemInterop.GetPrice)
 		v.GasLimit = tx.SystemFee
 
 		err := systemInterop.Exec()
@@ -1283,7 +1282,6 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.S
 	systemInterop := bc.newInteropContext(trig, cache, block, nil)
 	v := systemInterop.SpawnVM()
 	v.LoadScriptWithFlags(script, callflag.All)
-	v.SetPriceGetter(systemInterop.GetPrice)
 	if err := systemInterop.Exec(); err != nil {
 		return nil, fmt.Errorf("VM has failed: %w", err)
 	} else if _, err := systemInterop.DAO.Persist(); err != nil {
@@ -2166,8 +2164,7 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 // GetTestVM returns an interop context with VM set up for a test run.
 func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
 	systemInterop := bc.newInteropContext(t, bc.dao, b, tx)
-	vm := systemInterop.SpawnVM()
-	vm.SetPriceGetter(systemInterop.GetPrice)
+	_ = systemInterop.SpawnVM() // All the other code suppose that the VM is ready.
 	return systemInterop
 }
 
@@ -2200,8 +2197,7 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 		return nil, fmt.Errorf("failed to initialize native cache backed by historic DAO: %w", err)
 	}
 	systemInterop := bc.newInteropContext(t, dTrie, b, tx)
-	vm := systemInterop.SpawnVM()
-	vm.SetPriceGetter(systemInterop.GetPrice)
+	_ = systemInterop.SpawnVM() // All the other code suppose that the VM is ready.
 	return systemInterop, nil
 }
 
@@ -2276,7 +2272,6 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	}
 
 	vm := interopCtx.SpawnVM()
-	vm.SetPriceGetter(interopCtx.GetPrice)
 	vm.GasLimit = gas
 	if err := bc.InitVerificationContext(interopCtx, hash, witness); err != nil {
 		return 0, err
