@@ -207,7 +207,7 @@ func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 	index := sort.Search(len(c.Manifest.ABI.Methods), func(i int) bool {
 		md := c.Manifest.ABI.Methods[i]
 		if md.Name != desc.Name {
-			return strings.ToLower(md.Name) >= strings.ToLower(desc.Name)
+			return md.Name >= desc.Name
 		}
 		return len(md.Parameters) > len(desc.Parameters)
 	})
@@ -236,7 +236,7 @@ func (c *ContractMD) GetMethodByOffset(offset int) (MethodAndPrice, bool) {
 func (c *ContractMD) GetMethod(name string, paramCount int) (MethodAndPrice, bool) {
 	index := sort.Search(len(c.Methods), func(i int) bool {
 		md := c.Methods[i]
-		res := strings.Compare(strings.ToLower(name), strings.ToLower(md.MD.Name))
+		res := strings.Compare(name, md.MD.Name)
 		switch res {
 		case -1, 1:
 			return res == -1
