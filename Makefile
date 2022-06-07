@@ -3,6 +3,7 @@ REPONAME = "neo-go"
 NETMODE ?= "privnet"
 BINARY=neo-go
 BINARY_PATH=./bin/$(BINARY)$(shell go env GOEXE)
+GO_VERSION ?= 1.18
 DESTDIR = ""
 SYSCONFIGDIR = "/etc"
 BINDIR = "/usr/bin"
@@ -23,7 +24,7 @@ IMAGE_REPO=nspccdev/neo-go
 
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
-.PHONY: build $(BINARY) deps image image-latest image-push image-push-latest check-version clean-cluster push-tag \
+.PHONY: build $(BINARY) deps image docker/$(BINARY) image-latest image-push image-push-latest check-version clean-cluster push-tag \
 	test vet lint fmt cover
 
 build: deps
@@ -34,6 +35,15 @@ build: deps
 		&& go build -trimpath -v -ldflags $(BUILD_FLAGS) -o ${BINARY_PATH} ./cli/main.go
 
 $(BINARY): build
+
+docker/$(BINARY):
+	@echo "=> Building binary using clean Docker environment"
+	@docker run --rm -t \
+	-v `pwd`:/src \
+	-w /src \
+	-u "$$(id -u):$$(id -g)" \
+	--env HOME=/src \
+	golang:$(GO_VERSION) make $(BINARY)
 
 neo-go.service: neo-go.service.template
 	@sed -r -e 's_BINDIR_$(BINDIR)_' -e 's_UNITWORKDIR_$(UNITWORKDIR)_' -e 's_SYSCONFIGDIR_$(SYSCONFIGDIR)_' $< >$@
