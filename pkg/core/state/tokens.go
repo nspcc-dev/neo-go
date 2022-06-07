@@ -16,6 +16,8 @@ const TokenTransferBatchSize = 128
 // TokenTransferLog is a serialized log of token transfers.
 type TokenTransferLog struct {
 	Raw []byte
+	buf *bytes.Buffer
+	iow *io.BinWriter
 }
 
 // NEP17Transfer represents a single NEP-17 Transfer event.
@@ -111,16 +113,28 @@ func (lg *TokenTransferLog) Append(tr io.Serializable) error {
 		lg.Raw = append(lg.Raw, 0)
 	}
 
-	b := bytes.NewBuffer(lg.Raw)
-	w := io.NewBinWriterFromIO(b)
-
-	tr.EncodeBinary(w)
-	if w.Err != nil {
-		return w.Err
+	if lg.buf == nil {
+		lg.buf = bytes.NewBuffer(lg.Raw)
 	}
-	lg.Raw = b.Bytes()
+	if lg.iow == nil {
+		lg.iow = io.NewBinWriterFromIO(lg.buf)
+	}
+
+	tr.EncodeBinary(lg.iow)
+	if lg.iow.Err != nil {
+		return lg.iow.Err
+	}
+	lg.Raw = lg.buf.Bytes()
 	lg.Raw[0]++
 	return nil
+}
+
+// Reset resets the state of the log, clearing all entries, but keeping existing
+// buffer for future writes.
+func (lg *TokenTransferLog) Reset() {
+	lg.Raw = lg.Raw[:0]
+	lg.buf = nil
+	lg.iow = nil
 }
 
 // ForEachNEP11 iterates over a transfer log returning on the first error.

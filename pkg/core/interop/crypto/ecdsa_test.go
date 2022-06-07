@@ -73,7 +73,7 @@ func initCheckMultisigVMNoArgs(container *transaction.Transaction) *vm.VM {
 		trigger.Verification,
 		fakechain.NewFakeChain(),
 		dao.NewSimple(storage.NewMemoryStore(), false, false),
-		interop.DefaultBaseExecFee, native.DefaultStoragePrice, nil, nil, nil,
+		interop.DefaultBaseExecFee, native.DefaultStoragePrice, nil, nil, nil, nil,
 		container,
 		nil)
 	ic.Container = container

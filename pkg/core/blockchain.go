@@ -1095,7 +1095,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		close(aerdone)
 	}()
 	_ = cache.GetItemCtx() // Prime serialization context cache (it'll be reused by upper layer DAOs).
-	aer, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache, trigger.OnPersist)
+	aer, v, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache, trigger.OnPersist, nil)
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
 		close(aerchan)
@@ -1107,10 +1107,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 
 	for _, tx := range block.Transactions {
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
-		v := systemInterop.SpawnVM()
+		systemInterop.ReuseVM(v)
 		v.LoadScriptWithFlags(tx.Script, callflag.All)
-		v.SetPriceGetter(systemInterop.GetPrice)
-		v.LoadToken = contract.LoadToken(systemInterop)
 		v.GasLimit = tx.SystemFee
 
 		err := systemInterop.Exec()
@@ -1145,7 +1143,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		aerchan <- aer
 	}
 
-	aer, err = bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache, trigger.PostPersist)
+	aer, _, err = bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache, trigger.PostPersist, v)
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
 		close(aerchan)
@@ -1280,15 +1278,18 @@ func (bc *Blockchain) IsExtensibleAllowed(u util.Uint160) bool {
 	return n < len(us)
 }
 
-func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Simple, trig trigger.Type) (*state.AppExecResult, error) {
+func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Simple, trig trigger.Type, v *vm.VM) (*state.AppExecResult, *vm.VM, error) {
 	systemInterop := bc.newInteropContext(trig, cache, block, nil)
-	v := systemInterop.SpawnVM()
+	if v == nil {
+		v = systemInterop.SpawnVM()
+	} else {
+		systemInterop.ReuseVM(v)
+	}
 	v.LoadScriptWithFlags(script, callflag.All)
-	v.SetPriceGetter(systemInterop.GetPrice)
 	if err := systemInterop.Exec(); err != nil {
-		return nil, fmt.Errorf("VM has failed: %w", err)
+		return nil, v, fmt.Errorf("VM has failed: %w", err)
 	} else if _, err := systemInterop.DAO.Persist(); err != nil {
-		return nil, fmt.Errorf("can't save changes: %w", err)
+		return nil, v, fmt.Errorf("can't save changes: %w", err)
 	}
 	return &state.AppExecResult{
 		Container: block.Hash(), // application logs can be retrieved by block hash
@@ -1299,7 +1300,7 @@ func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.S
 			Stack:       v.Estack().ToArray(),
 			Events:      systemInterop.Notifications,
 		},
-	}, nil
+	}, v, nil
 }
 
 func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.Simple,
@@ -1365,6 +1366,7 @@ func (bc *Blockchain) processTokenTransfer(cache *dao.Simple, transCache map[uti
 	if !isNEP11 {
 		nep17xfer = &state.NEP17Transfer{
 			Asset:     id,
+			Amount:    *amount,
 			From:      from,
 			To:        to,
 			Block:     b.Index,
@@ -1376,6 +1378,7 @@ func (bc *Blockchain) processTokenTransfer(cache *dao.Simple, transCache map[uti
 		nep11xfer := &state.NEP11Transfer{
 			NEP17Transfer: state.NEP17Transfer{
 				Asset:     id,
+				Amount:    *amount,
 				From:      from,
 				To:        to,
 				Block:     b.Index,
@@ -1388,13 +1391,14 @@ func (bc *Blockchain) processTokenTransfer(cache *dao.Simple, transCache map[uti
 		nep17xfer = &nep11xfer.NEP17Transfer
 	}
 	if !from.Equals(util.Uint160{}) {
-		_ = nep17xfer.Amount.Neg(amount) // We already have the Int.
-		if appendTokenTransfer(cache, transCache, from, transfer, id, b.Index, b.Timestamp, isNEP11) != nil {
+		_ = nep17xfer.Amount.Neg(&nep17xfer.Amount)
+		err := appendTokenTransfer(cache, transCache, from, transfer, id, b.Index, b.Timestamp, isNEP11)
+		_ = nep17xfer.Amount.Neg(&nep17xfer.Amount)
+		if err != nil {
 			return
 		}
 	}
 	if !to.Equals(util.Uint160{}) {
-		_ = nep17xfer.Amount.Set(amount)                                                            // We already have the Int.
 		_ = appendTokenTransfer(cache, transCache, to, transfer, id, b.Index, b.Timestamp, isNEP11) // Nothing useful we can do.
 	}
 }
@@ -1451,7 +1455,7 @@ func appendTokenTransfer(cache *dao.Simple, transCache map[util.Uint160]transfer
 		*nextBatch++
 		*currTimestamp = bTimestamp
 		// Put makes a copy of it anyway.
-		log.Raw = log.Raw[:0]
+		log.Reset()
 	}
 	transCache[addr] = transferData
 	return nil
@@ -2164,9 +2168,7 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 // GetTestVM returns an interop context with VM set up for a test run.
 func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
 	systemInterop := bc.newInteropContext(t, bc.dao, b, tx)
-	vm := systemInterop.SpawnVM()
-	vm.SetPriceGetter(systemInterop.GetPrice)
-	vm.LoadToken = contract.LoadToken(systemInterop)
+	_ = systemInterop.SpawnVM() // All the other code suppose that the VM is ready.
 	return systemInterop
 }
 
@@ -2199,9 +2201,7 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 		return nil, fmt.Errorf("failed to initialize native cache backed by historic DAO: %w", err)
 	}
 	systemInterop := bc.newInteropContext(t, dTrie, b, tx)
-	vm := systemInterop.SpawnVM()
-	vm.SetPriceGetter(systemInterop.GetPrice)
-	vm.LoadToken = contract.LoadToken(systemInterop)
+	_ = systemInterop.SpawnVM() // All the other code suppose that the VM is ready.
 	return systemInterop, nil
 }
 
@@ -2276,8 +2276,6 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	}
 
 	vm := interopCtx.SpawnVM()
-	vm.SetPriceGetter(interopCtx.GetPrice)
-	vm.LoadToken = contract.LoadToken(interopCtx)
 	vm.GasLimit = gas
 	if err := bc.InitVerificationContext(interopCtx, hash, witness); err != nil {
 		return 0, err
@@ -2373,7 +2371,7 @@ func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, blo
 		// changes that were not yet persisted to Blockchain's dao.
 		baseStorageFee = bc.contracts.Policy.GetStoragePriceInternal(d)
 	}
-	ic := interop.NewContext(trigger, bc, d, baseExecFee, baseStorageFee, bc.contracts.Management.GetContract, bc.contracts.Contracts, block, tx, bc.log)
+	ic := interop.NewContext(trigger, bc, d, baseExecFee, baseStorageFee, bc.contracts.Management.GetContract, bc.contracts.Contracts, contract.LoadToken, block, tx, bc.log)
 	ic.Functions = systemInterops
 	switch {
 	case tx != nil:

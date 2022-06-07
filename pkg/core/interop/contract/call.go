@@ -22,26 +22,24 @@ type policyChecker interface {
 }
 
 // LoadToken calls method specified by the token id.
-func LoadToken(ic *interop.Context) func(id int32) error {
-	return func(id int32) error {
-		ctx := ic.VM.Context()
-		if !ctx.GetCallFlags().Has(callflag.ReadStates | callflag.AllowCall) {
-			return errors.New("invalid call flags")
-		}
-		tok := ctx.NEF.Tokens[id]
-		if int(tok.ParamCount) > ctx.Estack().Len() {
-			return errors.New("stack is too small")
-		}
-		args := make([]stackitem.Item, tok.ParamCount)
-		for i := range args {
-			args[i] = ic.VM.Estack().Pop().Item()
-		}
-		cs, err := ic.GetContract(tok.Hash)
-		if err != nil {
-			return fmt.Errorf("token contract %s not found: %w", tok.Hash.StringLE(), err)
-		}
-		return callInternal(ic, cs, tok.Method, tok.CallFlag, tok.HasReturn, args, false)
+func LoadToken(ic *interop.Context, id int32) error {
+	ctx := ic.VM.Context()
+	if !ctx.GetCallFlags().Has(callflag.ReadStates | callflag.AllowCall) {
+		return errors.New("invalid call flags")
 	}
+	tok := ctx.NEF.Tokens[id]
+	if int(tok.ParamCount) > ctx.Estack().Len() {
+		return errors.New("stack is too small")
+	}
+	args := make([]stackitem.Item, tok.ParamCount)
+	for i := range args {
+		args[i] = ic.VM.Estack().Pop().Item()
+	}
+	cs, err := ic.GetContract(tok.Hash)
+	if err != nil {
+		return fmt.Errorf("token contract %s not found: %w", tok.Hash.StringLE(), err)
+	}
+	return callInternal(ic, cs, tok.Method, tok.CallFlag, tok.HasReturn, args, false)
 }
 
 // Call calls a contract with flags.

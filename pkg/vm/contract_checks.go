@@ -118,17 +118,14 @@ func ParseSignatureContract(script []byte) ([]byte, bool) {
 		return nil, false
 	}
 
-	ctx := NewContext(script)
-	instr, param, err := ctx.Next()
-	if err != nil || instr != opcode.PUSHDATA1 || len(param) != 33 {
-		return nil, false
+	// We don't use Context for this simple case, it's more efficient this way.
+	if script[0] == byte(opcode.PUSHDATA1) && // PUSHDATA1
+		script[1] == 33 && // with a public key parameter
+		script[35] == byte(opcode.SYSCALL) && // and a CheckSig SYSCALL.
+		binary.LittleEndian.Uint32(script[36:]) == verifyInteropID {
+		return script[2:35], true
 	}
-	pub := param
-	instr, param, err = ctx.Next()
-	if err != nil || instr != opcode.SYSCALL || binary.LittleEndian.Uint32(param) != verifyInteropID {
-		return nil, false
-	}
-	return pub, true
+	return nil, false
 }
 
 // IsStandardContract checks whether the passed script is a signature or

@@ -64,6 +64,7 @@ type Context struct {
 	getContract      func(*dao.Simple, util.Uint160) (*state.Contract, error)
 	baseExecFee      int64
 	baseStorageFee   int64
+	loadToken        func(ic *Context, id int32) error
 	GetRandomCounter uint32
 	signers          []transaction.Signer
 }
@@ -71,6 +72,7 @@ type Context struct {
 // NewContext returns new interop context.
 func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, baseStorageFee int64,
 	getContract func(*dao.Simple, util.Uint160) (*state.Contract, error), natives []Contract,
+	loadTokenFunc func(ic *Context, id int32) error,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
 	dao := d.GetPrivate()
 	cfg := bc.GetConfig()
@@ -88,6 +90,7 @@ func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, bas
 		getContract:    getContract,
 		baseExecFee:    baseExecFee,
 		baseStorageFee: baseStorageFee,
+		loadToken:      loadTokenFunc,
 	}
 }
 
@@ -298,6 +301,12 @@ func (ic *Context) BaseStorageFee() int64 {
 	return ic.baseStorageFee
 }
 
+// LoadToken wraps externally provided load-token loading function providing it with context,
+// this function can then be easily used by VM.
+func (ic *Context) LoadToken(id int32) error {
+	return ic.loadToken(ic, id)
+}
+
 // SyscallHandler handles syscall with id.
 func (ic *Context) SyscallHandler(_ *vm.VM, id uint32) error {
 	f := ic.GetFunction(id)
@@ -317,10 +326,22 @@ func (ic *Context) SyscallHandler(_ *vm.VM, id uint32) error {
 // SpawnVM spawns a new VM with the specified gas limit and set context.VM field.
 func (ic *Context) SpawnVM() *vm.VM {
 	v := vm.NewWithTrigger(ic.Trigger)
+	ic.initVM(v)
+	return v
+}
+
+func (ic *Context) initVM(v *vm.VM) {
+	v.LoadToken = ic.LoadToken
 	v.GasLimit = -1
 	v.SyscallHandler = ic.SyscallHandler
+	v.SetPriceGetter(ic.GetPrice)
 	ic.VM = v
-	return v
+}
+
+// ReuseVM resets given VM and allows to reuse it in the current context.
+func (ic *Context) ReuseVM(v *vm.VM) {
+	v.Reset(ic.Trigger)
+	ic.initVM(v)
 }
 
 // RegisterCancelFunc adds the given function to the list of functions to be called after the VM
