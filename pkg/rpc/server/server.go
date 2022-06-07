@@ -159,7 +159,7 @@ var rpcWsHandlers = map[string]func(*Server, request.Params, *subscriber) (inter
 }
 
 var invalidBlockHeightError = func(index int, height int) *response.Error {
-	return response.NewRPCError(fmt.Sprintf("Param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height), "", nil)
+	return response.NewRPCError("Invalid block height", fmt.Sprintf("param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height))
 }
 
 // upgrader is a no-op websocket.Upgrader that reuses HTTP server buffers and
@@ -301,7 +301,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 			s.writeHTTPErrorResponse(
 				request.NewIn(),
 				w,
-				response.NewInternalServerError("websocket users limit reached", fmt.Errorf("%d subscribers are allowed at max", maxSubscribers)),
+				response.NewInternalServerError("websocket users limit reached"),
 			)
 			return
 		}
@@ -325,16 +325,14 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 		s.writeHTTPErrorResponse(
 			request.NewIn(),
 			w,
-			response.NewInvalidParamsError(
-				fmt.Sprintf("Invalid method '%s', please retry with 'POST'", httpRequest.Method), errors.New("unsupported HTTP request method"),
-			),
+			response.NewInvalidParamsError(fmt.Sprintf("invalid method '%s', please retry with 'POST'", httpRequest.Method)),
 		)
 		return
 	}
 
 	err := req.DecodeData(httpRequest.Body)
 	if err != nil {
-		s.writeHTTPErrorResponse(request.NewIn(), w, response.NewParseError("Problem parsing JSON-RPC request body", err))
+		s.writeHTTPErrorResponse(request.NewIn(), w, response.NewParseError(err.Error()))
 		return
 	}
 
@@ -359,7 +357,7 @@ func (s *Server) handleIn(req *request.In, sub *subscriber) response.Abstract {
 	var res interface{}
 	var resErr *response.Error
 	if req.JSONRPC != request.JSONRPCVersion {
-		return s.packResponse(req, nil, response.NewInvalidParamsError("Problem parsing JSON", fmt.Errorf("invalid version, expected 2.0 got: '%s'", req.JSONRPC)))
+		return s.packResponse(req, nil, response.NewInvalidParamsError(fmt.Sprintf("problem parsing JSON: invalid version, expected 2.0 got '%s'", req.JSONRPC)))
 	}
 
 	reqParams := request.Params(req.RawParams)
@@ -370,7 +368,7 @@ func (s *Server) handleIn(req *request.In, sub *subscriber) response.Abstract {
 
 	incCounter(req.Method)
 
-	resErr = response.NewMethodNotFoundError(fmt.Sprintf("Method %q not supported", req.Method), errors.New("unsupported method call"))
+	resErr = response.NewMethodNotFoundError(fmt.Sprintf("method %q not supported", req.Method))
 	handler, ok := rpcHandlers[req.Method]
 	if ok {
 		res, resErr = handler(s, reqParams)
@@ -513,7 +511,7 @@ func (s *Server) getBlock(reqParams request.Params) (interface{}, *response.Erro
 
 	block, err := s.chain.GetBlock(hash)
 	if err != nil {
-		return nil, response.NewRPCError(fmt.Sprintf("Problem locating block with hash: %s", hash), err.Error(), err)
+		return nil, response.NewRPCError("Failed to get block", err.Error())
 	}
 
 	if v, _ := reqParams.Value(1).GetBoolean(); v {
@@ -536,7 +534,7 @@ func (s *Server) getBlockHash(reqParams request.Params) (interface{}, *response.
 func (s *Server) getVersion(_ request.Params) (interface{}, *response.Error) {
 	port, err := s.coreServer.Port()
 	if err != nil {
-		return nil, response.NewInternalServerError("Cannot fetch tcp port", err)
+		return nil, response.NewInternalServerError(fmt.Sprintf("cannot fetch tcp port: %s", err))
 	}
 
 	cfg := s.chain.GetConfig()
@@ -605,15 +603,15 @@ func (s *Server) calculateNetworkFee(reqParams request.Params) (interface{}, *re
 	}
 	byteTx, err := reqParams[0].GetBytesBase64()
 	if err != nil {
-		return 0, response.WrapErrorWithData(response.ErrInvalidParams, err)
+		return 0, response.WrapErrorWithData(response.ErrInvalidParams, err.Error())
 	}
 	tx, err := transaction.NewTransactionFromBytes(byteTx)
 	if err != nil {
-		return 0, response.WrapErrorWithData(response.ErrInvalidParams, err)
+		return 0, response.WrapErrorWithData(response.ErrInvalidParams, err.Error())
 	}
 	hashablePart, err := tx.EncodeHashableFields()
 	if err != nil {
-		return 0, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Errorf("failed to compute tx size: %w", err))
+		return 0, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Sprintf("failed to compute tx size: %s", err))
 	}
 	size := len(hashablePart) + io.GetVarSize(len(tx.Signers))
 	var (
@@ -632,7 +630,7 @@ func (s *Server) calculateNetworkFee(reqParams request.Params) (interface{}, *re
 		if verificationScript == nil { // then it still might be a contract-based verification
 			gasConsumed, err := s.chain.VerifyWitness(signer.Account, tx, &tx.Scripts[i], int64(s.config.MaxGasInvoke))
 			if err != nil {
-				return 0, response.NewRPCError(fmt.Sprintf("contract verification for signer #%d failed", i), err.Error(), err)
+				return 0, response.NewRPCError("Invalid signature", fmt.Sprintf("contract verification for signer #%d failed: %s", i, err))
 			}
 			netFee += gasConsumed
 			size += io.GetVarSize([]byte{}) + // verification script is empty (contract-based witness)
@@ -673,7 +671,7 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 
 	appExecResults, err := s.chain.GetAppExecResults(hash, trigger.All)
 	if err != nil {
-		return nil, response.NewRPCError("Unknown transaction or block", "", err)
+		return nil, response.NewRPCError("Unknown transaction or block", fmt.Sprintf("failed to locate application log: %s", err))
 	}
 	return result.NewApplicationLog(hash, appExecResults, trig), nil
 }
@@ -703,7 +701,7 @@ func (s *Server) getNEP11Balances(ps request.Params) (interface{}, *response.Err
 	}
 	lastUpdated, err := s.chain.GetTokenLastUpdated(u)
 	if err != nil {
-		return nil, response.NewRPCError("Failed to get NEP-11 last updated block", err.Error(), err)
+		return nil, response.NewRPCError("Failed to get NEP-11 last updated block", err.Error())
 	}
 	var count int
 	stateSyncPoint := lastUpdated[math.MinInt32]
@@ -726,7 +724,7 @@ contract_loop:
 		if !ok {
 			cfg := s.chain.GetConfig()
 			if !cfg.P2PStateExchangeExtensions && cfg.RemoveUntraceableBlocks {
-				return nil, response.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token", cs.Hash.StringLE()), errors.New("internal database inconsistency"))
+				return nil, response.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token: internal database inconsistency", cs.Hash.StringLE()))
 			}
 			lub = stateSyncPoint
 		}
@@ -788,7 +786,7 @@ func (s *Server) getNEP11Properties(ps request.Params) (interface{}, *response.E
 	}
 	props, err := s.invokeNEP11Properties(asset, token, nil)
 	if err != nil {
-		return nil, response.NewRPCError("failed to get NEP-11 properties", err.Error(), err)
+		return nil, response.NewRPCError("Failed to get NEP-11 properties", err.Error())
 	}
 	res := make(map[string]interface{})
 	for _, kv := range props {
@@ -825,7 +823,7 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 	}
 	lastUpdated, err := s.chain.GetTokenLastUpdated(u)
 	if err != nil {
-		return nil, response.NewRPCError("Failed to get NEP-17 last updated block", err.Error(), err)
+		return nil, response.NewRPCError("Failed to get NEP-17 last updated block", err.Error())
 	}
 	stateSyncPoint := lastUpdated[math.MinInt32]
 	bw := io.NewBufBinWriter()
@@ -845,7 +843,7 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 		if !ok {
 			cfg := s.chain.GetConfig()
 			if !cfg.P2PStateExchangeExtensions && cfg.RemoveUntraceableBlocks {
-				return nil, response.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token", cs.Hash.StringLE()), errors.New("internal database inconsistency"))
+				return nil, response.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token: internal database inconsistency", cs.Hash.StringLE()))
 			}
 			lub = stateSyncPoint
 		}
@@ -977,7 +975,7 @@ func (s *Server) getTokenTransfers(ps request.Params, isNEP11 bool) (interface{}
 
 	start, end, limit, page, err := getTimestampsAndLimit(ps, 1)
 	if err != nil {
-		return nil, response.NewInvalidParamsError(err.Error(), err)
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("malformed timestamps/limit: %s", err))
 	}
 
 	bs := &tokenTransfers{
@@ -1068,7 +1066,7 @@ func (s *Server) getTokenTransfers(ps request.Params, isNEP11 bool) (interface{}
 		})
 	}
 	if err != nil {
-		return nil, response.NewInternalServerError(fmt.Sprintf("invalid transfer log: %v", err), err)
+		return nil, response.NewInternalServerError(fmt.Sprintf("invalid transfer log: %s", err))
 	}
 	return bs, nil
 }
@@ -1103,7 +1101,7 @@ func (s *Server) contractIDFromParam(param *request.Param) (int32, *response.Err
 			return 0, response.ErrInvalidParams
 		}
 		if err := checkInt32(id); err != nil {
-			return 0, response.WrapErrorWithData(response.ErrInvalidParams, err)
+			return 0, response.WrapErrorWithData(response.ErrInvalidParams, err.Error())
 		}
 		result = int32(id)
 	}
@@ -1130,14 +1128,14 @@ func (s *Server) contractScriptHashFromParam(param *request.Param) (util.Uint160
 	}
 	id, err := strconv.Atoi(nameOrHashOrIndex)
 	if err != nil {
-		return result, response.NewRPCError("Unknown contract", "", err)
+		return result, response.NewRPCError("Invalid contract identifier (name/hash/index is expected)", err.Error())
 	}
 	if err := checkInt32(id); err != nil {
-		return result, response.WrapErrorWithData(response.ErrInvalidParams, err)
+		return result, response.WrapErrorWithData(response.ErrInvalidParams, err.Error())
 	}
 	result, err = s.chain.GetContractScriptHash(int32(id))
 	if err != nil {
-		return result, response.NewRPCError("Unknown contract", "", err)
+		return result, response.NewRPCError("Unknown contract", "")
 	}
 	return result, nil
 }
@@ -1153,7 +1151,7 @@ var errKeepOnlyLatestState = errors.New("'KeepOnlyLatestState' setting is enable
 
 func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {
 	if s.chain.GetConfig().KeepOnlyLatestState {
-		return nil, response.NewInvalidRequestError("'getproof' is not supported", errKeepOnlyLatestState)
+		return nil, response.NewInvalidRequestError(fmt.Sprintf("'getproof' is not supported: %s", errKeepOnlyLatestState))
 	}
 	root, err := ps.Value(0).GetUint256()
 	if err != nil {
@@ -1174,7 +1172,7 @@ func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {
 	skey := makeStorageKey(cs.ID, key)
 	proof, err := s.chain.GetStateModule().GetStateProof(root, skey)
 	if err != nil {
-		return nil, response.NewInternalServerError("failed to get proof", err)
+		return nil, response.NewInternalServerError(fmt.Sprintf("failed to get proof: %s", err))
 	}
 	return &result.ProofWithKey{
 		Key:   skey,
@@ -1184,7 +1182,7 @@ func (s *Server) getProof(ps request.Params) (interface{}, *response.Error) {
 
 func (s *Server) verifyProof(ps request.Params) (interface{}, *response.Error) {
 	if s.chain.GetConfig().KeepOnlyLatestState {
-		return nil, response.NewInvalidRequestError("'verifyproof' is not supported", errKeepOnlyLatestState)
+		return nil, response.NewInvalidRequestError(fmt.Sprintf("'verifyproof' is not supported: %s", errKeepOnlyLatestState))
 	}
 	root, err := ps.Value(0).GetUint256()
 	if err != nil {
@@ -1209,24 +1207,24 @@ func (s *Server) verifyProof(ps request.Params) (interface{}, *response.Error) {
 func (s *Server) getState(ps request.Params) (interface{}, *response.Error) {
 	root, err := ps.Value(0).GetUint256()
 	if err != nil {
-		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid stateroot"))
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, "invalid stateroot")
 	}
 	if s.chain.GetConfig().KeepOnlyLatestState {
 		curr, err := s.chain.GetStateModule().GetStateRoot(s.chain.BlockHeight())
 		if err != nil {
-			return nil, response.NewInternalServerError("failed to get current stateroot", err)
+			return nil, response.NewInternalServerError(fmt.Sprintf("failed to get current stateroot: %s", err))
 		}
 		if !curr.Root.Equals(root) {
-			return nil, response.NewInvalidRequestError("'getstate' is not supported for old states", errKeepOnlyLatestState)
+			return nil, response.NewInvalidRequestError(fmt.Sprintf("'getstate' is not supported for old states: %s", errKeepOnlyLatestState))
 		}
 	}
 	csHash, err := ps.Value(1).GetUint160FromHex()
 	if err != nil {
-		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid contract hash"))
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, "invalid contract hash")
 	}
 	key, err := ps.Value(2).GetBytesBase64()
 	if err != nil {
-		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid key"))
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, "invalid key")
 	}
 	cs, respErr := s.getHistoricalContractState(root, csHash)
 	if respErr != nil {
@@ -1235,7 +1233,7 @@ func (s *Server) getState(ps request.Params) (interface{}, *response.Error) {
 	sKey := makeStorageKey(cs.ID, key)
 	res, err := s.chain.GetStateModule().GetState(root, sKey)
 	if err != nil {
-		return nil, response.NewRPCError("failed to get historical item state", err.Error(), err)
+		return nil, response.NewRPCError("Failed to get historical item state", err.Error())
 	}
 	return res, nil
 }
@@ -1243,24 +1241,24 @@ func (s *Server) getState(ps request.Params) (interface{}, *response.Error) {
 func (s *Server) findStates(ps request.Params) (interface{}, *response.Error) {
 	root, err := ps.Value(0).GetUint256()
 	if err != nil {
-		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("invalid stateroot"))
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, "invalid stateroot")
 	}
 	if s.chain.GetConfig().KeepOnlyLatestState {
 		curr, err := s.chain.GetStateModule().GetStateRoot(s.chain.BlockHeight())
 		if err != nil {
-			return nil, response.NewInternalServerError("failed to get current stateroot", err)
+			return nil, response.NewInternalServerError(fmt.Sprintf("failed to get current stateroot: %s", err))
 		}
 		if !curr.Root.Equals(root) {
-			return nil, response.NewInvalidRequestError("'findstates' is not supported for old states", errKeepOnlyLatestState)
+			return nil, response.NewInvalidRequestError(fmt.Sprintf("'findstates' is not supported for old states: %s", errKeepOnlyLatestState))
 		}
 	}
 	csHash, err := ps.Value(1).GetUint160FromHex()
 	if err != nil {
-		return nil, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Errorf("invalid contract hash: %w", err))
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Sprintf("invalid contract hash: %s", err))
 	}
 	prefix, err := ps.Value(2).GetBytesBase64()
 	if err != nil {
-		return nil, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Errorf("invalid prefix: %w", err))
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Sprintf("invalid prefix: %s", err))
 	}
 	var (
 		key   []byte
@@ -1269,11 +1267,11 @@ func (s *Server) findStates(ps request.Params) (interface{}, *response.Error) {
 	if len(ps) > 3 {
 		key, err = ps.Value(3).GetBytesBase64()
 		if err != nil {
-			return nil, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Errorf("invalid key: %w", err))
+			return nil, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Sprintf("invalid key: %s", err))
 		}
 		if len(key) > 0 {
 			if !bytes.HasPrefix(key, prefix) {
-				return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("key doesn't match prefix"))
+				return nil, response.WrapErrorWithData(response.ErrInvalidParams, "key doesn't match prefix")
 			}
 			key = key[len(prefix):]
 		} else {
@@ -1284,7 +1282,7 @@ func (s *Server) findStates(ps request.Params) (interface{}, *response.Error) {
 	if len(ps) > 4 {
 		count, err = ps.Value(4).GetInt()
 		if err != nil {
-			return nil, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Errorf("invalid count: %w", err))
+			return nil, response.WrapErrorWithData(response.ErrInvalidParams, fmt.Sprintf("invalid count: %s", err))
 		}
 		if count > s.config.MaxFindResultItems {
 			count = s.config.MaxFindResultItems
@@ -1297,7 +1295,7 @@ func (s *Server) findStates(ps request.Params) (interface{}, *response.Error) {
 	pKey := makeStorageKey(cs.ID, prefix)
 	kvs, err := s.chain.GetStateModule().FindStates(root, pKey, key, count+1) // +1 to define result truncation
 	if err != nil {
-		return nil, response.NewInternalServerError("failed to find historical items", err)
+		return nil, response.NewInternalServerError(fmt.Sprintf("failed to find historical items: %s", err))
 	}
 	res := result.FindStates{}
 	if len(kvs) == count+1 {
@@ -1307,7 +1305,7 @@ func (s *Server) findStates(ps request.Params) (interface{}, *response.Error) {
 	if len(kvs) > 0 {
 		proof, err := s.chain.GetStateModule().GetStateProof(root, kvs[0].Key)
 		if err != nil {
-			return nil, response.NewInternalServerError("failed to get first proof", err)
+			return nil, response.NewInternalServerError(fmt.Sprintf("failed to get first proof: %s", err))
 		}
 		res.FirstProof = &result.ProofWithKey{
 			Key:   kvs[0].Key,
@@ -1317,7 +1315,7 @@ func (s *Server) findStates(ps request.Params) (interface{}, *response.Error) {
 	if len(kvs) > 1 {
 		proof, err := s.chain.GetStateModule().GetStateProof(root, kvs[len(kvs)-1].Key)
 		if err != nil {
-			return nil, response.NewInternalServerError("failed to get last proof", err)
+			return nil, response.NewInternalServerError(fmt.Sprintf("failed to get last proof: %s", err))
 		}
 		res.LastProof = &result.ProofWithKey{
 			Key:   kvs[len(kvs)-1].Key,
@@ -1338,12 +1336,12 @@ func (s *Server) getHistoricalContractState(root util.Uint256, csHash util.Uint1
 	csKey := makeStorageKey(native.ManagementContractID, native.MakeContractKey(csHash))
 	csBytes, err := s.chain.GetStateModule().GetState(root, csKey)
 	if err != nil {
-		return nil, response.NewRPCError("failed to get historical contract state", err.Error(), err)
+		return nil, response.NewRPCError("Failed to get historical contract state", err.Error())
 	}
 	contract := new(state.Contract)
 	err = stackitem.DeserializeConvertible(csBytes, contract)
 	if err != nil {
-		return nil, response.NewInternalServerError("failed to deserialize historical contract state", err)
+		return nil, response.NewInternalServerError(fmt.Sprintf("failed to deserialize historical contract state: %s", err))
 	}
 	return contract, nil
 }
@@ -1363,14 +1361,14 @@ func (s *Server) getStateHeight(_ request.Params) (interface{}, *response.Error)
 func (s *Server) getStateRoot(ps request.Params) (interface{}, *response.Error) {
 	p := ps.Value(0)
 	if p == nil {
-		return nil, response.NewInvalidParamsError("Invalid parameter.", errors.New("missing stateroot identifier "))
+		return nil, response.NewInvalidParamsError("missing stateroot identifier")
 	}
 	var rt *state.MPTRoot
 	var h util.Uint256
 	height, err := p.GetIntStrict()
 	if err == nil {
 		if err := checkUint32(height); err != nil {
-			return nil, response.WrapErrorWithData(response.ErrInvalidParams, err)
+			return nil, response.WrapErrorWithData(response.ErrInvalidParams, err.Error())
 		}
 		rt, err = s.chain.GetStateModule().GetStateRoot(uint32(height))
 	} else if h, err = p.GetUint256(); err == nil {
@@ -1381,7 +1379,7 @@ func (s *Server) getStateRoot(ps request.Params) (interface{}, *response.Error) 
 		}
 	}
 	if err != nil {
-		return nil, response.NewRPCError("Unknown state root.", "", err)
+		return nil, response.NewRPCError("Unknown state root", "")
 	}
 	return rt, nil
 }
@@ -1415,8 +1413,7 @@ func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *resp
 	}
 	tx, height, err := s.chain.GetTransaction(txHash)
 	if err != nil {
-		err = fmt.Errorf("invalid transaction %s: %w", txHash, err)
-		return nil, response.NewRPCError("Unknown transaction", err.Error(), err)
+		return nil, response.NewRPCError("Unknown transaction", "")
 	}
 	if v, _ := reqParams.Value(1).GetBoolean(); v {
 		if height == math.MaxUint32 {
@@ -1425,14 +1422,14 @@ func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *resp
 		_header := s.chain.GetHeaderHash(int(height))
 		header, err := s.chain.GetHeader(_header)
 		if err != nil {
-			return nil, response.NewRPCError("Failed to get header for the transaction", err.Error(), err)
+			return nil, response.NewRPCError("Failed to get header for the transaction", err.Error())
 		}
 		aers, err := s.chain.GetAppExecResults(txHash, trigger.Application)
 		if err != nil {
-			return nil, response.NewRPCError("Failed to get application log for the transaction", err.Error(), err)
+			return nil, response.NewRPCError("Failed to get application log for the transaction", err.Error())
 		}
 		if len(aers) == 0 {
-			return nil, response.NewRPCError("Application log for the transaction is empty", "", errors.New("inconsistent application log"))
+			return nil, response.NewRPCError("Inconsistent application log", "application log for the transaction is empty")
 		}
 		return result.NewTransactionOutputRaw(tx, header, &aers[0], s.chain), nil
 	}
@@ -1447,7 +1444,7 @@ func (s *Server) getTransactionHeight(ps request.Params) (interface{}, *response
 
 	_, height, err := s.chain.GetTransaction(h)
 	if err != nil || height == math.MaxUint32 {
-		return nil, response.NewRPCError("Unknown transaction", "", errors.New("transaction not found"))
+		return nil, response.NewRPCError("Unknown transaction", "")
 	}
 
 	return height, nil
@@ -1462,7 +1459,7 @@ func (s *Server) getContractState(reqParams request.Params) (interface{}, *respo
 	}
 	cs := s.chain.GetContractState(scriptHash)
 	if cs == nil {
-		return nil, response.NewRPCError("Unknown contract", "", errors.New("contract not found"))
+		return nil, response.NewRPCError("Unknown contract", "")
 	}
 	return cs, nil
 }
@@ -1475,13 +1472,13 @@ func (s *Server) getNativeContracts(_ request.Params) (interface{}, *response.Er
 func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, *response.Error) {
 	num, err := s.blockHeightFromParam(reqParams.Value(0))
 	if err != nil {
-		return 0, response.NewRPCError("Invalid height", "", errors.New("invalid block identifier"))
+		return 0, response.NewRPCError("Invalid height", "invalid block identifier")
 	}
 
 	headerHash := s.chain.GetHeaderHash(num)
 	block, errBlock := s.chain.GetBlock(headerHash)
 	if errBlock != nil {
-		return 0, response.NewRPCError(errBlock.Error(), "", errors.New("unknown block"))
+		return 0, response.NewRPCError("Unknown block", "")
 	}
 
 	var blockSysFee int64
@@ -1503,7 +1500,7 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *respons
 	verbose, _ := reqParams.Value(1).GetBoolean()
 	h, err := s.chain.GetHeader(hash)
 	if err != nil {
-		return nil, response.NewRPCError("unknown block", "", errors.New("unknown header"))
+		return nil, response.NewRPCError("Unknown header", "")
 	}
 
 	if verbose {
@@ -1513,7 +1510,7 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *respons
 	buf := io.NewBufBinWriter()
 	h.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
-		return nil, response.NewInternalServerError("encoding error", buf.Err)
+		return nil, response.NewInternalServerError(fmt.Sprintf("encoding error: %s", buf.Err))
 	}
 	return buf.Bytes(), nil
 }
@@ -1533,7 +1530,7 @@ func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Erro
 	}
 	gas, err := s.chain.CalculateClaimable(u, s.chain.BlockHeight()+1) // +1 as in C#, for the next block.
 	if err != nil {
-		return nil, response.NewRPCError("can't calculate claimable", err.Error(), err)
+		return nil, response.NewRPCError("Can't calculate claimable", err.Error())
 	}
 	return result.UnclaimedGas{
 		Address:   u,
@@ -1547,11 +1544,11 @@ func (s *Server) getNextBlockValidators(_ request.Params) (interface{}, *respons
 
 	validators, err := s.chain.GetNextBlockValidators()
 	if err != nil {
-		return nil, response.NewRPCError("can't get next block validators", "", err)
+		return nil, response.NewRPCError("Can't get next block validators", err.Error())
 	}
 	enrollments, err := s.chain.GetEnrollments()
 	if err != nil {
-		return nil, response.NewRPCError("can't get enrollments", "", err)
+		return nil, response.NewRPCError("Can't get enrollments", err.Error())
 	}
 	var res = make([]result.Validator, 0)
 	for _, v := range enrollments {
@@ -1568,7 +1565,7 @@ func (s *Server) getNextBlockValidators(_ request.Params) (interface{}, *respons
 func (s *Server) getCommittee(_ request.Params) (interface{}, *response.Error) {
 	keys, err := s.chain.GetCommittee()
 	if err != nil {
-		return nil, response.NewInternalServerError("can't get committee members", err)
+		return nil, response.NewInternalServerError(fmt.Sprintf("can't get committee members: %s", err))
 	}
 	return keys, nil
 }
@@ -1634,7 +1631,7 @@ func (s *Server) getInvokeFunctionParams(reqParams request.Params) (*transaction
 	}
 	script, err := request.CreateFunctionInvocationScript(scriptHash, method, params)
 	if err != nil {
-		return nil, false, response.NewInternalServerError("can't create invocation script", err)
+		return nil, false, response.NewInternalServerError(fmt.Sprintf("can't create invocation script: %s", err))
 	}
 	tx.Script = script
 	return tx, verbose, nil
@@ -1675,7 +1672,7 @@ func (s *Server) getInvokeScriptParams(reqParams request.Params) (*transaction.T
 	if len(reqParams) > 1 {
 		signers, witnesses, err := reqParams[1].GetSignersWithWitnesses()
 		if err != nil {
-			return nil, false, response.WrapErrorWithData(response.ErrInvalidParams, err)
+			return nil, false, response.WrapErrorWithData(response.ErrInvalidParams, err.Error())
 		}
 		tx.Signers = signers
 		tx.Scripts = witnesses
@@ -1684,7 +1681,7 @@ func (s *Server) getInvokeScriptParams(reqParams request.Params) (*transaction.T
 	if len(reqParams) > 2 {
 		verbose, err = reqParams[2].GetBoolean()
 		if err != nil {
-			return nil, false, response.WrapErrorWithData(response.ErrInvalidParams, err)
+			return nil, false, response.WrapErrorWithData(response.ErrInvalidParams, err.Error())
 		}
 	}
 	if len(tx.Signers) == 0 {
@@ -1729,12 +1726,12 @@ func (s *Server) getInvokeContractVerifyParams(reqParams request.Params) (util.U
 	if len(reqParams) > 1 {
 		args, err := reqParams[1].GetArray() // second `invokecontractverify` parameter is an array of arguments for `verify` method
 		if err != nil {
-			return util.Uint160{}, nil, nil, response.WrapErrorWithData(response.ErrInvalidParams, err)
+			return util.Uint160{}, nil, nil, response.WrapErrorWithData(response.ErrInvalidParams, err.Error())
 		}
 		if len(args) > 0 {
 			err := request.ExpandArrayIntoScript(bw.BinWriter, args)
 			if err != nil {
-				return util.Uint160{}, nil, nil, response.NewInternalServerError("can't create witness invocation script", err)
+				return util.Uint160{}, nil, nil, response.NewInternalServerError(fmt.Sprintf("can't create witness invocation script: %s", err))
 			}
 		}
 	}
@@ -1761,7 +1758,7 @@ func (s *Server) getInvokeContractVerifyParams(reqParams request.Params) (util.U
 // handling consistency.
 func (s *Server) getHistoricParams(reqParams request.Params) (*block.Block, *response.Error) {
 	if s.chain.GetConfig().KeepOnlyLatestState {
-		return nil, response.NewInvalidRequestError("only latest state is supported", errKeepOnlyLatestState)
+		return nil, response.NewInvalidRequestError(fmt.Sprintf("only latest state is supported: %s", errKeepOnlyLatestState))
 	}
 	if len(reqParams) < 1 {
 		return nil, response.ErrInvalidParams
@@ -1770,13 +1767,13 @@ func (s *Server) getHistoricParams(reqParams request.Params) (*block.Block, *res
 	if respErr != nil {
 		hash, err := reqParams.Value(0).GetUint256()
 		if err != nil {
-			return nil, response.NewInvalidParamsError("invalid block hash or index or stateroot hash", err)
+			return nil, response.NewInvalidParamsError(fmt.Sprintf("invalid block hash or index or stateroot hash: %s", err))
 		}
 		b, err := s.chain.GetBlock(hash)
 		if err != nil {
 			stateH, err := s.chain.GetStateModule().GetLatestStateHeight(hash)
 			if err != nil {
-				return nil, response.NewInvalidParamsError(fmt.Sprintf("unknown block or stateroot: %s", err), err)
+				return nil, response.NewInvalidParamsError(fmt.Sprintf("unknown block or stateroot: %s", err))
 			}
 			height = int(stateH)
 		} else {
@@ -1785,7 +1782,7 @@ func (s *Server) getHistoricParams(reqParams request.Params) (*block.Block, *res
 	}
 	b, err := s.getFakeNextBlock(uint32(height))
 	if err != nil {
-		return nil, response.NewInternalServerError(fmt.Sprintf("can't create fake block for height %d: %s", height, err.Error()), err)
+		return nil, response.NewInternalServerError(fmt.Sprintf("can't create fake block for height %d: %s", height, err))
 	}
 	return b, nil
 }
@@ -1817,13 +1814,13 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	if b == nil {
 		b, err = s.getFakeNextBlock(s.chain.BlockHeight() + 1)
 		if err != nil {
-			return nil, response.NewInternalServerError("can't create fake block", err)
+			return nil, response.NewInternalServerError(fmt.Sprintf("can't create fake block: %s", err))
 		}
 		ic = s.chain.GetTestVM(t, tx, b)
 	} else {
 		ic, err = s.chain.GetTestHistoricVM(t, tx, b)
 		if err != nil {
-			return nil, response.NewInternalServerError("failed to create historic VM", err)
+			return nil, response.NewInternalServerError(fmt.Sprintf("failed to create historic VM: %s", err))
 		}
 	}
 	if verbose {
@@ -1840,7 +1837,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 
 		err = s.chain.InitVerificationContext(ic, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})
 		if err != nil {
-			return nil, response.NewInternalServerError(fmt.Sprintf("can't prepare verification VM: %s", err.Error()), err)
+			return nil, response.NewInternalServerError(fmt.Sprintf("can't prepare verification VM: %s", err))
 		}
 	} else {
 		ic.VM.LoadScriptWithFlags(script, callflag.All)
@@ -1857,21 +1854,21 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.Error) {
 	blockBytes, err := reqParams.Value(0).GetBytesBase64()
 	if err != nil {
-		return nil, response.NewInvalidParamsError("missing parameter or not base64", err)
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("missing parameter or not a base64: %s", err))
 	}
 	b := block.New(s.stateRootEnabled)
 	r := io.NewBinReaderFromBuf(blockBytes)
 	b.DecodeBinary(r)
 	if r.Err != nil {
-		return nil, response.NewInvalidParamsError("can't decode block", r.Err)
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("can't decode block: %s", r.Err))
 	}
 	err = s.chain.AddBlock(b)
 	if err != nil {
 		switch {
 		case errors.Is(err, core.ErrInvalidBlockIndex) || errors.Is(err, core.ErrAlreadyExists):
-			return nil, response.WrapErrorWithData(response.ErrAlreadyExists, err)
+			return nil, response.WrapErrorWithData(response.ErrAlreadyExists, err.Error())
 		default:
-			return nil, response.WrapErrorWithData(response.ErrValidationFailed, err)
+			return nil, response.WrapErrorWithData(response.ErrValidationFailed, err.Error())
 		}
 	}
 	return &result.RelayResult{
@@ -1882,16 +1879,16 @@ func (s *Server) submitBlock(reqParams request.Params) (interface{}, *response.E
 // submitNotaryRequest broadcasts P2PNotaryRequest over the NEO network.
 func (s *Server) submitNotaryRequest(ps request.Params) (interface{}, *response.Error) {
 	if !s.chain.P2PSigExtensionsEnabled() {
-		return nil, response.NewRPCError("P2PNotaryRequest was received, but P2PSignatureExtensions are disabled", "", errors.New("P2PSignatureExtensions are disabled"))
+		return nil, response.NewRPCError("P2PSignatureExtensions are disabled", "")
 	}
 
 	bytePayload, err := ps.Value(0).GetBytesBase64()
 	if err != nil {
-		return nil, response.NewInvalidParamsError("not base64", err)
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("not a base64: %s", err))
 	}
 	r, err := payload.NewP2PNotaryRequestFromBytes(bytePayload)
 	if err != nil {
-		return nil, response.NewInvalidParamsError("can't decode notary payload", err)
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("can't decode notary payload: %s", err))
 	}
 	return getRelayResult(s.coreServer.RelayP2PNotaryRequest(r), r.FallbackTransaction.Hash())
 }
@@ -1904,19 +1901,19 @@ func getRelayResult(err error, hash util.Uint256) (interface{}, *response.Error)
 			Hash: hash,
 		}, nil
 	case errors.Is(err, core.ErrAlreadyExists):
-		return nil, response.WrapErrorWithData(response.ErrAlreadyExists, err)
+		return nil, response.WrapErrorWithData(response.ErrAlreadyExists, err.Error())
 	case errors.Is(err, core.ErrOOM):
-		return nil, response.WrapErrorWithData(response.ErrOutOfMemory, err)
+		return nil, response.WrapErrorWithData(response.ErrOutOfMemory, err.Error())
 	case errors.Is(err, core.ErrPolicy):
-		return nil, response.WrapErrorWithData(response.ErrPolicyFail, err)
+		return nil, response.WrapErrorWithData(response.ErrPolicyFail, err.Error())
 	default:
-		return nil, response.WrapErrorWithData(response.ErrValidationFailed, err)
+		return nil, response.WrapErrorWithData(response.ErrValidationFailed, err.Error())
 	}
 }
 
 func (s *Server) submitOracleResponse(ps request.Params) (interface{}, *response.Error) {
 	if s.oracle == nil {
-		return nil, response.NewRPCError("oracle is not enabled", "", errors.New("oracle service is disabled"))
+		return nil, response.NewRPCError("Oracle is not enabled", "")
 	}
 	var pub *keys.PublicKey
 	pubBytes, err := ps.Value(0).GetBytesBase64()
@@ -1924,23 +1921,23 @@ func (s *Server) submitOracleResponse(ps request.Params) (interface{}, *response
 		pub, err = keys.NewPublicKeyFromBytes(pubBytes, elliptic.P256())
 	}
 	if err != nil {
-		return nil, response.NewInvalidParamsError("public key is missing", err)
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("public key is missing: %s", err))
 	}
 	reqID, err := ps.Value(1).GetInt()
 	if err != nil {
-		return nil, response.NewInvalidParamsError("request ID is missing", err)
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("request ID is missing: %s", err))
 	}
 	txSig, err := ps.Value(2).GetBytesBase64()
 	if err != nil {
-		return nil, response.NewInvalidParamsError("tx signature is missing", err)
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("tx signature is missing: %s", err))
 	}
 	msgSig, err := ps.Value(3).GetBytesBase64()
 	if err != nil {
-		return nil, response.NewInvalidParamsError("msg signature is missing", err)
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("msg signature is missing: %s", err))
 	}
 	data := broadcaster.GetMessage(pubBytes, uint64(reqID), txSig)
 	if !pub.Verify(msgSig, hash.Sha256(data).BytesBE()) {
-		return nil, response.NewRPCError("Invalid sign", "", errors.New("invalid request signature"))
+		return nil, response.NewRPCError("Invalid request signature", "")
 	}
 	s.oracle.AddResponse(pub, uint64(reqID), txSig)
 	return json.RawMessage([]byte("{}")), nil
@@ -1948,15 +1945,15 @@ func (s *Server) submitOracleResponse(ps request.Params) (interface{}, *response
 
 func (s *Server) sendrawtransaction(reqParams request.Params) (interface{}, *response.Error) {
 	if len(reqParams) < 1 {
-		return nil, response.NewInvalidParamsError("not enough parameters", errors.New("invalid parameters"))
+		return nil, response.NewInvalidParamsError("not enough parameters")
 	}
 	byteTx, err := reqParams[0].GetBytesBase64()
 	if err != nil {
-		return nil, response.NewInvalidParamsError("not base64", err)
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("not a base64: %s", err))
 	}
 	tx, err := transaction.NewTransactionFromBytes(byteTx)
 	if err != nil {
-		return nil, response.NewInvalidParamsError("can't decode transaction", err)
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("can't decode transaction: %s", err))
 	}
 	return getRelayResult(s.coreServer.RelayTxn(tx), tx.Hash())
 }
@@ -1972,7 +1969,7 @@ func (s *Server) subscribe(reqParams request.Params, sub *subscriber) (interface
 		return nil, response.ErrInvalidParams
 	}
 	if event == response.NotaryRequestEventID && !s.chain.P2PSigExtensionsEnabled() {
-		return nil, response.WrapErrorWithData(response.ErrInvalidParams, errors.New("P2PSigExtensions are disabled"))
+		return nil, response.WrapErrorWithData(response.ErrInvalidParams, "P2PSigExtensions are disabled")
 	}
 	// Optional filter.
 	var filter interface{}
@@ -2011,8 +2008,7 @@ func (s *Server) subscribe(reqParams request.Params, sub *subscriber) (interface
 	defer s.subsLock.Unlock()
 	select {
 	case <-s.shutdown:
-		err = errors.New("server is shutting down")
-		return nil, response.NewInternalServerError(err.Error(), err)
+		return nil, response.NewInternalServerError("server is shutting down")
 	default:
 	}
 	var id int
@@ -2022,7 +2018,7 @@ func (s *Server) subscribe(reqParams request.Params, sub *subscriber) (interface
 		}
 	}
 	if id == len(sub.feeds) {
-		return nil, response.NewInternalServerError("maximum number of subscriptions is reached", fmt.Errorf("%d subscriptions are allowed at max", len(sub.feeds)))
+		return nil, response.NewInternalServerError("maximum number of subscriptions is reached")
 	}
 	sub.feeds[id].event = event
 	sub.feeds[id].filter = filter
@@ -2266,7 +2262,7 @@ func (s *Server) packResponse(r *request.In, result interface{}, respErr *respon
 // logRequestError is a request error logger.
 func (s *Server) logRequestError(r *request.Request, jsonErr *response.Error) {
 	logFields := []zap.Field{
-		zap.Error(jsonErr.Cause),
+		zap.String("cause", jsonErr.Data),
 	}
 
 	if r.In != nil {
