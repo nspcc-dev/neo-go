@@ -13,8 +13,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-// createGenesisBlock creates a genesis block based on the given configuration.
-func createGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) {
+// CreateGenesisBlock creates a genesis block based on the given configuration.
+func CreateGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) {
 	validators, err := validatorsFromConfig(cfg)
 	if err != nil {
 		return nil, err

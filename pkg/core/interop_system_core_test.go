@@ -84,7 +84,7 @@ func getSharpTestGenesis(t *testing.T) *block.Block {
 
 	cfg, err := config.Load(configPath, netmode.MainNet)
 	require.NoError(t, err)
-	b, err := createGenesisBlock(cfg.ProtocolConfiguration)
+	b, err := CreateGenesisBlock(cfg.ProtocolConfiguration)
 	require.NoError(t, err)
 	return b
 }

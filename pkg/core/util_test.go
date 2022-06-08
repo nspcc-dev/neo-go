@@ -14,7 +14,7 @@ func TestGenesisBlockMainNet(t *testing.T) {
 	cfg, err := config.Load("../../config", netmode.MainNet)
 	require.NoError(t, err)
 
-	block, err := createGenesisBlock(cfg.ProtocolConfiguration)
+	block, err := CreateGenesisBlock(cfg.ProtocolConfiguration)
 	require.NoError(t, err)
 
 	expect := "1f4d1defa46faa5e7b9b8d3f79a06bec777d7c26c4aa5f6f5899a291daa87c15"
