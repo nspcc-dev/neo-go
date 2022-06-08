@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -62,19 +63,19 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemRuntimeNotify, Func: runtime.Notify, Price: 1 << 15, RequiredFlags: callflag.AllowNotify,
 		ParamCount: 2},
 	{Name: interopnames.SystemRuntimePlatform, Func: runtime.Platform, Price: 1 << 3},
-	{Name: interopnames.SystemStorageDelete, Func: storageDelete, Price: 1 << 15,
+	{Name: interopnames.SystemStorageDelete, Func: storage.Delete, Price: 1 << 15,
 		RequiredFlags: callflag.WriteStates, ParamCount: 2},
-	{Name: interopnames.SystemStorageFind, Func: storageFind, Price: 1 << 15, RequiredFlags: callflag.ReadStates,
+	{Name: interopnames.SystemStorageFind, Func: storage.Find, Price: 1 << 15, RequiredFlags: callflag.ReadStates,
 		ParamCount: 3},
-	{Name: interopnames.SystemStorageGet, Func: storageGet, Price: 1 << 15, RequiredFlags: callflag.ReadStates,
+	{Name: interopnames.SystemStorageGet, Func: storage.Get, Price: 1 << 15, RequiredFlags: callflag.ReadStates,
 		ParamCount: 2},
-	{Name: interopnames.SystemStorageGetContext, Func: storageGetContext, Price: 1 << 4,
+	{Name: interopnames.SystemStorageGetContext, Func: storage.GetContext, Price: 1 << 4,
 		RequiredFlags: callflag.ReadStates},
-	{Name: interopnames.SystemStorageGetReadOnlyContext, Func: storageGetReadOnlyContext, Price: 1 << 4,
+	{Name: interopnames.SystemStorageGetReadOnlyContext, Func: storage.GetReadOnlyContext, Price: 1 << 4,
 		RequiredFlags: callflag.ReadStates},
-	{Name: interopnames.SystemStoragePut, Func: storagePut, Price: 1 << 15, RequiredFlags: callflag.WriteStates,
+	{Name: interopnames.SystemStoragePut, Func: storage.Put, Price: 1 << 15, RequiredFlags: callflag.WriteStates,
 		ParamCount: 3},
-	{Name: interopnames.SystemStorageAsReadOnly, Func: storageContextAsReadOnly, Price: 1 << 4,
+	{Name: interopnames.SystemStorageAsReadOnly, Func: storage.ContextAsReadOnly, Price: 1 << 4,
 		RequiredFlags: callflag.ReadStates, ParamCount: 1},
 }
 

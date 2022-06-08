@@ -1,20 +1,21 @@
-package core
+package storage_test
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
-	"path/filepath"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -24,9 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var pathToInternalContracts = filepath.Join("..", "..", "internal", "contracts")
-
-func TestStoragePut(t *testing.T) {
+func TestPut(t *testing.T) {
 	_, cs, ic, _ := createVMAndContractState(t)
 
 	require.NoError(t, native.PutContractState(ic.DAO, cs))
@@ -37,53 +36,53 @@ func TestStoragePut(t *testing.T) {
 		v.GasLimit = gas
 		v.Estack().PushVal(value)
 		v.Estack().PushVal(key)
-		require.NoError(t, storageGetContext(ic))
+		require.NoError(t, istorage.GetContext(ic))
 	}
 
 	t.Run("create, not enough gas", func(t *testing.T) {
 		initVM(t, []byte{1}, []byte{2, 3}, 2*native.DefaultStoragePrice)
-		err := storagePut(ic)
-		require.True(t, errors.Is(err, errGasLimitExceeded), "got: %v", err)
+		err := istorage.Put(ic)
+		require.True(t, errors.Is(err, istorage.ErrGasLimitExceeded), "got: %v", err)
 	})
 
 	initVM(t, []byte{4}, []byte{5, 6}, 3*native.DefaultStoragePrice)
-	require.NoError(t, storagePut(ic))
+	require.NoError(t, istorage.Put(ic))
 
 	t.Run("update", func(t *testing.T) {
 		t.Run("not enough gas", func(t *testing.T) {
 			initVM(t, []byte{4}, []byte{5, 6, 7, 8}, native.DefaultStoragePrice)
-			err := storagePut(ic)
-			require.True(t, errors.Is(err, errGasLimitExceeded), "got: %v", err)
+			err := istorage.Put(ic)
+			require.True(t, errors.Is(err, istorage.ErrGasLimitExceeded), "got: %v", err)
 		})
 		initVM(t, []byte{4}, []byte{5, 6, 7, 8}, 3*native.DefaultStoragePrice)
-		require.NoError(t, storagePut(ic))
+		require.NoError(t, istorage.Put(ic))
 		initVM(t, []byte{4}, []byte{5, 6}, native.DefaultStoragePrice)
-		require.NoError(t, storagePut(ic))
+		require.NoError(t, istorage.Put(ic))
 	})
 
 	t.Run("check limits", func(t *testing.T) {
 		initVM(t, make([]byte, storage.MaxStorageKeyLen), make([]byte, storage.MaxStorageValueLen), -1)
-		require.NoError(t, storagePut(ic))
+		require.NoError(t, istorage.Put(ic))
 	})
 
 	t.Run("bad", func(t *testing.T) {
 		t.Run("readonly context", func(t *testing.T) {
 			initVM(t, []byte{1}, []byte{1}, -1)
-			require.NoError(t, storageContextAsReadOnly(ic))
-			require.Error(t, storagePut(ic))
+			require.NoError(t, istorage.ContextAsReadOnly(ic))
+			require.Error(t, istorage.Put(ic))
 		})
 		t.Run("big key", func(t *testing.T) {
 			initVM(t, make([]byte, storage.MaxStorageKeyLen+1), []byte{1}, -1)
-			require.Error(t, storagePut(ic))
+			require.Error(t, istorage.Put(ic))
 		})
 		t.Run("big value", func(t *testing.T) {
 			initVM(t, []byte{1}, make([]byte, storage.MaxStorageValueLen+1), -1)
-			require.Error(t, storagePut(ic))
+			require.Error(t, istorage.Put(ic))
 		})
 	})
 }
 
-func TestStorageDelete(t *testing.T) {
+func TestDelete(t *testing.T) {
 	v, cs, ic, _ := createVMAndContractState(t)
 
 	require.NoError(t, native.PutContractState(ic.DAO, cs))
@@ -91,8 +90,8 @@ func TestStorageDelete(t *testing.T) {
 	put := func(key, value string, flag int) {
 		v.Estack().PushVal(value)
 		v.Estack().PushVal(key)
-		require.NoError(t, storageGetContext(ic))
-		require.NoError(t, storagePut(ic))
+		require.NoError(t, istorage.GetContext(ic))
+		require.NoError(t, istorage.Put(ic))
 	}
 	put("key1", "value1", 0)
 	put("key2", "value2", 0)
@@ -100,123 +99,24 @@ func TestStorageDelete(t *testing.T) {
 
 	t.Run("good", func(t *testing.T) {
 		v.Estack().PushVal("key1")
-		require.NoError(t, storageGetContext(ic))
-		require.NoError(t, storageDelete(ic))
+		require.NoError(t, istorage.GetContext(ic))
+		require.NoError(t, istorage.Delete(ic))
 	})
 	t.Run("readonly context", func(t *testing.T) {
 		v.Estack().PushVal("key2")
-		require.NoError(t, storageGetReadOnlyContext(ic))
-		require.Error(t, storageDelete(ic))
+		require.NoError(t, istorage.GetReadOnlyContext(ic))
+		require.Error(t, istorage.Delete(ic))
 	})
 	t.Run("readonly context (from normal)", func(t *testing.T) {
 		v.Estack().PushVal("key3")
-		require.NoError(t, storageGetContext(ic))
-		require.NoError(t, storageContextAsReadOnly(ic))
-		require.Error(t, storageDelete(ic))
+		require.NoError(t, istorage.GetContext(ic))
+		require.NoError(t, istorage.ContextAsReadOnly(ic))
+		require.Error(t, istorage.Delete(ic))
 	})
 }
 
-func BenchmarkStorageFind(b *testing.B) {
-	for count := 10; count <= 10000; count *= 10 {
-		b.Run(fmt.Sprintf("%dElements", count), func(b *testing.B) {
-			v, contractState, context, chain := createVMAndContractState(b)
-			require.NoError(b, native.PutContractState(chain.dao, contractState))
-
-			items := make(map[string]state.StorageItem)
-			for i := 0; i < count; i++ {
-				items["abc"+random.String(10)] = random.Bytes(10)
-			}
-			for k, v := range items {
-				context.DAO.PutStorageItem(contractState.ID, []byte(k), v)
-				context.DAO.PutStorageItem(contractState.ID+1, []byte(k), v)
-			}
-			changes, err := context.DAO.Persist()
-			require.NoError(b, err)
-			require.NotEqual(b, 0, changes)
-
-			b.ResetTimer()
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				b.StopTimer()
-				v.Estack().PushVal(istorage.FindDefault)
-				v.Estack().PushVal("abc")
-				v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: contractState.ID}))
-				b.StartTimer()
-				err := storageFind(context)
-				if err != nil {
-					b.FailNow()
-				}
-				b.StopTimer()
-				context.Finalize()
-			}
-		})
-	}
-}
-
-func BenchmarkStorageFindIteratorNext(b *testing.B) {
-	for count := 10; count <= 10000; count *= 10 {
-		cases := map[string]int{
-			"Pick1":    1,
-			"PickHalf": count / 2,
-			"PickAll":  count,
-		}
-		b.Run(fmt.Sprintf("%dElements", count), func(b *testing.B) {
-			for name, last := range cases {
-				b.Run(name, func(b *testing.B) {
-					v, contractState, context, chain := createVMAndContractState(b)
-					require.NoError(b, native.PutContractState(chain.dao, contractState))
-
-					items := make(map[string]state.StorageItem)
-					for i := 0; i < count; i++ {
-						items["abc"+random.String(10)] = random.Bytes(10)
-					}
-					for k, v := range items {
-						context.DAO.PutStorageItem(contractState.ID, []byte(k), v)
-						context.DAO.PutStorageItem(contractState.ID+1, []byte(k), v)
-					}
-					changes, err := context.DAO.Persist()
-					require.NoError(b, err)
-					require.NotEqual(b, 0, changes)
-					b.ReportAllocs()
-					b.ResetTimer()
-					for i := 0; i < b.N; i++ {
-						b.StopTimer()
-						v.Estack().PushVal(istorage.FindDefault)
-						v.Estack().PushVal("abc")
-						v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: contractState.ID}))
-						b.StartTimer()
-						err := storageFind(context)
-						b.StopTimer()
-						if err != nil {
-							b.FailNow()
-						}
-						res := context.VM.Estack().Pop().Item()
-						for i := 0; i < last; i++ {
-							context.VM.Estack().PushVal(res)
-							b.StartTimer()
-							require.NoError(b, iterator.Next(context))
-							b.StopTimer()
-							require.True(b, context.VM.Estack().Pop().Bool())
-						}
-
-						context.VM.Estack().PushVal(res)
-						require.NoError(b, iterator.Next(context))
-						actual := context.VM.Estack().Pop().Bool()
-						if last == count {
-							require.False(b, actual)
-						} else {
-							require.True(b, actual)
-						}
-						context.Finalize()
-					}
-				})
-			}
-		})
-	}
-}
-
-func TestStorageFind(t *testing.T) {
-	v, contractState, context, chain := createVMAndContractState(t)
+func TestFind(t *testing.T) {
+	v, contractState, context, _ := createVMAndContractState(t)
 
 	arr := []stackitem.Item{
 		stackitem.NewBigInteger(big.NewInt(42)),
@@ -247,7 +147,7 @@ func TestStorageFind(t *testing.T) {
 		[]byte{222},
 	}
 
-	require.NoError(t, native.PutContractState(chain.dao, contractState))
+	require.NoError(t, native.PutContractState(context.DAO, contractState))
 
 	id := contractState.ID
 
@@ -258,9 +158,9 @@ func TestStorageFind(t *testing.T) {
 	testFind := func(t *testing.T, prefix []byte, opts int64, expected []stackitem.Item) {
 		v.Estack().PushVal(opts)
 		v.Estack().PushVal(prefix)
-		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: id}))
+		v.Estack().PushVal(stackitem.NewInterop(&istorage.Context{ID: id}))
 
-		err := storageFind(context)
+		err := istorage.Find(context)
 		require.NoError(t, err)
 
 		var iter *stackitem.Interop
@@ -327,8 +227,8 @@ func TestStorageFind(t *testing.T) {
 		t.Run("invalid", func(t *testing.T) {
 			v.Estack().PushVal(istorage.FindDeserialize)
 			v.Estack().PushVal([]byte{0x05})
-			v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: id}))
-			err := storageFind(context)
+			v.Estack().PushVal(stackitem.NewInterop(&istorage.Context{ID: id}))
+			err := istorage.Find(context)
 			require.NoError(t, err)
 
 			var iter *stackitem.Interop
@@ -371,16 +271,16 @@ func TestStorageFind(t *testing.T) {
 		for _, opts := range invalid {
 			v.Estack().PushVal(opts)
 			v.Estack().PushVal([]byte{0x01})
-			v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: id}))
-			require.Error(t, storageFind(context))
+			v.Estack().PushVal(stackitem.NewInterop(&istorage.Context{ID: id}))
+			require.Error(t, istorage.Find(context))
 		}
 	})
-	t.Run("invalid type for StorageContext", func(t *testing.T) {
+	t.Run("invalid type for storage.Context", func(t *testing.T) {
 		v.Estack().PushVal(istorage.FindDefault)
 		v.Estack().PushVal([]byte{0x01})
 		v.Estack().PushVal(stackitem.NewInterop(nil))
 
-		require.Error(t, storageFind(context))
+		require.Error(t, istorage.Find(context))
 	})
 
 	t.Run("invalid id", func(t *testing.T) {
@@ -388,9 +288,9 @@ func TestStorageFind(t *testing.T) {
 
 		v.Estack().PushVal(istorage.FindDefault)
 		v.Estack().PushVal([]byte{0x01})
-		v.Estack().PushVal(stackitem.NewInterop(&StorageContext{ID: invalidID}))
+		v.Estack().PushVal(stackitem.NewInterop(&istorage.Context{ID: invalidID}))
 
-		require.NoError(t, storageFind(context))
+		require.NoError(t, istorage.Find(context))
 		require.NoError(t, iterator.Next(context))
 		require.False(t, v.Estack().Pop().Bool())
 	})
@@ -398,15 +298,14 @@ func TestStorageFind(t *testing.T) {
 
 // Helper functions to create VM, InteropContext, TX, Account, Contract.
 
-func createVM(t testing.TB) (*vm.VM, *interop.Context, *Blockchain) {
-	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application,
-		chain.dao.GetWrapped(), nil, nil)
-	v := context.SpawnVM()
-	return v, context, chain
+func createVM(t testing.TB) (*vm.VM, *interop.Context, *core.Blockchain) {
+	chain, _ := chain.NewSingle(t)
+	ic := chain.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
+	v := ic.SpawnVM()
+	return v, ic, chain
 }
 
-func createVMAndContractState(t testing.TB) (*vm.VM, *state.Contract, *interop.Context, *Blockchain) {
+func createVMAndContractState(t testing.TB) (*vm.VM, *state.Contract, *interop.Context, *core.Blockchain) {
 	script := []byte("testscript")
 	m := manifest.NewManifest("Test")
 	ne, err := nef.NewFile(script)
