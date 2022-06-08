@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
@@ -423,19 +422,4 @@ func createVMAndContractState(t testing.TB) (*vm.VM, *state.Contract, *interop.C
 
 	v, context, chain := createVM(t)
 	return v, contractState, context, chain
-}
-
-// TestNativeGetMethod is needed to ensure that methods list has the same sorting
-// rule as we expect inside the `ContractMD.GetMethod`.
-func TestNativeGetMethod(t *testing.T) {
-	cfg := config.ProtocolConfiguration{P2PSigExtensions: true}
-	cs := native.NewContracts(cfg)
-	for _, c := range cs.Contracts {
-		t.Run(c.Metadata().Name, func(t *testing.T) {
-			for _, m := range c.Metadata().Methods {
-				_, ok := c.Metadata().GetMethod(m.MD.Name, len(m.MD.Parameters))
-				require.True(t, ok)
-			}
-		})
-	}
 }
