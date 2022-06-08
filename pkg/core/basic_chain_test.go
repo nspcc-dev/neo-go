@@ -26,7 +26,6 @@ const (
 )
 
 var (
-	notaryModulePath        = filepath.Join("..", "services", "notary")
 	pathToInternalContracts = filepath.Join("..", "..", "internal", "contracts")
 )
 
