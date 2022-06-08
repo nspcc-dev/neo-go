@@ -31,16 +31,18 @@ type AbstractResult interface {
 }
 
 // Abstract represents abstract JSON-RPC 2.0 response, it differs from Raw in
-// that Result field is an interface here.
+// that Result field is an interface here. It is used as a server-side response
+// representation.
 type Abstract struct {
-	HeaderAndError
-	Result interface{} `json:"result,omitempty"`
+	Header
+	Error  *ServerError `json:"error,omitempty"`
+	Result interface{}  `json:"result,omitempty"`
 }
 
 // RunForErrors implements AbstractResult interface.
 func (a Abstract) RunForErrors(f func(jsonErr *Error)) {
 	if a.Error != nil {
-		f(a.Error)
+		f(a.Error.Error)
 	}
 }
 
@@ -51,7 +53,7 @@ type AbstractBatch []Abstract
 func (ab AbstractBatch) RunForErrors(f func(jsonErr *Error)) {
 	for _, a := range ab {
 		if a.Error != nil {
-			f(a.Error)
+			f(a.Error.Error)
 		}
 	}
 }

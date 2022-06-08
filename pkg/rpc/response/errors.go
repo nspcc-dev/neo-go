@@ -6,13 +6,17 @@ import (
 )
 
 type (
-	// Error object for outputting JSON-RPC 2.0
-	// errors.
+	// ServerError object for outputting JSON-RPC 2.0 errors on the server side.
+	ServerError struct {
+		*Error
+		HTTPCode int // HTTPCode won't be marshalled because Error's marshaller is used.
+	}
+
+	// Error represents JSON-RPC 2.0 error type.
 	Error struct {
-		Code     int64  `json:"code"`
-		HTTPCode int    `json:"-"`
-		Message  string `json:"message"`
-		Data     string `json:"data,omitempty"`
+		Code    int64  `json:"code"`
+		Message string `json:"message"`
+		Data    string `json:"data,omitempty"`
 	}
 )
 
@@ -36,57 +40,65 @@ var (
 	ErrUnknown = NewSubmitError(-500, "Unknown error.")
 )
 
-// NewError is an Error constructor that takes Error contents from its
+// NewServerError is an ServerError constructor that takes ServerError contents from its
 // parameters.
-func NewError(code int64, httpCode int, message string, data string) *Error {
-	return &Error{
-		Code:     code,
+func NewServerError(code int64, httpCode int, message string, data string) *ServerError {
+	return &ServerError{
+		Error: &Error{
+			Code:    code,
+			Message: message,
+			Data:    data,
+		},
 		HTTPCode: httpCode,
-		Message:  message,
-		Data:     data,
 	}
 }
 
 // NewParseError creates a new error with code
 // -32700.
-func NewParseError(data string) *Error {
-	return NewError(-32700, http.StatusBadRequest, "Parse Error", data)
+func NewParseError(data string) *ServerError {
+	return NewServerError(-32700, http.StatusBadRequest, "Parse Error", data)
 }
 
 // NewInvalidRequestError creates a new error with
 // code -32600.
-func NewInvalidRequestError(data string) *Error {
-	return NewError(-32600, http.StatusUnprocessableEntity, "Invalid Request", data)
+func NewInvalidRequestError(data string) *ServerError {
+	return NewServerError(-32600, http.StatusUnprocessableEntity, "Invalid Request", data)
 }
 
 // NewMethodNotFoundError creates a new error with
 // code -32601.
-func NewMethodNotFoundError(data string) *Error {
-	return NewError(-32601, http.StatusMethodNotAllowed, "Method not found", data)
+func NewMethodNotFoundError(data string) *ServerError {
+	return NewServerError(-32601, http.StatusMethodNotAllowed, "Method not found", data)
 }
 
 // NewInvalidParamsError creates a new error with
 // code -32602.
-func NewInvalidParamsError(data string) *Error {
-	return NewError(-32602, http.StatusUnprocessableEntity, "Invalid Params", data)
+func NewInvalidParamsError(data string) *ServerError {
+	return NewServerError(-32602, http.StatusUnprocessableEntity, "Invalid Params", data)
 }
 
 // NewInternalServerError creates a new error with
 // code -32603.
-func NewInternalServerError(data string) *Error {
-	return NewError(InternalServerErrorCode, http.StatusInternalServerError, "Internal error", data)
+func NewInternalServerError(data string) *ServerError {
+	return NewServerError(InternalServerErrorCode, http.StatusInternalServerError, "Internal error", data)
 }
 
 // NewRPCError creates a new error with
 // code -100.
-func NewRPCError(message string, data string) *Error {
-	return NewError(-100, http.StatusUnprocessableEntity, message, data)
+func NewRPCError(message string, data string) *ServerError {
+	return NewServerError(-100, http.StatusUnprocessableEntity, message, data)
 }
 
 // NewSubmitError creates a new error with
 // specified error code and error message.
-func NewSubmitError(code int64, message string) *Error {
-	return NewError(code, http.StatusUnprocessableEntity, message, "")
+func NewSubmitError(code int64, message string) *ServerError {
+	return NewServerError(code, http.StatusUnprocessableEntity, message, "")
+}
+
+// WrapErrorWithData returns copy of the given error with the specified data and cause.
+// It does not modify the source error.
+func WrapErrorWithData(e *ServerError, data string) *ServerError {
+	return NewServerError(e.Code, e.HTTPCode, e.Message, data)
 }
 
 // Error implements the error interface.
@@ -97,8 +109,11 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("%s (%d) - %s", e.Message, e.Code, e.Data)
 }
 
-// WrapErrorWithData returns copy of the given error with the specified data and cause.
-// It does not modify the source error.
-func WrapErrorWithData(e *Error, data string) *Error {
-	return NewError(e.Code, e.HTTPCode, e.Message, data)
+// Is denotes whether the error matches the target one.
+func (e *Error) Is(target error) bool {
+	clTarget, ok := target.(*Error)
+	if !ok {
+		return false
+	}
+	return e.Code == clTarget.Code
 }
