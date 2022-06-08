@@ -1,4 +1,4 @@
-package core_test
+package native_test
 
 import (
 	"fmt"
