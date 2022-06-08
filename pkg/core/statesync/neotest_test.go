@@ -1,4 +1,4 @@
-package core_test
+package statesync_test
 
 import (
 	"testing"
@@ -298,7 +298,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	bcSpout, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, spoutCfg, bcSpoutStore, false)
 	go bcSpout.Run() // Will close it manually at the end.
 	e := neotest.NewExecutor(t, bcSpout, validators, committee)
-	basicchain.Init(t, "../../", e)
+	basicchain.Init(t, "../../../", e)
 
 	// make spout chain higher that latest state sync point (add several blocks up to stateSyncPoint+2)
 	e.AddNewBlock(t)
