@@ -1,4 +1,4 @@
-package core_test
+package oracle_test
 
 import (
 	"bytes"
@@ -8,7 +8,6 @@ import (
 	"fmt"
 	gio "io"
 	"net/http"
-	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -38,7 +37,7 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-var oracleModulePath = filepath.Join("..", "services", "oracle")
+var pathToInternalContracts = filepath.Join("..", "..", "..", "internal", "contracts")
 
 func putOracleRequest(t *testing.T, oracleValidatorInvoker *neotest.ContractInvoker,
 	url string, filter *string, cb string, userData []byte, gas int64) util.Uint256 {
@@ -57,7 +56,7 @@ func getOracleConfig(t *testing.T, bc *core.Blockchain, w, pass string, returnOr
 			RefreshInterval:     time.Second,
 			AllowedContentTypes: []string{"application/json"},
 			UnlockWallet: config.Wallet{
-				Path:     filepath.Join(oracleModulePath, w),
+				Path:     w,
 				Password: pass,
 			},
 		},
@@ -81,7 +80,7 @@ func getTestOracle(t *testing.T, bc *core.Blockchain, walletPath, pass string) (
 	orc, err := oracle.NewOracle(orcCfg)
 	require.NoError(t, err)
 
-	w, err := wallet.NewWalletFromFile(path.Join(oracleModulePath, walletPath))
+	w, err := wallet.NewWalletFromFile(walletPath)
 	require.NoError(t, err)
 	require.NoError(t, w.Accounts[0].Decrypt(pass, w.Scrypt))
 	return w.Accounts[0], orc, m, ch

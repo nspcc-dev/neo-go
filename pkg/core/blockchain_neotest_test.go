@@ -1330,7 +1330,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			cInvoker := e.ValidatorInvoker(cs.Hash)
 
 			const gasForResponse int64 = 10_000_000
-			putOracleRequest(t, cInvoker, "https://get.1234", new(string), "handle", []byte{}, gasForResponse)
+			cInvoker.Invoke(t, stackitem.Null{}, "requestURL", "https://get.1234", "", "handle", []byte{}, gasForResponse)
 
 			oracleScript, err := smartcontract.CreateMajorityMultiSigRedeemScript(oraclePubs)
 			require.NoError(t, err)
