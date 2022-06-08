@@ -3,6 +3,7 @@ package contract
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -170,5 +171,11 @@ func CallFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract
 	if ic.VM.State() == vm.FaultState {
 		return ErrNativeCall
 	}
+	return nil
+}
+
+// GetCallFlags returns current context calling flags.
+func GetCallFlags(ic *interop.Context) error {
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(ic.VM.Context().GetCallFlags()))))
 	return nil
 }

@@ -706,14 +706,6 @@ func TestContractCall(t *testing.T) {
 	})
 }
 
-func TestContractGetCallFlags(t *testing.T) {
-	v, ic, _ := createVM(t)
-
-	v.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{1, 2, 3}, callflag.All)
-	require.NoError(t, contractGetCallFlags(ic))
-	require.Equal(t, int64(callflag.All), v.Estack().Pop().Value().(*big.Int).Int64())
-}
-
 func TestRuntimeCheckWitness(t *testing.T) {
 	_, ic, bc := createVM(t)
 
