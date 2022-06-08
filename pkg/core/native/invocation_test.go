@@ -1,8 +1,9 @@
-package core_test
+package native_test
 
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -21,6 +22,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
+
+var pathToInternalContracts = filepath.Join("..", "..", "..", "internal", "contracts")
 
 func TestNativeContract_Invoke(t *testing.T) {
 	const (
