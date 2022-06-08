@@ -1,4 +1,4 @@
-package core_test
+package stateroot_test
 
 import (
 	"crypto/elliptic"
@@ -303,7 +303,7 @@ func TestStateroot_GetLatestStateHeight(t *testing.T) {
 		c.P2PSigExtensions = true
 	})
 	e := neotest.NewExecutor(t, bc, validators, committee)
-	basicchain.Init(t, "../../", e)
+	basicchain.Init(t, "../../../", e)
 
 	m := bc.GetStateModule()
 	for i := uint32(0); i < bc.BlockHeight(); i++ {
