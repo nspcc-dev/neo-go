@@ -272,8 +272,8 @@ func (m *Management) deployWithData(ic *interop.Context, args []stackitem.Item) 
 	return contractToStack(newcontract)
 }
 
-func (m *Management) markUpdated(d *dao.Simple, hash util.Uint160, cs *state.Contract) {
-	cache := d.GetRWCache(m.ID).(*ManagementCache)
+func markUpdated(d *dao.Simple, hash util.Uint160, cs *state.Contract) {
+	cache := d.GetRWCache(ManagementContractID).(*ManagementCache)
 	delete(cache.nep11, hash)
 	delete(cache.nep17, hash)
 	if cs == nil {
@@ -314,7 +314,7 @@ func (m *Management) Deploy(d *dao.Simple, sender util.Uint160, neff *nef.File, 
 			Manifest: *manif,
 		},
 	}
-	err = m.PutContractState(d, newcontract)
+	err = PutContractState(d, newcontract)
 	if err != nil {
 		return nil, err
 	}
@@ -378,7 +378,7 @@ func (m *Management) Update(d *dao.Simple, hash util.Uint160, neff *nef.File, ma
 		return nil, err
 	}
 	contract.UpdateCounter++
-	err = m.PutContractState(d, &contract)
+	err = PutContractState(d, &contract)
 	if err != nil {
 		return nil, err
 	}
@@ -412,7 +412,7 @@ func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 		return true
 	})
 	m.Policy.blockAccountInternal(d, hash)
-	m.markUpdated(d, hash, nil)
+	markUpdated(d, hash, nil)
 	return nil
 }
 
@@ -489,7 +489,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		if err := native.Initialize(ic); err != nil {
 			return fmt.Errorf("initializing %s native contract: %w", md.Name, err)
 		}
-		err := m.putContractState(ic.DAO, cs, false) // Perform cache update manually.
+		err := putContractState(ic.DAO, cs, false) // Perform cache update manually.
 		if err != nil {
 			return err
 		}
@@ -573,18 +573,18 @@ func (m *Management) Initialize(ic *interop.Context) error {
 }
 
 // PutContractState saves given contract state into given DAO.
-func (m *Management) PutContractState(d *dao.Simple, cs *state.Contract) error {
-	return m.putContractState(d, cs, true)
+func PutContractState(d *dao.Simple, cs *state.Contract) error {
+	return putContractState(d, cs, true)
 }
 
 // putContractState is an internal PutContractState representation.
-func (m *Management) putContractState(d *dao.Simple, cs *state.Contract, updateCache bool) error {
+func putContractState(d *dao.Simple, cs *state.Contract, updateCache bool) error {
 	key := MakeContractKey(cs.Hash)
-	if err := putConvertibleToDAO(m.ID, d, key, cs); err != nil {
+	if err := putConvertibleToDAO(ManagementContractID, d, key, cs); err != nil {
 		return err
 	}
 	if updateCache {
-		m.markUpdated(d, cs.Hash, cs)
+		markUpdated(d, cs.Hash, cs)
 	}
 	if cs.UpdateCounter != 0 { // Update.
 		return nil

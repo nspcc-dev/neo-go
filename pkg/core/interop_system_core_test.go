@@ -133,10 +133,10 @@ func TestRuntimeGetNotifications(t *testing.T) {
 }
 
 func TestRuntimeGetInvocationCounter(t *testing.T) {
-	v, ic, bc := createVM(t)
+	v, ic, _ := createVM(t)
 
 	cs, _ := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
-	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
+	require.NoError(t, native.PutContractState(ic.DAO, cs))
 
 	ic.Invocations[hash.Hash160([]byte{2})] = 42
 
@@ -161,9 +161,9 @@ func TestRuntimeGetInvocationCounter(t *testing.T) {
 }
 
 func TestStoragePut(t *testing.T) {
-	_, cs, ic, bc := createVMAndContractState(t)
+	_, cs, ic, _ := createVMAndContractState(t)
 
-	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
+	require.NoError(t, native.PutContractState(ic.DAO, cs))
 
 	initVM := func(t *testing.T, key, value []byte, gas int64) {
 		v := ic.SpawnVM()
@@ -218,9 +218,9 @@ func TestStoragePut(t *testing.T) {
 }
 
 func TestStorageDelete(t *testing.T) {
-	v, cs, ic, bc := createVMAndContractState(t)
+	v, cs, ic, _ := createVMAndContractState(t)
 
-	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
+	require.NoError(t, native.PutContractState(ic.DAO, cs))
 	v.LoadScriptWithHash(cs.NEF.Script, cs.Hash, callflag.All)
 	put := func(key, value string, flag int) {
 		v.Estack().PushVal(value)
@@ -254,7 +254,7 @@ func BenchmarkStorageFind(b *testing.B) {
 	for count := 10; count <= 10000; count *= 10 {
 		b.Run(fmt.Sprintf("%dElements", count), func(b *testing.B) {
 			v, contractState, context, chain := createVMAndContractState(b)
-			require.NoError(b, chain.contracts.Management.PutContractState(chain.dao, contractState))
+			require.NoError(b, native.PutContractState(chain.dao, contractState))
 
 			items := make(map[string]state.StorageItem)
 			for i := 0; i < count; i++ {
@@ -298,7 +298,7 @@ func BenchmarkStorageFindIteratorNext(b *testing.B) {
 			for name, last := range cases {
 				b.Run(name, func(b *testing.B) {
 					v, contractState, context, chain := createVMAndContractState(b)
-					require.NoError(b, chain.contracts.Management.PutContractState(chain.dao, contractState))
+					require.NoError(b, native.PutContractState(chain.dao, contractState))
 
 					items := make(map[string]state.StorageItem)
 					for i := 0; i < count; i++ {
@@ -381,7 +381,7 @@ func TestStorageFind(t *testing.T) {
 		[]byte{222},
 	}
 
-	require.NoError(t, chain.contracts.Management.PutContractState(chain.dao, contractState))
+	require.NoError(t, native.PutContractState(chain.dao, contractState))
 
 	id := contractState.ID
 
@@ -577,11 +577,11 @@ func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Ui
 }
 
 func TestContractCall(t *testing.T) {
-	_, ic, bc := createVM(t)
+	_, ic, _ := createVM(t)
 
 	cs, currCs := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
-	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, cs))
-	require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, currCs))
+	require.NoError(t, native.PutContractState(ic.DAO, cs))
+	require.NoError(t, native.PutContractState(ic.DAO, currCs))
 
 	currScript := currCs.NEF.Script
 	h := cs.Hash
@@ -707,7 +707,7 @@ func TestContractCall(t *testing.T) {
 }
 
 func TestRuntimeCheckWitness(t *testing.T) {
-	_, ic, bc := createVM(t)
+	_, ic, _ := createVM(t)
 
 	script := []byte{byte(opcode.RET)}
 	scriptHash := hash.Hash160(script)
@@ -878,7 +878,7 @@ func TestRuntimeCheckWitness(t *testing.T) {
 							},
 						},
 					}
-					require.NoError(t, bc.contracts.Management.PutContractState(ic.DAO, contractState))
+					require.NoError(t, native.PutContractState(ic.DAO, contractState))
 					loadScriptWithHashAndFlags(ic, contractScript, contractScriptHash, callflag.All)
 					ic.Tx = tx
 					check(t, ic, targetHash.BytesBE(), false, true)
