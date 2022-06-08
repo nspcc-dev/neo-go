@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/internal/basicchain"
 	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
@@ -81,7 +82,7 @@ func testDumpAndRestore(t *testing.T, dumpF, restoreF func(c *config.ProtocolCon
 	bc, validators, committee := chain.NewMultiWithCustomConfig(t, dumpF)
 	e := neotest.NewExecutor(t, bc, validators, committee)
 
-	initBasicChain(t, e)
+	basicchain.Init(t, "../../", e)
 	require.True(t, bc.BlockHeight() > 5) // ensure that test is valid
 
 	w := io.NewBufBinWriter()
@@ -147,7 +148,7 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	require.NoError(t, err)
 	go bc.Run()
 	e := neotest.NewExecutor(t, bc, validators, committee)
-	initBasicChain(t, e)
+	basicchain.Init(t, "../../", e)
 	require.True(t, bc.BlockHeight() > 5, "ensure that basic chain is correctly initialised")
 
 	// Information for further tests.

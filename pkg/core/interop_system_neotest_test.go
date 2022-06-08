@@ -263,7 +263,7 @@ func TestSystemRuntimeBurnGas(t *testing.T) {
 
 func TestSystemContractCreateAccount_Hardfork(t *testing.T) {
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
-		c.P2PSigExtensions = true // `initBasicChain` requires Notary enabled
+		c.P2PSigExtensions = true // `basicchain.Init` requires Notary enabled
 		c.Hardforks = map[string]uint32{
 			config.HFAspidochelone.String(): 2,
 		}
