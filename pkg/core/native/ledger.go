@@ -5,7 +5,6 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -117,7 +116,7 @@ func (l *Ledger) getBlock(ic *interop.Context, params []stackitem.Item) stackite
 	if err != nil || !isTraceableBlock(ic, block.Index) {
 		return stackitem.Null{}
 	}
-	return BlockToStackItem(block)
+	return block.ToStackItem()
 }
 
 // getTransaction returns transaction to the SC.
@@ -126,7 +125,7 @@ func (l *Ledger) getTransaction(ic *interop.Context, params []stackitem.Item) st
 	if err != nil || !isTraceableBlock(ic, h) {
 		return stackitem.Null{}
 	}
-	return TransactionToStackItem(tx)
+	return tx.ToStackItem()
 }
 
 // getTransactionHeight returns transaction height to the SC.
@@ -150,7 +149,7 @@ func (l *Ledger) getTransactionFromBlock(ic *interop.Context, params []stackitem
 	if index >= uint32(len(block.Transactions)) {
 		panic("wrong transaction index")
 	}
-	return TransactionToStackItem(block.Transactions[index])
+	return block.Transactions[index].ToStackItem()
 }
 
 // getTransactionSigners returns transaction signers to the SC.
@@ -226,35 +225,6 @@ func getTransactionAndHeight(d *dao.Simple, item stackitem.Item) (*transaction.T
 		panic(err)
 	}
 	return d.GetTransaction(hash)
-}
-
-// BlockToStackItem converts block.Block to stackitem.Item.
-func BlockToStackItem(b *block.Block) stackitem.Item {
-	return stackitem.NewArray([]stackitem.Item{
-		stackitem.NewByteArray(b.Hash().BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(b.Version))),
-		stackitem.NewByteArray(b.PrevHash.BytesBE()),
-		stackitem.NewByteArray(b.MerkleRoot.BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(b.Timestamp))),
-		stackitem.NewBigInteger(new(big.Int).SetUint64(b.Nonce)),
-		stackitem.NewBigInteger(big.NewInt(int64(b.Index))),
-		stackitem.NewByteArray(b.NextConsensus.BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(len(b.Transactions)))),
-	})
-}
-
-// TransactionToStackItem converts transaction.Transaction to stackitem.Item.
-func TransactionToStackItem(t *transaction.Transaction) stackitem.Item {
-	return stackitem.NewArray([]stackitem.Item{
-		stackitem.NewByteArray(t.Hash().BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(t.Version))),
-		stackitem.NewBigInteger(big.NewInt(int64(t.Nonce))),
-		stackitem.NewByteArray(t.Sender().BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(t.SystemFee))),
-		stackitem.NewBigInteger(big.NewInt(int64(t.NetworkFee))),
-		stackitem.NewBigInteger(big.NewInt(int64(t.ValidUntilBlock))),
-		stackitem.NewByteArray(t.Script),
-	})
 }
 
 // SignersToStackItem converts transaction.Signers to stackitem.Item.

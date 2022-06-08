@@ -5,12 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -24,22 +21,6 @@ var (
 type StorageContext struct {
 	ID       int32
 	ReadOnly bool
-}
-
-// engineGetScriptContainer returns transaction or block that contains the script
-// being run.
-func engineGetScriptContainer(ic *interop.Context) error {
-	var item stackitem.Item
-	switch t := ic.Container.(type) {
-	case *transaction.Transaction:
-		item = native.TransactionToStackItem(t)
-	case *block.Block:
-		item = native.BlockToStackItem(t)
-	default:
-		return errors.New("unknown script container")
-	}
-	ic.VM.Estack().PushItem(item)
-	return nil
 }
 
 // storageDelete deletes stored key-value pair.

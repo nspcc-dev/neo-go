@@ -54,7 +54,7 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemRuntimeGetNetwork, Func: runtime.GetNetwork, Price: 1 << 3},
 	{Name: interopnames.SystemRuntimeGetNotifications, Func: runtime.GetNotifications, Price: 1 << 12, ParamCount: 1},
 	{Name: interopnames.SystemRuntimeGetRandom, Func: runtime.GetRandom, Price: 0},
-	{Name: interopnames.SystemRuntimeGetScriptContainer, Func: engineGetScriptContainer, Price: 1 << 3},
+	{Name: interopnames.SystemRuntimeGetScriptContainer, Func: runtime.GetScriptContainer, Price: 1 << 3},
 	{Name: interopnames.SystemRuntimeGetTime, Func: runtime.GetTime, Price: 1 << 3, RequiredFlags: callflag.ReadStates},
 	{Name: interopnames.SystemRuntimeGetTrigger, Func: runtime.GetTrigger, Price: 1 << 3},
 	{Name: interopnames.SystemRuntimeLog, Func: runtime.Log, Price: 1 << 15, RequiredFlags: callflag.AllowNotify,
