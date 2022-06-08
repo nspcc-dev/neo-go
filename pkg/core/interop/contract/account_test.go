@@ -5,7 +5,9 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -13,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/stretchr/testify/require"
 )
@@ -112,4 +115,59 @@ func TestCreateMultisigAccount(t *testing.T) {
 		require.NoError(t, w.Err)
 		e.InvokeScriptCheckFAULT(t, w.Bytes(), []neotest.Signer{acc}, "m must be positive and fit int32")
 	})
+}
+
+func TestCreateAccount_Hardfork(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+		c.P2PSigExtensions = true // `basicchain.Init` requires Notary enabled
+		c.Hardforks = map[string]uint32{
+			config.HFAspidochelone.String(): 2,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	priv, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	pub := priv.PublicKey()
+
+	w := io.NewBufBinWriter()
+	emit.Array(w.BinWriter, []interface{}{pub.Bytes(), pub.Bytes(), pub.Bytes()}...)
+	emit.Int(w.BinWriter, int64(2))
+	emit.Syscall(w.BinWriter, interopnames.SystemContractCreateMultisigAccount)
+	require.NoError(t, w.Err)
+	multisigScript := slice.Copy(w.Bytes())
+
+	w.Reset()
+	emit.Bytes(w.BinWriter, pub.Bytes())
+	emit.Syscall(w.BinWriter, interopnames.SystemContractCreateStandardAccount)
+	require.NoError(t, w.Err)
+	standardScript := slice.Copy(w.Bytes())
+
+	createAccTx := func(t *testing.T, script []byte) *transaction.Transaction {
+		tx := e.PrepareInvocation(t, script, []neotest.Signer{e.Committee}, bc.BlockHeight()+1)
+		return tx
+	}
+
+	// blocks #1, #2: old prices
+	tx1Standard := createAccTx(t, standardScript)
+	tx1Multisig := createAccTx(t, multisigScript)
+	e.AddNewBlock(t, tx1Standard, tx1Multisig)
+	e.CheckHalt(t, tx1Standard.Hash())
+	e.CheckHalt(t, tx1Multisig.Hash())
+	tx2Standard := createAccTx(t, standardScript)
+	tx2Multisig := createAccTx(t, multisigScript)
+	e.AddNewBlock(t, tx2Standard, tx2Multisig)
+	e.CheckHalt(t, tx2Standard.Hash())
+	e.CheckHalt(t, tx2Multisig.Hash())
+
+	// block #3: updated prices (larger than the previous ones)
+	tx3Standard := createAccTx(t, standardScript)
+	tx3Multisig := createAccTx(t, multisigScript)
+	e.AddNewBlock(t, tx3Standard, tx3Multisig)
+	e.CheckHalt(t, tx3Standard.Hash())
+	e.CheckHalt(t, tx3Multisig.Hash())
+	require.True(t, tx1Standard.SystemFee == tx2Standard.SystemFee)
+	require.True(t, tx1Multisig.SystemFee == tx2Multisig.SystemFee)
+	require.True(t, tx2Standard.SystemFee < tx3Standard.SystemFee)
+	require.True(t, tx2Multisig.SystemFee < tx3Multisig.SystemFee)
 }
