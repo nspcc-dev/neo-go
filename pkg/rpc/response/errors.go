@@ -2,26 +2,34 @@ package response
 
 import (
 	"fmt"
-	"net/http"
 )
 
-type (
-	// ServerError object for outputting JSON-RPC 2.0 errors on the server side.
-	ServerError struct {
-		*Error
-		HTTPCode int // HTTPCode won't be marshalled because Error's marshaller is used.
-	}
+// Error represents JSON-RPC 2.0 error type.
+type Error struct {
+	Code    int64  `json:"code"`
+	Message string `json:"message"`
+	Data    string `json:"data,omitempty"`
+}
 
-	// Error represents JSON-RPC 2.0 error type.
-	Error struct {
-		Code    int64  `json:"code"`
-		Message string `json:"message"`
-		Data    string `json:"data,omitempty"`
-	}
+// Standard RPC error codes defined by the JSON-RPC 2.0 specification.
+const (
+	// InternalServerErrorCode is returned for internal RPC server error.
+	InternalServerErrorCode = -32603
+	// BadRequestCode is returned on parse error.
+	BadRequestCode = -32700
+	// InvalidRequestCode is returned on invalid request.
+	InvalidRequestCode = -32600
+	// MethodNotFoundCode is returned on unknown method calling.
+	MethodNotFoundCode = -32601
+	// InvalidParamsCode is returned on request with invalid params.
+	InvalidParamsCode = -32602
 )
 
-// InternalServerErrorCode is returned for internal RPC server error.
-const InternalServerErrorCode = -32603
+// RPC error codes defined by the Neo JSON-RPC specification extension.
+const (
+	// RPCErrorCode is returned on RPC request processing error.
+	RPCErrorCode = -100
+)
 
 var (
 	// ErrInvalidParams represents a generic 'invalid parameters' error.
@@ -40,65 +48,61 @@ var (
 	ErrUnknown = NewSubmitError(-500, "Unknown error.")
 )
 
-// NewServerError is an ServerError constructor that takes ServerError contents from its
-// parameters.
-func NewServerError(code int64, httpCode int, message string, data string) *ServerError {
-	return &ServerError{
-		Error: &Error{
-			Code:    code,
-			Message: message,
-			Data:    data,
-		},
-		HTTPCode: httpCode,
+// NewError is an Error constructor that takes Error contents from its parameters.
+func NewError(code int64, message string, data string) *Error {
+	return &Error{
+		Code:    code,
+		Message: message,
+		Data:    data,
 	}
 }
 
 // NewParseError creates a new error with code
 // -32700.
-func NewParseError(data string) *ServerError {
-	return NewServerError(-32700, http.StatusBadRequest, "Parse Error", data)
+func NewParseError(data string) *Error {
+	return NewError(BadRequestCode, "Parse Error", data)
 }
 
 // NewInvalidRequestError creates a new error with
 // code -32600.
-func NewInvalidRequestError(data string) *ServerError {
-	return NewServerError(-32600, http.StatusUnprocessableEntity, "Invalid Request", data)
+func NewInvalidRequestError(data string) *Error {
+	return NewError(InvalidRequestCode, "Invalid Request", data)
 }
 
 // NewMethodNotFoundError creates a new error with
 // code -32601.
-func NewMethodNotFoundError(data string) *ServerError {
-	return NewServerError(-32601, http.StatusMethodNotAllowed, "Method not found", data)
+func NewMethodNotFoundError(data string) *Error {
+	return NewError(MethodNotFoundCode, "Method not found", data)
 }
 
 // NewInvalidParamsError creates a new error with
 // code -32602.
-func NewInvalidParamsError(data string) *ServerError {
-	return NewServerError(-32602, http.StatusUnprocessableEntity, "Invalid Params", data)
+func NewInvalidParamsError(data string) *Error {
+	return NewError(InvalidParamsCode, "Invalid Params", data)
 }
 
 // NewInternalServerError creates a new error with
 // code -32603.
-func NewInternalServerError(data string) *ServerError {
-	return NewServerError(InternalServerErrorCode, http.StatusInternalServerError, "Internal error", data)
+func NewInternalServerError(data string) *Error {
+	return NewError(InternalServerErrorCode, "Internal error", data)
 }
 
 // NewRPCError creates a new error with
 // code -100.
-func NewRPCError(message string, data string) *ServerError {
-	return NewServerError(-100, http.StatusUnprocessableEntity, message, data)
+func NewRPCError(message string, data string) *Error {
+	return NewError(RPCErrorCode, message, data)
 }
 
 // NewSubmitError creates a new error with
 // specified error code and error message.
-func NewSubmitError(code int64, message string) *ServerError {
-	return NewServerError(code, http.StatusUnprocessableEntity, message, "")
+func NewSubmitError(code int64, message string) *Error {
+	return NewError(code, message, "")
 }
 
 // WrapErrorWithData returns copy of the given error with the specified data and cause.
 // It does not modify the source error.
-func WrapErrorWithData(e *ServerError, data string) *ServerError {
-	return NewServerError(e.Code, e.HTTPCode, e.Message, data)
+func WrapErrorWithData(e *Error, data string) *Error {
+	return NewError(e.Code, e.Message, data)
 }
 
 // Error implements the error interface.
