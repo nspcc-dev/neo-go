@@ -149,8 +149,8 @@ func (w *Wallet) Save() error {
 	return w.writeRaw(data)
 }
 
-// savePretty saves the wallet in a beautiful JSON.
-func (w *Wallet) savePretty() error {
+// SavePretty saves the wallet in a beautiful JSON.
+func (w *Wallet) SavePretty() error {
 	data, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
 		return err
