@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 const (
@@ -210,4 +212,19 @@ func (b *Block) GetExpectedBlockSizeWithoutTransactions(txCount int) int {
 		size += util.Uint256Size
 	}
 	return size
+}
+
+// ToStackItem converts Block to stackitem.Item.
+func (b *Block) ToStackItem() stackitem.Item {
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray(b.Hash().BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(b.Version))),
+		stackitem.NewByteArray(b.PrevHash.BytesBE()),
+		stackitem.NewByteArray(b.MerkleRoot.BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(b.Timestamp))),
+		stackitem.NewBigInteger(new(big.Int).SetUint64(b.Nonce)),
+		stackitem.NewBigInteger(big.NewInt(int64(b.Index))),
+		stackitem.NewByteArray(b.NextConsensus.BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(len(b.Transactions)))),
+	})
 }

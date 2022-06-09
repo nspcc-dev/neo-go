@@ -1,4 +1,4 @@
-package core
+package storage_test
 
 import (
 	"reflect"
@@ -6,19 +6,9 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/stretchr/testify/require"
 )
-
-func testNonInterop(t *testing.T, value interface{}, f func(*interop.Context) error) {
-	v := vm.New()
-	v.Estack().PushVal(value)
-	chain := newTestChain(t)
-	context := chain.newInteropContext(trigger.Application, chain.dao, nil, nil)
-	context.VM = v
-	require.Error(t, f(context))
-}
 
 func TestUnexpectedNonInterops(t *testing.T) {
 	vals := map[string]interface{}{
@@ -30,17 +20,19 @@ func TestUnexpectedNonInterops(t *testing.T) {
 
 	// All of these functions expect an interop item on the stack.
 	funcs := []func(*interop.Context) error{
-		storageContextAsReadOnly,
-		storageDelete,
-		storageFind,
-		storageGet,
-		storagePut,
+		storage.ContextAsReadOnly,
+		storage.Delete,
+		storage.Find,
+		storage.Get,
+		storage.Put,
 	}
 	for _, f := range funcs {
 		for k, v := range vals {
 			fname := runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name()
 			t.Run(k+"/"+fname, func(t *testing.T) {
-				testNonInterop(t, v, f)
+				vm, ic, _ := createVM(t)
+				vm.Estack().PushVal(v)
+				require.Error(t, f(ic))
 			})
 		}
 	}

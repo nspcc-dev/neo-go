@@ -46,6 +46,7 @@ examples/*/*.json
 # Fuzzing testdata.
 testdata/
 !cli/testdata
+!internal/basicchain/testdata
 !pkg/compiler/testdata
 !pkg/config/testdata
 !pkg/consensus/testdata

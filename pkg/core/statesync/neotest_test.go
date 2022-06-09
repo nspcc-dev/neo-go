@@ -1,8 +1,9 @@
-package core_test
+package statesync_test
 
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/basicchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
@@ -291,13 +292,13 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		c.P2PStateExchangeExtensions = true
 		c.StateSyncInterval = stateSyncInterval
 		c.MaxTraceableBlocks = maxTraceable
-		c.P2PSigExtensions = true // `initBasicChain` assumes Notary is enabled.
+		c.P2PSigExtensions = true // `basicchain.Init` assumes Notary is enabled.
 	}
 	bcSpoutStore := storage.NewMemoryStore()
 	bcSpout, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, spoutCfg, bcSpoutStore, false)
 	go bcSpout.Run() // Will close it manually at the end.
 	e := neotest.NewExecutor(t, bcSpout, validators, committee)
-	initBasicChain(t, e)
+	basicchain.Init(t, "../../../", e)
 
 	// make spout chain higher that latest state sync point (add several blocks up to stateSyncPoint+2)
 	e.AddNewBlock(t)

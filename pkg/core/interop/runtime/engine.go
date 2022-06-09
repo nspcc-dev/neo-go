@@ -10,6 +10,10 @@ import (
 	"go.uber.org/zap"
 )
 
+type itemable interface {
+	ToStackItem() stackitem.Item
+}
+
 const (
 	// MaxEventNameLen is the maximum length of a name for event.
 	MaxEventNameLen = 32
@@ -35,6 +39,17 @@ func GetCallingScriptHash(ic *interop.Context) error {
 // GetEntryScriptHash returns entry script hash.
 func GetEntryScriptHash(ic *interop.Context) error {
 	return ic.VM.PushContextScriptHash(ic.VM.Istack().Len() - 1)
+}
+
+// GetScriptContainer returns transaction or block that contains the script
+// being run.
+func GetScriptContainer(ic *interop.Context) error {
+	c, ok := ic.Container.(itemable)
+	if !ok {
+		return errors.New("unknown script container")
+	}
+	ic.VM.Estack().PushItem(c.ToStackItem())
+	return nil
 }
 
 // Platform returns the name of the platform.

@@ -1,180 +1,173 @@
-package core_test
+package contract_test
 
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"math/big"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/contracts"
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
-	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
-func TestSystemRuntimeGetRandom_DifferentTransactions(t *testing.T) {
-	bc, acc := chain.NewSingle(t)
-	e := neotest.NewExecutor(t, bc, acc, acc)
+var pathToInternalContracts = filepath.Join("..", "..", "..", "..", "internal", "contracts")
 
-	w := io.NewBufBinWriter()
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetRandom)
-	require.NoError(t, w.Err)
-	script := w.Bytes()
+func TestGetCallFlags(t *testing.T) {
+	bc, _ := chain.NewSingle(t)
+	ic := bc.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
 
-	tx1 := e.PrepareInvocation(t, script, []neotest.Signer{e.Validator}, bc.BlockHeight()+1)
-	tx2 := e.PrepareInvocation(t, script, []neotest.Signer{e.Validator}, bc.BlockHeight()+1)
-	e.AddNewBlock(t, tx1, tx2)
-	e.CheckHalt(t, tx1.Hash())
-	e.CheckHalt(t, tx2.Hash())
-
-	res1 := e.GetTxExecResult(t, tx1.Hash())
-	res2 := e.GetTxExecResult(t, tx2.Hash())
-
-	r1, err := res1.Stack[0].TryInteger()
-	require.NoError(t, err)
-	r2, err := res2.Stack[0].TryInteger()
-	require.NoError(t, err)
-	require.NotEqual(t, r1, r2)
+	ic.VM.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{1, 2, 3}, callflag.All)
+	require.NoError(t, contract.GetCallFlags(ic))
+	require.Equal(t, int64(callflag.All), ic.VM.Estack().Pop().Value().(*big.Int).Int64())
 }
 
-func TestSystemContractCreateStandardAccount(t *testing.T) {
-	bc, acc := chain.NewSingle(t)
-	e := neotest.NewExecutor(t, bc, acc, acc)
-	w := io.NewBufBinWriter()
+func TestCall(t *testing.T) {
+	bc, _ := chain.NewSingle(t)
+	ic := bc.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
 
+	cs, currCs := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
+	require.NoError(t, native.PutContractState(ic.DAO, cs))
+	require.NoError(t, native.PutContractState(ic.DAO, currCs))
+
+	currScript := currCs.NEF.Script
+	h := cs.Hash
+
+	addArgs := stackitem.NewArray([]stackitem.Item{stackitem.Make(1), stackitem.Make(2)})
 	t.Run("Good", func(t *testing.T) {
-		priv, err := keys.NewPrivateKey()
-		require.NoError(t, err)
-		pub := priv.PublicKey()
-
-		emit.Bytes(w.BinWriter, pub.Bytes())
-		emit.Syscall(w.BinWriter, interopnames.SystemContractCreateStandardAccount)
-		require.NoError(t, w.Err)
-		script := w.Bytes()
-
-		tx := e.PrepareInvocation(t, script, []neotest.Signer{e.Validator}, bc.BlockHeight()+1)
-		e.AddNewBlock(t, tx)
-		e.CheckHalt(t, tx.Hash())
-
-		res := e.GetTxExecResult(t, tx.Hash())
-		value := res.Stack[0].Value().([]byte)
-		u, err := util.Uint160DecodeBytesBE(value)
-		require.NoError(t, err)
-		require.Equal(t, pub.GetScriptHash(), u)
+		t.Run("2 arguments", func(t *testing.T) {
+			loadScript(ic, currScript, 42)
+			ic.VM.Estack().PushVal(addArgs)
+			ic.VM.Estack().PushVal(callflag.All)
+			ic.VM.Estack().PushVal("add")
+			ic.VM.Estack().PushVal(h.BytesBE())
+			require.NoError(t, contract.Call(ic))
+			require.NoError(t, ic.VM.Run())
+			require.Equal(t, 2, ic.VM.Estack().Len())
+			require.Equal(t, big.NewInt(3), ic.VM.Estack().Pop().Value())
+			require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Value())
+		})
+		t.Run("3 arguments", func(t *testing.T) {
+			loadScript(ic, currScript, 42)
+			ic.VM.Estack().PushVal(stackitem.NewArray(
+				append(addArgs.Value().([]stackitem.Item), stackitem.Make(3))))
+			ic.VM.Estack().PushVal(callflag.All)
+			ic.VM.Estack().PushVal("add")
+			ic.VM.Estack().PushVal(h.BytesBE())
+			require.NoError(t, contract.Call(ic))
+			require.NoError(t, ic.VM.Run())
+			require.Equal(t, 2, ic.VM.Estack().Len())
+			require.Equal(t, big.NewInt(6), ic.VM.Estack().Pop().Value())
+			require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Value())
+		})
 	})
-	t.Run("InvalidKey", func(t *testing.T) {
-		w.Reset()
-		emit.Bytes(w.BinWriter, []byte{1, 2, 3})
-		emit.Syscall(w.BinWriter, interopnames.SystemContractCreateStandardAccount)
-		require.NoError(t, w.Err)
-		script := w.Bytes()
 
-		tx := e.PrepareInvocation(t, script, []neotest.Signer{e.Validator}, bc.BlockHeight()+1)
-		e.AddNewBlock(t, tx)
-		e.CheckFault(t, tx.Hash(), "invalid prefix 1")
+	t.Run("CallExInvalidFlag", func(t *testing.T) {
+		loadScript(ic, currScript, 42)
+		ic.VM.Estack().PushVal(addArgs)
+		ic.VM.Estack().PushVal(byte(0xFF))
+		ic.VM.Estack().PushVal("add")
+		ic.VM.Estack().PushVal(h.BytesBE())
+		require.Error(t, contract.Call(ic))
 	})
-}
 
-func TestSystemContractCreateMultisigAccount(t *testing.T) {
-	bc, acc := chain.NewSingle(t)
-	e := neotest.NewExecutor(t, bc, acc, acc)
-	w := io.NewBufBinWriter()
-
-	createScript := func(t *testing.T, pubs []interface{}, m int) []byte {
-		w.Reset()
-		emit.Array(w.BinWriter, pubs...)
-		emit.Int(w.BinWriter, int64(m))
-		emit.Syscall(w.BinWriter, interopnames.SystemContractCreateMultisigAccount)
-		require.NoError(t, w.Err)
-		return w.Bytes()
-	}
-	t.Run("Good", func(t *testing.T) {
-		m, n := 3, 5
-		pubs := make(keys.PublicKeys, n)
-		arr := make([]interface{}, n)
-		for i := range pubs {
-			pk, err := keys.NewPrivateKey()
-			require.NoError(t, err)
-			pubs[i] = pk.PublicKey()
-			arr[i] = pubs[i].Bytes()
+	runInvalid := func(args ...interface{}) func(t *testing.T) {
+		return func(t *testing.T) {
+			loadScriptWithHashAndFlags(ic, currScript, h, callflag.All, 42)
+			for i := range args {
+				ic.VM.Estack().PushVal(args[i])
+			}
+			// interops can both return error and panic,
+			// we don't care which kind of error has occurred
+			require.Panics(t, func() {
+				err := contract.Call(ic)
+				if err != nil {
+					panic(err)
+				}
+			})
 		}
-		script := createScript(t, arr, m)
+	}
 
-		txH := e.InvokeScript(t, script, []neotest.Signer{acc})
-		e.CheckHalt(t, txH)
-		res := e.GetTxExecResult(t, txH)
-		value := res.Stack[0].Value().([]byte)
-		u, err := util.Uint160DecodeBytesBE(value)
-		require.NoError(t, err)
-		expected, err := smartcontract.CreateMultiSigRedeemScript(m, pubs)
-		require.NoError(t, err)
-		require.Equal(t, hash.Hash160(expected), u)
+	t.Run("Invalid", func(t *testing.T) {
+		t.Run("Hash", runInvalid(addArgs, "add", h.BytesBE()[1:]))
+		t.Run("MissingHash", runInvalid(addArgs, "add", util.Uint160{}.BytesBE()))
+		t.Run("Method", runInvalid(addArgs, stackitem.NewInterop("add"), h.BytesBE()))
+		t.Run("MissingMethod", runInvalid(addArgs, "sub", h.BytesBE()))
+		t.Run("DisallowedMethod", runInvalid(stackitem.NewArray(nil), "ret7", h.BytesBE()))
+		t.Run("Arguments", runInvalid(1, "add", h.BytesBE()))
+		t.Run("NotEnoughArguments", runInvalid(
+			stackitem.NewArray([]stackitem.Item{stackitem.Make(1)}), "add", h.BytesBE()))
+		t.Run("TooMuchArguments", runInvalid(
+			stackitem.NewArray([]stackitem.Item{
+				stackitem.Make(1), stackitem.Make(2), stackitem.Make(3), stackitem.Make(4)}),
+			"add", h.BytesBE()))
 	})
-	t.Run("InvalidKey", func(t *testing.T) {
-		script := createScript(t, []interface{}{[]byte{1, 2, 3}}, 1)
-		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "invalid prefix 1")
+
+	t.Run("ReturnValues", func(t *testing.T) {
+		t.Run("Many", func(t *testing.T) {
+			loadScript(ic, currScript, 42)
+			ic.VM.Estack().PushVal(stackitem.NewArray(nil))
+			ic.VM.Estack().PushVal(callflag.All)
+			ic.VM.Estack().PushVal("invalidReturn")
+			ic.VM.Estack().PushVal(h.BytesBE())
+			require.NoError(t, contract.Call(ic))
+			require.Error(t, ic.VM.Run())
+		})
+		t.Run("Void", func(t *testing.T) {
+			loadScript(ic, currScript, 42)
+			ic.VM.Estack().PushVal(stackitem.NewArray(nil))
+			ic.VM.Estack().PushVal(callflag.All)
+			ic.VM.Estack().PushVal("justReturn")
+			ic.VM.Estack().PushVal(h.BytesBE())
+			require.NoError(t, contract.Call(ic))
+			require.NoError(t, ic.VM.Run())
+			require.Equal(t, 2, ic.VM.Estack().Len())
+			require.Equal(t, stackitem.Null{}, ic.VM.Estack().Pop().Item())
+			require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Value())
+		})
 	})
-	t.Run("Invalid m", func(t *testing.T) {
-		pk, err := keys.NewPrivateKey()
-		require.NoError(t, err)
-		script := createScript(t, []interface{}{pk.PublicKey().Bytes()}, 2)
-		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "length of the signatures (2) is higher then the number of public keys")
+
+	t.Run("IsolatedStack", func(t *testing.T) {
+		loadScript(ic, currScript, 42)
+		ic.VM.Estack().PushVal(stackitem.NewArray(nil))
+		ic.VM.Estack().PushVal(callflag.All)
+		ic.VM.Estack().PushVal("drop")
+		ic.VM.Estack().PushVal(h.BytesBE())
+		require.NoError(t, contract.Call(ic))
+		require.Error(t, ic.VM.Run())
 	})
-	t.Run("m overflows int32", func(t *testing.T) {
-		pk, err := keys.NewPrivateKey()
-		require.NoError(t, err)
-		m := big.NewInt(math.MaxInt32)
-		m.Add(m, big.NewInt(1))
-		w.Reset()
-		emit.Array(w.BinWriter, pk.Bytes())
-		emit.BigInt(w.BinWriter, m)
-		emit.Syscall(w.BinWriter, interopnames.SystemContractCreateMultisigAccount)
-		require.NoError(t, w.Err)
-		e.InvokeScriptCheckFAULT(t, w.Bytes(), []neotest.Signer{acc}, "m must be positive and fit int32")
+
+	t.Run("CallInitialize", func(t *testing.T) {
+		t.Run("Directly", runInvalid(stackitem.NewArray([]stackitem.Item{}), "_initialize", h.BytesBE()))
+
+		loadScript(ic, currScript, 42)
+		ic.VM.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(5)}))
+		ic.VM.Estack().PushVal(callflag.All)
+		ic.VM.Estack().PushVal("add3")
+		ic.VM.Estack().PushVal(h.BytesBE())
+		require.NoError(t, contract.Call(ic))
+		require.NoError(t, ic.VM.Run())
+		require.Equal(t, 2, ic.VM.Estack().Len())
+		require.Equal(t, big.NewInt(8), ic.VM.Estack().Pop().Value())
+		require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Value())
 	})
-}
-
-func TestSystemRuntimeGasLeft(t *testing.T) {
-	const runtimeGasLeftPrice = 1 << 4
-
-	bc, acc := chain.NewSingle(t)
-	e := neotest.NewExecutor(t, bc, acc, acc)
-	w := io.NewBufBinWriter()
-
-	gasLimit := 1100
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGasLeft)
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGasLeft)
-	require.NoError(t, w.Err)
-	tx := transaction.New(w.Bytes(), int64(gasLimit))
-	tx.Nonce = neotest.Nonce()
-	tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
-	e.SignTx(t, tx, int64(gasLimit), acc)
-	e.AddNewBlock(t, tx)
-	e.CheckHalt(t, tx.Hash())
-	res := e.GetTxExecResult(t, tx.Hash())
-	l1 := res.Stack[0].Value().(*big.Int)
-	l2 := res.Stack[1].Value().(*big.Int)
-
-	require.Equal(t, int64(gasLimit-runtimeGasLeftPrice*interop.DefaultBaseExecFee), l1.Int64())
-	require.Equal(t, int64(gasLimit-2*runtimeGasLeftPrice*interop.DefaultBaseExecFee), l2.Int64())
 }
 
 func TestLoadToken(t *testing.T) {
@@ -202,118 +195,6 @@ func TestLoadToken(t *testing.T) {
 	t.Run("invalid contract", func(t *testing.T) {
 		cInvoker.InvokeFail(t, "token contract 0000000000000000000000000000000000000000 not found: key not found", "callT1")
 	})
-}
-
-func TestSystemRuntimeGetNetwork(t *testing.T) {
-	bc, acc := chain.NewSingle(t)
-	e := neotest.NewExecutor(t, bc, acc, acc)
-	w := io.NewBufBinWriter()
-
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetNetwork)
-	require.NoError(t, w.Err)
-	e.InvokeScriptCheckHALT(t, w.Bytes(), []neotest.Signer{acc}, stackitem.NewBigInteger(big.NewInt(int64(bc.GetConfig().Magic))))
-}
-
-func TestSystemRuntimeGetAddressVersion(t *testing.T) {
-	bc, acc := chain.NewSingle(t)
-	e := neotest.NewExecutor(t, bc, acc, acc)
-	w := io.NewBufBinWriter()
-
-	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetAddressVersion)
-	require.NoError(t, w.Err)
-	e.InvokeScriptCheckHALT(t, w.Bytes(), []neotest.Signer{acc}, stackitem.NewBigInteger(big.NewInt(int64(address.NEO3Prefix))))
-}
-
-func TestSystemRuntimeBurnGas(t *testing.T) {
-	bc, acc := chain.NewSingle(t)
-	e := neotest.NewExecutor(t, bc, acc, acc)
-	managementInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Management))
-
-	cs, _ := contracts.GetTestContractState(t, pathToInternalContracts, 0, 1, acc.ScriptHash())
-	rawManifest, err := json.Marshal(cs.Manifest)
-	require.NoError(t, err)
-	rawNef, err := cs.NEF.Bytes()
-	require.NoError(t, err)
-	tx := managementInvoker.PrepareInvoke(t, "deploy", rawNef, rawManifest)
-	e.AddNewBlock(t, tx)
-	e.CheckHalt(t, tx.Hash())
-	cInvoker := e.ValidatorInvoker(cs.Hash)
-
-	t.Run("good", func(t *testing.T) {
-		h := cInvoker.Invoke(t, stackitem.Null{}, "burnGas", int64(1))
-		res := e.GetTxExecResult(t, h)
-
-		t.Run("gas limit exceeded", func(t *testing.T) {
-			tx := e.NewUnsignedTx(t, cs.Hash, "burnGas", int64(2))
-			e.SignTx(t, tx, res.GasConsumed, acc)
-			e.AddNewBlock(t, tx)
-			e.CheckFault(t, tx.Hash(), "GAS limit exceeded")
-		})
-	})
-	t.Run("too big integer", func(t *testing.T) {
-		gas := big.NewInt(math.MaxInt64)
-		gas.Add(gas, big.NewInt(1))
-
-		cInvoker.InvokeFail(t, "invalid GAS value", "burnGas", gas)
-	})
-	t.Run("zero GAS", func(t *testing.T) {
-		cInvoker.InvokeFail(t, "GAS must be positive", "burnGas", int64(0))
-	})
-}
-
-func TestSystemContractCreateAccount_Hardfork(t *testing.T) {
-	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
-		c.P2PSigExtensions = true // `initBasicChain` requires Notary enabled
-		c.Hardforks = map[string]uint32{
-			config.HFAspidochelone.String(): 2,
-		}
-	})
-	e := neotest.NewExecutor(t, bc, acc, acc)
-
-	priv, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-	pub := priv.PublicKey()
-
-	w := io.NewBufBinWriter()
-	emit.Array(w.BinWriter, []interface{}{pub.Bytes(), pub.Bytes(), pub.Bytes()}...)
-	emit.Int(w.BinWriter, int64(2))
-	emit.Syscall(w.BinWriter, interopnames.SystemContractCreateMultisigAccount)
-	require.NoError(t, w.Err)
-	multisigScript := slice.Copy(w.Bytes())
-
-	w.Reset()
-	emit.Bytes(w.BinWriter, pub.Bytes())
-	emit.Syscall(w.BinWriter, interopnames.SystemContractCreateStandardAccount)
-	require.NoError(t, w.Err)
-	standardScript := slice.Copy(w.Bytes())
-
-	createAccTx := func(t *testing.T, script []byte) *transaction.Transaction {
-		tx := e.PrepareInvocation(t, script, []neotest.Signer{e.Committee}, bc.BlockHeight()+1)
-		return tx
-	}
-
-	// blocks #1, #2: old prices
-	tx1Standard := createAccTx(t, standardScript)
-	tx1Multisig := createAccTx(t, multisigScript)
-	e.AddNewBlock(t, tx1Standard, tx1Multisig)
-	e.CheckHalt(t, tx1Standard.Hash())
-	e.CheckHalt(t, tx1Multisig.Hash())
-	tx2Standard := createAccTx(t, standardScript)
-	tx2Multisig := createAccTx(t, multisigScript)
-	e.AddNewBlock(t, tx2Standard, tx2Multisig)
-	e.CheckHalt(t, tx2Standard.Hash())
-	e.CheckHalt(t, tx2Multisig.Hash())
-
-	// block #3: updated prices (larger than the previous ones)
-	tx3Standard := createAccTx(t, standardScript)
-	tx3Multisig := createAccTx(t, multisigScript)
-	e.AddNewBlock(t, tx3Standard, tx3Multisig)
-	e.CheckHalt(t, tx3Standard.Hash())
-	e.CheckHalt(t, tx3Multisig.Hash())
-	require.True(t, tx1Standard.SystemFee == tx2Standard.SystemFee)
-	require.True(t, tx1Multisig.SystemFee == tx2Multisig.SystemFee)
-	require.True(t, tx2Standard.SystemFee < tx3Standard.SystemFee)
-	require.True(t, tx2Multisig.SystemFee < tx3Multisig.SystemFee)
 }
 
 func TestSnapshotIsolation_Exceptions(t *testing.T) {
@@ -706,4 +587,22 @@ func TestCALLL_from_VoidContext(t *testing.T) {
 
 	ctrInvoker := e.NewInvoker(ctrA.Hash, e.Committee)
 	ctrInvoker.Invoke(t, stackitem.Null{}, "callHasRet")
+}
+
+func loadScript(ic *interop.Context, script []byte, args ...interface{}) {
+	ic.SpawnVM()
+	ic.VM.LoadScriptWithFlags(script, callflag.AllowCall)
+	for i := range args {
+		ic.VM.Estack().PushVal(args[i])
+	}
+	ic.VM.GasLimit = -1
+}
+
+func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Uint160, f callflag.CallFlag, args ...interface{}) {
+	ic.SpawnVM()
+	ic.VM.LoadScriptWithHash(script, hash, f)
+	for i := range args {
+		ic.VM.Estack().PushVal(args[i])
+	}
+	ic.VM.GasLimit = -1
 }

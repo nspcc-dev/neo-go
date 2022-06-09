@@ -6,12 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"math/rand"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 const (
@@ -450,4 +452,18 @@ func (t *Transaction) HasSigner(hash util.Uint160) bool {
 		}
 	}
 	return false
+}
+
+// ToStackItem converts Transaction to stackitem.Item.
+func (t *Transaction) ToStackItem() stackitem.Item {
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray(t.Hash().BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(t.Version))),
+		stackitem.NewBigInteger(big.NewInt(int64(t.Nonce))),
+		stackitem.NewByteArray(t.Sender().BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(t.SystemFee))),
+		stackitem.NewBigInteger(big.NewInt(int64(t.NetworkFee))),
+		stackitem.NewBigInteger(big.NewInt(int64(t.ValidUntilBlock))),
+		stackitem.NewByteArray(t.Script),
+	})
 }

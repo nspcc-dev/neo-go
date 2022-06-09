@@ -1,12 +1,10 @@
-package core_test
+package notary_test
 
 import (
 	"errors"
 	"fmt"
 	"math/big"
 	"math/rand"
-	"path"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -40,7 +38,7 @@ func getTestNotary(t *testing.T, bc *core.Blockchain, walletPath, pass string, o
 	mainCfg := config.P2PNotary{
 		Enabled: true,
 		UnlockWallet: config.Wallet{
-			Path:     filepath.Join(notaryModulePath, walletPath),
+			Path:     walletPath,
 			Password: pass,
 		},
 	}
@@ -53,7 +51,7 @@ func getTestNotary(t *testing.T, bc *core.Blockchain, walletPath, pass string, o
 	ntr, err := notary.NewNotary(cfg, netmode.UnitTestNet, mp, onTx)
 	require.NoError(t, err)
 
-	w, err := wallet.NewWalletFromFile(path.Join(notaryModulePath, walletPath))
+	w, err := wallet.NewWalletFromFile(walletPath)
 	require.NoError(t, err)
 	require.NoError(t, w.Accounts[0].Decrypt(pass, w.Scrypt))
 	return w.Accounts[0], ntr, mp

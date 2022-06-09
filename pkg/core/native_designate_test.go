@@ -15,6 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Technically this test belongs to the native package, but it's so deeply tied to
+// the core internals that it needs to be rewritten to be moved. So let it be
+// there just to remind us about the imperfect world we live in.
 func TestDesignate_DesignateAsRole(t *testing.T) {
 	bc := newTestChain(t)
 

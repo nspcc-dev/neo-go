@@ -279,7 +279,7 @@ func TestNEO_RecursiveGASMint(t *testing.T) {
 	e := neoCommitteeInvoker.Executor
 	gasValidatorInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Gas))
 
-	c := neotest.CompileFile(t, e.Validator.ScriptHash(), "../../../rpc/server/testdata/test_contract.go", "../../../rpc/server/testdata/test_contract.yml")
+	c := neotest.CompileFile(t, e.Validator.ScriptHash(), "../../../../internal/basicchain/testdata/test_contract.go", "../../../../internal/basicchain/testdata/test_contract.yml")
 	e.DeployContract(t, c, nil)
 
 	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), c.Hash, int64(2_0000_0000), nil)
