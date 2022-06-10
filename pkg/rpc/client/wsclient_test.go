@@ -472,20 +472,24 @@ func TestWS_RequestAfterClose(t *testing.T) {
 }
 
 func TestWSClient_ConnClosedError(t *testing.T) {
-	srv := initTestServer(t, "")
-
 	t.Run("standard closing", func(t *testing.T) {
+		srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": 123}`)
 		c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 		require.NoError(t, err)
 
-		c.Close()
-
+		// Check client is working.
+		_, err = c.GetBlockCount()
+		require.NoError(t, err)
 		err = c.GetError()
-		require.Error(t, err)
-		require.True(t, strings.Contains(err.Error(), "use of closed network connection"))
+		require.NoError(t, err)
+
+		c.Close()
+		err = c.GetError()
+		require.NoError(t, err)
 	})
 
 	t.Run("malformed request", func(t *testing.T) {
+		srv := initTestServer(t, "")
 		c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 		require.NoError(t, err)
 
