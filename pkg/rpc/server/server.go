@@ -671,7 +671,7 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 
 	appExecResults, err := s.chain.GetAppExecResults(hash, trigger.All)
 	if err != nil {
-		return nil, response.NewRPCError("Unknown transaction or block", fmt.Sprintf("failed to locate application log: %s", err))
+		return nil, response.WrapErrorWithData(response.ErrUnknownScriptContainer, fmt.Sprintf("failed to locate application log: %s", err))
 	}
 	return result.NewApplicationLog(hash, appExecResults, trig), nil
 }
@@ -1379,7 +1379,7 @@ func (s *Server) getStateRoot(ps request.Params) (interface{}, *response.Error) 
 		}
 	}
 	if err != nil {
-		return nil, response.NewRPCError("Unknown state root", "")
+		return nil, response.ErrUnknownStateRoot
 	}
 	return rt, nil
 }
@@ -1413,7 +1413,7 @@ func (s *Server) getrawtransaction(reqParams request.Params) (interface{}, *resp
 	}
 	tx, height, err := s.chain.GetTransaction(txHash)
 	if err != nil {
-		return nil, response.NewRPCError("Unknown transaction", "")
+		return nil, response.ErrUnknownTransaction
 	}
 	if v, _ := reqParams.Value(1).GetBoolean(); v {
 		if height == math.MaxUint32 {
@@ -1444,7 +1444,7 @@ func (s *Server) getTransactionHeight(ps request.Params) (interface{}, *response
 
 	_, height, err := s.chain.GetTransaction(h)
 	if err != nil || height == math.MaxUint32 {
-		return nil, response.NewRPCError("Unknown transaction", "")
+		return nil, response.ErrUnknownTransaction
 	}
 
 	return height, nil
@@ -1478,7 +1478,7 @@ func (s *Server) getBlockSysFee(reqParams request.Params) (interface{}, *respons
 	headerHash := s.chain.GetHeaderHash(num)
 	block, errBlock := s.chain.GetBlock(headerHash)
 	if errBlock != nil {
-		return 0, response.NewRPCError("Unknown block", "")
+		return 0, response.ErrUnknownBlock
 	}
 
 	var blockSysFee int64
@@ -1500,7 +1500,7 @@ func (s *Server) getBlockHeader(reqParams request.Params) (interface{}, *respons
 	verbose, _ := reqParams.Value(1).GetBoolean()
 	h, err := s.chain.GetHeader(hash)
 	if err != nil {
-		return nil, response.NewRPCError("Unknown header", "")
+		return nil, response.ErrUnknownHeader
 	}
 
 	if verbose {

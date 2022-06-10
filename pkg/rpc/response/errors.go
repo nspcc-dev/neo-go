@@ -34,6 +34,16 @@ const (
 var (
 	// ErrInvalidParams represents a generic 'invalid parameters' error.
 	ErrInvalidParams = NewInvalidParamsError("invalid params")
+	// ErrUnknownBlock is returned if requested block is not found.
+	ErrUnknownBlock = NewError(RPCErrorCode, "Unknown block", "")
+	// ErrUnknownTransaction is returned if requested transaction is not found.
+	ErrUnknownTransaction = NewError(RPCErrorCode, "Unknown transaction", "")
+	// ErrUnknownHeader is returned when requested header is not found.
+	ErrUnknownHeader = NewError(RPCErrorCode, "Unknown header", "")
+	// ErrUnknownScriptContainer is returned when requested block or transaction is not found.
+	ErrUnknownScriptContainer = NewError(RPCErrorCode, "Unknown script container", "")
+	// ErrUnknownStateRoot is returned when requested state root is not found.
+	ErrUnknownStateRoot = NewError(RPCErrorCode, "Unknown state root", "")
 	// ErrAlreadyExists represents SubmitError with code -501.
 	ErrAlreadyExists = NewSubmitError(-501, "Block or transaction already exists and cannot be sent repeatedly.")
 	// ErrOutOfMemory represents SubmitError with code -502.
