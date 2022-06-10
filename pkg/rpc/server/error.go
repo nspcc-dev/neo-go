@@ -6,12 +6,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 )
 
-// serverError represents RPC error response on the server side.
-type serverError struct {
-	*response.Error
-	HTTPCode int // HTTPCode won't be marshalled because Error's marshaller is used.
-}
-
 // abstractResult is an interface which represents either single JSON-RPC 2.0 response
 // or batch JSON-RPC 2.0 response.
 type abstractResult interface {
@@ -22,14 +16,14 @@ type abstractResult interface {
 // representation.
 type abstract struct {
 	response.Header
-	Error  *serverError `json:"error,omitempty"`
-	Result interface{}  `json:"result,omitempty"`
+	Error  *response.Error `json:"error,omitempty"`
+	Result interface{}     `json:"result,omitempty"`
 }
 
 // RunForErrors implements abstractResult interface.
 func (a abstract) RunForErrors(f func(jsonErr *response.Error)) {
 	if a.Error != nil {
-		f(a.Error.Error)
+		f(a.Error)
 	}
 }
 
@@ -40,12 +34,12 @@ type abstractBatch []abstract
 func (ab abstractBatch) RunForErrors(f func(jsonErr *response.Error)) {
 	for _, a := range ab {
 		if a.Error != nil {
-			f(a.Error.Error)
+			f(a.Error)
 		}
 	}
 }
 
-func packClientError(respErr *response.Error) *serverError {
+func getHTTPCodeForError(respErr *response.Error) int {
 	var httpCode int
 	switch respErr.Code {
 	case response.BadRequestCode:
@@ -59,8 +53,5 @@ func packClientError(respErr *response.Error) *serverError {
 	default:
 		httpCode = http.StatusUnprocessableEntity
 	}
-	return &serverError{
-		Error:    respErr,
-		HTTPCode: httpCode,
-	}
+	return httpCode
 }

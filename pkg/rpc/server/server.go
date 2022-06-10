@@ -2250,7 +2250,7 @@ func (s *Server) packResponse(r *request.In, result interface{}, respErr *respon
 		},
 	}
 	if respErr != nil {
-		resp.Error = packClientError(respErr)
+		resp.Error = respErr
 	} else {
 		resp.Result = result
 	}
@@ -2292,7 +2292,7 @@ func (s *Server) writeHTTPServerResponse(r *request.Request, w http.ResponseWrit
 	if r.In != nil {
 		resp := resp.(abstract)
 		if resp.Error != nil {
-			w.WriteHeader(resp.Error.HTTPCode)
+			w.WriteHeader(getHTTPCodeForError(resp.Error))
 		}
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
