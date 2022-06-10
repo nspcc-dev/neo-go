@@ -1,29 +1,49 @@
 package response
 
 import (
-	"errors"
 	"fmt"
-	"net/http"
 )
 
-type (
-	// Error object for outputting JSON-RPC 2.0
-	// errors.
-	Error struct {
-		Code     int64  `json:"code"`
-		HTTPCode int    `json:"-"`
-		Cause    error  `json:"-"`
-		Message  string `json:"message"`
-		Data     string `json:"data,omitempty"`
-	}
+// Error represents JSON-RPC 2.0 error type.
+type Error struct {
+	Code    int64  `json:"code"`
+	Message string `json:"message"`
+	Data    string `json:"data,omitempty"`
+}
+
+// Standard RPC error codes defined by the JSON-RPC 2.0 specification.
+const (
+	// InternalServerErrorCode is returned for internal RPC server error.
+	InternalServerErrorCode = -32603
+	// BadRequestCode is returned on parse error.
+	BadRequestCode = -32700
+	// InvalidRequestCode is returned on invalid request.
+	InvalidRequestCode = -32600
+	// MethodNotFoundCode is returned on unknown method calling.
+	MethodNotFoundCode = -32601
+	// InvalidParamsCode is returned on request with invalid params.
+	InvalidParamsCode = -32602
 )
 
-// InternalServerErrorCode is returned for internal RPC server error.
-const InternalServerErrorCode = -32603
+// RPC error codes defined by the Neo JSON-RPC specification extension.
+const (
+	// RPCErrorCode is returned on RPC request processing error.
+	RPCErrorCode = -100
+)
 
 var (
 	// ErrInvalidParams represents a generic 'invalid parameters' error.
-	ErrInvalidParams = NewInvalidParamsError("", errors.New("invalid params"))
+	ErrInvalidParams = NewInvalidParamsError("invalid params")
+	// ErrUnknownBlock is returned if requested block is not found.
+	ErrUnknownBlock = NewError(RPCErrorCode, "Unknown block", "")
+	// ErrUnknownTransaction is returned if requested transaction is not found.
+	ErrUnknownTransaction = NewError(RPCErrorCode, "Unknown transaction", "")
+	// ErrUnknownHeader is returned when requested header is not found.
+	ErrUnknownHeader = NewError(RPCErrorCode, "Unknown header", "")
+	// ErrUnknownScriptContainer is returned when requested block or transaction is not found.
+	ErrUnknownScriptContainer = NewError(RPCErrorCode, "Unknown script container", "")
+	// ErrUnknownStateRoot is returned when requested state root is not found.
+	ErrUnknownStateRoot = NewError(RPCErrorCode, "Unknown state root", "")
 	// ErrAlreadyExists represents SubmitError with code -501.
 	ErrAlreadyExists = NewSubmitError(-501, "Block or transaction already exists and cannot be sent repeatedly.")
 	// ErrOutOfMemory represents SubmitError with code -502.
@@ -38,70 +58,76 @@ var (
 	ErrUnknown = NewSubmitError(-500, "Unknown error.")
 )
 
-// NewError is an Error constructor that takes Error contents from its
-// parameters.
-func NewError(code int64, httpCode int, message string, data string, cause error) *Error {
+// NewError is an Error constructor that takes Error contents from its parameters.
+func NewError(code int64, message string, data string) *Error {
 	return &Error{
-		Code:     code,
-		HTTPCode: httpCode,
-		Cause:    cause,
-		Message:  message,
-		Data:     data,
+		Code:    code,
+		Message: message,
+		Data:    data,
 	}
 }
 
 // NewParseError creates a new error with code
 // -32700.
-func NewParseError(data string, cause error) *Error {
-	return NewError(-32700, http.StatusBadRequest, "Parse Error", data, cause)
+func NewParseError(data string) *Error {
+	return NewError(BadRequestCode, "Parse Error", data)
 }
 
 // NewInvalidRequestError creates a new error with
 // code -32600.
-func NewInvalidRequestError(data string, cause error) *Error {
-	return NewError(-32600, http.StatusUnprocessableEntity, "Invalid Request", data, cause)
+func NewInvalidRequestError(data string) *Error {
+	return NewError(InvalidRequestCode, "Invalid Request", data)
 }
 
 // NewMethodNotFoundError creates a new error with
 // code -32601.
-func NewMethodNotFoundError(data string, cause error) *Error {
-	return NewError(-32601, http.StatusMethodNotAllowed, "Method not found", data, cause)
+func NewMethodNotFoundError(data string) *Error {
+	return NewError(MethodNotFoundCode, "Method not found", data)
 }
 
 // NewInvalidParamsError creates a new error with
 // code -32602.
-func NewInvalidParamsError(data string, cause error) *Error {
-	return NewError(-32602, http.StatusUnprocessableEntity, "Invalid Params", data, cause)
+func NewInvalidParamsError(data string) *Error {
+	return NewError(InvalidParamsCode, "Invalid Params", data)
 }
 
 // NewInternalServerError creates a new error with
 // code -32603.
-func NewInternalServerError(data string, cause error) *Error {
-	return NewError(InternalServerErrorCode, http.StatusInternalServerError, "Internal error", data, cause)
+func NewInternalServerError(data string) *Error {
+	return NewError(InternalServerErrorCode, "Internal error", data)
 }
 
 // NewRPCError creates a new error with
 // code -100.
-func NewRPCError(message string, data string, cause error) *Error {
-	return NewError(-100, http.StatusUnprocessableEntity, message, data, cause)
+func NewRPCError(message string, data string) *Error {
+	return NewError(RPCErrorCode, message, data)
 }
 
 // NewSubmitError creates a new error with
 // specified error code and error message.
 func NewSubmitError(code int64, message string) *Error {
-	return NewError(code, http.StatusUnprocessableEntity, message, "", nil)
-}
-
-// Error implements the error interface.
-func (e *Error) Error() string {
-	if e.Cause == nil {
-		return fmt.Sprintf("%s (%d) - %s", e.Message, e.Code, e.Data)
-	}
-	return fmt.Sprintf("%s (%d) - %s - %s", e.Message, e.Code, e.Data, e.Cause)
+	return NewError(code, message, "")
 }
 
 // WrapErrorWithData returns copy of the given error with the specified data and cause.
 // It does not modify the source error.
-func WrapErrorWithData(e *Error, data error) *Error {
-	return NewError(e.Code, e.HTTPCode, e.Message, data.Error(), data)
+func WrapErrorWithData(e *Error, data string) *Error {
+	return NewError(e.Code, e.Message, data)
+}
+
+// Error implements the error interface.
+func (e *Error) Error() string {
+	if len(e.Data) == 0 {
+		return fmt.Sprintf("%s (%d)", e.Message, e.Code)
+	}
+	return fmt.Sprintf("%s (%d) - %s", e.Message, e.Code, e.Data)
+}
+
+// Is denotes whether the error matches the target one.
+func (e *Error) Is(target error) bool {
+	clTarget, ok := target.(*Error)
+	if !ok {
+		return false
+	}
+	return e.Code == clTarget.Code
 }
