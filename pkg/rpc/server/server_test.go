@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	gio "io"
+	"math"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
@@ -62,7 +64,7 @@ type rpcTestCase struct {
 	check  func(t *testing.T, e *executor, result interface{})
 }
 
-const genesisBlockHash = "f42e2ae74bbea6aa1789fdc4efa35ad55b04335442637c091eafb5b0e779dae7"
+const genesisBlockHash = "0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4"
 const testContractHash = "2db7d679c538ace5f00495c9e9d8ea95f1e0f5a5"
 const deploymentTxHash = "496bccb5cb0a008ef9b7a32c459e508ef24fbb0830f82bac9162afa4ca804839"
 
@@ -76,6 +78,7 @@ const (
 	nfsoToken1ID               = "7e244ffd6aa85fb1579d2ed22e9b761ab62e3486"
 	invokescriptContractAVM    = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
 	block20StateRootLE         = "af7fad57fc622305b162c4440295964168a07967d07244964e4ed0121b247dee"
+	storageContractHash        = "ebc0c16a76c808cd4dde6bcc063f09e45e331ec7"
 )
 
 var (
@@ -812,7 +815,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				expected := result.UnclaimedGas{
 					Address:   testchain.MultisigScriptHash(),
-					Unclaimed: *big.NewInt(10500),
+					Unclaimed: *big.NewInt(11000),
 				}
 				assert.Equal(t, expected, *actual)
 			},
@@ -925,19 +928,19 @@ var rpcTestCases = map[string][]rpcTestCase{
 				chg := []storage.Operation{{
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0xb},
-					Value: []byte{0x58, 0xe0, 0x6f, 0xeb, 0x53, 0x79, 0x12},
+					Value: []byte{0x70, 0xd9, 0x59, 0x9d, 0x51, 0x79, 0x12},
 				}, {
 					State: "Added",
 					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb},
-					Value: []byte{0x41, 0x3, 0x21, 0x1, 0x1, 0x21, 0x1, 0x16, 0},
+					Value: []byte{0x41, 0x03, 0x21, 0x01, 0x01, 0x21, 0x01, 0x17, 0},
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
-					Value: []byte{0x41, 0x3, 0x21, 0x4, 0x2f, 0xd9, 0xf5, 0x5, 0x21, 0x1, 0x16, 0},
+					Value: []byte{0x41, 0x03, 0x21, 0x04, 0x2f, 0xd9, 0xf5, 0x05, 0x21, 0x01, 0x17, 0},
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
-					Value: []byte{0x41, 0x01, 0x21, 0x05, 0x50, 0x28, 0x27, 0x2d, 0x0b},
+					Value: []byte{0x41, 0x01, 0x21, 0x05, 0x88, 0x3e, 0xfa, 0xdb, 0x08},
 				}}
 				// Can be returned in any order.
 				assert.ElementsMatch(t, chg, res.Diagnostics.Changes)
@@ -1592,12 +1595,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["ABsAAACWP5gAAAAAAEDaEgAAAAAAFgAAAAHunqIsJ+NL0BSPxBCOCPdOj1BIsoAAXgsDAOh2SBcAAAAMFBEmW7QXJQBBvgTo+iQOOPV8HlabDBTunqIsJ+NL0BSPxBCOCPdOj1BIshTAHwwIdHJhbnNmZXIMFPVj6kC8KD1NDgXEjqMFs/Kgc0DvQWJ9W1IBQgxAOv87rSn7OV7Y/wuVE58QaSz0o0wv37hWY08RZFP2kYYgSPvemZiT69wf6QeAUTABJ1JosxgIUory9vXv0kkpXSgMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwkFW57Mn"]`,
+			params: `["ABwAAACWP5gAAAAAAEDaEgAAAAAAFwAAAAHunqIsJ+NL0BSPxBCOCPdOj1BIsoAAXgsDAOh2SBcAAAAMFBEmW7QXJQBBvgTo+iQOOPV8HlabDBTunqIsJ+NL0BSPxBCOCPdOj1BIshTAHwwIdHJhbnNmZXIMFPVj6kC8KD1NDgXEjqMFs/Kgc0DvQWJ9W1IBQgxAEh2U53FB2sU+eeLwTAUqMM5518nsDGil4Oi5IoBiMM7hvl6lKGoYIEaVkf7cS6x4MX1RmSHcoOabKFTyuEXI3SgMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwkFW57Mn"]`,
 			result: func(e *executor) interface{} { return &result.RelayResult{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.RelayResult)
 				require.True(t, ok)
-				expectedHash := "acc3e13102c211068d06ff64034d6f7e2d4db00c1703d0dec8afa73560664fe1"
+				expectedHash := "e4418a8bdad8cdf401aabb277c7bec279d0b0113812c09607039c4ad87204d90"
 				assert.Equal(t, expectedHash, res.Hash.StringLE())
 			},
 		},
@@ -1689,7 +1692,7 @@ func TestRPC(t *testing.T) {
 }
 
 func TestSubmitOracle(t *testing.T) {
-	chain, rpcSrv, httpSrv := initClearServerWithServices(t, true, false)
+	chain, rpcSrv, httpSrv := initClearServerWithServices(t, true, false, false)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
@@ -1725,7 +1728,7 @@ func TestSubmitNotaryRequest(t *testing.T) {
 	rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitnotaryrequest", "params": %s}`
 
 	t.Run("disabled P2PSigExtensions", func(t *testing.T) {
-		chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false)
+		chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, false)
 		defer chain.Close()
 		defer rpcSrv.Shutdown()
 		req := fmt.Sprintf(rpc, "[]")
@@ -1733,7 +1736,7 @@ func TestSubmitNotaryRequest(t *testing.T) {
 		checkErrGetResult(t, body, true)
 	})
 
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true)
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
@@ -2219,7 +2222,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
 
 		assert.Equal(t, *block.Transactions[0], actual.Transaction)
-		assert.Equal(t, 22, actual.Confirmations)
+		assert.Equal(t, 23, actual.Confirmations)
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
 
@@ -2332,12 +2335,114 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			require.NoError(t, json.Unmarshal(res, actual))
 			checkNep17TransfersAux(t, e, actual, sent, rcvd)
 		}
-		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{17, 18, 19, 20}, []int{3, 4}) })
+		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{18, 19, 20, 21}, []int{3, 4}) })
 		t.Run("no res", func(t *testing.T) { testNEP17T(t, 100, 100, 0, 0, []int{}, []int{}) })
-		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{14, 15}, []int{2}) })
-		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{17}, []int{3}) })
-		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{16, 17}, []int{3}) })
-		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{18, 19}, []int{4}) })
+		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{15, 16}, []int{2}) })
+		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{18}, []int{3}) })
+		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{17, 18}, []int{3}) })
+		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{19, 20}, []int{4}) })
+	})
+
+	prepareIteratorSession := func(t *testing.T) (uuid.UUID, uuid.UUID) {
+		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "invokefunction", "params": ["%s", "iterateOverValues"]}"`, storageContractHash)
+		body := doRPCCall(rpc, httpSrv.URL, t)
+		resp := checkErrGetResult(t, body, false)
+		res := new(result.Invoke)
+		err := json.Unmarshal(resp, &res)
+		require.NoErrorf(t, err, "could not parse response: %s", resp)
+		require.NotEmpty(t, res.Session)
+		require.Equal(t, 1, len(res.Stack))
+		require.Equal(t, stackitem.InteropT, res.Stack[0].Type())
+		iterator, ok := res.Stack[0].Value().(result.Iterator)
+		require.True(t, ok)
+		require.NotEmpty(t, iterator.ID)
+		return res.Session, *iterator.ID
+	}
+	t.Run("traverseiterator", func(t *testing.T) {
+		t.Run("good", func(t *testing.T) {
+			sID, iID := prepareIteratorSession(t)
+			expectedCount := 99
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, sID.String(), iID.String(), expectedCount)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			resp := checkErrGetResult(t, body, false)
+			res := new([]json.RawMessage)
+			require.NoError(t, json.Unmarshal(resp, res))
+			require.Equal(t, expectedCount, len(*res))
+		})
+		t.Run("invalid session id", func(t *testing.T) {
+			_, iID := prepareIteratorSession(t)
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["not-a-uuid", "%s", %d]}"`, iID.String(), 1)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			checkErrGetResult(t, body, true, "invalid session ID: not a valid UUID")
+		})
+		t.Run("invalid iterator id", func(t *testing.T) {
+			sID, _ := prepareIteratorSession(t)
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "not-a-uuid", %d]}"`, sID.String(), 1)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			checkErrGetResult(t, body, true, "invalid iterator ID: not a valid UUID")
+		})
+		t.Run("invalid items count", func(t *testing.T) {
+			sID, iID := prepareIteratorSession(t)
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s"]}"`, sID.String(), iID.String())
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			checkErrGetResult(t, body, true, "invalid iterator items count")
+		})
+		t.Run("items count is not an int32", func(t *testing.T) {
+			sID, iID := prepareIteratorSession(t)
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, sID.String(), iID.String(), math.MaxInt32+1)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			checkErrGetResult(t, body, true, "invalid iterator items count: not an int32")
+		})
+		t.Run("count is out of range", func(t *testing.T) {
+			sID, iID := prepareIteratorSession(t)
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, sID.String(), iID.String(), rpcSrv.config.MaxIteratorResultItems+1)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			checkErrGetResult(t, body, true, fmt.Sprintf("iterator items count is out of range (%d at max)", rpcSrv.config.MaxIteratorResultItems))
+		})
+		t.Run("unknown session", func(t *testing.T) {
+			_, iID := prepareIteratorSession(t)
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, uuid.NewString(), iID.String(), 1)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			resp := checkErrGetResult(t, body, false)
+			res := new([]json.RawMessage)
+			require.NoError(t, json.Unmarshal(resp, res))
+			require.Equal(t, 0, len(*res)) // No errors expected, no elements should be returned.
+		})
+		t.Run("unknown iterator", func(t *testing.T) {
+			sID, _ := prepareIteratorSession(t)
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, sID.String(), uuid.NewString(), 1)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			resp := checkErrGetResult(t, body, false)
+			res := new([]json.RawMessage)
+			require.NoError(t, json.Unmarshal(resp, res))
+			require.Equal(t, 0, len(*res)) // No errors expected, no elements should be returned.
+		})
+	})
+	t.Run("terminatesession", func(t *testing.T) {
+		check := func(t *testing.T, id string, expected bool) {
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "terminatesession", "params": ["%s"]}"`, id)
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			resp := checkErrGetResult(t, body, false)
+			res := new(bool)
+			require.NoError(t, json.Unmarshal(resp, res))
+			require.Equal(t, expected, *res)
+		}
+		t.Run("true", func(t *testing.T) {
+			sID, _ := prepareIteratorSession(t)
+			check(t, sID.String(), true)
+		})
+		t.Run("false", func(t *testing.T) {
+			check(t, uuid.NewString(), false)
+		})
+		t.Run("expired", func(t *testing.T) {
+			_, _ = prepareIteratorSession(t)
+			// Wait until session is terminated by timer.
+			require.Eventually(t, func() bool {
+				rpcSrv.sessionsLock.Lock()
+				defer rpcSrv.sessionsLock.Unlock()
+				return len(rpcSrv.sessions) == 0
+			}, 2*time.Duration(rpcSrv.config.SessionExpirationTime)*time.Second, 10*time.Millisecond)
+		})
 	})
 }
 
@@ -2367,7 +2472,7 @@ func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res inte
 	return expected, res
 }
 
-func checkErrGetResult(t *testing.T, body []byte, expectingFail bool) json.RawMessage {
+func checkErrGetResult(t *testing.T, body []byte, expectingFail bool, expectedErr ...string) json.RawMessage {
 	var resp response.Raw
 	err := json.Unmarshal(body, &resp)
 	require.Nil(t, err)
@@ -2375,6 +2480,9 @@ func checkErrGetResult(t *testing.T, body []byte, expectingFail bool) json.RawMe
 		require.NotNil(t, resp.Error)
 		assert.NotEqual(t, 0, resp.Error.Code)
 		assert.NotEqual(t, "", resp.Error.Message)
+		if len(expectedErr) != 0 {
+			assert.True(t, strings.Contains(resp.Error.Error(), expectedErr[0]), fmt.Sprintf("expected: %s, got: %s", expectedErr[0], resp.Error.Error()))
+		}
 	} else {
 		assert.Nil(t, resp.Error)
 	}
@@ -2483,9 +2591,9 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "47102199200",
+				Amount:      "37100367680",
+				LastUpdated: 22,
 				Decimals:    8,
-				LastUpdated: 19,
 				Name:        "GasToken",
 				Symbol:      "GAS",
 			}},
@@ -2598,7 +2706,7 @@ func checkNep11TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 }
 
 func checkNep17Transfers(t *testing.T, e *executor, acc interface{}) {
-	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22}, []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
+	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}, []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
 }
 
 func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
@@ -2606,6 +2714,11 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	require.True(t, ok)
 	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
 	require.NoError(t, err)
+
+	blockDeploy6, err := e.chain.GetBlock(e.chain.GetHeaderHash(22)) // deploy Storage contract (storage_contract.go)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockDeploy6.Transactions))
+	txDeploy6 := blockDeploy6.Transactions[0]
 
 	blockTransferNFSO, err := e.chain.GetBlock(e.chain.GetHeaderHash(19)) // transfer 0.25 NFSO from priv0 to priv1.
 	require.NoError(t, err)
@@ -2706,6 +2819,14 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	// duplicate the Server method.
 	expected := result.NEP17Transfers{
 		Sent: []result.NEP17Transfer{
+			{
+				Timestamp: blockDeploy6.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    big.NewInt(txDeploy6.SystemFee + txDeploy6.NetworkFee).String(),
+				Index:     22,
+				TxHash:    blockDeploy6.Hash(),
+			},
 			{
 				Timestamp: blockTransferNFSO.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),
@@ -3002,7 +3123,7 @@ func TestEscapeForLog(t *testing.T) {
 }
 
 func BenchmarkHandleIn(b *testing.B) {
-	chain, orc, cfg, logger := getUnitTestChain(b, false, false)
+	chain, orc, cfg, logger := getUnitTestChain(b, false, false, false)
 
 	serverConfig := network.NewServerConfig(cfg)
 	serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.6-test")

@@ -218,6 +218,11 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	// Block #21: transfer 0.05 NFSO from priv1 back to priv0.
 	nfsPriv1Invoker.Invoke(t, true, "transfer", priv1ScriptHash, priv0ScriptHash, 5, tokenID, nil) // block #21
 
+	// Block #22: deploy storage_contract (Storage contract for `traverseiterator` and `terminatesession` RPC calls test).
+	storagePath := filepath.Join(testDataPrefix, "storage", "storage_contract.go")
+	storageCfg := filepath.Join(testDataPrefix, "storage", "storage_contract.yml")
+	_, _, _ = deployContractFromPriv0(t, storagePath, "Storage", storageCfg, 6)
+
 	// Compile contract to test `invokescript` RPC call
 	invokePath := filepath.Join(testDataPrefix, "invoke", "invokescript_contract.go")
 	invokeCfg := filepath.Join(testDataPrefix, "invoke", "invoke.yml")

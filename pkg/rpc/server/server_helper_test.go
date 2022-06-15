@@ -29,37 +29,49 @@ const (
 	notaryPass = "one"
 )
 
-func getUnitTestChain(t testing.TB, enableOracle bool, enableNotary bool) (*core.Blockchain, *oracle.Oracle, config.Config, *zap.Logger) {
+func getUnitTestChain(t testing.TB, enableOracle bool, enableNotary bool, disableIteratorSessions bool) (*core.Blockchain, *oracle.Oracle, config.Config, *zap.Logger) {
+	return getUnitTestChainWithCustomConfig(t, enableOracle, enableNotary, func(cfg *config.Config) {
+		if disableIteratorSessions {
+			cfg.ApplicationConfiguration.RPC.SessionEnabled = false
+		}
+		if enableNotary {
+			cfg.ProtocolConfiguration.P2PSigExtensions = true
+			cfg.ProtocolConfiguration.P2PNotaryRequestPayloadPoolSize = 1000
+			cfg.ApplicationConfiguration.P2PNotary = config.P2PNotary{
+				Enabled: true,
+				UnlockWallet: config.Wallet{
+					Path:     notaryPath,
+					Password: notaryPass,
+				},
+			}
+		} else {
+			cfg.ApplicationConfiguration.P2PNotary.Enabled = false
+		}
+		if enableOracle {
+			cfg.ApplicationConfiguration.Oracle.Enabled = true
+			cfg.ApplicationConfiguration.Oracle.UnlockWallet = config.Wallet{
+				Path:     "../../services/oracle/testdata/oracle1.json",
+				Password: "one",
+			}
+		}
+	})
+}
+func getUnitTestChainWithCustomConfig(t testing.TB, enableOracle bool, enableNotary bool, customCfg func(configuration *config.Config)) (*core.Blockchain, *oracle.Oracle, config.Config, *zap.Logger) {
 	net := netmode.UnitTestNet
 	configPath := "../../../config"
 	cfg, err := config.Load(configPath, net)
 	require.NoError(t, err, "could not load config")
+	if customCfg != nil {
+		customCfg(&cfg)
+	}
 
 	memoryStore := storage.NewMemoryStore()
 	logger := zaptest.NewLogger(t)
-	if enableNotary {
-		cfg.ProtocolConfiguration.P2PSigExtensions = true
-		cfg.ProtocolConfiguration.P2PNotaryRequestPayloadPoolSize = 1000
-		cfg.ApplicationConfiguration.P2PNotary = config.P2PNotary{
-			Enabled: true,
-			UnlockWallet: config.Wallet{
-				Path:     notaryPath,
-				Password: notaryPass,
-			},
-		}
-	} else {
-		cfg.ApplicationConfiguration.P2PNotary.Enabled = false
-	}
 	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration, logger)
 	require.NoError(t, err, "could not create chain")
 
 	var orc *oracle.Oracle
 	if enableOracle {
-		cfg.ApplicationConfiguration.Oracle.Enabled = true
-		cfg.ApplicationConfiguration.Oracle.UnlockWallet = config.Wallet{
-			Path:     "../../services/oracle/testdata/oracle1.json",
-			Password: "one",
-		}
 		orc, err = oracle.NewOracle(oracle.Config{
 			Log:     logger,
 			Network: netmode.UnitTestNet,
@@ -98,8 +110,8 @@ func getTestBlocks(t *testing.T) []*block.Block {
 	return blocks
 }
 
-func initClearServerWithServices(t testing.TB, needOracle bool, needNotary bool) (*core.Blockchain, *Server, *httptest.Server) {
-	chain, orc, cfg, logger := getUnitTestChain(t, needOracle, needNotary)
+func initClearServerWithServices(t testing.TB, needOracle bool, needNotary bool, disableIteratorsSessions bool) (*core.Blockchain, *Server, *httptest.Server) {
+	chain, orc, cfg, logger := getUnitTestChain(t, needOracle, needNotary, disableIteratorsSessions)
 
 	serverConfig := network.NewServerConfig(cfg)
 	serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.6-test")
@@ -117,7 +129,7 @@ func initClearServerWithServices(t testing.TB, needOracle bool, needNotary bool)
 }
 
 func initClearServerWithInMemoryChain(t testing.TB) (*core.Blockchain, *Server, *httptest.Server) {
-	return initClearServerWithServices(t, false, false)
+	return initClearServerWithServices(t, false, false, false)
 }
 
 func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, *httptest.Server) {
@@ -129,8 +141,8 @@ func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, *http
 	return chain, rpcServer, srv
 }
 
-func initServerWithInMemoryChainAndServices(t *testing.T, needOracle bool, needNotary bool) (*core.Blockchain, *Server, *httptest.Server) {
-	chain, rpcServer, srv := initClearServerWithServices(t, needOracle, needNotary)
+func initServerWithInMemoryChainAndServices(t *testing.T, needOracle bool, needNotary bool, disableIteratorSessions bool) (*core.Blockchain, *Server, *httptest.Server) {
+	chain, rpcServer, srv := initClearServerWithServices(t, needOracle, needNotary, disableIteratorSessions)
 
 	for _, b := range getTestBlocks(t) {
 		require.NoError(t, chain.AddBlock(b))

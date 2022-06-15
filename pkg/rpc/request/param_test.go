@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -440,5 +441,26 @@ func TestParamGetSigners(t *testing.T) {
 		p := Param{RawMessage: []byte(`"not a signer"`)}
 		_, _, err := p.GetSignersWithWitnesses()
 		require.Error(t, err)
+	})
+}
+
+func TestParamGetUUID(t *testing.T) {
+	t.Run("from null", func(t *testing.T) {
+		p := Param{RawMessage: []byte("null")}
+		_, err := p.GetUUID()
+		require.ErrorIs(t, err, errNotAString)
+	})
+	t.Run("invalid uuid", func(t *testing.T) {
+		p := Param{RawMessage: []byte(`"not-a-uuid"`)}
+		_, err := p.GetUUID()
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "not a valid UUID"), err.Error())
+	})
+	t.Run("compat", func(t *testing.T) {
+		expected := "2107da59-4f9c-462c-9c51-7666842519a9"
+		p := Param{RawMessage: []byte(fmt.Sprintf(`"%s"`, expected))}
+		id, err := p.GetUUID()
+		require.NoError(t, err)
+		require.Equal(t, id.String(), expected)
 	})
 }

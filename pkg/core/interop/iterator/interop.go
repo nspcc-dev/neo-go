@@ -36,14 +36,25 @@ func IsIterator(item stackitem.Item) bool {
 	return ok
 }
 
-// Values returns an array of up to `max` iterator values. The second
-// return parameter denotes whether iterator is truncated.
-func Values(item stackitem.Item, max int) ([]stackitem.Item, bool) {
+// ValuesTruncated returns an array of up to `max` iterator values. The second
+// return parameter denotes whether iterator is truncated, i.e. has more values.
+// The provided iterator CAN NOT be reused in the subsequent calls to Values and
+// to ValuesTruncated.
+func ValuesTruncated(item stackitem.Item, max int) ([]stackitem.Item, bool) {
+	result := Values(item, max)
+	arr := item.Value().(iterator)
+	return result, arr.Next()
+}
+
+// Values returns an array of up to `max` iterator values. The provided
+// iterator can safely be reused to retrieve the rest of its values in the
+// subsequent calls to Values and to ValuesTruncated.
+func Values(item stackitem.Item, max int) []stackitem.Item {
 	var result []stackitem.Item
 	arr := item.Value().(iterator)
-	for arr.Next() && max > 0 {
+	for max > 0 && arr.Next() {
 		result = append(result, arr.Value())
 		max--
 	}
-	return result, arr.Next()
+	return result
 }

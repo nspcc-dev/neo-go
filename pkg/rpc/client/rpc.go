@@ -3,9 +3,12 @@ package client
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
@@ -24,6 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
@@ -1141,4 +1145,51 @@ func (c *Client) GetNativeContractHash(name string) (util.Uint160, error) {
 	c.cache.nativeHashes[name] = cs.Hash
 	c.cacheLock.Unlock()
 	return cs.Hash, nil
+}
+
+// TraverseIterator returns a set of iterator values (maxItemsCount at max) for
+// the specified iterator and session. If result contains no elements, then either
+// Iterator has no elements or session was expired and terminated by the server.
+// If maxItemsCount is non-positive, then the full set of iterator values will be
+// returned using several `traverseiterator` calls if needed.
+func (c *Client) TraverseIterator(sessionID, iteratorID uuid.UUID, maxItemsCount int) ([]stackitem.Item, error) {
+	var traverseAll bool
+	if maxItemsCount <= 0 {
+		maxItemsCount = config.DefaultMaxIteratorResultItems
+		traverseAll = true
+	}
+	var (
+		result []stackitem.Item
+		params = request.NewRawParams(sessionID.String(), iteratorID.String(), maxItemsCount)
+	)
+	for {
+		var resp []json.RawMessage
+		if err := c.performRequest("traverseiterator", params, &resp); err != nil {
+			return nil, err
+		}
+		for i, iBytes := range resp {
+			itm, err := stackitem.FromJSONWithTypes(iBytes)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unmarshal %d-th iterator value: %w", i, err)
+			}
+			result = append(result, itm)
+		}
+		if len(resp) < maxItemsCount || !traverseAll {
+			break
+		}
+	}
+
+	return result, nil
+}
+
+// TerminateSession tries to terminate the specified session and returns `true` iff
+// the specified session was found on server.
+func (c *Client) TerminateSession(sessionID uuid.UUID) (bool, error) {
+	var resp bool
+	params := request.NewRawParams(sessionID.String())
+	if err := c.performRequest("terminatesession", params, &resp); err != nil {
+		return false, err
+	}
+
+	return resp, nil
 }

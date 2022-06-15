@@ -52,6 +52,8 @@ Supported methods
 	sendrawtransaction
 	submitblock
 	submitoracleresponse
+	terminatesession
+	traverseiterator
 	validateaddress
 
 Extensions:

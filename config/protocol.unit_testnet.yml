@@ -63,6 +63,8 @@ ApplicationConfiguration:
     MaxGasInvoke: 15
     Enabled: true
     EnableCORSWorkaround: false
+    SessionEnabled: true
+    SessionExpirationTime: 2 # enough for tests as they run locally.
     Port: 0 # let the system choose port dynamically
   Prometheus:
     Enabled: false #since it's not useful for unit tests.

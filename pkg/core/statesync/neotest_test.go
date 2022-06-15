@@ -285,7 +285,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	var (
 		stateSyncInterval        = 4
 		maxTraceable      uint32 = 6
-		stateSyncPoint           = 20
+		stateSyncPoint           = 24
 	)
 	spoutCfg := func(c *config.ProtocolConfiguration) {
 		c.StateRootInHeader = true
@@ -300,7 +300,10 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	e := neotest.NewExecutor(t, bcSpout, validators, committee)
 	basicchain.Init(t, "../../../", e)
 
-	// make spout chain higher that latest state sync point (add several blocks up to stateSyncPoint+2)
+	// make spout chain higher than latest state sync point (add several blocks up to stateSyncPoint+2)
+	e.AddNewBlock(t)
+	e.AddNewBlock(t)
+	e.AddNewBlock(t)
 	e.AddNewBlock(t)
 	require.Equal(t, stateSyncPoint+2, int(bcSpout.BlockHeight()))
 

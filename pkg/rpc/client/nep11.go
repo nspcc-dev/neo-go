@@ -84,7 +84,7 @@ func (c *Client) CreateNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint1
 
 // NEP11TokensOf returns an array of token IDs for the specified owner of the specified NFT token.
 func (c *Client) NEP11TokensOf(tokenHash util.Uint160, owner util.Uint160) ([][]byte, error) {
-	result, err := c.InvokeFunction(tokenHash, "tokensOf", []smartcontract.Parameter{
+	result, err := c.InvokeAndPackIteratorResults(tokenHash, "tokensOf", []smartcontract.Parameter{
 		{
 			Type:  smartcontract.Hash160Type,
 			Value: owner,
@@ -161,7 +161,7 @@ func (c *Client) NEP11DBalanceOf(tokenHash, owner util.Uint160, tokenID []byte) 
 
 // NEP11DOwnerOf returns list of the specified NEP-11 divisible token owners.
 func (c *Client) NEP11DOwnerOf(tokenHash util.Uint160, tokenID []byte) ([]util.Uint160, error) {
-	result, err := c.InvokeFunction(tokenHash, "ownerOf", []smartcontract.Parameter{
+	result, err := c.InvokeAndPackIteratorResults(tokenHash, "ownerOf", []smartcontract.Parameter{
 		{
 			Type:  smartcontract.ByteArrayType,
 			Value: tokenID,
@@ -210,7 +210,7 @@ func (c *Client) NEP11Properties(tokenHash util.Uint160, tokenID []byte) (*stack
 
 // NEP11Tokens returns list of the tokens minted by the contract.
 func (c *Client) NEP11Tokens(tokenHash util.Uint160) ([][]byte, error) {
-	result, err := c.InvokeFunction(tokenHash, "tokens", []smartcontract.Parameter{}, nil)
+	result, err := c.InvokeAndPackIteratorResults(tokenHash, "tokens", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return nil, err
 	}

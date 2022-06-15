@@ -136,6 +136,8 @@ RPC:
   MaxFindResultItems: 100
   MaxNEP11Tokens: 100
   Port: 10332
+  SessionEnabled: false
+  SessionExpirationTime: 60
   StartWhenSynchronized: false
   TLSConfig:
     Address: ""
@@ -159,6 +161,16 @@ where:
 - `MaxNEP11Tokens` - limit for the number of tokens returned from
   `getnep11balances` call.
 - `Port` is an RPC server port it should be bound to.
+- `SessionEnabled` denotes whether session-based iterator JSON-RPC API is enabled.
+  If true, then all iterators got from `invoke*` calls will be stored as sessions
+  on the server side available for further traverse. `traverseiterator` and
+  `terminatesession` JSON-RPC calls will be handled by the server. It is not
+  recommended to enable this setting for public RPC servers due to possible DoS
+  attack. Set to `false` by default. If `false`, iterators are expanded into a
+  set of values (see `MaxIteratorResultItems` setting).
+- `SessionExpirationTime` is a lifetime of iterator session in seconds. It is set
+  to `60` seconds by default and is relevant only if `SessionEnabled` is set to
+  `true`.
 - `StartWhenSynchronized` controls when RPC server will be started, by default
   (`false` setting) it's started immediately and RPC is availabe during node
   synchronization. Setting it to `true` will make the node start RPC service only

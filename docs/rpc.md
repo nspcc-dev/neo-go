@@ -72,6 +72,8 @@ which would yield the response:
 | `sendrawtransaction` |
 | `submitblock` |
 | `submitoracleresponse` |
+| `terminatesession` |
+| `traverseiterator` |
 | `validateaddress` |
 | `verifyproof` |
 
