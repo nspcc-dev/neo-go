@@ -93,10 +93,14 @@ type (
 	// session holds a set of iterators got after invoke* call with corresponding
 	// finalizer and session expiration time.
 	session struct {
-		iteratorsLock sync.Mutex
-		iterators     []result.ServerIterator
-		timer         *time.Timer
-		finalize      func()
+		params              *result.InvocationParams
+		iteratorsLock       sync.Mutex
+		iteratorIdentifiers []result.IteratorIdentifier
+		// iterators stores the set of Iterator stackitems for the current session got from MPT-backed storage.
+		// iterators is non-nil iff SessionBackedByMPT is enabled.
+		iterators []stackitem.Item
+		timer     *time.Timer
+		finalize  func()
 	}
 )
 
@@ -1911,12 +1915,7 @@ func (s *Server) getFakeNextBlock(nextBlockHeight uint32) (*block.Block, error) 
 	return b, nil
 }
 
-// runScriptInVM runs the given script in a new test VM and returns the invocation
-// result. The script is either a simple script in case of `application` trigger,
-// witness invocation script in case of `verification` trigger (it pushes `verify`
-// arguments on stack before verification). In case of contract verification
-// contractScriptHash should be specified.
-func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, b *block.Block, verbose bool) (*result.Invoke, *response.Error) {
+func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, b *block.Block, verbose bool) (*interop.Context, *response.Error) {
 	var (
 		err error
 		ic  *interop.Context
@@ -1952,21 +1951,46 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	} else {
 		ic.VM.LoadScriptWithFlags(script, callflag.All)
 	}
-	err = ic.VM.Run()
+	return ic, nil
+}
+
+// runScriptInVM runs the given script in a new test VM and returns the invocation
+// result. The script is either a simple script in case of `application` trigger,
+// witness invocation script in case of `verification` trigger (it pushes `verify`
+// arguments on stack before verification). In case of contract verification
+// contractScriptHash should be specified.
+func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, b *block.Block, verbose bool) (*result.Invoke, *response.Error) {
+	ic, respErr := s.prepareInvocationContext(t, script, contractScriptHash, tx, b, verbose)
+	if respErr != nil {
+		return nil, respErr
+	}
+	err := ic.VM.Run()
 	var faultException string
 	if err != nil {
 		faultException = err.Error()
 	}
-	var registerSession result.OnNewSession
+	var (
+		registerSession result.OnNewSession
+		params          *result.InvocationParams
+	)
 	if s.config.SessionEnabled {
 		registerSession = s.registerSession
+		if s.config.SessionBackedByMPT {
+			params = &result.InvocationParams{
+				Trigger:            t,
+				Script:             script,
+				ContractScriptHash: contractScriptHash,
+				Transaction:        tx,
+				NextBlockHeight:    ic.Block.Index,
+			}
+		}
 	}
-	return result.NewInvoke(ic, script, faultException, registerSession, s.config.MaxIteratorResultItems), nil
+	return result.NewInvoke(ic, script, faultException, registerSession, s.config.MaxIteratorResultItems, params), nil
 }
 
 // registerSession is a callback used to add new iterator session to the sessions list.
 // It performs no check whether sessions are enabled.
-func (s *Server) registerSession(sessionID string, iterators []result.ServerIterator, finalize func()) {
+func (s *Server) registerSession(sessionID string, iterators []result.IteratorIdentifier, params *result.InvocationParams, finalize func()) {
 	s.sessionsLock.Lock()
 	timer := time.AfterFunc(time.Second*time.Duration(s.config.SessionExpirationTime), func() {
 		s.sessionsLock.Lock()
@@ -1986,9 +2010,10 @@ func (s *Server) registerSession(sessionID string, iterators []result.ServerIter
 		sess.iteratorsLock.Unlock()
 	})
 	sess := &session{
-		iterators: iterators,
-		finalize:  finalize,
-		timer:     timer,
+		params:              params,
+		iteratorIdentifiers: iterators,
+		finalize:            finalize,
+		timer:               timer,
 	}
 	s.sessions[sessionID] = sess
 	s.sessionsLock.Unlock()
@@ -2030,12 +2055,44 @@ func (s *Server) traverseIterator(reqParams request.Params) (interface{}, *respo
 	s.sessionsLock.Unlock()
 
 	var (
-		iIDStr = iID.String()
-		iVals  []stackitem.Item
+		iIDStr  = iID.String()
+		iVals   []stackitem.Item
+		respErr *response.Error
 	)
-	for _, it := range session.iterators {
+	for i, it := range session.iteratorIdentifiers {
 		if iIDStr == it.ID {
-			iVals = iterator.Values(it.Item, count)
+			if it.Item != nil { // If Iterator stackitem is there, then use it to retrieve iterator elements.
+				iVals = iterator.Values(it.Item, count)
+			} else { // Otherwise, use MPT-backed historic call to retrieve and traverse iterator.
+				if len(session.iterators) == 0 {
+					var (
+						b  *block.Block
+						ic *interop.Context
+					)
+					b, err = s.getFakeNextBlock(session.params.NextBlockHeight)
+					if err != nil {
+						session.iteratorsLock.Unlock()
+						return nil, response.NewInternalServerError(fmt.Sprintf("unable to prepare block for historic call: %s", err))
+					}
+					ic, respErr = s.prepareInvocationContext(session.params.Trigger, session.params.Script, session.params.ContractScriptHash, session.params.Transaction, b, false)
+					if respErr != nil {
+						session.iteratorsLock.Unlock()
+						return nil, respErr
+					}
+					_ = ic.VM.Run() // No error check because FAULTed invocations could also contain iterator on stack.
+					stack := ic.VM.Estack().ToArray()
+					for _, itID := range session.iteratorIdentifiers {
+						j := itID.StackIndex
+						if (stack[j].Type() != stackitem.InteropT) || !iterator.IsIterator(stack[j]) {
+							session.iteratorsLock.Unlock()
+							return nil, response.NewInternalServerError(fmt.Sprintf("inconsistent historic call result: expected %s, got %s at stack position #%d", stackitem.InteropT, stack[j].Type(), j))
+						}
+						session.iterators = append(session.iterators, stack[j])
+					}
+					session.finalize = ic.Finalize
+				}
+				iVals = iterator.Values(session.iterators[i], count)
+			}
 			break
 		}
 	}

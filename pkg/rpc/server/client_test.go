@@ -5,7 +5,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"math/big"
+	"net/http"
+	"net/http/httptest"
 	"sort"
 	"strings"
 	"sync"
@@ -23,6 +26,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client/nns"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
@@ -1260,47 +1264,113 @@ func TestClient_InvokeAndPackIteratorResults(t *testing.T) {
 	}
 }
 
-func TestClient_IteratorFromInvocation(t *testing.T) {
-	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
-	for _, b := range getTestBlocks(t) {
-		require.NoError(t, chain.AddBlock(b))
-	}
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
-
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
-	require.NoError(t, err)
-	require.NoError(t, c.Init())
-
+func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
+	var expected [][]byte
 	storageHash, err := util.Uint160DecodeStringLE(storageContractHash)
 	require.NoError(t, err)
-
 	// storageItemsCount is the amount of storage items stored in Storage contract, it's hard-coded in the contract code.
 	const storageItemsCount = 255
-	expected := make([][]byte, storageItemsCount)
-	for i := 0; i < storageItemsCount; i++ {
-		expected[i] = stackitem.NewBigInteger(big.NewInt(int64(i))).Bytes()
-	}
-	sort.Slice(expected, func(i, j int) bool {
-		if len(expected[i]) != len(expected[j]) {
-			return len(expected[i]) < len(expected[j])
-		}
-		return bytes.Compare(expected[i], expected[j]) < 0
-	})
 
-	res, err := c.InvokeFunction(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
-	require.NoError(t, err)
-	require.NotEmpty(t, res.Session)
-	require.Equal(t, 1, len(res.Stack))
-	require.Equal(t, stackitem.InteropT, res.Stack[0].Type())
-	iterator, ok := res.Stack[0].Value().(result.Iterator)
-	require.True(t, ok)
-	require.Empty(t, iterator.ID)
-	require.NotEmpty(t, iterator.Values)
-	require.True(t, iterator.Truncated)
-	require.Equal(t, rpcSrv.config.MaxIteratorResultItems, len(iterator.Values))
-	for i := 0; i < rpcSrv.config.MaxIteratorResultItems; i++ {
-		// According to the Storage contract code.
-		require.Equal(t, expected[i], iterator.Values[i].Value().([]byte), i)
+	checkSessionEnabled := func(t *testing.T, c *client.Client) {
+		// We expect Iterator with designated ID to be presented on stack. It should be possible to retrieve its values via `traverseiterator` call.
+		res, err := c.InvokeFunction(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
+		require.NoError(t, err)
+		require.NotEmpty(t, res.Session)
+		require.Equal(t, 1, len(res.Stack))
+		require.Equal(t, stackitem.InteropT, res.Stack[0].Type())
+		iterator, ok := res.Stack[0].Value().(result.Iterator)
+		require.True(t, ok)
+		require.NotEmpty(t, iterator.ID)
+		require.Empty(t, iterator.Values)
+		max := 84
+		actual, err := c.TraverseIterator(res.Session, *iterator.ID, max)
+		require.NoError(t, err)
+		require.Equal(t, max, len(actual))
+		for i := 0; i < max; i++ {
+			// According to the Storage contract code.
+			require.Equal(t, expected[i], actual[i].Value().([]byte), i)
+		}
 	}
+	t.Run("default sessions enabled", func(t *testing.T) {
+		chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, false)
+		defer chain.Close()
+		defer rpcSrv.Shutdown()
+		for _, b := range getTestBlocks(t) {
+			require.NoError(t, chain.AddBlock(b))
+		}
+
+		c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+		require.NoError(t, err)
+		require.NoError(t, c.Init())
+
+		// Fill in expected stackitems set during the first test.
+		expected = make([][]byte, storageItemsCount)
+		for i := 0; i < storageItemsCount; i++ {
+			expected[i] = stackitem.NewBigInteger(big.NewInt(int64(i))).Bytes()
+		}
+		sort.Slice(expected, func(i, j int) bool {
+			if len(expected[i]) != len(expected[j]) {
+				return len(expected[i]) < len(expected[j])
+			}
+			return bytes.Compare(expected[i], expected[j]) < 0
+		})
+		checkSessionEnabled(t, c)
+	})
+	t.Run("MPT-based sessions enables", func(t *testing.T) {
+		// Prepare MPT-enabled RPC server.
+		chain, orc, cfg, logger := getUnitTestChainWithCustomConfig(t, false, false, func(cfg *config.Config) {
+			cfg.ApplicationConfiguration.RPC.SessionEnabled = true
+			cfg.ApplicationConfiguration.RPC.SessionBackedByMPT = true
+		})
+		serverConfig := network.NewServerConfig(cfg)
+		serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.6-test")
+		serverConfig.Port = 0
+		server, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), logger)
+		require.NoError(t, err)
+		errCh := make(chan error, 2)
+		rpcSrv := New(chain, cfg.ApplicationConfiguration.RPC, server, orc, logger, errCh)
+		rpcSrv.Start()
+		handler := http.HandlerFunc(rpcSrv.handleHTTPRequest)
+		httpSrv := httptest.NewServer(handler)
+		defer chain.Close()
+		defer rpcSrv.Shutdown()
+		for _, b := range getTestBlocks(t) {
+			require.NoError(t, chain.AddBlock(b))
+		}
+
+		c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+		require.NoError(t, err)
+		require.NoError(t, c.Init())
+
+		checkSessionEnabled(t, c)
+	})
+	t.Run("sessions disabled", func(t *testing.T) {
+		chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
+		defer chain.Close()
+		defer rpcSrv.Shutdown()
+		for _, b := range getTestBlocks(t) {
+			require.NoError(t, chain.AddBlock(b))
+		}
+
+		c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+		require.NoError(t, err)
+		require.NoError(t, c.Init())
+
+		// We expect unpacked iterator values to be present on stack under InteropInterface cover.
+		res, err := c.InvokeFunction(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
+		require.NoError(t, err)
+		require.NotEmpty(t, res.Session)
+		require.Equal(t, 1, len(res.Stack))
+		require.Equal(t, stackitem.InteropT, res.Stack[0].Type())
+		iterator, ok := res.Stack[0].Value().(result.Iterator)
+		require.True(t, ok)
+		require.Empty(t, iterator.ID)
+		require.NotEmpty(t, iterator.Values)
+		require.True(t, iterator.Truncated)
+		require.Equal(t, rpcSrv.config.MaxIteratorResultItems, len(iterator.Values))
+		for i := 0; i < rpcSrv.config.MaxIteratorResultItems; i++ {
+			// According to the Storage contract code.
+			require.Equal(t, expected[i], iterator.Values[i].Value().([]byte), i)
+		}
+	})
 }

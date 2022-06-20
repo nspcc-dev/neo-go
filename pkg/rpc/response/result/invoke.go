@@ -10,6 +10,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -29,9 +31,20 @@ type Invoke struct {
 	Session                uuid.UUID
 	finalize               func()
 	onNewSession           OnNewSession
+	// invocationParams is non-nil iff MPT-based iterator sessions are supported.
+	invocationParams *InvocationParams
 }
 
-type OnNewSession func(sessionID string, iterators []ServerIterator, finalize func())
+type OnNewSession func(sessionID string, iterators []IteratorIdentifier, params *InvocationParams, finalize func())
+
+// InvocationParams is a set of parameters used for invoke* calls.
+type InvocationParams struct {
+	Trigger            trigger.Type
+	Script             []byte
+	ContractScriptHash util.Uint160
+	Transaction        *transaction.Transaction
+	NextBlockHeight    uint32
+}
 
 // InvokeDiag is an additional diagnostic data for invocation.
 type InvokeDiag struct {
@@ -40,7 +53,7 @@ type InvokeDiag struct {
 }
 
 // NewInvoke returns a new Invoke structure with the given fields set.
-func NewInvoke(ic *interop.Context, script []byte, faultException string, registerSession OnNewSession, maxIteratorResultItems int) *Invoke {
+func NewInvoke(ic *interop.Context, script []byte, faultException string, registerSession OnNewSession, maxIteratorResultItems int, params *InvocationParams) *Invoke {
 	var diag *InvokeDiag
 	tree := ic.VM.GetInvocationTree()
 	if tree != nil {
@@ -64,6 +77,7 @@ func NewInvoke(ic *interop.Context, script []byte, faultException string, regist
 		finalize:               ic.Finalize,
 		onNewSession:           registerSession,
 		maxIteratorResultItems: maxIteratorResultItems,
+		invocationParams:       params,
 	}
 }
 
@@ -105,10 +119,13 @@ type Iterator struct {
 	Truncated bool
 }
 
-// ServerIterator represents Iterator on the server side. It is not for Client usage.
-type ServerIterator struct {
-	ID   string
+// IteratorIdentifier represents Iterator identifier on the server side. It is not for Client usage.
+type IteratorIdentifier struct {
+	ID string
+	// Item represents Iterator stackitem. It is nil if SessionBackedByMPT is set to true.
 	Item stackitem.Item
+	// StackIndex represents Iterator stackitem index on the stack. It is valid iff Item is nil.
+	StackIndex int
 }
 
 // Finalize releases resources occupied by Iterators created at the script invocation.
@@ -129,7 +146,7 @@ func (r Invoke) MarshalJSON() ([]byte, error) {
 		arr             = make([]json.RawMessage, len(r.Stack))
 		sessionsEnabled = r.onNewSession != nil
 		sessionID       string
-		iterators       []ServerIterator
+		iterators       []IteratorIdentifier
 	)
 	if len(r.FaultException) != 0 {
 		faultSep = " / "
@@ -149,10 +166,13 @@ arrloop:
 					r.FaultException += fmt.Sprintf("%sjson error: failed to marshal iterator: %v", faultSep, err)
 					break
 				}
-				iterators = append(iterators, ServerIterator{
-					ID:   iteratorID,
-					Item: r.Stack[i],
-				})
+				ident := IteratorIdentifier{ID: iteratorID}
+				if r.invocationParams == nil {
+					ident.Item = r.Stack[i]
+				} else {
+					ident.StackIndex = i
+				}
+				iterators = append(iterators, ident)
 			} else {
 				iteratorValues, truncated := iterator.ValuesTruncated(r.Stack[i], r.maxIteratorResultItems)
 				value := make([]json.RawMessage, len(iteratorValues))
@@ -185,11 +205,17 @@ arrloop:
 
 	if sessionsEnabled && len(iterators) != 0 {
 		sessionID = uuid.NewString()
-		r.onNewSession(sessionID, iterators, r.Finalize)
+		if r.invocationParams == nil {
+			r.onNewSession(sessionID, iterators, nil, r.Finalize)
+		} else {
+			// Call finalizer manually if MPT-based iterator sessions are enabled.
+			defer r.Finalize()
+			r.onNewSession(sessionID, iterators, r.invocationParams, nil)
+		}
 	} else {
+		// Call finalizer manually if iterators are disabled or there's no iterator on stack.
 		defer r.Finalize()
 	}
-
 	if err == nil {
 		st, err = json.Marshal(arr)
 		if err != nil {

@@ -19,6 +19,7 @@ type (
 		Port                   uint16        `yaml:"Port"`
 		SessionEnabled         bool          `yaml:"SessionEnabled"`
 		SessionExpirationTime  int           `yaml:"SessionExpirationTime"`
+		SessionBackedByMPT     bool          `yaml:"SessionBackedByMPT"`
 		StartWhenSynchronized  bool          `yaml:"StartWhenSynchronized"`
 		TLSConfig              TLSConfig     `yaml:"TLSConfig"`
 	}
