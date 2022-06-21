@@ -260,7 +260,9 @@ func (s *Module) UpdateCurrentLocal(mpt *mpt.Trie, sr *state.MPTRoot) {
 	s.localHeight.Store(sr.Index)
 	if s.srInHead {
 		s.validatedHeight.Store(sr.Index)
-		updateStateHeightMetric(sr.Index)
+		updateStateHeightMetric(sr.Index, sr.Root, true)
+	} else {
+		updateStateHeightMetric(sr.Index, sr.Root, false)
 	}
 }
 

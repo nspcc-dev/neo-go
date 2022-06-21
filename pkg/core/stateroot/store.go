@@ -78,7 +78,7 @@ func (s *Module) AddStateRoot(sr *state.MPTRoot) error {
 	s.Store.Put([]byte{byte(storage.DataMPTAux), prefixValidated}, data)
 	s.validatedHeight.Store(sr.Index)
 	if !s.srInHead {
-		updateStateHeightMetric(sr.Index)
+		updateStateHeightMetric(sr.Index, sr.Root, true)
 	}
 	return nil
 }

@@ -6,7 +6,7 @@ import (
 
 // Metrics for monitoring service.
 var (
-	//blockHeight prometheus metric.
+	// blockHeight prometheus metric.
 	blockHeight = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Help:      "Current index of processed block",
@@ -14,7 +14,7 @@ var (
 			Namespace: "neogo",
 		},
 	)
-	//persistedHeight prometheus metric.
+	// persistedHeight prometheus metric.
 	persistedHeight = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Help:      "Current persisted block count",
@@ -22,7 +22,7 @@ var (
 			Namespace: "neogo",
 		},
 	)
-	//headerHeight prometheus metric.
+	// headerHeight prometheus metric.
 	headerHeight = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Help:      "Current header height",
