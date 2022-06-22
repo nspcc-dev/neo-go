@@ -35,6 +35,9 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 		script: "DCEDAS1H52IQrsc745qz0YbgpA/o2Gv6PU+r/aV7oTuI+WoRwB8MAWEMFG9FkWLO6ySLBx7BV9nk9v0m/b5QQWJ9W1I=",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Signature", "value": "4edf5005771de04619235d5a4c7a9a11bb78e008541f1da7725f654c33380a3c87e2959a025da706d7255cb3a3fa07ebe9c6559d0d9e6213c68049168eb1056f"}]`)}},
+		script: "DGDh51/nTTnvvV17TjrX3bfl3lrhztr1rXVtvvx7TTznjV/V1rvvbl/rnhzfffzRrdzzt7b3n1rTbl1rvTp3vbnlxvdrd9rTt5t71zrnn13R317rbXdzrzTj3Xrx5vXTnp8RwB8MAWEMFG9FkWLO6ySLBx7BV9nk9v0m/b5QQWJ9W1I=",
+	}, {
+		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Signature", "value": "Tt9QBXcd4EYZI11aTHqaEbt44AhUHx2ncl9lTDM4CjyH4pWaAl2nBtclXLOj+gfr6cZVnQ2eYhPGgEkWjrEFbw=="}]`)}},
 		script: "DEBO31AFdx3gRhkjXVpMepoRu3jgCFQfHadyX2VMMzgKPIfilZoCXacG1yVcs6P6B+vpxlWdDZ5iE8aASRaOsQVvEcAfDAFhDBRvRZFizuskiwcewVfZ5Pb9Jv2+UEFifVtS",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "String", "value": "50befd26fdf6e4d957c11e078b24ebce6291456f"}]`)}},

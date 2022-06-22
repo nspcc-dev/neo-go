@@ -29,7 +29,7 @@ func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 			}
 			emit.Bytes(script, str)
 		case smartcontract.SignatureType:
-			str, err := fp.Value.GetBytesHex()
+			str, err := fp.Value.GetBytesBase64()
 			if err != nil {
 				return err
 			}
