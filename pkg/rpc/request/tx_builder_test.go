@@ -1,7 +1,7 @@
 package request
 
 import (
-	"encoding/hex"
+	"encoding/base64"
 	"fmt"
 	"math/big"
 	"testing"
@@ -23,49 +23,49 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 		script string
 	}{{
 		ps:     Params{{RawMessage: []byte(`"transfer"`)}},
-		script: "c21f0c087472616e736665720c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "wh8MCHRyYW5zZmVyDBRvRZFizuskiwcewVfZ5Pb9Jv2+UEFifVtS",
 	}, {
 		ps:     Params{{RawMessage: []byte(`42`)}},
-		script: "c21f0c0234320c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "wh8MAjQyDBRvRZFizuskiwcewVfZ5Pb9Jv2+UEFifVtS",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[]`)}},
-		script: "10c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "EMAfDAFhDBRvRZFizuskiwcewVfZ5Pb9Jv2+UEFifVtS",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "ByteString", "value": "AwEtR+diEK7HO+Oas9GG4KQP6Nhr+j1Pq/2le6E7iPlq"}]`)}},
-		script: "0c2103012d47e76210aec73be39ab3d186e0a40fe8d86bfa3d4fabfda57ba13b88f96a11c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "DCEDAS1H52IQrsc745qz0YbgpA/o2Gv6PU+r/aV7oTuI+WoRwB8MAWEMFG9FkWLO6ySLBx7BV9nk9v0m/b5QQWJ9W1I=",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Signature", "value": "4edf5005771de04619235d5a4c7a9a11bb78e008541f1da7725f654c33380a3c87e2959a025da706d7255cb3a3fa07ebe9c6559d0d9e6213c68049168eb1056f"}]`)}},
-		script: "0c404edf5005771de04619235d5a4c7a9a11bb78e008541f1da7725f654c33380a3c87e2959a025da706d7255cb3a3fa07ebe9c6559d0d9e6213c68049168eb1056f11c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "DEBO31AFdx3gRhkjXVpMepoRu3jgCFQfHadyX2VMMzgKPIfilZoCXacG1yVcs6P6B+vpxlWdDZ5iE8aASRaOsQVvEcAfDAFhDBRvRZFizuskiwcewVfZ5Pb9Jv2+UEFifVtS",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "String", "value": "50befd26fdf6e4d957c11e078b24ebce6291456f"}]`)}},
-		script: "0c283530626566643236666466366534643935376331316530373862323465626365363239313435366611c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "DCg1MGJlZmQyNmZkZjZlNGQ5NTdjMTFlMDc4YjI0ZWJjZTYyOTE0NTZmEcAfDAFhDBRvRZFizuskiwcewVfZ5Pb9Jv2+UEFifVtS",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Hash160", "value": "50befd26fdf6e4d957c11e078b24ebce6291456f"}]`)}},
-		script: "0c146f459162ceeb248b071ec157d9e4f6fd26fdbe5011c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "DBRvRZFizuskiwcewVfZ5Pb9Jv2+UBHAHwwBYQwUb0WRYs7rJIsHHsFX2eT2/Sb9vlBBYn1bUg==",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Hash256", "value": "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"}]`)}},
-		script: "0c20e72d286979ee6cb1b7e65dfddfb2e384100b8d148e7758de42e4168b71792c6011c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "DCDnLShpee5ssbfmXf3fsuOEEAuNFI53WN5C5BaLcXksYBHAHwwBYQwUb0WRYs7rJIsHHsFX2eT2/Sb9vlBBYn1bUg==",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "PublicKey", "value": "03c089d7122b840a4935234e82e26ae5efd0c2acb627239dc9f207311337b6f2c1"}]`)}},
-		script: "0c2103c089d7122b840a4935234e82e26ae5efd0c2acb627239dc9f207311337b6f2c111c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "DCEDwInXEiuECkk1I06C4mrl79DCrLYnI53J8gcxEze28sERwB8MAWEMFG9FkWLO6ySLBx7BV9nk9v0m/b5QQWJ9W1I=",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Integer", "value": 42}]`)}},
-		script: "002a11c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "ACoRwB8MAWEMFG9FkWLO6ySLBx7BV9nk9v0m/b5QQWJ9W1I=",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Integer", "value": "42"}]`)}}, // C# code doesn't use strict type assertions for JSON-ised params
-		script: "002a11c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "ACoRwB8MAWEMFG9FkWLO6ySLBx7BV9nk9v0m/b5QQWJ9W1I=",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Integer", "value": true}]`)}}, // C# code doesn't use strict type assertions for JSON-ised params
-		script: "1111c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "ERHAHwwBYQwUb0WRYs7rJIsHHsFX2eT2/Sb9vlBBYn1bUg==",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Boolean", "value": true}]`)}},
-		script: "1111c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "ERHAHwwBYQwUb0WRYs7rJIsHHsFX2eT2/Sb9vlBBYn1bUg==",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Boolean", "value": false}]`)}},
-		script: "1011c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "EBHAHwwBYQwUb0WRYs7rJIsHHsFX2eT2/Sb9vlBBYn1bUg==",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Boolean", "value": "blah"}]`)}}, // C# code doesn't use strict type assertions for JSON-ised params
-		script: "1111c01f0c01610c146f459162ceeb248b071ec157d9e4f6fd26fdbe5041627d5b52",
+		script: "ERHAHwwBYQwUb0WRYs7rJIsHHsFX2eT2/Sb9vlBBYn1bUg==",
 	}}
 	for i, ps := range paramScripts {
 		method, err := ps.ps[0].GetString()
@@ -76,7 +76,7 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 		}
 		script, err := CreateFunctionInvocationScript(contract, method, p)
 		assert.Nil(t, err)
-		assert.Equal(t, ps.script, hex.EncodeToString(script), fmt.Sprintf("testcase #%d", i))
+		assert.Equal(t, ps.script, base64.StdEncoding.EncodeToString(script), fmt.Sprintf("testcase #%d", i))
 	}
 }
 
