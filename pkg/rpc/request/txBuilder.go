@@ -83,12 +83,10 @@ func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 			if err != nil {
 				return err
 			}
-			err = ExpandArrayIntoScript(script, val)
+			err = ExpandArrayIntoScriptAndPack(script, val)
 			if err != nil {
 				return err
 			}
-			emit.Int(script, int64(len(val)))
-			emit.Opcodes(script, opcode.PACK)
 		case smartcontract.AnyType:
 			if fp.Value.IsNull() {
 				emit.Opcodes(script, opcode.PUSHNULL)
@@ -100,6 +98,22 @@ func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 	return script.Err
 }
 
+// ExpandArrayIntoScriptAndPack expands provided array into script and packs the
+// resulting items in the array.
+func ExpandArrayIntoScriptAndPack(script *io.BinWriter, slice []Param) error {
+	if len(slice) == 0 {
+		emit.Opcodes(script, opcode.NEWARRAY0)
+		return script.Err
+	}
+	err := ExpandArrayIntoScript(script, slice)
+	if err != nil {
+		return err
+	}
+	emit.Int(script, int64(len(slice)))
+	emit.Opcodes(script, opcode.PACK)
+	return script.Err
+}
+
 // CreateFunctionInvocationScript creates a script to invoke the given contract with
 // the given parameters.
 func CreateFunctionInvocationScript(contract util.Uint160, method string, param *Param) ([]byte, error) {
@@ -107,12 +121,10 @@ func CreateFunctionInvocationScript(contract util.Uint160, method string, param 
 	if param == nil {
 		emit.Opcodes(script.BinWriter, opcode.NEWARRAY0)
 	} else if slice, err := param.GetArray(); err == nil {
-		err = ExpandArrayIntoScript(script.BinWriter, slice)
+		err = ExpandArrayIntoScriptAndPack(script.BinWriter, slice)
 		if err != nil {
 			return nil, err
 		}
-		emit.Int(script.BinWriter, int64(len(slice)))
-		emit.Opcodes(script.BinWriter, opcode.PACK)
 	} else {
 		return nil, fmt.Errorf("failed to convert %s to script parameter", param)
 	}

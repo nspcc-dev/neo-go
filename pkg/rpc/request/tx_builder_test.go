@@ -29,7 +29,7 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 		script: "wh8MAjQyDBRvRZFizuskiwcewVfZ5Pb9Jv2+UEFifVtS",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[]`)}},
-		script: "EMAfDAFhDBRvRZFizuskiwcewVfZ5Pb9Jv2+UEFifVtS",
+		script: "wh8MAWEMFG9FkWLO6ySLBx7BV9nk9v0m/b5QQWJ9W1I=",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "ByteString", "value": "AwEtR+diEK7HO+Oas9GG4KQP6Nhr+j1Pq/2le6E7iPlq"}]`)}},
 		script: "DCEDAS1H52IQrsc745qz0YbgpA/o2Gv6PU+r/aV7oTuI+WoRwB8MAWEMFG9FkWLO6ySLBx7BV9nk9v0m/b5QQWJ9W1I=",
