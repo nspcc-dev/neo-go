@@ -31,7 +31,7 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[]`)}},
 		script: "wh8MAWEMFG9FkWLO6ySLBx7BV9nk9v0m/b5QQWJ9W1I=",
 	}, {
-		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "ByteString", "value": "AwEtR+diEK7HO+Oas9GG4KQP6Nhr+j1Pq/2le6E7iPlq"}]`)}},
+		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "ByteArray", "value": "AwEtR+diEK7HO+Oas9GG4KQP6Nhr+j1Pq/2le6E7iPlq"}]`)}},
 		script: "DCEDAS1H52IQrsc745qz0YbgpA/o2Gv6PU+r/aV7oTuI+WoRwB8MAWEMFG9FkWLO6ySLBx7BV9nk9v0m/b5QQWJ9W1I=",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Signature", "value": "4edf5005771de04619235d5a4c7a9a11bb78e008541f1da7725f654c33380a3c87e2959a025da706d7255cb3a3fa07ebe9c6559d0d9e6213c68049168eb1056f"}]`)}},
