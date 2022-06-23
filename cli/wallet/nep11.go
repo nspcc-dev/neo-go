@@ -65,6 +65,7 @@ func newNEP11Commands() []cli.Command {
 			Action:    printNEP11Info,
 			Flags: []cli.Flag{
 				walletPathFlag,
+				walletConfigFlag,
 				tokenFlag,
 			},
 		},
@@ -75,6 +76,7 @@ func newNEP11Commands() []cli.Command {
 			Action:    removeNEP11Token,
 			Flags: []cli.Flag{
 				walletPathFlag,
+				walletConfigFlag,
 				tokenFlag,
 				forceFlag,
 			},
@@ -161,7 +163,7 @@ func removeNEP11Token(ctx *cli.Context) error {
 func getNEP11Balance(ctx *cli.Context) error {
 	var accounts []*wallet.Account
 
-	wall, err := readWallet(ctx.String("wallet"))
+	wall, _, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("bad wallet: %w", err), 1)
 	}

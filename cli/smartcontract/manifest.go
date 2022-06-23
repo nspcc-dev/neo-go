@@ -10,27 +10,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
-	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 )
 
 func manifestAddGroup(ctx *cli.Context) error {
-	walletPath := ctx.String("wallet")
-	if len(walletPath) == 0 {
-		return cli.NewExitError(errNoWallet, 1)
-	}
-
-	w, err := wallet.NewWalletFromFile(walletPath)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	defer w.Close()
-
-	addr, err := flags.ParseAddress(ctx.String("account"))
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("account is invalid or missing: %w", err), 1)
-	}
-
 	sender, err := flags.ParseAddress(ctx.String("sender"))
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("invalid sender: %w", err), 1)
@@ -49,9 +32,9 @@ func manifestAddGroup(ctx *cli.Context) error {
 
 	h := state.CreateContractHash(sender, nf.Checksum, m.Name)
 
-	gAcc, err := getUnlockedAccount(w, addr)
+	gAcc, _, err := getAccFromContext(ctx)
 	if err != nil {
-		return err
+		return cli.NewExitError(fmt.Errorf("can't get account to sign group with: %w", err), 1)
 	}
 
 	var found bool

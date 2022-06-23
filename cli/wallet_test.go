@@ -4,11 +4,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"math/big"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/chzyer/readline"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -16,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestWalletAccountRemove(t *testing.T) {
@@ -177,6 +180,23 @@ func TestWalletInit(t *testing.T) {
 		require.Equal(t, 1, len(w.Accounts))
 		require.Equal(t, "acc", w.Accounts[0].Label)
 	})
+	t.Run("with wallet config", func(t *testing.T) {
+		tmp := t.TempDir()
+		walletPath := filepath.Join(tmp, "wallet.json")
+		configPath := filepath.Join(tmp, "config.yaml")
+		cfg := config.Wallet{
+			Path:     walletPath,
+			Password: "pass",
+		}
+		res, err := yaml.Marshal(cfg)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(configPath, res, 0666))
+		e.Run(t, "neo-go", "wallet", "init", "--wallet-config", configPath, "--account")
+		w, err := wallet.NewWalletFromFile(walletPath)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(w.Accounts))
+		require.Equal(t, "", w.Accounts[0].Label)
+	})
 
 	tmpDir := t.TempDir()
 	walletPath := filepath.Join(tmpDir, "wallet.json")
@@ -279,20 +299,43 @@ func TestWalletInit(t *testing.T) {
 					e.RunWithError(t, "neo-go", "wallet", "import",
 						"--wallet", walletPath, "--wif", priv.WIF(), "--contract", "not-a-hex")
 				})
+				check := func(t *testing.T, expectedLabel string, pass string) {
+					w, err := wallet.NewWalletFromFile(walletPath)
+					require.NoError(t, err)
+					t.Cleanup(w.Close)
+					acc := w.GetAccount(priv.GetScriptHash())
+					require.NotNil(t, acc)
+					require.Equal(t, expectedLabel, acc.Label)
+					require.NoError(t, acc.Decrypt(pass, w.Scrypt))
+				}
+				t.Run("good", func(t *testing.T) {
+					e.In.WriteString("test_account_3\r")
+					e.In.WriteString("qwerty\r")
+					e.In.WriteString("qwerty\r")
+					e.Run(t, "neo-go", "wallet", "import",
+						"--wallet", walletPath, "--wif", priv.WIF(), "--contract", "0a0b0c")
+					check(t, "test_account_3", "qwerty")
+				})
 
-				e.In.WriteString("test_account_3\r")
-				e.In.WriteString("qwerty\r")
-				e.In.WriteString("qwerty\r")
-				e.Run(t, "neo-go", "wallet", "import",
-					"--wallet", walletPath, "--wif", priv.WIF(), "--contract", "0a0b0c")
-
-				w, err := wallet.NewWalletFromFile(walletPath)
-				require.NoError(t, err)
-				t.Cleanup(w.Close)
-				acc := w.GetAccount(priv.GetScriptHash())
-				require.NotNil(t, acc)
-				require.Equal(t, "test_account_3", acc.Label)
-				require.NoError(t, acc.Decrypt("qwerty", w.Scrypt))
+				t.Run("from wallet config", func(t *testing.T) {
+					tmp := t.TempDir()
+					configPath := filepath.Join(tmp, "config.yaml")
+					cfg := config.Wallet{
+						Path:     walletPath,
+						Password: "pass", // This pass won't be taken into account.
+					}
+					res, err := yaml.Marshal(cfg)
+					require.NoError(t, err)
+					require.NoError(t, os.WriteFile(configPath, res, 0666))
+					priv, err = keys.NewPrivateKey()
+					require.NoError(t, err)
+					e.In.WriteString("test_account_4\r")
+					e.In.WriteString("qwerty\r")
+					e.In.WriteString("qwerty\r")
+					e.Run(t, "neo-go", "wallet", "import",
+						"--wallet-config", configPath, "--wif", priv.WIF(), "--contract", "0a0b0c0d")
+					check(t, "test_account_4", "qwerty")
+				})
 			})
 		})
 		t.Run("EncryptedWIF", func(t *testing.T) {
@@ -620,14 +663,32 @@ func TestWalletDump(t *testing.T) {
 			e.In.WriteString("invalidpass\r")
 			e.RunWithError(t, cmd...)
 		})
-
-		e.In.WriteString("testpass\r")
-		e.Run(t, cmd...)
-		rawStr := strings.TrimSpace(e.Out.String())
-		w := new(wallet.Wallet)
-		require.NoError(t, json.Unmarshal([]byte(rawStr), w))
-		require.Equal(t, 1, len(w.Accounts))
-		require.Equal(t, testWalletAccount, w.Accounts[0].Address)
+		t.Run("good", func(t *testing.T) {
+			e.In.WriteString("testpass\r")
+			e.Run(t, cmd...)
+			rawStr := strings.TrimSpace(e.Out.String())
+			w := new(wallet.Wallet)
+			require.NoError(t, json.Unmarshal([]byte(rawStr), w))
+			require.Equal(t, 1, len(w.Accounts))
+			require.Equal(t, testWalletAccount, w.Accounts[0].Address)
+		})
+		t.Run("good, from wallet config", func(t *testing.T) {
+			tmp := t.TempDir()
+			configPath := filepath.Join(tmp, "config.yaml")
+			cfg := config.Wallet{
+				Path:     testWalletPath,
+				Password: "testpass",
+			}
+			res, err := yaml.Marshal(cfg)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(configPath, res, 0666))
+			e.Run(t, "neo-go", "wallet", "dump", "--wallet-config", configPath)
+			rawStr := strings.TrimSpace(e.Out.String())
+			w := new(wallet.Wallet)
+			require.NoError(t, json.Unmarshal([]byte(rawStr), w))
+			require.Equal(t, 1, len(w.Accounts))
+			require.Equal(t, testWalletAccount, w.Accounts[0].Address)
+		})
 	})
 }
 

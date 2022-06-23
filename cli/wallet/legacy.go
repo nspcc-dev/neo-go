@@ -37,15 +37,30 @@ type (
 
 // newWalletV2FromFile reads a NEO2 wallet from the file.
 // This should be used read-only, no operations are supported on the returned wallet.
-func newWalletV2FromFile(path string) (*walletV2, error) {
+func newWalletV2FromFile(path string, configPath string) (*walletV2, *string, error) {
+	if len(path) != 0 && len(configPath) != 0 {
+		return nil, nil, errConflictingWalletFlags
+	}
+	if len(path) == 0 && len(configPath) == 0 {
+		return nil, nil, errNoPath
+	}
+	var pass *string
+	if len(configPath) != 0 {
+		cfg, err := ReadWalletConfig(configPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		path = cfg.Path
+		pass = &cfg.Password
+	}
 	file, err := os.OpenFile(path, os.O_RDWR, os.ModeAppend)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer file.Close()
 
 	wall := new(walletV2)
-	return wall, json.NewDecoder(file).Decode(wall)
+	return wall, pass, json.NewDecoder(file).Decode(wall)
 }
 
 const simpleSigLen = 35
