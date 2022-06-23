@@ -2260,7 +2260,10 @@ func (s *Server) packResponse(r *request.In, result interface{}, respErr *respon
 // logRequestError is a request error logger.
 func (s *Server) logRequestError(r *request.Request, jsonErr *response.Error) {
 	logFields := []zap.Field{
-		zap.String("cause", jsonErr.Data),
+		zap.Int64("code", jsonErr.Code),
+	}
+	if len(jsonErr.Data) != 0 {
+		logFields = append(logFields, zap.String("cause", jsonErr.Data))
 	}
 
 	if r.In != nil {
