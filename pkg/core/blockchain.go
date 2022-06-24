@@ -2187,7 +2187,11 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 		}
 		mode |= mpt.ModeGCFlag
 	}
-	sr, err := bc.stateRoot.GetStateRoot(b.Index)
+	if b.Index < 1 || b.Index > bc.BlockHeight()+1 {
+		return nil, fmt.Errorf("unsupported historic chain's height: requested state for %d, chain height %d", b.Index, bc.blockHeight)
+	}
+	// Assuming that block N-th is processing during historic call, the historic invocation should be based on the storage state of height N-1.
+	sr, err := bc.stateRoot.GetStateRoot(b.Index - 1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve stateroot for height %d: %w", b.Index, err)
 	}

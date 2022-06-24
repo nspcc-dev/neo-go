@@ -1780,9 +1780,9 @@ func (s *Server) getHistoricParams(reqParams request.Params) (*block.Block, *res
 			height = int(b.Index)
 		}
 	}
-	b, err := s.getFakeNextBlock(uint32(height))
+	b, err := s.getFakeNextBlock(uint32(height + 1))
 	if err != nil {
-		return nil, response.NewInternalServerError(fmt.Sprintf("can't create fake block for height %d: %s", height, err))
+		return nil, response.NewInternalServerError(fmt.Sprintf("can't create fake block for height %d: %s", height+1, err))
 	}
 	return b, nil
 }
