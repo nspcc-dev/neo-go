@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
@@ -374,4 +375,119 @@ func TestOpcode(t *testing.T) {
 			stackitem.Make(52),
 		})
 	})
+}
+
+func TestInteropTypesComparison(t *testing.T) {
+	typeCheck := func(t *testing.T, typeName string, typeLen int) {
+		t.Run(typeName, func(t *testing.T) {
+			var ha, hb string
+			for i := 0; i < typeLen; i++ {
+				if i == typeLen-1 {
+					ha += "2"
+					hb += "3"
+				} else {
+					ha += "1, "
+					hb += "1, "
+				}
+			}
+			check := func(t *testing.T, a, b string, expected bool) {
+				src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+		func Main() bool {
+			a := interop.` + typeName + `{` + a + `}
+			b := interop.` + typeName + `{` + b + `}
+			return a.Equals(b)
+		}`
+				eval(t, src, expected)
+			}
+			t.Run("same type", func(t *testing.T) {
+				check(t, ha, ha, true)
+				check(t, ha, hb, false)
+			})
+			t.Run("a is nil", func(t *testing.T) {
+				src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+
+		func Main() bool {
+			var a interop.` + typeName + `
+			b := interop.` + typeName + `{` + hb + `}
+			return a.Equals(b)
+		}`
+				eval(t, src, false)
+			})
+			t.Run("b is nil", func(t *testing.T) {
+				src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+
+		func Main() bool {
+			a := interop.` + typeName + `{` + ha + `}
+			var b interop.` + typeName + `
+			return a.Equals(b)
+		}`
+				eval(t, src, false)
+			})
+			t.Run("both nil", func(t *testing.T) {
+				src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+
+		func Main() bool {
+			var a interop.` + typeName + `
+			var b interop.` + typeName + `
+			return a.Equals(b)
+		}`
+				eval(t, src, true)
+			})
+			t.Run("different types", func(t *testing.T) {
+				src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+
+		func Main() bool {
+			a := interop.` + typeName + `{` + ha + `}
+			b := 123
+			return a.Equals(b)
+		}`
+				eval(t, src, false)
+			})
+			t.Run("b is Buffer", func(t *testing.T) {
+				src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+
+		func Main() bool {
+			a := interop.` + typeName + `{` + ha + `}
+			b := []byte{` + ha + `}
+			return a.Equals(b)
+		}`
+				eval(t, src, true)
+			})
+			t.Run("b is ByteString", func(t *testing.T) {
+				src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+
+		func Main() bool {
+			a := interop.` + typeName + `{` + ha + `}
+			b := string([]byte{` + ha + `})
+			return a.Equals(b)
+		}`
+				eval(t, src, true)
+			})
+			t.Run("b is compound type", func(t *testing.T) {
+				src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/interop"
+
+		func Main() bool {
+			a := interop.` + typeName + `{` + ha + `}
+			b := struct{}{}
+			return a.Equals(b)
+		}`
+				vm, _ := vmAndCompileInterop(t, src)
+				err := vm.Run()
+				require.Error(t, err)
+				require.True(t, strings.Contains(err.Error(), "invalid conversion: Struct/ByteString"), err)
+			})
+		})
+	}
+	typeCheck(t, "Hash160", util.Uint160Size)
+	typeCheck(t, "Hash256", util.Uint256Size)
+	typeCheck(t, "Signature", 64)
+	typeCheck(t, "PublicKey", 33)
 }
