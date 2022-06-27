@@ -426,6 +426,19 @@ func mkConsensus(config network.ServerConfig, chain *core.Blockchain, serv *netw
 	return srv, nil
 }
 
+func mkConsensusWatchdog(restartCh chan struct{}, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*consensus.Watchdog, error) {
+	wd, err := consensus.NewWatchdog(consensus.WatchdogConfig{
+		Logger:               log,
+		Chain:                chain,
+		ConsensusRestartChan: restartCh,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("can't initialize consensus watchdog service: %w", err)
+	}
+	serv.AddService(wd)
+	return wd, nil
+}
+
 func mkP2PNotary(config network.ServerConfig, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*notary.Notary, error) {
 	if !config.P2PNotaryCfg.Enabled {
 		return nil, nil
@@ -496,9 +509,16 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	_, err = mkConsensus(serverConfig, chain, serv, log)
+	consensusService, err := mkConsensus(serverConfig, chain, serv, log)
 	if err != nil {
 		return cli.NewExitError(err, 1)
+	}
+	consensusRestartChan := make(chan struct{})
+	if cfg.ProtocolConfiguration.EnableDBFTWatchdog && consensusService != nil {
+		_, err = mkConsensusWatchdog(consensusRestartChan, chain, serv, log)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
 	}
 	_, err = mkP2PNotary(serverConfig, chain, serv, log)
 	if err != nil {
@@ -538,9 +558,26 @@ Main:
 					rpcServer.Start()
 				}
 			}
+		case <-consensusRestartChan:
+			log.Info("restart signal is received from consensus watchdog service, restarting consensus service")
+			// Firstly, create new consensus so that network server is able to use proper OnPayload and OnTransaction callbacks.
+			// At this stage old consensus service is still able to send consensus messages to other nodes via BroadcastExtensible
+			// and request transactions via RequestTx, but it's OK.
+			newConsensusService, err := mkConsensus(serverConfig, chain, serv, log)
+			if err != nil {
+				shutdownErr = fmt.Errorf("failed to create new instance of consensus service: %w", err)
+				cancel()
+			}
+			// After that, gracefully shutdown the old consensus service and replace it by the new one.
+			consensusService.Shutdown()
+			consensusService = newConsensusService
+			// Start new consensus service irrespective to serv.IsInSync(), because if server is temporary out of sync
+			// then consensus service will never be started by serv. See https://github.com/nspcc-dev/neo-go/issues/2564.
+			consensusService.Start()
 		case <-grace.Done():
 			signal.Stop(sighupCh)
 			serv.Shutdown()
+			close(consensusRestartChan)
 			break Main
 		}
 	}

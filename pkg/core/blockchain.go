@@ -57,8 +57,9 @@ const (
 	defaultMaxTraceableBlocks              = 2102400 // 1 year of 15s blocks
 	defaultMaxTransactionsPerBlock         = 512
 	// HeaderVerificationGasLimit is the maximum amount of GAS for block header verification.
-	HeaderVerificationGasLimit = 3_00000000 // 3 GAS
-	defaultStateSyncInterval   = 40000
+	HeaderVerificationGasLimit             = 3_00000000 // 3 GAS
+	defaultStateSyncInterval               = 40000
+	defaultDBFTWatchdogThresholdMultiplier = 60 // 60 blocks ~ 15min of reset threshold for 15-seconds blocks.
 )
 
 // stateJumpStage denotes the stage of state jump process.
@@ -262,6 +263,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	if cfg.Hardforks == nil {
 		cfg.Hardforks = map[string]uint32{}
 		log.Info("Hardforks are not set, using default value")
+	}
+	if cfg.EnableDBFTWatchdog && cfg.DBFTWatchdogThresholdMultiplier == 0 {
+		cfg.DBFTWatchdogThresholdMultiplier = defaultDBFTWatchdogThresholdMultiplier
+		log.Info("DBFTWatchdogThresholdMultiplier is not set, using default value", zap.Int("DBFTWatchdogThresholdMultiplier", defaultDBFTWatchdogThresholdMultiplier))
 	}
 	bc := &Blockchain{
 		config:      cfg,

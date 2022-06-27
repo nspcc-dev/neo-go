@@ -15,6 +15,19 @@ type (
 	ProtocolConfiguration struct {
 		// CommitteeHistory stores committee size change history (height: size).
 		CommitteeHistory map[uint32]int `yaml:"CommitteeHistory"`
+		// DBFTWatchdogThresholdMultiplier is a dBFT reinitialization threshold multiplier. If
+		// no block is accepted within DBFTWatchdogThresholdMultiplier*SecondsPerBlock seconds
+		// since the last accepted block, dBFT service is forced to completely reset its state.
+		// DBFTWatchdogThresholdMultiplier is valid only if EnableDBFTWatchdog
+		// setting is on. DBFTWatchdogThresholdMultiplier must be the same within the whole set
+		// of consensus nodes in a single network.
+		DBFTWatchdogThresholdMultiplier int `yaml:"DBFTWatchdogThresholdMultiplier"`
+		// EnableDBFTWatchdog states whether dBFT watchdog should be enabled. If true,
+		// then dBFT service is forced to reset after DBFTWatchdogThresholdMultiplier*SecondsPerBlock
+		// seconds after the last accepted block timestamp if no block is accepted. DO NOT use this
+		// feature on public networks.
+		EnableDBFTWatchdog bool `yaml:"EnableDBFTWatchdog"`
+
 		// GarbageCollectionPeriod sets the number of blocks to wait before
 		// starting the next MPT garbage collection cycle when RemoveUntraceableBlocks
 		// option is used.
@@ -101,6 +114,9 @@ func (p *ProtocolConfiguration) Validate() error {
 		if !IsHardforkValid(name) {
 			return fmt.Errorf("Hardforks configuration section contains unexpected hardfork: %s", name)
 		}
+	}
+	if p.EnableDBFTWatchdog && p.DBFTWatchdogThresholdMultiplier < 0 {
+		return errors.New("DBFTWatchdogThresholdMultiplier must not be negative")
 	}
 	if p.ValidatorsCount != 0 && len(p.ValidatorsHistory) != 0 {
 		return errors.New("configuration should either have ValidatorsCount or ValidatorsHistory, not both")
