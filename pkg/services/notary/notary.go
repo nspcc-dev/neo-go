@@ -167,12 +167,13 @@ func (n *Notary) Start() {
 }
 
 func (n *Notary) mainLoop() {
+mainloop:
 	for {
 		select {
 		case <-n.stopCh:
 			n.mp.UnsubscribeFromTransactions(n.reqCh)
 			n.Config.Chain.UnsubscribeFromBlocks(n.blocksCh)
-			return
+			break mainloop
 		case event := <-n.reqCh:
 			if req, ok := event.Data.(*payload.P2PNotaryRequest); ok {
 				switch event.Type {
@@ -187,6 +188,17 @@ func (n *Notary) mainLoop() {
 			n.PostPersist()
 		}
 	}
+drainLoop:
+	for {
+		select {
+		case <-n.blocksCh:
+		case <-n.reqCh:
+		default:
+			break drainLoop
+		}
+	}
+	close(n.blocksCh)
+	close(n.reqCh)
 }
 
 // Shutdown stops the Notary module.

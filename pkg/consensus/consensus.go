@@ -286,6 +286,7 @@ events:
 		select {
 		case <-s.quit:
 			s.dbft.Timer.Stop()
+			s.Chain.UnsubscribeFromBlocks(s.blockEvents)
 			break events
 		case <-s.dbft.Timer.C():
 			hv := s.dbft.Timer.HV()
@@ -331,6 +332,15 @@ events:
 		default:
 		}
 	}
+drainBlocksLoop:
+	for {
+		select {
+		case <-s.blockEvents:
+		default:
+			break drainBlocksLoop
+		}
+	}
+	close(s.blockEvents)
 	close(s.finished)
 }
 
