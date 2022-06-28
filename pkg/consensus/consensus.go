@@ -414,7 +414,7 @@ func (s *service) OnPayload(cp *npayload.Extensible) error {
 }
 
 func (s *service) OnTransaction(tx *transaction.Transaction) {
-	if s.dbft != nil {
+	if s.dbft != nil && s.started.Load() {
 		s.transactions <- tx
 	}
 }
