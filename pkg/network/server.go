@@ -1344,11 +1344,12 @@ func (s *Server) broadcastHPMessage(msg *Message) {
 func (s *Server) relayBlocksLoop() {
 	ch := make(chan *block.Block, 2) // Some buffering to smooth out possible egressing delays.
 	s.chain.SubscribeForBlocks(ch)
+mainloop:
 	for {
 		select {
 		case <-s.quit:
 			s.chain.UnsubscribeFromBlocks(ch)
-			return
+			break mainloop
 		case b := <-ch:
 			msg := NewMessage(CMDInv, payload.NewInventory(payload.BlockType, []util.Uint256{b.Hash()}))
 			// Filter out nodes that are more current (avoid spamming the network
@@ -1359,6 +1360,15 @@ func (s *Server) relayBlocksLoop() {
 			s.extensiblePool.RemoveStale(b.Index)
 		}
 	}
+drainBlocksLoop:
+	for {
+		select {
+		case <-ch:
+		default:
+			break drainBlocksLoop
+		}
+	}
+	close(ch)
 }
 
 // verifyAndPoolTX verifies the TX and adds it to the local mempool.

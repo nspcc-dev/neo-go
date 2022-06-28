@@ -55,6 +55,7 @@ drainloop:
 			break drainloop
 		}
 	}
+	close(s.blockCh)
 }
 
 // Shutdown stops the service.
