@@ -45,6 +45,7 @@ func NewWatchdog(cfg WatchdogConfig) (*Watchdog, error) {
 		quit:           make(chan struct{}),
 		finished:       make(chan struct{}),
 	}
+	initializeConsensusResetMetric()
 	return wd, nil
 }
 func (w *Watchdog) Start() {
@@ -92,6 +93,7 @@ events:
 				zap.Duration("time since latest block", time.Millisecond*time.Duration(now-int64(latestBlock.Timestamp))),
 				zap.Duration("time till next restart", resetAfter))
 			w.ConsensusRestartChan <- struct{}{}
+			updateConsensusResetMetric(latestBlock.Index)
 		}
 	}
 
