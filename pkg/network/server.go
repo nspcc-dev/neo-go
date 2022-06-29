@@ -256,9 +256,7 @@ func (s *Server) Shutdown() {
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	s.transport.Close()
 	s.discovery.Close()
-	for _, p := range s.getPeers(nil) {
-		p.Disconnect(errServerShutdown)
-	}
+	s.DropPeers(errServerShutdown)
 	s.bQueue.discard()
 	s.bSyncQueue.discard()
 	for _, svc := range s.services {
@@ -268,6 +266,13 @@ func (s *Server) Shutdown() {
 		s.notaryRequestPool.StopSubscriptions()
 	}
 	close(s.quit)
+}
+
+// DropPeers drop connection to all current peers.
+func (s *Server) DropPeers(reason error) {
+	for _, p := range s.getPeers(nil) {
+		p.Disconnect(reason)
+	}
 }
 
 // AddService allows to add a service to be started/stopped by Server.

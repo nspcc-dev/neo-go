@@ -571,6 +571,9 @@ Main:
 			// After that, gracefully shutdown the old consensus service and replace it by the new one.
 			consensusService.Shutdown()
 			consensusService = newConsensusService
+			// Maybe doing this before consensus start is better because that's the way the node normally works.
+			// But it adds some network activity before consensus is able to handle anything.
+			serv.DropPeers(errors.New("dogs bite"))
 			// Start new consensus service irrespective to serv.IsInSync(), because if server is temporary out of sync
 			// then consensus service will never be started by serv. See https://github.com/nspcc-dev/neo-go/issues/2564.
 			consensusService.Start()
