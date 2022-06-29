@@ -665,6 +665,10 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 	}
 	if resp.State != "HALT" {
 		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s\n", resp.State, resp.FaultException)
+		if out == "" && !signAndPush {
+			return sender, cli.NewExitError(errText, 1)
+		}
+
 		action := "save"
 		process := "Saving"
 		if signAndPush {
