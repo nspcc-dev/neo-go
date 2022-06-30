@@ -12,9 +12,9 @@ ProtocolConfiguration:
     - 02c4de32252c50fa171dbe25379e4e2d55cdc12f69e382c39f59a44573ecff2f9d
   ValidatorsCount: 4
   SeedList:
-    - 127.0.0.1:20334
-    - 127.0.0.1:20335
-    - 127.0.0.1:20336
+    - localhost:20334
+    - localhost:20335
+    - localhost:20336
   VerifyBlocks: true
   VerifyTransactions: true
   P2PSigExtensions: true
@@ -43,7 +43,7 @@ ApplicationConfiguration:
   #    BoltDBOptions:
   #      FilePath: "./chains/unit_testnet.bolt"
   #  Uncomment in order to set up custom address for node.
-  #  Address: 127.0.0.1
+  #  Address: localhost
   NodePort: 20333
   Relay: true
   DialTimeout: 3
@@ -59,7 +59,7 @@ ApplicationConfiguration:
       Path: "/notary_wallet.json"
       Password: "pass"
   RPC:
-    Address: 127.0.0.1
+    Address: localhost
     MaxGasInvoke: 15
     Enabled: true
     EnableCORSWorkaround: false
