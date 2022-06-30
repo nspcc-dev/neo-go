@@ -16,7 +16,7 @@ node-related settings described in the table below.
 
 | Section | Type | Default value | Description |
 | --- | --- | --- | --- |
-| Address | `string` | `127.0.0.1` | Node address that P2P protocol handler binds to. |
+| Address | `string` | `0.0.0.0` | Node address that P2P protocol handler binds to. |
 | AnnouncedPort | `uint16` | Same as `NodePort` | Node port which should be used to announce node's port on P2P layer, it can differ from the `NodePort` the node is bound to (for example, if your node is behind NAT). |
 | AttemptConnPeers | `int` | `20` | Number of connection to try to establish when the connection count drops below the `MinPeers` value.|
 | DBConfiguration | [DB Configuration](#DB-Configuration) |  | Describes configuration for database. See the [DB Configuration](#DB-Configuration) section for details. |

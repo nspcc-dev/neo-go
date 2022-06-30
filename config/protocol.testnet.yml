@@ -63,7 +63,7 @@ ApplicationConfiguration:
   #    BoltDBOptions:
   #      FilePath: "./chains/testnet.bolt"
   #  Uncomment in order to set up custom address for node.
-  #  Address: 127.0.0.1
+  #  Address: localhost
   NodePort: 20333
   Relay: true
   DialTimeout: 3

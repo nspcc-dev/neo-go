@@ -28,7 +28,7 @@ type (
 		// The user agent of the server.
 		UserAgent string
 
-		// Address. Example: "127.0.0.1".
+		// Address. Example: "localhost".
 		Address string
 
 		// AnnouncedPort is an announced node port for P2P version exchange.

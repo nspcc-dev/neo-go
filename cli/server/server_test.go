@@ -288,8 +288,8 @@ func TestRestoreDB(t *testing.T) {
 }
 
 func TestConfigureAddresses(t *testing.T) {
-	defaultAddress := "http://127.0.0.1:10333"
-	customAddress := "http://127.0.0.1:10334"
+	defaultAddress := "http://localhost:10333"
+	customAddress := "http://localhost:10334"
 
 	t.Run("default addresses", func(t *testing.T) {
 		cfg := &config.ApplicationConfiguration{

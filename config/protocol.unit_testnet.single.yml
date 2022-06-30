@@ -34,7 +34,7 @@ ApplicationConfiguration:
   #    BoltDBOptions:
   #      FilePath: "./chains/unit_testnet.bolt"
   #  Uncomment in order to set up custom address for node.
-  #  Address: 127.0.0.1
+  #  Address: localhost
   NodePort: 0
   Relay: true
   DialTimeout: 3
@@ -53,7 +53,7 @@ ApplicationConfiguration:
       Path: "/notary_wallet.json"
       Password: "pass"
   RPC:
-    Address: 127.0.0.1
+    Address: localhost
     MaxGasInvoke: 15
     Enabled: true
     EnableCORSWorkaround: false

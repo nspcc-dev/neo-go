@@ -10,10 +10,10 @@ ProtocolConfiguration:
     - 02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62
   ValidatorsCount: 4
   SeedList:
-    - 127.0.0.1:20333
-    - 127.0.0.1:20334
-    - 127.0.0.1:20335
-    - 127.0.0.1:20336
+    - localhost:20333
+    - localhost:20334
+    - localhost:20335
+    - localhost:20336
   VerifyBlocks: true
   VerifyTransactions: true
   P2PSigExtensions: false
@@ -39,7 +39,7 @@ ApplicationConfiguration:
   #    BoltDBOptions:
   #      FilePath: "./chains/privnet.bolt"
   #  Uncomment in order to set up custom address for node.
-  #  Address: 127.0.0.1
+  #  Address: localhost
   NodePort: 20332
   Relay: true
   DialTimeout: 3
