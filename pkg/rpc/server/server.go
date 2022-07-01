@@ -1552,10 +1552,12 @@ func (s *Server) getNextBlockValidators(_ request.Params) (interface{}, *respons
 	}
 	var res = make([]result.Validator, 0)
 	for _, v := range enrollments {
+		if !validators.Contains(v.Key) {
+			continue
+		}
 		res = append(res, result.Validator{
 			PublicKey: *v.Key,
 			Votes:     v.Votes.Int64(),
-			Active:    validators.Contains(v.Key),
 		})
 	}
 	return res, nil

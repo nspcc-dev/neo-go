@@ -177,19 +177,21 @@ func queryCandidates(ctx *cli.Context) error {
 	}
 
 	sort.Slice(vals, func(i, j int) bool {
-		if vals[i].Active != vals[j].Active {
-			return vals[i].Active
-		}
-		if vals[i].Votes != vals[j].Votes {
-			return vals[i].Votes > vals[j].Votes
-		}
+		/*
+			if vals[i].Active != vals[j].Active {
+				return vals[i].Active
+			}
+			if vals[i].Votes != vals[j].Votes {
+				return vals[i].Votes > vals[j].Votes
+			}
+		*/
 		return vals[i].PublicKey.Cmp(&vals[j].PublicKey) == -1
 	})
 	buf := bytes.NewBuffer(nil)
 	tw := tabwriter.NewWriter(buf, 0, 2, 2, ' ', 0)
 	_, _ = tw.Write([]byte("Key\tVotes\tCommittee\tConsensus\n"))
 	for _, val := range vals {
-		_, _ = tw.Write([]byte(fmt.Sprintf("%s\t%d\t%t\t%t\n", hex.EncodeToString(val.PublicKey.Bytes()), val.Votes, comm.Contains(&val.PublicKey), val.Active)))
+		_, _ = tw.Write([]byte(fmt.Sprintf("%s\t%d\t%t\t%t\n", hex.EncodeToString(val.PublicKey.Bytes()), val.Votes, comm.Contains(&val.PublicKey), true)))
 	}
 	_ = tw.Flush()
 	fmt.Fprint(ctx.App.Writer, buf.String())
