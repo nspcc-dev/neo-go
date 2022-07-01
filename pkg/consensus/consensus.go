@@ -274,7 +274,7 @@ func (s *service) Start() {
 
 // Shutdown implements the Service interface.
 func (s *service) Shutdown() {
-	if s.started.Load() {
+	if s.started.CAS(true, false) {
 		close(s.quit)
 		<-s.finished
 	}
