@@ -260,9 +260,9 @@ func (s *Server) Start() {
 	}()
 }
 
-// Shutdown stops the RPC server. It can only be called once.
+// Shutdown stops the RPC server if it's running.
 func (s *Server) Shutdown() {
-	if !s.started.Load() {
+	if !s.started.CAS(true, false) {
 		return
 	}
 	// Signal to websocket writer routines and handleSubEvents.
