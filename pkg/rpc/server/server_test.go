@@ -818,6 +818,14 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 	},
+	"getcandidates": {
+		{
+			params: "[]",
+			result: func(*executor) interface{} {
+				return &[]result.Candidate{}
+			},
+		},
+	},
 	"getnextblockvalidators": {
 		{
 			params: "[]",

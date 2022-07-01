@@ -13,6 +13,14 @@ type Validator struct {
 	Votes     int64          `json:"votes"`
 }
 
+// Candidate represents a node participating in the governance elections, it's
+// active when it's a validator (consensus node).
+type Candidate struct {
+	PublicKey keys.PublicKey `json:"publickey"`
+	Votes     int64          `json:"votes,string"`
+	Active    bool           `json:"active"`
+}
+
 type newValidator struct {
 	PublicKey keys.PublicKey `json:"publickey"`
 	Votes     int64          `json:"votes"`

@@ -118,6 +118,7 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"getblockheader":               (*Server).getBlockHeader,
 	"getblockheadercount":          (*Server).getBlockHeaderCount,
 	"getblocksysfee":               (*Server).getBlockSysFee,
+	"getcandidates":                (*Server).getCandidates,
 	"getcommittee":                 (*Server).getCommittee,
 	"getconnectioncount":           (*Server).getConnectionCount,
 	"getcontractstate":             (*Server).getContractState,
@@ -1536,6 +1537,29 @@ func (s *Server) getUnclaimedGas(ps request.Params) (interface{}, *response.Erro
 		Address:   u,
 		Unclaimed: *gas,
 	}, nil
+}
+
+// getCandidates returns the current list of candidates with their active/inactive voting status.
+func (s *Server) getCandidates(_ request.Params) (interface{}, *response.Error) {
+	var validators keys.PublicKeys
+
+	validators, err := s.chain.GetNextBlockValidators()
+	if err != nil {
+		return nil, response.NewRPCError("Can't get next block validators", err.Error())
+	}
+	enrollments, err := s.chain.GetEnrollments()
+	if err != nil {
+		return nil, response.NewRPCError("Can't get enrollments", err.Error())
+	}
+	var res = make([]result.Candidate, 0)
+	for _, v := range enrollments {
+		res = append(res, result.Candidate{
+			PublicKey: *v.Key,
+			Votes:     v.Votes.Int64(),
+			Active:    validators.Contains(v.Key),
+		})
+	}
+	return res, nil
 }
 
 // getNextBlockValidators returns validators for the next block with voting status.
