@@ -181,6 +181,12 @@ func (o *Oracle) Name() string {
 
 // Shutdown shutdowns Oracle.
 func (o *Oracle) Shutdown() {
+	o.respMtx.Lock()
+	defer o.respMtx.Unlock()
+	if !o.running {
+		return
+	}
+	o.running = false
 	close(o.close)
 	o.getBroadcaster().Shutdown()
 }
