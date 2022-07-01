@@ -14,6 +14,7 @@ type RPCBroadcaster struct {
 	Responses chan request.RawParams
 
 	close       chan struct{}
+	finished    chan struct{}
 	sendTimeout time.Duration
 }
 
@@ -23,6 +24,7 @@ func NewRPCBroadcaster(log *zap.Logger, sendTimeout time.Duration) *RPCBroadcast
 		Clients:     make(map[string]*RPCClient),
 		Log:         log,
 		close:       make(chan struct{}),
+		finished:    make(chan struct{}),
 		Responses:   make(chan request.RawParams),
 		sendTimeout: sendTimeout,
 	}
@@ -33,10 +35,11 @@ func (r *RPCBroadcaster) Run() {
 	for _, c := range r.Clients {
 		go c.run()
 	}
+run:
 	for {
 		select {
 		case <-r.close:
-			return
+			break run
 		case ps := <-r.Responses:
 			for _, c := range r.Clients {
 				select {
@@ -47,9 +50,31 @@ func (r *RPCBroadcaster) Run() {
 			}
 		}
 	}
+	for _, c := range r.Clients {
+		<-c.finished
+	}
+drain:
+	for {
+		select {
+		case <-r.Responses:
+		default:
+			break drain
+		}
+	}
+	close(r.Responses)
+	close(r.finished)
+}
+
+// SendParams sends a request using all clients if the broadcaster is active.
+func (r *RPCBroadcaster) SendParams(params request.RawParams) {
+	select {
+	case <-r.close:
+	case r.Responses <- params:
+	}
 }
 
 // Shutdown implements oracle.Broadcaster.
 func (r *RPCBroadcaster) Shutdown() {
 	close(r.close)
+	<-r.finished
 }
