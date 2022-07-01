@@ -53,6 +53,7 @@ type (
 		oracleSignContract []byte
 
 		close      chan struct{}
+		done       chan struct{}
 		requestCh  chan request
 		requestMap chan map[uint64]*state.OracleRequest
 
@@ -123,6 +124,7 @@ func NewOracle(cfg Config) (*Oracle, error) {
 		Config: cfg,
 
 		close:      make(chan struct{}),
+		done:       make(chan struct{}),
 		requestMap: make(chan map[uint64]*state.OracleRequest, 1),
 		pending:    make(map[uint64]*state.OracleRequest),
 		responses:  make(map[uint64]*incompleteTx),
@@ -189,6 +191,7 @@ func (o *Oracle) Shutdown() {
 	o.running = false
 	close(o.close)
 	o.getBroadcaster().Shutdown()
+	<-o.done
 }
 
 // Start runs the oracle service in a separate goroutine.
@@ -213,11 +216,11 @@ func (o *Oracle) start() {
 	}
 
 	tick := time.NewTicker(o.MainCfg.RefreshInterval)
+main:
 	for {
 		select {
 		case <-o.close:
-			tick.Stop()
-			return
+			break main
 		case <-tick.C:
 			var reprocess []uint64
 			o.respMtx.Lock()
@@ -249,6 +252,17 @@ func (o *Oracle) start() {
 			}
 		}
 	}
+	tick.Stop()
+drain:
+	for {
+		select {
+		case <-o.requestMap:
+		default:
+			break drain
+		}
+	}
+	close(o.requestMap)
+	close(o.done)
 }
 
 // UpdateNativeContract updates native oracle contract info for tx verification.
