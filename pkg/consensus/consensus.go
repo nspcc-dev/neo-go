@@ -332,14 +332,18 @@ events:
 		default:
 		}
 	}
-drainBlocksLoop:
+drainLoop:
 	for {
 		select {
+		case <-s.messages:
+		case <-s.transactions:
 		case <-s.blockEvents:
 		default:
-			break drainBlocksLoop
+			break drainLoop
 		}
 	}
+	close(s.messages)
+	close(s.transactions)
 	close(s.blockEvents)
 	close(s.finished)
 }
