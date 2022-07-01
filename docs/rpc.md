@@ -110,7 +110,7 @@ This method doesn't work for the Ledger contract, you can get data via regular
 a native contract by its name (case-insensitive), unlike the C# node where
 it only possible for index or hash.
 
-#### `getnep11balances` and `getnep17balances`
+##### `getnep11balances` and `getnep17balances`
 neo-go implementation of `getnep11balances` and `getnep17balances` does not
 perform tracking of NEP-11 and NEP-17 balances for each account as it is done
 in the C# node. Instead, a neo-go node maintains a list of standard-compliant
@@ -134,7 +134,7 @@ latest state synchronization point P the node working against,
 `LastUpdatedBlock` equals P. For NEP-11 NFTs `LastUpdatedBlock` is equal for
 all tokens of the same asset.
 
-#### `getnep11transfers` and `getnep17transfers`
+##### `getnep11transfers` and `getnep17transfers`
 `transfernotifyindex` is not tracked by NeoGo, thus this field is always zero.
 
 ### Unsupported methods
