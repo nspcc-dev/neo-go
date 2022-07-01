@@ -66,6 +66,7 @@ run:
 			}
 		}
 	}
+	c.client.Close()
 drain:
 	for {
 		select {
