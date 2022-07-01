@@ -76,6 +76,25 @@ which would yield the response:
 
 #### Implementation notices
 
+##### JSON representation of enumerations
+
+C# implementation contains a number of enumerations and while it outputs them
+into JSON as comma-separated strings (or just strings if only one value is
+allowed for this type) it accepts pure numbers for input (see #2563 for
+example). NeoGo currently doesn't support this behavior. This affects the
+following data types:
+ * transaction attribute type
+ * oracle response code
+ * transaction witness scope
+ * rule witness action
+ * condition rule witness type
+ * function call flag
+ * function call parameter type
+ * execution trigger type
+ * stack item type
+
+Any call that takes any of these types for input in JSON format is affected.
+
 ##### `invokefunction`
 
 neo-go implementation of `invokefunction` does not return `tx`
