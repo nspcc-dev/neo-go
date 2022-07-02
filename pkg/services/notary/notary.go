@@ -67,6 +67,7 @@ type (
 		reqCh    chan mempoolevent.Event
 		blocksCh chan *block.Block
 		stopCh   chan struct{}
+		done     chan struct{}
 	}
 
 	// Config represents external configuration for Notary module.
@@ -153,6 +154,7 @@ func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction fu
 		reqCh:         make(chan mempoolevent.Event),
 		blocksCh:      make(chan *block.Block),
 		stopCh:        make(chan struct{}),
+		done:          make(chan struct{}),
 	}, nil
 }
 
@@ -206,6 +208,7 @@ drainLoop:
 	}
 	close(n.blocksCh)
 	close(n.reqCh)
+	close(n.done)
 }
 
 // Shutdown stops the Notary module.
@@ -214,6 +217,7 @@ func (n *Notary) Shutdown() {
 		return
 	}
 	close(n.stopCh)
+	<-n.done
 }
 
 // OnNewRequest is a callback method which is called after a new notary request is added to the notary request pool.
