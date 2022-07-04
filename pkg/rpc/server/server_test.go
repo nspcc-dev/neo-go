@@ -2428,7 +2428,9 @@ func checkNep11Balances(t *testing.T, e *executor, acc interface{}) {
 	expected := result.NEP11Balances{
 		Balances: []result.NEP11AssetBalance{
 			{
-				Asset: nnsHash,
+				Asset:  nnsHash,
+				Name:   "NameService",
+				Symbol: "NNS",
 				Tokens: []result.NEP11TokenBalance{
 					{
 						ID:          nnsToken1ID,
@@ -2438,7 +2440,10 @@ func checkNep11Balances(t *testing.T, e *executor, acc interface{}) {
 				},
 			},
 			{
-				Asset: nfsoHash,
+				Asset:    nfsoHash,
+				Decimals: 2,
+				Name:     "NeoFS Object NFT",
+				Symbol:   "NFSO",
 				Tokens: []result.NEP11TokenBalance{
 					{
 						ID:          nfsoToken1ID,
@@ -2464,17 +2469,25 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			{
 				Asset:       rubles,
 				Amount:      "877",
+				Decimals:    2,
 				LastUpdated: 6,
+				Name:        "Rubl",
+				Symbol:      "RUB",
 			},
 			{
 				Asset:       e.chain.GoverningTokenHash(),
 				Amount:      "99998000",
 				LastUpdated: 4,
+				Name:        "NeoToken",
+				Symbol:      "NEO",
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
 				Amount:      "47102199200",
+				Decimals:    8,
 				LastUpdated: 19,
+				Name:        "GasToken",
+				Symbol:      "GAS",
 			}},
 		Address: testchain.PrivateKeyByID(0).GetScriptHash().StringLE(),
 	}

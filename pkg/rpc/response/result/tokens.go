@@ -12,8 +12,11 @@ type NEP11Balances struct {
 
 // NEP11Balance is a structure holding balance of a NEP-11 asset.
 type NEP11AssetBalance struct {
-	Asset  util.Uint160        `json:"assethash"`
-	Tokens []NEP11TokenBalance `json:"tokens"`
+	Asset    util.Uint160        `json:"assethash"`
+	Decimals int                 `json:"decimals,string"`
+	Name     string              `json:"name"`
+	Symbol   string              `json:"symbol"`
+	Tokens   []NEP11TokenBalance `json:"tokens"`
 }
 
 // NEP11TokenBalance represents balance of a single NFT.
@@ -33,7 +36,10 @@ type NEP17Balances struct {
 type NEP17Balance struct {
 	Asset       util.Uint160 `json:"assethash"`
 	Amount      string       `json:"amount"`
+	Decimals    int          `json:"decimals,string"`
 	LastUpdated uint32       `json:"lastupdatedblock"`
+	Name        string       `json:"name"`
+	Symbol      string       `json:"symbol"`
 }
 
 // NEP11Transfers is a result for the getnep11transfers RPC.

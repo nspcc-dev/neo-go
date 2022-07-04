@@ -543,7 +543,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				return c.GetNEP11Balances(hash)
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"balance":[{"assethash":"a48b6e1291ba24211ad11bb90ae2a10bf1fcd5a8","tokens":[{"tokenid":"abcdef","amount":"1","lastupdatedblock":251604}]}],"address":"NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe"}}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"balance":[{"assethash":"a48b6e1291ba24211ad11bb90ae2a10bf1fcd5a8","symbol":"SOME","decimals":"42","name":"Contract","tokens":[{"tokenid":"abcdef","amount":"1","lastupdatedblock":251604}]}],"address":"NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe"}}`,
 			result: func(c *Client) interface{} {
 				hash, err := util.Uint160DecodeStringLE("a48b6e1291ba24211ad11bb90ae2a10bf1fcd5a8")
 				if err != nil {
@@ -551,7 +551,10 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				return &result.NEP11Balances{
 					Balances: []result.NEP11AssetBalance{{
-						Asset: hash,
+						Asset:    hash,
+						Decimals: 42,
+						Name:     "Contract",
+						Symbol:   "SOME",
 						Tokens: []result.NEP11TokenBalance{{
 							ID:          "abcdef",
 							Amount:      "1",
@@ -573,7 +576,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}
 				return c.GetNEP17Balances(hash)
 			},
-			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"balance":[{"assethash":"a48b6e1291ba24211ad11bb90ae2a10bf1fcd5a8","amount":"50000000000","lastupdatedblock":251604}],"address":"AY6eqWjsUFCzsVELG7yG72XDukKvC34p2w"}}`,
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"balance":[{"assethash":"a48b6e1291ba24211ad11bb90ae2a10bf1fcd5a8","symbol":"N17","decimals":"8","name":"Token","amount":"50000000000","lastupdatedblock":251604}],"address":"AY6eqWjsUFCzsVELG7yG72XDukKvC34p2w"}}`,
 			result: func(c *Client) interface{} {
 				hash, err := util.Uint160DecodeStringLE("a48b6e1291ba24211ad11bb90ae2a10bf1fcd5a8")
 				if err != nil {
@@ -582,6 +585,9 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return &result.NEP17Balances{
 					Balances: []result.NEP17Balance{{
 						Asset:       hash,
+						Decimals:    8,
+						Name:        "Token",
+						Symbol:      "N17",
 						Amount:      "50000000000",
 						LastUpdated: 251604,
 					}},
