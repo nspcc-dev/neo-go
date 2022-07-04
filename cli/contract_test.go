@@ -27,6 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestCalcHash(t *testing.T) {
@@ -446,9 +447,8 @@ func TestContractManifestGroups(t *testing.T) {
 	config.Version = "0.90.0-test"
 	tmpDir := t.TempDir()
 
-	w, err := wallet.NewWalletFromFile(testWalletPath)
+	_, err := wallet.NewWalletFromFile(testWalletPath)
 	require.NoError(t, err)
-	defer w.Close()
 
 	nefName := filepath.Join(tmpDir, "deploy.nef")
 	manifestName := filepath.Join(tmpDir, "deploy.manifest.json")
@@ -464,30 +464,26 @@ func TestContractManifestGroups(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
 			"--wallet", t.TempDir())
 	})
-	t.Run("invalid account", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", testWalletPath, "--account", "not-an-acc")
-	})
 	t.Run("invalid sender", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", testWalletPath, "--account", testWalletAccount,
+			"--wallet", testWalletPath, "--address", testWalletAccount,
 			"--sender", "not-a-sender")
 	})
 	t.Run("invalid NEF file", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", testWalletPath, "--account", testWalletAccount,
+			"--wallet", testWalletPath, "--address", testWalletAccount,
 			"--sender", testWalletAccount, "--nef", tmpDir)
 	})
 	t.Run("corrupted NEF file", func(t *testing.T) {
 		f := filepath.Join(tmpDir, "invalid.nef")
 		require.NoError(t, os.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", testWalletPath, "--account", testWalletAccount,
+			"--wallet", testWalletPath, "--address", testWalletAccount,
 			"--sender", testWalletAccount, "--nef", f)
 	})
 	t.Run("invalid manifest file", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", testWalletPath, "--account", testWalletAccount,
+			"--wallet", testWalletPath, "--address", testWalletAccount,
 			"--sender", testWalletAccount, "--nef", nefName,
 			"--manifest", tmpDir)
 	})
@@ -495,13 +491,13 @@ func TestContractManifestGroups(t *testing.T) {
 		f := filepath.Join(tmpDir, "invalid.manifest.json")
 		require.NoError(t, os.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", testWalletPath, "--account", testWalletAccount,
+			"--wallet", testWalletPath, "--address", testWalletAccount,
 			"--sender", testWalletAccount, "--nef", nefName,
 			"--manifest", f)
 	})
 	t.Run("unknown account", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", testWalletPath, "--account", util.Uint160{}.StringLE(),
+			"--wallet", testWalletPath, "--address", util.Uint160{}.StringLE(),
 			"--sender", testWalletAccount, "--nef", nefName,
 			"--manifest", manifestName)
 	})
@@ -510,11 +506,11 @@ func TestContractManifestGroups(t *testing.T) {
 
 	e.In.WriteString("testpass\r")
 	e.Run(t, append(cmd, "--wallet", testWalletPath,
-		"--sender", testWalletAccount, "--account", testWalletAccount)...)
+		"--sender", testWalletAccount, "--address", testWalletAccount)...)
 
 	e.In.WriteString("testpass\r") // should override signature with the previous sender
 	e.Run(t, append(cmd, "--wallet", testWalletPath,
-		"--sender", validatorAddr, "--account", testWalletAccount)...)
+		"--sender", validatorAddr, "--address", testWalletAccount)...)
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "contract", "deploy",
@@ -613,10 +609,18 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--in", nefName, "--", address.Uint160ToString(util.Uint160{1, 2, 3}))
 
-	e.In.WriteString("one\r")
+	tmp := t.TempDir()
+	configPath := filepath.Join(tmp, "config.yaml")
+	cfg := config.Wallet{
+		Path:     validatorWallet,
+		Password: "one",
+	}
+	yml, err := yaml.Marshal(cfg)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(configPath, yml, 0666))
 	e.Run(t, "neo-go", "contract", "deploy",
 		"--rpc-endpoint", "http://"+e.RPC.Addr, "--force",
-		"--wallet", validatorWallet, "--address", validatorAddr,
+		"--wallet-config", configPath, "--address", validatorAddr,
 		"--in", nefName, "--manifest", manifestName)
 
 	e.checkTxPersisted(t, "Sent invocation transaction ")
@@ -712,6 +716,10 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			e.In.WriteString("one\r")
 			e.In.WriteString("y\r")
 			e.Run(t, append(cmd, "--wallet", validatorWallet, h.StringLE(), "getValue")...)
+		})
+		t.Run("good: from wallet config", func(t *testing.T) {
+			e.In.WriteString("y\r")
+			e.Run(t, append(cmd, "--wallet-config", configPath, h.StringLE(), "getValue")...)
 		})
 
 		cmd = append(cmd, "--wallet", validatorWallet, "--address", validatorAddr)

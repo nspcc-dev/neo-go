@@ -12,11 +12,10 @@ import (
 )
 
 func signStoredTransaction(ctx *cli.Context) error {
-	wall, err := readWallet(ctx.String("wallet"))
+	wall, pass, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	c, err := paramcontext.Read(ctx.String("in"))
 	if err != nil {
@@ -26,7 +25,7 @@ func signStoredTransaction(ctx *cli.Context) error {
 	if !addrFlag.IsSet {
 		return cli.NewExitError("address was not provided", 1)
 	}
-	acc, err := getDecryptedAccount(ctx, wall, addrFlag.Uint160())
+	acc, err := getDecryptedAccount(wall, addrFlag.Uint160(), pass)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

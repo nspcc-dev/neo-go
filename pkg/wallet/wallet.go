@@ -168,9 +168,9 @@ func (w *Wallet) JSON() ([]byte, error) {
 	return json.MarshalIndent(w, " ", "	")
 }
 
-// Close closes the internal rw if its an io.ReadCloser.
-func (w *Wallet) Close() {
-}
+// Deprecated: Close is deprecated.
+// Close performs nothing and is left for backwards compatibility.
+func (w *Wallet) Close() {}
 
 // GetAccount returns an account corresponding to the provided scripthash.
 func (w *Wallet) GetAccount(h util.Uint160) *Account {

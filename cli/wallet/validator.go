@@ -29,6 +29,7 @@ func newValidatorCommands() []cli.Command {
 			Action:    handleRegister,
 			Flags: append([]cli.Flag{
 				walletPathFlag,
+				walletConfigFlag,
 				gasFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
@@ -43,6 +44,7 @@ func newValidatorCommands() []cli.Command {
 			Action:    handleUnregister,
 			Flags: append([]cli.Flag{
 				walletPathFlag,
+				walletConfigFlag,
 				gasFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
@@ -60,6 +62,7 @@ func newValidatorCommands() []cli.Command {
 			Action: handleVote,
 			Flags: append([]cli.Flag{
 				walletPathFlag,
+				walletConfigFlag,
 				gasFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
@@ -83,18 +86,17 @@ func handleUnregister(ctx *cli.Context) error {
 }
 
 func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
-	wall, err := readWallet(ctx.String("wallet"))
+	wall, pass, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if !addrFlag.IsSet {
 		return cli.NewExitError("address was not provided", 1)
 	}
 	addr := addrFlag.Uint160()
-	acc, err := getDecryptedAccount(ctx, wall, addr)
+	acc, err := getDecryptedAccount(wall, addr, pass)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -138,18 +140,17 @@ func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 }
 
 func handleVote(ctx *cli.Context) error {
-	wall, err := readWallet(ctx.String("wallet"))
+	wall, pass, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if !addrFlag.IsSet {
 		return cli.NewExitError("address was not provided", 1)
 	}
 	addr := addrFlag.Uint160()
-	acc, err := getDecryptedAccount(ctx, wall, addr)
+	acc, err := getDecryptedAccount(wall, addr, pass)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -198,16 +199,23 @@ func handleVote(ctx *cli.Context) error {
 	return nil
 }
 
-func getDecryptedAccount(ctx *cli.Context, wall *wallet.Wallet, addr util.Uint160) (*wallet.Account, error) {
+// getDecryptedAccount tries to unlock the specified account. If password is nil, it will be requested via terminal.
+func getDecryptedAccount(wall *wallet.Wallet, addr util.Uint160, password *string) (*wallet.Account, error) {
 	acc := wall.GetAccount(addr)
 	if acc == nil {
 		return nil, fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addr))
 	}
 
-	if pass, err := input.ReadPassword(EnterPasswordPrompt); err != nil {
-		fmt.Println("Error reading password", err)
-		return nil, err
-	} else if err := acc.Decrypt(pass, wall.Scrypt); err != nil {
+	if password == nil {
+		pass, err := input.ReadPassword(EnterPasswordPrompt)
+		if err != nil {
+			fmt.Println("Error reading password", err)
+			return nil, err
+		}
+		password = &pass
+	}
+	err := acc.Decrypt(*password, wall.Scrypt)
+	if err != nil {
 		return nil, err
 	}
 	return acc, nil

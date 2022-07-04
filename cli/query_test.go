@@ -25,7 +25,6 @@ func TestQueryTx(t *testing.T) {
 
 	w, err := wallet.NewWalletFromFile("testdata/testwallet.json")
 	require.NoError(t, err)
-	defer w.Close()
 
 	transferArgs := []string{
 		"neo-go", "wallet", "nep17", "transfer",

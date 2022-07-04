@@ -38,6 +38,7 @@ var (
 	}
 	baseBalanceFlags = []cli.Flag{
 		walletPathFlag,
+		walletConfigFlag,
 		tokenFlag,
 		flags.AddressFlag{
 			Name:  "address, a",
@@ -46,6 +47,7 @@ var (
 	}
 	importFlags = append([]cli.Flag{
 		walletPathFlag,
+		walletConfigFlag,
 		flags.AddressFlag{
 			Name:  "token",
 			Usage: "Token contract address or hash in LE",
@@ -53,6 +55,7 @@ var (
 	}, options.RPC...)
 	baseTransferFlags = []cli.Flag{
 		walletPathFlag,
+		walletConfigFlag,
 		outFlag,
 		fromAddrFlag,
 		toAddrFlag,
@@ -67,6 +70,7 @@ var (
 	}
 	multiTransferFlags = append([]cli.Flag{
 		walletPathFlag,
+		walletConfigFlag,
 		outFlag,
 		fromAddrFlag,
 		gasFlag,
@@ -104,6 +108,7 @@ func newNEP17Commands() []cli.Command {
 			Action:    printNEP17Info,
 			Flags: []cli.Flag{
 				walletPathFlag,
+				walletConfigFlag,
 				tokenFlag,
 			},
 		},
@@ -114,6 +119,7 @@ func newNEP17Commands() []cli.Command {
 			Action:    removeNEP17Token,
 			Flags: []cli.Flag{
 				walletPathFlag,
+				walletConfigFlag,
 				tokenFlag,
 				forceFlag,
 			},
@@ -145,11 +151,10 @@ func newNEP17Commands() []cli.Command {
 func getNEP17Balance(ctx *cli.Context) error {
 	var accounts []*wallet.Account
 
-	wall, err := readWallet(ctx.String("wallet"))
+	wall, _, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("bad wallet: %w", err), 1)
 	}
-	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if addrFlag.IsSet {
@@ -344,11 +349,10 @@ func importNEP17Token(ctx *cli.Context) error {
 }
 
 func importNEPToken(ctx *cli.Context, standard string) error {
-	wall, err := openWallet(ctx.String("wallet"))
+	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	tokenHashFlag := ctx.Generic("token").(*flags.Address)
 	if !tokenHashFlag.IsSet {
@@ -407,11 +411,10 @@ func printNEP17Info(ctx *cli.Context) error {
 }
 
 func printNEPInfo(ctx *cli.Context, standard string) error {
-	wall, err := readWallet(ctx.String("wallet"))
+	wall, _, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	if name := ctx.String("token"); name != "" {
 		token, err := getMatchingToken(ctx, wall, name, standard)
@@ -440,11 +443,10 @@ func removeNEP17Token(ctx *cli.Context) error {
 }
 
 func removeNEPToken(ctx *cli.Context, standard string) error {
-	wall, err := openWallet(ctx.String("wallet"))
+	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	token, err := getMatchingToken(ctx, wall, ctx.String("token"), standard)
 	if err != nil {
@@ -464,18 +466,17 @@ func removeNEPToken(ctx *cli.Context, standard string) error {
 }
 
 func multiTransferNEP17(ctx *cli.Context) error {
-	wall, err := readWallet(ctx.String("wallet"))
+	wall, pass, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	fromFlag := ctx.Generic("from").(*flags.Address)
 	from, err := getDefaultAddress(fromFlag, wall)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	acc, err := getDecryptedAccount(ctx, wall, from)
+	acc, err := getDecryptedAccount(wall, from, pass)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -550,18 +551,17 @@ func transferNEP17(ctx *cli.Context) error {
 }
 
 func transferNEP(ctx *cli.Context, standard string) error {
-	wall, err := readWallet(ctx.String("wallet"))
+	wall, pass, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	fromFlag := ctx.Generic("from").(*flags.Address)
 	from, err := getDefaultAddress(fromFlag, wall)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	acc, err := getDecryptedAccount(ctx, wall, from)
+	acc, err := getDecryptedAccount(wall, from, pass)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

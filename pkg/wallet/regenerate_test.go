@@ -202,7 +202,6 @@ func createWallet(t *testing.T, path string, accs ...*Account) {
 		w.AddAccount(acc)
 	}
 	require.NoError(t, w.SavePretty())
-	w.Close()
 }
 
 func TestRegenerateCLIWallet1_solo(t *testing.T) {

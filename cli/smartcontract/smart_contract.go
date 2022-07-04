@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
+	cliwallet "github.com/nspcc-dev/neo-go/cli/wallet"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -32,22 +33,31 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// addressFlagName is a flag name used for address-related operations. It should be
+// the same within the smartcontract package, thus, use this constant.
+const addressFlagName = "address, a"
+
 var (
-	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
-	errNoConfFile          = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
-	errNoManifestFile      = errors.New("no manifest file was found, specify manifest file with '--manifest' or '-m' flag")
-	errNoMethod            = errors.New("no method specified for function invocation command")
-	errNoWallet            = errors.New("no wallet parameter found, specify it with the '--wallet or -w' flag")
-	errNoScriptHash        = errors.New("no smart contract hash was provided, specify one as the first argument")
-	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
-	errFileExist           = errors.New("A file with given smart-contract name already exists")
+	errNoInput                = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
+	errNoConfFile             = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
+	errNoManifestFile         = errors.New("no manifest file was found, specify manifest file with '--manifest' or '-m' flag")
+	errNoMethod               = errors.New("no method specified for function invocation command")
+	errNoWallet               = errors.New("no wallet parameter found, specify it with the '--wallet' or '-w' flag or specify wallet config file with the '--wallet-config' flag")
+	errConflictingWalletFlags = errors.New("--wallet flag conflicts with --wallet-config flag, please, provide one of them to specify wallet location")
+	errNoScriptHash           = errors.New("no smart contract hash was provided, specify one as the first argument")
+	errNoSmartContractName    = errors.New("no name was provided, specify the '--name or -n' flag")
+	errFileExist              = errors.New("A file with given smart-contract name already exists")
 
 	walletFlag = cli.StringFlag{
 		Name:  "wallet, w",
-		Usage: "wallet to use to get the key for transaction signing",
+		Usage: "wallet to use to get the key for transaction signing; conflicts with --wallet-config flag",
+	}
+	walletConfigFlag = cli.StringFlag{
+		Name:  "wallet-config",
+		Usage: "path to wallet config to use to get the key for transaction signing; conflicts with --wallet flag",
 	}
 	addressFlag = flags.AddressFlag{
-		Name:  "address, a",
+		Name:  addressFlagName,
 		Usage: "address to use as transaction signee (and gas source)",
 	}
 	gasFlag = flags.Fixed8Flag{
@@ -103,6 +113,7 @@ func NewCommands() []cli.Command {
 	testInvokeScriptFlags = append(testInvokeScriptFlags, options.RPC...)
 	invokeFunctionFlags := []cli.Flag{
 		walletFlag,
+		walletConfigFlag,
 		addressFlag,
 		gasFlag,
 		sysGasFlag,
@@ -387,12 +398,13 @@ func NewCommands() []cli.Command {
 						Action: manifestAddGroup,
 						Flags: []cli.Flag{
 							walletFlag,
+							walletConfigFlag,
 							cli.StringFlag{
 								Name:  "sender, s",
 								Usage: "deploy transaction sender",
 							},
-							cli.StringFlag{
-								Name:  "account, a",
+							flags.AddressFlag{
+								Name:  addressFlagName, // use the same name for handler code unification.
 								Usage: "account to sign group with",
 							},
 							cli.StringFlag{
@@ -822,13 +834,26 @@ func getAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error
 	var addr util.Uint160
 
 	wPath := ctx.String("wallet")
-	if len(wPath) == 0 {
-		return nil, nil, cli.NewExitError(errNoWallet, 1)
+	walletConfigPath := ctx.String("wallet-config")
+	if len(wPath) != 0 && len(walletConfigPath) != 0 {
+		return nil, nil, errConflictingWalletFlags
+	}
+	if len(wPath) == 0 && len(walletConfigPath) == 0 {
+		return nil, nil, errNoWallet
+	}
+	var pass *string
+	if len(walletConfigPath) != 0 {
+		cfg, err := cliwallet.ReadWalletConfig(walletConfigPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		wPath = cfg.Path
+		pass = &cfg.Password
 	}
 
 	wall, err := wallet.NewWalletFromFile(wPath)
 	if err != nil {
-		return nil, nil, cli.NewExitError(err, 1)
+		return nil, nil, err
 	}
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if addrFlag.IsSet {
@@ -837,29 +862,32 @@ func getAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error
 		addr = wall.GetChangeAddress()
 	}
 
-	acc, err := getUnlockedAccount(wall, addr)
+	acc, err := getUnlockedAccount(wall, addr, pass)
 	return acc, wall, err
 }
 
-func getUnlockedAccount(wall *wallet.Wallet, addr util.Uint160) (*wallet.Account, error) {
+func getUnlockedAccount(wall *wallet.Wallet, addr util.Uint160, pass *string) (*wallet.Account, error) {
 	acc := wall.GetAccount(addr)
 	if acc == nil {
-		return nil, cli.NewExitError(fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr)), 1)
+		return nil, fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr))
 	}
 
 	if acc.PrivateKey() != nil {
 		return acc, nil
 	}
 
-	rawPass, err := input.ReadPassword(
-		fmt.Sprintf("Enter account %s password > ", address.Uint160ToString(addr)))
-	if err != nil {
-		return nil, cli.NewExitError(fmt.Errorf("Error reading password: %w", err), 1)
+	if pass == nil {
+		rawPass, err := input.ReadPassword(
+			fmt.Sprintf("Enter account %s password > ", address.Uint160ToString(addr)))
+		if err != nil {
+			return nil, fmt.Errorf("Error reading password: %w", err)
+		}
+		trimmed := strings.TrimRight(string(rawPass), "\n")
+		pass = &trimmed
 	}
-	pass := strings.TrimRight(string(rawPass), "\n")
-	err = acc.Decrypt(pass, wall.Scrypt)
+	err := acc.Decrypt(*pass, wall.Scrypt)
 	if err != nil {
-		return nil, cli.NewExitError(err, 1)
+		return nil, err
 	}
 	return acc, nil
 }
