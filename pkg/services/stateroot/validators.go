@@ -46,10 +46,11 @@ runloop:
 			s.srMtx.Lock()
 			delete(s.incompleteRoots, b.Index-voteValidEndInc)
 			s.srMtx.Unlock()
-		case <-s.done:
+		case <-s.stopCh:
 			break runloop
 		}
 	}
+	s.chain.UnsubscribeFromBlocks(s.blockCh)
 drainloop:
 	for {
 		select {
@@ -59,6 +60,7 @@ drainloop:
 		}
 	}
 	close(s.blockCh)
+	close(s.done)
 }
 
 // Shutdown stops the service.
@@ -66,8 +68,8 @@ func (s *service) Shutdown() {
 	if !s.started.CAS(true, false) {
 		return
 	}
-	s.chain.UnsubscribeFromBlocks(s.blockCh)
-	close(s.done)
+	close(s.stopCh)
+	<-s.done
 }
 
 func (s *service) signAndSend(r *state.MPTRoot) error {

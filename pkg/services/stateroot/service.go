@@ -59,6 +59,7 @@ type (
 		maxRetries      int
 		relayExtensible RelayCallback
 		blockCh         chan *block.Block
+		stopCh          chan struct{}
 		done            chan struct{}
 	}
 )
@@ -79,6 +80,7 @@ func New(cfg config.StateRoot, sm *stateroot.Module, log *zap.Logger, bc Ledger,
 		log:             log,
 		incompleteRoots: make(map[uint32]*incompleteRoot),
 		blockCh:         make(chan *block.Block),
+		stopCh:          make(chan struct{}),
 		done:            make(chan struct{}),
 		timePerBlock:    time.Duration(bcConf.SecondsPerBlock) * time.Second,
 		maxRetries:      voteValidEndInc,
