@@ -181,7 +181,9 @@ func (o *Oracle) Name() string {
 	return "oracle"
 }
 
-// Shutdown shutdowns Oracle.
+// Shutdown shutdowns Oracle. It can only be called once, subsequent calls
+// to Shutdown on the same instance are no-op. The instance that was stopped can
+// not be started again by calling Start (use a new instance if needed).
 func (o *Oracle) Shutdown() {
 	o.respMtx.Lock()
 	defer o.respMtx.Unlock()
@@ -195,6 +197,7 @@ func (o *Oracle) Shutdown() {
 }
 
 // Start runs the oracle service in a separate goroutine.
+// The Oracle only starts once, subsequent calls to Start are no-op.
 func (o *Oracle) Start() {
 	o.respMtx.Lock()
 	if o.running {

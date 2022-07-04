@@ -73,7 +73,8 @@ func (r *RPCBroadcaster) SendParams(params request.RawParams) {
 	}
 }
 
-// Shutdown implements oracle.Broadcaster.
+// Shutdown implements oracle.Broadcaster. The same instance can't be Run again
+// after the shutdown.
 func (r *RPCBroadcaster) Shutdown() {
 	close(r.close)
 	<-r.finished

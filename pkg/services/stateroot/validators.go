@@ -23,6 +23,7 @@ func (s *service) Name() string {
 }
 
 // Start runs service instance in a separate goroutine.
+// The service only starts once, subsequent calls to Start are no-op.
 func (s *service) Start() {
 	if !s.started.CAS(false, true) {
 		return
@@ -63,7 +64,9 @@ drainloop:
 	close(s.done)
 }
 
-// Shutdown stops the service.
+// Shutdown stops the service. It can only be called once, subsequent calls
+// to Shutdown on the same instance are no-op. The instance that was stopped can
+// not be started again by calling Start (use a new instance if needed).
 func (s *service) Shutdown() {
 	if !s.started.CAS(true, false) {
 		return

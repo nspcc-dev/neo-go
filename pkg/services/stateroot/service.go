@@ -33,7 +33,12 @@ type (
 		OnPayload(p *payload.Extensible) error
 		AddSignature(height uint32, validatorIndex int32, sig []byte) error
 		GetConfig() config.StateRoot
+		// Start runs service instance in a separate goroutine.
+		// The service only starts once, subsequent calls to Start are no-op.
 		Start()
+		// Shutdown stops the service. It can only be called once, subsequent calls
+		// to Shutdown on the same instance are no-op. The instance that was stopped can
+		// not be started again by calling Start (use a new instance if needed).
 		Shutdown()
 	}
 

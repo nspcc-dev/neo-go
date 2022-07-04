@@ -215,6 +215,7 @@ func (s *Server) Name() string {
 
 // Start creates a new JSON-RPC server listening on the configured port. It creates
 // goroutines needed internally and it returns its errors via errChan passed to New().
+// The Server only starts once, subsequent calls to Start are no-op.
 func (s *Server) Start() {
 	if !s.config.Enabled {
 		s.log.Info("RPC server is not enabled")
@@ -260,7 +261,10 @@ func (s *Server) Start() {
 	}()
 }
 
-// Shutdown stops the RPC server if it's running.
+// Shutdown stops the RPC server if it's running. It can only be called once,
+// subsequent calls to Shutdown on the same instance are no-op. The instance
+// that was stopped can not be started again by calling Start (use a new
+// instance if needed).
 func (s *Server) Shutdown() {
 	if !s.started.CAS(true, false) {
 		return

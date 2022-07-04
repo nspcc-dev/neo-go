@@ -164,6 +164,7 @@ func (n *Notary) Name() string {
 }
 
 // Start runs a Notary module in a separate goroutine.
+// The Notary only starts once, subsequent calls to Start are no-op.
 func (n *Notary) Start() {
 	if !n.started.CAS(false, true) {
 		return
@@ -211,7 +212,9 @@ drainLoop:
 	close(n.done)
 }
 
-// Shutdown stops the Notary module.
+// Shutdown stops the Notary module. It can only be called once, subsequent calls
+// to Shutdown on the same instance are no-op. The instance that was stopped can
+// not be started again by calling Start (use a new instance if needed).
 func (n *Notary) Shutdown() {
 	if !n.started.CAS(true, false) {
 		return

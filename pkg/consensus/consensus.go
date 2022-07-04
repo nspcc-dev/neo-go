@@ -67,8 +67,11 @@ type Service interface {
 	Name() string
 	// Start initializes dBFT and starts event loop for consensus service.
 	// It must be called only when the sufficient amount of peers are connected.
+	// The service only starts once, subsequent calls to Start are no-op.
 	Start()
-	// Shutdown stops dBFT event loop.
+	// Shutdown stops dBFT event loop. It can only be called once, subsequent calls
+	// to Shutdown on the same instance are no-op. The instance that was stopped can
+	// not be started again by calling Start (use a new instance if needed).
 	Shutdown()
 
 	// OnPayload is a callback to notify the Service about a newly received payload.
