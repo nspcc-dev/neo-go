@@ -77,6 +77,25 @@ which would yield the response:
 
 #### Implementation notices
 
+##### JSON representation of enumerations
+
+C# implementation contains a number of enumerations and while it outputs them
+into JSON as comma-separated strings (or just strings if only one value is
+allowed for this type) it accepts pure numbers for input (see #2563 for
+example). NeoGo currently doesn't support this behavior. This affects the
+following data types:
+ * transaction attribute type
+ * oracle response code
+ * transaction witness scope
+ * rule witness action
+ * condition rule witness type
+ * function call flag
+ * function call parameter type
+ * execution trigger type
+ * stack item type
+
+Any call that takes any of these types for input in JSON format is affected.
+
 ##### `invokefunction`
 
 neo-go implementation of `invokefunction` does not return `tx`
@@ -111,7 +130,7 @@ This method doesn't work for the Ledger contract, you can get data via regular
 a native contract by its name (case-insensitive), unlike the C# node where
 it only possible for index or hash.
 
-#### `getnep11balances` and `getnep17balances`
+##### `getnep11balances` and `getnep17balances`
 neo-go implementation of `getnep11balances` and `getnep17balances` does not
 perform tracking of NEP-11 and NEP-17 balances for each account as it is done
 in the C# node. Instead, a neo-go node maintains a list of standard-compliant
@@ -135,7 +154,7 @@ latest state synchronization point P the node working against,
 `LastUpdatedBlock` equals P. For NEP-11 NFTs `LastUpdatedBlock` is equal for
 all tokens of the same asset.
 
-#### `getnep11transfers` and `getnep17transfers`
+##### `getnep11transfers` and `getnep17transfers`
 `transfernotifyindex` is not tracked by NeoGo, thus this field is always zero.
 
 ### Unsupported methods
