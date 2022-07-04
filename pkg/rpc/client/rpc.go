@@ -557,7 +557,20 @@ func (c *Client) GetUnclaimedGas(address string) (result.UnclaimedGas, error) {
 	return resp, nil
 }
 
-// GetNextBlockValidators returns the current NEO consensus nodes information and voting status.
+// GetCandidates returns the current list of NEO candidate node with voting data and
+// validator status.
+func (c *Client) GetCandidates() ([]result.Candidate, error) {
+	var (
+		params = request.NewRawParams()
+		resp   = new([]result.Candidate)
+	)
+	if err := c.performRequest("getcandidates", params, resp); err != nil {
+		return nil, err
+	}
+	return *resp, nil
+}
+
+// GetNextBlockValidators returns the current NEO consensus nodes information and voting data.
 func (c *Client) GetNextBlockValidators() ([]result.Validator, error) {
 	var (
 		params = request.NewRawParams()

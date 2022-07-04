@@ -44,6 +44,7 @@ which would yield the response:
 | `getblockhash` |
 | `getblockheader` |
 | `getblockheadercount` |
+| `getcandidates` |
 | `getcommittee` |
 | `getconnectioncount` |
 | `getcontractstate` |

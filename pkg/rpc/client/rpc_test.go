@@ -940,6 +940,21 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"getcandidates": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetCandidates()
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":[{"publickey":"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2","votes":"0","active":true},{"publickey":"02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e","votes":"0","active":true},{"publickey":"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699","votes":"0","active":true},{"publickey":"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62","votes":"0","active":true}]}`,
+			result:         func(c *Client) interface{} { return []result.Candidate{} },
+			check: func(t *testing.T, c *Client, uns interface{}) {
+				res, ok := uns.([]result.Candidate)
+				require.True(t, ok)
+				assert.Equal(t, 4, len(res))
+			},
+		},
+	},
 	"getvalidators": {
 		{
 			name: "positive",
@@ -1655,6 +1670,12 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			name: "getunclaimedgas_unmarshalling_error",
 			invoke: func(c *Client) (interface{}, error) {
 				return c.GetUnclaimedGas("")
+			},
+		},
+		{
+			name: "getcandidates_unmarshalling_error",
+			invoke: func(c *Client) (interface{}, error) {
+				return c.GetCandidates()
 			},
 		},
 		{

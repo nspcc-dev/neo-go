@@ -167,7 +167,7 @@ func queryCandidates(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	vals, err := c.GetNextBlockValidators()
+	vals, err := c.GetCandidates()
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
