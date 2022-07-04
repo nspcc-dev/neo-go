@@ -664,7 +664,11 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		return sender, cli.NewExitError(err, 1)
 	}
 	if resp.State != "HALT" {
-		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s\n", resp.State, resp.FaultException)
+		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s", resp.State, resp.FaultException)
+		if out == "" && !signAndPush {
+			return sender, cli.NewExitError(errText, 1)
+		}
+
 		action := "save"
 		process := "Saving"
 		if signAndPush {
@@ -677,9 +681,9 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 			}
 		}
 		if !ctx.Bool("force") {
-			return sender, cli.NewExitError(errText+". Use --force flag to "+action+" the transaction anyway.", 1)
+			return sender, cli.NewExitError(errText+".\nUse --force flag to "+action+" the transaction anyway.", 1)
 		}
-		fmt.Fprintln(ctx.App.Writer, errText+". "+process+" transaction...")
+		fmt.Fprintln(ctx.App.Writer, errText+".\n"+process+" transaction...")
 	}
 	if out != "" {
 		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed+int64(sysgas), int64(gas), cosignersAccounts)
