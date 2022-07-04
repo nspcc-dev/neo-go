@@ -350,7 +350,7 @@ func importNEP17Token(ctx *cli.Context) error {
 }
 
 func importNEPToken(ctx *cli.Context, standard string) error {
-	wall, _, err := openWallet(ctx.String("wallet"), ctx.String("wallet-config"))
+	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -446,7 +446,7 @@ func removeNEP17Token(ctx *cli.Context) error {
 }
 
 func removeNEPToken(ctx *cli.Context, standard string) error {
-	wall, _, err := openWallet(ctx.String("wallet"), ctx.String("wallet-config"))
+	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

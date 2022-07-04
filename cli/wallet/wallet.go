@@ -333,7 +333,7 @@ func claimGas(ctx *cli.Context) error {
 }
 
 func changePassword(ctx *cli.Context) error {
-	wall, _, err := openWallet(ctx.String("wallet"), "")
+	wall, _, err := openWallet(ctx, false)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -423,7 +423,7 @@ func convertWallet(ctx *cli.Context) error {
 }
 
 func addAccount(ctx *cli.Context) error {
-	wall, pass, err := openWallet(ctx.String("wallet"), ctx.String("wallet-config"))
+	wall, pass, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -499,7 +499,7 @@ loop:
 }
 
 func importMultisig(ctx *cli.Context) error {
-	wall, _, err := openWallet(ctx.String("wallet"), ctx.String("wallet-config"))
+	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -541,7 +541,7 @@ func importMultisig(ctx *cli.Context) error {
 }
 
 func importDeployed(ctx *cli.Context) error {
-	wall, _, err := openWallet(ctx.String("wallet"), ctx.String("wallet-config"))
+	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -596,7 +596,7 @@ func importDeployed(ctx *cli.Context) error {
 }
 
 func importWallet(ctx *cli.Context) error {
-	wall, _, err := openWallet(ctx.String("wallet"), ctx.String("wallet-config"))
+	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -626,7 +626,7 @@ func importWallet(ctx *cli.Context) error {
 }
 
 func removeAccount(ctx *cli.Context) error {
-	wall, _, err := openWallet(ctx.String("wallet"), ctx.String("wallet-config"))
+	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -823,24 +823,13 @@ func createAccount(wall *wallet.Wallet, pass *string) error {
 	return wall.CreateAccount(name, phrase)
 }
 
-func openWallet(path string, configPath string) (*wallet.Wallet, *string, error) {
-	if len(path) != 0 && len(configPath) != 0 {
-		return nil, nil, errConflictingWalletFlags
-	}
-	if len(path) == 0 && len(configPath) == 0 {
-		return nil, nil, errNoPath
+func openWallet(ctx *cli.Context, canUseWalletConfig bool) (*wallet.Wallet, *string, error) {
+	path, pass, err := getWalletPathAndPass(ctx, canUseWalletConfig)
+	if err != nil {
+		return nil, nil, err
 	}
 	if path == "-" {
 		return nil, nil, errNoStdin
-	}
-	var pass *string
-	if len(configPath) != 0 {
-		cfg, err := ReadWalletConfig(configPath)
-		if err != nil {
-			return nil, nil, err
-		}
-		path = cfg.Path
-		pass = &cfg.Password
 	}
 	w, err := wallet.NewWalletFromFile(path)
 	if err != nil {
@@ -850,21 +839,9 @@ func openWallet(path string, configPath string) (*wallet.Wallet, *string, error)
 }
 
 func readWallet(ctx *cli.Context) (*wallet.Wallet, *string, error) {
-	path, configPath := ctx.String("wallet"), ctx.String("wallet-config")
-	if len(path) != 0 && len(configPath) != 0 {
-		return nil, nil, errConflictingWalletFlags
-	}
-	if len(path) == 0 && len(configPath) == 0 {
-		return nil, nil, errNoPath
-	}
-	var pass *string
-	if len(configPath) != 0 {
-		cfg, err := ReadWalletConfig(configPath)
-		if err != nil {
-			return nil, nil, err
-		}
-		path = cfg.Path
-		pass = &cfg.Password
+	path, pass, err := getWalletPathAndPass(ctx, true)
+	if err != nil {
+		return nil, nil, err
 	}
 	if path == "-" {
 		w := &wallet.Wallet{}
@@ -878,6 +855,31 @@ func readWallet(ctx *cli.Context) (*wallet.Wallet, *string, error) {
 		return nil, nil, err
 	}
 	return w, pass, nil
+}
+
+// getWalletPathAndPass retrieves wallet path from context or from wallet configuration file.
+// If wallet configuration file is specified, then account password is returned.
+func getWalletPathAndPass(ctx *cli.Context, canUseWalletConfig bool) (string, *string, error) {
+	path, configPath := ctx.String("wallet"), ctx.String("wallet-config")
+	if !canUseWalletConfig && len(configPath) != 0 {
+		return "", nil, errors.New("can't use wallet configuration file for this command")
+	}
+	if len(path) != 0 && len(configPath) != 0 {
+		return "", nil, errConflictingWalletFlags
+	}
+	if len(path) == 0 && len(configPath) == 0 {
+		return "", nil, errNoPath
+	}
+	var pass *string
+	if len(configPath) != 0 {
+		cfg, err := ReadWalletConfig(configPath)
+		if err != nil {
+			return "", nil, err
+		}
+		path = cfg.Path
+		pass = &cfg.Password
+	}
+	return path, pass, nil
 }
 
 func ReadWalletConfig(configPath string) (*config.Wallet, error) {
