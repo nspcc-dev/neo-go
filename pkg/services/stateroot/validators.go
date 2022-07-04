@@ -24,6 +24,9 @@ func (s *service) Name() string {
 
 // Start runs service instance in a separate goroutine.
 func (s *service) Start() {
+	if !s.started.CAS(false, true) {
+		return
+	}
 	s.log.Info("starting state validation service")
 	s.chain.SubscribeForBlocks(s.blockCh)
 	go s.run()
@@ -60,6 +63,9 @@ drainloop:
 
 // Shutdown stops the service.
 func (s *service) Shutdown() {
+	if !s.started.CAS(true, false) {
+		return
+	}
 	s.chain.UnsubscribeFromBlocks(s.blockCh)
 	close(s.done)
 }
