@@ -167,7 +167,6 @@ func getNEP11Balance(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("bad wallet: %w", err), 1)
 	}
-	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if addrFlag.IsSet {

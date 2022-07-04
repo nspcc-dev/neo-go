@@ -168,8 +168,6 @@ func NewService(cfg Config) (Service, error) {
 		return nil, errors.New("no account with provided password was found")
 	}
 
-	defer srv.wallet.Close()
-
 	srv.dbft = dbft.New(
 		dbft.WithLogger(srv.log),
 		dbft.WithSecondsPerBlock(cfg.TimePerBlock),

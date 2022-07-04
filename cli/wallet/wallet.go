@@ -299,7 +299,6 @@ func claimGas(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if !addrFlag.IsSet {
@@ -398,7 +397,6 @@ func convertWallet(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer newWallet.Close()
 	newWallet.Scrypt = wall.Scrypt
 
 	for _, acc := range wall.Accounts {
@@ -427,8 +425,6 @@ func addAccount(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-
-	defer wall.Close()
 
 	if err := createAccount(wall, pass); err != nil {
 		return cli.NewExitError(err, 1)
@@ -504,8 +500,6 @@ func importMultisig(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	defer wall.Close()
-
 	m := ctx.Int("min")
 	if ctx.NArg() < m {
 		return cli.NewExitError(errors.New("insufficient number of public keys"), 1)
@@ -545,8 +539,6 @@ func importDeployed(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-
-	defer wall.Close()
 
 	rawHash := ctx.Generic("contract").(*flags.Address)
 	if !rawHash.IsSet {
@@ -600,7 +592,6 @@ func importWallet(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt)
 	if err != nil {
@@ -630,7 +621,6 @@ func removeAccount(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	addr := ctx.Generic("address").(*flags.Address)
 	if !addr.IsSet {

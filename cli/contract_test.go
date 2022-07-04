@@ -447,9 +447,8 @@ func TestContractManifestGroups(t *testing.T) {
 	config.Version = "0.90.0-test"
 	tmpDir := t.TempDir()
 
-	w, err := wallet.NewWalletFromFile(testWalletPath)
+	_, err := wallet.NewWalletFromFile(testWalletPath)
 	require.NoError(t, err)
-	defer w.Close()
 
 	nefName := filepath.Join(tmpDir, "deploy.nef")
 	manifestName := filepath.Join(tmpDir, "deploy.manifest.json")

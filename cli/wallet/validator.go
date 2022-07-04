@@ -90,7 +90,6 @@ func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if !addrFlag.IsSet {
@@ -145,7 +144,6 @@ func handleVote(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if !addrFlag.IsSet {

@@ -155,7 +155,6 @@ func getNEP17Balance(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("bad wallet: %w", err), 1)
 	}
-	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if addrFlag.IsSet {
@@ -354,7 +353,6 @@ func importNEPToken(ctx *cli.Context, standard string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	tokenHashFlag := ctx.Generic("token").(*flags.Address)
 	if !tokenHashFlag.IsSet {
@@ -417,7 +415,6 @@ func printNEPInfo(ctx *cli.Context, standard string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	if name := ctx.String("token"); name != "" {
 		token, err := getMatchingToken(ctx, wall, name, standard)
@@ -450,7 +447,6 @@ func removeNEPToken(ctx *cli.Context, standard string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	token, err := getMatchingToken(ctx, wall, ctx.String("token"), standard)
 	if err != nil {
@@ -474,7 +470,6 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	fromFlag := ctx.Generic("from").(*flags.Address)
 	from, err := getDefaultAddress(fromFlag, wall)
@@ -560,7 +555,6 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	defer wall.Close()
 
 	fromFlag := ctx.Generic("from").(*flags.Address)
 	from, err := getDefaultAddress(fromFlag, wall)

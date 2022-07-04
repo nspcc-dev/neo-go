@@ -113,7 +113,6 @@ func TestNEP17Balance(t *testing.T) {
 func TestNEP17Transfer(t *testing.T) {
 	w, err := wallet.NewWalletFromFile("testdata/testwallet.json")
 	require.NoError(t, err)
-	defer w.Close()
 
 	e := newExecutor(t, true)
 	args := []string{

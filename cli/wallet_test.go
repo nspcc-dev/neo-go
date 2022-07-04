@@ -221,7 +221,6 @@ func TestWalletInit(t *testing.T) {
 		require.Len(t, w.Accounts, 1)
 		require.Equal(t, "букandmore", w.Accounts[0].Label)
 		require.NoError(t, w.Accounts[0].Decrypt("пароль", w.Scrypt))
-		w.Close()
 	})
 
 	t.Run("CreateAccount", func(t *testing.T) {
@@ -244,7 +243,6 @@ func TestWalletInit(t *testing.T) {
 		require.Len(t, w.Accounts, 1)
 		require.Equal(t, w.Accounts[0].Label, "testname")
 		require.NoError(t, w.Accounts[0].Decrypt("testpass", w.Scrypt))
-		w.Close()
 
 		t.Run("RemoveAccount", func(t *testing.T) {
 			sh := w.Accounts[0].Contract.ScriptHash()
@@ -255,7 +253,6 @@ func TestWalletInit(t *testing.T) {
 			w, err := wallet.NewWalletFromFile(walletPath)
 			require.NoError(t, err)
 			require.Nil(t, w.GetAccount(sh))
-			w.Close()
 		})
 	})
 
@@ -274,7 +271,6 @@ func TestWalletInit(t *testing.T) {
 
 			w, err := wallet.NewWalletFromFile(walletPath)
 			require.NoError(t, err)
-			t.Cleanup(w.Close)
 			acc := w.GetAccount(priv.GetScriptHash())
 			require.NotNil(t, acc)
 			require.Equal(t, "test_account", acc.Label)
@@ -302,7 +298,6 @@ func TestWalletInit(t *testing.T) {
 				check := func(t *testing.T, expectedLabel string, pass string) {
 					w, err := wallet.NewWalletFromFile(walletPath)
 					require.NoError(t, err)
-					t.Cleanup(w.Close)
 					acc := w.GetAccount(priv.GetScriptHash())
 					require.NotNil(t, acc)
 					require.Equal(t, expectedLabel, acc.Label)
@@ -355,7 +350,6 @@ func TestWalletInit(t *testing.T) {
 
 			w, err := wallet.NewWalletFromFile(walletPath)
 			require.NoError(t, err)
-			t.Cleanup(w.Close)
 			actual := w.GetAccount(acc.PrivateKey().GetScriptHash())
 			require.NotNil(t, actual)
 			require.NoError(t, actual.Decrypt("somepass", w.Scrypt))
@@ -410,7 +404,6 @@ func TestWalletInit(t *testing.T) {
 
 			w, err := wallet.NewWalletFromFile(walletPath)
 			require.NoError(t, err)
-			t.Cleanup(w.Close)
 			actual := w.GetAccount(hash.Hash160(script))
 			require.NotNil(t, actual)
 			require.NoError(t, actual.Decrypt("multipass", w.Scrypt))
@@ -595,9 +588,6 @@ func TestWalletImportDeployed(t *testing.T) {
 		"--contract", h.StringLE())
 
 	w, err := wallet.NewWalletFromFile(walletPath)
-	t.Cleanup(func() {
-		w.Close()
-	})
 	require.NoError(t, err)
 	require.Equal(t, 1, len(w.Accounts))
 	contractAddr := w.Accounts[0].Address
