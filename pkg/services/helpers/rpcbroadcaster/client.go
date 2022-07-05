@@ -14,6 +14,7 @@ type RPCClient struct {
 	client      *client.Client
 	addr        string
 	close       chan struct{}
+	finished    chan struct{}
 	responses   chan request.RawParams
 	log         *zap.Logger
 	sendTimeout time.Duration
@@ -28,6 +29,7 @@ func (r *RPCBroadcaster) NewRPCClient(addr string, method SendMethod, timeout ti
 	return &RPCClient{
 		addr:        addr,
 		close:       r.close,
+		finished:    make(chan struct{}),
 		responses:   ch,
 		log:         r.Log.With(zap.String("address", addr)),
 		sendTimeout: timeout,
@@ -41,10 +43,11 @@ func (c *RPCClient) run() {
 		DialTimeout:    c.sendTimeout,
 		RequestTimeout: c.sendTimeout,
 	})
+run:
 	for {
 		select {
 		case <-c.close:
-			return
+			break run
 		case ps := <-c.responses:
 			if c.client == nil {
 				var err error
@@ -63,4 +66,14 @@ func (c *RPCClient) run() {
 			}
 		}
 	}
+	c.client.Close()
+drain:
+	for {
+		select {
+		case <-c.responses:
+		default:
+			break drain
+		}
+	}
+	close(c.finished)
 }

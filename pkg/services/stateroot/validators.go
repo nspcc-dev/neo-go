@@ -23,7 +23,11 @@ func (s *service) Name() string {
 }
 
 // Start runs service instance in a separate goroutine.
+// The service only starts once, subsequent calls to Start are no-op.
 func (s *service) Start() {
+	if !s.started.CAS(false, true) {
+		return
+	}
 	s.log.Info("starting state validation service")
 	s.chain.SubscribeForBlocks(s.blockCh)
 	go s.run()
@@ -43,10 +47,11 @@ runloop:
 			s.srMtx.Lock()
 			delete(s.incompleteRoots, b.Index-voteValidEndInc)
 			s.srMtx.Unlock()
-		case <-s.done:
+		case <-s.stopCh:
 			break runloop
 		}
 	}
+	s.chain.UnsubscribeFromBlocks(s.blockCh)
 drainloop:
 	for {
 		select {
@@ -56,12 +61,18 @@ drainloop:
 		}
 	}
 	close(s.blockCh)
+	close(s.done)
 }
 
-// Shutdown stops the service.
+// Shutdown stops the service. It can only be called once, subsequent calls
+// to Shutdown on the same instance are no-op. The instance that was stopped can
+// not be started again by calling Start (use a new instance if needed).
 func (s *service) Shutdown() {
-	s.chain.UnsubscribeFromBlocks(s.blockCh)
-	close(s.done)
+	if !s.started.CAS(true, false) {
+		return
+	}
+	close(s.stopCh)
+	<-s.done
 }
 
 func (s *service) signAndSend(r *state.MPTRoot) error {

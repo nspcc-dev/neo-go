@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -32,7 +33,12 @@ type (
 		OnPayload(p *payload.Extensible) error
 		AddSignature(height uint32, validatorIndex int32, sig []byte) error
 		GetConfig() config.StateRoot
+		// Start runs service instance in a separate goroutine.
+		// The service only starts once, subsequent calls to Start are no-op.
 		Start()
+		// Shutdown stops the service. It can only be called once, subsequent calls
+		// to Shutdown on the same instance are no-op. The instance that was stopped can
+		// not be started again by calling Start (use a new instance if needed).
 		Shutdown()
 	}
 
@@ -44,6 +50,7 @@ type (
 		Network netmode.Magic
 
 		log       *zap.Logger
+		started   *atomic.Bool
 		accMtx    sync.RWMutex
 		accHeight uint32
 		myIndex   byte
@@ -57,6 +64,7 @@ type (
 		maxRetries      int
 		relayExtensible RelayCallback
 		blockCh         chan *block.Block
+		stopCh          chan struct{}
 		done            chan struct{}
 	}
 )
@@ -72,10 +80,12 @@ func New(cfg config.StateRoot, sm *stateroot.Module, log *zap.Logger, bc Ledger,
 	s := &service{
 		Module:          sm,
 		Network:         bcConf.Magic,
+		started:         atomic.NewBool(false),
 		chain:           bc,
 		log:             log,
 		incompleteRoots: make(map[uint32]*incompleteRoot),
 		blockCh:         make(chan *block.Block),
+		stopCh:          make(chan struct{}),
 		done:            make(chan struct{}),
 		timePerBlock:    time.Duration(bcConf.SecondsPerBlock) * time.Second,
 		maxRetries:      voteValidEndInc,

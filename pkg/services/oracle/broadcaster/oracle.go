@@ -51,7 +51,7 @@ func (r *oracleBroadcaster) SendResponse(priv *keys.PrivateKey, resp *transactio
 		base64.StdEncoding.EncodeToString(txSig),
 		base64.StdEncoding.EncodeToString(msgSig),
 	)
-	r.Responses <- params
+	r.SendParams(params)
 }
 
 // GetMessage returns data which is signed upon sending response by RPC.

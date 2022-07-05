@@ -167,6 +167,11 @@ func (c *Client) Init() error {
 	return nil
 }
 
+// Close closes unused underlying networks connections.
+func (c *Client) Close() {
+	c.cli.CloseIdleConnections()
+}
+
 func (c *Client) performRequest(method string, p request.RawParams, v interface{}) error {
 	var r = request.Raw{
 		JSONRPC:   request.JSONRPCVersion,

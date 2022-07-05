@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -47,6 +48,8 @@ type (
 		// newTxs is a channel where new transactions are sent
 		// to be processed in an `onTransaction` callback.
 		newTxs chan txHashPair
+		// started is a status bool to protect from double start/shutdown.
+		started *atomic.Bool
 
 		// reqMtx protects requests list.
 		reqMtx sync.RWMutex
@@ -64,6 +67,7 @@ type (
 		reqCh    chan mempoolevent.Event
 		blocksCh chan *block.Block
 		stopCh   chan struct{}
+		done     chan struct{}
 	}
 
 	// Config represents external configuration for Notary module.
@@ -142,6 +146,7 @@ func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction fu
 		requests:      make(map[util.Uint256]*request),
 		Config:        cfg,
 		Network:       net,
+		started:       atomic.NewBool(false),
 		wallet:        wallet,
 		onTransaction: onTransaction,
 		newTxs:        make(chan txHashPair, defaultTxChannelCapacity),
@@ -149,6 +154,7 @@ func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction fu
 		reqCh:         make(chan mempoolevent.Event),
 		blocksCh:      make(chan *block.Block),
 		stopCh:        make(chan struct{}),
+		done:          make(chan struct{}),
 	}, nil
 }
 
@@ -158,7 +164,11 @@ func (n *Notary) Name() string {
 }
 
 // Start runs a Notary module in a separate goroutine.
+// The Notary only starts once, subsequent calls to Start are no-op.
 func (n *Notary) Start() {
+	if !n.started.CAS(false, true) {
+		return
+	}
 	n.Config.Log.Info("starting notary service")
 	n.Config.Chain.SubscribeForBlocks(n.blocksCh)
 	n.mp.SubscribeForTransactions(n.reqCh)
@@ -199,15 +209,25 @@ drainLoop:
 	}
 	close(n.blocksCh)
 	close(n.reqCh)
+	close(n.done)
 }
 
-// Shutdown stops the Notary module.
+// Shutdown stops the Notary module. It can only be called once, subsequent calls
+// to Shutdown on the same instance are no-op. The instance that was stopped can
+// not be started again by calling Start (use a new instance if needed).
 func (n *Notary) Shutdown() {
+	if !n.started.CAS(true, false) {
+		return
+	}
 	close(n.stopCh)
+	<-n.done
 }
 
 // OnNewRequest is a callback method which is called after a new notary request is added to the notary request pool.
 func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
+	if !n.started.Load() {
+		return
+	}
 	acc := n.getAccount()
 	if acc == nil {
 		return
@@ -314,7 +334,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 // OnRequestRemoval is a callback which is called after fallback transaction is removed
 // from the notary payload pool due to expiration, main tx appliance or any other reason.
 func (n *Notary) OnRequestRemoval(pld *payload.P2PNotaryRequest) {
-	if n.getAccount() == nil {
+	if !n.started.Load() || n.getAccount() == nil {
 		return
 	}
 
@@ -338,6 +358,9 @@ func (n *Notary) OnRequestRemoval(pld *payload.P2PNotaryRequest) {
 // PostPersist is a callback which is called after a new block event is received.
 // PostPersist must not be called under the blockchain lock, because it uses finalization function.
 func (n *Notary) PostPersist() {
+	if !n.started.Load() {
+		return
+	}
 	acc := n.getAccount()
 	if acc == nil {
 		return

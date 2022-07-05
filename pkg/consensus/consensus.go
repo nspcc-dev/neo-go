@@ -67,8 +67,11 @@ type Service interface {
 	Name() string
 	// Start initializes dBFT and starts event loop for consensus service.
 	// It must be called only when the sufficient amount of peers are connected.
+	// The service only starts once, subsequent calls to Start are no-op.
 	Start()
-	// Shutdown stops dBFT event loop.
+	// Shutdown stops dBFT event loop. It can only be called once, subsequent calls
+	// to Shutdown on the same instance are no-op. The instance that was stopped can
+	// not be started again by calling Start (use a new instance if needed).
 	Shutdown()
 
 	// OnPayload is a callback to notify the Service about a newly received payload.
@@ -272,7 +275,7 @@ func (s *service) Start() {
 
 // Shutdown implements the Service interface.
 func (s *service) Shutdown() {
-	if s.started.Load() {
+	if s.started.CAS(true, false) {
 		close(s.quit)
 		<-s.finished
 	}
@@ -330,14 +333,18 @@ events:
 		default:
 		}
 	}
-drainBlocksLoop:
+drainLoop:
 	for {
 		select {
+		case <-s.messages:
+		case <-s.transactions:
 		case <-s.blockEvents:
 		default:
-			break drainBlocksLoop
+			break drainLoop
 		}
 	}
+	close(s.messages)
+	close(s.transactions)
 	close(s.blockEvents)
 	close(s.finished)
 }

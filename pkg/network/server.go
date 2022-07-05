@@ -233,7 +233,8 @@ func (s *Server) ID() uint32 {
 	return s.id
 }
 
-// Start will start the server and its underlying transport.
+// Start will start the server and its underlying transport. Calling it twice
+// is an error.
 func (s *Server) Start(errChan chan error) {
 	s.log.Info("node started",
 		zap.Uint32("blockHeight", s.chain.BlockHeight()),
@@ -251,7 +252,8 @@ func (s *Server) Start(errChan chan error) {
 	s.run()
 }
 
-// Shutdown disconnects all peers and stops listening.
+// Shutdown disconnects all peers and stops listening. Calling it twice is an error,
+// once stopped the same intance of the Server can't be started again by calling Start.
 func (s *Server) Shutdown() {
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	s.transport.Close()
