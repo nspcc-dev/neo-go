@@ -681,17 +681,28 @@ func (s *Server) getApplicationLog(reqParams request.Params) (interface{}, *resp
 	return result.NewApplicationLog(hash, appExecResults, trig), nil
 }
 
-func (s *Server) getNEP11Tokens(h util.Uint160, acc util.Uint160, bw *io.BufBinWriter) ([]stackitem.Item, error) {
-	item, finalize, err := s.invokeReadOnly(bw, h, "tokensOf", acc)
+func (s *Server) getNEP11Tokens(h util.Uint160, acc util.Uint160, bw *io.BufBinWriter) ([]stackitem.Item, string, int, error) {
+	items, finalize, err := s.invokeReadOnlyMulti(bw, h, []string{"tokensOf", "symbol", "decimals"}, [][]interface{}{{acc}, nil, nil})
 	if err != nil {
-		return nil, err
+		return nil, "", 0, err
 	}
 	defer finalize()
-	if (item.Type() == stackitem.InteropT) && iterator.IsIterator(item) {
-		vals, _ := iterator.Values(item, s.config.MaxNEP11Tokens)
-		return vals, nil
+	if (items[0].Type() != stackitem.InteropT) || !iterator.IsIterator(items[0]) {
+		return nil, "", 0, fmt.Errorf("invalid `tokensOf` result type %s", items[0].String())
 	}
-	return nil, fmt.Errorf("invalid `tokensOf` result type %s", item.String())
+	vals, _ := iterator.Values(items[0], s.config.MaxNEP11Tokens)
+	sym, err := stackitem.ToString(items[1])
+	if err != nil {
+		return nil, "", 0, fmt.Errorf("`symbol` return value error: %w", err)
+	}
+	dec, err := items[2].TryInteger()
+	if err != nil {
+		return nil, "", 0, fmt.Errorf("`decimals` return value error: %w", err)
+	}
+	if !dec.IsInt64() || dec.Sign() == -1 || dec.Int64() > math.MaxInt32 {
+		return nil, "", 0, errors.New("`decimals` returned a bad integer")
+	}
+	return vals, sym, int(dec.Int64()), nil
 }
 
 func (s *Server) getNEP11Balances(ps request.Params) (interface{}, *response.Error) {
@@ -713,7 +724,7 @@ func (s *Server) getNEP11Balances(ps request.Params) (interface{}, *response.Err
 	bw := io.NewBufBinWriter()
 contract_loop:
 	for _, h := range s.chain.GetNEP11Contracts() {
-		toks, err := s.getNEP11Tokens(h, u, bw)
+		toks, sym, dec, err := s.getNEP11Tokens(h, u, bw)
 		if err != nil {
 			continue
 		}
@@ -734,8 +745,11 @@ contract_loop:
 			lub = stateSyncPoint
 		}
 		bs.Balances = append(bs.Balances, result.NEP11AssetBalance{
-			Asset:  h,
-			Tokens: make([]result.NEP11TokenBalance, 0, len(toks)),
+			Asset:    h,
+			Decimals: dec,
+			Name:     cs.Manifest.Name,
+			Symbol:   sym,
+			Tokens:   make([]result.NEP11TokenBalance, 0, len(toks)),
 		})
 		curAsset := &bs.Balances[len(bs.Balances)-1]
 		for i := range toks {
@@ -745,7 +759,7 @@ contract_loop:
 			}
 			var amount = "1"
 			if isDivisible {
-				balance, err := s.getTokenBalance(h, u, id, bw)
+				balance, err := s.getNEP11DTokenBalance(h, u, id, bw)
 				if err != nil {
 					continue
 				}
@@ -833,7 +847,7 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 	stateSyncPoint := lastUpdated[math.MinInt32]
 	bw := io.NewBufBinWriter()
 	for _, h := range s.chain.GetNEP17Contracts() {
-		balance, err := s.getTokenBalance(h, u, nil, bw)
+		balance, sym, dec, err := s.getNEP17TokenBalance(h, u, bw)
 		if err != nil {
 			continue
 		}
@@ -855,21 +869,37 @@ func (s *Server) getNEP17Balances(ps request.Params) (interface{}, *response.Err
 		bs.Balances = append(bs.Balances, result.NEP17Balance{
 			Asset:       h,
 			Amount:      balance.String(),
+			Decimals:    dec,
 			LastUpdated: lub,
+			Name:        cs.Manifest.Name,
+			Symbol:      sym,
 		})
 	}
 	return bs, nil
 }
 
 func (s *Server) invokeReadOnly(bw *io.BufBinWriter, h util.Uint160, method string, params ...interface{}) (stackitem.Item, func(), error) {
+	r, f, err := s.invokeReadOnlyMulti(bw, h, []string{method}, [][]interface{}{params})
+	if err != nil {
+		return nil, nil, err
+	}
+	return r[0], f, nil
+}
+
+func (s *Server) invokeReadOnlyMulti(bw *io.BufBinWriter, h util.Uint160, methods []string, params [][]interface{}) ([]stackitem.Item, func(), error) {
 	if bw == nil {
 		bw = io.NewBufBinWriter()
 	} else {
 		bw.Reset()
 	}
-	emit.AppCall(bw.BinWriter, h, method, callflag.ReadStates|callflag.AllowCall, params...)
-	if bw.Err != nil {
-		return nil, nil, fmt.Errorf("failed to create `%s` invocation script: %w", method, bw.Err)
+	if len(methods) != len(params) {
+		return nil, nil, fmt.Errorf("asymmetric parameters")
+	}
+	for i := range methods {
+		emit.AppCall(bw.BinWriter, h, methods[i], callflag.ReadStates|callflag.AllowCall, params[i]...)
+		if bw.Err != nil {
+			return nil, nil, fmt.Errorf("failed to create `%s` invocation script: %w", methods[i], bw.Err)
+		}
 	}
 	script := bw.Bytes()
 	tx := &transaction.Transaction{Script: script}
@@ -883,26 +913,42 @@ func (s *Server) invokeReadOnly(bw *io.BufBinWriter, h util.Uint160, method stri
 	err = ic.VM.Run()
 	if err != nil {
 		ic.Finalize()
-		return nil, nil, fmt.Errorf("failed to run `%s` for %s: %w", method, h.StringLE(), err)
+		return nil, nil, fmt.Errorf("failed to run %d methods of %s: %w", len(methods), h.StringLE(), err)
 	}
-	if ic.VM.Estack().Len() != 1 {
+	estack := ic.VM.Estack()
+	if estack.Len() != len(methods) {
 		ic.Finalize()
-		return nil, nil, fmt.Errorf("invalid `%s` return values count: expected 1, got %d", method, ic.VM.Estack().Len())
+		return nil, nil, fmt.Errorf("invalid return values count: expected %d, got %d", len(methods), estack.Len())
 	}
-	return ic.VM.Estack().Pop().Item(), ic.Finalize, nil
+	return estack.ToArray(), ic.Finalize, nil
 }
 
-func (s *Server) getTokenBalance(h util.Uint160, acc util.Uint160, id []byte, bw *io.BufBinWriter) (*big.Int, error) {
-	var (
-		item     stackitem.Item
-		finalize func()
-		err      error
-	)
-	if id == nil { // NEP-17 and NEP-11 generic.
-		item, finalize, err = s.invokeReadOnly(bw, h, "balanceOf", acc)
-	} else { // NEP-11 divisible.
-		item, finalize, err = s.invokeReadOnly(bw, h, "balanceOf", acc, id)
+func (s *Server) getNEP17TokenBalance(h util.Uint160, acc util.Uint160, bw *io.BufBinWriter) (*big.Int, string, int, error) {
+	items, finalize, err := s.invokeReadOnlyMulti(bw, h, []string{"balanceOf", "symbol", "decimals"}, [][]interface{}{{acc}, nil, nil})
+	if err != nil {
+		return nil, "", 0, err
 	}
+	finalize()
+	res, err := items[0].TryInteger()
+	if err != nil {
+		return nil, "", 0, fmt.Errorf("unexpected `balanceOf` result type: %w", err)
+	}
+	sym, err := stackitem.ToString(items[1])
+	if err != nil {
+		return nil, "", 0, fmt.Errorf("`symbol` return value error: %w", err)
+	}
+	dec, err := items[2].TryInteger()
+	if err != nil {
+		return nil, "", 0, fmt.Errorf("`decimals` return value error: %w", err)
+	}
+	if !dec.IsInt64() || dec.Sign() == -1 || dec.Int64() > math.MaxInt32 {
+		return nil, "", 0, errors.New("`decimals` returned a bad integer")
+	}
+	return res, sym, int(dec.Int64()), nil
+}
+
+func (s *Server) getNEP11DTokenBalance(h util.Uint160, acc util.Uint160, id []byte, bw *io.BufBinWriter) (*big.Int, error) {
+	item, finalize, err := s.invokeReadOnly(bw, h, "balanceOf", acc, id)
 	if err != nil {
 		return nil, err
 	}
