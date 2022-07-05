@@ -537,8 +537,12 @@ func (s *Server) getVersionMsg() (*Message, error) {
 // minimum number) and the height of these peers (our chain has to be not lower
 // than 2/3 of our peers have). Ideally, we would check for the highest of the
 // peers, but the problem is that they can lie to us and send whatever height
-// they want to.
+// they want to. Once sync reached, IsInSync will always return `true`, even if
+// server is temporary out of sync after that.
 func (s *Server) IsInSync() bool {
+	if s.syncReached.Load() {
+		return true
+	}
 	var peersNumber int
 	var notHigher int
 
