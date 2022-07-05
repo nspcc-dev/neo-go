@@ -19,9 +19,6 @@ const (
 	// DefaultMaxIteratorResultItems is the default upper bound of traversed
 	// iterator items per JSON-RPC response.
 	DefaultMaxIteratorResultItems = 100
-	// DefaultSessionExpirationTime is the default session expiration time in
-	// seconds for iterator RPC-server session.
-	DefaultSessionExpirationTime = 60
 )
 
 // Version is the version of the node, set at the build time.
@@ -65,7 +62,6 @@ func LoadFile(configPath string) (Config, error) {
 				MaxIteratorResultItems: DefaultMaxIteratorResultItems,
 				MaxFindResultItems:     100,
 				MaxNEP11Tokens:         100,
-				SessionExpirationTime:  DefaultSessionExpirationTime,
 			},
 		},
 	}

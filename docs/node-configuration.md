@@ -137,7 +137,7 @@ RPC:
   MaxNEP11Tokens: 100
   Port: 10332
   SessionEnabled: false
-  SessionExpirationTime: 60
+  SessionExpirationTime: 15
   SessionBackedByMPT: false
   StartWhenSynchronized: false
   TLSConfig:
@@ -177,8 +177,8 @@ where:
   enable `SessionBackedByMPT`, see `SessionBackedByMPT` documentation for more
   details.
 - `SessionExpirationTime` is a lifetime of iterator session in seconds. It is set
-  to `60` seconds by default and is relevant only if `SessionEnabled` is set to
-  `true`.
+  to `SecondsPerBlock` seconds by default and is relevant only if `SessionEnabled`
+  is set to `true`.
 - `SessionBackedByMPT` is a flag forcing JSON-RPC server into using MPT-backed
   storage for delayed iterator traversal. If `true`, then iterator resources got
   after `invoke*` calls will be released immediately. Further iterator traversing

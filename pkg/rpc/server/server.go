@@ -202,13 +202,18 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 	if orc != nil {
 		orc.SetBroadcaster(broadcaster.New(orc.MainCfg, log))
 	}
+	protoCfg := chain.GetConfig()
+	if conf.SessionEnabled && conf.SessionExpirationTime <= 0 {
+		conf.SessionExpirationTime = protoCfg.SecondsPerBlock
+		log.Info("SessionExpirationTime is not set or wrong, setting default value", zap.Int("SessionExpirationTime", protoCfg.SecondsPerBlock))
+	}
 	return Server{
 		Server:           httpServer,
 		chain:            chain,
 		config:           conf,
-		wsReadLimit:      int64(chain.GetConfig().MaxBlockSize*4)/3 + 1024, // Enough for Base64-encoded content of `submitblock` and `submitp2pnotaryrequest`.
-		network:          chain.GetConfig().Magic,
-		stateRootEnabled: chain.GetConfig().StateRootInHeader,
+		wsReadLimit:      int64(protoCfg.MaxBlockSize*4)/3 + 1024, // Enough for Base64-encoded content of `submitblock` and `submitp2pnotaryrequest`.
+		network:          protoCfg.Magic,
+		stateRootEnabled: protoCfg.StateRootInHeader,
 		coreServer:       coreServer,
 		log:              log,
 		oracle:           orc,
