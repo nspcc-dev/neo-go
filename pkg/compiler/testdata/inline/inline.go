@@ -46,3 +46,13 @@ func SumVar(a, b int) int {
 func Concat(n int) int {
 	return n*100 + b.A*10 + A
 }
+
+type T struct {
+	N int
+}
+
+func (t *T) Inc(i int) int {
+	n := t.N
+	t.N += i
+	return n
+}
