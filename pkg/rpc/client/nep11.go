@@ -3,9 +3,11 @@ package client
 import (
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -82,8 +84,33 @@ func (c *Client) CreateNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint1
 	}}, cosigners...))
 }
 
-// NEP11TokensOf returns an array of token IDs for the specified owner of the specified NFT token.
-func (c *Client) NEP11TokensOf(tokenHash util.Uint160, owner util.Uint160) ([][]byte, error) {
+// NEP11TokensOf returns iterator over token IDs for the specified owner of the
+// specified NFT token. First return value is the session ID, the second one is
+// Iterator itself, the third one is an error. Use TraverseIterator method to
+// traverse iterator values or TerminateSession to terminate opened iterator
+// session. See TraverseIterator and TerminateSession documentation for more details.
+func (c *Client) NEP11TokensOf(tokenHash util.Uint160, owner util.Uint160) (uuid.UUID, result.Iterator, error) {
+	res, err := c.InvokeFunction(tokenHash, "tokensOf", []smartcontract.Parameter{
+		{
+			Type:  smartcontract.Hash160Type,
+			Value: owner,
+		},
+	}, nil)
+	if err != nil {
+		return uuid.UUID{}, result.Iterator{}, err
+	}
+	err = getInvocationError(res)
+	if err != nil {
+		return uuid.UUID{}, result.Iterator{}, err
+	}
+	iter, err := topIteratorFromStack(res.Stack)
+	return res.Session, iter, err
+}
+
+// NEP11UnpackedTokensOf returns an array of token IDs for the specified owner of the specified NFT token.
+// It differs from NEP11TokensOf in that no iterator session is used to retrieve values from iterator.
+// Instead, unpacking VM script is created and invoked via `invokescript` JSON-RPC call.
+func (c *Client) NEP11UnpackedTokensOf(tokenHash util.Uint160, owner util.Uint160) ([][]byte, error) {
 	result, err := c.InvokeAndPackIteratorResults(tokenHash, "tokensOf", []smartcontract.Parameter{
 		{
 			Type:  smartcontract.Hash160Type,
@@ -159,8 +186,33 @@ func (c *Client) NEP11DBalanceOf(tokenHash, owner util.Uint160, tokenID []byte) 
 	return c.nepBalanceOf(tokenHash, owner, tokenID)
 }
 
-// NEP11DOwnerOf returns list of the specified NEP-11 divisible token owners.
-func (c *Client) NEP11DOwnerOf(tokenHash util.Uint160, tokenID []byte) ([]util.Uint160, error) {
+// NEP11DOwnerOf returns iterator over the specified NEP-11 divisible token owners. First return value
+// is the session ID, the second one is Iterator itself, the third one is an error. Use TraverseIterator
+// method to traverse iterator values or TerminateSession to terminate opened iterator session. See
+// TraverseIterator and TerminateSession documentation for more details.
+func (c *Client) NEP11DOwnerOf(tokenHash util.Uint160, tokenID []byte) (uuid.UUID, result.Iterator, error) {
+	res, err := c.InvokeFunction(tokenHash, "ownerOf", []smartcontract.Parameter{
+		{
+			Type:  smartcontract.ByteArrayType,
+			Value: tokenID,
+		},
+	}, nil)
+	sessID := res.Session
+	if err != nil {
+		return sessID, result.Iterator{}, err
+	}
+	err = getInvocationError(res)
+	if err != nil {
+		return sessID, result.Iterator{}, err
+	}
+	arr, err := topIteratorFromStack(res.Stack)
+	return sessID, arr, err
+}
+
+// NEP11DUnpackedOwnerOf returns list of the specified NEP-11 divisible token owners. It differs from
+// NEP11DOwnerOf in that no iterator session is used to retrieve values from iterator. Instead,
+// unpacking VM script is created and invoked via `invokescript` JSON-RPC call.
+func (c *Client) NEP11DUnpackedOwnerOf(tokenHash util.Uint160, tokenID []byte) ([]util.Uint160, error) {
 	result, err := c.InvokeAndPackIteratorResults(tokenHash, "ownerOf", []smartcontract.Parameter{
 		{
 			Type:  smartcontract.ByteArrayType,
@@ -208,8 +260,28 @@ func (c *Client) NEP11Properties(tokenHash util.Uint160, tokenID []byte) (*stack
 	return topMapFromStack(result.Stack)
 }
 
-// NEP11Tokens returns list of the tokens minted by the contract.
-func (c *Client) NEP11Tokens(tokenHash util.Uint160) ([][]byte, error) {
+// NEP11Tokens returns iterator over the tokens minted by the contract. First return
+// value is the session ID, the second one is Iterator itself, the third one is an
+// error. Use TraverseIterator method to traverse iterator values or
+// TerminateSession to terminate opened iterator session. See TraverseIterator and
+// TerminateSession documentation for more details.
+func (c *Client) NEP11Tokens(tokenHash util.Uint160) (uuid.UUID, result.Iterator, error) {
+	res, err := c.InvokeFunction(tokenHash, "tokens", []smartcontract.Parameter{}, nil)
+	if err != nil {
+		return uuid.UUID{}, result.Iterator{}, err
+	}
+	err = getInvocationError(res)
+	if err != nil {
+		return uuid.UUID{}, result.Iterator{}, err
+	}
+	iter, err := topIteratorFromStack(res.Stack)
+	return res.Session, iter, err
+}
+
+// NEP11UnpackedTokens returns list of the tokens minted by the contract. It differs from
+// NEP11Tokens in that no iterator session is used to retrieve values from iterator. Instead,
+// unpacking VM script is created and invoked via `invokescript` JSON-RPC call.
+func (c *Client) NEP11UnpackedTokens(tokenHash util.Uint160) ([][]byte, error) {
 	result, err := c.InvokeAndPackIteratorResults(tokenHash, "tokens", []smartcontract.Parameter{}, nil)
 	if err != nil {
 		return nil, err

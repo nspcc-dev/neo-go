@@ -978,7 +978,19 @@ func TestClient_NEP11_D(t *testing.T) {
 		require.EqualValues(t, 80, b)
 	})
 	t.Run("OwnerOf", func(t *testing.T) {
-		b, err := c.NEP11DOwnerOf(nfsoHash, token1ID)
+		sessID, iter, err := c.NEP11DOwnerOf(nfsoHash, token1ID)
+		require.NoError(t, err)
+		items, err := c.TraverseIterator(sessID, *iter.ID, config.DefaultMaxIteratorResultItems)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(items))
+		actual1, err := util.Uint160DecodeBytesBE(items[0].Value().([]byte))
+		require.NoError(t, err)
+		actual0, err := util.Uint160DecodeBytesBE(items[1].Value().([]byte))
+		require.NoError(t, err)
+		require.Equal(t, []util.Uint160{priv1, priv0}, []util.Uint160{actual1, actual0})
+	})
+	t.Run("UnpackedOwnerOf", func(t *testing.T) {
+		b, err := c.NEP11DUnpackedOwnerOf(nfsoHash, token1ID)
 		require.NoError(t, err)
 		require.Equal(t, []util.Uint160{priv1, priv0}, b)
 	})
@@ -1032,7 +1044,26 @@ func TestClient_NNS(t *testing.T) {
 		require.Error(t, err)
 	})
 	t.Run("NNSGetAllRecords, good", func(t *testing.T) {
-		rss, err := c.NNSGetAllRecords(nnsHash, "neo.com")
+		sess, iter, err := c.NNSGetAllRecords(nnsHash, "neo.com")
+		require.NoError(t, err)
+		arr, err := c.TraverseIterator(sess, *iter.ID, config.DefaultMaxIteratorResultItems)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(arr))
+		rs := arr[0].Value().([]stackitem.Item)
+		require.Equal(t, 3, len(rs))
+		actual := nns.RecordState{
+			Name: string(rs[0].Value().([]byte)),
+			Type: nns.RecordType(rs[1].Value().(*big.Int).Int64()),
+			Data: string(rs[2].Value().([]byte)),
+		}
+		require.Equal(t, nns.RecordState{
+			Name: "neo.com",
+			Type: nns.A,
+			Data: "1.2.3.4",
+		}, actual)
+	})
+	t.Run("NNSUnpackedGetAllRecords, good", func(t *testing.T) {
+		rss, err := c.NNSUnpackedGetAllRecords(nnsHash, "neo.com")
 		require.NoError(t, err)
 		require.Equal(t, []nns.RecordState{
 			{
@@ -1043,7 +1074,11 @@ func TestClient_NNS(t *testing.T) {
 		}, rss)
 	})
 	t.Run("NNSGetAllRecords, bad", func(t *testing.T) {
-		_, err := c.NNSGetAllRecords(nnsHash, "neopython.com")
+		_, _, err := c.NNSGetAllRecords(nnsHash, "neopython.com")
+		require.Error(t, err)
+	})
+	t.Run("NNSUnpackedGetAllRecords, bad", func(t *testing.T) {
+		_, err := c.NNSUnpackedGetAllRecords(nnsHash, "neopython.com")
 		require.Error(t, err)
 	})
 }

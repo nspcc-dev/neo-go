@@ -118,7 +118,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "ownerOfD",
-			Usage:     "print set of owners of divisible NEP-11 token with the specified ID",
+			Usage:     "print set of owners of divisible NEP-11 token with the specified ID (the default MaxIteratorResultItems will be printed at max)",
 			UsageText: "ownerOfD --rpc-endpoint <node> --timeout <time> --token <hash> --id <token-id>",
 			Action:    printNEP11DOwner,
 			Flags: append([]cli.Flag{
@@ -128,7 +128,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "tokensOf",
-			Usage:     "print list of tokens IDs for the specified NFT owner",
+			Usage:     "print list of tokens IDs for the specified NFT owner (the default MaxIteratorResultItems will be printed at max)",
 			UsageText: "tokensOf --rpc-endpoint <node> --timeout <time> --token <hash> --address <addr>",
 			Action:    printNEP11TokensOf,
 			Flags: append([]cli.Flag{
@@ -138,7 +138,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "tokens",
-			Usage:     "print list of tokens IDs minted by the specified NFT (optional method)",
+			Usage:     "print list of tokens IDs minted by the specified NFT (optional method; the default MaxIteratorResultItems will be printed at max)",
 			UsageText: "tokens --rpc-endpoint <node> --timeout <time> --token <hash>",
 			Action:    printNEP11Tokens,
 			Flags: append([]cli.Flag{
@@ -332,7 +332,7 @@ func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 	}
 
 	if divisible {
-		result, err := c.NEP11DOwnerOf(tokenHash.Uint160(), tokenIDBytes)
+		result, err := c.NEP11DUnpackedOwnerOf(tokenHash.Uint160(), tokenIDBytes)
 		if err != nil {
 			return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 divisible `ownerOf` method: %s", err.Error()), 1)
 		}
@@ -370,7 +370,7 @@ func printNEP11TokensOf(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	result, err := c.NEP11TokensOf(tokenHash.Uint160(), acc.Uint160())
+	result, err := c.NEP11UnpackedTokensOf(tokenHash.Uint160(), acc.Uint160())
 	if err != nil {
 		return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 `tokensOf` method: %s", err.Error()), 1)
 	}
@@ -396,7 +396,7 @@ func printNEP11Tokens(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	result, err := c.NEP11Tokens(tokenHash.Uint160())
+	result, err := c.NEP11UnpackedTokens(tokenHash.Uint160())
 	if err != nil {
 		return cli.NewExitError(fmt.Sprintf("failed to call optional NEP-11 `tokens` method: %s", err.Error()), 1)
 	}

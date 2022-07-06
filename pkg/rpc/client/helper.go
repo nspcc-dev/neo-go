@@ -237,3 +237,16 @@ func topIterableFromStack(st []stackitem.Item, resultItemType interface{}) ([]in
 	}
 	return result, nil
 }
+
+// topIteratorFromStack returns the top Iterator from the stack.
+func topIteratorFromStack(st []stackitem.Item) (result.Iterator, error) {
+	index := len(st) - 1 // top stack element is the last in the array
+	if t := st[index].Type(); t != stackitem.InteropT {
+		return result.Iterator{}, fmt.Errorf("expected InteropInterface on stack, got %s", t)
+	}
+	iter, ok := st[index].Value().(result.Iterator)
+	if !ok {
+		return result.Iterator{}, fmt.Errorf("failed to deserialize iterable from interop stackitem: invalid value type (Iterator expected)")
+	}
+	return iter, nil
+}
