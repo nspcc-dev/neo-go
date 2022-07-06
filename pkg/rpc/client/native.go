@@ -142,9 +142,10 @@ func (c *Client) NNSGetAllRecords(nnsHash util.Uint160, name string) (uuid.UUID,
 	return res.Session, iter, err
 }
 
-// NNSUnpackedGetAllRecords returns all records for a given name from NNS service. It differs from
-// NNSGetAllRecords in that no iterator session is used to retrieve values from iterator. Instead,
-// unpacking VM script is created and invoked via `invokescript` JSON-RPC call.
+// NNSUnpackedGetAllRecords returns a set of records for a given name from NNS service
+// (config.DefaultMaxIteratorResultItems at max). It differs from NNSGetAllRecords in
+// that no iterator session is used to retrieve values from iterator. Instead, unpacking
+// VM script is created and invoked via `invokescript` JSON-RPC call.
 func (c *Client) NNSUnpackedGetAllRecords(nnsHash util.Uint160, name string) ([]nns.RecordState, error) {
 	result, err := c.InvokeAndPackIteratorResults(nnsHash, "getAllRecords", []smartcontract.Parameter{
 		{

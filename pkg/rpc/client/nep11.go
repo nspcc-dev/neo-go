@@ -107,9 +107,10 @@ func (c *Client) NEP11TokensOf(tokenHash util.Uint160, owner util.Uint160) (uuid
 	return res.Session, iter, err
 }
 
-// NEP11UnpackedTokensOf returns an array of token IDs for the specified owner of the specified NFT token.
-// It differs from NEP11TokensOf in that no iterator session is used to retrieve values from iterator.
-// Instead, unpacking VM script is created and invoked via `invokescript` JSON-RPC call.
+// NEP11UnpackedTokensOf returns an array of token IDs for the specified owner of the specified NFT token
+// (config.DefaultMaxIteratorResultItems at max). It differs from NEP11TokensOf in that no iterator session
+// is used to retrieve values from iterator. Instead, unpacking VM script is created and invoked via
+// `invokescript` JSON-RPC call.
 func (c *Client) NEP11UnpackedTokensOf(tokenHash util.Uint160, owner util.Uint160) ([][]byte, error) {
 	result, err := c.InvokeAndPackIteratorResults(tokenHash, "tokensOf", []smartcontract.Parameter{
 		{
@@ -209,9 +210,10 @@ func (c *Client) NEP11DOwnerOf(tokenHash util.Uint160, tokenID []byte) (uuid.UUI
 	return sessID, arr, err
 }
 
-// NEP11DUnpackedOwnerOf returns list of the specified NEP-11 divisible token owners. It differs from
-// NEP11DOwnerOf in that no iterator session is used to retrieve values from iterator. Instead,
-// unpacking VM script is created and invoked via `invokescript` JSON-RPC call.
+// NEP11DUnpackedOwnerOf returns list of the specified NEP-11 divisible token owners
+// (config.DefaultMaxIteratorResultItems at max). It differs from NEP11DOwnerOf in that no
+// iterator session is used to retrieve values from iterator. Instead, unpacking VM
+// script is created and invoked via `invokescript` JSON-RPC call.
 func (c *Client) NEP11DUnpackedOwnerOf(tokenHash util.Uint160, tokenID []byte) ([]util.Uint160, error) {
 	result, err := c.InvokeAndPackIteratorResults(tokenHash, "ownerOf", []smartcontract.Parameter{
 		{
@@ -278,9 +280,10 @@ func (c *Client) NEP11Tokens(tokenHash util.Uint160) (uuid.UUID, result.Iterator
 	return res.Session, iter, err
 }
 
-// NEP11UnpackedTokens returns list of the tokens minted by the contract. It differs from
-// NEP11Tokens in that no iterator session is used to retrieve values from iterator. Instead,
-// unpacking VM script is created and invoked via `invokescript` JSON-RPC call.
+// NEP11UnpackedTokens returns list of the tokens minted by the contract
+// (config.DefaultMaxIteratorResultItems at max). It differs from NEP11Tokens in that no
+// iterator session is used to retrieve values from iterator. Instead, unpacking
+// VM script is created and invoked via `invokescript` JSON-RPC call.
 func (c *Client) NEP11UnpackedTokens(tokenHash util.Uint160) ([][]byte, error) {
 	result, err := c.InvokeAndPackIteratorResults(tokenHash, "tokens", []smartcontract.Parameter{}, nil)
 	if err != nil {

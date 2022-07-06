@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -112,17 +113,24 @@ func topMapFromStack(st []stackitem.Item) (*stackitem.Map, error) {
 // the provided signers. The result of the script invocation contains single array
 // stackitem on stack if invocation HALTed. InvokeAndPackIteratorResults can be
 // used to interact with JSON-RPC server where iterator sessions are disabled to
-// retrieve iterator values via single `invokescript` JSON-RPC call.
-func (c *Client) InvokeAndPackIteratorResults(contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
-	bytes, err := createIteratorUnwrapperScript(contract, operation, params)
+// retrieve iterator values via single `invokescript` JSON-RPC call. It returns
+// maxIteratorResultItems items at max which is set to
+// config.DefaultMaxIteratorResultItems by default.
+func (c *Client) InvokeAndPackIteratorResults(contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer, maxIteratorResultItems ...int) (*result.Invoke, error) {
+	max := config.DefaultMaxIteratorResultItems
+	if len(maxIteratorResultItems) != 0 {
+		max = maxIteratorResultItems[0]
+	}
+	bytes, err := createIteratorUnwrapperScript(contract, operation, params, max)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create iterator unwrapper script: %w", err)
 	}
 	return c.InvokeScript(bytes, signers)
 }
 
-func createIteratorUnwrapperScript(contract util.Uint160, operation string, params []smartcontract.Parameter) ([]byte, error) {
+func createIteratorUnwrapperScript(contract util.Uint160, operation string, params []smartcontract.Parameter, maxIteratorResultItems int) ([]byte, error) {
 	script := io.NewBufBinWriter()
+	emit.Int(script.BinWriter, int64(maxIteratorResultItems))
 	// Pack arguments for System.Contract.Call.
 	arr, err := smartcontract.ExpandParameterToEmitable(smartcontract.Parameter{
 		Type:  smartcontract.ArrayType,
@@ -148,6 +156,15 @@ func createIteratorUnwrapperScript(contract util.Uint160, operation string, para
 		opcode.PUSH2, opcode.PICK) // Pick iterator from the 2-nd cell of estack.
 	emit.Syscall(script.BinWriter, interopnames.SystemIteratorValue) // Call System.Iterator.Value, it will pop the iterator from estack and push its current value to estack.
 	emit.Opcodes(script.BinWriter, opcode.APPEND)                    // Pop iterator value and the resulting array from estack. Append value to the resulting array. Array is a reference type, thus, value stored at the 1-th cell of local slot will also be updated.
+	emit.Opcodes(script.BinWriter, opcode.DUP,                       // Duplicate the resulting array from 0-th cell of estack and push it to estack.
+		opcode.SIZE,               // Pop array from estack and push its size to estack.
+		opcode.PUSH3, opcode.PICK, // Pick maxIteratorResultItems from the 3-d cell of estack.
+		opcode.GE) // Compare len(arr) and maxIteratorResultItems
+	jmpIfMaxReachedOffset := script.Len()
+	emit.Instruction(script.BinWriter, opcode.JMPIF, // Pop boolean value (from the previous step) from estack, if `false`, then max array elements is reached => jump to the end of program.
+		[]byte{
+			0x00, // jump to loadResultOffset, but we'll fill this byte after script creation.
+		})
 	jmpOffset := script.Len()
 	emit.Instruction(script.BinWriter, opcode.JMP, // Jump to the start of iterator traverse cycle.
 		[]byte{
@@ -156,7 +173,8 @@ func createIteratorUnwrapperScript(contract util.Uint160, operation string, para
 
 	// End of the program: push the result on stack and return.
 	loadResultOffset := script.Len()
-	emit.Opcodes(script.BinWriter, opcode.NIP) // Remove iterator from the 1-st cell of estack, so that only resulting array is left on estack.
+	emit.Opcodes(script.BinWriter, opcode.NIP, // Remove iterator from the 1-st cell of estack
+		opcode.NIP) // Remove maxIteratorResultItems from the 1-st cell of estack, so that only resulting array is left on estack.
 	if err := script.Err; err != nil {
 		return nil, fmt.Errorf("failed to build iterator unwrapper script: %w", err)
 	}
@@ -164,6 +182,8 @@ func createIteratorUnwrapperScript(contract util.Uint160, operation string, para
 	// Fill in JMPIFNOT instruction parameter.
 	bytes := script.Bytes()
 	bytes[jmpIfNotOffset+1] = uint8(loadResultOffset - jmpIfNotOffset) // +1 is for JMPIFNOT itself; offset is relative to JMPIFNOT position.
+	// Fill in jmpIfMaxReachedOffset instruction parameter.
+	bytes[jmpIfMaxReachedOffset+1] = uint8(loadResultOffset - jmpIfMaxReachedOffset) // +1 is for JMPIF itself; offset is relative to JMPIF position.
 	return bytes, nil
 }
 

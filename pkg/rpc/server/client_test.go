@@ -1276,22 +1276,40 @@ func TestClient_InvokeAndPackIteratorResults(t *testing.T) {
 		}
 		return bytes.Compare(expected[i], expected[j]) < 0
 	})
-
 	storageHash, err := util.Uint160DecodeStringLE(storageContractHash)
 	require.NoError(t, err)
-	res, err := c.InvokeAndPackIteratorResults(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
-	require.NoError(t, err)
-	require.Equal(t, vm.HaltState.String(), res.State)
-	require.Equal(t, 1, len(res.Stack))
-	require.Equal(t, stackitem.ArrayT, res.Stack[0].Type())
-	arr, ok := res.Stack[0].Value().([]stackitem.Item)
-	require.True(t, ok)
-	require.Equal(t, storageItemsCount, len(arr))
 
-	for i := range arr {
-		require.Equal(t, stackitem.ByteArrayT, arr[i].Type())
-		require.Equal(t, expected[i], arr[i].Value().([]byte))
-	}
+	t.Run("default max items constraint", func(t *testing.T) {
+		res, err := c.InvokeAndPackIteratorResults(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, vm.HaltState.String(), res.State)
+		require.Equal(t, 1, len(res.Stack))
+		require.Equal(t, stackitem.ArrayT, res.Stack[0].Type())
+		arr, ok := res.Stack[0].Value().([]stackitem.Item)
+		require.True(t, ok)
+		require.Equal(t, config.DefaultMaxIteratorResultItems, len(arr))
+
+		for i := range arr {
+			require.Equal(t, stackitem.ByteArrayT, arr[i].Type())
+			require.Equal(t, expected[i], arr[i].Value().([]byte))
+		}
+	})
+	t.Run("custom max items constraint", func(t *testing.T) {
+		max := 123
+		res, err := c.InvokeAndPackIteratorResults(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil, max)
+		require.NoError(t, err)
+		require.Equal(t, vm.HaltState.String(), res.State)
+		require.Equal(t, 1, len(res.Stack))
+		require.Equal(t, stackitem.ArrayT, res.Stack[0].Type())
+		arr, ok := res.Stack[0].Value().([]stackitem.Item)
+		require.True(t, ok)
+		require.Equal(t, max, len(arr))
+
+		for i := range arr {
+			require.Equal(t, stackitem.ByteArrayT, arr[i].Type())
+			require.Equal(t, expected[i], arr[i].Value().([]byte))
+		}
+	})
 }
 
 func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
