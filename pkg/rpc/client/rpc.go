@@ -1150,36 +1150,30 @@ func (c *Client) GetNativeContractHash(name string) (util.Uint160, error) {
 // TraverseIterator returns a set of iterator values (maxItemsCount at max) for
 // the specified iterator and session. If result contains no elements, then either
 // Iterator has no elements or session was expired and terminated by the server.
-// If maxItemsCount is non-positive, then the full set of iterator values will be
-// returned using several `traverseiterator` calls if needed. Note that iterator
-// session lifetime is restricted by the RPC-server configuration and is being
-// reset each time iterator is accessed. If session won't be accessed within session
-// expiration time, then it will be terminated by the RPC-server automatically.
+// If maxItemsCount is non-positive, then config.DefaultMaxIteratorResultItems
+// iterator values will be returned using single `traverseiterator` call.
+// Note that iterator session lifetime is restricted by the RPC-server
+// configuration and is being reset each time iterator is accessed. If session
+// won't be accessed within session expiration time, then it will be terminated
+// by the RPC-server automatically.
 func (c *Client) TraverseIterator(sessionID, iteratorID uuid.UUID, maxItemsCount int) ([]stackitem.Item, error) {
-	var traverseAll bool
 	if maxItemsCount <= 0 {
 		maxItemsCount = config.DefaultMaxIteratorResultItems
-		traverseAll = true
 	}
 	var (
-		result []stackitem.Item
 		params = request.NewRawParams(sessionID.String(), iteratorID.String(), maxItemsCount)
+		resp   []json.RawMessage
 	)
-	for {
-		var resp []json.RawMessage
-		if err := c.performRequest("traverseiterator", params, &resp); err != nil {
-			return nil, err
+	if err := c.performRequest("traverseiterator", params, &resp); err != nil {
+		return nil, err
+	}
+	result := make([]stackitem.Item, len(resp))
+	for i, iBytes := range resp {
+		itm, err := stackitem.FromJSONWithTypes(iBytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal %d-th iterator value: %w", i, err)
 		}
-		for i, iBytes := range resp {
-			itm, err := stackitem.FromJSONWithTypes(iBytes)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unmarshal %d-th iterator value: %w", i, err)
-			}
-			result = append(result, itm)
-		}
-		if len(resp) < maxItemsCount || !traverseAll {
-			break
-		}
+		result[i] = itm
 	}
 
 	return result, nil

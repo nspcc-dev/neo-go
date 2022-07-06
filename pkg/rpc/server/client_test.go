@@ -1163,12 +1163,7 @@ func TestClient_IteratorSessions(t *testing.T) {
 
 		set, err := c.TraverseIterator(sID, iID, -1)
 		require.NoError(t, err)
-		require.Equal(t, storageItemsCount, len(set))
-
-		// No more items should be left.
-		set, err = c.TraverseIterator(sID, iID, -1)
-		require.NoError(t, err)
-		require.Equal(t, 0, len(set))
+		require.Equal(t, config.DefaultMaxIteratorResultItems, len(set))
 	})
 
 	t.Run("traverse, concurrent access", func(t *testing.T) {
