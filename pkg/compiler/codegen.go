@@ -2067,7 +2067,11 @@ func (c *codegen) getFuncNameFromSelector(e *ast.SelectorExpr) (string, bool) {
 	ident := e.X.(*ast.Ident)
 	if c.typeInfo.Selections[e] != nil {
 		typ := c.typeInfo.Types[ident].Type.String()
-		return c.getIdentName(typ, e.Sel.Name), true
+		name := c.getIdentName(typ, e.Sel.Name)
+		if name[0] == '*' {
+			name = name[1:]
+		}
+		return name, true
 	}
 	return c.getIdentName(ident.Name, e.Sel.Name), false
 }
