@@ -914,15 +914,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				return nil
 			}
 		case *ast.SelectorExpr:
-			// If this is a method call we need to walk the AST to load the struct locally.
-			// Otherwise, this is a function call from an imported package and we can call it
-			// directly.
 			name, isMethod := c.getFuncNameFromSelector(fun)
-			if isMethod {
-				ast.Walk(c, fun.X)
-				// Don't forget to add 1 extra argument when its a method.
-				numArgs++
-			}
 
 			f, ok = c.funcs[name]
 			if ok {
@@ -937,6 +929,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				ast.Walk(c, n.Args[0])
 				c.emitExplicitConvert(c.typeOf(n.Args[0]), typ)
 				return nil
+			}
+			if isMethod {
+				// If this is a method call we need to walk the AST to load the struct locally.
+				// Otherwise, this is a function call from an imported package and we can call it
+				// directly.
+				ast.Walk(c, fun.X)
+				// Don't forget to add 1 extra argument when it's a method.
+				numArgs++
 			}
 		case *ast.ArrayType:
 			// For now we will assume that there are only byte slice conversions.
