@@ -147,3 +147,13 @@ func TestTypeConversionString(t *testing.T) {
 	}`
 	eval(t, src, []byte("lamao"))
 }
+
+func TestInterfaceTypeConversion(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		a := 1
+		b := interface{}(a).(int)
+		return b
+	}`
+	eval(t, src, big.NewInt(1))
+}

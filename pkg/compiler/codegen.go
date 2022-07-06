@@ -944,6 +944,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Args[0])
 			c.emitConvert(stackitem.BufferT)
 			return nil
+		case *ast.InterfaceType:
+			// It's a type conversion into some interface. Programmer is responsible
+			// for the conversion to be appropriate, just load the arg.
+			ast.Walk(c, n.Args[0])
+			return nil
 		case *ast.FuncLit:
 			isLiteral = true
 		}
