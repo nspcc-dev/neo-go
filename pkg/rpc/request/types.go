@@ -32,15 +32,27 @@ func NewRawParams(vals ...interface{}) RawParams {
 	return p
 }
 
-// Raw represents JSON-RPC request on the Client side.
-type Raw struct {
-	JSONRPC   string        `json:"jsonrpc"`
-	Method    string        `json:"method"`
-	RawParams []interface{} `json:"params"`
-	ID        uint64        `json:"id"`
-}
-
 type (
+	// Raw represents JSON-RPC request. It's generic enough to be used in many
+	// generic JSON-RPC communication scenarios, yet at the same time it's
+	// tailored for NeoGo RPC Client needs.
+	Raw struct {
+		// JSONRPC is the protocol version, only valid when it contains JSONRPCVersion.
+		JSONRPC string `json:"jsonrpc"`
+		// Method is the method being called.
+		Method string `json:"method"`
+		// Params is a set of method-specific parameters passed to the call. They
+		// can be anything as long as they can be marshaled to JSON correctly and
+		// used by the method implementation on the server side. While JSON-RPC
+		// technically allows it to be an object, all Neo calls expect params
+		// to be an array.
+		Params []interface{} `json:"params"`
+		// ID is an identifier associated with this request. JSON-RPC itself allows
+		// any strings to be used for it as well, but NeoGo RPC client uses numeric
+		// identifiers.
+		ID uint64 `json:"id"`
+	}
+
 	// BlockFilter is a wrapper structure for the block event filter. The only
 	// allowed filter is primary index.
 	BlockFilter struct {

@@ -256,7 +256,7 @@ writeloop:
 				break writeloop
 			}
 			if err := c.ws.WriteJSON(req); err != nil {
-				connCloseErr = fmt.Errorf("failed to write JSON request (%s / %d): %w", req.Method, len(req.RawParams), err)
+				connCloseErr = fmt.Errorf("failed to write JSON request (%s / %d): %w", req.Method, len(req.Params), err)
 				break writeloop
 			}
 		case <-pingTicker.C:

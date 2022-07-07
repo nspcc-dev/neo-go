@@ -174,10 +174,10 @@ func (c *Client) Close() {
 
 func (c *Client) performRequest(method string, p request.RawParams, v interface{}) error {
 	var r = request.Raw{
-		JSONRPC:   request.JSONRPCVersion,
-		Method:    method,
-		RawParams: p.Values,
-		ID:        c.getNextRequestID(),
+		JSONRPC: request.JSONRPCVersion,
+		Method:  method,
+		Params:  p.Values,
+		ID:      c.getNextRequestID(),
 	}
 
 	raw, err := c.requestF(&r)
