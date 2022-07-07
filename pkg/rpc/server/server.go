@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -91,16 +92,37 @@ type (
 	}
 
 	// session holds a set of iterators got after invoke* call with corresponding
-	// finalizer and session expiration time.
+	// finalizer and session expiration timer.
 	session struct {
-		params              *result.InvocationParams
-		iteratorsLock       sync.Mutex
-		iteratorIdentifiers []result.IteratorIdentifier
-		// iterators stores the set of Iterator stackitems for the current session got from MPT-backed storage.
-		// iterators is non-nil iff SessionBackedByMPT is enabled.
-		iterators []stackitem.Item
-		timer     *time.Timer
-		finalize  func()
+		// iteratorsLock protects iteratorIdentifiers of the current session.
+		iteratorsLock sync.Mutex
+		// iteratorIdentifiers stores the set of Iterator stackitems got either from original invocation
+		// or from historic MPT-based invocation. In the second case, iteratorIdentifiers are supposed
+		// to be filled during the first `traverseiterator` call using corresponding params.
+		iteratorIdentifiers []*iteratorIdentifier
+		// params stores invocation params for historic MPT-based iterator traversing. It is nil in case
+		// of default non-MPT-based sessions mechanism enabled.
+		params   *invocationParams
+		timer    *time.Timer
+		finalize func()
+	}
+	// iteratorIdentifier represents Iterator on the server side, holding iterator ID, Iterator stackitem
+	// and iterator index on stack.
+	iteratorIdentifier struct {
+		ID string
+		// Item represents Iterator stackitem. It is nil if SessionBackedByMPT is set to true and no `traverseiterator`
+		// call was called for the corresponding session.
+		Item stackitem.Item
+		// StackIndex represents Iterator stackitem index on the stack. It can be used only for SessionBackedByMPT configuration.
+		StackIndex int
+	}
+	// invocationParams is a set of parameters used for invoke* calls.
+	invocationParams struct {
+		Trigger            trigger.Type
+		Script             []byte
+		ContractScriptHash util.Uint160
+		Transaction        *transaction.Transaction
+		NextBlockHeight    uint32
 	}
 )
 
@@ -1974,54 +1996,61 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	if err != nil {
 		faultException = err.Error()
 	}
-	var (
-		registerSession result.OnNewSession
-		params          *result.InvocationParams
-	)
+	var registerIterator result.RegisterIterator
 	if s.config.SessionEnabled {
-		registerSession = s.registerSession
-		if s.config.SessionBackedByMPT {
-			params = &result.InvocationParams{
-				Trigger:            t,
-				Script:             script,
-				ContractScriptHash: contractScriptHash,
-				Transaction:        tx,
-				NextBlockHeight:    ic.Block.Index,
+		registerIterator = func(sessionID string, item stackitem.Item, stackIndex int, finalize func()) uuid.UUID {
+			iterID := uuid.New()
+			s.sessionsLock.Lock()
+			sess, ok := s.sessions[sessionID]
+			if !ok {
+				timer := time.AfterFunc(time.Second*time.Duration(s.config.SessionExpirationTime), func() {
+					s.sessionsLock.Lock()
+					defer s.sessionsLock.Unlock()
+					if len(s.sessions) == 0 {
+						return
+					}
+					sess, ok := s.sessions[sessionID]
+					if !ok {
+						return
+					}
+					sess.iteratorsLock.Lock()
+					if sess.finalize != nil {
+						sess.finalize()
+					}
+					delete(s.sessions, sessionID)
+					sess.iteratorsLock.Unlock()
+				})
+				sess = &session{
+					finalize: finalize,
+					timer:    timer,
+				}
+				if s.config.SessionBackedByMPT {
+					sess.params = &invocationParams{
+						Trigger:            t,
+						Script:             script,
+						ContractScriptHash: contractScriptHash,
+						Transaction:        tx,
+						NextBlockHeight:    ic.Block.Index,
+					}
+					// Call finalizer manually if MPT-based iterator sessions are enabled. If disabled, then register finalizator.
+					if finalize != nil {
+						finalize()
+						sess.finalize = nil
+					}
+					item = nil
+				}
 			}
+			sess.iteratorIdentifiers = append(sess.iteratorIdentifiers, &iteratorIdentifier{
+				ID:         iterID.String(),
+				Item:       item,
+				StackIndex: stackIndex,
+			})
+			s.sessions[sessionID] = sess
+			s.sessionsLock.Unlock()
+			return iterID
 		}
 	}
-	return result.NewInvoke(ic, script, faultException, registerSession, s.config.MaxIteratorResultItems, params), nil
-}
-
-// registerSession is a callback used to add new iterator session to the sessions list.
-// It performs no check whether sessions are enabled.
-func (s *Server) registerSession(sessionID string, iterators []result.IteratorIdentifier, params *result.InvocationParams, finalize func()) {
-	s.sessionsLock.Lock()
-	timer := time.AfterFunc(time.Second*time.Duration(s.config.SessionExpirationTime), func() {
-		s.sessionsLock.Lock()
-		defer s.sessionsLock.Unlock()
-		if len(s.sessions) == 0 {
-			return
-		}
-		sess, ok := s.sessions[sessionID]
-		if !ok {
-			return
-		}
-		sess.iteratorsLock.Lock()
-		if sess.finalize != nil {
-			sess.finalize()
-		}
-		delete(s.sessions, sessionID)
-		sess.iteratorsLock.Unlock()
-	})
-	sess := &session{
-		params:              params,
-		iteratorIdentifiers: iterators,
-		finalize:            finalize,
-		timer:               timer,
-	}
-	s.sessions[sessionID] = sess
-	s.sessionsLock.Unlock()
+	return result.NewInvoke(ic, script, faultException, registerIterator, s.config.MaxIteratorResultItems), nil
 }
 
 func (s *Server) traverseIterator(reqParams request.Params) (interface{}, *response.Error) {
@@ -2064,40 +2093,40 @@ func (s *Server) traverseIterator(reqParams request.Params) (interface{}, *respo
 		iVals   []stackitem.Item
 		respErr *response.Error
 	)
-	for i, it := range session.iteratorIdentifiers {
+	for _, it := range session.iteratorIdentifiers {
 		if iIDStr == it.ID {
-			if it.Item != nil { // If Iterator stackitem is there, then use it to retrieve iterator elements.
-				iVals = iterator.Values(it.Item, count)
-			} else { // Otherwise, use MPT-backed historic call to retrieve and traverse iterator.
-				if len(session.iterators) == 0 {
-					var (
-						b  *block.Block
-						ic *interop.Context
-					)
-					b, err = s.getFakeNextBlock(session.params.NextBlockHeight)
-					if err != nil {
-						session.iteratorsLock.Unlock()
-						return nil, response.NewInternalServerError(fmt.Sprintf("unable to prepare block for historic call: %s", err))
-					}
-					ic, respErr = s.prepareInvocationContext(session.params.Trigger, session.params.Script, session.params.ContractScriptHash, session.params.Transaction, b, false)
-					if respErr != nil {
-						session.iteratorsLock.Unlock()
-						return nil, respErr
-					}
-					_ = ic.VM.Run() // No error check because FAULTed invocations could also contain iterator on stack.
-					stack := ic.VM.Estack().ToArray()
-					for _, itID := range session.iteratorIdentifiers {
-						j := itID.StackIndex
-						if (stack[j].Type() != stackitem.InteropT) || !iterator.IsIterator(stack[j]) {
-							session.iteratorsLock.Unlock()
-							return nil, response.NewInternalServerError(fmt.Sprintf("inconsistent historic call result: expected %s, got %s at stack position #%d", stackitem.InteropT, stack[j].Type(), j))
-						}
-						session.iterators = append(session.iterators, stack[j])
-					}
-					session.finalize = ic.Finalize
+			// If SessionBackedByMPT is enabled, then use MPT-backed historic call to retrieve and traverse iterator.
+			// Otherwise, iterator stackitem is ready and can be used.
+			if s.config.SessionBackedByMPT && it.Item == nil {
+				var (
+					b  *block.Block
+					ic *interop.Context
+				)
+				b, err = s.getFakeNextBlock(session.params.NextBlockHeight)
+				if err != nil {
+					session.iteratorsLock.Unlock()
+					return nil, response.NewInternalServerError(fmt.Sprintf("unable to prepare block for historic call: %s", err))
 				}
-				iVals = iterator.Values(session.iterators[i], count)
+				ic, respErr = s.prepareInvocationContext(session.params.Trigger, session.params.Script, session.params.ContractScriptHash, session.params.Transaction, b, false)
+				if respErr != nil {
+					session.iteratorsLock.Unlock()
+					return nil, respErr
+				}
+				_ = ic.VM.Run() // No error check because FAULTed invocations could also contain iterator on stack.
+				stack := ic.VM.Estack().ToArray()
+
+				// Fill in the whole set of iterators for the current session in order not to repeat test invocation one more time for other session iterators.
+				for _, itID := range session.iteratorIdentifiers {
+					j := itID.StackIndex
+					if (stack[j].Type() != stackitem.InteropT) || !iterator.IsIterator(stack[j]) {
+						session.iteratorsLock.Unlock()
+						return nil, response.NewInternalServerError(fmt.Sprintf("inconsistent historic call result: expected %s, got %s at stack position #%d", stackitem.InteropT, stack[j].Type(), j))
+					}
+					session.iteratorIdentifiers[j].Item = stack[j]
+				}
+				session.finalize = ic.Finalize
 			}
+			iVals = iterator.Values(it.Item, count)
 			break
 		}
 	}
