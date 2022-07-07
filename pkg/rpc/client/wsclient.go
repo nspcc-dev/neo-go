@@ -205,12 +205,12 @@ readloop:
 			}
 			c.Notifications <- Notification{event, val}
 		} else if rr.ID != nil && (rr.Error != nil || rr.Result != nil) {
-			id, err := strconv.Atoi(string(rr.ID))
+			id, err := strconv.ParseUint(string(rr.ID), 10, 64)
 			if err != nil {
 				connCloseErr = fmt.Errorf("failed to retrieve response ID from string %s: %w", string(rr.ID), err)
 				break readloop // Malformed response (invalid response ID).
 			}
-			ch := c.getResponseChannel(uint64(id))
+			ch := c.getResponseChannel(id)
 			if ch == nil {
 				connCloseErr = fmt.Errorf("unknown response channel for response %d", id)
 				break readloop // Unknown response (unexpected response ID).
