@@ -1,4 +1,4 @@
-package request
+package params
 
 import (
 	"encoding/base64"

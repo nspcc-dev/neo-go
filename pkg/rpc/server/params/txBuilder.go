@@ -1,4 +1,4 @@
-package request
+package params
 
 import (
 	"errors"

@@ -63,9 +63,9 @@ type Notification struct {
 // requestResponse is a combined type for request and response since we can get
 // any of them here.
 type requestResponse struct {
-	request.In
-	Error  *response.Error `json:"error,omitempty"`
-	Result json.RawMessage `json:"result,omitempty"`
+	response.Raw
+	Method    string            `json:"method"`
+	RawParams []json.RawMessage `json:"params,omitempty"`
 }
 
 const (
@@ -158,7 +158,7 @@ readloop:
 			connCloseErr = fmt.Errorf("failed to read JSON response (timeout/connection loss/malformed response): %w", err)
 			break readloop
 		}
-		if rr.RawID == nil && rr.Method != "" {
+		if rr.ID == nil && rr.Method != "" {
 			event, err := response.GetEventIDFromString(rr.Method)
 			if err != nil {
 				// Bad event received.
@@ -196,7 +196,7 @@ readloop:
 				break readloop
 			}
 			if event != response.MissedEventID {
-				err = json.Unmarshal(rr.RawParams[0].RawMessage, val)
+				err = json.Unmarshal(rr.RawParams[0], val)
 				if err != nil {
 					// Bad event received.
 					connCloseErr = fmt.Errorf("failed to unmarshal event of type %s from JSON: %w", event, err)
@@ -204,15 +204,10 @@ readloop:
 				}
 			}
 			c.Notifications <- Notification{event, val}
-		} else if rr.RawID != nil && (rr.Error != nil || rr.Result != nil) {
-			resp := new(response.Raw)
-			resp.ID = rr.RawID
-			resp.JSONRPC = rr.JSONRPC
-			resp.Error = rr.Error
-			resp.Result = rr.Result
-			id, err := strconv.Atoi(string(resp.ID))
+		} else if rr.ID != nil && (rr.Error != nil || rr.Result != nil) {
+			id, err := strconv.Atoi(string(rr.ID))
 			if err != nil {
-				connCloseErr = fmt.Errorf("failed to retrieve response ID from string %s: %w", string(resp.ID), err)
+				connCloseErr = fmt.Errorf("failed to retrieve response ID from string %s: %w", string(rr.ID), err)
 				break readloop // Malformed response (invalid response ID).
 			}
 			ch := c.getResponseChannel(uint64(id))
@@ -220,7 +215,7 @@ readloop:
 				connCloseErr = fmt.Errorf("unknown response channel for response %d", id)
 				break readloop // Unknown response (unexpected response ID).
 			}
-			ch <- resp
+			ch <- &rr.Raw
 		} else {
 			// Malformed response, neither valid request, nor valid response.
 			connCloseErr = fmt.Errorf("malformed response")

@@ -1,19 +1,19 @@
 package request
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
+	"strings"
+
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 const (
 	// JSONRPCVersion is the only JSON-RPC protocol version supported.
 	JSONRPCVersion = "2.0"
-
-	// maxBatchSize is the maximum number of requests per batch.
-	maxBatchSize = 100
 )
 
 // RawParams is just a slice of abstract values, used to represent parameters
@@ -40,97 +40,88 @@ type Raw struct {
 	ID        uint64        `json:"id"`
 }
 
-// Request contains standard JSON-RPC 2.0 request and batch of
-// requests: http://www.jsonrpc.org/specification.
-// It's used in server to represent incoming queries.
-type Request struct {
-	In    *In
-	Batch Batch
-}
+type (
+	// BlockFilter is a wrapper structure for the block event filter. The only
+	// allowed filter is primary index.
+	BlockFilter struct {
+		Primary int `json:"primary"`
+	}
+	// TxFilter is a wrapper structure for the transaction event filter. It
+	// allows to filter transactions by senders and signers.
+	TxFilter struct {
+		Sender *util.Uint160 `json:"sender,omitempty"`
+		Signer *util.Uint160 `json:"signer,omitempty"`
+	}
+	// NotificationFilter is a wrapper structure representing a filter used for
+	// notifications generated during transaction execution. Notifications can
+	// be filtered by contract hash and by name.
+	NotificationFilter struct {
+		Contract *util.Uint160 `json:"contract,omitempty"`
+		Name     *string       `json:"name,omitempty"`
+	}
+	// ExecutionFilter is a wrapper structure used for transaction execution
+	// events. It allows to choose failing or successful transactions based
+	// on their VM state.
+	ExecutionFilter struct {
+		State string `json:"state"`
+	}
+	// SignerWithWitness represents transaction's signer with the corresponding witness.
+	SignerWithWitness struct {
+		transaction.Signer
+		transaction.Witness
+	}
+)
 
-// In represents a standard JSON-RPC 2.0
-// request: http://www.jsonrpc.org/specification#request_object.
-type In struct {
-	JSONRPC   string          `json:"jsonrpc"`
-	Method    string          `json:"method"`
-	RawParams []Param         `json:"params,omitempty"`
-	RawID     json.RawMessage `json:"id,omitempty"`
+// signerWithWitnessAux is an auxiliary struct for JSON marshalling. We need it because of
+// DisallowUnknownFields JSON marshaller setting.
+type signerWithWitnessAux struct {
+	Account            string                    `json:"account"`
+	Scopes             transaction.WitnessScope  `json:"scopes"`
+	AllowedContracts   []util.Uint160            `json:"allowedcontracts,omitempty"`
+	AllowedGroups      []*keys.PublicKey         `json:"allowedgroups,omitempty"`
+	Rules              []transaction.WitnessRule `json:"rules,omitempty"`
+	InvocationScript   []byte                    `json:"invocation,omitempty"`
+	VerificationScript []byte                    `json:"verification,omitempty"`
 }
-
-// Batch represents a standard JSON-RPC 2.0
-// batch: https://www.jsonrpc.org/specification#batch.
-type Batch []In
 
 // MarshalJSON implements the json.Marshaler interface.
-func (r Request) MarshalJSON() ([]byte, error) {
-	if r.In != nil {
-		return json.Marshal(r.In)
+func (s *SignerWithWitness) MarshalJSON() ([]byte, error) {
+	signer := &signerWithWitnessAux{
+		Account:            s.Account.StringLE(),
+		Scopes:             s.Scopes,
+		AllowedContracts:   s.AllowedContracts,
+		AllowedGroups:      s.AllowedGroups,
+		Rules:              s.Rules,
+		InvocationScript:   s.InvocationScript,
+		VerificationScript: s.VerificationScript,
 	}
-	return json.Marshal(r.Batch)
+	return json.Marshal(signer)
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
-func (r *Request) UnmarshalJSON(data []byte) error {
-	var (
-		in    *In
-		batch Batch
-	)
-	in = &In{}
-	err := json.Unmarshal(data, in)
-	if err == nil {
-		r.In = in
-		return nil
-	}
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	t, err := decoder.Token() // read `[`
+func (s *SignerWithWitness) UnmarshalJSON(data []byte) error {
+	aux := new(signerWithWitnessAux)
+	err := json.Unmarshal(data, aux)
 	if err != nil {
-		return err
+		return fmt.Errorf("not a signer: %w", err)
 	}
-	if t != json.Delim('[') {
-		return fmt.Errorf("`[` expected, got %s", t)
+	acc, err := util.Uint160DecodeStringLE(strings.TrimPrefix(aux.Account, "0x"))
+	if err != nil {
+		acc, err = address.StringToUint160(aux.Account)
 	}
-	count := 0
-	for decoder.More() {
-		if count > maxBatchSize {
-			return fmt.Errorf("the number of requests in batch shouldn't exceed %d", maxBatchSize)
-		}
-		in = &In{}
-		decodeErr := decoder.Decode(in)
-		if decodeErr != nil {
-			return decodeErr
-		}
-		batch = append(batch, *in)
-		count++
+	if err != nil {
+		return fmt.Errorf("not a signer: %w", err)
 	}
-	if len(batch) == 0 {
-		return errors.New("empty request")
+	s.Signer = transaction.Signer{
+		Account:          acc,
+		Scopes:           aux.Scopes,
+		AllowedContracts: aux.AllowedContracts,
+		AllowedGroups:    aux.AllowedGroups,
+		Rules:            aux.Rules,
 	}
-	r.Batch = batch
+	s.Witness = transaction.Witness{
+		InvocationScript:   aux.InvocationScript,
+		VerificationScript: aux.VerificationScript,
+	}
 	return nil
-}
-
-// DecodeData decodes the given reader into the the request
-// struct.
-func (r *Request) DecodeData(data io.ReadCloser) error {
-	defer data.Close()
-
-	rawData := json.RawMessage{}
-	err := json.NewDecoder(data).Decode(&rawData)
-	if err != nil {
-		return fmt.Errorf("error parsing JSON payload: %w", err)
-	}
-
-	return r.UnmarshalJSON(rawData)
-}
-
-// NewRequest creates a new Request struct.
-func NewRequest() *Request {
-	return &Request{}
-}
-
-// NewIn creates a new In struct.
-func NewIn() *In {
-	return &In{
-		JSONRPC: JSONRPCVersion,
-	}
 }
