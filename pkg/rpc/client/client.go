@@ -172,11 +172,14 @@ func (c *Client) Close() {
 	c.cli.CloseIdleConnections()
 }
 
-func (c *Client) performRequest(method string, p request.RawParams, v interface{}) error {
+func (c *Client) performRequest(method string, p []interface{}, v interface{}) error {
+	if p == nil {
+		p = []interface{}{} // neo-project/neo-modules#742
+	}
 	var r = request.Raw{
 		JSONRPC: request.JSONRPCVersion,
 		Method:  method,
-		Params:  p.Values,
+		Params:  p,
 		ID:      c.getNextRequestID(),
 	}
 

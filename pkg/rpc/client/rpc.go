@@ -38,7 +38,7 @@ var errNetworkNotInitialized = errors.New("RPC client network is not initialized
 // filled for standard sig/multisig signers.
 func (c *Client) CalculateNetworkFee(tx *transaction.Transaction) (int64, error) {
 	var (
-		params = request.NewRawParams(tx.Bytes())
+		params = []interface{}{tx.Bytes()}
 		resp   = new(result.NetworkFee)
 	)
 	if err := c.performRequest("calculatenetworkfee", params, resp); err != nil {
@@ -50,11 +50,11 @@ func (c *Client) CalculateNetworkFee(tx *transaction.Transaction) (int64, error)
 // GetApplicationLog returns a contract log based on the specified txid.
 func (c *Client) GetApplicationLog(hash util.Uint256, trig *trigger.Type) (*result.ApplicationLog, error) {
 	var (
-		params = request.NewRawParams(hash.StringLE())
+		params = []interface{}{hash.StringLE()}
 		resp   = new(result.ApplicationLog)
 	)
 	if trig != nil {
-		params.Values = append(params.Values, trig.String())
+		params = append(params, trig.String())
 	}
 	if err := c.performRequest("getapplicationlog", params, resp); err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func (c *Client) GetApplicationLog(hash util.Uint256, trig *trigger.Type) (*resu
 // GetBestBlockHash returns the hash of the tallest block in the blockchain.
 func (c *Client) GetBestBlockHash() (util.Uint256, error) {
 	var resp = util.Uint256{}
-	if err := c.performRequest("getbestblockhash", request.NewRawParams(), &resp); err != nil {
+	if err := c.performRequest("getbestblockhash", nil, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -74,7 +74,7 @@ func (c *Client) GetBestBlockHash() (util.Uint256, error) {
 // GetBlockCount returns the number of blocks in the blockchain.
 func (c *Client) GetBlockCount() (uint32, error) {
 	var resp uint32
-	if err := c.performRequest("getblockcount", request.NewRawParams(), &resp); err != nil {
+	if err := c.performRequest("getblockcount", nil, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -83,22 +83,22 @@ func (c *Client) GetBlockCount() (uint32, error) {
 // GetBlockByIndex returns a block by its height. You should initialize network magic
 // with Init before calling GetBlockByIndex.
 func (c *Client) GetBlockByIndex(index uint32) (*block.Block, error) {
-	return c.getBlock(request.NewRawParams(index))
+	return c.getBlock(index)
 }
 
 // GetBlockByHash returns a block by its hash. You should initialize network magic
 // with Init before calling GetBlockByHash.
 func (c *Client) GetBlockByHash(hash util.Uint256) (*block.Block, error) {
-	return c.getBlock(request.NewRawParams(hash.StringLE()))
+	return c.getBlock(hash.StringLE())
 }
 
-func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
+func (c *Client) getBlock(param interface{}) (*block.Block, error) {
 	var (
 		resp []byte
 		err  error
 		b    *block.Block
 	)
-	if err = c.performRequest("getblock", params, &resp); err != nil {
+	if err = c.performRequest("getblock", []interface{}{param}, &resp); err != nil {
 		return nil, err
 	}
 	r := io.NewBinReaderFromBuf(resp)
@@ -118,19 +118,20 @@ func (c *Client) getBlock(params request.RawParams) (*block.Block, error) {
 // its height. You should initialize network magic with Init before calling GetBlockByIndexVerbose.
 // NOTE: to get transaction.ID and transaction.Size, use t.Hash() and io.GetVarSize(t) respectively.
 func (c *Client) GetBlockByIndexVerbose(index uint32) (*result.Block, error) {
-	return c.getBlockVerbose(request.NewRawParams(index, 1))
+	return c.getBlockVerbose(index)
 }
 
 // GetBlockByHashVerbose returns a block wrapper with additional metadata by
 // its hash. You should initialize network magic with Init before calling GetBlockByHashVerbose.
 func (c *Client) GetBlockByHashVerbose(hash util.Uint256) (*result.Block, error) {
-	return c.getBlockVerbose(request.NewRawParams(hash.StringLE(), 1))
+	return c.getBlockVerbose(hash.StringLE())
 }
 
-func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error) {
+func (c *Client) getBlockVerbose(param interface{}) (*result.Block, error) {
 	var (
-		resp = &result.Block{}
-		err  error
+		params = []interface{}{param, 1} // 1 for verbose.
+		resp   = &result.Block{}
+		err    error
 	)
 	sr, err := c.StateRootInHeader()
 	if err != nil {
@@ -146,7 +147,7 @@ func (c *Client) getBlockVerbose(params request.RawParams) (*result.Block, error
 // GetBlockHash returns the hash value of the corresponding block based on the specified index.
 func (c *Client) GetBlockHash(index uint32) (util.Uint256, error) {
 	var (
-		params = request.NewRawParams(index)
+		params = []interface{}{index}
 		resp   = util.Uint256{}
 	)
 	if err := c.performRequest("getblockhash", params, &resp); err != nil {
@@ -160,7 +161,7 @@ func (c *Client) GetBlockHash(index uint32) (util.Uint256, error) {
 // with Init before calling GetBlockHeader.
 func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	var (
-		params = request.NewRawParams(hash.StringLE())
+		params = []interface{}{hash.StringLE()}
 		resp   []byte
 		h      *block.Header
 	)
@@ -184,7 +185,7 @@ func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 // GetBlockHeaderCount returns the number of headers in the main chain.
 func (c *Client) GetBlockHeaderCount() (uint32, error) {
 	var resp uint32
-	if err := c.performRequest("getblockheadercount", request.NewRawParams(), &resp); err != nil {
+	if err := c.performRequest("getblockheadercount", nil, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -194,7 +195,7 @@ func (c *Client) GetBlockHeaderCount() (uint32, error) {
 // according to the specified script hash.
 func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error) {
 	var (
-		params = request.NewRawParams(hash.StringLE(), 1)
+		params = []interface{}{hash.StringLE(), 1}
 		resp   = &result.Header{}
 	)
 	if err := c.performRequest("getblockheader", params, resp); err != nil {
@@ -206,7 +207,7 @@ func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error
 // GetBlockSysFee returns the system fees of the block based on the specified index.
 func (c *Client) GetBlockSysFee(index uint32) (fixedn.Fixed8, error) {
 	var (
-		params = request.NewRawParams(index)
+		params = []interface{}{index}
 		resp   fixedn.Fixed8
 	)
 	if err := c.performRequest("getblocksysfee", params, &resp); err != nil {
@@ -217,11 +218,9 @@ func (c *Client) GetBlockSysFee(index uint32) (fixedn.Fixed8, error) {
 
 // GetConnectionCount returns the current number of the connections for the node.
 func (c *Client) GetConnectionCount() (int, error) {
-	var (
-		params = request.NewRawParams()
-		resp   int
-	)
-	if err := c.performRequest("getconnectioncount", params, &resp); err != nil {
+	var resp int
+
+	if err := c.performRequest("getconnectioncount", nil, &resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -229,11 +228,9 @@ func (c *Client) GetConnectionCount() (int, error) {
 
 // GetCommittee returns the current public keys of NEO nodes in the committee.
 func (c *Client) GetCommittee() (keys.PublicKeys, error) {
-	var (
-		params = request.NewRawParams()
-		resp   = new(keys.PublicKeys)
-	)
-	if err := c.performRequest("getcommittee", params, resp); err != nil {
+	var resp = new(keys.PublicKeys)
+
+	if err := c.performRequest("getcommittee", nil, resp); err != nil {
 		return nil, err
 	}
 	return *resp, nil
@@ -257,7 +254,7 @@ func (c *Client) GetContractStateByID(id int32) (*state.Contract, error) {
 // getContractState is an internal representation of GetContractStateBy* methods.
 func (c *Client) getContractState(param interface{}) (*state.Contract, error) {
 	var (
-		params = request.NewRawParams(param)
+		params = []interface{}{param}
 		resp   = &state.Contract{}
 	)
 	if err := c.performRequest("getcontractstate", params, resp); err != nil {
@@ -268,11 +265,8 @@ func (c *Client) getContractState(param interface{}) (*state.Contract, error) {
 
 // GetNativeContracts queries information about native contracts.
 func (c *Client) GetNativeContracts() ([]state.NativeContract, error) {
-	var (
-		params = request.NewRawParams()
-		resp   []state.NativeContract
-	)
-	if err := c.performRequest("getnativecontracts", params, &resp); err != nil {
+	var resp []state.NativeContract
+	if err := c.performRequest("getnativecontracts", nil, &resp); err != nil {
 		return resp, err
 	}
 
@@ -288,7 +282,7 @@ func (c *Client) GetNativeContracts() ([]state.NativeContract, error) {
 
 // GetNEP11Balances is a wrapper for getnep11balances RPC.
 func (c *Client) GetNEP11Balances(address util.Uint160) (*result.NEP11Balances, error) {
-	params := request.NewRawParams(address.StringLE())
+	params := []interface{}{address.StringLE()}
 	resp := new(result.NEP11Balances)
 	if err := c.performRequest("getnep11balances", params, resp); err != nil {
 		return nil, err
@@ -298,7 +292,7 @@ func (c *Client) GetNEP11Balances(address util.Uint160) (*result.NEP11Balances, 
 
 // GetNEP17Balances is a wrapper for getnep17balances RPC.
 func (c *Client) GetNEP17Balances(address util.Uint160) (*result.NEP17Balances, error) {
-	params := request.NewRawParams(address.StringLE())
+	params := []interface{}{address.StringLE()}
 	resp := new(result.NEP17Balances)
 	if err := c.performRequest("getnep17balances", params, resp); err != nil {
 		return nil, err
@@ -312,7 +306,7 @@ func (c *Client) GetNEP17Balances(address util.Uint160) (*result.NEP17Balances, 
 // attributes like "description", "image", "name" and "tokenURI" it returns strings,
 // while for all others []byte (which can be nil).
 func (c *Client) GetNEP11Properties(asset util.Uint160, token []byte) (map[string]interface{}, error) {
-	params := request.NewRawParams(asset.StringLE(), hex.EncodeToString(token))
+	params := []interface{}{asset.StringLE(), hex.EncodeToString(token)}
 	resp := make(map[string]interface{})
 	if err := c.performRequest("getnep11properties", params, &resp); err != nil {
 		return nil, err
@@ -346,22 +340,22 @@ func (c *Client) GetNEP11Transfers(address util.Uint160, start, stop *uint64, li
 		return nil, err
 	}
 	resp := new(result.NEP11Transfers)
-	if err := c.performRequest("getnep11transfers", *params, resp); err != nil {
+	if err := c.performRequest("getnep11transfers", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-func packTransfersParams(address util.Uint160, start, stop *uint64, limit, page *int) (*request.RawParams, error) {
-	params := request.NewRawParams(address.StringLE())
+func packTransfersParams(address util.Uint160, start, stop *uint64, limit, page *int) ([]interface{}, error) {
+	params := []interface{}{address.StringLE()}
 	if start != nil {
-		params.Values = append(params.Values, *start)
+		params = append(params, *start)
 		if stop != nil {
-			params.Values = append(params.Values, *stop)
+			params = append(params, *stop)
 			if limit != nil {
-				params.Values = append(params.Values, *limit)
+				params = append(params, *limit)
 				if page != nil {
-					params.Values = append(params.Values, *page)
+					params = append(params, *page)
 				}
 			} else if page != nil {
 				return nil, errors.New("bad parameters")
@@ -372,7 +366,7 @@ func packTransfersParams(address util.Uint160, start, stop *uint64, limit, page 
 	} else if stop != nil || limit != nil || page != nil {
 		return nil, errors.New("bad parameters")
 	}
-	return &params, nil
+	return params, nil
 }
 
 // GetNEP17Transfers is a wrapper for getnep17transfers RPC. Address parameter
@@ -386,7 +380,7 @@ func (c *Client) GetNEP17Transfers(address util.Uint160, start, stop *uint64, li
 		return nil, err
 	}
 	resp := new(result.NEP17Transfers)
-	if err := c.performRequest("getnep17transfers", *params, resp); err != nil {
+	if err := c.performRequest("getnep17transfers", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -394,11 +388,9 @@ func (c *Client) GetNEP17Transfers(address util.Uint160, start, stop *uint64, li
 
 // GetPeers returns a list of the nodes that the node is currently connected to/disconnected from.
 func (c *Client) GetPeers() (*result.GetPeers, error) {
-	var (
-		params = request.NewRawParams()
-		resp   = &result.GetPeers{}
-	)
-	if err := c.performRequest("getpeers", params, resp); err != nil {
+	var resp = &result.GetPeers{}
+
+	if err := c.performRequest("getpeers", nil, resp); err != nil {
 		return resp, err
 	}
 	return resp, nil
@@ -406,11 +398,9 @@ func (c *Client) GetPeers() (*result.GetPeers, error) {
 
 // GetRawMemPool returns a list of unconfirmed transactions in the memory.
 func (c *Client) GetRawMemPool() ([]util.Uint256, error) {
-	var (
-		params = request.NewRawParams()
-		resp   = new([]util.Uint256)
-	)
-	if err := c.performRequest("getrawmempool", params, resp); err != nil {
+	var resp = new([]util.Uint256)
+
+	if err := c.performRequest("getrawmempool", nil, resp); err != nil {
 		return *resp, err
 	}
 	return *resp, nil
@@ -419,7 +409,7 @@ func (c *Client) GetRawMemPool() ([]util.Uint256, error) {
 // GetRawTransaction returns a transaction by hash.
 func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction, error) {
 	var (
-		params = request.NewRawParams(hash.StringLE())
+		params = []interface{}{hash.StringLE()}
 		resp   []byte
 		err    error
 	)
@@ -438,7 +428,7 @@ func (c *Client) GetRawTransaction(hash util.Uint256) (*transaction.Transaction,
 // NOTE: to get transaction.ID and transaction.Size, use t.Hash() and io.GetVarSize(t) respectively.
 func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.TransactionOutputRaw, error) {
 	var (
-		params = request.NewRawParams(hash.StringLE(), 1)
+		params = []interface{}{hash.StringLE(), 1} // 1 for verbose.
 		resp   = &result.TransactionOutputRaw{}
 		err    error
 	)
@@ -452,7 +442,7 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 // historical contract hash and historical item key.
 func (c *Client) GetState(stateroot util.Uint256, historicalContractHash util.Uint160, historicalKey []byte) ([]byte, error) {
 	var (
-		params = request.NewRawParams(stateroot.StringLE(), historicalContractHash.StringLE(), historicalKey)
+		params = []interface{}{stateroot.StringLE(), historicalContractHash.StringLE(), historicalKey}
 		resp   []byte
 	)
 	if err := c.performRequest("getstate", params, &resp); err != nil {
@@ -471,17 +461,17 @@ func (c *Client) FindStates(stateroot util.Uint256, historicalContractHash util.
 		historicalPrefix = []byte{}
 	}
 	var (
-		params = request.NewRawParams(stateroot.StringLE(), historicalContractHash.StringLE(), historicalPrefix)
+		params = []interface{}{stateroot.StringLE(), historicalContractHash.StringLE(), historicalPrefix}
 		resp   result.FindStates
 	)
 	if start == nil && maxCount != nil {
 		start = []byte{}
 	}
 	if start != nil {
-		params.Values = append(params.Values, start)
+		params = append(params, start)
 	}
 	if maxCount != nil {
-		params.Values = append(params.Values, *maxCount)
+		params = append(params, *maxCount)
 	}
 	if err := c.performRequest("findstates", params, &resp); err != nil {
 		return resp, err
@@ -491,17 +481,17 @@ func (c *Client) FindStates(stateroot util.Uint256, historicalContractHash util.
 
 // GetStateRootByHeight returns the state root for the specified height.
 func (c *Client) GetStateRootByHeight(height uint32) (*state.MPTRoot, error) {
-	return c.getStateRoot(request.NewRawParams(height))
+	return c.getStateRoot(height)
 }
 
 // GetStateRootByBlockHash returns the state root for the block with the specified hash.
 func (c *Client) GetStateRootByBlockHash(hash util.Uint256) (*state.MPTRoot, error) {
-	return c.getStateRoot(request.NewRawParams(hash))
+	return c.getStateRoot(hash)
 }
 
-func (c *Client) getStateRoot(params request.RawParams) (*state.MPTRoot, error) {
+func (c *Client) getStateRoot(param interface{}) (*state.MPTRoot, error) {
 	var resp = new(state.MPTRoot)
-	if err := c.performRequest("getstateroot", params, resp); err != nil {
+	if err := c.performRequest("getstateroot", []interface{}{param}, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -509,11 +499,9 @@ func (c *Client) getStateRoot(params request.RawParams) (*state.MPTRoot, error) 
 
 // GetStateHeight returns the current validated and local node state height.
 func (c *Client) GetStateHeight() (*result.StateHeight, error) {
-	var (
-		params = request.NewRawParams()
-		resp   = new(result.StateHeight)
-	)
-	if err := c.performRequest("getstateheight", params, resp); err != nil {
+	var resp = new(result.StateHeight)
+
+	if err := c.performRequest("getstateheight", nil, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -521,15 +509,15 @@ func (c *Client) GetStateHeight() (*result.StateHeight, error) {
 
 // GetStorageByID returns the stored value according to the contract ID and the stored key.
 func (c *Client) GetStorageByID(id int32, key []byte) ([]byte, error) {
-	return c.getStorage(request.NewRawParams(id, key))
+	return c.getStorage([]interface{}{id, key})
 }
 
 // GetStorageByHash returns the stored value according to the contract script hash and the stored key.
 func (c *Client) GetStorageByHash(hash util.Uint160, key []byte) ([]byte, error) {
-	return c.getStorage(request.NewRawParams(hash.StringLE(), key))
+	return c.getStorage([]interface{}{hash.StringLE(), key})
 }
 
-func (c *Client) getStorage(params request.RawParams) ([]byte, error) {
+func (c *Client) getStorage(params []interface{}) ([]byte, error) {
 	var resp []byte
 	if err := c.performRequest("getstorage", params, &resp); err != nil {
 		return nil, err
@@ -540,7 +528,7 @@ func (c *Client) getStorage(params request.RawParams) ([]byte, error) {
 // GetTransactionHeight returns the block index where the transaction is found.
 func (c *Client) GetTransactionHeight(hash util.Uint256) (uint32, error) {
 	var (
-		params = request.NewRawParams(hash.StringLE())
+		params = []interface{}{hash.StringLE()}
 		resp   uint32
 	)
 	if err := c.performRequest("gettransactionheight", params, &resp); err != nil {
@@ -552,7 +540,7 @@ func (c *Client) GetTransactionHeight(hash util.Uint256) (uint32, error) {
 // GetUnclaimedGas returns the unclaimed GAS amount for the specified address.
 func (c *Client) GetUnclaimedGas(address string) (result.UnclaimedGas, error) {
 	var (
-		params = request.NewRawParams(address)
+		params = []interface{}{address}
 		resp   result.UnclaimedGas
 	)
 	if err := c.performRequest("getunclaimedgas", params, &resp); err != nil {
@@ -564,11 +552,9 @@ func (c *Client) GetUnclaimedGas(address string) (result.UnclaimedGas, error) {
 // GetCandidates returns the current list of NEO candidate node with voting data and
 // validator status.
 func (c *Client) GetCandidates() ([]result.Candidate, error) {
-	var (
-		params = request.NewRawParams()
-		resp   = new([]result.Candidate)
-	)
-	if err := c.performRequest("getcandidates", params, resp); err != nil {
+	var resp = new([]result.Candidate)
+
+	if err := c.performRequest("getcandidates", nil, resp); err != nil {
 		return nil, err
 	}
 	return *resp, nil
@@ -576,11 +562,9 @@ func (c *Client) GetCandidates() ([]result.Candidate, error) {
 
 // GetNextBlockValidators returns the current NEO consensus nodes information and voting data.
 func (c *Client) GetNextBlockValidators() ([]result.Validator, error) {
-	var (
-		params = request.NewRawParams()
-		resp   = new([]result.Validator)
-	)
-	if err := c.performRequest("getnextblockvalidators", params, resp); err != nil {
+	var resp = new([]result.Validator)
+
+	if err := c.performRequest("getnextblockvalidators", nil, resp); err != nil {
 		return nil, err
 	}
 	return *resp, nil
@@ -588,11 +572,9 @@ func (c *Client) GetNextBlockValidators() ([]result.Validator, error) {
 
 // GetVersion returns the version information about the queried node.
 func (c *Client) GetVersion() (*result.Version, error) {
-	var (
-		params = request.NewRawParams()
-		resp   = &result.Version{}
-	)
-	if err := c.performRequest("getversion", params, resp); err != nil {
+	var resp = &result.Version{}
+
+	if err := c.performRequest("getversion", nil, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil
@@ -601,7 +583,7 @@ func (c *Client) GetVersion() (*result.Version, error) {
 // InvokeScript returns the result of the given script after running it true the VM.
 // NOTE: This is a test invoke and will not affect the blockchain.
 func (c *Client) InvokeScript(script []byte, signers []transaction.Signer) (*result.Invoke, error) {
-	var p = request.NewRawParams(script)
+	var p = []interface{}{script}
 	return c.invokeSomething("invokescript", p, signers)
 }
 
@@ -610,7 +592,7 @@ func (c *Client) InvokeScript(script []byte, signers []transaction.Signer) (*res
 // height.
 // NOTE: This is a test invoke and will not affect the blockchain.
 func (c *Client) InvokeScriptAtHeight(height uint32, script []byte, signers []transaction.Signer) (*result.Invoke, error) {
-	var p = request.NewRawParams(height, script)
+	var p = []interface{}{height, script}
 	return c.invokeSomething("invokescripthistoric", p, signers)
 }
 
@@ -619,7 +601,7 @@ func (c *Client) InvokeScriptAtHeight(height uint32, script []byte, signers []tr
 // hash.
 // NOTE: This is a test invoke and will not affect the blockchain.
 func (c *Client) InvokeScriptAtBlock(blockHash util.Uint256, script []byte, signers []transaction.Signer) (*result.Invoke, error) {
-	var p = request.NewRawParams(blockHash.StringLE(), script)
+	var p = []interface{}{blockHash.StringLE(), script}
 	return c.invokeSomething("invokescripthistoric", p, signers)
 }
 
@@ -628,7 +610,7 @@ func (c *Client) InvokeScriptAtBlock(blockHash util.Uint256, script []byte, sign
 // stateroot hash.
 // NOTE: This is a test invoke and will not affect the blockchain.
 func (c *Client) InvokeScriptWithState(stateroot util.Uint256, script []byte, signers []transaction.Signer) (*result.Invoke, error) {
-	var p = request.NewRawParams(stateroot.StringLE(), script)
+	var p = []interface{}{stateroot.StringLE(), script}
 	return c.invokeSomething("invokescripthistoric", p, signers)
 }
 
@@ -636,7 +618,7 @@ func (c *Client) InvokeScriptWithState(stateroot util.Uint256, script []byte, si
 // with the given operation and parameters.
 // NOTE: this is test invoke and will not affect the blockchain.
 func (c *Client) InvokeFunction(contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
-	var p = request.NewRawParams(contract.StringLE(), operation, params)
+	var p = []interface{}{contract.StringLE(), operation, params}
 	return c.invokeSomething("invokefunction", p, signers)
 }
 
@@ -645,7 +627,7 @@ func (c *Client) InvokeFunction(contract util.Uint160, operation string, params 
 // specified by the blockchain height.
 // NOTE: this is test invoke and will not affect the blockchain.
 func (c *Client) InvokeFunctionAtHeight(height uint32, contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
-	var p = request.NewRawParams(height, contract.StringLE(), operation, params)
+	var p = []interface{}{height, contract.StringLE(), operation, params}
 	return c.invokeSomething("invokefunctionhistoric", p, signers)
 }
 
@@ -654,7 +636,7 @@ func (c *Client) InvokeFunctionAtHeight(height uint32, contract util.Uint160, op
 // specified by the block hash.
 // NOTE: this is test invoke and will not affect the blockchain.
 func (c *Client) InvokeFunctionAtBlock(blockHash util.Uint256, contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
-	var p = request.NewRawParams(blockHash.StringLE(), contract.StringLE(), operation, params)
+	var p = []interface{}{blockHash.StringLE(), contract.StringLE(), operation, params}
 	return c.invokeSomething("invokefunctionhistoric", p, signers)
 }
 
@@ -663,7 +645,7 @@ func (c *Client) InvokeFunctionAtBlock(blockHash util.Uint256, contract util.Uin
 // by the specified stateroot hash.
 // NOTE: this is test invoke and will not affect the blockchain.
 func (c *Client) InvokeFunctionWithState(stateroot util.Uint256, contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
-	var p = request.NewRawParams(stateroot.StringLE(), contract.StringLE(), operation, params)
+	var p = []interface{}{stateroot.StringLE(), contract.StringLE(), operation, params}
 	return c.invokeSomething("invokefunctionhistoric", p, signers)
 }
 
@@ -671,7 +653,7 @@ func (c *Client) InvokeFunctionWithState(stateroot util.Uint256, contract util.U
 // with the given parameters under verification trigger type.
 // NOTE: this is test invoke and will not affect the blockchain.
 func (c *Client) InvokeContractVerify(contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
-	var p = request.NewRawParams(contract.StringLE(), params)
+	var p = []interface{}{contract.StringLE(), params}
 	return c.invokeSomething("invokecontractverify", p, signers, witnesses...)
 }
 
@@ -680,7 +662,7 @@ func (c *Client) InvokeContractVerify(contract util.Uint160, params []smartcontr
 // at the blockchain state specified by the blockchain height.
 // NOTE: this is test invoke and will not affect the blockchain.
 func (c *Client) InvokeContractVerifyAtHeight(height uint32, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
-	var p = request.NewRawParams(height, contract.StringLE(), params)
+	var p = []interface{}{height, contract.StringLE(), params}
 	return c.invokeSomething("invokecontractverifyhistoric", p, signers, witnesses...)
 }
 
@@ -689,7 +671,7 @@ func (c *Client) InvokeContractVerifyAtHeight(height uint32, contract util.Uint1
 // at the blockchain state specified by the block hash.
 // NOTE: this is test invoke and will not affect the blockchain.
 func (c *Client) InvokeContractVerifyAtBlock(blockHash util.Uint256, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
-	var p = request.NewRawParams(blockHash.StringLE(), contract.StringLE(), params)
+	var p = []interface{}{blockHash.StringLE(), contract.StringLE(), params}
 	return c.invokeSomething("invokecontractverifyhistoric", p, signers, witnesses...)
 }
 
@@ -698,16 +680,16 @@ func (c *Client) InvokeContractVerifyAtBlock(blockHash util.Uint256, contract ut
 // at the blockchain state specified by the stateroot hash.
 // NOTE: this is test invoke and will not affect the blockchain.
 func (c *Client) InvokeContractVerifyWithState(stateroot util.Uint256, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
-	var p = request.NewRawParams(stateroot.StringLE(), contract.StringLE(), params)
+	var p = []interface{}{stateroot.StringLE(), contract.StringLE(), params}
 	return c.invokeSomething("invokecontractverifyhistoric", p, signers, witnesses...)
 }
 
 // invokeSomething is an inner wrapper for Invoke* functions.
-func (c *Client) invokeSomething(method string, p request.RawParams, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
+func (c *Client) invokeSomething(method string, p []interface{}, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
 	var resp = new(result.Invoke)
 	if signers != nil {
 		if witnesses == nil {
-			p.Values = append(p.Values, signers)
+			p = append(p, signers)
 		} else {
 			if len(witnesses) != len(signers) {
 				return nil, fmt.Errorf("number of witnesses should match number of signers, got %d vs %d", len(witnesses), len(signers))
@@ -719,7 +701,7 @@ func (c *Client) invokeSomething(method string, p request.RawParams, signers []t
 					Witness: witnesses[i],
 				}
 			}
-			p.Values = append(p.Values, signersWithWitnesses)
+			p = append(p, signersWithWitnesses)
 		}
 	}
 	if err := c.performRequest(method, p, resp); err != nil {
@@ -734,7 +716,7 @@ func (c *Client) invokeSomething(method string, p request.RawParams, signers []t
 // been broadcasted to the network.
 func (c *Client) SendRawTransaction(rawTX *transaction.Transaction) (util.Uint256, error) {
 	var (
-		params = request.NewRawParams(rawTX.Bytes())
+		params = []interface{}{rawTX.Bytes()}
 		resp   = new(result.RelayResult)
 	)
 	if err := c.performRequest("sendrawtransaction", params, resp); err != nil {
@@ -746,7 +728,7 @@ func (c *Client) SendRawTransaction(rawTX *transaction.Transaction) (util.Uint25
 // SubmitBlock broadcasts a raw block over the NEO network.
 func (c *Client) SubmitBlock(b block.Block) (util.Uint256, error) {
 	var (
-		params request.RawParams
+		params []interface{}
 		resp   = new(result.RelayResult)
 	)
 	buf := io.NewBufBinWriter()
@@ -754,7 +736,7 @@ func (c *Client) SubmitBlock(b block.Block) (util.Uint256, error) {
 	if err := buf.Err; err != nil {
 		return util.Uint256{}, err
 	}
-	params = request.NewRawParams(buf.Bytes())
+	params = []interface{}{buf.Bytes()}
 
 	if err := c.performRequest("submitblock", params, resp); err != nil {
 		return util.Uint256{}, err
@@ -764,7 +746,7 @@ func (c *Client) SubmitBlock(b block.Block) (util.Uint256, error) {
 
 // SubmitRawOracleResponse submits a raw oracle response to the oracle node.
 // Raw params are used to avoid excessive marshalling.
-func (c *Client) SubmitRawOracleResponse(ps request.RawParams) error {
+func (c *Client) SubmitRawOracleResponse(ps []interface{}) error {
 	return c.performRequest("submitoracleresponse", ps, new(result.RelayResult))
 }
 
@@ -997,7 +979,7 @@ func (c *Client) SubmitP2PNotaryRequest(req *payload.P2PNotaryRequest) (util.Uin
 	if err != nil {
 		return util.Uint256{}, fmt.Errorf("failed to encode request: %w", err)
 	}
-	params := request.NewRawParams(bytes)
+	params := []interface{}{bytes}
 	if err := c.performRequest("submitnotaryrequest", params, resp); err != nil {
 		return util.Uint256{}, err
 	}
@@ -1007,7 +989,7 @@ func (c *Client) SubmitP2PNotaryRequest(req *payload.P2PNotaryRequest) (util.Uin
 // ValidateAddress verifies that the address is a correct NEO address.
 func (c *Client) ValidateAddress(address string) error {
 	var (
-		params = request.NewRawParams(address)
+		params = []interface{}{address}
 		resp   = &result.ValidateAddress{}
 	)
 
@@ -1161,7 +1143,7 @@ func (c *Client) TraverseIterator(sessionID, iteratorID uuid.UUID, maxItemsCount
 		maxItemsCount = config.DefaultMaxIteratorResultItems
 	}
 	var (
-		params = request.NewRawParams(sessionID.String(), iteratorID.String(), maxItemsCount)
+		params = []interface{}{sessionID.String(), iteratorID.String(), maxItemsCount}
 		resp   []json.RawMessage
 	)
 	if err := c.performRequest("traverseiterator", params, &resp); err != nil {
@@ -1183,7 +1165,7 @@ func (c *Client) TraverseIterator(sessionID, iteratorID uuid.UUID, maxItemsCount
 // the specified session was found on server.
 func (c *Client) TerminateSession(sessionID uuid.UUID) (bool, error) {
 	var resp bool
-	params := request.NewRawParams(sessionID.String())
+	params := []interface{}{sessionID.String()}
 	if err := c.performRequest("terminatesession", params, &resp); err != nil {
 		return false, err
 	}

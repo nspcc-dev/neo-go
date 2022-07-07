@@ -16,22 +16,6 @@ const (
 	JSONRPCVersion = "2.0"
 )
 
-// RawParams is just a slice of abstract values, used to represent parameters
-// passed from the client to the server.
-type RawParams struct {
-	Values []interface{}
-}
-
-// NewRawParams creates RawParams from its parameters.
-func NewRawParams(vals ...interface{}) RawParams {
-	p := RawParams{}
-	p.Values = make([]interface{}, len(vals))
-	for i := 0; i < len(p.Values); i++ {
-		p.Values[i] = vals[i]
-	}
-	return p
-}
-
 type (
 	// Raw represents JSON-RPC request. It's generic enough to be used in many
 	// generic JSON-RPC communication scenarios, yet at the same time it's

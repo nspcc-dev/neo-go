@@ -3,7 +3,6 @@ package rpcbroadcaster
 import (
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"go.uber.org/zap"
 )
 
@@ -11,7 +10,7 @@ import (
 type RPCBroadcaster struct {
 	Clients   map[string]*RPCClient
 	Log       *zap.Logger
-	Responses chan request.RawParams
+	Responses chan []interface{}
 
 	close       chan struct{}
 	finished    chan struct{}
@@ -25,7 +24,7 @@ func NewRPCBroadcaster(log *zap.Logger, sendTimeout time.Duration) *RPCBroadcast
 		Log:         log,
 		close:       make(chan struct{}),
 		finished:    make(chan struct{}),
-		Responses:   make(chan request.RawParams),
+		Responses:   make(chan []interface{}),
 		sendTimeout: sendTimeout,
 	}
 }
@@ -66,7 +65,7 @@ drain:
 }
 
 // SendParams sends a request using all clients if the broadcaster is active.
-func (r *RPCBroadcaster) SendParams(params request.RawParams) {
+func (r *RPCBroadcaster) SendParams(params []interface{}) {
 	select {
 	case <-r.close:
 	case r.Responses <- params:
