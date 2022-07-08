@@ -20,6 +20,7 @@ type (
 		SessionEnabled         bool          `yaml:"SessionEnabled"`
 		SessionExpirationTime  int           `yaml:"SessionExpirationTime"`
 		SessionBackedByMPT     bool          `yaml:"SessionBackedByMPT"`
+		SessionPoolSize        int           `yaml:"SessionPoolSize"`
 		StartWhenSynchronized  bool          `yaml:"StartWhenSynchronized"`
 		TLSConfig              TLSConfig     `yaml:"TLSConfig"`
 	}

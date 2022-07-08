@@ -139,6 +139,7 @@ RPC:
   SessionEnabled: false
   SessionExpirationTime: 15
   SessionBackedByMPT: false
+  SessionPoolSize: 20
   StartWhenSynchronized: false
   TLSConfig:
     Address: ""
@@ -190,6 +191,10 @@ where:
   recommended to enable `SessionBackedByMPT` needlessly. `SessionBackedByMPT` is
   set to `false` by default and is relevant only if `SessionEnabled` is set to
   `true`.
+- `SessionPoolSize` is the maximum number of concurrent iterator sessions. It is
+  set to `20` by default. If the subsequent session can't be added to the session
+  pool, then invocation result will contain corresponding error inside the
+  `FaultException` field.
 - `StartWhenSynchronized` controls when RPC server will be started, by default
   (`false` setting) it's started immediately and RPC is availabe during node
   synchronization. Setting it to `true` will make the node start RPC service only

@@ -143,6 +143,9 @@ const (
 
 	// Maximum number of elements for get*transfers requests.
 	maxTransfersLimit = 1000
+
+	// defaultSessionPoolSize is the number of concurrently running iterator sessions.
+	defaultSessionPoolSize = 20
 )
 
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
@@ -225,9 +228,15 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 		orc.SetBroadcaster(broadcaster.New(orc.MainCfg, log))
 	}
 	protoCfg := chain.GetConfig()
-	if conf.SessionEnabled && conf.SessionExpirationTime <= 0 {
-		conf.SessionExpirationTime = protoCfg.SecondsPerBlock
-		log.Info("SessionExpirationTime is not set or wrong, setting default value", zap.Int("SessionExpirationTime", protoCfg.SecondsPerBlock))
+	if conf.SessionEnabled {
+		if conf.SessionExpirationTime <= 0 {
+			conf.SessionExpirationTime = protoCfg.SecondsPerBlock
+			log.Info("SessionExpirationTime is not set or wrong, setting default value", zap.Int("SessionExpirationTime", protoCfg.SecondsPerBlock))
+		}
+		if conf.SessionPoolSize <= 0 {
+			conf.SessionPoolSize = defaultSessionPoolSize
+			log.Info("SessionPoolSize is not set or wrong, setting default value", zap.Int("SessionPoolSize", defaultSessionPoolSize))
+		}
 	}
 	return Server{
 		Server:           httpServer,
@@ -1998,11 +2007,14 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	}
 	var registerIterator result.RegisterIterator
 	if s.config.SessionEnabled {
-		registerIterator = func(sessionID string, item stackitem.Item, stackIndex int, finalize func()) uuid.UUID {
+		registerIterator = func(sessionID string, item stackitem.Item, stackIndex int, finalize func()) (uuid.UUID, error) {
 			iterID := uuid.New()
 			s.sessionsLock.Lock()
 			sess, ok := s.sessions[sessionID]
 			if !ok {
+				if len(s.sessions) >= s.config.SessionPoolSize {
+					return uuid.UUID{}, errors.New("max capacity reached")
+				}
 				timer := time.AfterFunc(time.Second*time.Duration(s.config.SessionExpirationTime), func() {
 					s.sessionsLock.Lock()
 					defer s.sessionsLock.Unlock()
@@ -2047,7 +2059,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 			})
 			s.sessions[sessionID] = sess
 			s.sessionsLock.Unlock()
-			return iterID
+			return iterID, nil
 		}
 	}
 	return result.NewInvoke(ic, script, faultException, registerIterator, s.config.MaxIteratorResultItems), nil

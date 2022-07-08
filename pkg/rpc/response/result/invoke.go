@@ -32,7 +32,7 @@ type Invoke struct {
 }
 
 // RegisterIterator is a callback used to register new iterator on the server side.
-type RegisterIterator func(sessionID string, item stackitem.Item, id int, finalize func()) uuid.UUID
+type RegisterIterator func(sessionID string, item stackitem.Item, id int, finalize func()) (uuid.UUID, error)
 
 // InvokeDiag is an additional diagnostic data for invocation.
 type InvokeDiag struct {
@@ -136,7 +136,12 @@ arrloop:
 				if sessionID == "" {
 					sessionID = uuid.NewString()
 				}
-				iteratorID := r.registerIterator(sessionID, r.Stack[i], i, r.finalize)
+				iteratorID, err := r.registerIterator(sessionID, r.Stack[i], i, r.finalize)
+				if err != nil {
+					// Call finalizer immediately, there can't be race between server and marshaller because session wasn't added to server's session pool.
+					r.Finalize()
+					return nil, fmt.Errorf("failed to register iterator session: %w", err)
+				}
 				data, err = json.Marshal(iteratorAux{
 					Type:      stackitem.InteropT.String(),
 					Interface: iteratorInterfaceName,
