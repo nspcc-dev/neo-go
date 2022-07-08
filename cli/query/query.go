@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/urfave/cli"
 )
 
@@ -129,7 +130,7 @@ func DumpApplicationLog(
 		if len(res.Executions) != 1 {
 			_, _ = tw.Write([]byte("Success:\tunknown (no execution data)\n"))
 		} else {
-			_, _ = tw.Write([]byte(fmt.Sprintf("Success:\t%t\n", res.Executions[0].VMState == vm.HaltState)))
+			_, _ = tw.Write([]byte(fmt.Sprintf("Success:\t%t\n", res.Executions[0].VMState == vmstate.Halt)))
 		}
 	}
 	if verbose {
@@ -146,7 +147,7 @@ func DumpApplicationLog(
 		v.PrintOps(tw)
 		if res != nil {
 			for _, e := range res.Executions {
-				if e.VMState != vm.HaltState {
+				if e.VMState != vmstate.Halt {
 					_, _ = tw.Write([]byte("Exception:\t" + e.FaultException + "\n"))
 				}
 			}

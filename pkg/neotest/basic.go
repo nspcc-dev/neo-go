@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -210,7 +211,7 @@ func (e *Executor) InvokeScriptCheckFAULT(t testing.TB, script []byte, signers [
 func (e *Executor) CheckHalt(t testing.TB, h util.Uint256, stack ...stackitem.Item) *state.AppExecResult {
 	aer, err := e.Chain.GetAppExecResults(h, trigger.Application)
 	require.NoError(t, err)
-	require.Equal(t, vm.HaltState, aer[0].VMState, aer[0].FaultException)
+	require.Equal(t, vmstate.Halt, aer[0].VMState, aer[0].FaultException)
 	if len(stack) != 0 {
 		require.Equal(t, stack, aer[0].Stack)
 	}
@@ -222,7 +223,7 @@ func (e *Executor) CheckHalt(t testing.TB, h util.Uint256, stack ...stackitem.It
 func (e *Executor) CheckFault(t testing.TB, h util.Uint256, s string) {
 	aer, err := e.Chain.GetAppExecResults(h, trigger.Application)
 	require.NoError(t, err)
-	require.Equal(t, vm.FaultState, aer[0].VMState)
+	require.Equal(t, vmstate.Fault, aer[0].VMState)
 	require.True(t, strings.Contains(aer[0].FaultException, s),
 		"expected: %s, got: %s", s, aer[0].FaultException)
 }

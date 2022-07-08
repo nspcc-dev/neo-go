@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/require"
 )
 
@@ -91,7 +92,7 @@ func (c *ContractInvoker) InvokeAndCheck(t testing.TB, checkResult func(t testin
 	c.AddNewBlock(t, tx)
 	aer, err := c.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
 	require.NoError(t, err)
-	require.Equal(t, vm.HaltState, aer[0].VMState, aer[0].FaultException)
+	require.Equal(t, vmstate.Halt, aer[0].VMState, aer[0].FaultException)
 	if checkResult != nil {
 		checkResult(t, aer[0].Stack)
 	}

@@ -35,10 +35,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -648,7 +648,7 @@ func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, len(appLogs))
 		appLog := appLogs[0]
-		require.Equal(t, vm.HaltState, appLog.VMState)
+		require.Equal(t, vmstate.Halt, appLog.VMState)
 		require.Equal(t, appLog.GasConsumed, req.FallbackTransaction.SystemFee)
 	})
 }
@@ -1282,7 +1282,7 @@ func TestClient_InvokeAndPackIteratorResults(t *testing.T) {
 	t.Run("default max items constraint", func(t *testing.T) {
 		res, err := c.InvokeAndPackIteratorResults(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
 		require.NoError(t, err)
-		require.Equal(t, vm.HaltState.String(), res.State)
+		require.Equal(t, vmstate.Halt.String(), res.State)
 		require.Equal(t, 1, len(res.Stack))
 		require.Equal(t, stackitem.ArrayT, res.Stack[0].Type())
 		arr, ok := res.Stack[0].Value().([]stackitem.Item)
@@ -1298,7 +1298,7 @@ func TestClient_InvokeAndPackIteratorResults(t *testing.T) {
 		max := 123
 		res, err := c.InvokeAndPackIteratorResults(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil, max)
 		require.NoError(t, err)
-		require.Equal(t, vm.HaltState.String(), res.State)
+		require.Equal(t, vmstate.Halt.String(), res.State)
 		require.Equal(t, 1, len(res.Stack))
 		require.Equal(t, stackitem.ArrayT, res.Stack[0].Type())
 		arr, ok := res.Stack[0].Value().([]stackitem.Item)

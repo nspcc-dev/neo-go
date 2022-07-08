@@ -40,6 +40,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"go.uber.org/zap"
 )
 
@@ -816,7 +817,7 @@ func (bc *Blockchain) notificationDispatcher() {
 					for ch := range executionFeed {
 						ch <- aer
 					}
-					if aer.VMState == vm.HaltState {
+					if aer.VMState == vmstate.Halt {
 						for i := range aer.Events {
 							for ch := range notificationFeed {
 								ch <- &subscriptions.NotificationEvent{
@@ -1065,7 +1066,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				err = fmt.Errorf("failed to store exec result: %w", err)
 				break
 			}
-			if aer.Execution.VMState == vm.HaltState {
+			if aer.Execution.VMState == vmstate.Halt {
 				for j := range aer.Execution.Events {
 					bc.handleNotification(&aer.Execution.Events[j], kvcache, transCache, block, aer.Container)
 				}

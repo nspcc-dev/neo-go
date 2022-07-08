@@ -23,8 +23,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -354,7 +354,7 @@ func TestContractDeployWithData(t *testing.T) {
 
 		res := new(result.Invoke)
 		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
-		require.Equal(t, vm.HaltState.String(), res.State, res.FaultException)
+		require.Equal(t, vmstate.Halt.String(), res.State, res.FaultException)
 		require.Len(t, res.Stack, 1)
 		require.Equal(t, []byte{12}, res.Stack[0].Value())
 
@@ -366,7 +366,7 @@ func TestContractDeployWithData(t *testing.T) {
 
 		res = new(result.Invoke)
 		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
-		require.Equal(t, vm.HaltState.String(), res.State, res.FaultException)
+		require.Equal(t, vmstate.Halt.String(), res.State, res.FaultException)
 		require.Len(t, res.Stack, 1)
 		require.Equal(t, []byte("take_me_to_church"), res.Stack[0].Value())
 	}
@@ -672,7 +672,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 	res := new(result.Invoke)
 	require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
-	require.Equal(t, vm.HaltState.String(), res.State, res.FaultException)
+	require.Equal(t, vmstate.Halt.String(), res.State, res.FaultException)
 	require.Len(t, res.Stack, 1)
 	require.Equal(t, []byte("on create|sub create"), res.Stack[0].Value())
 
@@ -821,7 +821,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			e.Run(t, append(cmd, strconv.FormatInt(storage.FindKeysOnly, 10))...)
 			res := new(result.Invoke)
 			require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
-			require.Equal(t, vm.HaltState.String(), res.State)
+			require.Equal(t, vmstate.Halt.String(), res.State)
 			require.Len(t, res.Stack, 1)
 			require.Equal(t, []stackitem.Item{
 				stackitem.Make("findkey1"),
@@ -832,7 +832,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			e.Run(t, append(cmd, strconv.FormatInt(storage.FindDefault, 10))...)
 			res := new(result.Invoke)
 			require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
-			require.Equal(t, vm.HaltState.String(), res.State)
+			require.Equal(t, vmstate.Halt.String(), res.State)
 			require.Len(t, res.Stack, 1)
 
 			arr, ok := res.Stack[0].Value().([]stackitem.Item)
@@ -883,7 +883,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 		res := new(result.Invoke)
 		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
-		require.Equal(t, vm.HaltState.String(), res.State)
+		require.Equal(t, vmstate.Halt.String(), res.State)
 		require.Len(t, res.Stack, 1)
 		require.Equal(t, []byte("on update|sub update"), res.Stack[0].Value())
 	})

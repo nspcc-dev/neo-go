@@ -13,9 +13,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/require"
 )
 
@@ -56,22 +56,22 @@ func TestLedger_GetTransactionState(t *testing.T) {
 	hash := e.InvokeScript(t, []byte{byte(opcode.RET)}, []neotest.Signer{c.Committee})
 
 	t.Run("unknown transaction", func(t *testing.T) {
-		ledgerInvoker.Invoke(t, vm.NoneState, "getTransactionVMState", util.Uint256{1, 2, 3})
+		ledgerInvoker.Invoke(t, vmstate.None, "getTransactionVMState", util.Uint256{1, 2, 3})
 	})
 	t.Run("not a hash", func(t *testing.T) {
 		ledgerInvoker.InvokeFail(t, "expected []byte of size 32", "getTransactionVMState", []byte{1, 2, 3})
 	})
 	t.Run("good: HALT", func(t *testing.T) {
-		ledgerInvoker.Invoke(t, vm.HaltState, "getTransactionVMState", hash)
+		ledgerInvoker.Invoke(t, vmstate.Halt, "getTransactionVMState", hash)
 	})
 	t.Run("isn't traceable", func(t *testing.T) {
 		// Add more blocks so that tx becomes untraceable.
 		e.GenerateNewBlocks(t, int(e.Chain.GetConfig().MaxTraceableBlocks))
-		ledgerInvoker.Invoke(t, vm.NoneState, "getTransactionVMState", hash)
+		ledgerInvoker.Invoke(t, vmstate.None, "getTransactionVMState", hash)
 	})
 	t.Run("good: FAULT", func(t *testing.T) {
 		faultedH := e.InvokeScript(t, []byte{byte(opcode.ABORT)}, []neotest.Signer{c.Committee})
-		ledgerInvoker.Invoke(t, vm.FaultState, "getTransactionVMState", faultedH)
+		ledgerInvoker.Invoke(t, vmstate.Fault, "getTransactionVMState", faultedH)
 	})
 }
 

@@ -45,6 +45,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -102,7 +103,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.Equal(t, 1, len(res.Executions))
 				assert.Equal(t, expectedTxHash, res.Container)
 				assert.Equal(t, trigger.Application, res.Executions[0].Trigger)
-				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
+				assert.Equal(t, vmstate.Halt, res.Executions[0].VMState)
 			},
 		},
 		{
@@ -116,7 +117,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.Equal(t, 2, len(res.Executions))
 				assert.Equal(t, trigger.OnPersist, res.Executions[0].Trigger)
 				assert.Equal(t, trigger.PostPersist, res.Executions[1].Trigger)
-				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
+				assert.Equal(t, vmstate.Halt, res.Executions[0].VMState)
 			},
 		},
 		{
@@ -129,7 +130,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.Equal(t, genesisBlockHash, res.Container.StringLE())
 				assert.Equal(t, 1, len(res.Executions))
 				assert.Equal(t, trigger.PostPersist, res.Executions[0].Trigger)
-				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
+				assert.Equal(t, vmstate.Halt, res.Executions[0].VMState)
 			},
 		},
 		{
@@ -142,7 +143,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.Equal(t, genesisBlockHash, res.Container.StringLE())
 				assert.Equal(t, 1, len(res.Executions))
 				assert.Equal(t, trigger.OnPersist, res.Executions[0].Trigger)
-				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
+				assert.Equal(t, vmstate.Halt, res.Executions[0].VMState)
 			},
 		},
 		{
@@ -1966,9 +1967,9 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoError(t, json.Unmarshal(data, &res))
 		require.Equal(t, 2, len(res.Executions))
 		require.Equal(t, trigger.OnPersist, res.Executions[0].Trigger)
-		require.Equal(t, vm.HaltState, res.Executions[0].VMState)
+		require.Equal(t, vmstate.Halt, res.Executions[0].VMState)
 		require.Equal(t, trigger.PostPersist, res.Executions[1].Trigger)
-		require.Equal(t, vm.HaltState, res.Executions[1].VMState)
+		require.Equal(t, vmstate.Halt, res.Executions[1].VMState)
 	})
 
 	t.Run("submit", func(t *testing.T) {

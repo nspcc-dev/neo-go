@@ -29,6 +29,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/require"
 )
 
@@ -116,10 +117,10 @@ func TestLedgerTransactionWitnessCondition(t *testing.T) {
 }
 
 func TestLedgerVMStates(t *testing.T) {
-	require.EqualValues(t, ledger.NoneState, vm.NoneState)
-	require.EqualValues(t, ledger.HaltState, vm.HaltState)
-	require.EqualValues(t, ledger.FaultState, vm.FaultState)
-	require.EqualValues(t, ledger.BreakState, vm.BreakState)
+	require.EqualValues(t, ledger.NoneState, vmstate.None)
+	require.EqualValues(t, ledger.HaltState, vmstate.Halt)
+	require.EqualValues(t, ledger.FaultState, vmstate.Fault)
+	require.EqualValues(t, ledger.BreakState, vmstate.Break)
 }
 
 type nativeTestCase struct {
