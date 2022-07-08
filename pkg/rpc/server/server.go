@@ -582,6 +582,19 @@ func (s *Server) blockHashFromParam(param *params.Param) (util.Uint256, *respons
 	return hash, nil
 }
 
+func (s *Server) fillBlockMetadata(obj io.Serializable, h *block.Header) result.BlockMetadata {
+	res := result.BlockMetadata{
+		Size:          io.GetVarSize(obj), // obj can be a Block or a Header.
+		Confirmations: s.chain.BlockHeight() - h.Index + 1,
+	}
+
+	hash := s.chain.GetHeaderHash(int(h.Index) + 1)
+	if !hash.Equals(util.Uint256{}) {
+		res.NextBlockHash = &hash
+	}
+	return res
+}
+
 func (s *Server) getBlock(reqParams params.Params) (interface{}, *response.Error) {
 	param := reqParams.Value(0)
 	hash, respErr := s.blockHashFromParam(param)
@@ -595,7 +608,11 @@ func (s *Server) getBlock(reqParams params.Params) (interface{}, *response.Error
 	}
 
 	if v, _ := reqParams.Value(1).GetBoolean(); v {
-		return result.NewBlock(block, s.chain), nil
+		res := result.Block{
+			Block:         *block,
+			BlockMetadata: s.fillBlockMetadata(block, &block.Header),
+		}
+		return res, nil
 	}
 	writer := io.NewBufBinWriter()
 	block.EncodeBinary(writer.BinWriter)
@@ -1639,7 +1656,11 @@ func (s *Server) getBlockHeader(reqParams params.Params) (interface{}, *response
 	}
 
 	if verbose {
-		return result.NewHeader(h, s.chain), nil
+		res := result.Header{
+			Header:        *h,
+			BlockMetadata: s.fillBlockMetadata(h, h),
+		}
+		return res, nil
 	}
 
 	buf := io.NewBufBinWriter()
