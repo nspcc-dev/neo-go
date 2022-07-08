@@ -216,7 +216,7 @@ func (b *Block) GetExpectedBlockSizeWithoutTransactions(txCount int) int {
 
 // ToStackItem converts Block to stackitem.Item.
 func (b *Block) ToStackItem() stackitem.Item {
-	return stackitem.NewArray([]stackitem.Item{
+	items := []stackitem.Item{
 		stackitem.NewByteArray(b.Hash().BytesBE()),
 		stackitem.NewBigInteger(big.NewInt(int64(b.Version))),
 		stackitem.NewByteArray(b.PrevHash.BytesBE()),
@@ -226,5 +226,10 @@ func (b *Block) ToStackItem() stackitem.Item {
 		stackitem.NewBigInteger(big.NewInt(int64(b.Index))),
 		stackitem.NewByteArray(b.NextConsensus.BytesBE()),
 		stackitem.NewBigInteger(big.NewInt(int64(len(b.Transactions)))),
-	})
+	}
+	if b.StateRootEnabled {
+		items = append(items, stackitem.NewByteArray(b.PrevStateRoot.BytesBE()))
+	}
+
+	return stackitem.NewArray(items)
 }

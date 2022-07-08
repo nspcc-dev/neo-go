@@ -914,15 +914,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				return nil
 			}
 		case *ast.SelectorExpr:
-			// If this is a method call we need to walk the AST to load the struct locally.
-			// Otherwise, this is a function call from an imported package and we can call it
-			// directly.
 			name, isMethod := c.getFuncNameFromSelector(fun)
-			if isMethod {
-				ast.Walk(c, fun.X)
-				// Don't forget to add 1 extra argument when its a method.
-				numArgs++
-			}
 
 			f, ok = c.funcs[name]
 			if ok {
@@ -938,11 +930,24 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				c.emitExplicitConvert(c.typeOf(n.Args[0]), typ)
 				return nil
 			}
+			if isMethod {
+				// If this is a method call we need to walk the AST to load the struct locally.
+				// Otherwise, this is a function call from an imported package and we can call it
+				// directly.
+				ast.Walk(c, fun.X)
+				// Don't forget to add 1 extra argument when it's a method.
+				numArgs++
+			}
 		case *ast.ArrayType:
 			// For now we will assume that there are only byte slice conversions.
 			// E.g. []byte("foobar") or []byte(scriptHash).
 			ast.Walk(c, n.Args[0])
 			c.emitConvert(stackitem.BufferT)
+			return nil
+		case *ast.InterfaceType:
+			// It's a type conversion into some interface. Programmer is responsible
+			// for the conversion to be appropriate, just load the arg.
+			ast.Walk(c, n.Args[0])
 			return nil
 		case *ast.FuncLit:
 			isLiteral = true
@@ -2067,7 +2072,11 @@ func (c *codegen) getFuncNameFromSelector(e *ast.SelectorExpr) (string, bool) {
 	ident := e.X.(*ast.Ident)
 	if c.typeInfo.Selections[e] != nil {
 		typ := c.typeInfo.Types[ident].Type.String()
-		return c.getIdentName(typ, e.Sel.Name), true
+		name := c.getIdentName(typ, e.Sel.Name)
+		if name[0] == '*' {
+			name = name[1:]
+		}
+		return name, true
 	}
 	return c.getIdentName(ident.Name, e.Sel.Name), false
 }

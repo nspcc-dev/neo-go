@@ -55,6 +55,15 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	copy(newScope, c.scope.vars.locals)
 	defer c.scope.vars.dropScope()
 
+	if f.decl.Recv != nil {
+		c.scope.vars.locals = newScope
+		name := f.decl.Recv.List[0].Names[0].Name
+		c.scope.vars.addAlias(name, -1, unspecifiedVarIndex, &varContext{
+			importMap: c.importMap,
+			expr:      f.selector,
+			scope:     oldScope,
+		})
+	}
 	hasVarArgs := !n.Ellipsis.IsValid()
 	needPack := sig.Variadic() && hasVarArgs
 	for i := range n.Args {

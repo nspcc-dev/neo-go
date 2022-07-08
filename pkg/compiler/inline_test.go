@@ -336,3 +336,41 @@ func TestPackageVarsInInlinedCalls(t *testing.T) {
 		}`
 	eval(t, src, big.NewInt(13))
 }
+
+func TestInlinedMethod(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+	func Main() int {
+		// It's important for this variable to not be named 't'.
+		var z inline.T
+		i := z.Inc(42)
+		if i != 0 || z.N != 42 {
+			return 0
+		}
+		i = z.Inc(100500)
+		if i != 42 {
+			return 0
+		}
+		return z.N
+	}`
+	eval(t, src, big.NewInt(100542))
+}
+
+func TestInlinedMethodWithPointer(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+	func Main() int {
+		// It's important for this variable to not be named 't'.
+		var z = &inline.T{}
+		i := z.Inc(42)
+		if i != 0 || z.N != 42 {
+			return 0
+		}
+		i = z.Inc(100500)
+		if i != 42 {
+			return 0
+		}
+		return z.N
+	}`
+	eval(t, src, big.NewInt(100542))
+}

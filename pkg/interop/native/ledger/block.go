@@ -29,3 +29,27 @@ type Block struct {
 	// TransactionsLength represents the length of block's transactions array.
 	TransactionsLength int
 }
+
+// BlockSR is a stateroot-enabled Neo block. It's returned from the Ledger contract's
+// GetBlock method when StateRootInHeader NeoGo extension  is used. Use it only when
+// you have it enabled when you need to access PrevStateRoot field, Block is sufficient
+// otherwise. To get this data type ToBlockSR method of Block should be used. All of
+// the fields are same as in Block except PrevStateRoot.
+type BlockSR struct {
+	Hash               interop.Hash256
+	Version            int
+	PrevHash           interop.Hash256
+	MerkleRoot         interop.Hash256
+	Timestamp          int
+	Nonce              int
+	Index              int
+	NextConsensus      interop.Hash160
+	TransactionsLength int
+	// PrevStateRoot is a hash of the previous block's state root.
+	PrevStateRoot interop.Hash256
+}
+
+// ToBlockSR converts Block into BlockSR for chains with StateRootInHeader option.
+func (b *Block) ToBlockSR() *BlockSR {
+	return interface{}(b).(*BlockSR)
+}
