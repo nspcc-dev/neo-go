@@ -270,9 +270,10 @@ func (r *Invoke) UnmarshalJSON(data []byte) error {
 				}
 			}
 		}
-		if err == nil {
-			r.Stack = st
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal stack: %w", err)
 		}
+		r.Stack = st
 	}
 	var tx *transaction.Transaction
 	if len(aux.Transaction) != 0 {
