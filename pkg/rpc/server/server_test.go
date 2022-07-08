@@ -27,7 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dboper"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -926,7 +926,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.Equal(t, "HALT", res.State)
 				assert.Equal(t, []stackitem.Item{stackitem.Make(true)}, res.Stack)
 				assert.NotEqual(t, 0, res.GasConsumed)
-				chg := []storage.Operation{{
+				chg := []dboper.Operation{{
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0xb},
 					Value: []byte{0x70, 0xd9, 0x59, 0x9d, 0x51, 0x79, 0x12},
@@ -961,7 +961,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
-						Changes: []storage.Operation{},
+						Changes: []dboper.Operation{},
 						Invocations: []*invocations.Tree{{
 							Current: hash.Hash160(script),
 							Calls: []*invocations.Tree{
@@ -1074,7 +1074,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
-						Changes: []storage.Operation{},
+						Changes: []dboper.Operation{},
 						Invocations: []*invocations.Tree{{
 							Current: hash.Hash160(script),
 							Calls: []*invocations.Tree{
@@ -1166,7 +1166,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 					FaultException: "at instruction 0 (ROT): too big index",
 					Notifications:  []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
-						Changes: []storage.Operation{},
+						Changes: []dboper.Operation{},
 						Invocations: []*invocations.Tree{{
 							Current: hash.Hash160(script),
 						}},
@@ -1277,7 +1277,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 					FaultException: "at instruction 0 (ROT): too big index",
 					Notifications:  []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
-						Changes: []storage.Operation{},
+						Changes: []dboper.Operation{},
 						Invocations: []*invocations.Tree{{
 							Current: hash.Hash160(script),
 						}},

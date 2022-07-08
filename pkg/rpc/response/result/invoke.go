@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dboper"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -36,7 +37,7 @@ type RegisterIterator func(sessionID string, item stackitem.Item, id int, finali
 
 // InvokeDiag is an additional diagnostic data for invocation.
 type InvokeDiag struct {
-	Changes     []storage.Operation `json:"storagechanges"`
+	Changes     []dboper.Operation  `json:"storagechanges"`
 	Invocations []*invocations.Tree `json:"invokedcontracts"`
 }
 
