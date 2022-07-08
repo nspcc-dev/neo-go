@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -53,7 +54,7 @@ type Context struct {
 	// NEF represents a NEF file for the current contract.
 	NEF *nef.File
 	// invTree is an invocation tree (or branch of it) for this context.
-	invTree *InvocationTree
+	invTree *invocations.Tree
 	// onUnload is a callback that should be called after current context unloading
 	// if no exception occurs.
 	onUnload ContextUnloadCallback

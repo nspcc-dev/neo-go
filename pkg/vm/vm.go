@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
+	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
@@ -87,7 +88,7 @@ type VM struct {
 	trigger trigger.Type
 
 	// invTree is a top-level invocation tree (if enabled).
-	invTree *InvocationTree
+	invTree *invocations.Tree
 }
 
 var (
@@ -271,11 +272,11 @@ func (v *VM) LoadFileWithFlags(path string, f callflag.CallFlag) error {
 
 // CollectInvocationTree enables collecting invocation tree data.
 func (v *VM) EnableInvocationTree() {
-	v.invTree = &InvocationTree{}
+	v.invTree = &invocations.Tree{}
 }
 
 // GetInvocationTree returns the current invocation tree structure.
-func (v *VM) GetInvocationTree() *InvocationTree {
+func (v *VM) GetInvocationTree() *invocations.Tree {
 	return v.invTree
 }
 
@@ -356,7 +357,7 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 		if parent != nil {
 			curTree = parent.invTree
 		}
-		newTree := &InvocationTree{Current: ctx.ScriptHash()}
+		newTree := &invocations.Tree{Current: ctx.ScriptHash()}
 		curTree.Calls = append(curTree.Calls, newTree)
 		ctx.invTree = newTree
 	}

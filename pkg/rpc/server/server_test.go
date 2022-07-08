@@ -41,8 +41,8 @@ import (
 	rpc2 "github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
@@ -962,12 +962,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 					Notifications: []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
 						Changes: []storage.Operation{},
-						Invocations: []*vm.InvocationTree{{
+						Invocations: []*invocations.Tree{{
 							Current: hash.Hash160(script),
-							Calls: []*vm.InvocationTree{
+							Calls: []*invocations.Tree{
 								{
 									Current: nnsHash,
-									Calls: []*vm.InvocationTree{
+									Calls: []*invocations.Tree{
 										{
 											Current: stdHash,
 										},
@@ -1075,12 +1075,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 					Notifications: []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
 						Changes: []storage.Operation{},
-						Invocations: []*vm.InvocationTree{{
+						Invocations: []*invocations.Tree{{
 							Current: hash.Hash160(script),
-							Calls: []*vm.InvocationTree{
+							Calls: []*invocations.Tree{
 								{
 									Current: nnsHash,
-									Calls: []*vm.InvocationTree{
+									Calls: []*invocations.Tree{
 										{
 											Current: stdHash,
 										},
@@ -1167,7 +1167,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 					Notifications:  []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
 						Changes: []storage.Operation{},
-						Invocations: []*vm.InvocationTree{{
+						Invocations: []*invocations.Tree{{
 							Current: hash.Hash160(script),
 						}},
 					},
@@ -1278,7 +1278,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 					Notifications:  []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
 						Changes: []storage.Operation{},
-						Invocations: []*vm.InvocationTree{{
+						Invocations: []*invocations.Tree{{
 							Current: hash.Hash160(script),
 						}},
 					},
