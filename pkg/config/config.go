@@ -16,6 +16,9 @@ const (
 	UserAgentPrefix = "NEO-GO:"
 	// UserAgentFormat is a formatted string used to generate user agent string.
 	UserAgentFormat = UserAgentWrapper + UserAgentPrefix + "%s" + UserAgentWrapper
+	// DefaultMaxIteratorResultItems is the default upper bound of traversed
+	// iterator items per JSON-RPC response.
+	DefaultMaxIteratorResultItems = 100
 )
 
 // Version is the version of the node, set at the build time.
@@ -56,7 +59,7 @@ func LoadFile(configPath string) (Config, error) {
 			PingInterval: 30,
 			PingTimeout:  90,
 			RPC: rpc.Config{
-				MaxIteratorResultItems: 100,
+				MaxIteratorResultItems: DefaultMaxIteratorResultItems,
 				MaxFindResultItems:     100,
 				MaxNEP11Tokens:         100,
 			},

@@ -17,6 +17,10 @@ type (
 		MaxFindResultItems     int           `yaml:"MaxFindResultItems"`
 		MaxNEP11Tokens         int           `yaml:"MaxNEP11Tokens"`
 		Port                   uint16        `yaml:"Port"`
+		SessionEnabled         bool          `yaml:"SessionEnabled"`
+		SessionExpirationTime  int           `yaml:"SessionExpirationTime"`
+		SessionBackedByMPT     bool          `yaml:"SessionBackedByMPT"`
+		SessionPoolSize        int           `yaml:"SessionPoolSize"`
 		StartWhenSynchronized  bool          `yaml:"StartWhenSynchronized"`
 		TLSConfig              TLSConfig     `yaml:"TLSConfig"`
 	}

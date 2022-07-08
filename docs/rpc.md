@@ -72,6 +72,8 @@ which would yield the response:
 | `sendrawtransaction` |
 | `submitblock` |
 | `submitoracleresponse` |
+| `terminatesession` |
+| `traverseiterator` |
 | `validateaddress` |
 | `verifyproof` |
 
@@ -96,7 +98,7 @@ following data types:
 
 Any call that takes any of these types for input in JSON format is affected.
 
-##### `invokefunction`
+##### `invokefunction`, `invokescript`
 
 neo-go implementation of `invokefunction` does not return `tx`
 field in the answer because that requires signing the transaction with some
@@ -107,6 +109,12 @@ in returning it.
 It's possible to use `invokefunction` not only with a contract scripthash, but also 
 with a contract name (for native contracts) or a contract ID (for all contracts). This
 feature is not supported by the C# node.
+
+If iterator is present on stack after function or script invocation then, depending
+on `SessionEnable` RPC-server setting, iterator either will be marshalled as iterator
+ID (corresponds to `SessionEnabled: true`) or as a set of traversed iterator values
+up to `DefaultMaxIteratorResultItems` packed into array (corresponds to
+`SessionEnabled: false`).
 
 ##### `getcontractstate`
 

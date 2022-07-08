@@ -59,6 +59,8 @@ ApplicationConfiguration:
     MaxGasInvoke: 15
     EnableCORSWorkaround: false
     Port: 20331
+    SessionEnabled: true
+    SessionExpirationTime: 180 # higher expiration time for manual requests and tests.
     TLSConfig:
         Enabled: false
         Port: 20330

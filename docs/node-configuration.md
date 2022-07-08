@@ -136,6 +136,10 @@ RPC:
   MaxFindResultItems: 100
   MaxNEP11Tokens: 100
   Port: 10332
+  SessionEnabled: false
+  SessionExpirationTime: 15
+  SessionBackedByMPT: false
+  SessionPoolSize: 20
   StartWhenSynchronized: false
   TLSConfig:
     Address: ""
@@ -159,6 +163,38 @@ where:
 - `MaxNEP11Tokens` - limit for the number of tokens returned from
   `getnep11balances` call.
 - `Port` is an RPC server port it should be bound to.
+- `SessionEnabled` denotes whether session-based iterator JSON-RPC API is enabled.
+  If true, then all iterators got from `invoke*` calls will be stored as sessions
+  on the server side available for further traverse. `traverseiterator` and
+  `terminatesession` JSON-RPC calls will be handled by the server. It is not
+  recommended to enable this setting for public RPC servers due to possible DoS
+  attack. Set to `false` by default. If `false`, iterators are expanded into a
+  set of values (see `MaxIteratorResultItems` setting). Implementation note: when
+  BoltDB storage is used as a node backend DB, then enabling iterator sessions may
+  cause blockchain persist delays up to 2*`SessionExpirationTime` seconds on
+  early blockchain lifetime stages with relatively small DB size. It can happen
+  due to BoltDB re-mmapping behaviour traits. If regular persist is a critical
+  requirement, then we recommend either to decrease `SessionExpirationTime` or to
+  enable `SessionBackedByMPT`, see `SessionBackedByMPT` documentation for more
+  details.
+- `SessionExpirationTime` is a lifetime of iterator session in seconds. It is set
+  to `SecondsPerBlock` seconds by default and is relevant only if `SessionEnabled`
+  is set to `true`.
+- `SessionBackedByMPT` is a flag forcing JSON-RPC server into using MPT-backed
+  storage for delayed iterator traversal. If `true`, then iterator resources got
+  after `invoke*` calls will be released immediately. Further iterator traversing
+  will be performed using MPT-backed storage by retrieving iterator via historical
+  MPT-provided `invoke*` recall. `SessionBackedByMPT` set to `true` strongly affects
+  the `traverseiterator` call performance and doesn't allow iterator traversing
+  for outdated or removed states (see `KeepOnlyLatestState` and
+  `RemoveUntraceableBlocks` settings documentation for details), thus, it is not
+  recommended to enable `SessionBackedByMPT` needlessly. `SessionBackedByMPT` is
+  set to `false` by default and is relevant only if `SessionEnabled` is set to
+  `true`.
+- `SessionPoolSize` is the maximum number of concurrent iterator sessions. It is
+  set to `20` by default. If the subsequent session can't be added to the session
+  pool, then invocation result will contain corresponding error inside the
+  `FaultException` field.
 - `StartWhenSynchronized` controls when RPC server will be started, by default
   (`false` setting) it's started immediately and RPC is availabe during node
   synchronization. Setting it to `true` will make the node start RPC service only

@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client/nns"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -116,9 +118,36 @@ func (c *Client) NNSIsAvailable(nnsHash util.Uint160, name string) (bool, error)
 	return topBoolFromStack(result.Stack)
 }
 
-// NNSGetAllRecords returns all records for a given name from NNS service.
-func (c *Client) NNSGetAllRecords(nnsHash util.Uint160, name string) ([]nns.RecordState, error) {
-	result, err := c.InvokeFunction(nnsHash, "getAllRecords", []smartcontract.Parameter{
+// NNSGetAllRecords returns iterator over records for a given name from NNS service.
+// First return value is the session ID, the second one is Iterator itself, the
+// third one is an error. Use TraverseIterator method to traverse iterator values or
+// TerminateSession to terminate opened iterator session. See TraverseIterator and
+// TerminateSession documentation for more details.
+func (c *Client) NNSGetAllRecords(nnsHash util.Uint160, name string) (uuid.UUID, result.Iterator, error) {
+	res, err := c.InvokeFunction(nnsHash, "getAllRecords", []smartcontract.Parameter{
+		{
+			Type:  smartcontract.StringType,
+			Value: name,
+		},
+	}, nil)
+	if err != nil {
+		return uuid.UUID{}, result.Iterator{}, err
+	}
+	err = getInvocationError(res)
+	if err != nil {
+		return uuid.UUID{}, result.Iterator{}, err
+	}
+
+	iter, err := topIteratorFromStack(res.Stack)
+	return res.Session, iter, err
+}
+
+// NNSUnpackedGetAllRecords returns a set of records for a given name from NNS service
+// (config.DefaultMaxIteratorResultItems at max). It differs from NNSGetAllRecords in
+// that no iterator session is used to retrieve values from iterator. Instead, unpacking
+// VM script is created and invoked via `invokescript` JSON-RPC call.
+func (c *Client) NNSUnpackedGetAllRecords(nnsHash util.Uint160, name string) ([]nns.RecordState, error) {
+	result, err := c.InvokeAndPackIteratorResults(nnsHash, "getAllRecords", []smartcontract.Parameter{
 		{
 			Type:  smartcontract.StringType,
 			Value: name,

@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -73,6 +74,9 @@ type (
 		started          *atomic.Bool
 		errChan          chan error
 
+		sessionsLock sync.Mutex
+		sessions     map[string]*session
+
 		subsLock          sync.RWMutex
 		subscribers       map[*subscriber]bool
 		blockSubs         int
@@ -85,6 +89,40 @@ type (
 		notificationCh    chan *subscriptions.NotificationEvent
 		transactionCh     chan *transaction.Transaction
 		notaryRequestCh   chan mempoolevent.Event
+	}
+
+	// session holds a set of iterators got after invoke* call with corresponding
+	// finalizer and session expiration timer.
+	session struct {
+		// iteratorsLock protects iteratorIdentifiers of the current session.
+		iteratorsLock sync.Mutex
+		// iteratorIdentifiers stores the set of Iterator stackitems got either from original invocation
+		// or from historic MPT-based invocation. In the second case, iteratorIdentifiers are supposed
+		// to be filled during the first `traverseiterator` call using corresponding params.
+		iteratorIdentifiers []*iteratorIdentifier
+		// params stores invocation params for historic MPT-based iterator traversing. It is nil in case
+		// of default non-MPT-based sessions mechanism enabled.
+		params   *invocationParams
+		timer    *time.Timer
+		finalize func()
+	}
+	// iteratorIdentifier represents Iterator on the server side, holding iterator ID, Iterator stackitem
+	// and iterator index on stack.
+	iteratorIdentifier struct {
+		ID string
+		// Item represents Iterator stackitem. It is nil if SessionBackedByMPT is set to true and no `traverseiterator`
+		// call was called for the corresponding session.
+		Item stackitem.Item
+		// StackIndex represents Iterator stackitem index on the stack. It can be used only for SessionBackedByMPT configuration.
+		StackIndex int
+	}
+	// invocationParams is a set of parameters used for invoke* calls.
+	invocationParams struct {
+		Trigger            trigger.Type
+		Script             []byte
+		ContractScriptHash util.Uint160
+		Transaction        *transaction.Transaction
+		NextBlockHeight    uint32
 	}
 )
 
@@ -105,6 +143,9 @@ const (
 
 	// Maximum number of elements for get*transfers requests.
 	maxTransfersLimit = 1000
+
+	// defaultSessionPoolSize is the number of concurrently running iterator sessions.
+	defaultSessionPoolSize = 20
 )
 
 var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *response.Error){
@@ -150,6 +191,8 @@ var rpcHandlers = map[string]func(*Server, request.Params) (interface{}, *respon
 	"submitblock":                  (*Server).submitBlock,
 	"submitnotaryrequest":          (*Server).submitNotaryRequest,
 	"submitoracleresponse":         (*Server).submitOracleResponse,
+	"terminatesession":             (*Server).terminateSession,
+	"traverseiterator":             (*Server).traverseIterator,
 	"validateaddress":              (*Server).validateAddress,
 	"verifyproof":                  (*Server).verifyProof,
 }
@@ -184,13 +227,24 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 	if orc != nil {
 		orc.SetBroadcaster(broadcaster.New(orc.MainCfg, log))
 	}
+	protoCfg := chain.GetConfig()
+	if conf.SessionEnabled {
+		if conf.SessionExpirationTime <= 0 {
+			conf.SessionExpirationTime = protoCfg.SecondsPerBlock
+			log.Info("SessionExpirationTime is not set or wrong, setting default value", zap.Int("SessionExpirationTime", protoCfg.SecondsPerBlock))
+		}
+		if conf.SessionPoolSize <= 0 {
+			conf.SessionPoolSize = defaultSessionPoolSize
+			log.Info("SessionPoolSize is not set or wrong, setting default value", zap.Int("SessionPoolSize", defaultSessionPoolSize))
+		}
+	}
 	return Server{
 		Server:           httpServer,
 		chain:            chain,
 		config:           conf,
-		wsReadLimit:      int64(chain.GetConfig().MaxBlockSize*4)/3 + 1024, // Enough for Base64-encoded content of `submitblock` and `submitp2pnotaryrequest`.
-		network:          chain.GetConfig().Magic,
-		stateRootEnabled: chain.GetConfig().StateRootInHeader,
+		wsReadLimit:      int64(protoCfg.MaxBlockSize*4)/3 + 1024, // Enough for Base64-encoded content of `submitblock` and `submitp2pnotaryrequest`.
+		network:          protoCfg.Magic,
+		stateRootEnabled: protoCfg.StateRootInHeader,
 		coreServer:       coreServer,
 		log:              log,
 		oracle:           orc,
@@ -198,6 +252,8 @@ func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.S
 		shutdown:         make(chan struct{}),
 		started:          atomic.NewBool(false),
 		errChan:          errChan,
+
+		sessions: make(map[string]*session),
 
 		subscribers: make(map[*subscriber]bool),
 		// These are NOT buffered to preserve original order of events.
@@ -285,6 +341,24 @@ func (s *Server) Shutdown() {
 	err := s.Server.Shutdown(context.Background())
 	if err != nil {
 		s.log.Warn("error during RPC (http) server shutdown", zap.Error(err))
+	}
+
+	// Perform sessions finalisation.
+	if s.config.SessionEnabled {
+		s.sessionsLock.Lock()
+		for _, session := range s.sessions {
+			// Concurrent iterator traversal may still be in process, thus need to protect iteratorIdentifiers access.
+			session.iteratorsLock.Lock()
+			if session.finalize != nil {
+				session.finalize()
+			}
+			if !session.timer.Stop() {
+				<-session.timer.C
+			}
+			session.iteratorsLock.Unlock()
+		}
+		s.sessions = nil
+		s.sessionsLock.Unlock()
 	}
 
 	// Wait for handleSubEvents to finish.
@@ -690,7 +764,7 @@ func (s *Server) getNEP11Tokens(h util.Uint160, acc util.Uint160, bw *io.BufBinW
 	if (items[0].Type() != stackitem.InteropT) || !iterator.IsIterator(items[0]) {
 		return nil, "", 0, fmt.Errorf("invalid `tokensOf` result type %s", items[0].String())
 	}
-	vals, _ := iterator.Values(items[0], s.config.MaxNEP11Tokens)
+	vals := iterator.Values(items[0], s.config.MaxNEP11Tokens)
 	sym, err := stackitem.ToString(items[1])
 	if err != nil {
 		return nil, "", 0, fmt.Errorf("`symbol` return value error: %w", err)
@@ -1877,12 +1951,7 @@ func (s *Server) getFakeNextBlock(nextBlockHeight uint32) (*block.Block, error) 
 	return b, nil
 }
 
-// runScriptInVM runs the given script in a new test VM and returns the invocation
-// result. The script is either a simple script in case of `application` trigger,
-// witness invocation script in case of `verification` trigger (it pushes `verify`
-// arguments on stack before verification). In case of contract verification
-// contractScriptHash should be specified.
-func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, b *block.Block, verbose bool) (*result.Invoke, *response.Error) {
+func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, b *block.Block, verbose bool) (*interop.Context, *response.Error) {
 	var (
 		err error
 		ic  *interop.Context
@@ -1918,12 +1987,199 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	} else {
 		ic.VM.LoadScriptWithFlags(script, callflag.All)
 	}
-	err = ic.VM.Run()
+	return ic, nil
+}
+
+// runScriptInVM runs the given script in a new test VM and returns the invocation
+// result. The script is either a simple script in case of `application` trigger,
+// witness invocation script in case of `verification` trigger (it pushes `verify`
+// arguments on stack before verification). In case of contract verification
+// contractScriptHash should be specified.
+func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, b *block.Block, verbose bool) (*result.Invoke, *response.Error) {
+	ic, respErr := s.prepareInvocationContext(t, script, contractScriptHash, tx, b, verbose)
+	if respErr != nil {
+		return nil, respErr
+	}
+	err := ic.VM.Run()
 	var faultException string
 	if err != nil {
 		faultException = err.Error()
 	}
-	return result.NewInvoke(ic, script, faultException, s.config.MaxIteratorResultItems), nil
+	var registerIterator result.RegisterIterator
+	if s.config.SessionEnabled {
+		registerIterator = func(sessionID string, item stackitem.Item, stackIndex int, finalize func()) (uuid.UUID, error) {
+			iterID := uuid.New()
+			s.sessionsLock.Lock()
+			sess, ok := s.sessions[sessionID]
+			if !ok {
+				if len(s.sessions) >= s.config.SessionPoolSize {
+					return uuid.UUID{}, errors.New("max capacity reached")
+				}
+				timer := time.AfterFunc(time.Second*time.Duration(s.config.SessionExpirationTime), func() {
+					s.sessionsLock.Lock()
+					defer s.sessionsLock.Unlock()
+					if len(s.sessions) == 0 {
+						return
+					}
+					sess, ok := s.sessions[sessionID]
+					if !ok {
+						return
+					}
+					sess.iteratorsLock.Lock()
+					if sess.finalize != nil {
+						sess.finalize()
+					}
+					delete(s.sessions, sessionID)
+					sess.iteratorsLock.Unlock()
+				})
+				sess = &session{
+					finalize: finalize,
+					timer:    timer,
+				}
+				if s.config.SessionBackedByMPT {
+					sess.params = &invocationParams{
+						Trigger:            t,
+						Script:             script,
+						ContractScriptHash: contractScriptHash,
+						Transaction:        tx,
+						NextBlockHeight:    ic.Block.Index,
+					}
+					// Call finalizer manually if MPT-based iterator sessions are enabled. If disabled, then register finalizator.
+					if finalize != nil {
+						finalize()
+						sess.finalize = nil
+					}
+					item = nil
+				}
+			}
+			sess.iteratorIdentifiers = append(sess.iteratorIdentifiers, &iteratorIdentifier{
+				ID:         iterID.String(),
+				Item:       item,
+				StackIndex: stackIndex,
+			})
+			s.sessions[sessionID] = sess
+			s.sessionsLock.Unlock()
+			return iterID, nil
+		}
+	}
+	return result.NewInvoke(ic, script, faultException, registerIterator, s.config.MaxIteratorResultItems), nil
+}
+
+func (s *Server) traverseIterator(reqParams request.Params) (interface{}, *response.Error) {
+	if !s.config.SessionEnabled {
+		return nil, response.NewInvalidRequestError("sessions are disabled")
+	}
+	sID, err := reqParams.Value(0).GetUUID()
+	if err != nil {
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("invalid session ID: %s", err))
+	}
+	iID, err := reqParams.Value(1).GetUUID()
+	if err != nil {
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("invalid iterator ID: %s", err))
+	}
+	count, err := reqParams.Value(2).GetInt()
+	if err != nil {
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("invalid iterator items count: %s", err))
+	}
+	if err := checkInt32(count); err != nil {
+		return nil, response.NewInvalidParamsError("invalid iterator items count: not an int32")
+	}
+	if count > s.config.MaxIteratorResultItems {
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("iterator items count is out of range (%d at max)", s.config.MaxIteratorResultItems))
+	}
+
+	s.sessionsLock.Lock()
+	session, ok := s.sessions[sID.String()]
+	if !ok {
+		s.sessionsLock.Unlock()
+		return []json.RawMessage{}, nil
+	}
+	session.iteratorsLock.Lock()
+	// Perform `till` update only after session.iteratorsLock is taken in order to have more
+	// precise session lifetime.
+	session.timer.Reset(time.Second * time.Duration(s.config.SessionExpirationTime))
+	s.sessionsLock.Unlock()
+
+	var (
+		iIDStr  = iID.String()
+		iVals   []stackitem.Item
+		respErr *response.Error
+	)
+	for _, it := range session.iteratorIdentifiers {
+		if iIDStr == it.ID {
+			// If SessionBackedByMPT is enabled, then use MPT-backed historic call to retrieve and traverse iterator.
+			// Otherwise, iterator stackitem is ready and can be used.
+			if s.config.SessionBackedByMPT && it.Item == nil {
+				var (
+					b  *block.Block
+					ic *interop.Context
+				)
+				b, err = s.getFakeNextBlock(session.params.NextBlockHeight)
+				if err != nil {
+					session.iteratorsLock.Unlock()
+					return nil, response.NewInternalServerError(fmt.Sprintf("unable to prepare block for historic call: %s", err))
+				}
+				ic, respErr = s.prepareInvocationContext(session.params.Trigger, session.params.Script, session.params.ContractScriptHash, session.params.Transaction, b, false)
+				if respErr != nil {
+					session.iteratorsLock.Unlock()
+					return nil, respErr
+				}
+				_ = ic.VM.Run() // No error check because FAULTed invocations could also contain iterator on stack.
+				stack := ic.VM.Estack().ToArray()
+
+				// Fill in the whole set of iterators for the current session in order not to repeat test invocation one more time for other session iterators.
+				for _, itID := range session.iteratorIdentifiers {
+					j := itID.StackIndex
+					if (stack[j].Type() != stackitem.InteropT) || !iterator.IsIterator(stack[j]) {
+						session.iteratorsLock.Unlock()
+						return nil, response.NewInternalServerError(fmt.Sprintf("inconsistent historic call result: expected %s, got %s at stack position #%d", stackitem.InteropT, stack[j].Type(), j))
+					}
+					session.iteratorIdentifiers[j].Item = stack[j]
+				}
+				session.finalize = ic.Finalize
+			}
+			iVals = iterator.Values(it.Item, count)
+			break
+		}
+	}
+	session.iteratorsLock.Unlock()
+
+	result := make([]json.RawMessage, len(iVals))
+	for j := range iVals {
+		result[j], err = stackitem.ToJSONWithTypes(iVals[j])
+		if err != nil {
+			return nil, response.NewInternalServerError(fmt.Sprintf("failed to marshal iterator value: %s", err))
+		}
+	}
+	return result, nil
+}
+
+func (s *Server) terminateSession(reqParams request.Params) (interface{}, *response.Error) {
+	if !s.config.SessionEnabled {
+		return nil, response.NewInvalidRequestError("sessions are disabled")
+	}
+	sID, err := reqParams.Value(0).GetUUID()
+	if err != nil {
+		return nil, response.NewInvalidParamsError(fmt.Sprintf("invalid session ID: %s", err))
+	}
+	strSID := sID.String()
+	s.sessionsLock.Lock()
+	defer s.sessionsLock.Unlock()
+	session, ok := s.sessions[strSID]
+	if ok {
+		// Iterators access Seek channel under the hood; finalizer closes this channel, thus,
+		// we need to perform finalisation under iteratorsLock.
+		session.iteratorsLock.Lock()
+		if session.finalize != nil {
+			session.finalize()
+		}
+		if !session.timer.Stop() {
+			<-session.timer.C
+		}
+		delete(s.sessions, strSID)
+		session.iteratorsLock.Unlock()
+	}
+	return ok, nil
 }
 
 // submitBlock broadcasts a raw block over the NEO network.

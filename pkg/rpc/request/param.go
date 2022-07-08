@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -503,4 +504,17 @@ func (s *SignerWithWitness) MarshalJSON() ([]byte, error) {
 		VerificationScript: s.VerificationScript,
 	}
 	return json.Marshal(signer)
+}
+
+// GetUUID returns UUID from parameter.
+func (p *Param) GetUUID() (uuid.UUID, error) {
+	s, err := p.GetString()
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	id, err := uuid.Parse(s)
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("not a valid UUID: %w", err)
+	}
+	return id, nil
 }
