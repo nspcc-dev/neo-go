@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -281,9 +282,9 @@ func TestManagement_ContractDeploy(t *testing.T) {
 func TestManagement_StartFromHeight(t *testing.T) {
 	// Create database to be able to start another chain from the same height later.
 	ldbDir := t.TempDir()
-	dbConfig := storage.DBConfiguration{
+	dbConfig := dbconfig.DBConfiguration{
 		Type: "leveldb",
-		LevelDBOptions: storage.LevelDBOptions{
+		LevelDBOptions: dbconfig.LevelDBOptions{
 			DataDirectoryPath: ldbDir,
 		},
 	}

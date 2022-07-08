@@ -9,7 +9,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/rpc"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
@@ -349,7 +349,7 @@ func TestInitBlockChain(t *testing.T) {
 	t.Run("empty logger", func(t *testing.T) {
 		_, err := initBlockChain(config.Config{
 			ApplicationConfiguration: config.ApplicationConfiguration{
-				DBConfiguration: storage.DBConfiguration{
+				DBConfiguration: dbconfig.DBConfiguration{
 					Type: "inmemory",
 				},
 			},

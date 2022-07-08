@@ -1,16 +1,12 @@
 package storage
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 )
-
-// LevelDBOptions configuration for LevelDB.
-type LevelDBOptions struct {
-	DataDirectoryPath string `yaml:"DataDirectoryPath"`
-}
 
 // LevelDBStore is the official storage implementation for storing and retrieving
 // blockchain data.
@@ -21,7 +17,7 @@ type LevelDBStore struct {
 
 // NewLevelDBStore returns a new LevelDBStore object that will
 // initialize the database found at the given path.
-func NewLevelDBStore(cfg LevelDBOptions) (*LevelDBStore, error) {
+func NewLevelDBStore(cfg dbconfig.LevelDBOptions) (*LevelDBStore, error) {
 	var opts = new(opt.Options) // should be exposed via LevelDBOptions if anything needed
 
 	opts.Filter = filter.NewBloomFilter(10)

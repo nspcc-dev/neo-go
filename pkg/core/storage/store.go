@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
@@ -125,7 +126,7 @@ func seekRangeToPrefixes(sr SeekRange) *util.Range {
 }
 
 // NewStore creates storage with preselected in configuration database type.
-func NewStore(cfg DBConfiguration) (Store, error) {
+func NewStore(cfg dbconfig.DBConfiguration) (Store, error) {
 	var store Store
 	var err error
 	switch cfg.Type {

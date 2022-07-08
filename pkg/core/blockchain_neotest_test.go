@@ -28,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -52,7 +53,7 @@ func newLevelDBForTestingWithPath(t testing.TB, dbPath string) (storage.Store, s
 	if dbPath == "" {
 		dbPath = t.TempDir()
 	}
-	dbOptions := storage.LevelDBOptions{
+	dbOptions := dbconfig.LevelDBOptions{
 		DataDirectoryPath: dbPath,
 	}
 	newLevelStore, err := storage.NewLevelDBStore(dbOptions)
