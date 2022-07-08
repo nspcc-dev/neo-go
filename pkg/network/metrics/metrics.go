@@ -4,22 +4,16 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"go.uber.org/zap"
 )
 
 // Service serves metrics.
 type Service struct {
 	*http.Server
-	config      Config
+	config      config.BasicService
 	log         *zap.Logger
 	serviceType string
-}
-
-// Config config used for monitoring.
-type Config struct {
-	Enabled bool   `yaml:"Enabled"`
-	Address string `yaml:"Address"`
-	Port    string `yaml:"Port"`
 }
 
 // Start runs http service with the exposed endpoint on the configured port.

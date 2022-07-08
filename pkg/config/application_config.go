@@ -2,7 +2,6 @@ package config
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-	"github.com/nspcc-dev/neo-go/pkg/network/metrics"
 	"github.com/nspcc-dev/neo-go/pkg/rpc"
 )
 
@@ -19,8 +18,8 @@ type ApplicationConfiguration struct {
 	NodePort          uint16                  `yaml:"NodePort"`
 	PingInterval      int64                   `yaml:"PingInterval"`
 	PingTimeout       int64                   `yaml:"PingTimeout"`
-	Pprof             metrics.Config          `yaml:"Pprof"`
-	Prometheus        metrics.Config          `yaml:"Prometheus"`
+	Pprof             BasicService            `yaml:"Pprof"`
+	Prometheus        BasicService            `yaml:"Prometheus"`
 	ProtoTickInterval int64                   `yaml:"ProtoTickInterval"`
 	Relay             bool                    `yaml:"Relay"`
 	RPC               rpc.Config              `yaml:"RPC"`

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/pprof"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"go.uber.org/zap"
 )
 
@@ -11,7 +12,7 @@ import (
 type PprofService Service
 
 // NewPprofService creates a new service for gathering pprof metrics.
-func NewPprofService(cfg Config, log *zap.Logger) *Service {
+func NewPprofService(cfg config.BasicService, log *zap.Logger) *Service {
 	if log == nil {
 		return nil
 	}
