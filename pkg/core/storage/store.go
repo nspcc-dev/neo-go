@@ -41,14 +41,6 @@ const (
 	ExecTransaction byte = 2
 )
 
-const (
-	// MaxStorageKeyLen is the maximum length of a key for storage items.
-	MaxStorageKeyLen = 64
-	// MaxStorageValueLen is the maximum length of a value for storage items.
-	// It is set to be the maximum value for uint16.
-	MaxStorageValueLen = 65535
-)
-
 // Operation represents a single KV operation (add/del/change) performed
 // in the DB.
 type Operation struct {

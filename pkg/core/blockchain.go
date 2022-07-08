@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
@@ -1328,7 +1329,7 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.S
 	var id []byte
 	if len(arr) == 4 {
 		id, err = arr[3].TryBytes()
-		if err != nil || len(id) > storage.MaxStorageKeyLen {
+		if err != nil || len(id) > limits.MaxStorageKeyLen {
 			return
 		}
 	}

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"math/big"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -224,5 +224,5 @@ func (t *NEP11Transfer) EncodeBinary(w *io.BinWriter) {
 // DecodeBinary implements the io.Serializable interface.
 func (t *NEP11Transfer) DecodeBinary(r *io.BinReader) {
 	t.NEP17Transfer.DecodeBinary(r)
-	t.ID = r.ReadVarBytes(storage.MaxStorageKeyLen)
+	t.ID = r.ReadVarBytes(limits.MaxStorageKeyLen)
 }
