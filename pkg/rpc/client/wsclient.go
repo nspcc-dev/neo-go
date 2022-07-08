@@ -63,9 +63,9 @@ type Notification struct {
 // requestResponse is a combined type for request and response since we can get
 // any of them here.
 type requestResponse struct {
-	request.In
-	Error  *response.Error `json:"error,omitempty"`
-	Result json.RawMessage `json:"result,omitempty"`
+	response.Raw
+	Method    string            `json:"method"`
+	RawParams []json.RawMessage `json:"params,omitempty"`
 }
 
 const (
@@ -158,7 +158,7 @@ readloop:
 			connCloseErr = fmt.Errorf("failed to read JSON response (timeout/connection loss/malformed response): %w", err)
 			break readloop
 		}
-		if rr.RawID == nil && rr.Method != "" {
+		if rr.ID == nil && rr.Method != "" {
 			event, err := response.GetEventIDFromString(rr.Method)
 			if err != nil {
 				// Bad event received.
@@ -196,7 +196,7 @@ readloop:
 				break readloop
 			}
 			if event != response.MissedEventID {
-				err = json.Unmarshal(rr.RawParams[0].RawMessage, val)
+				err = json.Unmarshal(rr.RawParams[0], val)
 				if err != nil {
 					// Bad event received.
 					connCloseErr = fmt.Errorf("failed to unmarshal event of type %s from JSON: %w", event, err)
@@ -204,23 +204,18 @@ readloop:
 				}
 			}
 			c.Notifications <- Notification{event, val}
-		} else if rr.RawID != nil && (rr.Error != nil || rr.Result != nil) {
-			resp := new(response.Raw)
-			resp.ID = rr.RawID
-			resp.JSONRPC = rr.JSONRPC
-			resp.Error = rr.Error
-			resp.Result = rr.Result
-			id, err := strconv.Atoi(string(resp.ID))
+		} else if rr.ID != nil && (rr.Error != nil || rr.Result != nil) {
+			id, err := strconv.ParseUint(string(rr.ID), 10, 64)
 			if err != nil {
-				connCloseErr = fmt.Errorf("failed to retrieve response ID from string %s: %w", string(resp.ID), err)
+				connCloseErr = fmt.Errorf("failed to retrieve response ID from string %s: %w", string(rr.ID), err)
 				break readloop // Malformed response (invalid response ID).
 			}
-			ch := c.getResponseChannel(uint64(id))
+			ch := c.getResponseChannel(id)
 			if ch == nil {
 				connCloseErr = fmt.Errorf("unknown response channel for response %d", id)
 				break readloop // Unknown response (unexpected response ID).
 			}
-			ch <- resp
+			ch <- &rr.Raw
 		} else {
 			// Malformed response, neither valid request, nor valid response.
 			connCloseErr = fmt.Errorf("malformed response")
@@ -261,7 +256,7 @@ writeloop:
 				break writeloop
 			}
 			if err := c.ws.WriteJSON(req); err != nil {
-				connCloseErr = fmt.Errorf("failed to write JSON request (%s / %d): %w", req.Method, len(req.RawParams), err)
+				connCloseErr = fmt.Errorf("failed to write JSON request (%s / %d): %w", req.Method, len(req.Params), err)
 				break writeloop
 			}
 		case <-pingTicker.C:
@@ -320,7 +315,7 @@ func (c *WSClient) makeWsRequest(r *request.Raw) (*response.Raw, error) {
 	}
 }
 
-func (c *WSClient) performSubscription(params request.RawParams) (string, error) {
+func (c *WSClient) performSubscription(params []interface{}) (string, error) {
 	var resp string
 
 	if err := c.performRequest("subscribe", params, &resp); err != nil {
@@ -343,7 +338,7 @@ func (c *WSClient) performUnsubscription(id string) error {
 	if !c.subscriptions[id] {
 		return errors.New("no subscription with this ID")
 	}
-	if err := c.performRequest("unsubscribe", request.NewRawParams(id), &resp); err != nil {
+	if err := c.performRequest("unsubscribe", []interface{}{id}, &resp); err != nil {
 		return err
 	}
 	if !resp {
@@ -357,9 +352,9 @@ func (c *WSClient) performUnsubscription(id string) error {
 // of the client. It can be filtered by primary consensus node index, nil value doesn't
 // add any filters.
 func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
-	params := request.NewRawParams("block_added")
+	params := []interface{}{"block_added"}
 	if primary != nil {
-		params.Values = append(params.Values, request.BlockFilter{Primary: *primary})
+		params = append(params, request.BlockFilter{Primary: *primary})
 	}
 	return c.performSubscription(params)
 }
@@ -368,9 +363,9 @@ func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
 // this instance of the client. It can be filtered by the sender and/or the signer, nil
 // value is treated as missing filter.
 func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, signer *util.Uint160) (string, error) {
-	params := request.NewRawParams("transaction_added")
+	params := []interface{}{"transaction_added"}
 	if sender != nil || signer != nil {
-		params.Values = append(params.Values, request.TxFilter{Sender: sender, Signer: signer})
+		params = append(params, request.TxFilter{Sender: sender, Signer: signer})
 	}
 	return c.performSubscription(params)
 }
@@ -380,9 +375,9 @@ func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, signer *uti
 // filtered by the contract's hash (that emits notifications), nil value puts no such
 // restrictions.
 func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160, name *string) (string, error) {
-	params := request.NewRawParams("notification_from_execution")
+	params := []interface{}{"notification_from_execution"}
 	if contract != nil || name != nil {
-		params.Values = append(params.Values, request.NotificationFilter{Contract: contract, Name: name})
+		params = append(params, request.NotificationFilter{Contract: contract, Name: name})
 	}
 	return c.performSubscription(params)
 }
@@ -392,12 +387,12 @@ func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160, na
 // be filtered by state (HALT/FAULT) to check for successful or failing
 // transactions, nil value means no filtering.
 func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, error) {
-	params := request.NewRawParams("transaction_executed")
+	params := []interface{}{"transaction_executed"}
 	if state != nil {
 		if *state != "HALT" && *state != "FAULT" {
 			return "", errors.New("bad state parameter")
 		}
-		params.Values = append(params.Values, request.ExecutionFilter{State: *state})
+		params = append(params, request.ExecutionFilter{State: *state})
 	}
 	return c.performSubscription(params)
 }
@@ -407,9 +402,9 @@ func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, err
 // request sender's hash, or main tx signer's hash, nil value puts no such
 // restrictions.
 func (c *WSClient) SubscribeForNotaryRequests(sender *util.Uint160, mainSigner *util.Uint160) (string, error) {
-	params := request.NewRawParams("notary_request_event")
+	params := []interface{}{"notary_request_event"}
 	if sender != nil {
-		params.Values = append(params.Values, request.TxFilter{Sender: sender, Signer: mainSigner})
+		params = append(params, request.TxFilter{Sender: sender, Signer: mainSigner})
 	}
 	return c.performSubscription(params)
 }
@@ -426,7 +421,7 @@ func (c *WSClient) UnsubscribeAll() error {
 
 	for id := range c.subscriptions {
 		var resp bool
-		if err := c.performRequest("unsubscribe", request.NewRawParams(id), &resp); err != nil {
+		if err := c.performRequest("unsubscribe", []interface{}{id}, &resp); err != nil {
 			return err
 		}
 		if !resp {

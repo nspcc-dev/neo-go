@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
+	"github.com/nspcc-dev/neo-go/pkg/rpc/server/params"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
@@ -189,7 +190,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 	var cases = []struct {
 		name       string
 		clientCode func(*testing.T, *WSClient)
-		serverCode func(*testing.T, *request.Params)
+		serverCode func(*testing.T, *params.Params)
 	}{
 		{"blocks",
 			func(t *testing.T, wsc *WSClient) {
@@ -197,7 +198,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				_, err := wsc.SubscribeForNewBlocks(&primary)
 				require.NoError(t, err)
 			},
-			func(t *testing.T, p *request.Params) {
+			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
 				filt := new(request.BlockFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
@@ -210,7 +211,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				_, err := wsc.SubscribeForNewTransactions(&sender, nil)
 				require.NoError(t, err)
 			},
-			func(t *testing.T, p *request.Params) {
+			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
 				filt := new(request.TxFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
@@ -224,7 +225,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				_, err := wsc.SubscribeForNewTransactions(nil, &signer)
 				require.NoError(t, err)
 			},
-			func(t *testing.T, p *request.Params) {
+			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
 				filt := new(request.TxFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
@@ -239,7 +240,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				_, err := wsc.SubscribeForNewTransactions(&sender, &signer)
 				require.NoError(t, err)
 			},
-			func(t *testing.T, p *request.Params) {
+			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
 				filt := new(request.TxFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
@@ -253,7 +254,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				_, err := wsc.SubscribeForExecutionNotifications(&contract, nil)
 				require.NoError(t, err)
 			},
-			func(t *testing.T, p *request.Params) {
+			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
 				filt := new(request.NotificationFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
@@ -267,7 +268,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				_, err := wsc.SubscribeForExecutionNotifications(nil, &name)
 				require.NoError(t, err)
 			},
-			func(t *testing.T, p *request.Params) {
+			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
 				filt := new(request.NotificationFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
@@ -282,7 +283,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				_, err := wsc.SubscribeForExecutionNotifications(&contract, &name)
 				require.NoError(t, err)
 			},
-			func(t *testing.T, p *request.Params) {
+			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
 				filt := new(request.NotificationFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
@@ -296,7 +297,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				_, err := wsc.SubscribeForTransactionExecutions(&state)
 				require.NoError(t, err)
 			},
-			func(t *testing.T, p *request.Params) {
+			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
 				filt := new(request.ExecutionFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
@@ -313,10 +314,10 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 					require.NoError(t, err)
 					err = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
 					require.NoError(t, err)
-					req := request.In{}
+					req := params.In{}
 					err = ws.ReadJSON(&req)
 					require.NoError(t, err)
-					params := request.Params(req.RawParams)
+					params := params.Params(req.RawParams)
 					c.serverCode(t, &params)
 					err = ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
 					require.NoError(t, err)
@@ -370,7 +371,7 @@ func TestWSConcurrentAccess(t *testing.T) {
 				if err != nil {
 					break
 				}
-				r := request.NewIn()
+				r := params.NewIn()
 				err = json.Unmarshal(p, r)
 				if err != nil {
 					t.Fatalf("Cannot decode request body: %s", req.Body)

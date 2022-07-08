@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"go.uber.org/zap"
 )
 
@@ -15,17 +14,17 @@ type RPCClient struct {
 	addr        string
 	close       chan struct{}
 	finished    chan struct{}
-	responses   chan request.RawParams
+	responses   chan []interface{}
 	log         *zap.Logger
 	sendTimeout time.Duration
 	method      SendMethod
 }
 
 // SendMethod represents an rpc method for sending data to other nodes.
-type SendMethod func(*client.Client, request.RawParams) error
+type SendMethod func(*client.Client, []interface{}) error
 
 // NewRPCClient returns a new rpc client for the provided address and method.
-func (r *RPCBroadcaster) NewRPCClient(addr string, method SendMethod, timeout time.Duration, ch chan request.RawParams) *RPCClient {
+func (r *RPCBroadcaster) NewRPCClient(addr string, method SendMethod, timeout time.Duration, ch chan []interface{}) *RPCClient {
 	return &RPCClient{
 		addr:        addr,
 		close:       r.close,

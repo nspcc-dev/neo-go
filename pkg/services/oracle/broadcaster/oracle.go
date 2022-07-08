@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/services/helpers/rpcbroadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"go.uber.org/zap"
@@ -35,7 +34,7 @@ func New(cfg config.OracleConfiguration, log *zap.Logger) oracle.Broadcaster {
 	}
 	for i := range cfg.Nodes {
 		r.Clients[cfg.Nodes[i]] = r.NewRPCClient(cfg.Nodes[i], (*client.Client).SubmitRawOracleResponse,
-			cfg.ResponseTimeout, make(chan request.RawParams, defaultChanCapacity))
+			cfg.ResponseTimeout, make(chan []interface{}, defaultChanCapacity))
 	}
 	return r
 }
@@ -45,12 +44,12 @@ func (r *oracleBroadcaster) SendResponse(priv *keys.PrivateKey, resp *transactio
 	pub := priv.PublicKey()
 	data := GetMessage(pub.Bytes(), resp.ID, txSig)
 	msgSig := priv.Sign(data)
-	params := request.NewRawParams(
+	params := []interface{}{
 		base64.StdEncoding.EncodeToString(pub.Bytes()),
 		resp.ID,
 		base64.StdEncoding.EncodeToString(txSig),
 		base64.StdEncoding.EncodeToString(msgSig),
-	)
+	}
 	r.SendParams(params)
 }
 
