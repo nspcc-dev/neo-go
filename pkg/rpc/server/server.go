@@ -1542,8 +1542,11 @@ func (s *Server) getrawtransaction(reqParams params.Params) (interface{}, *respo
 		return nil, response.ErrUnknownTransaction
 	}
 	if v, _ := reqParams.Value(1).GetBoolean(); v {
-		if height == math.MaxUint32 {
-			return result.NewTransactionOutputRaw(tx, nil, nil, s.chain), nil
+		res := result.TransactionOutputRaw{
+			Transaction: *tx,
+		}
+		if height == math.MaxUint32 { // Mempooled transaction.
+			return res, nil
 		}
 		_header := s.chain.GetHeaderHash(int(height))
 		header, err := s.chain.GetHeader(_header)
@@ -1557,7 +1560,13 @@ func (s *Server) getrawtransaction(reqParams params.Params) (interface{}, *respo
 		if len(aers) == 0 {
 			return nil, response.NewRPCError("Inconsistent application log", "application log for the transaction is empty")
 		}
-		return result.NewTransactionOutputRaw(tx, header, &aers[0], s.chain), nil
+		res.TransactionMetadata = result.TransactionMetadata{
+			Blockhash:     header.Hash(),
+			Confirmations: int(s.chain.BlockHeight() - header.Index + 1),
+			Timestamp:     header.Timestamp,
+			VMState:       aers[0].VMState.String(),
+		}
+		return res, nil
 	}
 	return tx.Bytes(), nil
 }
