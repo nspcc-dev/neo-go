@@ -92,6 +92,36 @@ func (r Iterator) MarshalJSON() ([]byte, error) {
 	return json.Marshal(iaux)
 }
 
+// UnmarshalJSON implements the json.Unmarshaler.
+func (r *Iterator) UnmarshalJSON(data []byte) error {
+	iteratorAux := new(iteratorAux)
+	err := json.Unmarshal(data, iteratorAux)
+	if err != nil {
+		return err
+	}
+	if len(iteratorAux.Interface) != 0 {
+		if iteratorAux.Interface != iteratorInterfaceName {
+			return fmt.Errorf("unknown InteropInterface: %s", iteratorAux.Interface)
+		}
+		var iID uuid.UUID
+		iID, err = uuid.Parse(iteratorAux.ID)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal iterator ID: %w", err)
+		}
+		r.ID = &iID
+	} else {
+		r.Values = make([]stackitem.Item, len(iteratorAux.Value))
+		for j := range r.Values {
+			r.Values[j], err = stackitem.FromJSONWithTypes(iteratorAux.Value[j])
+			if err != nil {
+				return fmt.Errorf("failed to unmarshal iterator values: %w", err)
+			}
+		}
+		r.Truncated = iteratorAux.Truncated
+	}
+	return nil
+}
+
 // MarshalJSON implements the json.Marshaler.
 func (r Invoke) MarshalJSON() ([]byte, error) {
 	var (
@@ -171,41 +201,12 @@ func (r *Invoke) UnmarshalJSON(data []byte) error {
 				break
 			}
 			if st[i].Type() == stackitem.InteropT {
-				iteratorAux := new(iteratorAux)
-				if json.Unmarshal(arr[i], iteratorAux) == nil {
-					if len(iteratorAux.Interface) != 0 {
-						if iteratorAux.Interface != iteratorInterfaceName {
-							err = fmt.Errorf("unknown InteropInterface: %s", iteratorAux.Interface)
-							break
-						}
-						var iID uuid.UUID
-						iID, err = uuid.Parse(iteratorAux.ID) // iteratorAux.ID is always non-empty, see https://github.com/neo-project/neo-modules/pull/715#discussion_r897635424.
-						if err != nil {
-							err = fmt.Errorf("failed to unmarshal iterator ID: %w", err)
-							break
-						}
-						// It's impossible to restore initial iterator type; also iterator is almost
-						// useless outside the VM, thus let's replace it with a special structure.
-						st[i] = stackitem.NewInterop(Iterator{
-							ID: &iID,
-						})
-					} else {
-						iteratorValues := make([]stackitem.Item, len(iteratorAux.Value))
-						for j := range iteratorValues {
-							iteratorValues[j], err = stackitem.FromJSONWithTypes(iteratorAux.Value[j])
-							if err != nil {
-								err = fmt.Errorf("failed to unmarshal iterator values: %w", err)
-								break
-							}
-						}
-						// It's impossible to restore initial iterator type; also iterator is almost
-						// useless outside the VM, thus let's replace it with a special structure.
-						st[i] = stackitem.NewInterop(Iterator{
-							Values:    iteratorValues,
-							Truncated: iteratorAux.Truncated,
-						})
-					}
+				var iter = Iterator{}
+				err = json.Unmarshal(arr[i], &iter)
+				if err != nil {
+					break
 				}
+				st[i] = stackitem.NewInterop(iter)
 			}
 		}
 		if err != nil {
