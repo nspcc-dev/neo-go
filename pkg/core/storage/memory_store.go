@@ -68,13 +68,14 @@ func (s *MemoryStore) putChangeSet(puts map[string][]byte, stores map[string][]b
 
 // Seek implements the Store interface.
 func (s *MemoryStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
-	s.mut.RLock()
-	s.seek(rng, f)
-	s.mut.RUnlock()
+	s.seek(rng, f, s.mut.RLock, s.mut.RUnlock)
 }
 
 // SeekGC implements the Store interface.
 func (s *MemoryStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
+	noop := func() {}
+	// Keep RW lock for the whole Seek time, state must be consistent across whole
+	// operation and we call delete in the handler.
 	s.mut.Lock()
 	// We still need to perform normal seek, some GC operations can be
 	// sensitive to the order of KV pairs.
@@ -83,7 +84,7 @@ func (s *MemoryStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
 			delete(s.chooseMap(k), string(k))
 		}
 		return true
-	})
+	}, noop, noop)
 	s.mut.Unlock()
 	return nil
 }
@@ -91,7 +92,7 @@ func (s *MemoryStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
 // seek is an internal unlocked implementation of Seek. `start` denotes whether
 // seeking starting from the provided prefix should be performed. Backwards
 // seeking from some point is supported with corresponding SeekRange field set.
-func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool) {
+func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool, lock func(), unlock func()) {
 	sPrefix := string(rng.Prefix)
 	lPrefix := len(sPrefix)
 	sStart := string(rng.Start)
@@ -111,6 +112,7 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool) {
 		return res != 0 && rng.Backwards == (res > 0)
 	}
 
+	lock()
 	m := s.chooseMap(rng.Prefix)
 	for k, v := range m {
 		if v != nil && isKeyOK(k) {
@@ -120,6 +122,7 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool) {
 			})
 		}
 	}
+	unlock()
 	sort.Slice(memList, func(i, j int) bool {
 		return less(memList[i].Key, memList[j].Key)
 	})
