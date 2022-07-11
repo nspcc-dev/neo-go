@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -81,10 +81,10 @@ func getContextInternal(ic *interop.Context, isReadOnly bool) error {
 }
 
 func putWithContext(ic *interop.Context, stc *Context, key []byte, value []byte) error {
-	if len(key) > storage.MaxStorageKeyLen {
+	if len(key) > limits.MaxStorageKeyLen {
 		return errors.New("key is too big")
 	}
-	if len(value) > storage.MaxStorageValueLen {
+	if len(value) > limits.MaxStorageValueLen {
 		return errors.New("value is too big")
 	}
 	if stc.ReadOnly {

@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -23,25 +21,6 @@ type TransactionMetadata struct {
 	Confirmations int          `json:"confirmations,omitempty"`
 	Timestamp     uint64       `json:"blocktime,omitempty"`
 	VMState       string       `json:"vmstate,omitempty"`
-}
-
-// NewTransactionOutputRaw returns a new ransactionOutputRaw object.
-func NewTransactionOutputRaw(tx *transaction.Transaction, header *block.Header, appExecResult *state.AppExecResult, chain LedgerAux) TransactionOutputRaw {
-	result := TransactionOutputRaw{
-		Transaction: *tx,
-	}
-	if header == nil {
-		return result
-	}
-	// confirmations formula
-	confirmations := int(chain.BlockHeight() - header.Index + 1)
-	result.TransactionMetadata = TransactionMetadata{
-		Blockhash:     header.Hash(),
-		Confirmations: confirmations,
-		Timestamp:     header.Timestamp,
-		VMState:       appExecResult.VMState.String(),
-	}
-	return result
 }
 
 // MarshalJSON implements the json.Marshaler interface.

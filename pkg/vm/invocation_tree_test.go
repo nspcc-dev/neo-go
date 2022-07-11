@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
@@ -36,13 +37,13 @@ func TestInvocationTree(t *testing.T) {
 	topHash := v.Context().ScriptHash()
 	require.NoError(t, v.Run())
 
-	res := &InvocationTree{
-		Calls: []*InvocationTree{{
+	res := &invocations.Tree{
+		Calls: []*invocations.Tree{{
 			Current: topHash,
-			Calls: []*InvocationTree{
+			Calls: []*invocations.Tree{
 				{
 					Current: util.Uint160{1},
-					Calls: []*InvocationTree{
+					Calls: []*invocations.Tree{
 						{
 							Current: util.Uint160{2},
 						},
@@ -53,7 +54,7 @@ func TestInvocationTree(t *testing.T) {
 				},
 				{
 					Current: util.Uint160{4},
-					Calls: []*InvocationTree{
+					Calls: []*invocations.Tree{
 						{
 							Current: util.Uint160{5},
 						},

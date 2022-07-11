@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
@@ -40,6 +41,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"go.uber.org/zap"
 )
 
@@ -816,7 +818,7 @@ func (bc *Blockchain) notificationDispatcher() {
 					for ch := range executionFeed {
 						ch <- aer
 					}
-					if aer.VMState == vm.HaltState {
+					if aer.VMState == vmstate.Halt {
 						for i := range aer.Events {
 							for ch := range notificationFeed {
 								ch <- &subscriptions.NotificationEvent{
@@ -1065,7 +1067,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				err = fmt.Errorf("failed to store exec result: %w", err)
 				break
 			}
-			if aer.Execution.VMState == vm.HaltState {
+			if aer.Execution.VMState == vmstate.Halt {
 				for j := range aer.Execution.Events {
 					bc.handleNotification(&aer.Execution.Events[j], kvcache, transCache, block, aer.Container)
 				}
@@ -1327,7 +1329,7 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.S
 	var id []byte
 	if len(arr) == 4 {
 		id, err = arr[3].TryBytes()
-		if err != nil || len(id) > storage.MaxStorageKeyLen {
+		if err != nil || len(id) > limits.MaxStorageKeyLen {
 			return
 		}
 	}

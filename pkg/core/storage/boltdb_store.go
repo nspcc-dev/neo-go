@@ -5,15 +5,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"go.etcd.io/bbolt"
 )
-
-// BoltDBOptions configuration for boltdb.
-type BoltDBOptions struct {
-	FilePath string `yaml:"FilePath"`
-}
 
 // Bucket represents bucket used in boltdb to store all the data.
 var Bucket = []byte("DB")
@@ -25,7 +21,7 @@ type BoltDBStore struct {
 }
 
 // NewBoltDBStore returns a new ready to use BoltDB storage with created bucket.
-func NewBoltDBStore(cfg BoltDBOptions) (*BoltDBStore, error) {
+func NewBoltDBStore(cfg dbconfig.BoltDBOptions) (*BoltDBStore, error) {
 	var opts *bbolt.Options       // should be exposed via BoltDBOptions if anything needed
 	fileMode := os.FileMode(0600) // should be exposed via BoltDBOptions if anything needed
 	fileName := cfg.FilePath

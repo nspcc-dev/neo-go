@@ -5,67 +5,31 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop"
-	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dboper"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Invoke represents a code invocation result and is used by several RPC calls
 // that invoke functions, scripts and generic bytecode.
 type Invoke struct {
-	State                  string
-	GasConsumed            int64
-	Script                 []byte
-	Stack                  []stackitem.Item
-	FaultException         string
-	Notifications          []state.NotificationEvent
-	Transaction            *transaction.Transaction
-	Diagnostics            *InvokeDiag
-	maxIteratorResultItems int
-	Session                uuid.UUID
-	finalize               func()
-	registerIterator       RegisterIterator
+	State          string
+	GasConsumed    int64
+	Script         []byte
+	Stack          []stackitem.Item
+	FaultException string
+	Notifications  []state.NotificationEvent
+	Transaction    *transaction.Transaction
+	Diagnostics    *InvokeDiag
+	Session        uuid.UUID
 }
-
-// RegisterIterator is a callback used to register new iterator on the server side.
-type RegisterIterator func(sessionID string, item stackitem.Item, id int, finalize func()) (uuid.UUID, error)
 
 // InvokeDiag is an additional diagnostic data for invocation.
 type InvokeDiag struct {
-	Changes     []storage.Operation  `json:"storagechanges"`
-	Invocations []*vm.InvocationTree `json:"invokedcontracts"`
-}
-
-// NewInvoke returns a new Invoke structure with the given fields set.
-func NewInvoke(ic *interop.Context, script []byte, faultException string, registerIterator RegisterIterator, maxIteratorResultItems int) *Invoke {
-	var diag *InvokeDiag
-	tree := ic.VM.GetInvocationTree()
-	if tree != nil {
-		diag = &InvokeDiag{
-			Invocations: tree.Calls,
-			Changes:     storage.BatchToOperations(ic.DAO.GetBatch()),
-		}
-	}
-	notifications := ic.Notifications
-	if notifications == nil {
-		notifications = make([]state.NotificationEvent, 0)
-	}
-	return &Invoke{
-		State:                  ic.VM.State().String(),
-		GasConsumed:            ic.VM.GasConsumed(),
-		Script:                 script,
-		Stack:                  ic.VM.Estack().ToArray(),
-		FaultException:         faultException,
-		Notifications:          notifications,
-		Diagnostics:            diag,
-		finalize:               ic.Finalize,
-		maxIteratorResultItems: maxIteratorResultItems,
-		registerIterator:       registerIterator,
-	}
+	Changes     []dboper.Operation  `json:"storagechanges"`
+	Invocations []*invocations.Tree `json:"invokedcontracts"`
 }
 
 type invokeAux struct {
@@ -106,85 +70,85 @@ type Iterator struct {
 	Truncated bool
 }
 
-// Finalize releases resources occupied by Iterators created at the script invocation.
-// This method will be called automatically on Invoke marshalling or by the Server's
-// sessions handler.
-func (r *Invoke) Finalize() {
-	if r.finalize != nil {
-		r.finalize()
+// MarshalJSON implements the json.Marshaler.
+func (r Iterator) MarshalJSON() ([]byte, error) {
+	var iaux iteratorAux
+	iaux.Type = stackitem.InteropT.String()
+	if r.ID != nil {
+		iaux.Interface = iteratorInterfaceName
+		iaux.ID = r.ID.String()
+	} else {
+		value := make([]json.RawMessage, len(r.Values))
+		for i := range r.Values {
+			var err error
+			value[i], err = stackitem.ToJSONWithTypes(r.Values[i])
+			if err != nil {
+				return nil, err
+			}
+		}
+		iaux.Value = value
+		iaux.Truncated = r.Truncated
 	}
+	return json.Marshal(iaux)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler.
+func (r *Iterator) UnmarshalJSON(data []byte) error {
+	iteratorAux := new(iteratorAux)
+	err := json.Unmarshal(data, iteratorAux)
+	if err != nil {
+		return err
+	}
+	if len(iteratorAux.Interface) != 0 {
+		if iteratorAux.Interface != iteratorInterfaceName {
+			return fmt.Errorf("unknown InteropInterface: %s", iteratorAux.Interface)
+		}
+		var iID uuid.UUID
+		iID, err = uuid.Parse(iteratorAux.ID)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal iterator ID: %w", err)
+		}
+		r.ID = &iID
+	} else {
+		r.Values = make([]stackitem.Item, len(iteratorAux.Value))
+		for j := range r.Values {
+			r.Values[j], err = stackitem.FromJSONWithTypes(iteratorAux.Value[j])
+			if err != nil {
+				return fmt.Errorf("failed to unmarshal iterator values: %w", err)
+			}
+		}
+		r.Truncated = iteratorAux.Truncated
+	}
+	return nil
 }
 
 // MarshalJSON implements the json.Marshaler.
 func (r Invoke) MarshalJSON() ([]byte, error) {
 	var (
-		st              json.RawMessage
-		err             error
-		faultSep        string
-		arr             = make([]json.RawMessage, len(r.Stack))
-		sessionsEnabled = r.registerIterator != nil
-		sessionID       string
+		st       json.RawMessage
+		err      error
+		faultSep string
+		arr      = make([]json.RawMessage, len(r.Stack))
 	)
 	if len(r.FaultException) != 0 {
 		faultSep = " / "
 	}
-arrloop:
 	for i := range arr {
 		var data []byte
-		if (r.Stack[i].Type() == stackitem.InteropT) && iterator.IsIterator(r.Stack[i]) {
-			if sessionsEnabled {
-				if sessionID == "" {
-					sessionID = uuid.NewString()
-				}
-				iteratorID, err := r.registerIterator(sessionID, r.Stack[i], i, r.finalize)
-				if err != nil {
-					// Call finalizer immediately, there can't be race between server and marshaller because session wasn't added to server's session pool.
-					r.Finalize()
-					return nil, fmt.Errorf("failed to register iterator session: %w", err)
-				}
-				data, err = json.Marshal(iteratorAux{
-					Type:      stackitem.InteropT.String(),
-					Interface: iteratorInterfaceName,
-					ID:        iteratorID.String(),
-				})
-				if err != nil {
-					r.FaultException += fmt.Sprintf("%sjson error: failed to marshal iterator: %v", faultSep, err)
-					break
-				}
-			} else {
-				iteratorValues, truncated := iterator.ValuesTruncated(r.Stack[i], r.maxIteratorResultItems)
-				value := make([]json.RawMessage, len(iteratorValues))
-				for j := range iteratorValues {
-					value[j], err = stackitem.ToJSONWithTypes(iteratorValues[j])
-					if err != nil {
-						r.FaultException += fmt.Sprintf("%sjson error: %v", faultSep, err)
-						break arrloop
-					}
-				}
-				data, err = json.Marshal(iteratorAux{
-					Type:      stackitem.InteropT.String(),
-					Value:     value,
-					Truncated: truncated,
-				})
-				if err != nil {
-					r.FaultException += fmt.Sprintf("%sjson error: %v", faultSep, err)
-					break
-				}
-			}
+
+		iter, ok := r.Stack[i].Value().(Iterator)
+		if (r.Stack[i].Type() == stackitem.InteropT) && ok {
+			data, err = json.Marshal(iter)
 		} else {
 			data, err = stackitem.ToJSONWithTypes(r.Stack[i])
-			if err != nil {
-				r.FaultException += fmt.Sprintf("%sjson error: %v", faultSep, err)
-				break
-			}
+		}
+		if err != nil {
+			r.FaultException += fmt.Sprintf("%sjson error: %v", faultSep, err)
+			break
 		}
 		arr[i] = data
 	}
 
-	if !sessionsEnabled || sessionID == "" {
-		// Call finalizer manually if iterators are disabled or there's no unnested iterators on estack.
-		defer r.Finalize()
-	}
 	if err == nil {
 		st, err = json.Marshal(arr)
 		if err != nil {
@@ -194,6 +158,10 @@ arrloop:
 	var txbytes []byte
 	if r.Transaction != nil {
 		txbytes = r.Transaction.Bytes()
+	}
+	var sessionID string
+	if r.Session != (uuid.UUID{}) {
+		sessionID = r.Session.String()
 	}
 	aux := &invokeAux{
 		GasConsumed:   r.GasConsumed,
@@ -233,41 +201,12 @@ func (r *Invoke) UnmarshalJSON(data []byte) error {
 				break
 			}
 			if st[i].Type() == stackitem.InteropT {
-				iteratorAux := new(iteratorAux)
-				if json.Unmarshal(arr[i], iteratorAux) == nil {
-					if len(iteratorAux.Interface) != 0 {
-						if iteratorAux.Interface != iteratorInterfaceName {
-							err = fmt.Errorf("unknown InteropInterface: %s", iteratorAux.Interface)
-							break
-						}
-						var iID uuid.UUID
-						iID, err = uuid.Parse(iteratorAux.ID) // iteratorAux.ID is always non-empty, see https://github.com/neo-project/neo-modules/pull/715#discussion_r897635424.
-						if err != nil {
-							err = fmt.Errorf("failed to unmarshal iterator ID: %w", err)
-							break
-						}
-						// It's impossible to restore initial iterator type; also iterator is almost
-						// useless outside the VM, thus let's replace it with a special structure.
-						st[i] = stackitem.NewInterop(Iterator{
-							ID: &iID,
-						})
-					} else {
-						iteratorValues := make([]stackitem.Item, len(iteratorAux.Value))
-						for j := range iteratorValues {
-							iteratorValues[j], err = stackitem.FromJSONWithTypes(iteratorAux.Value[j])
-							if err != nil {
-								err = fmt.Errorf("failed to unmarshal iterator values: %w", err)
-								break
-							}
-						}
-						// It's impossible to restore initial iterator type; also iterator is almost
-						// useless outside the VM, thus let's replace it with a special structure.
-						st[i] = stackitem.NewInterop(Iterator{
-							Values:    iteratorValues,
-							Truncated: iteratorAux.Truncated,
-						})
-					}
+				var iter = Iterator{}
+				err = json.Unmarshal(arr[i], &iter)
+				if err != nil {
+					break
 				}
+				st[i] = stackitem.NewInterop(iter)
 			}
 		}
 		if err != nil {

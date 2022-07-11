@@ -8,8 +8,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 )
 
 // NotificationEvent is a tuple of the scripthash that has emitted the Item as a
@@ -94,7 +94,7 @@ func (aer *AppExecResult) EncodeBinaryWithContext(w *io.BinWriter, sc *stackitem
 func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 	r.ReadBytes(aer.Container[:])
 	aer.Trigger = trigger.Type(r.ReadB())
-	aer.VMState = vm.State(r.ReadB())
+	aer.VMState = vmstate.State(r.ReadB())
 	aer.GasConsumed = int64(r.ReadU64LE())
 	sz := r.ReadVarUint()
 	if stackitem.MaxDeserialized < sz && r.Err == nil {
@@ -197,7 +197,7 @@ func (aer *AppExecResult) UnmarshalJSON(data []byte) error {
 // all resulting notifications, state, stack and other metadata.
 type Execution struct {
 	Trigger        trigger.Type
-	VMState        vm.State
+	VMState        vmstate.State
 	GasConsumed    int64
 	Stack          []stackitem.Item
 	Events         []NotificationEvent
@@ -266,7 +266,7 @@ func (e *Execution) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	e.Trigger = trigger
-	state, err := vm.StateFromString(aux.VMState)
+	state, err := vmstate.FromString(aux.VMState)
 	if err != nil {
 		return err
 	}

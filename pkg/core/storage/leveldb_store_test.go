@@ -3,14 +3,15 @@ package storage
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/stretchr/testify/require"
 )
 
 func newLevelDBForTesting(t testing.TB) Store {
 	ldbDir := t.TempDir()
-	dbConfig := DBConfiguration{
+	dbConfig := dbconfig.DBConfiguration{
 		Type: "leveldb",
-		LevelDBOptions: LevelDBOptions{
+		LevelDBOptions: dbconfig.LevelDBOptions{
 			DataDirectoryPath: ldbDir,
 		},
 	}

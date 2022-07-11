@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -136,7 +137,7 @@ func benchmarkForEachNEP17Transfer(t *testing.B, ps storage.Store, startFromBloc
 
 func newLevelDBForTesting(t testing.TB) storage.Store {
 	dbPath := t.TempDir()
-	dbOptions := storage.LevelDBOptions{
+	dbOptions := dbconfig.LevelDBOptions{
 		DataDirectoryPath: dbPath,
 	}
 	newLevelStore, err := storage.NewLevelDBStore(dbOptions)
@@ -147,7 +148,7 @@ func newLevelDBForTesting(t testing.TB) storage.Store {
 func newBoltStoreForTesting(t testing.TB) storage.Store {
 	d := t.TempDir()
 	dbPath := filepath.Join(d, "test_bolt_db")
-	boltDBStore, err := storage.NewBoltDBStore(storage.BoltDBOptions{FilePath: dbPath})
+	boltDBStore, err := storage.NewBoltDBStore(dbconfig.BoltDBOptions{FilePath: dbPath})
 	require.NoError(t, err)
 	return boltDBStore
 }

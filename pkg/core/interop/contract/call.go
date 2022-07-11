@@ -14,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -168,7 +167,7 @@ func CallFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract
 			return fmt.Errorf("%w: %v", ErrNativeCall, err)
 		}
 	}
-	if ic.VM.State() == vm.FaultState {
+	if ic.VM.HasFailed() {
 		return ErrNativeCall
 	}
 	return nil

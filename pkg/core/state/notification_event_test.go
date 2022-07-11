@@ -8,8 +8,8 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +18,7 @@ func BenchmarkAppExecResult_EncodeBinary(b *testing.B) {
 		Container: random.Uint256(),
 		Execution: Execution{
 			Trigger:     trigger.Application,
-			VMState:     vm.HaltState,
+			VMState:     vmstate.Halt,
 			GasConsumed: 12345,
 			Stack:       []stackitem.Item{},
 			Events: []NotificationEvent{{
@@ -54,7 +54,7 @@ func TestEncodeDecodeAppExecResult(t *testing.T) {
 			Container: random.Uint256(),
 			Execution: Execution{
 				Trigger:     1,
-				VMState:     vm.HaltState,
+				VMState:     vmstate.Halt,
 				GasConsumed: 10,
 				Stack:       []stackitem.Item{stackitem.NewBool(true)},
 				Events:      []NotificationEvent{},
@@ -63,12 +63,12 @@ func TestEncodeDecodeAppExecResult(t *testing.T) {
 	}
 	t.Run("halt", func(t *testing.T) {
 		appExecResult := newAer()
-		appExecResult.VMState = vm.HaltState
+		appExecResult.VMState = vmstate.Halt
 		testserdes.EncodeDecodeBinary(t, appExecResult, new(AppExecResult))
 	})
 	t.Run("fault", func(t *testing.T) {
 		appExecResult := newAer()
-		appExecResult.VMState = vm.FaultState
+		appExecResult.VMState = vmstate.Fault
 		testserdes.EncodeDecodeBinary(t, appExecResult, new(AppExecResult))
 	})
 	t.Run("with interop", func(t *testing.T) {
@@ -150,7 +150,7 @@ func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 			Container: random.Uint256(),
 			Execution: Execution{
 				Trigger:     trigger.Application,
-				VMState:     vm.HaltState,
+				VMState:     vmstate.Halt,
 				GasConsumed: 10,
 				Stack:       []stackitem.Item{},
 				Events:      []NotificationEvent{},
@@ -164,7 +164,7 @@ func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 			Container: random.Uint256(),
 			Execution: Execution{
 				Trigger:        trigger.Application,
-				VMState:        vm.FaultState,
+				VMState:        vmstate.Fault,
 				GasConsumed:    10,
 				Stack:          []stackitem.Item{stackitem.NewBool(true)},
 				Events:         []NotificationEvent{},
@@ -178,7 +178,7 @@ func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 			Container: random.Uint256(),
 			Execution: Execution{
 				Trigger:     trigger.OnPersist,
-				VMState:     vm.HaltState,
+				VMState:     vmstate.Halt,
 				GasConsumed: 10,
 				Stack:       []stackitem.Item{},
 				Events:      []NotificationEvent{},

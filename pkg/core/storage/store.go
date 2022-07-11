@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dboper"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
@@ -39,23 +41,6 @@ const (
 	ExecBlock       byte = 1
 	ExecTransaction byte = 2
 )
-
-const (
-	// MaxStorageKeyLen is the maximum length of a key for storage items.
-	MaxStorageKeyLen = 64
-	// MaxStorageValueLen is the maximum length of a value for storage items.
-	// It is set to be the maximum value for uint16.
-	MaxStorageValueLen = 65535
-)
-
-// Operation represents a single KV operation (add/del/change) performed
-// in the DB.
-type Operation struct {
-	// State can be Added, Changed or Deleted.
-	State string `json:"state"`
-	Key   []byte `json:"key"`
-	Value []byte `json:"value,omitempty"`
-}
 
 // SeekRange represents options for Store.Seek operation.
 type SeekRange struct {
@@ -125,7 +110,7 @@ func seekRangeToPrefixes(sr SeekRange) *util.Range {
 }
 
 // NewStore creates storage with preselected in configuration database type.
-func NewStore(cfg DBConfiguration) (Store, error) {
+func NewStore(cfg dbconfig.DBConfiguration) (Store, error) {
 	var store Store
 	var err error
 	switch cfg.Type {
@@ -141,10 +126,10 @@ func NewStore(cfg DBConfiguration) (Store, error) {
 	return store, err
 }
 
-// BatchToOperations converts a batch of changes into array of Operations.
-func BatchToOperations(batch *MemBatch) []Operation {
+// BatchToOperations converts a batch of changes into array of dboper.Operation.
+func BatchToOperations(batch *MemBatch) []dboper.Operation {
 	size := len(batch.Put) + len(batch.Deleted)
-	ops := make([]Operation, 0, size)
+	ops := make([]dboper.Operation, 0, size)
 	for i := range batch.Put {
 		key := batch.Put[i].Key
 		if len(key) == 0 || key[0] != byte(STStorage) && key[0] != byte(STTempStorage) {
@@ -156,7 +141,7 @@ func BatchToOperations(batch *MemBatch) []Operation {
 			op = "Changed"
 		}
 
-		ops = append(ops, Operation{
+		ops = append(ops, dboper.Operation{
 			State: op,
 			Key:   key[1:],
 			Value: batch.Put[i].Value,
@@ -170,7 +155,7 @@ func BatchToOperations(batch *MemBatch) []Operation {
 			continue
 		}
 
-		ops = append(ops, Operation{
+		ops = append(ops, dboper.Operation{
 			State: "Deleted",
 			Key:   key[1:],
 		})

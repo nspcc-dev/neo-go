@@ -5,8 +5,6 @@ import (
 	"errors"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 type (
@@ -17,23 +15,6 @@ type (
 		BlockMetadata
 	}
 )
-
-// NewHeader creates a new Header wrapper.
-func NewHeader(h *block.Header, chain LedgerAux) Header {
-	res := Header{
-		Header: *h,
-		BlockMetadata: BlockMetadata{
-			Size:          io.GetVarSize(h),
-			Confirmations: chain.BlockHeight() - h.Index + 1,
-		},
-	}
-
-	hash := chain.GetHeaderHash(int(h.Index) + 1)
-	if !hash.Equals(util.Uint256{}) {
-		res.NextBlockHash = &hash
-	}
-	return res
-}
 
 // MarshalJSON implements the json.Marshaler interface.
 func (h Header) MarshalJSON() ([]byte, error) {

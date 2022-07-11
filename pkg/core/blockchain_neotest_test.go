@@ -28,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -39,10 +40,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,7 +53,7 @@ func newLevelDBForTestingWithPath(t testing.TB, dbPath string) (storage.Store, s
 	if dbPath == "" {
 		dbPath = t.TempDir()
 	}
-	dbOptions := storage.LevelDBOptions{
+	dbOptions := dbconfig.LevelDBOptions{
 		DataDirectoryPath: dbPath,
 	}
 	newLevelStore, err := storage.NewLevelDBStore(dbOptions)
@@ -826,7 +827,7 @@ func TestBlockchain_Subscriptions(t *testing.T) {
 
 	exec := <-executionCh
 	require.Equal(t, b.Hash(), exec.Container)
-	require.Equal(t, exec.VMState, vm.HaltState)
+	require.Equal(t, exec.VMState, vmstate.Halt)
 
 	// 3 burn events for every tx and 1 mint for primary node
 	require.True(t, len(notificationCh) >= 4)
@@ -841,7 +842,7 @@ func TestBlockchain_Subscriptions(t *testing.T) {
 		require.Equal(t, txExpected, tx)
 		exec := <-executionCh
 		require.Equal(t, tx.Hash(), exec.Container)
-		if exec.VMState == vm.HaltState {
+		if exec.VMState == vmstate.Halt {
 			notif := <-notificationCh
 			require.Equal(t, hash.Hash160(tx.Script), notif.ScriptHash)
 		}
@@ -855,7 +856,7 @@ func TestBlockchain_Subscriptions(t *testing.T) {
 
 	exec = <-executionCh
 	require.Equal(t, b.Hash(), exec.Container)
-	require.Equal(t, exec.VMState, vm.HaltState)
+	require.Equal(t, exec.VMState, vmstate.Halt)
 
 	bc.UnsubscribeFromBlocks(blockCh)
 	bc.UnsubscribeFromTransactions(txCh)

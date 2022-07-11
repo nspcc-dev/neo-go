@@ -34,9 +34,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -129,7 +129,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					Executions: []state.Execution{
 						{
 							Trigger:     trigger.Application,
-							VMState:     vm.HaltState,
+							VMState:     vmstate.Halt,
 							GasConsumed: 1,
 							Stack:       []stackitem.Item{stackitem.NewBigInteger(big.NewInt(1))},
 							Events:      []state.NotificationEvent{},

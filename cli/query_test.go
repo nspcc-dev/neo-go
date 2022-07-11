@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -117,7 +118,7 @@ func (e *executor) compareQueryTxVerbose(t *testing.T, tx *transaction.Transacti
 	e.checkNextLine(t, `BlockHash:\s+`+e.Chain.GetHeaderHash(int(height)).StringLE())
 
 	res, _ := e.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
-	e.checkNextLine(t, fmt.Sprintf(`Success:\s+%t`, res[0].Execution.VMState == vm.HaltState))
+	e.checkNextLine(t, fmt.Sprintf(`Success:\s+%t`, res[0].Execution.VMState == vmstate.Halt))
 	for _, s := range tx.Signers {
 		e.checkNextLine(t, fmt.Sprintf(`Signer:\s+%s\s*\(%s\)`, address.Uint160ToString(s.Account), s.Scopes.String()))
 	}
@@ -132,7 +133,7 @@ func (e *executor) compareQueryTxVerbose(t *testing.T, tx *transaction.Transacti
 	}
 	e.checkScriptDump(t, n)
 
-	if res[0].Execution.VMState != vm.HaltState {
+	if res[0].Execution.VMState != vmstate.Halt {
 		e.checkNextLine(t, `Exception:\s+`+regexp.QuoteMeta(res[0].Execution.FaultException))
 	}
 	e.checkEOF(t)

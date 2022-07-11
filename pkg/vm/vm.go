@@ -21,8 +21,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
+	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 )
 
 type errorAtInstruct struct {
@@ -62,7 +64,7 @@ type SyscallHandler = func(*VM, uint32) error
 
 // VM represents the virtual machine.
 type VM struct {
-	state State
+	state vmstate.State
 
 	// callback to get interop price
 	getPrice func(opcode.Opcode, []byte) int64
@@ -86,7 +88,7 @@ type VM struct {
 	trigger trigger.Type
 
 	// invTree is a top-level invocation tree (if enabled).
-	invTree *InvocationTree
+	invTree *invocations.Tree
 }
 
 var (
@@ -104,7 +106,7 @@ func New() *VM {
 // NewWithTrigger returns a new VM for executions triggered by t.
 func NewWithTrigger(t trigger.Type) *VM {
 	vm := &VM{
-		state:   NoneState,
+		state:   vmstate.None,
 		trigger: t,
 
 		SyscallHandler: defaultSyscallHandler,
@@ -126,7 +128,7 @@ func (v *VM) SetPriceGetter(f func(opcode.Opcode, []byte) int64) {
 // more efficient. It reuses invocation and evaluation stacks as well as VM structure
 // itself.
 func (v *VM) Reset(t trigger.Type) {
-	v.state = NoneState
+	v.state = vmstate.None
 	v.getPrice = nil
 	v.istack.elems = v.istack.elems[:0]
 	v.estack.elems = v.estack.elems[:0]
@@ -270,11 +272,11 @@ func (v *VM) LoadFileWithFlags(path string, f callflag.CallFlag) error {
 
 // CollectInvocationTree enables collecting invocation tree data.
 func (v *VM) EnableInvocationTree() {
-	v.invTree = &InvocationTree{}
+	v.invTree = &invocations.Tree{}
 }
 
 // GetInvocationTree returns the current invocation tree structure.
-func (v *VM) GetInvocationTree() *InvocationTree {
+func (v *VM) GetInvocationTree() *invocations.Tree {
 	return v.invTree
 }
 
@@ -288,7 +290,7 @@ func (v *VM) LoadWithFlags(prog []byte, f callflag.CallFlag) {
 	// Clear all stacks and state, it could be a reload.
 	v.istack.Clear()
 	v.estack.Clear()
-	v.state = NoneState
+	v.state = vmstate.None
 	v.gasConsumed = 0
 	v.invTree = nil
 	v.LoadScriptWithFlags(prog, f)
@@ -355,7 +357,7 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 		if parent != nil {
 			curTree = parent.invTree
 		}
-		newTree := &InvocationTree{Current: ctx.ScriptHash()}
+		newTree := &invocations.Tree{Current: ctx.ScriptHash()}
 		curTree.Calls = append(curTree.Calls, newTree)
 		ctx.invTree = newTree
 	}
@@ -398,7 +400,7 @@ func dumpStack(s *Stack) string {
 }
 
 // State returns the state for the VM.
-func (v *VM) State() State {
+func (v *VM) State() vmstate.State {
 	return v.state
 }
 
@@ -413,39 +415,39 @@ func (v *VM) Run() error {
 	var ctx *Context
 
 	if !v.Ready() {
-		v.state = FaultState
+		v.state = vmstate.Fault
 		return errors.New("no program loaded")
 	}
 
-	if v.state.HasFlag(FaultState) {
+	if v.state.HasFlag(vmstate.Fault) {
 		// VM already ran something and failed, in general its state is
 		// undefined in this case so we can't run anything.
 		return errors.New("VM has failed")
 	}
-	// HaltState (the default) or BreakState are safe to continue.
-	v.state = NoneState
+	// vmstate.Halt (the default) or vmstate.Break are safe to continue.
+	v.state = vmstate.None
 	ctx = v.Context()
 	for {
 		switch {
-		case v.state.HasFlag(FaultState):
+		case v.state.HasFlag(vmstate.Fault):
 			// Should be caught and reported already by the v.Step(),
 			// but we're checking here anyway just in case.
 			return errors.New("VM has failed")
-		case v.state.HasFlag(HaltState), v.state.HasFlag(BreakState):
+		case v.state.HasFlag(vmstate.Halt), v.state.HasFlag(vmstate.Break):
 			// Normal exit from this loop.
 			return nil
-		case v.state == NoneState:
+		case v.state == vmstate.None:
 			if err := v.step(ctx); err != nil {
 				return err
 			}
 		default:
-			v.state = FaultState
+			v.state = vmstate.Fault
 			return errors.New("unknown state")
 		}
 		// check for breakpoint before executing the next instruction
 		ctx = v.Context()
 		if ctx != nil && ctx.atBreakPoint() {
-			v.state = BreakState
+			v.state = vmstate.Break
 		}
 	}
 }
@@ -460,7 +462,7 @@ func (v *VM) Step() error {
 func (v *VM) step(ctx *Context) error {
 	op, param, err := ctx.Next()
 	if err != nil {
-		v.state = FaultState
+		v.state = vmstate.Fault
 		return newError(ctx.ip, op, err)
 	}
 	return v.execute(ctx, op, param)
@@ -472,7 +474,7 @@ func (v *VM) StepInto() error {
 	ctx := v.Context()
 
 	if ctx == nil {
-		v.state = HaltState
+		v.state = vmstate.Halt
 	}
 
 	if v.HasStopped() {
@@ -482,7 +484,7 @@ func (v *VM) StepInto() error {
 	if ctx != nil && ctx.prog != nil {
 		op, param, err := ctx.Next()
 		if err != nil {
-			v.state = FaultState
+			v.state = vmstate.Fault
 			return newError(ctx.ip, op, err)
 		}
 		vErr := v.execute(ctx, op, param)
@@ -493,7 +495,7 @@ func (v *VM) StepInto() error {
 
 	cctx := v.Context()
 	if cctx != nil && cctx.atBreakPoint() {
-		v.state = BreakState
+		v.state = vmstate.Break
 	}
 	return nil
 }
@@ -501,16 +503,16 @@ func (v *VM) StepInto() error {
 // StepOut takes the debugger to the line where the current function was called.
 func (v *VM) StepOut() error {
 	var err error
-	if v.state == BreakState {
-		v.state = NoneState
+	if v.state == vmstate.Break {
+		v.state = vmstate.None
 	}
 
 	expSize := v.istack.Len()
-	for v.state == NoneState && v.istack.Len() >= expSize {
+	for v.state == vmstate.None && v.istack.Len() >= expSize {
 		err = v.StepInto()
 	}
-	if v.state == NoneState {
-		v.state = BreakState
+	if v.state == vmstate.None {
+		v.state = vmstate.Break
 	}
 	return err
 }
@@ -523,20 +525,20 @@ func (v *VM) StepOver() error {
 		return err
 	}
 
-	if v.state == BreakState {
-		v.state = NoneState
+	if v.state == vmstate.Break {
+		v.state = vmstate.None
 	}
 
 	expSize := v.istack.Len()
 	for {
 		err = v.StepInto()
-		if !(v.state == NoneState && v.istack.Len() > expSize) {
+		if !(v.state == vmstate.None && v.istack.Len() > expSize) {
 			break
 		}
 	}
 
-	if v.state == NoneState {
-		v.state = BreakState
+	if v.state == vmstate.None {
+		v.state = vmstate.Break
 	}
 
 	return err
@@ -545,22 +547,22 @@ func (v *VM) StepOver() error {
 // HasFailed returns whether the VM is in the failed state now. Usually, it's used to
 // check status after Run.
 func (v *VM) HasFailed() bool {
-	return v.state.HasFlag(FaultState)
+	return v.state.HasFlag(vmstate.Fault)
 }
 
 // HasStopped returns whether the VM is in the Halt or Failed state.
 func (v *VM) HasStopped() bool {
-	return v.state.HasFlag(HaltState) || v.state.HasFlag(FaultState)
+	return v.state.HasFlag(vmstate.Halt) || v.state.HasFlag(vmstate.Fault)
 }
 
 // HasHalted returns whether the VM is in the Halt state.
 func (v *VM) HasHalted() bool {
-	return v.state.HasFlag(HaltState)
+	return v.state.HasFlag(vmstate.Halt)
 }
 
 // AtBreakpoint returns whether the VM is at breakpoint.
 func (v *VM) AtBreakpoint() bool {
-	return v.state.HasFlag(BreakState)
+	return v.state.HasFlag(vmstate.Break)
 }
 
 // GetInteropID converts instruction parameter to an interop ID.
@@ -574,10 +576,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	// each panic at a central point, putting the VM in a fault state and setting error.
 	defer func() {
 		if errRecover := recover(); errRecover != nil {
-			v.state = FaultState
+			v.state = vmstate.Fault
 			err = newError(ctx.ip, op, errRecover)
 		} else if v.refs > MaxStackSize {
-			v.state = FaultState
+			v.state = vmstate.Fault
 			err = newError(ctx.ip, op, "stack is too big")
 		}
 	}()
@@ -1469,7 +1471,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 		v.unloadContext(oldCtx)
 		if v.istack.Len() == 0 {
-			v.state = HaltState
+			v.state = vmstate.Halt
 			break
 		}
 

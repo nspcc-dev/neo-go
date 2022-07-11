@@ -15,7 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/require"
 )
 
@@ -154,7 +154,7 @@ func TestSignMultisigTx(t *testing.T) {
 		e.checkTxTestInvokeOutput(t, 11)
 		res := new(result.Invoke)
 		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
-		require.Equal(t, vm.HaltState.String(), res.State, res.FaultException)
+		require.Equal(t, vmstate.Halt.String(), res.State, res.FaultException)
 	})
 
 	e.In.WriteString("pass\r")

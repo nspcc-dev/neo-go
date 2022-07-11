@@ -3,6 +3,7 @@ package metrics
 import (
 	"net/http"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 )
@@ -11,7 +12,7 @@ import (
 type PrometheusService Service
 
 // NewPrometheusService creates a new service for gathering prometheus metrics.
-func NewPrometheusService(cfg Config, log *zap.Logger) *Service {
+func NewPrometheusService(cfg config.BasicService, log *zap.Logger) *Service {
 	if log == nil {
 		return nil
 	}

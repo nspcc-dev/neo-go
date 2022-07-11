@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -830,7 +831,7 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 func (dao *Simple) getKeyBuf(len int) []byte {
 	if dao.private {
 		if dao.keyBuf == nil {
-			dao.keyBuf = make([]byte, 0, 1+4+storage.MaxStorageKeyLen) // Prefix, uint32, key.
+			dao.keyBuf = make([]byte, 0, 1+4+limits.MaxStorageKeyLen) // Prefix, uint32, key.
 		}
 		return dao.keyBuf[:len] // Should have enough capacity.
 	}

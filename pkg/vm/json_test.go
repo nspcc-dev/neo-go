@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,7 +45,7 @@ type (
 	}
 
 	vmUTExecutionEngineState struct {
-		State           State                       `json:"state"`
+		State           vmstate.State               `json:"state"`
 		ResultStack     []vmUTStackItem             `json:"resultStack"`
 		InvocationStack []vmUTExecutionContextState `json:"invocationStack"`
 	}
@@ -152,14 +153,14 @@ func testFile(t *testing.T, filename string) {
 			t.Run(ut.Tests[i].Name, func(t *testing.T) {
 				prog := []byte(test.Script)
 				vm := load(prog)
-				vm.state = BreakState
+				vm.state = vmstate.Break
 				vm.SyscallHandler = testSyscallHandler
 
 				for i := range test.Steps {
 					execStep(t, vm, test.Steps[i])
 					result := test.Steps[i].Result
 					require.Equal(t, result.State, vm.state)
-					if result.State == FaultState { // do not compare stacks on fault
+					if result.State == vmstate.Fault { // do not compare stacks on fault
 						continue
 					}
 

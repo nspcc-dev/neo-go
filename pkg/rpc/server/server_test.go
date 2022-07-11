@@ -27,7 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dboper"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -41,10 +41,11 @@ import (
 	rpc2 "github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -102,7 +103,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.Equal(t, 1, len(res.Executions))
 				assert.Equal(t, expectedTxHash, res.Container)
 				assert.Equal(t, trigger.Application, res.Executions[0].Trigger)
-				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
+				assert.Equal(t, vmstate.Halt, res.Executions[0].VMState)
 			},
 		},
 		{
@@ -116,7 +117,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.Equal(t, 2, len(res.Executions))
 				assert.Equal(t, trigger.OnPersist, res.Executions[0].Trigger)
 				assert.Equal(t, trigger.PostPersist, res.Executions[1].Trigger)
-				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
+				assert.Equal(t, vmstate.Halt, res.Executions[0].VMState)
 			},
 		},
 		{
@@ -129,7 +130,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.Equal(t, genesisBlockHash, res.Container.StringLE())
 				assert.Equal(t, 1, len(res.Executions))
 				assert.Equal(t, trigger.PostPersist, res.Executions[0].Trigger)
-				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
+				assert.Equal(t, vmstate.Halt, res.Executions[0].VMState)
 			},
 		},
 		{
@@ -142,7 +143,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.Equal(t, genesisBlockHash, res.Container.StringLE())
 				assert.Equal(t, 1, len(res.Executions))
 				assert.Equal(t, trigger.OnPersist, res.Executions[0].Trigger)
-				assert.Equal(t, vm.HaltState, res.Executions[0].VMState)
+				assert.Equal(t, vmstate.Halt, res.Executions[0].VMState)
 			},
 		},
 		{
@@ -925,7 +926,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				assert.Equal(t, "HALT", res.State)
 				assert.Equal(t, []stackitem.Item{stackitem.Make(true)}, res.Stack)
 				assert.NotEqual(t, 0, res.GasConsumed)
-				chg := []storage.Operation{{
+				chg := []dboper.Operation{{
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0xb},
 					Value: []byte{0x70, 0xd9, 0x59, 0x9d, 0x51, 0x79, 0x12},
@@ -960,13 +961,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
-						Changes: []storage.Operation{},
-						Invocations: []*vm.InvocationTree{{
+						Changes: []dboper.Operation{},
+						Invocations: []*invocations.Tree{{
 							Current: hash.Hash160(script),
-							Calls: []*vm.InvocationTree{
+							Calls: []*invocations.Tree{
 								{
 									Current: nnsHash,
-									Calls: []*vm.InvocationTree{
+									Calls: []*invocations.Tree{
 										{
 											Current: stdHash,
 										},
@@ -1073,13 +1074,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
-						Changes: []storage.Operation{},
-						Invocations: []*vm.InvocationTree{{
+						Changes: []dboper.Operation{},
+						Invocations: []*invocations.Tree{{
 							Current: hash.Hash160(script),
-							Calls: []*vm.InvocationTree{
+							Calls: []*invocations.Tree{
 								{
 									Current: nnsHash,
-									Calls: []*vm.InvocationTree{
+									Calls: []*invocations.Tree{
 										{
 											Current: stdHash,
 										},
@@ -1165,8 +1166,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 					FaultException: "at instruction 0 (ROT): too big index",
 					Notifications:  []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
-						Changes: []storage.Operation{},
-						Invocations: []*vm.InvocationTree{{
+						Changes: []dboper.Operation{},
+						Invocations: []*invocations.Tree{{
 							Current: hash.Hash160(script),
 						}},
 					},
@@ -1276,8 +1277,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 					FaultException: "at instruction 0 (ROT): too big index",
 					Notifications:  []state.NotificationEvent{},
 					Diagnostics: &result.InvokeDiag{
-						Changes: []storage.Operation{},
-						Invocations: []*vm.InvocationTree{{
+						Changes: []dboper.Operation{},
+						Invocations: []*invocations.Tree{{
 							Current: hash.Hash160(script),
 						}},
 					},
@@ -1966,9 +1967,9 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoError(t, json.Unmarshal(data, &res))
 		require.Equal(t, 2, len(res.Executions))
 		require.Equal(t, trigger.OnPersist, res.Executions[0].Trigger)
-		require.Equal(t, vm.HaltState, res.Executions[0].VMState)
+		require.Equal(t, vmstate.Halt, res.Executions[0].VMState)
 		require.Equal(t, trigger.PostPersist, res.Executions[1].Trigger)
-		require.Equal(t, vm.HaltState, res.Executions[1].VMState)
+		require.Equal(t, vmstate.Halt, res.Executions[1].VMState)
 	})
 
 	t.Run("submit", func(t *testing.T) {

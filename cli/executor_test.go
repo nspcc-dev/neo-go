@@ -23,7 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
@@ -293,7 +293,7 @@ func (e *executor) checkTxPersisted(t *testing.T, prefix ...string) (*transactio
 	aer, err := e.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(aer))
-	require.Equal(t, vm.HaltState, aer[0].VMState)
+	require.Equal(t, vmstate.Halt, aer[0].VMState)
 	return tx, height
 }
 

@@ -7,14 +7,15 @@ import (
 	"path/filepath"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dboper"
 )
 
 type dump []blockDump
 
 type blockDump struct {
-	Block   uint32              `json:"block"`
-	Size    int                 `json:"size"`
-	Storage []storage.Operation `json:"storage"`
+	Block   uint32             `json:"block"`
+	Size    int                `json:"size"`
+	Storage []dboper.Operation `json:"storage"`
 }
 
 func newDump() *dump {

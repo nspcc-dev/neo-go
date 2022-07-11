@@ -6,14 +6,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 const (
 	// maxPathLength is the max length of the extension node key.
-	maxPathLength = (storage.MaxStorageKeyLen + 4) * 2
+	maxPathLength = (limits.MaxStorageKeyLen + 4) * 2
 
 	// MaxKeyLength is the max length of the key to put in the trie
 	// before transforming to nibbles.

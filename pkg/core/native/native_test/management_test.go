@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -21,10 +22,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/require"
 )
 
@@ -69,7 +70,7 @@ func TestManagement_ContractCache(t *testing.T) {
 	managementInvoker.CheckHalt(t, tx1.Hash())
 	aer, err := managementInvoker.Chain.GetAppExecResults(tx2.Hash(), trigger.Application)
 	require.NoError(t, err)
-	require.Equal(t, vm.HaltState, aer[0].VMState, aer[0].FaultException)
+	require.Equal(t, vmstate.Halt, aer[0].VMState, aer[0].FaultException)
 	require.NotEqual(t, stackitem.Null{}, aer[0].Stack)
 }
 
@@ -281,9 +282,9 @@ func TestManagement_ContractDeploy(t *testing.T) {
 func TestManagement_StartFromHeight(t *testing.T) {
 	// Create database to be able to start another chain from the same height later.
 	ldbDir := t.TempDir()
-	dbConfig := storage.DBConfiguration{
+	dbConfig := dbconfig.DBConfiguration{
 		Type: "leveldb",
-		LevelDBOptions: storage.LevelDBOptions{
+		LevelDBOptions: dbconfig.LevelDBOptions{
 			DataDirectoryPath: ldbDir,
 		},
 	}

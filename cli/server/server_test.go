@@ -9,8 +9,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-	"github.com/nspcc-dev/neo-go/pkg/network/metrics"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/rpc"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
@@ -317,7 +316,7 @@ func TestConfigureAddresses(t *testing.T) {
 	t.Run("custom Pprof address", func(t *testing.T) {
 		cfg := &config.ApplicationConfiguration{
 			Address: defaultAddress,
-			Pprof: metrics.Config{
+			Pprof: config.BasicService{
 				Address: customAddress,
 			},
 		}
@@ -330,7 +329,7 @@ func TestConfigureAddresses(t *testing.T) {
 	t.Run("custom Prometheus address", func(t *testing.T) {
 		cfg := &config.ApplicationConfiguration{
 			Address: defaultAddress,
-			Prometheus: metrics.Config{
+			Prometheus: config.BasicService{
 				Address: customAddress,
 			},
 		}
@@ -350,7 +349,7 @@ func TestInitBlockChain(t *testing.T) {
 	t.Run("empty logger", func(t *testing.T) {
 		_, err := initBlockChain(config.Config{
 			ApplicationConfiguration: config.ApplicationConfiguration{
-				DBConfiguration: storage.DBConfiguration{
+				DBConfiguration: dbconfig.DBConfiguration{
 					Type: "inmemory",
 				},
 			},

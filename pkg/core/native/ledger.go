@@ -13,8 +13,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 )
 
 // Ledger provides an interface to blocks/transactions storage for smart
@@ -169,7 +169,7 @@ func (l *Ledger) getTransactionVMState(ic *interop.Context, params []stackitem.I
 	}
 	h, _, aer, err := ic.DAO.GetTxExecResult(hash)
 	if err != nil || !isTraceableBlock(ic, h) {
-		return stackitem.Make(vm.NoneState)
+		return stackitem.Make(vmstate.None)
 	}
 	return stackitem.Make(aer.VMState)
 }
