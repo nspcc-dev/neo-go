@@ -62,9 +62,8 @@ type codegen struct {
 	labels map[labelWithType]uint16
 	// A list of nested label names together with evaluation stack depth.
 	labelList []labelWithStackSize
-	// inlineLabelOffsets contains size of labelList at the start of inline call processing.
-	// For such calls, we need to drop only the newly created part of stack.
-	inlineLabelOffsets []int
+	// inlineContext contains info about inlined function calls.
+	inlineContext []inlineContextSingle
 	// globalInlineCount contains the amount of auxiliary variables introduced by
 	// function inlining during global variables initialization.
 	globalInlineCount int
@@ -144,6 +143,14 @@ type labelWithStackSize struct {
 type nameWithLocals struct {
 	name  string
 	count int
+}
+
+type inlineContextSingle struct {
+	// labelOffset contains size of labelList at the start of inline call processing.
+	// For such calls, we need to drop only the newly created part of stack.
+	labelOffset int
+	// returnLabel contains label ID pointing to the first instruction right after the call.
+	returnLabel uint16
 }
 
 type varType int
@@ -680,8 +687,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		cnt := 0
 		start := 0
-		if len(c.inlineLabelOffsets) > 0 {
-			start = c.inlineLabelOffsets[len(c.inlineLabelOffsets)-1]
+		if len(c.inlineContext) > 0 {
+			start = c.inlineContext[len(c.inlineContext)-1].labelOffset
 		}
 		for i := start; i < len(c.labelList); i++ {
 			cnt += c.labelList[i].sz
@@ -711,6 +718,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.saveSequencePoint(n)
 		if len(c.pkgInfoInline) == 0 {
 			emit.Opcodes(c.prog.BinWriter, opcode.RET)
+		} else {
+			emit.Jmp(c.prog.BinWriter, opcode.JMPL, c.inlineContext[len(c.inlineContext)-1].returnLabel)
 		}
 		return nil
 
