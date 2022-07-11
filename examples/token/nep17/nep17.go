@@ -6,7 +6,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
-	"github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
 
 // Token holds all token info
@@ -105,7 +104,7 @@ func IsUsableAddress(addr []byte) bool {
 
 		// Check if a smart contract is calling scripthash
 		callingScriptHash := runtime.GetCallingScriptHash()
-		if util.Equals(callingScriptHash, addr) {
+		if callingScriptHash.Equals(addr) {
 			return true
 		}
 	}

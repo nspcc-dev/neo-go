@@ -26,7 +26,8 @@ func FilteredRequest(url string, filter []byte) {
 func OracleCallback(url string, data interface{}, code int, res []byte) {
 	// This function shouldn't be called directly, we only expect oracle native
 	// contract to be calling it.
-	if string(runtime.GetCallingScriptHash()) != oracle.Hash {
+	callingHash := runtime.GetCallingScriptHash()
+	if !callingHash.Equals(oracle.Hash) {
 		panic("not called from oracle contract")
 	}
 	if code != oracle.Success {

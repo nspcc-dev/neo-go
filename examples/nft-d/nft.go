@@ -203,7 +203,7 @@ func Transfer(to interop.Hash160, token []byte, data interface{}) bool {
 	key := mkBalanceKey(owner, token)
 	amount := getBalanceOf(ctx, key)
 
-	if string(owner) != string(to) {
+	if !owner.Equals(to) {
 		addToBalance(ctx, owner, token, -amount)
 		removeOwner(ctx, token, owner)
 
@@ -293,7 +293,7 @@ func TransferDivisible(from, to interop.Hash160, amount int, token []byte, data 
 		return false
 	}
 
-	if string(from) != string(to) {
+	if !from.Equals(to) {
 		updBalance := addToBalance(ctx, from, token, -amount)
 		if updBalance == 0 {
 			removeOwner(ctx, token, from)
@@ -357,7 +357,8 @@ func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
 			util.Abort()
 		}
 	}()
-	if string(runtime.GetCallingScriptHash()) != gas.Hash {
+	callingHash := runtime.GetCallingScriptHash()
+	if !callingHash.Equals(gas.Hash) {
 		panic("only GAS is accepted")
 	}
 	if amount < 10_00000000 {

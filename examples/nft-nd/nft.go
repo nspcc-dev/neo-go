@@ -186,7 +186,7 @@ func Transfer(to interop.Hash160, token []byte, data interface{}) bool {
 		return false
 	}
 
-	if string(owner) != string(to) {
+	if !owner.Equals(to) {
 		addToBalance(ctx, owner, -1)
 		removeToken(ctx, owner, token)
 
@@ -216,7 +216,8 @@ func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
 			util.Abort()
 		}
 	}()
-	if string(runtime.GetCallingScriptHash()) != gas.Hash {
+	callingHash := runtime.GetCallingScriptHash()
+	if !callingHash.Equals(gas.Hash) {
 		panic("only GAS is accepted")
 	}
 	if amount < 10_00000000 {
