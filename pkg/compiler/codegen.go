@@ -918,7 +918,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 			f, ok = c.funcs[name]
 			if ok {
-				f.selector = fun.X.(*ast.Ident)
+				f.selector = fun.X
 				isBuiltin = isCustomBuiltin(f)
 				if canInline(f.pkg.Path(), f.decl.Name.Name) {
 					c.inlineCall(f, n)
@@ -2069,15 +2069,16 @@ func (c *codegen) getFuncFromIdent(fun *ast.Ident) (*funcScope, bool) {
 // getFuncNameFromSelector returns fully-qualified function name from the selector expression.
 // Second return value is true iff this was a method call, not foreign package call.
 func (c *codegen) getFuncNameFromSelector(e *ast.SelectorExpr) (string, bool) {
-	ident := e.X.(*ast.Ident)
 	if c.typeInfo.Selections[e] != nil {
-		typ := c.typeInfo.Types[ident].Type.String()
+		typ := c.typeInfo.Types[e.X].Type.String()
 		name := c.getIdentName(typ, e.Sel.Name)
 		if name[0] == '*' {
 			name = name[1:]
 		}
 		return name, true
 	}
+
+	ident := e.X.(*ast.Ident)
 	return c.getIdentName(ident.Name, e.Sel.Name), false
 }
 

@@ -11,6 +11,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestReturnValueReceiver(t *testing.T) {
+	t.Run("regular", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/method"
+
+		func Main() int {
+			return method.NewX().GetA()
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("inline", func(t *testing.T) {
+		src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+
+		func Main() int {
+			return inline.NewT().GetN()
+		}`
+		eval(t, src, big.NewInt(42))
+	})
+}
+
 func TestSimpleFunctionCall(t *testing.T) {
 	src := `
 		package testcase

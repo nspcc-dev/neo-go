@@ -56,3 +56,11 @@ func (t *T) Inc(i int) int {
 	t.N += i
 	return n
 }
+
+func NewT() T {
+	return T{N: 42}
+}
+
+func (t T) GetN() int {
+	return t.N
+}
