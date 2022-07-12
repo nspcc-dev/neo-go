@@ -12,7 +12,7 @@ func testShortenJumps(t *testing.T, before, after []opcode.Opcode, indices []int
 	for i := range before {
 		prog[i] = byte(before[i])
 	}
-	raw := shortenJumps(prog, indices)
+	raw := removeNOPs(prog, indices)
 	actual := make([]opcode.Opcode, len(raw))
 	for i := range raw {
 		actual[i] = opcode.Opcode(raw[i])
@@ -36,53 +36,53 @@ func TestShortenJumps(t *testing.T) {
 	for op, sop := range testCases {
 		t.Run(op.String(), func(t *testing.T) {
 			before := []opcode.Opcode{
-				op, 6, 0, 0, 0, opcode.PUSH1, opcode.NOP, // <- first jump to here
+				sop, 6, opcode.NOP, opcode.NOP, opcode.NOP, opcode.PUSH1, opcode.NOP, // <- first jump to here
 				op, 9, 12, 0, 0, opcode.PUSH1, opcode.NOP, // <- last jump to here
-				op, 255, 0, 0, 0, op, 0xFF - 5, 0xFF, 0xFF, 0xFF,
+				sop, 249, opcode.NOP, opcode.NOP, opcode.NOP, sop, 0xFF - 5, opcode.NOP, opcode.NOP, opcode.NOP,
 			}
 			after := []opcode.Opcode{
 				sop, 3, opcode.PUSH1, opcode.NOP,
 				op, 3, 12, 0, 0, opcode.PUSH1, opcode.NOP,
 				sop, 249, sop, 0xFF - 2,
 			}
-			testShortenJumps(t, before, after, []int{0, 14, 19})
+			testShortenJumps(t, before, after, []int{2, 3, 4, 16, 17, 18, 21, 22, 23})
 		})
 	}
 	t.Run("NoReplace", func(t *testing.T) {
 		b := []byte{0, 1, 2, 3, 4, 5}
 		expected := []byte{0, 1, 2, 3, 4, 5}
-		require.Equal(t, expected, shortenJumps(b, nil))
+		require.Equal(t, expected, removeNOPs(b, nil))
 	})
 	t.Run("InvalidIndex", func(t *testing.T) {
 		before := []byte{byte(opcode.PUSH1), 0, 0, 0, 0}
 		require.Panics(t, func() {
-			shortenJumps(before, []int{0})
+			removeNOPs(before, []int{0})
 		})
 	})
 	t.Run("SideConditions", func(t *testing.T) {
 		t.Run("Forward", func(t *testing.T) {
 			before := []opcode.Opcode{
-				opcode.JMPL, 5, 0, 0, 0,
-				opcode.JMPL, 5, 0, 0, 0,
+				opcode.JMP, 5, opcode.NOP, opcode.NOP, opcode.NOP,
+				opcode.JMP, 5, opcode.NOP, opcode.NOP, opcode.NOP,
 			}
 			after := []opcode.Opcode{
 				opcode.JMP, 2,
 				opcode.JMP, 2,
 			}
-			testShortenJumps(t, before, after, []int{0, 5})
+			testShortenJumps(t, before, after, []int{2, 3, 4, 7, 8, 9})
 		})
 		t.Run("Backwards", func(t *testing.T) {
 			before := []opcode.Opcode{
-				opcode.JMPL, 5, 0, 0, 0,
-				opcode.JMPL, 0xFF - 4, 0xFF, 0xFF, 0xFF,
-				opcode.JMPL, 0xFF - 4, 0xFF, 0xFF, 0xFF,
+				opcode.JMP, 5, opcode.NOP, opcode.NOP, opcode.NOP,
+				opcode.JMP, 0xFF - 4, opcode.NOP, opcode.NOP, opcode.NOP,
+				opcode.JMP, 0xFF - 4, opcode.NOP, opcode.NOP, opcode.NOP,
 			}
 			after := []opcode.Opcode{
-				opcode.JMPL, 5, 0, 0, 0,
-				opcode.JMP, 0xFF - 4,
+				opcode.JMP, 2,
+				opcode.JMP, 0xFF - 1,
 				opcode.JMP, 0xFF - 1,
 			}
-			testShortenJumps(t, before, after, []int{5, 10})
+			testShortenJumps(t, before, after, []int{2, 3, 4, 7, 8, 9, 12, 13, 14})
 		})
 	})
 }

@@ -374,3 +374,46 @@ func TestInlinedMethodWithPointer(t *testing.T) {
 	}`
 	eval(t, src, big.NewInt(100542))
 }
+
+func TestInlineConditionalReturn(t *testing.T) {
+	srcTmpl := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline/c"
+	func Main() int {
+		x := %d
+		if c.Is42(x) {
+			return 100
+		}
+		return 10
+	}`
+	t.Run("true", func(t *testing.T) {
+		eval(t, fmt.Sprintf(srcTmpl, 123), big.NewInt(10))
+	})
+	t.Run("false", func(t *testing.T) {
+		eval(t, fmt.Sprintf(srcTmpl, 42), big.NewInt(100))
+	})
+}
+
+func TestInlineDoubleConditionalReturn(t *testing.T) {
+	srcTmpl := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline/c"
+	func Main() int {
+		return c.Transform(%d, %d)
+	}`
+
+	testCase := []struct {
+		name         string
+		a, b, result int
+	}{
+		{"true, true, small", 42, 3, 6},
+		{"true, true, big", 42, 15, 15},
+		{"true, false", 42, 42, 42},
+		{"false, true", 3, 11, 6},
+		{"false, false", 3, 42, 6},
+	}
+
+	for _, tc := range testCase {
+		t.Run(tc.name, func(t *testing.T) {
+			eval(t, fmt.Sprintf(srcTmpl, tc.a, tc.b), big.NewInt(int64(tc.result)))
+		})
+	}
+}

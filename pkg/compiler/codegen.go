@@ -62,9 +62,8 @@ type codegen struct {
 	labels map[labelWithType]uint16
 	// A list of nested label names together with evaluation stack depth.
 	labelList []labelWithStackSize
-	// inlineLabelOffsets contains size of labelList at the start of inline call processing.
-	// For such calls, we need to drop only the newly created part of stack.
-	inlineLabelOffsets []int
+	// inlineContext contains info about inlined function calls.
+	inlineContext []inlineContextSingle
 	// globalInlineCount contains the amount of auxiliary variables introduced by
 	// function inlining during global variables initialization.
 	globalInlineCount int
@@ -144,6 +143,14 @@ type labelWithStackSize struct {
 type nameWithLocals struct {
 	name  string
 	count int
+}
+
+type inlineContextSingle struct {
+	// labelOffset contains size of labelList at the start of inline call processing.
+	// For such calls, we need to drop only the newly created part of stack.
+	labelOffset int
+	// returnLabel contains label ID pointing to the first instruction right after the call.
+	returnLabel uint16
 }
 
 type varType int
@@ -680,8 +687,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		cnt := 0
 		start := 0
-		if len(c.inlineLabelOffsets) > 0 {
-			start = c.inlineLabelOffsets[len(c.inlineLabelOffsets)-1]
+		if len(c.inlineContext) > 0 {
+			start = c.inlineContext[len(c.inlineContext)-1].labelOffset
 		}
 		for i := start; i < len(c.labelList); i++ {
 			cnt += c.labelList[i].sz
@@ -711,6 +718,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		c.saveSequencePoint(n)
 		if len(c.pkgInfoInline) == 0 {
 			emit.Opcodes(c.prog.BinWriter, opcode.RET)
+		} else {
+			emit.Jmp(c.prog.BinWriter, opcode.JMPL, c.inlineContext[len(c.inlineContext)-1].returnLabel)
 		}
 		return nil
 
@@ -2211,7 +2220,7 @@ func (c *codegen) resolveFuncDecls(f *ast.File, pkg *types.Package) {
 
 func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 	ctx := vm.NewContext(b)
-	var offsets []int
+	var nopOffsets []int
 	for op, param, err := ctx.Next(); err == nil && ctx.IP() < len(b); op, param, err = ctx.Next() {
 		switch op {
 		case opcode.JMP, opcode.JMPIFNOT, opcode.JMPIF, opcode.CALL,
@@ -2235,13 +2244,20 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 				return nil, err
 			}
 			if op != opcode.PUSHA && math.MinInt8 <= offset && offset <= math.MaxInt8 {
-				offsets = append(offsets, ctx.IP())
+				if op == opcode.JMPL && offset == 5 {
+					copy(b[ctx.IP():], []byte{byte(opcode.NOP), byte(opcode.NOP), byte(opcode.NOP), byte(opcode.NOP), byte(opcode.NOP)})
+					nopOffsets = append(nopOffsets, ctx.IP(), ctx.IP()+1, ctx.IP()+2, ctx.IP()+3, ctx.IP()+4)
+				} else {
+					copy(b[ctx.IP():], []byte{byte(toShortForm(op)), byte(offset), byte(opcode.NOP), byte(opcode.NOP), byte(opcode.NOP)})
+					nopOffsets = append(nopOffsets, ctx.IP()+2, ctx.IP()+3, ctx.IP()+4)
+				}
 			}
 		case opcode.INITSLOT:
 			nextIP := ctx.NextIP()
 			info := c.reverseOffsetMap[ctx.IP()]
 			if argCount := b[nextIP-1]; info.count == 0 && argCount == 0 {
-				offsets = append(offsets, ctx.IP())
+				copy(b[ctx.IP():], []byte{byte(opcode.NOP), byte(opcode.NOP), byte(opcode.NOP)})
+				nopOffsets = append(nopOffsets, ctx.IP(), ctx.IP()+1, ctx.IP()+2)
 				continue
 			}
 
@@ -2253,20 +2269,20 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 	}
 
 	if c.deployEndOffset >= 0 {
-		_, end := correctRange(uint16(c.initEndOffset+1), uint16(c.deployEndOffset), offsets)
+		_, end := correctRange(uint16(c.initEndOffset+1), uint16(c.deployEndOffset), nopOffsets)
 		c.deployEndOffset = int(end)
 	}
 	if c.initEndOffset > 0 {
-		_, end := correctRange(0, uint16(c.initEndOffset), offsets)
+		_, end := correctRange(0, uint16(c.initEndOffset), nopOffsets)
 		c.initEndOffset = int(end)
 	}
 
 	// Correct function ip range.
 	// Note: indices are sorted in increasing order.
 	for _, f := range c.funcs {
-		f.rng.Start, f.rng.End = correctRange(f.rng.Start, f.rng.End, offsets)
+		f.rng.Start, f.rng.End = correctRange(f.rng.Start, f.rng.End, nopOffsets)
 	}
-	return shortenJumps(b, offsets), nil
+	return removeNOPs(b, nopOffsets), nil
 }
 
 func correctRange(start, end uint16, offsets []int) (uint16, uint16) {
@@ -2277,10 +2293,10 @@ loop:
 		case ind > int(end):
 			break loop
 		case ind < int(start):
-			newStart -= longToShortRemoveCount
-			newEnd -= longToShortRemoveCount
+			newStart--
+			newEnd--
 		case ind >= int(start):
-			newEnd -= longToShortRemoveCount
+			newEnd--
 		}
 	}
 	return newStart, newEnd
@@ -2303,20 +2319,21 @@ func (c *codegen) replaceLabelWithOffset(ip int, arg []byte) (int, error) {
 	return offset, nil
 }
 
-// longToShortRemoveCount is a difference between short and long instruction sizes in bytes.
-// By pure coincidence, this is also the size of `INITSLOT` instruction.
-const longToShortRemoveCount = 3
-
-// shortenJumps converts b to a program where all long JMP*/CALL* specified by absolute offsets
+// removeNOPs converts b to a program where all long JMP*/CALL* specified by absolute offsets
 // are replaced with their corresponding short counterparts. It panics if either b or offsets are invalid.
 // This is done in 2 passes:
 // 1. Alter jump offsets taking into account parts to be removed.
 // 2. Perform actual removal of jump targets.
 // Note: after jump offsets altering, there can appear new candidates for conversion.
 // These are ignored for now.
-func shortenJumps(b []byte, offsets []int) []byte {
-	if len(offsets) == 0 {
+func removeNOPs(b []byte, nopOffsets []int) []byte {
+	if len(nopOffsets) == 0 {
 		return b
+	}
+	for i := range nopOffsets {
+		if b[nopOffsets[i]] != byte(opcode.NOP) {
+			panic("NOP offset is invalid")
+		}
 	}
 
 	// 1. Alter existing jump offsets.
@@ -2330,14 +2347,14 @@ func shortenJumps(b []byte, offsets []int) []byte {
 			opcode.JMPEQ, opcode.JMPNE,
 			opcode.JMPGT, opcode.JMPGE, opcode.JMPLE, opcode.JMPLT, opcode.ENDTRY:
 			offset := int(int8(b[nextIP-1]))
-			offset += calcOffsetCorrection(ip, ip+offset, offsets)
+			offset += calcOffsetCorrection(ip, ip+offset, nopOffsets)
 			b[nextIP-1] = byte(offset)
 		case opcode.TRY:
 			catchOffset := int(int8(b[nextIP-2]))
-			catchOffset += calcOffsetCorrection(ip, ip+catchOffset, offsets)
+			catchOffset += calcOffsetCorrection(ip, ip+catchOffset, nopOffsets)
 			b[nextIP-1] = byte(catchOffset)
 			finallyOffset := int(int8(b[nextIP-1]))
-			finallyOffset += calcOffsetCorrection(ip, ip+finallyOffset, offsets)
+			finallyOffset += calcOffsetCorrection(ip, ip+finallyOffset, nopOffsets)
 			b[nextIP-1] = byte(finallyOffset)
 		case opcode.JMPL, opcode.JMPIFL, opcode.JMPIFNOTL,
 			opcode.JMPEQL, opcode.JMPNEL,
@@ -2345,42 +2362,31 @@ func shortenJumps(b []byte, offsets []int) []byte {
 			opcode.CALLL, opcode.PUSHA, opcode.ENDTRYL:
 			arg := b[nextIP-4:]
 			offset := int(int32(binary.LittleEndian.Uint32(arg)))
-			offset += calcOffsetCorrection(ip, ip+offset, offsets)
+			offset += calcOffsetCorrection(ip, ip+offset, nopOffsets)
 			binary.LittleEndian.PutUint32(arg, uint32(offset))
 		case opcode.TRYL:
 			arg := b[nextIP-8:]
 			catchOffset := int(int32(binary.LittleEndian.Uint32(arg)))
-			catchOffset += calcOffsetCorrection(ip, ip+catchOffset, offsets)
+			catchOffset += calcOffsetCorrection(ip, ip+catchOffset, nopOffsets)
 			binary.LittleEndian.PutUint32(arg, uint32(catchOffset))
 			arg = b[nextIP-4:]
 			finallyOffset := int(int32(binary.LittleEndian.Uint32(arg)))
-			finallyOffset += calcOffsetCorrection(ip, ip+finallyOffset, offsets)
+			finallyOffset += calcOffsetCorrection(ip, ip+finallyOffset, nopOffsets)
 			binary.LittleEndian.PutUint32(arg, uint32(finallyOffset))
 		}
 	}
 
 	// 2. Convert instructions.
 	copyOffset := 0
-	l := len(offsets)
-	if op := opcode.Opcode(b[offsets[0]]); op != opcode.INITSLOT {
-		b[offsets[0]] = byte(toShortForm(op))
-	}
+	l := len(nopOffsets)
 	for i := 0; i < l; i++ {
-		start := offsets[i] + 2
-		if b[offsets[i]] == byte(opcode.INITSLOT) {
-			start = offsets[i]
-		}
-
+		start := nopOffsets[i]
 		end := len(b)
 		if i != l-1 {
-			end = offsets[i+1]
-			if op := opcode.Opcode(b[offsets[i+1]]); op != opcode.INITSLOT {
-				end += 2
-				b[offsets[i+1]] = byte(toShortForm(op))
-			}
+			end = nopOffsets[i+1]
 		}
-		copy(b[start-copyOffset:], b[start+3:end])
-		copyOffset += longToShortRemoveCount
+		copy(b[start-copyOffset:], b[start+1:end])
+		copyOffset++
 	}
 	return b[:len(b)-copyOffset]
 }
@@ -2392,9 +2398,8 @@ func calcOffsetCorrection(ip, target int, offsets []int) int {
 	})
 	for i := start; i < len(offsets) && (offsets[i] < target || offsets[i] <= ip); i++ {
 		ind := offsets[i]
-		if ip <= ind && ind < target ||
-			ind != ip && target <= ind && ind <= ip {
-			cnt += longToShortRemoveCount
+		if ip <= ind && ind < target || target <= ind && ind < ip {
+			cnt++
 		}
 	}
 	if ip < target {

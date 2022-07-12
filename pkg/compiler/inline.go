@@ -21,12 +21,15 @@ import (
 //      <inline body of f directly>
 //   }
 func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
-	labelSz := len(c.labelList)
-	offSz := len(c.inlineLabelOffsets)
-	c.inlineLabelOffsets = append(c.inlineLabelOffsets, labelSz)
+	offSz := len(c.inlineContext)
+	c.inlineContext = append(c.inlineContext, inlineContextSingle{
+		labelOffset: len(c.labelList),
+		returnLabel: c.newLabel(),
+	})
+
 	defer func() {
-		c.inlineLabelOffsets = c.inlineLabelOffsets[:offSz]
-		c.labelList = c.labelList[:labelSz]
+		c.labelList = c.labelList[:c.inlineContext[offSz].labelOffset]
+		c.inlineContext = c.inlineContext[:offSz]
 	}()
 
 	pkg := c.packageCache[f.pkg.Path()]
@@ -113,6 +116,7 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	c.fillImportMap(f.file, pkg)
 	ast.Inspect(f.decl, c.scope.analyzeVoidCalls)
 	ast.Walk(c, f.decl.Body)
+	c.setLabel(c.inlineContext[offSz].returnLabel)
 	if c.scope.voidCalls[n] {
 		for i := 0; i < f.decl.Type.Results.NumFields(); i++ {
 			emit.Opcodes(c.prog.BinWriter, opcode.DROP)
