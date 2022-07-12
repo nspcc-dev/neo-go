@@ -281,7 +281,6 @@ func TestInlineVariadicInInlinedCall(t *testing.T) {
 }
 
 func TestInlineConversion(t *testing.T) {
-	t.Skip()
 	src1 := `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
 	var _ = inline.A
@@ -307,7 +306,6 @@ func TestInlineConversion(t *testing.T) {
 }
 
 func TestInlineConversionQualified(t *testing.T) {
-	t.Skip()
 	src1 := `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
 	var A = 1

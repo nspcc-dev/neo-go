@@ -2244,8 +2244,13 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 				return nil, err
 			}
 			if op != opcode.PUSHA && math.MinInt8 <= offset && offset <= math.MaxInt8 {
-				copy(b[ctx.IP():], []byte{byte(toShortForm(op)), byte(offset), byte(opcode.NOP), byte(opcode.NOP), byte(opcode.NOP)})
-				nopOffsets = append(nopOffsets, ctx.IP()+2, ctx.IP()+3, ctx.IP()+4)
+				if op == opcode.JMPL && offset == 5 {
+					copy(b[ctx.IP():], []byte{byte(opcode.NOP), byte(opcode.NOP), byte(opcode.NOP), byte(opcode.NOP), byte(opcode.NOP)})
+					nopOffsets = append(nopOffsets, ctx.IP(), ctx.IP()+1, ctx.IP()+2, ctx.IP()+3, ctx.IP()+4)
+				} else {
+					copy(b[ctx.IP():], []byte{byte(toShortForm(op)), byte(offset), byte(opcode.NOP), byte(opcode.NOP), byte(opcode.NOP)})
+					nopOffsets = append(nopOffsets, ctx.IP()+2, ctx.IP()+3, ctx.IP()+4)
+				}
 			}
 		case opcode.INITSLOT:
 			nextIP := ctx.NextIP()
