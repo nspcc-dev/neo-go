@@ -132,6 +132,9 @@ func TestExpiration(t *testing.T) {
 	b5.Timestamp = b4.Timestamp + 1000
 	require.NoError(t, bc.AddBlock(e.SignBlock(b5)))
 	e.CheckFault(t, tx.Hash(), "name has expired")
+
+	cAcc.Invoke(t, true, "register", "first.com", acc.ScriptHash()) // Re-register.
+	cAcc.Invoke(t, stackitem.Null{}, "resolve", "first.com", int64(nns.TXT))
 }
 
 const millisecondsInYear = 365 * 24 * 3600 * 1000
