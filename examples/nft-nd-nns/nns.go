@@ -265,6 +265,10 @@ func Register(name string, owner interop.Hash160) bool {
 		}
 		oldOwner = ns.Owner
 		updateBalance(ctx, []byte(name), oldOwner, -1)
+		it := storage.Find(ctx, append([]byte{prefixRecord}, tokenKey...), storage.KeysOnly)
+		for iterator.Next(it) {
+			storage.Delete(ctx, iterator.Value(it))
+		}
 	} else {
 		updateTotalSupply(ctx, +1)
 	}
