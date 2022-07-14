@@ -89,8 +89,8 @@ type heightNumber struct {
 func (p *ProtocolConfiguration) Validate() error {
 	var err error
 
-	if p.KeepOnlyLatestState && p.P2PStateExchangeExtensions {
-		return errors.New("can't have both KeepOnlyLatestState and P2PStateExchangeExtensions")
+	if p.P2PStateExchangeExtensions && p.KeepOnlyLatestState && !p.RemoveUntraceableBlocks {
+		return fmt.Errorf("P2PStateExchangeExtensions can be supprted either on MPT-complete node (KeepOnlyLatestState=false) or on light GC-enabled node (KeepOnlyLatestState=true, RemoveUntraceableBlocks=true)")
 	}
 	for name := range p.NativeUpdateHistories {
 		if !nativenames.IsValid(name) {

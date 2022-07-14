@@ -752,23 +752,7 @@ func TestHandleGetMPTData(t *testing.T) {
 		require.Error(t, s.handleMessage(p, msg))
 	})
 
-	t.Run("KeepOnlyLatestState on", func(t *testing.T) {
-		s := startTestServer(t, func(c *config.ProtocolConfiguration) {
-			c.P2PStateExchangeExtensions = true
-			c.KeepOnlyLatestState = true
-		})
-		p := newLocalPeer(t, s)
-		p.handshaked = true
-		msg := NewMessage(CMDGetMPTData, &payload.MPTInventory{
-			Hashes: []util.Uint256{{1, 2, 3}},
-		})
-		require.Error(t, s.handleMessage(p, msg))
-	})
-
-	t.Run("good", func(t *testing.T) {
-		s := startTestServer(t, func(c *config.ProtocolConfiguration) {
-			c.P2PStateExchangeExtensions = true
-		})
+	check := func(t *testing.T, s *Server) {
 		var recvResponse atomic.Bool
 		r1 := random.Uint256()
 		r2 := random.Uint256()
@@ -797,6 +781,20 @@ func TestHandleGetMPTData(t *testing.T) {
 		s.testHandleMessage(t, p, CMDGetMPTData, payload.NewMPTInventory(hs))
 
 		require.Eventually(t, recvResponse.Load, time.Second, time.Millisecond)
+	}
+	t.Run("KeepOnlyLatestState on", func(t *testing.T) {
+		s := startTestServer(t, func(c *config.ProtocolConfiguration) {
+			c.P2PStateExchangeExtensions = true
+			c.KeepOnlyLatestState = true
+		})
+		check(t, s)
+	})
+
+	t.Run("good", func(t *testing.T) {
+		s := startTestServer(t, func(c *config.ProtocolConfiguration) {
+			c.P2PStateExchangeExtensions = true
+		})
+		check(t, s)
 	})
 }
 
