@@ -38,11 +38,14 @@ func (g *Group) IsValid(h util.Uint160) error {
 }
 
 // AreValid checks for groups correctness and uniqueness.
+// If the contract hash is empty, then hash-related checks are omitted.
 func (g Groups) AreValid(h util.Uint160) error {
-	for i := range g {
-		err := g[i].IsValid(h)
-		if err != nil {
-			return err
+	if !h.Equals(util.Uint160{}) {
+		for i := range g {
+			err := g[i].IsValid(h)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if len(g) < 2 {

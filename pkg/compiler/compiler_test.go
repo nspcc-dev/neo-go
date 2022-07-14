@@ -94,7 +94,7 @@ func TestOnPayableChecks(t *testing.T) {
 	compileAndCheck := func(t *testing.T, src string) error {
 		_, di, err := compiler.CompileWithOptions("payable.go", strings.NewReader(src), nil)
 		require.NoError(t, err)
-		_, err = compiler.CreateManifest(di, &compiler.Options{})
+		_, err = compiler.CreateManifest(di, &compiler.Options{Name: "payable"})
 		return err
 	}
 
@@ -132,10 +132,10 @@ func TestSafeMethodWarnings(t *testing.T) {
 		&compiler.Options{Name: "eventTest"})
 	require.NoError(t, err)
 
-	_, err = compiler.CreateManifest(di, &compiler.Options{SafeMethods: []string{"main"}})
+	_, err = compiler.CreateManifest(di, &compiler.Options{SafeMethods: []string{"main"}, Name: "eventTest"})
 	require.NoError(t, err)
 
-	_, err = compiler.CreateManifest(di, &compiler.Options{SafeMethods: []string{"main", "mississippi"}})
+	_, err = compiler.CreateManifest(di, &compiler.Options{SafeMethods: []string{"main", "mississippi"}, Name: "eventTest"})
 	require.Error(t, err)
 }
 
@@ -148,17 +148,18 @@ func TestEventWarnings(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("event it missing from config", func(t *testing.T) {
-		_, err = compiler.CreateManifest(di, &compiler.Options{})
+		_, err = compiler.CreateManifest(di, &compiler.Options{Name: "payable"})
 		require.Error(t, err)
 
 		t.Run("suppress", func(t *testing.T) {
-			_, err = compiler.CreateManifest(di, &compiler.Options{NoEventsCheck: true})
+			_, err = compiler.CreateManifest(di, &compiler.Options{NoEventsCheck: true, Name: "payable"})
 			require.NoError(t, err)
 		})
 	})
 	t.Run("wrong parameter number", func(t *testing.T) {
 		_, err = compiler.CreateManifest(di, &compiler.Options{
 			ContractEvents: []manifest.Event{{Name: "Event"}},
+			Name:           "payable",
 		})
 		require.Error(t, err)
 	})
@@ -168,6 +169,7 @@ func TestEventWarnings(t *testing.T) {
 				Name:       "Event",
 				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.StringType)},
 			}},
+			Name: "payable",
 		})
 		require.Error(t, err)
 	})
@@ -177,6 +179,7 @@ func TestEventWarnings(t *testing.T) {
 				Name:       "Event",
 				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.IntegerType)},
 			}},
+			Name: "payable",
 		})
 		require.NoError(t, err)
 	})
@@ -191,7 +194,7 @@ func TestEventWarnings(t *testing.T) {
 			_, di, err := compiler.CompileWithOptions("eventTest.go", strings.NewReader(src), &compiler.Options{Name: "eventTest"})
 			require.NoError(t, err)
 
-			_, err = compiler.CreateManifest(di, &compiler.Options{NoEventsCheck: true})
+			_, err = compiler.CreateManifest(di, &compiler.Options{NoEventsCheck: true, Name: "eventTest"})
 			require.NoError(t, err)
 		})
 		t.Run("used", func(t *testing.T) {
@@ -206,11 +209,12 @@ func TestEventWarnings(t *testing.T) {
 				strings.NewReader(src), &compiler.Options{Name: "eventTest"})
 			require.NoError(t, err)
 
-			_, err = compiler.CreateManifest(di, &compiler.Options{})
+			_, err = compiler.CreateManifest(di, &compiler.Options{Name: "eventTest"})
 			require.Error(t, err)
 
 			_, err = compiler.CreateManifest(di, &compiler.Options{
 				ContractEvents: []manifest.Event{{Name: "Event"}},
+				Name:           "eventTest",
 			})
 			require.NoError(t, err)
 		})
@@ -243,6 +247,7 @@ func TestInvokedContractsPermissons(t *testing.T) {
 		o := &compiler.Options{
 			NoPermissionsCheck: disable,
 			Permissions:        ps,
+			Name:               "test",
 		}
 
 		_, err := compiler.CreateManifest(di, o)
