@@ -343,3 +343,73 @@ func TestInvokedContractsPermissons(t *testing.T) {
 		})
 	})
 }
+
+func TestUnnamedParameterCheck(t *testing.T) {
+	t.Run("single argument", func(t *testing.T) {
+		src := `
+		package testcase
+		func Main(_ int) int {
+			x := 10
+			return x
+		}
+	`
+		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, compiler.ErrMissingExportedParamName)
+	})
+	t.Run("several arguments", func(t *testing.T) {
+		src := `
+		package testcase
+		func Main(a int, b string, _ int) int {
+			x := 10
+			return x
+		}
+	`
+		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, compiler.ErrMissingExportedParamName)
+	})
+	t.Run("interface", func(t *testing.T) {
+		src := `
+		package testcase
+		func OnNEP17Payment(h string, i int, _ interface{}){}
+	`
+		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, compiler.ErrMissingExportedParamName)
+	})
+	t.Run("a set of unnamed params", func(t *testing.T) {
+		src := `
+		package testcase
+		func OnNEP17Payment(_ string, _ int, _ interface{}){}
+	`
+		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, compiler.ErrMissingExportedParamName)
+	})
+	t.Run("mixed named and unnamed params", func(t *testing.T) {
+		src := `
+		package testcase
+		func OnNEP17Payment(s0, _, s2 string){}
+	`
+		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, compiler.ErrMissingExportedParamName)
+	})
+	t.Run("empty args", func(t *testing.T) {
+		src := `
+		package testcase
+		func OnNEP17Payment(){}
+	`
+		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+		require.NoError(t, err)
+	})
+	t.Run("good", func(t *testing.T) {
+		src := `
+		package testcase
+		func OnNEP17Payment(s string, i int, iface interface{}){}
+	`
+		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+		require.NoError(t, err)
+	})
+}

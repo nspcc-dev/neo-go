@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -11,6 +12,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"golang.org/x/tools/go/packages"
 )
+
+// ErrMissingExportedParamName is returned when exported contract method has unnamed parameter.
+var ErrMissingExportedParamName = errors.New("exported method is not allowed to have unnamed parameter")
 
 var (
 	// Go language builtin functions.
@@ -284,12 +288,31 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 				if isMain && n.Name.IsExported() || isInitFunc(n) || isDeployFunc(n) {
 					diff[name] = true
 				}
+				if isMain && n.Name.IsExported() {
+					if n.Type.Params.List != nil {
+						for i, param := range n.Type.Params.List {
+							if param.Names == nil {
+								c.prog.Err = fmt.Errorf("%w: %s", ErrMissingExportedParamName, n.Name)
+								return false // Program is invalid.
+							}
+							for _, name := range param.Names {
+								if name == nil || name.Name == "_" {
+									c.prog.Err = fmt.Errorf("%w: %s/%d", ErrMissingExportedParamName, n.Name, i)
+									return false // Program is invalid.
+								}
+							}
+						}
+					}
+				}
 				nodeCache[name] = declPair{n, c.importMap, pkgPath}
 				return false // will be processed in the next stage
 			}
 			return true
 		})
 	})
+	if c.prog.Err != nil {
+		return nil
+	}
 
 	usage := funcUsage{}
 	for len(diff) != 0 {
