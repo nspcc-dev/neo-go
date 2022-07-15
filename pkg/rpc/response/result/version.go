@@ -16,7 +16,7 @@ type (
 	// info.
 	Version struct {
 		// Magic contains network magic.
-		// Deprecated: use Protocol.StateRootInHeader instead
+		// Deprecated: use Protocol.Network instead
 		Magic     netmode.Magic
 		TCPPort   uint16
 		WSPort    uint16
