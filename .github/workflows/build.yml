@@ -19,9 +19,12 @@ env:
   GO111MODULE: "on"
 
 jobs:
-  build_cli_ubuntu:
-    name: Build CLI (Ubuntu)
-    runs-on: ubuntu-20.04
+  build_cli:
+    name: Build CLI
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2022]
 
     steps:
       - uses: actions/checkout@v2
@@ -50,48 +53,17 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: neo-go-binaries-ubuntu
-          path: ./bin/neo-go
+          name: neo-go-binaries
+          path: ./bin/neo-go*
           if-no-files-found: error
 
-  build_cli_wsc:
-    name: Build CLI (Windows Server Core)
-    runs-on: windows-2022
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.inputs.ref }}
-          fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18
-
-      - name: Restore Go modules from cache
-        uses: actions/cache@v2
-        with:
-          path: /home/runner/go/pkg/mod
-          key: deps-${{ hashFiles('go.sum') }}
-
-      - name: Update Go modules
-        run: go mod download -json
-
-      - name: Build CLI
-        run: make build
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: neo-go-binaries-wsc
-          path: ./bin/neo-go.exe
-          if-no-files-found: error
-
-  build_image_ubuntu:
-    needs: build_cli_ubuntu
-    name: Build Docker image (Ubuntu)
-    runs-on: ubuntu-20.04
+  build_image:
+    needs: build_cli
+    name: Build Docker image
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2022]
 
     steps:
       - uses: actions/checkout@v2
@@ -108,54 +80,13 @@ jobs:
       - name: Build Docker image
         run: make image
 
-  build_image_wsc:
-    needs: build_cli_wsc
-    name: Build Docker image (Windows Server Core)
-    runs-on: windows-2022
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.inputs.ref }}
-          fetch-depth: 0
-
-      # For proper `deps` make target execution.
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18
-
-      - name: Build Docker image
-        run: make image
-
-  build_privnet_image_ubuntu:
-    needs: build_cli_ubuntu
-    name: Build privnet Docker image (Ubuntu)
-    runs-on: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.inputs.ref }}
-          fetch-depth: 0
-
-      # For proper `deps` make target execution.
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18
-
-      # For information purposes.
-      - name: Print Docker version
-        run: docker --version
-
-      - name: Build privnet Docker image
-        run: make env_image
-
-  build_privnet_image_wsc:
-    needs: build_cli_wsc
-    name: Build privnet Docker image (Windows Server Core)
-    runs-on: windows-2022
+  build_privnet_image:
+    needs: build_cli
+    name: Build privnet Docker image
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2022]
 
     steps:
       - uses: actions/checkout@v2
