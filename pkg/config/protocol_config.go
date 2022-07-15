@@ -90,7 +90,7 @@ func (p *ProtocolConfiguration) Validate() error {
 	var err error
 
 	if p.P2PStateExchangeExtensions && p.KeepOnlyLatestState && !p.RemoveUntraceableBlocks {
-		return fmt.Errorf("P2PStateExchangeExtensions can be supprted either on MPT-complete node (KeepOnlyLatestState=false) or on light GC-enabled node (KeepOnlyLatestState=true, RemoveUntraceableBlocks=true)")
+		return fmt.Errorf("P2PStateExchangeExtensions can be enabled either on MPT-complete node (KeepOnlyLatestState=false) or on light GC-enabled node (RemoveUntraceableBlocks=true)")
 	}
 	for name := range p.NativeUpdateHistories {
 		if !nativenames.IsValid(name) {
