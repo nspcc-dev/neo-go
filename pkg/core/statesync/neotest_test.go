@@ -282,186 +282,201 @@ func TestStateSyncModule_Init(t *testing.T) {
 }
 
 func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
-	var (
-		stateSyncInterval        = 4
-		maxTraceable      uint32 = 6
-		stateSyncPoint           = 24
-	)
-	spoutCfg := func(c *config.ProtocolConfiguration) {
-		c.StateRootInHeader = true
-		c.P2PStateExchangeExtensions = true
-		c.StateSyncInterval = stateSyncInterval
-		c.MaxTraceableBlocks = maxTraceable
-		c.P2PSigExtensions = true // `basicchain.Init` assumes Notary is enabled.
-	}
-	bcSpoutStore := storage.NewMemoryStore()
-	bcSpout, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, spoutCfg, bcSpoutStore, false)
-	go bcSpout.Run() // Will close it manually at the end.
-	e := neotest.NewExecutor(t, bcSpout, validators, committee)
-	basicchain.Init(t, "../../../", e)
-
-	// make spout chain higher than latest state sync point (add several blocks up to stateSyncPoint+2)
-	e.AddNewBlock(t)
-	e.AddNewBlock(t)
-	e.AddNewBlock(t)
-	e.AddNewBlock(t)
-	require.Equal(t, stateSyncPoint+2, int(bcSpout.BlockHeight()))
-
-	boltCfg := func(c *config.ProtocolConfiguration) {
-		spoutCfg(c)
-		c.KeepOnlyLatestState = true
-		c.RemoveUntraceableBlocks = true
-	}
-	bcBoltStore := storage.NewMemoryStore()
-	bcBolt, _, _ := chain.NewMultiWithCustomConfigAndStore(t, boltCfg, bcBoltStore, false)
-	go bcBolt.Run() // Will close it manually at the end.
-	module := bcBolt.GetStateSyncModule()
-
-	t.Run("error: add headers before initialisation", func(t *testing.T) {
-		h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(1))
-		require.NoError(t, err)
-		require.Error(t, module.AddHeaders(h))
-	})
-	t.Run("no error: add blocks before initialisation", func(t *testing.T) {
-		b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(1))
-		require.NoError(t, err)
-		require.NoError(t, module.AddBlock(b))
-	})
-	t.Run("error: add MPT nodes without initialisation", func(t *testing.T) {
-		require.Error(t, module.AddMPTNodes([][]byte{}))
-	})
-
-	require.NoError(t, module.Init(bcSpout.BlockHeight()))
-	require.True(t, module.IsActive())
-	require.True(t, module.IsInitialized())
-	require.True(t, module.NeedHeaders())
-	require.False(t, module.NeedMPTNodes())
-
-	// add headers to module
-	headers := make([]*block.Header, 0, bcSpout.HeaderHeight())
-	for i := uint32(1); i <= bcSpout.HeaderHeight(); i++ {
-		h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(int(i)))
-		require.NoError(t, err)
-		headers = append(headers, h)
-	}
-	require.NoError(t, module.AddHeaders(headers...))
-	require.True(t, module.IsActive())
-	require.True(t, module.IsInitialized())
-	require.False(t, module.NeedHeaders())
-	require.True(t, module.NeedMPTNodes())
-	require.Equal(t, bcSpout.HeaderHeight(), bcBolt.HeaderHeight())
-
-	// add blocks
-	t.Run("error: unexpected block index", func(t *testing.T) {
-		b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(stateSyncPoint - int(maxTraceable)))
-		require.NoError(t, err)
-		require.Error(t, module.AddBlock(b))
-	})
-	t.Run("error: missing state root in block header", func(t *testing.T) {
-		b := &block.Block{
-			Header: block.Header{
-				Index:            uint32(stateSyncPoint) - maxTraceable + 1,
-				StateRootEnabled: false,
-			},
+	check := func(t *testing.T, spoutEnableGC bool) {
+		var (
+			stateSyncInterval        = 4
+			maxTraceable      uint32 = 6
+			stateSyncPoint           = 24
+		)
+		spoutCfg := func(c *config.ProtocolConfiguration) {
+			c.KeepOnlyLatestState = spoutEnableGC
+			c.RemoveUntraceableBlocks = spoutEnableGC
+			c.StateRootInHeader = true
+			c.P2PStateExchangeExtensions = true
+			c.StateSyncInterval = stateSyncInterval
+			c.MaxTraceableBlocks = maxTraceable
+			c.P2PSigExtensions = true // `basicchain.Init` assumes Notary is enabled.
 		}
-		require.Error(t, module.AddBlock(b))
-	})
-	t.Run("error: invalid block merkle root", func(t *testing.T) {
-		b := &block.Block{
-			Header: block.Header{
-				Index:            uint32(stateSyncPoint) - maxTraceable + 1,
-				StateRootEnabled: true,
-				MerkleRoot:       util.Uint256{1, 2, 3},
-			},
+		bcSpoutStore := storage.NewMemoryStore()
+		bcSpout, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, spoutCfg, bcSpoutStore, false)
+		go bcSpout.Run() // Will close it manually at the end.
+		e := neotest.NewExecutor(t, bcSpout, validators, committee)
+		basicchain.Init(t, "../../../", e)
+
+		// make spout chain higher than latest state sync point (add several blocks up to stateSyncPoint+2)
+		e.AddNewBlock(t)
+		e.AddNewBlock(t) // This block is stateSyncPoint-th block.
+		e.AddNewBlock(t)
+		e.AddNewBlock(t)
+		require.Equal(t, stateSyncPoint+2, int(bcSpout.BlockHeight()))
+
+		boltCfg := func(c *config.ProtocolConfiguration) {
+			spoutCfg(c)
+			c.KeepOnlyLatestState = true
+			c.RemoveUntraceableBlocks = true
 		}
-		require.Error(t, module.AddBlock(b))
-	})
+		bcBoltStore := storage.NewMemoryStore()
+		bcBolt, _, _ := chain.NewMultiWithCustomConfigAndStore(t, boltCfg, bcBoltStore, false)
+		go bcBolt.Run() // Will close it manually at the end.
+		module := bcBolt.GetStateSyncModule()
 
-	for i := stateSyncPoint - int(maxTraceable) + 1; i <= stateSyncPoint; i++ {
-		b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
-		require.NoError(t, err)
-		require.NoError(t, module.AddBlock(b))
-	}
-	require.True(t, module.IsActive())
-	require.True(t, module.IsInitialized())
-	require.False(t, module.NeedHeaders())
-	require.True(t, module.NeedMPTNodes())
-	require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
-
-	// add MPT nodes in batches
-	h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(stateSyncPoint + 1))
-	require.NoError(t, err)
-	unknownHashes := module.GetUnknownMPTNodesBatch(100)
-	require.Equal(t, 1, len(unknownHashes))
-	require.Equal(t, h.PrevStateRoot, unknownHashes[0])
-	nodesMap := make(map[util.Uint256][]byte)
-	err = bcSpout.GetStateSyncModule().Traverse(h.PrevStateRoot, func(n mpt.Node, nodeBytes []byte) bool {
-		nodesMap[n.Hash()] = nodeBytes
-		return false
-	})
-	require.NoError(t, err)
-	for {
-		need := module.GetUnknownMPTNodesBatch(10)
-		if len(need) == 0 {
-			break
-		}
-		add := make([][]byte, len(need))
-		for i, h := range need {
-			nodeBytes, ok := nodesMap[h]
-			if !ok {
-				t.Fatal("unknown or restored node requested")
-			}
-			add[i] = nodeBytes
-			delete(nodesMap, h)
-		}
-		require.NoError(t, module.AddMPTNodes(add))
-	}
-	require.False(t, module.IsActive())
-	require.False(t, module.NeedHeaders())
-	require.False(t, module.NeedMPTNodes())
-	unknownNodes := module.GetUnknownMPTNodesBatch(1)
-	require.True(t, len(unknownNodes) == 0)
-	require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
-	require.Equal(t, uint32(stateSyncPoint), bcBolt.BlockHeight())
-
-	// add missing blocks to bcBolt: should be ok, because state is synced
-	for i := stateSyncPoint + 1; i <= int(bcSpout.BlockHeight()); i++ {
-		b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
-		require.NoError(t, err)
-		require.NoError(t, bcBolt.AddBlock(b))
-	}
-	require.Equal(t, bcSpout.BlockHeight(), bcBolt.BlockHeight())
-
-	// compare storage states
-	fetchStorage := func(ps storage.Store, storagePrefix byte) []storage.KeyValue {
-		var kv []storage.KeyValue
-		ps.Seek(storage.SeekRange{Prefix: []byte{storagePrefix}}, func(k, v []byte) bool {
-			key := slice.Copy(k)
-			value := slice.Copy(v)
-			if key[0] == byte(storage.STTempStorage) {
-				key[0] = byte(storage.STStorage)
-			}
-			kv = append(kv, storage.KeyValue{
-				Key:   key,
-				Value: value,
-			})
-			return true
+		t.Run("error: add headers before initialisation", func(t *testing.T) {
+			h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(1))
+			require.NoError(t, err)
+			require.Error(t, module.AddHeaders(h))
 		})
-		return kv
-	}
-	// Both blockchains are running, so we need to wait until recent changes will be persisted
-	// to the underlying backend store. Close blockchains to ensure persist was completed.
-	bcSpout.Close()
-	bcBolt.Close()
-	expected := fetchStorage(bcSpoutStore, byte(storage.STStorage))
-	actual := fetchStorage(bcBoltStore, byte(storage.STTempStorage))
-	require.ElementsMatch(t, expected, actual)
+		t.Run("no error: add blocks before initialisation", func(t *testing.T) {
+			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(int(bcSpout.BlockHeight())))
+			require.NoError(t, err)
+			require.NoError(t, module.AddBlock(b))
+		})
+		t.Run("error: add MPT nodes without initialisation", func(t *testing.T) {
+			require.Error(t, module.AddMPTNodes([][]byte{}))
+		})
 
-	// no temp items should be left
-	var haveItems bool
-	bcBoltStore.Seek(storage.SeekRange{Prefix: []byte{byte(storage.STStorage)}}, func(_, _ []byte) bool {
-		haveItems = true
-		return false
+		require.NoError(t, module.Init(bcSpout.BlockHeight()))
+		require.True(t, module.IsActive())
+		require.True(t, module.IsInitialized())
+		require.True(t, module.NeedHeaders())
+		require.False(t, module.NeedMPTNodes())
+
+		// add headers to module
+		headers := make([]*block.Header, 0, bcSpout.HeaderHeight())
+		for i := uint32(1); i <= bcSpout.HeaderHeight(); i++ {
+			h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(int(i)))
+			require.NoError(t, err)
+			headers = append(headers, h)
+		}
+		require.NoError(t, module.AddHeaders(headers...))
+		require.True(t, module.IsActive())
+		require.True(t, module.IsInitialized())
+		require.False(t, module.NeedHeaders())
+		require.True(t, module.NeedMPTNodes())
+		require.Equal(t, bcSpout.HeaderHeight(), bcBolt.HeaderHeight())
+
+		// add blocks
+		t.Run("error: unexpected block index", func(t *testing.T) {
+			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(stateSyncPoint - int(maxTraceable)))
+			require.NoError(t, err)
+			require.Error(t, module.AddBlock(b))
+		})
+		t.Run("error: missing state root in block header", func(t *testing.T) {
+			b := &block.Block{
+				Header: block.Header{
+					Index:            uint32(stateSyncPoint) - maxTraceable + 1,
+					StateRootEnabled: false,
+				},
+			}
+			require.Error(t, module.AddBlock(b))
+		})
+		t.Run("error: invalid block merkle root", func(t *testing.T) {
+			b := &block.Block{
+				Header: block.Header{
+					Index:            uint32(stateSyncPoint) - maxTraceable + 1,
+					StateRootEnabled: true,
+					MerkleRoot:       util.Uint256{1, 2, 3},
+				},
+			}
+			require.Error(t, module.AddBlock(b))
+		})
+
+		for i := stateSyncPoint - int(maxTraceable) + 1; i <= stateSyncPoint; i++ {
+			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
+			require.NoError(t, err)
+			require.NoError(t, module.AddBlock(b))
+		}
+		require.True(t, module.IsActive())
+		require.True(t, module.IsInitialized())
+		require.False(t, module.NeedHeaders())
+		require.True(t, module.NeedMPTNodes())
+		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
+
+		// add MPT nodes in batches
+		h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(stateSyncPoint + 1))
+		require.NoError(t, err)
+		unknownHashes := module.GetUnknownMPTNodesBatch(100)
+		require.Equal(t, 1, len(unknownHashes))
+		require.Equal(t, h.PrevStateRoot, unknownHashes[0])
+		nodesMap := make(map[util.Uint256][]byte)
+
+		sm := bcSpout.GetStateModule()
+		sroo, err := sm.GetStateRoot(uint32(stateSyncPoint))
+		require.NoError(t, err)
+		require.Equal(t, sroo.Root, h.PrevStateRoot)
+		err = bcSpout.GetStateSyncModule().Traverse(h.PrevStateRoot, func(n mpt.Node, nodeBytes []byte) bool {
+			nodesMap[n.Hash()] = nodeBytes
+			return false
+		})
+		require.NoError(t, err)
+		for {
+			need := module.GetUnknownMPTNodesBatch(10)
+			if len(need) == 0 {
+				break
+			}
+			add := make([][]byte, len(need))
+			for i, h := range need {
+				nodeBytes, ok := nodesMap[h]
+				if !ok {
+					t.Fatal("unknown or restored node requested")
+				}
+				add[i] = nodeBytes
+				delete(nodesMap, h)
+			}
+			require.NoError(t, module.AddMPTNodes(add))
+		}
+		require.False(t, module.IsActive())
+		require.False(t, module.NeedHeaders())
+		require.False(t, module.NeedMPTNodes())
+		unknownNodes := module.GetUnknownMPTNodesBatch(1)
+		require.True(t, len(unknownNodes) == 0)
+		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
+		require.Equal(t, uint32(stateSyncPoint), bcBolt.BlockHeight())
+
+		// add missing blocks to bcBolt: should be ok, because state is synced
+		for i := stateSyncPoint + 1; i <= int(bcSpout.BlockHeight()); i++ {
+			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
+			require.NoError(t, err)
+			require.NoError(t, bcBolt.AddBlock(b))
+		}
+		require.Equal(t, bcSpout.BlockHeight(), bcBolt.BlockHeight())
+
+		// compare storage states
+		fetchStorage := func(ps storage.Store, storagePrefix byte) []storage.KeyValue {
+			var kv []storage.KeyValue
+			ps.Seek(storage.SeekRange{Prefix: []byte{storagePrefix}}, func(k, v []byte) bool {
+				key := slice.Copy(k)
+				value := slice.Copy(v)
+				if key[0] == byte(storage.STTempStorage) {
+					key[0] = byte(storage.STStorage)
+				}
+				kv = append(kv, storage.KeyValue{
+					Key:   key,
+					Value: value,
+				})
+				return true
+			})
+			return kv
+		}
+		// Both blockchains are running, so we need to wait until recent changes will be persisted
+		// to the underlying backend store. Close blockchains to ensure persist was completed.
+		bcSpout.Close()
+		bcBolt.Close()
+		expected := fetchStorage(bcSpoutStore, byte(storage.STStorage))
+		actual := fetchStorage(bcBoltStore, byte(storage.STTempStorage))
+		require.ElementsMatch(t, expected, actual)
+
+		// no temp items should be left
+		var haveItems bool
+		bcBoltStore.Seek(storage.SeekRange{Prefix: []byte{byte(storage.STStorage)}}, func(_, _ []byte) bool {
+			haveItems = true
+			return false
+		})
+		require.False(t, haveItems)
+	}
+	t.Run("source node is archive", func(t *testing.T) {
+		check(t, false)
 	})
-	require.False(t, haveItems)
+	t.Run("source node is light with GC", func(t *testing.T) {
+		check(t, true)
+	})
 }
