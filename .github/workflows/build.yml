@@ -24,7 +24,11 @@ jobs:
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
-        os: [ubuntu-20.04, windows-2022]
+        os: [ubuntu-20.04, windows-2022, macos-12]
+        arch: [amd64, arm64]
+        exclude:
+          - os: windows-2022
+            arch: 'arm64'
 
     steps:
       - uses: actions/checkout@v2
@@ -49,11 +53,13 @@ jobs:
 
       - name: Build CLI
         run: make build
+        env:
+          GOARCH: ${{ matrix.arch }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: neo-go-binaries
+          name: neo-go-${{ matrix.os }}-${{ matrix.arch }}
           path: ./bin/neo-go*
           if-no-files-found: error
 
