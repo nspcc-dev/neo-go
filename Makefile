@@ -24,7 +24,7 @@ IMAGE_REPO=nspccdev/neo-go
 
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
-.PHONY: build $(BINARY) deps image docker/$(BINARY) image-latest image-push image-push-latest check-version clean-cluster push-tag \
+.PHONY: build $(BINARY) deps image docker/$(BINARY) image-latest image-push image-push-latest clean-cluster \
 	test vet lint fmt cover
 
 build: deps
@@ -86,20 +86,11 @@ image-push-latest:
 	@echo "=> Publish image for Ubuntu with 'latest' tag"
 	@docker push $(IMAGE_REPO):latest
 
-check-version:
-	git fetch && (! git rev-list ${VERSION})
-
 deps:
 	@CGO_ENABLED=0 \
 	go mod download
 	@CGO_ENABLED=0 \
 	go mod tidy -v
-
-push-tag:
-	git checkout ${BRANCH}
-	git pull origin ${BRANCH}
-	git tag ${VERSION}
-	git push origin ${VERSION}
 
 test:
 	@go test ./... -cover
