@@ -25,7 +25,7 @@ IMAGE_REPO=nspccdev/neo-go
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
 .PHONY: build $(BINARY) deps image docker/$(BINARY) image-latest image-push image-push-latest clean-cluster \
-	test vet lint fmt cover
+	test vet lint fmt cover version gh-docker-vars
 
 build: deps
 	@echo "=> Building binary"
@@ -91,6 +91,15 @@ deps:
 	go mod download
 	@CGO_ENABLED=0 \
 	go mod tidy -v
+
+version:
+	@echo $(VERSION)
+
+gh-docker-vars:
+	@echo "::set-output name=file::$(D_FILE)"
+	@echo "::set-output name=version::$(VERSION)"
+	@echo "::set-output name=repo::$(REPO)"
+	@echo "::set-output name=suffix::$(IMAGE_SUFFIX)"
 
 test:
 	@go test ./... -cover
