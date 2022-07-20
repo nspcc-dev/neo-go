@@ -101,15 +101,10 @@ jobs:
           git submodule update --init
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: 1.18
-
-      - name: Restore Go modules from cache
-        uses: actions/cache@v2
-        with:
-          path: /home/runner/go/pkg/mod
-          key: deps-${{ hashFiles('go.sum') }}
+          cache: true
 
       - name: Update Go modules
         run: go mod download -json
@@ -151,15 +146,10 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: '${{ matrix.go_versions }}'
-
-      - name: Restore Go modules from cache
-        uses: actions/cache@v2
-        with:
-          path: /home/runner/go/pkg/mod
-          key: deps-${{ hashFiles('go.sum') }}
+          cache: true
 
       - name: Update Go modules
         run: go mod download -json
