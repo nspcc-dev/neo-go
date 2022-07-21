@@ -3,6 +3,7 @@ package block
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -145,6 +146,15 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 	assert.Equal(t, rawblock, base64.StdEncoding.EncodeToString(data))
 
 	testserdes.MarshalUnmarshalJSON(t, b, New(false))
+}
+
+func TestJSONEmptyTx(t *testing.T) {
+	jblock := `{"hash":"0x5f3fbb43d1e516fe07771e2e873ebc9e2810662401acf603a775aace486220bd","version":0,"previousblockhash":"0x1f4d1defa46faa5e7b9b8d3f79a06bec777d7c26c4aa5f6f5899a291daa87c15","merkleroot":"0x0000000000000000000000000000000000000000000000000000000000000000","time":1627894840919,"nonce":"BA8E021F1AEEA3F6","index":1,"nextconsensus":"NVg7LjGcUSrgxgjX3zEgqaksfMaiS8Z6e1","primary":0,"witnesses":[{"invocation":"DEAq7W/jUhpMon1t9muqXKfBvNyGwLfFFM1vAxrMKvUl6MqK+LL/lJAJP9uAk/cberIWWhSsdcxUtltkBLemg/VuDECQZGuvP93JlZga2ml8cnbe5cNiGgO0EMrbGYyzvgr8calP5SwMNPSYms10gIHxlsuXDU++EQpZu/vKxfHoxdC5DEDgsA3POVZdfN+i5+ekvtsaIvif42n0GC+dZi3Rp37ETmt4NtkoK2I2UXi+WIjm5yXLJsPhAvEV6cJSrvqBdsQBDEDTS6NU+kB+tgeBe9lWv+6y0L2qcUBIaUxiTCaNWZtLPghQICBvjDz1/9ttJRXG3I5N9CFDjjLKCpdIY842HW4/DEC+wlWjkCzVqzKslvpCKZbEPUGIf87CFAD88xqzl26m/TpTUcT0+D5oI2bVzAk0mcdBTPnyjcNbv17BFmr63+09","verification":"FQwhAkhv0VcCxEkKJnAxEqXMHQkj/Wl6M0Br1aHADgATsJpwDCECTHt/tsMQ/M8bozsIJRnYKWTqk4aNZ2Zi1KWa1UjfDn0MIQKq7DhHD2qtAELG6HfP2Ah9Jnaw9Rb93TYoAbm9OTY5ngwhA7IJ/U9TpxcOpERODLCmu2pTwr0BaSaYnPhfmw+6F6cMDCEDuNnVdx2PUTqghpucyNUJhkA7eMbaNokGOMPUalrc4EoMIQLKDidpe5wkj28W4IX9AGHib0TahbWO6DXBEMql7DulVAwhAt9I9g6PPgHEj/QLm38TENeosqGTGIvv4cLj33QOiVCTF0Ge0Nw6"}],"tx":[]}`
+	b := New(false)
+	require.NoError(t, json.Unmarshal([]byte(jblock), b))
+	s, err := json.Marshal(b)
+	require.NoError(t, err)
+	require.JSONEq(t, jblock, string(s))
 }
 
 func TestBlockSizeCalculation(t *testing.T) {
