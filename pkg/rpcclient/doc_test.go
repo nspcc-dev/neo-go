@@ -1,4 +1,4 @@
-package client_test
+package rpcclient_test
 
 import (
 	"context"
@@ -6,14 +6,14 @@ import (
 	"os"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 )
 
 func Example() {
 	endpoint := "http://seed5.bridgeprotocol.io:10332"
-	opts := client.Options{}
+	opts := rpcclient.Options{}
 
-	c, err := client.New(context.TODO(), endpoint, opts)
+	c, err := rpcclient.New(context.TODO(), endpoint, opts)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

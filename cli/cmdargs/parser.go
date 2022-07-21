@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
@@ -188,14 +188,14 @@ func ParseParams(args []string, calledFromMain bool) (int, []smartcontract.Param
 
 // GetSignersAccounts returns the list of signers combined with the corresponding
 // accounts from the provided wallet.
-func GetSignersAccounts(wall *wallet.Wallet, signers []transaction.Signer) ([]client.SignerAccount, error) {
-	signersAccounts := make([]client.SignerAccount, len(signers))
+func GetSignersAccounts(wall *wallet.Wallet, signers []transaction.Signer) ([]rpcclient.SignerAccount, error) {
+	signersAccounts := make([]rpcclient.SignerAccount, len(signers))
 	for i := range signers {
 		signerAcc := wall.GetAccount(signers[i].Account)
 		if signerAcc == nil {
 			return nil, fmt.Errorf("no account was found in the wallet for signer #%d (%s)", i, address.Uint160ToString(signers[i].Account))
 		}
-		signersAccounts[i] = client.SignerAccount{
+		signersAccounts[i] = rpcclient.SignerAccount{
 			Signer:  signers[i],
 			Account: signerAcc,
 		}

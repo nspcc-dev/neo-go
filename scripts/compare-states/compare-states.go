@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/pmezard/go-difflib/difflib"
 	"github.com/urfave/cli"
@@ -15,8 +15,8 @@ import (
 
 var errStateMatches = errors.New("state matches")
 
-func initClient(addr string, name string) (*client.Client, uint32, error) {
-	c, err := client.New(context.Background(), addr, client.Options{})
+func initClient(addr string, name string) (*rpcclient.Client, uint32, error) {
+	c, err := rpcclient.New(context.Background(), addr, rpcclient.Options{})
 	if err != nil {
 		return nil, 0, fmt.Errorf("RPC %s: %w", name, err)
 	}
@@ -31,7 +31,7 @@ func initClient(addr string, name string) (*client.Client, uint32, error) {
 	return c, h, nil
 }
 
-func getRoots(ca *client.Client, cb *client.Client, h uint32) (util.Uint256, util.Uint256, error) {
+func getRoots(ca *rpcclient.Client, cb *rpcclient.Client, h uint32) (util.Uint256, util.Uint256, error) {
 	ra, err := ca.GetStateRootByHeight(h)
 	if err != nil {
 		return util.Uint256{}, util.Uint256{}, fmt.Errorf("getstateroot from A for %d: %w", h, err)
@@ -43,7 +43,7 @@ func getRoots(ca *client.Client, cb *client.Client, h uint32) (util.Uint256, uti
 	return ra.Root, rb.Root, nil
 }
 
-func bisectState(ca *client.Client, cb *client.Client, h uint32) (uint32, error) {
+func bisectState(ca *rpcclient.Client, cb *rpcclient.Client, h uint32) (uint32, error) {
 	ra, rb, err := getRoots(ca, cb, 0)
 	if err != nil {
 		return 0, err

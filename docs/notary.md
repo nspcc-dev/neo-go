@@ -255,7 +255,7 @@ won't pass verification.
 Notary native contract supports `onNEP17Payment` method. Thus, to deposit funds to
 the Notary native contract, transfer the desired amount of GAS to the contract
 address. Use
-[func (*Client) TransferNEP17](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpc/client#Client.TransferNEP17)
+[func (*Client) TransferNEP17](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.TransferNEP17)
 with the `data` parameter matching the following requirements:
 - `data` should be an array of two elements: `to` and `till`.
 - `to` denotes the receiver of the deposit. It can be nil in case `to` equals
@@ -308,7 +308,7 @@ the steps to create a signature request:
    constraints:
    * Notary signer hash is the hash of a native Notary contract that can be fetched
      from
-     [func (*Client) GetNativeContractHash](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpc/client#Client.GetNativeContractHash).
+     [func (*Client) GetNativeContractHash](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.GetNativeContractHash).
    * A notary signer must have `None` scope.
    * A notary signer shouldn't be placed at the beginning of the signer list
      because Notary contract does not pay main transaction fees. Other positions
@@ -317,11 +317,11 @@ the steps to create a signature request:
    field) and calculate system fee using regular rules (that will be `SystemFee`
    transaction field). Probably, you'll perform one of these actions:
    1. If the script is a contract method call, use `invokefunction` RPC API
-      [func (*Client) InvokeFunction](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpc/client#Client.InvokeFunction)
+      [func (*Client) InvokeFunction](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.InvokeFunction)
       and fetch the script and the gas consumed from the result.
    2. If the script is more complicated than just a contract method call,
       construct the script manually and use `invokescript` RPC API
-      [func (*Client) InvokeScript](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpc/client#Client.InvokeScript)
+      [func (*Client) InvokeScript](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.InvokeScript)
       to fetch the gas consumed from the result.
    3. Or just construct the script and set system fee manually.
 3. Calculate the height main transaction is valid until (that will be
@@ -361,12 +361,12 @@ the steps to create a signature request:
      `NotaryAssisted` attribute usage and for notary contract witness
      verification (that is to be added by the notary node in the end of
      signature collection process). Use
-     [func (*Client) CalculateNotaryFee](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpc/client#Client.CalculateNotaryFee)
+     [func (*Client) CalculateNotaryFee](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.CalculateNotaryFee)
      to calculate notary network fee. Use `NKeys` estimated at step 4 as an
      argument.
    - *Regular network fee.* That's the amount of GAS to be paid for other witnesses
      verification. Use
-     [func (*Client) AddNetworkFee](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpc/client#Client.AddNetworkFee)
+     [func (*Client) AddNetworkFee](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.AddNetworkFee)
      to calculate regular network fee and add it to the transaction. Use
      partially-filled main transaction from the previous steps as `tx` argument.
      Use notary network fee calculated at the previous substep as `extraFee`
@@ -402,13 +402,13 @@ the steps to create a signature request:
     tries to push all associated fallbacks. Use the following rules to define
     `fallbackValidFor`:
        - `fallbackValidFor` shouldn't be more than `MaxNotValidBeforeDelta` value.
-       - Use [func (*Client) GetMaxNotValidBeforeDelta](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpc/client#Client.GetMaxNotValidBeforeDelta)
+       - Use [func (*Client) GetMaxNotValidBeforeDelta](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.GetMaxNotValidBeforeDelta)
          to check `MaxNotValidBefore` value.
 11. Construct a script for the fallback transaction. The script may do something useful,
     i.g. invoke method of a contract. However, if you don't need to perform anything
     special on fallback invocation, you can use simple `opcode.RET` script.
 12. Sign and submit P2P notary request. Use
-    [func (*Client) SignAndPushP2PNotaryRequest](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpc/client#Client.SignAndPushP2PNotaryRequest) for it.
+    [func (*Client) SignAndPushP2PNotaryRequest](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.SignAndPushP2PNotaryRequest) for it.
     - Use the signed main transaction from step 8 as `mainTx` argument.
     - Use the fallback script from step 10 as `fallbackScript` argument.
     - Use `-1` as `fallbackSysFee` argument to define system fee by test

@@ -1,4 +1,4 @@
-package client
+package rpcclient
 
 // Various non-policy things from native contracts.
 
@@ -11,7 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client/nns"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"

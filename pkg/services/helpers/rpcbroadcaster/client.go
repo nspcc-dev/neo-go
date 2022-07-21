@@ -4,13 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"go.uber.org/zap"
 )
 
 // RPCClient represent an rpc client for a single node.
 type RPCClient struct {
-	client      *client.Client
+	client      *rpcclient.Client
 	addr        string
 	close       chan struct{}
 	finished    chan struct{}
@@ -21,7 +21,7 @@ type RPCClient struct {
 }
 
 // SendMethod represents an rpc method for sending data to other nodes.
-type SendMethod func(*client.Client, []interface{}) error
+type SendMethod func(*rpcclient.Client, []interface{}) error
 
 // NewRPCClient returns a new rpc client for the provided address and method.
 func (r *RPCBroadcaster) NewRPCClient(addr string, method SendMethod, timeout time.Duration, ch chan []interface{}) *RPCClient {
@@ -38,7 +38,7 @@ func (r *RPCBroadcaster) NewRPCClient(addr string, method SendMethod, timeout ti
 
 func (c *RPCClient) run() {
 	// We ignore error as not every node can be available on startup.
-	c.client, _ = client.New(context.Background(), c.addr, client.Options{
+	c.client, _ = rpcclient.New(context.Background(), c.addr, rpcclient.Options{
 		DialTimeout:    c.sendTimeout,
 		RequestTimeout: c.sendTimeout,
 	})
@@ -50,7 +50,7 @@ run:
 		case ps := <-c.responses:
 			if c.client == nil {
 				var err error
-				c.client, err = client.New(context.Background(), c.addr, client.Options{
+				c.client, err = rpcclient.New(context.Background(), c.addr, rpcclient.Options{
 					DialTimeout:    c.sendTimeout,
 					RequestTimeout: c.sendTimeout,
 				})

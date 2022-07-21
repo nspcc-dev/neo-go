@@ -27,9 +27,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client/nns"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -48,7 +48,7 @@ func TestClient_NEP17(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -93,7 +93,7 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 	const extraFee = 10
 	var nonce uint32
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -341,7 +341,7 @@ func TestCalculateNetworkFee(t *testing.T) {
 	defer rpcSrv.Shutdown()
 	const extraFee = 10
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -410,7 +410,7 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -458,7 +458,7 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 
 	t.Run("good", func(t *testing.T) {
 		t.Run("signer0: sig", func(t *testing.T) {
-			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []client.SignerAccount{
+			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{
 				{
 					Signer: transaction.Signer{
 						Account: priv0.GetScriptHash(),
@@ -471,7 +471,7 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 			check(t, h)
 		})
 		t.Run("signer0: sig; signer1: sig", func(t *testing.T) {
-			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []client.SignerAccount{
+			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{
 				{
 					Signer: transaction.Signer{
 						Account: priv0.GetScriptHash(),
@@ -491,7 +491,7 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 			check(t, h)
 		})
 		t.Run("signer0: sig; signer1: contract-based paramless", func(t *testing.T) {
-			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []client.SignerAccount{
+			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{
 				{
 					Signer: transaction.Signer{
 						Account: priv0.GetScriptHash(),
@@ -513,7 +513,7 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 	})
 	t.Run("error", func(t *testing.T) {
 		t.Run("signer0: sig; signer1: contract-based with params", func(t *testing.T) {
-			_, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []client.SignerAccount{
+			_, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{
 				{
 					Signer: transaction.Signer{
 						Account: priv0.GetScriptHash(),
@@ -541,7 +541,7 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 					Parameters: []wallet.ContractParam{{Name: "parameter0", Type: smartcontract.SignatureType}},
 				},
 			}
-			_, err = c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []client.SignerAccount{
+			_, err = c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{
 				{
 					Signer: transaction.Signer{
 						Account: priv0.GetScriptHash(),
@@ -567,7 +567,7 @@ func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	acc, err := wallet.NewAccount()
 	require.NoError(t, err)
@@ -658,7 +658,7 @@ func TestCalculateNotaryFee(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 
 	t.Run("client not initialized", func(t *testing.T) {
@@ -671,7 +671,7 @@ func TestPing(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -686,7 +686,7 @@ func TestCreateTxFromScript(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -715,7 +715,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -735,7 +735,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 		require.NoError(t, ic.VM.Run())
 	})
 	t.Run("none scope", func(t *testing.T) {
-		_, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil, []client.SignerAccount{{
+		_, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil, []rpcclient.SignerAccount{{
 			Signer: transaction.Signer{
 				Account: priv.PublicKey().GetScriptHash(),
 				Scopes:  transaction.None,
@@ -744,7 +744,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 		require.Error(t, err)
 	})
 	t.Run("customcontracts scope", func(t *testing.T) {
-		tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil, []client.SignerAccount{{
+		tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil, []rpcclient.SignerAccount{{
 			Signer: transaction.Signer{
 				Account:          priv.PublicKey().GetScriptHash(),
 				Scopes:           transaction.CustomContracts,
@@ -765,7 +765,7 @@ func TestInvokeVerify(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -857,7 +857,7 @@ func TestClient_GetNativeContracts(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -871,7 +871,7 @@ func TestClient_NEP11_ND(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -937,7 +937,7 @@ func TestClient_NEP11_D(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -1016,7 +1016,7 @@ func TestClient_NNS(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -1088,7 +1088,7 @@ func TestClient_IteratorSessions(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -1230,7 +1230,7 @@ func TestClient_GetNotaryServiceFeePerKey(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -1245,7 +1245,7 @@ func TestClient_GetOraclePrice(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -1260,7 +1260,7 @@ func TestClient_InvokeAndPackIteratorResults(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -1319,7 +1319,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 	// storageItemsCount is the amount of storage items stored in Storage contract, it's hard-coded in the contract code.
 	const storageItemsCount = 255
 
-	checkSessionEnabled := func(t *testing.T, c *client.Client) {
+	checkSessionEnabled := func(t *testing.T, c *rpcclient.Client) {
 		// We expect Iterator with designated ID to be presented on stack. It should be possible to retrieve its values via `traverseiterator` call.
 		res, err := c.InvokeFunction(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
 		require.NoError(t, err)
@@ -1347,7 +1347,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 			require.NoError(t, chain.AddBlock(b))
 		}
 
-		c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+		c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 		require.NoError(t, err)
 		require.NoError(t, c.Init())
 
@@ -1386,7 +1386,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 			require.NoError(t, chain.AddBlock(b))
 		}
 
-		c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+		c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 		require.NoError(t, err)
 		require.NoError(t, c.Init())
 
@@ -1400,7 +1400,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 			require.NoError(t, chain.AddBlock(b))
 		}
 
-		c, err := client.New(context.Background(), httpSrv.URL, client.Options{})
+		c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 		require.NoError(t, err)
 		require.NoError(t, c.Init())
 

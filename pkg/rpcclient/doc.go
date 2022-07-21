@@ -1,6 +1,6 @@
 /*
-Package client implements NEO-specific JSON-RPC 2.0 client.
-This package is currently in alpha and is subject to change.
+Package rpcclient implements NEO-specific JSON-RPC 2.0 client.
+This package is currently in beta and is subject to change.
 
 Client
 
@@ -77,4 +77,4 @@ Unsupported methods
 	sendtoaddress
 
 */
-package client
+package rpcclient

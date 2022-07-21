@@ -13,7 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -250,7 +250,7 @@ func transferNEP11(ctx *cli.Context) error {
 	return transferNEP(ctx, manifest.NEP11StandardName)
 }
 
-func signAndSendNEP11Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, token, to util.Uint160, tokenID []byte, amount *big.Int, data interface{}, cosigners []client.SignerAccount) error {
+func signAndSendNEP11Transfer(ctx *cli.Context, c *rpcclient.Client, acc *wallet.Account, token, to util.Uint160, tokenID []byte, amount *big.Int, data interface{}, cosigners []rpcclient.SignerAccount) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 	sysgas := flags.Fixed8FromContext(ctx, "sysgas")
 

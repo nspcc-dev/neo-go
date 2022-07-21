@@ -1,4 +1,4 @@
-package client
+package rpcclient
 
 import (
 	"crypto/elliptic"
@@ -10,7 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client/nns"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"

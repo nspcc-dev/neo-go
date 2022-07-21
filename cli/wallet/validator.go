@@ -11,7 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -125,7 +125,7 @@ func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 	w := io.NewBufBinWriter()
 	emit.AppCall(w.BinWriter, neoContractHash, method, callflag.States, acc.PrivateKey().PublicKey().Bytes())
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	res, err := c.SignAndPushInvocationTx(w.Bytes(), acc, sysGas, gas, []client.SignerAccount{{
+	res, err := c.SignAndPushInvocationTx(w.Bytes(), acc, sysGas, gas, []rpcclient.SignerAccount{{
 		Signer: transaction.Signer{
 			Account: acc.Contract.ScriptHash(),
 			Scopes:  transaction.CalledByEntry,
@@ -186,7 +186,7 @@ func handleVote(ctx *cli.Context) error {
 	emit.AppCall(w.BinWriter, neoContractHash, "vote", callflag.States, addr.BytesBE(), pubArg)
 	emit.Opcodes(w.BinWriter, opcode.ASSERT)
 
-	res, err := c.SignAndPushInvocationTx(w.Bytes(), acc, -1, gas, []client.SignerAccount{{
+	res, err := c.SignAndPushInvocationTx(w.Bytes(), acc, -1, gas, []rpcclient.SignerAccount{{
 		Signer: transaction.Signer{
 			Account: acc.Contract.ScriptHash(),
 			Scopes:  transaction.CalledByEntry,
