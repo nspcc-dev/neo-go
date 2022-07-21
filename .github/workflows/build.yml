@@ -115,7 +115,7 @@ jobs:
           push: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_image == 'true') }}
           platforms: linux/amd64,linux/arm64
           build-args: |
-            REPO=${{ steps.setvars.outputs.repo }}
+            REPO=github.com/${{ github.repository }}
             VERSION=${{ steps.setvars.outputs.version }}
           tags: ${{ steps.setvars.outputs.repo }}:${{ steps.setvars.outputs.version }}${{ steps.setvars.outputs.suffix }}${{ steps.setlatest.outputs.latest }}
 

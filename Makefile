@@ -98,7 +98,7 @@ version:
 gh-docker-vars:
 	@echo "::set-output name=file::$(D_FILE)"
 	@echo "::set-output name=version::$(VERSION)"
-	@echo "::set-output name=repo::$(REPO)"
+	@echo "::set-output name=repo::$(IMAGE_REPO)"
 	@echo "::set-output name=suffix::$(IMAGE_SUFFIX)"
 
 test:
