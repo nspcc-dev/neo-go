@@ -16,12 +16,12 @@ WORKDIR /neo-go
 ARG REPO=repository
 ARG VERSION=dev
 
-RUN make build
+RUN VERSION=$VERSION REPO=$REPO make build
 
 # Executable image
 FROM alpine
 
-ARG   VERSION
+ARG VERSION=dev
 LABEL version=$VERSION
 
 WORKDIR /
