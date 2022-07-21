@@ -147,9 +147,14 @@ func (b *Block) EncodeBinary(bw *io.BinWriter) {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (b Block) MarshalJSON() ([]byte, error) {
-	auxb, err := json.Marshal(auxBlockOut{
+	abo := auxBlockOut{
 		Transactions: b.Transactions,
-	})
+	}
+	// `"tx": []` (C#) vs `"tx": null` (default Go when missing any transactions)
+	if abo.Transactions == nil {
+		abo.Transactions = []*transaction.Transaction{}
+	}
+	auxb, err := json.Marshal(abo)
 	if err != nil {
 		return nil, err
 	}
