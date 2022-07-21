@@ -8,170 +8,142 @@ on:
     paths-ignore:
       - 'scripts/**'
       - '**/*.md'
+  push:
+    # Build for the master branch.
+    branches:
+      - master
+  release:
+    # Publish released commit as Docker `latest` and `git_revision` images.
+    types:
+      - published
   workflow_dispatch:
     inputs:
       ref:
         description: 'Ref to build CLI for Ubuntu and Windows Server Core [default: latest master; examples: v0.92.0, 0a4ff9d3e4a9ab432fd5812eb18c98e03b5a7432]'
         required: false
         default: ''
+      push_image:
+        description: 'Push images to DockerHub [default: false; examples: true, false]'
+        required: false
+        default: 'false'
+      use_latest_tag:
+        description: 'Use `latest` tag while pushing images to DockerHub (applied to Ubuntu image only) [default: false; examples: true, false]'
+        required: false
+        default: 'false'
 
 env:
   GO111MODULE: "on"
 
 jobs:
-  build_cli_ubuntu:
-    name: Build CLI (Ubuntu)
-    runs-on: ubuntu-20.04
+  build_cli:
+    name: Build CLI
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-2022, macos-12]
+        arch: [amd64, arm64]
+        exclude:
+          - os: windows-2022
+            arch: 'arm64'
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.inputs.ref }}
           # Allows to fetch all history for all branches and tags. Need this for proper versioning.
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: 1.18
-
-      - name: Restore Go modules from cache
-        uses: actions/cache@v2
-        with:
-          path: /home/runner/go/pkg/mod
-          key: deps-${{ hashFiles('go.sum') }}
+          cache: true
 
       - name: Update Go modules
         run: go mod download -json
 
       - name: Build CLI
         run: make build
+        env:
+          GOARCH: ${{ matrix.arch }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: neo-go-binaries-ubuntu
-          path: ./bin/neo-go
+          name: neo-go-${{ matrix.os }}-${{ matrix.arch }}
+          path: ./bin/neo-go*
           if-no-files-found: error
 
-  build_cli_wsc:
-    name: Build CLI (Windows Server Core)
-    runs-on: windows-2022
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.inputs.ref }}
-          fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18
-
-      - name: Restore Go modules from cache
-        uses: actions/cache@v2
-        with:
-          path: /home/runner/go/pkg/mod
-          key: deps-${{ hashFiles('go.sum') }}
-
-      - name: Update Go modules
-        run: go mod download -json
-
-      - name: Build CLI
-        run: make build
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: neo-go-binaries-wsc
-          path: ./bin/neo-go.exe
-          if-no-files-found: error
-
-  build_image_ubuntu:
-    needs: build_cli_ubuntu
-    name: Build Docker image (Ubuntu)
+  build_image:
+    needs: build_cli
+    name: Build and push docker image
     runs-on: ubuntu-20.04
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
 
-      # For proper `deps` make target execution.
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18
+      - name: Set up QEMU
+        if: runner.os != 'Windows'
+        uses: docker/setup-qemu-action@v2
 
-      - name: Build Docker image
-        run: make image
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Set vars
+        id: setvars
+        run: make gh-docker-vars
+
+      - name: Set latest tag
+        id: setlatest
+        if: ${{ (github.event_name == 'release' && github.event.release.target_commitish == 'master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_image == 'true' && github.event.inputs.use_latest_tag == 'true') }}
+        run: echo "::set-output name=latest::,${{ steps.setvars.outputs.repo }}:latest"
+
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          push: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_image == 'true') }}
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            REPO=${{ steps.setvars.outputs.repo }}
+            VERSION=${{ steps.setvars.outputs.version }}
+          tags: ${{ steps.setvars.outputs.repo }}:${{ steps.setvars.outputs.version }}${{ steps.setvars.outputs.suffix }}${{ steps.setlatest.outputs.latest }}
 
   build_image_wsc:
-    needs: build_cli_wsc
-    name: Build Docker image (Windows Server Core)
+    needs: build_cli
+    name: Build and push docker image (Windows Server Core)
     runs-on: windows-2022
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.inputs.ref }}
           fetch-depth: 0
 
       # For proper `deps` make target execution.
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: 1.18
+          cache: true
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build Docker image
         run: make image
 
-  build_privnet_image_ubuntu:
-    needs: build_cli_ubuntu
-    name: Build privnet Docker image (Ubuntu)
-    runs-on: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.inputs.ref }}
-          fetch-depth: 0
-
-      # For proper `deps` make target execution.
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18
-
-      # For information purposes.
-      - name: Print Docker version
-        run: docker --version
-
-      - name: Build privnet Docker image
-        run: make env_image
-
-  build_privnet_image_wsc:
-    needs: build_cli_wsc
-    name: Build privnet Docker image (Windows Server Core)
-    runs-on: windows-2022
-
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.inputs.ref }}
-          fetch-depth: 0
-
-      # For proper `deps` make target execution.
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: 1.18
-
-      # For information purposes.
-      - name: Print Docker version
-        run: docker --version
-
-      - name: Build privnet Docker image
-        run: make env_image
+      - name: Push image to registry
+        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_image == 'true') }}
+        run: make image-push
