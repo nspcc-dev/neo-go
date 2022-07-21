@@ -18,7 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/server/params"
+	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv/params"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"

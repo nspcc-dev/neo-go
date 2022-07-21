@@ -28,7 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/server/params"
+	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv/params"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"

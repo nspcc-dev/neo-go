@@ -20,7 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/network"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
+	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
@@ -56,7 +56,7 @@ type executor struct {
 	// Chain is a blockchain instance (can be empty).
 	Chain *core.Blockchain
 	// RPC is an RPC server to query (can be empty).
-	RPC *server.Server
+	RPC *rpcsrv.Server
 	// NetSrv is a network server (can be empty).
 	NetSrv *network.Server
 	// Out contains command output.
@@ -120,7 +120,7 @@ func (w *ConcurrentBuffer) Reset() {
 	w.buf.Reset()
 }
 
-func newTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockchain, *server.Server, *network.Server) {
+func newTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockchain, *rpcsrv.Server, *network.Server) {
 	configPath := "../config/protocol.unit_testnet.single.yml"
 	cfg, err := config.LoadFile(configPath)
 	require.NoError(t, err, "could not load config")
@@ -154,7 +154,7 @@ func newTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 	netSrv.AddExtensibleHPService(cons, consensus.Category, cons.OnPayload, cons.OnTransaction)
 	go netSrv.Start(make(chan error, 1))
 	errCh := make(chan error, 2)
-	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, netSrv, nil, logger, errCh)
+	rpcServer := rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, netSrv, nil, logger, errCh)
 	rpcServer.Start()
 
 	return chain, &rpcServer, netSrv

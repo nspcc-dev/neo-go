@@ -50,7 +50,7 @@ testdata/
 !pkg/compiler/testdata
 !pkg/config/testdata
 !pkg/consensus/testdata
-!pkg/rpc/server/testdata
+!pkg/services/rpcsrv/testdata
 !pkg/services/notary/testdata
 !pkg/services/oracle/testdata
 !pkg/smartcontract/testdata

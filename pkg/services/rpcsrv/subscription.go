@@ -1,4 +1,4 @@
-package server
+package rpcsrv
 
 import (
 	"github.com/gorilla/websocket"

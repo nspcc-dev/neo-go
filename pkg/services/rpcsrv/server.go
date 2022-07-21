@@ -1,4 +1,4 @@
-package server
+package rpcsrv
 
 import (
 	"bytes"
@@ -45,7 +45,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result/subscriptions"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/server/params"
+	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv/params"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"

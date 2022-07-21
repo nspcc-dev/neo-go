@@ -1,4 +1,4 @@
-package server
+package rpcsrv
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	notaryPath = "../../services/notary/testdata/notary1.json"
+	notaryPath = "../notary/testdata/notary1.json"
 	notaryPass = "one"
 )
 
@@ -50,7 +50,7 @@ func getUnitTestChain(t testing.TB, enableOracle bool, enableNotary bool, disabl
 		if enableOracle {
 			cfg.ApplicationConfiguration.Oracle.Enabled = true
 			cfg.ApplicationConfiguration.Oracle.UnlockWallet = config.Wallet{
-				Path:     "../../services/oracle/testdata/oracle1.json",
+				Path:     "../oracle/testdata/oracle1.json",
 				Password: "one",
 			}
 		}

@@ -1,4 +1,4 @@
-package server
+package rpcsrv
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
