@@ -27,6 +27,13 @@ type AppExecResult struct {
 	Execution
 }
 
+// ContainedNotificationEvent represents a wrapper for a notification from script execution.
+type ContainedNotificationEvent struct {
+	// Container hash is the hash of script container which is either a block or a transaction.
+	Container util.Uint256
+	NotificationEvent
+}
+
 // EncodeBinary implements the Serializable interface.
 func (ne *NotificationEvent) EncodeBinary(w *io.BinWriter) {
 	ne.EncodeBinaryWithContext(w, stackitem.NewSerializationContext())
@@ -274,5 +281,44 @@ func (e *Execution) UnmarshalJSON(data []byte) error {
 	e.Events = aux.Events
 	e.GasConsumed = aux.GasConsumed
 	e.FaultException = aux.FaultException
+	return nil
+}
+
+// containedNotificationEventAux is an auxiliary struct for JSON marshalling.
+type containedNotificationEventAux struct {
+	Container util.Uint256 `json:"container"`
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (ne *ContainedNotificationEvent) MarshalJSON() ([]byte, error) {
+	h, err := json.Marshal(&containedNotificationEventAux{
+		Container: ne.Container,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal hash: %w", err)
+	}
+	exec, err := json.Marshal(ne.NotificationEvent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal execution: %w", err)
+	}
+
+	if h[len(h)-1] != '}' || exec[0] != '{' {
+		return nil, errors.New("can't merge internal jsons")
+	}
+	h[len(h)-1] = ','
+	h = append(h, exec[1:]...)
+	return h, nil
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (ne *ContainedNotificationEvent) UnmarshalJSON(data []byte) error {
+	aux := new(containedNotificationEventAux)
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, &ne.NotificationEvent); err != nil {
+		return err
+	}
+	ne.Container = aux.Container
 	return nil
 }

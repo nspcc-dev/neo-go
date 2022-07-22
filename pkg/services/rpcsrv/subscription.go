@@ -72,7 +72,7 @@ func (f *feed) Matches(r *neorpc.Notification) bool {
 		return senderOK && signerOK
 	case neorpc.NotificationEventID:
 		filt := f.filter.(neorpc.NotificationFilter)
-		notification := r.Payload[0].(*subscriptions.NotificationEvent)
+		notification := r.Payload[0].(*state.ContainedNotificationEvent)
 		hashOk := filt.Contract == nil || notification.ScriptHash.Equals(*filt.Contract)
 		nameOk := filt.Name == nil || notification.Name == *filt.Name
 		return hashOk && nameOk

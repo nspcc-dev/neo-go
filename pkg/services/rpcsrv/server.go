@@ -87,7 +87,7 @@ type (
 		notaryRequestSubs int
 		blockCh           chan *block.Block
 		executionCh       chan *state.AppExecResult
-		notificationCh    chan *subscriptions.NotificationEvent
+		notificationCh    chan *state.ContainedNotificationEvent
 		transactionCh     chan *transaction.Transaction
 		notaryRequestCh   chan mempoolevent.Event
 	}
@@ -245,7 +245,7 @@ func New(chain blockchainer.Blockchainer, conf config.RPC, coreServer *network.S
 		// These are NOT buffered to preserve original order of events.
 		blockCh:         make(chan *block.Block),
 		executionCh:     make(chan *state.AppExecResult),
-		notificationCh:  make(chan *subscriptions.NotificationEvent),
+		notificationCh:  make(chan *state.ContainedNotificationEvent),
 		transactionCh:   make(chan *transaction.Transaction),
 		notaryRequestCh: make(chan mempoolevent.Event),
 	}

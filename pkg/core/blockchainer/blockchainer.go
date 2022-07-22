@@ -12,7 +12,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/neorpc/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -70,14 +69,14 @@ type Blockchainer interface {
 	SetNotary(mod services.Notary)
 	SubscribeForBlocks(ch chan<- *block.Block)
 	SubscribeForExecutions(ch chan<- *state.AppExecResult)
-	SubscribeForNotifications(ch chan<- *subscriptions.NotificationEvent)
+	SubscribeForNotifications(ch chan<- *state.ContainedNotificationEvent)
 	SubscribeForTransactions(ch chan<- *transaction.Transaction)
 	VerifyTx(*transaction.Transaction) error
 	VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
 	GetMemPool() *mempool.Pool
 	UnsubscribeFromBlocks(ch chan<- *block.Block)
 	UnsubscribeFromExecutions(ch chan<- *state.AppExecResult)
-	UnsubscribeFromNotifications(ch chan<- *subscriptions.NotificationEvent)
+	UnsubscribeFromNotifications(ch chan<- *state.ContainedNotificationEvent)
 	UnsubscribeFromTransactions(ch chan<- *transaction.Transaction)
 	// Policer.
 	GetBaseExecFee() int64

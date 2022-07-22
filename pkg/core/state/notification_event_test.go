@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/require"
@@ -240,4 +241,15 @@ func TestMarshalUnmarshalJSONAppExecResult(t *testing.T) {
 			require.Error(t, err)
 		}
 	})
+}
+
+func TestContainedNotificationEvent_MarshalUnmarshalJSON(t *testing.T) {
+	testserdes.MarshalUnmarshalJSON(t, &ContainedNotificationEvent{
+		Container: util.Uint256{1, 2, 3},
+		NotificationEvent: NotificationEvent{
+			ScriptHash: util.Uint160{4, 5, 6},
+			Name:       "alarm",
+			Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray([]byte("qwerty"))}),
+		},
+	}, new(ContainedNotificationEvent))
 }

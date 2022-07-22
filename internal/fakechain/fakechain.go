@@ -19,7 +19,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/neorpc/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	uatomic "go.uber.org/atomic"
@@ -404,7 +403,7 @@ func (chain *FakeChain) SubscribeForExecutions(ch chan<- *state.AppExecResult) {
 }
 
 // SubscribeForNotifications implements the Blockchainer interface.
-func (chain *FakeChain) SubscribeForNotifications(ch chan<- *subscriptions.NotificationEvent) {
+func (chain *FakeChain) SubscribeForNotifications(ch chan<- *state.ContainedNotificationEvent) {
 	panic("TODO")
 }
 
@@ -444,7 +443,7 @@ func (chain *FakeChain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult
 }
 
 // UnsubscribeFromNotifications implements the Blockchainer interface.
-func (chain *FakeChain) UnsubscribeFromNotifications(ch chan<- *subscriptions.NotificationEvent) {
+func (chain *FakeChain) UnsubscribeFromNotifications(ch chan<- *state.ContainedNotificationEvent) {
 	panic("TODO")
 }
 

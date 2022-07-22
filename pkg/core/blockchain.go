@@ -33,7 +33,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/neorpc/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -755,7 +754,7 @@ func (bc *Blockchain) notificationDispatcher() {
 		// expected, but maps are convenient for adding/deleting elements).
 		blockFeed        = make(map[chan<- *block.Block]bool)
 		txFeed           = make(map[chan<- *transaction.Transaction]bool)
-		notificationFeed = make(map[chan<- *subscriptions.NotificationEvent]bool)
+		notificationFeed = make(map[chan<- *state.ContainedNotificationEvent]bool)
 		executionFeed    = make(map[chan<- *state.AppExecResult]bool)
 	)
 	for {
@@ -768,7 +767,7 @@ func (bc *Blockchain) notificationDispatcher() {
 				blockFeed[ch] = true
 			case chan<- *transaction.Transaction:
 				txFeed[ch] = true
-			case chan<- *subscriptions.NotificationEvent:
+			case chan<- *state.ContainedNotificationEvent:
 				notificationFeed[ch] = true
 			case chan<- *state.AppExecResult:
 				executionFeed[ch] = true
@@ -781,7 +780,7 @@ func (bc *Blockchain) notificationDispatcher() {
 				delete(blockFeed, ch)
 			case chan<- *transaction.Transaction:
 				delete(txFeed, ch)
-			case chan<- *subscriptions.NotificationEvent:
+			case chan<- *state.ContainedNotificationEvent:
 				delete(notificationFeed, ch)
 			case chan<- *state.AppExecResult:
 				delete(executionFeed, ch)
@@ -801,7 +800,7 @@ func (bc *Blockchain) notificationDispatcher() {
 				}
 				for i := range aer.Events {
 					for ch := range notificationFeed {
-						ch <- &subscriptions.NotificationEvent{
+						ch <- &state.ContainedNotificationEvent{
 							Container:         aer.Container,
 							NotificationEvent: aer.Events[i],
 						}
@@ -821,7 +820,7 @@ func (bc *Blockchain) notificationDispatcher() {
 					if aer.VMState == vmstate.Halt {
 						for i := range aer.Events {
 							for ch := range notificationFeed {
-								ch <- &subscriptions.NotificationEvent{
+								ch <- &state.ContainedNotificationEvent{
 									Container:         aer.Container,
 									NotificationEvent: aer.Events[i],
 								}
@@ -842,7 +841,7 @@ func (bc *Blockchain) notificationDispatcher() {
 				}
 				for i := range aer.Events {
 					for ch := range notificationFeed {
-						ch <- &subscriptions.NotificationEvent{
+						ch <- &state.ContainedNotificationEvent{
 							Container:         aer.Container,
 							NotificationEvent: aer.Events[i],
 						}
@@ -1782,7 +1781,7 @@ func (bc *Blockchain) SubscribeForTransactions(ch chan<- *transaction.Transactio
 // transactions use SubscribeForExecutions instead. Make sure this channel is
 // read from regularly as not reading these events might affect other Blockchain
 // functions.
-func (bc *Blockchain) SubscribeForNotifications(ch chan<- *subscriptions.NotificationEvent) {
+func (bc *Blockchain) SubscribeForNotifications(ch chan<- *state.ContainedNotificationEvent) {
 	bc.subCh <- ch
 }
 
@@ -1810,7 +1809,7 @@ func (bc *Blockchain) UnsubscribeFromTransactions(ch chan<- *transaction.Transac
 // UnsubscribeFromNotifications unsubscribes given channel from new
 // execution-generated notifications, you can close it afterwards. Passing
 // non-subscribed channel is a no-op.
-func (bc *Blockchain) UnsubscribeFromNotifications(ch chan<- *subscriptions.NotificationEvent) {
+func (bc *Blockchain) UnsubscribeFromNotifications(ch chan<- *state.ContainedNotificationEvent) {
 	bc.unsubCh <- ch
 }
 

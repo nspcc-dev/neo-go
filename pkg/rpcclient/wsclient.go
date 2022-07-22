@@ -52,7 +52,7 @@ type WSClient struct {
 }
 
 // Notification represents a server-generated notification for client subscriptions.
-// Value can be one of block.Block, state.AppExecResult, subscriptions.NotificationEvent
+// Value can be one of block.Block, state.AppExecResult, state.ContainedNotificationEvent
 // transaction.Transaction or subscriptions.NotaryRequestEvent based on Type.
 type Notification struct {
 	Type  neorpc.EventID
@@ -182,7 +182,7 @@ readloop:
 			case neorpc.TransactionEventID:
 				val = &transaction.Transaction{}
 			case neorpc.NotificationEventID:
-				val = new(subscriptions.NotificationEvent)
+				val = new(state.ContainedNotificationEvent)
 			case neorpc.ExecutionEventID:
 				val = new(state.AppExecResult)
 			case neorpc.NotaryRequestEventID:
