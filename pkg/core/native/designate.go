@@ -9,7 +9,6 @@ import (
 	"sort"
 	"sync/atomic"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
@@ -239,11 +238,11 @@ func (s *Designate) updateCachedRoleData(cache *DesignationCache, d *dao.Simple,
 func (s *Designate) notifyRoleChanged(v *roleData, r noderoles.Role) {
 	switch r {
 	case noderoles.Oracle:
-		if orc, _ := s.OracleService.Load().(services.Oracle); orc != nil {
+		if orc, _ := s.OracleService.Load().(OracleService); orc != nil {
 			orc.UpdateOracleNodes(v.nodes.Copy())
 		}
 	case noderoles.P2PNotary:
-		if ntr, _ := s.NotaryService.Load().(services.Notary); ntr != nil {
+		if ntr, _ := s.NotaryService.Load().(NotaryService); ntr != nil {
 			ntr.UpdateNotaryNodes(v.nodes.Copy())
 		}
 	case noderoles.StateValidator:

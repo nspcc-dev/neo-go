@@ -16,7 +16,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -291,7 +290,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 
 // SetOracle sets oracle module. It doesn't protected by mutex and
 // must be called before `bc.Run()` to avoid data race.
-func (bc *Blockchain) SetOracle(mod services.Oracle) {
+func (bc *Blockchain) SetOracle(mod native.OracleService) {
 	orc := bc.contracts.Oracle
 	md, ok := orc.GetMethod(manifest.MethodVerify, -1)
 	if !ok {
@@ -305,7 +304,7 @@ func (bc *Blockchain) SetOracle(mod services.Oracle) {
 
 // SetNotary sets notary module. It doesn't protected by mutex and
 // must be called before `bc.Run()` to avoid data race.
-func (bc *Blockchain) SetNotary(mod services.Notary) {
+func (bc *Blockchain) SetNotary(mod native.NotaryService) {
 	bc.contracts.Designate.NotaryService.Store(mod)
 }
 

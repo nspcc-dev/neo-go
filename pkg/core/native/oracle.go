@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -48,6 +47,22 @@ type Oracle struct {
 
 type OracleCache struct {
 	requestPrice int64
+}
+
+// OracleService specifies oracle module interface.
+type OracleService interface {
+	// AddRequests processes new requests.
+	AddRequests(map[uint64]*state.OracleRequest)
+	// RemoveRequests removes already processed requests.
+	RemoveRequests([]uint64)
+	// UpdateOracleNodes updates oracle nodes.
+	UpdateOracleNodes(keys.PublicKeys)
+	// UpdateNativeContract updates oracle contract native script and hash.
+	UpdateNativeContract([]byte, []byte, util.Uint160, int)
+	// Start runs oracle module.
+	Start()
+	// Shutdown shutdowns oracle module.
+	Shutdown()
 }
 
 const (
@@ -164,7 +179,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 	single := big.NewInt(p)
 	var removedIDs []uint64
 
-	orc, _ := o.Module.Load().(services.Oracle)
+	orc, _ := o.Module.Load().(OracleService)
 	for _, tx := range ic.Block.Transactions {
 		resp := getResponse(tx)
 		if resp == nil {
@@ -521,7 +536,7 @@ func (o *Oracle) getConvertibleFromDAO(d *dao.Simple, key []byte, item stackitem
 
 // updateCache updates cached Oracle values if they've been changed.
 func (o *Oracle) updateCache(d *dao.Simple) error {
-	orc, _ := o.Module.Load().(services.Oracle)
+	orc, _ := o.Module.Load().(OracleService)
 	if orc == nil {
 		return nil
 	}
