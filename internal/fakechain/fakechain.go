@@ -91,16 +91,6 @@ func (chain *FakeChain) PutTx(tx *transaction.Transaction) {
 	chain.txs[tx.Hash()] = tx
 }
 
-// ApplyPolicyToTxSet implements the Blockchainer interface.
-func (chain *FakeChain) ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction {
-	panic("TODO")
-}
-
-// IsTxStillRelevant implements the Blockchainer interface.
-func (chain *FakeChain) IsTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool, isPartialTx bool) bool {
-	panic("TODO")
-}
-
 // InitVerificationContext initializes context for witness check.
 func (chain *FakeChain) InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
 	panic("TODO")
@@ -206,11 +196,6 @@ func (chain *FakeChain) AddBlock(block *block.Block) error {
 // BlockHeight implements the Feer interface.
 func (chain *FakeChain) BlockHeight() uint32 {
 	return atomic.LoadUint32(&chain.Blockheight)
-}
-
-// Close implements the Blockchainer interface.
-func (chain *FakeChain) Close() {
-	panic("TODO")
 }
 
 // HeaderHeight implements the Blockchainer interface.
@@ -323,11 +308,6 @@ func (chain *FakeChain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b
 	panic("TODO")
 }
 
-// CurrentHeaderHash implements the Blockchainer interface.
-func (chain *FakeChain) CurrentHeaderHash() util.Uint256 {
-	return util.Uint256{}
-}
-
 // CurrentBlockHash implements the Blockchainer interface.
 func (chain *FakeChain) CurrentBlockHash() util.Uint256 {
 	return util.Uint256{}
@@ -368,11 +348,6 @@ func (chain *FakeChain) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 	if chain.UtilityTokenBalance != nil {
 		return chain.UtilityTokenBalance
 	}
-	panic("TODO")
-}
-
-// ManagementContractHash implements the Blockchainer interface.
-func (chain FakeChain) ManagementContractHash() util.Uint160 {
 	panic("TODO")
 }
 

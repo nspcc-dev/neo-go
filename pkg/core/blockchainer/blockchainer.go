@@ -18,15 +18,11 @@ import (
 // Blockchainer is an interface that abstracts the implementation
 // of the blockchain.
 type Blockchainer interface {
-	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction
 	AddBlock(block *block.Block) error
-	AddHeaders(...*block.Header) error
 	BlockHeight() uint32
 	GetConfig() config.ProtocolConfiguration
 	CalculateClaimable(h util.Uint160, endHeight uint32) (*big.Int, error)
-	Close()
 	InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
-	IsTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool, isPartialTx bool) bool
 	HeaderHeight() uint32
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetCommittee() (keys.PublicKeys, error)
@@ -38,13 +34,8 @@ type Blockchainer interface {
 	ForEachNEP17Transfer(acc util.Uint160, newestTimestamp uint64, f func(*state.NEP17Transfer) (bool, error)) error
 	GetHeaderHash(int) util.Uint256
 	GetHeader(hash util.Uint256) (*block.Header, error)
-	CurrentHeaderHash() util.Uint256
 	CurrentBlockHash() util.Uint256
-	HasBlock(util.Uint256) bool
-	HasTransaction(util.Uint256) bool
-	IsExtensibleAllowed(util.Uint160) bool
 	GetAppExecResults(util.Uint256, trigger.Type) ([]state.AppExecResult, error)
-	GetNotaryDepositExpiration(acc util.Uint160) uint32
 	GetNativeContractScriptHash(string) (util.Uint160, error)
 	GetNatives() []state.NativeContract
 	GetNextBlockValidators() ([]*keys.PublicKey, error)
@@ -52,7 +43,6 @@ type Blockchainer interface {
 	GetNEP17Contracts() []util.Uint160
 	GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, error)
 	GetNotaryContractScriptHash() util.Uint160
-	GetNotaryBalance(acc util.Uint160) *big.Int
 	GetNotaryServiceFeePerKey() int64
 	GetValidators() ([]*keys.PublicKey, error)
 	GetStateModule() StateRoot
@@ -61,9 +51,6 @@ type Blockchainer interface {
 	GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	mempool.Feer // fee interface
-	ManagementContractHash() util.Uint160
-	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
-	PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data interface{}) error) error
 	SubscribeForBlocks(ch chan<- *block.Block)
 	SubscribeForExecutions(ch chan<- *state.AppExecResult)
 	SubscribeForNotifications(ch chan<- *state.ContainedNotificationEvent)
@@ -78,6 +65,5 @@ type Blockchainer interface {
 	// Policer.
 	GetBaseExecFee() int64
 	GetMaxVerificationGAS() int64
-	GetStoragePrice() int64
 	FeePerByte() int64
 }
