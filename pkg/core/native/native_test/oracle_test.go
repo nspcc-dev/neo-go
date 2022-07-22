@@ -156,7 +156,7 @@ func TestOracle_Request(t *testing.T) {
 		putOracleRequest(t, helperValidatorInvoker, "url", nil, "handleRecursive", []byte{}, gasForResponse)
 		tx := prepareResponseTx(t, 2)
 		e.AddNewBlock(t, tx)
-		//		e.CheckFault(t, tx.Hash(), "")
+		e.CheckFault(t, tx.Hash(), "Oracle.finish called from non-entry script")
 		aer, err := e.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
 		require.NoError(t, err)
 		require.Equal(t, 2, len(aer[0].Events)) // OracleResponse + Invocation
