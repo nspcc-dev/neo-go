@@ -1,8 +1,11 @@
 package oraclecontract
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/interop"
+	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/std"
+	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
@@ -21,4 +24,19 @@ func Handle(url string, data interface{}, code int, res []byte) {
 	}
 	params := []interface{}{url, data, code, res}
 	storage.Put(storage.GetContext(), "lastOracleResponse", std.Serialize(params))
+}
+
+// HandleRecursive invokes oracle.finish again to test Oracle reentrance.
+func HandleRecursive(url string, data interface{}, code int, res []byte) {
+	// Regular safety check.
+	callingHash := runtime.GetCallingScriptHash()
+	if !callingHash.Equals(oracle.Hash) {
+		panic("not called from oracle contract")
+	}
+
+	runtime.Notify("Invocation")
+	if runtime.GetInvocationCounter() == 1 {
+		// We provide no wrapper for finish in interops, it's not usually needed.
+		contract.Call(interop.Hash160(oracle.Hash), "finish", contract.All)
+	}
 }
