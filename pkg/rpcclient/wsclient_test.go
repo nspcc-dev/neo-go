@@ -16,8 +16,8 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
 	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv/params"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
@@ -200,7 +200,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			},
 			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
-				filt := new(request.BlockFilter)
+				filt := new(neorpc.BlockFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, 3, filt.Primary)
 			},
@@ -213,7 +213,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			},
 			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
-				filt := new(request.TxFilter)
+				filt := new(neorpc.TxFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, *filt.Sender)
 				require.Nil(t, filt.Signer)
@@ -227,7 +227,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			},
 			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
-				filt := new(request.TxFilter)
+				filt := new(neorpc.TxFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Nil(t, filt.Sender)
 				require.Equal(t, util.Uint160{0, 42}, *filt.Signer)
@@ -242,7 +242,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			},
 			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
-				filt := new(request.TxFilter)
+				filt := new(neorpc.TxFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, *filt.Sender)
 				require.Equal(t, util.Uint160{0, 42}, *filt.Signer)
@@ -256,7 +256,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			},
 			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
-				filt := new(request.NotificationFilter)
+				filt := new(neorpc.NotificationFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, *filt.Contract)
 				require.Nil(t, filt.Name)
@@ -270,7 +270,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			},
 			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
-				filt := new(request.NotificationFilter)
+				filt := new(neorpc.NotificationFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, "my_pretty_notification", *filt.Name)
 				require.Nil(t, filt.Contract)
@@ -285,7 +285,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			},
 			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
-				filt := new(request.NotificationFilter)
+				filt := new(neorpc.NotificationFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, *filt.Contract)
 				require.Equal(t, "my_pretty_notification", *filt.Name)
@@ -299,7 +299,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			},
 			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
-				filt := new(request.ExecutionFilter)
+				filt := new(neorpc.ExecutionFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, "FAULT", filt.State)
 			},

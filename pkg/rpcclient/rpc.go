@@ -20,9 +20,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -694,9 +694,9 @@ func (c *Client) invokeSomething(method string, p []interface{}, signers []trans
 			if len(witnesses) != len(signers) {
 				return nil, fmt.Errorf("number of witnesses should match number of signers, got %d vs %d", len(witnesses), len(signers))
 			}
-			signersWithWitnesses := make([]request.SignerWithWitness, len(signers))
+			signersWithWitnesses := make([]neorpc.SignerWithWitness, len(signers))
 			for i := range signersWithWitnesses {
-				signersWithWitnesses[i] = request.SignerWithWitness{
+				signersWithWitnesses[i] = neorpc.SignerWithWitness{
 					Signer:  signers[i],
 					Witness: witnesses[i],
 				}

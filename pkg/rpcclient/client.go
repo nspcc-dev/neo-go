@@ -13,8 +13,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
 )
@@ -34,7 +33,7 @@ type Client struct {
 	endpoint *url.URL
 	ctx      context.Context
 	opts     Options
-	requestF func(*request.Raw) (*response.Raw, error)
+	requestF func(*neorpc.Request) (*neorpc.Response, error)
 
 	cacheLock sync.RWMutex
 	// cache stores RPC node related information the client is bound to.
@@ -176,8 +175,8 @@ func (c *Client) performRequest(method string, p []interface{}, v interface{}) e
 	if p == nil {
 		p = []interface{}{} // neo-project/neo-modules#742
 	}
-	var r = request.Raw{
-		JSONRPC: request.JSONRPCVersion,
+	var r = neorpc.Request{
+		JSONRPC: neorpc.JSONRPCVersion,
 		Method:  method,
 		Params:  p,
 		ID:      c.getNextRequestID(),
@@ -195,10 +194,10 @@ func (c *Client) performRequest(method string, p []interface{}, v interface{}) e
 	return json.Unmarshal(raw.Result, v)
 }
 
-func (c *Client) makeHTTPRequest(r *request.Raw) (*response.Raw, error) {
+func (c *Client) makeHTTPRequest(r *neorpc.Request) (*neorpc.Response, error) {
 	var (
 		buf = new(bytes.Buffer)
-		raw = new(response.Raw)
+		raw = new(neorpc.Response)
 	)
 
 	if err := json.NewEncoder(buf).Encode(r); err != nil {

@@ -12,7 +12,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -155,7 +155,7 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 				require.NoError(t, err)
 				expectedAcc, err := util.Uint160DecodeStringLE("cadb3dc2faa3ef14a13b619c9a43124755aa2569")
 				require.NoError(t, err)
-				require.Equal(t, request.SignerWithWitness{Signer: transaction.Signer{Account: expectedAcc}}, actual)
+				require.Equal(t, neorpc.SignerWithWitness{Signer: transaction.Signer{Account: expectedAcc}}, actual)
 			},
 			expectedRawMessage: []byte(`{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569"}`),
 		},
@@ -165,7 +165,7 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 				require.NoError(t, err)
 				expectedAcc, err := address.StringToUint160("NYxb4fSZVKAz8YsgaPK2WkT3KcAE9b3Vag")
 				require.NoError(t, err)
-				require.Equal(t, request.SignerWithWitness{Signer: transaction.Signer{Account: expectedAcc, Scopes: transaction.Global}}, actual)
+				require.Equal(t, neorpc.SignerWithWitness{Signer: transaction.Signer{Account: expectedAcc, Scopes: transaction.Global}}, actual)
 			},
 			expectedRawMessage: []byte(`{"account": "NYxb4fSZVKAz8YsgaPK2WkT3KcAE9b3Vag", "scopes": "Global"}`),
 		},
@@ -244,21 +244,21 @@ func TestGetWitness(t *testing.T) {
 
 	testCases := []struct {
 		raw      string
-		expected request.SignerWithWitness
+		expected neorpc.SignerWithWitness
 	}{
-		{`{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569"}`, request.SignerWithWitness{
+		{`{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569"}`, neorpc.SignerWithWitness{
 			Signer: transaction.Signer{
 				Account: accountHash,
 				Scopes:  transaction.None,
 			}},
 		},
-		{`{"account": "NYxb4fSZVKAz8YsgaPK2WkT3KcAE9b3Vag", "scopes": "Global"}`, request.SignerWithWitness{
+		{`{"account": "NYxb4fSZVKAz8YsgaPK2WkT3KcAE9b3Vag", "scopes": "Global"}`, neorpc.SignerWithWitness{
 			Signer: transaction.Signer{
 				Account: addrHash,
 				Scopes:  transaction.Global,
 			}},
 		},
-		{`{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": "Global"}`, request.SignerWithWitness{
+		{`{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": "Global"}`, neorpc.SignerWithWitness{
 			Signer: transaction.Signer{
 				Account: accountHash,
 				Scopes:  transaction.Global,
@@ -405,7 +405,7 @@ func TestParamGetBytesBase64(t *testing.T) {
 }
 
 func TestParamGetSigner(t *testing.T) {
-	c := request.SignerWithWitness{
+	c := neorpc.SignerWithWitness{
 		Signer: transaction.Signer{
 			Account: util.Uint160{1, 2, 3, 4},
 			Scopes:  transaction.Global,

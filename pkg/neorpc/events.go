@@ -1,4 +1,4 @@
-package response
+package neorpc
 
 import (
 	"encoding/json"

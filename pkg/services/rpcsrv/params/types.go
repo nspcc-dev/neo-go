@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 )
 
 const (
@@ -106,6 +106,6 @@ func NewRequest() *Request {
 // NewIn creates a new In struct.
 func NewIn() *In {
 	return &In{
-		JSONRPC: request.JSONRPCVersion,
+		JSONRPC: neorpc.JSONRPCVersion,
 	}
 }

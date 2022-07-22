@@ -1,4 +1,9 @@
-package request
+/*
+Package neorpc contains a set of types used for JSON-RPC communication with Neo servers.
+It defines basic request/response types as well as a set of errors and additional
+parameters used for specific requests/responses.
+*/
+package neorpc
 
 import (
 	"encoding/json"
@@ -17,10 +22,10 @@ const (
 )
 
 type (
-	// Raw represents JSON-RPC request. It's generic enough to be used in many
+	// Request represents JSON-RPC request. It's generic enough to be used in many
 	// generic JSON-RPC communication scenarios, yet at the same time it's
 	// tailored for NeoGo RPC Client needs.
-	Raw struct {
+	Request struct {
 		// JSONRPC is the protocol version, only valid when it contains JSONRPCVersion.
 		JSONRPC string `json:"jsonrpc"`
 		// Method is the method being called.
@@ -35,6 +40,35 @@ type (
 		// any strings to be used for it as well, but NeoGo RPC client uses numeric
 		// identifiers.
 		ID uint64 `json:"id"`
+	}
+
+	// Header is a generic JSON-RPC 2.0 response header (ID and JSON-RPC version).
+	Header struct {
+		ID      json.RawMessage `json:"id"`
+		JSONRPC string          `json:"jsonrpc"`
+	}
+
+	// HeaderAndError adds an Error (that can be empty) to the Header, it's used
+	// to construct type-specific responses.
+	HeaderAndError struct {
+		Header
+		Error *Error `json:"error,omitempty"`
+	}
+
+	// Raw represents a standard raw JSON-RPC 2.0
+	// response: http://www.jsonrpc.org/specification#response_object.
+	Response struct {
+		HeaderAndError
+		Result json.RawMessage `json:"result,omitempty"`
+	}
+
+	// Notification is a type used to represent wire format of events, they're
+	// special in that they look like requests but they don't have IDs and their
+	// "method" is actually an event name.
+	Notification struct {
+		JSONRPC string        `json:"jsonrpc"`
+		Event   EventID       `json:"method"`
+		Payload []interface{} `json:"params"`
 	}
 
 	// BlockFilter is a wrapper structure for the block event filter. The only

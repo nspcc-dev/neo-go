@@ -11,7 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 )
@@ -36,8 +36,8 @@ func wsReader(t *testing.T, ws *websocket.Conn, msgCh chan<- []byte, isFinished 
 	}
 }
 
-func callWSGetRaw(t *testing.T, ws *websocket.Conn, msg string, respCh <-chan []byte) *response.Raw {
-	var resp = new(response.Raw)
+func callWSGetRaw(t *testing.T, ws *websocket.Conn, msg string, respCh <-chan []byte) *neorpc.Response {
+	var resp = new(neorpc.Response)
 
 	require.NoError(t, ws.SetWriteDeadline(time.Now().Add(time.Second)))
 	require.NoError(t, ws.WriteMessage(websocket.TextMessage, []byte(msg)))
@@ -47,8 +47,8 @@ func callWSGetRaw(t *testing.T, ws *websocket.Conn, msg string, respCh <-chan []
 	return resp
 }
 
-func getNotification(t *testing.T, respCh <-chan []byte) *response.Notification {
-	var resp = new(response.Notification)
+func getNotification(t *testing.T, respCh <-chan []byte) *neorpc.Notification {
+	var resp = new(neorpc.Notification)
 	body := <-respCh
 	require.NoError(t, json.Unmarshal(body, resp))
 	return resp
@@ -107,10 +107,10 @@ func TestSubscriptions(t *testing.T) {
 	for _, b := range getTestBlocks(t) {
 		require.NoError(t, chain.AddBlock(b))
 		resp := getNotification(t, respMsgs)
-		require.Equal(t, response.ExecutionEventID, resp.Event)
+		require.Equal(t, neorpc.ExecutionEventID, resp.Event)
 		for {
 			resp = getNotification(t, respMsgs)
-			if resp.Event != response.NotificationEventID {
+			if resp.Event != neorpc.NotificationEventID {
 				break
 			}
 		}
@@ -118,25 +118,25 @@ func TestSubscriptions(t *testing.T) {
 			if i > 0 {
 				resp = getNotification(t, respMsgs)
 			}
-			require.Equal(t, response.ExecutionEventID, resp.Event)
+			require.Equal(t, neorpc.ExecutionEventID, resp.Event)
 			for {
 				resp := getNotification(t, respMsgs)
-				if resp.Event == response.NotificationEventID {
+				if resp.Event == neorpc.NotificationEventID {
 					continue
 				}
-				require.Equal(t, response.TransactionEventID, resp.Event)
+				require.Equal(t, neorpc.TransactionEventID, resp.Event)
 				break
 			}
 		}
 		resp = getNotification(t, respMsgs)
-		require.Equal(t, response.ExecutionEventID, resp.Event)
+		require.Equal(t, neorpc.ExecutionEventID, resp.Event)
 		for {
 			resp = getNotification(t, respMsgs)
-			if resp.Event != response.NotificationEventID {
+			if resp.Event != neorpc.NotificationEventID {
 				break
 			}
 		}
-		require.Equal(t, response.BlockEventID, resp.Event)
+		require.Equal(t, neorpc.BlockEventID, resp.Event)
 	}
 
 	// We should manually add NotaryRequest to test notification.
@@ -145,7 +145,7 @@ func TestSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 	for {
 		resp := getNotification(t, respMsgs)
-		if resp.Event == response.NotaryRequestEventID {
+		if resp.Event == neorpc.NotaryRequestEventID {
 			break
 		}
 	}
@@ -163,22 +163,22 @@ func TestFilteredSubscriptions(t *testing.T) {
 
 	var cases = map[string]struct {
 		params string
-		check  func(*testing.T, *response.Notification)
+		check  func(*testing.T, *neorpc.Notification)
 	}{
 		"tx matching sender": {
 			params: `["transaction_added", {"sender":"` + goodSender.StringLE() + `"}]`,
-			check: func(t *testing.T, resp *response.Notification) {
+			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
-				require.Equal(t, response.TransactionEventID, resp.Event)
+				require.Equal(t, neorpc.TransactionEventID, resp.Event)
 				sender := rmap["sender"].(string)
 				require.Equal(t, address.Uint160ToString(goodSender), sender)
 			},
 		},
 		"tx matching signer": {
 			params: `["transaction_added", {"signer":"` + goodSender.StringLE() + `"}]`,
-			check: func(t *testing.T, resp *response.Notification) {
+			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
-				require.Equal(t, response.TransactionEventID, resp.Event)
+				require.Equal(t, neorpc.TransactionEventID, resp.Event)
 				signers := rmap["signers"].([]interface{})
 				signer0 := signers[0].(map[string]interface{})
 				signer0acc := signer0["account"].(string)
@@ -187,9 +187,9 @@ func TestFilteredSubscriptions(t *testing.T) {
 		},
 		"tx matching sender and signer": {
 			params: `["transaction_added", {"sender":"` + goodSender.StringLE() + `", "signer":"` + goodSender.StringLE() + `"}]`,
-			check: func(t *testing.T, resp *response.Notification) {
+			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
-				require.Equal(t, response.TransactionEventID, resp.Event)
+				require.Equal(t, neorpc.TransactionEventID, resp.Event)
 				sender := rmap["sender"].(string)
 				require.Equal(t, address.Uint160ToString(goodSender), sender)
 				signers := rmap["signers"].([]interface{})
@@ -200,27 +200,27 @@ func TestFilteredSubscriptions(t *testing.T) {
 		},
 		"notification matching contract hash": {
 			params: `["notification_from_execution", {"contract":"` + testContractHash + `"}]`,
-			check: func(t *testing.T, resp *response.Notification) {
+			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
-				require.Equal(t, response.NotificationEventID, resp.Event)
+				require.Equal(t, neorpc.NotificationEventID, resp.Event)
 				c := rmap["contract"].(string)
 				require.Equal(t, "0x"+testContractHash, c)
 			},
 		},
 		"notification matching name": {
 			params: `["notification_from_execution", {"name":"my_pretty_notification"}]`,
-			check: func(t *testing.T, resp *response.Notification) {
+			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
-				require.Equal(t, response.NotificationEventID, resp.Event)
+				require.Equal(t, neorpc.NotificationEventID, resp.Event)
 				n := rmap["name"].(string)
 				require.Equal(t, "my_pretty_notification", n)
 			},
 		},
 		"notification matching contract hash and name": {
 			params: `["notification_from_execution", {"contract":"` + testContractHash + `", "name":"my_pretty_notification"}]`,
-			check: func(t *testing.T, resp *response.Notification) {
+			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
-				require.Equal(t, response.NotificationEventID, resp.Event)
+				require.Equal(t, neorpc.NotificationEventID, resp.Event)
 				c := rmap["contract"].(string)
 				require.Equal(t, "0x"+testContractHash, c)
 				n := rmap["name"].(string)
@@ -229,28 +229,28 @@ func TestFilteredSubscriptions(t *testing.T) {
 		},
 		"execution matching": {
 			params: `["transaction_executed", {"state":"HALT"}]`,
-			check: func(t *testing.T, resp *response.Notification) {
+			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
-				require.Equal(t, response.ExecutionEventID, resp.Event)
+				require.Equal(t, neorpc.ExecutionEventID, resp.Event)
 				st := rmap["vmstate"].(string)
 				require.Equal(t, "HALT", st)
 			},
 		},
 		"tx non-matching": {
 			params: `["transaction_added", {"sender":"00112233445566778899aabbccddeeff00112233"}]`,
-			check: func(t *testing.T, _ *response.Notification) {
+			check: func(t *testing.T, _ *neorpc.Notification) {
 				t.Fatal("unexpected match for EnrollmentTransaction")
 			},
 		},
 		"notification non-matching": {
 			params: `["notification_from_execution", {"contract":"00112233445566778899aabbccddeeff00112233"}]`,
-			check: func(t *testing.T, _ *response.Notification) {
+			check: func(t *testing.T, _ *neorpc.Notification) {
 				t.Fatal("unexpected match for contract 00112233445566778899aabbccddeeff00112233")
 			},
 		},
 		"execution non-matching": {
 			params: `["transaction_executed", {"state":"FAULT"}]`,
-			check: func(t *testing.T, _ *response.Notification) {
+			check: func(t *testing.T, _ *neorpc.Notification) {
 				t.Fatal("unexpected match for faulted execution")
 			},
 		},
@@ -276,7 +276,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 			for {
 				resp := getNotification(t, respMsgs)
 				rmap := resp.Payload[0].(map[string]interface{})
-				if resp.Event == response.BlockEventID {
+				if resp.Event == neorpc.BlockEventID {
 					index := rmap["index"].(float64)
 					if uint32(index) == lastBlock {
 						break
@@ -302,13 +302,13 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 
 	var cases = map[string]struct {
 		params string
-		check  func(*testing.T, *response.Notification)
+		check  func(*testing.T, *neorpc.Notification)
 	}{
 		"matching sender": {
 			params: `["notary_request_event", {"sender":"` + goodSender.StringLE() + `"}]`,
-			check: func(t *testing.T, resp *response.Notification) {
+			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
-				require.Equal(t, response.NotaryRequestEventID, resp.Event)
+				require.Equal(t, neorpc.NotaryRequestEventID, resp.Event)
 				require.Equal(t, "added", rmap["type"].(string))
 				req := rmap["notaryrequest"].(map[string]interface{})
 				fbTx := req["fallbacktx"].(map[string]interface{})
@@ -318,9 +318,9 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 		},
 		"matching signer": {
 			params: `["notary_request_event", {"signer":"` + goodSender.StringLE() + `"}]`,
-			check: func(t *testing.T, resp *response.Notification) {
+			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
-				require.Equal(t, response.NotaryRequestEventID, resp.Event)
+				require.Equal(t, neorpc.NotaryRequestEventID, resp.Event)
 				require.Equal(t, "added", rmap["type"].(string))
 				req := rmap["notaryrequest"].(map[string]interface{})
 				mainTx := req["maintx"].(map[string]interface{})
@@ -332,9 +332,9 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 		},
 		"matching sender and signer": {
 			params: `["notary_request_event", {"sender":"` + goodSender.StringLE() + `", "signer":"` + goodSender.StringLE() + `"}]`,
-			check: func(t *testing.T, resp *response.Notification) {
+			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
-				require.Equal(t, response.NotaryRequestEventID, resp.Event)
+				require.Equal(t, neorpc.NotaryRequestEventID, resp.Event)
 				require.Equal(t, "added", rmap["type"].(string))
 				req := rmap["notaryrequest"].(map[string]interface{})
 				mainTx := req["maintx"].(map[string]interface{})
@@ -370,7 +370,7 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 			require.NoError(t, err)
 			nonce++
 
-			var resp = new(response.Notification)
+			var resp = new(neorpc.Notification)
 			select {
 			case body := <-respMsgs:
 				require.NoError(t, json.Unmarshal(body, resp))
@@ -378,7 +378,7 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 				t.Fatal("timeout waiting for event")
 			}
 
-			require.Equal(t, response.NotaryRequestEventID, resp.Event)
+			require.Equal(t, neorpc.NotaryRequestEventID, resp.Event)
 			this.check(t, resp)
 
 			callUnsubscribe(t, c, respMsgs, subID)
@@ -410,7 +410,7 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 	}
 
 	for i := 0; i < expectedCnt; i++ {
-		var resp = new(response.Notification)
+		var resp = new(neorpc.Notification)
 		select {
 		case body := <-respMsgs:
 			require.NoError(t, json.Unmarshal(body, resp))
@@ -418,7 +418,7 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 			t.Fatal("timeout waiting for event")
 		}
 
-		require.Equal(t, response.BlockEventID, resp.Event)
+		require.Equal(t, neorpc.BlockEventID, resp.Event)
 		rmap := resp.Payload[0].(map[string]interface{})
 		primary := rmap["primary"].(float64)
 		require.Equal(t, 3, int(primary))
@@ -565,8 +565,8 @@ func TestSubscriptionOverflow(t *testing.T) {
 	}
 	for i := 0; i < blockCnt; i++ {
 		resp := getNotification(t, respMsgs)
-		if resp.Event != response.BlockEventID {
-			require.Equal(t, response.MissedEventID, resp.Event)
+		if resp.Event != neorpc.BlockEventID {
+			require.Equal(t, neorpc.MissedEventID, resp.Event)
 			receivedMiss = true
 			break
 		}

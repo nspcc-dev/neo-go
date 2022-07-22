@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/request"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -380,13 +380,13 @@ func (p *Param) GetBytesBase64() ([]byte, error) {
 	return base64.StdEncoding.DecodeString(s)
 }
 
-// GetSignerWithWitness returns a request.SignerWithWitness value of the parameter.
-func (p *Param) GetSignerWithWitness() (request.SignerWithWitness, error) {
+// GetSignerWithWitness returns a neorpc.SignerWithWitness value of the parameter.
+func (p *Param) GetSignerWithWitness() (neorpc.SignerWithWitness, error) {
 	// This one doesn't need to be cached, it's used only once.
-	c := request.SignerWithWitness{}
+	c := neorpc.SignerWithWitness{}
 	err := json.Unmarshal(p.RawMessage, &c)
 	if err != nil {
-		return request.SignerWithWitness{}, fmt.Errorf("not a signer: %w", err)
+		return neorpc.SignerWithWitness{}, fmt.Errorf("not a signer: %w", err)
 	}
 	return c, nil
 }

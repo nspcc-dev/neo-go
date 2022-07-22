@@ -33,12 +33,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/response"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
-	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv/params"
 	rpc2 "github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
+	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv/params"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -1928,11 +1928,11 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				}
 				resultRPC = `[` + resultRPC[:len(resultRPC)-1] + `]`
 				body := doRPCCall(resultRPC, httpSrv.URL, t)
-				var responses []response.Raw
+				var responses []neorpc.Response
 				err := json.Unmarshal(body, &responses)
 				require.Nil(t, err)
 				for i, tc := range cases {
-					var resp response.Raw
+					var resp neorpc.Response
 					for _, r := range responses {
 						if bytes.Equal(r.ID, []byte(strconv.Itoa(i))) {
 							resp = r
@@ -2478,7 +2478,7 @@ func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res inte
 }
 
 func checkErrGetResult(t *testing.T, body []byte, expectingFail bool, expectedErr ...string) json.RawMessage {
-	var resp response.Raw
+	var resp neorpc.Response
 	err := json.Unmarshal(body, &resp)
 	require.Nil(t, err)
 	if expectingFail {
@@ -2495,7 +2495,7 @@ func checkErrGetResult(t *testing.T, body []byte, expectingFail bool, expectedEr
 }
 
 func checkErrGetBatchResult(t *testing.T, body []byte, expectingFail bool) json.RawMessage {
-	var resp []response.Raw
+	var resp []neorpc.Response
 	err := json.Unmarshal(body, &resp)
 	require.Nil(t, err)
 	require.Equal(t, 1, len(resp))
