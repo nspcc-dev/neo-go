@@ -25,7 +25,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
@@ -87,7 +86,7 @@ type (
 		GetNextBlockValidators() ([]*keys.PublicKey, error)
 		GetNotaryContractScriptHash() util.Uint160
 		GetNotaryServiceFeePerKey() int64
-		GetStateModule() blockchainer.StateRoot
+		GetStateModule() core.StateRoot
 		GetStorageItem(id int32, key []byte) state.StorageItem
 		GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error)
 		GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context

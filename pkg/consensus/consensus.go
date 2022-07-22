@@ -13,9 +13,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -50,7 +50,7 @@ type Ledger interface {
 	GetConfig() config.ProtocolConfiguration
 	GetMemPool() *mempool.Pool
 	GetNextBlockValidators() ([]*keys.PublicKey, error)
-	GetStateModule() blockchainer.StateRoot
+	GetStateRoot(height uint32) (*state.MPTRoot, error)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	GetValidators() ([]*keys.PublicKey, error)
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
@@ -250,7 +250,7 @@ func (s *service) newPrepareRequest() payload.PrepareRequest {
 	r := new(prepareRequest)
 	if s.ProtocolConfiguration.StateRootInHeader {
 		r.stateRootEnabled = true
-		if sr, err := s.Chain.GetStateModule().GetStateRoot(s.dbft.BlockIndex - 1); err == nil {
+		if sr, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1); err == nil {
 			r.stateRoot = sr.Root
 		} else {
 			panic(err)
@@ -535,7 +535,7 @@ func (s *service) verifyRequest(p payload.ConsensusPayload) error {
 		return errInvalidVersion
 	}
 	if s.ProtocolConfiguration.StateRootInHeader {
-		sr, err := s.Chain.GetStateModule().GetStateRoot(s.dbft.BlockIndex - 1)
+		sr, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1)
 		if err != nil {
 			return err
 		} else if sr.Root != req.stateRoot {
@@ -689,7 +689,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	block.Block.Nonce = ctx.Nonce
 	block.Block.Index = ctx.BlockIndex
 	if s.ProtocolConfiguration.StateRootInHeader {
-		sr, err := s.Chain.GetStateModule().GetStateRoot(ctx.BlockIndex - 1)
+		sr, err := s.Chain.GetStateRoot(ctx.BlockIndex - 1)
 		if err != nil {
 			s.log.Fatal(fmt.Sprintf("failed to get state root: %s", err.Error()))
 		}

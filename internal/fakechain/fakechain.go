@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
@@ -291,11 +290,6 @@ func (chain *FakeChain) GetValidators() ([]*keys.PublicKey, error) {
 // GetEnrollments implements the Blockchainer interface.
 func (chain *FakeChain) GetEnrollments() ([]state.Validator, error) {
 	panic("TODO")
-}
-
-// GetStateModule implements the Blockchainer interface.
-func (chain *FakeChain) GetStateModule() blockchainer.StateRoot {
-	return nil
 }
 
 // GetStorageItem implements the Blockchainer interface.
