@@ -1,12 +1,12 @@
-package rpc
+package config
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 )
 
 type (
-	// Config is an RPC service configuration information.
-	Config struct {
+	// RPC is an RPC service configuration information.
+	RPC struct {
 		Address              string `yaml:"Address"`
 		Enabled              bool   `yaml:"Enabled"`
 		EnableCORSWorkaround bool   `yaml:"EnableCORSWorkaround"`
@@ -22,11 +22,11 @@ type (
 		SessionBackedByMPT     bool          `yaml:"SessionBackedByMPT"`
 		SessionPoolSize        int           `yaml:"SessionPoolSize"`
 		StartWhenSynchronized  bool          `yaml:"StartWhenSynchronized"`
-		TLSConfig              TLSConfig     `yaml:"TLSConfig"`
+		TLSConfig              TLS           `yaml:"TLSConfig"`
 	}
 
-	// TLSConfig describes SSL/TLS configuration.
-	TLSConfig struct {
+	// TLS describes SSL/TLS configuration.
+	TLS struct {
 		Address  string `yaml:"Address"`
 		CertFile string `yaml:"CertFile"`
 		Enabled  bool   `yaml:"Enabled"`

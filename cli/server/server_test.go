@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
-	"github.com/nspcc-dev/neo-go/pkg/rpc"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
@@ -303,7 +302,7 @@ func TestConfigureAddresses(t *testing.T) {
 	t.Run("custom RPC address", func(t *testing.T) {
 		cfg := &config.ApplicationConfiguration{
 			Address: defaultAddress,
-			RPC: rpc.Config{
+			RPC: config.RPC{
 				Address: customAddress,
 			},
 		}

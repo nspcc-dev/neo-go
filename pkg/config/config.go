@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/rpc"
 	"gopkg.in/yaml.v3"
 )
 
@@ -58,7 +57,7 @@ func LoadFile(configPath string) (Config, error) {
 		ApplicationConfiguration: ApplicationConfiguration{
 			PingInterval: 30,
 			PingTimeout:  90,
-			RPC: rpc.Config{
+			RPC: RPC{
 				MaxIteratorResultItems: DefaultMaxIteratorResultItems,
 				MaxFindResultItems:     100,
 				MaxNEP11Tokens:         100,

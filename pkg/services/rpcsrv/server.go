@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -43,7 +44,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
-	"github.com/nspcc-dev/neo-go/pkg/rpc"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv/params"
@@ -62,7 +62,7 @@ type (
 	Server struct {
 		*http.Server
 		chain  blockchainer.Blockchainer
-		config rpc.Config
+		config config.RPC
 		// wsReadLimit represents web-socket message limit for a receiving side.
 		wsReadLimit      int64
 		network          netmode.Magic
@@ -197,7 +197,7 @@ var invalidBlockHeightError = func(index int, height int) *neorpc.Error {
 var upgrader = websocket.Upgrader{}
 
 // New creates a new Server struct.
-func New(chain blockchainer.Blockchainer, conf rpc.Config, coreServer *network.Server,
+func New(chain blockchainer.Blockchainer, conf config.RPC, coreServer *network.Server,
 	orc *oracle.Oracle, log *zap.Logger, errChan chan error) Server {
 	httpServer := &http.Server{
 		Addr: conf.Address + ":" + strconv.FormatUint(uint64(conf.Port), 10),
