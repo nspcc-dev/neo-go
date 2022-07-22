@@ -29,6 +29,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
+	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
@@ -57,10 +58,61 @@ import (
 )
 
 type (
+	// Ledger abstracts away the Blockchain as used by the RPC server.
+	Ledger interface {
+		AddBlock(block *block.Block) error
+		BlockHeight() uint32
+		CalculateClaimable(h util.Uint160, endHeight uint32) (*big.Int, error)
+		CurrentBlockHash() util.Uint256
+		FeePerByte() int64
+		ForEachNEP11Transfer(acc util.Uint160, newestTimestamp uint64, f func(*state.NEP11Transfer) (bool, error)) error
+		ForEachNEP17Transfer(acc util.Uint160, newestTimestamp uint64, f func(*state.NEP17Transfer) (bool, error)) error
+		GetAppExecResults(util.Uint256, trigger.Type) ([]state.AppExecResult, error)
+		GetBaseExecFee() int64
+		GetBlock(hash util.Uint256) (*block.Block, error)
+		GetCommittee() (keys.PublicKeys, error)
+		GetConfig() config.ProtocolConfiguration
+		GetContractScriptHash(id int32) (util.Uint160, error)
+		GetContractState(hash util.Uint160) *state.Contract
+		GetEnrollments() ([]state.Validator, error)
+		GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32)
+		GetHeader(hash util.Uint256) (*block.Header, error)
+		GetHeaderHash(int) util.Uint256
+		GetMaxVerificationGAS() int64
+		GetMemPool() *mempool.Pool
+		GetNEP11Contracts() []util.Uint160
+		GetNEP17Contracts() []util.Uint160
+		GetNativeContractScriptHash(string) (util.Uint160, error)
+		GetNatives() []state.NativeContract
+		GetNextBlockValidators() ([]*keys.PublicKey, error)
+		GetNotaryContractScriptHash() util.Uint160
+		GetNotaryServiceFeePerKey() int64
+		GetStateModule() blockchainer.StateRoot
+		GetStorageItem(id int32, key []byte) state.StorageItem
+		GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error)
+		GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context
+		GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, error)
+		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
+		GetValidators() ([]*keys.PublicKey, error)
+		HeaderHeight() uint32
+		InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
+		SubscribeForBlocks(ch chan<- *block.Block)
+		SubscribeForExecutions(ch chan<- *state.AppExecResult)
+		SubscribeForNotifications(ch chan<- *state.ContainedNotificationEvent)
+		SubscribeForTransactions(ch chan<- *transaction.Transaction)
+		UnsubscribeFromBlocks(ch chan<- *block.Block)
+		UnsubscribeFromExecutions(ch chan<- *state.AppExecResult)
+		UnsubscribeFromNotifications(ch chan<- *state.ContainedNotificationEvent)
+		UnsubscribeFromTransactions(ch chan<- *transaction.Transaction)
+		VerifyTx(*transaction.Transaction) error
+		VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
+		mempool.Feer // fee interface
+	}
+
 	// Server represents the JSON-RPC 2.0 server.
 	Server struct {
 		*http.Server
-		chain  blockchainer.Blockchainer
+		chain  Ledger
 		config config.RPC
 		// wsReadLimit represents web-socket message limit for a receiving side.
 		wsReadLimit      int64
@@ -196,7 +248,7 @@ var invalidBlockHeightError = func(index int, height int) *neorpc.Error {
 var upgrader = websocket.Upgrader{}
 
 // New creates a new Server struct.
-func New(chain blockchainer.Blockchainer, conf config.RPC, coreServer *network.Server,
+func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	orc *oracle.Oracle, log *zap.Logger, errChan chan error) Server {
 	httpServer := &http.Server{
 		Addr: conf.Address + ":" + strconv.FormatUint(uint64(conf.Port), 10),
