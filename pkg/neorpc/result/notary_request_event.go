@@ -1,4 +1,4 @@
-package subscriptions
+package result
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"

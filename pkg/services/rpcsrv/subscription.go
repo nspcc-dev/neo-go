@@ -6,7 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
-	"github.com/nspcc-dev/neo-go/pkg/neorpc/result/subscriptions"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"go.uber.org/atomic"
 )
 
@@ -82,7 +82,7 @@ func (f *feed) Matches(r *neorpc.Notification) bool {
 		return applog.VMState.String() == filt.State
 	case neorpc.NotaryRequestEventID:
 		filt := f.filter.(neorpc.TxFilter)
-		req := r.Payload[0].(*subscriptions.NotaryRequestEvent)
+		req := r.Payload[0].(*result.NotaryRequestEvent)
 		senderOk := filt.Sender == nil || req.NotaryRequest.FallbackTransaction.Signers[1].Account == *filt.Sender
 		signerOK := true
 		if filt.Signer != nil {

@@ -14,7 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
-	"github.com/nspcc-dev/neo-go/pkg/neorpc/result/subscriptions"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
 )
@@ -186,7 +186,7 @@ readloop:
 			case neorpc.ExecutionEventID:
 				val = new(state.AppExecResult)
 			case neorpc.NotaryRequestEventID:
-				val = new(subscriptions.NotaryRequestEvent)
+				val = new(result.NotaryRequestEvent)
 			case neorpc.MissedEventID:
 				// No value.
 			default:

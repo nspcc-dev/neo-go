@@ -41,7 +41,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
-	"github.com/nspcc-dev/neo-go/pkg/neorpc/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
@@ -2514,7 +2513,7 @@ chloop:
 			resp.Payload[0] = tx
 		case e := <-s.notaryRequestCh:
 			resp.Event = neorpc.NotaryRequestEventID
-			resp.Payload[0] = &subscriptions.NotaryRequestEvent{
+			resp.Payload[0] = &result.NotaryRequestEvent{
 				Type:          e.Type,
 				NotaryRequest: e.Data.(*payload.P2PNotaryRequest),
 			}
