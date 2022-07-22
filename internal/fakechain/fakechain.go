@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
@@ -380,16 +379,6 @@ func (chain FakeChain) ManagementContractHash() util.Uint160 {
 // PoolTx implements the Blockchainer interface.
 func (chain *FakeChain) PoolTx(tx *transaction.Transaction, _ ...*mempool.Pool) error {
 	return chain.PoolTxF(tx)
-}
-
-// SetOracle implements the Blockchainer interface.
-func (chain FakeChain) SetOracle(services.Oracle) {
-	panic("TODO")
-}
-
-// SetNotary implements the Blockchainer interface.
-func (chain *FakeChain) SetNotary(notary services.Notary) {
-	panic("TODO")
 }
 
 // SubscribeForBlocks implements the Blockchainer interface.

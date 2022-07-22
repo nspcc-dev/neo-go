@@ -5,7 +5,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -61,12 +60,10 @@ type Blockchainer interface {
 	GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context
 	GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
-	SetOracle(service services.Oracle)
 	mempool.Feer // fee interface
 	ManagementContractHash() util.Uint160
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
 	PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data interface{}) error) error
-	SetNotary(mod services.Notary)
 	SubscribeForBlocks(ch chan<- *block.Block)
 	SubscribeForExecutions(ch chan<- *state.AppExecResult)
 	SubscribeForNotifications(ch chan<- *state.ContainedNotificationEvent)
