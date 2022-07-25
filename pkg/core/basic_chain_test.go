@@ -19,7 +19,7 @@ const (
 	// basicChainPrefix is a prefix used to store Basic chain .acc file for tests.
 	// It is also used to retrieve smart contracts that should be deployed to
 	// Basic chain.
-	basicChainPrefix = "../rpc/server/testdata/"
+	basicChainPrefix = "../services/rpcsrv/testdata/"
 	// bcPersistInterval is the time period Blockchain persists changes to the
 	// underlying storage.
 	bcPersistInterval = time.Second

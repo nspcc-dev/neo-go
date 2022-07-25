@@ -15,8 +15,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -278,7 +278,7 @@ func printAssetBalance(ctx *cli.Context, asset util.Uint160, tokenName, tokenSym
 	fmt.Fprintf(ctx.App.Writer, "\tUpdated: %d\n", balance.LastUpdated)
 }
 
-func getNativeNEP17Symbol(c *client.Client, name string) (string, util.Uint160, error) {
+func getNativeNEP17Symbol(c *rpcclient.Client, name string) (string, util.Uint160, error) {
 	h, err := c.GetNativeContractHash(name)
 	if err != nil {
 		return "", util.Uint160{}, fmt.Errorf("failed to get native %s hash: %w", name, err)
@@ -296,7 +296,7 @@ func getMatchingToken(ctx *cli.Context, w *wallet.Wallet, name string, standard 
 	}, len(w.Extra.Tokens), name, standard)
 }
 
-func getMatchingTokenRPC(ctx *cli.Context, c *client.Client, addr util.Uint160, name string, standard string) (*wallet.Token, error) {
+func getMatchingTokenRPC(ctx *cli.Context, c *rpcclient.Client, addr util.Uint160, name string, standard string) (*wallet.Token, error) {
 	switch standard {
 	case manifest.NEP17StandardName:
 		bs, err := c.GetNEP17Balances(addr)
@@ -493,7 +493,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		return cli.NewExitError("empty recipients list", 1)
 	}
 	var (
-		recipients      []client.TransferTarget
+		recipients      []rpcclient.TransferTarget
 		cosignersOffset = ctx.NArg()
 	)
 	cache := make(map[string]*wallet.Token)
@@ -526,7 +526,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 		}
-		recipients = append(recipients, client.TransferTarget{
+		recipients = append(recipients, rpcclient.TransferTarget{
 			Token:   token.Hash,
 			Address: addr,
 			Amount:  amount.Int64(),
@@ -608,7 +608,7 @@ func transferNEP(ctx *cli.Context, standard string) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 		}
-		return signAndSendNEP17Transfer(ctx, c, acc, []client.TransferTarget{{
+		return signAndSendNEP17Transfer(ctx, c, acc, []rpcclient.TransferTarget{{
 			Token:   token.Hash,
 			Address: to,
 			Amount:  amount.Int64(),
@@ -636,7 +636,7 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	}
 }
 
-func signAndSendNEP17Transfer(ctx *cli.Context, c *client.Client, acc *wallet.Account, recipients []client.TransferTarget, cosigners []client.SignerAccount) error {
+func signAndSendNEP17Transfer(ctx *cli.Context, c *rpcclient.Client, acc *wallet.Account, recipients []rpcclient.TransferTarget, cosigners []rpcclient.SignerAccount) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 	sysgas := flags.Fixed8FromContext(ctx, "sysgas")
 

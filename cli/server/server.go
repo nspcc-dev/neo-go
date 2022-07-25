@@ -21,10 +21,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network"
-	"github.com/nspcc-dev/neo-go/pkg/network/metrics"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/server"
+	"github.com/nspcc-dev/neo-go/pkg/services/metrics"
 	"github.com/nspcc-dev/neo-go/pkg/services/notary"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
+	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv"
 	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
@@ -505,7 +505,7 @@ func startServer(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	errChan := make(chan error)
-	rpcServer := server.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
+	rpcServer := rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
 	serv.AddService(&rpcServer)
 
 	go serv.Start(errChan)
@@ -532,7 +532,7 @@ Main:
 			case syscall.SIGHUP:
 				log.Info("SIGHUP received, restarting rpc-server")
 				rpcServer.Shutdown()
-				rpcServer = server.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
+				rpcServer = rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
 				serv.AddService(&rpcServer) // Replaces old one by service name.
 				if !cfg.ApplicationConfiguration.RPC.StartWhenSynchronized || serv.IsInSync() {
 					rpcServer.Start()

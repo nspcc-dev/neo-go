@@ -2,7 +2,6 @@ package config
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
-	"github.com/nspcc-dev/neo-go/pkg/rpc"
 )
 
 // ApplicationConfiguration config specific to the node.
@@ -22,7 +21,7 @@ type ApplicationConfiguration struct {
 	Prometheus        BasicService             `yaml:"Prometheus"`
 	ProtoTickInterval int64                    `yaml:"ProtoTickInterval"`
 	Relay             bool                     `yaml:"Relay"`
-	RPC               rpc.Config               `yaml:"RPC"`
+	RPC               RPC                      `yaml:"RPC"`
 	UnlockWallet      Wallet                   `yaml:"UnlockWallet"`
 	Oracle            OracleConfiguration      `yaml:"Oracle"`
 	P2PNotary         P2PNotary                `yaml:"P2PNotary"`

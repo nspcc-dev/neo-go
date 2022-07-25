@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -23,13 +23,24 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
+// Ledger is an interface that abstracts the implementation of the blockchain.
+type Ledger interface {
+	BlockHeight() uint32
+	FeePerByte() int64
+	GetBaseExecFee() int64
+	GetHeader(hash util.Uint256) (*block.Header, error)
+	GetHeaderHash(int) util.Uint256
+	HeaderHeight() uint32
+	ManagementContractHash() util.Uint160
+}
+
 var (
 	ownerHash   = MultisigScriptHash()
 	ownerScript = MultisigVerificationScript()
 )
 
 // NewTransferFromOwner returns a transaction transferring funds from NEO and GAS owner.
-func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Uint160, amount int64,
+func NewTransferFromOwner(bc Ledger, contractHash, to util.Uint160, amount int64,
 	nonce, validUntil uint32) (*transaction.Transaction, error) {
 	w := io.NewBufBinWriter()
 	emit.AppCall(w.BinWriter, contractHash, "transfer", callflag.All, ownerHash, to, amount, nil)
@@ -53,7 +64,7 @@ func NewTransferFromOwner(bc blockchainer.Blockchainer, contractHash, to util.Ui
 
 // NewDeployTx returns a new deployment transaction for a contract with the source from r and a name equal to
 // the filename without '.go' suffix.
-func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160, r gio.Reader, confFile *string) (*transaction.Transaction, util.Uint160, []byte, error) {
+func NewDeployTx(bc Ledger, name string, sender util.Uint160, r gio.Reader, confFile *string) (*transaction.Transaction, util.Uint160, []byte, error) {
 	// nef.NewFile() cares about version a lot.
 	config.Version = "0.90.0-test"
 
@@ -111,18 +122,18 @@ func NewDeployTx(bc blockchainer.Blockchainer, name string, sender util.Uint160,
 }
 
 // SignTx signs the provided transactions with validator keys.
-func SignTx(bc blockchainer.Blockchainer, txs ...*transaction.Transaction) error {
+func SignTx(bc Ledger, txs ...*transaction.Transaction) error {
 	signTxGeneric(bc, Sign, ownerScript, txs...)
 	return nil
 }
 
 // SignTxCommittee signs transactions by committee.
-func SignTxCommittee(bc blockchainer.Blockchainer, txs ...*transaction.Transaction) error {
+func SignTxCommittee(bc Ledger, txs ...*transaction.Transaction) error {
 	signTxGeneric(bc, SignCommittee, CommitteeVerificationScript(), txs...)
 	return nil
 }
 
-func signTxGeneric(bc blockchainer.Blockchainer, sign func(hash.Hashable) []byte, verif []byte, txs ...*transaction.Transaction) {
+func signTxGeneric(bc Ledger, sign func(hash.Hashable) []byte, verif []byte, txs ...*transaction.Transaction) {
 	for _, tx := range txs {
 		size := io.GetVarSize(tx)
 		netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), verif)

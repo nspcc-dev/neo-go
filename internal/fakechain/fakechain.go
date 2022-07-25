@@ -9,8 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer/services"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
@@ -19,7 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result/subscriptions"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	uatomic "go.uber.org/atomic"
@@ -91,16 +88,6 @@ func (chain *FakeChain) PutHeader(b *block.Block) {
 // PutTx implements the Blockchainer interface.
 func (chain *FakeChain) PutTx(tx *transaction.Transaction) {
 	chain.txs[tx.Hash()] = tx
-}
-
-// ApplyPolicyToTxSet implements the Blockchainer interface.
-func (chain *FakeChain) ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction {
-	panic("TODO")
-}
-
-// IsTxStillRelevant implements the Blockchainer interface.
-func (chain *FakeChain) IsTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool, isPartialTx bool) bool {
-	panic("TODO")
 }
 
 // InitVerificationContext initializes context for witness check.
@@ -210,11 +197,6 @@ func (chain *FakeChain) BlockHeight() uint32 {
 	return atomic.LoadUint32(&chain.Blockheight)
 }
 
-// Close implements the Blockchainer interface.
-func (chain *FakeChain) Close() {
-	panic("TODO")
-}
-
 // HeaderHeight implements the Blockchainer interface.
 func (chain *FakeChain) HeaderHeight() uint32 {
 	return atomic.LoadUint32(&chain.Blockheight)
@@ -310,11 +292,6 @@ func (chain *FakeChain) GetEnrollments() ([]state.Validator, error) {
 	panic("TODO")
 }
 
-// GetStateModule implements the Blockchainer interface.
-func (chain *FakeChain) GetStateModule() blockchainer.StateRoot {
-	return nil
-}
-
 // GetStorageItem implements the Blockchainer interface.
 func (chain *FakeChain) GetStorageItem(id int32, key []byte) state.StorageItem {
 	panic("TODO")
@@ -323,11 +300,6 @@ func (chain *FakeChain) GetStorageItem(id int32, key []byte) state.StorageItem {
 // GetTestVM implements the Blockchainer interface.
 func (chain *FakeChain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
 	panic("TODO")
-}
-
-// CurrentHeaderHash implements the Blockchainer interface.
-func (chain *FakeChain) CurrentHeaderHash() util.Uint256 {
-	return util.Uint256{}
 }
 
 // CurrentBlockHash implements the Blockchainer interface.
@@ -373,24 +345,9 @@ func (chain *FakeChain) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 	panic("TODO")
 }
 
-// ManagementContractHash implements the Blockchainer interface.
-func (chain FakeChain) ManagementContractHash() util.Uint160 {
-	panic("TODO")
-}
-
 // PoolTx implements the Blockchainer interface.
 func (chain *FakeChain) PoolTx(tx *transaction.Transaction, _ ...*mempool.Pool) error {
 	return chain.PoolTxF(tx)
-}
-
-// SetOracle implements the Blockchainer interface.
-func (chain FakeChain) SetOracle(services.Oracle) {
-	panic("TODO")
-}
-
-// SetNotary implements the Blockchainer interface.
-func (chain *FakeChain) SetNotary(notary services.Notary) {
-	panic("TODO")
 }
 
 // SubscribeForBlocks implements the Blockchainer interface.
@@ -404,7 +361,7 @@ func (chain *FakeChain) SubscribeForExecutions(ch chan<- *state.AppExecResult) {
 }
 
 // SubscribeForNotifications implements the Blockchainer interface.
-func (chain *FakeChain) SubscribeForNotifications(ch chan<- *subscriptions.NotificationEvent) {
+func (chain *FakeChain) SubscribeForNotifications(ch chan<- *state.ContainedNotificationEvent) {
 	panic("TODO")
 }
 
@@ -444,7 +401,7 @@ func (chain *FakeChain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult
 }
 
 // UnsubscribeFromNotifications implements the Blockchainer interface.
-func (chain *FakeChain) UnsubscribeFromNotifications(ch chan<- *subscriptions.NotificationEvent) {
+func (chain *FakeChain) UnsubscribeFromNotifications(ch chan<- *state.ContainedNotificationEvent) {
 	panic("TODO")
 }
 

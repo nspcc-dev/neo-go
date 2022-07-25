@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -29,7 +29,7 @@ import (
 
 // Executor is a wrapper over chain state.
 type Executor struct {
-	Chain         blockchainer.Blockchainer
+	Chain         *core.Blockchain
 	Validator     Signer
 	Committee     Signer
 	CommitteeHash util.Uint160
@@ -37,7 +37,7 @@ type Executor struct {
 }
 
 // NewExecutor creates a new executor instance from the provided blockchain and committee.
-func NewExecutor(t testing.TB, bc blockchainer.Blockchainer, validator, committee Signer) *Executor {
+func NewExecutor(t testing.TB, bc *core.Blockchain, validator, committee Signer) *Executor {
 	checkMultiSigner(t, validator)
 	checkMultiSigner(t, committee)
 
@@ -254,12 +254,12 @@ func (e *Executor) EnsureGASBalance(t testing.TB, acc util.Uint160, isOk func(ba
 }
 
 // NewDeployTx returns a new deployment tx for the contract signed by the committee.
-func (e *Executor) NewDeployTx(t testing.TB, bc blockchainer.Blockchainer, c *Contract, data interface{}) *transaction.Transaction {
+func (e *Executor) NewDeployTx(t testing.TB, bc *core.Blockchain, c *Contract, data interface{}) *transaction.Transaction {
 	return NewDeployTxBy(t, bc, e.Validator, c, data)
 }
 
 // NewDeployTxBy returns a new deployment tx for the contract signed by the specified signer.
-func NewDeployTxBy(t testing.TB, bc blockchainer.Blockchainer, signer Signer, c *Contract, data interface{}) *transaction.Transaction {
+func NewDeployTxBy(t testing.TB, bc *core.Blockchain, signer Signer, c *Contract, data interface{}) *transaction.Transaction {
 	rawManifest, err := json.Marshal(c.Manifest)
 	require.NoError(t, err)
 
@@ -284,7 +284,7 @@ func NewDeployTxBy(t testing.TB, bc blockchainer.Blockchainer, signer Signer, c 
 
 // AddSystemFee adds system fee to the transaction. If negative value specified,
 // then system fee is defined by test invocation.
-func AddSystemFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, sysFee int64) {
+func AddSystemFee(bc *core.Blockchain, tx *transaction.Transaction, sysFee int64) {
 	if sysFee >= 0 {
 		tx.SystemFee = sysFee
 		return
@@ -294,7 +294,7 @@ func AddSystemFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, sys
 }
 
 // AddNetworkFee adds network fee to the transaction.
-func AddNetworkFee(bc blockchainer.Blockchainer, tx *transaction.Transaction, signers ...Signer) {
+func AddNetworkFee(bc *core.Blockchain, tx *transaction.Transaction, signers ...Signer) {
 	baseFee := bc.GetBaseExecFee()
 	size := io.GetVarSize(tx)
 	for _, sgr := range signers {
@@ -362,7 +362,7 @@ func (e *Executor) AddBlockCheckHalt(t testing.TB, txs ...*transaction.Transacti
 }
 
 // TestInvoke creates a test VM with a dummy block and executes a transaction in it.
-func TestInvoke(bc blockchainer.Blockchainer, tx *transaction.Transaction) (*vm.VM, error) {
+func TestInvoke(bc *core.Blockchain, tx *transaction.Transaction) (*vm.VM, error) {
 	lastBlock, err := bc.GetBlock(bc.GetHeaderHash(int(bc.BlockHeight())))
 	if err != nil {
 		return nil, err

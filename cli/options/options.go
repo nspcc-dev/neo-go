@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/client"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/urfave/cli"
 )
 
@@ -70,12 +70,12 @@ func GetTimeoutContext(ctx *cli.Context) (context.Context, func()) {
 }
 
 // GetRPCClient returns an RPC client instance for the given Context.
-func GetRPCClient(gctx context.Context, ctx *cli.Context) (*client.Client, cli.ExitCoder) {
+func GetRPCClient(gctx context.Context, ctx *cli.Context) (*rpcclient.Client, cli.ExitCoder) {
 	endpoint := ctx.String(RPCEndpointFlag)
 	if len(endpoint) == 0 {
 		return nil, cli.NewExitError(errNoEndpoint, 1)
 	}
-	c, err := client.New(gctx, endpoint, client.Options{})
+	c, err := rpcclient.New(gctx, endpoint, rpcclient.Options{})
 	if err != nil {
 		return nil, cli.NewExitError(err, 1)
 	}

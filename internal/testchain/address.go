@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/blockchainer"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -156,7 +155,7 @@ func SignCommittee(h hash.Hashable) []byte {
 
 // NewBlock creates a new block for the given blockchain with the given offset
 // (usually, 1), primary node index and transactions.
-func NewBlock(t *testing.T, bc blockchainer.Blockchainer, offset uint32, primary uint32, txs ...*transaction.Transaction) *block.Block {
+func NewBlock(t *testing.T, bc Ledger, offset uint32, primary uint32, txs ...*transaction.Transaction) *block.Block {
 	witness := transaction.Witness{VerificationScript: MultisigVerificationScript()}
 	height := bc.BlockHeight()
 	h := bc.GetHeaderHash(int(height))

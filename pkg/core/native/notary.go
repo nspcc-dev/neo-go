@@ -38,6 +38,11 @@ type NotaryCache struct {
 	notaryServiceFeePerKey int64
 }
 
+// NotaryService is a Notary module interface.
+type NotaryService interface {
+	UpdateNotaryNodes(pubs keys.PublicKeys)
+}
+
 const (
 	notaryContractID = -10
 	// prefixDeposit is a prefix for storing Notary deposits.
