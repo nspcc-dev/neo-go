@@ -76,3 +76,12 @@ func CreateCallAndUnwrapIteratorScript(contract util.Uint160, operation string, 
 	bytes[jmpIfMaxReachedOffset+1] = uint8(loadResultOffset - jmpIfMaxReachedOffset) // +1 is for JMPIF itself; offset is relative to JMPIF position.
 	return bytes, nil
 }
+
+// CreateCallWithAssertScript returns a script that calls contract's method with
+// the specified parameters expecting a Boolean value to be return that then is
+// used for ASSERT. See also (*Builder).InvokeWithAssert.
+func CreateCallWithAssertScript(contract util.Uint160, method string, params ...interface{}) ([]byte, error) {
+	b := NewBuilder()
+	b.InvokeWithAssert(contract, method, params...)
+	return b.Script()
+}
