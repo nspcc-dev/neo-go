@@ -77,6 +77,15 @@ func CreateCallAndUnwrapIteratorScript(contract util.Uint160, operation string, 
 	return bytes, nil
 }
 
+// CreateCallScript returns a script that calls contract's method with
+// the specified parameters. Whatever this method returns remains on the stack.
+// See also (*Builder).InvokeMethod.
+func CreateCallScript(contract util.Uint160, method string, params ...interface{}) ([]byte, error) {
+	b := NewBuilder()
+	b.InvokeMethod(contract, method, params...)
+	return b.Script()
+}
+
 // CreateCallWithAssertScript returns a script that calls contract's method with
 // the specified parameters expecting a Boolean value to be return that then is
 // used for ASSERT. See also (*Builder).InvokeWithAssert.

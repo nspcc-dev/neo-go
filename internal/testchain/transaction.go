@@ -6,7 +6,7 @@ import (
 	gio "io"
 	"strings"
 
-	"github.com/nspcc-dev/neo-go/cli/smartcontract"
+	clisc "github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -16,11 +16,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
 // Ledger is an interface that abstracts the implementation of the blockchain.
@@ -42,14 +40,11 @@ var (
 // NewTransferFromOwner returns a transaction transferring funds from NEO and GAS owner.
 func NewTransferFromOwner(bc Ledger, contractHash, to util.Uint160, amount int64,
 	nonce, validUntil uint32) (*transaction.Transaction, error) {
-	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, contractHash, "transfer", callflag.All, ownerHash, to, amount, nil)
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	if w.Err != nil {
-		return nil, w.Err
+	script, err := smartcontract.CreateCallWithAssertScript(contractHash, "transfer", ownerHash, to, amount, nil)
+	if err != nil {
+		return nil, err
 	}
 
-	script := w.Bytes()
 	tx := transaction.New(script, 11000000)
 	tx.ValidUntilBlock = validUntil
 	tx.Nonce = nonce
@@ -74,7 +69,7 @@ func NewDeployTx(bc Ledger, name string, sender util.Uint160, r gio.Reader, conf
 		NoEventsCheck:   true,
 	}
 	if confFile != nil {
-		conf, err := smartcontract.ParseContractConfig(*confFile)
+		conf, err := clisc.ParseContractConfig(*confFile)
 		if err != nil {
 			return nil, util.Uint160{}, nil, fmt.Errorf("failed to parse configuration: %w", err)
 		}
@@ -108,13 +103,12 @@ func NewDeployTx(bc Ledger, name string, sender util.Uint160, r gio.Reader, conf
 	if err != nil {
 		return nil, util.Uint160{}, nil, err
 	}
-	buf := io.NewBufBinWriter()
-	emit.AppCall(buf.BinWriter, bc.ManagementContractHash(), "deploy", callflag.All, neb, rawManifest)
-	if buf.Err != nil {
-		return nil, util.Uint160{}, nil, buf.Err
+	script, err := smartcontract.CreateCallScript(bc.ManagementContractHash(), "deploy", neb, rawManifest)
+	if err != nil {
+		return nil, util.Uint160{}, nil, err
 	}
 
-	tx := transaction.New(buf.Bytes(), 100*native.GASFactor)
+	tx := transaction.New(script, 100*native.GASFactor)
 	tx.Signers = []transaction.Signer{{Account: sender}}
 	h := state.CreateContractHash(tx.Sender(), ne.Checksum, m.Name)
 

@@ -20,8 +20,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -99,11 +97,10 @@ func main() {
 			_, err = rand.Read(value)
 			handleError("can't get random data for value", err)
 
-			w := io.NewBufBinWriter()
-			emit.AppCall(w.BinWriter, contractHash, "put", callflag.All, key, value)
-			handleError("can't create transaction", w.Err)
+			script, err := smartcontract.CreateCallScript(contractHash, "put", key, value)
+			handleError("can't create transaction", err)
 
-			tx := transaction.New(w.Bytes(), 4_040_000)
+			tx := transaction.New(script, 4_040_000)
 			tx.ValidUntilBlock = i + 1
 			tx.NetworkFee = 4_000_000
 			tx.Nonce = nonce

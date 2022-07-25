@@ -10,12 +10,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 )
@@ -122,10 +119,11 @@ func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 	if err != nil {
 		return err
 	}
-	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, neoContractHash, method, callflag.States, acc.PrivateKey().PublicKey().Bytes())
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	res, err := c.SignAndPushInvocationTx(w.Bytes(), acc, sysGas, gas, []rpcclient.SignerAccount{{
+	script, err := smartcontract.CreateCallWithAssertScript(neoContractHash, method, acc.PrivateKey().PublicKey().Bytes())
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	res, err := c.SignAndPushInvocationTx(script, acc, sysGas, gas, []rpcclient.SignerAccount{{
 		Signer: transaction.Signer{
 			Account: acc.Contract.ScriptHash(),
 			Scopes:  transaction.CalledByEntry,
@@ -182,11 +180,11 @@ func handleVote(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, neoContractHash, "vote", callflag.States, addr.BytesBE(), pubArg)
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-
-	res, err := c.SignAndPushInvocationTx(w.Bytes(), acc, -1, gas, []rpcclient.SignerAccount{{
+	script, err := smartcontract.CreateCallWithAssertScript(neoContractHash, "vote", addr.BytesBE(), pubArg)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	res, err := c.SignAndPushInvocationTx(script, acc, -1, gas, []rpcclient.SignerAccount{{
 		Signer: transaction.Signer{
 			Account: acc.Contract.ScriptHash(),
 			Scopes:  transaction.CalledByEntry,

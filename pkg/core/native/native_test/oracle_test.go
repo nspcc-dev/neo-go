@@ -14,10 +14,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -81,11 +79,9 @@ func TestOracle_Request(t *testing.T) {
 
 	// Finish.
 	prepareResponseTx := func(t *testing.T, requestID uint64) *transaction.Transaction {
-		w := io.NewBufBinWriter()
-		emit.AppCall(w.BinWriter, oracleCommitteeInvoker.Hash, "finish", callflag.All)
-		require.NoError(t, w.Err)
+		script, err := smartcontract.CreateCallScript(oracleCommitteeInvoker.Hash, "finish")
+		require.NoError(t, err)
 
-		script := w.Bytes()
 		tx := transaction.New(script, 1000_0000)
 		tx.Nonce = neotest.Nonce()
 		tx.ValidUntilBlock = e.Chain.BlockHeight() + 1

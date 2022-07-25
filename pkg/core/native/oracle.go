@@ -20,13 +20,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -556,10 +554,9 @@ func (o *Oracle) updateCache(d *dao.Simple) error {
 // CreateOracleResponseScript returns a script that is used to create the native Oracle
 // response.
 func CreateOracleResponseScript(nativeOracleHash util.Uint160) []byte {
-	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, nativeOracleHash, "finish", callflag.All)
-	if w.Err != nil {
-		panic(fmt.Errorf("failed to create Oracle response script: %w", w.Err))
+	script, err := smartcontract.CreateCallScript(nativeOracleHash, "finish")
+	if err != nil {
+		panic(fmt.Errorf("failed to create Oracle response script: %w", err))
 	}
-	return w.Bytes()
+	return script
 }
