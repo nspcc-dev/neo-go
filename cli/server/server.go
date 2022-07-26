@@ -538,6 +538,10 @@ Main:
 				log.Warn("ProtocolConfiguration changed, signal ignored")
 				break // Continue working.
 			}
+			if !cfg.ApplicationConfiguration.EqualsButServices(&cfgnew.ApplicationConfiguration) {
+				log.Warn("ApplicationConfiguration changed in incompatible way, signal ignored")
+				break // Continue working.
+			}
 			switch sig {
 			case syscall.SIGHUP:
 				rpcServer.Shutdown()
