@@ -588,6 +588,17 @@ Main:
 				if p2pNotary != nil && serv.IsInSync() {
 					p2pNotary.Start()
 				}
+				srMod.SetUpdateValidatorsCallback(nil)
+				sr.Shutdown()
+				sr, err = stateroot.New(cfgnew.ApplicationConfiguration.StateRoot, srMod, log, chain, serv.BroadcastExtensible)
+				if err != nil {
+					log.Error("failed to create state validation service", zap.Error(err))
+					break // The show must go on.
+				}
+				serv.AddExtensibleService(sr, stateroot.Category, sr.OnPayload)
+				if serv.IsInSync() {
+					sr.Start()
+				}
 			}
 			cfg = cfgnew
 		case <-grace.Done():
