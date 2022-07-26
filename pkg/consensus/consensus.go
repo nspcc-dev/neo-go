@@ -276,6 +276,7 @@ func (s *service) Start() {
 // Shutdown implements the Service interface.
 func (s *service) Shutdown() {
 	if s.started.CAS(true, false) {
+		s.log.Info("stopping consensus service")
 		close(s.quit)
 		<-s.finished
 	}

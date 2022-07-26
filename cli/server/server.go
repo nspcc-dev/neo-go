@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"runtime"
 	"syscall"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -406,8 +407,8 @@ func mkOracle(config config.OracleConfiguration, magic netmode.Magic, chain *cor
 	return orc, nil
 }
 
-func mkConsensus(config network.ServerConfig, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (consensus.Service, error) {
-	if config.Wallet == nil {
+func mkConsensus(config config.Wallet, tpb time.Duration, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (consensus.Service, error) {
+	if len(config.Path) == 0 {
 		return nil, nil
 	}
 	srv, err := consensus.NewService(consensus.Config{
@@ -416,8 +417,8 @@ func mkConsensus(config network.ServerConfig, chain *core.Blockchain, serv *netw
 		Chain:                 chain,
 		ProtocolConfiguration: chain.GetConfig(),
 		RequestTx:             serv.RequestTx,
-		Wallet:                config.Wallet,
-		TimePerBlock:          config.TimePerBlock,
+		Wallet:                &config,
+		TimePerBlock:          tpb,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't initialize Consensus module: %w", err)
@@ -497,7 +498,7 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	_, err = mkConsensus(serverConfig, chain, serv, log)
+	dbftSrv, err := mkConsensus(cfg.ApplicationConfiguration.UnlockWallet, serverConfig.TimePerBlock, chain, serv, log)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -517,6 +518,7 @@ func startServer(ctx *cli.Context) error {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGHUP)
 	signal.Notify(sigCh, syscall.SIGUSR1)
+	signal.Notify(sigCh, syscall.SIGUSR2)
 
 	fmt.Fprintln(ctx.App.Writer, Logo())
 	fmt.Fprintln(ctx.App.Writer, serv.UserAgent)
@@ -598,6 +600,18 @@ Main:
 				serv.AddExtensibleService(sr, stateroot.Category, sr.OnPayload)
 				if serv.IsInSync() {
 					sr.Start()
+				}
+			case syscall.SIGUSR2:
+				if dbftSrv != nil {
+					dbftSrv.Shutdown()
+				}
+				dbftSrv, err = mkConsensus(cfgnew.ApplicationConfiguration.UnlockWallet, serverConfig.TimePerBlock, chain, serv, log)
+				if err != nil {
+					log.Error("failed to create consensus service", zap.Error(err))
+					break // Whatever happens, I'll leave it all to chance.
+				}
+				if dbftSrv != nil && serv.IsInSync() {
+					dbftSrv.Start()
 				}
 			}
 			cfg = cfgnew

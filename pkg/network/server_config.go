@@ -64,9 +64,6 @@ type (
 		// Level of the internal logger.
 		LogLevel zapcore.Level
 
-		// Wallet is a wallet configuration.
-		Wallet *config.Wallet
-
 		// TimePerBlock is an interval which should pass between two successive blocks.
 		TimePerBlock time.Duration
 
@@ -90,11 +87,6 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 	appConfig := cfg.ApplicationConfiguration
 	protoConfig := cfg.ProtocolConfiguration
 
-	var wc *config.Wallet
-	if appConfig.UnlockWallet.Path != "" {
-		wc = &appConfig.UnlockWallet
-	}
-
 	return ServerConfig{
 		UserAgent:          cfg.GenerateUserAgent(),
 		Address:            appConfig.Address,
@@ -110,7 +102,6 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		MaxPeers:           appConfig.MaxPeers,
 		AttemptConnPeers:   appConfig.AttemptConnPeers,
 		MinPeers:           appConfig.MinPeers,
-		Wallet:             wc,
 		TimePerBlock:       time.Duration(protoConfig.SecondsPerBlock) * time.Second,
 		OracleCfg:          appConfig.Oracle,
 		P2PNotaryCfg:       appConfig.P2PNotary,
