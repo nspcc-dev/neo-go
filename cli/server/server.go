@@ -551,6 +551,12 @@ Main:
 				if !cfgnew.ApplicationConfiguration.RPC.StartWhenSynchronized || serv.IsInSync() {
 					rpcServer.Start()
 				}
+				pprof.ShutDown()
+				pprof = metrics.NewPprofService(cfgnew.ApplicationConfiguration.Pprof, log)
+				go pprof.Start()
+				prometheus.ShutDown()
+				prometheus = metrics.NewPrometheusService(cfgnew.ApplicationConfiguration.Prometheus, log)
+				go prometheus.Start()
 			}
 			cfg = cfgnew
 		case <-grace.Done():
