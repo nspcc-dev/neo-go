@@ -427,15 +427,15 @@ func mkConsensus(config network.ServerConfig, chain *core.Blockchain, serv *netw
 	return srv, nil
 }
 
-func mkP2PNotary(config network.ServerConfig, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*notary.Notary, error) {
-	if !config.P2PNotaryCfg.Enabled {
+func mkP2PNotary(config config.P2PNotary, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*notary.Notary, error) {
+	if !config.Enabled {
 		return nil, nil
 	}
 	if !chain.P2PSigExtensionsEnabled() {
 		return nil, errors.New("P2PSigExtensions are disabled, but Notary service is enabled")
 	}
 	cfg := notary.Config{
-		MainCfg: config.P2PNotaryCfg,
+		MainCfg: config,
 		Chain:   chain,
 		Log:     log,
 	}
@@ -501,7 +501,7 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	_, err = mkP2PNotary(serverConfig, chain, serv, log)
+	p2pNotary, err := mkP2PNotary(cfg.ApplicationConfiguration.P2PNotary, chain, serv, log)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -575,6 +575,18 @@ Main:
 					if serv.IsInSync() {
 						oracleSrv.Start()
 					}
+				}
+				if p2pNotary != nil {
+					chain.SetNotary(nil)
+					p2pNotary.Shutdown()
+				}
+				p2pNotary, err = mkP2PNotary(cfgnew.ApplicationConfiguration.P2PNotary, chain, serv, log)
+				if err != nil {
+					log.Error("failed to create notary service", zap.Error(err))
+					break // Keep going.
+				}
+				if p2pNotary != nil && serv.IsInSync() {
+					p2pNotary.Start()
 				}
 			}
 			cfg = cfgnew

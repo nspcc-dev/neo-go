@@ -330,7 +330,15 @@ func (bc *Blockchain) SetOracle(mod native.OracleService) {
 // SetNotary sets notary module. It doesn't protected by mutex and
 // must be called before `bc.Run()` to avoid data race.
 func (bc *Blockchain) SetNotary(mod native.NotaryService) {
-	bc.contracts.Designate.NotaryService.Store(mod)
+	if mod != nil {
+		keys, _, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.P2PNotary, bc.BlockHeight())
+		if err != nil {
+			bc.log.Error("failed to get notary key list")
+			return
+		}
+		mod.UpdateNotaryNodes(keys)
+	}
+	bc.contracts.Designate.NotaryService.Store(&mod)
 }
 
 func (bc *Blockchain) init() error {

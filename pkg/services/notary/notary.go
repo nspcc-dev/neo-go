@@ -219,6 +219,7 @@ func (n *Notary) Shutdown() {
 	if !n.started.CAS(true, false) {
 		return
 	}
+	n.Config.Log.Info("stopping notary service")
 	close(n.stopCh)
 	<-n.done
 }

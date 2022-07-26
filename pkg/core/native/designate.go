@@ -242,8 +242,8 @@ func (s *Designate) notifyRoleChanged(v *roleData, r noderoles.Role) {
 			(*orc).UpdateOracleNodes(v.nodes.Copy())
 		}
 	case noderoles.P2PNotary:
-		if ntr, _ := s.NotaryService.Load().(NotaryService); ntr != nil {
-			ntr.UpdateNotaryNodes(v.nodes.Copy())
+		if ntr, _ := s.NotaryService.Load().(*NotaryService); ntr != nil && *ntr != nil {
+			(*ntr).UpdateNotaryNodes(v.nodes.Copy())
 		}
 	case noderoles.StateValidator:
 		if s.StateRootService != nil {
