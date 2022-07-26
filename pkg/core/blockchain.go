@@ -303,14 +303,28 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 // must be called before `bc.Run()` to avoid data race.
 func (bc *Blockchain) SetOracle(mod native.OracleService) {
 	orc := bc.contracts.Oracle
-	md, ok := orc.GetMethod(manifest.MethodVerify, -1)
-	if !ok {
-		panic(fmt.Errorf("%s method not found", manifest.MethodVerify))
+	if mod != nil {
+		md, ok := orc.GetMethod(manifest.MethodVerify, -1)
+		if !ok {
+			panic(fmt.Errorf("%s method not found", manifest.MethodVerify))
+		}
+		mod.UpdateNativeContract(orc.NEF.Script, orc.GetOracleResponseScript(),
+			orc.Hash, md.MD.Offset)
+		keys, _, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.Oracle, bc.BlockHeight())
+		if err != nil {
+			bc.log.Error("failed to get oracle key list")
+			return
+		}
+		mod.UpdateOracleNodes(keys)
+		reqs, err := bc.contracts.Oracle.GetRequests(bc.dao)
+		if err != nil {
+			bc.log.Error("failed to get current oracle request list")
+			return
+		}
+		mod.AddRequests(reqs)
 	}
-	mod.UpdateNativeContract(orc.NEF.Script, orc.GetOracleResponseScript(),
-		orc.Hash, md.MD.Offset)
-	orc.Module.Store(mod)
-	bc.contracts.Designate.OracleService.Store(mod)
+	orc.Module.Store(&mod)
+	bc.contracts.Designate.OracleService.Store(&mod)
 }
 
 // SetNotary sets notary module. It doesn't protected by mutex and

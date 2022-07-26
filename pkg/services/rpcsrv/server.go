@@ -122,7 +122,7 @@ type (
 		network          netmode.Magic
 		stateRootEnabled bool
 		coreServer       *network.Server
-		oracle           OracleHandler
+		oracle           *atomic.Value
 		log              *zap.Logger
 		https            *http.Server
 		shutdown         chan struct{}
@@ -275,6 +275,10 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 			log.Info("SessionPoolSize is not set or wrong, setting default value", zap.Int("SessionPoolSize", defaultSessionPoolSize))
 		}
 	}
+	var oracleWrapped = new(atomic.Value)
+	if orc != nil {
+		oracleWrapped.Store(&orc)
+	}
 	return Server{
 		Server:           httpServer,
 		chain:            chain,
@@ -284,7 +288,7 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		stateRootEnabled: protoCfg.StateRootInHeader,
 		coreServer:       coreServer,
 		log:              log,
-		oracle:           orc,
+		oracle:           oracleWrapped,
 		https:            tlsServer,
 		shutdown:         make(chan struct{}),
 		started:          atomic.NewBool(false),
@@ -398,6 +402,11 @@ func (s *Server) Shutdown() {
 
 	// Wait for handleSubEvents to finish.
 	<-s.executionCh
+}
+
+// SetOracleHandler allows to update oracle handler used by the Server.
+func (s *Server) SetOracleHandler(orc OracleHandler) {
+	s.oracle.Store(&orc)
 }
 
 func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Request) {
@@ -2328,7 +2337,8 @@ func getRelayResult(err error, hash util.Uint256) (interface{}, *neorpc.Error) {
 }
 
 func (s *Server) submitOracleResponse(ps params.Params) (interface{}, *neorpc.Error) {
-	if s.oracle == nil {
+	oracle := s.oracle.Load().(*OracleHandler)
+	if oracle == nil || *oracle == nil {
 		return nil, neorpc.NewRPCError("Oracle is not enabled", "")
 	}
 	var pub *keys.PublicKey
@@ -2355,7 +2365,7 @@ func (s *Server) submitOracleResponse(ps params.Params) (interface{}, *neorpc.Er
 	if !pub.Verify(msgSig, hash.Sha256(data).BytesBE()) {
 		return nil, neorpc.NewRPCError("Invalid request signature", "")
 	}
-	s.oracle.AddResponse(pub, uint64(reqID), txSig)
+	(*oracle).AddResponse(pub, uint64(reqID), txSig)
 	return json.RawMessage([]byte("{}")), nil
 }
 

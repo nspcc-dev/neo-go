@@ -186,6 +186,7 @@ func (o *Oracle) Shutdown() {
 	if !o.running {
 		return
 	}
+	o.Log.Info("stopping oracle service")
 	o.running = false
 	close(o.close)
 	o.ResponseHandler.Shutdown()

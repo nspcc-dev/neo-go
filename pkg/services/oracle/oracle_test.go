@@ -121,8 +121,8 @@ func TestCreateResponseTx(t *testing.T) {
 		Result: []byte{0},
 	}
 	cInvoker.Invoke(t, stackitem.Null{}, "requestURL", req.URL, *req.Filter, req.CallbackMethod, req.UserData, int64(req.GasForResponse))
-	orc.UpdateOracleNodes(keys.PublicKeys{acc.PrivateKey().PublicKey()})
 	bc.SetOracle(orc)
+	orc.UpdateOracleNodes(keys.PublicKeys{acc.PrivateKey().PublicKey()})
 	tx, err = orc.CreateResponseTx(int64(req.GasForResponse), 1, resp)
 	require.NoError(t, err)
 	assert.Equal(t, 166, tx.Size())

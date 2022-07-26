@@ -12,6 +12,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -385,14 +386,14 @@ func restoreDB(ctx *cli.Context) error {
 	return nil
 }
 
-func mkOracle(config network.ServerConfig, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*oracle.Oracle, error) {
-	if !config.OracleCfg.Enabled {
+func mkOracle(config config.OracleConfiguration, magic netmode.Magic, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*oracle.Oracle, error) {
+	if !config.Enabled {
 		return nil, nil
 	}
 	orcCfg := oracle.Config{
 		Log:           log,
-		Network:       config.Net,
-		MainCfg:       config.OracleCfg,
+		Network:       magic,
+		MainCfg:       config,
 		Chain:         chain,
 		OnTransaction: serv.RelayTxn,
 	}
@@ -492,7 +493,7 @@ func startServer(ctx *cli.Context) error {
 	}
 	serv.AddExtensibleService(sr, stateroot.Category, sr.OnPayload)
 
-	oracleSrv, err := mkOracle(serverConfig, chain, serv, log)
+	oracleSrv, err := mkOracle(cfg.ApplicationConfiguration.Oracle, cfg.ProtocolConfiguration.Magic, chain, serv, log)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -513,8 +514,9 @@ func startServer(ctx *cli.Context) error {
 		rpcServer.Start()
 	}
 
-	sighupCh := make(chan os.Signal, 1)
-	signal.Notify(sighupCh, syscall.SIGHUP)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGHUP)
+	signal.Notify(sigCh, syscall.SIGUSR1)
 
 	fmt.Fprintln(ctx.App.Writer, Logo())
 	fmt.Fprintln(ctx.App.Writer, serv.UserAgent)
@@ -527,7 +529,7 @@ Main:
 		case err := <-errChan:
 			shutdownErr = fmt.Errorf("server error: %w", err)
 			cancel()
-		case sig := <-sighupCh:
+		case sig := <-sigCh:
 			log.Info("signal received", zap.Stringer("name", sig))
 			cfgnew, err := getConfigFromContext(ctx)
 			if err != nil {
@@ -557,10 +559,27 @@ Main:
 				prometheus.ShutDown()
 				prometheus = metrics.NewPrometheusService(cfgnew.ApplicationConfiguration.Prometheus, log)
 				go prometheus.Start()
+			case syscall.SIGUSR1:
+				if oracleSrv != nil {
+					chain.SetOracle(nil)
+					rpcServer.SetOracleHandler(nil)
+					oracleSrv.Shutdown()
+				}
+				oracleSrv, err = mkOracle(cfgnew.ApplicationConfiguration.Oracle, cfgnew.ProtocolConfiguration.Magic, chain, serv, log)
+				if err != nil {
+					log.Error("failed to create oracle service", zap.Error(err))
+					break // Keep going.
+				}
+				if oracleSrv != nil {
+					rpcServer.SetOracleHandler(oracleSrv)
+					if serv.IsInSync() {
+						oracleSrv.Start()
+					}
+				}
 			}
 			cfg = cfgnew
 		case <-grace.Done():
-			signal.Stop(sighupCh)
+			signal.Stop(sigCh)
 			serv.Shutdown()
 			break Main
 		}
