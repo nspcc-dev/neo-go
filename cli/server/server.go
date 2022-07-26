@@ -542,15 +542,17 @@ Main:
 				log.Warn("ApplicationConfiguration changed in incompatible way, signal ignored")
 				break // Continue working.
 			}
+			configureAddresses(&cfgnew.ApplicationConfiguration)
 			switch sig {
 			case syscall.SIGHUP:
 				rpcServer.Shutdown()
-				rpcServer = rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
+				rpcServer = rpcsrv.New(chain, cfgnew.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
 				serv.AddService(&rpcServer) // Replaces old one by service name.
-				if !cfg.ApplicationConfiguration.RPC.StartWhenSynchronized || serv.IsInSync() {
+				if !cfgnew.ApplicationConfiguration.RPC.StartWhenSynchronized || serv.IsInSync() {
 					rpcServer.Start()
 				}
 			}
+			cfg = cfgnew
 		case <-grace.Done():
 			signal.Stop(sighupCh)
 			serv.Shutdown()
