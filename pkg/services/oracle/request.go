@@ -234,7 +234,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 	incTx.attempts++
 	incTx.Unlock()
 
-	o.getBroadcaster().SendResponse(priv, resp, txSig)
+	o.ResponseHandler.SendResponse(priv, resp, txSig)
 	if ready {
 		o.sendTx(readyTx)
 	}
@@ -265,7 +265,7 @@ func (o *Oracle) processFailedRequest(priv *keys.PrivateKey, req request) {
 	txSig := incTx.backupSigs[string(priv.PublicKey().Bytes())].sig
 	incTx.Unlock()
 
-	o.getBroadcaster().SendResponse(priv, getFailedResponse(req.ID), txSig)
+	o.ResponseHandler.SendResponse(priv, getFailedResponse(req.ID), txSig)
 	if ready {
 		o.sendTx(readyTx)
 	}

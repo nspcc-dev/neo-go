@@ -43,7 +43,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
-	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv/params"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -108,6 +107,11 @@ type (
 		mempool.Feer // fee interface
 	}
 
+	// OracleHandler is the interface oracle service needs to provide for the Server.
+	OracleHandler interface {
+		AddResponse(pub *keys.PublicKey, reqID uint64, txSig []byte)
+	}
+
 	// Server represents the JSON-RPC 2.0 server.
 	Server struct {
 		*http.Server
@@ -118,7 +122,7 @@ type (
 		network          netmode.Magic
 		stateRootEnabled bool
 		coreServer       *network.Server
-		oracle           *oracle.Oracle
+		oracle           OracleHandler
 		log              *zap.Logger
 		https            *http.Server
 		shutdown         chan struct{}
@@ -248,7 +252,7 @@ var upgrader = websocket.Upgrader{}
 
 // New creates a new Server struct.
 func New(chain Ledger, conf config.RPC, coreServer *network.Server,
-	orc *oracle.Oracle, log *zap.Logger, errChan chan error) Server {
+	orc OracleHandler, log *zap.Logger, errChan chan error) Server {
 	httpServer := &http.Server{
 		Addr: conf.Address + ":" + strconv.FormatUint(uint64(conf.Port), 10),
 	}
@@ -260,9 +264,6 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		}
 	}
 
-	if orc != nil {
-		orc.SetBroadcaster(broadcaster.New(orc.MainCfg, log))
-	}
 	protoCfg := chain.GetConfig()
 	if conf.SessionEnabled {
 		if conf.SessionExpirationTime <= 0 {

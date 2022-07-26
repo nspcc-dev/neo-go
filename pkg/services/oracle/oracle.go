@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
@@ -42,9 +43,6 @@ type (
 		oracleResponse []byte
 		oracleScript   []byte
 		verifyOffset   int
-
-		// mtx protects setting callbacks.
-		mtx sync.RWMutex
 
 		// accMtx protects account and oracle nodes.
 		accMtx             sync.RWMutex
@@ -93,8 +91,6 @@ type (
 		Run()
 		Shutdown()
 	}
-
-	defaultResponseHandler struct{}
 
 	// TxCallback executes on new transactions when they are ready to be pooled.
 	TxCallback = func(tx *transaction.Transaction) error
@@ -165,7 +161,7 @@ func NewOracle(cfg Config) (*Oracle, error) {
 	}
 
 	if o.ResponseHandler == nil {
-		o.ResponseHandler = defaultResponseHandler{}
+		o.ResponseHandler = broadcaster.New(cfg.MainCfg, cfg.Log)
 	}
 	if o.OnTransaction == nil {
 		o.OnTransaction = func(*transaction.Transaction) error { return nil }
@@ -192,7 +188,7 @@ func (o *Oracle) Shutdown() {
 	}
 	o.running = false
 	close(o.close)
-	o.getBroadcaster().Shutdown()
+	o.ResponseHandler.Shutdown()
 	<-o.done
 }
 
@@ -217,6 +213,7 @@ func (o *Oracle) start() {
 	for i := 0; i < o.MainCfg.MaxConcurrentRequests; i++ {
 		go o.runRequestWorker()
 	}
+	go o.ResponseHandler.Run()
 
 	tick := time.NewTicker(o.MainCfg.RefreshInterval)
 main:
@@ -284,28 +281,3 @@ func (o *Oracle) sendTx(tx *transaction.Transaction) {
 			zap.Error(err))
 	}
 }
-
-func (o *Oracle) getBroadcaster() Broadcaster {
-	o.mtx.RLock()
-	defer o.mtx.RUnlock()
-	return o.ResponseHandler
-}
-
-// SetBroadcaster sets callback to broadcast response.
-func (o *Oracle) SetBroadcaster(b Broadcaster) {
-	o.mtx.Lock()
-	defer o.mtx.Unlock()
-	o.ResponseHandler.Shutdown()
-	o.ResponseHandler = b
-	go b.Run()
-}
-
-// SendResponse implements Broadcaster interface.
-func (defaultResponseHandler) SendResponse(*keys.PrivateKey, *transaction.OracleResponse, []byte) {
-}
-
-// Run implements Broadcaster interface.
-func (defaultResponseHandler) Run() {}
-
-// Shutdown implements Broadcaster interface.
-func (defaultResponseHandler) Shutdown() {}
