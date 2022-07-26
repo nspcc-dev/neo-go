@@ -196,3 +196,78 @@ func (p *ProtocolConfiguration) GetNumOfCNs(height uint32) int {
 func (p *ProtocolConfiguration) ShouldUpdateCommitteeAt(height uint32) bool {
 	return height%uint32(p.GetCommitteeSize(height)) == 0
 }
+
+// Equals allows to compare two ProtocolConfiguration instances, returns true if
+// they're equal.
+func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
+	if p.GarbageCollectionPeriod != o.GarbageCollectionPeriod ||
+		p.InitialGASSupply != o.InitialGASSupply ||
+		p.KeepOnlyLatestState != o.KeepOnlyLatestState ||
+		p.Magic != o.Magic ||
+		p.MaxBlockSize != o.MaxBlockSize ||
+		p.MaxBlockSystemFee != o.MaxBlockSystemFee ||
+		p.MaxTraceableBlocks != o.MaxTraceableBlocks ||
+		p.MaxTransactionsPerBlock != o.MaxTransactionsPerBlock ||
+		p.MaxValidUntilBlockIncrement != o.MaxValidUntilBlockIncrement ||
+		p.MemPoolSize != o.MemPoolSize ||
+		p.P2PNotaryRequestPayloadPoolSize != o.P2PNotaryRequestPayloadPoolSize ||
+		p.P2PSigExtensions != o.P2PSigExtensions ||
+		p.P2PStateExchangeExtensions != o.P2PStateExchangeExtensions ||
+		p.RemoveUntraceableBlocks != o.RemoveUntraceableBlocks ||
+		p.ReservedAttributes != o.ReservedAttributes ||
+		p.SaveStorageBatch != o.SaveStorageBatch ||
+		p.SecondsPerBlock != o.SecondsPerBlock ||
+		p.StateRootInHeader != o.StateRootInHeader ||
+		p.StateSyncInterval != o.StateSyncInterval ||
+		p.ValidatorsCount != o.ValidatorsCount ||
+		p.VerifyBlocks != o.VerifyBlocks ||
+		p.VerifyTransactions != o.VerifyTransactions ||
+		len(p.CommitteeHistory) != len(o.CommitteeHistory) ||
+		len(p.Hardforks) != len(o.Hardforks) ||
+		len(p.NativeUpdateHistories) != len(o.NativeUpdateHistories) ||
+		len(p.SeedList) != len(o.SeedList) ||
+		len(p.StandbyCommittee) != len(o.StandbyCommittee) ||
+		len(p.ValidatorsHistory) != len(o.ValidatorsHistory) {
+		return false
+	}
+	for k, v := range p.CommitteeHistory {
+		vo, ok := o.CommitteeHistory[k]
+		if !ok || v != vo {
+			return false
+		}
+	}
+	for k, v := range p.Hardforks {
+		vo, ok := o.Hardforks[k]
+		if !ok || v != vo {
+			return false
+		}
+	}
+	for k, v := range p.NativeUpdateHistories {
+		vo := o.NativeUpdateHistories[k]
+		if len(v) != len(vo) {
+			return false
+		}
+		for i := range v {
+			if v[i] != vo[i] {
+				return false
+			}
+		}
+	}
+	for i := range p.SeedList {
+		if p.SeedList[i] != o.SeedList[i] {
+			return false
+		}
+	}
+	for i := range p.StandbyCommittee {
+		if p.StandbyCommittee[i] != o.StandbyCommittee[i] {
+			return false
+		}
+	}
+	for k, v := range p.ValidatorsHistory {
+		vo, ok := o.ValidatorsHistory[k]
+		if !ok || v != vo {
+			return false
+		}
+	}
+	return true
+}

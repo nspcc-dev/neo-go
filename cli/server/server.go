@@ -528,9 +528,18 @@ Main:
 			shutdownErr = fmt.Errorf("server error: %w", err)
 			cancel()
 		case sig := <-sighupCh:
+			log.Info("signal received", zap.Stringer("name", sig))
+			cfgnew, err := getConfigFromContext(ctx)
+			if err != nil {
+				log.Warn("can't reread the config file, signal ignored", zap.Error(err))
+				break // Continue working.
+			}
+			if !cfg.ProtocolConfiguration.Equals(&cfgnew.ProtocolConfiguration) {
+				log.Warn("ProtocolConfiguration changed, signal ignored")
+				break // Continue working.
+			}
 			switch sig {
 			case syscall.SIGHUP:
-				log.Info("SIGHUP received, restarting rpc-server")
 				rpcServer.Shutdown()
 				rpcServer = rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
 				serv.AddService(&rpcServer) // Replaces old one by service name.
