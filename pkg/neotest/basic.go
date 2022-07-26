@@ -16,11 +16,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -81,11 +81,9 @@ func (e *Executor) NativeID(t testing.TB, name string) int32 {
 
 // NewUnsignedTx creates a new unsigned transaction which invokes the method of the contract with the hash.
 func (e *Executor) NewUnsignedTx(t testing.TB, hash util.Uint160, method string, args ...interface{}) *transaction.Transaction {
-	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, hash, method, callflag.All, args...)
-	require.NoError(t, w.Err)
+	script, err := smartcontract.CreateCallScript(hash, method, args...)
+	require.NoError(t, err)
 
-	script := w.Bytes()
 	tx := transaction.New(script, 0)
 	tx.Nonce = Nonce()
 	tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
@@ -266,11 +264,10 @@ func NewDeployTxBy(t testing.TB, bc *core.Blockchain, signer Signer, c *Contract
 	neb, err := c.NEF.Bytes()
 	require.NoError(t, err)
 
-	buf := io.NewBufBinWriter()
-	emit.AppCall(buf.BinWriter, bc.ManagementContractHash(), "deploy", callflag.All, neb, rawManifest, data)
-	require.NoError(t, buf.Err)
+	script, err := smartcontract.CreateCallScript(bc.ManagementContractHash(), "deploy", neb, rawManifest, data)
+	require.NoError(t, err)
 
-	tx := transaction.New(buf.Bytes(), 100*native.GASFactor)
+	tx := transaction.New(script, 100*native.GASFactor)
 	tx.Nonce = Nonce()
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.Signers = []transaction.Signer{{

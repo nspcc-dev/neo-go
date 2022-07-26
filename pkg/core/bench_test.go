@@ -14,12 +14,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -96,13 +93,12 @@ func benchmarkForEachNEP17Transfer(t *testing.B, ps storage.Store, startFromBloc
 	from := e.Validator.ScriptHash()
 
 	for j := 0; j < chainHeight; j++ {
-		w := io.NewBufBinWriter()
+		b := smartcontract.NewBuilder()
 		for i := 0; i < transfersPerBlock; i++ {
-			emit.AppCall(w.BinWriter, gasHash, "transfer", callflag.All, from, acc, 1, nil)
-			emit.Opcodes(w.BinWriter, opcode.ASSERT)
+			b.InvokeWithAssert(gasHash, "transfer", from, acc, 1, nil)
 		}
-		require.NoError(t, w.Err)
-		script := w.Bytes()
+		script, err := b.Script()
+		require.NoError(t, err)
 		tx := transaction.New(script, int64(1100_0000*transfersPerBlock))
 		tx.NetworkFee = 1_0000_000
 		tx.ValidUntilBlock = bc.BlockHeight() + 1

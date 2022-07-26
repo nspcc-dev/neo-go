@@ -22,7 +22,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -55,16 +54,16 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	newPriv := newAcc.PrivateKey()
 
 	// Transfer funds to new validator.
-	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, bc.GoverningTokenHash(), "transfer", callflag.All,
+	b := smartcontract.NewBuilder()
+	b.InvokeWithAssert(bc.GoverningTokenHash(), "transfer",
 		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(native.NEOTotalSupply), nil)
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	emit.AppCall(w.BinWriter, bc.UtilityTokenHash(), "transfer", callflag.All,
-		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(10000_000_000_000), nil)
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	require.NoError(t, w.Err)
 
-	tx := transaction.New(w.Bytes(), 21_000_000)
+	b.InvokeWithAssert(bc.UtilityTokenHash(), "transfer",
+		acc.Contract.ScriptHash().BytesBE(), newPriv.GetScriptHash().BytesBE(), int64(10000_000_000_000), nil)
+	script, err := b.Script()
+	require.NoError(t, err)
+
+	tx := transaction.New(script, 21_000_000)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.NetworkFee = 10_000_000
 	tx.Signers = []transaction.Signer{{Scopes: transaction.Global, Account: acc.Contract.ScriptHash()}}
@@ -75,11 +74,12 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	srv.dbft.Start()
 
 	// Register new candidate.
-	w.Reset()
-	emit.AppCall(w.BinWriter, bc.GoverningTokenHash(), "registerCandidate", callflag.All, newPriv.PublicKey().Bytes())
-	require.NoError(t, w.Err)
+	b.Reset()
+	b.InvokeWithAssert(bc.GoverningTokenHash(), "registerCandidate", newPriv.PublicKey().Bytes())
+	script, err = b.Script()
+	require.NoError(t, err)
 
-	tx = transaction.New(w.Bytes(), 1001_00000000)
+	tx = transaction.New(script, 1001_00000000)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.NetworkFee = 20_000_000
 	tx.Signers = []transaction.Signer{{Scopes: transaction.Global, Account: newPriv.GetScriptHash()}}
@@ -94,13 +94,13 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	}
 
 	// Vote for new candidate.
-	w.Reset()
-	emit.AppCall(w.BinWriter, bc.GoverningTokenHash(), "vote", callflag.All,
+	b.Reset()
+	b.InvokeWithAssert(bc.GoverningTokenHash(), "vote",
 		newPriv.GetScriptHash(), newPriv.PublicKey().Bytes())
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	require.NoError(t, w.Err)
+	script, err = b.Script()
+	require.NoError(t, err)
 
-	tx = transaction.New(w.Bytes(), 20_000_000)
+	tx = transaction.New(script, 20_000_000)
 	tx.ValidUntilBlock = bc.BlockHeight() + 1
 	tx.NetworkFee = 20_000_000
 	tx.Signers = []transaction.Signer{{Scopes: transaction.Global, Account: newPriv.GetScriptHash()}}

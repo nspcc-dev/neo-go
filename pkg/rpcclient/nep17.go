@@ -5,12 +5,9 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
@@ -79,16 +76,16 @@ func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64,
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %w", err)
 	}
-	w := io.NewBufBinWriter()
+	b := smartcontract.NewBuilder()
 	for i := range recipients {
-		emit.AppCall(w.BinWriter, recipients[i].Token, "transfer", callflag.All,
+		b.InvokeWithAssert(recipients[i].Token, "transfer",
 			from, recipients[i].Address, recipients[i].Amount, recipients[i].Data)
-		emit.Opcodes(w.BinWriter, opcode.ASSERT)
 	}
-	if w.Err != nil {
-		return nil, fmt.Errorf("failed to create transfer script: %w", w.Err)
+	script, err := b.Script()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transfer script: %w", err)
 	}
-	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, append([]SignerAccount{{
+	return c.CreateTxFromScript(script, acc, -1, gas, append([]SignerAccount{{
 		Signer: transaction.Signer{
 			Account: from,
 			Scopes:  transaction.CalledByEntry,

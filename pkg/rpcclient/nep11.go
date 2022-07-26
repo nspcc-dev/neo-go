@@ -6,14 +6,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
@@ -65,17 +61,15 @@ func (c *Client) TransferNEP11(acc *wallet.Account, to util.Uint160,
 // `args` for TransferNEP11D: from, to util.Uint160, amount int64, tokenID string, data interface{}.
 func (c *Client) CreateNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint160,
 	gas int64, cosigners []SignerAccount, args ...interface{}) (*transaction.Transaction, error) {
-	w := io.NewBufBinWriter()
-	emit.AppCall(w.BinWriter, tokenHash, "transfer", callflag.All, args...)
-	emit.Opcodes(w.BinWriter, opcode.ASSERT)
-	if w.Err != nil {
-		return nil, fmt.Errorf("failed to create NEP-11 transfer script: %w", w.Err)
+	script, err := smartcontract.CreateCallWithAssertScript(tokenHash, "transfer", args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create NEP-11 transfer script: %w", err)
 	}
 	from, err := address.StringToUint160(acc.Address)
 	if err != nil {
 		return nil, fmt.Errorf("bad account address: %w", err)
 	}
-	return c.CreateTxFromScript(w.Bytes(), acc, -1, gas, append([]SignerAccount{{
+	return c.CreateTxFromScript(script, acc, -1, gas, append([]SignerAccount{{
 		Signer: transaction.Signer{
 			Account: from,
 			Scopes:  transaction.CalledByEntry,

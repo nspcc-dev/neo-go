@@ -26,6 +26,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -424,9 +425,9 @@ func TestGetInvocationCounter(t *testing.T) {
 		require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
 	})
 	t.Run("Contract", func(t *testing.T) {
-		w := io.NewBufBinWriter()
-		emit.AppCall(w.BinWriter, cs.Hash, "invocCounter", callflag.All)
-		v.LoadWithFlags(w.Bytes(), callflag.All)
+		script, err := smartcontract.CreateCallScript(cs.Hash, "invocCounter")
+		require.NoError(t, err)
+		v.LoadWithFlags(script, callflag.All)
 		require.NoError(t, v.Run())
 		require.EqualValues(t, 1, v.Estack().Pop().BigInt().Int64())
 	})
