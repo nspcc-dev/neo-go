@@ -549,9 +549,10 @@ Main:
 			configureAddresses(&cfgnew.ApplicationConfiguration)
 			switch sig {
 			case syscall.SIGHUP:
+				serv.DelService(&rpcServer)
 				rpcServer.Shutdown()
 				rpcServer = rpcsrv.New(chain, cfgnew.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
-				serv.AddService(&rpcServer) // Replaces old one by service name.
+				serv.AddService(&rpcServer)
 				if !cfgnew.ApplicationConfiguration.RPC.StartWhenSynchronized || serv.IsInSync() {
 					rpcServer.Start()
 				}
@@ -563,6 +564,7 @@ Main:
 				go prometheus.Start()
 			case syscall.SIGUSR1:
 				if oracleSrv != nil {
+					serv.DelService(oracleSrv)
 					chain.SetOracle(nil)
 					rpcServer.SetOracleHandler(nil)
 					oracleSrv.Shutdown()
@@ -579,6 +581,7 @@ Main:
 					}
 				}
 				if p2pNotary != nil {
+					serv.DelService(p2pNotary)
 					chain.SetNotary(nil)
 					p2pNotary.Shutdown()
 				}
@@ -590,6 +593,7 @@ Main:
 				if p2pNotary != nil && serv.IsInSync() {
 					p2pNotary.Start()
 				}
+				serv.DelExtensibleService(sr, stateroot.Category)
 				srMod.SetUpdateValidatorsCallback(nil)
 				sr.Shutdown()
 				sr, err = stateroot.New(cfgnew.ApplicationConfiguration.StateRoot, srMod, log, chain, serv.BroadcastExtensible)
@@ -603,6 +607,7 @@ Main:
 				}
 			case syscall.SIGUSR2:
 				if dbftSrv != nil {
+					serv.DelExtensibleHPService(dbftSrv, consensus.Category)
 					dbftSrv.Shutdown()
 				}
 				dbftSrv, err = mkConsensus(cfgnew.ApplicationConfiguration.UnlockWallet, serverConfig.TimePerBlock, chain, serv, log)
