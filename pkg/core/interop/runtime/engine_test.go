@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -133,15 +134,25 @@ func TestLog(t *testing.T) {
 
 func TestNotify(t *testing.T) {
 	h := random.Uint160()
+	caller := random.Uint160()
+	exe, err := nef.NewFile([]byte{1})
+	require.NoError(t, err)
 	newIC := func(name string, args interface{}) *interop.Context {
 		ic := &interop.Context{VM: vm.New(), DAO: &dao.Simple{}}
-		ic.VM.LoadScriptWithHash([]byte{1}, h, callflag.NoneFlag)
+		ic.VM.LoadNEFMethod(exe, caller, h, callflag.NoneFlag, true, 0, -1, nil)
 		ic.VM.Estack().PushVal(args)
 		ic.VM.Estack().PushVal(name)
 		return ic
 	}
 	t.Run("big name", func(t *testing.T) {
 		ic := newIC(string(make([]byte, MaxEventNameLen+1)), stackitem.NewArray([]stackitem.Item{stackitem.Null{}}))
+		require.Error(t, Notify(ic))
+	})
+	t.Run("dynamic script", func(t *testing.T) {
+		ic := &interop.Context{VM: vm.New(), DAO: &dao.Simple{}}
+		ic.VM.LoadScriptWithHash([]byte{1}, h, callflag.NoneFlag)
+		ic.VM.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(42)}))
+		ic.VM.Estack().PushVal("event")
 		require.Error(t, Notify(ic))
 	})
 	t.Run("recursive struct", func(t *testing.T) {
