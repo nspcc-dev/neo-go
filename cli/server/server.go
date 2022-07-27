@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"syscall"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -516,9 +515,9 @@ func startServer(ctx *cli.Context) error {
 	}
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGHUP)
-	signal.Notify(sigCh, syscall.SIGUSR1)
-	signal.Notify(sigCh, syscall.SIGUSR2)
+	signal.Notify(sigCh, sighup)
+	signal.Notify(sigCh, sigusr1)
+	signal.Notify(sigCh, sigusr2)
 
 	fmt.Fprintln(ctx.App.Writer, Logo())
 	fmt.Fprintln(ctx.App.Writer, serv.UserAgent)
@@ -548,7 +547,7 @@ Main:
 			}
 			configureAddresses(&cfgnew.ApplicationConfiguration)
 			switch sig {
-			case syscall.SIGHUP:
+			case sighup:
 				serv.DelService(&rpcServer)
 				rpcServer.Shutdown()
 				rpcServer = rpcsrv.New(chain, cfgnew.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
@@ -562,7 +561,7 @@ Main:
 				prometheus.ShutDown()
 				prometheus = metrics.NewPrometheusService(cfgnew.ApplicationConfiguration.Prometheus, log)
 				go prometheus.Start()
-			case syscall.SIGUSR1:
+			case sigusr1:
 				if oracleSrv != nil {
 					serv.DelService(oracleSrv)
 					chain.SetOracle(nil)
@@ -605,7 +604,7 @@ Main:
 				if serv.IsInSync() {
 					sr.Start()
 				}
-			case syscall.SIGUSR2:
+			case sigusr2:
 				if dbftSrv != nil {
 					serv.DelExtensibleHPService(dbftSrv, consensus.Category)
 					dbftSrv.Shutdown()
