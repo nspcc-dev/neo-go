@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"math"
 	"math/big"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -339,89 +338,6 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 	for _, input := range unmarshalJSONErrorCases {
 		assert.Error(t, json.Unmarshal([]byte(input), &s), input)
 	}
-}
-
-var tryParseTestCases = []struct {
-	input    interface{}
-	expected interface{}
-}{
-	{
-		input: []byte{
-			0x0b, 0xcd, 0x29, 0x78, 0x63, 0x4d, 0x96, 0x1c, 0x24, 0xf5,
-			0xae, 0xa0, 0x80, 0x22, 0x97, 0xff, 0x12, 0x87, 0x24, 0xd6,
-		},
-		expected: util.Uint160{
-			0x0b, 0xcd, 0x29, 0x78, 0x63, 0x4d, 0x96, 0x1c, 0x24, 0xf5,
-			0xae, 0xa0, 0x80, 0x22, 0x97, 0xff, 0x12, 0x87, 0x24, 0xd6,
-		},
-	},
-	{
-		input: []byte{
-			0xf0, 0x37, 0x30, 0x8f, 0xa0, 0xab, 0x18, 0x15,
-			0x5b, 0xcc, 0xfc, 0x08, 0x48, 0x54, 0x68, 0xc1,
-			0x12, 0x40, 0x9e, 0xa5, 0x06, 0x45, 0x95, 0x69,
-			0x9e, 0x98, 0xc5, 0x45, 0xf2, 0x45, 0xf3, 0x2d,
-		},
-		expected: util.Uint256{
-			0x2d, 0xf3, 0x45, 0xf2, 0x45, 0xc5, 0x98, 0x9e,
-			0x69, 0x95, 0x45, 0x06, 0xa5, 0x9e, 0x40, 0x12,
-			0xc1, 0x68, 0x54, 0x48, 0x08, 0xfc, 0xcc, 0x5b,
-			0x15, 0x18, 0xab, 0xa0, 0x8f, 0x30, 0x37, 0xf0,
-		},
-	},
-	{
-		input:    []byte{0, 1, 2, 3, 4, 9, 8, 6},
-		expected: []byte{0, 1, 2, 3, 4, 9, 8, 6},
-	},
-	{
-		input:    []byte{0x63, 0x78, 0x29, 0xcd, 0x0b},
-		expected: int64(50686687331),
-	},
-	{
-		input:    []byte{0x63, 0x78, 0x29, 0xcd, 0x0b},
-		expected: big.NewInt(50686687331),
-	},
-	{
-		input:    []byte("this is a test string"),
-		expected: "this is a test string",
-	},
-}
-
-func TestParam_TryParse(t *testing.T) {
-	for _, tc := range tryParseTestCases {
-		t.Run(reflect.TypeOf(tc.expected).String(), func(t *testing.T) {
-			input := Parameter{
-				Type:  ByteArrayType,
-				Value: tc.input,
-			}
-
-			val := reflect.New(reflect.TypeOf(tc.expected))
-			assert.NoError(t, input.TryParse(val.Interface()))
-			assert.Equal(t, tc.expected, val.Elem().Interface())
-		})
-	}
-
-	t.Run("[]Uint160", func(t *testing.T) {
-		exp1 := util.Uint160{1, 2, 3, 4, 5}
-		exp2 := util.Uint160{9, 8, 7, 6, 5}
-
-		params := Params{
-			{
-				Type:  ByteArrayType,
-				Value: exp1.BytesBE(),
-			},
-			{
-				Type:  ByteArrayType,
-				Value: exp2.BytesBE(),
-			},
-		}
-
-		var out1, out2 util.Uint160
-
-		assert.NoError(t, params.TryParseArray(&out1, &out2))
-		assert.Equal(t, exp1, out1)
-		assert.Equal(t, exp2, out2)
-	})
 }
 
 func TestParamType_String(t *testing.T) {

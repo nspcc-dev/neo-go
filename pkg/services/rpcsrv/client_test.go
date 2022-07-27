@@ -773,7 +773,7 @@ func TestInvokeVerify(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("positive, with signer", func(t *testing.T) {
-		res, err := c.InvokeContractVerify(contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		res, err := c.InvokeContractVerify(contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
 		require.NoError(t, err)
 		require.Equal(t, "HALT", res.State)
 		require.Equal(t, 1, len(res.Stack))
@@ -782,7 +782,7 @@ func TestInvokeVerify(t *testing.T) {
 
 	t.Run("positive, historic, by height, with signer", func(t *testing.T) {
 		h := chain.BlockHeight() - 1
-		res, err := c.InvokeContractVerifyAtHeight(h, contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		res, err := c.InvokeContractVerifyAtHeight(h, contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
 		require.NoError(t, err)
 		require.Equal(t, "HALT", res.State)
 		require.Equal(t, 1, len(res.Stack))
@@ -790,7 +790,7 @@ func TestInvokeVerify(t *testing.T) {
 	})
 
 	t.Run("positive, historic, by block, with signer", func(t *testing.T) {
-		res, err := c.InvokeContractVerifyAtBlock(chain.GetHeaderHash(int(chain.BlockHeight())-1), contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		res, err := c.InvokeContractVerifyAtBlock(chain.GetHeaderHash(int(chain.BlockHeight())-1), contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
 		require.NoError(t, err)
 		require.Equal(t, "HALT", res.State)
 		require.Equal(t, 1, len(res.Stack))
@@ -801,7 +801,7 @@ func TestInvokeVerify(t *testing.T) {
 		h := chain.BlockHeight() - 1
 		sr, err := chain.GetStateModule().GetStateRoot(h)
 		require.NoError(t, err)
-		res, err := c.InvokeContractVerifyWithState(sr.Root, contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		res, err := c.InvokeContractVerifyWithState(sr.Root, contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
 		require.NoError(t, err)
 		require.Equal(t, "HALT", res.State)
 		require.Equal(t, 1, len(res.Stack))
@@ -810,13 +810,13 @@ func TestInvokeVerify(t *testing.T) {
 
 	t.Run("bad, historic, by hash: contract not found", func(t *testing.T) {
 		var h uint32 = 1
-		_, err = c.InvokeContractVerifyAtHeight(h, contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		_, err = c.InvokeContractVerifyAtHeight(h, contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), core.ErrUnknownVerificationContract.Error())) // contract wasn't deployed at block #1 yet
 	})
 
 	t.Run("bad, historic, by block: contract not found", func(t *testing.T) {
-		_, err = c.InvokeContractVerifyAtBlock(chain.GetHeaderHash(1), contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		_, err = c.InvokeContractVerifyAtBlock(chain.GetHeaderHash(1), contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), core.ErrUnknownVerificationContract.Error())) // contract wasn't deployed at block #1 yet
 	})
@@ -825,13 +825,13 @@ func TestInvokeVerify(t *testing.T) {
 		var h uint32 = 1
 		sr, err := chain.GetStateModule().GetStateRoot(h)
 		require.NoError(t, err)
-		_, err = c.InvokeContractVerifyWithState(sr.Root, contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		_, err = c.InvokeContractVerifyWithState(sr.Root, contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), core.ErrUnknownVerificationContract.Error())) // contract wasn't deployed at block #1 yet
 	})
 
 	t.Run("positive, with signer and witness", func(t *testing.T) {
-		res, err := c.InvokeContractVerify(contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}}, transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH1), byte(opcode.RET)}})
+		res, err := c.InvokeContractVerify(contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}}, transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH1), byte(opcode.RET)}})
 		require.NoError(t, err)
 		require.Equal(t, "HALT", res.State)
 		require.Equal(t, 1, len(res.Stack))
@@ -839,12 +839,12 @@ func TestInvokeVerify(t *testing.T) {
 	})
 
 	t.Run("error, invalid witness number", func(t *testing.T) {
-		_, err := c.InvokeContractVerify(contract, smartcontract.Params{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}}, transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH1), byte(opcode.RET)}}, transaction.Witness{InvocationScript: []byte{byte(opcode.RET)}})
+		_, err := c.InvokeContractVerify(contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}}, transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH1), byte(opcode.RET)}}, transaction.Witness{InvocationScript: []byte{byte(opcode.RET)}})
 		require.Error(t, err)
 	})
 
 	t.Run("false", func(t *testing.T) {
-		res, err := c.InvokeContractVerify(contract, smartcontract.Params{}, []transaction.Signer{{Account: util.Uint160{}}})
+		res, err := c.InvokeContractVerify(contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: util.Uint160{}}})
 		require.NoError(t, err)
 		require.Equal(t, "HALT", res.State)
 		require.Equal(t, 1, len(res.Stack))

@@ -3,19 +3,16 @@ package smartcontract
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
-	"math/bits"
 	"os"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -192,123 +189,6 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 		return fmt.Errorf("can't unmarshal %s", p.Type)
 	}
 	return
-}
-
-// Params is an array of Parameter (TODO: drop it?).
-type Params []Parameter
-
-// TryParseArray converts an array of Parameter into an array of more appropriate things.
-func (p Params) TryParseArray(vals ...interface{}) error {
-	var (
-		err error
-		i   int
-		par Parameter
-	)
-	if len(p) != len(vals) {
-		return errors.New("receiver array doesn't fit the Params length")
-	}
-	for i, par = range p {
-		if err = par.TryParse(vals[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// TryParse converts one Parameter into something more appropriate.
-func (p Parameter) TryParse(dest interface{}) error {
-	var (
-		err  error
-		ok   bool
-		data []byte
-	)
-	switch p.Type {
-	case ByteArrayType:
-		if data, ok = p.Value.([]byte); !ok {
-			return fmt.Errorf("failed to cast %s to []byte", p.Value)
-		}
-		switch dest := dest.(type) {
-		case *util.Uint160:
-			if *dest, err = util.Uint160DecodeBytesBE(data); err != nil {
-				return err
-			}
-			return nil
-		case *[]byte:
-			*dest = data
-			return nil
-		case *util.Uint256:
-			if *dest, err = util.Uint256DecodeBytesLE(data); err != nil {
-				return err
-			}
-			return nil
-		case **big.Int:
-			*dest = bigint.FromBytes(data)
-			return nil
-		case *int64, *int32, *int16, *int8, *int, *uint64, *uint32, *uint16, *uint8, *uint:
-			var size int
-			switch dest.(type) {
-			case *int64, *uint64:
-				size = 64
-			case *int32, *uint32:
-				size = 32
-			case *int16, *uint16:
-				size = 16
-			case *int8, *uint8:
-				size = 8
-			case *int, *uint:
-				size = bits.UintSize
-			}
-
-			i, err := bytesToUint64(data, size)
-			if err != nil {
-				return err
-			}
-
-			switch dest := dest.(type) {
-			case *int64:
-				*dest = int64(i)
-			case *int32:
-				*dest = int32(i)
-			case *int16:
-				*dest = int16(i)
-			case *int8:
-				*dest = int8(i)
-			case *int:
-				*dest = int(i)
-			case *uint64:
-				*dest = i
-			case *uint32:
-				*dest = uint32(i)
-			case *uint16:
-				*dest = uint16(i)
-			case *uint8:
-				*dest = uint8(i)
-			case *uint:
-				*dest = uint(i)
-			}
-		case *string:
-			*dest = string(data)
-			return nil
-		default:
-			return fmt.Errorf("cannot cast param of type %s to type %s", p.Type, dest)
-		}
-	default:
-		return errors.New("cannot define param type")
-	}
-	return nil
-}
-
-func bytesToUint64(b []byte, size int) (uint64, error) {
-	var length = size / 8
-	if len(b) > length {
-		return 0, fmt.Errorf("input doesn't fit into %d bits", size)
-	}
-	if len(b) < length {
-		data := make([]byte, length)
-		copy(data, b)
-		return binary.LittleEndian.Uint64(data), nil
-	}
-	return binary.LittleEndian.Uint64(b), nil
 }
 
 // NewParameterFromString returns a new Parameter initialized from the given

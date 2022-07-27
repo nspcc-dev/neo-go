@@ -1047,7 +1047,7 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 	var ef int64
 	for i, cosigner := range tx.Signers {
 		if accs[i].Contract.Deployed {
-			res, err := c.InvokeContractVerify(cosigner.Account, smartcontract.Params{}, tx.Signers)
+			res, err := c.InvokeContractVerify(cosigner.Account, []smartcontract.Parameter{}, tx.Signers)
 			if err != nil {
 				return fmt.Errorf("failed to invoke verify: %w", err)
 			}
