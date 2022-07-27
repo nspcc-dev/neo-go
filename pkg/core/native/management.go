@@ -640,7 +640,7 @@ func checkScriptAndMethods(script []byte, methods []manifest.Method) error {
 	offsets := bitfield.New(l)
 	for i := range methods {
 		if methods[i].Offset >= l {
-			return fmt.Errorf("method %s/%d: offset is out of the script range", methods[i].Name, len(methods[i].Parameters))
+			continue
 		}
 		offsets.Set(methods[i].Offset)
 	}
