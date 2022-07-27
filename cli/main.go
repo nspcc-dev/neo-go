@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/nspcc-dev/neo-go/cli/query"
 	"github.com/nspcc-dev/neo-go/cli/server"
@@ -21,7 +23,15 @@ func main() {
 	}
 }
 
+func versionPrinter(c *cli.Context) {
+	_, _ = fmt.Fprintf(c.App.Writer, "NeoGo\nVersion: %s\nGoVersion: %s\n",
+		config.Version,
+		runtime.Version(),
+	)
+}
+
 func newApp() *cli.App {
+	cli.VersionPrinter = versionPrinter
 	ctl := cli.NewApp()
 	ctl.Name = "neo-go"
 	ctl.Version = config.Version
