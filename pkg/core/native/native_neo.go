@@ -759,6 +759,8 @@ func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey
 	}
 	err := putConvertibleToDAO(n.ID, ic.DAO, key, c)
 	if emitEvent {
+		cache := ic.DAO.GetRWCache(n.ID).(*NeoCache)
+		cache.votesChanged = true
 		ic.AddNotification(n.Hash, "CandidateStateChanged", stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(pub.Bytes()),
 			stackitem.NewBool(c.Registered),
