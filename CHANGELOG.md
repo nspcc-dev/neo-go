@@ -2,6 +2,137 @@
 
 This document outlines major changes between releases.
 
+## 0.99.1 "Parametrization" (28 Jul 2022)
+
+We're updating NeoGo to push out a number of significant updates as well as
+make it compatible with 3.3.1 version of C# node. The most prominent changes
+are RPC sessions for iterators returned from invoke* calls, initial bits of
+RPC client refactoring and support for darwin-arm64 and linux-arm64
+platforms. A number of internal changes are less visible from outside, but
+are also important for future evolution of the code base.
+
+Node operators must resynchronize their nodes to get fully compatible state
+(which is confirmed to be compatible with 3.3.1 for current mainnet up to
+block 1932677 and T5 testnet up to block 475938). RPC client users, please
+review the changes carefully and update your code wrt refactorings made as
+well as iterator session support.
+
+Subsequent releases will also change RPC client and associated code, we want
+to make it easier to use as well as extend its functionality (see #2597 for
+details, comments and suggestions are welcome). 0.99.2 is expected to be
+released somewhere in August with 3.4.0 C# node compatibility.
+
+New features:
+ * `getcandidates` RPC method to get full list of registered candidates and
+   their voting status (#2587)
+ * wallet configuration file support to simplify using CLI non-interactively,
+   use `--wallet-config` option instead of `--wallet` if needed (#2559)
+ * session-based JSON-RPC iterator API for both server and client with
+   `traverseiterator` and `terminatesession` calls; notice that the default
+   server behavior (`SessionEnabled: false`) is compatible with NeoGo 0.99.0,
+   iterators are expanded the way they were previously, only when sessions are
+   enabled they're returned by the server to the client (#2555)
+ * `interop` package now provides helper methods for proper `Hash160`,
+   `Hash256` and other type comparisons in smart contracts (#2591)
+ * `smartcontract.Builder` type to assist with entry script creation as well
+   as a set of CreateXXXScript functions for simple cases (#2610)
+
+Behavior changes:
+ * 3.3.1-compatible order of ABI methods for the native NeoToken contract
+   which affects LedgerContract state (#2539)
+ * `getnextvalidators` RPC was reworked to be compatible with C# node, if you
+   rely on Active flag from the old response or full candidate list please use
+   `getcandidates` method (#2587)
+ * `--account` parameter for `contract manifest add-group` CLI command was
+   changed to `--address` (short `-a` is still the same) for better
+   consistency with other commands (#2559)
+ * (*WSClient).GetError won't return an error in case the connection was
+   closed with (*WSClient).Close
+ * `getnepXXbalances` RPCs now return decimals, symbol and token name data
+   along with asset hash (#2581)
+ * Ledger.GetBlock will now return state root hash for chains that use
+   StateRootInHeader extension (#2583)
+ * `request.RawParams` type is gone (but it likely wasn't used anway), if
+   needed use `[]interface{}` directly (#2585)
+ * `RawParams` field of `request.Raw` was renamed to `Params` (#2585)
+ * `vm.State` type moved to a package of its own (`vm/vmstate`) to avoid
+   importing whole VM where only State type is needed (#2586)
+ * `MaxStorageKeyLen` and `MaxStorageKeyLen` definitions moved from
+   `core/storage` to `config/limits` package simplifying their usage (#2586)
+ * `vm.InvocationTree` type moved into `vm/invocations` (#2586)
+ * `storage.Operation` type moved into `storage/dboper` package (#2586)
+ * `rpc/server` package moved to `services/rpcsrv` (#2609)
+ * `rpc/client` package moved to `rpcclient` (#2609)
+ * `network/metrics` package moved to `services/metrics` (#2609)
+ * `rpc/request` and `rpc/response` packages were merged under `neorpc`,
+   `request.Raw` is `neorpc.Request` now, while `response.Raw` is
+   `neorpc.Response` (#2609)
+ * `rpc.Config` type was moved to `config.RPC` (#2609)
+ * `subscriptions.NotificationEvent` type moved to
+   `state.ContainedNotificationEvent` (#2609)
+ * `subscriptions.NotaryRequestEvent` type moved to
+   `result.NotaryRequestEvent` (#2609)
+
+Improvements:
+ * new `make` targets to build NeoGo binaries locally or using Docker
+   environment (#2537, #2541)
+ * more detailed client-side error on JSON-RPC WebSocket connection closure
+   (#2540)
+ * various node's micro-optimizations both for CPU usage and memory
+   allocations (#2543)
+ * new Wallet method that allows to save it in pretty format (#2549)
+ * massive test code refactoring along with some core packages restructuring
+   (#2548)
+ * transaction package fuzz-test (#2553)
+ * simplified client-side Error structure, more predefined errors for
+   comparisons, refactored server side of RPC error handling (#2544)
+ * more effective entry scripts for parameterless function invocations via RPC
+   (#2558)
+ * internal services now can start/stop properly independent of other node
+   functionality (#2566, #2580)
+ * all configurations now use 'localhost' instead of 127.0.0.1 (#2577)
+ * documented JSON behavior for enumerations which deviates from C# node
+   slightly (#2579)
+ * better error messages in the CLI for invocations (#2574)
+ * compiler can inline methods now (#2583)
+ * `interface{}()` conversions are supported by the compiler now (although
+   they don't change values, #2583)
+ * server-side code moved out of common RPC packages completely (#2585, #2586)
+ * metrics and DB configurations moved to config and dbconfig packages (#2586)
+ * calling methods on returned values is now possible in Go smart contracts
+   (#2593)
+ * NNS contract now cleans up old entries in case a domain is registered again
+   after expiration (#2599)
+ * GetMPTData P2P messages (from P2PStateExchangeExtensions) can now be
+   processed even if KeepOnlyLatestState is enabled (#2600)
+ * builds and regular tests for MacOS (#2602, #2608)
+ * internal `blockchainer.Blockchainer` is finally gone, simplifying some
+   dependencies (#2609)
+ * updated CLI `--version` output format to conform with NeoFS tooling style
+   (#2614)
+
+Bugs fixed:
+ * dBFT update: increase the number of nodes that respond to RecoveryRequest
+   (#2546, nspcc-dev/dbft#59)
+ * invalid block height estimation for historic calls (#2556)
+ * Signature parameter to RPC invocations was expected in hex format instead
+   of base64 (#2558)
+ * missing data in RPC server error logs in some cases (#2560)
+ * potential deadlock in consensus node before the dBFT process is started
+   (#2567)
+ * dBFT update: ChangeView messages were not correctly transmitted in
+   RecoveryResponse messages (#2569, nspcc-dev/dbft#60)
+ * dBFT update: ChangeView messages from newer views were not correctly
+   processed by outdated node (#2573, nspcc-dev/dbft#61)
+ * RPC server restarts via SIGHUP could lead to server not starting at all in
+   very rare case (#2582)
+ * inlined code couldn't have multiple `return` statements (#2594)
+ * empty list of transactions is now returned instead of `null` in `getblock`
+   RPC responses when block doesn't contain transactions, the same way C# node
+   does (#2607)
+ * candidate registration didn't invalidate committee cache leading to state
+   differences for T5 testnet (#2615)
+
 ## 0.99.0 "Overextrapolation" (03 Jun 2022)
 
 A big NeoGo upgrade that is made to be compatible with C# node version
