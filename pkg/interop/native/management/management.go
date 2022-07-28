@@ -40,6 +40,12 @@ func GetMinimumDeploymentFee() int {
 	return neogointernal.CallWithToken(Hash, "getMinimumDeploymentFee", int(contract.ReadStates)).(int)
 }
 
+// HasMethod represents `hasMethod` method of Management native contract. It allows to check
+// if the "hash" contract has a method named "method" with parameters number equal to "pcount".
+func HasMethod(hash interop.Hash160, method string, pcount int) bool {
+	return neogointernal.CallWithToken(Hash, "hasMethod", int(contract.ReadStates), hash, method, pcount).(bool)
+}
+
 // SetMinimumDeploymentFee represents `setMinimumDeploymentFee` method of Management native contract.
 func SetMinimumDeploymentFee(value int) {
 	neogointernal.CallWithTokenNoRet(Hash, "setMinimumDeploymentFee", int(contract.States), value)

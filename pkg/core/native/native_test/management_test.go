@@ -213,6 +213,11 @@ func TestManagement_ContractDeploy(t *testing.T) {
 		t.Run("get after deploy", func(t *testing.T) {
 			managementInvoker.Invoke(t, si, "getContract", cs1.Hash.BytesBE())
 		})
+		t.Run("hasMethod after deploy", func(t *testing.T) {
+			managementInvoker.Invoke(t, stackitem.NewBool(true), "hasMethod", cs1.Hash.BytesBE(), "add", 2)
+			managementInvoker.Invoke(t, stackitem.NewBool(false), "hasMethod", cs1.Hash.BytesBE(), "add", 1)
+			managementInvoker.Invoke(t, stackitem.NewBool(false), "hasMethod", cs1.Hash.BytesLE(), "add", 2)
+		})
 		t.Run("get after restore", func(t *testing.T) {
 			w := io.NewBufBinWriter()
 			require.NoError(t, chaindump.Dump(c.Executor.Chain, w.BinWriter, 0, c.Executor.Chain.BlockHeight()+1))
