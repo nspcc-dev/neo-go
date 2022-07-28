@@ -136,11 +136,19 @@ func TestManagement_ContractDeploy(t *testing.T) {
 		badManifest := cs1.Manifest
 		badManifest.ABI.Methods = make([]manifest.Method, len(cs1.Manifest.ABI.Methods))
 		copy(badManifest.ABI.Methods, cs1.Manifest.ABI.Methods)
-		badManifest.ABI.Methods[0].Offset = 100500 // out of bounds
+		badManifest.ABI.Methods[0].Offset = 100500 // out of bounds, but it's OK, this method will not be checked then.
 		manifB, err := json.Marshal(&badManifest)
 		require.NoError(t, err)
 
-		managementInvoker.InvokeFail(t, "method add/2: offset is out of the script range", "deploy", nefBytes, manifB)
+		tx := c.PrepareInvokeNoSign(t, "deploy", nefBytes, manifB)
+		tx.Signers = []transaction.Signer{{}} // Need dummy signer to deploy.
+		b := c.NewUnsignedBlock(t, tx)
+		ic := c.Chain.GetTestVM(trigger.Application, tx, b)
+		t.Cleanup(ic.Finalize)
+
+		ic.VM.LoadWithFlags(tx.Script, callflag.All)
+		err = ic.VM.Run()
+		require.NoError(t, err)
 	})
 	t.Run("bad methods in manifest 2", func(t *testing.T) {
 		var badManifest = cs1.Manifest
@@ -204,11 +212,6 @@ func TestManagement_ContractDeploy(t *testing.T) {
 		})
 		t.Run("get after deploy", func(t *testing.T) {
 			managementInvoker.Invoke(t, si, "getContract", cs1.Hash.BytesBE())
-		})
-		t.Run("hasMethod after deploy", func(t *testing.T) {
-			managementInvoker.Invoke(t, stackitem.NewBool(true), "hasMethod", cs1.Hash.BytesBE(), "add", 2)
-			managementInvoker.Invoke(t, stackitem.NewBool(false), "hasMethod", cs1.Hash.BytesBE(), "add", 1)
-			managementInvoker.Invoke(t, stackitem.NewBool(false), "hasMethod", cs1.Hash.BytesLE(), "add", 2)
 		})
 		t.Run("get after restore", func(t *testing.T) {
 			w := io.NewBufBinWriter()

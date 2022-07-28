@@ -141,13 +141,6 @@ func newManagement() *Management {
 	md = newMethodAndPrice(m.setMinimumDeploymentFee, 1<<15, callflag.States)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("hasMethod", smartcontract.IntegerType,
-		manifest.NewParameter("hash", smartcontract.Hash160Type),
-		manifest.NewParameter("method", smartcontract.StringType),
-		manifest.NewParameter("pcount", smartcontract.IntegerType))
-	md = newMethodAndPrice(m.hasMethod, 1<<15, callflag.ReadStates)
-	m.AddMethod(md, desc)
-
 	hashParam := manifest.NewParameter("Hash", smartcontract.Hash160Type)
 	m.AddEvent(contractDeployNotificationName, hashParam)
 	m.AddEvent(contractUpdateNotificationName, hashParam)
@@ -155,8 +148,10 @@ func newManagement() *Management {
 	return m
 }
 
-func toHash160(si stackitem.Item) util.Uint160 {
-	hashBytes, err := si.TryBytes()
+// getContract is an implementation of public getContract method, it's run under
+// VM protections, so it's OK for it to panic instead of returning errors.
+func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	hashBytes, err := args[0].TryBytes()
 	if err != nil {
 		panic(err)
 	}
@@ -164,13 +159,6 @@ func toHash160(si stackitem.Item) util.Uint160 {
 	if err != nil {
 		panic(err)
 	}
-	return hash
-}
-
-// getContract is an implementation of public getContract method, it's run under
-// VM protections, so it's OK for it to panic instead of returning errors.
-func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	hash := toHash160(args[0])
 	ctr, err := m.GetContract(ic.DAO, hash)
 	if err != nil {
 		if err == storage.ErrKeyNotFound {
@@ -468,20 +456,6 @@ func contractToStack(cs *state.Contract) stackitem.Item {
 	return si
 }
 
-func (m *Management) hasMethod(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	cHash := toHash160(args[0])
-	method, err := stackitem.ToString(args[1])
-	if err != nil {
-		panic(err)
-	}
-	pcount := int(toInt64((args[2])))
-	cs, err := m.GetContract(ic.DAO, cHash)
-	if err != nil {
-		return stackitem.NewBool(false)
-	}
-	return stackitem.NewBool(cs.Manifest.ABI.GetMethod(method, pcount) != nil)
-}
-
 // Metadata implements the Contract interface.
 func (m *Management) Metadata() *interop.ContractMD {
 	return &m.ContractMD
@@ -640,7 +614,7 @@ func checkScriptAndMethods(script []byte, methods []manifest.Method) error {
 	offsets := bitfield.New(l)
 	for i := range methods {
 		if methods[i].Offset >= l {
-			return fmt.Errorf("method %s/%d: offset is out of the script range", methods[i].Name, len(methods[i].Parameters))
+			continue
 		}
 		offsets.Set(methods[i].Offset)
 	}

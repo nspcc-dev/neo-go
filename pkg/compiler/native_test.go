@@ -206,7 +206,6 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"destroy", nil},
 		{"getContract", []string{u160}},
 		{"getMinimumDeploymentFee", nil},
-		{"hasMethod", []string{u160, `"method"`, "0"}},
 		{"setMinimumDeploymentFee", []string{"42"}},
 		{"update", []string{"nil", "nil"}},
 		{"updateWithData", []string{"nil", "nil", "123"}},
