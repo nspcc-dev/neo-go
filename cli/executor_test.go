@@ -151,7 +151,7 @@ func newTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 		TimePerBlock:          serverConfig.TimePerBlock,
 	})
 	require.NoError(t, err)
-	netSrv.AddExtensibleHPService(cons, consensus.Category, cons.OnPayload, cons.OnTransaction)
+	netSrv.AddConsensusService(cons, cons.OnPayload, cons.OnTransaction)
 	go netSrv.Start(make(chan error, 1))
 	errCh := make(chan error, 2)
 	rpcServer := rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, netSrv, nil, logger, errCh)

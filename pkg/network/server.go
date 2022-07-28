@@ -105,7 +105,6 @@ type (
 		serviceLock    sync.RWMutex
 		services       map[string]Service
 		extensHandlers map[string]func(*payload.Extensible) error
-		extensHighPrio string
 		txCallback     func(*transaction.Transaction)
 
 		txInLock sync.Mutex
@@ -301,13 +300,12 @@ func (s *Server) addExtensibleService(svc Service, category string, handler func
 	s.addService(svc)
 }
 
-// AddExtensibleHPService registers a high-priority service that handles an extensible payload of some kind.
-func (s *Server) AddExtensibleHPService(svc Service, category string, handler func(*payload.Extensible) error, txCallback func(*transaction.Transaction)) {
+// AddConsensusService registers consensus service that handles transactions and dBFT extensible payloads.
+func (s *Server) AddConsensusService(svc Service, handler func(*payload.Extensible) error, txCallback func(*transaction.Transaction)) {
 	s.serviceLock.Lock()
 	defer s.serviceLock.Unlock()
 	s.txCallback = txCallback
-	s.extensHighPrio = category
-	s.addExtensibleService(svc, category, handler)
+	s.addExtensibleService(svc, payload.ConsensusCategory, handler)
 }
 
 // DelService drops a service from the list, use it when the service is stopped
@@ -337,13 +335,12 @@ func (s *Server) delExtensibleService(svc Service, category string) {
 	s.delService(svc)
 }
 
-// DelExtensibleHPService unregisters a high-priority service that handles an extensible payload of some kind.
-func (s *Server) DelExtensibleHPService(svc Service, category string) {
+// DelConsensusService unregisters consensus service that handles transactions and dBFT extensible payloads.
+func (s *Server) DelConsensusService(svc Service) {
 	s.serviceLock.Lock()
 	defer s.serviceLock.Unlock()
 	s.txCallback = nil
-	s.extensHighPrio = ""
-	s.delExtensibleService(svc, category)
+	s.delExtensibleService(svc, payload.ConsensusCategory)
 }
 
 // GetNotaryPool allows to retrieve notary pool, if it's configured.
@@ -1004,10 +1001,7 @@ func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
 
 func (s *Server) advertiseExtensible(e *payload.Extensible) {
 	msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, []util.Uint256{e.Hash()}))
-	s.serviceLock.RLock()
-	hp := s.extensHighPrio
-	s.serviceLock.RUnlock()
-	if e.Category == hp {
+	if e.Category == payload.ConsensusCategory {
 		// It's high priority because it directly affects consensus process,
 		// even though it's just an inv.
 		s.broadcastHPMessage(msg)

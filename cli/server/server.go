@@ -423,7 +423,7 @@ func mkConsensus(config config.Wallet, tpb time.Duration, chain *core.Blockchain
 		return nil, fmt.Errorf("can't initialize Consensus module: %w", err)
 	}
 
-	serv.AddExtensibleHPService(srv, consensus.Category, srv.OnPayload, srv.OnTransaction)
+	serv.AddConsensusService(srv, srv.OnPayload, srv.OnTransaction)
 	return srv, nil
 }
 
@@ -606,7 +606,7 @@ Main:
 				}
 			case sigusr2:
 				if dbftSrv != nil {
-					serv.DelExtensibleHPService(dbftSrv, consensus.Category)
+					serv.DelConsensusService(dbftSrv)
 					dbftSrv.Shutdown()
 				}
 				dbftSrv, err = mkConsensus(cfgnew.ApplicationConfiguration.UnlockWallet, serverConfig.TimePerBlock, chain, serv, log)
