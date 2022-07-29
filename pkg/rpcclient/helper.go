@@ -116,7 +116,14 @@ func (c *Client) InvokeAndPackIteratorResults(contract util.Uint160, operation s
 	if len(maxIteratorResultItems) != 0 {
 		max = maxIteratorResultItems[0]
 	}
-	bytes, err := smartcontract.CreateCallAndUnwrapIteratorScript(contract, operation, params, max)
+	values, err := smartcontract.ExpandParameterToEmitable(smartcontract.Parameter{
+		Type:  smartcontract.ArrayType,
+		Value: params,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("expanding params to emitable: %w", err)
+	}
+	bytes, err := smartcontract.CreateCallAndUnwrapIteratorScript(contract, operation, max, values.([]interface{})...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create iterator unwrapper script: %w", err)
 	}
