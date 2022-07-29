@@ -692,3 +692,20 @@ func TestParameterFromValue(t *testing.T) {
 	_, err = NewParameterFromValue([]interface{}{1, 2, make(map[string]int)})
 	require.Error(t, err)
 }
+
+func TestParametersFromValues(t *testing.T) {
+	res, err := NewParametersFromValues(42, "some", []byte{3, 2, 1})
+	require.NoError(t, err)
+	require.Equal(t, []Parameter{{
+		Type:  IntegerType,
+		Value: big.NewInt(42),
+	}, {
+		Type:  StringType,
+		Value: "some",
+	}, {
+		Type:  ByteArrayType,
+		Value: []byte{3, 2, 1},
+	}}, res)
+	_, err = NewParametersFromValues(42, make(map[int]int), []byte{3, 2, 1})
+	require.Error(t, err)
+}

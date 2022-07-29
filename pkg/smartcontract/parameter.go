@@ -333,13 +333,9 @@ func NewParameterFromValue(value interface{}) (Parameter, error) {
 		result.Type = ArrayType
 		result.Value = arr
 	case []interface{}:
-		arr := make([]Parameter, 0, len(v))
-		for i := range v {
-			elem, err := NewParameterFromValue(v[i])
-			if err != nil {
-				return result, err
-			}
-			arr = append(arr, elem)
+		arr, err := NewParametersFromValues(v...)
+		if err != nil {
+			return result, err
 		}
 		result.Type = ArrayType
 		result.Value = arr
@@ -348,6 +344,20 @@ func NewParameterFromValue(value interface{}) (Parameter, error) {
 	}
 
 	return result, nil
+}
+
+// NewParametersFromValues is similar to NewParameterFromValue except that it
+// works with multiple values and returns a simple slice of Parameter.
+func NewParametersFromValues(values ...interface{}) ([]Parameter, error) {
+	res := make([]Parameter, 0, len(values))
+	for i := range values {
+		elem, err := NewParameterFromValue(values[i])
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, elem)
+	}
+	return res, nil
 }
 
 // ExpandParameterToEmitable converts a parameter to a type which can be handled as
