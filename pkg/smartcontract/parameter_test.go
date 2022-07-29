@@ -527,3 +527,168 @@ func TestExpandParameterToEmitable(t *testing.T) {
 		require.Error(t, err)
 	}
 }
+
+func TestParameterFromValue(t *testing.T) {
+	pk1, _ := keys.NewPrivateKey()
+	pk2, _ := keys.NewPrivateKey()
+	items := []struct {
+		value   interface{}
+		expType ParamType
+		expVal  interface{}
+	}{
+		{
+			value:   []byte{1, 2, 3},
+			expType: ByteArrayType,
+			expVal:  []byte{1, 2, 3},
+		},
+		{
+			value:   "hello world",
+			expType: StringType,
+			expVal:  "hello world",
+		},
+		{
+			value:   false,
+			expType: BoolType,
+			expVal:  false,
+		},
+		{
+			value:   true,
+			expType: BoolType,
+			expVal:  true,
+		},
+		{
+			value:   big.NewInt(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   byte(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   int8(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   uint8(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   int16(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   uint16(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   int32(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   uint32(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   100,
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   uint(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   int64(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   uint64(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   util.Uint160{1, 2, 3},
+			expType: Hash160Type,
+			expVal:  util.Uint160{1, 2, 3},
+		},
+		{
+			value:   util.Uint256{3, 2, 1},
+			expType: Hash256Type,
+			expVal:  util.Uint256{3, 2, 1},
+		},
+		{
+			value:   pk1.PublicKey(),
+			expType: PublicKeyType,
+			expVal:  pk1.PublicKey().Bytes(),
+		},
+		{
+			value:   *pk2.PublicKey(),
+			expType: PublicKeyType,
+			expVal:  pk2.PublicKey().Bytes(),
+		},
+		{
+			value:   [][]byte{{1, 2, 3}, {3, 2, 1}},
+			expType: ArrayType,
+			expVal:  []Parameter{{ByteArrayType, []byte{1, 2, 3}}, {ByteArrayType, []byte{3, 2, 1}}},
+		},
+		{
+			value:   []*keys.PublicKey{pk1.PublicKey(), pk2.PublicKey()},
+			expType: ArrayType,
+			expVal: []Parameter{{
+				Type:  PublicKeyType,
+				Value: pk1.PublicKey().Bytes(),
+			}, {
+				Type:  PublicKeyType,
+				Value: pk2.PublicKey().Bytes(),
+			}},
+		},
+		{
+			value:   keys.PublicKeys{pk1.PublicKey(), pk2.PublicKey()},
+			expType: ArrayType,
+			expVal: []Parameter{{
+				Type:  PublicKeyType,
+				Value: pk1.PublicKey().Bytes(),
+			}, {
+				Type:  PublicKeyType,
+				Value: pk2.PublicKey().Bytes(),
+			}},
+		},
+		{
+			value:   []interface{}{-42, "random", []byte{1, 2, 3}},
+			expType: ArrayType,
+			expVal: []Parameter{{
+				Type:  IntegerType,
+				Value: big.NewInt(-42),
+			}, {
+				Type:  StringType,
+				Value: "random",
+			}, {
+				Type:  ByteArrayType,
+				Value: []byte{1, 2, 3},
+			}},
+		},
+	}
+
+	for _, item := range items {
+		t.Run(item.expType.String()+" to stack parameter", func(t *testing.T) {
+			res, err := NewParameterFromValue(item.value)
+			require.NoError(t, err)
+			require.Equal(t, item.expType, res.Type)
+			require.Equal(t, item.expVal, res.Value)
+		})
+	}
+	_, err := NewParameterFromValue(make(map[string]int))
+	require.Error(t, err)
+	_, err = NewParameterFromValue([]interface{}{1, 2, make(map[string]int)})
+	require.Error(t, err)
+}

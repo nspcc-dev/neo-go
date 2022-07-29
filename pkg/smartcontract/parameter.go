@@ -255,6 +255,101 @@ func NewParameterFromString(in string) (*Parameter, error) {
 	return res, nil
 }
 
+// NewParameterFromValue infers Parameter type from the value given and adjusts
+// the value if needed. It does not copy the value if it can avoid doing so. All
+// regular integers, util.*, keys.PublicKey*, string and bool types are supported,
+// slice of byte slices is accepted and converted as well.
+func NewParameterFromValue(value interface{}) (Parameter, error) {
+	var result = Parameter{
+		Value: value,
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		result.Type = ByteArrayType
+	case string:
+		result.Type = StringType
+	case bool:
+		result.Type = BoolType
+	case *big.Int:
+		result.Type = IntegerType
+	case int8:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case byte:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case int16:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case uint16:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case int32:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case uint32:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case int:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case uint:
+		result.Type = IntegerType
+		result.Value = new(big.Int).SetUint64(uint64(v))
+	case int64:
+		result.Type = IntegerType
+		result.Value = big.NewInt(v)
+	case uint64:
+		result.Type = IntegerType
+		result.Value = new(big.Int).SetUint64(v)
+	case util.Uint160:
+		result.Type = Hash160Type
+	case util.Uint256:
+		result.Type = Hash256Type
+	case keys.PublicKey:
+		return NewParameterFromValue(&v)
+	case *keys.PublicKey:
+		result.Type = PublicKeyType
+		result.Value = v.Bytes()
+	case [][]byte:
+		arr := make([]Parameter, 0, len(v))
+		for i := range v {
+			// We know the type exactly, so error is not possible.
+			elem, _ := NewParameterFromValue(v[i])
+			arr = append(arr, elem)
+		}
+		result.Type = ArrayType
+		result.Value = arr
+	case []*keys.PublicKey:
+		return NewParameterFromValue(keys.PublicKeys(v))
+	case keys.PublicKeys:
+		arr := make([]Parameter, 0, len(v))
+		for i := range v {
+			// We know the type exactly, so error is not possible.
+			elem, _ := NewParameterFromValue(v[i])
+			arr = append(arr, elem)
+		}
+		result.Type = ArrayType
+		result.Value = arr
+	case []interface{}:
+		arr := make([]Parameter, 0, len(v))
+		for i := range v {
+			elem, err := NewParameterFromValue(v[i])
+			if err != nil {
+				return result, err
+			}
+			arr = append(arr, elem)
+		}
+		result.Type = ArrayType
+		result.Value = arr
+	default:
+		return result, fmt.Errorf("unsupported parameter %T", value)
+	}
+
+	return result, nil
+}
+
 // ExpandParameterToEmitable converts a parameter to a type which can be handled as
 // an array item by emit.Array. It correlates with the way an RPC server handles
 // FuncParams for invoke* calls inside the request.ExpandArrayIntoScript function.
