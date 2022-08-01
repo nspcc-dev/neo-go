@@ -1280,7 +1280,7 @@ func TestClient_InvokeAndPackIteratorResults(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("default max items constraint", func(t *testing.T) {
-		res, err := c.InvokeAndPackIteratorResults(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
+		res, err := c.InvokeAndPackIteratorResults(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil) //nolint:staticcheck // SA1019: c.InvokeAndPackIteratorResults is deprecated
 		require.NoError(t, err)
 		require.Equal(t, vmstate.Halt.String(), res.State)
 		require.Equal(t, 1, len(res.Stack))
@@ -1296,7 +1296,7 @@ func TestClient_InvokeAndPackIteratorResults(t *testing.T) {
 	})
 	t.Run("custom max items constraint", func(t *testing.T) {
 		max := 123
-		res, err := c.InvokeAndPackIteratorResults(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil, max)
+		res, err := c.InvokeAndPackIteratorResults(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil, max) //nolint:staticcheck // SA1019: c.InvokeAndPackIteratorResults is deprecated
 		require.NoError(t, err)
 		require.Equal(t, vmstate.Halt.String(), res.State)
 		require.Equal(t, 1, len(res.Stack))

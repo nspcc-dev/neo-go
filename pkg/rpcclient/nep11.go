@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -101,12 +102,7 @@ func (c *Client) NEP11TokensOf(tokenHash util.Uint160, owner util.Uint160) (uuid
 // is used to retrieve values from iterator. Instead, unpacking VM script is created and invoked via
 // `invokescript` JSON-RPC call.
 func (c *Client) NEP11UnpackedTokensOf(tokenHash util.Uint160, owner util.Uint160) ([][]byte, error) {
-	result, err := c.InvokeAndPackIteratorResults(tokenHash, "tokensOf", []smartcontract.Parameter{
-		{
-			Type:  smartcontract.Hash160Type,
-			Value: owner,
-		},
-	}, nil)
+	result, err := c.reader.CallAndExpandIterator(tokenHash, "tokensOf", config.DefaultMaxIteratorResultItems, owner)
 	if err != nil {
 		return nil, err
 	}
@@ -194,12 +190,7 @@ func (c *Client) NEP11DOwnerOf(tokenHash util.Uint160, tokenID []byte) (uuid.UUI
 // iterator session is used to retrieve values from iterator. Instead, unpacking VM
 // script is created and invoked via `invokescript` JSON-RPC call.
 func (c *Client) NEP11DUnpackedOwnerOf(tokenHash util.Uint160, tokenID []byte) ([]util.Uint160, error) {
-	result, err := c.InvokeAndPackIteratorResults(tokenHash, "ownerOf", []smartcontract.Parameter{
-		{
-			Type:  smartcontract.ByteArrayType,
-			Value: tokenID,
-		},
-	}, nil)
+	result, err := c.reader.CallAndExpandIterator(tokenHash, "ownerOf", config.DefaultMaxIteratorResultItems, tokenID)
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +252,7 @@ func (c *Client) NEP11Tokens(tokenHash util.Uint160) (uuid.UUID, result.Iterator
 // iterator session is used to retrieve values from iterator. Instead, unpacking
 // VM script is created and invoked via `invokescript` JSON-RPC call.
 func (c *Client) NEP11UnpackedTokens(tokenHash util.Uint160) ([][]byte, error) {
-	result, err := c.InvokeAndPackIteratorResults(tokenHash, "tokens", []smartcontract.Parameter{}, nil)
+	result, err := c.reader.CallAndExpandIterator(tokenHash, "tokens", config.DefaultMaxIteratorResultItems)
 	if err != nil {
 		return nil, err
 	}

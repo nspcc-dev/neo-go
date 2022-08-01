@@ -86,6 +86,13 @@ func TestInvoker(t *testing.T) {
 
 		_, err = inv.Call(util.Uint160{}, "method", make(map[int]int))
 		require.Error(t, err)
+
+		res, err = inv.CallAndExpandIterator(util.Uint160{}, "method", 10, 42)
+		require.NoError(t, err)
+		require.Equal(t, resExp, res)
+
+		_, err = inv.CallAndExpandIterator(util.Uint160{}, "method", 10, make(map[int]int))
+		require.Error(t, err)
 	}
 	t.Run("standard", func(t *testing.T) {
 		testInv(t, New(ri, nil))

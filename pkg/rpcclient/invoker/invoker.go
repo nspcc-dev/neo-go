@@ -1,6 +1,8 @@
 package invoker
 
 import (
+	"fmt"
+
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -123,6 +125,22 @@ func (v *Invoker) Call(contract util.Uint160, operation string, params ...interf
 		return nil, err
 	}
 	return v.client.InvokeFunction(contract, operation, ps, v.signers)
+}
+
+// CallAndExpandIterator creates a script containing a call of the specified method
+// of a contract with given parameters (similar to how Call operates). But then this
+// script contains additional code that expects that the result of the first call is
+// an iterator. This iterator is traversed extracting values from it and adding them
+// into an array until maxItems is reached or iterator has no more elements. The
+// result of the whole script is an array containing up to maxResultItems elements
+// from the iterator returned from the contract's method call. This script is executed
+// using regular JSON-API (according to the way Iterator is set up).
+func (v *Invoker) CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...interface{}) (*result.Invoke, error) {
+	bytes, err := smartcontract.CreateCallAndUnwrapIteratorScript(contract, method, maxItems, params...)
+	if err != nil {
+		return nil, fmt.Errorf("iterator unwrapper script: %w", err)
+	}
+	return v.Run(bytes)
 }
 
 // Verify invokes contract's verify method in the verification context with

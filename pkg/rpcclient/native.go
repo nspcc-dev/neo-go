@@ -7,12 +7,12 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -118,12 +118,7 @@ func (c *Client) NNSGetAllRecords(nnsHash util.Uint160, name string) (uuid.UUID,
 // that no iterator session is used to retrieve values from iterator. Instead, unpacking
 // VM script is created and invoked via `invokescript` JSON-RPC call.
 func (c *Client) NNSUnpackedGetAllRecords(nnsHash util.Uint160, name string) ([]nns.RecordState, error) {
-	result, err := c.InvokeAndPackIteratorResults(nnsHash, "getAllRecords", []smartcontract.Parameter{
-		{
-			Type:  smartcontract.StringType,
-			Value: name,
-		},
-	}, nil)
+	result, err := c.reader.CallAndExpandIterator(nnsHash, "getAllRecords", config.DefaultMaxIteratorResultItems, name)
 	if err != nil {
 		return nil, err
 	}
