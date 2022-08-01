@@ -14,6 +14,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
 )
@@ -34,6 +35,11 @@ type Client struct {
 	ctx      context.Context
 	opts     Options
 	requestF func(*neorpc.Request) (*neorpc.Response, error)
+
+	// reader is an Invoker that has no signers and uses current state,
+	// it's used to implement various getters. It'll be removed eventually,
+	// but for now it keeps Client's API compatibility.
+	reader *invoker.Invoker
 
 	cacheLock sync.RWMutex
 	// cache stores RPC node related information the client is bound to.
@@ -128,6 +134,7 @@ func initClient(ctx context.Context, cl *Client, endpoint string, opts Options) 
 	cl.getNextRequestID = (cl).getRequestID
 	cl.opts = opts
 	cl.requestF = cl.makeHTTPRequest
+	cl.reader = invoker.New(cl, nil)
 	return nil
 }
 

@@ -5,7 +5,6 @@ package rpcclient
 import (
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -55,16 +54,7 @@ func (c *Client) GetDesignatedByRole(role noderoles.Role, index uint32) (keys.Pu
 	if err != nil {
 		return nil, fmt.Errorf("failed to get native RoleManagement hash: %w", err)
 	}
-	result, err := c.InvokeFunction(rmHash, "getDesignatedByRole", []smartcontract.Parameter{
-		{
-			Type:  smartcontract.IntegerType,
-			Value: big.NewInt(int64(role)),
-		},
-		{
-			Type:  smartcontract.IntegerType,
-			Value: big.NewInt(int64(index)),
-		},
-	}, nil)
+	result, err := c.reader.Call(rmHash, "getDesignatedByRole", int64(role), index)
 	if err != nil {
 		return nil, err
 	}
@@ -80,16 +70,7 @@ func (c *Client) NNSResolve(nnsHash util.Uint160, name string, typ nns.RecordTyp
 	if typ == nns.CNAME {
 		return "", errors.New("can't resolve CNAME record type")
 	}
-	result, err := c.InvokeFunction(nnsHash, "resolve", []smartcontract.Parameter{
-		{
-			Type:  smartcontract.StringType,
-			Value: name,
-		},
-		{
-			Type:  smartcontract.IntegerType,
-			Value: big.NewInt(int64(typ)),
-		},
-	}, nil)
+	result, err := c.reader.Call(nnsHash, "resolve", name, int64(typ))
 	if err != nil {
 		return "", err
 	}
@@ -102,12 +83,7 @@ func (c *Client) NNSResolve(nnsHash util.Uint160, name string, typ nns.RecordTyp
 
 // NNSIsAvailable invokes `isAvailable` method on a NeoNameService contract with the specified hash.
 func (c *Client) NNSIsAvailable(nnsHash util.Uint160, name string) (bool, error) {
-	result, err := c.InvokeFunction(nnsHash, "isAvailable", []smartcontract.Parameter{
-		{
-			Type:  smartcontract.StringType,
-			Value: name,
-		},
-	}, nil)
+	result, err := c.reader.Call(nnsHash, "isAvailable", name)
 	if err != nil {
 		return false, err
 	}
@@ -124,12 +100,7 @@ func (c *Client) NNSIsAvailable(nnsHash util.Uint160, name string) (bool, error)
 // TerminateSession to terminate opened iterator session. See TraverseIterator and
 // TerminateSession documentation for more details.
 func (c *Client) NNSGetAllRecords(nnsHash util.Uint160, name string) (uuid.UUID, result.Iterator, error) {
-	res, err := c.InvokeFunction(nnsHash, "getAllRecords", []smartcontract.Parameter{
-		{
-			Type:  smartcontract.StringType,
-			Value: name,
-		},
-	}, nil)
+	res, err := c.reader.Call(nnsHash, "getAllRecords", name)
 	if err != nil {
 		return uuid.UUID{}, result.Iterator{}, err
 	}
