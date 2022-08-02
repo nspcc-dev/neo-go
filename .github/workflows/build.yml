@@ -86,7 +86,6 @@ jobs:
           fetch-depth: 0
 
       - name: Set up QEMU
-        if: runner.os != 'Windows'
         uses: docker/setup-qemu-action@v2
 
       - name: Set up Docker Buildx
