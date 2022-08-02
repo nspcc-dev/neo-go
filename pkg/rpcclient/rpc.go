@@ -1006,6 +1006,9 @@ func (c *Client) ValidateAddress(address string) error {
 // current blockchain height + number of validators. Number of validators
 // is the length of blockchain validators list got from GetNextBlockValidators()
 // method. Validators count is being cached and updated every 100 blocks.
+//
+// Deprecated: please use (*Actor).CalculateValidUntilBlock. This method will be
+// removed in future versions.
 func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 	var (
 		result          uint32

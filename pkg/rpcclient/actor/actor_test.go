@@ -1,0 +1,254 @@
+package actor
+
+import (
+	"errors"
+	"testing"
+
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
+	"github.com/stretchr/testify/require"
+)
+
+type RPCClient struct {
+	err     error
+	invRes  *result.Invoke
+	netFee  int64
+	bCount  uint32
+	version *result.Version
+	hash    util.Uint256
+}
+
+func (r *RPCClient) InvokeContractVerify(contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
+	return r.invRes, r.err
+}
+func (r *RPCClient) InvokeFunction(contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
+	return r.invRes, r.err
+}
+func (r *RPCClient) InvokeScript(script []byte, signers []transaction.Signer) (*result.Invoke, error) {
+	return r.invRes, r.err
+}
+func (r *RPCClient) CalculateNetworkFee(tx *transaction.Transaction) (int64, error) {
+	return r.netFee, r.err
+}
+func (r *RPCClient) GetBlockCount() (uint32, error) {
+	return r.bCount, r.err
+}
+func (r *RPCClient) GetVersion() (*result.Version, error) {
+	verCopy := *r.version
+	return &verCopy, r.err
+}
+func (r *RPCClient) SendRawTransaction(tx *transaction.Transaction) (util.Uint256, error) {
+	return r.hash, r.err
+}
+
+func testRPCAndAccount(t *testing.T) (*RPCClient, *wallet.Account) {
+	client := &RPCClient{
+		version: &result.Version{
+			Protocol: result.Protocol{
+				Network:              netmode.UnitTestNet,
+				MillisecondsPerBlock: 1000,
+				ValidatorsCount:      7,
+			},
+		},
+	}
+	acc, err := wallet.NewAccount()
+	require.NoError(t, err)
+	return client, acc
+}
+
+func TestNew(t *testing.T) {
+	client, acc := testRPCAndAccount(t)
+
+	// No signers.
+	_, err := New(client, nil)
+	require.Error(t, err)
+
+	_, err = New(client, []SignerAccount{})
+	require.Error(t, err)
+
+	// Good simple.
+	a, err := NewSimple(client, acc)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(a.signers))
+	require.Equal(t, 1, len(a.txSigners))
+	require.Equal(t, transaction.CalledByEntry, a.signers[0].Signer.Scopes)
+	require.Equal(t, transaction.CalledByEntry, a.txSigners[0].Scopes)
+
+	// Contractless account.
+	badAcc, err := wallet.NewAccount()
+	require.NoError(t, err)
+	badAccHash := badAcc.Contract.ScriptHash()
+	badAcc.Contract = nil
+
+	signers := []SignerAccount{{
+		Signer: transaction.Signer{
+			Account: acc.Contract.ScriptHash(),
+			Scopes:  transaction.None,
+		},
+		Account: acc,
+	}, {
+		Signer: transaction.Signer{
+			Account: badAccHash,
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: badAcc,
+	}}
+
+	_, err = New(client, signers)
+	require.Error(t, err)
+
+	// GetVersion returning error.
+	client.err = errors.New("bad")
+	_, err = NewSimple(client, acc)
+	require.Error(t, err)
+	client.err = nil
+
+	// Account mismatch.
+	acc2, err := wallet.NewAccount()
+	require.NoError(t, err)
+	signers = []SignerAccount{{
+		Signer: transaction.Signer{
+			Account: acc2.Contract.ScriptHash(),
+			Scopes:  transaction.None,
+		},
+		Account: acc,
+	}, {
+		Signer: transaction.Signer{
+			Account: acc2.Contract.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: acc2,
+	}}
+	_, err = New(client, signers)
+	require.Error(t, err)
+
+	// Good multiaccount.
+	signers[0].Signer.Account = acc.Contract.ScriptHash()
+	a, err = New(client, signers)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(a.signers))
+	require.Equal(t, 2, len(a.txSigners))
+}
+
+func TestSimpleWrappers(t *testing.T) {
+	client, acc := testRPCAndAccount(t)
+	origVer := *client.version
+
+	a, err := NewSimple(client, acc)
+	require.NoError(t, err)
+
+	client.netFee = 42
+	nf, err := a.CalculateNetworkFee(new(transaction.Transaction))
+	require.NoError(t, err)
+	require.Equal(t, int64(42), nf)
+
+	client.bCount = 100500
+	bc, err := a.GetBlockCount()
+	require.NoError(t, err)
+	require.Equal(t, uint32(100500), bc)
+
+	require.Equal(t, netmode.UnitTestNet, a.GetNetwork())
+	client.version.Protocol.Network = netmode.TestNet
+	require.Equal(t, netmode.UnitTestNet, a.GetNetwork())
+	require.Equal(t, origVer, a.GetVersion())
+
+	a, err = NewSimple(client, acc)
+	require.NoError(t, err)
+	require.Equal(t, netmode.TestNet, a.GetNetwork())
+	require.Equal(t, *client.version, a.GetVersion())
+
+	client.hash = util.Uint256{1, 2, 3}
+	h, vub, err := a.Send(&transaction.Transaction{ValidUntilBlock: 123})
+	require.NoError(t, err)
+	require.Equal(t, client.hash, h)
+	require.Equal(t, uint32(123), vub)
+}
+
+func TestSign(t *testing.T) {
+	client, acc := testRPCAndAccount(t)
+	acc2, err := wallet.NewAccount()
+	require.NoError(t, err)
+
+	a, err := New(client, []SignerAccount{{
+		Signer: transaction.Signer{
+			Account: acc.Contract.ScriptHash(),
+			Scopes:  transaction.None,
+		},
+		Account: acc,
+	}, {
+		Signer: transaction.Signer{
+			Account: acc2.Contract.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: &wallet.Account{ // Looks like acc2, but has no private key.
+			Address:      acc2.Address,
+			EncryptedWIF: acc2.EncryptedWIF,
+			Contract:     acc2.Contract,
+		},
+	}})
+	require.NoError(t, err)
+
+	script := []byte{1, 2, 3}
+	client.hash = util.Uint256{2, 5, 6}
+	client.invRes = &result.Invoke{State: "HALT", GasConsumed: 3, Script: script}
+
+	tx, err := a.MakeUnsignedRun(script, nil)
+	require.NoError(t, err)
+	require.Error(t, a.Sign(tx))
+	_, _, err = a.SignAndSend(tx)
+	require.Error(t, err)
+}
+
+func TestSenders(t *testing.T) {
+	client, acc := testRPCAndAccount(t)
+	a, err := NewSimple(client, acc)
+	require.NoError(t, err)
+	script := []byte{1, 2, 3}
+
+	// Bad.
+	client.invRes = &result.Invoke{State: "FAULT", GasConsumed: 3, Script: script}
+	_, _, err = a.SendCall(util.Uint160{1}, "method", 42)
+	require.Error(t, err)
+	_, _, err = a.SendTunedCall(util.Uint160{1}, "method", nil, nil, 42)
+	require.Error(t, err)
+	_, _, err = a.SendRun(script)
+	require.Error(t, err)
+	_, _, err = a.SendTunedRun(script, nil, nil)
+	require.Error(t, err)
+	_, _, err = a.SendUncheckedRun(script, 1, nil, func(t *transaction.Transaction) error {
+		return errors.New("bad")
+	})
+	require.Error(t, err)
+
+	// Good.
+	client.hash = util.Uint256{2, 5, 6}
+	client.invRes = &result.Invoke{State: "HALT", GasConsumed: 3, Script: script}
+	h, vub, err := a.SendCall(util.Uint160{1}, "method", 42)
+	require.NoError(t, err)
+	require.Equal(t, client.hash, h)
+	require.Equal(t, uint32(8), vub)
+
+	h, vub, err = a.SendTunedCall(util.Uint160{1}, "method", nil, nil, 42)
+	require.NoError(t, err)
+	require.Equal(t, client.hash, h)
+	require.Equal(t, uint32(8), vub)
+
+	h, vub, err = a.SendRun(script)
+	require.NoError(t, err)
+	require.Equal(t, client.hash, h)
+	require.Equal(t, uint32(8), vub)
+
+	h, vub, err = a.SendTunedRun(script, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, client.hash, h)
+	require.Equal(t, uint32(8), vub)
+
+	h, vub, err = a.SendUncheckedRun(script, 1, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, client.hash, h)
+	require.Equal(t, uint32(8), vub)
+}
