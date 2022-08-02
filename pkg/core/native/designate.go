@@ -238,12 +238,12 @@ func (s *Designate) updateCachedRoleData(cache *DesignationCache, d *dao.Simple,
 func (s *Designate) notifyRoleChanged(v *roleData, r noderoles.Role) {
 	switch r {
 	case noderoles.Oracle:
-		if orc, _ := s.OracleService.Load().(OracleService); orc != nil {
-			orc.UpdateOracleNodes(v.nodes.Copy())
+		if orc, _ := s.OracleService.Load().(*OracleService); orc != nil && *orc != nil {
+			(*orc).UpdateOracleNodes(v.nodes.Copy())
 		}
 	case noderoles.P2PNotary:
-		if ntr, _ := s.NotaryService.Load().(NotaryService); ntr != nil {
-			ntr.UpdateNotaryNodes(v.nodes.Copy())
+		if ntr, _ := s.NotaryService.Load().(*NotaryService); ntr != nil && *ntr != nil {
+			(*ntr).UpdateNotaryNodes(v.nodes.Copy())
 		}
 	case noderoles.StateValidator:
 		if s.StateRootService != nil {

@@ -43,7 +43,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
-	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv/params"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -108,6 +107,11 @@ type (
 		mempool.Feer // fee interface
 	}
 
+	// OracleHandler is the interface oracle service needs to provide for the Server.
+	OracleHandler interface {
+		AddResponse(pub *keys.PublicKey, reqID uint64, txSig []byte)
+	}
+
 	// Server represents the JSON-RPC 2.0 server.
 	Server struct {
 		*http.Server
@@ -118,7 +122,7 @@ type (
 		network          netmode.Magic
 		stateRootEnabled bool
 		coreServer       *network.Server
-		oracle           *oracle.Oracle
+		oracle           *atomic.Value
 		log              *zap.Logger
 		https            *http.Server
 		shutdown         chan struct{}
@@ -248,7 +252,7 @@ var upgrader = websocket.Upgrader{}
 
 // New creates a new Server struct.
 func New(chain Ledger, conf config.RPC, coreServer *network.Server,
-	orc *oracle.Oracle, log *zap.Logger, errChan chan error) Server {
+	orc OracleHandler, log *zap.Logger, errChan chan error) Server {
 	httpServer := &http.Server{
 		Addr: conf.Address + ":" + strconv.FormatUint(uint64(conf.Port), 10),
 	}
@@ -260,9 +264,6 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		}
 	}
 
-	if orc != nil {
-		orc.SetBroadcaster(broadcaster.New(orc.MainCfg, log))
-	}
 	protoCfg := chain.GetConfig()
 	if conf.SessionEnabled {
 		if conf.SessionExpirationTime <= 0 {
@@ -274,6 +275,10 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 			log.Info("SessionPoolSize is not set or wrong, setting default value", zap.Int("SessionPoolSize", defaultSessionPoolSize))
 		}
 	}
+	var oracleWrapped = new(atomic.Value)
+	if orc != nil {
+		oracleWrapped.Store(&orc)
+	}
 	return Server{
 		Server:           httpServer,
 		chain:            chain,
@@ -283,7 +288,7 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		stateRootEnabled: protoCfg.StateRootInHeader,
 		coreServer:       coreServer,
 		log:              log,
-		oracle:           orc,
+		oracle:           oracleWrapped,
 		https:            tlsServer,
 		shutdown:         make(chan struct{}),
 		started:          atomic.NewBool(false),
@@ -397,6 +402,11 @@ func (s *Server) Shutdown() {
 
 	// Wait for handleSubEvents to finish.
 	<-s.executionCh
+}
+
+// SetOracleHandler allows to update oracle handler used by the Server.
+func (s *Server) SetOracleHandler(orc OracleHandler) {
+	s.oracle.Store(&orc)
 }
 
 func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Request) {
@@ -2327,7 +2337,8 @@ func getRelayResult(err error, hash util.Uint256) (interface{}, *neorpc.Error) {
 }
 
 func (s *Server) submitOracleResponse(ps params.Params) (interface{}, *neorpc.Error) {
-	if s.oracle == nil {
+	oracle := s.oracle.Load().(*OracleHandler)
+	if oracle == nil || *oracle == nil {
 		return nil, neorpc.NewRPCError("Oracle is not enabled", "")
 	}
 	var pub *keys.PublicKey
@@ -2354,7 +2365,7 @@ func (s *Server) submitOracleResponse(ps params.Params) (interface{}, *neorpc.Er
 	if !pub.Verify(msgSig, hash.Sha256(data).BytesBE()) {
 		return nil, neorpc.NewRPCError("Invalid request signature", "")
 	}
-	s.oracle.AddResponse(pub, uint64(reqID), txSig)
+	(*oracle).AddResponse(pub, uint64(reqID), txSig)
 	return json.RawMessage([]byte("{}")), nil
 }
 

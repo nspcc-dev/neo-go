@@ -11,6 +11,10 @@ import (
 
 const maxExtensibleCategorySize = 32
 
+// ConsensusCategory is a message category for consensus-related extensible
+// payloads.
+const ConsensusCategory = "dBFT"
+
 // Extensible represents a payload containing arbitrary data.
 type Extensible struct {
 	// Category is the payload type.

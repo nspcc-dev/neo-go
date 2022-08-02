@@ -101,10 +101,11 @@ type (
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
 		notaryFeer        NotaryFeer
-		services          map[string]Service
-		extensHandlers    map[string]func(*payload.Extensible) error
-		extensHighPrio    string
-		txCallback        func(*transaction.Transaction)
+
+		serviceLock    sync.RWMutex
+		services       map[string]Service
+		extensHandlers map[string]func(*payload.Extensible) error
+		txCallback     func(*transaction.Transaction)
 
 		txInLock sync.Mutex
 		txInMap  map[util.Uint256]struct{}
@@ -263,9 +264,11 @@ func (s *Server) Shutdown() {
 	}
 	s.bQueue.discard()
 	s.bSyncQueue.discard()
+	s.serviceLock.RLock()
 	for _, svc := range s.services {
 		svc.Shutdown()
 	}
+	s.serviceLock.RUnlock()
 	if s.chain.P2PSigExtensionsEnabled() {
 		s.notaryRequestPool.StopSubscriptions()
 	}
@@ -274,20 +277,70 @@ func (s *Server) Shutdown() {
 
 // AddService allows to add a service to be started/stopped by Server.
 func (s *Server) AddService(svc Service) {
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
+	s.addService(svc)
+}
+
+// addService is an unlocked version of AddService.
+func (s *Server) addService(svc Service) {
 	s.services[svc.Name()] = svc
 }
 
 // AddExtensibleService register a service that handles an extensible payload of some kind.
 func (s *Server) AddExtensibleService(svc Service, category string, handler func(*payload.Extensible) error) {
-	s.extensHandlers[category] = handler
-	s.AddService(svc)
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
+	s.addExtensibleService(svc, category, handler)
 }
 
-// AddExtensibleHPService registers a high-priority service that handles an extensible payload of some kind.
-func (s *Server) AddExtensibleHPService(svc Service, category string, handler func(*payload.Extensible) error, txCallback func(*transaction.Transaction)) {
+// addExtensibleService is an unlocked version of AddExtensibleService.
+func (s *Server) addExtensibleService(svc Service, category string, handler func(*payload.Extensible) error) {
+	s.extensHandlers[category] = handler
+	s.addService(svc)
+}
+
+// AddConsensusService registers consensus service that handles transactions and dBFT extensible payloads.
+func (s *Server) AddConsensusService(svc Service, handler func(*payload.Extensible) error, txCallback func(*transaction.Transaction)) {
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
 	s.txCallback = txCallback
-	s.extensHighPrio = category
-	s.AddExtensibleService(svc, category, handler)
+	s.addExtensibleService(svc, payload.ConsensusCategory, handler)
+}
+
+// DelService drops a service from the list, use it when the service is stopped
+// outside of the Server.
+func (s *Server) DelService(svc Service) {
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
+	s.delService(svc)
+}
+
+// delService is an unlocked version of DelService.
+func (s *Server) delService(svc Service) {
+	delete(s.services, svc.Name())
+}
+
+// DelExtensibleService drops a service that handler extensible payloads from the
+// list, use it when the service is stopped outside of the Server.
+func (s *Server) DelExtensibleService(svc Service, category string) {
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
+	s.delExtensibleService(svc, category)
+}
+
+// delExtensibleService is an unlocked version of DelExtensibleService.
+func (s *Server) delExtensibleService(svc Service, category string) {
+	delete(s.extensHandlers, category)
+	s.delService(svc)
+}
+
+// DelConsensusService unregisters consensus service that handles transactions and dBFT extensible payloads.
+func (s *Server) DelConsensusService(svc Service) {
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
+	s.txCallback = nil
+	s.delExtensibleService(svc, payload.ConsensusCategory)
 }
 
 // GetNotaryPool allows to retrieve notary pool, if it's configured.
@@ -428,9 +481,11 @@ func (s *Server) tryStartServices() {
 		if s.chain.P2PSigExtensionsEnabled() {
 			s.notaryRequestPool.RunSubscriptions() // WSClient is also a subscriber.
 		}
+		s.serviceLock.RLock()
 		for _, svc := range s.services {
 			svc.Start()
 		}
+		s.serviceLock.RUnlock()
 	}
 }
 
@@ -931,7 +986,9 @@ func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
 	if !ok { // payload is already in cache
 		return nil
 	}
+	s.serviceLock.RLock()
 	handler := s.extensHandlers[e.Category]
+	s.serviceLock.RUnlock()
 	if handler != nil {
 		err = handler(e)
 		if err != nil {
@@ -944,7 +1001,7 @@ func (s *Server) handleExtensibleCmd(e *payload.Extensible) error {
 
 func (s *Server) advertiseExtensible(e *payload.Extensible) {
 	msg := NewMessage(CMDInv, payload.NewInventory(payload.ExtensibleType, []util.Uint256{e.Hash()}))
-	if e.Category == s.extensHighPrio {
+	if e.Category == payload.ConsensusCategory {
 		// It's high priority because it directly affects consensus process,
 		// even though it's just an inv.
 		s.broadcastHPMessage(msg)
@@ -966,8 +1023,11 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	}
 	s.txInMap[tx.Hash()] = struct{}{}
 	s.txInLock.Unlock()
-	if s.txCallback != nil {
-		s.txCallback(tx)
+	s.serviceLock.RLock()
+	txCallback := s.txCallback
+	s.serviceLock.RUnlock()
+	if txCallback != nil {
+		txCallback(tx)
 	}
 	if s.verifyAndPoolTX(tx) == nil {
 		s.broadcastTX(tx, nil)

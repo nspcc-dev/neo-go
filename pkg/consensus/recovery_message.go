@@ -297,7 +297,7 @@ func getVerificationScript(i uint8, validators []crypto.PublicKey) []byte {
 func fromPayload(t messageType, recovery *Payload, p io.Serializable) *Payload {
 	return &Payload{
 		Extensible: npayload.Extensible{
-			Category:      Category,
+			Category:      npayload.ConsensusCategory,
 			ValidBlockEnd: recovery.BlockIndex,
 		},
 		message: message{

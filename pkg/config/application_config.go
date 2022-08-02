@@ -29,3 +29,25 @@ type ApplicationConfiguration struct {
 	// ExtensiblePoolSize is the maximum amount of the extensible payloads from a single sender.
 	ExtensiblePoolSize int `yaml:"ExtensiblePoolSize"`
 }
+
+// EqualsButServices returns true when the o is the same as a except for services
+// (Oracle, P2PNotary, Pprof, Prometheus, RPC, StateRoot and UnlockWallet sections).
+func (a *ApplicationConfiguration) EqualsButServices(o *ApplicationConfiguration) bool {
+	if a.Address != o.Address ||
+		a.AnnouncedNodePort != o.AnnouncedNodePort ||
+		a.AttemptConnPeers != o.AttemptConnPeers ||
+		a.DBConfiguration != o.DBConfiguration ||
+		a.DialTimeout != o.DialTimeout ||
+		a.ExtensiblePoolSize != o.ExtensiblePoolSize ||
+		a.LogPath != o.LogPath ||
+		a.MaxPeers != o.MaxPeers ||
+		a.MinPeers != o.MinPeers ||
+		a.NodePort != o.NodePort ||
+		a.PingInterval != o.PingInterval ||
+		a.PingTimeout != o.PingTimeout ||
+		a.ProtoTickInterval != o.ProtoTickInterval ||
+		a.Relay != o.Relay {
+		return false
+	}
+	return true
+}

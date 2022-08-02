@@ -40,9 +40,6 @@ const defaultTimePerBlock = 15 * time.Second
 // Number of nanoseconds in millisecond.
 const nsInMs = 1000000
 
-// Category is a message category for extensible payloads.
-const Category = "dBFT"
-
 // Ledger is the interface to Blockchain sufficient for Service.
 type Ledger interface {
 	AddBlock(block *coreb.Block) error
@@ -218,7 +215,7 @@ var (
 func NewPayload(m netmode.Magic, stateRootEnabled bool) *Payload {
 	return &Payload{
 		Extensible: npayload.Extensible{
-			Category: Category,
+			Category: npayload.ConsensusCategory,
 		},
 		message: message{
 			stateRootEnabled: stateRootEnabled,
@@ -276,6 +273,7 @@ func (s *service) Start() {
 // Shutdown implements the Service interface.
 func (s *service) Shutdown() {
 	if s.started.CAS(true, false) {
+		s.log.Info("stopping consensus service")
 		close(s.quit)
 		<-s.finished
 	}

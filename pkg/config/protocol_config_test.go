@@ -1,6 +1,7 @@
 package config
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -142,4 +143,77 @@ func TestGetCommitteeAndCNs(t *testing.T) {
 	require.Equal(t, 1, p.GetNumOfCNs(199))
 	require.Equal(t, 4, p.GetNumOfCNs(200))
 	require.Equal(t, 4, p.GetNumOfCNs(201))
+}
+
+func TestProtocolConfigurationEquals(t *testing.T) {
+	p := &ProtocolConfiguration{}
+	o := &ProtocolConfiguration{}
+	require.True(t, p.Equals(o))
+	require.True(t, o.Equals(p))
+	require.True(t, p.Equals(p))
+
+	cfg1, err := LoadFile(filepath.Join("..", "..", "config", "protocol.mainnet.yml"))
+	require.NoError(t, err)
+	cfg2, err := LoadFile(filepath.Join("..", "..", "config", "protocol.testnet.yml"))
+	require.NoError(t, err)
+	require.False(t, cfg1.ProtocolConfiguration.Equals(&cfg2.ProtocolConfiguration))
+
+	cfg2, err = LoadFile(filepath.Join("..", "..", "config", "protocol.mainnet.yml"))
+	require.NoError(t, err)
+	p = &cfg1.ProtocolConfiguration
+	o = &cfg2.ProtocolConfiguration
+	require.True(t, p.Equals(o))
+
+	o.CommitteeHistory = map[uint32]int{111: 7}
+	p.CommitteeHistory = map[uint32]int{111: 7}
+	require.True(t, p.Equals(o))
+	p.CommitteeHistory[111] = 8
+	require.False(t, p.Equals(o))
+
+	o.CommitteeHistory = nil
+	p.CommitteeHistory = nil
+
+	p.Hardforks = map[string]uint32{"Fork": 42}
+	o.Hardforks = map[string]uint32{"Fork": 42}
+	require.True(t, p.Equals(o))
+	p.Hardforks = map[string]uint32{"Fork2": 42}
+	require.False(t, p.Equals(o))
+
+	p.Hardforks = nil
+	o.Hardforks = nil
+
+	p.NativeUpdateHistories = map[string][]uint32{"Contract": {1, 2, 3}}
+	o.NativeUpdateHistories = map[string][]uint32{"Contract": {1, 2, 3}}
+	require.True(t, p.Equals(o))
+	p.NativeUpdateHistories["Contract"] = []uint32{1, 2, 3, 4}
+	require.False(t, p.Equals(o))
+	p.NativeUpdateHistories["Contract"] = []uint32{1, 2, 4}
+	require.False(t, p.Equals(o))
+
+	p.NativeUpdateHistories = nil
+	o.NativeUpdateHistories = nil
+
+	p.SeedList = []string{"url1", "url2"}
+	o.SeedList = []string{"url1", "url2"}
+	require.True(t, p.Equals(o))
+	p.SeedList = []string{"url11", "url22"}
+	require.False(t, p.Equals(o))
+
+	p.SeedList = nil
+	o.SeedList = nil
+
+	p.StandbyCommittee = []string{"key1", "key2"}
+	o.StandbyCommittee = []string{"key1", "key2"}
+	require.True(t, p.Equals(o))
+	p.StandbyCommittee = []string{"key2", "key1"}
+	require.False(t, p.Equals(o))
+
+	p.StandbyCommittee = nil
+	o.StandbyCommittee = nil
+
+	o.ValidatorsHistory = map[uint32]int{111: 0}
+	p.ValidatorsHistory = map[uint32]int{111: 0}
+	require.True(t, p.Equals(o))
+	p.ValidatorsHistory = map[uint32]int{112: 0}
+	require.False(t, p.Equals(o))
 }

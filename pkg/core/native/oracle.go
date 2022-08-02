@@ -113,7 +113,10 @@ func copyOracleCache(src, dst *OracleCache) {
 }
 
 func newOracle() *Oracle {
-	o := &Oracle{ContractMD: *interop.NewContractMD(nativenames.Oracle, oracleContractID)}
+	o := &Oracle{
+		ContractMD:  *interop.NewContractMD(nativenames.Oracle, oracleContractID),
+		newRequests: make(map[uint64]*state.OracleRequest),
+	}
 	defer o.UpdateHash()
 
 	o.oracleScript = CreateOracleResponseScript(o.Hash)
@@ -161,11 +164,7 @@ func (o *Oracle) GetOracleResponseScript() []byte {
 
 // OnPersist implements the Contract interface.
 func (o *Oracle) OnPersist(ic *interop.Context) error {
-	var err error
-	if o.newRequests == nil {
-		o.newRequests, err = o.getRequests(ic.DAO)
-	}
-	return err
+	return nil
 }
 
 // PostPersist represents `postPersist` method.
@@ -177,7 +176,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 	single := big.NewInt(p)
 	var removedIDs []uint64
 
-	orc, _ := o.Module.Load().(OracleService)
+	orc, _ := o.Module.Load().(*OracleService)
 	for _, tx := range ic.Block.Transactions {
 		resp := getResponse(tx)
 		if resp == nil {
@@ -189,7 +188,7 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 			continue
 		}
 		ic.DAO.DeleteStorageItem(o.ID, reqKey)
-		if orc != nil {
+		if orc != nil && *orc != nil {
 			removedIDs = append(removedIDs, resp.ID)
 		}
 
@@ -229,8 +228,8 @@ func (o *Oracle) PostPersist(ic *interop.Context) error {
 		o.GAS.mint(ic, nodes[i].GetScriptHash(), &reward[i], false)
 	}
 
-	if len(removedIDs) != 0 && orc != nil {
-		orc.RemoveRequests(removedIDs)
+	if len(removedIDs) != 0 {
+		(*orc).RemoveRequests(removedIDs)
 	}
 	return o.updateCache(ic.DAO)
 }
@@ -415,7 +414,10 @@ func (o *Oracle) PutRequestInternal(id uint64, req *state.OracleRequest, d *dao.
 	if err := putConvertibleToDAO(o.ID, d, reqKey, req); err != nil {
 		return err
 	}
-	o.newRequests[id] = req
+	orc, _ := o.Module.Load().(*OracleService)
+	if orc != nil && *orc != nil {
+		o.newRequests[id] = req
+	}
 
 	// Add request ID to the id list.
 	lst := new(IDList)
@@ -493,8 +495,8 @@ func (o *Oracle) getOriginalTxID(d *dao.Simple, tx *transaction.Transaction) uti
 	return tx.Hash()
 }
 
-// getRequests returns all requests which have not been finished yet.
-func (o *Oracle) getRequests(d *dao.Simple) (map[uint64]*state.OracleRequest, error) {
+// GetRequests returns all requests which have not been finished yet.
+func (o *Oracle) GetRequests(d *dao.Simple) (map[uint64]*state.OracleRequest, error) {
 	var reqs = make(map[uint64]*state.OracleRequest)
 	var err error
 	d.Seek(o.ID, storage.SeekRange{Prefix: prefixRequest}, func(k, v []byte) bool {
@@ -534,8 +536,8 @@ func (o *Oracle) getConvertibleFromDAO(d *dao.Simple, key []byte, item stackitem
 
 // updateCache updates cached Oracle values if they've been changed.
 func (o *Oracle) updateCache(d *dao.Simple) error {
-	orc, _ := o.Module.Load().(OracleService)
-	if orc == nil {
+	orc, _ := o.Module.Load().(*OracleService)
+	if orc == nil || *orc == nil {
 		return nil
 	}
 
@@ -547,7 +549,7 @@ func (o *Oracle) updateCache(d *dao.Simple) error {
 			delete(reqs, id)
 		}
 	}
-	orc.AddRequests(reqs)
+	(*orc).AddRequests(reqs)
 	return nil
 }
 

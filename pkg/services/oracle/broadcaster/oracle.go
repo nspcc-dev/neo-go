@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/services/helpers/rpcbroadcaster"
-	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"go.uber.org/zap"
 )
 
@@ -20,16 +19,17 @@ const (
 	defaultChanCapacity = 16
 )
 
-type oracleBroadcaster struct {
+// OracleBroadcaster is an oracle broadcaster implementation.
+type OracleBroadcaster struct {
 	rpcbroadcaster.RPCBroadcaster
 }
 
 // New returns a new struct capable of broadcasting oracle responses.
-func New(cfg config.OracleConfiguration, log *zap.Logger) oracle.Broadcaster {
+func New(cfg config.OracleConfiguration, log *zap.Logger) *OracleBroadcaster {
 	if cfg.ResponseTimeout == 0 {
 		cfg.ResponseTimeout = defaultSendTimeout
 	}
-	r := &oracleBroadcaster{
+	r := &OracleBroadcaster{
 		RPCBroadcaster: *rpcbroadcaster.NewRPCBroadcaster(log, cfg.ResponseTimeout),
 	}
 	for i := range cfg.Nodes {
@@ -40,7 +40,7 @@ func New(cfg config.OracleConfiguration, log *zap.Logger) oracle.Broadcaster {
 }
 
 // SendResponse implements interfaces.Broadcaster.
-func (r *oracleBroadcaster) SendResponse(priv *keys.PrivateKey, resp *transaction.OracleResponse, txSig []byte) {
+func (r *OracleBroadcaster) SendResponse(priv *keys.PrivateKey, resp *transaction.OracleResponse, txSig []byte) {
 	pub := priv.PublicKey()
 	data := GetMessage(pub.Bytes(), resp.ID, txSig)
 	msgSig := priv.Sign(data)

@@ -71,6 +71,7 @@ func (s *service) Shutdown() {
 	if !s.started.CAS(true, false) {
 		return
 	}
+	s.log.Info("stopping state validation service")
 	close(s.stopCh)
 	<-s.done
 }

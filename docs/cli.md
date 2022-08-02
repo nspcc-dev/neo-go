@@ -68,12 +68,26 @@ current height of the node.
 
 ### Restarting node services
 
-To restart some node services without full node restart, send the SIGHUP 
-signal. List of the services to be restarted on SIGHUP receiving:
+On Unix-like platforms HUP, USR1 and USR2 signals can be used to control node
+services. Upon receiving any of these signals node rereads the configuration
+file, checks for its compatibility (ProtocolConfiguration can't be changed and
+ApplicationConfiguration can only be changed for services) and then
+stops/starts services according to the old and new configurations. Services
+are broadly split into three main categories:
+ * client-oriented
+   These provide some service to clients: RPC, Pprof and Prometheus
+   servers. They're controlled with the HUP signal.
+ * network-oriented
+   These provide some service to the network: Oracle, State validation and P2P
+   Notary. They're controlled with the USR1 signal.
+ * consensus
+   That's dBFT, it's a special one and it's controlled with USR2.
 
-| Service | Action |
-| --- | --- |
-| RPC server | Restarting with the old configuration and updated TLS certificates |
+Typical scenarios when this can be useful (without full node restart):
+ * enabling some service
+ * changing RPC configuration
+ * updating TLS certificates for the RPC server
+ * resolving operational issues
 
 ### DB import/exports
 

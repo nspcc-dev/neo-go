@@ -8,10 +8,11 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"syscall"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/consensus"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -385,14 +386,14 @@ func restoreDB(ctx *cli.Context) error {
 	return nil
 }
 
-func mkOracle(config network.ServerConfig, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*oracle.Oracle, error) {
-	if !config.OracleCfg.Enabled {
+func mkOracle(config config.OracleConfiguration, magic netmode.Magic, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*oracle.Oracle, error) {
+	if !config.Enabled {
 		return nil, nil
 	}
 	orcCfg := oracle.Config{
 		Log:           log,
-		Network:       config.Net,
-		MainCfg:       config.OracleCfg,
+		Network:       magic,
+		MainCfg:       config,
 		Chain:         chain,
 		OnTransaction: serv.RelayTxn,
 	}
@@ -405,8 +406,8 @@ func mkOracle(config network.ServerConfig, chain *core.Blockchain, serv *network
 	return orc, nil
 }
 
-func mkConsensus(config network.ServerConfig, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (consensus.Service, error) {
-	if config.Wallet == nil {
+func mkConsensus(config config.Wallet, tpb time.Duration, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (consensus.Service, error) {
+	if len(config.Path) == 0 {
 		return nil, nil
 	}
 	srv, err := consensus.NewService(consensus.Config{
@@ -415,26 +416,26 @@ func mkConsensus(config network.ServerConfig, chain *core.Blockchain, serv *netw
 		Chain:                 chain,
 		ProtocolConfiguration: chain.GetConfig(),
 		RequestTx:             serv.RequestTx,
-		Wallet:                config.Wallet,
-		TimePerBlock:          config.TimePerBlock,
+		Wallet:                &config,
+		TimePerBlock:          tpb,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't initialize Consensus module: %w", err)
 	}
 
-	serv.AddExtensibleHPService(srv, consensus.Category, srv.OnPayload, srv.OnTransaction)
+	serv.AddConsensusService(srv, srv.OnPayload, srv.OnTransaction)
 	return srv, nil
 }
 
-func mkP2PNotary(config network.ServerConfig, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*notary.Notary, error) {
-	if !config.P2PNotaryCfg.Enabled {
+func mkP2PNotary(config config.P2PNotary, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*notary.Notary, error) {
+	if !config.Enabled {
 		return nil, nil
 	}
 	if !chain.P2PSigExtensionsEnabled() {
 		return nil, errors.New("P2PSigExtensions are disabled, but Notary service is enabled")
 	}
 	cfg := notary.Config{
-		MainCfg: config.P2PNotaryCfg,
+		MainCfg: config,
 		Chain:   chain,
 		Log:     log,
 	}
@@ -492,15 +493,15 @@ func startServer(ctx *cli.Context) error {
 	}
 	serv.AddExtensibleService(sr, stateroot.Category, sr.OnPayload)
 
-	oracleSrv, err := mkOracle(serverConfig, chain, serv, log)
+	oracleSrv, err := mkOracle(cfg.ApplicationConfiguration.Oracle, cfg.ProtocolConfiguration.Magic, chain, serv, log)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	_, err = mkConsensus(serverConfig, chain, serv, log)
+	dbftSrv, err := mkConsensus(cfg.ApplicationConfiguration.UnlockWallet, serverConfig.TimePerBlock, chain, serv, log)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	_, err = mkP2PNotary(serverConfig, chain, serv, log)
+	p2pNotary, err := mkP2PNotary(cfg.ApplicationConfiguration.P2PNotary, chain, serv, log)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -513,8 +514,10 @@ func startServer(ctx *cli.Context) error {
 		rpcServer.Start()
 	}
 
-	sighupCh := make(chan os.Signal, 1)
-	signal.Notify(sighupCh, syscall.SIGHUP)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, sighup)
+	signal.Notify(sigCh, sigusr1)
+	signal.Notify(sigCh, sigusr2)
 
 	fmt.Fprintln(ctx.App.Writer, Logo())
 	fmt.Fprintln(ctx.App.Writer, serv.UserAgent)
@@ -527,19 +530,97 @@ Main:
 		case err := <-errChan:
 			shutdownErr = fmt.Errorf("server error: %w", err)
 			cancel()
-		case sig := <-sighupCh:
+		case sig := <-sigCh:
+			log.Info("signal received", zap.Stringer("name", sig))
+			cfgnew, err := getConfigFromContext(ctx)
+			if err != nil {
+				log.Warn("can't reread the config file, signal ignored", zap.Error(err))
+				break // Continue working.
+			}
+			if !cfg.ProtocolConfiguration.Equals(&cfgnew.ProtocolConfiguration) {
+				log.Warn("ProtocolConfiguration changed, signal ignored")
+				break // Continue working.
+			}
+			if !cfg.ApplicationConfiguration.EqualsButServices(&cfgnew.ApplicationConfiguration) {
+				log.Warn("ApplicationConfiguration changed in incompatible way, signal ignored")
+				break // Continue working.
+			}
+			configureAddresses(&cfgnew.ApplicationConfiguration)
 			switch sig {
-			case syscall.SIGHUP:
-				log.Info("SIGHUP received, restarting rpc-server")
+			case sighup:
+				serv.DelService(&rpcServer)
 				rpcServer.Shutdown()
-				rpcServer = rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
-				serv.AddService(&rpcServer) // Replaces old one by service name.
-				if !cfg.ApplicationConfiguration.RPC.StartWhenSynchronized || serv.IsInSync() {
+				rpcServer = rpcsrv.New(chain, cfgnew.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
+				serv.AddService(&rpcServer)
+				if !cfgnew.ApplicationConfiguration.RPC.StartWhenSynchronized || serv.IsInSync() {
 					rpcServer.Start()
 				}
+				pprof.ShutDown()
+				pprof = metrics.NewPprofService(cfgnew.ApplicationConfiguration.Pprof, log)
+				go pprof.Start()
+				prometheus.ShutDown()
+				prometheus = metrics.NewPrometheusService(cfgnew.ApplicationConfiguration.Prometheus, log)
+				go prometheus.Start()
+			case sigusr1:
+				if oracleSrv != nil {
+					serv.DelService(oracleSrv)
+					chain.SetOracle(nil)
+					rpcServer.SetOracleHandler(nil)
+					oracleSrv.Shutdown()
+				}
+				oracleSrv, err = mkOracle(cfgnew.ApplicationConfiguration.Oracle, cfgnew.ProtocolConfiguration.Magic, chain, serv, log)
+				if err != nil {
+					log.Error("failed to create oracle service", zap.Error(err))
+					break // Keep going.
+				}
+				if oracleSrv != nil {
+					rpcServer.SetOracleHandler(oracleSrv)
+					if serv.IsInSync() {
+						oracleSrv.Start()
+					}
+				}
+				if p2pNotary != nil {
+					serv.DelService(p2pNotary)
+					chain.SetNotary(nil)
+					p2pNotary.Shutdown()
+				}
+				p2pNotary, err = mkP2PNotary(cfgnew.ApplicationConfiguration.P2PNotary, chain, serv, log)
+				if err != nil {
+					log.Error("failed to create notary service", zap.Error(err))
+					break // Keep going.
+				}
+				if p2pNotary != nil && serv.IsInSync() {
+					p2pNotary.Start()
+				}
+				serv.DelExtensibleService(sr, stateroot.Category)
+				srMod.SetUpdateValidatorsCallback(nil)
+				sr.Shutdown()
+				sr, err = stateroot.New(cfgnew.ApplicationConfiguration.StateRoot, srMod, log, chain, serv.BroadcastExtensible)
+				if err != nil {
+					log.Error("failed to create state validation service", zap.Error(err))
+					break // The show must go on.
+				}
+				serv.AddExtensibleService(sr, stateroot.Category, sr.OnPayload)
+				if serv.IsInSync() {
+					sr.Start()
+				}
+			case sigusr2:
+				if dbftSrv != nil {
+					serv.DelConsensusService(dbftSrv)
+					dbftSrv.Shutdown()
+				}
+				dbftSrv, err = mkConsensus(cfgnew.ApplicationConfiguration.UnlockWallet, serverConfig.TimePerBlock, chain, serv, log)
+				if err != nil {
+					log.Error("failed to create consensus service", zap.Error(err))
+					break // Whatever happens, I'll leave it all to chance.
+				}
+				if dbftSrv != nil && serv.IsInSync() {
+					dbftSrv.Start()
+				}
 			}
+			cfg = cfgnew
 		case <-grace.Done():
-			signal.Stop(sighupCh)
+			signal.Stop(sigCh)
 			serv.Shutdown()
 			break Main
 		}

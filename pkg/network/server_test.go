@@ -109,7 +109,9 @@ func TestServerStartAndShutdown(t *testing.T) {
 		require.True(t, errors.Is(err, errServerShutdown))
 	})
 	t.Run("with consensus", func(t *testing.T) {
-		s := newTestServer(t, ServerConfig{Wallet: new(config.Wallet)})
+		s := newTestServer(t, ServerConfig{})
+		cons := new(fakeConsensus)
+		s.AddConsensusService(cons, cons.OnPayload, cons.OnTransaction)
 
 		ch := startWithChannel(s)
 		p := newLocalPeer(t, s)
@@ -409,7 +411,9 @@ func TestBlock(t *testing.T) {
 }
 
 func TestConsensus(t *testing.T) {
-	s := newTestServer(t, ServerConfig{Wallet: new(config.Wallet)})
+	s := newTestServer(t, ServerConfig{})
+	cons := new(fakeConsensus)
+	s.AddConsensusService(cons, cons.OnPayload, cons.OnTransaction)
 	startWithCleanup(t, s)
 
 	atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Blockheight, 4)
@@ -420,7 +424,7 @@ func TestConsensus(t *testing.T) {
 
 	newConsensusMessage := func(start, end uint32) *Message {
 		pl := payload.NewExtensible()
-		pl.Category = consensus.Category
+		pl.Category = payload.ConsensusCategory
 		pl.ValidBlockStart = start
 		pl.ValidBlockEnd = end
 		return NewMessage(CMDExtensible, pl)
@@ -452,7 +456,9 @@ func TestConsensus(t *testing.T) {
 }
 
 func TestTransaction(t *testing.T) {
-	s := newTestServer(t, ServerConfig{Wallet: new(config.Wallet)})
+	s := newTestServer(t, ServerConfig{})
+	cons := new(fakeConsensus)
+	s.AddConsensusService(cons, cons.OnPayload, cons.OnTransaction)
 	startWithCleanup(t, s)
 
 	t.Run("good", func(t *testing.T) {

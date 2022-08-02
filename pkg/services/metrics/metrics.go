@@ -31,9 +31,12 @@ func (ms *Service) Start() {
 
 // ShutDown stops the service.
 func (ms *Service) ShutDown() {
+	if !ms.config.Enabled {
+		return
+	}
 	ms.log.Info("shutting down service", zap.String("endpoint", ms.Addr))
 	err := ms.Shutdown(context.Background())
 	if err != nil {
-		ms.log.Panic("can't shut down service")
+		ms.log.Error("can't shut service down", zap.Error(err))
 	}
 }
