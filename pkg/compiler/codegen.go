@@ -2106,6 +2106,9 @@ func (c *codegen) compile(info *buildInfo, pkg *packages.Package) error {
 	c.analyzePkgOrder()
 	c.fillDocumentInfo()
 	funUsage := c.analyzeFuncUsage()
+	if c.prog.Err != nil {
+		return c.prog.Err
+	}
 
 	// Bring all imported functions into scope.
 	c.ForEachFile(c.resolveFuncDecls)

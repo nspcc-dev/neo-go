@@ -331,6 +331,10 @@ func CreateManifest(di *DebugInfo, o *Options) (*manifest.Manifest, error) {
 			return m, fmt.Errorf("method %s is marked as safe but missing from manifest", name)
 		}
 	}
+	err = m.IsValid(util.Uint160{}) // Check as much as possible without hash.
+	if err != nil {
+		return m, fmt.Errorf("manifest is invalid: %w", err)
+	}
 	if !o.NoStandardCheck {
 		if err := standard.CheckABI(m, o.ContractSupportedStandards...); err != nil {
 			return m, err

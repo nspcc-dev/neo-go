@@ -40,6 +40,9 @@ func TestGroupsAreValid(t *testing.T) {
 
 	gps = Groups{gcorrect, gcorrect}
 	require.Error(t, gps.AreValid(h))
+
+	gps = Groups{gincorrect}
+	require.NoError(t, gps.AreValid(util.Uint160{})) // empty hash.
 }
 
 func TestGroupsContains(t *testing.T) {
