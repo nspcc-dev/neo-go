@@ -3,19 +3,16 @@ package smartcontract
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
-	"math/bits"
 	"os"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -194,123 +191,6 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
-// Params is an array of Parameter (TODO: drop it?).
-type Params []Parameter
-
-// TryParseArray converts an array of Parameter into an array of more appropriate things.
-func (p Params) TryParseArray(vals ...interface{}) error {
-	var (
-		err error
-		i   int
-		par Parameter
-	)
-	if len(p) != len(vals) {
-		return errors.New("receiver array doesn't fit the Params length")
-	}
-	for i, par = range p {
-		if err = par.TryParse(vals[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// TryParse converts one Parameter into something more appropriate.
-func (p Parameter) TryParse(dest interface{}) error {
-	var (
-		err  error
-		ok   bool
-		data []byte
-	)
-	switch p.Type {
-	case ByteArrayType:
-		if data, ok = p.Value.([]byte); !ok {
-			return fmt.Errorf("failed to cast %s to []byte", p.Value)
-		}
-		switch dest := dest.(type) {
-		case *util.Uint160:
-			if *dest, err = util.Uint160DecodeBytesBE(data); err != nil {
-				return err
-			}
-			return nil
-		case *[]byte:
-			*dest = data
-			return nil
-		case *util.Uint256:
-			if *dest, err = util.Uint256DecodeBytesLE(data); err != nil {
-				return err
-			}
-			return nil
-		case **big.Int:
-			*dest = bigint.FromBytes(data)
-			return nil
-		case *int64, *int32, *int16, *int8, *int, *uint64, *uint32, *uint16, *uint8, *uint:
-			var size int
-			switch dest.(type) {
-			case *int64, *uint64:
-				size = 64
-			case *int32, *uint32:
-				size = 32
-			case *int16, *uint16:
-				size = 16
-			case *int8, *uint8:
-				size = 8
-			case *int, *uint:
-				size = bits.UintSize
-			}
-
-			i, err := bytesToUint64(data, size)
-			if err != nil {
-				return err
-			}
-
-			switch dest := dest.(type) {
-			case *int64:
-				*dest = int64(i)
-			case *int32:
-				*dest = int32(i)
-			case *int16:
-				*dest = int16(i)
-			case *int8:
-				*dest = int8(i)
-			case *int:
-				*dest = int(i)
-			case *uint64:
-				*dest = i
-			case *uint32:
-				*dest = uint32(i)
-			case *uint16:
-				*dest = uint16(i)
-			case *uint8:
-				*dest = uint8(i)
-			case *uint:
-				*dest = uint(i)
-			}
-		case *string:
-			*dest = string(data)
-			return nil
-		default:
-			return fmt.Errorf("cannot cast param of type %s to type %s", p.Type, dest)
-		}
-	default:
-		return errors.New("cannot define param type")
-	}
-	return nil
-}
-
-func bytesToUint64(b []byte, size int) (uint64, error) {
-	var length = size / 8
-	if len(b) > length {
-		return 0, fmt.Errorf("input doesn't fit into %d bits", size)
-	}
-	if len(b) < length {
-		data := make([]byte, length)
-		copy(data, b)
-		return binary.LittleEndian.Uint64(data), nil
-	}
-	return binary.LittleEndian.Uint64(b), nil
-}
-
 // NewParameterFromString returns a new Parameter initialized from the given
 // string in neo-go-specific format. It is intended to be used in user-facing
 // interfaces and has some heuristics in it to simplify parameter passing. The exact
@@ -371,6 +251,111 @@ func NewParameterFromString(in string) (*Parameter, error) {
 	res.Value, err = adjustValToType(res.Type, val)
 	if err != nil {
 		return nil, err
+	}
+	return res, nil
+}
+
+// NewParameterFromValue infers Parameter type from the value given and adjusts
+// the value if needed. It does not copy the value if it can avoid doing so. All
+// regular integers, util.*, keys.PublicKey*, string and bool types are supported,
+// slice of byte slices is accepted and converted as well.
+func NewParameterFromValue(value interface{}) (Parameter, error) {
+	var result = Parameter{
+		Value: value,
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		result.Type = ByteArrayType
+	case string:
+		result.Type = StringType
+	case bool:
+		result.Type = BoolType
+	case *big.Int:
+		result.Type = IntegerType
+	case int8:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case byte:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case int16:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case uint16:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case int32:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case uint32:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case int:
+		result.Type = IntegerType
+		result.Value = big.NewInt(int64(v))
+	case uint:
+		result.Type = IntegerType
+		result.Value = new(big.Int).SetUint64(uint64(v))
+	case int64:
+		result.Type = IntegerType
+		result.Value = big.NewInt(v)
+	case uint64:
+		result.Type = IntegerType
+		result.Value = new(big.Int).SetUint64(v)
+	case util.Uint160:
+		result.Type = Hash160Type
+	case util.Uint256:
+		result.Type = Hash256Type
+	case keys.PublicKey:
+		return NewParameterFromValue(&v)
+	case *keys.PublicKey:
+		result.Type = PublicKeyType
+		result.Value = v.Bytes()
+	case [][]byte:
+		arr := make([]Parameter, 0, len(v))
+		for i := range v {
+			// We know the type exactly, so error is not possible.
+			elem, _ := NewParameterFromValue(v[i])
+			arr = append(arr, elem)
+		}
+		result.Type = ArrayType
+		result.Value = arr
+	case []*keys.PublicKey:
+		return NewParameterFromValue(keys.PublicKeys(v))
+	case keys.PublicKeys:
+		arr := make([]Parameter, 0, len(v))
+		for i := range v {
+			// We know the type exactly, so error is not possible.
+			elem, _ := NewParameterFromValue(v[i])
+			arr = append(arr, elem)
+		}
+		result.Type = ArrayType
+		result.Value = arr
+	case []interface{}:
+		arr, err := NewParametersFromValues(v...)
+		if err != nil {
+			return result, err
+		}
+		result.Type = ArrayType
+		result.Value = arr
+	default:
+		return result, fmt.Errorf("unsupported parameter %T", value)
+	}
+
+	return result, nil
+}
+
+// NewParametersFromValues is similar to NewParameterFromValue except that it
+// works with multiple values and returns a simple slice of Parameter.
+func NewParametersFromValues(values ...interface{}) ([]Parameter, error) {
+	res := make([]Parameter, 0, len(values))
+	for i := range values {
+		elem, err := NewParameterFromValue(values[i])
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, elem)
 	}
 	return res, nil
 }

@@ -111,12 +111,22 @@ func topMapFromStack(st []stackitem.Item) (*stackitem.Map, error) {
 // retrieve iterator values via single `invokescript` JSON-RPC call. It returns
 // maxIteratorResultItems items at max which is set to
 // config.DefaultMaxIteratorResultItems by default.
+//
+// Deprecated: please use more convenient and powerful invoker.Invoker interface with
+// CallAndExpandIterator method. This method will be removed in future versions.
 func (c *Client) InvokeAndPackIteratorResults(contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer, maxIteratorResultItems ...int) (*result.Invoke, error) {
 	max := config.DefaultMaxIteratorResultItems
 	if len(maxIteratorResultItems) != 0 {
 		max = maxIteratorResultItems[0]
 	}
-	bytes, err := smartcontract.CreateCallAndUnwrapIteratorScript(contract, operation, params, max)
+	values, err := smartcontract.ExpandParameterToEmitable(smartcontract.Parameter{
+		Type:  smartcontract.ArrayType,
+		Value: params,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("expanding params to emitable: %w", err)
+	}
+	bytes, err := smartcontract.CreateCallAndUnwrapIteratorScript(contract, operation, max, values.([]interface{})...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create iterator unwrapper script: %w", err)
 	}

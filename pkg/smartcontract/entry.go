@@ -18,20 +18,11 @@ import (
 // processed this way (and this number can't exceed VM limits), the result of the
 // script is an array containing extracted value elements. This script can be useful
 // for interactions with RPC server that have iterator sessions disabled.
-func CreateCallAndUnwrapIteratorScript(contract util.Uint160, operation string, params []Parameter, maxIteratorResultItems int) ([]byte, error) {
+func CreateCallAndUnwrapIteratorScript(contract util.Uint160, operation string, maxIteratorResultItems int, params ...interface{}) ([]byte, error) {
 	script := io.NewBufBinWriter()
 	emit.Int(script.BinWriter, int64(maxIteratorResultItems))
-	// Pack arguments for System.Contract.Call.
-	arr, err := ExpandParameterToEmitable(Parameter{
-		Type:  ArrayType,
-		Value: params,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("expanding params to emitable: %w", err)
-	}
-	emit.Array(script.BinWriter, arr.([]interface{})...)
-	emit.AppCallNoArgs(script.BinWriter, contract, operation, callflag.All) // The System.Contract.Call itself, it will push Iterator on estack.
-	emit.Opcodes(script.BinWriter, opcode.NEWARRAY0)                        // Push new empty array to estack. This array will store iterator's elements.
+	emit.AppCall(script.BinWriter, contract, operation, callflag.All, params...) // The System.Contract.Call itself, it will push Iterator on estack.
+	emit.Opcodes(script.BinWriter, opcode.NEWARRAY0)                             // Push new empty array to estack. This array will store iterator's elements.
 
 	// Start the iterator traversal cycle.
 	iteratorTraverseCycleStartOffset := script.Len()

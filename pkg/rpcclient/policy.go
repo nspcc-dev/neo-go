@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -42,7 +41,7 @@ func (c *Client) invokeNativePolicyMethod(operation string) (int64, error) {
 }
 
 func (c *Client) invokeNativeGetMethod(hash util.Uint160, operation string) (int64, error) {
-	result, err := c.InvokeFunction(hash, operation, []smartcontract.Parameter{}, nil)
+	result, err := c.reader.Call(hash, operation)
 	if err != nil {
 		return 0, err
 	}
@@ -59,10 +58,7 @@ func (c *Client) IsBlocked(hash util.Uint160) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to get native Policy hash: %w", err)
 	}
-	result, err := c.InvokeFunction(policyHash, "isBlocked", []smartcontract.Parameter{{
-		Type:  smartcontract.Hash160Type,
-		Value: hash,
-	}}, nil)
+	result, err := c.reader.Call(policyHash, "isBlocked", hash)
 	if err != nil {
 		return false, err
 	}

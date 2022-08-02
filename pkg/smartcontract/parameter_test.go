@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"math"
 	"math/big"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -341,89 +340,6 @@ func TestParam_UnmarshalJSON(t *testing.T) {
 	}
 }
 
-var tryParseTestCases = []struct {
-	input    interface{}
-	expected interface{}
-}{
-	{
-		input: []byte{
-			0x0b, 0xcd, 0x29, 0x78, 0x63, 0x4d, 0x96, 0x1c, 0x24, 0xf5,
-			0xae, 0xa0, 0x80, 0x22, 0x97, 0xff, 0x12, 0x87, 0x24, 0xd6,
-		},
-		expected: util.Uint160{
-			0x0b, 0xcd, 0x29, 0x78, 0x63, 0x4d, 0x96, 0x1c, 0x24, 0xf5,
-			0xae, 0xa0, 0x80, 0x22, 0x97, 0xff, 0x12, 0x87, 0x24, 0xd6,
-		},
-	},
-	{
-		input: []byte{
-			0xf0, 0x37, 0x30, 0x8f, 0xa0, 0xab, 0x18, 0x15,
-			0x5b, 0xcc, 0xfc, 0x08, 0x48, 0x54, 0x68, 0xc1,
-			0x12, 0x40, 0x9e, 0xa5, 0x06, 0x45, 0x95, 0x69,
-			0x9e, 0x98, 0xc5, 0x45, 0xf2, 0x45, 0xf3, 0x2d,
-		},
-		expected: util.Uint256{
-			0x2d, 0xf3, 0x45, 0xf2, 0x45, 0xc5, 0x98, 0x9e,
-			0x69, 0x95, 0x45, 0x06, 0xa5, 0x9e, 0x40, 0x12,
-			0xc1, 0x68, 0x54, 0x48, 0x08, 0xfc, 0xcc, 0x5b,
-			0x15, 0x18, 0xab, 0xa0, 0x8f, 0x30, 0x37, 0xf0,
-		},
-	},
-	{
-		input:    []byte{0, 1, 2, 3, 4, 9, 8, 6},
-		expected: []byte{0, 1, 2, 3, 4, 9, 8, 6},
-	},
-	{
-		input:    []byte{0x63, 0x78, 0x29, 0xcd, 0x0b},
-		expected: int64(50686687331),
-	},
-	{
-		input:    []byte{0x63, 0x78, 0x29, 0xcd, 0x0b},
-		expected: big.NewInt(50686687331),
-	},
-	{
-		input:    []byte("this is a test string"),
-		expected: "this is a test string",
-	},
-}
-
-func TestParam_TryParse(t *testing.T) {
-	for _, tc := range tryParseTestCases {
-		t.Run(reflect.TypeOf(tc.expected).String(), func(t *testing.T) {
-			input := Parameter{
-				Type:  ByteArrayType,
-				Value: tc.input,
-			}
-
-			val := reflect.New(reflect.TypeOf(tc.expected))
-			assert.NoError(t, input.TryParse(val.Interface()))
-			assert.Equal(t, tc.expected, val.Elem().Interface())
-		})
-	}
-
-	t.Run("[]Uint160", func(t *testing.T) {
-		exp1 := util.Uint160{1, 2, 3, 4, 5}
-		exp2 := util.Uint160{9, 8, 7, 6, 5}
-
-		params := Params{
-			{
-				Type:  ByteArrayType,
-				Value: exp1.BytesBE(),
-			},
-			{
-				Type:  ByteArrayType,
-				Value: exp2.BytesBE(),
-			},
-		}
-
-		var out1, out2 util.Uint160
-
-		assert.NoError(t, params.TryParseArray(&out1, &out2))
-		assert.Equal(t, exp1, out1)
-		assert.Equal(t, exp2, out2)
-	})
-}
-
 func TestParamType_String(t *testing.T) {
 	types := []ParamType{
 		SignatureType,
@@ -610,4 +526,186 @@ func TestExpandParameterToEmitable(t *testing.T) {
 		_, err := ExpandParameterToEmitable(errCase)
 		require.Error(t, err)
 	}
+}
+
+func TestParameterFromValue(t *testing.T) {
+	pk1, _ := keys.NewPrivateKey()
+	pk2, _ := keys.NewPrivateKey()
+	items := []struct {
+		value   interface{}
+		expType ParamType
+		expVal  interface{}
+	}{
+		{
+			value:   []byte{1, 2, 3},
+			expType: ByteArrayType,
+			expVal:  []byte{1, 2, 3},
+		},
+		{
+			value:   "hello world",
+			expType: StringType,
+			expVal:  "hello world",
+		},
+		{
+			value:   false,
+			expType: BoolType,
+			expVal:  false,
+		},
+		{
+			value:   true,
+			expType: BoolType,
+			expVal:  true,
+		},
+		{
+			value:   big.NewInt(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   byte(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   int8(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   uint8(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   int16(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   uint16(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   int32(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   uint32(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   100,
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   uint(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   int64(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   uint64(100),
+			expType: IntegerType,
+			expVal:  big.NewInt(100),
+		},
+		{
+			value:   util.Uint160{1, 2, 3},
+			expType: Hash160Type,
+			expVal:  util.Uint160{1, 2, 3},
+		},
+		{
+			value:   util.Uint256{3, 2, 1},
+			expType: Hash256Type,
+			expVal:  util.Uint256{3, 2, 1},
+		},
+		{
+			value:   pk1.PublicKey(),
+			expType: PublicKeyType,
+			expVal:  pk1.PublicKey().Bytes(),
+		},
+		{
+			value:   *pk2.PublicKey(),
+			expType: PublicKeyType,
+			expVal:  pk2.PublicKey().Bytes(),
+		},
+		{
+			value:   [][]byte{{1, 2, 3}, {3, 2, 1}},
+			expType: ArrayType,
+			expVal:  []Parameter{{ByteArrayType, []byte{1, 2, 3}}, {ByteArrayType, []byte{3, 2, 1}}},
+		},
+		{
+			value:   []*keys.PublicKey{pk1.PublicKey(), pk2.PublicKey()},
+			expType: ArrayType,
+			expVal: []Parameter{{
+				Type:  PublicKeyType,
+				Value: pk1.PublicKey().Bytes(),
+			}, {
+				Type:  PublicKeyType,
+				Value: pk2.PublicKey().Bytes(),
+			}},
+		},
+		{
+			value:   keys.PublicKeys{pk1.PublicKey(), pk2.PublicKey()},
+			expType: ArrayType,
+			expVal: []Parameter{{
+				Type:  PublicKeyType,
+				Value: pk1.PublicKey().Bytes(),
+			}, {
+				Type:  PublicKeyType,
+				Value: pk2.PublicKey().Bytes(),
+			}},
+		},
+		{
+			value:   []interface{}{-42, "random", []byte{1, 2, 3}},
+			expType: ArrayType,
+			expVal: []Parameter{{
+				Type:  IntegerType,
+				Value: big.NewInt(-42),
+			}, {
+				Type:  StringType,
+				Value: "random",
+			}, {
+				Type:  ByteArrayType,
+				Value: []byte{1, 2, 3},
+			}},
+		},
+	}
+
+	for _, item := range items {
+		t.Run(item.expType.String()+" to stack parameter", func(t *testing.T) {
+			res, err := NewParameterFromValue(item.value)
+			require.NoError(t, err)
+			require.Equal(t, item.expType, res.Type)
+			require.Equal(t, item.expVal, res.Value)
+		})
+	}
+	_, err := NewParameterFromValue(make(map[string]int))
+	require.Error(t, err)
+	_, err = NewParameterFromValue([]interface{}{1, 2, make(map[string]int)})
+	require.Error(t, err)
+}
+
+func TestParametersFromValues(t *testing.T) {
+	res, err := NewParametersFromValues(42, "some", []byte{3, 2, 1})
+	require.NoError(t, err)
+	require.Equal(t, []Parameter{{
+		Type:  IntegerType,
+		Value: big.NewInt(42),
+	}, {
+		Type:  StringType,
+		Value: "some",
+	}, {
+		Type:  ByteArrayType,
+		Value: []byte{3, 2, 1},
+	}}, res)
+	_, err = NewParametersFromValues(42, make(map[int]int), []byte{3, 2, 1})
+	require.Error(t, err)
 }

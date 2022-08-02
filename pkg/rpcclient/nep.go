@@ -3,14 +3,13 @@ package rpcclient
 import (
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
 // nepDecimals invokes `decimals` NEP* method on the specified contract.
 func (c *Client) nepDecimals(tokenHash util.Uint160) (int64, error) {
-	result, err := c.InvokeFunction(tokenHash, "decimals", []smartcontract.Parameter{}, nil)
+	result, err := c.reader.Call(tokenHash, "decimals")
 	if err != nil {
 		return 0, err
 	}
@@ -24,7 +23,7 @@ func (c *Client) nepDecimals(tokenHash util.Uint160) (int64, error) {
 
 // nepSymbol invokes `symbol` NEP* method on the specified contract.
 func (c *Client) nepSymbol(tokenHash util.Uint160) (string, error) {
-	result, err := c.InvokeFunction(tokenHash, "symbol", []smartcontract.Parameter{}, nil)
+	result, err := c.reader.Call(tokenHash, "symbol")
 	if err != nil {
 		return "", err
 	}
@@ -38,7 +37,7 @@ func (c *Client) nepSymbol(tokenHash util.Uint160) (string, error) {
 
 // nepTotalSupply invokes `totalSupply` NEP* method on the specified contract.
 func (c *Client) nepTotalSupply(tokenHash util.Uint160) (int64, error) {
-	result, err := c.InvokeFunction(tokenHash, "totalSupply", []smartcontract.Parameter{}, nil)
+	result, err := c.reader.Call(tokenHash, "totalSupply")
 	if err != nil {
 		return 0, err
 	}
@@ -52,17 +51,11 @@ func (c *Client) nepTotalSupply(tokenHash util.Uint160) (int64, error) {
 
 // nepBalanceOf invokes `balanceOf` NEP* method on the specified contract.
 func (c *Client) nepBalanceOf(tokenHash, acc util.Uint160, tokenID []byte) (int64, error) {
-	params := []smartcontract.Parameter{{
-		Type:  smartcontract.Hash160Type,
-		Value: acc,
-	}}
+	params := []interface{}{acc}
 	if tokenID != nil {
-		params = append(params, smartcontract.Parameter{
-			Type:  smartcontract.ByteArrayType,
-			Value: tokenID,
-		})
+		params = append(params, tokenID)
 	}
-	result, err := c.InvokeFunction(tokenHash, "balanceOf", params, nil)
+	result, err := c.reader.Call(tokenHash, "balanceOf", params...)
 	if err != nil {
 		return 0, err
 	}
