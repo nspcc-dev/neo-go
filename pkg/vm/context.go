@@ -92,7 +92,7 @@ func (c *Context) NextIP() int {
 
 // Jump unconditionally moves the next instruction pointer to the specified location.
 func (c *Context) Jump(pos int) {
-	if pos < 0 || pos > len(c.prog) {
+	if pos < 0 || pos >= len(c.prog) {
 		panic("instruction offset is out of range")
 	}
 	c.nextip = pos
