@@ -37,6 +37,9 @@ type scriptContext struct {
 	// Caller's contract script hash.
 	callingScriptHash util.Uint160
 
+	// Caller's scriptContext, if not entry.
+	callingContext *scriptContext
+
 	// Call flags this context was created with.
 	callFlag callflag.CallFlag
 
@@ -324,6 +327,12 @@ func (v *VM) getContextScriptHash(n int) util.Uint160 {
 	element := istack.Peek(n)
 	ctx := element.value.(*Context)
 	return ctx.ScriptHash()
+}
+
+// IsCalledByEntry checks parent script contexts and return true if the current one
+// is an entry script (the first loaded into the VM) or one called by it.
+func (c *Context) IsCalledByEntry() bool {
+	return c.sc.callingContext == nil || c.sc.callingContext.callingContext == nil
 }
 
 // PushContextScriptHash pushes the script hash of the

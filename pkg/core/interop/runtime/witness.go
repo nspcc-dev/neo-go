@@ -41,6 +41,10 @@ func getContractGroups(v *vm.VM, ic *interop.Context, h util.Uint160) (manifest.
 	return manifest.Groups(cs.Manifest.Groups), nil
 }
 
+func (sc scopeContext) IsCalledByEntry() bool {
+	return sc.VM.Context().IsCalledByEntry()
+}
+
 func (sc scopeContext) checkScriptGroups(h util.Uint160, k *keys.PublicKey) (bool, error) {
 	groups, err := getContractGroups(sc.VM, sc.ic, h)
 	if err != nil {
@@ -69,9 +73,7 @@ func checkScope(ic *interop.Context, hash util.Uint160) (bool, error) {
 				return true, nil
 			}
 			if c.Scopes&transaction.CalledByEntry != 0 {
-				callingScriptHash := ic.VM.GetCallingScriptHash()
-				entryScriptHash := ic.VM.GetEntryScriptHash()
-				if callingScriptHash.Equals(util.Uint160{}) || callingScriptHash == entryScriptHash {
+				if ic.VM.Context().IsCalledByEntry() {
 					return true, nil
 				}
 			}

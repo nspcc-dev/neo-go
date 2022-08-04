@@ -340,15 +340,18 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 	if rvcount != -1 || v.estack.Len() != 0 {
 		v.estack = subStack(v.estack)
 	}
+	parent := v.Context()
 	ctx.sc.estack = v.estack
 	initStack(&ctx.tryStack, "exception", nil)
 	ctx.sc.callFlag = f
 	ctx.sc.scriptHash = hash
 	ctx.sc.callingScriptHash = caller
+	if parent != nil {
+		ctx.sc.callingContext = parent.sc
+	}
 	ctx.sc.NEF = exe
 	if v.invTree != nil {
 		curTree := v.invTree
-		parent := v.Context()
 		if parent != nil {
 			curTree = parent.sc.invTree
 		}

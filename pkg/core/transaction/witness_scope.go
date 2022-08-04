@@ -13,7 +13,7 @@ type WitnessScope byte
 const (
 	// None specifies that no contract was witnessed. Only sign the transaction.
 	None WitnessScope = 0
-	// CalledByEntry means that this condition must hold: EntryScriptHash == CallingScriptHash.
+	// CalledByEntry witness is only valid in entry script and ones directly called by it.
 	// No params is needed, as the witness/permission/signature given on first invocation will
 	// automatically expire if entering deeper internal invokes. This can be default safe
 	// choice for native NEO/GAS (previously used on Neo 2 as "attach" mode).
