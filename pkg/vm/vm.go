@@ -1634,7 +1634,7 @@ func (v *VM) unloadContext(ctx *Context) {
 			ctx.sc.static.ClearRefs(&v.refs)
 		}
 		if ctx.sc.onUnload != nil {
-			err := ctx.sc.onUnload(v.uncaughtException == nil)
+			err := ctx.sc.onUnload(ctx, v.uncaughtException == nil)
 			if err != nil {
 				errMessage := fmt.Sprintf("context unload callback failed: %s", err)
 				if v.uncaughtException != nil {

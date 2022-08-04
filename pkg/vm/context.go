@@ -73,7 +73,7 @@ type Context struct {
 }
 
 // ContextUnloadCallback is a callback method used on context unloading from istack.
-type ContextUnloadCallback func(commit bool) error
+type ContextUnloadCallback func(ctx *Context, commit bool) error
 
 var errNoInstParam = errors.New("failed to read instruction parameter")
 
@@ -237,6 +237,11 @@ func (c *Context) ScriptHash() util.Uint160 {
 // GetNEF returns NEF structure used by this context if it's present.
 func (c *Context) GetNEF() *nef.File {
 	return c.sc.NEF
+}
+
+// NumOfReturnVals returns the number of return values expected from this context.
+func (c *Context) NumOfReturnVals() int {
+	return c.retCount
 }
 
 // Value implements the stackitem.Item interface.
