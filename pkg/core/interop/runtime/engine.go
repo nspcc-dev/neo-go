@@ -73,7 +73,7 @@ func Notify(ic *interop.Context) error {
 	if len(name) > MaxEventNameLen {
 		return fmt.Errorf("event name must be less than %d", MaxEventNameLen)
 	}
-	if ic.VM.Context().NEF == nil {
+	if !ic.VM.Context().IsDeployed() {
 		return errors.New("notifications are not allowed in dynamic scripts")
 	}
 

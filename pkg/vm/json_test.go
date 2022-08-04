@@ -115,7 +115,7 @@ func testSyscallHandler(v *VM, id uint32) error {
 	case 0x77777777:
 		v.Estack().PushVal(stackitem.NewInterop(new(int)))
 	case 0x66666666:
-		if !v.Context().callFlag.Has(callflag.ReadOnly) {
+		if !v.Context().sc.callFlag.Has(callflag.ReadOnly) {
 			return errors.New("invalid call flags")
 		}
 		v.Estack().PushVal(stackitem.NewInterop(new(int)))
@@ -167,14 +167,14 @@ func testFile(t *testing.T, filename string) {
 					if len(result.InvocationStack) > 0 {
 						for i, s := range result.InvocationStack {
 							ctx := vm.istack.Peek(i).Value().(*Context)
-							if ctx.nextip < len(ctx.prog) {
+							if ctx.nextip < len(ctx.sc.prog) {
 								require.Equal(t, s.InstructionPointer, ctx.nextip)
 								op, err := opcode.FromString(s.Instruction)
 								require.NoError(t, err)
-								require.Equal(t, op, opcode.Opcode(ctx.prog[ctx.nextip]))
+								require.Equal(t, op, opcode.Opcode(ctx.sc.prog[ctx.nextip]))
 							}
 							compareStacks(t, s.EStack, vm.estack)
-							compareSlots(t, s.StaticFields, ctx.static)
+							compareSlots(t, s.StaticFields, ctx.sc.static)
 						}
 					}
 
@@ -240,8 +240,8 @@ func compareStacks(t *testing.T, expected []vmUTStackItem, actual *Stack) {
 	compareItemArrays(t, expected, actual.Len(), func(i int) stackitem.Item { return actual.Peek(i).Item() })
 }
 
-func compareSlots(t *testing.T, expected []vmUTStackItem, actual *slot) {
-	if (actual == nil || *actual == nil) && len(expected) == 0 {
+func compareSlots(t *testing.T, expected []vmUTStackItem, actual slot) {
+	if actual == nil && len(expected) == 0 {
 		return
 	}
 	require.NotNil(t, actual)
