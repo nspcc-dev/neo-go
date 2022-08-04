@@ -5,7 +5,7 @@ func NewBar() int {
 	return 10
 }
 
-// Dummy is dummy constant.
+// Dummy is dummy variable.
 var Dummy = 1
 
 // Foo is a type.

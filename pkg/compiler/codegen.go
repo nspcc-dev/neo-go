@@ -350,7 +350,7 @@ func (c *codegen) emitDefault(t types.Type) {
 // convertGlobals traverses the AST and only converts global declarations.
 // If we call this in convertFuncDecl, it will load all global variables
 // into the scope of the function.
-func (c *codegen) convertGlobals(f *ast.File, _ *types.Package) {
+func (c *codegen) convertGlobals(f *ast.File) {
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.FuncDecl:
@@ -2136,7 +2136,7 @@ func (c *codegen) compile(info *buildInfo, pkg *packages.Package) error {
 	c.mainPkg = pkg
 	c.analyzePkgOrder()
 	c.fillDocumentInfo()
-	funUsage := c.analyzeFuncUsage()
+	funUsage := c.analyzeFuncAndGlobalVarUsage()
 	if c.prog.Err != nil {
 		return c.prog.Err
 	}
