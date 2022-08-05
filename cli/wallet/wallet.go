@@ -195,7 +195,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "export",
 				Usage:     "export keys for address",
-				UsageText: "export --wallet <path> [--decrypt] [<address>]",
+				UsageText: "export -w wallet [--wallet-config path] [--decrypt] [<address>]",
 				Action:    exportKeys,
 				Flags: []cli.Flag{
 					walletPathFlag,
@@ -206,7 +206,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "import",
 				Usage:     "import WIF of a standard signature contract",
-				UsageText: "import --wallet <path> --wif <wif> [--name <account_name>]",
+				UsageText: "import -w wallet [--wallet-config path] --wif <wif> [--name <account_name>]",
 				Action:    importWallet,
 				Flags: []cli.Flag{
 					walletPathFlag,
@@ -225,7 +225,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:  "import-multisig",
 				Usage: "import multisig contract",
-				UsageText: "import-multisig --wallet <path> --wif <wif> [--name <account_name>] --min <n>" +
+				UsageText: "import-multisig -w wallet [--wallet-config path] --wif <wif> [--name <account_name>] --min <n>" +
 					" [<pubkey1> [<pubkey2> [...]]]",
 				Action: importMultisig,
 				Flags: []cli.Flag{
@@ -245,7 +245,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "import-deployed",
 				Usage:     "import deployed contract",
-				UsageText: "import-deployed --wallet <path> --wif <wif> --contract <hash> [--name <account_name>]",
+				UsageText: "import-deployed -w wallet [--wallet-config path] --wif <wif> --contract <hash> [--name <account_name>]",
 				Action:    importDeployed,
 				Flags: append([]cli.Flag{
 					walletPathFlag,
@@ -264,7 +264,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "remove",
 				Usage:     "remove an account from the wallet",
-				UsageText: "remove --wallet <path> [--force] --address <addr>",
+				UsageText: "remove -w wallet [--wallet-config path] [--force] --address <addr>",
 				Action:    removeAccount,
 				Flags: []cli.Flag{
 					walletPathFlag,
@@ -279,7 +279,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "sign",
 				Usage:     "cosign transaction with multisig/contract/additional account",
-				UsageText: "sign --wallet <path> --address <address> --in <file.in> --out <file.out> [-r <endpoint>]",
+				UsageText: "sign -w wallet [--wallet-config path] --address <address> --in <file.in> --out <file.out> [-r <endpoint>]",
 				Action:    signStoredTransaction,
 				Flags:     signFlags,
 			},
