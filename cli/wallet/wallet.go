@@ -110,15 +110,17 @@ func NewCommands() []cli.Command {
 		Usage: "create, open and manage a NEO wallet",
 		Subcommands: []cli.Command{
 			{
-				Name:   "claim",
-				Usage:  "claim GAS",
-				Action: claimGas,
-				Flags:  claimFlags,
+				Name:      "claim",
+				Usage:     "claim GAS",
+				UsageText: "neo-go wallet claim -w wallet [--wallet-config path] -a address -r endpoint [-s timeout]",
+				Action:    claimGas,
+				Flags:     claimFlags,
 			},
 			{
-				Name:   "init",
-				Usage:  "create a new wallet",
-				Action: createWallet,
+				Name:      "init",
+				Usage:     "create a new wallet",
+				UsageText: "neo-go wallet init -w wallet [--wallet-config path] [-a]",
+				Action:    createWallet,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
@@ -129,9 +131,10 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "change-password",
-				Usage:  "change password for accounts",
-				Action: changePassword,
+				Name:      "change-password",
+				Usage:     "change password for accounts",
+				UsageText: "neo-go wallet change-password -w wallet -a address",
+				Action:    changePassword,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					flags.AddressFlag{
@@ -141,9 +144,10 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "convert",
-				Usage:  "convert addresses from existing NEO2 NEP6-wallet to NEO3 format",
-				Action: convertWallet,
+				Name:      "convert",
+				Usage:     "convert addresses from existing NEO2 NEP6-wallet to NEO3 format",
+				UsageText: "neo-go wallet convert -w legacywallet [--wallet-config path] -o n3wallet",
+				Action:    convertWallet,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
@@ -154,18 +158,20 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "create",
-				Usage:  "add an account to the existing wallet",
-				Action: addAccount,
+				Name:      "create",
+				Usage:     "add an account to the existing wallet",
+				UsageText: "neo-go wallet create -w wallet [--wallet-config path]",
+				Action:    addAccount,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
 				},
 			},
 			{
-				Name:   "dump",
-				Usage:  "check and dump an existing NEO wallet",
-				Action: dumpWallet,
+				Name:      "dump",
+				Usage:     "check and dump an existing NEO wallet",
+				UsageText: "neo-go wallet dump -w wallet [--wallet-config path] [-d]",
+				Action:    dumpWallet,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
@@ -173,9 +179,10 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "dump-keys",
-				Usage:  "dump public keys for account",
-				Action: dumpKeys,
+				Name:      "dump-keys",
+				Usage:     "dump public keys for account",
+				UsageText: "neo-go wallet dump-keys -w wallet [--wallet-config path] [-a address]",
+				Action:    dumpKeys,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,

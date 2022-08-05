@@ -86,26 +86,29 @@ func NewCommands() []cli.Command {
 	)
 	return []cli.Command{
 		{
-			Name:   "node",
-			Usage:  "start a NEO node",
-			Action: startServer,
-			Flags:  cfgFlags,
+			Name:      "node",
+			Usage:     "start a NEO node",
+			UsageText: "neo-go node [--config-path path] [-d] [-p/-m/-t]",
+			Action:    startServer,
+			Flags:     cfgFlags,
 		},
 		{
 			Name:  "db",
 			Usage: "database manipulations",
 			Subcommands: []cli.Command{
 				{
-					Name:   "dump",
-					Usage:  "dump blocks (starting with block #1) to the file",
-					Action: dumpDB,
-					Flags:  cfgCountOutFlags,
+					Name:      "dump",
+					Usage:     "dump blocks (starting with block #1) to the file",
+					UsageText: "neo-go db dump -o file [-s start] [-c count] [--config-path path] [-p/-m/-t]",
+					Action:    dumpDB,
+					Flags:     cfgCountOutFlags,
 				},
 				{
-					Name:   "restore",
-					Usage:  "restore blocks from the file",
-					Action: restoreDB,
-					Flags:  cfgCountInFlags,
+					Name:      "restore",
+					Usage:     "restore blocks from the file",
+					UsageText: "neo-go db restore -i file [--dump] [-n] [-c count] [--config-path path] [-p/-m/-t]",
+					Action:    restoreDB,
+					Flags:     cfgCountInFlags,
 				},
 			},
 		},

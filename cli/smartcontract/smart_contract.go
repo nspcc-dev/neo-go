@@ -136,9 +136,10 @@ func NewCommands() []cli.Command {
 		Usage: "compile - debug - deploy smart contracts",
 		Subcommands: []cli.Command{
 			{
-				Name:   "compile",
-				Usage:  "compile a smart contract to a .nef file",
-				Action: contractCompile,
+				Name:      "compile",
+				Usage:     "compile a smart contract to a .nef file",
+				UsageText: "neo-go contract compile -i path [-o nef] [-v] [-d] [-m manifest] [-c yaml] [--bindings file] [--no-standards] [--no-events] [--no-permissions]",
+				Action:    contractCompile,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "in, i",
@@ -340,9 +341,10 @@ func NewCommands() []cli.Command {
 				Flags:  testInvokeScriptFlags,
 			},
 			{
-				Name:   "init",
-				Usage:  "initialize a new smart-contract in a directory with boiler plate code",
-				Action: initSmartContract,
+				Name:      "init",
+				Usage:     "initialize a new smart-contract in a directory with boiler plate code",
+				UsageText: "neo-go contract init -n name [--skip-details]",
+				Action:    initSmartContract,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "name, n",
@@ -355,9 +357,10 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "inspect",
-				Usage:  "creates a user readable dump of the program instructions",
-				Action: inspect,
+				Name:      "inspect",
+				Usage:     "creates a user readable dump of the program instructions",
+				UsageText: "neo-go contract inspect -i file [-c]",
+				Action:    inspect,
 				Flags: []cli.Flag{
 					cli.BoolFlag{
 						Name:  "compile, c",
@@ -370,9 +373,10 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "calc-hash",
-				Usage:  "calculates hash of a contract after deployment",
-				Action: calcHash,
+				Name:      "calc-hash",
+				Usage:     "calculates hash of a contract after deployment",
+				UsageText: "neo-go contract calc-hash -i nef -m manifest -s address",
+				Action:    calcHash,
 				Flags: []cli.Flag{
 					flags.AddressFlag{
 						Name:  "sender, s",
@@ -393,9 +397,10 @@ func NewCommands() []cli.Command {
 				Usage: "manifest-related commands",
 				Subcommands: []cli.Command{
 					{
-						Name:   "add-group",
-						Usage:  "adds group to the manifest",
-						Action: manifestAddGroup,
+						Name:      "add-group",
+						Usage:     "adds group to the manifest",
+						UsageText: "neo-go contract manifest add-group -w wallet [--wallet-config path] -n nef -m manifest -a address -s address",
+						Action:    manifestAddGroup,
 						Flags: []cli.Flag{
 							walletFlag,
 							walletConfigFlag,
