@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -109,15 +110,17 @@ func NewCommands() []cli.Command {
 		Usage: "create, open and manage a NEO wallet",
 		Subcommands: []cli.Command{
 			{
-				Name:   "claim",
-				Usage:  "claim GAS",
-				Action: claimGas,
-				Flags:  claimFlags,
+				Name:      "claim",
+				Usage:     "claim GAS",
+				UsageText: "neo-go wallet claim -w wallet [--wallet-config path] -a address -r endpoint [-s timeout]",
+				Action:    claimGas,
+				Flags:     claimFlags,
 			},
 			{
-				Name:   "init",
-				Usage:  "create a new wallet",
-				Action: createWallet,
+				Name:      "init",
+				Usage:     "create a new wallet",
+				UsageText: "neo-go wallet init -w wallet [--wallet-config path] [-a]",
+				Action:    createWallet,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
@@ -128,9 +131,10 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "change-password",
-				Usage:  "change password for accounts",
-				Action: changePassword,
+				Name:      "change-password",
+				Usage:     "change password for accounts",
+				UsageText: "neo-go wallet change-password -w wallet -a address",
+				Action:    changePassword,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					flags.AddressFlag{
@@ -140,9 +144,10 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "convert",
-				Usage:  "convert addresses from existing NEO2 NEP6-wallet to NEO3 format",
-				Action: convertWallet,
+				Name:      "convert",
+				Usage:     "convert addresses from existing NEO2 NEP6-wallet to NEO3 format",
+				UsageText: "neo-go wallet convert -w legacywallet [--wallet-config path] -o n3wallet",
+				Action:    convertWallet,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
@@ -153,18 +158,20 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "create",
-				Usage:  "add an account to the existing wallet",
-				Action: addAccount,
+				Name:      "create",
+				Usage:     "add an account to the existing wallet",
+				UsageText: "neo-go wallet create -w wallet [--wallet-config path]",
+				Action:    addAccount,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
 				},
 			},
 			{
-				Name:   "dump",
-				Usage:  "check and dump an existing NEO wallet",
-				Action: dumpWallet,
+				Name:      "dump",
+				Usage:     "check and dump an existing NEO wallet",
+				UsageText: "neo-go wallet dump -w wallet [--wallet-config path] [-d]",
+				Action:    dumpWallet,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
@@ -172,9 +179,10 @@ func NewCommands() []cli.Command {
 				},
 			},
 			{
-				Name:   "dump-keys",
-				Usage:  "dump public keys for account",
-				Action: dumpKeys,
+				Name:      "dump-keys",
+				Usage:     "dump public keys for account",
+				UsageText: "neo-go wallet dump-keys -w wallet [--wallet-config path] [-a address]",
+				Action:    dumpKeys,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
@@ -187,7 +195,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "export",
 				Usage:     "export keys for address",
-				UsageText: "export --wallet <path> [--decrypt] [<address>]",
+				UsageText: "export -w wallet [--wallet-config path] [--decrypt] [<address>]",
 				Action:    exportKeys,
 				Flags: []cli.Flag{
 					walletPathFlag,
@@ -198,7 +206,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "import",
 				Usage:     "import WIF of a standard signature contract",
-				UsageText: "import --wallet <path> --wif <wif> [--name <account_name>]",
+				UsageText: "import -w wallet [--wallet-config path] --wif <wif> [--name <account_name>]",
 				Action:    importWallet,
 				Flags: []cli.Flag{
 					walletPathFlag,
@@ -217,7 +225,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:  "import-multisig",
 				Usage: "import multisig contract",
-				UsageText: "import-multisig --wallet <path> --wif <wif> [--name <account_name>] --min <n>" +
+				UsageText: "import-multisig -w wallet [--wallet-config path] --wif <wif> [--name <account_name>] --min <n>" +
 					" [<pubkey1> [<pubkey2> [...]]]",
 				Action: importMultisig,
 				Flags: []cli.Flag{
@@ -237,7 +245,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "import-deployed",
 				Usage:     "import deployed contract",
-				UsageText: "import-deployed --wallet <path> --wif <wif> --contract <hash> [--name <account_name>]",
+				UsageText: "import-deployed -w wallet [--wallet-config path] --wif <wif> --contract <hash> [--name <account_name>]",
 				Action:    importDeployed,
 				Flags: append([]cli.Flag{
 					walletPathFlag,
@@ -256,7 +264,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "remove",
 				Usage:     "remove an account from the wallet",
-				UsageText: "remove --wallet <path> [--force] --address <addr>",
+				UsageText: "remove -w wallet [--wallet-config path] [--force] --address <addr>",
 				Action:    removeAccount,
 				Flags: []cli.Flag{
 					walletPathFlag,
@@ -271,7 +279,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "sign",
 				Usage:     "cosign transaction with multisig/contract/additional account",
-				UsageText: "sign --wallet <path> --address <address> --in <file.in> --out <file.out> [-r <endpoint>]",
+				UsageText: "sign -w wallet [--wallet-config path] --address <address> --in <file.in> --out <file.out> [-r <endpoint>]",
 				Action:    signStoredTransaction,
 				Flags:     signFlags,
 			},
@@ -295,6 +303,9 @@ func NewCommands() []cli.Command {
 }
 
 func claimGas(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, pass, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -332,6 +343,9 @@ func claimGas(ctx *cli.Context) error {
 }
 
 func changePassword(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := openWallet(ctx, false)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -384,6 +398,9 @@ func changePassword(ctx *cli.Context) error {
 }
 
 func convertWallet(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, pass, err := newWalletV2FromFile(ctx.String("wallet"), ctx.String("wallet-config"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -421,6 +438,9 @@ func convertWallet(ctx *cli.Context) error {
 }
 
 func addAccount(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, pass, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -535,6 +555,9 @@ func importMultisig(ctx *cli.Context) error {
 }
 
 func importDeployed(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -588,6 +611,9 @@ func importDeployed(ctx *cli.Context) error {
 }
 
 func importWallet(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -617,6 +643,9 @@ func importWallet(ctx *cli.Context) error {
 }
 
 func removeAccount(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -660,6 +689,9 @@ func askForConsent(w io.Writer) bool {
 }
 
 func dumpWallet(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, pass, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -685,6 +717,9 @@ func dumpWallet(ctx *cli.Context) error {
 }
 
 func dumpKeys(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -732,6 +767,9 @@ func dumpKeys(ctx *cli.Context) error {
 }
 
 func createWallet(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	path := ctx.String("wallet")
 	configPath := ctx.String("wallet-config")
 

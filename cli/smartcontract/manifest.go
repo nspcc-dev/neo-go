@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -14,6 +15,9 @@ import (
 )
 
 func manifestAddGroup(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	sender, err := flags.ParseAddress(ctx.String("sender"))
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("invalid sender: %w", err), 1)

@@ -101,6 +101,9 @@ func TestQueryTx(t *testing.T) {
 		t.Run("missing tx argument", func(t *testing.T) {
 			e.RunWithError(t, args...)
 		})
+		t.Run("excessive arguments", func(t *testing.T) {
+			e.RunWithError(t, append(args, txHash.StringLE(), txHash.StringLE())...)
+		})
 		t.Run("invalid hash", func(t *testing.T) {
 			e.RunWithError(t, append(args, "notahash")...)
 		})
@@ -142,8 +145,12 @@ func (e *executor) compareQueryTxVerbose(t *testing.T, tx *transaction.Transacti
 func TestQueryHeight(t *testing.T) {
 	e := newExecutor(t, true)
 
-	e.Run(t, "neo-go", "query", "height", "--rpc-endpoint", "http://"+e.RPC.Addr)
+	args := []string{"neo-go", "query", "height", "--rpc-endpoint", "http://" + e.RPC.Addr}
+	e.Run(t, args...)
 	e.checkNextLine(t, `^Latest block: [0-9]+$`)
 	e.checkNextLine(t, `^Validated state: [0-9]+$`)
 	e.checkEOF(t)
+	t.Run("excessive arguments", func(t *testing.T) {
+		e.RunWithError(t, append(args, "something")...)
+	})
 }

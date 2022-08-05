@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -42,12 +43,13 @@ var (
 // NewCommands returns 'node' command.
 func NewCommands() []cli.Command {
 	var cfgFlags = []cli.Flag{
-		cli.StringFlag{Name: "config-path"},
-		cli.BoolFlag{Name: "debug, d"},
+		cli.StringFlag{Name: "config-path", Usage: "path to directory with configuration files"},
 	}
 	cfgFlags = append(cfgFlags, options.Network...)
 	var cfgWithCountFlags = make([]cli.Flag, len(cfgFlags))
 	copy(cfgWithCountFlags, cfgFlags)
+	cfgFlags = append(cfgFlags, cli.BoolFlag{Name: "debug, d", Usage: "enable debug logging (LOTS of output)"})
+
 	cfgWithCountFlags = append(cfgWithCountFlags,
 		cli.UintFlag{
 			Name:  "count, c",
@@ -84,26 +86,29 @@ func NewCommands() []cli.Command {
 	)
 	return []cli.Command{
 		{
-			Name:   "node",
-			Usage:  "start a NEO node",
-			Action: startServer,
-			Flags:  cfgFlags,
+			Name:      "node",
+			Usage:     "start a NEO node",
+			UsageText: "neo-go node [--config-path path] [-d] [-p/-m/-t]",
+			Action:    startServer,
+			Flags:     cfgFlags,
 		},
 		{
 			Name:  "db",
 			Usage: "database manipulations",
 			Subcommands: []cli.Command{
 				{
-					Name:   "dump",
-					Usage:  "dump blocks (starting with block #1) to the file",
-					Action: dumpDB,
-					Flags:  cfgCountOutFlags,
+					Name:      "dump",
+					Usage:     "dump blocks (starting with block #1) to the file",
+					UsageText: "neo-go db dump -o file [-s start] [-c count] [--config-path path] [-p/-m/-t]",
+					Action:    dumpDB,
+					Flags:     cfgCountOutFlags,
 				},
 				{
-					Name:   "restore",
-					Usage:  "restore blocks from the file",
-					Action: restoreDB,
-					Flags:  cfgCountInFlags,
+					Name:      "restore",
+					Usage:     "restore blocks from the file",
+					UsageText: "neo-go db restore -i file [--dump] [-n] [-c count] [--config-path path] [-p/-m/-t]",
+					Action:    restoreDB,
+					Flags:     cfgCountInFlags,
 				},
 			},
 		},
@@ -223,6 +228,9 @@ func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *m
 }
 
 func dumpDB(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	cfg, err := getConfigFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -273,6 +281,9 @@ func dumpDB(ctx *cli.Context) error {
 }
 
 func restoreDB(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	cfg, err := getConfigFromContext(ctx)
 	if err != nil {
 		return err
@@ -455,6 +466,10 @@ func mkP2PNotary(config config.P2PNotary, chain *core.Blockchain, serv *network.
 }
 
 func startServer(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
+
 	cfg, err := getConfigFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)

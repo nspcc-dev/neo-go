@@ -148,6 +148,11 @@ func TestSignMultisigTx(t *testing.T) {
 			e.checkEOF(t)
 		})
 
+		t.Run("excessive parameters", func(t *testing.T) {
+			e.RunWithError(t, "neo-go", "util", "txdump",
+				"--rpc-endpoint", "http://"+e.RPC.Addr,
+				txPath, "garbage")
+		})
 		e.Run(t, "neo-go", "util", "txdump",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			txPath)

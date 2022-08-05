@@ -24,6 +24,9 @@ func TestNEP17Balance(t *testing.T) {
 		"--wallet", validatorWallet,
 	)
 	cmd := append(cmdbase, "--address", validatorAddr)
+	t.Run("excessive parameters", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "--token", "NEO", "gas")...)
+	})
 	t.Run("NEO", func(t *testing.T) {
 		b, index := e.Chain.GetGoverningTokenBalance(validatorHash)
 		checkResult := func(t *testing.T) {
@@ -321,6 +324,11 @@ func TestNEP17ImportToken(t *testing.T) {
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", walletPath)
 
+	// additional parameter
+	e.RunWithError(t, "neo-go", "wallet", "nep17", "import",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", walletPath,
+		"--token", gasContractHash.StringLE(), "useless")
 	e.Run(t, "neo-go", "wallet", "nep17", "import",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", walletPath,
@@ -345,6 +353,10 @@ func TestNEP17ImportToken(t *testing.T) {
 			e.checkNextLine(t, "^Address:\\s*"+address.Uint160ToString(gasContractHash))
 			e.checkNextLine(t, "^Standard:\\s*"+string(manifest.NEP17StandardName))
 		}
+		t.Run("excessive parameters", func(t *testing.T) {
+			e.RunWithError(t, "neo-go", "wallet", "nep17", "info",
+				"--wallet", walletPath, "--token", gasContractHash.StringLE(), "parameter")
+		})
 		t.Run("WithToken", func(t *testing.T) {
 			e.Run(t, "neo-go", "wallet", "nep17", "info",
 				"--wallet", walletPath, "--token", gasContractHash.StringLE())
@@ -364,6 +376,8 @@ func TestNEP17ImportToken(t *testing.T) {
 			e.checkNextLine(t, "^Standard:\\s*"+string(manifest.NEP17StandardName))
 		})
 		t.Run("Remove", func(t *testing.T) {
+			e.RunWithError(t, "neo-go", "wallet", "nep17", "remove",
+				"--wallet", walletPath, "--token", neoContractHash.StringLE(), "add")
 			e.In.WriteString("y\r")
 			e.Run(t, "neo-go", "wallet", "nep17", "remove",
 				"--wallet", walletPath, "--token", neoContractHash.StringLE())

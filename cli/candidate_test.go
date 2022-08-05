@@ -41,6 +41,13 @@ func TestRegisterCandidate(t *testing.T) {
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet)
 
+	// additional parameter
+	e.RunWithError(t, "neo-go", "wallet", "candidate", "register",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", validatorWallet,
+		"--address", validatorPriv.Address(),
+		"error")
+
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "candidate", "register",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
@@ -55,6 +62,13 @@ func TestRegisterCandidate(t *testing.T) {
 	require.Equal(t, big.NewInt(0), vs[0].Votes)
 
 	t.Run("VoteUnvote", func(t *testing.T) {
+		// positional instead of a flag.
+		e.RunWithError(t, "neo-go", "wallet", "candidate", "vote",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", validatorWallet,
+			"--address", validatorPriv.Address(),
+			validatorHex) // not "--candidate hex", but "hex".
+
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "candidate", "vote",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
@@ -115,6 +129,12 @@ func TestRegisterCandidate(t *testing.T) {
 	e.RunWithError(t, "neo-go", "wallet", "candidate", "unregister",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", validatorWallet)
+	// additional argument
+	e.RunWithError(t, "neo-go", "wallet", "candidate", "unregister",
+		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--wallet", validatorWallet,
+		"--address", validatorPriv.Address(),
+		"argument")
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "candidate", "unregister",
@@ -128,4 +148,8 @@ func TestRegisterCandidate(t *testing.T) {
 
 	// query voter: missing address
 	e.RunWithError(t, "neo-go", "query", "voter")
+	// Excessive parameters.
+	e.RunWithError(t, "neo-go", "query", "voter", "--rpc-endpoint", "http://"+e.RPC.Addr, validatorPriv.Address(), validatorPriv.Address())
+	e.RunWithError(t, "neo-go", "query", "committee", "--rpc-endpoint", "http://"+e.RPC.Addr, "something")
+	e.RunWithError(t, "neo-go", "query", "candidates", "--rpc-endpoint", "http://"+e.RPC.Addr, "something")
 }

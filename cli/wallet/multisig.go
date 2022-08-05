@@ -3,6 +3,7 @@ package wallet
 import (
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
@@ -12,6 +13,9 @@ import (
 )
 
 func signStoredTransaction(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, pass, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)

@@ -12,11 +12,14 @@ import (
 )
 
 func txDump(ctx *cli.Context) error {
-	if len(ctx.Args()) == 0 {
+	args := ctx.Args()
+	if len(args) == 0 {
 		return cli.NewExitError("missing input file", 1)
+	} else if len(args) > 1 {
+		return cli.NewExitError("only one input file is accepted", 1)
 	}
 
-	c, err := paramcontext.Read(ctx.Args()[0])
+	c, err := paramcontext.Read(args[0])
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

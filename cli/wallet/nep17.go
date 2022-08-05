@@ -90,21 +90,21 @@ func newNEP17Commands() []cli.Command {
 		{
 			Name:      "balance",
 			Usage:     "get address balance",
-			UsageText: "balance --wallet <path> --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>]",
+			UsageText: "balance -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>]",
 			Action:    getNEP17Balance,
 			Flags:     balanceFlags,
 		},
 		{
 			Name:      "import",
 			Usage:     "import NEP-17 token to a wallet",
-			UsageText: "import --wallet <path> --rpc-endpoint <node> --timeout <time> --token <hash>",
+			UsageText: "import -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --token <hash>",
 			Action:    importNEP17Token,
 			Flags:     importFlags,
 		},
 		{
 			Name:      "info",
 			Usage:     "print imported NEP-17 token info",
-			UsageText: "print --wallet <path> [--token <hash-or-name>]",
+			UsageText: "print -w wallet [--wallet-config path] [--token <hash-or-name>]",
 			Action:    printNEP17Info,
 			Flags: []cli.Flag{
 				walletPathFlag,
@@ -115,7 +115,7 @@ func newNEP17Commands() []cli.Command {
 		{
 			Name:      "remove",
 			Usage:     "remove NEP-17 token from the wallet",
-			UsageText: "remove --wallet <path> --token <hash-or-name>",
+			UsageText: "remove -w wallet [--wallet-config path] --token <hash-or-name>",
 			Action:    removeNEP17Token,
 			Flags: []cli.Flag{
 				walletPathFlag,
@@ -127,7 +127,7 @@ func newNEP17Commands() []cli.Command {
 		{
 			Name:      "transfer",
 			Usage:     "transfer NEP-17 tokens",
-			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --amount string [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
+			UsageText: "transfer -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --amount string [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP17,
 			Flags:     transferFlags,
 			Description: `Transfers specified NEP-17 token amount with optional 'data' parameter and cosigners
@@ -140,7 +140,7 @@ func newNEP17Commands() []cli.Command {
 		{
 			Name:  "multitransfer",
 			Usage: "transfer NEP-17 tokens to multiple recipients",
-			UsageText: `multitransfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr>` +
+			UsageText: `multitransfer -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --from <addr>` +
 				` <token1>:<addr1>:<amount1> [<token2>:<addr2>:<amount2> [...]] [-- <cosigner1:Scope> [<cosigner2> [...]]]`,
 			Action: multiTransferNEP17,
 			Flags:  multiTransferFlags,
@@ -151,6 +151,9 @@ func newNEP17Commands() []cli.Command {
 func getNEP17Balance(ctx *cli.Context) error {
 	var accounts []*wallet.Account
 
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("bad wallet: %w", err), 1)
@@ -349,6 +352,9 @@ func importNEP17Token(ctx *cli.Context) error {
 }
 
 func importNEPToken(ctx *cli.Context, standard string) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -411,6 +417,9 @@ func printNEP17Info(ctx *cli.Context) error {
 }
 
 func printNEPInfo(ctx *cli.Context, standard string) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -443,6 +452,9 @@ func removeNEP17Token(ctx *cli.Context) error {
 }
 
 func removeNEPToken(ctx *cli.Context, standard string) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -39,35 +40,39 @@ func NewCommands() []cli.Command {
 		Usage: "Query data from RPC node",
 		Subcommands: []cli.Command{
 			{
-				Name:   "candidates",
-				Usage:  "Get candidates and votes",
-				Action: queryCandidates,
-				Flags:  options.RPC,
+				Name:      "candidates",
+				Usage:     "Get candidates and votes",
+				UsageText: "neo-go query candidates -r endpoint [-s timeout]",
+				Action:    queryCandidates,
+				Flags:     options.RPC,
 			},
 			{
-				Name:   "committee",
-				Usage:  "Get committee list",
-				Action: queryCommittee,
-				Flags:  options.RPC,
+				Name:      "committee",
+				Usage:     "Get committee list",
+				UsageText: "neo-go query committee -r endpoint [-s timeout]",
+				Action:    queryCommittee,
+				Flags:     options.RPC,
 			},
 			{
-				Name:   "height",
-				Usage:  "Get node height",
-				Action: queryHeight,
-				Flags:  options.RPC,
+				Name:      "height",
+				Usage:     "Get node height",
+				UsageText: "neo-go query height -r endpoint [-s timeout]",
+				Action:    queryHeight,
+				Flags:     options.RPC,
 			},
 			{
 				Name:      "tx",
 				Usage:     "Query transaction status",
-				UsageText: "neo-go query tx <hash> -r endpoint [-v]",
+				UsageText: "neo-go query tx <hash> -r endpoint [-s timeout] [-v]",
 				Action:    queryTx,
 				Flags:     queryTxFlags,
 			},
 			{
-				Name:   "voter",
-				Usage:  "Print NEO holder account state",
-				Action: queryVoter,
-				Flags:  options.RPC,
+				Name:      "voter",
+				Usage:     "Print NEO holder account state",
+				UsageText: "neo-go query voter <address> -r endpoint [-s timeout]",
+				Action:    queryVoter,
+				Flags:     options.RPC,
 			},
 		},
 	}}
@@ -77,6 +82,8 @@ func queryTx(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) == 0 {
 		return cli.NewExitError("Transaction hash is missing", 1)
+	} else if len(args) > 1 {
+		return cli.NewExitError("only one transaction hash is accepted", 1)
 	}
 
 	txHash, err := util.Uint256DecodeStringLE(strings.TrimPrefix(args[0], "0x"))
@@ -160,6 +167,10 @@ func DumpApplicationLog(
 func queryCandidates(ctx *cli.Context) error {
 	var err error
 
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
+
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
@@ -200,6 +211,10 @@ func queryCandidates(ctx *cli.Context) error {
 func queryCommittee(ctx *cli.Context) error {
 	var err error
 
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
+
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
@@ -221,6 +236,10 @@ func queryCommittee(ctx *cli.Context) error {
 
 func queryHeight(ctx *cli.Context) error {
 	var err error
+
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
@@ -250,6 +269,8 @@ func queryVoter(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) == 0 {
 		return cli.NewExitError("No address specified", 1)
+	} else if len(args) > 1 {
+		return cli.NewExitError("this command only accepts one address", 1)
 	}
 
 	addr, err := flags.ParseAddress(args[0])

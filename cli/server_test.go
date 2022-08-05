@@ -98,9 +98,11 @@ func TestServerStart(t *testing.T) {
 	// We can't properly shutdown server on windows and release the resources.
 	// Also, windows doesn't support SIGHUP and SIGINT.
 	if runtime.GOOS != "windows" {
+		saveCfg(t, func(cfg *config.Config) {})
+		t.Run("excessive parameters", func(t *testing.T) {
+			e.RunWithError(t, append(baseCmd, "something")...)
+		})
 		t.Run("good", func(t *testing.T) {
-			saveCfg(t, func(cfg *config.Config) {})
-
 			go func() {
 				e.Run(t, baseCmd...)
 			}()

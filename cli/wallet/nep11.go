@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -47,21 +48,21 @@ func newNEP11Commands() []cli.Command {
 		{
 			Name:      "balance",
 			Usage:     "get address balance",
-			UsageText: "balance --wallet <path> --rpc-endpoint <node> [--timeout <time>] [--address <address>] --token <hash-or-name> [--id <token-id>]",
+			UsageText: "balance -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] [--address <address>] --token <hash-or-name> [--id <token-id>]",
 			Action:    getNEP11Balance,
 			Flags:     balanceFlags,
 		},
 		{
 			Name:      "import",
 			Usage:     "import NEP-11 token to a wallet",
-			UsageText: "import --wallet <path> --rpc-endpoint <node> --timeout <time> --token <hash>",
+			UsageText: "import -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --token <hash>",
 			Action:    importNEP11Token,
 			Flags:     importFlags,
 		},
 		{
 			Name:      "info",
 			Usage:     "print imported NEP-11 token info",
-			UsageText: "print --wallet <path> [--token <hash-or-name>]",
+			UsageText: "print -w wallet [--wallet-config path] [--token <hash-or-name>]",
 			Action:    printNEP11Info,
 			Flags: []cli.Flag{
 				walletPathFlag,
@@ -72,7 +73,7 @@ func newNEP11Commands() []cli.Command {
 		{
 			Name:      "remove",
 			Usage:     "remove NEP-11 token from the wallet",
-			UsageText: "remove --wallet <path> --token <hash-or-name>",
+			UsageText: "remove -w wallet [--wallet-config path] --token <hash-or-name>",
 			Action:    removeNEP11Token,
 			Flags: []cli.Flag{
 				walletPathFlag,
@@ -84,7 +85,7 @@ func newNEP11Commands() []cli.Command {
 		{
 			Name:      "transfer",
 			Usage:     "transfer NEP-11 tokens",
-			UsageText: "transfer --wallet <path> --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
+			UsageText: "transfer -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP11,
 			Flags:     transferFlags,
 			Description: `Transfers specified NEP-11 token with optional cosigners list attached to
@@ -162,6 +163,10 @@ func removeNEP11Token(ctx *cli.Context) error {
 
 func getNEP11Balance(ctx *cli.Context) error {
 	var accounts []*wallet.Account
+
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 
 	wall, _, err := readWallet(ctx)
 	if err != nil {
@@ -309,6 +314,9 @@ func printNEP11DOwner(ctx *cli.Context) error {
 
 func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 	var err error
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
 	if !tokenHash.IsSet {
 		return cli.NewExitError("token contract hash was not set", 1)
@@ -383,6 +391,9 @@ func printNEP11TokensOf(ctx *cli.Context) error {
 
 func printNEP11Tokens(ctx *cli.Context) error {
 	var err error
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
 	if !tokenHash.IsSet {
 		return cli.NewExitError("token contract hash was not set", 1)
@@ -409,6 +420,9 @@ func printNEP11Tokens(ctx *cli.Context) error {
 
 func printNEP11Properties(ctx *cli.Context) error {
 	var err error
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
 	if !tokenHash.IsSet {
 		return cli.NewExitError("token contract hash was not set", 1)
