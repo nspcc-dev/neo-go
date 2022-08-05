@@ -23,9 +23,9 @@ const RPCEndpointFlag = "rpc-endpoint"
 // Network is a set of flags for choosing the network to operate on
 // (privnet/mainnet/testnet).
 var Network = []cli.Flag{
-	cli.BoolFlag{Name: "privnet, p"},
-	cli.BoolFlag{Name: "mainnet, m"},
-	cli.BoolFlag{Name: "testnet, t"},
+	cli.BoolFlag{Name: "privnet, p", Usage: "use private network configuration"},
+	cli.BoolFlag{Name: "mainnet, m", Usage: "use mainnet network configuration"},
+	cli.BoolFlag{Name: "testnet, t", Usage: "use testnet network configuration"},
 	cli.BoolFlag{Name: "unittest", Hidden: true},
 }
 

@@ -43,12 +43,12 @@ var (
 // NewCommands returns 'node' command.
 func NewCommands() []cli.Command {
 	var cfgFlags = []cli.Flag{
-		cli.StringFlag{Name: "config-path"},
+		cli.StringFlag{Name: "config-path", Usage: "path to directory with configuration files"},
 	}
 	cfgFlags = append(cfgFlags, options.Network...)
 	var cfgWithCountFlags = make([]cli.Flag, len(cfgFlags))
 	copy(cfgWithCountFlags, cfgFlags)
-	cfgFlags = append(cfgFlags, cli.BoolFlag{Name: "debug, d"})
+	cfgFlags = append(cfgFlags, cli.BoolFlag{Name: "debug, d", Usage: "enable debug logging (LOTS of output)"})
 
 	cfgWithCountFlags = append(cfgWithCountFlags,
 		cli.UintFlag{
