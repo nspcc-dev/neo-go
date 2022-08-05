@@ -171,9 +171,7 @@ func (v *VM) PrintOps(out io.Writer) {
 	w := tabwriter.NewWriter(out, 0, 0, 4, ' ', 0)
 	fmt.Fprintln(w, "INDEX\tOPCODE\tPARAMETER")
 	realctx := v.Context()
-	ctx := realctx.Copy()
-	ctx.ip = 0
-	ctx.nextip = 0
+	ctx := &Context{sc: realctx.sc}
 	for {
 		cursor := ""
 		instr, parameter, err := ctx.Next()
@@ -228,7 +226,7 @@ func (v *VM) PrintOps(out io.Writer) {
 		}
 
 		fmt.Fprintf(w, "%d\t%s\t%s%s\n", ctx.ip, instr, desc, cursor)
-		if ctx.nextip >= len(ctx.prog) {
+		if ctx.nextip >= len(ctx.sc.prog) {
 			break
 		}
 	}
@@ -246,7 +244,7 @@ func getOffsetDesc(ctx *Context, parameter []byte) string {
 // AddBreakPoint adds a breakpoint to the current context.
 func (v *VM) AddBreakPoint(n int) {
 	ctx := v.Context()
-	ctx.breakPoints = append(ctx.breakPoints, n)
+	ctx.sc.breakPoints = append(ctx.sc.breakPoints, n)
 }
 
 // AddBreakPointRel adds a breakpoint relative to the current
@@ -337,31 +335,31 @@ func (v *VM) LoadNEFMethod(exe *nef.File, caller util.Uint160, hash util.Uint160
 // It should be used for calling from native contracts.
 func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint160,
 	hash util.Uint160, f callflag.CallFlag, rvcount int, offset int, onContextUnload ContextUnloadCallback) {
-	var sl slot
-
 	v.checkInvocationStackSize()
 	ctx := NewContextWithParams(b, rvcount, offset)
 	if rvcount != -1 || v.estack.Len() != 0 {
 		v.estack = subStack(v.estack)
 	}
-	ctx.estack = v.estack
+	parent := v.Context()
+	ctx.sc.estack = v.estack
 	initStack(&ctx.tryStack, "exception", nil)
-	ctx.callFlag = f
-	ctx.static = &sl
-	ctx.scriptHash = hash
-	ctx.callingScriptHash = caller
-	ctx.NEF = exe
+	ctx.sc.callFlag = f
+	ctx.sc.scriptHash = hash
+	ctx.sc.callingScriptHash = caller
+	if parent != nil {
+		ctx.sc.callingContext = parent.sc
+	}
+	ctx.sc.NEF = exe
 	if v.invTree != nil {
 		curTree := v.invTree
-		parent := v.Context()
 		if parent != nil {
-			curTree = parent.invTree
+			curTree = parent.sc.invTree
 		}
 		newTree := &invocations.Tree{Current: ctx.ScriptHash()}
 		curTree.Calls = append(curTree.Calls, newTree)
-		ctx.invTree = newTree
+		ctx.sc.invTree = newTree
 	}
-	ctx.onUnload = onContextUnload
+	ctx.sc.onUnload = onContextUnload
 	v.istack.PushItem(ctx)
 }
 
@@ -481,7 +479,7 @@ func (v *VM) StepInto() error {
 		return nil
 	}
 
-	if ctx != nil && ctx.prog != nil {
+	if ctx != nil && ctx.sc.prog != nil {
 		op, param, err := ctx.Next()
 		if err != nil {
 			v.state = vmstate.Fault
@@ -584,7 +582,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 	}()
 
-	if v.getPrice != nil && ctx.ip < len(ctx.prog) {
+	if v.getPrice != nil && ctx.ip < len(ctx.sc.prog) {
 		v.gasConsumed += v.getPrice(op, parameter)
 		if v.GasLimit >= 0 && v.gasConsumed > v.GasLimit {
 			panic("gas limit is exceeded")
@@ -610,7 +608,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.PUSHA:
 		n := getJumpOffset(ctx, parameter)
-		ptr := stackitem.NewPointerWithHash(n, ctx.prog, ctx.ScriptHash())
+		ptr := stackitem.NewPointerWithHash(n, ctx.sc.prog, ctx.ScriptHash())
 		v.estack.PushItem(ptr)
 
 	case opcode.PUSHNULL:
@@ -637,7 +635,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if parameter[0] == 0 {
 			panic("zero argument")
 		}
-		ctx.static.init(int(parameter[0]), &v.refs)
+		ctx.sc.static.init(int(parameter[0]), &v.refs)
 
 	case opcode.INITSLOT:
 		if ctx.local != nil || ctx.arguments != nil {
@@ -658,20 +656,20 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.LDSFLD0, opcode.LDSFLD1, opcode.LDSFLD2, opcode.LDSFLD3, opcode.LDSFLD4, opcode.LDSFLD5, opcode.LDSFLD6:
-		item := ctx.static.Get(int(op - opcode.LDSFLD0))
+		item := ctx.sc.static.Get(int(op - opcode.LDSFLD0))
 		v.estack.PushItem(item)
 
 	case opcode.LDSFLD:
-		item := ctx.static.Get(int(parameter[0]))
+		item := ctx.sc.static.Get(int(parameter[0]))
 		v.estack.PushItem(item)
 
 	case opcode.STSFLD0, opcode.STSFLD1, opcode.STSFLD2, opcode.STSFLD3, opcode.STSFLD4, opcode.STSFLD5, opcode.STSFLD6:
 		item := v.estack.Pop().Item()
-		ctx.static.Set(int(op-opcode.STSFLD0), item, &v.refs)
+		ctx.sc.static.Set(int(op-opcode.STSFLD0), item, &v.refs)
 
 	case opcode.STSFLD:
 		item := v.estack.Pop().Item()
-		ctx.static.Set(int(parameter[0]), item, &v.refs)
+		ctx.sc.static.Set(int(parameter[0]), item, &v.refs)
 
 	case opcode.LDLOC0, opcode.LDLOC1, opcode.LDLOC2, opcode.LDLOC3, opcode.LDLOC4, opcode.LDLOC5, opcode.LDLOC6:
 		item := ctx.local.Get(int(op - opcode.LDLOC0))
@@ -1475,7 +1473,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			break
 		}
 
-		newEstack := v.Context().estack
+		newEstack := v.Context().sc.estack
 		if oldEstack != newEstack {
 			if oldCtx.retCount >= 0 && oldEstack.Len() != oldCtx.retCount {
 				panic(fmt.Errorf("invalid return values count: expected %d, got %d",
@@ -1631,17 +1629,19 @@ func (v *VM) unloadContext(ctx *Context) {
 		ctx.arguments.ClearRefs(&v.refs)
 	}
 	currCtx := v.Context()
-	if ctx.static != nil && (currCtx == nil || ctx.static != currCtx.static) {
-		ctx.static.ClearRefs(&v.refs)
-	}
-	if ctx.onUnload != nil {
-		err := ctx.onUnload(v.uncaughtException == nil)
-		if err != nil {
-			errMessage := fmt.Sprintf("context unload callback failed: %s", err)
-			if v.uncaughtException != nil {
-				errMessage = fmt.Sprintf("%s, uncaught exception: %s", errMessage, v.uncaughtException)
+	if currCtx == nil || ctx.sc != currCtx.sc {
+		if ctx.sc.static != nil {
+			ctx.sc.static.ClearRefs(&v.refs)
+		}
+		if ctx.sc.onUnload != nil {
+			err := ctx.sc.onUnload(ctx, v.uncaughtException == nil)
+			if err != nil {
+				errMessage := fmt.Sprintf("context unload callback failed: %s", err)
+				if v.uncaughtException != nil {
+					errMessage = fmt.Sprintf("%s, uncaught exception: %s", errMessage, v.uncaughtException)
+				}
+				panic(errors.New(errMessage))
 			}
-			panic(errors.New(errMessage))
 		}
 	}
 }
@@ -1691,17 +1691,13 @@ func (v *VM) Call(offset int) {
 // package.
 func (v *VM) call(ctx *Context, offset int) {
 	v.checkInvocationStackSize()
-	newCtx := ctx.Copy()
-	newCtx.retCount = -1
-	newCtx.local = nil
-	newCtx.arguments = nil
-	// If memory for `elems` is reused, we can end up
-	// with an incorrect exception context state in the caller.
-	newCtx.tryStack.elems = nil
-	initStack(&newCtx.tryStack, "exception", nil)
-	newCtx.NEF = ctx.NEF
-	// Do not clone unloading callback, new context does not require any actions to perform on unloading.
-	newCtx.onUnload = nil
+	newCtx := &Context{
+		sc:       ctx.sc,
+		retCount: -1,
+		tryStack: ctx.tryStack,
+	}
+	// New context -> new exception handlers.
+	newCtx.tryStack.elems = ctx.tryStack.elems[len(ctx.tryStack.elems):]
 	v.istack.PushItem(newCtx)
 	newCtx.Jump(offset)
 }
@@ -1732,7 +1728,7 @@ func calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 		return 0, 0, fmt.Errorf("invalid %s parameter length: %d", curr, l)
 	}
 	offset := ctx.ip + int(rOffset)
-	if offset < 0 || offset > len(ctx.prog) {
+	if offset < 0 || offset > len(ctx.sc.prog) {
 		return 0, 0, fmt.Errorf("invalid offset %d ip at %d", offset, ctx.ip)
 	}
 
@@ -1955,7 +1951,7 @@ func bytesToPublicKey(b []byte, curve elliptic.Curve) *keys.PublicKey {
 
 // GetCallingScriptHash implements the ScriptHashGetter interface.
 func (v *VM) GetCallingScriptHash() util.Uint160 {
-	return v.Context().callingScriptHash
+	return v.Context().sc.callingScriptHash
 }
 
 // GetEntryScriptHash implements the ScriptHashGetter interface.

@@ -73,6 +73,10 @@ func Notify(ic *interop.Context) error {
 	if len(name) > MaxEventNameLen {
 		return fmt.Errorf("event name must be less than %d", MaxEventNameLen)
 	}
+	if !ic.VM.Context().IsDeployed() {
+		return errors.New("notifications are not allowed in dynamic scripts")
+	}
+
 	// But it has to be serializable, otherwise we either have some broken
 	// (recursive) structure inside or an interop item that can't be used
 	// outside of the interop subsystem anyway.

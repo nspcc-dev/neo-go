@@ -170,6 +170,9 @@ func (t *TestMC) GetCurrentScriptHash() util.Uint160 {
 func (t *TestMC) GetEntryScriptHash() util.Uint160 {
 	return t.entry
 }
+func (t *TestMC) IsCalledByEntry() bool {
+	return t.entry.Equals(t.calling) || t.calling.Equals(util.Uint160{})
+}
 func (t *TestMC) CallingScriptHasGroup(k *keys.PublicKey) (bool, error) {
 	res, err := t.CurrentScriptHasGroup(k)
 	return !res, err // To differentiate from current we invert the logic value.

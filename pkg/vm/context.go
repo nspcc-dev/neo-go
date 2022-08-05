@@ -16,14 +16,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// Context represents the current execution context of the VM.
-type Context struct {
-	// Instruction pointer.
-	ip int
-
-	// The next instruction pointer.
-	nextip int
-
+// scriptContext is a part of the Context that is shared between multiple Contexts,
+// it's created when a new script is loaded into the VM while regular
+// CALL/CALLL/CALLA internal invocations reuse it.
+type scriptContext struct {
 	// The raw program script.
 	prog []byte
 
@@ -33,12 +29,7 @@ type Context struct {
 	// Evaluation stack pointer.
 	estack *Stack
 
-	static    *slot
-	local     slot
-	arguments slot
-
-	// Exception context stack.
-	tryStack Stack
+	static slot
 
 	// Script hash of the prog.
 	scriptHash util.Uint160
@@ -46,22 +37,43 @@ type Context struct {
 	// Caller's contract script hash.
 	callingScriptHash util.Uint160
 
+	// Caller's scriptContext, if not entry.
+	callingContext *scriptContext
+
 	// Call flags this context was created with.
 	callFlag callflag.CallFlag
 
-	// retCount specifies the number of return values.
-	retCount int
 	// NEF represents a NEF file for the current contract.
 	NEF *nef.File
-	// invTree is an invocation tree (or branch of it) for this context.
+	// invTree is an invocation tree (or a branch of it) for this context.
 	invTree *invocations.Tree
 	// onUnload is a callback that should be called after current context unloading
 	// if no exception occurs.
 	onUnload ContextUnloadCallback
 }
 
+// Context represents the current execution context of the VM.
+type Context struct {
+	// Instruction pointer.
+	ip int
+
+	// The next instruction pointer.
+	nextip int
+
+	sc *scriptContext
+
+	local     slot
+	arguments slot
+
+	// Exception context stack.
+	tryStack Stack
+
+	// retCount specifies the number of return values.
+	retCount int
+}
+
 // ContextUnloadCallback is a callback method used on context unloading from istack.
-type ContextUnloadCallback func(commit bool) error
+type ContextUnloadCallback func(ctx *Context, commit bool) error
 
 var errNoInstParam = errors.New("failed to read instruction parameter")
 
@@ -74,7 +86,9 @@ func NewContext(b []byte) *Context {
 // return value count and initial position in script.
 func NewContextWithParams(b []byte, rvcount int, pos int) *Context {
 	return &Context{
-		prog:     b,
+		sc: &scriptContext{
+			prog: b,
+		},
 		retCount: rvcount,
 		nextip:   pos,
 	}
@@ -82,7 +96,7 @@ func NewContextWithParams(b []byte, rvcount int, pos int) *Context {
 
 // Estack returns the evaluation stack of c.
 func (c *Context) Estack() *Stack {
-	return c.estack
+	return c.sc.estack
 }
 
 // NextIP returns the next instruction pointer.
@@ -92,7 +106,7 @@ func (c *Context) NextIP() int {
 
 // Jump unconditionally moves the next instruction pointer to the specified location.
 func (c *Context) Jump(pos int) {
-	if pos < 0 || pos >= len(c.prog) {
+	if pos < 0 || pos >= len(c.sc.prog) {
 		panic("instruction offset is out of range")
 	}
 	c.nextip = pos
@@ -105,11 +119,12 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	var err error
 
 	c.ip = c.nextip
-	if c.ip >= len(c.prog) {
+	prog := c.sc.prog
+	if c.ip >= len(prog) {
 		return opcode.RET, nil, nil
 	}
 
-	var instrbyte = c.prog[c.ip]
+	var instrbyte = prog[c.ip]
 	instr := opcode.Opcode(instrbyte)
 	if !opcode.IsValid(instr) {
 		return instr, nil, fmt.Errorf("incorrect opcode %s", instr.String())
@@ -119,24 +134,24 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 	var numtoread int
 	switch instr {
 	case opcode.PUSHDATA1:
-		if c.nextip >= len(c.prog) {
+		if c.nextip >= len(prog) {
 			err = errNoInstParam
 		} else {
-			numtoread = int(c.prog[c.nextip])
+			numtoread = int(prog[c.nextip])
 			c.nextip++
 		}
 	case opcode.PUSHDATA2:
-		if c.nextip+1 >= len(c.prog) {
+		if c.nextip+1 >= len(prog) {
 			err = errNoInstParam
 		} else {
-			numtoread = int(binary.LittleEndian.Uint16(c.prog[c.nextip : c.nextip+2]))
+			numtoread = int(binary.LittleEndian.Uint16(prog[c.nextip : c.nextip+2]))
 			c.nextip += 2
 		}
 	case opcode.PUSHDATA4:
-		if c.nextip+3 >= len(c.prog) {
+		if c.nextip+3 >= len(prog) {
 			err = errNoInstParam
 		} else {
-			var n = binary.LittleEndian.Uint32(c.prog[c.nextip : c.nextip+4])
+			var n = binary.LittleEndian.Uint32(prog[c.nextip : c.nextip+4])
 			if n > stackitem.MaxSize {
 				return instr, nil, errors.New("parameter is too big")
 			}
@@ -166,13 +181,13 @@ func (c *Context) Next() (opcode.Opcode, []byte, error) {
 			return instr, nil, nil
 		}
 	}
-	if c.nextip+numtoread-1 >= len(c.prog) {
+	if c.nextip+numtoread-1 >= len(prog) {
 		err = errNoInstParam
 	}
 	if err != nil {
 		return instr, nil, err
 	}
-	parameter := c.prog[c.nextip : c.nextip+numtoread]
+	parameter := prog[c.nextip : c.nextip+numtoread]
 	c.nextip += numtoread
 	return instr, parameter, nil
 }
@@ -184,46 +199,49 @@ func (c *Context) IP() int {
 
 // LenInstr returns the number of instructions loaded.
 func (c *Context) LenInstr() int {
-	return len(c.prog)
+	return len(c.sc.prog)
 }
 
 // CurrInstr returns the current instruction and opcode.
 func (c *Context) CurrInstr() (int, opcode.Opcode) {
-	return c.ip, opcode.Opcode(c.prog[c.ip])
+	return c.ip, opcode.Opcode(c.sc.prog[c.ip])
 }
 
 // NextInstr returns the next instruction and opcode.
 func (c *Context) NextInstr() (int, opcode.Opcode) {
 	op := opcode.RET
-	if c.nextip < len(c.prog) {
-		op = opcode.Opcode(c.prog[c.nextip])
+	if c.nextip < len(c.sc.prog) {
+		op = opcode.Opcode(c.sc.prog[c.nextip])
 	}
 	return c.nextip, op
 }
 
-// Copy returns an new exact copy of c.
-func (c *Context) Copy() *Context {
-	ctx := new(Context)
-	*ctx = *c
-	return ctx
-}
-
 // GetCallFlags returns the calling flags which the context was created with.
 func (c *Context) GetCallFlags() callflag.CallFlag {
-	return c.callFlag
+	return c.sc.callFlag
 }
 
 // Program returns the loaded program.
 func (c *Context) Program() []byte {
-	return c.prog
+	return c.sc.prog
 }
 
 // ScriptHash returns a hash of the script in the current context.
 func (c *Context) ScriptHash() util.Uint160 {
-	if c.scriptHash.Equals(util.Uint160{}) {
-		c.scriptHash = hash.Hash160(c.prog)
+	if c.sc.scriptHash.Equals(util.Uint160{}) {
+		c.sc.scriptHash = hash.Hash160(c.sc.prog)
 	}
-	return c.scriptHash
+	return c.sc.scriptHash
+}
+
+// GetNEF returns NEF structure used by this context if it's present.
+func (c *Context) GetNEF() *nef.File {
+	return c.sc.NEF
+}
+
+// NumOfReturnVals returns the number of return values expected from this context.
+func (c *Context) NumOfReturnVals() int {
+	return c.retCount
 }
 
 // Value implements the stackitem.Item interface.
@@ -263,7 +281,7 @@ func (c *Context) Equals(s stackitem.Item) bool {
 }
 
 func (c *Context) atBreakPoint() bool {
-	for _, n := range c.breakPoints {
+	for _, n := range c.sc.breakPoints {
 		if n == c.nextip {
 			return true
 		}
@@ -277,12 +295,12 @@ func (c *Context) String() string {
 
 // IsDeployed returns whether this context contains a deployed contract.
 func (c *Context) IsDeployed() bool {
-	return c.NEF != nil
+	return c.sc.NEF != nil
 }
 
 // DumpStaticSlot returns json formatted representation of the given slot.
 func (c *Context) DumpStaticSlot() string {
-	return dumpSlot(c.static)
+	return dumpSlot(&c.sc.static)
 }
 
 // DumpLocalSlot returns json formatted representation of the given slot.
@@ -314,6 +332,12 @@ func (v *VM) getContextScriptHash(n int) util.Uint160 {
 	element := istack.Peek(n)
 	ctx := element.value.(*Context)
 	return ctx.ScriptHash()
+}
+
+// IsCalledByEntry checks parent script contexts and return true if the current one
+// is an entry script (the first loaded into the VM) or one called by it.
+func (c *Context) IsCalledByEntry() bool {
+	return c.sc.callingContext == nil || c.sc.callingContext.callingContext == nil
 }
 
 // PushContextScriptHash pushes the script hash of the

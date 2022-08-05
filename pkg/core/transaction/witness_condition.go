@@ -63,9 +63,9 @@ type WitnessCondition interface {
 type MatchContext interface {
 	GetCallingScriptHash() util.Uint160
 	GetCurrentScriptHash() util.Uint160
-	GetEntryScriptHash() util.Uint160
 	CallingScriptHasGroup(*keys.PublicKey) (bool, error)
 	CurrentScriptHasGroup(*keys.PublicKey) (bool, error)
+	IsCalledByEntry() bool
 }
 
 type (
@@ -394,8 +394,7 @@ func (c ConditionCalledByEntry) Type() WitnessConditionType {
 // Match implements the WitnessCondition interface checking whether this condition
 // matches given context.
 func (c ConditionCalledByEntry) Match(ctx MatchContext) (bool, error) {
-	entry := ctx.GetEntryScriptHash()
-	return entry.Equals(ctx.GetCallingScriptHash()) || entry.Equals(ctx.GetCurrentScriptHash()), nil
+	return ctx.IsCalledByEntry(), nil
 }
 
 // EncodeBinary implements the WitnessCondition interface allowing to serialize condition.

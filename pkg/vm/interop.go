@@ -36,8 +36,9 @@ func defaultSyscallHandler(v *VM, id uint32) error {
 		return errors.New("syscall not found")
 	}
 	d := defaultVMInterops[n]
-	if !v.Context().callFlag.Has(d.RequiredFlags) {
-		return fmt.Errorf("missing call flags: %05b vs %05b", v.Context().callFlag, d.RequiredFlags)
+	ctxFlag := v.Context().sc.callFlag
+	if !ctxFlag.Has(d.RequiredFlags) {
+		return fmt.Errorf("missing call flags: %05b vs %05b", ctxFlag, d.RequiredFlags)
 	}
 	return d.Func(v)
 }
