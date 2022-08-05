@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/chzyer/readline"
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	vmcli "github.com/nspcc-dev/neo-go/pkg/vm/cli"
 	"github.com/urfave/cli"
 )
@@ -21,6 +22,9 @@ func NewCommands() []cli.Command {
 }
 
 func startVMPrompt(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	p := vmcli.NewWithConfig(true, os.Exit, &readline.Config{})
 	return p.Run()
 }

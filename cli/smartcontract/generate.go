@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/urfave/cli"
@@ -39,6 +40,9 @@ var generateWrapperCmd = cli.Command{
 
 // contractGenerateWrapper deploys contract.
 func contractGenerateWrapper(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	m, _, err := readManifest(ctx.String("manifest"))
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't read contract manifest: %w", err), 1)

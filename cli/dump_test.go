@@ -38,6 +38,9 @@ func TestDBRestoreDump(t *testing.T) {
 	baseArgs := []string{"neo-go", "db", "restore", "--unittest",
 		"--config-path", tmpDir, "--in", inDump, "--dump", stateDump}
 
+	t.Run("excessive restore parameters", func(t *testing.T) {
+		e.RunWithError(t, append(baseArgs, "something")...)
+	})
 	// First 15 blocks.
 	e.Run(t, append(baseArgs, "--count", "15")...)
 
@@ -93,6 +96,9 @@ func TestDBRestoreDump(t *testing.T) {
 
 	t.Run("invalid start/count", func(t *testing.T) {
 		e.RunWithError(t, append(baseCmd, "--start", "5", "--count", strconv.Itoa(50-5+1+1))...)
+	})
+	t.Run("excessive dump parameters", func(t *testing.T) {
+		e.RunWithError(t, append(baseCmd, "something")...)
 	})
 
 	e.Run(t, baseCmd...)

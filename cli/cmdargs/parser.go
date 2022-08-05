@@ -131,6 +131,15 @@ func GetDataFromContext(ctx *cli.Context) (int, interface{}, *cli.ExitError) {
 	return offset, data, nil
 }
 
+// EnsureNone returns an error if there are any positional arguments present.
+// It can be used to check for them in commands that don't accept arguments.
+func EnsureNone(ctx *cli.Context) *cli.ExitError {
+	if ctx.Args().Present() {
+		return cli.NewExitError("additional arguments given while this command expects none", 1)
+	}
+	return nil
+}
+
 // ParseParams extracts array of smartcontract.Parameter from the given args and
 // returns the number of handled words, the array itself and an error.
 // `calledFromMain` denotes whether the method was called from the outside or

@@ -425,6 +425,9 @@ func NewCommands() []cli.Command {
 
 // initSmartContract initializes a given directory with some boiler plate code.
 func initSmartContract(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	contractName := ctx.String("name")
 	if contractName == "" {
 		return cli.NewExitError(errNoSmartContractName, 1)
@@ -494,6 +497,9 @@ require (
 }
 
 func contractCompile(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	src := ctx.String("in")
 	if len(src) == 0 {
 		return cli.NewExitError(errNoInput, 1)
@@ -546,6 +552,9 @@ func contractCompile(ctx *cli.Context) error {
 }
 
 func calcHash(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	sender := ctx.Generic("sender").(*flags.Address)
 	if !sender.IsSet {
 		return cli.NewExitError("sender is not set", 1)
@@ -798,6 +807,9 @@ type ProjectConfig struct {
 }
 
 func inspect(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	in := ctx.String("in")
 	compile := ctx.Bool("compile")
 	if len(in) == 0 {

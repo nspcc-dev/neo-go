@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -163,6 +164,10 @@ func removeNEP11Token(ctx *cli.Context) error {
 func getNEP11Balance(ctx *cli.Context) error {
 	var accounts []*wallet.Account
 
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
+
 	wall, _, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("bad wallet: %w", err), 1)
@@ -309,6 +314,9 @@ func printNEP11DOwner(ctx *cli.Context) error {
 
 func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 	var err error
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
 	if !tokenHash.IsSet {
 		return cli.NewExitError("token contract hash was not set", 1)
@@ -383,6 +391,9 @@ func printNEP11TokensOf(ctx *cli.Context) error {
 
 func printNEP11Tokens(ctx *cli.Context) error {
 	var err error
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
 	if !tokenHash.IsSet {
 		return cli.NewExitError("token contract hash was not set", 1)
@@ -409,6 +420,9 @@ func printNEP11Tokens(ctx *cli.Context) error {
 
 func printNEP11Properties(ctx *cli.Context) error {
 	var err error
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
 	if !tokenHash.IsSet {
 		return cli.NewExitError("token contract hash was not set", 1)

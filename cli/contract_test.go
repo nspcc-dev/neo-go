@@ -78,6 +78,9 @@ func TestCalcHash(t *testing.T) {
 
 	cmd = append(cmd, "--in", nefPath, "--manifest", manifestPath)
 	expected := state.CreateContractHash(sender, nefF.Checksum, manif.Name)
+	t.Run("excessive parameters", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "something")...)
+	})
 	t.Run("valid, uint160", func(t *testing.T) {
 		e.Run(t, append(cmd, "--sender", sender.StringLE())...)
 		e.checkNextLine(t, expected.StringLE())
@@ -156,6 +159,9 @@ func Blocks() []*alias.Block {
 		"--out", filepath.Join(tmpDir, "out.nef"),
 		"--manifest", manifestPath,
 		"--bindings", bindingsPath)
+	t.Run("excessive parameters", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "something")...)
+	})
 	e.Run(t, cmd...)
 	e.checkEOF(t)
 	require.FileExists(t, bindingsPath)
@@ -220,6 +226,10 @@ func TestContractInitAndCompile(t *testing.T) {
 	})
 
 	ctrPath := filepath.Join(tmpDir, "testcontract")
+	t.Run("excessive parameters", func(t *testing.T) {
+		e.RunWithError(t, "neo-go", "contract", "init", "--name", ctrPath, "something")
+	})
+
 	e.Run(t, "neo-go", "contract", "init", "--name", ctrPath)
 
 	t.Run("don't rewrite existing directory", func(t *testing.T) {
@@ -263,6 +273,11 @@ func TestContractInitAndCompile(t *testing.T) {
 	require.NoError(t, os.WriteFile(goMod, data, os.ModePerm))
 
 	cmd = append(cmd, "--config", cfgPath)
+
+	t.Run("excessive parameters", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "something")...)
+	})
+
 	e.Run(t, cmd...)
 	e.checkEOF(t)
 	require.FileExists(t, nefPath)
@@ -504,6 +519,10 @@ func TestContractManifestGroups(t *testing.T) {
 	cmd := []string{"neo-go", "contract", "manifest", "add-group",
 		"--nef", nefName, "--manifest", manifestName}
 
+	t.Run("excessive parameters", func(t *testing.T) {
+		e.RunWithError(t, append(cmd, "--wallet", testWalletPath,
+			"--sender", testWalletAccount, "--address", testWalletAccount, "something")...)
+	})
 	e.In.WriteString("testpass\r")
 	e.Run(t, append(cmd, "--wallet", testWalletPath,
 		"--sender", testWalletAccount, "--address", testWalletAccount)...)
@@ -916,6 +935,7 @@ func TestContractInspect(t *testing.T) {
 	t.Run("with nef", func(t *testing.T) {
 		e.RunWithError(t, append(cmd, "--in", nefName, "--compile")...)
 		e.RunWithError(t, append(cmd, "--in", filepath.Join(tmpDir, "not.exists"))...)
+		e.RunWithError(t, append(cmd, "--in", nefName, "something")...)
 		e.Run(t, append(cmd, "--in", nefName)...)
 		require.True(t, strings.Contains(e.Out.String(), "SYSCALL"))
 	})

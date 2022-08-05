@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -223,6 +224,9 @@ func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *m
 }
 
 func dumpDB(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	cfg, err := getConfigFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -273,6 +277,9 @@ func dumpDB(ctx *cli.Context) error {
 }
 
 func restoreDB(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	cfg, err := getConfigFromContext(ctx)
 	if err != nil {
 		return err
@@ -455,6 +462,10 @@ func mkP2PNotary(config config.P2PNotary, chain *core.Blockchain, serv *network.
 }
 
 func startServer(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
+
 	cfg, err := getConfigFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)

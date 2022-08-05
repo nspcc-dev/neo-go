@@ -3,6 +3,7 @@ package wallet
 import (
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -83,6 +84,9 @@ func handleUnregister(ctx *cli.Context) error {
 }
 
 func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, pass, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -138,6 +142,9 @@ func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 }
 
 func handleVote(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, pass, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)

@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -295,6 +296,9 @@ func NewCommands() []cli.Command {
 }
 
 func claimGas(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, pass, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -332,6 +336,9 @@ func claimGas(ctx *cli.Context) error {
 }
 
 func changePassword(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := openWallet(ctx, false)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -384,6 +391,9 @@ func changePassword(ctx *cli.Context) error {
 }
 
 func convertWallet(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, pass, err := newWalletV2FromFile(ctx.String("wallet"), ctx.String("wallet-config"))
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -421,6 +431,9 @@ func convertWallet(ctx *cli.Context) error {
 }
 
 func addAccount(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, pass, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -535,6 +548,9 @@ func importMultisig(ctx *cli.Context) error {
 }
 
 func importDeployed(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -588,6 +604,9 @@ func importDeployed(ctx *cli.Context) error {
 }
 
 func importWallet(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -617,6 +636,9 @@ func importWallet(ctx *cli.Context) error {
 }
 
 func removeAccount(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -660,6 +682,9 @@ func askForConsent(w io.Writer) bool {
 }
 
 func dumpWallet(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, pass, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -685,6 +710,9 @@ func dumpWallet(ctx *cli.Context) error {
 }
 
 func dumpKeys(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -732,6 +760,9 @@ func dumpKeys(ctx *cli.Context) error {
 }
 
 func createWallet(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	path := ctx.String("wallet")
 	configPath := ctx.String("wallet-config")
 

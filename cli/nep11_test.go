@@ -52,6 +52,9 @@ func TestNEP11Import(t *testing.T) {
 	// missing token hash
 	e.RunWithError(t, args...)
 
+	// excessive parameters
+	e.RunWithError(t, append(args, "--token", nnsContractHash.StringLE(), "something")...)
+
 	// good: non-divisible
 	e.Run(t, append(args, "--token", nnsContractHash.StringLE())...)
 
@@ -73,6 +76,10 @@ func TestNEP11Import(t *testing.T) {
 		e.checkNextLine(t, "^Standard:\\s*"+string(manifest.NEP11StandardName))
 	}
 	t.Run("Info", func(t *testing.T) {
+		t.Run("excessive parameters", func(t *testing.T) {
+			e.RunWithError(t, "neo-go", "wallet", "nep11", "info",
+				"--wallet", walletPath, "--token", nnsContractHash.StringLE(), "qwerty")
+		})
 		t.Run("WithToken", func(t *testing.T) {
 			e.Run(t, "neo-go", "wallet", "nep11", "info",
 				"--wallet", walletPath, "--token", nnsContractHash.StringLE())
@@ -88,6 +95,8 @@ func TestNEP11Import(t *testing.T) {
 	})
 
 	t.Run("Remove", func(t *testing.T) {
+		e.RunWithError(t, "neo-go", "wallet", "nep11", "remove",
+			"--wallet", walletPath, "--token", nnsContractHash.StringLE(), "parameter")
 		e.In.WriteString("y\r")
 		e.Run(t, "neo-go", "wallet", "nep11", "remove",
 			"--wallet", walletPath, "--token", nnsContractHash.StringLE())
@@ -166,6 +175,8 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	}
 	// balance check: by symbol, token is not imported
 	e.RunWithError(t, append(cmdCheckBalance, "--token", "HASHY")...)
+	// balance check: excessive parameters
+	e.RunWithError(t, append(cmdCheckBalance, "--token", h.StringLE(), "neo-go")...)
 	// balance check: by hash, ok
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
 	checkBalanceResult(t, nftOwnerAddr, "1")
@@ -256,6 +267,8 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	e.RunWithError(t, cmdTokens...)
 	cmdTokens = append(cmdTokens, "--token", h.StringLE())
 
+	// tokens: excessive parameters
+	e.RunWithError(t, append(cmdTokens, "additional")...)
 	// tokens: good, several tokens
 	e.Run(t, cmdTokens...)
 	require.Equal(t, hex.EncodeToString(fst), e.getNextLine(t))
@@ -481,6 +494,9 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	// properties: no token ID
 	e.RunWithError(t, cmdProperties...)
 	cmdProperties = append(cmdProperties, "--id", hex.EncodeToString(token2ID))
+
+	// properties: additional parameter
+	e.RunWithError(t, append(cmdProperties, "additiona")...)
 
 	// properties: ok
 	e.Run(t, cmdProperties...)

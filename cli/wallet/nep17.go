@@ -151,6 +151,9 @@ func newNEP17Commands() []cli.Command {
 func getNEP17Balance(ctx *cli.Context) error {
 	var accounts []*wallet.Account
 
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("bad wallet: %w", err), 1)
@@ -349,6 +352,9 @@ func importNEP17Token(ctx *cli.Context) error {
 }
 
 func importNEPToken(ctx *cli.Context, standard string) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -411,6 +417,9 @@ func printNEP17Info(ctx *cli.Context) error {
 }
 
 func printNEPInfo(ctx *cli.Context, standard string) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -443,6 +452,9 @@ func removeNEP17Token(ctx *cli.Context) error {
 }
 
 func removeNEPToken(ctx *cli.Context, standard string) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 	wall, _, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -77,6 +78,8 @@ func queryTx(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) == 0 {
 		return cli.NewExitError("Transaction hash is missing", 1)
+	} else if len(args) > 1 {
+		return cli.NewExitError("only one transaction hash is accepted", 1)
 	}
 
 	txHash, err := util.Uint256DecodeStringLE(strings.TrimPrefix(args[0], "0x"))
@@ -160,6 +163,10 @@ func DumpApplicationLog(
 func queryCandidates(ctx *cli.Context) error {
 	var err error
 
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
+
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
@@ -200,6 +207,10 @@ func queryCandidates(ctx *cli.Context) error {
 func queryCommittee(ctx *cli.Context) error {
 	var err error
 
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
+
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
@@ -221,6 +232,10 @@ func queryCommittee(ctx *cli.Context) error {
 
 func queryHeight(ctx *cli.Context) error {
 	var err error
+
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
@@ -250,6 +265,8 @@ func queryVoter(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) == 0 {
 		return cli.NewExitError("No address specified", 1)
+	} else if len(args) > 1 {
+		return cli.NewExitError("this command only accepts one address", 1)
 	}
 
 	addr, err := flags.ParseAddress(args[0])
