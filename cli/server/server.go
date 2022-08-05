@@ -44,11 +44,12 @@ var (
 func NewCommands() []cli.Command {
 	var cfgFlags = []cli.Flag{
 		cli.StringFlag{Name: "config-path"},
-		cli.BoolFlag{Name: "debug, d"},
 	}
 	cfgFlags = append(cfgFlags, options.Network...)
 	var cfgWithCountFlags = make([]cli.Flag, len(cfgFlags))
 	copy(cfgWithCountFlags, cfgFlags)
+	cfgFlags = append(cfgFlags, cli.BoolFlag{Name: "debug, d"})
+
 	cfgWithCountFlags = append(cfgWithCountFlags,
 		cli.UintFlag{
 			Name:  "count, c",
