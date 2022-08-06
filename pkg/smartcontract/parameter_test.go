@@ -617,6 +617,16 @@ func TestParameterFromValue(t *testing.T) {
 			expVal:  big.NewInt(100),
 		},
 		{
+			value:   Parameter{ByteArrayType, []byte{1, 2, 3}},
+			expType: ByteArrayType,
+			expVal:  []byte{1, 2, 3},
+		},
+		{
+			value:   &Parameter{ByteArrayType, []byte{1, 2, 3}},
+			expType: ByteArrayType,
+			expVal:  []byte{1, 2, 3},
+		},
+		{
 			value:   util.Uint160{1, 2, 3},
 			expType: Hash160Type,
 			expVal:  util.Uint160{1, 2, 3},
@@ -638,6 +648,11 @@ func TestParameterFromValue(t *testing.T) {
 		},
 		{
 			value:   [][]byte{{1, 2, 3}, {3, 2, 1}},
+			expType: ArrayType,
+			expVal:  []Parameter{{ByteArrayType, []byte{1, 2, 3}}, {ByteArrayType, []byte{3, 2, 1}}},
+		},
+		{
+			value:   []Parameter{{ByteArrayType, []byte{1, 2, 3}}, {ByteArrayType, []byte{3, 2, 1}}},
 			expType: ArrayType,
 			expVal:  []Parameter{{ByteArrayType, []byte{1, 2, 3}}, {ByteArrayType, []byte{3, 2, 1}}},
 		},

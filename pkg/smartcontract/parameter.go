@@ -303,6 +303,10 @@ func NewParameterFromValue(value interface{}) (Parameter, error) {
 	case uint64:
 		result.Type = IntegerType
 		result.Value = new(big.Int).SetUint64(v)
+	case *Parameter:
+		result = *v
+	case Parameter:
+		result = v
 	case util.Uint160:
 		result.Type = Hash160Type
 	case util.Uint256:
@@ -319,6 +323,11 @@ func NewParameterFromValue(value interface{}) (Parameter, error) {
 			elem, _ := NewParameterFromValue(v[i])
 			arr = append(arr, elem)
 		}
+		result.Type = ArrayType
+		result.Value = arr
+	case []Parameter:
+		arr := make([]Parameter, len(v))
+		copy(arr, v)
 		result.Type = ArrayType
 		result.Value = arr
 	case []*keys.PublicKey:
