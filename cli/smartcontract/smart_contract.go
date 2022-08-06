@@ -677,42 +677,32 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 	}
 	if resp.State != "HALT" {
 		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s", resp.State, resp.FaultException)
-		if out == "" && !signAndPush {
+		if !signAndPush {
 			return sender, cli.NewExitError(errText, 1)
 		}
 
 		action := "save"
 		process := "Saving"
-		if signAndPush {
-			if out != "" {
-				action += "and send"
-				process += "and sending"
-			} else {
-				action = "send"
-				process = "Sending"
-			}
+		if out != "" {
+			action += "and send"
+			process += "and sending"
+		} else {
+			action = "send"
+			process = "Sending"
 		}
 		if !ctx.Bool("force") {
 			return sender, cli.NewExitError(errText+".\nUse --force flag to "+action+" the transaction anyway.", 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, errText+".\n"+process+" transaction...")
 	}
-	if out != "" {
-		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed+int64(sysgas), int64(gas), cosignersAccounts)
+	if !signAndPush {
+		b, err := json.MarshalIndent(resp, "", "  ")
 		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
-		}
-		m, err := c.GetNetwork()
-		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("failed to save tx: %w", err), 1)
-		}
-		if err := paramcontext.InitAndSave(m, tx, acc, out); err != nil {
 			return sender, cli.NewExitError(err, 1)
 		}
-		fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
-		return sender, nil
-	}
-	if signAndPush {
+
+		fmt.Fprintln(ctx.App.Writer, string(b))
+	} else {
 		if len(resp.Script) == 0 {
 			return sender, cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
 		}
@@ -720,24 +710,28 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		if err != nil {
 			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
 		}
-		if !ctx.Bool("force") {
-			err := input.ConfirmTx(ctx.App.Writer, tx)
+		if out != "" {
+			m, err := c.GetNetwork()
 			if err != nil {
+				return sender, cli.NewExitError(fmt.Errorf("failed to save tx: %w", err), 1)
+			}
+			if err := paramcontext.InitAndSave(m, tx, acc, out); err != nil {
 				return sender, cli.NewExitError(err, 1)
 			}
+			fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
+		} else {
+			if !ctx.Bool("force") {
+				err := input.ConfirmTx(ctx.App.Writer, tx)
+				if err != nil {
+					return sender, cli.NewExitError(err, 1)
+				}
+			}
+			txHash, err := c.SignAndPushTx(tx, acc, cosignersAccounts)
+			if err != nil {
+				return sender, cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
+			}
+			fmt.Fprintf(ctx.App.Writer, "Sent invocation transaction %s\n", txHash.StringLE())
 		}
-		txHash, err := c.SignAndPushTx(tx, acc, cosignersAccounts)
-		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
-		}
-		fmt.Fprintf(ctx.App.Writer, "Sent invocation transaction %s\n", txHash.StringLE())
-	} else {
-		b, err := json.MarshalIndent(resp, "", "  ")
-		if err != nil {
-			return sender, cli.NewExitError(err, 1)
-		}
-
-		fmt.Fprintln(ctx.App.Writer, string(b))
 	}
 
 	return sender, nil
