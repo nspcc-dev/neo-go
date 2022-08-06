@@ -85,7 +85,9 @@ func NewAccount() (*Account, error) {
 // SignTx signs transaction t and updates it's Witnesses.
 func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 	if len(a.Contract.Parameters) == 0 {
-		t.Scripts = append(t.Scripts, transaction.Witness{})
+		if len(t.Signers) != len(t.Scripts) { // Sequential signing vs. existing scripts.
+			t.Scripts = append(t.Scripts, transaction.Witness{})
+		}
 		return nil
 	}
 	if a.privateKey == nil {
