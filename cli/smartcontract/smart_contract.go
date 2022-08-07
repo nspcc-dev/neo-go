@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
@@ -735,6 +736,7 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		if len(resp.Script) == 0 {
 			return sender, cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
 		}
+		ver := act.GetVersion()
 		tx, err := act.MakeUnsignedUncheckedRun(resp.Script, resp.GasConsumed+int64(sysgas), nil)
 		if err != nil {
 			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
@@ -748,10 +750,14 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 			fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
 		} else {
 			if !ctx.Bool("force") {
+				promptTime := time.Now()
 				err := input.ConfirmTx(ctx.App.Writer, tx)
 				if err != nil {
 					return sender, cli.NewExitError(err, 1)
 				}
+				waitTime := time.Since(promptTime)
+				// Compensate for confirmation waiting.
+				tx.ValidUntilBlock += uint32((waitTime.Milliseconds() / int64(ver.Protocol.MillisecondsPerBlock))) + 1
 			}
 			txHash, _, err := act.SignAndSend(tx)
 			if err != nil {
