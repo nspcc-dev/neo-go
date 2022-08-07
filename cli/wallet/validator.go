@@ -123,7 +123,7 @@ func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	res, err := c.SignAndPushInvocationTx(script, acc, sysGas, gas, []rpcclient.SignerAccount{{
+	res, err := c.SignAndPushInvocationTx(script, acc, sysGas, gas, []rpcclient.SignerAccount{{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
 		Signer: transaction.Signer{
 			Account: acc.Contract.ScriptHash(),
 			Scopes:  transaction.CalledByEntry,
@@ -184,7 +184,7 @@ func handleVote(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	res, err := c.SignAndPushInvocationTx(script, acc, -1, gas, []rpcclient.SignerAccount{{
+	res, err := c.SignAndPushInvocationTx(script, acc, -1, gas, []rpcclient.SignerAccount{{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
 		Signer: transaction.Signer{
 			Account: acc.Contract.ScriptHash(),
 			Scopes:  transaction.CalledByEntry,

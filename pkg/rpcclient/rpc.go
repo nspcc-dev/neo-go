@@ -755,6 +755,9 @@ func (c *Client) SubmitRawOracleResponse(ps []interface{}) error {
 // possible. It spends the amount of gas specified. It returns a hash of the
 // invocation transaction and an error. If one of the cosigners accounts is
 // neither contract-based nor unlocked, an error is returned.
+//
+// Deprecated: please use actor.Actor API, this method will be removed in future
+// versions.
 func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee fixedn.Fixed8, cosigners []SignerAccount) (util.Uint256, error) {
 	tx, err := c.CreateTxFromScript(script, acc, sysfee, int64(netfee), cosigners)
 	if err != nil {
@@ -767,6 +770,9 @@ func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sys
 // it to the chain. It returns a hash of the transaction and an error. If one of
 // the cosigners accounts is neither contract-based nor unlocked, an error is
 // returned.
+//
+// Deprecated: please use actor.Actor API, this method will be removed in future
+// versions.
 func (c *Client) SignAndPushTx(tx *transaction.Transaction, acc *wallet.Account, cosigners []SignerAccount) (util.Uint256, error) {
 	var (
 		txHash util.Uint256
@@ -1042,6 +1048,9 @@ func (c *Client) CalculateValidUntilBlock() (uint32, error) {
 
 // AddNetworkFee adds network fee for each witness script and optional extra
 // network fee to transaction. `accs` is an array signer's accounts.
+//
+// Deprecated: please use CalculateNetworkFee or actor.Actor. This method will
+// be removed in future versions.
 func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs ...*wallet.Account) error {
 	if len(tx.Signers) != len(accs) {
 		return errors.New("number of signers must match number of scripts")

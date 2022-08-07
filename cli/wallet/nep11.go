@@ -295,7 +295,7 @@ func signAndSendNEP11Transfer(ctx *cli.Context, c *rpcclient.Client, acc *wallet
 				return cli.NewExitError(err, 1)
 			}
 		}
-		_, err := c.SignAndPushTx(tx, acc, cosigners)
+		_, err := c.SignAndPushTx(tx, acc, cosigners) //nolint:staticcheck // SA1019: c.SignAndPushTx is deprecated
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}

@@ -97,6 +97,9 @@ func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64,
 // CreateTxFromScript creates transaction and properly sets cosigners and NetworkFee.
 // If sysFee <= 0, it is determined via result of `invokescript` RPC. You should
 // initialize network magic with Init before calling CreateTxFromScript.
+//
+// Deprecated: please use actor.Actor API, this method will be removed in future
+// versions.
 func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, netFee int64,
 	cosigners []SignerAccount) (*transaction.Transaction, error) {
 	signers, accounts, err := getSigners(acc, cosigners)

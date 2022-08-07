@@ -116,7 +116,7 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 			Account: accs[0].PrivateKey().GetScriptHash(),
 			Scopes:  transaction.CalledByEntry,
 		}}
-		require.Error(t, c.AddNetworkFee(tx, extraFee, accs[0], accs[1]))
+		require.Error(t, c.AddNetworkFee(tx, extraFee, accs[0], accs[1])) //nolint:staticcheck // SA1019: c.AddNetworkFee is deprecated
 	})
 	t.Run("Simple", func(t *testing.T) {
 		acc0 := wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0))
@@ -137,7 +137,7 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 			require.NoError(t, err)
 
 			tx.Scripts = nil
-			require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0))
+			require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0)) //nolint:staticcheck // SA1019: c.AddNetworkFee is deprecated
 			actual := tx.NetworkFee
 
 			require.NoError(t, acc0.SignTx(testchain.Network(), tx))
@@ -203,7 +203,7 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 
 			tx.Scripts = nil
 
-			require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0, acc1))
+			require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0, acc1)) //nolint:staticcheck // SA1019: c.AddNetworkFee is deprecated
 			actual := tx.NetworkFee
 
 			require.NoError(t, acc0.SignTx(testchain.Network(), tx))
@@ -276,7 +276,7 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 				require.NoError(t, err)
 				tx.Scripts = nil
 
-				require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0, acc1))
+				require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0, acc1)) //nolint:staticcheck // SA1019: c.AddNetworkFee is deprecated
 				require.NoError(t, acc0.SignTx(testchain.Network(), tx))
 				tx.Scripts = append(tx.Scripts, transaction.Witness{})
 				require.Equal(t, tx.NetworkFee, actual+extraFee)
@@ -315,7 +315,7 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 					Scopes:  transaction.Global,
 				},
 			}
-			require.Error(t, c.AddNetworkFee(tx, 10, acc0, acc1))
+			require.Error(t, c.AddNetworkFee(tx, 10, acc0, acc1)) //nolint:staticcheck // SA1019: c.AddNetworkFee is deprecated
 		})
 		t.Run("InvalidContract", func(t *testing.T) {
 			tx := newTx(t)
@@ -330,7 +330,7 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 					Scopes:  transaction.Global,
 				},
 			}
-			require.Error(t, c.AddNetworkFee(tx, 10, acc0, acc1))
+			require.Error(t, c.AddNetworkFee(tx, 10, acc0, acc1)) //nolint:staticcheck // SA1019: c.AddNetworkFee is deprecated
 		})
 	})
 }
@@ -458,7 +458,7 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 
 	t.Run("good", func(t *testing.T) {
 		t.Run("signer0: sig", func(t *testing.T) {
-			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{
+			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
 				{
 					Signer: transaction.Signer{
 						Account: priv0.GetScriptHash(),
@@ -471,7 +471,7 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 			check(t, h)
 		})
 		t.Run("signer0: sig; signer1: sig", func(t *testing.T) {
-			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{
+			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
 				{
 					Signer: transaction.Signer{
 						Account: priv0.GetScriptHash(),
@@ -491,7 +491,7 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 			check(t, h)
 		})
 		t.Run("signer0: sig; signer1: contract-based paramless", func(t *testing.T) {
-			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{
+			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
 				{
 					Signer: transaction.Signer{
 						Account: priv0.GetScriptHash(),
@@ -513,7 +513,7 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 	})
 	t.Run("error", func(t *testing.T) {
 		t.Run("signer0: sig; signer1: contract-based with params", func(t *testing.T) {
-			_, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{
+			_, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
 				{
 					Signer: transaction.Signer{
 						Account: priv0.GetScriptHash(),
@@ -541,7 +541,7 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 					Parameters: []wallet.ContractParam{{Name: "parameter0", Type: smartcontract.SignatureType}},
 				},
 			}
-			_, err = c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{
+			_, err = c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
 				{
 					Signer: transaction.Signer{
 						Account: priv0.GetScriptHash(),
@@ -693,7 +693,7 @@ func TestCreateTxFromScript(t *testing.T) {
 	priv := testchain.PrivateKey(0)
 	acc := wallet.NewAccountFromPrivateKey(priv)
 	t.Run("NoSystemFee", func(t *testing.T) {
-		tx, err := c.CreateTxFromScript([]byte{byte(opcode.PUSH1)}, acc, -1, 10, nil)
+		tx, err := c.CreateTxFromScript([]byte{byte(opcode.PUSH1)}, acc, -1, 10, nil) //nolint:staticcheck // SA1019: c.CreateTxFromScript is deprecated
 		require.NoError(t, err)
 		require.True(t, tx.ValidUntilBlock > chain.BlockHeight())
 		require.EqualValues(t, 30, tx.SystemFee) // PUSH1
@@ -701,7 +701,7 @@ func TestCreateTxFromScript(t *testing.T) {
 		require.Equal(t, acc.PrivateKey().GetScriptHash(), tx.Signers[0].Account)
 	})
 	t.Run("ProvideSystemFee", func(t *testing.T) {
-		tx, err := c.CreateTxFromScript([]byte{byte(opcode.PUSH1)}, acc, 123, 10, nil)
+		tx, err := c.CreateTxFromScript([]byte{byte(opcode.PUSH1)}, acc, 123, 10, nil) //nolint:staticcheck // SA1019: c.CreateTxFromScript is deprecated
 		require.NoError(t, err)
 		require.True(t, tx.ValidUntilBlock > chain.BlockHeight())
 		require.EqualValues(t, 123, tx.SystemFee)
