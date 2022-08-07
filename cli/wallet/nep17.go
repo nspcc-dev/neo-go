@@ -647,6 +647,12 @@ func signAndSendNEP17Transfer(ctx *cli.Context, c *rpcclient.Client, acc *wallet
 	tx.SystemFee += int64(sysgas)
 
 	if outFile := ctx.String("out"); outFile != "" {
+		ver, err := c.GetVersion()
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("RPC failure: %w", err), 1)
+		}
+		// Make a long-lived transaction, it's to be signed manually.
+		tx.ValidUntilBlock += (ver.Protocol.MaxValidUntilBlockIncrement - uint32(ver.Protocol.ValidatorsCount)) - 2
 		m, err := c.GetNetwork()
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to save tx: %w", err), 1)

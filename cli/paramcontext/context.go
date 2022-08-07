@@ -12,14 +12,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
-// validUntilBlockIncrement is the number of extra blocks to add to an exported transaction.
-const validUntilBlockIncrement = 50
-
 // InitAndSave creates an incompletely signed transaction which can be used
 // as an input to `multisig sign`.
 func InitAndSave(net netmode.Magic, tx *transaction.Transaction, acc *wallet.Account, filename string) error {
-	// avoid fast transaction expiration
-	tx.ValidUntilBlock += validUntilBlockIncrement
 	priv := acc.PrivateKey()
 	pub := priv.PublicKey()
 	sign := priv.SignHashable(uint32(net), tx)

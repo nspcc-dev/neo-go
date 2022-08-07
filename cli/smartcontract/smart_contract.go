@@ -743,6 +743,8 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		}
 		tx.NetworkFee += int64(gas)
 		if out != "" {
+			// Make a long-lived transaction, it's to be signed manually.
+			tx.ValidUntilBlock += (ver.Protocol.MaxValidUntilBlockIncrement - uint32(ver.Protocol.ValidatorsCount)) - 2
 			m := act.GetNetwork()
 			if err := paramcontext.InitAndSave(m, tx, acc, out); err != nil {
 				return sender, cli.NewExitError(err, 1)
