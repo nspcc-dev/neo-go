@@ -14,7 +14,7 @@ import (
 
 const (
 	// The current version of neo-go wallet implementations.
-	walletVersion = "3.0"
+	walletVersion = "1.0"
 )
 
 // Wallet represents a NEO (NEP-2, NEP-6) compliant wallet.

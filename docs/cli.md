@@ -120,7 +120,7 @@ Use `wallet init` command to create a new wallet:
 ./bin/neo-go wallet init -w wallet.nep6
 
 {
-        "version": "3.0",
+        "version": "1.0",
         "accounts": [],
         "scrypt": {
                 "n": 16384,
@@ -144,7 +144,7 @@ Enter passphrase >
 Confirm passphrase > 
 
 {
-        "version": "3.0",
+        "version": "1.0",
         "accounts": [
                 {
                         "address": "NMe64G6j6nkPZby26JAgpaCNrn1Ee4wW6E",
@@ -204,7 +204,7 @@ keys at the same time with `-d` option (you'll be prompted for password):
 Enter wallet password > 
 
 {
-        "version": "3.0",
+        "version": "1.0",
         "accounts": [
                 {
                         "address": "NMe64G6j6nkPZby26JAgpaCNrn1Ee4wW6E",
