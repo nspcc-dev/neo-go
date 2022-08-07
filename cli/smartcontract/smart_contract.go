@@ -23,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -649,6 +650,7 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		resp              *result.Invoke
 		sender            util.Uint160
 		signAndPush       = acc != nil
+		act               *actor.Actor
 	)
 	if signAndPush {
 		gas = flags.Fixed8FromContext(ctx, "gas")
@@ -669,8 +671,35 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 	if err != nil {
 		return sender, err
 	}
-
+	if signAndPush {
+		// This will eventually be handled in cmdargs.GetSignersAccounts.
+		asa := make([]actor.SignerAccount, 0, len(cosigners)+1)
+		asa = append(asa, actor.SignerAccount{
+			Signer: transaction.Signer{
+				Account: sender,
+				Scopes:  transaction.None,
+			},
+			Account: acc,
+		})
+		for _, c := range cosignersAccounts {
+			if c.Signer.Account == sender {
+				asa[0].Signer = c.Signer
+				continue
+			}
+			asa = append(asa, actor.SignerAccount{
+				Signer:  c.Signer,
+				Account: c.Account,
+			})
+		}
+		act, err = actor.New(c, asa)
+		if err != nil {
+			return sender, cli.NewExitError(fmt.Errorf("failed to create RPC actor: %w", err), 1)
+		}
+	}
 	out := ctx.String("out")
+	// It's a bit easier to keep this as is (not using invoker.Invoker)
+	// during transition period. Mostly because of the need to convert params
+	// to []interface{}.
 	resp, err = c.InvokeFunction(script, operation, params, cosigners)
 	if err != nil {
 		return sender, cli.NewExitError(err, 1)
@@ -706,15 +735,13 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		if len(resp.Script) == 0 {
 			return sender, cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
 		}
-		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed+int64(sysgas), int64(gas), cosignersAccounts)
+		tx, err := act.MakeUnsignedUncheckedRun(resp.Script, resp.GasConsumed+int64(sysgas), nil)
 		if err != nil {
 			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
 		}
+		tx.NetworkFee += int64(gas)
 		if out != "" {
-			m, err := c.GetNetwork()
-			if err != nil {
-				return sender, cli.NewExitError(fmt.Errorf("failed to save tx: %w", err), 1)
-			}
+			m := act.GetNetwork()
 			if err := paramcontext.InitAndSave(m, tx, acc, out); err != nil {
 				return sender, cli.NewExitError(err, 1)
 			}
@@ -726,7 +753,7 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 					return sender, cli.NewExitError(err, 1)
 				}
 			}
-			txHash, err := c.SignAndPushTx(tx, acc, cosignersAccounts)
+			txHash, _, err := act.SignAndSend(tx)
 			if err != nil {
 				return sender, cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 			}
