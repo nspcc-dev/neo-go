@@ -191,5 +191,14 @@ func (a *Actor) CalculateValidUntilBlock() (uint32, error) {
 	if err != nil {
 		return 0, fmt.Errorf("can't get block count: %w", err)
 	}
-	return blockCount + uint32(a.version.Protocol.ValidatorsCount) + 1, nil
+	var vc = int(a.version.Protocol.ValidatorsCount)
+	var bestH = uint32(0)
+	for h, n := range a.version.Protocol.ValidatorsHistory { // In case it's enabled.
+		if h >= bestH && h <= blockCount {
+			vc = n
+			bestH = h
+		}
+	}
+
+	return blockCount + uint32(vc+1), nil
 }

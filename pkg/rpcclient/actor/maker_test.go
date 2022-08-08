@@ -24,6 +24,23 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 	vub, err := a.CalculateValidUntilBlock()
 	require.NoError(t, err)
 	require.Equal(t, uint32(42+7+1), vub)
+
+	client.version.Protocol.ValidatorsHistory = map[uint32]int{
+		0:  7,
+		40: 4,
+		80: 10,
+	}
+	a, err = NewSimple(client, acc)
+	require.NoError(t, err)
+
+	vub, err = a.CalculateValidUntilBlock()
+	require.NoError(t, err)
+	require.Equal(t, uint32(42+4+1), vub)
+
+	client.bCount = 101
+	vub, err = a.CalculateValidUntilBlock()
+	require.NoError(t, err)
+	require.Equal(t, uint32(101+10+1), vub)
 }
 
 func TestMakeUnsigned(t *testing.T) {
