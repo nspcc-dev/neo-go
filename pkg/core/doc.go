@@ -2,7 +2,7 @@
 Package core implements Neo ledger functionality.
 It's built around the Blockchain structure that maintains state of the ledger.
 
-Events
+# Events
 
 You can subscribe to Blockchain events using a set of Subscribe and Unsubscribe
 methods. These methods accept channels that will be used to send appropriate
@@ -24,6 +24,5 @@ way they're stored in the block.
 Be careful using these subscriptions, this mechanism is not intended to be used
 by lots of subscribers and failing to read from event channels can affect
 other Blockchain operations.
-
 */
 package core

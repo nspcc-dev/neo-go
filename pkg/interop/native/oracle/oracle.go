@@ -35,36 +35,35 @@ const MinimumResponseGas = 10_000_000
 // Request makes an oracle request. It can only be successfully invoked by
 // a deployed contract and it takes the following parameters:
 //
-//   url
-//       URL to fetch, only https and neofs URLs are supported like
-//       https://example.com/some.json or
-//       neofs:6pJtLUnGqDxE2EitZYLsDzsfTDVegD6BrRUn8QAFZWyt/5Cyxb3wrHDw5pqY63hb5otCSsJ24ZfYmsA8NAjtho2gr
+//   - url
+//     URL to fetch, only https and neofs URLs are supported like
+//     https://example.com/some.json or
+//     neofs:6pJtLUnGqDxE2EitZYLsDzsfTDVegD6BrRUn8QAFZWyt/5Cyxb3wrHDw5pqY63hb5otCSsJ24ZfYmsA8NAjtho2gr
 //
-//   filter
-//       JSONPath filter to process the result; if specified, it will be
-//       applied to the data returned from HTTP/NeoFS and you'll only get
-//       filtered data in your callback method.
+//   - filter
+//     JSONPath filter to process the result; if specified, it will be
+//     applied to the data returned from HTTP/NeoFS and you'll only get
+//     filtered data in your callback method.
 //
-//   cb
-//       name of the method that will process oracle data, it must be a method
-//       of the same contract that invokes Request and it must have the following
-//       signature for correct invocation:
+//   - cb
+//     name of the method that will process oracle data, it must be a method
+//     of the same contract that invokes Request and it must have the following
+//     signature for correct invocation:
 //
-//           Method(url string, userData interface{}, code int, result []byte)
+//   - Method(url string, userData interface{}, code int, result []byte)
+//     where url is the same url specified for Request, userData is anything
+//     passed in the next parameter, code is the status of the reply and
+//     result is the data returned from the request if any.
 //
-//       where url is the same url specified for Request, userData is anything
-//       passed in the next parameter, code is the status of the reply and
-//       result is the data returned from the request if any.
+//   - userData
+//     data to pass to the callback function.
 //
-//   userData
-//       data to pass to the callback function.
-//
-//   gasForResponse
-//       GAS attached to this request for reply callback processing,
-//       note that it's different from the oracle request price, this
-//       GAS is used for oracle transaction's network and system fees,
-//       so it should be enough to pay for reply data as well as
-//       its processing.
+//   - gasForResponse
+//     GAS attached to this request for reply callback processing,
+//     note that it's different from the oracle request price, this
+//     GAS is used for oracle transaction's network and system fees,
+//     so it should be enough to pay for reply data as well as
+//     its processing.
 func Request(url string, filter []byte, cb string, userData interface{}, gasForResponse int) {
 	neogointernal.CallWithTokenNoRet(Hash, "request",
 		int(contract.States|contract.AllowNotify),

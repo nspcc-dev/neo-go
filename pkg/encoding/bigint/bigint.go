@@ -97,7 +97,8 @@ func getEffectiveSize(buf []byte, isNeg bool) int {
 
 // ToBytes converts an integer to a slice in little-endian format.
 // Note: NEO3 serialization differs from default C# BigInteger.ToByteArray()
-//   when n == 0. For zero is equal to empty slice in NEO3.
+// when n == 0. For zero is equal to empty slice in NEO3.
+//
 // https://github.com/neo-project/neo-vm/blob/master/src/neo-vm/Types/Integer.cs#L16
 func ToBytes(n *big.Int) []byte {
 	return ToPreallocatedBytes(n, []byte{})

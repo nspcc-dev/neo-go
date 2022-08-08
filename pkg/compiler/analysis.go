@@ -210,12 +210,13 @@ func lastStmtIsReturn(body *ast.BlockStmt) (b bool) {
 
 // analyzePkgOrder sets the order in which packages should be processed.
 // From Go spec:
-//   A package with no imports is initialized by assigning initial values to all its package-level variables
-//   followed by calling all init functions in the order they appear in the source, possibly in multiple files,
-//   as presented to the compiler. If a package has imports, the imported packages are initialized before
-//   initializing the package itself. If multiple packages import a package, the imported package
-//   will be initialized only once. The importing of packages, by construction, guarantees
-//   that there can be no cyclic initialization dependencies.
+//
+//	A package with no imports is initialized by assigning initial values to all its package-level variables
+//	followed by calling all init functions in the order they appear in the source, possibly in multiple files,
+//	as presented to the compiler. If a package has imports, the imported packages are initialized before
+//	initializing the package itself. If multiple packages import a package, the imported package
+//	will be initialized only once. The importing of packages, by construction, guarantees
+//	that there can be no cyclic initialization dependencies.
 func (c *codegen) analyzePkgOrder() {
 	seen := make(map[string]bool)
 	info := c.buildInfo.program[0]

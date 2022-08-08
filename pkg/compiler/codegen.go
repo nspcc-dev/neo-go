@@ -1341,19 +1341,21 @@ func (c *codegen) isCallExprSyscall(e ast.Expr) bool {
 
 // processDefers emits code for `defer` statements.
 // TRY-related opcodes handle exception as follows:
-// 1. CATCH block is executed only if exception has occurred.
-// 2. FINALLY block is always executed, but after catch block.
+//  1. CATCH block is executed only if exception has occurred.
+//  2. FINALLY block is always executed, but after catch block.
+//
 // Go `defer` statements are a bit different:
-// 1. `defer` is always executed irregardless of whether an exception has occurred.
-// 2. `recover` can or can not handle a possible exception.
+//  1. `defer` is always executed irregardless of whether an exception has occurred.
+//  2. `recover` can or can not handle a possible exception.
+//
 // Thus, we use the following approach:
-// 1. Throwed exception is saved in a static field X, static fields Y and it is set to true.
-// 2. For each defer local there is a dedicated local variable which is set to 1 if `defer` statement
-//    is encountered during an actual execution.
-// 3. CATCH and FINALLY blocks are the same, and both contain the same CALLs.
-// 4. Right before the CATCH block, check a variable from (2). If it is null, jump to the end of CATCH+FINALLY block.
-// 5. In CATCH block we set Y to true and emit default return values if it is the last defer.
-// 6. Execute FINALLY block only if Y is false.
+//  1. Throwed exception is saved in a static field X, static fields Y and it is set to true.
+//  2. For each defer local there is a dedicated local variable which is set to 1 if `defer` statement
+//     is encountered during an actual execution.
+//  3. CATCH and FINALLY blocks are the same, and both contain the same CALLs.
+//  4. Right before the CATCH block, check a variable from (2). If it is null, jump to the end of CATCH+FINALLY block.
+//  5. In CATCH block we set Y to true and emit default return values if it is the last defer.
+//  6. Execute FINALLY block only if Y is false.
 func (c *codegen) processDefers() {
 	for i := len(c.scope.deferStack) - 1; i >= 0; i-- {
 		stmt := c.scope.deferStack[i]
@@ -1399,10 +1401,10 @@ func (c *codegen) processDefers() {
 
 // emitExplicitConvert handles `someType(someValue)` conversions between string/[]byte.
 // Rules for conversion:
-// 1. interop.* types are converted to ByteArray if not already.
-// 2. Otherwise, convert between ByteArray/Buffer.
-// 3. Rules for types which are not string/[]byte should already
-//    be enforced by go parser.
+//  1. interop.* types are converted to ByteArray if not already.
+//  2. Otherwise, convert between ByteArray/Buffer.
+//  3. Rules for types which are not string/[]byte should already
+//     be enforced by go parser.
 func (c *codegen) emitExplicitConvert(from, to types.Type) {
 	if isInteropPath(to.String()) {
 		if isByteSlice(from) && !isString(from) {
@@ -1859,10 +1861,10 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 // transformArgs returns a list of function arguments
 // which should be put on stack.
 // There are special cases for builtins:
-// 1. With FromAddress, parameter conversion is happening at compile-time
-//    so there is no need to push parameters on stack and perform an actual call
-// 2. With panic, the generated code depends on the fact if an argument was nil or a string;
-//    so, it should be handled accordingly.
+//  1. With FromAddress, parameter conversion is happening at compile-time
+//     so there is no need to push parameters on stack and perform an actual call
+//  2. With panic, the generated code depends on the fact if an argument was nil or a string;
+//     so, it should be handled accordingly.
 func transformArgs(fs *funcScope, fun ast.Expr, args []ast.Expr) []ast.Expr {
 	switch f := fun.(type) {
 	case *ast.SelectorExpr:

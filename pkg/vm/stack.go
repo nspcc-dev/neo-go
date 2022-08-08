@@ -237,8 +237,9 @@ func (s *Stack) RemoveAt(n int) Element {
 
 // Dup duplicates and returns the element at position n.
 // Dup is used for copying elements on the top of its own stack.
-// 	s.Push(s.Peek(0)) // will result in unexpected behavior.
-// 	s.Push(s.Dup(0)) // is the correct approach.
+//
+//	s.Push(s.Peek(0)) // will result in unexpected behavior.
+//	s.Push(s.Dup(0)) // is the correct approach.
 func (s *Stack) Dup(n int) Element {
 	e := s.Peek(n)
 	return Element{e.value.Dup()}
@@ -246,9 +247,10 @@ func (s *Stack) Dup(n int) Element {
 
 // Iter iterates over all elements int the stack, starting from the top
 // of the stack.
-// 	s.Iter(func(elem *Element) {
+//
+//	s.Iter(func(elem *Element) {
 //		// do something with the element.
-// 	})
+//	})
 func (s *Stack) Iter(f func(Element)) {
 	for i := len(s.elems) - 1; i >= 0; i-- {
 		f(s.elems[i])
@@ -257,9 +259,10 @@ func (s *Stack) Iter(f func(Element)) {
 
 // IterBack iterates over all elements of the stack, starting from the bottom
 // of the stack.
-// 	s.IterBack(func(elem *Element) {
+//
+//	s.IterBack(func(elem *Element) {
 //		// do something with the element.
-// 	})
+//	})
 func (s *Stack) IterBack(f func(Element)) {
 	for i := 0; i < len(s.elems); i++ {
 		f(s.elems[i])

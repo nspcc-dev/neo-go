@@ -8,6 +8,7 @@ in the documentation of respective functions.
 
 Types defined here are used for proper manifest generation. Here is how Go types
 correspond to smartcontract and VM types:
+
 	int-like - Integer
 	bool - Boolean
 	[]byte - ByteArray (Buffer in VM)
@@ -15,8 +16,9 @@ correspond to smartcontract and VM types:
 	(interface{})(nil) - Any
 	non-byte slice - Array
 	map[K]V - map
+
 Other types are defined explicitly in this pkg:
-	Hash160, Hash256, Interface, PublicKey, Signature
+[Hash160], [Hash256], [Interface], [PublicKey], [Signature].
 
 Note that unless written otherwise structures defined in this packages can't be
 correctly created by new() or composite literals, they should be received from
