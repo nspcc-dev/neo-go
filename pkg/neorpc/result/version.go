@@ -39,8 +39,18 @@ type (
 		MemoryPoolMaxTransactions   int
 		ValidatorsCount             byte
 		InitialGasDistribution      fixedn.Fixed8
+
+		// Below are NeoGo-specific extensions to the protocol that are
+		// returned by the server in case they're enabled.
+
+		// CommitteeHistory stores height:size map of the committee size.
+		CommitteeHistory map[uint32]int
+		// P2PSigExtensions is true when Notary subsystem is enabled on the network.
+		P2PSigExtensions bool
 		// StateRootInHeader is true if state root is contained in block header.
 		StateRootInHeader bool
+		// ValidatorsHistory stores height:size map of the validators count.
+		ValidatorsHistory map[uint32]int
 	}
 )
 
@@ -67,7 +77,11 @@ type (
 		MemoryPoolMaxTransactions   int           `json:"memorypoolmaxtransactions"`
 		ValidatorsCount             byte          `json:"validatorscount"`
 		InitialGasDistribution      int64         `json:"initialgasdistribution"`
-		StateRootInHeader           bool          `json:"staterootinheader,omitempty"`
+
+		CommitteeHistory  map[uint32]int `json:"committeehistory,omitempty"`
+		P2PSigExtensions  bool           `json:"p2psigextensions,omitempty"`
+		StateRootInHeader bool           `json:"staterootinheader,omitempty"`
+		ValidatorsHistory map[uint32]int `json:"validatorshistory,omitempty"`
 	}
 
 	// versionUnmarshallerAux is an auxiliary struct used for Version JSON unmarshalling.
@@ -92,7 +106,11 @@ type (
 		MemoryPoolMaxTransactions   int             `json:"memorypoolmaxtransactions"`
 		ValidatorsCount             byte            `json:"validatorscount"`
 		InitialGasDistribution      json.RawMessage `json:"initialgasdistribution"`
-		StateRootInHeader           bool            `json:"staterootinheader,omitempty"`
+
+		CommitteeHistory  map[uint32]int `json:"committeehistory,omitempty"`
+		P2PSigExtensions  bool           `json:"p2psigextensions,omitempty"`
+		StateRootInHeader bool           `json:"staterootinheader,omitempty"`
+		ValidatorsHistory map[uint32]int `json:"validatorshistory,omitempty"`
 	}
 )
 
@@ -118,7 +136,11 @@ func (v *Version) MarshalJSON() ([]byte, error) {
 			MemoryPoolMaxTransactions:   v.Protocol.MemoryPoolMaxTransactions,
 			ValidatorsCount:             v.Protocol.ValidatorsCount,
 			InitialGasDistribution:      int64(v.Protocol.InitialGasDistribution),
-			StateRootInHeader:           v.Protocol.StateRootInHeader,
+
+			CommitteeHistory:  v.Protocol.CommitteeHistory,
+			P2PSigExtensions:  v.Protocol.P2PSigExtensions,
+			StateRootInHeader: v.Protocol.StateRootInHeader,
+			ValidatorsHistory: v.Protocol.ValidatorsHistory,
 		},
 		StateRootInHeader: v.StateRootInHeader,
 	}
@@ -145,7 +167,10 @@ func (v *Version) UnmarshalJSON(data []byte) error {
 	v.Protocol.MaxTransactionsPerBlock = aux.Protocol.MaxTransactionsPerBlock
 	v.Protocol.MemoryPoolMaxTransactions = aux.Protocol.MemoryPoolMaxTransactions
 	v.Protocol.ValidatorsCount = aux.Protocol.ValidatorsCount
+	v.Protocol.CommitteeHistory = aux.Protocol.CommitteeHistory
+	v.Protocol.P2PSigExtensions = aux.Protocol.P2PSigExtensions
 	v.Protocol.StateRootInHeader = aux.Protocol.StateRootInHeader
+	v.Protocol.ValidatorsHistory = aux.Protocol.ValidatorsHistory
 	v.StateRootInHeader = aux.StateRootInHeader
 	if len(aux.Protocol.InitialGasDistribution) == 0 {
 		return nil

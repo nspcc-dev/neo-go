@@ -875,7 +875,11 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.EqualValues(t, cfg.MemPoolSize, resp.Protocol.MemoryPoolMaxTransactions)
 				require.EqualValues(t, cfg.ValidatorsCount, resp.Protocol.ValidatorsCount)
 				require.EqualValues(t, cfg.InitialGASSupply, resp.Protocol.InitialGasDistribution)
-				require.EqualValues(t, false, resp.Protocol.StateRootInHeader)
+
+				require.Equal(t, 0, len(resp.Protocol.CommitteeHistory))
+				require.True(t, resp.Protocol.P2PSigExtensions) // Yeah, notary is enabled.
+				require.False(t, resp.Protocol.StateRootInHeader)
+				require.Equal(t, 0, len(resp.Protocol.ValidatorsHistory))
 			},
 		},
 	},
