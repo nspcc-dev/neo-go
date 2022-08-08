@@ -12,8 +12,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 )
@@ -76,14 +78,24 @@ func newValidatorCommands() []cli.Command {
 }
 
 func handleRegister(ctx *cli.Context) error {
-	return handleCandidate(ctx, "registerCandidate", 100000000) // 1 additional GAS.
+	return handleCandidate(ctx, true)
 }
 
 func handleUnregister(ctx *cli.Context) error {
-	return handleCandidate(ctx, "unregisterCandidate", -1)
+	return handleCandidate(ctx, false)
 }
 
-func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
+func handleCandidate(ctx *cli.Context, register bool) error {
+	const (
+		regMethod   = "registerCandidate"
+		unregMethod = "unregisterCandidate"
+	)
+	var (
+		err    error
+		script []byte
+		sysGas int64
+	)
+
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
@@ -110,12 +122,9 @@ func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	if sysGas >= 0 {
-		regPrice, err := c.GetCandidateRegisterPrice()
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		sysGas += regPrice
+	act, err := actor.NewSimple(c, acc)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("RPC actor issue: %w", err), 1)
 	}
 
 	gas := flags.Fixed8FromContext(ctx, "gas")
@@ -123,17 +132,40 @@ func handleCandidate(ctx *cli.Context, method string, sysGas int64) error {
 	if err != nil {
 		return err
 	}
-	script, err := smartcontract.CreateCallWithAssertScript(neoContractHash, method, acc.PrivateKey().PublicKey().Bytes())
+	unregScript, err := smartcontract.CreateCallWithAssertScript(neoContractHash, unregMethod, acc.PrivateKey().PublicKey().Bytes())
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	res, err := c.SignAndPushInvocationTx(script, acc, sysGas, gas, []rpcclient.SignerAccount{{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
-		Signer: transaction.Signer{
-			Account: acc.Contract.ScriptHash(),
-			Scopes:  transaction.CalledByEntry,
-		},
-		Account: acc,
-	}})
+	if !register {
+		script = unregScript
+	} else {
+		script, err = smartcontract.CreateCallWithAssertScript(neoContractHash, regMethod, acc.PrivateKey().PublicKey().Bytes())
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	}
+	// Registration price is normally much bigger than MaxGasInvoke, so to
+	// determine proper amount of GAS we _always_ run unreg script and then
+	// add registration price to it if needed.
+	r, err := act.Run(unregScript)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("Run failure: %w", err), 1)
+	}
+	sysGas = r.GasConsumed
+	if register {
+		// Deregistration will fail, so there is no point in checking State.
+		regPrice, err := c.GetCandidateRegisterPrice()
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		sysGas += regPrice
+	} else if r.State != vmstate.Halt.String() {
+		return cli.NewExitError(fmt.Errorf("unregister transaction failed: %s", r.FaultException), 1)
+	}
+	res, _, err := act.SendUncheckedRun(script, sysGas, nil, func(t *transaction.Transaction) error {
+		t.NetworkFee += int64(gas)
+		return nil
+	})
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push transaction: %w", err), 1)
 	}
