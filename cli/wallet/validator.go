@@ -11,7 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -208,6 +208,10 @@ func handleVote(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	act, err := actor.NewSimple(c, acc)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("RPC actor issue: %w", err), 1)
+	}
 
 	var pubArg interface{}
 	if pub != nil {
@@ -223,12 +227,13 @@ func handleVote(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	res, err := c.SignAndPushInvocationTx(script, acc, -1, gas, []rpcclient.SignerAccount{{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
-		Signer: transaction.Signer{
-			Account: acc.Contract.ScriptHash(),
-			Scopes:  transaction.CalledByEntry,
-		},
-		Account: acc}})
+	res, _, err := act.SendTunedRun(script, nil, func(r *result.Invoke, t *transaction.Transaction) error {
+		if r.State != vmstate.Halt.String() {
+			return fmt.Errorf("invocation failed: %s", r.FaultException)
+		}
+		t.NetworkFee += int64(gas)
+		return nil
+	})
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to push invocation transaction: %w", err), 1)
 	}
