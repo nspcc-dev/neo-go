@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
@@ -23,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -663,6 +665,7 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		resp              *result.Invoke
 		sender            util.Uint160
 		signAndPush       = acc != nil
+		act               *actor.Actor
 	)
 	if signAndPush {
 		gas = flags.Fixed8FromContext(ctx, "gas")
@@ -683,75 +686,101 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 	if err != nil {
 		return sender, err
 	}
-
+	if signAndPush {
+		// This will eventually be handled in cmdargs.GetSignersAccounts.
+		asa := make([]actor.SignerAccount, 0, len(cosigners)+1)
+		asa = append(asa, actor.SignerAccount{
+			Signer: transaction.Signer{
+				Account: sender,
+				Scopes:  transaction.None,
+			},
+			Account: acc,
+		})
+		for _, c := range cosignersAccounts {
+			if c.Signer.Account == sender {
+				asa[0].Signer = c.Signer
+				continue
+			}
+			asa = append(asa, actor.SignerAccount{
+				Signer:  c.Signer,
+				Account: c.Account,
+			})
+		}
+		act, err = actor.New(c, asa)
+		if err != nil {
+			return sender, cli.NewExitError(fmt.Errorf("failed to create RPC actor: %w", err), 1)
+		}
+	}
 	out := ctx.String("out")
+	// It's a bit easier to keep this as is (not using invoker.Invoker)
+	// during transition period. Mostly because of the need to convert params
+	// to []interface{}.
 	resp, err = c.InvokeFunction(script, operation, params, cosigners)
 	if err != nil {
 		return sender, cli.NewExitError(err, 1)
 	}
 	if resp.State != "HALT" {
 		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s", resp.State, resp.FaultException)
-		if out == "" && !signAndPush {
+		if !signAndPush {
 			return sender, cli.NewExitError(errText, 1)
 		}
 
 		action := "save"
 		process := "Saving"
-		if signAndPush {
-			if out != "" {
-				action += "and send"
-				process += "and sending"
-			} else {
-				action = "send"
-				process = "Sending"
-			}
+		if out != "" {
+			action += "and send"
+			process += "and sending"
+		} else {
+			action = "send"
+			process = "Sending"
 		}
 		if !ctx.Bool("force") {
 			return sender, cli.NewExitError(errText+".\nUse --force flag to "+action+" the transaction anyway.", 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, errText+".\n"+process+" transaction...")
 	}
-	if out != "" {
-		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed+int64(sysgas), int64(gas), cosignersAccounts)
-		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
-		}
-		m, err := c.GetNetwork()
-		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("failed to save tx: %w", err), 1)
-		}
-		if err := paramcontext.InitAndSave(m, tx, acc, out); err != nil {
-			return sender, cli.NewExitError(err, 1)
-		}
-		fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
-		return sender, nil
-	}
-	if signAndPush {
-		if len(resp.Script) == 0 {
-			return sender, cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
-		}
-		tx, err := c.CreateTxFromScript(resp.Script, acc, resp.GasConsumed+int64(sysgas), int64(gas), cosignersAccounts)
-		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
-		}
-		if !ctx.Bool("force") {
-			err := input.ConfirmTx(ctx.App.Writer, tx)
-			if err != nil {
-				return sender, cli.NewExitError(err, 1)
-			}
-		}
-		txHash, err := c.SignAndPushTx(tx, acc, cosignersAccounts)
-		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
-		}
-		fmt.Fprintf(ctx.App.Writer, "Sent invocation transaction %s\n", txHash.StringLE())
-	} else {
+	if !signAndPush {
 		b, err := json.MarshalIndent(resp, "", "  ")
 		if err != nil {
 			return sender, cli.NewExitError(err, 1)
 		}
 
 		fmt.Fprintln(ctx.App.Writer, string(b))
+	} else {
+		if len(resp.Script) == 0 {
+			return sender, cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
+		}
+		ver := act.GetVersion()
+		tx, err := act.MakeUnsignedUncheckedRun(resp.Script, resp.GasConsumed+int64(sysgas), nil)
+		if err != nil {
+			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
+		}
+		tx.NetworkFee += int64(gas)
+		if out != "" {
+			// Make a long-lived transaction, it's to be signed manually.
+			tx.ValidUntilBlock += (ver.Protocol.MaxValidUntilBlockIncrement - uint32(ver.Protocol.ValidatorsCount)) - 2
+			m := act.GetNetwork()
+			if err := paramcontext.InitAndSave(m, tx, acc, out); err != nil {
+				return sender, cli.NewExitError(err, 1)
+			}
+			fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
+		} else {
+			if !ctx.Bool("force") {
+				promptTime := time.Now()
+				err := input.ConfirmTx(ctx.App.Writer, tx)
+				if err != nil {
+					return sender, cli.NewExitError(err, 1)
+				}
+				waitTime := time.Since(promptTime)
+				// Compensate for confirmation waiting.
+				tx.ValidUntilBlock += uint32((waitTime.Milliseconds() / int64(ver.Protocol.MillisecondsPerBlock))) + 1
+			}
+			txHash, _, err := act.SignAndSend(tx)
+			if err != nil {
+				return sender, cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
+			}
+			fmt.Fprintf(ctx.App.Writer, "Sent invocation transaction %s\n", txHash.StringLE())
+		}
 	}
 
 	return sender, nil

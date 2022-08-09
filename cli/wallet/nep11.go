@@ -280,6 +280,12 @@ func signAndSendNEP11Transfer(ctx *cli.Context, c *rpcclient.Client, acc *wallet
 	tx.SystemFee += int64(sysgas)
 
 	if outFile := ctx.String("out"); outFile != "" {
+		ver, err := c.GetVersion()
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("RPC failure: %w", err), 1)
+		}
+		// Make a long-lived transaction, it's to be signed manually.
+		tx.ValidUntilBlock += (ver.Protocol.MaxValidUntilBlockIncrement - uint32(ver.Protocol.ValidatorsCount)) - 2
 		m, err := c.GetNetwork()
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to save tx: %w", err), 1)
@@ -294,7 +300,7 @@ func signAndSendNEP11Transfer(ctx *cli.Context, c *rpcclient.Client, acc *wallet
 				return cli.NewExitError(err, 1)
 			}
 		}
-		_, err := c.SignAndPushTx(tx, acc, cosigners)
+		_, err := c.SignAndPushTx(tx, acc, cosigners) //nolint:staticcheck // SA1019: c.SignAndPushTx is deprecated
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}

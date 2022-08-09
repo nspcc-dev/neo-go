@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -34,8 +34,8 @@ func ExampleBuilder() {
 
 	w, _ := wallet.NewWalletFromFile("somewhere")
 	// Assuming there is one Account inside
-	acc := w.Accounts[0]
-	from, _ := address.StringToUint160(acc.Address)
+	a, _ := actor.NewSimple(c, w.Accounts[0])
+	from := w.Accounts[0].Contract.ScriptHash() // Assuming Contract is present.
 
 	// Multiple transfers in a single script. If any of them fail whole script fails.
 	b.InvokeWithAssert(neoHash, "transfer", from, util.Uint160{0x70}, 1, nil)
@@ -44,6 +44,7 @@ func ExampleBuilder() {
 	script, _ = b.Script()
 
 	// The script can then be used to create transaction or to invoke via RPC.
-	txid, _ := c.SignAndPushInvocationTx(script, acc, -1, 0, nil)
+	txid, vub, _ := a.SendRun(script)
 	_ = txid
+	_ = vub
 }

@@ -162,6 +162,15 @@ latest state synchronization point P the node working against,
 `LastUpdatedBlock` equals P. For NEP-11 NFTs `LastUpdatedBlock` is equal for
 all tokens of the same asset.
 
+##### `getversion`
+
+NeoGo can return additional fields in the `protocol` object depending on the
+extensions enabled. Specifically that's `p2psigextensions` and
+`staterootinheader` booleans and `committeehistory` and `validatorshistory`
+objects (that are effectively maps from stringified integers to other
+integers. These fields are only returned when corresponding settings are
+enabled in the server's protocol configuration.
+
 ##### `getnep11transfers` and `getnep17transfers`
 `transfernotifyindex` is not tracked by NeoGo, thus this field is always zero.
 

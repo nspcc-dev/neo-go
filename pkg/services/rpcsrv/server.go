@@ -694,7 +694,11 @@ func (s *Server) getVersion(_ params.Params) (interface{}, *neorpc.Error) {
 			MemoryPoolMaxTransactions:   cfg.MemPoolSize,
 			ValidatorsCount:             byte(cfg.GetNumOfCNs(s.chain.BlockHeight())),
 			InitialGasDistribution:      cfg.InitialGASSupply,
-			StateRootInHeader:           cfg.StateRootInHeader,
+
+			CommitteeHistory:  cfg.CommitteeHistory,
+			P2PSigExtensions:  cfg.P2PSigExtensions,
+			StateRootInHeader: cfg.StateRootInHeader,
+			ValidatorsHistory: cfg.ValidatorsHistory,
 		},
 	}, nil
 }
