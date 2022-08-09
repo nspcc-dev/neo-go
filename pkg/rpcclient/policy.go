@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -41,15 +42,7 @@ func (c *Client) invokeNativePolicyMethod(operation string) (int64, error) {
 }
 
 func (c *Client) invokeNativeGetMethod(hash util.Uint160, operation string) (int64, error) {
-	result, err := c.reader.Call(hash, operation)
-	if err != nil {
-		return 0, err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return 0, fmt.Errorf("failed to invoke %s method of native contract %s: %w", operation, hash.StringLE(), err)
-	}
-	return topIntFromStack(result.Stack)
+	return unwrap.Int64(c.reader.Call(hash, operation))
 }
 
 // IsBlocked invokes `isBlocked` method on native Policy contract.
@@ -58,13 +51,5 @@ func (c *Client) IsBlocked(hash util.Uint160) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("failed to get native Policy hash: %w", err)
 	}
-	result, err := c.reader.Call(policyHash, "isBlocked", hash)
-	if err != nil {
-		return false, err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return false, fmt.Errorf("failed to check if account is blocked: %w", err)
-	}
-	return topBoolFromStack(result.Stack)
+	return unwrap.Bool(c.reader.Call(policyHash, "isBlocked", hash))
 }
