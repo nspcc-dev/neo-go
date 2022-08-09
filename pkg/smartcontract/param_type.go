@@ -141,18 +141,20 @@ func (pt *ParamType) DecodeBinary(r *io.BinReader) {
 
 // ParseParamType is a user-friendly string to ParamType converter, it's
 // case-insensitive and makes the following conversions:
-//     signature -> SignatureType
-//     bool, boolean -> BoolType
-//     int, integer -> IntegerType
-//     hash160 -> Hash160Type
-//     hash256 -> Hash256Type
-//     bytes, bytearray, filebytes -> ByteArrayType
-//     key, publickey -> PublicKeyType
-//     string -> StringType
-//     array, struct -> ArrayType
-//     map -> MapType
-//     interopinterface -> InteropInterfaceType
-//     void -> VoidType
+//
+//	signature -> SignatureType
+//	bool, boolean -> BoolType
+//	int, integer -> IntegerType
+//	hash160 -> Hash160Type
+//	hash256 -> Hash256Type
+//	bytes, bytearray, filebytes -> ByteArrayType
+//	key, publickey -> PublicKeyType
+//	string -> StringType
+//	array, struct -> ArrayType
+//	map -> MapType
+//	interopinterface -> InteropInterfaceType
+//	void -> VoidType
+//
 // anything else generates an error.
 func ParseParamType(typ string) (ParamType, error) {
 	switch strings.ToLower(typ) {

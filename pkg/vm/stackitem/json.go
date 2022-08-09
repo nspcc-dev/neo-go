@@ -36,12 +36,13 @@ var ErrTooDeep = errors.New("too deep")
 
 // ToJSON encodes Item to JSON.
 // It behaves as following:
-//   ByteArray -> base64 string
-//   BigInteger -> number
-//   Bool -> bool
-//   Null -> null
-//   Array, Struct -> array
-//   Map -> map with keys as UTF-8 bytes
+//
+//	ByteArray -> base64 string
+//	BigInteger -> number
+//	Bool -> bool
+//	Null -> null
+//	Array, Struct -> array
+//	Map -> map with keys as UTF-8 bytes
 func ToJSON(item Item) ([]byte, error) {
 	seen := make(map[Item]sliceNoPointer, typicalNumOfItems)
 	return toJSON(nil, seen, item)
@@ -153,12 +154,13 @@ func itemToJSONString(it Item) ([]byte, error) {
 
 // FromJSON decodes an Item from JSON.
 // It behaves as following:
-//   string -> ByteArray from base64
-//   number -> BigInteger
-//   bool -> Bool
-//   null -> Null
-//   array -> Array
-//   map -> Map, keys are UTF-8
+//
+//	string -> ByteArray from base64
+//	number -> BigInteger
+//	bool -> Bool
+//	null -> Null
+//	array -> Array
+//	map -> Map, keys are UTF-8
 func FromJSON(data []byte, maxCount int) (Item, error) {
 	d := decoder{
 		Decoder: *json.NewDecoder(bytes.NewReader(data)),

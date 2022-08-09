@@ -46,11 +46,12 @@ func JSONSerialize(item interface{}) []byte {
 // JSONDeserialize deserializes a value from json. It uses `jsonDeserialize` method of StdLib
 // native contract.
 // It performs deserialization as follows:
-//   strings -> []byte (string) from base64
-//   integers -> (u)int* types
-//   null -> interface{}(nil)
-//   arrays -> []interface{}
-//   maps -> map[string]interface{}
+//
+//	strings -> []byte (string) from base64
+//	integers -> (u)int* types
+//	null -> interface{}(nil)
+//	arrays -> []interface{}
+//	maps -> map[string]interface{}
 func JSONDeserialize(data []byte) interface{} {
 	return neogointernal.CallWithToken(Hash, "jsonDeserialize", int(contract.NoneFlag),
 		data)

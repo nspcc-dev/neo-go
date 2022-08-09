@@ -32,8 +32,8 @@ var (
 // TestCreateBasicChain generates "../rpc/testdata/testblocks.acc" file which
 // contains data for RPC unit tests. It also is a nice integration test.
 // To generate new "../rpc/testdata/testblocks.acc", follow the steps:
-// 		1. Set saveChain down below to true
-// 		2. Run tests with `$ make test`
+//  1. Set saveChain down below to true
+//  2. Run tests with `$ make test`
 func TestCreateBasicChain(t *testing.T) {
 	const saveChain = false
 

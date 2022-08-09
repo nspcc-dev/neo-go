@@ -2,7 +2,7 @@
 Package rpcclient implements NEO-specific JSON-RPC 2.0 client.
 This package is currently in beta and is subject to change.
 
-Client
+# Client
 
 After creating a client instance with or without a ClientConfig
 you can interact with the NEO blockchain by its exposed methods.
@@ -12,6 +12,7 @@ return a more pretty printed response from the server instead of
 a raw hex string.
 
 TODO:
+
 	Allow client to connect using client cert.
 	More in-depth examples.
 
@@ -75,6 +76,5 @@ Unsupported methods
 	sendfrom
 	sendmany
 	sendtoaddress
-
 */
 package rpcclient

@@ -37,15 +37,15 @@ func prepareMPTCompat() *Trie {
 // TestCompatibility contains tests present in C# implementation.
 // https://github.com/neo-project/neo-modules/blob/master/tests/Neo.Plugins.StateService.Tests/MPT/UT_MPTTrie.cs
 // There are some differences, though:
-// 1. In our implementation, delete is silent, i.e. we do not return an error if the key is missing or empty.
-//    However, we do return an error when the contents of the hash node are missing from the store
-//    (corresponds to exception in C# implementation). However, if the key is too big, an error is returned
-//    (corresponds to exception in C# implementation).
-// 2. In our implementation, put returns an error if something goes wrong, while C# implementation throws
-//    an exception and returns nothing.
-// 3. In our implementation, get does not immediately return any error in case of an empty key. An error is returned
-//    only if the value is missing from the storage. C# implementation checks that the key is not empty and throws an error
-//    otherwise. However, if the key is too big, an error is returned (corresponds to exception in C# implementation).
+//  1. In our implementation, delete is silent, i.e. we do not return an error if the key is missing or empty.
+//     However, we do return an error when the contents of the hash node are missing from the store
+//     (corresponds to exception in C# implementation). However, if the key is too big, an error is returned
+//     (corresponds to exception in C# implementation).
+//  2. In our implementation, put returns an error if something goes wrong, while C# implementation throws
+//     an exception and returns nothing.
+//  3. In our implementation, get does not immediately return any error in case of an empty key. An error is returned
+//     only if the value is missing from the storage. C# implementation checks that the key is not empty and throws an error
+//     otherwise. However, if the key is too big, an error is returned (corresponds to exception in C# implementation).
 func TestCompatibility(t *testing.T) {
 	mainTrie := prepareMPTCompat()
 
