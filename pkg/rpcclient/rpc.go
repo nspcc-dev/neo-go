@@ -23,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -1064,17 +1065,11 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 			if err != nil {
 				return fmt.Errorf("failed to invoke verify: %w", err)
 			}
-			if res.State != "HALT" {
-				return fmt.Errorf("invalid VM state %s due to an error: %s", res.State, res.FaultException)
-			}
-			if l := len(res.Stack); l != 1 {
-				return fmt.Errorf("result stack length should be equal to 1, got %d", l)
-			}
-			r, err := topIntFromStack(res.Stack)
+			r, err := unwrap.Bool(res, err)
 			if err != nil {
-				return fmt.Errorf("signer #%d: failed to get `verify` result from stack: %w", i, err)
+				return fmt.Errorf("signer #%d: %w", i, err)
 			}
-			if r == 0 {
+			if !r {
 				return fmt.Errorf("signer #%d: `verify` returned `false`", i)
 			}
 			tx.NetworkFee += res.GasConsumed

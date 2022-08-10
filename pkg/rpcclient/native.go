@@ -3,6 +3,7 @@ package rpcclient
 // Various non-policy things from native contracts.
 
 import (
+	"crypto/elliptic"
 	"errors"
 	"fmt"
 
@@ -13,7 +14,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // GetOraclePrice invokes `getPrice` method on a native Oracle contract.
@@ -54,15 +57,22 @@ func (c *Client) GetDesignatedByRole(role noderoles.Role, index uint32) (keys.Pu
 	if err != nil {
 		return nil, fmt.Errorf("failed to get native RoleManagement hash: %w", err)
 	}
-	result, err := c.reader.Call(rmHash, "getDesignatedByRole", int64(role), index)
+	arr, err := unwrap.Array(c.reader.Call(rmHash, "getDesignatedByRole", int64(role), index))
 	if err != nil {
 		return nil, err
 	}
-	err = getInvocationError(result)
-	if err != nil {
-		return nil, fmt.Errorf("`getDesignatedByRole`: %w", err)
+	pks := make(keys.PublicKeys, len(arr))
+	for i, item := range arr {
+		val, err := item.TryBytes()
+		if err != nil {
+			return nil, fmt.Errorf("invalid array element #%d: %s", i, item.Type())
+		}
+		pks[i], err = keys.NewPublicKeyFromBytes(val, elliptic.P256())
+		if err != nil {
+			return nil, err
+		}
 	}
-	return topPublicKeysFromStack(result.Stack)
+	return pks, nil
 }
 
 // NNSResolve invokes `resolve` method on a NameService contract with the specified hash.
@@ -70,28 +80,12 @@ func (c *Client) NNSResolve(nnsHash util.Uint160, name string, typ nns.RecordTyp
 	if typ == nns.CNAME {
 		return "", errors.New("can't resolve CNAME record type")
 	}
-	result, err := c.reader.Call(nnsHash, "resolve", name, int64(typ))
-	if err != nil {
-		return "", err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return "", fmt.Errorf("`resolve`: %w", err)
-	}
-	return topStringFromStack(result.Stack)
+	return unwrap.UTF8String(c.reader.Call(nnsHash, "resolve", name, int64(typ)))
 }
 
 // NNSIsAvailable invokes `isAvailable` method on a NeoNameService contract with the specified hash.
 func (c *Client) NNSIsAvailable(nnsHash util.Uint160, name string) (bool, error) {
-	result, err := c.reader.Call(nnsHash, "isAvailable", name)
-	if err != nil {
-		return false, err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return false, fmt.Errorf("`isAvailable`: %w", err)
-	}
-	return topBoolFromStack(result.Stack)
+	return unwrap.Bool(c.reader.Call(nnsHash, "isAvailable", name))
 }
 
 // NNSGetAllRecords returns iterator over records for a given name from NNS service.
@@ -100,17 +94,7 @@ func (c *Client) NNSIsAvailable(nnsHash util.Uint160, name string) (bool, error)
 // TerminateSession to terminate opened iterator session. See TraverseIterator and
 // TerminateSession documentation for more details.
 func (c *Client) NNSGetAllRecords(nnsHash util.Uint160, name string) (uuid.UUID, result.Iterator, error) {
-	res, err := c.reader.Call(nnsHash, "getAllRecords", name)
-	if err != nil {
-		return uuid.UUID{}, result.Iterator{}, err
-	}
-	err = getInvocationError(res)
-	if err != nil {
-		return uuid.UUID{}, result.Iterator{}, err
-	}
-
-	iter, err := topIteratorFromStack(res.Stack)
-	return res.Session, iter, err
+	return unwrap.SessionIterator(c.reader.Call(nnsHash, "getAllRecords", name))
 }
 
 // NNSUnpackedGetAllRecords returns a set of records for a given name from NNS service
@@ -118,24 +102,42 @@ func (c *Client) NNSGetAllRecords(nnsHash util.Uint160, name string) (uuid.UUID,
 // that no iterator session is used to retrieve values from iterator. Instead, unpacking
 // VM script is created and invoked via `invokescript` JSON-RPC call.
 func (c *Client) NNSUnpackedGetAllRecords(nnsHash util.Uint160, name string) ([]nns.RecordState, error) {
-	result, err := c.reader.CallAndExpandIterator(nnsHash, "getAllRecords", config.DefaultMaxIteratorResultItems, name)
+	arr, err := unwrap.Array(c.reader.CallAndExpandIterator(nnsHash, "getAllRecords", config.DefaultMaxIteratorResultItems, name))
 	if err != nil {
 		return nil, err
 	}
-	err = getInvocationError(result)
-	if err != nil {
-		return nil, err
+	res := make([]nns.RecordState, len(arr))
+	for i := range arr {
+		rs, ok := arr[i].Value().([]stackitem.Item)
+		if !ok {
+			return nil, fmt.Errorf("failed to decode RecordState from stackitem #%d: not a struct", i)
+		}
+		if len(rs) != 3 {
+			return nil, fmt.Errorf("failed to decode RecordState from stackitem #%d: wrong number of elements", i)
+		}
+		name, err := rs[0].TryBytes()
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode RecordState from stackitem #%d: %w", i, err)
+		}
+		typ, err := rs[1].TryInteger()
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode RecordState from stackitem #%d: %w", i, err)
+		}
+		data, err := rs[2].TryBytes()
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode RecordState from stackitem #%d: %w", i, err)
+		}
+		u64Typ := typ.Uint64()
+		if !typ.IsUint64() || u64Typ > 255 {
+			return nil, fmt.Errorf("failed to decode RecordState from stackitem #%d: bad type", i)
+		}
+		res[i] = nns.RecordState{
+			Name: string(name),
+			Type: nns.RecordType(u64Typ),
+			Data: string(data),
+		}
 	}
-
-	arr, err := topIterableFromStack(result.Stack, nns.RecordState{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get token IDs from stack: %w", err)
-	}
-	rss := make([]nns.RecordState, len(arr))
-	for i := range rss {
-		rss[i] = arr[i].(nns.RecordState)
-	}
-	return rss, nil
+	return res, nil
 }
 
 // GetNotaryServiceFeePerKey returns a reward per notary request key for the designated

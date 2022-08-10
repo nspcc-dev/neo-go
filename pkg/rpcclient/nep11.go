@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -85,16 +86,7 @@ func (c *Client) CreateNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint1
 // traverse iterator values or TerminateSession to terminate opened iterator
 // session. See TraverseIterator and TerminateSession documentation for more details.
 func (c *Client) NEP11TokensOf(tokenHash util.Uint160, owner util.Uint160) (uuid.UUID, result.Iterator, error) {
-	res, err := c.reader.Call(tokenHash, "tokensOf", owner)
-	if err != nil {
-		return uuid.UUID{}, result.Iterator{}, err
-	}
-	err = getInvocationError(res)
-	if err != nil {
-		return uuid.UUID{}, result.Iterator{}, err
-	}
-	iter, err := topIteratorFromStack(res.Stack)
-	return res.Session, iter, err
+	return unwrap.SessionIterator(c.reader.Call(tokenHash, "tokensOf", owner))
 }
 
 // NEP11UnpackedTokensOf returns an array of token IDs for the specified owner of the specified NFT token
@@ -102,24 +94,7 @@ func (c *Client) NEP11TokensOf(tokenHash util.Uint160, owner util.Uint160) (uuid
 // is used to retrieve values from iterator. Instead, unpacking VM script is created and invoked via
 // `invokescript` JSON-RPC call.
 func (c *Client) NEP11UnpackedTokensOf(tokenHash util.Uint160, owner util.Uint160) ([][]byte, error) {
-	result, err := c.reader.CallAndExpandIterator(tokenHash, "tokensOf", config.DefaultMaxIteratorResultItems, owner)
-	if err != nil {
-		return nil, err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return nil, err
-	}
-
-	arr, err := topIterableFromStack(result.Stack, []byte{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get token IDs from stack: %w", err)
-	}
-	ids := make([][]byte, len(arr))
-	for i := range ids {
-		ids[i] = arr[i].([]byte)
-	}
-	return ids, nil
+	return unwrap.ArrayOfBytes(c.reader.CallAndExpandIterator(tokenHash, "tokensOf", config.DefaultMaxIteratorResultItems, owner))
 }
 
 // Non-divisible NFT methods section start.
@@ -127,16 +102,7 @@ func (c *Client) NEP11UnpackedTokensOf(tokenHash util.Uint160, owner util.Uint16
 // NEP11NDOwnerOf invokes `ownerOf` non-divisible NEP-11 method with the
 // specified token ID on the specified contract.
 func (c *Client) NEP11NDOwnerOf(tokenHash util.Uint160, tokenID []byte) (util.Uint160, error) {
-	result, err := c.reader.Call(tokenHash, "ownerOf", tokenID)
-	if err != nil {
-		return util.Uint160{}, err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return util.Uint160{}, err
-	}
-
-	return topUint160FromStack(result.Stack)
+	return unwrap.Uint160(c.reader.Call(tokenHash, "ownerOf", tokenID))
 }
 
 // Non-divisible NFT methods section end.
@@ -172,17 +138,7 @@ func (c *Client) NEP11DBalanceOf(tokenHash, owner util.Uint160, tokenID []byte) 
 // method to traverse iterator values or TerminateSession to terminate opened iterator session. See
 // TraverseIterator and TerminateSession documentation for more details.
 func (c *Client) NEP11DOwnerOf(tokenHash util.Uint160, tokenID []byte) (uuid.UUID, result.Iterator, error) {
-	res, err := c.reader.Call(tokenHash, "ownerOf", tokenID)
-	sessID := res.Session
-	if err != nil {
-		return sessID, result.Iterator{}, err
-	}
-	err = getInvocationError(res)
-	if err != nil {
-		return sessID, result.Iterator{}, err
-	}
-	arr, err := topIteratorFromStack(res.Stack)
-	return sessID, arr, err
+	return unwrap.SessionIterator(c.reader.Call(tokenHash, "ownerOf", tokenID))
 }
 
 // NEP11DUnpackedOwnerOf returns list of the specified NEP-11 divisible token owners
@@ -190,22 +146,16 @@ func (c *Client) NEP11DOwnerOf(tokenHash util.Uint160, tokenID []byte) (uuid.UUI
 // iterator session is used to retrieve values from iterator. Instead, unpacking VM
 // script is created and invoked via `invokescript` JSON-RPC call.
 func (c *Client) NEP11DUnpackedOwnerOf(tokenHash util.Uint160, tokenID []byte) ([]util.Uint160, error) {
-	result, err := c.reader.CallAndExpandIterator(tokenHash, "ownerOf", config.DefaultMaxIteratorResultItems, tokenID)
+	arr, err := unwrap.ArrayOfBytes(c.reader.CallAndExpandIterator(tokenHash, "ownerOf", config.DefaultMaxIteratorResultItems, tokenID))
 	if err != nil {
 		return nil, err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return nil, err
-	}
-
-	arr, err := topIterableFromStack(result.Stack, util.Uint160{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get token IDs from stack: %w", err)
 	}
 	owners := make([]util.Uint160, len(arr))
-	for i := range owners {
-		owners[i] = arr[i].(util.Uint160)
+	for i := range arr {
+		owners[i], err = util.Uint160DecodeBytesBE(arr[i])
+		if err != nil {
+			return nil, fmt.Errorf("not a Uint160 at %d: %w", i, err)
+		}
 	}
 	return owners, nil
 }
@@ -217,16 +167,7 @@ func (c *Client) NEP11DUnpackedOwnerOf(tokenHash util.Uint160, tokenID []byte) (
 // NEP11Properties invokes `properties` optional NEP-11 method on the
 // specified contract.
 func (c *Client) NEP11Properties(tokenHash util.Uint160, tokenID []byte) (*stackitem.Map, error) {
-	result, err := c.reader.Call(tokenHash, "properties", tokenID)
-	if err != nil {
-		return nil, err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return nil, err
-	}
-
-	return topMapFromStack(result.Stack)
+	return unwrap.Map(c.reader.Call(tokenHash, "properties", tokenID))
 }
 
 // NEP11Tokens returns iterator over the tokens minted by the contract. First return
@@ -235,16 +176,7 @@ func (c *Client) NEP11Properties(tokenHash util.Uint160, tokenID []byte) (*stack
 // TerminateSession to terminate opened iterator session. See TraverseIterator and
 // TerminateSession documentation for more details.
 func (c *Client) NEP11Tokens(tokenHash util.Uint160) (uuid.UUID, result.Iterator, error) {
-	res, err := c.reader.Call(tokenHash, "tokens")
-	if err != nil {
-		return uuid.UUID{}, result.Iterator{}, err
-	}
-	err = getInvocationError(res)
-	if err != nil {
-		return uuid.UUID{}, result.Iterator{}, err
-	}
-	iter, err := topIteratorFromStack(res.Stack)
-	return res.Session, iter, err
+	return unwrap.SessionIterator(c.reader.Call(tokenHash, "tokens"))
 }
 
 // NEP11UnpackedTokens returns list of the tokens minted by the contract
@@ -252,24 +184,7 @@ func (c *Client) NEP11Tokens(tokenHash util.Uint160) (uuid.UUID, result.Iterator
 // iterator session is used to retrieve values from iterator. Instead, unpacking
 // VM script is created and invoked via `invokescript` JSON-RPC call.
 func (c *Client) NEP11UnpackedTokens(tokenHash util.Uint160) ([][]byte, error) {
-	result, err := c.reader.CallAndExpandIterator(tokenHash, "tokens", config.DefaultMaxIteratorResultItems)
-	if err != nil {
-		return nil, err
-	}
-	err = getInvocationError(result)
-	if err != nil {
-		return nil, err
-	}
-
-	arr, err := topIterableFromStack(result.Stack, []byte{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get token IDs from stack: %w", err)
-	}
-	tokens := make([][]byte, len(arr))
-	for i := range tokens {
-		tokens[i] = arr[i].([]byte)
-	}
-	return tokens, nil
+	return unwrap.ArrayOfBytes(c.reader.CallAndExpandIterator(tokenHash, "tokens", config.DefaultMaxIteratorResultItems))
 }
 
 // Optional NFT methods section end.
