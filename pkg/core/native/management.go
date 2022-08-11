@@ -141,7 +141,7 @@ func newManagement() *Management {
 	md = newMethodAndPrice(m.setMinimumDeploymentFee, 1<<15, callflag.States)
 	m.AddMethod(md, desc)
 
-	desc = newDescriptor("hasMethod", smartcontract.IntegerType,
+	desc = newDescriptor("hasMethod", smartcontract.BoolType,
 		manifest.NewParameter("hash", smartcontract.Hash160Type),
 		manifest.NewParameter("method", smartcontract.StringType),
 		manifest.NewParameter("pcount", smartcontract.IntegerType))

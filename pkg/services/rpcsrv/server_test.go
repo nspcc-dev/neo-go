@@ -78,7 +78,7 @@ const (
 	nfsoContractHash           = "0e15ca0df00669a2cd5dcb03bfd3e2b3849c2969"
 	nfsoToken1ID               = "7e244ffd6aa85fb1579d2ed22e9b761ab62e3486"
 	invokescriptContractAVM    = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
-	block20StateRootLE         = "c0abd1e544338e2da6bb8ea7c1915fc44ff4226150b053ca8ff8ca75d50faf49"
+	block20StateRootLE         = "f1380226a217b5e35ea968d42c50e20b9af7ab83b91416c8fb85536c61004332"
 	storageContractHash        = "ebc0c16a76c808cd4dde6bcc063f09e45e331ec7"
 )
 
