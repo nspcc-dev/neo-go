@@ -1,0 +1,7 @@
+name: "Oracle test"
+sourceurl: https://github.com/nspcc-dev/neo-go/
+supportedstandards: []
+events:
+  - name: Invocation
+permissions:
+  - methods: ["request", "finish"]

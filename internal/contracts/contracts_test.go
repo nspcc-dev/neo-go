@@ -41,81 +41,10 @@ func TestGenerateHelperContracts(t *testing.T) {
 // Oracle and StdLib native hashes and saves the generated NEF and manifest to `oracle_contract` folder.
 // Set `saveState` flag to true and run the test to rewrite NEF and manifest files.
 func generateOracleContract(t *testing.T, saveState bool) {
-	bc, validator, committee := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
-		c.P2PSigExtensions = true
-	})
-	e := neotest.NewExecutor(t, bc, validator, committee)
-
-	oracleHash := e.NativeHash(t, nativenames.Oracle)
-	stdHash := e.NativeHash(t, nativenames.StdLib)
-
-	w := io.NewBufBinWriter()
-	emit.Int(w.BinWriter, 5)
-	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.Int(w.BinWriter, int64(callflag.All))
-	emit.String(w.BinWriter, "request")
-	emit.Bytes(w.BinWriter, oracleHash.BytesBE())
-	emit.Syscall(w.BinWriter, interopnames.SystemContractCall)
-	emit.Opcodes(w.BinWriter, opcode.DROP)
-	emit.Opcodes(w.BinWriter, opcode.RET)
-
-	// `handle` method aborts if len(userData) == 2 and does NOT perform witness checks
-	// for the sake of contract code simplicity (the contract is used in multiple testchains).
-	offset := w.Len()
-
-	emit.Opcodes(w.BinWriter, opcode.OVER)
-	emit.Opcodes(w.BinWriter, opcode.SIZE)
-	emit.Int(w.BinWriter, 2)
-	emit.Instruction(w.BinWriter, opcode.JMPNE, []byte{3})
-	emit.Opcodes(w.BinWriter, opcode.ABORT)
-	emit.Int(w.BinWriter, 4) // url, userData, code, result
-	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.Int(w.BinWriter, 1)                                            // 1 byte (args count for `serialize`)
-	emit.Opcodes(w.BinWriter, opcode.PACK)                              // 1 byte (pack args into array for `serialize`)
-	emit.AppCallNoArgs(w.BinWriter, stdHash, "serialize", callflag.All) // 39 bytes
-	emit.String(w.BinWriter, "lastOracleResponse")
-	emit.Syscall(w.BinWriter, interopnames.SystemStorageGetContext)
-	emit.Syscall(w.BinWriter, interopnames.SystemStoragePut)
-	emit.Opcodes(w.BinWriter, opcode.RET)
-
-	m := manifest.NewManifest("TestOracle")
-	m.ABI.Methods = []manifest.Method{
-		{
-			Name:   "requestURL",
-			Offset: 0,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("url", smartcontract.StringType),
-				manifest.NewParameter("filter", smartcontract.StringType),
-				manifest.NewParameter("callback", smartcontract.StringType),
-				manifest.NewParameter("userData", smartcontract.AnyType),
-				manifest.NewParameter("gasForResponse", smartcontract.IntegerType),
-			},
-			ReturnType: smartcontract.VoidType,
-		},
-		{
-			Name:   "handle",
-			Offset: offset,
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("url", smartcontract.StringType),
-				manifest.NewParameter("userData", smartcontract.AnyType),
-				manifest.NewParameter("code", smartcontract.IntegerType),
-				manifest.NewParameter("result", smartcontract.ByteArrayType),
-			},
-			ReturnType: smartcontract.VoidType,
-		},
-	}
-
-	perm := manifest.NewPermission(manifest.PermissionHash, oracleHash)
-	perm.Methods.Add("request")
-	m.Permissions = append(m.Permissions, *perm)
-
-	// Generate NEF file.
-	script := w.Bytes()
-	ne, err := nef.NewFile(script)
-	require.NoError(t, err)
+	ctr := neotest.CompileFile(t, util.Uint160{}, oracleContractModPath, oracleContractYAMLPath)
 
 	// Write NEF file.
-	bytes, err := ne.Bytes()
+	bytes, err := ctr.NEF.Bytes()
 	require.NoError(t, err)
 	if saveState {
 		err = os.WriteFile(oracleContractNEFPath, bytes, os.ModePerm)
@@ -123,7 +52,7 @@ func generateOracleContract(t *testing.T, saveState bool) {
 	}
 
 	// Write manifest file.
-	mData, err := json.Marshal(m)
+	mData, err := json.Marshal(ctr.Manifest)
 	require.NoError(t, err)
 	if saveState {
 		err = os.WriteFile(oracleContractManifestPath, mData, os.ModePerm)

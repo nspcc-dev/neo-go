@@ -276,6 +276,12 @@ func (o *Oracle) finish(ic *interop.Context, _ []stackitem.Item) stackitem.Item 
 
 // FinishInternal processes an oracle response.
 func (o *Oracle) FinishInternal(ic *interop.Context) error {
+	if ic.VM.Istack().Len() != 2 {
+		return errors.New("Oracle.finish called from non-entry script")
+	}
+	if ic.Invocations[o.Hash] != 1 {
+		return errors.New("Oracle.finish called multiple times")
+	}
 	resp := getResponse(ic.Tx)
 	if resp == nil {
 		return ErrResponseNotFound
