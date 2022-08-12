@@ -26,7 +26,7 @@ import (
 // BigInt expects correct execution (HALT state) with a single stack item
 // returned. A big.Int is extracted from this item and returned.
 func BigInt(r *result.Invoke, err error) (*big.Int, error) {
-	itm, err := getSingleItem(r, err)
+	itm, err := Item(r, err)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func BigInt(r *result.Invoke, err error) (*big.Int, error) {
 // Bool expects correct execution (HALT state) with a single stack item
 // returned. A bool is extracted from this item and returned.
 func Bool(r *result.Invoke, err error) (bool, error) {
-	itm, err := getSingleItem(r, err)
+	itm, err := Item(r, err)
 	if err != nil {
 		return false, err
 	}
@@ -46,7 +46,7 @@ func Bool(r *result.Invoke, err error) (bool, error) {
 // Int64 expects correct execution (HALT state) with a single stack item
 // returned. An int64 is extracted from this item and returned.
 func Int64(r *result.Invoke, err error) (int64, error) {
-	itm, err := getSingleItem(r, err)
+	itm, err := Item(r, err)
 	if err != nil {
 		return 0, err
 	}
@@ -80,7 +80,7 @@ func LimitedInt64(r *result.Invoke, err error, min int64, max int64) (int64, err
 // Bytes expects correct execution (HALT state) with a single stack item
 // returned. A slice of bytes is extracted from this item and returned.
 func Bytes(r *result.Invoke, err error) ([]byte, error) {
-	itm, err := getSingleItem(r, err)
+	itm, err := Item(r, err)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func Uint256(r *result.Invoke, err error) (util.Uint256, error) {
 // item returned. If this item is an iterator it's returned to the caller along
 // with the session ID.
 func SessionIterator(r *result.Invoke, err error) (uuid.UUID, result.Iterator, error) {
-	itm, err := getSingleItem(r, err)
+	itm, err := Item(r, err)
 	if err != nil {
 		return uuid.UUID{}, result.Iterator{}, err
 	}
@@ -161,7 +161,7 @@ func SessionIterator(r *result.Invoke, err error) (uuid.UUID, result.Iterator, e
 // be used for structures as well since they're also represented as slices of
 // stack items (the number of them and their types are structure-specific).
 func Array(r *result.Invoke, err error) ([]stackitem.Item, error) {
-	itm, err := getSingleItem(r, err)
+	itm, err := Item(r, err)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +193,7 @@ func ArrayOfBytes(r *result.Invoke, err error) ([][]byte, error) {
 // Map expects correct execution (HALT state) with a single stack item
 // returned. A stackitem.Map is extracted from this item and returned.
 func Map(r *result.Invoke, err error) (*stackitem.Map, error) {
-	itm, err := getSingleItem(r, err)
+	itm, err := Item(r, err)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +213,9 @@ func checkResOK(r *result.Invoke, err error) error {
 	return nil
 }
 
-func getSingleItem(r *result.Invoke, err error) (stackitem.Item, error) {
+// Item returns a stack item from the result if execution was successful (HALT
+// state) and if it's the only element on the result stack.
+func Item(r *result.Invoke, err error) (stackitem.Item, error) {
 	err = checkResOK(r, err)
 	if err != nil {
 		return nil, err

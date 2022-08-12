@@ -19,7 +19,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -289,29 +291,21 @@ func queryVoter(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to get NEO contract hash: %w", err), 1)
 	}
-	res, err := c.InvokeFunction(neoHash, "getAccountState", []smartcontract.Parameter{
-		{
-			Type:  smartcontract.Hash160Type,
-			Value: addr,
-		},
-	}, nil)
+	inv := invoker.New(c, nil)
+	neoToken := nep17.NewReader(inv, neoHash)
+
+	itm, err := unwrap.Item(inv.Call(neoHash, "getAccountState", addr))
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	if res.State != "HALT" {
-		return cli.NewExitError(fmt.Errorf("invocation failed: %s", res.FaultException), 1)
-	}
-	if len(res.Stack) == 0 {
-		return cli.NewExitError("result stack is empty", 1)
-	}
 	st := new(state.NEOBalance)
-	if _, ok := res.Stack[0].(stackitem.Null); !ok {
-		err = st.FromStackItem(res.Stack[0])
+	if _, ok := itm.(stackitem.Null); !ok {
+		err = st.FromStackItem(itm)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to convert account state from stackitem: %w", err), 1)
 		}
 	}
-	dec, err := c.NEP17Decimals(neoHash)
+	dec, err := neoToken.Decimals()
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to get decimals: %w", err), 1)
 	}

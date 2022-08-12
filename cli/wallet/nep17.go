@@ -17,6 +17,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -286,7 +288,8 @@ func getNativeNEP17Symbol(c *rpcclient.Client, name string) (string, util.Uint16
 	if err != nil {
 		return "", util.Uint160{}, fmt.Errorf("failed to get native %s hash: %w", name, err)
 	}
-	symbol, err := c.NEP17Symbol(h)
+	nepTok := nep17.NewReader(invoker.New(c, nil), h)
+	symbol, err := nepTok.Symbol()
 	if err != nil {
 		return "", util.Uint160{}, fmt.Errorf("failed to get native %s symbol: %w", name, err)
 	}
