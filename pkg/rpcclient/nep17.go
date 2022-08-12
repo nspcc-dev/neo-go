@@ -27,21 +27,35 @@ type SignerAccount struct {
 }
 
 // NEP17Decimals invokes `decimals` NEP-17 method on the specified contract.
+//
+// Deprecated: please use nep17 package, this method will be removed in future
+// versions.
 func (c *Client) NEP17Decimals(tokenHash util.Uint160) (int64, error) {
 	return c.nepDecimals(tokenHash)
 }
 
 // NEP17Symbol invokes `symbol` NEP-17 method on the specified contract.
+//
+// Deprecated: please use nep17 package, this method will be removed in future
+// versions.
 func (c *Client) NEP17Symbol(tokenHash util.Uint160) (string, error) {
 	return c.nepSymbol(tokenHash)
 }
 
 // NEP17TotalSupply invokes `totalSupply` NEP-17 method on the specified contract.
+//
+// Deprecated: please use nep17 package, this method will be removed in future
+// versions. This method is also wrong since tokens can return values overflowing
+// int64.
 func (c *Client) NEP17TotalSupply(tokenHash util.Uint160) (int64, error) {
 	return c.nepTotalSupply(tokenHash)
 }
 
 // NEP17BalanceOf invokes `balanceOf` NEP-17 method on the specified contract.
+//
+// Deprecated: please use nep17 package, this method will be removed in future
+// versions. This method is also wrong since tokens can return values overflowing
+// int64.
 func (c *Client) NEP17BalanceOf(tokenHash, acc util.Uint160) (int64, error) {
 	return c.nepBalanceOf(tokenHash, acc, nil)
 }
@@ -55,6 +69,9 @@ func (c *Client) NEP17TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 // method of the given contract (token) to move the specified amount of NEP-17 assets
 // (in FixedN format using contract's number of decimals) to the given account and
 // returns it. The returned transaction is not signed.
+//
+// Deprecated: please use nep17 package, this method will be removed in future
+// versions.
 func (c *Client) CreateNEP17TransferTx(acc *wallet.Account, to util.Uint160,
 	token util.Uint160, amount int64, gas int64, data interface{}, cosigners []SignerAccount) (*transaction.Transaction, error) {
 	return c.CreateNEP17MultiTransferTx(acc, gas, []TransferTarget{
@@ -140,6 +157,9 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 // specifies a set of the transaction cosigners (may be nil or may include sender)
 // with a proper scope and the accounts to cosign the transaction. If cosigning is
 // impossible (e.g. due to locked cosigner's account) an error is returned.
+//
+// Deprecated: please use nep17 package, this method will be removed in future
+// versions.
 func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.Uint160,
 	amount int64, gas int64, data interface{}, cosigners []SignerAccount) (util.Uint256, error) {
 	tx, err := c.CreateNEP17TransferTx(acc, to, token, amount, gas, data, cosigners)

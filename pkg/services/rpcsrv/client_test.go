@@ -29,6 +29,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -54,19 +57,20 @@ func TestClient_NEP17(t *testing.T) {
 
 	h, err := util.Uint160DecodeStringLE(testContractHash)
 	require.NoError(t, err)
+	rub := nep17.NewReader(invoker.New(c, nil), h)
 
 	t.Run("Decimals", func(t *testing.T) {
-		d, err := c.NEP17Decimals(h)
+		d, err := rub.Decimals()
 		require.NoError(t, err)
 		require.EqualValues(t, 2, d)
 	})
 	t.Run("TotalSupply", func(t *testing.T) {
-		s, err := c.NEP17TotalSupply(h)
+		s, err := rub.TotalSupply()
 		require.NoError(t, err)
-		require.EqualValues(t, 1_000_000, s)
+		require.EqualValues(t, big.NewInt(1_000_000), s)
 	})
 	t.Run("Symbol", func(t *testing.T) {
-		sym, err := c.NEP17Symbol(h)
+		sym, err := rub.Symbol()
 		require.NoError(t, err)
 		require.Equal(t, "RUB", sym)
 	})
@@ -80,9 +84,9 @@ func TestClient_NEP17(t *testing.T) {
 	})
 	t.Run("BalanceOf", func(t *testing.T) {
 		acc := testchain.PrivateKeyByID(0).GetScriptHash()
-		b, err := c.NEP17BalanceOf(h, acc)
+		b, err := rub.BalanceOf(acc)
 		require.NoError(t, err)
-		require.EqualValues(t, 877, b)
+		require.EqualValues(t, big.NewInt(877), b)
 	})
 }
 
@@ -721,12 +725,16 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 
 	priv := testchain.PrivateKeyByID(0)
 	acc := wallet.NewAccountFromPrivateKey(priv)
+	addr := priv.PublicKey().GetScriptHash()
 
 	gasContractHash, err := c.GetNativeContractHash(nativenames.Gas)
 	require.NoError(t, err)
 
 	t.Run("default scope", func(t *testing.T) {
-		tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil, nil)
+		act, err := actor.NewSimple(c, acc)
+		require.NoError(t, err)
+		gas := nep17.New(act, gasContractHash)
+		tx, err := gas.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
 		require.NoError(t, err)
 		require.NoError(t, acc.SignTx(testchain.Network(), tx))
 		require.NoError(t, chain.VerifyTx(tx))
@@ -735,22 +743,30 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 		require.NoError(t, ic.VM.Run())
 	})
 	t.Run("none scope", func(t *testing.T) {
-		_, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil, []rpcclient.SignerAccount{{
+		act, err := actor.New(c, []actor.SignerAccount{{
 			Signer: transaction.Signer{
-				Account: priv.PublicKey().GetScriptHash(),
+				Account: addr,
 				Scopes:  transaction.None,
 			},
+			Account: acc,
 		}})
+		require.NoError(t, err)
+		gas := nep17.New(act, gasContractHash)
+		_, err = gas.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
 		require.Error(t, err)
 	})
 	t.Run("customcontracts scope", func(t *testing.T) {
-		tx, err := c.CreateNEP17TransferTx(acc, util.Uint160{}, gasContractHash, 1000, 0, nil, []rpcclient.SignerAccount{{
+		act, err := actor.New(c, []actor.SignerAccount{{
 			Signer: transaction.Signer{
 				Account:          priv.PublicKey().GetScriptHash(),
 				Scopes:           transaction.CustomContracts,
 				AllowedContracts: []util.Uint160{gasContractHash},
 			},
+			Account: acc,
 		}})
+		require.NoError(t, err)
+		gas := nep17.New(act, gasContractHash)
+		tx, err := gas.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
 		require.NoError(t, err)
 		require.NoError(t, acc.SignTx(testchain.Network(), tx))
 		require.NoError(t, chain.VerifyTx(tx))
