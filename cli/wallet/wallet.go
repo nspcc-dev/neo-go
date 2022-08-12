@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"strings"
 
@@ -17,6 +18,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -329,11 +332,16 @@ func claimGas(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
+	act, err := actor.NewSimple(c, acc)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 	neoContractHash, err := c.GetNativeContractHash(nativenames.Neo)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	hash, err := c.TransferNEP17(acc, scriptHash, neoContractHash, 0, 0, nil, nil)
+	neoToken := nep17.New(act, neoContractHash)
+	hash, _, err := neoToken.Transfer(scriptHash, scriptHash, big.NewInt(0), nil)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
