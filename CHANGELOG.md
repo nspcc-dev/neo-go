@@ -2,6 +2,77 @@
 
 This document outlines major changes between releases.
 
+## 0.99.2 "Recalibration" (12 Aug 2022)
+
+This is a 3.4.0-compatible (tested for mainnet and testnet) update to NeoGo
+that implements all of the required protocol changes, adds a lot of new RPC
+client interfaces and provides additional service management functions. This
+is also the first version to support the recently released Go 1.19. Support
+for Go 1.16 is removed at the same time, so you need Go 1.17+ to build NeoGo
+now.
+
+With this version you can turn on/off, restart or reconfigure internal node
+services like RPC or Oracle without full node shutdown/startup. Node operators
+can send an appropriate Unix signal and that'll do the job. At the same time
+node operators must resynchronize their nodes when updating to 0.99.2 due to
+native contract state change.
+
+A number of RPC client's methods are now deprecated (but still available to
+simplify transition), please explore new APIs, try them and leave feedback in
+#2597 if any. We expect new APIs to better fit the needs of various backend
+RPC client use cases while allowing to remove some repetitive code from
+applications at the same time. This release only contains generic NEP-17 call
+wrapper, so it doesn't cover all of the things currently provided by the
+old client API, but this will be fixed in future releases.
+
+New features:
+ * signal-based configuration and service reloads (#2612)
+ * new APIs in smartcontract package to convert Go types into NEP-14
+   parameters (#2621, #2632)
+ * invoker package to deal with invocations via RPC in various contexts
+   (mostly useful for read-only and/or historic calls when used directly,
+   #2621)
+ * `hasMethod` method in the ContractManagement native contract (#2598, #2619,
+   #2640)
+ * actor package that helps in creating and sending transactions to the
+   network via RPC using the same set of signers (can be used directly, but
+   mostly intended to be used by higher-order contract wrappers, #2632, #2637)
+ * unwrap package in the RPC client that checks for execution results and
+   converts returned stack items to expected Go types (can be used directly,
+   but more useful when being used by upper-layer contract wrappers, #2638)
+ * nep17 RPC client package for simple remote access to NEP-17 contract
+   methods via RPC, both safe and state-changing (#2642)
+
+Behavior changes:
+ * smartcontract.Params type and (*Parameter).TryParse APIs were removed
+   completely as unused and not useful (#2621)
+ * compiler now rejects unnamed parameter for exported methods (but they
+   didn't work properly anyway, #2601)
+ * restored deploy-time out of bounds script checks (#2538, #2619)
+ * dynamic scripts (like entry scripts) no longer can emit notifications
+   (#2613)
+ * db dump and db restore CLI commands now reject `--debug` option (it was
+   ignored previously, #2625)
+
+Improvements:
+ * manifest correctness check during compilation (#2601)
+ * more robust CalledByEntry scope check (#2613)
+ * a check for excessive arguments in CLI (#2625)
+ * better help messages for CLI commands (#2625)
+ * Go 1.19 support (#2634)
+ * saved transactions created via CLI (`--out`) now use the maximum possible
+   ValidUntilBlock values (#2632)
+ * RPC server now returns more data about NeoGo-specific protocol extensions
+   in `getversion` reply (#2632)
+
+Bugs fixed:
+ * NEP-6 wallet version was wrong wrt the standard and C# implementation
+   (#2633)
+ * smart contract invocations from the CLI didn't compensate for interactive
+   prompt wait time which could lead to transaction expiration before it was
+   sent (#2632)
+ * Oracle native contract's `finish` method reentrancy problem (#2639)
+
 ## 0.99.1 "Parametrization" (28 Jul 2022)
 
 We're updating NeoGo to push out a number of significant updates as well as
