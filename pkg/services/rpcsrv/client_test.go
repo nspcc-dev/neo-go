@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -33,6 +34,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/rolemgmt"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -88,6 +90,58 @@ func TestClient_NEP17(t *testing.T) {
 		require.NoError(t, err)
 		require.EqualValues(t, big.NewInt(877), b)
 	})
+}
+
+func TestClientRoleManagement(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	act, err := actor.New(c, []actor.SignerAccount{{
+		Signer: transaction.Signer{
+			Account: testchain.CommitteeScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: &wallet.Account{
+			Address: testchain.CommitteeAddress(),
+			Contract: &wallet.Contract{
+				Script: testchain.CommitteeVerificationScript(),
+			},
+		},
+	}})
+	require.NoError(t, err)
+
+	height, err := c.GetBlockCount()
+	require.NoError(t, err)
+
+	rm := rolemgmt.New(act)
+	ks, err := rm.GetDesignatedByRole(noderoles.Oracle, height)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(ks))
+
+	testKeys := keys.PublicKeys{
+		testchain.PrivateKeyByID(0).PublicKey(),
+		testchain.PrivateKeyByID(1).PublicKey(),
+		testchain.PrivateKeyByID(2).PublicKey(),
+		testchain.PrivateKeyByID(3).PublicKey(),
+	}
+
+	tx, err := rm.DesignateAsRoleUnsigned(noderoles.Oracle, testKeys)
+	require.NoError(t, err)
+
+	tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
+	bl := testchain.NewBlock(t, chain, 1, 0, tx)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
+
+	sort.Sort(testKeys)
+	ks, err = rm.GetDesignatedByRole(noderoles.Oracle, height+1)
+	require.NoError(t, err)
+	require.Equal(t, testKeys, ks)
 }
 
 func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {

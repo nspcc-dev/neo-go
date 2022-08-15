@@ -52,6 +52,8 @@ func (c *Client) getFromNEO(meth string) (int64, error) {
 }
 
 // GetDesignatedByRole invokes `getDesignatedByRole` method on a native RoleManagement contract.
+//
+// Deprecated: please use rolemgmt package.
 func (c *Client) GetDesignatedByRole(role noderoles.Role, index uint32) (keys.PublicKeys, error) {
 	rmHash, err := c.GetNativeContractHash(nativenames.Designation)
 	if err != nil {
