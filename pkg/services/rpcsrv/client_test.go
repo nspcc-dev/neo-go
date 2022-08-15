@@ -20,7 +20,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -31,6 +30,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/gas"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
@@ -781,14 +781,11 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 	acc := wallet.NewAccountFromPrivateKey(priv)
 	addr := priv.PublicKey().GetScriptHash()
 
-	gasContractHash, err := c.GetNativeContractHash(nativenames.Gas)
-	require.NoError(t, err)
-
 	t.Run("default scope", func(t *testing.T) {
 		act, err := actor.NewSimple(c, acc)
 		require.NoError(t, err)
-		gas := nep17.New(act, gasContractHash)
-		tx, err := gas.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
+		gasprom := gas.New(act)
+		tx, err := gasprom.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
 		require.NoError(t, err)
 		require.NoError(t, acc.SignTx(testchain.Network(), tx))
 		require.NoError(t, chain.VerifyTx(tx))
@@ -805,8 +802,8 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 			Account: acc,
 		}})
 		require.NoError(t, err)
-		gas := nep17.New(act, gasContractHash)
-		_, err = gas.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
+		gasprom := gas.New(act)
+		_, err = gasprom.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
 		require.Error(t, err)
 	})
 	t.Run("customcontracts scope", func(t *testing.T) {
@@ -814,13 +811,13 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 			Signer: transaction.Signer{
 				Account:          priv.PublicKey().GetScriptHash(),
 				Scopes:           transaction.CustomContracts,
-				AllowedContracts: []util.Uint160{gasContractHash},
+				AllowedContracts: []util.Uint160{gas.Hash},
 			},
 			Account: acc,
 		}})
 		require.NoError(t, err)
-		gas := nep17.New(act, gasContractHash)
-		tx, err := gas.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
+		gasprom := gas.New(act)
+		tx, err := gasprom.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
 		require.NoError(t, err)
 		require.NoError(t, acc.SignTx(testchain.Network(), tx))
 		require.NoError(t, chain.VerifyTx(tx))

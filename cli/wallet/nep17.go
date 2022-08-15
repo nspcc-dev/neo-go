@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/gas"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -241,7 +242,8 @@ func getNEP17Balance(ctx *cli.Context) error {
 				if err != nil {
 					// Try to get native NEP17 with matching symbol.
 					var gasSymbol, neoSymbol string
-					gasSymbol, h, err = getNativeNEP17Symbol(c, nativenames.Gas)
+					g := gas.NewReader(invoker.New(c, nil))
+					gasSymbol, err = g.Symbol()
 					if err != nil {
 						continue
 					}
@@ -253,6 +255,8 @@ func getNEP17Balance(ctx *cli.Context) error {
 						if neoSymbol != name {
 							continue
 						}
+					} else {
+						h = gas.Hash
 					}
 				}
 			}
