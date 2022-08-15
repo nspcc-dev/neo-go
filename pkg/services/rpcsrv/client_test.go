@@ -1071,6 +1071,21 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 		ic.VM.LoadScriptWithFlags(tx.Script, callflag.All)
 		require.NoError(t, ic.VM.Run())
 	})
+	t.Run("default scope, multitransfer", func(t *testing.T) {
+		act, err := actor.NewSimple(c, acc)
+		require.NoError(t, err)
+		gazprom := gas.New(act)
+		tx, err := gazprom.MultiTransferTransaction([]nep17.TransferParameters{
+			{From: addr, To: util.Uint160{3, 2, 1}, Amount: big.NewInt(1000), Data: nil},
+			{From: addr, To: util.Uint160{1, 2, 3}, Amount: big.NewInt(1000), Data: nil},
+		})
+		require.NoError(t, err)
+		require.NoError(t, chain.VerifyTx(tx))
+		ic := chain.GetTestVM(trigger.Application, tx, nil)
+		ic.VM.LoadScriptWithFlags(tx.Script, callflag.All)
+		require.NoError(t, ic.VM.Run())
+		require.Equal(t, 2, len(ic.Notifications))
+	})
 	t.Run("none scope", func(t *testing.T) {
 		act, err := actor.New(c, []actor.SignerAccount{{
 			Signer: transaction.Signer{

@@ -87,6 +87,10 @@ func (c *Client) CreateNEP17TransferTx(acc *wallet.Account, to util.Uint160,
 // NEP-17 transfers from a single sender to multiple recipients with the given
 // data and cosigners. The transaction sender is included with the CalledByEntry
 // scope by default.
+//
+// Deprecated: please use nep17 package (when transferring the same token) or
+// [smartcontract.Builder] (when transferring multiple tokens), this method will
+// be removed in future versions.
 func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64,
 	recipients []TransferTarget, cosigners []SignerAccount) (*transaction.Transaction, error) {
 	from, err := address.StringToUint160(acc.Address)
@@ -171,6 +175,10 @@ func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.
 }
 
 // MultiTransferNEP17 is similar to TransferNEP17, buf allows to have multiple recipients.
+//
+// Deprecated: please use nep17 package (when transferring the same token) or
+// [smartcontract.Builder] (when transferring multiple tokens), this method will
+// be removed in future versions.
 func (c *Client) MultiTransferNEP17(acc *wallet.Account, gas int64, recipients []TransferTarget, cosigners []SignerAccount) (util.Uint256, error) {
 	tx, err := c.CreateNEP17MultiTransferTx(acc, gas, recipients, cosigners)
 	if err != nil {
