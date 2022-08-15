@@ -13,15 +13,46 @@ import (
 )
 
 func TestUnusedGlobal(t *testing.T) {
-	src := `package foo
-	const (
-		_ int = iota
-		a
-	)
-	func Main() int {
-		return 1
-	}`
-	eval(t, src, big.NewInt(1))
+	t.Run("simple unused", func(t *testing.T) {
+		src := `package foo
+				const (
+					_ int = iota
+					a
+				)
+				func Main() int {
+					return 1
+				}`
+		prog := eval(t, src, big.NewInt(1))
+		require.Equal(t, 2, len(prog)) // PUSH1 + RET
+	})
+	t.Run("unused with function call inside", func(t *testing.T) {
+		t.Run("specification names count matches values count", func(t *testing.T) {
+			src := `package foo
+				var control int
+				var _ = f()
+				func Main() int {
+					return control
+				}
+				func f() int {
+					control = 1
+					return 5
+				}`
+			eval(t, src, big.NewInt(1))
+		})
+		t.Run("specification names count differs from values count", func(t *testing.T) {
+			src := `package foo
+				var control int
+				var _, _ = f()
+				func Main() int {
+					return control
+				}
+				func f() (int, int) {
+					control = 1
+					return 5, 6
+				}`
+			eval(t, src, big.NewInt(1))
+		})
+	})
 }
 
 func TestChangeGlobal(t *testing.T) {

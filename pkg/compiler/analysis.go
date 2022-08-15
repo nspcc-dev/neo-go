@@ -49,11 +49,15 @@ func (c *codegen) getIdentName(pkg string, name string) string {
 func (c *codegen) traverseGlobals() bool {
 	var hasDefer bool
 	var n, nConst int
+	var hasUnusedCall bool
 	var hasDeploy bool
 	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
-		nv, nc := countGlobals(f)
+		nv, nc, huc := countGlobals(f, !hasUnusedCall)
 		n += nv
 		nConst += nc
+		if huc {
+			hasUnusedCall = true
+		}
 		if !hasDeploy || !hasDefer {
 			ast.Inspect(f, func(node ast.Node) bool {
 				switch n := node.(type) {
@@ -85,7 +89,10 @@ func (c *codegen) traverseGlobals() bool {
 
 	lastCnt, maxCnt := -1, -1
 	c.ForEachPackage(func(pkg *packages.Package) {
-		if n+nConst > 0 {
+		// TODO: @optimizeme: it could happen that we don't need the whole set of globals to be emitted.
+		// We don't need the code for unused var at all, but at the same time we need to emit code for those
+		// vars that have function call inside. Thus convertGlobals should be able to distinguish these cases.
+		if n+nConst > 0 || hasUnusedCall {
 			for _, f := range pkg.Syntax {
 				c.fillImportMap(f, pkg)
 				c.convertGlobals(f, pkg.Types)
@@ -143,26 +150,37 @@ func (c *codegen) traverseGlobals() bool {
 // countGlobals counts the global variables in the program to add
 // them with the stack size of the function.
 // Second returned argument contains the amount of global constants.
-func countGlobals(f ast.Node) (int, int) {
+// If checkUnusedCalls set to true then unnamed global variables containing call
+// will be searched for and their presence is returned as the last argument.
+func countGlobals(f ast.Node, checkUnusedCalls bool) (int, int, bool) {
 	var numVar, numConst int
+	var hasUnusedCall bool
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch n := node.(type) {
 		// Skip all function declarations if we have already encountered `defer`.
 		case *ast.FuncDecl:
 			return false
 		// After skipping all funcDecls, we are sure that each value spec
-		// is a global declared variable or constant.
+		// is a globally declared variable or constant.
 		case *ast.GenDecl:
 			isVar := n.Tok == token.VAR
 			if isVar || n.Tok == token.CONST {
 				for _, s := range n.Specs {
-					for _, id := range s.(*ast.ValueSpec).Names {
+					valueSpec := s.(*ast.ValueSpec)
+					multiRet := len(valueSpec.Values) != 0 && len(valueSpec.Names) != len(valueSpec.Values) // e.g. var A, B = f() where func f() (int, int)
+					for j, id := range valueSpec.Names {
 						if id.Name != "_" {
 							if isVar {
 								numVar++
 							} else {
 								numConst++
 							}
+						} else if isVar && len(valueSpec.Values) != 0 && checkUnusedCalls && !hasUnusedCall {
+							indexToCheck := j
+							if multiRet {
+								indexToCheck = 0
+							}
+							hasUnusedCall = containsCall(valueSpec.Values[indexToCheck])
 						}
 					}
 				}
@@ -171,7 +189,23 @@ func countGlobals(f ast.Node) (int, int) {
 		}
 		return true
 	})
-	return numVar, numConst
+	return numVar, numConst, hasUnusedCall
+}
+
+// containsCall traverses node and looks if it contains a function or method call.
+func containsCall(n ast.Node) bool {
+	var hasCall bool
+	ast.Inspect(n, func(node ast.Node) bool {
+		switch node.(type) {
+		case *ast.CallExpr:
+			hasCall = true
+		case *ast.Ident:
+			// Can safely skip idents immediately, we're interested at function calls only.
+			return false
+		}
+		return !hasCall
+	})
+	return hasCall
 }
 
 // isExprNil looks if the given expression is a `nil`.
