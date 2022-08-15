@@ -34,6 +34,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/policy"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/rolemgmt"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -142,6 +143,86 @@ func TestClientRoleManagement(t *testing.T) {
 	ks, err = rm.GetDesignatedByRole(noderoles.Oracle, height+1)
 	require.NoError(t, err)
 	require.Equal(t, testKeys, ks)
+}
+
+func TestClientPolicyContract(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	polizei := policy.NewReader(invoker.New(c, nil))
+
+	val, err := polizei.GetExecFeeFactor()
+	require.NoError(t, err)
+	require.Equal(t, int64(30), val)
+
+	val, err = polizei.GetFeePerByte()
+	require.NoError(t, err)
+	require.Equal(t, int64(1000), val)
+
+	val, err = polizei.GetStoragePrice()
+	require.NoError(t, err)
+	require.Equal(t, int64(100000), val)
+
+	ret, err := polizei.IsBlocked(util.Uint160{})
+	require.NoError(t, err)
+	require.False(t, ret)
+
+	act, err := actor.New(c, []actor.SignerAccount{{
+		Signer: transaction.Signer{
+			Account: testchain.CommitteeScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: &wallet.Account{
+			Address: testchain.CommitteeAddress(),
+			Contract: &wallet.Contract{
+				Script: testchain.CommitteeVerificationScript(),
+			},
+		},
+	}})
+	require.NoError(t, err)
+
+	polis := policy.New(act)
+
+	txexec, err := polis.SetExecFeeFactorUnsigned(100)
+	require.NoError(t, err)
+
+	txnetfee, err := polis.SetFeePerByteUnsigned(500)
+	require.NoError(t, err)
+
+	txstorage, err := polis.SetStoragePriceUnsigned(100500)
+	require.NoError(t, err)
+
+	txblock, err := polis.BlockAccountUnsigned(util.Uint160{1, 2, 3})
+	require.NoError(t, err)
+
+	for _, tx := range []*transaction.Transaction{txblock, txstorage, txnetfee, txexec} {
+		tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
+	}
+
+	bl := testchain.NewBlock(t, chain, 1, 0, txblock, txstorage, txnetfee, txexec)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
+
+	val, err = polizei.GetExecFeeFactor()
+	require.NoError(t, err)
+	require.Equal(t, int64(100), val)
+
+	val, err = polizei.GetFeePerByte()
+	require.NoError(t, err)
+	require.Equal(t, int64(500), val)
+
+	val, err = polizei.GetStoragePrice()
+	require.NoError(t, err)
+	require.Equal(t, int64(100500), val)
+
+	ret, err = polizei.IsBlocked(util.Uint160{1, 2, 3})
+	require.NoError(t, err)
+	require.True(t, ret)
 }
 
 func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
