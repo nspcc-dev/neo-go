@@ -35,6 +35,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/management"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/policy"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/rolemgmt"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -1453,7 +1454,7 @@ func TestClient_GetNotaryServiceFeePerKey(t *testing.T) {
 	require.Equal(t, defaultNotaryServiceFeePerKey, actual)
 }
 
-func TestClient_GetOraclePrice(t *testing.T) {
+func TestClientOracle(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
@@ -1462,10 +1463,41 @@ func TestClient_GetOraclePrice(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
-	var defaultOracleRequestPrice int64 = 5000_0000
-	actual, err := c.GetOraclePrice()
+	oraRe := oracle.NewReader(invoker.New(c, nil))
+
+	var defaultOracleRequestPrice = big.NewInt(5000_0000)
+	actual, err := oraRe.GetPrice()
 	require.NoError(t, err)
 	require.Equal(t, defaultOracleRequestPrice, actual)
+
+	act, err := actor.New(c, []actor.SignerAccount{{
+		Signer: transaction.Signer{
+			Account: testchain.CommitteeScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: &wallet.Account{
+			Address: testchain.CommitteeAddress(),
+			Contract: &wallet.Contract{
+				Script: testchain.CommitteeVerificationScript(),
+			},
+		},
+	}})
+	require.NoError(t, err)
+
+	ora := oracle.New(act)
+
+	newPrice := big.NewInt(1_0000_0000)
+	tx, err := ora.SetPriceUnsigned(newPrice)
+	require.NoError(t, err)
+
+	tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
+	bl := testchain.NewBlock(t, chain, 1, 0, tx)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
+
+	actual, err = ora.GetPrice()
+	require.NoError(t, err)
+	require.Equal(t, newPrice, actual)
 }
 
 func TestClient_InvokeAndPackIteratorResults(t *testing.T) {
