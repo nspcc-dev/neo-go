@@ -17,7 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	cliwallet "github.com/nspcc-dev/neo-go/cli/wallet"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -25,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/management"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -971,19 +971,6 @@ func contractDeploy(ctx *cli.Context) error {
 		appCallParams = append(appCallParams, data[0])
 	}
 
-	gctx, cancel := options.GetTimeoutContext(ctx)
-	defer cancel()
-
-	c, err := options.GetRPCClient(gctx, ctx)
-	if err != nil {
-		return err
-	}
-
-	mgmtHash, err := c.GetNativeContractHash(nativenames.Management)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to get management contract's hash: %w", err), 1)
-	}
-
 	acc, w, err := getAccFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't get sender address: %w", err), 1)
@@ -999,7 +986,7 @@ func contractDeploy(ctx *cli.Context) error {
 		}}
 	}
 
-	sender, extErr := invokeWithArgs(ctx, acc, w, mgmtHash, "deploy", appCallParams, cosigners)
+	sender, extErr := invokeWithArgs(ctx, acc, w, management.Hash, "deploy", appCallParams, cosigners)
 	if extErr != nil {
 		return extErr
 	}
