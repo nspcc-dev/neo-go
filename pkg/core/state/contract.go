@@ -115,3 +115,9 @@ func CreateContractHash(sender util.Uint160, checksum uint32, name string) util.
 	}
 	return hash.Hash160(w.Bytes())
 }
+
+// CreateNativeContractHash calculates the hash for the native contract with the
+// given name.
+func CreateNativeContractHash(name string) util.Uint160 {
+	return CreateContractHash(util.Uint160{}, 0, name)
+}

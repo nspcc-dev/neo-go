@@ -20,7 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -30,9 +30,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/gas"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/policy"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/rolemgmt"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -88,6 +91,138 @@ func TestClient_NEP17(t *testing.T) {
 		require.NoError(t, err)
 		require.EqualValues(t, big.NewInt(877), b)
 	})
+}
+
+func TestClientRoleManagement(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	act, err := actor.New(c, []actor.SignerAccount{{
+		Signer: transaction.Signer{
+			Account: testchain.CommitteeScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: &wallet.Account{
+			Address: testchain.CommitteeAddress(),
+			Contract: &wallet.Contract{
+				Script: testchain.CommitteeVerificationScript(),
+			},
+		},
+	}})
+	require.NoError(t, err)
+
+	height, err := c.GetBlockCount()
+	require.NoError(t, err)
+
+	rm := rolemgmt.New(act)
+	ks, err := rm.GetDesignatedByRole(noderoles.Oracle, height)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(ks))
+
+	testKeys := keys.PublicKeys{
+		testchain.PrivateKeyByID(0).PublicKey(),
+		testchain.PrivateKeyByID(1).PublicKey(),
+		testchain.PrivateKeyByID(2).PublicKey(),
+		testchain.PrivateKeyByID(3).PublicKey(),
+	}
+
+	tx, err := rm.DesignateAsRoleUnsigned(noderoles.Oracle, testKeys)
+	require.NoError(t, err)
+
+	tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
+	bl := testchain.NewBlock(t, chain, 1, 0, tx)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
+
+	sort.Sort(testKeys)
+	ks, err = rm.GetDesignatedByRole(noderoles.Oracle, height+1)
+	require.NoError(t, err)
+	require.Equal(t, testKeys, ks)
+}
+
+func TestClientPolicyContract(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	polizei := policy.NewReader(invoker.New(c, nil))
+
+	val, err := polizei.GetExecFeeFactor()
+	require.NoError(t, err)
+	require.Equal(t, int64(30), val)
+
+	val, err = polizei.GetFeePerByte()
+	require.NoError(t, err)
+	require.Equal(t, int64(1000), val)
+
+	val, err = polizei.GetStoragePrice()
+	require.NoError(t, err)
+	require.Equal(t, int64(100000), val)
+
+	ret, err := polizei.IsBlocked(util.Uint160{})
+	require.NoError(t, err)
+	require.False(t, ret)
+
+	act, err := actor.New(c, []actor.SignerAccount{{
+		Signer: transaction.Signer{
+			Account: testchain.CommitteeScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: &wallet.Account{
+			Address: testchain.CommitteeAddress(),
+			Contract: &wallet.Contract{
+				Script: testchain.CommitteeVerificationScript(),
+			},
+		},
+	}})
+	require.NoError(t, err)
+
+	polis := policy.New(act)
+
+	txexec, err := polis.SetExecFeeFactorUnsigned(100)
+	require.NoError(t, err)
+
+	txnetfee, err := polis.SetFeePerByteUnsigned(500)
+	require.NoError(t, err)
+
+	txstorage, err := polis.SetStoragePriceUnsigned(100500)
+	require.NoError(t, err)
+
+	txblock, err := polis.BlockAccountUnsigned(util.Uint160{1, 2, 3})
+	require.NoError(t, err)
+
+	for _, tx := range []*transaction.Transaction{txblock, txstorage, txnetfee, txexec} {
+		tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
+	}
+
+	bl := testchain.NewBlock(t, chain, 1, 0, txblock, txstorage, txnetfee, txexec)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
+
+	val, err = polizei.GetExecFeeFactor()
+	require.NoError(t, err)
+	require.Equal(t, int64(100), val)
+
+	val, err = polizei.GetFeePerByte()
+	require.NoError(t, err)
+	require.Equal(t, int64(500), val)
+
+	val, err = polizei.GetStoragePrice()
+	require.NoError(t, err)
+	require.Equal(t, int64(100500), val)
+
+	ret, err = polizei.IsBlocked(util.Uint160{1, 2, 3})
+	require.NoError(t, err)
+	require.True(t, ret)
 }
 
 func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
@@ -727,14 +862,11 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 	acc := wallet.NewAccountFromPrivateKey(priv)
 	addr := priv.PublicKey().GetScriptHash()
 
-	gasContractHash, err := c.GetNativeContractHash(nativenames.Gas)
-	require.NoError(t, err)
-
 	t.Run("default scope", func(t *testing.T) {
 		act, err := actor.NewSimple(c, acc)
 		require.NoError(t, err)
-		gas := nep17.New(act, gasContractHash)
-		tx, err := gas.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
+		gasprom := gas.New(act)
+		tx, err := gasprom.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
 		require.NoError(t, err)
 		require.NoError(t, acc.SignTx(testchain.Network(), tx))
 		require.NoError(t, chain.VerifyTx(tx))
@@ -751,8 +883,8 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 			Account: acc,
 		}})
 		require.NoError(t, err)
-		gas := nep17.New(act, gasContractHash)
-		_, err = gas.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
+		gasprom := gas.New(act)
+		_, err = gasprom.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
 		require.Error(t, err)
 	})
 	t.Run("customcontracts scope", func(t *testing.T) {
@@ -760,13 +892,13 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 			Signer: transaction.Signer{
 				Account:          priv.PublicKey().GetScriptHash(),
 				Scopes:           transaction.CustomContracts,
-				AllowedContracts: []util.Uint160{gasContractHash},
+				AllowedContracts: []util.Uint160{gas.Hash},
 			},
 			Account: acc,
 		}})
 		require.NoError(t, err)
-		gas := nep17.New(act, gasContractHash)
-		tx, err := gas.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
+		gasprom := gas.New(act)
+		tx, err := gasprom.TransferUnsigned(addr, util.Uint160{}, big.NewInt(1000), nil)
 		require.NoError(t, err)
 		require.NoError(t, acc.SignTx(testchain.Network(), tx))
 		require.NoError(t, chain.VerifyTx(tx))

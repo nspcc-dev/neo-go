@@ -9,16 +9,22 @@ import (
 )
 
 // GetFeePerByte invokes `getFeePerByte` method on a native Policy contract.
+//
+// Deprecated: please use policy subpackage.
 func (c *Client) GetFeePerByte() (int64, error) {
 	return c.invokeNativePolicyMethod("getFeePerByte")
 }
 
 // GetExecFeeFactor invokes `getExecFeeFactor` method on a native Policy contract.
+//
+// Deprecated: please use policy subpackage.
 func (c *Client) GetExecFeeFactor() (int64, error) {
 	return c.invokeNativePolicyMethod("getExecFeeFactor")
 }
 
 // GetStoragePrice invokes `getStoragePrice` method on a native Policy contract.
+//
+// Deprecated: please use policy subpackage.
 func (c *Client) GetStoragePrice() (int64, error) {
 	return c.invokeNativePolicyMethod("getStoragePrice")
 }
@@ -46,6 +52,8 @@ func (c *Client) invokeNativeGetMethod(hash util.Uint160, operation string) (int
 }
 
 // IsBlocked invokes `isBlocked` method on native Policy contract.
+//
+// Deprecated: please use policy subpackage.
 func (c *Client) IsBlocked(hash util.Uint160) (bool, error) {
 	policyHash, err := c.GetNativeContractHash(nativenames.Policy)
 	if err != nil {
