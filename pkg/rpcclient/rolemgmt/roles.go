@@ -7,9 +7,6 @@ various methods to perform the only RoleManagement state-changing call.
 package rolemgmt
 
 import (
-	"crypto/elliptic"
-	"fmt"
-
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -78,22 +75,7 @@ func New(actor Actor) *Contract {
 // given role at the given height. The list can be empty if no keys are
 // configured for this role/height.
 func (c *ContractReader) GetDesignatedByRole(role noderoles.Role, index uint32) (keys.PublicKeys, error) {
-	arr, err := unwrap.Array(c.invoker.Call(Hash, "getDesignatedByRole", int64(role), index))
-	if err != nil {
-		return nil, err
-	}
-	pks := make(keys.PublicKeys, len(arr))
-	for i, item := range arr {
-		val, err := item.TryBytes()
-		if err != nil {
-			return nil, fmt.Errorf("invalid array element #%d: %s", i, item.Type())
-		}
-		pks[i], err = keys.NewPublicKeyFromBytes(val, elliptic.P256())
-		if err != nil {
-			return nil, err
-		}
-	}
-	return pks, nil
+	return unwrap.ArrayOfPublicKeys(c.invoker.Call(Hash, "getDesignatedByRole", int64(role), index))
 }
 
 // DesignateAsRole creates and sends a transaction that sets the keys used for

@@ -11,12 +11,14 @@ contract-specific packages.
 package unwrap
 
 import (
+	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"math/big"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -188,6 +190,27 @@ func ArrayOfBytes(r *result.Invoke, err error) ([][]byte, error) {
 		res[i] = b
 	}
 	return res, nil
+}
+
+// ArrayOfPublicKeys checks the result for correct state (HALT) and then
+// extracts a slice of public keys from the returned stack item.
+func ArrayOfPublicKeys(r *result.Invoke, err error) (keys.PublicKeys, error) {
+	arr, err := Array(r, err)
+	if err != nil {
+		return nil, err
+	}
+	pks := make(keys.PublicKeys, len(arr))
+	for i, item := range arr {
+		val, err := item.TryBytes()
+		if err != nil {
+			return nil, fmt.Errorf("invalid array element #%d: %s", i, item.Type())
+		}
+		pks[i], err = keys.NewPublicKeyFromBytes(val, elliptic.P256())
+		if err != nil {
+			return nil, fmt.Errorf("array element #%d in not a key: %w", i, err)
+		}
+	}
+	return pks, nil
 }
 
 // Map expects correct execution (HALT state) with a single stack item

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -51,6 +52,9 @@ func TestStdErrors(t *testing.T) {
 		},
 		func(r *result.Invoke, err error) (interface{}, error) {
 			return ArrayOfBytes(r, err)
+		},
+		func(r *result.Invoke, err error) (interface{}, error) {
+			return ArrayOfPublicKeys(r, err)
 		},
 		func(r *result.Invoke, err error) (interface{}, error) {
 			return Map(r, err)
@@ -222,6 +226,25 @@ func TestArrayOfBytes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(a))
 	require.Equal(t, []byte("some"), a[0])
+}
+
+func TestArrayOfPublicKeys(t *testing.T) {
+	_, err := ArrayOfPublicKeys(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make(42)}}, nil)
+	require.Error(t, err)
+
+	_, err = ArrayOfPublicKeys(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make([]stackitem.Item{})})}}, nil)
+	require.Error(t, err)
+
+	_, err = ArrayOfPublicKeys(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make([]byte("some"))})}}, nil)
+	require.Error(t, err)
+
+	k, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	pks, err := ArrayOfPublicKeys(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make(k.PublicKey().Bytes())})}}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(pks))
+	require.Equal(t, k.PublicKey(), pks[0])
 }
 
 func TestMap(t *testing.T) {
