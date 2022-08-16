@@ -575,6 +575,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		for _, spec := range n.Specs {
 			switch t := spec.(type) {
 			case *ast.ValueSpec:
+				multiRet := n.Tok == token.VAR && len(t.Values) != 0 && len(t.Names) != len(t.Values)
 				for _, id := range t.Names {
 					if id.Name != "_" {
 						if c.scope == nil {
@@ -583,12 +584,16 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 						} else {
 							c.scope.newLocal(id.Name)
 						}
-						c.registerDebugVariable(id.Name, t.Type)
+						if !multiRet {
+							c.registerDebugVariable(id.Name, t.Type)
+						}
 					}
 				}
 				for i := range t.Names {
 					if len(t.Values) != 0 {
-						ast.Walk(c, t.Values[i])
+						if i == 0 || !multiRet {
+							ast.Walk(c, t.Values[i])
+						}
 					} else {
 						c.emitDefault(c.typeOf(t.Type))
 					}
