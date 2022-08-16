@@ -2185,6 +2185,9 @@ func newCodegen(info *buildInfo, pkg *packages.Package) *codegen {
 
 // codeGen compiles the program to bytecode.
 func codeGen(info *buildInfo) (*nef.File, *DebugInfo, error) {
+	if len(info.program) == 0 {
+		return nil, nil, errors.New("empty package")
+	}
 	pkg := info.program[0]
 	c := newCodegen(info, pkg)
 
