@@ -4,11 +4,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -44,7 +46,12 @@ func (r *RPCClient) GetVersion() (*result.Version, error) {
 func (r *RPCClient) SendRawTransaction(tx *transaction.Transaction) (util.Uint256, error) {
 	return r.hash, r.err
 }
-
+func (r *RPCClient) TerminateSession(sessionID uuid.UUID) (bool, error) {
+	return false, nil // Just a stub, unused by actor.
+}
+func (r *RPCClient) TraverseIterator(sessionID, iteratorID uuid.UUID, maxItemsCount int) ([]stackitem.Item, error) {
+	return nil, nil // Just a stub, unused by actor.
+}
 func testRPCAndAccount(t *testing.T) (*RPCClient, *wallet.Account) {
 	client := &RPCClient{
 		version: &result.Version{
