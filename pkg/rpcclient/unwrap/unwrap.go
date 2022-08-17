@@ -155,6 +155,9 @@ func SessionIterator(r *result.Invoke, err error) (uuid.UUID, result.Iterator, e
 	if !ok {
 		return uuid.UUID{}, result.Iterator{}, errors.New("the item is InteropInterface, but not an Iterator")
 	}
+	if (r.Session == uuid.UUID{}) && iter.ID != nil {
+		return uuid.UUID{}, result.Iterator{}, errors.New("server returned iterator ID, but no session ID")
+	}
 	return r.Session, iter, nil
 }
 

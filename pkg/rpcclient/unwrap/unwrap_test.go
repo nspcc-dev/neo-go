@@ -197,8 +197,11 @@ func TestSessionIterator(t *testing.T) {
 	require.Error(t, err)
 
 	iid := uuid.New()
-	sid := uuid.New()
 	iter := result.Iterator{ID: &iid}
+	_, _, err = SessionIterator(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.NewInterop(iter)}}, nil)
+	require.Error(t, err)
+
+	sid := uuid.New()
 	rs, ri, err := SessionIterator(&result.Invoke{Session: sid, State: "HALT", Stack: []stackitem.Item{stackitem.NewInterop(iter)}}, nil)
 	require.NoError(t, err)
 	require.Equal(t, sid, rs)
