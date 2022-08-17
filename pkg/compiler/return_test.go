@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestReturnInt64(t *testing.T) {
@@ -99,7 +96,11 @@ func TestSingleReturn(t *testing.T) {
 
 func TestNamedReturn(t *testing.T) {
 	src := `package foo
-	func Main() (a int, b int) {
+	func Main() int {
+		a, b := f()
+		return a + b
+	}
+	func f() (a int, b int) {
 		a = 1
 		b = 2
 		c := 3
@@ -107,21 +108,16 @@ func TestNamedReturn(t *testing.T) {
 		return %s
 	}`
 
-	runCase := func(ret string, result ...interface{}) func(t *testing.T) {
+	runCase := func(ret string, result *big.Int) func(t *testing.T) {
 		return func(t *testing.T) {
 			src := fmt.Sprintf(src, ret)
-			v := vmAndCompile(t, src)
-			require.NoError(t, v.Run())
-			require.Equal(t, len(result), v.Estack().Len())
-			for i := range result {
-				assert.EqualValues(t, result[i], v.Estack().Pop().Value())
-			}
+			eval(t, src, result)
 		}
 	}
 
-	t.Run("NormalReturn", runCase("a, b", big.NewInt(1), big.NewInt(2)))
-	t.Run("EmptyReturn", runCase("", big.NewInt(1), big.NewInt(2)))
-	t.Run("AnotherVariable", runCase("b, c", big.NewInt(2), big.NewInt(3)))
+	t.Run("NormalReturn", runCase("a, b", big.NewInt(3)))
+	t.Run("EmptyReturn", runCase("", big.NewInt(3)))
+	t.Run("AnotherVariable", runCase("b, c", big.NewInt(5)))
 }
 
 func TestTypeAssertReturn(t *testing.T) {

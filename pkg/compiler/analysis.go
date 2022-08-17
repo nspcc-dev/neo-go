@@ -13,8 +13,13 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// ErrMissingExportedParamName is returned when exported contract method has unnamed parameter.
-var ErrMissingExportedParamName = errors.New("exported method is not allowed to have unnamed parameter")
+// Various exported functions usage errors.
+var (
+	// ErrMissingExportedParamName is returned when exported contract method has unnamed parameter.
+	ErrMissingExportedParamName = errors.New("exported method is not allowed to have unnamed parameter")
+	// ErrInvalidExportedRetCount is returned when exported contract method has invalid return values count.
+	ErrInvalidExportedRetCount = errors.New("exported method is not allowed to have more than one return value")
+)
 
 var (
 	// Go language builtin functions.
@@ -289,7 +294,7 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 				if isMain && n.Name.IsExported() || isInitFunc(n) || isDeployFunc(n) {
 					diff[name] = true
 				}
-				// exported functions are not allowed to have unnamed parameters
+				// exported functions are not allowed to have unnamed parameters  or multiple return values
 				if isMain && n.Name.IsExported() && n.Recv == nil {
 					if n.Type.Params.List != nil {
 						for i, param := range n.Type.Params.List {
@@ -304,6 +309,9 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 								}
 							}
 						}
+					}
+					if retCnt := n.Type.Results.NumFields(); retCnt > 1 {
+						c.prog.Err = fmt.Errorf("%w: %s/%d return values", ErrInvalidExportedRetCount, n.Name, retCnt)
 					}
 				}
 				nodeCache[name] = declPair{n, c.importMap, pkgPath}
