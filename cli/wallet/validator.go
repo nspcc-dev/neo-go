@@ -7,15 +7,12 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 )
@@ -78,24 +75,18 @@ func newValidatorCommands() []cli.Command {
 }
 
 func handleRegister(ctx *cli.Context) error {
-	return handleCandidate(ctx, true)
+	return handleNeoAction(ctx, func(contract *neo.Contract, _ util.Uint160, acc *wallet.Account) (*transaction.Transaction, error) {
+		return contract.RegisterCandidateUnsigned(acc.PrivateKey().PublicKey())
+	})
 }
 
 func handleUnregister(ctx *cli.Context) error {
-	return handleCandidate(ctx, false)
+	return handleNeoAction(ctx, func(contract *neo.Contract, _ util.Uint160, acc *wallet.Account) (*transaction.Transaction, error) {
+		return contract.UnregisterCandidateUnsigned(acc.PrivateKey().PublicKey())
+	})
 }
 
-func handleCandidate(ctx *cli.Context, register bool) error {
-	const (
-		regMethod   = "registerCandidate"
-		unregMethod = "unregisterCandidate"
-	)
-	var (
-		err    error
-		script []byte
-		sysGas int64
-	)
-
+func handleNeoAction(ctx *cli.Context, mkTx func(*neo.Contract, util.Uint160, *wallet.Account) (*transaction.Transaction, error)) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
@@ -121,124 +112,42 @@ func handleCandidate(ctx *cli.Context, register bool) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-
 	act, err := actor.NewSimple(c, acc)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("RPC actor issue: %w", err), 1)
 	}
 
 	gas := flags.Fixed8FromContext(ctx, "gas")
-	neoContractHash, err := c.GetNativeContractHash(nativenames.Neo)
-	if err != nil {
-		return err
-	}
-	unregScript, err := smartcontract.CreateCallWithAssertScript(neoContractHash, unregMethod, acc.PrivateKey().PublicKey().Bytes())
+	contract := neo.New(act)
+	tx, err := mkTx(contract, addr, acc)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	if !register {
-		script = unregScript
-	} else {
-		script, err = smartcontract.CreateCallWithAssertScript(neoContractHash, regMethod, acc.PrivateKey().PublicKey().Bytes())
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-	}
-	// Registration price is normally much bigger than MaxGasInvoke, so to
-	// determine proper amount of GAS we _always_ run unreg script and then
-	// add registration price to it if needed.
-	r, err := act.Run(unregScript)
+	tx.NetworkFee += int64(gas)
+	res, _, err := act.SignAndSend(tx)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("Run failure: %w", err), 1)
-	}
-	sysGas = r.GasConsumed
-	if register {
-		// Deregistration will fail, so there is no point in checking State.
-		regPrice, err := c.GetCandidateRegisterPrice()
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		sysGas += regPrice
-	} else if r.State != vmstate.Halt.String() {
-		return cli.NewExitError(fmt.Errorf("unregister transaction failed: %s", r.FaultException), 1)
-	}
-	res, _, err := act.SendUncheckedRun(script, sysGas, nil, func(t *transaction.Transaction) error {
-		t.NetworkFee += int64(gas)
-		return nil
-	})
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to push transaction: %w", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to sign/send transaction: %w", err), 1)
 	}
 	fmt.Fprintln(ctx.App.Writer, res.StringLE())
 	return nil
 }
 
 func handleVote(ctx *cli.Context) error {
-	if err := cmdargs.EnsureNone(ctx); err != nil {
-		return err
-	}
-	wall, pass, err := readWallet(ctx)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	addrFlag := ctx.Generic("address").(*flags.Address)
-	if !addrFlag.IsSet {
-		return cli.NewExitError("address was not provided", 1)
-	}
-	addr := addrFlag.Uint160()
-	acc, err := getDecryptedAccount(wall, addr, pass)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	var pub *keys.PublicKey
-	pubStr := ctx.String("candidate")
-	if pubStr != "" {
-		pub, err = keys.NewPublicKeyFromString(pubStr)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid public key: '%s'", pubStr), 1)
+	return handleNeoAction(ctx, func(contract *neo.Contract, addr util.Uint160, acc *wallet.Account) (*transaction.Transaction, error) {
+		var (
+			err error
+			pub *keys.PublicKey
+		)
+		pubStr := ctx.String("candidate")
+		if pubStr != "" {
+			pub, err = keys.NewPublicKeyFromString(pubStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid public key: '%s'", pubStr)
+			}
 		}
-	}
 
-	gctx, cancel := options.GetTimeoutContext(ctx)
-	defer cancel()
-
-	c, err := options.GetRPCClient(gctx, ctx)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	act, err := actor.NewSimple(c, acc)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("RPC actor issue: %w", err), 1)
-	}
-
-	var pubArg interface{}
-	if pub != nil {
-		pubArg = pub.Bytes()
-	}
-
-	gas := flags.Fixed8FromContext(ctx, "gas")
-	neoContractHash, err := c.GetNativeContractHash(nativenames.Neo)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	script, err := smartcontract.CreateCallWithAssertScript(neoContractHash, "vote", addr.BytesBE(), pubArg)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	res, _, err := act.SendTunedRun(script, nil, func(r *result.Invoke, t *transaction.Transaction) error {
-		if r.State != vmstate.Halt.String() {
-			return fmt.Errorf("invocation failed: %s", r.FaultException)
-		}
-		t.NetworkFee += int64(gas)
-		return nil
+		return contract.VoteUnsigned(addr, pub)
 	})
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to push invocation transaction: %w", err), 1)
-	}
-	fmt.Fprintln(ctx.App.Writer, res.StringLE())
-	return nil
 }
 
 // getDecryptedAccount tries to unlock the specified account. If password is nil, it will be requested via terminal.
