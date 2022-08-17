@@ -2,6 +2,7 @@ package compiler_test
 
 import (
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
@@ -416,5 +417,158 @@ func TestUnnamedParameterCheck(t *testing.T) {
 	`
 		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
 		require.NoError(t, err)
+	})
+	t.Run("method with unnamed params", func(t *testing.T) {
+		src := `
+		package testcase
+		type A int
+		func (rsv A) OnNEP17Payment(_ string, _ int, iface interface{}){}
+	`
+		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+		require.NoError(t, err) // it's OK for exported method to have unnamed params as it won't be included into manifest
+	})
+}
+
+func TestReturnValuesCountCheck(t *testing.T) {
+	t.Run("void", func(t *testing.T) {
+		t.Run("exported", func(t *testing.T) {
+			t.Run("func", func(t *testing.T) {
+				src := `package testcase
+					var a int
+					func Main() {
+						a = 5
+					}`
+				_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+				require.NoError(t, err)
+			})
+			t.Run("method", func(t *testing.T) {
+				src := `package testcase
+					type A int
+					var a int
+					func (rcv A) Main() {
+						a = 5
+					}`
+				_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+				require.NoError(t, err)
+			})
+		})
+		t.Run("unexported", func(t *testing.T) {
+			src := `package testcase
+					var a int
+					func main() {
+						a = 5
+					}`
+			_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+			require.NoError(t, err)
+		})
+	})
+	t.Run("single return", func(t *testing.T) {
+		t.Run("exported", func(t *testing.T) {
+			t.Run("func", func(t *testing.T) {
+				src := `package testcase
+					var a int
+					func Main() int {
+						a = 5
+						return a
+					}`
+				eval(t, src, big.NewInt(5))
+			})
+			t.Run("method", func(t *testing.T) {
+				src := `package testcase
+					type A int
+					var a int
+					func (rcv A) Main() int {
+						a = 5
+						return a
+					}`
+				_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+				require.NoError(t, err)
+			})
+		})
+		t.Run("unexported", func(t *testing.T) {
+			src := `package testcase
+					var a int
+					func main() int {
+						a = 5
+						return a
+					}`
+			_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+			require.NoError(t, err)
+		})
+	})
+	t.Run("multiple unnamed return vals", func(t *testing.T) {
+		t.Run("exported", func(t *testing.T) {
+			t.Run("func", func(t *testing.T) {
+				src := `package testcase
+					var a int
+					func Main() (int, int) {
+						a = 5
+						return a, a
+					}`
+				_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+				require.Error(t, err)
+				require.ErrorIs(t, err, compiler.ErrInvalidExportedRetCount)
+			})
+			t.Run("method", func(t *testing.T) {
+				src := `package testcase
+					type A int
+					var a int
+					func (rcv A) Main() (int, int) {
+						a = 5
+						return a, a
+					}`
+				_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+				require.NoError(t, err) // OK for method to have multiple return values as it won't be included into manifest
+			})
+		})
+		t.Run("unexported", func(t *testing.T) {
+			src := `package testcase
+					var a int
+					func main() (int, int) {
+						a = 5
+						return a, a
+					}`
+			_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+			require.NoError(t, err) // OK for unexported function to have multiple return values as it won't be included into manifest
+		})
+	})
+	t.Run("multiple named return vals", func(t *testing.T) {
+		t.Run("exported", func(t *testing.T) {
+			t.Run("func", func(t *testing.T) {
+				src := `package testcase
+					var a int
+					func Main() (a int, b int) {
+						a = 5
+						b = 2
+						return
+					}`
+				_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+				require.Error(t, err)
+				require.ErrorIs(t, err, compiler.ErrInvalidExportedRetCount)
+			})
+			t.Run("method", func(t *testing.T) {
+				src := `package testcase
+					type A int
+					var a int
+					func (rcv A) Main() (a int, b int) {
+						a = 5
+						b = 2
+						return
+					}`
+				_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+				require.NoError(t, err) // OK for method to have multiple return values as it won't be included into manifest
+			})
+		})
+		t.Run("unexported", func(t *testing.T) {
+			src := `package testcase
+					var a int
+					func main() (a int, b int) {
+						a = 5
+						b = 2
+						return
+					}`
+			_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+			require.NoError(t, err) // OK for unexported function to have multiple return values as it won't be included into manifest
+		})
 	})
 }
