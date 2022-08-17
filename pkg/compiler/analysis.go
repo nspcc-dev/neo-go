@@ -285,11 +285,12 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 			case *ast.FuncDecl:
 				name := c.getFuncNameFromDecl(pkgPath, n)
 
-				// exported functions are always assumed to be used
+				// exported functions and methods are always assumed to be used
 				if isMain && n.Name.IsExported() || isInitFunc(n) || isDeployFunc(n) {
 					diff[name] = true
 				}
-				if isMain && n.Name.IsExported() {
+				// exported functions are not allowed to have unnamed parameters
+				if isMain && n.Name.IsExported() && n.Recv == nil {
 					if n.Type.Params.List != nil {
 						for i, param := range n.Type.Params.List {
 							if param.Names == nil {

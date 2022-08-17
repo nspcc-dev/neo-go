@@ -417,4 +417,13 @@ func TestUnnamedParameterCheck(t *testing.T) {
 		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
 		require.NoError(t, err)
 	})
+	t.Run("method with unnamed params", func(t *testing.T) {
+		src := `
+		package testcase
+		type A int
+		func (rsv A) OnNEP17Payment(_ string, _ int, iface interface{}){}
+	`
+		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+		require.NoError(t, err) // it's OK for exported method to have unnamed params as it won't be included into manifest
+	})
 }
