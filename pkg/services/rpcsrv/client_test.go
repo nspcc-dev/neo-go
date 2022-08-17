@@ -32,8 +32,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/gas"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/management"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/policy"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/rolemgmt"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -223,6 +225,70 @@ func TestClientPolicyContract(t *testing.T) {
 	ret, err = polizei.IsBlocked(util.Uint160{1, 2, 3})
 	require.NoError(t, err)
 	require.True(t, ret)
+}
+
+func TestClientManagementContract(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	manReader := management.NewReader(invoker.New(c, nil))
+
+	fee, err := manReader.GetMinimumDeploymentFee()
+	require.NoError(t, err)
+	require.Equal(t, big.NewInt(10*1_0000_0000), fee)
+
+	cs1, err := manReader.GetContract(gas.Hash)
+	require.NoError(t, err)
+	cs2, err := c.GetContractStateByHash(gas.Hash)
+	require.NoError(t, err)
+	require.Equal(t, cs2, cs1)
+
+	ret, err := manReader.HasMethod(gas.Hash, "transfer", 4)
+	require.NoError(t, err)
+	require.True(t, ret)
+
+	act, err := actor.New(c, []actor.SignerAccount{{
+		Signer: transaction.Signer{
+			Account: testchain.CommitteeScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: &wallet.Account{
+			Address: testchain.CommitteeAddress(),
+			Contract: &wallet.Contract{
+				Script: testchain.CommitteeVerificationScript(),
+			},
+		},
+	}})
+	require.NoError(t, err)
+
+	man := management.New(act)
+
+	txfee, err := man.SetMinimumDeploymentFeeUnsigned(big.NewInt(1 * 1_0000_0000))
+	require.NoError(t, err)
+	txdepl, err := man.DeployUnsigned(&cs1.NEF, &cs1.Manifest, nil) // Redeploy from a different account.
+	require.NoError(t, err)
+
+	for _, tx := range []*transaction.Transaction{txfee, txdepl} {
+		tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
+	}
+
+	bl := testchain.NewBlock(t, chain, 1, 0, txfee, txdepl)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
+
+	fee, err = manReader.GetMinimumDeploymentFee()
+	require.NoError(t, err)
+	require.Equal(t, big.NewInt(1_0000_0000), fee)
+
+	appLog, err := c.GetApplicationLog(txdepl.Hash(), nil)
+	require.NoError(t, err)
+	require.Equal(t, vmstate.Halt, appLog.Executions[0].VMState)
+	require.Equal(t, 1, len(appLog.Executions[0].Events))
 }
 
 func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
@@ -1388,7 +1454,7 @@ func TestClient_GetNotaryServiceFeePerKey(t *testing.T) {
 	require.Equal(t, defaultNotaryServiceFeePerKey, actual)
 }
 
-func TestClient_GetOraclePrice(t *testing.T) {
+func TestClientOracle(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
@@ -1397,10 +1463,41 @@ func TestClient_GetOraclePrice(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
-	var defaultOracleRequestPrice int64 = 5000_0000
-	actual, err := c.GetOraclePrice()
+	oraRe := oracle.NewReader(invoker.New(c, nil))
+
+	var defaultOracleRequestPrice = big.NewInt(5000_0000)
+	actual, err := oraRe.GetPrice()
 	require.NoError(t, err)
 	require.Equal(t, defaultOracleRequestPrice, actual)
+
+	act, err := actor.New(c, []actor.SignerAccount{{
+		Signer: transaction.Signer{
+			Account: testchain.CommitteeScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: &wallet.Account{
+			Address: testchain.CommitteeAddress(),
+			Contract: &wallet.Contract{
+				Script: testchain.CommitteeVerificationScript(),
+			},
+		},
+	}})
+	require.NoError(t, err)
+
+	ora := oracle.New(act)
+
+	newPrice := big.NewInt(1_0000_0000)
+	tx, err := ora.SetPriceUnsigned(newPrice)
+	require.NoError(t, err)
+
+	tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
+	bl := testchain.NewBlock(t, chain, 1, 0, tx)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
+
+	actual, err = ora.GetPrice()
+	require.NoError(t, err)
+	require.Equal(t, newPrice, actual)
 }
 
 func TestClient_InvokeAndPackIteratorResults(t *testing.T) {

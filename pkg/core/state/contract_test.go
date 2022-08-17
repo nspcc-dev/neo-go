@@ -98,6 +98,7 @@ func TestContractFromStackItem(t *testing.T) {
 			item stackitem.Item
 		}{
 			{"not an array", stackitem.Make(1)},
+			{"wrong array", stackitem.Make([]stackitem.Item{})},
 			{"id is not a number", stackitem.Make([]stackitem.Item{manifItem, counter, chash, nefItem, manifItem})},
 			{"id is out of range", stackitem.Make([]stackitem.Item{stackitem.Make(math.MaxUint32), counter, chash, nefItem, manifItem})},
 			{"counter is not a number", stackitem.Make([]stackitem.Item{id, manifItem, chash, nefItem, manifItem})},

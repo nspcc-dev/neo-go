@@ -61,6 +61,9 @@ func (c *Contract) FromStackItem(item stackitem.Item) error {
 	if !ok {
 		return errors.New("not an array")
 	}
+	if len(arr) != 5 {
+		return errors.New("invalid structure")
+	}
 	bi, ok := arr[0].Value().(*big.Int)
 	if !ok {
 		return errors.New("ID is not an integer")

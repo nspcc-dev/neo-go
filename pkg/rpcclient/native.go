@@ -20,6 +20,8 @@ import (
 )
 
 // GetOraclePrice invokes `getPrice` method on a native Oracle contract.
+//
+// Deprecated: please use oracle subpackage.
 func (c *Client) GetOraclePrice() (int64, error) {
 	oracleHash, err := c.GetNativeContractHash(nativenames.Oracle)
 	if err != nil {
