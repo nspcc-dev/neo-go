@@ -493,8 +493,15 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	// to support other types.
 	if decl.Recv != nil {
 		for _, arg := range decl.Recv.List {
+			// Use underscore instead of unnamed receiver name, e.g.:
+			//  func (MyCustomStruct) DoSmth(arg1 int) {...}
+			// Unnamed receiver will never be referenced, thus we can use the same approach as for multiple unnamed parameters handling, see #2204.
+			recvName := "_"
+			if len(arg.Names) != 0 {
+				recvName = arg.Names[0].Name
+			}
 			// only create an argument here, it will be stored via INITSLOT
-			c.scope.newVariable(varArgument, arg.Names[0].Name)
+			c.scope.newVariable(varArgument, recvName)
 		}
 	}
 

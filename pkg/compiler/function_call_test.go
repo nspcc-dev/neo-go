@@ -385,3 +385,17 @@ func TestUnusedFunctions(t *testing.T) {
 		eval(t, src, big.NewInt(2231))
 	})
 }
+
+func TestUnnamedMethodReceiver(t *testing.T) {
+	src := `package foo
+	type CustomInt int
+	func Main() int {
+		var i CustomInt
+		i = 5
+		return i.Do(2)
+	}
+	func (CustomInt) Do(arg int) int {
+		return arg
+	}`
+	eval(t, src, big.NewInt(2))
+}
