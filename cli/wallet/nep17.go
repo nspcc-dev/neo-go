@@ -12,13 +12,16 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/gas"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -546,12 +549,16 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	if extErr != nil {
 		return extErr
 	}
-	cosignersAccounts, err := cmdargs.GetSignersAccounts(wall, cosigners)
+	signersAccounts, err := cmdargs.GetSignersAccounts(acc, wall, cosigners, transaction.CalledByEntry)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create NEP-17 multitransfer transaction: %w", err), 1)
+		return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
+	}
+	act, err := actor.New(c, signersAccounts)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to create RPC actor: %w", err), 1)
 	}
 
-	return signAndSendNEP17Transfer(ctx, c, acc, recipients, cosignersAccounts)
+	return signAndSendNEP17Transfer(ctx, act, acc, recipients)
 }
 
 func transferNEP17(ctx *cli.Context) error {
@@ -604,9 +611,13 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	if extErr != nil {
 		return extErr
 	}
-	cosignersAccounts, err := cmdargs.GetSignersAccounts(wall, cosigners)
+	signersAccounts, err := cmdargs.GetSignersAccounts(acc, wall, cosigners, transaction.CalledByEntry)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create NEP-17 transfer transaction: %w", err), 1)
+		return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
+	}
+	act, err := actor.New(c, signersAccounts)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to create RPC actor: %w", err), 1)
 	}
 
 	amountArg := ctx.String("amount")
@@ -616,12 +627,12 @@ func transferNEP(ctx *cli.Context, standard string) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 		}
-		return signAndSendNEP17Transfer(ctx, c, acc, []rpcclient.TransferTarget{{
+		return signAndSendNEP17Transfer(ctx, act, acc, []rpcclient.TransferTarget{{
 			Token:   token.Hash,
 			Address: to,
 			Amount:  amount.Int64(),
 			Data:    data,
-		}}, cosignersAccounts)
+		}})
 	case manifest.NEP11StandardName:
 		tokenID := ctx.String("id")
 		if tokenID == "" {
@@ -632,42 +643,43 @@ func transferNEP(ctx *cli.Context, standard string) error {
 			return cli.NewExitError(fmt.Errorf("invalid token ID: %w", err), 1)
 		}
 		if amountArg == "" {
-			return signAndSendNEP11Transfer(ctx, c, acc, token.Hash, to, tokenIDBytes, nil, data, cosignersAccounts)
+			return signAndSendNEP11Transfer(ctx, act, acc, token.Hash, to, tokenIDBytes, nil, data)
 		}
 		amount, err := fixedn.FromString(amountArg, int(token.Decimals))
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 		}
-		return signAndSendNEP11Transfer(ctx, c, acc, token.Hash, to, tokenIDBytes, amount, data, cosignersAccounts)
+		return signAndSendNEP11Transfer(ctx, act, acc, token.Hash, to, tokenIDBytes, amount, data)
 	default:
 		return cli.NewExitError(fmt.Errorf("unsupported token standard %s", standard), 1)
 	}
 }
 
-func signAndSendNEP17Transfer(ctx *cli.Context, c *rpcclient.Client, acc *wallet.Account, recipients []rpcclient.TransferTarget, cosigners []rpcclient.SignerAccount) error {
+func signAndSendNEP17Transfer(ctx *cli.Context, act *actor.Actor, acc *wallet.Account, recipients []rpcclient.TransferTarget) error {
 	gas := flags.Fixed8FromContext(ctx, "gas")
 	sysgas := flags.Fixed8FromContext(ctx, "sysgas")
 
-	tx, err := c.CreateNEP17MultiTransferTx(acc, int64(gas), recipients, cosigners)
+	scr := smartcontract.NewBuilder()
+	for i := range recipients {
+		scr.InvokeWithAssert(recipients[i].Token, "transfer", act.Sender(),
+			recipients[i].Address, recipients[i].Amount, recipients[i].Data)
+	}
+	script, err := scr.Script()
+	if err != nil {
+		return err
+	}
+	tx, err := act.MakeUnsignedRun(script, nil)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	tx.SystemFee += int64(sysgas)
+	tx.NetworkFee += int64(gas)
 
 	if outFile := ctx.String("out"); outFile != "" {
-		ver, err := c.GetVersion()
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("RPC failure: %w", err), 1)
-		}
+		ver := act.GetVersion()
 		// Make a long-lived transaction, it's to be signed manually.
 		tx.ValidUntilBlock += (ver.Protocol.MaxValidUntilBlockIncrement - uint32(ver.Protocol.ValidatorsCount)) - 2
-		m, err := c.GetNetwork()
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to save tx: %w", err), 1)
-		}
-		if err := paramcontext.InitAndSave(m, tx, acc, outFile); err != nil {
-			return cli.NewExitError(err, 1)
-		}
+		err = paramcontext.InitAndSave(ver.Protocol.Network, tx, acc, outFile)
 	} else {
 		if !ctx.Bool("force") {
 			err := input.ConfirmTx(ctx.App.Writer, tx)
@@ -675,10 +687,10 @@ func signAndSendNEP17Transfer(ctx *cli.Context, c *rpcclient.Client, acc *wallet
 				return cli.NewExitError(err, 1)
 			}
 		}
-		_, err := c.SignAndPushTx(tx, acc, cosigners) //nolint:staticcheck // SA1019: c.SignAndPushTx is deprecated
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
+		_, _, err = act.SignAndSend(tx)
+	}
+	if err != nil {
+		return cli.NewExitError(err, 1)
 	}
 
 	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())

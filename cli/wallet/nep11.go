@@ -16,7 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -262,44 +262,31 @@ func transferNEP11(ctx *cli.Context) error {
 	return transferNEP(ctx, manifest.NEP11StandardName)
 }
 
-func signAndSendNEP11Transfer(ctx *cli.Context, c *rpcclient.Client, acc *wallet.Account, token, to util.Uint160, tokenID []byte, amount *big.Int, data interface{}, cosigners []rpcclient.SignerAccount) error {
-	gas := flags.Fixed8FromContext(ctx, "gas")
-	sysgas := flags.Fixed8FromContext(ctx, "sysgas")
-
+func signAndSendNEP11Transfer(ctx *cli.Context, act *actor.Actor, acc *wallet.Account, token, to util.Uint160, tokenID []byte, amount *big.Int, data interface{}) error {
 	var (
-		tx  *transaction.Transaction
-		err error
+		err    error
+		gas    = flags.Fixed8FromContext(ctx, "gas")
+		sysgas = flags.Fixed8FromContext(ctx, "sysgas")
+		tx     *transaction.Transaction
 	)
 	if amount != nil {
-		var from util.Uint160
-
-		from, err = address.StringToUint160(acc.Address)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("bad account address: %w", err), 1)
-		}
-		tx, err = c.CreateNEP11TransferTx(acc, token, int64(gas), cosigners, from, to, amount, tokenID, data) //nolint:staticcheck // SA1019: c.CreateNEP11TransferTx is deprecated
+		n11 := nep11.NewDivisible(act, token)
+		tx, err = n11.TransferDUnsigned(act.Sender(), to, amount, tokenID, data)
 	} else {
-		tx, err = c.CreateNEP11TransferTx(acc, token, int64(gas), cosigners, to, tokenID, data) //nolint:staticcheck // SA1019: c.CreateNEP11TransferTx is deprecated
+		n11 := nep11.NewNonDivisible(act, token)
+		tx, err = n11.TransferUnsigned(to, tokenID, data)
 	}
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	tx.SystemFee += int64(sysgas)
+	tx.NetworkFee += int64(gas)
 
 	if outFile := ctx.String("out"); outFile != "" {
-		ver, err := c.GetVersion()
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("RPC failure: %w", err), 1)
-		}
+		ver := act.GetVersion()
 		// Make a long-lived transaction, it's to be signed manually.
 		tx.ValidUntilBlock += (ver.Protocol.MaxValidUntilBlockIncrement - uint32(ver.Protocol.ValidatorsCount)) - 2
-		m, err := c.GetNetwork()
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to save tx: %w", err), 1)
-		}
-		if err := paramcontext.InitAndSave(m, tx, acc, outFile); err != nil {
-			return cli.NewExitError(err, 1)
-		}
+		err = paramcontext.InitAndSave(ver.Protocol.Network, tx, acc, outFile)
 	} else {
 		if !ctx.Bool("force") {
 			err := input.ConfirmTx(ctx.App.Writer, tx)
@@ -307,10 +294,10 @@ func signAndSendNEP11Transfer(ctx *cli.Context, c *rpcclient.Client, acc *wallet
 				return cli.NewExitError(err, 1)
 			}
 		}
-		_, err := c.SignAndPushTx(tx, acc, cosigners) //nolint:staticcheck // SA1019: c.SignAndPushTx is deprecated
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
+		_, _, err = act.SignAndSend(tx)
+	}
+	if err != nil {
+		return cli.NewExitError(err, 1)
 	}
 
 	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
