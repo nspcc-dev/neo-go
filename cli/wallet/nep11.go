@@ -9,18 +9,13 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
-	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
-	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
@@ -260,48 +255,6 @@ func getNEP11Balance(ctx *cli.Context) error {
 
 func transferNEP11(ctx *cli.Context) error {
 	return transferNEP(ctx, manifest.NEP11StandardName)
-}
-
-func signAndSendNEP11Transfer(ctx *cli.Context, act *actor.Actor, acc *wallet.Account, token, to util.Uint160, tokenID []byte, amount *big.Int, data interface{}) error {
-	var (
-		err    error
-		gas    = flags.Fixed8FromContext(ctx, "gas")
-		sysgas = flags.Fixed8FromContext(ctx, "sysgas")
-		tx     *transaction.Transaction
-	)
-	if amount != nil {
-		n11 := nep11.NewDivisible(act, token)
-		tx, err = n11.TransferDUnsigned(act.Sender(), to, amount, tokenID, data)
-	} else {
-		n11 := nep11.NewNonDivisible(act, token)
-		tx, err = n11.TransferUnsigned(to, tokenID, data)
-	}
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	tx.SystemFee += int64(sysgas)
-	tx.NetworkFee += int64(gas)
-
-	if outFile := ctx.String("out"); outFile != "" {
-		ver := act.GetVersion()
-		// Make a long-lived transaction, it's to be signed manually.
-		tx.ValidUntilBlock += (ver.Protocol.MaxValidUntilBlockIncrement - uint32(ver.Protocol.ValidatorsCount)) - 2
-		err = paramcontext.InitAndSave(ver.Protocol.Network, tx, acc, outFile)
-	} else {
-		if !ctx.Bool("force") {
-			err := input.ConfirmTx(ctx.App.Writer, tx)
-			if err != nil {
-				return cli.NewExitError(err, 1)
-			}
-		}
-		_, _, err = act.SignAndSend(tx)
-	}
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
-	return nil
 }
 
 func printNEP11NDOwner(ctx *cli.Context) error {

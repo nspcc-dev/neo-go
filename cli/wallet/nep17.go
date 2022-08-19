@@ -21,6 +21,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/gas"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -558,7 +560,11 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to create RPC actor: %w", err), 1)
 	}
 
-	return signAndSendNEP17Transfer(ctx, act, acc, recipients)
+	tx, err := makeMultiTransferNEP17(act, recipients)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("can't make transaction: %w", err), 1)
+	}
+	return signAndSendSomeTransaction(ctx, act, acc, tx)
 }
 
 func transferNEP17(ctx *cli.Context) error {
@@ -566,6 +572,8 @@ func transferNEP17(ctx *cli.Context) error {
 }
 
 func transferNEP(ctx *cli.Context, standard string) error {
+	var tx *transaction.Transaction
+
 	wall, pass, err := readWallet(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -621,44 +629,42 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	}
 
 	amountArg := ctx.String("amount")
+	amount, err := fixedn.FromString(amountArg, int(token.Decimals))
+	// It's OK for NEP-11 transfer to not have amount set.
+	if err != nil && (standard == manifest.NEP17StandardName || amountArg != "") {
+		return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
+	}
 	switch standard {
 	case manifest.NEP17StandardName:
-		amount, err := fixedn.FromString(amountArg, int(token.Decimals))
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
-		}
-		return signAndSendNEP17Transfer(ctx, act, acc, []rpcclient.TransferTarget{{
-			Token:   token.Hash,
-			Address: to,
-			Amount:  amount.Int64(),
-			Data:    data,
-		}})
+		n17 := nep17.New(act, token.Hash)
+		tx, err = n17.TransferUnsigned(act.Sender(), to, amount, data)
 	case manifest.NEP11StandardName:
 		tokenID := ctx.String("id")
 		if tokenID == "" {
 			return cli.NewExitError(errors.New("token ID should be specified"), 1)
 		}
-		tokenIDBytes, err := hex.DecodeString(tokenID)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid token ID: %w", err), 1)
+		tokenIDBytes, terr := hex.DecodeString(tokenID)
+		if terr != nil {
+			return cli.NewExitError(fmt.Errorf("invalid token ID: %w", terr), 1)
 		}
 		if amountArg == "" {
-			return signAndSendNEP11Transfer(ctx, act, acc, token.Hash, to, tokenIDBytes, nil, data)
+			n11 := nep11.NewNonDivisible(act, token.Hash)
+			tx, err = n11.TransferUnsigned(to, tokenIDBytes, data)
+		} else {
+			n11 := nep11.NewDivisible(act, token.Hash)
+			tx, err = n11.TransferDUnsigned(act.Sender(), to, amount, tokenIDBytes, data)
 		}
-		amount, err := fixedn.FromString(amountArg, int(token.Decimals))
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
-		}
-		return signAndSendNEP11Transfer(ctx, act, acc, token.Hash, to, tokenIDBytes, amount, data)
 	default:
 		return cli.NewExitError(fmt.Errorf("unsupported token standard %s", standard), 1)
 	}
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("can't make transaction: %w", err), 1)
+	}
+
+	return signAndSendSomeTransaction(ctx, act, acc, tx)
 }
 
-func signAndSendNEP17Transfer(ctx *cli.Context, act *actor.Actor, acc *wallet.Account, recipients []rpcclient.TransferTarget) error {
-	gas := flags.Fixed8FromContext(ctx, "gas")
-	sysgas := flags.Fixed8FromContext(ctx, "sysgas")
-
+func makeMultiTransferNEP17(act *actor.Actor, recipients []rpcclient.TransferTarget) (*transaction.Transaction, error) {
 	scr := smartcontract.NewBuilder()
 	for i := range recipients {
 		scr.InvokeWithAssert(recipients[i].Token, "transfer", act.Sender(),
@@ -666,12 +672,18 @@ func signAndSendNEP17Transfer(ctx *cli.Context, act *actor.Actor, acc *wallet.Ac
 	}
 	script, err := scr.Script()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	tx, err := act.MakeUnsignedRun(script, nil)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
+	return act.MakeUnsignedRun(script, nil)
+}
+
+func signAndSendSomeTransaction(ctx *cli.Context, act *actor.Actor, acc *wallet.Account, tx *transaction.Transaction) error {
+	var (
+		err    error
+		gas    = flags.Fixed8FromContext(ctx, "gas")
+		sysgas = flags.Fixed8FromContext(ctx, "sysgas")
+	)
+
 	tx.SystemFee += int64(sysgas)
 	tx.NetworkFee += int64(gas)
 
