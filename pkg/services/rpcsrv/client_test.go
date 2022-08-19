@@ -34,6 +34,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/management"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/oracle"
@@ -1221,20 +1222,24 @@ func TestClient_NEP11_ND(t *testing.T) {
 
 	h, err := util.Uint160DecodeStringLE(nnsContractHash)
 	require.NoError(t, err)
-	acc := testchain.PrivateKeyByID(0).GetScriptHash()
+	priv0 := testchain.PrivateKeyByID(0)
+	act, err := actor.NewSimple(c, wallet.NewAccountFromPrivateKey(priv0))
+	require.NoError(t, err)
+	n11 := nep11.NewNonDivisible(act, h)
+	acc := priv0.GetScriptHash()
 
 	t.Run("Decimals", func(t *testing.T) {
-		d, err := c.NEP11Decimals(h)
+		d, err := n11.Decimals()
 		require.NoError(t, err)
 		require.EqualValues(t, 0, d) // non-divisible
 	})
 	t.Run("TotalSupply", func(t *testing.T) {
-		s, err := c.NEP11TotalSupply(h)
+		s, err := n11.TotalSupply()
 		require.NoError(t, err)
-		require.EqualValues(t, 1, s) // the only `neo.com` of acc0
+		require.EqualValues(t, big.NewInt(1), s) // the only `neo.com` of acc0
 	})
 	t.Run("Symbol", func(t *testing.T) {
-		sym, err := c.NEP11Symbol(h)
+		sym, err := n11.Symbol()
 		require.NoError(t, err)
 		require.Equal(t, "NNS", sym)
 	})
@@ -1250,17 +1255,31 @@ func TestClient_NEP11_ND(t *testing.T) {
 		}, tok)
 	})
 	t.Run("BalanceOf", func(t *testing.T) {
-		b, err := c.NEP11BalanceOf(h, acc)
+		b, err := n11.BalanceOf(acc)
 		require.NoError(t, err)
-		require.EqualValues(t, 1, b)
+		require.EqualValues(t, big.NewInt(1), b)
 	})
 	t.Run("OwnerOf", func(t *testing.T) {
-		b, err := c.NEP11NDOwnerOf(h, []byte("neo.com"))
+		b, err := n11.OwnerOf([]byte("neo.com"))
 		require.NoError(t, err)
 		require.EqualValues(t, acc, b)
 	})
+	t.Run("Tokens", func(t *testing.T) {
+		iter, err := n11.Tokens()
+		require.NoError(t, err)
+		items, err := iter.Next(config.DefaultMaxIteratorResultItems)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(items))
+		require.Equal(t, [][]byte{[]byte("neo.com")}, items)
+		require.NoError(t, iter.Terminate())
+	})
+	t.Run("TokensExpanded", func(t *testing.T) {
+		items, err := n11.TokensExpanded(config.DefaultMaxIteratorResultItems)
+		require.NoError(t, err)
+		require.Equal(t, [][]byte{[]byte("neo.com")}, items)
+	})
 	t.Run("Properties", func(t *testing.T) {
-		p, err := c.NEP11Properties(h, []byte("neo.com"))
+		p, err := n11.Properties([]byte("neo.com"))
 		require.NoError(t, err)
 		blockRegisterDomain, err := chain.GetBlock(chain.GetHeaderHash(14)) // `neo.com` domain was registered in 14th block
 		require.NoError(t, err)
@@ -1271,7 +1290,7 @@ func TestClient_NEP11_ND(t *testing.T) {
 		require.EqualValues(t, expected, p)
 	})
 	t.Run("Transfer", func(t *testing.T) {
-		_, err := c.TransferNEP11(wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0)), testchain.PrivateKeyByID(1).GetScriptHash(), h, "neo.com", nil, 0, nil)
+		_, _, err := n11.Transfer(testchain.PrivateKeyByID(1).GetScriptHash(), []byte("neo.com"), nil)
 		require.NoError(t, err)
 	})
 }
@@ -1285,23 +1304,28 @@ func TestClient_NEP11_D(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
-	priv0 := testchain.PrivateKeyByID(0).GetScriptHash()
+	pkey0 := testchain.PrivateKeyByID(0)
+	priv0 := pkey0.GetScriptHash()
 	priv1 := testchain.PrivateKeyByID(1).GetScriptHash()
 	token1ID, err := hex.DecodeString(nfsoToken1ID)
 	require.NoError(t, err)
 
+	act, err := actor.NewSimple(c, wallet.NewAccountFromPrivateKey(pkey0))
+	require.NoError(t, err)
+	n11 := nep11.NewDivisible(act, nfsoHash)
+
 	t.Run("Decimals", func(t *testing.T) {
-		d, err := c.NEP11Decimals(nfsoHash)
+		d, err := n11.Decimals()
 		require.NoError(t, err)
 		require.EqualValues(t, 2, d) // Divisible.
 	})
 	t.Run("TotalSupply", func(t *testing.T) {
-		s, err := c.NEP11TotalSupply(nfsoHash)
+		s, err := n11.TotalSupply()
 		require.NoError(t, err)
-		require.EqualValues(t, 1, s) // the only NFSO of acc0
+		require.EqualValues(t, big.NewInt(1), s) // the only NFSO of acc0
 	})
 	t.Run("Symbol", func(t *testing.T) {
-		sym, err := c.NEP11Symbol(nfsoHash)
+		sym, err := n11.Symbol()
 		require.NoError(t, err)
 		require.Equal(t, "NFSO", sym)
 	})
@@ -1317,29 +1341,31 @@ func TestClient_NEP11_D(t *testing.T) {
 		}, tok)
 	})
 	t.Run("BalanceOf", func(t *testing.T) {
-		b, err := c.NEP11BalanceOf(nfsoHash, priv0)
+		b, err := n11.BalanceOf(priv0)
 		require.NoError(t, err)
-		require.EqualValues(t, 80, b)
+		require.EqualValues(t, big.NewInt(80), b)
+	})
+	t.Run("BalanceOfD", func(t *testing.T) {
+		b, err := n11.BalanceOfD(priv0, token1ID)
+		require.NoError(t, err)
+		require.EqualValues(t, big.NewInt(80), b)
 	})
 	t.Run("OwnerOf", func(t *testing.T) {
-		sessID, iter, err := c.NEP11DOwnerOf(nfsoHash, token1ID)
+		iter, err := n11.OwnerOf(token1ID)
 		require.NoError(t, err)
-		items, err := c.TraverseIterator(sessID, *iter.ID, config.DefaultMaxIteratorResultItems)
+		items, err := iter.Next(config.DefaultMaxIteratorResultItems)
 		require.NoError(t, err)
 		require.Equal(t, 2, len(items))
-		actual1, err := util.Uint160DecodeBytesBE(items[0].Value().([]byte))
-		require.NoError(t, err)
-		actual0, err := util.Uint160DecodeBytesBE(items[1].Value().([]byte))
-		require.NoError(t, err)
-		require.Equal(t, []util.Uint160{priv1, priv0}, []util.Uint160{actual1, actual0})
+		require.Equal(t, []util.Uint160{priv1, priv0}, items)
+		require.NoError(t, iter.Terminate())
 	})
-	t.Run("UnpackedOwnerOf", func(t *testing.T) {
-		b, err := c.NEP11DUnpackedOwnerOf(nfsoHash, token1ID)
+	t.Run("OwnerOfExpanded", func(t *testing.T) {
+		b, err := n11.OwnerOfExpanded(token1ID, config.DefaultMaxIteratorResultItems)
 		require.NoError(t, err)
 		require.Equal(t, []util.Uint160{priv1, priv0}, b)
 	})
 	t.Run("Properties", func(t *testing.T) {
-		p, err := c.NEP11Properties(nfsoHash, token1ID)
+		p, err := n11.Properties(token1ID)
 		require.NoError(t, err)
 		expected := stackitem.NewMap()
 		expected.Add(stackitem.Make([]byte("name")), stackitem.NewBuffer([]byte("NeoFS Object "+base64.StdEncoding.EncodeToString(token1ID))))
@@ -1348,9 +1374,7 @@ func TestClient_NEP11_D(t *testing.T) {
 		require.EqualValues(t, expected, p)
 	})
 	t.Run("Transfer", func(t *testing.T) {
-		_, err := c.TransferNEP11D(wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0)),
-			testchain.PrivateKeyByID(1).GetScriptHash(),
-			nfsoHash, 20, token1ID, nil, 0, nil)
+		_, _, err := n11.TransferD(priv0, priv1, big.NewInt(20), token1ID, nil)
 		require.NoError(t, err)
 	})
 }

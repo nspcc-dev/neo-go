@@ -17,21 +17,33 @@ import (
 )
 
 // NEP11Decimals invokes `decimals` NEP-11 method on the specified contract.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) NEP11Decimals(tokenHash util.Uint160) (int64, error) {
 	return c.nepDecimals(tokenHash)
 }
 
 // NEP11Symbol invokes `symbol` NEP-11 method on the specified contract.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) NEP11Symbol(tokenHash util.Uint160) (string, error) {
 	return c.nepSymbol(tokenHash)
 }
 
 // NEP11TotalSupply invokes `totalSupply` NEP-11 method on the specified contract.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) NEP11TotalSupply(tokenHash util.Uint160) (int64, error) {
 	return c.nepTotalSupply(tokenHash)
 }
 
 // NEP11BalanceOf invokes `balanceOf` NEP-11 method on the specified contract.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) NEP11BalanceOf(tokenHash, owner util.Uint160) (int64, error) {
 	return c.nepBalanceOf(tokenHash, owner, nil)
 }
@@ -44,6 +56,9 @@ func (c *Client) NEP11TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 // TransferNEP11 creates an invocation transaction that invokes 'transfer' method
 // on the given token to move the whole NEP-11 token with the specified token ID to
 // the given account and sends it to the network returning just a hash of it.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) TransferNEP11(acc *wallet.Account, to util.Uint160,
 	tokenHash util.Uint160, tokenID string, data interface{}, gas int64, cosigners []SignerAccount) (util.Uint256, error) {
 	tx, err := c.CreateNEP11TransferTx(acc, tokenHash, gas, cosigners, to, tokenID, data)
@@ -61,6 +76,9 @@ func (c *Client) TransferNEP11(acc *wallet.Account, to util.Uint160,
 // helper for TransferNEP11 and TransferNEP11D.
 // `args` for TransferNEP11:  to util.Uint160, tokenID string, data interface{};
 // `args` for TransferNEP11D: from, to util.Uint160, amount int64, tokenID string, data interface{}.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) CreateNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint160,
 	gas int64, cosigners []SignerAccount, args ...interface{}) (*transaction.Transaction, error) {
 	script, err := smartcontract.CreateCallWithAssertScript(tokenHash, "transfer", args...)
@@ -85,6 +103,9 @@ func (c *Client) CreateNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint1
 // Iterator itself, the third one is an error. Use TraverseIterator method to
 // traverse iterator values or TerminateSession to terminate opened iterator
 // session. See TraverseIterator and TerminateSession documentation for more details.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) NEP11TokensOf(tokenHash util.Uint160, owner util.Uint160) (uuid.UUID, result.Iterator, error) {
 	return unwrap.SessionIterator(c.reader.Call(tokenHash, "tokensOf", owner))
 }
@@ -93,6 +114,9 @@ func (c *Client) NEP11TokensOf(tokenHash util.Uint160, owner util.Uint160) (uuid
 // (config.DefaultMaxIteratorResultItems at max). It differs from NEP11TokensOf in that no iterator session
 // is used to retrieve values from iterator. Instead, unpacking VM script is created and invoked via
 // `invokescript` JSON-RPC call.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) NEP11UnpackedTokensOf(tokenHash util.Uint160, owner util.Uint160) ([][]byte, error) {
 	return unwrap.ArrayOfBytes(c.reader.CallAndExpandIterator(tokenHash, "tokensOf", config.DefaultMaxIteratorResultItems, owner))
 }
@@ -101,6 +125,9 @@ func (c *Client) NEP11UnpackedTokensOf(tokenHash util.Uint160, owner util.Uint16
 
 // NEP11NDOwnerOf invokes `ownerOf` non-divisible NEP-11 method with the
 // specified token ID on the specified contract.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) NEP11NDOwnerOf(tokenHash util.Uint160, tokenID []byte) (util.Uint160, error) {
 	return unwrap.Uint160(c.reader.Call(tokenHash, "ownerOf", tokenID))
 }
@@ -113,6 +140,9 @@ func (c *Client) NEP11NDOwnerOf(tokenHash util.Uint160, tokenID []byte) (util.Ui
 // method on the given token to move the specified amount of divisible NEP-11 assets
 // (in FixedN format using contract's number of decimals) to the given account and
 // sends it to the network returning just a hash of it.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) TransferNEP11D(acc *wallet.Account, to util.Uint160,
 	tokenHash util.Uint160, amount int64, tokenID []byte, data interface{}, gas int64, cosigners []SignerAccount) (util.Uint256, error) {
 	from, err := address.StringToUint160(acc.Address)
@@ -129,6 +159,9 @@ func (c *Client) TransferNEP11D(acc *wallet.Account, to util.Uint160,
 
 // NEP11DBalanceOf invokes `balanceOf` divisible NEP-11 method on a
 // specified contract.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) NEP11DBalanceOf(tokenHash, owner util.Uint160, tokenID []byte) (int64, error) {
 	return c.nepBalanceOf(tokenHash, owner, tokenID)
 }
@@ -137,6 +170,9 @@ func (c *Client) NEP11DBalanceOf(tokenHash, owner util.Uint160, tokenID []byte) 
 // is the session ID, the second one is Iterator itself, the third one is an error. Use TraverseIterator
 // method to traverse iterator values or TerminateSession to terminate opened iterator session. See
 // TraverseIterator and TerminateSession documentation for more details.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) NEP11DOwnerOf(tokenHash util.Uint160, tokenID []byte) (uuid.UUID, result.Iterator, error) {
 	return unwrap.SessionIterator(c.reader.Call(tokenHash, "ownerOf", tokenID))
 }
@@ -145,6 +181,9 @@ func (c *Client) NEP11DOwnerOf(tokenHash util.Uint160, tokenID []byte) (uuid.UUI
 // (config.DefaultMaxIteratorResultItems at max). It differs from NEP11DOwnerOf in that no
 // iterator session is used to retrieve values from iterator. Instead, unpacking VM
 // script is created and invoked via `invokescript` JSON-RPC call.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) NEP11DUnpackedOwnerOf(tokenHash util.Uint160, tokenID []byte) ([]util.Uint160, error) {
 	arr, err := unwrap.ArrayOfBytes(c.reader.CallAndExpandIterator(tokenHash, "ownerOf", config.DefaultMaxIteratorResultItems, tokenID))
 	if err != nil {
@@ -166,6 +205,9 @@ func (c *Client) NEP11DUnpackedOwnerOf(tokenHash util.Uint160, tokenID []byte) (
 
 // NEP11Properties invokes `properties` optional NEP-11 method on the
 // specified contract.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) NEP11Properties(tokenHash util.Uint160, tokenID []byte) (*stackitem.Map, error) {
 	return unwrap.Map(c.reader.Call(tokenHash, "properties", tokenID))
 }
@@ -175,6 +217,9 @@ func (c *Client) NEP11Properties(tokenHash util.Uint160, tokenID []byte) (*stack
 // error. Use TraverseIterator method to traverse iterator values or
 // TerminateSession to terminate opened iterator session. See TraverseIterator and
 // TerminateSession documentation for more details.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) NEP11Tokens(tokenHash util.Uint160) (uuid.UUID, result.Iterator, error) {
 	return unwrap.SessionIterator(c.reader.Call(tokenHash, "tokens"))
 }
@@ -183,6 +228,9 @@ func (c *Client) NEP11Tokens(tokenHash util.Uint160) (uuid.UUID, result.Iterator
 // (config.DefaultMaxIteratorResultItems at max). It differs from NEP11Tokens in that no
 // iterator session is used to retrieve values from iterator. Instead, unpacking
 // VM script is created and invoked via `invokescript` JSON-RPC call.
+//
+// Deprecated: please use nep11 package, this method will be removed in future
+// versions.
 func (c *Client) NEP11UnpackedTokens(tokenHash util.Uint160) ([][]byte, error) {
 	return unwrap.ArrayOfBytes(c.reader.CallAndExpandIterator(tokenHash, "tokens", config.DefaultMaxIteratorResultItems))
 }
