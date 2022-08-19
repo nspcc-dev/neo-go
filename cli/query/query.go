@@ -13,18 +13,15 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/urfave/cli"
 )
@@ -287,23 +284,14 @@ func queryVoter(ctx *cli.Context) error {
 		return exitErr
 	}
 
-	neoHash, err := c.GetNativeContractHash(nativenames.Neo)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to get NEO contract hash: %w", err), 1)
-	}
-	inv := invoker.New(c, nil)
-	neoToken := nep17.NewReader(inv, neoHash)
+	neoToken := neo.NewReader(invoker.New(c, nil))
 
-	itm, err := unwrap.Item(inv.Call(neoHash, "getAccountState", addr))
+	st, err := neoToken.GetAccountState(addr)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	st := new(state.NEOBalance)
-	if _, ok := itm.(stackitem.Null); !ok {
-		err = st.FromStackItem(itm)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to convert account state from stackitem: %w", err), 1)
-		}
+	if st == nil {
+		st = new(state.NEOBalance)
 	}
 	dec, err := neoToken.Decimals()
 	if err != nil {

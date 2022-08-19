@@ -1,17 +1,35 @@
 package invoker
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
+
+// DefaultIteratorResultItems is the default number of results to
+// request from the iterator. Typically it's the same as server's
+// MaxIteratorResultItems, but different servers can have different
+// settings.
+const DefaultIteratorResultItems = 100
+
+// RPCSessions is a set of RPC methods needed to retrieve values from the
+// session-based iterators.
+type RPCSessions interface {
+	TerminateSession(sessionID uuid.UUID) (bool, error)
+	TraverseIterator(sessionID, iteratorID uuid.UUID, maxItemsCount int) ([]stackitem.Item, error)
+}
 
 // RPCInvoke is a set of RPC methods needed to execute things at the current
 // blockchain height.
 type RPCInvoke interface {
+	RPCSessions
+
 	InvokeContractVerify(contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error)
 	InvokeFunction(contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error)
 	InvokeScript(script []byte, signers []transaction.Signer) (*result.Invoke, error)
@@ -20,6 +38,8 @@ type RPCInvoke interface {
 // RPCInvokeHistoric is a set of RPC methods needed to execute things at some
 // fixed point in blockchain's life.
 type RPCInvokeHistoric interface {
+	RPCSessions
+
 	InvokeContractVerifyAtBlock(blockHash util.Uint256, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error)
 	InvokeContractVerifyAtHeight(height uint32, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error)
 	InvokeContractVerifyWithState(stateroot util.Uint256, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error)
@@ -117,6 +137,14 @@ func (h *historicConverter) InvokeContractVerify(contract util.Uint160, params [
 	panic("uninitialized historicConverter")
 }
 
+func (h *historicConverter) TerminateSession(sessionID uuid.UUID) (bool, error) {
+	return h.client.TerminateSession(sessionID)
+}
+
+func (h *historicConverter) TraverseIterator(sessionID, iteratorID uuid.UUID, maxItemsCount int) ([]stackitem.Item, error) {
+	return h.client.TraverseIterator(sessionID, iteratorID, maxItemsCount)
+}
+
 // Call invokes a method of the contract with the given parameters (and
 // Invoker-specific list of signers) and returns the result as is.
 func (v *Invoker) Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error) {
@@ -156,4 +184,49 @@ func (v *Invoker) Verify(contract util.Uint160, witnesses []transaction.Witness,
 // Run executes given bytecode with Invoker-specific list of signers.
 func (v *Invoker) Run(script []byte) (*result.Invoke, error) {
 	return v.client.InvokeScript(script, v.signers)
+}
+
+// TerminateSession closes the given session, returning an error if anything
+// goes wrong.
+func (v *Invoker) TerminateSession(sessionID uuid.UUID) error {
+	return termSession(v.client, sessionID)
+}
+
+func termSession(rpc RPCSessions, sessionID uuid.UUID) error {
+	r, err := rpc.TerminateSession(sessionID)
+	if err != nil {
+		return err
+	}
+	if !r {
+		return errors.New("terminatesession returned false")
+	}
+	return nil
+}
+
+// TraverseIterator allows to retrieve the next batch of items from the given
+// iterator in the given session (previously returned from Call or Run). It works
+// both with session-backed iterators and expanded ones (which one you have
+// depends on the RPC server). It can change the state of the iterator in the
+// process. If num <= 0 then DefaultIteratorResultItems number of elements is
+// requested. If result contains no elements, then either Iterator has no
+// elements or session was expired and terminated by the server.
+func (v *Invoker) TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error) {
+	return iterateNext(v.client, sessionID, iterator, num)
+}
+
+func iterateNext(rpc RPCSessions, sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error) {
+	if num <= 0 {
+		num = DefaultIteratorResultItems
+	}
+
+	if iterator.ID != nil {
+		return rpc.TraverseIterator(sessionID, *iterator.ID, num)
+	}
+	if num > len(iterator.Values) {
+		num = len(iterator.Values)
+	}
+	items := iterator.Values[:num]
+	iterator.Values = iterator.Values[num:]
+
+	return items, nil
 }

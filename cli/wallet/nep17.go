@@ -12,14 +12,13 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/gas"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -248,12 +247,15 @@ func getNEP17Balance(ctx *cli.Context) error {
 						continue
 					}
 					if gasSymbol != name {
-						neoSymbol, h, err = getNativeNEP17Symbol(c, nativenames.Neo)
+						n := neo.NewReader(invoker.New(c, nil))
+						neoSymbol, err = n.Symbol()
 						if err != nil {
 							continue
 						}
 						if neoSymbol != name {
 							continue
+						} else {
+							h = neo.Hash
 						}
 					} else {
 						h = gas.Hash
@@ -285,19 +287,6 @@ func printAssetBalance(ctx *cli.Context, asset util.Uint160, tokenName, tokenSym
 	}
 	fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", amount)
 	fmt.Fprintf(ctx.App.Writer, "\tUpdated: %d\n", balance.LastUpdated)
-}
-
-func getNativeNEP17Symbol(c *rpcclient.Client, name string) (string, util.Uint160, error) {
-	h, err := c.GetNativeContractHash(name)
-	if err != nil {
-		return "", util.Uint160{}, fmt.Errorf("failed to get native %s hash: %w", name, err)
-	}
-	nepTok := nep17.NewReader(invoker.New(c, nil), h)
-	symbol, err := nepTok.Symbol()
-	if err != nil {
-		return "", util.Uint160{}, fmt.Errorf("failed to get native %s symbol: %w", name, err)
-	}
-	return symbol, h, nil
 }
 
 func getMatchingToken(ctx *cli.Context, w *wallet.Wallet, name string, standard string) (*wallet.Token, error) {

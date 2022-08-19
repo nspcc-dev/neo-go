@@ -1,17 +1,22 @@
 package invoker
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
 type rpcInv struct {
 	resInv *result.Invoke
+	resTrm bool
+	resItm []stackitem.Item
 	err    error
 }
 
@@ -51,10 +56,16 @@ func (r *rpcInv) InvokeScriptAtHeight(height uint32, script []byte, signers []tr
 func (r *rpcInv) InvokeScriptWithState(stateroot util.Uint256, script []byte, signers []transaction.Signer) (*result.Invoke, error) {
 	return r.resInv, r.err
 }
+func (r *rpcInv) TerminateSession(sessionID uuid.UUID) (bool, error) {
+	return r.resTrm, r.err
+}
+func (r *rpcInv) TraverseIterator(sessionID, iteratorID uuid.UUID, maxItemsCount int) ([]stackitem.Item, error) {
+	return r.resItm, r.err
+}
 
 func TestInvoker(t *testing.T) {
 	resExp := &result.Invoke{State: "HALT"}
-	ri := &rpcInv{resExp, nil}
+	ri := &rpcInv{resExp, true, nil, nil}
 
 	testInv := func(t *testing.T, inv *Invoker) {
 		res, err := inv.Call(util.Uint160{}, "method")
@@ -111,5 +122,51 @@ func TestInvoker(t *testing.T) {
 		require.Panics(t, func() { _, _ = inv.Call(util.Uint160{}, "method") })
 		require.Panics(t, func() { _, _ = inv.Verify(util.Uint160{}, nil, "param") })
 		require.Panics(t, func() { _, _ = inv.Run([]byte{1}) })
+	})
+	t.Run("terminate session", func(t *testing.T) {
+		for _, inv := range []*Invoker{New(ri, nil), NewHistoricAtBlock(util.Uint256{}, ri, nil)} {
+			ri.err = errors.New("")
+			require.Error(t, inv.TerminateSession(uuid.UUID{}))
+			ri.err = nil
+			ri.resTrm = false
+			require.Error(t, inv.TerminateSession(uuid.UUID{}))
+			ri.resTrm = true
+			require.NoError(t, inv.TerminateSession(uuid.UUID{}))
+		}
+	})
+	t.Run("traverse iterator", func(t *testing.T) {
+		for _, inv := range []*Invoker{New(ri, nil), NewHistoricAtBlock(util.Uint256{}, ri, nil)} {
+			res, err := inv.TraverseIterator(uuid.UUID{}, &result.Iterator{
+				Values: []stackitem.Item{stackitem.Make(42)},
+			}, 0)
+			require.NoError(t, err)
+			require.Equal(t, []stackitem.Item{stackitem.Make(42)}, res)
+
+			res, err = inv.TraverseIterator(uuid.UUID{}, &result.Iterator{
+				Values: []stackitem.Item{stackitem.Make(42)},
+			}, 1)
+			require.NoError(t, err)
+			require.Equal(t, []stackitem.Item{stackitem.Make(42)}, res)
+
+			res, err = inv.TraverseIterator(uuid.UUID{}, &result.Iterator{
+				Values: []stackitem.Item{stackitem.Make(42)},
+			}, 2)
+			require.NoError(t, err)
+			require.Equal(t, []stackitem.Item{stackitem.Make(42)}, res)
+
+			ri.err = errors.New("")
+			_, err = inv.TraverseIterator(uuid.UUID{}, &result.Iterator{
+				ID: &uuid.UUID{},
+			}, 2)
+			require.Error(t, err)
+
+			ri.err = nil
+			ri.resItm = []stackitem.Item{stackitem.Make(42)}
+			res, err = inv.TraverseIterator(uuid.UUID{}, &result.Iterator{
+				ID: &uuid.UUID{},
+			}, 2)
+			require.NoError(t, err)
+			require.Equal(t, []stackitem.Item{stackitem.Make(42)}, res)
+		}
 	})
 }

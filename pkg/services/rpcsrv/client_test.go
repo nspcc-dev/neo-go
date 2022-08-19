@@ -33,6 +33,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/gas"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/management"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/oracle"
@@ -289,6 +290,135 @@ func TestClientManagementContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, vmstate.Halt, appLog.Executions[0].VMState)
 	require.Equal(t, 1, len(appLog.Executions[0].Events))
+}
+
+func TestClientNEOContract(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	neoR := neo.NewReader(invoker.New(c, nil))
+
+	sym, err := neoR.Symbol()
+	require.NoError(t, err)
+	require.Equal(t, "NEO", sym)
+
+	dec, err := neoR.Decimals()
+	require.NoError(t, err)
+	require.Equal(t, 0, dec)
+
+	ts, err := neoR.TotalSupply()
+	require.NoError(t, err)
+	require.Equal(t, big.NewInt(1_0000_0000), ts)
+
+	comm, err := neoR.GetCommittee()
+	require.NoError(t, err)
+	commScript, err := smartcontract.CreateMajorityMultiSigRedeemScript(comm)
+	require.NoError(t, err)
+	require.Equal(t, testchain.CommitteeScriptHash(), hash.Hash160(commScript))
+
+	vals, err := neoR.GetNextBlockValidators()
+	require.NoError(t, err)
+	valsScript, err := smartcontract.CreateDefaultMultiSigRedeemScript(vals)
+	require.NoError(t, err)
+	require.Equal(t, testchain.MultisigScriptHash(), hash.Hash160(valsScript))
+
+	gpb, err := neoR.GetGasPerBlock()
+	require.NoError(t, err)
+	require.Equal(t, int64(5_0000_0000), gpb)
+
+	regP, err := neoR.GetRegisterPrice()
+	require.NoError(t, err)
+	require.Equal(t, int64(1000_0000_0000), regP)
+
+	acc0 := testchain.PrivateKey(0).PublicKey().GetScriptHash()
+	uncl, err := neoR.UnclaimedGas(acc0, 100)
+	require.NoError(t, err)
+	require.Equal(t, big.NewInt(48000), uncl)
+
+	accState, err := neoR.GetAccountState(acc0)
+	require.NoError(t, err)
+	require.Equal(t, big.NewInt(1000), &accState.Balance)
+	require.Equal(t, uint32(4), accState.BalanceHeight)
+
+	cands, err := neoR.GetCandidates()
+	require.NoError(t, err)
+	require.Equal(t, 0, len(cands)) // No registrations.
+
+	cands, err = neoR.GetAllCandidatesExpanded(100)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(cands)) // No registrations.
+
+	iter, err := neoR.GetAllCandidates()
+	require.NoError(t, err)
+	cands, err = iter.Next(10)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(cands)) // No registrations.
+	require.NoError(t, iter.Terminate())
+
+	act, err := actor.New(c, []actor.SignerAccount{{
+		Signer: transaction.Signer{
+			Account: testchain.CommitteeScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: &wallet.Account{
+			Address: testchain.CommitteeAddress(),
+			Contract: &wallet.Contract{
+				Script: testchain.CommitteeVerificationScript(),
+			},
+		},
+	}})
+
+	require.NoError(t, err)
+
+	neoC := neo.New(act)
+
+	txgpb, err := neoC.SetGasPerBlockUnsigned(10 * 1_0000_0000)
+	require.NoError(t, err)
+	txregp, err := neoC.SetRegisterPriceUnsigned(1_0000)
+	require.NoError(t, err)
+
+	for _, tx := range []*transaction.Transaction{txgpb, txregp} {
+		tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
+	}
+
+	bl := testchain.NewBlock(t, chain, 1, 0, txgpb, txregp)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
+
+	gpb, err = neoR.GetGasPerBlock()
+	require.NoError(t, err)
+	require.Equal(t, int64(10_0000_0000), gpb)
+
+	regP, err = neoR.GetRegisterPrice()
+	require.NoError(t, err)
+	require.Equal(t, int64(10000), regP)
+
+	act0, err := actor.NewSimple(c, wallet.NewAccountFromPrivateKey(testchain.PrivateKey(0)))
+	require.NoError(t, err)
+	neo0 := neo.New(act0)
+
+	txreg, err := neo0.RegisterCandidateTransaction(testchain.PrivateKey(0).PublicKey())
+	require.NoError(t, err)
+	bl = testchain.NewBlock(t, chain, 1, 0, txreg)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
+
+	txvote, err := neo0.VoteTransaction(acc0, testchain.PrivateKey(0).PublicKey())
+	require.NoError(t, err)
+	bl = testchain.NewBlock(t, chain, 1, 0, txvote)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
+
+	txunreg, err := neo0.UnregisterCandidateTransaction(testchain.PrivateKey(0).PublicKey())
+	require.NoError(t, err)
+	bl = testchain.NewBlock(t, chain, 1, 0, txunreg)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
 }
 
 func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {

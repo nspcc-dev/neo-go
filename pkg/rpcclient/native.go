@@ -36,11 +36,15 @@ func (c *Client) GetNNSPrice(nnsHash util.Uint160) (int64, error) {
 }
 
 // GetGasPerBlock invokes `getGasPerBlock` method on a native NEO contract.
+//
+// Deprecated: please use neo subpackage. This method will be removed in future releases.
 func (c *Client) GetGasPerBlock() (int64, error) {
 	return c.getFromNEO("getGasPerBlock")
 }
 
 // GetCandidateRegisterPrice invokes `getRegisterPrice` method on native NEO contract.
+//
+// Deprecated: please use neo subpackage. This method will be removed in future releases.
 func (c *Client) GetCandidateRegisterPrice() (int64, error) {
 	return c.getFromNEO("getRegisterPrice")
 }
