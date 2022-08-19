@@ -94,14 +94,14 @@ type (
 		GetValidators() ([]*keys.PublicKey, error)
 		HeaderHeight() uint32
 		InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
-		SubscribeForBlocks(ch chan<- *block.Block)
-		SubscribeForExecutions(ch chan<- *state.AppExecResult)
-		SubscribeForNotifications(ch chan<- *state.ContainedNotificationEvent)
-		SubscribeForTransactions(ch chan<- *transaction.Transaction)
-		UnsubscribeFromBlocks(ch chan<- *block.Block)
-		UnsubscribeFromExecutions(ch chan<- *state.AppExecResult)
-		UnsubscribeFromNotifications(ch chan<- *state.ContainedNotificationEvent)
-		UnsubscribeFromTransactions(ch chan<- *transaction.Transaction)
+		SubscribeForBlocks(ch chan *block.Block)
+		SubscribeForExecutions(ch chan *state.AppExecResult)
+		SubscribeForNotifications(ch chan *state.ContainedNotificationEvent)
+		SubscribeForTransactions(ch chan *transaction.Transaction)
+		UnsubscribeFromBlocks(ch chan *block.Block)
+		UnsubscribeFromExecutions(ch chan *state.AppExecResult)
+		UnsubscribeFromNotifications(ch chan *state.ContainedNotificationEvent)
+		UnsubscribeFromTransactions(ch chan *transaction.Transaction)
 		VerifyTx(*transaction.Transaction) error
 		VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
 		mempool.Feer // fee interface

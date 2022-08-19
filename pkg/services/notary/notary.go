@@ -32,8 +32,8 @@ type (
 		BlockHeight() uint32
 		GetMaxVerificationGAS() int64
 		GetNotaryContractScriptHash() util.Uint160
-		SubscribeForBlocks(ch chan<- *block.Block)
-		UnsubscribeFromBlocks(ch chan<- *block.Block)
+		SubscribeForBlocks(ch chan *block.Block)
+		UnsubscribeFromBlocks(ch chan *block.Block)
 		VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
 	}
 
