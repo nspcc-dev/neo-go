@@ -9,6 +9,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,6 +53,30 @@ func TestUnusedGlobal(t *testing.T) {
 				}`
 			eval(t, src, big.NewInt(1))
 		})
+		t.Run("used", func(t *testing.T) {
+			src := `package foo
+				var _, A = f()
+				func Main() int {
+					return A
+				}
+				func f() (int, int) {
+					return 5, 6
+				}`
+			eval(t, src, big.NewInt(6))
+		})
+	})
+	t.Run("unused without function call", func(t *testing.T) {
+		src := `package foo
+				var _ = 1
+				var (
+					_ = 2 + 3
+					_, _ = 3 + 4, 5
+				)
+				func Main() int {
+					return 1
+				}`
+		prog := eval(t, src, big.NewInt(1))
+		require.Equal(t, 2, len(prog)) // PUSH1 + RET
 	})
 }
 
@@ -323,4 +348,31 @@ func TestUnderscoreVarsDontUseSlots(t *testing.T) {
 
 	src := buf.String()
 	eval(t, src, big.NewInt(count))
+}
+
+func TestUnderscoreGlobalVarDontEmitCode(t *testing.T) {
+	src := `package foo
+		var _ int
+		var _ = 1
+		var (
+			A = 2
+			_ = A + 3
+			_, B, _ = 4, 5, 6
+			_, C, _ = f(A, B)
+		)
+		var D = 7 // unused but named, so the code is expected
+		func Main() int {
+			return 1
+		}
+		func f(a, b int) (int, int, int) {
+			return 8, 9, 10
+		}`
+	eval(t, src, big.NewInt(1), []interface{}{opcode.INITSSLOT, []byte{4}}, // sslot for A, B, C, D
+		opcode.PUSH2, opcode.STSFLD0, // store A
+		opcode.PUSH5, opcode.STSFLD1, // store B
+		opcode.LDSFLD0, opcode.LDSFLD1, opcode.SWAP, []interface{}{opcode.CALL, []byte{10}}, // evaluate f
+		opcode.DROP, opcode.STSFLD2, opcode.DROP, // store C
+		opcode.PUSH7, opcode.STSFLD3, opcode.RET, // store D
+		opcode.PUSH1, opcode.RET, // Main
+		[]interface{}{opcode.INITSLOT, []byte{0, 2}}, opcode.PUSH10, opcode.PUSH9, opcode.PUSH8, opcode.RET) // f
 }

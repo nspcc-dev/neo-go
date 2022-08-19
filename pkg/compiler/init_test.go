@@ -100,7 +100,7 @@ func TestInitWithNoGlobals(t *testing.T) {
 	func Main() int {
 		return 42
 	}`
-	v, s := vmAndCompileInterop(t, src)
+	v, s, _ := vmAndCompileInterop(t, src)
 	require.NoError(t, v.Run())
 	assertResult(t, v, big.NewInt(42))
 	require.True(t, len(s.events) == 1)

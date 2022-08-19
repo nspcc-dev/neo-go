@@ -12,7 +12,7 @@ import (
 )
 
 func checkCallCount(t *testing.T, src string, expectedCall, expectedInitSlot, expectedLocalsMain int) {
-	v, sp := vmAndCompileInterop(t, src)
+	v, sp, _ := vmAndCompileInterop(t, src)
 
 	mainStart := -1
 	for _, m := range sp.info.Methods {

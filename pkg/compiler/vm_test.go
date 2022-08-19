@@ -9,9 +9,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,9 +35,25 @@ func runTestCases(t *testing.T, tcases []testCase) {
 	}
 }
 
-func eval(t *testing.T, src string, result interface{}) {
-	vm, _ := vmAndCompileInterop(t, src)
+func eval(t *testing.T, src string, result interface{}, expectedOps ...interface{}) []byte {
+	vm, _, script := vmAndCompileInterop(t, src)
+	if len(expectedOps) != 0 {
+		expected := io.NewBufBinWriter()
+		for _, op := range expectedOps {
+			switch typ := op.(type) {
+			case opcode.Opcode:
+				emit.Opcodes(expected.BinWriter, typ)
+			case []interface{}:
+				emit.Instruction(expected.BinWriter, typ[0].(opcode.Opcode), typ[1].([]byte))
+			default:
+				t.Fatalf("unexpected evaluation operation: %v", typ)
+			}
+		}
+
+		require.Equal(t, expected.Bytes(), script)
+	}
 	runAndCheck(t, vm, result)
+	return script
 }
 
 func runAndCheck(t *testing.T, v *vm.VM, result interface{}) {
@@ -61,11 +80,11 @@ func assertResult(t *testing.T, vm *vm.VM, result interface{}) {
 }
 
 func vmAndCompile(t *testing.T, src string) *vm.VM {
-	v, _ := vmAndCompileInterop(t, src)
+	v, _, _ := vmAndCompileInterop(t, src)
 	return v
 }
 
-func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin) {
+func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin, []byte) {
 	vm := vm.New()
 
 	storePlugin := newStoragePlugin()
@@ -77,7 +96,7 @@ func vmAndCompileInterop(t *testing.T, src string) (*vm.VM, *storagePlugin) {
 
 	storePlugin.info = di
 	invokeMethod(t, testMainIdent, b.Script, vm, di)
-	return vm, storePlugin
+	return vm, storePlugin, b.Script
 }
 
 func invokeMethod(t *testing.T, method string, script []byte, v *vm.VM, di *compiler.DebugInfo) {

@@ -193,7 +193,7 @@ func TestNotify(t *testing.T) {
 		runtime.Notify("single")
 	}`
 
-	v, s := vmAndCompileInterop(t, src)
+	v, s, _ := vmAndCompileInterop(t, src)
 	v.Estack().PushVal(11)
 
 	require.NoError(t, v.Run())
@@ -224,7 +224,7 @@ func TestSyscallInGlobalInit(t *testing.T) {
 		func Main() bool {
 			return a
 		}`
-	v, s := vmAndCompileInterop(t, src)
+	v, s, _ := vmAndCompileInterop(t, src)
 	s.interops[interopnames.ToID([]byte(interopnames.SystemRuntimeCheckWitness))] = func(v *vm.VM) error {
 		s := v.Estack().Pop().Value().([]byte)
 		require.Equal(t, "5T", string(s))
@@ -479,7 +479,7 @@ func TestInteropTypesComparison(t *testing.T) {
 			b := struct{}{}
 			return a.Equals(b)
 		}`
-				vm, _ := vmAndCompileInterop(t, src)
+				vm, _, _ := vmAndCompileInterop(t, src)
 				err := vm.Run()
 				require.Error(t, err)
 				require.True(t, strings.Contains(err.Error(), "invalid conversion: Struct/ByteString"), err)

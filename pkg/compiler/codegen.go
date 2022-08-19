@@ -596,15 +596,32 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 						}
 					}
 				}
-				for i := range t.Names {
-					if len(t.Values) != 0 {
-						if i == 0 || !multiRet {
-							ast.Walk(c, t.Values[i])
+				for i, id := range t.Names {
+					if id.Name != "_" {
+						if len(t.Values) != 0 {
+							if i == 0 || !multiRet {
+								ast.Walk(c, t.Values[i])
+							}
+						} else {
+							c.emitDefault(c.typeOf(t.Type))
 						}
-					} else {
-						c.emitDefault(c.typeOf(t.Type))
+						c.emitStoreVar("", t.Names[i].Name)
+						continue
 					}
-					c.emitStoreVar("", t.Names[i].Name)
+					// If var decl contains call then the code should be emitted for it, otherwise - do not evaluate.
+					if len(t.Values) == 0 {
+						continue
+					}
+					var hasCall bool
+					if i == 0 || !multiRet {
+						hasCall = containsCall(t.Values[i])
+					}
+					if hasCall {
+						ast.Walk(c, t.Values[i])
+					}
+					if hasCall || i != 0 && multiRet {
+						c.emitStoreVar("", "_") // drop unused after walk
+					}
 				}
 			}
 		}
