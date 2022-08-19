@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
@@ -687,17 +688,21 @@ func signAndSendSomeTransaction(ctx *cli.Context, act *actor.Actor, acc *wallet.
 	tx.SystemFee += int64(sysgas)
 	tx.NetworkFee += int64(gas)
 
+	ver := act.GetVersion()
 	if outFile := ctx.String("out"); outFile != "" {
-		ver := act.GetVersion()
 		// Make a long-lived transaction, it's to be signed manually.
 		tx.ValidUntilBlock += (ver.Protocol.MaxValidUntilBlockIncrement - uint32(ver.Protocol.ValidatorsCount)) - 2
 		err = paramcontext.InitAndSave(ver.Protocol.Network, tx, acc, outFile)
 	} else {
 		if !ctx.Bool("force") {
+			promptTime := time.Now()
 			err := input.ConfirmTx(ctx.App.Writer, tx)
 			if err != nil {
 				return cli.NewExitError(err, 1)
 			}
+			waitTime := time.Since(promptTime)
+			// Compensate for confirmation waiting.
+			tx.ValidUntilBlock += uint32((waitTime.Milliseconds() / int64(ver.Protocol.MillisecondsPerBlock))) + 1
 		}
 		_, _, err = act.SignAndSend(tx)
 	}
