@@ -202,3 +202,9 @@ func (a *Actor) SendTunedRun(script []byte, attrs []transaction.Attribute, txHoo
 func (a *Actor) SendUncheckedRun(script []byte, sysfee int64, attrs []transaction.Attribute, txHook TransactionModifier) (util.Uint256, uint32, error) {
 	return a.sendWrapper(a.MakeUncheckedRun(script, sysfee, attrs, txHook))
 }
+
+// Sender return the sender address that will be used in transactions created
+// by Actor.
+func (a *Actor) Sender() util.Uint160 {
+	return a.txSigners[0].Account
+}

@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -258,4 +259,14 @@ func TestSenders(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, client.hash, h)
 	require.Equal(t, uint32(8), vub)
+}
+
+func TestSender(t *testing.T) {
+	client, acc := testRPCAndAccount(t)
+	a, err := NewSimple(client, acc)
+	require.NoError(t, err)
+
+	addr, err := address.StringToUint160(acc.Address)
+	require.NoError(t, err)
+	require.Equal(t, addr, a.Sender())
 }
