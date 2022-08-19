@@ -1014,7 +1014,6 @@ func TestVerifyNotaryRequest(t *testing.T) {
 	bc.NotaryContractScriptHash = util.Uint160{1, 2, 3}
 	s, err := newServerFromConstructors(ServerConfig{}, bc, new(fakechain.FakeStateSync), zaptest.NewLogger(t), newFakeTransp, newTestDiscovery)
 	require.NoError(t, err)
-	t.Cleanup(s.Shutdown)
 	newNotaryRequest := func() *payload.P2PNotaryRequest {
 		return &payload.P2PNotaryRequest{
 			MainTransaction: &transaction.Transaction{Script: []byte{0, 1, 2}},
