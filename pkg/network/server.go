@@ -121,6 +121,7 @@ type (
 		register   chan Peer
 		unregister chan peerDrop
 		quit       chan struct{}
+		relayFin   chan struct{}
 
 		transactions chan *transaction.Transaction
 
@@ -170,6 +171,7 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		id:             randomID(),
 		config:         chain.GetConfig(),
 		quit:           make(chan struct{}),
+		relayFin:       make(chan struct{}),
 		register:       make(chan Peer),
 		unregister:     make(chan peerDrop),
 		txInMap:        make(map[util.Uint256]struct{}),
@@ -273,6 +275,7 @@ func (s *Server) Shutdown() {
 		s.notaryRequestPool.StopSubscriptions()
 	}
 	close(s.quit)
+	<-s.relayFin
 }
 
 // AddService allows to add a service to be started/stopped by Server.
@@ -1433,6 +1436,7 @@ drainBlocksLoop:
 		}
 	}
 	close(ch)
+	close(s.relayFin)
 }
 
 // verifyAndPoolTX verifies the TX and adds it to the local mempool.
