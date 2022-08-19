@@ -195,6 +195,28 @@ func ArrayOfBytes(r *result.Invoke, err error) ([][]byte, error) {
 	return res, nil
 }
 
+// ArrayOfUint160 checks the result for correct state (HALT) and then extracts a
+// slice of util.Uint160 from the returned stack item.
+func ArrayOfUint160(r *result.Invoke, err error) ([]util.Uint160, error) {
+	a, err := Array(r, err)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]util.Uint160, len(a))
+	for i := range a {
+		b, err := a[i].TryBytes()
+		if err != nil {
+			return nil, fmt.Errorf("element %d is not a byte string: %w", i, err)
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return nil, fmt.Errorf("element %d is not a uint160: %w", i, err)
+		}
+		res[i] = u
+	}
+	return res, nil
+}
+
 // ArrayOfPublicKeys checks the result for correct state (HALT) and then
 // extracts a slice of public keys from the returned stack item.
 func ArrayOfPublicKeys(r *result.Invoke, err error) (keys.PublicKeys, error) {

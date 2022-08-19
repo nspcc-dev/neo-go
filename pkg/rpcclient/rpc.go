@@ -302,7 +302,7 @@ func (c *Client) GetNEP17Balances(address util.Uint160) (*result.NEP17Balances, 
 }
 
 // GetNEP11Properties is a wrapper for getnep11properties RPC. We recommend using
-// NEP11Properties method instead of this to receive proper VM types and work with them.
+// nep11 package and Properties method there to receive proper VM types and work with them.
 // This method is provided mostly for the sake of completeness. For well-known
 // attributes like "description", "image", "name" and "tokenURI" it returns strings,
 // while for all others []byte (which can be nil).
