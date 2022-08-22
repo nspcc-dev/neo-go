@@ -765,10 +765,7 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (interface{}, *neo
 	for i, signer := range tx.Signers {
 		w := tx.Scripts[i]
 		if len(w.VerificationScript) == 0 { // then it still might be a contract-based verification
-			gasConsumed, err := s.chain.VerifyWitness(signer.Account, tx, &tx.Scripts[i], int64(s.config.MaxGasInvoke))
-			if err != nil {
-				return 0, neorpc.NewRPCError("Invalid signature", fmt.Sprintf("contract verification for signer #%d failed: %s", i, err))
-			}
+			gasConsumed, _ := s.chain.VerifyWitness(signer.Account, tx, &tx.Scripts[i], int64(s.config.MaxGasInvoke))
 			netFee += gasConsumed
 			size += io.GetVarSize([]byte{}) + // verification script is empty (contract-based witness)
 				io.GetVarSize(tx.Scripts[i].InvocationScript) // invocation script might not be empty (args for `verify`)

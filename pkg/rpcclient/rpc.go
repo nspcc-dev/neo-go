@@ -918,17 +918,21 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 	}
 	fallbackNetFee += extraNetFee
 
-	dummyAccount := &wallet.Account{Contract: &wallet.Contract{Deployed: false}} // don't call `verify` for Notary contract witness, because it will fail
-	err = c.AddNetworkFee(fallbackTx, fallbackNetFee, dummyAccount, acc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add network fee: %w", err)
-	}
 	fallbackTx.Scripts = []transaction.Witness{
 		{
 			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...),
 			VerificationScript: []byte{},
 		},
+		{
+			InvocationScript:   []byte{},
+			VerificationScript: acc.GetVerificationScript(),
+		},
 	}
+	fallbackTx.NetworkFee, err = c.CalculateNetworkFee(fallbackTx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add network fee: %w", err)
+	}
+	fallbackTx.NetworkFee += fallbackNetFee
 	m, err := c.GetNetwork()
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign fallback tx: %w", err)
