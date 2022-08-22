@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
@@ -197,17 +197,32 @@ func ParseParams(args []string, calledFromMain bool) (int, []smartcontract.Param
 
 // GetSignersAccounts returns the list of signers combined with the corresponding
 // accounts from the provided wallet.
-func GetSignersAccounts(wall *wallet.Wallet, signers []transaction.Signer) ([]rpcclient.SignerAccount, error) {
-	signersAccounts := make([]rpcclient.SignerAccount, len(signers))
-	for i := range signers {
-		signerAcc := wall.GetAccount(signers[i].Account)
+func GetSignersAccounts(senderAcc *wallet.Account, wall *wallet.Wallet, signers []transaction.Signer, accScope transaction.WitnessScope) ([]actor.SignerAccount, error) {
+	signersAccounts := make([]actor.SignerAccount, 0, len(signers)+1)
+	sender, err := address.StringToUint160(senderAcc.Address)
+	if err != nil {
+		return nil, err
+	}
+	signersAccounts = append(signersAccounts, actor.SignerAccount{
+		Signer: transaction.Signer{
+			Account: sender,
+			Scopes:  accScope,
+		},
+		Account: senderAcc,
+	})
+	for i, s := range signers {
+		if s.Account == sender {
+			signersAccounts[0].Signer = s
+			continue
+		}
+		signerAcc := wall.GetAccount(s.Account)
 		if signerAcc == nil {
-			return nil, fmt.Errorf("no account was found in the wallet for signer #%d (%s)", i, address.Uint160ToString(signers[i].Account))
+			return nil, fmt.Errorf("no account was found in the wallet for signer #%d (%s)", i, address.Uint160ToString(s.Account))
 		}
-		signersAccounts[i] = rpcclient.SignerAccount{
-			Signer:  signers[i],
+		signersAccounts = append(signersAccounts, actor.SignerAccount{
+			Signer:  s,
 			Account: signerAcc,
-		}
+		})
 	}
 	return signersAccounts, nil
 }

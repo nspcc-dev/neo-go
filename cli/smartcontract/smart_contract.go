@@ -22,7 +22,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/management"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -659,25 +658,22 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 
 func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, script util.Uint160, operation string, params []smartcontract.Parameter, cosigners []transaction.Signer) (util.Uint160, error) {
 	var (
-		err               error
-		gas, sysgas       fixedn.Fixed8
-		cosignersAccounts []rpcclient.SignerAccount
-		resp              *result.Invoke
-		sender            util.Uint160
-		signAndPush       = acc != nil
-		act               *actor.Actor
+		err             error
+		gas, sysgas     fixedn.Fixed8
+		signersAccounts []actor.SignerAccount
+		resp            *result.Invoke
+		sender          util.Uint160
+		signAndPush     = acc != nil
+		act             *actor.Actor
 	)
 	if signAndPush {
 		gas = flags.Fixed8FromContext(ctx, "gas")
 		sysgas = flags.Fixed8FromContext(ctx, "sysgas")
-		sender, err = address.StringToUint160(acc.Address)
+		signersAccounts, err = cmdargs.GetSignersAccounts(acc, wall, cosigners, transaction.None)
 		if err != nil {
-			return sender, err
+			return sender, cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
 		}
-		cosignersAccounts, err = cmdargs.GetSignersAccounts(wall, cosigners)
-		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("failed to calculate network fee: %w", err), 1)
-		}
+		sender = signersAccounts[0].Signer.Account
 	}
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
@@ -687,26 +683,7 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		return sender, err
 	}
 	if signAndPush {
-		// This will eventually be handled in cmdargs.GetSignersAccounts.
-		asa := make([]actor.SignerAccount, 0, len(cosigners)+1)
-		asa = append(asa, actor.SignerAccount{
-			Signer: transaction.Signer{
-				Account: sender,
-				Scopes:  transaction.None,
-			},
-			Account: acc,
-		})
-		for _, c := range cosignersAccounts {
-			if c.Signer.Account == sender {
-				asa[0].Signer = c.Signer
-				continue
-			}
-			asa = append(asa, actor.SignerAccount{
-				Signer:  c.Signer,
-				Account: c.Account,
-			})
-		}
-		act, err = actor.New(c, asa)
+		act, err = actor.New(c, signersAccounts)
 		if err != nil {
 			return sender, cli.NewExitError(fmt.Errorf("failed to create RPC actor: %w", err), 1)
 		}

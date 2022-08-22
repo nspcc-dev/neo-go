@@ -38,6 +38,8 @@ func TestDecimalFromStringBad(t *testing.T) {
 		s    string
 		prec int
 	}{
+		{"", 0},
+		{"", 1},
 		{"12A", 1},
 		{"12.345", 2},
 		{"12.3A", 2},
