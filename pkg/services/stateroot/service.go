@@ -23,8 +23,8 @@ type (
 	Ledger interface {
 		GetConfig() config.ProtocolConfiguration
 		HeaderHeight() uint32
-		SubscribeForBlocks(ch chan<- *block.Block)
-		UnsubscribeFromBlocks(ch chan<- *block.Block)
+		SubscribeForBlocks(ch chan *block.Block)
+		UnsubscribeFromBlocks(ch chan *block.Block)
 	}
 
 	// Service represents a state root service.

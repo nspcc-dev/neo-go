@@ -26,7 +26,7 @@ import (
 type FakeChain struct {
 	config.ProtocolConfiguration
 	*mempool.Pool
-	blocksCh                 []chan<- *block.Block
+	blocksCh                 []chan *block.Block
 	Blockheight              uint32
 	PoolTxF                  func(*transaction.Transaction) error
 	poolTxWithData           func(*transaction.Transaction, interface{}, *mempool.Pool) error
@@ -351,22 +351,22 @@ func (chain *FakeChain) PoolTx(tx *transaction.Transaction, _ ...*mempool.Pool) 
 }
 
 // SubscribeForBlocks implements the Blockchainer interface.
-func (chain *FakeChain) SubscribeForBlocks(ch chan<- *block.Block) {
+func (chain *FakeChain) SubscribeForBlocks(ch chan *block.Block) {
 	chain.blocksCh = append(chain.blocksCh, ch)
 }
 
 // SubscribeForExecutions implements the Blockchainer interface.
-func (chain *FakeChain) SubscribeForExecutions(ch chan<- *state.AppExecResult) {
+func (chain *FakeChain) SubscribeForExecutions(ch chan *state.AppExecResult) {
 	panic("TODO")
 }
 
 // SubscribeForNotifications implements the Blockchainer interface.
-func (chain *FakeChain) SubscribeForNotifications(ch chan<- *state.ContainedNotificationEvent) {
+func (chain *FakeChain) SubscribeForNotifications(ch chan *state.ContainedNotificationEvent) {
 	panic("TODO")
 }
 
 // SubscribeForTransactions implements the Blockchainer interface.
-func (chain *FakeChain) SubscribeForTransactions(ch chan<- *transaction.Transaction) {
+func (chain *FakeChain) SubscribeForTransactions(ch chan *transaction.Transaction) {
 	panic("TODO")
 }
 
@@ -384,7 +384,7 @@ func (chain *FakeChain) VerifyWitness(util.Uint160, hash.Hashable, *transaction.
 }
 
 // UnsubscribeFromBlocks implements the Blockchainer interface.
-func (chain *FakeChain) UnsubscribeFromBlocks(ch chan<- *block.Block) {
+func (chain *FakeChain) UnsubscribeFromBlocks(ch chan *block.Block) {
 	for i, c := range chain.blocksCh {
 		if c == ch {
 			if i < len(chain.blocksCh) {
@@ -396,17 +396,17 @@ func (chain *FakeChain) UnsubscribeFromBlocks(ch chan<- *block.Block) {
 }
 
 // UnsubscribeFromExecutions implements the Blockchainer interface.
-func (chain *FakeChain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult) {
+func (chain *FakeChain) UnsubscribeFromExecutions(ch chan *state.AppExecResult) {
 	panic("TODO")
 }
 
 // UnsubscribeFromNotifications implements the Blockchainer interface.
-func (chain *FakeChain) UnsubscribeFromNotifications(ch chan<- *state.ContainedNotificationEvent) {
+func (chain *FakeChain) UnsubscribeFromNotifications(ch chan *state.ContainedNotificationEvent) {
 	panic("TODO")
 }
 
 // UnsubscribeFromTransactions implements the Blockchainer interface.
-func (chain *FakeChain) UnsubscribeFromTransactions(ch chan<- *transaction.Transaction) {
+func (chain *FakeChain) UnsubscribeFromTransactions(ch chan *transaction.Transaction) {
 	panic("TODO")
 }
 

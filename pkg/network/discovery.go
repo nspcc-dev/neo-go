@@ -49,6 +49,7 @@ type DefaultDiscovery struct {
 	isDead           bool
 	requestCh        chan int
 	pool             chan string
+	runExit          chan struct{}
 }
 
 // NewDefaultDiscovery returns a new DefaultDiscovery.
@@ -64,6 +65,7 @@ func NewDefaultDiscovery(addrs []string, dt time.Duration, ts Transporter) *Defa
 		attempted:        make(map[string]bool),
 		requestCh:        make(chan int),
 		pool:             make(chan string, maxPoolSize),
+		runExit:          make(chan struct{}),
 	}
 	go d.run()
 	return d
@@ -211,6 +213,7 @@ func (d *DefaultDiscovery) Close() {
 	default:
 	}
 	close(d.requestCh)
+	<-d.runExit
 }
 
 // run is a goroutine that makes DefaultDiscovery process its queue to connect
@@ -259,7 +262,7 @@ func (d *DefaultDiscovery) run() {
 			}
 		}
 		if !ok {
-			return
+			break
 		}
 		// Special case, no connections after all attempts.
 		d.lock.RLock()
@@ -270,4 +273,5 @@ func (d *DefaultDiscovery) run() {
 			requested = oldRequest
 		}
 	}
+	close(d.runExit)
 }
