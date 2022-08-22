@@ -39,6 +39,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	rpc2 "github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv/params"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -2451,6 +2452,122 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				defer rpcSrv.sessionsLock.Unlock()
 				return len(rpcSrv.sessions) == 0
 			}, 2*time.Duration(rpcSrv.config.SessionExpirationTime)*time.Second, 10*time.Millisecond)
+		})
+	})
+	t.Run("calculatenetworkfee", func(t *testing.T) {
+		t.Run("no parameters", func(t *testing.T) {
+			body := doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": []}"`, httpSrv.URL, t)
+			_ = checkErrGetResult(t, body, true, "Invalid Params")
+		})
+		t.Run("non-base64 parameter", func(t *testing.T) {
+			body := doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": ["noatbase64"]}"`, httpSrv.URL, t)
+			_ = checkErrGetResult(t, body, true, "Invalid Params")
+		})
+		t.Run("non-transaction parameter", func(t *testing.T) {
+			body := doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": ["bm90IGEgdHJhbnNhY3Rpb24K"]}"`, httpSrv.URL, t)
+			_ = checkErrGetResult(t, body, true, "Invalid Params")
+		})
+		calcReq := func(t *testing.T, tx *transaction.Transaction) []byte {
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": ["%s"]}"`, base64.StdEncoding.EncodeToString(tx.Bytes()))
+			return doRPCCall(rpc, httpSrv.URL, t)
+		}
+		t.Run("non-contract with zero verification", func(t *testing.T) {
+			tx := &transaction.Transaction{
+				Script:  []byte{byte(opcode.RET)},
+				Signers: []transaction.Signer{{Account: util.Uint160{1, 2, 3}, Scopes: transaction.CalledByEntry}},
+				Scripts: []transaction.Witness{{
+					InvocationScript:   []byte{},
+					VerificationScript: []byte{},
+				}},
+			}
+			body := calcReq(t, tx)
+			_ = checkErrGetResult(t, body, true, "signer 0 has no verification script and no deployed contract")
+		})
+		t.Run("contract with no verify", func(t *testing.T) {
+			tx := &transaction.Transaction{
+				Script:  []byte{byte(opcode.RET)},
+				Signers: []transaction.Signer{{Account: nnsHash, Scopes: transaction.CalledByEntry}},
+				Scripts: []transaction.Witness{{
+					InvocationScript:   []byte{},
+					VerificationScript: []byte{},
+				}},
+			}
+			body := calcReq(t, tx)
+			_ = checkErrGetResult(t, body, true, "signer 0 has no verify method in deployed contract")
+		})
+		checkCalc := func(t *testing.T, tx *transaction.Transaction, fee int64) {
+			resp := checkErrGetResult(t, calcReq(t, tx), false)
+			res := new(result.NetworkFee)
+			require.NoError(t, json.Unmarshal(resp, res))
+			require.Equal(t, fee, res.Value)
+		}
+		t.Run("simple GAS transfer", func(t *testing.T) {
+			priv0 := testchain.PrivateKeyByID(0)
+			script, err := smartcontract.CreateCallWithAssertScript(chain.UtilityTokenHash(), "transfer",
+				priv0.GetScriptHash(), priv0.GetScriptHash(), 1, nil)
+			require.NoError(t, err)
+			tx := &transaction.Transaction{
+				Script:  script,
+				Signers: []transaction.Signer{{Account: priv0.GetScriptHash(), Scopes: transaction.CalledByEntry}},
+				Scripts: []transaction.Witness{{
+					InvocationScript:   []byte{},
+					VerificationScript: priv0.PublicKey().GetVerificationScript(),
+				}},
+			}
+			checkCalc(t, tx, 1228520) // Perfectly matches FeeIsSignatureContractDetailed() C# test.
+		})
+		t.Run("multisignature tx", func(t *testing.T) {
+			priv0 := testchain.PrivateKeyByID(0)
+			priv1 := testchain.PrivateKeyByID(1)
+			accScript, err := smartcontract.CreateDefaultMultiSigRedeemScript(keys.PublicKeys{priv0.PublicKey(), priv1.PublicKey()})
+			require.NoError(t, err)
+			multiAcc := hash.Hash160(accScript)
+			txScript, err := smartcontract.CreateCallWithAssertScript(chain.UtilityTokenHash(), "transfer",
+				multiAcc, priv0.GetScriptHash(), 1, nil)
+			require.NoError(t, err)
+			tx := &transaction.Transaction{
+				Script:  txScript,
+				Signers: []transaction.Signer{{Account: multiAcc, Scopes: transaction.CalledByEntry}},
+				Scripts: []transaction.Witness{{
+					InvocationScript:   []byte{},
+					VerificationScript: accScript,
+				}},
+			}
+			checkCalc(t, tx, 2315100) // Perfectly matches FeeIsMultiSigContract() C# test.
+		})
+		checkContract := func(t *testing.T, verAcc util.Uint160, invoc []byte, fee int64) {
+			txScript, err := smartcontract.CreateCallWithAssertScript(chain.UtilityTokenHash(), "transfer",
+				verAcc, verAcc, 1, nil)
+			require.NoError(t, err)
+			tx := &transaction.Transaction{
+				Script:  txScript,
+				Signers: []transaction.Signer{{Account: verAcc, Scopes: transaction.CalledByEntry}},
+				Scripts: []transaction.Witness{{
+					InvocationScript:   invoc,
+					VerificationScript: []byte{},
+				}},
+			}
+			checkCalc(t, tx, fee)
+		}
+		t.Run("contract-based verification", func(t *testing.T) {
+			verAcc, err := util.Uint160DecodeStringLE(verifyContractHash)
+			require.NoError(t, err)
+			checkContract(t, verAcc, []byte{}, 636610) // No C# match, but we believe it's OK.
+		})
+		t.Run("contract-based verification with parameters", func(t *testing.T) {
+			verAcc, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
+			require.NoError(t, err)
+			checkContract(t, verAcc, []byte{}, 737530) // No C# match, but we believe it's OK and it differs from the one above.
+		})
+		t.Run("contract-based verification with invocation script", func(t *testing.T) {
+			verAcc, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
+			require.NoError(t, err)
+			invocWriter := io.NewBufBinWriter()
+			emit.Bool(invocWriter.BinWriter, false)
+			emit.Int(invocWriter.BinWriter, 5)
+			emit.String(invocWriter.BinWriter, "")
+			invocScript := invocWriter.Bytes()
+			checkContract(t, verAcc, invocScript, 640360) // No C# match, but we believe it's OK and it has a specific invocation script overriding anything server-side.
 		})
 	})
 }

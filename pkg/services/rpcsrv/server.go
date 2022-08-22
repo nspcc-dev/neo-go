@@ -25,7 +25,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
@@ -45,9 +44,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv/params"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -758,26 +760,43 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (interface{}, *neo
 		return 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("failed to compute tx size: %s", err))
 	}
 	size := len(hashablePart) + io.GetVarSize(len(tx.Signers))
-	var (
-		ef     int64
-		netFee int64
-	)
+	var netFee int64
 	for i, signer := range tx.Signers {
 		w := tx.Scripts[i]
-		if len(w.VerificationScript) == 0 { // then it still might be a contract-based verification
-			gasConsumed, _ := s.chain.VerifyWitness(signer.Account, tx, &tx.Scripts[i], int64(s.config.MaxGasInvoke))
-			netFee += gasConsumed
-			size += io.GetVarSize([]byte{}) + // verification script is empty (contract-based witness)
-				io.GetVarSize(tx.Scripts[i].InvocationScript) // invocation script might not be empty (args for `verify`)
-			continue
+		if len(w.InvocationScript) == 0 { // No invocation provided, try to infer one.
+			var paramz []manifest.Parameter
+			if len(w.VerificationScript) == 0 { // Contract-based verification
+				cs := s.chain.GetContractState(signer.Account)
+				if cs == nil {
+					return 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("signer %d has no verification script and no deployed contract", i))
+				}
+				md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify, -1)
+				if md == nil || md.ReturnType != smartcontract.BoolType {
+					return 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("signer %d has no verify method in deployed contract", i))
+				}
+				paramz = md.Parameters // Might as well have none params and it's OK.
+			} else { // Regular signature verification.
+				if vm.IsSignatureContract(w.VerificationScript) {
+					paramz = []manifest.Parameter{{Type: smartcontract.SignatureType}}
+				} else if nSigs, _, ok := vm.ParseMultiSigContract(w.VerificationScript); ok {
+					paramz = make([]manifest.Parameter, nSigs)
+					for j := 0; j < nSigs; j++ {
+						paramz[j] = manifest.Parameter{Type: smartcontract.SignatureType}
+					}
+				}
+			}
+			inv := io.NewBufBinWriter()
+			for _, p := range paramz {
+				p.Type.EncodeDefaultValue(inv.BinWriter)
+			}
+			if inv.Err != nil {
+				return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to create dummy invocation script (signer %d): %s", i, inv.Err.Error()))
+			}
+			w.InvocationScript = inv.Bytes()
 		}
-
-		if ef == 0 {
-			ef = s.chain.GetBaseExecFee()
-		}
-		fee, sizeDelta := fee.Calculate(ef, w.VerificationScript)
-		netFee += fee
-		size += sizeDelta
+		gasConsumed, _ := s.chain.VerifyWitness(signer.Account, tx, &w, int64(s.config.MaxGasInvoke))
+		netFee += gasConsumed
+		size += io.GetVarSize(w.VerificationScript) + io.GetVarSize(w.InvocationScript)
 	}
 	if s.chain.P2PSigExtensionsEnabled() {
 		attrs := tx.GetAttributes(transaction.NotaryAssistedT)

@@ -12,6 +12,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -137,6 +139,35 @@ func (pt ParamType) EncodeBinary(w *io.BinWriter) {
 // DecodeBinary implements the io.Serializable interface.
 func (pt *ParamType) DecodeBinary(r *io.BinReader) {
 	*pt = ParamType(r.ReadB())
+}
+
+// EncodeDefaultValue writes a script to push the default parameter value onto
+// the evaluation stack into the given writer. It's mostly useful for constructing
+// dummy invocation scripts when parameter types are known, but they can't be
+// filled in. A best effort approach is used, it can't be perfect since for many
+// types the exact values can be arbitrarily long, but it tries to do something
+// reasonable in each case. For signatures, strings, arrays and "any" type a 64-byte
+// zero-filled value is used, hash160 and hash256 use appropriately sized values,
+// public key is represented by 33-byte value while 32 bytes are used for integer
+// and a simple push+convert is used for boolean. Other types produce no code at all.
+func (pt ParamType) EncodeDefaultValue(w *io.BinWriter) {
+	var b [64]byte
+
+	switch pt {
+	case AnyType, SignatureType, StringType, ByteArrayType:
+		emit.Bytes(w, b[:])
+	case BoolType:
+		emit.Bool(w, true)
+	case IntegerType:
+		emit.Instruction(w, opcode.PUSHINT256, b[:32])
+	case Hash160Type:
+		emit.Bytes(w, b[:20])
+	case Hash256Type:
+		emit.Bytes(w, b[:32])
+	case PublicKeyType:
+		emit.Bytes(w, b[:33])
+	case ArrayType, MapType, InteropInterfaceType, VoidType:
+	}
 }
 
 // ParseParamType is a user-friendly string to ParamType converter, it's
