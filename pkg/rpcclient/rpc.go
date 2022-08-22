@@ -912,11 +912,6 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 			Value: &transaction.Conflicts{Hash: mainTx.Hash()},
 		},
 	}
-	extraNetFee, err := c.CalculateNotaryFee(0)
-	if err != nil {
-		return nil, err
-	}
-	fallbackNetFee += extraNetFee
 
 	fallbackTx.Scripts = []transaction.Witness{
 		{
@@ -961,6 +956,9 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 
 // CalculateNotaryFee calculates network fee for one dummy Notary witness and NotaryAssisted attribute with NKeys specified.
 // The result should be added to the transaction's net fee for successful verification.
+//
+// Deprecated: NeoGo calculatenetworkfee method handles notary fees as well since 0.99.3, so
+// this method is just no longer needed and will be removed in future versions.
 func (c *Client) CalculateNotaryFee(nKeys uint8) (int64, error) {
 	baseExecFee, err := c.GetExecFeeFactor()
 	if err != nil {

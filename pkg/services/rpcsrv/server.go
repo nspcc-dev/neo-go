@@ -779,6 +779,13 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (interface{}, *neo
 		netFee += fee
 		size += sizeDelta
 	}
+	if s.chain.P2PSigExtensionsEnabled() {
+		attrs := tx.GetAttributes(transaction.NotaryAssistedT)
+		if len(attrs) != 0 {
+			na := attrs[0].Value.(*transaction.NotaryAssisted)
+			netFee += (int64(na.NKeys) + 1) * s.chain.GetNotaryServiceFeePerKey()
+		}
+	}
 	fee := s.chain.FeePerByte()
 	netFee += int64(size) * fee
 	return result.NetworkFee{Value: netFee}, nil

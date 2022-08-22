@@ -355,26 +355,10 @@ the steps to create a signature request:
      `Contract` field. That's needed to skip notary verification during regular
      network fee calculation at the next step.
      
-7. Calculate network fee for the transaction (that will be `NetworkFee`
-   transaction field). Network fee consists of several parts:
-   - *Notary network fee.* That's the amount of GAS needed to be paid for
-     `NotaryAssisted` attribute usage and for notary contract witness
-     verification (that is to be added by the notary node in the end of
-     signature collection process). Use
-     [func (*Client) CalculateNotaryFee](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.CalculateNotaryFee)
-     to calculate notary network fee. Use `NKeys` estimated at step 4 as an
-     argument.
-   - *Regular network fee.* That's the amount of GAS to be paid for other witnesses
-     verification. Use
-     [func (*Client) AddNetworkFee](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.AddNetworkFee)
-     to calculate regular network fee and add it to the transaction. Use
-     partially-filled main transaction from the previous steps as `tx` argument.
-     Use notary network fee calculated at the previous substep as `extraFee`
-     argument. Use the list of accounts constructed at step 5 as `accs`
-     argument.
-8. Fill in the main transaction `Nonce` field.
-9. Construct a list of main transactions witnesses (that will be `Scripts`
-   transaction field). Use the following rules:
+6. Fill in the main transaction `Nonce` field.
+7. Construct a list of main transactions witnesses (that will be `Scripts`
+   transaction field). Uses standard rules for witnesses of not yet signed
+   transaction (it can't be signed at this stage because network fee is missing):
    - A contract-based witness should have `Invocation` script that pushes arguments
      on stack (it may be empty) and empty `Verification` script. If multiple notary
      requests provide different `Invocation` scripts, the first one will be used
@@ -386,13 +370,17 @@ the steps to create a signature request:
    - A standard signature witness must have regular `Verification` script filled
      even if the `Invocation` script is to be collected from other notary
      requests.
-     `Invocation` script either should push signature bytes on stack **or** (in
-     case the signature is to be collected) **should be empty**.
+     `Invocation` script **should be empty**.
    - A multisignature witness must have regular `Verification` script filled even
      if `Invocation` script is to be collected from other notary requests.
-     `Invocation` script either should push on stack signature bytes (one
-     signature at max per one request) **or** (in case there's no ability to
-     provide proper signature) **should be empty**.
+     `Invocation` script either **should be empty**.
+8. Calculate network fee for the transaction (that will be `NetworkFee`
+   transaction field). Use [func (*Client) CalculateNetworkFee](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.99.2/pkg/rpcclient#Client.CalculateNetworkFee)
+   method with the main transaction given to it.
+9. Fill in all signatures that can be provded by the client creating request,
+   that includes simple-signature accounts and multisignature accounts where
+   the client has one of the keys (in which case an invocation script is
+   created that pushes just one signature onto the stack).
 10. Define lifetime for the fallback transaction. Let the `fallbackValidFor` be
     the lifetime. Let `N` be the current chain's height and `VUB` be
     `ValidUntilBlock` value estimated at step 3. Then, the notary node is trying to
@@ -409,7 +397,7 @@ the steps to create a signature request:
     special on fallback invocation, you can use simple `opcode.RET` script.
 12. Sign and submit P2P notary request. Use
     [func (*Client) SignAndPushP2PNotaryRequest](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.SignAndPushP2PNotaryRequest) for it.
-    - Use the signed main transaction from step 8 as `mainTx` argument.
+    - Use the signed main transaction from step 9 as `mainTx` argument.
     - Use the fallback script from step 10 as `fallbackScript` argument.
     - Use `-1` as `fallbackSysFee` argument to define system fee by test
       invocation or provide any custom value.
