@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 
 	ojson "github.com/nspcc-dev/go-ordered-json"
@@ -104,7 +105,7 @@ func (m *Manifest) IsValid(hash util.Uint160) error {
 	}
 	err = m.ABI.IsValid()
 	if err != nil {
-		return err
+		return fmt.Errorf("ABI: %w", err)
 	}
 	err = Groups(m.Groups).AreValid(hash)
 	if err != nil {

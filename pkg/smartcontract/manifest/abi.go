@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -53,12 +54,12 @@ func (a *ABI) GetEvent(name string) *Event {
 // IsValid checks ABI consistency and correctness.
 func (a *ABI) IsValid() error {
 	if len(a.Methods) == 0 {
-		return errors.New("ABI contains no methods")
+		return errors.New("no methods")
 	}
 	for i := range a.Methods {
 		err := a.Methods[i].IsValid()
 		if err != nil {
-			return err
+			return fmt.Errorf("method %q/%d: %w", a.Methods[i].Name, len(a.Methods[i].Parameters), err)
 		}
 	}
 	if len(a.Methods) > 1 {
@@ -92,7 +93,7 @@ func (a *ABI) IsValid() error {
 	for i := range a.Events {
 		err := a.Events[i].IsValid()
 		if err != nil {
-			return err
+			return fmt.Errorf("event %q/%d: %w", a.Events[i].Name, len(a.Events[i].Parameters), err)
 		}
 	}
 	if len(a.Events) > 1 {
