@@ -2337,6 +2337,9 @@ func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uin
 func (bc *Blockchain) VerifyWitness(h util.Uint160, c hash.Hashable, w *transaction.Witness, gas int64) (int64, error) {
 	ic := bc.newInteropContext(trigger.Verification, bc.dao, nil, nil)
 	ic.Container = c
+	if tx, ok := c.(*transaction.Transaction); ok {
+		ic.Tx = tx
+	}
 	return bc.verifyHashAgainstScript(h, w, ic, gas)
 }
 
