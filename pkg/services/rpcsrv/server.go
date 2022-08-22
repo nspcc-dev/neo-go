@@ -763,15 +763,8 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (interface{}, *neo
 		netFee int64
 	)
 	for i, signer := range tx.Signers {
-		var verificationScript []byte
-		for _, w := range tx.Scripts {
-			if w.VerificationScript != nil && hash.Hash160(w.VerificationScript).Equals(signer.Account) {
-				// then it's a standard sig/multisig witness
-				verificationScript = w.VerificationScript
-				break
-			}
-		}
-		if verificationScript == nil { // then it still might be a contract-based verification
+		w := tx.Scripts[i]
+		if len(w.VerificationScript) == 0 { // then it still might be a contract-based verification
 			gasConsumed, err := s.chain.VerifyWitness(signer.Account, tx, &tx.Scripts[i], int64(s.config.MaxGasInvoke))
 			if err != nil {
 				return 0, neorpc.NewRPCError("Invalid signature", fmt.Sprintf("contract verification for signer #%d failed: %s", i, err))
@@ -785,7 +778,7 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (interface{}, *neo
 		if ef == 0 {
 			ef = s.chain.GetBaseExecFee()
 		}
-		fee, sizeDelta := fee.Calculate(ef, verificationScript)
+		fee, sizeDelta := fee.Calculate(ef, w.VerificationScript)
 		netFee += fee
 		size += sizeDelta
 	}
