@@ -67,13 +67,6 @@ func TestGenerate(t *testing.T) {
 			ReturnType: smartcontract.BoolType,
 		},
 		manifest.Method{
-			Name: "emptyName",
-			Parameters: []manifest.Parameter{
-				manifest.NewParameter("", smartcontract.MapType),
-			},
-			ReturnType: smartcontract.AnyType,
-		},
-		manifest.Method{
 			Name: "searchStorage",
 			Parameters: []manifest.Parameter{
 				manifest.NewParameter("ctx", smartcontract.InteropInterfaceType),
@@ -193,11 +186,6 @@ func OtherTypes(ctr interop.Hash160, tx interop.Hash256, sig interop.Signature, 
 	return neogointernal.CallWithToken(Hash, "otherTypes", int(contract.All), ctr, tx, sig, data).(bool)
 }
 
-// EmptyName invokes ` + "`emptyName`" + ` method of contract.
-func EmptyName(arg0 map[string]interface{}) interface{} {
-	return neogointernal.CallWithToken(Hash, "emptyName", int(contract.All), arg0).(interface{})
-}
-
 // SearchStorage invokes ` + "`searchStorage`" + ` method of contract.
 func SearchStorage(ctx storage.Context) iterator.Iterator {
 	return neogointernal.CallWithToken(Hash, "searchStorage", int(contract.All), ctx).(iterator.Iterator)
@@ -288,27 +276,41 @@ func TestGenerate_Errors(t *testing.T) {
 		err := app.Run(append([]string{"", "generate-wrapper"}, args...))
 		require.True(t, strings.Contains(err.Error(), msg), "got: %v", err)
 	}
+	t.Run("invalid hash", func(t *testing.T) {
+		checkError(t, "invalid contract hash", "--hash", "xxx")
+	})
 	t.Run("missing manifest argument", func(t *testing.T) {
-		checkError(t, errNoManifestFile.Error())
+		checkError(t, errNoManifestFile.Error(), "--hash", util.Uint160{}.StringLE())
 	})
 	t.Run("missing manifest file", func(t *testing.T) {
-		checkError(t, "can't read contract manifest", "--manifest", "notexists")
+		checkError(t, "can't read contract manifest", "--manifest", "notexists", "--hash", util.Uint160{}.StringLE())
+	})
+	t.Run("empty manifest", func(t *testing.T) {
+		manifestFile := filepath.Join(t.TempDir(), "invalid.json")
+		require.NoError(t, os.WriteFile(manifestFile, []byte("[]"), os.ModePerm))
+		checkError(t, "json: cannot unmarshal array into Go value of type manifest.Manifest", "--manifest", manifestFile, "--hash", util.Uint160{}.StringLE())
 	})
 	t.Run("invalid manifest", func(t *testing.T) {
 		manifestFile := filepath.Join(t.TempDir(), "invalid.json")
-		require.NoError(t, os.WriteFile(manifestFile, []byte("[]"), os.ModePerm))
-		checkError(t, "", "--manifest", manifestFile)
+		m := manifest.NewManifest("MyContract") // no methods
+		rawManifest, err := json.Marshal(m)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(manifestFile, rawManifest, os.ModePerm))
+		checkError(t, "ABI: no methods", "--manifest", manifestFile, "--hash", util.Uint160{}.StringLE())
 	})
 
 	manifestFile := filepath.Join(t.TempDir(), "manifest.json")
 	m := manifest.NewManifest("MyContract")
+	m.ABI.Methods = append(m.ABI.Methods, manifest.Method{
+		Name:       "method0",
+		Offset:     0,
+		ReturnType: smartcontract.AnyType,
+		Safe:       true,
+	})
 	rawManifest, err := json.Marshal(m)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(manifestFile, rawManifest, os.ModePerm))
 
-	t.Run("invalid hash", func(t *testing.T) {
-		checkError(t, "invalid contract hash", "--manifest", manifestFile, "--hash", "xxx")
-	})
 	t.Run("missing config", func(t *testing.T) {
 		checkError(t, "can't read config file",
 			"--manifest", manifestFile, "--hash", util.Uint160{}.StringLE(),
