@@ -43,7 +43,11 @@ func contractGenerateWrapper(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
-	m, _, err := readManifest(ctx.String("manifest"))
+	h, err := util.Uint160DecodeStringLE(strings.TrimPrefix(ctx.String("hash"), "0x"))
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("invalid contract hash: %w", err), 1)
+	}
+	m, _, err := readManifest(ctx.String("manifest"), h)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't read contract manifest: %w", err), 1)
 	}
@@ -59,13 +63,7 @@ func contractGenerateWrapper(ctx *cli.Context) error {
 			return cli.NewExitError(fmt.Errorf("can't parse config file: %w", err), 1)
 		}
 	}
-
 	cfg.Manifest = m
-
-	h, err := util.Uint160DecodeStringLE(strings.TrimPrefix(ctx.String("hash"), "0x"))
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid contract hash: %w", err), 1)
-	}
 	cfg.Hash = h
 
 	f, err := os.Create(ctx.String("out"))

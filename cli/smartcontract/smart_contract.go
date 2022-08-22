@@ -922,7 +922,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	m, manifestBytes, err := readManifest(ctx.String("manifest"))
+	m, manifestBytes, err := readManifest(ctx.String("manifest"), util.Uint160{})
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to read manifest file: %w", err), 1)
 	}

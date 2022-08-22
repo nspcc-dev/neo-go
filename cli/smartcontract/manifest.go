@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/urfave/cli"
 )
 
@@ -29,7 +30,7 @@ func manifestAddGroup(ctx *cli.Context) error {
 	}
 
 	mPath := ctx.String("manifest")
-	m, _, err := readManifest(mPath)
+	m, _, err := readManifest(mPath, util.Uint160{})
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't read contract manifest: %w", err), 1)
 	}
@@ -89,7 +90,10 @@ func readNEFFile(filename string) (*nef.File, []byte, error) {
 	return &nefFile, f, nil
 }
 
-func readManifest(filename string) (*manifest.Manifest, []byte, error) {
+// readManifest unmarshalls manifest got from the provided filename and checks
+// it for validness against the provided contract hash. If empty hash is specified
+// then no hash-related manifest groups check is performed.
+func readManifest(filename string, hash util.Uint160) (*manifest.Manifest, []byte, error) {
 	if len(filename) == 0 {
 		return nil, nil, errNoManifestFile
 	}
@@ -103,6 +107,9 @@ func readManifest(filename string) (*manifest.Manifest, []byte, error) {
 	err = json.Unmarshal(manifestBytes, m)
 	if err != nil {
 		return nil, nil, err
+	}
+	if err := m.IsValid(hash); err != nil {
+		return nil, nil, fmt.Errorf("manifest is invalid: %w", err)
 	}
 	return m, manifestBytes, nil
 }

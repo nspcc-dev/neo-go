@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -75,7 +76,7 @@ func (p Parameters) AreValid() error {
 	for i := range p {
 		err := p[i].IsValid()
 		if err != nil {
-			return err
+			return fmt.Errorf("parameter #%d/%q: %w", i, p[i].Name, err)
 		}
 	}
 	if len(p) < 2 {
