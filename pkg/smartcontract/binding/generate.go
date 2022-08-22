@@ -201,7 +201,7 @@ func templateFromManifest(cfg Config) (contractTmpl, error) {
 		for i := range m.Parameters {
 			name := m.Parameters[i].Name
 			if name == "" {
-				name = fmt.Sprintf("arg%d", i)
+				return ctr, fmt.Errorf("manifest ABI method %q/%d: parameter #%d is unnamed", m.Name, len(m.Parameters), i)
 			}
 
 			var typeStr string
