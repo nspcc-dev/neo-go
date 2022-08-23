@@ -16,6 +16,12 @@ var fuzzSeedValidScripts = [][]byte{
 	makeProgram(opcode.PUSH2, opcode.NEWARRAY, opcode.DUP, opcode.PUSH0, opcode.PUSH1, opcode.SETITEM, opcode.VALUES),
 	append([]byte{byte(opcode.PUSHDATA1), 10}, randomBytes(10)...),
 	append([]byte{byte(opcode.PUSHDATA1), 100}, randomBytes(100)...),
+	// Simplified version of fuzzer output from #2659.
+	{byte(opcode.CALL), 3, byte(opcode.ASSERT),
+		byte(opcode.CALL), 3, byte(opcode.ASSERT),
+		byte(opcode.DEPTH), byte(opcode.PACKSTRUCT), byte(opcode.DUP),
+		byte(opcode.UNPACK), byte(opcode.PACKSTRUCT), byte(opcode.POPITEM),
+		byte(opcode.DEPTH)},
 }
 
 func FuzzIsScriptCorrect(f *testing.F) {

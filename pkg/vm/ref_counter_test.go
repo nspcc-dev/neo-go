@@ -55,3 +55,14 @@ func BenchmarkRefCounter_Add(b *testing.B) {
 		rc.Add(a)
 	}
 }
+
+func BenchmarkRefCounter_AddRemove(b *testing.B) {
+	a := stackitem.NewArray([]stackitem.Item{})
+	rc := newRefCounter()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		rc.Add(a)
+		rc.Remove(a)
+	}
+}
