@@ -7,15 +7,6 @@ import (
 // refCounter represents a reference counter for the VM.
 type refCounter int
 
-type (
-	rcInc interface {
-		IncRC() int
-	}
-	rcDec interface {
-		DecRC() int
-	}
-)
-
 func newRefCounter() *refCounter {
 	return new(refCounter)
 }
@@ -27,20 +18,26 @@ func (r *refCounter) Add(item stackitem.Item) {
 	}
 	*r++
 
-	irc, ok := item.(rcInc)
-	if !ok || irc.IncRC() > 1 {
-		return
-	}
 	switch t := item.(type) {
-	case *stackitem.Array, *stackitem.Struct:
-		for _, it := range item.Value().([]stackitem.Item) {
-			r.Add(it)
+	case *stackitem.Array:
+		if t.IncRC() == 1 {
+			for _, it := range t.Value().([]stackitem.Item) {
+				r.Add(it)
+			}
+		}
+	case *stackitem.Struct:
+		if t.IncRC() == 1 {
+			for _, it := range t.Value().([]stackitem.Item) {
+				r.Add(it)
+			}
 		}
 	case *stackitem.Map:
-		elems := t.Value().([]stackitem.MapElement)
-		for i := range elems {
-			r.Add(elems[i].Key)
-			r.Add(elems[i].Value)
+		if t.IncRC() == 1 {
+			elems := t.Value().([]stackitem.MapElement)
+			for i := range elems {
+				r.Add(elems[i].Key)
+				r.Add(elems[i].Value)
+			}
 		}
 	}
 }
@@ -52,20 +49,26 @@ func (r *refCounter) Remove(item stackitem.Item) {
 	}
 	*r--
 
-	irc, ok := item.(rcDec)
-	if !ok || irc.DecRC() > 0 {
-		return
-	}
 	switch t := item.(type) {
-	case *stackitem.Array, *stackitem.Struct:
-		for _, it := range item.Value().([]stackitem.Item) {
-			r.Remove(it)
+	case *stackitem.Array:
+		if t.DecRC() == 0 {
+			for _, it := range t.Value().([]stackitem.Item) {
+				r.Remove(it)
+			}
+		}
+	case *stackitem.Struct:
+		if t.DecRC() == 0 {
+			for _, it := range t.Value().([]stackitem.Item) {
+				r.Remove(it)
+			}
 		}
 	case *stackitem.Map:
-		elems := t.Value().([]stackitem.MapElement)
-		for i := range elems {
-			r.Remove(elems[i].Key)
-			r.Remove(elems[i].Value)
+		if t.DecRC() == 0 {
+			elems := t.Value().([]stackitem.MapElement)
+			for i := range elems {
+				r.Remove(elems[i].Key)
+				r.Remove(elems[i].Value)
+			}
 		}
 	}
 }
