@@ -37,6 +37,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/notary"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/policy"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/rolemgmt"
@@ -420,6 +421,94 @@ func TestClientNEOContract(t *testing.T) {
 	bl = testchain.NewBlock(t, chain, 1, 0, txunreg)
 	_, err = c.SubmitBlock(*bl)
 	require.NoError(t, err)
+}
+
+func TestClientNotary(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	notaReader := notary.NewReader(invoker.New(c, nil))
+
+	priv0 := testchain.PrivateKeyByID(0)
+	priv0Hash := priv0.PublicKey().GetScriptHash()
+	bal, err := notaReader.BalanceOf(priv0Hash)
+	require.NoError(t, err)
+	require.Equal(t, big.NewInt(10_0000_0000), bal)
+
+	expir, err := notaReader.ExpirationOf(priv0Hash)
+	require.NoError(t, err)
+	require.Equal(t, uint32(1007), expir)
+
+	maxNVBd, err := notaReader.GetMaxNotValidBeforeDelta()
+	require.NoError(t, err)
+	require.Equal(t, uint32(140), maxNVBd)
+
+	feePerKey, err := notaReader.GetNotaryServiceFeePerKey()
+	require.NoError(t, err)
+	require.Equal(t, int64(1000_0000), feePerKey)
+
+	commAct, err := actor.New(c, []actor.SignerAccount{{
+		Signer: transaction.Signer{
+			Account: testchain.CommitteeScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: &wallet.Account{
+			Address: testchain.CommitteeAddress(),
+			Contract: &wallet.Contract{
+				Script: testchain.CommitteeVerificationScript(),
+			},
+		},
+	}})
+	require.NoError(t, err)
+	notaComm := notary.New(commAct)
+
+	txNVB, err := notaComm.SetMaxNotValidBeforeDeltaUnsigned(210)
+	require.NoError(t, err)
+	txFee, err := notaComm.SetNotaryServiceFeePerKeyUnsigned(500_0000)
+	require.NoError(t, err)
+
+	txNVB.Scripts[0].InvocationScript = testchain.SignCommittee(txNVB)
+	txFee.Scripts[0].InvocationScript = testchain.SignCommittee(txFee)
+	bl := testchain.NewBlock(t, chain, 1, 0, txNVB, txFee)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
+
+	maxNVBd, err = notaReader.GetMaxNotValidBeforeDelta()
+	require.NoError(t, err)
+	require.Equal(t, uint32(210), maxNVBd)
+
+	feePerKey, err = notaReader.GetNotaryServiceFeePerKey()
+	require.NoError(t, err)
+	require.Equal(t, int64(500_0000), feePerKey)
+
+	privAct, err := actor.New(c, []actor.SignerAccount{{
+		Signer: transaction.Signer{
+			Account: priv0Hash,
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: wallet.NewAccountFromPrivateKey(priv0),
+	}})
+	require.NoError(t, err)
+	notaPriv := notary.New(privAct)
+
+	txLock, err := notaPriv.LockDepositUntilTransaction(priv0Hash, 1111)
+	require.NoError(t, err)
+
+	bl = testchain.NewBlock(t, chain, 1, 0, txLock)
+	_, err = c.SubmitBlock(*bl)
+	require.NoError(t, err)
+
+	expir, err = notaReader.ExpirationOf(priv0Hash)
+	require.NoError(t, err)
+	require.Equal(t, uint32(1111), expir)
+
+	_, err = notaPriv.WithdrawTransaction(priv0Hash, priv0Hash)
+	require.Error(t, err) // Can't be withdrawn until 1111.
 }
 
 func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
@@ -1618,7 +1707,7 @@ func TestClient_GetNotaryServiceFeePerKey(t *testing.T) {
 	require.NoError(t, c.Init())
 
 	var defaultNotaryServiceFeePerKey int64 = 1000_0000
-	actual, err := c.GetNotaryServiceFeePerKey()
+	actual, err := c.GetNotaryServiceFeePerKey() //nolint:staticcheck // SA1019: c.GetNotaryServiceFeePerKey is deprecated
 	require.NoError(t, err)
 	require.Equal(t, defaultNotaryServiceFeePerKey, actual)
 }
