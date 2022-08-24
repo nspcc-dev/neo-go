@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
@@ -119,6 +120,7 @@ func newGraceContext() context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
+	signal.Notify(stop, syscall.SIGTERM)
 	go func() {
 		<-stop
 		cancel()
