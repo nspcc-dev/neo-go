@@ -850,7 +850,6 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 			Parameters: []wallet.ContractParam{},
 			Deployed:   true,
 		},
-		Locked:  true,
 		Default: false,
 	}
 
@@ -866,7 +865,6 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 			},
 			Deployed: true,
 		},
-		Locked:  true,
 		Default: false,
 	}
 

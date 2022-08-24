@@ -134,6 +134,10 @@ func TestContractSignTx(t *testing.T) {
 	require.Equal(t, 1, len(tx.Scripts))
 	require.Equal(t, 66, len(tx.Scripts[0].InvocationScript))
 
+	acc2.Locked = true
+	require.Error(t, acc2.SignTx(0, tx)) // Locked account.
+
+	acc2.Locked = false
 	acc2.privateKey = nil
 	require.Error(t, acc2.SignTx(0, tx)) // No private key.
 

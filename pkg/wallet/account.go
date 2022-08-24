@@ -90,6 +90,9 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 		accHash util.Uint160
 		err     error
 	)
+	if a.Locked {
+		return errors.New("account is locked")
+	}
 	if a.Contract == nil {
 		return errors.New("account has no contract")
 	}
@@ -119,7 +122,7 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 		return nil
 	}
 	if a.privateKey == nil {
-		return errors.New("account is not unlocked")
+		return errors.New("account key is not available (need to decrypt?)")
 	}
 	sign := a.privateKey.SignHashable(uint32(net), t)
 
