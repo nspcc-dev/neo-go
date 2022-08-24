@@ -998,8 +998,8 @@ func TestCalculateNotaryFee(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("client not initialized", func(t *testing.T) {
-		_, err := c.CalculateNotaryFee(0)
-		require.NoError(t, err) // Do not require client initialisation for this.
+		_, err := c.CalculateNotaryFee(0) //nolint:staticcheck // SA1019: c.CalculateNotaryFee is deprecated
+		require.NoError(t, err)           // Do not require client initialisation for this.
 	})
 }
 

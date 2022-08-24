@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
@@ -332,6 +333,30 @@ func TestAdjustValToType(t *testing.T) {
 			assert.Nil(t, err, "shouldn't error on '%s/%s' input", inout.typ, inout.val)
 			assert.Equal(t, inout.out, out, "bad output for '%s/%s' input", inout.typ, inout.val)
 		}
+	}
+}
+
+func TestEncodeDefaultValue(t *testing.T) {
+	for p, l := range map[ParamType]int{
+		UnknownType:          0,
+		AnyType:              66,
+		BoolType:             3,
+		IntegerType:          33,
+		ByteArrayType:        66,
+		StringType:           66,
+		Hash160Type:          22,
+		Hash256Type:          34,
+		PublicKeyType:        35,
+		SignatureType:        66,
+		ArrayType:            0,
+		MapType:              0,
+		InteropInterfaceType: 0,
+		VoidType:             0,
+	} {
+		b := io.NewBufBinWriter()
+		p.EncodeDefaultValue(b.BinWriter)
+		require.NoError(t, b.Err)
+		require.Equalf(t, l, len(b.Bytes()), p.String())
 	}
 }
 

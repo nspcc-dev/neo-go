@@ -98,6 +98,21 @@ following data types:
 
 Any call that takes any of these types for input in JSON format is affected.
 
+##### `calculatenetworkfee`
+
+NeoGo tries to cover more cases with its calculatenetworkfee implementation,
+whereas C# node support only standard signature contracts and deployed
+contracts that can execute `verify` successfully on incomplete (not yet signed
+properly) transaction, NeoGo also works with deployed contracts that fail at
+this stage and executes non-standard contracts (that can fail
+too). It's ignoring the result of any verification script (since the method
+calculates fee and doesn't care about transaction validity). Invocation script
+is used as is when provided, but absent it the system will try to infer one
+based on the `verify` method signature (pushing dummy signatures or
+hashes). If signature has some types which contents can't be adequately
+guessed (arrays, maps, interop, void) they're ignored. See
+neo-project/neo#2805 as well.
+
 ##### `invokefunction`, `invokescript`
 
 neo-go implementation of `invokefunction` does not return `tx`

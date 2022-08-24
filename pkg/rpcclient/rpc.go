@@ -912,23 +912,22 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 			Value: &transaction.Conflicts{Hash: mainTx.Hash()},
 		},
 	}
-	extraNetFee, err := c.CalculateNotaryFee(0)
-	if err != nil {
-		return nil, err
-	}
-	fallbackNetFee += extraNetFee
 
-	dummyAccount := &wallet.Account{Contract: &wallet.Contract{Deployed: false}} // don't call `verify` for Notary contract witness, because it will fail
-	err = c.AddNetworkFee(fallbackTx, fallbackNetFee, dummyAccount, acc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add network fee: %w", err)
-	}
 	fallbackTx.Scripts = []transaction.Witness{
 		{
 			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...),
 			VerificationScript: []byte{},
 		},
+		{
+			InvocationScript:   []byte{},
+			VerificationScript: acc.GetVerificationScript(),
+		},
 	}
+	fallbackTx.NetworkFee, err = c.CalculateNetworkFee(fallbackTx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add network fee: %w", err)
+	}
+	fallbackTx.NetworkFee += fallbackNetFee
 	m, err := c.GetNetwork()
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign fallback tx: %w", err)
@@ -957,6 +956,9 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 
 // CalculateNotaryFee calculates network fee for one dummy Notary witness and NotaryAssisted attribute with NKeys specified.
 // The result should be added to the transaction's net fee for successful verification.
+//
+// Deprecated: NeoGo calculatenetworkfee method handles notary fees as well since 0.99.3, so
+// this method is just no longer needed and will be removed in future versions.
 func (c *Client) CalculateNotaryFee(nKeys uint8) (int64, error) {
 	baseExecFee, err := c.GetExecFeeFactor()
 	if err != nil {
