@@ -136,6 +136,12 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 	return nil
 }
 
+// CanSign returns true when account is not locked and has a decrypted private
+// key inside, so it's ready to create real signatures.
+func (a *Account) CanSign() bool {
+	return !a.Locked && a.privateKey != nil
+}
+
 // GetVerificationScript returns account's verification script.
 func (a *Account) GetVerificationScript() []byte {
 	if a.Contract != nil {

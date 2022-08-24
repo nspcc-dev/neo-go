@@ -86,6 +86,7 @@ func TestContract_MarshalJSON(t *testing.T) {
 func TestContractSignTx(t *testing.T) {
 	acc, err := NewAccount()
 	require.NoError(t, err)
+	require.True(t, acc.CanSign())
 
 	accNoContr := *acc
 	accNoContr.Contract = nil
@@ -100,6 +101,7 @@ func TestContractSignTx(t *testing.T) {
 
 	acc2, err := NewAccount()
 	require.NoError(t, err)
+	require.True(t, acc2.CanSign())
 
 	require.Error(t, acc2.SignTx(0, tx))
 
@@ -135,10 +137,12 @@ func TestContractSignTx(t *testing.T) {
 	require.Equal(t, 66, len(tx.Scripts[0].InvocationScript))
 
 	acc2.Locked = true
+	require.False(t, acc2.CanSign())
 	require.Error(t, acc2.SignTx(0, tx)) // Locked account.
 
 	acc2.Locked = false
 	acc2.privateKey = nil
+	require.False(t, acc2.CanSign())
 	require.Error(t, acc2.SignTx(0, tx)) // No private key.
 
 	tx.Scripts = append(tx.Scripts, transaction.Witness{
