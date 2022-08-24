@@ -84,6 +84,9 @@ func NewAccount() (*Account, error) {
 
 // SignTx signs transaction t and updates it's Witnesses.
 func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
+	if a.Contract == nil {
+		return errors.New("account has no contract")
+	}
 	if len(a.Contract.Parameters) == 0 {
 		if len(t.Signers) != len(t.Scripts) { // Sequential signing vs. existing scripts.
 			t.Scripts = append(t.Scripts, transaction.Witness{})
