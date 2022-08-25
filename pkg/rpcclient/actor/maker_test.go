@@ -90,6 +90,17 @@ func TestMakeUnsigned(t *testing.T) {
 	client.invRes = &result.Invoke{State: "HALT", GasConsumed: 3, Script: script}
 	_, err = a.MakeUnsignedRun(script, nil)
 	require.NoError(t, err)
+
+	// Tuned.
+	opts := Options{
+		Attributes: []transaction.Attribute{{Type: transaction.HighPriority}},
+	}
+	a, err = NewTuned(client, a.signers, opts)
+	require.NoError(t, err)
+
+	tx, err = a.MakeUnsignedRun(script, nil)
+	require.NoError(t, err)
+	require.True(t, tx.HasAttribute(transaction.HighPriority))
 }
 
 func TestMakeSigned(t *testing.T) {
@@ -126,6 +137,20 @@ func TestMakeSigned(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, uint32(777), tx.ValidUntilBlock)
+
+	// Tuned.
+	opts := Options{
+		Modifier: func(t *transaction.Transaction) error {
+			t.ValidUntilBlock = 888
+			return nil
+		},
+	}
+	at, err := NewTuned(client, a.signers, opts)
+	require.NoError(t, err)
+
+	tx, err = at.MakeUncheckedRun(script, 0, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, uint32(888), tx.ValidUntilBlock)
 
 	// Checked
 
@@ -175,4 +200,18 @@ func TestMakeSigned(t *testing.T) {
 	client.invRes = &result.Invoke{State: "HALT", GasConsumed: 3, Script: script}
 	_, err = a.MakeCall(util.Uint160{}, "method", 1)
 	require.NoError(t, err)
+
+	// Tuned.
+	opts = Options{
+		CheckerModifier: func(r *result.Invoke, t *transaction.Transaction) error {
+			t.ValidUntilBlock = 888
+			return nil
+		},
+	}
+	at, err = NewTuned(client, a.signers, opts)
+	require.NoError(t, err)
+
+	tx, err = at.MakeRun(script)
+	require.NoError(t, err)
+	require.Equal(t, uint32(888), tx.ValidUntilBlock)
 }
