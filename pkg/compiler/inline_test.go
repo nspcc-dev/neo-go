@@ -55,13 +55,13 @@ func TestInline(t *testing.T) {
 		a int
 		b pair
 	}
-	// local alias
-	func sum(a, b int) int {
-		return 42
-	}
 	var Num = 1
 	func Main() int {
 		%s
+	}
+	// local alias
+	func sum(a, b int) int {
+		return 42
 	}`
 	t.Run("no return", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `inline.NoArgsNoReturn()
