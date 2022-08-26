@@ -315,15 +315,15 @@ func getMatchingTokenRPC(ctx *cli.Context, c *rpcclient.Client, addr util.Uint16
 		}
 		return getMatchingTokenAux(ctx, get, len(bs.Balances), name, standard)
 	case manifest.NEP11StandardName:
-		tokenHash, err := flags.ParseAddress(name)
+		bs, err := c.GetNEP11Balances(addr)
 		if err != nil {
-			return nil, fmt.Errorf("valid token adress or hash in LE should be specified for %s RPC-node request: %s", standard, err.Error())
+			return nil, err
 		}
 		get := func(i int) *wallet.Token {
-			t, _ := getTokenWithStandard(c, tokenHash, standard)
+			t, _ := getTokenWithStandard(c, bs.Balances[i].Asset, standard)
 			return t
 		}
-		return getMatchingTokenAux(ctx, get, 1, name, standard)
+		return getMatchingTokenAux(ctx, get, len(bs.Balances), name, standard)
 	default:
 		return nil, fmt.Errorf("unsupported %s token", standard)
 	}
