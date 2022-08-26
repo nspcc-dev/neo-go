@@ -206,7 +206,7 @@ func getNEP11Balance(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("can't fetch matching token from RPC-node: %w", err), 1)
 		}
-		token, err = c.NEP11TokenInfo(tokenHash)
+		token, err = getTokenWithStandard(c, tokenHash, manifest.NEP11StandardName)
 		if err != nil {
 			return cli.NewExitError(err.Error(), 1)
 		}

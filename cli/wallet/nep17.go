@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neptoken"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -214,7 +215,7 @@ func getNEP17Balance(ctx *cli.Context) error {
 			asset := balances.Balances[i].Asset
 			token, err := getMatchingToken(ctx, wall, asset.StringLE(), manifest.NEP17StandardName)
 			if err != nil {
-				token, err = c.NEP17TokenInfo(asset)
+				token, err = getTokenWithStandard(c, asset, manifest.NEP17StandardName)
 			}
 			if err == nil {
 				if name != "" && !(token.Name == name || token.Symbol == name || token.Address() == name || token.Hash.StringLE() == name) {
@@ -268,7 +269,7 @@ func getNEP17Balance(ctx *cli.Context) error {
 					}
 				}
 			}
-			token, err = c.NEP17TokenInfo(h)
+			token, err = getTokenWithStandard(c, h, manifest.NEP17StandardName)
 			if err != nil {
 				continue
 			}
@@ -309,7 +310,7 @@ func getMatchingTokenRPC(ctx *cli.Context, c *rpcclient.Client, addr util.Uint16
 			return nil, err
 		}
 		get := func(i int) *wallet.Token {
-			t, _ := c.NEP17TokenInfo(bs.Balances[i].Asset)
+			t, _ := getTokenWithStandard(c, bs.Balances[i].Asset, standard)
 			return t
 		}
 		return getMatchingTokenAux(ctx, get, len(bs.Balances), name, standard)
@@ -319,7 +320,7 @@ func getMatchingTokenRPC(ctx *cli.Context, c *rpcclient.Client, addr util.Uint16
 			return nil, fmt.Errorf("valid token adress or hash in LE should be specified for %s RPC-node request: %s", standard, err.Error())
 		}
 		get := func(i int) *wallet.Token {
-			t, _ := c.NEP11TokenInfo(tokenHash)
+			t, _ := getTokenWithStandard(c, tokenHash, standard)
 			return t
 		}
 		return getMatchingTokenAux(ctx, get, 1, name, standard)
@@ -383,15 +384,7 @@ func importNEPToken(ctx *cli.Context, standard string) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	var tok *wallet.Token
-	switch standard {
-	case manifest.NEP17StandardName:
-		tok, err = c.NEP17TokenInfo(tokenHash)
-	case manifest.NEP11StandardName:
-		tok, err = c.NEP11TokenInfo(tokenHash)
-	default:
-		return cli.NewExitError(fmt.Sprintf("unsupported token standard: %s", standard), 1)
-	}
+	tok, err := getTokenWithStandard(c, tokenHash, standard)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't receive token info: %w", err), 1)
 	}
@@ -402,6 +395,17 @@ func importNEPToken(ctx *cli.Context, standard string) error {
 	}
 	printTokenInfo(ctx, tok)
 	return nil
+}
+
+func getTokenWithStandard(c *rpcclient.Client, hash util.Uint160, std string) (*wallet.Token, error) {
+	token, err := neptoken.Info(c, hash)
+	if err != nil {
+		return nil, err
+	}
+	if token.Standard != std {
+		return nil, fmt.Errorf("%s is not a %s token", hash.StringLE(), std)
+	}
+	return token, err
 }
 
 func printTokenInfo(ctx *cli.Context, tok *wallet.Token) {

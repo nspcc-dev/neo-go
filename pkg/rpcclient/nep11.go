@@ -49,6 +49,9 @@ func (c *Client) NEP11BalanceOf(tokenHash, owner util.Uint160) (int64, error) {
 }
 
 // NEP11TokenInfo returns full NEP-11 token info.
+//
+// Deprecated: please use Info method from the neptoken subpackage. This method
+// will be removed in future versions.
 func (c *Client) NEP11TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 	return c.nepTokenInfo(tokenHash, manifest.NEP11StandardName)
 }

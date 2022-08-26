@@ -61,6 +61,9 @@ func (c *Client) NEP17BalanceOf(tokenHash, acc util.Uint160) (int64, error) {
 }
 
 // NEP17TokenInfo returns full NEP-17 token info.
+//
+// Deprecated: please use Info method from the neptoken subpackage. This method
+// will be removed in future versions.
 func (c *Client) NEP17TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 	return c.nepTokenInfo(tokenHash, manifest.NEP17StandardName)
 }
