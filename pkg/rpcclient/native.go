@@ -31,6 +31,8 @@ func (c *Client) GetOraclePrice() (int64, error) {
 }
 
 // GetNNSPrice invokes `getPrice` method on a NeoNameService contract with the specified hash.
+//
+// Deprecated: please use nns subpackage. This method will be removed in future versions.
 func (c *Client) GetNNSPrice(nnsHash util.Uint160) (int64, error) {
 	return c.invokeNativeGetMethod(nnsHash, "getPrice")
 }
@@ -84,6 +86,8 @@ func (c *Client) GetDesignatedByRole(role noderoles.Role, index uint32) (keys.Pu
 }
 
 // NNSResolve invokes `resolve` method on a NameService contract with the specified hash.
+//
+// Deprecated: please use nns subpackage. This method will be removed in future versions.
 func (c *Client) NNSResolve(nnsHash util.Uint160, name string, typ nns.RecordType) (string, error) {
 	if typ == nns.CNAME {
 		return "", errors.New("can't resolve CNAME record type")
@@ -92,6 +96,8 @@ func (c *Client) NNSResolve(nnsHash util.Uint160, name string, typ nns.RecordTyp
 }
 
 // NNSIsAvailable invokes `isAvailable` method on a NeoNameService contract with the specified hash.
+//
+// Deprecated: please use nns subpackage. This method will be removed in future versions.
 func (c *Client) NNSIsAvailable(nnsHash util.Uint160, name string) (bool, error) {
 	return unwrap.Bool(c.reader.Call(nnsHash, "isAvailable", name))
 }
@@ -101,6 +107,8 @@ func (c *Client) NNSIsAvailable(nnsHash util.Uint160, name string) (bool, error)
 // third one is an error. Use TraverseIterator method to traverse iterator values or
 // TerminateSession to terminate opened iterator session. See TraverseIterator and
 // TerminateSession documentation for more details.
+//
+// Deprecated: please use nns subpackage. This method will be removed in future versions.
 func (c *Client) NNSGetAllRecords(nnsHash util.Uint160, name string) (uuid.UUID, result.Iterator, error) {
 	return unwrap.SessionIterator(c.reader.Call(nnsHash, "getAllRecords", name))
 }
@@ -109,6 +117,8 @@ func (c *Client) NNSGetAllRecords(nnsHash util.Uint160, name string) (uuid.UUID,
 // (config.DefaultMaxIteratorResultItems at max). It differs from NNSGetAllRecords in
 // that no iterator session is used to retrieve values from iterator. Instead, unpacking
 // VM script is created and invoked via `invokescript` JSON-RPC call.
+//
+// Deprecated: please use nns subpackage. This method will be removed in future versions.
 func (c *Client) NNSUnpackedGetAllRecords(nnsHash util.Uint160, name string) ([]nns.RecordState, error) {
 	arr, err := unwrap.Array(c.reader.CallAndExpandIterator(nnsHash, "getAllRecords", config.DefaultMaxIteratorResultItems, name))
 	if err != nil {
