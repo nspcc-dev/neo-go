@@ -985,6 +985,37 @@ func TestSignAndPushInvocationTx(t *testing.T) {
 	})
 }
 
+func TestNotaryActor(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+
+	sender := testchain.PrivateKeyByID(0) // owner of the deposit in testchain
+	acc := wallet.NewAccountFromPrivateKey(sender)
+
+	comm, err := c.GetCommittee()
+	require.NoError(t, err)
+
+	multiAcc := &wallet.Account{}
+	*multiAcc = *acc
+	require.NoError(t, multiAcc.ConvertMultisig(smartcontract.GetMajorityHonestNodeCount(len(comm)), comm))
+
+	nact, err := notary.NewActor(c, []actor.SignerAccount{{
+		Signer: transaction.Signer{
+			Account: multiAcc.Contract.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: multiAcc,
+	}}, acc)
+	require.NoError(t, err)
+	neoW := neo.New(nact)
+	_, _, _, err = nact.Notarize(neoW.SetRegisterPriceTransaction(1_0000_0000))
+	require.NoError(t, err)
+}
+
 func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
 	defer chain.Close()
@@ -996,23 +1027,23 @@ func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("client wasn't initialized", func(t *testing.T) {
-		_, err := c.SignAndPushP2PNotaryRequest(transaction.New([]byte{byte(opcode.RET)}, 123), []byte{byte(opcode.RET)}, -1, 0, 100, acc)
+		_, err := c.SignAndPushP2PNotaryRequest(transaction.New([]byte{byte(opcode.RET)}, 123), []byte{byte(opcode.RET)}, -1, 0, 100, acc) //nolint:staticcheck // SA1019: c.SignAndPushP2PNotaryRequest is deprecated
 		require.NotNil(t, err)
 	})
 
 	require.NoError(t, c.Init())
 	t.Run("bad account address", func(t *testing.T) {
-		_, err := c.SignAndPushP2PNotaryRequest(nil, nil, 0, 0, 0, &wallet.Account{Address: "not-an-addr"})
+		_, err := c.SignAndPushP2PNotaryRequest(nil, nil, 0, 0, 0, &wallet.Account{Address: "not-an-addr"}) //nolint:staticcheck // SA1019: c.SignAndPushP2PNotaryRequest is deprecated
 		require.NotNil(t, err)
 	})
 
 	t.Run("bad fallback script", func(t *testing.T) {
-		_, err := c.SignAndPushP2PNotaryRequest(nil, []byte{byte(opcode.ASSERT)}, -1, 0, 0, acc)
+		_, err := c.SignAndPushP2PNotaryRequest(nil, []byte{byte(opcode.ASSERT)}, -1, 0, 0, acc) //nolint:staticcheck // SA1019: c.SignAndPushP2PNotaryRequest is deprecated
 		require.NotNil(t, err)
 	})
 
 	t.Run("too large fallbackValidFor", func(t *testing.T) {
-		_, err := c.SignAndPushP2PNotaryRequest(nil, []byte{byte(opcode.RET)}, -1, 0, 141, acc)
+		_, err := c.SignAndPushP2PNotaryRequest(nil, []byte{byte(opcode.RET)}, -1, 0, 141, acc) //nolint:staticcheck // SA1019: c.SignAndPushP2PNotaryRequest is deprecated
 		require.NotNil(t, err)
 	})
 
@@ -1031,7 +1062,7 @@ func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 		}
 		mainTx := expected
 		_ = expected.Hash()
-		req, err := c.SignAndPushP2PNotaryRequest(&mainTx, []byte{byte(opcode.RET)}, -1, 0, 6, acc)
+		req, err := c.SignAndPushP2PNotaryRequest(&mainTx, []byte{byte(opcode.RET)}, -1, 0, 6, acc) //nolint:staticcheck // SA1019: c.SignAndPushP2PNotaryRequest is deprecated
 		require.NoError(t, err)
 
 		// check that request was correctly completed

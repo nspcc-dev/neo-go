@@ -2,8 +2,8 @@
 Package notary provides an RPC-based wrapper for the Notary subsystem.
 
 It provides both regular ContractReader/Contract interfaces for the notary
-contract and notary-specific functions and interfaces to simplify creation of
-notary requests.
+contract and notary-specific Actor as well as some helper functions to simplify
+creation of notary requests.
 */
 package notary
 
