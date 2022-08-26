@@ -2098,17 +2098,18 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 				return fmt.Errorf("%w: NotValidBefore attribute was found, but P2PSigExtensions are disabled", ErrInvalidAttribute)
 			}
 			nvb := tx.Attributes[i].Value.(*transaction.NotValidBefore).Height
+			curHeight := bc.BlockHeight()
 			if isPartialTx {
 				maxNVBDelta := bc.contracts.Notary.GetMaxNotValidBeforeDelta(bc.dao)
-				if bc.BlockHeight()+maxNVBDelta < nvb {
-					return fmt.Errorf("%w: partially-filled transaction should become valid not less then %d blocks after current chain's height %d", ErrInvalidAttribute, maxNVBDelta, bc.BlockHeight())
+				if curHeight+maxNVBDelta < nvb {
+					return fmt.Errorf("%w: NotValidBefore (%d) bigger than MaxNVBDelta (%d) allows at height %d", ErrInvalidAttribute, nvb, maxNVBDelta, curHeight)
 				}
 				if nvb+maxNVBDelta < tx.ValidUntilBlock {
-					return fmt.Errorf("%w: partially-filled transaction should be valid during less than %d blocks", ErrInvalidAttribute, maxNVBDelta)
+					return fmt.Errorf("%w: NotValidBefore (%d) set more than MaxNVBDelta (%d) away from VUB (%d)", ErrInvalidAttribute, nvb, maxNVBDelta, tx.ValidUntilBlock)
 				}
 			} else {
-				if height := bc.BlockHeight(); height < nvb {
-					return fmt.Errorf("%w: transaction is not yet valid: NotValidBefore = %d, current height = %d", ErrInvalidAttribute, nvb, height)
+				if curHeight < nvb {
+					return fmt.Errorf("%w: transaction is not yet valid: NotValidBefore = %d, current height = %d", ErrInvalidAttribute, nvb, curHeight)
 				}
 			}
 		case transaction.ConflictsT:
