@@ -170,7 +170,49 @@ func newNEP17Commands() []cli.Command {
 	}
 }
 
+func tokenMatch(curToken *wallet.Token, expToken *wallet.Token, name string) bool {
+	return name == "" || // No specification at all, everything matches.
+		(expToken != nil && expToken.Hash == curToken.Hash) || // Exact token specification, matches perfectly.
+		(expToken == nil && name != "" && (curToken.Name == name || curToken.Symbol == name)) // Loose (named non-native) token specification, best-effort.
+}
+
 func getNEP17Balance(ctx *cli.Context) error {
+	return getNEPBalance(ctx, manifest.NEP17StandardName, func(ctx *cli.Context, c *rpcclient.Client, addrHash util.Uint160, name string, token *wallet.Token, _ string) error {
+		balances, err := c.GetNEP17Balances(addrHash)
+		if err != nil {
+			return err
+		}
+
+		var tokenFound bool
+		for i := range balances.Balances {
+			curToken := tokenFromNEP17Balance(&balances.Balances[i])
+			if tokenMatch(curToken, token, name) {
+				printAssetBalance(ctx, balances.Balances[i])
+				tokenFound = true
+			}
+		}
+		if name == "" || tokenFound {
+			return nil
+		}
+		if token != nil {
+			// We have an exact token, but there is no balance data for it -> print 0.
+			printAssetBalance(ctx, result.NEP17Balance{
+				Asset:       token.Hash,
+				Amount:      "0",
+				Decimals:    int(token.Decimals),
+				LastUpdated: 0,
+				Name:        token.Name,
+				Symbol:      token.Symbol,
+			})
+		} else {
+			// We have no data for this token at all, maybe it's not even correct -> complain.
+			fmt.Fprintf(ctx.App.Writer, "Can't find data for %q token\n", name)
+		}
+		return nil
+	})
+}
+
+func getNEPBalance(ctx *cli.Context, standard string, accHandler func(*cli.Context, *rpcclient.Client, util.Uint160, string, *wallet.Token, string) error) error {
 	var accounts []*wallet.Account
 
 	if err := cmdargs.EnsureNone(ctx); err != nil {
@@ -209,14 +251,14 @@ func getNEP17Balance(ctx *cli.Context) error {
 
 	if name != "" {
 		// Token was explicitly specified, let's try finding it, search in the wallet first.
-		token, err = getMatchingToken(ctx, wall, name, manifest.NEP17StandardName)
+		token, err = getMatchingToken(ctx, wall, name, standard)
 		if err != nil {
 			var h util.Uint160
 
 			// Well-known hardcoded names/symbols.
-			if name == nativenames.Neo || name == "NEO" {
+			if standard == manifest.NEP17StandardName && (name == nativenames.Neo || name == "NEO") {
 				h = neo.Hash
-			} else if name == nativenames.Gas || name == "GAS" {
+			} else if standard == manifest.NEP17StandardName && (name == nativenames.Gas || name == "GAS") {
 				h = gas.Hash
 			} else {
 				// The last resort, maybe it's a direct hash or address.
@@ -227,23 +269,26 @@ func getNEP17Balance(ctx *cli.Context) error {
 			// in balances.
 			if !h.Equals(util.Uint160{}) {
 				// But if we have an exact hash, it must be correct.
-				token, err = getTokenWithStandard(c, h, manifest.NEP17StandardName)
+				token, err = getTokenWithStandard(c, h, standard)
 				if err != nil {
 					return cli.NewExitError(fmt.Errorf("%q is not a valid NEP-17 token: %w", name, err), 1)
 				}
 			}
 		}
 	}
-
+	tokenID := ctx.String("id")
+	if standard == manifest.NEP11StandardName {
+		if len(tokenID) > 0 {
+			_, err = hex.DecodeString(tokenID)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("invalid token ID: %w", err), 1)
+			}
+		}
+	}
 	for k, acc := range accounts {
 		addrHash, err := address.StringToUint160(acc.Address)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid account address: %w", err), 1)
-		}
-		// We can't use nep17.BalanceOf() even if the token is known because of LastUpdated.
-		balances, err := c.GetNEP17Balances(addrHash)
-		if err != nil {
-			return cli.NewExitError(err, 1)
 		}
 
 		if k != 0 {
@@ -251,50 +296,27 @@ func getNEP17Balance(ctx *cli.Context) error {
 		}
 		fmt.Fprintf(ctx.App.Writer, "Account %s\n", acc.Address)
 
-		var tokenFound bool
-		for i := range balances.Balances {
-			curToken := tokenFromNEP17Balance(&balances.Balances[i])
-			if token != nil && token.Hash != curToken.Hash {
-				continue
-			}
-			// Loose (named non-native) token specification, try our best.
-			if name != "" && !(curToken.Name == name || curToken.Symbol == name || curToken.Address() == name || curToken.Hash.StringLE() == name) {
-				continue
-			}
-			printAssetBalance(ctx, balances.Balances[i])
-			tokenFound = true
-		}
-		if name == "" || tokenFound {
-			continue
-		}
-		if token != nil {
-			// We have an exact token, but there is no balance data for it -> print 0.
-			printAssetBalance(ctx, result.NEP17Balance{
-				Asset:       token.Hash,
-				Amount:      "0",
-				Decimals:    int(token.Decimals),
-				LastUpdated: 0,
-				Name:        token.Name,
-				Symbol:      token.Symbol,
-			})
-		} else {
-			// We have no data for this token at all, maybe it's not even correct -> complain.
-			fmt.Fprintf(ctx.App.Writer, "Can't find data for %q token\n", name)
+		err = accHandler(ctx, c, addrHash, name, token, tokenID)
+		if err != nil {
+			return cli.NewExitError(err, 1)
 		}
 	}
 	return nil
 }
 
-func printAssetBalance(ctx *cli.Context, balance result.NEP17Balance) {
-	fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", balance.Symbol, balance.Name, balance.Asset.StringLE())
-	amount := balance.Amount
-	if balance.Decimals != 0 {
+func decimalAmount(amount string, decimals int) string {
+	if decimals != 0 {
 		b, ok := new(big.Int).SetString(amount, 10)
 		if ok {
-			amount = fixedn.ToString(b, balance.Decimals)
+			amount = fixedn.ToString(b, decimals)
 		}
 	}
-	fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", amount)
+	return amount
+}
+
+func printAssetBalance(ctx *cli.Context, balance result.NEP17Balance) {
+	fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", balance.Symbol, balance.Name, balance.Asset.StringLE())
+	fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", decimalAmount(balance.Amount, balance.Decimals))
 	fmt.Fprintf(ctx.App.Writer, "\tUpdated: %d\n", balance.LastUpdated)
 }
 

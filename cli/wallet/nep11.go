@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/big"
 	"strconv"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
@@ -12,10 +11,12 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
@@ -48,9 +49,24 @@ func newNEP11Commands() []cli.Command {
 		{
 			Name:      "balance",
 			Usage:     "get address balance",
-			UsageText: "balance -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] [--address <address>] --token <hash-or-name> [--id <token-id>]",
-			Action:    getNEP11Balance,
-			Flags:     balanceFlags,
+			UsageText: "balance -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>] [--id <token-id>]",
+			Description: `Prints NEP-11 balances for address and assets/IDs specified. By default (no
+   address or token parameter) all tokens (NFT contracts) for all accounts in
+   the specified wallet are listed with all tokens (actual NFTs) insied. A
+   single account can be chosen with the address option and/or a single NFT
+   contract can be selected with the token option. Further, you can specify a
+   particular NFT ID (hex-encoded) to display (which is mostly useful for
+   divisible NFTs). Tokens can be specified by hash, address, name or symbol.
+   Hashes and addresses always work (as long as they belong to a correct NEP-11
+   contract), while names or symbols are matched against the token data
+   stored in the wallet (see import command) or balance data returned from the
+   server. If the token is not specified directly (with hash/address) and is
+   not found in the wallet then depending on the balances data from the server
+   this command can print no data at all or print multiple tokens for one
+   account (if they use the same names/symbols).
+`,
+			Action: getNEP11Balance,
+			Flags:  balanceFlags,
 		},
 		{
 			Name:      "import",
@@ -162,95 +178,48 @@ func removeNEP11Token(ctx *cli.Context) error {
 }
 
 func getNEP11Balance(ctx *cli.Context) error {
-	var accounts []*wallet.Account
-
-	if err := cmdargs.EnsureNone(ctx); err != nil {
-		return err
-	}
-
-	wall, _, err := readWallet(ctx)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("bad wallet: %w", err), 1)
-	}
-
-	addrFlag := ctx.Generic("address").(*flags.Address)
-	if addrFlag.IsSet {
-		addrHash := addrFlag.Uint160()
-		acc := wall.GetAccount(addrHash)
-		if acc == nil {
-			return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addrHash)), 1)
-		}
-		accounts = append(accounts, acc)
-	} else {
-		if len(wall.Accounts) == 0 {
-			return cli.NewExitError(errors.New("no accounts in the wallet"), 1)
-		}
-		accounts = wall.Accounts
-	}
-
-	gctx, cancel := options.GetTimeoutContext(ctx)
-	defer cancel()
-
-	c, err := options.GetRPCClient(gctx, ctx)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	name := ctx.String("token")
-	if name == "" {
-		return cli.NewExitError("token hash or name should be specified", 1)
-	}
-	token, err := getMatchingToken(ctx, wall, name, manifest.NEP11StandardName)
-	if err != nil {
-		tokenHash, err := flags.ParseAddress(name)
+	return getNEPBalance(ctx, manifest.NEP11StandardName, func(ctx *cli.Context, c *rpcclient.Client, addrHash util.Uint160, name string, token *wallet.Token, nftID string) error {
+		balances, err := c.GetNEP11Balances(addrHash)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("can't fetch matching token from RPC-node: %w", err), 1)
+			return err
 		}
-		token, err = getTokenWithStandard(c, tokenHash, manifest.NEP11StandardName)
-		if err != nil {
-			return cli.NewExitError(err.Error(), 1)
+		var tokenFound bool
+		for i := range balances.Balances {
+			curToken := tokenFromNEP11Balance(&balances.Balances[i])
+			if tokenMatch(curToken, token, name) {
+				printNFTBalance(ctx, balances.Balances[i], nftID)
+				tokenFound = true
+			}
 		}
-	}
-	// Always initialize divisible token to be able to use both balanceOf methods.
-	n11 := nep11.NewDivisibleReader(invoker.New(c, nil), token.Hash)
-
-	tokenID := ctx.String("id")
-	tokenIDBytes, err := hex.DecodeString(tokenID)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid tokenID bytes: %w", err), 1)
-	}
-	for k, acc := range accounts {
-		addrHash, err := address.StringToUint160(acc.Address)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid account address: %w", err), 1)
+		if name == "" || tokenFound {
+			return nil
 		}
-
-		if k != 0 {
-			fmt.Fprintln(ctx.App.Writer)
-		}
-		fmt.Fprintf(ctx.App.Writer, "Account %s\n", acc.Address)
-
-		var amount *big.Int
-		if len(tokenIDBytes) == 0 {
-			amount, err = n11.BalanceOf(addrHash)
+		if token != nil {
+			// We have an exact token, but there is no balance data for it -> print without NFTs.
+			printNFTBalance(ctx, result.NEP11AssetBalance{
+				Asset:    token.Hash,
+				Decimals: int(token.Decimals),
+				Name:     token.Name,
+				Symbol:   token.Symbol,
+			}, "")
 		} else {
-			amount, err = n11.BalanceOfD(addrHash, tokenIDBytes)
+			// We have no data for this token at all, maybe it's not even correct -> complain.
+			fmt.Fprintf(ctx.App.Writer, "Can't find data for %q token\n", name)
 		}
-		if err != nil {
+		return nil
+	})
+}
+
+func printNFTBalance(ctx *cli.Context, balance result.NEP11AssetBalance, nftID string) {
+	fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", balance.Symbol, balance.Name, balance.Asset.StringLE())
+	for _, tok := range balance.Tokens {
+		if len(nftID) > 0 && nftID != tok.ID {
 			continue
 		}
-		amountStr := fixedn.ToString(amount, int(token.Decimals))
-
-		format := "%s: %s (%s)\n"
-		formatArgs := []interface{}{token.Symbol, token.Name, token.Hash.StringLE()}
-		if len(tokenIDBytes) != 0 {
-			format = "%s: %s (%s, %s)\n"
-			formatArgs = append(formatArgs, tokenID)
-		}
-		fmt.Fprintf(ctx.App.Writer, format, formatArgs...)
-		fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", amountStr)
+		fmt.Fprintf(ctx.App.Writer, "\tToken: %s\n", tok.ID)
+		fmt.Fprintf(ctx.App.Writer, "\t\tAmount: %s\n", decimalAmount(tok.Amount, balance.Decimals))
+		fmt.Fprintf(ctx.App.Writer, "\t\tUpdated: %d\n", tok.LastUpdated)
 	}
-	return nil
 }
 
 func transferNEP11(ctx *cli.Context) error {

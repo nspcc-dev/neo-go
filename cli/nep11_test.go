@@ -167,19 +167,35 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
 		"--wallet", wall,
 		"--address", nftOwnerAddr}
-	checkBalanceResult := func(t *testing.T, acc string, amount string) {
+	checkBalanceResult := func(t *testing.T, acc string, ids ...[]byte) {
 		e.checkNextLine(t, "^\\s*Account\\s+"+acc)
 		e.checkNextLine(t, "^\\s*HASHY:\\s+HASHY NFT \\("+h.StringLE()+"\\)")
-		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+amount+"$")
+
+		// Hashes can be ordered in any way, so make a regexp for them.
+		var tokstring = "("
+		for i, id := range ids {
+			if i > 0 {
+				tokstring += "|"
+			}
+			tokstring += hex.EncodeToString(id)
+		}
+		tokstring += ")"
+
+		for range ids {
+			e.checkNextLine(t, "^\\s*Token: "+tokstring+"\\s*$")
+			e.checkNextLine(t, "^\\s*Amount: 1\\s*$")
+			e.checkNextLine(t, "^\\s*Updated: [0-9]+\\s*$")
+		}
 		e.checkEOF(t)
 	}
 	// balance check: by symbol, token is not imported
-	e.RunWithError(t, append(cmdCheckBalance, "--token", "HASHY")...)
+	e.Run(t, append(cmdCheckBalance, "--token", "HASHY")...)
+	checkBalanceResult(t, nftOwnerAddr, tokenID)
 	// balance check: excessive parameters
 	e.RunWithError(t, append(cmdCheckBalance, "--token", h.StringLE(), "neo-go")...)
 	// balance check: by hash, ok
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
-	checkBalanceResult(t, nftOwnerAddr, "1")
+	checkBalanceResult(t, nftOwnerAddr, tokenID)
 
 	// import token
 	e.Run(t, "neo-go", "wallet", "nep11", "import",
@@ -189,14 +205,14 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// balance check: by symbol, ok
 	e.Run(t, append(cmdCheckBalance, "--token", "HASHY")...)
-	checkBalanceResult(t, nftOwnerAddr, "1")
+	checkBalanceResult(t, nftOwnerAddr, tokenID)
 
 	// balance check: all accounts
 	e.Run(t, "neo-go", "wallet", "nep11", "balance",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", wall,
 		"--token", h.StringLE())
-	checkBalanceResult(t, nftOwnerAddr, "1")
+	checkBalanceResult(t, nftOwnerAddr, tokenID)
 
 	// remove token from wallet
 	e.In.WriteString("y\r")
@@ -276,7 +292,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// balance check: several tokens, ok
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
-	checkBalanceResult(t, nftOwnerAddr, "2")
+	checkBalanceResult(t, nftOwnerAddr, tokenID, tokenID1)
 
 	cmdTransfer := []string{
 		"neo-go", "wallet", "nep11", "transfer",
@@ -304,7 +320,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// check balance after transfer
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
-	checkBalanceResult(t, nftOwnerAddr, "1") // tokenID1
+	checkBalanceResult(t, nftOwnerAddr, tokenID1)
 
 	// transfer: good, to NEP-11-Payable contract, with data
 	verifyH := deployVerifyContract(t, e)
@@ -341,7 +357,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// check balance after transfer
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
-	checkBalanceResult(t, nftOwnerAddr, "0")
+	checkBalanceResult(t, nftOwnerAddr)
 }
 
 func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
@@ -406,31 +422,42 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	require.Equal(t, base64.StdEncoding.EncodeToString(object1ID.BytesBE()), props["objectID"])
 	e.checkEOF(t)
 
+	type idAmount struct {
+		id     string
+		amount string
+	}
+
 	// check the balance
 	cmdCheckBalance := []string{"neo-go", "wallet", "nep11", "balance",
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
 		"--wallet", wall,
 		"--address", validatorAddr}
-	checkBalanceResult := func(t *testing.T, acc string, amount string, id []byte) {
+	checkBalanceResult := func(t *testing.T, acc string, objs ...idAmount) {
 		e.checkNextLine(t, "^\\s*Account\\s+"+acc)
-		if id == nil {
-			e.checkNextLine(t, "^\\s*NFSO:\\s+NeoFS Object NFT \\("+h.StringLE()+"\\)")
-		} else {
-			e.checkNextLine(t, "^\\s*NFSO:\\s+NeoFS Object NFT \\("+h.StringLE()+", "+hex.EncodeToString(id)+"\\)")
+		e.checkNextLine(t, "^\\s*NFSO:\\s+NeoFS Object NFT \\("+h.StringLE()+"\\)")
+
+		for _, o := range objs {
+			e.checkNextLine(t, "^\\s*Token: "+o.id+"\\s*$")
+			e.checkNextLine(t, "^\\s*Amount: "+o.amount+"\\s*$")
+			e.checkNextLine(t, "^\\s*Updated: [0-9]+\\s*$")
 		}
-		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+amount+"$")
 		e.checkEOF(t)
 	}
+	tokz := []idAmount{
+		{hex.EncodeToString(token1ID), "1"},
+		{hex.EncodeToString(token2ID), "1"},
+	}
 	// balance check: by symbol, token is not imported
-	e.RunWithError(t, append(cmdCheckBalance, "--token", "NFSO")...)
+	e.Run(t, append(cmdCheckBalance, "--token", "NFSO")...)
+	checkBalanceResult(t, validatorAddr, tokz...)
 
 	// overall NFSO balance check: by hash, ok
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
-	checkBalanceResult(t, validatorAddr, "2", nil)
+	checkBalanceResult(t, validatorAddr, tokz...)
 
 	// particular NFSO balance check: by hash, ok
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE(), "--id", hex.EncodeToString(token2ID))...)
-	checkBalanceResult(t, validatorAddr, "1", token2ID)
+	checkBalanceResult(t, validatorAddr, tokz[1])
 
 	// import token
 	e.Run(t, "neo-go", "wallet", "nep11", "import",
@@ -440,11 +467,11 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// overall balance check: by symbol, ok
 	e.Run(t, append(cmdCheckBalance, "--token", "NFSO")...)
-	checkBalanceResult(t, validatorAddr, "2", nil)
+	checkBalanceResult(t, validatorAddr, tokz...)
 
 	// particular balance check: by symbol, ok
 	e.Run(t, append(cmdCheckBalance, "--token", "NFSO", "--id", hex.EncodeToString(token1ID))...)
-	checkBalanceResult(t, validatorAddr, "1", token1ID)
+	checkBalanceResult(t, validatorAddr, tokz[0])
 
 	// remove token from wallet
 	e.In.WriteString("y\r")
@@ -531,7 +558,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// balance check: several tokens, ok
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
-	checkBalanceResult(t, validatorAddr, "2", nil)
+	checkBalanceResult(t, validatorAddr, tokz...)
 
 	cmdTransfer := []string{
 		"neo-go", "wallet", "nep11", "transfer",
@@ -559,7 +586,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// check balance after transfer
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
-	checkBalanceResult(t, validatorAddr, "1", nil) // only token2ID expected to be on the balance
+	checkBalanceResult(t, validatorAddr, tokz[1]) // only token2ID expected to be on the balance
 
 	// transfer: good, 1/4 of the balance, to NEP-11-Payable contract, with data
 	verifyH := deployVerifyContract(t, e)
@@ -597,7 +624,8 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// check balance after transfer
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
-	checkBalanceResult(t, validatorAddr, "0.75", nil)
+	tokz[1].amount = "0.75"
+	checkBalanceResult(t, validatorAddr, tokz[1])
 }
 
 func deployNFSContract(t *testing.T, e *executor) util.Uint160 {

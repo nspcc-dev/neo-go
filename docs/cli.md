@@ -456,13 +456,13 @@ commands with the following adjustments.
 
 #### Balance
 
-Specify token ID via `--id` flag to call divisible NEP-11 `balanceOf` method:
+Specify token ID via `--id` flag to get data for a particular NFT:
 
 ```
-./bin/neo-go wallet nep11 balance -w /etc/neo-go/wallet.json --token 67ecb7766dba4acf7c877392207984d1b4d15731 --id R5OREI5BU+Uyd23/MuV/xzI3F+Q= -r http://localhost:20332
+./bin/neo-go wallet nep11 balance -w /etc/neo-go/wallet.json --token 67ecb7766dba4acf7c877392207984d1b4d15731 --id 7e244ffd6aa85fb1579d2ed22e9b761ab62e3486 -r http://localhost:20332
 ```
 
-By default, no token ID specified, i.e. common `balanceOf` method is called.
+By default, no token ID specified, i.e all NFTs returned by the server are listed.
 
 #### Transfers
 
