@@ -1402,51 +1402,45 @@ func TestClient_NNS(t *testing.T) {
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
+	nnc := nns.NewReader(invoker.New(c, nil), nnsHash)
 
-	t.Run("NNSIsAvailable, false", func(t *testing.T) {
-		b, err := c.NNSIsAvailable(nnsHash, "neo.com")
+	t.Run("IsAvailable, false", func(t *testing.T) {
+		b, err := nnc.IsAvailable("neo.com")
 		require.NoError(t, err)
 		require.Equal(t, false, b)
 	})
-	t.Run("NNSIsAvailable, true", func(t *testing.T) {
-		b, err := c.NNSIsAvailable(nnsHash, "neogo.com")
+	t.Run("IsAvailable, true", func(t *testing.T) {
+		b, err := nnc.IsAvailable("neogo.com")
 		require.NoError(t, err)
 		require.Equal(t, true, b)
 	})
-	t.Run("NNSResolve, good", func(t *testing.T) {
-		b, err := c.NNSResolve(nnsHash, "neo.com", nns.A)
+	t.Run("Resolve, good", func(t *testing.T) {
+		b, err := nnc.Resolve("neo.com", nns.A)
 		require.NoError(t, err)
 		require.Equal(t, "1.2.3.4", b)
 	})
-	t.Run("NNSResolve, bad", func(t *testing.T) {
-		_, err := c.NNSResolve(nnsHash, "neogo.com", nns.A)
+	t.Run("Resolve, bad", func(t *testing.T) {
+		_, err := nnc.Resolve("neogo.com", nns.A)
 		require.Error(t, err)
 	})
-	t.Run("NNSResolve, forbidden", func(t *testing.T) {
-		_, err := c.NNSResolve(nnsHash, "neogo.com", nns.CNAME)
+	t.Run("Resolve, CNAME", func(t *testing.T) {
+		_, err := nnc.Resolve("neogo.com", nns.CNAME)
 		require.Error(t, err)
 	})
-	t.Run("NNSGetAllRecords, good", func(t *testing.T) {
-		sess, iter, err := c.NNSGetAllRecords(nnsHash, "neo.com")
+	t.Run("GetAllRecords, good", func(t *testing.T) {
+		iter, err := nnc.GetAllRecords("neo.com")
 		require.NoError(t, err)
-		arr, err := c.TraverseIterator(sess, *iter.ID, config.DefaultMaxIteratorResultItems)
+		arr, err := iter.Next(config.DefaultMaxIteratorResultItems)
 		require.NoError(t, err)
 		require.Equal(t, 1, len(arr))
-		rs := arr[0].Value().([]stackitem.Item)
-		require.Equal(t, 3, len(rs))
-		actual := nns.RecordState{
-			Name: string(rs[0].Value().([]byte)),
-			Type: nns.RecordType(rs[1].Value().(*big.Int).Int64()),
-			Data: string(rs[2].Value().([]byte)),
-		}
 		require.Equal(t, nns.RecordState{
 			Name: "neo.com",
 			Type: nns.A,
 			Data: "1.2.3.4",
-		}, actual)
+		}, arr[0])
 	})
-	t.Run("NNSUnpackedGetAllRecords, good", func(t *testing.T) {
-		rss, err := c.NNSUnpackedGetAllRecords(nnsHash, "neo.com")
+	t.Run("GetAllRecordsExpanded, good", func(t *testing.T) {
+		rss, err := nnc.GetAllRecordsExpanded("neo.com", 42)
 		require.NoError(t, err)
 		require.Equal(t, []nns.RecordState{
 			{
@@ -1456,12 +1450,12 @@ func TestClient_NNS(t *testing.T) {
 			},
 		}, rss)
 	})
-	t.Run("NNSGetAllRecords, bad", func(t *testing.T) {
-		_, _, err := c.NNSGetAllRecords(nnsHash, "neopython.com")
+	t.Run("GetAllRecords, bad", func(t *testing.T) {
+		_, err := nnc.GetAllRecords("neopython.com")
 		require.Error(t, err)
 	})
-	t.Run("NNSUnpackedGetAllRecords, bad", func(t *testing.T) {
-		_, err := c.NNSUnpackedGetAllRecords(nnsHash, "neopython.com")
+	t.Run("GetAllRecordsExpanded, bad", func(t *testing.T) {
+		_, err := nnc.GetAllRecordsExpanded("neopython.com", 7)
 		require.Error(t, err)
 	})
 }
