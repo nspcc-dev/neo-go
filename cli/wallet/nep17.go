@@ -210,28 +210,12 @@ func getNEP17Balance(ctx *cli.Context) error {
 
 		var tokenFound bool
 		for i := range balances.Balances {
-			var tokenName, tokenSymbol string
-			tokenDecimals := 0
-			asset := balances.Balances[i].Asset
-			token, err := getMatchingToken(ctx, wall, asset.StringLE(), manifest.NEP17StandardName)
-			if err != nil {
-				token, err = getTokenWithStandard(c, asset, manifest.NEP17StandardName)
+			token := tokenFromNEP17Balance(&balances.Balances[i])
+			if name != "" && !(token.Name == name || token.Symbol == name || token.Address() == name || token.Hash.StringLE() == name) {
+				continue
 			}
-			if err == nil {
-				if name != "" && !(token.Name == name || token.Symbol == name || token.Address() == name || token.Hash.StringLE() == name) {
-					continue
-				}
-				tokenName = token.Name
-				tokenSymbol = token.Symbol
-				tokenDecimals = int(token.Decimals)
-				tokenFound = true
-			} else {
-				if name != "" {
-					continue
-				}
-				tokenSymbol = "UNKNOWN"
-			}
-			printAssetBalance(ctx, asset, tokenName, tokenSymbol, tokenDecimals, balances.Balances[i])
+			printAssetBalance(ctx, balances.Balances[i])
+			tokenFound = true
 		}
 		if name == "" || tokenFound {
 			continue
@@ -274,22 +258,25 @@ func getNEP17Balance(ctx *cli.Context) error {
 				continue
 			}
 		}
-		printAssetBalance(ctx, token.Hash, token.Name, token.Symbol, int(token.Decimals), result.NEP17Balance{
+		printAssetBalance(ctx, result.NEP17Balance{
 			Asset:       token.Hash,
 			Amount:      "0",
+			Decimals:    int(token.Decimals),
 			LastUpdated: 0,
+			Name:        token.Name,
+			Symbol:      token.Symbol,
 		})
 	}
 	return nil
 }
 
-func printAssetBalance(ctx *cli.Context, asset util.Uint160, tokenName, tokenSymbol string, tokenDecimals int, balance result.NEP17Balance) {
-	fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", tokenSymbol, tokenName, asset.StringLE())
+func printAssetBalance(ctx *cli.Context, balance result.NEP17Balance) {
+	fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", balance.Symbol, balance.Name, balance.Asset.StringLE())
 	amount := balance.Amount
-	if tokenDecimals != 0 {
+	if balance.Decimals != 0 {
 		b, ok := new(big.Int).SetString(amount, 10)
 		if ok {
-			amount = fixedn.ToString(b, tokenDecimals)
+			amount = fixedn.ToString(b, balance.Decimals)
 		}
 	}
 	fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", amount)
@@ -302,6 +289,14 @@ func getMatchingToken(ctx *cli.Context, w *wallet.Wallet, name string, standard 
 	}, len(w.Extra.Tokens), name, standard)
 }
 
+func tokenFromNEP17Balance(bal *result.NEP17Balance) *wallet.Token {
+	return wallet.NewToken(bal.Asset, bal.Name, bal.Symbol, int64(bal.Decimals), manifest.NEP17StandardName)
+}
+
+func tokenFromNEP11Balance(bal *result.NEP11AssetBalance) *wallet.Token {
+	return wallet.NewToken(bal.Asset, bal.Name, bal.Symbol, int64(bal.Decimals), manifest.NEP11StandardName)
+}
+
 func getMatchingTokenRPC(ctx *cli.Context, c *rpcclient.Client, addr util.Uint160, name string, standard string) (*wallet.Token, error) {
 	switch standard {
 	case manifest.NEP17StandardName:
@@ -310,8 +305,7 @@ func getMatchingTokenRPC(ctx *cli.Context, c *rpcclient.Client, addr util.Uint16
 			return nil, err
 		}
 		get := func(i int) *wallet.Token {
-			t, _ := getTokenWithStandard(c, bs.Balances[i].Asset, standard)
-			return t
+			return tokenFromNEP17Balance(&bs.Balances[i])
 		}
 		return getMatchingTokenAux(ctx, get, len(bs.Balances), name, standard)
 	case manifest.NEP11StandardName:
@@ -320,8 +314,7 @@ func getMatchingTokenRPC(ctx *cli.Context, c *rpcclient.Client, addr util.Uint16
 			return nil, err
 		}
 		get := func(i int) *wallet.Token {
-			t, _ := getTokenWithStandard(c, bs.Balances[i].Asset, standard)
-			return t
+			return tokenFromNEP11Balance(&bs.Balances[i])
 		}
 		return getMatchingTokenAux(ctx, get, len(bs.Balances), name, standard)
 	default:
