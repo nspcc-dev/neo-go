@@ -403,9 +403,10 @@ Getting balance is easy:
 ./bin/neo-go wallet nep17 balance -w /etc/neo-go/wallet.json -r http://localhost:20332
 ```
 
-By default, you'll get data for all tokens for the default wallet's
-address. You can select non-default address with `-a` flag and/or select token
-with `--token` flag (token hash or name can be used as parameter).
+By default, you'll get data for all tokens that are owned by all accounts
+stored in the given wallet. You can specify a particular address with `-a`
+flag and/or select token with `--token` flag (token hash, address, name or
+symbol can be used as a parameter).
 
 #### Transfers
 

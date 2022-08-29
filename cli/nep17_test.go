@@ -106,6 +106,7 @@ func TestNEP17Balance(t *testing.T) {
 	t.Run("Bad token", func(t *testing.T) {
 		e.Run(t, append(cmd, "--token", "kek")...)
 		e.checkNextLine(t, "^\\s*Account\\s+"+validatorAddr)
+		e.checkNextLine(t, `^\s*Can't find data for "kek" token\s*`)
 		e.checkEOF(t)
 	})
 	t.Run("Bad wallet", func(t *testing.T) {

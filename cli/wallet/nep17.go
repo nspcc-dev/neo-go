@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
@@ -20,7 +21,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/gas"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
@@ -100,8 +100,21 @@ func newNEP17Commands() []cli.Command {
 			Name:      "balance",
 			Usage:     "get address balance",
 			UsageText: "balance -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>]",
-			Action:    getNEP17Balance,
-			Flags:     balanceFlags,
+			Description: `Prints NEP-17 balances for address and tokens specified. By default (no
+   address or token parameter) all tokens for all accounts in the specified wallet
+   are listed. A single account can be chosen with the address option and/or a
+   single token can be selected with the token option. Tokens can be specified
+   by hash, address, name or symbol. Hashes and addresses always work (as long
+   as they belong to a correct NEP-17 contract), while names or symbols (if
+   they're not NEO or GAS names/symbols) are matched against the token data
+   stored in the wallet (see import command) or balance data returned from the
+   server. If the token is not specified directly (with hash/address) and is
+   not found in the wallet then depending on the balances data from the server
+   this command can print no data at all or print multiple tokens for one
+   account (if they use the same names/symbols).
+`,
+			Action: getNEP17Balance,
+			Flags:  balanceFlags,
 		},
 		{
 			Name:      "import",
@@ -192,12 +205,42 @@ func getNEP17Balance(ctx *cli.Context) error {
 	}
 
 	name := ctx.String("token")
+	var token *wallet.Token
+
+	if name != "" {
+		// Token was explicitly specified, let's try finding it, search in the wallet first.
+		token, err = getMatchingToken(ctx, wall, name, manifest.NEP17StandardName)
+		if err != nil {
+			var h util.Uint160
+
+			// Well-known hardcoded names/symbols.
+			if name == nativenames.Neo || name == "NEO" {
+				h = neo.Hash
+			} else if name == nativenames.Gas || name == "GAS" {
+				h = gas.Hash
+			} else {
+				// The last resort, maybe it's a direct hash or address.
+				h, _ = flags.ParseAddress(name)
+			}
+			// If the hash is not found then it's some kind of named token, there is
+			// no way for us to find it, but it's not an error, maybe we'll find it
+			// in balances.
+			if !h.Equals(util.Uint160{}) {
+				// But if we have an exact hash, it must be correct.
+				token, err = getTokenWithStandard(c, h, manifest.NEP17StandardName)
+				if err != nil {
+					return cli.NewExitError(fmt.Errorf("%q is not a valid NEP-17 token: %w", name, err), 1)
+				}
+			}
+		}
+	}
 
 	for k, acc := range accounts {
 		addrHash, err := address.StringToUint160(acc.Address)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid account address: %w", err), 1)
 		}
+		// We can't use nep17.BalanceOf() even if the token is known because of LastUpdated.
 		balances, err := c.GetNEP17Balances(addrHash)
 		if err != nil {
 			return cli.NewExitError(err, 1)
@@ -210,8 +253,12 @@ func getNEP17Balance(ctx *cli.Context) error {
 
 		var tokenFound bool
 		for i := range balances.Balances {
-			token := tokenFromNEP17Balance(&balances.Balances[i])
-			if name != "" && !(token.Name == name || token.Symbol == name || token.Address() == name || token.Hash.StringLE() == name) {
+			curToken := tokenFromNEP17Balance(&balances.Balances[i])
+			if token != nil && token.Hash != curToken.Hash {
+				continue
+			}
+			// Loose (named non-native) token specification, try our best.
+			if name != "" && !(curToken.Name == name || curToken.Symbol == name || curToken.Address() == name || curToken.Hash.StringLE() == name) {
 				continue
 			}
 			printAssetBalance(ctx, balances.Balances[i])
@@ -220,52 +267,20 @@ func getNEP17Balance(ctx *cli.Context) error {
 		if name == "" || tokenFound {
 			continue
 		}
-		// Token was explicitly specified, but was not found among balances, thus either balance is 0
-		// or the token doesn't exist. Try to find token by its address/hash/name/symbol and print zero
-		// balance if found. Search into wallet first.
-		token, err := getMatchingToken(ctx, wall, name, manifest.NEP17StandardName)
-		if err != nil {
-			// The wallet doesn't contain specified token, so try to ask chain.
-			h, err := flags.ParseAddress(name)
-			if err != nil {
-				h, err = c.GetNativeContractHash(name)
-				if err != nil {
-					// Try to get native NEP17 with matching symbol.
-					var gasSymbol, neoSymbol string
-					g := gas.NewReader(invoker.New(c, nil))
-					gasSymbol, err = g.Symbol()
-					if err != nil {
-						continue
-					}
-					if gasSymbol != name {
-						n := neo.NewReader(invoker.New(c, nil))
-						neoSymbol, err = n.Symbol()
-						if err != nil {
-							continue
-						}
-						if neoSymbol != name {
-							continue
-						} else {
-							h = neo.Hash
-						}
-					} else {
-						h = gas.Hash
-					}
-				}
-			}
-			token, err = getTokenWithStandard(c, h, manifest.NEP17StandardName)
-			if err != nil {
-				continue
-			}
+		if token != nil {
+			// We have an exact token, but there is no balance data for it -> print 0.
+			printAssetBalance(ctx, result.NEP17Balance{
+				Asset:       token.Hash,
+				Amount:      "0",
+				Decimals:    int(token.Decimals),
+				LastUpdated: 0,
+				Name:        token.Name,
+				Symbol:      token.Symbol,
+			})
+		} else {
+			// We have no data for this token at all, maybe it's not even correct -> complain.
+			fmt.Fprintf(ctx.App.Writer, "Can't find data for %q token\n", name)
 		}
-		printAssetBalance(ctx, result.NEP17Balance{
-			Asset:       token.Hash,
-			Amount:      "0",
-			Decimals:    int(token.Decimals),
-			LastUpdated: 0,
-			Name:        token.Name,
-			Symbol:      token.Symbol,
-		})
 	}
 	return nil
 }
