@@ -628,18 +628,33 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 }
 
 func TestChangeGlobal(t *testing.T) {
-	src := `package foo
-	var a int
-	func Main() int {
-		setLocal()
-		set42()
-		setLocal()
-		return a
-	}
-	func set42() { a = 42 }
-	func setLocal() { a := 10; _ = a }`
-
-	eval(t, src, big.NewInt(42))
+	t.Run("from Main", func(t *testing.T) {
+		src := `package foo
+				var a int
+				func Main() int {
+					setLocal()
+					set42()
+					setLocal()
+					return a
+				}
+				func set42() { a = 42 }
+				func setLocal() { a := 10; _ = a }`
+		eval(t, src, big.NewInt(42))
+	})
+	t.Run("from other global", func(t *testing.T) {
+		t.Skip("see https://github.com/nspcc-dev/neo-go/issues/2661")
+		src := `package foo
+				var A = f()
+				var B int
+				func Main() int {
+					return B
+				}
+				func f() int {
+					B = 3
+					return B
+				}`
+		eval(t, src, big.NewInt(3))
+	})
 }
 
 func TestMultiDeclaration(t *testing.T) {
