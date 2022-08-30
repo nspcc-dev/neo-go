@@ -866,6 +866,9 @@ func getSigners(sender *wallet.Account, cosigners []SignerAccount) ([]transactio
 //     can be multisignature), or it only should have a partial multisignature.
 //
 // Note: client should be initialized before SignAndPushP2PNotaryRequest call.
+//
+// Deprecated: please use Actor from the notary subpackage. This method will be
+// deleted in future versions.
 func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fallbackScript []byte, fallbackSysFee int64, fallbackNetFee int64, fallbackValidFor uint32, acc *wallet.Account) (*payload.P2PNotaryRequest, error) {
 	var err error
 	notaryHash, err := c.GetNativeContractHash(nativenames.Notary)

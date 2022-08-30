@@ -78,6 +78,9 @@ func TestNew(t *testing.T) {
 	_, err = New(client, []SignerAccount{})
 	require.Error(t, err)
 
+	_, err = NewTuned(client, []SignerAccount{}, NewDefaultOptions())
+	require.Error(t, err)
+
 	// Good simple.
 	a, err := NewSimple(client, acc)
 	require.NoError(t, err)
@@ -140,6 +143,14 @@ func TestNew(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, len(a.signers))
 	require.Equal(t, 2, len(a.txSigners))
+
+	// Good tuned
+	opts := Options{
+		Attributes: []transaction.Attribute{{Type: transaction.HighPriority}},
+	}
+	a, err = NewTuned(client, signers, opts)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(a.opts.Attributes))
 }
 
 func TestSimpleWrappers(t *testing.T) {

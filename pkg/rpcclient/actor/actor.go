@@ -48,16 +48,35 @@ type Actor struct {
 	invoker.Invoker
 
 	client    RPCActor
+	opts      Options
 	signers   []SignerAccount
 	txSigners []transaction.Signer
 	version   *result.Version
+}
+
+// Options are used to create Actor with non-standard transaction checkers or
+// additional attributes to be applied for all transactions.
+type Options struct {
+	// Attributes are set as is into every transaction created by Actor,
+	// unless they're explicitly set in a method call that accepts
+	// attributes (like MakeTuned* or MakeUnsigned*).
+	Attributes []transaction.Attribute
+	// CheckerModifier is used by any method that creates and signs a
+	// transaction inside (some of them provide ways to override this
+	// default, some don't).
+	CheckerModifier TransactionCheckerModifier
+	// Modifier is used only by MakeUncheckedRun to modify transaction
+	// before it's signed (other methods that perform test invocations
+	// use CheckerModifier). MakeUnsigned* methods do not run it.
+	Modifier TransactionModifier
 }
 
 // New creates an Actor instance using the specified RPC interface and the set of
 // signers with corresponding accounts. Every transaction created by this Actor
 // will have this set of signers and all communication will be performed via this
 // RPC. Upon Actor instance creation a GetVersion call is made and the result of
-// it is cached forever (and used for internal purposes).
+// it is cached forever (and used for internal purposes). The actor will use
+// default Options (which can be overridden using NewTuned).
 func New(ra RPCActor, signers []SignerAccount) (*Actor, error) {
 	if len(signers) < 1 {
 		return nil, errors.New("at least one signer (sender) is required")
@@ -81,6 +100,7 @@ func New(ra RPCActor, signers []SignerAccount) (*Actor, error) {
 	return &Actor{
 		Invoker:   *inv,
 		client:    ra,
+		opts:      NewDefaultOptions(),
 		signers:   signers,
 		txSigners: invSigners,
 		version:   version,
@@ -98,6 +118,34 @@ func NewSimple(ra RPCActor, acc *wallet.Account) (*Actor, error) {
 		},
 		Account: acc,
 	}})
+}
+
+// NewDefaultOptions returns Options that have no attributes and use the default
+// TransactionCheckerModifier function (that checks for the invocation result to
+// be in HALT state) and TransactionModifier (that does nothing).
+func NewDefaultOptions() Options {
+	return Options{
+		CheckerModifier: DefaultCheckerModifier,
+		Modifier:        DefaultModifier,
+	}
+}
+
+// NewTuned creates an Actor that will use the specified Options as defaults when
+// creating new transactions. If checker/modifier callbacks are not provided
+// (nil), then default ones (from NewDefaultOptions) are used.
+func NewTuned(ra RPCActor, signers []SignerAccount, opts Options) (*Actor, error) {
+	a, err := New(ra, signers)
+	if err != nil {
+		return nil, err
+	}
+	a.opts.Attributes = opts.Attributes
+	if opts.CheckerModifier != nil {
+		a.opts.CheckerModifier = opts.CheckerModifier
+	}
+	if opts.Modifier != nil {
+		a.opts.Modifier = opts.Modifier
+	}
+	return a, err
 }
 
 // CalculateNetworkFee wraps RPCActor's CalculateNetworkFee, making it available

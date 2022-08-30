@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/keytestcases"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -79,6 +81,83 @@ func TestContract_MarshalJSON(t *testing.T) {
 
 	data = []byte(`{"script":"ERROR","parameters":[1],"deployed":false}`)
 	require.Error(t, json.Unmarshal(data, &c))
+}
+
+func TestContractSignTx(t *testing.T) {
+	acc, err := NewAccount()
+	require.NoError(t, err)
+	require.True(t, acc.CanSign())
+
+	accNoContr := *acc
+	accNoContr.Contract = nil
+	tx := &transaction.Transaction{
+		Script: []byte{1, 2, 3},
+		Signers: []transaction.Signer{{
+			Account: acc.Contract.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		}},
+	}
+	require.Error(t, accNoContr.SignTx(0, tx))
+
+	acc2, err := NewAccount()
+	require.NoError(t, err)
+	require.True(t, acc2.CanSign())
+
+	require.Error(t, acc2.SignTx(0, tx))
+
+	pubs := keys.PublicKeys{acc.privateKey.PublicKey(), acc2.privateKey.PublicKey()}
+	multiS, err := smartcontract.CreateDefaultMultiSigRedeemScript(pubs)
+	require.NoError(t, err)
+	multiAcc := NewAccountFromPrivateKey(acc.privateKey)
+	require.NoError(t, multiAcc.ConvertMultisig(2, pubs))
+	multiAcc2 := NewAccountFromPrivateKey(acc2.privateKey)
+	require.NoError(t, multiAcc2.ConvertMultisig(2, pubs))
+
+	tx = &transaction.Transaction{
+		Script: []byte{1, 2, 3},
+		Signers: []transaction.Signer{{
+			Account: acc2.Contract.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		}, {
+			Account: acc.Contract.ScriptHash(),
+			Scopes:  transaction.None,
+		}, {
+			Account: hash.Hash160(multiS),
+			Scopes:  transaction.None,
+		}},
+	}
+	require.Error(t, acc.SignTx(0, tx)) // Can't append, no witness for acc2.
+
+	require.NoError(t, acc2.SignTx(0, tx)) // Append script for acc2.
+	require.Equal(t, 1, len(tx.Scripts))
+	require.Equal(t, 66, len(tx.Scripts[0].InvocationScript))
+
+	require.NoError(t, acc2.SignTx(0, tx)) // Sign again, effectively a no-op.
+	require.Equal(t, 1, len(tx.Scripts))
+	require.Equal(t, 66, len(tx.Scripts[0].InvocationScript))
+
+	acc2.Locked = true
+	require.False(t, acc2.CanSign())
+	require.Error(t, acc2.SignTx(0, tx)) // Locked account.
+
+	acc2.Locked = false
+	acc2.privateKey = nil
+	require.False(t, acc2.CanSign())
+	require.Error(t, acc2.SignTx(0, tx)) // No private key.
+
+	tx.Scripts = append(tx.Scripts, transaction.Witness{
+		VerificationScript: acc.Contract.Script,
+	})
+	require.NoError(t, acc.SignTx(0, tx)) // Add invocation script for existing witness.
+	require.Equal(t, 66, len(tx.Scripts[1].InvocationScript))
+
+	require.NoError(t, multiAcc.SignTx(0, tx))
+	require.Equal(t, 3, len(tx.Scripts))
+	require.Equal(t, 66, len(tx.Scripts[2].InvocationScript))
+
+	require.NoError(t, multiAcc2.SignTx(0, tx)) // Append to existing script.
+	require.Equal(t, 3, len(tx.Scripts))
+	require.Equal(t, 132, len(tx.Scripts[2].InvocationScript))
 }
 
 func TestContract_ScriptHash(t *testing.T) {

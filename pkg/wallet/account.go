@@ -84,31 +84,62 @@ func NewAccount() (*Account, error) {
 
 // SignTx signs transaction t and updates it's Witnesses.
 func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
-	if len(a.Contract.Parameters) == 0 {
-		if len(t.Signers) != len(t.Scripts) { // Sequential signing vs. existing scripts.
-			t.Scripts = append(t.Scripts, transaction.Witness{})
+	var (
+		haveAcc bool
+		pos     int
+		accHash util.Uint160
+		err     error
+	)
+	if a.Locked {
+		return errors.New("account is locked")
+	}
+	if a.Contract == nil {
+		return errors.New("account has no contract")
+	}
+	accHash, err = address.StringToUint160(a.Address)
+	if err != nil {
+		return err
+	}
+	for i := range t.Signers {
+		if t.Signers[i].Account.Equals(accHash) {
+			haveAcc = true
+			pos = i
+			break
 		}
+	}
+	if !haveAcc {
+		return errors.New("transaction is not signed by this account")
+	}
+	if len(t.Scripts) < pos {
+		return errors.New("transaction is not yet signed by the previous signer")
+	}
+	if len(t.Scripts) == pos {
+		t.Scripts = append(t.Scripts, transaction.Witness{
+			VerificationScript: a.Contract.Script, // Can be nil for deployed contract.
+		})
+	}
+	if len(a.Contract.Parameters) == 0 {
 		return nil
 	}
 	if a.privateKey == nil {
-		return errors.New("account is not unlocked")
+		return errors.New("account key is not available (need to decrypt?)")
 	}
 	sign := a.privateKey.SignHashable(uint32(net), t)
 
-	verif := a.GetVerificationScript()
 	invoc := append([]byte{byte(opcode.PUSHDATA1), 64}, sign...)
-	for i := range t.Scripts {
-		if bytes.Equal(t.Scripts[i].VerificationScript, verif) {
-			t.Scripts[i].InvocationScript = append(t.Scripts[i].InvocationScript, invoc...)
-			return nil
-		}
+	if len(a.Contract.Parameters) == 1 {
+		t.Scripts[pos].InvocationScript = invoc
+	} else {
+		t.Scripts[pos].InvocationScript = append(t.Scripts[pos].InvocationScript, invoc...)
 	}
-	t.Scripts = append(t.Scripts, transaction.Witness{
-		InvocationScript:   invoc,
-		VerificationScript: verif,
-	})
 
 	return nil
+}
+
+// CanSign returns true when account is not locked and has a decrypted private
+// key inside, so it's ready to create real signatures.
+func (a *Account) CanSign() bool {
+	return !a.Locked && a.privateKey != nil
 }
 
 // GetVerificationScript returns account's verification script.

@@ -160,6 +160,9 @@ func (c *Client) NNSUnpackedGetAllRecords(nnsHash util.Uint160, name string) ([]
 
 // GetNotaryServiceFeePerKey returns a reward per notary request key for the designated
 // notary nodes. It doesn't cache the result.
+//
+// Deprecated: please use the Notary contract wrapper from the notary subpackage. This
+// method will be removed in future versions.
 func (c *Client) GetNotaryServiceFeePerKey() (int64, error) {
 	notaryHash, err := c.GetNativeContractHash(nativenames.Notary)
 	if err != nil {
