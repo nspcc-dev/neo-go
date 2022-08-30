@@ -61,3 +61,12 @@ func (b *Base) Symbol() (string, error) {
 func (b *Base) TotalSupply() (*big.Int, error) {
 	return unwrap.BigInt(b.invoker.Call(b.hash, "totalSupply"))
 }
+
+// BalanceOf returns the token balance of the given account. For NEP-17 that's
+// the token balance with decimals (1 TOK with 2 decimals will lead to 100
+// returned from this method). For non-divisible NEP-11 that's the number of
+// NFTs owned by the account, for divisible NEP-11 that's the sum of the parts
+// of all NFTs owned by the account.
+func (b *Base) BalanceOf(account util.Uint160) (*big.Int, error) {
+	return unwrap.BigInt(b.invoker.Call(b.hash, "balanceOf", account))
+}

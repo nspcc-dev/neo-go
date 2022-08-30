@@ -36,6 +36,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neptoken"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/notary"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/oracle"
@@ -83,7 +84,7 @@ func TestClient_NEP17(t *testing.T) {
 		require.Equal(t, "RUB", sym)
 	})
 	t.Run("TokenInfo", func(t *testing.T) {
-		tok, err := c.NEP17TokenInfo(h)
+		tok, err := neptoken.Info(c, h)
 		require.NoError(t, err)
 		require.Equal(t, h, tok.Hash)
 		require.Equal(t, "Rubl", tok.Name)
@@ -1377,7 +1378,7 @@ func TestClient_NEP11_ND(t *testing.T) {
 		require.Equal(t, "NNS", sym)
 	})
 	t.Run("TokenInfo", func(t *testing.T) {
-		tok, err := c.NEP11TokenInfo(h)
+		tok, err := neptoken.Info(c, h)
 		require.NoError(t, err)
 		require.Equal(t, &wallet.Token{
 			Name:     "NameService",
@@ -1463,7 +1464,7 @@ func TestClient_NEP11_D(t *testing.T) {
 		require.Equal(t, "NFSO", sym)
 	})
 	t.Run("TokenInfo", func(t *testing.T) {
-		tok, err := c.NEP11TokenInfo(nfsoHash)
+		tok, err := neptoken.Info(c, nfsoHash)
 		require.NoError(t, err)
 		require.Equal(t, &wallet.Token{
 			Name:     "NeoFS Object NFT",

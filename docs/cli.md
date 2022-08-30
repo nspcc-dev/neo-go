@@ -403,9 +403,10 @@ Getting balance is easy:
 ./bin/neo-go wallet nep17 balance -w /etc/neo-go/wallet.json -r http://localhost:20332
 ```
 
-By default, you'll get data for all tokens for the default wallet's
-address. You can select non-default address with `-a` flag and/or select token
-with `--token` flag (token hash or name can be used as parameter).
+By default, you'll get data for all tokens that are owned by all accounts
+stored in the given wallet. You can specify a particular address with `-a`
+flag and/or select token with `--token` flag (token hash, address, name or
+symbol can be used as a parameter).
 
 #### Transfers
 
@@ -455,13 +456,13 @@ commands with the following adjustments.
 
 #### Balance
 
-Specify token ID via `--id` flag to call divisible NEP-11 `balanceOf` method:
+Specify token ID via `--id` flag to get data for a particular NFT:
 
 ```
-./bin/neo-go wallet nep11 balance -w /etc/neo-go/wallet.json --token 67ecb7766dba4acf7c877392207984d1b4d15731 --id R5OREI5BU+Uyd23/MuV/xzI3F+Q= -r http://localhost:20332
+./bin/neo-go wallet nep11 balance -w /etc/neo-go/wallet.json --token 67ecb7766dba4acf7c877392207984d1b4d15731 --id 7e244ffd6aa85fb1579d2ed22e9b761ab62e3486 -r http://localhost:20332
 ```
 
-By default, no token ID specified, i.e. common `balanceOf` method is called.
+By default, no token ID specified, i.e all NFTs returned by the server are listed.
 
 #### Transfers
 

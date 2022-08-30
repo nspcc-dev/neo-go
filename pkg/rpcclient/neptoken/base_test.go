@@ -31,6 +31,8 @@ func TestBaseErrors(t *testing.T) {
 	require.Error(t, err)
 	_, err = base.TotalSupply()
 	require.Error(t, err)
+	_, err = base.BalanceOf(util.Uint160{1, 2, 3})
+	require.Error(t, err)
 
 	ti.err = nil
 	ti.res = &result.Invoke{
@@ -43,6 +45,8 @@ func TestBaseErrors(t *testing.T) {
 	require.Error(t, err)
 	_, err = base.TotalSupply()
 	require.Error(t, err)
+	_, err = base.BalanceOf(util.Uint160{1, 2, 3})
+	require.Error(t, err)
 
 	ti.res = &result.Invoke{
 		State: "HALT",
@@ -52,6 +56,8 @@ func TestBaseErrors(t *testing.T) {
 	_, err = base.Symbol()
 	require.Error(t, err)
 	_, err = base.TotalSupply()
+	require.Error(t, err)
+	_, err = base.BalanceOf(util.Uint160{1, 2, 3})
 	require.Error(t, err)
 }
 
@@ -133,5 +139,29 @@ func TestBaseTotalSupply(t *testing.T) {
 		},
 	}
 	_, err = base.TotalSupply()
+	require.Error(t, err)
+}
+
+func TestBaseBalanceOf(t *testing.T) {
+	ti := new(testInv)
+	base := New(ti, util.Uint160{1, 2, 3})
+
+	ti.res = &result.Invoke{
+		State: "HALT",
+		Stack: []stackitem.Item{
+			stackitem.Make(100500),
+		},
+	}
+	bal, err := base.BalanceOf(util.Uint160{1, 2, 3})
+	require.NoError(t, err)
+	require.Equal(t, big.NewInt(100500), bal)
+
+	ti.res = &result.Invoke{
+		State: "HALT",
+		Stack: []stackitem.Item{
+			stackitem.Make([]stackitem.Item{}),
+		},
+	}
+	_, err = base.BalanceOf(util.Uint160{1, 2, 3})
 	require.Error(t, err)
 }

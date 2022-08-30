@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
@@ -20,10 +21,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/gas"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neptoken"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -99,8 +100,21 @@ func newNEP17Commands() []cli.Command {
 			Name:      "balance",
 			Usage:     "get address balance",
 			UsageText: "balance -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>]",
-			Action:    getNEP17Balance,
-			Flags:     balanceFlags,
+			Description: `Prints NEP-17 balances for address and tokens specified. By default (no
+   address or token parameter) all tokens for all accounts in the specified wallet
+   are listed. A single account can be chosen with the address option and/or a
+   single token can be selected with the token option. Tokens can be specified
+   by hash, address, name or symbol. Hashes and addresses always work (as long
+   as they belong to a correct NEP-17 contract), while names or symbols (if
+   they're not NEO or GAS names/symbols) are matched against the token data
+   stored in the wallet (see import command) or balance data returned from the
+   server. If the token is not specified directly (with hash/address) and is
+   not found in the wallet then depending on the balances data from the server
+   this command can print no data at all or print multiple tokens for one
+   account (if they use the same names/symbols).
+`,
+			Action: getNEP17Balance,
+			Flags:  balanceFlags,
 		},
 		{
 			Name:      "import",
@@ -156,7 +170,49 @@ func newNEP17Commands() []cli.Command {
 	}
 }
 
+func tokenMatch(curToken *wallet.Token, expToken *wallet.Token, name string) bool {
+	return name == "" || // No specification at all, everything matches.
+		(expToken != nil && expToken.Hash == curToken.Hash) || // Exact token specification, matches perfectly.
+		(expToken == nil && name != "" && (curToken.Name == name || curToken.Symbol == name)) // Loose (named non-native) token specification, best-effort.
+}
+
 func getNEP17Balance(ctx *cli.Context) error {
+	return getNEPBalance(ctx, manifest.NEP17StandardName, func(ctx *cli.Context, c *rpcclient.Client, addrHash util.Uint160, name string, token *wallet.Token, _ string) error {
+		balances, err := c.GetNEP17Balances(addrHash)
+		if err != nil {
+			return err
+		}
+
+		var tokenFound bool
+		for i := range balances.Balances {
+			curToken := tokenFromNEP17Balance(&balances.Balances[i])
+			if tokenMatch(curToken, token, name) {
+				printAssetBalance(ctx, balances.Balances[i])
+				tokenFound = true
+			}
+		}
+		if name == "" || tokenFound {
+			return nil
+		}
+		if token != nil {
+			// We have an exact token, but there is no balance data for it -> print 0.
+			printAssetBalance(ctx, result.NEP17Balance{
+				Asset:       token.Hash,
+				Amount:      "0",
+				Decimals:    int(token.Decimals),
+				LastUpdated: 0,
+				Name:        token.Name,
+				Symbol:      token.Symbol,
+			})
+		} else {
+			// We have no data for this token at all, maybe it's not even correct -> complain.
+			fmt.Fprintf(ctx.App.Writer, "Can't find data for %q token\n", name)
+		}
+		return nil
+	})
+}
+
+func getNEPBalance(ctx *cli.Context, standard string, accHandler func(*cli.Context, *rpcclient.Client, util.Uint160, string, *wallet.Token, string) error) error {
 	var accounts []*wallet.Account
 
 	if err := cmdargs.EnsureNone(ctx); err != nil {
@@ -191,15 +247,48 @@ func getNEP17Balance(ctx *cli.Context) error {
 	}
 
 	name := ctx.String("token")
+	var token *wallet.Token
 
+	if name != "" {
+		// Token was explicitly specified, let's try finding it, search in the wallet first.
+		token, err = getMatchingToken(ctx, wall, name, standard)
+		if err != nil {
+			var h util.Uint160
+
+			// Well-known hardcoded names/symbols.
+			if standard == manifest.NEP17StandardName && (name == nativenames.Neo || name == "NEO") {
+				h = neo.Hash
+			} else if standard == manifest.NEP17StandardName && (name == nativenames.Gas || name == "GAS") {
+				h = gas.Hash
+			} else {
+				// The last resort, maybe it's a direct hash or address.
+				h, _ = flags.ParseAddress(name)
+			}
+			// If the hash is not found then it's some kind of named token, there is
+			// no way for us to find it, but it's not an error, maybe we'll find it
+			// in balances.
+			if !h.Equals(util.Uint160{}) {
+				// But if we have an exact hash, it must be correct.
+				token, err = getTokenWithStandard(c, h, standard)
+				if err != nil {
+					return cli.NewExitError(fmt.Errorf("%q is not a valid NEP-17 token: %w", name, err), 1)
+				}
+			}
+		}
+	}
+	tokenID := ctx.String("id")
+	if standard == manifest.NEP11StandardName {
+		if len(tokenID) > 0 {
+			_, err = hex.DecodeString(tokenID)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("invalid token ID: %w", err), 1)
+			}
+		}
+	}
 	for k, acc := range accounts {
 		addrHash, err := address.StringToUint160(acc.Address)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid account address: %w", err), 1)
-		}
-		balances, err := c.GetNEP17Balances(addrHash)
-		if err != nil {
-			return cli.NewExitError(err, 1)
 		}
 
 		if k != 0 {
@@ -207,91 +296,27 @@ func getNEP17Balance(ctx *cli.Context) error {
 		}
 		fmt.Fprintf(ctx.App.Writer, "Account %s\n", acc.Address)
 
-		var tokenFound bool
-		for i := range balances.Balances {
-			var tokenName, tokenSymbol string
-			tokenDecimals := 0
-			asset := balances.Balances[i].Asset
-			token, err := getMatchingToken(ctx, wall, asset.StringLE(), manifest.NEP17StandardName)
-			if err != nil {
-				token, err = c.NEP17TokenInfo(asset)
-			}
-			if err == nil {
-				if name != "" && !(token.Name == name || token.Symbol == name || token.Address() == name || token.Hash.StringLE() == name) {
-					continue
-				}
-				tokenName = token.Name
-				tokenSymbol = token.Symbol
-				tokenDecimals = int(token.Decimals)
-				tokenFound = true
-			} else {
-				if name != "" {
-					continue
-				}
-				tokenSymbol = "UNKNOWN"
-			}
-			printAssetBalance(ctx, asset, tokenName, tokenSymbol, tokenDecimals, balances.Balances[i])
-		}
-		if name == "" || tokenFound {
-			continue
-		}
-		// Token was explicitly specified, but was not found among balances, thus either balance is 0
-		// or the token doesn't exist. Try to find token by its address/hash/name/symbol and print zero
-		// balance if found. Search into wallet first.
-		token, err := getMatchingToken(ctx, wall, name, manifest.NEP17StandardName)
+		err = accHandler(ctx, c, addrHash, name, token, tokenID)
 		if err != nil {
-			// The wallet doesn't contain specified token, so try to ask chain.
-			h, err := flags.ParseAddress(name)
-			if err != nil {
-				h, err = c.GetNativeContractHash(name)
-				if err != nil {
-					// Try to get native NEP17 with matching symbol.
-					var gasSymbol, neoSymbol string
-					g := gas.NewReader(invoker.New(c, nil))
-					gasSymbol, err = g.Symbol()
-					if err != nil {
-						continue
-					}
-					if gasSymbol != name {
-						n := neo.NewReader(invoker.New(c, nil))
-						neoSymbol, err = n.Symbol()
-						if err != nil {
-							continue
-						}
-						if neoSymbol != name {
-							continue
-						} else {
-							h = neo.Hash
-						}
-					} else {
-						h = gas.Hash
-					}
-				}
-			}
-			token, err = c.NEP17TokenInfo(h)
-			if err != nil {
-				continue
-			}
+			return cli.NewExitError(err, 1)
 		}
-		printAssetBalance(ctx, token.Hash, token.Name, token.Symbol, int(token.Decimals), result.NEP17Balance{
-			Asset:       token.Hash,
-			Amount:      "0",
-			LastUpdated: 0,
-		})
 	}
 	return nil
 }
 
-func printAssetBalance(ctx *cli.Context, asset util.Uint160, tokenName, tokenSymbol string, tokenDecimals int, balance result.NEP17Balance) {
-	fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", tokenSymbol, tokenName, asset.StringLE())
-	amount := balance.Amount
-	if tokenDecimals != 0 {
+func decimalAmount(amount string, decimals int) string {
+	if decimals != 0 {
 		b, ok := new(big.Int).SetString(amount, 10)
 		if ok {
-			amount = fixedn.ToString(b, tokenDecimals)
+			amount = fixedn.ToString(b, decimals)
 		}
 	}
-	fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", amount)
+	return amount
+}
+
+func printAssetBalance(ctx *cli.Context, balance result.NEP17Balance) {
+	fmt.Fprintf(ctx.App.Writer, "%s: %s (%s)\n", balance.Symbol, balance.Name, balance.Asset.StringLE())
+	fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", decimalAmount(balance.Amount, balance.Decimals))
 	fmt.Fprintf(ctx.App.Writer, "\tUpdated: %d\n", balance.LastUpdated)
 }
 
@@ -299,6 +324,14 @@ func getMatchingToken(ctx *cli.Context, w *wallet.Wallet, name string, standard 
 	return getMatchingTokenAux(ctx, func(i int) *wallet.Token {
 		return w.Extra.Tokens[i]
 	}, len(w.Extra.Tokens), name, standard)
+}
+
+func tokenFromNEP17Balance(bal *result.NEP17Balance) *wallet.Token {
+	return wallet.NewToken(bal.Asset, bal.Name, bal.Symbol, int64(bal.Decimals), manifest.NEP17StandardName)
+}
+
+func tokenFromNEP11Balance(bal *result.NEP11AssetBalance) *wallet.Token {
+	return wallet.NewToken(bal.Asset, bal.Name, bal.Symbol, int64(bal.Decimals), manifest.NEP11StandardName)
 }
 
 func getMatchingTokenRPC(ctx *cli.Context, c *rpcclient.Client, addr util.Uint160, name string, standard string) (*wallet.Token, error) {
@@ -309,20 +342,18 @@ func getMatchingTokenRPC(ctx *cli.Context, c *rpcclient.Client, addr util.Uint16
 			return nil, err
 		}
 		get := func(i int) *wallet.Token {
-			t, _ := c.NEP17TokenInfo(bs.Balances[i].Asset)
-			return t
+			return tokenFromNEP17Balance(&bs.Balances[i])
 		}
 		return getMatchingTokenAux(ctx, get, len(bs.Balances), name, standard)
 	case manifest.NEP11StandardName:
-		tokenHash, err := flags.ParseAddress(name)
+		bs, err := c.GetNEP11Balances(addr)
 		if err != nil {
-			return nil, fmt.Errorf("valid token adress or hash in LE should be specified for %s RPC-node request: %s", standard, err.Error())
+			return nil, err
 		}
 		get := func(i int) *wallet.Token {
-			t, _ := c.NEP11TokenInfo(tokenHash)
-			return t
+			return tokenFromNEP11Balance(&bs.Balances[i])
 		}
-		return getMatchingTokenAux(ctx, get, 1, name, standard)
+		return getMatchingTokenAux(ctx, get, len(bs.Balances), name, standard)
 	default:
 		return nil, fmt.Errorf("unsupported %s token", standard)
 	}
@@ -383,15 +414,7 @@ func importNEPToken(ctx *cli.Context, standard string) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	var tok *wallet.Token
-	switch standard {
-	case manifest.NEP17StandardName:
-		tok, err = c.NEP17TokenInfo(tokenHash)
-	case manifest.NEP11StandardName:
-		tok, err = c.NEP11TokenInfo(tokenHash)
-	default:
-		return cli.NewExitError(fmt.Sprintf("unsupported token standard: %s", standard), 1)
-	}
+	tok, err := getTokenWithStandard(c, tokenHash, standard)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't receive token info: %w", err), 1)
 	}
@@ -402,6 +425,17 @@ func importNEPToken(ctx *cli.Context, standard string) error {
 	}
 	printTokenInfo(ctx, tok)
 	return nil
+}
+
+func getTokenWithStandard(c *rpcclient.Client, hash util.Uint160, std string) (*wallet.Token, error) {
+	token, err := neptoken.Info(c, hash)
+	if err != nil {
+		return nil, err
+	}
+	if token.Standard != std {
+		return nil, fmt.Errorf("%s is not a %s token", hash.StringLE(), std)
+	}
+	return token, err
 }
 
 func printTokenInfo(ctx *cli.Context, tok *wallet.Token) {

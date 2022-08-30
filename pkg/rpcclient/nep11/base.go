@@ -86,12 +86,6 @@ func NewBase(actor Actor, hash util.Uint160) *Base {
 	return &Base{*NewBaseReader(actor, hash), actor}
 }
 
-// BalanceOf returns the number of NFTs owned by the given account. For divisible
-// NFTs that's the sum of all parts of tokens.
-func (t *BaseReader) BalanceOf(account util.Uint160) (*big.Int, error) {
-	return unwrap.BigInt(t.invoker.Call(t.hash, "balanceOf", account))
-}
-
 // Properties returns a set of token's properties such as name or URL. The map
 // is returned as is from this method (stack item) for maximum flexibility,
 // contracts can return a lot of specific data there. Most of the time though

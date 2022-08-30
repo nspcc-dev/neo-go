@@ -12,7 +12,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neptoken"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -35,15 +34,13 @@ type Actor interface {
 // used to query various data.
 type TokenReader struct {
 	neptoken.Base
-
-	invoker Invoker
-	hash    util.Uint160
 }
 
 // Token provides full NEP-17 interface, both safe and state-changing methods.
 type Token struct {
 	TokenReader
 
+	hash  util.Uint160
 	actor Actor
 }
 
@@ -62,21 +59,16 @@ type TransferParameters struct {
 	Data   interface{}
 }
 
-// NewReader creates an instance of TokenReader for contract with the given hash
-// using the given Invoker.
+// NewReader creates an instance of TokenReader for contract with the given
+// hash using the given Invoker.
 func NewReader(invoker Invoker, hash util.Uint160) *TokenReader {
-	return &TokenReader{*neptoken.New(invoker, hash), invoker, hash}
+	return &TokenReader{*neptoken.New(invoker, hash)}
 }
 
 // New creates an instance of Token for contract with the given hash
 // using the given Actor.
 func New(actor Actor, hash util.Uint160) *Token {
-	return &Token{*NewReader(actor, hash), actor}
-}
-
-// BalanceOf returns the token balance of the given account.
-func (t *TokenReader) BalanceOf(account util.Uint160) (*big.Int, error) {
-	return unwrap.BigInt(t.invoker.Call(t.hash, "balanceOf", account))
+	return &Token{*NewReader(actor, hash), hash, actor}
 }
 
 // Transfer creates and sends a transaction that performs a `transfer` method
