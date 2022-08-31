@@ -8,7 +8,6 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/urfave/cli"
 )
 
@@ -29,7 +28,9 @@ func signStoredTransaction(ctx *cli.Context) error {
 	if !addrFlag.IsSet {
 		return cli.NewExitError("address was not provided", 1)
 	}
-	acc, err := getDecryptedAccount(wall, addrFlag.Uint160(), pass)
+
+	var ch = addrFlag.Uint160()
+	acc, err := getDecryptedAccount(wall, ch, pass)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -39,10 +40,6 @@ func signStoredTransaction(ctx *cli.Context) error {
 		return cli.NewExitError("verifiable item is not a transaction", 1)
 	}
 
-	ch, err := address.StringToUint160(acc.Address)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("wallet contains invalid account: %s", acc.Address), 1)
-	}
 	signerFound := false
 	for i := range tx.Signers {
 		if tx.Signers[i].Account == ch {
