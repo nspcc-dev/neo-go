@@ -271,7 +271,7 @@ func getNEPBalance(ctx *cli.Context, standard string, accHandler func(*cli.Conte
 				// But if we have an exact hash, it must be correct.
 				token, err = getTokenWithStandard(c, h, standard)
 				if err != nil {
-					return cli.NewExitError(fmt.Errorf("%q is not a valid NEP-17 token: %w", name, err), 1)
+					return cli.NewExitError(fmt.Errorf("%q is not a valid %s token: %w", name, standard, err), 1)
 				}
 			}
 		}
