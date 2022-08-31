@@ -630,6 +630,36 @@ func TestWalletImportDeployed(t *testing.T) {
 	})
 }
 
+func TestStripKeys(t *testing.T) {
+	e := newExecutor(t, true)
+	tmpDir := t.TempDir()
+	walletPath := filepath.Join(tmpDir, "wallet.json")
+	e.In.WriteString("acc1\r")
+	e.In.WriteString("pass\r")
+	e.In.WriteString("pass\r")
+	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath, "--account")
+	w1, err := wallet.NewWalletFromFile(walletPath)
+	require.NoError(t, err)
+
+	e.RunWithError(t, "neo-go", "wallet", "strip-keys", "--wallet", walletPath, "something")
+	e.RunWithError(t, "neo-go", "wallet", "strip-keys", "--wallet", walletPath+".bad")
+
+	e.In.WriteString("no")
+	e.Run(t, "neo-go", "wallet", "strip-keys", "--wallet", walletPath)
+	w2, err := wallet.NewWalletFromFile(walletPath)
+	require.NoError(t, err)
+	require.Equal(t, w1, w2)
+
+	e.In.WriteString("y\r")
+	e.Run(t, "neo-go", "wallet", "strip-keys", "--wallet", walletPath)
+	e.Run(t, "neo-go", "wallet", "strip-keys", "--wallet", walletPath, "--force") // Does nothing effectively, but tests the force flag.
+	w3, err := wallet.NewWalletFromFile(walletPath)
+	require.NoError(t, err)
+	for _, a := range w3.Accounts {
+		require.Equal(t, "", a.EncryptedWIF)
+	}
+}
+
 func TestWalletDump(t *testing.T) {
 	e := newExecutor(t, false)
 

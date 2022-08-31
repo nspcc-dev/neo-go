@@ -272,6 +272,11 @@ transactions for this multisignature account with the imported key.
 contracts. They also can have WIF keys associated with them (in case your
 contract's `verify` method needs some signature).
 
+#### Strip keys from accounts
+`wallet strip-keys` allows you to remove private keys from the wallet, but let
+it be used for other purposes (like creating transactions for subsequent
+offline signing). Use with care, don't lose your keys with it.
+
 ### Neo voting
 `wallet candidate` provides commands to register or unregister a committee
 (and therefore validator) candidate key:

@@ -293,6 +293,23 @@ func NewCommands() []cli.Command {
 				Flags:  signFlags,
 			},
 			{
+				Name:      "strip-keys",
+				Usage:     "remove private keys for all accounts",
+				UsageText: "neo-go wallet strip-keys -w wallet [--wallet-config path] [--force]",
+				Description: `Removes private keys for all accounts from the given wallet. Notice,
+   this is a very dangerous action (you can lose keys if you don't have a wallet
+   backup) that should not be performed unless you know what you're doing. It's
+   mostly useful for creation of special wallets that can be used to create
+   transactions, but can't be used to sign them (offline signing).
+`,
+				Action: stripKeys,
+				Flags: []cli.Flag{
+					walletPathFlag,
+					walletConfigFlag,
+					forceFlag,
+				},
+			},
+			{
 				Name:        "nep17",
 				Usage:       "work with NEP-17 contracts",
 				Subcommands: newNEP17Commands(),
@@ -772,6 +789,29 @@ func dumpKeys(ctx *cli.Context) error {
 		if addrFlag.IsSet {
 			return cli.NewExitError(fmt.Errorf("unknown script type for address %s", address.Uint160ToString(addrFlag.Uint160())), 1)
 		}
+	}
+	return nil
+}
+
+func stripKeys(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
+	wall, _, err := readWallet(ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	if !ctx.Bool("force") {
+		fmt.Fprintln(ctx.App.Writer, "All private keys for all accounts will be removed from the wallet. This action is irreversible.")
+		if ok := askForConsent(ctx.App.Writer); !ok {
+			return nil
+		}
+	}
+	for _, a := range wall.Accounts {
+		a.EncryptedWIF = ""
+	}
+	if err := wall.Save(); err != nil {
+		return cli.NewExitError(fmt.Errorf("error while saving wallet: %w", err), 1)
 	}
 	return nil
 }
