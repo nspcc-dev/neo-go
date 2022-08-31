@@ -65,9 +65,9 @@ func (c *ParameterContext) GetWitness(h util.Uint160) (*transaction.Witness, err
 	bw := io.NewBufBinWriter()
 	for i := range item.Parameters {
 		if item.Parameters[i].Type != smartcontract.SignatureType {
-			return nil, errors.New("only signature parameters are supported")
+			return nil, fmt.Errorf("unsupported %s parameter #%d", item.Parameters[i].Type.String(), i)
 		} else if item.Parameters[i].Value == nil {
-			return nil, errors.New("nil parameter")
+			return nil, fmt.Errorf("no value for parameter #%d (not signed yet?)", i)
 		}
 		emit.Bytes(bw.BinWriter, item.Parameters[i].Value.([]byte))
 	}
