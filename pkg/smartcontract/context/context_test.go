@@ -96,24 +96,38 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 	sig := priv.SignHashable(uint32(c.Network), tx)
 	require.Error(t, c.AddSignature(ctr.ScriptHash(), ctr, priv.PublicKey(), sig))
 
-	indices := []int{2, 3, 0} // random order
-	for _, i := range indices {
-		sig := privs[i].SignHashable(uint32(c.Network), tx)
-		require.NoError(t, c.AddSignature(ctr.ScriptHash(), ctr, pubs[i], sig))
-		require.Error(t, c.AddSignature(ctr.ScriptHash(), ctr, pubs[i], sig))
+	indices := []int{2, 3, 0, 1} // random order
+	testSigWit := func(t *testing.T, num int) {
+		for _, i := range indices[:num] {
+			sig := privs[i].SignHashable(uint32(c.Network), tx)
+			require.NoError(t, c.AddSignature(ctr.ScriptHash(), ctr, pubs[i], sig))
+			require.Error(t, c.AddSignature(ctr.ScriptHash(), ctr, pubs[i], sig))
 
-		item := c.Items[ctr.ScriptHash()]
-		require.NotNil(t, item)
-		require.Equal(t, sig, item.GetSignature(pubs[i]))
+			item := c.Items[ctr.ScriptHash()]
+			require.NotNil(t, item)
+			require.Equal(t, sig, item.GetSignature(pubs[i]))
+		}
+
+		t.Run("GetWitness", func(t *testing.T) {
+			w, err := c.GetWitness(ctr.ScriptHash())
+			require.NoError(t, err)
+			v := newTestVM(w, tx)
+			require.NoError(t, v.Run())
+			require.Equal(t, 1, v.Estack().Len())
+			require.Equal(t, true, v.Estack().Pop().Value())
+		})
 	}
-
-	t.Run("GetWitness", func(t *testing.T) {
-		w, err := c.GetWitness(ctr.ScriptHash())
-		require.NoError(t, err)
-		v := newTestVM(w, tx)
-		require.NoError(t, v.Run())
-		require.Equal(t, 1, v.Estack().Len())
-		require.Equal(t, true, v.Estack().Pop().Value())
+	t.Run("exact number of sigs", func(t *testing.T) {
+		testSigWit(t, 3)
+	})
+	t.Run("larger number of sigs", func(t *testing.T) {
+		// Clean up.
+		var itm = c.Items[ctr.ScriptHash()]
+		for i := range itm.Parameters {
+			itm.Parameters[i].Value = nil
+		}
+		itm.Signatures = make(map[string][]byte)
+		testSigWit(t, 4)
 	})
 }
 

@@ -96,14 +96,19 @@ func (c *ParameterContext) AddSignature(h util.Uint160, ctr *wallet.Contract, pu
 			return errors.New("public key is not present in script")
 		}
 		item.AddSignature(pub, sig)
-		if len(item.Signatures) == len(ctr.Parameters) {
+		if len(item.Signatures) >= len(ctr.Parameters) {
 			indexMap := map[string]int{}
 			for i := range pubs {
 				indexMap[hex.EncodeToString(pubs[i])] = i
 			}
-			sigs := make([]sigWithIndex, 0, len(item.Signatures))
+			sigs := make([]sigWithIndex, len(item.Parameters))
+			var i int
 			for pub, sig := range item.Signatures {
-				sigs = append(sigs, sigWithIndex{index: indexMap[pub], sig: sig})
+				sigs[i] = sigWithIndex{index: indexMap[pub], sig: sig}
+				i++
+				if i == len(sigs) {
+					break
+				}
 			}
 			sort.Slice(sigs, func(i, j int) bool {
 				return sigs[i].index < sigs[j].index
