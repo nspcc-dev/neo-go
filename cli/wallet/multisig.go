@@ -57,10 +57,14 @@ func signStoredTransaction(ctx *cli.Context) error {
 		return cli.NewExitError("tx signers don't contain provided account", 1)
 	}
 
-	priv := acc.PrivateKey()
-	sign := priv.SignHashable(uint32(pc.Network), tx)
-	if err := pc.AddSignature(ch, acc.Contract, priv.PublicKey(), sign); err != nil {
-		return cli.NewExitError(fmt.Errorf("can't add signature: %w", err), 1)
+	if acc.CanSign() {
+		priv := acc.PrivateKey()
+		sign := priv.SignHashable(uint32(pc.Network), pc.Verifiable)
+		if err := pc.AddSignature(ch, acc.Contract, priv.PublicKey(), sign); err != nil {
+			return cli.NewExitError(fmt.Errorf("can't add signature: %w", err), 1)
+		}
+	} else if rpcNode == "" {
+		return cli.NewExitError(fmt.Errorf("can't sign transactions with the given account and no RPC endpoing given to send anything signed"), 1)
 	}
 	// Not saving and not sending, print.
 	if out == "" && rpcNode == "" {
@@ -77,12 +81,9 @@ func signStoredTransaction(ctx *cli.Context) error {
 		}
 	}
 	if rpcNode != "" {
-		for i := range tx.Signers {
-			w, err := pc.GetWitness(tx.Signers[i].Account)
-			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to construct witness for signer #%d: %w", i, err), 1)
-			}
-			tx.Scripts = append(tx.Scripts, *w)
+		tx, err = pc.GetCompleteTransaction()
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to complete transaction: %w", err), 1)
 		}
 
 		gctx, cancel := options.GetTimeoutContext(ctx)

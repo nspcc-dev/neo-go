@@ -56,6 +56,24 @@ func NewParameterContext(typ string, network netmode.Magic, verif crypto.Verifia
 	}
 }
 
+func (c *ParameterContext) GetCompleteTransaction() (*transaction.Transaction, error) {
+	tx, ok := c.Verifiable.(*transaction.Transaction)
+	if !ok {
+		return nil, errors.New("verifiable item is not a transaction")
+	}
+	if len(tx.Scripts) > 0 {
+		tx.Scripts = tx.Scripts[:0]
+	}
+	for i := range tx.Signers {
+		w, err := c.GetWitness(tx.Signers[i].Account)
+		if err != nil {
+			return nil, fmt.Errorf("can't create witness for signer #%d: %w", i, err)
+		}
+		tx.Scripts = append(tx.Scripts, *w)
+	}
+	return tx, nil
+}
+
 // GetWitness returns invocation and verification scripts for the specified contract.
 func (c *ParameterContext) GetWitness(h util.Uint160) (*transaction.Witness, error) {
 	item, ok := c.Items[h]

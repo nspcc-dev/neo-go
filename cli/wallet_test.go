@@ -660,6 +660,98 @@ func TestStripKeys(t *testing.T) {
 	}
 }
 
+func TestOfflineSigning(t *testing.T) {
+	e := newExecutor(t, true)
+	tmpDir := t.TempDir()
+	walletPath := filepath.Join(tmpDir, "wallet.json")
+	txPath := filepath.Join(tmpDir, "tx.json")
+
+	// Copy wallet.
+	w, err := wallet.NewWalletFromFile(validatorWallet)
+	require.NoError(t, err)
+	jOut, err := w.JSON()
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(walletPath, jOut, 0644))
+
+	// And remove keys from it.
+	e.Run(t, "neo-go", "wallet", "strip-keys", "--wallet", walletPath, "--force")
+
+	t.Run("1/1 multisig", func(t *testing.T) {
+		args := []string{"neo-go", "wallet", "nep17", "transfer",
+			"--rpc-endpoint", "http://" + e.RPC.Addr,
+			"--wallet", walletPath,
+			"--from", validatorAddr,
+			"--to", w.Accounts[0].Address,
+			"--token", "NEO",
+			"--amount", "1",
+			"--force",
+		}
+		// walletPath has no keys, so this can't be sent.
+		e.RunWithError(t, args...)
+		// But can be saved.
+		e.Run(t, append(args, "--out", txPath)...)
+		// It can't be signed with the original wallet.
+		e.RunWithError(t, "neo-go", "wallet", "sign",
+			"--wallet", walletPath, "--address", validatorAddr,
+			"--in", txPath, "--out", txPath)
+		t.Run("sendtx", func(t *testing.T) {
+			// And it can't be sent.
+			e.RunWithError(t, "neo-go", "util", "sendtx",
+				"--rpc-endpoint", "http://"+e.RPC.Addr,
+				txPath)
+			// Even with too many arguments.
+			e.RunWithError(t, "neo-go", "util", "sendtx",
+				"--rpc-endpoint", "http://"+e.RPC.Addr,
+				txPath, txPath)
+			// Or no arguments at all.
+			e.RunWithError(t, "neo-go", "util", "sendtx",
+				"--rpc-endpoint", "http://"+e.RPC.Addr)
+		})
+		// But it can be signed with a proper wallet.
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "wallet", "sign",
+			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--in", txPath, "--out", txPath)
+		// And then anyone can send (even via wallet sign).
+		e.Run(t, "neo-go", "wallet", "sign",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", walletPath, "--address", validatorAddr,
+			"--in", txPath)
+	})
+	e.checkTxPersisted(t)
+	t.Run("simple signature", func(t *testing.T) {
+		simpleAddr := w.Accounts[0].Address
+		args := []string{"neo-go", "wallet", "nep17", "transfer",
+			"--rpc-endpoint", "http://" + e.RPC.Addr,
+			"--wallet", walletPath,
+			"--from", simpleAddr,
+			"--to", validatorAddr,
+			"--token", "NEO",
+			"--amount", "1",
+			"--force",
+		}
+		// walletPath has no keys, so this can't be sent.
+		e.RunWithError(t, args...)
+		// But can be saved.
+		e.Run(t, append(args, "--out", txPath)...)
+		// It can't be signed with the original wallet.
+		e.RunWithError(t, "neo-go", "wallet", "sign",
+			"--wallet", walletPath, "--address", simpleAddr,
+			"--in", txPath, "--out", txPath)
+		// But can be with a proper one.
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "wallet", "sign",
+			"--wallet", validatorWallet, "--address", simpleAddr,
+			"--in", txPath, "--out", txPath)
+		// Sending without an RPC node is not likely to succeed.
+		e.RunWithError(t, "neo-go", "util", "sendtx", txPath)
+		// But it requires no wallet at all.
+		e.Run(t, "neo-go", "util", "sendtx",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			txPath)
+	})
+}
+
 func TestWalletDump(t *testing.T) {
 	e := newExecutor(t, false)
 

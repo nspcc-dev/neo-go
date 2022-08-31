@@ -382,6 +382,67 @@ $ ./bin/neo-go query voter -r http://localhost:20332 Nj91C8TxQSxW1jCE1ytFre6mg5q
         Block: 3970
 ```
 
+### Transaction signing
+
+`wallet sign` command allows to sign arbitary transactions stored in JSON
+format (also known as ContractParametersContext). Usually it's used in one of
+the two cases: multisignature signing (when you don't have all keys for an
+account and need to share the context with others until enough signatures
+collected) or offline signing (when the node with a key is completely offline
+and can't interact with the RPC node directly).
+
+#### Multisignature collection
+
+For example, you have a four-node default network setup and want to set some
+key for the oracle role, you create transaction with:
+
+```
+$ neo-go contract invokefunction -w .docker/wallets/wallet1.json --out some.part.json -a NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq -r http://localhost:30333 0x49cf4e5378ffcd4dec034fd98a174c5491e395e2 designateAsRole 8 \[ 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2 \] -- NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq:CalledByEntry
+```
+
+And then sign it with two more keys:
+```
+$ neo-go wallet sign -w .docker/wallets/wallet2.json --in some.part.json --out some.part.json -a NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq
+$ neo-go wallet sign -w .docker/wallets/wallet3.json --in some.part.json -r http://localhost:30333 -a NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq
+```
+Notice that the last command sends the transaction (which has a complete set
+of singatures for 3/4 multisignature account by that time) to the network.
+
+#### Offline signing
+
+You want to do a transfer from a single-key account, but the key is on a
+different (offline) machine. Create a stripped wallet first on the key-holding
+machine:
+
+```
+$ cp wallet.json wallet.stripped.json # don't lose the original wallet
+$ neo-go wallet strip-keys --wallet wallet.stripped.json
+```
+
+This wallet has no keys inside (but has appropriate scripts/addresses), so it
+can be safely shared with anyone or transferred to network-enabled machine
+where you then can create a transfer transaction:
+
+```
+$ neo-go wallet nep17 transfer --rpc-endpoint http://localhost:20332 \
+  --wallet wallet.stripped.json --from NjEQfanGEXihz85eTnacQuhqhNnA6LxpLp \
+  --to Nj91C8TxQSxW1jCE1ytFre6mg5qxTypg1Y --token NEO --amount 1 --out context.json
+
+```
+`context.json` can now be transferred to the machine with the `wallet.json`
+containing proper keys and signed:
+```
+$ neo-go wallet sign --wallet wallet.json \
+  -address NjEQfanGEXihz85eTnacQuhqhNnA6LxpLp --in context.json --out context.json
+```
+Now `context.json` contains a transaction with a complete set of signatures
+(just one in this case, but of course you can do multisignature collection as
+well). It can be transferred to network-enabled machine again and the
+transaction can be sent to the network:
+```
+$ neo-go util sendtx --rpc-endpoint http://localhost:20332 context.json
+```
+
 ### NEP-17 token functions
 
 `wallet nep17` contains a set of commands to use for NEP-17 tokens.
@@ -604,6 +665,19 @@ INDEX    OPCODE       PARAMETER
 ```
 It always outputs the basic data and also can perform test-invocation if an
 RPC endpoint is given to it.
+
+### Sending signed transaction to the network
+
+If you have a completely finished (with all signatures collected) transaction
+signing context saved in a file you can send it to the network (without any
+wallet) using `util sendtx` command:
+```
+$ ./bin/neo-go util sendtx -r http://localhost:30333 some.part.json
+```
+This is useful in offline signing scenario, where the signing party doesn't
+have any network access, so you can make a signature there, transfer the file
+to another machine that has network access and then push the transaction out
+to the network.
 
 ## VM CLI
 There is a VM CLI that you can use to load/analyze/run/step through some code:

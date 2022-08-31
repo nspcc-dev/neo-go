@@ -19,11 +19,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type verifStub struct{}
+
+func (v verifStub) Hash() util.Uint256                    { return util.Uint256{1, 2, 3} }
+func (v verifStub) EncodeHashableFields() ([]byte, error) { return []byte{1}, nil }
+func (v verifStub) DecodeHashableFields([]byte) error     { return nil }
+
 func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
-	tx := getContractTx()
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 	pub := priv.PublicKey()
+	tx := getContractTx(pub.GetScriptHash())
 	sig := priv.SignHashable(uint32(netmode.UnitTestNet), tx)
 
 	t.Run("invalid contract", func(t *testing.T) {
@@ -75,9 +81,13 @@ func TestParameterContext_AddSignatureSimpleContract(t *testing.T) {
 	})
 }
 
+func TestGetCompleteTransactionForNonTx(t *testing.T) {
+	c := NewParameterContext("Neo.Network.P2P.Payloads.Block", netmode.UnitTestNet, verifStub{})
+	_, err := c.GetCompleteTransaction()
+	require.Error(t, err)
+}
+
 func TestParameterContext_AddSignatureMultisig(t *testing.T) {
-	tx := getContractTx()
-	c := NewParameterContext("Neo.Network.P2P.Payloads.Transaction", netmode.UnitTestNet, tx)
 	privs, pubs := getPrivateKeys(t, 4)
 	pubsCopy := keys.PublicKeys(pubs).Copy()
 	script, err := smartcontract.CreateMultiSigRedeemScript(3, pubsCopy)
@@ -91,6 +101,8 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 			newParam(smartcontract.SignatureType, "parameter2"),
 		},
 	}
+	tx := getContractTx(ctr.ScriptHash())
+	c := NewParameterContext("Neo.Network.P2P.Payloads.Transaction", netmode.UnitTestNet, tx)
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 	sig := priv.SignHashable(uint32(c.Network), tx)
@@ -98,6 +110,10 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 
 	indices := []int{2, 3, 0, 1} // random order
 	testSigWit := func(t *testing.T, num int) {
+		t.Run("GetCompleteTransaction, bad", func(t *testing.T) {
+			_, err := c.GetCompleteTransaction()
+			require.Error(t, err)
+		})
 		for _, i := range indices[:num] {
 			sig := privs[i].SignHashable(uint32(c.Network), tx)
 			require.NoError(t, c.AddSignature(ctr.ScriptHash(), ctr, pubs[i], sig))
@@ -115,6 +131,17 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 			require.NoError(t, v.Run())
 			require.Equal(t, 1, v.Estack().Len())
 			require.Equal(t, true, v.Estack().Pop().Value())
+		})
+		t.Run("GetCompleteTransaction, good", func(t *testing.T) {
+			tx, err := c.GetCompleteTransaction()
+			require.NoError(t, err)
+			require.Equal(t, 1, len(tx.Scripts))
+			scripts1 := make([]transaction.Witness, len(tx.Scripts))
+			copy(scripts1, tx.Scripts)
+			// Doing it twice shouldn't be a problem.
+			tx, err = c.GetCompleteTransaction()
+			require.NoError(t, err)
+			require.Equal(t, scripts1, tx.Scripts)
 		})
 	}
 	t.Run("exact number of sigs", func(t *testing.T) {
@@ -143,7 +170,7 @@ func TestParameterContext_MarshalJSON(t *testing.T) {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
-	tx := getContractTx()
+	tx := getContractTx(priv.GetScriptHash())
 	sign := priv.SignHashable(uint32(netmode.UnitTestNet), tx)
 
 	expected := &ParameterContext{
@@ -232,11 +259,11 @@ func newParam(typ smartcontract.ParamType, name string) wallet.ContractParam {
 	}
 }
 
-func getContractTx() *transaction.Transaction {
+func getContractTx(signer util.Uint160) *transaction.Transaction {
 	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.Attributes = make([]transaction.Attribute, 0)
 	tx.Scripts = make([]transaction.Witness, 0)
-	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Signers = []transaction.Signer{{Account: signer}}
 	tx.Hash()
 	return tx
 }
