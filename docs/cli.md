@@ -524,7 +524,9 @@ If NEP-11 token supports optional `tokens` method, specify token hash via
 ./bin/neo-go wallet nep11 tokens -r http://localhost:20332 --token 67ecb7766dba4acf7c877392207984d1b4d15731
 ```
 
-## Conversion utility
+## Utility commands
+
+### Value conversion
 
 NeoGo provides conversion utility command to reverse data, convert script
 hashes to/from address, convert public keys to hashes/addresses, convert data to/from hexadecimal or base64
@@ -542,6 +544,66 @@ Base64 to BigInteger            -22281177145486958493023948672838101815249183587
 String to Hex                           64656565373963313839663330303938623062613661326562393062336139323538613663376666
 String to Base64                        ZGVlZTc5YzE4OWYzMDA5OGIwYmE2YTJlYjkwYjNhOTI1OGE2YzdmZg==
 ```
+
+### Transaction dumps/test invocations
+
+If you have a transaction signing context saved in a file (and many commands
+like `wallet nep17 transfer` or `contract invokefunction` can give you one
+with the `--out` parameter) you may want to check the contents before signing
+it. This can be done with the `util txdump` command:
+```
+$ ./bin/neo-go util txdump -r http://localhost:30333 some.part.json
+Hash:                   f143059e0c03546db006608e0a0ad4b621b311a48d7fc62bb7062e405ab8e588
+OnChain:                false
+ValidUntil:             6004
+Signer:                 NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq (CalledByEntry)
+SystemFee:              0.0208983 GAS
+NetworkFee:             0.044159 GAS
+Script:                 DCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIRwBgSwB8MD2Rlc2lnbmF0ZUFzUm9sZQwU4pXjkVRMF4rZTwPsTc3/eFNOz0lBYn1bUg==
+INDEX    OPCODE       PARAMETER
+0        PUSHDATA1    02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2    <<
+35       PUSH1
+36       PACK
+37       PUSH8
+38       PUSH2
+39       PACK
+40       PUSH15
+41       PUSHDATA1    64657369676e6174654173526f6c65 ("designateAsRole")
+58       PUSHDATA1    e295e391544c178ad94f03ec4dcdff78534ecf49
+80       SYSCALL      System.Contract.Call (627d5b52)
+{
+ "state": "HALT",
+ "gasconsumed": "2089830",
+ "script": "DCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIRwBgSwB8MD2Rlc2lnbmF0ZUFzUm9sZQwU4pXjkVRMF4rZTwPsTc3/eFNOz0lBYn1bUg==",
+ "stack": [
+  {
+   "type": "Any"
+  }
+ ],
+ "exception": null,
+ "notifications": [
+  {
+   "contract": "0x49cf4e5378ffcd4dec034fd98a174c5491e395e2",
+   "eventname": "Designation",
+   "state": {
+    "type": "Array",
+    "value": [
+     {
+      "type": "Integer",
+      "value": "8"
+     },
+     {
+      "type": "Integer",
+      "value": "245"
+     }
+    ]
+   }
+  }
+ ]
+}
+```
+It always outputs the basic data and also can perform test-invocation if an
+RPC endpoint is given to it.
 
 ## VM CLI
 There is a VM CLI that you can use to load/analyze/run/step through some code:
