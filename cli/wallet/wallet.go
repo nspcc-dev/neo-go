@@ -281,9 +281,16 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "sign",
 				Usage:     "cosign transaction with multisig/contract/additional account",
-				UsageText: "sign -w wallet [--wallet-config path] --address <address> --in <file.in> --out <file.out> [-r <endpoint>]",
-				Action:    signStoredTransaction,
-				Flags:     signFlags,
+				UsageText: "sign -w wallet [--wallet-config path] --address <address> --in <file.in> [--out <file.out>] [-r <endpoint>]",
+				Description: `Signs the given (in file.in) context (which must be a transaction
+   signing context) for the given address using the given wallet. This command can
+   output the resulting JSON (with additional signature added) right to the console
+   (if no file.out and no RPC endpoint specified) or into a file (which can be the
+   same as input one). If an RPC endpoint is given it'll also try to construct a
+   complete transaction and send it via RPC (printing its hash if everything is OK).
+`,
+				Action: signStoredTransaction,
+				Flags:  signFlags,
 			},
 			{
 				Name:        "nep17",

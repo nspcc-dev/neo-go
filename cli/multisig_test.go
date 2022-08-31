@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/context"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/require"
@@ -162,13 +163,41 @@ func TestSignMultisigTx(t *testing.T) {
 		require.Equal(t, vmstate.Halt.String(), res.State, res.FaultException)
 	})
 
-	e.In.WriteString("pass\r")
-	e.Run(t, "neo-go", "wallet", "sign",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", wallet2Path, "--address", multisigAddr,
-		"--in", txPath, "--out", txPath)
-	e.checkTxPersisted(t)
+	t.Run("console output", func(t *testing.T) {
+		oldIn, err := os.ReadFile(txPath)
+		require.NoError(t, err)
+		e.In.WriteString("pass\r")
+		e.Run(t, "neo-go", "wallet", "sign",
+			"--wallet", wallet2Path, "--address", multisigAddr,
+			"--in", txPath)
+		newIn, err := os.ReadFile(txPath)
+		require.NoError(t, err)
+		require.Equal(t, oldIn, newIn)
 
+		pcOld := new(context.ParameterContext)
+		require.NoError(t, json.Unmarshal(oldIn, pcOld))
+
+		jOut := e.Out.Bytes()
+		pcNew := new(context.ParameterContext)
+		require.NoError(t, json.Unmarshal(jOut, pcNew))
+
+		require.Equal(t, pcOld.Type, pcNew.Type)
+		require.Equal(t, pcOld.Network, pcNew.Network)
+		require.Equal(t, pcOld.Verifiable, pcNew.Verifiable)
+		require.Equal(t, pcOld.Items[multisigHash].Script, pcNew.Items[multisigHash].Script)
+		// It's completely signed after this, so parameters have signatures now as well.
+		require.NotEqual(t, pcOld.Items[multisigHash].Parameters, pcNew.Items[multisigHash].Parameters)
+		require.NotEqual(t, pcOld.Items[multisigHash].Signatures, pcNew.Items[multisigHash].Signatures)
+	})
+
+	t.Run("sign, save and send", func(t *testing.T) {
+		e.In.WriteString("pass\r")
+		e.Run(t, "neo-go", "wallet", "sign",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--wallet", wallet2Path, "--address", multisigAddr,
+			"--in", txPath, "--out", txPath)
+		e.checkTxPersisted(t)
+	})
 	t.Run("double-sign", func(t *testing.T) {
 		e.In.WriteString("pass\r")
 		e.RunWithError(t, "neo-go", "wallet", "sign",
