@@ -24,9 +24,6 @@ type Account struct {
 	// NEO public key.
 	publicKey []byte
 
-	// Account import file.
-	wif string
-
 	// NEO public address.
 	Address string `json:"address"`
 
@@ -164,7 +161,6 @@ func (a *Account) Decrypt(passphrase string, scrypt keys.ScryptParams) error {
 	}
 
 	a.publicKey = a.privateKey.PublicKey().Bytes()
-	a.wif = a.privateKey.WIF()
 
 	return nil
 }
@@ -239,13 +235,11 @@ func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
 func NewAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 	pubKey := p.PublicKey()
 	pubAddr := p.Address()
-	wif := p.WIF()
 
 	a := &Account{
 		publicKey:  pubKey.Bytes(),
 		privateKey: p,
 		Address:    pubAddr,
-		wif:        wif,
 		Contract: &Contract{
 			Script:     pubKey.GetVerificationScript(),
 			Parameters: getContractParams(1),

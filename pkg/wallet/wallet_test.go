@@ -49,7 +49,6 @@ func TestAddAccount(t *testing.T) {
 	wallet.AddAccount(&Account{
 		privateKey:   nil,
 		publicKey:    nil,
-		wif:          "",
 		Address:      "real",
 		EncryptedWIF: "",
 		Label:        "",
@@ -79,7 +78,6 @@ func TestSave(t *testing.T) {
 	wallet.AddAccount(&Account{
 		privateKey:   nil,
 		publicKey:    nil,
-		wif:          "",
 		Address:      "",
 		EncryptedWIF: "",
 		Label:        "",
