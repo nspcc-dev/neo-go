@@ -205,6 +205,9 @@ func NewAccountFromEncryptedWIF(wif string, pass string, scrypt keys.ScryptParam
 
 // ConvertMultisig sets a's contract to multisig contract with m sufficient signatures.
 func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
+	if a.Locked {
+		return errors.New("account is locked")
+	}
 	var found bool
 	for i := range pubs {
 		if bytes.Equal(a.publicKey, pubs[i].Bytes()) {

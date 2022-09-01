@@ -179,6 +179,12 @@ func TestAccount_ConvertMultisig(t *testing.T) {
 		"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699",
 	}
 
+	t.Run("locked", func(t *testing.T) {
+		a.Locked = true
+		pubs := convertPubs(t, hexs)
+		require.Error(t, a.ConvertMultisig(1, pubs))
+		a.Locked = false
+	})
 	t.Run("invalid number of signatures", func(t *testing.T) {
 		pubs := convertPubs(t, hexs)
 		require.Error(t, a.ConvertMultisig(0, pubs))
