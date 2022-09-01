@@ -110,7 +110,9 @@ func NewPrivateKeyFromWIF(wif string) (*PrivateKey, error) {
 // Good documentation about this process can be found here:
 // https://en.bitcoin.it/wiki/Wallet_import_format
 func (p *PrivateKey) WIF() string {
-	w, err := WIFEncode(p.Bytes(), WIFVersion, true)
+	pb := p.Bytes()
+	defer slice.Clean(pb)
+	w, err := WIFEncode(pb, WIFVersion, true)
 	// The only way WIFEncode() can fail is if we're to give it a key of
 	// wrong size, but we have a proper key here, aren't we?
 	if err != nil {
