@@ -13,6 +13,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/rfc6979"
 )
 
@@ -48,6 +49,7 @@ func NewPrivateKeyFromHex(str string) (*PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer slice.Clean(b)
 	return NewPrivateKeyFromBytes(b)
 }
 

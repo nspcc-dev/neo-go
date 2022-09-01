@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/base58"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 const (
@@ -53,6 +54,7 @@ func WIFDecode(wif string, version byte) (*WIF, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer slice.Clean(b)
 
 	if version == 0x00 {
 		version = WIFVersion
