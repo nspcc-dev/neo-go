@@ -185,6 +185,13 @@ func TestAccount_ConvertMultisig(t *testing.T) {
 		require.Error(t, a.ConvertMultisig(1, pubs))
 		a.Locked = false
 	})
+	t.Run("no private key", func(t *testing.T) {
+		pk := a.privateKey
+		a.privateKey = nil
+		pubs := convertPubs(t, hexs)
+		require.Error(t, a.ConvertMultisig(0, pubs))
+		a.privateKey = pk
+	})
 	t.Run("invalid number of signatures", func(t *testing.T) {
 		pubs := convertPubs(t, hexs)
 		require.Error(t, a.ConvertMultisig(0, pubs))
@@ -223,7 +230,7 @@ func compareFields(t *testing.T, tk keytestcases.Ktype, acc *Account) {
 	require.Equalf(t, want, have, "expected address %s got %s", want, have)
 	want, have = tk.Wif, acc.privateKey.WIF()
 	require.Equalf(t, want, have, "expected wif %s got %s", want, have)
-	want, have = tk.PublicKey, hex.EncodeToString(acc.publicKey)
+	want, have = tk.PublicKey, hex.EncodeToString(acc.privateKey.PublicKey().Bytes())
 	require.Equalf(t, want, have, "expected pub key %s got %s", want, have)
 	want, have = tk.PrivateKey, acc.privateKey.String()
 	require.Equalf(t, want, have, "expected priv key %s got %s", want, have)

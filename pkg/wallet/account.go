@@ -1,7 +1,6 @@
 package wallet
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 
@@ -20,9 +19,6 @@ import (
 type Account struct {
 	// NEO private key.
 	privateKey *keys.PrivateKey
-
-	// NEO public key.
-	publicKey []byte
 
 	// NEO public address.
 	Address string `json:"address"`
@@ -160,8 +156,6 @@ func (a *Account) Decrypt(passphrase string, scrypt keys.ScryptParams) error {
 		return err
 	}
 
-	a.publicKey = a.privateKey.PublicKey().Bytes()
-
 	return nil
 }
 
@@ -208,9 +202,13 @@ func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
 	if a.Locked {
 		return errors.New("account is locked")
 	}
+	if a.privateKey == nil {
+		return errors.New("account key is not available (need to decrypt?)")
+	}
 	var found bool
+	accKey := a.privateKey.PublicKey()
 	for i := range pubs {
-		if bytes.Equal(a.publicKey, pubs[i].Bytes()) {
+		if accKey.Equal(pubs[i]) {
 			found = true
 			break
 		}
@@ -240,7 +238,6 @@ func NewAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 	pubAddr := p.Address()
 
 	a := &Account{
-		publicKey:  pubKey.Bytes(),
 		privateKey: p,
 		Address:    pubAddr,
 		Contract: &Contract{
