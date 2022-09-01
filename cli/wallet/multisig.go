@@ -25,6 +25,7 @@ func signStoredTransaction(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	pc, err := paramcontext.Read(ctx.String("in"))
 	if err != nil {

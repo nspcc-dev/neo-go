@@ -94,6 +94,7 @@ func handleNeoAction(ctx *cli.Context, mkTx func(*neo.Contract, util.Uint160, *w
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if !addrFlag.IsSet {

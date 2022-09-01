@@ -222,6 +222,7 @@ func (n *Notary) Shutdown() {
 	n.Config.Log.Info("stopping notary service")
 	close(n.stopCh)
 	<-n.done
+	n.wallet.Close()
 }
 
 // OnNewRequest is a callback method which is called after a new notary request is added to the notary request pool.

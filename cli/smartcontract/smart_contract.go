@@ -650,6 +650,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
+		defer w.Close()
 	}
 
 	_, err = invokeWithArgs(ctx, acc, w, script, operation, params, cosigners)
@@ -949,6 +950,7 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't get sender address: %w", err), 1)
 	}
+	defer w.Close()
 
 	cosigners, sgnErr := cmdargs.GetSignersFromContext(ctx, signOffset)
 	if sgnErr != nil {

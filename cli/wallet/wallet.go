@@ -347,6 +347,7 @@ func claimGas(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if !addrFlag.IsSet {
@@ -388,6 +389,7 @@ func changePassword(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 	if len(wall.Accounts) == 0 {
 		return cli.NewExitError("wallet has no accounts", 1)
 	}
@@ -483,6 +485,7 @@ func addAccount(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	if err := createAccount(wall, pass); err != nil {
 		return cli.NewExitError(err, 1)
@@ -496,6 +499,7 @@ func exportKeys(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	var addr string
 
@@ -557,6 +561,7 @@ func importMultisig(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	m := ctx.Int("min")
 	if ctx.NArg() < m {
@@ -600,6 +605,7 @@ func importDeployed(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	rawHash := ctx.Generic("contract").(*flags.Address)
 	if !rawHash.IsSet {
@@ -656,6 +662,7 @@ func importWallet(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt)
 	if err != nil {
@@ -688,6 +695,7 @@ func removeAccount(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	addr := ctx.Generic("address").(*flags.Address)
 	if !addr.IsSet {
@@ -734,6 +742,7 @@ func dumpWallet(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 	if ctx.Bool("decrypt") {
 		if pass == nil {
 			password, err := input.ReadPassword(EnterPasswordPrompt)
@@ -762,6 +771,7 @@ func dumpKeys(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 	accounts := wall.Accounts
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
@@ -812,6 +822,7 @@ func stripKeys(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 	if !ctx.Bool("force") {
 		fmt.Fprintln(ctx.App.Writer, "All private keys for all accounts will be removed from the wallet. This action is irreversible.")
 		if ok := askForConsent(ctx.App.Writer); !ok {
@@ -861,6 +872,7 @@ func createWallet(ctx *cli.Context) error {
 		if err := createAccount(wall, pass); err != nil {
 			return cli.NewExitError(err, 1)
 		}
+		defer wall.Close()
 	}
 
 	fmtPrintWallet(ctx.App.Writer, wall)

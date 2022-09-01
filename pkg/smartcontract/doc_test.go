@@ -33,6 +33,7 @@ func ExampleBuilder() {
 	b.Reset() // Copy the old script above if you need it!
 
 	w, _ := wallet.NewWalletFromFile("somewhere")
+	defer w.Close()
 	// Assuming there is one Account inside
 	a, _ := actor.NewSimple(c, w.Accounts[0])
 	from := w.Accounts[0].Contract.ScriptHash() // Assuming Contract is present.

@@ -276,6 +276,7 @@ func (s *service) Shutdown() {
 		s.log.Info("stopping consensus service")
 		close(s.quit)
 		<-s.finished
+		s.wallet.Close()
 	}
 }
 
