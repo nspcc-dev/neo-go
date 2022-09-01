@@ -28,3 +28,10 @@ func Copy(b []byte) []byte {
 	copy(d, b)
 	return d
 }
+
+// Clean wipes the data in b by filling it with zeros.
+func Clean(b []byte) {
+	for i := range b {
+		b[i] = 0
+	}
+}
