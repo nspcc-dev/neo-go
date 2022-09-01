@@ -150,11 +150,18 @@ func handleVote(ctx *cli.Context) error {
 	})
 }
 
-// getDecryptedAccount tries to unlock the specified account. If password is nil, it will be requested via terminal.
+// getDecryptedAccount tries to get and unlock the specified account if it has a
+// key inside (otherwise it's returned as is, without an ability to sign). If
+// password is nil, it will be requested via terminal.
 func getDecryptedAccount(wall *wallet.Wallet, addr util.Uint160, password *string) (*wallet.Account, error) {
 	acc := wall.GetAccount(addr)
 	if acc == nil {
 		return nil, fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addr))
+	}
+
+	// No private key available, nothing to decrypt, but it's still a useful account for many purposes.
+	if acc.EncryptedWIF == "" {
+		return acc, nil
 	}
 
 	if password == nil {

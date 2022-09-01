@@ -272,6 +272,11 @@ transactions for this multisignature account with the imported key.
 contracts. They also can have WIF keys associated with them (in case your
 contract's `verify` method needs some signature).
 
+#### Strip keys from accounts
+`wallet strip-keys` allows you to remove private keys from the wallet, but let
+it be used for other purposes (like creating transactions for subsequent
+offline signing). Use with care, don't lose your keys with it.
+
 ### Neo voting
 `wallet candidate` provides commands to register or unregister a committee
 (and therefore validator) candidate key:
@@ -375,6 +380,67 @@ $ ./bin/neo-go query voter -r http://localhost:20332 Nj91C8TxQSxW1jCE1ytFre6mg5q
         Voted: 0214baf0ceea3a66f17e7e1e839ea25fd8bed6cd82e6bb6e68250189065f44ff01 (Nj91C8TxQSxW1jCE1ytFre6mg5qxTypg1Y)
         Amount : 2000000
         Block: 3970
+```
+
+### Transaction signing
+
+`wallet sign` command allows to sign arbitary transactions stored in JSON
+format (also known as ContractParametersContext). Usually it's used in one of
+the two cases: multisignature signing (when you don't have all keys for an
+account and need to share the context with others until enough signatures
+collected) or offline signing (when the node with a key is completely offline
+and can't interact with the RPC node directly).
+
+#### Multisignature collection
+
+For example, you have a four-node default network setup and want to set some
+key for the oracle role, you create transaction with:
+
+```
+$ neo-go contract invokefunction -w .docker/wallets/wallet1.json --out some.part.json -a NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq -r http://localhost:30333 0x49cf4e5378ffcd4dec034fd98a174c5491e395e2 designateAsRole 8 \[ 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2 \] -- NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq:CalledByEntry
+```
+
+And then sign it with two more keys:
+```
+$ neo-go wallet sign -w .docker/wallets/wallet2.json --in some.part.json --out some.part.json -a NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq
+$ neo-go wallet sign -w .docker/wallets/wallet3.json --in some.part.json -r http://localhost:30333 -a NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq
+```
+Notice that the last command sends the transaction (which has a complete set
+of singatures for 3/4 multisignature account by that time) to the network.
+
+#### Offline signing
+
+You want to do a transfer from a single-key account, but the key is on a
+different (offline) machine. Create a stripped wallet first on the key-holding
+machine:
+
+```
+$ cp wallet.json wallet.stripped.json # don't lose the original wallet
+$ neo-go wallet strip-keys --wallet wallet.stripped.json
+```
+
+This wallet has no keys inside (but has appropriate scripts/addresses), so it
+can be safely shared with anyone or transferred to network-enabled machine
+where you then can create a transfer transaction:
+
+```
+$ neo-go wallet nep17 transfer --rpc-endpoint http://localhost:20332 \
+  --wallet wallet.stripped.json --from NjEQfanGEXihz85eTnacQuhqhNnA6LxpLp \
+  --to Nj91C8TxQSxW1jCE1ytFre6mg5qxTypg1Y --token NEO --amount 1 --out context.json
+
+```
+`context.json` can now be transferred to the machine with the `wallet.json`
+containing proper keys and signed:
+```
+$ neo-go wallet sign --wallet wallet.json \
+  -address NjEQfanGEXihz85eTnacQuhqhNnA6LxpLp --in context.json --out context.json
+```
+Now `context.json` contains a transaction with a complete set of signatures
+(just one in this case, but of course you can do multisignature collection as
+well). It can be transferred to network-enabled machine again and the
+transaction can be sent to the network:
+```
+$ neo-go util sendtx --rpc-endpoint http://localhost:20332 context.json
 ```
 
 ### NEP-17 token functions
@@ -519,7 +585,9 @@ If NEP-11 token supports optional `tokens` method, specify token hash via
 ./bin/neo-go wallet nep11 tokens -r http://localhost:20332 --token 67ecb7766dba4acf7c877392207984d1b4d15731
 ```
 
-## Conversion utility
+## Utility commands
+
+### Value conversion
 
 NeoGo provides conversion utility command to reverse data, convert script
 hashes to/from address, convert public keys to hashes/addresses, convert data to/from hexadecimal or base64
@@ -537,6 +605,79 @@ Base64 to BigInteger            -22281177145486958493023948672838101815249183587
 String to Hex                           64656565373963313839663330303938623062613661326562393062336139323538613663376666
 String to Base64                        ZGVlZTc5YzE4OWYzMDA5OGIwYmE2YTJlYjkwYjNhOTI1OGE2YzdmZg==
 ```
+
+### Transaction dumps/test invocations
+
+If you have a transaction signing context saved in a file (and many commands
+like `wallet nep17 transfer` or `contract invokefunction` can give you one
+with the `--out` parameter) you may want to check the contents before signing
+it. This can be done with the `util txdump` command:
+```
+$ ./bin/neo-go util txdump -r http://localhost:30333 some.part.json
+Hash:                   f143059e0c03546db006608e0a0ad4b621b311a48d7fc62bb7062e405ab8e588
+OnChain:                false
+ValidUntil:             6004
+Signer:                 NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq (CalledByEntry)
+SystemFee:              0.0208983 GAS
+NetworkFee:             0.044159 GAS
+Script:                 DCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIRwBgSwB8MD2Rlc2lnbmF0ZUFzUm9sZQwU4pXjkVRMF4rZTwPsTc3/eFNOz0lBYn1bUg==
+INDEX    OPCODE       PARAMETER
+0        PUSHDATA1    02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2    <<
+35       PUSH1
+36       PACK
+37       PUSH8
+38       PUSH2
+39       PACK
+40       PUSH15
+41       PUSHDATA1    64657369676e6174654173526f6c65 ("designateAsRole")
+58       PUSHDATA1    e295e391544c178ad94f03ec4dcdff78534ecf49
+80       SYSCALL      System.Contract.Call (627d5b52)
+{
+ "state": "HALT",
+ "gasconsumed": "2089830",
+ "script": "DCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIRwBgSwB8MD2Rlc2lnbmF0ZUFzUm9sZQwU4pXjkVRMF4rZTwPsTc3/eFNOz0lBYn1bUg==",
+ "stack": [
+  {
+   "type": "Any"
+  }
+ ],
+ "exception": null,
+ "notifications": [
+  {
+   "contract": "0x49cf4e5378ffcd4dec034fd98a174c5491e395e2",
+   "eventname": "Designation",
+   "state": {
+    "type": "Array",
+    "value": [
+     {
+      "type": "Integer",
+      "value": "8"
+     },
+     {
+      "type": "Integer",
+      "value": "245"
+     }
+    ]
+   }
+  }
+ ]
+}
+```
+It always outputs the basic data and also can perform test-invocation if an
+RPC endpoint is given to it.
+
+### Sending signed transaction to the network
+
+If you have a completely finished (with all signatures collected) transaction
+signing context saved in a file you can send it to the network (without any
+wallet) using `util sendtx` command:
+```
+$ ./bin/neo-go util sendtx -r http://localhost:30333 some.part.json
+```
+This is useful in offline signing scenario, where the signing party doesn't
+have any network access, so you can make a signature there, transfer the file
+to another machine that has network access and then push the transaction out
+to the network.
 
 ## VM CLI
 There is a VM CLI that you can use to load/analyze/run/step through some code:

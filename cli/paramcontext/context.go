@@ -13,18 +13,21 @@ import (
 )
 
 // InitAndSave creates an incompletely signed transaction which can be used
-// as an input to `multisig sign`.
+// as an input to `multisig sign`. If a wallet.Account is given and can sign,
+// it's signed as well using it.
 func InitAndSave(net netmode.Magic, tx *transaction.Transaction, acc *wallet.Account, filename string) error {
-	priv := acc.PrivateKey()
-	pub := priv.PublicKey()
-	sign := priv.SignHashable(uint32(net), tx)
 	scCtx := context.NewParameterContext("Neo.Network.P2P.Payloads.Transaction", net, tx)
-	h, err := address.StringToUint160(acc.Address)
-	if err != nil {
-		return fmt.Errorf("invalid address: %s", acc.Address)
-	}
-	if err := scCtx.AddSignature(h, acc.Contract, pub, sign); err != nil {
-		return fmt.Errorf("can't add signature: %w", err)
+	if acc != nil && acc.CanSign() {
+		priv := acc.PrivateKey()
+		pub := priv.PublicKey()
+		sign := priv.SignHashable(uint32(net), tx)
+		h, err := address.StringToUint160(acc.Address)
+		if err != nil {
+			return fmt.Errorf("invalid address: %s", acc.Address)
+		}
+		if err := scCtx.AddSignature(h, acc.Contract, pub, sign); err != nil {
+			return fmt.Errorf("can't add signature: %w", err)
+		}
 	}
 	return Save(scCtx, filename)
 }

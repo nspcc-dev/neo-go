@@ -26,6 +26,18 @@ func NewCommands() []cli.Command {
 					Action: handleParse,
 				},
 				{
+					Name:      "sendtx",
+					Usage:     "Send complete transaction stored in a context file",
+					UsageText: "sendtx [-r <endpoint>] <file.in>",
+					Description: `Sends the transaction from the given context file to the given RPC node if it's
+   completely signed and ready. This command expects a ContractParametersContext
+   JSON file for input, it can't handle binary (or hex- or base64-encoded)
+   transactions.
+`,
+					Action: sendTx,
+					Flags:  txDumpFlags,
+				},
+				{
 					Name:      "txdump",
 					Usage:     "Dump transaction stored in file",
 					UsageText: "txdump [-r <endpoint>] <file.in>",

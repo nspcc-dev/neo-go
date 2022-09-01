@@ -702,14 +702,11 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 			return sender, cli.NewExitError(errText, 1)
 		}
 
-		action := "save"
-		process := "Saving"
+		action := "send"
+		process := "Sending"
 		if out != "" {
-			action += "and send"
-			process += "and sending"
-		} else {
-			action = "send"
-			process = "Sending"
+			action = "save"
+			process = "Saving"
 		}
 		if !ctx.Bool("force") {
 			return sender, cli.NewExitError(errText+".\nUse --force flag to "+action+" the transaction anyway.", 1)

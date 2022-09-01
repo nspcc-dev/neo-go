@@ -56,6 +56,24 @@ func NewParameterContext(typ string, network netmode.Magic, verif crypto.Verifia
 	}
 }
 
+func (c *ParameterContext) GetCompleteTransaction() (*transaction.Transaction, error) {
+	tx, ok := c.Verifiable.(*transaction.Transaction)
+	if !ok {
+		return nil, errors.New("verifiable item is not a transaction")
+	}
+	if len(tx.Scripts) > 0 {
+		tx.Scripts = tx.Scripts[:0]
+	}
+	for i := range tx.Signers {
+		w, err := c.GetWitness(tx.Signers[i].Account)
+		if err != nil {
+			return nil, fmt.Errorf("can't create witness for signer #%d: %w", i, err)
+		}
+		tx.Scripts = append(tx.Scripts, *w)
+	}
+	return tx, nil
+}
+
 // GetWitness returns invocation and verification scripts for the specified contract.
 func (c *ParameterContext) GetWitness(h util.Uint160) (*transaction.Witness, error) {
 	item, ok := c.Items[h]
@@ -65,9 +83,9 @@ func (c *ParameterContext) GetWitness(h util.Uint160) (*transaction.Witness, err
 	bw := io.NewBufBinWriter()
 	for i := range item.Parameters {
 		if item.Parameters[i].Type != smartcontract.SignatureType {
-			return nil, errors.New("only signature parameters are supported")
+			return nil, fmt.Errorf("unsupported %s parameter #%d", item.Parameters[i].Type.String(), i)
 		} else if item.Parameters[i].Value == nil {
-			return nil, errors.New("nil parameter")
+			return nil, fmt.Errorf("no value for parameter #%d (not signed yet?)", i)
 		}
 		emit.Bytes(bw.BinWriter, item.Parameters[i].Value.([]byte))
 	}
@@ -96,14 +114,19 @@ func (c *ParameterContext) AddSignature(h util.Uint160, ctr *wallet.Contract, pu
 			return errors.New("public key is not present in script")
 		}
 		item.AddSignature(pub, sig)
-		if len(item.Signatures) == len(ctr.Parameters) {
+		if len(item.Signatures) >= len(ctr.Parameters) {
 			indexMap := map[string]int{}
 			for i := range pubs {
 				indexMap[hex.EncodeToString(pubs[i])] = i
 			}
-			sigs := make([]sigWithIndex, 0, len(item.Signatures))
+			sigs := make([]sigWithIndex, len(item.Parameters))
+			var i int
 			for pub, sig := range item.Signatures {
-				sigs = append(sigs, sigWithIndex{index: indexMap[pub], sig: sig})
+				sigs[i] = sigWithIndex{index: indexMap[pub], sig: sig}
+				i++
+				if i == len(sigs) {
+					break
+				}
 			}
 			sort.Slice(sigs, func(i, j int) bool {
 				return sigs[i].index < sigs[j].index
