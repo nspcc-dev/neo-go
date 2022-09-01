@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,7 @@ func TestNewAccount(t *testing.T) {
 	acc, err := NewAccount()
 	require.NoError(t, err)
 	require.NotNil(t, acc)
+	require.Equal(t, acc.Address, address.Uint160ToString(acc.ScriptHash()))
 }
 
 func TestDecryptAccount(t *testing.T) {

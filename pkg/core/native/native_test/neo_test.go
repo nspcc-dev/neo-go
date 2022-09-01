@@ -166,7 +166,7 @@ func TestNEO_Vote(t *testing.T) {
 			txes = append(txes, voteTx)
 		}
 	}
-	txes = append(txes, policyInvoker.PrepareInvoke(t, "blockAccount", candidates[len(candidates)-1].(neotest.SingleSigner).Account().PublicKey().GetScriptHash()))
+	txes = append(txes, policyInvoker.PrepareInvoke(t, "blockAccount", candidates[len(candidates)-1].(neotest.SingleSigner).Account().ScriptHash()))
 	neoValidatorsInvoker.AddNewBlock(t, txes...)
 	for _, tx := range txes {
 		e.CheckHalt(t, tx.Hash(), stackitem.Make(true)) // luckily, both `transfer`, `registerCandidate` and `vote` return boolean values

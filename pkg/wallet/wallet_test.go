@@ -102,6 +102,7 @@ func TestSave(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 2, len(w2.Accounts))
 		require.NoError(t, w2.Accounts[1].Decrypt("pass", w2.Scrypt))
+		_ = w2.Accounts[1].ScriptHash() // openedWallet has it for acc 1.
 		require.Equal(t, openedWallet.Accounts, w2.Accounts)
 	})
 }

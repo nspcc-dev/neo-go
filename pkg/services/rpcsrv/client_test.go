@@ -1033,11 +1033,6 @@ func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 	})
 
 	require.NoError(t, c.Init())
-	t.Run("bad account address", func(t *testing.T) {
-		_, err := c.SignAndPushP2PNotaryRequest(nil, nil, 0, 0, 0, &wallet.Account{Address: "not-an-addr"}) //nolint:staticcheck // SA1019: c.SignAndPushP2PNotaryRequest is deprecated
-		require.NotNil(t, err)
-	})
-
 	t.Run("bad fallback script", func(t *testing.T) {
 		_, err := c.SignAndPushP2PNotaryRequest(nil, []byte{byte(opcode.ASSERT)}, -1, 0, 0, acc) //nolint:staticcheck // SA1019: c.SignAndPushP2PNotaryRequest is deprecated
 		require.NotNil(t, err)

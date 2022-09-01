@@ -20,6 +20,9 @@ type Account struct {
 	// NEO private key.
 	privateKey *keys.PrivateKey
 
+	// Script hash corresponding to the Address.
+	scriptHash util.Uint160
+
 	// NEO public address.
 	Address string `json:"address"`
 
@@ -80,8 +83,6 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 	var (
 		haveAcc bool
 		pos     int
-		accHash util.Uint160
-		err     error
 	)
 	if a.Locked {
 		return errors.New("account is locked")
@@ -89,12 +90,8 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 	if a.Contract == nil {
 		return errors.New("account has no contract")
 	}
-	accHash, err = address.StringToUint160(a.Address)
-	if err != nil {
-		return err
-	}
 	for i := range t.Signers {
-		if t.Signers[i].Account.Equals(accHash) {
+		if t.Signers[i].Account.Equals(a.ScriptHash()) {
 			haveAcc = true
 			pos = i
 			break
@@ -184,6 +181,16 @@ func (a *Account) PublicKey() *keys.PublicKey {
 	return a.privateKey.PublicKey()
 }
 
+// ScriptHash returns the script hash (account) that the Account.Address is
+// derived from. It never returns an error, so if this Account has an invalid
+// Address you'll just get a zero script hash.
+func (a *Account) ScriptHash() util.Uint160 {
+	if a.scriptHash.Equals(util.Uint160{}) {
+		a.scriptHash, _ = address.StringToUint160(a.Address)
+	}
+	return a.scriptHash
+}
+
 // Close cleans up the private key used by Account and disassociates it from
 // Account. The Account can no longer sign anything after this call, but Decrypt
 // can make it usable again.
@@ -243,7 +250,8 @@ func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
 		return err
 	}
 
-	a.Address = address.Uint160ToString(hash.Hash160(script))
+	a.scriptHash = hash.Hash160(script)
+	a.Address = address.Uint160ToString(a.scriptHash)
 	a.Contract = &Contract{
 		Script:     script,
 		Parameters: getContractParams(m),
@@ -255,11 +263,11 @@ func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
 // NewAccountFromPrivateKey creates a wallet from the given PrivateKey.
 func NewAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 	pubKey := p.PublicKey()
-	pubAddr := p.Address()
 
 	a := &Account{
 		privateKey: p,
-		Address:    pubAddr,
+		scriptHash: p.GetScriptHash(),
+		Address:    p.Address(),
 		Contract: &Contract{
 			Script:     pubKey.GetVerificationScript(),
 			Parameters: getContractParams(1),

@@ -6,7 +6,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -88,13 +87,9 @@ func (c *Client) CreateNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint1
 	if err != nil {
 		return nil, fmt.Errorf("failed to create NEP-11 transfer script: %w", err)
 	}
-	from, err := address.StringToUint160(acc.Address)
-	if err != nil {
-		return nil, fmt.Errorf("bad account address: %w", err)
-	}
 	return c.CreateTxFromScript(script, acc, -1, gas, append([]SignerAccount{{
 		Signer: transaction.Signer{
-			Account: from,
+			Account: acc.ScriptHash(),
 			Scopes:  transaction.CalledByEntry,
 		},
 		Account: acc,
@@ -148,11 +143,7 @@ func (c *Client) NEP11NDOwnerOf(tokenHash util.Uint160, tokenID []byte) (util.Ui
 // versions.
 func (c *Client) TransferNEP11D(acc *wallet.Account, to util.Uint160,
 	tokenHash util.Uint160, amount int64, tokenID []byte, data interface{}, gas int64, cosigners []SignerAccount) (util.Uint256, error) {
-	from, err := address.StringToUint160(acc.Address)
-	if err != nil {
-		return util.Uint256{}, fmt.Errorf("bad account address: %w", err)
-	}
-	tx, err := c.CreateNEP11TransferTx(acc, tokenHash, gas, cosigners, from, to, amount, tokenID, data)
+	tx, err := c.CreateNEP11TransferTx(acc, tokenHash, gas, cosigners, acc.ScriptHash(), to, amount, tokenID, data)
 	if err != nil {
 		return util.Uint256{}, err
 	}

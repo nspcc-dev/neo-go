@@ -7,7 +7,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/context"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
@@ -21,11 +20,7 @@ func InitAndSave(net netmode.Magic, tx *transaction.Transaction, acc *wallet.Acc
 		priv := acc.PrivateKey()
 		pub := priv.PublicKey()
 		sign := priv.SignHashable(uint32(net), tx)
-		h, err := address.StringToUint160(acc.Address)
-		if err != nil {
-			return fmt.Errorf("invalid address: %s", acc.Address)
-		}
-		if err := scCtx.AddSignature(h, acc.Contract, pub, sign); err != nil {
+		if err := scCtx.AddSignature(acc.ScriptHash(), acc.Contract, pub, sign); err != nil {
 			return fmt.Errorf("can't add signature: %w", err)
 		}
 	}

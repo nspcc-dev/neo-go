@@ -199,10 +199,7 @@ func ParseParams(args []string, calledFromMain bool) (int, []smartcontract.Param
 // accounts from the provided wallet.
 func GetSignersAccounts(senderAcc *wallet.Account, wall *wallet.Wallet, signers []transaction.Signer, accScope transaction.WitnessScope) ([]actor.SignerAccount, error) {
 	signersAccounts := make([]actor.SignerAccount, 0, len(signers)+1)
-	sender, err := address.StringToUint160(senderAcc.Address)
-	if err != nil {
-		return nil, err
-	}
+	sender := senderAcc.ScriptHash()
 	signersAccounts = append(signersAccounts, actor.SignerAccount{
 		Signer: transaction.Signer{
 			Account: sender,

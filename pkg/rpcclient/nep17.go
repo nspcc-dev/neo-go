@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -96,10 +95,7 @@ func (c *Client) CreateNEP17TransferTx(acc *wallet.Account, to util.Uint160,
 // be removed in future versions.
 func (c *Client) CreateNEP17MultiTransferTx(acc *wallet.Account, gas int64,
 	recipients []TransferTarget, cosigners []SignerAccount) (*transaction.Transaction, error) {
-	from, err := address.StringToUint160(acc.Address)
-	if err != nil {
-		return nil, fmt.Errorf("bad account address: %w", err)
-	}
+	from := acc.ScriptHash()
 	b := smartcontract.NewBuilder()
 	for i := range recipients {
 		b.InvokeWithAssert(recipients[i].Token, "transfer",
