@@ -30,7 +30,7 @@ func (o *Oracle) UpdateOracleNodes(oracleNodes keys.PublicKeys) {
 	for i := range oracleNodes {
 		acc = o.wallet.GetAccount(oracleNodes[i].GetScriptHash())
 		if acc != nil {
-			if acc.PrivateKey() != nil {
+			if acc.CanSign() {
 				break
 			}
 			err := acc.Decrypt(o.MainCfg.UnlockWallet.Password, o.wallet.Scrypt)

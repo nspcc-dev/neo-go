@@ -377,7 +377,7 @@ func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, c
 			continue
 		}
 
-		if acc.PrivateKey() == nil {
+		if !acc.CanSign() {
 			err := acc.Decrypt(s.Config.Wallet.Password, s.wallet.Scrypt)
 			if err != nil {
 				s.log.Fatal("can't unlock account", zap.String("address", address.Uint160ToString(sh)))

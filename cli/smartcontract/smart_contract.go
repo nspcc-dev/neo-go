@@ -892,7 +892,7 @@ func getUnlockedAccount(wall *wallet.Wallet, addr util.Uint160, pass *string) (*
 		return nil, fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr))
 	}
 
-	if acc.PrivateKey() != nil {
+	if acc.CanSign() {
 		return acc, nil
 	}
 
