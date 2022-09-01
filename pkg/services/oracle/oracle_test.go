@@ -122,7 +122,7 @@ func TestCreateResponseTx(t *testing.T) {
 	}
 	cInvoker.Invoke(t, stackitem.Null{}, "requestURL", req.URL, *req.Filter, req.CallbackMethod, req.UserData, int64(req.GasForResponse))
 	bc.SetOracle(orc)
-	orc.UpdateOracleNodes(keys.PublicKeys{acc.PrivateKey().PublicKey()})
+	orc.UpdateOracleNodes(keys.PublicKeys{acc.PublicKey()})
 	tx, err = orc.CreateResponseTx(int64(req.GasForResponse), 1, resp)
 	require.NoError(t, err)
 	assert.Equal(t, 166, tx.Size())
@@ -150,7 +150,7 @@ func TestOracle(t *testing.T) {
 
 	acc1, orc1, m1, ch1 := getTestOracle(t, bc, "./testdata/oracle1.json", "one")
 	acc2, orc2, m2, ch2 := getTestOracle(t, bc, "./testdata/oracle2.json", "two")
-	oracleNodes := keys.PublicKeys{acc1.PrivateKey().PublicKey(), acc2.PrivateKey().PublicKey()}
+	oracleNodes := keys.PublicKeys{acc1.PublicKey(), acc2.PrivateKey().PublicKey()}
 	// Must be set in native contract for tx verification.
 	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
 		int64(roles.Oracle), []interface{}{oracleNodes[0].Bytes(), oracleNodes[1].Bytes()})
@@ -249,10 +249,10 @@ func TestOracle(t *testing.T) {
 		require.Empty(t, ch2)
 
 		t.Run("InvalidSignature", func(t *testing.T) {
-			orc1.AddResponse(acc2.PrivateKey().PublicKey(), m2[0].resp.ID, []byte{1, 2, 3})
+			orc1.AddResponse(acc2.PublicKey(), m2[0].resp.ID, []byte{1, 2, 3})
 			require.Empty(t, ch1)
 		})
-		orc1.AddResponse(acc2.PrivateKey().PublicKey(), m2[0].resp.ID, m2[0].txSig)
+		orc1.AddResponse(acc2.PublicKey(), m2[0].resp.ID, m2[0].txSig)
 		checkEmitTx(t, ch1)
 
 		t.Run("FirstOtherThenMe", func(t *testing.T) {
@@ -264,7 +264,7 @@ func TestOracle(t *testing.T) {
 				Result: []byte{1, 2, 3, 4},
 			}
 			req := checkResp(t, reqID, resp)
-			orc2.AddResponse(acc1.PrivateKey().PublicKey(), reqID, m1[reqID].txSig)
+			orc2.AddResponse(acc1.PublicKey(), reqID, m1[reqID].txSig)
 			require.Empty(t, ch2)
 
 			reqs := map[uint64]*state.OracleRequest{reqID: req}
@@ -357,7 +357,7 @@ func TestOracleFull(t *testing.T) {
 	})
 
 	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-		int64(roles.Oracle), []interface{}{acc.PrivateKey().PublicKey().Bytes()})
+		int64(roles.Oracle), []interface{}{acc.PublicKey().Bytes()})
 
 	cs := contracts.GetOracleContractState(t, pathToInternalContracts, validator.ScriptHash(), 0)
 	e.DeployContract(t, &neotest.Contract{
@@ -391,7 +391,7 @@ func TestNotYetRunningOracle(t *testing.T) {
 	t.Cleanup(bc.Close)
 
 	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-		int64(roles.Oracle), []interface{}{acc.PrivateKey().PublicKey().Bytes()})
+		int64(roles.Oracle), []interface{}{acc.PublicKey().Bytes()})
 
 	var req state.OracleRequest
 	var reqs = make(map[uint64]*state.OracleRequest)

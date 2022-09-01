@@ -103,8 +103,8 @@ func NewMultiSigner(accs ...*wallet.Account) MultiSigner {
 			"but only %d accounts were provided", m, len(accs)))
 	}
 	sort.Slice(accs, func(i, j int) bool {
-		p1 := accs[i].PrivateKey().PublicKey()
-		p2 := accs[j].PrivateKey().PublicKey()
+		p1 := accs[i].PublicKey()
+		p2 := accs[j].PublicKey()
 		return p1.Cmp(p2) == -1
 	})
 	for _, acc := range accs {

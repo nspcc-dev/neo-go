@@ -802,7 +802,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			require.NoError(t, err)
 			pk, err := keys.NewPrivateKey()
 			require.NoError(t, err)
-			err = acc.ConvertMultisig(2, keys.PublicKeys{acc.PrivateKey().PublicKey(), pk.PublicKey()})
+			err = acc.ConvertMultisig(2, keys.PublicKeys{acc.PublicKey(), pk.PublicKey()})
 			require.NoError(t, err)
 
 			t.Run("cosigner is multisig account", func(t *testing.T) {

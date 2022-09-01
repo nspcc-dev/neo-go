@@ -74,7 +74,7 @@ func generateManagementHelperContracts(t *testing.T, saveState bool) {
 	stdHash := e.NativeHash(t, nativenames.StdLib)
 	neoHash := e.NativeHash(t, nativenames.Neo)
 	singleChainValidatorAcc := e.Validator.(neotest.MultiSigner).Single(2).Account() // priv0
-	require.NoError(t, singleChainValidatorAcc.ConvertMultisig(1, keys.PublicKeys{singleChainValidatorAcc.PrivateKey().PublicKey()}))
+	require.NoError(t, singleChainValidatorAcc.ConvertMultisig(1, keys.PublicKeys{singleChainValidatorAcc.PublicKey()}))
 	singleChainValidatorHash := singleChainValidatorAcc.Contract.ScriptHash()
 
 	w := io.NewBufBinWriter()

@@ -15,7 +15,7 @@ func (n *Notary) UpdateNotaryNodes(notaryNodes keys.PublicKeys) {
 
 	if n.currAccount != nil {
 		for _, node := range notaryNodes {
-			if node.Equal(n.currAccount.PrivateKey().PublicKey()) {
+			if node.Equal(n.currAccount.PublicKey()) {
 				return
 			}
 		}

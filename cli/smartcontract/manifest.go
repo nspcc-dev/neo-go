@@ -45,7 +45,7 @@ func manifestAddGroup(ctx *cli.Context) error {
 	var found bool
 
 	sig := gAcc.PrivateKey().Sign(h.BytesBE())
-	pub := gAcc.PrivateKey().PublicKey()
+	pub := gAcc.PublicKey()
 	for i := range m.Groups {
 		if m.Groups[i].PublicKey.Equal(pub) {
 			m.Groups[i].Signature = sig

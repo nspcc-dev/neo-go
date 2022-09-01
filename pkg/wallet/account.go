@@ -140,7 +140,7 @@ func (a *Account) GetVerificationScript() []byte {
 	if a.Contract != nil {
 		return a.Contract.Script
 	}
-	return a.PrivateKey().PublicKey().GetVerificationScript()
+	return a.privateKey.PublicKey().GetVerificationScript()
 }
 
 // Decrypt decrypts the EncryptedWIF with the given passphrase returning error
@@ -173,6 +173,15 @@ func (a *Account) Encrypt(passphrase string, scrypt keys.ScryptParams) error {
 // PrivateKey returns private key corresponding to the account.
 func (a *Account) PrivateKey() *keys.PrivateKey {
 	return a.privateKey
+}
+
+// PublicKey returns the public key associated with the private key corresponding to
+// the account. It can return nil if account is locked (use CanSign to check).
+func (a *Account) PublicKey() *keys.PublicKey {
+	if !a.CanSign() {
+		return nil
+	}
+	return a.privateKey.PublicKey()
 }
 
 // Close cleans up the private key used by Account and disassociates it from

@@ -105,7 +105,7 @@ func TestContractSignTx(t *testing.T) {
 
 	require.Error(t, acc2.SignTx(0, tx))
 
-	pubs := keys.PublicKeys{acc.privateKey.PublicKey(), acc2.privateKey.PublicKey()}
+	pubs := keys.PublicKeys{acc.PublicKey(), acc2.PublicKey()}
 	multiS, err := smartcontract.CreateDefaultMultiSigRedeemScript(pubs)
 	require.NoError(t, err)
 	multiAcc := NewAccountFromPrivateKey(acc.privateKey)
@@ -139,6 +139,7 @@ func TestContractSignTx(t *testing.T) {
 	acc2.Locked = true
 	require.False(t, acc2.CanSign())
 	require.Error(t, acc2.SignTx(0, tx)) // Locked account.
+	require.Nil(t, acc2.PublicKey())     // Locked account.
 
 	acc2.Locked = false
 	acc2.Close()
@@ -232,7 +233,7 @@ func compareFields(t *testing.T, tk keytestcases.Ktype, acc *Account) {
 	require.Equalf(t, want, have, "expected address %s got %s", want, have)
 	want, have = tk.Wif, acc.privateKey.WIF()
 	require.Equalf(t, want, have, "expected wif %s got %s", want, have)
-	want, have = tk.PublicKey, hex.EncodeToString(acc.privateKey.PublicKey().Bytes())
+	want, have = tk.PublicKey, hex.EncodeToString(acc.PublicKey().Bytes())
 	require.Equalf(t, want, have, "expected pub key %s got %s", want, have)
 	want, have = tk.PrivateKey, acc.privateKey.String()
 	require.Equalf(t, want, have, "expected priv key %s got %s", want, have)

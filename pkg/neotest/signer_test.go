@@ -28,7 +28,7 @@ func TestMultiSigner(t *testing.T) {
 		require.NoError(t, err)
 
 		accs[i] = a
-		pubs[i] = a.PrivateKey().PublicKey()
+		pubs[i] = a.PublicKey()
 	}
 
 	sort.Sort(pubs)
@@ -40,8 +40,8 @@ func TestMultiSigner(t *testing.T) {
 	s := NewMultiSigner(accs...)
 	for i := range pubs {
 		for j := range accs {
-			if pub := accs[j].PrivateKey().PublicKey(); pub.Equal(pubs[i]) {
-				require.Equal(t, pub, s.Single(i).Account().PrivateKey().PublicKey())
+			if pub := accs[j].PublicKey(); pub.Equal(pubs[i]) {
+				require.Equal(t, pub, s.Single(i).Account().PublicKey())
 			}
 		}
 	}

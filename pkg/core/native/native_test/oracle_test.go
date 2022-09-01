@@ -71,8 +71,8 @@ func TestOracle_Request(t *testing.T) {
 
 	// Designate single Oracle node.
 	oracleNode := e.NewAccount(t)
-	designationCommitteeInvoker.Invoke(t, stackitem.Null{}, "designateAsRole", int(noderoles.Oracle), []interface{}{oracleNode.(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes()})
-	err = oracleNode.(neotest.SingleSigner).Account().ConvertMultisig(1, []*keys.PublicKey{oracleNode.(neotest.SingleSigner).Account().PrivateKey().PublicKey()})
+	designationCommitteeInvoker.Invoke(t, stackitem.Null{}, "designateAsRole", int(noderoles.Oracle), []interface{}{oracleNode.(neotest.SingleSigner).Account().PublicKey().Bytes()})
+	err = oracleNode.(neotest.SingleSigner).Account().ConvertMultisig(1, []*keys.PublicKey{oracleNode.(neotest.SingleSigner).Account().PublicKey()})
 	require.NoError(t, err)
 	oracleNodeMulti := neotest.NewMultiSigner(oracleNode.(neotest.SingleSigner).Account())
 	gasCommitteeInvoker.Invoke(t, true, "transfer", gasCommitteeInvoker.CommitteeHash, oracleNodeMulti.ScriptHash(), 100_0000_0000, nil)

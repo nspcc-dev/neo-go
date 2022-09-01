@@ -1060,7 +1060,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 	notaryServiceFeePerKey := bc.GetNotaryServiceFeePerKey()
 
 	oracleAcc := accs[2]
-	oraclePubs := keys.PublicKeys{oracleAcc.PrivateKey().PublicKey()}
+	oraclePubs := keys.PublicKeys{oracleAcc.PublicKey()}
 	require.NoError(t, oracleAcc.ConvertMultisig(1, oraclePubs))
 
 	neoHash := e.NativeHash(t, nativenames.Neo)
@@ -1179,7 +1179,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		})
 		t.Run("CalculateNetworkFee, multisignature script", func(t *testing.T) {
 			multisigAcc := accs[4]
-			pKeys := keys.PublicKeys{multisigAcc.PrivateKey().PublicKey()}
+			pKeys := keys.PublicKeys{multisigAcc.PublicKey()}
 			require.NoError(t, multisigAcc.ConvertMultisig(1, pKeys))
 			multisigHash := hash.Hash160(multisigAcc.Contract.Script)
 			tx := newTestTx(t, multisigHash, testScript)
@@ -1594,7 +1594,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			notary, err := wallet.NewAccount()
 			require.NoError(t, err)
 			designateSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-				int64(noderoles.P2PNotary), []interface{}{notary.PrivateKey().PublicKey().Bytes()})
+				int64(noderoles.P2PNotary), []interface{}{notary.PublicKey().Bytes()})
 			txSetNotary := transaction.New([]byte{byte(opcode.RET)}, 0)
 			txSetNotary.Signers = []transaction.Signer{
 				{
