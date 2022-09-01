@@ -141,9 +141,11 @@ func TestContractSignTx(t *testing.T) {
 	require.Error(t, acc2.SignTx(0, tx)) // Locked account.
 
 	acc2.Locked = false
-	acc2.privateKey = nil
+	acc2.Close()
 	require.False(t, acc2.CanSign())
 	require.Error(t, acc2.SignTx(0, tx)) // No private key.
+	acc2.Close()                         // No-op.
+	require.False(t, acc2.CanSign())
 
 	tx.Scripts = append(tx.Scripts, transaction.Witness{
 		VerificationScript: acc.Contract.Script,

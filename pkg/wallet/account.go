@@ -175,6 +175,17 @@ func (a *Account) PrivateKey() *keys.PrivateKey {
 	return a.privateKey
 }
 
+// Close cleans up the private key used by Account and disassociates it from
+// Account. The Account can no longer sign anything after this call, but Decrypt
+// can make it usable again.
+func (a *Account) Close() {
+	if a.privateKey == nil {
+		return
+	}
+	a.privateKey.Destroy()
+	a.privateKey = nil
+}
+
 // NewAccountFromWIF creates a new Account from the given WIF.
 func NewAccountFromWIF(wif string) (*Account, error) {
 	privKey, err := keys.NewPrivateKeyFromWIF(wif)

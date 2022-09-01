@@ -117,6 +117,15 @@ func (p *PrivateKey) WIF() string {
 	return w
 }
 
+// Destroy wipes the contents of the private key from memory. Any operations
+// with the key after call to Destroy have undefined behavior.
+func (p *PrivateKey) Destroy() {
+	bits := p.D.Bits()
+	for i := range bits {
+		bits[i] = 0
+	}
+}
+
 // Address derives the public NEO address that is coupled with the private key, and
 // returns it as a string.
 func (p *PrivateKey) Address() string {

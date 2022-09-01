@@ -34,13 +34,16 @@ func TestNewWalletFromFile_Negative_NoFile(t *testing.T) {
 	require.Errorf(t, err, "open testWallet: no such file or directory")
 }
 
-func TestCreateAccount(t *testing.T) {
+func TestCreateAccountAndClose(t *testing.T) {
 	wallet := checkWalletConstructor(t)
 
 	errAcc := wallet.CreateAccount("testName", "testPass")
 	require.NoError(t, errAcc)
 	accounts := wallet.Accounts
 	require.Len(t, accounts, 1)
+	require.True(t, wallet.Accounts[0].CanSign())
+	wallet.Close()
+	require.False(t, wallet.Accounts[0].CanSign())
 }
 
 func TestAddAccount(t *testing.T) {

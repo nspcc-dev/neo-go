@@ -168,9 +168,14 @@ func (w *Wallet) JSON() ([]byte, error) {
 	return json.MarshalIndent(w, " ", "	")
 }
 
-// Deprecated: Close is deprecated.
-// Close performs nothing and is left for backwards compatibility.
-func (w *Wallet) Close() {}
+// Close closes all Wallet accounts making them incapable of signing anything
+// (unless they're decrypted again). It's not doing anything to the underlying
+// wallet file.
+func (w *Wallet) Close() {
+	for _, acc := range w.Accounts {
+		acc.Close()
+	}
+}
 
 // GetAccount returns an account corresponding to the provided scripthash.
 func (w *Wallet) GetAccount(h util.Uint160) *Account {

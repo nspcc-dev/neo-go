@@ -2,6 +2,7 @@ package keys
 
 import (
 	"encoding/hex"
+	"math/big"
 	"strings"
 	"testing"
 
@@ -27,6 +28,9 @@ func TestPrivateKey(t *testing.T) {
 		assert.Equal(t, testCase.Wif, wif)
 		pubKey := privKey.PublicKey()
 		assert.Equal(t, hex.EncodeToString(pubKey.Bytes()), testCase.PublicKey)
+		oldD := new(big.Int).Set(privKey.D)
+		privKey.Destroy()
+		assert.NotEqual(t, oldD, privKey.D)
 	}
 }
 
