@@ -173,7 +173,12 @@ func NewCommands() []cli.Command {
 				Name:      "dump",
 				Usage:     "check and dump an existing NEO wallet",
 				UsageText: "neo-go wallet dump -w wallet [--wallet-config path] [-d]",
-				Action:    dumpWallet,
+				Description: `Prints the given wallet (via -w option or via wallet configuration file) in JSON
+   format to the standard output. If -d is given, private keys are unencrypted and
+   displayed in clear text on the console! Be very careful with this option and
+   don't use it unless you know what you're doing.
+`,
+				Action: dumpWallet,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
@@ -198,7 +203,13 @@ func NewCommands() []cli.Command {
 				Name:      "export",
 				Usage:     "export keys for address",
 				UsageText: "export -w wallet [--wallet-config path] [--decrypt] [<address>]",
-				Action:    exportKeys,
+				Description: `Prints the key for the given account to the standard output. It uses NEP-2
+   encrypted format by default (the way NEP-6 wallets store it) or WIF format if
+   -d option is given. In the latter case the key can be displayed in clear text
+   on the console, so be extremely careful with this option and don't use unless
+   you really need it and know what you're doing.
+`,
+				Action: exportKeys,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
