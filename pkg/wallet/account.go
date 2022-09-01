@@ -150,7 +150,9 @@ func (a *Account) GetVerificationScript() []byte {
 }
 
 // Decrypt decrypts the EncryptedWIF with the given passphrase returning error
-// if anything goes wrong.
+// if anything goes wrong. After the decryption Account can be used to sign
+// things unless it's locked. Don't decrypt the key unless you want to sign
+// something and don't forget to call Close after use for maximum safety.
 func (a *Account) Decrypt(passphrase string, scrypt keys.ScryptParams) error {
 	var err error
 
@@ -176,7 +178,11 @@ func (a *Account) Encrypt(passphrase string, scrypt keys.ScryptParams) error {
 	return nil
 }
 
-// PrivateKey returns private key corresponding to the account.
+// PrivateKey returns private key corresponding to the account if it's unlocked.
+// Please be very careful when using it, do not copy its contents and do not
+// keep a pointer to it unless you absolutely need to. Most of the time you can
+// use other methods (PublicKey, ScriptHash, SignHashable) depending on your
+// needs and it'll be safer this way.
 func (a *Account) PrivateKey() *keys.PrivateKey {
 	return a.privateKey
 }
