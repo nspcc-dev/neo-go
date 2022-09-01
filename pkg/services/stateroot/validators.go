@@ -86,7 +86,7 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 		return nil
 	}
 
-	sig := acc.PrivateKey().SignHashable(uint32(s.Network), r)
+	sig := acc.SignHashable(s.Network, r)
 	incRoot := s.getIncompleteRoot(r.Index, myIndex)
 	incRoot.Lock()
 	defer incRoot.Unlock()
@@ -116,7 +116,7 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 			VerificationScript: acc.GetVerificationScript(),
 		},
 	}
-	sig = acc.PrivateKey().SignHashable(uint32(s.Network), e)
+	sig = acc.SignHashable(s.Network, e)
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
 	e.Witness.InvocationScript = buf.Bytes()

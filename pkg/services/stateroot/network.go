@@ -103,7 +103,7 @@ func (s *service) sendValidatedRoot(r *state.MPTRoot, acc *wallet.Account) {
 			VerificationScript: acc.GetVerificationScript(),
 		},
 	}
-	sig := acc.PrivateKey().SignHashable(uint32(s.Network), ep)
+	sig := acc.SignHashable(s.Network, ep)
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
 	ep.Witness.InvocationScript = buf.Bytes()

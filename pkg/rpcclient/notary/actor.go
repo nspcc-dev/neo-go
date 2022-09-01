@@ -300,7 +300,7 @@ func (a *Actor) SendRequestExactly(mainTx *transaction.Transaction, fbTx *transa
 		FallbackTransaction: fbTx,
 	}
 	req.Witness = transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, a.sender.PrivateKey().SignHashable(uint32(a.GetNetwork()), req)...),
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, a.sender.SignHashable(a.GetNetwork(), req)...),
 		VerificationScript: a.sender.GetVerificationScript(),
 	}
 	actualHash, err := a.rpc.SubmitP2PNotaryRequest(req)

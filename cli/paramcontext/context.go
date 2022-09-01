@@ -17,10 +17,8 @@ import (
 func InitAndSave(net netmode.Magic, tx *transaction.Transaction, acc *wallet.Account, filename string) error {
 	scCtx := context.NewParameterContext("Neo.Network.P2P.Payloads.Transaction", net, tx)
 	if acc != nil && acc.CanSign() {
-		priv := acc.PrivateKey()
-		pub := priv.PublicKey()
-		sign := priv.SignHashable(uint32(net), tx)
-		if err := scCtx.AddSignature(acc.ScriptHash(), acc.Contract, pub, sign); err != nil {
+		sign := acc.SignHashable(net, tx)
+		if err := scCtx.AddSignature(acc.ScriptHash(), acc.Contract, acc.PublicKey(), sign); err != nil {
 			return fmt.Errorf("can't add signature: %w", err)
 		}
 	}

@@ -140,8 +140,9 @@ func TestContractSignTx(t *testing.T) {
 
 	acc2.Locked = true
 	require.False(t, acc2.CanSign())
-	require.Error(t, acc2.SignTx(0, tx)) // Locked account.
-	require.Nil(t, acc2.PublicKey())     // Locked account.
+	require.Error(t, acc2.SignTx(0, tx))     // Locked account.
+	require.Nil(t, acc2.PublicKey())         // Locked account.
+	require.Nil(t, acc2.SignHashable(0, tx)) // Locked account.
 
 	acc2.Locked = false
 	acc2.Close()
@@ -155,6 +156,7 @@ func TestContractSignTx(t *testing.T) {
 	})
 	require.NoError(t, acc.SignTx(0, tx)) // Add invocation script for existing witness.
 	require.Equal(t, 66, len(tx.Scripts[1].InvocationScript))
+	require.NotNil(t, acc.SignHashable(0, tx)) // Works via Hashable too.
 
 	require.NoError(t, multiAcc.SignTx(0, tx))
 	require.Equal(t, 3, len(tx.Scripts))

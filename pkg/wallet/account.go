@@ -126,6 +126,15 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 	return nil
 }
 
+// SignHashable signs the given Hashable item and returns the signature. If this
+// account can't sign (CanSign() returns false) nil is returned.
+func (a *Account) SignHashable(net netmode.Magic, item hash.Hashable) []byte {
+	if !a.CanSign() {
+		return nil
+	}
+	return a.privateKey.SignHashable(uint32(net), item)
+}
+
 // CanSign returns true when account is not locked and has a decrypted private
 // key inside, so it's ready to create real signatures.
 func (a *Account) CanSign() bool {

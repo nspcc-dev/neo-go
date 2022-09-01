@@ -58,8 +58,7 @@ func signStoredTransaction(ctx *cli.Context) error {
 	}
 
 	if acc.CanSign() {
-		priv := acc.PrivateKey()
-		sign := priv.SignHashable(uint32(pc.Network), pc.Verifiable)
+		sign := acc.SignHashable(pc.Network, pc.Verifiable)
 		if err := pc.AddSignature(ch, acc.Contract, acc.PublicKey(), sign); err != nil {
 			return cli.NewExitError(fmt.Errorf("can't add signature: %w", err), 1)
 		}
