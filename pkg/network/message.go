@@ -176,7 +176,7 @@ func (m *Message) decodePayload() error {
 	}
 	r := io.NewBinReaderFromBuf(buf)
 	p.DecodeBinary(r)
-	if r.Err == nil || r.Err == payload.ErrTooManyHeaders {
+	if r.Err == nil || errors.Is(r.Err, payload.ErrTooManyHeaders) {
 		m.Payload = p
 	}
 

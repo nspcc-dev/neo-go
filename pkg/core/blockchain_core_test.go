@@ -77,7 +77,7 @@ func TestAddBlock(t *testing.T) {
 }
 
 func TestRemoveOldTransfers(t *testing.T) {
-	// Creating proper number of transfers/blocks takes unneccessary time, so emulate
+	// Creating proper number of transfers/blocks takes unnecessary time, so emulate
 	// some DB with stale entries.
 	bc := newTestChain(t)
 	h, err := bc.GetHeader(bc.GetHeaderHash(0))

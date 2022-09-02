@@ -693,15 +693,15 @@ func (bc *Blockchain) Run() {
 	}
 }
 
-func (bc *Blockchain) tryRunGC(old uint32) time.Duration {
+func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 	var dur time.Duration
 
-	new := atomic.LoadUint32(&bc.persistedHeight)
-	var tgtBlock = int64(new)
+	newHeight := atomic.LoadUint32(&bc.persistedHeight)
+	var tgtBlock = int64(newHeight)
 
 	tgtBlock -= int64(bc.config.MaxTraceableBlocks)
 	if bc.config.P2PStateExchangeExtensions {
-		syncP := new / uint32(bc.config.StateSyncInterval)
+		syncP := newHeight / uint32(bc.config.StateSyncInterval)
 		syncP--
 		syncP *= uint32(bc.config.StateSyncInterval)
 		if tgtBlock > int64(syncP) {
@@ -712,9 +712,9 @@ func (bc *Blockchain) tryRunGC(old uint32) time.Duration {
 	tgtBlock /= int64(bc.config.GarbageCollectionPeriod)
 	tgtBlock *= int64(bc.config.GarbageCollectionPeriod)
 	// Count periods.
-	old /= bc.config.GarbageCollectionPeriod
-	new /= bc.config.GarbageCollectionPeriod
-	if tgtBlock > int64(bc.config.GarbageCollectionPeriod) && new != old {
+	oldHeight /= bc.config.GarbageCollectionPeriod
+	newHeight /= bc.config.GarbageCollectionPeriod
+	if tgtBlock > int64(bc.config.GarbageCollectionPeriod) && newHeight != oldHeight {
 		tgtBlock /= int64(bc.config.GarbageCollectionPeriod)
 		tgtBlock *= int64(bc.config.GarbageCollectionPeriod)
 		dur = bc.stateRoot.GC(uint32(tgtBlock), bc.store)
@@ -1702,7 +1702,7 @@ func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 	if bc.memPool.ContainsKey(hash) {
 		return true
 	}
-	return bc.dao.HasTransaction(hash) == dao.ErrAlreadyExists
+	return errors.Is(bc.dao.HasTransaction(hash), dao.ErrAlreadyExists)
 }
 
 // HasBlock returns true if the blockchain contains the given
@@ -1761,7 +1761,7 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 // GetContractState returns contract by its script hash.
 func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
 	contract, err := bc.contracts.Management.GetContract(bc.dao, hash)
-	if contract == nil && err != storage.ErrKeyNotFound {
+	if contract == nil && !errors.Is(err, storage.ErrKeyNotFound) {
 		bc.log.Warn("failed to get contract state", zap.Error(err))
 	}
 	return contract

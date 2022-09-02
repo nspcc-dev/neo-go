@@ -173,7 +173,7 @@ func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) sta
 	hash := toHash160(args[0])
 	ctr, err := m.GetContract(ic.DAO, hash)
 	if err != nil {
-		if err == storage.ErrKeyNotFound {
+		if errors.Is(err, storage.ErrKeyNotFound) {
 			return stackitem.Null{}
 		}
 		panic(err)

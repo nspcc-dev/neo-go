@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -110,7 +111,7 @@ func TestServerStart(t *testing.T) {
 			var line string
 			require.Eventually(t, func() bool {
 				line, err = e.Out.ReadString('\n')
-				if err != nil && err != io.EOF {
+				if err != nil && !errors.Is(err, io.EOF) {
 					t.Fatalf("unexpected error while reading CLI output: %s", err)
 				}
 				return err == nil

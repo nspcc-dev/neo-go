@@ -170,7 +170,7 @@ func (p *TCPPeer) handleConn() {
 			msg := &Message{StateRootInHeader: p.server.config.StateRootInHeader}
 			err = msg.Decode(r)
 
-			if err == payload.ErrTooManyHeaders {
+			if errors.Is(err, payload.ErrTooManyHeaders) {
 				p.server.log.Warn("not all headers were processed")
 				r.Err = nil
 			} else if err != nil {

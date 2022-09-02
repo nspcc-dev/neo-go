@@ -176,7 +176,7 @@ func (dao *Simple) GetTokenTransferInfo(acc util.Uint160) (*state.TokenTransferI
 	key := dao.makeTTIKey(acc)
 	bs := state.NewTokenTransferInfo()
 	err := dao.GetAndDecode(bs, key)
-	if err != nil && err != storage.ErrKeyNotFound {
+	if err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
 		return nil, err
 	}
 	return bs, nil
@@ -257,7 +257,7 @@ func (dao *Simple) GetTokenTransferLog(acc util.Uint160, newestTimestamp uint64,
 	key := dao.getTokenTransferLogKey(acc, newestTimestamp, index, isNEP11)
 	value, err := dao.Store.Get(key)
 	if err != nil {
-		if err == storage.ErrKeyNotFound {
+		if errors.Is(err, storage.ErrKeyNotFound) {
 			return new(state.TokenTransferLog), nil
 		}
 		return nil, err
@@ -306,7 +306,7 @@ func (dao *Simple) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]st
 			aer := new(state.AppExecResult)
 			aer.DecodeBinary(r)
 			if r.Err != nil {
-				if r.Err == iocore.EOF {
+				if errors.Is(r.Err, iocore.EOF) {
 					break
 				}
 				return nil, r.Err
@@ -828,14 +828,14 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 	return nil
 }
 
-func (dao *Simple) getKeyBuf(len int) []byte {
+func (dao *Simple) getKeyBuf(l int) []byte {
 	if dao.private {
 		if dao.keyBuf == nil {
 			dao.keyBuf = make([]byte, 0, 1+4+limits.MaxStorageKeyLen) // Prefix, uint32, key.
 		}
-		return dao.keyBuf[:len] // Should have enough capacity.
+		return dao.keyBuf[:l] // Should have enough capacity.
 	}
-	return make([]byte, len)
+	return make([]byte, l)
 }
 
 func (dao *Simple) getDataBuf() *io.BufBinWriter {

@@ -947,7 +947,7 @@ func readWallet(ctx *cli.Context) (*wallet.Wallet, *string, error) {
 	if path == "-" {
 		w := &wallet.Wallet{}
 		if err := json.NewDecoder(os.Stdin).Decode(w); err != nil {
-			return nil, nil, fmt.Errorf("js %s", err)
+			return nil, nil, fmt.Errorf("js %w", err)
 		}
 		return w, nil, nil
 	}

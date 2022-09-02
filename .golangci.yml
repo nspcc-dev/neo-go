@@ -32,20 +32,32 @@ linters:
     - revive
 
     # some default golangci-lint linters
-    - deadcode
     - errcheck
     - gosimple
     - godot
     - ineffassign
     - staticcheck
-    - structcheck
     - typecheck
     - unused
-    - varcheck
 
     # extra linters
     # - exhaustive
+    # - goconst
+    # - goerr113
+    # - gomnd
+    # - nonamedreturns
+    # - unparam
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - decorder
+    - durationcheck
+    - errorlint
+    - exportloopref
     - gofmt
+    - misspell
+    - predeclared
+    - reassign
     - whitespace
     - goimports
   disable-all: true

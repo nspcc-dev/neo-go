@@ -169,7 +169,7 @@ func FromJSON(data []byte, maxCount int) (Item, error) {
 	d.UseNumber()
 	if item, err := d.decode(); err != nil {
 		return nil, err
-	} else if _, err := d.Token(); err != gio.EOF {
+	} else if _, err := d.Token(); !errors.Is(err, gio.EOF) {
 		return nil, fmt.Errorf("%w: unexpected items", ErrInvalidValue)
 	} else {
 		return item, nil

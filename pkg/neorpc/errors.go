@@ -1,6 +1,7 @@
 package neorpc
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -125,9 +126,9 @@ func (e *Error) Error() string {
 
 // Is denotes whether the error matches the target one.
 func (e *Error) Is(target error) bool {
-	clTarget, ok := target.(*Error)
-	if !ok {
-		return false
+	var clTarget *Error
+	if errors.As(target, &clTarget) {
+		return e.Code == clTarget.Code
 	}
-	return e.Code == clTarget.Code
+	return false
 }
