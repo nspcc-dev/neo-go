@@ -828,14 +828,14 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 	return nil
 }
 
-func (dao *Simple) getKeyBuf(len int) []byte {
+func (dao *Simple) getKeyBuf(l int) []byte {
 	if dao.private {
 		if dao.keyBuf == nil {
 			dao.keyBuf = make([]byte, 0, 1+4+limits.MaxStorageKeyLen) // Prefix, uint32, key.
 		}
-		return dao.keyBuf[:len] // Should have enough capacity.
+		return dao.keyBuf[:l] // Should have enough capacity.
 	}
-	return make([]byte, len)
+	return make([]byte, l)
 }
 
 func (dao *Simple) getDataBuf() *io.BufBinWriter {

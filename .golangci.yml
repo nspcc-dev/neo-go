@@ -47,6 +47,7 @@ linters:
     - errorlint
     - gofmt
     - misspell
+    - predeclared
     - whitespace
     - goimports
   disable-all: true
