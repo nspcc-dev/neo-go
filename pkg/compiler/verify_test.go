@@ -18,7 +18,7 @@ func TestVerifyGood(t *testing.T) {
 	pub, sig := signMessage(t, msg)
 	src := getVerifyProg(pub, sig)
 
-	v, p := vmAndCompileInterop(t, src)
+	v, p, _ := vmAndCompileInterop(t, src)
 	p.interops[interopnames.ToID([]byte(interopnames.SystemCryptoCheckSig))] = func(v *vm.VM) error {
 		assert.Equal(t, pub, v.Estack().Pop().Bytes())
 		assert.Equal(t, sig, v.Estack().Pop().Bytes())

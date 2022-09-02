@@ -49,11 +49,15 @@ func (c *codegen) getIdentName(pkg string, name string) string {
 func (c *codegen) traverseGlobals() bool {
 	var hasDefer bool
 	var n, nConst int
+	var hasUnusedCall bool
 	var hasDeploy bool
 	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
-		nv, nc := countGlobals(f)
+		nv, nc, huc := countGlobals(f, !hasUnusedCall)
 		n += nv
 		nConst += nc
+		if huc {
+			hasUnusedCall = true
+		}
 		if !hasDeploy || !hasDefer {
 			ast.Inspect(f, func(node ast.Node) bool {
 				switch n := node.(type) {
@@ -85,10 +89,10 @@ func (c *codegen) traverseGlobals() bool {
 
 	lastCnt, maxCnt := -1, -1
 	c.ForEachPackage(func(pkg *packages.Package) {
-		if n+nConst > 0 {
+		if n+nConst > 0 || hasUnusedCall {
 			for _, f := range pkg.Syntax {
 				c.fillImportMap(f, pkg)
-				c.convertGlobals(f, pkg.Types)
+				c.convertGlobals(f)
 			}
 		}
 		for _, f := range pkg.Syntax {
@@ -143,26 +147,37 @@ func (c *codegen) traverseGlobals() bool {
 // countGlobals counts the global variables in the program to add
 // them with the stack size of the function.
 // Second returned argument contains the amount of global constants.
-func countGlobals(f ast.Node) (int, int) {
+// If checkUnusedCalls set to true then unnamed global variables containing call
+// will be searched for and their presence is returned as the last argument.
+func countGlobals(f ast.Node, checkUnusedCalls bool) (int, int, bool) {
 	var numVar, numConst int
+	var hasUnusedCall bool
 	ast.Inspect(f, func(node ast.Node) bool {
 		switch n := node.(type) {
 		// Skip all function declarations if we have already encountered `defer`.
 		case *ast.FuncDecl:
 			return false
 		// After skipping all funcDecls, we are sure that each value spec
-		// is a global declared variable or constant.
+		// is a globally declared variable or constant.
 		case *ast.GenDecl:
 			isVar := n.Tok == token.VAR
 			if isVar || n.Tok == token.CONST {
 				for _, s := range n.Specs {
-					for _, id := range s.(*ast.ValueSpec).Names {
-						if id.Name != "_" {
+					valueSpec := s.(*ast.ValueSpec)
+					multiRet := len(valueSpec.Values) != 0 && len(valueSpec.Names) != len(valueSpec.Values) // e.g. var A, B = f() where func f() (int, int)
+					for j, id := range valueSpec.Names {
+						if id.Name != "_" { // If variable has name, then it's treated as used - that's countGlobals' caller responsibility to guarantee that.
 							if isVar {
 								numVar++
 							} else {
 								numConst++
 							}
+						} else if isVar && len(valueSpec.Values) != 0 && checkUnusedCalls && !hasUnusedCall {
+							indexToCheck := j
+							if multiRet {
+								indexToCheck = 0
+							}
+							hasUnusedCall = containsCall(valueSpec.Values[indexToCheck])
 						}
 					}
 				}
@@ -171,7 +186,23 @@ func countGlobals(f ast.Node) (int, int) {
 		}
 		return true
 	})
-	return numVar, numConst
+	return numVar, numConst, hasUnusedCall
+}
+
+// containsCall traverses node and looks if it contains a function or method call.
+func containsCall(n ast.Node) bool {
+	var hasCall bool
+	ast.Inspect(n, func(node ast.Node) bool {
+		switch node.(type) {
+		case *ast.CallExpr:
+			hasCall = true
+		case *ast.Ident:
+			// Can safely skip idents immediately, we're interested at function calls only.
+			return false
+		}
+		return !hasCall
+	})
+	return hasCall
 }
 
 // isExprNil looks if the given expression is a `nil`.
@@ -250,21 +281,45 @@ func (c *codegen) fillDocumentInfo() {
 	})
 }
 
-// analyzeFuncUsage traverses all code and returns a map with functions
+// analyzeFuncAndGlobalVarUsage traverses all code and returns a map with functions
 // which should be present in the emitted code.
 // This is done using BFS starting from exported functions or
 // the function used in variable declarations (graph edge corresponds to
-// the function being called in declaration).
-func (c *codegen) analyzeFuncUsage() funcUsage {
+// the function being called in declaration). It also analyzes global variables
+// usage preserving the same traversal strategy and rules. Unused global variables
+// are renamed to "_" in the end. Global variable is treated as "used" iff:
+// 1. It belongs either to main or to exported package AND is used directly from the exported (or _init\_deploy) method of the main package.
+// 2. It belongs either to main or to exported package AND is used non-directly from the exported (or _init\_deploy) method of the main package
+// (e.g. via series of function calls or in some expression that is "used").
+// 3. It belongs either to main or to exported package AND contains function call inside its value definition.
+func (c *codegen) analyzeFuncAndGlobalVarUsage() funcUsage {
 	type declPair struct {
 		decl      *ast.FuncDecl
 		importMap map[string]string
 		path      string
 	}
-
-	// nodeCache contains top-level function declarations .
+	// globalVar represents a global variable declaration node with the corresponding package context.
+	type globalVar struct {
+		decl      *ast.GenDecl // decl contains global variables declaration node (there can be multiple declarations in a single node).
+		specIdx   int          // specIdx is the index of variable specification in the list of GenDecl specifications.
+		varIdx    int          // varIdx is the index of variable name in the specification names.
+		ident     *ast.Ident   // ident is a named global variable identifier got from the specified node.
+		importMap map[string]string
+		path      string
+	}
+	// nodeCache contains top-level function declarations.
 	nodeCache := make(map[string]declPair)
+	// globalVarsCache contains both used and unused declared named global vars.
+	globalVarsCache := make(map[string]globalVar)
+	// diff contains used functions that are not yet marked as "used" and those definition
+	// requires traversal in the subsequent stages.
 	diff := funcUsage{}
+	// globalVarsDiff contains used named global variables that are not yet marked as "used"
+	// and those declaration requires traversal in the subsequent stages.
+	globalVarsDiff := funcUsage{}
+	// usedExpressions contains a set of ast.Nodes that are used in the program and need to be evaluated
+	// (either they are used from the used functions OR belong to global variable declaration and surrounded by a function call)
+	var usedExpressions []nodeContext
 	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
 		var pkgPath string
 		isMain := pkg == c.mainPkg.Types
@@ -316,6 +371,44 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 				}
 				nodeCache[name] = declPair{n, c.importMap, pkgPath}
 				return false // will be processed in the next stage
+			case *ast.GenDecl:
+				// After skipping all funcDecls, we are sure that each value spec
+				// is a globally declared variable or constant. We need to gather global
+				// vars from both main and imported packages.
+				if n.Tok == token.VAR {
+					for i, s := range n.Specs {
+						valSpec := s.(*ast.ValueSpec)
+						for j, id := range valSpec.Names {
+							if id.Name != "_" {
+								name := c.getIdentName(pkgPath, id.Name)
+								globalVarsCache[name] = globalVar{
+									decl:      n,
+									specIdx:   i,
+									varIdx:    j,
+									ident:     id,
+									importMap: c.importMap,
+									path:      pkgPath,
+								}
+							}
+							// Traverse both named/unnamed global variables, check whether function/method call
+							// is present inside variable value and if so, mark all its children as "used" for
+							// further traversal and evaluation.
+							if len(valSpec.Values) == 0 {
+								continue
+							}
+							multiRet := len(valSpec.Values) != len(valSpec.Names)
+							if (j == 0 || !multiRet) && containsCall(valSpec.Values[j]) {
+								usedExpressions = append(usedExpressions, nodeContext{
+									node:      valSpec.Values[j],
+									path:      pkgPath,
+									importMap: c.importMap,
+									typeInfo:  c.typeInfo,
+									currPkg:   c.currPkg,
+								})
+							}
+						}
+					}
+				}
 			}
 			return true
 		})
@@ -324,9 +417,24 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 		return nil
 	}
 
+	// Handle nodes that contain (or surrounded by) function calls and are a part
+	// of global variable declaration.
+	c.pickVarsFromNodes(usedExpressions, func(name string) {
+		if _, gOK := globalVarsCache[name]; gOK {
+			globalVarsDiff[name] = true
+		}
+	})
+
+	// Traverse the set of upper-layered used functions and construct the functions' usage map.
+	// At the same time, go through the whole set of used functions and mark global vars used
+	// from these functions as "used". Also mark the global variables from the previous step
+	// and their children as "used".
 	usage := funcUsage{}
-	for len(diff) != 0 {
+	globalVarsUsage := funcUsage{}
+	for len(diff) != 0 || len(globalVarsDiff) != 0 {
 		nextDiff := funcUsage{}
+		nextGlobalVarsDiff := funcUsage{}
+		usedExpressions = usedExpressions[:0]
 		for name := range diff {
 			fd, ok := nodeCache[name]
 			if !ok || usage[name] {
@@ -354,10 +462,155 @@ func (c *codegen) analyzeFuncUsage() funcUsage {
 				}
 				return true
 			})
+			usedExpressions = append(usedExpressions, nodeContext{
+				node:      fd.decl.Body,
+				path:      fd.path,
+				importMap: c.importMap,
+				typeInfo:  c.typeInfo,
+				currPkg:   c.currPkg,
+			})
 		}
+
+		// Traverse used global vars in a separate cycle so that we're sure there's no other unrelated vars.
+		// Mark their children as "used".
+		for name := range globalVarsDiff {
+			fd, ok := globalVarsCache[name]
+			if !ok || globalVarsUsage[name] {
+				continue
+			}
+			globalVarsUsage[name] = true
+			pkg := c.mainPkg
+			if fd.path != "" {
+				pkg = c.packageCache[fd.path]
+			}
+			valSpec := fd.decl.Specs[fd.specIdx].(*ast.ValueSpec)
+			if len(valSpec.Values) == 0 {
+				continue
+			}
+			multiRet := len(valSpec.Values) != len(valSpec.Names)
+			if fd.varIdx == 0 || !multiRet {
+				usedExpressions = append(usedExpressions, nodeContext{
+					node:      valSpec.Values[fd.varIdx],
+					path:      fd.path,
+					importMap: fd.importMap,
+					typeInfo:  pkg.TypesInfo,
+					currPkg:   pkg,
+				})
+			}
+		}
+		c.pickVarsFromNodes(usedExpressions, func(name string) {
+			if _, gOK := globalVarsCache[name]; gOK {
+				nextGlobalVarsDiff[name] = true
+			}
+		})
 		diff = nextDiff
+		globalVarsDiff = nextGlobalVarsDiff
+	}
+
+	// Tiny hack: rename all remaining unused global vars. After that these unused
+	// vars will be handled as any other unnamed unused variables, i.e.
+	// c.traverseGlobals() won't take them into account during static slot creation
+	// and the code won't be emitted for them.
+	for name, node := range globalVarsCache {
+		if _, ok := globalVarsUsage[name]; !ok {
+			node.ident.Name = "_"
+		}
 	}
 	return usage
+}
+
+// nodeContext contains ast node with the corresponding import map, type info and package information
+// required to retrieve fully qualified node name (if so).
+type nodeContext struct {
+	node      ast.Node
+	path      string
+	importMap map[string]string
+	typeInfo  *types.Info
+	currPkg   *packages.Package
+}
+
+// derive returns provided node with the parent's context.
+func (c nodeContext) derive(n ast.Node) nodeContext {
+	return nodeContext{
+		node:      n,
+		path:      c.path,
+		importMap: c.importMap,
+		typeInfo:  c.typeInfo,
+		currPkg:   c.currPkg,
+	}
+}
+
+// pickVarsFromNodes searches for variables used in the given set of nodes
+// calling markAsUsed for each variable. Be careful while using codegen after
+// pickVarsFromNodes, it changes importMap, currPkg and typeInfo.
+func (c *codegen) pickVarsFromNodes(nodes []nodeContext, markAsUsed func(name string)) {
+	for len(nodes) != 0 {
+		var nextExprToCheck []nodeContext
+		for _, val := range nodes {
+			// Set variable context for proper name extraction.
+			c.importMap = val.importMap
+			c.currPkg = val.currPkg
+			c.typeInfo = val.typeInfo
+			ast.Inspect(val.node, func(node ast.Node) bool {
+				switch n := node.(type) {
+				case *ast.KeyValueExpr: // var _ = f() + CustomInt{Int: Unused}.Int + 3 => mark Unused as "used".
+					nextExprToCheck = append(nextExprToCheck, val.derive(n.Value))
+					return false
+				case *ast.CallExpr:
+					switch t := n.Fun.(type) {
+					case *ast.Ident:
+						// Do nothing, used functions are handled in a separate cycle.
+					case *ast.SelectorExpr:
+						nextExprToCheck = append(nextExprToCheck, val.derive(t))
+					}
+					for _, arg := range n.Args {
+						switch arg.(type) {
+						case *ast.BasicLit:
+						default:
+							nextExprToCheck = append(nextExprToCheck, val.derive(arg))
+						}
+					}
+					return false
+				case *ast.SelectorExpr:
+					if c.typeInfo.Selections[n] != nil {
+						switch t := n.X.(type) {
+						case *ast.Ident:
+							nextExprToCheck = append(nextExprToCheck, val.derive(t))
+						case *ast.CompositeLit:
+							nextExprToCheck = append(nextExprToCheck, val.derive(t))
+						case *ast.SelectorExpr: // imp_pkg.Anna.GetAge() => mark Anna (exported global struct) as used.
+							nextExprToCheck = append(nextExprToCheck, val.derive(t))
+						}
+					} else {
+						ident := n.X.(*ast.Ident)
+						name := c.getIdentName(ident.Name, n.Sel.Name)
+						markAsUsed(name)
+					}
+					return false
+				case *ast.CompositeLit: // var _ = f(1) + []int{1, Unused, 3}[1] => mark Unused as "used".
+					for _, e := range n.Elts {
+						switch e.(type) {
+						case *ast.BasicLit:
+						default:
+							nextExprToCheck = append(nextExprToCheck, val.derive(e))
+						}
+					}
+					return false
+				case *ast.Ident:
+					name := c.getIdentName(val.path, n.Name)
+					markAsUsed(name)
+					return false
+				case *ast.DeferStmt:
+					nextExprToCheck = append(nextExprToCheck, val.derive(n.Call.Fun))
+					return false
+				case *ast.BasicLit:
+					return false
+				}
+				return true
+			})
+		}
+		nodes = nextExprToCheck
+	}
 }
 
 func isGoBuiltin(name string) bool {

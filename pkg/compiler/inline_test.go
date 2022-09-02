@@ -3,6 +3,7 @@ package compiler_test
 import (
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 	"testing"
 
@@ -12,8 +13,12 @@ import (
 )
 
 func checkCallCount(t *testing.T, src string, expectedCall, expectedInitSlot, expectedLocalsMain int) {
-	v, sp := vmAndCompileInterop(t, src)
+	checkInstrCount(t, src, -1, expectedCall, expectedInitSlot, expectedLocalsMain)
+}
 
+func checkInstrCount(t *testing.T, src string, expectedSSlotCount, expectedCall, expectedInitSlot, expectedLocalsMain int) {
+	v, sp, _ := vmAndCompileInterop(t, src)
+	v.PrintOps(os.Stdout)
 	mainStart := -1
 	for _, m := range sp.info.Methods {
 		if m.Name.Name == "main" {
@@ -29,6 +34,14 @@ func checkCallCount(t *testing.T, src string, expectedCall, expectedInitSlot, ex
 	for op, param, err := ctx.Next(); ; op, param, err = ctx.Next() {
 		require.NoError(t, err)
 		switch op {
+		case opcode.INITSSLOT:
+			if expectedSSlotCount == -1 {
+				continue
+			}
+			if expectedSSlotCount == 0 {
+				t.Fatalf("no INITSSLOT expected, found at %d with %d cells", ctx.IP(), param[0])
+			}
+			require.Equal(t, expectedSSlotCount, int(param[0]))
 		case opcode.CALL, opcode.CALLL:
 			actualCall++
 		case opcode.INITSLOT:
@@ -41,8 +54,12 @@ func checkCallCount(t *testing.T, src string, expectedCall, expectedInitSlot, ex
 			break
 		}
 	}
-	require.Equal(t, expectedCall, actualCall)
-	require.True(t, expectedInitSlot == actualInitSlot)
+	if expectedCall != -1 {
+		require.Equal(t, expectedCall, actualCall)
+	}
+	if expectedInitSlot != -1 {
+		require.Equal(t, expectedInitSlot, actualInitSlot)
+	}
 }
 
 func TestInline(t *testing.T) {
@@ -55,13 +72,13 @@ func TestInline(t *testing.T) {
 		a int
 		b pair
 	}
-	// local alias
-	func sum(a, b int) int {
-		return 42
-	}
 	var Num = 1
 	func Main() int {
 		%s
+	}
+	// local alias
+	func sum(a, b int) int {
+		return 42
 	}`
 	t.Run("no return", func(t *testing.T) {
 		src := fmt.Sprintf(srcTmpl, `inline.NoArgsNoReturn()
