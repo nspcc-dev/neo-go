@@ -46,6 +46,7 @@ linters:
     - contextcheck
     - errorlint
     - gofmt
+    - misspell
     - whitespace
     - goimports
   disable-all: true
