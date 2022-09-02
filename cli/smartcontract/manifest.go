@@ -37,15 +37,16 @@ func manifestAddGroup(ctx *cli.Context) error {
 
 	h := state.CreateContractHash(sender, nf.Checksum, m.Name)
 
-	gAcc, _, err := getAccFromContext(ctx)
+	gAcc, w, err := getAccFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't get account to sign group with: %w", err), 1)
 	}
+	defer w.Close()
 
 	var found bool
 
 	sig := gAcc.PrivateKey().Sign(h.BytesBE())
-	pub := gAcc.PrivateKey().PublicKey()
+	pub := gAcc.PublicKey()
 	for i := range m.Groups {
 		if m.Groups[i].PublicKey.Equal(pub) {
 			m.Groups[i].Signature = sig

@@ -65,7 +65,7 @@ func TestNEO_CandidateEvents(t *testing.T) {
 	singleSigner := c.Signers[0].(neotest.MultiSigner).Single(0)
 	cc := c.WithSigners(c.Signers[0], singleSigner)
 	e := c.Executor
-	pkb := singleSigner.Account().PrivateKey().PublicKey().Bytes()
+	pkb := singleSigner.Account().PublicKey().Bytes()
 
 	// Register 1 -> event
 	tx := cc.Invoke(t, true, "registerCandidate", pkb)
@@ -160,13 +160,13 @@ func TestNEO_Vote(t *testing.T) {
 		transferTx = neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), referenceAccounts[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(committeeSize+1-i)*1000000, nil)
 		txes = append(txes, transferTx)
 		if i > 0 {
-			registerTx := neoValidatorsInvoker.WithSigners(candidates[i]).PrepareInvoke(t, "registerCandidate", candidates[i].(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes())
+			registerTx := neoValidatorsInvoker.WithSigners(candidates[i]).PrepareInvoke(t, "registerCandidate", candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
 			txes = append(txes, registerTx)
-			voteTx := neoValidatorsInvoker.WithSigners(voters[i]).PrepareInvoke(t, "vote", voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[i].(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes())
+			voteTx := neoValidatorsInvoker.WithSigners(voters[i]).PrepareInvoke(t, "vote", voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
 			txes = append(txes, voteTx)
 		}
 	}
-	txes = append(txes, policyInvoker.PrepareInvoke(t, "blockAccount", candidates[len(candidates)-1].(neotest.SingleSigner).Account().PrivateKey().PublicKey().GetScriptHash()))
+	txes = append(txes, policyInvoker.PrepareInvoke(t, "blockAccount", candidates[len(candidates)-1].(neotest.SingleSigner).Account().ScriptHash()))
 	neoValidatorsInvoker.AddNewBlock(t, txes...)
 	for _, tx := range txes {
 		e.CheckHalt(t, tx.Hash(), stackitem.Make(true)) // luckily, both `transfer`, `registerCandidate` and `vote` return boolean values
@@ -184,9 +184,9 @@ func TestNEO_Vote(t *testing.T) {
 
 	// Register and give some value to the last validator.
 	txes = txes[:0]
-	registerTx := neoValidatorsInvoker.WithSigners(candidates[0]).PrepareInvoke(t, "registerCandidate", candidates[0].(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes())
+	registerTx := neoValidatorsInvoker.WithSigners(candidates[0]).PrepareInvoke(t, "registerCandidate", candidates[0].(neotest.SingleSigner).Account().PublicKey().Bytes())
 	txes = append(txes, registerTx)
-	voteTx := neoValidatorsInvoker.WithSigners(voters[0]).PrepareInvoke(t, "vote", voters[0].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[0].(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes())
+	voteTx := neoValidatorsInvoker.WithSigners(voters[0]).PrepareInvoke(t, "vote", voters[0].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[0].(neotest.SingleSigner).Account().PublicKey().Bytes())
 	txes = append(txes, voteTx)
 	neoValidatorsInvoker.AddNewBlock(t, txes...)
 	for _, tx := range txes {
@@ -198,7 +198,7 @@ func TestNEO_Vote(t *testing.T) {
 	require.NoError(t, err)
 	sortedCandidates := make(keys.PublicKeys, validatorsCount)
 	for i := range candidates[:validatorsCount] {
-		sortedCandidates[i] = candidates[i].(neotest.SingleSigner).Account().PrivateKey().PublicKey()
+		sortedCandidates[i] = candidates[i].(neotest.SingleSigner).Account().PublicKey()
 	}
 	sort.Sort(sortedCandidates)
 	require.EqualValues(t, sortedCandidates, keys.PublicKeys(pubs))
@@ -259,8 +259,8 @@ func TestNEO_Vote(t *testing.T) {
 		}
 	})
 
-	neoCommitteeInvoker.WithSigners(candidates[0]).Invoke(t, true, "unregisterCandidate", candidates[0].(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes())
-	neoCommitteeInvoker.WithSigners(voters[0]).Invoke(t, false, "vote", voters[0].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[0].(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes())
+	neoCommitteeInvoker.WithSigners(candidates[0]).Invoke(t, true, "unregisterCandidate", candidates[0].(neotest.SingleSigner).Account().PublicKey().Bytes())
+	neoCommitteeInvoker.WithSigners(voters[0]).Invoke(t, false, "vote", voters[0].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[0].(neotest.SingleSigner).Account().PublicKey().Bytes())
 
 	advanceChain(t)
 
@@ -564,9 +564,9 @@ func TestNEO_GetCandidates(t *testing.T) {
 	for i := 0; i < candidatesCount; i++ {
 		transferTx := neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(candidatesCount+1-i)*1000000, nil)
 		txes = append(txes, transferTx)
-		registerTx := neoValidatorsInvoker.WithSigners(candidates[i]).PrepareInvoke(t, "registerCandidate", candidates[i].(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes())
+		registerTx := neoValidatorsInvoker.WithSigners(candidates[i]).PrepareInvoke(t, "registerCandidate", candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
 		txes = append(txes, registerTx)
-		voteTx := neoValidatorsInvoker.WithSigners(voters[i]).PrepareInvoke(t, "vote", voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[i].(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes())
+		voteTx := neoValidatorsInvoker.WithSigners(voters[i]).PrepareInvoke(t, "vote", voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
 		txes = append(txes, voteTx)
 	}
 
@@ -576,7 +576,7 @@ func TestNEO_GetCandidates(t *testing.T) {
 	}
 	expected := make([]stackitem.Item, candidatesCount)
 	for i := range expected {
-		pub := candidates[i].(neotest.SingleSigner).Account().PrivateKey().PublicKey().Bytes()
+		pub := candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes()
 		v := stackitem.NewBigInteger(big.NewInt(int64(candidatesCount-i+1) * 1000000))
 		expected[i] = stackitem.NewStruct([]stackitem.Item{
 			stackitem.NewByteArray(pub),
@@ -613,7 +613,7 @@ func TestNEO_GetCandidates(t *testing.T) {
 	checkGetAllCandidates(t, expected)
 
 	// Block candidate and check it won't be returned from getCandidates and getAllCandidates.
-	unlucky := candidates[len(candidates)-1].(neotest.SingleSigner).Account().PrivateKey().PublicKey()
+	unlucky := candidates[len(candidates)-1].(neotest.SingleSigner).Account().PublicKey()
 	policyInvoker.Invoke(t, true, "blockAccount", unlucky.GetScriptHash())
 	for i := range expected {
 		if bytes.Equal(expected[i].Value().([]stackitem.Item)[0].Value().([]byte), unlucky.Bytes()) {

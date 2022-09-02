@@ -13,6 +13,7 @@ import (
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/rfc6979"
 )
 
@@ -48,6 +49,7 @@ func NewPrivateKeyFromHex(str string) (*PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer slice.Clean(b)
 	return NewPrivateKeyFromBytes(b)
 }
 
@@ -108,13 +110,24 @@ func NewPrivateKeyFromWIF(wif string) (*PrivateKey, error) {
 // Good documentation about this process can be found here:
 // https://en.bitcoin.it/wiki/Wallet_import_format
 func (p *PrivateKey) WIF() string {
-	w, err := WIFEncode(p.Bytes(), WIFVersion, true)
+	pb := p.Bytes()
+	defer slice.Clean(pb)
+	w, err := WIFEncode(pb, WIFVersion, true)
 	// The only way WIFEncode() can fail is if we're to give it a key of
 	// wrong size, but we have a proper key here, aren't we?
 	if err != nil {
 		panic(err)
 	}
 	return w
+}
+
+// Destroy wipes the contents of the private key from memory. Any operations
+// with the key after call to Destroy have undefined behavior.
+func (p *PrivateKey) Destroy() {
+	bits := p.D.Bits()
+	for i := range bits {
+		bits[i] = 0
+	}
 }
 
 // Address derives the public NEO address that is coupled with the private key, and

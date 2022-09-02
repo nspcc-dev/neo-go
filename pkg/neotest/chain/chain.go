@@ -58,7 +58,7 @@ var (
 
 func init() {
 	committeeAcc, _ = wallet.NewAccountFromWIF(singleValidatorWIF)
-	pubs := keys.PublicKeys{committeeAcc.PrivateKey().PublicKey()}
+	pubs := keys.PublicKeys{committeeAcc.PublicKey()}
 	err := committeeAcc.ConvertMultisig(1, pubs)
 	if err != nil {
 		panic(err)
@@ -70,7 +70,7 @@ func init() {
 	pubs = make(keys.PublicKeys, len(accs))
 	for i := range committeeWIFs {
 		accs[i], _ = wallet.NewAccountFromWIF(committeeWIFs[i])
-		pubs[i] = accs[i].PrivateKey().PublicKey()
+		pubs[i] = accs[i].PublicKey()
 	}
 
 	// Config entry must contain validators first in a specific order.
@@ -86,8 +86,8 @@ func init() {
 	sort.Sort(pubs[:4])
 
 	sort.Slice(accs[:4], func(i, j int) bool {
-		p1 := accs[i].PrivateKey().PublicKey()
-		p2 := accs[j].PrivateKey().PublicKey()
+		p1 := accs[i].PublicKey()
+		p2 := accs[j].PublicKey()
 		return p1.Cmp(p2) == -1
 	})
 	for i := range multiValidatorAcc {
@@ -102,8 +102,8 @@ func init() {
 	sort.Sort(pubs)
 
 	sort.Slice(accs, func(i, j int) bool {
-		p1 := accs[i].PrivateKey().PublicKey()
-		p2 := accs[j].PrivateKey().PublicKey()
+		p1 := accs[i].PublicKey()
+		p2 := accs[j].PublicKey()
 		return p1.Cmp(p2) == -1
 	})
 	for i := range multiCommitteeAcc {
@@ -141,7 +141,7 @@ func NewSingleWithCustomConfigAndStore(t testing.TB, f func(cfg *config.Protocol
 		Magic:              netmode.UnitTestNet,
 		MaxTraceableBlocks: MaxTraceableBlocks,
 		SecondsPerBlock:    SecondsPerBlock,
-		StandbyCommittee:   []string{hex.EncodeToString(committeeAcc.PrivateKey().PublicKey().Bytes())},
+		StandbyCommittee:   []string{hex.EncodeToString(committeeAcc.PublicKey().Bytes())},
 		ValidatorsCount:    1,
 		VerifyBlocks:       true,
 		VerifyTransactions: true,

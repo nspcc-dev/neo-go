@@ -12,19 +12,12 @@ func TestCrypt(t *testing.T) {
 	require.NoError(t, err)
 
 	priv := privateKey{key}
-	data, err := priv.MarshalBinary()
-	require.NoError(t, err)
 
 	key1, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
-	priv1 := privateKey{key1}
-	require.NotEqual(t, priv, priv1)
-	require.NoError(t, priv1.UnmarshalBinary(data))
-	require.Equal(t, priv, priv1)
-
 	pub := publicKey{key.PublicKey()}
-	data, err = pub.MarshalBinary()
+	data, err := pub.MarshalBinary()
 	require.NoError(t, err)
 
 	pub1 := publicKey{key1.PublicKey()}

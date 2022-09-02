@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,7 @@ func TestNewAccount(t *testing.T) {
 	acc, err := NewAccount()
 	require.NoError(t, err)
 	require.NotNil(t, acc)
+	require.Equal(t, acc.Address, address.Uint160ToString(acc.ScriptHash()))
 }
 
 func TestDecryptAccount(t *testing.T) {
@@ -105,7 +107,7 @@ func TestContractSignTx(t *testing.T) {
 
 	require.Error(t, acc2.SignTx(0, tx))
 
-	pubs := keys.PublicKeys{acc.privateKey.PublicKey(), acc2.privateKey.PublicKey()}
+	pubs := keys.PublicKeys{acc.PublicKey(), acc2.PublicKey()}
 	multiS, err := smartcontract.CreateDefaultMultiSigRedeemScript(pubs)
 	require.NoError(t, err)
 	multiAcc := NewAccountFromPrivateKey(acc.privateKey)
@@ -138,18 +140,23 @@ func TestContractSignTx(t *testing.T) {
 
 	acc2.Locked = true
 	require.False(t, acc2.CanSign())
-	require.Error(t, acc2.SignTx(0, tx)) // Locked account.
+	require.Error(t, acc2.SignTx(0, tx))     // Locked account.
+	require.Nil(t, acc2.PublicKey())         // Locked account.
+	require.Nil(t, acc2.SignHashable(0, tx)) // Locked account.
 
 	acc2.Locked = false
-	acc2.privateKey = nil
+	acc2.Close()
 	require.False(t, acc2.CanSign())
 	require.Error(t, acc2.SignTx(0, tx)) // No private key.
+	acc2.Close()                         // No-op.
+	require.False(t, acc2.CanSign())
 
 	tx.Scripts = append(tx.Scripts, transaction.Witness{
 		VerificationScript: acc.Contract.Script,
 	})
 	require.NoError(t, acc.SignTx(0, tx)) // Add invocation script for existing witness.
 	require.Equal(t, 66, len(tx.Scripts[1].InvocationScript))
+	require.NotNil(t, acc.SignHashable(0, tx)) // Works via Hashable too.
 
 	require.NoError(t, multiAcc.SignTx(0, tx))
 	require.Equal(t, 3, len(tx.Scripts))
@@ -179,6 +186,19 @@ func TestAccount_ConvertMultisig(t *testing.T) {
 		"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699",
 	}
 
+	t.Run("locked", func(t *testing.T) {
+		a.Locked = true
+		pubs := convertPubs(t, hexs)
+		require.Error(t, a.ConvertMultisig(1, pubs))
+		a.Locked = false
+	})
+	t.Run("no private key", func(t *testing.T) {
+		pk := a.privateKey
+		a.privateKey = nil
+		pubs := convertPubs(t, hexs)
+		require.Error(t, a.ConvertMultisig(0, pubs))
+		a.privateKey = pk
+	})
 	t.Run("invalid number of signatures", func(t *testing.T) {
 		pubs := convertPubs(t, hexs)
 		require.Error(t, a.ConvertMultisig(0, pubs))
@@ -215,9 +235,9 @@ func convertPubs(t *testing.T, hexKeys []string) []*keys.PublicKey {
 func compareFields(t *testing.T, tk keytestcases.Ktype, acc *Account) {
 	want, have := tk.Address, acc.Address
 	require.Equalf(t, want, have, "expected address %s got %s", want, have)
-	want, have = tk.Wif, acc.wif
+	want, have = tk.Wif, acc.privateKey.WIF()
 	require.Equalf(t, want, have, "expected wif %s got %s", want, have)
-	want, have = tk.PublicKey, hex.EncodeToString(acc.publicKey)
+	want, have = tk.PublicKey, hex.EncodeToString(acc.PublicKey().Bytes())
 	require.Equalf(t, want, have, "expected pub key %s got %s", want, have)
 	want, have = tk.PrivateKey, acc.privateKey.String()
 	require.Equalf(t, want, have, "expected priv key %s got %s", want, have)

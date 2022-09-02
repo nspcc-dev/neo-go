@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/base58"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 const (
@@ -53,40 +54,36 @@ func WIFDecode(wif string, version byte) (*WIF, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer slice.Clean(b)
 
 	if version == 0x00 {
 		version = WIFVersion
 	}
+	w := &WIF{
+		Version: version,
+		S:       wif,
+	}
+	switch len(b) {
+	case 33: // OK, uncompressed public key.
+	case 34: // OK, compressed public key.
+		// Check the compression flag.
+		if b[33] != 0x01 {
+			return nil, fmt.Errorf("invalid compression flag %d expecting %d", b[33], 0x01)
+		}
+		w.Compressed = true
+	default:
+		return nil, fmt.Errorf("invalid WIF length %d, expecting 33 or 34", len(b))
+	}
+
 	if b[0] != version {
 		return nil, fmt.Errorf("invalid WIF version got %d, expected %d", b[0], version)
 	}
 
 	// Derive the PrivateKey.
-	privKey, err := NewPrivateKeyFromBytes(b[1:33])
+	w.PrivateKey, err = NewPrivateKeyFromBytes(b[1:33])
 	if err != nil {
 		return nil, err
 	}
-	w := &WIF{
-		Version:    version,
-		PrivateKey: privKey,
-		S:          wif,
-	}
 
-	// This is an uncompressed WIF.
-	if len(b) == 33 {
-		w.Compressed = false
-		return w, nil
-	}
-
-	if len(b) != 34 {
-		return nil, fmt.Errorf("invalid WIF length: %d expecting 34", len(b))
-	}
-
-	// Check the compression flag.
-	if b[33] != 0x01 {
-		return nil, fmt.Errorf("invalid compression flag %d expecting %d", b[34], 0x01)
-	}
-
-	w.Compressed = true
 	return w, nil
 }

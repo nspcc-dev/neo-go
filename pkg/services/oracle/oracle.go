@@ -191,6 +191,7 @@ func (o *Oracle) Shutdown() {
 	close(o.close)
 	o.ResponseHandler.Shutdown()
 	<-o.done
+	o.wallet.Close()
 }
 
 // Start runs the oracle service in a separate goroutine.

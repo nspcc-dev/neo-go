@@ -154,7 +154,7 @@ func TestNotary(t *testing.T) {
 		mp1.StopSubscriptions()
 	})
 
-	notaryNodes := []interface{}{acc1.PrivateKey().PublicKey().Bytes(), acc2.PrivateKey().PublicKey().Bytes()}
+	notaryNodes := []interface{}{acc1.PublicKey().Bytes(), acc2.PrivateKey().PublicKey().Bytes()}
 	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
 		int64(noderoles.P2PNotary), notaryNodes)
 
@@ -175,7 +175,7 @@ func TestNotary(t *testing.T) {
 				Scopes:  transaction.None,
 			},
 			{
-				Account: requester.PrivateKey().PublicKey().GetScriptHash(),
+				Account: requester.ScriptHash(),
 				Scopes:  transaction.None,
 			},
 		}
@@ -222,12 +222,12 @@ func TestNotary(t *testing.T) {
 			var script []byte
 			switch requesters[i].typ {
 			case notary.Signature:
-				script = requesters[i].accounts[0].PrivateKey().PublicKey().GetVerificationScript()
+				script = requesters[i].accounts[0].PublicKey().GetVerificationScript()
 				nKeys++
 			case notary.MultiSignature:
 				pubs := make(keys.PublicKeys, len(requesters[i].accounts))
 				for j, r := range requesters[i].accounts {
-					pubs[j] = r.PrivateKey().PublicKey()
+					pubs[j] = r.PublicKey()
 				}
 				script, err = smartcontract.CreateMultiSigRedeemScript(requesters[i].m, pubs)
 				require.NoError(t, err)
@@ -456,7 +456,7 @@ func TestNotary(t *testing.T) {
 	r, _ := checkCompleteStandardRequest(t, 1, false)
 	checkFallbackTxs(t, r, false)
 	// set account back for the next tests
-	ntr1.UpdateNotaryNodes(keys.PublicKeys{acc1.PrivateKey().PublicKey()})
+	ntr1.UpdateNotaryNodes(keys.PublicKeys{acc1.PublicKey()})
 
 	// OnNewRequest: signature request
 	for _, i := range []int{1, 2, 3, 10} {
@@ -496,7 +496,7 @@ func TestNotary(t *testing.T) {
 	checkMainTx(t, requesters, r, 1, false)
 	checkFallbackTxs(t, r, false)
 	// set account back for the next tests
-	ntr1.UpdateNotaryNodes(keys.PublicKeys{acc1.PrivateKey().PublicKey()})
+	ntr1.UpdateNotaryNodes(keys.PublicKeys{acc1.PublicKey()})
 
 	// PostPersist: complete main transaction, signature request
 	setFinalizeWithError(true)
@@ -634,7 +634,7 @@ func TestNotary(t *testing.T) {
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 	// set account back for the next tests
-	ntr1.UpdateNotaryNodes(keys.PublicKeys{acc1.PrivateKey().PublicKey()})
+	ntr1.UpdateNotaryNodes(keys.PublicKeys{acc1.PublicKey()})
 
 	// OnRequestRemoval: signature request, remove one fallback
 	// check OnNewRequest with finalization error
@@ -721,9 +721,9 @@ func TestNotary(t *testing.T) {
 	requester1, _ := wallet.NewAccount()
 	requester2, _ := wallet.NewAccount()
 	amount := int64(100_0000_0000)
-	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), bc.GetNotaryContractScriptHash(), amount, []interface{}{requester1.PrivateKey().PublicKey().GetScriptHash(), int64(bc.BlockHeight() + 50)})
+	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), bc.GetNotaryContractScriptHash(), amount, []interface{}{requester1.ScriptHash(), int64(bc.BlockHeight() + 50)})
 	e.CheckGASBalance(t, notaryHash, big.NewInt(amount))
-	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), bc.GetNotaryContractScriptHash(), amount, []interface{}{requester2.PrivateKey().PublicKey().GetScriptHash(), int64(bc.BlockHeight() + 50)})
+	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), bc.GetNotaryContractScriptHash(), amount, []interface{}{requester2.ScriptHash(), int64(bc.BlockHeight() + 50)})
 	e.CheckGASBalance(t, notaryHash, big.NewInt(2*amount))
 
 	// create request for 2 standard signatures => main tx should be completed after the second request is added to the pool

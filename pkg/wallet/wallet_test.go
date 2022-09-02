@@ -34,13 +34,16 @@ func TestNewWalletFromFile_Negative_NoFile(t *testing.T) {
 	require.Errorf(t, err, "open testWallet: no such file or directory")
 }
 
-func TestCreateAccount(t *testing.T) {
+func TestCreateAccountAndClose(t *testing.T) {
 	wallet := checkWalletConstructor(t)
 
 	errAcc := wallet.CreateAccount("testName", "testPass")
 	require.NoError(t, errAcc)
 	accounts := wallet.Accounts
 	require.Len(t, accounts, 1)
+	require.True(t, wallet.Accounts[0].CanSign())
+	wallet.Close()
+	require.False(t, wallet.Accounts[0].CanSign())
 }
 
 func TestAddAccount(t *testing.T) {
@@ -48,8 +51,6 @@ func TestAddAccount(t *testing.T) {
 
 	wallet.AddAccount(&Account{
 		privateKey:   nil,
-		publicKey:    nil,
-		wif:          "",
 		Address:      "real",
 		EncryptedWIF: "",
 		Label:        "",
@@ -78,8 +79,6 @@ func TestSave(t *testing.T) {
 
 	wallet.AddAccount(&Account{
 		privateKey:   nil,
-		publicKey:    nil,
-		wif:          "",
 		Address:      "",
 		EncryptedWIF: "",
 		Label:        "",
@@ -103,6 +102,7 @@ func TestSave(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 2, len(w2.Accounts))
 		require.NoError(t, w2.Accounts[1].Decrypt("pass", w2.Scrypt))
+		_ = w2.Accounts[1].ScriptHash() // openedWallet has it for acc 1.
 		require.Equal(t, openedWallet.Accounts, w2.Accounts)
 	})
 }

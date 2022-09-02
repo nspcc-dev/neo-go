@@ -222,6 +222,7 @@ func getNEPBalance(ctx *cli.Context, standard string, accHandler func(*cli.Conte
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("bad wallet: %w", err), 1)
 	}
+	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if addrFlag.IsSet {
@@ -286,17 +287,12 @@ func getNEPBalance(ctx *cli.Context, standard string, accHandler func(*cli.Conte
 		}
 	}
 	for k, acc := range accounts {
-		addrHash, err := address.StringToUint160(acc.Address)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid account address: %w", err), 1)
-		}
-
 		if k != 0 {
 			fmt.Fprintln(ctx.App.Writer)
 		}
 		fmt.Fprintf(ctx.App.Writer, "Account %s\n", acc.Address)
 
-		err = accHandler(ctx, c, addrHash, name, token, tokenID)
+		err = accHandler(ctx, c, acc.ScriptHash(), name, token, tokenID)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -392,6 +388,7 @@ func importNEPToken(ctx *cli.Context, standard string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	tokenHashFlag := ctx.Generic("token").(*flags.Address)
 	if !tokenHashFlag.IsSet {
@@ -460,6 +457,7 @@ func printNEPInfo(ctx *cli.Context, standard string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	if name := ctx.String("token"); name != "" {
 		token, err := getMatchingToken(ctx, wall, name, standard)
@@ -495,6 +493,7 @@ func removeNEPToken(ctx *cli.Context, standard string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	token, err := getMatchingToken(ctx, wall, ctx.String("token"), standard)
 	if err != nil {
@@ -518,6 +517,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	fromFlag := ctx.Generic("from").(*flags.Address)
 	from, err := getDefaultAddress(fromFlag, wall)
@@ -613,6 +613,7 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	fromFlag := ctx.Generic("from").(*flags.Address)
 	from, err := getDefaultAddress(fromFlag, wall)

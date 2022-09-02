@@ -115,7 +115,7 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 func TestService_NextConsensus(t *testing.T) {
 	newAcc, err := wallet.NewAccount()
 	require.NoError(t, err)
-	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(keys.PublicKeys{newAcc.PrivateKey().PublicKey()})
+	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(keys.PublicKeys{newAcc.PublicKey()})
 	require.NoError(t, err)
 
 	checkNextConsensus := func(t *testing.T, bc *core.Blockchain, height uint32, h util.Uint160) {

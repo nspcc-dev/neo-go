@@ -74,6 +74,7 @@ func (s *service) Shutdown() {
 	s.log.Info("stopping state validation service")
 	close(s.stopCh)
 	<-s.done
+	s.wallet.Close()
 }
 
 func (s *service) signAndSend(r *state.MPTRoot) error {
@@ -86,12 +87,12 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 		return nil
 	}
 
-	sig := acc.PrivateKey().SignHashable(uint32(s.Network), r)
+	sig := acc.SignHashable(s.Network, r)
 	incRoot := s.getIncompleteRoot(r.Index, myIndex)
 	incRoot.Lock()
 	defer incRoot.Unlock()
 	incRoot.root = r
-	incRoot.addSignature(acc.PrivateKey().PublicKey(), sig)
+	incRoot.addSignature(acc.PublicKey(), sig)
 	incRoot.reverify(s.Network)
 	s.trySendRoot(incRoot, acc)
 
@@ -110,13 +111,13 @@ func (s *service) signAndSend(r *state.MPTRoot) error {
 		Category:        Category,
 		ValidBlockStart: r.Index,
 		ValidBlockEnd:   r.Index + voteValidEndInc,
-		Sender:          acc.PrivateKey().GetScriptHash(),
+		Sender:          acc.ScriptHash(),
 		Data:            w.Bytes(),
 		Witness: transaction.Witness{
 			VerificationScript: acc.GetVerificationScript(),
 		},
 	}
-	sig = acc.PrivateKey().SignHashable(uint32(s.Network), e)
+	sig = acc.SignHashable(s.Network, e)
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
 	e.Witness.InvocationScript = buf.Bytes()

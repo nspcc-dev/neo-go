@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/encoding/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -64,4 +65,36 @@ func TestWIFEncodeDecode(t *testing.T) {
 	wifInv := []byte{0, 1, 2}
 	_, err := WIFEncode(wifInv, 0, true)
 	require.Error(t, err)
+}
+
+func TestBadWIFDecode(t *testing.T) {
+	_, err := WIFDecode("garbage", 0)
+	require.Error(t, err)
+
+	s := base58.CheckEncode([]byte{})
+	_, err = WIFDecode(s, 0)
+	require.Error(t, err)
+
+	uncompr := make([]byte, 33)
+	compr := make([]byte, 34)
+
+	s = base58.CheckEncode(compr)
+	_, err = WIFDecode(s, 0)
+	require.Error(t, err)
+
+	s = base58.CheckEncode(uncompr)
+	_, err = WIFDecode(s, 0)
+	require.Error(t, err)
+
+	compr[33] = 1
+	compr[0] = WIFVersion
+	uncompr[0] = WIFVersion
+
+	s = base58.CheckEncode(compr)
+	_, err = WIFDecode(s, 0)
+	require.NoError(t, err)
+
+	s = base58.CheckEncode(uncompr)
+	_, err = WIFDecode(s, 0)
+	require.NoError(t, err)
 }

@@ -13,17 +13,6 @@ type privateKey struct {
 	*keys.PrivateKey
 }
 
-// MarshalBinary implements the encoding.BinaryMarshaler interface.
-func (p privateKey) MarshalBinary() (data []byte, err error) {
-	return p.PrivateKey.Bytes(), nil
-}
-
-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
-func (p *privateKey) UnmarshalBinary(data []byte) (err error) {
-	p.PrivateKey, err = keys.NewPrivateKeyFromBytes(data)
-	return
-}
-
 // Sign implements the dbft's crypto.PrivateKey interface.
 func (p *privateKey) Sign(data []byte) ([]byte, error) {
 	return p.PrivateKey.Sign(data), nil

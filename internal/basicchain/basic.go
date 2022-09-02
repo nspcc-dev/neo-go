@@ -144,8 +144,8 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	require.NoError(t, err)
 	require.NoError(t, ntr.Accounts[0].Decrypt("one", ntr.Scrypt))
 	designateSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-		int64(noderoles.P2PNotary), []interface{}{ntr.Accounts[0].PrivateKey().PublicKey().Bytes()})
-	t.Logf("Designated Notary node: %s", hex.EncodeToString(ntr.Accounts[0].PrivateKey().PublicKey().Bytes()))
+		int64(noderoles.P2PNotary), []interface{}{ntr.Accounts[0].PublicKey().Bytes()})
+	t.Logf("Designated Notary node: %s", hex.EncodeToString(ntr.Accounts[0].PublicKey().Bytes()))
 
 	// Block #10: push verification contract with arguments into the chain.
 	verifyPath = filepath.Join(testDataPrefix, "verify_args", "verification_with_args_contract.go")

@@ -90,7 +90,6 @@ func (s *service) trySendRoot(ir *incompleteRoot, acc *wallet.Account) {
 }
 
 func (s *service) sendValidatedRoot(r *state.MPTRoot, acc *wallet.Account) {
-	priv := acc.PrivateKey()
 	w := io.NewBufBinWriter()
 	m := NewMessage(RootT, r)
 	m.EncodeBinary(w.BinWriter)
@@ -98,13 +97,13 @@ func (s *service) sendValidatedRoot(r *state.MPTRoot, acc *wallet.Account) {
 		Category:        Category,
 		ValidBlockStart: r.Index,
 		ValidBlockEnd:   r.Index + rootValidEndInc,
-		Sender:          priv.GetScriptHash(),
+		Sender:          acc.ScriptHash(),
 		Data:            w.Bytes(),
 		Witness: transaction.Witness{
 			VerificationScript: acc.GetVerificationScript(),
 		},
 	}
-	sig := priv.SignHashable(uint32(s.Network), ep)
+	sig := acc.SignHashable(s.Network, ep)
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)
 	ep.Witness.InvocationScript = buf.Bytes()

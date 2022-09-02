@@ -74,7 +74,7 @@ func (s *signer) ScriptHash() util.Uint160 {
 // SignHashable implements Signer interface.
 func (s *signer) SignHashable(magic uint32, item hash.Hashable) []byte {
 	return append([]byte{byte(opcode.PUSHDATA1), 64},
-		(*wallet.Account)(s).PrivateKey().SignHashable(magic, item)...)
+		(*wallet.Account)(s).SignHashable(netmode.Magic(magic), item)...)
 }
 
 // SignTx implements Signer interface.
@@ -103,8 +103,8 @@ func NewMultiSigner(accs ...*wallet.Account) MultiSigner {
 			"but only %d accounts were provided", m, len(accs)))
 	}
 	sort.Slice(accs, func(i, j int) bool {
-		p1 := accs[i].PrivateKey().PublicKey()
-		p2 := accs[j].PrivateKey().PublicKey()
+		p1 := accs[i].PublicKey()
+		p2 := accs[j].PublicKey()
 		return p1.Cmp(p2) == -1
 	})
 	for _, acc := range accs {
@@ -130,7 +130,7 @@ func (m multiSigner) Script() []byte {
 func (m multiSigner) SignHashable(magic uint32, item hash.Hashable) []byte {
 	var script []byte
 	for i := 0; i < m.m; i++ {
-		sign := m.accounts[i].PrivateKey().SignHashable(magic, item)
+		sign := m.accounts[i].SignHashable(netmode.Magic(magic), item)
 		script = append(script, byte(opcode.PUSHDATA1), 64)
 		script = append(script, sign...)
 	}

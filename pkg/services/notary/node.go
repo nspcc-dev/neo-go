@@ -15,7 +15,7 @@ func (n *Notary) UpdateNotaryNodes(notaryNodes keys.PublicKeys) {
 
 	if n.currAccount != nil {
 		for _, node := range notaryNodes {
-			if node.Equal(n.currAccount.PrivateKey().PublicKey()) {
+			if node.Equal(n.currAccount.PublicKey()) {
 				return
 			}
 		}
@@ -25,7 +25,7 @@ func (n *Notary) UpdateNotaryNodes(notaryNodes keys.PublicKeys) {
 	for _, node := range notaryNodes {
 		acc = n.wallet.GetAccount(node.GetScriptHash())
 		if acc != nil {
-			if acc.PrivateKey() != nil {
+			if acc.CanSign() {
 				break
 			}
 			err := acc.Decrypt(n.Config.MainCfg.UnlockWallet.Password, n.wallet.Scrypt)

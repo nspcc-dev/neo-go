@@ -76,13 +76,13 @@ func newValidatorCommands() []cli.Command {
 
 func handleRegister(ctx *cli.Context) error {
 	return handleNeoAction(ctx, func(contract *neo.Contract, _ util.Uint160, acc *wallet.Account) (*transaction.Transaction, error) {
-		return contract.RegisterCandidateUnsigned(acc.PrivateKey().PublicKey())
+		return contract.RegisterCandidateUnsigned(acc.PublicKey())
 	})
 }
 
 func handleUnregister(ctx *cli.Context) error {
 	return handleNeoAction(ctx, func(contract *neo.Contract, _ util.Uint160, acc *wallet.Account) (*transaction.Transaction, error) {
-		return contract.UnregisterCandidateUnsigned(acc.PrivateKey().PublicKey())
+		return contract.UnregisterCandidateUnsigned(acc.PublicKey())
 	})
 }
 
@@ -94,6 +94,7 @@ func handleNeoAction(ctx *cli.Context, mkTx func(*neo.Contract, util.Uint160, *w
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if !addrFlag.IsSet {

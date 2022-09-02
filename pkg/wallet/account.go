@@ -1,7 +1,6 @@
 package wallet
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 
@@ -21,11 +20,8 @@ type Account struct {
 	// NEO private key.
 	privateKey *keys.PrivateKey
 
-	// NEO public key.
-	publicKey []byte
-
-	// Account import file.
-	wif string
+	// Script hash corresponding to the Address.
+	scriptHash util.Uint160
 
 	// NEO public address.
 	Address string `json:"address"`
@@ -87,8 +83,6 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 	var (
 		haveAcc bool
 		pos     int
-		accHash util.Uint160
-		err     error
 	)
 	if a.Locked {
 		return errors.New("account is locked")
@@ -96,12 +90,8 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 	if a.Contract == nil {
 		return errors.New("account has no contract")
 	}
-	accHash, err = address.StringToUint160(a.Address)
-	if err != nil {
-		return err
-	}
 	for i := range t.Signers {
-		if t.Signers[i].Account.Equals(accHash) {
+		if t.Signers[i].Account.Equals(a.ScriptHash()) {
 			haveAcc = true
 			pos = i
 			break
@@ -136,6 +126,15 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 	return nil
 }
 
+// SignHashable signs the given Hashable item and returns the signature. If this
+// account can't sign (CanSign() returns false) nil is returned.
+func (a *Account) SignHashable(net netmode.Magic, item hash.Hashable) []byte {
+	if !a.CanSign() {
+		return nil
+	}
+	return a.privateKey.SignHashable(uint32(net), item)
+}
+
 // CanSign returns true when account is not locked and has a decrypted private
 // key inside, so it's ready to create real signatures.
 func (a *Account) CanSign() bool {
@@ -147,11 +146,13 @@ func (a *Account) GetVerificationScript() []byte {
 	if a.Contract != nil {
 		return a.Contract.Script
 	}
-	return a.PrivateKey().PublicKey().GetVerificationScript()
+	return a.privateKey.PublicKey().GetVerificationScript()
 }
 
 // Decrypt decrypts the EncryptedWIF with the given passphrase returning error
-// if anything goes wrong.
+// if anything goes wrong. After the decryption Account can be used to sign
+// things unless it's locked. Don't decrypt the key unless you want to sign
+// something and don't forget to call Close after use for maximum safety.
 func (a *Account) Decrypt(passphrase string, scrypt keys.ScryptParams) error {
 	var err error
 
@@ -162,9 +163,6 @@ func (a *Account) Decrypt(passphrase string, scrypt keys.ScryptParams) error {
 	if err != nil {
 		return err
 	}
-
-	a.publicKey = a.privateKey.PublicKey().Bytes()
-	a.wif = a.privateKey.WIF()
 
 	return nil
 }
@@ -180,9 +178,43 @@ func (a *Account) Encrypt(passphrase string, scrypt keys.ScryptParams) error {
 	return nil
 }
 
-// PrivateKey returns private key corresponding to the account.
+// PrivateKey returns private key corresponding to the account if it's unlocked.
+// Please be very careful when using it, do not copy its contents and do not
+// keep a pointer to it unless you absolutely need to. Most of the time you can
+// use other methods (PublicKey, ScriptHash, SignHashable) depending on your
+// needs and it'll be safer this way.
 func (a *Account) PrivateKey() *keys.PrivateKey {
 	return a.privateKey
+}
+
+// PublicKey returns the public key associated with the private key corresponding to
+// the account. It can return nil if account is locked (use CanSign to check).
+func (a *Account) PublicKey() *keys.PublicKey {
+	if !a.CanSign() {
+		return nil
+	}
+	return a.privateKey.PublicKey()
+}
+
+// ScriptHash returns the script hash (account) that the Account.Address is
+// derived from. It never returns an error, so if this Account has an invalid
+// Address you'll just get a zero script hash.
+func (a *Account) ScriptHash() util.Uint160 {
+	if a.scriptHash.Equals(util.Uint160{}) {
+		a.scriptHash, _ = address.StringToUint160(a.Address)
+	}
+	return a.scriptHash
+}
+
+// Close cleans up the private key used by Account and disassociates it from
+// Account. The Account can no longer sign anything after this call, but Decrypt
+// can make it usable again.
+func (a *Account) Close() {
+	if a.privateKey == nil {
+		return
+	}
+	a.privateKey.Destroy()
+	a.privateKey = nil
 }
 
 // NewAccountFromWIF creates a new Account from the given WIF.
@@ -209,9 +241,16 @@ func NewAccountFromEncryptedWIF(wif string, pass string, scrypt keys.ScryptParam
 
 // ConvertMultisig sets a's contract to multisig contract with m sufficient signatures.
 func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
+	if a.Locked {
+		return errors.New("account is locked")
+	}
+	if a.privateKey == nil {
+		return errors.New("account key is not available (need to decrypt?)")
+	}
 	var found bool
+	accKey := a.privateKey.PublicKey()
 	for i := range pubs {
-		if bytes.Equal(a.publicKey, pubs[i].Bytes()) {
+		if accKey.Equal(pubs[i]) {
 			found = true
 			break
 		}
@@ -226,7 +265,8 @@ func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
 		return err
 	}
 
-	a.Address = address.Uint160ToString(hash.Hash160(script))
+	a.scriptHash = hash.Hash160(script)
+	a.Address = address.Uint160ToString(a.scriptHash)
 	a.Contract = &Contract{
 		Script:     script,
 		Parameters: getContractParams(m),
@@ -238,14 +278,11 @@ func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
 // NewAccountFromPrivateKey creates a wallet from the given PrivateKey.
 func NewAccountFromPrivateKey(p *keys.PrivateKey) *Account {
 	pubKey := p.PublicKey()
-	pubAddr := p.Address()
-	wif := p.WIF()
 
 	a := &Account{
-		publicKey:  pubKey.Bytes(),
 		privateKey: p,
-		Address:    pubAddr,
-		wif:        wif,
+		scriptHash: p.GetScriptHash(),
+		Address:    p.Address(),
 		Contract: &Contract{
 			Script:     pubKey.GetVerificationScript(),
 			Parameters: getContractParams(1),

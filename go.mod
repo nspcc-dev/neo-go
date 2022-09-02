@@ -11,7 +11,7 @@ require (
 	github.com/holiman/uint256 v1.2.0
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mr-tron/base58 v1.2.0
-	github.com/nspcc-dev/dbft v0.0.0-20220629112714-fd49ca59d354
+	github.com/nspcc-dev/dbft v0.0.0-20220902113116-58a5e763e647
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20220111165707-25110be27d22
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20220809123759-3094d3e0c14b
 	github.com/nspcc-dev/neofs-sdk-go v0.0.0-20220113123743-7f3162110659
@@ -42,7 +42,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/nspcc-dev/hrw v1.0.9 // indirect
 	github.com/nspcc-dev/neofs-api-go/v2 v2.11.1 // indirect
-	github.com/nspcc-dev/neofs-crypto v0.3.0 // indirect
+	github.com/nspcc-dev/neofs-crypto v0.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect

@@ -44,11 +44,11 @@ func TestUpdateNotaryNodes(t *testing.T) {
 	// currAcc is nil before UpdateNotaryNodes call
 	require.Nil(t, ntr.currAccount)
 	// set account for the first time
-	ntr.UpdateNotaryNodes(keys.PublicKeys{acc.PrivateKey().PublicKey()})
+	ntr.UpdateNotaryNodes(keys.PublicKeys{acc.PublicKey()})
 	require.Equal(t, acc, ntr.currAccount)
 
 	t.Run("account is already set", func(t *testing.T) {
-		ntr.UpdateNotaryNodes(keys.PublicKeys{acc.PrivateKey().PublicKey(), randomKey.PublicKey()})
+		ntr.UpdateNotaryNodes(keys.PublicKeys{acc.PublicKey(), randomKey.PublicKey()})
 		require.Equal(t, acc, ntr.currAccount)
 	})
 
@@ -57,14 +57,14 @@ func TestUpdateNotaryNodes(t *testing.T) {
 			w, err := wallet.NewWalletFromFile("./testdata/notary1.json")
 			require.NoError(t, err)
 			require.NoError(t, w.Accounts[1].Decrypt("one", w.Scrypt))
-			ntr.UpdateNotaryNodes(keys.PublicKeys{w.Accounts[1].PrivateKey().PublicKey()})
+			ntr.UpdateNotaryNodes(keys.PublicKeys{w.Accounts[1].PublicKey()})
 			require.Equal(t, w.Accounts[1], ntr.currAccount)
 		})
 		t.Run("bad config password", func(t *testing.T) {
 			w, err := wallet.NewWalletFromFile("./testdata/notary1.json")
 			require.NoError(t, err)
 			require.NoError(t, w.Accounts[2].Decrypt("four", w.Scrypt))
-			ntr.UpdateNotaryNodes(keys.PublicKeys{w.Accounts[2].PrivateKey().PublicKey()})
+			ntr.UpdateNotaryNodes(keys.PublicKeys{w.Accounts[2].PublicKey()})
 			require.Nil(t, ntr.currAccount)
 		})
 	})

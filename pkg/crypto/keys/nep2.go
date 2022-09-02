@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/base58"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"golang.org/x/crypto/scrypt"
 	"golang.org/x/text/unicode/norm"
 )
@@ -52,10 +53,15 @@ func NEP2Encrypt(priv *PrivateKey, passphrase string, params ScryptParams) (s st
 	if err != nil {
 		return s, err
 	}
+	defer slice.Clean(derivedKey)
 
 	derivedKey1 := derivedKey[:32]
 	derivedKey2 := derivedKey[32:]
-	xr := xor(priv.Bytes(), derivedKey1)
+
+	privBytes := priv.Bytes()
+	defer slice.Clean(privBytes)
+	xr := xor(privBytes, derivedKey1)
+	defer slice.Clean(xr)
 
 	encrypted, err := aesEncrypt(xr, derivedKey2)
 	if err != nil {
@@ -93,6 +99,7 @@ func NEP2Decrypt(key, passphrase string, params ScryptParams) (*PrivateKey, erro
 	if err != nil {
 		return nil, err
 	}
+	defer slice.Clean(derivedKey)
 
 	derivedKey1 := derivedKey[:32]
 	derivedKey2 := derivedKey[32:]
@@ -102,8 +109,10 @@ func NEP2Decrypt(key, passphrase string, params ScryptParams) (*PrivateKey, erro
 	if err != nil {
 		return nil, err
 	}
+	defer slice.Clean(decrypted)
 
 	privBytes := xor(decrypted, derivedKey1)
+	defer slice.Clean(privBytes)
 
 	// Rebuild the private key.
 	privKey, err := NewPrivateKeyFromBytes(privBytes)

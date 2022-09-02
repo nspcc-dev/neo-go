@@ -276,6 +276,7 @@ func (s *service) Shutdown() {
 		s.log.Info("stopping consensus service")
 		close(s.quit)
 		<-s.finished
+		s.wallet.Close()
 	}
 }
 
@@ -377,17 +378,15 @@ func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, c
 			continue
 		}
 
-		key := acc.PrivateKey()
-		if acc.PrivateKey() == nil {
+		if !acc.CanSign() {
 			err := acc.Decrypt(s.Config.Wallet.Password, s.wallet.Scrypt)
 			if err != nil {
 				s.log.Fatal("can't unlock account", zap.String("address", address.Uint160ToString(sh)))
 				break
 			}
-			key = acc.PrivateKey()
 		}
 
-		return i, &privateKey{PrivateKey: key}, &publicKey{PublicKey: key.PublicKey()}
+		return i, &privateKey{PrivateKey: acc.PrivateKey()}, &publicKey{PublicKey: acc.PublicKey()}
 	}
 
 	return -1, nil, nil

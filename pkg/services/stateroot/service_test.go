@@ -65,13 +65,13 @@ func newMajorityMultisigWithGAS(t *testing.T, n int) (util.Uint160, keys.PublicK
 		accs[i] = acc
 	}
 	sort.Slice(accs, func(i, j int) bool {
-		pi := accs[i].PrivateKey().PublicKey()
-		pj := accs[j].PrivateKey().PublicKey()
+		pi := accs[i].PublicKey()
+		pj := accs[j].PublicKey()
 		return pi.Cmp(pj) == -1
 	})
 	pubs := make(keys.PublicKeys, n)
 	for i := range pubs {
-		pubs[i] = accs[i].PrivateKey().PublicKey()
+		pubs[i] = accs[i].PublicKey()
 	}
 	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(pubs)
 	require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestStateRoot(t *testing.T) {
 	t.Run("invalid signer", func(t *testing.T) {
 		accInv, err := wallet.NewAccount()
 		require.NoError(t, err)
-		pubs := keys.PublicKeys{accInv.PrivateKey().PublicKey()}
+		pubs := keys.PublicKeys{accInv.PublicKey()}
 		require.NoError(t, accInv.ConvertMultisig(1, pubs))
 		gasValidatorInvoker.Invoke(t, true, "transfer", validator.ScriptHash(), accInv.Contract.ScriptHash(), 1_0000_0000, nil)
 		r, err := bc.GetStateModule().GetStateRoot(1)

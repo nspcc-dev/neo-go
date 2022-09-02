@@ -650,6 +650,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
+		defer w.Close()
 	}
 
 	_, err = invokeWithArgs(ctx, acc, w, script, operation, params, cosigners)
@@ -892,7 +893,7 @@ func getUnlockedAccount(wall *wallet.Wallet, addr util.Uint160, pass *string) (*
 		return nil, fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr))
 	}
 
-	if acc.PrivateKey() != nil {
+	if acc.CanSign() {
 		return acc, nil
 	}
 
@@ -949,6 +950,7 @@ func contractDeploy(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't get sender address: %w", err), 1)
 	}
+	defer w.Close()
 
 	cosigners, sgnErr := cmdargs.GetSignersFromContext(ctx, signOffset)
 	if sgnErr != nil {

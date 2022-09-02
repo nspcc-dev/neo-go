@@ -222,6 +222,7 @@ func (n *Notary) Shutdown() {
 	n.Config.Log.Info("stopping notary service")
 	close(n.stopCh)
 	<-n.done
+	n.wallet.Close()
 }
 
 // OnNewRequest is a callback method which is called after a new notary request is added to the notary request pool.
@@ -391,7 +392,7 @@ func (n *Notary) PostPersist() {
 // finalize adds missing Notary witnesses to the transaction (main or fallback) and pushes it to the network.
 func (n *Notary) finalize(acc *wallet.Account, tx *transaction.Transaction, h util.Uint256) error {
 	notaryWitness := transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().SignHashable(uint32(n.Network), tx)...),
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.SignHashable(n.Network, tx)...),
 		VerificationScript: []byte{},
 	}
 	for i, signer := range tx.Signers {

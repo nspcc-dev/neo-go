@@ -827,10 +827,7 @@ func getSigners(sender *wallet.Account, cosigners []SignerAccount) ([]transactio
 		signers  []transaction.Signer
 		accounts []*wallet.Account
 	)
-	from, err := address.StringToUint160(sender.Address)
-	if err != nil {
-		return nil, nil, fmt.Errorf("bad sender account address: %v", err)
-	}
+	from := sender.ScriptHash()
 	s := transaction.Signer{
 		Account: from,
 		Scopes:  transaction.None,
@@ -875,10 +872,7 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 	if err != nil {
 		return nil, fmt.Errorf("failed to get native Notary hash: %w", err)
 	}
-	from, err := address.StringToUint160(acc.Address)
-	if err != nil {
-		return nil, fmt.Errorf("bad account address: %v", err)
-	}
+	from := acc.ScriptHash()
 	signers := []transaction.Signer{{Account: notaryHash}, {Account: from}}
 	if fallbackSysFee < 0 {
 		result, err := c.InvokeScript(fallbackScript, signers)
@@ -944,7 +938,7 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 		FallbackTransaction: fallbackTx,
 	}
 	req.Witness = transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().SignHashable(uint32(m), req)...),
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.SignHashable(m, req)...),
 		VerificationScript: acc.GetVerificationScript(),
 	}
 	actualHash, err := c.SubmitP2PNotaryRequest(req)

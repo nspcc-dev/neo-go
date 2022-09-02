@@ -162,8 +162,7 @@ func TestNEP17Transfer(t *testing.T) {
 	e.checkNextLine(t, `^Total fee:\s*(\d|\.)+`)
 	e.checkTxPersisted(t)
 
-	sh, err := address.StringToUint160(w.Accounts[0].Address)
-	require.NoError(t, err)
+	sh := w.Accounts[0].ScriptHash()
 	b, _ := e.Chain.GetGoverningTokenBalance(sh)
 	require.Equal(t, big.NewInt(1), b)
 
@@ -172,8 +171,6 @@ func TestNEP17Transfer(t *testing.T) {
 		e.Run(t, append(args, "--force")...)
 		e.checkTxPersisted(t)
 
-		sh, err := address.StringToUint160(w.Accounts[0].Address)
-		require.NoError(t, err)
 		b, _ := e.Chain.GetGoverningTokenBalance(sh)
 		require.Equal(t, big.NewInt(2), b)
 	})
@@ -198,8 +195,6 @@ func TestNEP17Transfer(t *testing.T) {
 		e.Run(t, args...)
 		e.checkTxPersisted(t)
 
-		sh, err := address.StringToUint160(w.Accounts[0].Address)
-		require.NoError(t, err)
 		b, _ := e.Chain.GetGoverningTokenBalance(sh)
 		require.Equal(t, big.NewInt(3), b)
 
