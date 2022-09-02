@@ -42,12 +42,22 @@ linters:
 
     # extra linters
     # - exhaustive
+    # - goconst
+    # - goerr113
+    # - gomnd
+    # - nonamedreturns
+    # - unparam
+    - bidichk
     - bodyclose
     - contextcheck
+    - decorder
+    - durationcheck
     - errorlint
+    - exportloopref
     - gofmt
     - misspell
     - predeclared
+    - reassign
     - whitespace
     - goimports
   disable-all: true
