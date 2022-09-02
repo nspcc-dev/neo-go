@@ -44,6 +44,7 @@ linters:
     # - exhaustive
     - bodyclose
     - contextcheck
+    - errorlint
     - gofmt
     - whitespace
     - goimports

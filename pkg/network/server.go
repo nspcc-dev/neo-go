@@ -417,9 +417,9 @@ func (s *Server) run() {
 					zap.Error(drop.reason),
 					zap.Int("peerCount", s.PeerCount()))
 				addr := drop.peer.PeerAddr().String()
-				if drop.reason == errIdenticalID {
+				if errors.Is(drop.reason, errIdenticalID) {
 					s.discovery.RegisterBadAddr(addr)
-				} else if drop.reason == errAlreadyConnected {
+				} else if errors.Is(drop.reason, errAlreadyConnected) {
 					// There is a race condition when peer can be disconnected twice for the this reason
 					// which can lead to no connections to peer at all. Here we check for such a possibility.
 					stillConnected := false
@@ -1380,15 +1380,15 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []b
 				continue
 			}
 			err := send(peer, blocking, pkt)
-			switch err {
-			case nil:
+			if err == nil {
 				if msg.Command == CMDGetAddr {
 					peer.AddGetAddrSent()
 				}
 				sentN++
-			case errBusy: // Can be retried.
+			} else if errors.Is(err, errBusy) {
+				// Can be retried.
 				continue
-			default:
+			} else {
 				deadN++
 			}
 			finished[i] = true

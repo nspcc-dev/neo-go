@@ -1702,7 +1702,7 @@ func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 	if bc.memPool.ContainsKey(hash) {
 		return true
 	}
-	return bc.dao.HasTransaction(hash) == dao.ErrAlreadyExists
+	return errors.Is(bc.dao.HasTransaction(hash), dao.ErrAlreadyExists)
 }
 
 // HasBlock returns true if the blockchain contains the given
@@ -1761,7 +1761,7 @@ func (bc *Blockchain) HeaderHeight() uint32 {
 // GetContractState returns contract by its script hash.
 func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
 	contract, err := bc.contracts.Management.GetContract(bc.dao, hash)
-	if contract == nil && err != storage.ErrKeyNotFound {
+	if contract == nil && !errors.Is(err, storage.ErrKeyNotFound) {
 		bc.log.Warn("failed to get contract state", zap.Error(err))
 	}
 	return contract

@@ -69,7 +69,7 @@ var ErrResponseTooLarge = errors.New("too big response")
 func readResponse(rc gio.ReadCloser, limit int) ([]byte, error) {
 	buf := make([]byte, limit+1)
 	n, err := gio.ReadFull(rc, buf)
-	if err == gio.ErrUnexpectedEOF && n <= limit {
+	if errors.Is(err, gio.ErrUnexpectedEOF) && n <= limit {
 		return buf[:n], nil
 	}
 	if err == nil || n > limit {

@@ -678,7 +678,7 @@ func (c *VMCLI) Run() error {
 	l := getReadlineInstanceFromContext(c.shell)
 	for {
 		line, err := l.Readline()
-		if err == io.EOF || err == readline.ErrInterrupt {
+		if errors.Is(err, io.EOF) || errors.Is(err, readline.ErrInterrupt) {
 			return nil // OK, stop execution.
 		}
 		if err != nil {

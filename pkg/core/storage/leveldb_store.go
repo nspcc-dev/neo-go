@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/filter"
@@ -35,7 +37,7 @@ func NewLevelDBStore(cfg dbconfig.LevelDBOptions) (*LevelDBStore, error) {
 // Get implements the Store interface.
 func (s *LevelDBStore) Get(key []byte) ([]byte, error) {
 	value, err := s.db.Get(key, nil)
-	if err == leveldb.ErrNotFound {
+	if errors.Is(err, leveldb.ErrNotFound) {
 		err = ErrKeyNotFound
 	}
 	return value, err

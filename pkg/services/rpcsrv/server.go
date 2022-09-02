@@ -340,7 +340,7 @@ func (s *Server) Start() {
 			}
 			s.https.Addr = ln.Addr().String()
 			err = s.https.ServeTLS(ln, cfg.CertFile, cfg.KeyFile)
-			if err != http.ErrServerClosed {
+			if !errors.Is(err, http.ErrServerClosed) {
 				s.log.Error("failed to start TLS RPC server", zap.Error(err))
 				s.errChan <- err
 			}
@@ -354,7 +354,7 @@ func (s *Server) Start() {
 	s.Addr = ln.Addr().String() // set Addr to the actual address
 	go func() {
 		err = s.Serve(ln)
-		if err != http.ErrServerClosed {
+		if !errors.Is(err, http.ErrServerClosed) {
 			s.log.Error("failed to start RPC server", zap.Error(err))
 			s.errChan <- err
 		}

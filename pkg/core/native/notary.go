@@ -469,7 +469,7 @@ func (n *Notary) GetDepositFor(dao *dao.Simple, acc util.Uint160) *state.Deposit
 	if err == nil {
 		return deposit
 	}
-	if err == storage.ErrKeyNotFound {
+	if errors.Is(err, storage.ErrKeyNotFound) {
 		return nil
 	}
 	panic(fmt.Errorf("failed to get deposit for %s from storage: %w", acc.StringBE(), err))
