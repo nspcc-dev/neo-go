@@ -43,6 +43,7 @@ linters:
     # extra linters
     # - exhaustive
     - bodyclose
+    - contextcheck
     - gofmt
     - whitespace
     - goimports

@@ -90,7 +90,7 @@ var errConnClosedByUser = errors.New("connection closed by user")
 // operating on.
 func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error) {
 	dialer := websocket.Dialer{HandshakeTimeout: opts.DialTimeout}
-	ws, resp, err := dialer.Dial(endpoint, nil)
+	ws, resp, err := dialer.DialContext(ctx, endpoint, nil)
 	if resp != nil && resp.Body != nil { // Can be non-nil even with error returned.
 		defer resp.Body.Close() // Not exactly required by websocket, but let's do this for bodyclose checker.
 	}
