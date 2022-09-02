@@ -42,6 +42,7 @@ linters:
 
     # extra linters
     # - exhaustive
+    - bodyclose
     - gofmt
     - whitespace
     - goimports

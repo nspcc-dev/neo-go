@@ -2633,8 +2633,9 @@ func checkErrGetBatchResult(t *testing.T, body []byte, expectingFail bool) json.
 func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
 	dialer := websocket.Dialer{HandshakeTimeout: time.Second}
 	url = "ws" + strings.TrimPrefix(url, "http")
-	c, _, err := dialer.Dial(url+"/ws", nil)
+	c, r, err := dialer.Dial(url+"/ws", nil)
 	require.NoError(t, err)
+	defer r.Body.Close()
 	err = c.SetWriteDeadline(time.Now().Add(time.Second))
 	require.NoError(t, err)
 	require.NoError(t, c.WriteMessage(1, []byte(rpcCall)))
@@ -2651,6 +2652,7 @@ func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
 	resp, err := cl.Post(url, "application/json", strings.NewReader(rpcCall))
 	require.NoErrorf(t, err, "could not make a POST request")
 	body, err := gio.ReadAll(resp.Body)
+	resp.Body.Close()
 	assert.NoErrorf(t, err, "could not read response from the request: %s", rpcCall)
 	return bytes.TrimSpace(body)
 }

@@ -59,8 +59,9 @@ func initCleanServerAndWSClient(t *testing.T) (*core.Blockchain, *Server, *webso
 
 	dialer := websocket.Dialer{HandshakeTimeout: time.Second}
 	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
-	ws, _, err := dialer.Dial(url, nil)
+	ws, r, err := dialer.Dial(url, nil)
 	require.NoError(t, err)
+	defer r.Body.Close()
 
 	// Use buffered channel to read server's messages and then read expected
 	// responses from it.
@@ -520,7 +521,10 @@ func TestWSClientsLimit(t *testing.T) {
 	wss := make([]*websocket.Conn, maxSubscribers)
 
 	for i := 0; i < len(wss)+1; i++ {
-		ws, _, err := dialer.Dial(url, nil)
+		ws, r, err := dialer.Dial(url, nil)
+		if r != nil && r.Body != nil {
+			defer r.Body.Close()
+		}
 		if i < maxSubscribers {
 			require.NoError(t, err)
 			wss[i] = ws

@@ -138,6 +138,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 				o.Log.Warn("oracle request failed", zap.String("url", req.Req.URL), zap.Error(err), zap.Stringer("code", resp.Code))
 				break
 			}
+			defer r.Body.Close()
 			switch r.StatusCode {
 			case http.StatusOK:
 				if !checkMediaType(r.Header.Get("Content-Type"), o.MainCfg.AllowedContentTypes) {

@@ -67,8 +67,6 @@ func (o *Oracle) AddResponse(pub *keys.PublicKey, reqID uint64, txSig []byte) {
 var ErrResponseTooLarge = errors.New("too big response")
 
 func readResponse(rc gio.ReadCloser, limit int) ([]byte, error) {
-	defer rc.Close()
-
 	buf := make([]byte, limit+1)
 	n, err := gio.ReadFull(rc, buf)
 	if err == gio.ErrUnexpectedEOF && n <= limit {
