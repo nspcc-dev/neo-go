@@ -263,6 +263,10 @@ func Register(name string, owner interop.Hash160) bool {
 		if parentExpired(ctx, 1, fragments) {
 			panic("one of the parent domains has expired")
 		}
+		parentKey := getTokenKey([]byte(fragments[1]))
+		nsBytes := storage.Get(ctx, append([]byte{prefixName}, parentKey...))
+		ns := std.Deserialize(nsBytes.([]byte)).(NameState)
+		ns.checkAdmin()
 	}
 
 	if !isValid(owner) {

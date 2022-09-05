@@ -95,13 +95,14 @@ func TestExpiration(t *testing.T) {
 
 	acc := e.NewAccount(t)
 	cAcc := c.WithSigners(acc)
+	cAccCommittee := c.WithSigners(acc, c.Committee) // acc + committee signers for ".com"'s subdomains registration
 
 	c.Invoke(t, true, "register", "com", c.CommitteeHash)
-	cAcc.Invoke(t, true, "register", "first.com", acc.ScriptHash())
+	cAccCommittee.Invoke(t, true, "register", "first.com", acc.ScriptHash())
 	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "first.com", int64(nns.TXT), "sometext")
 	b1 := e.TopBlock(t)
 
-	tx := cAcc.PrepareInvoke(t, "register", "second.com", acc.ScriptHash())
+	tx := cAccCommittee.PrepareInvoke(t, "register", "second.com", acc.ScriptHash())
 	b2 := e.NewUnsignedBlock(t, tx)
 	b2.Index = b1.Index + 1
 	b2.PrevHash = b1.Hash()
@@ -315,6 +316,7 @@ func TestSetAdmin(t *testing.T) {
 
 	owner := e.NewAccount(t)
 	cOwner := c.WithSigners(owner)
+	cOwnerCommittee := c.WithSigners(owner, c.Committee)
 	admin := e.NewAccount(t)
 	cAdmin := c.WithSigners(admin)
 	guest := e.NewAccount(t)
@@ -322,7 +324,8 @@ func TestSetAdmin(t *testing.T) {
 
 	c.Invoke(t, true, "register", "com", c.CommitteeHash)
 
-	cOwner.Invoke(t, true, "register", "neo.com", owner.ScriptHash())
+	cOwner.InvokeFail(t, "not witnessed by admin", "register", "neo.com", owner.ScriptHash()) // admin is committee
+	cOwnerCommittee.Invoke(t, true, "register", "neo.com", owner.ScriptHash())
 	cGuest.InvokeFail(t, "not witnessed", "setAdmin", "neo.com", admin.ScriptHash())
 
 	// Must be witnessed by both owner and admin.
@@ -350,11 +353,12 @@ func TestTransfer(t *testing.T) {
 
 	from := e.NewAccount(t)
 	cFrom := c.WithSigners(from)
+	cFromCommittee := c.WithSigners(from, c.Committee)
 	to := e.NewAccount(t)
 	cTo := c.WithSigners(to)
 
 	c.Invoke(t, true, "register", "com", c.CommitteeHash)
-	cFrom.Invoke(t, true, "register", "neo.com", from.ScriptHash())
+	cFromCommittee.Invoke(t, true, "register", "neo.com", from.ScriptHash())
 	cFrom.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4")
 	cFrom.InvokeFail(t, "token not found", "transfer", to.ScriptHash(), "not.exists", nil)
 	c.Invoke(t, false, "transfer", to.ScriptHash(), "neo.com", nil)
@@ -387,14 +391,14 @@ func TestTokensOf(t *testing.T) {
 	e := c.Executor
 
 	acc1 := e.NewAccount(t)
-	cAcc1 := c.WithSigners(acc1)
+	cAcc1Committee := c.WithSigners(acc1, c.Committee)
 	acc2 := e.NewAccount(t)
-	cAcc2 := c.WithSigners(acc2)
+	cAcc2Committee := c.WithSigners(acc2, c.Committee)
 
 	tld := []byte("com")
 	c.Invoke(t, true, "register", tld, c.CommitteeHash)
-	cAcc1.Invoke(t, true, "register", "neo.com", acc1.ScriptHash())
-	cAcc2.Invoke(t, true, "register", "nspcc.com", acc2.ScriptHash())
+	cAcc1Committee.Invoke(t, true, "register", "neo.com", acc1.ScriptHash())
+	cAcc2Committee.Invoke(t, true, "register", "nspcc.com", acc2.ScriptHash())
 
 	testTokensOf(t, c, tld, [][]byte{[]byte("neo.com")}, acc1.ScriptHash().BytesBE())
 	testTokensOf(t, c, tld, [][]byte{[]byte("nspcc.com")}, acc2.ScriptHash().BytesBE())
@@ -434,13 +438,14 @@ func TestResolve(t *testing.T) {
 
 	acc := e.NewAccount(t)
 	cAcc := c.WithSigners(acc)
+	cAccCommittee := c.WithSigners(acc, c.Committee)
 
 	c.Invoke(t, true, "register", "com", c.CommitteeHash)
-	cAcc.Invoke(t, true, "register", "neo.com", acc.ScriptHash())
+	cAccCommittee.Invoke(t, true, "register", "neo.com", acc.ScriptHash())
 	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4")
 	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.CNAME), "alias.com")
 
-	cAcc.Invoke(t, true, "register", "alias.com", acc.ScriptHash())
+	cAccCommittee.Invoke(t, true, "register", "alias.com", acc.ScriptHash())
 	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "alias.com", int64(nns.TXT), "sometxt")
 
 	c.Invoke(t, "1.2.3.4", "resolve", "neo.com", int64(nns.A))

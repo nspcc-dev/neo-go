@@ -158,6 +158,7 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	_, _, nsHash := deployContractFromPriv0(t, nsPath, nsPath, nsConfigPath, 4) // block #11
 	nsCommitteeInvoker := e.CommitteeInvoker(nsHash)
 	nsPriv0Invoker := e.NewInvoker(nsHash, acc0)
+	nsPriv0CommitteeInvoker := e.NewInvoker(nsHash, acc0, e.Committee)
 
 	// Block #12: transfer funds to committee for further NS record registration.
 	gasValidatorInvoker.Invoke(t, true, "transfer",
@@ -167,7 +168,7 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	nsCommitteeInvoker.Invoke(t, true, "register", "com", nsCommitteeInvoker.CommitteeHash) // block #13
 
 	// Block #14: register `neo.com` via NNS.
-	registerTxH := nsPriv0Invoker.Invoke(t, true, "register",
+	registerTxH := nsPriv0CommitteeInvoker.Invoke(t, true, "register",
 		"neo.com", priv0ScriptHash) // block #14
 	res := e.GetTxExecResult(t, registerTxH)
 	require.Equal(t, 1, len(res.Events)) // transfer
