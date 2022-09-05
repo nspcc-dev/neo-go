@@ -48,7 +48,7 @@ const (
 	// maxRootLength is the maximum domain root length.
 	maxRootLength = 16
 	// maxDomainNameFragmentLength is the maximum length of the domain name fragment.
-	maxDomainNameFragmentLength = 62
+	maxDomainNameFragmentLength = 63
 	// minDomainNameLength is minimum domain length.
 	minDomainNameLength = 3
 	// maxDomainNameLength is maximum domain length.
