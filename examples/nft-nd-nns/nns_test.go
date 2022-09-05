@@ -182,6 +182,7 @@ func TestRegisterAndRenew(t *testing.T) {
 	props := stackitem.NewMap()
 	props.Add(stackitem.Make("name"), stackitem.Make("neo.com"))
 	props.Add(stackitem.Make("expiration"), stackitem.Make(expectedExpiration))
+	props.Add(stackitem.Make("admin"), stackitem.Null{}) // no admin was set
 	c.Invoke(t, props, "properties", "neo.com")
 	c.Invoke(t, 3, "balanceOf", e.CommitteeHash)
 	c.Invoke(t, e.CommitteeHash.BytesBE(), "ownerOf", []byte("neo.com"))
@@ -319,6 +320,7 @@ func TestSetAdmin(t *testing.T) {
 	c.Invoke(t, stackitem.Null{}, "addRoot", "com")
 
 	cOwner.Invoke(t, true, "register", "neo.com", owner.ScriptHash())
+	expectedExpiration := e.TopBlock(t).Timestamp + millisecondsInYear
 	cGuest.InvokeFail(t, "not witnessed", "setAdmin", "neo.com", admin.ScriptHash())
 
 	// Must be witnessed by both owner and admin.
@@ -326,6 +328,11 @@ func TestSetAdmin(t *testing.T) {
 	cAdmin.InvokeFail(t, "not witnessed by owner", "setAdmin", "neo.com", admin.ScriptHash())
 	cc := c.WithSigners(owner, admin)
 	cc.Invoke(t, stackitem.Null{}, "setAdmin", "neo.com", admin.ScriptHash())
+	props := stackitem.NewMap()
+	props.Add(stackitem.Make("name"), stackitem.Make("neo.com"))
+	props.Add(stackitem.Make("expiration"), stackitem.Make(expectedExpiration))
+	props.Add(stackitem.Make("admin"), stackitem.Make(admin.ScriptHash().BytesBE()))
+	c.Invoke(t, props, "properties", "neo.com")
 
 	t.Run("set and delete by admin", func(t *testing.T) {
 		cAdmin.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.TXT), "sometext")
