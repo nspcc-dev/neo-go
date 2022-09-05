@@ -173,6 +173,12 @@ func TestRegisterAndRenew(t *testing.T) {
 	c.Invoke(t, false, "register", "neo.com", e.CommitteeHash)
 	c.Invoke(t, false, "isAvailable", "neo.com")
 
+	t.Run("domain names with hyphen", func(t *testing.T) {
+		c.InvokeFail(t, "invalid domain name format", "register", "-testdomain.com", e.CommitteeHash)
+		c.InvokeFail(t, "invalid domain name format", "register", "testdomain-.com", e.CommitteeHash)
+		c.Invoke(t, true, "register", "test-domain.com", e.CommitteeHash)
+	})
+
 	props := stackitem.NewMap()
 	props.Add(stackitem.Make("name"), stackitem.Make("neo.com"))
 	props.Add(stackitem.Make("expiration"), stackitem.Make(expectedExpiration))
