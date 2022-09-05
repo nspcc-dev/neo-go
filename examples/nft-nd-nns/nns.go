@@ -688,6 +688,12 @@ func resolve(ctx storage.Context, name string, typ RecordType, redirect int) str
 	if redirect < 0 {
 		panic("invalid redirect")
 	}
+	if len(name) == 0 {
+		panic("invalid name")
+	}
+	if name[len(name)-1] == '.' {
+		name = name[:len(name)-1]
+	}
 	records := getRecords(ctx, name)
 	cname := ""
 	for iterator.Next(records) {

@@ -436,6 +436,8 @@ func TestResolve(t *testing.T) {
 	c.Invoke(t, "1.2.3.4", "resolve", "neo.com", int64(nns.A))
 	c.Invoke(t, "alias.com", "resolve", "neo.com", int64(nns.CNAME))
 	c.Invoke(t, "sometxt", "resolve", "neo.com", int64(nns.TXT))
+	c.Invoke(t, "sometxt", "resolve", "neo.com.", int64(nns.TXT))
+	c.InvokeFail(t, "invalid domain name format", "resolve", "neo.com..", int64(nns.TXT))
 	c.Invoke(t, stackitem.Null{}, "resolve", "neo.com", int64(nns.AAAA))
 }
 
