@@ -179,22 +179,6 @@ func Transfer(to interop.Hash160, tokenID []byte, data interface{}) bool {
 	return true
 }
 
-// AddRoot registers new root.
-func AddRoot(root string) {
-	checkCommittee()
-	if !checkFragment(root, true) {
-		panic("invalid root format")
-	}
-	var (
-		ctx     = storage.GetContext()
-		rootKey = append([]byte{prefixRoot}, []byte(root)...)
-	)
-	if storage.Get(ctx, rootKey) != nil {
-		panic("root already exists")
-	}
-	storage.Put(ctx, rootKey, 0)
-}
-
 // Roots returns iterator over a set of NameService roots.
 func Roots() iterator.Iterator {
 	ctx := storage.GetReadOnlyContext()
@@ -224,15 +208,36 @@ func IsAvailable(name string) bool {
 		panic("invalid domain name format")
 	}
 	ctx := storage.GetReadOnlyContext()
-	if storage.Get(ctx, append([]byte{prefixRoot}, []byte(fragments[1])...)) == nil {
-		panic("root not found")
-	}
-	nsBytes := storage.Get(ctx, append([]byte{prefixName}, getTokenKey([]byte(name))...))
-	if nsBytes == nil {
+	l := len(fragments)
+	if storage.Get(ctx, append([]byte{prefixRoot}, []byte(fragments[l-1])...)) == nil {
+		if l != 1 {
+			panic("TLD not found")
+		}
 		return true
 	}
-	ns := std.Deserialize(nsBytes.([]byte)).(NameState)
-	return runtime.GetTime() >= ns.Expiration
+	return parentExpired(ctx, 0, fragments)
+}
+
+// parentExpired returns true if any domain from fragments doesn't exist or expired.
+// first denotes the deepest subdomain to check.
+func parentExpired(ctx storage.Context, first int, fragments []string) bool {
+	now := runtime.GetTime()
+	last := len(fragments) - 1
+	name := fragments[last]
+	for i := last; i >= first; i-- {
+		if i != last {
+			name = fragments[i] + "." + name
+		}
+		nsBytes := storage.Get(ctx, append([]byte{prefixName}, getTokenKey([]byte(name))...))
+		if nsBytes == nil {
+			return true
+		}
+		ns := std.Deserialize(nsBytes.([]byte)).(NameState)
+		if now >= ns.Expiration {
+			return true
+		}
+	}
+	return false
 }
 
 // Register registers new domain with the specified owner and name if it's available.
@@ -241,9 +246,23 @@ func Register(name string, owner interop.Hash160) bool {
 	if fragments == nil {
 		panic("invalid domain name format")
 	}
+	l := len(fragments)
+	tldKey := append([]byte{prefixRoot}, []byte(fragments[l-1])...)
 	ctx := storage.GetContext()
-	if storage.Get(ctx, append([]byte{prefixRoot}, []byte(fragments[1])...)) == nil {
-		panic("root not found")
+	tldBytes := storage.Get(ctx, tldKey)
+	if l == 1 {
+		checkCommittee()
+		if tldBytes != nil {
+			panic("TLD already exists")
+		}
+		storage.Put(ctx, tldKey, 0)
+	} else {
+		if tldBytes == nil {
+			panic("TLD not found")
+		}
+		if parentExpired(ctx, 1, fragments) {
+			panic("one of the parent domains has expired")
+		}
 	}
 
 	if !isValid(owner) {
@@ -548,9 +567,6 @@ func splitAndCheck(name string, allowMultipleFragments bool) []string {
 	}
 	fragments := std.StringSplit(name, ".")
 	l = len(fragments)
-	if l < 2 {
-		return nil
-	}
 	if l > 2 && !allowMultipleFragments {
 		return nil
 	}
@@ -679,6 +695,9 @@ func tokenIDFromName(name string) string {
 		panic("invalid domain name format")
 	}
 	l := len(fragments)
+	if l == 1 {
+		return name
+	}
 	return name[len(name)-(len(fragments[l-1])+len(fragments[l-2])+1):]
 }
 

@@ -164,7 +164,7 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 		e.Validator.ScriptHash(), e.Committee.ScriptHash(), 1000_00000000, nil) // block #12
 
 	// Block #13: add `.com` root to NNS.
-	nsCommitteeInvoker.Invoke(t, stackitem.Null{}, "addRoot", "com") // block #13
+	nsCommitteeInvoker.Invoke(t, true, "register", "com", nsCommitteeInvoker.CommitteeHash) // block #13
 
 	// Block #14: register `neo.com` via NNS.
 	registerTxH := nsPriv0Invoker.Invoke(t, true, "register",
