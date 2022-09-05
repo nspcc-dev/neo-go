@@ -47,8 +47,8 @@ const (
 	maxRegisterPrice = 1_0000_0000_0000
 	// maxRootLength is the maximum domain root length.
 	maxRootLength = 16
-	// maxDomainNameFragmentLength is the maximum length of the domain name fragment.
-	maxDomainNameFragmentLength = 62
+	// maxDomainNameFragmentLength is the maximum length of the domain name fragment
+	maxDomainNameFragmentLength = 63
 	// minDomainNameLength is minimum domain length.
 	minDomainNameLength = 3
 	// maxDomainNameLength is maximum domain length.

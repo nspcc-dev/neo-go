@@ -137,7 +137,10 @@ func TestExpiration(t *testing.T) {
 	cAcc.Invoke(t, stackitem.Null{}, "resolve", "first.com", int64(nns.TXT))
 }
 
-const millisecondsInYear = 365 * 24 * 3600 * 1000
+const (
+	millisecondsInYear          = 365 * 24 * 3600 * 1000
+	maxDomainNameFragmentLength = 63
+)
 
 func TestRegisterAndRenew(t *testing.T) {
 	c := newNSClient(t)
@@ -154,9 +157,16 @@ func TestRegisterAndRenew(t *testing.T) {
 	c.InvokeFail(t, "invalid domain name format", "register", "neo.com\n", e.CommitteeHash)
 	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceSysfee, "register", "neo.org", e.CommitteeHash)
 	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceDomainPrice, "register", "neo.com", e.CommitteeHash)
+	var maxLenFragment string
+	for i := 0; i < maxDomainNameFragmentLength; i++ {
+		maxLenFragment += "q"
+	}
+	c.Invoke(t, true, "isAvailable", maxLenFragment+".com")
+	c.Invoke(t, true, "register", maxLenFragment+".com", e.CommitteeHash)
+	c.InvokeFail(t, "invalid domain name format", "register", maxLenFragment+"q.com", e.CommitteeHash)
 
 	c.Invoke(t, true, "isAvailable", "neo.com")
-	c.Invoke(t, 0, "balanceOf", e.CommitteeHash)
+	c.Invoke(t, 1, "balanceOf", e.CommitteeHash)
 	c.Invoke(t, true, "register", "neo.com", e.CommitteeHash)
 	topBlock := e.TopBlock(t)
 	expectedExpiration := topBlock.Timestamp + millisecondsInYear
@@ -167,7 +177,7 @@ func TestRegisterAndRenew(t *testing.T) {
 	props.Add(stackitem.Make("name"), stackitem.Make("neo.com"))
 	props.Add(stackitem.Make("expiration"), stackitem.Make(expectedExpiration))
 	c.Invoke(t, props, "properties", "neo.com")
-	c.Invoke(t, 1, "balanceOf", e.CommitteeHash)
+	c.Invoke(t, 2, "balanceOf", e.CommitteeHash)
 	c.Invoke(t, e.CommitteeHash.BytesBE(), "ownerOf", []byte("neo.com"))
 
 	t.Run("invalid token ID", func(t *testing.T) {
