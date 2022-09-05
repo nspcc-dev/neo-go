@@ -448,7 +448,12 @@ func getTokenKey(tokenID []byte) []byte {
 // getNameState returns domain name state by the specified tokenID.
 func getNameState(ctx storage.Context, tokenID []byte) NameState {
 	tokenKey := getTokenKey(tokenID)
-	return getNameStateWithKey(ctx, tokenKey)
+	ns := getNameStateWithKey(ctx, tokenKey)
+	fragments := std.StringSplit(string(tokenID), ".")
+	if parentExpired(ctx, 1, fragments) {
+		panic("parent domain has expired")
+	}
+	return ns
 }
 
 // getNameStateWithKey returns domain name state by the specified token key.
