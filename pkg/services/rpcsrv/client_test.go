@@ -1370,7 +1370,7 @@ func TestClient_NEP11_ND(t *testing.T) {
 	t.Run("TotalSupply", func(t *testing.T) {
 		s, err := n11.TotalSupply()
 		require.NoError(t, err)
-		require.EqualValues(t, big.NewInt(1), s) // the only `neo.com` of acc0
+		require.EqualValues(t, big.NewInt(2), s) // `neo.com` of acc0 and TLD `com` of committee
 	})
 	t.Run("Symbol", func(t *testing.T) {
 		sym, err := n11.Symbol()
@@ -1403,14 +1403,14 @@ func TestClient_NEP11_ND(t *testing.T) {
 		require.NoError(t, err)
 		items, err := iter.Next(config.DefaultMaxIteratorResultItems)
 		require.NoError(t, err)
-		require.Equal(t, 1, len(items))
-		require.Equal(t, [][]byte{[]byte("neo.com")}, items)
+		require.Equal(t, 2, len(items))
+		require.Equal(t, [][]byte{[]byte("neo.com"), []byte("com")}, items)
 		require.NoError(t, iter.Terminate())
 	})
 	t.Run("TokensExpanded", func(t *testing.T) {
 		items, err := n11.TokensExpanded(config.DefaultMaxIteratorResultItems)
 		require.NoError(t, err)
-		require.Equal(t, [][]byte{[]byte("neo.com")}, items)
+		require.Equal(t, [][]byte{[]byte("neo.com"), []byte("com")}, items)
 	})
 	t.Run("Properties", func(t *testing.T) {
 		p, err := n11.Properties([]byte("neo.com"))
@@ -1421,6 +1421,7 @@ func TestClient_NEP11_ND(t *testing.T) {
 		expected := stackitem.NewMap()
 		expected.Add(stackitem.Make([]byte("name")), stackitem.Make([]byte("neo.com")))
 		expected.Add(stackitem.Make([]byte("expiration")), stackitem.Make(blockRegisterDomain.Timestamp+365*24*3600*1000)) // expiration formula
+		expected.Add(stackitem.Make([]byte("admin")), stackitem.Null{})
 		require.EqualValues(t, expected, p)
 	})
 	t.Run("Transfer", func(t *testing.T) {

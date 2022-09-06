@@ -74,12 +74,12 @@ const (
 	verifyContractHash         = "06ed5314c2e4cb103029a60b86d46afa2fb8f67c"
 	verifyContractAVM          = "VwIAQS1RCDBwDBTunqIsJ+NL0BSPxBCOCPdOj1BIskrZMCQE2zBxaBPOStkoJATbKGlK2SgkBNsol0A="
 	verifyWithArgsContractHash = "0dce75f52adb1a4c5c6eaa6a34eb26db2e5b3781"
-	nnsContractHash            = "bdbfe1a280a0e23ca5b569c8f5845169bd93cb06"
+	nnsContractHash            = "cb93bcab0d6d435b61fa96a3bbce3b6f043968b5"
 	nnsToken1ID                = "6e656f2e636f6d"
 	nfsoContractHash           = "0e15ca0df00669a2cd5dcb03bfd3e2b3849c2969"
 	nfsoToken1ID               = "7e244ffd6aa85fb1579d2ed22e9b761ab62e3486"
 	invokescriptContractAVM    = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
-	block20StateRootLE         = "f1380226a217b5e35ea968d42c50e20b9af7ab83b91416c8fb85536c61004332"
+	block20StateRootLE         = "7f80c7e265a44faa7374953d4d5059d21b34e65e06a7695d57ca8c59cc9a36fa"
 	storageContractHash        = "ebc0c16a76c808cd4dde6bcc063f09e45e331ec7"
 )
 
@@ -287,6 +287,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				return &map[string]interface{}{
 					"name":       "neo.com",
 					"expiration": "lhbLRl0B",
+					"admin":      nil, // no admin was set
 				}
 			},
 		},
@@ -935,7 +936,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				chg := []dboper.Operation{{
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0xb},
-					Value: []byte{0xf6, 0x8b, 0x4e, 0x9d, 0x51, 0x79, 0x12},
+					Value: []byte{0x6e, 0xaf, 0xba, 0x5e, 0x51, 0x79, 0x12},
 				}, {
 					State: "Added",
 					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb},
@@ -947,7 +948,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
-					Value: []byte{0x41, 0x01, 0x21, 0x05, 0xe4, 0x74, 0xef, 0xdb, 0x08},
+					Value: []byte{0x41, 0x01, 0x21, 0x05, 0xda, 0xb5, 0x8c, 0xda, 0x08},
 				}}
 				// Can be returned in any order.
 				assert.ElementsMatch(t, chg, res.Diagnostics.Changes)
@@ -963,7 +964,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
 				return &result.Invoke{
 					State:         "HALT",
-					GasConsumed:   15928320,
+					GasConsumed:   22192980,
 					Script:        script,
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
@@ -975,6 +976,15 @@ var rpcTestCases = map[string][]rpcTestCase{
 								{
 									Current: nnsHash,
 									Calls: []*invocations.Tree{
+										{
+											Current: stdHash,
+										},
+										{
+											Current: cryptoHash,
+										},
+										{
+											Current: stdHash,
+										},
 										{
 											Current: stdHash,
 										},
@@ -1078,7 +1088,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
 				return &result.Invoke{
 					State:         "HALT",
-					GasConsumed:   15928320,
+					GasConsumed:   22192980,
 					Script:        script,
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
@@ -1090,6 +1100,15 @@ var rpcTestCases = map[string][]rpcTestCase{
 								{
 									Current: nnsHash,
 									Calls: []*invocations.Tree{
+										{
+											Current: stdHash,
+										},
+										{
+											Current: cryptoHash,
+										},
+										{
+											Current: stdHash,
+										},
 										{
 											Current: stdHash,
 										},
@@ -2717,7 +2736,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "37099660700",
+				Amount:      "37076412050",
 				LastUpdated: 22,
 				Decimals:    8,
 				Name:        "GasToken",
