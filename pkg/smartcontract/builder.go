@@ -18,6 +18,18 @@ import (
 // "entry scripts"), so the set of methods it exposes is tailored to this model
 // of use and any calls emitted don't limit flags in any way (always use
 // callflag.All).
+//
+// When using this API keep in mind that the resulting script can't be larger than
+// 64K (transaction.MaxScriptLength) to be used as a transaction entry script and
+// it can't have more than 2048 elements on the stack. Technically, this limits
+// the number of calls that can be made to a lesser value because invocations use
+// the same stack too (the exact number depends on methods and parameters).
+//
+// This API is not (and won't be) suitable to create complex scripts that use
+// returned values as parameters to other calls or perform loops or do any other
+// things that can be done in NeoVM. This hardly can be expressed in an API like
+// this, so if you need more than that and if you're ready to work with bare
+// NeoVM instructions please refer to [emit] and [opcode] packages.
 type Builder struct {
 	bw *io.BufBinWriter
 }
