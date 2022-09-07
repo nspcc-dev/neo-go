@@ -1100,6 +1100,9 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 
 // GetNetwork returns the network magic of the RPC node the client connected to. It
 // requires Init to be done first, otherwise an error is returned.
+//
+// Deprecated: please use GetVersion (it has the same data in the Protocol section)
+// or actor subpackage. This method will be removed in future versions.
 func (c *Client) GetNetwork() (netmode.Magic, error) {
 	c.cacheLock.RLock()
 	defer c.cacheLock.RUnlock()
@@ -1112,6 +1115,9 @@ func (c *Client) GetNetwork() (netmode.Magic, error) {
 
 // StateRootInHeader returns true if the state root is contained in the block header.
 // You should initialize Client cache with Init() before calling StateRootInHeader.
+//
+// Deprecated: please use GetVersion (it has the same data in the Protocol section).
+// This method will be removed in future versions.
 func (c *Client) StateRootInHeader() (bool, error) {
 	c.cacheLock.RLock()
 	defer c.cacheLock.RUnlock()
@@ -1123,6 +1129,11 @@ func (c *Client) StateRootInHeader() (bool, error) {
 }
 
 // GetNativeContractHash returns native contract hash by its name.
+//
+// Deprecated: please use native contract subpackages that have hashes directly
+// (gas, management, neo, notary, oracle, policy, rolemgmt) or
+// GetContractStateByAddressOrName method that will return hash along with other
+// data.
 func (c *Client) GetNativeContractHash(name string) (util.Uint160, error) {
 	c.cacheLock.RLock()
 	hash, ok := c.cache.nativeHashes[name]
