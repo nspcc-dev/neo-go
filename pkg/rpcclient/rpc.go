@@ -81,14 +81,14 @@ func (c *Client) GetBlockCount() (uint32, error) {
 	return resp, nil
 }
 
-// GetBlockByIndex returns a block by its height. You should initialize network magic
-// with Init before calling GetBlockByIndex.
+// GetBlockByIndex returns a block by its height. In-header stateroot option
+// must be initialized with Init before calling this method.
 func (c *Client) GetBlockByIndex(index uint32) (*block.Block, error) {
 	return c.getBlock(index)
 }
 
-// GetBlockByHash returns a block by its hash. You should initialize network magic
-// with Init before calling GetBlockByHash.
+// GetBlockByHash returns a block by its hash. In-header stateroot option
+// must be initialized with Init before calling this method.
 func (c *Client) GetBlockByHash(hash util.Uint256) (*block.Block, error) {
 	return c.getBlock(hash.StringLE())
 }
@@ -116,14 +116,16 @@ func (c *Client) getBlock(param interface{}) (*block.Block, error) {
 }
 
 // GetBlockByIndexVerbose returns a block wrapper with additional metadata by
-// its height. You should initialize network magic with Init before calling GetBlockByIndexVerbose.
+// its height. In-header stateroot option must be initialized with Init before
+// calling this method.
 // NOTE: to get transaction.ID and transaction.Size, use t.Hash() and io.GetVarSize(t) respectively.
 func (c *Client) GetBlockByIndexVerbose(index uint32) (*result.Block, error) {
 	return c.getBlockVerbose(index)
 }
 
 // GetBlockByHashVerbose returns a block wrapper with additional metadata by
-// its hash. You should initialize network magic with Init before calling GetBlockByHashVerbose.
+// its hash. In-header stateroot option must be initialized with Init before
+// calling this method.
 func (c *Client) GetBlockByHashVerbose(hash util.Uint256) (*result.Block, error) {
 	return c.getBlockVerbose(hash.StringLE())
 }
@@ -158,8 +160,8 @@ func (c *Client) GetBlockHash(index uint32) (util.Uint256, error) {
 }
 
 // GetBlockHeader returns the corresponding block header information from a serialized hex string
-// according to the specified script hash. You should initialize network magic
-// with Init before calling GetBlockHeader.
+// according to the specified script hash. In-header stateroot option must be
+// initialized with Init before calling this method.
 func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	var (
 		params = []interface{}{hash.StringLE()}
@@ -193,7 +195,8 @@ func (c *Client) GetBlockHeaderCount() (uint32, error) {
 }
 
 // GetBlockHeaderVerbose returns the corresponding block header information from a Json format string
-// according to the specified script hash.
+// according to the specified script hash. In-header stateroot option must be
+// initialized with Init before calling this method.
 func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error) {
 	var (
 		params = []interface{}{hash.StringLE(), 1}
@@ -1095,7 +1098,8 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 	return nil
 }
 
-// GetNetwork returns the network magic of the RPC node the client connected to.
+// GetNetwork returns the network magic of the RPC node the client connected to. It
+// requires Init to be done first, otherwise an error is returned.
 func (c *Client) GetNetwork() (netmode.Magic, error) {
 	c.cacheLock.RLock()
 	defer c.cacheLock.RUnlock()
