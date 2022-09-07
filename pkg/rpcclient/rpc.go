@@ -209,6 +209,7 @@ func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error
 }
 
 // GetBlockSysFee returns the system fees of the block based on the specified index.
+// This method is only supported by NeoGo servers.
 func (c *Client) GetBlockSysFee(index uint32) (fixedn.Fixed8, error) {
 	var (
 		params = []interface{}{index}
@@ -245,12 +246,16 @@ func (c *Client) GetContractStateByHash(hash util.Uint160) (*state.Contract, err
 	return c.getContractState(hash.StringLE())
 }
 
-// GetContractStateByAddressOrName queries contract information according to the contract address or name.
+// GetContractStateByAddressOrName queries contract information using the contract
+// address or name. Notice that name-based queries work only for native contracts,
+// non-native ones can't be requested this way.
 func (c *Client) GetContractStateByAddressOrName(addressOrName string) (*state.Contract, error) {
 	return c.getContractState(addressOrName)
 }
 
 // GetContractStateByID queries contract information according to the contract ID.
+// Notice that this is supported by all servers only for native contracts,
+// non-native ones can be requested only from NeoGo servers.
 func (c *Client) GetContractStateByID(id int32) (*state.Contract, error) {
 	return c.getContractState(id)
 }
@@ -997,6 +1002,7 @@ func (c *Client) SubmitP2PNotaryRequest(req *payload.P2PNotaryRequest) (util.Uin
 }
 
 // ValidateAddress verifies that the address is a correct NEO address.
+// Consider using [address] package instead to do it locally.
 func (c *Client) ValidateAddress(address string) error {
 	var (
 		params = []interface{}{address}
