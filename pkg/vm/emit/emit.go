@@ -133,6 +133,18 @@ func Array(w *io.BinWriter, es ...interface{}) {
 			Bytes(w, e.BytesBE())
 		case util.Uint256:
 			Bytes(w, e.BytesBE())
+		case *util.Uint160:
+			if e == nil {
+				Opcodes(w, opcode.PUSHNULL)
+			} else {
+				Bytes(w, e.BytesBE())
+			}
+		case *util.Uint256:
+			if e == nil {
+				Opcodes(w, opcode.PUSHNULL)
+			} else {
+				Bytes(w, e.BytesBE())
+			}
 		case []byte:
 			Bytes(w, e)
 		case bool:

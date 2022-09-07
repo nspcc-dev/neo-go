@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
@@ -216,9 +217,13 @@ func TestBytes(t *testing.T) {
 func TestEmitArray(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		buf := io.NewBufBinWriter()
+		var p160 *util.Uint160
+		var p256 *util.Uint256
+		u160 := util.Uint160{1, 2, 3}
+		u256 := util.Uint256{1, 2, 3}
 		veryBig := new(big.Int).SetUint64(math.MaxUint64)
 		veryBig.Add(veryBig, big.NewInt(1))
-		Array(buf.BinWriter, big.NewInt(0), veryBig,
+		Array(buf.BinWriter, p160, p256, &u160, &u256, u160, u256, big.NewInt(0), veryBig,
 			[]interface{}{int64(1), int64(2)}, nil, int64(1), "str", true, []byte{0xCA, 0xFE})
 		require.NoError(t, buf.Err)
 
@@ -241,6 +246,20 @@ func TestEmitArray(t *testing.T) {
 		assert.EqualValues(t, opcode.PUSHINT128, res[18])
 		assert.EqualValues(t, veryBig, bigint.FromBytes(res[19:35]))
 		assert.EqualValues(t, opcode.PUSH0, res[35])
+		assert.EqualValues(t, opcode.PUSHDATA1, res[36])
+		assert.EqualValues(t, 32, res[37])
+		assert.EqualValues(t, u256.BytesBE(), res[38:70])
+		assert.EqualValues(t, opcode.PUSHDATA1, res[70])
+		assert.EqualValues(t, 20, res[71])
+		assert.EqualValues(t, u160.BytesBE(), res[72:92])
+		assert.EqualValues(t, opcode.PUSHDATA1, res[92])
+		assert.EqualValues(t, 32, res[93])
+		assert.EqualValues(t, u256.BytesBE(), res[94:126])
+		assert.EqualValues(t, opcode.PUSHDATA1, res[126])
+		assert.EqualValues(t, 20, res[127])
+		assert.EqualValues(t, u160.BytesBE(), res[128:148])
+		assert.EqualValues(t, opcode.PUSHNULL, res[148])
+		assert.EqualValues(t, opcode.PUSHNULL, res[149])
 	})
 
 	t.Run("empty", func(t *testing.T) {
