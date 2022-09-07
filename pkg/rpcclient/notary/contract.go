@@ -59,6 +59,15 @@ type Contract struct {
 	actor ContractActor
 }
 
+// OnNEP17PaymentData is the data set that is accepted by the notary contract
+// onNEP17Payment handler. It's mandatory for GAS tranfers to this contract.
+type OnNEP17PaymentData struct {
+	// Account can be nil, in this case transfer sender (from) account is used.
+	Account *util.Uint160
+	// Till specifies the deposit lock time (in blocks).
+	Till uint32
+}
+
 // Hash stores the hash of the native Notary contract.
 var Hash = state.CreateNativeContractHash(nativenames.Notary)
 
