@@ -485,6 +485,10 @@ func TestExpandParameterToEmitable(t *testing.T) {
 			Expected: []byte{1, 2, 3},
 		},
 		{
+			In:       Parameter{Type: AnyType},
+			Expected: nil,
+		},
+		{
 			In: Parameter{Type: ArrayType, Value: []Parameter{
 				{
 					Type:  IntegerType,
@@ -517,7 +521,6 @@ func TestExpandParameterToEmitable(t *testing.T) {
 		require.NoError(t, bw.Err)
 	}
 	errCases := []Parameter{
-		{Type: AnyType},
 		{Type: UnknownType},
 		{Type: MapType},
 		{Type: InteropInterfaceType},
@@ -633,6 +636,24 @@ func TestParameterFromValue(t *testing.T) {
 		},
 		{
 			value:   util.Uint256{3, 2, 1},
+			expType: Hash256Type,
+			expVal:  util.Uint256{3, 2, 1},
+		},
+		{
+			value:   (*util.Uint160)(nil),
+			expType: AnyType,
+		},
+		{
+			value:   &util.Uint160{1, 2, 3},
+			expType: Hash160Type,
+			expVal:  util.Uint160{1, 2, 3},
+		},
+		{
+			value:   (*util.Uint256)(nil),
+			expType: AnyType,
+		},
+		{
+			value:   &util.Uint256{3, 2, 1},
 			expType: Hash256Type,
 			expVal:  util.Uint256{3, 2, 1},
 		},
