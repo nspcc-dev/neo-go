@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -19,14 +20,13 @@ import (
 
 // Invoker is used by ContractReader to call various methods.
 type Invoker interface {
-	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
-	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...interface{}) (*result.Invoke, error)
-	TerminateSession(sessionID uuid.UUID) error
-	TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error)
+	nep11.Invoker
 }
 
 // ContractReader provides an interface to call read-only NNS contract methods.
 type ContractReader struct {
+	nep11.NonDivisibleReader
+
 	invoker Invoker
 	hash    util.Uint160
 }
@@ -41,7 +41,7 @@ type RecordIterator struct {
 // NewReader creates an instance of ContractReader that can be used to read
 // data from the contract.
 func NewReader(invoker Invoker, hash util.Uint160) *ContractReader {
-	return &ContractReader{invoker, hash}
+	return &ContractReader{*nep11.NewNonDivisibleReader(invoker, hash), invoker, hash}
 }
 
 // GetPrice returns current domain registration price in GAS.
