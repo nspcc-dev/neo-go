@@ -1,3 +1,12 @@
+/*
+Package invoker provides a convenient wrapper to perform test calls via RPC client.
+
+This layer builds on top of the basic RPC client and simplifies performing
+test function invocations and script runs. It also makes historic calls (NeoGo
+extension) transparent, allowing to use the same API as for regular calls.
+Results of these calls can be interpreted by upper layer packages like actor
+(to create transactions) or unwrap (to retrieve data from return values).
+*/
 package invoker
 
 import (
@@ -70,6 +79,9 @@ type historicConverter struct {
 }
 
 // New creates an Invoker to test-execute things at the current blockchain height.
+// If you only want to read data from the contract using its safe methods normally
+// (but contract-specific in general case) it's OK to pass nil for signers (that
+// is, use no signers).
 func New(client RPCInvoke, signers []transaction.Signer) *Invoker {
 	return &Invoker{client, signers}
 }
@@ -187,7 +199,8 @@ func (v *Invoker) Run(script []byte) (*result.Invoke, error) {
 }
 
 // TerminateSession closes the given session, returning an error if anything
-// goes wrong.
+// goes wrong. It's not strictly required to close the session (it'll expire on
+// the server anyway), but it helps to release server resources earlier.
 func (v *Invoker) TerminateSession(sessionID uuid.UUID) error {
 	return termSession(v.client, sessionID)
 }
