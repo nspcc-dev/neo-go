@@ -18,7 +18,8 @@ type DivisibleReader struct {
 
 // Divisible is a state-changing interface for divisible NEP-11 contract.
 type Divisible struct {
-	Base
+	DivisibleReader
+	BaseWriter
 }
 
 // OwnerIterator is used for iterating over OwnerOf (for divisible NFTs) results.
@@ -37,7 +38,7 @@ func NewDivisibleReader(invoker Invoker, hash util.Uint160) *DivisibleReader {
 // NewDivisible creates an instance of Divisible for a contract
 // with the given hash using the given actor.
 func NewDivisible(actor Actor, hash util.Uint160) *Divisible {
-	return &Divisible{*NewBase(actor, hash)}
+	return &Divisible{*NewDivisibleReader(actor, hash), BaseWriter{hash, actor}}
 }
 
 // OwnerOf returns returns an iterator that allows to walk through all owners of
@@ -64,24 +65,6 @@ func (t *DivisibleReader) OwnerOfExpanded(token []byte, num int) ([]util.Uint160
 // owned by a particular account.
 func (t *DivisibleReader) BalanceOfD(owner util.Uint160, token []byte) (*big.Int, error) {
 	return unwrap.BigInt(t.invoker.Call(t.hash, "balanceOf", owner, token))
-}
-
-// OwnerOf is the same as (*DivisibleReader).OwnerOf.
-func (t *Divisible) OwnerOf(token []byte) (*OwnerIterator, error) {
-	r := DivisibleReader{t.BaseReader}
-	return r.OwnerOf(token)
-}
-
-// OwnerOfExpanded is the same as (*DivisibleReader).OwnerOfExpanded.
-func (t *Divisible) OwnerOfExpanded(token []byte, num int) ([]util.Uint160, error) {
-	r := DivisibleReader{t.BaseReader}
-	return r.OwnerOfExpanded(token, num)
-}
-
-// BalanceOfD is the same as (*DivisibleReader).BalanceOfD.
-func (t *Divisible) BalanceOfD(owner util.Uint160, token []byte) (*big.Int, error) {
-	r := DivisibleReader{t.BaseReader}
-	return r.BalanceOfD(owner, token)
 }
 
 // TransferD is a divisible version of (*Base).Transfer, allowing to transfer a

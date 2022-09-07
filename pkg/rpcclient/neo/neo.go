@@ -63,7 +63,7 @@ type ContractReader struct {
 // Contract provides full NEO interface, both safe and state-changing methods.
 type Contract struct {
 	ContractReader
-	nep17.Token
+	nep17.TokenWriter
 
 	actor Actor
 }
@@ -102,7 +102,8 @@ func NewReader(invoker Invoker) *ContractReader {
 // New creates an instance of Contract to perform state-changing actions in the
 // NEO contract.
 func New(actor Actor) *Contract {
-	return &Contract{*NewReader(actor), *nep17.New(actor, Hash), actor}
+	nep := nep17.New(actor, Hash)
+	return &Contract{ContractReader{nep.TokenReader, actor}, nep.TokenWriter, actor}
 }
 
 // GetAccountState returns current NEO balance state for the account which
