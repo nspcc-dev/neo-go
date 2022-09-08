@@ -51,12 +51,19 @@ type BaseReader struct {
 	hash    util.Uint160
 }
 
+// BaseWriter is a transaction-creating interface for common divisible and
+// non-divisible NEP-11 methods. It simplifies reusing this set of methods,
+// but a complete Base is expected to be used in other packages.
+type BaseWriter struct {
+	hash  util.Uint160
+	actor Actor
+}
+
 // Base is a state-changing interface for common divisible and non-divisible NEP-11
 // methods.
 type Base struct {
 	BaseReader
-
-	actor Actor
+	BaseWriter
 }
 
 // TransferEvent represents a Transfer event as defined in the NEP-11 standard.
@@ -83,7 +90,7 @@ func NewBaseReader(invoker Invoker, hash util.Uint160) *BaseReader {
 // NewBase creates an instance of Base for contract with the given
 // hash using the given actor.
 func NewBase(actor Actor, hash util.Uint160) *Base {
-	return &Base{*NewBaseReader(actor, hash), actor}
+	return &Base{*NewBaseReader(actor, hash), BaseWriter{hash, actor}}
 }
 
 // Properties returns a set of token's properties such as name or URL. The map
@@ -142,7 +149,7 @@ func (t *BaseReader) TokensOfExpanded(account util.Uint160, num int) ([][]byte, 
 // transaction if it's not true. It works for divisible NFTs only when there is
 // one owner for the particular token. The returned values are transaction hash,
 // its ValidUntilBlock value and an error if any.
-func (t *Base) Transfer(to util.Uint160, id []byte, data interface{}) (util.Uint256, uint32, error) {
+func (t *BaseWriter) Transfer(to util.Uint160, id []byte, data interface{}) (util.Uint256, uint32, error) {
 	script, err := t.transferScript(to, id, data)
 	if err != nil {
 		return util.Uint256{}, 0, err
@@ -155,7 +162,7 @@ func (t *Base) Transfer(to util.Uint160, id []byte, data interface{}) (util.Uint
 // transaction if it's not true. It works for divisible NFTs only when there is
 // one owner for the particular token. This transaction is signed, but not sent
 // to the network, instead it's returned to the caller.
-func (t *Base) TransferTransaction(to util.Uint160, id []byte, data interface{}) (*transaction.Transaction, error) {
+func (t *BaseWriter) TransferTransaction(to util.Uint160, id []byte, data interface{}) (*transaction.Transaction, error) {
 	script, err := t.transferScript(to, id, data)
 	if err != nil {
 		return nil, err
@@ -168,7 +175,7 @@ func (t *Base) TransferTransaction(to util.Uint160, id []byte, data interface{})
 // transaction if it's not true. It works for divisible NFTs only when there is
 // one owner for the particular token. This transaction is not signed and just
 // returned to the caller.
-func (t *Base) TransferUnsigned(to util.Uint160, id []byte, data interface{}) (*transaction.Transaction, error) {
+func (t *BaseWriter) TransferUnsigned(to util.Uint160, id []byte, data interface{}) (*transaction.Transaction, error) {
 	script, err := t.transferScript(to, id, data)
 	if err != nil {
 		return nil, err
@@ -176,7 +183,7 @@ func (t *Base) TransferUnsigned(to util.Uint160, id []byte, data interface{}) (*
 	return t.actor.MakeUnsignedRun(script, nil)
 }
 
-func (t *Base) transferScript(params ...interface{}) ([]byte, error) {
+func (t *BaseWriter) transferScript(params ...interface{}) ([]byte, error) {
 	return smartcontract.CreateCallWithAssertScript(t.hash, "transfer", params...)
 }
 

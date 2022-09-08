@@ -292,8 +292,10 @@ server via [`submitnotaryrequest` RPC call](./rpc.md#submitnotaryrequest-call).
 Note, that all parties must generate the same main transaction while fallbacks
 can differ.
 
-To create a notary request, you can use [NeoGo RPC client](./rpc.md#Client). Follow
-the steps to create a signature request:
+To create a notary request, you can use [NeoGo RPC client](./rpc.md#Client). The
+procedure below uses only basic RPC client functions and show all of the notary
+request internals. You can use much simpler Actor interface in the notary
+subpackage with an example written in Go doc.
 
 1. Prepare a list of signers with scopes for the main transaction (i.e. the
    transaction that signatures are being collected for, that will be `Signers`
@@ -307,8 +309,7 @@ the steps to create a signature request:
    Include Notary native contract in the list of signers with the following
    constraints:
    * Notary signer hash is the hash of a native Notary contract that can be fetched
-     from
-     [func (*Client) GetNativeContractHash](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.GetNativeContractHash).
+     from the notary RPC client subpackage (notary.Hash)
    * A notary signer must have `None` scope.
    * A notary signer shouldn't be placed at the beginning of the signer list
      because Notary contract does not pay main transaction fees. Other positions
@@ -390,8 +391,7 @@ the steps to create a signature request:
     tries to push all associated fallbacks. Use the following rules to define
     `fallbackValidFor`:
        - `fallbackValidFor` shouldn't be more than `MaxNotValidBeforeDelta` value.
-       - Use [func (*Client) GetMaxNotValidBeforeDelta](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.GetMaxNotValidBeforeDelta)
-         to check `MaxNotValidBefore` value.
+       - Use notary package's GetMaxNotValidBeforeDelta to check `MaxNotValidBefore` value.
 11. Construct a script for the fallback transaction. The script may do something useful,
     i.g. invoke method of a contract. However, if you don't need to perform anything
     special on fallback invocation, you can use simple `opcode.RET` script.

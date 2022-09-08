@@ -86,7 +86,8 @@ type calculateValidUntilBlockCache struct {
 }
 
 // New returns a new Client ready to use. You should call Init method to
-// initialize network magic the client is operating on.
+// initialize stateroot setting for the network the client is operating on if
+// you plan using GetBlock*.
 func New(ctx context.Context, endpoint string, opts Options) (*Client, error) {
 	cl := new(Client)
 	err := initClient(ctx, cl, endpoint, opts)

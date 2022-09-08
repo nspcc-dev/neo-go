@@ -311,6 +311,18 @@ func NewParameterFromValue(value interface{}) (Parameter, error) {
 		result.Type = Hash160Type
 	case util.Uint256:
 		result.Type = Hash256Type
+	case *util.Uint160:
+		if v != nil {
+			return NewParameterFromValue(*v)
+		}
+		result.Type = AnyType
+		result.Value = nil
+	case *util.Uint256:
+		if v != nil {
+			return NewParameterFromValue(*v)
+		}
+		result.Type = AnyType
+		result.Value = nil
 	case keys.PublicKey:
 		return NewParameterFromValue(&v)
 	case *keys.PublicKey:
@@ -387,7 +399,7 @@ func ExpandParameterToEmitable(param Parameter) (interface{}, error) {
 			}
 		}
 		return res, nil
-	case MapType, InteropInterfaceType, UnknownType, AnyType, VoidType:
+	case MapType, InteropInterfaceType, UnknownType, VoidType:
 		return nil, fmt.Errorf("unsupported parameter type: %s", t.String())
 	default:
 		return param.Value, nil

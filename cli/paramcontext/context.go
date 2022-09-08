@@ -15,7 +15,7 @@ import (
 // as an input to `multisig sign`. If a wallet.Account is given and can sign,
 // it's signed as well using it.
 func InitAndSave(net netmode.Magic, tx *transaction.Transaction, acc *wallet.Account, filename string) error {
-	scCtx := context.NewParameterContext("Neo.Network.P2P.Payloads.Transaction", net, tx)
+	scCtx := context.NewParameterContext(context.TransactionType, net, tx)
 	if acc != nil && acc.CanSign() {
 		sign := acc.SignHashable(net, tx)
 		if err := scCtx.AddSignature(acc.ScriptHash(), acc.Contract, acc.PublicKey(), sign); err != nil {

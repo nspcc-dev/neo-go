@@ -36,12 +36,19 @@ type TokenReader struct {
 	neptoken.Base
 }
 
+// TokenWriter contains NEP-17 token methods that change state. It's not meant
+// to be used directly (Token that includes it is more convenient) and just
+// separates one set of methods from another to simplify reusing this package
+// for other contracts that extend NEP-17 interface.
+type TokenWriter struct {
+	hash  util.Uint160
+	actor Actor
+}
+
 // Token provides full NEP-17 interface, both safe and state-changing methods.
 type Token struct {
 	TokenReader
-
-	hash  util.Uint160
-	actor Actor
+	TokenWriter
 }
 
 // TransferEvent represents a Transfer event as defined in the NEP-17 standard.
@@ -68,14 +75,14 @@ func NewReader(invoker Invoker, hash util.Uint160) *TokenReader {
 // New creates an instance of Token for contract with the given hash
 // using the given Actor.
 func New(actor Actor, hash util.Uint160) *Token {
-	return &Token{*NewReader(actor, hash), hash, actor}
+	return &Token{*NewReader(actor, hash), TokenWriter{hash, actor}}
 }
 
 // Transfer creates and sends a transaction that performs a `transfer` method
 // call using the given parameters and checks for this call result, failing the
 // transaction if it's not true. The returned values are transaction hash, its
 // ValidUntilBlock value and an error if any.
-func (t *Token) Transfer(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (util.Uint256, uint32, error) {
+func (t *TokenWriter) Transfer(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (util.Uint256, uint32, error) {
 	return t.MultiTransfer([]TransferParameters{{from, to, amount, data}})
 }
 
@@ -83,7 +90,7 @@ func (t *Token) Transfer(from util.Uint160, to util.Uint160, amount *big.Int, da
 // call using the given parameters and checks for this call result, failing the
 // transaction if it's not true. This transaction is signed, but not sent to the
 // network, instead it's returned to the caller.
-func (t *Token) TransferTransaction(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
+func (t *TokenWriter) TransferTransaction(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
 	return t.MultiTransferTransaction([]TransferParameters{{from, to, amount, data}})
 }
 
@@ -91,11 +98,11 @@ func (t *Token) TransferTransaction(from util.Uint160, to util.Uint160, amount *
 // call using the given parameters and checks for this call result, failing the
 // transaction if it's not true. This transaction is not signed and just returned
 // to the caller.
-func (t *Token) TransferUnsigned(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
+func (t *TokenWriter) TransferUnsigned(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
 	return t.MultiTransferUnsigned([]TransferParameters{{from, to, amount, data}})
 }
 
-func (t *Token) multiTransferScript(params []TransferParameters) ([]byte, error) {
+func (t *TokenWriter) multiTransferScript(params []TransferParameters) ([]byte, error) {
 	if len(params) == 0 {
 		return nil, errors.New("at least one transfer parameter required")
 	}
@@ -113,7 +120,7 @@ func (t *Token) multiTransferScript(params []TransferParameters) ([]byte, error)
 // many times as needed (with ASSERTs added, so if any of these transfers fail
 // whole transaction (with all transfers) fails). The values returned are the
 // same as in Transfer.
-func (t *Token) MultiTransfer(params []TransferParameters) (util.Uint256, uint32, error) {
+func (t *TokenWriter) MultiTransfer(params []TransferParameters) (util.Uint256, uint32, error) {
 	script, err := t.multiTransferScript(params)
 	if err != nil {
 		return util.Uint256{}, 0, err
@@ -123,7 +130,7 @@ func (t *Token) MultiTransfer(params []TransferParameters) (util.Uint256, uint32
 
 // MultiTransferTransaction is similar to MultiTransfer, but returns the same values
 // as TransferTransaction (signed transaction that is not yet sent).
-func (t *Token) MultiTransferTransaction(params []TransferParameters) (*transaction.Transaction, error) {
+func (t *TokenWriter) MultiTransferTransaction(params []TransferParameters) (*transaction.Transaction, error) {
 	script, err := t.multiTransferScript(params)
 	if err != nil {
 		return nil, err
@@ -133,7 +140,7 @@ func (t *Token) MultiTransferTransaction(params []TransferParameters) (*transact
 
 // MultiTransferUnsigned is similar to MultiTransfer, but returns the same values
 // as TransferUnsigned (not yet signed transaction).
-func (t *Token) MultiTransferUnsigned(params []TransferParameters) (*transaction.Transaction, error) {
+func (t *TokenWriter) MultiTransferUnsigned(params []TransferParameters) (*transaction.Transaction, error) {
 	script, err := t.multiTransferScript(params)
 	if err != nil {
 		return nil, err

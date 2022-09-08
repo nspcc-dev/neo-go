@@ -30,6 +30,9 @@ func (c *Client) GetStoragePrice() (int64, error) {
 }
 
 // GetMaxNotValidBeforeDelta invokes `getMaxNotValidBeforeDelta` method on a native Notary contract.
+//
+// Deprecated: please use notary subpackage. This method will be removed
+// in future versions.
 func (c *Client) GetMaxNotValidBeforeDelta() (int64, error) {
 	notaryHash, err := c.GetNativeContractHash(nativenames.Notary)
 	if err != nil {

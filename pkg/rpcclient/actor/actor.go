@@ -1,10 +1,11 @@
 /*
 Package actor provides a way to change chain state via RPC client.
 
-This layer builds on top of the basic RPC client and simplifies creating,
-signing and sending transactions to the network (since that's the only way chain
-state is changed). It's generic enough to be used for any contract that you may
-want to invoke and contract-specific functions can build on top of it.
+This layer builds on top of the basic RPC client and [invoker] package, it
+simplifies creating, signing and sending transactions to the network (since
+that's the only way chain state is changed). It's generic enough to be used for
+any contract that you may want to invoke and contract-specific functions can
+build on top of it.
 */
 package actor
 
@@ -44,6 +45,14 @@ type SignerAccount struct {
 // state-changing actions (via transactions that can also be created without
 // sending them to the network) on behalf of a set of signers. It also provides
 // an Invoker interface to perform test calls with the same set of signers.
+//
+// Actor-specific APIs follow the naming scheme set by Invoker in method
+// suffixes. *Call methods operate with function calls and require a contract
+// hash, a method and parameters if any. *Run methods operate with scripts and
+// require a NeoVM script that will be used directly. Prefixes denote the
+// action to be performed, "Make" prefix is used for methods that create
+// transactions in various ways, while "Send" prefix is used by methods that
+// directly transmit created transactions to the RPC server.
 type Actor struct {
 	invoker.Invoker
 

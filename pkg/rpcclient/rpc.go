@@ -81,14 +81,14 @@ func (c *Client) GetBlockCount() (uint32, error) {
 	return resp, nil
 }
 
-// GetBlockByIndex returns a block by its height. You should initialize network magic
-// with Init before calling GetBlockByIndex.
+// GetBlockByIndex returns a block by its height. In-header stateroot option
+// must be initialized with Init before calling this method.
 func (c *Client) GetBlockByIndex(index uint32) (*block.Block, error) {
 	return c.getBlock(index)
 }
 
-// GetBlockByHash returns a block by its hash. You should initialize network magic
-// with Init before calling GetBlockByHash.
+// GetBlockByHash returns a block by its hash. In-header stateroot option
+// must be initialized with Init before calling this method.
 func (c *Client) GetBlockByHash(hash util.Uint256) (*block.Block, error) {
 	return c.getBlock(hash.StringLE())
 }
@@ -116,14 +116,16 @@ func (c *Client) getBlock(param interface{}) (*block.Block, error) {
 }
 
 // GetBlockByIndexVerbose returns a block wrapper with additional metadata by
-// its height. You should initialize network magic with Init before calling GetBlockByIndexVerbose.
+// its height. In-header stateroot option must be initialized with Init before
+// calling this method.
 // NOTE: to get transaction.ID and transaction.Size, use t.Hash() and io.GetVarSize(t) respectively.
 func (c *Client) GetBlockByIndexVerbose(index uint32) (*result.Block, error) {
 	return c.getBlockVerbose(index)
 }
 
 // GetBlockByHashVerbose returns a block wrapper with additional metadata by
-// its hash. You should initialize network magic with Init before calling GetBlockByHashVerbose.
+// its hash. In-header stateroot option must be initialized with Init before
+// calling this method.
 func (c *Client) GetBlockByHashVerbose(hash util.Uint256) (*result.Block, error) {
 	return c.getBlockVerbose(hash.StringLE())
 }
@@ -158,8 +160,8 @@ func (c *Client) GetBlockHash(index uint32) (util.Uint256, error) {
 }
 
 // GetBlockHeader returns the corresponding block header information from a serialized hex string
-// according to the specified script hash. You should initialize network magic
-// with Init before calling GetBlockHeader.
+// according to the specified script hash. In-header stateroot option must be
+// initialized with Init before calling this method.
 func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	var (
 		params = []interface{}{hash.StringLE()}
@@ -193,7 +195,8 @@ func (c *Client) GetBlockHeaderCount() (uint32, error) {
 }
 
 // GetBlockHeaderVerbose returns the corresponding block header information from a Json format string
-// according to the specified script hash.
+// according to the specified script hash. In-header stateroot option must be
+// initialized with Init before calling this method.
 func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error) {
 	var (
 		params = []interface{}{hash.StringLE(), 1}
@@ -206,6 +209,7 @@ func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error
 }
 
 // GetBlockSysFee returns the system fees of the block based on the specified index.
+// This method is only supported by NeoGo servers.
 func (c *Client) GetBlockSysFee(index uint32) (fixedn.Fixed8, error) {
 	var (
 		params = []interface{}{index}
@@ -242,12 +246,16 @@ func (c *Client) GetContractStateByHash(hash util.Uint160) (*state.Contract, err
 	return c.getContractState(hash.StringLE())
 }
 
-// GetContractStateByAddressOrName queries contract information according to the contract address or name.
+// GetContractStateByAddressOrName queries contract information using the contract
+// address or name. Notice that name-based queries work only for native contracts,
+// non-native ones can't be requested this way.
 func (c *Client) GetContractStateByAddressOrName(addressOrName string) (*state.Contract, error) {
 	return c.getContractState(addressOrName)
 }
 
 // GetContractStateByID queries contract information according to the contract ID.
+// Notice that this is supported by all servers only for native contracts,
+// non-native ones can be requested only from NeoGo servers.
 func (c *Client) GetContractStateByID(id int32) (*state.Contract, error) {
 	return c.getContractState(id)
 }
@@ -994,6 +1002,7 @@ func (c *Client) SubmitP2PNotaryRequest(req *payload.P2PNotaryRequest) (util.Uin
 }
 
 // ValidateAddress verifies that the address is a correct NEO address.
+// Consider using [address] package instead to do it locally.
 func (c *Client) ValidateAddress(address string) error {
 	var (
 		params = []interface{}{address}
@@ -1095,7 +1104,11 @@ func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs
 	return nil
 }
 
-// GetNetwork returns the network magic of the RPC node the client connected to.
+// GetNetwork returns the network magic of the RPC node the client connected to. It
+// requires Init to be done first, otherwise an error is returned.
+//
+// Deprecated: please use GetVersion (it has the same data in the Protocol section)
+// or actor subpackage. This method will be removed in future versions.
 func (c *Client) GetNetwork() (netmode.Magic, error) {
 	c.cacheLock.RLock()
 	defer c.cacheLock.RUnlock()
@@ -1108,6 +1121,9 @@ func (c *Client) GetNetwork() (netmode.Magic, error) {
 
 // StateRootInHeader returns true if the state root is contained in the block header.
 // You should initialize Client cache with Init() before calling StateRootInHeader.
+//
+// Deprecated: please use GetVersion (it has the same data in the Protocol section).
+// This method will be removed in future versions.
 func (c *Client) StateRootInHeader() (bool, error) {
 	c.cacheLock.RLock()
 	defer c.cacheLock.RUnlock()
@@ -1119,6 +1135,11 @@ func (c *Client) StateRootInHeader() (bool, error) {
 }
 
 // GetNativeContractHash returns native contract hash by its name.
+//
+// Deprecated: please use native contract subpackages that have hashes directly
+// (gas, management, neo, notary, oracle, policy, rolemgmt) or
+// GetContractStateByAddressOrName method that will return hash along with other
+// data.
 func (c *Client) GetNativeContractHash(name string) (util.Uint160, error) {
 	c.cacheLock.RLock()
 	hash, ok := c.cache.nativeHashes[name]

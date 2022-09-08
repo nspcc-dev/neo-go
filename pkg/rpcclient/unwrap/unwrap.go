@@ -25,6 +25,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 )
 
+// ErrNoSessionID is returned from the SessionIterator when the server does not
+// have sessions enabled and does not perform automatic iterator expansion. It
+// means you have no way to get the data from returned iterators using this
+// server, other than expanding it in the VM script.
+var ErrNoSessionID = errors.New("server returned iterator ID, but no session ID")
+
 // BigInt expects correct execution (HALT state) with a single stack item
 // returned. A big.Int is extracted from this item and returned.
 func BigInt(r *result.Invoke, err error) (*big.Int, error) {
@@ -142,7 +148,10 @@ func Uint256(r *result.Invoke, err error) (util.Uint256, error) {
 
 // SessionIterator expects correct execution (HALT state) with a single stack
 // item returned. If this item is an iterator it's returned to the caller along
-// with the session ID.
+// with the session ID. Notice that this function also returns successfully
+// with zero session ID (but an appropriate Iterator holding all the data
+// received) when RPC server performs (limited) iterator expansion which is the
+// default behavior for NeoGo servers with SessionEnabled set to false.
 func SessionIterator(r *result.Invoke, err error) (uuid.UUID, result.Iterator, error) {
 	itm, err := Item(r, err)
 	if err != nil {
@@ -156,7 +165,7 @@ func SessionIterator(r *result.Invoke, err error) (uuid.UUID, result.Iterator, e
 		return uuid.UUID{}, result.Iterator{}, errors.New("the item is InteropInterface, but not an Iterator")
 	}
 	if (r.Session == uuid.UUID{}) && iter.ID != nil {
-		return uuid.UUID{}, result.Iterator{}, errors.New("server returned iterator ID, but no session ID")
+		return uuid.UUID{}, result.Iterator{}, ErrNoSessionID
 	}
 	return r.Session, iter, nil
 }

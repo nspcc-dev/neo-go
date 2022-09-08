@@ -2,7 +2,8 @@
 Package gas provides a convenience wrapper for GAS contract to use it via RPC.
 
 GAS itself only has standard NEP-17 methods, so this package only contains its
-hash and allows to create NEP-17 structures in an easier way.
+hash and allows to create NEP-17 structures in an easier way. Refer to [nep17]
+package for more details on NEP-17 interface.
 */
 package gas
 
