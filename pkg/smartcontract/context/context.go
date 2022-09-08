@@ -21,6 +21,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
+// TransactionType is the ParameterContext Type used for transactions.
+const TransactionType = "Neo.Network.P2P.Payloads.Transaction"
+
+// compatTransactionType is the old, 2.x type used for transactions.
+const compatTransactionType = "Neo.Core.ContractTransaction"
+
 // ParameterContext represents smartcontract parameter's context.
 type ParameterContext struct {
 	// Type is a type of a verifiable item.
@@ -213,7 +219,7 @@ func (c *ParameterContext) UnmarshalJSON(data []byte) error {
 
 	var verif crypto.VerifiableDecodable
 	switch pc.Type {
-	case "Neo.Core.ContractTransaction", "Neo.Network.P2P.Payloads.Transaction":
+	case compatTransactionType, TransactionType:
 		tx := new(transaction.Transaction)
 		verif = tx
 	default:

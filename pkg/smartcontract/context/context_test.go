@@ -102,7 +102,7 @@ func TestParameterContext_AddSignatureMultisig(t *testing.T) {
 		},
 	}
 	tx := getContractTx(ctr.ScriptHash())
-	c := NewParameterContext("Neo.Network.P2P.Payloads.Transaction", netmode.UnitTestNet, tx)
+	c := NewParameterContext(TransactionType, netmode.UnitTestNet, tx)
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 	sig := priv.SignHashable(uint32(c.Network), tx)

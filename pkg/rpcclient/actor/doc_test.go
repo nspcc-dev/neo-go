@@ -108,7 +108,7 @@ func ExampleActor() {
 	tx, _ := policyContract.SetStoragePriceUnsigned(10)
 
 	net := a.GetNetwork()
-	scCtx := sccontext.NewParameterContext("Neo.Network.P2P.Payloads.Transaction", net, tx)
+	scCtx := sccontext.NewParameterContext(sccontext.TransactionType, net, tx)
 	sign := w.Accounts[0].SignHashable(net, tx)
 	_ = scCtx.AddSignature(w.Accounts[0].ScriptHash(), w.Accounts[0].Contract, w.Accounts[0].PublicKey(), sign)
 
