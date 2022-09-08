@@ -16,7 +16,7 @@ DC_FILE ?= ".docker/docker-compose.yml" # Single docker-compose for Ubuntu/WSC, 
 ENV_IMAGE_TAG="env_neo_go_image"
 
 REPO ?= "$(shell go list -m)"
-VERSION ?= "$(shell git describe --tags --match "v*" 2>/dev/null | sed 's/^v//')"
+VERSION ?= "$(shell git describe --tags --match "v*" --abbrev=8 2>/dev/null | sed 's/^v//')"
 MODVERSION ?= "$(shell cat go.mod | cat go.mod | sed -r -n -e 's|.*pkg/interop (.*)|\1|p')"
 BUILD_FLAGS = "-X '$(REPO)/pkg/config.Version=$(VERSION)' -X '$(REPO)/cli/smartcontract.ModVersion=$(MODVERSION)'"
 
