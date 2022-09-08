@@ -653,17 +653,15 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		defer w.Close()
 	}
 
-	_, err = invokeWithArgs(ctx, acc, w, script, operation, params, cosigners)
-	return err
+	return invokeWithArgs(ctx, acc, w, script, operation, params, cosigners)
 }
 
-func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, script util.Uint160, operation string, params []smartcontract.Parameter, cosigners []transaction.Signer) (util.Uint160, error) {
+func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, script util.Uint160, operation string, params []smartcontract.Parameter, cosigners []transaction.Signer) error {
 	var (
 		err             error
 		gas, sysgas     fixedn.Fixed8
 		signersAccounts []actor.SignerAccount
 		resp            *result.Invoke
-		sender          util.Uint160
 		signAndPush     = acc != nil
 		act             *actor.Actor
 	)
@@ -672,21 +670,20 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		sysgas = flags.Fixed8FromContext(ctx, "sysgas")
 		signersAccounts, err = cmdargs.GetSignersAccounts(acc, wall, cosigners, transaction.None)
 		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
+			return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
 		}
-		sender = signersAccounts[0].Signer.Account
 	}
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return sender, err
+		return err
 	}
 	if signAndPush {
 		act, err = actor.New(c, signersAccounts)
 		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("failed to create RPC actor: %w", err), 1)
+			return cli.NewExitError(fmt.Errorf("failed to create RPC actor: %w", err), 1)
 		}
 	}
 	out := ctx.String("out")
@@ -695,12 +692,12 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 	// to []interface{}.
 	resp, err = c.InvokeFunction(script, operation, params, cosigners)
 	if err != nil {
-		return sender, cli.NewExitError(err, 1)
+		return cli.NewExitError(err, 1)
 	}
 	if resp.State != "HALT" {
 		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s", resp.State, resp.FaultException)
 		if !signAndPush {
-			return sender, cli.NewExitError(errText, 1)
+			return cli.NewExitError(errText, 1)
 		}
 
 		action := "send"
@@ -710,25 +707,25 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 			process = "Saving"
 		}
 		if !ctx.Bool("force") {
-			return sender, cli.NewExitError(errText+".\nUse --force flag to "+action+" the transaction anyway.", 1)
+			return cli.NewExitError(errText+".\nUse --force flag to "+action+" the transaction anyway.", 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, errText+".\n"+process+" transaction...")
 	}
 	if !signAndPush {
 		b, err := json.MarshalIndent(resp, "", "  ")
 		if err != nil {
-			return sender, cli.NewExitError(err, 1)
+			return cli.NewExitError(err, 1)
 		}
 
 		fmt.Fprintln(ctx.App.Writer, string(b))
 	} else {
 		if len(resp.Script) == 0 {
-			return sender, cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
+			return cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
 		}
 		ver := act.GetVersion()
 		tx, err := act.MakeUnsignedUncheckedRun(resp.Script, resp.GasConsumed+int64(sysgas), nil)
 		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
+			return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
 		}
 		tx.NetworkFee += int64(gas)
 		if out != "" {
@@ -736,7 +733,7 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 			tx.ValidUntilBlock += (ver.Protocol.MaxValidUntilBlockIncrement - uint32(ver.Protocol.ValidatorsCount)) - 2
 			m := act.GetNetwork()
 			if err := paramcontext.InitAndSave(m, tx, acc, out); err != nil {
-				return sender, cli.NewExitError(err, 1)
+				return cli.NewExitError(err, 1)
 			}
 			fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
 		} else {
@@ -744,7 +741,7 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 				promptTime := time.Now()
 				err := input.ConfirmTx(ctx.App.Writer, tx)
 				if err != nil {
-					return sender, cli.NewExitError(err, 1)
+					return cli.NewExitError(err, 1)
 				}
 				waitTime := time.Since(promptTime)
 				// Compensate for confirmation waiting.
@@ -752,13 +749,13 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 			}
 			txHash, _, err := act.SignAndSend(tx)
 			if err != nil {
-				return sender, cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
+				return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 			}
 			fmt.Fprintf(ctx.App.Writer, "Sent invocation transaction %s\n", txHash.StringLE())
 		}
 	}
 
-	return sender, nil
+	return nil
 }
 
 func testInvokeScript(ctx *cli.Context) error {
@@ -951,6 +948,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("can't get sender address: %w", err), 1)
 	}
 	defer w.Close()
+	sender := acc.ScriptHash()
 
 	cosigners, sgnErr := cmdargs.GetSignersFromContext(ctx, signOffset)
 	if sgnErr != nil {
@@ -962,7 +960,7 @@ func contractDeploy(ctx *cli.Context) error {
 		}}
 	}
 
-	sender, extErr := invokeWithArgs(ctx, acc, w, management.Hash, "deploy", appCallParams, cosigners)
+	extErr := invokeWithArgs(ctx, acc, w, management.Hash, "deploy", appCallParams, cosigners)
 	if extErr != nil {
 		return extErr
 	}
