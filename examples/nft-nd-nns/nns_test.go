@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -461,6 +462,47 @@ func TestResolve(t *testing.T) {
 	c.Invoke(t, "sometxt", "resolve", "neo.com.", int64(nns.TXT))
 	c.InvokeFail(t, "invalid domain name format", "resolve", "neo.com..", int64(nns.TXT))
 	c.Invoke(t, stackitem.Null{}, "resolve", "neo.com", int64(nns.AAAA))
+}
+
+func TestGetAllRecords(t *testing.T) {
+	c := newNSClient(t)
+	e := c.Executor
+
+	acc := e.NewAccount(t)
+	cAcc := c.WithSigners(acc)
+	cAccCommittee := c.WithSigners(acc, c.Committee)
+
+	c.Invoke(t, true, "register", "com", c.CommitteeHash)
+	cAccCommittee.Invoke(t, true, "register", "neo.com", acc.ScriptHash())
+	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4")
+	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.CNAME), "alias.com")
+	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.TXT), "bla0")
+	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.TXT), "bla1") // overwrite
+
+	// Add some arbitrary data.
+	cAccCommittee.Invoke(t, true, "register", "alias.com", acc.ScriptHash())
+	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "alias.com", int64(nns.TXT), "sometxt")
+
+	script, err := smartcontract.CreateCallAndUnwrapIteratorScript(c.Hash, "getAllRecords", 10, "neo.com")
+	require.NoError(t, err)
+	h := e.InvokeScript(t, script, []neotest.Signer{acc})
+	e.CheckHalt(t, h, stackitem.NewArray([]stackitem.Item{
+		stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray([]byte("neo.com")),
+			stackitem.Make(nns.A),
+			stackitem.NewByteArray([]byte("1.2.3.4")),
+		}),
+		stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray([]byte("neo.com")),
+			stackitem.Make(nns.CNAME),
+			stackitem.NewByteArray([]byte("alias.com")),
+		}),
+		stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray([]byte("neo.com")),
+			stackitem.Make(nns.TXT),
+			stackitem.NewByteArray([]byte("bla1")),
+		}),
+	}))
 }
 
 const (
