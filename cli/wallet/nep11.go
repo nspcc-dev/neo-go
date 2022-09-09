@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -116,50 +115,55 @@ func newNEP11Commands() []cli.Command {
 		{
 			Name:      "properties",
 			Usage:     "print properties of NEP-11 token",
-			UsageText: "properties --rpc-endpoint <node> --timeout <time> --token <hash> --id <token-id>",
+			UsageText: "properties --rpc-endpoint <node> [--timeout <time>] --token <hash> --id <token-id> [--historic <block/hash>]",
 			Action:    printNEP11Properties,
 			Flags: append([]cli.Flag{
 				tokenAddressFlag,
 				tokenID,
+				options.Historic,
 			}, options.RPC...),
 		},
 		{
 			Name:      "ownerOf",
 			Usage:     "print owner of non-divisible NEP-11 token with the specified ID",
-			UsageText: "ownerOf --rpc-endpoint <node> --timeout <time> --token <hash> --id <token-id>",
+			UsageText: "ownerOf --rpc-endpoint <node> [--timeout <time>] --token <hash> --id <token-id> [--historic <block/hash>]",
 			Action:    printNEP11NDOwner,
 			Flags: append([]cli.Flag{
 				tokenAddressFlag,
 				tokenID,
+				options.Historic,
 			}, options.RPC...),
 		},
 		{
 			Name:      "ownerOfD",
 			Usage:     "print set of owners of divisible NEP-11 token with the specified ID (" + maxIters + " will be printed at max)",
-			UsageText: "ownerOfD --rpc-endpoint <node> --timeout <time> --token <hash> --id <token-id>",
+			UsageText: "ownerOfD --rpc-endpoint <node> [--timeout <time>] --token <hash> --id <token-id> [--historic <block/hash>]",
 			Action:    printNEP11DOwner,
 			Flags: append([]cli.Flag{
 				tokenAddressFlag,
 				tokenID,
+				options.Historic,
 			}, options.RPC...),
 		},
 		{
 			Name:      "tokensOf",
 			Usage:     "print list of tokens IDs for the specified NFT owner (" + maxIters + " will be printed at max)",
-			UsageText: "tokensOf --rpc-endpoint <node> --timeout <time> --token <hash> --address <addr>",
+			UsageText: "tokensOf --rpc-endpoint <node> [--timeout <time>] --token <hash> --address <addr> [--historic <block/hash>]",
 			Action:    printNEP11TokensOf,
 			Flags: append([]cli.Flag{
 				tokenAddressFlag,
 				ownerAddressFlag,
+				options.Historic,
 			}, options.RPC...),
 		},
 		{
 			Name:      "tokens",
 			Usage:     "print list of tokens IDs minted by the specified NFT (optional method; " + maxIters + " will be printed at max)",
-			UsageText: "tokens --rpc-endpoint <node> --timeout <time> --token <hash>",
+			UsageText: "tokens --rpc-endpoint <node> [--timeout <time>] --token <hash> [--historic <block/hash>]",
 			Action:    printNEP11Tokens,
 			Flags: append([]cli.Flag{
 				tokenAddressFlag,
+				options.Historic,
 			}, options.RPC...),
 		},
 	}
@@ -256,13 +260,13 @@ func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := options.GetRPCClient(gctx, ctx)
+	_, inv, err := options.GetRPCWithInvoker(gctx, ctx, nil)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return err
 	}
 
 	if divisible {
-		n11 := nep11.NewDivisibleReader(invoker.New(c, nil), tokenHash.Uint160())
+		n11 := nep11.NewDivisibleReader(inv, tokenHash.Uint160())
 		result, err := n11.OwnerOfExpanded(tokenIDBytes, config.DefaultMaxIteratorResultItems)
 		if err != nil {
 			return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 divisible `ownerOf` method: %s", err.Error()), 1)
@@ -271,7 +275,7 @@ func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 			fmt.Fprintln(ctx.App.Writer, address.Uint160ToString(h))
 		}
 	} else {
-		n11 := nep11.NewNonDivisibleReader(invoker.New(c, nil), tokenHash.Uint160())
+		n11 := nep11.NewNonDivisibleReader(inv, tokenHash.Uint160())
 		result, err := n11.OwnerOf(tokenIDBytes)
 		if err != nil {
 			return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 non-divisible `ownerOf` method: %s", err.Error()), 1)
@@ -297,12 +301,12 @@ func printNEP11TokensOf(ctx *cli.Context) error {
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := options.GetRPCClient(gctx, ctx)
+	_, inv, err := options.GetRPCWithInvoker(gctx, ctx, nil)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return err
 	}
 
-	n11 := nep11.NewBaseReader(invoker.New(c, nil), tokenHash.Uint160())
+	n11 := nep11.NewBaseReader(inv, tokenHash.Uint160())
 	result, err := n11.TokensOfExpanded(acc.Uint160(), config.DefaultMaxIteratorResultItems)
 	if err != nil {
 		return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 `tokensOf` method: %s", err.Error()), 1)
@@ -327,12 +331,12 @@ func printNEP11Tokens(ctx *cli.Context) error {
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := options.GetRPCClient(gctx, ctx)
+	_, inv, err := options.GetRPCWithInvoker(gctx, ctx, nil)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return err
 	}
 
-	n11 := nep11.NewBaseReader(invoker.New(c, nil), tokenHash.Uint160())
+	n11 := nep11.NewBaseReader(inv, tokenHash.Uint160())
 	result, err := n11.TokensExpanded(config.DefaultMaxIteratorResultItems)
 	if err != nil {
 		return cli.NewExitError(fmt.Sprintf("failed to call optional NEP-11 `tokens` method: %s", err.Error()), 1)
@@ -366,12 +370,12 @@ func printNEP11Properties(ctx *cli.Context) error {
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := options.GetRPCClient(gctx, ctx)
+	_, inv, err := options.GetRPCWithInvoker(gctx, ctx, nil)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return err
 	}
 
-	n11 := nep11.NewBaseReader(invoker.New(c, nil), tokenHash.Uint160())
+	n11 := nep11.NewBaseReader(inv, tokenHash.Uint160())
 	result, err := n11.Properties(tokenIDBytes)
 	if err != nil {
 		return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 `properties` method: %s", err.Error()), 1)

@@ -23,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/management"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -110,8 +111,11 @@ func NewCommands() []cli.Command {
 			Name:  "in, i",
 			Usage: "Input location of the .nef file that needs to be invoked",
 		},
+		options.Historic,
 	}
 	testInvokeScriptFlags = append(testInvokeScriptFlags, options.RPC...)
+	testInvokeFunctionFlags := []cli.Flag{options.Historic}
+	testInvokeFunctionFlags = append(testInvokeFunctionFlags, options.RPC...)
 	invokeFunctionFlags := []cli.Flag{
 		walletFlag,
 		walletConfigFlag,
@@ -213,7 +217,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "testinvokefunction",
 				Usage:     "invoke deployed contract on the blockchain (test mode)",
-				UsageText: "neo-go contract testinvokefunction -r endpoint scripthash [method] [arguments...] [--] [signers...]",
+				UsageText: "neo-go contract testinvokefunction -r endpoint [--historic index/hash] scripthash [method] [arguments...] [--] [signers...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
    arguments and signers (sender is not included by default). If no method is given
    "" is passed to the script, if no arguments are given, an empty array is 
@@ -328,12 +332,12 @@ func NewCommands() []cli.Command {
 					`CustomContracts:1011120009070e030d0f0e020d0c06050e030c02:0x1211100009070e030d0f0e020d0c06050e030c02'
 `,
 				Action: testInvokeFunction,
-				Flags:  options.RPC,
+				Flags:  testInvokeFunctionFlags,
 			},
 			{
 				Name:      "testinvokescript",
 				Usage:     "Invoke compiled AVM code in NEF format on the blockchain (test mode, not creating a transaction for it)",
-				UsageText: "neo-go contract testinvokescript -r endpoint -i input.nef [signers...]",
+				UsageText: "neo-go contract testinvokescript -r endpoint -i input.nef [--historic index/hash] [signers...]",
 				Description: `Executes given compiled AVM instructions in NEF format with the given set of
    signers not included sender by default. See testinvokefunction documentation 
    for the details about parameters.
@@ -608,8 +612,9 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		err             error
 		exitErr         *cli.ExitError
 		operation       string
-		params          = make([]smartcontract.Parameter, 0)
+		params          []interface{}
 		paramsStart     = 1
+		scParams        []smartcontract.Parameter
 		cosigners       []transaction.Signer
 		cosignersOffset = 0
 	)
@@ -629,9 +634,13 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	paramsStart++
 
 	if len(args) > paramsStart {
-		cosignersOffset, params, err = cmdargs.ParseParams(args[paramsStart:], true)
+		cosignersOffset, scParams, err = cmdargs.ParseParams(args[paramsStart:], true)
 		if err != nil {
 			return cli.NewExitError(err, 1)
+		}
+		params = make([]interface{}, len(scParams))
+		for i := range scParams {
+			params[i] = scParams[i]
 		}
 	}
 
@@ -653,18 +662,17 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		defer w.Close()
 	}
 
-	_, err = invokeWithArgs(ctx, acc, w, script, operation, params, cosigners)
-	return err
+	return invokeWithArgs(ctx, acc, w, script, operation, params, cosigners)
 }
 
-func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, script util.Uint160, operation string, params []smartcontract.Parameter, cosigners []transaction.Signer) (util.Uint160, error) {
+func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, script util.Uint160, operation string, params []interface{}, cosigners []transaction.Signer) error {
 	var (
 		err             error
 		gas, sysgas     fixedn.Fixed8
 		signersAccounts []actor.SignerAccount
 		resp            *result.Invoke
-		sender          util.Uint160
 		signAndPush     = acc != nil
+		inv             *invoker.Invoker
 		act             *actor.Actor
 	)
 	if signAndPush {
@@ -672,35 +680,37 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		sysgas = flags.Fixed8FromContext(ctx, "sysgas")
 		signersAccounts, err = cmdargs.GetSignersAccounts(acc, wall, cosigners, transaction.None)
 		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
+			return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
 		}
-		sender = signersAccounts[0].Signer.Account
 	}
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return sender, err
+		return err
 	}
 	if signAndPush {
 		act, err = actor.New(c, signersAccounts)
 		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("failed to create RPC actor: %w", err), 1)
+			return cli.NewExitError(fmt.Errorf("failed to create RPC actor: %w", err), 1)
+		}
+		inv = &act.Invoker
+	} else {
+		inv, err = options.GetInvoker(c, ctx, cosigners)
+		if err != nil {
+			return err
 		}
 	}
 	out := ctx.String("out")
-	// It's a bit easier to keep this as is (not using invoker.Invoker)
-	// during transition period. Mostly because of the need to convert params
-	// to []interface{}.
-	resp, err = c.InvokeFunction(script, operation, params, cosigners)
+	resp, err = inv.Call(script, operation, params...)
 	if err != nil {
-		return sender, cli.NewExitError(err, 1)
+		return cli.NewExitError(err, 1)
 	}
 	if resp.State != "HALT" {
 		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s", resp.State, resp.FaultException)
 		if !signAndPush {
-			return sender, cli.NewExitError(errText, 1)
+			return cli.NewExitError(errText, 1)
 		}
 
 		action := "send"
@@ -710,25 +720,25 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 			process = "Saving"
 		}
 		if !ctx.Bool("force") {
-			return sender, cli.NewExitError(errText+".\nUse --force flag to "+action+" the transaction anyway.", 1)
+			return cli.NewExitError(errText+".\nUse --force flag to "+action+" the transaction anyway.", 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, errText+".\n"+process+" transaction...")
 	}
 	if !signAndPush {
 		b, err := json.MarshalIndent(resp, "", "  ")
 		if err != nil {
-			return sender, cli.NewExitError(err, 1)
+			return cli.NewExitError(err, 1)
 		}
 
 		fmt.Fprintln(ctx.App.Writer, string(b))
 	} else {
 		if len(resp.Script) == 0 {
-			return sender, cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
+			return cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
 		}
 		ver := act.GetVersion()
 		tx, err := act.MakeUnsignedUncheckedRun(resp.Script, resp.GasConsumed+int64(sysgas), nil)
 		if err != nil {
-			return sender, cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
+			return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
 		}
 		tx.NetworkFee += int64(gas)
 		if out != "" {
@@ -736,7 +746,7 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 			tx.ValidUntilBlock += (ver.Protocol.MaxValidUntilBlockIncrement - uint32(ver.Protocol.ValidatorsCount)) - 2
 			m := act.GetNetwork()
 			if err := paramcontext.InitAndSave(m, tx, acc, out); err != nil {
-				return sender, cli.NewExitError(err, 1)
+				return cli.NewExitError(err, 1)
 			}
 			fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
 		} else {
@@ -744,7 +754,7 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 				promptTime := time.Now()
 				err := input.ConfirmTx(ctx.App.Writer, tx)
 				if err != nil {
-					return sender, cli.NewExitError(err, 1)
+					return cli.NewExitError(err, 1)
 				}
 				waitTime := time.Since(promptTime)
 				// Compensate for confirmation waiting.
@@ -752,13 +762,13 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 			}
 			txHash, _, err := act.SignAndSend(tx)
 			if err != nil {
-				return sender, cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
+				return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
 			}
 			fmt.Fprintf(ctx.App.Writer, "Sent invocation transaction %s\n", txHash.StringLE())
 		}
 	}
 
-	return sender, nil
+	return nil
 }
 
 func testInvokeScript(ctx *cli.Context) error {
@@ -784,12 +794,12 @@ func testInvokeScript(ctx *cli.Context) error {
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := options.GetRPCClient(gctx, ctx)
+	_, inv, err := options.GetRPCWithInvoker(gctx, ctx, signers)
 	if err != nil {
 		return err
 	}
 
-	resp, err := c.InvokeScript(nefFile.Script, signers)
+	resp, err := inv.Run(nefFile.Script)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -925,16 +935,8 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to read manifest file: %w", err), 1)
 	}
 
-	appCallParams := []smartcontract.Parameter{
-		{
-			Type:  smartcontract.ByteArrayType,
-			Value: f,
-		},
-		{
-			Type:  smartcontract.ByteArrayType,
-			Value: manifestBytes,
-		},
-	}
+	var appCallParams = []interface{}{f, manifestBytes}
+
 	signOffset, data, err := cmdargs.ParseParams(ctx.Args(), true)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
@@ -951,6 +953,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("can't get sender address: %w", err), 1)
 	}
 	defer w.Close()
+	sender := acc.ScriptHash()
 
 	cosigners, sgnErr := cmdargs.GetSignersFromContext(ctx, signOffset)
 	if sgnErr != nil {
@@ -962,7 +965,7 @@ func contractDeploy(ctx *cli.Context) error {
 		}}
 	}
 
-	sender, extErr := invokeWithArgs(ctx, acc, w, management.Hash, "deploy", appCallParams, cosigners)
+	extErr := invokeWithArgs(ctx, acc, w, management.Hash, "deploy", appCallParams, cosigners)
 	if extErr != nil {
 		return extErr
 	}

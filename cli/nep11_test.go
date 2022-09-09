@@ -161,6 +161,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	}
 
 	tokenID := mint(t)
+	var hashBeforeTransfer = e.Chain.CurrentHeaderHash()
 
 	// check the balance
 	cmdCheckBalance := []string{"neo-go", "wallet", "nep11", "balance",
@@ -358,6 +359,24 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	// check balance after transfer
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
 	checkBalanceResult(t, nftOwnerAddr)
+
+	// historic calls still remember the good old days.
+	cmdOwnerOf = append(cmdOwnerOf, "--historic", hashBeforeTransfer.StringLE())
+	e.Run(t, cmdOwnerOf...)
+	e.checkNextLine(t, nftOwnerAddr)
+
+	cmdTokensOf = append(cmdTokensOf, "--historic", hashBeforeTransfer.StringLE())
+	e.Run(t, cmdTokensOf...)
+	require.Equal(t, hex.EncodeToString(tokenID), e.getNextLine(t))
+
+	cmdTokens = append(cmdTokens, "--historic", hashBeforeTransfer.StringLE())
+	e.Run(t, cmdTokens...)
+	require.Equal(t, hex.EncodeToString(tokenID), e.getNextLine(t))
+
+	// this one is not affected by transfer, but anyway
+	cmdProperties = append(cmdProperties, "--historic", hashBeforeTransfer.StringLE())
+	e.Run(t, cmdProperties...)
+	require.Equal(t, fmt.Sprintf(`{"name":"HASHY %s"}`, base64.StdEncoding.EncodeToString(tokenID)), e.getNextLine(t))
 }
 
 func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {

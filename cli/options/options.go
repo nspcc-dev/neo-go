@@ -6,10 +6,14 @@ package options
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/urfave/cli"
 )
 
@@ -42,7 +46,14 @@ var RPC = []cli.Flag{
 	},
 }
 
+// Historic is a flag for commands that can perform historic invocations.
+var Historic = cli.StringFlag{
+	Name:  "historic",
+	Usage: "Use historic state (height, block hash or state root hash)",
+}
+
 var errNoEndpoint = errors.New("no RPC endpoint specified, use option '--" + RPCEndpointFlag + "' or '-r'")
+var errInvalidHistoric = errors.New("invalid 'historic' parameter, neither a block number, nor a block/state hash")
 
 // GetNetwork examines Context's flags and returns the appropriate network. It
 // defaults to PrivNet if no flags are given.
@@ -84,4 +95,36 @@ func GetRPCClient(gctx context.Context, ctx *cli.Context) (*rpcclient.Client, cl
 		return nil, cli.NewExitError(err, 1)
 	}
 	return c, nil
+}
+
+// GetInvoker returns an invoker using the given RPC client, context and signers.
+// It parses "--historic" parameter to adjust it.
+func GetInvoker(c *rpcclient.Client, ctx *cli.Context, signers []transaction.Signer) (*invoker.Invoker, cli.ExitCoder) {
+	historic := ctx.String("historic")
+	if historic == "" {
+		return invoker.New(c, signers), nil
+	}
+	if index, err := strconv.ParseUint(historic, 10, 32); err == nil {
+		return invoker.NewHistoricAtHeight(uint32(index), c, signers), nil
+	}
+	if u256, err := util.Uint256DecodeStringLE(historic); err == nil {
+		// Might as well be a block hash, but it makes no practical difference.
+		return invoker.NewHistoricWithState(u256, c, signers), nil
+	}
+	return nil, cli.NewExitError(errInvalidHistoric, 1)
+}
+
+// GetRPCWithInvoker combines GetRPCClient with GetInvoker for cases where it's
+// appropriate to do so.
+func GetRPCWithInvoker(gctx context.Context, ctx *cli.Context, signers []transaction.Signer) (*rpcclient.Client, *invoker.Invoker, cli.ExitCoder) {
+	c, err := GetRPCClient(gctx, ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	inv, err := GetInvoker(c, ctx, signers)
+	if err != nil {
+		c.Close()
+		return nil, nil, err
+	}
+	return c, inv, err
 }

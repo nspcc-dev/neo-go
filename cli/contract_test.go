@@ -602,6 +602,39 @@ func TestContract_TestInvokeScript(t *testing.T) {
 			"--rpc-endpoint", "http://123456789",
 			"--in", goodNef)
 	})
+	t.Run("good", func(t *testing.T) {
+		e.Run(t, "neo-go", "contract", "testinvokescript",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--in", goodNef)
+	})
+	t.Run("good with hashed signer", func(t *testing.T) {
+		e.Run(t, "neo-go", "contract", "testinvokescript",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--in", goodNef, "--", util.Uint160{1, 2, 3}.StringLE())
+	})
+	t.Run("good with addressed signer", func(t *testing.T) {
+		e.Run(t, "neo-go", "contract", "testinvokescript",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--in", goodNef, "--", address.Uint160ToString(util.Uint160{1, 2, 3}))
+	})
+	t.Run("historic, invalid", func(t *testing.T) {
+		e.RunWithError(t, "neo-go", "contract", "testinvokescript",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--historic", "bad",
+			"--in", goodNef)
+	})
+	t.Run("historic, index", func(t *testing.T) {
+		e.Run(t, "neo-go", "contract", "testinvokescript",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--historic", "0",
+			"--in", goodNef)
+	})
+	t.Run("historic, hash", func(t *testing.T) {
+		e.Run(t, "neo-go", "contract", "testinvokescript",
+			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--historic", e.Chain.GetHeaderHash(0).StringLE(),
+			"--in", goodNef)
+	})
 }
 
 func TestComlileAndInvokeFunction(t *testing.T) {
@@ -617,16 +650,6 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		"--in", "testdata/deploy/main.go", // compile single file
 		"--config", "testdata/deploy/neo-go.yml",
 		"--out", nefName, "--manifest", manifestName)
-
-	// Check that it is possible to invoke before deploy.
-	// This doesn't make much sense, because every method has an offset
-	// which is contained in the manifest. This should be either removed or refactored.
-	e.Run(t, "neo-go", "contract", "testinvokescript",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--in", nefName, "--", util.Uint160{1, 2, 3}.StringLE())
-	e.Run(t, "neo-go", "contract", "testinvokescript",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--in", nefName, "--", address.Uint160ToString(util.Uint160{1, 2, 3}))
 
 	tmp := t.TempDir()
 	configPath := filepath.Join(tmp, "config.yaml")
@@ -689,11 +712,14 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 	e.Run(t, cmd...)
 
-	res := new(result.Invoke)
-	require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
-	require.Equal(t, vmstate.Halt.String(), res.State, res.FaultException)
-	require.Len(t, res.Stack, 1)
-	require.Equal(t, []byte("on create|sub create"), res.Stack[0].Value())
+	checkGetValueOut := func(str string) {
+		res := new(result.Invoke)
+		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
+		require.Equal(t, vmstate.Halt.String(), res.State, res.FaultException)
+		require.Len(t, res.Stack, 1)
+		require.Equal(t, []byte(str), res.Stack[0].Value())
+	}
+	checkGetValueOut("on create|sub create")
 
 	// deploy verification contract
 	hVerify := deployVerifyContract(t, e)
@@ -866,6 +892,12 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		})
 	})
 
+	var (
+		hashBeforeUpdate  util.Uint256
+		indexBeforeUpdate uint32
+		indexAfterUpdate  uint32
+		stateBeforeUpdate util.Uint256
+	)
 	t.Run("Update", func(t *testing.T) {
 		nefName := filepath.Join(tmpDir, "updated.nef")
 		manifestName := filepath.Join(tmpDir, "updated.manifest.json")
@@ -884,6 +916,11 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		rawManifest, err := os.ReadFile(manifestName)
 		require.NoError(t, err)
 
+		indexBeforeUpdate = e.Chain.BlockHeight()
+		hashBeforeUpdate = e.Chain.CurrentHeaderHash()
+		mptBeforeUpdate, err := e.Chain.GetStateRoot(indexBeforeUpdate)
+		require.NoError(t, err)
+		stateBeforeUpdate = mptBeforeUpdate.Root
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "contract", "invokefunction",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
@@ -895,16 +932,40 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		)
 		e.checkTxPersisted(t, "Sent invocation transaction ")
 
+		indexAfterUpdate = e.Chain.BlockHeight()
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "contract", "testinvokefunction",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			h.StringLE(), "getValue")
-
-		res := new(result.Invoke)
-		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
-		require.Equal(t, vmstate.Halt.String(), res.State)
-		require.Len(t, res.Stack, 1)
-		require.Equal(t, []byte("on update|sub update"), res.Stack[0].Value())
+		checkGetValueOut("on update|sub update")
+	})
+	t.Run("historic", func(t *testing.T) {
+		t.Run("bad ref", func(t *testing.T) {
+			e.RunWithError(t, "neo-go", "contract", "testinvokefunction",
+				"--rpc-endpoint", "http://"+e.RPC.Addr,
+				"--historic", "bad",
+				h.StringLE(), "getValue")
+		})
+		for name, ref := range map[string]string{
+			"by index":      strconv.FormatUint(uint64(indexBeforeUpdate), 10),
+			"by block hash": hashBeforeUpdate.StringLE(),
+			"by state hash": stateBeforeUpdate.StringLE(),
+		} {
+			t.Run(name, func(t *testing.T) {
+				e.Run(t, "neo-go", "contract", "testinvokefunction",
+					"--rpc-endpoint", "http://"+e.RPC.Addr,
+					"--historic", ref,
+					h.StringLE(), "getValue")
+			})
+			checkGetValueOut("on create|sub create")
+		}
+		t.Run("updated historic", func(t *testing.T) {
+			e.Run(t, "neo-go", "contract", "testinvokefunction",
+				"--rpc-endpoint", "http://"+e.RPC.Addr,
+				"--historic", strconv.FormatUint(uint64(indexAfterUpdate), 10),
+				h.StringLE(), "getValue")
+			checkGetValueOut("on update|sub update")
+		})
 	})
 }
 
