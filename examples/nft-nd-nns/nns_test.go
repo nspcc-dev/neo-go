@@ -1,6 +1,8 @@
 package nns_test
 
 import (
+	"math/big"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -100,7 +102,7 @@ func TestExpiration(t *testing.T) {
 
 	c.Invoke(t, true, "register", "com", c.CommitteeHash)
 	cAccCommittee.Invoke(t, true, "register", "first.com", acc.ScriptHash())
-	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "first.com", int64(nns.TXT), "sometext")
+	cAcc.Invoke(t, stackitem.Null{}, "addRecord", "first.com", int64(nns.TXT), "sometext")
 	b1 := e.TopBlock(t)
 
 	tx := cAccCommittee.PrepareInvoke(t, "register", "second.com", acc.ScriptHash())
@@ -127,7 +129,7 @@ func TestExpiration(t *testing.T) {
 	require.NoError(t, bc.AddBlock(e.SignBlock(b4)))
 	e.CheckHalt(t, tx.Hash(), stackitem.NewBool(true)) // TLD "com" has been expired
 
-	tx = cAcc.PrepareInvoke(t, "getRecord", "first.com", int64(nns.TXT))
+	tx = cAcc.PrepareInvoke(t, "getRecords", "first.com", int64(nns.TXT))
 	b5 := e.NewUnsignedBlock(t, tx)
 	b5.Index = b4.Index + 1
 	b5.PrevHash = b4.Hash()
@@ -208,7 +210,7 @@ func TestRegisterAndRenew(t *testing.T) {
 	c.Invoke(t, props, "properties", "neo.com")
 }
 
-func TestSetGetRecord(t *testing.T) {
+func TestSetAddGetRecord(t *testing.T) {
 	c := newNSClient(t)
 	e := c.Executor
 
@@ -217,33 +219,56 @@ func TestSetGetRecord(t *testing.T) {
 	c.Invoke(t, true, "register", "com", c.CommitteeHash)
 
 	t.Run("set before register", func(t *testing.T) {
-		c.InvokeFail(t, "token not found", "setRecord", "neo.com", int64(nns.TXT), "sometext")
+		c.InvokeFail(t, "token not found", "addRecord", "neo.com", int64(nns.TXT), "sometext")
 	})
 	c.Invoke(t, true, "register", "neo.com", e.CommitteeHash)
 	t.Run("invalid parameters", func(t *testing.T) {
-		c.InvokeFail(t, "unsupported record type", "setRecord", "neo.com", int64(0xFF), "1.2.3.4")
-		c.InvokeFail(t, "invalid record", "setRecord", "neo.com", int64(nns.A), "not.an.ip.address")
+		c.InvokeFail(t, "unsupported record type", "addRecord", "neo.com", int64(0xFF), "1.2.3.4")
+		c.InvokeFail(t, "invalid record", "addRecord", "neo.com", int64(nns.A), "not.an.ip.address")
 	})
 	t.Run("invalid witness", func(t *testing.T) {
-		cAcc.InvokeFail(t, "not witnessed by admin", "setRecord", "neo.com", int64(nns.A), "1.2.3.4")
+		cAcc.InvokeFail(t, "not witnessed by admin", "addRecord", "neo.com", int64(nns.A), "1.2.3.4")
 	})
-	c.Invoke(t, stackitem.Null{}, "getRecord", "neo.com", int64(nns.A))
-	c.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4")
-	c.Invoke(t, "1.2.3.4", "getRecord", "neo.com", int64(nns.A))
-	c.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4")
-	c.Invoke(t, "1.2.3.4", "getRecord", "neo.com", int64(nns.A))
-	c.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.AAAA), "2001:0201:1f1f:0000:0000:0100:11a0:11df")
-	c.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.CNAME), "nspcc.ru")
-	c.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.TXT), "sometext")
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{}), "getRecords", "neo.com", int64(nns.A))
+	c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.A), "1.2.3.4")
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{stackitem.Make("1.2.3.4")}), "getRecords", "neo.com", int64(nns.A))
+	c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.A), "1.2.3.4") // Duplicating record.
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{
+		stackitem.Make("1.2.3.4"),
+		stackitem.Make("1.2.3.4"),
+	}), "getRecords", "neo.com", int64(nns.A))
+	c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.AAAA), "2001:0201:1f1f:0000:0000:0100:11a0:11df")
+	c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.CNAME), "nspcc.ru")
+	c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.TXT), "sometext")
+	// Add multiple records and update some of them.
+	c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.TXT), "sometext1")
+	c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.TXT), "sometext2")
+	c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.TXT), "sometext3")
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{
+		stackitem.Make("sometext"),
+		stackitem.Make("sometext1"),
+		stackitem.Make("sometext2"),
+		stackitem.Make("sometext3"),
+	}), "getRecords", "neo.com", int64(nns.TXT))
+	c.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.TXT), 2, "sometext22")
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{
+		stackitem.Make("sometext"),
+		stackitem.Make("sometext1"),
+		stackitem.Make("sometext22"),
+		stackitem.Make("sometext3"),
+	}), "getRecords", "neo.com", int64(nns.TXT))
 
 	// Delete record.
 	t.Run("invalid witness", func(t *testing.T) {
-		cAcc.InvokeFail(t, "not witnessed by admin", "deleteRecord", "neo.com", int64(nns.CNAME))
+		cAcc.InvokeFail(t, "not witnessed by admin", "deleteRecords", "neo.com", int64(nns.CNAME))
 	})
-	c.Invoke(t, "nspcc.ru", "getRecord", "neo.com", int64(nns.CNAME))
-	c.Invoke(t, stackitem.Null{}, "deleteRecord", "neo.com", int64(nns.CNAME))
-	c.Invoke(t, stackitem.Null{}, "getRecord", "neo.com", int64(nns.CNAME))
-	c.Invoke(t, "1.2.3.4", "getRecord", "neo.com", int64(nns.A))
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{stackitem.Make("nspcc.ru")}), "getRecords", "neo.com", int64(nns.CNAME))
+	c.Invoke(t, stackitem.Null{}, "deleteRecords", "neo.com", int64(nns.CNAME))
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{}), "getRecords", "neo.com", int64(nns.CNAME))
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{
+		stackitem.Make("1.2.3.4"),
+		stackitem.Make("1.2.3.4"),
+	}), "getRecords", "neo.com", int64(nns.A))
 
 	t.Run("SetRecord_compatibility", func(t *testing.T) {
 		// tests are got from the NNS C# implementation and changed accordingly to non-native implementation behavior
@@ -303,9 +328,9 @@ func TestSetGetRecord(t *testing.T) {
 			args := []interface{}{"neo.com", int64(testCase.Type), testCase.Name}
 			t.Run(testCase.Name, func(t *testing.T) {
 				if testCase.ShouldFail {
-					c.InvokeFail(t, "", "setRecord", args...)
+					c.InvokeFail(t, "", "addRecord", args...)
 				} else {
-					c.Invoke(t, stackitem.Null{}, "setRecord", args...)
+					c.Invoke(t, stackitem.Null{}, "addRecord", args...)
 				}
 			})
 		}
@@ -343,15 +368,15 @@ func TestSetAdmin(t *testing.T) {
 	c.Invoke(t, props, "properties", "neo.com")
 
 	t.Run("set and delete by admin", func(t *testing.T) {
-		cAdmin.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.TXT), "sometext")
-		cGuest.InvokeFail(t, "not witnessed by admin", "deleteRecord", "neo.com", int64(nns.TXT))
-		cAdmin.Invoke(t, stackitem.Null{}, "deleteRecord", "neo.com", int64(nns.TXT))
+		cAdmin.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.TXT), "sometext")
+		cGuest.InvokeFail(t, "not witnessed by admin", "deleteRecords", "neo.com", int64(nns.TXT))
+		cAdmin.Invoke(t, stackitem.Null{}, "deleteRecords", "neo.com", int64(nns.TXT))
 	})
 
 	t.Run("set admin to null", func(t *testing.T) {
-		cAdmin.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.TXT), "sometext")
+		cAdmin.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.TXT), "sometext")
 		cOwner.Invoke(t, stackitem.Null{}, "setAdmin", "neo.com", nil)
-		cAdmin.InvokeFail(t, "not witnessed by admin", "deleteRecord", "neo.com", int64(nns.TXT))
+		cAdmin.InvokeFail(t, "not witnessed by admin", "deleteRecords", "neo.com", int64(nns.TXT))
 	})
 }
 
@@ -367,7 +392,7 @@ func TestTransfer(t *testing.T) {
 
 	c.Invoke(t, true, "register", "com", c.CommitteeHash)
 	cFromCommittee.Invoke(t, true, "register", "neo.com", from.ScriptHash())
-	cFrom.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4")
+	cFrom.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.A), "1.2.3.4")
 	cFrom.InvokeFail(t, "token not found", "transfer", to.ScriptHash(), "not.exists", nil)
 	c.Invoke(t, false, "transfer", to.ScriptHash(), "neo.com", nil)
 	cFrom.Invoke(t, true, "transfer", to.ScriptHash(), "neo.com", nil)
@@ -450,18 +475,27 @@ func TestResolve(t *testing.T) {
 
 	c.Invoke(t, true, "register", "com", c.CommitteeHash)
 	cAccCommittee.Invoke(t, true, "register", "neo.com", acc.ScriptHash())
-	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4")
-	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.CNAME), "alias.com")
+	cAcc.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.A), "1.2.3.4")
+	cAcc.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.CNAME), "alias.com")
 
 	cAccCommittee.Invoke(t, true, "register", "alias.com", acc.ScriptHash())
-	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "alias.com", int64(nns.TXT), "sometxt")
+	cAcc.Invoke(t, stackitem.Null{}, "addRecord", "alias.com", int64(nns.TXT), "sometxt from alias1")
+	cAcc.Invoke(t, stackitem.Null{}, "addRecord", "alias.com", int64(nns.CNAME), "alias2.com")
 
-	c.Invoke(t, "1.2.3.4", "resolve", "neo.com", int64(nns.A))
-	c.Invoke(t, "alias.com", "resolve", "neo.com", int64(nns.CNAME))
-	c.Invoke(t, "sometxt", "resolve", "neo.com", int64(nns.TXT))
-	c.Invoke(t, "sometxt", "resolve", "neo.com.", int64(nns.TXT))
-	c.InvokeFail(t, "invalid domain name format", "resolve", "neo.com..", int64(nns.TXT))
-	c.Invoke(t, stackitem.Null{}, "resolve", "neo.com", int64(nns.AAAA))
+	cAccCommittee.Invoke(t, true, "register", "alias2.com", acc.ScriptHash())
+	cAcc.Invoke(t, stackitem.Null{}, "addRecord", "alias2.com", int64(nns.TXT), "sometxt from alias2")
+
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{stackitem.Make("1.2.3.4")}), "resolve", "neo.com", int64(nns.A))
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{stackitem.Make("1.2.3.4")}), "resolve", "neo.com.", int64(nns.A))
+	c.InvokeFail(t, "invalid domain name format", "resolve", "neo.com..", int64(nns.A))
+
+	// Check CNAME is properly resolved and is not included into the result.
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{stackitem.Make("sometxt from alias1"), stackitem.Make("sometxt from alias2")}), "resolve", "neo.com", int64(nns.TXT))
+	// Check CNAME is included into the result and is not resolved.
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{stackitem.Make("alias.com")}), "resolve", "neo.com", int64(nns.CNAME))
+
+	// Empty result.
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{}), "resolve", "neo.com", int64(nns.AAAA))
 }
 
 func TestGetAllRecords(t *testing.T) {
@@ -474,14 +508,14 @@ func TestGetAllRecords(t *testing.T) {
 
 	c.Invoke(t, true, "register", "com", c.CommitteeHash)
 	cAccCommittee.Invoke(t, true, "register", "neo.com", acc.ScriptHash())
-	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4")
-	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.CNAME), "alias.com")
-	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.TXT), "bla0")
-	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.TXT), "bla1") // overwrite
+	cAcc.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.A), "1.2.3.4")
+	cAcc.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.CNAME), "alias.com")
+	cAcc.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.TXT), "bla0")
+	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.TXT), 0, "bla1") // overwrite
 
 	// Add some arbitrary data.
 	cAccCommittee.Invoke(t, true, "register", "alias.com", acc.ScriptHash())
-	cAcc.Invoke(t, stackitem.Null{}, "setRecord", "alias.com", int64(nns.TXT), "sometxt")
+	cAcc.Invoke(t, stackitem.Null{}, "addRecord", "alias.com", int64(nns.TXT), "sometxt")
 
 	script, err := smartcontract.CreateCallAndUnwrapIteratorScript(c.Hash, "getAllRecords", 10, "neo.com")
 	require.NoError(t, err)
@@ -491,21 +525,63 @@ func TestGetAllRecords(t *testing.T) {
 			stackitem.NewByteArray([]byte("neo.com")),
 			stackitem.Make(nns.A),
 			stackitem.NewByteArray([]byte("1.2.3.4")),
+			stackitem.NewBigInteger(big.NewInt(0)),
 		}),
 		stackitem.NewStruct([]stackitem.Item{
 			stackitem.NewByteArray([]byte("neo.com")),
 			stackitem.Make(nns.CNAME),
 			stackitem.NewByteArray([]byte("alias.com")),
+			stackitem.NewBigInteger(big.NewInt(0)),
 		}),
 		stackitem.NewStruct([]stackitem.Item{
 			stackitem.NewByteArray([]byte("neo.com")),
 			stackitem.Make(nns.TXT),
 			stackitem.NewByteArray([]byte("bla1")),
+			stackitem.NewBigInteger(big.NewInt(0)),
 		}),
 	}))
+}
+
+func TestGetRecords(t *testing.T) {
+	c := newNSClient(t)
+	e := c.Executor
+
+	acc := e.NewAccount(t)
+	cAcc := c.WithSigners(acc)
+	cAccCommittee := c.WithSigners(acc, c.Committee)
+
+	c.Invoke(t, true, "register", "com", c.CommitteeHash)
+	cAccCommittee.Invoke(t, true, "register", "neo.com", acc.ScriptHash())
+	cAcc.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.A), "1.2.3.4")
+	cAcc.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.CNAME), "alias.com")
+
+	// Add some arbitrary data.
+	cAccCommittee.Invoke(t, true, "register", "alias.com", acc.ScriptHash())
+	cAcc.Invoke(t, stackitem.Null{}, "addRecord", "alias.com", int64(nns.TXT), "sometxt")
+
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{stackitem.Make("1.2.3.4")}), "getRecords", "neo.com", int64(nns.A))
+	// Check empty result of `getRecords`.
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{}), "getRecords", "neo.com", int64(nns.AAAA))
+}
+
+func TestNNSAddRecord(t *testing.T) {
+	c := newNSClient(t)
+	cAccCommittee := c.WithSigners(c.Committee)
+
+	c.Invoke(t, true, "register", "com", c.CommitteeHash)
+	cAccCommittee.Invoke(t, true, "register", "neo.com", c.CommitteeHash)
+
+	for i := 0; i <= maxRecordID+1; i++ {
+		if i == maxRecordID+1 {
+			c.InvokeFail(t, "maximum number of records reached", "addRecord", "neo.com", int64(nns.TXT), strconv.Itoa(i))
+		} else {
+			c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.TXT), strconv.Itoa(i))
+		}
+	}
 }
 
 const (
 	defaultNameServiceDomainPrice = 10_0000_0000
 	defaultNameServiceSysfee      = 6000_0000
+	maxRecordID                   = 255
 )

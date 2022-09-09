@@ -177,7 +177,7 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	t.Logf("NNS token #1 ID (hex): %s", hex.EncodeToString(tokenID))
 
 	// Block #15: set A record type with priv0 owner via NNS.
-	nsPriv0Invoker.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4") // block #15
+	nsPriv0Invoker.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.A), "1.2.3.4") // block #15
 
 	// Block #16: invoke `test_contract.go`: put new value with the same key to check `getstate` RPC call
 	txPutNewValue := rublPriv0Invoker.PrepareInvoke(t, "putValue", "testkey", "newtestvalue") // tx1
