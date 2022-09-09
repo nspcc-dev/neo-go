@@ -232,11 +232,8 @@ func TestSetAddGetRecord(t *testing.T) {
 	c.Invoke(t, stackitem.NewArray([]stackitem.Item{}), "getRecords", "neo.com", int64(nns.A))
 	c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.A), "1.2.3.4")
 	c.Invoke(t, stackitem.NewArray([]stackitem.Item{stackitem.Make("1.2.3.4")}), "getRecords", "neo.com", int64(nns.A))
-	c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.A), "1.2.3.4") // Duplicating record.
-	c.Invoke(t, stackitem.NewArray([]stackitem.Item{
-		stackitem.Make("1.2.3.4"),
-		stackitem.Make("1.2.3.4"),
-	}), "getRecords", "neo.com", int64(nns.A))
+	c.InvokeFail(t, "record already exists", "addRecord", "neo.com", int64(nns.A), "1.2.3.4") // Duplicating record.
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{stackitem.Make("1.2.3.4")}), "getRecords", "neo.com", int64(nns.A))
 	c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.AAAA), "2001:0201:1f1f:0000:0000:0100:11a0:11df")
 	c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.CNAME), "nspcc.ru")
 	c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.TXT), "sometext")
@@ -265,10 +262,7 @@ func TestSetAddGetRecord(t *testing.T) {
 	c.Invoke(t, stackitem.NewArray([]stackitem.Item{stackitem.Make("nspcc.ru")}), "getRecords", "neo.com", int64(nns.CNAME))
 	c.Invoke(t, stackitem.Null{}, "deleteRecords", "neo.com", int64(nns.CNAME))
 	c.Invoke(t, stackitem.NewArray([]stackitem.Item{}), "getRecords", "neo.com", int64(nns.CNAME))
-	c.Invoke(t, stackitem.NewArray([]stackitem.Item{
-		stackitem.Make("1.2.3.4"),
-		stackitem.Make("1.2.3.4"),
-	}), "getRecords", "neo.com", int64(nns.A))
+	c.Invoke(t, stackitem.NewArray([]stackitem.Item{stackitem.Make("1.2.3.4")}), "getRecords", "neo.com", int64(nns.A))
 
 	t.Run("SetRecord_compatibility", func(t *testing.T) {
 		// tests are got from the NNS C# implementation and changed accordingly to non-native implementation behavior
@@ -331,6 +325,7 @@ func TestSetAddGetRecord(t *testing.T) {
 					c.InvokeFail(t, "", "addRecord", args...)
 				} else {
 					c.Invoke(t, stackitem.Null{}, "addRecord", args...)
+					c.Invoke(t, stackitem.Null{}, "deleteRecords", "neo.com", int64(testCase.Type)) // clear records after test to avoid duplicating records.
 				}
 			})
 		}

@@ -359,8 +359,12 @@ func AddRecord(name string, typ RecordType, data string) {
 	tokenID := checkRecord(ctx, name, typ, data)
 	recordsPrefix := getRecordsByTypePrefix(tokenID, name, typ)
 	var id byte
-	records := storage.Find(ctx, recordsPrefix, storage.KeysOnly)
+	records := storage.Find(ctx, recordsPrefix, storage.ValuesOnly|storage.DeserializeValues)
 	for iterator.Next(records) {
+		r := iterator.Value(records).(RecordState)
+		if r.Name == name && r.Type == typ && r.Data == data {
+			panic("record already exists")
+		}
 		id++
 	}
 	if id > maxRecordID {
