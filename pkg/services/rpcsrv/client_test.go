@@ -1264,7 +1264,7 @@ func TestInvokeVerify(t *testing.T) {
 	})
 
 	t.Run("positive, historic, by block, with signer", func(t *testing.T) {
-		res, err := c.InvokeContractVerifyAtBlock(chain.GetHeaderHash(int(chain.BlockHeight())-1), contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		res, err := c.InvokeContractVerifyWithState(chain.GetHeaderHash(int(chain.BlockHeight())-1), contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
 		require.NoError(t, err)
 		require.Equal(t, "HALT", res.State)
 		require.Equal(t, 1, len(res.Stack))
@@ -1290,7 +1290,7 @@ func TestInvokeVerify(t *testing.T) {
 	})
 
 	t.Run("bad, historic, by block: contract not found", func(t *testing.T) {
-		_, err = c.InvokeContractVerifyAtBlock(chain.GetHeaderHash(1), contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		_, err = c.InvokeContractVerifyWithState(chain.GetHeaderHash(1), contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), core.ErrUnknownVerificationContract.Error())) // contract wasn't deployed at block #1 yet
 	})

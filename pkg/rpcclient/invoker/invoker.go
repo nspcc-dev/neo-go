@@ -49,13 +49,10 @@ type RPCInvoke interface {
 type RPCInvokeHistoric interface {
 	RPCSessions
 
-	InvokeContractVerifyAtBlock(blockHash util.Uint256, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error)
 	InvokeContractVerifyAtHeight(height uint32, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error)
 	InvokeContractVerifyWithState(stateroot util.Uint256, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error)
-	InvokeFunctionAtBlock(blockHash util.Uint256, contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error)
 	InvokeFunctionAtHeight(height uint32, contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error)
 	InvokeFunctionWithState(stateroot util.Uint256, contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error)
-	InvokeScriptAtBlock(blockHash util.Uint256, script []byte, signers []transaction.Signer) (*result.Invoke, error)
 	InvokeScriptAtHeight(height uint32, script []byte, signers []transaction.Signer) (*result.Invoke, error)
 	InvokeScriptWithState(stateroot util.Uint256, script []byte, signers []transaction.Signer) (*result.Invoke, error)
 }
@@ -73,7 +70,6 @@ type Invoker struct {
 
 type historicConverter struct {
 	client RPCInvokeHistoric
-	block  *util.Uint256
 	height *uint32
 	root   *util.Uint256
 }
@@ -86,14 +82,6 @@ func New(client RPCInvoke, signers []transaction.Signer) *Invoker {
 	return &Invoker{client, signers}
 }
 
-// NewHistoricAtBlock creates an Invoker to test-execute things at some given block.
-func NewHistoricAtBlock(block util.Uint256, client RPCInvokeHistoric, signers []transaction.Signer) *Invoker {
-	return New(&historicConverter{
-		client: client,
-		block:  &block,
-	}, signers)
-}
-
 // NewHistoricAtHeight creates an Invoker to test-execute things at some given height.
 func NewHistoricAtHeight(height uint32, client RPCInvokeHistoric, signers []transaction.Signer) *Invoker {
 	return New(&historicConverter{
@@ -102,18 +90,16 @@ func NewHistoricAtHeight(height uint32, client RPCInvokeHistoric, signers []tran
 	}, signers)
 }
 
-// NewHistoricWithState creates an Invoker to test-execute things with some given state.
-func NewHistoricWithState(root util.Uint256, client RPCInvokeHistoric, signers []transaction.Signer) *Invoker {
+// NewHistoricWithState creates an Invoker to test-execute things with some
+// given state or block.
+func NewHistoricWithState(rootOrBlock util.Uint256, client RPCInvokeHistoric, signers []transaction.Signer) *Invoker {
 	return New(&historicConverter{
 		client: client,
-		root:   &root,
+		root:   &rootOrBlock,
 	}, signers)
 }
 
 func (h *historicConverter) InvokeScript(script []byte, signers []transaction.Signer) (*result.Invoke, error) {
-	if h.block != nil {
-		return h.client.InvokeScriptAtBlock(*h.block, script, signers)
-	}
 	if h.height != nil {
 		return h.client.InvokeScriptAtHeight(*h.height, script, signers)
 	}
@@ -124,9 +110,6 @@ func (h *historicConverter) InvokeScript(script []byte, signers []transaction.Si
 }
 
 func (h *historicConverter) InvokeFunction(contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
-	if h.block != nil {
-		return h.client.InvokeFunctionAtBlock(*h.block, contract, operation, params, signers)
-	}
 	if h.height != nil {
 		return h.client.InvokeFunctionAtHeight(*h.height, contract, operation, params, signers)
 	}
@@ -137,9 +120,6 @@ func (h *historicConverter) InvokeFunction(contract util.Uint160, operation stri
 }
 
 func (h *historicConverter) InvokeContractVerify(contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
-	if h.block != nil {
-		return h.client.InvokeContractVerifyAtBlock(*h.block, contract, params, signers, witnesses...)
-	}
 	if h.height != nil {
 		return h.client.InvokeContractVerifyAtHeight(*h.height, contract, params, signers, witnesses...)
 	}
