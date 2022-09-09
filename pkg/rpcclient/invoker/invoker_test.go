@@ -29,25 +29,16 @@ func (r *rpcInv) InvokeFunction(contract util.Uint160, operation string, params 
 func (r *rpcInv) InvokeScript(script []byte, signers []transaction.Signer) (*result.Invoke, error) {
 	return r.resInv, r.err
 }
-func (r *rpcInv) InvokeContractVerifyAtBlock(blockHash util.Uint256, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
-	return r.resInv, r.err
-}
 func (r *rpcInv) InvokeContractVerifyAtHeight(height uint32, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
 	return r.resInv, r.err
 }
 func (r *rpcInv) InvokeContractVerifyWithState(stateroot util.Uint256, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
 	return r.resInv, r.err
 }
-func (r *rpcInv) InvokeFunctionAtBlock(blockHash util.Uint256, contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
-	return r.resInv, r.err
-}
 func (r *rpcInv) InvokeFunctionAtHeight(height uint32, contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
 	return r.resInv, r.err
 }
 func (r *rpcInv) InvokeFunctionWithState(stateroot util.Uint256, contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
-	return r.resInv, r.err
-}
-func (r *rpcInv) InvokeScriptAtBlock(blockHash util.Uint256, script []byte, signers []transaction.Signer) (*result.Invoke, error) {
 	return r.resInv, r.err
 }
 func (r *rpcInv) InvokeScriptAtHeight(height uint32, script []byte, signers []transaction.Signer) (*result.Invoke, error) {
@@ -108,9 +99,6 @@ func TestInvoker(t *testing.T) {
 	t.Run("standard", func(t *testing.T) {
 		testInv(t, New(ri, nil))
 	})
-	t.Run("historic, block", func(t *testing.T) {
-		testInv(t, NewHistoricAtBlock(util.Uint256{}, ri, nil))
-	})
 	t.Run("historic, height", func(t *testing.T) {
 		testInv(t, NewHistoricAtHeight(100500, ri, nil))
 	})
@@ -124,7 +112,7 @@ func TestInvoker(t *testing.T) {
 		require.Panics(t, func() { _, _ = inv.Run([]byte{1}) })
 	})
 	t.Run("terminate session", func(t *testing.T) {
-		for _, inv := range []*Invoker{New(ri, nil), NewHistoricAtBlock(util.Uint256{}, ri, nil)} {
+		for _, inv := range []*Invoker{New(ri, nil), NewHistoricWithState(util.Uint256{}, ri, nil)} {
 			ri.err = errors.New("")
 			require.Error(t, inv.TerminateSession(uuid.UUID{}))
 			ri.err = nil
@@ -135,7 +123,7 @@ func TestInvoker(t *testing.T) {
 		}
 	})
 	t.Run("traverse iterator", func(t *testing.T) {
-		for _, inv := range []*Invoker{New(ri, nil), NewHistoricAtBlock(util.Uint256{}, ri, nil)} {
+		for _, inv := range []*Invoker{New(ri, nil), NewHistoricWithState(util.Uint256{}, ri, nil)} {
 			res, err := inv.TraverseIterator(uuid.UUID{}, &result.Iterator{
 				Values: []stackitem.Item{stackitem.Make(42)},
 			}, 0)
