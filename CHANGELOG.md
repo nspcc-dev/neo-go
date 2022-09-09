@@ -2,6 +2,70 @@
 
 This document outlines major changes between releases.
 
+## 0.99.3 "Simplification" (09 Sep 2022)
+
+Version 0.99.3 brings with it most of the planned refactoring changes to the
+RPC client. dApp backend code can be greatly simplified in many cases by
+using new APIs (old ones are still available for transition period of about
+one-two releases more). We also have some updates for CLI and compiler and a
+number of bug fixes.
+
+This version is compatible with C# node 3.4.0 and does not require
+resynchronization on upgrade. The next release is planned to be compatible
+with 3.5.0 (if it's to be released around currently planned dates).
+
+New features:
+ * native contract RPC wrappers (#2643, #2646, #2650, #2666, #2665)
+ * NEP-11 RPC wrappers (#2651)
+ * invoker interface extension with session-based iterators support (#2650)
+ * notary Actor greatly simplifying creation of notary-assisted transactions
+   via RPC client (#2665)
+ * historic smart contract calls can now be made via CLI (#2683)
+
+Behavior changes:
+ * calculatenetworkfee RPC can handle paid attributes (NeoGo extensions) and
+   invalid contract signatures now, it won't return an error for them (#2658)
+ * graceful node shutdown on SIGTERM (#2660)
+ * wallet balance commands now require at least 0.99.1 NeoGo version (or
+   compatible C# node) used by the RPC server (#2667)
+
+Improvements:
+ * build system corrections (#2641, #2684)
+ * additional types in `unwrap` (#2650, #2651)
+ * session iterator consistency check in `unwrap` (#2650)
+ * multitransfers in NEP-17 RPC wrapper (#2653)
+ * extended transaction validity time in CLI wallet commands (#2653)
+ * reference counter optimization in VM (#2659)
+ * RPC Actor API can have default (used for all transactions) attributes and
+   callbacks now (#2665)
+ * neptoken RPC package can now provide wallet.Token data (#2667)
+ * NEP-11 balance commands can now work without direct token hash
+   specification or previous token import (#2667)
+ * support for offline signing in CLI (#2668)
+ * compiler can optimize out unused global variables now (#2624)
+ * private keys are now cleaned up from memory when they're no longer needed,
+   additional Account APIs added to reduce direct interactions with private
+   keys (#2672)
+ * updated linter settings, some code cleanup (#2674)
+ * more documentation and examples for new RPC APIs (#2681)
+ * refactored state-changing methods of NEP-11/NEP-17 RPC wrappers into a
+   separate structure to simplify reusing them in higher-level code (#2681)
+ * simplified rpcclient historic API (#2686)
+
+Bugs fixed:
+ * compiler panic on empty package list (#2645)
+ * compiler not allowed to use unnamed parameters in exported methods (#2648)
+ * compiler allowed to export multireturn functions (#2648)
+ * compiler panic on nil method receiver in the compiled code (#2649)
+ * compiler panic on variable initialization from multireturn call (#2644)
+ * potential lockups or panics on node shutdown (#2652)
+ * contract manifest not checked for correctness in bindings generation CLI
+   command (#2656)
+ * SignTx wallet Account API could lead to inconsistent result in some cases
+   (#2665)
+ * wallet Account API allowed to sign with locked accounts (#2665)
+ * potential panic in keys.WIFDecode on some inputs (#2672)
+
 ## 0.99.2 "Recalibration" (12 Aug 2022)
 
 This is a 3.4.0-compatible (tested for mainnet and testnet) update to NeoGo
