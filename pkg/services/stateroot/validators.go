@@ -74,7 +74,9 @@ func (s *service) Shutdown() {
 	s.log.Info("stopping state validation service")
 	close(s.stopCh)
 	<-s.done
-	s.wallet.Close()
+	if s.wallet != nil {
+		s.wallet.Close()
+	}
 }
 
 func (s *service) signAndSend(r *state.MPTRoot) error {
