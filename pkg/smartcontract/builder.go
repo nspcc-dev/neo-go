@@ -66,6 +66,13 @@ func (b *Builder) InvokeWithAssert(contract util.Uint160, method string, params 
 	b.Assert()
 }
 
+// Len returns the current length of the script. It's useful to perform script
+// length checks (wrt transaction.MaxScriptLength limit) while building the
+// script.
+func (b *Builder) Len() int {
+	return b.bw.Len()
+}
+
 // Script return current script, you can't use Builder after invoking this method
 // unless you Reset it.
 func (b *Builder) Script() ([]byte, error) {
