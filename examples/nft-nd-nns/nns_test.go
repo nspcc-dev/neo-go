@@ -125,29 +125,15 @@ func TestExpiration(t *testing.T) {
 	require.NoError(t, bc.AddBlock(e.SignBlock(b2)))
 	e.CheckHalt(t, tx.Hash(), stackitem.NewBool(true))
 
-	tx = cAcc.PrepareInvoke(t, "isAvailable", "first.com")
-	b3 := e.NewUnsignedBlock(t, tx)
+	b3 := e.NewUnsignedBlock(t)
 	b3.Index = b2.Index + 1
 	b3.PrevHash = b2.Hash()
-	b3.Timestamp = b1.Timestamp + (uint64(expire)*1000 + 1)
+	b3.Timestamp = b1.Timestamp + (uint64(expire) * 1000)
 	require.NoError(t, bc.AddBlock(e.SignBlock(b3)))
-	e.CheckHalt(t, tx.Hash(), stackitem.NewBool(true)) // "first.com" has been expired
 
-	tx = cAcc.PrepareInvoke(t, "isAvailable", "second.com")
-	b4 := e.NewUnsignedBlock(t, tx)
-	b4.Index = b3.Index + 1
-	b4.PrevHash = b3.Hash()
-	b4.Timestamp = b3.Timestamp + 1000
-	require.NoError(t, bc.AddBlock(e.SignBlock(b4)))
-	e.CheckHalt(t, tx.Hash(), stackitem.NewBool(true)) // TLD "com" has been expired
-
-	tx = cAcc.PrepareInvoke(t, "getRecords", "first.com", int64(nns.TXT))
-	b5 := e.NewUnsignedBlock(t, tx)
-	b5.Index = b4.Index + 1
-	b5.PrevHash = b4.Hash()
-	b5.Timestamp = b4.Timestamp + 1000
-	require.NoError(t, bc.AddBlock(e.SignBlock(b5)))
-	e.CheckFault(t, tx.Hash(), "name has expired")
+	cAcc.Invoke(t, true, "isAvailable", "first.com")  // "first.com" has been expired
+	cAcc.Invoke(t, true, "isAvailable", "second.com") // TLD "com" has been expired
+	cAcc.InvokeFail(t, "name has expired", "getRecords", "first.com", int64(nns.TXT))
 
 	// TODO: According to the new code, we can't re-register expired "com" TLD, because it's already registered; at the
 	// same time we can't renew it because it's already expired. We likely need to change this logic in the contract and
@@ -629,11 +615,13 @@ func TestNNSRegisterArbitraryLevelDomain(t *testing.T) {
 		"another.fs.neo.com", int64(nns.A), "4.3.2.1")
 
 	c2 = c.WithSigners(acc, acc2)
+	c2.Invoke(t, stackitem.NewBool(false), "isAvailable", "mainnet.fs.neo.com")
 	c2.InvokeFail(t, "parent domain has conflicting records: something.mainnet.fs.neo.com",
 		"register", args...)
 
 	c1.Invoke(t, stackitem.Null{}, "deleteRecords",
 		"something.mainnet.fs.neo.com", int64(nns.A))
+	c2.Invoke(t, stackitem.NewBool(true), "isAvailable", "mainnet.fs.neo.com")
 	c2.Invoke(t, true, "register", args...)
 
 	c2 = c.WithSigners(acc2)
