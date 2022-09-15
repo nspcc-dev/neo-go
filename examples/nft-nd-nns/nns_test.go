@@ -39,8 +39,10 @@ func newNSClient(t *testing.T, registerComTLD bool) *neotest.ContractInvoker {
 
 func TestNameService_Price(t *testing.T) {
 	const (
-		minPrice = int64(0)
-		maxPrice = int64(10000_00000000)
+		minPrice       = int64(-1)
+		maxPrice       = int64(10000_00000000)
+		defaultPrice   = 10_0000_0000
+		committeePrice = -1
 	)
 
 	c := newNSClient(t, false)
@@ -50,28 +52,38 @@ func TestNameService_Price(t *testing.T) {
 		cAcc := c.WithSigners(acc)
 		cAcc.InvokeFail(t, "not witnessed by committee", "setPrice", minPrice+1)
 	})
-
 	t.Run("get, default value", func(t *testing.T) {
-		c.Invoke(t, defaultNameServiceDomainPrice, "getPrice")
+		c.Invoke(t, defaultPrice, "getPrice", 0)
+		c.Invoke(t, committeePrice, "getPrice", 1)
+		c.Invoke(t, committeePrice, "getPrice", 2)
+		c.Invoke(t, committeePrice, "getPrice", 3)
+		c.Invoke(t, committeePrice, "getPrice", 4)
+		c.Invoke(t, defaultPrice, "getPrice", 5)
 	})
-
 	t.Run("set, too small value", func(t *testing.T) {
-		c.InvokeFail(t, "The price is out of range.", "setPrice", minPrice-1)
+		c.InvokeFail(t, "price is out of range", "setPrice", []interface{}{minPrice - 1})
+		c.InvokeFail(t, "price is out of range", "setPrice", []interface{}{defaultPrice, minPrice - 1})
 	})
-
 	t.Run("set, too large value", func(t *testing.T) {
-		c.InvokeFail(t, "The price is out of range.", "setPrice", maxPrice+1)
+		c.InvokeFail(t, "price is out of range", "setPrice", []interface{}{minPrice - 1})
+		c.InvokeFail(t, "price is out of range", "setPrice", []interface{}{defaultPrice, minPrice - 1})
 	})
-
+	t.Run("set, negative default price", func(t *testing.T) {
+		c.InvokeFail(t, "default price is out of range", "setPrice", []interface{}{committeePrice, minPrice + 1})
+	})
 	t.Run("set, success", func(t *testing.T) {
-		txSet := c.PrepareInvoke(t, "setPrice", int64(defaultNameServiceDomainPrice+1))
-		txGet := c.PrepareInvoke(t, "getPrice")
-		c.AddBlockCheckHalt(t, txSet, txGet)
+		txSet := c.PrepareInvoke(t, "setPrice", []interface{}{defaultPrice - 1, committeePrice, committeePrice, committeePrice, committeePrice, committeePrice})
+		txGet1 := c.PrepareInvoke(t, "getPrice", 5)
+		txGet2 := c.PrepareInvoke(t, "getPrice", 6)
+		c.AddBlockCheckHalt(t, txSet, txGet1, txGet2)
 		c.CheckHalt(t, txSet.Hash(), stackitem.Null{})
-		c.CheckHalt(t, txGet.Hash(), stackitem.Make(defaultNameServiceDomainPrice+1))
+		c.CheckHalt(t, txGet1.Hash(), stackitem.Make(committeePrice))
+		c.CheckHalt(t, txGet2.Hash(), stackitem.Make(defaultPrice-1))
 
 		// Get in the next block.
-		c.Invoke(t, stackitem.Make(defaultNameServiceDomainPrice+1), "getPrice")
+		c.Invoke(t, stackitem.Make(committeePrice), "getPrice", 2)
+		c.Invoke(t, stackitem.Make(committeePrice), "getPrice", 5)
+		c.Invoke(t, stackitem.Make(defaultPrice-1), "getPrice", 6)
 	})
 }
 
@@ -148,17 +160,17 @@ func TestRegisterAndRenew(t *testing.T) {
 	e := c.Executor
 	mail, refresh, retry, expire, ttl := "sami@nspcc.ru", int64(101), int64(102), int64(millisecondsInYear/1000*100), int64(104)
 
-	c.InvokeFail(t, "TLD not found", "isAvailable", "neo.com")
+	c.InvokeFail(t, "TLD not found", "isAvailable", "neo-go.com")
 	c.Invoke(t, true, "register", "org", c.CommitteeHash, mail, refresh, retry, expire, ttl)
-	c.InvokeFail(t, "TLD not found", "isAvailable", "neo.com")
+	c.InvokeFail(t, "TLD not found", "isAvailable", "neo-go.com")
 	c.Invoke(t, true, "register", "com", c.CommitteeHash, mail, refresh, retry, expire, ttl)
-	c.Invoke(t, true, "isAvailable", "neo.com")
-	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceSysfee, "register", "neo.org", e.CommitteeHash, mail, refresh, retry, expire, ttl)
-	c.InvokeFail(t, "one of the parent domains is not registered", "register", "docs.neo.org", e.CommitteeHash, mail, refresh, retry, expire, ttl)
-	c.InvokeFail(t, "invalid domain name format", "register", "\nneo.com'", e.CommitteeHash, mail, refresh, retry, expire, ttl)
-	c.InvokeFail(t, "invalid domain name format", "register", "neo.com\n", e.CommitteeHash, mail, refresh, retry, expire, ttl)
-	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceSysfee, "register", "neo.org", e.CommitteeHash, mail, refresh, retry, expire, ttl)
-	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceDomainPrice, "register", "neo.com", e.CommitteeHash, mail, refresh, retry, expire, ttl)
+	c.Invoke(t, true, "isAvailable", "neo-go.com")
+	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceSysfee, "register", "neo-go.org", e.CommitteeHash, mail, refresh, retry, expire, ttl)
+	c.InvokeFail(t, "one of the parent domains is not registered", "register", "docs.neo-go.org", e.CommitteeHash, mail, refresh, retry, expire, ttl)
+	c.InvokeFail(t, "invalid domain name format", "register", "\nneo-go.com'", e.CommitteeHash, mail, refresh, retry, expire, ttl)
+	c.InvokeFail(t, "invalid domain name format", "register", "neo-go.com\n", e.CommitteeHash, mail, refresh, retry, expire, ttl)
+	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceSysfee, "register", "neo-go.org", e.CommitteeHash, mail, refresh, retry, expire, ttl)
+	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceDomainPrice, "register", "neo-go.com", e.CommitteeHash, mail, refresh, retry, expire, ttl)
 	var maxLenFragment string
 	for i := 0; i < maxDomainNameFragmentLength; i++ {
 		maxLenFragment += "q"
@@ -167,13 +179,13 @@ func TestRegisterAndRenew(t *testing.T) {
 	c.Invoke(t, true, "register", maxLenFragment+".com", e.CommitteeHash, mail, refresh, retry, expire, ttl)
 	c.InvokeFail(t, "invalid domain name format", "register", maxLenFragment+"q.com", e.CommitteeHash, mail, refresh, retry, expire, ttl)
 
-	c.Invoke(t, true, "isAvailable", "neo.com")
+	c.Invoke(t, true, "isAvailable", "neo-go.com")
 	c.Invoke(t, 3, "balanceOf", e.CommitteeHash) // org, com, qqq...qqq.com
-	c.Invoke(t, true, "register", "neo.com", e.CommitteeHash, mail, refresh, retry, expire, ttl)
+	c.Invoke(t, true, "register", "neo-go.com", e.CommitteeHash, mail, refresh, retry, expire, ttl)
 	topBlock := e.TopBlock(t)
 	expectedExpiration := topBlock.Timestamp + uint64(expire*1000)
-	c.Invoke(t, false, "register", "neo.com", e.CommitteeHash, mail, refresh, retry, expire, ttl)
-	c.Invoke(t, false, "isAvailable", "neo.com")
+	c.Invoke(t, false, "register", "neo-go.com", e.CommitteeHash, mail, refresh, retry, expire, ttl)
+	c.Invoke(t, false, "isAvailable", "neo-go.com")
 
 	t.Run("domain names with hyphen", func(t *testing.T) {
 		c.InvokeFail(t, "invalid domain name format", "register", "-testdomain.com", e.CommitteeHash, mail, refresh, retry, expire, ttl)
@@ -182,12 +194,12 @@ func TestRegisterAndRenew(t *testing.T) {
 	})
 
 	props := stackitem.NewMap()
-	props.Add(stackitem.Make("name"), stackitem.Make("neo.com"))
+	props.Add(stackitem.Make("name"), stackitem.Make("neo-go.com"))
 	props.Add(stackitem.Make("expiration"), stackitem.Make(expectedExpiration))
 	props.Add(stackitem.Make("admin"), stackitem.Null{}) // no admin was set
-	c.Invoke(t, props, "properties", "neo.com")
+	c.Invoke(t, props, "properties", "neo-go.com")
 	c.Invoke(t, 5, "balanceOf", e.CommitteeHash) // org, com, qqq...qqq.com, neo.com, test-domain.com
-	c.Invoke(t, e.CommitteeHash.BytesBE(), "ownerOf", []byte("neo.com"))
+	c.Invoke(t, e.CommitteeHash.BytesBE(), "ownerOf", []byte("neo-go.com"))
 
 	t.Run("invalid token ID", func(t *testing.T) {
 		c.InvokeFail(t, "token not found", "properties", "not.exists")
@@ -198,10 +210,10 @@ func TestRegisterAndRenew(t *testing.T) {
 
 	// Renew
 	expectedExpiration += millisecondsInYear
-	c.Invoke(t, expectedExpiration, "renew", "neo.com")
+	c.Invoke(t, expectedExpiration, "renew", "neo-go.com")
 
 	props.Add(stackitem.Make("expiration"), stackitem.Make(expectedExpiration))
-	c.Invoke(t, props, "properties", "neo.com")
+	c.Invoke(t, props, "properties", "neo-go.com")
 }
 
 func TestSetAddGetRecord(t *testing.T) {
@@ -594,43 +606,44 @@ func TestNNSRegisterArbitraryLevelDomain(t *testing.T) {
 	cBoth.Invoke(t, true, "register", args...)
 
 	c1 := c.WithSigners(acc)
+	// Use long (>4 chars) domain name to avoid committee signature check.
 	// parent domain is missing
-	args[0] = "testnet.fs.neo.com"
+	args[0] = "testnet.filestorage.neo.com"
 	c1.InvokeFail(t, "one of the parent domains is not registered", "register", args...)
 
-	args[0] = "fs.neo.com"
+	args[0] = "filestorage.neo.com"
 	c1.Invoke(t, true, "register", args...)
 
-	args[0] = "testnet.fs.neo.com"
+	args[0] = "testnet.filestorage.neo.com"
 	c1.Invoke(t, true, "register", args...)
 
 	acc2 := c.NewAccount(t)
 	c2 := c.WithSigners(c.Committee, acc2)
-	args = newArgs("mainnet.fs.neo.com", acc2)
+	args = newArgs("mainnet.filestorage.neo.com", acc2)
 	c2.InvokeFail(t, "not witnessed by admin", "register", args...)
 
 	c1.Invoke(t, stackitem.Null{}, "addRecord",
-		"something.mainnet.fs.neo.com", int64(nns.A), "1.2.3.4")
+		"something.mainnet.filestorage.neo.com", int64(nns.A), "1.2.3.4")
 	c1.Invoke(t, stackitem.Null{}, "addRecord",
-		"another.fs.neo.com", int64(nns.A), "4.3.2.1")
+		"another.filestorage.neo.com", int64(nns.A), "4.3.2.1")
 
 	c2 = c.WithSigners(acc, acc2)
-	c2.Invoke(t, stackitem.NewBool(false), "isAvailable", "mainnet.fs.neo.com")
-	c2.InvokeFail(t, "parent domain has conflicting records: something.mainnet.fs.neo.com",
+	c2.Invoke(t, stackitem.NewBool(false), "isAvailable", "mainnet.filestorage.neo.com")
+	c2.InvokeFail(t, "parent domain has conflicting records: something.mainnet.filestorage.neo.com",
 		"register", args...)
 
 	c1.Invoke(t, stackitem.Null{}, "deleteRecords",
-		"something.mainnet.fs.neo.com", int64(nns.A))
-	c2.Invoke(t, stackitem.NewBool(true), "isAvailable", "mainnet.fs.neo.com")
+		"something.mainnet.filestorage.neo.com", int64(nns.A))
+	c2.Invoke(t, stackitem.NewBool(true), "isAvailable", "mainnet.filestorage.neo.com")
 	c2.Invoke(t, true, "register", args...)
 
 	c2 = c.WithSigners(acc2)
 	c2.Invoke(t, stackitem.Null{}, "addRecord",
-		"cdn.mainnet.fs.neo.com", int64(nns.A), "166.15.14.13")
+		"cdn.mainnet.filestorage.neo.com", int64(nns.A), "166.15.14.13")
 	result := stackitem.NewArray([]stackitem.Item{
 		stackitem.NewByteArray([]byte("166.15.14.13")),
 	})
-	c2.Invoke(t, result, "resolve", "cdn.mainnet.fs.neo.com", int64(nns.A))
+	c2.Invoke(t, result, "resolve", "cdn.mainnet.filestorage.neo.com", int64(nns.A))
 }
 
 const (

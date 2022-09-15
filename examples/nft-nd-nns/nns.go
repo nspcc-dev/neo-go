@@ -29,7 +29,8 @@ const (
 	// prefixAccountToken contains map from (owner + token key) to token ID,
 	// where token key = hash160(token ID) and token ID = domain name.
 	prefixAccountToken byte = 0x02
-	// prefixRegisterPrice contains price for new domain name registration.
+	// prefixRegisterPrice contains list of prices for new domain name registration
+	// depending on the domain name length.
 	prefixRegisterPrice byte = 0x10
 	// prefixRoot contains set of roots (map from root to 0).
 	prefixRoot byte = 0x20
@@ -91,7 +92,13 @@ func _deploy(data interface{}, isUpdate bool) {
 	}
 	ctx := storage.GetContext()
 	storage.Put(ctx, []byte{prefixTotalSupply}, 0)
-	storage.Put(ctx, []byte{prefixRegisterPrice}, defaultRegisterPrice)
+	storage.Put(ctx, []byte{prefixRegisterPrice}, std.Serialize([]int{
+		defaultRegisterPrice, // Prices for all other lengths of domain names.
+		-1,                   // Domain names with a length of 1 are not open for registration by default.
+		-1,                   // Domain names with a length of 2 are not open for registration by default.
+		-1,                   // Domain names with a length of 3 are not open for registration by default.
+		-1,                   // Domain names with a length of 4 are not open for registration by default.
+	}))
 }
 
 // Symbol returns NeoNameService symbol.
@@ -193,19 +200,31 @@ func Roots() iterator.Iterator {
 }
 
 // SetPrice sets the domain registration price.
-func SetPrice(price int) {
+func SetPrice(priceList []int) {
 	checkCommittee()
-	if price < 0 || price > maxRegisterPrice {
-		panic("The price is out of range.")
+	if len(priceList) == 0 {
+		panic("price list is empty")
+	}
+	for i := 0; i < len(priceList); i++ {
+		if i == 0 && priceList[i] == -1 {
+			panic("default price is out of range")
+		}
+		if priceList[i] < -1 || priceList[i] > maxRegisterPrice {
+			panic("price is out of range")
+		}
 	}
 	ctx := storage.GetContext()
-	storage.Put(ctx, []byte{prefixRegisterPrice}, price)
+	storage.Put(ctx, []byte{prefixRegisterPrice}, std.Serialize(priceList))
 }
 
-// GetPrice returns the domain registration price.
-func GetPrice() int {
+// GetPrice returns the domain registration price depending on the domain name length.
+func GetPrice(length int) int {
 	ctx := storage.GetReadOnlyContext()
-	return storage.Get(ctx, []byte{prefixRegisterPrice}).(int)
+	priceList := std.Deserialize(storage.Get(ctx, []byte{prefixRegisterPrice}).([]byte)).([]int)
+	if length >= len(priceList) {
+		length = 0
+	}
+	return priceList[length]
 }
 
 // IsAvailable checks whether provided domain name is available.
@@ -221,6 +240,9 @@ func IsAvailable(name string) bool {
 			panic("TLD not found")
 		}
 		return true
+	}
+	if GetPrice(len(fragments[0])) < 0 {
+		return false
 	}
 	if !parentExpired(ctx, 0, fragments) {
 		return false
@@ -306,7 +328,13 @@ func Register(name string, owner interop.Hash160, email string, refresh, retry, 
 	if !runtime.CheckWitness(owner) {
 		panic("not witnessed by owner")
 	}
-	runtime.BurnGas(GetPrice())
+	price := GetPrice(len(fragments[0]))
+	if price < 0 {
+		checkCommittee()
+	} else {
+		runtime.BurnGas(price)
+	}
+
 	var (
 		tokenKey = getTokenKey([]byte(name))
 		oldOwner interop.Hash160
@@ -390,7 +418,17 @@ func Renew(name string) int {
 	if len(name) > maxDomainNameLength {
 		panic("invalid domain name format")
 	}
-	runtime.BurnGas(GetPrice())
+	fragments := splitAndCheck(name, true)
+	if fragments == nil {
+		panic("invalid domain name format")
+	}
+	price := GetPrice(len(fragments[0]))
+	if price < 0 {
+		checkCommittee()
+	} else {
+		runtime.BurnGas(price)
+	}
+
 	ctx := storage.GetContext()
 	ns := getNameState(ctx, []byte(name))
 	ns.Expiration += millisecondsInYear
