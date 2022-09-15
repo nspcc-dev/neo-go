@@ -272,6 +272,17 @@ func Register(name string, owner interop.Hash160, email string, refresh, retry, 
 		nsBytes := storage.Get(ctx, append([]byte{prefixName}, parentKey...))
 		ns := std.Deserialize(nsBytes.([]byte)).(NameState)
 		ns.checkAdmin()
+
+		parentRecKey := append([]byte{prefixRecord}, parentKey...)
+		it := storage.Find(ctx, parentRecKey, storage.ValuesOnly|storage.DeserializeValues)
+		suffix := []byte(name)
+		for iterator.Next(it) {
+			r := iterator.Value(it).(RecordState)
+			ind := std.MemorySearchLastIndex([]byte(r.Name), suffix, len(r.Name))
+			if ind > 0 && ind+len(suffix) == len(r.Name) {
+				panic("parent domain has conflicting records: " + r.Name)
+			}
+		}
 	}
 
 	if !isValid(owner) {

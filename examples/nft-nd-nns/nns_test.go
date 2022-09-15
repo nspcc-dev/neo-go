@@ -623,7 +623,17 @@ func TestNNSRegisterArbitraryLevelDomain(t *testing.T) {
 	args = newArgs("mainnet.fs.neo.com", acc2)
 	c2.InvokeFail(t, "not witnessed by admin", "register", args...)
 
+	c1.Invoke(t, stackitem.Null{}, "addRecord",
+		"something.mainnet.fs.neo.com", int64(nns.A), "1.2.3.4")
+	c1.Invoke(t, stackitem.Null{}, "addRecord",
+		"another.fs.neo.com", int64(nns.A), "4.3.2.1")
+
 	c2 = c.WithSigners(acc, acc2)
+	c2.InvokeFail(t, "parent domain has conflicting records: something.mainnet.fs.neo.com",
+		"register", args...)
+
+	c1.Invoke(t, stackitem.Null{}, "deleteRecords",
+		"something.mainnet.fs.neo.com", int64(nns.A))
 	c2.Invoke(t, true, "register", args...)
 
 	c2 = c.WithSigners(acc2)
