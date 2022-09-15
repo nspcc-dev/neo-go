@@ -246,7 +246,7 @@ func parentExpired(ctx storage.Context, first int, fragments []string) bool {
 }
 
 // Register registers new domain with the specified owner and name if it's available.
-func Register(name string, owner interop.Hash160) bool {
+func Register(name string, owner interop.Hash160, email string, refresh, retry, expire, ttl int) bool {
 	fragments := splitAndCheck(name, false)
 	if fragments == nil {
 		panic("invalid domain name format")
@@ -303,12 +303,60 @@ func Register(name string, owner interop.Hash160) bool {
 	ns := NameState{
 		Owner:      owner,
 		Name:       name,
-		Expiration: runtime.GetTime() + millisecondsInYear,
+		Expiration: runtime.GetTime() + expire*1000,
 	}
 	putNameStateWithKey(ctx, tokenKey, ns)
+	putSoaRecord(ctx, name, email, refresh, retry, expire, ttl)
 	updateBalance(ctx, []byte(name), owner, +1)
 	postTransfer(oldOwner, owner, []byte(name), nil)
 	return true
+}
+
+// UpdateSOA updates soa record.
+func UpdateSOA(name, email string, refresh, retry, expire, ttl int) {
+	if len(name) > maxDomainNameLength {
+		panic("invalid domain name format")
+	}
+	ctx := storage.GetContext()
+	ns := getNameState(ctx, []byte(name))
+	ns.checkAdmin()
+	putSoaRecord(ctx, name, email, refresh, retry, expire, ttl)
+}
+
+// putSoaRecord stores SOA domain record.
+func putSoaRecord(ctx storage.Context, name, email string, refresh, retry, expire, ttl int) {
+	data := name + " " + email + " " +
+		std.Itoa(runtime.GetTime(), 10) + " " +
+		std.Itoa(refresh, 10) + " " +
+		std.Itoa(retry, 10) + " " +
+		std.Itoa(expire, 10) + " " +
+		std.Itoa(ttl, 10)
+	tokenId := []byte(tokenIDFromName(name))
+	putRecord(ctx, tokenId, name, SOA, 0, data)
+}
+
+// updateSoaSerial updates serial of the corresponding SOA domain record.
+func updateSoaSerial(ctx storage.Context, tokenId []byte) {
+	recordKey := getRecordKey(tokenId, string(tokenId), SOA, 0)
+
+	recBytes := storage.Get(ctx, recordKey)
+	if recBytes == nil {
+		panic("SOA record not found")
+	}
+	rec := std.Deserialize(recBytes.([]byte)).(RecordState)
+
+	split := std.StringSplitNonEmpty(rec.Data, " ")
+	if len(split) != 7 {
+		panic("corrupted SOA record format")
+	}
+	split[2] = std.Itoa(runtime.GetTime(), 10) // update serial
+	rec.Data = split[0] + " " + split[1] + " " +
+		split[2] + " " + split[3] + " " +
+		split[4] + " " + split[5] + " " +
+		split[6]
+
+	recBytes = std.Serialize(rec)
+	storage.Put(ctx, recordKey, recBytes)
 }
 
 // Renew increases domain expiration date.
@@ -351,6 +399,7 @@ func SetRecord(name string, typ RecordType, id byte, data string) {
 		panic("unknown record")
 	}
 	putRecord(ctx, tokenID, name, typ, id, data)
+	updateSoaSerial(ctx, tokenID)
 }
 
 // AddRecord adds new record of the specified type to the provided domain.
@@ -374,6 +423,7 @@ func AddRecord(name string, typ RecordType, data string) {
 		panic("multiple CNAME records")
 	}
 	putRecord(ctx, tokenID, name, typ, id, data)
+	updateSoaSerial(ctx, tokenID)
 }
 
 // checkRecord performs record validness check and returns token ID.
@@ -411,6 +461,9 @@ func GetRecords(name string, typ RecordType) []string {
 
 // DeleteRecords removes all domain records with the specified type.
 func DeleteRecords(name string, typ RecordType) {
+	if typ == SOA {
+		panic("forbidden to delete SOA record")
+	}
 	tokenID := []byte(tokenIDFromName(name))
 	ctx := storage.GetContext()
 	ns := getNameState(ctx, tokenID)
@@ -421,6 +474,7 @@ func DeleteRecords(name string, typ RecordType) {
 		key := iterator.Value(records).(string)
 		storage.Delete(ctx, key)
 	}
+	updateSoaSerial(ctx, tokenID)
 }
 
 // Resolve resolves given name (not more than three redirects are allowed) to a set

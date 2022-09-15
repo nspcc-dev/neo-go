@@ -21,7 +21,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const neoAmount = 99999000
+const (
+	neoAmount          = 99999000
+	millisecondsInYear = 365 * 24 * 3600 * 1000
+)
 
 // Init pushes some predefined set  of transactions into the given chain, it needs a path to
 // the root project directory.
@@ -165,11 +168,12 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 		e.Validator.ScriptHash(), e.Committee.ScriptHash(), 1000_00000000, nil) // block #12
 
 	// Block #13: add `.com` root to NNS.
-	nsCommitteeInvoker.Invoke(t, true, "register", "com", nsCommitteeInvoker.CommitteeHash) // block #13
+	mail, refresh, retry, expire, ttl := "sami@nspcc.ru", int64(101), int64(102), int64(millisecondsInYear/1000*100), int64(104)
+	nsCommitteeInvoker.Invoke(t, true, "register", "com", nsCommitteeInvoker.CommitteeHash, mail, refresh, retry, expire, ttl) // block #13
 
 	// Block #14: register `neo.com` via NNS.
 	registerTxH := nsPriv0CommitteeInvoker.Invoke(t, true, "register",
-		"neo.com", priv0ScriptHash) // block #14
+		"neo.com", priv0ScriptHash, mail, refresh, retry, expire, ttl) // block #14
 	res := e.GetTxExecResult(t, registerTxH)
 	require.Equal(t, 1, len(res.Events)) // transfer
 	tokenID, err := res.Events[0].Item.Value().([]stackitem.Item)[3].TryBytes()
