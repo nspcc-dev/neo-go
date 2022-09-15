@@ -168,7 +168,7 @@ func TestRegisterAndRenew(t *testing.T) {
 	c.Invoke(t, true, "register", "com", c.CommitteeHash, mail, refresh, retry, expire, ttl)
 	c.Invoke(t, true, "isAvailable", "neo.com")
 	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceSysfee, "register", "neo.org", e.CommitteeHash, mail, refresh, retry, expire, ttl)
-	c.InvokeFail(t, "invalid domain name format", "register", "docs.neo.org", e.CommitteeHash, mail, refresh, retry, expire, ttl)
+	c.InvokeFail(t, "one of the parent domains is not registered", "register", "docs.neo.org", e.CommitteeHash, mail, refresh, retry, expire, ttl)
 	c.InvokeFail(t, "invalid domain name format", "register", "\nneo.com'", e.CommitteeHash, mail, refresh, retry, expire, ttl)
 	c.InvokeFail(t, "invalid domain name format", "register", "neo.com\n", e.CommitteeHash, mail, refresh, retry, expire, ttl)
 	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceSysfee, "register", "neo.org", e.CommitteeHash, mail, refresh, retry, expire, ttl)
@@ -591,6 +591,48 @@ func TestNNSAddRecord(t *testing.T) {
 			c.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.TXT), strconv.Itoa(i))
 		}
 	}
+}
+
+func TestNNSRegisterArbitraryLevelDomain(t *testing.T) {
+	c := newNSClient(t, true)
+
+	newArgs := func(domain string, account neotest.Signer) []interface{} {
+		return []interface{}{
+			domain, account.ScriptHash(), "doesnt@matter.com",
+			int64(101), int64(102), int64(103), int64(104),
+		}
+	}
+	acc := c.NewAccount(t)
+	cBoth := c.WithSigners(c.Committee, acc)
+	args := newArgs("neo.com", acc)
+	cBoth.Invoke(t, true, "register", args...)
+
+	c1 := c.WithSigners(acc)
+	// parent domain is missing
+	args[0] = "testnet.fs.neo.com"
+	c1.InvokeFail(t, "one of the parent domains is not registered", "register", args...)
+
+	args[0] = "fs.neo.com"
+	c1.Invoke(t, true, "register", args...)
+
+	args[0] = "testnet.fs.neo.com"
+	c1.Invoke(t, true, "register", args...)
+
+	acc2 := c.NewAccount(t)
+	c2 := c.WithSigners(c.Committee, acc2)
+	args = newArgs("mainnet.fs.neo.com", acc2)
+	c2.InvokeFail(t, "not witnessed by admin", "register", args...)
+
+	c2 = c.WithSigners(acc, acc2)
+	c2.Invoke(t, true, "register", args...)
+
+	c2 = c.WithSigners(acc2)
+	c2.Invoke(t, stackitem.Null{}, "addRecord",
+		"cdn.mainnet.fs.neo.com", int64(nns.A), "166.15.14.13")
+	result := stackitem.NewArray([]stackitem.Item{
+		stackitem.NewByteArray([]byte("166.15.14.13")),
+	})
+	c2.Invoke(t, result, "resolve", "cdn.mainnet.fs.neo.com", int64(nns.A))
 }
 
 const (
