@@ -48,7 +48,7 @@ const (
 	// maxRootLength is the maximum domain root length.
 	maxRootLength = 16
 	// maxDomainNameFragmentLength is the maximum length of the domain name fragment.
-	maxDomainNameFragmentLength = 62
+	maxDomainNameFragmentLength = 63
 	// minDomainNameLength is minimum domain length.
 	minDomainNameLength = 3
 	// maxDomainNameLength is maximum domain length.
@@ -118,6 +118,7 @@ func Properties(tokenID []byte) map[string]interface{} {
 	return map[string]interface{}{
 		"name":       ns.Name,
 		"expiration": ns.Expiration,
+		"admin":      ns.Admin,
 	}
 }
 
@@ -507,6 +508,8 @@ func checkCommittee() {
 }
 
 // checkFragment validates root or a part of domain name.
+// 1. Root domain must start with a letter.
+// 2. All other fragments must start and end in a letter or a digit.
 func checkFragment(v string, isRoot bool) bool {
 	maxLength := maxDomainNameFragmentLength
 	if isRoot {
@@ -525,12 +528,12 @@ func checkFragment(v string, isRoot bool) bool {
 			return false
 		}
 	}
-	for i := 1; i < len(v); i++ {
-		if !isAlNum(v[i]) {
+	for i := 1; i < len(v)-1; i++ {
+		if v[i] != '-' && !isAlNum(v[i]) {
 			return false
 		}
 	}
-	return true
+	return isAlNum(v[len(v)-1])
 }
 
 // isAlNum checks whether provided char is a lowercase letter or a number.
@@ -685,6 +688,12 @@ func tokenIDFromName(name string) string {
 func resolve(ctx storage.Context, name string, typ RecordType, redirect int) string {
 	if redirect < 0 {
 		panic("invalid redirect")
+	}
+	if len(name) == 0 {
+		panic("invalid name")
+	}
+	if name[len(name)-1] == '.' {
+		name = name[:len(name)-1]
 	}
 	records := getRecords(ctx, name)
 	cname := ""

@@ -137,7 +137,10 @@ func TestExpiration(t *testing.T) {
 	cAcc.Invoke(t, stackitem.Null{}, "resolve", "first.com", int64(nns.TXT))
 }
 
-const millisecondsInYear = 365 * 24 * 3600 * 1000
+const (
+	millisecondsInYear          = 365 * 24 * 3600 * 1000
+	maxDomainNameFragmentLength = 63
+)
 
 func TestRegisterAndRenew(t *testing.T) {
 	c := newNSClient(t)
@@ -154,20 +157,34 @@ func TestRegisterAndRenew(t *testing.T) {
 	c.InvokeFail(t, "invalid domain name format", "register", "neo.com\n", e.CommitteeHash)
 	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceSysfee, "register", "neo.org", e.CommitteeHash)
 	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceDomainPrice, "register", "neo.com", e.CommitteeHash)
+	var maxLenFragment string
+	for i := 0; i < maxDomainNameFragmentLength; i++ {
+		maxLenFragment += "q"
+	}
+	c.Invoke(t, true, "isAvailable", maxLenFragment+".com")
+	c.Invoke(t, true, "register", maxLenFragment+".com", e.CommitteeHash)
+	c.InvokeFail(t, "invalid domain name format", "register", maxLenFragment+"q.com", e.CommitteeHash)
 
 	c.Invoke(t, true, "isAvailable", "neo.com")
-	c.Invoke(t, 0, "balanceOf", e.CommitteeHash)
+	c.Invoke(t, 1, "balanceOf", e.CommitteeHash)
 	c.Invoke(t, true, "register", "neo.com", e.CommitteeHash)
 	topBlock := e.TopBlock(t)
 	expectedExpiration := topBlock.Timestamp + millisecondsInYear
 	c.Invoke(t, false, "register", "neo.com", e.CommitteeHash)
 	c.Invoke(t, false, "isAvailable", "neo.com")
 
+	t.Run("domain names with hyphen", func(t *testing.T) {
+		c.InvokeFail(t, "invalid domain name format", "register", "-testdomain.com", e.CommitteeHash)
+		c.InvokeFail(t, "invalid domain name format", "register", "testdomain-.com", e.CommitteeHash)
+		c.Invoke(t, true, "register", "test-domain.com", e.CommitteeHash)
+	})
+
 	props := stackitem.NewMap()
 	props.Add(stackitem.Make("name"), stackitem.Make("neo.com"))
 	props.Add(stackitem.Make("expiration"), stackitem.Make(expectedExpiration))
+	props.Add(stackitem.Make("admin"), stackitem.Null{}) // no admin was set
 	c.Invoke(t, props, "properties", "neo.com")
-	c.Invoke(t, 1, "balanceOf", e.CommitteeHash)
+	c.Invoke(t, 3, "balanceOf", e.CommitteeHash)
 	c.Invoke(t, e.CommitteeHash.BytesBE(), "ownerOf", []byte("neo.com"))
 
 	t.Run("invalid token ID", func(t *testing.T) {
@@ -303,6 +320,7 @@ func TestSetAdmin(t *testing.T) {
 	c.Invoke(t, stackitem.Null{}, "addRoot", "com")
 
 	cOwner.Invoke(t, true, "register", "neo.com", owner.ScriptHash())
+	expectedExpiration := e.TopBlock(t).Timestamp + millisecondsInYear
 	cGuest.InvokeFail(t, "not witnessed", "setAdmin", "neo.com", admin.ScriptHash())
 
 	// Must be witnessed by both owner and admin.
@@ -310,6 +328,11 @@ func TestSetAdmin(t *testing.T) {
 	cAdmin.InvokeFail(t, "not witnessed by owner", "setAdmin", "neo.com", admin.ScriptHash())
 	cc := c.WithSigners(owner, admin)
 	cc.Invoke(t, stackitem.Null{}, "setAdmin", "neo.com", admin.ScriptHash())
+	props := stackitem.NewMap()
+	props.Add(stackitem.Make("name"), stackitem.Make("neo.com"))
+	props.Add(stackitem.Make("expiration"), stackitem.Make(expectedExpiration))
+	props.Add(stackitem.Make("admin"), stackitem.Make(admin.ScriptHash().BytesBE()))
+	c.Invoke(t, props, "properties", "neo.com")
 
 	t.Run("set and delete by admin", func(t *testing.T) {
 		cAdmin.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.TXT), "sometext")
@@ -420,6 +443,8 @@ func TestResolve(t *testing.T) {
 	c.Invoke(t, "1.2.3.4", "resolve", "neo.com", int64(nns.A))
 	c.Invoke(t, "alias.com", "resolve", "neo.com", int64(nns.CNAME))
 	c.Invoke(t, "sometxt", "resolve", "neo.com", int64(nns.TXT))
+	c.Invoke(t, "sometxt", "resolve", "neo.com.", int64(nns.TXT))
+	c.InvokeFail(t, "invalid domain name format", "resolve", "neo.com..", int64(nns.TXT))
 	c.Invoke(t, stackitem.Null{}, "resolve", "neo.com", int64(nns.AAAA))
 }
 
