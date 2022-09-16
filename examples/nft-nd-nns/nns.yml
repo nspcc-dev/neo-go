@@ -15,6 +15,14 @@ events:
         type: Integer
       - name: tokenId
         type: ByteArray
+  - name: SetAdmin
+    parameters:
+      - name: name
+        type: String
+      - name: oldAdmin
+        type: Hash160
+      - name: newAdmin
+        type: Hash160
 permissions:
   - hash: fffdc93764dbaddd97c48f252a53ea4643faa3fd
     methods: ["update"]

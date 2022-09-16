@@ -462,8 +462,10 @@ func SetAdmin(name string, admin interop.Hash160) {
 	if !runtime.CheckWitness(ns.Owner) {
 		panic("not witnessed by owner")
 	}
+	oldAdm := ns.Admin
 	ns.Admin = admin
 	putNameState(ctx, ns)
+	runtime.Notify("SetAdmin", name, oldAdm, admin)
 }
 
 // SetRecord updates record of the specified type and ID.

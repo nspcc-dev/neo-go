@@ -9,6 +9,7 @@ import (
 	nns "github.com/nspcc-dev/neo-go/examples/nft-nd-nns"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -369,7 +370,17 @@ func TestSetAdmin(t *testing.T) {
 	cOwner.InvokeFail(t, "not witnessed by admin", "setAdmin", "neo.com", admin.ScriptHash())
 	cAdmin.InvokeFail(t, "not witnessed by owner", "setAdmin", "neo.com", admin.ScriptHash())
 	cc := c.WithSigners(owner, admin)
-	cc.Invoke(t, stackitem.Null{}, "setAdmin", "neo.com", admin.ScriptHash())
+	h := cc.Invoke(t, stackitem.Null{}, "setAdmin", "neo.com", admin.ScriptHash())
+	cc.CheckTxNotificationEvent(t, h, 0, state.NotificationEvent{
+		ScriptHash: cc.Hash,
+		Name:       "SetAdmin",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray([]byte("neo.com")),
+			stackitem.Null{},
+			stackitem.NewByteArray(admin.ScriptHash().BytesBE()),
+		}),
+	})
+
 	props := stackitem.NewMap()
 	props.Add(stackitem.Make("name"), stackitem.Make("neo.com"))
 	props.Add(stackitem.Make("expiration"), stackitem.Make(expectedExpiration))
@@ -384,7 +395,16 @@ func TestSetAdmin(t *testing.T) {
 
 	t.Run("set admin to null", func(t *testing.T) {
 		cAdmin.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.TXT), "sometext")
-		cOwner.Invoke(t, stackitem.Null{}, "setAdmin", "neo.com", nil)
+		h = cOwner.Invoke(t, stackitem.Null{}, "setAdmin", "neo.com", nil)
+		cc.CheckTxNotificationEvent(t, h, 0, state.NotificationEvent{
+			ScriptHash: cc.Hash,
+			Name:       "SetAdmin",
+			Item: stackitem.NewArray([]stackitem.Item{
+				stackitem.NewByteArray([]byte("neo.com")),
+				stackitem.NewByteArray(admin.ScriptHash().BytesBE()),
+				stackitem.Null{},
+			}),
+		})
 		cAdmin.InvokeFail(t, "not witnessed by admin", "deleteRecords", "neo.com", int64(nns.TXT))
 	})
 }
