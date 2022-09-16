@@ -21,7 +21,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const neoAmount = 99999000
+const (
+	neoAmount          = 99999000
+	millisecondsInYear = 365 * 24 * 3600 * 1000
+)
 
 // Init pushes some predefined set  of transactions into the given chain, it needs a path to
 // the root project directory.
@@ -158,17 +161,19 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	_, _, nsHash := deployContractFromPriv0(t, nsPath, nsPath, nsConfigPath, 4) // block #11
 	nsCommitteeInvoker := e.CommitteeInvoker(nsHash)
 	nsPriv0Invoker := e.NewInvoker(nsHash, acc0)
+	nsPriv0CommitteeInvoker := e.NewInvoker(nsHash, acc0, e.Committee)
 
 	// Block #12: transfer funds to committee for further NS record registration.
 	gasValidatorInvoker.Invoke(t, true, "transfer",
 		e.Validator.ScriptHash(), e.Committee.ScriptHash(), 1000_00000000, nil) // block #12
 
 	// Block #13: add `.com` root to NNS.
-	nsCommitteeInvoker.Invoke(t, stackitem.Null{}, "addRoot", "com") // block #13
+	mail, refresh, retry, expire, ttl := "sami@nspcc.ru", int64(101), int64(102), int64(millisecondsInYear/1000*100), int64(104)
+	nsCommitteeInvoker.Invoke(t, true, "register", "com", nsCommitteeInvoker.CommitteeHash, mail, refresh, retry, expire, ttl) // block #13
 
 	// Block #14: register `neo.com` via NNS.
-	registerTxH := nsPriv0Invoker.Invoke(t, true, "register",
-		"neo.com", priv0ScriptHash) // block #14
+	registerTxH := nsPriv0CommitteeInvoker.Invoke(t, true, "register",
+		"neo.com", priv0ScriptHash, mail, refresh, retry, expire, ttl) // block #14
 	res := e.GetTxExecResult(t, registerTxH)
 	require.Equal(t, 1, len(res.Events)) // transfer
 	tokenID, err := res.Events[0].Item.Value().([]stackitem.Item)[3].TryBytes()
@@ -176,7 +181,7 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	t.Logf("NNS token #1 ID (hex): %s", hex.EncodeToString(tokenID))
 
 	// Block #15: set A record type with priv0 owner via NNS.
-	nsPriv0Invoker.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4") // block #15
+	nsPriv0Invoker.Invoke(t, stackitem.Null{}, "addRecord", "neo.com", int64(nns.A), "1.2.3.4") // block #15
 
 	// Block #16: invoke `test_contract.go`: put new value with the same key to check `getstate` RPC call
 	txPutNewValue := rublPriv0Invoker.PrepareInvoke(t, "putValue", "testkey", "newtestvalue") // tx1
