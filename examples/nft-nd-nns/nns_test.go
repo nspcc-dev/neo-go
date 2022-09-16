@@ -210,8 +210,18 @@ func TestRegisterAndRenew(t *testing.T) {
 	})
 
 	// Renew
+	oldExpiration := expectedExpiration
 	expectedExpiration += millisecondsInYear
-	c.Invoke(t, expectedExpiration, "renew", "neo-go.com")
+	h := c.Invoke(t, expectedExpiration, "renew", "neo-go.com")
+	c.CheckTxNotificationEvent(t, h, 0, state.NotificationEvent{
+		ScriptHash: c.Hash,
+		Name:       "Renew",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray([]byte("neo-go.com")),
+			stackitem.Make(oldExpiration),
+			stackitem.Make(expectedExpiration),
+		}),
+	})
 
 	props.Add(stackitem.Make("expiration"), stackitem.Make(expectedExpiration))
 	c.Invoke(t, props, "properties", "neo-go.com")
@@ -222,8 +232,19 @@ func TestRegisterAndRenew(t *testing.T) {
 	c.InvokeFail(t, "10 years of expiration period at max is allowed", "renew", "neo-go.com", 10)
 
 	// Non-default renewal period.
+	oldExpiration = expectedExpiration
 	mult := 2
-	c.Invoke(t, expectedExpiration+uint64(mult*millisecondsInYear), "renew", "neo-go.com", mult)
+	expectedExpiration += uint64(mult * millisecondsInYear)
+	h = c.Invoke(t, expectedExpiration, "renew", "neo-go.com", mult)
+	c.CheckTxNotificationEvent(t, h, 0, state.NotificationEvent{
+		ScriptHash: c.Hash,
+		Name:       "Renew",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray([]byte("neo-go.com")),
+			stackitem.Make(oldExpiration),
+			stackitem.Make(expectedExpiration),
+		}),
+	})
 }
 
 func TestSetAddGetRecord(t *testing.T) {
