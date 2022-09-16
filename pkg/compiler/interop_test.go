@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -517,5 +518,33 @@ func TestCallTConversionErrors(t *testing.T) {
 		}`
 		_, err := compiler.Compile("foo.go", strings.NewReader(src))
 		require.Error(t, err)
+	})
+}
+
+func TestCallWithVersion(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	src := `package foo
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop"
+			"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+			util "github.com/nspcc-dev/neo-go/pkg/interop/lib/contract"
+		)
+		func CallWithVersion(hash interop.Hash160, version int, method string) interface{} {
+			return util.CallWithVersion(hash, version, method, contract.All)
+		}`
+	ctr := neotest.CompileSource(t, e.CommitteeHash, strings.NewReader(src), &compiler.Options{Name: "Helper"})
+	e.DeployContract(t, ctr, nil)
+	c := e.CommitteeInvoker(ctr.Hash)
+
+	policyH := state.CreateNativeContractHash(nativenames.Policy)
+	t.Run("good", func(t *testing.T) {
+		c.Invoke(t, e.Chain.GetBaseExecFee(), "callWithVersion", policyH.BytesBE(), 0, "getExecFeeFactor")
+	})
+	t.Run("unknown contract", func(t *testing.T) {
+		c.InvokeFail(t, "unknown contract", "callWithVersion", util.Uint160{1, 2, 3}.BytesBE(), 0, "getExecFeeFactor")
+	})
+	t.Run("invalid version", func(t *testing.T) {
+		c.InvokeFail(t, "contract version mismatch", "callWithVersion", policyH.BytesBE(), 1, "getExecFeeFactor")
 	})
 }
