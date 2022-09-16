@@ -2,7 +2,7 @@ name: "NameService"
 sourceurl: https://github.com/nspcc-dev/neo-go/
 supportedstandards: ["NEP-11"]
 safemethods: ["balanceOf", "decimals", "symbol", "totalSupply", "tokensOf", "ownerOf",
-              "tokens", "properties", "roots", "getPrice", "isAvailable", "getRecord",
+              "tokens", "properties", "roots", "getPrice", "isAvailable", "getRecords",
               "resolve", "getAllRecords"]
 events:
   - name: Transfer
@@ -15,7 +15,25 @@ events:
         type: Integer
       - name: tokenId
         type: ByteArray
+  - name: SetAdmin
+    parameters:
+      - name: name
+        type: String
+      - name: oldAdmin
+        type: Hash160
+      - name: newAdmin
+        type: Hash160
+  - name: Renew
+    parameters:
+      - name: name
+        type: String
+      - name: oldExpiration
+        type: Integer
+      - name: newExpiration
+        type: Integer
 permissions:
   - hash: fffdc93764dbaddd97c48f252a53ea4643faa3fd
     methods: ["update"]
   - methods: ["onNEP11Payment"]
+overloads:
+  renewDefault: renew
