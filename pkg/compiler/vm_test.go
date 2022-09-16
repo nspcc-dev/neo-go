@@ -56,6 +56,14 @@ func eval(t *testing.T, src string, result interface{}, expectedOps ...interface
 	return script
 }
 
+func evalWithError(t *testing.T, src string, e string) []byte {
+	vm, _, prog := vmAndCompileInterop(t, src)
+	err := vm.Run()
+	require.Error(t, err)
+	require.True(t, strings.Contains(err.Error(), e), err)
+	return prog
+}
+
 func runAndCheck(t *testing.T, v *vm.VM, result interface{}) {
 	err := v.Run()
 	require.NoError(t, err)
