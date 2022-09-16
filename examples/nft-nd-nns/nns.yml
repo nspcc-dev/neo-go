@@ -19,3 +19,5 @@ permissions:
   - hash: fffdc93764dbaddd97c48f252a53ea4643faa3fd
     methods: ["update"]
   - methods: ["onNEP11Payment"]
+overloads:
+  renewDefault: renew

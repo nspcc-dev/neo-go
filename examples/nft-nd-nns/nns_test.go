@@ -158,7 +158,7 @@ func TestExpiration(t *testing.T) {
 func TestRegisterAndRenew(t *testing.T) {
 	c := newNSClient(t, false)
 	e := c.Executor
-	mail, refresh, retry, expire, ttl := "sami@nspcc.ru", int64(101), int64(102), int64(millisecondsInYear/1000*100), int64(104)
+	mail, refresh, retry, expire, ttl := "sami@nspcc.ru", int64(101), int64(102), int64(millisecondsInYear/1000*2), int64(104)
 
 	c.InvokeFail(t, "TLD not found", "isAvailable", "neo-go.com")
 	c.Invoke(t, true, "register", "org", c.CommitteeHash, mail, refresh, retry, expire, ttl)
@@ -214,6 +214,15 @@ func TestRegisterAndRenew(t *testing.T) {
 
 	props.Add(stackitem.Make("expiration"), stackitem.Make(expectedExpiration))
 	c.Invoke(t, props, "properties", "neo-go.com")
+
+	// Invalid renewal period.
+	c.InvokeFail(t, "invalid renewal period value", "renew", "neo-go.com", 11)
+	// Too large expiration period.
+	c.InvokeFail(t, "10 years of expiration period at max is allowed", "renew", "neo-go.com", 10)
+
+	// Non-default renewal period.
+	mult := 2
+	c.Invoke(t, expectedExpiration+uint64(mult*millisecondsInYear), "renew", "neo-go.com", mult)
 }
 
 func TestSetAddGetRecord(t *testing.T) {
