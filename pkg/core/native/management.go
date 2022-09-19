@@ -228,17 +228,22 @@ func GetContract(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
 
 // GetContractByID returns a contract with the given ID from the given DAO.
 func GetContractByID(d *dao.Simple, id int32) (*state.Contract, error) {
-	key := make([]byte, 5)
-	key = putHashKey(key, id)
-	si := d.GetStorageItem(ManagementContractID, key)
-	if si == nil {
-		return nil, storage.ErrKeyNotFound
-	}
-	hash, err := util.Uint160DecodeBytesBE(si)
+	hash, err := GetContractScriptHash(d, id)
 	if err != nil {
 		return nil, err
 	}
 	return GetContract(d, hash)
+}
+
+// GetContractScriptHash returns a contract hash associated with the given ID from the given DAO.
+func GetContractScriptHash(d *dao.Simple, id int32) (util.Uint160, error) {
+	key := make([]byte, 5)
+	key = putHashKey(key, id)
+	si := d.GetStorageItem(ManagementContractID, key)
+	if si == nil {
+		return util.Uint160{}, storage.ErrKeyNotFound
+	}
+	return util.Uint160DecodeBytesBE(si)
 }
 
 func getLimitedSlice(arg stackitem.Item, max int) ([]byte, error) {
@@ -492,7 +497,6 @@ func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 	d.DeleteStorageItem(m.ID, key)
 	key = putHashKey(key, contract.ID)
 	d.DeleteStorageItem(ManagementContractID, key)
-	d.DeleteContractID(contract.ID)
 
 	d.Seek(contract.ID, storage.SeekRange{}, func(k, _ []byte) bool {
 		d.DeleteStorageItem(contract.ID, k)
@@ -686,7 +690,6 @@ func putContractState(d *dao.Simple, cs *state.Contract, updateCache bool) error
 	}
 	key = putHashKey(key, cs.ID)
 	d.PutStorageItem(ManagementContractID, key, cs.Hash.BytesBE())
-	d.PutContractID(cs.ID, cs.Hash)
 	return nil
 }
 
