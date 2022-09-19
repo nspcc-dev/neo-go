@@ -62,6 +62,12 @@ func TestStdLibItoaAtoi(t *testing.T) {
 					actual = s.atoi10(ic, []stackitem.Item{stackitem.Make(tc.result)})
 				})
 				require.Equal(t, stackitem.Make(tc.num), actual)
+				if tc.result[0] != '-' {
+					require.NotPanics(t, func() {
+						actual = s.atoi10(ic, []stackitem.Item{stackitem.Make("+" + tc.result)})
+					})
+					require.Equal(t, stackitem.Make(tc.num), actual)
+				}
 			}
 		}
 
@@ -102,6 +108,8 @@ func TestStdLibItoaAtoi(t *testing.T) {
 			{"1", big.NewInt(13), ErrInvalidBase},
 			{"1", new(big.Int).Add(big.NewInt(math.MaxInt64), big.NewInt(16)), ErrInvalidBase},
 			{"1_000", big.NewInt(10), ErrInvalidFormat},
+			{" 1", big.NewInt(10), ErrInvalidFormat},
+			{"1 ", big.NewInt(10), ErrInvalidFormat},
 			{"FE", big.NewInt(10), ErrInvalidFormat},
 			{"XD", big.NewInt(16), ErrInvalidFormat},
 			{strings.Repeat("0", stdMaxInputLength+1), big.NewInt(10), ErrTooBigInput},
