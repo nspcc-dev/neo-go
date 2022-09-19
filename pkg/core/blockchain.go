@@ -1774,7 +1774,7 @@ func (bc *Blockchain) processTokenTransfer(cache *dao.Simple, transCache map[uti
 	if nativeContract != nil {
 		id = nativeContract.Metadata().ID
 	} else {
-		assetContract, err := bc.contracts.Management.GetContract(cache, sc)
+		assetContract, err := native.GetContract(cache, sc)
 		if err != nil {
 			return
 		}
@@ -2112,7 +2112,7 @@ func (bc *Blockchain) BlockHeight() uint32 {
 
 // GetContractState returns contract by its script hash.
 func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
-	contract, err := bc.contracts.Management.GetContract(bc.dao, hash)
+	contract, err := native.GetContract(bc.dao, hash)
 	if contract == nil && !errors.Is(err, storage.ErrKeyNotFound) {
 		bc.log.Warn("failed to get contract state", zap.Error(err))
 	}
@@ -2823,7 +2823,7 @@ func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, blo
 		// changes that were not yet persisted to Blockchain's dao.
 		baseStorageFee = bc.contracts.Policy.GetStoragePriceInternal(d)
 	}
-	ic := interop.NewContext(trigger, bc, d, baseExecFee, baseStorageFee, bc.contracts.Management.GetContract, bc.contracts.Contracts, contract.LoadToken, block, tx, bc.log)
+	ic := interop.NewContext(trigger, bc, d, baseExecFee, baseStorageFee, native.GetContract, bc.contracts.Contracts, contract.LoadToken, block, tx, bc.log)
 	ic.Functions = systemInterops
 	switch {
 	case tx != nil:

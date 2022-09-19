@@ -1,6 +1,8 @@
 package native
 
 import (
+	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
+	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -44,7 +47,8 @@ const (
 	ManagementContractID = -1
 
 	// PrefixContract is a prefix used to store contract states inside Management native contract.
-	PrefixContract = 8
+	PrefixContract     = 8
+	prefixContractHash = 12
 
 	defaultMinimumDeploymentFee     = 10_00000000
 	contractDeployNotificationName  = "Deploy"
@@ -149,6 +153,15 @@ func newManagement() *Management {
 	md = newMethodAndPrice(m.hasMethod, 1<<15, callflag.ReadStates)
 	m.AddMethod(md, desc)
 
+	desc = newDescriptor("getContractById", smartcontract.ArrayType,
+		manifest.NewParameter("id", smartcontract.IntegerType))
+	md = newMethodAndPrice(m.getContractByID, 1<<15, callflag.ReadStates)
+	m.AddMethod(md, desc)
+
+	desc = newDescriptor("getContractHashes", smartcontract.InteropInterfaceType)
+	md = newMethodAndPrice(m.getContractHashes, 1<<15, callflag.ReadStates)
+	m.AddMethod(md, desc)
+
 	hashParam := manifest.NewParameter("Hash", smartcontract.Hash160Type)
 	m.AddEvent(contractDeployNotificationName, hashParam)
 	m.AddEvent(contractUpdateNotificationName, hashParam)
@@ -172,7 +185,28 @@ func toHash160(si stackitem.Item) util.Uint160 {
 // VM protections, so it's OK for it to panic instead of returning errors.
 func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	hash := toHash160(args[0])
-	ctr, err := m.GetContract(ic.DAO, hash)
+	ctr, err := GetContract(ic.DAO, hash)
+	if err != nil {
+		if errors.Is(err, storage.ErrKeyNotFound) {
+			return stackitem.Null{}
+		}
+		panic(err)
+	}
+	return contractToStack(ctr)
+}
+
+// getContractByID is an implementation of public getContractById method, it's run under
+// VM protections, so it's OK for it to panic instead of returning errors.
+func (m *Management) getContractByID(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	idBig, err := args[0].TryInteger()
+	if err != nil {
+		panic(err)
+	}
+	id := idBig.Int64()
+	if !idBig.IsInt64() || id < math.MinInt32 || id > math.MaxInt32 {
+		panic("id is not a correct int32")
+	}
+	ctr, err := GetContractByID(ic.DAO, int32(id))
 	if err != nil {
 		if errors.Is(err, storage.ErrKeyNotFound) {
 			return stackitem.Null{}
@@ -183,13 +217,28 @@ func (m *Management) getContract(ic *interop.Context, args []stackitem.Item) sta
 }
 
 // GetContract returns a contract with the given hash from the given DAO.
-func (m *Management) GetContract(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
-	cache := d.GetROCache(m.ID).(*ManagementCache)
+func GetContract(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
+	cache := d.GetROCache(ManagementContractID).(*ManagementCache)
 	cs, ok := cache.contracts[hash]
 	if !ok {
 		return nil, storage.ErrKeyNotFound
 	}
 	return cs, nil
+}
+
+// GetContractByID returns a contract with the given ID from the given DAO.
+func GetContractByID(d *dao.Simple, id int32) (*state.Contract, error) {
+	key := make([]byte, 5)
+	key = putHashKey(key, id)
+	si := d.GetStorageItem(ManagementContractID, key)
+	if si == nil {
+		return nil, storage.ErrKeyNotFound
+	}
+	hash, err := util.Uint160DecodeBytesBE(si)
+	if err != nil {
+		return nil, err
+	}
+	return GetContract(d, hash)
 }
 
 func getLimitedSlice(arg stackitem.Item, max int) ([]byte, error) {
@@ -209,6 +258,29 @@ func getLimitedSlice(arg stackitem.Item, max int) ([]byte, error) {
 	}
 
 	return b, nil
+}
+
+func (m *Management) getContractHashes(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	ctx, cancel := context.WithCancel(context.Background())
+	prefix := []byte{prefixContractHash}
+	seekres := ic.DAO.SeekAsync(ctx, ManagementContractID, storage.SeekRange{Prefix: prefix})
+	filteredRes := make(chan storage.KeyValue)
+	go func() {
+		for kv := range seekres {
+			if len(kv.Key) == 4 && binary.BigEndian.Uint32(kv.Key) < math.MaxInt32 {
+				filteredRes <- kv
+			}
+		}
+		close(filteredRes)
+	}()
+	opts := istorage.FindRemovePrefix
+	item := istorage.NewIterator(filteredRes, prefix, int64(opts))
+	ic.RegisterCancelFunc(func() {
+		cancel()
+		for range seekres {
+		}
+	})
+	return stackitem.NewInterop(item)
 }
 
 // getNefAndManifestFromItems converts input arguments into NEF and manifest
@@ -303,7 +375,7 @@ func (m *Management) Deploy(d *dao.Simple, sender util.Uint160, neff *nef.File, 
 	if m.Policy.IsBlocked(d, h) {
 		return nil, fmt.Errorf("the contract %s has been blocked", h.StringLE())
 	}
-	_, err := m.GetContract(d, h)
+	_, err := GetContract(d, h)
 	if err == nil {
 		return nil, errors.New("contract already exists")
 	}
@@ -362,7 +434,7 @@ func (m *Management) updateWithData(ic *interop.Context, args []stackitem.Item) 
 func (m *Management) Update(d *dao.Simple, hash util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	var contract state.Contract
 
-	oldcontract, err := m.GetContract(d, hash)
+	oldcontract, err := GetContract(d, hash)
 	if err != nil {
 		return nil, errors.New("contract doesn't exist")
 	}
@@ -412,12 +484,14 @@ func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackite
 
 // Destroy drops the given contract from DAO along with its storage. It doesn't emit notification.
 func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
-	contract, err := m.GetContract(d, hash)
+	contract, err := GetContract(d, hash)
 	if err != nil {
 		return err
 	}
 	key := MakeContractKey(hash)
 	d.DeleteStorageItem(m.ID, key)
+	key = putHashKey(key, contract.ID)
+	d.DeleteStorageItem(ManagementContractID, key)
 	d.DeleteContractID(contract.ID)
 
 	d.Seek(contract.ID, storage.SeekRange{}, func(k, _ []byte) bool {
@@ -476,7 +550,7 @@ func (m *Management) hasMethod(ic *interop.Context, args []stackitem.Item) stack
 		panic(err)
 	}
 	pcount := int(toInt64((args[2])))
-	cs, err := m.GetContract(ic.DAO, cHash)
+	cs, err := GetContract(ic.DAO, cHash)
 	if err != nil {
 		return stackitem.NewBool(false)
 	}
@@ -610,8 +684,16 @@ func putContractState(d *dao.Simple, cs *state.Contract, updateCache bool) error
 	if cs.UpdateCounter != 0 { // Update.
 		return nil
 	}
+	key = putHashKey(key, cs.ID)
+	d.PutStorageItem(ManagementContractID, key, cs.Hash.BytesBE())
 	d.PutContractID(cs.ID, cs.Hash)
 	return nil
+}
+
+func putHashKey(buf []byte, id int32) []byte {
+	buf[0] = prefixContractHash
+	binary.BigEndian.PutUint32(buf[1:], uint32(id))
+	return buf[:5]
 }
 
 func (m *Management) getNextContractID(d *dao.Simple) (int32, error) {
