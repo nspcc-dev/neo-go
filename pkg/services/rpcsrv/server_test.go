@@ -2069,6 +2069,15 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		}
 		t.Run("ByHeight", func(t *testing.T) { testRoot(t, strconv.FormatInt(5, 10)) })
 		t.Run("ByHash", func(t *testing.T) { testRoot(t, `"`+chain.GetHeaderHash(5).StringLE()+`"`) })
+		t.Run("20", func(t *testing.T) {
+			rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getstateroot", "params": [20]}`
+			body := doRPCCall(rpc, httpSrv.URL, t)
+			rawRes := checkErrGetResult(t, body, false)
+
+			res := &state.MPTRoot{}
+			require.NoError(t, json.Unmarshal(rawRes, res))
+			require.Equal(t, block20StateRootLE, res.Root.StringLE())
+		})
 	})
 	t.Run("getstate", func(t *testing.T) {
 		testGetState := func(t *testing.T, p string, expected string) {
