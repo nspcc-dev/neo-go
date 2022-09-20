@@ -3,7 +3,6 @@ package compiler_test
 import (
 	"fmt"
 	"math/big"
-	"os"
 	"strings"
 	"testing"
 
@@ -18,7 +17,6 @@ func checkCallCount(t *testing.T, src string, expectedCall, expectedInitSlot, ex
 
 func checkInstrCount(t *testing.T, src string, expectedSSlotCount, expectedCall, expectedInitSlot, expectedLocalsMain int) {
 	v, sp, _ := vmAndCompileInterop(t, src)
-	v.PrintOps(os.Stdout)
 	mainStart := -1
 	for _, m := range sp.info.Methods {
 		if m.Name.Name == "main" {

@@ -28,6 +28,26 @@ var (
 	customBuiltins = []string{
 		"FromAddress",
 	}
+	// Custom builtin utility functions that contain some meaningful code inside and
+	// require code generation using standard rules, but sometimes (depending on
+	// the expression usage condition) may be optimized at compile time.
+	potentialCustomBuiltins = map[string]func(f ast.Expr) bool{
+		"ToHash160": func(f ast.Expr) bool {
+			c, ok := f.(*ast.CallExpr)
+			if !ok {
+				return false
+			}
+			if len(c.Args) != 1 {
+				return false
+			}
+			switch c.Args[0].(type) {
+			case *ast.BasicLit:
+				return true
+			default:
+				return false
+			}
+		},
+	}
 )
 
 // newGlobal creates a new global variable.
@@ -634,6 +654,18 @@ func isCustomBuiltin(f *funcScope) bool {
 	return false
 }
 
+func isPotentialCustomBuiltin(f *funcScope, expr ast.Expr) bool {
+	if !isInteropPath(f.pkg.Path()) {
+		return false
+	}
+	for name, isBuiltin := range potentialCustomBuiltins {
+		if f.name == name && isBuiltin(expr) {
+			return true
+		}
+	}
+	return false
+}
+
 func isSyscall(fun *funcScope) bool {
 	if fun.selector == nil || fun.pkg == nil || !isInteropPath(fun.pkg.Path()) {
 		return false
@@ -664,9 +696,10 @@ func canConvert(s string) bool {
 }
 
 // canInline returns true if the function is to be inlined.
-// Currently, there is a static list of functions which are inlined,
-// this may change in future.
-func canInline(s string, name string) bool {
+// The list of functions that can be inlined is not static, it depends on the function usages.
+// isBuiltin denotes whether code generation for dynamic builtin function will be performed
+// manually.
+func canInline(s string, name string, isBuiltin bool) bool {
 	if strings.HasPrefix(s, "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline") {
 		return true
 	}
@@ -674,5 +707,6 @@ func canInline(s string, name string) bool {
 		return false
 	}
 	return !strings.HasPrefix(s[len(interopPrefix):], "/neogointernal") &&
-		!(strings.HasPrefix(s[len(interopPrefix):], "/util") && name == "FromAddress")
+		!(strings.HasPrefix(s[len(interopPrefix):], "/util") && name == "FromAddress") &&
+		!(strings.HasPrefix(s[len(interopPrefix):], "/lib/address") && name == "ToHash160" && isBuiltin)
 }

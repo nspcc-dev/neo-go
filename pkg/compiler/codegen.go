@@ -456,6 +456,8 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 		f, ok = c.funcs[c.getFuncNameFromDecl("", decl)]
 		if ok {
 			// If this function is a syscall or builtin we will not convert it to bytecode.
+			// If it's a potential custom builtin then it needs more specific usages research,
+			// thus let's emit the code for it.
 			if isSyscall(f) || isCustomBuiltin(f) {
 				return f
 			}
@@ -947,7 +949,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			if fun.Obj != nil && fun.Obj.Kind == ast.Var {
 				isFunc = true
 			}
-			if ok && canInline(f.pkg.Path(), f.decl.Name.Name) {
+			if ok && canInline(f.pkg.Path(), f.decl.Name.Name, false) {
 				c.inlineCall(f, n)
 				return nil
 			}
@@ -957,8 +959,8 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			f, ok = c.funcs[name]
 			if ok {
 				f.selector = fun.X
-				isBuiltin = isCustomBuiltin(f)
-				if canInline(f.pkg.Path(), f.decl.Name.Name) {
+				isBuiltin = isCustomBuiltin(f) || isPotentialCustomBuiltin(f, n)
+				if canInline(f.pkg.Path(), f.decl.Name.Name, isBuiltin) {
 					c.inlineCall(f, n)
 					return nil
 				}
@@ -993,7 +995,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 		c.saveSequencePoint(n)
 
-		args := transformArgs(f, n.Fun, n.Args)
+		args := transformArgs(f, n.Fun, isBuiltin, n.Args)
 
 		// Handle the arguments
 		for _, arg := range args {
@@ -1870,8 +1872,8 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
 	case "delete":
 		emit.Opcodes(c.prog.BinWriter, opcode.REMOVE)
-	case "FromAddress":
-		// We can be sure that this is a ast.BasicLit just containing a simple
+	case "FromAddress", "ToHash160":
+		// We can be sure that this is an ast.BasicLit just containing a simple
 		// address string. Note that the string returned from calling Value will
 		// contain double quotes that need to be stripped.
 		addressStr := expr.Args[0].(*ast.BasicLit).Value
@@ -1890,14 +1892,15 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 // transformArgs returns a list of function arguments
 // which should be put on stack.
 // There are special cases for builtins:
-//  1. With FromAddress, parameter conversion is happening at compile-time
-//     so there is no need to push parameters on stack and perform an actual call
+//  1. With FromAddress and with ToHash160 in case if it behaves like builtin,
+//     parameter conversion is happening at compile-time so there is no need to
+//     push parameters on stack and perform an actual call
 //  2. With panic, the generated code depends on the fact if an argument was nil or a string;
 //     so, it should be handled accordingly.
-func transformArgs(fs *funcScope, fun ast.Expr, args []ast.Expr) []ast.Expr {
+func transformArgs(fs *funcScope, fun ast.Expr, isBuiltin bool, args []ast.Expr) []ast.Expr {
 	switch f := fun.(type) {
 	case *ast.SelectorExpr:
-		if f.Sel.Name == "FromAddress" {
+		if f.Sel.Name == "FromAddress" || (isBuiltin && f.Sel.Name == "ToHash160") {
 			return args[1:]
 		}
 		if fs != nil && isSyscall(fs) {
@@ -2178,7 +2181,7 @@ func (c *codegen) compile(info *buildInfo, pkg *packages.Package) error {
 				}
 				name := c.getFuncNameFromDecl(pkgPath, n)
 				if !isInitFunc(n) && !isDeployFunc(n) && funUsage.funcUsed(name) &&
-					(!isInteropPath(pkg.Path()) && !canInline(pkg.Path(), n.Name.Name)) {
+					(!isInteropPath(pkg.Path()) && !canInline(pkg.Path(), n.Name.Name, false)) {
 					c.convertFuncDecl(f, n, pkg)
 				}
 			}
