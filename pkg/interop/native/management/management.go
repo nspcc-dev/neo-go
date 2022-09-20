@@ -7,11 +7,20 @@ package management
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
 	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
 )
 
 // Hash represents Management contract hash.
 const Hash = "\xfd\xa3\xfa\x43\x46\xea\x53\x2a\x25\x8f\xc4\x97\xdd\xad\xdb\x64\x37\xc9\xfd\xff"
+
+// IDHash is an ID/Hash pair returned by the iterator from the GetContractHashes method.
+type IDHash struct {
+	// ID is a 32-bit number, but it's represented in big endian form
+	// natively, because that's the key scheme used by ContractManagement.
+	ID   []byte
+	Hash interop.Hash160
+}
 
 // Deploy represents `deploy` method of Management native contract.
 func Deploy(script, manifest []byte) *Contract {
@@ -33,6 +42,19 @@ func Destroy() {
 // GetContract represents `getContract` method of Management native contract.
 func GetContract(addr interop.Hash160) *Contract {
 	return neogointernal.CallWithToken(Hash, "getContract", int(contract.ReadStates), addr).(*Contract)
+}
+
+// GetContractByID represents `getContractById` method of the Management native contract.
+func GetContractByID(id int) *Contract {
+	return neogointernal.CallWithToken(Hash, "getContractById", int(contract.ReadStates), id).(*Contract)
+}
+
+// GetContractHashes represents `getContractHashes` method of the Management
+// native contract. It returns an Iterator over the list of non-native contract
+// hashes. Each iterator value can be cast to IDHash. Use [iterator] interop
+// package to work with the returned Iterator.
+func GetContractHashes() iterator.Iterator {
+	return neogointernal.CallWithToken(Hash, "getContractHashes", int(contract.ReadStates)).(iterator.Iterator)
 }
 
 // GetMinimumDeploymentFee represents `getMinimumDeploymentFee` method of Management native contract.
