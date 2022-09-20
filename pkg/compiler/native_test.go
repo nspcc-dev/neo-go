@@ -205,6 +205,8 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"deployWithData", []string{"nil", "nil", "123"}},
 		{"destroy", nil},
 		{"getContract", []string{u160}},
+		{"getContractById", []string{"1"}},
+		{"getContractHashes", nil},
 		{"getMinimumDeploymentFee", nil},
 		{"hasMethod", []string{u160, `"method"`, "0"}},
 		{"setMinimumDeploymentFee", []string{"42"}},
@@ -300,6 +302,7 @@ func addNativeTestCase(t *testing.T, srcBuilder *bytes.Buffer, ctr interop.Contr
 	methodUpper := strings.ToUpper(method[:1]) + method[1:] // ASCII only
 	methodUpper = strings.ReplaceAll(methodUpper, "Gas", "GAS")
 	methodUpper = strings.ReplaceAll(methodUpper, "Json", "JSON")
+	methodUpper = strings.ReplaceAll(methodUpper, "Id", "ID")
 	srcBuilder.WriteString(name)
 	srcBuilder.WriteRune('.')
 	srcBuilder.WriteString(methodUpper)
