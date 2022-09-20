@@ -2,4 +2,4 @@ module github.com/nspcc-dev/neo-go/examples/oracle
 
 go 1.17
 
-require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20220809123759-3094d3e0c14b
+require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20220920063704-7e13140b04c2
