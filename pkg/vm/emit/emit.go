@@ -225,7 +225,7 @@ func AppCallNoArgs(w *io.BinWriter, scriptHash util.Uint160, operation string, f
 	Syscall(w, interopnames.SystemContractCall)
 }
 
-// AppCall emits an APPCALL with the default parameters to the given operation and arguments.
+// AppCall emits SYSCALL with System.Contract.Call parameter for given contract, operation, call flag and arguments.
 func AppCall(w *io.BinWriter, scriptHash util.Uint160, operation string, f callflag.CallFlag, args ...interface{}) {
 	Array(w, args...)
 	AppCallNoArgs(w, scriptHash, operation, f)

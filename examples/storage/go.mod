@@ -2,4 +2,4 @@ module github.com/nspcc-dev/neo-go/examples/storage
 
 go 1.17
 
-require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20220920063704-7e13140b04c2
+require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20220921143844-8bcf36a91dde
