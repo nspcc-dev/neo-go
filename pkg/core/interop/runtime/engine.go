@@ -73,8 +73,19 @@ func Notify(ic *interop.Context) error {
 	if len(name) > MaxEventNameLen {
 		return fmt.Errorf("event name must be less than %d", MaxEventNameLen)
 	}
-	if !ic.VM.Context().IsDeployed() {
+	curHash := ic.VM.GetCurrentScriptHash()
+	ctr, err := ic.GetContract(curHash)
+	if err != nil {
 		return errors.New("notifications are not allowed in dynamic scripts")
+	}
+	ev := ctr.Manifest.ABI.GetEvent(name)
+	if ev == nil {
+		ic.Log.Info("bad notification", zap.String("contract", curHash.StringLE()), zap.String("event", name), zap.Error(fmt.Errorf("event %s does not exist", name)))
+	} else {
+		err = ev.CheckCompliance(args)
+		if err != nil {
+			ic.Log.Info("bad notification", zap.String("contract", curHash.StringLE()), zap.String("event", name), zap.Error(err))
+		}
 	}
 
 	// But it has to be serializable, otherwise we either have some broken
@@ -87,7 +98,7 @@ func Notify(ic *interop.Context) error {
 	if len(bytes) > MaxNotificationSize {
 		return fmt.Errorf("notification size shouldn't exceed %d", MaxNotificationSize)
 	}
-	ic.AddNotification(ic.VM.GetCurrentScriptHash(), name, stackitem.DeepCopy(stackitem.NewArray(args), true).(*stackitem.Array))
+	ic.AddNotification(curHash, name, stackitem.DeepCopy(stackitem.NewArray(args), true).(*stackitem.Array))
 	return nil
 }
 

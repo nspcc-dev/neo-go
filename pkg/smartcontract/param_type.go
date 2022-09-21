@@ -170,6 +170,52 @@ func (pt ParamType) EncodeDefaultValue(w *io.BinWriter) {
 	}
 }
 
+func checkBytesWithLen(vt stackitem.Type, v stackitem.Item, l int) bool {
+	if vt == stackitem.AnyT {
+		return true
+	}
+	if vt != stackitem.ByteArrayT && vt != stackitem.BufferT {
+		return false
+	}
+	b, _ := v.TryBytes() // Can't fail, we know the type exactly.
+	return len(b) == l
+}
+
+func (pt ParamType) Match(v stackitem.Item) bool {
+	vt := v.Type()
+
+	// Pointer can't be matched at all.
+	if vt == stackitem.PointerT {
+		return false
+	}
+	switch pt {
+	case AnyType:
+		return true
+	case BoolType:
+		return vt == stackitem.BooleanT
+	case IntegerType:
+		return vt == stackitem.IntegerT
+	case ByteArrayType, StringType:
+		return vt == stackitem.ByteArrayT || vt == stackitem.BufferT || vt == stackitem.AnyT
+	case Hash160Type:
+		return checkBytesWithLen(vt, v, 20)
+	case Hash256Type:
+		return checkBytesWithLen(vt, v, 32)
+	case PublicKeyType:
+		return checkBytesWithLen(vt, v, 33)
+	case SignatureType:
+		return checkBytesWithLen(vt, v, 64)
+	case ArrayType:
+		return vt == stackitem.AnyT || vt == stackitem.ArrayT || vt == stackitem.StructT
+	case MapType:
+		return vt == stackitem.AnyT || vt == stackitem.MapT
+	case InteropInterfaceType:
+		return vt == stackitem.AnyT || vt == stackitem.InteropT
+	default:
+		return false
+	}
+}
+
 // ParseParamType is a user-friendly string to ParamType converter, it's
 // case-insensitive and makes the following conversions:
 //

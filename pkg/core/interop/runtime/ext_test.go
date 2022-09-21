@@ -79,7 +79,7 @@ func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Ui
 	ic.VM.GasLimit = -1
 }
 
-func TestBurnGas(t *testing.T) {
+func getDeployedInternal(t *testing.T) (*neotest.Executor, neotest.Signer, *core.Blockchain, *state.Contract) {
 	bc, acc := chain.NewSingle(t)
 	e := neotest.NewExecutor(t, bc, acc, acc)
 	managementInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Management))
@@ -92,6 +92,12 @@ func TestBurnGas(t *testing.T) {
 	tx := managementInvoker.PrepareInvoke(t, "deploy", rawNef, rawManifest)
 	e.AddNewBlock(t, tx)
 	e.CheckHalt(t, tx.Hash())
+
+	return e, acc, bc, cs
+}
+
+func TestBurnGas(t *testing.T) {
+	e, acc, _, cs := getDeployedInternal(t)
 	cInvoker := e.ValidatorInvoker(cs.Hash)
 
 	t.Run("good", func(t *testing.T) {
@@ -538,4 +544,54 @@ func TestGetRandomCompatibility(t *testing.T) {
 
 	require.NoError(t, runtime.GetRandom(ic))
 	require.Equal(t, "247152297361212656635216876565962360375", ic.VM.Estack().Pop().BigInt().String())
+}
+
+func TestNotify(t *testing.T) {
+	caller := random.Uint160()
+	newIC := func(name string, args interface{}) *interop.Context {
+		_, _, bc, cs := getDeployedInternal(t)
+		ic := bc.GetTestVM(trigger.Application, nil, nil)
+		ic.VM.LoadNEFMethod(&cs.NEF, caller, cs.Hash, callflag.NoneFlag, true, 0, -1, nil)
+		ic.VM.Estack().PushVal(args)
+		ic.VM.Estack().PushVal(name)
+		return ic
+	}
+	t.Run("big name", func(t *testing.T) {
+		ic := newIC(string(make([]byte, runtime.MaxEventNameLen+1)), stackitem.NewArray([]stackitem.Item{stackitem.Null{}}))
+		require.Error(t, runtime.Notify(ic))
+	})
+	t.Run("dynamic script", func(t *testing.T) {
+		ic := newIC("some", stackitem.Null{})
+		ic.VM.LoadScriptWithHash([]byte{1}, random.Uint160(), callflag.NoneFlag)
+		ic.VM.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(42)}))
+		ic.VM.Estack().PushVal("event")
+		require.Error(t, runtime.Notify(ic))
+	})
+	t.Run("recursive struct", func(t *testing.T) {
+		arr := stackitem.NewArray([]stackitem.Item{stackitem.Null{}})
+		arr.Append(arr)
+		ic := newIC("event", arr)
+		require.Error(t, runtime.Notify(ic))
+	})
+	t.Run("big notification", func(t *testing.T) {
+		bs := stackitem.NewByteArray(make([]byte, runtime.MaxNotificationSize+1))
+		arr := stackitem.NewArray([]stackitem.Item{bs})
+		ic := newIC("event", arr)
+		require.Error(t, runtime.Notify(ic))
+	})
+	t.Run("good", func(t *testing.T) {
+		arr := stackitem.NewArray([]stackitem.Item{stackitem.Make(42)})
+		ic := newIC("good event", arr)
+		require.NoError(t, runtime.Notify(ic))
+		require.Equal(t, 1, len(ic.Notifications))
+
+		arr.MarkAsReadOnly() // tiny hack for test to be able to compare object references.
+		ev := ic.Notifications[0]
+		require.Equal(t, "good event", ev.Name)
+		require.Equal(t, ic.VM.GetCurrentScriptHash(), ev.ScriptHash)
+		require.Equal(t, arr, ev.Item)
+		// Check deep copy.
+		arr.Value().([]stackitem.Item)[0] = stackitem.Null{}
+		require.NotEqual(t, arr, ev.Item)
+	})
 }
