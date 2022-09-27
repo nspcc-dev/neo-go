@@ -432,3 +432,14 @@ func TestInlineDoubleConditionalReturn(t *testing.T) {
 		})
 	}
 }
+
+func TestInlineAppendStatement(t *testing.T) {
+	src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+
+		func Main() []byte {
+			val := []byte{4, 5, 6}
+			return inline.AppendInsideInline(val)
+		}`
+	eval(t, src, []byte{1, 2, 3, 4, 5, 6})
+}
