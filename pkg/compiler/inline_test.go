@@ -443,3 +443,13 @@ func TestInlineAppendStatement(t *testing.T) {
 		}`
 	eval(t, src, []byte{1, 2, 3, 4, 5, 6})
 }
+
+func TestInlineForeignType(t *testing.T) {
+	src := `package foo
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/inline"
+
+		func Main() int {
+			return inline.ForeignTypeInsideInline()
+		}`
+	eval(t, src, big.NewInt(29))
+}
