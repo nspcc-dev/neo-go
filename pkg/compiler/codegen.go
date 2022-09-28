@@ -161,6 +161,9 @@ const (
 	varArgument
 )
 
+// ErrUnsupportedTypeAssertion is returned when type assertion statement is not supported by the compiler.
+var ErrUnsupportedTypeAssertion = errors.New("type assertion with two return values is not supported")
+
 // newLabel creates a new label to jump to.
 func (c *codegen) newLabel() (l uint16) {
 	li := len(c.l)
@@ -584,6 +587,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		for _, spec := range n.Specs {
 			switch t := spec.(type) {
 			case *ast.ValueSpec:
+				// Filter out type assertion with two return values: var i, ok = v.(int)
+				if len(t.Names) == 2 && len(t.Values) == 1 && n.Tok == token.VAR {
+					err := checkTypeAssertWithOK(t.Values[0])
+					if err != nil {
+						c.prog.Err = err
+						return nil
+					}
+				}
 				multiRet := n.Tok == token.VAR && len(t.Values) != 0 && len(t.Names) != len(t.Values)
 				for _, id := range t.Names {
 					if id.Name != "_" {
@@ -630,6 +641,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.AssignStmt:
+		// Filter out type assertion with two return values: i, ok = v.(int)
+		if len(n.Lhs) == 2 && len(n.Rhs) == 1 && (n.Tok == token.DEFINE || n.Tok == token.ASSIGN) {
+			err := checkTypeAssertWithOK(n.Rhs[0])
+			if err != nil {
+				c.prog.Err = err
+				return nil
+			}
+		}
 		multiRet := len(n.Rhs) != len(n.Lhs)
 		c.saveSequencePoint(n)
 		// Assign operations are grouped https://github.com/golang/go/blob/master/src/go/types/stmt.go#L160
@@ -1344,6 +1363,14 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 	}
 	return c
+}
+
+func checkTypeAssertWithOK(n ast.Node) error {
+	if t, ok := n.(*ast.TypeAssertExpr); ok &&
+		t.Type != nil { // not a type switch
+		return ErrUnsupportedTypeAssertion
+	}
+	return nil
 }
 
 // packVarArgs packs variadic arguments into an array
