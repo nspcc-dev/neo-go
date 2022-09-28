@@ -28,6 +28,9 @@ a dialect of Go rather than a complete port of the language:
  * converting value to interface type doesn't change the underlying type,
    original value will always be used, therefore it never panics and always "succeeds";
    it's up to the programmer whether it's a correct use of a value
+ * type assertion with two return values is not supported; single return value (of the desired type)
+   is supported; type assertion panics if value can't be asserted to the desired type, therefore
+   it's up to the programmer whether assert can be performed successfully.
 
 ## VM API (interop layer)
 Compiler translates interop function calls into NEO VM syscalls or (for custom

@@ -81,14 +81,93 @@ func TestConvert(t *testing.T) {
 }
 
 func TestTypeAssertion(t *testing.T) {
-	src := `package foo
-	func Main() int {
-		a := []byte{1}
-		var u interface{}
-		u = a
-		return u.(int)
-	}`
-	eval(t, src, big.NewInt(1))
+	t.Run("inside return statement", func(t *testing.T) {
+		src := `package foo
+				func Main() int {
+					a := []byte{1}
+					var u interface{}
+					u = a
+					return u.(int)
+				}`
+		eval(t, src, big.NewInt(1))
+	})
+	t.Run("inside general declaration", func(t *testing.T) {
+		src := `package foo
+				func Main() int {
+					a := []byte{1}
+					var u interface{}
+					u = a
+					var ret = u.(int)
+					return ret
+				}`
+		eval(t, src, big.NewInt(1))
+	})
+	t.Run("inside assignment statement", func(t *testing.T) {
+		src := `package foo
+				func Main() int {
+					a := []byte{1}
+					var u interface{}
+					u = a
+					var ret int
+					ret = u.(int)
+					return ret
+				}`
+		eval(t, src, big.NewInt(1))
+	})
+	t.Run("inside definition statement", func(t *testing.T) {
+		src := `package foo
+				func Main() int {
+					a := []byte{1}
+					var u interface{}
+					u = a
+					ret := u.(int)
+					return ret
+				}`
+		eval(t, src, big.NewInt(1))
+	})
+}
+
+func TestTypeAssertionWithOK(t *testing.T) {
+	t.Run("inside general declaration", func(t *testing.T) {
+		src := `package foo
+				func Main() bool {
+					a := 1
+					var u interface{}
+					u = a
+					var _, ok = u.(int)	//	*ast.GenDecl
+					return ok
+				}`
+		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, compiler.ErrUnsupportedTypeAssertion)
+	})
+	t.Run("inside assignment statement", func(t *testing.T) {
+		src := `package foo
+				func Main() bool {
+					a := 1
+					var u interface{}
+					u = a
+					var ok bool
+					_, ok = u.(int)	// *ast.AssignStmt
+					return ok
+				}`
+		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, compiler.ErrUnsupportedTypeAssertion)
+	})
+	t.Run("inside definition statement", func(t *testing.T) {
+		src := `package foo
+				func Main() bool {
+					a := 1
+					var u interface{}
+					u = a
+					_, ok := u.(int)	// *ast.AssignStmt
+					return ok
+				}`
+		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
+		require.Error(t, err)
+		require.ErrorIs(t, err, compiler.ErrUnsupportedTypeAssertion)
+	})
 }
 
 func TestTypeConversion(t *testing.T) {
