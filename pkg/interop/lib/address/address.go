@@ -29,8 +29,6 @@ func FromHash160(hash interop.Hash160) string {
 	if len(hash) != interop.Hash160Len {
 		panic("invalid Hash160 length")
 	}
-	var res = make([]byte, interop.Hash160Len+1)
-	res[0] = byte(runtime.GetAddressVersion())
-	copy(res[1:], hash) // @fixme #2696
+	res := append([]byte{byte(runtime.GetAddressVersion())}, hash...)
 	return std.Base58CheckEncode(res)
 }

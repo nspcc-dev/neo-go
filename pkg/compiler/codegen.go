@@ -1819,7 +1819,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		emit.Opcodes(c.prog.BinWriter, opcode.DROP, opcode.PUSH0)
 	case "append":
 		arg := expr.Args[0]
-		typ := c.typeInfo.Types[arg].Type
+		typ := c.typeOf(arg)
 		ast.Walk(c, arg)
 		emit.Opcodes(c.prog.BinWriter, opcode.DUP, opcode.ISNULL)
 		if isByteSlice(typ) {

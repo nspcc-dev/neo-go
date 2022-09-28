@@ -64,3 +64,12 @@ func NewT() T {
 func (t T) GetN() int {
 	return t.N
 }
+
+func AppendInsideInline(val []byte) []byte {
+	inlinedType := []byte{1, 2, 3}
+	return append(inlinedType, val...)
+}
+
+func ForeignTypeInsideInline() int {
+	return a.GetA()
+}
