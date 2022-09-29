@@ -36,7 +36,8 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	pkg := c.packageCache[f.pkg.Path()]
 	sig := c.typeOf(n.Fun).(*types.Signature)
 
-	c.processStdlibCall(f, n.Args)
+	hasVarArgs := !n.Ellipsis.IsValid()
+	c.processStdlibCall(f, n.Args, !hasVarArgs)
 
 	// When inlined call is used during global initialization
 	// there is no func scope, thus this if.
@@ -68,7 +69,6 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 			scope:     oldScope,
 		})
 	}
-	hasVarArgs := !n.Ellipsis.IsValid()
 	needPack := sig.Variadic() && hasVarArgs
 	for i := range n.Args {
 		c.scope.vars.locals = oldScope
@@ -129,13 +129,13 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	c.pkgInfoInline = c.pkgInfoInline[:len(c.pkgInfoInline)-1]
 }
 
-func (c *codegen) processStdlibCall(f *funcScope, args []ast.Expr) {
+func (c *codegen) processStdlibCall(f *funcScope, args []ast.Expr, hasEllipsis bool) {
 	if f == nil {
 		return
 	}
 
 	if f.pkg.Path() == interopPrefix+"/runtime" && (f.name == "Notify" || f.name == "Log") {
-		c.processNotify(f, args)
+		c.processNotify(f, args, hasEllipsis)
 	}
 
 	if f.pkg.Path() == interopPrefix+"/contract" && f.name == "Call" {
@@ -143,7 +143,7 @@ func (c *codegen) processStdlibCall(f *funcScope, args []ast.Expr) {
 	}
 }
 
-func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
+func (c *codegen) processNotify(f *funcScope, args []ast.Expr, hasEllipsis bool) {
 	if c.scope != nil && c.isVerifyFunc(c.scope.decl) &&
 		c.scope.pkg == c.mainPkg.Types && (c.buildInfo.options == nil || !c.buildInfo.options.NoEventsCheck) {
 		c.prog.Err = fmt.Errorf("runtime.%s is not allowed in `Verify`", f.name)
@@ -154,10 +154,11 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr) {
 		return
 	}
 
-	// Sometimes event name is stored in a var.
+	// Sometimes event name is stored in a var. Or sometimes event args are provided
+	// via ellipses (`slice...`).
 	// Skip in this case.
 	tv := c.typeAndValueOf(args[0])
-	if tv.Value == nil {
+	if tv.Value == nil || hasEllipsis {
 		return
 	}
 
