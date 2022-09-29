@@ -289,8 +289,12 @@ As an example, consider `Transfer` event from `NEP-17` standard:
 By default, compiler performs some sanity checks. Most of the time
 it will report missing events and/or parameter type mismatch.
 It isn't prohibited to use a variable as an event name in code, but it will prevent
-the compiler from analyzing the event. It is better to use either constant or string literal. 
-The check can be disabled with `--no-events` flag.
+the compiler from analyzing the event. It is better to use either constant or string literal.
+It isn't prohibited to use ellipsis expression as an event arguments, but it will also
+prevent the compiler from analyzing the event. It is better to provide arguments directly
+without `...`. The type conversion code will be emitted for checked events, it will cast
+argument types to ones specified in the contract manifest. These checks and conversion can
+be disabled with `--no-events` flag.
 
 ##### Permissions
 Each permission specifies contracts and methods allowed for this permission.

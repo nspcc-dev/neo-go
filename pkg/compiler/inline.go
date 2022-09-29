@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // inlineCall inlines call of n for function represented by f.
@@ -37,7 +38,7 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	sig := c.typeOf(n.Fun).(*types.Signature)
 
 	hasVarArgs := !n.Ellipsis.IsValid()
-	c.processStdlibCall(f, n.Args, !hasVarArgs)
+	eventParams := c.processStdlibCall(f, n.Args, !hasVarArgs)
 
 	// When inlined call is used during global initialization
 	// there is no func scope, thus this if.
@@ -102,6 +103,11 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 		c.scope.vars.locals = oldScope
 		for i := sig.Params().Len() - 1; i < len(n.Args); i++ {
 			ast.Walk(c, n.Args[i])
+			// In case of runtime.Notify, its arguments need to be converted to proper type.
+			// i's initial value is 1 (variadic args start).
+			if eventParams != nil && eventParams[i-1] != nil {
+				c.emitConvert(*eventParams[i-1])
+			}
 		}
 		c.scope.vars.locals = newScope
 		c.packVarArgs(n, sig)
@@ -129,52 +135,91 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	c.pkgInfoInline = c.pkgInfoInline[:len(c.pkgInfoInline)-1]
 }
 
-func (c *codegen) processStdlibCall(f *funcScope, args []ast.Expr, hasEllipsis bool) {
+func (c *codegen) processStdlibCall(f *funcScope, args []ast.Expr, hasEllipsis bool) []*stackitem.Type {
 	if f == nil {
-		return
+		return nil
 	}
 
+	var eventParams []*stackitem.Type
 	if f.pkg.Path() == interopPrefix+"/runtime" && (f.name == "Notify" || f.name == "Log") {
-		c.processNotify(f, args, hasEllipsis)
+		eventParams = c.processNotify(f, args, hasEllipsis)
 	}
 
 	if f.pkg.Path() == interopPrefix+"/contract" && f.name == "Call" {
 		c.processContractCall(f, args)
 	}
+	return eventParams
 }
 
-func (c *codegen) processNotify(f *funcScope, args []ast.Expr, hasEllipsis bool) {
+// processNotify checks whether notification emitting rules are met and returns expected
+// notification signature if found.
+func (c *codegen) processNotify(f *funcScope, args []ast.Expr, hasEllipsis bool) []*stackitem.Type {
 	if c.scope != nil && c.isVerifyFunc(c.scope.decl) &&
 		c.scope.pkg == c.mainPkg.Types && (c.buildInfo.options == nil || !c.buildInfo.options.NoEventsCheck) {
 		c.prog.Err = fmt.Errorf("runtime.%s is not allowed in `Verify`", f.name)
-		return
+		return nil
 	}
 
 	if f.name == "Log" {
-		return
+		return nil
 	}
 
 	// Sometimes event name is stored in a var. Or sometimes event args are provided
 	// via ellipses (`slice...`).
-	// Skip in this case.
+	// Skip in this case.  Also, don't enforce runtime.Notify parameters conversion.
 	tv := c.typeAndValueOf(args[0])
 	if tv.Value == nil || hasEllipsis {
-		return
+		return nil
 	}
 
 	params := make([]string, 0, len(args[1:]))
+	vParams := make([]*stackitem.Type, 0, len(args[1:]))
 	for _, p := range args[1:] {
-		st, _, _ := c.scAndVMTypeFromExpr(p)
+		st, vt, _ := c.scAndVMTypeFromExpr(p)
 		params = append(params, st.String())
+		vParams = append(vParams, &vt)
 	}
 
 	name := constant.StringVal(tv.Value)
 	if len(name) > runtime.MaxEventNameLen {
 		c.prog.Err = fmt.Errorf("event name '%s' should be less than %d",
 			name, runtime.MaxEventNameLen)
-		return
+		return nil
+	}
+	var eventFound bool
+	if c.buildInfo.options != nil && c.buildInfo.options.ContractEvents != nil && !c.buildInfo.options.NoEventsCheck {
+		for _, e := range c.buildInfo.options.ContractEvents {
+			if e.Name == name && len(e.Parameters) == len(vParams) {
+				eventFound = true
+				for i, scParam := range e.Parameters {
+					expectedType := scParam.Type.ConvertToStackitemType()
+					// No need to cast if the desired type is unknown.
+					if expectedType == stackitem.AnyT ||
+						// Do not cast if desired type is Interop, the actual type is likely to be Any, leave the resolving to runtime.Notify.
+						expectedType == stackitem.InteropT ||
+						// No need to cast if actual parameter type matches the desired one.
+						*vParams[i] == expectedType ||
+						// expectedType doesn't contain Buffer anyway, but if actual variable type is Buffer,
+						// then runtime.Notify will convert it to ByteArray automatically, thus no need to emit conversion code.
+						(*vParams[i] == stackitem.BufferT && expectedType == stackitem.ByteArrayT) {
+						vParams[i] = nil
+					} else {
+						// For other cases the conversion code will be emitted using vParams...
+						vParams[i] = &expectedType
+						// ...thus, update emitted notification info in advance.
+						params[i] = scParam.Type.String()
+					}
+				}
+			}
+		}
 	}
 	c.emittedEvents[name] = append(c.emittedEvents[name], params)
+	// Do not enforce perfect expected/actual events match on this step, the final
+	// check wil be performed after compilation if --no-events option is off.
+	if eventFound {
+		return vParams
+	}
+	return nil
 }
 
 func (c *codegen) processContractCall(f *funcScope, args []ast.Expr) {
