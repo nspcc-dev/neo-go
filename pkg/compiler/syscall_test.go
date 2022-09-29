@@ -84,6 +84,7 @@ func TestSyscallExecution(t *testing.T) {
 		"runtime.GetScriptContainer":       {interopnames.SystemRuntimeGetScriptContainer, nil, false},
 		"runtime.GetTime":                  {interopnames.SystemRuntimeGetTime, nil, false},
 		"runtime.GetTrigger":               {interopnames.SystemRuntimeGetTrigger, nil, false},
+		"runtime.LoadScript":               {interopnames.SystemRuntimeLoadScript, []string{b, "0", b}, false},
 		"runtime.Log":                      {interopnames.SystemRuntimeLog, []string{`"msg"`}, true},
 		"runtime.Notify":                   {interopnames.SystemRuntimeNotify, []string{`"ev"`, "1"}, true},
 		"runtime.Platform":                 {interopnames.SystemRuntimePlatform, nil, false},
