@@ -58,6 +58,8 @@ var systemInterops = []interop.Function{
 	{Name: interopnames.SystemRuntimeGetScriptContainer, Func: runtime.GetScriptContainer, Price: 1 << 3},
 	{Name: interopnames.SystemRuntimeGetTime, Func: runtime.GetTime, Price: 1 << 3, RequiredFlags: callflag.ReadStates},
 	{Name: interopnames.SystemRuntimeGetTrigger, Func: runtime.GetTrigger, Price: 1 << 3},
+	{Name: interopnames.SystemRuntimeLoadScript, Func: runtime.LoadScript, Price: 1 << 15, RequiredFlags: callflag.AllowCall,
+		ParamCount: 3},
 	{Name: interopnames.SystemRuntimeLog, Func: runtime.Log, Price: 1 << 15, RequiredFlags: callflag.AllowNotify,
 		ParamCount: 1},
 	{Name: interopnames.SystemRuntimeNotify, Func: runtime.Notify, Price: 1 << 15, RequiredFlags: callflag.AllowNotify,

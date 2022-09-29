@@ -27,6 +27,7 @@ const (
 	SystemRuntimeGetScriptContainer     = "System.Runtime.GetScriptContainer"
 	SystemRuntimeGetTime                = "System.Runtime.GetTime"
 	SystemRuntimeGetTrigger             = "System.Runtime.GetTrigger"
+	SystemRuntimeLoadScript             = "System.Runtime.LoadScript"
 	SystemRuntimeLog                    = "System.Runtime.Log"
 	SystemRuntimeNotify                 = "System.Runtime.Notify"
 	SystemRuntimePlatform               = "System.Runtime.Platform"

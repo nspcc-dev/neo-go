@@ -79,9 +79,13 @@ type contextAux struct {
 }
 
 // ContextUnloadCallback is a callback method used on context unloading from istack.
-type ContextUnloadCallback func(ctx *Context, commit bool) error
+type ContextUnloadCallback func(v *VM, ctx *Context, commit bool) error
 
 var errNoInstParam = errors.New("failed to read instruction parameter")
+
+// ErrMultiRet is returned when caller does not expect multiple return values
+// from callee.
+var ErrMultiRet = errors.New("multiple return values in a cross-contract call")
 
 // NewContext returns a new Context object.
 func NewContext(b []byte) *Context {
@@ -330,4 +334,19 @@ func (c *Context) MarshalJSON() ([]byte, error) {
 		Caller: c.sc.callingScriptHash.StringLE(),
 	}
 	return json.Marshal(aux)
+}
+
+// DynamicOnUnload implements OnUnload script for dynamic calls, if no exception
+// has occurred it checks that the context has exactly 0 (in which case a `Null`
+// is pushed) or 1 returned value.
+func DynamicOnUnload(v *VM, ctx *Context, commit bool) error {
+	if commit {
+		eLen := ctx.Estack().Len()
+		if eLen == 0 { // No return value, add one.
+			v.Context().Estack().PushItem(stackitem.Null{}) // Must use current context stack.
+		} else if eLen > 1 { // Only one can be returned.
+			return ErrMultiRet
+		} // One value returned, it's OK.
+	}
+	return nil
 }
