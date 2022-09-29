@@ -174,6 +174,16 @@ func TestEventWarnings(t *testing.T) {
 		})
 		require.Error(t, err)
 	})
+	t.Run("any parameter type", func(t *testing.T) {
+		_, err = compiler.CreateManifest(di, &compiler.Options{
+			ContractEvents: []manifest.Event{{
+				Name:       "Event",
+				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.AnyType)},
+			}},
+			Name: "payable",
+		})
+		require.NoError(t, err)
+	})
 	t.Run("good", func(t *testing.T) {
 		_, err = compiler.CreateManifest(di, &compiler.Options{
 			ContractEvents: []manifest.Event{{
