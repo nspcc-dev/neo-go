@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
@@ -363,6 +364,9 @@ func CreateManifest(di *DebugInfo, o *Options) (*manifest.Manifest, error) {
 						name, len(ev.Parameters), len(argsList[i]))
 				}
 				for j := range ev.Parameters {
+					if ev.Parameters[j].Type == smartcontract.AnyType {
+						continue
+					}
 					expected := ev.Parameters[j].Type.String()
 					if argsList[i][j] != expected {
 						return nil, fmt.Errorf("event '%s' should have '%s' as type of %d parameter, "+

@@ -393,3 +393,28 @@ func TestConvertToParamType(t *testing.T) {
 	_, err := ConvertToParamType(0x01)
 	require.NotNil(t, err)
 }
+
+func TestConvertToStackitemType(t *testing.T) {
+	for p, expected := range map[ParamType]stackitem.Type{
+		AnyType:              stackitem.AnyT,
+		BoolType:             stackitem.BooleanT,
+		IntegerType:          stackitem.IntegerT,
+		ByteArrayType:        stackitem.ByteArrayT,
+		StringType:           stackitem.ByteArrayT,
+		Hash160Type:          stackitem.ByteArrayT,
+		Hash256Type:          stackitem.ByteArrayT,
+		PublicKeyType:        stackitem.ByteArrayT,
+		SignatureType:        stackitem.ByteArrayT,
+		ArrayType:            stackitem.ArrayT,
+		MapType:              stackitem.MapT,
+		InteropInterfaceType: stackitem.InteropT,
+		VoidType:             stackitem.AnyT,
+	} {
+		actual := p.ConvertToStackitemType()
+		require.Equal(t, expected, actual)
+	}
+
+	require.Panics(t, func() {
+		UnknownType.ConvertToStackitemType()
+	})
+}

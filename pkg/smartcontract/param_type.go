@@ -331,3 +331,38 @@ func ConvertToParamType(val int) (ParamType, error) {
 	}
 	return UnknownType, errors.New("unknown parameter type")
 }
+
+// ConvertToStackitemType converts ParamType to corresponding Stackitem.Type.
+func (pt ParamType) ConvertToStackitemType() stackitem.Type {
+	switch pt {
+	case SignatureType:
+		return stackitem.ByteArrayT
+	case BoolType:
+		return stackitem.BooleanT
+	case IntegerType:
+		return stackitem.IntegerT
+	case Hash160Type:
+		return stackitem.ByteArrayT
+	case Hash256Type:
+		return stackitem.ByteArrayT
+	case ByteArrayType:
+		return stackitem.ByteArrayT
+	case PublicKeyType:
+		return stackitem.ByteArrayT
+	case StringType:
+		// Do not use BufferT to match System.Runtime.Notify conversion rules.
+		return stackitem.ByteArrayT
+	case ArrayType:
+		return stackitem.ArrayT
+	case MapType:
+		return stackitem.MapT
+	case InteropInterfaceType:
+		return stackitem.InteropT
+	case VoidType:
+		return stackitem.AnyT
+	case AnyType:
+		return stackitem.AnyT
+	default:
+		panic(fmt.Sprintf("unknown param type %d", pt))
+	}
+}

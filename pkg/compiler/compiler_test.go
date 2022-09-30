@@ -174,6 +174,16 @@ func TestEventWarnings(t *testing.T) {
 		})
 		require.Error(t, err)
 	})
+	t.Run("any parameter type", func(t *testing.T) {
+		_, err = compiler.CreateManifest(di, &compiler.Options{
+			ContractEvents: []manifest.Event{{
+				Name:       "Event",
+				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.AnyType)},
+			}},
+			Name: "payable",
+		})
+		require.NoError(t, err)
+	})
 	t.Run("good", func(t *testing.T) {
 		_, err = compiler.CreateManifest(di, &compiler.Options{
 			ContractEvents: []manifest.Event{{
@@ -219,6 +229,25 @@ func TestEventWarnings(t *testing.T) {
 			})
 			require.NoError(t, err)
 		})
+	})
+	t.Run("variadic event args via ellipsis", func(t *testing.T) {
+		src := `package payable
+		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		func Main() {
+			runtime.Notify("Event", []interface{}{1}...)
+		}`
+
+		_, di, err := compiler.CompileWithOptions("eventTest.go", strings.NewReader(src), nil)
+		require.NoError(t, err)
+
+		_, err = compiler.CreateManifest(di, &compiler.Options{
+			Name: "eventTest",
+			ContractEvents: []manifest.Event{{
+				Name:       "Event",
+				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.IntegerType)},
+			}},
+		})
+		require.NoError(t, err)
 	})
 }
 
