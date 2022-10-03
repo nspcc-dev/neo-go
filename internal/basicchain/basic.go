@@ -23,6 +23,31 @@ import (
 
 const neoAmount = 99999000
 
+// InitSimple initializes chain with single contract storing several storage values.
+// It's not as complicated as chain got after Init and may be used for tests where
+// chain with a small amount of data is needed and for historical functionality testing.
+// Needs a path to the root directory.
+func InitSimple(t *testing.T, rootpath string, e *neotest.Executor) {
+	// examplesPrefix is a prefix of the example smart-contracts.
+	var examplesPrefix = filepath.Join(rootpath, "examples")
+
+	// Block #1: deploy storage contract (examples/storage/storage.go).
+	_, storageHash := newDeployTx(t, e, e.Validator,
+		filepath.Join(examplesPrefix, "storage", "storage.go"),
+		filepath.Join(examplesPrefix, "storage", "storage.yml"),
+		true)
+
+	// Block #2: put (1, 1) kv pair.
+	storageValidatorInvoker := e.ValidatorInvoker(storageHash)
+	storageValidatorInvoker.Invoke(t, 1, "put", 1, 1)
+
+	// Block #3: put (2, 2) kv pair.
+	storageValidatorInvoker.Invoke(t, 2, "put", 2, 2)
+
+	// Block #4: update (1, 1) -> (1, 2).
+	storageValidatorInvoker.Invoke(t, 1, "put", 1, 2)
+}
+
 // Init pushes some predefined set  of transactions into the given chain, it needs a path to
 // the root project directory.
 func Init(t *testing.T, rootpath string, e *neotest.Executor) {

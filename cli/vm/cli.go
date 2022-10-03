@@ -19,20 +19,27 @@ import (
 	"github.com/kballard/go-shellquote"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/urfave/cli"
+	"go.uber.org/zap"
 )
 
 const (
-	vmKey               = "vm"
+	chainKey            = "chain"
+	icKey               = "ic"
 	manifestKey         = "manifest"
 	exitFuncKey         = "exitFunc"
 	readlineInstanceKey = "readlineKey"
@@ -245,26 +252,20 @@ var (
 
 // VMCLI object for interacting with the VM.
 type VMCLI struct {
-	vm    *vm.VM
+	chain *core.Blockchain
 	shell *cli.App
 }
 
-// New returns a new VMCLI object.
-func New() *VMCLI {
-	return NewWithConfig(true, os.Exit, &readline.Config{
-		Prompt: "\033[32mNEO-GO-VM >\033[0m ", // green prompt ^^
-	})
-}
-
-// NewWithConfig returns new VMCLI instance using provided config.
-func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config) *VMCLI {
+// NewWithConfig returns new VMCLI instance using provided config and (optionally)
+// provided node config for state-backed VM.
+func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg config.Config) (*VMCLI, error) {
 	if c.AutoComplete == nil {
 		// Autocomplete commands/flags on TAB.
 		c.AutoComplete = completer
 	}
 	l, err := readline.NewEx(c)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to create readline instance: %w", err)
 	}
 	ctl := cli.NewApp()
 	ctl.Name = "VM CLI"
@@ -284,20 +285,41 @@ func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config) *VM
 
 	ctl.Commands = commands
 
+	store, err := storage.NewStore(cfg.ApplicationConfiguration.DBConfiguration)
+	if err != nil {
+		writeErr(ctl.ErrWriter, fmt.Errorf("failed to open DB, clean in-memory storage will be used: %w", err))
+		cfg.ApplicationConfiguration.DBConfiguration.Type = dbconfig.InMemoryDB
+		store = storage.NewMemoryStore()
+	}
+
+	exitF := func(i int) {
+		_ = store.Close()
+		onExit(i)
+	}
+
+	log := zap.NewNop()
+	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration, log)
+	if err != nil {
+		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %w", err), 1)
+	}
+	// Do not run chain, we need only state-related functionality from it.
+	ic := chain.GetTestVM(trigger.Application, nil, nil)
+
 	vmcli := VMCLI{
-		vm:    vm.New(),
+		chain: chain,
 		shell: ctl,
 	}
 
 	vmcli.shell.Metadata = map[string]interface{}{
-		vmKey:               vmcli.vm,
+		chainKey:            chain,
+		icKey:               ic,
 		manifestKey:         new(manifest.Manifest),
-		exitFuncKey:         onExit,
+		exitFuncKey:         exitF,
 		readlineInstanceKey: l,
 		printLogoKey:        printLogotype,
 	}
 	changePrompt(vmcli.shell)
-	return &vmcli
+	return &vmcli, nil
 }
 
 func getExitFuncFromContext(app *cli.App) func(int) {
@@ -309,12 +331,15 @@ func getReadlineInstanceFromContext(app *cli.App) *readline.Instance {
 }
 
 func getVMFromContext(app *cli.App) *vm.VM {
-	return app.Metadata[vmKey].(*vm.VM)
+	return getInteropContextFromContext(app).VM
 }
 
-func setVMInContext(app *cli.App, v *vm.VM) {
-	old := getVMFromContext(app)
-	*old = *v
+func getChainFromContext(app *cli.App) *core.Blockchain {
+	return app.Metadata[chainKey].(*core.Blockchain)
+}
+
+func getInteropContextFromContext(app *cli.App) *interop.Context {
+	return app.Metadata[icKey].(*interop.Context)
 }
 
 func getManifestFromContext(app *cli.App) *manifest.Manifest {
@@ -323,6 +348,10 @@ func getManifestFromContext(app *cli.App) *manifest.Manifest {
 
 func getPrintLogoFromContext(app *cli.App) bool {
 	return app.Metadata[printLogoKey].(bool)
+}
+
+func setInteropContextInContext(app *cli.App, ic *interop.Context) {
+	app.Metadata[icKey] = ic
 }
 
 func setManifestInContext(app *cli.App, m *manifest.Manifest) {
@@ -340,6 +369,7 @@ func checkVMIsReady(app *cli.App) bool {
 }
 
 func handleExit(c *cli.Context) error {
+	finalizeInteropContext(c.App)
 	l := getReadlineInstanceFromContext(c.App)
 	_ = l.Close()
 	exit := getExitFuncFromContext(c.App)
@@ -419,6 +449,7 @@ func handleSlots(c *cli.Context) error {
 }
 
 func handleLoadNEF(c *cli.Context) error {
+	resetInteropContext(c.App)
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 2 {
@@ -438,6 +469,7 @@ func handleLoadNEF(c *cli.Context) error {
 }
 
 func handleLoadBase64(c *cli.Context) error {
+	resetInteropContext(c.App)
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
@@ -454,6 +486,7 @@ func handleLoadBase64(c *cli.Context) error {
 }
 
 func handleLoadHex(c *cli.Context) error {
+	resetInteropContext(c.App)
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
@@ -470,6 +503,7 @@ func handleLoadHex(c *cli.Context) error {
 }
 
 func handleLoadGo(c *cli.Context) error {
+	resetInteropContext(c.App)
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
@@ -496,9 +530,24 @@ func handleLoadGo(c *cli.Context) error {
 }
 
 func handleReset(c *cli.Context) error {
-	setVMInContext(c.App, vm.New())
+	resetInteropContext(c.App)
 	changePrompt(c.App)
 	return nil
+}
+
+// finalizeInteropContext calls finalizer for the current interop context.
+func finalizeInteropContext(app *cli.App) {
+	ic := getInteropContextFromContext(app)
+	ic.Finalize()
+}
+
+// resetInteropContext calls finalizer for current interop context and replaces
+// it with the newly created one.
+func resetInteropContext(app *cli.App) {
+	finalizeInteropContext(app)
+	bc := getChainFromContext(app)
+	newIc := bc.GetTestVM(trigger.Application, nil, nil)
+	setInteropContextInContext(app, newIc)
 }
 
 func getManifestFromFile(name string) (*manifest.Manifest, error) {

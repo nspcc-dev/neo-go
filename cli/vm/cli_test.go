@@ -15,12 +15,18 @@ import (
 	"time"
 
 	"github.com/chzyer/readline"
+	"github.com/nspcc-dev/neo-go/internal/basicchain"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -64,12 +70,27 @@ func newTestVMCLI(t *testing.T) *executor {
 }
 
 func newTestVMCLIWithLogo(t *testing.T, printLogo bool) *executor {
+	return newTestVMCLIWithLogoAndCustomConfig(t, printLogo, nil)
+}
+
+func newTestVMCLIWithLogoAndCustomConfig(t *testing.T, printLogo bool, cfg *config.Config) *executor {
 	e := &executor{
 		in:  &readCloser{Buffer: *bytes.NewBuffer(nil)},
 		out: bytes.NewBuffer(nil),
 		ch:  make(chan struct{}),
 	}
-	e.cli = NewWithConfig(printLogo,
+	var c config.Config
+	if cfg == nil {
+		configPath := "../../config/protocol.unit_testnet.single.yml"
+		var err error
+		c, err = config.LoadFile(configPath)
+		require.NoError(t, err, "could not load chain config")
+		c.ApplicationConfiguration.DBConfiguration.Type = dbconfig.InMemoryDB
+	} else {
+		c = *cfg
+	}
+	var err error
+	e.cli, err = NewWithConfig(printLogo,
 		func(int) { e.exit.Store(true) },
 		&readline.Config{
 			Prompt: "",
@@ -79,8 +100,38 @@ func newTestVMCLIWithLogo(t *testing.T, printLogo bool) *executor {
 			FuncIsTerminal: func() bool {
 				return false
 			},
-		})
+		}, c)
+	require.NoError(t, err)
 	return e
+}
+
+func newTestVMClIWithState(t *testing.T) *executor {
+	// Firstly create a DB with chain, save and close it.
+	path := t.TempDir()
+	opts := dbconfig.LevelDBOptions{
+		DataDirectoryPath: path,
+	}
+	store, err := storage.NewLevelDBStore(opts)
+	require.NoError(t, err)
+	customConfig := func(c *config.ProtocolConfiguration) {
+		c.StateRootInHeader = true // Need for P2PStateExchangeExtensions check.
+		c.P2PSigExtensions = true  // Need for basic chain initializer.
+	}
+	bc, validators, committee, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, store)
+	require.NoError(t, err)
+	go bc.Run()
+	e := neotest.NewExecutor(t, bc, validators, committee)
+	basicchain.InitSimple(t, "../../", e)
+	bc.Close()
+
+	// After that create VMCLI backed by created chain.
+	configPath := "../../config/protocol.unit_testnet.yml"
+	cfg, err := config.LoadFile(configPath)
+	require.NoError(t, err)
+	cfg.ApplicationConfiguration.DBConfiguration.Type = dbconfig.LevelDB
+	cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions = opts
+	cfg.ProtocolConfiguration.StateRootInHeader = true
+	return newTestVMCLIWithLogoAndCustomConfig(t, false, &cfg)
 }
 
 func (e *executor) runProg(t *testing.T, commands ...string) {
@@ -661,4 +712,19 @@ func TestReset(t *testing.T) {
 	e.checkNextLine(t, "0.*PUSH1.*")
 	e.checkNextLine(t, "")
 	e.checkError(t, fmt.Errorf("VM is not ready: no program loaded"))
+}
+
+func TestRunWithState(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	// Ensure that state is properly loaded and on-chain contract can be called.
+	script := io.NewBufBinWriter()
+	h, err := e.cli.chain.GetContractScriptHash(1) // examples/storage/storage.go
+	require.NoError(t, err)
+	emit.AppCall(script.BinWriter, h, "put", callflag.All, 3, 3)
+	e.runProg(t,
+		"loadhex "+hex.EncodeToString(script.Bytes()),
+		"run")
+	e.checkNextLine(t, "READY: loaded 37 instructions")
+	e.checkStack(t, 3)
 }
