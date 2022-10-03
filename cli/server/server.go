@@ -47,7 +47,7 @@ func NewCommands() []cli.Command {
 	cfgFlags = append(cfgFlags, options.Network...)
 	var cfgWithCountFlags = make([]cli.Flag, len(cfgFlags))
 	copy(cfgWithCountFlags, cfgFlags)
-	cfgFlags = append(cfgFlags, cli.BoolFlag{Name: "debug, d", Usage: "enable debug logging (LOTS of output)"})
+	cfgFlags = append(cfgFlags, options.Debug)
 
 	cfgWithCountFlags = append(cfgWithCountFlags,
 		cli.UintFlag{

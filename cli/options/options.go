@@ -59,6 +59,12 @@ var Config = cli.StringFlag{
 	Usage: "path to directory with configuration files",
 }
 
+// Debug is a flag for commands that allow node in debug mode usage.
+var Debug = cli.BoolFlag{
+	Name:  "debug, d",
+	Usage: "enable debug logging (LOTS of output)",
+}
+
 var errNoEndpoint = errors.New("no RPC endpoint specified, use option '--" + RPCEndpointFlag + "' or '-r'")
 var errInvalidHistoric = errors.New("invalid 'historic' parameter, neither a block number, nor a block/state hash")
 
