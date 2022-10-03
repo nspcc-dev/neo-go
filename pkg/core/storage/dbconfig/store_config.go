@@ -13,9 +13,11 @@ type (
 	// LevelDBOptions configuration for LevelDB.
 	LevelDBOptions struct {
 		DataDirectoryPath string `yaml:"DataDirectoryPath"`
+		ReadOnly          bool   `yaml:"ReadOnly"`
 	}
 	// BoltDBOptions configuration for BoltDB.
 	BoltDBOptions struct {
 		FilePath string `yaml:"FilePath"`
+		ReadOnly bool   `yaml:"ReadOnly"`
 	}
 )

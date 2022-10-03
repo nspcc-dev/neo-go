@@ -47,14 +47,20 @@ DBConfiguration:
   Type: leveldb
   LevelDBOptions:
     DataDirectoryPath: /chains/privnet
+    ReadOnly: false
   BoltDBOptions:
     FilePath: ./chains/privnet.bolt
+    ReadOnly: false
 ```
 where:
 - `Type` is the database type (string value). Supported types: `levelDB` and
   `boltDB`.
-- `LevelDBOptions` are settings for LevelDB.
-- `BoltDBOptions` configures BoltDB.
+- `LevelDBOptions` are settings for LevelDB. Includes the DB files path and ReadOnly mode toggle.
+  If ReadOnly mode is on, then an error will be returned on attempt to connect to unexisting or empty
+  database. Database doesn't allow changes in this mode, a warning will be logged on DB persist attempts.
+- `BoltDBOptions` configures BoltDB. Includes the DB files path and ReadOnly mode toggle. If ReadOnly
+  mode is on, then an error will be returned on attempt to connect with unexisting or empty database.
+  Database doesn't allow changes in this mode, a warning will be logged on DB persist attempts.
 
 Only options for the specified database type will be used.
 

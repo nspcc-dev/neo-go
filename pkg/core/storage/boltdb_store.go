@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 
@@ -22,23 +23,38 @@ type BoltDBStore struct {
 
 // NewBoltDBStore returns a new ready to use BoltDB storage with created bucket.
 func NewBoltDBStore(cfg dbconfig.BoltDBOptions) (*BoltDBStore, error) {
-	var opts *bbolt.Options       // should be exposed via BoltDBOptions if anything needed
+	cp := *bbolt.DefaultOptions // Do not change bbolt's global variable.
+	opts := &cp
 	fileMode := os.FileMode(0600) // should be exposed via BoltDBOptions if anything needed
 	fileName := cfg.FilePath
-	if err := io.MakeDirForFile(fileName, "BoltDB"); err != nil {
-		return nil, err
+	if cfg.ReadOnly {
+		opts.ReadOnly = true
+	} else {
+		if err := io.MakeDirForFile(fileName, "BoltDB"); err != nil {
+			return nil, err
+		}
 	}
 	db, err := bbolt.Open(fileName, fileMode, opts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open BoltDB instance: %w", err)
 	}
-	err = db.Update(func(tx *bbolt.Tx) error {
-		_, err = tx.CreateBucketIfNotExists(Bucket)
-		if err != nil {
-			return fmt.Errorf("could not create root bucket: %w", err)
-		}
-		return nil
-	})
+	if opts.ReadOnly {
+		err = db.View(func(tx *bbolt.Tx) error {
+			b := tx.Bucket(Bucket)
+			if b == nil {
+				return errors.New("root bucket does not exist")
+			}
+			return nil
+		})
+	} else {
+		err = db.Update(func(tx *bbolt.Tx) error {
+			_, err = tx.CreateBucketIfNotExists(Bucket)
+			if err != nil {
+				return fmt.Errorf("could not create root bucket: %w", err)
+			}
+			return nil
+		})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize BoltDB instance: %w", err)
 	}
