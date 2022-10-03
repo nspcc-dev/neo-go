@@ -15,9 +15,7 @@ func NewCommands() []cli.Command {
 		Name:   "vm",
 		Usage:  "start the virtual machine",
 		Action: startVMPrompt,
-		Flags: []cli.Flag{
-			cli.BoolFlag{Name: "debug, d"},
-		},
+		Flags:  []cli.Flag{},
 	}}
 }
 
