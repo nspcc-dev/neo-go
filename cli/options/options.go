@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
@@ -50,6 +51,12 @@ var RPC = []cli.Flag{
 var Historic = cli.StringFlag{
 	Name:  "historic",
 	Usage: "Use historic state (height, block hash or state root hash)",
+}
+
+// Config is a flag for commands that use node configuration.
+var Config = cli.StringFlag{
+	Name:  "config-path",
+	Usage: "path to directory with configuration files",
 }
 
 var errNoEndpoint = errors.New("no RPC endpoint specified, use option '--" + RPCEndpointFlag + "' or '-r'")
@@ -127,4 +134,14 @@ func GetRPCWithInvoker(gctx context.Context, ctx *cli.Context, signers []transac
 		return nil, nil, err
 	}
 	return c, inv, err
+}
+
+// GetConfigFromContext looks at the path and the mode flags in the given config and
+// returns an appropriate config.
+func GetConfigFromContext(ctx *cli.Context) (config.Config, error) {
+	configPath := "./config"
+	if argCp := ctx.String("config-path"); argCp != "" {
+		configPath = argCp
+	}
+	return config.Load(configPath, GetNetwork(ctx))
 }

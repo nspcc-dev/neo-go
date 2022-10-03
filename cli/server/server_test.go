@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
@@ -32,7 +33,7 @@ func TestGetConfigFromContext(t *testing.T) {
 	set.String("config-path", "../../config", "")
 	set.Bool("testnet", true, "")
 	ctx := cli.NewContext(cli.NewApp(), set, nil)
-	cfg, err := getConfigFromContext(ctx)
+	cfg, err := options.GetConfigFromContext(ctx)
 	require.NoError(t, err)
 	require.Equal(t, netmode.TestNet, cfg.ProtocolConfiguration.Magic)
 }
@@ -101,7 +102,7 @@ func TestInitBCWithMetrics(t *testing.T) {
 	set.Bool("testnet", true, "")
 	set.Bool("debug", true, "")
 	ctx := cli.NewContext(cli.NewApp(), set, nil)
-	cfg, err := getConfigFromContext(ctx)
+	cfg, err := options.GetConfigFromContext(ctx)
 	require.NoError(t, err)
 	logger, closer, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	require.NoError(t, err)

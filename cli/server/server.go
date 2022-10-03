@@ -43,9 +43,7 @@ var (
 
 // NewCommands returns 'node' command.
 func NewCommands() []cli.Command {
-	var cfgFlags = []cli.Flag{
-		cli.StringFlag{Name: "config-path", Usage: "path to directory with configuration files"},
-	}
+	cfgFlags := []cli.Flag{options.Config}
 	cfgFlags = append(cfgFlags, options.Network...)
 	var cfgWithCountFlags = make([]cli.Flag, len(cfgFlags))
 	copy(cfgWithCountFlags, cfgFlags)
@@ -126,16 +124,6 @@ func newGraceContext() context.Context {
 		cancel()
 	}()
 	return ctx
-}
-
-// getConfigFromContext looks at the path and the mode flags in the given config and
-// returns an appropriate config.
-func getConfigFromContext(ctx *cli.Context) (config.Config, error) {
-	configPath := "./config"
-	if argCp := ctx.String("config-path"); argCp != "" {
-		configPath = argCp
-	}
-	return config.Load(configPath, options.GetNetwork(ctx))
 }
 
 // handleLoggingParams reads logging parameters.
@@ -233,7 +221,7 @@ func dumpDB(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
-	cfg, err := getConfigFromContext(ctx)
+	cfg, err := options.GetConfigFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -286,7 +274,7 @@ func restoreDB(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
-	cfg, err := getConfigFromContext(ctx)
+	cfg, err := options.GetConfigFromContext(ctx)
 	if err != nil {
 		return err
 	}
@@ -472,7 +460,7 @@ func startServer(ctx *cli.Context) error {
 		return err
 	}
 
-	cfg, err := getConfigFromContext(ctx)
+	cfg, err := options.GetConfigFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -549,7 +537,7 @@ Main:
 			cancel()
 		case sig := <-sigCh:
 			log.Info("signal received", zap.Stringer("name", sig))
-			cfgnew, err := getConfigFromContext(ctx)
+			cfgnew, err := options.GetConfigFromContext(ctx)
 			if err != nil {
 				log.Warn("can't reread the config file, signal ignored", zap.Error(err))
 				break // Continue working.
