@@ -786,3 +786,28 @@ func TestEvents(t *testing.T) {
 	e.checkEvents(t, true, expectedEvent)  // automatically printed after `run` command
 	e.checkEvents(t, false, expectedEvent) // printed after `events` command
 }
+
+func TestEnv(t *testing.T) {
+	t.Run("default setup", func(t *testing.T) {
+		e := newTestVMCLI(t)
+		e.runProg(t, "env")
+		e.checkNextLine(t, "Chain height: 0")
+		e.checkNextLine(t, "Network magic: 42")
+		e.checkNextLine(t, "DB type: inmemory")
+	})
+	t.Run("setup with state", func(t *testing.T) {
+		e := newTestVMClIWithState(t)
+		e.runProg(t, "env")
+		e.checkNextLine(t, "Chain height: 5")
+		e.checkNextLine(t, "Network magic: 42")
+		e.checkNextLine(t, "DB type: leveldb")
+	})
+	t.Run("verbose", func(t *testing.T) {
+		e := newTestVMClIWithState(t)
+		e.runProg(t, "env -v")
+		e.checkNextLine(t, "Chain height: 5")
+		e.checkNextLine(t, "Network magic: 42")
+		e.checkNextLine(t, "DB type: leveldb")
+		e.checkNextLine(t, "Node config:") // Do not check exact node config.
+	})
+}

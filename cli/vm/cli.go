@@ -39,6 +39,7 @@ import (
 
 const (
 	chainKey            = "chain"
+	chainCfgKey         = "chainCfg"
 	icKey               = "ic"
 	manifestKey         = "manifest"
 	exitFuncKey         = "exitFunc"
@@ -49,6 +50,11 @@ const (
 	boolTrue            = "true"
 	intType             = "int"
 	stringType          = "string"
+)
+
+// Various flag names.
+const (
+	verboseFlagFullName = "verbose"
 )
 
 var commands = []cli.Command{
@@ -231,6 +237,24 @@ example:
 		Description: "Dump events emitted by the current loaded program",
 		Action:      handleEvents,
 	},
+	{
+		Name:      "env",
+		Usage:     "Dump state of the chain that is used for VM CLI invocations (use -v for verbose node configuration)",
+		UsageText: `env [-v]`,
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:  verboseFlagFullName + ",v",
+				Usage: "Print the whole blockchain node configuration.",
+			},
+		},
+		Description: `env [-v]
+
+Dump state of the chain that is used for VM CLI invocations (use -v for verbose node configuration).
+
+Example:
+> env -v`,
+		Action: handleEnv,
+	},
 }
 
 var completer *readline.PrefixCompleter
@@ -318,6 +342,7 @@ func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg
 
 	vmcli.shell.Metadata = map[string]interface{}{
 		chainKey:            chain,
+		chainCfgKey:         cfg,
 		icKey:               ic,
 		manifestKey:         new(manifest.Manifest),
 		exitFuncKey:         exitF,
@@ -342,6 +367,10 @@ func getVMFromContext(app *cli.App) *vm.VM {
 
 func getChainFromContext(app *cli.App) *core.Blockchain {
 	return app.Metadata[chainKey].(*core.Blockchain)
+}
+
+func getChainConfigFromContext(app *cli.App) config.Config {
+	return app.Metadata[chainCfgKey].(config.Config)
 }
 
 func getInteropContextFromContext(app *cli.App) *interop.Context {
@@ -761,6 +790,21 @@ func handleEvents(c *cli.Context) error {
 		return nil
 	}
 	fmt.Fprintln(c.App.Writer, e)
+	return nil
+}
+
+func handleEnv(c *cli.Context) error {
+	bc := getChainFromContext(c.App)
+	cfg := getChainConfigFromContext(c.App)
+	message := fmt.Sprintf("Chain height: %d\nNetwork magic: %d\nDB type: %s\n", bc.BlockHeight(), bc.GetConfig().Magic, cfg.ApplicationConfiguration.DBConfiguration.Type)
+	if c.Bool(verboseFlagFullName) {
+		cfgBytes, err := json.MarshalIndent(cfg, "", "\t")
+		if err != nil {
+			return fmt.Errorf("failed to marshal node configuration: %w", err)
+		}
+		message += "Node config:\n" + string(cfgBytes) + "\n"
+	}
+	fmt.Fprint(c.App.Writer, message)
 	return nil
 }
 
