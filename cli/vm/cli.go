@@ -225,6 +225,12 @@ example:
 		Description: "Dump opcodes of the current loaded program",
 		Action:      handleOps,
 	},
+	{
+		Name:        "events",
+		Usage:       "Dump events emitted by the current loaded program",
+		Description: "Dump events emitted by the current loaded program",
+		Action:      handleEvents,
+	},
 }
 
 var completer *readline.PrefixCompleter
@@ -626,12 +632,17 @@ func runVMWithHandling(c *cli.Context) {
 		writeErr(c.App.ErrWriter, err)
 	}
 
-	var message string
+	var (
+		message string
+		dumpNtf bool
+	)
 	switch {
 	case v.HasFailed():
 		message = "" // the error will be printed on return
+		dumpNtf = true
 	case v.HasHalted():
 		message = v.DumpEStack()
+		dumpNtf = true
 	case v.AtBreakpoint():
 		ctx := v.Context()
 		if ctx.NextIP() < ctx.LenInstr() {
@@ -639,6 +650,16 @@ func runVMWithHandling(c *cli.Context) {
 			message = fmt.Sprintf("at breakpoint %d (%s)", i, op)
 		} else {
 			message = "execution has finished"
+		}
+	}
+	if dumpNtf {
+		var e string
+		e, err = dumpEvents(c.App)
+		if err == nil && len(e) != 0 {
+			if message != "" {
+				message += "\n"
+			}
+			message += "Events:\n" + e
 		}
 	}
 	if message != "" {
@@ -731,6 +752,28 @@ func changePrompt(app *cli.App) {
 	} else {
 		l.SetPrompt("\033[32mNEO-GO-VM >\033[0m ")
 	}
+}
+
+func handleEvents(c *cli.Context) error {
+	e, err := dumpEvents(c.App)
+	if err != nil {
+		writeErr(c.App.ErrWriter, err)
+		return nil
+	}
+	fmt.Fprintln(c.App.Writer, e)
+	return nil
+}
+
+func dumpEvents(app *cli.App) (string, error) {
+	ic := getInteropContextFromContext(app)
+	if len(ic.Notifications) == 0 {
+		return "", nil
+	}
+	b, err := json.MarshalIndent(ic.Notifications, "", "\t")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal notifications: %w", err)
+	}
+	return string(b), nil
 }
 
 // Run waits for user input from Stdin and executes the passed command.

@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -158,6 +159,12 @@ func (e *executor) checkNextLine(t *testing.T, expected string) {
 	require.Regexp(t, expected, line)
 }
 
+func (e *executor) checkNextLineExact(t *testing.T, expected string) {
+	line, err := e.out.ReadString('\n')
+	require.NoError(t, err)
+	require.Equal(t, expected, line)
+}
+
 func (e *executor) checkError(t *testing.T, expectedErr error) {
 	line, err := e.out.ReadString('\n')
 	require.NoError(t, err)
@@ -177,6 +184,30 @@ func (e *executor) checkStack(t *testing.T, items ...interface{}) {
 		expected.PushVal(items[i])
 	}
 	rawExpected, err := json.Marshal(expected)
+	require.NoError(t, err)
+	require.JSONEq(t, string(rawExpected), string(rawActual))
+
+	// Decoder has it's own buffer, we need to return unread part to the output.
+	outRemain := e.out.String()
+	e.out.Reset()
+	_, err = gio.Copy(e.out, d.Buffered())
+	require.NoError(t, err)
+	e.out.WriteString(outRemain)
+	_, err = e.out.ReadString('\n')
+	require.NoError(t, err)
+}
+
+func (e *executor) checkEvents(t *testing.T, isKeywordExpected bool, events ...state.NotificationEvent) {
+	if isKeywordExpected {
+		e.checkNextLine(t, "Events:")
+	}
+	d := json.NewDecoder(e.out)
+	var actual interface{}
+	require.NoError(t, d.Decode(&actual))
+	rawActual, err := json.Marshal(actual)
+	require.NoError(t, err)
+
+	rawExpected, err := json.Marshal(events)
 	require.NoError(t, err)
 	require.JSONEq(t, string(rawExpected), string(rawActual))
 
@@ -727,4 +758,31 @@ func TestRunWithState(t *testing.T) {
 		"run")
 	e.checkNextLine(t, "READY: loaded 37 instructions")
 	e.checkStack(t, 3)
+}
+
+func TestEvents(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	script := io.NewBufBinWriter()
+	h, err := e.cli.chain.GetContractScriptHash(2) // examples/runtime/runtime.go
+	require.NoError(t, err)
+	emit.AppCall(script.BinWriter, h, "notify", callflag.All, []interface{}{true, 5})
+	e.runProg(t,
+		"loadhex "+hex.EncodeToString(script.Bytes()),
+		"run",
+		"events")
+	expectedEvent := state.NotificationEvent{
+		ScriptHash: h,
+		Name:       "Event",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewArray([]stackitem.Item{
+				stackitem.Make(true),
+				stackitem.Make(5),
+			}),
+		}),
+	}
+	e.checkNextLine(t, "READY: loaded 44 instructions")
+	e.checkStack(t, stackitem.Null{})
+	e.checkEvents(t, true, expectedEvent)  // automatically printed after `run` command
+	e.checkEvents(t, false, expectedEvent) // printed after `events` command
 }
