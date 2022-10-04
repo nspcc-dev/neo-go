@@ -9,13 +9,10 @@ import (
 
 func newLevelDBForTesting(t testing.TB) Store {
 	ldbDir := t.TempDir()
-	dbConfig := dbconfig.DBConfiguration{
-		Type: "leveldb",
-		LevelDBOptions: dbconfig.LevelDBOptions{
-			DataDirectoryPath: ldbDir,
-		},
+	opts := dbconfig.LevelDBOptions{
+		DataDirectoryPath: ldbDir,
 	}
-	newLevelStore, err := NewLevelDBStore(dbConfig.LevelDBOptions)
+	newLevelStore, err := NewLevelDBStore(opts)
 	require.Nil(t, err, "NewLevelDBStore error")
 	return newLevelStore
 }
