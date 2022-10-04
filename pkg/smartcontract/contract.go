@@ -14,7 +14,7 @@ import (
 // where n is the length of publicKeys.
 func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, error) {
 	if m < 1 {
-		return nil, fmt.Errorf("param m cannot be smaller or equal to 1 got %d", m)
+		return nil, fmt.Errorf("param m cannot be smaller than 1, got %d", m)
 	}
 	if m > len(publicKeys) {
 		return nil, fmt.Errorf("length of the signatures (%d) is higher then the number of public keys", m)
