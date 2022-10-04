@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -2745,6 +2746,19 @@ func TestRemoveReferrer(t *testing.T) {
 	assert.Equal(t, 1, int(vm.refs))
 	require.NoError(t, vm.StepInto()) // RET
 	assert.Equal(t, 0, int(vm.refs))
+}
+
+func TestUninitializedSyscallHandler(t *testing.T) {
+	v := newTestVM()
+	v.Reset(trigger.Application) // Reset SyscallHandler.
+	id := make([]byte, 4)
+	binary.LittleEndian.PutUint32(id, interopnames.ToID([]byte(interopnames.SystemRuntimeGasLeft)))
+	script := append([]byte{byte(opcode.SYSCALL)}, id...)
+	v.LoadScript(script)
+	err := v.Run()
+	require.Error(t, err)
+	require.True(t, strings.Contains(err.Error(), "SyscallHandler is not initialized"), err.Error())
+	assert.Equal(t, true, v.HasFailed())
 }
 
 func makeProgram(opcodes ...opcode.Opcode) []byte {
