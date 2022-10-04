@@ -17,6 +17,7 @@ import (
 
 	"github.com/chzyer/readline"
 	"github.com/kballard/go-shellquote"
+	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -54,8 +55,9 @@ const (
 
 // Various flag names.
 const (
-	verboseFlagFullName  = "verbose"
-	historicFlagFullName = "historic"
+	verboseFlagFullName   = "verbose"
+	historicFlagFullName  = "historic"
+	backwardsFlagFullName = "backwards"
 )
 
 var historicFlag = cli.IntFlag{
@@ -266,6 +268,32 @@ Dump state of the chain that is used for VM CLI invocations (use -v for verbose 
 Example:
 > env -v`,
 		Action: handleEnv,
+	},
+	{
+		Name: "storage",
+		Usage: "Dump storage of the contract with the specified hash, address or ID as is at the current stage of script invocation. " +
+			"Can be used if no script is loaded. " +
+			"Hex-encoded storage items prefix may be specified (empty by default to return the whole set of storage items). " +
+			"If seek prefix is not empty, then it's trimmed from the resulting keys." +
+			"Items are sorted. Backwards seek direction may be specified (false by default, which means forwards storage seek direction).",
+		UsageText: `storage <hash-or-address-or-id> [<prefix>] [--backwards]`,
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:  backwardsFlagFullName + ",b",
+				Usage: "Backwards traversal direction",
+			},
+		},
+		Description: `storage <hash-or-address-or-id> <prefix> --backwards
+
+Dump storage of the contract with the specified hash, address or ID as is at the current stage of script invocation.
+Can be used if no script is loaded.
+Hex-encoded storage items prefix may be specified (empty by default to return the whole set of storage items).
+If seek prefix is not empty, then it's trimmed from the resulting keys.
+Items are sorted. Backwards seek direction may be specified (false by default, which means forwards storage seek direction).
+
+Example:
+> storage 0x0000000009070e030d0f0e020d0c06050e030c02 030e --backwards`,
+		Action: handleStorage,
 	},
 }
 
@@ -868,6 +896,50 @@ func handleEnv(c *cli.Context) error {
 		message += "Node config:\n" + string(cfgBytes) + "\n"
 	}
 	fmt.Fprint(c.App.Writer, message)
+	return nil
+}
+
+func handleStorage(c *cli.Context) error {
+	if !c.Args().Present() {
+		return errors.New("contract hash, address or ID is mandatory argument")
+	}
+	hashOrID := c.Args().Get(0)
+	var (
+		id        int32
+		ic        = getInteropContextFromContext(c.App)
+		prefix    []byte
+		backwards bool
+	)
+	h, err := flags.ParseAddress(hashOrID)
+	if err != nil {
+		i, err := strconv.Atoi(hashOrID)
+		if err != nil {
+			return fmt.Errorf("failed to parse contract hash, address or ID: %w", err)
+		}
+		id = int32(i)
+	} else {
+		cs, err := ic.GetContract(h)
+		if err != nil {
+			return fmt.Errorf("contract %s not found: %w", h.StringLE(), err)
+		}
+		id = cs.ID
+	}
+	if c.NArg() > 1 {
+		prefix, err = hex.DecodeString(c.Args().Get(1))
+		if err != nil {
+			return fmt.Errorf("failed to decode prefix from hex: %w", err)
+		}
+	}
+	if c.Bool(backwardsFlagFullName) {
+		backwards = true
+	}
+	ic.DAO.Seek(id, storage.SeekRange{
+		Prefix:    prefix,
+		Backwards: backwards,
+	}, func(k, v []byte) bool {
+		fmt.Fprintf(c.App.Writer, "%s: %v\n", hex.EncodeToString(k), hex.EncodeToString(v))
+		return true
+	})
 	return nil
 }
 

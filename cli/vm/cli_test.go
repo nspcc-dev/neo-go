@@ -221,6 +221,12 @@ func (e *executor) checkEvents(t *testing.T, isKeywordExpected bool, events ...s
 	require.NoError(t, err)
 }
 
+func (e *executor) checkStorage(t *testing.T, kvs ...storage.KeyValue) {
+	for _, kv := range kvs {
+		e.checkNextLine(t, fmt.Sprintf("%s: %s", hex.EncodeToString(kv.Key), hex.EncodeToString(kv.Value)))
+	}
+}
+
 func (e *executor) checkSlot(t *testing.T, items ...interface{}) {
 	d := json.NewDecoder(e.out)
 	var actual interface{}
@@ -848,4 +854,29 @@ func TestEnv(t *testing.T) {
 		e.checkNextLine(t, "DB type: leveldb")
 		e.checkNextLine(t, "Node config:") // Do not check exact node config.
 	})
+}
+
+func TestDumpStorage(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	h, err := e.cli.chain.GetContractScriptHash(1) // examples/storage/storage.go
+	require.NoError(t, err)
+	expected := []storage.KeyValue{
+		{Key: []byte{1}, Value: []byte{2}},
+		{Key: []byte{2}, Value: []byte{2}},
+	}
+	e.runProg(t,
+		"storage "+h.StringLE(),
+		"storage 0x"+h.StringLE(),
+		"storage "+address.Uint160ToString(h),
+		"storage 1",
+		"storage 1 "+hex.EncodeToString(expected[0].Key),
+		"storage 1 --backwards",
+	)
+	e.checkStorage(t, expected...)
+	e.checkStorage(t, expected...)
+	e.checkStorage(t, expected...)
+	e.checkStorage(t, expected...)
+	e.checkStorage(t, storage.KeyValue{Key: nil, Value: []byte{2}}) // empty key because search prefix is trimmed
+	e.checkStorage(t, expected[1], expected[0])
 }
