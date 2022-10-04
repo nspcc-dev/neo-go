@@ -446,6 +446,13 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 		return
 	}
 
+	if httpRequest.Method == "OPTIONS" && s.config.EnableCORSWorkaround { // Preflight CORS.
+		setCORSOriginHeaders(w.Header())
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST") // GET for websockets.
+		w.Header().Set("Access-Control-Max-Age", "21600")           // 6 hours.
+		return
+	}
+
 	if httpRequest.Method != "POST" {
 		s.writeHTTPErrorResponse(
 			params.NewIn(),
@@ -2733,6 +2740,11 @@ func (s *Server) writeHTTPErrorResponse(r *params.In, w http.ResponseWriter, jso
 	s.writeHTTPServerResponse(&params.Request{In: r}, w, resp)
 }
 
+func setCORSOriginHeaders(h http.Header) {
+	h.Set("Access-Control-Allow-Origin", "*")
+	h.Set("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With")
+}
+
 func (s *Server) writeHTTPServerResponse(r *params.Request, w http.ResponseWriter, resp abstractResult) {
 	// Errors can happen in many places and we can only catch ALL of them here.
 	resp.RunForErrors(func(jsonErr *neorpc.Error) {
@@ -2746,8 +2758,7 @@ func (s *Server) writeHTTPServerResponse(r *params.Request, w http.ResponseWrite
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	if s.config.EnableCORSWorkaround {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With")
+		setCORSOriginHeaders(w.Header())
 	}
 
 	encoder := json.NewEncoder(w)
