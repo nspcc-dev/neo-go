@@ -55,6 +55,7 @@ const (
 	defaultMaxBlockSystemFee               = 900000000000
 	defaultMaxTraceableBlocks              = 2102400 // 1 year of 15s blocks
 	defaultMaxTransactionsPerBlock         = 512
+	defaultSecondsPerBlock                 = 15
 	// HeaderVerificationGasLimit is the maximum amount of GAS for block header verification.
 	HeaderVerificationGasLimit = 3_00000000 // 3 GAS
 	defaultStateSyncInterval   = 40000
@@ -244,6 +245,11 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		cfg.MaxTransactionsPerBlock = defaultMaxTransactionsPerBlock
 		log.Info("MaxTransactionsPerBlock is not set or wrong, using default value",
 			zap.Uint16("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
+	}
+	if cfg.SecondsPerBlock == 0 {
+		cfg.SecondsPerBlock = defaultSecondsPerBlock
+		log.Info("SecondsPerBlock is not set or wrong, using default value",
+			zap.Int("SecondsPerBlock", cfg.SecondsPerBlock))
 	}
 	if cfg.MaxValidUntilBlockIncrement == 0 {
 		const secondsPerDay = int(24 * time.Hour / time.Second)
