@@ -760,6 +760,31 @@ func TestRunWithState(t *testing.T) {
 	e.checkStack(t, 3)
 }
 
+func TestRunWithHistoricState(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	script := io.NewBufBinWriter()
+	h, err := e.cli.chain.GetContractScriptHash(1) // examples/storage/storage.go
+	require.NoError(t, err)
+	emit.AppCall(script.BinWriter, h, "get", callflag.All, 1)
+	b := script.Bytes()
+
+	e.runProg(t,
+		"loadhex "+hex.EncodeToString(b), // normal invocation
+		"run",
+		"loadhex --historic 3 "+hex.EncodeToString(b), // historic invocation, old value should be retrieved
+		"run",
+		"loadhex --historic 0 "+hex.EncodeToString(b), // historic invocation, contract is not deployed yet
+		"run",
+	)
+	e.checkNextLine(t, "READY: loaded 36 instructions")
+	e.checkStack(t, []byte{2})
+	e.checkNextLine(t, "READY: loaded 36 instructions")
+	e.checkStack(t, []byte{1})
+	e.checkNextLine(t, "READY: loaded 36 instructions")
+	e.checkNextLineExact(t, "Error: at instruction 31 (SYSCALL): failed to invoke syscall 1381727586: called contract a00e3c2643a08a452d8b0bdd31849ae11a17c445 not found: key not found\n")
+}
+
 func TestEvents(t *testing.T) {
 	e := newTestVMClIWithState(t)
 
@@ -792,6 +817,7 @@ func TestEnv(t *testing.T) {
 		e := newTestVMCLI(t)
 		e.runProg(t, "env")
 		e.checkNextLine(t, "Chain height: 0")
+		e.checkNextLineExact(t, "VM height (may differ from chain height in case of historic call): 0\n")
 		e.checkNextLine(t, "Network magic: 42")
 		e.checkNextLine(t, "DB type: inmemory")
 	})
@@ -799,6 +825,17 @@ func TestEnv(t *testing.T) {
 		e := newTestVMClIWithState(t)
 		e.runProg(t, "env")
 		e.checkNextLine(t, "Chain height: 5")
+		e.checkNextLineExact(t, "VM height (may differ from chain height in case of historic call): 5\n")
+		e.checkNextLine(t, "Network magic: 42")
+		e.checkNextLine(t, "DB type: leveldb")
+	})
+	t.Run("setup with historic state", func(t *testing.T) {
+		e := newTestVMClIWithState(t)
+		e.runProg(t, "loadbase64 --historic 3 "+base64.StdEncoding.EncodeToString([]byte{byte(opcode.PUSH1)}),
+			"env")
+		e.checkNextLine(t, "READY: loaded 1 instructions")
+		e.checkNextLine(t, "Chain height: 5")
+		e.checkNextLineExact(t, "VM height (may differ from chain height in case of historic call): 3\n")
 		e.checkNextLine(t, "Network magic: 42")
 		e.checkNextLine(t, "DB type: leveldb")
 	})
@@ -806,6 +843,7 @@ func TestEnv(t *testing.T) {
 		e := newTestVMClIWithState(t)
 		e.runProg(t, "env -v")
 		e.checkNextLine(t, "Chain height: 5")
+		e.checkNextLineExact(t, "VM height (may differ from chain height in case of historic call): 5\n")
 		e.checkNextLine(t, "Network magic: 42")
 		e.checkNextLine(t, "DB type: leveldb")
 		e.checkNextLine(t, "Node config:") // Do not check exact node config.

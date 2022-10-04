@@ -54,8 +54,15 @@ const (
 
 // Various flag names.
 const (
-	verboseFlagFullName = "verbose"
+	verboseFlagFullName  = "verbose"
+	historicFlagFullName = "historic"
 )
+
+var historicFlag = cli.IntFlag{
+	Name: historicFlagFullName,
+	Usage: "Height for historic script invocation (for MPT-enabled blockchain configuration with KeepOnlyLatestState setting disabled). " +
+		"Assuming that block N-th is specified as an argument, the historic invocation is based on the storage state of height N and fake currently-accepting block with index N+1.",
+}
 
 var commands = []cli.Command{
 	{
@@ -113,7 +120,8 @@ var commands = []cli.Command{
 		Name:      "loadnef",
 		Usage:     "Load a NEF-consistent script into the VM",
 		UsageText: `loadnef <file> <manifest>`,
-		Description: `loadnef <file> <manifest>
+		Flags:     []cli.Flag{historicFlag},
+		Description: `loadnef [--historic <height>] <file> <manifest>
 both parameters are mandatory, example:
 > loadnef /path/to/script.nef /path/to/manifest.json`,
 		Action: handleLoadNEF,
@@ -121,8 +129,9 @@ both parameters are mandatory, example:
 	{
 		Name:      "loadbase64",
 		Usage:     "Load a base64-encoded script string into the VM",
-		UsageText: `loadbase64 <string>`,
-		Description: `loadbase64 <string>
+		UsageText: `loadbase64 [--historic <height>] <string>`,
+		Flags:     []cli.Flag{historicFlag},
+		Description: `loadbase64 [--historic <height>] <string>
 
 <string> is mandatory parameter, example:
 > loadbase64 AwAQpdToAAAADBQV9ehtQR1OrVZVhtHtoUHRfoE+agwUzmFvf3Rhfg/EuAVYOvJgKiON9j8TwAwIdHJhbnNmZXIMFDt9NxHG8Mz5sdypA9G/odiW8SOMQWJ9W1I4`,
@@ -131,8 +140,9 @@ both parameters are mandatory, example:
 	{
 		Name:      "loadhex",
 		Usage:     "Load a hex-encoded script string into the VM",
-		UsageText: `loadhex <string>`,
-		Description: `loadhex <string>
+		UsageText: `loadhex [--historic <height>] <string>`,
+		Flags:     []cli.Flag{historicFlag},
+		Description: `loadhex [--historic <height>] <string>
 
 <string> is mandatory parameter, example:
 > loadhex 0c0c48656c6c6f20776f726c6421`,
@@ -141,8 +151,9 @@ both parameters are mandatory, example:
 	{
 		Name:      "loadgo",
 		Usage:     "Compile and load a Go file with the manifest into the VM",
-		UsageText: `loadgo <file>`,
-		Description: `loadgo <file>
+		UsageText: `loadgo [--historic <height>] <file>`,
+		Flags:     []cli.Flag{historicFlag},
+		Description: `loadgo [--historic <height>] <file>
 
 <file> is mandatory parameter, example:
 > loadgo /path/to/file.go`,
@@ -150,7 +161,8 @@ both parameters are mandatory, example:
 	},
 	{
 		Name:   "reset",
-		Usage:  "Unload compiled script from the VM",
+		Usage:  "Unload compiled script from the VM and reset context to proper (possibly, historic) state",
+		Flags:  []cli.Flag{historicFlag},
 		Action: handleReset,
 	},
 	{
@@ -485,8 +497,19 @@ func handleSlots(c *cli.Context) error {
 	return nil
 }
 
+// prepareVM retrieves --historic flag from context (if set) and resets app state
+// (to the specified historic height if given).
+func prepareVM(c *cli.Context) error {
+	if c.IsSet(historicFlagFullName) {
+		height := c.Int(historicFlagFullName)
+		return resetState(c.App, uint32(height))
+	}
+
+	return resetState(c.App)
+}
+
 func handleLoadNEF(c *cli.Context) error {
-	err := resetState(c.App)
+	err := prepareVM(c)
 	if err != nil {
 		return err
 	}
@@ -509,7 +532,7 @@ func handleLoadNEF(c *cli.Context) error {
 }
 
 func handleLoadBase64(c *cli.Context) error {
-	err := resetState(c.App)
+	err := prepareVM(c)
 	if err != nil {
 		return err
 	}
@@ -529,7 +552,7 @@ func handleLoadBase64(c *cli.Context) error {
 }
 
 func handleLoadHex(c *cli.Context) error {
-	err := resetState(c.App)
+	err := prepareVM(c)
 	if err != nil {
 		return err
 	}
@@ -549,7 +572,7 @@ func handleLoadHex(c *cli.Context) error {
 }
 
 func handleLoadGo(c *cli.Context) error {
-	err := resetState(c.App)
+	err := prepareVM(c)
 	if err != nil {
 		return err
 	}
@@ -579,7 +602,7 @@ func handleLoadGo(c *cli.Context) error {
 }
 
 func handleReset(c *cli.Context) error {
-	err := resetState(c.App)
+	err := prepareVM(c)
 	if err != nil {
 		return err
 	}
@@ -595,13 +618,25 @@ func finalizeInteropContext(app *cli.App) {
 
 // resetInteropContext calls finalizer for current interop context and replaces
 // it with the newly created one.
-func resetInteropContext(app *cli.App) error {
+func resetInteropContext(app *cli.App, height ...uint32) error {
 	finalizeInteropContext(app)
 	bc := getChainFromContext(app)
-	newIc, err := bc.GetTestVM(trigger.Application, nil, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create test VM: %w", err)
+	var (
+		newIc *interop.Context
+		err   error
+	)
+	if len(height) != 0 {
+		newIc, err = bc.GetTestHistoricVM(trigger.Application, nil, height[0]+1)
+		if err != nil {
+			return fmt.Errorf("failed to create historic VM for height %d: %w", height[0], err)
+		}
+	} else {
+		newIc, err = bc.GetTestVM(trigger.Application, nil, nil)
+		if err != nil {
+			return fmt.Errorf("failed to create VM: %w", err)
+		}
 	}
+
 	setInteropContextInContext(app, newIc)
 	return nil
 }
@@ -613,10 +648,10 @@ func resetManifest(app *cli.App) {
 
 // resetState resets state of the app (clear interop context and manifest) so that it's ready
 // to load new program.
-func resetState(app *cli.App) error {
-	err := resetInteropContext(app)
+func resetState(app *cli.App, height ...uint32) error {
+	err := resetInteropContext(app, height...)
 	if err != nil {
-		return fmt.Errorf("failed to reset interop context state: %w", err)
+		return err
 	}
 	resetManifest(app)
 	return nil
@@ -822,7 +857,9 @@ func handleEvents(c *cli.Context) error {
 func handleEnv(c *cli.Context) error {
 	bc := getChainFromContext(c.App)
 	cfg := getChainConfigFromContext(c.App)
-	message := fmt.Sprintf("Chain height: %d\nNetwork magic: %d\nDB type: %s\n", bc.BlockHeight(), bc.GetConfig().Magic, cfg.ApplicationConfiguration.DBConfiguration.Type)
+	ic := getInteropContextFromContext(c.App)
+	message := fmt.Sprintf("Chain height: %d\nVM height (may differ from chain height in case of historic call): %d\nNetwork magic: %d\nDB type: %s\n",
+		bc.BlockHeight(), ic.BlockHeight(), bc.GetConfig().Magic, cfg.ApplicationConfiguration.DBConfiguration.Type)
 	if c.Bool(verboseFlagFullName) {
 		cfgBytes, err := json.MarshalIndent(cfg, "", "\t")
 		if err != nil {
