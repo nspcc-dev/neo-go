@@ -355,8 +355,7 @@ func setInteropContextInContext(app *cli.App, ic *interop.Context) {
 }
 
 func setManifestInContext(app *cli.App, m *manifest.Manifest) {
-	old := getManifestFromContext(app)
-	*old = *m
+	app.Metadata[manifestKey] = m
 }
 
 func checkVMIsReady(app *cli.App) bool {
@@ -449,7 +448,7 @@ func handleSlots(c *cli.Context) error {
 }
 
 func handleLoadNEF(c *cli.Context) error {
-	resetInteropContext(c.App)
+	resetState(c.App)
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 2 {
@@ -469,7 +468,7 @@ func handleLoadNEF(c *cli.Context) error {
 }
 
 func handleLoadBase64(c *cli.Context) error {
-	resetInteropContext(c.App)
+	resetState(c.App)
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
@@ -486,7 +485,7 @@ func handleLoadBase64(c *cli.Context) error {
 }
 
 func handleLoadHex(c *cli.Context) error {
-	resetInteropContext(c.App)
+	resetState(c.App)
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
@@ -503,7 +502,7 @@ func handleLoadHex(c *cli.Context) error {
 }
 
 func handleLoadGo(c *cli.Context) error {
-	resetInteropContext(c.App)
+	resetState(c.App)
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
@@ -530,7 +529,7 @@ func handleLoadGo(c *cli.Context) error {
 }
 
 func handleReset(c *cli.Context) error {
-	resetInteropContext(c.App)
+	resetState(c.App)
 	changePrompt(c.App)
 	return nil
 }
@@ -548,6 +547,18 @@ func resetInteropContext(app *cli.App) {
 	bc := getChainFromContext(app)
 	newIc := bc.GetTestVM(trigger.Application, nil, nil)
 	setInteropContextInContext(app, newIc)
+}
+
+// resetManifest removes manifest from app context.
+func resetManifest(app *cli.App) {
+	setManifestInContext(app, nil)
+}
+
+// resetState resets state of the app (clear interop context and manifest) so that it's ready
+// to load new program.
+func resetState(app *cli.App) {
+	resetInteropContext(app)
+	resetManifest(app)
 }
 
 func getManifestFromFile(name string) (*manifest.Manifest, error) {
@@ -580,6 +591,9 @@ func handleRun(c *cli.Context) error {
 			return err
 		}
 		if runCurrent {
+			if m == nil {
+				return fmt.Errorf("manifest is not loaded; either use 'run' command to run loaded script from the start or use 'loadgo' and 'loadnef' commands to provide manifest")
+			}
 			md := m.ABI.GetMethod(args[0], len(params))
 			if md == nil {
 				return fmt.Errorf("%w: method not found", ErrInvalidParameter)
