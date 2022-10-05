@@ -1,7 +1,7 @@
 package deploy
 
 import (
-	"github.com/nspcc-dev/neo-go/cli/testdata/deploy/sub"
+	"github.com/nspcc-dev/neo-go/cli/smartcontract/testdata/deploy/sub"
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/iterator"

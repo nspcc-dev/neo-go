@@ -45,7 +45,7 @@ ApplicationConfiguration:
   MaxPeers: 10
   AttemptConnPeers: 5
   UnlockWallet:
-      Path: "testdata/wallet1_solo.json"
+      Path: "../testdata/wallet1_solo.json"
       Password: "one"
   P2PNotary:
     Enabled: false

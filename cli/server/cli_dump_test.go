@@ -1,4 +1,4 @@
-package main
+package server_test
 
 import (
 	"os"
@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -16,7 +17,7 @@ func TestDBRestoreDump(t *testing.T) {
 
 	loadConfig := func(t *testing.T) config.Config {
 		chainPath := filepath.Join(tmpDir, "neogotestchain")
-		cfg, err := config.LoadFile(filepath.Join("..", "config", "protocol.unit_testnet.yml"))
+		cfg, err := config.LoadFile(filepath.Join("..", "..", "config", "protocol.unit_testnet.yml"))
 		require.NoError(t, err, "could not load config")
 		cfg.ApplicationConfiguration.DBConfiguration.Type = "leveldb"
 		cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions.DataDirectoryPath = chainPath
@@ -30,9 +31,9 @@ func TestDBRestoreDump(t *testing.T) {
 	cfgPath := filepath.Join(tmpDir, "protocol.unit_testnet.yml")
 	require.NoError(t, os.WriteFile(cfgPath, out, os.ModePerm))
 
-	// generated via `go run ./scripts/gendump/main.go --out ./cli/testdata/chain50x2.acc --blocks 50 --txs 2`
+	// generated via `go run ./scripts/gendump/main.go --out ./cli/server/testdata/chain50x2.acc --blocks 50 --txs 2`
 	const inDump = "./testdata/chain50x2.acc"
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 
 	stateDump := filepath.Join(tmpDir, "neogo.teststate")
 	baseArgs := []string{"neo-go", "db", "restore", "--unittest",

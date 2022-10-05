@@ -183,7 +183,7 @@ func TestRegenerateCLITestwallet_NEO3(t *testing.T) {
 	if !regenerate {
 		return
 	}
-	const walletPath = "../../cli/testdata/wallets/testwallet_NEO3.json"
+	const walletPath = "../../cli/wallet/testdata/testwallet_NEO3.json"
 
 	pubs := getKeys(t)
 	acc1 := getAccount(t, privnetWIFs[0], passwords[0])
@@ -211,8 +211,8 @@ func TestRegenerateCLIWallet1_solo(t *testing.T) {
 	const (
 		walletPath         = "../../cli/testdata/wallet1_solo.json"
 		verifyWIF          = "L3W8gi36Y3KPqyR54VJaE1agH9yPvW2hALNZy1BerDwWce9P9xEy"
-		verifyNEFPath      = "../../cli/testdata/verify.nef"
-		verifyManifestPath = "../../cli/testdata/verify.manifest.json"
+		verifyNEFPath      = "../../cli/smartcontract/testdata/verify.nef"
+		verifyManifestPath = "../../cli/smartcontract/testdata/verify.manifest.json"
 	)
 
 	scrypt := keys.ScryptParams{N: 2, R: 1, P: 1}
