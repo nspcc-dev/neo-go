@@ -880,3 +880,33 @@ func TestDumpStorage(t *testing.T) {
 	e.checkStorage(t, storage.KeyValue{Key: nil, Value: []byte{2}}) // empty key because search prefix is trimmed
 	e.checkStorage(t, expected[1], expected[0])
 }
+
+func TestDumpStorageDiff(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	script := io.NewBufBinWriter()
+	h, err := e.cli.chain.GetContractScriptHash(1) // examples/storage/storage.go
+	require.NoError(t, err)
+	emit.AppCall(script.BinWriter, h, "put", callflag.All, 3, 3)
+
+	expected := []storage.KeyValue{
+		{Key: []byte{1}, Value: []byte{2}},
+		{Key: []byte{2}, Value: []byte{2}},
+	}
+	diff := storage.KeyValue{Key: []byte{3}, Value: []byte{3}}
+	e.runProg(t,
+		"storage 1",
+		"storage 1 --diff",
+		"loadhex "+hex.EncodeToString(script.Bytes()),
+		"run",
+		"storage 1",
+		"storage 1 --diff",
+	)
+
+	e.checkStorage(t, expected...)
+	// no script is executed => no diff
+	e.checkNextLine(t, "READY: loaded 37 instructions")
+	e.checkStack(t, 3)
+	e.checkStorage(t, append(expected, diff)...)
+	e.checkStorage(t, diff)
+}

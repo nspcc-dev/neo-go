@@ -58,6 +58,7 @@ const (
 	verboseFlagFullName   = "verbose"
 	historicFlagFullName  = "historic"
 	backwardsFlagFullName = "backwards"
+	diffFlagFullName      = "diff"
 )
 
 var historicFlag = cli.IntFlag{
@@ -275,24 +276,30 @@ Example:
 			"Can be used if no script is loaded. " +
 			"Hex-encoded storage items prefix may be specified (empty by default to return the whole set of storage items). " +
 			"If seek prefix is not empty, then it's trimmed from the resulting keys." +
-			"Items are sorted. Backwards seek direction may be specified (false by default, which means forwards storage seek direction).",
-		UsageText: `storage <hash-or-address-or-id> [<prefix>] [--backwards]`,
+			"Items are sorted. Backwards seek direction may be specified (false by default, which means forwards storage seek direction). " +
+			"It is possible to dump only those storage items that were added or changed during current script invocation (use --diff flag for it).",
+		UsageText: `storage <hash-or-address-or-id> [<prefix>] [--backwards] [--diff]`,
 		Flags: []cli.Flag{
 			cli.BoolFlag{
 				Name:  backwardsFlagFullName + ",b",
 				Usage: "Backwards traversal direction",
 			},
+			cli.BoolFlag{
+				Name:  diffFlagFullName + ",d",
+				Usage: "Dump only those storage items that were added or changed during the current script invocation. Note that this call won't show removed storage items.",
+			},
 		},
-		Description: `storage <hash-or-address-or-id> <prefix> --backwards
+		Description: `storage <hash-or-address-or-id> <prefix> [--backwards] [--diff]
 
 Dump storage of the contract with the specified hash, address or ID as is at the current stage of script invocation.
 Can be used if no script is loaded.
 Hex-encoded storage items prefix may be specified (empty by default to return the whole set of storage items).
 If seek prefix is not empty, then it's trimmed from the resulting keys.
 Items are sorted. Backwards seek direction may be specified (false by default, which means forwards storage seek direction).
+It is possible to dump only those storage items that were added or changed during current script invocation (use --diff flag for it).
 
 Example:
-> storage 0x0000000009070e030d0f0e020d0c06050e030c02 030e --backwards`,
+> storage 0x0000000009070e030d0f0e020d0c06050e030c02 030e --backwards --diff`,
 		Action: handleStorage,
 	},
 }
@@ -909,6 +916,7 @@ func handleStorage(c *cli.Context) error {
 		ic        = getInteropContextFromContext(c.App)
 		prefix    []byte
 		backwards bool
+		seekDepth int
 	)
 	h, err := flags.ParseAddress(hashOrID)
 	if err != nil {
@@ -933,9 +941,13 @@ func handleStorage(c *cli.Context) error {
 	if c.Bool(backwardsFlagFullName) {
 		backwards = true
 	}
+	if c.Bool(diffFlagFullName) {
+		seekDepth = 1 // take only upper DAO layer which stores only added or updated items.
+	}
 	ic.DAO.Seek(id, storage.SeekRange{
-		Prefix:    prefix,
-		Backwards: backwards,
+		Prefix:      prefix,
+		Backwards:   backwards,
+		SearchDepth: seekDepth,
 	}, func(k, v []byte) bool {
 		fmt.Fprintf(c.App.Writer, "%s: %v\n", hex.EncodeToString(k), hex.EncodeToString(v))
 		return true
