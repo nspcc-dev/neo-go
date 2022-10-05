@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/server"
 	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -25,7 +26,7 @@ func TestServerStart(t *testing.T) {
 	saveCfg := func(t *testing.T, f func(cfg *config.Config)) string {
 		cfg := *ptr
 		chainPath := filepath.Join(t.TempDir(), "neogotestchain")
-		cfg.ApplicationConfiguration.DBConfiguration.Type = "leveldb"
+		cfg.ApplicationConfiguration.DBConfiguration.Type = dbconfig.LevelDB
 		cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions.DataDirectoryPath = chainPath
 		f(&cfg)
 		out, err := yaml.Marshal(cfg)

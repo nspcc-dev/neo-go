@@ -114,11 +114,11 @@ func NewStore(cfg dbconfig.DBConfiguration) (Store, error) {
 	var store Store
 	var err error
 	switch cfg.Type {
-	case "leveldb":
+	case dbconfig.LevelDB:
 		store, err = NewLevelDBStore(cfg.LevelDBOptions)
-	case "inmemory":
+	case dbconfig.InMemoryDB:
 		store = NewMemoryStore()
-	case "boltdb":
+	case dbconfig.BoltDB:
 		store, err = NewBoltDBStore(cfg.BoltDBOptions)
 	default:
 		return nil, fmt.Errorf("unknown storage: %s", cfg.Type)

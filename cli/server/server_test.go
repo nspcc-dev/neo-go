@@ -350,7 +350,7 @@ func TestInitBlockChain(t *testing.T) {
 		_, err := initBlockChain(config.Config{
 			ApplicationConfiguration: config.ApplicationConfiguration{
 				DBConfiguration: dbconfig.DBConfiguration{
-					Type: "inmemory",
+					Type: dbconfig.InMemoryDB,
 				},
 			},
 		}, nil)
