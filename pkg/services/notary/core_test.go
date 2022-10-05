@@ -199,7 +199,7 @@ func TestNotary(t *testing.T) {
 		}
 		fallback.Scripts = []transaction.Witness{
 			{
-				InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...),
+				InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...),
 				VerificationScript: []byte{},
 			},
 		}
@@ -261,7 +261,7 @@ func TestNotary(t *testing.T) {
 				for j := range main.Scripts {
 					main.Scripts[j].VerificationScript = verificationScripts[j]
 					if i == j {
-						main.Scripts[j].InvocationScript = append([]byte{byte(opcode.PUSHDATA1), 64}, acc.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), main)...)
+						main.Scripts[j].InvocationScript = append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, acc.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), main)...)
 					}
 				}
 				main.Scripts = append(main.Scripts, transaction.Witness{}) // empty Notary witness
@@ -310,7 +310,7 @@ func TestNotary(t *testing.T) {
 				require.NoError(t, err)
 			}
 			require.Equal(t, transaction.Witness{
-				InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc1.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), requests[0].MainTransaction)...),
+				InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, acc1.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), requests[0].MainTransaction)...),
 				VerificationScript: []byte{},
 			}, completedTx.Scripts[len(completedTx.Scripts)-1])
 		} else {
@@ -325,7 +325,7 @@ func TestNotary(t *testing.T) {
 				require.Equal(t, 2, len(completedTx.Signers))
 				require.Equal(t, 2, len(completedTx.Scripts))
 				require.Equal(t, transaction.Witness{
-					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc1.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), req.FallbackTransaction)...),
+					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, acc1.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), req.FallbackTransaction)...),
 					VerificationScript: []byte{},
 				}, completedTx.Scripts[0])
 

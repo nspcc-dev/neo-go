@@ -116,7 +116,7 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 	}
 	sign := a.privateKey.SignHashable(uint32(net), t)
 
-	invoc := append([]byte{byte(opcode.PUSHDATA1), 64}, sign...)
+	invoc := append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, sign...)
 	if len(a.Contract.Parameters) == 1 {
 		t.Scripts[pos].InvocationScript = invoc
 	} else {

@@ -15,6 +15,7 @@ import (
 	istorage "github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -488,6 +489,6 @@ func TestInteropTypesComparison(t *testing.T) {
 	}
 	typeCheck(t, "Hash160", util.Uint160Size)
 	typeCheck(t, "Hash256", util.Uint256Size)
-	typeCheck(t, "Signature", 64)
-	typeCheck(t, "PublicKey", 33)
+	typeCheck(t, "Signature", smartcontract.SignatureLen)
+	typeCheck(t, "PublicKey", smartcontract.PublicKeyLen)
 }

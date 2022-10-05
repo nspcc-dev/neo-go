@@ -43,11 +43,11 @@ func TestContextItem_MarshalJSON(t *testing.T) {
 		Script: []byte{1, 2, 3},
 		Parameters: []smartcontract.Parameter{{
 			Type:  smartcontract.SignatureType,
-			Value: random.Bytes(64),
+			Value: random.Bytes(keys.SignatureLen),
 		}},
 		Signatures: map[string][]byte{
-			hex.EncodeToString(priv1.PublicKey().Bytes()): random.Bytes(64),
-			hex.EncodeToString(priv2.PublicKey().Bytes()): random.Bytes(64),
+			hex.EncodeToString(priv1.PublicKey().Bytes()): random.Bytes(keys.SignatureLen),
+			hex.EncodeToString(priv2.PublicKey().Bytes()): random.Bytes(keys.SignatureLen),
 		},
 	}
 

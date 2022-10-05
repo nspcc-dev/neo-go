@@ -64,3 +64,13 @@ func TestEvent_FromStackItemErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestEventCheckCompliance(t *testing.T) {
+	m := &Event{
+		Name:       "mur",
+		Parameters: []Parameter{{Name: "p1", Type: smartcontract.BoolType}},
+	}
+	require.Error(t, m.CheckCompliance([]stackitem.Item{}))
+	require.Error(t, m.CheckCompliance([]stackitem.Item{stackitem.Make("something")}))
+	require.NoError(t, m.CheckCompliance([]stackitem.Item{stackitem.Make(true)}))
+}

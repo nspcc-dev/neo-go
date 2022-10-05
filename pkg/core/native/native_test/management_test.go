@@ -126,7 +126,7 @@ func TestManagement_ContractDeploy(t *testing.T) {
 		require.NoError(t, err)
 
 		badManifest := cs1.Manifest
-		badManifest.Groups = []manifest.Group{{PublicKey: pkey.PublicKey(), Signature: make([]byte, 64)}}
+		badManifest.Groups = []manifest.Group{{PublicKey: pkey.PublicKey(), Signature: make([]byte, keys.SignatureLen)}}
 		manifB, err := json.Marshal(&badManifest)
 		require.NoError(t, err)
 
@@ -432,7 +432,7 @@ func TestManagement_ContractUpdate(t *testing.T) {
 		require.NoError(t, err)
 
 		var badManifest = cs1.Manifest
-		badManifest.Groups = []manifest.Group{{PublicKey: pkey.PublicKey(), Signature: make([]byte, 64)}}
+		badManifest.Groups = []manifest.Group{{PublicKey: pkey.PublicKey(), Signature: make([]byte, keys.SignatureLen)}}
 		manifB, err := json.Marshal(badManifest)
 		require.NoError(t, err)
 

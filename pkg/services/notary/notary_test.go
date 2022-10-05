@@ -51,7 +51,7 @@ func TestVerifyIncompleteRequest(t *testing.T) {
 	notaryContractHash := util.Uint160{1, 2, 3}
 	bc.NotaryContractScriptHash = notaryContractHash
 	_, ntr, _ := getTestNotary(t, bc, "./testdata/notary1.json", "one")
-	sig := append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...) // we're not interested in signature correctness
+	sig := append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...) // we're not interested in signature correctness
 	acc1, _ := keys.NewPrivateKey()
 	acc2, _ := keys.NewPrivateKey()
 	acc3, _ := keys.NewPrivateKey()

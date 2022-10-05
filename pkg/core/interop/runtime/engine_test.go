@@ -8,11 +8,9 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -129,57 +127,5 @@ func TestLog(t *testing.T) {
 		require.Equal(t, "info", logMsg["level"])
 		require.Equal(t, "hello", logMsg["msg"])
 		require.Equal(t, h.StringLE(), logMsg["script"])
-	})
-}
-
-func TestNotify(t *testing.T) {
-	h := random.Uint160()
-	caller := random.Uint160()
-	exe, err := nef.NewFile([]byte{1})
-	require.NoError(t, err)
-	newIC := func(name string, args interface{}) *interop.Context {
-		ic := &interop.Context{VM: vm.New(), DAO: &dao.Simple{}}
-		ic.VM.LoadNEFMethod(exe, caller, h, callflag.NoneFlag, true, 0, -1, nil)
-		ic.VM.Estack().PushVal(args)
-		ic.VM.Estack().PushVal(name)
-		return ic
-	}
-	t.Run("big name", func(t *testing.T) {
-		ic := newIC(string(make([]byte, MaxEventNameLen+1)), stackitem.NewArray([]stackitem.Item{stackitem.Null{}}))
-		require.Error(t, Notify(ic))
-	})
-	t.Run("dynamic script", func(t *testing.T) {
-		ic := &interop.Context{VM: vm.New(), DAO: &dao.Simple{}}
-		ic.VM.LoadScriptWithHash([]byte{1}, h, callflag.NoneFlag)
-		ic.VM.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(42)}))
-		ic.VM.Estack().PushVal("event")
-		require.Error(t, Notify(ic))
-	})
-	t.Run("recursive struct", func(t *testing.T) {
-		arr := stackitem.NewArray([]stackitem.Item{stackitem.Null{}})
-		arr.Append(arr)
-		ic := newIC("event", arr)
-		require.Error(t, Notify(ic))
-	})
-	t.Run("big notification", func(t *testing.T) {
-		bs := stackitem.NewByteArray(make([]byte, MaxNotificationSize+1))
-		arr := stackitem.NewArray([]stackitem.Item{bs})
-		ic := newIC("event", arr)
-		require.Error(t, Notify(ic))
-	})
-	t.Run("good", func(t *testing.T) {
-		arr := stackitem.NewArray([]stackitem.Item{stackitem.Make(42)})
-		ic := newIC("good event", arr)
-		require.NoError(t, Notify(ic))
-		require.Equal(t, 1, len(ic.Notifications))
-
-		arr.MarkAsReadOnly() // tiny hack for test to be able to compare object references.
-		ev := ic.Notifications[0]
-		require.Equal(t, "good event", ev.Name)
-		require.Equal(t, h, ev.ScriptHash)
-		require.Equal(t, arr, ev.Item)
-		// Check deep copy.
-		arr.Value().([]stackitem.Item)[0] = stackitem.Null{}
-		require.NotEqual(t, arr, ev.Item)
 	})
 }

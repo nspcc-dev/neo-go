@@ -38,6 +38,14 @@ const (
 	VoidType             ParamType = 0xff
 )
 
+// Lengths (in bytes) of fixed-size types.
+const (
+	Hash160Len   = util.Uint160Size
+	Hash256Len   = util.Uint256Size
+	PublicKeyLen = 33
+	SignatureLen = keys.SignatureLen
+)
+
 // fileBytesParamType is a string representation of `filebytes` parameter type used in cli.
 const fileBytesParamType string = "filebytes"
 
@@ -151,7 +159,7 @@ func (pt *ParamType) DecodeBinary(r *io.BinReader) {
 // public key is represented by 33-byte value while 32 bytes are used for integer
 // and a simple push+convert is used for boolean. Other types produce no code at all.
 func (pt ParamType) EncodeDefaultValue(w *io.BinWriter) {
-	var b [64]byte
+	var b [SignatureLen]byte
 
 	switch pt {
 	case AnyType, SignatureType, StringType, ByteArrayType:
@@ -161,12 +169,58 @@ func (pt ParamType) EncodeDefaultValue(w *io.BinWriter) {
 	case IntegerType:
 		emit.Instruction(w, opcode.PUSHINT256, b[:32])
 	case Hash160Type:
-		emit.Bytes(w, b[:20])
+		emit.Bytes(w, b[:Hash160Len])
 	case Hash256Type:
-		emit.Bytes(w, b[:32])
+		emit.Bytes(w, b[:Hash256Len])
 	case PublicKeyType:
-		emit.Bytes(w, b[:33])
+		emit.Bytes(w, b[:PublicKeyLen])
 	case ArrayType, MapType, InteropInterfaceType, VoidType:
+	}
+}
+
+func checkBytesWithLen(vt stackitem.Type, v stackitem.Item, l int) bool {
+	if vt == stackitem.AnyT {
+		return true
+	}
+	if vt != stackitem.ByteArrayT && vt != stackitem.BufferT {
+		return false
+	}
+	b, _ := v.TryBytes() // Can't fail, we know the type exactly.
+	return len(b) == l
+}
+
+func (pt ParamType) Match(v stackitem.Item) bool {
+	vt := v.Type()
+
+	// Pointer can't be matched at all.
+	if vt == stackitem.PointerT {
+		return false
+	}
+	switch pt {
+	case AnyType:
+		return true
+	case BoolType:
+		return vt == stackitem.BooleanT
+	case IntegerType:
+		return vt == stackitem.IntegerT
+	case ByteArrayType, StringType:
+		return vt == stackitem.ByteArrayT || vt == stackitem.BufferT || vt == stackitem.AnyT
+	case Hash160Type:
+		return checkBytesWithLen(vt, v, Hash160Len)
+	case Hash256Type:
+		return checkBytesWithLen(vt, v, Hash256Len)
+	case PublicKeyType:
+		return checkBytesWithLen(vt, v, PublicKeyLen)
+	case SignatureType:
+		return checkBytesWithLen(vt, v, SignatureLen)
+	case ArrayType:
+		return vt == stackitem.AnyT || vt == stackitem.ArrayT || vt == stackitem.StructT
+	case MapType:
+		return vt == stackitem.AnyT || vt == stackitem.MapT
+	case InteropInterfaceType:
+		return vt == stackitem.AnyT || vt == stackitem.InteropT
+	default:
+		return false
 	}
 }
 
@@ -228,7 +282,7 @@ func adjustValToType(typ ParamType, val string) (interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		if len(b) != 64 {
+		if len(b) != SignatureLen {
 			return nil, errors.New("not a signature")
 		}
 		return b, nil
@@ -310,11 +364,11 @@ func inferParamType(val string) ParamType {
 	unhexed, err := hex.DecodeString(val)
 	if err == nil {
 		switch len(unhexed) {
-		case 20:
+		case Hash160Len:
 			return Hash160Type
-		case 32:
+		case Hash256Len:
 			return Hash256Type
-		case 64:
+		case SignatureLen:
 			return SignatureType
 		default:
 			return ByteArrayType

@@ -228,13 +228,13 @@ func randomRecoveryMessage(t *testing.T) *recoveryMessage {
 			{
 				ViewNumber:       0,
 				ValidatorIndex:   1,
-				Signature:        [64]byte{1, 2, 3},
+				Signature:        [keys.SignatureLen]byte{1, 2, 3},
 				InvocationScript: random.Bytes(20),
 			},
 			{
 				ViewNumber:       0,
 				ValidatorIndex:   2,
-				Signature:        [64]byte{11, 3, 4, 98},
+				Signature:        [keys.SignatureLen]byte{11, 3, 4, 98},
 				InvocationScript: random.Bytes(10),
 			},
 		},

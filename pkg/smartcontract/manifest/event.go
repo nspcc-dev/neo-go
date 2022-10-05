@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -57,6 +58,20 @@ func (e *Event) FromStackItem(item stackitem.Item) error {
 			return err
 		}
 		e.Parameters[i] = *p
+	}
+	return nil
+}
+
+// CheckCompliance checks compliance of the given array of items with the
+// current event.
+func (e *Event) CheckCompliance(items []stackitem.Item) error {
+	if len(items) != len(e.Parameters) {
+		return errors.New("mismatch between the number of parameters and items")
+	}
+	for i := range items {
+		if !e.Parameters[i].Type.Match(items[i]) {
+			return fmt.Errorf("parameter %d type mismatch: %s vs %s", i, e.Parameters[i].Type.String(), items[i].Type().String())
+		}
 	}
 	return nil
 }

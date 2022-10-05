@@ -418,3 +418,58 @@ func TestConvertToStackitemType(t *testing.T) {
 		UnknownType.ConvertToStackitemType()
 	})
 }
+
+func TestParamTypeMatch(t *testing.T) {
+	for itm, pt := range map[stackitem.Item]ParamType{
+		&stackitem.Pointer{}:      BoolType,
+		&stackitem.Pointer{}:      MapType,
+		stackitem.Make(0):         BoolType,
+		stackitem.Make(0):         ByteArrayType,
+		stackitem.Make(0):         StringType,
+		stackitem.Make(false):     ByteArrayType,
+		stackitem.Make(true):      StringType,
+		stackitem.Make([]byte{1}): Hash160Type,
+		stackitem.Make([]byte{1}): Hash256Type,
+		stackitem.Make([]byte{1}): PublicKeyType,
+		stackitem.Make([]byte{1}): SignatureType,
+		stackitem.Make(0):         Hash160Type,
+		stackitem.Make(0):         Hash256Type,
+		stackitem.Make(0):         PublicKeyType,
+		stackitem.Make(0):         SignatureType,
+		stackitem.Make(0):         ArrayType,
+		stackitem.Make(0):         MapType,
+		stackitem.Make(0):         InteropInterfaceType,
+		stackitem.Make(0):         VoidType,
+	} {
+		require.Falsef(t, pt.Match(itm), "%s - %s", pt.String(), itm.String())
+	}
+	for itm, pt := range map[stackitem.Item]ParamType{
+		stackitem.Make(false):                      BoolType,
+		stackitem.Make(true):                       BoolType,
+		stackitem.Make(0):                          IntegerType,
+		stackitem.Make(100500):                     IntegerType,
+		stackitem.Make([]byte{1}):                  ByteArrayType,
+		stackitem.Make([]byte{1}):                  StringType,
+		stackitem.NewBuffer([]byte{1}):             ByteArrayType,
+		stackitem.NewBuffer([]byte{1}):             StringType,
+		stackitem.Null{}:                           ByteArrayType,
+		stackitem.Null{}:                           StringType,
+		stackitem.Make(util.Uint160{}.BytesBE()):   Hash160Type,
+		stackitem.Make(util.Uint256{}.BytesBE()):   Hash256Type,
+		stackitem.Null{}:                           Hash160Type,
+		stackitem.Null{}:                           Hash256Type,
+		stackitem.Make(make([]byte, PublicKeyLen)): PublicKeyType,
+		stackitem.Null{}:                           PublicKeyType,
+		stackitem.Make(make([]byte, SignatureLen)): SignatureType,
+		stackitem.Null{}:                           SignatureType,
+		stackitem.Make([]stackitem.Item{}):         ArrayType,
+		stackitem.NewStruct([]stackitem.Item{}):    ArrayType,
+		stackitem.Null{}:                           ArrayType,
+		stackitem.NewMap():                         MapType,
+		stackitem.Null{}:                           MapType,
+		stackitem.NewInterop(true):                 InteropInterfaceType,
+		stackitem.Null{}:                           InteropInterfaceType,
+	} {
+		require.Truef(t, pt.Match(itm), "%s - %s", pt.String(), itm.String())
+	}
+}
