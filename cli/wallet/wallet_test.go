@@ -904,3 +904,7 @@ func TestWalletConvert(t *testing.T) {
 		require.Equal(t, exp, act)
 	}
 }
+
+func deployNNSContract(t *testing.T, e *testcli.Executor) util.Uint160 {
+	return testcli.DeployContract(t, e, "../../examples/nft-nd-nns/", "../../examples/nft-nd-nns/nns.yml", testcli.ValidatorWallet, testcli.ValidatorAddr, testcli.ValidatorPass)
+}

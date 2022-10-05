@@ -1,4 +1,4 @@
-package wallet_test
+package nep_test
 
 import (
 	"bytes"
@@ -658,4 +658,8 @@ func deployNFTContract(t *testing.T, e *testcli.Executor) util.Uint160 {
 
 func deployNNSContract(t *testing.T, e *testcli.Executor) util.Uint160 {
 	return testcli.DeployContract(t, e, "../../examples/nft-nd-nns/", "../../examples/nft-nd-nns/nns.yml", testcli.ValidatorWallet, testcli.ValidatorAddr, testcli.ValidatorPass)
+}
+
+func deployVerifyContract(t *testing.T, e *testcli.Executor) util.Uint160 {
+	return testcli.DeployContract(t, e, "../smartcontract/testdata/verify.go", "../smartcontract/testdata/verify.yml", testcli.ValidatorWallet, testcli.ValidatorAddr, testcli.ValidatorPass)
 }

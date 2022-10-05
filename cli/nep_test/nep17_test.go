@@ -1,4 +1,4 @@
-package wallet_test
+package nep_test
 
 import (
 	"io"
