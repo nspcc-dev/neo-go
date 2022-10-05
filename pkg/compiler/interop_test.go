@@ -45,7 +45,7 @@ func TestTypeConstantSize(t *testing.T) {
 
 	t.Run("Hash160", func(t *testing.T) {
 		t.Run("good", func(t *testing.T) {
-			a := make(cinterop.Hash160, 20)
+			a := make(cinterop.Hash160, smartcontract.Hash160Len)
 			src := fmt.Sprintf(src, a, a)
 			eval(t, src, []byte(a))
 		})
@@ -58,7 +58,7 @@ func TestTypeConstantSize(t *testing.T) {
 	})
 	t.Run("Hash256", func(t *testing.T) {
 		t.Run("good", func(t *testing.T) {
-			a := make(cinterop.Hash256, 32)
+			a := make(cinterop.Hash256, smartcontract.Hash256Len)
 			src := fmt.Sprintf(src, a, a)
 			eval(t, src, []byte(a))
 		})
