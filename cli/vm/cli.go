@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/elliptic"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -277,7 +278,8 @@ Example:
 			"Hex-encoded storage items prefix may be specified (empty by default to return the whole set of storage items). " +
 			"If seek prefix is not empty, then it's trimmed from the resulting keys." +
 			"Items are sorted. Backwards seek direction may be specified (false by default, which means forwards storage seek direction). " +
-			"It is possible to dump only those storage items that were added or changed during current script invocation (use --diff flag for it).",
+			"It is possible to dump only those storage items that were added or changed during current script invocation (use --diff flag for it). " +
+			"To dump the whole set of storage changes including removed items use 'changes' command.",
 		UsageText: `storage <hash-or-address-or-id> [<prefix>] [--backwards] [--diff]`,
 		Flags: []cli.Flag{
 			cli.BoolFlag{
@@ -286,7 +288,7 @@ Example:
 			},
 			cli.BoolFlag{
 				Name:  diffFlagFullName + ",d",
-				Usage: "Dump only those storage items that were added or changed during the current script invocation. Note that this call won't show removed storage items.",
+				Usage: "Dump only those storage items that were added or changed during the current script invocation. Note that this call won't show removed storage items, use 'changes' command for that.",
 			},
 		},
 		Description: `storage <hash-or-address-or-id> <prefix> [--backwards] [--diff]
@@ -297,10 +299,31 @@ Hex-encoded storage items prefix may be specified (empty by default to return th
 If seek prefix is not empty, then it's trimmed from the resulting keys.
 Items are sorted. Backwards seek direction may be specified (false by default, which means forwards storage seek direction).
 It is possible to dump only those storage items that were added or changed during current script invocation (use --diff flag for it).
+To dump the whole set of storage changes including removed items use 'changes' command.
 
 Example:
 > storage 0x0000000009070e030d0f0e020d0c06050e030c02 030e --backwards --diff`,
 		Action: handleStorage,
+	},
+	{
+		Name: "changes",
+		Usage: "Dump storage changes as is at the current stage of loaded script invocation. " +
+			"If no script is loaded or executed, then no changes are present. " +
+			"The contract hash, address or ID may be specified as the first parameter to dump the specified contract storage changes. " +
+			"Hex-encoded search prefix (without contract ID) may be specified to dump matching storage changes. " +
+			"Resulting values are not sorted.",
+		UsageText: `changes [<hash-or-address-or-id> [<prefix>]]`,
+		Description: `changes [<hash-or-address-or-id> [<prefix>]]
+
+Dump storage changes as is at the current stage of loaded script invocation.
+If no script is loaded or executed, then no changes are present.
+The contract hash, address or ID may be specified as the first parameter to dump the specified contract storage changes.
+Hex-encoded search prefix (without contract ID) may be specified to dump matching storage changes.
+Resulting values are not sorted.
+
+Example:
+> changes 0x0000000009070e030d0f0e020d0c06050e030c02 030e`,
+		Action: handleChanges,
 	},
 }
 
@@ -907,37 +930,15 @@ func handleEnv(c *cli.Context) error {
 }
 
 func handleStorage(c *cli.Context) error {
-	if !c.Args().Present() {
-		return errors.New("contract hash, address or ID is mandatory argument")
+	id, prefix, err := getDumpArgs(c)
+	if err != nil {
+		return err
 	}
-	hashOrID := c.Args().Get(0)
 	var (
-		id        int32
-		ic        = getInteropContextFromContext(c.App)
-		prefix    []byte
 		backwards bool
 		seekDepth int
+		ic        = getInteropContextFromContext(c.App)
 	)
-	h, err := flags.ParseAddress(hashOrID)
-	if err != nil {
-		i, err := strconv.Atoi(hashOrID)
-		if err != nil {
-			return fmt.Errorf("failed to parse contract hash, address or ID: %w", err)
-		}
-		id = int32(i)
-	} else {
-		cs, err := ic.GetContract(h)
-		if err != nil {
-			return fmt.Errorf("contract %s not found: %w", h.StringLE(), err)
-		}
-		id = cs.ID
-	}
-	if c.NArg() > 1 {
-		prefix, err = hex.DecodeString(c.Args().Get(1))
-		if err != nil {
-			return fmt.Errorf("failed to decode prefix from hex: %w", err)
-		}
-	}
 	if c.Bool(backwardsFlagFullName) {
 		backwards = true
 	}
@@ -953,6 +954,79 @@ func handleStorage(c *cli.Context) error {
 		return true
 	})
 	return nil
+}
+
+func handleChanges(c *cli.Context) error {
+	var (
+		expectedID int32
+		prefix     []byte
+		err        error
+		hasAgs     = c.Args().Present()
+	)
+	if hasAgs {
+		expectedID, prefix, err = getDumpArgs(c)
+		if err != nil {
+			return err
+		}
+	}
+	ic := getInteropContextFromContext(c.App)
+	b := ic.DAO.GetBatch()
+	if b == nil {
+		return nil
+	}
+	ops := storage.BatchToOperations(b)
+	var notFirst bool
+	for _, op := range ops {
+		id := int32(binary.LittleEndian.Uint32(op.Key))
+		if hasAgs && (expectedID != id || (len(prefix) != 0 && !bytes.HasPrefix(op.Key[4:], prefix))) {
+			continue
+		}
+		var message string
+		if notFirst {
+			message += "\n"
+		}
+		message += fmt.Sprintf("Contract ID: %d\nState: %s\nKey: %s\n", id, op.State, hex.EncodeToString(op.Key[4:]))
+		if op.Value != nil {
+			message += fmt.Sprintf("Value: %s\n", hex.EncodeToString(op.Value))
+		}
+		fmt.Fprint(c.App.Writer, message)
+		notFirst = true
+	}
+	return nil
+}
+
+// getDumpArgs is a helper function that retrieves contract ID and search prefix (if given).
+func getDumpArgs(c *cli.Context) (int32, []byte, error) {
+	if !c.Args().Present() {
+		return 0, nil, errors.New("contract hash, address or ID is mandatory argument")
+	}
+	hashOrID := c.Args().Get(0)
+	var (
+		ic     = getInteropContextFromContext(c.App)
+		id     int32
+		prefix []byte
+	)
+	h, err := flags.ParseAddress(hashOrID)
+	if err != nil {
+		i, err := strconv.Atoi(hashOrID)
+		if err != nil {
+			return 0, nil, fmt.Errorf("failed to parse contract hash, address or ID: %w", err)
+		}
+		id = int32(i)
+	} else {
+		cs, err := ic.GetContract(h)
+		if err != nil {
+			return 0, nil, fmt.Errorf("contract %s not found: %w", h.StringLE(), err)
+		}
+		id = cs.ID
+	}
+	if c.NArg() > 1 {
+		prefix, err = hex.DecodeString(c.Args().Get(1))
+		if err != nil {
+			return 0, nil, fmt.Errorf("failed to decode prefix from hex: %w", err)
+		}
+	}
+	return id, prefix, nil
 }
 
 func dumpEvents(app *cli.App) (string, error) {

@@ -23,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dboper"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
@@ -224,6 +225,20 @@ func (e *executor) checkEvents(t *testing.T, isKeywordExpected bool, events ...s
 func (e *executor) checkStorage(t *testing.T, kvs ...storage.KeyValue) {
 	for _, kv := range kvs {
 		e.checkNextLine(t, fmt.Sprintf("%s: %s", hex.EncodeToString(kv.Key), hex.EncodeToString(kv.Value)))
+	}
+}
+
+type storageChange struct {
+	ContractID int32
+	dboper.Operation
+}
+
+func (e *executor) checkChange(t *testing.T, c storageChange) {
+	e.checkNextLine(t, fmt.Sprintf("Contract ID: %d", c.ContractID))
+	e.checkNextLine(t, fmt.Sprintf("State: %s", c.State))
+	e.checkNextLine(t, fmt.Sprintf("Key: %s", hex.EncodeToString(c.Key)))
+	if c.Value != nil {
+		e.checkNextLine(t, fmt.Sprintf("Value: %s", hex.EncodeToString(c.Value)))
 	}
 }
 
@@ -909,4 +924,57 @@ func TestDumpStorageDiff(t *testing.T) {
 	e.checkStack(t, 3)
 	e.checkStorage(t, append(expected, diff)...)
 	e.checkStorage(t, diff)
+}
+
+func TestDumpChanges(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	script := io.NewBufBinWriter()
+	h, err := e.cli.chain.GetContractScriptHash(1) // examples/storage/storage.go
+	require.NoError(t, err)
+	emit.AppCall(script.BinWriter, h, "put", callflag.All, 3, 4) // add
+	emit.AppCall(script.BinWriter, h, "delete", callflag.All, 1) // remove
+	emit.AppCall(script.BinWriter, h, "put", callflag.All, 2, 5) // update
+
+	expected := []storageChange{
+		{
+			ContractID: 1,
+			Operation: dboper.Operation{
+				State: "Deleted",
+				Key:   []byte{1},
+			},
+		},
+		{
+			ContractID: 1,
+			Operation: dboper.Operation{
+				State: "Changed",
+				Key:   []byte{2},
+				Value: []byte{5},
+			},
+		},
+		{
+			ContractID: 1,
+			Operation: dboper.Operation{
+				State: "Added",
+				Key:   []byte{3},
+				Value: []byte{4},
+			},
+		},
+	}
+	e.runProg(t,
+		"changes",
+		"changes 1",
+		"loadhex "+hex.EncodeToString(script.Bytes()),
+		"run",
+		"changes 1 "+hex.EncodeToString([]byte{1}),
+		"changes 1 "+hex.EncodeToString([]byte{2}),
+		"changes 1 "+hex.EncodeToString([]byte{3}),
+	)
+
+	// no script is executed => no diff
+	e.checkNextLine(t, "READY: loaded 113 instructions")
+	e.checkStack(t, 3, true, 2)
+	e.checkChange(t, expected[0])
+	e.checkChange(t, expected[1])
+	e.checkChange(t, expected[2])
 }
