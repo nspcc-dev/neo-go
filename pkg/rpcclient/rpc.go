@@ -893,7 +893,7 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 
 	fallbackTx.Scripts = []transaction.Witness{
 		{
-			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...),
+			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...),
 			VerificationScript: []byte{},
 		},
 		{
@@ -919,7 +919,7 @@ func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fa
 		FallbackTransaction: fallbackTx,
 	}
 	req.Witness = transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.SignHashable(m, req)...),
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, acc.SignHashable(m, req)...),
 		VerificationScript: acc.GetVerificationScript(),
 	}
 	actualHash, err := c.SubmitP2PNotaryRequest(req)

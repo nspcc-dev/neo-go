@@ -559,9 +559,9 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 		require.True(t, errors.Is(err, core.ErrVerificationFailed))
 	})
 	t.Run("BadResult", func(t *testing.T) {
-		verif := make([]byte, 66)
+		verif := make([]byte, keys.SignatureLen+2)
 		verif[0] = byte(opcode.PUSHDATA1)
-		verif[1] = 64
+		verif[1] = keys.SignatureLen
 		w := &transaction.Witness{
 			InvocationScript:   []byte{byte(opcode.NOP)},
 			VerificationScript: verif,
@@ -1634,7 +1634,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 						VerificationScript: rawScript,
 					},
 					{
-						InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, notary.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), tx)...),
+						InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, notary.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), tx)...),
 					},
 				}
 				return tx
@@ -1679,7 +1679,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 							VerificationScript: committee.Script(),
 						},
 						{
-							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, notary.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), tx)...),
+							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, notary.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), tx)...),
 						},
 					}
 					require.Error(t, bc.VerifyTx(tx))
@@ -1698,7 +1698,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 					}
 					tx.Scripts = []transaction.Witness{
 						{
-							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, notary.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), tx)...),
+							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, notary.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), tx)...),
 						},
 						{
 							InvocationScript:   committee.SignHashable(uint32(netmode.UnitTestNet), tx),
@@ -1725,7 +1725,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 							VerificationScript: committee.Script(),
 						},
 						{
-							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, notary.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), tx)...),
+							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, notary.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), tx)...),
 						},
 					}
 					require.Error(t, bc.VerifyTx(tx))
@@ -1766,7 +1766,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 							VerificationScript: committee.Script(),
 						},
 						{
-							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, acc.SignHashable(uint32(netmode.UnitTestNet), tx)...),
+							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, acc.SignHashable(uint32(netmode.UnitTestNet), tx)...),
 						},
 					}
 					require.Error(t, bc.VerifyTx(tx))
@@ -1781,7 +1781,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 					}
 					tx.Scripts = []transaction.Witness{
 						{
-							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, notary.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), tx)...),
+							InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, notary.PrivateKey().SignHashable(uint32(netmode.UnitTestNet), tx)...),
 						},
 					}
 					require.Error(t, bc.VerifyTx(tx))
@@ -1831,7 +1831,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				nativeprices.NotaryVerificationPrice*bc.GetBaseExecFee() // Notary witness verification price
 			tx.Scripts = []transaction.Witness{
 				{
-					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...),
+					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...),
 					VerificationScript: []byte{},
 				},
 				{
@@ -1858,7 +1858,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			tx.NetworkFee-- // to check that NetworkFee was set correctly in getPartiallyFilledTx
 			tx.Scripts = []transaction.Witness{
 				{
-					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...),
+					InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...),
 					VerificationScript: []byte{},
 				},
 				{

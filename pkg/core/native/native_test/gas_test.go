@@ -120,7 +120,7 @@ func TestGAS_RewardWithP2PSigExtensionsEnabled(t *testing.T) {
 	}
 	tx.Scripts = []transaction.Witness{
 		{
-			InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, notaryNodes[0].SignHashable(uint32(e.Chain.GetConfig().Magic), tx)...),
+			InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, notaryNodes[0].SignHashable(uint32(e.Chain.GetConfig().Magic), tx)...),
 		},
 		{
 			InvocationScript:   e.Committee.SignHashable(uint32(e.Chain.GetConfig().Magic), tx),

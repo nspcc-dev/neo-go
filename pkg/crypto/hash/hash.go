@@ -17,7 +17,7 @@ type Hashable interface {
 }
 
 func getSignedData(net uint32, hh Hashable) []byte {
-	var b = make([]byte, 4+32)
+	var b = make([]byte, 4+util.Uint256Size)
 	binary.LittleEndian.PutUint32(b, net)
 	h := hh.Hash()
 	copy(b[4:], h[:])

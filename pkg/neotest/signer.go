@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -73,7 +74,7 @@ func (s *signer) ScriptHash() util.Uint160 {
 
 // SignHashable implements Signer interface.
 func (s *signer) SignHashable(magic uint32, item hash.Hashable) []byte {
-	return append([]byte{byte(opcode.PUSHDATA1), 64},
+	return append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen},
 		(*wallet.Account)(s).SignHashable(netmode.Magic(magic), item)...)
 }
 
@@ -131,7 +132,7 @@ func (m multiSigner) SignHashable(magic uint32, item hash.Hashable) []byte {
 	var script []byte
 	for i := 0; i < m.m; i++ {
 		sign := m.accounts[i].SignHashable(netmode.Magic(magic), item)
-		script = append(script, byte(opcode.PUSHDATA1), 64)
+		script = append(script, byte(opcode.PUSHDATA1), keys.SignatureLen)
 		script = append(script, sign...)
 	}
 	return script

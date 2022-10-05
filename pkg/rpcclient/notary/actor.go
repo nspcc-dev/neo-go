@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
@@ -278,7 +279,7 @@ func (a *Actor) SendRequest(mainTx *transaction.Transaction, fbTx *transaction.T
 	if err != nil {
 		return mainHash, fbHash, vub, err
 	}
-	fbTx.Scripts[0].InvocationScript = append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...) // Must be present.
+	fbTx.Scripts[0].InvocationScript = append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...) // Must be present.
 	return a.SendRequestExactly(mainTx, fbTx)
 }
 
@@ -300,7 +301,7 @@ func (a *Actor) SendRequestExactly(mainTx *transaction.Transaction, fbTx *transa
 		FallbackTransaction: fbTx,
 	}
 	req.Witness = transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, a.sender.SignHashable(a.GetNetwork(), req)...),
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, a.sender.SignHashable(a.GetNetwork(), req)...),
 		VerificationScript: a.sender.GetVerificationScript(),
 	}
 	actualHash, err := a.rpc.SubmitP2PNotaryRequest(req)

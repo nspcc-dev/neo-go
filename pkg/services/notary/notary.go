@@ -392,7 +392,7 @@ func (n *Notary) PostPersist() {
 // finalize adds missing Notary witnesses to the transaction (main or fallback) and pushes it to the network.
 func (n *Notary) finalize(acc *wallet.Account, tx *transaction.Transaction, h util.Uint256) error {
 	notaryWitness := transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, acc.SignHashable(n.Network, tx)...),
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, acc.SignHashable(n.Network, tx)...),
 		VerificationScript: []byte{},
 	}
 	for i, signer := range tx.Signers {
@@ -515,7 +515,7 @@ func (n *Notary) verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExp
 		}
 		// Each verification script is allowed to have either one signature or zero signatures. If signature is provided, then need to verify it.
 		if len(w.InvocationScript) != 0 {
-			if len(w.InvocationScript) != 66 || !bytes.HasPrefix(w.InvocationScript, []byte{byte(opcode.PUSHDATA1), 64}) {
+			if len(w.InvocationScript) != 66 || !bytes.HasPrefix(w.InvocationScript, []byte{byte(opcode.PUSHDATA1), keys.SignatureLen}) {
 				return nil, fmt.Errorf("witness #%d: invocation script should have length = 66 and be of the form [PUSHDATA1, 64, signatureBytes...]", i)
 			}
 		}

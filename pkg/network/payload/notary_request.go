@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -110,7 +111,7 @@ func (r *P2PNotaryRequest) isValid() error {
 	}
 	if len(r.FallbackTransaction.Scripts[0].InvocationScript) != 66 ||
 		len(r.FallbackTransaction.Scripts[0].VerificationScript) != 0 ||
-		!bytes.HasPrefix(r.FallbackTransaction.Scripts[0].InvocationScript, []byte{byte(opcode.PUSHDATA1), 64}) {
+		!bytes.HasPrefix(r.FallbackTransaction.Scripts[0].InvocationScript, []byte{byte(opcode.PUSHDATA1), keys.SignatureLen}) {
 		return errors.New("fallback transaction has invalid dummy Notary witness")
 	}
 	if !r.FallbackTransaction.HasAttribute(transaction.NotValidBeforeT) {

@@ -1782,7 +1782,7 @@ func TestSubmitNotaryRequest(t *testing.T) {
 			},
 			Signers: []transaction.Signer{{Account: util.Uint160{1, 4, 7}}, {Account: util.Uint160{9, 8, 7}}},
 			Scripts: []transaction.Witness{
-				{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...), VerificationScript: make([]byte, 0)},
+				{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: make([]byte, 0)},
 				{InvocationScript: []byte{1, 2, 3}, VerificationScript: []byte{1, 2, 3}}},
 		}
 		p := &payload.P2PNotaryRequest{
@@ -1833,12 +1833,12 @@ func createValidNotaryRequest(chain *core.Blockchain, sender *keys.PrivateKey, n
 		},
 		Signers: []transaction.Signer{{Account: chain.GetNotaryContractScriptHash()}, {Account: sender.GetScriptHash()}},
 		Scripts: []transaction.Witness{
-			{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), 64}, make([]byte, 64)...), VerificationScript: []byte{}},
+			{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: []byte{}},
 		},
 		NetworkFee: 2_0000_0000,
 	}
 	fallbackTx.Scripts = append(fallbackTx.Scripts, transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sender.SignHashable(uint32(testchain.Network()), fallbackTx)...),
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, sender.SignHashable(uint32(testchain.Network()), fallbackTx)...),
 		VerificationScript: sender.PublicKey().GetVerificationScript(),
 	})
 	p := &payload.P2PNotaryRequest{
@@ -1846,7 +1846,7 @@ func createValidNotaryRequest(chain *core.Blockchain, sender *keys.PrivateKey, n
 		FallbackTransaction: fallbackTx,
 	}
 	p.Witness = transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), 64}, sender.SignHashable(uint32(testchain.Network()), p)...),
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, sender.SignHashable(uint32(testchain.Network()), p)...),
 		VerificationScript: sender.PublicKey().GetVerificationScript(),
 	}
 	return p
