@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/cli/options"
-	vmcli "github.com/nspcc-dev/neo-go/pkg/vm/cli"
+	vmcli "github.com/nspcc-dev/neo-go/cli/vm"
 	"github.com/urfave/cli"
 )
 

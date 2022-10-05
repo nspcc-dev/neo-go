@@ -1,4 +1,4 @@
-package cli
+package vm
 
 import (
 	"bytes"
@@ -251,7 +251,7 @@ go 1.17`)
 require (
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0
 )
-replace github.com/nspcc-dev/neo-go/pkg/interop => ` + filepath.Join(wd, "../../interop") + `
+replace github.com/nspcc-dev/neo-go/pkg/interop => ` + filepath.Join(wd, "../../pkg/interop") + `
 go 1.17`)
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 
