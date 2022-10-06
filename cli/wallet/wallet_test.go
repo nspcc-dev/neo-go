@@ -524,7 +524,8 @@ func TestWalletClaimGas(t *testing.T) {
 	e.Run(t, "neo-go", "wallet", "claim",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", testcli.TestWalletPath,
-		"--address", testcli.TestWalletAccount)
+		"--address", testcli.TestWalletAccount,
+		"--force")
 	tx, height := e.CheckTxPersisted(t)
 	balanceBefore.Sub(balanceBefore, big.NewInt(tx.NetworkFee+tx.SystemFee))
 	balanceBefore.Add(balanceBefore, cl)

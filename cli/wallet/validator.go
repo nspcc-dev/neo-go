@@ -22,13 +22,15 @@ func newValidatorCommands() []cli.Command {
 		{
 			Name:      "register",
 			Usage:     "register as a new candidate",
-			UsageText: "register -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas]",
+			UsageText: "register -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas] [--out file] [--force]",
 			Action:    handleRegister,
 			Flags: append([]cli.Flag{
 				walletPathFlag,
 				walletConfigFlag,
 				gasFlag,
 				sysGasFlag,
+				outFlag,
+				forceFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
 					Usage: "Address to register",
@@ -38,13 +40,15 @@ func newValidatorCommands() []cli.Command {
 		{
 			Name:      "unregister",
 			Usage:     "unregister self as a candidate",
-			UsageText: "unregister -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas]",
+			UsageText: "unregister -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas] [--out file] [--force]",
 			Action:    handleUnregister,
 			Flags: append([]cli.Flag{
 				walletPathFlag,
 				walletConfigFlag,
 				gasFlag,
 				sysGasFlag,
+				outFlag,
+				forceFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
 					Usage: "Address to unregister",
@@ -54,7 +58,7 @@ func newValidatorCommands() []cli.Command {
 		{
 			Name:      "vote",
 			Usage:     "vote for a validator",
-			UsageText: "vote -w <path> -r <rpc> [-s <timeout>] [-g gas] [-e sysgas] -a <addr> [-c <public key>]",
+			UsageText: "vote -w <path> -r <rpc> [-s <timeout>] [-g gas] [-e sysgas] -a <addr> [-c <public key>] [--out file] [--force]",
 			Description: `Votes for a validator by calling "vote" method of a NEO native
    contract. Do not provide candidate argument to perform unvoting.
 `,
@@ -64,6 +68,8 @@ func newValidatorCommands() []cli.Command {
 				walletConfigFlag,
 				gasFlag,
 				sysGasFlag,
+				outFlag,
+				forceFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
 					Usage: "Address to vote from",
@@ -121,21 +127,12 @@ func handleNeoAction(ctx *cli.Context, mkTx func(*neo.Contract, util.Uint160, *w
 		return cli.NewExitError(fmt.Errorf("RPC actor issue: %w", err), 1)
 	}
 
-	gas := flags.Fixed8FromContext(ctx, "gas")
-	sysgas := flags.Fixed8FromContext(ctx, "sysgas")
 	contract := neo.New(act)
 	tx, err := mkTx(contract, addr, acc)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	tx.NetworkFee += int64(gas)
-	tx.SystemFee += int64(sysgas)
-	res, _, err := act.SignAndSend(tx)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to sign/send transaction: %w", err), 1)
-	}
-	fmt.Fprintln(ctx.App.Writer, res.StringLE())
-	return nil
+	return signAndSendSomeTransaction(ctx, act, acc, tx)
 }
 
 func handleVote(ctx *cli.Context) error {
