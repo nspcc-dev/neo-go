@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/cli/txctx"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -64,10 +65,6 @@ var (
 		Name:  "decrypt, d",
 		Usage: "Decrypt encrypted keys.",
 	}
-	outFlag = cli.StringFlag{
-		Name:  "out",
-		Usage: "file to put JSON transaction to",
-	}
 	inFlag = cli.StringFlag{
 		Name:  "in",
 		Usage: "file with JSON transaction",
@@ -80,10 +77,6 @@ var (
 		Name:  "to",
 		Usage: "Address to send an asset to",
 	}
-	forceFlag = cli.BoolFlag{
-		Name:  "force",
-		Usage: "Do not ask for a confirmation",
-	}
 )
 
 // NewCommands returns 'wallet' command.
@@ -91,10 +84,10 @@ func NewCommands() []cli.Command {
 	claimFlags := []cli.Flag{
 		walletPathFlag,
 		walletConfigFlag,
-		gasFlag,
-		sysGasFlag,
-		outFlag,
-		forceFlag,
+		txctx.GasFlag,
+		txctx.SysGasFlag,
+		txctx.OutFlag,
+		txctx.ForceFlag,
 		flags.AddressFlag{
 			Name:  "address, a",
 			Usage: "Address to claim GAS for",
@@ -104,7 +97,7 @@ func NewCommands() []cli.Command {
 	signFlags := []cli.Flag{
 		walletPathFlag,
 		walletConfigFlag,
-		outFlag,
+		txctx.OutFlag,
 		inFlag,
 		flags.AddressFlag{
 			Name:  "address, a",
@@ -287,7 +280,7 @@ func NewCommands() []cli.Command {
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
-					forceFlag,
+					txctx.ForceFlag,
 					flags.AddressFlag{
 						Name:  "address, a",
 						Usage: "Account address or hash in LE form to be removed",
@@ -322,7 +315,7 @@ func NewCommands() []cli.Command {
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
-					forceFlag,
+					txctx.ForceFlag,
 				},
 			},
 			{

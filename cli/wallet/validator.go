@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/cli/txctx"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -27,10 +28,10 @@ func newValidatorCommands() []cli.Command {
 			Flags: append([]cli.Flag{
 				walletPathFlag,
 				walletConfigFlag,
-				gasFlag,
-				sysGasFlag,
-				outFlag,
-				forceFlag,
+				txctx.GasFlag,
+				txctx.SysGasFlag,
+				txctx.OutFlag,
+				txctx.ForceFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
 					Usage: "Address to register",
@@ -45,10 +46,10 @@ func newValidatorCommands() []cli.Command {
 			Flags: append([]cli.Flag{
 				walletPathFlag,
 				walletConfigFlag,
-				gasFlag,
-				sysGasFlag,
-				outFlag,
-				forceFlag,
+				txctx.GasFlag,
+				txctx.SysGasFlag,
+				txctx.OutFlag,
+				txctx.ForceFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
 					Usage: "Address to unregister",
@@ -66,10 +67,10 @@ func newValidatorCommands() []cli.Command {
 			Flags: append([]cli.Flag{
 				walletPathFlag,
 				walletConfigFlag,
-				gasFlag,
-				sysGasFlag,
-				outFlag,
-				forceFlag,
+				txctx.GasFlag,
+				txctx.SysGasFlag,
+				txctx.OutFlag,
+				txctx.ForceFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
 					Usage: "Address to vote from",
@@ -132,7 +133,7 @@ func handleNeoAction(ctx *cli.Context, mkTx func(*neo.Contract, util.Uint160, *w
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	return signAndSendSomeTransaction(ctx, act, acc, tx)
+	return txctx.SignAndSend(ctx, act, acc, tx)
 }
 
 func handleVote(ctx *cli.Context) error {

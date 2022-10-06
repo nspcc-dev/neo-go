@@ -8,19 +8,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
-	"github.com/nspcc-dev/neo-go/cli/paramcontext"
+	"github.com/nspcc-dev/neo-go/cli/txctx"
 	cliwallet "github.com/nspcc-dev/neo-go/cli/wallet"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
@@ -61,22 +59,6 @@ var (
 	addressFlag = flags.AddressFlag{
 		Name:  addressFlagName,
 		Usage: "address to use as transaction signee (and gas source)",
-	}
-	gasFlag = flags.Fixed8Flag{
-		Name:  "gas, g",
-		Usage: "network fee to add to the transaction (prioritizing it)",
-	}
-	sysGasFlag = flags.Fixed8Flag{
-		Name:  "sysgas, e",
-		Usage: "system fee to add to transaction (compensating for execution)",
-	}
-	outFlag = cli.StringFlag{
-		Name:  "out",
-		Usage: "file to put JSON transaction to",
-	}
-	forceFlag = cli.BoolFlag{
-		Name:  "force",
-		Usage: "force-push the transaction in case of bad VM state after test script invocation",
 	}
 )
 
@@ -120,10 +102,10 @@ func NewCommands() []cli.Command {
 		walletFlag,
 		walletConfigFlag,
 		addressFlag,
-		gasFlag,
-		sysGasFlag,
-		outFlag,
-		forceFlag,
+		txctx.GasFlag,
+		txctx.SysGasFlag,
+		txctx.OutFlag,
+		txctx.ForceFlag,
 	}
 	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
 	deployFlags := append(invokeFunctionFlags, []cli.Flag{
@@ -668,7 +650,6 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, script util.Uint160, operation string, params []interface{}, cosigners []transaction.Signer) error {
 	var (
 		err             error
-		gas, sysgas     fixedn.Fixed8
 		signersAccounts []actor.SignerAccount
 		resp            *result.Invoke
 		signAndPush     = acc != nil
@@ -676,8 +657,6 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		act             *actor.Actor
 	)
 	if signAndPush {
-		gas = flags.Fixed8FromContext(ctx, "gas")
-		sysgas = flags.Fixed8FromContext(ctx, "sysgas")
 		signersAccounts, err = cmdargs.GetSignersAccounts(acc, wall, cosigners, transaction.None)
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
@@ -731,44 +710,16 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 		}
 
 		fmt.Fprintln(ctx.App.Writer, string(b))
-	} else {
-		if len(resp.Script) == 0 {
-			return cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
-		}
-		ver := act.GetVersion()
-		tx, err := act.MakeUnsignedUncheckedRun(resp.Script, resp.GasConsumed+int64(sysgas), nil)
-		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
-		}
-		tx.NetworkFee += int64(gas)
-		if out != "" {
-			// Make a long-lived transaction, it's to be signed manually.
-			tx.ValidUntilBlock += (ver.Protocol.MaxValidUntilBlockIncrement - uint32(ver.Protocol.ValidatorsCount)) - 2
-			m := act.GetNetwork()
-			if err := paramcontext.InitAndSave(m, tx, acc, out); err != nil {
-				return cli.NewExitError(err, 1)
-			}
-			fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
-		} else {
-			if !ctx.Bool("force") {
-				promptTime := time.Now()
-				err := input.ConfirmTx(ctx.App.Writer, tx)
-				if err != nil {
-					return cli.NewExitError(err, 1)
-				}
-				waitTime := time.Since(promptTime)
-				// Compensate for confirmation waiting.
-				tx.ValidUntilBlock += uint32((waitTime.Milliseconds() / int64(ver.Protocol.MillisecondsPerBlock))) + 1
-			}
-			txHash, _, err := act.SignAndSend(tx)
-			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to push invocation tx: %w", err), 1)
-			}
-			fmt.Fprintf(ctx.App.Writer, "Sent invocation transaction %s\n", txHash.StringLE())
-		}
+		return nil
 	}
-
-	return nil
+	if len(resp.Script) == 0 {
+		return cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
+	}
+	tx, err := act.MakeUnsignedUncheckedRun(resp.Script, resp.GasConsumed, nil)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
+	}
+	return txctx.SignAndSend(ctx, act, acc, tx)
 }
 
 func testInvokeScript(ctx *cli.Context) error {
