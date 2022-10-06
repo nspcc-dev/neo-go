@@ -29,7 +29,7 @@ type (
 		GetBaseExecFee() int64
 		GetConfig() config.ProtocolConfiguration
 		GetMaxVerificationGAS() int64
-		GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context
+		GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error)
 		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	}
 

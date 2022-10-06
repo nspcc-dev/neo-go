@@ -333,7 +333,10 @@ func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg
 		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %w", err), 1)
 	}
 	// Do not run chain, we need only state-related functionality from it.
-	ic := chain.GetTestVM(trigger.Application, nil, nil)
+	ic, err := chain.GetTestVM(trigger.Application, nil, nil)
+	if err != nil {
+		return nil, cli.NewExitError(fmt.Errorf("failed to create test VM: %w", err), 1)
+	}
 
 	vmcli := VMCLI{
 		chain: chain,
@@ -483,7 +486,10 @@ func handleSlots(c *cli.Context) error {
 }
 
 func handleLoadNEF(c *cli.Context) error {
-	resetState(c.App)
+	err := resetState(c.App)
+	if err != nil {
+		return err
+	}
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 2 {
@@ -503,7 +509,10 @@ func handleLoadNEF(c *cli.Context) error {
 }
 
 func handleLoadBase64(c *cli.Context) error {
-	resetState(c.App)
+	err := resetState(c.App)
+	if err != nil {
+		return err
+	}
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
@@ -520,7 +529,10 @@ func handleLoadBase64(c *cli.Context) error {
 }
 
 func handleLoadHex(c *cli.Context) error {
-	resetState(c.App)
+	err := resetState(c.App)
+	if err != nil {
+		return err
+	}
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
@@ -537,7 +549,10 @@ func handleLoadHex(c *cli.Context) error {
 }
 
 func handleLoadGo(c *cli.Context) error {
-	resetState(c.App)
+	err := resetState(c.App)
+	if err != nil {
+		return err
+	}
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
@@ -564,7 +579,10 @@ func handleLoadGo(c *cli.Context) error {
 }
 
 func handleReset(c *cli.Context) error {
-	resetState(c.App)
+	err := resetState(c.App)
+	if err != nil {
+		return err
+	}
 	changePrompt(c.App)
 	return nil
 }
@@ -577,11 +595,15 @@ func finalizeInteropContext(app *cli.App) {
 
 // resetInteropContext calls finalizer for current interop context and replaces
 // it with the newly created one.
-func resetInteropContext(app *cli.App) {
+func resetInteropContext(app *cli.App) error {
 	finalizeInteropContext(app)
 	bc := getChainFromContext(app)
-	newIc := bc.GetTestVM(trigger.Application, nil, nil)
+	newIc, err := bc.GetTestVM(trigger.Application, nil, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create test VM: %w", err)
+	}
 	setInteropContextInContext(app, newIc)
+	return nil
 }
 
 // resetManifest removes manifest from app context.
@@ -591,9 +613,13 @@ func resetManifest(app *cli.App) {
 
 // resetState resets state of the app (clear interop context and manifest) so that it's ready
 // to load new program.
-func resetState(app *cli.App) {
-	resetInteropContext(app)
+func resetState(app *cli.App) error {
+	err := resetInteropContext(app)
+	if err != nil {
+		return fmt.Errorf("failed to reset interop context state: %w", err)
+	}
 	resetManifest(app)
+	return nil
 }
 
 func getManifestFromFile(name string) (*manifest.Manifest, error) {

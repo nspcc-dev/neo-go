@@ -374,7 +374,8 @@ func TestInvoke(bc *core.Blockchain, tx *transaction.Transaction) (*vm.VM, error
 	// `GetTestVM` as well as `Run` can use a transaction hash which will set a cached value.
 	// This is unwanted behavior, so we explicitly copy the transaction to perform execution.
 	ttx := *tx
-	ic := bc.GetTestVM(trigger.Application, &ttx, b)
+	ic, _ := bc.GetTestVM(trigger.Application, &ttx, b)
+
 	defer ic.Finalize()
 
 	ic.VM.LoadWithFlags(tx.Script, callflag.All)

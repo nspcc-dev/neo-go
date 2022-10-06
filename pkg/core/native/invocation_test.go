@@ -74,7 +74,8 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	require.NotNil(t, md)
 
 	t.Run("fail, bad current script hash", func(t *testing.T) {
-		ic := bc.GetTestVM(trigger.Application, nil, nil)
+		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+		require.NoError(t, err)
 		v := ic.SpawnVM()
 		fakeH := util.Uint160{1, 2, 3}
 		v.LoadScriptWithHash(clState.NEF.Script, fakeH, callflag.All)
@@ -83,7 +84,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 		v.Context().Jump(md.Offset)
 
 		// Bad current script hash
-		err := v.Run()
+		err = v.Run()
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), fmt.Sprintf("native contract %s (version 0) not found", fakeH.StringLE())), err.Error())
 	})
@@ -104,7 +105,8 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 		})
 		eBad := neotest.NewExecutor(t, bcBad, validatorBad, committeeBad)
 
-		ic := bcBad.GetTestVM(trigger.Application, nil, nil)
+		ic, err := bcBad.GetTestVM(trigger.Application, nil, nil)
+		require.NoError(t, err)
 		v := ic.SpawnVM()
 		v.LoadScriptWithHash(clState.NEF.Script, clState.Hash, callflag.All) // hash is not affected by native update history
 		input := []byte{1, 2, 3, 4}
@@ -112,13 +114,14 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 		v.Context().Jump(md.Offset)
 
 		// It's prohibited to call natives before NativeUpdateHistory[0] height.
-		err := v.Run()
+		err = v.Run()
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), "native contract CryptoLib is active after height = 1"))
 
 		// Add new block => CryptoLib should be active now.
 		eBad.AddNewBlock(t)
-		ic = bcBad.GetTestVM(trigger.Application, nil, nil)
+		ic, err = bcBad.GetTestVM(trigger.Application, nil, nil)
+		require.NoError(t, err)
 		v = ic.SpawnVM()
 		v.LoadScriptWithHash(clState.NEF.Script, clState.Hash, callflag.All) // hash is not affected by native update history
 		v.Estack().PushVal(input)
@@ -130,7 +133,8 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
-		ic := bc.GetTestVM(trigger.Application, nil, nil)
+		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+		require.NoError(t, err)
 		v := ic.SpawnVM()
 		v.LoadScriptWithHash(clState.NEF.Script, clState.Hash, callflag.All)
 		input := []byte{1, 2, 3, 4}

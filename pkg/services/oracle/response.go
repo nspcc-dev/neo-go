@@ -3,6 +3,7 @@ package oracle
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	gio "io"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
@@ -107,7 +108,10 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transa
 	size := io.GetVarSize(tx)
 	tx.Scripts = append(tx.Scripts, transaction.Witness{VerificationScript: oracleSignContract})
 
-	gasConsumed, ok := o.testVerify(tx)
+	gasConsumed, ok, err := o.testVerify(tx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare `verify` invocation: %w", err)
+	}
 	if !ok {
 		return nil, errors.New("can't verify transaction")
 	}
@@ -131,18 +135,21 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transa
 	return tx, nil
 }
 
-func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool) {
+func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool, error) {
 	// (*Blockchain).GetTestVM calls Hash() method of the provided transaction; once being called, this
 	// method caches transaction hash, but tx building is not yet completed and hash will be changed.
 	// So, make a copy of the tx to avoid wrong hash caching.
 	cp := *tx
-	ic := o.Chain.GetTestVM(trigger.Verification, &cp, nil)
+	ic, err := o.Chain.GetTestVM(trigger.Verification, &cp, nil)
+	if err != nil {
+		return 0, false, fmt.Errorf("failed to create test VM: %w", err)
+	}
 	ic.VM.GasLimit = o.Chain.GetMaxVerificationGAS()
 	ic.VM.LoadScriptWithHash(o.oracleScript, o.oracleHash, callflag.ReadOnly)
 	ic.VM.Context().Jump(o.verifyOffset)
 
 	ok := isVerifyOk(ic)
-	return ic.VM.GasConsumed(), ok
+	return ic.VM.GasConsumed(), ok, nil
 }
 
 func isVerifyOk(ic *interop.Context) bool {

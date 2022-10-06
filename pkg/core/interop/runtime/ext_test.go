@@ -65,7 +65,8 @@ func getSharpTestGenesis(t *testing.T) *block.Block {
 
 func createVM(t testing.TB) (*vm.VM, *interop.Context, *core.Blockchain) {
 	chain, _ := chain.NewSingle(t)
-	ic := chain.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
+	ic, err := chain.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
+	require.NoError(t, err)
 	v := ic.SpawnVM()
 	return v, ic, chain
 }
@@ -523,7 +524,8 @@ func TestGetRandomCompatibility(t *testing.T) {
 
 	b := getSharpTestGenesis(t)
 	tx := getSharpTestTx(util.Uint160{})
-	ic := bc.GetTestVM(trigger.Application, tx, b)
+	ic, err := bc.GetTestVM(trigger.Application, tx, b)
+	require.NoError(t, err)
 	ic.Network = 860833102 // Old mainnet magic used by C# tests.
 
 	ic.VM = vm.New()
@@ -550,7 +552,8 @@ func TestNotify(t *testing.T) {
 	caller := random.Uint160()
 	newIC := func(name string, args interface{}) *interop.Context {
 		_, _, bc, cs := getDeployedInternal(t)
-		ic := bc.GetTestVM(trigger.Application, nil, nil)
+		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+		require.NoError(t, err)
 		ic.VM.LoadNEFMethod(&cs.NEF, caller, cs.Hash, callflag.NoneFlag, true, 0, -1, nil)
 		ic.VM.Estack().PushVal(args)
 		ic.VM.Estack().PushVal(name)

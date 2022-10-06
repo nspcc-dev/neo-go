@@ -32,7 +32,8 @@ var pathToInternalContracts = filepath.Join("..", "..", "..", "..", "internal", 
 
 func TestGetCallFlags(t *testing.T) {
 	bc, _ := chain.NewSingle(t)
-	ic := bc.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
+	ic, err := bc.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
+	require.NoError(t, err)
 
 	ic.VM.LoadScriptWithHash([]byte{byte(opcode.RET)}, util.Uint160{1, 2, 3}, callflag.All)
 	require.NoError(t, contract.GetCallFlags(ic))
@@ -41,7 +42,8 @@ func TestGetCallFlags(t *testing.T) {
 
 func TestCall(t *testing.T) {
 	bc, _ := chain.NewSingle(t)
-	ic := bc.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
+	ic, err := bc.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
+	require.NoError(t, err)
 
 	cs, currCs := contracts.GetTestContractState(t, pathToInternalContracts, 4, 5, random.Uint160()) // sender and IDs are not important for the test
 	require.NoError(t, native.PutContractState(ic.DAO, cs))

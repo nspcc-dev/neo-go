@@ -2241,19 +2241,28 @@ func (bc *Blockchain) GetEnrollments() ([]state.Validator, error) {
 }
 
 // GetTestVM returns an interop context with VM set up for a test run.
-func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
+func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error) {
+	if b == nil {
+		var err error
+		h := bc.BlockHeight() + 1
+		b, err = bc.getFakeNextBlock(h)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create fake block for height %d: %w", h, err)
+		}
+	}
 	systemInterop := bc.newInteropContext(t, bc.dao, b, tx)
 	_ = systemInterop.SpawnVM() // All the other code suppose that the VM is ready.
-	return systemInterop
+	return systemInterop, nil
 }
 
 // GetTestHistoricVM returns an interop context with VM set up for a test run.
-func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error) {
+func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, nextBlockHeight uint32) (*interop.Context, error) {
 	if bc.config.KeepOnlyLatestState {
 		return nil, errors.New("only latest state is supported")
 	}
-	if b == nil {
-		return nil, errors.New("block is mandatory to produce test historic VM")
+	b, err := bc.getFakeNextBlock(nextBlockHeight)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create fake block for height %d: %w", nextBlockHeight, err)
 	}
 	var mode = mpt.ModeAll
 	if bc.config.RemoveUntraceableBlocks {
@@ -2282,6 +2291,18 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 	systemInterop := bc.newInteropContext(t, dTrie, b, tx)
 	_ = systemInterop.SpawnVM() // All the other code suppose that the VM is ready.
 	return systemInterop, nil
+}
+
+// getFakeNextBlock returns fake block with the specified index and pre-filled Timestamp field.
+func (bc *Blockchain) getFakeNextBlock(nextBlockHeight uint32) (*block.Block, error) {
+	b := block.New(bc.config.StateRootInHeader)
+	b.Index = nextBlockHeight
+	hdr, err := bc.GetHeader(bc.GetHeaderHash(int(nextBlockHeight - 1)))
+	if err != nil {
+		return nil, err
+	}
+	b.Timestamp = hdr.Timestamp + uint64(bc.config.SecondsPerBlock*int(time.Second/time.Millisecond))
+	return b, nil
 }
 
 // Various witness verification errors.

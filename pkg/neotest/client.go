@@ -51,11 +51,14 @@ func (e *Executor) ValidatorInvoker(h util.Uint160) *ContractInvoker {
 func (c *ContractInvoker) TestInvoke(t testing.TB, method string, args ...interface{}) (*vm.Stack, error) {
 	tx := c.PrepareInvokeNoSign(t, method, args...)
 	b := c.NewUnsignedBlock(t, tx)
-	ic := c.Chain.GetTestVM(trigger.Application, tx, b)
+	ic, err := c.Chain.GetTestVM(trigger.Application, tx, b)
+	if err != nil {
+		return nil, err
+	}
 	t.Cleanup(ic.Finalize)
 
 	ic.VM.LoadWithFlags(tx.Script, callflag.All)
-	err := ic.VM.Run()
+	err = ic.VM.Run()
 	return ic.VM.Estack(), err
 }
 
