@@ -1,0 +1,86 @@
+ProtocolConfiguration:
+  Magic: 735783775
+  MaxTraceableBlocks: 2102400
+  InitialGASSupply: 52000000
+  SecondsPerBlock: 15
+  MemPoolSize: 50000
+  StandbyCommittee:
+  - 0337f5f45e5be5aeae4a919d0787fcb743656560949061d5b8b05509b85ffbfd53
+  - 020b86534a9a264d28b79155b0ec36d555ed0068eb1b0c4d40c35cc7d2f04759b8
+  - 02c2efdc01181b0bc14fc19e0acb12281396c8c9ffe64458d621d781a1ded436b7
+  - 026f9b40a73f29787ef5b289ac845bc43c64680fdd42fc170b1171d3c57213a89f
+  - 0272350def90715494b857315c9b9c70181739eeec52d777424fef2891c3396cad
+  - 03a8cee2d3877bcce5b4595578714d77ca2d47673150b8b9cd4e391b7c73b6bda3
+  - 0215e735a657f6e23478728d1d0718d516bf50c06c2abd92ec7c00eba2bd7a2552
+  StateRootInHeader: false
+  ValidatorsCount: 7
+  SeedList:
+  - morph1.t5.fs.neo.org:50333
+  - morph2.t5.fs.neo.org:50333
+  - morph3.t5.fs.neo.org:50333
+  - morph4.t5.fs.neo.org:50333
+  - morph5.t5.fs.neo.org:50333
+  - morph6.t5.fs.neo.org:50333
+  - morph7.t5.fs.neo.org:50333
+  VerifyBlocks: true
+  VerifyTransactions: true
+  P2PSigExtensions: true
+  NativeActivations:
+    ContractManagement: [0]
+    StdLib: [0]
+    CryptoLib: [0]
+    LedgerContract: [0]
+    NeoToken: [0]
+    GasToken: [0]
+    PolicyContract: [0]
+    RoleManagement: [0]
+    OracleContract: [0]
+    Notary: [0]
+
+ApplicationConfiguration:
+  # LogPath could be set up in case you need stdout logs to some proper file.
+  # LogPath: "./log/neogo.log"
+  DBConfiguration:
+    Type: "leveldb" #other options: 'inmemory','boltdb'
+    # DB type options. Uncomment those you need in case you want to switch DB type.
+    LevelDBOptions:
+      DataDirectoryPath: "./chains/testnet.neofs"
+  #    BoltDBOptions:
+  #      FilePath: "./chains/testnet.bolt"
+  #  Uncomment in order to set up custom address for node.
+  #  Address: localhost
+  NodePort: 50333
+  Relay: true
+  DialTimeout: 3
+  ProtoTickInterval: 2
+  PingInterval: 30
+  PingTimeout: 90
+  MaxPeers: 100
+  AttemptConnPeers: 20
+  MinPeers: 5
+  Oracle:
+    Enabled: false
+    AllowedContentTypes:
+      - application/json
+  RPC:
+    Enabled: true
+    EnableCORSWorkaround: false
+    MaxGasInvoke: 100
+    Port: 50332
+    StartWhenSynchronized: false
+    TLSConfig:
+      Enabled: false
+      CertFile: server.crt
+      KeyFile: server.key
+      Port: 50331
+  P2PNotary:
+    Enabled: false
+    UnlockWallet:
+      Password: "pass"
+      Path: "/notary_wallet.json"
+  Prometheus:
+    Enabled: false
+    Port: 2112
+  Pprof:
+    Enabled: false
+    Port: 2113
