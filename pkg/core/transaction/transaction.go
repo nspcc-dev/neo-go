@@ -47,7 +47,8 @@ type Transaction struct {
 	NetworkFee int64
 
 	// Maximum blockchain height exceeding which
-	// transaction should fail verification.
+	// transaction should fail verification. E.g. if VUB=N, then transaction
+	// can be accepted to block with index N, but not to block with index N+1.
 	ValidUntilBlock uint32
 
 	// Code to run in NeoVM for this transaction.
