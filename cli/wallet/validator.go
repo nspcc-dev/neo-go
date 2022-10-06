@@ -22,12 +22,13 @@ func newValidatorCommands() []cli.Command {
 		{
 			Name:      "register",
 			Usage:     "register as a new candidate",
-			UsageText: "register -w <path> -r <rpc> -a <addr>",
+			UsageText: "register -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas]",
 			Action:    handleRegister,
 			Flags: append([]cli.Flag{
 				walletPathFlag,
 				walletConfigFlag,
 				gasFlag,
+				sysGasFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
 					Usage: "Address to register",
@@ -37,12 +38,13 @@ func newValidatorCommands() []cli.Command {
 		{
 			Name:      "unregister",
 			Usage:     "unregister self as a candidate",
-			UsageText: "unregister -w <path> -r <rpc> -a <addr>",
+			UsageText: "unregister -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas]",
 			Action:    handleUnregister,
 			Flags: append([]cli.Flag{
 				walletPathFlag,
 				walletConfigFlag,
 				gasFlag,
+				sysGasFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
 					Usage: "Address to unregister",
@@ -52,7 +54,7 @@ func newValidatorCommands() []cli.Command {
 		{
 			Name:      "vote",
 			Usage:     "vote for a validator",
-			UsageText: "vote -w <path> -r <rpc> [-s <timeout>] [-g gas] -a <addr> [-c <public key>]",
+			UsageText: "vote -w <path> -r <rpc> [-s <timeout>] [-g gas] [-e sysgas] -a <addr> [-c <public key>]",
 			Description: `Votes for a validator by calling "vote" method of a NEO native
    contract. Do not provide candidate argument to perform unvoting.
 `,
@@ -61,6 +63,7 @@ func newValidatorCommands() []cli.Command {
 				walletPathFlag,
 				walletConfigFlag,
 				gasFlag,
+				sysGasFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
 					Usage: "Address to vote from",
@@ -119,12 +122,14 @@ func handleNeoAction(ctx *cli.Context, mkTx func(*neo.Contract, util.Uint160, *w
 	}
 
 	gas := flags.Fixed8FromContext(ctx, "gas")
+	sysgas := flags.Fixed8FromContext(ctx, "sysgas")
 	contract := neo.New(act)
 	tx, err := mkTx(contract, addr, acc)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	tx.NetworkFee += int64(gas)
+	tx.SystemFee += int64(sysgas)
 	res, _, err := act.SignAndSend(tx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to sign/send transaction: %w", err), 1)

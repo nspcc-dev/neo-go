@@ -92,6 +92,7 @@ func NewCommands() []cli.Command {
 		walletPathFlag,
 		walletConfigFlag,
 		gasFlag,
+		sysGasFlag,
 		flags.AddressFlag{
 			Name:  "address, a",
 			Usage: "Address to claim GAS for",
@@ -116,7 +117,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "claim",
 				Usage:     "claim GAS",
-				UsageText: "neo-go wallet claim -w wallet [--wallet-config path] [-g gas] -a address -r endpoint [-s timeout]",
+				UsageText: "neo-go wallet claim -w wallet [--wallet-config path] [-g gas] [-e sysgas] -a address -r endpoint [-s timeout]",
 				Action:    claimGas,
 				Flags:     claimFlags,
 			},
