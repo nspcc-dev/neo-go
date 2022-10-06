@@ -1,4 +1,4 @@
-package main
+package wallet_test
 
 import (
 	"encoding/hex"
@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/chzyer/readline"
+	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -23,7 +24,7 @@ import (
 
 func TestWalletAccountRemove(t *testing.T) {
 	tmpDir := t.TempDir()
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 
 	walletPath := filepath.Join(tmpDir, "wallet.json")
 	e.In.WriteString("acc1\r")
@@ -71,7 +72,7 @@ func TestWalletAccountRemove(t *testing.T) {
 
 func TestWalletChangePassword(t *testing.T) {
 	tmpDir := t.TempDir()
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 
 	walletPath := filepath.Join(tmpDir, "wallet.json")
 	e.In.WriteString("acc1\r")
@@ -142,7 +143,7 @@ func TestWalletChangePassword(t *testing.T) {
 }
 
 func TestWalletInit(t *testing.T) {
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 
 	t.Run("missing path", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "init")
@@ -363,7 +364,7 @@ func TestWalletInit(t *testing.T) {
 					"--wallet", walletPath,
 					"--min", "2")
 			})
-			privs, pubs := generateKeys(t, 4)
+			privs, pubs := testcli.GenerateKeys(t, 4)
 			cmd := []string{"neo-go", "wallet", "import-multisig",
 				"--wallet", walletPath,
 				"--min", "2"}
@@ -423,94 +424,94 @@ func TestWalletInit(t *testing.T) {
 }
 
 func TestWalletExport(t *testing.T) {
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 
 	t.Run("missing wallet", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "export")
 	})
 	t.Run("invalid address", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "export",
-			"--wallet", validatorWallet, "not-an-address")
+			"--wallet", testcli.ValidatorWallet, "not-an-address")
 	})
 	t.Run("Encrypted", func(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "export",
-			"--wallet", validatorWallet, validatorAddr)
+			"--wallet", testcli.ValidatorWallet, testcli.ValidatorAddr)
 		line, err := e.Out.ReadString('\n')
 		require.NoError(t, err)
-		enc, err := keys.NEP2Encrypt(validatorPriv, "one", keys.ScryptParams{N: 2, R: 1, P: 1}) // these params used in validator wallet for better resources consumption
+		enc, err := keys.NEP2Encrypt(testcli.ValidatorPriv, "one", keys.ScryptParams{N: 2, R: 1, P: 1}) // these params used in validator wallet for better resources consumption
 		require.NoError(t, err)
 		require.Equal(t, enc, strings.TrimSpace(line))
 	})
 	t.Run("Decrypted", func(t *testing.T) {
 		t.Run("NoAddress", func(t *testing.T) {
 			e.RunWithError(t, "neo-go", "wallet", "export",
-				"--wallet", validatorWallet, "--decrypt")
+				"--wallet", testcli.ValidatorWallet, "--decrypt")
 		})
 		t.Run("EOF reading password", func(t *testing.T) {
 			e.RunWithError(t, "neo-go", "wallet", "export",
-				"--wallet", validatorWallet, "--decrypt", validatorAddr)
+				"--wallet", testcli.ValidatorWallet, "--decrypt", testcli.ValidatorAddr)
 		})
 		t.Run("invalid password", func(t *testing.T) {
 			e.In.WriteString("invalid_pass\r")
 			e.RunWithError(t, "neo-go", "wallet", "export",
-				"--wallet", validatorWallet, "--decrypt", validatorAddr)
+				"--wallet", testcli.ValidatorWallet, "--decrypt", testcli.ValidatorAddr)
 		})
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "export",
-			"--wallet", validatorWallet, "--decrypt", validatorAddr)
+			"--wallet", testcli.ValidatorWallet, "--decrypt", testcli.ValidatorAddr)
 		line, err := e.Out.ReadString('\n')
 		require.NoError(t, err)
-		require.Equal(t, validatorWIF, strings.TrimSpace(line))
+		require.Equal(t, testcli.ValidatorWIF, strings.TrimSpace(line))
 	})
 }
 
 func TestWalletClaimGas(t *testing.T) {
-	e := newExecutor(t, true)
+	e := testcli.NewExecutor(t, true)
 
 	t.Run("missing wallet path", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "claim",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--address", testWalletAccount)
+			"--address", testcli.TestWalletAccount)
 	})
 	t.Run("missing address", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "claim",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", testWalletPath)
+			"--wallet", testcli.TestWalletPath)
 	})
 	t.Run("invalid address", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "claim",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", testWalletPath,
+			"--wallet", testcli.TestWalletPath,
 			"--address", util.Uint160{}.StringLE())
 	})
 	t.Run("missing endpoint", func(t *testing.T) {
 		e.In.WriteString("testpass\r")
 		e.RunWithError(t, "neo-go", "wallet", "claim",
-			"--wallet", testWalletPath,
-			"--address", testWalletAccount)
+			"--wallet", testcli.TestWalletPath,
+			"--address", testcli.TestWalletAccount)
 	})
 	t.Run("insufficient funds", func(t *testing.T) {
 		e.In.WriteString("testpass\r")
 		e.RunWithError(t, "neo-go", "wallet", "claim",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", testWalletPath,
-			"--address", testWalletAccount)
+			"--wallet", testcli.TestWalletPath,
+			"--address", testcli.TestWalletAccount)
 	})
 
 	args := []string{
 		"neo-go", "wallet", "nep17", "multitransfer",
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
-		"--wallet", validatorWallet,
-		"--from", validatorAddr,
+		"--wallet", testcli.ValidatorWallet,
+		"--from", testcli.ValidatorAddr,
 		"--force",
-		"NEO:" + testWalletAccount + ":1000",
-		"GAS:" + testWalletAccount + ":1000", // for tx send
+		"NEO:" + testcli.TestWalletAccount + ":1000",
+		"GAS:" + testcli.TestWalletAccount + ":1000", // for tx send
 	}
 	e.In.WriteString("one\r")
 	e.Run(t, args...)
-	e.checkTxPersisted(t)
+	e.CheckTxPersisted(t)
 
-	h, err := address.StringToUint160(testWalletAccount)
+	h, err := address.StringToUint160(testcli.TestWalletAccount)
 	require.NoError(t, err)
 
 	balanceBefore := e.Chain.GetUtilityTokenBalance(h)
@@ -522,9 +523,9 @@ func TestWalletClaimGas(t *testing.T) {
 	e.In.WriteString("testpass\r")
 	e.Run(t, "neo-go", "wallet", "claim",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", testWalletPath,
-		"--address", testWalletAccount)
-	tx, height := e.checkTxPersisted(t)
+		"--wallet", testcli.TestWalletPath,
+		"--address", testcli.TestWalletAccount)
+	tx, height := e.CheckTxPersisted(t)
 	balanceBefore.Sub(balanceBefore, big.NewInt(tx.NetworkFee+tx.SystemFee))
 	balanceBefore.Add(balanceBefore, cl)
 
@@ -539,7 +540,7 @@ func TestWalletClaimGas(t *testing.T) {
 
 func TestWalletImportDeployed(t *testing.T) {
 	tmpDir := t.TempDir()
-	e := newExecutor(t, true)
+	e := testcli.NewExecutor(t, true)
 	h := deployVerifyContract(t, e)
 	walletPath := filepath.Join(tmpDir, "wallet.json")
 
@@ -606,11 +607,11 @@ func TestWalletImportDeployed(t *testing.T) {
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", validatorWallet, "--from", validatorAddr,
+			"--wallet", testcli.ValidatorWallet, "--from", testcli.ValidatorAddr,
 			"--force",
 			"NEO:"+contractAddr+":10",
 			"GAS:"+contractAddr+":10")
-		e.checkTxPersisted(t)
+		e.CheckTxPersisted(t)
 
 		privTo, err := keys.NewPrivateKey()
 		require.NoError(t, err)
@@ -621,7 +622,7 @@ func TestWalletImportDeployed(t *testing.T) {
 			"--wallet", walletPath, "--from", contractAddr,
 			"--force",
 			"--to", privTo.Address(), "--token", "NEO", "--amount", "1")
-		e.checkTxPersisted(t)
+		e.CheckTxPersisted(t)
 
 		b, _ := e.Chain.GetGoverningTokenBalance(h)
 		require.Equal(t, big.NewInt(9), b)
@@ -631,7 +632,7 @@ func TestWalletImportDeployed(t *testing.T) {
 }
 
 func TestStripKeys(t *testing.T) {
-	e := newExecutor(t, true)
+	e := testcli.NewExecutor(t, true)
 	tmpDir := t.TempDir()
 	walletPath := filepath.Join(tmpDir, "wallet.json")
 	e.In.WriteString("acc1\r")
@@ -661,13 +662,13 @@ func TestStripKeys(t *testing.T) {
 }
 
 func TestOfflineSigning(t *testing.T) {
-	e := newExecutor(t, true)
+	e := testcli.NewExecutor(t, true)
 	tmpDir := t.TempDir()
 	walletPath := filepath.Join(tmpDir, "wallet.json")
 	txPath := filepath.Join(tmpDir, "tx.json")
 
 	// Copy wallet.
-	w, err := wallet.NewWalletFromFile(validatorWallet)
+	w, err := wallet.NewWalletFromFile(testcli.ValidatorWallet)
 	require.NoError(t, err)
 	jOut, err := w.JSON()
 	require.NoError(t, err)
@@ -680,7 +681,7 @@ func TestOfflineSigning(t *testing.T) {
 		args := []string{"neo-go", "wallet", "nep17", "transfer",
 			"--rpc-endpoint", "http://" + e.RPC.Addr,
 			"--wallet", walletPath,
-			"--from", validatorAddr,
+			"--from", testcli.ValidatorAddr,
 			"--to", w.Accounts[0].Address,
 			"--token", "NEO",
 			"--amount", "1",
@@ -692,7 +693,7 @@ func TestOfflineSigning(t *testing.T) {
 		e.Run(t, append(args, "--out", txPath)...)
 		// It can't be signed with the original wallet.
 		e.RunWithError(t, "neo-go", "wallet", "sign",
-			"--wallet", walletPath, "--address", validatorAddr,
+			"--wallet", walletPath, "--address", testcli.ValidatorAddr,
 			"--in", txPath, "--out", txPath)
 		t.Run("sendtx", func(t *testing.T) {
 			// And it can't be sent.
@@ -710,22 +711,22 @@ func TestOfflineSigning(t *testing.T) {
 		// But it can be signed with a proper wallet.
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "sign",
-			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", txPath, "--out", txPath)
 		// And then anyone can send (even via wallet sign).
 		e.Run(t, "neo-go", "wallet", "sign",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", walletPath, "--address", validatorAddr,
+			"--wallet", walletPath, "--address", testcli.ValidatorAddr,
 			"--in", txPath)
 	})
-	e.checkTxPersisted(t)
+	e.CheckTxPersisted(t)
 	t.Run("simple signature", func(t *testing.T) {
 		simpleAddr := w.Accounts[0].Address
 		args := []string{"neo-go", "wallet", "nep17", "transfer",
 			"--rpc-endpoint", "http://" + e.RPC.Addr,
 			"--wallet", walletPath,
 			"--from", simpleAddr,
-			"--to", validatorAddr,
+			"--to", testcli.ValidatorAddr,
 			"--token", "NEO",
 			"--amount", "1",
 			"--force",
@@ -741,7 +742,7 @@ func TestOfflineSigning(t *testing.T) {
 		// But can be with a proper one.
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "sign",
-			"--wallet", validatorWallet, "--address", simpleAddr,
+			"--wallet", testcli.ValidatorWallet, "--address", simpleAddr,
 			"--in", txPath, "--out", txPath)
 		// Sending without an RPC node is not likely to succeed.
 		e.RunWithError(t, "neo-go", "util", "sendtx", txPath)
@@ -753,18 +754,18 @@ func TestOfflineSigning(t *testing.T) {
 }
 
 func TestWalletDump(t *testing.T) {
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 
 	t.Run("missing wallet", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "dump")
 	})
-	cmd := []string{"neo-go", "wallet", "dump", "--wallet", testWalletPath}
+	cmd := []string{"neo-go", "wallet", "dump", "--wallet", testcli.TestWalletPath}
 	e.Run(t, cmd...)
 	rawStr := strings.TrimSpace(e.Out.String())
 	w := new(wallet.Wallet)
 	require.NoError(t, json.Unmarshal([]byte(rawStr), w))
 	require.Equal(t, 1, len(w.Accounts))
-	require.Equal(t, testWalletAccount, w.Accounts[0].Address)
+	require.Equal(t, testcli.TestWalletAccount, w.Accounts[0].Address)
 
 	t.Run("with decrypt", func(t *testing.T) {
 		cmd = append(cmd, "--decrypt")
@@ -782,13 +783,13 @@ func TestWalletDump(t *testing.T) {
 			w := new(wallet.Wallet)
 			require.NoError(t, json.Unmarshal([]byte(rawStr), w))
 			require.Equal(t, 1, len(w.Accounts))
-			require.Equal(t, testWalletAccount, w.Accounts[0].Address)
+			require.Equal(t, testcli.TestWalletAccount, w.Accounts[0].Address)
 		})
 		t.Run("good, from wallet config", func(t *testing.T) {
 			tmp := t.TempDir()
 			configPath := filepath.Join(tmp, "config.yaml")
 			cfg := config.Wallet{
-				Path:     testWalletPath,
+				Path:     testcli.TestWalletPath,
 				Password: "testpass",
 			}
 			res, err := yaml.Marshal(cfg)
@@ -799,31 +800,31 @@ func TestWalletDump(t *testing.T) {
 			w := new(wallet.Wallet)
 			require.NoError(t, json.Unmarshal([]byte(rawStr), w))
 			require.Equal(t, 1, len(w.Accounts))
-			require.Equal(t, testWalletAccount, w.Accounts[0].Address)
+			require.Equal(t, testcli.TestWalletAccount, w.Accounts[0].Address)
 		})
 	})
 }
 
 func TestWalletDumpKeys(t *testing.T) {
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 	t.Run("missing wallet", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "dump-keys")
 	})
-	cmd := []string{"neo-go", "wallet", "dump-keys", "--wallet", validatorWallet}
+	cmd := []string{"neo-go", "wallet", "dump-keys", "--wallet", testcli.ValidatorWallet}
 	pubRegex := "^0[23][a-hA-H0-9]{64}$"
 	t.Run("all", func(t *testing.T) {
 		e.Run(t, cmd...)
-		e.checkNextLine(t, "Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn")
-		e.checkNextLine(t, pubRegex)
-		e.checkNextLine(t, "^\\s*$")
-		e.checkNextLine(t, "NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq")
+		e.CheckNextLine(t, "Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn")
+		e.CheckNextLine(t, pubRegex)
+		e.CheckNextLine(t, "^\\s*$")
+		e.CheckNextLine(t, "NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq")
 		for i := 0; i < 4; i++ {
-			e.checkNextLine(t, pubRegex)
+			e.CheckNextLine(t, pubRegex)
 		}
-		e.checkNextLine(t, "^\\s*$")
-		e.checkNextLine(t, "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP")
-		e.checkNextLine(t, pubRegex)
-		e.checkEOF(t)
+		e.CheckNextLine(t, "^\\s*$")
+		e.CheckNextLine(t, "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP")
+		e.CheckNextLine(t, pubRegex)
+		e.CheckEOF(t)
 	})
 	t.Run("unknown address", func(t *testing.T) {
 		cmd := append(cmd, "--address", util.Uint160{}.StringLE())
@@ -832,39 +833,39 @@ func TestWalletDumpKeys(t *testing.T) {
 	t.Run("simple signature", func(t *testing.T) {
 		cmd := append(cmd, "--address", "Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn")
 		e.Run(t, cmd...)
-		e.checkNextLine(t, "simple signature contract")
-		e.checkNextLine(t, pubRegex)
-		e.checkEOF(t)
+		e.CheckNextLine(t, "simple signature contract")
+		e.CheckNextLine(t, pubRegex)
+		e.CheckEOF(t)
 	})
 	t.Run("3/4 multisig", func(t *testing.T) {
 		cmd := append(cmd, "-a", "NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq")
 		e.Run(t, cmd...)
-		e.checkNextLine(t, "3 out of 4 multisig contract")
+		e.CheckNextLine(t, "3 out of 4 multisig contract")
 		for i := 0; i < 4; i++ {
-			e.checkNextLine(t, pubRegex)
+			e.CheckNextLine(t, pubRegex)
 		}
-		e.checkEOF(t)
+		e.CheckEOF(t)
 	})
 	t.Run("1/1 multisig", func(t *testing.T) {
 		cmd := append(cmd, "--address", "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP")
 		e.Run(t, cmd...)
-		e.checkNextLine(t, "1 out of 1 multisig contract")
-		e.checkNextLine(t, pubRegex)
-		e.checkEOF(t)
+		e.CheckNextLine(t, "1 out of 1 multisig contract")
+		e.CheckNextLine(t, pubRegex)
+		e.CheckEOF(t)
 	})
 }
 
 // Testcase is the wallet of privnet validator.
 func TestWalletConvert(t *testing.T) {
 	tmpDir := t.TempDir()
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 
 	outPath := filepath.Join(tmpDir, "wallet.json")
 	cmd := []string{"neo-go", "wallet", "convert"}
 	t.Run("missing wallet", func(t *testing.T) {
 		e.RunWithError(t, cmd...)
 	})
-	cmd = append(cmd, "--wallet", "testdata/wallets/testwallet_NEO2.json")
+	cmd = append(cmd, "--wallet", "testdata/testwallet_NEO2.json")
 	t.Run("missing out path", func(t *testing.T) {
 		e.RunWithError(t, cmd...)
 	})
@@ -886,12 +887,12 @@ func TestWalletConvert(t *testing.T) {
 	e.In.WriteString("one\r")
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "convert",
-		"--wallet", "testdata/wallets/testwallet_NEO2.json",
+		"--wallet", "testdata/testwallet_NEO2.json",
 		"--out", outPath)
 
 	actual, err := wallet.NewWalletFromFile(outPath)
 	require.NoError(t, err)
-	expected, err := wallet.NewWalletFromFile("testdata/wallets/testwallet_NEO3.json")
+	expected, err := wallet.NewWalletFromFile("testdata/testwallet_NEO3.json")
 	require.NoError(t, err)
 	require.Equal(t, len(actual.Accounts), len(expected.Accounts))
 	for _, exp := range expected.Accounts {
@@ -902,4 +903,8 @@ func TestWalletConvert(t *testing.T) {
 		require.NotNil(t, act)
 		require.Equal(t, exp, act)
 	}
+}
+
+func deployNNSContract(t *testing.T, e *testcli.Executor) util.Uint160 {
+	return testcli.DeployContract(t, e, "../../examples/nft-nd-nns/", "../../examples/nft-nd-nns/nns.yml", testcli.ValidatorWallet, testcli.ValidatorAddr, testcli.ValidatorPass)
 }

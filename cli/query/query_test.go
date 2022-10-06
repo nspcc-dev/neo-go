@@ -1,4 +1,4 @@
-package main
+package query_test
 
 import (
 	"encoding/base64"
@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
@@ -22,24 +23,24 @@ import (
 )
 
 func TestQueryTx(t *testing.T) {
-	e := newExecutorSuspended(t)
+	e := testcli.NewExecutorSuspended(t)
 
-	w, err := wallet.NewWalletFromFile("testdata/testwallet.json")
+	w, err := wallet.NewWalletFromFile("../testdata/testwallet.json")
 	require.NoError(t, err)
 
 	transferArgs := []string{
 		"neo-go", "wallet", "nep17", "transfer",
 		"--rpc-endpoint", "http://" + e.RPC.Addr,
-		"--wallet", validatorWallet,
+		"--wallet", testcli.ValidatorWallet,
 		"--to", w.Accounts[0].Address,
 		"--token", "NEO",
-		"--from", validatorAddr,
+		"--from", testcli.ValidatorAddr,
 		"--force",
 	}
 
 	e.In.WriteString("one\r")
 	e.Run(t, append(transferArgs, "--amount", "1")...)
-	line := e.getNextLine(t)
+	line := e.GetNextLine(t)
 	txHash, err := util.Uint256DecodeStringLE(line)
 	require.NoError(t, err)
 
@@ -48,42 +49,42 @@ func TestQueryTx(t *testing.T) {
 
 	args := []string{"neo-go", "query", "tx", "--rpc-endpoint", "http://" + e.RPC.Addr}
 	e.Run(t, append(args, txHash.StringLE())...)
-	e.checkNextLine(t, `Hash:\s+`+txHash.StringLE())
-	e.checkNextLine(t, `OnChain:\s+false`)
-	e.checkNextLine(t, `ValidUntil:\s+`+strconv.FormatUint(uint64(tx.ValidUntilBlock), 10))
-	e.checkEOF(t)
+	e.CheckNextLine(t, `Hash:\s+`+txHash.StringLE())
+	e.CheckNextLine(t, `OnChain:\s+false`)
+	e.CheckNextLine(t, `ValidUntil:\s+`+strconv.FormatUint(uint64(tx.ValidUntilBlock), 10))
+	e.CheckEOF(t)
 
 	height := e.Chain.BlockHeight()
 	go e.Chain.Run()
 	require.Eventually(t, func() bool { return e.Chain.BlockHeight() > height }, time.Second*2, time.Millisecond*50)
 
 	e.Run(t, append(args, txHash.StringLE())...)
-	e.checkNextLine(t, `Hash:\s+`+txHash.StringLE())
-	e.checkNextLine(t, `OnChain:\s+true`)
+	e.CheckNextLine(t, `Hash:\s+`+txHash.StringLE())
+	e.CheckNextLine(t, `OnChain:\s+true`)
 
 	_, height, err = e.Chain.GetTransaction(txHash)
 	require.NoError(t, err)
-	e.checkNextLine(t, `BlockHash:\s+`+e.Chain.GetHeaderHash(int(height)).StringLE())
-	e.checkNextLine(t, `Success:\s+true`)
-	e.checkEOF(t)
+	e.CheckNextLine(t, `BlockHash:\s+`+e.Chain.GetHeaderHash(int(height)).StringLE())
+	e.CheckNextLine(t, `Success:\s+true`)
+	e.CheckEOF(t)
 
 	t.Run("verbose", func(t *testing.T) {
 		e.Run(t, append(args, "--verbose", txHash.StringLE())...)
-		e.compareQueryTxVerbose(t, tx)
+		compareQueryTxVerbose(t, e, tx)
 
 		t.Run("FAULT", func(t *testing.T) {
 			e.In.WriteString("one\r")
 			e.Run(t, "neo-go", "contract", "invokefunction",
 				"--rpc-endpoint", "http://"+e.RPC.Addr,
-				"--wallet", validatorWallet,
-				"--address", validatorAddr,
+				"--wallet", testcli.ValidatorWallet,
+				"--address", testcli.ValidatorAddr,
 				"--force",
 				random.Uint160().StringLE(),
 				"randomMethod")
 
-			e.checkNextLine(t, `Warning:`)
-			e.checkNextLine(t, "Sending transaction")
-			line := strings.TrimPrefix(e.getNextLine(t), "Sent invocation transaction ")
+			e.CheckNextLine(t, `Warning:`)
+			e.CheckNextLine(t, "Sending transaction")
+			line := strings.TrimPrefix(e.GetNextLine(t), "Sent invocation transaction ")
 			txHash, err := util.Uint256DecodeStringLE(line)
 			require.NoError(t, err)
 
@@ -93,7 +94,7 @@ func TestQueryTx(t *testing.T) {
 			tx, _, err := e.Chain.GetTransaction(txHash)
 			require.NoError(t, err)
 			e.Run(t, append(args, "--verbose", txHash.StringLE())...)
-			e.compareQueryTxVerbose(t, tx)
+			compareQueryTxVerbose(t, e, tx)
 		})
 	})
 
@@ -113,43 +114,43 @@ func TestQueryTx(t *testing.T) {
 	})
 }
 
-func (e *executor) compareQueryTxVerbose(t *testing.T, tx *transaction.Transaction) {
-	e.checkNextLine(t, `Hash:\s+`+tx.Hash().StringLE())
-	e.checkNextLine(t, `OnChain:\s+true`)
+func compareQueryTxVerbose(t *testing.T, e *testcli.Executor, tx *transaction.Transaction) {
+	e.CheckNextLine(t, `Hash:\s+`+tx.Hash().StringLE())
+	e.CheckNextLine(t, `OnChain:\s+true`)
 	_, height, err := e.Chain.GetTransaction(tx.Hash())
 	require.NoError(t, err)
-	e.checkNextLine(t, `BlockHash:\s+`+e.Chain.GetHeaderHash(int(height)).StringLE())
+	e.CheckNextLine(t, `BlockHash:\s+`+e.Chain.GetHeaderHash(int(height)).StringLE())
 
 	res, _ := e.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
-	e.checkNextLine(t, fmt.Sprintf(`Success:\s+%t`, res[0].Execution.VMState == vmstate.Halt))
+	e.CheckNextLine(t, fmt.Sprintf(`Success:\s+%t`, res[0].Execution.VMState == vmstate.Halt))
 	for _, s := range tx.Signers {
-		e.checkNextLine(t, fmt.Sprintf(`Signer:\s+%s\s*\(%s\)`, address.Uint160ToString(s.Account), s.Scopes.String()))
+		e.CheckNextLine(t, fmt.Sprintf(`Signer:\s+%s\s*\(%s\)`, address.Uint160ToString(s.Account), s.Scopes.String()))
 	}
-	e.checkNextLine(t, `SystemFee:\s+`+fixedn.Fixed8(tx.SystemFee).String()+" GAS$")
-	e.checkNextLine(t, `NetworkFee:\s+`+fixedn.Fixed8(tx.NetworkFee).String()+" GAS$")
-	e.checkNextLine(t, `Script:\s+`+regexp.QuoteMeta(base64.StdEncoding.EncodeToString(tx.Script)))
+	e.CheckNextLine(t, `SystemFee:\s+`+fixedn.Fixed8(tx.SystemFee).String()+" GAS$")
+	e.CheckNextLine(t, `NetworkFee:\s+`+fixedn.Fixed8(tx.NetworkFee).String()+" GAS$")
+	e.CheckNextLine(t, `Script:\s+`+regexp.QuoteMeta(base64.StdEncoding.EncodeToString(tx.Script)))
 	c := vm.NewContext(tx.Script)
 	n := 0
 	for ; c.NextIP() < c.LenInstr(); _, _, err = c.Next() {
 		require.NoError(t, err)
 		n++
 	}
-	e.checkScriptDump(t, n)
+	e.CheckScriptDump(t, n)
 
 	if res[0].Execution.VMState != vmstate.Halt {
-		e.checkNextLine(t, `Exception:\s+`+regexp.QuoteMeta(res[0].Execution.FaultException))
+		e.CheckNextLine(t, `Exception:\s+`+regexp.QuoteMeta(res[0].Execution.FaultException))
 	}
-	e.checkEOF(t)
+	e.CheckEOF(t)
 }
 
 func TestQueryHeight(t *testing.T) {
-	e := newExecutor(t, true)
+	e := testcli.NewExecutor(t, true)
 
 	args := []string{"neo-go", "query", "height", "--rpc-endpoint", "http://" + e.RPC.Addr}
 	e.Run(t, args...)
-	e.checkNextLine(t, `^Latest block: [0-9]+$`)
-	e.checkNextLine(t, `^Validated state: [0-9]+$`)
-	e.checkEOF(t)
+	e.CheckNextLine(t, `^Latest block: [0-9]+$`)
+	e.CheckNextLine(t, `^Validated state: [0-9]+$`)
+	e.CheckEOF(t)
 	t.Run("excessive arguments", func(t *testing.T) {
 		e.RunWithError(t, append(args, "something")...)
 	})

@@ -1,4 +1,4 @@
-package main
+package server_test
 
 import (
 	"errors"
@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/server"
+	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -18,7 +19,7 @@ import (
 
 func TestServerStart(t *testing.T) {
 	tmpDir := t.TempDir()
-	goodCfg, err := config.LoadFile(filepath.Join("..", "config", "protocol.unit_testnet.yml"))
+	goodCfg, err := config.LoadFile(filepath.Join("..", "..", "config", "protocol.unit_testnet.yml"))
 	require.NoError(t, err, "could not load config")
 	ptr := &goodCfg
 	saveCfg := func(t *testing.T, f func(cfg *config.Config)) string {
@@ -39,7 +40,7 @@ func TestServerStart(t *testing.T) {
 	}
 
 	baseCmd := []string{"neo-go", "node", "--unittest", "--config-path", tmpDir}
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 
 	t.Run("invalid config path", func(t *testing.T) {
 		e.RunWithError(t, baseCmd...)
@@ -120,11 +121,11 @@ func TestServerStart(t *testing.T) {
 			for _, expected := range lines {
 				// It should be regexp, so escape all backslashes.
 				expected = strings.ReplaceAll(expected, `\`, `\\`)
-				e.checkLine(t, line, expected)
-				line = e.getNextLine(t)
+				e.CheckLine(t, line, expected)
+				line = e.GetNextLine(t)
 			}
-			e.checkNextLine(t, "")
-			e.checkEOF(t)
+			e.CheckNextLine(t, "")
+			e.CheckEOF(t)
 		})
 	}
 }

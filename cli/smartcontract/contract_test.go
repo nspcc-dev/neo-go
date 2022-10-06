@@ -1,4 +1,4 @@
-package main
+package smartcontract_test
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -32,7 +33,7 @@ import (
 
 func TestCalcHash(t *testing.T) {
 	tmpDir := t.TempDir()
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 
 	nefPath := "./testdata/verify.nef"
 	src, err := os.ReadFile(nefPath)
@@ -83,15 +84,15 @@ func TestCalcHash(t *testing.T) {
 	})
 	t.Run("valid, uint160", func(t *testing.T) {
 		e.Run(t, append(cmd, "--sender", sender.StringLE())...)
-		e.checkNextLine(t, expected.StringLE())
+		e.CheckNextLine(t, expected.StringLE())
 	})
 	t.Run("valid, uint160 with 0x", func(t *testing.T) {
 		e.Run(t, append(cmd, "--sender", "0x"+sender.StringLE())...)
-		e.checkNextLine(t, expected.StringLE())
+		e.CheckNextLine(t, expected.StringLE())
 	})
 	t.Run("valid, address", func(t *testing.T) {
 		e.Run(t, append(cmd, "--sender", address.Uint160ToString(sender))...)
-		e.checkNextLine(t, expected.StringLE())
+		e.CheckNextLine(t, expected.StringLE())
 	})
 }
 
@@ -103,7 +104,7 @@ func TestContractBindings(t *testing.T) {
 	smartcontract.ModVersion = "v0.0.0"
 
 	tmpDir := t.TempDir()
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 
 	ctrPath := filepath.Join(tmpDir, "testcontract")
 	e.Run(t, "neo-go", "contract", "init", "--name", ctrPath)
@@ -152,7 +153,7 @@ func Blocks() []*alias.Block {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 	data = append(data, "\nreplace github.com/nspcc-dev/neo-go/pkg/interop => "...)
-	data = append(data, filepath.Join(wd, "../pkg/interop")...)
+	data = append(data, filepath.Join(wd, "../../pkg/interop")...)
 	require.NoError(t, os.WriteFile(goMod, data, os.ModePerm))
 
 	cmd = append(cmd, "--config", cfgPath,
@@ -163,7 +164,7 @@ func Blocks() []*alias.Block {
 		e.RunWithError(t, append(cmd, "something")...)
 	})
 	e.Run(t, cmd...)
-	e.checkEOF(t)
+	e.CheckEOF(t)
 	require.FileExists(t, bindingsPath)
 
 	outPath := filepath.Join(t.TempDir(), "binding.go")
@@ -216,7 +217,7 @@ func TestContractInitAndCompile(t *testing.T) {
 	smartcontract.ModVersion = "v0.0.0"
 
 	tmpDir := t.TempDir()
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 
 	t.Run("no path is provided", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "init")
@@ -269,7 +270,7 @@ func TestContractInitAndCompile(t *testing.T) {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 	data = append(data, "\nreplace github.com/nspcc-dev/neo-go/pkg/interop => "...)
-	data = append(data, filepath.Join(wd, "../pkg/interop")...)
+	data = append(data, filepath.Join(wd, "../../pkg/interop")...)
 	require.NoError(t, os.WriteFile(goMod, data, os.ModePerm))
 
 	cmd = append(cmd, "--config", cfgPath)
@@ -279,20 +280,20 @@ func TestContractInitAndCompile(t *testing.T) {
 	})
 
 	e.Run(t, cmd...)
-	e.checkEOF(t)
+	e.CheckEOF(t)
 	require.FileExists(t, nefPath)
 	require.FileExists(t, manifestPath)
 
 	t.Run("output hex script with --verbose", func(t *testing.T) {
 		e.Run(t, append(cmd, "--verbose")...)
-		e.checkNextLine(t, "^[0-9a-hA-H]+$")
+		e.CheckNextLine(t, "^[0-9a-hA-H]+$")
 	})
 }
 
 // Checks that error is returned if GAS available for test-invoke exceeds
 // GAS needed to be consumed.
 func TestDeployBigContract(t *testing.T) {
-	e := newExecutorWithConfig(t, true, true, func(c *config.Config) {
+	e := testcli.NewExecutorWithConfig(t, true, true, func(c *config.Config) {
 		c.ApplicationConfiguration.RPC.MaxGasInvoke = fixedn.Fixed8(1)
 	})
 
@@ -307,15 +308,15 @@ func TestDeployBigContract(t *testing.T) {
 		"--config", "testdata/deploy/neo-go.yml",
 		"--out", nefName, "--manifest", manifestName)
 
-	e.In.WriteString("one\r")
+	e.In.WriteString(testcli.ValidatorPass + "\r")
 	e.RunWithError(t, "neo-go", "contract", "deploy",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet, "--address", validatorAddr,
+		"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 		"--in", nefName, "--manifest", manifestName)
 }
 
 func TestContractDeployWithData(t *testing.T) {
-	eCompile := newExecutor(t, false)
+	eCompile := testcli.NewExecutor(t, false)
 
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
@@ -329,11 +330,11 @@ func TestContractDeployWithData(t *testing.T) {
 		"--out", nefName, "--manifest", manifestName)
 
 	deployContract := func(t *testing.T, haveData bool, scope string) {
-		e := newExecutor(t, true)
+		e := testcli.NewExecutor(t, true)
 		cmd := []string{
 			"neo-go", "contract", "deploy",
 			"--rpc-endpoint", "http://" + e.RPC.Addr,
-			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", manifestName,
 			"--force",
 		}
@@ -342,14 +343,14 @@ func TestContractDeployWithData(t *testing.T) {
 			cmd = append(cmd, "[", "key1", "12", "key2", "take_me_to_church", "]")
 		}
 		if scope != "" {
-			cmd = append(cmd, "--", validatorAddr+":"+scope)
+			cmd = append(cmd, "--", testcli.ValidatorAddr+":"+scope)
 		} else {
 			scope = "CalledByEntry"
 		}
-		e.In.WriteString("one\r")
+		e.In.WriteString(testcli.ValidatorPass + "\r")
 		e.Run(t, cmd...)
 
-		tx, _ := e.checkTxPersisted(t, "Sent invocation transaction ")
+		tx, _ := e.CheckTxPersisted(t, "Sent invocation transaction ")
 		require.Equal(t, scope, tx.Signers[0].Scopes.String())
 		if !haveData {
 			return
@@ -392,7 +393,7 @@ func TestContractDeployWithData(t *testing.T) {
 }
 
 func TestDeployWithSigners(t *testing.T) {
-	e := newExecutor(t, true)
+	e := testcli.NewExecutor(t, true)
 
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
@@ -408,61 +409,61 @@ func TestDeployWithSigners(t *testing.T) {
 	t.Run("missing nef", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "deploy",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", "", "--manifest", manifestName)
 	})
 	t.Run("missing manifest", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "deploy",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", "")
 	})
 	t.Run("corrupted data", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "deploy",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", manifestName,
 			"[", "str1")
 	})
 	t.Run("invalid data", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "deploy",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", manifestName,
 			"str1", "str2")
 	})
 	t.Run("missing wallet", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "deploy",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--address", validatorAddr,
+			"--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", manifestName,
 			"[", "str1", "str2", "]")
 	})
 	t.Run("missing RPC", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "deploy",
-			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", manifestName,
 			"[", "str1", "str2", "]")
 	})
-	e.In.WriteString("one\r")
+	e.In.WriteString(testcli.ValidatorPass + "\r")
 	e.Run(t, "neo-go", "contract", "deploy",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet, "--address", validatorAddr,
+		"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 		"--in", nefName, "--manifest", manifestName,
 		"--force",
-		"--", validatorAddr+":Global")
-	tx, _ := e.checkTxPersisted(t, "Sent invocation transaction ")
+		"--", testcli.ValidatorAddr+":Global")
+	tx, _ := e.CheckTxPersisted(t, "Sent invocation transaction ")
 	require.Equal(t, transaction.Global, tx.Signers[0].Scopes)
 }
 
 func TestContractManifestGroups(t *testing.T) {
-	e := newExecutor(t, true)
+	e := testcli.NewExecutor(t, true)
 
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
 	tmpDir := t.TempDir()
 
-	_, err := wallet.NewWalletFromFile(testWalletPath)
+	_, err := wallet.NewWalletFromFile(testcli.TestWalletPath)
 	require.NoError(t, err)
 
 	nefName := filepath.Join(tmpDir, "deploy.nef")
@@ -481,93 +482,70 @@ func TestContractManifestGroups(t *testing.T) {
 	})
 	t.Run("invalid sender", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", testWalletPath, "--address", testWalletAccount,
+			"--wallet", testcli.TestWalletPath, "--address", testcli.TestWalletAccount,
 			"--sender", "not-a-sender")
 	})
 	t.Run("invalid NEF file", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", testWalletPath, "--address", testWalletAccount,
-			"--sender", testWalletAccount, "--nef", tmpDir)
+			"--wallet", testcli.TestWalletPath, "--address", testcli.TestWalletAccount,
+			"--sender", testcli.TestWalletAccount, "--nef", tmpDir)
 	})
 	t.Run("corrupted NEF file", func(t *testing.T) {
 		f := filepath.Join(tmpDir, "invalid.nef")
 		require.NoError(t, os.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", testWalletPath, "--address", testWalletAccount,
-			"--sender", testWalletAccount, "--nef", f)
+			"--wallet", testcli.TestWalletPath, "--address", testcli.TestWalletAccount,
+			"--sender", testcli.TestWalletAccount, "--nef", f)
 	})
 	t.Run("invalid manifest file", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", testWalletPath, "--address", testWalletAccount,
-			"--sender", testWalletAccount, "--nef", nefName,
+			"--wallet", testcli.TestWalletPath, "--address", testcli.TestWalletAccount,
+			"--sender", testcli.TestWalletAccount, "--nef", nefName,
 			"--manifest", tmpDir)
 	})
 	t.Run("corrupted manifest file", func(t *testing.T) {
 		f := filepath.Join(tmpDir, "invalid.manifest.json")
 		require.NoError(t, os.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", testWalletPath, "--address", testWalletAccount,
-			"--sender", testWalletAccount, "--nef", nefName,
+			"--wallet", testcli.TestWalletPath, "--address", testcli.TestWalletAccount,
+			"--sender", testcli.TestWalletAccount, "--nef", nefName,
 			"--manifest", f)
 	})
 	t.Run("unknown account", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", testWalletPath, "--address", util.Uint160{}.StringLE(),
-			"--sender", testWalletAccount, "--nef", nefName,
+			"--wallet", testcli.TestWalletPath, "--address", util.Uint160{}.StringLE(),
+			"--sender", testcli.TestWalletAccount, "--nef", nefName,
 			"--manifest", manifestName)
 	})
 	cmd := []string{"neo-go", "contract", "manifest", "add-group",
 		"--nef", nefName, "--manifest", manifestName}
 
 	t.Run("excessive parameters", func(t *testing.T) {
-		e.RunWithError(t, append(cmd, "--wallet", testWalletPath,
-			"--sender", testWalletAccount, "--address", testWalletAccount, "something")...)
+		e.RunWithError(t, append(cmd, "--wallet", testcli.TestWalletPath,
+			"--sender", testcli.TestWalletAccount, "--address", testcli.TestWalletAccount, "something")...)
 	})
 	e.In.WriteString("testpass\r")
-	e.Run(t, append(cmd, "--wallet", testWalletPath,
-		"--sender", testWalletAccount, "--address", testWalletAccount)...)
+	e.Run(t, append(cmd, "--wallet", testcli.TestWalletPath,
+		"--sender", testcli.TestWalletAccount, "--address", testcli.TestWalletAccount)...)
 
 	e.In.WriteString("testpass\r") // should override signature with the previous sender
-	e.Run(t, append(cmd, "--wallet", testWalletPath,
-		"--sender", validatorAddr, "--address", testWalletAccount)...)
+	e.Run(t, append(cmd, "--wallet", testcli.TestWalletPath,
+		"--sender", testcli.ValidatorAddr, "--address", testcli.TestWalletAccount)...)
 
-	e.In.WriteString("one\r")
+	e.In.WriteString(testcli.ValidatorPass + "\r")
 	e.Run(t, "neo-go", "contract", "deploy",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--in", nefName, "--manifest", manifestName,
 		"--force",
-		"--wallet", validatorWallet, "--address", validatorAddr)
+		"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr)
 }
 
-func deployVerifyContract(t *testing.T, e *executor) util.Uint160 {
-	return deployContract(t, e, "testdata/verify.go", "testdata/verify.yml", validatorWallet, validatorAddr, "one")
-}
-
-func deployContract(t *testing.T, e *executor, inPath, configPath, wallet, address, pass string) util.Uint160 {
-	tmpDir := t.TempDir()
-	nefName := filepath.Join(tmpDir, "contract.nef")
-	manifestName := filepath.Join(tmpDir, "contract.manifest.json")
-	e.Run(t, "neo-go", "contract", "compile",
-		"--in", inPath,
-		"--config", configPath,
-		"--out", nefName, "--manifest", manifestName)
-	e.In.WriteString(pass + "\r")
-	e.Run(t, "neo-go", "contract", "deploy",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", wallet, "--address", address,
-		"--force",
-		"--in", nefName, "--manifest", manifestName)
-	e.checkTxPersisted(t, "Sent invocation transaction ")
-	line, err := e.Out.ReadString('\n')
-	require.NoError(t, err)
-	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
-	h, err := util.Uint160DecodeStringLE(line)
-	require.NoError(t, err)
-	return h
+func deployVerifyContract(t *testing.T, e *testcli.Executor) util.Uint160 {
+	return testcli.DeployContract(t, e, "testdata/verify.go", "testdata/verify.yml", testcli.ValidatorWallet, testcli.ValidatorAddr, testcli.ValidatorPass)
 }
 
 func TestContract_TestInvokeScript(t *testing.T) {
-	e := newExecutor(t, true)
+	e := testcli.NewExecutor(t, true)
 	tmpDir := t.TempDir()
 	badNef := filepath.Join(tmpDir, "invalid.nef")
 	goodNef := filepath.Join(tmpDir, "deploy.nef")
@@ -638,7 +616,7 @@ func TestContract_TestInvokeScript(t *testing.T) {
 }
 
 func TestComlileAndInvokeFunction(t *testing.T) {
-	e := newExecutor(t, true)
+	e := testcli.NewExecutor(t, true)
 
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
@@ -654,18 +632,18 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	tmp := t.TempDir()
 	configPath := filepath.Join(tmp, "config.yaml")
 	cfg := config.Wallet{
-		Path:     validatorWallet,
-		Password: "one",
+		Path:     testcli.ValidatorWallet,
+		Password: testcli.ValidatorPass,
 	}
 	yml, err := yaml.Marshal(cfg)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(configPath, yml, 0666))
 	e.Run(t, "neo-go", "contract", "deploy",
 		"--rpc-endpoint", "http://"+e.RPC.Addr, "--force",
-		"--wallet-config", configPath, "--address", validatorAddr,
+		"--wallet-config", configPath, "--address", testcli.ValidatorAddr,
 		"--in", nefName, "--manifest", manifestName)
 
-	e.checkTxPersisted(t, "Sent invocation transaction ")
+	e.CheckTxPersisted(t, "Sent invocation transaction ")
 	line, err := e.Out.ReadString('\n')
 	require.NoError(t, err)
 	line = strings.TrimSpace(strings.TrimPrefix(line, "Contract: "))
@@ -679,9 +657,9 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			"--manifest", manifestName)
 
 		e.Run(t, "neo-go", "contract", "calc-hash",
-			"--sender", validatorAddr, "--in", nefName,
+			"--sender", testcli.ValidatorAddr, "--in", nefName,
 			"--manifest", manifestName)
-		e.checkNextLine(t, h.StringLE())
+		e.CheckNextLine(t, h.StringLE())
 	})
 
 	cmd := []string{"neo-go", "contract", "testinvokefunction",
@@ -746,28 +724,28 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			e.RunWithError(t, cmd...)
 		})
 		t.Run("non-existent address", func(t *testing.T) {
-			cmd := append(cmd, "--wallet", validatorWallet,
+			cmd := append(cmd, "--wallet", testcli.ValidatorWallet,
 				"--address", random.Uint160().StringLE(),
 				h.StringLE(), "getValue")
 			e.RunWithError(t, cmd...)
 		})
 		t.Run("invalid password", func(t *testing.T) {
 			e.In.WriteString("invalid_password\r")
-			cmd := append(cmd, "--wallet", validatorWallet,
+			cmd := append(cmd, "--wallet", testcli.ValidatorWallet,
 				h.StringLE(), "getValue")
 			e.RunWithError(t, cmd...)
 		})
 		t.Run("good: default address", func(t *testing.T) {
 			e.In.WriteString("one\r")
 			e.In.WriteString("y\r")
-			e.Run(t, append(cmd, "--wallet", validatorWallet, h.StringLE(), "getValue")...)
+			e.Run(t, append(cmd, "--wallet", testcli.ValidatorWallet, h.StringLE(), "getValue")...)
 		})
 		t.Run("good: from wallet config", func(t *testing.T) {
 			e.In.WriteString("y\r")
 			e.Run(t, append(cmd, "--wallet-config", configPath, h.StringLE(), "getValue")...)
 		})
 
-		cmd = append(cmd, "--wallet", validatorWallet, "--address", validatorAddr)
+		cmd = append(cmd, "--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr)
 		t.Run("cancelled", func(t *testing.T) {
 			e.In.WriteString("one\r")
 			e.In.WriteString("n\r")
@@ -792,7 +770,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			e.In.WriteString("one\r")
 			e.In.WriteString("y\r")
 			e.Run(t, append(cmd, h.StringLE(), "getValue",
-				"--", validatorAddr, hVerify.StringLE())...)
+				"--", testcli.ValidatorAddr, hVerify.StringLE())...)
 		})
 	})
 
@@ -802,7 +780,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		cmd = []string{"neo-go", "contract", "invokefunction",
 			"--rpc-endpoint", "http://" + e.RPC.Addr,
 			"--out", txout,
-			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 		}
 
 		t.Run("without cosigner", func(t *testing.T) {
@@ -813,15 +791,15 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		t.Run("with cosigner", func(t *testing.T) {
 			t.Run("cosigner is sender (none)", func(t *testing.T) {
 				e.In.WriteString("one\r")
-				e.RunWithError(t, append(cmd, h.StringLE(), "checkSenderWitness", "--", validatorAddr+":None")...)
+				e.RunWithError(t, append(cmd, h.StringLE(), "checkSenderWitness", "--", testcli.ValidatorAddr+":None")...)
 			})
 			t.Run("cosigner is sender (customcontract)", func(t *testing.T) {
 				e.In.WriteString("one\r")
-				e.Run(t, append(cmd, h.StringLE(), "checkSenderWitness", "--", validatorAddr+":CustomContracts:"+h.StringLE())...)
+				e.Run(t, append(cmd, h.StringLE(), "checkSenderWitness", "--", testcli.ValidatorAddr+":CustomContracts:"+h.StringLE())...)
 			})
 			t.Run("cosigner is sender (global)", func(t *testing.T) {
 				e.In.WriteString("one\r")
-				e.Run(t, append(cmd, h.StringLE(), "checkSenderWitness", "--", validatorAddr+":Global")...)
+				e.Run(t, append(cmd, h.StringLE(), "checkSenderWitness", "--", testcli.ValidatorAddr+":Global")...)
 			})
 
 			acc, err := wallet.NewAccount()
@@ -839,7 +817,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 				t.Run("good", func(t *testing.T) {
 					e.In.WriteString("one\r")
-					e.Run(t, append(cmd, hVerify.StringLE(), "verify", "--", multisigAddr)...)
+					e.Run(t, append(cmd, hVerify.StringLE(), "verify", "--", testcli.MultisigAddr)...)
 				})
 			})
 
@@ -924,13 +902,13 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "contract", "invokefunction",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", validatorWallet, "--address", validatorAddr,
+			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--force",
 			h.StringLE(), "update",
 			"bytes:"+hex.EncodeToString(rawNef),
 			"bytes:"+hex.EncodeToString(rawManifest),
 		)
-		e.checkTxPersisted(t, "Sent invocation transaction ")
+		e.CheckTxPersisted(t, "Sent invocation transaction ")
 
 		indexAfterUpdate = e.Chain.BlockHeight()
 		e.In.WriteString("one\r")
@@ -970,7 +948,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 }
 
 func TestContractInspect(t *testing.T) {
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
@@ -1004,14 +982,14 @@ func TestContractInspect(t *testing.T) {
 
 func TestCompileExamples(t *testing.T) {
 	tmpDir := t.TempDir()
-	const examplePath = "../examples"
+	const examplePath = "../../examples"
 	infos, err := os.ReadDir(examplePath)
 	require.NoError(t, err)
 
 	// For proper nef generation.
 	config.Version = "0.90.0-test"
 
-	e := newExecutor(t, false)
+	e := testcli.NewExecutor(t, false)
 
 	for _, info := range infos {
 		if !info.IsDir() {

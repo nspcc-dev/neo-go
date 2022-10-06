@@ -1,4 +1,4 @@
-package main
+package wallet_test
 
 import (
 	"encoding/hex"
@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,135 +14,137 @@ import (
 // We don't create a new account here, because chain will
 // stop working after validator will change.
 func TestRegisterCandidate(t *testing.T) {
-	e := newExecutor(t, true)
+	e := testcli.NewExecutor(t, true)
 
-	validatorHex := hex.EncodeToString(validatorPriv.PublicKey().Bytes())
+	validatorAddress := testcli.ValidatorPriv.Address()
+	validatorPublic := testcli.ValidatorPriv.PublicKey()
+	validatorHex := hex.EncodeToString(validatorPublic.Bytes())
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet,
-		"--from", validatorAddr,
+		"--wallet", testcli.ValidatorWallet,
+		"--from", testcli.ValidatorAddr,
 		"--force",
-		"NEO:"+validatorPriv.Address()+":10",
-		"GAS:"+validatorPriv.Address()+":10000")
-	e.checkTxPersisted(t)
+		"NEO:"+validatorAddress+":10",
+		"GAS:"+validatorAddress+":10000")
+	e.CheckTxPersisted(t)
 
 	e.Run(t, "neo-go", "query", "committee",
 		"--rpc-endpoint", "http://"+e.RPC.Addr)
-	e.checkNextLine(t, "^\\s*"+validatorHex)
+	e.CheckNextLine(t, "^\\s*"+validatorHex)
 
 	e.Run(t, "neo-go", "query", "candidates",
 		"--rpc-endpoint", "http://"+e.RPC.Addr)
-	e.checkNextLine(t, "^\\s*Key.+$") // Header.
-	e.checkEOF(t)
+	e.CheckNextLine(t, "^\\s*Key.+$") // Header.
+	e.CheckEOF(t)
 
 	// missing address
 	e.RunWithError(t, "neo-go", "wallet", "candidate", "register",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet)
+		"--wallet", testcli.ValidatorWallet)
 
 	// additional parameter
 	e.RunWithError(t, "neo-go", "wallet", "candidate", "register",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet,
-		"--address", validatorPriv.Address(),
+		"--wallet", testcli.ValidatorWallet,
+		"--address", validatorAddress,
 		"error")
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "candidate", "register",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet,
-		"--address", validatorPriv.Address())
-	e.checkTxPersisted(t)
+		"--wallet", testcli.ValidatorWallet,
+		"--address", validatorAddress)
+	e.CheckTxPersisted(t)
 
 	vs, err := e.Chain.GetEnrollments()
 	require.NoError(t, err)
 	require.Equal(t, 1, len(vs))
-	require.Equal(t, validatorPriv.PublicKey(), vs[0].Key)
+	require.Equal(t, validatorPublic, vs[0].Key)
 	require.Equal(t, big.NewInt(0), vs[0].Votes)
 
 	t.Run("VoteUnvote", func(t *testing.T) {
 		// positional instead of a flag.
 		e.RunWithError(t, "neo-go", "wallet", "candidate", "vote",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", validatorWallet,
-			"--address", validatorPriv.Address(),
+			"--wallet", testcli.ValidatorWallet,
+			"--address", validatorAddress,
 			validatorHex) // not "--candidate hex", but "hex".
 
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "candidate", "vote",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", validatorWallet,
-			"--address", validatorPriv.Address(),
+			"--wallet", testcli.ValidatorWallet,
+			"--address", validatorAddress,
 			"--candidate", validatorHex)
-		_, index := e.checkTxPersisted(t)
+		_, index := e.CheckTxPersisted(t)
 
 		vs, err = e.Chain.GetEnrollments()
 		require.Equal(t, 1, len(vs))
-		require.Equal(t, validatorPriv.PublicKey(), vs[0].Key)
-		b, _ := e.Chain.GetGoverningTokenBalance(validatorPriv.GetScriptHash())
+		require.Equal(t, validatorPublic, vs[0].Key)
+		b, _ := e.Chain.GetGoverningTokenBalance(testcli.ValidatorPriv.GetScriptHash())
 		require.Equal(t, b, vs[0].Votes)
 
 		e.Run(t, "neo-go", "query", "committee",
 			"--rpc-endpoint", "http://"+e.RPC.Addr)
-		e.checkNextLine(t, "^\\s*"+validatorHex)
+		e.CheckNextLine(t, "^\\s*"+validatorHex)
 
 		e.Run(t, "neo-go", "query", "candidates",
 			"--rpc-endpoint", "http://"+e.RPC.Addr)
-		e.checkNextLine(t, "^\\s*Key.+$") // Header.
-		e.checkNextLine(t, "^\\s*"+validatorHex+"\\s*"+b.String()+"\\s*true\\s*true$")
-		e.checkEOF(t)
+		e.CheckNextLine(t, "^\\s*Key.+$") // Header.
+		e.CheckNextLine(t, "^\\s*"+validatorHex+"\\s*"+b.String()+"\\s*true\\s*true$")
+		e.CheckEOF(t)
 
 		// check state
 		e.Run(t, "neo-go", "query", "voter",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			validatorPriv.Address())
-		e.checkNextLine(t, "^\\s*Voted:\\s+"+validatorHex+"\\s+\\("+validatorPriv.Address()+"\\)$")
-		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String()+"$")
-		e.checkNextLine(t, "^\\s*Block\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
-		e.checkEOF(t)
+			validatorAddress)
+		e.CheckNextLine(t, "^\\s*Voted:\\s+"+validatorHex+"\\s+\\("+validatorAddress+"\\)$")
+		e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String()+"$")
+		e.CheckNextLine(t, "^\\s*Block\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
+		e.CheckEOF(t)
 
 		// unvote
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "candidate", "vote",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			"--wallet", validatorWallet,
-			"--address", validatorPriv.Address())
-		_, index = e.checkTxPersisted(t)
+			"--wallet", testcli.ValidatorWallet,
+			"--address", validatorAddress)
+		_, index = e.CheckTxPersisted(t)
 
 		vs, err = e.Chain.GetEnrollments()
 		require.Equal(t, 1, len(vs))
-		require.Equal(t, validatorPriv.PublicKey(), vs[0].Key)
+		require.Equal(t, validatorPublic, vs[0].Key)
 		require.Equal(t, big.NewInt(0), vs[0].Votes)
 
 		// check state
 		e.Run(t, "neo-go", "query", "voter",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
-			validatorPriv.Address())
-		e.checkNextLine(t, "^\\s*Voted:\\s+"+"null") // no vote.
-		e.checkNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String()+"$")
-		e.checkNextLine(t, "^\\s*Block\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
-		e.checkEOF(t)
+			validatorAddress)
+		e.CheckNextLine(t, "^\\s*Voted:\\s+"+"null") // no vote.
+		e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String()+"$")
+		e.CheckNextLine(t, "^\\s*Block\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
+		e.CheckEOF(t)
 	})
 
 	// missing address
 	e.RunWithError(t, "neo-go", "wallet", "candidate", "unregister",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet)
+		"--wallet", testcli.ValidatorWallet)
 	// additional argument
 	e.RunWithError(t, "neo-go", "wallet", "candidate", "unregister",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet,
-		"--address", validatorPriv.Address(),
+		"--wallet", testcli.ValidatorWallet,
+		"--address", validatorAddress,
 		"argument")
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "candidate", "unregister",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet,
-		"--address", validatorPriv.Address())
-	e.checkTxPersisted(t)
+		"--wallet", testcli.ValidatorWallet,
+		"--address", validatorAddress)
+	e.CheckTxPersisted(t)
 
 	vs, err = e.Chain.GetEnrollments()
 	require.Equal(t, 0, len(vs))
@@ -149,7 +152,7 @@ func TestRegisterCandidate(t *testing.T) {
 	// query voter: missing address
 	e.RunWithError(t, "neo-go", "query", "voter")
 	// Excessive parameters.
-	e.RunWithError(t, "neo-go", "query", "voter", "--rpc-endpoint", "http://"+e.RPC.Addr, validatorPriv.Address(), validatorPriv.Address())
+	e.RunWithError(t, "neo-go", "query", "voter", "--rpc-endpoint", "http://"+e.RPC.Addr, validatorAddress, validatorAddress)
 	e.RunWithError(t, "neo-go", "query", "committee", "--rpc-endpoint", "http://"+e.RPC.Addr, "something")
 	e.RunWithError(t, "neo-go", "query", "candidates", "--rpc-endpoint", "http://"+e.RPC.Addr, "something")
 }

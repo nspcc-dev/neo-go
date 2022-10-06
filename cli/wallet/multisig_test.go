@@ -1,4 +1,4 @@
-package main
+package wallet_test
 
 import (
 	"encoding/hex"
@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -24,9 +25,9 @@ import (
 // 1. Transfer funds to a created multisig address.
 // 2. Transfer from multisig to another account.
 func TestSignMultisigTx(t *testing.T) {
-	e := newExecutor(t, true)
+	e := testcli.NewExecutor(t, true)
 
-	privs, pubs := generateKeys(t, 3)
+	privs, pubs := testcli.GenerateKeys(t, 3)
 	script, err := smartcontract.CreateMultiSigRedeemScript(2, pubs)
 	require.NoError(t, err)
 	multisigHash := hash.Hash160(script)
@@ -55,12 +56,12 @@ func TestSignMultisigTx(t *testing.T) {
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
-		"--wallet", validatorWallet,
-		"--from", validatorAddr,
+		"--wallet", testcli.ValidatorWallet,
+		"--from", testcli.ValidatorAddr,
 		"--force",
 		"NEO:"+multisigAddr+":4",
 		"GAS:"+multisigAddr+":1")
-	e.checkTxPersisted(t)
+	e.CheckTxPersisted(t)
 
 	// Sign and transfer funds to another account.
 	priv, err := keys.NewPrivateKey()
@@ -145,8 +146,8 @@ func TestSignMultisigTx(t *testing.T) {
 
 		t.Run("no invoke", func(t *testing.T) {
 			e.Run(t, "neo-go", "util", "txdump", txPath)
-			e.checkTxTestInvokeOutput(t, 11)
-			e.checkEOF(t)
+			e.CheckTxTestInvokeOutput(t, 11)
+			e.CheckEOF(t)
 		})
 
 		t.Run("excessive parameters", func(t *testing.T) {
@@ -157,7 +158,7 @@ func TestSignMultisigTx(t *testing.T) {
 		e.Run(t, "neo-go", "util", "txdump",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			txPath)
-		e.checkTxTestInvokeOutput(t, 11)
+		e.CheckTxTestInvokeOutput(t, 11)
 		res := new(result.Invoke)
 		require.NoError(t, json.Unmarshal(e.Out.Bytes(), res))
 		require.Equal(t, vmstate.Halt.String(), res.State, res.FaultException)
@@ -196,7 +197,7 @@ func TestSignMultisigTx(t *testing.T) {
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", wallet2Path, "--address", multisigAddr,
 			"--in", txPath, "--out", txPath)
-		e.checkTxPersisted(t)
+		e.CheckTxPersisted(t)
 	})
 	t.Run("double-sign", func(t *testing.T) {
 		e.In.WriteString("pass\r")
@@ -251,7 +252,7 @@ func TestSignMultisigTx(t *testing.T) {
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", wallet1Path, "--address", address.Uint160ToString(h),
 			"--in", txPath, "--out", txPath)
-		tx, _ := e.checkTxPersisted(t)
+		tx, _ := e.CheckTxPersisted(t)
 		require.Equal(t, 3, len(tx.Signers))
 
 		b, _ := e.Chain.GetGoverningTokenBalance(priv.GetScriptHash())
@@ -261,20 +262,6 @@ func TestSignMultisigTx(t *testing.T) {
 	})
 }
 
-func (e *executor) checkTxTestInvokeOutput(t *testing.T, scriptSize int) {
-	e.checkNextLine(t, `Hash:\s+`)
-	e.checkNextLine(t, `OnChain:\s+false`)
-	e.checkNextLine(t, `ValidUntil:\s+\d+`)
-	e.checkNextLine(t, `Signer:\s+\w+`)
-	e.checkNextLine(t, `SystemFee:\s+(\d|\.)+`)
-	e.checkNextLine(t, `NetworkFee:\s+(\d|\.)+`)
-	e.checkNextLine(t, `Script:\s+\w+`)
-	e.checkScriptDump(t, scriptSize)
-}
-
-func (e *executor) checkScriptDump(t *testing.T, scriptSize int) {
-	e.checkNextLine(t, `INDEX\s+`)
-	for i := 0; i < scriptSize; i++ {
-		e.checkNextLine(t, `\d+\s+\w+`)
-	}
+func deployVerifyContract(t *testing.T, e *testcli.Executor) util.Uint160 {
+	return testcli.DeployContract(t, e, "../smartcontract/testdata/verify.go", "../smartcontract/testdata/verify.yml", testcli.ValidatorWallet, testcli.ValidatorAddr, testcli.ValidatorPass)
 }
