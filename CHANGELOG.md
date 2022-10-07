@@ -2,6 +2,52 @@
 
 This document outlines major changes between releases.
 
+## 0.99.4 "Transliteration" (07 Oct 2022)
+
+A small update mostly interesting for people building/testing smart contracts
+with NeoGo. It contains long-awaited VM CLI update that allows to use
+blockchain state and complete set of interops, additional helper functions for
+smart contracts and notification checking code (for upcoming 3.5.0 protocol
+changes). Node operators using EnableCORSWorkaround (that is still not
+recommended, but available) also may want to update to be able to handle
+pre-flight CORS requests.
+
+This version is compatible with C# node 3.4.0 and does not require
+resynchronization on upgrade. The next release is planned to be compatible
+with 3.5.0.
+
+New features:
+ * address conversion helpers for smart contracts (#2698)
+ * interop helper to call specific version of a contract (#2695)
+ * notifications are now checked for manifest compliance, a warning is logged
+   in case on detected inconsistencies (#2710)
+ * VM CLI can now use blockchain state DB (including historic states) to run
+   code with a complete set of interops and contracts available; additional
+   commands were added to it to inspect storage and generated events (#2723)
+
+Behavior changes:
+ * type assertion with two return values in Go contracts can't be compiled now
+   (it never worked properly, #2718)
+ * RPC server will now handle pre-flight CORS requests (via OPTIONS methods)
+   when EnableCORSWorkaround setting is on (#2724)
+ * all transaction-generating CLI commands were unified to accept
+   gas/sysgas/out/force parameters, ask for confirmation and be able to save
+   transaction into a file; this affects wallet claim and candidate-related
+   commands mostly (#2731)
+
+Improvements:
+ * smartcontract.Builder API was extended with Len method (#2691)
+ * NNS example contract adjustments for better DNS compatibility (#2679)
+ * documentation updates (#2708, #2722, #2726, #2728)
+ * compiler now emits code to explicitly cast runtime.Notify() parameters to
+   appropriate types (#2720)
+ * CLI tests repackaging (#2725)
+ * NeoFS sidechain configurations for mainnet and testnet (#2730)
+
+Bugs fixed:
+ * panic on node shutdown (#2689)
+ * panic on inlined append() compilation (#2716)
+
 ## 0.99.3 "Simplification" (09 Sep 2022)
 
 Version 0.99.3 brings with it most of the planned refactoring changes to the
