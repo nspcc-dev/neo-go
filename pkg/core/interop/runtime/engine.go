@@ -19,6 +19,9 @@ const (
 	MaxEventNameLen = 32
 	// MaxNotificationSize is the maximum length of a runtime log message.
 	MaxNotificationSize = 1024
+	// SystemRuntimeLogMessage represents log entry message used for output
+	// of the System.Runtime.Log syscall.
+	SystemRuntimeLogMessage = "runtime log"
 )
 
 // GetExecutingScriptHash returns executing script hash.
@@ -112,7 +115,7 @@ func Log(ic *interop.Context) error {
 	if ic.Tx != nil {
 		txHash = ic.Tx.Hash().StringLE()
 	}
-	ic.Log.Info("runtime log",
+	ic.Log.Info(SystemRuntimeLogMessage,
 		zap.String("tx", txHash),
 		zap.String("script", ic.VM.GetCurrentScriptHash().StringLE()),
 		zap.String("msg", state))

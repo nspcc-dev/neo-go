@@ -19,10 +19,12 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/kballard/go-shellquote"
 	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -37,6 +39,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -392,13 +395,27 @@ func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg
 		store = storage.NewMemoryStore()
 	}
 
+	log, logCloser, err := options.HandleLoggingParams(false, cfg.ApplicationConfiguration)
+	if err != nil {
+		return nil, cli.NewExitError(fmt.Errorf("failed to init logger: %w", err), 1)
+	}
+	filter := zap.WrapCore(func(z zapcore.Core) zapcore.Core {
+		return options.NewFilteringCore(z, func(entry zapcore.Entry) bool {
+			// Log only Runtime.Notify messages.
+			return entry.Level == zapcore.InfoLevel && entry.Message == runtime.SystemRuntimeLogMessage
+		})
+	})
+	fLog := log.WithOptions(filter)
+
 	exitF := func(i int) {
 		_ = store.Close()
+		if logCloser != nil {
+			_ = logCloser()
+		}
 		onExit(i)
 	}
 
-	log := zap.NewNop()
-	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration, log)
+	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration, fLog)
 	if err != nil {
 		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %w", err), 1)
 	}
