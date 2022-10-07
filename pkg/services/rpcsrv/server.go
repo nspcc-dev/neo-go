@@ -89,8 +89,8 @@ type (
 		GetNotaryServiceFeePerKey() int64
 		GetStateModule() core.StateRoot
 		GetStorageItem(id int32, key []byte) state.StorageItem
-		GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error)
-		GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context
+		GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, nextBlockHeight uint32) (*interop.Context, error)
+		GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error)
 		GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, error)
 		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 		GetValidators() ([]*keys.PublicKey, error)
@@ -1065,11 +1065,10 @@ func (s *Server) invokeReadOnlyMulti(bw *io.BufBinWriter, h util.Uint160, method
 	}
 	script := bw.Bytes()
 	tx := &transaction.Transaction{Script: script}
-	b, err := s.getFakeNextBlock(s.chain.BlockHeight() + 1)
+	ic, err := s.chain.GetTestVM(trigger.Application, tx, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("faile to prepare test VM: %w", err)
 	}
-	ic := s.chain.GetTestVM(trigger.Application, tx, b)
 	ic.VM.GasLimit = core.HeaderVerificationGasLimit
 	ic.VM.LoadScriptWithFlags(script, callflag.All)
 	err = ic.VM.Run()
@@ -1832,7 +1831,7 @@ func (s *Server) invokeFunction(reqParams params.Params) (interface{}, *neorpc.E
 
 // invokeFunctionHistoric implements the `invokeFunctionHistoric` RPC call.
 func (s *Server) invokeFunctionHistoric(reqParams params.Params) (interface{}, *neorpc.Error) {
-	b, respErr := s.getHistoricParams(reqParams)
+	nextH, respErr := s.getHistoricParams(reqParams)
 	if respErr != nil {
 		return nil, respErr
 	}
@@ -1843,7 +1842,7 @@ func (s *Server) invokeFunctionHistoric(reqParams params.Params) (interface{}, *
 	if respErr != nil {
 		return nil, respErr
 	}
-	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, b, verbose)
+	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, &nextH, verbose)
 }
 
 func (s *Server) getInvokeFunctionParams(reqParams params.Params) (*transaction.Transaction, bool, *neorpc.Error) {
@@ -1899,7 +1898,7 @@ func (s *Server) invokescript(reqParams params.Params) (interface{}, *neorpc.Err
 
 // invokescripthistoric implements the `invokescripthistoric` RPC call.
 func (s *Server) invokescripthistoric(reqParams params.Params) (interface{}, *neorpc.Error) {
-	b, respErr := s.getHistoricParams(reqParams)
+	nextH, respErr := s.getHistoricParams(reqParams)
 	if respErr != nil {
 		return nil, respErr
 	}
@@ -1910,7 +1909,7 @@ func (s *Server) invokescripthistoric(reqParams params.Params) (interface{}, *ne
 	if respErr != nil {
 		return nil, respErr
 	}
-	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, b, verbose)
+	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, &nextH, verbose)
 }
 
 func (s *Server) getInvokeScriptParams(reqParams params.Params) (*transaction.Transaction, bool, *neorpc.Error) {
@@ -1953,7 +1952,7 @@ func (s *Server) invokeContractVerify(reqParams params.Params) (interface{}, *ne
 
 // invokeContractVerifyHistoric implements the `invokecontractverifyhistoric` RPC call.
 func (s *Server) invokeContractVerifyHistoric(reqParams params.Params) (interface{}, *neorpc.Error) {
-	b, respErr := s.getHistoricParams(reqParams)
+	nextH, respErr := s.getHistoricParams(reqParams)
 	if respErr != nil {
 		return nil, respErr
 	}
@@ -1964,7 +1963,7 @@ func (s *Server) invokeContractVerifyHistoric(reqParams params.Params) (interfac
 	if respErr != nil {
 		return nil, respErr
 	}
-	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx, b, false)
+	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx, &nextH, false)
 }
 
 func (s *Server) getInvokeContractVerifyParams(reqParams params.Params) (util.Uint160, *transaction.Transaction, []byte, *neorpc.Error) {
@@ -2003,68 +2002,52 @@ func (s *Server) getInvokeContractVerifyParams(reqParams params.Params) (util.Ui
 	return scriptHash, tx, invocationScript, nil
 }
 
-// getHistoricParams checks that historic calls are supported and returns fake block
-// with the specified index to perform the historic call. It also checks that
+// getHistoricParams checks that historic calls are supported and returns index of
+// a fake next block to perform the historic call. It also checks that
 // specified stateroot is stored at the specified height for further request
 // handling consistency.
-func (s *Server) getHistoricParams(reqParams params.Params) (*block.Block, *neorpc.Error) {
+func (s *Server) getHistoricParams(reqParams params.Params) (uint32, *neorpc.Error) {
 	if s.chain.GetConfig().KeepOnlyLatestState {
-		return nil, neorpc.NewInvalidRequestError(fmt.Sprintf("only latest state is supported: %s", errKeepOnlyLatestState))
+		return 0, neorpc.NewInvalidRequestError(fmt.Sprintf("only latest state is supported: %s", errKeepOnlyLatestState))
 	}
 	if len(reqParams) < 1 {
-		return nil, neorpc.ErrInvalidParams
+		return 0, neorpc.ErrInvalidParams
 	}
 	height, respErr := s.blockHeightFromParam(reqParams.Value(0))
 	if respErr != nil {
 		hash, err := reqParams.Value(0).GetUint256()
 		if err != nil {
-			return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("invalid block hash or index or stateroot hash: %s", err))
+			return 0, neorpc.NewInvalidParamsError(fmt.Sprintf("invalid block hash or index or stateroot hash: %s", err))
 		}
 		b, err := s.chain.GetBlock(hash)
 		if err != nil {
 			stateH, err := s.chain.GetStateModule().GetLatestStateHeight(hash)
 			if err != nil {
-				return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("unknown block or stateroot: %s", err))
+				return 0, neorpc.NewInvalidParamsError(fmt.Sprintf("unknown block or stateroot: %s", err))
 			}
 			height = int(stateH)
 		} else {
 			height = int(b.Index)
 		}
 	}
-	b, err := s.getFakeNextBlock(uint32(height + 1))
-	if err != nil {
-		return nil, neorpc.NewInternalServerError(fmt.Sprintf("can't create fake block for height %d: %s", height+1, err))
+	if height > math.MaxUint32 {
+		return 0, neorpc.NewInvalidParamsError("historic height exceeds max uint32 value")
 	}
-	return b, nil
+	return uint32(height) + 1, nil
 }
 
-func (s *Server) getFakeNextBlock(nextBlockHeight uint32) (*block.Block, error) {
-	// When transferring funds, script execution does no auto GAS claim,
-	// because it depends on persisting tx height.
-	// This is why we provide block here.
-	b := block.New(s.stateRootEnabled)
-	b.Index = nextBlockHeight
-	hdr, err := s.chain.GetHeader(s.chain.GetHeaderHash(int(nextBlockHeight - 1)))
-	if err != nil {
-		return nil, err
-	}
-	b.Timestamp = hdr.Timestamp + uint64(s.chain.GetConfig().SecondsPerBlock*int(time.Second/time.Millisecond))
-	return b, nil
-}
-
-func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, b *block.Block, verbose bool) (*interop.Context, *neorpc.Error) {
+func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, nextH *uint32, verbose bool) (*interop.Context, *neorpc.Error) {
 	var (
 		err error
 		ic  *interop.Context
 	)
-	if b == nil {
-		b, err = s.getFakeNextBlock(s.chain.BlockHeight() + 1)
+	if nextH == nil {
+		ic, err = s.chain.GetTestVM(t, tx, nil)
 		if err != nil {
-			return nil, neorpc.NewInternalServerError(fmt.Sprintf("can't create fake block: %s", err))
+			return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to create test VM: %s", err))
 		}
-		ic = s.chain.GetTestVM(t, tx, b)
 	} else {
-		ic, err = s.chain.GetTestHistoricVM(t, tx, b)
+		ic, err = s.chain.GetTestHistoricVM(t, tx, *nextH)
 		if err != nil {
 			return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to create historic VM: %s", err))
 		}
@@ -2096,8 +2079,8 @@ func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contrac
 // witness invocation script in case of `verification` trigger (it pushes `verify`
 // arguments on stack before verification). In case of contract verification
 // contractScriptHash should be specified.
-func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, b *block.Block, verbose bool) (*result.Invoke, *neorpc.Error) {
-	ic, respErr := s.prepareInvocationContext(t, script, contractScriptHash, tx, b, verbose)
+func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, nextH *uint32, verbose bool) (*result.Invoke, *neorpc.Error) {
+	ic, respErr := s.prepareInvocationContext(t, script, contractScriptHash, tx, nextH, verbose)
 	if respErr != nil {
 		return nil, respErr
 	}
@@ -2111,16 +2094,12 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 	var id uuid.UUID
 
 	if sess != nil {
-		// b == nil only when we're not using MPT-backed storage, therefore
+		// nextH == nil only when we're not using MPT-backed storage, therefore
 		// the second attempt won't stop here.
-		if s.config.SessionBackedByMPT && b == nil {
+		if s.config.SessionBackedByMPT && nextH == nil {
 			ic.Finalize()
-			b, err = s.getFakeNextBlock(ic.Block.Index)
-			if err != nil {
-				return nil, neorpc.NewInternalServerError(fmt.Sprintf("unable to prepare block for historic call: %s", err))
-			}
 			// Rerun with MPT-backed storage.
-			return s.runScriptInVM(t, script, contractScriptHash, tx, b, verbose)
+			return s.runScriptInVM(t, script, contractScriptHash, tx, &ic.Block.Index, verbose)
 		}
 		id = uuid.New()
 		sessionID := id.String()

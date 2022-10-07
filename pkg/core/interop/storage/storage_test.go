@@ -300,7 +300,8 @@ func TestFind(t *testing.T) {
 
 func createVM(t testing.TB) (*vm.VM, *interop.Context, *core.Blockchain) {
 	chain, _ := chain.NewSingle(t)
-	ic := chain.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
+	ic, err := chain.GetTestVM(trigger.Application, &transaction.Transaction{}, &block.Block{})
+	require.NoError(t, err)
 	v := ic.SpawnVM()
 	return v, ic, chain
 }

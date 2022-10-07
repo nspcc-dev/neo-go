@@ -298,7 +298,7 @@ func (chain *FakeChain) GetStorageItem(id int32, key []byte) state.StorageItem {
 }
 
 // GetTestVM implements the Blockchainer interface.
-func (chain *FakeChain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) *interop.Context {
+func (chain *FakeChain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error) {
 	panic("TODO")
 }
 

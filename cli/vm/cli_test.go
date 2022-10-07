@@ -1,4 +1,4 @@
-package cli
+package vm
 
 import (
 	"bytes"
@@ -15,12 +15,20 @@ import (
 	"time"
 
 	"github.com/chzyer/readline"
+	"github.com/nspcc-dev/neo-go/internal/basicchain"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dboper"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -54,7 +62,7 @@ func (r *readCloser) WriteString(s string) {
 type executor struct {
 	in   *readCloser
 	out  *bytes.Buffer
-	cli  *VMCLI
+	cli  *CLI
 	ch   chan struct{}
 	exit atomic.Bool
 }
@@ -64,12 +72,27 @@ func newTestVMCLI(t *testing.T) *executor {
 }
 
 func newTestVMCLIWithLogo(t *testing.T, printLogo bool) *executor {
+	return newTestVMCLIWithLogoAndCustomConfig(t, printLogo, nil)
+}
+
+func newTestVMCLIWithLogoAndCustomConfig(t *testing.T, printLogo bool, cfg *config.Config) *executor {
 	e := &executor{
 		in:  &readCloser{Buffer: *bytes.NewBuffer(nil)},
 		out: bytes.NewBuffer(nil),
 		ch:  make(chan struct{}),
 	}
-	e.cli = NewWithConfig(printLogo,
+	var c config.Config
+	if cfg == nil {
+		configPath := "../../config/protocol.unit_testnet.single.yml"
+		var err error
+		c, err = config.LoadFile(configPath)
+		require.NoError(t, err, "could not load chain config")
+		c.ApplicationConfiguration.DBConfiguration.Type = dbconfig.InMemoryDB
+	} else {
+		c = *cfg
+	}
+	var err error
+	e.cli, err = NewWithConfig(printLogo,
 		func(int) { e.exit.Store(true) },
 		&readline.Config{
 			Prompt: "",
@@ -79,8 +102,38 @@ func newTestVMCLIWithLogo(t *testing.T, printLogo bool) *executor {
 			FuncIsTerminal: func() bool {
 				return false
 			},
-		})
+		}, c)
+	require.NoError(t, err)
 	return e
+}
+
+func newTestVMClIWithState(t *testing.T) *executor {
+	// Firstly create a DB with chain, save and close it.
+	path := t.TempDir()
+	opts := dbconfig.LevelDBOptions{
+		DataDirectoryPath: path,
+	}
+	store, err := storage.NewLevelDBStore(opts)
+	require.NoError(t, err)
+	customConfig := func(c *config.ProtocolConfiguration) {
+		c.StateRootInHeader = true // Need for P2PStateExchangeExtensions check.
+		c.P2PSigExtensions = true  // Need for basic chain initializer.
+	}
+	bc, validators, committee, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, store)
+	require.NoError(t, err)
+	go bc.Run()
+	e := neotest.NewExecutor(t, bc, validators, committee)
+	basicchain.InitSimple(t, "../../", e)
+	bc.Close()
+
+	// After that create CLI backed by created chain.
+	configPath := "../../config/protocol.unit_testnet.yml"
+	cfg, err := config.LoadFile(configPath)
+	require.NoError(t, err)
+	cfg.ApplicationConfiguration.DBConfiguration.Type = dbconfig.LevelDB
+	cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions = opts
+	cfg.ProtocolConfiguration.StateRootInHeader = true
+	return newTestVMCLIWithLogoAndCustomConfig(t, false, &cfg)
 }
 
 func (e *executor) runProg(t *testing.T, commands ...string) {
@@ -105,6 +158,12 @@ func (e *executor) checkNextLine(t *testing.T, expected string) {
 	line, err := e.out.ReadString('\n')
 	require.NoError(t, err)
 	require.Regexp(t, expected, line)
+}
+
+func (e *executor) checkNextLineExact(t *testing.T, expected string) {
+	line, err := e.out.ReadString('\n')
+	require.NoError(t, err)
+	require.Equal(t, expected, line)
 }
 
 func (e *executor) checkError(t *testing.T, expectedErr error) {
@@ -137,6 +196,50 @@ func (e *executor) checkStack(t *testing.T, items ...interface{}) {
 	e.out.WriteString(outRemain)
 	_, err = e.out.ReadString('\n')
 	require.NoError(t, err)
+}
+
+func (e *executor) checkEvents(t *testing.T, isKeywordExpected bool, events ...state.NotificationEvent) {
+	if isKeywordExpected {
+		e.checkNextLine(t, "Events:")
+	}
+	d := json.NewDecoder(e.out)
+	var actual interface{}
+	require.NoError(t, d.Decode(&actual))
+	rawActual, err := json.Marshal(actual)
+	require.NoError(t, err)
+
+	rawExpected, err := json.Marshal(events)
+	require.NoError(t, err)
+	require.JSONEq(t, string(rawExpected), string(rawActual))
+
+	// Decoder has it's own buffer, we need to return unread part to the output.
+	outRemain := e.out.String()
+	e.out.Reset()
+	_, err = gio.Copy(e.out, d.Buffered())
+	require.NoError(t, err)
+	e.out.WriteString(outRemain)
+	_, err = e.out.ReadString('\n')
+	require.NoError(t, err)
+}
+
+func (e *executor) checkStorage(t *testing.T, kvs ...storage.KeyValue) {
+	for _, kv := range kvs {
+		e.checkNextLine(t, fmt.Sprintf("%s: %s", hex.EncodeToString(kv.Key), hex.EncodeToString(kv.Value)))
+	}
+}
+
+type storageChange struct {
+	ContractID int32
+	dboper.Operation
+}
+
+func (e *executor) checkChange(t *testing.T, c storageChange) {
+	e.checkNextLine(t, fmt.Sprintf("Contract ID: %d", c.ContractID))
+	e.checkNextLine(t, fmt.Sprintf("State: %s", c.State))
+	e.checkNextLine(t, fmt.Sprintf("Key: %s", hex.EncodeToString(c.Key)))
+	if c.Value != nil {
+		e.checkNextLine(t, fmt.Sprintf("Value: %s", hex.EncodeToString(c.Value)))
+	}
 }
 
 func (e *executor) checkSlot(t *testing.T, items ...interface{}) {
@@ -251,7 +354,7 @@ go 1.17`)
 require (
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0
 )
-replace github.com/nspcc-dev/neo-go/pkg/interop => ` + filepath.Join(wd, "../../interop") + `
+replace github.com/nspcc-dev/neo-go/pkg/interop => ` + filepath.Join(wd, "../../pkg/interop") + `
 go 1.17`)
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 
@@ -661,4 +764,217 @@ func TestReset(t *testing.T) {
 	e.checkNextLine(t, "0.*PUSH1.*")
 	e.checkNextLine(t, "")
 	e.checkError(t, fmt.Errorf("VM is not ready: no program loaded"))
+}
+
+func TestRunWithState(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	// Ensure that state is properly loaded and on-chain contract can be called.
+	script := io.NewBufBinWriter()
+	h, err := e.cli.chain.GetContractScriptHash(1) // examples/storage/storage.go
+	require.NoError(t, err)
+	emit.AppCall(script.BinWriter, h, "put", callflag.All, 3, 3)
+	e.runProg(t,
+		"loadhex "+hex.EncodeToString(script.Bytes()),
+		"run")
+	e.checkNextLine(t, "READY: loaded 37 instructions")
+	e.checkStack(t, 3)
+}
+
+func TestRunWithHistoricState(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	script := io.NewBufBinWriter()
+	h, err := e.cli.chain.GetContractScriptHash(1) // examples/storage/storage.go
+	require.NoError(t, err)
+	emit.AppCall(script.BinWriter, h, "get", callflag.All, 1)
+	b := script.Bytes()
+
+	e.runProg(t,
+		"loadhex "+hex.EncodeToString(b), // normal invocation
+		"run",
+		"loadhex --historic 3 "+hex.EncodeToString(b), // historic invocation, old value should be retrieved
+		"run",
+		"loadhex --historic 0 "+hex.EncodeToString(b), // historic invocation, contract is not deployed yet
+		"run",
+	)
+	e.checkNextLine(t, "READY: loaded 36 instructions")
+	e.checkStack(t, []byte{2})
+	e.checkNextLine(t, "READY: loaded 36 instructions")
+	e.checkStack(t, []byte{1})
+	e.checkNextLine(t, "READY: loaded 36 instructions")
+	e.checkNextLineExact(t, "Error: at instruction 31 (SYSCALL): failed to invoke syscall 1381727586: called contract a00e3c2643a08a452d8b0bdd31849ae11a17c445 not found: key not found\n")
+}
+
+func TestEvents(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	script := io.NewBufBinWriter()
+	h, err := e.cli.chain.GetContractScriptHash(2) // examples/runtime/runtime.go
+	require.NoError(t, err)
+	emit.AppCall(script.BinWriter, h, "notify", callflag.All, []interface{}{true, 5})
+	e.runProg(t,
+		"loadhex "+hex.EncodeToString(script.Bytes()),
+		"run",
+		"events")
+	expectedEvent := state.NotificationEvent{
+		ScriptHash: h,
+		Name:       "Event",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.NewArray([]stackitem.Item{
+				stackitem.Make(true),
+				stackitem.Make(5),
+			}),
+		}),
+	}
+	e.checkNextLine(t, "READY: loaded 44 instructions")
+	e.checkStack(t, stackitem.Null{})
+	e.checkEvents(t, true, expectedEvent)  // automatically printed after `run` command
+	e.checkEvents(t, false, expectedEvent) // printed after `events` command
+}
+
+func TestEnv(t *testing.T) {
+	t.Run("default setup", func(t *testing.T) {
+		e := newTestVMCLI(t)
+		e.runProg(t, "env")
+		e.checkNextLine(t, "Chain height: 0")
+		e.checkNextLineExact(t, "VM height (may differ from chain height in case of historic call): 0\n")
+		e.checkNextLine(t, "Network magic: 42")
+		e.checkNextLine(t, "DB type: inmemory")
+	})
+	t.Run("setup with state", func(t *testing.T) {
+		e := newTestVMClIWithState(t)
+		e.runProg(t, "env")
+		e.checkNextLine(t, "Chain height: 5")
+		e.checkNextLineExact(t, "VM height (may differ from chain height in case of historic call): 5\n")
+		e.checkNextLine(t, "Network magic: 42")
+		e.checkNextLine(t, "DB type: leveldb")
+	})
+	t.Run("setup with historic state", func(t *testing.T) {
+		e := newTestVMClIWithState(t)
+		e.runProg(t, "loadbase64 --historic 3 "+base64.StdEncoding.EncodeToString([]byte{byte(opcode.PUSH1)}),
+			"env")
+		e.checkNextLine(t, "READY: loaded 1 instructions")
+		e.checkNextLine(t, "Chain height: 5")
+		e.checkNextLineExact(t, "VM height (may differ from chain height in case of historic call): 3\n")
+		e.checkNextLine(t, "Network magic: 42")
+		e.checkNextLine(t, "DB type: leveldb")
+	})
+	t.Run("verbose", func(t *testing.T) {
+		e := newTestVMClIWithState(t)
+		e.runProg(t, "env -v")
+		e.checkNextLine(t, "Chain height: 5")
+		e.checkNextLineExact(t, "VM height (may differ from chain height in case of historic call): 5\n")
+		e.checkNextLine(t, "Network magic: 42")
+		e.checkNextLine(t, "DB type: leveldb")
+		e.checkNextLine(t, "Node config:") // Do not check exact node config.
+	})
+}
+
+func TestDumpStorage(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	h, err := e.cli.chain.GetContractScriptHash(1) // examples/storage/storage.go
+	require.NoError(t, err)
+	expected := []storage.KeyValue{
+		{Key: []byte{1}, Value: []byte{2}},
+		{Key: []byte{2}, Value: []byte{2}},
+	}
+	e.runProg(t,
+		"storage "+h.StringLE(),
+		"storage 0x"+h.StringLE(),
+		"storage "+address.Uint160ToString(h),
+		"storage 1",
+		"storage 1 "+hex.EncodeToString(expected[0].Key),
+		"storage 1 --backwards",
+	)
+	e.checkStorage(t, expected...)
+	e.checkStorage(t, expected...)
+	e.checkStorage(t, expected...)
+	e.checkStorage(t, expected...)
+	e.checkStorage(t, storage.KeyValue{Key: nil, Value: []byte{2}}) // empty key because search prefix is trimmed
+	e.checkStorage(t, expected[1], expected[0])
+}
+
+func TestDumpStorageDiff(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	script := io.NewBufBinWriter()
+	h, err := e.cli.chain.GetContractScriptHash(1) // examples/storage/storage.go
+	require.NoError(t, err)
+	emit.AppCall(script.BinWriter, h, "put", callflag.All, 3, 3)
+
+	expected := []storage.KeyValue{
+		{Key: []byte{1}, Value: []byte{2}},
+		{Key: []byte{2}, Value: []byte{2}},
+	}
+	diff := storage.KeyValue{Key: []byte{3}, Value: []byte{3}}
+	e.runProg(t,
+		"storage 1",
+		"storage 1 --diff",
+		"loadhex "+hex.EncodeToString(script.Bytes()),
+		"run",
+		"storage 1",
+		"storage 1 --diff",
+	)
+
+	e.checkStorage(t, expected...)
+	// no script is executed => no diff
+	e.checkNextLine(t, "READY: loaded 37 instructions")
+	e.checkStack(t, 3)
+	e.checkStorage(t, append(expected, diff)...)
+	e.checkStorage(t, diff)
+}
+
+func TestDumpChanges(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	script := io.NewBufBinWriter()
+	h, err := e.cli.chain.GetContractScriptHash(1) // examples/storage/storage.go
+	require.NoError(t, err)
+	emit.AppCall(script.BinWriter, h, "put", callflag.All, 3, 4) // add
+	emit.AppCall(script.BinWriter, h, "delete", callflag.All, 1) // remove
+	emit.AppCall(script.BinWriter, h, "put", callflag.All, 2, 5) // update
+
+	expected := []storageChange{
+		{
+			ContractID: 1,
+			Operation: dboper.Operation{
+				State: "Deleted",
+				Key:   []byte{1},
+			},
+		},
+		{
+			ContractID: 1,
+			Operation: dboper.Operation{
+				State: "Changed",
+				Key:   []byte{2},
+				Value: []byte{5},
+			},
+		},
+		{
+			ContractID: 1,
+			Operation: dboper.Operation{
+				State: "Added",
+				Key:   []byte{3},
+				Value: []byte{4},
+			},
+		},
+	}
+	e.runProg(t,
+		"changes",
+		"changes 1",
+		"loadhex "+hex.EncodeToString(script.Bytes()),
+		"run",
+		"changes 1 "+hex.EncodeToString([]byte{1}),
+		"changes 1 "+hex.EncodeToString([]byte{2}),
+		"changes 1 "+hex.EncodeToString([]byte{3}),
+	)
+
+	// no script is executed => no diff
+	e.checkNextLine(t, "READY: loaded 113 instructions")
+	e.checkStack(t, 3, true, 2)
+	e.checkChange(t, expected[0])
+	e.checkChange(t, expected[1])
+	e.checkChange(t, expected[2])
 }

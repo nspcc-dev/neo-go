@@ -59,6 +59,11 @@ type SeekRange struct {
 	// whether seeking should be performed in a descending way.
 	// Backwards can be safely combined with Prefix and Start.
 	Backwards bool
+	// SearchDepth is the depth of Seek operation, denotes the number of cached
+	// DAO layers to perform search. Use 1 to fetch the latest changes from upper
+	// in-memory layer of cached DAO. Default 0 value denotes searching through
+	// the whole set of cached layers.
+	SearchDepth int
 }
 
 // ErrKeyNotFound is an error returned by Store implementations
@@ -114,11 +119,11 @@ func NewStore(cfg dbconfig.DBConfiguration) (Store, error) {
 	var store Store
 	var err error
 	switch cfg.Type {
-	case "leveldb":
+	case dbconfig.LevelDB:
 		store, err = NewLevelDBStore(cfg.LevelDBOptions)
-	case "inmemory":
+	case dbconfig.InMemoryDB:
 		store = NewMemoryStore()
-	case "boltdb":
+	case dbconfig.BoltDB:
 		store, err = NewBoltDBStore(cfg.BoltDBOptions)
 	default:
 		return nil, fmt.Errorf("unknown storage: %s", cfg.Type)

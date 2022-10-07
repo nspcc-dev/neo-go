@@ -1,23 +1,25 @@
 package vm
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/chzyer/readline"
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
-	vmcli "github.com/nspcc-dev/neo-go/pkg/vm/cli"
+	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/urfave/cli"
 )
 
 // NewCommands returns 'vm' command.
 func NewCommands() []cli.Command {
+	cfgFlags := []cli.Flag{options.Config}
+	cfgFlags = append(cfgFlags, options.Network...)
 	return []cli.Command{{
 		Name:   "vm",
 		Usage:  "start the virtual machine",
 		Action: startVMPrompt,
-		Flags: []cli.Flag{
-			cli.BoolFlag{Name: "debug, d"},
-		},
+		Flags:  cfgFlags,
 	}}
 }
 
@@ -25,6 +27,22 @@ func startVMPrompt(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
-	p := vmcli.NewWithConfig(true, os.Exit, &readline.Config{})
+
+	cfg, err := options.GetConfigFromContext(ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	if ctx.NumFlags() == 0 {
+		cfg.ApplicationConfiguration.DBConfiguration.Type = dbconfig.InMemoryDB
+	}
+	if cfg.ApplicationConfiguration.DBConfiguration.Type != dbconfig.InMemoryDB {
+		cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions.ReadOnly = true
+		cfg.ApplicationConfiguration.DBConfiguration.BoltDBOptions.ReadOnly = true
+	}
+
+	p, err := NewWithConfig(true, os.Exit, &readline.Config{}, cfg)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to create VM CLI: %w", err), 1)
+	}
 	return p.Run()
 }

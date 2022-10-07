@@ -301,7 +301,12 @@ func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng See
 			}
 		}
 	}
-	ps.Seek(rng, mergeFunc)
+	if rng.SearchDepth == 0 || rng.SearchDepth > 1 {
+		if rng.SearchDepth > 1 {
+			rng.SearchDepth--
+		}
+		ps.Seek(rng, mergeFunc)
+	}
 
 	if !done && haveMem {
 	loop:

@@ -288,7 +288,7 @@ func TestManagement_StartFromHeight(t *testing.T) {
 	// Create database to be able to start another chain from the same height later.
 	ldbDir := t.TempDir()
 	dbConfig := dbconfig.DBConfiguration{
-		Type: "leveldb",
+		Type: dbconfig.LevelDB,
 		LevelDBOptions: dbconfig.LevelDBOptions{
 			DataDirectoryPath: ldbDir,
 		},

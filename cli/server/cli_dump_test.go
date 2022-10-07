@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -19,7 +20,7 @@ func TestDBRestoreDump(t *testing.T) {
 		chainPath := filepath.Join(tmpDir, "neogotestchain")
 		cfg, err := config.LoadFile(filepath.Join("..", "..", "config", "protocol.unit_testnet.yml"))
 		require.NoError(t, err, "could not load config")
-		cfg.ApplicationConfiguration.DBConfiguration.Type = "leveldb"
+		cfg.ApplicationConfiguration.DBConfiguration.Type = dbconfig.LevelDB
 		cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions.DataDirectoryPath = chainPath
 		return cfg
 	}

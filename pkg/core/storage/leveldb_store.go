@@ -2,6 +2,7 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -21,11 +22,14 @@ type LevelDBStore struct {
 // initialize the database found at the given path.
 func NewLevelDBStore(cfg dbconfig.LevelDBOptions) (*LevelDBStore, error) {
 	var opts = new(opt.Options) // should be exposed via LevelDBOptions if anything needed
-
+	if cfg.ReadOnly {
+		opts.ReadOnly = true
+		opts.ErrorIfMissing = true
+	}
 	opts.Filter = filter.NewBloomFilter(10)
 	db, err := leveldb.OpenFile(cfg.DataDirectoryPath, opts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open LevelDB instance: %w", err)
 	}
 
 	return &LevelDBStore{

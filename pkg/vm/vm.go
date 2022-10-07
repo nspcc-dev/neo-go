@@ -108,8 +108,6 @@ func NewWithTrigger(t trigger.Type) *VM {
 	vm := &VM{
 		state:   vmstate.None,
 		trigger: t,
-
-		SyscallHandler: defaultSyscallHandler,
 	}
 
 	initStack(&vm.istack, "invocation", nil)
@@ -1458,6 +1456,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 
 	case opcode.SYSCALL:
 		interopID := GetInteropID(parameter)
+		if v.SyscallHandler == nil {
+			panic("vm's SyscallHandler is not initialized")
+		}
 		err := v.SyscallHandler(v, interopID)
 		if err != nil {
 			panic(fmt.Sprintf("failed to invoke syscall %d: %s", interopID, err))

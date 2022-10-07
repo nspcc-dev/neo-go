@@ -1,9 +1,10 @@
-package cli
+package vm
 
 import (
 	"bytes"
 	"crypto/elliptic"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -17,22 +18,34 @@ import (
 
 	"github.com/chzyer/readline"
 	"github.com/kballard/go-shellquote"
+	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/urfave/cli"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
-	vmKey               = "vm"
+	chainKey            = "chain"
+	chainCfgKey         = "chainCfg"
+	icKey               = "ic"
 	manifestKey         = "manifest"
 	exitFuncKey         = "exitFunc"
 	readlineInstanceKey = "readlineKey"
@@ -43,6 +56,20 @@ const (
 	intType             = "int"
 	stringType          = "string"
 )
+
+// Various flag names.
+const (
+	verboseFlagFullName   = "verbose"
+	historicFlagFullName  = "historic"
+	backwardsFlagFullName = "backwards"
+	diffFlagFullName      = "diff"
+)
+
+var historicFlag = cli.IntFlag{
+	Name: historicFlagFullName,
+	Usage: "Height for historic script invocation (for MPT-enabled blockchain configuration with KeepOnlyLatestState setting disabled). " +
+		"Assuming that block N-th is specified as an argument, the historic invocation is based on the storage state of height N and fake currently-accepting block with index N+1.",
+}
 
 var commands = []cli.Command{
 	{
@@ -100,7 +127,8 @@ var commands = []cli.Command{
 		Name:      "loadnef",
 		Usage:     "Load a NEF-consistent script into the VM",
 		UsageText: `loadnef <file> <manifest>`,
-		Description: `loadnef <file> <manifest>
+		Flags:     []cli.Flag{historicFlag},
+		Description: `loadnef [--historic <height>] <file> <manifest>
 both parameters are mandatory, example:
 > loadnef /path/to/script.nef /path/to/manifest.json`,
 		Action: handleLoadNEF,
@@ -108,8 +136,9 @@ both parameters are mandatory, example:
 	{
 		Name:      "loadbase64",
 		Usage:     "Load a base64-encoded script string into the VM",
-		UsageText: `loadbase64 <string>`,
-		Description: `loadbase64 <string>
+		UsageText: `loadbase64 [--historic <height>] <string>`,
+		Flags:     []cli.Flag{historicFlag},
+		Description: `loadbase64 [--historic <height>] <string>
 
 <string> is mandatory parameter, example:
 > loadbase64 AwAQpdToAAAADBQV9ehtQR1OrVZVhtHtoUHRfoE+agwUzmFvf3Rhfg/EuAVYOvJgKiON9j8TwAwIdHJhbnNmZXIMFDt9NxHG8Mz5sdypA9G/odiW8SOMQWJ9W1I4`,
@@ -118,8 +147,9 @@ both parameters are mandatory, example:
 	{
 		Name:      "loadhex",
 		Usage:     "Load a hex-encoded script string into the VM",
-		UsageText: `loadhex <string>`,
-		Description: `loadhex <string>
+		UsageText: `loadhex [--historic <height>] <string>`,
+		Flags:     []cli.Flag{historicFlag},
+		Description: `loadhex [--historic <height>] <string>
 
 <string> is mandatory parameter, example:
 > loadhex 0c0c48656c6c6f20776f726c6421`,
@@ -128,8 +158,9 @@ both parameters are mandatory, example:
 	{
 		Name:      "loadgo",
 		Usage:     "Compile and load a Go file with the manifest into the VM",
-		UsageText: `loadgo <file>`,
-		Description: `loadgo <file>
+		UsageText: `loadgo [--historic <height>] <file>`,
+		Flags:     []cli.Flag{historicFlag},
+		Description: `loadgo [--historic <height>] <file>
 
 <file> is mandatory parameter, example:
 > loadgo /path/to/file.go`,
@@ -137,7 +168,8 @@ both parameters are mandatory, example:
 	},
 	{
 		Name:   "reset",
-		Usage:  "Unload compiled script from the VM",
+		Usage:  "Unload compiled script from the VM and reset context to proper (possibly, historic) state",
+		Flags:  []cli.Flag{historicFlag},
 		Action: handleReset,
 	},
 	{
@@ -218,6 +250,84 @@ example:
 		Description: "Dump opcodes of the current loaded program",
 		Action:      handleOps,
 	},
+	{
+		Name:        "events",
+		Usage:       "Dump events emitted by the current loaded program",
+		Description: "Dump events emitted by the current loaded program",
+		Action:      handleEvents,
+	},
+	{
+		Name:      "env",
+		Usage:     "Dump state of the chain that is used for VM CLI invocations (use -v for verbose node configuration)",
+		UsageText: `env [-v]`,
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:  verboseFlagFullName + ",v",
+				Usage: "Print the whole blockchain node configuration.",
+			},
+		},
+		Description: `env [-v]
+
+Dump state of the chain that is used for VM CLI invocations (use -v for verbose node configuration).
+
+Example:
+> env -v`,
+		Action: handleEnv,
+	},
+	{
+		Name: "storage",
+		Usage: "Dump storage of the contract with the specified hash, address or ID as is at the current stage of script invocation. " +
+			"Can be used if no script is loaded. " +
+			"Hex-encoded storage items prefix may be specified (empty by default to return the whole set of storage items). " +
+			"If seek prefix is not empty, then it's trimmed from the resulting keys." +
+			"Items are sorted. Backwards seek direction may be specified (false by default, which means forwards storage seek direction). " +
+			"It is possible to dump only those storage items that were added or changed during current script invocation (use --diff flag for it). " +
+			"To dump the whole set of storage changes including removed items use 'changes' command.",
+		UsageText: `storage <hash-or-address-or-id> [<prefix>] [--backwards] [--diff]`,
+		Flags: []cli.Flag{
+			cli.BoolFlag{
+				Name:  backwardsFlagFullName + ",b",
+				Usage: "Backwards traversal direction",
+			},
+			cli.BoolFlag{
+				Name:  diffFlagFullName + ",d",
+				Usage: "Dump only those storage items that were added or changed during the current script invocation. Note that this call won't show removed storage items, use 'changes' command for that.",
+			},
+		},
+		Description: `storage <hash-or-address-or-id> <prefix> [--backwards] [--diff]
+
+Dump storage of the contract with the specified hash, address or ID as is at the current stage of script invocation.
+Can be used if no script is loaded.
+Hex-encoded storage items prefix may be specified (empty by default to return the whole set of storage items).
+If seek prefix is not empty, then it's trimmed from the resulting keys.
+Items are sorted. Backwards seek direction may be specified (false by default, which means forwards storage seek direction).
+It is possible to dump only those storage items that were added or changed during current script invocation (use --diff flag for it).
+To dump the whole set of storage changes including removed items use 'changes' command.
+
+Example:
+> storage 0x0000000009070e030d0f0e020d0c06050e030c02 030e --backwards --diff`,
+		Action: handleStorage,
+	},
+	{
+		Name: "changes",
+		Usage: "Dump storage changes as is at the current stage of loaded script invocation. " +
+			"If no script is loaded or executed, then no changes are present. " +
+			"The contract hash, address or ID may be specified as the first parameter to dump the specified contract storage changes. " +
+			"Hex-encoded search prefix (without contract ID) may be specified to dump matching storage changes. " +
+			"Resulting values are not sorted.",
+		UsageText: `changes [<hash-or-address-or-id> [<prefix>]]`,
+		Description: `changes [<hash-or-address-or-id> [<prefix>]]
+
+Dump storage changes as is at the current stage of loaded script invocation.
+If no script is loaded or executed, then no changes are present.
+The contract hash, address or ID may be specified as the first parameter to dump the specified contract storage changes.
+Hex-encoded search prefix (without contract ID) may be specified to dump matching storage changes.
+Resulting values are not sorted.
+
+Example:
+> changes 0x0000000009070e030d0f0e020d0c06050e030c02 030e`,
+		Action: handleChanges,
+	},
 }
 
 var completer *readline.PrefixCompleter
@@ -243,28 +353,22 @@ var (
 	ErrInvalidParameter = errors.New("can't parse argument")
 )
 
-// VMCLI object for interacting with the VM.
-type VMCLI struct {
-	vm    *vm.VM
+// CLI object for interacting with the VM.
+type CLI struct {
+	chain *core.Blockchain
 	shell *cli.App
 }
 
-// New returns a new VMCLI object.
-func New() *VMCLI {
-	return NewWithConfig(true, os.Exit, &readline.Config{
-		Prompt: "\033[32mNEO-GO-VM >\033[0m ", // green prompt ^^
-	})
-}
-
-// NewWithConfig returns new VMCLI instance using provided config.
-func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config) *VMCLI {
+// NewWithConfig returns new CLI instance using provided config and (optionally)
+// provided node config for state-backed VM.
+func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg config.Config) (*CLI, error) {
 	if c.AutoComplete == nil {
 		// Autocomplete commands/flags on TAB.
 		c.AutoComplete = completer
 	}
 	l, err := readline.NewEx(c)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to create readline instance: %w", err)
 	}
 	ctl := cli.NewApp()
 	ctl.Name = "VM CLI"
@@ -284,20 +388,59 @@ func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config) *VM
 
 	ctl.Commands = commands
 
-	vmcli := VMCLI{
-		vm:    vm.New(),
+	store, err := storage.NewStore(cfg.ApplicationConfiguration.DBConfiguration)
+	if err != nil {
+		writeErr(ctl.ErrWriter, fmt.Errorf("failed to open DB, clean in-memory storage will be used: %w", err))
+		cfg.ApplicationConfiguration.DBConfiguration.Type = dbconfig.InMemoryDB
+		store = storage.NewMemoryStore()
+	}
+
+	log, logCloser, err := options.HandleLoggingParams(false, cfg.ApplicationConfiguration)
+	if err != nil {
+		return nil, cli.NewExitError(fmt.Errorf("failed to init logger: %w", err), 1)
+	}
+	filter := zap.WrapCore(func(z zapcore.Core) zapcore.Core {
+		return options.NewFilteringCore(z, func(entry zapcore.Entry) bool {
+			// Log only Runtime.Notify messages.
+			return entry.Level == zapcore.InfoLevel && entry.Message == runtime.SystemRuntimeLogMessage
+		})
+	})
+	fLog := log.WithOptions(filter)
+
+	exitF := func(i int) {
+		_ = store.Close()
+		if logCloser != nil {
+			_ = logCloser()
+		}
+		onExit(i)
+	}
+
+	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration, fLog)
+	if err != nil {
+		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %w", err), 1)
+	}
+	// Do not run chain, we need only state-related functionality from it.
+	ic, err := chain.GetTestVM(trigger.Application, nil, nil)
+	if err != nil {
+		return nil, cli.NewExitError(fmt.Errorf("failed to create test VM: %w", err), 1)
+	}
+
+	vmcli := CLI{
+		chain: chain,
 		shell: ctl,
 	}
 
 	vmcli.shell.Metadata = map[string]interface{}{
-		vmKey:               vmcli.vm,
+		chainKey:            chain,
+		chainCfgKey:         cfg,
+		icKey:               ic,
 		manifestKey:         new(manifest.Manifest),
-		exitFuncKey:         onExit,
+		exitFuncKey:         exitF,
 		readlineInstanceKey: l,
 		printLogoKey:        printLogotype,
 	}
 	changePrompt(vmcli.shell)
-	return &vmcli
+	return &vmcli, nil
 }
 
 func getExitFuncFromContext(app *cli.App) func(int) {
@@ -309,12 +452,19 @@ func getReadlineInstanceFromContext(app *cli.App) *readline.Instance {
 }
 
 func getVMFromContext(app *cli.App) *vm.VM {
-	return app.Metadata[vmKey].(*vm.VM)
+	return getInteropContextFromContext(app).VM
 }
 
-func setVMInContext(app *cli.App, v *vm.VM) {
-	old := getVMFromContext(app)
-	*old = *v
+func getChainFromContext(app *cli.App) *core.Blockchain {
+	return app.Metadata[chainKey].(*core.Blockchain)
+}
+
+func getChainConfigFromContext(app *cli.App) config.Config {
+	return app.Metadata[chainCfgKey].(config.Config)
+}
+
+func getInteropContextFromContext(app *cli.App) *interop.Context {
+	return app.Metadata[icKey].(*interop.Context)
 }
 
 func getManifestFromContext(app *cli.App) *manifest.Manifest {
@@ -325,9 +475,12 @@ func getPrintLogoFromContext(app *cli.App) bool {
 	return app.Metadata[printLogoKey].(bool)
 }
 
+func setInteropContextInContext(app *cli.App, ic *interop.Context) {
+	app.Metadata[icKey] = ic
+}
+
 func setManifestInContext(app *cli.App, m *manifest.Manifest) {
-	old := getManifestFromContext(app)
-	*old = *m
+	app.Metadata[manifestKey] = m
 }
 
 func checkVMIsReady(app *cli.App) bool {
@@ -340,6 +493,7 @@ func checkVMIsReady(app *cli.App) bool {
 }
 
 func handleExit(c *cli.Context) error {
+	finalizeInteropContext(c.App)
 	l := getReadlineInstanceFromContext(c.App)
 	_ = l.Close()
 	exit := getExitFuncFromContext(c.App)
@@ -418,7 +572,22 @@ func handleSlots(c *cli.Context) error {
 	return nil
 }
 
+// prepareVM retrieves --historic flag from context (if set) and resets app state
+// (to the specified historic height if given).
+func prepareVM(c *cli.Context) error {
+	if c.IsSet(historicFlagFullName) {
+		height := c.Int(historicFlagFullName)
+		return resetState(c.App, uint32(height))
+	}
+
+	return resetState(c.App)
+}
+
 func handleLoadNEF(c *cli.Context) error {
+	err := prepareVM(c)
+	if err != nil {
+		return err
+	}
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 2 {
@@ -438,6 +607,10 @@ func handleLoadNEF(c *cli.Context) error {
 }
 
 func handleLoadBase64(c *cli.Context) error {
+	err := prepareVM(c)
+	if err != nil {
+		return err
+	}
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
@@ -454,6 +627,10 @@ func handleLoadBase64(c *cli.Context) error {
 }
 
 func handleLoadHex(c *cli.Context) error {
+	err := prepareVM(c)
+	if err != nil {
+		return err
+	}
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
@@ -470,6 +647,10 @@ func handleLoadHex(c *cli.Context) error {
 }
 
 func handleLoadGo(c *cli.Context) error {
+	err := prepareVM(c)
+	if err != nil {
+		return err
+	}
 	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
@@ -496,8 +677,58 @@ func handleLoadGo(c *cli.Context) error {
 }
 
 func handleReset(c *cli.Context) error {
-	setVMInContext(c.App, vm.New())
+	err := prepareVM(c)
+	if err != nil {
+		return err
+	}
 	changePrompt(c.App)
+	return nil
+}
+
+// finalizeInteropContext calls finalizer for the current interop context.
+func finalizeInteropContext(app *cli.App) {
+	ic := getInteropContextFromContext(app)
+	ic.Finalize()
+}
+
+// resetInteropContext calls finalizer for current interop context and replaces
+// it with the newly created one.
+func resetInteropContext(app *cli.App, height ...uint32) error {
+	finalizeInteropContext(app)
+	bc := getChainFromContext(app)
+	var (
+		newIc *interop.Context
+		err   error
+	)
+	if len(height) != 0 {
+		newIc, err = bc.GetTestHistoricVM(trigger.Application, nil, height[0]+1)
+		if err != nil {
+			return fmt.Errorf("failed to create historic VM for height %d: %w", height[0], err)
+		}
+	} else {
+		newIc, err = bc.GetTestVM(trigger.Application, nil, nil)
+		if err != nil {
+			return fmt.Errorf("failed to create VM: %w", err)
+		}
+	}
+
+	setInteropContextInContext(app, newIc)
+	return nil
+}
+
+// resetManifest removes manifest from app context.
+func resetManifest(app *cli.App) {
+	setManifestInContext(app, nil)
+}
+
+// resetState resets state of the app (clear interop context and manifest) so that it's ready
+// to load new program.
+func resetState(app *cli.App, height ...uint32) error {
+	err := resetInteropContext(app, height...)
+	if err != nil {
+		return err
+	}
+	resetManifest(app)
 	return nil
 }
 
@@ -531,6 +762,9 @@ func handleRun(c *cli.Context) error {
 			return err
 		}
 		if runCurrent {
+			if m == nil {
+				return fmt.Errorf("manifest is not loaded; either use 'run' command to run loaded script from the start or use 'loadgo' and 'loadnef' commands to provide manifest")
+			}
 			md := m.ABI.GetMethod(args[0], len(params))
 			if md == nil {
 				return fmt.Errorf("%w: method not found", ErrInvalidParameter)
@@ -563,12 +797,17 @@ func runVMWithHandling(c *cli.Context) {
 		writeErr(c.App.ErrWriter, err)
 	}
 
-	var message string
+	var (
+		message string
+		dumpNtf bool
+	)
 	switch {
 	case v.HasFailed():
 		message = "" // the error will be printed on return
+		dumpNtf = true
 	case v.HasHalted():
 		message = v.DumpEStack()
+		dumpNtf = true
 	case v.AtBreakpoint():
 		ctx := v.Context()
 		if ctx.NextIP() < ctx.LenInstr() {
@@ -576,6 +815,16 @@ func runVMWithHandling(c *cli.Context) {
 			message = fmt.Sprintf("at breakpoint %d (%s)", i, op)
 		} else {
 			message = "execution has finished"
+		}
+	}
+	if dumpNtf {
+		var e string
+		e, err = dumpEvents(c.App)
+		if err == nil && len(e) != 0 {
+			if message != "" {
+				message += "\n"
+			}
+			message += "Events:\n" + e
 		}
 	}
 	if message != "" {
@@ -670,8 +919,147 @@ func changePrompt(app *cli.App) {
 	}
 }
 
+func handleEvents(c *cli.Context) error {
+	e, err := dumpEvents(c.App)
+	if err != nil {
+		writeErr(c.App.ErrWriter, err)
+		return nil
+	}
+	fmt.Fprintln(c.App.Writer, e)
+	return nil
+}
+
+func handleEnv(c *cli.Context) error {
+	bc := getChainFromContext(c.App)
+	cfg := getChainConfigFromContext(c.App)
+	ic := getInteropContextFromContext(c.App)
+	message := fmt.Sprintf("Chain height: %d\nVM height (may differ from chain height in case of historic call): %d\nNetwork magic: %d\nDB type: %s\n",
+		bc.BlockHeight(), ic.BlockHeight(), bc.GetConfig().Magic, cfg.ApplicationConfiguration.DBConfiguration.Type)
+	if c.Bool(verboseFlagFullName) {
+		cfgBytes, err := json.MarshalIndent(cfg, "", "\t")
+		if err != nil {
+			return fmt.Errorf("failed to marshal node configuration: %w", err)
+		}
+		message += "Node config:\n" + string(cfgBytes) + "\n"
+	}
+	fmt.Fprint(c.App.Writer, message)
+	return nil
+}
+
+func handleStorage(c *cli.Context) error {
+	id, prefix, err := getDumpArgs(c)
+	if err != nil {
+		return err
+	}
+	var (
+		backwards bool
+		seekDepth int
+		ic        = getInteropContextFromContext(c.App)
+	)
+	if c.Bool(backwardsFlagFullName) {
+		backwards = true
+	}
+	if c.Bool(diffFlagFullName) {
+		seekDepth = 1 // take only upper DAO layer which stores only added or updated items.
+	}
+	ic.DAO.Seek(id, storage.SeekRange{
+		Prefix:      prefix,
+		Backwards:   backwards,
+		SearchDepth: seekDepth,
+	}, func(k, v []byte) bool {
+		fmt.Fprintf(c.App.Writer, "%s: %v\n", hex.EncodeToString(k), hex.EncodeToString(v))
+		return true
+	})
+	return nil
+}
+
+func handleChanges(c *cli.Context) error {
+	var (
+		expectedID int32
+		prefix     []byte
+		err        error
+		hasAgs     = c.Args().Present()
+	)
+	if hasAgs {
+		expectedID, prefix, err = getDumpArgs(c)
+		if err != nil {
+			return err
+		}
+	}
+	ic := getInteropContextFromContext(c.App)
+	b := ic.DAO.GetBatch()
+	if b == nil {
+		return nil
+	}
+	ops := storage.BatchToOperations(b)
+	var notFirst bool
+	for _, op := range ops {
+		id := int32(binary.LittleEndian.Uint32(op.Key))
+		if hasAgs && (expectedID != id || (len(prefix) != 0 && !bytes.HasPrefix(op.Key[4:], prefix))) {
+			continue
+		}
+		var message string
+		if notFirst {
+			message += "\n"
+		}
+		message += fmt.Sprintf("Contract ID: %d\nState: %s\nKey: %s\n", id, op.State, hex.EncodeToString(op.Key[4:]))
+		if op.Value != nil {
+			message += fmt.Sprintf("Value: %s\n", hex.EncodeToString(op.Value))
+		}
+		fmt.Fprint(c.App.Writer, message)
+		notFirst = true
+	}
+	return nil
+}
+
+// getDumpArgs is a helper function that retrieves contract ID and search prefix (if given).
+func getDumpArgs(c *cli.Context) (int32, []byte, error) {
+	if !c.Args().Present() {
+		return 0, nil, errors.New("contract hash, address or ID is mandatory argument")
+	}
+	hashOrID := c.Args().Get(0)
+	var (
+		ic     = getInteropContextFromContext(c.App)
+		id     int32
+		prefix []byte
+	)
+	h, err := flags.ParseAddress(hashOrID)
+	if err != nil {
+		i, err := strconv.ParseInt(hashOrID, 10, 32)
+		if err != nil {
+			return 0, nil, fmt.Errorf("failed to parse contract hash, address or ID: %w", err)
+		}
+		id = int32(i)
+	} else {
+		cs, err := ic.GetContract(h)
+		if err != nil {
+			return 0, nil, fmt.Errorf("contract %s not found: %w", h.StringLE(), err)
+		}
+		id = cs.ID
+	}
+	if c.NArg() > 1 {
+		prefix, err = hex.DecodeString(c.Args().Get(1))
+		if err != nil {
+			return 0, nil, fmt.Errorf("failed to decode prefix from hex: %w", err)
+		}
+	}
+	return id, prefix, nil
+}
+
+func dumpEvents(app *cli.App) (string, error) {
+	ic := getInteropContextFromContext(app)
+	if len(ic.Notifications) == 0 {
+		return "", nil
+	}
+	b, err := json.MarshalIndent(ic.Notifications, "", "\t")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal notifications: %w", err)
+	}
+	return string(b), nil
+}
+
 // Run waits for user input from Stdin and executes the passed command.
-func (c *VMCLI) Run() error {
+func (c *CLI) Run() error {
 	if getPrintLogoFromContext(c.shell) {
 		printLogo(c.shell.Writer)
 	}
