@@ -14,13 +14,15 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/cli/txctx"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
@@ -63,10 +65,6 @@ var (
 		Name:  "decrypt, d",
 		Usage: "Decrypt encrypted keys.",
 	}
-	outFlag = cli.StringFlag{
-		Name:  "out",
-		Usage: "file to put JSON transaction to",
-	}
 	inFlag = cli.StringFlag{
 		Name:  "in",
 		Usage: "file with JSON transaction",
@@ -79,10 +77,6 @@ var (
 		Name:  "to",
 		Usage: "Address to send an asset to",
 	}
-	forceFlag = cli.BoolFlag{
-		Name:  "force",
-		Usage: "Do not ask for a confirmation",
-	}
 )
 
 // NewCommands returns 'wallet' command.
@@ -90,6 +84,10 @@ func NewCommands() []cli.Command {
 	claimFlags := []cli.Flag{
 		walletPathFlag,
 		walletConfigFlag,
+		txctx.GasFlag,
+		txctx.SysGasFlag,
+		txctx.OutFlag,
+		txctx.ForceFlag,
 		flags.AddressFlag{
 			Name:  "address, a",
 			Usage: "Address to claim GAS for",
@@ -99,7 +97,7 @@ func NewCommands() []cli.Command {
 	signFlags := []cli.Flag{
 		walletPathFlag,
 		walletConfigFlag,
-		outFlag,
+		txctx.OutFlag,
 		inFlag,
 		flags.AddressFlag{
 			Name:  "address, a",
@@ -114,7 +112,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "claim",
 				Usage:     "claim GAS",
-				UsageText: "neo-go wallet claim -w wallet [--wallet-config path] -a address -r endpoint [-s timeout]",
+				UsageText: "neo-go wallet claim -w wallet [--wallet-config path] [-g gas] [-e sysgas] -a address -r endpoint [-s timeout] [--out file] [--force]",
 				Action:    claimGas,
 				Flags:     claimFlags,
 			},
@@ -282,7 +280,7 @@ func NewCommands() []cli.Command {
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
-					forceFlag,
+					txctx.ForceFlag,
 					flags.AddressFlag{
 						Name:  "address, a",
 						Usage: "Account address or hash in LE form to be removed",
@@ -317,7 +315,7 @@ func NewCommands() []cli.Command {
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
-					forceFlag,
+					txctx.ForceFlag,
 				},
 			},
 			{
@@ -340,45 +338,9 @@ func NewCommands() []cli.Command {
 }
 
 func claimGas(ctx *cli.Context) error {
-	if err := cmdargs.EnsureNone(ctx); err != nil {
-		return err
-	}
-	wall, pass, err := readWallet(ctx)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	defer wall.Close()
-
-	addrFlag := ctx.Generic("address").(*flags.Address)
-	if !addrFlag.IsSet {
-		return cli.NewExitError("address was not provided", 1)
-	}
-	scriptHash := addrFlag.Uint160()
-	acc, err := getDecryptedAccount(wall, scriptHash, pass)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	gctx, cancel := options.GetTimeoutContext(ctx)
-	defer cancel()
-
-	c, err := options.GetRPCClient(gctx, ctx)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	act, err := actor.NewSimple(c, acc)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	neoToken := neo.New(act)
-	hash, _, err := neoToken.Transfer(scriptHash, scriptHash, big.NewInt(0), nil)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	fmt.Fprintln(ctx.App.Writer, hash.StringLE())
-	return nil
+	return handleNeoAction(ctx, func(contract *neo.Contract, shash util.Uint160, _ *wallet.Account) (*transaction.Transaction, error) {
+		return contract.TransferUnsigned(shash, shash, big.NewInt(0), nil)
+	})
 }
 
 func changePassword(ctx *cli.Context) error {

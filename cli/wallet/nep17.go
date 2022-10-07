@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
-	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
-	"github.com/nspcc-dev/neo-go/cli/paramcontext"
+	"github.com/nspcc-dev/neo-go/cli/txctx"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -37,14 +35,6 @@ var (
 		Name:  "token",
 		Usage: "Token to use (hash or name (for NEO/GAS or imported tokens))",
 	}
-	gasFlag = flags.Fixed8Flag{
-		Name:  "gas, g",
-		Usage: "network fee to add to the transaction (prioritizing it)",
-	}
-	sysGasFlag = flags.Fixed8Flag{
-		Name:  "sysgas, e",
-		Usage: "system fee to add to transaction (compensating for execution)",
-	}
 	baseBalanceFlags = []cli.Flag{
 		walletPathFlag,
 		walletConfigFlag,
@@ -65,13 +55,13 @@ var (
 	baseTransferFlags = []cli.Flag{
 		walletPathFlag,
 		walletConfigFlag,
-		outFlag,
+		txctx.OutFlag,
 		fromAddrFlag,
 		toAddrFlag,
 		tokenFlag,
-		gasFlag,
-		sysGasFlag,
-		forceFlag,
+		txctx.GasFlag,
+		txctx.SysGasFlag,
+		txctx.ForceFlag,
 		cli.StringFlag{
 			Name:  "amount",
 			Usage: "Amount of asset to send",
@@ -80,11 +70,11 @@ var (
 	multiTransferFlags = append([]cli.Flag{
 		walletPathFlag,
 		walletConfigFlag,
-		outFlag,
+		txctx.OutFlag,
 		fromAddrFlag,
-		gasFlag,
-		sysGasFlag,
-		forceFlag,
+		txctx.GasFlag,
+		txctx.SysGasFlag,
+		txctx.ForceFlag,
 	}, options.RPC...)
 )
 
@@ -143,7 +133,7 @@ func newNEP17Commands() []cli.Command {
 				walletPathFlag,
 				walletConfigFlag,
 				tokenFlag,
-				forceFlag,
+				txctx.ForceFlag,
 			},
 		},
 		{
@@ -599,7 +589,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't make transaction: %w", err), 1)
 	}
-	return signAndSendSomeTransaction(ctx, act, acc, tx)
+	return txctx.SignAndSend(ctx, act, acc, tx)
 }
 
 func transferNEP17(ctx *cli.Context) error {
@@ -697,7 +687,7 @@ func transferNEP(ctx *cli.Context, standard string) error {
 		return cli.NewExitError(fmt.Errorf("can't make transaction: %w", err), 1)
 	}
 
-	return signAndSendSomeTransaction(ctx, act, acc, tx)
+	return txctx.SignAndSend(ctx, act, acc, tx)
 }
 
 func makeMultiTransferNEP17(act *actor.Actor, recipients []rpcclient.TransferTarget) (*transaction.Transaction, error) {
@@ -711,42 +701,6 @@ func makeMultiTransferNEP17(act *actor.Actor, recipients []rpcclient.TransferTar
 		return nil, err
 	}
 	return act.MakeUnsignedRun(script, nil)
-}
-
-func signAndSendSomeTransaction(ctx *cli.Context, act *actor.Actor, acc *wallet.Account, tx *transaction.Transaction) error {
-	var (
-		err    error
-		gas    = flags.Fixed8FromContext(ctx, "gas")
-		sysgas = flags.Fixed8FromContext(ctx, "sysgas")
-	)
-
-	tx.SystemFee += int64(sysgas)
-	tx.NetworkFee += int64(gas)
-
-	ver := act.GetVersion()
-	if outFile := ctx.String("out"); outFile != "" {
-		// Make a long-lived transaction, it's to be signed manually.
-		tx.ValidUntilBlock += (ver.Protocol.MaxValidUntilBlockIncrement - uint32(ver.Protocol.ValidatorsCount)) - 2
-		err = paramcontext.InitAndSave(ver.Protocol.Network, tx, acc, outFile)
-	} else {
-		if !ctx.Bool("force") {
-			promptTime := time.Now()
-			err := input.ConfirmTx(ctx.App.Writer, tx)
-			if err != nil {
-				return cli.NewExitError(err, 1)
-			}
-			waitTime := time.Since(promptTime)
-			// Compensate for confirmation waiting.
-			tx.ValidUntilBlock += uint32((waitTime.Milliseconds() / int64(ver.Protocol.MillisecondsPerBlock))) + 1
-		}
-		_, _, err = act.SignAndSend(tx)
-	}
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
-	return nil
 }
 
 func getDefaultAddress(fromFlag *flags.Address, w *wallet.Wallet) (util.Uint160, error) {

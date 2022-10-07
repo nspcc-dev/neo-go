@@ -55,7 +55,8 @@ func TestRegisterCandidate(t *testing.T) {
 	e.Run(t, "neo-go", "wallet", "candidate", "register",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", testcli.ValidatorWallet,
-		"--address", validatorAddress)
+		"--address", validatorAddress,
+		"--force")
 	e.CheckTxPersisted(t)
 
 	vs, err := e.Chain.GetEnrollments()
@@ -77,7 +78,8 @@ func TestRegisterCandidate(t *testing.T) {
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", testcli.ValidatorWallet,
 			"--address", validatorAddress,
-			"--candidate", validatorHex)
+			"--candidate", validatorHex,
+			"--force")
 		_, index := e.CheckTxPersisted(t)
 
 		vs, err = e.Chain.GetEnrollments()
@@ -110,7 +112,8 @@ func TestRegisterCandidate(t *testing.T) {
 		e.Run(t, "neo-go", "wallet", "candidate", "vote",
 			"--rpc-endpoint", "http://"+e.RPC.Addr,
 			"--wallet", testcli.ValidatorWallet,
-			"--address", validatorAddress)
+			"--address", validatorAddress,
+			"--force")
 		_, index = e.CheckTxPersisted(t)
 
 		vs, err = e.Chain.GetEnrollments()
@@ -143,7 +146,8 @@ func TestRegisterCandidate(t *testing.T) {
 	e.Run(t, "neo-go", "wallet", "candidate", "unregister",
 		"--rpc-endpoint", "http://"+e.RPC.Addr,
 		"--wallet", testcli.ValidatorWallet,
-		"--address", validatorAddress)
+		"--address", validatorAddress,
+		"--force")
 	e.CheckTxPersisted(t)
 
 	vs, err = e.Chain.GetEnrollments()

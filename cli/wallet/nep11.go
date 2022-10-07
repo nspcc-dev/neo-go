@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/cli/txctx"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -94,7 +95,7 @@ func newNEP11Commands() []cli.Command {
 				walletPathFlag,
 				walletConfigFlag,
 				tokenFlag,
-				forceFlag,
+				txctx.ForceFlag,
 			},
 		},
 		{
