@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"os"
 	"strconv"
@@ -1028,6 +1029,9 @@ func getDumpArgs(c *cli.Context) (int32, []byte, error) {
 		i, err := strconv.Atoi(hashOrID)
 		if err != nil {
 			return 0, nil, fmt.Errorf("failed to parse contract hash, address or ID: %w", err)
+		}
+		if i > math.MaxInt32 {
+			return 0, nil, fmt.Errorf("contract ID exceeds max int32 value")
 		}
 		id = int32(i)
 	} else {
