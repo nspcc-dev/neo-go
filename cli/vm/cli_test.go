@@ -62,7 +62,7 @@ func (r *readCloser) WriteString(s string) {
 type executor struct {
 	in   *readCloser
 	out  *bytes.Buffer
-	cli  *VMCLI
+	cli  *CLI
 	ch   chan struct{}
 	exit atomic.Bool
 }
@@ -126,7 +126,7 @@ func newTestVMClIWithState(t *testing.T) *executor {
 	basicchain.InitSimple(t, "../../", e)
 	bc.Close()
 
-	// After that create VMCLI backed by created chain.
+	// After that create CLI backed by created chain.
 	configPath := "../../config/protocol.unit_testnet.yml"
 	cfg, err := config.LoadFile(configPath)
 	require.NoError(t, err)

@@ -354,15 +354,15 @@ var (
 	ErrInvalidParameter = errors.New("can't parse argument")
 )
 
-// VMCLI object for interacting with the VM.
-type VMCLI struct {
+// CLI object for interacting with the VM.
+type CLI struct {
 	chain *core.Blockchain
 	shell *cli.App
 }
 
-// NewWithConfig returns new VMCLI instance using provided config and (optionally)
+// NewWithConfig returns new CLI instance using provided config and (optionally)
 // provided node config for state-backed VM.
-func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg config.Config) (*VMCLI, error) {
+func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg config.Config) (*CLI, error) {
 	if c.AutoComplete == nil {
 		// Autocomplete commands/flags on TAB.
 		c.AutoComplete = completer
@@ -426,7 +426,7 @@ func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg
 		return nil, cli.NewExitError(fmt.Errorf("failed to create test VM: %w", err), 1)
 	}
 
-	vmcli := VMCLI{
+	vmcli := CLI{
 		chain: chain,
 		shell: ctl,
 	}
@@ -1063,7 +1063,7 @@ func dumpEvents(app *cli.App) (string, error) {
 }
 
 // Run waits for user input from Stdin and executes the passed command.
-func (c *VMCLI) Run() error {
+func (c *CLI) Run() error {
 	if getPrintLogoFromContext(c.shell) {
 		printLogo(c.shell.Writer)
 	}
