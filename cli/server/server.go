@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"time"
 
@@ -31,14 +29,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-)
-
-var (
-	// _winfileSinkRegistered denotes whether zap has registered
-	// user-supplied factory for all sinks with `winfile`-prefixed scheme.
-	_winfileSinkRegistered bool
-	_winfileSinkCloser     func() error
 )
 
 // NewCommands returns 'node' command.
@@ -126,81 +116,6 @@ func newGraceContext() context.Context {
 	return ctx
 }
 
-// handleLoggingParams reads logging parameters.
-// If a user selected debug level -- function enables it.
-// If logPath is configured -- function creates a dir and a file for logging.
-// If logPath is configured on Windows -- function returns closer to be
-// able to close sink for the opened log output file.
-func handleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) (*zap.Logger, func() error, error) {
-	level := zapcore.InfoLevel
-	if ctx.Bool("debug") {
-		level = zapcore.DebugLevel
-	}
-
-	cc := zap.NewProductionConfig()
-	cc.DisableCaller = true
-	cc.DisableStacktrace = true
-	cc.EncoderConfig.EncodeDuration = zapcore.StringDurationEncoder
-	cc.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	cc.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	cc.Encoding = "console"
-	cc.Level = zap.NewAtomicLevelAt(level)
-	cc.Sampling = nil
-
-	if logPath := cfg.LogPath; logPath != "" {
-		if err := io.MakeDirForFile(logPath, "logger"); err != nil {
-			return nil, nil, err
-		}
-
-		if runtime.GOOS == "windows" {
-			if !_winfileSinkRegistered {
-				// See https://github.com/uber-go/zap/issues/621.
-				err := zap.RegisterSink("winfile", func(u *url.URL) (zap.Sink, error) {
-					if u.User != nil {
-						return nil, fmt.Errorf("user and password not allowed with file URLs: got %v", u)
-					}
-					if u.Fragment != "" {
-						return nil, fmt.Errorf("fragments not allowed with file URLs: got %v", u)
-					}
-					if u.RawQuery != "" {
-						return nil, fmt.Errorf("query parameters not allowed with file URLs: got %v", u)
-					}
-					// Error messages are better if we check hostname and port separately.
-					if u.Port() != "" {
-						return nil, fmt.Errorf("ports not allowed with file URLs: got %v", u)
-					}
-					if hn := u.Hostname(); hn != "" && hn != "localhost" {
-						return nil, fmt.Errorf("file URLs must leave host empty or use localhost: got %v", u)
-					}
-					switch u.Path {
-					case "stdout":
-						return os.Stdout, nil
-					case "stderr":
-						return os.Stderr, nil
-					}
-					f, err := os.OpenFile(u.Path[1:], // Remove leading slash left after url.Parse.
-						os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
-					_winfileSinkCloser = func() error {
-						_winfileSinkCloser = nil
-						return f.Close()
-					}
-					return f, err
-				})
-				if err != nil {
-					return nil, nil, fmt.Errorf("failed to register windows-specific sinc: %w", err)
-				}
-				_winfileSinkRegistered = true
-			}
-			logPath = "winfile:///" + logPath
-		}
-
-		cc.OutputPaths = []string{logPath}
-	}
-
-	log, err := cc.Build()
-	return log, _winfileSinkCloser, err
-}
-
 func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *metrics.Service, *metrics.Service, error) {
 	chain, err := initBlockChain(cfg, log)
 	if err != nil {
@@ -225,7 +140,7 @@ func dumpDB(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	log, logCloser, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	log, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -278,7 +193,7 @@ func restoreDB(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	log, logCloser, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	log, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -464,7 +379,7 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	log, logCloser, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	log, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

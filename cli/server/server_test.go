@@ -7,13 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"go.uber.org/zap/zapcore"
+
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli"
-	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )
 
@@ -45,49 +46,42 @@ func TestHandleLoggingParams(t *testing.T) {
 	t.Run("logdir is a file", func(t *testing.T) {
 		logfile := filepath.Join(d, "logdir")
 		require.NoError(t, os.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
-		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-		ctx := cli.NewContext(cli.NewApp(), set, nil)
 		cfg := config.ApplicationConfiguration{
 			LogPath: filepath.Join(logfile, "file.log"),
 		}
-		_, closer, err := handleLoggingParams(ctx, cfg)
+		_, closer, err := options.HandleLoggingParams(false, cfg)
 		require.Error(t, err)
 		require.Nil(t, closer)
 	})
 
 	t.Run("default", func(t *testing.T) {
-		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-		ctx := cli.NewContext(cli.NewApp(), set, nil)
 		cfg := config.ApplicationConfiguration{
 			LogPath: testLog,
 		}
-		logger, closer, err := handleLoggingParams(ctx, cfg)
+		logger, closer, err := options.HandleLoggingParams(false, cfg)
 		require.NoError(t, err)
 		t.Cleanup(func() {
 			if closer != nil {
 				require.NoError(t, closer())
 			}
 		})
-		require.True(t, logger.Core().Enabled(zap.InfoLevel))
-		require.False(t, logger.Core().Enabled(zap.DebugLevel))
+		require.True(t, logger.Core().Enabled(zapcore.InfoLevel))
+		require.False(t, logger.Core().Enabled(zapcore.DebugLevel))
 	})
 
 	t.Run("debug", func(t *testing.T) {
-		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-		set.Bool("debug", true, "")
-		ctx := cli.NewContext(cli.NewApp(), set, nil)
 		cfg := config.ApplicationConfiguration{
 			LogPath: testLog,
 		}
-		logger, closer, err := handleLoggingParams(ctx, cfg)
+		logger, closer, err := options.HandleLoggingParams(true, cfg)
 		require.NoError(t, err)
 		t.Cleanup(func() {
 			if closer != nil {
 				require.NoError(t, closer())
 			}
 		})
-		require.True(t, logger.Core().Enabled(zap.InfoLevel))
-		require.True(t, logger.Core().Enabled(zap.DebugLevel))
+		require.True(t, logger.Core().Enabled(zapcore.InfoLevel))
+		require.True(t, logger.Core().Enabled(zapcore.DebugLevel))
 	})
 }
 
@@ -104,7 +98,7 @@ func TestInitBCWithMetrics(t *testing.T) {
 	ctx := cli.NewContext(cli.NewApp(), set, nil)
 	cfg, err := options.GetConfigFromContext(ctx)
 	require.NoError(t, err)
-	logger, closer, err := handleLoggingParams(ctx, cfg.ApplicationConfiguration)
+	logger, closer, err := options.HandleLoggingParams(true, cfg.ApplicationConfiguration)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		if closer != nil {
