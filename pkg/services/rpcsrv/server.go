@@ -2002,8 +2002,8 @@ func (s *Server) getInvokeContractVerifyParams(reqParams params.Params) (util.Ui
 	return scriptHash, tx, invocationScript, nil
 }
 
-// getHistoricParams checks that historic calls are supported and returns fake block
-// with the specified index to perform the historic call. It also checks that
+// getHistoricParams checks that historic calls are supported and returns index of
+// a fake next block to perform the historic call. It also checks that
 // specified stateroot is stored at the specified height for further request
 // handling consistency.
 func (s *Server) getHistoricParams(reqParams params.Params) (uint32, *neorpc.Error) {
@@ -2029,6 +2029,9 @@ func (s *Server) getHistoricParams(reqParams params.Params) (uint32, *neorpc.Err
 		} else {
 			height = int(b.Index)
 		}
+	}
+	if height > math.MaxUint32 {
+		return 0, neorpc.NewInvalidParamsError("historic height exceeds max uint32 value")
 	}
 	return uint32(height) + 1, nil
 }
