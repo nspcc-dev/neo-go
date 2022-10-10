@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -446,47 +448,57 @@ func hexToBase64(s string) string {
 	return base64.StdEncoding.EncodeToString(b)
 }
 
-func TestExpandParameterToEmitable(t *testing.T) {
+func TestExpandParameterToEmitableToStackitem(t *testing.T) {
 	pk, _ := keys.NewPrivateKey()
 	testCases := []struct {
-		In       Parameter
-		Expected interface{}
+		In                Parameter
+		Expected          interface{}
+		ExpectedStackitem stackitem.Item
 	}{
 		{
-			In:       Parameter{Type: BoolType, Value: true},
-			Expected: true,
+			In:                Parameter{Type: BoolType, Value: true},
+			Expected:          true,
+			ExpectedStackitem: stackitem.NewBool(true),
 		},
 		{
-			In:       Parameter{Type: IntegerType, Value: big.NewInt(123)},
-			Expected: big.NewInt(123),
+			In:                Parameter{Type: IntegerType, Value: big.NewInt(123)},
+			Expected:          big.NewInt(123),
+			ExpectedStackitem: stackitem.NewBigInteger(big.NewInt(123)),
 		},
 		{
-			In:       Parameter{Type: ByteArrayType, Value: []byte{1, 2, 3}},
-			Expected: []byte{1, 2, 3},
+			In:                Parameter{Type: ByteArrayType, Value: []byte{1, 2, 3}},
+			Expected:          []byte{1, 2, 3},
+			ExpectedStackitem: stackitem.NewByteArray([]byte{1, 2, 3}),
 		},
 		{
-			In:       Parameter{Type: StringType, Value: "writing's on the wall"},
-			Expected: "writing's on the wall",
+			In:                Parameter{Type: StringType, Value: "writing's on the wall"},
+			Expected:          "writing's on the wall",
+			ExpectedStackitem: stackitem.NewByteArray([]byte("writing's on the wall")),
 		},
 		{
-			In:       Parameter{Type: Hash160Type, Value: util.Uint160{1, 2, 3}},
-			Expected: util.Uint160{1, 2, 3},
+			In:                Parameter{Type: Hash160Type, Value: util.Uint160{1, 2, 3}},
+			Expected:          util.Uint160{1, 2, 3},
+			ExpectedStackitem: stackitem.NewByteArray(util.Uint160{1, 2, 3}.BytesBE()),
 		},
 		{
-			In:       Parameter{Type: Hash256Type, Value: util.Uint256{1, 2, 3}},
-			Expected: util.Uint256{1, 2, 3},
+			In:                Parameter{Type: Hash256Type, Value: util.Uint256{1, 2, 3}},
+			Expected:          util.Uint256{1, 2, 3},
+			ExpectedStackitem: stackitem.NewByteArray(util.Uint256{1, 2, 3}.BytesBE()),
 		},
 		{
-			In:       Parameter{Type: PublicKeyType, Value: pk.PublicKey().Bytes()},
-			Expected: pk.PublicKey().Bytes(),
+			In:                Parameter{Type: PublicKeyType, Value: pk.PublicKey().Bytes()},
+			Expected:          pk.PublicKey().Bytes(),
+			ExpectedStackitem: stackitem.NewByteArray(pk.PublicKey().Bytes()),
 		},
 		{
-			In:       Parameter{Type: SignatureType, Value: []byte{1, 2, 3}},
-			Expected: []byte{1, 2, 3},
+			In:                Parameter{Type: SignatureType, Value: []byte{1, 2, 3}},
+			Expected:          []byte{1, 2, 3},
+			ExpectedStackitem: stackitem.NewByteArray([]byte{1, 2, 3}),
 		},
 		{
-			In:       Parameter{Type: AnyType},
-			Expected: nil,
+			In:                Parameter{Type: AnyType},
+			Expected:          nil,
+			ExpectedStackitem: stackitem.Null{},
 		},
 		{
 			In: Parameter{Type: ArrayType, Value: []Parameter{
@@ -509,6 +521,13 @@ func TestExpandParameterToEmitable(t *testing.T) {
 				},
 			}},
 			Expected: []interface{}{big.NewInt(123), []byte{1, 2, 3}, []interface{}{true}},
+			ExpectedStackitem: stackitem.NewArray([]stackitem.Item{
+				stackitem.NewBigInteger(big.NewInt(123)),
+				stackitem.NewByteArray([]byte{1, 2, 3}),
+				stackitem.NewArray([]stackitem.Item{
+					stackitem.NewBool(true),
+				}),
+			}),
 		},
 	}
 	bw := io.NewBufBinWriter()
@@ -519,6 +538,10 @@ func TestExpandParameterToEmitable(t *testing.T) {
 
 		emit.Array(bw.BinWriter, actual)
 		require.NoError(t, bw.Err)
+
+		actualSI, err := testCase.In.ToStackItem()
+		require.NoError(t, err)
+		require.Equal(t, testCase.ExpectedStackitem, actualSI)
 	}
 	errCases := []Parameter{
 		{Type: UnknownType},

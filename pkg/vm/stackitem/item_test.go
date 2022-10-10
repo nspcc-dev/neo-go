@@ -77,13 +77,17 @@ var makeStackItemTestCases = []struct {
 		input:  []int{1, 2, 3},
 		result: &Array{value: []Item{(*BigInteger)(big.NewInt(1)), (*BigInteger)(big.NewInt(2)), (*BigInteger)(big.NewInt(3))}},
 	},
+	{
+		input:  nil,
+		result: Null{},
+	},
 }
 
 var makeStackItemErrorCases = []struct {
 	input interface{}
 }{
 	{
-		input: nil,
+		input: map[int]int{1: 2},
 	},
 }
 

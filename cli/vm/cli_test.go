@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	gio "io"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
@@ -428,6 +429,9 @@ func TestRunWithDifferentArguments(t *testing.T) {
 	}
 	func GetString(arg string) string {
 		return arg
+	}
+	func GetArr(arg []interface{}) []interface{}{
+		return arg
 	}`
 
 	tmpDir := t.TempDir()
@@ -449,6 +453,7 @@ func TestRunWithDifferentArguments(t *testing.T) {
 		"run _ 1 2",
 		"loadbase64 "+base64.StdEncoding.EncodeToString([]byte{byte(opcode.MUL)}),
 		"run _ 21 2",
+		"loadgo "+filename, "run getArr [ 1 2 3 ]",
 	)
 
 	e.checkNextLine(t, "READY: loaded \\d.* instructions")
@@ -480,6 +485,13 @@ func TestRunWithDifferentArguments(t *testing.T) {
 
 	e.checkNextLine(t, "READY: loaded \\d.* instructions")
 	e.checkStack(t, 42)
+
+	e.checkNextLine(t, "READY: loaded \\d.* instructions")
+	e.checkStack(t, []stackitem.Item{
+		stackitem.NewBigInteger(big.NewInt(1)),
+		stackitem.NewBigInteger(big.NewInt(2)),
+		stackitem.NewBigInteger(big.NewInt(3)),
+	})
 }
 
 func TestPrintOps(t *testing.T) {

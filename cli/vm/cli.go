@@ -18,6 +18,7 @@ import (
 
 	"github.com/chzyer/readline"
 	"github.com/kballard/go-shellquote"
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
@@ -52,11 +53,6 @@ const (
 	exitFuncKey         = "exitFunc"
 	readlineInstanceKey = "readlineKey"
 	printLogoKey        = "printLogoKey"
-	boolType            = "bool"
-	boolFalse           = "false"
-	boolTrue            = "true"
-	intType             = "int"
-	stringType          = "string"
 )
 
 // Various flag names.
@@ -221,18 +217,12 @@ and converted to other formats. Strings are escaped and output in quotes.`,
 <method> is a contract method, specified in manifest. It can be '_' which will push
         parameters onto the stack and execute from the current offset.
 <parameter> is a parameter (can be repeated multiple times) that can be specified
-        as <type>:<value>, where type can be:
-            '` + boolType + `': supports '` + boolFalse + `' and '` + boolTrue + `' values
-            '` + intType + `': supports integers as values
-            '` + stringType + `': supports strings as values (that are pushed as a byte array
-                      values to the stack)
-       or can be just <value>, for which the type will be detected automatically
-       following these rules: '` + boolTrue + `' and '` + boolFalse + `' are treated as respective
-       boolean values, everything that can be converted to integer is treated as
-       integer and everything else is treated like a string.
+        using the same rules as for 'contract testinvokefunction' command:
+
+` + cmdargs.ParamsParsingDoc + `
 
 Example:
-> run put ` + stringType + `:"Something to put"`,
+> run put string:"Something to put"`,
 		Action: handleRun,
 	},
 	{
@@ -862,9 +852,16 @@ func handleRun(c *cli.Context) error {
 			runCurrent = args[0] != "_"
 		)
 
-		params, err = parseArgs(args[1:])
+		_, scParams, err := cmdargs.ParseParams(args[1:], true)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %v", ErrInvalidParameter, err)
+		}
+		params = make([]stackitem.Item, len(scParams))
+		for i := range scParams {
+			params[i], err = scParams[i].ToStackItem()
+			if err != nil {
+				return fmt.Errorf("failed to convert parameter #%d to stackitem: %w", i, err)
+			}
 		}
 		if runCurrent {
 			if m == nil {
@@ -1263,48 +1260,6 @@ func Parse(args []string) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
-}
-
-func parseArgs(args []string) ([]stackitem.Item, error) {
-	items := make([]stackitem.Item, len(args))
-	for i, arg := range args {
-		var typ, value string
-		typeAndVal := strings.Split(arg, ":")
-		if len(typeAndVal) < 2 {
-			if typeAndVal[0] == boolFalse || typeAndVal[0] == boolTrue {
-				typ = boolType
-			} else if _, err := strconv.Atoi(typeAndVal[0]); err == nil {
-				typ = intType
-			} else {
-				typ = stringType
-			}
-			value = typeAndVal[0]
-		} else {
-			typ = typeAndVal[0]
-			value = typeAndVal[1]
-		}
-
-		switch typ {
-		case boolType:
-			if value == boolFalse {
-				items[i] = stackitem.NewBool(false)
-			} else if value == boolTrue {
-				items[i] = stackitem.NewBool(true)
-			} else {
-				return nil, fmt.Errorf("%w: invalid bool value", ErrInvalidParameter)
-			}
-		case intType:
-			val, err := strconv.ParseInt(value, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("%w: invalid integer value", ErrInvalidParameter)
-			}
-			items[i] = stackitem.NewBigInteger(big.NewInt(val))
-		case stringType:
-			items[i] = stackitem.NewByteArray([]byte(value))
-		}
-	}
-
-	return items, nil
 }
 
 const logo = `

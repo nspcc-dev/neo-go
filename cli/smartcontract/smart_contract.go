@@ -209,72 +209,7 @@ func NewCommands() []cli.Command {
    follow the regular convention of smart contract arguments (method string and 
    an array of other arguments).
 
-   Arguments always do have regular Neo smart contract parameter types, either
-   specified explicitly or being inferred from the value. To specify the type
-   manually use "type:value" syntax where the type is one of the following:
-   'signature', 'bool', 'int', 'hash160', 'hash256', 'bytes', 'key' or 'string'.
-   Array types are also supported: use special space-separated '[' and ']' 
-   symbols around array values to denote array bounds. Nested arrays are also 
-   supported.
-
-   There is ability to provide an argument of 'bytearray' type via file. Use a 
-   special 'filebytes' argument type for this with a filepath specified after
-   the colon, e.g. 'filebytes:my_file.txt'.
-
-   Given values are type-checked against given types with the following
-   restrictions applied:
-    * 'signature' type values should be hex-encoded and have a (decoded)
-      length of 64 bytes.
-    * 'bool' type values are 'true' and 'false'.
-    * 'int' values are decimal integers that can be successfully converted
-      from the string.
-    * 'hash160' values are Neo addresses and hex-encoded 20-bytes long (after
-      decoding) strings.
-    * 'hash256' type values should be hex-encoded and have a (decoded)
-      length of 32 bytes.
-    * 'bytes' type values are any hex-encoded things.
-    * 'filebytes' type values are filenames with the argument value inside.
-    * 'key' type values are hex-encoded marshalled public keys.
-    * 'string' type values are any valid UTF-8 strings. In the value's part of
-      the string the colon looses it's special meaning as a separator between
-      type and value and is taken literally.
-
-   If no type is explicitly specified, it is inferred from the value using the
-   following logic:
-    - anything that can be interpreted as a decimal integer gets
-      an 'int' type
-    - 'true' and 'false' strings get 'bool' type
-    - valid Neo addresses and 20 bytes long hex-encoded strings get 'hash160'
-      type
-    - valid hex-encoded public keys get 'key' type
-    - 32 bytes long hex-encoded values get 'hash256' type
-    - 64 bytes long hex-encoded values get 'signature' type
-    - any other valid hex-encoded values get 'bytes' type
-    - anything else is a 'string'
-
-   Backslash character is used as an escape character and allows to use colon in
-   an implicitly typed string. For any other characters it has no special
-   meaning, to get a literal backslash in the string use the '\\' sequence.
-
-   Examples:
-    * 'int:42' is an integer with a value of 42
-    * '42' is an integer with a value of 42
-    * 'bad' is a string with a value of 'bad'
-    * 'dead' is a byte array with a value of 'dead'
-    * 'string:dead' is a string with a value of 'dead'
-    * 'filebytes:my_data.txt' is bytes decoded from a content of my_data.txt
-    * 'AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y' is a hash160 with a value
-      of '23ba2703c53263e8d6e522dc32203339dcd8eee9'
-    * '\4\2' is an integer with a value of 42
-    * '\\4\2' is a string with a value of '\42'
-    * 'string:string' is a string with a value of 'string'
-    * 'string\:string' is a string with a value of 'string:string'
-    * '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c' is a
-      key with a value of '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c'
-    * '[ a b c ]' is an array with strings values 'a', 'b' and 'c'
-    * '[ a b [ c d ] e ]' is an array with 4 values: string 'a', string 'b',
-      array of two strings 'c' and 'd', string 'e'
-    * '[ ]' is an empty array
+` + cmdargs.ParamsParsingDoc + `
 
    Signers represent a set of Uint160 hashes with witness scopes and are used
    to verify hashes in System.Runtime.CheckWitness syscall. First signer is treated

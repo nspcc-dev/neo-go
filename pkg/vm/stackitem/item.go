@@ -122,6 +122,18 @@ func Make(v interface{}) Item {
 			a = append(a, Make(i))
 		}
 		return Make(a)
+	case []interface{}:
+		res := make([]Item, len(val))
+		for i := range val {
+			res[i] = Make(val[i])
+		}
+		return Make(res)
+	case util.Uint160:
+		return Make(val.BytesBE())
+	case util.Uint256:
+		return Make(val.BytesBE())
+	case nil:
+		return Null{}
 	default:
 		i64T := reflect.TypeOf(int64(0))
 		if reflect.TypeOf(val).ConvertibleTo(i64T) {
