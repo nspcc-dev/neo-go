@@ -107,6 +107,8 @@ func newTestVMCLIWithLogoAndCustomConfig(t *testing.T, printLogo bool, cfg *conf
 	return e
 }
 
+// newTestVMClIWithState creates executor backed by level DB filled by simple chain.
+// LevelDB-backed CLI must be exited on cleanup.
 func newTestVMClIWithState(t *testing.T) *executor {
 	// Firstly create a DB with chain, save and close it.
 	path := t.TempDir()
@@ -776,7 +778,8 @@ func TestRunWithState(t *testing.T) {
 	emit.AppCall(script.BinWriter, h, "put", callflag.All, 3, 3)
 	e.runProg(t,
 		"loadhex "+hex.EncodeToString(script.Bytes()),
-		"run")
+		"run",
+		"exit")
 	e.checkNextLine(t, "READY: loaded 37 instructions")
 	e.checkStack(t, 3)
 }
@@ -797,6 +800,7 @@ func TestRunWithHistoricState(t *testing.T) {
 		"run",
 		"loadhex --historic 0 "+hex.EncodeToString(b), // historic invocation, contract is not deployed yet
 		"run",
+		"exit",
 	)
 	e.checkNextLine(t, "READY: loaded 36 instructions")
 	e.checkStack(t, []byte{2})
@@ -816,7 +820,8 @@ func TestEvents(t *testing.T) {
 	e.runProg(t,
 		"loadhex "+hex.EncodeToString(script.Bytes()),
 		"run",
-		"events")
+		"events",
+		"exit")
 	expectedEvent := state.NotificationEvent{
 		ScriptHash: h,
 		Name:       "Event",
@@ -844,7 +849,7 @@ func TestEnv(t *testing.T) {
 	})
 	t.Run("setup with state", func(t *testing.T) {
 		e := newTestVMClIWithState(t)
-		e.runProg(t, "env")
+		e.runProg(t, "env", "exit")
 		e.checkNextLine(t, "Chain height: 5")
 		e.checkNextLineExact(t, "VM height (may differ from chain height in case of historic call): 5\n")
 		e.checkNextLine(t, "Network magic: 42")
@@ -853,7 +858,7 @@ func TestEnv(t *testing.T) {
 	t.Run("setup with historic state", func(t *testing.T) {
 		e := newTestVMClIWithState(t)
 		e.runProg(t, "loadbase64 --historic 3 "+base64.StdEncoding.EncodeToString([]byte{byte(opcode.PUSH1)}),
-			"env")
+			"env", "exit")
 		e.checkNextLine(t, "READY: loaded 1 instructions")
 		e.checkNextLine(t, "Chain height: 5")
 		e.checkNextLineExact(t, "VM height (may differ from chain height in case of historic call): 3\n")
@@ -862,7 +867,7 @@ func TestEnv(t *testing.T) {
 	})
 	t.Run("verbose", func(t *testing.T) {
 		e := newTestVMClIWithState(t)
-		e.runProg(t, "env -v")
+		e.runProg(t, "env -v", "exit")
 		e.checkNextLine(t, "Chain height: 5")
 		e.checkNextLineExact(t, "VM height (may differ from chain height in case of historic call): 5\n")
 		e.checkNextLine(t, "Network magic: 42")
@@ -887,6 +892,7 @@ func TestDumpStorage(t *testing.T) {
 		"storage 1",
 		"storage 1 "+hex.EncodeToString(expected[0].Key),
 		"storage 1 --backwards",
+		"exit",
 	)
 	e.checkStorage(t, expected...)
 	e.checkStorage(t, expected...)
@@ -916,6 +922,7 @@ func TestDumpStorageDiff(t *testing.T) {
 		"run",
 		"storage 1",
 		"storage 1 --diff",
+		"exit",
 	)
 
 	e.checkStorage(t, expected...)
@@ -969,6 +976,7 @@ func TestDumpChanges(t *testing.T) {
 		"changes 1 "+hex.EncodeToString([]byte{1}),
 		"changes 1 "+hex.EncodeToString([]byte{2}),
 		"changes 1 "+hex.EncodeToString([]byte{3}),
+		"exit",
 	)
 
 	// no script is executed => no diff
