@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	gio "io"
 	"os"
@@ -15,10 +16,12 @@ import (
 	"time"
 
 	"github.com/chzyer/readline"
+	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/internal/basicchain"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -985,4 +988,34 @@ func TestDumpChanges(t *testing.T) {
 	e.checkChange(t, expected[0])
 	e.checkChange(t, expected[1])
 	e.checkChange(t, expected[2])
+}
+
+func TestLoadtx(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	b, err := e.cli.chain.GetBlock(e.cli.chain.GetHeaderHash(2)) // Block #2 contains transaction that puts (1,1) pair to storage contract.
+	require.NoError(t, err)
+	require.Equal(t, 1, len(b.Transactions))
+	tx := b.Transactions[0]
+
+	tmp := filepath.Join(t.TempDir(), "tx.json")
+	require.NoError(t, paramcontext.InitAndSave(netmode.UnitTestNet, tx, nil, tmp))
+
+	e.runProg(t,
+		"loadtx "+tx.Hash().StringLE(), // hash LE
+		"run",
+		"loadtx 0x"+tx.Hash().StringLE(), //  hash LE with 0x prefix
+		"run",
+		"loadtx '"+tmp+"'", // Tx from parameter context file.
+		"run",
+		"loadtx", // missing argument
+		"exit",
+	)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, 1)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, 1)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, 1)
+	e.checkError(t, errors.New("missing argument: <file-or-hash>"))
 }

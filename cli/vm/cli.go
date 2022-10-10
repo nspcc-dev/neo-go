@@ -20,6 +20,7 @@ import (
 	"github.com/kballard/go-shellquote"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -27,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -165,6 +167,21 @@ both parameters are mandatory, example:
 <file> is mandatory parameter, example:
 > loadgo /path/to/file.go`,
 		Action: handleLoadGo,
+	},
+	{
+		Name: "loadtx",
+		Usage: "Load transaction into the VM from chain or from parameter context file. " +
+			"The transaction script will be loaded into VM; the resulting execution context will use the provided transaction as script container including its signers, hash and nonce.",
+		UsageText: `loadtx [--historic <height>] <file-or-hash>`,
+		Flags:     []cli.Flag{historicFlag},
+		Description: `loadtx [--historic <height>] <file-or-hash>
+
+Load transaction into the VM from chain or from parameter context file.
+The transaction script will be loaded into VM; the resulting execution context will use the provided transaction as script container including its signers, hash and nonce.
+
+<file-or-hash> is mandatory parameter, example:
+> loadtx /path/to/file`,
+		Action: handleLoadTx,
 	},
 	{
 		Name:   "reset",
@@ -574,17 +591,17 @@ func handleSlots(c *cli.Context) error {
 
 // prepareVM retrieves --historic flag from context (if set) and resets app state
 // (to the specified historic height if given).
-func prepareVM(c *cli.Context) error {
+func prepareVM(c *cli.Context, tx *transaction.Transaction) error {
 	if c.IsSet(historicFlagFullName) {
 		height := c.Int(historicFlagFullName)
-		return resetState(c.App, uint32(height))
+		return resetState(c.App, tx, uint32(height))
 	}
 
-	return resetState(c.App)
+	return resetState(c.App, tx)
 }
 
 func handleLoadNEF(c *cli.Context) error {
-	err := prepareVM(c)
+	err := prepareVM(c, nil)
 	if err != nil {
 		return err
 	}
@@ -607,7 +624,7 @@ func handleLoadNEF(c *cli.Context) error {
 }
 
 func handleLoadBase64(c *cli.Context) error {
-	err := prepareVM(c)
+	err := prepareVM(c, nil)
 	if err != nil {
 		return err
 	}
@@ -627,7 +644,7 @@ func handleLoadBase64(c *cli.Context) error {
 }
 
 func handleLoadHex(c *cli.Context) error {
-	err := prepareVM(c)
+	err := prepareVM(c, nil)
 	if err != nil {
 		return err
 	}
@@ -647,7 +664,7 @@ func handleLoadHex(c *cli.Context) error {
 }
 
 func handleLoadGo(c *cli.Context) error {
-	err := prepareVM(c)
+	err := prepareVM(c, nil)
 	if err != nil {
 		return err
 	}
@@ -676,8 +693,48 @@ func handleLoadGo(c *cli.Context) error {
 	return nil
 }
 
+func handleLoadTx(c *cli.Context) error {
+	args := c.Args()
+	if len(args) < 1 {
+		return fmt.Errorf("%w: <file-or-hash>", ErrMissingParameter)
+	}
+
+	var (
+		tx  *transaction.Transaction
+		err error
+	)
+	h, err := util.Uint256DecodeStringLE(strings.TrimPrefix(args[0], "0x"))
+	if err != nil {
+		pc, err := paramcontext.Read(args[0])
+		if err != nil {
+			return fmt.Errorf("invalid tx hash or path to parameter context: %w", err)
+		}
+		var ok bool
+		tx, ok = pc.Verifiable.(*transaction.Transaction)
+		if !ok {
+			return errors.New("failed to retrieve transaction from parameter context: verifiable item is not a transaction")
+		}
+	} else {
+		bc := getChainFromContext(c.App)
+		tx, _, err = bc.GetTransaction(h)
+		if err != nil {
+			return fmt.Errorf("failed to get transaction from chain: %w", err)
+		}
+	}
+	err = prepareVM(c, tx)
+	if err != nil {
+		return err
+	}
+	v := getVMFromContext(c.App)
+
+	v.LoadWithFlags(tx.Script, callflag.All)
+	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
+	changePrompt(c.App)
+	return nil
+}
+
 func handleReset(c *cli.Context) error {
-	err := prepareVM(c)
+	err := prepareVM(c, nil)
 	if err != nil {
 		return err
 	}
@@ -693,7 +750,7 @@ func finalizeInteropContext(app *cli.App) {
 
 // resetInteropContext calls finalizer for current interop context and replaces
 // it with the newly created one.
-func resetInteropContext(app *cli.App, height ...uint32) error {
+func resetInteropContext(app *cli.App, tx *transaction.Transaction, height ...uint32) error {
 	finalizeInteropContext(app)
 	bc := getChainFromContext(app)
 	var (
@@ -701,12 +758,12 @@ func resetInteropContext(app *cli.App, height ...uint32) error {
 		err   error
 	)
 	if len(height) != 0 {
-		newIc, err = bc.GetTestHistoricVM(trigger.Application, nil, height[0]+1)
+		newIc, err = bc.GetTestHistoricVM(trigger.Application, tx, height[0]+1)
 		if err != nil {
 			return fmt.Errorf("failed to create historic VM for height %d: %w", height[0], err)
 		}
 	} else {
-		newIc, err = bc.GetTestVM(trigger.Application, nil, nil)
+		newIc, err = bc.GetTestVM(trigger.Application, tx, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create VM: %w", err)
 		}
@@ -723,8 +780,8 @@ func resetManifest(app *cli.App) {
 
 // resetState resets state of the app (clear interop context and manifest) so that it's ready
 // to load new program.
-func resetState(app *cli.App, height ...uint32) error {
-	err := resetInteropContext(app, height...)
+func resetState(app *cli.App, tx *transaction.Transaction, height ...uint32) error {
+	err := resetInteropContext(app, tx, height...)
 	if err != nil {
 		return err
 	}
