@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -755,7 +756,7 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 			return err
 		}
 		if inv.Type == payload.ExtensibleType {
-			return p.EnqueueHPPacket(true, pkt)
+			return p.EnqueueHPPacket(pkt)
 		}
 		return p.EnqueueP2PPacket(pkt)
 	}
@@ -817,7 +818,7 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 			pkt, err := msg.Bytes()
 			if err == nil {
 				if inv.Type == payload.ExtensibleType {
-					err = p.EnqueueHPPacket(true, pkt)
+					err = p.EnqueueHPPacket(pkt)
 				} else {
 					err = p.EnqueueP2PPacket(pkt)
 				}
@@ -1348,7 +1349,7 @@ func (s *Server) RequestTx(hashes ...util.Uint256) {
 // iteratePeersWithSendMsg sends the given message to all peers using two functions
 // passed, one is to send the message and the other is to filtrate peers (the
 // peer is considered invalid if it returns false).
-func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []byte) error, peerOK func(Peer) bool) {
+func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.Context, []byte) error, peerOK func(Peer) bool) {
 	var deadN, peerN, sentN int
 
 	// Get a copy of s.peers to avoid holding a lock while sending.
@@ -1357,53 +1358,48 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []b
 	if peerN == 0 {
 		return
 	}
-	mrand.Shuffle(peerN, func(i, j int) {
-		peers[i], peers[j] = peers[j], peers[i]
-	})
 	pkt, err := msg.Bytes()
 	if err != nil {
 		return
 	}
 
-	// If true, this node isn't counted any more, either it's dead or we
-	// have already sent an Inv to it.
-	finished := make([]bool, peerN)
-
-	// Try non-blocking sends first and only block if have to.
-	for _, blocking := range []bool{false, true} {
-		for i, peer := range peers {
-			// Send to 2/3 of good peers.
-			if 3*sentN >= 2*(peerN-deadN) {
-				return
+	var replies = make(chan error, peerN) // Cache is there just to make goroutines exit faster.
+	var ctx, cancel = context.WithTimeout(context.Background(), s.TimePerBlock/2)
+	for _, peer := range peers {
+		go func(p Peer, ctx context.Context, pkt []byte) {
+			err := send(p, ctx, pkt)
+			if err == nil && msg.Command == CMDGetAddr {
+				p.AddGetAddrSent()
 			}
-			if finished[i] {
-				continue
-			}
-			err := send(peer, blocking, pkt)
-			if err == nil {
-				if msg.Command == CMDGetAddr {
-					peer.AddGetAddrSent()
-				}
-				sentN++
-			} else if !blocking && errors.Is(err, errBusy) {
-				// Can be retried.
-				continue
-			} else {
-				deadN++
-			}
-			finished[i] = true
+			replies <- err
+		}(peer, ctx, pkt)
+	}
+	for r := range replies {
+		if r == nil {
+			sentN++
+		} else {
+			deadN++
+		}
+		if sentN+deadN == peerN {
+			break
+		}
+		// Send to 2/3 of good peers.
+		if 3*sentN >= 2*(peerN-deadN) && ctx.Err() == nil {
+			cancel()
 		}
 	}
+	cancel()
+	close(replies)
 }
 
 // broadcastMessage sends the message to all available peers.
 func (s *Server) broadcastMessage(msg *Message) {
-	s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, nil)
+	s.iteratePeersWithSendMsg(msg, Peer.BroadcastPacket, nil)
 }
 
 // broadcastHPMessage sends the high-priority message to all available peers.
 func (s *Server) broadcastHPMessage(msg *Message) {
-	s.iteratePeersWithSendMsg(msg, Peer.EnqueueHPPacket, nil)
+	s.iteratePeersWithSendMsg(msg, Peer.BroadcastHPPacket, nil)
 }
 
 // relayBlocksLoop subscribes to new blocks in the ledger and broadcasts them
@@ -1421,7 +1417,7 @@ mainloop:
 			msg := NewMessage(CMDInv, payload.NewInventory(payload.BlockType, []util.Uint256{b.Hash()}))
 			// Filter out nodes that are more current (avoid spamming the network
 			// during initial sync).
-			s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, func(p Peer) bool {
+			s.iteratePeersWithSendMsg(msg, Peer.BroadcastPacket, func(p Peer) bool {
 				return p.Handshaked() && p.LastBlockIndex() < b.Index
 			})
 			s.extensiblePool.RemoveStale(b.Index)
@@ -1467,7 +1463,7 @@ func (s *Server) broadcastTxHashes(hs []util.Uint256) {
 
 	// We need to filter out non-relaying nodes, so plain broadcast
 	// functions don't fit here.
-	s.iteratePeersWithSendMsg(msg, Peer.EnqueuePacket, Peer.IsFullNode)
+	s.iteratePeersWithSendMsg(msg, Peer.BroadcastPacket, Peer.IsFullNode)
 }
 
 // initStaleMemPools initializes mempools for stale tx/payload processing.

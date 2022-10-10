@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"sync"
@@ -109,18 +110,21 @@ func (p *localPeer) EnqueueMessage(msg *Message) error {
 	if err != nil {
 		return err
 	}
-	return p.EnqueuePacket(true, b)
+	return p.EnqueueHPPacket(b)
 }
-func (p *localPeer) EnqueuePacket(block bool, m []byte) error {
-	return p.EnqueueHPPacket(block, m)
+func (p *localPeer) BroadcastPacket(_ context.Context, m []byte) error {
+	return p.EnqueueHPPacket(m)
 }
 func (p *localPeer) EnqueueP2PMessage(msg *Message) error {
 	return p.EnqueueMessage(msg)
 }
 func (p *localPeer) EnqueueP2PPacket(m []byte) error {
-	return p.EnqueueHPPacket(true, m)
+	return p.EnqueueHPPacket(m)
 }
-func (p *localPeer) EnqueueHPPacket(_ bool, m []byte) error {
+func (p *localPeer) BroadcastHPPacket(_ context.Context, m []byte) error {
+	return p.EnqueueHPPacket(m)
+}
+func (p *localPeer) EnqueueHPPacket(m []byte) error {
 	msg := &Message{}
 	r := io.NewBinReaderFromBuf(m)
 	err := msg.Decode(r)

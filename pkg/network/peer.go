@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"net"
 
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -23,12 +24,17 @@ type Peer interface {
 	// EnqueuePacket if there is no error in serializing it.
 	EnqueueMessage(*Message) error
 
-	// EnqueuePacket is a blocking packet enqueuer, it doesn't return until
-	// it puts the given packet into the queue. It accepts a slice of bytes that
+	// BroadcastPacket is a context-bound packet enqueuer, it either puts the
+	// given packet into the queue or exits with errors if the context expires
+	// or peer disconnects. It accepts a slice of bytes that
 	// can be shared with other queues (so that message marshalling can be
-	// done once for all peers). It does nothing if the peer has not yet
+	// done once for all peers). It returns an error if the peer has not yet
 	// completed handshaking.
-	EnqueuePacket(bool, []byte) error
+	BroadcastPacket(context.Context, []byte) error
+
+	// BroadcastHPPacket is the same as BroadcastPacket, but uses a high-priority
+	// queue.
+	BroadcastHPPacket(context.Context, []byte) error
 
 	// EnqueueP2PMessage is a temporary wrapper that sends a message via
 	// EnqueueP2PPacket if there is no error in serializing it.
@@ -40,14 +46,14 @@ type Peer interface {
 	// done once for all peers). It does nothing if the peer has not yet
 	// completed handshaking. This queue is intended to be used for unicast
 	// peer to peer communication that is more important than broadcasts
-	// (handled by EnqueuePacket) but less important than high-priority
-	// messages (handled by EnqueueHPPacket).
+	// (handled by BroadcastPacket) but less important than high-priority
+	// messages (handled by EnqueueHPPacket and BroadcastHPPacket).
 	EnqueueP2PPacket([]byte) error
 
 	// EnqueueHPPacket is a blocking high priority packet enqueuer, it
 	// doesn't return until it puts the given packet into the high-priority
 	// queue.
-	EnqueueHPPacket(bool, []byte) error
+	EnqueueHPPacket([]byte) error
 	Version() *payload.Version
 	LastBlockIndex() uint32
 	Handshaked() bool

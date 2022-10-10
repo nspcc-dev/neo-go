@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -31,7 +32,6 @@ const (
 
 var (
 	errGone           = errors.New("the peer is gone already")
-	errBusy           = errors.New("peer is busy")
 	errStateMismatch  = errors.New("tried to send protocol message before handshake completed")
 	errPingPong       = errors.New("ping/pong timeout")
 	errUnexpectedPong = errors.New("pong message wasn't expected")
@@ -81,40 +81,45 @@ func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 	}
 }
 
-// putPacketIntoQueue puts the given message into the given queue if the peer has
-// done handshaking.
-func (p *TCPPeer) putPacketIntoQueue(queue chan<- []byte, block bool, msg []byte) error {
+// putBroadcastPacketIntoQueue puts the given message into the given queue if
+// the peer has done handshaking using the given context.
+func (p *TCPPeer) putBroadcastPacketIntoQueue(ctx context.Context, queue chan<- []byte, msg []byte) error {
 	if !p.Handshaked() {
 		return errStateMismatch
 	}
-	var ret error
-	if block {
-		timer := time.NewTimer(p.server.TimePerBlock / 2)
-		select {
-		case queue <- msg:
-		case <-p.done:
-			ret = errGone
-		case <-timer.C:
-			ret = errBusy
-		}
-		if !errors.Is(ret, errBusy) && !timer.Stop() {
-			<-timer.C
-		}
-	} else {
-		select {
-		case queue <- msg:
-		case <-p.done:
-			return errGone
-		default:
-			return errBusy
-		}
+	select {
+	case queue <- msg:
+	case <-p.done:
+		return errGone
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-	return ret
+	return nil
 }
 
-// EnqueuePacket implements the Peer interface.
-func (p *TCPPeer) EnqueuePacket(block bool, msg []byte) error {
-	return p.putPacketIntoQueue(p.sendQ, block, msg)
+// putPacketIntoQueue puts the given message into the given queue if the peer has
+// done handshaking.
+func (p *TCPPeer) putPacketIntoQueue(queue chan<- []byte, msg []byte) error {
+	if !p.Handshaked() {
+		return errStateMismatch
+	}
+	select {
+	case queue <- msg:
+	case <-p.done:
+		return errGone
+	}
+	return nil
+}
+
+// BroadcastPacket implements the Peer interface.
+func (p *TCPPeer) BroadcastPacket(ctx context.Context, msg []byte) error {
+	return p.putBroadcastPacketIntoQueue(ctx, p.sendQ, msg)
+}
+
+// BroadcastHPPacket implements the Peer interface. It the peer is not yet
+// handshaked it's a noop.
+func (p *TCPPeer) BroadcastHPPacket(ctx context.Context, msg []byte) error {
+	return p.putBroadcastPacketIntoQueue(ctx, p.hpSendQ, msg)
 }
 
 // putMessageIntoQueue serializes the given Message and puts it into given queue if
@@ -124,7 +129,7 @@ func (p *TCPPeer) putMsgIntoQueue(queue chan<- []byte, msg *Message) error {
 	if err != nil {
 		return err
 	}
-	return p.putPacketIntoQueue(queue, true, b)
+	return p.putPacketIntoQueue(queue, b)
 }
 
 // EnqueueMessage is a temporary wrapper that sends a message via
@@ -135,7 +140,7 @@ func (p *TCPPeer) EnqueueMessage(msg *Message) error {
 
 // EnqueueP2PPacket implements the Peer interface.
 func (p *TCPPeer) EnqueueP2PPacket(msg []byte) error {
-	return p.putPacketIntoQueue(p.p2pSendQ, true, msg)
+	return p.putPacketIntoQueue(p.p2pSendQ, msg)
 }
 
 // EnqueueP2PMessage implements the Peer interface.
@@ -145,8 +150,8 @@ func (p *TCPPeer) EnqueueP2PMessage(msg *Message) error {
 
 // EnqueueHPPacket implements the Peer interface. It the peer is not yet
 // handshaked it's a noop.
-func (p *TCPPeer) EnqueueHPPacket(block bool, msg []byte) error {
-	return p.putPacketIntoQueue(p.hpSendQ, block, msg)
+func (p *TCPPeer) EnqueueHPPacket(msg []byte) error {
+	return p.putPacketIntoQueue(p.hpSendQ, msg)
 }
 
 func (p *TCPPeer) writeMsg(msg *Message) error {
