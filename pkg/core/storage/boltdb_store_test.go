@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
-	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
 )
@@ -47,10 +46,9 @@ func TestROBoltDB(t *testing.T) {
 	require.NoError(t, store.Close())
 
 	// Create the DB without buckets and try to open it in RO mode, an error is expected.
-	fileMode := os.FileMode(0600)
-	cfg.FilePath = filepath.Join(d, "clean_ro_bolt_db")
-	require.NoError(t, io.MakeDirForFile(cfg.FilePath, "BoltDB"))
-	db, err := bbolt.Open(cfg.FilePath, fileMode, nil)
+	tmp := t.TempDir()
+	cfg.FilePath = filepath.Join(tmp, "clean_ro_bolt")
+	db, err := bbolt.Open(cfg.FilePath, os.FileMode(0600), nil)
 	require.NoError(t, err)
 	require.NoError(t, db.Close())
 
