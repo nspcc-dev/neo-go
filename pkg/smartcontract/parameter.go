@@ -387,8 +387,6 @@ func NewParametersFromValues(values ...interface{}) ([]Parameter, error) {
 func ExpandParameterToEmitable(param Parameter) (interface{}, error) {
 	var err error
 	switch t := param.Type; t {
-	case PublicKeyType:
-		return param.Value.(*keys.PublicKey).Bytes(), nil
 	case ArrayType:
 		arr := param.Value.([]Parameter)
 		res := make([]interface{}, len(arr))
