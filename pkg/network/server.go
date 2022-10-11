@@ -1367,11 +1367,11 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.C
 	var ctx, cancel = context.WithTimeout(context.Background(), s.TimePerBlock/2)
 	for _, peer := range peers {
 		go func(p Peer, ctx context.Context, pkt []byte) {
-			err := send(p, ctx, pkt)
-			if err == nil && msg.Command == CMDGetAddr {
+			// Do this before packet is sent, reader thread can get the reply before this routine wakes up.
+			if msg.Command == CMDGetAddr {
 				p.AddGetAddrSent()
 			}
-			replies <- err
+			replies <- send(p, ctx, pkt)
 		}(peer, ctx, pkt)
 	}
 	for r := range replies {
