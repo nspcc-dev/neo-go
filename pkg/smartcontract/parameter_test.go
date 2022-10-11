@@ -477,7 +477,7 @@ func TestExpandParameterToEmitable(t *testing.T) {
 			Expected: util.Uint256{1, 2, 3},
 		},
 		{
-			In:       Parameter{Type: PublicKeyType, Value: pk.PublicKey()},
+			In:       Parameter{Type: PublicKeyType, Value: pk.PublicKey().Bytes()},
 			Expected: pk.PublicKey().Bytes(),
 		},
 		{
