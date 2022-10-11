@@ -184,6 +184,19 @@ The transaction script will be loaded into VM; the resulting execution context w
 		Action: handleLoadTx,
 	},
 	{
+		Name:      "loaddeployed",
+		Usage:     "Load deployed contract into the VM from chain. If '--historic' flag specified, then the historic contract state (historic script and manifest) will be loaded.",
+		UsageText: `loaddeployed [--historic <height>] <hash-or-address-or-id>`,
+		Flags:     []cli.Flag{historicFlag},
+		Description: `loaddeployed [--historic <height>] <hash-or-address-or-id>
+
+Load deployed contract into the VM from chain. If '--historic' flag specified, then the historic contract state (historic script and manifest) will be loaded.
+
+<hash-or-address-or-id> is mandatory parameter, example:
+> loaddeployed 0x0000000009070e030d0f0e020d0c06050e030c02`,
+		Action: handleLoadDeployed,
+	},
+	{
 		Name:   "reset",
 		Usage:  "Unload compiled script from the VM and reset context to proper (possibly, historic) state",
 		Flags:  []cli.Flag{historicFlag},
@@ -733,6 +746,41 @@ func handleLoadTx(c *cli.Context) error {
 	return nil
 }
 
+func handleLoadDeployed(c *cli.Context) error {
+	err := prepareVM(c, nil) // prepare historic IC if needed (for further historic contract state retrieving).
+	if err != nil {
+		return err
+	}
+	if !c.Args().Present() {
+		return errors.New("contract hash, address or ID is mandatory argument")
+	}
+	hashOrID := c.Args().Get(0)
+	ic := getInteropContextFromContext(c.App)
+	h, err := flags.ParseAddress(hashOrID)
+	if err != nil {
+		i, err := strconv.ParseInt(hashOrID, 10, 32)
+		if err != nil {
+			return fmt.Errorf("failed to parse contract hash, address or ID: %w", err)
+		}
+		bc := getChainFromContext(c.App)
+		h, err = bc.GetContractScriptHash(int32(i)) // @fixme: can be improved after #2702 to retrieve historic state of destroyed contract by ID.
+		if err != nil {
+			return fmt.Errorf("failed to retrieve contract hash by ID: %w", err)
+		}
+	}
+	cs, err := ic.GetContract(h) // will return historic contract state.
+	if err != nil {
+		return fmt.Errorf("contract %s not found: %w", h.StringLE(), err)
+	}
+
+	v := getVMFromContext(c.App)
+	v.LoadScriptWithHash(cs.NEF.Script, h, callflag.All)
+	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
+	setManifestInContext(c.App, &cs.Manifest)
+	changePrompt(c.App)
+	return nil
+}
+
 func handleReset(c *cli.Context) error {
 	err := prepareVM(c, nil)
 	if err != nil {
@@ -1071,29 +1119,11 @@ func handleChanges(c *cli.Context) error {
 
 // getDumpArgs is a helper function that retrieves contract ID and search prefix (if given).
 func getDumpArgs(c *cli.Context) (int32, []byte, error) {
-	if !c.Args().Present() {
-		return 0, nil, errors.New("contract hash, address or ID is mandatory argument")
-	}
-	hashOrID := c.Args().Get(0)
-	var (
-		ic     = getInteropContextFromContext(c.App)
-		id     int32
-		prefix []byte
-	)
-	h, err := flags.ParseAddress(hashOrID)
+	id, err := getContractID(c)
 	if err != nil {
-		i, err := strconv.ParseInt(hashOrID, 10, 32)
-		if err != nil {
-			return 0, nil, fmt.Errorf("failed to parse contract hash, address or ID: %w", err)
-		}
-		id = int32(i)
-	} else {
-		cs, err := ic.GetContract(h)
-		if err != nil {
-			return 0, nil, fmt.Errorf("contract %s not found: %w", h.StringLE(), err)
-		}
-		id = cs.ID
+		return 0, nil, err
 	}
+	var prefix []byte
 	if c.NArg() > 1 {
 		prefix, err = hex.DecodeString(c.Args().Get(1))
 		if err != nil {
@@ -1101,6 +1131,29 @@ func getDumpArgs(c *cli.Context) (int32, []byte, error) {
 		}
 	}
 	return id, prefix, nil
+}
+
+// getContractID returns contract ID parsed from the first argument which can be ID,
+// hash or address.
+func getContractID(c *cli.Context) (int32, error) {
+	if !c.Args().Present() {
+		return 0, errors.New("contract hash, address or ID is mandatory argument")
+	}
+	hashOrID := c.Args().Get(0)
+	var ic = getInteropContextFromContext(c.App)
+	h, err := flags.ParseAddress(hashOrID)
+	if err != nil {
+		i, err := strconv.ParseInt(hashOrID, 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse contract hash, address or ID: %w", err)
+		}
+		return int32(i), nil
+	}
+	cs, err := ic.GetContract(h)
+	if err != nil {
+		return 0, fmt.Errorf("contract %s not found: %w", h.StringLE(), err)
+	}
+	return cs.ID, nil
 }
 
 func dumpEvents(app *cli.App) (string, error) {

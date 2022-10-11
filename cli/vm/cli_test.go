@@ -1019,3 +1019,32 @@ func TestLoadtx(t *testing.T) {
 	e.checkStack(t, 1)
 	e.checkError(t, errors.New("missing argument: <file-or-hash>"))
 }
+
+func TestLoaddeployed(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	h, err := e.cli.chain.GetContractScriptHash(1) // examples/storage/storage.go
+	require.NoError(t, err)
+
+	e.runProg(t,
+		"loaddeployed "+h.StringLE(), // hash LE
+		"run get 1",
+		"loaddeployed 0x"+h.StringLE(), //  hash LE with 0x prefix
+		"run get 1",
+		"loaddeployed 1", // contract ID
+		"run get 1",
+		"loaddeployed --historic 2 1", // historic state, check that hash is properly set
+		"run get 1",
+		"loaddeployed", // missing argument
+		"exit",
+	)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, []byte{2})
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, []byte{2})
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, []byte{2})
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, []byte{1})
+	e.checkError(t, errors.New("contract hash, address or ID is mandatory argument"))
+}
