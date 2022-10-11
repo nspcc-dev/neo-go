@@ -35,6 +35,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
@@ -123,44 +124,57 @@ var commands = []cli.Command{
 	},
 	{
 		Name:      "loadnef",
-		Usage:     "Load a NEF-consistent script into the VM",
-		UsageText: `loadnef <file> <manifest>`,
+		Usage:     "Load a NEF-consistent script into the VM optionally attaching to it provided signers with scopes",
+		UsageText: `loadnef <file> <manifest> [<signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag},
-		Description: `loadnef [--historic <height>] <file> <manifest>
-both parameters are mandatory, example:
+		Description: `loadnef [--historic <height>] <file> <manifest> [<signer-with-scope>, ...]
+
+<file> and <manifest> parameters are mandatory.
+` + cmdargs.SignersParsingDoc + `
+
+Example:
 > loadnef /path/to/script.nef /path/to/manifest.json`,
 		Action: handleLoadNEF,
 	},
 	{
 		Name:      "loadbase64",
-		Usage:     "Load a base64-encoded script string into the VM",
-		UsageText: `loadbase64 [--historic <height>] <string>`,
+		Usage:     "Load a base64-encoded script string into the VM optionally attaching to it provided signers with scopes",
+		UsageText: `loadbase64 [--historic <height>] <string> [<signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag},
-		Description: `loadbase64 [--historic <height>] <string>
+		Description: `loadbase64 [--historic <height>] <string> [<signer-with-scope>, ...]
 
-<string> is mandatory parameter, example:
+<string> is mandatory parameter.
+` + cmdargs.SignersParsingDoc + `
+
+Example:
 > loadbase64 AwAQpdToAAAADBQV9ehtQR1OrVZVhtHtoUHRfoE+agwUzmFvf3Rhfg/EuAVYOvJgKiON9j8TwAwIdHJhbnNmZXIMFDt9NxHG8Mz5sdypA9G/odiW8SOMQWJ9W1I4`,
 		Action: handleLoadBase64,
 	},
 	{
 		Name:      "loadhex",
-		Usage:     "Load a hex-encoded script string into the VM",
-		UsageText: `loadhex [--historic <height>] <string>`,
+		Usage:     "Load a hex-encoded script string into the VM optionally attaching to it provided signers with scopes",
+		UsageText: `loadhex [--historic <height>] <string> [<signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag},
-		Description: `loadhex [--historic <height>] <string>
+		Description: `loadhex [--historic <height>] <string> [<signer-with-scope>, ...]
 
-<string> is mandatory parameter, example:
+<string> is mandatory parameter.
+` + cmdargs.SignersParsingDoc + `
+
+Example:
 > loadhex 0c0c48656c6c6f20776f726c6421`,
 		Action: handleLoadHex,
 	},
 	{
 		Name:      "loadgo",
-		Usage:     "Compile and load a Go file with the manifest into the VM",
-		UsageText: `loadgo [--historic <height>] <file>`,
+		Usage:     "Compile and load a Go file with the manifest into the VM optionally attaching to it provided signers with scopes",
+		UsageText: `loadgo [--historic <height>] <file> [<signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag},
-		Description: `loadgo [--historic <height>] <file>
+		Description: `loadgo [--historic <height>] <file> [<signer-with-scope>, ...]
 
-<file> is mandatory parameter, example:
+<file> is mandatory parameter.
+` + cmdargs.SignersParsingDoc + `
+
+Example:
 > loadgo /path/to/file.go`,
 		Action: handleLoadGo,
 	},
@@ -181,14 +195,18 @@ The transaction script will be loaded into VM; the resulting execution context w
 	},
 	{
 		Name:      "loaddeployed",
-		Usage:     "Load deployed contract into the VM from chain. If '--historic' flag specified, then the historic contract state (historic script and manifest) will be loaded.",
-		UsageText: `loaddeployed [--historic <height>] <hash-or-address-or-id>`,
+		Usage:     "Load deployed contract into the VM from chain optionally attaching to it provided signers with scopes. If '--historic' flag specified, then the historic contract state (historic script and manifest) will be loaded.",
+		UsageText: `loaddeployed [--historic <height>] <hash-or-address-or-id>  [<signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag},
-		Description: `loaddeployed [--historic <height>] <hash-or-address-or-id>
+		Description: `loaddeployed [--historic <height>] <hash-or-address-or-id> [<signer-with-scope>, ...]
 
-Load deployed contract into the VM from chain. If '--historic' flag specified, then the historic contract state (historic script and manifest) will be loaded.
+Load deployed contract into the VM from chain optionally attaching to it provided signers with scopes.
+If '--historic' flag specified, then the historic contract state (historic script and manifest) will be loaded.
 
-<hash-or-address-or-id> is mandatory parameter, example:
+<hash-or-address-or-id> is mandatory parameter.
+` + cmdargs.SignersParsingDoc + `
+
+Example:
 > loaddeployed 0x0000000009070e030d0f0e020d0c06050e030c02`,
 		Action: handleLoadDeployed,
 	},
@@ -604,22 +622,35 @@ func prepareVM(c *cli.Context, tx *transaction.Transaction) error {
 }
 
 func handleLoadNEF(c *cli.Context) error {
-	err := prepareVM(c, nil)
-	if err != nil {
-		return err
-	}
-	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 2 {
 		return fmt.Errorf("%w: <file> <manifest>", ErrMissingParameter)
 	}
-	if err := v.LoadFileWithFlags(args[0], callflag.All); err != nil {
-		return fmt.Errorf("failed to read nef: %w", err)
+	b, err := os.ReadFile(args[0])
+	if err != nil {
+		return err
+	}
+	nef, err := nef.FileFromBytes(b)
+	if err != nil {
+		return fmt.Errorf("failed to decode NEF file: %w", err)
 	}
 	m, err := getManifestFromFile(args[1])
 	if err != nil {
 		return fmt.Errorf("failed to read manifest: %w", err)
 	}
+	var signers []transaction.Signer
+	if len(args) > 2 {
+		signers, err = cmdargs.ParseSigners(c.Args()[2:])
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidParameter, err)
+		}
+	}
+	err = prepareVM(c, createFakeTransaction(nef.Script, signers))
+	if err != nil {
+		return err
+	}
+	v := getVMFromContext(c.App)
+	v.LoadWithFlags(nef.Script, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
 	setManifestInContext(c.App, m)
 	changePrompt(c.App)
@@ -627,11 +658,6 @@ func handleLoadNEF(c *cli.Context) error {
 }
 
 func handleLoadBase64(c *cli.Context) error {
-	err := prepareVM(c, nil)
-	if err != nil {
-		return err
-	}
-	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
 		return fmt.Errorf("%w: <string>", ErrMissingParameter)
@@ -640,18 +666,33 @@ func handleLoadBase64(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrInvalidParameter, err)
 	}
+	var signers []transaction.Signer
+	if len(args) > 1 {
+		signers, err = cmdargs.ParseSigners(args[1:])
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidParameter, err)
+		}
+	}
+	err = prepareVM(c, createFakeTransaction(b, signers))
+	if err != nil {
+		return err
+	}
+	v := getVMFromContext(c.App)
 	v.LoadWithFlags(b, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c.App)
 	return nil
 }
 
-func handleLoadHex(c *cli.Context) error {
-	err := prepareVM(c, nil)
-	if err != nil {
-		return err
+// createFakeTransaction creates fake transaction with prefilled script, VUB and signers.
+func createFakeTransaction(script []byte, signers []transaction.Signer) *transaction.Transaction {
+	return &transaction.Transaction{
+		Script:  script,
+		Signers: signers,
 	}
-	v := getVMFromContext(c.App)
+}
+
+func handleLoadHex(c *cli.Context) error {
 	args := c.Args()
 	if len(args) < 1 {
 		return fmt.Errorf("%w: <string>", ErrMissingParameter)
@@ -660,6 +701,18 @@ func handleLoadHex(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("%w: %s", ErrInvalidParameter, err)
 	}
+	var signers []transaction.Signer
+	if len(args) > 1 {
+		signers, err = cmdargs.ParseSigners(args[1:])
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidParameter, err)
+		}
+	}
+	err = prepareVM(c, createFakeTransaction(b, signers))
+	if err != nil {
+		return err
+	}
+	v := getVMFromContext(c.App)
 	v.LoadWithFlags(b, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c.App)
@@ -667,11 +720,6 @@ func handleLoadHex(c *cli.Context) error {
 }
 
 func handleLoadGo(c *cli.Context) error {
-	err := prepareVM(c, nil)
-	if err != nil {
-		return err
-	}
-	v := getVMFromContext(c.App)
 	args := c.Args()
 	if len(args) < 1 {
 		return fmt.Errorf("%w: <file>", ErrMissingParameter)
@@ -688,8 +736,20 @@ func handleLoadGo(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("can't create manifest: %w", err)
 	}
-	setManifestInContext(c.App, m)
+	var signers []transaction.Signer
+	if len(args) > 1 {
+		signers, err = cmdargs.ParseSigners(args[1:])
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidParameter, err)
+		}
+	}
 
+	err = prepareVM(c, createFakeTransaction(b.Script, signers))
+	if err != nil {
+		return err
+	}
+	v := getVMFromContext(c.App)
+	setManifestInContext(c.App, m)
 	v.LoadWithFlags(b.Script, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c.App)
@@ -763,6 +823,17 @@ func handleLoadDeployed(c *cli.Context) error {
 		return fmt.Errorf("contract %s not found: %w", h.StringLE(), err)
 	}
 
+	var signers []transaction.Signer
+	if len(c.Args()) > 1 {
+		signers, err = cmdargs.ParseSigners(c.Args()[1:])
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidParameter, err)
+		}
+	}
+	err = prepareVM(c, createFakeTransaction(cs.NEF.Script, signers)) // prepare VM one more time for proper IC initialization.
+	if err != nil {
+		return err
+	}
 	v := getVMFromContext(c.App)
 	v.LoadScriptWithHash(cs.NEF.Script, h, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
@@ -796,11 +867,17 @@ func resetInteropContext(app *cli.App, tx *transaction.Transaction, height ...ui
 		err   error
 	)
 	if len(height) != 0 {
+		if tx != nil {
+			tx.ValidUntilBlock = height[0] + 1
+		}
 		newIc, err = bc.GetTestHistoricVM(trigger.Application, tx, height[0]+1)
 		if err != nil {
 			return fmt.Errorf("failed to create historic VM for height %d: %w", height[0], err)
 		}
 	} else {
+		if tx != nil {
+			tx.ValidUntilBlock = bc.BlockHeight() + 1
+		}
 		newIc, err = bc.GetTestVM(trigger.Application, tx, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create VM: %w", err)

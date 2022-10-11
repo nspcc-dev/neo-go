@@ -211,42 +211,7 @@ func NewCommands() []cli.Command {
 
 ` + cmdargs.ParamsParsingDoc + `
 
-   Signers represent a set of Uint160 hashes with witness scopes and are used
-   to verify hashes in System.Runtime.CheckWitness syscall. First signer is treated
-   as a sender. To specify signers use signer[:scope] syntax where
-    * 'signer' is a signer's address (as Neo address or hex-encoded 160 bit (20 byte)
-               LE value with or without '0x' prefix).
-    * 'scope' is a comma-separated set of cosigner's scopes, which could be:
-        - 'None' - default witness scope which may be used for the sender
-			       to only pay fee for the transaction.
-        - 'Global' - allows this witness in all contexts. This cannot be combined
-                     with other flags.
-        - 'CalledByEntry' - means that this condition must hold: EntryScriptHash 
-                            == CallingScriptHash. The witness/permission/signature
-                            given on first invocation will automatically expire if
-                            entering deeper internal invokes. This can be default
-                            safe choice for native NEO/GAS.
-        - 'CustomContracts' - define valid custom contract hashes for witness check.
-                              Hashes are be provided as hex-encoded LE value string.
-                              At lest one hash must be provided. Multiple hashes
-                              are separated by ':'.
-        - 'CustomGroups' - define custom public keys for group members. Public keys are
-                           provided as short-form (1-byte prefix + 32 bytes) hex-encoded
-                           values. At least one key must be provided. Multiple keys
-                           are separated by ':'.
-
-   If no scopes were specified, 'CalledByEntry' used as default. If no signers were
-   specified, no array is passed. Note that scopes are properly handled by 
-   neo-go RPC server only. C# implementation does not support scopes capability.
-
-   Examples:
-    * 'NNQk4QXsxvsrr3GSozoWBUxEmfag7B6hz5'
-    * 'NVquyZHoPirw6zAEPvY1ZezxM493zMWQqs:Global'
-    * '0x0000000009070e030d0f0e020d0c06050e030c02'
-    * '0000000009070e030d0f0e020d0c06050e030c02:CalledByEntry,` +
-					`CustomGroups:0206d7495ceb34c197093b5fc1cccf1996ada05e69ef67e765462a7f5d88ee14d0'
-    * '0000000009070e030d0f0e020d0c06050e030c02:CalledByEntry,` +
-					`CustomContracts:1011120009070e030d0f0e020d0c06050e030c02:0x1211100009070e030d0f0e020d0c06050e030c02'
+` + cmdargs.SignersParsingDoc + `
 `,
 				Action: testInvokeFunction,
 				Flags:  testInvokeFunctionFlags,
