@@ -87,11 +87,18 @@ func (p *TCPPeer) putPacketIntoQueue(queue chan<- []byte, block bool, msg []byte
 	if !p.Handshaked() {
 		return errStateMismatch
 	}
+	var ret error
 	if block {
+		timer := time.NewTimer(p.server.TimePerBlock / 2)
 		select {
 		case queue <- msg:
 		case <-p.done:
-			return errGone
+			ret = errGone
+		case <-timer.C:
+			ret = errBusy
+		}
+		if !errors.Is(ret, errBusy) && !timer.Stop() {
+			<-timer.C
 		}
 	} else {
 		select {
@@ -102,7 +109,7 @@ func (p *TCPPeer) putPacketIntoQueue(queue chan<- []byte, block bool, msg []byte
 			return errBusy
 		}
 	}
-	return nil
+	return ret
 }
 
 // EnqueuePacket implements the Peer interface.

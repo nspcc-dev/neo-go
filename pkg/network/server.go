@@ -1385,7 +1385,7 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, bool, []b
 					peer.AddGetAddrSent()
 				}
 				sentN++
-			} else if errors.Is(err, errBusy) {
+			} else if !blocking && errors.Is(err, errBusy) {
 				// Can be retried.
 				continue
 			} else {
