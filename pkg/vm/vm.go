@@ -262,7 +262,7 @@ func (v *VM) LoadFileWithFlags(path string, f callflag.CallFlag) error {
 	if err != nil {
 		return err
 	}
-	v.Load(nef.Script)
+	v.LoadWithFlags(nef.Script, f)
 	return nil
 }
 
