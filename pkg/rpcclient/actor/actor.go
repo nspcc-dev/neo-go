@@ -25,6 +25,7 @@ import (
 // create and send transactions.
 type RPCActor interface {
 	invoker.RPCInvoke
+	RPCPollingWaiter
 
 	CalculateNetworkFee(tx *transaction.Transaction) (int64, error)
 	GetBlockCount() (uint32, error)

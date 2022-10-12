@@ -232,3 +232,20 @@ func (r *Invoke) UnmarshalJSON(data []byte) error {
 	r.Diagnostics = aux.Diagnostics
 	return nil
 }
+
+// AppExecToInvocation converts state.AppExecResult to result.Invoke and can be used
+// as a wrapper for actor.Wait. The result of AppExecToInvocation doesn't have all fields
+// properly filled, it's limited by State, GasConsumed, Stack, FaultException and Notifications.
+// The result of AppExecToInvocation can be passed to unwrap package helpers.
+func AppExecToInvocation(aer *state.AppExecResult, err error) (*Invoke, error) {
+	if err != nil {
+		return nil, err
+	}
+	return &Invoke{
+		State:          aer.VMState.String(),
+		GasConsumed:    aer.GasConsumed,
+		Stack:          aer.Stack,
+		FaultException: aer.FaultException,
+		Notifications:  aer.Events,
+	}, nil
+}

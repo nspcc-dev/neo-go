@@ -33,8 +33,11 @@ type Client struct {
 	cli      *http.Client
 	endpoint *url.URL
 	ctx      context.Context
-	opts     Options
-	requestF func(*neorpc.Request) (*neorpc.Response, error)
+	// ctxCancel is a cancel function aimed to send closing signal to the users of
+	// ctx.
+	ctxCancel func()
+	opts      Options
+	requestF  func(*neorpc.Request) (*neorpc.Response, error)
 
 	// reader is an Invoker that has no signers and uses current state,
 	// it's used to implement various getters. It'll be removed eventually,
@@ -125,7 +128,9 @@ func initClient(ctx context.Context, cl *Client, endpoint string, opts Options) 
 	//	if opts.Cert != "" && opts.Key != "" {
 	//	}
 
-	cl.ctx = ctx
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cl.ctx = cancelCtx
+	cl.ctxCancel = cancel
 	cl.cli = httpClient
 	cl.endpoint = url
 	cl.cache = cache{
@@ -176,6 +181,7 @@ func (c *Client) Init() error {
 
 // Close closes unused underlying networks connections.
 func (c *Client) Close() {
+	c.ctxCancel()
 	c.cli.CloseIdleConnections()
 }
 
@@ -247,4 +253,9 @@ func (c *Client) Ping() error {
 	}
 	_ = conn.Close()
 	return nil
+}
+
+// Context returns client instance context.
+func (c *Client) Context() context.Context {
+	return c.ctx
 }

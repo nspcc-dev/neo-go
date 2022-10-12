@@ -1,6 +1,7 @@
 package actor
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -51,6 +53,12 @@ func (r *RPCClient) TerminateSession(sessionID uuid.UUID) (bool, error) {
 }
 func (r *RPCClient) TraverseIterator(sessionID, iteratorID uuid.UUID, maxItemsCount int) ([]stackitem.Item, error) {
 	return nil, nil // Just a stub, unused by actor.
+}
+func (r *RPCClient) Context() context.Context {
+	panic("TODO")
+}
+func (r *RPCClient) GetApplicationLog(hash util.Uint256, trig *trigger.Type) (*result.ApplicationLog, error) {
+	panic("TODO")
 }
 func testRPCAndAccount(t *testing.T) (*RPCClient, *wallet.Account) {
 	client := &RPCClient{

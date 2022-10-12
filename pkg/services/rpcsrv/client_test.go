@@ -1947,3 +1947,57 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 		}
 	})
 }
+
+func TestClient_Wait(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	acc, err := wallet.NewAccount()
+	require.NoError(t, err)
+	act, err := actor.New(c, []actor.SignerAccount{
+		{
+			Signer: transaction.Signer{
+				Account: acc.ScriptHash(),
+			},
+			Account: acc,
+		},
+	})
+	require.NoError(t, err)
+
+	b, err := chain.GetBlock(chain.GetHeaderHash(1))
+	require.NoError(t, err)
+	require.True(t, len(b.Transactions) > 0)
+
+	check := func(t *testing.T, h util.Uint256, vub uint32, errExpected bool) {
+		rcvr := make(chan struct{})
+		go func() {
+			aer, err := act.Wait(h, vub, nil)
+			if errExpected {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, h, aer.Container)
+			}
+			rcvr <- struct{}{}
+		}()
+	waitloop:
+		for {
+			select {
+			case <-rcvr:
+				break waitloop
+			case <-time.NewTimer(time.Duration(chain.GetConfig().SecondsPerBlock) * time.Second).C:
+				t.Fatal("transaction failed to be awaited")
+			}
+		}
+	}
+
+	// Wait for transaction that has been persisted and VUB block has been persisted.
+	check(t, b.Transactions[0].Hash(), chain.BlockHeight()-1, false)
+	// Wait for transaction that has been persisted and VUB block hasn't yet been persisted.
+	check(t, b.Transactions[0].Hash(), chain.BlockHeight()+1, false)
+	// Wait for transaction that hasn't been persisted and VUB block has been persisted.
+	check(t, util.Uint256{1, 2, 3}, chain.BlockHeight()-1, true)
+}

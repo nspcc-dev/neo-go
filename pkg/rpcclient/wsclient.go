@@ -162,6 +162,8 @@ func (c *WSClient) Close() {
 		// which in turn makes wsReader receive an err from ws.ReadJSON() and also
 		// break out of the loop closing c.done channel in its shutdown sequence.
 		close(c.shutdown)
+		// Call to cancel will send signal to all users of Context().
+		c.Client.ctxCancel()
 	}
 	<-c.done
 }
@@ -274,6 +276,7 @@ readloop:
 	c.respChannels = nil
 	c.respLock.Unlock()
 	close(c.Notifications)
+	c.Client.ctxCancel()
 }
 
 func (c *WSClient) wsWriter() {
@@ -568,4 +571,9 @@ func (c *WSClient) GetError() error {
 		return nil
 	}
 	return c.closeErr
+}
+
+// Context returns WSClient Cancel context that will be terminated on Client shutdown.
+func (c *WSClient) Context() context.Context {
+	return c.Client.ctx
 }
