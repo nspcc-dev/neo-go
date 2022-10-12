@@ -1363,8 +1363,12 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.C
 		return
 	}
 
-	var replies = make(chan error, peerN) // Cache is there just to make goroutines exit faster.
-	var ctx, cancel = context.WithTimeout(context.Background(), s.TimePerBlock/2)
+	var (
+		// Optimal number of recipients.
+		enoughN     = s.discovery.GetFanOut()
+		replies     = make(chan error, peerN) // Cache is there just to make goroutines exit faster.
+		ctx, cancel = context.WithTimeout(context.Background(), s.TimePerBlock/2)
+	)
 	for _, peer := range peers {
 		go func(p Peer, ctx context.Context, pkt []byte) {
 			// Do this before packet is sent, reader thread can get the reply before this routine wakes up.
@@ -1383,8 +1387,7 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.C
 		if sentN+deadN == peerN {
 			break
 		}
-		// Send to 2/3 of good peers.
-		if 3*sentN >= 2*(peerN-deadN) && ctx.Err() == nil {
+		if sentN >= enoughN && ctx.Err() == nil {
 			cancel()
 		}
 	}

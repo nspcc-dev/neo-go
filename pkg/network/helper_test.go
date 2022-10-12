@@ -40,6 +40,11 @@ func (d *testDiscovery) RegisterBadAddr(addr string) {
 	defer d.Unlock()
 	d.bad = append(d.bad, addr)
 }
+func (d *testDiscovery) GetFanOut() int {
+	d.Lock()
+	defer d.Unlock()
+	return len(d.connected) + len(d.backfill)
+}
 func (d *testDiscovery) RegisterGoodAddr(string, capability.Capabilities) {}
 func (d *testDiscovery) RegisterConnectedAddr(addr string) {
 	d.Lock()

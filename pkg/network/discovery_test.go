@@ -74,6 +74,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 		assert.Equal(t, 0, len(d.BadPeers()))
 		require.Equal(t, set1, set1D)
 	}
+	require.Equal(t, 2, d.GetFanOut())
 
 	// Request should make goroutines dial our addresses draining the pool.
 	d.RequestRemote(len(set1))

@@ -1,7 +1,9 @@
 package network
 
 import (
+	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
@@ -17,6 +19,7 @@ const (
 type Discoverer interface {
 	BackFill(...string)
 	Close()
+	GetFanOut() int
 	PoolCount() int
 	RequestRemote(int)
 	RegisterBadAddr(string)
@@ -46,6 +49,7 @@ type DefaultDiscovery struct {
 	goodAddrs        map[string]capability.Capabilities
 	unconnectedAddrs map[string]int
 	attempted        map[string]bool
+	optimalFanOut    int32
 	isDead           bool
 	requestCh        chan int
 	pool             chan string
@@ -196,9 +200,21 @@ func (d *DefaultDiscovery) RegisterConnectedAddr(addr string) {
 	d.lock.Unlock()
 }
 
+// GetFanOut returns the optimal number of nodes to broadcast packets to.
+func (d *DefaultDiscovery) GetFanOut() int {
+	return int(atomic.LoadInt32(&d.optimalFanOut))
+}
+
 // updateNetSize updates network size estimation metric. Must be called under read lock.
 func (d *DefaultDiscovery) updateNetSize() {
-	updateNetworkSizeMetric(len(d.connectedAddrs) + len(d.unconnectedAddrs))
+	var netsize = len(d.connectedAddrs) + len(d.unconnectedAddrs) + 1 // 1 for the node itself.
+	var fanOut = 2.5 * math.Log(float64(netsize-1))                   // -1 for the number of potential peers.
+	if netsize == 2 {                                                 // log(1) == 0.
+		fanOut = 1 // But we still want to push messages to the peer.
+	}
+
+	atomic.StoreInt32(&d.optimalFanOut, int32(fanOut+0.5)) // Truncating conversion, hence +0.5.
+	updateNetworkSizeMetric(netsize)
 }
 
 func (d *DefaultDiscovery) tryAddress(addr string) {
