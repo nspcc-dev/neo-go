@@ -327,6 +327,8 @@ func adjustValToType(typ ParamType, val string) (interface{}, error) {
 		return pub.Bytes(), nil
 	case StringType:
 		return val, nil
+	case AnyType:
+		return nil, nil
 	default:
 		return nil, errors.New("unsupported parameter type")
 	}
@@ -345,6 +347,10 @@ func inferParamType(val string) ParamType {
 	bi, ok := new(big.Int).SetString(val, 10)
 	if ok && stackitem.CheckIntegerSize(bi) == nil {
 		return IntegerType
+	}
+
+	if val == "nil" {
+		return AnyType
 	}
 
 	if val == "true" || val == "false" {

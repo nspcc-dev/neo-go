@@ -32,7 +32,8 @@ const (
    'signature', 'bool', 'int', 'hash160', 'hash256', 'bytes', 'key' or 'string'.
    Array types are also supported: use special space-separated '[' and ']'
    symbols around array values to denote array bounds. Nested arrays are also
-   supported.
+   supported. Null parameter is supported via 'nil' keyword without additional
+   type specification.
 
    There is ability to provide an argument of 'bytearray' type via file. Use a
    special 'filebytes' argument type for this with a filepath specified after
@@ -60,6 +61,8 @@ const (
    following logic:
     - anything that can be interpreted as a decimal integer gets
       an 'int' type
+    - 'nil' string gets 'Any' NEP-14 parameter type and nil value which corresponds
+      to Null stackitem
     - 'true' and 'false' strings get 'bool' type
     - valid Neo addresses and 20 bytes long hex-encoded strings get 'hash160'
       type
@@ -76,6 +79,7 @@ const (
    Examples:
     * 'int:42' is an integer with a value of 42
     * '42' is an integer with a value of 42
+    * 'nil' is a parameter with Any NEP-14 type and nil value (corresponds to Null stackitem)
     * 'bad' is a string with a value of 'bad'
     * 'dead' is a byte array with a value of 'dead'
     * 'string:dead' is a string with a value of 'dead'

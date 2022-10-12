@@ -155,6 +155,9 @@ func TestInferParamType(t *testing.T) {
 	}, {
 		in:  "dead",
 		out: ByteArrayType,
+	}, {
+		in:  "nil",
+		out: AnyType,
 	}}
 	for _, inout := range inouts {
 		out := inferParamType(inout.in)
@@ -323,6 +326,10 @@ func TestAdjustValToType(t *testing.T) {
 		typ: InteropInterfaceType,
 		val: "",
 		err: true,
+	}, {
+		typ: AnyType,
+		val: "nil",
+		out: nil,
 	}}
 
 	for _, inout := range inouts {
