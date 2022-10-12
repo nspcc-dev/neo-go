@@ -93,6 +93,15 @@ var commands = []cli.Command{
 		Action: handleBreak,
 	},
 	{
+		Name:      "jump",
+		Usage:     "Jump to the specified instruction (absolute IP value)",
+		UsageText: `jump <ip>`,
+		Description: `jump <ip>
+<ip> is mandatory parameter, example:
+> jump 12`,
+		Action: handleJump,
+	},
+	{
 		Name:        "estack",
 		Usage:       "Show evaluation stack contents",
 		Description: "Show evaluation stack contents",
@@ -559,19 +568,42 @@ func handleBreak(c *cli.Context) error {
 	if !checkVMIsReady(c.App) {
 		return nil
 	}
-	v := getVMFromContext(c.App)
-	args := c.Args()
-	if len(args) != 1 {
-		return fmt.Errorf("%w: <ip>", ErrMissingParameter)
-	}
-	n, err := strconv.Atoi(args[0])
+	n, err := getInstructionParameter(c)
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrInvalidParameter, err)
+		return err
 	}
 
+	v := getVMFromContext(c.App)
 	v.AddBreakPoint(n)
 	fmt.Fprintf(c.App.Writer, "breakpoint added at instruction %d\n", n)
 	return nil
+}
+
+func handleJump(c *cli.Context) error {
+	if !checkVMIsReady(c.App) {
+		return nil
+	}
+	n, err := getInstructionParameter(c)
+	if err != nil {
+		return err
+	}
+
+	v := getVMFromContext(c.App)
+	v.Context().Jump(n)
+	fmt.Fprintf(c.App.Writer, "jumped to instruction %d\n", n)
+	return nil
+}
+
+func getInstructionParameter(c *cli.Context) (int, error) {
+	args := c.Args()
+	if len(args) != 1 {
+		return 0, fmt.Errorf("%w: <ip>", ErrMissingParameter)
+	}
+	n, err := strconv.Atoi(args[0])
+	if err != nil {
+		return 0, fmt.Errorf("%w: %s", ErrInvalidParameter, err)
+	}
+	return n, nil
 }
 
 func handleXStack(c *cli.Context) error {

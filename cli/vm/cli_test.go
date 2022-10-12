@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1180,4 +1181,21 @@ func TestLoaddeployed(t *testing.T) {
 	e.checkNextLine(t, "READY: loaded \\d+ instructions") // check witness of owner0xLE:CalledByEntry
 	e.checkStack(t, false)
 	e.checkError(t, errors.New("contract hash, address or ID is mandatory argument"))
+}
+
+func TestJump(t *testing.T) {
+	buf := io.NewBufBinWriter()
+	emit.Opcodes(buf.BinWriter, opcode.PUSH1, opcode.PUSH2, opcode.ABORT) // some garbage
+	jmpTo := buf.Len()
+	emit.Opcodes(buf.BinWriter, opcode.PUSH4, opcode.PUSH5, opcode.ADD) // useful script
+	e := newTestVMCLI(t)
+	e.runProg(t,
+		"loadhex "+hex.EncodeToString(buf.Bytes()),
+		"jump "+strconv.Itoa(jmpTo),
+		"run",
+	)
+
+	e.checkNextLine(t, "READY: loaded 6 instructions")
+	e.checkNextLine(t, fmt.Sprintf("jumped to instruction %d", jmpTo))
+	e.checkStack(t, 9)
 }
