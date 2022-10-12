@@ -132,20 +132,14 @@ func (p *TCPPeer) putMsgIntoQueue(queue chan<- []byte, msg *Message) error {
 	return p.putPacketIntoQueue(queue, b)
 }
 
-// EnqueueP2PPacket implements the Peer interface.
-func (p *TCPPeer) EnqueueP2PPacket(msg []byte) error {
-	return p.putPacketIntoQueue(p.p2pSendQ, msg)
-}
-
 // EnqueueP2PMessage implements the Peer interface.
 func (p *TCPPeer) EnqueueP2PMessage(msg *Message) error {
 	return p.putMsgIntoQueue(p.p2pSendQ, msg)
 }
 
-// EnqueueHPPacket implements the Peer interface. It the peer is not yet
-// handshaked it's a noop.
-func (p *TCPPeer) EnqueueHPPacket(msg []byte) error {
-	return p.putPacketIntoQueue(p.hpSendQ, msg)
+// EnqueueHPMessage implements the Peer interface.
+func (p *TCPPeer) EnqueueHPMessage(msg *Message) error {
+	return p.putMsgIntoQueue(p.hpSendQ, msg)
 }
 
 func (p *TCPPeer) writeMsg(msg *Message) error {

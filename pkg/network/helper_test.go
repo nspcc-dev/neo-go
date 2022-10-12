@@ -105,32 +105,23 @@ func (p *localPeer) Disconnect(err error) {
 	p.server.unregister <- peerDrop{p, err}
 }
 
-func (p *localPeer) EnqueueMessage(msg *Message) error {
-	b, err := msg.Bytes()
-	if err != nil {
-		return err
-	}
-	return p.EnqueueHPPacket(b)
-}
 func (p *localPeer) BroadcastPacket(_ context.Context, m []byte) error {
-	return p.EnqueueHPPacket(m)
-}
-func (p *localPeer) EnqueueP2PMessage(msg *Message) error {
-	return p.EnqueueMessage(msg)
-}
-func (p *localPeer) EnqueueP2PPacket(m []byte) error {
-	return p.EnqueueHPPacket(m)
-}
-func (p *localPeer) BroadcastHPPacket(_ context.Context, m []byte) error {
-	return p.EnqueueHPPacket(m)
-}
-func (p *localPeer) EnqueueHPPacket(m []byte) error {
 	msg := &Message{}
 	r := io.NewBinReaderFromBuf(m)
 	err := msg.Decode(r)
 	if err == nil {
 		p.messageHandler(p.t, msg)
 	}
+	return nil
+}
+func (p *localPeer) EnqueueP2PMessage(msg *Message) error {
+	return p.EnqueueHPMessage(msg)
+}
+func (p *localPeer) BroadcastHPPacket(ctx context.Context, m []byte) error {
+	return p.BroadcastPacket(ctx, m)
+}
+func (p *localPeer) EnqueueHPMessage(msg *Message) error {
+	p.messageHandler(p.t, msg)
 	return nil
 }
 func (p *localPeer) Version() *payload.Version {
@@ -148,11 +139,11 @@ func (p *localPeer) SendVersion() error {
 	if err != nil {
 		return err
 	}
-	_ = p.EnqueueMessage(m)
+	_ = p.EnqueueHPMessage(m)
 	return nil
 }
 func (p *localPeer) SendVersionAck(m *Message) error {
-	_ = p.EnqueueMessage(m)
+	_ = p.EnqueueHPMessage(m)
 	return nil
 }
 func (p *localPeer) HandleVersionAck() error {

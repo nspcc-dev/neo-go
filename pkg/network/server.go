@@ -748,14 +748,10 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 	}
 	if len(reqHashes) > 0 {
 		msg := NewMessage(CMDGetData, payload.NewInventory(inv.Type, reqHashes))
-		pkt, err := msg.Bytes()
-		if err != nil {
-			return err
-		}
 		if inv.Type == payload.ExtensibleType {
-			return p.EnqueueHPPacket(pkt)
+			return p.EnqueueHPMessage(msg)
 		}
-		return p.EnqueueP2PPacket(pkt)
+		return p.EnqueueP2PMessage(msg)
 	}
 	return nil
 }
@@ -812,13 +808,11 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 			}
 		}
 		if msg != nil {
-			pkt, err := msg.Bytes()
-			if err == nil {
-				if inv.Type == payload.ExtensibleType {
-					err = p.EnqueueHPPacket(pkt)
-				} else {
-					err = p.EnqueueP2PPacket(pkt)
-				}
+			var err error
+			if inv.Type == payload.ExtensibleType {
+				err = p.EnqueueHPMessage(msg)
+			} else {
+				err = p.EnqueueP2PMessage(msg)
 			}
 			if err != nil {
 				return err
