@@ -20,8 +20,8 @@ type Peer interface {
 	PeerAddr() net.Addr
 	Disconnect(error)
 
-	// EnqueueMessage is a temporary wrapper that sends a message via
-	// EnqueuePacket if there is no error in serializing it.
+	// EnqueueMessage is a blocking packet enqueuer similar to EnqueueP2PMessage,
+	// but using the lowest priority queue.
 	EnqueueMessage(*Message) error
 
 	// BroadcastPacket is a context-bound packet enqueuer, it either puts the
@@ -43,7 +43,7 @@ type Peer interface {
 	// EnqueueP2PPacket is a blocking packet enqueuer, it doesn't return until
 	// it puts the given packet into the queue. It accepts a slice of bytes that
 	// can be shared with other queues (so that message marshalling can be
-	// done once for all peers). It does nothing if the peer has not yet
+	// done once for all peers). It returns an error if the peer has not yet
 	// completed handshaking. This queue is intended to be used for unicast
 	// peer to peer communication that is more important than broadcasts
 	// (handled by BroadcastPacket) but less important than high-priority
