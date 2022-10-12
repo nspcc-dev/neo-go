@@ -20,10 +20,6 @@ type Peer interface {
 	PeerAddr() net.Addr
 	Disconnect(error)
 
-	// EnqueueMessage is a blocking packet enqueuer similar to EnqueueP2PMessage,
-	// but using the lowest priority queue.
-	EnqueueMessage(*Message) error
-
 	// BroadcastPacket is a context-bound packet enqueuer, it either puts the
 	// given packet into the queue or exits with errors if the context expires
 	// or peer disconnects. It accepts a slice of bytes that

@@ -132,12 +132,6 @@ func (p *TCPPeer) putMsgIntoQueue(queue chan<- []byte, msg *Message) error {
 	return p.putPacketIntoQueue(queue, b)
 }
 
-// EnqueueMessage is a temporary wrapper that sends a message via
-// EnqueuePacket if there is no error in serializing it.
-func (p *TCPPeer) EnqueueMessage(msg *Message) error {
-	return p.putMsgIntoQueue(p.sendQ, msg)
-}
-
 // EnqueueP2PPacket implements the Peer interface.
 func (p *TCPPeer) EnqueueP2PPacket(msg []byte) error {
 	return p.putPacketIntoQueue(p.p2pSendQ, msg)
