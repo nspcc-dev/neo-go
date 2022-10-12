@@ -6,6 +6,14 @@ import (
 
 // Metric used in monitoring service.
 var (
+	estimatedNetworkSize = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Help:      "Estimated network size",
+			Name:      "network_size",
+			Namespace: "neogo",
+		},
+	)
+
 	peersConnected = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Help:      "Number of connected peers",
@@ -42,11 +50,16 @@ var (
 
 func init() {
 	prometheus.MustRegister(
+		estimatedNetworkSize,
 		peersConnected,
 		servAndNodeVersion,
 		poolCount,
 		blockQueueLength,
 	)
+}
+
+func updateNetworkSizeMetric(sz int) {
+	estimatedNetworkSize.Set(float64(sz))
 }
 
 func updateBlockQueueLenMetric(bqLen int) {

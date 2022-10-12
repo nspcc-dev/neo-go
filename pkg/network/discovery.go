@@ -87,6 +87,7 @@ func (d *DefaultDiscovery) BackFill(addrs ...string) {
 		d.unconnectedAddrs[addr] = connRetries
 		d.pushToPoolOrDrop(addr)
 	}
+	d.updateNetSize()
 	d.lock.Unlock()
 }
 
@@ -127,6 +128,7 @@ func (d *DefaultDiscovery) RegisterBadAddr(addr string) {
 		delete(d.unconnectedAddrs, addr)
 		delete(d.goodAddrs, addr)
 	}
+	d.updateNetSize()
 	d.lock.Unlock()
 }
 
@@ -181,6 +183,7 @@ func (d *DefaultDiscovery) RegisterGoodAddr(s string, c capability.Capabilities)
 func (d *DefaultDiscovery) UnregisterConnectedAddr(s string) {
 	d.lock.Lock()
 	delete(d.connectedAddrs, s)
+	d.updateNetSize()
 	d.lock.Unlock()
 }
 
@@ -189,7 +192,13 @@ func (d *DefaultDiscovery) RegisterConnectedAddr(addr string) {
 	d.lock.Lock()
 	delete(d.unconnectedAddrs, addr)
 	d.connectedAddrs[addr] = true
+	d.updateNetSize()
 	d.lock.Unlock()
+}
+
+// updateNetSize updates network size estimation metric. Must be called under read lock.
+func (d *DefaultDiscovery) updateNetSize() {
+	updateNetworkSizeMetric(len(d.connectedAddrs) + len(d.unconnectedAddrs))
 }
 
 func (d *DefaultDiscovery) tryAddress(addr string) {
