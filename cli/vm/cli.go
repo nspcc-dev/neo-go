@@ -650,7 +650,6 @@ func handleLoadNEF(c *cli.Context) error {
 		return err
 	}
 	v := getVMFromContext(c.App)
-	v.LoadWithFlags(nef.Script, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
 	setManifestInContext(c.App, m)
 	changePrompt(c.App)
@@ -678,7 +677,6 @@ func handleLoadBase64(c *cli.Context) error {
 		return err
 	}
 	v := getVMFromContext(c.App)
-	v.LoadWithFlags(b, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c.App)
 	return nil
@@ -713,7 +711,6 @@ func handleLoadHex(c *cli.Context) error {
 		return err
 	}
 	v := getVMFromContext(c.App)
-	v.LoadWithFlags(b, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c.App)
 	return nil
@@ -750,7 +747,6 @@ func handleLoadGo(c *cli.Context) error {
 	}
 	v := getVMFromContext(c.App)
 	setManifestInContext(c.App, m)
-	v.LoadWithFlags(b.Script, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c.App)
 	return nil
@@ -789,8 +785,6 @@ func handleLoadTx(c *cli.Context) error {
 		return err
 	}
 	v := getVMFromContext(c.App)
-
-	v.LoadWithFlags(tx.Script, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c.App)
 	return nil
@@ -834,9 +828,10 @@ func handleLoadDeployed(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	v := getVMFromContext(c.App)
-	v.LoadScriptWithHash(cs.NEF.Script, h, callflag.All)
-	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
+	ic = getInteropContextFromContext(c.App) // fetch newly-created IC.
+	ic.ReuseVM(ic.VM)                        // clear previously loaded program and context.
+	ic.VM.LoadScriptWithHash(cs.NEF.Script, cs.Hash, callflag.All)
+	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", ic.VM.Context().LenInstr())
 	setManifestInContext(c.App, &cs.Manifest)
 	changePrompt(c.App)
 	return nil
@@ -858,7 +853,8 @@ func finalizeInteropContext(app *cli.App) {
 }
 
 // resetInteropContext calls finalizer for current interop context and replaces
-// it with the newly created one.
+// it with the newly created one. If transaction is provided, then its script is
+// loaded into bound VM.
 func resetInteropContext(app *cli.App, tx *transaction.Transaction, height ...uint32) error {
 	finalizeInteropContext(app)
 	bc := getChainFromContext(app)
@@ -882,6 +878,9 @@ func resetInteropContext(app *cli.App, tx *transaction.Transaction, height ...ui
 		if err != nil {
 			return fmt.Errorf("failed to create VM: %w", err)
 		}
+	}
+	if tx != nil {
+		newIc.VM.LoadWithFlags(tx.Script, callflag.All)
 	}
 
 	setInteropContextInContext(app, newIc)
