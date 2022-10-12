@@ -71,7 +71,7 @@ type localPeer struct {
 	server         *Server
 	version        *payload.Version
 	lastBlockIndex uint32
-	handshaked     bool
+	handshaked     int32 // TODO: use atomic.Bool after #2626.
 	isFullNode     bool
 	t              *testing.T
 	messageHandler func(t *testing.T, msg *Message)
@@ -147,7 +147,7 @@ func (p *localPeer) SendVersionAck(m *Message) error {
 	return nil
 }
 func (p *localPeer) HandleVersionAck() error {
-	p.handshaked = true
+	atomic.StoreInt32(&p.handshaked, 1)
 	return nil
 }
 func (p *localPeer) SetPingTimer() {
@@ -165,7 +165,7 @@ func (p *localPeer) HandlePong(pong *payload.Ping) error {
 }
 
 func (p *localPeer) Handshaked() bool {
-	return p.handshaked
+	return atomic.LoadInt32(&p.handshaked) != 0
 }
 
 func (p *localPeer) IsFullNode() bool {

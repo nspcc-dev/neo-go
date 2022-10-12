@@ -1388,12 +1388,12 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.C
 
 // broadcastMessage sends the message to all available peers.
 func (s *Server) broadcastMessage(msg *Message) {
-	s.iteratePeersWithSendMsg(msg, Peer.BroadcastPacket, nil)
+	s.iteratePeersWithSendMsg(msg, Peer.BroadcastPacket, Peer.Handshaked)
 }
 
 // broadcastHPMessage sends the high-priority message to all available peers.
 func (s *Server) broadcastHPMessage(msg *Message) {
-	s.iteratePeersWithSendMsg(msg, Peer.BroadcastHPPacket, nil)
+	s.iteratePeersWithSendMsg(msg, Peer.BroadcastHPPacket, Peer.Handshaked)
 }
 
 // relayBlocksLoop subscribes to new blocks in the ledger and broadcasts them
