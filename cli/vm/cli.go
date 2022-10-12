@@ -188,9 +188,8 @@ Example:
 		Action: handleLoadGo,
 	},
 	{
-		Name: "loadtx",
-		Usage: "Load transaction into the VM from chain or from parameter context file. " +
-			"The transaction script will be loaded into VM; the resulting execution context will use the provided transaction as script container including its signers, hash and nonce.",
+		Name:      "loadtx",
+		Usage:     "Load transaction into the VM from chain or from parameter context file",
 		UsageText: `loadtx [--historic <height>] <file-or-hash>`,
 		Flags:     []cli.Flag{historicFlag},
 		Description: `loadtx [--historic <height>] <file-or-hash>
@@ -204,7 +203,7 @@ The transaction script will be loaded into VM; the resulting execution context w
 	},
 	{
 		Name:      "loaddeployed",
-		Usage:     "Load deployed contract into the VM from chain optionally attaching to it provided signers with scopes. If '--historic' flag specified, then the historic contract state (historic script and manifest) will be loaded.",
+		Usage:     "Load deployed contract into the VM from chain optionally attaching to it provided signers with scopes",
 		UsageText: `loaddeployed [--historic <height>] <hash-or-address-or-id>  [<signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag},
 		Description: `loaddeployed [--historic <height>] <hash-or-address-or-id> [<signer-with-scope>, ...]
@@ -322,14 +321,8 @@ Example:
 		Action: handleEnv,
 	},
 	{
-		Name: "storage",
-		Usage: "Dump storage of the contract with the specified hash, address or ID as is at the current stage of script invocation. " +
-			"Can be used if no script is loaded. " +
-			"Hex-encoded storage items prefix may be specified (empty by default to return the whole set of storage items). " +
-			"If seek prefix is not empty, then it's trimmed from the resulting keys." +
-			"Items are sorted. Backwards seek direction may be specified (false by default, which means forwards storage seek direction). " +
-			"It is possible to dump only those storage items that were added or changed during current script invocation (use --diff flag for it). " +
-			"To dump the whole set of storage changes including removed items use 'changes' command.",
+		Name:      "storage",
+		Usage:     "Dump storage of the contract with the specified hash, address or ID as is at the current stage of script invocation",
 		UsageText: `storage <hash-or-address-or-id> [<prefix>] [--backwards] [--diff]`,
 		Flags: []cli.Flag{
 			cli.BoolFlag{
@@ -356,12 +349,8 @@ Example:
 		Action: handleStorage,
 	},
 	{
-		Name: "changes",
-		Usage: "Dump storage changes as is at the current stage of loaded script invocation. " +
-			"If no script is loaded or executed, then no changes are present. " +
-			"The contract hash, address or ID may be specified as the first parameter to dump the specified contract storage changes. " +
-			"Hex-encoded search prefix (without contract ID) may be specified to dump matching storage changes. " +
-			"Resulting values are not sorted.",
+		Name:      "changes",
+		Usage:     "Dump storage changes as is at the current stage of loaded script invocation",
 		UsageText: `changes [<hash-or-address-or-id> [<prefix>]]`,
 		Description: `changes [<hash-or-address-or-id> [<prefix>]]
 
