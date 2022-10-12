@@ -159,10 +159,8 @@ func (p *localPeer) HandleVersionAck() error {
 	p.handshaked = true
 	return nil
 }
-func (p *localPeer) SendPing(m *Message) error {
+func (p *localPeer) SetPingTimer() {
 	p.pingSent++
-	_ = p.EnqueueMessage(m)
-	return nil
 }
 func (p *localPeer) HandlePing(ping *payload.Ping) error {
 	p.lastBlockIndex = ping.LastBlockIndex

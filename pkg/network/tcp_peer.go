@@ -454,12 +454,9 @@ func (p *TCPPeer) LastBlockIndex() uint32 {
 	return p.lastBlockIndex
 }
 
-// SendPing sends a ping message to the peer and does an appropriate accounting of
-// outstanding pings and timeouts.
-func (p *TCPPeer) SendPing(msg *Message) error {
-	if !p.Handshaked() {
-		return errStateMismatch
-	}
+// SetPingTimer adds an outgoing ping to the counter and sets a PingTimeout timer
+// that will shut the connection down in case of no response.
+func (p *TCPPeer) SetPingTimer() {
 	p.lock.Lock()
 	p.pingSent++
 	if p.pingTimer == nil {
@@ -468,7 +465,6 @@ func (p *TCPPeer) SendPing(msg *Message) error {
 		})
 	}
 	p.lock.Unlock()
-	return p.EnqueueMessage(msg)
 }
 
 // HandlePing handles a ping message received from the peer.

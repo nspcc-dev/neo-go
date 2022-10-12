@@ -465,10 +465,7 @@ func (s *Server) runProto() {
 			return
 		case <-pingTimer.C:
 			if s.chain.BlockHeight() == prevHeight {
-				// Get a copy of s.peers to avoid holding a lock while sending.
-				for _, peer := range s.getPeers(nil) {
-					_ = peer.SendPing(NewMessage(CMDPing, payload.NewPing(s.chain.BlockHeight(), s.id)))
-				}
+				s.broadcastMessage(NewMessage(CMDPing, payload.NewPing(s.chain.BlockHeight(), s.id)))
 			}
 			pingTimer.Reset(s.PingInterval)
 		}
@@ -1370,6 +1367,9 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.C
 			// Do this before packet is sent, reader thread can get the reply before this routine wakes up.
 			if msg.Command == CMDGetAddr {
 				p.AddGetAddrSent()
+			}
+			if msg.Command == CMDPing {
+				p.SetPingTimer()
 			}
 			replies <- send(p, ctx, pkt)
 		}(peer, ctx, pkt)

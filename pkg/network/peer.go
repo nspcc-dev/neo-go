@@ -59,10 +59,9 @@ type Peer interface {
 	Handshaked() bool
 	IsFullNode() bool
 
-	// SendPing enqueues a ping message to be sent to the peer and does
-	// appropriate protocol handling like timeouts and outstanding pings
-	// management.
-	SendPing(*Message) error
+	// SetPingTimer adds an outgoing ping to the counter and sets a PingTimeout
+	// timer that will shut the connection down in case of no response.
+	SetPingTimer()
 	// SendVersion checks handshake status and sends a version message to
 	// the peer.
 	SendVersion() error
