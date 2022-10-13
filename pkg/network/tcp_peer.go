@@ -81,9 +81,9 @@ func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
 	}
 }
 
-// putBroadcastPacketIntoQueue puts the given message into the given queue if
+// putPacketIntoQueue puts the given message into the given queue if
 // the peer has done handshaking using the given context.
-func (p *TCPPeer) putBroadcastPacketIntoQueue(ctx context.Context, queue chan<- []byte, msg []byte) error {
+func (p *TCPPeer) putPacketIntoQueue(ctx context.Context, queue chan<- []byte, msg []byte) error {
 	if !p.Handshaked() {
 		return errStateMismatch
 	}
@@ -97,29 +97,15 @@ func (p *TCPPeer) putBroadcastPacketIntoQueue(ctx context.Context, queue chan<- 
 	return nil
 }
 
-// putPacketIntoQueue puts the given message into the given queue if the peer has
-// done handshaking.
-func (p *TCPPeer) putPacketIntoQueue(queue chan<- []byte, msg []byte) error {
-	if !p.Handshaked() {
-		return errStateMismatch
-	}
-	select {
-	case queue <- msg:
-	case <-p.done:
-		return errGone
-	}
-	return nil
-}
-
 // BroadcastPacket implements the Peer interface.
 func (p *TCPPeer) BroadcastPacket(ctx context.Context, msg []byte) error {
-	return p.putBroadcastPacketIntoQueue(ctx, p.sendQ, msg)
+	return p.putPacketIntoQueue(ctx, p.sendQ, msg)
 }
 
 // BroadcastHPPacket implements the Peer interface. It the peer is not yet
 // handshaked it's a noop.
 func (p *TCPPeer) BroadcastHPPacket(ctx context.Context, msg []byte) error {
-	return p.putBroadcastPacketIntoQueue(ctx, p.hpSendQ, msg)
+	return p.putPacketIntoQueue(ctx, p.hpSendQ, msg)
 }
 
 // putMessageIntoQueue serializes the given Message and puts it into given queue if
@@ -129,18 +115,7 @@ func (p *TCPPeer) putMsgIntoQueue(queue chan<- []byte, msg *Message) error {
 	if err != nil {
 		return err
 	}
-	return p.putPacketIntoQueue(queue, b)
-}
-
-// EnqueueMessage is a temporary wrapper that sends a message via
-// EnqueuePacket if there is no error in serializing it.
-func (p *TCPPeer) EnqueueMessage(msg *Message) error {
-	return p.putMsgIntoQueue(p.sendQ, msg)
-}
-
-// EnqueueP2PPacket implements the Peer interface.
-func (p *TCPPeer) EnqueueP2PPacket(msg []byte) error {
-	return p.putPacketIntoQueue(p.p2pSendQ, msg)
+	return p.putPacketIntoQueue(context.Background(), queue, b)
 }
 
 // EnqueueP2PMessage implements the Peer interface.
@@ -148,10 +123,9 @@ func (p *TCPPeer) EnqueueP2PMessage(msg *Message) error {
 	return p.putMsgIntoQueue(p.p2pSendQ, msg)
 }
 
-// EnqueueHPPacket implements the Peer interface. It the peer is not yet
-// handshaked it's a noop.
-func (p *TCPPeer) EnqueueHPPacket(msg []byte) error {
-	return p.putPacketIntoQueue(p.hpSendQ, msg)
+// EnqueueHPMessage implements the Peer interface.
+func (p *TCPPeer) EnqueueHPMessage(msg *Message) error {
+	return p.putMsgIntoQueue(p.hpSendQ, msg)
 }
 
 func (p *TCPPeer) writeMsg(msg *Message) error {
@@ -454,12 +428,9 @@ func (p *TCPPeer) LastBlockIndex() uint32 {
 	return p.lastBlockIndex
 }
 
-// SendPing sends a ping message to the peer and does an appropriate accounting of
-// outstanding pings and timeouts.
-func (p *TCPPeer) SendPing(msg *Message) error {
-	if !p.Handshaked() {
-		return errStateMismatch
-	}
+// SetPingTimer adds an outgoing ping to the counter and sets a PingTimeout timer
+// that will shut the connection down in case of no response.
+func (p *TCPPeer) SetPingTimer() {
 	p.lock.Lock()
 	p.pingSent++
 	if p.pingTimer == nil {
@@ -468,7 +439,6 @@ func (p *TCPPeer) SendPing(msg *Message) error {
 		})
 	}
 	p.lock.Unlock()
-	return p.EnqueueMessage(msg)
 }
 
 // HandlePing handles a ping message received from the peer.

@@ -465,10 +465,7 @@ func (s *Server) runProto() {
 			return
 		case <-pingTimer.C:
 			if s.chain.BlockHeight() == prevHeight {
-				// Get a copy of s.peers to avoid holding a lock while sending.
-				for _, peer := range s.getPeers(nil) {
-					_ = peer.SendPing(NewMessage(CMDPing, payload.NewPing(s.chain.BlockHeight(), s.id)))
-				}
+				s.broadcastMessage(NewMessage(CMDPing, payload.NewPing(s.chain.BlockHeight(), s.id)))
 			}
 			pingTimer.Reset(s.PingInterval)
 		}
@@ -751,14 +748,10 @@ func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 	}
 	if len(reqHashes) > 0 {
 		msg := NewMessage(CMDGetData, payload.NewInventory(inv.Type, reqHashes))
-		pkt, err := msg.Bytes()
-		if err != nil {
-			return err
-		}
 		if inv.Type == payload.ExtensibleType {
-			return p.EnqueueHPPacket(pkt)
+			return p.EnqueueHPMessage(msg)
 		}
-		return p.EnqueueP2PPacket(pkt)
+		return p.EnqueueP2PMessage(msg)
 	}
 	return nil
 }
@@ -815,13 +808,11 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 			}
 		}
 		if msg != nil {
-			pkt, err := msg.Bytes()
-			if err == nil {
-				if inv.Type == payload.ExtensibleType {
-					err = p.EnqueueHPPacket(pkt)
-				} else {
-					err = p.EnqueueP2PPacket(pkt)
-				}
+			var err error
+			if inv.Type == payload.ExtensibleType {
+				err = p.EnqueueHPMessage(msg)
+			} else {
+				err = p.EnqueueP2PMessage(msg)
 			}
 			if err != nil {
 				return err
@@ -1371,6 +1362,9 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.C
 			if msg.Command == CMDGetAddr {
 				p.AddGetAddrSent()
 			}
+			if msg.Command == CMDPing {
+				p.SetPingTimer()
+			}
 			replies <- send(p, ctx, pkt)
 		}(peer, ctx, pkt)
 	}
@@ -1394,12 +1388,12 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.C
 
 // broadcastMessage sends the message to all available peers.
 func (s *Server) broadcastMessage(msg *Message) {
-	s.iteratePeersWithSendMsg(msg, Peer.BroadcastPacket, nil)
+	s.iteratePeersWithSendMsg(msg, Peer.BroadcastPacket, Peer.Handshaked)
 }
 
 // broadcastHPMessage sends the high-priority message to all available peers.
 func (s *Server) broadcastHPMessage(msg *Message) {
-	s.iteratePeersWithSendMsg(msg, Peer.BroadcastHPPacket, nil)
+	s.iteratePeersWithSendMsg(msg, Peer.BroadcastHPPacket, Peer.Handshaked)
 }
 
 // relayBlocksLoop subscribes to new blocks in the ledger and broadcasts them

@@ -71,7 +71,7 @@ type localPeer struct {
 	server         *Server
 	version        *payload.Version
 	lastBlockIndex uint32
-	handshaked     bool
+	handshaked     int32 // TODO: use atomic.Bool after #2626.
 	isFullNode     bool
 	t              *testing.T
 	messageHandler func(t *testing.T, msg *Message)
@@ -105,32 +105,23 @@ func (p *localPeer) Disconnect(err error) {
 	p.server.unregister <- peerDrop{p, err}
 }
 
-func (p *localPeer) EnqueueMessage(msg *Message) error {
-	b, err := msg.Bytes()
-	if err != nil {
-		return err
-	}
-	return p.EnqueueHPPacket(b)
-}
 func (p *localPeer) BroadcastPacket(_ context.Context, m []byte) error {
-	return p.EnqueueHPPacket(m)
-}
-func (p *localPeer) EnqueueP2PMessage(msg *Message) error {
-	return p.EnqueueMessage(msg)
-}
-func (p *localPeer) EnqueueP2PPacket(m []byte) error {
-	return p.EnqueueHPPacket(m)
-}
-func (p *localPeer) BroadcastHPPacket(_ context.Context, m []byte) error {
-	return p.EnqueueHPPacket(m)
-}
-func (p *localPeer) EnqueueHPPacket(m []byte) error {
 	msg := &Message{}
 	r := io.NewBinReaderFromBuf(m)
 	err := msg.Decode(r)
 	if err == nil {
 		p.messageHandler(p.t, msg)
 	}
+	return nil
+}
+func (p *localPeer) EnqueueP2PMessage(msg *Message) error {
+	return p.EnqueueHPMessage(msg)
+}
+func (p *localPeer) BroadcastHPPacket(ctx context.Context, m []byte) error {
+	return p.BroadcastPacket(ctx, m)
+}
+func (p *localPeer) EnqueueHPMessage(msg *Message) error {
+	p.messageHandler(p.t, msg)
 	return nil
 }
 func (p *localPeer) Version() *payload.Version {
@@ -148,21 +139,19 @@ func (p *localPeer) SendVersion() error {
 	if err != nil {
 		return err
 	}
-	_ = p.EnqueueMessage(m)
+	_ = p.EnqueueHPMessage(m)
 	return nil
 }
 func (p *localPeer) SendVersionAck(m *Message) error {
-	_ = p.EnqueueMessage(m)
+	_ = p.EnqueueHPMessage(m)
 	return nil
 }
 func (p *localPeer) HandleVersionAck() error {
-	p.handshaked = true
+	atomic.StoreInt32(&p.handshaked, 1)
 	return nil
 }
-func (p *localPeer) SendPing(m *Message) error {
+func (p *localPeer) SetPingTimer() {
 	p.pingSent++
-	_ = p.EnqueueMessage(m)
-	return nil
 }
 func (p *localPeer) HandlePing(ping *payload.Ping) error {
 	p.lastBlockIndex = ping.LastBlockIndex
@@ -176,7 +165,7 @@ func (p *localPeer) HandlePong(pong *payload.Ping) error {
 }
 
 func (p *localPeer) Handshaked() bool {
-	return p.handshaked
+	return atomic.LoadInt32(&p.handshaked) != 0
 }
 
 func (p *localPeer) IsFullNode() bool {

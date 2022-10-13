@@ -20,10 +20,6 @@ type Peer interface {
 	PeerAddr() net.Addr
 	Disconnect(error)
 
-	// EnqueueMessage is a blocking packet enqueuer similar to EnqueueP2PMessage,
-	// but using the lowest priority queue.
-	EnqueueMessage(*Message) error
-
 	// BroadcastPacket is a context-bound packet enqueuer, it either puts the
 	// given packet into the queue or exits with errors if the context expires
 	// or peer disconnects. It accepts a slice of bytes that
@@ -36,33 +32,25 @@ type Peer interface {
 	// queue.
 	BroadcastHPPacket(context.Context, []byte) error
 
-	// EnqueueP2PMessage is a temporary wrapper that sends a message via
-	// EnqueueP2PPacket if there is no error in serializing it.
+	// EnqueueP2PMessage is a blocking packet enqueuer, it doesn't return until
+	// it puts the given message into the queue. It returns an error if the peer
+	// has not yet completed handshaking. This queue is intended to be used for
+	// unicast peer to peer communication that is more important than broadcasts
+	// (handled by BroadcastPacket) but less important than high-priority
+	// messages (handled by EnqueueHPMessage).
 	EnqueueP2PMessage(*Message) error
 
-	// EnqueueP2PPacket is a blocking packet enqueuer, it doesn't return until
-	// it puts the given packet into the queue. It accepts a slice of bytes that
-	// can be shared with other queues (so that message marshalling can be
-	// done once for all peers). It returns an error if the peer has not yet
-	// completed handshaking. This queue is intended to be used for unicast
-	// peer to peer communication that is more important than broadcasts
-	// (handled by BroadcastPacket) but less important than high-priority
-	// messages (handled by EnqueueHPPacket and BroadcastHPPacket).
-	EnqueueP2PPacket([]byte) error
-
-	// EnqueueHPPacket is a blocking high priority packet enqueuer, it
-	// doesn't return until it puts the given packet into the high-priority
+	// EnqueueHPMessage is similar to EnqueueP2PMessage, but uses a high-priority
 	// queue.
-	EnqueueHPPacket([]byte) error
+	EnqueueHPMessage(*Message) error
 	Version() *payload.Version
 	LastBlockIndex() uint32
 	Handshaked() bool
 	IsFullNode() bool
 
-	// SendPing enqueues a ping message to be sent to the peer and does
-	// appropriate protocol handling like timeouts and outstanding pings
-	// management.
-	SendPing(*Message) error
+	// SetPingTimer adds an outgoing ping to the counter and sets a PingTimeout
+	// timer that will shut the connection down in case of no response.
+	SetPingTimer()
 	// SendVersion checks handshake status and sends a version message to
 	// the peer.
 	SendVersion() error
