@@ -72,7 +72,7 @@ ApplicationConfiguration:
   PingTimeout: 90
   MaxPeers: 100
   AttemptConnPeers: 20
-  MinPeers: 5
+  MinPeers: 10
   Oracle:
     Enabled: false
     AllowedContentTypes:
