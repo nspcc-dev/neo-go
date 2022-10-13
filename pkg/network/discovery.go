@@ -83,6 +83,11 @@ func newDefaultDiscovery(addrs []string, dt time.Duration, ts Transporter) Disco
 // the pool with the given addresses.
 func (d *DefaultDiscovery) BackFill(addrs ...string) {
 	d.lock.Lock()
+	d.backfill(addrs...)
+	d.lock.Unlock()
+}
+
+func (d *DefaultDiscovery) backfill(addrs ...string) {
 	for _, addr := range addrs {
 		if d.badAddrs[addr] || d.connectedAddrs[addr] ||
 			d.unconnectedAddrs[addr] > 0 {
@@ -92,7 +97,6 @@ func (d *DefaultDiscovery) BackFill(addrs ...string) {
 		d.pushToPoolOrDrop(addr)
 	}
 	d.updateNetSize()
-	d.lock.Unlock()
 }
 
 // PoolCount returns the number of the available node addresses.
@@ -187,7 +191,7 @@ func (d *DefaultDiscovery) RegisterGoodAddr(s string, c capability.Capabilities)
 func (d *DefaultDiscovery) UnregisterConnectedAddr(s string) {
 	d.lock.Lock()
 	delete(d.connectedAddrs, s)
-	d.updateNetSize()
+	d.backfill(s)
 	d.lock.Unlock()
 }
 

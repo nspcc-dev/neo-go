@@ -132,14 +132,13 @@ func TestDefaultDiscoverer(t *testing.T) {
 	for _, addr := range set1 {
 		d.UnregisterConnectedAddr(addr)
 	}
-	assert.Equal(t, 0, len(d.UnconnectedPeers()))
+	assert.Equal(t, 2, len(d.UnconnectedPeers())) // They're re-added automatically.
 	assert.Equal(t, 0, len(d.BadPeers()))
 	assert.Equal(t, len(set1), len(d.GoodPeers()))
-	require.Equal(t, 0, d.PoolCount())
+	require.Equal(t, 2, d.PoolCount())
 
 	// Now make Dial() fail and wait to see addresses in the bad list.
 	atomic.StoreInt32(&ts.retFalse, 1)
-	d.BackFill(set1...)
 	assert.Equal(t, len(set1), d.PoolCount())
 	set1D := d.UnconnectedPeers()
 	sort.Strings(set1D)

@@ -439,11 +439,9 @@ func (s *Server) run() {
 					s.lock.RUnlock()
 					if !stillConnected {
 						s.discovery.UnregisterConnectedAddr(addr)
-						s.discovery.BackFill(addr)
 					}
 				} else {
 					s.discovery.UnregisterConnectedAddr(addr)
-					s.discovery.BackFill(addr)
 				}
 				updatePeersConnectedMetric(s.PeerCount())
 			} else {
