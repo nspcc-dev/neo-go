@@ -19,6 +19,7 @@ const (
 type Discoverer interface {
 	BackFill(...string)
 	GetFanOut() int
+	NetworkSize() int
 	PoolCount() int
 	RequestRemote(int)
 	RegisterBadAddr(string)
@@ -48,6 +49,7 @@ type DefaultDiscovery struct {
 	unconnectedAddrs map[string]int
 	attempted        map[string]bool
 	optimalFanOut    int32
+	networkSize      int32
 	requestCh        chan int
 }
 
@@ -233,6 +235,11 @@ func (d *DefaultDiscovery) GetFanOut() int {
 	return int(atomic.LoadInt32(&d.optimalFanOut))
 }
 
+// NetworkSize returns the estimated network size.
+func (d *DefaultDiscovery) NetworkSize() int {
+	return int(atomic.LoadInt32(&d.networkSize))
+}
+
 // updateNetSize updates network size estimation metric. Must be called under read lock.
 func (d *DefaultDiscovery) updateNetSize() {
 	var netsize = len(d.connectedAddrs) + len(d.unconnectedAddrs) + 1 // 1 for the node itself.
@@ -242,6 +249,7 @@ func (d *DefaultDiscovery) updateNetSize() {
 	}
 
 	atomic.StoreInt32(&d.optimalFanOut, int32(fanOut+0.5)) // Truncating conversion, hence +0.5.
+	atomic.StoreInt32(&d.networkSize, int32(netsize))
 	updateNetworkSizeMetric(netsize)
 	updatePoolCountMetric(d.poolCount())
 }

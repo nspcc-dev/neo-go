@@ -42,6 +42,11 @@ func (d *testDiscovery) RegisterBadAddr(addr string) {
 func (d *testDiscovery) GetFanOut() int {
 	d.Lock()
 	defer d.Unlock()
+	return (len(d.connected) + len(d.backfill)) * 2 / 3
+}
+func (d *testDiscovery) NetworkSize() int {
+	d.Lock()
+	defer d.Unlock()
 	return len(d.connected) + len(d.backfill)
 }
 func (d *testDiscovery) RegisterGoodAddr(string, capability.Capabilities) {}

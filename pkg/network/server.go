@@ -387,10 +387,28 @@ func (s *Server) ConnectedPeers() []string {
 // while itself dealing with peers management (handling connects/disconnects).
 func (s *Server) run() {
 	go s.runProto()
-	for {
-		if s.PeerCount() < s.MinPeers {
+	for loopCnt := 0; ; loopCnt++ {
+		var (
+			netSize = s.discovery.NetworkSize()
+			// "Optimal" number of peers.
+			optimalN = s.discovery.GetFanOut() * 2
+			// Real number of peers.
+			peerN = s.PeerCount()
+		)
+
+		if peerN < s.MinPeers {
+			// Starting up or going below the minimum -> quickly get many new peers.
 			s.discovery.RequestRemote(s.AttemptConnPeers)
+		} else if s.MinPeers > 0 && loopCnt%s.MinPeers == 0 && optimalN > peerN && optimalN < s.MaxPeers && optimalN < netSize {
+			// Having some number of peers, but probably can get some more, the network is big.
+			// It also allows to start picking up new peers proactively, before we suddenly have <s.MinPeers of them.
+			var connN = s.AttemptConnPeers
+			if connN > optimalN-peerN {
+				connN = optimalN - peerN
+			}
+			s.discovery.RequestRemote(connN)
 		}
+
 		if s.discovery.PoolCount() < minPoolCount {
 			s.broadcastHPMessage(NewMessage(CMDGetAddr, payload.NewNullPayload()))
 		}
