@@ -6,9 +6,11 @@ import (
 
 // ApplicationConfiguration config specific to the node.
 type ApplicationConfiguration struct {
-	Address           string                   `yaml:"Address"`
-	AnnouncedNodePort uint16                   `yaml:"AnnouncedPort"`
-	AttemptConnPeers  int                      `yaml:"AttemptConnPeers"`
+	Address           string `yaml:"Address"`
+	AnnouncedNodePort uint16 `yaml:"AnnouncedPort"`
+	AttemptConnPeers  int    `yaml:"AttemptConnPeers"`
+	// BroadcastFactor is the factor (0-100) controlling gossip fan-out number optimization.
+	BroadcastFactor   int                      `yaml:"BroadcastFactor"`
 	DBConfiguration   dbconfig.DBConfiguration `yaml:"DBConfiguration"`
 	DialTimeout       int64                    `yaml:"DialTimeout"`
 	LogPath           string                   `yaml:"LogPath"`
@@ -36,6 +38,7 @@ func (a *ApplicationConfiguration) EqualsButServices(o *ApplicationConfiguration
 	if a.Address != o.Address ||
 		a.AnnouncedNodePort != o.AnnouncedNodePort ||
 		a.AttemptConnPeers != o.AttemptConnPeers ||
+		a.BroadcastFactor != o.BroadcastFactor ||
 		a.DBConfiguration != o.DBConfiguration ||
 		a.DialTimeout != o.DialTimeout ||
 		a.ExtensiblePoolSize != o.ExtensiblePoolSize ||

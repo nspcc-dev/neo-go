@@ -35,6 +35,7 @@ const (
 	defaultAttemptConnPeers   = 20
 	defaultMaxPeers           = 100
 	defaultExtensiblePoolSize = 20
+	defaultBroadcastFactor    = 0
 	maxBlockBatch             = 200
 	minPoolCount              = 30
 )
@@ -220,6 +221,13 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 			zap.Int("configured", s.AttemptConnPeers),
 			zap.Int("actual", defaultAttemptConnPeers))
 		s.AttemptConnPeers = defaultAttemptConnPeers
+	}
+
+	if s.BroadcastFactor < 0 || s.BroadcastFactor > 100 {
+		s.log.Info("bad BroadcastFactor configured, using the default value",
+			zap.Int("configured", s.BroadcastFactor),
+			zap.Int("actual", defaultBroadcastFactor))
+		s.BroadcastFactor = defaultBroadcastFactor
 	}
 
 	s.transport = newTransport(s)
@@ -1366,6 +1374,7 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.C
 		replies     = make(chan error, peerN) // Cache is there just to make goroutines exit faster.
 		ctx, cancel = context.WithTimeout(context.Background(), s.TimePerBlock/2)
 	)
+	enoughN = (enoughN*(100-s.BroadcastFactor) + peerN*s.BroadcastFactor) / 100
 	for _, peer := range peers {
 		go func(p Peer, ctx context.Context, pkt []byte) {
 			// Do this before packet is sent, reader thread can get the reply before this routine wakes up.

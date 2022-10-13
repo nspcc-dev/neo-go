@@ -19,6 +19,7 @@ node-related settings described in the table below.
 | Address | `string` | `0.0.0.0` | Node address that P2P protocol handler binds to. |
 | AnnouncedPort | `uint16` | Same as `NodePort` | Node port which should be used to announce node's port on P2P layer, it can differ from the `NodePort` the node is bound to (for example, if your node is behind NAT). |
 | AttemptConnPeers | `int` | `20` | Number of connection to try to establish when the connection count drops below the `MinPeers` value.|
+| BroadcastFactor | `int` | `0` | Multiplier that is used to determine the number of optimal gossip fan-out peer number for broadcasted messages (0-100). By default it's zero, node uses the most optimized value depending on the estimated network size (`2.5×log(size)`), so the node may have 20 peers and calculate that it needs to broadcast messages to just 10 of them. With BroadcastFactor set to 100 it will always send messages to all peers, any value in-between 0 and 100 is used for weighted calculation, for example if it's 30 then 13 neighbors will be used in the previous case. |
 | DBConfiguration | [DB Configuration](#DB-Configuration) |  | Describes configuration for database. See the [DB Configuration](#DB-Configuration) section for details. |
 | DialTimeout | `int64` | `0` | Maximum duration a single dial may take in seconds. |
 | ExtensiblePoolSize | `int` | `20` | Maximum amount of the extensible payloads from a single sender stored in a local pool. |
