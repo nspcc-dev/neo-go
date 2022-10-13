@@ -5,20 +5,25 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	gio "io"
+	"math/big"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/chzyer/readline"
+	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/internal/basicchain"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -277,27 +282,79 @@ func (e *executor) checkSlot(t *testing.T, items ...interface{}) {
 
 func TestLoad(t *testing.T) {
 	script := []byte{byte(opcode.PUSH3), byte(opcode.PUSH4), byte(opcode.ADD)}
+
+	ownerAddress := "NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB"
+	ownerAcc, err := address.StringToUint160(ownerAddress)
+	require.NoError(t, err)
+	sideAcc := util.Uint160{1, 2, 3}
+	buff := io.NewBufBinWriter()
+	emit.Bytes(buff.BinWriter, ownerAcc.BytesBE())
+	emit.Syscall(buff.BinWriter, interopnames.SystemRuntimeCheckWitness)
+	checkWitnessScript := buff.Bytes()
+
 	t.Run("loadhex", func(t *testing.T) {
 		e := newTestVMCLI(t)
 		e.runProg(t,
 			"loadhex",
 			"loadhex notahex",
-			"loadhex "+hex.EncodeToString(script))
+			"loadhex "+hex.EncodeToString(script),
+			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+ownerAddress, // owner:DefaultScope => true
+			"run",
+			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+ownerAddress+":None", // owner:None => false
+			"run",
+			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+ownerAcc.StringLE(), // ownerLE:DefaultScope => true
+			"run",
+			"loadhex "+hex.EncodeToString(checkWitnessScript)+" 0x"+ownerAcc.StringLE(), // owner0xLE:DefaultScope => true
+			"run",
+			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+sideAcc.StringLE(), // sideLE:DefaultScope => false
+			"run",
+		)
 
 		e.checkError(t, ErrMissingParameter)
 		e.checkError(t, ErrInvalidParameter)
 		e.checkNextLine(t, "READY: loaded 3 instructions")
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, true)
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, false)
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, true)
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, true)
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, false)
 	})
 	t.Run("loadbase64", func(t *testing.T) {
 		e := newTestVMCLI(t)
 		e.runProg(t,
 			"loadbase64",
 			"loadbase64 not_a_base64",
-			"loadbase64 "+base64.StdEncoding.EncodeToString(script))
+			"loadbase64 "+base64.StdEncoding.EncodeToString(script),
+			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+ownerAddress, // owner:DefaultScope => true
+			"run",
+			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+ownerAddress+":None", // owner:None => false
+			"run",
+			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+ownerAcc.StringLE(), // ownerLE:DefaultScope => true
+			"run",
+			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" 0x"+ownerAcc.StringLE(), // owner0xLE:DefaultScope => true
+			"run",
+			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+sideAcc.StringLE(), // sideLE:DefaultScope => false
+			"run",
+		)
 
 		e.checkError(t, ErrMissingParameter)
 		e.checkError(t, ErrInvalidParameter)
 		e.checkNextLine(t, "READY: loaded 3 instructions")
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, true)
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, false)
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, true)
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, true)
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, false)
 	})
 
 	src := `package kek
@@ -339,14 +396,7 @@ go 1.17`)
 	checkLoadgo(t, "simple", "vmtestcontract.go", "vmtestcontract_err.go")
 	checkLoadgo(t, "utf-8 with spaces", "тестовый контракт.go", "тестовый контракт с ошибкой.go")
 
-	t.Run("loadgo, check calling flags", func(t *testing.T) {
-		srcAllowNotify := `package kek
-		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"		
-		func Main() int {
-			runtime.Log("Hello, world!")
-			return 1
-		}
-`
+	prepareLoadgoSrc := func(t *testing.T, srcAllowNotify string) string {
 		filename := filepath.Join(tmpDir, "vmtestcontract.go")
 		require.NoError(t, os.WriteFile(filename, []byte(srcAllowNotify), os.ModePerm))
 		filename = "'" + filename + "'"
@@ -359,6 +409,17 @@ require (
 replace github.com/nspcc-dev/neo-go/pkg/interop => ` + filepath.Join(wd, "../../pkg/interop") + `
 go 1.17`)
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
+		return filename
+	}
+	t.Run("loadgo, check calling flags", func(t *testing.T) {
+		srcAllowNotify := `package kek
+		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		func Main() int {
+			runtime.Log("Hello, world!")
+			return 1
+		}
+`
+		filename := prepareLoadgoSrc(t, srcAllowNotify)
 
 		e := newTestVMCLI(t)
 		e.runProg(t,
@@ -366,6 +427,41 @@ go 1.17`)
 			"run main")
 		e.checkNextLine(t, "READY: loaded \\d* instructions")
 		e.checkStack(t, 1)
+	})
+	t.Run("loadgo, check signers", func(t *testing.T) {
+		srcCheckWitness := `package kek
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+			"github.com/nspcc-dev/neo-go/pkg/interop/util"
+		)
+		func Main() bool {
+			var owner = util.FromAddress("` + ownerAddress + `")
+			return runtime.CheckWitness(owner)
+		}
+`
+		filename := prepareLoadgoSrc(t, srcCheckWitness)
+		e := newTestVMCLI(t)
+		e.runProg(t,
+			"loadgo "+filename+" "+ownerAddress, // owner:DefaultScope => true
+			"run main",
+			"loadgo "+filename+" "+ownerAddress+":None", // owner:None => false
+			"run main",
+			"loadgo "+filename+" "+ownerAcc.StringLE(), // ownerLE:DefaultScope => true
+			"run main",
+			"loadgo "+filename+" 0x"+ownerAcc.StringLE(), // owner0xLE:DefaultScope => true
+			"run main",
+			"loadgo "+filename+" "+sideAcc.StringLE(), // sideLE:DefaultScope => false
+			"run main")
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, true)
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, false)
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, true)
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, true)
+		e.checkNextLine(t, "READY: loaded \\d+ instructions")
+		e.checkStack(t, false)
 	})
 	t.Run("loadnef", func(t *testing.T) {
 		config.Version = "0.92.0-test"
@@ -425,6 +521,9 @@ func TestRunWithDifferentArguments(t *testing.T) {
 	}
 	func GetString(arg string) string {
 		return arg
+	}
+	func GetArr(arg []interface{}) []interface{}{
+		return arg
 	}`
 
 	tmpDir := t.TempDir()
@@ -446,6 +545,7 @@ func TestRunWithDifferentArguments(t *testing.T) {
 		"run _ 1 2",
 		"loadbase64 "+base64.StdEncoding.EncodeToString([]byte{byte(opcode.MUL)}),
 		"run _ 21 2",
+		"loadgo "+filename, "run getArr [ 1 2 3 ]",
 	)
 
 	e.checkNextLine(t, "READY: loaded \\d.* instructions")
@@ -477,6 +577,13 @@ func TestRunWithDifferentArguments(t *testing.T) {
 
 	e.checkNextLine(t, "READY: loaded \\d.* instructions")
 	e.checkStack(t, 42)
+
+	e.checkNextLine(t, "READY: loaded \\d.* instructions")
+	e.checkStack(t, []stackitem.Item{
+		stackitem.NewBigInteger(big.NewInt(1)),
+		stackitem.NewBigInteger(big.NewInt(2)),
+		stackitem.NewBigInteger(big.NewInt(3)),
+	})
 }
 
 func TestPrintOps(t *testing.T) {
@@ -985,4 +1092,110 @@ func TestDumpChanges(t *testing.T) {
 	e.checkChange(t, expected[0])
 	e.checkChange(t, expected[1])
 	e.checkChange(t, expected[2])
+}
+
+func TestLoadtx(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	b, err := e.cli.chain.GetBlock(e.cli.chain.GetHeaderHash(2)) // Block #2 contains transaction that puts (1,1) pair to storage contract.
+	require.NoError(t, err)
+	require.Equal(t, 1, len(b.Transactions))
+	tx := b.Transactions[0]
+
+	tmp := filepath.Join(t.TempDir(), "tx.json")
+	require.NoError(t, paramcontext.InitAndSave(netmode.UnitTestNet, tx, nil, tmp))
+
+	e.runProg(t,
+		"loadtx "+tx.Hash().StringLE(), // hash LE
+		"run",
+		"loadtx 0x"+tx.Hash().StringLE(), //  hash LE with 0x prefix
+		"run",
+		"loadtx '"+tmp+"'", // Tx from parameter context file.
+		"run",
+		"loadtx", // missing argument
+		"exit",
+	)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, 1)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, 1)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, 1)
+	e.checkError(t, errors.New("missing argument: <file-or-hash>"))
+}
+
+func TestLoaddeployed(t *testing.T) {
+	e := newTestVMClIWithState(t)
+
+	h, err := e.cli.chain.GetContractScriptHash(1) // examples/storage/storage.go
+	require.NoError(t, err)
+	ownerAddress := "NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB" // owner of examples/runtime/runtime.go (taken from deployed contract with ID=2)
+	ownerAcc, err := address.StringToUint160(ownerAddress)
+	require.NoError(t, err)
+	sideAcc := util.Uint160{1, 2, 3}
+
+	e.runProg(t,
+		"loaddeployed "+h.StringLE(), // hash LE
+		"run get 1",
+		"loaddeployed 0x"+h.StringLE(), //  hash LE with 0x prefix
+		"run get 1",
+		"loaddeployed 1", // contract ID
+		"run get 1",
+		"loaddeployed --historic 2 1", // historic state, check that hash is properly set
+		"run get 1",
+		// Check signers parsing:
+		"loaddeployed 2 "+ownerAddress, // check witness (owner:DefautScope => true)
+		"run checkWitness",
+		"loaddeployed 2 "+ownerAddress+":None", // check witness (owner:None => false)
+		"run checkWitness",
+		"loaddeployed 2 "+ownerAddress+":CalledByEntry", // check witness (owner:CalledByEntry => true)
+		"run checkWitness",
+		"loaddeployed 2 "+ownerAcc.StringLE()+":CalledByEntry", // check witness (ownerLE:CalledByEntry => true)
+		"run checkWitness",
+		"loaddeployed 2 0x"+ownerAcc.StringLE()+":CalledByEntry", // check witness (owner0xLE:CalledByEntry => true)
+		"run checkWitness",
+		"loaddeployed 2 "+sideAcc.StringLE()+":Global", // check witness (sideLE:Global => false)
+		"run checkWitness",
+		"loaddeployed", // missing argument
+		"exit",
+	)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, []byte{2})
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, []byte{2})
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, []byte{2})
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkStack(t, []byte{1})
+	// Check signers parsing:
+	e.checkNextLine(t, "READY: loaded \\d+ instructions") // check witness of owner:DefaultScope
+	e.checkStack(t, true)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions") // check witness of owner:None
+	e.checkStack(t, false)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions") // check witness of owner:CalledByEntry
+	e.checkStack(t, true)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions") // check witness of ownerLE:CalledByEntry
+	e.checkStack(t, true)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions") // check witness of owner0xLE:CalledByEntry
+	e.checkStack(t, true)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions") // check witness of owner0xLE:CalledByEntry
+	e.checkStack(t, false)
+	e.checkError(t, errors.New("contract hash, address or ID is mandatory argument"))
+}
+
+func TestJump(t *testing.T) {
+	buf := io.NewBufBinWriter()
+	emit.Opcodes(buf.BinWriter, opcode.PUSH1, opcode.PUSH2, opcode.ABORT) // some garbage
+	jmpTo := buf.Len()
+	emit.Opcodes(buf.BinWriter, opcode.PUSH4, opcode.PUSH5, opcode.ADD) // useful script
+	e := newTestVMCLI(t)
+	e.runProg(t,
+		"loadhex "+hex.EncodeToString(buf.Bytes()),
+		"jump "+strconv.Itoa(jmpTo),
+		"run",
+	)
+
+	e.checkNextLine(t, "READY: loaded 6 instructions")
+	e.checkNextLine(t, fmt.Sprintf("jumped to instruction %d", jmpTo))
+	e.checkStack(t, 9)
 }

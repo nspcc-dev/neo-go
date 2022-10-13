@@ -62,6 +62,8 @@ func NewParameterContext(typ string, network netmode.Magic, verif crypto.Verifia
 	}
 }
 
+// GetCompleteTransaction clears transaction witnesses (if any) and refills them with
+// signatures from the parameter context.
 func (c *ParameterContext) GetCompleteTransaction() (*transaction.Transaction, error) {
 	tx, ok := c.Verifiable.(*transaction.Transaction)
 	if !ok {

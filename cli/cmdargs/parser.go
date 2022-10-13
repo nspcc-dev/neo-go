@@ -24,19 +24,144 @@ const (
 	ArrayEndSeparator = "]"
 )
 
+const (
+	// ParamsParsingDoc is a documentation for parameters parsing.
+	ParamsParsingDoc = `   Arguments always do have regular Neo smart contract parameter types, either
+   specified explicitly or being inferred from the value. To specify the type
+   manually use "type:value" syntax where the type is one of the following:
+   'signature', 'bool', 'int', 'hash160', 'hash256', 'bytes', 'key' or 'string'.
+   Array types are also supported: use special space-separated '[' and ']'
+   symbols around array values to denote array bounds. Nested arrays are also
+   supported. Null parameter is supported via 'nil' keyword without additional
+   type specification.
+
+   There is ability to provide an argument of 'bytearray' type via file. Use a
+   special 'filebytes' argument type for this with a filepath specified after
+   the colon, e.g. 'filebytes:my_file.txt'.
+
+   Given values are type-checked against given types with the following
+   restrictions applied:
+    * 'signature' type values should be hex-encoded and have a (decoded)
+      length of 64 bytes.
+    * 'bool' type values are 'true' and 'false'.
+    * 'int' values are decimal integers that can be successfully converted
+      from the string.
+    * 'hash160' values are Neo addresses and hex-encoded 20-bytes long (after
+      decoding) strings.
+    * 'hash256' type values should be hex-encoded and have a (decoded)
+      length of 32 bytes.
+    * 'bytes' type values are any hex-encoded things.
+    * 'filebytes' type values are filenames with the argument value inside.
+    * 'key' type values are hex-encoded marshalled public keys.
+    * 'string' type values are any valid UTF-8 strings. In the value's part of
+      the string the colon looses it's special meaning as a separator between
+      type and value and is taken literally.
+
+   If no type is explicitly specified, it is inferred from the value using the
+   following logic:
+    - anything that can be interpreted as a decimal integer gets
+      an 'int' type
+    - 'nil' string gets 'Any' NEP-14 parameter type and nil value which corresponds
+      to Null stackitem
+    - 'true' and 'false' strings get 'bool' type
+    - valid Neo addresses and 20 bytes long hex-encoded strings get 'hash160'
+      type
+    - valid hex-encoded public keys get 'key' type
+    - 32 bytes long hex-encoded values get 'hash256' type
+    - 64 bytes long hex-encoded values get 'signature' type
+    - any other valid hex-encoded values get 'bytes' type
+    - anything else is a 'string'
+
+   Backslash character is used as an escape character and allows to use colon in
+   an implicitly typed string. For any other characters it has no special
+   meaning, to get a literal backslash in the string use the '\\' sequence.
+
+   Examples:
+    * 'int:42' is an integer with a value of 42
+    * '42' is an integer with a value of 42
+    * 'nil' is a parameter with Any NEP-14 type and nil value (corresponds to Null stackitem)
+    * 'bad' is a string with a value of 'bad'
+    * 'dead' is a byte array with a value of 'dead'
+    * 'string:dead' is a string with a value of 'dead'
+    * 'filebytes:my_data.txt' is bytes decoded from a content of my_data.txt
+    * 'AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y' is a hash160 with a value
+      of '23ba2703c53263e8d6e522dc32203339dcd8eee9'
+    * '\4\2' is an integer with a value of 42
+    * '\\4\2' is a string with a value of '\42'
+    * 'string:string' is a string with a value of 'string'
+    * 'string\:string' is a string with a value of 'string:string'
+    * '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c' is a
+      key with a value of '03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c'
+    * '[ a b c ]' is an array with strings values 'a', 'b' and 'c'
+    * '[ a b [ c d ] e ]' is an array with 4 values: string 'a', string 'b',
+      array of two strings 'c' and 'd', string 'e'
+    * '[ ]' is an empty array`
+
+	// SignersParsingDoc is a documentation for signers parsing.
+	SignersParsingDoc = `   Signers represent a set of Uint160 hashes with witness scopes and are used
+   to verify hashes in System.Runtime.CheckWitness syscall. First signer is treated
+   as a sender. To specify signers use signer[:scope] syntax where
+    * 'signer' is a signer's address (as Neo address or hex-encoded 160 bit (20 byte)
+               LE value with or without '0x' prefix).
+    * 'scope' is a comma-separated set of cosigner's scopes, which could be:
+        - 'None' - default witness scope which may be used for the sender
+			       to only pay fee for the transaction.
+        - 'Global' - allows this witness in all contexts. This cannot be combined
+                     with other flags.
+        - 'CalledByEntry' - means that this condition must hold: EntryScriptHash
+                            == CallingScriptHash. The witness/permission/signature
+                            given on first invocation will automatically expire if
+                            entering deeper internal invokes. This can be default
+                            safe choice for native NEO/GAS.
+        - 'CustomContracts' - define valid custom contract hashes for witness check.
+                              Hashes are be provided as hex-encoded LE value string.
+                              At lest one hash must be provided. Multiple hashes
+                              are separated by ':'.
+        - 'CustomGroups' - define custom public keys for group members. Public keys are
+                           provided as short-form (1-byte prefix + 32 bytes) hex-encoded
+                           values. At least one key must be provided. Multiple keys
+                           are separated by ':'.
+
+   If no scopes were specified, 'CalledByEntry' used as default. If no signers were
+   specified, no array is passed. Note that scopes are properly handled by
+   neo-go RPC server only. C# implementation does not support scopes capability.
+
+   Examples:
+    * 'NNQk4QXsxvsrr3GSozoWBUxEmfag7B6hz5'
+    * 'NVquyZHoPirw6zAEPvY1ZezxM493zMWQqs:Global'
+    * '0x0000000009070e030d0f0e020d0c06050e030c02'
+    * '0000000009070e030d0f0e020d0c06050e030c02:CalledByEntry,` +
+		`CustomGroups:0206d7495ceb34c197093b5fc1cccf1996ada05e69ef67e765462a7f5d88ee14d0'
+    * '0000000009070e030d0f0e020d0c06050e030c02:CalledByEntry,` +
+		`CustomContracts:1011120009070e030d0f0e020d0c06050e030c02:0x1211100009070e030d0f0e020d0c06050e030c02'`
+)
+
 // GetSignersFromContext returns signers parsed from context args starting
 // from the specified offset.
 func GetSignersFromContext(ctx *cli.Context, offset int) ([]transaction.Signer, *cli.ExitError) {
 	args := ctx.Args()
-	var signers []transaction.Signer
+	var (
+		signers []transaction.Signer
+		err     error
+	)
 	if args.Present() && len(args) > offset {
-		for i, c := range args[offset:] {
-			cosigner, err := parseCosigner(c)
-			if err != nil {
-				return nil, cli.NewExitError(fmt.Errorf("failed to parse signer #%d: %w", i, err), 1)
-			}
-			signers = append(signers, cosigner)
+		signers, err = ParseSigners(args[offset:])
+		if err != nil {
+			return nil, cli.NewExitError(err, 1)
 		}
+	}
+	return signers, nil
+}
+
+// ParseSigners returns array of signers parsed from their string representation.
+func ParseSigners(args []string) ([]transaction.Signer, error) {
+	var signers []transaction.Signer
+	for i, c := range args {
+		cosigner, err := parseCosigner(c)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse signer #%d: %w", i, err)
+		}
+		signers = append(signers, cosigner)
 	}
 	return signers, nil
 }

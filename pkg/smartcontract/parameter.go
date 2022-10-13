@@ -403,3 +403,12 @@ func ExpandParameterToEmitable(param Parameter) (interface{}, error) {
 		return param.Value, nil
 	}
 }
+
+// ToStackItem converts smartcontract parameter to stackitem.Item.
+func (p *Parameter) ToStackItem() (stackitem.Item, error) {
+	e, err := ExpandParameterToEmitable(*p)
+	if err != nil {
+		return nil, err
+	}
+	return stackitem.Make(e), nil
+}
