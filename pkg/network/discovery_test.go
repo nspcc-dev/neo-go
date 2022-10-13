@@ -157,7 +157,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 			}
 		}
 	}
-	require.Equal(t, 0, d.PoolCount())
+	require.Eventually(t, func() bool { return d.PoolCount() == 0 }, 2*time.Second, 50*time.Millisecond)
 	sort.Strings(dialledBad)
 	for i := 0; i < len(set1); i++ {
 		for j := 0; j < connRetries; j++ {
@@ -174,10 +174,6 @@ func TestDefaultDiscoverer(t *testing.T) {
 	assert.Equal(t, len(set1), len(d.BadPeers()))
 	assert.Equal(t, 0, len(d.GoodPeers()))
 	require.Equal(t, 0, d.PoolCount())
-
-	// Close should work and subsequent RequestRemote is a no-op.
-	d.Close()
-	d.RequestRemote(42)
 }
 
 func TestSeedDiscovery(t *testing.T) {

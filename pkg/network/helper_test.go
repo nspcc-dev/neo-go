@@ -33,7 +33,6 @@ func (d *testDiscovery) BackFill(addrs ...string) {
 	defer d.Unlock()
 	d.backfill = append(d.backfill, addrs...)
 }
-func (d *testDiscovery) Close()         {}
 func (d *testDiscovery) PoolCount() int { return 0 }
 func (d *testDiscovery) RegisterBadAddr(addr string) {
 	d.Lock()
@@ -204,6 +203,5 @@ func newTestServerWithCustomCfg(t *testing.T, serverConfig ServerConfig, protoco
 	s, err := newServerFromConstructors(serverConfig, fakechain.NewFakeChainWithCustomCfg(protocolCfg), new(fakechain.FakeStateSync), zaptest.NewLogger(t),
 		newFakeTransp, newTestDiscovery)
 	require.NoError(t, err)
-	t.Cleanup(s.discovery.Close)
 	return s
 }
