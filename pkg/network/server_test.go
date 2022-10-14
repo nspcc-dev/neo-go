@@ -461,6 +461,7 @@ func TestTransaction(t *testing.T) {
 	cons := new(fakeConsensus)
 	s.AddConsensusService(cons, cons.OnPayload, cons.OnTransaction)
 	startWithCleanup(t, s)
+	s.RequestTx(util.Uint256{1})
 
 	t.Run("good", func(t *testing.T) {
 		tx := newDummyTx()

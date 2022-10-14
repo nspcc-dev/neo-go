@@ -108,7 +108,7 @@ type (
 		services       map[string]Service
 		extensHandlers map[string]func(*payload.Extensible) error
 		txCallback     func(*transaction.Transaction)
-		txCbHeight     atomic.Uint32
+		txCbEnabled    atomic.Bool
 
 		txInLock sync.Mutex
 		txInMap  map[util.Uint256]struct{}
@@ -1045,7 +1045,7 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	s.serviceLock.RLock()
 	txCallback := s.txCallback
 	s.serviceLock.RUnlock()
-	if txCallback != nil && s.chain.BlockHeight() <= s.txCbHeight.Load() {
+	if txCallback != nil && s.txCbEnabled.Load() {
 		txCallback(tx)
 	}
 	if s.verifyAndPoolTX(tx) == nil {
@@ -1345,7 +1345,7 @@ func (s *Server) RequestTx(hashes ...util.Uint256) {
 		return
 	}
 
-	s.txCbHeight.Store(s.chain.BlockHeight())
+	s.txCbEnabled.Store(true)
 
 	for i := 0; i <= len(hashes)/payload.MaxHashesCount; i++ {
 		start := i * payload.MaxHashesCount
@@ -1361,6 +1361,11 @@ func (s *Server) RequestTx(hashes ...util.Uint256) {
 		// even though it's getdata.
 		s.broadcastHPMessage(msg)
 	}
+}
+
+// StopTxFlow makes the server not call previously specified consensus transaction callback.
+func (s *Server) StopTxFlow() {
+	s.txCbEnabled.Store(false)
 }
 
 // iteratePeersWithSendMsg sends the given message to all peers using two functions

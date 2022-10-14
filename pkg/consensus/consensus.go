@@ -119,6 +119,9 @@ type Config struct {
 	// RequestTx is a callback to which will be called
 	// when a node lacks transactions present in the block.
 	RequestTx func(h ...util.Uint256)
+	// StopTxFlow is a callback that is called after the consensus
+	// process stops accepting incoming transactions.
+	StopTxFlow func()
 	// TimePerBlock is minimal time that should pass before the next block is accepted.
 	TimePerBlock time.Duration
 	// Wallet is a local-node wallet configuration.
@@ -173,6 +176,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithSecondsPerBlock(cfg.TimePerBlock),
 		dbft.WithGetKeyPair(srv.getKeyPair),
 		dbft.WithRequestTx(cfg.RequestTx),
+		dbft.WithStopTxFlow(cfg.StopTxFlow),
 		dbft.WithGetTx(srv.getTx),
 		dbft.WithGetVerified(srv.getVerifiedTx),
 		dbft.WithBroadcast(srv.broadcast),
