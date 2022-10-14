@@ -107,6 +107,7 @@ type (
 		services       map[string]Service
 		extensHandlers map[string]func(*payload.Extensible) error
 		txCallback     func(*transaction.Transaction)
+		txCbHeight     atomic.Uint32
 
 		txInLock sync.Mutex
 		txInMap  map[util.Uint256]struct{}
@@ -1021,7 +1022,7 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	s.serviceLock.RLock()
 	txCallback := s.txCallback
 	s.serviceLock.RUnlock()
-	if txCallback != nil {
+	if txCallback != nil && s.chain.BlockHeight() <= s.txCbHeight.Load() {
 		txCallback(tx)
 	}
 	if s.verifyAndPoolTX(tx) == nil {
@@ -1320,6 +1321,8 @@ func (s *Server) RequestTx(hashes ...util.Uint256) {
 	if len(hashes) == 0 {
 		return
 	}
+
+	s.txCbHeight.Store(s.chain.BlockHeight())
 
 	for i := 0; i <= len(hashes)/payload.MaxHashesCount; i++ {
 		start := i * payload.MaxHashesCount
