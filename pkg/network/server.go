@@ -670,7 +670,6 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 		return errInvalidNetwork
 	}
 	peerAddr := p.PeerAddr().String()
-	s.discovery.RegisterConnectedAddr(peerAddr)
 	s.lock.RLock()
 	for peer := range s.peers {
 		if p == peer {
@@ -684,6 +683,7 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 		}
 	}
 	s.lock.RUnlock()
+	s.discovery.RegisterConnectedAddr(peerAddr)
 	return p.SendVersionAck(NewMessage(CMDVerack, payload.NewNullPayload()))
 }
 
