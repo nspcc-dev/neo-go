@@ -1,14 +1,16 @@
 package network
 
 import (
+	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 )
 
 const (
-	maxPoolSize = 200
+	maxPoolSize = 10000
 	connRetries = 3
 )
 
@@ -16,7 +18,8 @@ const (
 // a healthy connection pool.
 type Discoverer interface {
 	BackFill(...string)
-	Close()
+	GetFanOut() int
+	NetworkSize() int
 	PoolCount() int
 	RequestRemote(int)
 	RegisterBadAddr(string)
@@ -39,17 +42,15 @@ type DefaultDiscovery struct {
 	seeds            []string
 	transport        Transporter
 	lock             sync.RWMutex
-	closeMtx         sync.RWMutex
 	dialTimeout      time.Duration
 	badAddrs         map[string]bool
 	connectedAddrs   map[string]bool
 	goodAddrs        map[string]capability.Capabilities
 	unconnectedAddrs map[string]int
 	attempted        map[string]bool
-	isDead           bool
+	optimalFanOut    int32
+	networkSize      int32
 	requestCh        chan int
-	pool             chan string
-	runExit          chan struct{}
 }
 
 // NewDefaultDiscovery returns a new DefaultDiscovery.
@@ -64,10 +65,7 @@ func NewDefaultDiscovery(addrs []string, dt time.Duration, ts Transporter) *Defa
 		unconnectedAddrs: make(map[string]int),
 		attempted:        make(map[string]bool),
 		requestCh:        make(chan int),
-		pool:             make(chan string, maxPoolSize),
-		runExit:          make(chan struct{}),
 	}
-	go d.run()
 	return d
 }
 
@@ -79,54 +77,92 @@ func newDefaultDiscovery(addrs []string, dt time.Duration, ts Transporter) Disco
 // the pool with the given addresses.
 func (d *DefaultDiscovery) BackFill(addrs ...string) {
 	d.lock.Lock()
+	d.backfill(addrs...)
+	d.lock.Unlock()
+}
+
+func (d *DefaultDiscovery) backfill(addrs ...string) {
 	for _, addr := range addrs {
 		if d.badAddrs[addr] || d.connectedAddrs[addr] ||
 			d.unconnectedAddrs[addr] > 0 {
 			continue
 		}
-		d.unconnectedAddrs[addr] = connRetries
 		d.pushToPoolOrDrop(addr)
 	}
-	d.lock.Unlock()
+	d.updateNetSize()
 }
 
 // PoolCount returns the number of the available node addresses.
 func (d *DefaultDiscovery) PoolCount() int {
-	return len(d.pool)
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+	return d.poolCount()
+}
+
+func (d *DefaultDiscovery) poolCount() int {
+	return len(d.unconnectedAddrs)
 }
 
 // pushToPoolOrDrop tries to push the address given into the pool, but if the pool
 // is already full, it just drops it.
 func (d *DefaultDiscovery) pushToPoolOrDrop(addr string) {
-	select {
-	case d.pool <- addr:
-		updatePoolCountMetric(d.PoolCount())
-		// ok, queued
-	default:
-		// whatever
+	if len(d.unconnectedAddrs) < maxPoolSize {
+		d.unconnectedAddrs[addr] = connRetries
 	}
 }
 
 // RequestRemote tries to establish a connection with n nodes.
-func (d *DefaultDiscovery) RequestRemote(n int) {
-	d.closeMtx.RLock()
-	if !d.isDead {
-		d.requestCh <- n
+func (d *DefaultDiscovery) RequestRemote(requested int) {
+	for ; requested > 0; requested-- {
+		var nextAddr string
+		d.lock.Lock()
+		for addr := range d.unconnectedAddrs {
+			if !d.connectedAddrs[addr] && !d.attempted[addr] {
+				nextAddr = addr
+				break
+			}
+		}
+
+		if nextAddr == "" {
+			// Empty pool, try seeds.
+			for _, addr := range d.seeds {
+				if !d.connectedAddrs[addr] && !d.attempted[addr] {
+					nextAddr = addr
+					break
+				}
+			}
+		}
+		if nextAddr == "" {
+			d.lock.Unlock()
+			// The pool is empty, but all seed nodes are already connected (or attempted),
+			// we can end up in an infinite loop here, so drop the request.
+			break
+		}
+		d.attempted[nextAddr] = true
+		d.lock.Unlock()
+		go d.tryAddress(nextAddr)
 	}
-	d.closeMtx.RUnlock()
 }
 
 // RegisterBadAddr registers the given address as a bad address.
 func (d *DefaultDiscovery) RegisterBadAddr(addr string) {
+	var isSeed bool
 	d.lock.Lock()
-	d.unconnectedAddrs[addr]--
-	if d.unconnectedAddrs[addr] > 0 {
-		d.pushToPoolOrDrop(addr)
-	} else {
-		d.badAddrs[addr] = true
-		delete(d.unconnectedAddrs, addr)
-		delete(d.goodAddrs, addr)
+	for _, seed := range d.seeds {
+		if addr == seed {
+			isSeed = true
+			break
+		}
 	}
+	if !isSeed {
+		d.unconnectedAddrs[addr]--
+		if d.unconnectedAddrs[addr] <= 0 {
+			d.badAddrs[addr] = true
+			delete(d.unconnectedAddrs, addr)
+			delete(d.goodAddrs, addr)
+		}
+	}
+	d.updateNetSize()
 	d.lock.Unlock()
 }
 
@@ -181,6 +217,7 @@ func (d *DefaultDiscovery) RegisterGoodAddr(s string, c capability.Capabilities)
 func (d *DefaultDiscovery) UnregisterConnectedAddr(s string) {
 	d.lock.Lock()
 	delete(d.connectedAddrs, s)
+	d.backfill(s)
 	d.lock.Unlock()
 }
 
@@ -189,7 +226,32 @@ func (d *DefaultDiscovery) RegisterConnectedAddr(addr string) {
 	d.lock.Lock()
 	delete(d.unconnectedAddrs, addr)
 	d.connectedAddrs[addr] = true
+	d.updateNetSize()
 	d.lock.Unlock()
+}
+
+// GetFanOut returns the optimal number of nodes to broadcast packets to.
+func (d *DefaultDiscovery) GetFanOut() int {
+	return int(atomic.LoadInt32(&d.optimalFanOut))
+}
+
+// NetworkSize returns the estimated network size.
+func (d *DefaultDiscovery) NetworkSize() int {
+	return int(atomic.LoadInt32(&d.networkSize))
+}
+
+// updateNetSize updates network size estimation metric. Must be called under read lock.
+func (d *DefaultDiscovery) updateNetSize() {
+	var netsize = len(d.connectedAddrs) + len(d.unconnectedAddrs) + 1 // 1 for the node itself.
+	var fanOut = 2.5 * math.Log(float64(netsize-1))                   // -1 for the number of potential peers.
+	if netsize == 2 {                                                 // log(1) == 0.
+		fanOut = 1 // But we still want to push messages to the peer.
+	}
+
+	atomic.StoreInt32(&d.optimalFanOut, int32(fanOut+0.5)) // Truncating conversion, hence +0.5.
+	atomic.StoreInt32(&d.networkSize, int32(netsize))
+	updateNetworkSizeMetric(netsize)
+	updatePoolCountMetric(d.poolCount())
 }
 
 func (d *DefaultDiscovery) tryAddress(addr string) {
@@ -201,77 +263,4 @@ func (d *DefaultDiscovery) tryAddress(addr string) {
 		d.RegisterBadAddr(addr)
 		d.RequestRemote(1)
 	}
-}
-
-// Close stops discoverer pool processing, which makes the discoverer almost useless.
-func (d *DefaultDiscovery) Close() {
-	d.closeMtx.Lock()
-	d.isDead = true
-	d.closeMtx.Unlock()
-	select {
-	case <-d.requestCh: // Drain the channel if there is anything there.
-	default:
-	}
-	close(d.requestCh)
-	<-d.runExit
-}
-
-// run is a goroutine that makes DefaultDiscovery process its queue to connect
-// to other nodes.
-func (d *DefaultDiscovery) run() {
-	var requested, oldRequest, r int
-	var ok bool
-
-	for {
-		if requested == 0 {
-			requested, ok = <-d.requestCh
-		}
-		oldRequest = requested
-		for ok && requested > 0 {
-			select {
-			case r, ok = <-d.requestCh:
-				if requested <= r {
-					requested = r
-				}
-			case addr := <-d.pool:
-				updatePoolCountMetric(d.PoolCount())
-				d.lock.Lock()
-				if !d.connectedAddrs[addr] && !d.attempted[addr] {
-					d.attempted[addr] = true
-					go d.tryAddress(addr)
-					requested--
-				}
-				d.lock.Unlock()
-			default: // Empty pool
-				var added int
-				d.lock.Lock()
-				for _, addr := range d.seeds {
-					if !d.connectedAddrs[addr] {
-						delete(d.badAddrs, addr)
-						d.unconnectedAddrs[addr] = connRetries
-						d.pushToPoolOrDrop(addr)
-						added++
-					}
-				}
-				d.lock.Unlock()
-				// The pool is empty, but all seed nodes are already connected,
-				// we can end up in an infinite loop here, so drop the request.
-				if added == 0 {
-					requested = 0
-				}
-			}
-		}
-		if !ok {
-			break
-		}
-		// Special case, no connections after all attempts.
-		d.lock.RLock()
-		connected := len(d.connectedAddrs)
-		d.lock.RUnlock()
-		if connected == 0 {
-			time.Sleep(d.dialTimeout)
-			requested = oldRequest
-		}
-	}
-	close(d.runExit)
 }

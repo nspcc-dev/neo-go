@@ -33,12 +33,21 @@ func (d *testDiscovery) BackFill(addrs ...string) {
 	defer d.Unlock()
 	d.backfill = append(d.backfill, addrs...)
 }
-func (d *testDiscovery) Close()         {}
 func (d *testDiscovery) PoolCount() int { return 0 }
 func (d *testDiscovery) RegisterBadAddr(addr string) {
 	d.Lock()
 	defer d.Unlock()
 	d.bad = append(d.bad, addr)
+}
+func (d *testDiscovery) GetFanOut() int {
+	d.Lock()
+	defer d.Unlock()
+	return (len(d.connected) + len(d.backfill)) * 2 / 3
+}
+func (d *testDiscovery) NetworkSize() int {
+	d.Lock()
+	defer d.Unlock()
+	return len(d.connected) + len(d.backfill)
 }
 func (d *testDiscovery) RegisterGoodAddr(string, capability.Capabilities) {}
 func (d *testDiscovery) RegisterConnectedAddr(addr string) {
@@ -188,6 +197,5 @@ func newTestServerWithCustomCfg(t *testing.T, serverConfig ServerConfig, protoco
 	s, err := newServerFromConstructors(serverConfig, fakechain.NewFakeChainWithCustomCfg(protocolCfg), new(fakechain.FakeStateSync), zaptest.NewLogger(t),
 		newFakeTransp, newTestDiscovery)
 	require.NoError(t, err)
-	t.Cleanup(s.discovery.Close)
 	return s
 }

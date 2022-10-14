@@ -78,6 +78,9 @@ type (
 
 		// ExtensiblePoolSize is the size of the pool for extensible payloads from a single sender.
 		ExtensiblePoolSize int
+
+		// BroadcastFactor is the factor (0-100) for fan-out optimization.
+		BroadcastFactor int
 	}
 )
 
@@ -107,5 +110,6 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		P2PNotaryCfg:       appConfig.P2PNotary,
 		StateRootCfg:       appConfig.StateRoot,
 		ExtensiblePoolSize: appConfig.ExtensiblePoolSize,
+		BroadcastFactor:    appConfig.BroadcastFactor,
 	}
 }

@@ -35,6 +35,7 @@ const (
 	defaultAttemptConnPeers   = 20
 	defaultMaxPeers           = 100
 	defaultExtensiblePoolSize = 20
+	defaultBroadcastFactor    = 0
 	maxBlockBatch             = 200
 	minPoolCount              = 30
 )
@@ -222,6 +223,13 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		s.AttemptConnPeers = defaultAttemptConnPeers
 	}
 
+	if s.BroadcastFactor < 0 || s.BroadcastFactor > 100 {
+		s.log.Info("bad BroadcastFactor configured, using the default value",
+			zap.Int("configured", s.BroadcastFactor),
+			zap.Int("actual", defaultBroadcastFactor))
+		s.BroadcastFactor = defaultBroadcastFactor
+	}
+
 	s.transport = newTransport(s)
 	s.discovery = newDiscovery(
 		s.Seeds,
@@ -261,7 +269,6 @@ func (s *Server) Start(errChan chan error) {
 func (s *Server) Shutdown() {
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	s.transport.Close()
-	s.discovery.Close()
 	for _, p := range s.getPeers(nil) {
 		p.Disconnect(errServerShutdown)
 	}
@@ -380,10 +387,28 @@ func (s *Server) ConnectedPeers() []string {
 // while itself dealing with peers management (handling connects/disconnects).
 func (s *Server) run() {
 	go s.runProto()
-	for {
-		if s.PeerCount() < s.MinPeers {
+	for loopCnt := 0; ; loopCnt++ {
+		var (
+			netSize = s.discovery.NetworkSize()
+			// "Optimal" number of peers.
+			optimalN = s.discovery.GetFanOut() * 2
+			// Real number of peers.
+			peerN = s.PeerCount()
+		)
+
+		if peerN < s.MinPeers {
+			// Starting up or going below the minimum -> quickly get many new peers.
 			s.discovery.RequestRemote(s.AttemptConnPeers)
+		} else if s.MinPeers > 0 && loopCnt%s.MinPeers == 0 && optimalN > peerN && optimalN < s.MaxPeers && optimalN < netSize {
+			// Having some number of peers, but probably can get some more, the network is big.
+			// It also allows to start picking up new peers proactively, before we suddenly have <s.MinPeers of them.
+			var connN = s.AttemptConnPeers
+			if connN > optimalN-peerN {
+				connN = optimalN - peerN
+			}
+			s.discovery.RequestRemote(connN)
 		}
+
 		if s.discovery.PoolCount() < minPoolCount {
 			s.broadcastHPMessage(NewMessage(CMDGetAddr, payload.NewNullPayload()))
 		}
@@ -439,11 +464,9 @@ func (s *Server) run() {
 					s.lock.RUnlock()
 					if !stillConnected {
 						s.discovery.UnregisterConnectedAddr(addr)
-						s.discovery.BackFill(addr)
 					}
 				} else {
 					s.discovery.UnregisterConnectedAddr(addr)
-					s.discovery.BackFill(addr)
 				}
 				updatePeersConnectedMetric(s.PeerCount())
 			} else {
@@ -644,7 +667,6 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 		return errInvalidNetwork
 	}
 	peerAddr := p.PeerAddr().String()
-	s.discovery.RegisterConnectedAddr(peerAddr)
 	s.lock.RLock()
 	for peer := range s.peers {
 		if p == peer {
@@ -658,6 +680,7 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 		}
 	}
 	s.lock.RUnlock()
+	s.discovery.RegisterConnectedAddr(peerAddr)
 	return p.SendVersionAck(NewMessage(CMDVerack, payload.NewNullPayload()))
 }
 
@@ -1354,8 +1377,13 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.C
 		return
 	}
 
-	var replies = make(chan error, peerN) // Cache is there just to make goroutines exit faster.
-	var ctx, cancel = context.WithTimeout(context.Background(), s.TimePerBlock/2)
+	var (
+		// Optimal number of recipients.
+		enoughN     = s.discovery.GetFanOut()
+		replies     = make(chan error, peerN) // Cache is there just to make goroutines exit faster.
+		ctx, cancel = context.WithTimeout(context.Background(), s.TimePerBlock/2)
+	)
+	enoughN = (enoughN*(100-s.BroadcastFactor) + peerN*s.BroadcastFactor) / 100
 	for _, peer := range peers {
 		go func(p Peer, ctx context.Context, pkt []byte) {
 			// Do this before packet is sent, reader thread can get the reply before this routine wakes up.
@@ -1377,8 +1405,7 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.C
 		if sentN+deadN == peerN {
 			break
 		}
-		// Send to 2/3 of good peers.
-		if 3*sentN >= 2*(peerN-deadN) && ctx.Err() == nil {
+		if sentN >= enoughN && ctx.Err() == nil {
 			cancel()
 		}
 	}

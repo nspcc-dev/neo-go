@@ -74,6 +74,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 		assert.Equal(t, 0, len(d.BadPeers()))
 		require.Equal(t, set1, set1D)
 	}
+	require.Equal(t, 2, d.GetFanOut())
 
 	// Request should make goroutines dial our addresses draining the pool.
 	d.RequestRemote(len(set1))
@@ -131,14 +132,13 @@ func TestDefaultDiscoverer(t *testing.T) {
 	for _, addr := range set1 {
 		d.UnregisterConnectedAddr(addr)
 	}
-	assert.Equal(t, 0, len(d.UnconnectedPeers()))
+	assert.Equal(t, 2, len(d.UnconnectedPeers())) // They're re-added automatically.
 	assert.Equal(t, 0, len(d.BadPeers()))
 	assert.Equal(t, len(set1), len(d.GoodPeers()))
-	require.Equal(t, 0, d.PoolCount())
+	require.Equal(t, 2, d.PoolCount())
 
 	// Now make Dial() fail and wait to see addresses in the bad list.
 	atomic.StoreInt32(&ts.retFalse, 1)
-	d.BackFill(set1...)
 	assert.Equal(t, len(set1), d.PoolCount())
 	set1D := d.UnconnectedPeers()
 	sort.Strings(set1D)
@@ -157,7 +157,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 			}
 		}
 	}
-	require.Equal(t, 0, d.PoolCount())
+	require.Eventually(t, func() bool { return d.PoolCount() == 0 }, 2*time.Second, 50*time.Millisecond)
 	sort.Strings(dialledBad)
 	for i := 0; i < len(set1); i++ {
 		for j := 0; j < connRetries; j++ {
@@ -174,10 +174,6 @@ func TestDefaultDiscoverer(t *testing.T) {
 	assert.Equal(t, len(set1), len(d.BadPeers()))
 	assert.Equal(t, 0, len(d.GoodPeers()))
 	require.Equal(t, 0, d.PoolCount())
-
-	// Close should work and subsequent RequestRemote is a no-op.
-	d.Close()
-	d.RequestRemote(42)
 }
 
 func TestSeedDiscovery(t *testing.T) {
