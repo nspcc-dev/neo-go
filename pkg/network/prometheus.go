@@ -1,6 +1,9 @@
 package network
 
 import (
+	"strings"
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -46,6 +49,7 @@ var (
 			Namespace: "neogo",
 		},
 	)
+	p2pCmds = make(map[CommandType]prometheus.Histogram)
 )
 
 func init() {
@@ -56,6 +60,21 @@ func init() {
 		poolCount,
 		blockQueueLength,
 	)
+	for _, cmd := range []CommandType{CMDVersion, CMDVerack, CMDGetAddr,
+		CMDAddr, CMDPing, CMDPong, CMDGetHeaders, CMDHeaders, CMDGetBlocks,
+		CMDMempool, CMDInv, CMDGetData, CMDGetBlockByIndex, CMDNotFound,
+		CMDTX, CMDBlock, CMDExtensible, CMDP2PNotaryRequest, CMDGetMPTData,
+		CMDMPTData, CMDReject, CMDFilterLoad, CMDFilterAdd, CMDFilterClear,
+		CMDMerkleBlock, CMDAlert} {
+		p2pCmds[cmd] = prometheus.NewHistogram(
+			prometheus.HistogramOpts{
+				Help:      "P2P " + cmd.String() + " handling time",
+				Name:      "p2p_" + strings.ToLower(cmd.String()) + "_time",
+				Namespace: "neogo",
+			},
+		)
+		prometheus.MustRegister(p2pCmds[cmd])
+	}
 }
 
 func updateNetworkSizeMetric(sz int) {
@@ -76,4 +95,11 @@ func updatePeersConnectedMetric(pConnected int) {
 func setServerAndNodeVersions(nodeVer string, serverID string) {
 	servAndNodeVersion.WithLabelValues("Node version: ", nodeVer).Add(0)
 	servAndNodeVersion.WithLabelValues("Server id: ", serverID).Add(0)
+}
+func addCmdTimeMetric(cmd CommandType, t time.Duration) {
+	// Shouldn't happen, message decoder checks the type, but better safe than sorry.
+	if p2pCmds[cmd] == nil {
+		return
+	}
+	p2pCmds[cmd].Observe(t.Seconds())
 }
