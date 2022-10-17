@@ -155,3 +155,14 @@ func (s *SignerWithWitness) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+
+// EventID implements EventContainer interface and returns notification ID.
+func (n *Notification) EventID() EventID {
+	return n.Event
+}
+
+// EventPayload implements EventContainer interface and returns notification
+// object.
+func (n *Notification) EventPayload() interface{} {
+	return n.Payload[0]
+}

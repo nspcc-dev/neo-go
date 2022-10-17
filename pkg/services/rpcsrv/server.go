@@ -40,6 +40,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/rpcevent"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
@@ -2593,7 +2594,7 @@ chloop:
 				continue
 			}
 			for i := range sub.feeds {
-				if sub.feeds[i].Matches(&resp) {
+				if rpcevent.Matches(sub.feeds[i], &resp) {
 					if msg == nil {
 						b, err = json.Marshal(resp)
 						if err != nil {
