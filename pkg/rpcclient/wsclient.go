@@ -52,8 +52,8 @@ type WSClient struct {
 }
 
 // Notification represents a server-generated notification for client subscriptions.
-// Value can be one of block.Block, state.AppExecResult, state.ContainedNotificationEvent
-// transaction.Transaction or subscriptions.NotaryRequestEvent based on Type.
+// Value can be one of *block.Block, *state.AppExecResult, *state.ContainedNotificationEvent
+// *transaction.Transaction or *subscriptions.NotaryRequestEvent based on Type.
 type Notification struct {
 	Type  neorpc.EventID
 	Value interface{}
@@ -205,7 +205,7 @@ readloop:
 					break readloop
 				}
 			}
-			c.Notifications <- Notification{event, val}
+			c.Notifications <- Notification{Type: event, Value: val}
 		} else if rr.ID != nil && (rr.Error != nil || rr.Result != nil) {
 			id, err := strconv.ParseUint(string(rr.ID), 10, 64)
 			if err != nil {
