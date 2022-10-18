@@ -10,7 +10,7 @@ receive them as JSON-RPC notifications from the server.
 Currently supported events:
  * new block added
 
-   Contents: block. Filters: primary ID.
+   Contents: block. Filters: primary ID, since block index.
  * new transaction in the block
 
    Contents: transaction. Filters: sender and signer.
@@ -57,7 +57,8 @@ omitted if empty).
 Recognized stream names:
  * `block_added`
    Filter: `primary` as an integer with primary (speaker) node index from
-   ConsensusData.
+   ConsensusData and/or `since` as an integer with block index starting from
+   which new block notifications will be received.
  * `transaction_added`
    Filter: `sender` field containing a string with hex-encoded Uint160 (LE
    representation) for transaction's `Sender` and/or `signer` in the same

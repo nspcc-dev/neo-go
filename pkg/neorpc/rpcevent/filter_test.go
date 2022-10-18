@@ -39,7 +39,10 @@ func (c testContainer) EventPayload() interface{} {
 }
 
 func TestMatches(t *testing.T) {
-	primary := byte(1)
+	primary := 1
+	badPrimary := 2
+	index := uint32(5)
+	badHigherIndex := uint32(6)
 	sender := util.Uint160{1, 2, 3}
 	signer := util.Uint160{4, 5, 6}
 	contract := util.Uint160{7, 8, 9}
@@ -49,7 +52,7 @@ func TestMatches(t *testing.T) {
 	bContainer := testContainer{
 		id: neorpc.BlockEventID,
 		pld: &block.Block{
-			Header: block.Header{PrimaryIndex: primary},
+			Header: block.Header{PrimaryIndex: byte(primary), Index: index},
 		},
 	}
 	st := vmstate.Halt
@@ -106,7 +109,16 @@ func TestMatches(t *testing.T) {
 			name: "block, primary mismatch",
 			comparator: testComparator{
 				id:     neorpc.BlockEventID,
-				filter: neorpc.BlockFilter{Primary: int(primary + 1)},
+				filter: neorpc.BlockFilter{Primary: &badPrimary},
+			},
+			container: bContainer,
+			expected:  false,
+		},
+		{
+			name: "block, since mismatch",
+			comparator: testComparator{
+				id:     neorpc.BlockEventID,
+				filter: neorpc.BlockFilter{Since: &badHigherIndex},
 			},
 			container: bContainer,
 			expected:  false,
@@ -115,7 +127,7 @@ func TestMatches(t *testing.T) {
 			name: "block, filter match",
 			comparator: testComparator{
 				id:     neorpc.BlockEventID,
-				filter: neorpc.BlockFilter{Primary: int(primary)},
+				filter: neorpc.BlockFilter{Primary: &primary, Since: &index},
 			},
 			container: bContainer,
 			expected:  true,

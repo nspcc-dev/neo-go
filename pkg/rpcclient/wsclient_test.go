@@ -35,10 +35,10 @@ func TestWSClientSubscription(t *testing.T) {
 	ch := make(chan Notification)
 	var cases = map[string]func(*WSClient) (string, error){
 		"blocks": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForNewBlocks(nil)
+			return wsc.SubscribeForNewBlocks(nil, nil)
 		},
 		"blocks_with_custom_ch": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForNewBlocksWithChan(nil, ch)
+			return wsc.SubscribeForNewBlocksWithChan(nil, nil, ch)
 		},
 		"transactions": func(wsc *WSClient) (string, error) {
 			return wsc.SubscribeForNewTransactions(nil, nil)
@@ -283,17 +283,49 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		clientCode func(*testing.T, *WSClient)
 		serverCode func(*testing.T, *params.Params)
 	}{
-		{"blocks",
+		{"blocks primary",
 			func(t *testing.T, wsc *WSClient) {
 				primary := 3
-				_, err := wsc.SubscribeForNewBlocks(&primary)
+				_, err := wsc.SubscribeForNewBlocks(&primary, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
 				filt := new(neorpc.BlockFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
-				require.Equal(t, 3, filt.Primary)
+				require.Equal(t, 3, *filt.Primary)
+				require.Equal(t, (*uint32)(nil), filt.Since)
+			},
+		},
+		{"blocks since",
+			func(t *testing.T, wsc *WSClient) {
+				var since uint32 = 3
+				_, err := wsc.SubscribeForNewBlocks(nil, &since)
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.BlockFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Equal(t, (*int)(nil), filt.Primary)
+				require.Equal(t, uint32(3), *filt.Since)
+			},
+		},
+		{"blocks primary and since",
+			func(t *testing.T, wsc *WSClient) {
+				var (
+					since   uint32 = 3
+					primary        = 2
+				)
+				_, err := wsc.SubscribeForNewBlocks(&primary, &since)
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.BlockFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Equal(t, 2, *filt.Primary)
+				require.Equal(t, uint32(3), *filt.Since)
 			},
 		},
 		{"transactions sender",

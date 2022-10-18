@@ -71,10 +71,12 @@ type (
 		Payload []interface{} `json:"params"`
 	}
 
-	// BlockFilter is a wrapper structure for the block event filter. The only
-	// allowed filter is primary index.
+	// BlockFilter is a wrapper structure for the block event filter. It allows
+	// to filter blocks by primary index and by block index (allowing blocks since
+	// the specified index).
 	BlockFilter struct {
-		Primary int `json:"primary"`
+		Primary *int    `json:"primary,omitempty"`
+		Since   *uint32 `json:"since,omitempty"`
 	}
 	// TxFilter is a wrapper structure for the transaction event filter. It
 	// allows to filter transactions by senders and signers.
