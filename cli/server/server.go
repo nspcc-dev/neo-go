@@ -332,6 +332,7 @@ func mkConsensus(config config.Wallet, tpb time.Duration, chain *core.Blockchain
 		Chain:                 chain,
 		ProtocolConfiguration: chain.GetConfig(),
 		RequestTx:             serv.RequestTx,
+		StopTxFlow:            serv.StopTxFlow,
 		Wallet:                &config,
 		TimePerBlock:          tpb,
 	})

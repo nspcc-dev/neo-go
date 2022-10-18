@@ -156,6 +156,7 @@ func NewTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 		Chain:                 chain,
 		ProtocolConfiguration: chain.GetConfig(),
 		RequestTx:             netSrv.RequestTx,
+		StopTxFlow:            netSrv.StopTxFlow,
 		Wallet:                &cfg.ApplicationConfiguration.UnlockWallet,
 		TimePerBlock:          serverConfig.TimePerBlock,
 	})
