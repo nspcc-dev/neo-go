@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -138,7 +137,9 @@ func (a *Actor) waitWithWSWaiter(c RPCEventWaiter, h util.Uint256, vub uint32) (
 		}
 		close(rcvr)
 	}()
-	blocksID, err := c.SubscribeForNewBlocksWithChan(nil, nil, rcvr)
+	// Execution event follows the block event, thus wait until the block next to the VUB to be sure.
+	since := vub + 1
+	blocksID, err := c.SubscribeForNewBlocksWithChan(nil, &since, rcvr)
 	if err != nil {
 		wsWaitErr = fmt.Errorf("failed to subscribe for new blocks: %w", err)
 		return
@@ -178,12 +179,8 @@ func (a *Actor) waitWithWSWaiter(c RPCEventWaiter, h util.Uint256, vub uint32) (
 		case ntf := <-rcvr:
 			switch ntf.Type {
 			case neorpc.BlockEventID:
-				block := ntf.Value.(*block.Block)
-				// Execution event follows the block event, thus wait until the block next to the VUB to be sure.
-				if block.Index > vub {
-					waitErr = ErrTxNotAccepted
-					return
-				}
+				waitErr = ErrTxNotAccepted
+				return
 			case neorpc.ExecutionEventID:
 				aer := ntf.Value.(*state.AppExecResult)
 				if aer.Container.Equals(h) {
