@@ -111,7 +111,7 @@ type (
 		txCallback     func(*transaction.Transaction)
 		txCbEnabled    atomic.Bool
 
-		txInLock sync.Mutex
+		txInLock sync.RWMutex
 		txin     chan *transaction.Transaction
 		txInMap  map[util.Uint256]struct{}
 
@@ -760,7 +760,12 @@ func (s *Server) handlePong(p Peer, pong *payload.Ping) error {
 func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
 	var reqHashes = inv.Hashes[:0]
 	var typExists = map[payload.InventoryType]func(util.Uint256) bool{
-		payload.TXType:    s.mempool.ContainsKey,
+		payload.TXType: func(h util.Uint256) bool {
+			s.txInLock.RLock()
+			_, ok := s.txInMap[h]
+			s.txInLock.RUnlock()
+			return ok || s.mempool.ContainsKey(h)
+		},
 		payload.BlockType: s.chain.HasBlock,
 		payload.ExtensibleType: func(h util.Uint256) bool {
 			cp := s.extensiblePool.Get(h)
