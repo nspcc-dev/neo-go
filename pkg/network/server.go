@@ -751,7 +751,7 @@ func (s *Server) handlePong(p Peer, pong *payload.Ping) error {
 
 // handleInvCmd processes the received inventory.
 func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
-	reqHashes := make([]util.Uint256, 0)
+	var reqHashes = inv.Hashes[:0]
 	var typExists = map[payload.InventoryType]func(util.Uint256) bool{
 		payload.TXType:    s.mempool.ContainsKey,
 		payload.BlockType: s.chain.HasBlock,
