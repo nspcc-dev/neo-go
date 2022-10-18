@@ -1198,6 +1198,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 		zap.Stringer("addr", peer.RemoteAddr()),
 		zap.String("type", msg.Command.String()))
 
+	start := time.Now()
+	defer func() { addCmdTimeMetric(msg.Command, time.Since(start)) }()
+
 	if peer.Handshaked() {
 		if inv, ok := msg.Payload.(*payload.Inventory); ok {
 			if !inv.Type.Valid(s.chain.P2PSigExtensionsEnabled()) || len(inv.Hashes) == 0 {
