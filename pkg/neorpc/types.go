@@ -95,7 +95,8 @@ type (
 	// events. It allows to choose failing or successful transactions based
 	// on their VM state.
 	ExecutionFilter struct {
-		State string `json:"state"`
+		State     *string       `json:"state,omitempty"`
+		Container *util.Uint256 `json:"container,omitempty"`
 	}
 	// SignerWithWitness represents transaction's signer with the corresponding witness.
 	SignerWithWitness struct {

@@ -47,6 +47,8 @@ func TestMatches(t *testing.T) {
 	signer := util.Uint160{4, 5, 6}
 	contract := util.Uint160{7, 8, 9}
 	badUint160 := util.Uint160{9, 9, 9}
+	cnt := util.Uint256{1, 2, 3}
+	badUint256 := util.Uint256{9, 9, 9}
 	name := "ntf name"
 	badName := "bad name"
 	bContainer := testContainer{
@@ -56,6 +58,7 @@ func TestMatches(t *testing.T) {
 		},
 	}
 	st := vmstate.Halt
+	goodState := st.String()
 	badState := "FAULT"
 	txContainer := testContainer{
 		id:  neorpc.TransactionEventID,
@@ -67,7 +70,7 @@ func TestMatches(t *testing.T) {
 	}
 	exContainer := testContainer{
 		id:  neorpc.ExecutionEventID,
-		pld: &state.AppExecResult{Execution: state.Execution{VMState: st}},
+		pld: &state.AppExecResult{Container: cnt, Execution: state.Execution{VMState: st}},
 	}
 	ntrContainer := testContainer{
 		id: neorpc.NotaryRequestEventID,
@@ -208,7 +211,16 @@ func TestMatches(t *testing.T) {
 			name: "execution, state mismatch",
 			comparator: testComparator{
 				id:     neorpc.ExecutionEventID,
-				filter: neorpc.ExecutionFilter{State: badState},
+				filter: neorpc.ExecutionFilter{State: &badState},
+			},
+			container: exContainer,
+			expected:  false,
+		},
+		{
+			name: "execution, container mismatch",
+			comparator: testComparator{
+				id:     neorpc.ExecutionEventID,
+				filter: neorpc.ExecutionFilter{Container: &badUint256},
 			},
 			container: exContainer,
 			expected:  false,
@@ -217,7 +229,7 @@ func TestMatches(t *testing.T) {
 			name: "execution, filter mismatch",
 			comparator: testComparator{
 				id:     neorpc.ExecutionEventID,
-				filter: neorpc.ExecutionFilter{State: st.String()},
+				filter: neorpc.ExecutionFilter{State: &goodState, Container: &cnt},
 			},
 			container: exContainer,
 			expected:  true,

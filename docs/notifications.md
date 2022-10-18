@@ -19,7 +19,7 @@ Currently supported events:
    Contents: container hash, contract hash, notification name, stack item. Filters: contract hash, notification name.
  * transaction executed
 
-   Contents: application execution result. Filters: VM state.
+   Contents: application execution result. Filters: VM state, script container hash.
  * new/removed P2P notary request (if `P2PSigExtensions` are enabled)
 
    Contents: P2P notary request. Filters: request sender and main tx signer.
@@ -69,7 +69,8 @@ Recognized stream names:
    notification name.
  * `transaction_executed`
    Filter: `state` field containing `HALT` or `FAULT` string for successful
-   and failed executions respectively.
+   and failed executions respectively and/or `container` field containing
+   script container hash.
  * `notary_request_event`
    Filter: `sender` field containing a string with hex-encoded Uint160 (LE
    representation) for notary request's `Sender` and/or `signer` in the same

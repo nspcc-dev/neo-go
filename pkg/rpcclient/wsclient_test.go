@@ -53,10 +53,10 @@ func TestWSClientSubscription(t *testing.T) {
 			return wsc.SubscribeForExecutionNotificationsWithChan(nil, nil, ch)
 		},
 		"executions": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForTransactionExecutions(nil)
+			return wsc.SubscribeForTransactionExecutions(nil, nil)
 		},
 		"executions_with_custom_ch": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForTransactionExecutionsWithChan(nil, ch)
+			return wsc.SubscribeForTransactionExecutionsWithChan(nil, nil, ch)
 		},
 	}
 	t.Run("good", func(t *testing.T) {
@@ -206,6 +206,8 @@ func TestWSClientEvents(t *testing.T) {
 		ch1 := make(chan Notification)
 		ch2 := make(chan Notification)
 		ch3 := make(chan Notification)
+		halt := "HALT"
+		fault := "FAULT"
 		wsc.subscriptionsLock.Lock()
 		wsc.subscriptions["0"] = notificationReceiver{typ: neorpc.BlockEventID, ch: wsc.Notifications}
 		wsc.subscriptions["1"] = notificationReceiver{typ: neorpc.ExecutionEventID, ch: wsc.Notifications}
@@ -213,8 +215,8 @@ func TestWSClientEvents(t *testing.T) {
 		wsc.subscriptions["3"] = notificationReceiver{typ: neorpc.BlockEventID, ch: ch1}
 		wsc.subscriptions["4"] = notificationReceiver{typ: neorpc.NotificationEventID, ch: ch2}
 		wsc.subscriptions["5"] = notificationReceiver{typ: neorpc.NotificationEventID, ch: ch2} // check duplicating subscriptions
-		wsc.subscriptions["6"] = notificationReceiver{typ: neorpc.ExecutionEventID, filter: neorpc.ExecutionFilter{State: "HALT"}, ch: ch2}
-		wsc.subscriptions["7"] = notificationReceiver{typ: neorpc.ExecutionEventID, filter: neorpc.ExecutionFilter{State: "FAULT"}, ch: ch3}
+		wsc.subscriptions["6"] = notificationReceiver{typ: neorpc.ExecutionEventID, filter: neorpc.ExecutionFilter{State: &halt}, ch: ch2}
+		wsc.subscriptions["7"] = notificationReceiver{typ: neorpc.ExecutionEventID, filter: neorpc.ExecutionFilter{State: &fault}, ch: ch3}
 		// MissedEvent must be delivered without subscription.
 		wsc.subscriptionsLock.Unlock()
 
@@ -272,7 +274,7 @@ func TestWSExecutionVMStateCheck(t *testing.T) {
 	wsc.getNextRequestID = getTestRequestID
 	require.NoError(t, wsc.Init())
 	filter := "NONE"
-	_, err = wsc.SubscribeForTransactionExecutions(&filter)
+	_, err = wsc.SubscribeForTransactionExecutions(&filter, nil)
 	require.Error(t, err)
 	wsc.Close()
 }
@@ -414,17 +416,47 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.Equal(t, "my_pretty_notification", *filt.Name)
 			},
 		},
-		{"executions",
+		{"executions state",
 			func(t *testing.T, wsc *WSClient) {
 				state := "FAULT"
-				_, err := wsc.SubscribeForTransactionExecutions(&state)
+				_, err := wsc.SubscribeForTransactionExecutions(&state, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
 				param := p.Value(1)
 				filt := new(neorpc.ExecutionFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
-				require.Equal(t, "FAULT", filt.State)
+				require.Equal(t, "FAULT", *filt.State)
+				require.Equal(t, (*util.Uint256)(nil), filt.Container)
+			},
+		},
+		{"executions container",
+			func(t *testing.T, wsc *WSClient) {
+				container := util.Uint256{1, 2, 3}
+				_, err := wsc.SubscribeForTransactionExecutions(nil, &container)
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.ExecutionFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Equal(t, (*string)(nil), filt.State)
+				require.Equal(t, util.Uint256{1, 2, 3}, *filt.Container)
+			},
+		},
+		{"executions state and container",
+			func(t *testing.T, wsc *WSClient) {
+				state := "FAULT"
+				container := util.Uint256{1, 2, 3}
+				_, err := wsc.SubscribeForTransactionExecutions(&state, &container)
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.ExecutionFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Equal(t, "FAULT", *filt.State)
+				require.Equal(t, util.Uint256{1, 2, 3}, *filt.Container)
 			},
 		},
 	}

@@ -475,23 +475,26 @@ func (c *WSClient) SubscribeForExecutionNotificationsWithChan(contract *util.Uin
 // SubscribeForTransactionExecutions adds subscription for application execution
 // results generated during transaction execution to this instance of the client. It can
 // be filtered by state (HALT/FAULT) to check for successful or failing
-// transactions, nil value means no filtering.
-func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, error) {
-	return c.SubscribeForTransactionExecutionsWithChan(state, c.Notifications)
+// transactions; it can also be filtered by script container hash.
+// nil value means no filtering.
+func (c *WSClient) SubscribeForTransactionExecutions(state *string, container *util.Uint256) (string, error) {
+	return c.SubscribeForTransactionExecutionsWithChan(state, container, c.Notifications)
 }
 
 // SubscribeForTransactionExecutionsWithChan registers provided channel as a
 // receiver for the specified execution notifications. The receiver channel must be
 // properly read and drained after usage in order not to block other notification
 // receivers. See SubscribeForTransactionExecutions for parameter details.
-func (c *WSClient) SubscribeForTransactionExecutionsWithChan(state *string, rcvrCh chan<- Notification) (string, error) {
+func (c *WSClient) SubscribeForTransactionExecutionsWithChan(state *string, container *util.Uint256, rcvrCh chan<- Notification) (string, error) {
 	params := []interface{}{"transaction_executed"}
 	var flt *neorpc.ExecutionFilter
-	if state != nil {
-		if *state != "HALT" && *state != "FAULT" {
-			return "", errors.New("bad state parameter")
+	if state != nil || container != nil {
+		if state != nil {
+			if *state != "HALT" && *state != "FAULT" {
+				return "", errors.New("bad state parameter")
+			}
 		}
-		flt = &neorpc.ExecutionFilter{State: *state}
+		flt = &neorpc.ExecutionFilter{State: state, Container: container}
 		params = append(params, *flt)
 	}
 	rcvr := notificationReceiver{

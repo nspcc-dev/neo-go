@@ -64,7 +64,9 @@ func Matches(f Comparator, r Container) bool {
 	case neorpc.ExecutionEventID:
 		filt := filter.(neorpc.ExecutionFilter)
 		applog := r.EventPayload().(*state.AppExecResult)
-		return applog.VMState.String() == filt.State
+		stateOK := filt.State == nil || applog.VMState.String() == *filt.State
+		containerOK := filt.Container == nil || applog.Container.Equals(*filt.Container)
+		return stateOK && containerOK
 	case neorpc.NotaryRequestEventID:
 		filt := filter.(neorpc.TxFilter)
 		req := r.EventPayload().(*result.NotaryRequestEvent)
