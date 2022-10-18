@@ -156,7 +156,7 @@ func (a *Actor) waitWithWSWaiter(c RPCEventWaiter, h util.Uint256, vub uint32) (
 			waitErr = fmt.Errorf(errFmt, errArgs...)
 		}
 	}()
-	txsID, err := c.SubscribeForTransactionExecutionsWithChan(nil, nil, rcvr)
+	txsID, err := c.SubscribeForTransactionExecutionsWithChan(nil, &h, rcvr)
 	if err != nil {
 		wsWaitErr = fmt.Errorf("failed to subscribe for execution results: %w", err)
 		return
@@ -182,11 +182,8 @@ func (a *Actor) waitWithWSWaiter(c RPCEventWaiter, h util.Uint256, vub uint32) (
 				waitErr = ErrTxNotAccepted
 				return
 			case neorpc.ExecutionEventID:
-				aer := ntf.Value.(*state.AppExecResult)
-				if aer.Container.Equals(h) {
-					res = aer
-					return
-				}
+				res = ntf.Value.(*state.AppExecResult)
+				return
 			case neorpc.MissedEventID:
 				// We're toast, retry with non-ws client.
 				wsWaitErr = errors.New("some event was missed")
