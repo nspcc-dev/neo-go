@@ -1714,6 +1714,16 @@ func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 // HasBlock returns true if the blockchain contains the given
 // block hash.
 func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
+	var height = bc.BlockHeight()
+	bc.headerHashesLock.RLock()
+	for i := int(height); i >= int(height)-4 && i >= 0; i-- {
+		if hash.Equals(bc.headerHashes[i]) {
+			bc.headerHashesLock.RUnlock()
+			return true
+		}
+	}
+	bc.headerHashesLock.RUnlock()
+
 	if header, err := bc.GetHeader(hash); err == nil {
 		return header.Index <= bc.BlockHeight()
 	}
