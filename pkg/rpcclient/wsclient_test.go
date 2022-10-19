@@ -35,25 +35,25 @@ func TestWSClientSubscription(t *testing.T) {
 	ch := make(chan Notification)
 	var cases = map[string]func(*WSClient) (string, error){
 		"blocks": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForNewBlocks(nil, nil, nil)
+			return wsc.SubscribeForNewBlocksWithChan(nil, nil, nil, nil)
 		},
 		"blocks_with_custom_ch": func(wsc *WSClient) (string, error) {
 			return wsc.SubscribeForNewBlocksWithChan(nil, nil, nil, ch)
 		},
 		"transactions": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForNewTransactions(nil, nil)
+			return wsc.SubscribeForNewTransactionsWithChan(nil, nil, nil)
 		},
 		"transactions_with_custom_ch": func(wsc *WSClient) (string, error) {
 			return wsc.SubscribeForNewTransactionsWithChan(nil, nil, ch)
 		},
 		"notifications": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForExecutionNotifications(nil, nil)
+			return wsc.SubscribeForExecutionNotificationsWithChan(nil, nil, nil)
 		},
 		"notifications_with_custom_ch": func(wsc *WSClient) (string, error) {
 			return wsc.SubscribeForExecutionNotificationsWithChan(nil, nil, ch)
 		},
 		"executions": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForTransactionExecutions(nil, nil)
+			return wsc.SubscribeForTransactionExecutionsWithChan(nil, nil, nil)
 		},
 		"executions_with_custom_ch": func(wsc *WSClient) (string, error) {
 			return wsc.SubscribeForTransactionExecutionsWithChan(nil, nil, ch)
@@ -274,7 +274,7 @@ func TestWSExecutionVMStateCheck(t *testing.T) {
 	wsc.getNextRequestID = getTestRequestID
 	require.NoError(t, wsc.Init())
 	filter := "NONE"
-	_, err = wsc.SubscribeForTransactionExecutions(&filter, nil)
+	_, err = wsc.SubscribeForTransactionExecutionsWithChan(&filter, nil, nil)
 	require.Error(t, err)
 	wsc.Close()
 }
@@ -288,7 +288,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"blocks primary",
 			func(t *testing.T, wsc *WSClient) {
 				primary := 3
-				_, err := wsc.SubscribeForNewBlocks(&primary, nil, nil)
+				_, err := wsc.SubscribeForNewBlocksWithChan(&primary, nil, nil, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -303,7 +303,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"blocks since",
 			func(t *testing.T, wsc *WSClient) {
 				var since uint32 = 3
-				_, err := wsc.SubscribeForNewBlocks(nil, &since, nil)
+				_, err := wsc.SubscribeForNewBlocksWithChan(nil, &since, nil, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -318,7 +318,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"blocks till",
 			func(t *testing.T, wsc *WSClient) {
 				var till uint32 = 3
-				_, err := wsc.SubscribeForNewBlocks(nil, nil, &till)
+				_, err := wsc.SubscribeForNewBlocksWithChan(nil, nil, &till, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -337,7 +337,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 					primary        = 2
 					till    uint32 = 5
 				)
-				_, err := wsc.SubscribeForNewBlocks(&primary, &since, &till)
+				_, err := wsc.SubscribeForNewBlocksWithChan(&primary, &since, &till, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -352,7 +352,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"transactions sender",
 			func(t *testing.T, wsc *WSClient) {
 				sender := util.Uint160{1, 2, 3, 4, 5}
-				_, err := wsc.SubscribeForNewTransactions(&sender, nil)
+				_, err := wsc.SubscribeForNewTransactionsWithChan(&sender, nil, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -366,7 +366,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"transactions signer",
 			func(t *testing.T, wsc *WSClient) {
 				signer := util.Uint160{0, 42}
-				_, err := wsc.SubscribeForNewTransactions(nil, &signer)
+				_, err := wsc.SubscribeForNewTransactionsWithChan(nil, &signer, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -381,7 +381,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			func(t *testing.T, wsc *WSClient) {
 				sender := util.Uint160{1, 2, 3, 4, 5}
 				signer := util.Uint160{0, 42}
-				_, err := wsc.SubscribeForNewTransactions(&sender, &signer)
+				_, err := wsc.SubscribeForNewTransactionsWithChan(&sender, &signer, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -395,7 +395,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"notifications contract hash",
 			func(t *testing.T, wsc *WSClient) {
 				contract := util.Uint160{1, 2, 3, 4, 5}
-				_, err := wsc.SubscribeForExecutionNotifications(&contract, nil)
+				_, err := wsc.SubscribeForExecutionNotificationsWithChan(&contract, nil, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -409,7 +409,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"notifications name",
 			func(t *testing.T, wsc *WSClient) {
 				name := "my_pretty_notification"
-				_, err := wsc.SubscribeForExecutionNotifications(nil, &name)
+				_, err := wsc.SubscribeForExecutionNotificationsWithChan(nil, &name, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -424,7 +424,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			func(t *testing.T, wsc *WSClient) {
 				contract := util.Uint160{1, 2, 3, 4, 5}
 				name := "my_pretty_notification"
-				_, err := wsc.SubscribeForExecutionNotifications(&contract, &name)
+				_, err := wsc.SubscribeForExecutionNotificationsWithChan(&contract, &name, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -438,7 +438,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"executions state",
 			func(t *testing.T, wsc *WSClient) {
 				state := "FAULT"
-				_, err := wsc.SubscribeForTransactionExecutions(&state, nil)
+				_, err := wsc.SubscribeForTransactionExecutionsWithChan(&state, nil, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -452,7 +452,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"executions container",
 			func(t *testing.T, wsc *WSClient) {
 				container := util.Uint256{1, 2, 3}
-				_, err := wsc.SubscribeForTransactionExecutions(nil, &container)
+				_, err := wsc.SubscribeForTransactionExecutionsWithChan(nil, &container, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -467,7 +467,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			func(t *testing.T, wsc *WSClient) {
 				state := "FAULT"
 				container := util.Uint256{1, 2, 3}
-				_, err := wsc.SubscribeForTransactionExecutions(&state, &container)
+				_, err := wsc.SubscribeForTransactionExecutionsWithChan(&state, &container, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {

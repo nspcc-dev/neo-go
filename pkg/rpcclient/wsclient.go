@@ -396,15 +396,21 @@ func (c *WSClient) performUnsubscription(id string) error {
 // of the client. It can be filtered by primary consensus node index and/or block
 // index allowing to receive blocks since the specified index only, nil value is
 // treated as missing filter.
+//
+// Deprecated: please, use SubscribeForNewBlocksWithChan. This method will be removed in future versions.
 func (c *WSClient) SubscribeForNewBlocks(primary *int, sinceIndex, tillIndex *uint32) (string, error) {
 	return c.SubscribeForNewBlocksWithChan(primary, sinceIndex, tillIndex, c.Notifications)
 }
 
 // SubscribeForNewBlocksWithChan registers provided channel as a receiver for the
-// specified new blocks notifications. The receiver channel must be properly read and
-// drained after usage in order not to block other notification receivers.
-// See SubscribeForNewBlocks for parameter details.
+// new block events. Events can be filtered by primary consensus node index, nil
+// value doesn't add any filters. If the receiver channel is nil, then the default
+// Notifications channel will be used. The receiver channel must be properly read
+// and drained after usage in order not to block other notification receivers.
 func (c *WSClient) SubscribeForNewBlocksWithChan(primary *int, sinceIndex, tillIndex *uint32, rcvrCh chan<- Notification) (string, error) {
+	if rcvrCh == nil {
+		rcvrCh = c.Notifications
+	}
 	params := []interface{}{"block_added"}
 	var flt *neorpc.BlockFilter
 	if primary != nil || sinceIndex != nil || tillIndex != nil {
@@ -422,15 +428,22 @@ func (c *WSClient) SubscribeForNewBlocksWithChan(primary *int, sinceIndex, tillI
 // SubscribeForNewTransactions adds subscription for new transaction events to
 // this instance of the client. It can be filtered by the sender and/or the signer, nil
 // value is treated as missing filter.
+//
+// Deprecated: please, use SubscribeForNewTransactionsWithChan. This method will be removed in future versions.
 func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, signer *util.Uint160) (string, error) {
 	return c.SubscribeForNewTransactionsWithChan(sender, signer, c.Notifications)
 }
 
 // SubscribeForNewTransactionsWithChan registers provided channel as a receiver
-// for the specified new transactions notifications. The receiver channel must be
+// for new transaction events. Events can be filtered by the sender and/or the
+// signer, nil value is treated as missing filter. If the receiver channel is nil,
+// then the default Notifications channel will be used. The receiver channel must be
 // properly read and drained after usage in order not to block other notification
-// receivers. See SubscribeForNewTransactions for parameter details.
+// receivers.
 func (c *WSClient) SubscribeForNewTransactionsWithChan(sender *util.Uint160, signer *util.Uint160, rcvrCh chan<- Notification) (string, error) {
+	if rcvrCh == nil {
+		rcvrCh = c.Notifications
+	}
 	params := []interface{}{"transaction_added"}
 	var flt *neorpc.TxFilter
 	if sender != nil || signer != nil {
@@ -449,15 +462,22 @@ func (c *WSClient) SubscribeForNewTransactionsWithChan(sender *util.Uint160, sig
 // generated during transaction execution to this instance of the client. It can be
 // filtered by the contract's hash (that emits notifications), nil value puts no such
 // restrictions.
+//
+// Deprecated: please, use SubscribeForExecutionNotificationsWithChan. This method will be removed in future versions.
 func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160, name *string) (string, error) {
 	return c.SubscribeForExecutionNotificationsWithChan(contract, name, c.Notifications)
 }
 
 // SubscribeForExecutionNotificationsWithChan registers provided channel as a
-// receiver for the specified execution events. The receiver channel must be
-// properly read and drained after usage in order not to block other notification
-// receivers. See SubscribeForExecutionNotifications for parameter details.
+// receiver for execution events. Events can be filtered by the contract's hash
+// (that emits notifications), nil value puts no such restrictions. If the
+// receiver channel is nil, then the default Notifications channel will be used.
+// The receiver channel must be properly read and drained after usage in order
+// not to block other notification receivers.
 func (c *WSClient) SubscribeForExecutionNotificationsWithChan(contract *util.Uint160, name *string, rcvrCh chan<- Notification) (string, error) {
+	if rcvrCh == nil {
+		rcvrCh = c.Notifications
+	}
 	params := []interface{}{"notification_from_execution"}
 	var flt *neorpc.NotificationFilter
 	if contract != nil || name != nil {
@@ -477,15 +497,23 @@ func (c *WSClient) SubscribeForExecutionNotificationsWithChan(contract *util.Uin
 // be filtered by state (HALT/FAULT) to check for successful or failing
 // transactions; it can also be filtered by script container hash.
 // nil value means no filtering.
+//
+// Deprecated: please, use SubscribeForTransactionExecutionsWithChan. This method will be removed in future versions.
 func (c *WSClient) SubscribeForTransactionExecutions(state *string, container *util.Uint256) (string, error) {
 	return c.SubscribeForTransactionExecutionsWithChan(state, container, c.Notifications)
 }
 
 // SubscribeForTransactionExecutionsWithChan registers provided channel as a
-// receiver for the specified execution notifications. The receiver channel must be
-// properly read and drained after usage in order not to block other notification
-// receivers. See SubscribeForTransactionExecutions for parameter details.
+// receiver for application execution result events generated during transaction
+// execution. Events can be filtered by state (HALT/FAULT) to check for successful
+// or failing transactions; it can also be filtered by script container hash.
+// nil value means no filtering. If the receiver channel is nil, then the default
+// Notifications channel will be used. The receiver channel must be properly read
+// and drained after usage in order not to block other notification receivers.
 func (c *WSClient) SubscribeForTransactionExecutionsWithChan(state *string, container *util.Uint256, rcvrCh chan<- Notification) (string, error) {
+	if rcvrCh == nil {
+		rcvrCh = c.Notifications
+	}
 	params := []interface{}{"transaction_executed"}
 	var flt *neorpc.ExecutionFilter
 	if state != nil || container != nil {
@@ -509,15 +537,22 @@ func (c *WSClient) SubscribeForTransactionExecutionsWithChan(state *string, cont
 // addition or removal events to this instance of client. It can be filtered by
 // request sender's hash, or main tx signer's hash, nil value puts no such
 // restrictions.
+//
+// Deprecated: please, use SubscribeForNotaryRequestsWithChan. This method will be removed in future versions.
 func (c *WSClient) SubscribeForNotaryRequests(sender *util.Uint160, mainSigner *util.Uint160) (string, error) {
 	return c.SubscribeForNotaryRequestsWithChan(sender, mainSigner, c.Notifications)
 }
 
 // SubscribeForNotaryRequestsWithChan registers provided channel as a receiver
-// for the specified notary requests notifications. The receiver channel must be
-// properly read and drained after usage in order not to block other notification
-// receivers. See SubscribeForNotaryRequests for parameter details.
+// for notary request payload addition or removal events. It can be filtered by
+// request sender's hash, or main tx signer's hash, nil value puts no such
+// restrictions. If the receiver channel is nil, then the default Notifications
+// channel will be used. The receiver channel must be properly read and drained
+// after usage in order not to block other notification receivers.
 func (c *WSClient) SubscribeForNotaryRequestsWithChan(sender *util.Uint160, mainSigner *util.Uint160, rcvrCh chan<- Notification) (string, error) {
+	if rcvrCh == nil {
+		rcvrCh = c.Notifications
+	}
 	params := []interface{}{"notary_request_event"}
 	var flt *neorpc.TxFilter
 	if sender != nil {
