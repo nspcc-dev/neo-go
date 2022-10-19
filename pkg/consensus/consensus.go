@@ -268,7 +268,9 @@ func (s *service) Name() string {
 func (s *service) Start() {
 	if s.started.CAS(false, true) {
 		s.log.Info("starting consensus service")
-		s.dbft.Start()
+		b, _ := s.Chain.GetBlock(s.Chain.CurrentBlockHash()) // Can't fail, we have some current block!
+		s.lastTimestamp = b.Timestamp
+		s.dbft.Start(s.lastTimestamp * nsInMs)
 		s.Chain.SubscribeForBlocks(s.blockEvents)
 		go s.eventLoop()
 	}
@@ -359,7 +361,7 @@ func (s *service) handleChainBlock(b *coreb.Block) {
 			zap.Uint32("dbft index", s.dbft.BlockIndex),
 			zap.Uint32("chain index", s.Chain.BlockHeight()))
 		s.postBlock(b)
-		s.dbft.InitializeConsensus(0)
+		s.dbft.InitializeConsensus(0, b.Timestamp*nsInMs)
 	}
 }
 

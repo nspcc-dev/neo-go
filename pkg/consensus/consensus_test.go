@@ -71,7 +71,7 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	require.NoError(t, bc.PoolTx(tx))
 
 	srv := newTestServiceWithChain(t, bc)
-	srv.dbft.Start()
+	srv.dbft.Start(0)
 
 	// Register new candidate.
 	b.Reset()
@@ -164,7 +164,7 @@ func TestService_NextConsensus(t *testing.T) {
 
 func TestService_GetVerified(t *testing.T) {
 	srv := newTestService(t)
-	srv.dbft.Start()
+	srv.dbft.Start(0)
 	var txs []*transaction.Transaction
 	for i := 0; i < 4; i++ {
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 100000)
@@ -294,7 +294,7 @@ func TestService_getTx(t *testing.T) {
 
 func TestService_PrepareRequest(t *testing.T) {
 	srv := newTestServiceWithState(t, true)
-	srv.dbft.Start()
+	srv.dbft.Start(0)
 	t.Cleanup(srv.dbft.Timer.Stop)
 
 	priv, _ := getTestValidator(1)
