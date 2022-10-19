@@ -43,6 +43,7 @@ func TestMatches(t *testing.T) {
 	badPrimary := 2
 	index := uint32(5)
 	badHigherIndex := uint32(6)
+	badLowerIndex := index - 1
 	sender := util.Uint160{1, 2, 3}
 	signer := util.Uint160{4, 5, 6}
 	contract := util.Uint160{7, 8, 9}
@@ -127,10 +128,19 @@ func TestMatches(t *testing.T) {
 			expected:  false,
 		},
 		{
+			name: "block, till mismatch",
+			comparator: testComparator{
+				id:     neorpc.BlockEventID,
+				filter: neorpc.BlockFilter{Till: &badLowerIndex},
+			},
+			container: bContainer,
+			expected:  false,
+		},
+		{
 			name: "block, filter match",
 			comparator: testComparator{
 				id:     neorpc.BlockEventID,
-				filter: neorpc.BlockFilter{Primary: &primary, Since: &index},
+				filter: neorpc.BlockFilter{Primary: &primary, Since: &index, Till: &index},
 			},
 			container: bContainer,
 			expected:  true,

@@ -39,7 +39,8 @@ func Matches(f Comparator, r Container) bool {
 		b := r.EventPayload().(*block.Block)
 		primaryOk := filt.Primary == nil || *filt.Primary == int(b.PrimaryIndex)
 		sinceOk := filt.Since == nil || *filt.Since <= b.Index
-		return primaryOk && sinceOk
+		tillOk := filt.Till == nil || b.Index <= *filt.Till
+		return primaryOk && sinceOk && tillOk
 	case neorpc.TransactionEventID:
 		filt := filter.(neorpc.TxFilter)
 		tx := r.EventPayload().(*transaction.Transaction)

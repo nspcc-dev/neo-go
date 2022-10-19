@@ -396,19 +396,19 @@ func (c *WSClient) performUnsubscription(id string) error {
 // of the client. It can be filtered by primary consensus node index and/or block
 // index allowing to receive blocks since the specified index only, nil value is
 // treated as missing filter.
-func (c *WSClient) SubscribeForNewBlocks(primary *int, sinceIndex *uint32) (string, error) {
-	return c.SubscribeForNewBlocksWithChan(primary, sinceIndex, c.Notifications)
+func (c *WSClient) SubscribeForNewBlocks(primary *int, sinceIndex, tillIndex *uint32) (string, error) {
+	return c.SubscribeForNewBlocksWithChan(primary, sinceIndex, tillIndex, c.Notifications)
 }
 
 // SubscribeForNewBlocksWithChan registers provided channel as a receiver for the
 // specified new blocks notifications. The receiver channel must be properly read and
 // drained after usage in order not to block other notification receivers.
 // See SubscribeForNewBlocks for parameter details.
-func (c *WSClient) SubscribeForNewBlocksWithChan(primary *int, sinceIndex *uint32, rcvrCh chan<- Notification) (string, error) {
+func (c *WSClient) SubscribeForNewBlocksWithChan(primary *int, sinceIndex, tillIndex *uint32, rcvrCh chan<- Notification) (string, error) {
 	params := []interface{}{"block_added"}
 	var flt *neorpc.BlockFilter
-	if primary != nil || sinceIndex != nil {
-		flt = &neorpc.BlockFilter{Primary: primary, Since: sinceIndex}
+	if primary != nil || sinceIndex != nil || tillIndex != nil {
+		flt = &neorpc.BlockFilter{Primary: primary, Since: sinceIndex, Till: tillIndex}
 		params = append(params, flt)
 	}
 	rcvr := notificationReceiver{

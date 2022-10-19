@@ -35,10 +35,10 @@ func TestWSClientSubscription(t *testing.T) {
 	ch := make(chan Notification)
 	var cases = map[string]func(*WSClient) (string, error){
 		"blocks": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForNewBlocks(nil, nil)
+			return wsc.SubscribeForNewBlocks(nil, nil, nil)
 		},
 		"blocks_with_custom_ch": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForNewBlocksWithChan(nil, nil, ch)
+			return wsc.SubscribeForNewBlocksWithChan(nil, nil, nil, ch)
 		},
 		"transactions": func(wsc *WSClient) (string, error) {
 			return wsc.SubscribeForNewTransactions(nil, nil)
@@ -288,7 +288,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"blocks primary",
 			func(t *testing.T, wsc *WSClient) {
 				primary := 3
-				_, err := wsc.SubscribeForNewBlocks(&primary, nil)
+				_, err := wsc.SubscribeForNewBlocks(&primary, nil, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -297,12 +297,13 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, 3, *filt.Primary)
 				require.Equal(t, (*uint32)(nil), filt.Since)
+				require.Equal(t, (*uint32)(nil), filt.Till)
 			},
 		},
 		{"blocks since",
 			func(t *testing.T, wsc *WSClient) {
 				var since uint32 = 3
-				_, err := wsc.SubscribeForNewBlocks(nil, &since)
+				_, err := wsc.SubscribeForNewBlocks(nil, &since, nil)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -311,15 +312,32 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, (*int)(nil), filt.Primary)
 				require.Equal(t, uint32(3), *filt.Since)
+				require.Equal(t, (*uint32)(nil), filt.Till)
 			},
 		},
-		{"blocks primary and since",
+		{"blocks till",
+			func(t *testing.T, wsc *WSClient) {
+				var till uint32 = 3
+				_, err := wsc.SubscribeForNewBlocks(nil, nil, &till)
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.BlockFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Equal(t, (*int)(nil), filt.Primary)
+				require.Equal(t, (*uint32)(nil), filt.Since)
+				require.Equal(t, (uint32)(3), *filt.Till)
+			},
+		},
+		{"blocks primary, since and till",
 			func(t *testing.T, wsc *WSClient) {
 				var (
 					since   uint32 = 3
 					primary        = 2
+					till    uint32 = 5
 				)
-				_, err := wsc.SubscribeForNewBlocks(&primary, &since)
+				_, err := wsc.SubscribeForNewBlocks(&primary, &since, &till)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -328,6 +346,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, 2, *filt.Primary)
 				require.Equal(t, uint32(3), *filt.Since)
+				require.Equal(t, uint32(5), *filt.Till)
 			},
 		},
 		{"transactions sender",

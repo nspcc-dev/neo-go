@@ -77,6 +77,7 @@ type (
 	BlockFilter struct {
 		Primary *int    `json:"primary,omitempty"`
 		Since   *uint32 `json:"since,omitempty"`
+		Till    *uint32 `json:"till,omitempty"`
 	}
 	// TxFilter is a wrapper structure for the transaction event filter. It
 	// allows to filter transactions by senders and signers.

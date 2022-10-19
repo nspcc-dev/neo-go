@@ -44,7 +44,7 @@ type (
 	RPCEventWaiter interface {
 		RPCPollingWaiter
 
-		SubscribeForNewBlocksWithChan(primary *int, since *uint32, rcvrCh chan<- rpcclient.Notification) (string, error)
+		SubscribeForNewBlocksWithChan(primary *int, since *uint32, till *uint32, rcvrCh chan<- rpcclient.Notification) (string, error)
 		SubscribeForTransactionExecutionsWithChan(state *string, container *util.Uint256, rcvrCh chan<- rpcclient.Notification) (string, error)
 		Unsubscribe(id string) error
 	}
@@ -139,7 +139,7 @@ func (a *Actor) waitWithWSWaiter(c RPCEventWaiter, h util.Uint256, vub uint32) (
 	}()
 	// Execution event follows the block event, thus wait until the block next to the VUB to be sure.
 	since := vub + 1
-	blocksID, err := c.SubscribeForNewBlocksWithChan(nil, &since, rcvr)
+	blocksID, err := c.SubscribeForNewBlocksWithChan(nil, &since, nil, rcvr)
 	if err != nil {
 		wsWaitErr = fmt.Errorf("failed to subscribe for new blocks: %w", err)
 		return
