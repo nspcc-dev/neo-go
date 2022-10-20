@@ -89,12 +89,22 @@ Typical scenarios when this can be useful (without full node restart):
  * updating TLS certificates for the RPC server
  * resolving operational issues
 
-### DB import/exports
+### DB import/exports/reset
 
 Node operates using some database as a backend to store blockchain data. NeoGo
 allows to dump chain into a file from the database (when node is stopped) or to
 import blocks from a file into the database (also when node is stopped). Use
 `db` command for that.
+
+NeoGo allows to reset the node state to a particular point. It is possible for
+those nodes that do store complete chain state or for nodes with `RemoveUntraceableBlocks`
+setting on that are not yet reached `MaxTraceableBlocks` number of blocks. Use
+`db reset` command with the target block specified to roll back all the changes
+made since the target block (not including changes made by the specified block
+acceptance). The set of changes to be removed includes blocks, transactions,
+execution results, contract storage changes, MPT-related auxiliary data and NEP
+transfers data. Some stale MPT nodes may be left in storage after reset.
+Once DB reset is finished, the node can be started in a regular manner.
 
 ## Smart contracts
 

@@ -351,3 +351,18 @@ func TestInitBlockChain(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+func TestResetDB(t *testing.T) {
+	d := t.TempDir()
+	err := os.Chdir(d)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, os.Chdir(serverTestWD)) })
+	set := flag.NewFlagSet("flagSet", flag.ExitOnError)
+	set.String("config-path", filepath.Join(serverTestWD, "..", "..", "config"), "")
+	set.Bool("privnet", true, "")
+	set.Bool("debug", true, "")
+	set.Int("height", 0, "")
+	ctx := cli.NewContext(cli.NewApp(), set, nil)
+	err = resetDB(ctx)
+	require.NoError(t, err)
+}

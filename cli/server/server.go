@@ -73,6 +73,13 @@ func NewCommands() []cli.Command {
 			Usage: "use if dump is incremental",
 		},
 	)
+	var cfgHeightFlags = make([]cli.Flag, len(cfgFlags)+1)
+	copy(cfgHeightFlags, cfgFlags)
+	cfgHeightFlags[len(cfgHeightFlags)-1] = cli.UintFlag{
+		Name:     "height",
+		Usage:    "Height of the state to reset DB to",
+		Required: true,
+	}
 	return []cli.Command{
 		{
 			Name:      "node",
@@ -98,6 +105,13 @@ func NewCommands() []cli.Command {
 					UsageText: "neo-go db restore -i file [--dump] [-n] [-c count] [--config-path path] [-p/-m/-t]",
 					Action:    restoreDB,
 					Flags:     cfgCountInFlags,
+				},
+				{
+					Name:      "reset",
+					Usage:     "reset database to the previous state",
+					UsageText: "neo-go db reset --height height [--config-path path] [-p/-m/-t]",
+					Action:    resetDB,
+					Flags:     cfgHeightFlags,
 				},
 			},
 		},
@@ -298,6 +312,35 @@ func restoreDB(ctx *cli.Context) error {
 	err = chaindump.Restore(chain, reader, skip, count, f)
 	if err != nil {
 		return cli.NewExitError(err, 1)
+	}
+	return nil
+}
+
+func resetDB(ctx *cli.Context) error {
+	if err := cmdargs.EnsureNone(ctx); err != nil {
+		return err
+	}
+	cfg, err := options.GetConfigFromContext(ctx)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	h := uint32(ctx.Uint("height"))
+
+	log, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	if logCloser != nil {
+		defer func() { _ = logCloser() }()
+	}
+	chain, err := initBlockChain(cfg, log)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to create Blockchain instance: %w", err), 1)
+	}
+
+	err = chain.Reset(h)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to reset chain state to height %d: %w", h, err), 1)
 	}
 	return nil
 }
