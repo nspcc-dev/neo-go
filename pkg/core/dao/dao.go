@@ -603,6 +603,26 @@ func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
 	return hashes, seekErr
 }
 
+// DeleteHeaderHashes removes batches of header hashes starting from the one that
+// contains header with index `since` up to the most recent batch. It assumes that
+// all stored batches contain `batchSize` hashes.
+func (dao *Simple) DeleteHeaderHashes(since uint32, batchSize int) {
+	dao.Store.Seek(storage.SeekRange{
+		Prefix:    dao.mkKeyPrefix(storage.IXHeaderHashList),
+		Backwards: true,
+	}, func(k, _ []byte) bool {
+		first := binary.BigEndian.Uint32(k[1:])
+		if first >= since {
+			dao.Store.Delete(k)
+			return first != since
+		}
+		if first+uint32(batchSize)-1 >= since {
+			dao.Store.Delete(k)
+		}
+		return false
+	})
+}
+
 // GetTransaction returns Transaction and its height by the given hash
 // if it exists in the store. It does not return dummy transactions.
 func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
@@ -739,6 +759,17 @@ func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, a
 // DeleteBlock removes the block from dao. It's not atomic, so make sure you're
 // using private MemCached instance here.
 func (dao *Simple) DeleteBlock(h util.Uint256) error {
+	return dao.deleteBlock(h, true)
+}
+
+// PurgeBlock completely removes specified block (or just block header) from dao.
+// It differs from DeleteBlock in that it removes header anyway. It's not atomic,
+// so make sure you're using private MemCached instance here.
+func (dao *Simple) PurgeBlock(h util.Uint256) error {
+	return dao.deleteBlock(h, false)
+}
+
+func (dao *Simple) deleteBlock(h util.Uint256, keepHeader bool) error {
 	key := dao.makeExecutableKey(h)
 
 	b, err := dao.getBlock(key)
@@ -746,9 +777,13 @@ func (dao *Simple) DeleteBlock(h util.Uint256) error {
 		return err
 	}
 
-	err = dao.storeHeader(key, &b.Header)
-	if err != nil {
-		return err
+	if keepHeader {
+		err = dao.storeHeader(key, &b.Header)
+		if err != nil {
+			return err
+		}
+	} else {
+		dao.Store.Delete(key)
 	}
 
 	for _, tx := range b.Transactions {

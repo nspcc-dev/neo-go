@@ -43,7 +43,8 @@ type ManagementCache struct {
 const (
 	ManagementContractID = -1
 
-	prefixContract = 8
+	// PrefixContract is a prefix used to store contract states inside Management native contract.
+	PrefixContract = 8
 
 	defaultMinimumDeploymentFee     = 10_00000000
 	contractDeployNotificationName  = "Deploy"
@@ -87,7 +88,7 @@ func (c *ManagementCache) Copy() dao.NativeContractCache {
 
 // MakeContractKey creates a key from the account script hash.
 func MakeContractKey(h util.Uint160) []byte {
-	return makeUint160Key(prefixContract, h)
+	return makeUint160Key(PrefixContract, h)
 }
 
 // newManagement creates a new Management native contract.
@@ -539,7 +540,7 @@ func (m *Management) InitializeCache(d *dao.Simple) error {
 	}
 
 	var initErr error
-	d.Seek(m.ID, storage.SeekRange{Prefix: []byte{prefixContract}}, func(_, v []byte) bool {
+	d.Seek(m.ID, storage.SeekRange{Prefix: []byte{PrefixContract}}, func(_, v []byte) bool {
 		var cs = new(state.Contract)
 		initErr = stackitem.DeserializeConvertible(v, cs)
 		if initErr != nil {

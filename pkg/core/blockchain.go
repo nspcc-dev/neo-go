@@ -36,6 +36,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
@@ -61,21 +62,30 @@ const (
 	defaultStateSyncInterval   = 40000
 )
 
-// stateJumpStage denotes the stage of state jump process.
-type stateJumpStage byte
+// stateChangeStage denotes the stage of state modification process.
+type stateChangeStage byte
 
+// A set of stages used to split state jump / state reset into atomic operations.
 const (
-	// none means that no state jump process was initiated yet.
-	none stateJumpStage = 1 << iota
+	// none means that no state jump or state reset process was initiated yet.
+	none stateChangeStage = 1 << iota
 	// stateJumpStarted means that state jump was just initiated, but outdated storage items
 	// were not yet removed.
 	stateJumpStarted
 	// newStorageItemsAdded means that contract storage items are up-to-date with the current
 	// state.
 	newStorageItemsAdded
-	// genesisStateRemoved means that state corresponding to the genesis block was removed
-	// from the storage.
-	genesisStateRemoved
+	// staleBlocksRemoved means that state corresponding to the stale blocks (genesis block in
+	// in case of state jump) was removed from the storage.
+	staleBlocksRemoved
+	// headersReset denotes stale SYS-prefixed and IX-prefixed information was removed from
+	// the storage (applicable to state reset only).
+	headersReset
+	// transfersReset denotes NEP transfers were successfully updated (applicable to state reset only).
+	transfersReset
+	// stateResetBit represents a bit identifier for state reset process. If this bit is not set, then
+	// it's an unfinished state jump.
+	stateResetBit byte = 1 << 7
 )
 
 var (
@@ -451,22 +461,25 @@ func (bc *Blockchain) init() error {
 		}
 	}
 
-	// Check whether StateJump stage is in the storage and continue interrupted state jump if so.
-	jumpStage, err := bc.dao.Store.Get([]byte{byte(storage.SYSStateJumpStage)})
+	// Check whether StateChangeState stage is in the storage and continue interrupted state jump / state reset if so.
+	stateChStage, err := bc.dao.Store.Get([]byte{byte(storage.SYSStateChangeStage)})
 	if err == nil {
-		if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().RemoveUntraceableBlocks) {
-			return errors.New("state jump was not completed, but P2PStateExchangeExtensions are disabled or archival node capability is on. " +
-				"To start an archival node drop the database manually and restart the node")
-		}
-		if len(jumpStage) != 1 {
+		if len(stateChStage) != 1 {
 			return fmt.Errorf("invalid state jump stage format")
 		}
-		// State jump wasn't finished yet, thus continue it.
+		// State jump / state reset wasn't finished yet, thus continue it.
 		stateSyncPoint, err := bc.dao.GetStateSyncPoint()
 		if err != nil {
 			return fmt.Errorf("failed to get state sync point from the storage")
 		}
-		return bc.jumpToStateInternal(stateSyncPoint, stateJumpStage(jumpStage[0]))
+		if (stateChStage[0] & stateResetBit) != 0 {
+			return bc.resetStateInternal(stateSyncPoint, stateChangeStage(stateChStage[0]&(^stateResetBit)))
+		}
+		if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().RemoveUntraceableBlocks) {
+			return errors.New("state jump was not completed, but P2PStateExchangeExtensions are disabled or archival node capability is on. " +
+				"To start an archival node drop the database manually and restart the node")
+		}
+		return bc.jumpToStateInternal(stateSyncPoint, stateChangeStage(stateChStage[0]))
 	}
 
 	bHeight, err := bc.dao.GetCurrentBlockHeight()
@@ -537,14 +550,14 @@ func (bc *Blockchain) jumpToState(p uint32) error {
 // changes Blockchain state to the one specified by state sync point p and state
 // jump stage. All the data needed for the jump must be in the DB, otherwise an
 // error is returned. It is not protected by mutex.
-func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error {
+func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) error {
 	if p+1 >= uint32(len(bc.headerHashes)) {
 		return fmt.Errorf("invalid state sync point %d: headerHeignt is %d", p, len(bc.headerHashes))
 	}
 
 	bc.log.Info("jumping to state sync point", zap.Uint32("state sync point", p))
 
-	jumpStageKey := []byte{byte(storage.SYSStateJumpStage)}
+	jumpStageKey := []byte{byte(storage.SYSStateChangeStage)}
 	switch stage {
 	case none:
 		bc.dao.Store.Put(jumpStageKey, []byte{byte(stateJumpStarted)})
@@ -586,28 +599,24 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 				})
 			}
 		}
-		cache.Store.Put(jumpStageKey, []byte{byte(genesisStateRemoved)})
-		_, err := cache.Persist()
+		// Update SYS-prefixed info.
+		block, err := bc.dao.GetBlock(bc.headerHashes[p])
+		if err != nil {
+			return fmt.Errorf("failed to get current block: %w", err)
+		}
+		cache.StoreAsCurrentBlock(block)
+		cache.Store.Put(jumpStageKey, []byte{byte(staleBlocksRemoved)})
+		_, err = cache.Persist()
 		if err != nil {
 			return fmt.Errorf("failed to persist old items removal: %w", err)
 		}
-	case genesisStateRemoved:
+	case staleBlocksRemoved:
 		// there's nothing to do after that, so just continue with common operations
 		// and remove state jump stage in the end.
 	default:
-		return errors.New("unknown state jump stage")
+		return fmt.Errorf("unknown state jump stage: %d", stage)
 	}
-
-	block, err := bc.dao.GetBlock(bc.headerHashes[p])
-	if err != nil {
-		return fmt.Errorf("failed to get current block: %w", err)
-	}
-	bc.dao.StoreAsCurrentBlock(block)
-	bc.topBlock.Store(block)
-	atomic.StoreUint32(&bc.blockHeight, p)
-	atomic.StoreUint32(&bc.persistedHeight, p)
-
-	block, err = bc.dao.GetBlock(bc.headerHashes[p+1])
+	block, err := bc.dao.GetBlock(bc.headerHashes[p+1])
 	if err != nil {
 		return fmt.Errorf("failed to get block to init MPT: %w", err)
 	}
@@ -616,18 +625,246 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateJumpStage) error 
 		Root:  block.PrevStateRoot,
 	})
 
+	bc.dao.Store.Delete(jumpStageKey)
+
+	err = bc.resetRAMState(p, false)
+	if err != nil {
+		return fmt.Errorf("failed to update in-memory blockchain data: %w", err)
+	}
+	return nil
+}
+
+// resetRAMState resets in-memory cached info.
+func (bc *Blockchain) resetRAMState(height uint32, resetHeaders bool) error {
+	if resetHeaders {
+		bc.headerHashes = bc.headerHashes[:height+1]
+		bc.storedHeaderCount = height + 1
+	}
+	block, err := bc.dao.GetBlock(bc.headerHashes[height])
+	if err != nil {
+		return fmt.Errorf("failed to get current block: %w", err)
+	}
+	bc.topBlock.Store(block)
+	atomic.StoreUint32(&bc.blockHeight, height)
+	atomic.StoreUint32(&bc.persistedHeight, height)
+
 	err = bc.initializeNativeCache(block.Index, bc.dao)
 	if err != nil {
 		return fmt.Errorf("failed to initialize natives cache: %w", err)
 	}
 
-	if err := bc.updateExtensibleWhitelist(p); err != nil {
+	if err := bc.updateExtensibleWhitelist(height); err != nil {
 		return fmt.Errorf("failed to update extensible whitelist: %w", err)
 	}
 
-	updateBlockHeightMetric(p)
+	updateBlockHeightMetric(height)
+	return nil
+}
 
-	bc.dao.Store.Delete(jumpStageKey)
+// Reset resets chain state to the specified height if possible. This method
+// performs direct DB changes and can be called on non-running Blockchain only.
+func (bc *Blockchain) Reset(height uint32) error {
+	if bc.isRunning.Load().(bool) {
+		return errors.New("can't reset state of the running blockchain")
+	}
+	bc.dao.PutStateSyncPoint(height)
+	return bc.resetStateInternal(height, none)
+}
+
+func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) error {
+	currHeight := bc.BlockHeight()
+	if height > currHeight {
+		return fmt.Errorf("current block height is %d, can't reset state to height %d", currHeight, height)
+	}
+	if height == currHeight && stage == none {
+		bc.log.Info("chain is already at the proper state", zap.Uint32("height", height))
+		return nil
+	}
+	if bc.config.KeepOnlyLatestState {
+		return fmt.Errorf("KeepOnlyLatestState is enabled, state for height %d is outdated and removed from the storage", height)
+	}
+	if bc.config.RemoveUntraceableBlocks && currHeight >= bc.config.MaxTraceableBlocks {
+		return fmt.Errorf("RemoveUntraceableBlocks is enabled, a necessary batch of traceable blocks has already been removed")
+	}
+
+	// Retrieve necessary state before the DB modification.
+	hHeight := bc.HeaderHeight()
+	b, err := bc.GetBlock(bc.headerHashes[height])
+	if err != nil {
+		return fmt.Errorf("failed to retrieve block %d: %w", height, err)
+	}
+	sr, err := bc.stateRoot.GetStateRoot(height)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve stateroot for height %d: %w", height, err)
+	}
+	v := bc.dao.Version
+	cache := bc.dao // dao is MemCachedStore over DB, so use dao directly to persist cached changes right to the underlying DB
+
+	bc.log.Info("initialize state reset", zap.Uint32("target height", height))
+	start := time.Now()
+	p := start
+
+	resetStageKey := []byte{byte(storage.SYSStateChangeStage)}
+	switch stage {
+	case none:
+		cache.Store.Put(resetStageKey, []byte{stateResetBit | byte(stateJumpStarted)})
+		_, err = cache.Persist()
+		if err != nil {
+			return fmt.Errorf("failed to persist state reset start marker to the DB: %w", err)
+		}
+		fallthrough
+	case stateJumpStarted:
+		// Remove headers/blocks/transactions/aers from currHeight down to height (not including height itself).
+		for i := height + 1; i <= hHeight; i++ {
+			err := cache.PurgeBlock(bc.headerHashes[i])
+			if err != nil {
+				return fmt.Errorf("error while removing block %d: %w", i, err)
+			}
+		}
+		cache.Store.Put(resetStageKey, []byte{stateResetBit | byte(staleBlocksRemoved)})
+		_, err = cache.Persist()
+		if err != nil {
+			return fmt.Errorf("failed to persist blocks, transactions ans AERs changes to the DB: %w", err)
+		}
+
+		bc.log.Info("blocks, transactions ans AERs are reset", zap.Duration("duration", time.Since(p)))
+		p = time.Now()
+		fallthrough
+	case staleBlocksRemoved:
+		// Completely remove contract IDs to update them later.
+		cache.Store.Seek(storage.SeekRange{Prefix: []byte{byte(storage.STContractID)}}, func(k, _ []byte) bool {
+			cache.Store.Delete(k)
+			return true
+		})
+
+		// Reset contracts storage and store new contract IDs.
+		var mode = mpt.ModeAll
+		if bc.config.RemoveUntraceableBlocks {
+			mode |= mpt.ModeGCFlag
+		}
+		trieStore := mpt.NewTrieStore(sr.Root, mode, cache.Store)
+		oldStoragePrefix := v.StoragePrefix
+		newStoragePrefix := statesync.TemporaryPrefix(oldStoragePrefix)
+		mgmtCSPrefixLen := 1 + 4 + 1 // STStorage + Management ID + contract state prefix
+		mgmtContractPrefix := make([]byte, mgmtCSPrefixLen-1)
+		id := int32(native.ManagementContractID)
+		binary.BigEndian.PutUint32(mgmtContractPrefix, uint32(id))
+		mgmtContractPrefix[4] = native.PrefixContract
+		cs := new(state.Contract)
+
+		const persistBatchSize = 10000
+		var (
+			seekErr error
+			cnt     int
+		)
+		trieStore.Seek(storage.SeekRange{Prefix: []byte{byte(oldStoragePrefix)}}, func(k, v []byte) bool {
+			if cnt >= persistBatchSize {
+				_, seekErr = cache.Persist()
+				if seekErr != nil {
+					return false
+				}
+			}
+			// May safely omit KV copying.
+			k[0] = byte(newStoragePrefix)
+			cache.Store.Put(k, v)
+
+			// @fixme: remove this part after #2702.
+			if bytes.HasPrefix(k[1:], mgmtContractPrefix) {
+				var hash util.Uint160
+				copy(hash[:], k[mgmtCSPrefixLen:])
+				err = stackitem.DeserializeConvertible(v, cs)
+				if err != nil {
+					seekErr = fmt.Errorf("failed to deserialize contract state: %w", err)
+				}
+				cache.PutContractID(cs.ID, hash)
+			}
+			cnt++
+			return seekErr == nil
+		})
+		if seekErr != nil {
+			return fmt.Errorf("failed to reset contract IDs: %w", err)
+		}
+		trieStore.Close()
+
+		cache.Store.Put(resetStageKey, []byte{stateResetBit | byte(newStorageItemsAdded)})
+		_, err = cache.Persist()
+		if err != nil {
+			return fmt.Errorf("failed to persist contract storage items changes to the DB: %w", err)
+		}
+
+		bc.log.Info("contracts storage and IDs are reset", zap.Duration("duration", time.Since(p)))
+		p = time.Now()
+		fallthrough
+	case newStorageItemsAdded:
+		// Reset SYS-prefixed and IX-prefixed information.
+		cache.DeleteHeaderHashes(height+1, headerBatchCount)
+		cache.StoreAsCurrentBlock(b)
+		cache.PutCurrentHeader(b.Hash(), height)
+		v.StoragePrefix = statesync.TemporaryPrefix(v.StoragePrefix)
+		cache.PutVersion(v)
+		bc.persistent.Version = v
+
+		cache.Store.Put(resetStageKey, []byte{stateResetBit | byte(headersReset)})
+		_, err = cache.Persist()
+		if err != nil {
+			return fmt.Errorf("failed to persist headers changes to the DB: %w", err)
+		}
+
+		bc.log.Info("headers are reset", zap.Duration("duration", time.Since(p)))
+		p = time.Now()
+		fallthrough
+	case headersReset:
+		// Reset MPT.
+		err = bc.stateRoot.ResetState(height, cache.Store)
+		if err != nil {
+			return fmt.Errorf("failed to rollback MPT state: %w", err)
+		}
+
+		// Reset transfers.
+		err = bc.resetTransfers(cache, height)
+		if err != nil {
+			return fmt.Errorf("failed to strip transfer log / transfer info: %w", err)
+		}
+
+		cache.Store.Put(resetStageKey, []byte{stateResetBit | byte(transfersReset)})
+		_, err = cache.Persist()
+		if err != nil {
+			return fmt.Errorf("failed tpo persist contract storage items changes to the DB: %w", err)
+		}
+
+		bc.log.Info("MPT and transfers are reset", zap.Duration("duration", time.Since(p)))
+		fallthrough
+	case transfersReset:
+		// there's nothing to do after that, so just continue with common operations
+		// and remove state reset stage in the end.
+	default:
+		return fmt.Errorf("unknown state reset stage: %d", stage)
+	}
+
+	// Direct (cache-less) DB operation:  remove stale storage items.
+	err = bc.store.SeekGC(storage.SeekRange{
+		Prefix: []byte{byte(statesync.TemporaryPrefix(v.StoragePrefix))},
+	}, func(_, _ []byte) bool {
+		return false
+	})
+	if err != nil {
+		return fmt.Errorf("faield to remove stale storage items from DB: %w", err)
+	}
+
+	cache.Store.Delete(resetStageKey)
+	// Unlike the state jump, state sync point must be removed as we have complete state for this height.
+	cache.Store.Delete([]byte{byte(storage.SYSStateSyncPoint)})
+	_, err = cache.Persist()
+	if err != nil {
+		return fmt.Errorf("failed to persist state reset stage to DAO: %w", err)
+	}
+
+	err = bc.resetRAMState(height, true)
+	if err != nil {
+		return fmt.Errorf("failed to update in-memory blockchain data: %w", err)
+	}
+
+	bc.log.Info("reset finished successfully", zap.Duration("duration", time.Since(start)))
 	return nil
 }
 
@@ -732,6 +969,143 @@ func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 		dur += bc.removeOldTransfers(uint32(tgtBlock))
 	}
 	return dur
+}
+
+// resetTransfers is a helper function that strips the top newest NEP17 and NEP11 transfer logs
+// down to the given height (not including the height itself) and updates corresponding token
+// transfer info.
+func (bc *Blockchain) resetTransfers(cache *dao.Simple, height uint32) error {
+	// Completely remove transfer info, updating it takes too much effort. We'll gather new
+	// transfer info on-the-fly later.
+	cache.Store.Seek(storage.SeekRange{
+		Prefix: []byte{byte(storage.STTokenTransferInfo)},
+	}, func(k, v []byte) bool {
+		cache.Store.Delete(k)
+		return true
+	})
+
+	// Look inside each transfer batch and iterate over the batch transfers, picking those that
+	// not newer than the given height. Also, for each suitable transfer update transfer info
+	// flushing changes after complete account's transfers processing.
+	prefixes := []byte{byte(storage.STNEP11Transfers), byte(storage.STNEP17Transfers)}
+	for i := range prefixes {
+		var (
+			acc             util.Uint160
+			trInfo          *state.TokenTransferInfo
+			removeFollowing bool
+			seekErr         error
+		)
+
+		cache.Store.Seek(storage.SeekRange{
+			Prefix:    prefixes[i : i+1],
+			Backwards: false, // From oldest to newest batch.
+		}, func(k, v []byte) bool {
+			var batchAcc util.Uint160
+			copy(batchAcc[:], k[1:])
+
+			if batchAcc != acc { // Some new account we're iterating over.
+				if trInfo != nil {
+					seekErr = cache.PutTokenTransferInfo(acc, trInfo)
+					if seekErr != nil {
+						return false
+					}
+				}
+				acc = batchAcc
+				trInfo = nil
+				removeFollowing = false
+			} else if removeFollowing {
+				cache.Store.Delete(slice.Copy(k))
+				return seekErr == nil
+			}
+
+			r := io.NewBinReaderFromBuf(v[1:])
+			l := len(v)
+			bytesRead := 1 // 1 is for batch size byte which is read by default.
+			var (
+				oldBatchSize = v[0]
+				newBatchSize byte
+			)
+			for i := byte(0); i < v[0]; i++ { // From oldest to newest transfer of the batch.
+				var t *state.NEP17Transfer
+				if k[0] == byte(storage.STNEP11Transfers) {
+					tr := new(state.NEP11Transfer)
+					tr.DecodeBinary(r)
+					t = &tr.NEP17Transfer
+				} else {
+					t = new(state.NEP17Transfer)
+					t.DecodeBinary(r)
+				}
+				if r.Err != nil {
+					seekErr = fmt.Errorf("failed to decode subsequent transfer: %w", r.Err)
+					break
+				}
+
+				if t.Block > height {
+					break
+				}
+				bytesRead = l - r.Len() // Including batch size byte.
+				newBatchSize++
+				if trInfo == nil {
+					var err error
+					trInfo, err = cache.GetTokenTransferInfo(batchAcc)
+					if err != nil {
+						seekErr = fmt.Errorf("failed to retrieve token transfer info for %s: %w", batchAcc.StringLE(), r.Err)
+						return false
+					}
+				}
+				appendTokenTransferInfo(trInfo, t.Asset, t.Block, t.Timestamp, k[0] == byte(storage.STNEP11Transfers), newBatchSize >= state.TokenTransferBatchSize)
+			}
+			if newBatchSize == oldBatchSize {
+				// The batch is already in storage and doesn't need to be changed.
+				return seekErr == nil
+			}
+			if newBatchSize > 0 {
+				v[0] = newBatchSize
+				cache.Store.Put(k, v[:bytesRead])
+			} else {
+				cache.Store.Delete(k)
+				removeFollowing = true
+			}
+			return seekErr == nil
+		})
+		if seekErr != nil {
+			return seekErr
+		}
+		if trInfo != nil {
+			// Flush the last batch of transfer info changes.
+			err := cache.PutTokenTransferInfo(acc, trInfo)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// appendTokenTransferInfo is a helper for resetTransfers that updates token transfer info
+// wrt the given transfer that was added to the subsequent transfer batch.
+func appendTokenTransferInfo(transferData *state.TokenTransferInfo,
+	token int32, bIndex uint32, bTimestamp uint64, isNEP11 bool, lastTransferInBatch bool) {
+	var (
+		newBatch      *bool
+		nextBatch     *uint32
+		currTimestamp *uint64
+	)
+	if !isNEP11 {
+		newBatch = &transferData.NewNEP17Batch
+		nextBatch = &transferData.NextNEP17Batch
+		currTimestamp = &transferData.NextNEP17NewestTimestamp
+	} else {
+		newBatch = &transferData.NewNEP11Batch
+		nextBatch = &transferData.NextNEP11Batch
+		currTimestamp = &transferData.NextNEP11NewestTimestamp
+	}
+	transferData.LastUpdated[token] = bIndex
+	*newBatch = lastTransferInBatch
+	if *newBatch {
+		*nextBatch++
+		*currTimestamp = bTimestamp
+	}
 }
 
 func (bc *Blockchain) removeOldTransfers(index uint32) time.Duration {
