@@ -168,7 +168,10 @@ func TestWSClientEvents(t *testing.T) {
 		wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
 		require.NoError(t, err)
 		wsc.getNextRequestID = getTestRequestID
+		wsc.cacheLock.Lock()
 		wsc.cache.initDone = true // Our server mock is restricted, so perform initialisation manually.
+		wsc.cache.network = netmode.UnitTestNet
+		wsc.cacheLock.Unlock()
 		// Our server mock is restricted, so perform subscriptions manually with default notifications channel.
 		wsc.subscriptionsLock.Lock()
 		wsc.subscriptions["0"] = notificationReceiver{typ: neorpc.BlockEventID, ch: wsc.Notifications}
@@ -176,7 +179,6 @@ func TestWSClientEvents(t *testing.T) {
 		wsc.subscriptions["2"] = notificationReceiver{typ: neorpc.NotificationEventID, ch: wsc.Notifications}
 		// MissedEvent must be delivered without subscription.
 		wsc.subscriptionsLock.Unlock()
-		wsc.cache.network = netmode.UnitTestNet
 		for range events {
 			select {
 			case _, ok = <-wsc.Notifications:
