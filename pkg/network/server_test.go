@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"net"
 	"strconv"
+	"sync"
 	atomic2 "sync/atomic"
 	"testing"
 	"time"
@@ -34,6 +35,7 @@ type fakeConsensus struct {
 	started  atomic.Bool
 	stopped  atomic.Bool
 	payloads []*payload.Extensible
+	txlock   sync.Mutex
 	txs      []*transaction.Transaction
 }
 
@@ -46,7 +48,11 @@ func (f *fakeConsensus) OnPayload(p *payload.Extensible) error {
 	f.payloads = append(f.payloads, p)
 	return nil
 }
-func (f *fakeConsensus) OnTransaction(tx *transaction.Transaction)     { f.txs = append(f.txs, tx) }
+func (f *fakeConsensus) OnTransaction(tx *transaction.Transaction) {
+	f.txlock.Lock()
+	defer f.txlock.Unlock()
+	f.txs = append(f.txs, tx)
+}
 func (f *fakeConsensus) GetPayload(h util.Uint256) *payload.Extensible { panic("implement me") }
 
 func TestNewServer(t *testing.T) {
@@ -477,13 +483,33 @@ func TestTransaction(t *testing.T) {
 		s.register <- p
 
 		s.testHandleMessage(t, nil, CMDTX, tx)
-		require.Contains(t, s.services["fake"].(*fakeConsensus).txs, tx)
+		require.Eventually(t, func() bool {
+			var fake = s.services["fake"].(*fakeConsensus)
+			fake.txlock.Lock()
+			defer fake.txlock.Unlock()
+			for _, t := range fake.txs {
+				if t == tx {
+					return true
+				}
+			}
+			return false
+		}, 2*time.Second, time.Millisecond*500)
 	})
 	t.Run("bad", func(t *testing.T) {
 		tx := newDummyTx()
 		s.chain.(*fakechain.FakeChain).PoolTxF = func(*transaction.Transaction) error { return core.ErrInsufficientFunds }
 		s.testHandleMessage(t, nil, CMDTX, tx)
-		require.Contains(t, s.services["fake"].(*fakeConsensus).txs, tx) // Consensus receives everything.
+		require.Eventually(t, func() bool {
+			var fake = s.services["fake"].(*fakeConsensus)
+			fake.txlock.Lock()
+			defer fake.txlock.Unlock()
+			for _, t := range fake.txs {
+				if t == tx {
+					return true
+				}
+			}
+			return false
+		}, 2*time.Second, time.Millisecond*500)
 	})
 }
 

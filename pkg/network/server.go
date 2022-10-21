@@ -9,6 +9,7 @@ import (
 	"math/big"
 	mrand "math/rand"
 	"net"
+	"runtime"
 	"sort"
 	"strconv"
 	"sync"
@@ -111,6 +112,7 @@ type (
 		txCbEnabled    atomic.Bool
 
 		txInLock sync.Mutex
+		txin     chan *transaction.Transaction
 		txInMap  map[util.Uint256]struct{}
 
 		lock  sync.RWMutex
@@ -183,6 +185,7 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		mempool:        chain.GetMemPool(),
 		extensiblePool: extpool.New(chain, config.ExtensiblePoolSize),
 		log:            log,
+		txin:           make(chan *transaction.Transaction, 64),
 		transactions:   make(chan *transaction.Transaction, 64),
 		services:       make(map[string]Service),
 		extensHandlers: make(map[string]func(*payload.Extensible) error),
@@ -256,6 +259,10 @@ func (s *Server) Start(errChan chan error) {
 	s.tryStartServices()
 	s.initStaleMemPools()
 
+	var txThreads = optimalNumOfThreads()
+	for i := 0; i < txThreads; i++ {
+		go s.txHandlerLoop()
+	}
 	go s.broadcastTxLoop()
 	go s.relayBlocksLoop()
 	go s.bQueue.run()
@@ -751,7 +758,7 @@ func (s *Server) handlePong(p Peer, pong *payload.Ping) error {
 
 // handleInvCmd processes the received inventory.
 func (s *Server) handleInvCmd(p Peer, inv *payload.Inventory) error {
-	reqHashes := make([]util.Uint256, 0)
+	var reqHashes = inv.Hashes[:0]
 	var typExists = map[payload.InventoryType]func(util.Uint256) bool{
 		payload.TXType:    s.mempool.ContainsKey,
 		payload.BlockType: s.chain.HasBlock,
@@ -1042,19 +1049,39 @@ func (s *Server) handleTxCmd(tx *transaction.Transaction) error {
 	}
 	s.txInMap[tx.Hash()] = struct{}{}
 	s.txInLock.Unlock()
-	s.serviceLock.RLock()
-	txCallback := s.txCallback
-	s.serviceLock.RUnlock()
-	if txCallback != nil && s.txCbEnabled.Load() {
-		txCallback(tx)
-	}
-	if s.verifyAndPoolTX(tx) == nil {
-		s.broadcastTX(tx, nil)
-	}
-	s.txInLock.Lock()
-	delete(s.txInMap, tx.Hash())
-	s.txInLock.Unlock()
+	s.txin <- tx
 	return nil
+}
+
+func (s *Server) txHandlerLoop() {
+txloop:
+	for {
+		select {
+		case tx := <-s.txin:
+			s.serviceLock.RLock()
+			txCallback := s.txCallback
+			s.serviceLock.RUnlock()
+			if txCallback != nil && s.txCbEnabled.Load() {
+				txCallback(tx)
+			}
+			if s.verifyAndPoolTX(tx) == nil {
+				s.broadcastTX(tx, nil)
+			}
+			s.txInLock.Lock()
+			delete(s.txInMap, tx.Hash())
+			s.txInLock.Unlock()
+		case <-s.quit:
+			break txloop
+		}
+	}
+drainloop:
+	for {
+		select {
+		case <-s.txin:
+		default:
+			break drainloop
+		}
+	}
 }
 
 // handleP2PNotaryRequestCmd process the received P2PNotaryRequest payload.
@@ -1588,4 +1615,19 @@ func (s *Server) Port() (uint16, error) {
 		port = uint16(p)
 	}
 	return port, nil
+}
+
+// optimalNumOfThreads returns the optimal number of processing threads to create
+// for transaction processing.
+func optimalNumOfThreads() int {
+	// Doing more won't help, mempool is still a contention point.
+	const maxThreads = 16
+	var threads = runtime.GOMAXPROCS(0)
+	if threads > runtime.NumCPU() {
+		threads = runtime.NumCPU()
+	}
+	if threads > maxThreads {
+		threads = maxThreads
+	}
+	return threads
 }
