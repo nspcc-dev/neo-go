@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -115,16 +116,24 @@ func (p *localPeer) Disconnect(err error) {
 }
 
 func (p *localPeer) BroadcastPacket(_ context.Context, m []byte) error {
+	if len(m) == 0 {
+		return errors.New("empty msg")
+	}
 	msg := &Message{}
 	r := io.NewBinReaderFromBuf(m)
-	err := msg.Decode(r)
-	if err == nil {
-		p.messageHandler(p.t, msg)
+	for r.Len() > 0 {
+		err := msg.Decode(r)
+		if err == nil {
+			p.messageHandler(p.t, msg)
+		}
 	}
 	return nil
 }
 func (p *localPeer) EnqueueP2PMessage(msg *Message) error {
 	return p.EnqueueHPMessage(msg)
+}
+func (p *localPeer) EnqueueP2PPacket(m []byte) error {
+	return p.BroadcastPacket(context.TODO(), m)
 }
 func (p *localPeer) BroadcastHPPacket(ctx context.Context, m []byte) error {
 	return p.BroadcastPacket(ctx, m)
@@ -132,6 +141,9 @@ func (p *localPeer) BroadcastHPPacket(ctx context.Context, m []byte) error {
 func (p *localPeer) EnqueueHPMessage(msg *Message) error {
 	p.messageHandler(p.t, msg)
 	return nil
+}
+func (p *localPeer) EnqueueHPPacket(m []byte) error {
+	return p.BroadcastPacket(context.TODO(), m)
 }
 func (p *localPeer) Version() *payload.Version {
 	return p.version

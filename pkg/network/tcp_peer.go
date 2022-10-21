@@ -128,6 +128,16 @@ func (p *TCPPeer) EnqueueHPMessage(msg *Message) error {
 	return p.putMsgIntoQueue(p.hpSendQ, msg)
 }
 
+// EnqueueP2PPacket implements the Peer interface.
+func (p *TCPPeer) EnqueueP2PPacket(b []byte) error {
+	return p.putPacketIntoQueue(context.Background(), p.p2pSendQ, b)
+}
+
+// EnqueueHPPacket implements the Peer interface.
+func (p *TCPPeer) EnqueueHPPacket(b []byte) error {
+	return p.putPacketIntoQueue(context.Background(), p.hpSendQ, b)
+}
+
 func (p *TCPPeer) writeMsg(msg *Message) error {
 	b, err := msg.Bytes()
 	if err != nil {

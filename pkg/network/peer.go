@@ -39,10 +39,16 @@ type Peer interface {
 	// (handled by BroadcastPacket) but less important than high-priority
 	// messages (handled by EnqueueHPMessage).
 	EnqueueP2PMessage(*Message) error
+	// EnqueueP2PPacket is similar to EnqueueP2PMessage, but accepts a slice of
+	// message(s) bytes.
+	EnqueueP2PPacket([]byte) error
 
 	// EnqueueHPMessage is similar to EnqueueP2PMessage, but uses a high-priority
 	// queue.
 	EnqueueHPMessage(*Message) error
+	// EnqueueHPPacket is similar to EnqueueHPMessage, but accepts a slice of
+	// message(s) bytes.
+	EnqueueHPPacket([]byte) error
 	Version() *payload.Version
 	LastBlockIndex() uint32
 	Handshaked() bool
