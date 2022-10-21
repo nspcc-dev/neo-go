@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -19,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -32,6 +34,7 @@ type RPCClient struct {
 	hash    util.Uint256
 	nhash   util.Uint256
 	mirror  bool
+	applog  *result.ApplicationLog
 }
 
 func (r *RPCClient) InvokeContractVerify(contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
@@ -69,11 +72,13 @@ func (r *RPCClient) TraverseIterator(sessionID, iteratorID uuid.UUID, maxItemsCo
 	return nil, nil // Just a stub, unused by actor.
 }
 func (r *RPCClient) Context() context.Context {
-	panic("TODO")
+	return context.Background()
 }
 func (r *RPCClient) GetApplicationLog(hash util.Uint256, trig *trigger.Type) (*result.ApplicationLog, error) {
-	panic("TODO")
+	return r.applog, nil
 }
+
+var _ = actor.RPCPollingWaiter(&RPCClient{})
 
 func TestNewActor(t *testing.T) {
 	rc := &RPCClient{
@@ -527,4 +532,55 @@ func TestDefaultActorOptions(t *testing.T) {
 	rc.invRes.State = "HALT"
 	require.NoError(t, opts.MainCheckerModifier(&result.Invoke{State: "HALT"}, tx))
 	require.Equal(t, uint32(42), tx.ValidUntilBlock)
+}
+
+func TestWait(t *testing.T) {
+	rc := &RPCClient{version: &result.Version{Protocol: result.Protocol{MillisecondsPerBlock: 1}}}
+
+	key0, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	key1, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	acc0 := wallet.NewAccountFromPrivateKey(key0)
+	facc1 := FakeSimpleAccount(key1.PublicKey())
+
+	act, err := NewActor(rc, []actor.SignerAccount{{
+		Signer: transaction.Signer{
+			Account: acc0.Contract.ScriptHash(),
+			Scopes:  transaction.None,
+		},
+		Account: acc0,
+	}, {
+		Signer: transaction.Signer{
+			Account: facc1.Contract.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: facc1,
+	}}, acc0)
+	require.NoError(t, err)
+
+	someErr := errors.New("someErr")
+	_, err = act.Wait(util.Uint256{}, util.Uint256{}, 0, someErr)
+	require.ErrorIs(t, err, someErr)
+
+	cont := util.Uint256{1, 2, 3}
+	ex := state.Execution{
+		Trigger:     trigger.Application,
+		VMState:     vmstate.Halt,
+		GasConsumed: 123,
+		Stack:       []stackitem.Item{stackitem.Null{}},
+	}
+	applog := &result.ApplicationLog{
+		Container:     cont,
+		IsTransaction: true,
+		Executions:    []state.Execution{ex},
+	}
+	rc.applog = applog
+	res, err := act.Wait(util.Uint256{}, util.Uint256{}, 0, nil)
+	require.NoError(t, err)
+	require.Equal(t, &state.AppExecResult{
+		Container: cont,
+		Execution: ex,
+	}, res)
 }
