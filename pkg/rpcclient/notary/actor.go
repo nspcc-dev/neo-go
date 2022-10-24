@@ -1,9 +1,11 @@
 package notary
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -312,4 +314,16 @@ func (a *Actor) SendRequestExactly(mainTx *transaction.Transaction, fbTx *transa
 		return mainHash, fbHash, vub, fmt.Errorf("sent and actual fallback tx hashes mismatch: %v vs %v", fbHash.StringLE(), actualHash.StringLE())
 	}
 	return mainHash, fbHash, vub, nil
+}
+
+// Wait waits until main or fallback transaction will be accepted to the chain and returns
+// the resulting application execution result or actor.ErrTxNotAccepted if both transactions
+// failed to persist. Wait can be used if underlying Actor supports transaction awaiting,
+// see actor.Actor and actor.Waiter documentation for details. Wait may be used as a wrapper
+// for Notarize, SendRequest or SendRequestExactly.
+func (a *Actor) Wait(mainHash, fbHash util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
+	if err != nil {
+		return nil, err
+	}
+	return a.WaitAny(context.TODO(), vub, mainHash, fbHash)
 }

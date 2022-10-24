@@ -20,7 +20,7 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 	require.Error(t, err)
 
 	client.err = nil
-	client.bCount = 42
+	client.bCount.Store(42)
 	vub, err := a.CalculateValidUntilBlock()
 	require.NoError(t, err)
 	require.Equal(t, uint32(42+7+1), vub)
@@ -37,7 +37,7 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(42+4+1), vub)
 
-	client.bCount = 101
+	client.bCount.Store(101)
 	vub, err = a.CalculateValidUntilBlock()
 	require.NoError(t, err)
 	require.Equal(t, uint32(101+10+1), vub)
@@ -64,7 +64,7 @@ func TestMakeUnsigned(t *testing.T) {
 
 	// Good unchecked.
 	client.netFee = 42
-	client.bCount = 100500
+	client.bCount.Store(100500)
 	client.err = nil
 	tx, err := a.MakeUnsignedUncheckedRun(script, 1, nil)
 	require.NoError(t, err)

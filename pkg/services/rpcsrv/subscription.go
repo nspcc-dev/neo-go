@@ -2,11 +2,7 @@ package rpcsrv
 
 import (
 	"github.com/gorilla/websocket"
-	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
-	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"go.uber.org/atomic"
 )
 
@@ -22,11 +18,22 @@ type (
 		// that's not for long.
 		feeds [maxFeeds]feed
 	}
+	// feed stores subscriber's desired event ID with filter.
 	feed struct {
 		event  neorpc.EventID
 		filter interface{}
 	}
 )
+
+// EventID implements neorpc.EventComparator interface and returns notification ID.
+func (f feed) EventID() neorpc.EventID {
+	return f.event
+}
+
+// Filter implements neorpc.EventComparator interface and returns notification filter.
+func (f feed) Filter() interface{} {
+	return f.filter
+}
 
 const (
 	// Maximum number of subscriptions per one client.
@@ -42,59 +49,3 @@ const (
 	// a lot in terms of memory used.
 	notificationBufSize = 1024
 )
-
-func (f *feed) Matches(r *neorpc.Notification) bool {
-	if r.Event != f.event {
-		return false
-	}
-	if f.filter == nil {
-		return true
-	}
-	switch f.event {
-	case neorpc.BlockEventID:
-		filt := f.filter.(neorpc.BlockFilter)
-		b := r.Payload[0].(*block.Block)
-		return int(b.PrimaryIndex) == filt.Primary
-	case neorpc.TransactionEventID:
-		filt := f.filter.(neorpc.TxFilter)
-		tx := r.Payload[0].(*transaction.Transaction)
-		senderOK := filt.Sender == nil || tx.Sender().Equals(*filt.Sender)
-		signerOK := true
-		if filt.Signer != nil {
-			signerOK = false
-			for i := range tx.Signers {
-				if tx.Signers[i].Account.Equals(*filt.Signer) {
-					signerOK = true
-					break
-				}
-			}
-		}
-		return senderOK && signerOK
-	case neorpc.NotificationEventID:
-		filt := f.filter.(neorpc.NotificationFilter)
-		notification := r.Payload[0].(*state.ContainedNotificationEvent)
-		hashOk := filt.Contract == nil || notification.ScriptHash.Equals(*filt.Contract)
-		nameOk := filt.Name == nil || notification.Name == *filt.Name
-		return hashOk && nameOk
-	case neorpc.ExecutionEventID:
-		filt := f.filter.(neorpc.ExecutionFilter)
-		applog := r.Payload[0].(*state.AppExecResult)
-		return applog.VMState.String() == filt.State
-	case neorpc.NotaryRequestEventID:
-		filt := f.filter.(neorpc.TxFilter)
-		req := r.Payload[0].(*result.NotaryRequestEvent)
-		senderOk := filt.Sender == nil || req.NotaryRequest.FallbackTransaction.Signers[1].Account == *filt.Sender
-		signerOK := true
-		if filt.Signer != nil {
-			signerOK = false
-			for _, signer := range req.NotaryRequest.MainTransaction.Signers {
-				if signer.Account.Equals(*filt.Signer) {
-					signerOK = true
-					break
-				}
-			}
-		}
-		return senderOk && signerOK
-	}
-	return false
-}

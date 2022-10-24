@@ -71,10 +71,13 @@ type (
 		Payload []interface{} `json:"params"`
 	}
 
-	// BlockFilter is a wrapper structure for the block event filter. The only
-	// allowed filter is primary index.
+	// BlockFilter is a wrapper structure for the block event filter. It allows
+	// to filter blocks by primary index and by block index (allowing blocks since
+	// the specified index).
 	BlockFilter struct {
-		Primary int `json:"primary"`
+		Primary *int    `json:"primary,omitempty"`
+		Since   *uint32 `json:"since,omitempty"`
+		Till    *uint32 `json:"till,omitempty"`
 	}
 	// TxFilter is a wrapper structure for the transaction event filter. It
 	// allows to filter transactions by senders and signers.
@@ -93,7 +96,8 @@ type (
 	// events. It allows to choose failing or successful transactions based
 	// on their VM state.
 	ExecutionFilter struct {
-		State string `json:"state"`
+		State     *string       `json:"state,omitempty"`
+		Container *util.Uint256 `json:"container,omitempty"`
 	}
 	// SignerWithWitness represents transaction's signer with the corresponding witness.
 	SignerWithWitness struct {
@@ -154,4 +158,15 @@ func (s *SignerWithWitness) UnmarshalJSON(data []byte) error {
 		VerificationScript: aux.VerificationScript,
 	}
 	return nil
+}
+
+// EventID implements EventContainer interface and returns notification ID.
+func (n *Notification) EventID() EventID {
+	return n.Event
+}
+
+// EventPayload implements EventContainer interface and returns notification
+// object.
+func (n *Notification) EventPayload() interface{} {
+	return n.Payload[0]
 }

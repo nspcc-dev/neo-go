@@ -40,6 +40,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/rpcevent"
 	"github.com/nspcc-dev/neo-go/pkg/network"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
@@ -2425,7 +2426,7 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (interface{
 		case neorpc.ExecutionEventID:
 			flt := new(neorpc.ExecutionFilter)
 			err = jd.Decode(flt)
-			if err == nil && (flt.State == "HALT" || flt.State == "FAULT") {
+			if err == nil && (flt.State != nil && (*flt.State == "HALT" || *flt.State == "FAULT")) {
 				filter = *flt
 			} else if err == nil {
 				err = errors.New("invalid state")
@@ -2593,7 +2594,7 @@ chloop:
 				continue
 			}
 			for i := range sub.feeds {
-				if sub.feeds[i].Matches(&resp) {
+				if rpcevent.Matches(sub.feeds[i], &resp) {
 					if msg == nil {
 						b, err = json.Marshal(resp)
 						if err != nil {

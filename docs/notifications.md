@@ -10,7 +10,7 @@ receive them as JSON-RPC notifications from the server.
 Currently supported events:
  * new block added
 
-   Contents: block. Filters: primary ID.
+   Contents: block. Filters: primary ID, since/till block indexes.
  * new transaction in the block
 
    Contents: transaction. Filters: sender and signer.
@@ -19,7 +19,7 @@ Currently supported events:
    Contents: container hash, contract hash, notification name, stack item. Filters: contract hash, notification name.
  * transaction executed
 
-   Contents: application execution result. Filters: VM state.
+   Contents: application execution result. Filters: VM state, script container hash.
  * new/removed P2P notary request (if `P2PSigExtensions` are enabled)
 
    Contents: P2P notary request. Filters: request sender and main tx signer.
@@ -57,7 +57,10 @@ omitted if empty).
 Recognized stream names:
  * `block_added`
    Filter: `primary` as an integer with primary (speaker) node index from
-   ConsensusData.
+   ConsensusData and/or `since` field as an integer value with block
+   index starting from which new block notifications will be received and/or
+   `till` field as an integer values containing block index till which new
+   block notifications will be received.
  * `transaction_added`
    Filter: `sender` field containing a string with hex-encoded Uint160 (LE
    representation) for transaction's `Sender` and/or `signer` in the same
@@ -68,7 +71,8 @@ Recognized stream names:
    notification name.
  * `transaction_executed`
    Filter: `state` field containing `HALT` or `FAULT` string for successful
-   and failed executions respectively.
+   and failed executions respectively and/or `container` field containing
+   script container hash.
  * `notary_request_event`
    Filter: `sender` field containing a string with hex-encoded Uint160 (LE
    representation) for notary request's `Sender` and/or `signer` in the same

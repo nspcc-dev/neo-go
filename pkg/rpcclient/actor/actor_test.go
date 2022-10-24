@@ -1,6 +1,7 @@
 package actor
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -9,19 +10,23 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/atomic"
 )
 
 type RPCClient struct {
 	err     error
 	invRes  *result.Invoke
 	netFee  int64
-	bCount  uint32
+	bCount  atomic.Uint32
 	version *result.Version
 	hash    util.Uint256
+	appLog  *result.ApplicationLog
+	context context.Context
 }
 
 func (r *RPCClient) InvokeContractVerify(contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
@@ -37,7 +42,7 @@ func (r *RPCClient) CalculateNetworkFee(tx *transaction.Transaction) (int64, err
 	return r.netFee, r.err
 }
 func (r *RPCClient) GetBlockCount() (uint32, error) {
-	return r.bCount, r.err
+	return r.bCount.Load(), r.err
 }
 func (r *RPCClient) GetVersion() (*result.Version, error) {
 	verCopy := *r.version
@@ -51,6 +56,19 @@ func (r *RPCClient) TerminateSession(sessionID uuid.UUID) (bool, error) {
 }
 func (r *RPCClient) TraverseIterator(sessionID, iteratorID uuid.UUID, maxItemsCount int) ([]stackitem.Item, error) {
 	return nil, nil // Just a stub, unused by actor.
+}
+func (r *RPCClient) Context() context.Context {
+	if r.context == nil {
+		return context.Background()
+	}
+	return r.context
+}
+
+func (r *RPCClient) GetApplicationLog(hash util.Uint256, trig *trigger.Type) (*result.ApplicationLog, error) {
+	if r.appLog != nil {
+		return r.appLog, nil
+	}
+	return nil, errors.New("not found")
 }
 func testRPCAndAccount(t *testing.T) (*RPCClient, *wallet.Account) {
 	client := &RPCClient{
@@ -164,7 +182,7 @@ func TestSimpleWrappers(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(42), nf)
 
-	client.bCount = 100500
+	client.bCount.Store(100500)
 	bc, err := a.GetBlockCount()
 	require.NoError(t, err)
 	require.Equal(t, uint32(100500), bc)
