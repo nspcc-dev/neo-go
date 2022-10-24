@@ -38,7 +38,6 @@ const (
 	defaultExtensiblePoolSize = 20
 	defaultBroadcastFactor    = 0
 	maxBlockBatch             = 200
-	minPoolCount              = 30
 )
 
 var (
@@ -417,7 +416,7 @@ func (s *Server) run() {
 			s.discovery.RequestRemote(connN)
 		}
 
-		if s.discovery.PoolCount() < minPoolCount {
+		if s.discovery.PoolCount() < s.AttemptConnPeers {
 			s.broadcastHPMessage(NewMessage(CMDGetAddr, payload.NewNullPayload()))
 		}
 		select {
