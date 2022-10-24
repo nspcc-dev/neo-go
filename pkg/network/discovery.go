@@ -261,6 +261,7 @@ func (d *DefaultDiscovery) tryAddress(addr string) {
 	d.lock.Unlock()
 	if err != nil {
 		d.RegisterBadAddr(addr)
+		time.Sleep(d.dialTimeout)
 		d.RequestRemote(1)
 	}
 }
