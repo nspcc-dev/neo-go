@@ -808,7 +808,15 @@ func (s *Server) handleMempoolCmd(p Peer) error {
 
 // handleInvCmd processes the received inventory.
 func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
-	var notFound []util.Uint256
+	var (
+		err      error
+		notFound []util.Uint256
+		reply    = io.NewBufBinWriter()
+		send     = p.EnqueueP2PPacket
+	)
+	if inv.Type == payload.ExtensibleType {
+		send = p.EnqueueHPPacket
+	}
 	for _, hash := range inv.Hashes {
 		var msg *Message
 
@@ -839,19 +847,37 @@ func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 			}
 		}
 		if msg != nil {
-			var err error
-			if inv.Type == payload.ExtensibleType {
-				err = p.EnqueueHPMessage(msg)
-			} else {
-				err = p.EnqueueP2PMessage(msg)
-			}
+			err = addMessageToPacket(reply, msg, send)
 			if err != nil {
 				return err
 			}
 		}
 	}
 	if len(notFound) != 0 {
-		return p.EnqueueP2PMessage(NewMessage(CMDNotFound, payload.NewInventory(inv.Type, notFound)))
+		err = addMessageToPacket(reply, NewMessage(CMDNotFound, payload.NewInventory(inv.Type, notFound)), send)
+		if err != nil {
+			return err
+		}
+	}
+	if reply.Len() == 0 {
+		return nil
+	}
+	return send(reply.Bytes())
+}
+
+// addMessageToPacket serializes given message into the given buffer and sends whole
+// batch if it exceeds MaxSize/2 memory limit (to prevent DoS).
+func addMessageToPacket(batch *io.BufBinWriter, msg *Message, send func([]byte) error) error {
+	err := msg.Encode(batch.BinWriter)
+	if err != nil {
+		return err
+	}
+	if batch.Len() > payload.MaxSize/2 {
+		err = send(batch.Bytes())
+		if err != nil {
+			return err
+		}
+		batch.Reset()
 	}
 	return nil
 }
@@ -945,6 +971,7 @@ func (s *Server) handleGetBlocksCmd(p Peer, gb *payload.GetBlocks) error {
 
 // handleGetBlockByIndexCmd processes the getblockbyindex request.
 func (s *Server) handleGetBlockByIndexCmd(p Peer, gbd *payload.GetBlockByIndex) error {
+	var reply = io.NewBufBinWriter()
 	count := gbd.Count
 	if gbd.Count < 0 || gbd.Count > payload.MaxHashesCount {
 		count = payload.MaxHashesCount
@@ -958,12 +985,15 @@ func (s *Server) handleGetBlockByIndexCmd(p Peer, gbd *payload.GetBlockByIndex) 
 		if err != nil {
 			break
 		}
-		msg := NewMessage(CMDBlock, b)
-		if err = p.EnqueueP2PMessage(msg); err != nil {
+		err = addMessageToPacket(reply, NewMessage(CMDBlock, b), p.EnqueueP2PPacket)
+		if err != nil {
 			return err
 		}
 	}
-	return nil
+	if reply.Len() == 0 {
+		return nil
+	}
+	return p.EnqueueP2PPacket(reply.Bytes())
 }
 
 // handleGetHeadersCmd processes the getheaders request.
