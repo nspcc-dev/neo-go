@@ -61,11 +61,10 @@
       "isDefault": false
     },
     {
-      "address": "NQ3nAdFQXzemHC9uvr4af2Ysap6aZJpqgN",
+      "address": "NfWu6j9KPLQMsWLfHz9iZRy5sNw2bUZWQL",
       "key": "6PYSATFztBa3CHjSR6sLAKungUEAbQUCVE16KzmaQQ38gLeYGZ9Knd5mGv",
       "label": "verify",
       "contract": {
-        "script": "EdsgQFcAA0BXAQR4eXp7VBTAcAwOT25ORVAxMVBheW1lbnRoUEGVAW9hIUA=",
         "parameters": [],
         "deployed": true
       },

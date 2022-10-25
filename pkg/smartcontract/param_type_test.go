@@ -347,7 +347,7 @@ func TestEncodeDefaultValue(t *testing.T) {
 	for p, l := range map[ParamType]int{
 		UnknownType:          0,
 		AnyType:              66,
-		BoolType:             3,
+		BoolType:             2,
 		IntegerType:          33,
 		ByteArrayType:        66,
 		StringType:           66,
