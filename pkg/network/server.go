@@ -38,7 +38,7 @@ const (
 	defaultExtensiblePoolSize = 20
 	defaultBroadcastFactor    = 0
 	maxBlockBatch             = 200
-	minPoolCount              = 30
+	peerTimeFactor            = 1000
 )
 
 var (
@@ -394,6 +394,12 @@ func (s *Server) ConnectedPeers() []string {
 // run is a goroutine that starts another goroutine to manage protocol specifics
 // while itself dealing with peers management (handling connects/disconnects).
 func (s *Server) run() {
+	var (
+		peerCheckTime    = s.TimePerBlock * peerTimeFactor
+		peerCheckTimeout bool
+		timer            = time.NewTimer(peerCheckTime)
+	)
+	defer timer.Stop()
 	go s.runProto()
 	for loopCnt := 0; ; loopCnt++ {
 		var (
@@ -417,12 +423,16 @@ func (s *Server) run() {
 			s.discovery.RequestRemote(connN)
 		}
 
-		if s.discovery.PoolCount() < minPoolCount {
+		if peerCheckTimeout || s.discovery.PoolCount() < s.AttemptConnPeers {
 			s.broadcastHPMessage(NewMessage(CMDGetAddr, payload.NewNullPayload()))
+			peerCheckTimeout = false
 		}
 		select {
 		case <-s.quit:
 			return
+		case <-timer.C:
+			peerCheckTimeout = true
+			timer.Reset(peerCheckTime)
 		case p := <-s.register:
 			s.lock.Lock()
 			s.peers[p] = true
