@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
@@ -20,20 +19,20 @@ type AwaitableRPCClient struct {
 	RPCClient
 
 	chLock     sync.RWMutex
-	subBlockCh chan<- rpcclient.Notification
-	subTxCh    chan<- rpcclient.Notification
+	subBlockCh chan<- *block.Block
+	subTxCh    chan<- *state.AppExecResult
 }
 
-func (c *AwaitableRPCClient) SubscribeForNewBlocksWithChan(primary *int, since *uint32, till *uint32, rcvrCh chan<- rpcclient.Notification) (string, error) {
+func (c *AwaitableRPCClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Block) (string, error) {
 	c.chLock.Lock()
 	defer c.chLock.Unlock()
-	c.subBlockCh = rcvrCh
+	c.subBlockCh = rcvr
 	return "1", nil
 }
-func (c *AwaitableRPCClient) SubscribeForTransactionExecutionsWithChan(state *string, container *util.Uint256, rcvrCh chan<- rpcclient.Notification) (string, error) {
+func (c *AwaitableRPCClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *state.AppExecResult) (string, error) {
 	c.chLock.Lock()
 	defer c.chLock.Unlock()
-	c.subTxCh = rcvrCh
+	c.subTxCh = rcvr
 	return "2", nil
 }
 func (c *AwaitableRPCClient) Unsubscribe(id string) error { return nil }
@@ -163,10 +162,7 @@ func TestWSWaiter_Wait(t *testing.T) {
 	check(t, func() {
 		c.chLock.RLock()
 		defer c.chLock.RUnlock()
-		c.subBlockCh <- rpcclient.Notification{
-			Type:  neorpc.ExecutionEventID,
-			Value: expected,
-		}
+		c.subTxCh <- expected
 	})
 
 	// Missing AER after VUB.
@@ -178,9 +174,6 @@ func TestWSWaiter_Wait(t *testing.T) {
 	check(t, func() {
 		c.chLock.RLock()
 		defer c.chLock.RUnlock()
-		c.subBlockCh <- rpcclient.Notification{
-			Type:  neorpc.BlockEventID,
-			Value: &block.Block{},
-		}
+		c.subBlockCh <- &block.Block{}
 	})
 }

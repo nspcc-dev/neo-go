@@ -15,11 +15,16 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv/params"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 )
@@ -32,31 +37,26 @@ func TestWSClientClose(t *testing.T) {
 }
 
 func TestWSClientSubscription(t *testing.T) {
-	ch := make(chan Notification)
+	bCh := make(chan *block.Block)
+	txCh := make(chan *transaction.Transaction)
+	aerCh := make(chan *state.AppExecResult)
+	ntfCh := make(chan *state.ContainedNotificationEvent)
+	ntrCh := make(chan *result.NotaryRequestEvent)
 	var cases = map[string]func(*WSClient) (string, error){
 		"blocks": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForNewBlocksWithChan(nil, nil, nil, nil)
-		},
-		"blocks_with_custom_ch": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForNewBlocksWithChan(nil, nil, nil, ch)
+			return wsc.ReceiveBlocks(nil, bCh)
 		},
 		"transactions": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForNewTransactionsWithChan(nil, nil, nil)
-		},
-		"transactions_with_custom_ch": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForNewTransactionsWithChan(nil, nil, ch)
+			return wsc.ReceiveTransactions(nil, txCh)
 		},
 		"notifications": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForExecutionNotificationsWithChan(nil, nil, nil)
-		},
-		"notifications_with_custom_ch": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForExecutionNotificationsWithChan(nil, nil, ch)
+			return wsc.ReceiveExecutionNotifications(nil, ntfCh)
 		},
 		"executions": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForTransactionExecutionsWithChan(nil, nil, nil)
+			return wsc.ReceiveExecutions(nil, aerCh)
 		},
-		"executions_with_custom_ch": func(wsc *WSClient) (string, error) {
-			return wsc.SubscribeForTransactionExecutionsWithChan(nil, nil, ch)
+		"notary requests": func(wsc *WSClient) (string, error) {
+			return wsc.ReceiveNotaryRequests(nil, ntrCh)
 		},
 	}
 	t.Run("good", func(t *testing.T) {
@@ -96,13 +96,13 @@ func TestWSClientUnsubscription(t *testing.T) {
 	var cases = map[string]responseCheck{
 		"good": {`{"jsonrpc": "2.0", "id": 1, "result": true}`, func(t *testing.T, wsc *WSClient) {
 			// We can't really subscribe using this stub server, so set up wsc internals.
-			wsc.subscriptions["0"] = notificationReceiver{}
+			wsc.subscriptions["0"] = &blockReceiver{}
 			err := wsc.Unsubscribe("0")
 			require.NoError(t, err)
 		}},
 		"all": {`{"jsonrpc": "2.0", "id": 1, "result": true}`, func(t *testing.T, wsc *WSClient) {
 			// We can't really subscribe using this stub server, so set up wsc internals.
-			wsc.subscriptions["0"] = notificationReceiver{}
+			wsc.subscriptions["0"] = &blockReceiver{}
 			err := wsc.UnsubscribeAll()
 			require.NoError(t, err)
 			require.Equal(t, 0, len(wsc.subscriptions))
@@ -113,13 +113,13 @@ func TestWSClientUnsubscription(t *testing.T) {
 		}},
 		"error returned": {`{"jsonrpc": "2.0", "id": 1, "error":{"code":-32602,"message":"Invalid Params"}}`, func(t *testing.T, wsc *WSClient) {
 			// We can't really subscribe using this stub server, so set up wsc internals.
-			wsc.subscriptions["0"] = notificationReceiver{}
+			wsc.subscriptions["0"] = &blockReceiver{}
 			err := wsc.Unsubscribe("0")
 			require.Error(t, err)
 		}},
 		"false returned": {`{"jsonrpc": "2.0", "id": 1, "result": false}`, func(t *testing.T, wsc *WSClient) {
 			// We can't really subscribe using this stub server, so set up wsc internals.
-			wsc.subscriptions["0"] = notificationReceiver{}
+			wsc.subscriptions["0"] = &blockReceiver{}
 			err := wsc.Unsubscribe("0")
 			require.Error(t, err)
 		}},
@@ -144,7 +144,7 @@ func TestWSClientEvents(t *testing.T) {
 		`{"jsonrpc":"2.0","method":"notification_from_execution","params":[{"container":"0xe1cd5e57e721d2a2e05fb1f08721b12057b25ab1dd7fd0f33ee1639932fdfad7","contract":"0x1b4357bff5a01bdf2a6581247cf9ed1e24629176","eventname":"contract call","state":{"type":"Array","value":[{"type":"ByteString","value":"dHJhbnNmZXI="},{"type":"Array","value":[{"type":"ByteString","value":"dpFiJB7t+XwkgWUq3xug9b9XQxs="},{"type":"ByteString","value":"MW6FEDkBnTnfwsN9bD/uGf1YCYc="},{"type":"Integer","value":"1000"}]}]}}]}`,
 		`{"jsonrpc":"2.0","method":"transaction_executed","params":[{"container":"0xf97a72b7722c109f909a8bc16c22368c5023d85828b09b127b237aace33cf099","trigger":"Application","vmstate":"HALT","gasconsumed":"6042610","stack":[],"notifications":[{"contract":"0xe65ff7b3a02d207b584a5c27057d4e9862ef01da","eventname":"contract call","state":{"type":"Array","value":[{"type":"ByteString","value":"dHJhbnNmZXI="},{"type":"Array","value":[{"type":"ByteString","value":"MW6FEDkBnTnfwsN9bD/uGf1YCYc="},{"type":"ByteString","value":"IHKCdK+vw29DoHHTKM+j5inZy7A="},{"type":"Integer","value":"123"}]}]}},{"contract":"0xe65ff7b3a02d207b584a5c27057d4e9862ef01da","eventname":"transfer","state":{"type":"Array","value":[{"type":"ByteString","value":"MW6FEDkBnTnfwsN9bD/uGf1YCYc="},{"type":"ByteString","value":"IHKCdK+vw29DoHHTKM+j5inZy7A="},{"type":"Integer","value":"123"}]}}]}]}`,
 		fmt.Sprintf(`{"jsonrpc":"2.0","method":"block_added","params":[%s]}`, b1Verbose),
-		`{"jsonrpc":"2.0","method":"event_missed","params":[]}`,
+		`{"jsonrpc":"2.0","method":"event_missed","params":[]}`, // the last one, will trigger receiver channels closing.
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == "/ws" && req.Method == "GET" {
@@ -163,109 +163,123 @@ func TestWSClientEvents(t *testing.T) {
 			return
 		}
 	}))
+	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+	require.NoError(t, err)
+	wsc.getNextRequestID = getTestRequestID
+	wsc.cacheLock.Lock()
+	wsc.cache.initDone = true // Our server mock is restricted, so perform initialisation manually.
+	wsc.cache.network = netmode.UnitTestNet
+	wsc.cacheLock.Unlock()
 
-	t.Run("default ntf channel", func(t *testing.T) {
-		wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
-		require.NoError(t, err)
-		wsc.getNextRequestID = getTestRequestID
-		wsc.cacheLock.Lock()
-		wsc.cache.initDone = true // Our server mock is restricted, so perform initialisation manually.
-		wsc.cache.network = netmode.UnitTestNet
-		wsc.cacheLock.Unlock()
-		// Our server mock is restricted, so perform subscriptions manually with default notifications channel.
-		wsc.subscriptionsLock.Lock()
-		wsc.subscriptions["0"] = notificationReceiver{typ: neorpc.BlockEventID, ch: wsc.Notifications}
-		wsc.subscriptions["1"] = notificationReceiver{typ: neorpc.ExecutionEventID, ch: wsc.Notifications}
-		wsc.subscriptions["2"] = notificationReceiver{typ: neorpc.NotificationEventID, ch: wsc.Notifications}
-		// MissedEvent must be delivered without subscription.
-		wsc.subscriptionsLock.Unlock()
-		for range events {
-			select {
-			case _, ok = <-wsc.Notifications:
-			case <-time.After(time.Second):
-				t.Fatal("timeout waiting for event")
-			}
-			require.True(t, ok)
-		}
+	// Our server mock is restricted, so perform subscriptions manually with default notifications channel.
+	bCh1 := make(chan *block.Block)
+	bCh2 := make(chan *block.Block)
+	aerCh1 := make(chan *state.AppExecResult)
+	aerCh2 := make(chan *state.AppExecResult)
+	aerCh3 := make(chan *state.AppExecResult)
+	ntfCh := make(chan *state.ContainedNotificationEvent)
+	halt := "HALT"
+	fault := "FAULT"
+	wsc.subscriptionsLock.Lock()
+	wsc.subscriptions["0"] = &blockReceiver{ch: bCh1}
+	wsc.receivers[chan<- *block.Block(bCh1)] = []string{"0"}
+	wsc.subscriptions["1"] = &blockReceiver{ch: bCh2} // two different channels subscribed for same notifications
+	wsc.receivers[chan<- *block.Block(bCh2)] = []string{"1"}
+
+	wsc.subscriptions["2"] = &executionNotificationReceiver{ch: ntfCh}
+	wsc.subscriptions["3"] = &executionNotificationReceiver{ch: ntfCh} // check duplicating subscriptions
+	wsc.receivers[chan<- *state.ContainedNotificationEvent(ntfCh)] = []string{"2", "3"}
+
+	wsc.subscriptions["4"] = &executionReceiver{ch: aerCh1}
+	wsc.receivers[chan<- *state.AppExecResult(aerCh1)] = []string{"4"}
+	wsc.subscriptions["5"] = &executionReceiver{filter: &neorpc.ExecutionFilter{State: &halt}, ch: aerCh2}
+	wsc.receivers[chan<- *state.AppExecResult(aerCh2)] = []string{"5"}
+	wsc.subscriptions["6"] = &executionReceiver{filter: &neorpc.ExecutionFilter{State: &fault}, ch: aerCh3}
+	wsc.receivers[chan<- *state.AppExecResult(aerCh3)] = []string{"6"}
+	// MissedEvent must close the channels above.
+
+	wsc.subscriptions["7"] = &naiveReceiver{eventID: neorpc.BlockEventID, ch: wsc.Notifications}
+	wsc.subscriptions["8"] = &naiveReceiver{eventID: neorpc.BlockEventID, ch: wsc.Notifications}     // check duplicating subscriptions
+	wsc.subscriptions["9"] = &naiveReceiver{eventID: neorpc.ExecutionEventID, ch: wsc.Notifications} // check different events
+	wsc.receivers[wsc.Notifications] = []string{"7", "8", "9"}
+	wsc.subscriptionsLock.Unlock()
+
+	var (
+		b1Cnt, b2Cnt                                      int
+		aer1Cnt, aer2Cnt, aer3Cnt                         int
+		ntfCnt                                            int
+		defaultCount                                      int
+		expectedb1Cnt, expectedb2Cnt                      = 1, 1      // single Block event
+		expectedaer1Cnt, expectedaer2Cnt, expectedaer3Cnt = 2, 2, 0   // two HALTED AERs
+		expectedntfCnt                                    = 1         // single notification event
+		expectedDefaultCnt                                = 1 + 2 + 1 // single Block event + two AERs + missed event
+		aer                                               *state.AppExecResult
+	)
+	for b1Cnt+b2Cnt+
+		aer1Cnt+aer2Cnt+aer3Cnt+
+		ntfCnt+
+		defaultCount !=
+		expectedb1Cnt+expectedb2Cnt+
+			expectedaer1Cnt+expectedaer2Cnt+expectedaer3Cnt+
+			expectedntfCnt+
+			expectedDefaultCnt {
 		select {
+		case _, ok = <-bCh1:
+			if ok {
+				b1Cnt++
+			}
+		case _, ok = <-bCh2:
+			if ok {
+				b2Cnt++
+			}
+		case _, ok = <-aerCh1:
+			if ok {
+				aer1Cnt++
+			}
+		case aer, ok = <-aerCh2:
+			if ok {
+				require.Equal(t, vmstate.Halt, aer.VMState)
+				aer2Cnt++
+			}
+		case _, ok = <-aerCh3:
+			if ok {
+				aer3Cnt++
+			}
+		case _, ok = <-ntfCh:
+			if ok {
+				ntfCnt++
+			}
 		case _, ok = <-wsc.Notifications:
+			if ok {
+				defaultCount++
+			}
 		case <-time.After(time.Second):
 			t.Fatal("timeout waiting for event")
 		}
-		// Connection closed by server.
-		require.False(t, ok)
-	})
-	t.Run("multiple ntf channels", func(t *testing.T) {
-		wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
-		require.NoError(t, err)
-		wsc.getNextRequestID = getTestRequestID
-		wsc.cacheLock.Lock()
-		wsc.cache.initDone = true // Our server mock is restricted, so perform initialisation manually.
-		wsc.cache.network = netmode.UnitTestNet
-		wsc.cacheLock.Unlock()
+	}
+	assert.Equal(t, expectedb1Cnt, b1Cnt)
+	assert.Equal(t, expectedb2Cnt, b2Cnt)
+	assert.Equal(t, expectedaer1Cnt, aer1Cnt)
+	assert.Equal(t, expectedaer2Cnt, aer2Cnt)
+	assert.Equal(t, expectedaer3Cnt, aer3Cnt)
+	assert.Equal(t, expectedntfCnt, ntfCnt)
+	assert.Equal(t, expectedDefaultCnt, defaultCount)
 
-		// Our server mock is restricted, so perform subscriptions manually with default notifications channel.
-		ch1 := make(chan Notification)
-		ch2 := make(chan Notification)
-		ch3 := make(chan Notification)
-		halt := "HALT"
-		fault := "FAULT"
-		wsc.subscriptionsLock.Lock()
-		wsc.subscriptions["0"] = notificationReceiver{typ: neorpc.BlockEventID, ch: wsc.Notifications}
-		wsc.subscriptions["1"] = notificationReceiver{typ: neorpc.ExecutionEventID, ch: wsc.Notifications}
-		wsc.subscriptions["2"] = notificationReceiver{typ: neorpc.NotificationEventID, ch: wsc.Notifications}
-		wsc.subscriptions["3"] = notificationReceiver{typ: neorpc.BlockEventID, ch: ch1}
-		wsc.subscriptions["4"] = notificationReceiver{typ: neorpc.NotificationEventID, ch: ch2}
-		wsc.subscriptions["5"] = notificationReceiver{typ: neorpc.NotificationEventID, ch: ch2} // check duplicating subscriptions
-		wsc.subscriptions["6"] = notificationReceiver{typ: neorpc.ExecutionEventID, filter: neorpc.ExecutionFilter{State: &halt}, ch: ch2}
-		wsc.subscriptions["7"] = notificationReceiver{typ: neorpc.ExecutionEventID, filter: neorpc.ExecutionFilter{State: &fault}, ch: ch3}
-		// MissedEvent must be delivered without subscription.
-		wsc.subscriptionsLock.Unlock()
-
-		var (
-			defaultChCnt           int
-			ch1Cnt                 int
-			ch2Cnt                 int
-			ch3Cnt                 int
-			expectedDefaultCnCount = len(events)
-			expectedCh1Cnt         = 1 + 1     // Block event + Missed event
-			expectedCh2Cnt         = 1 + 2 + 1 // Notification event + 2 Execution events + Missed event
-			expectedCh3Cnt         = 1         // Missed event
-			ntf                    Notification
-		)
-		for i := 0; i < expectedDefaultCnCount+expectedCh1Cnt+expectedCh2Cnt+expectedCh3Cnt; i++ {
-			select {
-			case ntf, ok = <-wsc.Notifications:
-				defaultChCnt++
-			case ntf, ok = <-ch1:
-				require.True(t, ntf.Type == neorpc.BlockEventID || ntf.Type == neorpc.MissedEventID, ntf.Type)
-				ch1Cnt++
-			case ntf, ok = <-ch2:
-				require.True(t, ntf.Type == neorpc.NotificationEventID || ntf.Type == neorpc.MissedEventID || ntf.Type == neorpc.ExecutionEventID)
-				ch2Cnt++
-			case ntf, ok = <-ch3:
-				require.True(t, ntf.Type == neorpc.MissedEventID)
-				ch3Cnt++
-			case <-time.After(time.Second):
-				t.Fatal("timeout waiting for event")
-			}
-			require.True(t, ok)
-		}
-		select {
-		case _, ok = <-wsc.Notifications:
-		case _, ok = <-ch1:
-		case _, ok = <-ch2:
-		case _, ok = <-ch3:
-		case <-time.After(time.Second):
-			t.Fatal("timeout waiting for event")
-		}
-		// Connection closed by server.
-		require.False(t, ok)
-		require.Equal(t, expectedDefaultCnCount, defaultChCnt)
-		require.Equal(t, expectedCh1Cnt, ch1Cnt)
-		require.Equal(t, expectedCh2Cnt, ch2Cnt)
-		require.Equal(t, expectedCh3Cnt, ch3Cnt)
-	})
+	// Channels must be closed by server
+	_, ok = <-bCh1
+	require.False(t, ok)
+	_, ok = <-bCh2
+	require.False(t, ok)
+	_, ok = <-aerCh1
+	require.False(t, ok)
+	_, ok = <-aerCh2
+	require.False(t, ok)
+	_, ok = <-aerCh3
+	require.False(t, ok)
+	_, ok = <-ntfCh
+	require.False(t, ok)
+	_, ok = <-ntfCh
+	require.False(t, ok)
 }
 
 func TestWSExecutionVMStateCheck(t *testing.T) {
@@ -276,12 +290,16 @@ func TestWSExecutionVMStateCheck(t *testing.T) {
 	wsc.getNextRequestID = getTestRequestID
 	require.NoError(t, wsc.Init())
 	filter := "NONE"
-	_, err = wsc.SubscribeForTransactionExecutionsWithChan(&filter, nil, nil)
+	_, err = wsc.ReceiveExecutions(&neorpc.ExecutionFilter{State: &filter}, make(chan *state.AppExecResult))
 	require.Error(t, err)
 	wsc.Close()
 }
 
 func TestWSFilteredSubscriptions(t *testing.T) {
+	bCh := make(chan *block.Block)
+	txCh := make(chan *transaction.Transaction)
+	aerCh := make(chan *state.AppExecResult)
+	ntfCh := make(chan *state.ContainedNotificationEvent)
 	var cases = []struct {
 		name       string
 		clientCode func(*testing.T, *WSClient)
@@ -290,7 +308,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"blocks primary",
 			func(t *testing.T, wsc *WSClient) {
 				primary := 3
-				_, err := wsc.SubscribeForNewBlocksWithChan(&primary, nil, nil, nil)
+				_, err := wsc.ReceiveBlocks(&neorpc.BlockFilter{Primary: &primary}, bCh)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -305,7 +323,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"blocks since",
 			func(t *testing.T, wsc *WSClient) {
 				var since uint32 = 3
-				_, err := wsc.SubscribeForNewBlocksWithChan(nil, &since, nil, nil)
+				_, err := wsc.ReceiveBlocks(&neorpc.BlockFilter{Since: &since}, bCh)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -320,7 +338,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"blocks till",
 			func(t *testing.T, wsc *WSClient) {
 				var till uint32 = 3
-				_, err := wsc.SubscribeForNewBlocksWithChan(nil, nil, &till, nil)
+				_, err := wsc.ReceiveBlocks(&neorpc.BlockFilter{Till: &till}, bCh)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -339,7 +357,11 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 					primary        = 2
 					till    uint32 = 5
 				)
-				_, err := wsc.SubscribeForNewBlocksWithChan(&primary, &since, &till, nil)
+				_, err := wsc.ReceiveBlocks(&neorpc.BlockFilter{
+					Primary: &primary,
+					Since:   &since,
+					Till:    &till,
+				}, bCh)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -354,7 +376,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"transactions sender",
 			func(t *testing.T, wsc *WSClient) {
 				sender := util.Uint160{1, 2, 3, 4, 5}
-				_, err := wsc.SubscribeForNewTransactionsWithChan(&sender, nil, nil)
+				_, err := wsc.ReceiveTransactions(&neorpc.TxFilter{Sender: &sender}, txCh)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -368,7 +390,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"transactions signer",
 			func(t *testing.T, wsc *WSClient) {
 				signer := util.Uint160{0, 42}
-				_, err := wsc.SubscribeForNewTransactionsWithChan(nil, &signer, nil)
+				_, err := wsc.ReceiveTransactions(&neorpc.TxFilter{Signer: &signer}, txCh)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -383,7 +405,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			func(t *testing.T, wsc *WSClient) {
 				sender := util.Uint160{1, 2, 3, 4, 5}
 				signer := util.Uint160{0, 42}
-				_, err := wsc.SubscribeForNewTransactionsWithChan(&sender, &signer, nil)
+				_, err := wsc.ReceiveTransactions(&neorpc.TxFilter{Sender: &sender, Signer: &signer}, txCh)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -397,7 +419,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"notifications contract hash",
 			func(t *testing.T, wsc *WSClient) {
 				contract := util.Uint160{1, 2, 3, 4, 5}
-				_, err := wsc.SubscribeForExecutionNotificationsWithChan(&contract, nil, nil)
+				_, err := wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Contract: &contract}, ntfCh)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -411,7 +433,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"notifications name",
 			func(t *testing.T, wsc *WSClient) {
 				name := "my_pretty_notification"
-				_, err := wsc.SubscribeForExecutionNotificationsWithChan(nil, &name, nil)
+				_, err := wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Name: &name}, ntfCh)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -426,7 +448,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			func(t *testing.T, wsc *WSClient) {
 				contract := util.Uint160{1, 2, 3, 4, 5}
 				name := "my_pretty_notification"
-				_, err := wsc.SubscribeForExecutionNotificationsWithChan(&contract, &name, nil)
+				_, err := wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Contract: &contract, Name: &name}, ntfCh)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -440,7 +462,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"executions state",
 			func(t *testing.T, wsc *WSClient) {
 				state := "FAULT"
-				_, err := wsc.SubscribeForTransactionExecutionsWithChan(&state, nil, nil)
+				_, err := wsc.ReceiveExecutions(&neorpc.ExecutionFilter{State: &state}, aerCh)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -454,7 +476,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		{"executions container",
 			func(t *testing.T, wsc *WSClient) {
 				container := util.Uint256{1, 2, 3}
-				_, err := wsc.SubscribeForTransactionExecutionsWithChan(nil, &container, nil)
+				_, err := wsc.ReceiveExecutions(&neorpc.ExecutionFilter{Container: &container}, aerCh)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
@@ -469,7 +491,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			func(t *testing.T, wsc *WSClient) {
 				state := "FAULT"
 				container := util.Uint256{1, 2, 3}
-				_, err := wsc.SubscribeForTransactionExecutionsWithChan(&state, &container, nil)
+				_, err := wsc.ReceiveExecutions(&neorpc.ExecutionFilter{State: &state, Container: &container}, aerCh)
 				require.NoError(t, err)
 			},
 			func(t *testing.T, p *params.Params) {
