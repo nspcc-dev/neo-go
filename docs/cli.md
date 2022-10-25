@@ -108,8 +108,20 @@ see [compiler documentation](compiler.md).
 deploy` and `contract invokefunction`). Wallet management (creating wallet,
 adding addresses/keys to it) is available there as well as wallet-related
 functions like NEP-17 transfers, NEO votes, multi-signature signing and other
-things. For all commands requiring read-only wallet (like `dump-keys`) a
-special `-` path can be used to read the wallet from the standard input.
+things.
+
+All commands (with few exceptions) accepting wallet via `-w` (or `--wallet`)
+parameter (and providing an interactive password prompt if needed) can also
+alternatively work with YAML configuration file passed via the
+`--wallet-config` parameter. This file uses a format similar to node's
+wallet-related configuration sections:
+```
+Path: "/path/to/wallet.json"
+Password: "pass"
+```
+
+For all commands requiring read-only wallet (like `dump-keys`) a special `-`
+path can be used to read the wallet from the standard input.
 
 ### Wallet management
 
