@@ -636,15 +636,14 @@ func (c *WSClient) performUnsubscription(id string) error {
 }
 
 // SubscribeForNewBlocks adds subscription for new block events to this instance
-// of the client. It can be filtered by primary consensus node index and/or block
-// index allowing to receive blocks since/till the specified index only, nil value
-// is treated as missing filter.
+// of the client. It can be filtered by primary consensus node index, nil value doesn't
+// add any filters.
 //
 // Deprecated: please, use ReceiveBlocks. This method will be removed in future versions.
-func (c *WSClient) SubscribeForNewBlocks(primary *int, sinceIndex, tillIndex *uint32) (string, error) {
+func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
 	var flt *neorpc.BlockFilter
-	if primary != nil || sinceIndex != nil || tillIndex != nil {
-		flt = &neorpc.BlockFilter{Primary: primary, Since: sinceIndex, Till: tillIndex}
+	if primary != nil {
+		flt = &neorpc.BlockFilter{Primary: primary}
 	}
 	params := []interface{}{"block_added"}
 	if flt != nil {
@@ -775,14 +774,13 @@ func (c *WSClient) ReceiveExecutionNotifications(flt *neorpc.NotificationFilter,
 // SubscribeForTransactionExecutions adds subscription for application execution
 // results generated during transaction execution to this instance of the client. It can
 // be filtered by state (HALT/FAULT) to check for successful or failing
-// transactions; it can also be filtered by script container hash.
-// nil value means no filtering.
+// transactions, nil value means no filtering.
 //
 // Deprecated: please, use ReceiveExecutions. This method will be removed in future versions.
-func (c *WSClient) SubscribeForTransactionExecutions(vmState *string, container *util.Uint256) (string, error) {
+func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, error) {
 	var flt *neorpc.ExecutionFilter
-	if vmState != nil || container != nil {
-		flt = &neorpc.ExecutionFilter{State: vmState, Container: container}
+	if state != nil {
+		flt = &neorpc.ExecutionFilter{State: state}
 	}
 	params := []interface{}{"transaction_executed"}
 	if flt != nil {
