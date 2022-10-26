@@ -96,9 +96,7 @@ func Generate(cfg Config) error {
 	ctr.Imports = append(ctr.Imports, "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal")
 	sort.Strings(ctr.Imports)
 
-	tmp, err := template.New("generate").Funcs(template.FuncMap{
-		"lowerFirst": lowerFirst,
-	}).Parse(srcTmpl)
+	tmp, err := template.New("generate").Parse(srcTmpl)
 	if err != nil {
 		return err
 	}
@@ -237,8 +235,4 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 
 func upperFirst(s string) string {
 	return strings.ToUpper(s[0:1]) + s[1:]
-}
-
-func lowerFirst(s string) string {
-	return strings.ToLower(s[0:1]) + s[1:]
 }
