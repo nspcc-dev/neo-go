@@ -244,8 +244,8 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 			close(aerRcvr)
 		}
 	}()
-	// Execution event follows the block event, thus wait until the block next to the VUB to be sure.
-	since := vub + 1
+	// Execution event precedes the block event, thus wait until the VUB-th block to be sure.
+	since := vub
 	blocksID, err := w.ws.ReceiveBlocks(&neorpc.BlockFilter{Since: &since}, bRcvr)
 	if err != nil {
 		wsWaitErr = fmt.Errorf("failed to subscribe for new blocks: %w", err)
