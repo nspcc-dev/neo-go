@@ -92,6 +92,9 @@ func Generate(cfg Config) error {
 	if err != nil {
 		return err
 	}
+	ctr.Imports = append(ctr.Imports, "github.com/nspcc-dev/neo-go/pkg/interop/contract")
+	ctr.Imports = append(ctr.Imports, "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal")
+	sort.Strings(ctr.Imports)
 
 	tmp, err := template.New("generate").Funcs(template.FuncMap{
 		"lowerFirst": lowerFirst,
@@ -169,9 +172,6 @@ func templateFromManifest(cfg Config) (contractTmpl, error) {
 			continue
 		}
 
-		imports["github.com/nspcc-dev/neo-go/pkg/interop/contract"] = struct{}{}
-		imports["github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"] = struct{}{}
-
 		// Consider `perform(a)` and `perform(a, b)` methods.
 		// First, try to export the second method with `Perform2` name.
 		// If `perform2` is already in the manifest, use `perform_2` with as many underscores
@@ -240,7 +240,6 @@ func templateFromManifest(cfg Config) (contractTmpl, error) {
 	for imp := range imports {
 		ctr.Imports = append(ctr.Imports, imp)
 	}
-	sort.Strings(ctr.Imports)
 
 	return ctr, nil
 }
