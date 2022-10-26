@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
@@ -30,6 +30,9 @@ var (
 	// ErrAwaitingNotSupported is returned from Wait method if Waiter instance
 	// doesn't support transaction awaiting.
 	ErrAwaitingNotSupported = errors.New("awaiting not supported")
+	// ErrMissedEvent is returned when RPCEventWaiter closes receiver channel
+	// which happens if missed event was received from the RPC server.
+	ErrMissedEvent = errors.New("some event was missed")
 )
 
 type (
@@ -65,8 +68,8 @@ type (
 	RPCEventWaiter interface {
 		RPCPollingWaiter
 
-		SubscribeForNewBlocksWithChan(primary *int, since *uint32, till *uint32, rcvrCh chan<- rpcclient.Notification) (string, error)
-		SubscribeForTransactionExecutionsWithChan(state *string, container *util.Uint256, rcvrCh chan<- rpcclient.Notification) (string, error)
+		ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Block) (string, error)
+		ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *state.AppExecResult) (string, error)
 		Unsubscribe(id string) error
 	}
 )
@@ -223,22 +226,27 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 			}
 		}
 	}()
-	rcvr := make(chan rpcclient.Notification)
+	bRcvr := make(chan *block.Block)
+	aerRcvr := make(chan *state.AppExecResult)
 	defer func() {
 	drainLoop:
-		// Drain rcvr to avoid other notification receivers blocking.
+		// Drain receivers to avoid other notification receivers blocking.
 		for {
 			select {
-			case <-rcvr:
+			case <-bRcvr:
+			case <-aerRcvr:
 			default:
 				break drainLoop
 			}
 		}
-		close(rcvr)
+		if wsWaitErr == nil || !errors.Is(wsWaitErr, ErrMissedEvent) {
+			close(bRcvr)
+			close(aerRcvr)
+		}
 	}()
-	// Execution event follows the block event, thus wait until the block next to the VUB to be sure.
-	since := vub + 1
-	blocksID, err := w.ws.SubscribeForNewBlocksWithChan(nil, &since, nil, rcvr)
+	// Execution event precedes the block event, thus wait until the VUB-th block to be sure.
+	since := vub
+	blocksID, err := w.ws.ReceiveBlocks(&neorpc.BlockFilter{Since: &since}, bRcvr)
 	if err != nil {
 		wsWaitErr = fmt.Errorf("failed to subscribe for new blocks: %w", err)
 		return
@@ -256,7 +264,7 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 		}
 	}()
 	for _, h := range hashes {
-		txsID, err := w.ws.SubscribeForTransactionExecutionsWithChan(nil, &h, rcvr)
+		txsID, err := w.ws.ReceiveExecutions(&neorpc.ExecutionFilter{Container: &h}, aerRcvr)
 		if err != nil {
 			wsWaitErr = fmt.Errorf("failed to subscribe for execution results: %w", err)
 			return
@@ -275,27 +283,25 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 		}()
 	}
 
-	for {
-		select {
-		case ntf := <-rcvr:
-			switch ntf.Type {
-			case neorpc.BlockEventID:
-				waitErr = ErrTxNotAccepted
-				return
-			case neorpc.ExecutionEventID:
-				res = ntf.Value.(*state.AppExecResult)
-				return
-			case neorpc.MissedEventID:
-				// We're toast, retry with non-ws client.
-				wsWaitErr = errors.New("some event was missed")
-				return
-			}
-		case <-w.ws.Context().Done():
-			waitErr = fmt.Errorf("%w: %v", ErrContextDone, w.ws.Context().Err())
-			return
-		case <-ctx.Done():
-			waitErr = fmt.Errorf("%w: %v", ErrContextDone, ctx.Err())
+	select {
+	case _, ok := <-bRcvr:
+		if !ok {
+			// We're toast, retry with non-ws client.
+			wsWaitErr = ErrMissedEvent
 			return
 		}
+		waitErr = ErrTxNotAccepted
+	case aer, ok := <-aerRcvr:
+		if !ok {
+			// We're toast, retry with non-ws client.
+			wsWaitErr = ErrMissedEvent
+			return
+		}
+		res = aer
+	case <-w.ws.Context().Done():
+		waitErr = fmt.Errorf("%w: %v", ErrContextDone, w.ws.Context().Err())
+	case <-ctx.Done():
+		waitErr = fmt.Errorf("%w: %v", ErrContextDone, ctx.Err())
 	}
+	return
 }

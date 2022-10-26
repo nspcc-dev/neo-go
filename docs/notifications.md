@@ -17,7 +17,7 @@ Currently supported events:
  * notification generated during execution
 
    Contents: container hash, contract hash, notification name, stack item. Filters: contract hash, notification name.
- * transaction executed
+ * transaction/persisting script executed
 
    Contents: application execution result. Filters: VM state, script container hash.
  * new/removed P2P notary request (if `P2PSigExtensions` are enabled)
@@ -34,9 +34,13 @@ Filters use conjunctional logic.
    announcing the block itself
  * transaction notifications are only announced for successful transactions
  * all announcements are being done in the same order they happen on the chain
-   First, transaction execution is announced. It is then followed by notifications
-   generated during this execution. Next, follows the transaction announcement.
-   Transaction announcements are ordered the same way they're in the block.
+   First, OnPersist script execution is announced followed by notifications generated
+   during the script execution. After that transaction execution is announced. It is
+   then followed by notifications generated during this execution. Next, follows the
+   transaction announcement. Transaction announcements are ordered the same way
+   they're in the block. After all in-block transactions announcements PostPersist
+   script execution is announced followed by notifications generated during the
+   script execution. Finally, block announcement is followed.
  * unsubscription may not cancel pending, but not yet sent events
 
 ## Subscription management
@@ -72,7 +76,7 @@ Recognized stream names:
  * `transaction_executed`
    Filter: `state` field containing `HALT` or `FAULT` string for successful
    and failed executions respectively and/or `container` field containing
-   script container hash.
+   script container (block/transaction) hash.
  * `notary_request_event`
    Filter: `sender` field containing a string with hex-encoded Uint160 (LE
    representation) for notary request's `Sender` and/or `signer` in the same
@@ -343,8 +347,10 @@ Example:
 ### `transaction_executed` notification
 
 It contains the same result as from `getapplicationlog` method in the first
-parameter and no other parameters. The only difference from `getapplicationlog` is
-that it always contains zero in the `contract` field.
+parameter and no other parameters. The difference from `getapplicationlog` is
+that it has block's or transaction's hex-encoded LE Uint256 hash in the `container`
+field instead of two separate `txid` and `blockhash` fields and a single execution
+instead of an executions array.
 
 Example:
 ```
@@ -353,61 +359,31 @@ Example:
    "params" : [
       {
          "container" : "0xe1cd5e57e721d2a2e05fb1f08721b12057b25ab1dd7fd0f33ee1639932fdfad7",
-         "executions" : [
+         "trigger" : "Application",
+         "gasconsumed" : "2.291",
+         "stack" : [],
+         "notifications" : [
             {
-               "trigger" : "Application",
-               "gasconsumed" : "2.291",
-               "contract" : "0x0000000000000000000000000000000000000000",
-               "stack" : [],
-               "notifications" : [
-                  {
-                     "state" : {
-                        "type" : "Array",
-                        "value" : [
-                           {
-                              "value" : "636f6e74726163742063616c6c",
-                              "type" : "ByteString"
-                           },
-                           {
-                              "type" : "ByteString",
-                              "value" : "7472616e73666572"
-                           },
-                           {
-                              "value" : [
-                                 {
-                                    "value" : "769162241eedf97c2481652adf1ba0f5bf57431b",
-                                    "type" : "ByteString"
-                                 },
-                                 {
-                                    "type" : "ByteString",
-                                    "value" : "316e851039019d39dfc2c37d6c3fee19fd580987"
-                                 },
-                                 {
-                                    "value" : "1000",
-                                    "type" : "Integer"
-                                 }
-                              ],
-                              "type" : "Array"
-                           }
-                        ]
+               "state" : {
+                  "type" : "Array",
+                  "value" : [
+                     {
+                        "value" : "636f6e74726163742063616c6c",
+                        "type" : "ByteString"
                      },
-                     "contract" : "0x1b4357bff5a01bdf2a6581247cf9ed1e24629176"
-                  },
-                  {
-                     "contract" : "0x1b4357bff5a01bdf2a6581247cf9ed1e24629176",
-                     "state" : {
+                     {
+                        "type" : "ByteString",
+                        "value" : "7472616e73666572"
+                     },
+                     {
                         "value" : [
-                           {
-                              "value" : "7472616e73666572",
-                              "type" : "ByteString"
-                           },
                            {
                               "value" : "769162241eedf97c2481652adf1ba0f5bf57431b",
                               "type" : "ByteString"
                            },
                            {
-                              "value" : "316e851039019d39dfc2c37d6c3fee19fd580987",
-                              "type" : "ByteString"
+                              "type" : "ByteString",
+                              "value" : "316e851039019d39dfc2c37d6c3fee19fd580987"
                            },
                            {
                               "value" : "1000",
@@ -416,11 +392,36 @@ Example:
                         ],
                         "type" : "Array"
                      }
-                  }
-               ],
-               "vmstate" : "HALT"
+                  ]
+               },
+               "contract" : "0x1b4357bff5a01bdf2a6581247cf9ed1e24629176"
+            },
+            {
+               "contract" : "0x1b4357bff5a01bdf2a6581247cf9ed1e24629176",
+               "state" : {
+                  "value" : [
+                     {
+                        "value" : "7472616e73666572",
+                        "type" : "ByteString"
+                     },
+                     {
+                        "value" : "769162241eedf97c2481652adf1ba0f5bf57431b",
+                        "type" : "ByteString"
+                     },
+                     {
+                        "value" : "316e851039019d39dfc2c37d6c3fee19fd580987",
+                        "type" : "ByteString"
+                     },
+                     {
+                        "value" : "1000",
+                        "type" : "Integer"
+                     }
+                  ],
+                  "type" : "Array"
+               }
             }
-         ]
+         ],
+         "vmstate" : "HALT"
       }
    ],
    "jsonrpc" : "2.0"
