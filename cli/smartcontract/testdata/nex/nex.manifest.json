@@ -1,0 +1,275 @@
+      {
+         "name" : "NEX Token",
+         "abi" : {
+            "events" : [
+               {
+                  "parameters" : [
+                     {
+                        "type" : "Hash160",
+                        "name" : "from"
+                     },
+                     {
+                        "name" : "to",
+                        "type" : "Hash160"
+                     },
+                     {
+                        "name" : "amount",
+                        "type" : "Integer"
+                     }
+                  ],
+                  "name" : "Transfer"
+               },
+               {
+                  "name" : "OnMint",
+                  "parameters" : [
+                     {
+                        "name" : "from",
+                        "type" : "Hash160"
+                     },
+                     {
+                        "type" : "Hash160",
+                        "name" : "to"
+                     },
+                     {
+                        "type" : "Integer",
+                        "name" : "amount"
+                     },
+                     {
+                        "name" : "swapId",
+                        "type" : "Integer"
+                     }
+                  ]
+               }
+            ],
+            "methods" : [
+               {
+                  "parameters" : [],
+                  "offset" : 0,
+                  "name" : "_initialize",
+                  "safe" : false,
+                  "returntype" : "Void"
+               },
+               {
+                  "parameters" : [
+                     {
+                        "type" : "Any",
+                        "name" : "data"
+                     },
+                     {
+                        "name" : "isUpdate",
+                        "type" : "Boolean"
+                     }
+                  ],
+                  "offset" : 3,
+                  "name" : "_deploy",
+                  "safe" : false,
+                  "returntype" : "Void"
+               },
+               {
+                  "parameters" : [
+                     {
+                        "type" : "Hash160",
+                        "name" : "holder"
+                     }
+                  ],
+                  "offset" : 484,
+                  "returntype" : "Integer",
+                  "safe" : true,
+                  "name" : "balanceOf"
+               },
+               {
+                  "safe" : true,
+                  "returntype" : "Integer",
+                  "name" : "cap",
+                  "offset" : 1881,
+                  "parameters" : []
+               },
+               {
+                  "name" : "changeMinter",
+                  "safe" : false,
+                  "returntype" : "Void",
+                  "parameters" : [
+                     {
+                        "name" : "newMinter",
+                        "type" : "PublicKey"
+                     }
+                  ],
+                  "offset" : 1678
+               },
+               {
+                  "parameters" : [
+                     {
+                        "type" : "Hash160",
+                        "name" : "newOwner"
+                     }
+                  ],
+                  "offset" : 1659,
+                  "name" : "changeOwner",
+                  "safe" : false,
+                  "returntype" : "Void"
+               },
+               {
+                  "offset" : 466,
+                  "parameters" : [],
+                  "safe" : true,
+                  "name" : "decimals",
+                  "returntype" : "Integer"
+               },
+               {
+                  "returntype" : "Void",
+                  "safe" : false,
+                  "name" : "destroy",
+                  "parameters" : [],
+                  "offset" : 1194
+               },
+               {
+                  "safe" : true,
+                  "returntype" : "PublicKey",
+                  "name" : "getMinter",
+                  "offset" : 1671,
+                  "parameters" : []
+               },
+               {
+                  "parameters" : [],
+                  "offset" : 1652,
+                  "name" : "getOwner",
+                  "safe" : true,
+                  "returntype" : "Hash160"
+               },
+               {
+                  "name" : "maxSupply",
+                  "safe" : false,
+                  "returntype" : "Integer",
+                  "parameters" : [],
+                  "offset" : 468
+               },
+               {
+                  "offset" : 1222,
+                  "parameters" : [
+                     {
+                        "name" : "from",
+                        "type" : "Hash160"
+                     },
+                     {
+                        "name" : "to",
+                        "type" : "Hash160"
+                     },
+                     {
+                        "type" : "Integer",
+                        "name" : "amount"
+                     },
+                     {
+                        "name" : "swapId",
+                        "type" : "Integer"
+                     },
+                     {
+                        "name" : "signature",
+                        "type" : "Signature"
+                     },
+                     {
+                        "name" : "data",
+                        "type" : "Any"
+                     }
+                  ],
+                  "safe" : false,
+                  "name" : "mint",
+                  "returntype" : "Void"
+               },
+               {
+                  "safe" : true,
+                  "name" : "symbol",
+                  "returntype" : "String",
+                  "parameters" : [],
+                  "offset" : 460
+               },
+               {
+                  "offset" : 1854,
+                  "parameters" : [],
+                  "name" : "totalMinted",
+                  "safe" : true,
+                  "returntype" : "Integer"
+               },
+               {
+                  "offset" : 478,
+                  "parameters" : [],
+                  "name" : "totalSupply",
+                  "safe" : true,
+                  "returntype" : "Integer"
+               },
+               {
+                  "offset" : 543,
+                  "parameters" : [
+                     {
+                        "name" : "from",
+                        "type" : "Hash160"
+                     },
+                     {
+                        "name" : "to",
+                        "type" : "Hash160"
+                     },
+                     {
+                        "type" : "Integer",
+                        "name" : "amount"
+                     },
+                     {
+                        "name" : "data",
+                        "type" : "Any"
+                     }
+                  ],
+                  "name" : "transfer",
+                  "safe" : false,
+                  "returntype" : "Boolean"
+               },
+               {
+                  "offset" : 1205,
+                  "parameters" : [
+                     {
+                        "type" : "ByteArray",
+                        "name" : "nef"
+                     },
+                     {
+                        "name" : "manifest",
+                        "type" : "ByteArray"
+                     }
+                  ],
+                  "safe" : false,
+                  "returntype" : "Void",
+                  "name" : "update"
+               },
+               {
+                  "offset" : 1717,
+                  "parameters" : [
+                     {
+                        "type" : "Integer",
+                        "name" : "newCap"
+                     }
+                  ],
+                  "returntype" : "Void",
+                  "safe" : false,
+                  "name" : "updateCap"
+               }
+            ]
+         },
+         "supportedstandards" : [
+            "NEP-17"
+         ],
+         "extra" : null,
+         "trusts" : [],
+         "features" : {},
+         "groups" : [],
+         "permissions" : [
+            {
+               "methods" : [
+                  "onNEP17Payment"
+               ],
+               "contract" : "*"
+            },
+            {
+               "methods" : [
+                  "update",
+                  "destroy"
+               ],
+               "contract" : "0xfffdc93764dbaddd97c48f252a53ea4643faa3fd"
+            }
+         ]
+      }

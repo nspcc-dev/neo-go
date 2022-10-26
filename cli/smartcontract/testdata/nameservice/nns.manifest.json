@@ -1,0 +1,441 @@
+      {
+         "abi" : {
+            "events" : [
+               {
+                  "parameters" : [
+                     {
+                        "name" : "from",
+                        "type" : "Hash160"
+                     },
+                     {
+                        "name" : "to",
+                        "type" : "Hash160"
+                     },
+                     {
+                        "name" : "amount",
+                        "type" : "Integer"
+                     },
+                     {
+                        "type" : "ByteArray",
+                        "name" : "tokenId"
+                     }
+                  ],
+                  "name" : "Transfer"
+               },
+               {
+                  "parameters" : [
+                     {
+                        "type" : "String",
+                        "name" : "name"
+                     },
+                     {
+                        "type" : "Hash160",
+                        "name" : "oldAdmin"
+                     },
+                     {
+                        "type" : "Hash160",
+                        "name" : "newAdmin"
+                     }
+                  ],
+                  "name" : "SetAdmin"
+               },
+               {
+                  "name" : "Renew",
+                  "parameters" : [
+                     {
+                        "name" : "name",
+                        "type" : "String"
+                     },
+                     {
+                        "type" : "Integer",
+                        "name" : "oldExpiration"
+                     },
+                     {
+                        "name" : "newExpiration",
+                        "type" : "Integer"
+                     }
+                  ]
+               }
+            ],
+            "methods" : [
+               {
+                  "safe" : true,
+                  "parameters" : [],
+                  "name" : "symbol",
+                  "returntype" : "String",
+                  "offset" : 0
+               },
+               {
+                  "parameters" : [],
+                  "name" : "decimals",
+                  "returntype" : "Integer",
+                  "safe" : true,
+                  "offset" : 6
+               },
+               {
+                  "offset" : 8,
+                  "returntype" : "Integer",
+                  "name" : "totalSupply",
+                  "parameters" : [],
+                  "safe" : true
+               },
+               {
+                  "offset" : 53,
+                  "safe" : true,
+                  "parameters" : [
+                     {
+                        "type" : "ByteArray",
+                        "name" : "tokenId"
+                     }
+                  ],
+                  "name" : "ownerOf",
+                  "returntype" : "Hash160"
+               },
+               {
+                  "safe" : true,
+                  "name" : "properties",
+                  "returntype" : "Map",
+                  "parameters" : [
+                     {
+                        "type" : "ByteArray",
+                        "name" : "tokenId"
+                     }
+                  ],
+                  "offset" : 184
+               },
+               {
+                  "safe" : true,
+                  "returntype" : "Integer",
+                  "name" : "balanceOf",
+                  "parameters" : [
+                     {
+                        "name" : "owner",
+                        "type" : "Hash160"
+                     }
+                  ],
+                  "offset" : 341
+               },
+               {
+                  "safe" : true,
+                  "returntype" : "InteropInterface",
+                  "name" : "tokens",
+                  "parameters" : [],
+                  "offset" : 453
+               },
+               {
+                  "safe" : true,
+                  "name" : "tokensOf",
+                  "returntype" : "InteropInterface",
+                  "parameters" : [
+                     {
+                        "name" : "owner",
+                        "type" : "Hash160"
+                     }
+                  ],
+                  "offset" : 494
+               },
+               {
+                  "offset" : 600,
+                  "safe" : false,
+                  "parameters" : [
+                     {
+                        "type" : "Hash160",
+                        "name" : "to"
+                     },
+                     {
+                        "name" : "tokenId",
+                        "type" : "ByteArray"
+                     },
+                     {
+                        "name" : "data",
+                        "type" : "Any"
+                     }
+                  ],
+                  "name" : "transfer",
+                  "returntype" : "Boolean"
+               },
+               {
+                  "name" : "update",
+                  "returntype" : "Void",
+                  "parameters" : [
+                     {
+                        "type" : "ByteArray",
+                        "name" : "nef"
+                     },
+                     {
+                        "name" : "manifest",
+                        "type" : "String"
+                     }
+                  ],
+                  "safe" : false,
+                  "offset" : 1121
+               },
+               {
+                  "offset" : 1291,
+                  "returntype" : "Void",
+                  "name" : "addRoot",
+                  "parameters" : [
+                     {
+                        "name" : "root",
+                        "type" : "String"
+                     }
+                  ],
+                  "safe" : false
+               },
+               {
+                  "offset" : 1725,
+                  "safe" : true,
+                  "parameters" : [],
+                  "returntype" : "InteropInterface",
+                  "name" : "roots"
+               },
+               {
+                  "offset" : 1757,
+                  "parameters" : [
+                     {
+                        "type" : "Array",
+                        "name" : "priceList"
+                     }
+                  ],
+                  "name" : "setPrice",
+                  "returntype" : "Void",
+                  "safe" : false
+               },
+               {
+                  "offset" : 1952,
+                  "safe" : true,
+                  "parameters" : [
+                     {
+                        "name" : "length",
+                        "type" : "Integer"
+                     }
+                  ],
+                  "name" : "getPrice",
+                  "returntype" : "Integer"
+               },
+               {
+                  "offset" : 2017,
+                  "safe" : true,
+                  "parameters" : [
+                     {
+                        "type" : "String",
+                        "name" : "name"
+                     }
+                  ],
+                  "name" : "isAvailable",
+                  "returntype" : "Boolean"
+               },
+               {
+                  "offset" : 2405,
+                  "parameters" : [
+                     {
+                        "type" : "String",
+                        "name" : "name"
+                     },
+                     {
+                        "type" : "Hash160",
+                        "name" : "owner"
+                     }
+                  ],
+                  "name" : "register",
+                  "returntype" : "Boolean",
+                  "safe" : false
+               },
+               {
+                  "name" : "renew",
+                  "returntype" : "Integer",
+                  "parameters" : [
+                     {
+                        "type" : "String",
+                        "name" : "name"
+                     }
+                  ],
+                  "safe" : false,
+                  "offset" : 3113
+               },
+               {
+                  "offset" : 3123,
+                  "safe" : false,
+                  "parameters" : [
+                     {
+                        "name" : "name",
+                        "type" : "String"
+                     },
+                     {
+                        "name" : "years",
+                        "type" : "Integer"
+                     }
+                  ],
+                  "name" : "renew",
+                  "returntype" : "Integer"
+               },
+               {
+                  "offset" : 3697,
+                  "parameters" : [
+                     {
+                        "type" : "String",
+                        "name" : "name"
+                     },
+                     {
+                        "name" : "admin",
+                        "type" : "Hash160"
+                     }
+                  ],
+                  "name" : "setAdmin",
+                  "returntype" : "Void",
+                  "safe" : false
+               },
+               {
+                  "safe" : false,
+                  "returntype" : "Void",
+                  "name" : "setRecord",
+                  "parameters" : [
+                     {
+                        "name" : "name",
+                        "type" : "String"
+                     },
+                     {
+                        "type" : "Integer",
+                        "name" : "type"
+                     },
+                     {
+                        "name" : "data",
+                        "type" : "String"
+                     }
+                  ],
+                  "offset" : 3921
+               },
+               {
+                  "name" : "getRecord",
+                  "returntype" : "String",
+                  "parameters" : [
+                     {
+                        "name" : "name",
+                        "type" : "String"
+                     },
+                     {
+                        "type" : "Integer",
+                        "name" : "type"
+                     }
+                  ],
+                  "safe" : true,
+                  "offset" : 5877
+               },
+               {
+                  "returntype" : "InteropInterface",
+                  "name" : "getAllRecords",
+                  "parameters" : [
+                     {
+                        "name" : "name",
+                        "type" : "String"
+                     }
+                  ],
+                  "safe" : true,
+                  "offset" : 6201
+               },
+               {
+                  "safe" : false,
+                  "returntype" : "Void",
+                  "name" : "deleteRecord",
+                  "parameters" : [
+                     {
+                        "name" : "name",
+                        "type" : "String"
+                     },
+                     {
+                        "type" : "Integer",
+                        "name" : "type"
+                     }
+                  ],
+                  "offset" : 6281
+               },
+               {
+                  "offset" : 6565,
+                  "name" : "resolve",
+                  "returntype" : "String",
+                  "parameters" : [
+                     {
+                        "name" : "name",
+                        "type" : "String"
+                     },
+                     {
+                        "type" : "Integer",
+                        "name" : "type"
+                     }
+                  ],
+                  "safe" : true
+               },
+               {
+                  "safe" : false,
+                  "parameters" : [
+                     {
+                        "name" : "data",
+                        "type" : "Any"
+                     },
+                     {
+                        "name" : "update",
+                        "type" : "Boolean"
+                     }
+                  ],
+                  "name" : "_deploy",
+                  "returntype" : "Void",
+                  "offset" : 7152
+               },
+               {
+                  "offset" : 7514,
+                  "parameters" : [],
+                  "returntype" : "Void",
+                  "name" : "_initialize",
+                  "safe" : false
+               }
+            ]
+         },
+         "supportedstandards" : [
+            "NEP-11"
+         ],
+         "permissions" : [
+            {
+               "contract" : "0x726cb6e0cd8628a1350a611384688911ab75f51b",
+               "methods" : [
+                  "ripemd160"
+               ]
+            },
+            {
+               "contract" : "0xacce6fd80d44e1796aa0c2c625e9e4e0ce39efc0",
+               "methods" : [
+                  "atoi",
+                  "deserialize",
+                  "serialize",
+                  "stringSplit"
+               ]
+            },
+            {
+               "contract" : "0xef4073a0f2b305a38ec4050e4d3d28bc40ea63f5",
+               "methods" : [
+                  "getCommittee"
+               ]
+            },
+            {
+               "contract" : "0xfffdc93764dbaddd97c48f252a53ea4643faa3fd",
+               "methods" : [
+                  "getContract",
+                  "update"
+               ]
+            },
+            {
+               "methods" : [
+                  "onNEP11Payment"
+               ],
+               "contract" : "*"
+            }
+         ],
+         "features" : {},
+         "name" : "NameService",
+         "trusts" : [],
+         "extra" : {
+            "Author" : "The Neo Project",
+            "Description" : "Neo Name Service",
+            "Email" : "dev@neo.org"
+         },
+         "groups" : []
+      }
