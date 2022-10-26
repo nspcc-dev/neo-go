@@ -135,9 +135,9 @@ func TestCheck(t *testing.T) {
 	m := manifest.NewManifest("Test")
 	require.Error(t, Check(m, manifest.NEP17StandardName))
 
-	m.ABI.Methods = append(m.ABI.Methods, decimalTokenBase.ABI.Methods...)
-	m.ABI.Methods = append(m.ABI.Methods, nep17.ABI.Methods...)
-	m.ABI.Events = append(m.ABI.Events, nep17.ABI.Events...)
+	m.ABI.Methods = append(m.ABI.Methods, DecimalTokenBase.ABI.Methods...)
+	m.ABI.Methods = append(m.ABI.Methods, Nep17.ABI.Methods...)
+	m.ABI.Events = append(m.ABI.Events, Nep17.ABI.Events...)
 	require.NoError(t, Check(m, manifest.NEP17StandardName))
 	require.NoError(t, CheckABI(m, manifest.NEP17StandardName))
 }

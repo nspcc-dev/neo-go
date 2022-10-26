@@ -19,10 +19,10 @@ var (
 )
 
 var checks = map[string][]*Standard{
-	manifest.NEP11StandardName: {nep11NonDivisible, nep11Divisible},
-	manifest.NEP17StandardName: {nep17},
-	manifest.NEP11Payable:      {nep11payable},
-	manifest.NEP17Payable:      {nep17payable},
+	manifest.NEP11StandardName: {Nep11NonDivisible, Nep11Divisible},
+	manifest.NEP17StandardName: {Nep17},
+	manifest.NEP11Payable:      {Nep11Payable},
+	manifest.NEP17Payable:      {Nep17Payable},
 }
 
 // Check checks if the manifest complies with all provided standards.

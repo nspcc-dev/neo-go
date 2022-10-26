@@ -5,8 +5,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 )
 
-var nep17 = &Standard{
-	Base: decimalTokenBase,
+// Nep17 is a NEP-17 Standard.
+var Nep17 = &Standard{
+	Base: DecimalTokenBase,
 	Manifest: manifest.Manifest{
 		ABI: manifest.ABI{
 			Methods: []manifest.Method{
