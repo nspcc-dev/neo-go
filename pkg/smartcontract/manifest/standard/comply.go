@@ -55,12 +55,12 @@ func check(m *manifest.Manifest, checkNames bool, standards ...string) error {
 }
 
 // Comply if m has all methods and event from st manifest and they have the same signature.
-// Parameter names are ignored.
+// Parameter names are checked to exactly match the ones in the given standard.
 func Comply(m *manifest.Manifest, st *Standard) error {
 	return comply(m, true, st)
 }
 
-// ComplyABI is similar to comply but doesn't check parameter names.
+// ComplyABI is similar to Comply but doesn't check parameter names.
 func ComplyABI(m *manifest.Manifest, st *Standard) error {
 	return comply(m, false, st)
 }
