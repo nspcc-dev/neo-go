@@ -2557,7 +2557,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		t.Run("contract-based verification with parameters", func(t *testing.T) {
 			verAcc, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
 			require.NoError(t, err)
-			checkContract(t, verAcc, []byte{}, 737530) // No C# match, but we believe it's OK and it differs from the one above.
+			checkContract(t, verAcc, []byte{}, 490890) // No C# match, but we believe it's OK and it differs from the one above.
 		})
 		t.Run("contract-based verification with invocation script", func(t *testing.T) {
 			verAcc, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
@@ -2567,7 +2567,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			emit.Int(invocWriter.BinWriter, 5)
 			emit.String(invocWriter.BinWriter, "")
 			invocScript := invocWriter.Bytes()
-			checkContract(t, verAcc, invocScript, 640360) // No C# match, but we believe it's OK and it has a specific invocation script overriding anything server-side.
+			checkContract(t, verAcc, invocScript, 393720) // No C# match, but we believe it's OK and it has a specific invocation script overriding anything server-side.
 		})
 	})
 }

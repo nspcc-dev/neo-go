@@ -1945,10 +1945,16 @@ func transformArgs(fs *funcScope, fun ast.Expr, isBuiltin bool, args []ast.Expr)
 
 // emitConvert converts the top stack item to the specified type.
 func (c *codegen) emitConvert(typ stackitem.Type) {
-	emit.Opcodes(c.prog.BinWriter, opcode.DUP)
-	emit.Instruction(c.prog.BinWriter, opcode.ISTYPE, []byte{byte(typ)})
-	emit.Instruction(c.prog.BinWriter, opcode.JMPIF, []byte{2 + 2}) // After CONVERT.
-	emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
+	if typ == stackitem.BooleanT {
+		// DUP + ISTYPE + JMPIF costs 3 already with CONVERT of a cost 8192.
+		// NOT+NOT at the same time costs 4 and always works (and is shorter).
+		emit.Opcodes(c.prog.BinWriter, opcode.NOT, opcode.NOT)
+	} else {
+		emit.Opcodes(c.prog.BinWriter, opcode.DUP)
+		emit.Instruction(c.prog.BinWriter, opcode.ISTYPE, []byte{byte(typ)})
+		emit.Instruction(c.prog.BinWriter, opcode.JMPIF, []byte{2 + 2}) // After CONVERT.
+		emit.Instruction(c.prog.BinWriter, opcode.CONVERT, []byte{byte(typ)})
+	}
 }
 
 func (c *codegen) convertByteArray(elems []ast.Expr) {
