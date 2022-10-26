@@ -54,15 +54,14 @@ func TestQueryTx(t *testing.T) {
 	e.CheckNextLine(t, `ValidUntil:\s+`+strconv.FormatUint(uint64(tx.ValidUntilBlock), 10))
 	e.CheckEOF(t)
 
-	height := e.Chain.BlockHeight()
 	go e.Chain.Run()
-	require.Eventually(t, func() bool { return e.Chain.BlockHeight() > height }, time.Second*2, time.Millisecond*50)
+	require.Eventually(t, func() bool { _, aerErr := e.Chain.GetAppExecResults(txHash, trigger.Application); return aerErr == nil }, time.Second*2, time.Millisecond*50)
 
 	e.Run(t, append(args, txHash.StringLE())...)
 	e.CheckNextLine(t, `Hash:\s+`+txHash.StringLE())
 	e.CheckNextLine(t, `OnChain:\s+true`)
 
-	_, height, err = e.Chain.GetTransaction(txHash)
+	_, height, err := e.Chain.GetTransaction(txHash)
 	require.NoError(t, err)
 	e.CheckNextLine(t, `BlockHash:\s+`+e.Chain.GetHeaderHash(int(height)).StringLE())
 	e.CheckNextLine(t, `Success:\s+true`)
@@ -88,8 +87,7 @@ func TestQueryTx(t *testing.T) {
 			txHash, err := util.Uint256DecodeStringLE(line)
 			require.NoError(t, err)
 
-			height := e.Chain.BlockHeight()
-			require.Eventually(t, func() bool { return e.Chain.BlockHeight() > height }, time.Second*2, time.Millisecond*50)
+			require.Eventually(t, func() bool { _, aerErr := e.Chain.GetAppExecResults(txHash, trigger.Application); return aerErr == nil }, time.Second*2, time.Millisecond*50)
 
 			tx, _, err := e.Chain.GetTransaction(txHash)
 			require.NoError(t, err)
