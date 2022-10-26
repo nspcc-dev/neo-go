@@ -17,7 +17,7 @@ Currently supported events:
  * notification generated during execution
 
    Contents: container hash, contract hash, notification name, stack item. Filters: contract hash, notification name.
- * transaction executed
+ * transaction/persisting script executed
 
    Contents: application execution result. Filters: VM state, script container hash.
  * new/removed P2P notary request (if `P2PSigExtensions` are enabled)
@@ -34,9 +34,13 @@ Filters use conjunctional logic.
    announcing the block itself
  * transaction notifications are only announced for successful transactions
  * all announcements are being done in the same order they happen on the chain
-   First, transaction execution is announced. It is then followed by notifications
-   generated during this execution. Next, follows the transaction announcement.
-   Transaction announcements are ordered the same way they're in the block.
+   First, OnPersist script execution is announced followed by notifications generated
+   during the script execution. After that transaction execution is announced. It is
+   then followed by notifications generated during this execution. Next, follows the
+   transaction announcement. Transaction announcements are ordered the same way
+   they're in the block. After all in-block transactions announcements PostPersist
+   script execution is announced followed by notifications generated during the
+   script execution. Finally, block announcement is followed.
  * unsubscription may not cancel pending, but not yet sent events
 
 ## Subscription management
@@ -72,7 +76,7 @@ Recognized stream names:
  * `transaction_executed`
    Filter: `state` field containing `HALT` or `FAULT` string for successful
    and failed executions respectively and/or `container` field containing
-   script container hash.
+   script container (block/transaction) hash.
  * `notary_request_event`
    Filter: `sender` field containing a string with hex-encoded Uint160 (LE
    representation) for notary request's `Sender` and/or `signer` in the same
