@@ -55,24 +55,24 @@ type (
 		Output    io.Writer                    `yaml:"-"`
 	}
 
-	contractTmpl struct {
+	ContractTmpl struct {
 		PackageName  string
 		ContractName string
 		Imports      []string
 		Hash         string
-		Methods      []methodTmpl
+		Methods      []MethodTmpl
 	}
 
-	methodTmpl struct {
+	MethodTmpl struct {
 		Name       string
 		NameABI    string
 		CallFlag   string
 		Comment    string
-		Arguments  []paramTmpl
+		Arguments  []ParamTmpl
 		ReturnType string
 	}
 
-	paramTmpl struct {
+	ParamTmpl struct {
 		Name string
 		Type string
 	}
@@ -88,7 +88,7 @@ func NewConfig() Config {
 
 // Generate writes Go file containing smartcontract bindings to the `cfg.Output`.
 func Generate(cfg Config) error {
-	ctr, err := templateFromManifest(cfg)
+	ctr, err := TemplateFromManifest(cfg, scTypeToGo)
 	if err != nil {
 		return err
 	}
@@ -98,7 +98,6 @@ func Generate(cfg Config) error {
 
 	tmp, err := template.New("generate").Funcs(template.FuncMap{
 		"lowerFirst": lowerFirst,
-		"scTypeToGo": scTypeToGo,
 	}).Parse(srcTmpl)
 	if err != nil {
 		return err
@@ -107,46 +106,52 @@ func Generate(cfg Config) error {
 	return tmp.Execute(cfg.Output, ctr)
 }
 
-func scTypeToGo(typ smartcontract.ParamType) string {
+func scTypeToGo(name string, typ smartcontract.ParamType, overrides map[string]Override) (string, string) {
+	if over, ok := overrides[name]; ok {
+		return over.TypeName, over.Package
+	}
+
 	switch typ {
 	case smartcontract.AnyType:
-		return "interface{}"
+		return "interface{}", ""
 	case smartcontract.BoolType:
-		return "bool"
+		return "bool", ""
 	case smartcontract.IntegerType:
-		return "int"
+		return "int", ""
 	case smartcontract.ByteArrayType:
-		return "[]byte"
+		return "[]byte", ""
 	case smartcontract.StringType:
-		return "string"
+		return "string", ""
 	case smartcontract.Hash160Type:
-		return "interop.Hash160"
+		return "interop.Hash160", "github.com/nspcc-dev/neo-go/pkg/interop"
 	case smartcontract.Hash256Type:
-		return "interop.Hash256"
+		return "interop.Hash256", "github.com/nspcc-dev/neo-go/pkg/interop"
 	case smartcontract.PublicKeyType:
-		return "interop.PublicKey"
+		return "interop.PublicKey", "github.com/nspcc-dev/neo-go/pkg/interop"
 	case smartcontract.SignatureType:
-		return "interop.Signature"
+		return "interop.Signature", "github.com/nspcc-dev/neo-go/pkg/interop"
 	case smartcontract.ArrayType:
-		return "[]interface{}"
+		return "[]interface{}", ""
 	case smartcontract.MapType:
-		return "map[string]interface{}"
+		return "map[string]interface{}", ""
 	case smartcontract.InteropInterfaceType:
-		return "interface{}"
+		return "interface{}", ""
 	case smartcontract.VoidType:
-		return ""
+		return "", ""
 	default:
 		panic("unreachable")
 	}
 }
 
-func templateFromManifest(cfg Config) (contractTmpl, error) {
+// TemplateFromManifest create a contract template using the given configuration
+// and type conversion function.
+func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract.ParamType, map[string]Override) (string, string)) (ContractTmpl, error) {
 	hStr := ""
 	for _, b := range cfg.Hash.BytesBE() {
 		hStr += fmt.Sprintf("\\x%02x", b)
 	}
 
-	ctr := contractTmpl{
+	ctr := ContractTmpl{
 		PackageName:  cfg.Package,
 		ContractName: cfg.Manifest.Name,
 		Hash:         hStr,
@@ -187,7 +192,7 @@ func templateFromManifest(cfg Config) (contractTmpl, error) {
 		}
 		seen[name] = true
 
-		mtd := methodTmpl{
+		mtd := MethodTmpl{
 			Name:     upperFirst(name),
 			NameABI:  m.Name,
 			CallFlag: callflag.All.String(),
@@ -204,36 +209,22 @@ func templateFromManifest(cfg Config) (contractTmpl, error) {
 				return ctr, fmt.Errorf("manifest ABI method %q/%d: parameter #%d is unnamed", m.Name, len(m.Parameters), i)
 			}
 
-			var typeStr string
-			if over, ok := cfg.Overrides[m.Name+"."+name]; ok {
-				typeStr = over.TypeName
-				if over.Package != "" {
-					imports[over.Package] = struct{}{}
-				}
-			} else {
-				typeStr = scTypeToGo(m.Parameters[i].Type)
+			typeStr, pkg := scTypeConverter(m.Name+"."+name, m.Parameters[i].Type, cfg.Overrides)
+			if pkg != "" {
+				imports[pkg] = struct{}{}
 			}
 
-			mtd.Arguments = append(mtd.Arguments, paramTmpl{
+			mtd.Arguments = append(mtd.Arguments, ParamTmpl{
 				Name: name,
 				Type: typeStr,
 			})
 		}
 
-		if over, ok := cfg.Overrides[m.Name]; ok {
-			mtd.ReturnType = over.TypeName
-			if over.Package != "" {
-				imports[over.Package] = struct{}{}
-			}
-		} else {
-			mtd.ReturnType = scTypeToGo(m.ReturnType)
-			switch m.ReturnType {
-			case smartcontract.Hash160Type, smartcontract.Hash256Type, smartcontract.InteropInterfaceType,
-				smartcontract.SignatureType, smartcontract.PublicKeyType:
-				imports["github.com/nspcc-dev/neo-go/pkg/interop"] = struct{}{}
-			}
+		typeStr, pkg := scTypeConverter(m.Name, m.ReturnType, cfg.Overrides)
+		if pkg != "" {
+			imports[pkg] = struct{}{}
 		}
-
+		mtd.ReturnType = typeStr
 		ctr.Methods = append(ctr.Methods, mtd)
 	}
 
