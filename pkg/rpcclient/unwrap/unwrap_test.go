@@ -44,6 +44,9 @@ func TestStdErrors(t *testing.T) {
 			return Uint256(r, err)
 		},
 		func(r *result.Invoke, err error) (interface{}, error) {
+			return PublicKey(r, err)
+		},
+		func(r *result.Invoke, err error) (interface{}, error) {
 			_, _, err = SessionIterator(r, err)
 			return nil, err
 		},
@@ -187,6 +190,18 @@ func TestUint256(t *testing.T) {
 	u, err := Uint256(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make(util.Uint256{1, 2, 3}.BytesBE())}}, nil)
 	require.NoError(t, err)
 	require.Equal(t, util.Uint256{1, 2, 3}, u)
+}
+
+func TestPublicKey(t *testing.T) {
+	k, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	_, err = PublicKey(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make(util.Uint160{1, 2, 3}.BytesBE())}}, nil)
+	require.Error(t, err)
+
+	pk, err := PublicKey(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make(k.PublicKey().Bytes())}}, nil)
+	require.NoError(t, err)
+	require.Equal(t, k.PublicKey(), pk)
 }
 
 func TestSessionIterator(t *testing.T) {

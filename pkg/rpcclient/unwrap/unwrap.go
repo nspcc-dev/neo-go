@@ -146,6 +146,16 @@ func Uint256(r *result.Invoke, err error) (util.Uint256, error) {
 	return util.Uint256DecodeBytesBE(b)
 }
 
+// PublicKey expects correct execution (HALT state) with a single stack item
+// returned. A public key is extracted from this item and returned.
+func PublicKey(r *result.Invoke, err error) (*keys.PublicKey, error) {
+	b, err := Bytes(r, err)
+	if err != nil {
+		return nil, err
+	}
+	return keys.NewPublicKeyFromBytes(b, elliptic.P256())
+}
+
 // SessionIterator expects correct execution (HALT state) with a single stack
 // item returned. If this item is an iterator it's returned to the caller along
 // with the session ID. Notice that this function also returns successfully
