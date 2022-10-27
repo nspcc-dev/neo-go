@@ -434,6 +434,19 @@ $ ./bin/neo-go contract compile -i contract.go --config contract.yml -o contract
 $ ./bin/neo-go contract generate-wrapper --manifest manifest.json --config contract.bindings.yml --out wrapper.go --hash 0x1b4357bff5a01bdf2a6581247cf9ed1e24629176
 ```
 
+### Generating RPC contract bindings
+To simplify interacting with the contract via RPC you can generate
+contract-specific RPC bindings with the "generate-rpcwrapper" command. At the
+moment it only works for safe (read-only) methods. If your contract is NEP-11
+or NEP-17 that's autodetected and an appropriate package is included as
+well. Notice that the type data available in the manifest is limited, so in
+some cases the interface generated may use generic stackitem types. Iterators
+are not supported yet.
+
+```
+$ ./bin/neo-go contract generate-rpcwrapper --manifest manifest.json --out rpcwrapper.go --hash 0x1b4357bff5a01bdf2a6581247cf9ed1e24629176
+```
+
 ## Smart contract examples
 
 Some examples are provided in the [examples directory](../examples). For more
