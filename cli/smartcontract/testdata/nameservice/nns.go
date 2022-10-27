@@ -47,8 +47,8 @@ func (c *ContractReader) IsAvailable(name string) (bool, error) {
 }
 
 // GetRecord invokes `getRecord` method of contract.
-func (c *ContractReader) GetRecord(name string, type *big.Int) (string, error) {
-	return unwrap.UTF8String(c.invoker.Call(Hash, "getRecord", name, type))
+func (c *ContractReader) GetRecord(name string, typev *big.Int) (string, error) {
+	return unwrap.UTF8String(c.invoker.Call(Hash, "getRecord", name, typev))
 }
 
 // GetAllRecords invokes `getAllRecords` method of contract.
@@ -57,6 +57,6 @@ func (c *ContractReader) GetAllRecords(name string) (stackitem.Item, error) {
 }
 
 // Resolve invokes `resolve` method of contract.
-func (c *ContractReader) Resolve(name string, type *big.Int) (string, error) {
-	return unwrap.UTF8String(c.invoker.Call(Hash, "resolve", name, type))
+func (c *ContractReader) Resolve(name string, typev *big.Int) (string, error) {
+	return unwrap.UTF8String(c.invoker.Call(Hash, "resolve", name, typev))
 }

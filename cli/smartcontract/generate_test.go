@@ -46,6 +46,15 @@ func TestGenerate(t *testing.T) {
 			Safe:       true,
 		},
 		manifest.Method{
+			Name: "zum",
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("type", smartcontract.IntegerType),
+				manifest.NewParameter("typev", smartcontract.IntegerType),
+				manifest.NewParameter("func", smartcontract.IntegerType),
+			},
+			ReturnType: smartcontract.IntegerType,
+		},
+		manifest.Method{
 			Name: "justExecute",
 			Parameters: []manifest.Parameter{
 				manifest.NewParameter("arr", smartcontract.ArrayType),
@@ -170,6 +179,11 @@ func Sum_3(first int, second int, third int) int {
 // Sum3 invokes ` + "`sum3`" + ` method of contract.
 func Sum3() int {
 	return neogointernal.CallWithToken(Hash, "sum3", int(contract.ReadOnly)).(int)
+}
+
+// Zum invokes ` + "`zum`" + ` method of contract.
+func Zum(typev int, typev_ int, funcv int) int {
+	return neogointernal.CallWithToken(Hash, "zum", int(contract.All), typev, typev_, funcv).(int)
 }
 
 // JustExecute invokes ` + "`justExecute`" + ` method of contract.

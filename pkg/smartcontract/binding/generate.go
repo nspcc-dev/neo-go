@@ -3,6 +3,7 @@ package binding
 import (
 	"bytes"
 	"fmt"
+	"go/token"
 	"io"
 	"sort"
 	"strconv"
@@ -201,6 +202,8 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 		} else if m.Safe {
 			mtd.CallFlag = callflag.ReadOnly.String()
 		}
+
+		var varnames = make(map[string]bool)
 		for i := range m.Parameters {
 			name := m.Parameters[i].Name
 			if name == "" {
@@ -211,7 +214,13 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 			if pkg != "" {
 				imports[pkg] = struct{}{}
 			}
-
+			if token.IsKeyword(name) {
+				name = name + "v"
+			}
+			for varnames[name] {
+				name = name + "_"
+			}
+			varnames[name] = true
 			mtd.Arguments = append(mtd.Arguments, ParamTmpl{
 				Name: name,
 				Type: typeStr,
