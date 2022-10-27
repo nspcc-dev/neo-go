@@ -410,6 +410,30 @@ given RPC server and wallet and paying 0.00001 extra GAS for this transaction):
 $ ./bin/neo-go contract invokefunction -r http://localhost:20331 -w my_wallet.json -g 0.00001 f84d6a337fbc3d3a201d41da99e86b479e7a2554 balanceOf AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y
 ```
 
+### Generating contract bindings
+To be able to use deployed contract from another contract one needs to have
+its interface definition (exported methods and hash). While it is possible to
+use generic contract.Call interop interface, it's not very convenient and
+efficient. NeoGo can autogenerate contract bindings in Go language for any
+deployed contract based on its manifest, it creates a Go source file with all
+of the contract's methods that then can be imported and used as a regular Go
+package.
+
+```
+$ ./bin/neo-go contract generate-wrapper --manifest manifest.json --out wrapper.go --hash 0x1b4357bff5a01bdf2a6581247cf9ed1e24629176
+```
+
+Notice that some structured types can be omitted this way (when a function
+returns some structure it's just an "Array" type in the manifest with no
+internal details), but if the contract you're using is written in Go
+originally you can create a specific configuration file during compilation
+that will add this data for wrapper generator to use:
+
+```
+$ ./bin/neo-go contract compile -i contract.go --config contract.yml -o contract.nef --manifest manifest.json --bindings contract.bindings.yml
+$ ./bin/neo-go contract generate-wrapper --manifest manifest.json --config contract.bindings.yml --out wrapper.go --hash 0x1b4357bff5a01bdf2a6581247cf9ed1e24629176
+```
+
 ## Smart contract examples
 
 Some examples are provided in the [examples directory](../examples). For more
