@@ -15,6 +15,9 @@ const (
 	PUSHINT128 Opcode = 0x04
 	PUSHINT256 Opcode = 0x05
 
+	PUSHT Opcode = 0x08
+	PUSHF Opcode = 0x09
+
 	PUSHA    Opcode = 0x0A
 	PUSHNULL Opcode = 0x0B
 
@@ -24,9 +27,7 @@ const (
 
 	PUSHM1 Opcode = 0x0F
 	PUSH0  Opcode = 0x10
-	PUSHF  Opcode = PUSH0
 	PUSH1  Opcode = 0x11
-	PUSHT  Opcode = PUSH1
 	PUSH2  Opcode = 0x12
 	PUSH3  Opcode = 0x13
 	PUSH4  Opcode = 0x14

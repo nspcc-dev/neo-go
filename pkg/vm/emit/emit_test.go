@@ -224,15 +224,15 @@ func TestEmitArray(t *testing.T) {
 		veryBig := new(big.Int).SetUint64(math.MaxUint64)
 		veryBig.Add(veryBig, big.NewInt(1))
 		Array(buf.BinWriter, p160, p256, &u160, &u256, u160, u256, big.NewInt(0), veryBig,
-			[]interface{}{int64(1), int64(2)}, nil, int64(1), "str", true, []byte{0xCA, 0xFE})
+			[]interface{}{int64(1), int64(2)}, nil, int64(1), "str", false, true, []byte{0xCA, 0xFE})
 		require.NoError(t, buf.Err)
 
 		res := buf.Bytes()
 		assert.EqualValues(t, opcode.PUSHDATA1, res[0])
 		assert.EqualValues(t, 2, res[1])
 		assert.EqualValues(t, []byte{0xCA, 0xFE}, res[2:4])
-		assert.EqualValues(t, opcode.PUSHF, res[4])
-		assert.EqualValues(t, opcode.NOT, res[5])
+		assert.EqualValues(t, opcode.PUSHT, res[4])
+		assert.EqualValues(t, opcode.PUSHF, res[5])
 		assert.EqualValues(t, opcode.PUSHDATA1, res[6])
 		assert.EqualValues(t, 3, res[7])
 		assert.EqualValues(t, []byte("str"), res[8:11])
@@ -280,10 +280,8 @@ func TestEmitBool(t *testing.T) {
 	Bool(buf.BinWriter, true)
 	Bool(buf.BinWriter, false)
 	result := buf.Bytes()
-	assert.EqualValues(t, opcode.PUSH0, result[0])
-	assert.EqualValues(t, opcode.NOT, result[1])
-	assert.EqualValues(t, opcode.PUSH1, result[2])
-	assert.EqualValues(t, opcode.NOT, result[3])
+	assert.EqualValues(t, opcode.PUSHT, result[0])
+	assert.EqualValues(t, opcode.PUSHF, result[1])
 }
 
 func TestEmitOpcode(t *testing.T) {

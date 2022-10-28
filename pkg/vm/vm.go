@@ -605,6 +605,9 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	case opcode.PUSHDATA1, opcode.PUSHDATA2, opcode.PUSHDATA4:
 		v.estack.PushItem(stackitem.NewByteArray(parameter))
 
+	case opcode.PUSHT, opcode.PUSHF:
+		v.estack.PushItem(stackitem.NewBool(op == opcode.PUSHT))
+
 	case opcode.PUSHA:
 		n := getJumpOffset(ctx, parameter)
 		ptr := stackitem.NewPointerWithHash(n, ctx.sc.prog, ctx.ScriptHash())
