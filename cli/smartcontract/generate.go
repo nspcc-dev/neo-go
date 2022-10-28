@@ -7,10 +7,30 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/rpcbinding"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v3"
 )
+
+var generatorFlags = []cli.Flag{
+	cli.StringFlag{
+		Name:  "config, c",
+		Usage: "Configuration file to use",
+	},
+	cli.StringFlag{
+		Name:  "manifest, m",
+		Usage: "Read contract manifest (*.manifest.json) file",
+	},
+	cli.StringFlag{
+		Name:  "out, o",
+		Usage: "Output of the compiled contract",
+	},
+	cli.StringFlag{
+		Name:  "hash",
+		Usage: "Smart-contract hash",
+	},
+}
 
 var generateWrapperCmd = cli.Command{
 	Name:        "generate-wrapper",
@@ -18,28 +38,27 @@ var generateWrapperCmd = cli.Command{
 	UsageText:   "neo-go contract generate-wrapper --manifest <file.json> --out <file.go> --hash <hash>",
 	Description: ``,
 	Action:      contractGenerateWrapper,
-	Flags: []cli.Flag{
-		cli.StringFlag{
-			Name:  "config, c",
-			Usage: "Configuration file to use",
-		},
-		cli.StringFlag{
-			Name:  "manifest, m",
-			Usage: "Read contract manifest (*.manifest.json) file",
-		},
-		cli.StringFlag{
-			Name:  "out, o",
-			Usage: "Output of the compiled contract",
-		},
-		cli.StringFlag{
-			Name:  "hash",
-			Usage: "Smart-contract hash",
-		},
-	},
+	Flags:       generatorFlags,
 }
 
-// contractGenerateWrapper deploys contract.
+var generateRPCWrapperCmd = cli.Command{
+	Name:      "generate-rpcwrapper",
+	Usage:     "generate RPC wrapper to use for data reads",
+	UsageText: "neo-go contract generate-rpcwrapper --manifest <file.json> --out <file.go> --hash <hash>",
+	Action:    contractGenerateRPCWrapper,
+	Flags:     generatorFlags,
+}
+
 func contractGenerateWrapper(ctx *cli.Context) error {
+	return contractGenerateSomething(ctx, binding.Generate)
+}
+
+func contractGenerateRPCWrapper(ctx *cli.Context) error {
+	return contractGenerateSomething(ctx, rpcbinding.Generate)
+}
+
+// contractGenerateSomething reads generator parameters and calls the given callback.
+func contractGenerateSomething(ctx *cli.Context, cb func(binding.Config) error) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
@@ -74,7 +93,7 @@ func contractGenerateWrapper(ctx *cli.Context) error {
 
 	cfg.Output = f
 
-	err = binding.Generate(cfg)
+	err = cb(cfg)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("error during generation: %w", err), 1)
 	}

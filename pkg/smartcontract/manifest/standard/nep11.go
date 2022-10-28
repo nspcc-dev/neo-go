@@ -5,8 +5,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 )
 
-var nep11Base = &Standard{
-	Base: decimalTokenBase,
+// Nep11Base is a Standard containing common NEP-11 methods.
+var Nep11Base = &Standard{
+	Base: DecimalTokenBase,
 	Manifest: manifest.Manifest{
 		ABI: manifest.ABI{
 			Methods: []manifest.Method{
@@ -66,8 +67,9 @@ var nep11Base = &Standard{
 	},
 }
 
-var nep11NonDivisible = &Standard{
-	Base: nep11Base,
+// Nep11NonDivisible is a NEP-11 non-divisible Standard.
+var Nep11NonDivisible = &Standard{
+	Base: Nep11Base,
 	Manifest: manifest.Manifest{
 		ABI: manifest.ABI{
 			Methods: []manifest.Method{
@@ -84,8 +86,9 @@ var nep11NonDivisible = &Standard{
 	},
 }
 
-var nep11Divisible = &Standard{
-	Base: nep11Base,
+// Nep11Divisible is a NEP-11 divisible Standard.
+var Nep11Divisible = &Standard{
+	Base: Nep11Base,
 	Manifest: manifest.Manifest{
 		ABI: manifest.ABI{
 			Methods: []manifest.Method{

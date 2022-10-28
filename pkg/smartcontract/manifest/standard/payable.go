@@ -5,7 +5,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 )
 
-var nep11payable = &Standard{
+// Nep11Payable contains NEP-11's onNEP11Payment method definition.
+var Nep11Payable = &Standard{
 	Manifest: manifest.Manifest{
 		ABI: manifest.ABI{
 			Methods: []manifest.Method{{
@@ -22,7 +23,8 @@ var nep11payable = &Standard{
 	},
 }
 
-var nep17payable = &Standard{
+// Nep17Payable contains NEP-17's onNEP17Payment method definition.
+var Nep17Payable = &Standard{
 	Manifest: manifest.Manifest{
 		ABI: manifest.ABI{
 			Methods: []manifest.Method{{

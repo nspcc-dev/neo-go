@@ -182,6 +182,7 @@ func NewCommands() []cli.Command {
 				Flags:  deployFlags,
 			},
 			generateWrapperCmd,
+			generateRPCWrapperCmd,
 			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",

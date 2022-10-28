@@ -19,10 +19,10 @@ var (
 )
 
 var checks = map[string][]*Standard{
-	manifest.NEP11StandardName: {nep11NonDivisible, nep11Divisible},
-	manifest.NEP17StandardName: {nep17},
-	manifest.NEP11Payable:      {nep11payable},
-	manifest.NEP17Payable:      {nep17payable},
+	manifest.NEP11StandardName: {Nep11NonDivisible, Nep11Divisible},
+	manifest.NEP17StandardName: {Nep17},
+	manifest.NEP11Payable:      {Nep11Payable},
+	manifest.NEP17Payable:      {Nep17Payable},
 }
 
 // Check checks if the manifest complies with all provided standards.
@@ -55,12 +55,12 @@ func check(m *manifest.Manifest, checkNames bool, standards ...string) error {
 }
 
 // Comply if m has all methods and event from st manifest and they have the same signature.
-// Parameter names are ignored.
+// Parameter names are checked to exactly match the ones in the given standard.
 func Comply(m *manifest.Manifest, st *Standard) error {
 	return comply(m, true, st)
 }
 
-// ComplyABI is similar to comply but doesn't check parameter names.
+// ComplyABI is similar to Comply but doesn't check parameter names.
 func ComplyABI(m *manifest.Manifest, st *Standard) error {
 	return comply(m, false, st)
 }

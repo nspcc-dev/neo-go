@@ -5,7 +5,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 )
 
-var decimalTokenBase = &Standard{
+// DecimalTokenBase contains methods common to NEP-11 and NEP-17 token standards.
+var DecimalTokenBase = &Standard{
 	Manifest: manifest.Manifest{
 		ABI: manifest.ABI{
 			Methods: []manifest.Method{

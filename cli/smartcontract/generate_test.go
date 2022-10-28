@@ -1,6 +1,7 @@
 package smartcontract
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -43,6 +44,15 @@ func TestGenerate(t *testing.T) {
 			Parameters: []manifest.Parameter{},
 			ReturnType: smartcontract.IntegerType,
 			Safe:       true,
+		},
+		manifest.Method{
+			Name: "zum",
+			Parameters: []manifest.Parameter{
+				manifest.NewParameter("type", smartcontract.IntegerType),
+				manifest.NewParameter("typev", smartcontract.IntegerType),
+				manifest.NewParameter("func", smartcontract.IntegerType),
+			},
+			ReturnType: smartcontract.IntegerType,
 		},
 		manifest.Method{
 			Name: "justExecute",
@@ -171,6 +181,11 @@ func Sum3() int {
 	return neogointernal.CallWithToken(Hash, "sum3", int(contract.ReadOnly)).(int)
 }
 
+// Zum invokes ` + "`zum`" + ` method of contract.
+func Zum(typev int, typev_ int, funcv int) int {
+	return neogointernal.CallWithToken(Hash, "zum", int(contract.All), typev, typev_, funcv).(int)
+}
+
 // JustExecute invokes ` + "`justExecute`" + ` method of contract.
 func JustExecute(arr []interface{}) {
 	neogointernal.CallWithTokenNoRet(Hash, "justExecute", int(contract.All), arr)
@@ -224,6 +239,7 @@ func TestGenerateValidPackageName(t *testing.T) {
 			Name:       "get",
 			Parameters: []manifest.Parameter{},
 			ReturnType: smartcontract.IntegerType,
+			Safe:       true,
 		},
 	)
 
@@ -239,7 +255,7 @@ func TestGenerateValidPackageName(t *testing.T) {
 		0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF, 0x03, 0x04,
 	}
 	app := cli.NewApp()
-	app.Commands = []cli.Command{generateWrapperCmd}
+	app.Commands = []cli.Command{generateWrapperCmd, generateRPCWrapperCmd}
 	require.NoError(t, app.Run([]string{"", "generate-wrapper",
 		"--manifest", manifestFile,
 		"--out", outFile,
@@ -261,9 +277,85 @@ const Hash = "\x04\x08\x15\x16\x23\x42\x43\x44\x00\x01\xca\xfe\xba\xbe\xde\xad\x
 
 // Get invokes `+"`get`"+` method of contract.
 func Get() int {
-	return neogointernal.CallWithToken(Hash, "get", int(contract.All)).(int)
+	return neogointernal.CallWithToken(Hash, "get", int(contract.ReadOnly)).(int)
 }
 `, string(data))
+	require.NoError(t, app.Run([]string{"", "generate-rpcwrapper",
+		"--manifest", manifestFile,
+		"--out", outFile,
+		"--hash", "0x" + h.StringLE(),
+	}))
+
+	data, err = os.ReadFile(outFile)
+	require.NoError(t, err)
+	require.Equal(t, `// Package myspacecontract contains RPC wrappers for My space	contract contract.
+package myspacecontract
+
+import (
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
+	"math/big"
+)
+
+// Hash contains contract hash.
+var Hash = util.Uint160{0x4, 0x8, 0x15, 0x16, 0x23, 0x42, 0x43, 0x44, 0x0, 0x1, 0xca, 0xfe, 0xba, 0xbe, 0xde, 0xad, 0xbe, 0xef, 0x3, 0x4}
+
+// Invoker is used by ContractReader to call various safe methods.
+type Invoker interface {
+	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+}
+
+// ContractReader implements safe contract methods.
+type ContractReader struct {
+	invoker Invoker
+}
+
+// NewReader creates an instance of ContractReader using Hash and the given Invoker.
+func NewReader(invoker Invoker) *ContractReader {
+	return &ContractReader{invoker}
+}
+
+
+// Get invokes `+"`get`"+` method of contract.
+func (c *ContractReader) Get() (*big.Int, error) {
+	return unwrap.BigInt(c.invoker.Call(Hash, "get"))
+}
+`, string(data))
+}
+
+func TestGenerateRPCBindings(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := cli.NewApp()
+	app.Commands = []cli.Command{generateWrapperCmd, generateRPCWrapperCmd}
+
+	outFile := filepath.Join(tmpDir, "out.go")
+	require.NoError(t, app.Run([]string{"", "generate-rpcwrapper",
+		"--manifest", filepath.Join("testdata", "nex", "nex.manifest.json"),
+		"--out", outFile,
+		"--hash", "0xa2a67f09e8cf22c6bfd5cea24adc0f4bf0a11aa8",
+	}))
+
+	data, err := os.ReadFile(outFile)
+	require.NoError(t, err)
+	data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
+	expected, err := os.ReadFile(filepath.Join("testdata", "nex", "nex.go"))
+	require.NoError(t, err)
+	expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
+	require.Equal(t, string(expected), string(data))
+
+	require.NoError(t, app.Run([]string{"", "generate-rpcwrapper",
+		"--manifest", filepath.Join("testdata", "nameservice", "nns.manifest.json"),
+		"--out", outFile,
+		"--hash", "0x50ac1c37690cc2cfc594472833cf57505d5f46de",
+	}))
+
+	data, err = os.ReadFile(outFile)
+	require.NoError(t, err)
+	data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
+	expected, err = os.ReadFile(filepath.Join("testdata", "nameservice", "nns.go"))
+	require.NoError(t, err)
+	expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
+	require.Equal(t, string(expected), string(data))
 }
 
 func TestGenerate_Errors(t *testing.T) {
