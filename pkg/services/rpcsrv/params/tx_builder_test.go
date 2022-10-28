@@ -62,13 +62,13 @@ func TestInvocationScriptCreationGood(t *testing.T) {
 		script: "ERHAHwwBYQwUb0WRYs7rJIsHHsFX2eT2/Sb9vlBBYn1bUg==",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Boolean", "value": true}]`)}},
-		script: "ERHAHwwBYQwUb0WRYs7rJIsHHsFX2eT2/Sb9vlBBYn1bUg==",
+		script: "CBHAHwwBYQwUb0WRYs7rJIsHHsFX2eT2/Sb9vlBBYn1bUg==",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Boolean", "value": false}]`)}},
-		script: "EBHAHwwBYQwUb0WRYs7rJIsHHsFX2eT2/Sb9vlBBYn1bUg==",
+		script: "CRHAHwwBYQwUb0WRYs7rJIsHHsFX2eT2/Sb9vlBBYn1bUg==",
 	}, {
 		ps:     Params{{RawMessage: []byte(`"a"`)}, {RawMessage: []byte(`[{"type": "Boolean", "value": "blah"}]`)}}, // C# code doesn't use strict type assertions for JSON-ised params
-		script: "ERHAHwwBYQwUb0WRYs7rJIsHHsFX2eT2/Sb9vlBBYn1bUg==",
+		script: "CBHAHwwBYQwUb0WRYs7rJIsHHsFX2eT2/Sb9vlBBYn1bUg==",
 	}}
 	for i, ps := range paramScripts {
 		method, err := ps.ps[0].GetString()

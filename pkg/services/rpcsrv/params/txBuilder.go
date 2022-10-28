@@ -73,11 +73,7 @@ func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 			if err != nil {
 				return errors.New("not a bool")
 			}
-			if val {
-				emit.Int(script, 1)
-			} else {
-				emit.Int(script, 0)
-			}
+			emit.Bool(script, val)
 		case smartcontract.ArrayType:
 			val, err := fp.Value.GetArray()
 			if err != nil {
