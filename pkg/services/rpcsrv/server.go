@@ -251,9 +251,10 @@ var invalidBlockHeightError = func(index int, height int) *neorpc.Error {
 
 // upgrader is a no-op websocket.Upgrader that reuses HTTP server buffers and
 // doesn't set any Error function.
-var upgrader = websocket.Upgrader {
-    // allow & bypass any origin header
-    CheckOrigin: func(r *http.Request) bool { return true },
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
 }
 
 // New creates a new Server struct.
