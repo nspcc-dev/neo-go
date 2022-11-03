@@ -22,6 +22,13 @@ BUILD_FLAGS = "-X '$(REPO)/pkg/config.Version=$(VERSION)' -X '$(REPO)/cli/smartc
 
 IMAGE_REPO=nspccdev/neo-go
 
+# .deb package versioning
+OS_RELEASE = $(shell lsb_release -cs)
+PKG_VERSION ?= $(shell echo $(VERSION) | sed "s/^v//" | \
+			sed -E "s/(.*)-(g[a-fA-F0-9]{6,8})(.*)/\1\3~\2/" | \
+			sed "s/-/~/")-${OS_RELEASE}
+.PHONY: debpackage debclean
+
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
 .PHONY: build $(BINARY) deps image docker/$(BINARY) image-latest image-push image-push-latest clean-cluster \
@@ -148,3 +155,16 @@ env_restart:
 env_clean: env_down
 	@echo "=> Cleanup environment"
 	@docker volume rm docker_volume_chain
+
+
+# Package for Debian
+debpackage:
+	dch --package neo-go \
+			--controlmaint \
+			--newversion $(PKG_VERSION) \
+			--distribution $(OS_RELEASE) \
+			"Please see CHANGELOG.md for code changes for $(VERSION)"
+	dpkg-buildpackage --no-sign -b
+
+debclean:
+	dh clean

@@ -1,0 +1,17 @@
+[Unit]
+Description=Neo Go node
+Requires=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/neo-go node --mainnet --config-path=/etc/neo-go/
+ExecReload=/bin/kill -HUP $MAINPID
+User=neo-go
+Group=neo-go
+WorkingDirectory=/var/lib/neo-go
+Restart=always
+RestartSec=5
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

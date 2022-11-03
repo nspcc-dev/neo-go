@@ -1,0 +1,25 @@
+Source: neo-go
+Section: misc
+Priority: optional
+Maintainer: NeoSPCC <tech@nspcc.ru>
+Build-Depends: debhelper-compat (= 13), git, devscripts
+Standards-Version: 4.5.1
+Homepage: https://fs.neo.org/
+Vcs-Git: https://github.com/nspcc-dev/neo-go.git
+Vcs-Browser: https://github.com/nspcc-dev/neo-go
+
+Package: neo-go
+Architecture: any
+Depends: ${misc:Depends}
+Description: This project aims to be a full port of the original C# Neo project
+ A complete toolkit for the NEO blockchain, including
+ .
+  - Consensus node
+  - RPC node & client
+  - CLI tool
+  - Smart contract compiler
+  - NEO virtual machine
+  - Smart contract examples
+  - Oracle service
+  - State validation service
+ .

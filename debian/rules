@@ -1,0 +1,23 @@
+#!/usr/bin/make -f
+
+# Do not try to strip Go binaries
+export DEB_BUILD_OPTIONS := nostrip
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	$(MAKE) build
+
+# don't fail if tests not passed due to docker-in-docker issues
+override_dh_auto_test:
+		make test || true
+
+# Do not run make install
+override_dh_auto_install:
+
+override_dh_installsystemd:
+		dh_installsystemd --no-enable --no-start
+
+override_dh_installchangelogs:
+		dh_installchangelogs -k CHANGELOG.md

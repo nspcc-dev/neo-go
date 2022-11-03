@@ -28,7 +28,7 @@ bin/
 *~
 TAGS
 
-# storage 
+# storage
 /chains
 
 # patch
@@ -57,3 +57,6 @@ testdata/
 pkg/vm/testdata/fuzz
 !pkg/vm/testdata
 !pkg/wallet/testdata
+
+# debhelpers
+**/.debhelper

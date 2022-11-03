@@ -1,0 +1,4 @@
+config/protocol.mainnet.yml etc/neo-go
+config/protocol.privnet.yml etc/neo-go
+config/protocol.testnet.yml etc/neo-go
+bin/neo-go usr/bin
