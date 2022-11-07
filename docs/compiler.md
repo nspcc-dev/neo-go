@@ -436,11 +436,20 @@ $ ./bin/neo-go contract generate-wrapper --manifest manifest.json --config contr
 
 ### Generating RPC contract bindings
 To simplify interacting with the contract via RPC you can generate
-contract-specific RPC bindings with the "generate-rpcwrapper" command. If your
-contract is NEP-11 or NEP-17 that's autodetected and an appropriate package is
-included as well. Notice that the type data available in the manifest is
-limited, so in some cases the interface generated may use generic stackitem
-types. Iterators are not supported yet.
+contract-specific RPC bindings with the "generate-rpcwrapper" command. It
+generates ContractReader structure for safe methods that accept appropriate
+data for input and return things returned by the contract. State-changing
+methods are contained in Contract structure with each contract method
+represented by three wrapper methods that create/send transaction with a
+script performing appropriate action. This script invokes contract method and
+does not do anything else unless the method's returned value is of a boolean
+type, in this case an ASSERT is added to script making it fail when the method
+returns false.
+
+If your contract is NEP-11 or NEP-17 that's autodetected and an appropriate
+package is included as well. Notice that the type data available in the
+manifest is limited, so in some cases the interface generated may use generic
+stackitem types. Iterators are not supported yet.
 
 ```
 $ ./bin/neo-go contract generate-rpcwrapper --manifest manifest.json --out rpcwrapper.go --hash 0x1b4357bff5a01bdf2a6581247cf9ed1e24629176

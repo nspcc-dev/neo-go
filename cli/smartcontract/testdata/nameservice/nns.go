@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"math/big"
@@ -153,18 +154,30 @@ func (c *Contract) SetPriceUnsigned(priceList []interface{}) (*transaction.Trans
 	return c.actor.MakeUnsignedCall(Hash, "setPrice", nil, priceList)
 }
 
+func scriptForRegister(name string, owner util.Uint160) ([]byte, error) {
+	return smartcontract.CreateCallWithAssertScript(Hash, "register", name, owner)
+}
+
 // Register creates a transaction invoking `register` method of the contract.
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
 func (c *Contract) Register(name string, owner util.Uint160) (util.Uint256, uint32, error) {
-	return c.actor.SendCall(Hash, "register", name, owner)
+	script, err := scriptForRegister(name, owner)
+	if err != nil {
+		return util.Uint256{}, 0, err
+	}
+	return c.actor.SendRun(script)
 }
 
 // RegisterTransaction creates a transaction invoking `register` method of the contract.
 // This transaction is signed, but not sent to the network, instead it's
 // returned to the caller.
 func (c *Contract) RegisterTransaction(name string, owner util.Uint160) (*transaction.Transaction, error) {
-	return c.actor.MakeCall(Hash, "register", name, owner)
+	script, err := scriptForRegister(name, owner)
+	if err != nil {
+		return nil, err
+	}
+	return c.actor.MakeRun(script)
 }
 
 // RegisterUnsigned creates a transaction invoking `register` method of the contract.
@@ -172,7 +185,11 @@ func (c *Contract) RegisterTransaction(name string, owner util.Uint160) (*transa
 // Any fields of it that do not affect fees can be changed (ValidUntilBlock,
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) RegisterUnsigned(name string, owner util.Uint160) (*transaction.Transaction, error) {
-	return c.actor.MakeUnsignedCall(Hash, "register", nil, name, owner)
+	script, err := scriptForRegister(name, owner)
+	if err != nil {
+		return nil, err
+	}
+	return c.actor.MakeUnsignedRun(script, nil)
 }
 
 // Renew creates a transaction invoking `renew` method of the contract.

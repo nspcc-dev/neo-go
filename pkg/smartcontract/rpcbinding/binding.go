@@ -27,15 +27,26 @@ func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 }
 {{- end -}}
 {{- define "METHOD" -}}
-// {{.Name}} {{.Comment}}
+{{- if eq .ReturnType "bool"}}func scriptFor{{.Name}}({{range $index, $arg := .Arguments -}}
+	{{- if ne $index 0}}, {{end}}
+		{{- .Name}} {{.Type}}
+	{{- end}}) ([]byte, error) {
+	return smartcontract.CreateCallWithAssertScript(Hash, "{{ .NameABI }}"{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}})
+}
+
+{{end}}// {{.Name}} {{.Comment}}
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
 func (c *Contract) {{.Name}}({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) (util.Uint256, uint32, error) {
-	return c.actor.SendCall(Hash, "{{ .NameABI }}"
-	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}})
+	{{if ne .ReturnType "bool"}}return c.actor.SendCall(Hash, "{{ .NameABI }}"
+	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
+	if err != nil {
+		return util.Uint256{}, 0, err
+	}
+	return c.actor.SendRun(script){{end}}
 }
 
 // {{.Name}}Transaction {{.Comment}}
@@ -45,8 +56,12 @@ func (c *Contract) {{.Name}}Transaction({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) (*transaction.Transaction, error) {
-	return c.actor.MakeCall(Hash, "{{ .NameABI }}"
-	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}})
+	{{if ne .ReturnType "bool"}}return c.actor.MakeCall(Hash, "{{ .NameABI }}"
+	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
+	if err != nil {
+		return nil, err
+	}
+	return c.actor.MakeRun(script){{end}}
 }
 
 // {{.Name}}Unsigned {{.Comment}}
@@ -57,8 +72,12 @@ func (c *Contract) {{.Name}}Unsigned({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) (*transaction.Transaction, error) {
-	return c.actor.MakeUnsignedCall(Hash, "{{ .NameABI }}", nil
-	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}})
+	{{if ne .ReturnType "bool"}}return c.actor.MakeUnsignedCall(Hash, "{{ .NameABI }}", nil
+	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
+	if err != nil {
+		return nil, err
+	}
+	return c.actor.MakeUnsignedRun(script, nil){{end}}
 }
 {{- end -}}
 // Package {{.PackageName}} contains RPC wrappers for {{.ContractName}} contract.
@@ -278,6 +297,9 @@ func scTemplateToRPC(cfg binding.Config, bctr binding.ContractTmpl) ContractTmpl
 			i--
 		} else {
 			ctr.Methods[i].Comment = fmt.Sprintf("creates a transaction invoking `%s` method of the contract.", ctr.Methods[i].NameABI)
+			if ctr.Methods[i].ReturnType == "bool" {
+				imports["github.com/nspcc-dev/neo-go/pkg/smartcontract"] = struct{}{}
+			}
 		}
 	}
 	// We're misusing CallFlag field for function name here.
