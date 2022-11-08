@@ -12,7 +12,7 @@ import (
 )
 
 const srcTmpl = `
-{{- define "METHOD" -}}
+{{- define "SAFEMETHOD" -}}
 // {{.Name}} {{.Comment}}
 func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
@@ -26,6 +26,60 @@ func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 	{{- end}}
 }
 {{- end -}}
+{{- define "METHOD" -}}
+{{- if eq .ReturnType "bool"}}func scriptFor{{.Name}}({{range $index, $arg := .Arguments -}}
+	{{- if ne $index 0}}, {{end}}
+		{{- .Name}} {{.Type}}
+	{{- end}}) ([]byte, error) {
+	return smartcontract.CreateCallWithAssertScript(Hash, "{{ .NameABI }}"{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}})
+}
+
+{{end}}// {{.Name}} {{.Comment}}
+// This transaction is signed and immediately sent to the network.
+// The values returned are its hash, ValidUntilBlock value and error if any.
+func (c *Contract) {{.Name}}({{range $index, $arg := .Arguments -}}
+	{{- if ne $index 0}}, {{end}}
+		{{- .Name}} {{.Type}}
+	{{- end}}) (util.Uint256, uint32, error) {
+	{{if ne .ReturnType "bool"}}return c.actor.SendCall(Hash, "{{ .NameABI }}"
+	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
+	if err != nil {
+		return util.Uint256{}, 0, err
+	}
+	return c.actor.SendRun(script){{end}}
+}
+
+// {{.Name}}Transaction {{.Comment}}
+// This transaction is signed, but not sent to the network, instead it's
+// returned to the caller.
+func (c *Contract) {{.Name}}Transaction({{range $index, $arg := .Arguments -}}
+	{{- if ne $index 0}}, {{end}}
+		{{- .Name}} {{.Type}}
+	{{- end}}) (*transaction.Transaction, error) {
+	{{if ne .ReturnType "bool"}}return c.actor.MakeCall(Hash, "{{ .NameABI }}"
+	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
+	if err != nil {
+		return nil, err
+	}
+	return c.actor.MakeRun(script){{end}}
+}
+
+// {{.Name}}Unsigned {{.Comment}}
+// This transaction is not signed, it's simply returned to the caller.
+// Any fields of it that do not affect fees can be changed (ValidUntilBlock,
+// Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
+func (c *Contract) {{.Name}}Unsigned({{range $index, $arg := .Arguments -}}
+	{{- if ne $index 0}}, {{end}}
+		{{- .Name}} {{.Type}}
+	{{- end}}) (*transaction.Transaction, error) {
+	{{if ne .ReturnType "bool"}}return c.actor.MakeUnsignedCall(Hash, "{{ .NameABI }}", nil
+	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
+	if err != nil {
+		return nil, err
+	}
+	return c.actor.MakeUnsignedRun(script, nil){{end}}
+}
+{{- end -}}
 // Package {{.PackageName}} contains RPC wrappers for {{.ContractName}} contract.
 package {{.PackageName}}
 
@@ -36,16 +90,37 @@ import (
 // Hash contains contract hash.
 var Hash = {{ .Hash }}
 
-// Invoker is used by ContractReader to call various safe methods.
+{{if .HasReader}}// Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
-	{{if or .IsNep11D .IsNep11ND}}nep11.Invoker
-	{{end -}}
-	{{if .IsNep17}}nep17.Invoker
-	{{end -}}
-	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+{{if or .IsNep11D .IsNep11ND}}	nep11.Invoker
+{{else if .IsNep17}}	nep17.Invoker
+{{else if len .SafeMethods}}	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+{{end -}}
 }
 
-// ContractReader implements safe contract methods.
+{{end -}}
+{{if .HasWriter}}// Actor is used by Contract to call state-changing methods.
+type Actor interface {
+{{- if .HasReader}}
+	Invoker
+{{end}}
+{{- if or .IsNep11D .IsNep11ND}}
+	nep11.Actor
+{{else if .IsNep17}}
+	nep17.Actor
+{{end}}
+{{- if len .Methods}}
+	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
+	MakeRun(script []byte) (*transaction.Transaction, error)
+	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error)
+	MakeUnsignedRun(script []byte, attrs []transaction.Attribute) (*transaction.Transaction, error)
+	SendCall(contract util.Uint160, method string, params ...interface{}) (util.Uint256, uint32, error)
+	SendRun(script []byte) (util.Uint256, uint32, error)
+{{end -}}
+}
+
+{{end -}}
+{{if .HasReader}}// ContractReader implements safe contract methods.
 type ContractReader struct {
 	{{if .IsNep11D}}nep11.DivisibleReader
 	{{end -}}
@@ -56,7 +131,22 @@ type ContractReader struct {
 	invoker Invoker
 }
 
-// NewReader creates an instance of ContractReader using Hash and the given Invoker.
+{{end -}}
+{{if .HasWriter}}// Contract implements all contract methods.
+type Contract struct {
+	{{if .HasReader}}ContractReader
+	{{end -}}
+	{{if .IsNep11D}}nep11.DivisibleWriter
+	{{end -}}
+	{{if .IsNep11ND}}nep11.BaseWriter
+	{{end -}}
+	{{if .IsNep17}}nep17.TokenWriter
+	{{end -}}
+	actor Actor
+}
+
+{{end -}}
+{{if .HasReader}}// NewReader creates an instance of ContractReader using Hash and the given Invoker.
 func NewReader(invoker Invoker) *ContractReader {
 	return &ContractReader{
 		{{- if .IsNep11D}}*nep11.NewDivisibleReader(invoker, Hash), {{end}}
@@ -65,7 +155,32 @@ func NewReader(invoker Invoker) *ContractReader {
 		invoker}
 }
 
-{{range $m := .Methods}}
+{{end -}}
+{{if .HasWriter}}// New creates an instance of Contract using Hash and the given Actor.
+func New(actor Actor) *Contract {
+	{{if .IsNep11D}}var nep11dt = nep11.NewDivisible(actor, Hash)
+	{{end -}}
+	{{if .IsNep11ND}}var nep11ndt = nep11.NewNonDivisible(actor, Hash)
+	{{end -}}
+	{{if .IsNep17}}var nep17t = nep17.New(actor, Hash)
+	{{end -}}
+	return &Contract{
+		{{- if .HasReader}}ContractReader{
+		{{- if .IsNep11D}}nep11dt.DivisibleReader, {{end -}}
+		{{- if .IsNep11ND}}nep11ndt.NonDivisibleReader, {{end -}}
+		{{- if .IsNep17}}nep17t.TokenReader, {{end -}}
+		actor}, {{end -}}
+		{{- if .IsNep11D}}nep11dt.DivisibleWriter, {{end -}}
+		{{- if .IsNep11ND}}nep11ndt.BaseWriter, {{end -}}
+		{{- if .IsNep17}}nep17t.TokenWriter, {{end -}}
+		actor}
+}
+
+{{end -}}
+{{range $m := .SafeMethods}}
+{{template "SAFEMETHOD" $m }}
+{{end}}
+{{- range $m := .Methods}}
 {{template "METHOD" $m }}
 {{end}}`
 
@@ -74,9 +189,15 @@ var srcTemplate = template.Must(template.New("generate").Parse(srcTmpl))
 type (
 	ContractTmpl struct {
 		binding.ContractTmpl
+
+		SafeMethods []binding.MethodTmpl
+
 		IsNep11D  bool
 		IsNep11ND bool
 		IsNep17   bool
+
+		HasReader bool
+		HasWriter bool
 	}
 )
 
@@ -87,19 +208,58 @@ func NewConfig() binding.Config {
 
 // Generate writes Go file containing smartcontract bindings to the `cfg.Output`.
 func Generate(cfg binding.Config) error {
+	// Avoid changing *cfg.Manifest.
+	mfst := *cfg.Manifest
+	mfst.ABI.Methods = make([]manifest.Method, len(mfst.ABI.Methods))
+	copy(mfst.ABI.Methods, cfg.Manifest.ABI.Methods)
+	cfg.Manifest = &mfst
+
+	var imports = make(map[string]struct{})
+	var ctr ContractTmpl
+
+	// Strip standard methods from NEP-XX packages.
+	for _, std := range cfg.Manifest.SupportedStandards {
+		if std == manifest.NEP11StandardName {
+			imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"] = struct{}{}
+			if standard.ComplyABI(cfg.Manifest, standard.Nep11Divisible) == nil {
+				mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11Divisible)
+				ctr.IsNep11D = true
+			} else if standard.ComplyABI(cfg.Manifest, standard.Nep11NonDivisible) == nil {
+				mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11NonDivisible)
+				ctr.IsNep11ND = true
+			}
+			break // Can't be NEP-17 at the same time.
+		}
+		if std == manifest.NEP17StandardName && standard.ComplyABI(cfg.Manifest, standard.Nep17) == nil {
+			mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep17)
+			imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"] = struct{}{}
+			ctr.IsNep17 = true
+			break // Can't be NEP-11 at the same time.
+		}
+	}
+
+	// OnNepXXPayment handlers normally can't be called directly.
+	if standard.ComplyABI(cfg.Manifest, standard.Nep11Payable) == nil {
+		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11Payable)
+	}
+	if standard.ComplyABI(cfg.Manifest, standard.Nep17Payable) == nil {
+		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep17Payable)
+	}
+
 	bctr, err := binding.TemplateFromManifest(cfg, scTypeToGo)
 	if err != nil {
 		return err
 	}
-	ctr := scTemplateToRPC(cfg, bctr)
+	ctr.ContractTmpl = bctr
+	ctr = scTemplateToRPC(cfg, ctr, imports)
 
 	return srcTemplate.Execute(cfg.Output, ctr)
 }
 
-func dropManifestMethods(meths []binding.MethodTmpl, manifested []manifest.Method) []binding.MethodTmpl {
+func dropManifestMethods(meths []manifest.Method, manifested []manifest.Method) []manifest.Method {
 	for _, m := range manifested {
 		for i := 0; i < len(meths); i++ {
-			if meths[i].NameABI == m.Name && len(meths[i].Arguments) == len(m.Parameters) {
+			if meths[i].Name == m.Name && len(meths[i].Parameters) == len(m.Parameters) {
 				meths = append(meths[:i], meths[i+1:]...)
 				i--
 			}
@@ -108,7 +268,7 @@ func dropManifestMethods(meths []binding.MethodTmpl, manifested []manifest.Metho
 	return meths
 }
 
-func dropStdMethods(meths []binding.MethodTmpl, std *standard.Standard) []binding.MethodTmpl {
+func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.Method {
 	meths = dropManifestMethods(meths, std.Manifest.ABI.Methods)
 	if std.Optional != nil {
 		meths = dropManifestMethods(meths, std.Optional)
@@ -152,71 +312,70 @@ func scTypeToGo(name string, typ smartcontract.ParamType, overrides map[string]b
 	}
 }
 
-func scTemplateToRPC(cfg binding.Config, bctr binding.ContractTmpl) ContractTmpl {
-	var imports = make(map[string]struct{})
-	var ctr = ContractTmpl{ContractTmpl: bctr}
+func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]struct{}) ContractTmpl {
 	for i := range ctr.Imports {
 		imports[ctr.Imports[i]] = struct{}{}
 	}
 	ctr.Hash = fmt.Sprintf("%#v", cfg.Hash)
-	for _, std := range cfg.Manifest.SupportedStandards {
-		if std == manifest.NEP11StandardName {
-			imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"] = struct{}{}
-			if standard.ComplyABI(cfg.Manifest, standard.Nep11Divisible) == nil {
-				ctr.Methods = dropStdMethods(ctr.Methods, standard.Nep11Divisible)
-				ctr.IsNep11D = true
-			} else if standard.ComplyABI(cfg.Manifest, standard.Nep11NonDivisible) == nil {
-				ctr.Methods = dropStdMethods(ctr.Methods, standard.Nep11NonDivisible)
-				ctr.IsNep11ND = true
-			}
-			break // Can't be NEP-17 at the same time.
-		}
-		if std == manifest.NEP17StandardName && standard.ComplyABI(cfg.Manifest, standard.Nep17) == nil {
-			ctr.Methods = dropStdMethods(ctr.Methods, standard.Nep17)
-			imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"] = struct{}{}
-			ctr.IsNep17 = true
-			break // Can't be NEP-11 at the same time.
-		}
-	}
 	for i := 0; i < len(ctr.Methods); i++ {
 		abim := cfg.Manifest.ABI.GetMethod(ctr.Methods[i].NameABI, len(ctr.Methods[i].Arguments))
-		if !abim.Safe {
+		if abim.Safe {
+			ctr.SafeMethods = append(ctr.SafeMethods, ctr.Methods[i])
 			ctr.Methods = append(ctr.Methods[:i], ctr.Methods[i+1:]...)
 			i--
+		} else {
+			ctr.Methods[i].Comment = fmt.Sprintf("creates a transaction invoking `%s` method of the contract.", ctr.Methods[i].NameABI)
+			if ctr.Methods[i].ReturnType == "bool" {
+				imports["github.com/nspcc-dev/neo-go/pkg/smartcontract"] = struct{}{}
+			}
 		}
 	}
 	// We're misusing CallFlag field for function name here.
-	for i := range ctr.Methods {
-		switch ctr.Methods[i].ReturnType {
+	for i := range ctr.SafeMethods {
+		switch ctr.SafeMethods[i].ReturnType {
 		case "interface{}":
 			imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
-			ctr.Methods[i].ReturnType = "stackitem.Item"
-			ctr.Methods[i].CallFlag = "Item"
+			ctr.SafeMethods[i].ReturnType = "stackitem.Item"
+			ctr.SafeMethods[i].CallFlag = "Item"
 		case "bool":
-			ctr.Methods[i].CallFlag = "Bool"
+			ctr.SafeMethods[i].CallFlag = "Bool"
 		case "*big.Int":
-			ctr.Methods[i].CallFlag = "BigInt"
+			ctr.SafeMethods[i].CallFlag = "BigInt"
 		case "string":
-			ctr.Methods[i].CallFlag = "UTF8String"
+			ctr.SafeMethods[i].CallFlag = "UTF8String"
 		case "util.Uint160":
-			ctr.Methods[i].CallFlag = "Uint160"
+			ctr.SafeMethods[i].CallFlag = "Uint160"
 		case "util.Uint256":
-			ctr.Methods[i].CallFlag = "Uint256"
+			ctr.SafeMethods[i].CallFlag = "Uint256"
 		case "*keys.PublicKey":
-			ctr.Methods[i].CallFlag = "PublicKey"
+			ctr.SafeMethods[i].CallFlag = "PublicKey"
 		case "[]byte":
-			ctr.Methods[i].CallFlag = "Bytes"
+			ctr.SafeMethods[i].CallFlag = "Bytes"
 		case "[]interface{}":
 			imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
-			ctr.Methods[i].ReturnType = "[]stackitem.Item"
-			ctr.Methods[i].CallFlag = "Array"
+			ctr.SafeMethods[i].ReturnType = "[]stackitem.Item"
+			ctr.SafeMethods[i].CallFlag = "Array"
 		case "*stackitem.Map":
-			ctr.Methods[i].CallFlag = "Map"
+			ctr.SafeMethods[i].CallFlag = "Map"
 		}
 	}
 
-	imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"] = struct{}{}
-	imports["github.com/nspcc-dev/neo-go/pkg/neorpc/result"] = struct{}{}
+	imports["github.com/nspcc-dev/neo-go/pkg/util"] = struct{}{}
+	if len(ctr.SafeMethods) > 0 {
+		imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"] = struct{}{}
+		if !(ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND) {
+			imports["github.com/nspcc-dev/neo-go/pkg/neorpc/result"] = struct{}{}
+		}
+	}
+	if len(ctr.Methods) > 0 {
+		imports["github.com/nspcc-dev/neo-go/pkg/core/transaction"] = struct{}{}
+	}
+	if len(ctr.Methods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND {
+		ctr.HasWriter = true
+	}
+	if len(ctr.SafeMethods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND {
+		ctr.HasReader = true
+	}
 	ctr.Imports = ctr.Imports[:0]
 	for imp := range imports {
 		ctr.Imports = append(ctr.Imports, imp)

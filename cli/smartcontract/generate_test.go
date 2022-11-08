@@ -294,6 +294,7 @@ package myspacecontract
 import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"math/big"
 )
 
@@ -328,34 +329,37 @@ func TestGenerateRPCBindings(t *testing.T) {
 	app := cli.NewApp()
 	app.Commands = []cli.Command{generateWrapperCmd, generateRPCWrapperCmd}
 
-	outFile := filepath.Join(tmpDir, "out.go")
-	require.NoError(t, app.Run([]string{"", "generate-rpcwrapper",
-		"--manifest", filepath.Join("testdata", "nex", "nex.manifest.json"),
-		"--out", outFile,
-		"--hash", "0xa2a67f09e8cf22c6bfd5cea24adc0f4bf0a11aa8",
-	}))
+	var checkBinding = func(manifest string, hash string, good string) {
+		t.Run(manifest, func(t *testing.T) {
+			outFile := filepath.Join(tmpDir, "out.go")
+			require.NoError(t, app.Run([]string{"", "generate-rpcwrapper",
+				"--manifest", manifest,
+				"--out", outFile,
+				"--hash", hash,
+			}))
 
-	data, err := os.ReadFile(outFile)
-	require.NoError(t, err)
-	data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
-	expected, err := os.ReadFile(filepath.Join("testdata", "nex", "nex.go"))
-	require.NoError(t, err)
-	expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
-	require.Equal(t, string(expected), string(data))
+			data, err := os.ReadFile(outFile)
+			require.NoError(t, err)
+			data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
+			expected, err := os.ReadFile(good)
+			require.NoError(t, err)
+			expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
+			require.Equal(t, string(expected), string(data))
+		})
+	}
 
-	require.NoError(t, app.Run([]string{"", "generate-rpcwrapper",
-		"--manifest", filepath.Join("testdata", "nameservice", "nns.manifest.json"),
-		"--out", outFile,
-		"--hash", "0x50ac1c37690cc2cfc594472833cf57505d5f46de",
-	}))
-
-	data, err = os.ReadFile(outFile)
-	require.NoError(t, err)
-	data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
-	expected, err = os.ReadFile(filepath.Join("testdata", "nameservice", "nns.go"))
-	require.NoError(t, err)
-	expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
-	require.Equal(t, string(expected), string(data))
+	checkBinding(filepath.Join("testdata", "nex", "nex.manifest.json"),
+		"0xa2a67f09e8cf22c6bfd5cea24adc0f4bf0a11aa8",
+		filepath.Join("testdata", "nex", "nex.go"))
+	checkBinding(filepath.Join("testdata", "nameservice", "nns.manifest.json"),
+		"0x50ac1c37690cc2cfc594472833cf57505d5f46de",
+		filepath.Join("testdata", "nameservice", "nns.go"))
+	checkBinding(filepath.Join("testdata", "gas", "gas.manifest.json"),
+		"0xd2a4cff31913016155e38e474a2c06d08be276cf",
+		filepath.Join("testdata", "gas", "gas.go"))
+	checkBinding(filepath.Join("testdata", "verifyrpc", "verify.manifest.json"),
+		"0x00112233445566778899aabbccddeeff00112233",
+		filepath.Join("testdata", "verifyrpc", "verify.go"))
 }
 
 func TestGenerate_Errors(t *testing.T) {
