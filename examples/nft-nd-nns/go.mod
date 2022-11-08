@@ -3,18 +3,18 @@ module github.com/nspcc-dev/neo-go/examples/nft-nd-nns
 go 1.17
 
 require (
-	github.com/nspcc-dev/neo-go v0.99.4-0.20220927123420-08e251167661
+	github.com/nspcc-dev/neo-go v0.99.5-0.20221108145959-8746d9877eb5
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20220927123257-24c107e3a262
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.8.0
 )
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/btcsuite/btcd v0.22.0-beta // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/uuid v1.2.0 // indirect

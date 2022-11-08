@@ -1932,7 +1932,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 		// We expect unpacked iterator values to be present on stack under InteropInterface cover.
 		res, err := c.InvokeFunction(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
 		require.NoError(t, err)
-		require.NotEmpty(t, res.Session)
+		require.Empty(t, res.Session)
 		require.Equal(t, 1, len(res.Stack))
 		require.Equal(t, stackitem.InteropT, res.Stack[0].Type())
 		iterator, ok := res.Stack[0].Value().(result.Iterator)

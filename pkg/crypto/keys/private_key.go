@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
@@ -30,7 +30,7 @@ func NewPrivateKey() (*PrivateKey, error) {
 
 // NewSecp256k1PrivateKey creates a new random Secp256k1 private key.
 func NewSecp256k1PrivateKey() (*PrivateKey, error) {
-	return newPrivateKeyOnCurve(btcec.S256())
+	return newPrivateKeyOnCurve(secp256k1.S256())
 }
 
 // newPrivateKeyOnCurve creates a new random private key using curve c.

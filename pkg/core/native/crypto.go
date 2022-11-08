@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -129,7 +129,7 @@ func curveFromStackitem(si stackitem.Item) (elliptic.Curve, error) {
 	c := curve.Int64()
 	switch c {
 	case int64(Secp256k1):
-		return btcec.S256(), nil
+		return secp256k1.S256(), nil
 	case int64(Secp256r1):
 		return elliptic.P256(), nil
 	default:
