@@ -90,7 +90,7 @@ import (
 // Hash contains contract hash.
 var Hash = {{ .Hash }}
 
-// Invoker is used by ContractReader to call various safe methods.
+{{if .HasReader}}// Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 {{if or .IsNep11D .IsNep11ND}}	nep11.Invoker
 {{else if .IsNep17}}	nep17.Invoker
@@ -98,12 +98,19 @@ type Invoker interface {
 {{end -}}
 }
 
+{{end -}}
 {{if .HasWriter}}// Actor is used by Contract to call state-changing methods.
 type Actor interface {
+{{- if .HasReader}}
 	Invoker
-{{if or .IsNep11D .IsNep11ND}}	nep11.Actor
-{{else if .IsNep17}}	nep17.Actor{{end}}
-{{if len .Methods}}	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
+{{end}}
+{{- if or .IsNep11D .IsNep11ND}}
+	nep11.Actor
+{{else if .IsNep17}}
+	nep17.Actor
+{{end}}
+{{- if len .Methods}}
+	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
 	MakeRun(script []byte) (*transaction.Transaction, error)
 	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error)
 	MakeUnsignedRun(script []byte, attrs []transaction.Attribute) (*transaction.Transaction, error)
@@ -113,7 +120,7 @@ type Actor interface {
 }
 
 {{end -}}
-// ContractReader implements safe contract methods.
+{{if .HasReader}}// ContractReader implements safe contract methods.
 type ContractReader struct {
 	{{if .IsNep11D}}nep11.DivisibleReader
 	{{end -}}
@@ -124,9 +131,11 @@ type ContractReader struct {
 	invoker Invoker
 }
 
+{{end -}}
 {{if .HasWriter}}// Contract implements all contract methods.
 type Contract struct {
-	ContractReader
+	{{if .HasReader}}ContractReader
+	{{end -}}
 	{{if .IsNep11D}}nep11.DivisibleWriter
 	{{end -}}
 	{{if .IsNep11ND}}nep11.BaseWriter
@@ -137,7 +146,7 @@ type Contract struct {
 }
 
 {{end -}}
-// NewReader creates an instance of ContractReader using Hash and the given Invoker.
+{{if .HasReader}}// NewReader creates an instance of ContractReader using Hash and the given Invoker.
 func NewReader(invoker Invoker) *ContractReader {
 	return &ContractReader{
 		{{- if .IsNep11D}}*nep11.NewDivisibleReader(invoker, Hash), {{end}}
@@ -146,6 +155,7 @@ func NewReader(invoker Invoker) *ContractReader {
 		invoker}
 }
 
+{{end -}}
 {{if .HasWriter}}// New creates an instance of Contract using Hash and the given Actor.
 func New(actor Actor) *Contract {
 	{{if .IsNep11D}}var nep11dt = nep11.NewDivisible(actor, Hash)
@@ -154,11 +164,12 @@ func New(actor Actor) *Contract {
 	{{end -}}
 	{{if .IsNep17}}var nep17t = nep17.New(actor, Hash)
 	{{end -}}
-	return &Contract{ContractReader{
+	return &Contract{
+		{{- if .HasReader}}ContractReader{
 		{{- if .IsNep11D}}nep11dt.DivisibleReader, {{end -}}
 		{{- if .IsNep11ND}}nep11ndt.NonDivisibleReader, {{end -}}
 		{{- if .IsNep17}}nep17t.TokenReader, {{end -}}
-		actor},
+		actor}, {{end -}}
 		{{- if .IsNep11D}}nep11dt.DivisibleWriter, {{end -}}
 		{{- if .IsNep11ND}}nep11ndt.BaseWriter, {{end -}}
 		{{- if .IsNep17}}nep17t.TokenWriter, {{end -}}
@@ -185,6 +196,7 @@ type (
 		IsNep11ND bool
 		IsNep17   bool
 
+		HasReader bool
 		HasWriter bool
 	}
 )
@@ -352,6 +364,9 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	}
 	if len(ctr.Methods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND {
 		ctr.HasWriter = true
+	}
+	if len(ctr.SafeMethods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND {
+		ctr.HasReader = true
 	}
 	ctr.Imports = ctr.Imports[:0]
 	for imp := range imports {

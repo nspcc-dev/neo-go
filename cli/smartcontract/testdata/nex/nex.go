@@ -21,7 +21,9 @@ type Invoker interface {
 // Actor is used by Contract to call state-changing methods.
 type Actor interface {
 	Invoker
+
 	nep17.Actor
+
 	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
 	MakeRun(script []byte) (*transaction.Transaction, error)
 	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error)
@@ -51,7 +53,7 @@ func NewReader(invoker Invoker) *ContractReader {
 // New creates an instance of Contract using Hash and the given Actor.
 func New(actor Actor) *Contract {
 	var nep17t = nep17.New(actor, Hash)
-	return &Contract{ContractReader{nep17t.TokenReader, actor},nep17t.TokenWriter, actor}
+	return &Contract{ContractReader{nep17t.TokenReader, actor}, nep17t.TokenWriter, actor}
 }
 
 

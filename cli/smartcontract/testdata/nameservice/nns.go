@@ -22,6 +22,7 @@ type Invoker interface {
 // Actor is used by Contract to call state-changing methods.
 type Actor interface {
 	Invoker
+
 	nep11.Actor
 
 	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
@@ -53,7 +54,7 @@ func NewReader(invoker Invoker) *ContractReader {
 // New creates an instance of Contract using Hash and the given Actor.
 func New(actor Actor) *Contract {
 	var nep11ndt = nep11.NewNonDivisible(actor, Hash)
-	return &Contract{ContractReader{nep11ndt.NonDivisibleReader, actor},nep11ndt.BaseWriter, actor}
+	return &Contract{ContractReader{nep11ndt.NonDivisibleReader, actor}, nep11ndt.BaseWriter, actor}
 }
 
 
