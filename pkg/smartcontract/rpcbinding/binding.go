@@ -238,6 +238,14 @@ func Generate(cfg binding.Config) error {
 		}
 	}
 
+	// OnNepXXPayment handlers normally can't be called directly.
+	if standard.ComplyABI(cfg.Manifest, standard.Nep11Payable) == nil {
+		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11Payable)
+	}
+	if standard.ComplyABI(cfg.Manifest, standard.Nep17Payable) == nil {
+		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep17Payable)
+	}
+
 	bctr, err := binding.TemplateFromManifest(cfg, scTypeToGo)
 	if err != nil {
 		return err

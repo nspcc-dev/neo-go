@@ -5,7 +5,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"math/big"
 )
 
 // Hash contains contract hash.
@@ -68,26 +67,4 @@ func (c *Contract) VerifyUnsigned() (*transaction.Transaction, error) {
 		return nil, err
 	}
 	return c.actor.MakeUnsignedRun(script, nil)
-}
-
-// OnNEP17Payment creates a transaction invoking `onNEP17Payment` method of the contract.
-// This transaction is signed and immediately sent to the network.
-// The values returned are its hash, ValidUntilBlock value and error if any.
-func (c *Contract) OnNEP17Payment(from []byte, amount *big.Int, data interface{}) (util.Uint256, uint32, error) {
-	return c.actor.SendCall(Hash, "onNEP17Payment", from, amount, data)
-}
-
-// OnNEP17PaymentTransaction creates a transaction invoking `onNEP17Payment` method of the contract.
-// This transaction is signed, but not sent to the network, instead it's
-// returned to the caller.
-func (c *Contract) OnNEP17PaymentTransaction(from []byte, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
-	return c.actor.MakeCall(Hash, "onNEP17Payment", from, amount, data)
-}
-
-// OnNEP17PaymentUnsigned creates a transaction invoking `onNEP17Payment` method of the contract.
-// This transaction is not signed, it's simply returned to the caller.
-// Any fields of it that do not affect fees can be changed (ValidUntilBlock,
-// Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
-func (c *Contract) OnNEP17PaymentUnsigned(from []byte, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
-	return c.actor.MakeUnsignedCall(Hash, "onNEP17Payment", nil, from, amount, data)
 }

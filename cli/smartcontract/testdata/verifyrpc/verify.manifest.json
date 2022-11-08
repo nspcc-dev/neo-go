@@ -1,0 +1,79 @@
+{
+   "groups" : [],
+   "extra" : null,
+   "supportedstandards" : [],
+   "name" : "verify",
+   "trusts" : [],
+   "permissions" : [
+      {
+         "methods" : "*",
+         "contract" : "*"
+      }
+   ],
+   "abi" : {
+      "methods" : [
+         {
+            "safe" : false,
+            "offset" : 0,
+            "parameters" : [],
+            "name" : "verify",
+            "returntype" : "Boolean"
+         },
+         {
+            "returntype" : "Void",
+            "safe" : false,
+            "offset" : 5,
+            "parameters" : [
+               {
+                  "type" : "Hash160",
+                  "name" : "from"
+               },
+               {
+                  "type" : "Integer",
+                  "name" : "amount"
+               },
+               {
+                  "type" : "Any",
+                  "name" : "data"
+               }
+            ],
+            "name" : "onNEP17Payment"
+         },
+         {
+            "returntype" : "Void",
+            "safe" : false,
+            "offset" : 5,
+            "parameters" : [
+               {
+                  "type" : "Hash160",
+                  "name" : "from"
+               },
+               {
+                  "type" : "Integer",
+                  "name" : "amount"
+               },
+               {
+                  "type" : "ByteArray",
+                  "name" : "tokenid"
+               },
+               {
+                  "type" : "Any",
+                  "name" : "data"
+               }
+            ],
+            "name" : "onNEP11Payment"
+         }
+      ],
+      "events" : [
+         {
+            "parameters" : [
+               {
+                  "type" : "Array",
+                  "name" : "args"
+               }
+            ],
+            "name" : "Hello world!"
+         }
+      ]
+   }
+}
