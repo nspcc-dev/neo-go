@@ -4,7 +4,6 @@ package nextoken
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -17,7 +16,6 @@ var Hash = util.Uint160{0xa8, 0x1a, 0xa1, 0xf0, 0x4b, 0xf, 0xdc, 0x4a, 0xa2, 0xc
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 	nep17.Invoker
-	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
 }
 
 // Actor is used by Contract to call state-changing methods.

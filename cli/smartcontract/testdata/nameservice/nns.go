@@ -3,7 +3,6 @@ package nameservice
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -18,13 +17,13 @@ var Hash = util.Uint160{0xde, 0x46, 0x5f, 0x5d, 0x50, 0x57, 0xcf, 0x33, 0x28, 0x
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 	nep11.Invoker
-	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
 }
 
 // Actor is used by Contract to call state-changing methods.
 type Actor interface {
 	Invoker
 	nep11.Actor
+
 	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
 	MakeRun(script []byte) (*transaction.Transaction, error)
 	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error)

@@ -92,20 +92,18 @@ var Hash = {{ .Hash }}
 
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
-	{{if or .IsNep11D .IsNep11ND}}nep11.Invoker
-	{{end -}}
-	{{if .IsNep17}}nep17.Invoker
-	{{end -}}
-	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+{{if or .IsNep11D .IsNep11ND}}	nep11.Invoker
+{{else if .IsNep17}}	nep17.Invoker
+{{else if len .SafeMethods}}	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+{{end -}}
 }
 
 {{if .HasWriter}}// Actor is used by Contract to call state-changing methods.
 type Actor interface {
 	Invoker
-	{{if or .IsNep11D .IsNep11ND}}nep11.Actor{{end -}}
-	{{if .IsNep17}}nep17.Actor{{end -}}
-{{if len .Methods}}
-	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
+{{if or .IsNep11D .IsNep11ND}}	nep11.Actor
+{{else if .IsNep17}}	nep17.Actor{{end}}
+{{if len .Methods}}	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
 	MakeRun(script []byte) (*transaction.Transaction, error)
 	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error)
 	MakeUnsignedRun(script []byte, attrs []transaction.Attribute) (*transaction.Transaction, error)
@@ -198,19 +196,50 @@ func NewConfig() binding.Config {
 
 // Generate writes Go file containing smartcontract bindings to the `cfg.Output`.
 func Generate(cfg binding.Config) error {
+	// Avoid changing *cfg.Manifest.
+	mfst := *cfg.Manifest
+	mfst.ABI.Methods = make([]manifest.Method, len(mfst.ABI.Methods))
+	copy(mfst.ABI.Methods, cfg.Manifest.ABI.Methods)
+	cfg.Manifest = &mfst
+
+	var imports = make(map[string]struct{})
+	var ctr ContractTmpl
+
+	// Strip standard methods from NEP-XX packages.
+	for _, std := range cfg.Manifest.SupportedStandards {
+		if std == manifest.NEP11StandardName {
+			imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"] = struct{}{}
+			if standard.ComplyABI(cfg.Manifest, standard.Nep11Divisible) == nil {
+				mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11Divisible)
+				ctr.IsNep11D = true
+			} else if standard.ComplyABI(cfg.Manifest, standard.Nep11NonDivisible) == nil {
+				mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11NonDivisible)
+				ctr.IsNep11ND = true
+			}
+			break // Can't be NEP-17 at the same time.
+		}
+		if std == manifest.NEP17StandardName && standard.ComplyABI(cfg.Manifest, standard.Nep17) == nil {
+			mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep17)
+			imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"] = struct{}{}
+			ctr.IsNep17 = true
+			break // Can't be NEP-11 at the same time.
+		}
+	}
+
 	bctr, err := binding.TemplateFromManifest(cfg, scTypeToGo)
 	if err != nil {
 		return err
 	}
-	ctr := scTemplateToRPC(cfg, bctr)
+	ctr.ContractTmpl = bctr
+	ctr = scTemplateToRPC(cfg, ctr, imports)
 
 	return srcTemplate.Execute(cfg.Output, ctr)
 }
 
-func dropManifestMethods(meths []binding.MethodTmpl, manifested []manifest.Method) []binding.MethodTmpl {
+func dropManifestMethods(meths []manifest.Method, manifested []manifest.Method) []manifest.Method {
 	for _, m := range manifested {
 		for i := 0; i < len(meths); i++ {
-			if meths[i].NameABI == m.Name && len(meths[i].Arguments) == len(m.Parameters) {
+			if meths[i].Name == m.Name && len(meths[i].Parameters) == len(m.Parameters) {
 				meths = append(meths[:i], meths[i+1:]...)
 				i--
 			}
@@ -219,7 +248,7 @@ func dropManifestMethods(meths []binding.MethodTmpl, manifested []manifest.Metho
 	return meths
 }
 
-func dropStdMethods(meths []binding.MethodTmpl, std *standard.Standard) []binding.MethodTmpl {
+func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.Method {
 	meths = dropManifestMethods(meths, std.Manifest.ABI.Methods)
 	if std.Optional != nil {
 		meths = dropManifestMethods(meths, std.Optional)
@@ -263,32 +292,11 @@ func scTypeToGo(name string, typ smartcontract.ParamType, overrides map[string]b
 	}
 }
 
-func scTemplateToRPC(cfg binding.Config, bctr binding.ContractTmpl) ContractTmpl {
-	var imports = make(map[string]struct{})
-	var ctr = ContractTmpl{ContractTmpl: bctr}
+func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]struct{}) ContractTmpl {
 	for i := range ctr.Imports {
 		imports[ctr.Imports[i]] = struct{}{}
 	}
 	ctr.Hash = fmt.Sprintf("%#v", cfg.Hash)
-	for _, std := range cfg.Manifest.SupportedStandards {
-		if std == manifest.NEP11StandardName {
-			imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"] = struct{}{}
-			if standard.ComplyABI(cfg.Manifest, standard.Nep11Divisible) == nil {
-				ctr.Methods = dropStdMethods(ctr.Methods, standard.Nep11Divisible)
-				ctr.IsNep11D = true
-			} else if standard.ComplyABI(cfg.Manifest, standard.Nep11NonDivisible) == nil {
-				ctr.Methods = dropStdMethods(ctr.Methods, standard.Nep11NonDivisible)
-				ctr.IsNep11ND = true
-			}
-			break // Can't be NEP-17 at the same time.
-		}
-		if std == manifest.NEP17StandardName && standard.ComplyABI(cfg.Manifest, standard.Nep17) == nil {
-			ctr.Methods = dropStdMethods(ctr.Methods, standard.Nep17)
-			imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"] = struct{}{}
-			ctr.IsNep17 = true
-			break // Can't be NEP-11 at the same time.
-		}
-	}
 	for i := 0; i < len(ctr.Methods); i++ {
 		abim := cfg.Manifest.ABI.GetMethod(ctr.Methods[i].NameABI, len(ctr.Methods[i].Arguments))
 		if abim.Safe {
@@ -332,9 +340,12 @@ func scTemplateToRPC(cfg binding.Config, bctr binding.ContractTmpl) ContractTmpl
 		}
 	}
 
-	imports["github.com/nspcc-dev/neo-go/pkg/neorpc/result"] = struct{}{}
+	imports["github.com/nspcc-dev/neo-go/pkg/util"] = struct{}{}
 	if len(ctr.SafeMethods) > 0 {
 		imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"] = struct{}{}
+		if !(ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND) {
+			imports["github.com/nspcc-dev/neo-go/pkg/neorpc/result"] = struct{}{}
+		}
 	}
 	if len(ctr.Methods) > 0 {
 		imports["github.com/nspcc-dev/neo-go/pkg/core/transaction"] = struct{}{}
