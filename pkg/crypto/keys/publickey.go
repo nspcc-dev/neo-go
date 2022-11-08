@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -204,7 +204,7 @@ func NewPublicKeyFromASN1(data []byte) (*PublicKey, error) {
 func decodeCompressedY(x *big.Int, ylsb uint, curve elliptic.Curve) (*big.Int, error) {
 	var a *big.Int
 	switch curve.(type) {
-	case *btcec.KoblitzCurve:
+	case *secp256k1.KoblitzCurve:
 		a = big0
 	default:
 		a = big3
