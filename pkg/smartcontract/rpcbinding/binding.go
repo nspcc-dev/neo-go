@@ -225,6 +225,8 @@ func NewConfig() binding.Config {
 }
 
 // Generate writes Go file containing smartcontract bindings to the `cfg.Output`.
+// It doesn't check manifest from Config for validity, incorrect manifest can
+// lead to unexpected results.
 func Generate(cfg binding.Config) error {
 	// Avoid changing *cfg.Manifest.
 	mfst := *cfg.Manifest
@@ -264,11 +266,7 @@ func Generate(cfg binding.Config) error {
 		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep17Payable)
 	}
 
-	bctr, err := binding.TemplateFromManifest(cfg, scTypeToGo)
-	if err != nil {
-		return err
-	}
-	ctr.ContractTmpl = bctr
+	ctr.ContractTmpl = binding.TemplateFromManifest(cfg, scTypeToGo)
 	ctr = scTemplateToRPC(cfg, ctr, imports)
 
 	return srcTemplate.Execute(cfg.Output, ctr)
