@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"math/big"
 )
 
@@ -64,6 +65,15 @@ func (c *ContractReader) Roots() (uuid.UUID, result.Iterator, error) {
 	return unwrap.SessionIterator(c.invoker.Call(Hash, "roots"))
 }
 
+// RootsExpanded is similar to Roots (uses the same contract
+// method), but can be useful if the server used doesn't support sessions and
+// doesn't expand iterators. It creates a script that will get the specified
+// number of result items from the iterator right in the VM and return them to
+// you. It's only limited by VM stack and GAS available for RPC invocations.
+func (c *ContractReader) RootsExpanded(_numOfIteratorItems int) ([]stackitem.Item, error) {
+	return unwrap.Array(c.invoker.CallAndExpandIterator(Hash, "roots", _numOfIteratorItems))
+}
+
 // GetPrice invokes `getPrice` method of contract.
 func (c *ContractReader) GetPrice(length *big.Int) (*big.Int, error) {
 	return unwrap.BigInt(c.invoker.Call(Hash, "getPrice", length))
@@ -82,6 +92,15 @@ func (c *ContractReader) GetRecord(name string, typev *big.Int) (string, error) 
 // GetAllRecords invokes `getAllRecords` method of contract.
 func (c *ContractReader) GetAllRecords(name string) (uuid.UUID, result.Iterator, error) {
 	return unwrap.SessionIterator(c.invoker.Call(Hash, "getAllRecords", name))
+}
+
+// GetAllRecordsExpanded is similar to GetAllRecords (uses the same contract
+// method), but can be useful if the server used doesn't support sessions and
+// doesn't expand iterators. It creates a script that will get the specified
+// number of result items from the iterator right in the VM and return them to
+// you. It's only limited by VM stack and GAS available for RPC invocations.
+func (c *ContractReader) GetAllRecordsExpanded(name string, _numOfIteratorItems int) ([]stackitem.Item, error) {
+	return unwrap.Array(c.invoker.CallAndExpandIterator(Hash, "getAllRecords", _numOfIteratorItems, name))
 }
 
 // Resolve invokes `resolve` method of contract.

@@ -1,0 +1,33 @@
+{
+   "groups" : [],
+   "abi" : {
+      "events" : [],
+      "methods" : [
+         {
+            "parameters" : [],
+            "safe" : true,
+            "name" : "tokens",
+            "offset" : 0,
+            "returntype" : "InteropInterface"
+         },
+         {
+            "offset" : 1,
+            "returntype" : "InteropInterface",
+            "safe" : true,
+            "parameters" : [
+               {
+                  "type" : "String",
+                  "name" : "name"
+               }
+            ],
+            "name" : "getAllRecords"
+         }
+      ]
+   },
+   "supportedstandards" : [],
+   "trusts" : [],
+   "extra" : {},
+   "permissions" : [],
+   "name" : "Non-NEPXX contract with iterators",
+   "features" : {}
+}

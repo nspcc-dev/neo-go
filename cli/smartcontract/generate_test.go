@@ -360,6 +360,9 @@ func TestGenerateRPCBindings(t *testing.T) {
 	checkBinding(filepath.Join("testdata", "verifyrpc", "verify.manifest.json"),
 		"0x00112233445566778899aabbccddeeff00112233",
 		filepath.Join("testdata", "verifyrpc", "verify.go"))
+	checkBinding(filepath.Join("testdata", "nonepiter", "iter.manifest.json"),
+		"0x00112233445566778899aabbccddeeff00112233",
+		filepath.Join("testdata", "nonepiter", "iter.go"))
 }
 
 func TestGenerate_Errors(t *testing.T) {
