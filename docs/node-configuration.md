@@ -158,8 +158,15 @@ RPC:
 where:
 - `Enabled` denotes whether an RPC server should be started.
 - `Address` is an RPC server address to be running at.
-- `EnableCORSWorkaround` enables Cross-Origin Resource Sharing and is useful if
-  you're accessing RPC interface from the browser.
+- `EnableCORSWorkaround` turns on a set of origin-related behaviors that make
+  RPC server wide open for connections from any origins. It enables OPTIONS
+  request handling for pre-flight CORS and makes the server send
+  `Access-Control-Allow-Origin` and `Access-Control-Allow-Headers` headers for
+  regular HTTP requests (allowing any origin which effectively makes CORS
+  useless). It also makes websocket connections work for any `Origin`
+  specified in the request header. This option is not recommended (reverse
+  proxy can be used to have proper app-specific CORS settings), but it's an
+  easy way to make RPC interface accessible from the browser.
 - `MaxGasInvoke` is the maximum GAS allowed to spend during `invokefunction` and
   `invokescript` RPC-calls.
 - `MaxIteratorResultItems` - maximum number of elements extracted from iterator
