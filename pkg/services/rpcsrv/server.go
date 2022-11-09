@@ -122,6 +122,7 @@ type (
 		config config.RPC
 		// wsReadLimit represents web-socket message limit for a receiving side.
 		wsReadLimit      int64
+		upgrader         websocket.Upgrader
 		network          netmode.Magic
 		stateRootEnabled bool
 		coreServer       *network.Server
@@ -249,10 +250,6 @@ var invalidBlockHeightError = func(index int, height int) *neorpc.Error {
 	return neorpc.NewRPCError("Invalid block height", fmt.Sprintf("param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height))
 }
 
-// upgrader is a no-op websocket.Upgrader that reuses HTTP server buffers and
-// doesn't set any Error function.
-var upgrader = websocket.Upgrader{}
-
 // New creates a new Server struct.
 func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	orc OracleHandler, log *zap.Logger, errChan chan error) Server {
@@ -282,11 +279,16 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	if orc != nil {
 		oracleWrapped.Store(&orc)
 	}
+	var wsOriginChecker func(*http.Request) bool
+	if conf.EnableCORSWorkaround {
+		wsOriginChecker = func(_ *http.Request) bool { return true }
+	}
 	return Server{
 		Server:           httpServer,
 		chain:            chain,
 		config:           conf,
 		wsReadLimit:      int64(protoCfg.MaxBlockSize*4)/3 + 1024, // Enough for Base64-encoded content of `submitblock` and `submitp2pnotaryrequest`.
+		upgrader:         websocket.Upgrader{CheckOrigin: wsOriginChecker},
 		network:          protoCfg.Magic,
 		stateRootEnabled: protoCfg.StateRootInHeader,
 		coreServer:       coreServer,
@@ -431,7 +433,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 			)
 			return
 		}
-		ws, err := upgrader.Upgrade(w, httpRequest, nil)
+		ws, err := s.upgrader.Upgrade(w, httpRequest, nil)
 		if err != nil {
 			s.log.Info("websocket connection upgrade failed", zap.Error(err))
 			return
