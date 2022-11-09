@@ -1004,6 +1004,9 @@ func TestCompileExamples(t *testing.T) {
 
 			outF := filepath.Join(tmpDir, info.Name()+".nef")
 			manifestF := filepath.Join(tmpDir, info.Name()+".manifest.json")
+			bindingF := filepath.Join(tmpDir, info.Name()+".binding.yml")
+			wrapperF := filepath.Join(tmpDir, info.Name()+".go")
+			rpcWrapperF := filepath.Join(tmpDir, info.Name()+".rpc.go")
 
 			cfgName := filterFilename(infos, ".yml")
 			opts := []string{
@@ -1012,6 +1015,7 @@ func TestCompileExamples(t *testing.T) {
 				"--out", outF,
 				"--manifest", manifestF,
 				"--config", filepath.Join(examplePath, info.Name(), cfgName),
+				"--bindings", bindingF,
 			}
 			e.Run(t, opts...)
 
@@ -1030,6 +1034,16 @@ func TestCompileExamples(t *testing.T) {
 				require.NotNil(t, m.ABI.GetMethod("put", 1))
 				require.NotNil(t, m.ABI.GetMethod("put", 2))
 			}
+			e.Run(t, "neo-go", "contract", "generate-wrapper",
+				"--manifest", manifestF,
+				"--config", bindingF,
+				"--out", wrapperF,
+				"--hash", "0x00112233445566778899aabbccddeeff00112233")
+			e.Run(t, "neo-go", "contract", "generate-rpcwrapper",
+				"--manifest", manifestF,
+				"--config", bindingF,
+				"--out", rpcWrapperF,
+				"--hash", "0x00112233445566778899aabbccddeeff00112233")
 		})
 	}
 
