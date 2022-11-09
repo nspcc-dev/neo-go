@@ -79,6 +79,8 @@ type (
 	}
 )
 
+var srcTemplate = template.Must(template.New("generate").Parse(srcTmpl))
+
 // NewConfig initializes and returns a new config instance.
 func NewConfig() Config {
 	return Config{
@@ -97,12 +99,7 @@ func Generate(cfg Config) error {
 	ctr.Imports = append(ctr.Imports, "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal")
 	sort.Strings(ctr.Imports)
 
-	tmp, err := template.New("generate").Parse(srcTmpl)
-	if err != nil {
-		return err
-	}
-
-	return tmp.Execute(cfg.Output, ctr)
+	return srcTemplate.Execute(cfg.Output, ctr)
 }
 
 func scTypeToGo(name string, typ smartcontract.ParamType, overrides map[string]Override) (string, string) {
