@@ -334,9 +334,17 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	for i := range ctr.SafeMethods {
 		switch ctr.SafeMethods[i].ReturnType {
 		case "interface{}":
-			imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
-			ctr.SafeMethods[i].ReturnType = "stackitem.Item"
-			ctr.SafeMethods[i].CallFlag = "Item"
+			abim := cfg.Manifest.ABI.GetMethod(ctr.SafeMethods[i].NameABI, len(ctr.SafeMethods[i].Arguments))
+			if abim.ReturnType == smartcontract.InteropInterfaceType {
+				imports["github.com/google/uuid"] = struct{}{}
+				imports["github.com/nspcc-dev/neo-go/pkg/neorpc/result"] = struct{}{}
+				ctr.SafeMethods[i].ReturnType = "uuid.UUID, result.Iterator"
+				ctr.SafeMethods[i].CallFlag = "SessionIterator"
+			} else {
+				imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
+				ctr.SafeMethods[i].ReturnType = "stackitem.Item"
+				ctr.SafeMethods[i].CallFlag = "Item"
+			}
 		case "bool":
 			ctr.SafeMethods[i].CallFlag = "Bool"
 		case "*big.Int":

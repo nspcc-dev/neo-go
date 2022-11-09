@@ -2,12 +2,13 @@
 package nameservice
 
 import (
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"math/big"
 )
 
@@ -59,8 +60,8 @@ func New(actor Actor) *Contract {
 
 
 // Roots invokes `roots` method of contract.
-func (c *ContractReader) Roots() (stackitem.Item, error) {
-	return unwrap.Item(c.invoker.Call(Hash, "roots"))
+func (c *ContractReader) Roots() (uuid.UUID, result.Iterator, error) {
+	return unwrap.SessionIterator(c.invoker.Call(Hash, "roots"))
 }
 
 // GetPrice invokes `getPrice` method of contract.
@@ -79,8 +80,8 @@ func (c *ContractReader) GetRecord(name string, typev *big.Int) (string, error) 
 }
 
 // GetAllRecords invokes `getAllRecords` method of contract.
-func (c *ContractReader) GetAllRecords(name string) (stackitem.Item, error) {
-	return unwrap.Item(c.invoker.Call(Hash, "getAllRecords", name))
+func (c *ContractReader) GetAllRecords(name string) (uuid.UUID, result.Iterator, error) {
+	return unwrap.SessionIterator(c.invoker.Call(Hash, "getAllRecords", name))
 }
 
 // Resolve invokes `resolve` method of contract.
