@@ -501,7 +501,8 @@ func (s *Server) handleIn(req *params.In, sub *subscriber) abstract {
 		zap.String("method", req.Method),
 		zap.Stringer("params", reqParams))
 
-	incCounter(req.Method)
+	start := time.Now()
+	defer func() { addReqTimeMetric(req.Method, time.Since(start)) }()
 
 	resErr = neorpc.NewMethodNotFoundError(fmt.Sprintf("method %q not supported", req.Method))
 	handler, ok := rpcHandlers[req.Method]
