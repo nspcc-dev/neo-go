@@ -1852,34 +1852,29 @@ func appendTokenTransfer(cache *dao.Simple, transCache map[util.Uint160]transfer
 	}
 	var (
 		log           *state.TokenTransferLog
-		newBatch      *bool
-		nextBatch     *uint32
-		currTimestamp *uint64
+		nextBatch     uint32
+		currTimestamp uint64
 	)
 	if !isNEP11 {
 		log = &transferData.Log17
-		newBatch = &transferData.Info.NewNEP17Batch
-		nextBatch = &transferData.Info.NextNEP17Batch
-		currTimestamp = &transferData.Info.NextNEP17NewestTimestamp
+		nextBatch = transferData.Info.NextNEP17Batch
+		currTimestamp = transferData.Info.NextNEP17NewestTimestamp
 	} else {
 		log = &transferData.Log11
-		newBatch = &transferData.Info.NewNEP11Batch
-		nextBatch = &transferData.Info.NextNEP11Batch
-		currTimestamp = &transferData.Info.NextNEP11NewestTimestamp
+		nextBatch = transferData.Info.NextNEP11Batch
+		currTimestamp = transferData.Info.NextNEP11NewestTimestamp
 	}
 	err := log.Append(transfer)
 	if err != nil {
 		return err
 	}
-	transferData.Info.LastUpdated[token] = bIndex
-	*newBatch = log.Size() >= state.TokenTransferBatchSize
-	if *newBatch {
-		cache.PutTokenTransferLog(addr, *currTimestamp, *nextBatch, isNEP11, log)
-		*nextBatch++
-		*currTimestamp = bTimestamp
+	newBatch := log.Size() >= state.TokenTransferBatchSize
+	if newBatch {
+		cache.PutTokenTransferLog(addr, currTimestamp, nextBatch, isNEP11, log)
 		// Put makes a copy of it anyway.
 		log.Reset()
 	}
+	appendTokenTransferInfo(&transferData.Info, token, bIndex, bTimestamp, isNEP11, newBatch)
 	transCache[addr] = transferData
 	return nil
 }
