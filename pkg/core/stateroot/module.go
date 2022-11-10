@@ -170,7 +170,7 @@ func (s *Module) Init(height uint32) error {
 // CleanStorage removes all MPT-related data from the storage (MPT nodes, validated stateroots)
 // except local stateroot for the current height and GC flag. This method is aimed to clean
 // outdated MPT data before state sync process can be started.
-// Note: this method is aimed to be called for genesis block only, an error is returned otherwice.
+// Note: this method is aimed to be called for genesis block only, an error is returned otherwise.
 func (s *Module) CleanStorage() error {
 	if s.localHeight.Load() != 0 {
 		return fmt.Errorf("can't clean MPT data for non-genesis block: expected local stateroot height 0, got %d", s.localHeight.Load())
