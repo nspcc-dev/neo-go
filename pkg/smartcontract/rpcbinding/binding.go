@@ -25,6 +25,17 @@ func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 		{{- range $arg := .Arguments -}}, {{.Name}}{{end}})
 	{{- end}}
 }
+{{- if eq .CallFlag "SessionIterator"}}
+
+// {{.Name}}Expanded is similar to {{.Name}} (uses the same contract
+// method), but can be useful if the server used doesn't support sessions and
+// doesn't expand iterators. It creates a script that will get the specified
+// number of result items from the iterator right in the VM and return them to
+// you. It's only limited by VM stack and GAS available for RPC invocations.
+func (c *ContractReader) {{.Name}}Expanded({{range $index, $arg := .Arguments}}{{.Name}} {{.Type}}, {{end}}_numOfIteratorItems int) ([]stackitem.Item, error) {
+	return unwrap.Array(c.invoker.CallAndExpandIterator(Hash, "{{.NameABI}}", _numOfIteratorItems{{range $arg := .Arguments}}, {{.Name}}{{end}}))
+}
+{{- end -}}
 {{- end -}}
 {{- define "METHOD" -}}
 {{- if eq .ReturnType "bool"}}func scriptFor{{.Name}}({{range $index, $arg := .Arguments -}}
@@ -93,8 +104,14 @@ var Hash = {{ .Hash }}
 {{if .HasReader}}// Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 {{if or .IsNep11D .IsNep11ND}}	nep11.Invoker
-{{else if .IsNep17}}	nep17.Invoker
+{{else -}}
+{{ if .IsNep17}}	nep17.Invoker
 {{else if len .SafeMethods}}	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+{{end -}}
+{{if .HasIterator}}	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...interface{}) (*result.Invoke, error)
+	TerminateSession(sessionID uuid.UUID) error
+	TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error)
+{{end -}}
 {{end -}}
 }
 
@@ -196,8 +213,9 @@ type (
 		IsNep11ND bool
 		IsNep17   bool
 
-		HasReader bool
-		HasWriter bool
+		HasReader   bool
+		HasWriter   bool
+		HasIterator bool
 	}
 )
 
@@ -207,6 +225,8 @@ func NewConfig() binding.Config {
 }
 
 // Generate writes Go file containing smartcontract bindings to the `cfg.Output`.
+// It doesn't check manifest from Config for validity, incorrect manifest can
+// lead to unexpected results.
 func Generate(cfg binding.Config) error {
 	// Avoid changing *cfg.Manifest.
 	mfst := *cfg.Manifest
@@ -246,11 +266,7 @@ func Generate(cfg binding.Config) error {
 		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep17Payable)
 	}
 
-	bctr, err := binding.TemplateFromManifest(cfg, scTypeToGo)
-	if err != nil {
-		return err
-	}
-	ctr.ContractTmpl = bctr
+	ctr.ContractTmpl = binding.TemplateFromManifest(cfg, scTypeToGo)
 	ctr = scTemplateToRPC(cfg, ctr, imports)
 
 	return srcTemplate.Execute(cfg.Output, ctr)
@@ -334,9 +350,19 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	for i := range ctr.SafeMethods {
 		switch ctr.SafeMethods[i].ReturnType {
 		case "interface{}":
-			imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
-			ctr.SafeMethods[i].ReturnType = "stackitem.Item"
-			ctr.SafeMethods[i].CallFlag = "Item"
+			abim := cfg.Manifest.ABI.GetMethod(ctr.SafeMethods[i].NameABI, len(ctr.SafeMethods[i].Arguments))
+			if abim.ReturnType == smartcontract.InteropInterfaceType {
+				imports["github.com/google/uuid"] = struct{}{}
+				imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
+				imports["github.com/nspcc-dev/neo-go/pkg/neorpc/result"] = struct{}{}
+				ctr.SafeMethods[i].ReturnType = "uuid.UUID, result.Iterator"
+				ctr.SafeMethods[i].CallFlag = "SessionIterator"
+				ctr.HasIterator = true
+			} else {
+				imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
+				ctr.SafeMethods[i].ReturnType = "stackitem.Item"
+				ctr.SafeMethods[i].CallFlag = "Item"
+			}
 		case "bool":
 			ctr.SafeMethods[i].CallFlag = "Bool"
 		case "*big.Int":

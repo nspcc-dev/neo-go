@@ -79,6 +79,8 @@ type (
 	}
 )
 
+var srcTemplate = template.Must(template.New("generate").Parse(srcTmpl))
+
 // NewConfig initializes and returns a new config instance.
 func NewConfig() Config {
 	return Config{
@@ -88,21 +90,15 @@ func NewConfig() Config {
 }
 
 // Generate writes Go file containing smartcontract bindings to the `cfg.Output`.
+// It doesn't check manifest from Config for validity, incorrect manifest can
+// lead to unexpected results.
 func Generate(cfg Config) error {
-	ctr, err := TemplateFromManifest(cfg, scTypeToGo)
-	if err != nil {
-		return err
-	}
+	ctr := TemplateFromManifest(cfg, scTypeToGo)
 	ctr.Imports = append(ctr.Imports, "github.com/nspcc-dev/neo-go/pkg/interop/contract")
 	ctr.Imports = append(ctr.Imports, "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal")
 	sort.Strings(ctr.Imports)
 
-	tmp, err := template.New("generate").Parse(srcTmpl)
-	if err != nil {
-		return err
-	}
-
-	return tmp.Execute(cfg.Output, ctr)
+	return srcTemplate.Execute(cfg.Output, ctr)
 }
 
 func scTypeToGo(name string, typ smartcontract.ParamType, overrides map[string]Override) (string, string) {
@@ -143,8 +139,9 @@ func scTypeToGo(name string, typ smartcontract.ParamType, overrides map[string]O
 }
 
 // TemplateFromManifest create a contract template using the given configuration
-// and type conversion function.
-func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract.ParamType, map[string]Override) (string, string)) (ContractTmpl, error) {
+// and type conversion function. It assumes manifest to be present in the
+// configuration and assumes it to be correct (passing IsValid check).
+func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract.ParamType, map[string]Override) (string, string)) ContractTmpl {
 	hStr := ""
 	for _, b := range cfg.Hash.BytesBE() {
 		hStr += fmt.Sprintf("\\x%02x", b)
@@ -206,10 +203,6 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 		var varnames = make(map[string]bool)
 		for i := range m.Parameters {
 			name := m.Parameters[i].Name
-			if name == "" {
-				return ctr, fmt.Errorf("manifest ABI method %q/%d: parameter #%d is unnamed", m.Name, len(m.Parameters), i)
-			}
-
 			typeStr, pkg := scTypeConverter(m.Name+"."+name, m.Parameters[i].Type, cfg.Overrides)
 			if pkg != "" {
 				imports[pkg] = struct{}{}
@@ -239,7 +232,7 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 		ctr.Imports = append(ctr.Imports, imp)
 	}
 
-	return ctr, nil
+	return ctr
 }
 
 func upperFirst(s string) string {
