@@ -89,11 +89,7 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 		t.Run("Go node response", func(t *testing.T) {
 			t.Run("old RPC server", func(t *testing.T) {
 				actual := &Version{}
-				require.NoError(t, json.Unmarshal([]byte(responseFromGoOld), actual))
-				expected := new(Version)
-				*expected = *v
-				expected.UserAgent = "/NEO-GO:0.98.2/"
-				require.Equal(t, expected, actual)
+				require.Error(t, json.Unmarshal([]byte(responseFromGoOld), actual))
 			})
 			t.Run("new RPC server", func(t *testing.T) {
 				actual := &Version{}
@@ -110,30 +106,4 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 			require.Equal(t, expected, actual)
 		})
 	})
-}
-
-func TestVersionFromUserAgent(t *testing.T) {
-	type testCase struct {
-		success         bool
-		cmpWithBreaking int
-	}
-	var testcases = map[string]testCase{
-		"/Neo:3.1.0/":               {success: false},
-		"/NEO-GO:0.98.7":            {success: true, cmpWithBreaking: 1},
-		"/NEO-GO:0.98.7-pre-12344/": {success: true, cmpWithBreaking: 1},
-		"/NEO-GO:0.98.6/":           {success: true, cmpWithBreaking: 1},
-		"/NEO-GO:0.98.6-pre-123/":   {success: true, cmpWithBreaking: 1},
-		"/NEO-GO:0.98.5/":           {success: true, cmpWithBreaking: 0},
-		"/NEO-GO:0.98.5-pre-12345/": {success: true, cmpWithBreaking: -1},
-		"/NEO-GO:123456":            {success: false},
-	}
-	for str, tc := range testcases {
-		ver, err := userAgentToVersion(str)
-		if tc.success {
-			require.NoError(t, err)
-			require.Equal(t, ver.Compare(latestNonBreakingVersion), tc.cmpWithBreaking, str)
-		} else {
-			require.Error(t, err)
-		}
-	}
 }
