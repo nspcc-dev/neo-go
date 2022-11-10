@@ -15,17 +15,11 @@ type (
 	// Version model used for reporting server version
 	// info.
 	Version struct {
-		// Magic contains network magic.
-		// Deprecated: use Protocol.Network instead
-		Magic     netmode.Magic
 		TCPPort   uint16
 		WSPort    uint16
 		Nonce     uint32
 		UserAgent string
 		Protocol  Protocol
-		// StateRootInHeader is true if state root is contained in the block header.
-		// Deprecated: use Protocol.StateRootInHeader instead
-		StateRootInHeader bool
 	}
 
 	// Protocol represents network-dependent parameters.
@@ -57,13 +51,11 @@ type (
 type (
 	// versionMarshallerAux is an auxiliary struct used for Version JSON marshalling.
 	versionMarshallerAux struct {
-		Magic             netmode.Magic         `json:"network"`
-		TCPPort           uint16                `json:"tcpport"`
-		WSPort            uint16                `json:"wsport,omitempty"`
-		Nonce             uint32                `json:"nonce"`
-		UserAgent         string                `json:"useragent"`
-		Protocol          protocolMarshallerAux `json:"protocol"`
-		StateRootInHeader bool                  `json:"staterootinheader,omitempty"`
+		TCPPort   uint16                `json:"tcpport"`
+		WSPort    uint16                `json:"wsport,omitempty"`
+		Nonce     uint32                `json:"nonce"`
+		UserAgent string                `json:"useragent"`
+		Protocol  protocolMarshallerAux `json:"protocol"`
 	}
 
 	// protocolMarshallerAux is an auxiliary struct used for Protocol JSON marshalling.
@@ -86,13 +78,11 @@ type (
 
 	// versionUnmarshallerAux is an auxiliary struct used for Version JSON unmarshalling.
 	versionUnmarshallerAux struct {
-		Magic             netmode.Magic           `json:"network"`
-		TCPPort           uint16                  `json:"tcpport"`
-		WSPort            uint16                  `json:"wsport,omitempty"`
-		Nonce             uint32                  `json:"nonce"`
-		UserAgent         string                  `json:"useragent"`
-		Protocol          protocolUnmarshallerAux `json:"protocol"`
-		StateRootInHeader bool                    `json:"staterootinheader,omitempty"`
+		TCPPort   uint16                  `json:"tcpport"`
+		WSPort    uint16                  `json:"wsport,omitempty"`
+		Nonce     uint32                  `json:"nonce"`
+		UserAgent string                  `json:"useragent"`
+		Protocol  protocolUnmarshallerAux `json:"protocol"`
 	}
 
 	// protocolUnmarshallerAux is an auxiliary struct used for Protocol JSON unmarshalling.
@@ -121,7 +111,6 @@ var latestNonBreakingVersion = *semver.New("0.98.5")
 // MarshalJSON implements the json marshaller interface.
 func (v *Version) MarshalJSON() ([]byte, error) {
 	aux := versionMarshallerAux{
-		Magic:     v.Magic,
 		TCPPort:   v.TCPPort,
 		WSPort:    v.WSPort,
 		Nonce:     v.Nonce,
@@ -142,7 +131,6 @@ func (v *Version) MarshalJSON() ([]byte, error) {
 			StateRootInHeader: v.Protocol.StateRootInHeader,
 			ValidatorsHistory: v.Protocol.ValidatorsHistory,
 		},
-		StateRootInHeader: v.StateRootInHeader,
 	}
 	return json.Marshal(aux)
 }
@@ -154,7 +142,6 @@ func (v *Version) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	v.Magic = aux.Magic
 	v.TCPPort = aux.TCPPort
 	v.WSPort = aux.WSPort
 	v.Nonce = aux.Nonce
@@ -171,7 +158,6 @@ func (v *Version) UnmarshalJSON(data []byte) error {
 	v.Protocol.P2PSigExtensions = aux.Protocol.P2PSigExtensions
 	v.Protocol.StateRootInHeader = aux.Protocol.StateRootInHeader
 	v.Protocol.ValidatorsHistory = aux.Protocol.ValidatorsHistory
-	v.StateRootInHeader = aux.StateRootInHeader
 	if len(aux.Protocol.InitialGasDistribution) == 0 {
 		return nil
 	}

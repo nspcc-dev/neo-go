@@ -28,7 +28,6 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
         "wsport": 10334
     }`
 	responseFromGoNew := `{
-        "network": 860833102,
         "nonce": 1677922561,
         "protocol": {
             "addressversion": 53,
@@ -63,7 +62,6 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
         "wsport": 10334
     }`
 	v := &Version{
-		Magic:     860833102,
 		TCPPort:   10333,
 		WSPort:    10334,
 		Nonce:     1677922561,
@@ -81,7 +79,6 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 			InitialGasDistribution: fixedn.Fixed8FromInt64(52000000),
 			StateRootInHeader:      false,
 		},
-		StateRootInHeader: false,
 	}
 	t.Run("MarshalJSON", func(t *testing.T) {
 		actual, err := json.Marshal(v)
@@ -110,7 +107,6 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 			expected := new(Version)
 			*expected = *v
 			expected.UserAgent = "/Neo:3.1.0/"
-			expected.Magic = 0 // No magic in C#.
 			require.Equal(t, expected, actual)
 		})
 	})
