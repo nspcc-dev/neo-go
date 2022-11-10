@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -339,4 +340,21 @@ func TestBlockchain_BaseExecFeeBaseStoragePrice_Compat(t *testing.T) {
 		require.NoError(t, bc.AddBlock(bc.newBlock()))
 		check(t)
 	})
+}
+
+func TestBlockchain_IsRunning(t *testing.T) {
+	chain := initTestChain(t, nil, nil)
+	require.False(t, chain.isRunning.Load().(bool))
+	oldPersisted := atomic.LoadUint32(&chain.persistedHeight)
+
+	go chain.Run()
+	require.NoError(t, chain.AddBlock(chain.newBlock()))
+	require.Eventually(t, func() bool {
+		persisted := atomic.LoadUint32(&chain.persistedHeight)
+		return persisted > oldPersisted
+	}, 2*persistInterval, 100*time.Millisecond)
+	require.True(t, chain.isRunning.Load().(bool))
+
+	chain.Close()
+	require.False(t, chain.isRunning.Load().(bool))
 }

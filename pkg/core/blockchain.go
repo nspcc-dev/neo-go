@@ -151,6 +151,8 @@ type Blockchain struct {
 	// Stop synchronization mechanisms.
 	stopCh      chan struct{}
 	runToExitCh chan struct{}
+	// isRunning denotes whether blockchain routines are currently running.
+	isRunning atomic.Value
 
 	memPool *mempool.Pool
 
@@ -302,6 +304,7 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		return nil, err
 	}
 
+	bc.isRunning.Store(false)
 	return bc, nil
 }
 
@@ -658,6 +661,7 @@ func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) e
 // Run runs chain loop, it needs to be run as goroutine and executing it is
 // critical for correct Blockchain operation.
 func (bc *Blockchain) Run() {
+	bc.isRunning.Store(true)
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
 		persistTimer.Stop()
@@ -667,6 +671,7 @@ func (bc *Blockchain) Run() {
 		if err := bc.dao.Store.Close(); err != nil {
 			bc.log.Warn("failed to close db", zap.Error(err))
 		}
+		bc.isRunning.Store(false)
 		close(bc.runToExitCh)
 	}()
 	go bc.notificationDispatcher()
