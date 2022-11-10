@@ -51,7 +51,7 @@ type NEP11Transfer struct {
 // block trackers along with the information about NEP-17 and NEP-11 transfer batch.
 type TokenTransferInfo struct {
 	LastUpdated map[int32]uint32
-	// NextNEP11Batch stores the index of the next NEP-17 transfer batch.
+	// NextNEP11Batch stores the index of the next NEP-11 transfer batch.
 	NextNEP11Batch uint32
 	// NextNEP17Batch stores the index of the next NEP-17 transfer batch.
 	NextNEP17Batch uint32

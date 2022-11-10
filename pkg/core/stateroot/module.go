@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -170,7 +171,7 @@ func (s *Module) Init(height uint32) error {
 // CleanStorage removes all MPT-related data from the storage (MPT nodes, validated stateroots)
 // except local stateroot for the current height and GC flag. This method is aimed to clean
 // outdated MPT data before state sync process can be started.
-// Note: this method is aimed to be called for genesis block only, an error is returned otherwice.
+// Note: this method is aimed to be called for genesis block only, an error is returned otherwise.
 func (s *Module) CleanStorage() error {
 	if s.localHeight.Load() != 0 {
 		return fmt.Errorf("can't clean MPT data for non-genesis block: expected local stateroot height 0, got %d", s.localHeight.Load())
@@ -200,6 +201,67 @@ func (s *Module) JumpToState(sr *state.MPTRoot) {
 	s.currentLocal.Store(sr.Root)
 	s.localHeight.Store(sr.Index)
 	s.mpt = mpt.NewTrie(mpt.NewHashNode(sr.Root), s.mode, s.Store)
+}
+
+// ResetState resets MPT state to the given height.
+func (s *Module) ResetState(height uint32, cache *storage.MemCachedStore) error {
+	// Update local stateroot.
+	sr, err := s.GetStateRoot(height)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve state root for height %d: %w", height, err)
+	}
+	s.addLocalStateRoot(cache, sr)
+
+	// Remove all stateroots newer than the given height.
+	srKey := makeStateRootKey(height)
+	var srSeen bool
+	cache.Seek(storage.SeekRange{
+		Prefix:    srKey[0:1],
+		Start:     srKey[1:5],
+		Backwards: false,
+	}, func(k, v []byte) bool {
+		if len(k) == 5 {
+			if srSeen {
+				cache.Delete(k)
+			} else if bytes.Equal(k, srKey) {
+				srSeen = true
+			}
+		}
+		return true
+	})
+
+	// Retrieve the most recent validated stateroot before the given height.
+	witnessesLenOffset := 1 /* version */ + 4 /* index */ + smartcontract.Hash256Len /* root */
+	var validated *uint32
+	cache.Seek(storage.SeekRange{
+		Prefix:    srKey[0:1],
+		Start:     srKey[1:5],
+		Backwards: true,
+	}, func(k, v []byte) bool {
+		if len(k) == 5 {
+			if len(v) > witnessesLenOffset && v[witnessesLenOffset] != 0 {
+				i := binary.BigEndian.Uint32(k[1:])
+				validated = &i
+				return false
+			}
+		}
+		return true
+	})
+	if validated != nil {
+		validatedBytes := make([]byte, 4)
+		binary.LittleEndian.PutUint32(validatedBytes, *validated)
+		cache.Put([]byte{byte(storage.DataMPTAux), prefixValidated}, validatedBytes)
+		s.validatedHeight.Store(*validated)
+	} else {
+		cache.Delete([]byte{byte(storage.DataMPTAux), prefixValidated})
+	}
+
+	s.currentLocal.Store(sr.Root)
+	s.localHeight.Store(sr.Index)
+	s.mpt = mpt.NewTrie(mpt.NewHashNode(sr.Root), s.mode, s.Store)
+
+	// Do not reset MPT nodes, leave the trie state itself as is.
+	return nil
 }
 
 // GC performs garbage collection.

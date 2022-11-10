@@ -32,8 +32,13 @@ const (
 	SYSCurrentHeader               KeyPrefix = 0xc1
 	SYSStateSyncCurrentBlockHeight KeyPrefix = 0xc2
 	SYSStateSyncPoint              KeyPrefix = 0xc3
-	SYSStateJumpStage              KeyPrefix = 0xc4
-	SYSVersion                     KeyPrefix = 0xf0
+	// SYSStateChangeStage is used to store the phase of a state changing process
+	// which is one of the state jump or state reset. Its value is one byte containing
+	// state reset / state jump stages bits (first seven bits are reserved for that)
+	// and the last bit reserved for the state reset process marker (set to 1 on
+	// unfinished state reset and to 0 on unfinished state jump).
+	SYSStateChangeStage KeyPrefix = 0xc4
+	SYSVersion          KeyPrefix = 0xf0
 )
 
 // Executable subtypes.

@@ -1897,3 +1897,220 @@ func TestBlockchain_Bug1728(t *testing.T) {
 	c := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(src), &compiler.Options{Name: "TestContract"})
 	managementInvoker.DeployContract(t, c, nil)
 }
+
+func TestBlockchain_ResetStateErrors(t *testing.T) {
+	chainHeight := 3
+	checkResetErr := func(t *testing.T, cfg func(c *config.ProtocolConfiguration), h uint32, errText string) {
+		db, path := newLevelDBForTestingWithPath(t, t.TempDir())
+		bc, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, cfg, db, false)
+		e := neotest.NewExecutor(t, bc, validators, committee)
+		go bc.Run()
+		for i := 0; i < chainHeight; i++ {
+			e.AddNewBlock(t) // get some height
+		}
+		bc.Close()
+
+		db, _ = newLevelDBForTestingWithPath(t, path)
+		defer db.Close()
+		bc, _, _ = chain.NewMultiWithCustomConfigAndStore(t, cfg, db, false)
+		err := bc.Reset(h)
+		if errText != "" {
+			require.Error(t, err)
+			require.True(t, strings.Contains(err.Error(), errText), err)
+		} else {
+			require.NoError(t, err)
+		}
+	}
+	t.Run("large height", func(t *testing.T) {
+		checkResetErr(t, nil, uint32(chainHeight+1), "can't reset state to height 4")
+	})
+	t.Run("already at height", func(t *testing.T) {
+		checkResetErr(t, nil, uint32(chainHeight), "")
+	})
+	t.Run("KeepOnlyLatestState is enabled", func(t *testing.T) {
+		checkResetErr(t, func(c *config.ProtocolConfiguration) {
+			c.KeepOnlyLatestState = true
+		}, uint32(chainHeight-1), "KeepOnlyLatestState is enabled")
+	})
+	t.Run("some blocks where removed", func(t *testing.T) {
+		checkResetErr(t, func(c *config.ProtocolConfiguration) {
+			c.RemoveUntraceableBlocks = true
+			c.MaxTraceableBlocks = 2
+		}, uint32(chainHeight-3), "RemoveUntraceableBlocks is enabled, a necessary batch of traceable blocks has already been removed")
+	})
+}
+
+// TestBlockchain_ResetState is based on knowledge about basic chain transactions,
+// it performs basic chain reset and checks that reset chain has proper state.
+func TestBlockchain_ResetState(t *testing.T) {
+	// Create the DB.
+	db, path := newLevelDBForTestingWithPath(t, t.TempDir())
+	bc, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, func(cfg *config.ProtocolConfiguration) {
+		cfg.P2PSigExtensions = true
+	}, db, false)
+	go bc.Run()
+	e := neotest.NewExecutor(t, bc, validators, committee)
+	basicchain.Init(t, "../../", e)
+
+	// Gather some reference information.
+	resetBlockIndex := uint32(15)
+	staleID := basicchain.NFSOContractID // NEP11
+	rublesH := e.ContractHash(t, basicchain.RublesContractID)
+	nnsH := e.ContractHash(t, basicchain.NNSContractID)
+	staleH := e.ContractHash(t, staleID)
+	gasH := e.NativeHash(t, nativenames.Gas)
+	neoH := e.NativeHash(t, nativenames.Neo)
+	gasID := e.NativeID(t, nativenames.Gas)
+	neoID := e.NativeID(t, nativenames.Neo)
+	resetBlockHash := bc.GetHeaderHash(int(resetBlockIndex))
+	resetBlockHeader, err := bc.GetHeader(resetBlockHash)
+	require.NoError(t, err)
+	topBlockHeight := bc.BlockHeight()
+	topBH := bc.GetHeaderHash(int(bc.BlockHeight()))
+	staleBH := bc.GetHeaderHash(int(resetBlockIndex + 1))
+	staleB, err := bc.GetBlock(staleBH)
+	require.NoError(t, err)
+	staleTx := staleB.Transactions[0]
+	_, err = bc.GetAppExecResults(staleTx.Hash(), trigger.Application)
+	require.NoError(t, err)
+	sr, err := bc.GetStateModule().GetStateRoot(resetBlockIndex)
+	require.NoError(t, err)
+	staleSR, err := bc.GetStateModule().GetStateRoot(resetBlockIndex + 1)
+	require.NoError(t, err)
+	rublesKey := []byte("testkey")
+	rublesStaleKey := []byte("aa")
+	rublesStaleValue := bc.GetStorageItem(basicchain.RublesContractID, rublesKey) // check value is there
+	require.Equal(t, []byte(basicchain.RublesNewTestvalue), []byte(rublesStaleValue))
+	acc0 := e.Validator.(neotest.MultiSigner).Single(2) // priv0 index->order and order->index conversion
+	priv0ScriptHash := acc0.ScriptHash()
+	var (
+		expectedNEP11t []*state.NEP11Transfer
+		expectedNEP17t []*state.NEP17Transfer
+	)
+	require.NoError(t, bc.ForEachNEP11Transfer(priv0ScriptHash, resetBlockHeader.Timestamp, func(t *state.NEP11Transfer) (bool, error) {
+		if t.Block <= resetBlockIndex {
+			expectedNEP11t = append(expectedNEP11t, t)
+		}
+		return true, nil
+	}))
+	require.NoError(t, bc.ForEachNEP17Transfer(priv0ScriptHash, resetBlockHeader.Timestamp, func(t *state.NEP17Transfer) (bool, error) {
+		if t.Block <= resetBlockIndex {
+			expectedNEP17t = append(expectedNEP17t, t)
+		}
+		return true, nil
+	}))
+
+	// checkProof checks that some stale proof is reachable
+	checkProof := func() {
+		rublesStaleFullKey := make([]byte, 4)
+		binary.LittleEndian.PutUint32(rublesStaleFullKey, uint32(basicchain.RublesContractID))
+		rublesStaleFullKey = append(rublesStaleFullKey, rublesStaleKey...)
+		proof, err := bc.GetStateModule().GetStateProof(staleSR.Root, rublesStaleFullKey)
+		require.NoError(t, err)
+		require.NotEmpty(t, proof)
+	}
+	checkProof()
+
+	// Ensure all changes were persisted.
+	bc.Close()
+
+	// Start new chain with existing DB, but do not run it.
+	db, _ = newLevelDBForTestingWithPath(t, path)
+	bc, _, _ = chain.NewMultiWithCustomConfigAndStore(t, func(cfg *config.ProtocolConfiguration) {
+		cfg.P2PSigExtensions = true
+	}, db, false)
+	defer db.Close()
+	require.Equal(t, topBlockHeight, bc.BlockHeight()) // ensure DB was properly initialized.
+
+	// Reset state.
+	require.NoError(t, bc.Reset(resetBlockIndex))
+
+	// Check that state was properly reset.
+	require.Equal(t, resetBlockIndex, bc.BlockHeight())
+	require.Equal(t, resetBlockIndex, bc.HeaderHeight())
+	require.Equal(t, resetBlockHash, bc.CurrentHeaderHash())
+	require.Equal(t, resetBlockHash, bc.CurrentBlockHash())
+	require.Equal(t, resetBlockIndex, bc.GetStateModule().CurrentLocalHeight())
+	require.Equal(t, sr.Root, bc.GetStateModule().CurrentLocalStateRoot())
+	require.Equal(t, uint32(0), bc.GetStateModule().CurrentValidatedHeight())
+
+	// Try to get the latest block\header.
+	bh := bc.GetHeaderHash(int(resetBlockIndex))
+	require.Equal(t, resetBlockHash, bh)
+	h, err := bc.GetHeader(bh)
+	require.NoError(t, err)
+	require.Equal(t, resetBlockHeader, h)
+	actualRublesHash, err := bc.GetContractScriptHash(basicchain.RublesContractID)
+	require.NoError(t, err)
+	require.Equal(t, rublesH, actualRublesHash)
+
+	// Check that stale blocks/headers/txs/aers/sr are not reachable.
+	for i := resetBlockIndex + 1; i <= topBlockHeight; i++ {
+		hHash := bc.GetHeaderHash(int(i))
+		require.Equal(t, util.Uint256{}, hHash)
+		_, err = bc.GetStateRoot(i)
+		require.Error(t, err)
+	}
+	for _, h := range []util.Uint256{staleBH, topBH} {
+		_, err = bc.GetHeader(h)
+		require.Error(t, err)
+		_, err = bc.GetHeader(h)
+		require.Error(t, err)
+	}
+	_, _, err = bc.GetTransaction(staleTx.Hash())
+	require.Error(t, err)
+	_, err = bc.GetAppExecResults(staleTx.Hash(), trigger.Application)
+	require.Error(t, err)
+
+	// However, proofs and everything related to stale MPT nodes still should work properly,
+	// because we don't remove stale MPT nodes.
+	checkProof()
+
+	// Check NEP-compatible contracts.
+	nep11 := bc.GetNEP11Contracts()
+	require.Equal(t, 1, len(nep11)) // NNS
+	require.Equal(t, nnsH, nep11[0])
+	nep17 := bc.GetNEP17Contracts()
+	require.Equal(t, 3, len(nep17)) // Neo, Gas, Rubles
+	require.ElementsMatch(t, []util.Uint160{gasH, neoH, rublesH}, nep17)
+
+	// Retrieve stale contract.
+	cs := bc.GetContractState(staleH)
+	require.Nil(t, cs)
+
+	// Retrieve stale storage item.
+	rublesValue := bc.GetStorageItem(basicchain.RublesContractID, rublesKey)
+	require.Equal(t, []byte(basicchain.RublesOldTestvalue), []byte(rublesValue))   // the one with historic state
+	require.Nil(t, bc.GetStorageItem(basicchain.RublesContractID, rublesStaleKey)) // the one that was added after target reset block
+	db.Seek(storage.SeekRange{
+		Prefix: []byte{byte(storage.STStorage)}, // no items with old prefix
+	}, func(k, v []byte) bool {
+		t.Fatal("no stale items must be left in storage")
+		return false
+	})
+
+	// Check transfers.
+	var (
+		actualNEP11t []*state.NEP11Transfer
+		actualNEP17t []*state.NEP17Transfer
+	)
+	require.NoError(t, bc.ForEachNEP11Transfer(priv0ScriptHash, e.TopBlock(t).Timestamp, func(t *state.NEP11Transfer) (bool, error) {
+		actualNEP11t = append(actualNEP11t, t)
+		return true, nil
+	}))
+	require.NoError(t, bc.ForEachNEP17Transfer(priv0ScriptHash, e.TopBlock(t).Timestamp, func(t *state.NEP17Transfer) (bool, error) {
+		actualNEP17t = append(actualNEP17t, t)
+		return true, nil
+	}))
+	assert.Equal(t, expectedNEP11t, actualNEP11t)
+	assert.Equal(t, expectedNEP17t, actualNEP17t)
+	lub, err := bc.GetTokenLastUpdated(priv0ScriptHash)
+	require.NoError(t, err)
+	expectedLUB := map[int32]uint32{ // this information is extracted from basic chain initialization code
+		basicchain.NNSContractID:    resetBlockIndex - 1, // `neo.com` registration
+		basicchain.RublesContractID: 6,                   // transfer of 123 RUR to priv1
+		gasID:                       resetBlockIndex,     // fee for `1.2.3.4` A record registration
+		neoID:                       4,                   // transfer of 1000 NEO to priv1
+	}
+	require.Equal(t, expectedLUB, lub)
+}

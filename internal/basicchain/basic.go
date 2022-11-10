@@ -23,6 +23,23 @@ import (
 
 const neoAmount = 99999000
 
+// Various contract IDs that were deployed to basic chain.
+const (
+	RublesContractID         = int32(1)
+	VerifyContractID         = int32(2)
+	VerifyWithArgsContractID = int32(3)
+	NNSContractID            = int32(4)
+	NFSOContractID           = int32(5)
+	StorageContractID        = int32(6)
+)
+
+const (
+	// RublesOldTestvalue is a value initially stored by `testkey` key inside Rubles contract.
+	RublesOldTestvalue = "testvalue"
+	// RublesNewTestvalue is an updated value of Rubles' storage item with `testkey` key.
+	RublesNewTestvalue = "newtestvalue"
+)
+
 // InitSimple initializes chain with simple contracts from 'examples'  folder.
 // It's not as complicated as chain got after Init and may be used for tests where
 // chain with a small amount of data is needed and for historical functionality testing.
@@ -138,13 +155,13 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 
 	// Block #2: deploy test_contract (Rubles contract).
 	cfgPath := filepath.Join(testDataPrefix, "test_contract.yml")
-	block2H, txDeployH, cHash := deployContractFromPriv0(t, filepath.Join(testDataPrefix, "test_contract.go"), "Rubl", cfgPath, 1)
+	block2H, txDeployH, cHash := deployContractFromPriv0(t, filepath.Join(testDataPrefix, "test_contract.go"), "Rubl", cfgPath, RublesContractID)
 	t.Logf("txDeploy: %s", txDeployH.StringLE())
 	t.Logf("Block2 hash: %s", block2H.StringLE())
 
 	// Block #3: invoke `putValue` method on the test_contract.
 	rublPriv0Invoker := e.NewInvoker(cHash, acc0)
-	txInvH := rublPriv0Invoker.Invoke(t, true, "putValue", "testkey", "testvalue")
+	txInvH := rublPriv0Invoker.Invoke(t, true, "putValue", "testkey", RublesOldTestvalue)
 	t.Logf("txInv: %s", txInvH.StringLE())
 
 	// Block #4: transfer 1000 NEO from priv0 to priv1.
@@ -166,7 +183,7 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	// Block #7: push verification contract into the chain.
 	verifyPath := filepath.Join(testDataPrefix, "verify", "verification_contract.go")
 	verifyCfg := filepath.Join(testDataPrefix, "verify", "verification_contract.yml")
-	_, _, _ = deployContractFromPriv0(t, verifyPath, "Verify", verifyCfg, 2)
+	_, _, _ = deployContractFromPriv0(t, verifyPath, "Verify", verifyCfg, VerifyContractID)
 
 	// Block #8: deposit some GAS to notary contract for priv0.
 	transferTxH = gasPriv0Invoker.Invoke(t, true, "transfer", priv0ScriptHash, notaryHash, 10_0000_0000, []interface{}{priv0ScriptHash, int64(e.Chain.BlockHeight() + 1000)})
@@ -183,12 +200,12 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	// Block #10: push verification contract with arguments into the chain.
 	verifyPath = filepath.Join(testDataPrefix, "verify_args", "verification_with_args_contract.go")
 	verifyCfg = filepath.Join(testDataPrefix, "verify_args", "verification_with_args_contract.yml")
-	_, _, _ = deployContractFromPriv0(t, verifyPath, "VerifyWithArgs", verifyCfg, 3) // block #10
+	_, _, _ = deployContractFromPriv0(t, verifyPath, "VerifyWithArgs", verifyCfg, VerifyWithArgsContractID) // block #10
 
 	// Block #11: push NameService contract into the chain.
 	nsPath := filepath.Join(examplesPrefix, "nft-nd-nns")
 	nsConfigPath := filepath.Join(nsPath, "nns.yml")
-	_, _, nsHash := deployContractFromPriv0(t, nsPath, nsPath, nsConfigPath, 4) // block #11
+	_, _, nsHash := deployContractFromPriv0(t, nsPath, nsPath, nsConfigPath, NNSContractID) // block #11
 	nsCommitteeInvoker := e.CommitteeInvoker(nsHash)
 	nsPriv0Invoker := e.NewInvoker(nsHash, acc0)
 
@@ -212,7 +229,7 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	nsPriv0Invoker.Invoke(t, stackitem.Null{}, "setRecord", "neo.com", int64(nns.A), "1.2.3.4") // block #15
 
 	// Block #16: invoke `test_contract.go`: put new value with the same key to check `getstate` RPC call
-	txPutNewValue := rublPriv0Invoker.PrepareInvoke(t, "putValue", "testkey", "newtestvalue") // tx1
+	txPutNewValue := rublPriv0Invoker.PrepareInvoke(t, "putValue", "testkey", RublesNewTestvalue) // tx1
 	// Invoke `test_contract.go`: put values to check `findstates` RPC call.
 	txPut1 := rublPriv0Invoker.PrepareInvoke(t, "putValue", "aa", "v1")   // tx2
 	txPut2 := rublPriv0Invoker.PrepareInvoke(t, "putValue", "aa10", "v2") // tx3
@@ -226,7 +243,7 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	// Block #17: deploy NeoFS Object contract (NEP11-Divisible).
 	nfsPath := filepath.Join(examplesPrefix, "nft-d")
 	nfsConfigPath := filepath.Join(nfsPath, "nft.yml")
-	_, _, nfsHash := deployContractFromPriv0(t, nfsPath, nfsPath, nfsConfigPath, 5) // block #17
+	_, _, nfsHash := deployContractFromPriv0(t, nfsPath, nfsPath, nfsConfigPath, NFSOContractID) // block #17
 	nfsPriv0Invoker := e.NewInvoker(nfsHash, acc0)
 	nfsPriv1Invoker := e.NewInvoker(nfsHash, acc1)
 
@@ -254,7 +271,7 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	// Block #22: deploy storage_contract (Storage contract for `traverseiterator` and `terminatesession` RPC calls test).
 	storagePath := filepath.Join(testDataPrefix, "storage", "storage_contract.go")
 	storageCfg := filepath.Join(testDataPrefix, "storage", "storage_contract.yml")
-	_, _, _ = deployContractFromPriv0(t, storagePath, "Storage", storageCfg, 6)
+	_, _, _ = deployContractFromPriv0(t, storagePath, "Storage", storageCfg, StorageContractID)
 
 	// Compile contract to test `invokescript` RPC call
 	invokePath := filepath.Join(testDataPrefix, "invoke", "invokescript_contract.go")
