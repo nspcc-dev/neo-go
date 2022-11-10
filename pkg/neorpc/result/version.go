@@ -11,11 +11,11 @@ type (
 	// Version model used for reporting server version
 	// info.
 	Version struct {
-		TCPPort   uint16
-		WSPort    uint16
-		Nonce     uint32
-		UserAgent string
-		Protocol  Protocol
+		TCPPort   uint16   `json:"tcpport"`
+		WSPort    uint16   `json:"wsport,omitempty"`
+		Nonce     uint32   `json:"nonce"`
+		UserAgent string   `json:"useragent"`
+		Protocol  Protocol `json:"protocol"`
 	}
 
 	// Protocol represents network-dependent parameters.
@@ -42,17 +42,6 @@ type (
 		// ValidatorsHistory stores height:size map of the validators count.
 		ValidatorsHistory map[uint32]int
 	}
-)
-
-type (
-	// versionMarshallerAux is an auxiliary struct used for Version JSON marshalling.
-	versionMarshallerAux struct {
-		TCPPort   uint16                `json:"tcpport"`
-		WSPort    uint16                `json:"wsport,omitempty"`
-		Nonce     uint32                `json:"nonce"`
-		UserAgent string                `json:"useragent"`
-		Protocol  protocolMarshallerAux `json:"protocol"`
-	}
 
 	// protocolMarshallerAux is an auxiliary struct used for Protocol JSON marshalling.
 	protocolMarshallerAux struct {
@@ -73,57 +62,47 @@ type (
 	}
 )
 
-// MarshalJSON implements the json marshaller interface.
-func (v *Version) MarshalJSON() ([]byte, error) {
-	aux := versionMarshallerAux{
-		TCPPort:   v.TCPPort,
-		WSPort:    v.WSPort,
-		Nonce:     v.Nonce,
-		UserAgent: v.UserAgent,
-		Protocol: protocolMarshallerAux{
-			AddressVersion:              v.Protocol.AddressVersion,
-			Network:                     v.Protocol.Network,
-			MillisecondsPerBlock:        v.Protocol.MillisecondsPerBlock,
-			MaxTraceableBlocks:          v.Protocol.MaxTraceableBlocks,
-			MaxValidUntilBlockIncrement: v.Protocol.MaxValidUntilBlockIncrement,
-			MaxTransactionsPerBlock:     v.Protocol.MaxTransactionsPerBlock,
-			MemoryPoolMaxTransactions:   v.Protocol.MemoryPoolMaxTransactions,
-			ValidatorsCount:             v.Protocol.ValidatorsCount,
-			InitialGasDistribution:      int64(v.Protocol.InitialGasDistribution),
+// MarshalJSON implements the JSON marshaler interface.
+func (p Protocol) MarshalJSON() ([]byte, error) {
+	aux := protocolMarshallerAux{
+		AddressVersion:              p.AddressVersion,
+		Network:                     p.Network,
+		MillisecondsPerBlock:        p.MillisecondsPerBlock,
+		MaxTraceableBlocks:          p.MaxTraceableBlocks,
+		MaxValidUntilBlockIncrement: p.MaxValidUntilBlockIncrement,
+		MaxTransactionsPerBlock:     p.MaxTransactionsPerBlock,
+		MemoryPoolMaxTransactions:   p.MemoryPoolMaxTransactions,
+		ValidatorsCount:             p.ValidatorsCount,
+		InitialGasDistribution:      int64(p.InitialGasDistribution),
 
-			CommitteeHistory:  v.Protocol.CommitteeHistory,
-			P2PSigExtensions:  v.Protocol.P2PSigExtensions,
-			StateRootInHeader: v.Protocol.StateRootInHeader,
-			ValidatorsHistory: v.Protocol.ValidatorsHistory,
-		},
+		CommitteeHistory:  p.CommitteeHistory,
+		P2PSigExtensions:  p.P2PSigExtensions,
+		StateRootInHeader: p.StateRootInHeader,
+		ValidatorsHistory: p.ValidatorsHistory,
 	}
 	return json.Marshal(aux)
 }
 
-// UnmarshalJSON implements the json unmarshaller interface.
-func (v *Version) UnmarshalJSON(data []byte) error {
-	var aux versionMarshallerAux
+// UnmarshalJSON implements the JSON unmarshaler interface.
+func (p *Protocol) UnmarshalJSON(data []byte) error {
+	var aux protocolMarshallerAux
 	err := json.Unmarshal(data, &aux)
 	if err != nil {
 		return err
 	}
-	v.TCPPort = aux.TCPPort
-	v.WSPort = aux.WSPort
-	v.Nonce = aux.Nonce
-	v.UserAgent = aux.UserAgent
-	v.Protocol.AddressVersion = aux.Protocol.AddressVersion
-	v.Protocol.Network = aux.Protocol.Network
-	v.Protocol.MillisecondsPerBlock = aux.Protocol.MillisecondsPerBlock
-	v.Protocol.MaxTraceableBlocks = aux.Protocol.MaxTraceableBlocks
-	v.Protocol.MaxValidUntilBlockIncrement = aux.Protocol.MaxValidUntilBlockIncrement
-	v.Protocol.MaxTransactionsPerBlock = aux.Protocol.MaxTransactionsPerBlock
-	v.Protocol.MemoryPoolMaxTransactions = aux.Protocol.MemoryPoolMaxTransactions
-	v.Protocol.ValidatorsCount = aux.Protocol.ValidatorsCount
-	v.Protocol.CommitteeHistory = aux.Protocol.CommitteeHistory
-	v.Protocol.P2PSigExtensions = aux.Protocol.P2PSigExtensions
-	v.Protocol.StateRootInHeader = aux.Protocol.StateRootInHeader
-	v.Protocol.ValidatorsHistory = aux.Protocol.ValidatorsHistory
-	v.Protocol.InitialGasDistribution = fixedn.Fixed8(aux.Protocol.InitialGasDistribution)
+	p.AddressVersion = aux.AddressVersion
+	p.Network = aux.Network
+	p.MillisecondsPerBlock = aux.MillisecondsPerBlock
+	p.MaxTraceableBlocks = aux.MaxTraceableBlocks
+	p.MaxValidUntilBlockIncrement = aux.MaxValidUntilBlockIncrement
+	p.MaxTransactionsPerBlock = aux.MaxTransactionsPerBlock
+	p.MemoryPoolMaxTransactions = aux.MemoryPoolMaxTransactions
+	p.ValidatorsCount = aux.ValidatorsCount
+	p.CommitteeHistory = aux.CommitteeHistory
+	p.P2PSigExtensions = aux.P2PSigExtensions
+	p.StateRootInHeader = aux.StateRootInHeader
+	p.ValidatorsHistory = aux.ValidatorsHistory
+	p.InitialGasDistribution = fixedn.Fixed8(aux.InitialGasDistribution)
 
 	return nil
 }
