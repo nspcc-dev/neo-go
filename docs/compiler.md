@@ -446,6 +446,10 @@ does not do anything else unless the method's returned value is of a boolean
 type, in this case an ASSERT is added to script making it fail when the method
 returns false.
 
+```
+$ ./bin/neo-go contract generate-rpcwrapper --manifest manifest.json --out rpcwrapper.go --hash 0x1b4357bff5a01bdf2a6581247cf9ed1e24629176
+```
+
 If your contract is NEP-11 or NEP-17 that's autodetected and an appropriate
 package is included as well. Notice that the type data available in the
 manifest is limited, so in some cases the interface generated may use generic
@@ -454,8 +458,13 @@ iterator and an appropriate unwrapper is used with UUID and iterator structure
 result. This pair can then be used in Invoker `TraverseIterator` method to
 retrieve actual resulting items.
 
+Go contracts can also make use of additional type data from bindings
+configuration file generated during compilation. At the moment it allows to
+generate proper wrappers for simple array types, but doesn't cover structures:
+
 ```
-$ ./bin/neo-go contract generate-rpcwrapper --manifest manifest.json --out rpcwrapper.go --hash 0x1b4357bff5a01bdf2a6581247cf9ed1e24629176
+$ ./bin/neo-go contract compile -i contract.go --config contract.yml -o contract.nef --manifest manifest.json --bindings contract.bindings.yml
+$ ./bin/neo-go contract generate-rpcwrapper --manifest manifest.json --config contract.bindings.yml --out rpcwrapper.go --hash 0x1b4357bff5a01bdf2a6581247cf9ed1e24629176
 ```
 
 ## Smart contract examples

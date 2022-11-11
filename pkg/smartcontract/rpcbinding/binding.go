@@ -296,6 +296,29 @@ func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.
 }
 
 func scTypeToGo(name string, typ smartcontract.ParamType, overrides map[string]binding.Override) (string, string) {
+	over, ok := overrides[name]
+	if ok {
+		switch over.TypeName {
+		case "[]bool":
+			return "[]bool", ""
+		case "[]int", "[]uint", "[]int8", "[]uint8", "[]int16",
+			"[]uint16", "[]int32", "[]uint32", "[]int64", "[]uint64":
+			return "[]*big.Int", "math/big"
+		case "[][]byte":
+			return "[][]byte", ""
+		case "[]string":
+			return "[]string", ""
+		case "[]interop.Hash160":
+			return "[]util.Uint160", "github.com/nspcc-dev/neo-go/pkg/util"
+		case "[]interop.Hash256":
+			return "[]util.Uint256", "github.com/nspcc-dev/neo-go/pkg/util"
+		case "[]interop.PublicKey":
+			return "keys.PublicKeys", "github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+		case "[]interop.Signature":
+			return "[][]byte", ""
+		}
+	}
+
 	switch typ {
 	case smartcontract.AnyType:
 		return "interface{}", ""
@@ -383,6 +406,20 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 			ctr.SafeMethods[i].CallFlag = "Array"
 		case "*stackitem.Map":
 			ctr.SafeMethods[i].CallFlag = "Map"
+		case "[]bool":
+			ctr.SafeMethods[i].CallFlag = "ArrayOfBools"
+		case "[]*big.Int":
+			ctr.SafeMethods[i].CallFlag = "ArrayOfBigInts"
+		case "[][]byte":
+			ctr.SafeMethods[i].CallFlag = "ArrayOfBytes"
+		case "[]string":
+			ctr.SafeMethods[i].CallFlag = "ArrayOfUTF8Strings"
+		case "[]util.Uint160":
+			ctr.SafeMethods[i].CallFlag = "ArrayOfUint160"
+		case "[]util.Uint256":
+			ctr.SafeMethods[i].CallFlag = "ArrayOfUint256"
+		case "keys.PublicKeys":
+			ctr.SafeMethods[i].CallFlag = "ArrayOfPublicKeys"
 		}
 	}
 
