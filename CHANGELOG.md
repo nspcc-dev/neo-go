@@ -2,6 +2,85 @@
 
 This document outlines major changes between releases.
 
+## 0.99.5 "Underestimation" (11 Nov 2022)
+
+It wasn't long since the previous release until a juicy set of features and
+optimisations came on board. So we've decided to change our release plan and
+supply one more 3.4.0 compatible version. It comes up with a massive suite
+of network P2P and broadcast improvements. We've carefully investigated message
+sending timeouts on benchmarks, reworked the broadcast logic and significantly
+reduced delays in message sending and the amount of useless traffic between our
+nodes. For smart-contract developers and RPC client users several new features
+were added. These are automatic RPC bindings generator, poll-based and
+websocket-based transactions awaiting and an extended websocket client
+subscriptions interface. For better debugging experience we've improved state
+related functionality of VM CLI and added an ability to reset chain state to a
+particular height.
+
+An important dBFT initialization bug that caused timestamp-related errors on
+block addition was fixed. Also, those who use NeoGo node with
+EnableCORSWorkaround setting may want to update the node to be able to handle
+web-socket requests with Origin set in the header. The users of websocket RPC
+client subscription mechanism are welcomed to move from deprecated subscriptions
+API to the extended one. Finally, we are kindly asking our users to have a look
+at our roadmap file where deprecated code removal schedule is attached.
+
+This version is fully compatible with C# node 3.4.0 and does not require
+resynchronization on upgrade. This time for sure, the next release is planned
+to be compatible with 3.5.0.
+
+New features:
+ * logarithmic gossip fan-out, new `BroadcastFactor` application setting and
+   adaptive peer requests are added to optimise broadcasting process (#608,
+   #2678, #2743)
+ * Prometheus histograms with handling time are added for P2P commands (#2750)
+   and RPC calls (#2784)
+ * transaction awaiting is added to RPC clients (#2740, #2749)
+ * RPC bindings generator (#2705) is added for both safe (#2766) and
+   state-changing (#2769, #2778) methods with initial iterator support (#2783)
+ * the ability to reset chain state to a particular height is added (#2576,
+   #2773)
+
+Behaviour changes:
+ * Aspidochelone fork block for NeoFS sidechain mainnet configuration is
+   rescheduled (#2754, #2776)
+ * RPC server will now handle any Origin in websocket connection when
+   EnableCORSWorkaround setting is on (#2772, #2724)
+ * WS RPC client subscriptions API is extended to accept custom subscriber
+   channels, old subscriptions API is marked as deprecated (#2756, #2764)
+
+Improvements:
+ * network code refactoring (#2742)
+ * network packets sending is now limited in time (#2738)
+ * broadcast messages will be sent concurrently to each peer (#2741)
+ * ping messages are broadcast using the common broadcast logic (#2742)
+ * transactions requested by dBFT will be accepted on demand only (#2746, #2748,
+   nspcc-dev/dbft#63)
+ * VM CLI's state-based functionality improvements (extended signers and
+   arguments parsing, enabled logging) and additional commands (`loadtx`,
+   `loaddeployed`, `jump`) (#2729, #2606, #2740)
+ * incoming P2P transactions are now processed concurrently and buffer for
+   inventory hashes is reusable (#2755)
+ * `GetData` and `GetBlocksByIndex` replies are now batched on a TCP-level
+   (#2757)
+ * optimisation of incoming P2P transactions and blocks filtering are introduced
+   (#2758, #2759)
+ * batch size of broadcast transactions hashes is adjusted (#2760)
+ * peer reconnections logic is improved, `GetAddr` messages are sent more
+   often (#2761, #2745)
+ * documentation for wallet configuration file is clarified (#2763)
+ * Koblitz curve implementation of btcd/btcec was replaced with decred/secp256k1
+   due to GitHub security warning (#2781)
+* `NOT` opcode for Bool emission is now used to reduce resulting script
+  cost (#2762)
+
+Bugs fixed:
+ * failing tests cleanup on Windows (#2736)
+ * race in CLI test (#2765)
+ * invalid conversion of PublicKey smart contract parameter to emitable (#2739)
+ * initialize dBFT's context with previous block's timestamp on view 0 (#2753,
+   #2752, nspcc-dev/dbft#64)
+
 ## 0.99.4 "Transliteration" (07 Oct 2022)
 
 A small update mostly interesting for people building/testing smart contracts
