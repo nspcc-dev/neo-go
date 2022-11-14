@@ -131,7 +131,7 @@ func newGraceContext() context.Context {
 }
 
 func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *metrics.Service, *metrics.Service, error) {
-	chain, err := initBlockChain(cfg, log)
+	chain, _, err := initBlockChain(cfg, log)
 	if err != nil {
 		return nil, nil, nil, cli.NewExitError(err, 1)
 	}
@@ -333,7 +333,7 @@ func resetDB(ctx *cli.Context) error {
 	if logCloser != nil {
 		defer func() { _ = logCloser() }()
 	}
-	chain, err := initBlockChain(cfg, log)
+	chain, store, err := initBlockChain(cfg, log)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to create Blockchain instance: %w", err), 1)
 	}
@@ -341,6 +341,10 @@ func resetDB(ctx *cli.Context) error {
 	err = chain.Reset(h)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to reset chain state to height %d: %w", h, err), 1)
+	}
+	err = store.Close()
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("failed to close the DB: %w", err), 1)
 	}
 	return nil
 }
@@ -616,17 +620,25 @@ func configureAddresses(cfg *config.ApplicationConfiguration) {
 }
 
 // initBlockChain initializes BlockChain with preselected DB.
-func initBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, error) {
+func initBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, storage.Store, error) {
 	store, err := storage.NewStore(cfg.ApplicationConfiguration.DBConfiguration)
 	if err != nil {
-		return nil, cli.NewExitError(fmt.Errorf("could not initialize storage: %w", err), 1)
+		return nil, nil, cli.NewExitError(fmt.Errorf("could not initialize storage: %w", err), 1)
 	}
 
 	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration, log)
 	if err != nil {
-		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %w", err), 1)
+		errText := "could not initialize blockchain: %w"
+		errArgs := []interface{}{err}
+		closeErr := store.Close()
+		if closeErr != nil {
+			errText += "; failed to close the DB: %w"
+			errArgs = append(errArgs, closeErr)
+		}
+
+		return nil, nil, cli.NewExitError(fmt.Errorf(errText, errArgs), 1)
 	}
-	return chain, nil
+	return chain, store, nil
 }
 
 // Logo returns Neo-Go logo.
