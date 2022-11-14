@@ -287,6 +287,9 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		cfg := binding.NewConfig()
 		cfg.Package = di.MainPkg
 		for _, m := range di.Methods {
+			if !m.IsExported {
+				continue
+			}
 			for _, p := range m.Parameters {
 				if p.RealType.TypeName != "" {
 					cfg.Overrides[m.Name.Name+"."+p.Name] = p.RealType
