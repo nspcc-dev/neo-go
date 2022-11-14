@@ -70,7 +70,7 @@ jobs:
         run: mv ./bin/neo-go* ./bin/neo-go-${{ matrix.os.bin-name }}-${{ matrix.arch }}${{ (matrix.os.bin-name == 'windows' && '.exe') || '' }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: neo-go-${{ matrix.os.bin-name }}-${{ matrix.arch }}
           path: ./bin/neo-go*
@@ -102,12 +102,12 @@ jobs:
 
       - name: Set vars
         id: setvars
-        run: make gh-docker-vars
+        run: make gh-docker-vars >> $GITHUB_OUTPUT
 
       - name: Set latest tag
         id: setlatest
         if: ${{ (github.event_name == 'release' && github.event.release.target_commitish == 'master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_image == 'true' && github.event.inputs.use_latest_tag == 'true') }}
-        run: echo "::set-output name=latest::,${{ steps.setvars.outputs.repo }}:latest"
+        run: echo "latest=,${{ steps.setvars.outputs.repo }}:latest" >> $GITHUB_OUTPUT
 
       - name: Build and push
         uses: docker/build-push-action@v3
