@@ -106,7 +106,7 @@ jobs:
 
       - name: Set latest tag
         id: setlatest
-        if: ${{ (github.event_name == 'release' && github.event.release.target_commitish == 'master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_image == 'true' && github.event.inputs.use_latest_tag == 'true') }}
+        if: ${{ (github.event_name == 'release' && github.event.release.target_commitish == 'master') || (github.event_name == 'workflow_dispatch' && github.event.inputs.use_latest_tag == 'true') }}
         run: echo "latest=,${{ steps.setvars.outputs.repo }}:latest" >> $GITHUB_OUTPUT
 
       - name: Build and push
