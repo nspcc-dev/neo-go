@@ -467,10 +467,10 @@ func TestTransaction(t *testing.T) {
 	cons := new(fakeConsensus)
 	s.AddConsensusService(cons, cons.OnPayload, cons.OnTransaction)
 	startWithCleanup(t, s)
-	s.RequestTx(util.Uint256{1})
 
 	t.Run("good", func(t *testing.T) {
 		tx := newDummyTx()
+		s.RequestTx(tx.Hash())
 		p := newLocalPeer(t, s)
 		p.isFullNode = true
 		p.messageHandler = func(t *testing.T, msg *Message) {
@@ -497,6 +497,7 @@ func TestTransaction(t *testing.T) {
 	})
 	t.Run("bad", func(t *testing.T) {
 		tx := newDummyTx()
+		s.RequestTx(tx.Hash())
 		s.chain.(*fakechain.FakeChain).PoolTxF = func(*transaction.Transaction) error { return core.ErrInsufficientFunds }
 		s.testHandleMessage(t, nil, CMDTX, tx)
 		require.Eventually(t, func() bool {
