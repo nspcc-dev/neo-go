@@ -196,6 +196,42 @@ func Array(r *result.Invoke, err error) ([]stackitem.Item, error) {
 	return arr, nil
 }
 
+// ArrayOfBools checks the result for correct state (HALT) and then extracts a
+// slice of boolean values from the returned stack item.
+func ArrayOfBools(r *result.Invoke, err error) ([]bool, error) {
+	a, err := Array(r, err)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]bool, len(a))
+	for i := range a {
+		b, err := a[i].TryBool()
+		if err != nil {
+			return nil, fmt.Errorf("element %d is not a boolean: %w", i, err)
+		}
+		res[i] = b
+	}
+	return res, nil
+}
+
+// ArrayOfBigInts checks the result for correct state (HALT) and then extracts a
+// slice of (big) integer values from the returned stack item.
+func ArrayOfBigInts(r *result.Invoke, err error) ([]*big.Int, error) {
+	a, err := Array(r, err)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]*big.Int, len(a))
+	for i := range a {
+		v, err := a[i].TryInteger()
+		if err != nil {
+			return nil, fmt.Errorf("element %d is not an integer: %w", i, err)
+		}
+		res[i] = v
+	}
+	return res, nil
+}
+
 // ArrayOfBytes checks the result for correct state (HALT) and then extracts a
 // slice of byte slices from the returned stack item.
 func ArrayOfBytes(r *result.Invoke, err error) ([][]byte, error) {
@@ -210,6 +246,27 @@ func ArrayOfBytes(r *result.Invoke, err error) ([][]byte, error) {
 			return nil, fmt.Errorf("element %d is not a byte string: %w", i, err)
 		}
 		res[i] = b
+	}
+	return res, nil
+}
+
+// ArrayOfUTB8Strings checks the result for correct state (HALT) and then extracts a
+// slice of UTF-8 strings from the returned stack item.
+func ArrayOfUTF8Strings(r *result.Invoke, err error) ([]string, error) {
+	a, err := Array(r, err)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]string, len(a))
+	for i := range a {
+		b, err := a[i].TryBytes()
+		if err != nil {
+			return nil, fmt.Errorf("element %d is not a byte string: %w", i, err)
+		}
+		if !utf8.Valid(b) {
+			return nil, fmt.Errorf("element %d is not a UTF-8 string", i)
+		}
+		res[i] = string(b)
 	}
 	return res, nil
 }
@@ -230,6 +287,28 @@ func ArrayOfUint160(r *result.Invoke, err error) ([]util.Uint160, error) {
 		u, err := util.Uint160DecodeBytesBE(b)
 		if err != nil {
 			return nil, fmt.Errorf("element %d is not a uint160: %w", i, err)
+		}
+		res[i] = u
+	}
+	return res, nil
+}
+
+// ArrayOfUint256 checks the result for correct state (HALT) and then extracts a
+// slice of util.Uint256 from the returned stack item.
+func ArrayOfUint256(r *result.Invoke, err error) ([]util.Uint256, error) {
+	a, err := Array(r, err)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]util.Uint256, len(a))
+	for i := range a {
+		b, err := a[i].TryBytes()
+		if err != nil {
+			return nil, fmt.Errorf("element %d is not a byte string: %w", i, err)
+		}
+		u, err := util.Uint256DecodeBytesBE(b)
+		if err != nil {
+			return nil, fmt.Errorf("element %d is not a uint256: %w", i, err)
 		}
 		res[i] = u
 	}
