@@ -335,18 +335,19 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 	hash util.Uint160, f callflag.CallFlag, rvcount int, offset int, onContextUnload ContextUnloadCallback) {
 	v.checkInvocationStackSize()
 	ctx := NewContextWithParams(b, rvcount, offset)
+	parent := v.Context()
+	if parent != nil {
+		ctx.sc.callingContext = parent.sc
+		parent.sc.estack = v.estack
+	}
 	if rvcount != -1 || v.estack.Len() != 0 {
 		v.estack = subStack(v.estack)
 	}
-	parent := v.Context()
 	ctx.sc.estack = v.estack
 	initStack(&ctx.tryStack, "exception", nil)
 	ctx.sc.callFlag = f
 	ctx.sc.scriptHash = hash
 	ctx.sc.callingScriptHash = caller
-	if parent != nil {
-		ctx.sc.callingContext = parent.sc
-	}
 	ctx.sc.NEF = exe
 	if v.invTree != nil {
 		curTree := v.invTree
