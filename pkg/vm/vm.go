@@ -382,7 +382,8 @@ func (v *VM) PopResult() interface{} {
 
 // DumpIStack returns json formatted representation of the invocation stack.
 func (v *VM) DumpIStack() string {
-	return dumpStack(&v.istack)
+	b, _ := json.MarshalIndent(v.istack.ToArray(), "", "    ")
+	return string(b)
 }
 
 // DumpEStack returns json formatted representation of the execution stack.
