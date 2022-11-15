@@ -365,6 +365,44 @@ func TestGenerateRPCBindings(t *testing.T) {
 		filepath.Join("testdata", "nonepiter", "iter.go"))
 }
 
+func TestAssistedRPCBindings(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := cli.NewApp()
+	app.Commands = NewCommands()
+
+	var checkBinding = func(source string) {
+		t.Run(source, func(t *testing.T) {
+			manifestF := filepath.Join(tmpDir, "manifest.json")
+			bindingF := filepath.Join(tmpDir, "binding.yml")
+			nefF := filepath.Join(tmpDir, "out.nef")
+			require.NoError(t, app.Run([]string{"", "contract", "compile",
+				"--in", source,
+				"--config", filepath.Join(source, "config.yml"),
+				"--manifest", manifestF,
+				"--bindings", bindingF,
+				"--out", nefF,
+			}))
+			outFile := filepath.Join(tmpDir, "out.go")
+			require.NoError(t, app.Run([]string{"", "contract", "generate-rpcwrapper",
+				"--config", bindingF,
+				"--manifest", manifestF,
+				"--out", outFile,
+				"--hash", "0x00112233445566778899aabbccddeeff00112233",
+			}))
+
+			data, err := os.ReadFile(outFile)
+			require.NoError(t, err)
+			data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
+			expected, err := os.ReadFile(filepath.Join(source, "rpcbindings.out"))
+			require.NoError(t, err)
+			expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
+			require.Equal(t, string(expected), string(data))
+		})
+	}
+
+	checkBinding(filepath.Join("testdata", "types"))
+}
+
 func TestGenerate_Errors(t *testing.T) {
 	app := cli.NewApp()
 	app.Commands = []cli.Command{generateWrapperCmd}

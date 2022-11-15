@@ -1,0 +1,109 @@
+// Package types contains RPC wrappers for Types contract.
+package types
+
+import (
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+	"math/big"
+)
+
+// Hash contains contract hash.
+var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x0}
+
+// Invoker is used by ContractReader to call various safe methods.
+type Invoker interface {
+	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+}
+
+// ContractReader implements safe contract methods.
+type ContractReader struct {
+	invoker Invoker
+}
+
+// NewReader creates an instance of ContractReader using Hash and the given Invoker.
+func NewReader(invoker Invoker) *ContractReader {
+	return &ContractReader{invoker}
+}
+
+
+// Bool invokes `bool` method of contract.
+func (c *ContractReader) Bool(b bool) (bool, error) {
+	return unwrap.Bool(c.invoker.Call(Hash, "bool", b))
+}
+
+// Bools invokes `bools` method of contract.
+func (c *ContractReader) Bools(b []bool) ([]bool, error) {
+	return unwrap.ArrayOfBools(c.invoker.Call(Hash, "bools", b))
+}
+
+// Bytes invokes `bytes` method of contract.
+func (c *ContractReader) Bytes(b []byte) ([]byte, error) {
+	return unwrap.Bytes(c.invoker.Call(Hash, "bytes", b))
+}
+
+// Bytess invokes `bytess` method of contract.
+func (c *ContractReader) Bytess(b [][]byte) ([][]byte, error) {
+	return unwrap.ArrayOfBytes(c.invoker.Call(Hash, "bytess", b))
+}
+
+// Hash160 invokes `hash160` method of contract.
+func (c *ContractReader) Hash160(h util.Uint160) (util.Uint160, error) {
+	return unwrap.Uint160(c.invoker.Call(Hash, "hash160", h))
+}
+
+// Hash160s invokes `hash160s` method of contract.
+func (c *ContractReader) Hash160s(h []util.Uint160) ([]util.Uint160, error) {
+	return unwrap.ArrayOfUint160(c.invoker.Call(Hash, "hash160s", h))
+}
+
+// Hash256 invokes `hash256` method of contract.
+func (c *ContractReader) Hash256(h util.Uint256) (util.Uint256, error) {
+	return unwrap.Uint256(c.invoker.Call(Hash, "hash256", h))
+}
+
+// Hash256s invokes `hash256s` method of contract.
+func (c *ContractReader) Hash256s(h []util.Uint256) ([]util.Uint256, error) {
+	return unwrap.ArrayOfUint256(c.invoker.Call(Hash, "hash256s", h))
+}
+
+// Int invokes `int` method of contract.
+func (c *ContractReader) Int(i *big.Int) (*big.Int, error) {
+	return unwrap.BigInt(c.invoker.Call(Hash, "int", i))
+}
+
+// Ints invokes `ints` method of contract.
+func (c *ContractReader) Ints(i []*big.Int) ([]*big.Int, error) {
+	return unwrap.ArrayOfBigInts(c.invoker.Call(Hash, "ints", i))
+}
+
+// PublicKey invokes `publicKey` method of contract.
+func (c *ContractReader) PublicKey(k *keys.PublicKey) (*keys.PublicKey, error) {
+	return unwrap.PublicKey(c.invoker.Call(Hash, "publicKey", k))
+}
+
+// PublicKeys invokes `publicKeys` method of contract.
+func (c *ContractReader) PublicKeys(k keys.PublicKeys) (keys.PublicKeys, error) {
+	return unwrap.ArrayOfPublicKeys(c.invoker.Call(Hash, "publicKeys", k))
+}
+
+// Signature invokes `signature` method of contract.
+func (c *ContractReader) Signature(s []byte) ([]byte, error) {
+	return unwrap.Bytes(c.invoker.Call(Hash, "signature", s))
+}
+
+// Signatures invokes `signatures` method of contract.
+func (c *ContractReader) Signatures(s [][]byte) ([][]byte, error) {
+	return unwrap.ArrayOfBytes(c.invoker.Call(Hash, "signatures", s))
+}
+
+// String invokes `string` method of contract.
+func (c *ContractReader) String(s string) (string, error) {
+	return unwrap.UTF8String(c.invoker.Call(Hash, "string", s))
+}
+
+// Strings invokes `strings` method of contract.
+func (c *ContractReader) Strings(s []string) ([]string, error) {
+	return unwrap.ArrayOfUTF8Strings(c.invoker.Call(Hash, "strings", s))
+}

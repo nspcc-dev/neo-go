@@ -54,7 +54,22 @@ func TestStdErrors(t *testing.T) {
 			return Array(r, err)
 		},
 		func(r *result.Invoke, err error) (interface{}, error) {
+			return ArrayOfBools(r, err)
+		},
+		func(r *result.Invoke, err error) (interface{}, error) {
+			return ArrayOfBigInts(r, err)
+		},
+		func(r *result.Invoke, err error) (interface{}, error) {
 			return ArrayOfBytes(r, err)
+		},
+		func(r *result.Invoke, err error) (interface{}, error) {
+			return ArrayOfUTF8Strings(r, err)
+		},
+		func(r *result.Invoke, err error) (interface{}, error) {
+			return ArrayOfUint160(r, err)
+		},
+		func(r *result.Invoke, err error) (interface{}, error) {
+			return ArrayOfUint256(r, err)
 		},
 		func(r *result.Invoke, err error) (interface{}, error) {
 			return ArrayOfPublicKeys(r, err)
@@ -233,6 +248,32 @@ func TestArray(t *testing.T) {
 	require.Equal(t, stackitem.Make(42), a[0])
 }
 
+func TestArrayOfBools(t *testing.T) {
+	_, err := ArrayOfBools(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make(42)}}, nil)
+	require.Error(t, err)
+
+	_, err = ArrayOfBools(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make("reallybigstringthatcantbeanumberandthuscantbeconvertedtobool")})}}, nil)
+	require.Error(t, err)
+
+	a, err := ArrayOfBools(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make(true)})}}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(a))
+	require.Equal(t, true, a[0])
+}
+
+func TestArrayOfBigInts(t *testing.T) {
+	_, err := ArrayOfBigInts(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make(42)}}, nil)
+	require.Error(t, err)
+
+	_, err = ArrayOfBigInts(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make([]stackitem.Item{})})}}, nil)
+	require.Error(t, err)
+
+	a, err := ArrayOfBigInts(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make(42)})}}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(a))
+	require.Equal(t, big.NewInt(42), a[0])
+}
+
 func TestArrayOfBytes(t *testing.T) {
 	_, err := ArrayOfBytes(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make(42)}}, nil)
 	require.Error(t, err)
@@ -244,6 +285,22 @@ func TestArrayOfBytes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(a))
 	require.Equal(t, []byte("some"), a[0])
+}
+
+func TestArrayOfUTF8Strings(t *testing.T) {
+	_, err := ArrayOfUTF8Strings(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make(42)}}, nil)
+	require.Error(t, err)
+
+	_, err = ArrayOfUTF8Strings(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make([]stackitem.Item{})})}}, nil)
+	require.Error(t, err)
+
+	_, err = ArrayOfUTF8Strings(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make([]byte{0, 0xff})})}}, nil)
+	require.Error(t, err)
+
+	a, err := ArrayOfUTF8Strings(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make("some")})}}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(a))
+	require.Equal(t, "some", a[0])
 }
 
 func TestArrayOfUint160(t *testing.T) {
@@ -261,6 +318,23 @@ func TestArrayOfUint160(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(uints))
 	require.Equal(t, u160, uints[0])
+}
+
+func TestArrayOfUint256(t *testing.T) {
+	_, err := ArrayOfUint256(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make(42)}}, nil)
+	require.Error(t, err)
+
+	_, err = ArrayOfUint256(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make([]stackitem.Item{})})}}, nil)
+	require.Error(t, err)
+
+	_, err = ArrayOfUint256(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make([]byte("some"))})}}, nil)
+	require.Error(t, err)
+
+	u256 := util.Uint256{1, 2, 3}
+	uints, err := ArrayOfUint256(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]stackitem.Item{stackitem.Make(u256.BytesBE())})}}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(uints))
+	require.Equal(t, u256, uints[0])
 }
 
 func TestArrayOfPublicKeys(t *testing.T) {
