@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
@@ -1174,11 +1175,11 @@ func (s *Server) verifyNotaryRequest(_ *transaction.Transaction, data interface{
 	}
 	notaryHash := s.chain.GetNotaryContractScriptHash()
 	if r.FallbackTransaction.Sender() != notaryHash {
-		return errors.New("P2PNotary contract should be a sender of the fallback transaction")
+		return fmt.Errorf("P2PNotary contract should be a sender of the fallback transaction, got %s", address.Uint160ToString(r.FallbackTransaction.Sender()))
 	}
 	depositExpiration := s.chain.GetNotaryDepositExpiration(payer)
 	if r.FallbackTransaction.ValidUntilBlock >= depositExpiration {
-		return fmt.Errorf("fallback transaction is valid after deposit is unlocked: ValidUntilBlock is %d, deposit lock expires at %d", r.FallbackTransaction.ValidUntilBlock, depositExpiration)
+		return fmt.Errorf("fallback transaction is valid after deposit is unlocked: ValidUntilBlock is %d, deposit lock for %s expires at %d", r.FallbackTransaction.ValidUntilBlock, address.Uint160ToString(payer), depositExpiration)
 	}
 	return nil
 }
