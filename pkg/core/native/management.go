@@ -539,19 +539,13 @@ func (m *Management) InitializeCache(d *dao.Simple) error {
 		nep17:     make(map[util.Uint160]struct{}),
 	}
 
-	var initErr error
-	d.Seek(m.ID, storage.SeekRange{Prefix: []byte{PrefixContract}}, func(_, v []byte) bool {
+	d.Seek(m.ID, storage.SeekRange{Prefix: []byte{PrefixContract}}, func(k, v []byte) bool {
 		var cs = new(state.Contract)
-		initErr = stackitem.DeserializeConvertible(v, cs)
-		if initErr != nil {
-			return false
+		if stackitem.DeserializeConvertible(v, cs) == nil {
+			updateContractCache(cache, cs)
 		}
-		updateContractCache(cache, cs)
 		return true
 	})
-	if initErr != nil {
-		return initErr
-	}
 	d.SetCache(m.ID, cache)
 	return nil
 }

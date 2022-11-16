@@ -636,7 +636,7 @@ func initBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, stora
 			errArgs = append(errArgs, closeErr)
 		}
 
-		return nil, nil, cli.NewExitError(fmt.Errorf(errText, errArgs), 1)
+		return nil, nil, cli.NewExitError(fmt.Errorf(errText, errArgs...), 1)
 	}
 	return chain, store, nil
 }
