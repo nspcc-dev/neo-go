@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 )
@@ -270,8 +271,9 @@ func TestFilteredSubscriptions(t *testing.T) {
 			},
 		},
 		"execution non-matching": {
-			params: `["transaction_executed", {"state":"FAULT"}]`,
-			check: func(t *testing.T, _ *neorpc.Notification) {
+			// We have single FAULTed transaction in chain, this, use the wrong hash for this test instead of FAULT state.
+			params: `["transaction_executed", {"container":"0x` + util.Uint256{}.StringLE() + `"}]`,
+			check: func(t *testing.T, n *neorpc.Notification) {
 				t.Fatal("unexpected match for faulted execution")
 			},
 		},

@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
@@ -272,6 +273,11 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	storagePath := filepath.Join(testDataPrefix, "storage", "storage_contract.go")
 	storageCfg := filepath.Join(testDataPrefix, "storage", "storage_contract.yml")
 	_, _, _ = deployContractFromPriv0(t, storagePath, "Storage", storageCfg, StorageContractID)
+
+	// Block #23: add FAULTed transaction to check WSClient waitloops.
+	faultedInvoker := e.NewInvoker(cHash, acc0)
+	faultedH := faultedInvoker.InvokeScriptCheckFAULT(t, []byte{byte(opcode.ABORT)}, []neotest.Signer{acc0}, "at instruction 0 (ABORT): ABORT")
+	t.Logf("FAULTed transaction:\n\thash LE: %s\n\tblock index: %d", faultedH.StringLE(), e.Chain.BlockHeight())
 
 	// Compile contract to test `invokescript` RPC call
 	invokePath := filepath.Join(testDataPrefix, "invoke", "invokescript_contract.go")

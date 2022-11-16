@@ -307,7 +307,6 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		e.AddNewBlock(t)
 		e.AddNewBlock(t) // This block is stateSyncPoint-th block.
 		e.AddNewBlock(t)
-		e.AddNewBlock(t)
 		require.Equal(t, stateSyncPoint+2, int(bcSpout.BlockHeight()))
 
 		boltCfg := func(c *config.ProtocolConfiguration) {

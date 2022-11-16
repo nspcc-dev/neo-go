@@ -217,26 +217,47 @@ func (w *EventWaiter) Wait(h util.Uint256, vub uint32, err error) (res *state.Ap
 
 // WaitAny implements Waiter interface.
 func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uint256) (res *state.AppExecResult, waitErr error) {
-	var wsWaitErr error
+	var (
+		wsWaitErr     error
+		bRcvr         = make(chan *block.Block)
+		aerRcvr       = make(chan *state.AppExecResult)
+		unsubErrs     = make(chan error)
+		waitersActive int
+	)
+
+	// Rollback to a poll-based waiter if needed.
 	defer func() {
 		if wsWaitErr != nil {
 			res, waitErr = w.polling.WaitAny(ctx, vub, hashes...)
 			if waitErr != nil {
-				waitErr = fmt.Errorf("WS waiter error: %w; simple waiter error: %v", wsWaitErr, waitErr)
+				// Wrap the poll-based error, it's more important.
+				waitErr = fmt.Errorf("event-based error: %v; poll-based waiter error: %w", wsWaitErr, waitErr)
 			}
 		}
 	}()
-	bRcvr := make(chan *block.Block)
-	aerRcvr := make(chan *state.AppExecResult)
+
+	// Drain receivers to avoid other notification receivers blocking.
 	defer func() {
 	drainLoop:
-		// Drain receivers to avoid other notification receivers blocking.
 		for {
 			select {
 			case <-bRcvr:
 			case <-aerRcvr:
-			default:
-				break drainLoop
+			case unsubErr := <-unsubErrs:
+				if unsubErr != nil {
+					errFmt := "unsubscription error: %v"
+					errArgs := []interface{}{unsubErr}
+					if waitErr != nil {
+						errFmt = "%w; " + errFmt
+						errArgs = append([]interface{}{waitErr}, errArgs...)
+					}
+					waitErr = fmt.Errorf(errFmt, errArgs...)
+				}
+				waitersActive--
+				// Wait until all receiver channels finish their work.
+				if waitersActive == 0 {
+					break drainLoop
+				}
 			}
 		}
 		if wsWaitErr == nil || !errors.Is(wsWaitErr, ErrMissedEvent) {
@@ -244,24 +265,24 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 			close(aerRcvr)
 		}
 	}()
-	// Execution event precedes the block event, thus wait until the VUB-th block to be sure.
+
+	// Execution event preceded the block event, thus wait until the VUB-th block to be sure.
 	since := vub
 	blocksID, err := w.ws.ReceiveBlocks(&neorpc.BlockFilter{Since: &since}, bRcvr)
 	if err != nil {
 		wsWaitErr = fmt.Errorf("failed to subscribe for new blocks: %w", err)
 		return
 	}
+	waitersActive++
 	defer func() {
-		err = w.ws.Unsubscribe(blocksID)
-		if err != nil {
-			errFmt := "failed to unsubscribe from blocks (id: %s): %v"
-			errArgs := []interface{}{blocksID, err}
-			if waitErr != nil {
-				errFmt += "; wait error: %w"
-				errArgs = append(errArgs, waitErr)
+		go func() {
+			err = w.ws.Unsubscribe(blocksID)
+			if err != nil {
+				unsubErrs <- fmt.Errorf("failed to unsubscribe from blocks (id: %s): %w", blocksID, err)
+				return
 			}
-			waitErr = fmt.Errorf(errFmt, errArgs...)
-		}
+			unsubErrs <- nil
+		}()
 	}()
 	for _, h := range hashes {
 		txsID, err := w.ws.ReceiveExecutions(&neorpc.ExecutionFilter{Container: &h}, aerRcvr)
@@ -269,17 +290,16 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 			wsWaitErr = fmt.Errorf("failed to subscribe for execution results: %w", err)
 			return
 		}
+		waitersActive++
 		defer func() {
-			err = w.ws.Unsubscribe(txsID)
-			if err != nil {
-				errFmt := "failed to unsubscribe from transactions (id: %s): %v"
-				errArgs := []interface{}{txsID, err}
-				if waitErr != nil {
-					errFmt += "; wait error: %w"
-					errArgs = append(errArgs, waitErr)
+			go func() {
+				err = w.ws.Unsubscribe(txsID)
+				if err != nil {
+					unsubErrs <- fmt.Errorf("failed to unsubscribe from transactions (id: %s): %w", txsID, err)
+					return
 				}
-				waitErr = fmt.Errorf(errFmt, errArgs...)
-			}
+				unsubErrs <- nil
+			}()
 		}()
 	}
 
