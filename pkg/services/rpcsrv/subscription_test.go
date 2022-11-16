@@ -228,11 +228,31 @@ func TestFilteredSubscriptions(t *testing.T) {
 				require.Equal(t, "my_pretty_notification", n)
 			},
 		},
-		"execution matching": {
+		"execution matching state": {
 			params: `["transaction_executed", {"state":"HALT"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]interface{})
 				require.Equal(t, neorpc.ExecutionEventID, resp.Event)
+				st := rmap["vmstate"].(string)
+				require.Equal(t, "HALT", st)
+			},
+		},
+		"execution matching container": {
+			params: `["transaction_executed", {"container":"` + deploymentTxHash + `"}]`,
+			check: func(t *testing.T, resp *neorpc.Notification) {
+				rmap := resp.Payload[0].(map[string]interface{})
+				require.Equal(t, neorpc.ExecutionEventID, resp.Event)
+				tx := rmap["container"].(string)
+				require.Equal(t, "0x"+deploymentTxHash, tx)
+			},
+		},
+		"execution matching state and container": {
+			params: `["transaction_executed", {"state":"HALT", "container":"` + deploymentTxHash + `"}]`,
+			check: func(t *testing.T, resp *neorpc.Notification) {
+				rmap := resp.Payload[0].(map[string]interface{})
+				require.Equal(t, neorpc.ExecutionEventID, resp.Event)
+				tx := rmap["container"].(string)
+				require.Equal(t, "0x"+deploymentTxHash, tx)
 				st := rmap["vmstate"].(string)
 				require.Equal(t, "HALT", st)
 			},
