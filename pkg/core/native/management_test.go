@@ -78,12 +78,14 @@ func TestManagement_Initialize(t *testing.T) {
 		mgmt := newManagement()
 		require.NoError(t, mgmt.InitializeCache(d))
 	})
+	/* See #2801
 	t.Run("invalid contract state", func(t *testing.T) {
 		d := dao.NewSimple(storage.NewMemoryStore(), false, false)
 		mgmt := newManagement()
 		d.PutStorageItem(mgmt.ID, []byte{PrefixContract}, state.StorageItem{0xFF})
 		require.Error(t, mgmt.InitializeCache(d))
 	})
+	*/
 }
 
 func TestManagement_GetNEP17Contracts(t *testing.T) {
