@@ -304,13 +304,17 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 	}
 
 	select {
-	case _, ok := <-bRcvr:
+	case b, ok := <-bRcvr:
 		if !ok {
 			// We're toast, retry with non-ws client.
 			wsWaitErr = ErrMissedEvent
 			return
 		}
-		waitErr = ErrTxNotAccepted
+		// We can easily end up in a situation when subscription was performed too late and
+		// the desired transaction and VUB-th block have already got accepted before the
+		// subscription happened. Thus, always retry with non-ws client, it will perform
+		// AER requests and make sure.
+		wsWaitErr = fmt.Errorf("block #%d was received by EventWaiter", b.Index)
 	case aer, ok := <-aerRcvr:
 		if !ok {
 			// We're toast, retry with non-ws client.

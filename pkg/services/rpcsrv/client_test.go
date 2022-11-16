@@ -2073,3 +2073,58 @@ func TestWSClient_Wait(t *testing.T) {
 	}
 	require.True(t, faultedChecked, "FAULTed transaction wasn't checked")
 }
+
+func TestWSClient_WaitWithLateSubscription(t *testing.T) {
+	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
+	c, err := rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+	acc, err := wallet.NewAccount()
+	require.NoError(t, err)
+	act, err := actor.New(c, []actor.SignerAccount{
+		{
+			Signer: transaction.Signer{
+				Account: acc.ScriptHash(),
+			},
+			Account: acc,
+		},
+	})
+	require.NoError(t, err)
+
+	// Firstly, accept the block.
+	blocks := getTestBlocks(t)
+	b1 := blocks[0]
+	b2 := blocks[1]
+	tx := b1.Transactions[0]
+	require.NoError(t, chain.AddBlock(b1))
+
+	// After that, subscribe for AERs/blocks and wait.
+	rcvr := make(chan *state.AppExecResult)
+	go func() {
+		aer, err := act.Wait(tx.Hash(), tx.ValidUntilBlock, nil)
+		require.NoError(t, err)
+		rcvr <- aer
+	}()
+
+	// Accept the next block to trigger event-based waiter loop exit and rollback to
+	// poll-based waiter.
+	require.NoError(t, chain.AddBlock(b2))
+
+	// Wait for the result.
+waitloop:
+	for {
+		select {
+		case aer := <-rcvr:
+			require.Equal(t, tx.Hash(), aer.Container)
+			require.Equal(t, trigger.Application, aer.Trigger)
+			require.Equal(t, vmstate.Halt, aer.VMState)
+			break waitloop
+		case <-time.NewTimer(time.Duration(chain.GetConfig().SecondsPerBlock) * time.Second).C:
+			t.Fatal("transaction failed to be awaited")
+		}
+	}
+}
