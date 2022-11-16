@@ -2429,14 +2429,14 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (interface{
 		case neorpc.ExecutionEventID:
 			flt := new(neorpc.ExecutionFilter)
 			err = jd.Decode(flt)
-			if err == nil && (flt.State != nil && (*flt.State == "HALT" || *flt.State == "FAULT")) {
+			if err == nil && (flt.State == nil || (*flt.State == "HALT" || *flt.State == "FAULT")) {
 				filter = *flt
 			} else if err == nil {
 				err = errors.New("invalid state")
 			}
 		}
 		if err != nil {
-			return nil, neorpc.ErrInvalidParams
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, err.Error())
 		}
 	}
 

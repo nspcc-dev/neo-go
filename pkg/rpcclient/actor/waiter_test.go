@@ -166,6 +166,7 @@ func TestWSWaiter_Wait(t *testing.T) {
 	})
 
 	// Missing AER after VUB.
+	c.RPCClient.appLog = nil
 	go func() {
 		_, err = w.Wait(h, bCount-2, nil)
 		require.ErrorIs(t, err, ErrTxNotAccepted)

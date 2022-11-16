@@ -625,16 +625,6 @@ func (c *WSClient) performSubscription(params []interface{}, rcvr notificationRe
 	return resp, nil
 }
 
-func (c *WSClient) performUnsubscription(id string) error {
-	c.subscriptionsLock.Lock()
-	defer c.subscriptionsLock.Unlock()
-
-	if _, ok := c.subscriptions[id]; !ok {
-		return errors.New("no subscription with this ID")
-	}
-	return c.removeSubscription(id)
-}
-
 // SubscribeForNewBlocks adds subscription for new block events to this instance
 // of the client. It can be filtered by primary consensus node index, nil value doesn't
 // add any filters.
@@ -876,29 +866,55 @@ func (c *WSClient) ReceiveNotaryRequests(flt *neorpc.TxFilter, rcvr chan<- *resu
 	return c.performSubscription(params, r)
 }
 
-// Unsubscribe removes subscription for the given event stream.
+// Unsubscribe removes subscription for the given event stream. It will return an
+// error in case if there's no subscription with the provided ID. Call to Unsubscribe
+// doesn't block notifications receive process for given subscriber, thus, ensure
+// that subscriber channel is properly drained while unsubscription is being
+// performed. You may probably need to run unsubscription process in a separate
+// routine (in parallel with notification receiver routine) to avoid Client's
+// notification dispatcher blocking.
 func (c *WSClient) Unsubscribe(id string) error {
 	return c.performUnsubscription(id)
 }
 
-// UnsubscribeAll removes all active subscriptions of the current client.
+// UnsubscribeAll removes all active subscriptions of the current client. It copies
+// the list of subscribers in order not to hold the lock for the whole execution
+// time and tries to unsubscribe from us many feeds as possible returning the
+// chunk of unsubscription errors afterwards. Call to UnsubscribeAll doesn't block
+// notifications receive process for given subscribers, thus, ensure that subscribers
+// channels are properly drained while unsubscription is being performed. You may
+// probably need to run unsubscription process in a separate routine (in parallel
+// with notification receiver routines) to avoid Client's notification dispatcher
+// blocking.
 func (c *WSClient) UnsubscribeAll() error {
 	c.subscriptionsLock.Lock()
-	defer c.subscriptionsLock.Unlock()
-
+	subs := make([]string, 0, len(c.subscriptions))
 	for id := range c.subscriptions {
-		err := c.removeSubscription(id)
+		subs = append(subs, id)
+	}
+	c.subscriptionsLock.Unlock()
+
+	var resErr error
+	for _, id := range subs {
+		err := c.performUnsubscription(id)
 		if err != nil {
-			return err
+			errFmt := "failed to unsubscribe from feed %d: %v"
+			errArgs := []interface{}{err}
+			if resErr != nil {
+				errFmt = "%w; " + errFmt
+				errArgs = append([]interface{}{resErr}, errArgs...)
+			}
+			resErr = fmt.Errorf(errFmt, errArgs...)
 		}
 	}
-	return nil
+	return resErr
 }
 
-// removeSubscription is internal method that removes subscription with the given
-// ID from the list of subscriptions and receivers. It must be performed under
-// subscriptions lock.
-func (c *WSClient) removeSubscription(id string) error {
+// performUnsubscription is internal method that removes subscription with the given
+// ID from the list of subscriptions and receivers. It takes the subscriptions lock
+// after WS RPC unsubscription request is completed. Until then the subscriber channel
+// may still receive WS notifications.
+func (c *WSClient) performUnsubscription(id string) error {
 	var resp bool
 	if err := c.performRequest("unsubscribe", []interface{}{id}, &resp); err != nil {
 		return err
@@ -906,7 +922,14 @@ func (c *WSClient) removeSubscription(id string) error {
 	if !resp {
 		return errors.New("unsubscribe method returned false result")
 	}
-	rcvr := c.subscriptions[id]
+
+	c.subscriptionsLock.Lock()
+	defer c.subscriptionsLock.Unlock()
+
+	rcvr, ok := c.subscriptions[id]
+	if !ok {
+		return errors.New("no subscription with this ID")
+	}
 	ch := rcvr.Receiver()
 	ids := c.receivers[ch]
 	for i, rcvrID := range ids {

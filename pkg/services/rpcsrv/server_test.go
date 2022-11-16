@@ -67,20 +67,22 @@ type rpcTestCase struct {
 }
 
 const genesisBlockHash = "0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4"
-const testContractHash = "2db7d679c538ace5f00495c9e9d8ea95f1e0f5a5"
-const deploymentTxHash = "496bccb5cb0a008ef9b7a32c459e508ef24fbb0830f82bac9162afa4ca804839"
+const testContractHash = "565cff9508ebc75aadd7fe59f38dac610ab6093c"
+const deploymentTxHash = "a14390941cc3a1d87393eff720a722e9cd350bd6ed233c5fe2001326c80eb68e"
 
 const (
-	verifyContractHash         = "06ed5314c2e4cb103029a60b86d46afa2fb8f67c"
-	verifyContractAVM          = "VwIAQS1RCDBwDBTunqIsJ+NL0BSPxBCOCPdOj1BIskrZMCQE2zBxaBPOStkoJATbKGlK2SgkBNsol0A="
-	verifyWithArgsContractHash = "0dce75f52adb1a4c5c6eaa6a34eb26db2e5b3781"
-	nnsContractHash            = "bdbfe1a280a0e23ca5b569c8f5845169bd93cb06"
-	nnsToken1ID                = "6e656f2e636f6d"
-	nfsoContractHash           = "0e15ca0df00669a2cd5dcb03bfd3e2b3849c2969"
-	nfsoToken1ID               = "7e244ffd6aa85fb1579d2ed22e9b761ab62e3486"
-	invokescriptContractAVM    = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
-	block20StateRootLE         = "f1380226a217b5e35ea968d42c50e20b9af7ab83b91416c8fb85536c61004332"
-	storageContractHash        = "ebc0c16a76c808cd4dde6bcc063f09e45e331ec7"
+	verifyContractHash                = "06ed5314c2e4cb103029a60b86d46afa2fb8f67c"
+	verifyContractAVM                 = "VwIAQS1RCDBwDBTunqIsJ+NL0BSPxBCOCPdOj1BIskrZMCQE2zBxaBPOStkoJATbKGlK2SgkBNsol0A="
+	verifyWithArgsContractHash        = "4dc916254efd2947c93b11207e8ffc0bb56161c5"
+	nnsContractHash                   = "892429fcd47c30f8451781acc627e8b20e0d64f3"
+	nnsToken1ID                       = "6e656f2e636f6d"
+	nfsoContractHash                  = "730ebe719ab8e3b69d11dafc95cdb9bf409db179"
+	nfsoToken1ID                      = "7e244ffd6aa85fb1579d2ed22e9b761ab62e3486"
+	storageContractHash               = "ebc0c16a76c808cd4dde6bcc063f09e45e331ec7"
+	faultedTxHashLE                   = "82279bfe9bada282ca0f8cb8e0bb124b921af36f00c69a518320322c6f4fef60"
+	faultedTxBlock             uint32 = 23
+	invokescriptContractAVM           = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
+	block20StateRootLE                = "b49a045246bf3bb90248ed538dd21e67d782a9242c52f31dfdef3da65ecd87c1"
 )
 
 var (
@@ -287,6 +289,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				return &map[string]interface{}{
 					"name":       "neo.com",
 					"expiration": "lhbLRl0B",
+					"admin":      nil,
 				}
 			},
 		},
@@ -817,7 +820,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 				expected := result.UnclaimedGas{
 					Address:   testchain.MultisigScriptHash(),
-					Unclaimed: *big.NewInt(11000),
+					Unclaimed: *big.NewInt(11500),
 				}
 				assert.Equal(t, expected, *actual)
 			},
@@ -905,7 +908,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				script = append(script, 0x41, 0x62, 0x7d, 0x5b, 0x52)
 				return &result.Invoke{
 					State:       "HALT",
-					GasConsumed: 32414250,
+					GasConsumed: 31922970,
 					Script:      script,
 					Stack:       []stackitem.Item{stackitem.Make(true)},
 					Notifications: []state.NotificationEvent{{
@@ -935,19 +938,19 @@ var rpcTestCases = map[string][]rpcTestCase{
 				chg := []dboper.Operation{{
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0xb},
-					Value: []byte{0xf6, 0x8b, 0x4e, 0x9d, 0x51, 0x79, 0x12},
+					Value: []byte{0x54, 0xb2, 0xd2, 0xa3, 0x51, 0x79, 0x12},
 				}, {
 					State: "Added",
 					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb},
-					Value: []byte{0x41, 0x03, 0x21, 0x01, 0x01, 0x21, 0x01, 0x17, 0},
+					Value: []byte{0x41, 0x03, 0x21, 0x01, 0x01, 0x21, 0x01, 0x18, 0},
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
-					Value: []byte{0x41, 0x03, 0x21, 0x04, 0x2f, 0xd9, 0xf5, 0x05, 0x21, 0x01, 0x17, 0},
+					Value: []byte{0x41, 0x03, 0x21, 0x04, 0x2f, 0xd9, 0xf5, 0x05, 0x21, 0x01, 0x18, 0},
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
-					Value: []byte{0x41, 0x01, 0x21, 0x05, 0xe4, 0x74, 0xef, 0xdb, 0x08},
+					Value: []byte{0x41, 0x01, 0x21, 0x05, 0x0c, 0x76, 0x4f, 0xdf, 0x08},
 				}}
 				// Can be returned in any order.
 				assert.ElementsMatch(t, chg, res.Diagnostics.Changes)
@@ -963,7 +966,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
 				return &result.Invoke{
 					State:         "HALT",
-					GasConsumed:   15928320,
+					GasConsumed:   13970250,
 					Script:        script,
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
@@ -1052,7 +1055,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				script = append(script, 0x41, 0x62, 0x7d, 0x5b, 0x52)
 				return &result.Invoke{
 					State:       "HALT",
-					GasConsumed: 32414250,
+					GasConsumed: 31922970,
 					Script:      script,
 					Stack:       []stackitem.Item{stackitem.Make(true)},
 					Notifications: []state.NotificationEvent{{
@@ -1078,7 +1081,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
 				return &result.Invoke{
 					State:         "HALT",
-					GasConsumed:   15928320,
+					GasConsumed:   13970250,
 					Script:        script,
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
@@ -1605,12 +1608,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"sendrawtransaction": {
 		{
 			name:   "positive",
-			params: `["ABwAAACWP5gAAAAAAEDaEgAAAAAAFwAAAAHunqIsJ+NL0BSPxBCOCPdOj1BIsoAAXgsDAOh2SBcAAAAMFBEmW7QXJQBBvgTo+iQOOPV8HlabDBTunqIsJ+NL0BSPxBCOCPdOj1BIshTAHwwIdHJhbnNmZXIMFPVj6kC8KD1NDgXEjqMFs/Kgc0DvQWJ9W1IBQgxAEh2U53FB2sU+eeLwTAUqMM5518nsDGil4Oi5IoBiMM7hvl6lKGoYIEaVkf7cS6x4MX1RmSHcoOabKFTyuEXI3SgMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwkFW57Mn"]`,
+			params: `["AB0AAACWP5gAAAAAAEDaEgAAAAAAGAAAAAHunqIsJ+NL0BSPxBCOCPdOj1BIsoAAXgsDAOh2SBcAAAAMFBEmW7QXJQBBvgTo+iQOOPV8HlabDBTunqIsJ+NL0BSPxBCOCPdOj1BIshTAHwwIdHJhbnNmZXIMFPVj6kC8KD1NDgXEjqMFs/Kgc0DvQWJ9W1IBQgxAJ6norhWoZxp+Hj1JFhi+Z3qI9DUkLSbfsbaLSaJIqxTfdmPbNFDVK1G+oa+LWmpRp/bj9+QZM7yC+S6HXUI7rigMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwkFW57Mn"]`,
 			result: func(e *executor) interface{} { return &result.RelayResult{} },
 			check: func(t *testing.T, e *executor, inv interface{}) {
 				res, ok := inv.(*result.RelayResult)
 				require.True(t, ok)
-				expectedHash := "e4418a8bdad8cdf401aabb277c7bec279d0b0113812c09607039c4ad87204d90"
+				expectedHash := "c11861dec1dd0f188608b725095041fcfc90abe51eea044993f122f22472753e"
 				assert.Equal(t, expectedHash, res.Hash.StringLE())
 			},
 		},
@@ -2232,7 +2235,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
 
 		assert.Equal(t, *block.Transactions[0], actual.Transaction)
-		assert.Equal(t, 23, actual.Confirmations)
+		assert.Equal(t, 24, actual.Confirmations)
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
 
@@ -2345,12 +2348,12 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			require.NoError(t, json.Unmarshal(res, actual))
 			checkNep17TransfersAux(t, e, actual, sent, rcvd)
 		}
-		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{18, 19, 20, 21}, []int{3, 4}) })
+		t.Run("time frame only", func(t *testing.T) { testNEP17T(t, 4, 5, 0, 0, []int{19, 20, 21, 22}, []int{3, 4}) })
 		t.Run("no res", func(t *testing.T) { testNEP17T(t, 100, 100, 0, 0, []int{}, []int{}) })
-		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{15, 16}, []int{2}) })
-		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{18}, []int{3}) })
-		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{17, 18}, []int{3}) })
-		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{19, 20}, []int{4}) })
+		t.Run("limit", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 0, []int{16, 17}, []int{2}) })
+		t.Run("limit 2", func(t *testing.T) { testNEP17T(t, 4, 5, 2, 0, []int{19}, []int{3}) })
+		t.Run("limit with page", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 1, []int{18, 19}, []int{3}) })
+		t.Run("limit with page 2", func(t *testing.T) { testNEP17T(t, 1, 7, 3, 2, []int{20, 21}, []int{4}) })
 	})
 
 	prepareIteratorSession := func(t *testing.T) (uuid.UUID, uuid.UUID) {
@@ -2557,7 +2560,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		t.Run("contract-based verification with parameters", func(t *testing.T) {
 			verAcc, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
 			require.NoError(t, err)
-			checkContract(t, verAcc, []byte{}, 490890) // No C# match, but we believe it's OK and it differs from the one above.
+			checkContract(t, verAcc, []byte{}, 245250) // No C# match, but we believe it's OK and it differs from the one above.
 		})
 		t.Run("contract-based verification with invocation script", func(t *testing.T) {
 			verAcc, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
@@ -2567,7 +2570,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			emit.Int(invocWriter.BinWriter, 5)
 			emit.String(invocWriter.BinWriter, "")
 			invocScript := invocWriter.Bytes()
-			checkContract(t, verAcc, invocScript, 393720) // No C# match, but we believe it's OK and it has a specific invocation script overriding anything server-side.
+			checkContract(t, verAcc, invocScript, 148080) // No C# match, but we believe it's OK and it has a specific invocation script overriding anything server-side.
 		})
 	})
 }
@@ -2719,8 +2722,8 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "37099660700",
-				LastUpdated: 22,
+				Amount:      "37106285100",
+				LastUpdated: 23,
 				Decimals:    8,
 				Name:        "GasToken",
 				Symbol:      "GAS",
@@ -2834,7 +2837,7 @@ func checkNep11TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 }
 
 func checkNep17Transfers(t *testing.T, e *executor, acc interface{}) {
-	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}, []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
+	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}, []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
 }
 
 func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
@@ -2842,6 +2845,11 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	require.True(t, ok)
 	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
 	require.NoError(t, err)
+
+	blockWithFAULTedTx, err := e.chain.GetBlock(e.chain.GetHeaderHash(int(faultedTxBlock))) // Transaction with ABORT inside.
+	require.NoError(t, err)
+	require.Equal(t, 1, len(blockWithFAULTedTx.Transactions))
+	txFAULTed := blockWithFAULTedTx.Transactions[0]
 
 	blockDeploy6, err := e.chain.GetBlock(e.chain.GetHeaderHash(22)) // deploy Storage contract (storage_contract.go)
 	require.NoError(t, err)
@@ -2947,6 +2955,14 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	// duplicate the Server method.
 	expected := result.NEP17Transfers{
 		Sent: []result.NEP17Transfer{
+			{
+				Timestamp: blockWithFAULTedTx.Timestamp,
+				Asset:     e.chain.UtilityTokenHash(),
+				Address:   "", // burn
+				Amount:    big.NewInt(txFAULTed.SystemFee + txFAULTed.NetworkFee).String(),
+				Index:     23,
+				TxHash:    blockWithFAULTedTx.Hash(),
+			},
 			{
 				Timestamp: blockDeploy6.Timestamp,
 				Asset:     e.chain.UtilityTokenHash(),

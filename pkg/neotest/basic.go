@@ -200,9 +200,10 @@ func (e *Executor) InvokeScriptCheckHALT(t testing.TB, script []byte, signers []
 
 // InvokeScriptCheckFAULT adds a transaction with the specified script to the
 // chain and checks if it's FAULTed with the specified error.
-func (e *Executor) InvokeScriptCheckFAULT(t testing.TB, script []byte, signers []Signer, errMessage string) {
+func (e *Executor) InvokeScriptCheckFAULT(t testing.TB, script []byte, signers []Signer, errMessage string) util.Uint256 {
 	hash := e.InvokeScript(t, script, signers)
 	e.CheckFault(t, hash, errMessage)
+	return hash
 }
 
 // CheckHalt checks that the transaction is persisted with HALT state.

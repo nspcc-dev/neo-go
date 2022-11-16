@@ -19,8 +19,10 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -1419,6 +1421,7 @@ func TestClient_NEP11_ND(t *testing.T) {
 		expected := stackitem.NewMap()
 		expected.Add(stackitem.Make([]byte("name")), stackitem.Make([]byte("neo.com")))
 		expected.Add(stackitem.Make([]byte("expiration")), stackitem.Make(blockRegisterDomain.Timestamp+365*24*3600*1000)) // expiration formula
+		expected.Add(stackitem.Make([]byte("admin")), stackitem.Null{})
 		require.EqualValues(t, expected, p)
 	})
 	t.Run("Transfer", func(t *testing.T) {
@@ -2000,4 +2003,128 @@ func TestClient_Wait(t *testing.T) {
 	check(t, b.Transactions[0].Hash(), chain.BlockHeight()+1, false)
 	// Wait for transaction that hasn't been persisted and VUB block has been persisted.
 	check(t, util.Uint256{1, 2, 3}, chain.BlockHeight()-1, true)
+}
+
+func TestWSClient_Wait(t *testing.T) {
+	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
+	c, err := rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+	acc, err := wallet.NewAccount()
+	require.NoError(t, err)
+	act, err := actor.New(c, []actor.SignerAccount{
+		{
+			Signer: transaction.Signer{
+				Account: acc.ScriptHash(),
+			},
+			Account: acc,
+		},
+	})
+	require.NoError(t, err)
+
+	rcvr := make(chan *state.AppExecResult)
+	check := func(t *testing.T, b *block.Block, h util.Uint256, vub uint32) {
+		go func() {
+			aer, err := act.Wait(h, vub, nil)
+			require.NoError(t, err, b.Index)
+			rcvr <- aer
+		}()
+		go func() {
+			require.Eventually(t, func() bool {
+				rpcSrv.subsLock.Lock()
+				defer rpcSrv.subsLock.Unlock()
+				return len(rpcSrv.subscribers) == 1
+			}, time.Second, 100*time.Millisecond)
+			require.NoError(t, chain.AddBlock(b))
+		}()
+	waitloop:
+		for {
+			select {
+			case aer := <-rcvr:
+				require.Equal(t, h, aer.Container)
+				require.Equal(t, trigger.Application, aer.Trigger)
+				if h.StringLE() == faultedTxHashLE {
+					require.Equal(t, vmstate.Fault, aer.VMState)
+				} else {
+					require.Equal(t, vmstate.Halt, aer.VMState)
+				}
+				break waitloop
+			case <-time.NewTimer(time.Duration(chain.GetConfig().SecondsPerBlock) * time.Second).C:
+				t.Fatalf("transaction from block %d failed to be awaited: deadline exceeded", b.Index)
+			}
+		}
+	}
+
+	var faultedChecked bool
+	for _, b := range getTestBlocks(t) {
+		if len(b.Transactions) > 0 {
+			tx := b.Transactions[0]
+			check(t, b, tx.Hash(), tx.ValidUntilBlock)
+			if tx.Hash().StringLE() == faultedTxHashLE {
+				faultedChecked = true
+			}
+		} else {
+			require.NoError(t, chain.AddBlock(b))
+		}
+	}
+	require.True(t, faultedChecked, "FAULTed transaction wasn't checked")
+}
+
+func TestWSClient_WaitWithLateSubscription(t *testing.T) {
+	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
+	c, err := rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+	acc, err := wallet.NewAccount()
+	require.NoError(t, err)
+	act, err := actor.New(c, []actor.SignerAccount{
+		{
+			Signer: transaction.Signer{
+				Account: acc.ScriptHash(),
+			},
+			Account: acc,
+		},
+	})
+	require.NoError(t, err)
+
+	// Firstly, accept the block.
+	blocks := getTestBlocks(t)
+	b1 := blocks[0]
+	b2 := blocks[1]
+	tx := b1.Transactions[0]
+	require.NoError(t, chain.AddBlock(b1))
+
+	// After that, subscribe for AERs/blocks and wait.
+	rcvr := make(chan *state.AppExecResult)
+	go func() {
+		aer, err := act.Wait(tx.Hash(), tx.ValidUntilBlock, nil)
+		require.NoError(t, err)
+		rcvr <- aer
+	}()
+
+	// Accept the next block to trigger event-based waiter loop exit and rollback to
+	// poll-based waiter.
+	require.NoError(t, chain.AddBlock(b2))
+
+	// Wait for the result.
+waitloop:
+	for {
+		select {
+		case aer := <-rcvr:
+			require.Equal(t, tx.Hash(), aer.Container)
+			require.Equal(t, trigger.Application, aer.Trigger)
+			require.Equal(t, vmstate.Halt, aer.VMState)
+			break waitloop
+		case <-time.NewTimer(time.Duration(chain.GetConfig().SecondsPerBlock) * time.Second).C:
+			t.Fatal("transaction failed to be awaited")
+		}
+	}
 }
