@@ -2,6 +2,34 @@
 
 This document outlines major changes between releases.
 
+## 0.99.6 "Funambulation" (16 Nov 2022)
+
+An emergency release fixing mainnet incompatibility at block 2504320 leading
+to inability to process block 2504813. A couple of other less severe bugs got
+fixed as well. Unfortunately, this release requires complete resynchronization
+for mainnet, other networks can use old DBs.
+
+Improvements:
+ * only transactions requested by the consensus process are forwarded to it
+   now slightly improving performance in some networked scenarios (#2788)
+ * a complete set of simple array unwrappers in the unwrap library (#2792)
+ * RPC binding generator can handle simple arrays now with configuration file
+   provided (#2792)
+ * more user-friendly error messages in some cases (#2797, #2802, #2804)
+
+Bugs fixed:
+ * DB was not properly closed after state reset (#2791)
+ * VM stack handling problem leading to lost items after return from call to
+   another contract (#2800)
+ * "istack" command panic in the VM CLI (#2800)
+ * failure to decode incorrect contract from ContractManagement state leading
+   to failure to start the node, it'll be ignored now similar to how C# node
+   treats this (#2802)
+ * subscription to execution events failed if no "state" filter was used along
+   with "container" (#2804)
+ * Actor using WSClient could deadlock in the transaction waiter during
+   unsubscription (#2804)
+
 ## 0.99.5 "Underestimation" (11 Nov 2022)
 
 It wasn't long since the previous release until a juicy set of features and
