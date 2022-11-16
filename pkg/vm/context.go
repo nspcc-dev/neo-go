@@ -72,6 +72,13 @@ type Context struct {
 	retCount int
 }
 
+type contextAux struct {
+	Script string
+	IP     int
+	NextIP int
+	Caller string
+}
+
 // ContextUnloadCallback is a callback method used on context unloading from istack.
 type ContextUnloadCallback func(ctx *Context, commit bool) error
 
@@ -356,4 +363,15 @@ func (c *Context) HasTryBlock() bool {
 		}
 	}
 	return false
+}
+
+// MarshalJSON implements the JSON marshalling interface.
+func (c *Context) MarshalJSON() ([]byte, error) {
+	var aux = contextAux{
+		Script: c.ScriptHash().StringLE(),
+		IP:     c.ip,
+		NextIP: c.nextip,
+		Caller: c.sc.callingScriptHash.StringLE(),
+	}
+	return json.Marshal(aux)
 }
