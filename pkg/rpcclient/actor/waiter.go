@@ -222,7 +222,7 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 		if wsWaitErr != nil {
 			res, waitErr = w.polling.WaitAny(ctx, vub, hashes...)
 			if waitErr != nil {
-				waitErr = fmt.Errorf("WS waiter error: %w, simple waiter error: %v", wsWaitErr, waitErr)
+				waitErr = fmt.Errorf("WS waiter error: %w; simple waiter error: %v", wsWaitErr, waitErr)
 			}
 		}
 	}()
