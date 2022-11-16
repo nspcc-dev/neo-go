@@ -2436,7 +2436,7 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (interface{
 			}
 		}
 		if err != nil {
-			return nil, neorpc.ErrInvalidParams
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, err.Error())
 		}
 	}
 
