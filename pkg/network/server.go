@@ -400,10 +400,12 @@ func (s *Server) ConnectedPeers() []string {
 func (s *Server) run() {
 	var (
 		peerCheckTime    = s.TimePerBlock * peerTimeFactor
-		peerCheckTimeout bool
-		timer            = time.NewTimer(peerCheckTime)
+		addrCheckTimeout bool
+		addrTimer        = time.NewTimer(peerCheckTime)
+		peerTimer        = time.NewTimer(s.ProtoTickInterval)
 	)
-	defer timer.Stop()
+	defer addrTimer.Stop()
+	defer peerTimer.Stop()
 	go s.runProto()
 	for loopCnt := 0; ; loopCnt++ {
 		var (
@@ -412,11 +414,15 @@ func (s *Server) run() {
 			optimalN = s.discovery.GetFanOut() * 2
 			// Real number of peers.
 			peerN = s.HandshakedPeersCount()
+			// Timeout value for the next peerTimer, long one by default.
+			peerT = peerCheckTime
 		)
 
 		if peerN < s.MinPeers {
 			// Starting up or going below the minimum -> quickly get many new peers.
 			s.discovery.RequestRemote(s.AttemptConnPeers)
+			// Check/retry new connections soon.
+			peerT = s.ProtoTickInterval
 		} else if s.MinPeers > 0 && loopCnt%s.MinPeers == 0 && optimalN > peerN && optimalN < s.MaxPeers && optimalN < netSize {
 			// Having some number of peers, but probably can get some more, the network is big.
 			// It also allows to start picking up new peers proactively, before we suddenly have <s.MinPeers of them.
@@ -427,16 +433,18 @@ func (s *Server) run() {
 			s.discovery.RequestRemote(connN)
 		}
 
-		if peerCheckTimeout || s.discovery.PoolCount() < s.AttemptConnPeers {
+		if addrCheckTimeout || s.discovery.PoolCount() < s.AttemptConnPeers {
 			s.broadcastHPMessage(NewMessage(CMDGetAddr, payload.NewNullPayload()))
-			peerCheckTimeout = false
+			addrCheckTimeout = false
 		}
 		select {
 		case <-s.quit:
 			return
-		case <-timer.C:
-			peerCheckTimeout = true
-			timer.Reset(peerCheckTime)
+		case <-addrTimer.C:
+			addrCheckTimeout = true
+			addrTimer.Reset(peerCheckTime)
+		case <-peerTimer.C:
+			peerTimer.Reset(peerT)
 		case p := <-s.register:
 			s.lock.Lock()
 			s.peers[p] = true
