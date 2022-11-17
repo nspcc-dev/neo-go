@@ -409,7 +409,7 @@ func (s *Server) run() {
 			// "Optimal" number of peers.
 			optimalN = s.discovery.GetFanOut() * 2
 			// Real number of peers.
-			peerN = s.PeerCount()
+			peerN = s.HandshakedPeersCount()
 		)
 
 		if peerN < s.MinPeers {
