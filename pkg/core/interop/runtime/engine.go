@@ -41,7 +41,7 @@ func GetCallingScriptHash(ic *interop.Context) error {
 
 // GetEntryScriptHash returns entry script hash.
 func GetEntryScriptHash(ic *interop.Context) error {
-	return ic.VM.PushContextScriptHash(ic.VM.Istack().Len() - 1)
+	return ic.VM.PushContextScriptHash(len(ic.VM.Istack()) - 1)
 }
 
 // GetScriptContainer returns transaction or block that contains the script

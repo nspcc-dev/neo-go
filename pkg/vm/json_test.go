@@ -166,7 +166,7 @@ func testFile(t *testing.T, filename string) {
 
 					if len(result.InvocationStack) > 0 {
 						for i, s := range result.InvocationStack {
-							ctx := vm.istack.Peek(i).Value().(*Context)
+							ctx := vm.istack[len(vm.istack)-1-i]
 							if ctx.nextip < len(ctx.sc.prog) {
 								require.Equal(t, s.InstructionPointer, ctx.nextip)
 								op, err := opcode.FromString(s.Instruction)
