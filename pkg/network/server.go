@@ -1196,11 +1196,9 @@ func (s *Server) handleAddrCmd(p Peer, addrs *payload.AddressList) error {
 	if !p.CanProcessAddr() {
 		return errors.New("unexpected addr received")
 	}
-	dups := make(map[string]bool)
 	for _, a := range addrs.Addrs {
 		addr, err := a.GetTCPAddress()
-		if err == nil && !dups[addr] {
-			dups[addr] = true
+		if err == nil {
 			s.discovery.BackFill(addr)
 		}
 	}
