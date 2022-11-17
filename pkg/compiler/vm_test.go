@@ -84,7 +84,7 @@ func evalWithArgs(t *testing.T, src string, op []byte, args []stackitem.Item, re
 
 func assertResult(t *testing.T, vm *vm.VM, result interface{}) {
 	assert.Equal(t, result, vm.PopResult())
-	assert.Equal(t, 0, vm.Istack().Len())
+	assert.Nil(t, vm.Context())
 }
 
 func vmAndCompile(t *testing.T, src string) *vm.VM {

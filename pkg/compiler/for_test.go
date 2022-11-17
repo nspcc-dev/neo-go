@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -727,8 +728,7 @@ func TestForLoop(t *testing.T) {
 	for i, tc := range forLoopTestCases {
 		v := vm.New()
 		t.Run(tc.name, func(t *testing.T) {
-			v.Istack().Clear()
-			v.Estack().Clear()
+			v.Reset(trigger.Application)
 			invokeMethod(t, fmt.Sprintf("F%d", i), ne.Script, v, di)
 			runAndCheck(t, v, tc.result)
 		})
@@ -785,8 +785,7 @@ func TestForLoopComplexConditions(t *testing.T) {
 			name = tc.Assign
 		}
 		t.Run(name, func(t *testing.T) {
-			v.Istack().Clear()
-			v.Estack().Clear()
+			v.Reset(trigger.Application)
 			invokeMethod(t, fmt.Sprintf("F%d", i), ne.Script, v, di)
 			runAndCheck(t, v, big.NewInt(tc.Result))
 		})
