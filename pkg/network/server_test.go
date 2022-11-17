@@ -141,14 +141,17 @@ func TestServerRegisterPeer(t *testing.T) {
 	for i := range ps {
 		ps[i] = newLocalPeer(t, s)
 		ps[i].netaddr.Port = i + 1
+		ps[i].version = &payload.Version{Nonce: uint32(i), UserAgent: []byte("fake")}
 	}
 
 	startWithCleanup(t, s)
 
 	s.register <- ps[0]
 	require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
+	s.handshake <- ps[0]
 
 	s.register <- ps[1]
+	s.handshake <- ps[1]
 	require.Eventually(t, func() bool { return 2 == s.PeerCount() }, time.Second, time.Millisecond*10)
 
 	require.Equal(t, 0, len(s.discovery.UnconnectedPeers()))

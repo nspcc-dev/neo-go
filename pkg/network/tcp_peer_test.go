@@ -18,8 +18,8 @@ func connReadStub(conn net.Conn) {
 func TestPeerHandshake(t *testing.T) {
 	server, client := net.Pipe()
 
-	tcpS := NewTCPPeer(server, newTestServer(t, ServerConfig{}))
-	tcpC := NewTCPPeer(client, newTestServer(t, ServerConfig{}))
+	tcpS := NewTCPPeer(server, "", newTestServer(t, ServerConfig{}))
+	tcpC := NewTCPPeer(client, "", newTestServer(t, ServerConfig{}))
 
 	// Something should read things written into the pipe.
 	go connReadStub(tcpS.conn)

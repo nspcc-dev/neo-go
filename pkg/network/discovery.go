@@ -22,10 +22,10 @@ type Discoverer interface {
 	NetworkSize() int
 	PoolCount() int
 	RequestRemote(int)
-	RegisterBadAddr(string)
-	RegisterGoodAddr(string, capability.Capabilities)
-	RegisterConnectedAddr(string)
-	UnregisterConnectedAddr(string)
+	RegisterSelf(AddressablePeer)
+	RegisterGood(AddressablePeer)
+	RegisterConnected(AddressablePeer)
+	UnregisterConnected(AddressablePeer, bool)
 	UnconnectedPeers() []string
 	BadPeers() []string
 	GoodPeers() []AddressWithCapabilities
@@ -39,12 +39,13 @@ type AddressWithCapabilities struct {
 
 // DefaultDiscovery default implementation of the Discoverer interface.
 type DefaultDiscovery struct {
-	seeds            []string
+	seeds            map[string]string
 	transport        Transporter
 	lock             sync.RWMutex
 	dialTimeout      time.Duration
 	badAddrs         map[string]bool
 	connectedAddrs   map[string]bool
+	handshakedAddrs  map[string]bool
 	goodAddrs        map[string]capability.Capabilities
 	unconnectedAddrs map[string]int
 	attempted        map[string]bool
@@ -55,12 +56,17 @@ type DefaultDiscovery struct {
 
 // NewDefaultDiscovery returns a new DefaultDiscovery.
 func NewDefaultDiscovery(addrs []string, dt time.Duration, ts Transporter) *DefaultDiscovery {
+	var seeds = make(map[string]string)
+	for i := range addrs {
+		seeds[addrs[i]] = ""
+	}
 	d := &DefaultDiscovery{
-		seeds:            addrs,
+		seeds:            seeds,
 		transport:        ts,
 		dialTimeout:      dt,
 		badAddrs:         make(map[string]bool),
 		connectedAddrs:   make(map[string]bool),
+		handshakedAddrs:  make(map[string]bool),
 		goodAddrs:        make(map[string]capability.Capabilities),
 		unconnectedAddrs: make(map[string]int),
 		attempted:        make(map[string]bool),
@@ -83,7 +89,7 @@ func (d *DefaultDiscovery) BackFill(addrs ...string) {
 
 func (d *DefaultDiscovery) backfill(addrs ...string) {
 	for _, addr := range addrs {
-		if d.badAddrs[addr] || d.connectedAddrs[addr] ||
+		if d.badAddrs[addr] || d.connectedAddrs[addr] || d.handshakedAddrs[addr] ||
 			d.unconnectedAddrs[addr] > 0 {
 			continue
 		}
@@ -117,7 +123,7 @@ func (d *DefaultDiscovery) RequestRemote(requested int) {
 		var nextAddr string
 		d.lock.Lock()
 		for addr := range d.unconnectedAddrs {
-			if !d.connectedAddrs[addr] && !d.attempted[addr] {
+			if !d.connectedAddrs[addr] && !d.handshakedAddrs[addr] && !d.attempted[addr] {
 				nextAddr = addr
 				break
 			}
@@ -125,8 +131,8 @@ func (d *DefaultDiscovery) RequestRemote(requested int) {
 
 		if nextAddr == "" {
 			// Empty pool, try seeds.
-			for _, addr := range d.seeds {
-				if !d.connectedAddrs[addr] && !d.attempted[addr] {
+			for addr, ip := range d.seeds {
+				if ip == "" && !d.attempted[addr] {
 					nextAddr = addr
 					break
 				}
@@ -144,26 +150,33 @@ func (d *DefaultDiscovery) RequestRemote(requested int) {
 	}
 }
 
-// RegisterBadAddr registers the given address as a bad address.
-func (d *DefaultDiscovery) RegisterBadAddr(addr string) {
-	var isSeed bool
+// RegisterSelf registers the given Peer as a bad one, because it's our own node.
+func (d *DefaultDiscovery) RegisterSelf(p AddressablePeer) {
+	var connaddr = p.ConnectionAddr()
 	d.lock.Lock()
-	for _, seed := range d.seeds {
-		if addr == seed {
-			isSeed = true
-			break
+	delete(d.connectedAddrs, connaddr)
+	d.registerBad(connaddr, true)
+	d.registerBad(p.PeerAddr().String(), true)
+	d.lock.Unlock()
+}
+
+func (d *DefaultDiscovery) registerBad(addr string, force bool) {
+	_, isSeed := d.seeds[addr]
+	if isSeed {
+		if !force {
+			d.seeds[addr] = ""
+		} else {
+			d.seeds[addr] = "forever" // That's our own address, so never try connecting to it.
 		}
-	}
-	if !isSeed {
+	} else {
 		d.unconnectedAddrs[addr]--
-		if d.unconnectedAddrs[addr] <= 0 {
+		if d.unconnectedAddrs[addr] <= 0 || force {
 			d.badAddrs[addr] = true
 			delete(d.unconnectedAddrs, addr)
 			delete(d.goodAddrs, addr)
 		}
 	}
 	d.updateNetSize()
-	d.lock.Unlock()
 }
 
 // UnconnectedPeers returns all addresses of unconnected addrs.
@@ -203,31 +216,53 @@ func (d *DefaultDiscovery) GoodPeers() []AddressWithCapabilities {
 	return addrs
 }
 
-// RegisterGoodAddr registers a known good connected address that has passed
+// RegisterGood registers a known good connected peer that has passed
 // handshake successfully.
-func (d *DefaultDiscovery) RegisterGoodAddr(s string, c capability.Capabilities) {
+func (d *DefaultDiscovery) RegisterGood(p AddressablePeer) {
+	var s = p.PeerAddr().String()
 	d.lock.Lock()
-	d.goodAddrs[s] = c
+	d.handshakedAddrs[s] = true
+	d.goodAddrs[s] = p.Version().Capabilities
 	delete(d.badAddrs, s)
 	d.lock.Unlock()
 }
 
-// UnregisterConnectedAddr tells the discoverer that this address is no longer
+// UnregisterConnected tells the discoverer that this peer is no longer
 // connected, but it is still considered a good one.
-func (d *DefaultDiscovery) UnregisterConnectedAddr(s string) {
+func (d *DefaultDiscovery) UnregisterConnected(p AddressablePeer, duplicate bool) {
+	var (
+		peeraddr = p.PeerAddr().String()
+		connaddr = p.ConnectionAddr()
+	)
 	d.lock.Lock()
-	delete(d.connectedAddrs, s)
-	d.backfill(s)
+	delete(d.connectedAddrs, connaddr)
+	if !duplicate {
+		for addr, ip := range d.seeds {
+			if ip == peeraddr {
+				d.seeds[addr] = ""
+				break
+			}
+		}
+		delete(d.handshakedAddrs, peeraddr)
+		if _, ok := d.goodAddrs[peeraddr]; ok {
+			d.backfill(peeraddr)
+		}
+	}
 	d.lock.Unlock()
 }
 
-// RegisterConnectedAddr tells discoverer that the given address is now connected.
-func (d *DefaultDiscovery) RegisterConnectedAddr(addr string) {
+// RegisterConnected tells discoverer that the given peer is now connected.
+func (d *DefaultDiscovery) RegisterConnected(p AddressablePeer) {
+	var addr = p.ConnectionAddr()
 	d.lock.Lock()
+	d.registerConnected(addr)
+	d.lock.Unlock()
+}
+
+func (d *DefaultDiscovery) registerConnected(addr string) {
 	delete(d.unconnectedAddrs, addr)
 	d.connectedAddrs[addr] = true
 	d.updateNetSize()
-	d.lock.Unlock()
 }
 
 // GetFanOut returns the optimal number of nodes to broadcast packets to.
@@ -242,9 +277,9 @@ func (d *DefaultDiscovery) NetworkSize() int {
 
 // updateNetSize updates network size estimation metric. Must be called under read lock.
 func (d *DefaultDiscovery) updateNetSize() {
-	var netsize = len(d.connectedAddrs) + len(d.unconnectedAddrs) + 1 // 1 for the node itself.
-	var fanOut = 2.5 * math.Log(float64(netsize-1))                   // -1 for the number of potential peers.
-	if netsize == 2 {                                                 // log(1) == 0.
+	var netsize = len(d.handshakedAddrs) + len(d.unconnectedAddrs) + 1 // 1 for the node itself.
+	var fanOut = 2.5 * math.Log(float64(netsize-1))                    // -1 for the number of potential peers.
+	if netsize == 2 {                                                  // log(1) == 0.
 		fanOut = 1 // But we still want to push messages to the peer.
 	}
 
@@ -255,12 +290,19 @@ func (d *DefaultDiscovery) updateNetSize() {
 }
 
 func (d *DefaultDiscovery) tryAddress(addr string) {
-	err := d.transport.Dial(addr, d.dialTimeout)
+	p, err := d.transport.Dial(addr, d.dialTimeout)
 	d.lock.Lock()
 	delete(d.attempted, addr)
+	if err == nil {
+		if _, ok := d.seeds[addr]; ok {
+			d.seeds[addr] = p.PeerAddr().String()
+		}
+		d.registerConnected(addr)
+	} else {
+		d.registerBad(addr, false)
+	}
 	d.lock.Unlock()
 	if err != nil {
-		d.RegisterBadAddr(addr)
 		time.Sleep(d.dialTimeout)
 		d.RequestRemote(1)
 	}

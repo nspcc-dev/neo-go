@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"go.uber.org/atomic"
-	"go.uber.org/zap"
 )
 
 type handShakeStage uint8
@@ -48,6 +47,8 @@ type TCPPeer struct {
 	version *payload.Version
 	// Index of the last block.
 	lastBlockIndex uint32
+	// pre-handshake non-canonical connection address.
+	addr string
 
 	lock       sync.RWMutex
 	finale     sync.Once
@@ -69,10 +70,11 @@ type TCPPeer struct {
 }
 
 // NewTCPPeer returns a TCPPeer structure based on the given connection.
-func NewTCPPeer(conn net.Conn, s *Server) *TCPPeer {
+func NewTCPPeer(conn net.Conn, addr string, s *Server) *TCPPeer {
 	return &TCPPeer{
 		conn:     conn,
 		server:   s,
+		addr:     addr,
 		done:     make(chan struct{}),
 		sendQ:    make(chan []byte, requestQueueSize),
 		p2pSendQ: make(chan []byte, p2pMsgQueueSize),
@@ -256,13 +258,8 @@ func (p *TCPPeer) handleQueues() {
 func (p *TCPPeer) StartProtocol() {
 	var err error
 
-	p.server.log.Info("started protocol",
-		zap.Stringer("addr", p.RemoteAddr()),
-		zap.ByteString("userAgent", p.Version().UserAgent),
-		zap.Uint32("startHeight", p.lastBlockIndex),
-		zap.Uint32("id", p.Version().Nonce))
+	p.server.handshake <- p
 
-	p.server.discovery.RegisterGoodAddr(p.PeerAddr().String(), p.version.Capabilities)
 	err = p.server.requestBlocksOrHeaders(p)
 	if err != nil {
 		p.Disconnect(err)
@@ -382,6 +379,14 @@ func (p *TCPPeer) HandleVersionAck() error {
 	}
 	p.handShake |= verAckReceived
 	return nil
+}
+
+// ConnectionAddr implements the Peer interface.
+func (p *TCPPeer) ConnectionAddr() string {
+	if p.addr != "" {
+		return p.addr
+	}
+	return p.conn.RemoteAddr().String()
 }
 
 // RemoteAddr implements the Peer interface.
