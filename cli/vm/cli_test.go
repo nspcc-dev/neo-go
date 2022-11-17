@@ -440,28 +440,38 @@ go 1.17`)
 		}
 `
 		filename := prepareLoadgoSrc(t, srcCheckWitness)
-		e := newTestVMCLI(t)
-		e.runProg(t,
-			"loadgo "+filename+" "+ownerAddress, // owner:DefaultScope => true
-			"run main",
-			"loadgo "+filename+" "+ownerAddress+":None", // owner:None => false
-			"run main",
-			"loadgo "+filename+" "+ownerAcc.StringLE(), // ownerLE:DefaultScope => true
-			"run main",
-			"loadgo "+filename+" 0x"+ownerAcc.StringLE(), // owner0xLE:DefaultScope => true
-			"run main",
-			"loadgo "+filename+" "+sideAcc.StringLE(), // sideLE:DefaultScope => false
-			"run main")
-		e.checkNextLine(t, "READY: loaded \\d+ instructions")
-		e.checkStack(t, true)
-		e.checkNextLine(t, "READY: loaded \\d+ instructions")
-		e.checkStack(t, false)
-		e.checkNextLine(t, "READY: loaded \\d+ instructions")
-		e.checkStack(t, true)
-		e.checkNextLine(t, "READY: loaded \\d+ instructions")
-		e.checkStack(t, true)
-		e.checkNextLine(t, "READY: loaded \\d+ instructions")
-		e.checkStack(t, false)
+		t.Run("address", func(t *testing.T) {
+			e := newTestVMCLI(t)
+			e.runProg(t,
+				"loadgo "+filename+" "+ownerAddress, // owner:DefaultScope => true
+				"run main",
+				"loadgo "+filename+" "+ownerAddress+":None", // owner:None => false
+				"run main")
+			e.checkNextLine(t, "READY: loaded \\d+ instructions")
+			e.checkStack(t, true)
+			e.checkNextLine(t, "READY: loaded \\d+ instructions")
+			e.checkStack(t, false)
+		})
+		t.Run("string LE", func(t *testing.T) {
+			e := newTestVMCLI(t)
+			e.runProg(t,
+				"loadgo "+filename+" "+ownerAcc.StringLE(), // ownerLE:DefaultScope => true
+				"run main",
+				"loadgo "+filename+" 0x"+ownerAcc.StringLE(), // owner0xLE:DefaultScope => true
+				"run main")
+			e.checkNextLine(t, "READY: loaded \\d+ instructions")
+			e.checkStack(t, true)
+			e.checkNextLine(t, "READY: loaded \\d+ instructions")
+			e.checkStack(t, true)
+		})
+		t.Run("nonwitnessed signer", func(t *testing.T) {
+			e := newTestVMCLI(t)
+			e.runProg(t,
+				"loadgo "+filename+" "+sideAcc.StringLE(), // sideLE:DefaultScope => false
+				"run main")
+			e.checkNextLine(t, "READY: loaded \\d+ instructions")
+			e.checkStack(t, false)
+		})
 	})
 	t.Run("loadnef", func(t *testing.T) {
 		config.Version = "0.92.0-test"
