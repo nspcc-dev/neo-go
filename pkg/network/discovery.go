@@ -2,6 +2,7 @@ package network
 
 import (
 	"math"
+	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -12,6 +13,11 @@ import (
 const (
 	maxPoolSize = 10000
 	connRetries = 3
+)
+
+var (
+	// Maximum waiting time before connection attempt.
+	tryMaxWait = time.Second / 2
 )
 
 // Discoverer is an interface that is responsible for maintaining
@@ -294,6 +300,8 @@ func (d *DefaultDiscovery) updateNetSize() {
 }
 
 func (d *DefaultDiscovery) tryAddress(addr string) {
+	var tout = rand.Int63n(int64(tryMaxWait))
+	time.Sleep(time.Duration(tout)) // Have a sleep before working hard.
 	p, err := d.transport.Dial(addr, d.dialTimeout)
 	atomic.AddInt32(&d.outstanding, -1)
 	d.lock.Lock()

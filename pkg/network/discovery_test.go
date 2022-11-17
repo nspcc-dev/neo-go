@@ -82,6 +82,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 	ts.dialCh = make(chan string)
 	d := NewDefaultDiscovery(nil, time.Second/16, ts)
 
+	tryMaxWait = 1 // Don't waste time.
 	var set1 = []string{"1.1.1.1:10333", "2.2.2.2:10333"}
 	sort.Strings(set1)
 
@@ -211,6 +212,7 @@ func TestSeedDiscovery(t *testing.T) {
 	sort.Strings(seeds)
 
 	d := NewDefaultDiscovery(seeds, time.Second/10, ts)
+	tryMaxWait = 1 // Don't waste time.
 
 	d.RequestRemote(len(seeds))
 	for i := 0; i < connRetries*2; i++ {
