@@ -795,12 +795,14 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 				copy(hash[:], k[mgmtCSPrefixLen:])
 				err = stackitem.DeserializeConvertible(v, cs)
 				if err != nil {
-					seekErr = fmt.Errorf("failed to deserialize contract %s state: %w", hash.StringLE(), seekErr)
-					return false
+					bc.log.Warn("failed to deserialize contract; ID for this contract won't be stored in the DB",
+						zap.String("hash", hash.StringLE()),
+						zap.Error(err))
+				} else {
+					cache.PutContractID(cs.ID, hash)
+					cnt++
+					contractIDsCnt++
 				}
-				cache.PutContractID(cs.ID, hash)
-				cnt++
-				contractIDsCnt++
 			}
 
 			return true
