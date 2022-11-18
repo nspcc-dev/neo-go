@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
+	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	atomic2 "go.uber.org/atomic"
@@ -22,18 +23,40 @@ type fakeTransp struct {
 	addr     string
 }
 
+type fakeAPeer struct {
+	addr    string
+	peer    string
+	version *payload.Version
+}
+
+func (f *fakeAPeer) ConnectionAddr() string {
+	return f.addr
+}
+
+func (f *fakeAPeer) PeerAddr() net.Addr {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", f.peer)
+	if err != nil {
+		panic(err)
+	}
+	return tcpAddr
+}
+
+func (f *fakeAPeer) Version() *payload.Version {
+	return f.version
+}
+
 func newFakeTransp(s *Server) Transporter {
 	return &fakeTransp{}
 }
 
-func (ft *fakeTransp) Dial(addr string, timeout time.Duration) error {
+func (ft *fakeTransp) Dial(addr string, timeout time.Duration) (AddressablePeer, error) {
 	var ret error
 	if atomic.LoadInt32(&ft.retFalse) > 0 {
 		ret = errors.New("smth bad happened")
 	}
 	ft.dialCh <- addr
 
-	return ret
+	return &fakeAPeer{addr: addr, peer: addr}, ret
 }
 func (ft *fakeTransp) Accept() {
 	if ft.started.Load() {
@@ -59,6 +82,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 	ts.dialCh = make(chan string)
 	d := NewDefaultDiscovery(nil, time.Second/16, ts)
 
+	tryMaxWait = 1 // Don't waste time.
 	var set1 = []string{"1.1.1.1:10333", "2.2.2.2:10333"}
 	sort.Strings(set1)
 
@@ -83,7 +107,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 		select {
 		case a := <-ts.dialCh:
 			dialled = append(dialled, a)
-			d.RegisterConnectedAddr(a)
+			d.RegisterConnected(&fakeAPeer{addr: a, peer: a})
 		case <-time.After(time.Second):
 			t.Fatalf("timeout expecting for transport dial")
 		}
@@ -97,10 +121,14 @@ func TestDefaultDiscoverer(t *testing.T) {
 
 	// Registered good addresses should end up in appropriate set.
 	for _, addr := range set1 {
-		d.RegisterGoodAddr(addr, capability.Capabilities{
-			{
-				Type: capability.FullNode,
-				Data: &capability.Node{StartHeight: 123},
+		d.RegisterGood(&fakeAPeer{
+			addr: addr,
+			peer: addr,
+			version: &payload.Version{
+				Capabilities: capability.Capabilities{{
+					Type: capability.FullNode,
+					Data: &capability.Node{StartHeight: 123},
+				}},
 			},
 		})
 	}
@@ -130,7 +158,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 
 	// Unregistering connected should work.
 	for _, addr := range set1 {
-		d.UnregisterConnectedAddr(addr)
+		d.UnregisterConnected(&fakeAPeer{addr: addr, peer: addr}, false)
 	}
 	assert.Equal(t, 2, len(d.UnconnectedPeers())) // They're re-added automatically.
 	assert.Equal(t, 0, len(d.BadPeers()))
@@ -184,6 +212,7 @@ func TestSeedDiscovery(t *testing.T) {
 	sort.Strings(seeds)
 
 	d := NewDefaultDiscovery(seeds, time.Second/10, ts)
+	tryMaxWait = 1 // Don't waste time.
 
 	d.RequestRemote(len(seeds))
 	for i := 0; i < connRetries*2; i++ {

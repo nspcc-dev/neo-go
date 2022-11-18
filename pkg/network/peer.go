@@ -7,10 +7,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 )
 
-// Peer represents a network node neo-go is connected to.
-type Peer interface {
-	// RemoteAddr returns the remote address that we're connected to now.
-	RemoteAddr() net.Addr
+type AddressablePeer interface {
+	// ConnectionAddr returns an address-like identifier of this connection
+	// before we have a proper one (after the handshake). It's either the
+	// address from discoverer (if initiated from node) or one from socket
+	// (if connected to node from outside).
+	ConnectionAddr() string
 	// PeerAddr returns the remote address that should be used to establish
 	// a new connection to the node. It can differ from the RemoteAddr
 	// address in case the remote node is a client and its current
@@ -18,6 +20,16 @@ type Peer interface {
 	// to connect to it. It's only valid after the handshake is completed.
 	// Before that, it returns the same address as RemoteAddr.
 	PeerAddr() net.Addr
+	// Version returns peer's version message if the peer has handshaked
+	// already.
+	Version() *payload.Version
+}
+
+// Peer represents a network node neo-go is connected to.
+type Peer interface {
+	AddressablePeer
+	// RemoteAddr returns the remote address that we're connected to now.
+	RemoteAddr() net.Addr
 	Disconnect(error)
 
 	// BroadcastPacket is a context-bound packet enqueuer, it either puts the
@@ -49,7 +61,6 @@ type Peer interface {
 	// EnqueueHPPacket is similar to EnqueueHPMessage, but accepts a slice of
 	// message(s) bytes.
 	EnqueueHPPacket([]byte) error
-	Version() *payload.Version
 	LastBlockIndex() uint32
 	Handshaked() bool
 	IsFullNode() bool

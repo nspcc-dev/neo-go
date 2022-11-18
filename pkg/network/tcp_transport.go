@@ -30,14 +30,14 @@ func NewTCPTransport(s *Server, bindAddr string, log *zap.Logger) *TCPTransport 
 }
 
 // Dial implements the Transporter interface.
-func (t *TCPTransport) Dial(addr string, timeout time.Duration) error {
+func (t *TCPTransport) Dial(addr string, timeout time.Duration) (AddressablePeer, error) {
 	conn, err := net.DialTimeout("tcp", addr, timeout)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	p := NewTCPPeer(conn, t.server)
+	p := NewTCPPeer(conn, addr, t.server)
 	go p.handleConn()
-	return nil
+	return p, nil
 }
 
 // Accept implements the Transporter interface.
@@ -69,7 +69,7 @@ func (t *TCPTransport) Accept() {
 			t.log.Warn("TCP accept error", zap.Error(err))
 			continue
 		}
-		p := NewTCPPeer(conn, t.server)
+		p := NewTCPPeer(conn, "", t.server)
 		go p.handleConn()
 	}
 }

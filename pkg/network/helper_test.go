@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
@@ -35,10 +34,10 @@ func (d *testDiscovery) BackFill(addrs ...string) {
 	d.backfill = append(d.backfill, addrs...)
 }
 func (d *testDiscovery) PoolCount() int { return 0 }
-func (d *testDiscovery) RegisterBadAddr(addr string) {
+func (d *testDiscovery) RegisterSelf(p AddressablePeer) {
 	d.Lock()
 	defer d.Unlock()
-	d.bad = append(d.bad, addr)
+	d.bad = append(d.bad, p.ConnectionAddr())
 }
 func (d *testDiscovery) GetFanOut() int {
 	d.Lock()
@@ -50,16 +49,16 @@ func (d *testDiscovery) NetworkSize() int {
 	defer d.Unlock()
 	return len(d.connected) + len(d.backfill)
 }
-func (d *testDiscovery) RegisterGoodAddr(string, capability.Capabilities) {}
-func (d *testDiscovery) RegisterConnectedAddr(addr string) {
+func (d *testDiscovery) RegisterGood(AddressablePeer) {}
+func (d *testDiscovery) RegisterConnected(p AddressablePeer) {
 	d.Lock()
 	defer d.Unlock()
-	d.connected = append(d.connected, addr)
+	d.connected = append(d.connected, p.ConnectionAddr())
 }
-func (d *testDiscovery) UnregisterConnectedAddr(addr string) {
+func (d *testDiscovery) UnregisterConnected(p AddressablePeer, force bool) {
 	d.Lock()
 	defer d.Unlock()
-	d.unregistered = append(d.unregistered, addr)
+	d.unregistered = append(d.unregistered, p.ConnectionAddr())
 }
 func (d *testDiscovery) UnconnectedPeers() []string {
 	d.Lock()
@@ -100,6 +99,9 @@ func newLocalPeer(t *testing.T, s *Server) *localPeer {
 	}
 }
 
+func (p *localPeer) ConnectionAddr() string {
+	return p.netaddr.String()
+}
 func (p *localPeer) RemoteAddr() net.Addr {
 	return &p.netaddr
 }

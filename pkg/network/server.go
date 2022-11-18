@@ -127,6 +127,7 @@ type (
 
 		register   chan Peer
 		unregister chan peerDrop
+		handshake  chan Peer
 		quit       chan struct{}
 		relayFin   chan struct{}
 
@@ -181,6 +182,7 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		relayFin:       make(chan struct{}),
 		register:       make(chan Peer),
 		unregister:     make(chan peerDrop),
+		handshake:      make(chan Peer),
 		txInMap:        make(map[util.Uint256]struct{}),
 		peers:          make(map[Peer]bool),
 		syncReached:    atomic.NewBool(false),
@@ -398,10 +400,12 @@ func (s *Server) ConnectedPeers() []string {
 func (s *Server) run() {
 	var (
 		peerCheckTime    = s.TimePerBlock * peerTimeFactor
-		peerCheckTimeout bool
-		timer            = time.NewTimer(peerCheckTime)
+		addrCheckTimeout bool
+		addrTimer        = time.NewTimer(peerCheckTime)
+		peerTimer        = time.NewTimer(s.ProtoTickInterval)
 	)
-	defer timer.Stop()
+	defer addrTimer.Stop()
+	defer peerTimer.Stop()
 	go s.runProto()
 	for loopCnt := 0; ; loopCnt++ {
 		var (
@@ -409,12 +413,16 @@ func (s *Server) run() {
 			// "Optimal" number of peers.
 			optimalN = s.discovery.GetFanOut() * 2
 			// Real number of peers.
-			peerN = s.PeerCount()
+			peerN = s.HandshakedPeersCount()
+			// Timeout value for the next peerTimer, long one by default.
+			peerT = peerCheckTime
 		)
 
 		if peerN < s.MinPeers {
 			// Starting up or going below the minimum -> quickly get many new peers.
 			s.discovery.RequestRemote(s.AttemptConnPeers)
+			// Check/retry new connections soon.
+			peerT = s.ProtoTickInterval
 		} else if s.MinPeers > 0 && loopCnt%s.MinPeers == 0 && optimalN > peerN && optimalN < s.MaxPeers && optimalN < netSize {
 			// Having some number of peers, but probably can get some more, the network is big.
 			// It also allows to start picking up new peers proactively, before we suddenly have <s.MinPeers of them.
@@ -425,16 +433,18 @@ func (s *Server) run() {
 			s.discovery.RequestRemote(connN)
 		}
 
-		if peerCheckTimeout || s.discovery.PoolCount() < s.AttemptConnPeers {
+		if addrCheckTimeout || s.discovery.PoolCount() < s.AttemptConnPeers {
 			s.broadcastHPMessage(NewMessage(CMDGetAddr, payload.NewNullPayload()))
-			peerCheckTimeout = false
+			addrCheckTimeout = false
 		}
 		select {
 		case <-s.quit:
 			return
-		case <-timer.C:
-			peerCheckTimeout = true
-			timer.Reset(peerCheckTime)
+		case <-addrTimer.C:
+			addrCheckTimeout = true
+			addrTimer.Reset(peerCheckTime)
+		case <-peerTimer.C:
+			peerTimer.Reset(peerT)
 		case p := <-s.register:
 			s.lock.Lock()
 			s.peers[p] = true
@@ -462,31 +472,10 @@ func (s *Server) run() {
 					zap.Stringer("addr", drop.peer.RemoteAddr()),
 					zap.Error(drop.reason),
 					zap.Int("peerCount", s.PeerCount()))
-				addr := drop.peer.PeerAddr().String()
 				if errors.Is(drop.reason, errIdenticalID) {
-					s.discovery.RegisterBadAddr(addr)
-				} else if errors.Is(drop.reason, errAlreadyConnected) {
-					// There is a race condition when peer can be disconnected twice for the this reason
-					// which can lead to no connections to peer at all. Here we check for such a possibility.
-					stillConnected := false
-					s.lock.RLock()
-					verDrop := drop.peer.Version()
-					addr := drop.peer.PeerAddr().String()
-					if verDrop != nil {
-						for peer := range s.peers {
-							ver := peer.Version()
-							// Already connected, drop this connection.
-							if ver != nil && ver.Nonce == verDrop.Nonce && peer.PeerAddr().String() == addr {
-								stillConnected = true
-							}
-						}
-					}
-					s.lock.RUnlock()
-					if !stillConnected {
-						s.discovery.UnregisterConnectedAddr(addr)
-					}
+					s.discovery.RegisterSelf(drop.peer)
 				} else {
-					s.discovery.UnregisterConnectedAddr(addr)
+					s.discovery.UnregisterConnected(drop.peer, errors.Is(drop.reason, errAlreadyConnected))
 				}
 				updatePeersConnectedMetric(s.PeerCount())
 			} else {
@@ -494,6 +483,19 @@ func (s *Server) run() {
 				// because we have two goroutines sending signals here
 				s.lock.Unlock()
 			}
+
+		case p := <-s.handshake:
+			ver := p.Version()
+			s.log.Info("started protocol",
+				zap.Stringer("addr", p.RemoteAddr()),
+				zap.ByteString("userAgent", ver.UserAgent),
+				zap.Uint32("startHeight", p.LastBlockIndex()),
+				zap.Uint32("id", ver.Nonce))
+
+			s.discovery.RegisterGood(p)
+
+			s.tryInitStateSync()
+			s.tryStartServices()
 		}
 	}
 }
@@ -700,7 +702,6 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 		}
 	}
 	s.lock.RUnlock()
-	s.discovery.RegisterConnectedAddr(peerAddr)
 	return p.SendVersionAck(NewMessage(CMDVerack, payload.NewNullPayload()))
 }
 
@@ -1195,11 +1196,9 @@ func (s *Server) handleAddrCmd(p Peer, addrs *payload.AddressList) error {
 	if !p.CanProcessAddr() {
 		return errors.New("unexpected addr received")
 	}
-	dups := make(map[string]bool)
 	for _, a := range addrs.Addrs {
 		addr, err := a.GetTCPAddress()
-		if err == nil && !dups[addr] {
-			dups[addr] = true
+		if err == nil {
 			s.discovery.BackFill(addr)
 		}
 	}
@@ -1356,9 +1355,6 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 				return err
 			}
 			go peer.StartProtocol()
-
-			s.tryInitStateSync()
-			s.tryStartServices()
 		default:
 			return fmt.Errorf("received '%s' during handshake", msg.Command.String())
 		}
