@@ -434,13 +434,6 @@ func (bc *Blockchain) init() error {
 		var targetHash util.Uint256
 		if len(bc.headerHashes) > 0 {
 			targetHash = bc.headerHashes[len(bc.headerHashes)-1]
-		} else {
-			genesisBlock, err := CreateGenesisBlock(bc.config)
-			if err != nil {
-				return err
-			}
-			targetHash = genesisBlock.Hash()
-			bc.headerHashes = append(bc.headerHashes, targetHash)
 		}
 		headers := make([]util.Uint256, 0, headerBatchCount)
 
