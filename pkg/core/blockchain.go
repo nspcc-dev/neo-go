@@ -425,9 +425,6 @@ func (bc *Blockchain) init() error {
 	if err != nil {
 		return fmt.Errorf("failed to retrieve current header info: %w", err)
 	}
-	if bc.storedHeaderCount == 0 && currHeaderHeight == 0 {
-		bc.headerHashes = append(bc.headerHashes, currHeaderHash)
-	}
 
 	// There is a high chance that the Node is stopped before the next
 	// batch of 2000 headers was stored. Via the currentHeaders stored we can sync
