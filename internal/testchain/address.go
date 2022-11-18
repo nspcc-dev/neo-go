@@ -158,7 +158,7 @@ func SignCommittee(h hash.Hashable) []byte {
 func NewBlock(t *testing.T, bc Ledger, offset uint32, primary uint32, txs ...*transaction.Transaction) *block.Block {
 	witness := transaction.Witness{VerificationScript: MultisigVerificationScript()}
 	height := bc.BlockHeight()
-	h := bc.GetHeaderHash(int(height))
+	h := bc.GetHeaderHash(height)
 	hdr, err := bc.GetHeader(h)
 	require.NoError(t, err)
 	b := &block.Block{

@@ -721,7 +721,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 			blocksCnt, batchCnt, keysCnt int
 		)
 		for i := height + 1; i <= currHeight; i++ {
-			err := cache.DeleteBlock(bc.GetHeaderHash(int(i)))
+			err := cache.DeleteBlock(bc.GetHeaderHash(i))
 			if err != nil {
 				return fmt.Errorf("error while removing block %d: %w", i, err)
 			}
@@ -849,7 +849,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		// Reset SYS-prefixed and IX-prefixed information.
 		bc.log.Info("trying to reset headers information")
 		for i := height + 1; i <= hHeight; i++ {
-			cache.PurgeHeader(bc.GetHeaderHash(int(i)))
+			cache.PurgeHeader(bc.GetHeaderHash(i))
 		}
 		cache.DeleteHeaderHashes(height+1, headerBatchCount)
 		cache.StoreAsCurrentBlock(b)
@@ -1174,7 +1174,7 @@ func appendTokenTransferInfo(transferData *state.TokenTransferInfo,
 func (bc *Blockchain) removeOldTransfers(index uint32) time.Duration {
 	bc.log.Info("starting transfer data garbage collection", zap.Uint32("index", index))
 	start := time.Now()
-	h, err := bc.GetHeader(bc.GetHeaderHash(int(index)))
+	h, err := bc.GetHeader(bc.GetHeaderHash(index))
 	if err != nil {
 		dur := time.Since(start)
 		bc.log.Error("failed to find block header for transfer GC", zap.Duration("time", dur), zap.Error(err))
@@ -1464,7 +1464,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 		}
 
 		batch.PutCurrentHeader(lastHeader.Hash(), lastHeader.Index)
-		updateHeaderHeightMetric(len(bc.headerHashes) - 1)
+		updateHeaderHeightMetric(uint32(len(bc.headerHashes) - 1))
 		if _, err = batch.Persist(); err != nil {
 			return err
 		}
@@ -1650,7 +1650,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		return fmt.Errorf("error while trying to apply MPT changes: %w", err)
 	}
 	if bc.config.StateRootInHeader && bc.HeaderHeight() > sr.Index {
-		h, err := bc.GetHeader(bc.GetHeaderHash(int(sr.Index) + 1))
+		h, err := bc.GetHeader(bc.GetHeaderHash(sr.Index + 1))
 		if err != nil {
 			err = fmt.Errorf("failed to get next header: %w", err)
 		} else if h.PrevStateRoot != sr.Root {
@@ -2174,7 +2174,7 @@ func (bc *Blockchain) CurrentBlockHash() util.Uint256 {
 		tb := topBlock.(*block.Block)
 		return tb.Hash()
 	}
-	return bc.GetHeaderHash(int(bc.BlockHeight()))
+	return bc.GetHeaderHash(bc.BlockHeight())
 }
 
 // CurrentHeaderHash returns the hash of the latest known header.
@@ -2187,11 +2187,11 @@ func (bc *Blockchain) CurrentHeaderHash() util.Uint256 {
 
 // GetHeaderHash returns hash of the header/block with specified index, if
 // Blockchain doesn't have a hash for this height, zero Uint256 value is returned.
-func (bc *Blockchain) GetHeaderHash(i int) util.Uint256 {
+func (bc *Blockchain) GetHeaderHash(i uint32) util.Uint256 {
 	bc.headerHashesLock.RLock()
 	defer bc.headerHashesLock.RUnlock()
 
-	hashesLen := len(bc.headerHashes)
+	hashesLen := uint32(len(bc.headerHashes))
 	if hashesLen <= i {
 		return util.Uint256{}
 	}
@@ -2744,7 +2744,7 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 func (bc *Blockchain) getFakeNextBlock(nextBlockHeight uint32) (*block.Block, error) {
 	b := block.New(bc.config.StateRootInHeader)
 	b.Index = nextBlockHeight
-	hdr, err := bc.GetHeader(bc.GetHeaderHash(int(nextBlockHeight - 1)))
+	hdr, err := bc.GetHeader(bc.GetHeaderHash(nextBlockHeight - 1))
 	if err != nil {
 		return nil, err
 	}

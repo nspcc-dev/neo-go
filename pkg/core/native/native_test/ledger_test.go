@@ -111,7 +111,7 @@ func TestLedger_GetTransactionFromBlock(t *testing.T) {
 	ledgerInvoker := c.WithSigners(c.Committee)
 
 	ledgerInvoker.Invoke(t, e.Chain.BlockHeight(), "currentIndex") // Adds a block.
-	b := e.GetBlockByIndex(t, int(e.Chain.BlockHeight()))
+	b := e.GetBlockByIndex(t, e.Chain.BlockHeight())
 
 	check := func(t testing.TB, stack []stackitem.Item) {
 		require.Equal(t, 1, len(stack))
@@ -148,8 +148,8 @@ func TestLedger_GetBlock(t *testing.T) {
 	e := c.Executor
 	ledgerInvoker := c.WithSigners(c.Committee)
 
-	ledgerInvoker.Invoke(t, e.Chain.GetHeaderHash(int(e.Chain.BlockHeight())).BytesBE(), "currentHash") // Adds a block.
-	b := e.GetBlockByIndex(t, int(e.Chain.BlockHeight()))
+	ledgerInvoker.Invoke(t, e.Chain.GetHeaderHash(e.Chain.BlockHeight()).BytesBE(), "currentHash") // Adds a block.
+	b := e.GetBlockByIndex(t, e.Chain.BlockHeight())
 
 	expected := []stackitem.Item{
 		stackitem.NewByteArray(b.Hash().BytesBE()),

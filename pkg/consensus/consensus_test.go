@@ -119,7 +119,7 @@ func TestService_NextConsensus(t *testing.T) {
 	require.NoError(t, err)
 
 	checkNextConsensus := func(t *testing.T, bc *core.Blockchain, height uint32, h util.Uint160) {
-		hdrHash := bc.GetHeaderHash(int(height))
+		hdrHash := bc.GetHeaderHash(height)
 		hdr, err := bc.GetHeader(hdrHash)
 		require.NoError(t, err)
 		require.Equal(t, h, hdr.NextConsensus)

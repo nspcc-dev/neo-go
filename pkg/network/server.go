@@ -61,7 +61,7 @@ type (
 		GetBlock(hash util.Uint256) (*block.Block, error)
 		GetConfig() config.ProtocolConfiguration
 		GetHeader(hash util.Uint256) (*block.Header, error)
-		GetHeaderHash(int) util.Uint256
+		GetHeaderHash(uint32) util.Uint256
 		GetMaxVerificationGAS() int64
 		GetMemPool() *mempool.Pool
 		GetNotaryBalance(acc util.Uint160) *big.Int
@@ -972,7 +972,7 @@ func (s *Server) handleGetBlocksCmd(p Peer, gb *payload.GetBlocks) error {
 	}
 	blockHashes := make([]util.Uint256, 0)
 	for i := start.Index + 1; i <= start.Index+uint32(count); i++ {
-		hash := s.chain.GetHeaderHash(int(i))
+		hash := s.chain.GetHeaderHash(i)
 		if hash.Equals(util.Uint256{}) {
 			break
 		}
@@ -995,7 +995,7 @@ func (s *Server) handleGetBlockByIndexCmd(p Peer, gbd *payload.GetBlockByIndex) 
 		count = payload.MaxHashesCount
 	}
 	for i := gbd.IndexStart; i < gbd.IndexStart+uint32(count); i++ {
-		hash := s.chain.GetHeaderHash(int(i))
+		hash := s.chain.GetHeaderHash(i)
 		if hash.Equals(util.Uint256{}) {
 			break
 		}
@@ -1026,7 +1026,7 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlockByIndex) error 
 	resp := payload.Headers{}
 	resp.Hdrs = make([]*block.Header, 0, count)
 	for i := gh.IndexStart; i < gh.IndexStart+uint32(count); i++ {
-		hash := s.chain.GetHeaderHash(int(i))
+		hash := s.chain.GetHeaderHash(i)
 		if hash.Equals(util.Uint256{}) {
 			break
 		}

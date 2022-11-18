@@ -304,7 +304,7 @@ func TestChainWithVolatileNumOfValidators(t *testing.T) {
 			},
 		}
 		curWit = nextWit
-		b.PrevHash = bc.GetHeaderHash(i - 1)
+		b.PrevHash = bc.GetHeaderHash(uint32(i) - 1)
 		b.Timestamp = uint64(time.Now().UTC().Unix())*1000 + uint64(i)
 		b.Index = uint32(i)
 		b.RebuildMerkleRoot()

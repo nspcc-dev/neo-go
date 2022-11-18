@@ -109,10 +109,10 @@ func benchmarkForEachNEP17Transfer(t *testing.B, ps storage.Store, startFromBloc
 		e.CheckHalt(t, tx.Hash())
 	}
 
-	newestB, err := bc.GetBlock(bc.GetHeaderHash(int(bc.BlockHeight()) - startFromBlock + 1))
+	newestB, err := bc.GetBlock(bc.GetHeaderHash(bc.BlockHeight() - uint32(startFromBlock) + 1))
 	require.NoError(t, err)
 	newestTimestamp := newestB.Timestamp
-	oldestB, err := bc.GetBlock(bc.GetHeaderHash(int(newestB.Index) - nBlocksToTake))
+	oldestB, err := bc.GetBlock(bc.GetHeaderHash(newestB.Index - uint32(nBlocksToTake)))
 	require.NoError(t, err)
 	oldestTimestamp := oldestB.Timestamp
 

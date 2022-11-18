@@ -1272,7 +1272,7 @@ func TestInvokeVerify(t *testing.T) {
 	})
 
 	t.Run("positive, historic, by block, with signer", func(t *testing.T) {
-		res, err := c.InvokeContractVerifyWithState(chain.GetHeaderHash(int(chain.BlockHeight())-1), contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
+		res, err := c.InvokeContractVerifyWithState(chain.GetHeaderHash(chain.BlockHeight()-1), contract, []smartcontract.Parameter{}, []transaction.Signer{{Account: testchain.PrivateKeyByID(0).PublicKey().GetScriptHash()}})
 		require.NoError(t, err)
 		require.Equal(t, "HALT", res.State)
 		require.Equal(t, 1, len(res.Stack))

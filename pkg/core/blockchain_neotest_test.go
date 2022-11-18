@@ -1964,12 +1964,12 @@ func TestBlockchain_ResetState(t *testing.T) {
 	neoH := e.NativeHash(t, nativenames.Neo)
 	gasID := e.NativeID(t, nativenames.Gas)
 	neoID := e.NativeID(t, nativenames.Neo)
-	resetBlockHash := bc.GetHeaderHash(int(resetBlockIndex))
+	resetBlockHash := bc.GetHeaderHash(resetBlockIndex)
 	resetBlockHeader, err := bc.GetHeader(resetBlockHash)
 	require.NoError(t, err)
 	topBlockHeight := bc.BlockHeight()
-	topBH := bc.GetHeaderHash(int(bc.BlockHeight()))
-	staleBH := bc.GetHeaderHash(int(resetBlockIndex + 1))
+	topBH := bc.GetHeaderHash(bc.BlockHeight())
+	staleBH := bc.GetHeaderHash(resetBlockIndex + 1)
 	staleB, err := bc.GetBlock(staleBH)
 	require.NoError(t, err)
 	staleTx := staleB.Transactions[0]
@@ -2037,7 +2037,7 @@ func TestBlockchain_ResetState(t *testing.T) {
 	require.Equal(t, uint32(0), bc.GetStateModule().CurrentValidatedHeight())
 
 	// Try to get the latest block\header.
-	bh := bc.GetHeaderHash(int(resetBlockIndex))
+	bh := bc.GetHeaderHash(resetBlockIndex)
 	require.Equal(t, resetBlockHash, bh)
 	h, err := bc.GetHeader(bh)
 	require.NoError(t, err)
@@ -2048,7 +2048,7 @@ func TestBlockchain_ResetState(t *testing.T) {
 
 	// Check that stale blocks/headers/txs/aers/sr are not reachable.
 	for i := resetBlockIndex + 1; i <= topBlockHeight; i++ {
-		hHash := bc.GetHeaderHash(int(i))
+		hHash := bc.GetHeaderHash(i)
 		require.Equal(t, util.Uint256{}, hHash)
 		_, err = bc.GetStateRoot(i)
 		require.Error(t, err)
