@@ -768,6 +768,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 			cnt            int
 			storageItmsCnt int
 			contractIDsCnt int
+			batchCnt       int
 		)
 		trieStore.Seek(storage.SeekRange{Prefix: []byte{byte(oldStoragePrefix)}}, func(k, v []byte) bool {
 			if seekErr != nil {
@@ -780,7 +781,8 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 					seekErr = fmt.Errorf("failed to persist intermediate batch of contract storage items and IDs: %w", seekErr)
 					return false
 				}
-				bc.log.Info("intermediate batch of contract storage items and IDs is persisted", zap.Duration("took", time.Since(p)), zap.Int("keys", keys))
+				batchCnt++
+				bc.log.Info("intermediate batch of contract storage items and IDs is persisted", zap.Int("batch", batchCnt), zap.Duration("took", time.Since(p)), zap.Int("keys", keys))
 				p = time.Now()
 			}
 			// May safely omit KV copying.
@@ -817,7 +819,8 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		if err != nil {
 			return fmt.Errorf("failed to persist contract storage items and IDs changes to the DB: %w", err)
 		}
-		bc.log.Info("last batch of contract storage items and IDs is persisted", zap.Duration("took", time.Since(p)), zap.Int("keys", keys))
+		batchCnt++
+		bc.log.Info("last batch of contract storage items and IDs is persisted", zap.Int("batch", batchCnt), zap.Duration("took", time.Since(p)), zap.Int("keys", keys))
 		bc.log.Info("contract storage items and IDs are reset", zap.Duration("took", time.Since(pStorageStart)),
 			zap.Int("keys", storageItmsCnt),
 			zap.Int("ids", contractIDsCnt))
