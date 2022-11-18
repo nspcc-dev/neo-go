@@ -771,6 +771,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		)
 		trieStore.Seek(storage.SeekRange{Prefix: []byte{byte(oldStoragePrefix)}}, func(k, v []byte) bool {
 			if cnt >= persistBatchSize {
+				cnt = 0
 				keys, seekErr = cache.Persist()
 				if seekErr != nil {
 					seekErr = fmt.Errorf("failed to persist intermediate batch of contract storage items and IDs: %w", seekErr)
