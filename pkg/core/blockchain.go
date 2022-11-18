@@ -796,13 +796,14 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 				err = stackitem.DeserializeConvertible(v, cs)
 				if err != nil {
 					seekErr = fmt.Errorf("failed to deserialize contract %s state: %w", hash.StringLE(), seekErr)
+					return false
 				}
 				cache.PutContractID(cs.ID, hash)
 				cnt++
 				contractIDsCnt++
 			}
 
-			return seekErr == nil
+			return true
 		})
 		if seekErr != nil {
 			return fmt.Errorf("failed to reset contract contract storage items and IDs: %w", seekErr)
