@@ -146,14 +146,15 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 
 		// Corrupt headers hashes batch.
 		cache := storage.NewMemCachedStore(ps) // Extra wrapper to avoid good DB corruption.
-		key := make([]byte, 5)
-		key[0] = byte(storage.IXHeaderHashList)
-		binary.BigEndian.PutUint32(key[1:], 1)
-		cache.Put(key, []byte{1, 2, 3})
+		// Make the chain think we're at 2000+ which will trigger page 0 read.
+		buf := io.NewBufBinWriter()
+		buf.WriteBytes(util.Uint256{}.BytesLE())
+		buf.WriteU32LE(2000)
+		cache.Put([]byte{byte(storage.SYSCurrentHeader)}, buf.Bytes())
 
 		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, cache)
 		require.Error(t, err)
-		require.True(t, strings.Contains(err.Error(), "failed to read batch of 2000"), err)
+		require.True(t, strings.Contains(err.Error(), "failed to retrieve header hash page"), err)
 	})
 	t.Run("corrupted current header height", func(t *testing.T) {
 		ps = newPS(t)

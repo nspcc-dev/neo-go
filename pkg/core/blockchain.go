@@ -45,8 +45,7 @@ import (
 
 // Tuning parameters.
 const (
-	headerBatchCount = 2000
-	version          = "0.2.6"
+	version = "0.2.6"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultGCPeriod                        = 10000
@@ -115,6 +114,8 @@ var (
 // the state of the ledger that can be accessed in various ways and changed by
 // adding new blocks or headers.
 type Blockchain struct {
+	HeaderHashes
+
 	config config.ProtocolConfiguration
 
 	// The only way chain state changes is by adding blocks, so we can't
@@ -150,13 +151,6 @@ type Blockchain struct {
 
 	// Current persisted block count.
 	persistedHeight uint32
-
-	// Number of headers stored in the chain file.
-	storedHeaderCount uint32
-
-	// Header hashes list with associated lock.
-	headerHashesLock sync.RWMutex
-	headerHashes     []util.Uint256
 
 	// Stop synchronization mechanisms.
 	stopCh      chan struct{}
@@ -380,8 +374,7 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
-		bc.headerHashes = []util.Uint256{genesisBlock.Hash()}
-		bc.dao.PutCurrentHeader(genesisBlock.Hash(), genesisBlock.Index)
+		bc.HeaderHashes.initGenesis(bc.dao, genesisBlock.Hash())
 		if err := bc.stateRoot.Init(0); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
@@ -414,39 +407,9 @@ func (bc *Blockchain) init() error {
 	// and the genesis block as first block.
 	bc.log.Info("restoring blockchain", zap.String("version", version))
 
-	bc.headerHashes, err = bc.dao.GetHeaderHashes()
+	err = bc.HeaderHashes.init(bc.dao)
 	if err != nil {
 		return err
-	}
-
-	bc.storedHeaderCount = uint32(len(bc.headerHashes))
-
-	currHeaderHeight, currHeaderHash, err := bc.dao.GetCurrentHeaderHeight()
-	if err != nil {
-		return fmt.Errorf("failed to retrieve current header info: %w", err)
-	}
-
-	// There is a high chance that the Node is stopped before the next
-	// batch of 2000 headers was stored. Via the currentHeaders stored we can sync
-	// that with stored blocks.
-	if currHeaderHeight >= bc.storedHeaderCount {
-		hash := currHeaderHash
-		var targetHash util.Uint256
-		if len(bc.headerHashes) > 0 {
-			targetHash = bc.headerHashes[len(bc.headerHashes)-1]
-		}
-		headers := make([]util.Uint256, 0, headerBatchCount)
-
-		for hash != targetHash {
-			header, err := bc.GetHeader(hash)
-			if err != nil {
-				return fmt.Errorf("could not get header %s: %w", hash, err)
-			}
-			headers = append(headers, header.Hash())
-			hash = header.PrevHash
-		}
-		hashSliceReverse(headers)
-		bc.headerHashes = append(bc.headerHashes, headers...)
 	}
 
 	// Check whether StateChangeState stage is in the storage and continue interrupted state jump / state reset if so.
@@ -539,8 +502,8 @@ func (bc *Blockchain) jumpToState(p uint32) error {
 // jump stage. All the data needed for the jump must be in the DB, otherwise an
 // error is returned. It is not protected by mutex.
 func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) error {
-	if p+1 >= uint32(len(bc.headerHashes)) {
-		return fmt.Errorf("invalid state sync point %d: headerHeignt is %d", p, len(bc.headerHashes))
+	if p >= bc.HeaderHeight() {
+		return fmt.Errorf("invalid state sync point %d: headerHeignt is %d", p, bc.HeaderHeight())
 	}
 
 	bc.log.Info("jumping to state sync point", zap.Uint32("state sync point", p))
@@ -575,7 +538,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
 		if p-bc.config.MaxTraceableBlocks > 0 {
-			err := cache.DeleteBlock(bc.headerHashes[0])
+			err := cache.DeleteBlock(bc.GetHeaderHash(0))
 			if err != nil {
 				return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
 			}
@@ -588,7 +551,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 			}
 		}
 		// Update SYS-prefixed info.
-		block, err := bc.dao.GetBlock(bc.headerHashes[p])
+		block, err := bc.dao.GetBlock(bc.GetHeaderHash(p))
 		if err != nil {
 			return fmt.Errorf("failed to get current block: %w", err)
 		}
@@ -604,7 +567,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 	default:
 		return fmt.Errorf("unknown state jump stage: %d", stage)
 	}
-	block, err := bc.dao.GetBlock(bc.headerHashes[p+1])
+	block, err := bc.dao.GetBlock(bc.GetHeaderHash(p + 1))
 	if err != nil {
 		return fmt.Errorf("failed to get block to init MPT: %w", err)
 	}
@@ -625,10 +588,12 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 // resetRAMState resets in-memory cached info.
 func (bc *Blockchain) resetRAMState(height uint32, resetHeaders bool) error {
 	if resetHeaders {
-		bc.headerHashes = bc.headerHashes[:height+1]
-		bc.storedHeaderCount = height + 1
+		err := bc.HeaderHashes.init(bc.dao)
+		if err != nil {
+			return err
+		}
 	}
-	block, err := bc.dao.GetBlock(bc.headerHashes[height])
+	block, err := bc.dao.GetBlock(bc.GetHeaderHash(height))
 	if err != nil {
 		return fmt.Errorf("failed to get current block: %w", err)
 	}
@@ -685,7 +650,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 	}
 
 	// Retrieve necessary state before the DB modification.
-	b, err := bc.GetBlock(bc.headerHashes[height])
+	b, err := bc.GetBlock(bc.GetHeaderHash(height))
 	if err != nil {
 		return fmt.Errorf("failed to retrieve block %d: %w", height, err)
 	}
@@ -1406,7 +1371,6 @@ func (bc *Blockchain) AddHeaders(headers ...*block.Header) error {
 func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 	var (
 		start = time.Now()
-		batch = bc.dao.GetPrivate()
 		err   error
 	)
 
@@ -1436,44 +1400,14 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 			lastHeader = h
 		}
 	}
-
-	bc.headerHashesLock.Lock()
-	defer bc.headerHashesLock.Unlock()
-	oldlen := len(bc.headerHashes)
-	var lastHeader *block.Header
-	for _, h := range headers {
-		if int(h.Index) != len(bc.headerHashes) {
-			continue
-		}
-		err = batch.StoreHeader(h)
-		if err != nil {
-			return err
-		}
-		bc.headerHashes = append(bc.headerHashes, h.Hash())
-		lastHeader = h
-	}
-
-	if oldlen != len(bc.headerHashes) {
-		for int(lastHeader.Index)-headerBatchCount >= int(bc.storedHeaderCount) {
-			err = batch.StoreHeaderHashes(bc.headerHashes[bc.storedHeaderCount:bc.storedHeaderCount+headerBatchCount],
-				bc.storedHeaderCount)
-			if err != nil {
-				return err
-			}
-			bc.storedHeaderCount += headerBatchCount
-		}
-
-		batch.PutCurrentHeader(lastHeader.Hash(), lastHeader.Index)
-		updateHeaderHeightMetric(uint32(len(bc.headerHashes) - 1))
-		if _, err = batch.Persist(); err != nil {
-			return err
-		}
+	res := bc.HeaderHashes.addHeaders(headers...)
+	if res == nil {
 		bc.log.Debug("done processing headers",
-			zap.Int("headerIndex", len(bc.headerHashes)-1),
+			zap.Uint32("headerIndex", bc.HeaderHeight()),
 			zap.Uint32("blockHeight", bc.BlockHeight()),
 			zap.Duration("took", time.Since(start)))
 	}
-	return nil
+	return res
 }
 
 // GetStateRoot returns state root for the given height.
@@ -1528,7 +1462,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				stop = start + 1
 			}
 			for index := start; index < stop; index++ {
-				err := kvcache.DeleteBlock(bc.headerHashes[index])
+				err := kvcache.DeleteBlock(bc.GetHeaderHash(index))
 				if err != nil {
 					bc.log.Warn("error while removing old block",
 						zap.Uint32("index", index),
@@ -2151,15 +2085,9 @@ func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
 // HasBlock returns true if the blockchain contains the given
 // block hash.
 func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
-	var height = bc.BlockHeight()
-	bc.headerHashesLock.RLock()
-	for i := int(height); i >= int(height)-4 && i >= 0; i-- {
-		if hash.Equals(bc.headerHashes[i]) {
-			bc.headerHashesLock.RUnlock()
-			return true
-		}
+	if bc.HeaderHashes.haveRecentHash(hash, bc.BlockHeight()) {
+		return true
 	}
-	bc.headerHashesLock.RUnlock()
 
 	if header, err := bc.GetHeader(hash); err == nil {
 		return header.Index <= bc.BlockHeight()
@@ -2177,38 +2105,9 @@ func (bc *Blockchain) CurrentBlockHash() util.Uint256 {
 	return bc.GetHeaderHash(bc.BlockHeight())
 }
 
-// CurrentHeaderHash returns the hash of the latest known header.
-func (bc *Blockchain) CurrentHeaderHash() util.Uint256 {
-	bc.headerHashesLock.RLock()
-	hash := bc.headerHashes[len(bc.headerHashes)-1]
-	bc.headerHashesLock.RUnlock()
-	return hash
-}
-
-// GetHeaderHash returns hash of the header/block with specified index, if
-// Blockchain doesn't have a hash for this height, zero Uint256 value is returned.
-func (bc *Blockchain) GetHeaderHash(i uint32) util.Uint256 {
-	bc.headerHashesLock.RLock()
-	defer bc.headerHashesLock.RUnlock()
-
-	hashesLen := uint32(len(bc.headerHashes))
-	if hashesLen <= i {
-		return util.Uint256{}
-	}
-	return bc.headerHashes[i]
-}
-
 // BlockHeight returns the height/index of the highest block.
 func (bc *Blockchain) BlockHeight() uint32 {
 	return atomic.LoadUint32(&bc.blockHeight)
-}
-
-// HeaderHeight returns the index/height of the highest header.
-func (bc *Blockchain) HeaderHeight() uint32 {
-	bc.headerHashesLock.RLock()
-	n := len(bc.headerHashes)
-	bc.headerHashesLock.RUnlock()
-	return uint32(n - 1)
 }
 
 // GetContractState returns contract by its script hash.
