@@ -442,20 +442,18 @@ func (bc *Blockchain) init() error {
 			targetHash = genesisBlock.Hash()
 			bc.headerHashes = append(bc.headerHashes, targetHash)
 		}
-		headers := make([]*block.Header, 0)
+		headers := make([]util.Uint256, 0, headerBatchCount)
 
 		for hash != targetHash {
 			header, err := bc.GetHeader(hash)
 			if err != nil {
 				return fmt.Errorf("could not get header %s: %w", hash, err)
 			}
-			headers = append(headers, header)
+			headers = append(headers, header.Hash())
 			hash = header.PrevHash
 		}
-		headerSliceReverse(headers)
-		for _, h := range headers {
-			bc.headerHashes = append(bc.headerHashes, h.Hash())
-		}
+		hashSliceReverse(headers)
+		bc.headerHashes = append(bc.headerHashes, headers...)
 	}
 
 	// Check whether StateChangeState stage is in the storage and continue interrupted state jump / state reset if so.
