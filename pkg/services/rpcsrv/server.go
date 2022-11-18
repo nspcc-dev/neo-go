@@ -2447,12 +2447,6 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (interface{
 	}
 
 	s.subsLock.Lock()
-	select {
-	case <-s.shutdown:
-		s.subsLock.Unlock()
-		return nil, neorpc.NewInternalServerError("server is shutting down")
-	default:
-	}
 	var id int
 	for ; id < len(sub.feeds); id++ {
 		if sub.feeds[id].event == neorpc.InvalidEventID {
@@ -2468,6 +2462,12 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (interface{
 	s.subsLock.Unlock()
 
 	s.subsCounterLock.Lock()
+	select {
+	case <-s.shutdown:
+		s.subsCounterLock.Unlock()
+		return nil, neorpc.NewInternalServerError("server is shutting down")
+	default:
+	}
 	s.subscribeToChannel(event)
 	s.subsCounterLock.Unlock()
 	return strconv.FormatInt(int64(id), 10), nil
@@ -2646,10 +2646,9 @@ chloop:
 		}
 		s.subsLock.RUnlock()
 	}
-	// It's important to do it with lock held because no subscription routine
+	// It's important to do it with subsCounterLock held because no subscription routine
 	// should be running concurrently to this one. And even if one is to run
 	// after unlock, it'll see closed s.shutdown and won't subscribe.
-	s.subsLock.Lock()
 	s.subsCounterLock.Lock()
 	// There might be no subscription in reality, but it's not a problem as
 	// core.Blockchain allows unsubscribing non-subscribed channels.
@@ -2661,7 +2660,6 @@ chloop:
 		s.coreServer.UnsubscribeFromNotaryRequests(s.notaryRequestCh)
 	}
 	s.subsCounterLock.Unlock()
-	s.subsLock.Unlock()
 drainloop:
 	for {
 		select {
