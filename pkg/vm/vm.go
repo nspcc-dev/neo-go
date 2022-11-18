@@ -1754,6 +1754,7 @@ func (v *VM) handleException() {
 				v.istack = v.istack[:len(v.istack)-1]
 				v.unloadContext(ctx)
 			}
+			v.estack = ictx.sc.estack
 			if ectx.State == eTry && ectx.HasCatch() {
 				ectx.State = eCatch
 				v.estack.PushItem(v.uncaughtException)
