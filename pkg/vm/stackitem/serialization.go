@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // MaxDeserialized is the maximum number one deserialized item can contain
@@ -168,6 +169,13 @@ func (w *SerializationContext) serialize(item Item) error {
 		} else {
 			return fmt.Errorf("%w: Interop", ErrUnserializable)
 		}
+	case *Pointer:
+		if w.allowInvalid {
+			w.data = append(w.data, byte(PointerT))
+			w.appendVarUint(uint64(t.pos))
+		} else {
+			return fmt.Errorf("%w: Pointer", ErrUnserializable)
+		}
 	case *Array:
 		w.data = append(w.data, byte(ArrayT))
 		if err := w.writeArray(item, t.value, start); err != nil {
@@ -309,6 +317,12 @@ func (r *deserContext) decodeBinary() Item {
 	case InteropT:
 		if r.allowInvalid {
 			return NewInterop(nil)
+		}
+		fallthrough
+	case PointerT:
+		if r.allowInvalid {
+			pos := int(r.ReadVarUint())
+			return NewPointerWithHash(pos, nil, util.Uint160{})
 		}
 		fallthrough
 	default:
