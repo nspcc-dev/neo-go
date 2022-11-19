@@ -60,15 +60,22 @@ const (
 const (
 	verboseFlagFullName   = "verbose"
 	historicFlagFullName  = "historic"
+	gasFlagFullName       = "gas"
 	backwardsFlagFullName = "backwards"
 	diffFlagFullName      = "diff"
 )
 
-var historicFlag = cli.IntFlag{
-	Name: historicFlagFullName,
-	Usage: "Height for historic script invocation (for MPT-enabled blockchain configuration with KeepOnlyLatestState setting disabled). " +
-		"Assuming that block N-th is specified as an argument, the historic invocation is based on the storage state of height N and fake currently-accepting block with index N+1.",
-}
+var (
+	historicFlag = cli.IntFlag{
+		Name: historicFlagFullName,
+		Usage: "Height for historic script invocation (for MPT-enabled blockchain configuration with KeepOnlyLatestState setting disabled). " +
+			"Assuming that block N-th is specified as an argument, the historic invocation is based on the storage state of height N and fake currently-accepting block with index N+1.",
+	}
+	gasFlag = cli.Int64Flag{
+		Name:  gasFlagFullName,
+		Usage: "GAS limit for this execution (integer number, satoshi).",
+	}
+)
 
 var commands = []cli.Command{
 	{
@@ -143,8 +150,8 @@ Example:
 	{
 		Name:      "loadnef",
 		Usage:     "Load a NEF-consistent script into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadnef [--historic <height>] <file> <manifest> [<signer-with-scope>, ...]`,
-		Flags:     []cli.Flag{historicFlag},
+		UsageText: `loadnef [--historic <height>] [--gas <int>] <file> <manifest> [<signer-with-scope>, ...]`,
+		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `<file> and <manifest> parameters are mandatory.
 
 ` + cmdargs.SignersParsingDoc + `
@@ -156,8 +163,8 @@ Example:
 	{
 		Name:      "loadbase64",
 		Usage:     "Load a base64-encoded script string into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadbase64 [--historic <height>] <string> [<signer-with-scope>, ...]`,
-		Flags:     []cli.Flag{historicFlag},
+		UsageText: `loadbase64 [--historic <height>] [--gas <int>] <string> [<signer-with-scope>, ...]`,
+		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `<string> is mandatory parameter.
 
 ` + cmdargs.SignersParsingDoc + `
@@ -169,8 +176,8 @@ Example:
 	{
 		Name:      "loadhex",
 		Usage:     "Load a hex-encoded script string into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadhex [--historic <height>] <string> [<signer-with-scope>, ...]`,
-		Flags:     []cli.Flag{historicFlag},
+		UsageText: `loadhex [--historic <height>] [--gas <int>] <string> [<signer-with-scope>, ...]`,
+		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `<string> is mandatory parameter.
 
 ` + cmdargs.SignersParsingDoc + `
@@ -182,8 +189,8 @@ Example:
 	{
 		Name:      "loadgo",
 		Usage:     "Compile and load a Go file with the manifest into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadgo [--historic <height>] <file> [<signer-with-scope>, ...]`,
-		Flags:     []cli.Flag{historicFlag},
+		UsageText: `loadgo [--historic <height>] [--gas <int>] <file> [<signer-with-scope>, ...]`,
+		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `<file> is mandatory parameter.
 
 ` + cmdargs.SignersParsingDoc + `
@@ -195,8 +202,8 @@ Example:
 	{
 		Name:      "loadtx",
 		Usage:     "Load transaction into the VM from chain or from parameter context file",
-		UsageText: `loadtx [--historic <height>] <file-or-hash>`,
-		Flags:     []cli.Flag{historicFlag},
+		UsageText: `loadtx [--historic <height>] [--gas <int>] <file-or-hash>`,
+		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `Load transaction into the VM from chain or from parameter context file.
 The transaction script will be loaded into VM; the resulting execution context will use the provided transaction as script container including its signers, hash and nonce.
 
@@ -209,8 +216,8 @@ Example:
 	{
 		Name:      "loaddeployed",
 		Usage:     "Load deployed contract into the VM from chain optionally attaching to it provided signers with scopes",
-		UsageText: `loaddeployed [--historic <height>] <hash-or-address-or-id>  [<signer-with-scope>, ...]`,
-		Flags:     []cli.Flag{historicFlag},
+		UsageText: `loaddeployed [--historic <height>] [--gas <int>] <hash-or-address-or-id>  [<signer-with-scope>, ...]`,
+		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `Load deployed contract into the VM from chain optionally attaching to it provided signers with scopes.
 If '--historic' flag specified, then the historic contract state (historic script and manifest) will be loaded.
 
@@ -640,12 +647,22 @@ func handleSlots(c *cli.Context) error {
 // prepareVM retrieves --historic flag from context (if set) and resets app state
 // (to the specified historic height if given).
 func prepareVM(c *cli.Context, tx *transaction.Transaction) error {
+	var err error
 	if c.IsSet(historicFlagFullName) {
 		height := c.Int(historicFlagFullName)
-		return resetState(c.App, tx, uint32(height))
+		err = resetState(c.App, tx, uint32(height))
+	} else {
+		err = resetState(c.App, tx)
 	}
-
-	return resetState(c.App, tx)
+	if err != nil {
+		return err
+	}
+	if c.IsSet(gasFlagFullName) {
+		gas := c.Int64(gasFlagFullName)
+		v := getVMFromContext(c.App)
+		v.GasLimit = gas
+	}
+	return nil
 }
 
 func handleLoadNEF(c *cli.Context) error {
@@ -856,7 +873,9 @@ func handleLoadDeployed(c *cli.Context) error {
 		return err
 	}
 	ic = getInteropContextFromContext(c.App) // fetch newly-created IC.
-	ic.ReuseVM(ic.VM)                        // clear previously loaded program and context.
+	gasLimit := ic.VM.GasLimit
+	ic.ReuseVM(ic.VM) // clear previously loaded program and context.
+	ic.VM.GasLimit = gasLimit
 	ic.VM.LoadScriptWithHash(cs.NEF.Script, cs.Hash, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", ic.VM.Context().LenInstr())
 	setManifestInContext(c.App, &cs.Manifest)

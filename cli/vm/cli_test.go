@@ -1118,6 +1118,8 @@ func TestLoadtx(t *testing.T) {
 	e.runProg(t,
 		"loadtx "+tx.Hash().StringLE(), // hash LE
 		"run",
+		"loadtx --gas 10000 "+tx.Hash().StringLE(), // with GAS
+		"run",
 		"loadtx 0x"+tx.Hash().StringLE(), //  hash LE with 0x prefix
 		"run",
 		"loadtx '"+tmp+"'", // Tx from parameter context file.
@@ -1127,6 +1129,8 @@ func TestLoadtx(t *testing.T) {
 	)
 	e.checkNextLine(t, "READY: loaded \\d+ instructions")
 	e.checkStack(t, 1)
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkError(t, errors.New("at instruction 3 (PACK): gas limit is exceeded"))
 	e.checkNextLine(t, "READY: loaded \\d+ instructions")
 	e.checkStack(t, 1)
 	e.checkNextLine(t, "READY: loaded \\d+ instructions")
@@ -1146,6 +1150,8 @@ func TestLoaddeployed(t *testing.T) {
 
 	e.runProg(t,
 		"loaddeployed "+h.StringLE(), // hash LE
+		"run get 1",
+		"loaddeployed --gas 420000 "+h.StringLE(), // gas-limited
 		"run get 1",
 		"loaddeployed 0x"+h.StringLE(), //  hash LE with 0x prefix
 		"run get 1",
@@ -1171,6 +1177,8 @@ func TestLoaddeployed(t *testing.T) {
 	)
 	e.checkNextLine(t, "READY: loaded \\d+ instructions")
 	e.checkStack(t, []byte{2})
+	e.checkNextLine(t, "READY: loaded \\d+ instructions")
+	e.checkError(t, errors.New("at instruction 63 (SYSCALL): failed to invoke syscall 837311890: insufficient amount of gas"))
 	e.checkNextLine(t, "READY: loaded \\d+ instructions")
 	e.checkStack(t, []byte{2})
 	e.checkNextLine(t, "READY: loaded \\d+ instructions")
