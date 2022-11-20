@@ -163,12 +163,12 @@ var ErrNativeCall = errors.New("failed native call")
 
 // CallFromNative performs synchronous call from native contract.
 func CallFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract, method string, args []stackitem.Item, hasReturn bool) error {
-	startSize := ic.VM.Istack().Len()
+	startSize := len(ic.VM.Istack())
 	if err := callExFromNative(ic, caller, cs, method, args, callflag.All, hasReturn, false, true); err != nil {
 		return err
 	}
 
-	for !ic.VM.HasStopped() && ic.VM.Istack().Len() > startSize {
+	for !ic.VM.HasStopped() && len(ic.VM.Istack()) > startSize {
 		if err := ic.VM.Step(); err != nil {
 			return fmt.Errorf("%w: %v", ErrNativeCall, err)
 		}

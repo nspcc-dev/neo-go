@@ -69,8 +69,8 @@ type VM struct {
 	// callback to get interop price
 	getPrice func(opcode.Opcode, []byte) int64
 
-	istack Stack  // invocation stack.
-	estack *Stack // execution stack.
+	istack []*Context // invocation stack.
+	estack *Stack     // execution stack.
 
 	uncaughtException stackitem.Item // exception being handled
 
@@ -110,8 +110,7 @@ func NewWithTrigger(t trigger.Type) *VM {
 		trigger: t,
 	}
 
-	initStack(&vm.istack, "invocation", nil)
-	vm.istack.elems = make([]Element, 0, 8) // Most of invocations use one-two contracts, but they're likely to have internal calls.
+	vm.istack = make([]*Context, 0, 8) // Most of invocations use one-two contracts, but they're likely to have internal calls.
 	vm.estack = newStack("evaluation", &vm.refs)
 	return vm
 }
@@ -128,7 +127,7 @@ func (v *VM) SetPriceGetter(f func(opcode.Opcode, []byte) int64) {
 func (v *VM) Reset(t trigger.Type) {
 	v.state = vmstate.None
 	v.getPrice = nil
-	v.istack.elems = v.istack.elems[:0]
+	v.istack = v.istack[:0]
 	v.estack.elems = v.estack.elems[:0]
 	v.uncaughtException = nil
 	v.refs = 0
@@ -157,8 +156,8 @@ func (v *VM) Estack() *Stack {
 }
 
 // Istack returns the invocation stack, so interop hooks can utilize this.
-func (v *VM) Istack() *Stack {
-	return &v.istack
+func (v *VM) Istack() []*Context {
+	return v.istack
 }
 
 // PrintOps prints the opcodes of the current loaded program to stdout.
@@ -284,7 +283,7 @@ func (v *VM) Load(prog []byte) {
 // LoadWithFlags initializes the VM with the program and flags given.
 func (v *VM) LoadWithFlags(prog []byte, f callflag.CallFlag) {
 	// Clear all stacks and state, it could be a reload.
-	v.istack.Clear()
+	v.istack = v.istack[:0]
 	v.estack.Clear()
 	v.state = vmstate.None
 	v.gasConsumed = 0
@@ -359,16 +358,16 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 		ctx.sc.invTree = newTree
 	}
 	ctx.sc.onUnload = onContextUnload
-	v.istack.PushItem(ctx)
+	v.istack = append(v.istack, ctx)
 }
 
 // Context returns the current executed context. Nil if there is no context,
 // which implies no program is loaded.
 func (v *VM) Context() *Context {
-	if v.istack.Len() == 0 {
+	if len(v.istack) == 0 {
 		return nil
 	}
-	return v.istack.Peek(0).value.(*Context)
+	return v.istack[len(v.istack)-1]
 }
 
 // PopResult is used to pop the first item of the evaluation stack. This allows
@@ -382,7 +381,7 @@ func (v *VM) PopResult() interface{} {
 
 // DumpIStack returns json formatted representation of the invocation stack.
 func (v *VM) DumpIStack() string {
-	b, _ := json.MarshalIndent(v.istack.ToArray(), "", "    ")
+	b, _ := json.MarshalIndent(v.istack, "", "    ")
 	return string(b)
 }
 
@@ -405,7 +404,7 @@ func (v *VM) State() vmstate.State {
 // Ready returns true if the VM is ready to execute the loaded program.
 // It will return false if no program is loaded.
 func (v *VM) Ready() bool {
-	return v.istack.Len() > 0
+	return len(v.istack) > 0
 }
 
 // Run starts execution of the loaded program.
@@ -505,8 +504,8 @@ func (v *VM) StepOut() error {
 		v.state = vmstate.None
 	}
 
-	expSize := v.istack.Len()
-	for v.state == vmstate.None && v.istack.Len() >= expSize {
+	expSize := len(v.istack)
+	for v.state == vmstate.None && len(v.istack) >= expSize {
 		err = v.StepInto()
 	}
 	if v.state == vmstate.None {
@@ -527,10 +526,10 @@ func (v *VM) StepOver() error {
 		v.state = vmstate.None
 	}
 
-	expSize := v.istack.Len()
+	expSize := len(v.istack)
 	for {
 		err = v.StepInto()
-		if !(v.state == vmstate.None && v.istack.Len() > expSize) {
+		if !(v.state == vmstate.None && len(v.istack) > expSize) {
 			break
 		}
 	}
@@ -1467,11 +1466,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 
 	case opcode.RET:
-		oldCtx := v.istack.Pop().value.(*Context)
+		oldCtx := v.istack[len(v.istack)-1]
+		v.istack = v.istack[:len(v.istack)-1]
 		oldEstack := v.estack
 
 		v.unloadContext(oldCtx)
-		if v.istack.Len() == 0 {
+		if len(v.istack) == 0 {
 			v.state = vmstate.Halt
 			break
 		}
@@ -1701,7 +1701,7 @@ func (v *VM) call(ctx *Context, offset int) {
 	}
 	// New context -> new exception handlers.
 	newCtx.tryStack.elems = ctx.tryStack.elems[len(ctx.tryStack.elems):]
-	v.istack.PushItem(newCtx)
+	v.istack = append(v.istack, newCtx)
 	newCtx.Jump(offset)
 }
 
@@ -1739,9 +1739,8 @@ func calcJumpOffset(ctx *Context, parameter []byte) (int, int, error) {
 }
 
 func (v *VM) handleException() {
-	for pop := 0; pop < v.istack.Len(); pop++ {
-		ictxv := v.istack.Peek(pop)
-		ictx := ictxv.value.(*Context)
+	for pop := 0; pop < len(v.istack); pop++ {
+		ictx := v.istack[len(v.istack)-1-pop]
 		for j := 0; j < ictx.tryStack.Len(); j++ {
 			e := ictx.tryStack.Peek(j)
 			ectx := e.Value().(*exceptionHandlingContext)
@@ -1751,9 +1750,11 @@ func (v *VM) handleException() {
 				continue
 			}
 			for i := 0; i < pop; i++ {
-				ctx := v.istack.Pop().value.(*Context)
+				ctx := v.istack[len(v.istack)-1]
+				v.istack = v.istack[:len(v.istack)-1]
 				v.unloadContext(ctx)
 			}
+			v.estack = ictx.sc.estack
 			if ectx.State == eTry && ectx.HasCatch() {
 				ectx.State = eCatch
 				v.estack.PushItem(v.uncaughtException)
@@ -1937,7 +1938,7 @@ func validateMapKey(key Element) {
 }
 
 func (v *VM) checkInvocationStackSize() {
-	if v.istack.Len() >= MaxInvocationStackSize {
+	if len(v.istack) >= MaxInvocationStackSize {
 		panic("invocation stack is too big")
 	}
 }
@@ -1959,7 +1960,7 @@ func (v *VM) GetCallingScriptHash() util.Uint160 {
 
 // GetEntryScriptHash implements the ScriptHashGetter interface.
 func (v *VM) GetEntryScriptHash() util.Uint160 {
-	return v.getContextScriptHash(v.istack.Len() - 1)
+	return v.getContextScriptHash(len(v.istack) - 1)
 }
 
 // GetCurrentScriptHash implements the ScriptHashGetter interface.

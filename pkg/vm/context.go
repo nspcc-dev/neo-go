@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -251,42 +250,6 @@ func (c *Context) NumOfReturnVals() int {
 	return c.retCount
 }
 
-// Value implements the stackitem.Item interface.
-func (c *Context) Value() interface{} {
-	return c
-}
-
-// Dup implements the stackitem.Item interface.
-func (c *Context) Dup() stackitem.Item {
-	return c
-}
-
-// TryBool implements the stackitem.Item interface.
-func (c *Context) TryBool() (bool, error) { panic("can't convert Context to Bool") }
-
-// TryBytes implements the stackitem.Item interface.
-func (c *Context) TryBytes() ([]byte, error) {
-	return nil, errors.New("can't convert Context to ByteArray")
-}
-
-// TryInteger implements the stackitem.Item interface.
-func (c *Context) TryInteger() (*big.Int, error) {
-	return nil, errors.New("can't convert Context to Integer")
-}
-
-// Type implements the stackitem.Item interface.
-func (c *Context) Type() stackitem.Type { panic("Context cannot appear on evaluation stack") }
-
-// Convert implements the stackitem.Item interface.
-func (c *Context) Convert(_ stackitem.Type) (stackitem.Item, error) {
-	panic("Context cannot be converted to anything")
-}
-
-// Equals implements the stackitem.Item interface.
-func (c *Context) Equals(s stackitem.Item) bool {
-	return c == s
-}
-
 func (c *Context) atBreakPoint() bool {
 	for _, n := range c.sc.breakPoints {
 		if n == c.nextip {
@@ -294,10 +257,6 @@ func (c *Context) atBreakPoint() bool {
 		}
 	}
 	return false
-}
-
-func (c *Context) String() string {
-	return "execution context"
 }
 
 // IsDeployed returns whether this context contains a deployed contract.
@@ -332,13 +291,10 @@ func dumpSlot(s *slot) string {
 // getContextScriptHash returns script hash of the invocation stack element
 // number n.
 func (v *VM) getContextScriptHash(n int) util.Uint160 {
-	istack := v.Istack()
-	if istack.Len() <= n {
+	if len(v.istack) <= n {
 		return util.Uint160{}
 	}
-	element := istack.Peek(n)
-	ctx := element.value.(*Context)
-	return ctx.ScriptHash()
+	return v.istack[len(v.istack)-1-n].ScriptHash()
 }
 
 // IsCalledByEntry checks parent script contexts and return true if the current one

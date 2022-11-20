@@ -24,7 +24,7 @@ func TestInvocationTree(t *testing.T) {
 	cnt := 0
 	v := newTestVM()
 	v.SyscallHandler = func(v *VM, _ uint32) error {
-		if v.Istack().Len() > 4 { // top -> call -> syscall -> call -> syscall -> ...
+		if len(v.Istack()) > 4 { // top -> call -> syscall -> call -> syscall -> ...
 			v.Estack().PushVal(1)
 			return nil
 		}

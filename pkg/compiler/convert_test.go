@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/stretchr/testify/require"
 )
@@ -72,8 +73,7 @@ func TestConvert(t *testing.T) {
 	for i, tc := range convertTestCases {
 		v := vm.New()
 		t.Run(tc.argValue+getFunctionName(tc.returnType), func(t *testing.T) {
-			v.Istack().Clear()
-			v.Estack().Clear()
+			v.Reset(trigger.Application)
 			invokeMethod(t, fmt.Sprintf("F%d", i), ne.Script, v, di)
 			runAndCheck(t, v, tc.result)
 		})
