@@ -683,7 +683,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 			return fmt.Errorf("current block height is %d, can't reset state to height %d", currHeight, height)
 		}
 		if height == currHeight {
-			bc.log.Info("chain is already at the proper state", zap.Uint32("height", height))
+			bc.log.Info("chain is at the proper state", zap.Uint32("height", height))
 			return nil
 		}
 		if bc.config.KeepOnlyLatestState {
