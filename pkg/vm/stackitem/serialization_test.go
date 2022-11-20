@@ -76,6 +76,7 @@ func TestSerialize(t *testing.T) {
 	})
 	t.Run("invalid", func(t *testing.T) {
 		testSerialize(t, ErrUnserializable, NewInterop(42))
+		testSerialize(t, ErrUnserializable, NewPointer(42, []byte{}))
 		testSerialize(t, ErrUnserializable, nil)
 
 		t.Run("protected interop", func(t *testing.T) {
@@ -92,6 +93,22 @@ func TestSerialize(t *testing.T) {
 			item := DecodeBinaryProtected(r)
 			require.NoError(t, r.Err)
 			require.IsType(t, (*Interop)(nil), item)
+		})
+		t.Run("protected pointer", func(t *testing.T) {
+			w := io.NewBufBinWriter()
+			EncodeBinaryProtected(NewPointer(42, []byte{}), w.BinWriter)
+			require.NoError(t, w.Err)
+
+			data := w.Bytes()
+			r := io.NewBinReaderFromBuf(data)
+			DecodeBinary(r)
+			require.Error(t, r.Err)
+
+			r = io.NewBinReaderFromBuf(data)
+			item := DecodeBinaryProtected(r)
+			require.NoError(t, r.Err)
+			require.IsType(t, (*Pointer)(nil), item)
+			require.Equal(t, 42, item.Value())
 		})
 		t.Run("protected nil", func(t *testing.T) {
 			w := io.NewBufBinWriter()
