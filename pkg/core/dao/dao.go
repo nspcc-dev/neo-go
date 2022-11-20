@@ -759,31 +759,15 @@ func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, a
 // DeleteBlock removes the block from dao. It's not atomic, so make sure you're
 // using private MemCached instance here.
 func (dao *Simple) DeleteBlock(h util.Uint256) error {
-	return dao.deleteBlock(h, true)
-}
-
-// PurgeBlock completely removes specified block (or just block header) from dao.
-// It differs from DeleteBlock in that it removes header anyway. It's not atomic,
-// so make sure you're using private MemCached instance here.
-func (dao *Simple) PurgeBlock(h util.Uint256) error {
-	return dao.deleteBlock(h, false)
-}
-
-func (dao *Simple) deleteBlock(h util.Uint256, keepHeader bool) error {
 	key := dao.makeExecutableKey(h)
 
 	b, err := dao.getBlock(key)
 	if err != nil {
 		return err
 	}
-
-	if keepHeader {
-		err = dao.storeHeader(key, &b.Header)
-		if err != nil {
-			return err
-		}
-	} else {
-		dao.Store.Delete(key)
+	err = dao.storeHeader(key, &b.Header)
+	if err != nil {
+		return err
 	}
 
 	for _, tx := range b.Transactions {
@@ -799,6 +783,14 @@ func (dao *Simple) deleteBlock(h util.Uint256, keepHeader bool) error {
 	}
 
 	return nil
+}
+
+// PurgeHeader completely removes specified header from dao. It differs from
+// DeleteBlock in that it removes header anyway and does nothing except removing
+// header. It does no checks for header existence.
+func (dao *Simple) PurgeHeader(h util.Uint256) {
+	key := dao.makeExecutableKey(h)
+	dao.Store.Delete(key)
 }
 
 // StoreHeader saves the block header into the store.

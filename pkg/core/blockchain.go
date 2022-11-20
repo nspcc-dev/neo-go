@@ -672,7 +672,7 @@ func (bc *Blockchain) Reset(height uint32) error {
 }
 
 func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) error {
-	// Cache isn't yet initialized, so retrieve header right from DAO.
+	// Cache isn't yet initialized, so retrieve header height right from DAO.
 	currHeight, err := bc.dao.GetCurrentBlockHeight()
 	if err != nil {
 		return fmt.Errorf("failed to retrieve current block height: %w", err)
@@ -723,9 +723,10 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		fallthrough
 	case stateJumpStarted:
 		bc.log.Info("trying to reset blocks, transactions and AERs")
-		// Remove headers/blocks/transactions/aers from currHeight down to height (not including height itself).
-		for i := height + 1; i <= hHeight; i++ {
-			err := cache.PurgeBlock(bc.headerHashes[i])
+		// Remove blocks/transactions/aers from currHeight down to height (not including height itself).
+		// Keep headers for now, they'll be removed later.
+		for i := height + 1; i <= currHeight; i++ {
+			err := cache.DeleteBlock(bc.GetHeaderHash(int(i)))
 			if err != nil {
 				return fmt.Errorf("error while removing block %d: %w", i, err)
 			}
@@ -836,6 +837,9 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 	case newStorageItemsAdded:
 		// Reset SYS-prefixed and IX-prefixed information.
 		bc.log.Info("trying to reset headers information")
+		for i := height + 1; i <= hHeight; i++ {
+			cache.PurgeHeader(bc.GetHeaderHash(int(i)))
+		}
 		cache.DeleteHeaderHashes(height+1, headerBatchCount)
 		cache.StoreAsCurrentBlock(b)
 		cache.PutCurrentHeader(b.Hash(), height)
