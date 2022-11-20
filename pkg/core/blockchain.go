@@ -672,19 +672,26 @@ func (bc *Blockchain) Reset(height uint32) error {
 }
 
 func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) error {
-	currHeight := bc.BlockHeight()
-	if height > currHeight {
-		return fmt.Errorf("current block height is %d, can't reset state to height %d", currHeight, height)
+	// Cache isn't yet initialized, so retrieve header right from DAO.
+	currHeight, err := bc.dao.GetCurrentBlockHeight()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve current block height: %w", err)
 	}
-	if height == currHeight && stage == none {
-		bc.log.Info("chain is already at the proper state", zap.Uint32("height", height))
-		return nil
-	}
-	if bc.config.KeepOnlyLatestState {
-		return fmt.Errorf("KeepOnlyLatestState is enabled, state for height %d is outdated and removed from the storage", height)
-	}
-	if bc.config.RemoveUntraceableBlocks && currHeight >= bc.config.MaxTraceableBlocks {
-		return fmt.Errorf("RemoveUntraceableBlocks is enabled, a necessary batch of traceable blocks has already been removed")
+	// State reset may already be started by this moment, so perform these checks only if it wasn't.
+	if stage == none {
+		if height > currHeight {
+			return fmt.Errorf("current block height is %d, can't reset state to height %d", currHeight, height)
+		}
+		if height == currHeight {
+			bc.log.Info("chain is already at the proper state", zap.Uint32("height", height))
+			return nil
+		}
+		if bc.config.KeepOnlyLatestState {
+			return fmt.Errorf("KeepOnlyLatestState is enabled, state for height %d is outdated and removed from the storage", height)
+		}
+		if bc.config.RemoveUntraceableBlocks && currHeight >= bc.config.MaxTraceableBlocks {
+			return fmt.Errorf("RemoveUntraceableBlocks is enabled, a necessary batch of traceable blocks has already been removed")
+		}
 	}
 
 	// Retrieve necessary state before the DB modification.
