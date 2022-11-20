@@ -792,7 +792,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		mgmtContractPrefix[4] = native.PrefixContract
 		cs := new(state.Contract)
 
-		const persistBatchSize = 10000
+		const persistBatchSize = 200000
 		var (
 			seekErr        error
 			cnt            int
