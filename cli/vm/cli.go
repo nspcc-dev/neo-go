@@ -205,7 +205,10 @@ Example:
 		UsageText: `loadtx [--historic <height>] [--gas <int>] <file-or-hash>`,
 		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `Load transaction into the VM from chain or from parameter context file.
-The transaction script will be loaded into VM; the resulting execution context will use the provided transaction as script container including its signers, hash and nonce.
+   The transaction script will be loaded into VM; the resulting execution context
+   will use the provided transaction as script container including its signers,
+   hash and nonce. It'll also use transaction's system fee value as GAS limit if
+   --gas option is not used.
 
 <file-or-hash> is mandatory parameter.
 
@@ -829,6 +832,9 @@ func handleLoadTx(c *cli.Context) error {
 		return err
 	}
 	v := getVMFromContext(c.App)
+	if v.GasLimit == -1 {
+		v.GasLimit = tx.SystemFee
+	}
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c.App)
 	return nil
