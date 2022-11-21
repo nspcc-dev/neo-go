@@ -672,17 +672,19 @@ func (bc *Blockchain) Reset(height uint32) error {
 }
 
 func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) error {
-	// Cache isn't yet initialized, so retrieve header height right from DAO.
+	// Cache isn't yet initialized, so retrieve block height right from DAO.
 	currHeight, err := bc.dao.GetCurrentBlockHeight()
 	if err != nil {
 		return fmt.Errorf("failed to retrieve current block height: %w", err)
 	}
+	// Headers are already initialized by this moment, thus may use chain's API.
+	hHeight := bc.HeaderHeight()
 	// State reset may already be started by this moment, so perform these checks only if it wasn't.
 	if stage == none {
 		if height > currHeight {
 			return fmt.Errorf("current block height is %d, can't reset state to height %d", currHeight, height)
 		}
-		if height == currHeight {
+		if height == currHeight && hHeight == currHeight {
 			bc.log.Info("chain is at the proper state", zap.Uint32("height", height))
 			return nil
 		}
@@ -695,7 +697,6 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 	}
 
 	// Retrieve necessary state before the DB modification.
-	hHeight := bc.HeaderHeight()
 	b, err := bc.GetBlock(bc.headerHashes[height])
 	if err != nil {
 		return fmt.Errorf("failed to retrieve block %d: %w", height, err)
