@@ -692,17 +692,16 @@ func (c *Client) invokeSomething(method string, p []interface{}, signers []trans
 	return resp, nil
 }
 
-// SendRawTransaction broadcasts a transaction over the NEO network.
-// The given hex string needs to be signed with a keypair.
-// When the result of the response object is true, the TX has successfully
-// been broadcasted to the network.
+// SendRawTransaction broadcasts the given transaction to the Neo network.
+// It always returns transaction hash, when successful (no error) this is the
+// hash returned from server, when not it's a locally calculated rawTX hash.
 func (c *Client) SendRawTransaction(rawTX *transaction.Transaction) (util.Uint256, error) {
 	var (
 		params = []interface{}{rawTX.Bytes()}
 		resp   = new(result.RelayResult)
 	)
 	if err := c.performRequest("sendrawtransaction", params, resp); err != nil {
-		return util.Uint256{}, err
+		return rawTX.Hash(), err
 	}
 	return resp.Hash, nil
 }
