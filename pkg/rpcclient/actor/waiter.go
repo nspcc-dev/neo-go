@@ -244,6 +244,7 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 		}()
 	}
 	if wsWaitErr == nil {
+		trig := trigger.Application
 		for _, h := range hashes {
 			txsID, err := w.ws.ReceiveExecutions(&neorpc.ExecutionFilter{Container: &h}, aerRcvr)
 			if err != nil {
@@ -260,22 +261,28 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 				}
 				unsubErrs <- nil
 			}()
+			// There is a potential race between subscription and acceptance, so
+			// do a polling check once _after_ the subscription.
+			appLog, err := w.ws.GetApplicationLog(h, &trig)
+			if err == nil {
+				res = &state.AppExecResult{
+					Container: appLog.Container,
+					Execution: appLog.Executions[0],
+				}
+				break // We have the result, no need for other subscriptions.
+			}
 		}
 	}
 
-	if wsWaitErr == nil {
+	if wsWaitErr == nil && res == nil {
 		select {
-		case b, ok := <-bRcvr:
+		case _, ok := <-bRcvr:
 			if !ok {
 				// We're toast, retry with non-ws client.
 				wsWaitErr = ErrMissedEvent
 				break
 			}
-			// We can easily end up in a situation when subscription was performed too late and
-			// the desired transaction and VUB-th block have already got accepted before the
-			// subscription happened. Thus, always retry with non-ws client, it will perform
-			// AER requests and make sure.
-			wsWaitErr = fmt.Errorf("block #%d was received by EventWaiter", b.Index)
+			waitErr = ErrTxNotAccepted
 		case aer, ok := <-aerRcvr:
 			if !ok {
 				// We're toast, retry with non-ws client.

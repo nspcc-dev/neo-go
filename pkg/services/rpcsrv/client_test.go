@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -2132,11 +2134,42 @@ func TestWSClient_WaitWithLateSubscription(t *testing.T) {
 	// Firstly, accept the block.
 	blocks := getTestBlocks(t)
 	b1 := blocks[0]
-	b2 := blocks[1]
 	tx := b1.Transactions[0]
 	require.NoError(t, chain.AddBlock(b1))
 
-	// After that, subscribe for AERs/blocks.
+	// After that, wait and get the result immediately.
+	aer, err := act.Wait(tx.Hash(), tx.ValidUntilBlock, nil)
+	require.NoError(t, err)
+	require.Equal(t, tx.Hash(), aer.Container)
+	require.Equal(t, trigger.Application, aer.Trigger)
+	require.Equal(t, vmstate.Halt, aer.VMState)
+}
+
+func TestWSClient_WaitWithMissedEvent(t *testing.T) {
+	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
+	c, err := rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+	acc, err := wallet.NewAccount()
+	require.NoError(t, err)
+	act, err := actor.New(c, []actor.SignerAccount{
+		{
+			Signer: transaction.Signer{
+				Account: acc.ScriptHash(),
+			},
+			Account: acc,
+		},
+	})
+	require.NoError(t, err)
+
+	blocks := getTestBlocks(t)
+	b1 := blocks[0]
+	tx := b1.Transactions[0]
+
 	rcvr := make(chan *state.AppExecResult)
 	go func() {
 		aer, err := act.Wait(tx.Hash(), tx.ValidUntilBlock, nil)
@@ -2150,23 +2183,33 @@ func TestWSClient_WaitWithLateSubscription(t *testing.T) {
 	require.Eventually(t, func() bool {
 		rpcSrv.subsLock.Lock()
 		defer rpcSrv.subsLock.Unlock()
-		if len(rpcSrv.subscribers) == 1 { // single client
-			for s := range rpcSrv.subscribers {
-				var count int
-				for _, f := range s.feeds {
-					if f.event != neorpc.InvalidEventID {
-						count++
-					}
-				}
-				return count == 2 // subscription for blocks + AERs
-			}
-		}
-		return false
+		return len(rpcSrv.subscribers) == 1
 	}, time.Second, 100*time.Millisecond)
 
-	// Accept the next block to trigger event-based waiter loop exit and rollback to
-	// a poll-based waiter.
-	require.NoError(t, chain.AddBlock(b2))
+	rpcSrv.subsLock.Lock()
+	// Suppress normal event delivery.
+	for s := range rpcSrv.subscribers {
+		s.overflown.Store(true)
+	}
+	rpcSrv.subsLock.Unlock()
+
+	// Accept the next block, but subscriber will get no events because it's overflown.
+	require.NoError(t, chain.AddBlock(b1))
+
+	overEvent, err := json.Marshal(neorpc.Notification{
+		JSONRPC: neorpc.JSONRPCVersion,
+		Event:   neorpc.MissedEventID,
+		Payload: make([]interface{}, 0),
+	})
+	require.NoError(t, err)
+	overflowMsg, err := websocket.NewPreparedMessage(websocket.TextMessage, overEvent)
+	require.NoError(t, err)
+	rpcSrv.subsLock.Lock()
+	// Deliver overflow message -> triggers subscriber to retry with polling waiter.
+	for s := range rpcSrv.subscribers {
+		s.writer <- overflowMsg
+	}
+	rpcSrv.subsLock.Unlock()
 
 	// Wait for the result.
 waitloop:
