@@ -2145,6 +2145,18 @@ func TestWSClient_WaitWithLateSubscription(t *testing.T) {
 	require.Equal(t, vmstate.Halt, aer.VMState)
 }
 
+func TestWSClientHandshakeError(t *testing.T) {
+	chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
+		cfg.ApplicationConfiguration.RPC.MaxWebSocketClients = -1
+	})
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
+	_, err := rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
+	require.ErrorContains(t, err, "websocket users limit reached")
+}
+
 func TestWSClient_WaitWithMissedEvent(t *testing.T) {
 	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
 	defer chain.Close()
