@@ -142,6 +142,7 @@ RPC:
   MaxIteratorResultItems: 100
   MaxFindResultItems: 100
   MaxNEP11Tokens: 100
+  MaxWebSocketClients: 64
   Port: 10332
   SessionEnabled: false
   SessionExpirationTime: 15
@@ -176,6 +177,10 @@ where:
 - `MaxFindResultItems` - the maximum number of elements for `findstates` response.
 - `MaxNEP11Tokens` - limit for the number of tokens returned from
   `getnep11balances` call.
+- `MaxWebSocketClients` - the maximum simultaneous websocket client connection
+  number (64 by default). Attempts to establish additional connections will
+  lead to websocket handshake failures. Use "-1" to disable websocket
+  connections (0 will lead to using the default value).
 - `Port` is an RPC server port it should be bound to.
 - `SessionEnabled` denotes whether session-based iterator JSON-RPC API is enabled.
   If true, then all iterators got from `invoke*` calls will be stored as sessions
