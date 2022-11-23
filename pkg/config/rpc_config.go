@@ -16,6 +16,7 @@ type (
 		MaxIteratorResultItems int           `yaml:"MaxIteratorResultItems"`
 		MaxFindResultItems     int           `yaml:"MaxFindResultItems"`
 		MaxNEP11Tokens         int           `yaml:"MaxNEP11Tokens"`
+		MaxWebSocketClients    int           `yaml:"MaxWebSocketClients"`
 		Port                   uint16        `yaml:"Port"`
 		SessionEnabled         bool          `yaml:"SessionEnabled"`
 		SessionExpirationTime  int           `yaml:"SessionExpirationTime"`

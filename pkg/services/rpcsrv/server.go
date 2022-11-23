@@ -183,10 +183,8 @@ const (
 	// Write deadline.
 	wsWriteLimit = wsPingPeriod / 2
 
-	// Maximum number of subscribers per Server. Each websocket client is
-	// treated like a subscriber, so technically it's a limit on websocket
-	// connections.
-	maxSubscribers = 64
+	// Default maximum number of websocket clients per Server.
+	defaultMaxWebSocketClients = 64
 
 	// Maximum number of elements for get*transfers requests.
 	maxTransfersLimit = 1000
@@ -277,6 +275,10 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 			conf.SessionPoolSize = defaultSessionPoolSize
 			log.Info("SessionPoolSize is not set or wrong, setting default value", zap.Int("SessionPoolSize", defaultSessionPoolSize))
 		}
+	}
+	if conf.MaxWebSocketClients == 0 {
+		conf.MaxWebSocketClients = defaultMaxWebSocketClients
+		log.Info("MaxWebSocketClients is not set or wrong, setting default value", zap.Int("MaxWebSocketClients", defaultMaxWebSocketClients))
 	}
 	var oracleWrapped = new(atomic.Value)
 	if orc != nil {
@@ -428,7 +430,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 		s.subsLock.RLock()
 		numOfSubs := len(s.subscribers)
 		s.subsLock.RUnlock()
-		if numOfSubs >= maxSubscribers {
+		if numOfSubs >= s.config.MaxWebSocketClients {
 			s.writeHTTPErrorResponse(
 				params.NewIn(),
 				w,

@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
@@ -534,32 +535,44 @@ func doSomeWSRequest(t *testing.T, ws *websocket.Conn) {
 }
 
 func TestWSClientsLimit(t *testing.T) {
-	chain, rpcSrv, httpSrv := initClearServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
-
-	dialer := websocket.Dialer{HandshakeTimeout: time.Second}
-	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
-	wss := make([]*websocket.Conn, maxSubscribers)
-
-	for i := 0; i < len(wss)+1; i++ {
-		ws, r, err := dialer.Dial(url, nil)
-		if r != nil && r.Body != nil {
-			defer r.Body.Close()
+	for tname, limit := range map[string]int{"default": 0, "8": 8, "disabled": -1} {
+		effectiveClients := limit
+		if limit == 0 {
+			effectiveClients = defaultMaxWebSocketClients
+		} else if limit < 0 {
+			effectiveClients = 0
 		}
-		if i < maxSubscribers {
-			require.NoError(t, err)
-			wss[i] = ws
-			// Check that it's completely ready.
-			doSomeWSRequest(t, ws)
-		} else {
-			require.Error(t, err)
-		}
-	}
-	// Check connections are still alive (it actually is necessary to add
-	// some use of wss to keep connections alive).
-	for i := 0; i < len(wss); i++ {
-		doSomeWSRequest(t, wss[i])
+		t.Run(tname, func(t *testing.T) {
+			chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
+				cfg.ApplicationConfiguration.RPC.MaxWebSocketClients = limit
+			})
+			defer chain.Close()
+			defer rpcSrv.Shutdown()
+
+			dialer := websocket.Dialer{HandshakeTimeout: time.Second}
+			url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
+			wss := make([]*websocket.Conn, effectiveClients)
+
+			for i := 0; i < len(wss)+1; i++ {
+				ws, r, err := dialer.Dial(url, nil)
+				if r != nil && r.Body != nil {
+					defer r.Body.Close()
+				}
+				if i < effectiveClients {
+					require.NoError(t, err)
+					wss[i] = ws
+					// Check that it's completely ready.
+					doSomeWSRequest(t, ws)
+				} else {
+					require.Error(t, err)
+				}
+			}
+			// Check connections are still alive (it actually is necessary to add
+			// some use of wss to keep connections alive).
+			for i := 0; i < len(wss); i++ {
+				doSomeWSRequest(t, wss[i])
+			}
+		})
 	}
 }
 

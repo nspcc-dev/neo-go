@@ -112,7 +112,10 @@ func getTestBlocks(t *testing.T) []*block.Block {
 
 func initClearServerWithServices(t testing.TB, needOracle bool, needNotary bool, disableIteratorsSessions bool) (*core.Blockchain, *Server, *httptest.Server) {
 	chain, orc, cfg, logger := getUnitTestChain(t, needOracle, needNotary, disableIteratorsSessions)
+	return wrapUnitTestChain(t, chain, orc, cfg, logger)
+}
 
+func wrapUnitTestChain(t testing.TB, chain *core.Blockchain, orc *oracle.Oracle, cfg config.Config, logger *zap.Logger) (*core.Blockchain, *Server, *httptest.Server) {
 	serverConfig := network.NewServerConfig(cfg)
 	serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.6-test")
 	serverConfig.Port = 0
@@ -126,6 +129,11 @@ func initClearServerWithServices(t testing.TB, needOracle bool, needNotary bool,
 	srv := httptest.NewServer(handler)
 
 	return chain, &rpcServer, srv
+}
+
+func initClearServerWithCustomConfig(t testing.TB, ccfg func(configuration *config.Config)) (*core.Blockchain, *Server, *httptest.Server) {
+	chain, orc, cfg, logger := getUnitTestChainWithCustomConfig(t, false, false, ccfg)
+	return wrapUnitTestChain(t, chain, orc, cfg, logger)
 }
 
 func initClearServerWithInMemoryChain(t testing.TB) (*core.Blockchain, *Server, *httptest.Server) {
