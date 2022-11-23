@@ -2,6 +2,65 @@
 
 This document outlines major changes between releases.
 
+## 0.99.7 "Hyalinization" (23 Nov 2022)
+
+Bugs, terrestrial arthropods with at least six legs. Sometimes we don't notice
+them, sometimes we ignore them, but they do exist and there are times when
+they need to be dealt with in one way or another. Most of the bugs fixed in
+this release have a little less legs than proper insects, they're far from
+being as critical as the ones fixed in the previous release and yet we
+consider them annoying enough to warrant this new version of NeoGo to be
+published. We don't want to see our users fighting these pesky creatures in
+the wild, better update and have a troublefree experience.
+
+If you're not affected by #2815 (requests for verbose transaction data and
+application logs failed for some specific mainnet transaction(s)) you may
+leave the DB as is with this upgrade, if you want it to be solved then please
+resynchronize.
+
+Behaviour changes:
+ * "loadtx" VM CLI command now uses transaction system fee value as the
+   default GAS limit for the context, unless --gas is used (previously it
+   wasn't limited, #2816)
+ * SendRawTransaction RPC client method will now always return transaction
+   hash, even if error occured, this also affects Actor APIs and allows to
+   handle some specific errors (like transaction already present in the
+   mempool) in more appropriate way (#2817)
+ * Actor and NotaryActor Wait() wrapper methods now handle "already exists"
+   and "already on chain" errors as non-errors, waiting (if needed) and
+   returning proper results (#2817)
+
+Improvements:
+ * reworked network discoverer/connection manager that has a better picture of
+   the network (especially if it's a small one), doesn't try to make additional
+   connections (even when having less than MinPeers of them) when there are no
+   more real addresses to connect to, establishes stable connections faster in
+   containerized environments and does more connection attempts when MinPeers
+   setting is not satisfied, but there are potential candidates (#2811)
+ * VM invocation stack handling microoptimization (#2812)
+ * load* VM CLI commands now accept --gas parameter to set the amount of GAS
+   to be used in this context (#2816)
+ * better logging during state reset process (#2813)
+ * subscription-based transaction waiter now handles already accepted
+   transactions faster (~immediately vs waiting for block timeout previously,
+   #2817)
+ * WSClient can return more specific error on websocket handshake failure if
+   it's provided by server (#2821)
+ * new MaxWebSocketClients configuration option for the RPC server to control
+   the number of allowed websocket clients, missing or 0 value make the server
+   use the default of 64 which is compatible with the previous behavior (you
+   can use old configurations if you don't care about this option, #2821)
+
+Bugs fixed:
+ * occasional "loadgo" VM CLI test failures because of timeout (#2810)
+ * websocket waiter test instability (#2809)
+ * websocket event unsubscriptions could lead to node deadlock in rare
+   circumstances (#2809)
+ * exception handler could use improper evaluation stack in some cases (#2812)
+ * pointer stack items were not handled correctly in "protected" serialization
+   mode leading to inability to deserialize these items back (#2816)
+ * state reset functionality not working for big chains like mainnet (#2813)
+
 ## 0.99.6 "Funambulation" (16 Nov 2022)
 
 An emergency release fixing mainnet incompatibility at block 2504320 leading
