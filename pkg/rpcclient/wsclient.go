@@ -365,6 +365,15 @@ func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error
 		defer resp.Body.Close() // Not exactly required by websocket, but let's do this for bodyclose checker.
 	}
 	if err != nil {
+		if resp != nil && resp.Body != nil {
+			var srvErr neorpc.HeaderAndError
+
+			dec := json.NewDecoder(resp.Body)
+			decErr := dec.Decode(&srvErr)
+			if decErr == nil && srvErr.Error != nil {
+				err = srvErr.Error
+			}
+		}
 		return nil, err
 	}
 	wsc := &WSClient{
