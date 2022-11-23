@@ -133,13 +133,12 @@ func TestWSWaiter_Wait(t *testing.T) {
 	require.ErrorIs(t, err, someErr)
 
 	// AER is in chain immediately.
+	aer, err := w.Wait(h, bCount-1, nil)
+	require.NoError(t, err)
+	require.Equal(t, expected, aer)
+
+	// Auxiliary things for asynchronous tests.
 	doneCh := make(chan struct{})
-	go func() {
-		aer, err := w.Wait(h, bCount-1, nil)
-		require.NoError(t, err)
-		require.Equal(t, expected, aer)
-		doneCh <- struct{}{}
-	}()
 	check := func(t *testing.T, trigger func()) {
 		timer := time.NewTimer(time.Second)
 		var triggerFired bool
@@ -159,6 +158,15 @@ func TestWSWaiter_Wait(t *testing.T) {
 		}
 		require.True(t, triggerFired)
 	}
+
+	// AER received after the subscription.
+	c.RPCClient.appLog = nil
+	go func() {
+		aer, err = w.Wait(h, bCount-1, nil)
+		require.NoError(t, err)
+		require.Equal(t, expected, aer)
+		doneCh <- struct{}{}
+	}()
 	check(t, func() {
 		c.chLock.RLock()
 		defer c.chLock.RUnlock()
@@ -166,7 +174,6 @@ func TestWSWaiter_Wait(t *testing.T) {
 	})
 
 	// Missing AER after VUB.
-	c.RPCClient.appLog = nil
 	go func() {
 		_, err = w.Wait(h, bCount-2, nil)
 		require.ErrorIs(t, err, ErrTxNotAccepted)

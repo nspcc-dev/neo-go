@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -41,7 +42,11 @@ type (
 		// Wait allows to wait until transaction will be accepted to the chain. It can be
 		// used as a wrapper for Send or SignAndSend and accepts transaction hash,
 		// ValidUntilBlock value and an error. It returns transaction execution result
-		// or an error if transaction wasn't accepted to the chain.
+		// or an error if transaction wasn't accepted to the chain. Notice that "already
+		// exists" err value is not treated as an error by this routine because it
+		// means that the transactions given might be already accepted or soon going
+		// to be accepted. Such transaction can be waited for in a usual way, potentially
+		// with positive result, so that's what will happen.
 		Wait(h util.Uint256, vub uint32, err error) (*state.AppExecResult, error)
 		// WaitAny waits until at least one of the specified transactions will be accepted
 		// to the chain until vub (including). It returns execution result of this
@@ -87,6 +92,12 @@ type PollingWaiter struct {
 type EventWaiter struct {
 	ws      RPCEventWaiter
 	polling Waiter
+}
+
+// errIsAlreadyExists is a temporary helper until we have #2248 solved. Both C#
+// and Go nodes return this string (possibly among other data).
+func errIsAlreadyExists(err error) bool {
+	return strings.Contains(strings.ToLower(err.Error()), "already exists")
 }
 
 // newWaiter creates Waiter instance. It can be either websocket-based or
@@ -139,7 +150,7 @@ func NewPollingWaiter(waiter RPCPollingWaiter) (*PollingWaiter, error) {
 
 // Wait implements Waiter interface.
 func (w *PollingWaiter) Wait(h util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
-	if err != nil {
+	if err != nil && !errIsAlreadyExists(err) {
 		return nil, err
 	}
 	return w.WaitAny(context.TODO(), vub, h)
@@ -209,7 +220,7 @@ func NewEventWaiter(waiter RPCEventWaiter) (*EventWaiter, error) {
 
 // Wait implements Waiter interface.
 func (w *EventWaiter) Wait(h util.Uint256, vub uint32, err error) (res *state.AppExecResult, waitErr error) {
-	if err != nil {
+	if err != nil && !errIsAlreadyExists(err) {
 		return nil, err
 	}
 	return w.WaitAny(context.TODO(), vub, h)
@@ -244,6 +255,7 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 		}()
 	}
 	if wsWaitErr == nil {
+		trig := trigger.Application
 		for _, h := range hashes {
 			txsID, err := w.ws.ReceiveExecutions(&neorpc.ExecutionFilter{Container: &h}, aerRcvr)
 			if err != nil {
@@ -260,22 +272,28 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 				}
 				unsubErrs <- nil
 			}()
+			// There is a potential race between subscription and acceptance, so
+			// do a polling check once _after_ the subscription.
+			appLog, err := w.ws.GetApplicationLog(h, &trig)
+			if err == nil {
+				res = &state.AppExecResult{
+					Container: appLog.Container,
+					Execution: appLog.Executions[0],
+				}
+				break // We have the result, no need for other subscriptions.
+			}
 		}
 	}
 
-	if wsWaitErr == nil {
+	if wsWaitErr == nil && res == nil {
 		select {
-		case b, ok := <-bRcvr:
+		case _, ok := <-bRcvr:
 			if !ok {
 				// We're toast, retry with non-ws client.
 				wsWaitErr = ErrMissedEvent
 				break
 			}
-			// We can easily end up in a situation when subscription was performed too late and
-			// the desired transaction and VUB-th block have already got accepted before the
-			// subscription happened. Thus, always retry with non-ws client, it will perform
-			// AER requests and make sure.
-			wsWaitErr = fmt.Errorf("block #%d was received by EventWaiter", b.Index)
+			waitErr = ErrTxNotAccepted
 		case aer, ok := <-aerRcvr:
 			if !ok {
 				// We're toast, retry with non-ws client.
