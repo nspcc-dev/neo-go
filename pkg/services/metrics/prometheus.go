@@ -19,7 +19,7 @@ func NewPrometheusService(cfg config.BasicService, log *zap.Logger) *Service {
 
 	return &Service{
 		Server: &http.Server{
-			Addr:    cfg.Address + ":" + cfg.Port,
+			Addr:    cfg.FormatAddress(),
 			Handler: promhttp.Handler(),
 		},
 		config:      cfg,

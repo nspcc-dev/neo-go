@@ -330,7 +330,9 @@ func TestConfigureAddresses(t *testing.T) {
 		cfg := &config.ApplicationConfiguration{
 			Address: defaultAddress,
 			RPC: config.RPC{
-				Address: customAddress,
+				BasicService: config.BasicService{
+					Address: customAddress,
+				},
 			},
 		}
 		configureAddresses(cfg)

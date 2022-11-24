@@ -255,13 +255,13 @@ var invalidBlockHeightError = func(index int, height int) *neorpc.Error {
 func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	orc OracleHandler, log *zap.Logger, errChan chan error) Server {
 	httpServer := &http.Server{
-		Addr: conf.Address + ":" + strconv.FormatUint(uint64(conf.Port), 10),
+		Addr: conf.FormatAddress(),
 	}
 
 	var tlsServer *http.Server
 	if cfg := conf.TLSConfig; cfg.Enabled {
 		tlsServer = &http.Server{
-			Addr: net.JoinHostPort(cfg.Address, strconv.FormatUint(uint64(cfg.Port), 10)),
+			Addr: cfg.FormatAddress(),
 		}
 	}
 

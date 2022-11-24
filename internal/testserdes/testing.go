@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 // MarshalUnmarshalJSON checks if the expected stays the same after
@@ -15,6 +16,15 @@ func MarshalUnmarshalJSON(t *testing.T, expected, actual interface{}) {
 	data, err := json.Marshal(expected)
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(data, actual))
+	require.Equal(t, expected, actual)
+}
+
+// MarshalUnmarshalYAML checks if the expected stays the same after
+// marshal/unmarshal via YAML.
+func MarshalUnmarshalYAML(t *testing.T, expected, actual interface{}) {
+	data, err := yaml.Marshal(expected)
+	require.NoError(t, err)
+	require.NoError(t, yaml.Unmarshal(data, actual))
 	require.Equal(t, expected, actual)
 }
 
