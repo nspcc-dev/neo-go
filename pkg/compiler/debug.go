@@ -339,7 +339,9 @@ func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.Exte
 			return st, vt, over, et
 		}
 	}
-
+	if ptr, isPtr := t.(*types.Pointer); isPtr {
+		t = ptr.Elem()
+	}
 	var over binding.Override
 	switch t := t.Underlying().(type) {
 	case *types.Basic:
