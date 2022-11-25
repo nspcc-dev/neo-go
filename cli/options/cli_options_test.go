@@ -24,7 +24,7 @@ func TestGetRPCClient(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-		set.String(options.RPCEndpointFlag, "http://"+e.RPC.Addr, "")
+		set.String(options.RPCEndpointFlag, "http://"+e.RPC.Addresses()[0], "")
 		ctx := cli.NewContext(app.New(), set, nil)
 		gctx, _ := options.GetTimeoutContext(ctx)
 		_, ec := options.GetRPCClient(gctx, ctx)

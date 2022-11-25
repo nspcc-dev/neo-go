@@ -17,13 +17,13 @@ func NewPrometheusService(cfg config.BasicService, log *zap.Logger) *Service {
 		return nil
 	}
 
-	return &Service{
-		Server: &http.Server{
-			Addr:    cfg.FormatAddress(),
-			Handler: promhttp.Handler(),
-		},
-		config:      cfg,
-		serviceType: "Prometheus",
-		log:         log.With(zap.String("service", "Prometheus")),
+	addrs := cfg.GetAddresses()
+	srvs := make([]*http.Server, len(addrs))
+	for i, addr := range addrs {
+		srvs[i] = &http.Server{
+			Addr:    addr,
+			Handler: promhttp.Handler(), // share metrics between multiple prometheus handlers
+		}
 	}
+	return NewService("Prometheus", srvs, cfg, log)
 }

@@ -56,19 +56,23 @@ ApplicationConfiguration:
       Password: "pass"
   RPC:
     Enabled: true
+    Addresses:
+      - ":20331"
     MaxGasInvoke: 15
     EnableCORSWorkaround: false
-    Port: 20331
     SessionEnabled: true
     SessionExpirationTime: 180 # higher expiration time for manual requests and tests.
     TLSConfig:
         Enabled: false
-        Port: 20330
+        Addresses:
+          - ":20330"
         CertFile: serv.crt
         KeyFile: serv.key
   Prometheus:
     Enabled: true
-    Port: 2112
+    Addresses:
+      - ":2112"
   Pprof:
     Enabled: false
-    Port: 2113
+    Addresses:
+      - ":2113"

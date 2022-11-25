@@ -22,7 +22,7 @@ func TestRegisterCandidate(t *testing.T) {
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
 		"--from", testcli.ValidatorAddr,
 		"--force",
@@ -31,29 +31,29 @@ func TestRegisterCandidate(t *testing.T) {
 	e.CheckTxPersisted(t)
 
 	e.Run(t, "neo-go", "query", "committee",
-		"--rpc-endpoint", "http://"+e.RPC.Addr)
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
 	e.CheckNextLine(t, "^\\s*"+validatorHex)
 
 	e.Run(t, "neo-go", "query", "candidates",
-		"--rpc-endpoint", "http://"+e.RPC.Addr)
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
 	e.CheckNextLine(t, "^\\s*Key.+$") // Header.
 	e.CheckEOF(t)
 
 	// missing address
 	e.RunWithError(t, "neo-go", "wallet", "candidate", "register",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet)
 
 	// additional parameter
 	e.RunWithError(t, "neo-go", "wallet", "candidate", "register",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
 		"--address", validatorAddress,
 		"error")
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "candidate", "register",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
 		"--address", validatorAddress,
 		"--force")
@@ -68,14 +68,14 @@ func TestRegisterCandidate(t *testing.T) {
 	t.Run("VoteUnvote", func(t *testing.T) {
 		// positional instead of a flag.
 		e.RunWithError(t, "neo-go", "wallet", "candidate", "vote",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet,
 			"--address", validatorAddress,
 			validatorHex) // not "--candidate hex", but "hex".
 
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "candidate", "vote",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet,
 			"--address", validatorAddress,
 			"--candidate", validatorHex,
@@ -89,18 +89,18 @@ func TestRegisterCandidate(t *testing.T) {
 		require.Equal(t, b, vs[0].Votes)
 
 		e.Run(t, "neo-go", "query", "committee",
-			"--rpc-endpoint", "http://"+e.RPC.Addr)
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
 		e.CheckNextLine(t, "^\\s*"+validatorHex)
 
 		e.Run(t, "neo-go", "query", "candidates",
-			"--rpc-endpoint", "http://"+e.RPC.Addr)
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
 		e.CheckNextLine(t, "^\\s*Key.+$") // Header.
 		e.CheckNextLine(t, "^\\s*"+validatorHex+"\\s*"+b.String()+"\\s*true\\s*true$")
 		e.CheckEOF(t)
 
 		// check state
 		e.Run(t, "neo-go", "query", "voter",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			validatorAddress)
 		e.CheckNextLine(t, "^\\s*Voted:\\s+"+validatorHex+"\\s+\\("+validatorAddress+"\\)$")
 		e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String()+"$")
@@ -110,7 +110,7 @@ func TestRegisterCandidate(t *testing.T) {
 		// unvote
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "candidate", "vote",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet,
 			"--address", validatorAddress,
 			"--force")
@@ -123,7 +123,7 @@ func TestRegisterCandidate(t *testing.T) {
 
 		// check state
 		e.Run(t, "neo-go", "query", "voter",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			validatorAddress)
 		e.CheckNextLine(t, "^\\s*Voted:\\s+"+"null") // no vote.
 		e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String()+"$")
@@ -133,18 +133,18 @@ func TestRegisterCandidate(t *testing.T) {
 
 	// missing address
 	e.RunWithError(t, "neo-go", "wallet", "candidate", "unregister",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet)
 	// additional argument
 	e.RunWithError(t, "neo-go", "wallet", "candidate", "unregister",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
 		"--address", validatorAddress,
 		"argument")
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "candidate", "unregister",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
 		"--address", validatorAddress,
 		"--force")
@@ -156,7 +156,7 @@ func TestRegisterCandidate(t *testing.T) {
 	// query voter: missing address
 	e.RunWithError(t, "neo-go", "query", "voter")
 	// Excessive parameters.
-	e.RunWithError(t, "neo-go", "query", "voter", "--rpc-endpoint", "http://"+e.RPC.Addr, validatorAddress, validatorAddress)
-	e.RunWithError(t, "neo-go", "query", "committee", "--rpc-endpoint", "http://"+e.RPC.Addr, "something")
-	e.RunWithError(t, "neo-go", "query", "candidates", "--rpc-endpoint", "http://"+e.RPC.Addr, "something")
+	e.RunWithError(t, "neo-go", "query", "voter", "--rpc-endpoint", "http://"+e.RPC.Addresses()[0], validatorAddress, validatorAddress)
+	e.RunWithError(t, "neo-go", "query", "committee", "--rpc-endpoint", "http://"+e.RPC.Addresses()[0], "something")
+	e.RunWithError(t, "neo-go", "query", "candidates", "--rpc-endpoint", "http://"+e.RPC.Addresses()[0], "something")
 }

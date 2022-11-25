@@ -117,7 +117,9 @@ type (
 
 	// Server represents the JSON-RPC 2.0 server.
 	Server struct {
-		*http.Server
+		http  []*http.Server
+		https []*http.Server
+
 		chain  Ledger
 		config config.RPC
 		// wsReadLimit represents web-socket message limit for a receiving side.
@@ -128,7 +130,6 @@ type (
 		coreServer       *network.Server
 		oracle           *atomic.Value
 		log              *zap.Logger
-		https            *http.Server
 		shutdown         chan struct{}
 		started          *atomic.Bool
 		errChan          chan error
@@ -254,14 +255,22 @@ var invalidBlockHeightError = func(index int, height int) *neorpc.Error {
 // New creates a new Server struct.
 func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	orc OracleHandler, log *zap.Logger, errChan chan error) Server {
-	httpServer := &http.Server{
-		Addr: conf.FormatAddress(),
+	addrs := conf.GetAddresses()
+	httpServers := make([]*http.Server, len(addrs))
+	for i, addr := range addrs {
+		httpServers[i] = &http.Server{
+			Addr: addr,
+		}
 	}
 
-	var tlsServer *http.Server
+	var tlsServers []*http.Server
 	if cfg := conf.TLSConfig; cfg.Enabled {
-		tlsServer = &http.Server{
-			Addr: cfg.FormatAddress(),
+		addrs := cfg.GetAddresses()
+		tlsServers = make([]*http.Server, len(addrs))
+		for i, addr := range addrs {
+			tlsServers[i] = &http.Server{
+				Addr: addr,
+			}
 		}
 	}
 
@@ -289,7 +298,9 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		wsOriginChecker = func(_ *http.Request) bool { return true }
 	}
 	return Server{
-		Server:           httpServer,
+		http:  httpServers,
+		https: tlsServers,
+
 		chain:            chain,
 		config:           conf,
 		wsReadLimit:      int64(protoCfg.MaxBlockSize*4)/3 + 1024, // Enough for Base64-encoded content of `submitblock` and `submitp2pnotaryrequest`.
@@ -299,7 +310,6 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		coreServer:       coreServer,
 		log:              log,
 		oracle:           oracleWrapped,
-		https:            tlsServer,
 		shutdown:         make(chan struct{}),
 		started:          atomic.NewBool(false),
 		errChan:          errChan,
@@ -333,40 +343,48 @@ func (s *Server) Start() {
 		s.log.Info("RPC server already started")
 		return
 	}
-	s.Handler = http.HandlerFunc(s.handleHTTPRequest)
-	s.log.Info("starting rpc-server", zap.String("endpoint", s.Addr))
+	for _, srv := range s.http {
+		srv.Handler = http.HandlerFunc(s.handleHTTPRequest)
+		s.log.Info("starting rpc-server", zap.String("endpoint", srv.Addr))
+
+		ln, err := net.Listen("tcp", srv.Addr)
+		if err != nil {
+			s.errChan <- fmt.Errorf("failed to listen on %s: %w", srv.Addr, err)
+			return
+		}
+		srv.Addr = ln.Addr().String() // set Addr to the actual address
+		go func(server *http.Server) {
+			err = server.Serve(ln)
+			if !errors.Is(err, http.ErrServerClosed) {
+				s.log.Error("failed to start RPC server", zap.Error(err))
+				s.errChan <- err
+			}
+		}(srv)
+	}
 
 	go s.handleSubEvents()
 	if cfg := s.config.TLSConfig; cfg.Enabled {
-		s.https.Handler = http.HandlerFunc(s.handleHTTPRequest)
-		s.log.Info("starting rpc-server (https)", zap.String("endpoint", s.https.Addr))
-		go func() {
-			ln, err := net.Listen("tcp", s.https.Addr)
+		for _, srv := range s.https {
+			srv.Handler = http.HandlerFunc(s.handleHTTPRequest)
+			s.log.Info("starting rpc-server (https)", zap.String("endpoint", srv.Addr))
+
+			ln, err := net.Listen("tcp", srv.Addr)
 			if err != nil {
 				s.errChan <- err
 				return
 			}
-			s.https.Addr = ln.Addr().String()
-			err = s.https.ServeTLS(ln, cfg.CertFile, cfg.KeyFile)
-			if !errors.Is(err, http.ErrServerClosed) {
-				s.log.Error("failed to start TLS RPC server", zap.Error(err))
-				s.errChan <- err
-			}
-		}()
-	}
-	ln, err := net.Listen("tcp", s.Addr)
-	if err != nil {
-		s.errChan <- err
-		return
-	}
-	s.Addr = ln.Addr().String() // set Addr to the actual address
-	go func() {
-		err = s.Serve(ln)
-		if !errors.Is(err, http.ErrServerClosed) {
-			s.log.Error("failed to start RPC server", zap.Error(err))
-			s.errChan <- err
+			srv.Addr = ln.Addr().String()
+
+			go func(srv *http.Server) {
+				err = srv.ServeTLS(ln, cfg.CertFile, cfg.KeyFile)
+				if !errors.Is(err, http.ErrServerClosed) {
+					s.log.Error("failed to start TLS RPC server",
+						zap.String("endpoint", srv.Addr), zap.Error(err))
+					s.errChan <- err
+				}
+			}(srv)
 		}
-	}()
+	}
 }
 
 // Shutdown stops the RPC server if it's running. It can only be called once,
@@ -381,17 +399,23 @@ func (s *Server) Shutdown() {
 	close(s.shutdown)
 
 	if s.config.TLSConfig.Enabled {
-		s.log.Info("shutting down RPC server (https)", zap.String("endpoint", s.https.Addr))
-		err := s.https.Shutdown(context.Background())
-		if err != nil {
-			s.log.Warn("error during RPC (https) server shutdown", zap.Error(err))
+		for _, srv := range s.https {
+			s.log.Info("shutting down RPC server (https)", zap.String("endpoint", srv.Addr))
+			err := srv.Shutdown(context.Background())
+			if err != nil {
+				s.log.Warn("error during RPC (https) server shutdown",
+					zap.String("endpoint", srv.Addr), zap.Error(err))
+			}
 		}
 	}
 
-	s.log.Info("shutting down RPC server", zap.String("endpoint", s.Addr))
-	err := s.Server.Shutdown(context.Background())
-	if err != nil {
-		s.log.Warn("error during RPC (http) server shutdown", zap.Error(err))
+	for _, srv := range s.http {
+		s.log.Info("shutting down RPC server", zap.String("endpoint", srv.Addr))
+		err := srv.Shutdown(context.Background())
+		if err != nil {
+			s.log.Warn("error during RPC (http) server shutdown",
+				zap.String("endpoint", srv.Addr), zap.Error(err))
+		}
 	}
 
 	// Perform sessions finalisation.
@@ -2789,4 +2813,14 @@ func escapeForLog(in string) string {
 		}
 		return c
 	}, in)
+}
+
+// Addresses returns the list of addresses RPC server is listening to in the form of
+// address:port.
+func (s *Server) Addresses() []string {
+	res := make([]string, len(s.http))
+	for i, srv := range s.http {
+		res[i] = srv.Addr
+	}
+	return res
 }

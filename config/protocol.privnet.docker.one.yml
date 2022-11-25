@@ -69,12 +69,14 @@ ApplicationConfiguration:
       Password: "pass"
   RPC:
     Enabled: true
+    Addresses:
+      - ":30333"
     MaxGasInvoke: 15
     EnableCORSWorkaround: false
-    Port: 30333
   Prometheus:
     Enabled: true
-    Port: 20001
+    Addresses:
+      - ":20001"
   Pprof:
     Enabled: false
     Port: 20011

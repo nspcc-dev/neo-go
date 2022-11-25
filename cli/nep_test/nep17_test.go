@@ -21,7 +21,7 @@ func TestNEP17Balance(t *testing.T) {
 	e := testcli.NewExecutor(t, true)
 	cmdbalance := []string{"neo-go", "wallet", "nep17", "balance"}
 	cmdbase := append(cmdbalance,
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
 	)
 	cmd := append(cmdbase, "--address", testcli.ValidatorAddr)
@@ -122,7 +122,7 @@ func TestNEP17Transfer(t *testing.T) {
 	e := testcli.NewExecutor(t, true)
 	args := []string{
 		"neo-go", "wallet", "nep17", "transfer",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
 		"--to", w.Accounts[0].Address,
 		"--token", "NEO",
@@ -182,7 +182,7 @@ func TestNEP17Transfer(t *testing.T) {
 	t.Run("default address", func(t *testing.T) {
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet,
 			"--from", testcli.ValidatorAddr,
 			"--force",
@@ -208,7 +208,7 @@ func TestNEP17Transfer(t *testing.T) {
 	t.Run("with signers", func(t *testing.T) {
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet,
 			"--from", testcli.ValidatorAddr,
 			"--force",
@@ -221,7 +221,7 @@ func TestNEP17Transfer(t *testing.T) {
 	validTil := e.Chain.BlockHeight() + 100
 	cmd := []string{
 		"neo-go", "wallet", "nep17", "transfer",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
 		"--to", address.Uint160ToString(e.Chain.GetNotaryContractScriptHash()),
 		"--token", "GAS",
@@ -262,7 +262,7 @@ func TestNEP17MultiTransfer(t *testing.T) {
 	require.NoError(t, err)
 	args := []string{
 		"neo-go", "wallet", "nep17", "multitransfer",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
 		"--from", testcli.ValidatorAddr,
 		"--force",
@@ -318,26 +318,26 @@ func TestNEP17ImportToken(t *testing.T) {
 
 	// missing token hash
 	e.RunWithError(t, "neo-go", "wallet", "nep17", "import",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", walletPath)
 
 	// additional parameter
 	e.RunWithError(t, "neo-go", "wallet", "nep17", "import",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", walletPath,
 		"--token", gasContractHash.StringLE(), "useless")
 	e.Run(t, "neo-go", "wallet", "nep17", "import",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", walletPath,
 		"--token", gasContractHash.StringLE())
 	e.Run(t, "neo-go", "wallet", "nep17", "import",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", walletPath,
 		"--token", address.Uint160ToString(neoContractHash)) // try address instead of sh
 
 	// not a NEP-17 token
 	e.RunWithError(t, "neo-go", "wallet", "nep17", "import",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", walletPath,
 		"--token", nnsContractHash.StringLE())
 

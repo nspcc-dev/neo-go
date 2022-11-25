@@ -60,15 +60,18 @@ ApplicationConfiguration:
       Password: "pass"
   RPC:
     Enabled: true
+    Addresses:
+      - ":30333"
     EnableCORSWorkaround: false
     MaxGasInvoke: 15
-    Port: 30333
   Prometheus:
     Enabled: true
-    Port: 20001
+    Addresses:
+      - ":20001"
   Pprof:
     Enabled: false
-    Port: 20011
+    Addresses:
+      - ":20011"
   UnlockWallet:
     Path: "/wallet1.json"
     Password: "one"

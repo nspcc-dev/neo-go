@@ -348,7 +348,7 @@ func DeployContract(t *testing.T, e *Executor, inPath, configPath, wallet, addre
 		"--out", nefName, "--manifest", manifestName)
 	e.In.WriteString(pass + "\r")
 	e.Run(t, "neo-go", "contract", "deploy",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", wallet, "--address", address,
 		"--force",
 		"--in", nefName, "--manifest", manifestName)

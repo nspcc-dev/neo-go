@@ -71,13 +71,16 @@ ApplicationConfiguration:
     Enabled: true
     MaxGasInvoke: 15
     EnableCORSWorkaround: false
-    Port: 30334
+    Addresses:
+      - ":30334"
   Prometheus:
     Enabled: true
-    Port: 20002
+    Addresses:
+      - ":20002"
   Pprof:
     Enabled: false
-    Port: 20012
+    Addresses:
+      - ":20012"
   UnlockWallet:
     Path: "/wallet2.json"
     Password: "two"

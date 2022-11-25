@@ -6,14 +6,24 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBasicService_FormatAddress(t *testing.T) {
-	for expected, tc := range map[string]BasicService{
-		"localhost:10332": {Address: "localhost", Port: 10332},
-		"127.0.0.1:0":     {Address: "127.0.0.1"},
-		":0":              {},
-	} {
-		t.Run(expected, func(t *testing.T) {
-			require.Equal(t, expected, tc.FormatAddress())
-		})
+func TestBasicService_GetAddresses(t *testing.T) {
+	addr := "1.2.3.4"
+	port := uint16(1234)
+	s := BasicService{
+		Enabled: false,
+		Address: &addr,
+		Port:    &port,
+		Addresses: []string{"1.2.3.4:1234", /* same as Address:Port */
+			"3.4.5.6:1234", "2.3.4.5", ":1235", "2.3.4.5:1234",
+			"3.4.5.6:1234" /* already in list */},
 	}
+	require.Equal(t, []string{
+		"1.2.3.4:1234",
+		"3.4.5.6:1234",
+		"2.3.4.5",
+		":1235",
+		"2.3.4.5:1234",
+		"3.4.5.6:1234",
+		"1.2.3.4:1234",
+	}, s.GetAddresses())
 }

@@ -118,17 +118,21 @@ Prometheus) and has the following structure:
 ```
 Pprof:
   Enabled: false
-  Address: ""
-  Port: "30001"
+  Addresses:
+    - ":30001"
 Prometheus:
   Enabled: false
-  Address: ""
-  Port: "40001"
+  Addresses:
+    - ":40001"
 ```
 where:
 - `Enabled` denotes whether the service is enabled.
-- `Address` is a service address to be running at.
-- `Port` is a service port to be bound to.
+- `Address` is a service address to be running at. Warning: this field is deprecated,
+   please, use `Addresses` instead.
+- `Port` is a service port to be bound to. Warning: this field is deprecated, please,
+   use `Addresses` instead.
+- `Addresses` is a list of service addresses to be running at and listen to in
+   the form of "host:port".
 
 ### RPC Configuration
 
@@ -137,29 +141,32 @@ the following structure:
 ```
 RPC:
   Enabled: true
-  Address: ""
+  Addresses:
+    - ":10332"
   EnableCORSWorkaround: false
   MaxGasInvoke: 50
   MaxIteratorResultItems: 100
   MaxFindResultItems: 100
   MaxNEP11Tokens: 100
   MaxWebSocketClients: 64
-  Port: 10332
   SessionEnabled: false
   SessionExpirationTime: 15
   SessionBackedByMPT: false
   SessionPoolSize: 20
   StartWhenSynchronized: false
   TLSConfig:
-    Address: ""
+    Addresses:
+      - ":10331"
     CertFile: serv.crt
     Enabled: true
-    Port: 10331
     KeyFile: serv.key
 ```
 where:
 - `Enabled` denotes whether an RPC server should be started.
-- `Address` is an RPC server address to be running at.
+- `Address` is an RPC server address to be running at. Warning: this field is
+   deprecated, please, use `Addresses` instead.
+- `Addresses` is a list of RPC server addresses to be running at and listen to in
+  the form of "host:port".
 - `EnableCORSWorkaround` turns on a set of origin-related behaviors that make
   RPC server wide open for connections from any origins. It enables OPTIONS
   request handling for pre-flight CORS and makes the server send
@@ -182,7 +189,8 @@ where:
   number (64 by default). Attempts to establish additional connections will
   lead to websocket handshake failures. Use "-1" to disable websocket
   connections (0 will lead to using the default value).
-- `Port` is an RPC server port it should be bound to.
+- `Port` is an RPC server port it should be bound to. Warning: this field is
+   deprecated, please, use `Addresses` instead.
 - `SessionEnabled` denotes whether session-based iterator JSON-RPC API is enabled.
   If true, then all iterators got from `invoke*` calls will be stored as sessions
   on the server side available for further traverse. `traverseiterator` and

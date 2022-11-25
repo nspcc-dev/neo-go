@@ -64,17 +64,21 @@ ApplicationConfiguration:
       - application/json
   RPC:
     Enabled: true
+    Addresses:
+      - ":40332"
     MaxGasInvoke: 15
     EnableCORSWorkaround: false
-    Port: 40332
     TLSConfig:
       Enabled: false
-      Port: 40331
+      Addresses:
+        - ":40331"
       CertFile: serv.crt
       KeyFile: serv.key
   Prometheus:
     Enabled: false
-    Port: 2112
+    Addresses:
+      - ":2112"
   Pprof:
     Enabled: false
-    Port: 2113
+    Addresses:
+      - ":2113"

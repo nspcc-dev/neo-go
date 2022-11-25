@@ -470,17 +470,17 @@ func TestWalletClaimGas(t *testing.T) {
 
 	t.Run("missing wallet path", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "claim",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--address", testcli.TestWalletAccount)
 	})
 	t.Run("missing address", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "claim",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.TestWalletPath)
 	})
 	t.Run("invalid address", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "claim",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.TestWalletPath,
 			"--address", util.Uint160{}.StringLE())
 	})
@@ -493,14 +493,14 @@ func TestWalletClaimGas(t *testing.T) {
 	t.Run("insufficient funds", func(t *testing.T) {
 		e.In.WriteString("testpass\r")
 		e.RunWithError(t, "neo-go", "wallet", "claim",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.TestWalletPath,
 			"--address", testcli.TestWalletAccount)
 	})
 
 	args := []string{
 		"neo-go", "wallet", "nep17", "multitransfer",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
 		"--from", testcli.ValidatorAddr,
 		"--force",
@@ -522,7 +522,7 @@ func TestWalletClaimGas(t *testing.T) {
 
 	e.In.WriteString("testpass\r")
 	e.Run(t, "neo-go", "wallet", "claim",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.TestWalletPath,
 		"--address", testcli.TestWalletAccount,
 		"--force")
@@ -570,7 +570,7 @@ func TestWalletImportDeployed(t *testing.T) {
 	t.Run("unknown contract", func(t *testing.T) {
 		e.In.WriteString("acc\rpass\rpass\r")
 		e.RunWithError(t, "neo-go", "wallet", "import-deployed",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", walletPath, "--contract", util.Uint160{}.StringLE(),
 			"--wif", priv.WIF())
 	})
@@ -578,14 +578,14 @@ func TestWalletImportDeployed(t *testing.T) {
 		badH := deployNNSContract(t, e) // wrong contract with no `verify` method
 		e.In.WriteString("acc\rpass\rpass\r")
 		e.RunWithError(t, "neo-go", "wallet", "import-deployed",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", walletPath, "--contract", badH.StringLE(),
 			"--wif", priv.WIF())
 	})
 
 	e.In.WriteString("acc\rpass\rpass\r")
 	e.Run(t, "neo-go", "wallet", "import-deployed",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", walletPath, "--wif", priv.WIF(), "--name", "my_acc",
 		"--contract", h.StringLE())
 
@@ -599,7 +599,7 @@ func TestWalletImportDeployed(t *testing.T) {
 	t.Run("re-importing", func(t *testing.T) {
 		e.In.WriteString("acc\rpass\rpass\r")
 		e.RunWithError(t, "neo-go", "wallet", "import-deployed",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", walletPath, "--wif", priv.WIF(), "--name", "my_acc",
 			"--contract", h.StringLE())
 	})
@@ -607,7 +607,7 @@ func TestWalletImportDeployed(t *testing.T) {
 	t.Run("Sign", func(t *testing.T) {
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet, "--from", testcli.ValidatorAddr,
 			"--force",
 			"NEO:"+contractAddr+":10",
@@ -619,7 +619,7 @@ func TestWalletImportDeployed(t *testing.T) {
 
 		e.In.WriteString("pass\r")
 		e.Run(t, "neo-go", "wallet", "nep17", "transfer",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", walletPath, "--from", contractAddr,
 			"--force",
 			"--to", privTo.Address(), "--token", "NEO", "--amount", "1")
@@ -680,7 +680,7 @@ func TestOfflineSigning(t *testing.T) {
 
 	t.Run("1/1 multisig", func(t *testing.T) {
 		args := []string{"neo-go", "wallet", "nep17", "transfer",
-			"--rpc-endpoint", "http://" + e.RPC.Addr,
+			"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 			"--wallet", walletPath,
 			"--from", testcli.ValidatorAddr,
 			"--to", w.Accounts[0].Address,
@@ -699,15 +699,15 @@ func TestOfflineSigning(t *testing.T) {
 		t.Run("sendtx", func(t *testing.T) {
 			// And it can't be sent.
 			e.RunWithError(t, "neo-go", "util", "sendtx",
-				"--rpc-endpoint", "http://"+e.RPC.Addr,
+				"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 				txPath)
 			// Even with too many arguments.
 			e.RunWithError(t, "neo-go", "util", "sendtx",
-				"--rpc-endpoint", "http://"+e.RPC.Addr,
+				"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 				txPath, txPath)
 			// Or no arguments at all.
 			e.RunWithError(t, "neo-go", "util", "sendtx",
-				"--rpc-endpoint", "http://"+e.RPC.Addr)
+				"--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
 		})
 		// But it can be signed with a proper wallet.
 		e.In.WriteString("one\r")
@@ -716,7 +716,7 @@ func TestOfflineSigning(t *testing.T) {
 			"--in", txPath, "--out", txPath)
 		// And then anyone can send (even via wallet sign).
 		e.Run(t, "neo-go", "wallet", "sign",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", walletPath, "--address", testcli.ValidatorAddr,
 			"--in", txPath)
 	})
@@ -724,7 +724,7 @@ func TestOfflineSigning(t *testing.T) {
 	t.Run("simple signature", func(t *testing.T) {
 		simpleAddr := w.Accounts[0].Address
 		args := []string{"neo-go", "wallet", "nep17", "transfer",
-			"--rpc-endpoint", "http://" + e.RPC.Addr,
+			"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 			"--wallet", walletPath,
 			"--from", simpleAddr,
 			"--to", testcli.ValidatorAddr,
@@ -749,7 +749,7 @@ func TestOfflineSigning(t *testing.T) {
 		e.RunWithError(t, "neo-go", "util", "sendtx", txPath)
 		// But it requires no wallet at all.
 		e.Run(t, "neo-go", "util", "sendtx",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			txPath)
 	})
 }

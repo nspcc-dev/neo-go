@@ -84,17 +84,21 @@ ApplicationConfiguration:
       Password: "pass"
   RPC:
     Enabled: true
+    Addresses:
+      - ":20332"
     MaxGasInvoke: 15
     EnableCORSWorkaround: false
-    Port: 20332
     TLSConfig:
       Enabled: false
-      Port: 20331
+      Addresses:
+        - ":20331"
       CertFile: serv.crt
       KeyFile: serv.key
   Prometheus:
     Enabled: true
-    Port: 2112
+    Addresses:
+      - ":2112"
   Pprof:
     Enabled: false
-    Port: 2113
+    Addresses:
+      - ":2113"

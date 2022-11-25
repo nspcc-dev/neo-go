@@ -141,8 +141,14 @@ func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *m
 	pprof := metrics.NewPprofService(cfg.ApplicationConfiguration.Pprof, log)
 
 	go chain.Run()
-	go prometheus.Start()
-	go pprof.Start()
+	err = prometheus.Start()
+	if err != nil {
+		return nil, nil, nil, cli.NewExitError(fmt.Errorf("failed to start Prometheus service: %w", err), 1)
+	}
+	err = pprof.Start()
+	if err != nil {
+		return nil, nil, nil, cli.NewExitError(fmt.Errorf("failed to start Pprof service: %w", err), 1)
+	}
 
 	return chain, prometheus, pprof, nil
 }
@@ -540,10 +546,18 @@ Main:
 				}
 				pprof.ShutDown()
 				pprof = metrics.NewPprofService(cfgnew.ApplicationConfiguration.Pprof, log)
-				go pprof.Start()
+				err = pprof.Start()
+				if err != nil {
+					shutdownErr = fmt.Errorf("failed to start Pprof service: %w", err)
+					cancel() // Fatal error, like for RPC server.
+				}
 				prometheus.ShutDown()
 				prometheus = metrics.NewPrometheusService(cfgnew.ApplicationConfiguration.Prometheus, log)
-				go prometheus.Start()
+				err = prometheus.Start()
+				if err != nil {
+					shutdownErr = fmt.Errorf("failed to start Prometheus service: %w", err)
+					cancel() // Fatal error, like for RPC server.
+				}
 			case sigusr1:
 				if oracleSrv != nil {
 					serv.DelService(oracleSrv)
@@ -622,14 +636,14 @@ Main:
 // use global one. So Node and RPC and Prometheus and Pprof will run on one address.
 func configureAddresses(cfg *config.ApplicationConfiguration) {
 	if cfg.Address != "" {
-		if cfg.RPC.Address == "" {
-			cfg.RPC.Address = cfg.Address
+		if cfg.RPC.Address == nil || *cfg.RPC.Address == "" {
+			cfg.RPC.Address = &cfg.Address
 		}
-		if cfg.Prometheus.Address == "" {
-			cfg.Prometheus.Address = cfg.Address
+		if cfg.Prometheus.Address == nil || *cfg.Prometheus.Address == "" {
+			cfg.Prometheus.Address = &cfg.Address
 		}
-		if cfg.Pprof.Address == "" {
-			cfg.Pprof.Address = cfg.Address
+		if cfg.Pprof.Address == nil || *cfg.Pprof.Address == "" {
+			cfg.Pprof.Address = &cfg.Address
 		}
 	}
 }

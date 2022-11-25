@@ -310,7 +310,7 @@ func TestDeployBigContract(t *testing.T) {
 
 	e.In.WriteString(testcli.ValidatorPass + "\r")
 	e.RunWithError(t, "neo-go", "contract", "deploy",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 		"--in", nefName, "--manifest", manifestName)
 }
@@ -333,7 +333,7 @@ func TestContractDeployWithData(t *testing.T) {
 		e := testcli.NewExecutor(t, true)
 		cmd := []string{
 			"neo-go", "contract", "deploy",
-			"--rpc-endpoint", "http://" + e.RPC.Addr,
+			"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", manifestName,
 			"--force",
@@ -363,7 +363,7 @@ func TestContractDeployWithData(t *testing.T) {
 		require.NoError(t, err)
 
 		e.Run(t, "neo-go", "contract", "testinvokefunction",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			h.StringLE(),
 			"getValueWithKey", "key1",
 		)
@@ -375,7 +375,7 @@ func TestContractDeployWithData(t *testing.T) {
 		require.Equal(t, []byte{12}, res.Stack[0].Value())
 
 		e.Run(t, "neo-go", "contract", "testinvokefunction",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			h.StringLE(),
 			"getValueWithKey", "key2",
 		)
@@ -408,33 +408,33 @@ func TestDeployWithSigners(t *testing.T) {
 
 	t.Run("missing nef", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "deploy",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", "", "--manifest", manifestName)
 	})
 	t.Run("missing manifest", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "deploy",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", "")
 	})
 	t.Run("corrupted data", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "deploy",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", manifestName,
 			"[", "str1")
 	})
 	t.Run("invalid data", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "deploy",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", manifestName,
 			"str1", "str2")
 	})
 	t.Run("missing wallet", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "deploy",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", manifestName,
 			"[", "str1", "str2", "]")
@@ -447,7 +447,7 @@ func TestDeployWithSigners(t *testing.T) {
 	})
 	e.In.WriteString(testcli.ValidatorPass + "\r")
 	e.Run(t, "neo-go", "contract", "deploy",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 		"--in", nefName, "--manifest", manifestName,
 		"--force",
@@ -534,7 +534,7 @@ func TestContractManifestGroups(t *testing.T) {
 
 	e.In.WriteString(testcli.ValidatorPass + "\r")
 	e.Run(t, "neo-go", "contract", "deploy",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--in", nefName, "--manifest", manifestName,
 		"--force",
 		"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr)
@@ -557,22 +557,22 @@ func TestContract_TestInvokeScript(t *testing.T) {
 
 	t.Run("missing in", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "testinvokescript",
-			"--rpc-endpoint", "http://"+e.RPC.Addr)
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
 	})
 	t.Run("unexisting in", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "testinvokescript",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--in", badNef)
 	})
 	t.Run("invalid nef", func(t *testing.T) {
 		require.NoError(t, os.WriteFile(badNef, []byte("qwer"), os.ModePerm))
 		e.RunWithError(t, "neo-go", "contract", "testinvokescript",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--in", badNef)
 	})
 	t.Run("invalid signers", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "testinvokescript",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--in", goodNef, "--", "not-a-valid-signer")
 	})
 	t.Run("no RPC endpoint", func(t *testing.T) {
@@ -582,34 +582,34 @@ func TestContract_TestInvokeScript(t *testing.T) {
 	})
 	t.Run("good", func(t *testing.T) {
 		e.Run(t, "neo-go", "contract", "testinvokescript",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--in", goodNef)
 	})
 	t.Run("good with hashed signer", func(t *testing.T) {
 		e.Run(t, "neo-go", "contract", "testinvokescript",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--in", goodNef, "--", util.Uint160{1, 2, 3}.StringLE())
 	})
 	t.Run("good with addressed signer", func(t *testing.T) {
 		e.Run(t, "neo-go", "contract", "testinvokescript",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--in", goodNef, "--", address.Uint160ToString(util.Uint160{1, 2, 3}))
 	})
 	t.Run("historic, invalid", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "testinvokescript",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--historic", "bad",
 			"--in", goodNef)
 	})
 	t.Run("historic, index", func(t *testing.T) {
 		e.Run(t, "neo-go", "contract", "testinvokescript",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--historic", "0",
 			"--in", goodNef)
 	})
 	t.Run("historic, hash", func(t *testing.T) {
 		e.Run(t, "neo-go", "contract", "testinvokescript",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--historic", e.Chain.GetHeaderHash(0).StringLE(),
 			"--in", goodNef)
 	})
@@ -639,7 +639,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(configPath, yml, 0666))
 	e.Run(t, "neo-go", "contract", "deploy",
-		"--rpc-endpoint", "http://"+e.RPC.Addr, "--force",
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0], "--force",
 		"--wallet-config", configPath, "--address", testcli.ValidatorAddr,
 		"--in", nefName, "--manifest", manifestName)
 
@@ -663,7 +663,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	})
 
 	cmd := []string{"neo-go", "contract", "testinvokefunction",
-		"--rpc-endpoint", "http://" + e.RPC.Addr}
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0]}
 	t.Run("missing hash", func(t *testing.T) {
 		e.RunWithError(t, cmd...)
 	})
@@ -704,7 +704,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 	t.Run("real invoke", func(t *testing.T) {
 		cmd := []string{"neo-go", "contract", "invokefunction",
-			"--rpc-endpoint", "http://" + e.RPC.Addr}
+			"--rpc-endpoint", "http://" + e.RPC.Addresses()[0]}
 		t.Run("missing wallet", func(t *testing.T) {
 			cmd := append(cmd, h.StringLE(), "getValue")
 			e.RunWithError(t, cmd...)
@@ -778,7 +778,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		txout := filepath.Join(tmpDir, "test_contract_tx.json")
 
 		cmd = []string{"neo-go", "contract", "invokefunction",
-			"--rpc-endpoint", "http://" + e.RPC.Addr,
+			"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 			"--out", txout,
 			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 		}
@@ -837,7 +837,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 	t.Run("test Storage.Find", func(t *testing.T) {
 		cmd := []string{"neo-go", "contract", "testinvokefunction",
-			"--rpc-endpoint", "http://" + e.RPC.Addr,
+			"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 			h.StringLE(), "testFind"}
 
 		t.Run("keys only", func(t *testing.T) {
@@ -901,7 +901,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		stateBeforeUpdate = mptBeforeUpdate.Root
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "contract", "invokefunction",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--force",
 			h.StringLE(), "update",
@@ -913,14 +913,14 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		indexAfterUpdate = e.Chain.BlockHeight()
 		e.In.WriteString("one\r")
 		e.Run(t, "neo-go", "contract", "testinvokefunction",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			h.StringLE(), "getValue")
 		checkGetValueOut("on update|sub update")
 	})
 	t.Run("historic", func(t *testing.T) {
 		t.Run("bad ref", func(t *testing.T) {
 			e.RunWithError(t, "neo-go", "contract", "testinvokefunction",
-				"--rpc-endpoint", "http://"+e.RPC.Addr,
+				"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 				"--historic", "bad",
 				h.StringLE(), "getValue")
 		})
@@ -931,7 +931,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		} {
 			t.Run(name, func(t *testing.T) {
 				e.Run(t, "neo-go", "contract", "testinvokefunction",
-					"--rpc-endpoint", "http://"+e.RPC.Addr,
+					"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 					"--historic", ref,
 					h.StringLE(), "getValue")
 			})
@@ -939,7 +939,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		}
 		t.Run("updated historic", func(t *testing.T) {
 			e.Run(t, "neo-go", "contract", "testinvokefunction",
-				"--rpc-endpoint", "http://"+e.RPC.Addr,
+				"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 				"--historic", strconv.FormatUint(uint64(indexAfterUpdate), 10),
 				h.StringLE(), "getValue")
 			checkGetValueOut("on update|sub update")
