@@ -119,8 +119,8 @@ func Generate(cfg Config) error {
 	return srcTemplate.Execute(cfg.Output, ctr)
 }
 
-func scTypeToGo(name string, typ smartcontract.ParamType, overrides map[string]Override) (string, string) {
-	if over, ok := overrides[name]; ok {
+func scTypeToGo(name string, typ smartcontract.ParamType, cfg *Config) (string, string) {
+	if over, ok := cfg.Overrides[name]; ok {
 		return over.TypeName, over.Package
 	}
 
@@ -159,7 +159,7 @@ func scTypeToGo(name string, typ smartcontract.ParamType, overrides map[string]O
 // TemplateFromManifest create a contract template using the given configuration
 // and type conversion function. It assumes manifest to be present in the
 // configuration and assumes it to be correct (passing IsValid check).
-func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract.ParamType, map[string]Override) (string, string)) ContractTmpl {
+func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract.ParamType, *Config) (string, string)) ContractTmpl {
 	hStr := ""
 	for _, b := range cfg.Hash.BytesBE() {
 		hStr += fmt.Sprintf("\\x%02x", b)
@@ -221,7 +221,7 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 		var varnames = make(map[string]bool)
 		for i := range m.Parameters {
 			name := m.Parameters[i].Name
-			typeStr, pkg := scTypeConverter(m.Name+"."+name, m.Parameters[i].Type, cfg.Overrides)
+			typeStr, pkg := scTypeConverter(m.Name+"."+name, m.Parameters[i].Type, &cfg)
 			if pkg != "" {
 				imports[pkg] = struct{}{}
 			}
@@ -238,7 +238,7 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 			})
 		}
 
-		typeStr, pkg := scTypeConverter(m.Name, m.ReturnType, cfg.Overrides)
+		typeStr, pkg := scTypeConverter(m.Name, m.ReturnType, &cfg)
 		if pkg != "" {
 			imports[pkg] = struct{}{}
 		}

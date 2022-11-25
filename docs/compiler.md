@@ -459,8 +459,9 @@ result. This pair can then be used in Invoker `TraverseIterator` method to
 retrieve actual resulting items.
 
 Go contracts can also make use of additional type data from bindings
-configuration file generated during compilation. At the moment it allows to
-generate proper wrappers for simple array types, but doesn't cover structures:
+configuration file generated during compilation. This can cover arrays, maps
+and structures. Notice that structured types returned by methods can't be Null
+at the moment (see #2795).
 
 ```
 $ ./bin/neo-go contract compile -i contract.go --config contract.yml -o contract.nef --manifest manifest.json --bindings contract.bindings.yml
