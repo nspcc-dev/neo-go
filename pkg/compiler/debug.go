@@ -274,6 +274,10 @@ func scAndVMInteropTypeFromExpr(named *types.Named, isPointer bool) (smartcontra
 	pkg := named.Obj().Pkg().Name()
 	switch pkg {
 	case "ledger", "management":
+		switch name {
+		case "ParameterType", "SignerScope", "WitnessAction", "WitnessConditionType", "VMState":
+			return smartcontract.IntegerType, stackitem.IntegerT, binding.Override{TypeName: "int"}, nil
+		}
 		// Block, Transaction, Contract.
 		typeName := pkg + "." + name
 		et := &binding.ExtendedType{Base: smartcontract.ArrayType, Name: typeName}
