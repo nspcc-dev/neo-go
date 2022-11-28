@@ -70,7 +70,7 @@ func GetReadOnlyContext(ic *interop.Context) error {
 func getContextInternal(ic *interop.Context, isReadOnly bool) error {
 	contract, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
 	if err != nil {
-		return err
+		return fmt.Errorf("storage context can not be retrieved in dynamic scripts: %w", err)
 	}
 	sc := &Context{
 		ID:       contract.ID,
