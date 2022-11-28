@@ -924,7 +924,7 @@ func TestRunWithHistoricState(t *testing.T) {
 	e.checkNextLine(t, "READY: loaded 36 instructions")
 	e.checkStack(t, []byte{1})
 	e.checkNextLine(t, "READY: loaded 36 instructions")
-	e.checkNextLineExact(t, "Error: at instruction 31 (SYSCALL): failed to invoke syscall 1381727586: called contract cd583ac7a1a4faef70d6e9f513bc988dde22f672 not found: key not found\n")
+	e.checkNextLineExact(t, "Error: at instruction 31 (SYSCALL): System.Contract.Call failed: called contract cd583ac7a1a4faef70d6e9f513bc988dde22f672 not found: key not found\n")
 }
 
 func TestEvents(t *testing.T) {
@@ -1178,7 +1178,7 @@ func TestLoaddeployed(t *testing.T) {
 	e.checkNextLine(t, "READY: loaded \\d+ instructions")
 	e.checkStack(t, []byte{2})
 	e.checkNextLine(t, "READY: loaded \\d+ instructions")
-	e.checkError(t, errors.New("at instruction 63 (SYSCALL): failed to invoke syscall 837311890: insufficient amount of gas"))
+	e.checkError(t, errors.New("at instruction 63 (SYSCALL): System.Storage.Get failed: insufficient amount of gas"))
 	e.checkNextLine(t, "READY: loaded \\d+ instructions")
 	e.checkStack(t, []byte{2})
 	e.checkNextLine(t, "READY: loaded \\d+ instructions")

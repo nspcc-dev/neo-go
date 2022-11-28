@@ -1462,7 +1462,11 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		err := v.SyscallHandler(v, interopID)
 		if err != nil {
-			panic(fmt.Sprintf("failed to invoke syscall %d: %s", interopID, err))
+			iName, iErr := interopnames.FromID(interopID)
+			if iErr == nil {
+				panic(fmt.Sprintf("%s failed: %s", iName, err))
+			}
+			panic(fmt.Sprintf("%d failed: %s", interopID, err))
 		}
 
 	case opcode.RET:
