@@ -2467,6 +2467,9 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		// Only one %w can be used.
 		return fmt.Errorf("%w: %v", ErrPolicy, err)
 	}
+	if t.SystemFee > bc.config.MaxBlockSystemFee {
+		return fmt.Errorf("%w: too big system fee (%d > MaxBlockSystemFee %d)", ErrPolicy, t.SystemFee, bc.config.MaxBlockSystemFee)
+	}
 	size := t.Size()
 	if size > transaction.MaxTransactionSize {
 		return fmt.Errorf("%w: (%d > MaxTransactionSize %d)", ErrTxTooBig, size, transaction.MaxTransactionSize)
