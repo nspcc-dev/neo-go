@@ -3278,7 +3278,8 @@ func TestEscapeForLog(t *testing.T) {
 func BenchmarkHandleIn(b *testing.B) {
 	chain, orc, cfg, logger := getUnitTestChain(b, false, false, false)
 
-	serverConfig := network.NewServerConfig(cfg)
+	serverConfig, err := network.NewServerConfig(cfg)
+	require.NoError(b, err)
 	serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.6-test")
 	serverConfig.LogLevel = zapcore.FatalLevel
 	server, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), logger)

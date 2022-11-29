@@ -97,7 +97,7 @@ type (
 		// A copy of the Ledger's config.
 		config config.ProtocolConfiguration
 
-		transport         Transporter
+		transports        []Transporter
 		discovery         Discoverer
 		chain             Ledger
 		bQueue            *blockQueue
@@ -154,13 +154,13 @@ func randomID() uint32 {
 
 // NewServer returns a new Server, initialized with the given configuration.
 func NewServer(config ServerConfig, chain Ledger, stSync StateSync, log *zap.Logger) (*Server, error) {
-	return newServerFromConstructors(config, chain, stSync, log, func(s *Server) Transporter {
-		return NewTCPTransport(s, net.JoinHostPort(s.ServerConfig.Address, strconv.Itoa(int(s.ServerConfig.Port))), s.log)
+	return newServerFromConstructors(config, chain, stSync, log, func(s *Server, addr string) Transporter {
+		return NewTCPTransport(s, addr, s.log)
 	}, newDefaultDiscovery)
 }
 
 func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSync, log *zap.Logger,
-	newTransport func(*Server) Transporter,
+	newTransport func(*Server, string) Transporter,
 	newDiscovery func([]string, time.Duration, Transporter) Discoverer,
 ) (*Server, error) {
 	if log == nil {
@@ -238,11 +238,20 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		s.BroadcastFactor = defaultBroadcastFactor
 	}
 
-	s.transport = newTransport(s)
+	if len(s.ServerConfig.Addresses) == 0 {
+		return nil, errors.New("no bind addresses configured")
+	}
+	transports := make([]Transporter, len(s.ServerConfig.Addresses))
+	for i, addr := range s.ServerConfig.Addresses {
+		transports[i] = newTransport(s, addr.Address)
+	}
+	s.transports = transports
 	s.discovery = newDiscovery(
 		s.Seeds,
 		s.DialTimeout,
-		s.transport,
+		// Here we need to pick up a single transporter, it will be used to
+		// dial, and it doesn't matter which one.
+		s.transports[0],
 	)
 
 	return s, nil
@@ -271,7 +280,9 @@ func (s *Server) Start(errChan chan error) {
 	go s.relayBlocksLoop()
 	go s.bQueue.run()
 	go s.bSyncQueue.run()
-	go s.transport.Accept()
+	for _, tr := range s.transports {
+		go tr.Accept()
+	}
 	setServerAndNodeVersions(s.UserAgent, strconv.FormatUint(uint64(s.id), 10))
 	s.run()
 }
@@ -280,7 +291,9 @@ func (s *Server) Start(errChan chan error) {
 // once stopped the same intance of the Server can't be started again by calling Start.
 func (s *Server) Shutdown() {
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
-	s.transport.Close()
+	for _, tr := range s.transports {
+		tr.Close()
+	}
 	for _, p := range s.getPeers(nil) {
 		p.Disconnect(errServerShutdown)
 	}
@@ -600,11 +613,12 @@ func (s *Server) HandshakedPeersCount() int {
 	return count
 }
 
-// getVersionMsg returns the current version message.
-func (s *Server) getVersionMsg() (*Message, error) {
-	port, err := s.Port()
+// getVersionMsg returns the current version message generated for the specified
+// connection.
+func (s *Server) getVersionMsg(localAddr net.Addr) (*Message, error) {
+	port, err := s.Port(localAddr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch server port: %w", err)
 	}
 
 	capabilities := []capability.Capability{
@@ -1654,26 +1668,42 @@ func (s *Server) broadcastTxLoop() {
 	}
 }
 
-// Port returns a server port that should be used in P2P version exchange. In
-// case `AnnouncedPort` is set in the server.Config, the announced node port
-// will be returned (e.g. consider the node running behind NAT). If `AnnouncedPort`
-// isn't set, the port returned may still differs from that of server.Config.
-func (s *Server) Port() (uint16, error) {
-	if s.AnnouncedPort != 0 {
-		return s.ServerConfig.AnnouncedPort, nil
+// Port returns a server port that should be used in P2P version exchange with the
+// peer connected on the given localAddr. In case if announced node port is set
+// in the server.Config for the given bind address, the announced node port will
+// be returned (e.g. consider the node running behind NAT). If `AnnouncedPort`
+// isn't set, the port returned may still differ from that of server.Config. If
+// no localAddr is given, then the first available port will be returned.
+func (s *Server) Port(localAddr net.Addr) (uint16, error) {
+	var connIP string
+	if localAddr != nil {
+		connIP, _, _ = net.SplitHostPort(localAddr.String()) // Ignore error and provide info if possible.
 	}
-	var port uint16
-	_, portStr, err := net.SplitHostPort(s.transport.Address())
-	if err != nil {
-		port = s.ServerConfig.Port
-	} else {
-		p, err := strconv.ParseUint(portStr, 10, 16)
-		if err != nil {
-			return 0, err
+	var defaultPort *uint16
+	for i, tr := range s.transports {
+		listenIP, listenPort := tr.HostPort()
+		if listenIP == "::" || listenIP == "" || localAddr == nil || connIP == "" || connIP == listenIP {
+			var res uint16
+			if s.ServerConfig.Addresses[i].AnnouncedPort != 0 {
+				res = s.ServerConfig.Addresses[i].AnnouncedPort
+			} else {
+				p, err := strconv.ParseUint(listenPort, 10, 16)
+				if err != nil {
+					return 0, fmt.Errorf("failed to parse bind port from '%s': %w", listenPort, err)
+				}
+				res = uint16(p)
+			}
+			if localAddr == nil || // no local address is specified => take the first port available
+				(listenIP != "::" && listenIP != "") { // direct match is always preferable
+				return res, nil
+			}
+			defaultPort = &res
 		}
-		port = uint16(p)
 	}
-	return port, nil
+	if defaultPort != nil {
+		return *defaultPort, nil
+	}
+	return 0, fmt.Errorf("bind address for connection '%s' is not registered", localAddr.String())
 }
 
 // optimalNumOfThreads returns the optimal number of processing threads to create

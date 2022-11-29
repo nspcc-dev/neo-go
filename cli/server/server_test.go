@@ -312,13 +312,15 @@ func TestRestoreDB(t *testing.T) {
 	require.NoError(t, restoreDB(ctx))
 }
 
+// TestConfigureAddresses checks deprecated code compatibility, it should be removed
+// along with deprecated `Address` field removal.
 func TestConfigureAddresses(t *testing.T) {
 	defaultAddress := "http://localhost:10333"
 	customAddress := "http://localhost:10334"
 
 	t.Run("default addresses", func(t *testing.T) {
 		cfg := &config.ApplicationConfiguration{
-			Address: defaultAddress,
+			Address: &defaultAddress, //nolint:staticcheck // SA1019: Address is deprecated
 		}
 		configureAddresses(cfg)
 		require.Equal(t, defaultAddress, *cfg.RPC.Address)        //nolint:staticcheck // SA1019: cfg.RPC.Address is deprecated
@@ -328,10 +330,10 @@ func TestConfigureAddresses(t *testing.T) {
 
 	t.Run("custom RPC address", func(t *testing.T) {
 		cfg := &config.ApplicationConfiguration{
-			Address: defaultAddress,
+			Address: &defaultAddress, //nolint:staticcheck // SA1019: Address is deprecated
 			RPC: config.RPC{
 				BasicService: config.BasicService{
-					Address: &customAddress,
+					Address: &customAddress, //nolint:staticcheck // SA1019: Address is deprecated
 				},
 			},
 		}
@@ -343,9 +345,9 @@ func TestConfigureAddresses(t *testing.T) {
 
 	t.Run("custom Pprof address", func(t *testing.T) {
 		cfg := &config.ApplicationConfiguration{
-			Address: defaultAddress,
+			Address: &defaultAddress, //nolint:staticcheck // SA1019: Address is deprecated
 			Pprof: config.BasicService{
-				Address: &customAddress,
+				Address: &customAddress, //nolint:staticcheck // SA1019: Address is deprecated
 			},
 		}
 		configureAddresses(cfg)
@@ -356,9 +358,9 @@ func TestConfigureAddresses(t *testing.T) {
 
 	t.Run("custom Prometheus address", func(t *testing.T) {
 		cfg := &config.ApplicationConfiguration{
-			Address: defaultAddress,
+			Address: &defaultAddress, //nolint:staticcheck // SA1019: Address is deprecated
 			Prometheus: config.BasicService{
-				Address: &customAddress,
+				Address: &customAddress, //nolint:staticcheck // SA1019: Address is deprecated
 			},
 		}
 		configureAddresses(cfg)

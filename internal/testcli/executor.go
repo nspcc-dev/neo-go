@@ -146,7 +146,8 @@ func NewTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 		go chain.Run()
 	}
 
-	serverConfig := network.NewServerConfig(cfg)
+	serverConfig, err := network.NewServerConfig(cfg)
+	require.NoError(t, err)
 	serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.3-test")
 	netSrv, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), zap.NewNop())
 	require.NoError(t, err)

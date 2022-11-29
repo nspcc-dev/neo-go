@@ -16,8 +16,9 @@ node-related settings described in the table below.
 
 | Section | Type | Default value | Description |
 | --- | --- | --- | --- |
-| Address | `string` | `0.0.0.0` | Node address that P2P protocol handler binds to. |
-| AnnouncedPort | `uint16` | Same as `NodePort` | Node port which should be used to announce node's port on P2P layer, it can differ from the `NodePort` the node is bound to (for example, if your node is behind NAT). |
+| Address | `string` | `0.0.0.0` | Node address that P2P protocol handler binds to. Warning: this field is deprecated, please, use `Addresses` instead. |
+| AnnouncedPort | `uint16` | Same as `NodePort` | Node port which should be used to announce node's port on P2P layer, it can differ from the `NodePort` the node is bound to (for example, if your node is behind NAT). Warning: this field is deprecated, please, use `Addresses` instead. |
+| Addresses | `[]string` | `["0.0.0.0:0"]`, which is any free port on all available addresses | List of the node addresses that P2P protocol handler binds to. Each address has the form of `[address]:[nodePort][:announcedPort]` where `address` is the address itself, `nodePort` is the actual P2P port node listens at; `announcedPort` is the node port which should be used to announce node's port on P2P layer, it can differ from the `nodePort` the node is bound to if specified (for example, if your node is behind NAT).|
 | AttemptConnPeers | `int` | `20` | Number of connection to try to establish when the connection count drops below the `MinPeers` value.|
 | BroadcastFactor | `int` | `0` | Multiplier that is used to determine the number of optimal gossip fan-out peer number for broadcasted messages (0-100). By default it's zero, node uses the most optimized value depending on the estimated network size (`2.5×log(size)`), so the node may have 20 peers and calculate that it needs to broadcast messages to just 10 of them. With BroadcastFactor set to 100 it will always send messages to all peers, any value in-between 0 and 100 is used for weighted calculation, for example if it's 30 then 13 neighbors will be used in the previous case. |
 | DBConfiguration | [DB Configuration](#DB-Configuration) |  | Describes configuration for database. See the [DB Configuration](#DB-Configuration) section for details. |
@@ -27,7 +28,7 @@ node-related settings described in the table below.
 | LogPath | `string` | "", so only console logging | File path where to store node logs. |
 | MaxPeers | `int` | `100` | Maximum numbers of peers that can be connected to the server. |
 | MinPeers | `int` | `5` | Minimum number of peers for normal operation; when the node has less than this number of peers it tries to connect with some new ones. |
-| NodePort | `uint16` | `0`, which is any free port | The actual node port it is bound to. |
+| NodePort | `uint16` | `0`, which is any free port | The actual node port it is bound to. Warning: this field is deprecated, please, use `Addresses` instead. |
 | Oracle | [Oracle Configuration](#Oracle-Configuration) | | Oracle module configuration. See the [Oracle Configuration](#Oracle-Configuration) section for details. |
 | P2PNotary | [P2P Notary Configuration](#P2P-Notary-Configuration) | | P2P Notary module configuration. See the [P2P Notary Configuration](#P2P-Notary-Configuration) section for details. |
 | PingInterval | `int64` | `30` | Interval in seconds used in pinging mechanism for syncing blocks. |

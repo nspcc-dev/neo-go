@@ -717,7 +717,7 @@ func (s *Server) getBlockHash(reqParams params.Params) (interface{}, *neorpc.Err
 }
 
 func (s *Server) getVersion(_ params.Params) (interface{}, *neorpc.Error) {
-	port, err := s.coreServer.Port()
+	port, err := s.coreServer.Port(nil) // any port will suite
 	if err != nil {
 		return nil, neorpc.NewInternalServerError(fmt.Sprintf("cannot fetch tcp port: %s", err))
 	}

@@ -1,6 +1,7 @@
 package network
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -28,14 +29,8 @@ type (
 		// The user agent of the server.
 		UserAgent string
 
-		// Address. Example: "localhost".
-		Address string
-
-		// AnnouncedPort is an announced node port for P2P version exchange.
-		AnnouncedPort uint16
-
-		// Port is the actual node port it is bound to. Example: 20332.
-		Port uint16
+		// Addresses stores the list of bind addresses for the node.
+		Addresses []config.AnnounceableAddress
 
 		// The network mode the server will operate on.
 		// ModePrivNet docker private network.
@@ -86,7 +81,7 @@ type (
 
 // NewServerConfig creates a new ServerConfig struct
 // using the main applications config.
-func NewServerConfig(cfg config.Config) ServerConfig {
+func NewServerConfig(cfg config.Config) (ServerConfig, error) {
 	appConfig := cfg.ApplicationConfiguration
 	protoConfig := cfg.ProtocolConfiguration
 	timePerBlock := protoConfig.TimePerBlock
@@ -94,11 +89,13 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		timePerBlock = time.Duration(protoConfig.SecondsPerBlock) * time.Second //nolint:staticcheck // SA1019: protoConfig.SecondsPerBlock is deprecated
 	}
 
+	addrs, err := appConfig.GetAddresses()
+	if err != nil {
+		return ServerConfig{}, fmt.Errorf("failed to parse addresses: %w", err)
+	}
 	return ServerConfig{
 		UserAgent:          cfg.GenerateUserAgent(),
-		Address:            appConfig.Address,
-		AnnouncedPort:      appConfig.AnnouncedNodePort,
-		Port:               appConfig.NodePort,
+		Addresses:          addrs,
 		Net:                protoConfig.Magic,
 		Relay:              appConfig.Relay,
 		Seeds:              protoConfig.SeedList,
@@ -115,5 +112,5 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		StateRootCfg:       appConfig.StateRoot,
 		ExtensiblePoolSize: appConfig.ExtensiblePoolSize,
 		BroadcastFactor:    appConfig.BroadcastFactor,
-	}
+	}, nil
 }

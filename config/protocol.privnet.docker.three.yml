@@ -38,9 +38,8 @@ ApplicationConfiguration:
       DataDirectoryPath: "/chains/three"
   #    BoltDBOptions:
   #      FilePath: "./chains/privnet.bolt"
-  #  Uncomment in order to set up custom address for node.
-  #  Address: localhost
-  NodePort: 20335
+  Addresses:
+    - ":20335" # in form of "[host]:[port][:announcedPort]"
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2

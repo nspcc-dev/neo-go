@@ -20,7 +20,8 @@ type fakeTransp struct {
 	started  atomic2.Bool
 	closed   atomic2.Bool
 	dialCh   chan string
-	addr     string
+	host     string
+	port     string
 }
 
 type fakeAPeer struct {
@@ -45,8 +46,14 @@ func (f *fakeAPeer) Version() *payload.Version {
 	return f.version
 }
 
-func newFakeTransp(s *Server) Transporter {
-	return &fakeTransp{}
+func newFakeTransp(s *Server, addr string) Transporter {
+	tr := &fakeTransp{}
+	h, p, err := net.SplitHostPort(addr)
+	if err == nil {
+		tr.host = h
+		tr.port = p
+	}
+	return tr
 }
 
 func (ft *fakeTransp) Dial(addr string, timeout time.Duration) (AddressablePeer, error) {
@@ -62,14 +69,15 @@ func (ft *fakeTransp) Accept() {
 	if ft.started.Load() {
 		panic("started twice")
 	}
-	ft.addr = net.JoinHostPort("0.0.0.0", "42")
+	ft.host = "0.0.0.0"
+	ft.port = "42"
 	ft.started.Store(true)
 }
 func (ft *fakeTransp) Proto() string {
 	return ""
 }
-func (ft *fakeTransp) Address() string {
-	return ft.addr
+func (ft *fakeTransp) HostPort() (string, string) {
+	return ft.host, ft.port
 }
 func (ft *fakeTransp) Close() {
 	if ft.closed.Load() {

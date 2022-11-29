@@ -47,9 +47,8 @@ ApplicationConfiguration:
       DataDirectoryPath: "./chains/testnet.neofs"
   #    BoltDBOptions:
   #      FilePath: "./chains/testnet.bolt"
-  #  Uncomment in order to set up custom address for node.
-  #  Address: localhost
-  NodePort: 50333
+  Addresses:
+    - ":50333" # in form of "[host]:[port][:announcedPort]"
   Relay: true
   DialTimeout: 3
   ProtoTickInterval: 2

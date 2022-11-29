@@ -8,6 +8,6 @@ type Transporter interface {
 	Dial(addr string, timeout time.Duration) (AddressablePeer, error)
 	Accept()
 	Proto() string
-	Address() string
+	HostPort() (string, string)
 	Close()
 }
