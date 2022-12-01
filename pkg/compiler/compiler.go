@@ -291,13 +291,23 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 				continue
 			}
 			for _, p := range m.Parameters {
+				pname := m.Name.Name + "." + p.Name
 				if p.RealType.TypeName != "" {
-					cfg.Overrides[m.Name.Name+"."+p.Name] = p.RealType
+					cfg.Overrides[pname] = p.RealType
+				}
+				if p.ExtendedType != nil {
+					cfg.Types[pname] = *p.ExtendedType
 				}
 			}
 			if m.ReturnTypeReal.TypeName != "" {
 				cfg.Overrides[m.Name.Name] = m.ReturnTypeReal
 			}
+			if m.ReturnTypeExtended != nil {
+				cfg.Types[m.Name.Name] = *m.ReturnTypeExtended
+			}
+		}
+		if len(di.NamedTypes) > 0 {
+			cfg.NamedTypes = di.NamedTypes
 		}
 		data, err := yaml.Marshal(&cfg)
 		if err != nil {

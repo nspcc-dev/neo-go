@@ -175,7 +175,7 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr, hasEllipsis bool)
 	params := make([]string, 0, len(args[1:]))
 	vParams := make([]*stackitem.Type, 0, len(args[1:]))
 	for _, p := range args[1:] {
-		st, vt, _ := c.scAndVMTypeFromExpr(p)
+		st, vt, _, _ := c.scAndVMTypeFromExpr(p, nil)
 		params = append(params, st.String())
 		vParams = append(vParams, &vt)
 	}

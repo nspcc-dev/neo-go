@@ -48,12 +48,28 @@ const Hash = "{{ .Hash }}"
 type (
 	// Config contains parameter for the generated binding.
 	Config struct {
-		Package   string                       `yaml:"package,omitempty"`
-		Manifest  *manifest.Manifest           `yaml:"-"`
-		Hash      util.Uint160                 `yaml:"hash,omitempty"`
-		Overrides map[string]Override          `yaml:"overrides,omitempty"`
-		CallFlags map[string]callflag.CallFlag `yaml:"callflags,omitempty"`
-		Output    io.Writer                    `yaml:"-"`
+		Package    string                       `yaml:"package,omitempty"`
+		Manifest   *manifest.Manifest           `yaml:"-"`
+		Hash       util.Uint160                 `yaml:"hash,omitempty"`
+		Overrides  map[string]Override          `yaml:"overrides,omitempty"`
+		CallFlags  map[string]callflag.CallFlag `yaml:"callflags,omitempty"`
+		NamedTypes map[string]ExtendedType      `yaml:"namedtypes,omitempty"`
+		Types      map[string]ExtendedType      `yaml:"types,omitempty"`
+		Output     io.Writer                    `yaml:"-"`
+	}
+
+	ExtendedType struct {
+		Base      smartcontract.ParamType `yaml:"base"`
+		Name      string                  `yaml:"name,omitempty"`      // Structure name, omitted for arrays, interfaces and maps.
+		Interface string                  `yaml:"interface,omitempty"` // Interface type name, "iterator" only for now.
+		Key       smartcontract.ParamType `yaml:"key,omitempty"`       // Key type (only simple types can be used for keys) for maps.
+		Value     *ExtendedType           `yaml:"value,omitempty"`     // Value type for iterators and arrays.
+		Fields    []FieldExtendedType     `yaml:"fields,omitempty"`    // Ordered type data for structure fields.
+	}
+
+	FieldExtendedType struct {
+		Field        string `yaml:"field"`
+		ExtendedType `yaml:",inline"`
 	}
 
 	ContractTmpl struct {
@@ -84,8 +100,10 @@ var srcTemplate = template.Must(template.New("generate").Parse(srcTmpl))
 // NewConfig initializes and returns a new config instance.
 func NewConfig() Config {
 	return Config{
-		Overrides: make(map[string]Override),
-		CallFlags: make(map[string]callflag.CallFlag),
+		Overrides:  make(map[string]Override),
+		CallFlags:  make(map[string]callflag.CallFlag),
+		NamedTypes: make(map[string]ExtendedType),
+		Types:      make(map[string]ExtendedType),
 	}
 }
 
