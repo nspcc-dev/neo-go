@@ -565,16 +565,16 @@ func itemToLedgerTransactionSigner(item stackitem.Item, err error) (*LedgerTrans
 		res := make([]util.Uint160, len(arr))
 		for i := range res {
 			res[i], err = func (item stackitem.Item) (util.Uint160, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		u, err := util.Uint160DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		return u, nil
-	} (arr[i])
+				b, err := item.TryBytes()
+				if err != nil {
+					return util.Uint160{}, err
+				}
+				u, err := util.Uint160DecodeBytesBE(b)
+				if err != nil {
+					return util.Uint160{}, err
+				}
+				return u, nil
+			} (arr[i])
 			if err != nil {
 				return nil, err
 			}
@@ -594,16 +594,16 @@ func itemToLedgerTransactionSigner(item stackitem.Item, err error) (*LedgerTrans
 		res := make(keys.PublicKeys, len(arr))
 		for i := range res {
 			res[i], err = func (item stackitem.Item) (*keys.PublicKey, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return nil, err
-		}
-		k, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
-		if err != nil {
-			return nil, err
-		}
-		return k, nil
-	} (arr[i])
+				b, err := item.TryBytes()
+				if err != nil {
+					return nil, err
+				}
+				k, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
+				if err != nil {
+					return nil, err
+				}
+				return k, nil
+			} (arr[i])
 			if err != nil {
 				return nil, err
 			}
@@ -978,15 +978,15 @@ func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManife
 		res := make([]string, len(arr))
 		for i := range res {
 			res[i], err = func (item stackitem.Item) (string, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return "", err
-		}
-		if !utf8.Valid(b) {
-			return "", errors.New("not a UTF-8 string")
-		}
-		return string(b), nil
-	} (arr[i])
+				b, err := item.TryBytes()
+				if err != nil {
+					return "", err
+				}
+				if !utf8.Valid(b) {
+					return "", errors.New("not a UTF-8 string")
+				}
+				return string(b), nil
+			} (arr[i])
 			if err != nil {
 				return nil, err
 			}
@@ -1031,16 +1031,16 @@ func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManife
 		res := make([]util.Uint160, len(arr))
 		for i := range res {
 			res[i], err = func (item stackitem.Item) (util.Uint160, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		u, err := util.Uint160DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		return u, nil
-	} (arr[i])
+				b, err := item.TryBytes()
+				if err != nil {
+					return util.Uint160{}, err
+				}
+				u, err := util.Uint160DecodeBytesBE(b)
+				if err != nil {
+					return util.Uint160{}, err
+				}
+				return u, nil
+			} (arr[i])
 			if err != nil {
 				return nil, err
 			}
@@ -1212,15 +1212,15 @@ func itemToManagementPermission(item stackitem.Item, err error) (*ManagementPerm
 		res := make([]string, len(arr))
 		for i := range res {
 			res[i], err = func (item stackitem.Item) (string, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return "", err
-		}
-		if !utf8.Valid(b) {
-			return "", errors.New("not a UTF-8 string")
-		}
-		return string(b), nil
-	} (arr[i])
+				b, err := item.TryBytes()
+				if err != nil {
+					return "", err
+				}
+				if !utf8.Valid(b) {
+					return "", errors.New("not a UTF-8 string")
+				}
+				return string(b), nil
+			} (arr[i])
 			if err != nil {
 				return nil, err
 			}
@@ -1381,16 +1381,16 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 		res := make([]util.Uint160, len(arr))
 		for i := range res {
 			res[i], err = func (item stackitem.Item) (util.Uint160, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		u, err := util.Uint160DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		return u, nil
-	} (arr[i])
+				b, err := item.TryBytes()
+				if err != nil {
+					return util.Uint160{}, err
+				}
+				u, err := util.Uint160DecodeBytesBE(b)
+				if err != nil {
+					return util.Uint160{}, err
+				}
+				return u, nil
+			} (arr[i])
 			if err != nil {
 				return nil, err
 			}

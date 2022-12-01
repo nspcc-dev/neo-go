@@ -456,7 +456,7 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		}
 		res := make(` + at + `, len(arr))
 		for i := range res {
-			res[i], err = ` + etTypeConverter(*et.Value, "arr[i]") + `
+			res[i], err = ` + strings.ReplaceAll(etTypeConverter(*et.Value, "arr[i]"), "\n", "\n\t\t") + `
 			if err != nil {
 				return nil, err
 			}
