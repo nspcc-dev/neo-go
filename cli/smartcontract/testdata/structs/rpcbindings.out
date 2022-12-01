@@ -109,7 +109,7 @@ type ManagementGroup struct {
 type ManagementManifest struct {
 	Name string
 	Groups []*ManagementGroup
-	Features *stackitem.Map
+	Features map[string]string
 	SupportedStandards []string
 	ABI *ManagementABI
 	Permissions []*ManagementPermission
@@ -151,7 +151,7 @@ type StructsInternal struct {
 	Sign []byte
 	ArrOfBytes [][]byte
 	ArrOfH160 []util.Uint160
-	Map *stackitem.Map
+	Map map[*big.Int]keys.PublicKeys
 	Struct *StructsInternal
 }
 // Invoker is used by ContractReader to call various safe methods.
@@ -959,11 +959,42 @@ func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManife
 	}
 
 	index++
-	res.Features, err = func (item stackitem.Item) (*stackitem.Map, error) {
-		if t := item.Type(); t != stackitem.MapT {
-			return nil, fmt.Errorf("%s is not a map", t.String())
+	res.Features, err = func (item stackitem.Item) (map[string]string, error) {
+		m, ok := item.Value().([]stackitem.MapElement)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a map", item.Type().String())
 		}
-		return item.(*stackitem.Map), nil
+		res := make(map[string]string)
+		for i := range m {
+			k, err := func (item stackitem.Item) (string, error) {
+				b, err := item.TryBytes()
+				if err != nil {
+					return "", err
+				}
+				if !utf8.Valid(b) {
+					return "", errors.New("not a UTF-8 string")
+				}
+				return string(b), nil
+			} (m[i].Key)
+			if err != nil {
+				return nil, err
+			}
+			v, err := func (item stackitem.Item) (string, error) {
+				b, err := item.TryBytes()
+				if err != nil {
+					return "", err
+				}
+				if !utf8.Valid(b) {
+					return "", errors.New("not a UTF-8 string")
+				}
+				return string(b), nil
+			} (m[i].Value)
+			if err != nil {
+				return nil, err
+			}
+			res[k] = v
+		}
+		return res, nil
 	} (arr[index])
 	if err != nil {
 		return nil, err
@@ -1402,11 +1433,47 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 	}
 
 	index++
-	res.Map, err = func (item stackitem.Item) (*stackitem.Map, error) {
-		if t := item.Type(); t != stackitem.MapT {
-			return nil, fmt.Errorf("%s is not a map", t.String())
+	res.Map, err = func (item stackitem.Item) (map[*big.Int]keys.PublicKeys, error) {
+		m, ok := item.Value().([]stackitem.MapElement)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a map", item.Type().String())
 		}
-		return item.(*stackitem.Map), nil
+		res := make(map[*big.Int]keys.PublicKeys)
+		for i := range m {
+			k, err := m[i].Key.TryInteger()
+			if err != nil {
+				return nil, err
+			}
+			v, err := func (item stackitem.Item) (keys.PublicKeys, error) {
+				arr, ok := item.Value().([]stackitem.Item)
+				if !ok {
+					return nil, errors.New("not an array")
+				}
+				res := make(keys.PublicKeys, len(arr))
+				for i := range res {
+					res[i], err = func (item stackitem.Item) (*keys.PublicKey, error) {
+						b, err := item.TryBytes()
+						if err != nil {
+							return nil, err
+						}
+						k, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
+						if err != nil {
+							return nil, err
+						}
+						return k, nil
+					} (arr[i])
+					if err != nil {
+						return nil, err
+					}
+				}
+				return res, nil
+			} (m[i].Value)
+			if err != nil {
+				return nil, err
+			}
+			res[k] = v
+		}
+		return res, nil
 	} (arr[index])
 	if err != nil {
 		return nil, err

@@ -378,7 +378,9 @@ func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.Extended
 		return "[]interface{}", ""
 
 	case smartcontract.MapType:
-		return "*stackitem.Map", "github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+		kt, _ := extendedTypeToGo(binding.ExtendedType{Base: et.Key}, named)
+		vt, _ := extendedTypeToGo(*et.Value, named)
+		return "map[" + kt + "]" + vt, "github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	case smartcontract.InteropInterfaceType:
 		return "interface{}", ""
 	case smartcontract.VoidType:
@@ -472,11 +474,25 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		}, v)
 
 	case smartcontract.MapType:
-		return `func (item stackitem.Item) (*stackitem.Map, error) {
-		if t := item.Type(); t != stackitem.MapT {
-			return nil, fmt.Errorf("%s is not a map", t.String())
+		at, _ := extendedTypeToGo(et, nil)
+		return `func (item stackitem.Item) (` + at + `, error) {
+		m, ok := item.Value().([]stackitem.MapElement)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a map", item.Type().String())
 		}
-		return item.(*stackitem.Map), nil
+		res := make(` + at + `)
+		for i := range m {
+			k, err := ` + strings.ReplaceAll(etTypeConverter(binding.ExtendedType{Base: et.Key}, "m[i].Key"), "\n", "\n\t\t") + `
+			if err != nil {
+				return nil, err
+			}
+			v, err := ` + strings.ReplaceAll(etTypeConverter(*et.Value, "m[i].Value"), "\n", "\n\t\t") + `
+			if err != nil {
+				return nil, err
+			}
+			res[k] = v
+		}
+		return res, nil
 	} (` + v + `)`
 	case smartcontract.InteropInterfaceType:
 		return "item.Value(), nil"
