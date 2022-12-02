@@ -303,6 +303,13 @@ func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
 	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, nil)
 }
 
+// LoadDynamicScript loads the given script with the given flags. This script is
+// considered to be dynamic, it can either return no value at all or return
+// exactly one value.
+func (v *VM) LoadDynamicScript(b []byte, f callflag.CallFlag) {
+	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, DynamicOnUnload)
+}
+
 // LoadScriptWithHash is similar to the LoadScriptWithFlags method, but it also loads
 // the given script hash directly into the Context to avoid its recalculations and to make
 // it possible to override it for deployed contracts with special hashes (the function
@@ -1641,7 +1648,7 @@ func (v *VM) unloadContext(ctx *Context) {
 			ctx.sc.static.ClearRefs(&v.refs)
 		}
 		if ctx.sc.onUnload != nil {
-			err := ctx.sc.onUnload(ctx, v.uncaughtException == nil)
+			err := ctx.sc.onUnload(v, ctx, v.uncaughtException == nil)
 			if err != nil {
 				errMessage := fmt.Sprintf("context unload callback failed: %s", err)
 				if v.uncaughtException != nil {

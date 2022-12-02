@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
+	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
 )
 
@@ -27,6 +28,21 @@ func BurnGas(gas int) {
 // this invocation. It uses `System.Runtime.CheckWitness` syscall.
 func CheckWitness(hashOrKey []byte) bool {
 	return neogointernal.Syscall1("System.Runtime.CheckWitness", hashOrKey).(bool)
+}
+
+// LoadScript loads the given bytecode into the VM and executes it with the
+// given call flags and arguments. This bytecode is executed as is from byte 0,
+// it's not a deployed contract that can have methods. The execution context is
+// limited to read only actions ([contract.ReadOnly]) irrespective of provided
+// call flags (you can only restrict them further with this option). An item is
+// always returned from this call, either it's the one returned from the script
+// (and it can only return one) or it's a Null stack item if the script returns
+// nothing. Note that this is somewhat similar to [contract.Call], so the
+// script can ABORT the transaction or THROW an exception, make sure you
+// appropriately handle exceptions if bytecode comes from untrusted source.
+// This function uses `System.Runtime.LoadScript` syscall.
+func LoadScript(script []byte, f contract.CallFlag, args ...interface{}) interface{} {
+	return neogointernal.Syscall3("System.Runtime.LoadScript", script, f, args)
 }
 
 // Log instructs VM to log the given message. It's mostly used for debugging

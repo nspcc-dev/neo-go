@@ -124,7 +124,7 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 	if wrapped {
 		ic.DAO = ic.DAO.GetPrivate()
 	}
-	onUnload := func(ctx *vm.Context, commit bool) error {
+	onUnload := func(v *vm.VM, ctx *vm.Context, commit bool) error {
 		if wrapped {
 			if commit {
 				_, err := ic.DAO.Persist()
@@ -136,16 +136,11 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 			}
 			ic.DAO = baseDAO
 		}
-		if isDynamic && commit {
-			eLen := ctx.Estack().Len()
-			if eLen == 0 && ctx.NumOfReturnVals() == 0 { // No return value and none expected.
-				ic.VM.Context().Estack().PushItem(stackitem.Null{}) // Must use current context stack.
-			} else if eLen > 1 { // 1 or -1 (all) retrun values expected, but only one can be returned.
-				return errors.New("multiple return values in a cross-contract call")
-			} // All other rvcount/stack length mismatches are checked by the VM.
-		}
 		if callFromNative && !commit {
 			return fmt.Errorf("unhandled exception")
+		}
+		if isDynamic {
+			return vm.DynamicOnUnload(v, ctx, commit)
 		}
 		return nil
 	}

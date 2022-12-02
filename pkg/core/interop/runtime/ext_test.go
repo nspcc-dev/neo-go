@@ -80,6 +80,28 @@ func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Ui
 	ic.VM.GasLimit = -1
 }
 
+func wrapDynamicScript(t *testing.T, script []byte, flags callflag.CallFlag, args ...interface{}) []byte {
+	b := io.NewBufBinWriter()
+
+	// Params.
+	emit.Array(b.BinWriter, args...)
+	emit.Int(b.BinWriter, int64(flags))
+	emit.Bytes(b.BinWriter, script)
+
+	// Wrapped syscall.
+	emit.Instruction(b.BinWriter, opcode.TRY, []byte{3 + 5 + 2, 0})  // 3
+	emit.Syscall(b.BinWriter, interopnames.SystemRuntimeLoadScript)  // 5
+	emit.Instruction(b.BinWriter, opcode.ENDTRY, []byte{1 + 11 + 2}) // 2
+
+	// Catch block
+	emit.Opcodes(b.BinWriter, opcode.DROP)
+	emit.String(b.BinWriter, "exception") // 1 + 1 + 9 == 11 bytes
+	emit.Opcodes(b.BinWriter, opcode.RET)
+
+	require.NoError(t, b.Err)
+	return b.Bytes()
+}
+
 func getDeployedInternal(t *testing.T) (*neotest.Executor, neotest.Signer, *core.Blockchain, *state.Contract) {
 	bc, acc := chain.NewSingle(t)
 	e := neotest.NewExecutor(t, bc, acc, acc)
@@ -374,6 +396,66 @@ func TestCheckWitness(t *testing.T) {
 				check(t, ic, hash.BytesBE(), false, false)
 			})
 		})
+	})
+}
+
+func TestLoadScript(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	t.Run("no ret val", func(t *testing.T) {
+		script := wrapDynamicScript(t, []byte{byte(opcode.RET)}, callflag.All)
+		e.InvokeScriptCheckHALT(t, script, []neotest.Signer{acc}, stackitem.Null{})
+	})
+	t.Run("empty script", func(t *testing.T) {
+		script := wrapDynamicScript(t, []byte{}, callflag.All)
+		e.InvokeScriptCheckHALT(t, script, []neotest.Signer{acc}, stackitem.Null{})
+	})
+	t.Run("bad script", func(t *testing.T) {
+		script := wrapDynamicScript(t, []byte{0xff}, callflag.All)
+		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "invalid script")
+	})
+	t.Run("ret val, no params", func(t *testing.T) {
+		script := wrapDynamicScript(t, []byte{byte(opcode.PUSH1)}, callflag.All)
+		e.InvokeScriptCheckHALT(t, script, []neotest.Signer{acc}, stackitem.Make(1))
+	})
+	t.Run("ret val with params", func(t *testing.T) {
+		script := wrapDynamicScript(t, []byte{byte(opcode.MUL)}, callflag.All, 2, 2)
+		e.InvokeScriptCheckHALT(t, script, []neotest.Signer{acc}, stackitem.Make(4))
+	})
+	t.Run("two retrun values", func(t *testing.T) {
+		script := wrapDynamicScript(t, []byte{byte(opcode.PUSH1), byte(opcode.PUSH1)}, callflag.All, 2, 2)
+		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "multiple return values in a cross-contract call")
+	})
+	t.Run("invalid flags", func(t *testing.T) {
+		script := wrapDynamicScript(t, []byte{byte(opcode.MUL)}, callflag.CallFlag(0xff), 2, 2)
+		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "call flags out of range")
+	})
+	t.Run("abort", func(t *testing.T) {
+		script := wrapDynamicScript(t, []byte{byte(opcode.ABORT)}, callflag.All)
+		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "ABORT")
+	})
+	t.Run("internal call", func(t *testing.T) {
+		script, err := smartcontract.CreateCallScript(e.NativeHash(t, nativenames.Gas), "decimals")
+		require.NoError(t, err)
+		script = wrapDynamicScript(t, script, callflag.ReadOnly)
+		e.InvokeScriptCheckHALT(t, script, []neotest.Signer{acc}, stackitem.Make(8))
+	})
+	t.Run("forbidden internal call", func(t *testing.T) {
+		script, err := smartcontract.CreateCallScript(e.NativeHash(t, nativenames.Neo), "decimals")
+		require.NoError(t, err)
+		script = wrapDynamicScript(t, script, callflag.ReadStates)
+		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "missing call flags")
+	})
+	t.Run("internal state-changing call", func(t *testing.T) {
+		script, err := smartcontract.CreateCallScript(e.NativeHash(t, nativenames.Neo), "transfer", acc.ScriptHash(), acc.ScriptHash(), 1, nil)
+		require.NoError(t, err)
+		script = wrapDynamicScript(t, script, callflag.All)
+		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "missing call flags")
+	})
+	t.Run("exception", func(t *testing.T) {
+		script := wrapDynamicScript(t, []byte{byte(opcode.PUSH1), byte(opcode.THROW)}, callflag.ReadOnly)
+		e.InvokeScriptCheckHALT(t, script, []neotest.Signer{acc}, stackitem.Make("exception"))
 	})
 }
 

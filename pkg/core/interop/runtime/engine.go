@@ -6,6 +6,8 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"go.uber.org/zap"
 )
@@ -102,6 +104,27 @@ func Notify(ic *interop.Context) error {
 		return fmt.Errorf("notification size shouldn't exceed %d", MaxNotificationSize)
 	}
 	ic.AddNotification(curHash, name, stackitem.DeepCopy(stackitem.NewArray(args), true).(*stackitem.Array))
+	return nil
+}
+
+// LoadScript takes a script and arguments from the stack and loads it into the VM.
+func LoadScript(ic *interop.Context) error {
+	script := ic.VM.Estack().Pop().Bytes()
+	fs := callflag.CallFlag(int32(ic.VM.Estack().Pop().BigInt().Int64()))
+	if fs&^callflag.All != 0 {
+		return errors.New("call flags out of range")
+	}
+	args := ic.VM.Estack().Pop().Array()
+	err := vm.IsScriptCorrect(script, nil)
+	if err != nil {
+		return fmt.Errorf("invalid script: %w", err)
+	}
+	fs = ic.VM.Context().GetCallFlags() & callflag.ReadOnly & fs
+	ic.VM.LoadDynamicScript(script, fs)
+
+	for e, i := ic.VM.Estack(), len(args)-1; i >= 0; i-- {
+		e.PushItem(args[i])
+	}
 	return nil
 }
 
