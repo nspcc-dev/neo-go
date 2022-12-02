@@ -44,7 +44,7 @@ func updatePersistedHeightMetric(pHeight uint32) {
 	persistedHeight.Set(float64(pHeight))
 }
 
-func updateHeaderHeightMetric(hHeight int) {
+func updateHeaderHeightMetric(hHeight uint32) {
 	headerHeight.Set(float64(hHeight))
 }
 

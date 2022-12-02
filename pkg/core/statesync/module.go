@@ -66,7 +66,7 @@ type Ledger interface {
 	BlockHeight() uint32
 	GetConfig() config.ProtocolConfiguration
 	GetHeader(hash util.Uint256) (*block.Header, error)
-	GetHeaderHash(int) util.Uint256
+	GetHeaderHash(uint32) util.Uint256
 	HeaderHeight() uint32
 }
 
@@ -214,7 +214,7 @@ func (s *Module) defineSyncStage() error {
 		s.log.Info("MPT is in sync",
 			zap.Uint32("stateroot height", s.stateMod.CurrentLocalHeight()))
 	} else if s.syncStage&headersSynced != 0 {
-		header, err := s.bc.GetHeader(s.bc.GetHeaderHash(int(s.syncPoint + 1)))
+		header, err := s.bc.GetHeader(s.bc.GetHeaderHash(s.syncPoint + 1))
 		if err != nil {
 			return fmt.Errorf("failed to get header to initialize MPT billet: %w", err)
 		}

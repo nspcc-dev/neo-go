@@ -14,14 +14,14 @@ type DumperRestorer interface {
 	AddBlock(block *block.Block) error
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetConfig() config.ProtocolConfiguration
-	GetHeaderHash(int) util.Uint256
+	GetHeaderHash(uint32) util.Uint256
 }
 
 // Dump writes count blocks from start to the provided writer.
 // Note: header needs to be written separately by a client.
 func Dump(bc DumperRestorer, w *io.BinWriter, start, count uint32) error {
 	for i := start; i < start+count; i++ {
-		bh := bc.GetHeaderHash(int(i))
+		bh := bc.GetHeaderHash(i)
 		b, err := bc.GetBlock(bh)
 		if err != nil {
 			return err

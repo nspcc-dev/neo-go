@@ -40,7 +40,7 @@ type Ledger interface {
 	CurrentBlockHash() util.Uint256
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetConfig() config.ProtocolConfiguration
-	GetHeaderHash(int) util.Uint256
+	GetHeaderHash(uint32) util.Uint256
 }
 
 // Context represents context in which interops are executed.
@@ -377,7 +377,7 @@ func (ic *Context) BlockHeight() uint32 {
 // CurrentBlockHash returns current block hash got from Context's block if it's set.
 func (ic *Context) CurrentBlockHash() util.Uint256 {
 	if ic.Block != nil {
-		return ic.Chain.GetHeaderHash(int(ic.Block.Index - 1)) // Persisting block is not yet stored.
+		return ic.Chain.GetHeaderHash(ic.Block.Index - 1) // Persisting block is not yet stored.
 	}
 	return ic.Chain.CurrentBlockHash()
 }

@@ -196,7 +196,7 @@ func getBlockHashFromItem(ic *interop.Context, item stackitem.Item) util.Uint256
 		if uint32(index) > ic.BlockHeight() {
 			panic(fmt.Errorf("no block with index %d", index))
 		}
-		return ic.Chain.GetHeaderHash(int(index))
+		return ic.Chain.GetHeaderHash(uint32(index))
 	}
 	hash, err := getUint256FromItem(item)
 	if err != nil {

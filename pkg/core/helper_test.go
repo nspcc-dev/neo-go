@@ -59,7 +59,7 @@ func (bc *Blockchain) newBlock(txs ...*transaction.Transaction) *block.Block {
 	lastBlock, ok := bc.topBlock.Load().(*block.Block)
 	if !ok {
 		var err error
-		lastBlock, err = bc.GetBlock(bc.GetHeaderHash(int(bc.BlockHeight())))
+		lastBlock, err = bc.GetBlock(bc.GetHeaderHash(bc.BlockHeight()))
 		if err != nil {
 			panic(err)
 		}

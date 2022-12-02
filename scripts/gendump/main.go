@@ -66,7 +66,7 @@ func main() {
 	handleError("can't get next block validators", err)
 	valScript, err := smartcontract.CreateDefaultMultiSigRedeemScript(nbVals)
 	handleError("can't create verification script", err)
-	lastBlock, err := bc.GetBlock(bc.GetHeaderHash(int(bc.BlockHeight())))
+	lastBlock, err := bc.GetBlock(bc.GetHeaderHash(bc.BlockHeight()))
 	handleError("can't fetch last block", err)
 
 	txMoveNeo, err := testchain.NewTransferFromOwner(bc, bc.GoverningTokenHash(), h, native.NEOTotalSupply, 0, 2)

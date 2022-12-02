@@ -52,7 +52,7 @@ func NewExecutor(t testing.TB, bc *core.Blockchain, validator, committee Signer)
 
 // TopBlock returns the block with the highest index.
 func (e *Executor) TopBlock(t testing.TB) *block.Block {
-	b, err := e.Chain.GetBlock(e.Chain.GetHeaderHash(int(e.Chain.BlockHeight())))
+	b, err := e.Chain.GetBlock(e.Chain.GetHeaderHash(e.Chain.BlockHeight()))
 	require.NoError(t, err)
 	return b
 }
@@ -361,7 +361,7 @@ func (e *Executor) AddBlockCheckHalt(t testing.TB, txs ...*transaction.Transacti
 
 // TestInvoke creates a test VM with a dummy block and executes a transaction in it.
 func TestInvoke(bc *core.Blockchain, tx *transaction.Transaction) (*vm.VM, error) {
-	lastBlock, err := bc.GetBlock(bc.GetHeaderHash(int(bc.BlockHeight())))
+	lastBlock, err := bc.GetBlock(bc.GetHeaderHash(bc.BlockHeight()))
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +392,7 @@ func (e *Executor) GetTransaction(t testing.TB, h util.Uint256) (*transaction.Tr
 }
 
 // GetBlockByIndex returns a block by the specified index.
-func (e *Executor) GetBlockByIndex(t testing.TB, idx int) *block.Block {
+func (e *Executor) GetBlockByIndex(t testing.TB, idx uint32) *block.Block {
 	h := e.Chain.GetHeaderHash(idx)
 	require.NotEmpty(t, h)
 	b, err := e.Chain.GetBlock(h)

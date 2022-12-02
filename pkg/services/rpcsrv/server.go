@@ -78,7 +78,7 @@ type (
 		GetEnrollments() ([]state.Validator, error)
 		GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32)
 		GetHeader(hash util.Uint256) (*block.Header, error)
-		GetHeaderHash(int) util.Uint256
+		GetHeaderHash(uint32) util.Uint256
 		GetMaxVerificationGAS() int64
 		GetMemPool() *mempool.Pool
 		GetNEP11Contracts() []util.Uint160
@@ -652,7 +652,7 @@ func (s *Server) fillBlockMetadata(obj io.Serializable, h *block.Header) result.
 		Confirmations: s.chain.BlockHeight() - h.Index + 1,
 	}
 
-	hash := s.chain.GetHeaderHash(int(h.Index) + 1)
+	hash := s.chain.GetHeaderHash(h.Index + 1)
 	if !hash.Equals(util.Uint256{}) {
 		res.NextBlockHash = &hash
 	}
@@ -1646,7 +1646,7 @@ func (s *Server) getrawtransaction(reqParams params.Params) (interface{}, *neorp
 		if height == math.MaxUint32 { // Mempooled transaction.
 			return res, nil
 		}
-		_header := s.chain.GetHeaderHash(int(height))
+		_header := s.chain.GetHeaderHash(height)
 		header, err := s.chain.GetHeader(_header)
 		if err != nil {
 			return nil, neorpc.NewRPCError("Failed to get header for the transaction", err.Error())
@@ -2037,15 +2037,12 @@ func (s *Server) getHistoricParams(reqParams params.Params) (uint32, *neorpc.Err
 			if err != nil {
 				return 0, neorpc.NewInvalidParamsError(fmt.Sprintf("unknown block or stateroot: %s", err))
 			}
-			height = int(stateH)
+			height = stateH
 		} else {
-			height = int(b.Index)
+			height = b.Index
 		}
 	}
-	if height > math.MaxUint32 {
-		return 0, neorpc.NewInvalidParamsError("historic height exceeds max uint32 value")
-	}
-	return uint32(height) + 1, nil
+	return height + 1, nil
 }
 
 func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, nextH *uint32, verbose bool) (*interop.Context, *neorpc.Error) {
@@ -2683,16 +2680,16 @@ drainloop:
 	close(s.notaryRequestCh)
 }
 
-func (s *Server) blockHeightFromParam(param *params.Param) (int, *neorpc.Error) {
+func (s *Server) blockHeightFromParam(param *params.Param) (uint32, *neorpc.Error) {
 	num, err := param.GetInt()
 	if err != nil {
 		return 0, neorpc.ErrInvalidParams
 	}
 
-	if num < 0 || num > int(s.chain.BlockHeight()) {
+	if num < 0 || int64(num) > int64(s.chain.BlockHeight()) {
 		return 0, invalidBlockHeightError(0, num)
 	}
-	return num, nil
+	return uint32(num), nil
 }
 
 func (s *Server) packResponse(r *params.In, result interface{}, respErr *neorpc.Error) abstract {

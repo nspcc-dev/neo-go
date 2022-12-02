@@ -225,7 +225,7 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 	t.Run("invalid state sync point", func(t *testing.T) {
 		bcSpout.dao.Store.Put(bPrefix, []byte{byte(stateJumpStarted)})
 		point := make([]byte, 4)
-		binary.LittleEndian.PutUint32(point, uint32(len(bcSpout.headerHashes)))
+		binary.LittleEndian.PutUint32(point, bcSpout.lastHeaderIndex()+1)
 		bcSpout.dao.Store.Put([]byte{byte(storage.SYSStateSyncPoint)}, point)
 		checkNewBlockchainErr(t, boltCfg, bcSpout.dao.Store, "invalid state sync point")
 	})
@@ -304,7 +304,7 @@ func TestChainWithVolatileNumOfValidators(t *testing.T) {
 			},
 		}
 		curWit = nextWit
-		b.PrevHash = bc.GetHeaderHash(i - 1)
+		b.PrevHash = bc.GetHeaderHash(uint32(i) - 1)
 		b.Timestamp = uint64(time.Now().UTC().Unix())*1000 + uint64(i)
 		b.Index = uint32(i)
 		b.RebuildMerkleRoot()

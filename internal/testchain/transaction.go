@@ -27,7 +27,7 @@ type Ledger interface {
 	FeePerByte() int64
 	GetBaseExecFee() int64
 	GetHeader(hash util.Uint256) (*block.Header, error)
-	GetHeaderHash(int) util.Uint256
+	GetHeaderHash(uint32) util.Uint256
 	HeaderHeight() uint32
 	ManagementContractHash() util.Uint160
 }

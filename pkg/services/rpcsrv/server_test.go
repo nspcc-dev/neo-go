@@ -2271,7 +2271,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		})
 
 		t.Run("verbose != 0", func(t *testing.T) {
-			nextHash := chain.GetHeaderHash(int(hdr.Index) + 1)
+			nextHash := chain.GetHeaderHash(hdr.Index + 1)
 			expected := &result.Header{
 				Header: *hdr,
 				BlockMetadata: result.BlockMetadata{
@@ -2315,7 +2315,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		testNEP17T := func(t *testing.T, start, stop, limit, page int, sent, rcvd []int) {
 			ps := []string{`"` + testchain.PrivateKeyByID(0).Address() + `"`}
 			if start != 0 {
-				h, err := e.chain.GetHeader(e.chain.GetHeaderHash(start))
+				h, err := e.chain.GetHeader(e.chain.GetHeaderHash(uint32(start)))
 				var ts uint64
 				if err == nil {
 					ts = h.Timestamp
@@ -2325,7 +2325,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				ps = append(ps, strconv.FormatUint(ts, 10))
 			}
 			if stop != 0 {
-				h, err := e.chain.GetHeader(e.chain.GetHeaderHash(stop))
+				h, err := e.chain.GetHeader(e.chain.GetHeaderHash(uint32(stop)))
 				var ts uint64
 				if err == nil {
 					ts = h.Timestamp
@@ -2846,7 +2846,7 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
 	require.NoError(t, err)
 
-	blockWithFAULTedTx, err := e.chain.GetBlock(e.chain.GetHeaderHash(int(faultedTxBlock))) // Transaction with ABORT inside.
+	blockWithFAULTedTx, err := e.chain.GetBlock(e.chain.GetHeaderHash(faultedTxBlock)) // Transaction with ABORT inside.
 	require.NoError(t, err)
 	require.Equal(t, 1, len(blockWithFAULTedTx.Transactions))
 	txFAULTed := blockWithFAULTedTx.Transactions[0]

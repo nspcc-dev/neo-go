@@ -16,9 +16,9 @@ import (
 )
 
 func TestStateSyncModule_Init(t *testing.T) {
-	var (
-		stateSyncInterval        = 2
-		maxTraceable      uint32 = 3
+	const (
+		stateSyncInterval = 2
+		maxTraceable      = 3
 	)
 	spoutCfg := func(c *config.ProtocolConfiguration) {
 		c.StateRootInHeader = true
@@ -55,7 +55,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 
 	t.Run("inactive: bolt chain height is close enough to spout chain height", func(t *testing.T) {
 		bcBolt, _, _ := chain.NewMultiWithCustomConfig(t, boltCfg)
-		for i := 1; i < int(bcSpout.BlockHeight())-stateSyncInterval; i++ {
+		for i := uint32(1); i < bcSpout.BlockHeight()-stateSyncInterval; i++ {
 			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
 			require.NoError(t, err)
 			require.NoError(t, bcBolt.AddBlock(b))
@@ -114,9 +114,9 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.NoError(t, module.Init(bcSpout.BlockHeight()))
 
 		// firstly, fetch all headers to create proper DB state (where headers are in sync)
-		stateSyncPoint := (int(bcSpout.BlockHeight()) / stateSyncInterval) * stateSyncInterval
+		stateSyncPoint := (bcSpout.BlockHeight() / stateSyncInterval) * stateSyncInterval
 		var expectedHeader *block.Header
-		for i := 1; i <= int(bcSpout.HeaderHeight()); i++ {
+		for i := uint32(1); i <= bcSpout.HeaderHeight(); i++ {
 			header, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(i))
 			require.NoError(t, err)
 			require.NoError(t, module.AddHeaders(header))
@@ -142,7 +142,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.Equal(t, expectedHeader.PrevStateRoot, unknownNodes[0])
 
 		// add several blocks to create DB state where blocks are not in sync yet, but it's not a genesis.
-		for i := stateSyncPoint - int(maxTraceable) + 1; i <= stateSyncPoint-stateSyncInterval-1; i++ {
+		for i := stateSyncPoint - maxTraceable + 1; i <= stateSyncPoint-stateSyncInterval-1; i++ {
 			block, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
 			require.NoError(t, err)
 			require.NoError(t, module.AddBlock(block))
@@ -283,10 +283,10 @@ func TestStateSyncModule_Init(t *testing.T) {
 
 func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	check := func(t *testing.T, spoutEnableGC bool) {
-		var (
-			stateSyncInterval        = 4
-			maxTraceable      uint32 = 6
-			stateSyncPoint           = 24
+		const (
+			stateSyncInterval = 4
+			maxTraceable      = 6
+			stateSyncPoint    = 24
 		)
 		spoutCfg := func(c *config.ProtocolConfiguration) {
 			c.KeepOnlyLatestState = spoutEnableGC
@@ -325,7 +325,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			require.Error(t, module.AddHeaders(h))
 		})
 		t.Run("no error: add blocks before initialisation", func(t *testing.T) {
-			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(int(bcSpout.BlockHeight())))
+			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(bcSpout.BlockHeight()))
 			require.NoError(t, err)
 			require.NoError(t, module.AddBlock(b))
 		})
@@ -342,7 +342,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		// add headers to module
 		headers := make([]*block.Header, 0, bcSpout.HeaderHeight())
 		for i := uint32(1); i <= bcSpout.HeaderHeight(); i++ {
-			h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(int(i)))
+			h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(i))
 			require.NoError(t, err)
 			headers = append(headers, h)
 		}
@@ -355,7 +355,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 
 		// add blocks
 		t.Run("error: unexpected block index", func(t *testing.T) {
-			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(stateSyncPoint - int(maxTraceable)))
+			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(stateSyncPoint - maxTraceable))
 			require.NoError(t, err)
 			require.Error(t, module.AddBlock(b))
 		})
@@ -379,7 +379,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			require.Error(t, module.AddBlock(b))
 		})
 
-		for i := stateSyncPoint - int(maxTraceable) + 1; i <= stateSyncPoint; i++ {
+		for i := uint32(stateSyncPoint - maxTraceable + 1); i <= stateSyncPoint; i++ {
 			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
 			require.NoError(t, err)
 			require.NoError(t, module.AddBlock(b))
@@ -432,7 +432,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		require.Equal(t, uint32(stateSyncPoint), bcBolt.BlockHeight())
 
 		// add missing blocks to bcBolt: should be ok, because state is synced
-		for i := stateSyncPoint + 1; i <= int(bcSpout.BlockHeight()); i++ {
+		for i := uint32(stateSyncPoint + 1); i <= bcSpout.BlockHeight(); i++ {
 			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
 			require.NoError(t, err)
 			require.NoError(t, bcBolt.AddBlock(b))

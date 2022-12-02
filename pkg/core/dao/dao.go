@@ -1,7 +1,6 @@
 package dao
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -582,25 +581,23 @@ func (dao *Simple) GetStateSyncCurrentBlockHeight() (uint32, error) {
 	return binary.LittleEndian.Uint32(b), nil
 }
 
-// GetHeaderHashes returns a sorted list of header hashes retrieved from
+// GetHeaderHashes returns a page of header hashes retrieved from
 // the given underlying store.
-func (dao *Simple) GetHeaderHashes() ([]util.Uint256, error) {
-	var hashes = make([]util.Uint256, 0)
+func (dao *Simple) GetHeaderHashes(height uint32) ([]util.Uint256, error) {
+	var hashes []util.Uint256
 
-	var seekErr error
-	dao.Store.Seek(storage.SeekRange{
-		Prefix: dao.mkKeyPrefix(storage.IXHeaderHashList),
-	}, func(k, v []byte) bool {
-		newHashes, err := read2000Uint256Hashes(v)
-		if err != nil {
-			seekErr = fmt.Errorf("failed to read batch of 2000 header hashes: %w", err)
-			return false
-		}
-		hashes = append(hashes, newHashes...)
-		return true
-	})
+	key := dao.mkHeaderHashKey(height)
+	b, err := dao.Store.Get(key)
+	if err != nil {
+		return nil, err
+	}
 
-	return hashes, seekErr
+	br := io.NewBinReaderFromBuf(b)
+	br.ReadArray(&hashes)
+	if br.Err != nil {
+		return nil, br.Err
+	}
+	return hashes, nil
 }
 
 // DeleteHeaderHashes removes batches of header hashes starting from the one that
@@ -681,19 +678,6 @@ func (dao *Simple) PutStateSyncCurrentBlockHeight(h uint32) {
 	buf := dao.getDataBuf()
 	buf.WriteU32LE(h)
 	dao.Store.Put(dao.mkKeyPrefix(storage.SYSStateSyncCurrentBlockHeight), buf.Bytes())
-}
-
-// read2000Uint256Hashes attempts to read 2000 Uint256 hashes from
-// the given byte array.
-func read2000Uint256Hashes(b []byte) ([]util.Uint256, error) {
-	r := bytes.NewReader(b)
-	br := io.NewBinReaderFromIO(r)
-	hashes := make([]util.Uint256, 0)
-	br.ReadArray(&hashes)
-	if br.Err != nil {
-		return nil, br.Err
-	}
-	return hashes, nil
 }
 
 func (dao *Simple) mkHeaderHashKey(h uint32) []byte {

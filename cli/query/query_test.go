@@ -63,7 +63,7 @@ func TestQueryTx(t *testing.T) {
 
 	_, height, err := e.Chain.GetTransaction(txHash)
 	require.NoError(t, err)
-	e.CheckNextLine(t, `BlockHash:\s+`+e.Chain.GetHeaderHash(int(height)).StringLE())
+	e.CheckNextLine(t, `BlockHash:\s+`+e.Chain.GetHeaderHash(height).StringLE())
 	e.CheckNextLine(t, `Success:\s+true`)
 	e.CheckEOF(t)
 
@@ -117,7 +117,7 @@ func compareQueryTxVerbose(t *testing.T, e *testcli.Executor, tx *transaction.Tr
 	e.CheckNextLine(t, `OnChain:\s+true`)
 	_, height, err := e.Chain.GetTransaction(tx.Hash())
 	require.NoError(t, err)
-	e.CheckNextLine(t, `BlockHash:\s+`+e.Chain.GetHeaderHash(int(height)).StringLE())
+	e.CheckNextLine(t, `BlockHash:\s+`+e.Chain.GetHeaderHash(height).StringLE())
 
 	res, _ := e.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
 	e.CheckNextLine(t, fmt.Sprintf(`Success:\s+%t`, res[0].Execution.VMState == vmstate.Halt))
