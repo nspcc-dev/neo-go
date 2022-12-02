@@ -3,6 +3,7 @@ package config
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -15,6 +16,14 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 		ValidatorsCount:            1,
 		KeepOnlyLatestState:        true,
 		P2PStateExchangeExtensions: true,
+	}
+	require.Error(t, p.Validate())
+	p = &ProtocolConfiguration{
+		StandbyCommittee: []string{
+			"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2",
+		},
+		ValidatorsCount: 1,
+		TimePerBlock:    time.Microsecond,
 	}
 	require.Error(t, p.Validate())
 	p = &ProtocolConfiguration{

@@ -89,6 +89,10 @@ type (
 func NewServerConfig(cfg config.Config) ServerConfig {
 	appConfig := cfg.ApplicationConfiguration
 	protoConfig := cfg.ProtocolConfiguration
+	timePerBlock := protoConfig.TimePerBlock
+	if timePerBlock == 0 && protoConfig.SecondsPerBlock > 0 { //nolint:staticcheck // SA1019: protoConfig.SecondsPerBlock is deprecated
+		timePerBlock = time.Duration(protoConfig.SecondsPerBlock) * time.Second //nolint:staticcheck // SA1019: protoConfig.SecondsPerBlock is deprecated
+	}
 
 	return ServerConfig{
 		UserAgent:          cfg.GenerateUserAgent(),
@@ -105,7 +109,7 @@ func NewServerConfig(cfg config.Config) ServerConfig {
 		MaxPeers:           appConfig.MaxPeers,
 		AttemptConnPeers:   appConfig.AttemptConnPeers,
 		MinPeers:           appConfig.MinPeers,
-		TimePerBlock:       time.Duration(protoConfig.SecondsPerBlock) * time.Second,
+		TimePerBlock:       timePerBlock,
 		OracleCfg:          appConfig.Oracle,
 		P2PNotaryCfg:       appConfig.P2PNotary,
 		StateRootCfg:       appConfig.StateRoot,

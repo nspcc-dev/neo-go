@@ -92,3 +92,13 @@ used instead (that also have a counter).
 
 It's not a frequently used thing and it's easy to replace it, so removal of
 old counters is scheduled for January-February 2023 (~0.100.X release).
+
+## SecondsPerBlock protocol configuration
+
+With 0.100.0 version SecondsPerBlock protocol configuration setting was
+deprecated and replaced by a bit more generic and precise TimePerBlock
+(allowing for subsecond time). An informational message is printed on node
+startup to inform about this, it's very easy to deal with this configuration
+change, just replace one line.
+
+Removal of SecondsPerBlock is scheduled for May-June 2023 (~0.103.0 release).

@@ -87,7 +87,7 @@ func New(cfg config.StateRoot, sm *stateroot.Module, log *zap.Logger, bc Ledger,
 		blockCh:         make(chan *block.Block),
 		stopCh:          make(chan struct{}),
 		done:            make(chan struct{}),
-		timePerBlock:    time.Duration(bcConf.SecondsPerBlock) * time.Second,
+		timePerBlock:    bcConf.TimePerBlock,
 		maxRetries:      voteValidEndInc,
 		relayExtensible: cb,
 	}
