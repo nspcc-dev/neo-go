@@ -70,19 +70,19 @@ func (c *ContractReader) AAAStrings(s [][][]string) ([][][]string, error) {
 									return string(b), nil
 								} (arr[i])
 								if err != nil {
-									return nil, err
+									return nil, fmt.Errorf("item %d: %w", i, err)
 								}
 							}
 							return res, nil
 						} (arr[i])
 						if err != nil {
-							return nil, err
+							return nil, fmt.Errorf("item %d: %w", i, err)
 						}
 					}
 					return res, nil
 				} (arr[i])
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("item %d: %w", i, err)
 				}
 			}
 			return res, nil
@@ -125,7 +125,7 @@ func (c *ContractReader) CrazyMaps(m map[*big.Int][]map[string][]util.Uint160) (
 			for i := range m {
 				k, err := m[i].Key.TryInteger()
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("key %d: %w", i, err)
 				}
 				v, err := func (item stackitem.Item) ([]map[string][]util.Uint160, error) {
 					arr, ok := item.Value().([]stackitem.Item)
@@ -152,7 +152,7 @@ func (c *ContractReader) CrazyMaps(m map[*big.Int][]map[string][]util.Uint160) (
 									return string(b), nil
 								} (m[i].Key)
 								if err != nil {
-									return nil, err
+									return nil, fmt.Errorf("key %d: %w", i, err)
 								}
 								v, err := func (item stackitem.Item) ([]util.Uint160, error) {
 									arr, ok := item.Value().([]stackitem.Item)
@@ -173,26 +173,26 @@ func (c *ContractReader) CrazyMaps(m map[*big.Int][]map[string][]util.Uint160) (
 											return u, nil
 										} (arr[i])
 										if err != nil {
-											return nil, err
+											return nil, fmt.Errorf("item %d: %w", i, err)
 										}
 									}
 									return res, nil
 								} (m[i].Value)
 								if err != nil {
-									return nil, err
+									return nil, fmt.Errorf("value %d: %w", i, err)
 								}
 								res[k] = v
 							}
 							return res, nil
 						} (arr[i])
 						if err != nil {
-							return nil, err
+							return nil, fmt.Errorf("item %d: %w", i, err)
 						}
 					}
 					return res, nil
 				} (m[i].Value)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("value %d: %w", i, err)
 				}
 				res[k] = v
 			}
@@ -255,7 +255,7 @@ func (c *ContractReader) Maps(m map[string]string) (map[string]string, error) {
 					return string(b), nil
 				} (m[i].Key)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("key %d: %w", i, err)
 				}
 				v, err := func (item stackitem.Item) (string, error) {
 					b, err := item.TryBytes()
@@ -268,7 +268,7 @@ func (c *ContractReader) Maps(m map[string]string) (map[string]string, error) {
 					return string(b), nil
 				} (m[i].Value)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("value %d: %w", i, err)
 				}
 				res[k] = v
 			}

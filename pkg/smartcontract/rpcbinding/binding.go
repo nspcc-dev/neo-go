@@ -235,7 +235,7 @@ func itemTo{{toTypeName $name}}(item stackitem.Item, err error) (*{{toTypeName $
 	index++
 	res.{{.Field}}, err = {{etTypeConverter .ExtendedType "arr[index]"}}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field {{.Field}}: %w", err)
 	}
 {{end}}
 {{end}}
@@ -470,7 +470,7 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		for i := range res {
 			res[i], err = ` + addIndent(etTypeConverter(*et.Value, "arr[i]"), "\t\t") + `
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
@@ -494,11 +494,11 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		for i := range m {
 			k, err := ` + addIndent(etTypeConverter(binding.ExtendedType{Base: et.Key}, "m[i].Key"), "\t\t") + `
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("key %d: %w", i, err)
 			}
 			v, err := ` + addIndent(etTypeConverter(*et.Value, "m[i].Value"), "\t\t") + `
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("value %d: %w", i, err)
 			}
 			res[k] = v
 		}
@@ -533,7 +533,6 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 			if ok {
 				ctr.SafeMethods[len(ctr.SafeMethods)-1].ExtendedReturn = et
 				if abim.ReturnType == smartcontract.ArrayType && len(et.Name) > 0 {
-					imports["errors"] = struct{}{}
 					ctr.SafeMethods[len(ctr.SafeMethods)-1].ItemTo = cutPointer(ctr.Methods[i].ReturnType)
 				}
 			}
@@ -646,6 +645,9 @@ func addETImports(et binding.ExtendedType, named map[string]binding.ExtendedType
 	case smartcontract.PublicKeyType:
 		imports["crypto/elliptic"] = struct{}{}
 	case smartcontract.MapType:
+		imports["fmt"] = struct{}{}
+	case smartcontract.ArrayType:
+		imports["errors"] = struct{}{}
 		imports["fmt"] = struct{}{}
 	}
 	if et.Value != nil {

@@ -218,13 +218,13 @@ func itemToLedgerBlock(item stackitem.Item, err error) (*LedgerBlock, error) {
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Hash: %w", err)
 	}
 
 	index++
 	res.Version, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Version: %w", err)
 	}
 
 	index++
@@ -240,7 +240,7 @@ func itemToLedgerBlock(item stackitem.Item, err error) (*LedgerBlock, error) {
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field PrevHash: %w", err)
 	}
 
 	index++
@@ -256,25 +256,25 @@ func itemToLedgerBlock(item stackitem.Item, err error) (*LedgerBlock, error) {
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field MerkleRoot: %w", err)
 	}
 
 	index++
 	res.Timestamp, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Timestamp: %w", err)
 	}
 
 	index++
 	res.Nonce, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Nonce: %w", err)
 	}
 
 	index++
 	res.Index, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Index: %w", err)
 	}
 
 	index++
@@ -290,13 +290,13 @@ func itemToLedgerBlock(item stackitem.Item, err error) (*LedgerBlock, error) {
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field NextConsensus: %w", err)
 	}
 
 	index++
 	res.TransactionsLength, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field TransactionsLength: %w", err)
 	}
 
 
@@ -331,13 +331,13 @@ func itemToLedgerBlockSR(item stackitem.Item, err error) (*LedgerBlockSR, error)
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Hash: %w", err)
 	}
 
 	index++
 	res.Version, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Version: %w", err)
 	}
 
 	index++
@@ -353,7 +353,7 @@ func itemToLedgerBlockSR(item stackitem.Item, err error) (*LedgerBlockSR, error)
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field PrevHash: %w", err)
 	}
 
 	index++
@@ -369,25 +369,25 @@ func itemToLedgerBlockSR(item stackitem.Item, err error) (*LedgerBlockSR, error)
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field MerkleRoot: %w", err)
 	}
 
 	index++
 	res.Timestamp, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Timestamp: %w", err)
 	}
 
 	index++
 	res.Nonce, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Nonce: %w", err)
 	}
 
 	index++
 	res.Index, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Index: %w", err)
 	}
 
 	index++
@@ -403,13 +403,13 @@ func itemToLedgerBlockSR(item stackitem.Item, err error) (*LedgerBlockSR, error)
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field NextConsensus: %w", err)
 	}
 
 	index++
 	res.TransactionsLength, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field TransactionsLength: %w", err)
 	}
 
 	index++
@@ -425,7 +425,7 @@ func itemToLedgerBlockSR(item stackitem.Item, err error) (*LedgerBlockSR, error)
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field PrevStateRoot: %w", err)
 	}
 
 
@@ -460,19 +460,19 @@ func itemToLedgerTransaction(item stackitem.Item, err error) (*LedgerTransaction
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Hash: %w", err)
 	}
 
 	index++
 	res.Version, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Version: %w", err)
 	}
 
 	index++
 	res.Nonce, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Nonce: %w", err)
 	}
 
 	index++
@@ -488,31 +488,31 @@ func itemToLedgerTransaction(item stackitem.Item, err error) (*LedgerTransaction
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Sender: %w", err)
 	}
 
 	index++
 	res.SysFee, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field SysFee: %w", err)
 	}
 
 	index++
 	res.NetFee, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field NetFee: %w", err)
 	}
 
 	index++
 	res.ValidUntilBlock, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field ValidUntilBlock: %w", err)
 	}
 
 	index++
 	res.Script, err = arr[index].TryBytes()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Script: %w", err)
 	}
 
 
@@ -547,13 +547,13 @@ func itemToLedgerTransactionSigner(item stackitem.Item, err error) (*LedgerTrans
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Account: %w", err)
 	}
 
 	index++
 	res.Scopes, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Scopes: %w", err)
 	}
 
 	index++
@@ -576,13 +576,13 @@ func itemToLedgerTransactionSigner(item stackitem.Item, err error) (*LedgerTrans
 				return u, nil
 			} (arr[i])
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field AllowedContracts: %w", err)
 	}
 
 	index++
@@ -605,13 +605,13 @@ func itemToLedgerTransactionSigner(item stackitem.Item, err error) (*LedgerTrans
 				return k, nil
 			} (arr[i])
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field AllowedGroups: %w", err)
 	}
 
 	index++
@@ -624,13 +624,13 @@ func itemToLedgerTransactionSigner(item stackitem.Item, err error) (*LedgerTrans
 		for i := range res {
 			res[i], err = itemToLedgerWitnessRule(arr[i], nil)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Rules: %w", err)
 	}
 
 
@@ -655,13 +655,13 @@ func itemToLedgerWitnessCondition(item stackitem.Item, err error) (*LedgerWitnes
 	index++
 	res.Type, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Type: %w", err)
 	}
 
 	index++
 	res.Value, err = arr[index].Value(), nil
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Value: %w", err)
 	}
 
 
@@ -686,13 +686,13 @@ func itemToLedgerWitnessRule(item stackitem.Item, err error) (*LedgerWitnessRule
 	index++
 	res.Action, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Action: %w", err)
 	}
 
 	index++
 	res.Condition, err = itemToLedgerWitnessCondition(arr[index], nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Condition: %w", err)
 	}
 
 
@@ -724,13 +724,13 @@ func itemToManagementABI(item stackitem.Item, err error) (*ManagementABI, error)
 		for i := range res {
 			res[i], err = itemToManagementMethod(arr[i], nil)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Methods: %w", err)
 	}
 
 	index++
@@ -743,13 +743,13 @@ func itemToManagementABI(item stackitem.Item, err error) (*ManagementABI, error)
 		for i := range res {
 			res[i], err = itemToManagementEvent(arr[i], nil)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Events: %w", err)
 	}
 
 
@@ -774,13 +774,13 @@ func itemToManagementContract(item stackitem.Item, err error) (*ManagementContra
 	index++
 	res.ID, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field ID: %w", err)
 	}
 
 	index++
 	res.UpdateCounter, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field UpdateCounter: %w", err)
 	}
 
 	index++
@@ -796,19 +796,19 @@ func itemToManagementContract(item stackitem.Item, err error) (*ManagementContra
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Hash: %w", err)
 	}
 
 	index++
 	res.NEF, err = arr[index].TryBytes()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field NEF: %w", err)
 	}
 
 	index++
 	res.Manifest, err = itemToManagementManifest(arr[index], nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Manifest: %w", err)
 	}
 
 
@@ -842,7 +842,7 @@ func itemToManagementEvent(item stackitem.Item, err error) (*ManagementEvent, er
 		return string(b), nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Name: %w", err)
 	}
 
 	index++
@@ -855,13 +855,13 @@ func itemToManagementEvent(item stackitem.Item, err error) (*ManagementEvent, er
 		for i := range res {
 			res[i], err = itemToManagementParameter(arr[i], nil)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Params: %w", err)
 	}
 
 
@@ -896,13 +896,13 @@ func itemToManagementGroup(item stackitem.Item, err error) (*ManagementGroup, er
 		return k, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field PublicKey: %w", err)
 	}
 
 	index++
 	res.Signature, err = arr[index].TryBytes()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Signature: %w", err)
 	}
 
 
@@ -936,7 +936,7 @@ func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManife
 		return string(b), nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Name: %w", err)
 	}
 
 	index++
@@ -949,13 +949,13 @@ func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManife
 		for i := range res {
 			res[i], err = itemToManagementGroup(arr[i], nil)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Groups: %w", err)
 	}
 
 	index++
@@ -977,7 +977,7 @@ func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManife
 				return string(b), nil
 			} (m[i].Key)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("key %d: %w", i, err)
 			}
 			v, err := func (item stackitem.Item) (string, error) {
 				b, err := item.TryBytes()
@@ -990,14 +990,14 @@ func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManife
 				return string(b), nil
 			} (m[i].Value)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("value %d: %w", i, err)
 			}
 			res[k] = v
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Features: %w", err)
 	}
 
 	index++
@@ -1019,19 +1019,19 @@ func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManife
 				return string(b), nil
 			} (arr[i])
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field SupportedStandards: %w", err)
 	}
 
 	index++
 	res.ABI, err = itemToManagementABI(arr[index], nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field ABI: %w", err)
 	}
 
 	index++
@@ -1044,13 +1044,13 @@ func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManife
 		for i := range res {
 			res[i], err = itemToManagementPermission(arr[i], nil)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Permissions: %w", err)
 	}
 
 	index++
@@ -1073,19 +1073,19 @@ func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManife
 				return u, nil
 			} (arr[i])
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Trusts: %w", err)
 	}
 
 	index++
 	res.Extra, err = arr[index].Value(), nil
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Extra: %w", err)
 	}
 
 
@@ -1119,7 +1119,7 @@ func itemToManagementMethod(item stackitem.Item, err error) (*ManagementMethod, 
 		return string(b), nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Name: %w", err)
 	}
 
 	index++
@@ -1132,31 +1132,31 @@ func itemToManagementMethod(item stackitem.Item, err error) (*ManagementMethod, 
 		for i := range res {
 			res[i], err = itemToManagementParameter(arr[i], nil)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Params: %w", err)
 	}
 
 	index++
 	res.ReturnType, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field ReturnType: %w", err)
 	}
 
 	index++
 	res.Offset, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Offset: %w", err)
 	}
 
 	index++
 	res.Safe, err = arr[index].TryBool()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Safe: %w", err)
 	}
 
 
@@ -1190,13 +1190,13 @@ func itemToManagementParameter(item stackitem.Item, err error) (*ManagementParam
 		return string(b), nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Name: %w", err)
 	}
 
 	index++
 	res.Type, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Type: %w", err)
 	}
 
 
@@ -1231,7 +1231,7 @@ func itemToManagementPermission(item stackitem.Item, err error) (*ManagementPerm
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Contract: %w", err)
 	}
 
 	index++
@@ -1253,13 +1253,13 @@ func itemToManagementPermission(item stackitem.Item, err error) (*ManagementPerm
 				return string(b), nil
 			} (arr[i])
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Methods: %w", err)
 	}
 
 
@@ -1284,19 +1284,19 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 	index++
 	res.Bool, err = arr[index].TryBool()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Bool: %w", err)
 	}
 
 	index++
 	res.Int, err = arr[index].TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Int: %w", err)
 	}
 
 	index++
 	res.Bytes, err = arr[index].TryBytes()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Bytes: %w", err)
 	}
 
 	index++
@@ -1311,7 +1311,7 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 		return string(b), nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field String: %w", err)
 	}
 
 	index++
@@ -1327,7 +1327,7 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field H160: %w", err)
 	}
 
 	index++
@@ -1343,7 +1343,7 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 		return u, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field H256: %w", err)
 	}
 
 	index++
@@ -1359,7 +1359,7 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 		return k, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field PK: %w", err)
 	}
 
 	index++
@@ -1375,13 +1375,13 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 		return k, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field PubKey: %w", err)
 	}
 
 	index++
 	res.Sign, err = arr[index].TryBytes()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Sign: %w", err)
 	}
 
 	index++
@@ -1394,13 +1394,13 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 		for i := range res {
 			res[i], err = arr[i].TryBytes()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field ArrOfBytes: %w", err)
 	}
 
 	index++
@@ -1423,13 +1423,13 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 				return u, nil
 			} (arr[i])
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field ArrOfH160: %w", err)
 	}
 
 	index++
@@ -1442,7 +1442,7 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 		for i := range m {
 			k, err := m[i].Key.TryInteger()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("key %d: %w", i, err)
 			}
 			v, err := func (item stackitem.Item) (keys.PublicKeys, error) {
 				arr, ok := item.Value().([]stackitem.Item)
@@ -1463,26 +1463,26 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 						return k, nil
 					} (arr[i])
 					if err != nil {
-						return nil, err
+						return nil, fmt.Errorf("item %d: %w", i, err)
 					}
 				}
 				return res, nil
 			} (m[i].Value)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("value %d: %w", i, err)
 			}
 			res[k] = v
 		}
 		return res, nil
 	} (arr[index])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Map: %w", err)
 	}
 
 	index++
 	res.Struct, err = itemToStructsInternal(arr[index], nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("field Struct: %w", err)
 	}
 
 
