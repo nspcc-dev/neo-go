@@ -23,7 +23,7 @@ func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 		if err != nil {
 			return nil, err
 		}
-		return {{etTypeConverter .ExtendedReturn "item"}}
+		return {{addIndent (etTypeConverter .ExtendedReturn "item") "\t"}}
 	} ( {{- end -}} {{if .ItemTo -}} itemTo{{ .ItemTo }}( {{- end -}}
 			unwrap.{{.Unwrapper}}(c.invoker.Call(Hash, "{{ .NameABI }}"
 		{{- range $arg := .Arguments -}}, {{.Name}}{{end -}} )) {{- if or .ItemTo (eq .Unwrapper "Item") -}} ) {{- end}}
@@ -319,6 +319,7 @@ func Generate(cfg binding.Config) error {
 	ctr.NamedTypes = cfg.NamedTypes
 
 	var srcTemplate = template.Must(template.New("generate").Funcs(template.FuncMap{
+		"addIndent":       addIndent,
 		"etTypeConverter": etTypeConverter,
 		"etTypeToStr": func(et binding.ExtendedType) string {
 			r, _ := extendedTypeToGo(et, ctr.NamedTypes)
@@ -467,7 +468,7 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		}
 		res := make(` + at + `, len(arr))
 		for i := range res {
-			res[i], err = ` + strings.ReplaceAll(etTypeConverter(*et.Value, "arr[i]"), "\n", "\n\t\t") + `
+			res[i], err = ` + addIndent(etTypeConverter(*et.Value, "arr[i]"), "\t\t") + `
 			if err != nil {
 				return nil, err
 			}
@@ -491,11 +492,11 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		}
 		res := make(` + at + `)
 		for i := range m {
-			k, err := ` + strings.ReplaceAll(etTypeConverter(binding.ExtendedType{Base: et.Key}, "m[i].Key"), "\n", "\n\t\t") + `
+			k, err := ` + addIndent(etTypeConverter(binding.ExtendedType{Base: et.Key}, "m[i].Key"), "\t\t") + `
 			if err != nil {
 				return nil, err
 			}
-			v, err := ` + strings.ReplaceAll(etTypeConverter(*et.Value, "m[i].Value"), "\n", "\n\t\t") + `
+			v, err := ` + addIndent(etTypeConverter(*et.Value, "m[i].Value"), "\t\t") + `
 			if err != nil {
 				return nil, err
 			}
@@ -672,4 +673,8 @@ func toTypeName(s string) string {
 		}
 		return c
 	}, strings.ToUpper(s[0:1])+s[1:])
+}
+
+func addIndent(str string, ind string) string {
+	return strings.ReplaceAll(str, "\n", "\n"+ind)
 }
