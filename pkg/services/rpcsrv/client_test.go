@@ -256,6 +256,9 @@ func TestClientManagementContract(t *testing.T) {
 	cs2, err := c.GetContractStateByHash(gas.Hash)
 	require.NoError(t, err)
 	require.Equal(t, cs2, cs1)
+	cs1, err = manReader.GetContractByID(-6)
+	require.NoError(t, err)
+	require.Equal(t, cs2, cs1)
 
 	ret, err := manReader.HasMethod(gas.Hash, "transfer", 4)
 	require.NoError(t, err)
@@ -274,6 +277,25 @@ func TestClientManagementContract(t *testing.T) {
 		},
 	}})
 	require.NoError(t, err)
+
+	ids, err := manReader.GetContractHashesExpanded(10)
+	require.NoError(t, err)
+	ctrs := make([]management.IDHash, 0)
+	for i, s := range []string{testContractHash, verifyContractHash, verifyWithArgsContractHash, nnsContractHash, nfsoContractHash, storageContractHash} {
+		h, err := util.Uint160DecodeStringLE(s)
+		require.NoError(t, err)
+		ctrs = append(ctrs, management.IDHash{ID: int32(i) + 1, Hash: h})
+	}
+	require.Equal(t, ctrs, ids)
+
+	iter, err := manReader.GetContractHashes()
+	require.NoError(t, err)
+	ids, err = iter.Next(3)
+	require.NoError(t, err)
+	require.Equal(t, ctrs[:3], ids)
+	ids, err = iter.Next(10)
+	require.NoError(t, err)
+	require.Equal(t, ctrs[3:], ids)
 
 	man := management.New(act)
 

@@ -57,7 +57,11 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	require.Equal(t, ne, &contract2.NEF)
 	require.Equal(t, *manif, contract2.Manifest)
 
-	refContract, err := mgmt.GetContract(d, h)
+	refContract, err := GetContract(d, h)
+	require.NoError(t, err)
+	require.Equal(t, contract, refContract)
+
+	refContract, err = GetContractByID(d, contract.ID)
 	require.NoError(t, err)
 	require.Equal(t, contract, refContract)
 
@@ -68,7 +72,9 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 
 	err = mgmt.Destroy(d, h)
 	require.NoError(t, err)
-	_, err = mgmt.GetContract(d, h)
+	_, err = GetContract(d, h)
+	require.Error(t, err)
+	_, err = GetContractByID(d, contract.ID)
 	require.Error(t, err)
 }
 
@@ -140,11 +146,11 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 
 	// No changes expected in lower store.
 	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts(d))
-	c1Lower, err := mgmt.GetContract(d, c1.Hash)
+	c1Lower, err := GetContract(d, c1.Hash)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(c1Lower.Manifest.ABI.Methods))
 	require.Equal(t, []util.Uint160{c1Updated.Hash}, mgmt.GetNEP17Contracts(private))
-	c1Upper, err := mgmt.GetContract(private, c1Updated.Hash)
+	c1Upper, err := GetContract(private, c1Updated.Hash)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(c1Upper.Manifest.ABI.Methods))
 
@@ -152,7 +158,7 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 	_, err = private.Persist()
 	require.NoError(t, err)
 	require.Equal(t, []util.Uint160{c1.Hash}, mgmt.GetNEP17Contracts(d))
-	c1Lower, err = mgmt.GetContract(d, c1.Hash)
+	c1Lower, err = GetContract(d, c1.Hash)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(c1Lower.Manifest.ABI.Methods))
 }

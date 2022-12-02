@@ -7,10 +7,12 @@ various methods to perform state-changing calls.
 package management
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math/big"
 
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -20,11 +22,15 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Invoker is used by ContractReader to call various methods.
 type Invoker interface {
 	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...interface{}) (*result.Invoke, error)
+	TerminateSession(sessionID uuid.UUID) error
+	TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error)
 }
 
 // Actor is used by Contract to create and send transactions.
@@ -55,6 +61,19 @@ type Contract struct {
 	actor Actor
 }
 
+// IDHash is an ID/Hash pair returned by the iterator from the GetContractHashes method.
+type IDHash struct {
+	ID   int32
+	Hash util.Uint160
+}
+
+// HashesIterator is used for iterating over GetContractHashes results.
+type HashesIterator struct {
+	client   Invoker
+	session  uuid.UUID
+	iterator result.Iterator
+}
+
 // Hash stores the hash of the native ContractManagement contract.
 var Hash = state.CreateNativeContractHash(nativenames.Management)
 
@@ -83,7 +102,16 @@ func New(actor Actor) *Contract {
 // getcontractstate RPC API that has more options and works faster than going
 // via contract invocation.
 func (c *ContractReader) GetContract(hash util.Uint160) (*state.Contract, error) {
-	itm, err := unwrap.Item(c.invoker.Call(Hash, "getContract", hash))
+	return unwrapContract(c.invoker.Call(Hash, "getContract", hash))
+}
+
+// GetContractByID allows to get contract data from its ID.
+func (c *ContractReader) GetContractByID(id int32) (*state.Contract, error) {
+	return unwrapContract(c.invoker.Call(Hash, "getContractById", id))
+}
+
+func unwrapContract(r *result.Invoke, err error) (*state.Contract, error) {
+	itm, err := unwrap.Item(r, err)
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +119,88 @@ func (c *ContractReader) GetContract(hash util.Uint160) (*state.Contract, error)
 	err = res.FromStackItem(itm)
 	if err != nil {
 		return nil, err
+	}
+	return res, nil
+}
+
+// GetContractHashes returns an iterator that allows to retrieve all ID-hash
+// mappings for non-native contracts. It depends on the server to provide proper
+// session-based iterator, but can also work with expanded one.
+func (c *ContractReader) GetContractHashes() (*HashesIterator, error) {
+	sess, iter, err := unwrap.SessionIterator(c.invoker.Call(Hash, "getContractHashes"))
+	if err != nil {
+		return nil, err
+	}
+
+	return &HashesIterator{
+		client:   c.invoker,
+		iterator: iter,
+		session:  sess,
+	}, nil
+}
+
+// GetContractHashesExpanded is similar to GetContractHashes (uses the same
+// contract method), but can be useful if the server used doesn't support
+// sessions and doesn't expand iterators. It creates a script that will get num
+// of result items from the iterator right in the VM and return them to you. It's
+// only limited by VM stack and GAS available for RPC invocations.
+func (c *ContractReader) GetContractHashesExpanded(num int) ([]IDHash, error) {
+	arr, err := unwrap.Array(c.invoker.CallAndExpandIterator(Hash, "getContractHashes", num))
+	if err != nil {
+		return nil, err
+	}
+	return itemsToIDHashes(arr)
+}
+
+// Next returns the next set of elements from the iterator (up to num of them).
+// It can return less than num elements in case iterator doesn't have that many
+// or zero elements if the iterator has no more elements or the session is
+// expired.
+func (h *HashesIterator) Next(num int) ([]IDHash, error) {
+	items, err := h.client.TraverseIterator(h.session, &h.iterator, num)
+	if err != nil {
+		return nil, err
+	}
+	return itemsToIDHashes(items)
+}
+
+// Terminate closes the iterator session used by HashesIterator (if it's
+// session-based).
+func (h *HashesIterator) Terminate() error {
+	if h.iterator.ID == nil {
+		return nil
+	}
+	return h.client.TerminateSession(h.session)
+}
+
+func itemsToIDHashes(arr []stackitem.Item) ([]IDHash, error) {
+	res := make([]IDHash, len(arr))
+	for i, itm := range arr {
+		str, ok := itm.Value().([]stackitem.Item)
+		if !ok {
+			return nil, fmt.Errorf("item #%d is not a structure %T", i, itm.Value())
+		}
+		if len(str) != 2 {
+			return nil, fmt.Errorf("item #%d has wrong length", i)
+		}
+		bi, err := str[0].TryBytes()
+		if err != nil {
+			return nil, fmt.Errorf("item #%d has wrong ID: %w", i, err)
+		}
+		if len(bi) != 4 {
+			return nil, fmt.Errorf("item #%d has wrong ID: bad length", i)
+		}
+		id := int32(binary.BigEndian.Uint32(bi))
+		hb, err := str[1].TryBytes()
+		if err != nil {
+			return nil, fmt.Errorf("item #%d has wrong hash: %w", i, err)
+		}
+		u160, err := util.Uint160DecodeBytesBE(hb)
+		if err != nil {
+			return nil, fmt.Errorf("item #%d has wrong hash: %w", i, err)
+		}
+		res[i].ID = id
+		res[i].Hash = u160
 	}
 	return res, nil
 }

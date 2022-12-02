@@ -27,6 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -856,8 +857,7 @@ func handleLoadDeployed(c *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to parse contract hash, address or ID: %w", err)
 		}
-		bc := getChainFromContext(c.App)
-		h, err = bc.GetContractScriptHash(int32(i)) // @fixme: can be improved after #2702 to retrieve historic state of destroyed contract by ID.
+		h, err = native.GetContractScriptHash(ic.DAO, int32(i))
 		if err != nil {
 			return fmt.Errorf("failed to retrieve contract hash by ID: %w", err)
 		}

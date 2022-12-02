@@ -45,7 +45,7 @@ import (
 
 // Tuning parameters.
 const (
-	version = "0.2.6"
+	version = "0.2.7"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultGCPeriod                        = 10000
@@ -717,21 +717,9 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		p = time.Now()
 		fallthrough
 	case staleBlocksRemoved:
-		// Completely remove contract IDs to update them later.
-		bc.log.Info("trying to reset contract storage items and IDs")
+		bc.log.Info("trying to reset contract storage items")
 		pStorageStart := p
-		cache.Store.Seek(storage.SeekRange{Prefix: []byte{byte(storage.STContractID)}}, func(k, _ []byte) bool {
-			cache.Store.Delete(k)
-			return true
-		})
-		keys, err = cache.Persist()
-		if err != nil {
-			return fmt.Errorf("failed to persist removed contract IDs: %w", err)
-		}
-		bc.log.Info("removed contract IDs are persisted", zap.Duration("took", time.Since(p)), zap.Int("keys", keys))
-		p = time.Now()
 
-		// Reset contracts storage and store new contract IDs.
 		var mode = mpt.ModeAll
 		if bc.config.RemoveUntraceableBlocks {
 			mode |= mpt.ModeGCFlag
@@ -739,19 +727,12 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		trieStore := mpt.NewTrieStore(sr.Root, mode, cache.Store)
 		oldStoragePrefix := v.StoragePrefix
 		newStoragePrefix := statesync.TemporaryPrefix(oldStoragePrefix)
-		mgmtCSPrefixLen := 1 + 4 + 1 // STStorage + Management ID + contract state prefix
-		mgmtContractPrefix := make([]byte, mgmtCSPrefixLen-1)
-		id := int32(native.ManagementContractID)
-		binary.BigEndian.PutUint32(mgmtContractPrefix, uint32(id))
-		mgmtContractPrefix[4] = native.PrefixContract
-		cs := new(state.Contract)
 
 		const persistBatchSize = 200000
 		var (
 			seekErr        error
 			cnt            int
 			storageItmsCnt int
-			contractIDsCnt int
 			batchCnt       int
 		)
 		trieStore.Seek(storage.SeekRange{Prefix: []byte{byte(oldStoragePrefix)}}, func(k, v []byte) bool {
@@ -775,22 +756,6 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 			cnt++
 			storageItmsCnt++
 
-			// @fixme: remove this part after #2702.
-			if bytes.HasPrefix(k[1:], mgmtContractPrefix) {
-				var hash util.Uint160
-				copy(hash[:], k[mgmtCSPrefixLen:])
-				err = stackitem.DeserializeConvertible(v, cs)
-				if err != nil {
-					bc.log.Warn("failed to deserialize contract; ID for this contract won't be stored in the DB",
-						zap.String("hash", hash.StringLE()),
-						zap.Error(err))
-				} else {
-					cache.PutContractID(cs.ID, hash)
-					cnt++
-					contractIDsCnt++
-				}
-			}
-
 			return true
 		})
 		if seekErr != nil {
@@ -806,8 +771,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		batchCnt++
 		bc.log.Info("last batch of contract storage items and IDs is persisted", zap.Int("batch", batchCnt), zap.Duration("took", time.Since(p)), zap.Int("keys", keys))
 		bc.log.Info("contract storage items and IDs are reset", zap.Duration("took", time.Since(pStorageStart)),
-			zap.Int("keys", storageItmsCnt),
-			zap.Int("ids", contractIDsCnt))
+			zap.Int("keys", storageItmsCnt))
 		p = time.Now()
 		fallthrough
 	case newStorageItemsAdded:
@@ -1774,7 +1738,7 @@ func (bc *Blockchain) processTokenTransfer(cache *dao.Simple, transCache map[uti
 	if nativeContract != nil {
 		id = nativeContract.Metadata().ID
 	} else {
-		assetContract, err := bc.contracts.Management.GetContract(cache, sc)
+		assetContract, err := native.GetContract(cache, sc)
 		if err != nil {
 			return
 		}
@@ -2112,7 +2076,7 @@ func (bc *Blockchain) BlockHeight() uint32 {
 
 // GetContractState returns contract by its script hash.
 func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
-	contract, err := bc.contracts.Management.GetContract(bc.dao, hash)
+	contract, err := native.GetContract(bc.dao, hash)
 	if contract == nil && !errors.Is(err, storage.ErrKeyNotFound) {
 		bc.log.Warn("failed to get contract state", zap.Error(err))
 	}
@@ -2121,7 +2085,7 @@ func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
 
 // GetContractScriptHash returns contract script hash by its ID.
 func (bc *Blockchain) GetContractScriptHash(id int32) (util.Uint160, error) {
-	return bc.dao.GetContractScriptHash(id)
+	return native.GetContractScriptHash(bc.dao, id)
 }
 
 // GetNativeContractScriptHash returns native contract script hash by its name.
@@ -2823,7 +2787,7 @@ func (bc *Blockchain) newInteropContext(trigger trigger.Type, d *dao.Simple, blo
 		// changes that were not yet persisted to Blockchain's dao.
 		baseStorageFee = bc.contracts.Policy.GetStoragePriceInternal(d)
 	}
-	ic := interop.NewContext(trigger, bc, d, baseExecFee, baseStorageFee, bc.contracts.Management.GetContract, bc.contracts.Contracts, contract.LoadToken, block, tx, bc.log)
+	ic := interop.NewContext(trigger, bc, d, baseExecFee, baseStorageFee, native.GetContract, bc.contracts.Contracts, contract.LoadToken, block, tx, bc.log)
 	ic.Functions = systemInterops
 	switch {
 	case tx != nil:

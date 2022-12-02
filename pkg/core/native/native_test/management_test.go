@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -555,6 +556,41 @@ func TestManagement_GetContract(t *testing.T) {
 	})
 	t.Run("positive", func(t *testing.T) {
 		managementInvoker.Invoke(t, si, "getContract", cs1.Hash.BytesBE())
+	})
+	t.Run("by ID, bad parameter type", func(t *testing.T) {
+		managementInvoker.InvokeFail(t, "invalid conversion: Array/Integer", "getContractById", []interface{}{int64(1)})
+	})
+	t.Run("by ID, bad num", func(t *testing.T) {
+		managementInvoker.InvokeFail(t, "id is not a correct int32", "getContractById", []byte{1, 2, 3, 4, 5})
+	})
+	t.Run("by ID, positive", func(t *testing.T) {
+		managementInvoker.Invoke(t, si, "getContractById", cs1.ID)
+	})
+	t.Run("by ID, native", func(t *testing.T) {
+		csm := managementInvoker.Executor.Chain.GetContractState(managementInvoker.Hash)
+		require.NotNil(t, csm)
+		sim, err := csm.ToStackItem()
+		require.NoError(t, err)
+		managementInvoker.Invoke(t, sim, "getContractById", -1)
+	})
+	t.Run("by ID, empty", func(t *testing.T) {
+		managementInvoker.Invoke(t, stackitem.Null{}, "getContractById", -100)
+	})
+	t.Run("contract hashes", func(t *testing.T) {
+		w := io.NewBufBinWriter()
+		emit.AppCall(w.BinWriter, managementInvoker.Hash, "getContractHashes", callflag.All)
+		emit.Opcodes(w.BinWriter, opcode.DUP) // Iterator.
+		emit.Syscall(w.BinWriter, interopnames.SystemIteratorNext)
+		emit.Opcodes(w.BinWriter, opcode.ASSERT) // Has one element.
+		emit.Opcodes(w.BinWriter, opcode.DUP)    // Iterator.
+		emit.Syscall(w.BinWriter, interopnames.SystemIteratorValue)
+		emit.Opcodes(w.BinWriter, opcode.SWAP) // Iterator to the top.
+		emit.Syscall(w.BinWriter, interopnames.SystemIteratorNext)
+		emit.Opcodes(w.BinWriter, opcode.NOT)
+		emit.Opcodes(w.BinWriter, opcode.ASSERT) // No more elements, single value left on the stack.
+		require.NoError(t, w.Err)
+		h := managementInvoker.InvokeScript(t, w.Bytes(), managementInvoker.Signers)
+		managementInvoker.Executor.CheckHalt(t, h, stackitem.NewStruct([]stackitem.Item{stackitem.Make([]byte{0, 0, 0, 1}), stackitem.Make(cs1.Hash.BytesBE())}))
 	})
 }
 

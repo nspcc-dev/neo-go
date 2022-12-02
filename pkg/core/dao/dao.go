@@ -135,32 +135,6 @@ func (dao *Simple) putWithBuffer(entity io.Serializable, key []byte, buf *io.Buf
 	return nil
 }
 
-func (dao *Simple) makeContractIDKey(id int32) []byte {
-	key := dao.getKeyBuf(5)
-	key[0] = byte(storage.STContractID)
-	binary.BigEndian.PutUint32(key[1:], uint32(id))
-	return key
-}
-
-// DeleteContractID deletes contract's id to hash mapping.
-func (dao *Simple) DeleteContractID(id int32) {
-	dao.Store.Delete(dao.makeContractIDKey(id))
-}
-
-// PutContractID adds a mapping from a contract's ID to its hash.
-func (dao *Simple) PutContractID(id int32, hash util.Uint160) {
-	dao.Store.Put(dao.makeContractIDKey(id), hash.BytesBE())
-}
-
-// GetContractScriptHash retrieves the contract's hash given its ID.
-func (dao *Simple) GetContractScriptHash(id int32) (util.Uint160, error) {
-	var data = new(util.Uint160)
-	if err := dao.GetAndDecode(data, dao.makeContractIDKey(id)); err != nil {
-		return *data, err
-	}
-	return *data, nil
-}
-
 // -- start NEP-17 transfer info.
 
 func (dao *Simple) makeTTIKey(acc util.Uint160) []byte {

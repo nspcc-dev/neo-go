@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -43,6 +44,15 @@ func (t *testAct) MakeUnsignedRun(script []byte, attrs []transaction.Attribute) 
 func (t *testAct) SendRun(script []byte) (util.Uint256, uint32, error) {
 	return t.txh, t.vub, t.err
 }
+func (t *testAct) CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...interface{}) (*result.Invoke, error) {
+	return t.res, t.err
+}
+func (t *testAct) TerminateSession(sessionID uuid.UUID) error {
+	return t.err
+}
+func (t *testAct) TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error) {
+	return t.res.Stack, t.err
+}
 
 func TestReader(t *testing.T) {
 	ta := new(testAct)
@@ -50,6 +60,8 @@ func TestReader(t *testing.T) {
 
 	ta.err = errors.New("")
 	_, err := man.GetContract(util.Uint160{1, 2, 3})
+	require.Error(t, err)
+	_, err = man.GetContractByID(1)
 	require.Error(t, err)
 	_, err = man.GetMinimumDeploymentFee()
 	require.Error(t, err)
@@ -64,6 +76,8 @@ func TestReader(t *testing.T) {
 		},
 	}
 	_, err = man.GetContract(util.Uint160{1, 2, 3})
+	require.Error(t, err)
+	_, err = man.GetContractByID(1)
 	require.Error(t, err)
 	fee, err := man.GetMinimumDeploymentFee()
 	require.NoError(t, err)
@@ -80,6 +94,8 @@ func TestReader(t *testing.T) {
 	}
 	_, err = man.GetContract(util.Uint160{1, 2, 3})
 	require.Error(t, err)
+	_, err = man.GetContractByID(1)
+	require.Error(t, err)
 	hm, err = man.HasMethod(util.Uint160{1, 2, 3}, "method", 0)
 	require.NoError(t, err)
 	require.False(t, hm)
@@ -91,6 +107,8 @@ func TestReader(t *testing.T) {
 		},
 	}
 	_, err = man.GetContract(util.Uint160{1, 2, 3})
+	require.Error(t, err)
+	_, err = man.GetContractByID(1)
 	require.Error(t, err)
 
 	nefFile, _ := nef.NewFile([]byte{1, 2, 3})
@@ -114,6 +132,109 @@ func TestReader(t *testing.T) {
 	require.Equal(t, int32(1), cs.ID)
 	require.Equal(t, uint16(0), cs.UpdateCounter)
 	require.Equal(t, util.Uint160{1, 2, 3}, cs.Hash)
+	cs2, err := man.GetContractByID(1)
+	require.NoError(t, err)
+	require.Equal(t, cs, cs2)
+}
+
+func TestGetContractHashes(t *testing.T) {
+	ta := &testAct{}
+	man := NewReader(ta)
+
+	ta.err = errors.New("")
+	_, err := man.GetContractHashes()
+	require.Error(t, err)
+	_, err = man.GetContractHashesExpanded(5)
+	require.Error(t, err)
+
+	ta.err = nil
+	iid := uuid.New()
+	ta.res = &result.Invoke{
+		State: "HALT",
+		Stack: []stackitem.Item{
+			stackitem.NewInterop(result.Iterator{
+				ID: &iid,
+			}),
+		},
+	}
+	_, err = man.GetContractHashes()
+	require.Error(t, err)
+
+	// Session-based iterator.
+	sid := uuid.New()
+	ta.res = &result.Invoke{
+		Session: sid,
+		State:   "HALT",
+		Stack: []stackitem.Item{
+			stackitem.NewInterop(result.Iterator{
+				ID: &iid,
+			}),
+		},
+	}
+	iter, err := man.GetContractHashes()
+	require.NoError(t, err)
+
+	ta.res = &result.Invoke{
+		Stack: []stackitem.Item{
+			stackitem.Make([]stackitem.Item{
+				stackitem.Make([]byte{0, 0, 0, 1}),
+				stackitem.Make(util.Uint160{1, 2, 3}.BytesBE()),
+			}),
+		},
+	}
+	vals, err := iter.Next(10)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(vals))
+	require.Equal(t, IDHash{
+		ID:   1,
+		Hash: util.Uint160{1, 2, 3},
+	}, vals[0])
+
+	ta.err = errors.New("")
+	_, err = iter.Next(1)
+	require.Error(t, err)
+
+	err = iter.Terminate()
+	require.Error(t, err)
+
+	// Value-based iterator.
+	ta.err = nil
+	ta.res = &result.Invoke{
+		State: "HALT",
+		Stack: []stackitem.Item{
+			stackitem.NewInterop(result.Iterator{
+				Values: []stackitem.Item{stackitem.NewStruct([]stackitem.Item{
+					stackitem.Make([]byte{0, 0, 0, 1}),
+					stackitem.Make(util.Uint160{1, 2, 3}.BytesBE()),
+				})},
+			}),
+		},
+	}
+	iter, err = man.GetContractHashes()
+	require.NoError(t, err)
+
+	ta.err = errors.New("")
+	err = iter.Terminate()
+	require.NoError(t, err)
+
+	// Expanded
+	ta.err = nil
+	ta.res = &result.Invoke{
+		State: "HALT",
+		Stack: []stackitem.Item{
+			stackitem.Make([]stackitem.Item{stackitem.Make([]stackitem.Item{
+				stackitem.Make([]byte{0, 0, 0, 1}),
+				stackitem.Make(util.Uint160{1, 2, 3}.BytesBE()),
+			})}),
+		},
+	}
+	vals, err = man.GetContractHashesExpanded(5)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(vals))
+	require.Equal(t, IDHash{
+		ID:   1,
+		Hash: util.Uint160{1, 2, 3},
+	}, vals[0])
 }
 
 func TestSetMinimumDeploymentFee(t *testing.T) {
@@ -203,4 +324,32 @@ func TestDeploy(t *testing.T) {
 	require.Error(t, err)
 
 	// Unfortunately, manifest _always_ marshals successfully (or panics).
+}
+
+func TestItemsToIDHashesErrors(t *testing.T) {
+	for name, input := range map[string][]stackitem.Item{
+		"not a struct": {stackitem.Make(1)},
+		"wrong length": {stackitem.Make([]stackitem.Item{})},
+		"wrong id": {stackitem.Make([]stackitem.Item{
+			stackitem.Make([]stackitem.Item{}),
+			stackitem.Make(util.Uint160{1, 2, 3}.BytesBE()),
+		})},
+		"lengthy id": {stackitem.Make([]stackitem.Item{
+			stackitem.Make(util.Uint160{1, 2, 3}.BytesBE()),
+			stackitem.Make(util.Uint160{1, 2, 3}.BytesBE()),
+		})},
+		"not a good hash": {stackitem.Make([]stackitem.Item{
+			stackitem.Make([]byte{0, 0, 0, 1}),
+			stackitem.Make([]stackitem.Item{}),
+		})},
+		"not a good u160 hash": {stackitem.Make([]stackitem.Item{
+			stackitem.Make([]byte{0, 0, 0, 1}),
+			stackitem.Make(util.Uint256{1, 2, 3}.BytesBE()),
+		})},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := itemsToIDHashes(input)
+			require.Error(t, err)
+		})
+	}
 }
