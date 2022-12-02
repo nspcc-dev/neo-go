@@ -2,7 +2,6 @@ module github.com/nspcc-dev/neo-go
 
 require (
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
-	github.com/coreos/go-semver v0.3.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1
 	github.com/google/uuid v1.2.0

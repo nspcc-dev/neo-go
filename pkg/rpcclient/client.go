@@ -167,10 +167,6 @@ func (c *Client) Init() error {
 
 	c.cache.network = version.Protocol.Network
 	c.cache.stateRootInHeader = version.Protocol.StateRootInHeader
-	if version.Protocol.MillisecondsPerBlock == 0 {
-		c.cache.network = version.Magic
-		c.cache.stateRootInHeader = version.StateRootInHeader
-	}
 	for _, ctr := range natives {
 		c.cache.nativeHashes[ctr.Manifest.Name] = ctr.Hash
 	}

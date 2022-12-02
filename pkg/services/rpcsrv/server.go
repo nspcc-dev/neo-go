@@ -700,11 +700,9 @@ func (s *Server) getVersion(_ params.Params) (interface{}, *neorpc.Error) {
 
 	cfg := s.chain.GetConfig()
 	return &result.Version{
-		Magic:             s.network,
-		TCPPort:           port,
-		Nonce:             s.coreServer.ID(),
-		UserAgent:         s.coreServer.UserAgent,
-		StateRootInHeader: cfg.StateRootInHeader,
+		TCPPort:   port,
+		Nonce:     s.coreServer.ID(),
+		UserAgent: s.coreServer.UserAgent,
 		Protocol: result.Protocol{
 			AddressVersion:              address.NEO3Prefix,
 			Network:                     cfg.Magic,
