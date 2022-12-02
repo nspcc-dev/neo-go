@@ -99,7 +99,7 @@ func TestNEP17Balance(t *testing.T) {
 		}
 
 		e.CheckNextLine(t, "^\\s*$")
-		addr4, err := address.StringToUint160("NfWu6j9KPLQMsWLfHz9iZRy5sNw2bUZWQL") // deployed verify.go contract
+		addr4, err := address.StringToUint160("NiFxRcC5Anz9pmqQyMHh5vamBUZDbRRRzA") // deployed verify.go contract
 		require.NoError(t, err)
 		e.CheckNextLine(t, "^Account "+address.Uint160ToString(addr4))
 		e.CheckEOF(t)

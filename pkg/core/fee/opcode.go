@@ -20,6 +20,8 @@ var coefficients = [256]uint16{
 	opcode.PUSHINT64:    1 << 0,
 	opcode.PUSHINT128:   1 << 2,
 	opcode.PUSHINT256:   1 << 2,
+	opcode.PUSHT:        1 << 0,
+	opcode.PUSHF:        1 << 0,
 	opcode.PUSHA:        1 << 2,
 	opcode.PUSHNULL:     1 << 0,
 	opcode.PUSHDATA1:    1 << 3,

@@ -31,11 +31,11 @@ func Opcodes(w *io.BinWriter, ops ...opcode.Opcode) {
 
 // Bool emits a bool type to the given buffer.
 func Bool(w *io.BinWriter, ok bool) {
-	var opVal = opcode.PUSHF
+	var opVal = opcode.PUSHT
 	if !ok {
-		opVal = opcode.PUSHT
+		opVal = opcode.PUSHF
 	}
-	Opcodes(w, opVal, opcode.NOT)
+	Opcodes(w, opVal)
 }
 
 func padRight(s int, buf []byte) []byte {
