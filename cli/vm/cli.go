@@ -448,7 +448,7 @@ func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg
 		store = storage.NewMemoryStore()
 	}
 
-	log, logCloser, err := options.HandleLoggingParams(false, cfg.ApplicationConfiguration)
+	log, _, logCloser, err := options.HandleLoggingParams(false, cfg.ApplicationConfiguration)
 	if err != nil {
 		return nil, cli.NewExitError(fmt.Errorf("failed to init logger: %w", err), 1)
 	}
