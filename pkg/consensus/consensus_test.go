@@ -44,6 +44,24 @@ func TestNewService(t *testing.T) {
 	require.Equal(t, tx, txx[0])
 }
 
+func TestNewWatchingService(t *testing.T) {
+	bc := newTestChain(t, false)
+	srv, err := NewService(Config{
+		Logger:                zaptest.NewLogger(t),
+		Broadcast:             func(*npayload.Extensible) {},
+		Chain:                 bc,
+		ProtocolConfiguration: bc.GetConfig(),
+		RequestTx:             func(...util.Uint256) {},
+		StopTxFlow:            func() {},
+		TimePerBlock:          bc.GetConfig().TimePerBlock,
+		// No wallet provided.
+	})
+	require.NoError(t, err)
+
+	require.NotPanics(t, srv.Start)
+	require.NotPanics(t, srv.Shutdown)
+}
+
 func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint32) (*service, *wallet.Account) {
 	acc, err := wallet.NewAccountFromWIF(testchain.WIF(testchain.IDToOrder(0)))
 	require.NoError(t, err)
@@ -481,7 +499,7 @@ func newTestServiceWithChain(t *testing.T, bc *core.Blockchain) *service {
 		RequestTx:             func(...util.Uint256) {},
 		StopTxFlow:            func() {},
 		TimePerBlock:          bc.GetConfig().TimePerBlock,
-		Wallet: &config.Wallet{
+		Wallet: config.Wallet{
 			Path:     "./testdata/wallet1.json",
 			Password: "one",
 		},

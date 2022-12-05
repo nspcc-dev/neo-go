@@ -124,8 +124,9 @@ type Config struct {
 	StopTxFlow func()
 	// TimePerBlock is minimal time that should pass before the next block is accepted.
 	TimePerBlock time.Duration
-	// Wallet is a local-node wallet configuration.
-	Wallet *config.Wallet
+	// Wallet is a local-node wallet configuration. If the path is empty, then
+	// no wallet will be initialized and the service will be in watch-only mode.
+	Wallet config.Wallet
 }
 
 // NewService returns a new consensus.Service instance.
@@ -154,21 +155,23 @@ func NewService(cfg Config) (Service, error) {
 
 	var err error
 
-	if srv.wallet, err = wallet.NewWalletFromFile(cfg.Wallet.Path); err != nil {
-		return nil, err
-	}
-
-	// Check that the wallet password is correct for at least one account.
-	var ok bool
-	for _, acc := range srv.wallet.Accounts {
-		err := acc.Decrypt(srv.Config.Wallet.Password, srv.wallet.Scrypt)
-		if err == nil {
-			ok = true
-			break
+	if len(cfg.Wallet.Path) > 0 {
+		if srv.wallet, err = wallet.NewWalletFromFile(cfg.Wallet.Path); err != nil {
+			return nil, err
 		}
-	}
-	if !ok {
-		return nil, errors.New("no account with provided password was found")
+
+		// Check that the wallet password is correct for at least one account.
+		var ok bool
+		for _, acc := range srv.wallet.Accounts {
+			err := acc.Decrypt(srv.Config.Wallet.Password, srv.wallet.Scrypt)
+			if err == nil {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return nil, errors.New("no account with provided password was found")
+		}
 	}
 
 	srv.dbft = dbft.New(
@@ -282,7 +285,9 @@ func (s *service) Shutdown() {
 		s.log.Info("stopping consensus service")
 		close(s.quit)
 		<-s.finished
-		s.wallet.Close()
+		if s.wallet != nil {
+			s.wallet.Close()
+		}
 	}
 }
 
@@ -377,24 +382,25 @@ func (s *service) validatePayload(p *Payload) bool {
 }
 
 func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, crypto.PublicKey) {
-	for i := range pubs {
-		sh := pubs[i].(*publicKey).GetScriptHash()
-		acc := s.wallet.GetAccount(sh)
-		if acc == nil {
-			continue
-		}
-
-		if !acc.CanSign() {
-			err := acc.Decrypt(s.Config.Wallet.Password, s.wallet.Scrypt)
-			if err != nil {
-				s.log.Fatal("can't unlock account", zap.String("address", address.Uint160ToString(sh)))
-				break
+	if s.wallet != nil {
+		for i := range pubs {
+			sh := pubs[i].(*publicKey).GetScriptHash()
+			acc := s.wallet.GetAccount(sh)
+			if acc == nil {
+				continue
 			}
+
+			if !acc.CanSign() {
+				err := acc.Decrypt(s.Config.Wallet.Password, s.wallet.Scrypt)
+				if err != nil {
+					s.log.Fatal("can't unlock account", zap.String("address", address.Uint160ToString(sh)))
+					break
+				}
+			}
+
+			return i, &privateKey{PrivateKey: acc.PrivateKey()}, &publicKey{PublicKey: acc.PublicKey()}
 		}
-
-		return i, &privateKey{PrivateKey: acc.PrivateKey()}, &publicKey{PublicKey: acc.PublicKey()}
 	}
-
 	return -1, nil, nil
 }
 

@@ -376,8 +376,8 @@ func mkOracle(config config.OracleConfiguration, magic netmode.Magic, chain *cor
 	return orc, nil
 }
 
-func mkConsensus(config config.Wallet, tpb time.Duration, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (consensus.Service, error) {
-	if len(config.Path) == 0 {
+func mkConsensus(config config.Consensus, tpb time.Duration, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (consensus.Service, error) {
+	if !config.Enabled {
 		return nil, nil
 	}
 	srv, err := consensus.NewService(consensus.Config{
@@ -387,7 +387,7 @@ func mkConsensus(config config.Wallet, tpb time.Duration, chain *core.Blockchain
 		ProtocolConfiguration: chain.GetConfig(),
 		RequestTx:             serv.RequestTx,
 		StopTxFlow:            serv.StopTxFlow,
-		Wallet:                &config,
+		Wallet:                config.UnlockWallet,
 		TimePerBlock:          tpb,
 	})
 	if err != nil {
@@ -476,7 +476,7 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	dbftSrv, err := mkConsensus(cfg.ApplicationConfiguration.UnlockWallet, serverConfig.TimePerBlock, chain, serv, log)
+	dbftSrv, err := mkConsensus(cfg.ApplicationConfiguration.Consensus, serverConfig.TimePerBlock, chain, serv, log)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -609,7 +609,7 @@ Main:
 					serv.DelConsensusService(dbftSrv)
 					dbftSrv.Shutdown()
 				}
-				dbftSrv, err = mkConsensus(cfgnew.ApplicationConfiguration.UnlockWallet, serverConfig.TimePerBlock, chain, serv, log)
+				dbftSrv, err = mkConsensus(cfgnew.ApplicationConfiguration.Consensus, serverConfig.TimePerBlock, chain, serv, log)
 				if err != nil {
 					log.Error("failed to create consensus service", zap.Error(err))
 					break // Whatever happens, I'll leave it all to chance.

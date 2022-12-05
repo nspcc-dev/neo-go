@@ -135,3 +135,13 @@ time-related settings to `Duration` format).
 
 Removal of deprecated P2P related application settings is scheduled for May-June
 2023 (~0.103.0 release).
+
+## Direct UnlockWallet consensus configuration
+
+Top-level UnlockWallet section in ApplicationConfiguration was used as an
+implicit consensus service configuration, now this setting (with Enabled flag)
+is moved into a section of its own (Consensus). Old configurations are still
+supported, but this support will eventually be removed.
+
+Removal of this compatibility code is scheduled for May-June 2023 (~0.103.0
+release).
