@@ -54,6 +54,16 @@ func TestHandleLoggingParams(t *testing.T) {
 		require.Nil(t, closer)
 	})
 
+	t.Run("broken level", func(t *testing.T) {
+		cfg := config.ApplicationConfiguration{
+			LogPath:  testLog,
+			LogLevel: "qwerty",
+		}
+		_, closer, err := options.HandleLoggingParams(false, cfg)
+		require.Error(t, err)
+		require.Nil(t, closer)
+	})
+
 	t.Run("default", func(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
 			LogPath: testLog,
@@ -67,6 +77,22 @@ func TestHandleLoggingParams(t *testing.T) {
 		})
 		require.True(t, logger.Core().Enabled(zapcore.InfoLevel))
 		require.False(t, logger.Core().Enabled(zapcore.DebugLevel))
+	})
+
+	t.Run("warn", func(t *testing.T) {
+		cfg := config.ApplicationConfiguration{
+			LogPath:  testLog,
+			LogLevel: "warn",
+		}
+		logger, closer, err := options.HandleLoggingParams(false, cfg)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			if closer != nil {
+				require.NoError(t, closer())
+			}
+		})
+		require.True(t, logger.Core().Enabled(zapcore.WarnLevel))
+		require.False(t, logger.Core().Enabled(zapcore.InfoLevel))
 	})
 
 	t.Run("debug", func(t *testing.T) {

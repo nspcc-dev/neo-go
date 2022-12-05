@@ -69,7 +69,7 @@ var Config = cli.StringFlag{
 // Debug is a flag for commands that allow node in debug mode usage.
 var Debug = cli.BoolFlag{
 	Name:  "debug, d",
-	Usage: "enable debug logging (LOTS of output)",
+	Usage: "enable debug logging (LOTS of output, overrides configuration)",
 }
 
 var errNoEndpoint = errors.New("no RPC endpoint specified, use option '--" + RPCEndpointFlag + "' or '-r'")
@@ -172,7 +172,16 @@ var (
 // If logPath is configured on Windows -- function returns closer to be
 // able to close sink for the opened log output file.
 func HandleLoggingParams(debug bool, cfg config.ApplicationConfiguration) (*zap.Logger, func() error, error) {
-	level := zapcore.InfoLevel
+	var (
+		level = zapcore.InfoLevel
+		err   error
+	)
+	if len(cfg.LogLevel) > 0 {
+		level, err = zapcore.ParseLevel(cfg.LogLevel)
+		if err != nil {
+			return nil, nil, fmt.Errorf("log setting: %w", err)
+		}
+	}
 	if debug {
 		level = zapcore.DebugLevel
 	}

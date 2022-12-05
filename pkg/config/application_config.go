@@ -13,6 +13,7 @@ type ApplicationConfiguration struct {
 	BroadcastFactor   int                      `yaml:"BroadcastFactor"`
 	DBConfiguration   dbconfig.DBConfiguration `yaml:"DBConfiguration"`
 	DialTimeout       int64                    `yaml:"DialTimeout"`
+	LogLevel          string                   `yaml:"LogLevel"`
 	LogPath           string                   `yaml:"LogPath"`
 	MaxPeers          int                      `yaml:"MaxPeers"`
 	MinPeers          int                      `yaml:"MinPeers"`
@@ -33,7 +34,8 @@ type ApplicationConfiguration struct {
 }
 
 // EqualsButServices returns true when the o is the same as a except for services
-// (Oracle, P2PNotary, Pprof, Prometheus, RPC, StateRoot and UnlockWallet sections).
+// (Oracle, P2PNotary, Pprof, Prometheus, RPC, StateRoot and UnlockWallet sections)
+// and LogLevel field.
 func (a *ApplicationConfiguration) EqualsButServices(o *ApplicationConfiguration) bool {
 	if a.Address != o.Address ||
 		a.AnnouncedNodePort != o.AnnouncedNodePort ||

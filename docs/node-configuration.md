@@ -23,6 +23,7 @@ node-related settings described in the table below.
 | DBConfiguration | [DB Configuration](#DB-Configuration) |  | Describes configuration for database. See the [DB Configuration](#DB-Configuration) section for details. |
 | DialTimeout | `int64` | `0` | Maximum duration a single dial may take in seconds. |
 | ExtensiblePoolSize | `int` | `20` | Maximum amount of the extensible payloads from a single sender stored in a local pool. |
+| LogLevel | `string` | "info" | Minimal logged messages level (can be "debug", "info", "warn", "error", "dpanic", "panic" or "fatal"). |
 | LogPath | `string` | "", so only console logging | File path where to store node logs. |
 | MaxPeers | `int` | `100` | Maximum numbers of peers that can be connected to the server. |
 | MinPeers | `int` | `5` | Minimum number of peers for normal operation; when the node has less than this number of peers it tries to connect with some new ones. |
