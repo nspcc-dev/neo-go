@@ -872,7 +872,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				cfg := e.chain.GetConfig()
 				require.EqualValues(t, address.NEO3Prefix, resp.Protocol.AddressVersion)
 				require.EqualValues(t, cfg.Magic, resp.Protocol.Network)
-				require.EqualValues(t, cfg.SecondsPerBlock*1000, resp.Protocol.MillisecondsPerBlock)
+				require.EqualValues(t, cfg.TimePerBlock/time.Millisecond, resp.Protocol.MillisecondsPerBlock)
 				require.EqualValues(t, cfg.MaxTraceableBlocks, resp.Protocol.MaxTraceableBlocks)
 				require.EqualValues(t, cfg.MaxValidUntilBlockIncrement, resp.Protocol.MaxValidUntilBlockIncrement)
 				require.EqualValues(t, cfg.MaxTransactionsPerBlock, resp.Protocol.MaxTransactionsPerBlock)

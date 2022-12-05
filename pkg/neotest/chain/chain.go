@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -22,9 +23,9 @@ const (
 	// We don't need a lot of traceable blocks for tests.
 	MaxTraceableBlocks = 1000
 
-	// SecondsPerBlock is the default SecondsPerBlock setting used for test chains.
+	// TimePerBlock is the default TimePerBlock setting used for test chains (1s).
 	// Usually blocks are created by tests bypassing this setting.
-	SecondsPerBlock = 1
+	TimePerBlock = time.Second
 )
 
 const singleValidatorWIF = "KxyjQ8eUa4FHt3Gvioyt1Wz29cTUrE4eTqX3yFSk1YFCsPL8uNsY"
@@ -117,7 +118,7 @@ func init() {
 
 // NewSingle creates a new blockchain instance with a single validator and
 // setups cleanup functions. The configuration used is with netmode.UnitTestNet
-// magic and SecondsPerBlock/MaxTraceableBlocks options defined by constants in
+// magic and TimePerBlock/MaxTraceableBlocks options defined by constants in
 // this package. MemoryStore is used as the backend storage, so all of the chain
 // contents is always in RAM. The Signer returned is the validator (and the committee at
 // the same time).
@@ -140,7 +141,7 @@ func NewSingleWithCustomConfigAndStore(t testing.TB, f func(cfg *config.Protocol
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
 		MaxTraceableBlocks: MaxTraceableBlocks,
-		SecondsPerBlock:    SecondsPerBlock,
+		TimePerBlock:       TimePerBlock,
 		StandbyCommittee:   []string{hex.EncodeToString(committeeAcc.PublicKey().Bytes())},
 		ValidatorsCount:    1,
 		VerifyBlocks:       true,
@@ -196,7 +197,7 @@ func NewMultiWithCustomConfigAndStoreNoCheck(t testing.TB, f func(*config.Protoc
 	protoCfg := config.ProtocolConfiguration{
 		Magic:              netmode.UnitTestNet,
 		MaxTraceableBlocks: MaxTraceableBlocks,
-		SecondsPerBlock:    SecondsPerBlock,
+		TimePerBlock:       TimePerBlock,
 		StandbyCommittee:   standByCommittee,
 		ValidatorsCount:    4,
 		VerifyBlocks:       true,

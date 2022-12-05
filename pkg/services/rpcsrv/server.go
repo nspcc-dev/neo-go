@@ -268,8 +268,8 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	protoCfg := chain.GetConfig()
 	if conf.SessionEnabled {
 		if conf.SessionExpirationTime <= 0 {
-			conf.SessionExpirationTime = protoCfg.SecondsPerBlock
-			log.Info("SessionExpirationTime is not set or wrong, setting default value", zap.Int("SessionExpirationTime", protoCfg.SecondsPerBlock))
+			conf.SessionExpirationTime = int(protoCfg.TimePerBlock / time.Second)
+			log.Info("SessionExpirationTime is not set or wrong, setting default value", zap.Int("SessionExpirationTime", conf.SessionExpirationTime))
 		}
 		if conf.SessionPoolSize <= 0 {
 			conf.SessionPoolSize = defaultSessionPoolSize
@@ -706,7 +706,7 @@ func (s *Server) getVersion(_ params.Params) (interface{}, *neorpc.Error) {
 		Protocol: result.Protocol{
 			AddressVersion:              address.NEO3Prefix,
 			Network:                     cfg.Magic,
-			MillisecondsPerBlock:        cfg.SecondsPerBlock * 1000,
+			MillisecondsPerBlock:        int(cfg.TimePerBlock / time.Millisecond),
 			MaxTraceableBlocks:          cfg.MaxTraceableBlocks,
 			MaxValidUntilBlockIncrement: cfg.MaxValidUntilBlockIncrement,
 			MaxTransactionsPerBlock:     cfg.MaxTransactionsPerBlock,

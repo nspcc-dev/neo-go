@@ -2016,7 +2016,7 @@ func TestClient_Wait(t *testing.T) {
 			select {
 			case <-rcvr:
 				break waitloop
-			case <-time.NewTimer(time.Duration(chain.GetConfig().SecondsPerBlock) * time.Second).C:
+			case <-time.NewTimer(chain.GetConfig().TimePerBlock).C:
 				t.Fatal("transaction failed to be awaited")
 			}
 		}
@@ -2092,7 +2092,7 @@ func TestWSClient_Wait(t *testing.T) {
 					require.Equal(t, vmstate.Halt, aer.VMState)
 				}
 				break waitloop
-			case <-time.NewTimer(time.Duration(chain.GetConfig().SecondsPerBlock) * time.Second).C:
+			case <-time.NewTimer(chain.GetConfig().TimePerBlock).C:
 				t.Fatalf("transaction from block %d failed to be awaited: deadline exceeded", b.Index)
 			}
 		}
@@ -2254,7 +2254,7 @@ waitloop:
 			require.Equal(t, trigger.Application, aer.Trigger)
 			require.Equal(t, vmstate.Halt, aer.VMState)
 			break waitloop
-		case <-time.NewTimer(time.Duration(chain.GetConfig().SecondsPerBlock) * time.Second).C:
+		case <-time.NewTimer(chain.GetConfig().TimePerBlock).C:
 			t.Fatal("transaction failed to be awaited")
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -58,7 +59,10 @@ type (
 		// ReservedAttributes allows to have reserved attributes range for experimental or private purposes.
 		ReservedAttributes bool `yaml:"ReservedAttributes"`
 		// SaveStorageBatch enables storage batch saving before every persist.
-		SaveStorageBatch bool     `yaml:"SaveStorageBatch"`
+		SaveStorageBatch bool `yaml:"SaveStorageBatch"`
+		// SecondsPerBlock is the time interval (in seconds) between blocks that consensus nodes work with.
+		//
+		// Deprecated: replaced by TimePerBlock, to be removed in future versions.
 		SecondsPerBlock  int      `yaml:"SecondsPerBlock"`
 		SeedList         []string `yaml:"SeedList"`
 		StandbyCommittee []string `yaml:"StandbyCommittee"`
@@ -67,7 +71,10 @@ type (
 		// StateSyncInterval is the number of blocks between state heights available for MPT state data synchronization.
 		// It is valid only if P2PStateExchangeExtensions are enabled.
 		StateSyncInterval int `yaml:"StateSyncInterval"`
-		ValidatorsCount   int `yaml:"ValidatorsCount"`
+		// TimePerBlock is the time interval between blocks that consensus nodes work with.
+		// It must be an integer number of milliseconds.
+		TimePerBlock    time.Duration `yaml:"TimePerBlock"`
+		ValidatorsCount int           `yaml:"ValidatorsCount"`
 		// Validators stores history of changes to consensus node number (height: number).
 		ValidatorsHistory map[uint32]int `yaml:"ValidatorsHistory"`
 		// Whether to verify received blocks.
@@ -91,6 +98,9 @@ func (p *ProtocolConfiguration) Validate() error {
 
 	if p.P2PStateExchangeExtensions && p.KeepOnlyLatestState && !p.RemoveUntraceableBlocks {
 		return fmt.Errorf("P2PStateExchangeExtensions can be enabled either on MPT-complete node (KeepOnlyLatestState=false) or on light GC-enabled node (RemoveUntraceableBlocks=true)")
+	}
+	if p.TimePerBlock%time.Millisecond != 0 {
+		return errors.New("TimePerBlock must be an integer number of milliseconds")
 	}
 	for name := range p.NativeUpdateHistories {
 		if !nativenames.IsValid(name) {
@@ -219,6 +229,7 @@ func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
 		p.SecondsPerBlock != o.SecondsPerBlock ||
 		p.StateRootInHeader != o.StateRootInHeader ||
 		p.StateSyncInterval != o.StateSyncInterval ||
+		p.TimePerBlock != o.TimePerBlock ||
 		p.ValidatorsCount != o.ValidatorsCount ||
 		p.VerifyBlocks != o.VerifyBlocks ||
 		p.VerifyTransactions != o.VerifyTransactions ||

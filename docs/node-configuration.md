@@ -197,7 +197,7 @@ where:
   enable `SessionBackedByMPT`, see `SessionBackedByMPT` documentation for more
   details.
 - `SessionExpirationTime` is a lifetime of iterator session in seconds. It is set
-  to `SecondsPerBlock` seconds by default and is relevant only if `SessionEnabled`
+  to `TimePerBlock` seconds by default and is relevant only if `SessionEnabled`
   is set to `true`.
 - `SessionBackedByMPT` is a flag forcing JSON-RPC server into using MPT-backed
   storage for delayed iterator traversal. If `true`, then iterator resources got
@@ -275,11 +275,12 @@ protocol-related settings described in the table below.
 | RemoveUntraceableBlocks | `bool`| `false` | Denotes whether old blocks should be removed from cache and database. If enabled, then only the last `MaxTraceableBlocks` are stored and accessible to smart contracts. Old MPT data is also deleted in accordance with `GarbageCollectionPeriod` setting. If enabled along with `P2PStateExchangeExtensions`, then old blocks and MPT states will be removed up to the second latest state synchronisation point (see `StateSyncInterval`). |
 | ReservedAttributes | `bool` | `false` | Allows to have reserved attributes range for experimental or private purposes. |
 | SaveStorageBatch | `bool` | `false` | Enables storage batch saving before every persist. It is similar to StorageDump plugin for C# node. |
-| SecondsPerBlock | `int` | `15` | Minimal time that should pass before next block is accepted. |
+| SecondsPerBlock | `int` | `15` | Minimal time that should pass before next block is accepted. Deprecated: please use TimePerBlock setting (which overrides anything set here), SecondsPerBlock will be removed in future versions. |
 | SeedList | `[]string` | [] | List of initial nodes addresses used to establish connectivity. |
 | StandbyCommittee | `[]string` | [] | List of public keys of standby committee validators are chosen from. |
 | StateRootInHeader | `bool` | `false` | Enables storing state root in block header. | Experimental protocol extension! |
 | StateSyncInterval | `int` | `40000` | The number of blocks between state heights available for MPT state data synchronization. | `P2PStateExchangeExtensions` should be enabled to use this setting. |
+| TimePerBlock | `Duration` | `15s` | Minimal (and targeted for) time interval between blocks. Must be an integer number of milliseconds. |
 | ValidatorsCount | `int` | `0` | Number of validators set for the whole network lifetime, can't be set if `ValidatorsHistory` setting is used. |
 | ValidatorsHistory | map[uint32]int | none | Number of consensus nodes to use after given height (see `CommitteeHistory` also). Heights where the change occurs must be divisible by the number of committee members at that height. Can't be used with `ValidatorsCount` not equal to zero. |
 | VerifyBlocks | `bool` | `false` | Denotes whether to verify the received blocks. |

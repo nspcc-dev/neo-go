@@ -55,7 +55,7 @@ const (
 	defaultMaxBlockSystemFee               = 900000000000
 	defaultMaxTraceableBlocks              = 2102400 // 1 year of 15s blocks
 	defaultMaxTransactionsPerBlock         = 512
-	defaultSecondsPerBlock                 = 15
+	defaultTimePerBlock                    = 15 * time.Second
 	// HeaderVerificationGasLimit is the maximum amount of GAS for block header verification.
 	HeaderVerificationGasLimit = 3_00000000 // 3 GAS
 	defaultStateSyncInterval   = 40000
@@ -252,15 +252,21 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		log.Info("MaxTransactionsPerBlock is not set or wrong, using default value",
 			zap.Uint16("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
 	}
-	if cfg.SecondsPerBlock == 0 {
-		cfg.SecondsPerBlock = defaultSecondsPerBlock
-		log.Info("SecondsPerBlock is not set or wrong, using default value",
-			zap.Int("SecondsPerBlock", cfg.SecondsPerBlock))
+	if cfg.TimePerBlock <= 0 {
+		if cfg.SecondsPerBlock > 0 { //nolint:staticcheck // SA1019: cfg.SecondsPerBlock is deprecated
+			cfg.TimePerBlock = time.Duration(cfg.SecondsPerBlock) * time.Second //nolint:staticcheck // SA1019: cfg.SecondsPerBlock is deprecated
+			log.Info("TimePerBlock is not set, using deprecated SecondsPerBlock setting, consider updating your config",
+				zap.Duration("TimePerBlock", cfg.TimePerBlock))
+		} else {
+			cfg.TimePerBlock = defaultTimePerBlock
+			log.Info("TimePerBlock is not set or wrong, using default value",
+				zap.Duration("TimePerBlock", cfg.TimePerBlock))
+		}
 	}
 	if cfg.MaxValidUntilBlockIncrement == 0 {
-		const secondsPerDay = int(24 * time.Hour / time.Second)
+		const timePerDay = 24 * time.Hour
 
-		cfg.MaxValidUntilBlockIncrement = uint32(secondsPerDay / cfg.SecondsPerBlock)
+		cfg.MaxValidUntilBlockIncrement = uint32(timePerDay / cfg.TimePerBlock)
 		log.Info("MaxValidUntilBlockIncrement is not set or wrong, using default value",
 			zap.Uint32("MaxValidUntilBlockIncrement", cfg.MaxValidUntilBlockIncrement))
 	}
@@ -2614,7 +2620,7 @@ func (bc *Blockchain) getFakeNextBlock(nextBlockHeight uint32) (*block.Block, er
 	if err != nil {
 		return nil, err
 	}
-	b.Timestamp = hdr.Timestamp + uint64(bc.config.SecondsPerBlock*int(time.Second/time.Millisecond))
+	b.Timestamp = hdr.Timestamp + uint64(bc.config.TimePerBlock/time.Millisecond)
 	return b, nil
 }
 

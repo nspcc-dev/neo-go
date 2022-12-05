@@ -480,7 +480,7 @@ func newTestServiceWithChain(t *testing.T, bc *core.Blockchain) *service {
 		ProtocolConfiguration: bc.GetConfig(),
 		RequestTx:             func(...util.Uint256) {},
 		StopTxFlow:            func() {},
-		TimePerBlock:          time.Duration(bc.GetConfig().SecondsPerBlock) * time.Second,
+		TimePerBlock:          bc.GetConfig().TimePerBlock,
 		Wallet: &config.Wallet{
 			Path:     "./testdata/wallet1.json",
 			Password: "one",
