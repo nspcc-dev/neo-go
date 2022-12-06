@@ -17,20 +17,21 @@
 
 # Overview
 
-This project aims to be a full port of the original C# [Neo project](https://github.com/neo-project).
-A complete toolkit for the NEO blockchain, including:
+NeoGo is a complete platform for distributed application development built on
+top of and compatible with the [Neo project](https://github.com/neo-project).
+This includes, but not limited to (see documentation for more details):
 
 - [Consensus node](docs/consensus.md)
 - [RPC node & client](docs/rpc.md)
 - [CLI tool](docs/cli.md)
 - [Smart contract compiler](docs/compiler.md)
-- [NEO virtual machine](docs/vm.md)
+- [Neo virtual machine](docs/vm.md)
 - [Smart contract examples](examples/README.md)
 - [Oracle service](docs/oracle.md)
 - [State validation service](docs/stateroots.md)
 
-This branch (**master**) is Neo N3-compatible. For the current
-Legacy-compatible version please refer to the [**master-2.x**
+The protocol implemented here is Neo N3-compatible, however you can also find
+an implementation of the Neo Legacy protocol in the [**master-2.x**
 branch](https://github.com/nspcc-dev/neo-go/tree/master-2.x) and releases
 before 0.80.0 (**0.7X.Y** track).
 
@@ -47,13 +48,16 @@ NeoGo, `:latest` points to the latest release) or build yourself.
 
 ### Building
 
-To build NeoGo you need Go 1.17+ and `make`:
+Building NeoGo requires Go 1.17+ and `make`:
 
 ```
-make build
+make
 ```
 
-The resulting binary is `bin/neo-go`.
+The resulting binary is `bin/neo-go`. Notice that using some random revision
+from the `master` branch is not recommended (it can have any number of
+incompatibilities and bugs depending on the development stage), please use
+tagged released versions.
 
 #### Building on Windows
 
@@ -61,12 +65,10 @@ To build NeoGo on Windows platform we recommend you to install `make` from [MinG
 package](https://osdn.net/projects/mingw/). Then, you can build NeoGo with:
 
 ```
-make build
+make
 ```
 
 The resulting binary is `bin/neo-go.exe`.
-
-We also recommend you to switch the Windows Firewall off for further NeoGo node run.
 
 ## Running a node
 
@@ -95,6 +97,9 @@ Available network flags:
 
 To run a consensus/committee node, refer to [consensus
 documentation](docs/consensus.md).
+
+If you're running a node on Windows, please turn off or configure Windows
+Firewall appropriately (allowing inbound connections to the P2P port).
 
 ### Docker
 
@@ -126,37 +131,39 @@ Refer to [consensus node documentation](docs/consensus.md).
 
 ## Smart contract development
 
-Please refer to [neo-go smart contract development
+Please refer to [NeoGo smart contract development
 workshop](https://github.com/nspcc-dev/neo-go-sc-wrkshp) that shows some
-simple contracts that can be compiled/deployed/run using neo-go compiler, SDK
+simple contracts that can be compiled/deployed/run using NeoGo compiler, SDK
 and a private network. For details on how Go code is translated to Neo VM
 bytecode and what you can and can not do in a smart contract, please refer to the
 [compiler documentation](docs/compiler.md).
 
-Refer to [examples](examples/README.md) for more NEO smart contract examples 
+Refer to [examples](examples/README.md) for more Neo smart contract examples
 written in Go.
 
 ## Wallets
 
-NeoGo differs substantially from C# implementation in its approach to
-wallets. NeoGo wallet is just a
+NeoGo wallet is just a
 [NEP-6](https://github.com/neo-project/proposals/blob/68398d28b6932b8dd2b377d5d51bca7b0442f532/nep-6.mediawiki)
-file that is used by CLI commands to sign various things. There is no database
-behind it, the blockchain is the database and CLI commands use RPC to query
-data from it. At the same time, it's not required to open a wallet on an RPC
-node to perform various actions (unless your node provides some service
-for the network like consensus or oracle nodes do).
+file that is used by CLI commands to sign various things. CLI commands are not
+a direct part of the node, but rather a part of the NeoGo binary, their
+implementations use RPC to query data from the blockchain and perform any
+required actions. It's not required to open a wallet on an RPC node (unless
+your node provides some service for the network like consensus or oracle nodes
+do).
 
-# Developer notes
-Nodes have such features as [Prometheus](https://prometheus.io/docs/guides/go-application) and 
-[Pprof](https://golang.org/pkg/net/http/pprof/) in order to have additional information about them for debugging.
+## Monitoring
+NeoGo provides [Prometheus](https://prometheus.io/docs/guides/go-application) and
+[Pprof](https://golang.org/pkg/net/http/pprof/) services that can be enabled
+in the node in order to provide additional monitoring and debugging data.
 
-How to configure Prometheus or Pprof:
-In `config/protocol.*.yml` there is 
+Configuring any of the two services is easy, add the following section (`Pprof`
+instead of `Prometheus` if you need that) to the respective `config/protocol.*.yml`:
 ```
   Prometheus:
     Enabled: true
-    Port: 2112
+    Addresses:
+      - ":2112"
 ```
 where you can switch on/off and define port. Prometheus is enabled and Pprof is disabled by default.
 
@@ -173,7 +180,7 @@ describing the feature/topic you are going to implement.
 - [@roman-khimov](https://github.com/roman-khimov) on GitHub
 - [@AnnaShaleva](https://github.com/AnnaShaleva) on GitHub
 - [@fyrchik](https://github.com/fyrchik) on GitHub
-- Reach out to us on the [NEO Discord](https://discordapp.com/invite/R8v48YA) channel
+- Reach out to us on the [Neo Discord](https://discordapp.com/invite/R8v48YA) channel
 
 # License
 
