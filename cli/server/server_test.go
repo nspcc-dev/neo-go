@@ -49,8 +49,20 @@ func TestHandleLoggingParams(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
 			LogPath: filepath.Join(logfile, "file.log"),
 		}
-		_, closer, err := options.HandleLoggingParams(false, cfg)
+		_, lvl, closer, err := options.HandleLoggingParams(false, cfg)
 		require.Error(t, err)
+		require.Nil(t, lvl)
+		require.Nil(t, closer)
+	})
+
+	t.Run("broken level", func(t *testing.T) {
+		cfg := config.ApplicationConfiguration{
+			LogPath:  testLog,
+			LogLevel: "qwerty",
+		}
+		_, lvl, closer, err := options.HandleLoggingParams(false, cfg)
+		require.Error(t, err)
+		require.Nil(t, lvl)
 		require.Nil(t, closer)
 	})
 
@@ -58,28 +70,48 @@ func TestHandleLoggingParams(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
 			LogPath: testLog,
 		}
-		logger, closer, err := options.HandleLoggingParams(false, cfg)
+		logger, lvl, closer, err := options.HandleLoggingParams(false, cfg)
+		require.NotNil(t, lvl)
 		require.NoError(t, err)
 		t.Cleanup(func() {
 			if closer != nil {
 				require.NoError(t, closer())
 			}
 		})
+		require.Equal(t, zapcore.InfoLevel, lvl.Level())
 		require.True(t, logger.Core().Enabled(zapcore.InfoLevel))
 		require.False(t, logger.Core().Enabled(zapcore.DebugLevel))
+	})
+
+	t.Run("warn", func(t *testing.T) {
+		cfg := config.ApplicationConfiguration{
+			LogPath:  testLog,
+			LogLevel: "warn",
+		}
+		logger, lvl, closer, err := options.HandleLoggingParams(false, cfg)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			if closer != nil {
+				require.NoError(t, closer())
+			}
+		})
+		require.Equal(t, zapcore.WarnLevel, lvl.Level())
+		require.True(t, logger.Core().Enabled(zapcore.WarnLevel))
+		require.False(t, logger.Core().Enabled(zapcore.InfoLevel))
 	})
 
 	t.Run("debug", func(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
 			LogPath: testLog,
 		}
-		logger, closer, err := options.HandleLoggingParams(true, cfg)
+		logger, lvl, closer, err := options.HandleLoggingParams(true, cfg)
 		require.NoError(t, err)
 		t.Cleanup(func() {
 			if closer != nil {
 				require.NoError(t, closer())
 			}
 		})
+		require.Equal(t, zapcore.DebugLevel, lvl.Level())
 		require.True(t, logger.Core().Enabled(zapcore.InfoLevel))
 		require.True(t, logger.Core().Enabled(zapcore.DebugLevel))
 	})
@@ -98,7 +130,7 @@ func TestInitBCWithMetrics(t *testing.T) {
 	ctx := cli.NewContext(cli.NewApp(), set, nil)
 	cfg, err := options.GetConfigFromContext(ctx)
 	require.NoError(t, err)
-	logger, closer, err := options.HandleLoggingParams(true, cfg.ApplicationConfiguration)
+	logger, _, closer, err := options.HandleLoggingParams(true, cfg.ApplicationConfiguration)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		if closer != nil {

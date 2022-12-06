@@ -83,6 +83,9 @@ are broadly split into three main categories:
  * consensus
    That's dBFT, it's a special one and it's controlled with USR2.
 
+HUP signal also reconfigures logging level if it's changed in the
+configuration file (LogLevel option in ApplicationConfig).
+
 Typical scenarios when this can be useful (without full node restart):
  * enabling some service
  * changing RPC configuration

@@ -69,7 +69,7 @@ var Config = cli.StringFlag{
 // Debug is a flag for commands that allow node in debug mode usage.
 var Debug = cli.BoolFlag{
 	Name:  "debug, d",
-	Usage: "enable debug logging (LOTS of output)",
+	Usage: "enable debug logging (LOTS of output, overrides configuration)",
 }
 
 var errNoEndpoint = errors.New("no RPC endpoint specified, use option '--" + RPCEndpointFlag + "' or '-r'")
@@ -171,8 +171,17 @@ var (
 // If logPath is configured -- function creates a dir and a file for logging.
 // If logPath is configured on Windows -- function returns closer to be
 // able to close sink for the opened log output file.
-func HandleLoggingParams(debug bool, cfg config.ApplicationConfiguration) (*zap.Logger, func() error, error) {
-	level := zapcore.InfoLevel
+func HandleLoggingParams(debug bool, cfg config.ApplicationConfiguration) (*zap.Logger, *zap.AtomicLevel, func() error, error) {
+	var (
+		level = zapcore.InfoLevel
+		err   error
+	)
+	if len(cfg.LogLevel) > 0 {
+		level, err = zapcore.ParseLevel(cfg.LogLevel)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("log setting: %w", err)
+		}
+	}
 	if debug {
 		level = zapcore.DebugLevel
 	}
@@ -189,7 +198,7 @@ func HandleLoggingParams(debug bool, cfg config.ApplicationConfiguration) (*zap.
 
 	if logPath := cfg.LogPath; logPath != "" {
 		if err := io.MakeDirForFile(logPath, "logger"); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		if runtime.GOOS == "windows" {
@@ -227,7 +236,7 @@ func HandleLoggingParams(debug bool, cfg config.ApplicationConfiguration) (*zap.
 					return f, err
 				})
 				if err != nil {
-					return nil, nil, fmt.Errorf("failed to register windows-specific sinc: %w", err)
+					return nil, nil, nil, fmt.Errorf("failed to register windows-specific sinc: %w", err)
 				}
 				_winfileSinkRegistered = true
 			}
@@ -238,5 +247,5 @@ func HandleLoggingParams(debug bool, cfg config.ApplicationConfiguration) (*zap.
 	}
 
 	log, err := cc.Build()
-	return log, _winfileSinkCloser, err
+	return log, &cc.Level, _winfileSinkCloser, err
 }

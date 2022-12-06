@@ -29,6 +29,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // NewCommands returns 'node' command.
@@ -154,7 +155,7 @@ func dumpDB(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	log, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
+	log, _, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -207,7 +208,7 @@ func restoreDB(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	log, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
+	log, _, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -326,7 +327,7 @@ func resetDB(ctx *cli.Context) error {
 	}
 	h := uint32(ctx.Uint("height"))
 
-	log, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
+	log, _, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -427,7 +428,8 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	log, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
+	var logDebug = ctx.Bool("debug")
+	log, logLevel, logCloser, err := options.HandleLoggingParams(logDebug, cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -499,6 +501,8 @@ Main:
 			shutdownErr = fmt.Errorf("server error: %w", err)
 			cancel()
 		case sig := <-sigCh:
+			var newLogLevel = zapcore.InvalidLevel
+
 			log.Info("signal received", zap.Stringer("name", sig))
 			cfgnew, err := options.GetConfigFromContext(ctx)
 			if err != nil {
@@ -513,9 +517,20 @@ Main:
 				log.Warn("ApplicationConfiguration changed in incompatible way, signal ignored")
 				break // Continue working.
 			}
+			if !logDebug && cfgnew.ApplicationConfiguration.LogLevel != cfg.ApplicationConfiguration.LogLevel {
+				newLogLevel, err = zapcore.ParseLevel(cfgnew.ApplicationConfiguration.LogLevel)
+				if err != nil {
+					log.Warn("wrong LogLevel in ApplicationConfiguration, signal ignored", zap.Error(err))
+					break // Continue working.
+				}
+			}
 			configureAddresses(&cfgnew.ApplicationConfiguration)
 			switch sig {
 			case sighup:
+				if newLogLevel != zapcore.InvalidLevel {
+					logLevel.SetLevel(newLogLevel)
+					log.Warn("using new logging level", zap.Stringer("level", newLogLevel))
+				}
 				serv.DelService(&rpcServer)
 				rpcServer.Shutdown()
 				rpcServer = rpcsrv.New(chain, cfgnew.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
