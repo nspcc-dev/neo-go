@@ -14,7 +14,6 @@ ProtocolConfiguration:
     - node_two:20334
     - node_three:20335
     - node_four:20336
-  VerifyBlocks: true
   VerifyTransactions: true
   P2PSigExtensions: false
   NativeActivations:
@@ -29,6 +28,7 @@ ProtocolConfiguration:
     OracleContract: [0]
 
 ApplicationConfiguration:
+  VerifyBlocks: true
   # LogPath could be set up in case you need stdout logs to some proper file.
   # LogPath: "./log/neogo.log"
   DBConfiguration:

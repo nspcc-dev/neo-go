@@ -15,7 +15,6 @@ ProtocolConfiguration:
     - localhost:20334
     - localhost:20335
     - localhost:20336
-  VerifyBlocks: true
   VerifyTransactions: true
   P2PSigExtensions: true
   NativeActivations:
@@ -33,6 +32,7 @@ ProtocolConfiguration:
     Aspidochelone: 25
 
 ApplicationConfiguration:
+  VerifyBlocks: true
   # LogPath could be set up in case you need stdout logs to some proper file.
   # LogPath: "./log/neogo.log"
   DBConfiguration:
