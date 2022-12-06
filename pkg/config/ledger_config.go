@@ -16,8 +16,9 @@ type Ledger struct {
 	RemoveUntraceableBlocks bool `yaml:"RemoveUntraceableBlocks"`
 	// SaveStorageBatch enables storage batch saving before every persist.
 	SaveStorageBatch bool `yaml:"SaveStorageBatch"`
-	// VerifyBlocks controls block verification checks (including cryptography).
-	VerifyBlocks bool `yaml:"VerifyBlocks"`
+	// SkipBlockVerification allows to disable verification of received
+	// blocks (including cryptographic checks).
+	SkipBlockVerification bool `yaml:"SkipBlockVerification"`
 }
 
 // Blockchain is a set of settings for core.Blockchain to use, it includes protocol

@@ -132,7 +132,7 @@ func newChain() (*core.Blockchain, error) {
 	if err != nil {
 		return nil, err
 	}
-	unitTestNetCfg.ApplicationConfiguration.VerifyBlocks = false
+	unitTestNetCfg.ApplicationConfiguration.SkipBlockVerification = true
 	zapCfg := zap.NewDevelopmentConfig()
 	zapCfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 	log, err := zapCfg.Build()

@@ -323,7 +323,7 @@ func (s *Module) AddBlock(block *block.Block) error {
 	if s.bc.GetConfig().StateRootInHeader != block.StateRootEnabled {
 		return fmt.Errorf("stateroot setting mismatch: %v != %v", s.bc.GetConfig().StateRootInHeader, block.StateRootEnabled)
 	}
-	if s.bc.GetConfig().Ledger.VerifyBlocks {
+	if !s.bc.GetConfig().SkipBlockVerification {
 		merkle := block.ComputeMerkleRoot()
 		if !block.MerkleRoot.Equals(merkle) {
 			return errors.New("invalid block: MerkleRoot mismatch")

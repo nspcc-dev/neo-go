@@ -147,9 +147,6 @@ func NewSingleWithCustomConfigAndStore(t testing.TB, f func(cfg *config.Blockcha
 			ValidatorsCount:    1,
 			VerifyTransactions: true,
 		},
-		Ledger: config.Ledger{
-			VerifyBlocks: true,
-		},
 	}
 
 	if f != nil {
@@ -207,9 +204,6 @@ func NewMultiWithCustomConfigAndStoreNoCheck(t testing.TB, f func(*config.Blockc
 			StandbyCommittee:   standByCommittee,
 			ValidatorsCount:    4,
 			VerifyTransactions: true,
-		},
-		Ledger: config.Ledger{
-			VerifyBlocks: true,
 		},
 	}
 	if f != nil {

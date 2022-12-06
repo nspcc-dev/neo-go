@@ -296,7 +296,6 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 	cfg.Ledger.KeepOnlyLatestState = cfg.Ledger.KeepOnlyLatestState || cfg.ProtocolConfiguration.KeepOnlyLatestState             //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.KeepOnlyLatestState is deprecated
 	cfg.Ledger.RemoveUntraceableBlocks = cfg.Ledger.RemoveUntraceableBlocks || cfg.ProtocolConfiguration.RemoveUntraceableBlocks //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.RemoveUntraceableBlocks is deprecated
 	cfg.Ledger.SaveStorageBatch = cfg.Ledger.SaveStorageBatch || cfg.ProtocolConfiguration.SaveStorageBatch                      //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.SaveStorageBatch is deprecated
-	cfg.Ledger.VerifyBlocks = cfg.Ledger.VerifyBlocks || cfg.ProtocolConfiguration.VerifyBlocks                                  //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.VerifyBlocks is deprecated
 
 	// Local config consistency checks.
 	if cfg.Ledger.RemoveUntraceableBlocks && cfg.Ledger.GarbageCollectionPeriod == 0 {
@@ -1309,12 +1308,12 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 	}
 
 	if block.Index == bc.HeaderHeight()+1 {
-		err := bc.addHeaders(bc.config.Ledger.VerifyBlocks, &block.Header)
+		err := bc.addHeaders(!bc.config.SkipBlockVerification, &block.Header)
 		if err != nil {
 			return err
 		}
 	}
-	if bc.config.Ledger.VerifyBlocks {
+	if !bc.config.SkipBlockVerification {
 		merkle := block.ComputeMerkleRoot()
 		if !block.MerkleRoot.Equals(merkle) {
 			return errors.New("invalid block: MerkleRoot mismatch")
@@ -1344,7 +1343,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 // AddHeaders processes the given headers and add them to the
 // HeaderHashList. It expects headers to be sorted by index.
 func (bc *Blockchain) AddHeaders(headers ...*block.Header) error {
-	return bc.addHeaders(bc.config.Ledger.VerifyBlocks, headers...)
+	return bc.addHeaders(!bc.config.SkipBlockVerification, headers...)
 }
 
 // addHeaders is an internal implementation of AddHeaders (`verify` parameter

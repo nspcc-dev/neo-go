@@ -43,9 +43,9 @@ node-related settings described in the table below.
 | RemoveUntraceableBlocks | `bool`| `false` | Denotes whether old blocks should be removed from cache and database. If enabled, then only the last `MaxTraceableBlocks` are stored and accessible to smart contracts. Old MPT data is also deleted in accordance with `GarbageCollectionPeriod` setting. If enabled along with `P2PStateExchangeExtensions` protocol extension, then old blocks and MPT states will be removed up to the second latest state synchronisation point (see `StateSyncInterval`). |
 | RPC | [RPC Configuration](#RPC-Configuration) |  | Describes [RPC subsystem](rpc.md) configuration. See the [RPC Configuration](#RPC-Configuration) for details. |
 | SaveStorageBatch | `bool` | `false` | Enables storage batch saving before every persist. It is similar to StorageDump plugin for C# node. |
+| SkipBlockVerification | `bool` | `false` | Allows to disable verification of received/processed blocks (including cryptographic checks). |
 | StateRoot | [State Root Configuration](#State-Root-Configuration) |  | State root module configuration. See the [State Root Configuration](#State-Root-Configuration) section for details. |
 | UnlockWallet | [Unlock Wallet Configuration](#Unlock-Wallet-Configuration) |  | Node wallet configuration used for consensus (dBFT) operation. See the [Unlock Wallet Configuration](#Unlock-Wallet-Configuration) section for details. This section is deprecated and replaced by Consensus, it only exists for compatibility with old configuration files, but will be removed in future node versions. |
-| VerifyBlocks | `bool` | `false` | Denotes whether to verify the received blocks. |
 
 ### P2P Configuration
 
@@ -365,5 +365,5 @@ protocol-related settings described in the table below.
 | TimePerBlock | `Duration` | `15s` | Minimal (and targeted for) time interval between blocks. Must be an integer number of milliseconds. |
 | ValidatorsCount | `int` | `0` | Number of validators set for the whole network lifetime, can't be set if `ValidatorsHistory` setting is used. |
 | ValidatorsHistory | map[uint32]int | none | Number of consensus nodes to use after given height (see `CommitteeHistory` also). Heights where the change occurs must be divisible by the number of committee members at that height. Can't be used with `ValidatorsCount` not equal to zero. |
-| VerifyBlocks | `bool` | `false` | Denotes whether to verify the received blocks. | This setting is deprecated in favor of the same setting in the ApplicationConfiguration and will be removed in future node versions. If both settings are used, setting any of them to true enables the function. |
+| VerifyBlocks | `bool` | `false` | This setting is deprecated and no longer works, please use `SkipBlockVerification` in the `ApplicationConfiguration`, it will be removed in future node versions. |
 | VerifyTransactions | `bool` | `false` | Denotes whether to verify transactions in the received blocks. |

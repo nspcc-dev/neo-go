@@ -37,7 +37,7 @@ ProtocolConfiguration:
     OracleContract: [0]
 
 ApplicationConfiguration:
-  VerifyBlocks: true
+  SkipBlockVerification: false
   # LogPath could be set up in case you need stdout logs to some proper file.
   # LogPath: "./log/neogo.log"
   DBConfiguration:

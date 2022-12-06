@@ -421,7 +421,7 @@ func TestBlockchain_AddBadBlock(t *testing.T) {
 	e.SignBlock(b)
 	check(t, b, nil)
 	check(t, b, func(c *config.Blockchain) {
-		c.Ledger.VerifyBlocks = false
+		c.SkipBlockVerification = true
 	})
 
 	b = e.NewUnsignedBlock(t)
@@ -429,7 +429,7 @@ func TestBlockchain_AddBadBlock(t *testing.T) {
 	e.SignBlock(b)
 	check(t, b, nil)
 	check(t, b, func(c *config.Blockchain) {
-		c.Ledger.VerifyBlocks = false
+		c.SkipBlockVerification = true
 	})
 
 	tx = e.NewUnsignedTx(t, neoHash, "transfer", acc.ScriptHash(), util.Uint160{1, 2, 3}, 1, nil) // Check the good tx.
@@ -438,7 +438,7 @@ func TestBlockchain_AddBadBlock(t *testing.T) {
 	e.SignBlock(b)
 	check(t, b, func(c *config.Blockchain) {
 		c.VerifyTransactions = true
-		c.Ledger.VerifyBlocks = true
+		c.SkipBlockVerification = false
 	})
 }
 
