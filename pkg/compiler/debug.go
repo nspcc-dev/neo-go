@@ -26,7 +26,10 @@ type DebugInfo struct {
 	Hash      util.Uint160      `json:"hash"`
 	Documents []string          `json:"documents"`
 	Methods   []MethodDebugInfo `json:"methods"`
-	Events    []EventDebugInfo  `json:"events"`
+	// NamedTypes are exported structured types that have some name (even
+	// if the original structure doesn't) and a number of internal fields.
+	NamedTypes map[string]binding.ExtendedType `json:"-"`
+	Events     []EventDebugInfo                `json:"events"`
 	// EmittedEvents contains events occurring in code.
 	EmittedEvents map[string][][]string `json:"-"`
 	// InvokedContracts contains foreign contract invocations.
@@ -55,6 +58,8 @@ type MethodDebugInfo struct {
 	ReturnType string `json:"return"`
 	// ReturnTypeReal is the method's return type as specified in Go code.
 	ReturnTypeReal binding.Override `json:"-"`
+	// ReturnTypeExtended is the method's return type with additional data.
+	ReturnTypeExtended *binding.ExtendedType `json:"-"`
 	// ReturnTypeSC is a return type to use in manifest.
 	ReturnTypeSC smartcontract.ParamType `json:"-"`
 	Variables    []string                `json:"variables"`
@@ -100,10 +105,11 @@ type DebugRange struct {
 
 // DebugParam represents the variables's name and type.
 type DebugParam struct {
-	Name     string                  `json:"name"`
-	Type     string                  `json:"type"`
-	RealType binding.Override        `json:"-"`
-	TypeSC   smartcontract.ParamType `json:"-"`
+	Name         string                  `json:"name"`
+	Type         string                  `json:"type"`
+	RealType     binding.Override        `json:"-"`
+	ExtendedType *binding.ExtendedType   `json:"-"`
+	TypeSC       smartcontract.ParamType `json:"-"`
 }
 
 func (c *codegen) saveSequencePoint(n ast.Node) {
@@ -185,8 +191,9 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	}
 
 	start := len(d.Methods)
+	d.NamedTypes = make(map[string]binding.ExtendedType)
 	for name, scope := range c.funcs {
-		m := c.methodInfoFromScope(name, scope)
+		m := c.methodInfoFromScope(name, scope, d.NamedTypes)
 		if m.Range.Start == m.Range.End {
 			continue
 		}
@@ -201,7 +208,7 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 }
 
 func (c *codegen) registerDebugVariable(name string, expr ast.Expr) {
-	_, vt, _ := c.scAndVMTypeFromExpr(expr)
+	_, vt, _, _ := c.scAndVMTypeFromExpr(expr, nil)
 	if c.scope == nil {
 		c.staticVariables = append(c.staticVariables, name+","+vt.String())
 		return
@@ -209,24 +216,25 @@ func (c *codegen) registerDebugVariable(name string, expr ast.Expr) {
 	c.scope.variables = append(c.scope.variables, name+","+vt.String())
 }
 
-func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebugInfo {
+func (c *codegen) methodInfoFromScope(name string, scope *funcScope, exts map[string]binding.ExtendedType) *MethodDebugInfo {
 	ps := scope.decl.Type.Params
 	params := make([]DebugParam, 0, ps.NumFields())
 	for i := range ps.List {
 		for j := range ps.List[i].Names {
-			st, vt, rt := c.scAndVMTypeFromExpr(ps.List[i].Type)
+			st, vt, rt, et := c.scAndVMTypeFromExpr(ps.List[i].Type, exts)
 			params = append(params, DebugParam{
-				Name:     ps.List[i].Names[j].Name,
-				Type:     vt.String(),
-				RealType: rt,
-				TypeSC:   st,
+				Name:         ps.List[i].Names[j].Name,
+				Type:         vt.String(),
+				ExtendedType: et,
+				RealType:     rt,
+				TypeSC:       st,
 			})
 		}
 	}
 	ss := strings.Split(name, ".")
 	name = ss[len(ss)-1]
 	r, n := utf8.DecodeRuneInString(name)
-	st, vt, rt := c.scAndVMReturnTypeFromScope(scope)
+	st, vt, rt, et := c.scAndVMReturnTypeFromScope(scope, exts)
 
 	return &MethodDebugInfo{
 		ID: name,
@@ -234,45 +242,52 @@ func (c *codegen) methodInfoFromScope(name string, scope *funcScope) *MethodDebu
 			Name:      string(unicode.ToLower(r)) + name[n:],
 			Namespace: scope.pkg.Name(),
 		},
-		IsExported:     scope.decl.Name.IsExported(),
-		IsFunction:     scope.decl.Recv == nil,
-		Range:          scope.rng,
-		Parameters:     params,
-		ReturnType:     vt,
-		ReturnTypeReal: rt,
-		ReturnTypeSC:   st,
-		SeqPoints:      c.sequencePoints[name],
-		Variables:      scope.variables,
+		IsExported:         scope.decl.Name.IsExported(),
+		IsFunction:         scope.decl.Recv == nil,
+		Range:              scope.rng,
+		Parameters:         params,
+		ReturnType:         vt,
+		ReturnTypeExtended: et,
+		ReturnTypeReal:     rt,
+		ReturnTypeSC:       st,
+		SeqPoints:          c.sequencePoints[name],
+		Variables:          scope.variables,
 	}
 }
 
-func (c *codegen) scAndVMReturnTypeFromScope(scope *funcScope) (smartcontract.ParamType, string, binding.Override) {
+func (c *codegen) scAndVMReturnTypeFromScope(scope *funcScope, exts map[string]binding.ExtendedType) (smartcontract.ParamType, string, binding.Override, *binding.ExtendedType) {
 	results := scope.decl.Type.Results
 	switch results.NumFields() {
 	case 0:
-		return smartcontract.VoidType, "Void", binding.Override{}
+		return smartcontract.VoidType, "Void", binding.Override{}, nil
 	case 1:
-		st, vt, s := c.scAndVMTypeFromExpr(results.List[0].Type)
-		return st, vt.String(), s
+		st, vt, s, et := c.scAndVMTypeFromExpr(results.List[0].Type, exts)
+		return st, vt.String(), s, et
 	default:
 		// multiple return values are not supported in debugger
-		return smartcontract.AnyType, "Any", binding.Override{}
+		return smartcontract.AnyType, "Any", binding.Override{}, nil
 	}
 }
 
-func scAndVMInteropTypeFromExpr(named *types.Named, isPointer bool) (smartcontract.ParamType, stackitem.Type, binding.Override) {
+func scAndVMInteropTypeFromExpr(named *types.Named, isPointer bool) (smartcontract.ParamType, stackitem.Type, binding.Override, *binding.ExtendedType) {
 	name := named.Obj().Name()
 	pkg := named.Obj().Pkg().Name()
 	switch pkg {
-	case "ledger", "contract":
+	case "ledger", "management":
+		switch name {
+		case "ParameterType", "SignerScope", "WitnessAction", "WitnessConditionType", "VMState":
+			return smartcontract.IntegerType, stackitem.IntegerT, binding.Override{TypeName: "int"}, nil
+		}
+		// Block, Transaction, Contract.
 		typeName := pkg + "." + name
+		et := &binding.ExtendedType{Base: smartcontract.ArrayType, Name: typeName}
 		if isPointer {
 			typeName = "*" + typeName
 		}
 		return smartcontract.ArrayType, stackitem.ArrayT, binding.Override{
 			Package:  named.Obj().Pkg().Path(),
 			TypeName: typeName,
-		} // Block, Transaction, Contract
+		}, et
 	case "interop":
 		if name != "Interface" {
 			over := binding.Override{
@@ -281,26 +296,29 @@ func scAndVMInteropTypeFromExpr(named *types.Named, isPointer bool) (smartcontra
 			}
 			switch name {
 			case "Hash160":
-				return smartcontract.Hash160Type, stackitem.ByteArrayT, over
+				return smartcontract.Hash160Type, stackitem.ByteArrayT, over, nil
 			case "Hash256":
-				return smartcontract.Hash256Type, stackitem.ByteArrayT, over
+				return smartcontract.Hash256Type, stackitem.ByteArrayT, over, nil
 			case "PublicKey":
-				return smartcontract.PublicKeyType, stackitem.ByteArrayT, over
+				return smartcontract.PublicKeyType, stackitem.ByteArrayT, over, nil
 			case "Signature":
-				return smartcontract.SignatureType, stackitem.ByteArrayT, over
+				return smartcontract.SignatureType, stackitem.ByteArrayT, over, nil
 			}
 		}
 	}
-	return smartcontract.InteropInterfaceType, stackitem.InteropT, binding.Override{TypeName: "interface{}"}
+	return smartcontract.InteropInterfaceType,
+		stackitem.InteropT,
+		binding.Override{TypeName: "interface{}"},
+		&binding.ExtendedType{Base: smartcontract.InteropInterfaceType, Interface: "iterator"} // Temporarily all interops are iterators.
 }
 
-func (c *codegen) scAndVMTypeFromExpr(typ ast.Expr) (smartcontract.ParamType, stackitem.Type, binding.Override) {
-	return c.scAndVMTypeFromType(c.typeOf(typ))
+func (c *codegen) scAndVMTypeFromExpr(typ ast.Expr, exts map[string]binding.ExtendedType) (smartcontract.ParamType, stackitem.Type, binding.Override, *binding.ExtendedType) {
+	return c.scAndVMTypeFromType(c.typeOf(typ), exts)
 }
 
-func (c *codegen) scAndVMTypeFromType(t types.Type) (smartcontract.ParamType, stackitem.Type, binding.Override) {
+func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.ExtendedType) (smartcontract.ParamType, stackitem.Type, binding.Override, *binding.ExtendedType) {
 	if t == nil {
-		return smartcontract.AnyType, stackitem.AnyT, binding.Override{TypeName: "interface{}"}
+		return smartcontract.AnyType, stackitem.AnyT, binding.Override{TypeName: "interface{}"}, nil
 	}
 
 	var isPtr bool
@@ -314,10 +332,16 @@ func (c *codegen) scAndVMTypeFromType(t types.Type) (smartcontract.ParamType, st
 	}
 	if isNamed {
 		if isInteropPath(named.String()) {
-			return scAndVMInteropTypeFromExpr(named, isPtr)
+			st, vt, over, et := scAndVMInteropTypeFromExpr(named, isPtr)
+			if et != nil && et.Base == smartcontract.ArrayType && exts != nil && exts[et.Name].Name != et.Name {
+				_ = c.genStructExtended(named.Underlying().(*types.Struct), et.Name, exts)
+			}
+			return st, vt, over, et
 		}
 	}
-
+	if ptr, isPtr := t.(*types.Pointer); isPtr {
+		t = ptr.Elem()
+	}
 	var over binding.Override
 	switch t := t.Underlying().(type) {
 	case *types.Basic:
@@ -325,41 +349,101 @@ func (c *codegen) scAndVMTypeFromType(t types.Type) (smartcontract.ParamType, st
 		switch {
 		case info&types.IsInteger != 0:
 			over.TypeName = "int"
-			return smartcontract.IntegerType, stackitem.IntegerT, over
+			return smartcontract.IntegerType, stackitem.IntegerT, over, nil
 		case info&types.IsBoolean != 0:
 			over.TypeName = "bool"
-			return smartcontract.BoolType, stackitem.BooleanT, over
+			return smartcontract.BoolType, stackitem.BooleanT, over, nil
 		case info&types.IsString != 0:
 			over.TypeName = "string"
-			return smartcontract.StringType, stackitem.ByteArrayT, over
+			return smartcontract.StringType, stackitem.ByteArrayT, over, nil
 		default:
 			over.TypeName = "interface{}"
-			return smartcontract.AnyType, stackitem.AnyT, over
+			return smartcontract.AnyType, stackitem.AnyT, over, nil
 		}
 	case *types.Map:
-		_, _, over := c.scAndVMTypeFromType(t.Elem())
+		et := &binding.ExtendedType{
+			Base: smartcontract.MapType,
+		}
+		et.Key, _, _, _ = c.scAndVMTypeFromType(t.Key(), exts)
+		vt, _, over, vet := c.scAndVMTypeFromType(t.Elem(), exts)
+		et.Value = vet
+		if et.Value == nil {
+			et.Value = &binding.ExtendedType{Base: vt}
+		}
 		over.TypeName = "map[" + t.Key().String() + "]" + over.TypeName
-		return smartcontract.MapType, stackitem.MapT, over
+		return smartcontract.MapType, stackitem.MapT, over, et
 	case *types.Struct:
 		if isNamed {
 			over.Package = named.Obj().Pkg().Path()
 			over.TypeName = named.Obj().Pkg().Name() + "." + named.Obj().Name()
+			_ = c.genStructExtended(t, over.TypeName, exts)
+		} else {
+			name := "unnamed"
+			if exts != nil {
+				for exts[name].Name == name {
+					name = name + "X"
+				}
+				_ = c.genStructExtended(t, name, exts)
+			}
 		}
-		return smartcontract.ArrayType, stackitem.StructT, over
+		return smartcontract.ArrayType, stackitem.StructT, over,
+			&binding.ExtendedType{ // Value-less, refer to exts.
+				Base: smartcontract.ArrayType,
+				Name: over.TypeName,
+			}
+
 	case *types.Slice:
 		if isByte(t.Elem()) {
 			over.TypeName = "[]byte"
-			return smartcontract.ByteArrayType, stackitem.ByteArrayT, over
+			return smartcontract.ByteArrayType, stackitem.ByteArrayT, over, nil
 		}
-		_, _, over := c.scAndVMTypeFromType(t.Elem())
+		et := &binding.ExtendedType{
+			Base: smartcontract.ArrayType,
+		}
+		vt, _, over, vet := c.scAndVMTypeFromType(t.Elem(), exts)
+		et.Value = vet
+		if et.Value == nil {
+			et.Value = &binding.ExtendedType{
+				Base: vt,
+			}
+		}
 		if over.TypeName != "" {
 			over.TypeName = "[]" + over.TypeName
 		}
-		return smartcontract.ArrayType, stackitem.ArrayT, over
+		return smartcontract.ArrayType, stackitem.ArrayT, over, et
 	default:
 		over.TypeName = "interface{}"
-		return smartcontract.AnyType, stackitem.AnyT, over
+		return smartcontract.AnyType, stackitem.AnyT, over, nil
 	}
+}
+
+func (c *codegen) genStructExtended(t *types.Struct, name string, exts map[string]binding.ExtendedType) *binding.ExtendedType {
+	var et *binding.ExtendedType
+	if exts != nil {
+		if exts[name].Name != name {
+			et = &binding.ExtendedType{
+				Base:   smartcontract.ArrayType,
+				Name:   name,
+				Fields: make([]binding.FieldExtendedType, t.NumFields()),
+			}
+			exts[name] = *et // Prefill to solve recursive structures.
+			for i := range et.Fields {
+				field := t.Field(i)
+				ft, _, _, fet := c.scAndVMTypeFromType(field.Type(), exts)
+				if fet == nil {
+					et.Fields[i].ExtendedType.Base = ft
+				} else {
+					et.Fields[i].ExtendedType = *fet
+				}
+				et.Fields[i].Field = field.Name()
+			}
+			exts[name] = *et // Set real structure data.
+		} else {
+			et = new(binding.ExtendedType)
+			*et = exts[name]
+		}
+	}
+	return et
 }
 
 // MarshalJSON implements the json.Marshaler interface.

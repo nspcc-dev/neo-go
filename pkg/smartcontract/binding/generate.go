@@ -48,12 +48,28 @@ const Hash = "{{ .Hash }}"
 type (
 	// Config contains parameter for the generated binding.
 	Config struct {
-		Package   string                       `yaml:"package,omitempty"`
-		Manifest  *manifest.Manifest           `yaml:"-"`
-		Hash      util.Uint160                 `yaml:"hash,omitempty"`
-		Overrides map[string]Override          `yaml:"overrides,omitempty"`
-		CallFlags map[string]callflag.CallFlag `yaml:"callflags,omitempty"`
-		Output    io.Writer                    `yaml:"-"`
+		Package    string                       `yaml:"package,omitempty"`
+		Manifest   *manifest.Manifest           `yaml:"-"`
+		Hash       util.Uint160                 `yaml:"hash,omitempty"`
+		Overrides  map[string]Override          `yaml:"overrides,omitempty"`
+		CallFlags  map[string]callflag.CallFlag `yaml:"callflags,omitempty"`
+		NamedTypes map[string]ExtendedType      `yaml:"namedtypes,omitempty"`
+		Types      map[string]ExtendedType      `yaml:"types,omitempty"`
+		Output     io.Writer                    `yaml:"-"`
+	}
+
+	ExtendedType struct {
+		Base      smartcontract.ParamType `yaml:"base"`
+		Name      string                  `yaml:"name,omitempty"`      // Structure name, omitted for arrays, interfaces and maps.
+		Interface string                  `yaml:"interface,omitempty"` // Interface type name, "iterator" only for now.
+		Key       smartcontract.ParamType `yaml:"key,omitempty"`       // Key type (only simple types can be used for keys) for maps.
+		Value     *ExtendedType           `yaml:"value,omitempty"`     // Value type for iterators and arrays.
+		Fields    []FieldExtendedType     `yaml:"fields,omitempty"`    // Ordered type data for structure fields.
+	}
+
+	FieldExtendedType struct {
+		Field        string `yaml:"field"`
+		ExtendedType `yaml:",inline"`
 	}
 
 	ContractTmpl struct {
@@ -84,8 +100,10 @@ var srcTemplate = template.Must(template.New("generate").Parse(srcTmpl))
 // NewConfig initializes and returns a new config instance.
 func NewConfig() Config {
 	return Config{
-		Overrides: make(map[string]Override),
-		CallFlags: make(map[string]callflag.CallFlag),
+		Overrides:  make(map[string]Override),
+		CallFlags:  make(map[string]callflag.CallFlag),
+		NamedTypes: make(map[string]ExtendedType),
+		Types:      make(map[string]ExtendedType),
 	}
 }
 
@@ -101,8 +119,8 @@ func Generate(cfg Config) error {
 	return srcTemplate.Execute(cfg.Output, ctr)
 }
 
-func scTypeToGo(name string, typ smartcontract.ParamType, overrides map[string]Override) (string, string) {
-	if over, ok := overrides[name]; ok {
+func scTypeToGo(name string, typ smartcontract.ParamType, cfg *Config) (string, string) {
+	if over, ok := cfg.Overrides[name]; ok {
 		return over.TypeName, over.Package
 	}
 
@@ -141,7 +159,7 @@ func scTypeToGo(name string, typ smartcontract.ParamType, overrides map[string]O
 // TemplateFromManifest create a contract template using the given configuration
 // and type conversion function. It assumes manifest to be present in the
 // configuration and assumes it to be correct (passing IsValid check).
-func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract.ParamType, map[string]Override) (string, string)) ContractTmpl {
+func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract.ParamType, *Config) (string, string)) ContractTmpl {
 	hStr := ""
 	for _, b := range cfg.Hash.BytesBE() {
 		hStr += fmt.Sprintf("\\x%02x", b)
@@ -203,7 +221,7 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 		var varnames = make(map[string]bool)
 		for i := range m.Parameters {
 			name := m.Parameters[i].Name
-			typeStr, pkg := scTypeConverter(m.Name+"."+name, m.Parameters[i].Type, cfg.Overrides)
+			typeStr, pkg := scTypeConverter(m.Name+"."+name, m.Parameters[i].Type, &cfg)
 			if pkg != "" {
 				imports[pkg] = struct{}{}
 			}
@@ -220,7 +238,7 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 			})
 		}
 
-		typeStr, pkg := scTypeConverter(m.Name, m.ReturnType, cfg.Overrides)
+		typeStr, pkg := scTypeConverter(m.Name, m.ReturnType, &cfg)
 		if pkg != "" {
 			imports[pkg] = struct{}{}
 		}

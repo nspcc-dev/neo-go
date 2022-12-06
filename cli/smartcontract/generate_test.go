@@ -401,6 +401,7 @@ func TestAssistedRPCBindings(t *testing.T) {
 	}
 
 	checkBinding(filepath.Join("testdata", "types"))
+	checkBinding(filepath.Join("testdata", "structs"))
 }
 
 func TestGenerate_Errors(t *testing.T) {

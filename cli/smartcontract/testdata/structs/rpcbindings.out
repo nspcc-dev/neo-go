@@ -1,0 +1,1490 @@
+// Package structs contains RPC wrappers for Types contract.
+package structs
+
+import (
+	"crypto/elliptic"
+	"errors"
+	"fmt"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
+	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"math/big"
+	"unicode/utf8"
+)
+
+// Hash contains contract hash.
+var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x0}
+
+
+// LedgerBlock is a contract-specific ledger.Block type used by its methods.
+type LedgerBlock struct {
+	Hash util.Uint256
+	Version *big.Int
+	PrevHash util.Uint256
+	MerkleRoot util.Uint256
+	Timestamp *big.Int
+	Nonce *big.Int
+	Index *big.Int
+	NextConsensus util.Uint160
+	TransactionsLength *big.Int
+}
+
+// LedgerBlockSR is a contract-specific ledger.BlockSR type used by its methods.
+type LedgerBlockSR struct {
+	Hash util.Uint256
+	Version *big.Int
+	PrevHash util.Uint256
+	MerkleRoot util.Uint256
+	Timestamp *big.Int
+	Nonce *big.Int
+	Index *big.Int
+	NextConsensus util.Uint160
+	TransactionsLength *big.Int
+	PrevStateRoot util.Uint256
+}
+
+// LedgerTransaction is a contract-specific ledger.Transaction type used by its methods.
+type LedgerTransaction struct {
+	Hash util.Uint256
+	Version *big.Int
+	Nonce *big.Int
+	Sender util.Uint160
+	SysFee *big.Int
+	NetFee *big.Int
+	ValidUntilBlock *big.Int
+	Script []byte
+}
+
+// LedgerTransactionSigner is a contract-specific ledger.TransactionSigner type used by its methods.
+type LedgerTransactionSigner struct {
+	Account util.Uint160
+	Scopes *big.Int
+	AllowedContracts []util.Uint160
+	AllowedGroups keys.PublicKeys
+	Rules []*LedgerWitnessRule
+}
+
+// LedgerWitnessCondition is a contract-specific ledger.WitnessCondition type used by its methods.
+type LedgerWitnessCondition struct {
+	Type *big.Int
+	Value interface{}
+}
+
+// LedgerWitnessRule is a contract-specific ledger.WitnessRule type used by its methods.
+type LedgerWitnessRule struct {
+	Action *big.Int
+	Condition *LedgerWitnessCondition
+}
+
+// ManagementABI is a contract-specific management.ABI type used by its methods.
+type ManagementABI struct {
+	Methods []*ManagementMethod
+	Events []*ManagementEvent
+}
+
+// ManagementContract is a contract-specific management.Contract type used by its methods.
+type ManagementContract struct {
+	ID *big.Int
+	UpdateCounter *big.Int
+	Hash util.Uint160
+	NEF []byte
+	Manifest *ManagementManifest
+}
+
+// ManagementEvent is a contract-specific management.Event type used by its methods.
+type ManagementEvent struct {
+	Name string
+	Params []*ManagementParameter
+}
+
+// ManagementGroup is a contract-specific management.Group type used by its methods.
+type ManagementGroup struct {
+	PublicKey *keys.PublicKey
+	Signature []byte
+}
+
+// ManagementManifest is a contract-specific management.Manifest type used by its methods.
+type ManagementManifest struct {
+	Name string
+	Groups []*ManagementGroup
+	Features map[string]string
+	SupportedStandards []string
+	ABI *ManagementABI
+	Permissions []*ManagementPermission
+	Trusts []util.Uint160
+	Extra interface{}
+}
+
+// ManagementMethod is a contract-specific management.Method type used by its methods.
+type ManagementMethod struct {
+	Name string
+	Params []*ManagementParameter
+	ReturnType *big.Int
+	Offset *big.Int
+	Safe bool
+}
+
+// ManagementParameter is a contract-specific management.Parameter type used by its methods.
+type ManagementParameter struct {
+	Name string
+	Type *big.Int
+}
+
+// ManagementPermission is a contract-specific management.Permission type used by its methods.
+type ManagementPermission struct {
+	Contract util.Uint160
+	Methods []string
+}
+
+// StructsInternal is a contract-specific structs.Internal type used by its methods.
+type StructsInternal struct {
+	Bool bool
+	Int *big.Int
+	Bytes []byte
+	String string
+	H160 util.Uint160
+	H256 util.Uint256
+	PK *keys.PublicKey
+	PubKey *keys.PublicKey
+	Sign []byte
+	ArrOfBytes [][]byte
+	ArrOfH160 []util.Uint160
+	Map map[*big.Int]keys.PublicKeys
+	Struct *StructsInternal
+}
+// Invoker is used by ContractReader to call various safe methods.
+type Invoker interface {
+	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+}
+
+// ContractReader implements safe contract methods.
+type ContractReader struct {
+	invoker Invoker
+}
+
+// NewReader creates an instance of ContractReader using Hash and the given Invoker.
+func NewReader(invoker Invoker) *ContractReader {
+	return &ContractReader{invoker}
+}
+
+
+// Block invokes `block` method of contract.
+func (c *ContractReader) Block(b *LedgerBlock) (*LedgerBlock, error) {
+	return itemToLedgerBlock(unwrap.Item(c.invoker.Call(Hash, "block", b)))
+}
+
+// Contract invokes `contract` method of contract.
+func (c *ContractReader) Contract(mc *ManagementContract) (*ManagementContract, error) {
+	return itemToManagementContract(unwrap.Item(c.invoker.Call(Hash, "contract", mc)))
+}
+
+// Struct invokes `struct` method of contract.
+func (c *ContractReader) Struct(s *StructsInternal) (*StructsInternal, error) {
+	return itemToStructsInternal(unwrap.Item(c.invoker.Call(Hash, "struct", s)))
+}
+
+// Transaction invokes `transaction` method of contract.
+func (c *ContractReader) Transaction(t *LedgerTransaction) (*LedgerTransaction, error) {
+	return itemToLedgerTransaction(unwrap.Item(c.invoker.Call(Hash, "transaction", t)))
+}
+
+// itemToLedgerBlock converts stack item into *LedgerBlock.
+func itemToLedgerBlock(item stackitem.Item, err error) (*LedgerBlock, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 9 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(LedgerBlock)
+	var index = -1
+	index++
+	res.Hash, err = func (item stackitem.Item) (util.Uint256, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		u, err := util.Uint256DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Hash: %w", err)
+	}
+
+	index++
+	res.Version, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Version: %w", err)
+	}
+
+	index++
+	res.PrevHash, err = func (item stackitem.Item) (util.Uint256, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		u, err := util.Uint256DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field PrevHash: %w", err)
+	}
+
+	index++
+	res.MerkleRoot, err = func (item stackitem.Item) (util.Uint256, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		u, err := util.Uint256DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field MerkleRoot: %w", err)
+	}
+
+	index++
+	res.Timestamp, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Timestamp: %w", err)
+	}
+
+	index++
+	res.Nonce, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Nonce: %w", err)
+	}
+
+	index++
+	res.Index, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Index: %w", err)
+	}
+
+	index++
+	res.NextConsensus, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field NextConsensus: %w", err)
+	}
+
+	index++
+	res.TransactionsLength, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field TransactionsLength: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToLedgerBlockSR converts stack item into *LedgerBlockSR.
+func itemToLedgerBlockSR(item stackitem.Item, err error) (*LedgerBlockSR, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 10 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(LedgerBlockSR)
+	var index = -1
+	index++
+	res.Hash, err = func (item stackitem.Item) (util.Uint256, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		u, err := util.Uint256DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Hash: %w", err)
+	}
+
+	index++
+	res.Version, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Version: %w", err)
+	}
+
+	index++
+	res.PrevHash, err = func (item stackitem.Item) (util.Uint256, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		u, err := util.Uint256DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field PrevHash: %w", err)
+	}
+
+	index++
+	res.MerkleRoot, err = func (item stackitem.Item) (util.Uint256, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		u, err := util.Uint256DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field MerkleRoot: %w", err)
+	}
+
+	index++
+	res.Timestamp, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Timestamp: %w", err)
+	}
+
+	index++
+	res.Nonce, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Nonce: %w", err)
+	}
+
+	index++
+	res.Index, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Index: %w", err)
+	}
+
+	index++
+	res.NextConsensus, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field NextConsensus: %w", err)
+	}
+
+	index++
+	res.TransactionsLength, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field TransactionsLength: %w", err)
+	}
+
+	index++
+	res.PrevStateRoot, err = func (item stackitem.Item) (util.Uint256, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		u, err := util.Uint256DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field PrevStateRoot: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToLedgerTransaction converts stack item into *LedgerTransaction.
+func itemToLedgerTransaction(item stackitem.Item, err error) (*LedgerTransaction, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 8 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(LedgerTransaction)
+	var index = -1
+	index++
+	res.Hash, err = func (item stackitem.Item) (util.Uint256, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		u, err := util.Uint256DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Hash: %w", err)
+	}
+
+	index++
+	res.Version, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Version: %w", err)
+	}
+
+	index++
+	res.Nonce, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Nonce: %w", err)
+	}
+
+	index++
+	res.Sender, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Sender: %w", err)
+	}
+
+	index++
+	res.SysFee, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field SysFee: %w", err)
+	}
+
+	index++
+	res.NetFee, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field NetFee: %w", err)
+	}
+
+	index++
+	res.ValidUntilBlock, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field ValidUntilBlock: %w", err)
+	}
+
+	index++
+	res.Script, err = arr[index].TryBytes()
+	if err != nil {
+		return nil, fmt.Errorf("field Script: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToLedgerTransactionSigner converts stack item into *LedgerTransactionSigner.
+func itemToLedgerTransactionSigner(item stackitem.Item, err error) (*LedgerTransactionSigner, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 5 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(LedgerTransactionSigner)
+	var index = -1
+	index++
+	res.Account, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Account: %w", err)
+	}
+
+	index++
+	res.Scopes, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Scopes: %w", err)
+	}
+
+	index++
+	res.AllowedContracts, err = func (item stackitem.Item) ([]util.Uint160, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]util.Uint160, len(arr))
+		for i := range res {
+			res[i], err = func (item stackitem.Item) (util.Uint160, error) {
+				b, err := item.TryBytes()
+				if err != nil {
+					return util.Uint160{}, err
+				}
+				u, err := util.Uint160DecodeBytesBE(b)
+				if err != nil {
+					return util.Uint160{}, err
+				}
+				return u, nil
+			} (arr[i])
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field AllowedContracts: %w", err)
+	}
+
+	index++
+	res.AllowedGroups, err = func (item stackitem.Item) (keys.PublicKeys, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make(keys.PublicKeys, len(arr))
+		for i := range res {
+			res[i], err = func (item stackitem.Item) (*keys.PublicKey, error) {
+				b, err := item.TryBytes()
+				if err != nil {
+					return nil, err
+				}
+				k, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
+				if err != nil {
+					return nil, err
+				}
+				return k, nil
+			} (arr[i])
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field AllowedGroups: %w", err)
+	}
+
+	index++
+	res.Rules, err = func (item stackitem.Item) ([]*LedgerWitnessRule, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]*LedgerWitnessRule, len(arr))
+		for i := range res {
+			res[i], err = itemToLedgerWitnessRule(arr[i], nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Rules: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToLedgerWitnessCondition converts stack item into *LedgerWitnessCondition.
+func itemToLedgerWitnessCondition(item stackitem.Item, err error) (*LedgerWitnessCondition, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 2 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(LedgerWitnessCondition)
+	var index = -1
+	index++
+	res.Type, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Type: %w", err)
+	}
+
+	index++
+	res.Value, err = arr[index].Value(), nil
+	if err != nil {
+		return nil, fmt.Errorf("field Value: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToLedgerWitnessRule converts stack item into *LedgerWitnessRule.
+func itemToLedgerWitnessRule(item stackitem.Item, err error) (*LedgerWitnessRule, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 2 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(LedgerWitnessRule)
+	var index = -1
+	index++
+	res.Action, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Action: %w", err)
+	}
+
+	index++
+	res.Condition, err = itemToLedgerWitnessCondition(arr[index], nil)
+	if err != nil {
+		return nil, fmt.Errorf("field Condition: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToManagementABI converts stack item into *ManagementABI.
+func itemToManagementABI(item stackitem.Item, err error) (*ManagementABI, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 2 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(ManagementABI)
+	var index = -1
+	index++
+	res.Methods, err = func (item stackitem.Item) ([]*ManagementMethod, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]*ManagementMethod, len(arr))
+		for i := range res {
+			res[i], err = itemToManagementMethod(arr[i], nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Methods: %w", err)
+	}
+
+	index++
+	res.Events, err = func (item stackitem.Item) ([]*ManagementEvent, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]*ManagementEvent, len(arr))
+		for i := range res {
+			res[i], err = itemToManagementEvent(arr[i], nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Events: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToManagementContract converts stack item into *ManagementContract.
+func itemToManagementContract(item stackitem.Item, err error) (*ManagementContract, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 5 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(ManagementContract)
+	var index = -1
+	index++
+	res.ID, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field ID: %w", err)
+	}
+
+	index++
+	res.UpdateCounter, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field UpdateCounter: %w", err)
+	}
+
+	index++
+	res.Hash, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Hash: %w", err)
+	}
+
+	index++
+	res.NEF, err = arr[index].TryBytes()
+	if err != nil {
+		return nil, fmt.Errorf("field NEF: %w", err)
+	}
+
+	index++
+	res.Manifest, err = itemToManagementManifest(arr[index], nil)
+	if err != nil {
+		return nil, fmt.Errorf("field Manifest: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToManagementEvent converts stack item into *ManagementEvent.
+func itemToManagementEvent(item stackitem.Item, err error) (*ManagementEvent, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 2 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(ManagementEvent)
+	var index = -1
+	index++
+	res.Name, err = func (item stackitem.Item) (string, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return "", err
+		}
+		if !utf8.Valid(b) {
+			return "", errors.New("not a UTF-8 string")
+		}
+		return string(b), nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Name: %w", err)
+	}
+
+	index++
+	res.Params, err = func (item stackitem.Item) ([]*ManagementParameter, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]*ManagementParameter, len(arr))
+		for i := range res {
+			res[i], err = itemToManagementParameter(arr[i], nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Params: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToManagementGroup converts stack item into *ManagementGroup.
+func itemToManagementGroup(item stackitem.Item, err error) (*ManagementGroup, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 2 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(ManagementGroup)
+	var index = -1
+	index++
+	res.PublicKey, err = func (item stackitem.Item) (*keys.PublicKey, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return nil, err
+		}
+		k, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
+		if err != nil {
+			return nil, err
+		}
+		return k, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field PublicKey: %w", err)
+	}
+
+	index++
+	res.Signature, err = arr[index].TryBytes()
+	if err != nil {
+		return nil, fmt.Errorf("field Signature: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToManagementManifest converts stack item into *ManagementManifest.
+func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManifest, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 8 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(ManagementManifest)
+	var index = -1
+	index++
+	res.Name, err = func (item stackitem.Item) (string, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return "", err
+		}
+		if !utf8.Valid(b) {
+			return "", errors.New("not a UTF-8 string")
+		}
+		return string(b), nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Name: %w", err)
+	}
+
+	index++
+	res.Groups, err = func (item stackitem.Item) ([]*ManagementGroup, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]*ManagementGroup, len(arr))
+		for i := range res {
+			res[i], err = itemToManagementGroup(arr[i], nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Groups: %w", err)
+	}
+
+	index++
+	res.Features, err = func (item stackitem.Item) (map[string]string, error) {
+		m, ok := item.Value().([]stackitem.MapElement)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a map", item.Type().String())
+		}
+		res := make(map[string]string)
+		for i := range m {
+			k, err := func (item stackitem.Item) (string, error) {
+				b, err := item.TryBytes()
+				if err != nil {
+					return "", err
+				}
+				if !utf8.Valid(b) {
+					return "", errors.New("not a UTF-8 string")
+				}
+				return string(b), nil
+			} (m[i].Key)
+			if err != nil {
+				return nil, fmt.Errorf("key %d: %w", i, err)
+			}
+			v, err := func (item stackitem.Item) (string, error) {
+				b, err := item.TryBytes()
+				if err != nil {
+					return "", err
+				}
+				if !utf8.Valid(b) {
+					return "", errors.New("not a UTF-8 string")
+				}
+				return string(b), nil
+			} (m[i].Value)
+			if err != nil {
+				return nil, fmt.Errorf("value %d: %w", i, err)
+			}
+			res[k] = v
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Features: %w", err)
+	}
+
+	index++
+	res.SupportedStandards, err = func (item stackitem.Item) ([]string, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]string, len(arr))
+		for i := range res {
+			res[i], err = func (item stackitem.Item) (string, error) {
+				b, err := item.TryBytes()
+				if err != nil {
+					return "", err
+				}
+				if !utf8.Valid(b) {
+					return "", errors.New("not a UTF-8 string")
+				}
+				return string(b), nil
+			} (arr[i])
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field SupportedStandards: %w", err)
+	}
+
+	index++
+	res.ABI, err = itemToManagementABI(arr[index], nil)
+	if err != nil {
+		return nil, fmt.Errorf("field ABI: %w", err)
+	}
+
+	index++
+	res.Permissions, err = func (item stackitem.Item) ([]*ManagementPermission, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]*ManagementPermission, len(arr))
+		for i := range res {
+			res[i], err = itemToManagementPermission(arr[i], nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Permissions: %w", err)
+	}
+
+	index++
+	res.Trusts, err = func (item stackitem.Item) ([]util.Uint160, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]util.Uint160, len(arr))
+		for i := range res {
+			res[i], err = func (item stackitem.Item) (util.Uint160, error) {
+				b, err := item.TryBytes()
+				if err != nil {
+					return util.Uint160{}, err
+				}
+				u, err := util.Uint160DecodeBytesBE(b)
+				if err != nil {
+					return util.Uint160{}, err
+				}
+				return u, nil
+			} (arr[i])
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Trusts: %w", err)
+	}
+
+	index++
+	res.Extra, err = arr[index].Value(), nil
+	if err != nil {
+		return nil, fmt.Errorf("field Extra: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToManagementMethod converts stack item into *ManagementMethod.
+func itemToManagementMethod(item stackitem.Item, err error) (*ManagementMethod, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 5 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(ManagementMethod)
+	var index = -1
+	index++
+	res.Name, err = func (item stackitem.Item) (string, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return "", err
+		}
+		if !utf8.Valid(b) {
+			return "", errors.New("not a UTF-8 string")
+		}
+		return string(b), nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Name: %w", err)
+	}
+
+	index++
+	res.Params, err = func (item stackitem.Item) ([]*ManagementParameter, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]*ManagementParameter, len(arr))
+		for i := range res {
+			res[i], err = itemToManagementParameter(arr[i], nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Params: %w", err)
+	}
+
+	index++
+	res.ReturnType, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field ReturnType: %w", err)
+	}
+
+	index++
+	res.Offset, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Offset: %w", err)
+	}
+
+	index++
+	res.Safe, err = arr[index].TryBool()
+	if err != nil {
+		return nil, fmt.Errorf("field Safe: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToManagementParameter converts stack item into *ManagementParameter.
+func itemToManagementParameter(item stackitem.Item, err error) (*ManagementParameter, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 2 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(ManagementParameter)
+	var index = -1
+	index++
+	res.Name, err = func (item stackitem.Item) (string, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return "", err
+		}
+		if !utf8.Valid(b) {
+			return "", errors.New("not a UTF-8 string")
+		}
+		return string(b), nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Name: %w", err)
+	}
+
+	index++
+	res.Type, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Type: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToManagementPermission converts stack item into *ManagementPermission.
+func itemToManagementPermission(item stackitem.Item, err error) (*ManagementPermission, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 2 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(ManagementPermission)
+	var index = -1
+	index++
+	res.Contract, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Contract: %w", err)
+	}
+
+	index++
+	res.Methods, err = func (item stackitem.Item) ([]string, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]string, len(arr))
+		for i := range res {
+			res[i], err = func (item stackitem.Item) (string, error) {
+				b, err := item.TryBytes()
+				if err != nil {
+					return "", err
+				}
+				if !utf8.Valid(b) {
+					return "", errors.New("not a UTF-8 string")
+				}
+				return string(b), nil
+			} (arr[i])
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Methods: %w", err)
+	}
+
+
+	return res, err
+}
+
+// itemToStructsInternal converts stack item into *StructsInternal.
+func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != 13 {
+		return nil, errors.New("wrong number of structure elements")
+	}
+
+	var res = new(StructsInternal)
+	var index = -1
+	index++
+	res.Bool, err = arr[index].TryBool()
+	if err != nil {
+		return nil, fmt.Errorf("field Bool: %w", err)
+	}
+
+	index++
+	res.Int, err = arr[index].TryInteger()
+	if err != nil {
+		return nil, fmt.Errorf("field Int: %w", err)
+	}
+
+	index++
+	res.Bytes, err = arr[index].TryBytes()
+	if err != nil {
+		return nil, fmt.Errorf("field Bytes: %w", err)
+	}
+
+	index++
+	res.String, err = func (item stackitem.Item) (string, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return "", err
+		}
+		if !utf8.Valid(b) {
+			return "", errors.New("not a UTF-8 string")
+		}
+		return string(b), nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field String: %w", err)
+	}
+
+	index++
+	res.H160, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field H160: %w", err)
+	}
+
+	index++
+	res.H256, err = func (item stackitem.Item) (util.Uint256, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		u, err := util.Uint256DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field H256: %w", err)
+	}
+
+	index++
+	res.PK, err = func (item stackitem.Item) (*keys.PublicKey, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return nil, err
+		}
+		k, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
+		if err != nil {
+			return nil, err
+		}
+		return k, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field PK: %w", err)
+	}
+
+	index++
+	res.PubKey, err = func (item stackitem.Item) (*keys.PublicKey, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return nil, err
+		}
+		k, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
+		if err != nil {
+			return nil, err
+		}
+		return k, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field PubKey: %w", err)
+	}
+
+	index++
+	res.Sign, err = arr[index].TryBytes()
+	if err != nil {
+		return nil, fmt.Errorf("field Sign: %w", err)
+	}
+
+	index++
+	res.ArrOfBytes, err = func (item stackitem.Item) ([][]byte, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([][]byte, len(arr))
+		for i := range res {
+			res[i], err = arr[i].TryBytes()
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field ArrOfBytes: %w", err)
+	}
+
+	index++
+	res.ArrOfH160, err = func (item stackitem.Item) ([]util.Uint160, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]util.Uint160, len(arr))
+		for i := range res {
+			res[i], err = func (item stackitem.Item) (util.Uint160, error) {
+				b, err := item.TryBytes()
+				if err != nil {
+					return util.Uint160{}, err
+				}
+				u, err := util.Uint160DecodeBytesBE(b)
+				if err != nil {
+					return util.Uint160{}, err
+				}
+				return u, nil
+			} (arr[i])
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field ArrOfH160: %w", err)
+	}
+
+	index++
+	res.Map, err = func (item stackitem.Item) (map[*big.Int]keys.PublicKeys, error) {
+		m, ok := item.Value().([]stackitem.MapElement)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a map", item.Type().String())
+		}
+		res := make(map[*big.Int]keys.PublicKeys)
+		for i := range m {
+			k, err := m[i].Key.TryInteger()
+			if err != nil {
+				return nil, fmt.Errorf("key %d: %w", i, err)
+			}
+			v, err := func (item stackitem.Item) (keys.PublicKeys, error) {
+				arr, ok := item.Value().([]stackitem.Item)
+				if !ok {
+					return nil, errors.New("not an array")
+				}
+				res := make(keys.PublicKeys, len(arr))
+				for i := range res {
+					res[i], err = func (item stackitem.Item) (*keys.PublicKey, error) {
+						b, err := item.TryBytes()
+						if err != nil {
+							return nil, err
+						}
+						k, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
+						if err != nil {
+							return nil, err
+						}
+						return k, nil
+					} (arr[i])
+					if err != nil {
+						return nil, fmt.Errorf("item %d: %w", i, err)
+					}
+				}
+				return res, nil
+			} (m[i].Value)
+			if err != nil {
+				return nil, fmt.Errorf("value %d: %w", i, err)
+			}
+			res[k] = v
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return nil, fmt.Errorf("field Map: %w", err)
+	}
+
+	index++
+	res.Struct, err = itemToStructsInternal(arr[index], nil)
+	if err != nil {
+		return nil, fmt.Errorf("field Struct: %w", err)
+	}
+
+
+	return res, err
+}

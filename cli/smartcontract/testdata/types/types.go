@@ -67,3 +67,15 @@ func PublicKeys(k []interop.PublicKey) []interop.PublicKey {
 func Signatures(s []interop.Signature) []interop.Signature {
 	return nil
 }
+
+func AAAStrings(s [][][]string) [][][]string {
+	return s
+}
+
+func Maps(m map[string]string) map[string]string {
+	return m
+}
+
+func CrazyMaps(m map[int][]map[string][]interop.Hash160) map[int][]map[string][]interop.Hash160 {
+	return m
+}

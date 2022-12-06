@@ -914,7 +914,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			c.convertMap(n)
 		default:
 			if tn, ok := t.(*types.Named); ok && isInteropPath(tn.String()) {
-				st, _, _ := scAndVMInteropTypeFromExpr(tn, false)
+				st, _, _, _ := scAndVMInteropTypeFromExpr(tn, false)
 				expectedLen := -1
 				switch st {
 				case smartcontract.Hash160Type:

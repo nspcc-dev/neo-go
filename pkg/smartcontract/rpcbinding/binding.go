@@ -3,6 +3,7 @@ package rpcbinding
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"text/template"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -18,14 +19,20 @@ func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) {{if .ReturnType }}({{ .ReturnType }}, error) {
-	return unwrap.{{.CallFlag}}(c.invoker.Call(Hash, "{{ .NameABI }}"{{/* CallFlag field is used for function name */}}
-		{{- range $arg := .Arguments -}}, {{.Name}}{{end}}))
+	return {{if and (not .ItemTo) (eq .Unwrapper "Item")}}func (item stackitem.Item, err error) ({{ .ReturnType }}, error) {
+		if err != nil {
+			return nil, err
+		}
+		return {{addIndent (etTypeConverter .ExtendedReturn "item") "\t"}}
+	} ( {{- end -}} {{if .ItemTo -}} itemTo{{ .ItemTo }}( {{- end -}}
+			unwrap.{{.Unwrapper}}(c.invoker.Call(Hash, "{{ .NameABI }}"
+		{{- range $arg := .Arguments -}}, {{.Name}}{{end -}} )) {{- if or .ItemTo (eq .Unwrapper "Item") -}} ) {{- end}}
 	{{- else -}} (*result.Invoke, error) {
 	c.invoker.Call(Hash, "{{ .NameABI }}"
 		{{- range $arg := .Arguments -}}, {{.Name}}{{end}})
 	{{- end}}
 }
-{{- if eq .CallFlag "SessionIterator"}}
+{{- if eq .Unwrapper "SessionIterator"}}
 
 // {{.Name}}Expanded is similar to {{.Name}} (uses the same contract
 // method), but can be useful if the server used doesn't support sessions and
@@ -101,6 +108,14 @@ import (
 // Hash contains contract hash.
 var Hash = {{ .Hash }}
 
+{{range $name, $typ := .NamedTypes}}
+// {{toTypeName $name}} is a contract-specific {{$name}} type used by its methods.
+type {{toTypeName $name}} struct {
+{{- range $m := $typ.Fields}}
+	{{.Field}} {{etTypeToStr .ExtendedType}}
+{{- end}}
+}
+{{end -}}
 {{if .HasReader}}// Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 {{if or .IsNep11D .IsNep11ND}}	nep11.Invoker
@@ -199,15 +214,41 @@ func New(actor Actor) *Contract {
 {{end}}
 {{- range $m := .Methods}}
 {{template "METHOD" $m }}
-{{end}}`
+{{end}}
+{{- range $name, $typ := .NamedTypes}}
+// itemTo{{toTypeName $name}} converts stack item into *{{toTypeName $name}}.
+func itemTo{{toTypeName $name}}(item stackitem.Item, err error) (*{{toTypeName $name}}, error) {
+	if err != nil {
+		return nil, err
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return nil, errors.New("not an array")
+	}
+	if len(arr) != {{len $typ.Fields}} {
+		return nil, errors.New("wrong number of structure elements")
+	}
 
-var srcTemplate = template.Must(template.New("generate").Parse(srcTmpl))
+	var res = new({{toTypeName $name}})
+{{if len .Fields}}	var index = -1
+{{- range $m := $typ.Fields}}
+	index++
+	res.{{.Field}}, err = {{etTypeConverter .ExtendedType "arr[index]"}}
+	if err != nil {
+		return nil, fmt.Errorf("field {{.Field}}: %w", err)
+	}
+{{end}}
+{{end}}
+	return res, err
+}
+{{end}}`
 
 type (
 	ContractTmpl struct {
 		binding.ContractTmpl
 
-		SafeMethods []binding.MethodTmpl
+		SafeMethods []SafeMethodTmpl
+		NamedTypes  map[string]binding.ExtendedType
 
 		IsNep11D  bool
 		IsNep11ND bool
@@ -216,6 +257,13 @@ type (
 		HasReader   bool
 		HasWriter   bool
 		HasIterator bool
+	}
+
+	SafeMethodTmpl struct {
+		binding.MethodTmpl
+		Unwrapper      string
+		ItemTo         string
+		ExtendedReturn binding.ExtendedType
 	}
 )
 
@@ -268,6 +316,18 @@ func Generate(cfg binding.Config) error {
 
 	ctr.ContractTmpl = binding.TemplateFromManifest(cfg, scTypeToGo)
 	ctr = scTemplateToRPC(cfg, ctr, imports)
+	ctr.NamedTypes = cfg.NamedTypes
+
+	var srcTemplate = template.Must(template.New("generate").Funcs(template.FuncMap{
+		"addIndent":       addIndent,
+		"etTypeConverter": etTypeConverter,
+		"etTypeToStr": func(et binding.ExtendedType) string {
+			r, _ := extendedTypeToGo(et, ctr.NamedTypes)
+			return r
+		},
+		"toTypeName": toTypeName,
+		"cutPointer": cutPointer,
+	}).Parse(srcTmpl))
 
 	return srcTemplate.Execute(cfg.Output, ctr)
 }
@@ -295,31 +355,8 @@ func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.
 	return meths
 }
 
-func scTypeToGo(name string, typ smartcontract.ParamType, overrides map[string]binding.Override) (string, string) {
-	over, ok := overrides[name]
-	if ok {
-		switch over.TypeName {
-		case "[]bool":
-			return "[]bool", ""
-		case "[]int", "[]uint", "[]int8", "[]uint8", "[]int16",
-			"[]uint16", "[]int32", "[]uint32", "[]int64", "[]uint64":
-			return "[]*big.Int", "math/big"
-		case "[][]byte":
-			return "[][]byte", ""
-		case "[]string":
-			return "[]string", ""
-		case "[]interop.Hash160":
-			return "[]util.Uint160", "github.com/nspcc-dev/neo-go/pkg/util"
-		case "[]interop.Hash256":
-			return "[]util.Uint256", "github.com/nspcc-dev/neo-go/pkg/util"
-		case "[]interop.PublicKey":
-			return "keys.PublicKeys", "github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-		case "[]interop.Signature":
-			return "[][]byte", ""
-		}
-	}
-
-	switch typ {
+func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.ExtendedType) (string, string) {
+	switch et.Base {
 	case smartcontract.AnyType:
 		return "interface{}", ""
 	case smartcontract.BoolType:
@@ -339,16 +376,148 @@ func scTypeToGo(name string, typ smartcontract.ParamType, overrides map[string]b
 	case smartcontract.SignatureType:
 		return "[]byte", ""
 	case smartcontract.ArrayType:
+		if len(et.Name) > 0 {
+			return "*" + toTypeName(et.Name), "github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+		} else if et.Value != nil {
+			if et.Value.Base == smartcontract.PublicKeyType { // Special array wrapper.
+				return "keys.PublicKeys", "github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+			}
+			sub, pkg := extendedTypeToGo(*et.Value, named)
+			return "[]" + sub, pkg
+		}
 		return "[]interface{}", ""
+
 	case smartcontract.MapType:
-		return "*stackitem.Map", "github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+		kt, _ := extendedTypeToGo(binding.ExtendedType{Base: et.Key}, named)
+		vt, _ := extendedTypeToGo(*et.Value, named)
+		return "map[" + kt + "]" + vt, "github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	case smartcontract.InteropInterfaceType:
 		return "interface{}", ""
 	case smartcontract.VoidType:
 		return "", ""
-	default:
-		panic("unreachable")
 	}
+	panic("unreachable")
+}
+
+func etTypeConverter(et binding.ExtendedType, v string) string {
+	switch et.Base {
+	case smartcontract.AnyType:
+		return v + ".Value(), nil"
+	case smartcontract.BoolType:
+		return v + ".TryBool()"
+	case smartcontract.IntegerType:
+		return v + ".TryInteger()"
+	case smartcontract.ByteArrayType, smartcontract.SignatureType:
+		return v + ".TryBytes()"
+	case smartcontract.StringType:
+		return `func (item stackitem.Item) (string, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return "", err
+		}
+		if !utf8.Valid(b) {
+			return "", errors.New("not a UTF-8 string")
+		}
+		return string(b), nil
+	} (` + v + `)`
+	case smartcontract.Hash160Type:
+		return `func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (` + v + `)`
+	case smartcontract.Hash256Type:
+		return `func (item stackitem.Item) (util.Uint256, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		u, err := util.Uint256DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint256{}, err
+		}
+		return u, nil
+	} (` + v + `)`
+	case smartcontract.PublicKeyType:
+		return `func (item stackitem.Item) (*keys.PublicKey, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return nil, err
+		}
+		k, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
+		if err != nil {
+			return nil, err
+		}
+		return k, nil
+	} (` + v + `)`
+	case smartcontract.ArrayType:
+		if len(et.Name) > 0 {
+			return "itemTo" + toTypeName(et.Name) + "(" + v + ", nil)"
+		} else if et.Value != nil {
+			at, _ := extendedTypeToGo(et, nil)
+			return `func (item stackitem.Item) (` + at + `, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make(` + at + `, len(arr))
+		for i := range res {
+			res[i], err = ` + addIndent(etTypeConverter(*et.Value, "arr[i]"), "\t\t") + `
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (` + v + `)`
+		}
+		return etTypeConverter(binding.ExtendedType{
+			Base: smartcontract.ArrayType,
+			Value: &binding.ExtendedType{
+				Base: smartcontract.AnyType,
+			},
+		}, v)
+
+	case smartcontract.MapType:
+		at, _ := extendedTypeToGo(et, nil)
+		return `func (item stackitem.Item) (` + at + `, error) {
+		m, ok := item.Value().([]stackitem.MapElement)
+		if !ok {
+			return nil, fmt.Errorf("%s is not a map", item.Type().String())
+		}
+		res := make(` + at + `)
+		for i := range m {
+			k, err := ` + addIndent(etTypeConverter(binding.ExtendedType{Base: et.Key}, "m[i].Key"), "\t\t") + `
+			if err != nil {
+				return nil, fmt.Errorf("key %d: %w", i, err)
+			}
+			v, err := ` + addIndent(etTypeConverter(*et.Value, "m[i].Value"), "\t\t") + `
+			if err != nil {
+				return nil, fmt.Errorf("value %d: %w", i, err)
+			}
+			res[k] = v
+		}
+		return res, nil
+	} (` + v + `)`
+	case smartcontract.InteropInterfaceType:
+		return "item.Value(), nil"
+	case smartcontract.VoidType:
+		return ""
+	}
+	panic("unreachable")
+}
+
+func scTypeToGo(name string, typ smartcontract.ParamType, cfg *binding.Config) (string, string) {
+	et, ok := cfg.Types[name]
+	if !ok {
+		et = binding.ExtendedType{Base: typ}
+	}
+	return extendedTypeToGo(et, cfg.NamedTypes)
 }
 
 func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]struct{}) ContractTmpl {
@@ -359,7 +528,14 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	for i := 0; i < len(ctr.Methods); i++ {
 		abim := cfg.Manifest.ABI.GetMethod(ctr.Methods[i].NameABI, len(ctr.Methods[i].Arguments))
 		if abim.Safe {
-			ctr.SafeMethods = append(ctr.SafeMethods, ctr.Methods[i])
+			ctr.SafeMethods = append(ctr.SafeMethods, SafeMethodTmpl{MethodTmpl: ctr.Methods[i]})
+			et, ok := cfg.Types[abim.Name]
+			if ok {
+				ctr.SafeMethods[len(ctr.SafeMethods)-1].ExtendedReturn = et
+				if abim.ReturnType == smartcontract.ArrayType && len(et.Name) > 0 {
+					ctr.SafeMethods[len(ctr.SafeMethods)-1].ItemTo = cutPointer(ctr.Methods[i].ReturnType)
+				}
+			}
 			ctr.Methods = append(ctr.Methods[:i], ctr.Methods[i+1:]...)
 			i--
 		} else {
@@ -369,7 +545,13 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 			}
 		}
 	}
-	// We're misusing CallFlag field for function name here.
+	for _, et := range cfg.NamedTypes {
+		addETImports(et, ctr.NamedTypes, imports)
+	}
+	if len(cfg.NamedTypes) > 0 {
+		imports["errors"] = struct{}{}
+	}
+
 	for i := range ctr.SafeMethods {
 		switch ctr.SafeMethods[i].ReturnType {
 		case "interface{}":
@@ -379,47 +561,50 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 				imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
 				imports["github.com/nspcc-dev/neo-go/pkg/neorpc/result"] = struct{}{}
 				ctr.SafeMethods[i].ReturnType = "uuid.UUID, result.Iterator"
-				ctr.SafeMethods[i].CallFlag = "SessionIterator"
+				ctr.SafeMethods[i].Unwrapper = "SessionIterator"
 				ctr.HasIterator = true
 			} else {
 				imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
 				ctr.SafeMethods[i].ReturnType = "stackitem.Item"
-				ctr.SafeMethods[i].CallFlag = "Item"
+				ctr.SafeMethods[i].Unwrapper = "Item"
 			}
 		case "bool":
-			ctr.SafeMethods[i].CallFlag = "Bool"
+			ctr.SafeMethods[i].Unwrapper = "Bool"
 		case "*big.Int":
-			ctr.SafeMethods[i].CallFlag = "BigInt"
+			ctr.SafeMethods[i].Unwrapper = "BigInt"
 		case "string":
-			ctr.SafeMethods[i].CallFlag = "UTF8String"
+			ctr.SafeMethods[i].Unwrapper = "UTF8String"
 		case "util.Uint160":
-			ctr.SafeMethods[i].CallFlag = "Uint160"
+			ctr.SafeMethods[i].Unwrapper = "Uint160"
 		case "util.Uint256":
-			ctr.SafeMethods[i].CallFlag = "Uint256"
+			ctr.SafeMethods[i].Unwrapper = "Uint256"
 		case "*keys.PublicKey":
-			ctr.SafeMethods[i].CallFlag = "PublicKey"
+			ctr.SafeMethods[i].Unwrapper = "PublicKey"
 		case "[]byte":
-			ctr.SafeMethods[i].CallFlag = "Bytes"
+			ctr.SafeMethods[i].Unwrapper = "Bytes"
 		case "[]interface{}":
 			imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
 			ctr.SafeMethods[i].ReturnType = "[]stackitem.Item"
-			ctr.SafeMethods[i].CallFlag = "Array"
+			ctr.SafeMethods[i].Unwrapper = "Array"
 		case "*stackitem.Map":
-			ctr.SafeMethods[i].CallFlag = "Map"
+			ctr.SafeMethods[i].Unwrapper = "Map"
 		case "[]bool":
-			ctr.SafeMethods[i].CallFlag = "ArrayOfBools"
+			ctr.SafeMethods[i].Unwrapper = "ArrayOfBools"
 		case "[]*big.Int":
-			ctr.SafeMethods[i].CallFlag = "ArrayOfBigInts"
+			ctr.SafeMethods[i].Unwrapper = "ArrayOfBigInts"
 		case "[][]byte":
-			ctr.SafeMethods[i].CallFlag = "ArrayOfBytes"
+			ctr.SafeMethods[i].Unwrapper = "ArrayOfBytes"
 		case "[]string":
-			ctr.SafeMethods[i].CallFlag = "ArrayOfUTF8Strings"
+			ctr.SafeMethods[i].Unwrapper = "ArrayOfUTF8Strings"
 		case "[]util.Uint160":
-			ctr.SafeMethods[i].CallFlag = "ArrayOfUint160"
+			ctr.SafeMethods[i].Unwrapper = "ArrayOfUint160"
 		case "[]util.Uint256":
-			ctr.SafeMethods[i].CallFlag = "ArrayOfUint256"
+			ctr.SafeMethods[i].Unwrapper = "ArrayOfUint256"
 		case "keys.PublicKeys":
-			ctr.SafeMethods[i].CallFlag = "ArrayOfPublicKeys"
+			ctr.SafeMethods[i].Unwrapper = "ArrayOfPublicKeys"
+		default:
+			addETImports(ctr.SafeMethods[i].ExtendedReturn, ctr.NamedTypes, imports)
+			ctr.SafeMethods[i].Unwrapper = "Item"
 		}
 	}
 
@@ -445,4 +630,53 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	}
 	sort.Strings(ctr.Imports)
 	return ctr
+}
+
+func addETImports(et binding.ExtendedType, named map[string]binding.ExtendedType, imports map[string]struct{}) {
+	_, pkg := extendedTypeToGo(et, named)
+	if pkg != "" {
+		imports[pkg] = struct{}{}
+	}
+	// Additional packages used during decoding.
+	switch et.Base {
+	case smartcontract.StringType:
+		imports["unicode/utf8"] = struct{}{}
+		imports["errors"] = struct{}{}
+	case smartcontract.PublicKeyType:
+		imports["crypto/elliptic"] = struct{}{}
+	case smartcontract.MapType:
+		imports["fmt"] = struct{}{}
+	case smartcontract.ArrayType:
+		imports["errors"] = struct{}{}
+		imports["fmt"] = struct{}{}
+	}
+	if et.Value != nil {
+		addETImports(*et.Value, named, imports)
+	}
+	if et.Base == smartcontract.MapType {
+		addETImports(binding.ExtendedType{Base: et.Key}, named, imports)
+	}
+	for i := range et.Fields {
+		addETImports(et.Fields[i].ExtendedType, named, imports)
+	}
+}
+
+func cutPointer(s string) string {
+	if s[0] == '*' {
+		return s[1:]
+	}
+	return s
+}
+
+func toTypeName(s string) string {
+	return strings.Map(func(c rune) rune {
+		if c == '.' {
+			return -1
+		}
+		return c
+	}, strings.ToUpper(s[0:1])+s[1:])
+}
+
+func addIndent(str string, ind string) string {
+	return strings.ReplaceAll(str, "\n", "\n"+ind)
 }
