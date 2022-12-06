@@ -19,7 +19,7 @@ import (
 )
 
 func newNotaryClient(t *testing.T) *neotest.ContractInvoker {
-	bc, acc := chain.NewSingleWithCustomConfig(t, func(cfg *config.ProtocolConfiguration) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
 		cfg.P2PSigExtensions = true
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)

@@ -20,7 +20,7 @@ import (
 )
 
 func newLedgerClient(t *testing.T) *neotest.ContractInvoker {
-	bc, acc := chain.NewSingleWithCustomConfig(t, func(cfg *config.ProtocolConfiguration) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
 		cfg.MaxTraceableBlocks = 10 // reduce number of traceable blocks for Ledger tests
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)

@@ -116,7 +116,7 @@ var (
 type Blockchain struct {
 	HeaderHashes
 
-	config config.ProtocolConfiguration
+	config config.Blockchain
 
 	// The only way chain state changes is by adding blocks, so we can't
 	// allow concurrent block additions. It differs from the next lock in
@@ -218,11 +218,12 @@ type transferData struct {
 // NewBlockchain returns a new blockchain object the will use the
 // given Store as its underlying storage. For it to work correctly you need
 // to spawn a goroutine for its Run method after this initialization.
-func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.Logger) (*Blockchain, error) {
+func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Blockchain, error) {
 	if log == nil {
 		return nil, errors.New("empty logger")
 	}
 
+	// Protocol configuration fixups/checks.
 	if cfg.InitialGASSupply <= 0 {
 		cfg.InitialGASSupply = fixedn.Fixed8(defaultInitialGAS)
 		log.Info("initial gas supply is not set or wrong, setting default value", zap.String("InitialGASSupply", cfg.InitialGASSupply.String()))
@@ -280,10 +281,6 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 				zap.Int("StateSyncInterval", cfg.StateSyncInterval))
 		}
 	}
-	if cfg.RemoveUntraceableBlocks && cfg.GarbageCollectionPeriod == 0 {
-		cfg.GarbageCollectionPeriod = defaultGCPeriod
-		log.Info("GarbageCollectionPeriod is not set or wrong, using default value", zap.Uint32("GarbageCollectionPeriod", cfg.GarbageCollectionPeriod))
-	}
 	if len(cfg.NativeUpdateHistories) == 0 {
 		cfg.NativeUpdateHistories = map[string][]uint32{}
 		log.Info("NativeActivations are not set, using default values")
@@ -291,6 +288,20 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 	if cfg.Hardforks == nil {
 		cfg.Hardforks = map[string]uint32{}
 		log.Info("Hardforks are not set, using default value")
+	}
+	// Compatibility with the old ProtocolConfiguration.
+	if cfg.ProtocolConfiguration.GarbageCollectionPeriod > 0 && cfg.Ledger.GarbageCollectionPeriod == 0 { //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.GarbageCollectionPeriod is deprecated
+		cfg.Ledger.GarbageCollectionPeriod = cfg.ProtocolConfiguration.GarbageCollectionPeriod //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.GarbageCollectionPeriod is deprecated
+	}
+	cfg.Ledger.KeepOnlyLatestState = cfg.Ledger.KeepOnlyLatestState || cfg.ProtocolConfiguration.KeepOnlyLatestState             //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.KeepOnlyLatestState is deprecated
+	cfg.Ledger.RemoveUntraceableBlocks = cfg.Ledger.RemoveUntraceableBlocks || cfg.ProtocolConfiguration.RemoveUntraceableBlocks //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.RemoveUntraceableBlocks is deprecated
+	cfg.Ledger.SaveStorageBatch = cfg.Ledger.SaveStorageBatch || cfg.ProtocolConfiguration.SaveStorageBatch                      //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.SaveStorageBatch is deprecated
+	cfg.Ledger.VerifyBlocks = cfg.Ledger.VerifyBlocks || cfg.ProtocolConfiguration.VerifyBlocks                                  //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.VerifyBlocks is deprecated
+
+	// Local config consistency checks.
+	if cfg.Ledger.RemoveUntraceableBlocks && cfg.Ledger.GarbageCollectionPeriod == 0 {
+		cfg.Ledger.GarbageCollectionPeriod = defaultGCPeriod
+		log.Info("GarbageCollectionPeriod is not set or wrong, using default value", zap.Uint32("GarbageCollectionPeriod", cfg.Ledger.GarbageCollectionPeriod))
 	}
 	bc := &Blockchain{
 		config:      cfg,
@@ -304,10 +315,10 @@ func NewBlockchain(s storage.Store, cfg config.ProtocolConfiguration, log *zap.L
 		events:      make(chan bcEvent),
 		subCh:       make(chan interface{}),
 		unsubCh:     make(chan interface{}),
-		contracts:   *native.NewContracts(cfg),
+		contracts:   *native.NewContracts(cfg.ProtocolConfiguration),
 	}
 
-	bc.stateRoot = stateroot.NewModule(bc.GetConfig(), bc.VerifyWitness, bc.log, bc.dao.Store)
+	bc.stateRoot = stateroot.NewModule(cfg, bc.VerifyWitness, bc.log, bc.dao.Store)
 	bc.contracts.Designate.StateRootService = bc.stateRoot
 
 	if err := bc.init(); err != nil {
@@ -370,13 +381,13 @@ func (bc *Blockchain) init() error {
 			StateRootInHeader:          bc.config.StateRootInHeader,
 			P2PSigExtensions:           bc.config.P2PSigExtensions,
 			P2PStateExchangeExtensions: bc.config.P2PStateExchangeExtensions,
-			KeepOnlyLatestState:        bc.config.KeepOnlyLatestState,
+			KeepOnlyLatestState:        bc.config.Ledger.KeepOnlyLatestState,
 			Value:                      version,
 		}
 		bc.dao.PutVersion(ver)
 		bc.dao.Version = ver
 		bc.persistent.Version = ver
-		genesisBlock, err := CreateGenesisBlock(bc.config)
+		genesisBlock, err := CreateGenesisBlock(bc.config.ProtocolConfiguration)
 		if err != nil {
 			return err
 		}
@@ -401,9 +412,9 @@ func (bc *Blockchain) init() error {
 		return fmt.Errorf("P2PStateExchangeExtensions setting mismatch (old=%t, new=%t)",
 			ver.P2PStateExchangeExtensions, bc.config.P2PStateExchangeExtensions)
 	}
-	if ver.KeepOnlyLatestState != bc.config.KeepOnlyLatestState {
+	if ver.KeepOnlyLatestState != bc.config.Ledger.KeepOnlyLatestState {
 		return fmt.Errorf("KeepOnlyLatestState setting mismatch (old=%v, new=%v)",
-			ver.KeepOnlyLatestState, bc.config.KeepOnlyLatestState)
+			ver.KeepOnlyLatestState, bc.config.Ledger.KeepOnlyLatestState)
 	}
 	bc.dao.Version = ver
 	bc.persistent.Version = ver
@@ -432,7 +443,7 @@ func (bc *Blockchain) init() error {
 		if (stateChStage[0] & stateResetBit) != 0 {
 			return bc.resetStateInternal(stateSyncPoint, stateChangeStage(stateChStage[0]&(^stateResetBit)))
 		}
-		if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().RemoveUntraceableBlocks) {
+		if !(bc.config.P2PStateExchangeExtensions && bc.config.Ledger.RemoveUntraceableBlocks) {
 			return errors.New("state jump was not completed, but P2PStateExchangeExtensions are disabled or archival node capability is on. " +
 				"To start an archival node drop the database manually and restart the node")
 		}
@@ -647,10 +658,10 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 			bc.log.Info("chain is at the proper state", zap.Uint32("height", height))
 			return nil
 		}
-		if bc.config.KeepOnlyLatestState {
+		if bc.config.Ledger.KeepOnlyLatestState {
 			return fmt.Errorf("KeepOnlyLatestState is enabled, state for height %d is outdated and removed from the storage", height)
 		}
-		if bc.config.RemoveUntraceableBlocks && currHeight >= bc.config.MaxTraceableBlocks {
+		if bc.config.Ledger.RemoveUntraceableBlocks && currHeight >= bc.config.MaxTraceableBlocks {
 			return fmt.Errorf("RemoveUntraceableBlocks is enabled, a necessary batch of traceable blocks has already been removed")
 		}
 	}
@@ -727,7 +738,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		pStorageStart := p
 
 		var mode = mpt.ModeAll
-		if bc.config.RemoveUntraceableBlocks {
+		if bc.config.Ledger.RemoveUntraceableBlocks {
 			mode |= mpt.ModeGCFlag
 		}
 		trieStore := mpt.NewTrieStore(sr.Root, mode, cache.Store)
@@ -919,14 +930,14 @@ func (bc *Blockchain) Run() {
 			var oldPersisted uint32
 			var gcDur time.Duration
 
-			if bc.config.RemoveUntraceableBlocks {
+			if bc.config.Ledger.RemoveUntraceableBlocks {
 				oldPersisted = atomic.LoadUint32(&bc.persistedHeight)
 			}
 			dur, err := bc.persist(nextSync)
 			if err != nil {
 				bc.log.Warn("failed to persist blockchain", zap.Error(err))
 			}
-			if bc.config.RemoveUntraceableBlocks {
+			if bc.config.Ledger.RemoveUntraceableBlocks {
 				gcDur = bc.tryRunGC(oldPersisted)
 			}
 			nextSync = dur > persistInterval*2
@@ -955,14 +966,14 @@ func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 		}
 	}
 	// Always round to the GCP.
-	tgtBlock /= int64(bc.config.GarbageCollectionPeriod)
-	tgtBlock *= int64(bc.config.GarbageCollectionPeriod)
+	tgtBlock /= int64(bc.config.Ledger.GarbageCollectionPeriod)
+	tgtBlock *= int64(bc.config.Ledger.GarbageCollectionPeriod)
 	// Count periods.
-	oldHeight /= bc.config.GarbageCollectionPeriod
-	newHeight /= bc.config.GarbageCollectionPeriod
-	if tgtBlock > int64(bc.config.GarbageCollectionPeriod) && newHeight != oldHeight {
-		tgtBlock /= int64(bc.config.GarbageCollectionPeriod)
-		tgtBlock *= int64(bc.config.GarbageCollectionPeriod)
+	oldHeight /= bc.config.Ledger.GarbageCollectionPeriod
+	newHeight /= bc.config.Ledger.GarbageCollectionPeriod
+	if tgtBlock > int64(bc.config.Ledger.GarbageCollectionPeriod) && newHeight != oldHeight {
+		tgtBlock /= int64(bc.config.Ledger.GarbageCollectionPeriod)
+		tgtBlock *= int64(bc.config.Ledger.GarbageCollectionPeriod)
 		dur = bc.stateRoot.GC(uint32(tgtBlock), bc.store)
 		dur += bc.removeOldTransfers(uint32(tgtBlock))
 	}
@@ -1298,12 +1309,12 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 	}
 
 	if block.Index == bc.HeaderHeight()+1 {
-		err := bc.addHeaders(bc.config.VerifyBlocks, &block.Header)
+		err := bc.addHeaders(bc.config.Ledger.VerifyBlocks, &block.Header)
 		if err != nil {
 			return err
 		}
 	}
-	if bc.config.VerifyBlocks {
+	if bc.config.Ledger.VerifyBlocks {
 		merkle := block.ComputeMerkleRoot()
 		if !block.MerkleRoot.Equals(merkle) {
 			return errors.New("invalid block: MerkleRoot mismatch")
@@ -1333,7 +1344,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 // AddHeaders processes the given headers and add them to the
 // HeaderHashList. It expects headers to be sorted by index.
 func (bc *Blockchain) AddHeaders(headers ...*block.Header) error {
-	return bc.addHeaders(bc.config.VerifyBlocks, headers...)
+	return bc.addHeaders(bc.config.Ledger.VerifyBlocks, headers...)
 }
 
 // addHeaders is an internal implementation of AddHeaders (`verify` parameter
@@ -1415,7 +1426,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			transCache   = make(map[util.Uint160]transferData)
 		)
 		kvcache.StoreAsCurrentBlock(block)
-		if bc.config.RemoveUntraceableBlocks {
+		if bc.config.Ledger.RemoveUntraceableBlocks {
 			var start, stop uint32
 			if bc.config.P2PStateExchangeExtensions {
 				// remove batch of old blocks starting from P2-MaxTraceableBlocks-StateSyncInterval up to P2-MaxTraceableBlocks
@@ -1567,7 +1578,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		}
 	}
 
-	if bc.config.SaveStorageBatch {
+	if bc.config.Ledger.SaveStorageBatch {
 		bc.lastBatch = cache.GetBatch()
 	}
 	// Every persist cycle we also compact our in-memory MPT. It's flushed
@@ -1878,7 +1889,7 @@ func (bc *Blockchain) GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, e
 	if err != nil {
 		return nil, err
 	}
-	if bc.config.P2PStateExchangeExtensions && bc.config.RemoveUntraceableBlocks {
+	if bc.config.P2PStateExchangeExtensions && bc.config.Ledger.RemoveUntraceableBlocks {
 		if _, ok := info.LastUpdated[bc.contracts.NEO.ID]; !ok {
 			nBalance, lub := bc.contracts.NEO.BalanceOf(bc.dao, acc)
 			if nBalance.Sign() != 0 {
@@ -2121,7 +2132,7 @@ func (bc *Blockchain) GetNatives() []state.NativeContract {
 }
 
 // GetConfig returns the config stored in the blockchain.
-func (bc *Blockchain) GetConfig() config.ProtocolConfiguration {
+func (bc *Blockchain) GetConfig() config.Blockchain {
 	return bc.config
 }
 
@@ -2584,7 +2595,7 @@ func (bc *Blockchain) GetTestVM(t trigger.Type, tx *transaction.Transaction, b *
 
 // GetTestHistoricVM returns an interop context with VM set up for a test run.
 func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, nextBlockHeight uint32) (*interop.Context, error) {
-	if bc.config.KeepOnlyLatestState {
+	if bc.config.Ledger.KeepOnlyLatestState {
 		return nil, errors.New("only latest state is supported")
 	}
 	b, err := bc.getFakeNextBlock(nextBlockHeight)
@@ -2592,7 +2603,7 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 		return nil, fmt.Errorf("failed to create fake block for height %d: %w", nextBlockHeight, err)
 	}
 	var mode = mpt.ModeAll
-	if bc.config.RemoveUntraceableBlocks {
+	if bc.config.Ledger.RemoveUntraceableBlocks {
 		if b.Index < bc.BlockHeight()-bc.config.MaxTraceableBlocks {
 			return nil, fmt.Errorf("state for height %d is outdated and removed from the storage", b.Index)
 		}

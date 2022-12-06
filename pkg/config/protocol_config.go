@@ -19,6 +19,8 @@ type (
 		// GarbageCollectionPeriod sets the number of blocks to wait before
 		// starting the next MPT garbage collection cycle when RemoveUntraceableBlocks
 		// option is used.
+		//
+		// Deprecated: please use the same setting in the ApplicationConfiguration, this field will be removed in future versions.
 		GarbageCollectionPeriod uint32 `yaml:"GarbageCollectionPeriod"`
 
 		Magic       netmode.Magic `yaml:"Magic"`
@@ -35,8 +37,12 @@ type (
 		// KeepOnlyLatestState specifies if MPT should only store the latest state.
 		// If true, DB size will be smaller, but older roots won't be accessible.
 		// This value should remain the same for the same database.
+		//
+		// Deprecated: please use the same setting in the ApplicationConfiguration, this field will be removed in future versions.
 		KeepOnlyLatestState bool `yaml:"KeepOnlyLatestState"`
 		// RemoveUntraceableBlocks specifies if old data should be removed.
+		//
+		// Deprecated: please use the same setting in the ApplicationConfiguration, this field will be removed in future versions.
 		RemoveUntraceableBlocks bool `yaml:"RemoveUntraceableBlocks"`
 		// MaxBlockSize is the maximum block size in bytes.
 		MaxBlockSize uint32 `yaml:"MaxBlockSize"`
@@ -59,6 +65,8 @@ type (
 		// ReservedAttributes allows to have reserved attributes range for experimental or private purposes.
 		ReservedAttributes bool `yaml:"ReservedAttributes"`
 		// SaveStorageBatch enables storage batch saving before every persist.
+		//
+		// Deprecated: please use the same setting in the ApplicationConfiguration, this field will be removed in future versions.
 		SaveStorageBatch bool `yaml:"SaveStorageBatch"`
 		// SecondsPerBlock is the time interval (in seconds) between blocks that consensus nodes work with.
 		//
@@ -78,6 +86,8 @@ type (
 		// Validators stores history of changes to consensus node number (height: number).
 		ValidatorsHistory map[uint32]int `yaml:"ValidatorsHistory"`
 		// Whether to verify received blocks.
+		//
+		// Deprecated: please use the same setting in the ApplicationConfiguration, this field will be removed in future versions.
 		VerifyBlocks bool `yaml:"VerifyBlocks"`
 		// Whether to verify transactions in the received blocks.
 		VerifyTransactions bool `yaml:"VerifyTransactions"`

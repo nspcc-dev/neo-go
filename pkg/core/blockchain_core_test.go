@@ -32,21 +32,21 @@ func TestVerifyHeader(t *testing.T) {
 		t.Run("Hash", func(t *testing.T) {
 			h := prev.Hash()
 			h[0] = ^h[0]
-			hdr := newBlock(bc.config, 1, h).Header
+			hdr := newBlock(bc.config.ProtocolConfiguration, 1, h).Header
 			require.True(t, errors.Is(bc.verifyHeader(&hdr, &prev), ErrHdrHashMismatch))
 		})
 		t.Run("Index", func(t *testing.T) {
-			hdr := newBlock(bc.config, 3, prev.Hash()).Header
+			hdr := newBlock(bc.config.ProtocolConfiguration, 3, prev.Hash()).Header
 			require.True(t, errors.Is(bc.verifyHeader(&hdr, &prev), ErrHdrIndexMismatch))
 		})
 		t.Run("Timestamp", func(t *testing.T) {
-			hdr := newBlock(bc.config, 1, prev.Hash()).Header
+			hdr := newBlock(bc.config.ProtocolConfiguration, 1, prev.Hash()).Header
 			hdr.Timestamp = 0
 			require.True(t, errors.Is(bc.verifyHeader(&hdr, &prev), ErrHdrInvalidTimestamp))
 		})
 	})
 	t.Run("Valid", func(t *testing.T) {
-		hdr := newBlock(bc.config, 1, prev.Hash()).Header
+		hdr := newBlock(bc.config.ProtocolConfiguration, 1, prev.Hash()).Header
 		require.NoError(t, bc.verifyHeader(&hdr, &prev))
 	})
 }
@@ -144,12 +144,12 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 		maxTraceable      uint32 = 6
 	)
 	spountCfg := func(c *config.Config) {
-		c.ProtocolConfiguration.RemoveUntraceableBlocks = true
+		c.ApplicationConfiguration.RemoveUntraceableBlocks = true
 		c.ProtocolConfiguration.StateRootInHeader = true
 		c.ProtocolConfiguration.P2PStateExchangeExtensions = true
 		c.ProtocolConfiguration.StateSyncInterval = stateSyncInterval
 		c.ProtocolConfiguration.MaxTraceableBlocks = maxTraceable
-		c.ProtocolConfiguration.KeepOnlyLatestState = true
+		c.ApplicationConfiguration.KeepOnlyLatestState = true
 	}
 	bcSpout := newTestChainWithCustomCfg(t, spountCfg)
 
@@ -190,7 +190,7 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 		require.NoError(t, err)
 		cfg(&unitTestNetCfg)
 		log := zaptest.NewLogger(t)
-		_, err = NewBlockchain(store, unitTestNetCfg.ProtocolConfiguration, log)
+		_, err = NewBlockchain(store, unitTestNetCfg.Blockchain(), log)
 		if len(errText) != 0 {
 			require.Error(t, err)
 			require.True(t, strings.Contains(err.Error(), errText))
@@ -200,7 +200,7 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 	}
 	boltCfg := func(c *config.Config) {
 		spountCfg(c)
-		c.ProtocolConfiguration.KeepOnlyLatestState = true
+		c.ApplicationConfiguration.KeepOnlyLatestState = true
 	}
 	// manually store statejump stage to check statejump recover process
 	bPrefix[0] = byte(storage.SYSStateChangeStage)
@@ -219,7 +219,7 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 		bcSpout.dao.Store.Put([]byte{byte(storage.SYSStateSyncPoint)}, point)
 		checkNewBlockchainErr(t, func(c *config.Config) {
 			boltCfg(c)
-			c.ProtocolConfiguration.RemoveUntraceableBlocks = false
+			c.ApplicationConfiguration.RemoveUntraceableBlocks = false
 		}, bcSpout.dao.Store, "state jump was not completed, but P2PStateExchangeExtensions are disabled or archival node capability is on")
 	})
 	t.Run("invalid state sync point", func(t *testing.T) {

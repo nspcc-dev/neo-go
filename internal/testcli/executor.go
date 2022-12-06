@@ -139,7 +139,7 @@ func NewTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 
 	memoryStore := storage.NewMemoryStore()
 	logger := zaptest.NewLogger(t)
-	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration, logger)
+	chain, err := core.NewBlockchain(memoryStore, cfg.Blockchain(), logger)
 	require.NoError(t, err, "could not create chain")
 
 	if run {
@@ -155,7 +155,7 @@ func NewTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 		Logger:                zap.NewNop(),
 		Broadcast:             netSrv.BroadcastExtensible,
 		Chain:                 chain,
-		ProtocolConfiguration: chain.GetConfig(),
+		ProtocolConfiguration: cfg.ProtocolConfiguration,
 		RequestTx:             netSrv.RequestTx,
 		StopTxFlow:            netSrv.StopTxFlow,
 		Wallet:                cfg.ApplicationConfiguration.Consensus.UnlockWallet,

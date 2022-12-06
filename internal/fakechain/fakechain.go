@@ -23,7 +23,7 @@ import (
 
 // FakeChain implements the Blockchainer interface, but does not provide real functionality.
 type FakeChain struct {
-	config.ProtocolConfiguration
+	config.Blockchain
 	*mempool.Pool
 	blocksCh                 []chan *block.Block
 	Blockheight              uint32
@@ -56,19 +56,19 @@ func NewFakeChain() *FakeChain {
 }
 
 // NewFakeChainWithCustomCfg returns a new FakeChain structure with the specified protocol configuration.
-func NewFakeChainWithCustomCfg(protocolCfg func(c *config.ProtocolConfiguration)) *FakeChain {
-	cfg := config.ProtocolConfiguration{Magic: netmode.UnitTestNet, P2PNotaryRequestPayloadPoolSize: 10}
+func NewFakeChainWithCustomCfg(protocolCfg func(c *config.Blockchain)) *FakeChain {
+	cfg := config.Blockchain{ProtocolConfiguration: config.ProtocolConfiguration{Magic: netmode.UnitTestNet, P2PNotaryRequestPayloadPoolSize: 10}}
 	if protocolCfg != nil {
 		protocolCfg(&cfg)
 	}
 	return &FakeChain{
-		Pool:                  mempool.New(10, 0, false),
-		PoolTxF:               func(*transaction.Transaction) error { return nil },
-		poolTxWithData:        func(*transaction.Transaction, interface{}, *mempool.Pool) error { return nil },
-		blocks:                make(map[util.Uint256]*block.Block),
-		hdrHashes:             make(map[uint32]util.Uint256),
-		txs:                   make(map[util.Uint256]*transaction.Transaction),
-		ProtocolConfiguration: cfg,
+		Pool:           mempool.New(10, 0, false),
+		PoolTxF:        func(*transaction.Transaction) error { return nil },
+		poolTxWithData: func(*transaction.Transaction, interface{}, *mempool.Pool) error { return nil },
+		blocks:         make(map[util.Uint256]*block.Block),
+		hdrHashes:      make(map[uint32]util.Uint256),
+		txs:            make(map[util.Uint256]*transaction.Transaction),
+		Blockchain:     cfg,
 	}
 }
 
@@ -159,8 +159,8 @@ func (chain *FakeChain) RegisterPostBlock(f func(func(*transaction.Transaction, 
 }
 
 // GetConfig implements the Blockchainer interface.
-func (chain *FakeChain) GetConfig() config.ProtocolConfiguration {
-	return chain.ProtocolConfiguration
+func (chain *FakeChain) GetConfig() config.Blockchain {
+	return chain.Blockchain
 }
 
 // CalculateClaimable implements the Blockchainer interface.

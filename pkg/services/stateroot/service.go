@@ -21,7 +21,7 @@ import (
 type (
 	// Ledger is an interface to Blockchain sufficient for Service.
 	Ledger interface {
-		GetConfig() config.ProtocolConfiguration
+		GetConfig() config.Blockchain
 		HeaderHeight() uint32
 		SubscribeForBlocks(ch chan *block.Block)
 		UnsubscribeFromBlocks(ch chan *block.Block)

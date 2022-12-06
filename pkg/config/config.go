@@ -35,6 +35,15 @@ func (c Config) GenerateUserAgent() string {
 	return fmt.Sprintf(UserAgentFormat, Version)
 }
 
+// Blockchain generates a Blockchain configuration based on Protocol and
+// Application settings.
+func (c Config) Blockchain() Blockchain {
+	return Blockchain{
+		ProtocolConfiguration: c.ProtocolConfiguration,
+		Ledger:                c.ApplicationConfiguration.Ledger,
+	}
+}
+
 // Load attempts to load the config from the given
 // path for the given netMode.
 func Load(path string, netMode netmode.Magic) (Config, error) {

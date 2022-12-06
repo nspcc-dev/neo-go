@@ -207,7 +207,7 @@ func newTestServer(t *testing.T, serverConfig ServerConfig) *Server {
 	return newTestServerWithCustomCfg(t, serverConfig, nil)
 }
 
-func newTestServerWithCustomCfg(t *testing.T, serverConfig ServerConfig, protocolCfg func(*config.ProtocolConfiguration)) *Server {
+func newTestServerWithCustomCfg(t *testing.T, serverConfig ServerConfig, protocolCfg func(*config.Blockchain)) *Server {
 	if len(serverConfig.Addresses) == 0 {
 		// Normally it will be done by ApplicationConfiguration.GetAddresses().
 		serverConfig.Addresses = []config.AnnounceableAddress{{Address: ":0"}}

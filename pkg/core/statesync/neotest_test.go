@@ -20,7 +20,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		stateSyncInterval = 2
 		maxTraceable      = 3
 	)
-	spoutCfg := func(c *config.ProtocolConfiguration) {
+	spoutCfg := func(c *config.Blockchain) {
 		c.StateRootInHeader = true
 		c.P2PStateExchangeExtensions = true
 		c.StateSyncInterval = stateSyncInterval
@@ -32,15 +32,15 @@ func TestStateSyncModule_Init(t *testing.T) {
 		e.AddNewBlock(t)
 	}
 
-	boltCfg := func(c *config.ProtocolConfiguration) {
+	boltCfg := func(c *config.Blockchain) {
 		spoutCfg(c)
-		c.KeepOnlyLatestState = true
-		c.RemoveUntraceableBlocks = true
+		c.Ledger.KeepOnlyLatestState = true
+		c.Ledger.RemoveUntraceableBlocks = true
 	}
 	t.Run("error: module disabled by config", func(t *testing.T) {
-		bcBolt, _, _ := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+		bcBolt, _, _ := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
 			boltCfg(c)
-			c.RemoveUntraceableBlocks = false
+			c.Ledger.RemoveUntraceableBlocks = false
 		})
 		module := bcBolt.GetStateSyncModule()
 		require.Error(t, module.Init(bcSpout.BlockHeight())) // module inactive (non-archival node)
@@ -288,9 +288,9 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			maxTraceable      = 6
 			stateSyncPoint    = 24
 		)
-		spoutCfg := func(c *config.ProtocolConfiguration) {
-			c.KeepOnlyLatestState = spoutEnableGC
-			c.RemoveUntraceableBlocks = spoutEnableGC
+		spoutCfg := func(c *config.Blockchain) {
+			c.Ledger.KeepOnlyLatestState = spoutEnableGC
+			c.Ledger.RemoveUntraceableBlocks = spoutEnableGC
 			c.StateRootInHeader = true
 			c.P2PStateExchangeExtensions = true
 			c.StateSyncInterval = stateSyncInterval
@@ -309,10 +309,10 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		e.AddNewBlock(t)
 		require.Equal(t, stateSyncPoint+2, int(bcSpout.BlockHeight()))
 
-		boltCfg := func(c *config.ProtocolConfiguration) {
+		boltCfg := func(c *config.Blockchain) {
 			spoutCfg(c)
-			c.KeepOnlyLatestState = true
-			c.RemoveUntraceableBlocks = true
+			c.Ledger.KeepOnlyLatestState = true
+			c.Ledger.RemoveUntraceableBlocks = true
 		}
 		bcBoltStore := storage.NewMemoryStore()
 		bcBolt, _, _ := chain.NewMultiWithCustomConfigAndStore(t, boltCfg, bcBoltStore, false)

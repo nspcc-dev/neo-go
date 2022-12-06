@@ -55,12 +55,12 @@ type (
 )
 
 // NewModule returns new instance of stateroot module.
-func NewModule(cfg config.ProtocolConfiguration, verif VerifierFunc, log *zap.Logger, s *storage.MemCachedStore) *Module {
+func NewModule(cfg config.Blockchain, verif VerifierFunc, log *zap.Logger, s *storage.MemCachedStore) *Module {
 	var mode mpt.TrieMode
-	if cfg.KeepOnlyLatestState {
+	if cfg.Ledger.KeepOnlyLatestState {
 		mode |= mpt.ModeLatest
 	}
-	if cfg.RemoveUntraceableBlocks {
+	if cfg.Ledger.RemoveUntraceableBlocks {
 		mode |= mpt.ModeGC
 	}
 	return &Module{

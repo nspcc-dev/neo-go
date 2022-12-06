@@ -65,7 +65,7 @@ func TestGAS_RewardWithP2PSigExtensionsEnabled(t *testing.T) {
 		nKeys     = 4
 	)
 
-	bc, validator, committee := chain.NewMultiWithCustomConfig(t, func(cfg *config.ProtocolConfiguration) {
+	bc, validator, committee := chain.NewMultiWithCustomConfig(t, func(cfg *config.Blockchain) {
 		cfg.P2PSigExtensions = true
 	})
 	e := neotest.NewExecutor(t, bc, validator, committee)

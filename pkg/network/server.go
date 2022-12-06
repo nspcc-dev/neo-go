@@ -59,7 +59,7 @@ type (
 		mempool.Feer
 		Blockqueuer
 		GetBlock(hash util.Uint256) (*block.Block, error)
-		GetConfig() config.ProtocolConfiguration
+		GetConfig() config.Blockchain
 		GetHeader(hash util.Uint256) (*block.Header, error)
 		GetHeaderHash(uint32) util.Uint256
 		GetMaxVerificationGAS() int64
@@ -177,7 +177,7 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		ServerConfig:   config,
 		chain:          chain,
 		id:             randomID(),
-		config:         chain.GetConfig(),
+		config:         chain.GetConfig().ProtocolConfiguration,
 		quit:           make(chan struct{}),
 		relayFin:       make(chan struct{}),
 		register:       make(chan Peer),

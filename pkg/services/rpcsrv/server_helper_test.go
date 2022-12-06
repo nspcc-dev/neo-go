@@ -67,7 +67,7 @@ func getUnitTestChainWithCustomConfig(t testing.TB, enableOracle bool, enableNot
 
 	memoryStore := storage.NewMemoryStore()
 	logger := zaptest.NewLogger(t)
-	chain, err := core.NewBlockchain(memoryStore, cfg.ProtocolConfiguration, logger)
+	chain, err := core.NewBlockchain(memoryStore, cfg.Blockchain(), logger)
 	require.NoError(t, err, "could not create chain")
 
 	var orc *oracle.Oracle

@@ -27,7 +27,7 @@ type (
 		BlockHeight() uint32
 		FeePerByte() int64
 		GetBaseExecFee() int64
-		GetConfig() config.ProtocolConfiguration
+		GetConfig() config.Blockchain
 		GetMaxVerificationGAS() int64
 		GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error)
 		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)

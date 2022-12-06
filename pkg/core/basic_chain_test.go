@@ -37,7 +37,7 @@ var (
 func TestCreateBasicChain(t *testing.T) {
 	const saveChain = false
 
-	bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(cfg *config.ProtocolConfiguration) {
+	bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(cfg *config.Blockchain) {
 		cfg.P2PSigExtensions = true
 	})
 	e := neotest.NewExecutor(t, bc, validators, committee)

@@ -132,14 +132,14 @@ func newChain() (*core.Blockchain, error) {
 	if err != nil {
 		return nil, err
 	}
-	unitTestNetCfg.ProtocolConfiguration.VerifyBlocks = false
+	unitTestNetCfg.ApplicationConfiguration.VerifyBlocks = false
 	zapCfg := zap.NewDevelopmentConfig()
 	zapCfg.Level = zap.NewAtomicLevelAt(zapcore.InfoLevel)
 	log, err := zapCfg.Build()
 	if err != nil {
 		return nil, err
 	}
-	chain, err := core.NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, log)
+	chain, err := core.NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.Blockchain(), log)
 	if err != nil {
 		return nil, err
 	}

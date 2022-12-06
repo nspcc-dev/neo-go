@@ -72,7 +72,7 @@ type (
 		GetBaseExecFee() int64
 		GetBlock(hash util.Uint256) (*block.Block, error)
 		GetCommittee() (keys.PublicKeys, error)
-		GetConfig() config.ProtocolConfiguration
+		GetConfig() config.Blockchain
 		GetContractScriptHash(id int32) (util.Uint160, error)
 		GetContractState(hash util.Uint160) *state.Contract
 		GetEnrollments() ([]state.Validator, error)
@@ -274,7 +274,7 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		}
 	}
 
-	protoCfg := chain.GetConfig()
+	protoCfg := chain.GetConfig().ProtocolConfiguration
 	if conf.SessionEnabled {
 		if conf.SessionExpirationTime <= 0 {
 			conf.SessionExpirationTime = int(protoCfg.TimePerBlock / time.Second)
@@ -935,7 +935,7 @@ contract_loop:
 		lub, ok := lastUpdated[cs.ID]
 		if !ok {
 			cfg := s.chain.GetConfig()
-			if !cfg.P2PStateExchangeExtensions && cfg.RemoveUntraceableBlocks {
+			if !cfg.P2PStateExchangeExtensions && cfg.Ledger.RemoveUntraceableBlocks {
 				return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token: internal database inconsistency", cs.Hash.StringLE()))
 			}
 			lub = stateSyncPoint
@@ -1057,7 +1057,7 @@ func (s *Server) getNEP17Balances(ps params.Params) (interface{}, *neorpc.Error)
 		lub, ok := lastUpdated[cs.ID]
 		if !ok {
 			cfg := s.chain.GetConfig()
-			if !cfg.P2PStateExchangeExtensions && cfg.RemoveUntraceableBlocks {
+			if !cfg.P2PStateExchangeExtensions && cfg.Ledger.RemoveUntraceableBlocks {
 				return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to get LastUpdatedBlock for balance of %s token: internal database inconsistency", cs.Hash.StringLE()))
 			}
 			lub = stateSyncPoint
@@ -1396,7 +1396,7 @@ func makeStorageKey(id int32, key []byte) []byte {
 var errKeepOnlyLatestState = errors.New("'KeepOnlyLatestState' setting is enabled")
 
 func (s *Server) getProof(ps params.Params) (interface{}, *neorpc.Error) {
-	if s.chain.GetConfig().KeepOnlyLatestState {
+	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
 		return nil, neorpc.NewInvalidRequestError(fmt.Sprintf("'getproof' is not supported: %s", errKeepOnlyLatestState))
 	}
 	root, err := ps.Value(0).GetUint256()
@@ -1427,7 +1427,7 @@ func (s *Server) getProof(ps params.Params) (interface{}, *neorpc.Error) {
 }
 
 func (s *Server) verifyProof(ps params.Params) (interface{}, *neorpc.Error) {
-	if s.chain.GetConfig().KeepOnlyLatestState {
+	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
 		return nil, neorpc.NewInvalidRequestError(fmt.Sprintf("'verifyproof' is not supported: %s", errKeepOnlyLatestState))
 	}
 	root, err := ps.Value(0).GetUint256()
@@ -1455,7 +1455,7 @@ func (s *Server) getState(ps params.Params) (interface{}, *neorpc.Error) {
 	if err != nil {
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, "invalid stateroot")
 	}
-	if s.chain.GetConfig().KeepOnlyLatestState {
+	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
 		curr, err := s.chain.GetStateModule().GetStateRoot(s.chain.BlockHeight())
 		if err != nil {
 			return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to get current stateroot: %s", err))
@@ -1489,7 +1489,7 @@ func (s *Server) findStates(ps params.Params) (interface{}, *neorpc.Error) {
 	if err != nil {
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, "invalid stateroot")
 	}
-	if s.chain.GetConfig().KeepOnlyLatestState {
+	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
 		curr, err := s.chain.GetStateModule().GetStateRoot(s.chain.BlockHeight())
 		if err != nil {
 			return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to get current stateroot: %s", err))
@@ -2041,7 +2041,7 @@ func (s *Server) getInvokeContractVerifyParams(reqParams params.Params) (util.Ui
 // specified stateroot is stored at the specified height for further request
 // handling consistency.
 func (s *Server) getHistoricParams(reqParams params.Params) (uint32, *neorpc.Error) {
-	if s.chain.GetConfig().KeepOnlyLatestState {
+	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
 		return 0, neorpc.NewInvalidRequestError(fmt.Sprintf("only latest state is supported: %s", errKeepOnlyLatestState))
 	}
 	if len(reqParams) < 1 {

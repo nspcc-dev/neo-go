@@ -44,7 +44,7 @@ const nsInMs = 1000000
 type Ledger interface {
 	AddBlock(block *coreb.Block) error
 	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction
-	GetConfig() config.ProtocolConfiguration
+	GetConfig() config.Blockchain
 	GetMemPool() *mempool.Pool
 	GetNextBlockValidators() ([]*keys.PublicKey, error)
 	GetStateRoot(height uint32) (*state.MPTRoot, error)
@@ -708,7 +708,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 
 	var validators keys.PublicKeys
 	var err error
-	cfg := s.Chain.GetConfig()
+	cfg := s.Chain.GetConfig().ProtocolConfiguration
 	if cfg.ShouldUpdateCommitteeAt(ctx.BlockIndex) {
 		validators, err = s.Chain.GetValidators()
 	} else {
