@@ -38,17 +38,17 @@ ApplicationConfiguration:
       DataDirectoryPath: "/chains/four"
   #    BoltDBOptions:
   #      FilePath: "./chains/privnet.bolt"
-  #  Uncomment in order to set up custom address for node.
-  Addresses:
-    - ":20336" # in form of "[host]:[port][:announcedPort]"
+  P2P:
+    Addresses:
+      - ":20336" # in form of "[host]:[port][:announcedPort]"
+    DialTimeout: 3s
+    ProtoTickInterval: 2s
+    PingInterval: 30s
+    PingTimeout: 90s
+    MaxPeers: 10
+    AttemptConnPeers: 5
+    MinPeers: 3
   Relay: true
-  DialTimeout: 3
-  ProtoTickInterval: 2
-  PingInterval: 30
-  PingTimeout: 90
-  MaxPeers: 10
-  AttemptConnPeers: 5
-  MinPeers: 3
   Oracle:
     Enabled: false
     AllowedContentTypes:

@@ -59,16 +59,17 @@ ApplicationConfiguration:
       DataDirectoryPath: "./chains/mainnet"
   #    BoltDBOptions:
   #      FilePath: "./chains/mainnet.bolt"
-  Addresses:
-    - ":10333" # in form of "[host]:[port][:announcedPort]"
+  P2P:
+    Addresses:
+      - ":10333" # in form of "[host]:[port][:announcedPort]"
+    DialTimeout: 3s
+    ProtoTickInterval: 2s
+    PingInterval: 30s
+    PingTimeout: 90s
+    MaxPeers: 100
+    AttemptConnPeers: 20
+    MinPeers: 10
   Relay: true
-  DialTimeout: 3
-  ProtoTickInterval: 2
-  PingInterval: 30
-  PingTimeout: 90
-  MaxPeers: 100
-  AttemptConnPeers: 20
-  MinPeers: 10
   Oracle:
     Enabled: false
     AllowedContentTypes:

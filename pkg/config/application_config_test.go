@@ -80,7 +80,7 @@ func TestGetAddresses(t *testing.T) {
 		{
 			cfg: &ApplicationConfiguration{
 				Address: &addr1, NodePort: &port1, AnnouncedNodePort: &port2,
-				Addresses: []string{addr1, addr2 + ":3", addr3 + ":1:3"},
+				P2P: P2P{Addresses: []string{addr1, addr2 + ":3", addr3 + ":1:3"}},
 			},
 			expected: []AnnounceableAddress{
 				{Address: addr1 + ":1", AnnouncedPort: port2},
@@ -92,7 +92,7 @@ func TestGetAddresses(t *testing.T) {
 		// Multi-addresses checks.
 		{
 			cfg: &ApplicationConfiguration{
-				Addresses: []string{addr1},
+				P2P: P2P{Addresses: []string{addr1}},
 			},
 			expected: []AnnounceableAddress{
 				{Address: addr1},
@@ -100,7 +100,7 @@ func TestGetAddresses(t *testing.T) {
 		},
 		{
 			cfg: &ApplicationConfiguration{
-				Addresses: []string{":1"},
+				P2P: P2P{Addresses: []string{":1"}},
 			},
 			expected: []AnnounceableAddress{
 				{Address: ":1"},
@@ -108,7 +108,7 @@ func TestGetAddresses(t *testing.T) {
 		},
 		{
 			cfg: &ApplicationConfiguration{
-				Addresses: []string{"::1"},
+				P2P: P2P{Addresses: []string{"::1"}},
 			},
 			expected: []AnnounceableAddress{
 				{Address: ":", AnnouncedPort: port1},
@@ -116,7 +116,7 @@ func TestGetAddresses(t *testing.T) {
 		},
 		{
 			cfg: &ApplicationConfiguration{
-				Addresses: []string{addr1 + ":1"},
+				P2P: P2P{Addresses: []string{addr1 + ":1"}},
 			},
 			expected: []AnnounceableAddress{
 				{Address: addr1 + ":1"},
@@ -124,7 +124,7 @@ func TestGetAddresses(t *testing.T) {
 		},
 		{
 			cfg: &ApplicationConfiguration{
-				Addresses: []string{addr1 + "::1"},
+				P2P: P2P{Addresses: []string{addr1 + "::1"}},
 			},
 			expected: []AnnounceableAddress{
 				{Address: addr1 + ":", AnnouncedPort: port1},
@@ -132,7 +132,7 @@ func TestGetAddresses(t *testing.T) {
 		},
 		{
 			cfg: &ApplicationConfiguration{
-				Addresses: []string{addr1 + ":1:2"},
+				P2P: P2P{Addresses: []string{addr1 + ":1:2"}},
 			},
 			expected: []AnnounceableAddress{
 				{Address: addr1 + ":1", AnnouncedPort: port2},
@@ -140,7 +140,7 @@ func TestGetAddresses(t *testing.T) {
 		},
 		{
 			cfg: &ApplicationConfiguration{
-				Addresses: []string{addr1 + ":1", addr2 + "::2"},
+				P2P: P2P{Addresses: []string{addr1 + ":1", addr2 + "::2"}},
 			},
 			expected: []AnnounceableAddress{
 				{Address: addr1 + ":1"},
@@ -149,7 +149,7 @@ func TestGetAddresses(t *testing.T) {
 		},
 		{
 			cfg: &ApplicationConfiguration{
-				Addresses: []string{v6Plain0, v6Plain1, v6Plain2, v6Plain3, v6Plain4},
+				P2P: P2P{Addresses: []string{v6Plain0, v6Plain1, v6Plain2, v6Plain3, v6Plain4}},
 			},
 			expected: []AnnounceableAddress{
 				{Address: v6Plain0},
@@ -161,7 +161,7 @@ func TestGetAddresses(t *testing.T) {
 		},
 		{
 			cfg: &ApplicationConfiguration{
-				Addresses: []string{"[3731:54:65fe:2::]:123", "[3731:54:65fe:2::]:123:124"},
+				P2P: P2P{Addresses: []string{"[3731:54:65fe:2::]:123", "[3731:54:65fe:2::]:123:124"}},
 			},
 			expected: []AnnounceableAddress{
 				{Address: "[3731:54:65fe:2::]:123"},
@@ -170,7 +170,7 @@ func TestGetAddresses(t *testing.T) {
 		},
 		{
 			cfg: &ApplicationConfiguration{
-				Addresses: []string{"127.0.0.1:QWER:123"},
+				P2P: P2P{Addresses: []string{"127.0.0.1:QWER:123"}},
 			},
 			shouldFail: true,
 		},

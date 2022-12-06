@@ -32,16 +32,17 @@ ApplicationConfiguration:
       DataDirectoryPath: "/chains/single"
   #    BoltDBOptions:
   #      FilePath: "./chains/privnet.bolt"
-  Addresses:
-    - ":20333" # in form of "[host]:[port][:announcedPort]"
+  P2P:
+    Addresses:
+      - ":20333" # in form of "[host]:[port][:announcedPort]"
+    DialTimeout: 3s
+    ProtoTickInterval: 2s
+    PingInterval: 30s
+    PingTimeout: 90s
+    MaxPeers: 10
+    AttemptConnPeers: 5
+    MinPeers: 0
   Relay: true
-  DialTimeout: 3
-  ProtoTickInterval: 2
-  PingInterval: 30
-  PingTimeout: 90
-  MaxPeers: 10
-  AttemptConnPeers: 5
-  MinPeers: 0
   Oracle:
     Enabled: false
     AllowedContentTypes:

@@ -18,28 +18,74 @@ node-related settings described in the table below.
 | --- | --- | --- | --- |
 | Address | `string` | `0.0.0.0` | Node address that P2P protocol handler binds to. Warning: this field is deprecated, please, use `Addresses` instead. |
 | AnnouncedPort | `uint16` | Same as `NodePort` | Node port which should be used to announce node's port on P2P layer, it can differ from the `NodePort` the node is bound to (for example, if your node is behind NAT). Warning: this field is deprecated, please, use `Addresses` instead. |
-| Addresses | `[]string` | `["0.0.0.0:0"]`, which is any free port on all available addresses | List of the node addresses that P2P protocol handler binds to. Each address has the form of `[address]:[nodePort][:announcedPort]` where `address` is the address itself, `nodePort` is the actual P2P port node listens at; `announcedPort` is the node port which should be used to announce node's port on P2P layer, it can differ from the `nodePort` the node is bound to if specified (for example, if your node is behind NAT).|
-| AttemptConnPeers | `int` | `20` | Number of connection to try to establish when the connection count drops below the `MinPeers` value.|
-| BroadcastFactor | `int` | `0` | Multiplier that is used to determine the number of optimal gossip fan-out peer number for broadcasted messages (0-100). By default it's zero, node uses the most optimized value depending on the estimated network size (`2.5×log(size)`), so the node may have 20 peers and calculate that it needs to broadcast messages to just 10 of them. With BroadcastFactor set to 100 it will always send messages to all peers, any value in-between 0 and 100 is used for weighted calculation, for example if it's 30 then 13 neighbors will be used in the previous case. |
+| AttemptConnPeers | `int` | `20` | Number of connection to try to establish when the connection count drops below the `MinPeers` value. Warning: this field is deprecated and moved to `P2P` section. |
+| BroadcastFactor | `int` | `0` | Multiplier that is used to determine the number of optimal gossip fan-out peer number for broadcasted messages (0-100). By default it's zero, node uses the most optimized value depending on the estimated network size (`2.5×log(size)`), so the node may have 20 peers and calculate that it needs to broadcast messages to just 10 of them. With BroadcastFactor set to 100 it will always send messages to all peers, any value in-between 0 and 100 is used for weighted calculation, for example if it's 30 then 13 neighbors will be used in the previous case. Warning: this field is deprecated and moved to `P2P` section. |
 | DBConfiguration | [DB Configuration](#DB-Configuration) |  | Describes configuration for database. See the [DB Configuration](#DB-Configuration) section for details. |
-| DialTimeout | `int64` | `0` | Maximum duration a single dial may take in seconds. |
-| ExtensiblePoolSize | `int` | `20` | Maximum amount of the extensible payloads from a single sender stored in a local pool. |
+| DialTimeout | `int64` | `0` | Maximum duration a single dial may take in seconds. Warning: this field is deprecated and moved to `P2P` section. |
+| ExtensiblePoolSize | `int` | `20` | Maximum amount of the extensible payloads from a single sender stored in a local pool. Warning: this field is deprecated and moved to `P2P` section. |
 | LogLevel | `string` | "info" | Minimal logged messages level (can be "debug", "info", "warn", "error", "dpanic", "panic" or "fatal"). |
 | LogPath | `string` | "", so only console logging | File path where to store node logs. |
-| MaxPeers | `int` | `100` | Maximum numbers of peers that can be connected to the server. |
-| MinPeers | `int` | `5` | Minimum number of peers for normal operation; when the node has less than this number of peers it tries to connect with some new ones. |
+| MaxPeers | `int` | `100` | Maximum numbers of peers that can be connected to the server. Warning: this field is deprecated and moved to `P2P` section. |
+| MinPeers | `int` | `5` | Minimum number of peers for normal operation; when the node has less than this number of peers it tries to connect with some new ones. Warning: this field is deprecated and moved to `P2P` section. |
 | NodePort | `uint16` | `0`, which is any free port | The actual node port it is bound to. Warning: this field is deprecated, please, use `Addresses` instead. |
 | Oracle | [Oracle Configuration](#Oracle-Configuration) | | Oracle module configuration. See the [Oracle Configuration](#Oracle-Configuration) section for details. |
+| P2P | [P2P Configuration](#P2P-Configuration) | | Configuration values for P2P network interaction. See the [P2P Configuration](#P2P-Configuration) section for details. |
 | P2PNotary | [P2P Notary Configuration](#P2P-Notary-Configuration) | | P2P Notary module configuration. See the [P2P Notary Configuration](#P2P-Notary-Configuration) section for details. |
-| PingInterval | `int64` | `30` | Interval in seconds used in pinging mechanism for syncing blocks. |
-| PingTimeout | `int64` | `90` | Time to wait for pong (response for sent ping request). |
+| PingInterval | `int64` | `30` | Interval in seconds used in pinging mechanism for syncing blocks. Warning: this field is deprecated and moved to `P2P` section. |
+| PingTimeout | `int64` | `90` | Time to wait for pong (response for sent ping request). Warning: this field is deprecated and moved to `P2P` section. |
 | Pprof | [Metrics Services Configuration](#Metrics-Services-Configuration) | | Configuration for pprof service (profiling statistics gathering). See the [Metrics Services Configuration](#Metrics-Services-Configuration) section for details. |
 | Prometheus | [Metrics Services Configuration](#Metrics-Services-Configuration) | | Configuration for Prometheus (monitoring system). See the [Metrics Services Configuration](#Metrics-Services-Configuration) section for details |
-| ProtoTickInterval | `int64` | `5` | Duration in seconds between protocol ticks with each connected peer. |
+| ProtoTickInterval | `int64` | `5` | Duration in seconds between protocol ticks with each connected peer. Warning: this field is deprecated and moved to `P2P` section. |
 | Relay | `bool` | `true` | Determines whether the server is forwarding its inventory. |
 | RPC | [RPC Configuration](#RPC-Configuration) |  | Describes [RPC subsystem](rpc.md) configuration. See the [RPC Configuration](#RPC-Configuration) for details. |
 | StateRoot | [State Root Configuration](#State-Root-Configuration) |  | State root module configuration. See the [State Root Configuration](#State-Root-Configuration) section for details. |
 | UnlockWallet | [Unlock Wallet Configuration](#Unlock-Wallet-Configuration) |  | Node wallet configuration used for consensus (dBFT) operation. See the [Unlock Wallet Configuration](#Unlock-Wallet-Configuration) section for details. |
+
+### P2P Configuration
+
+`P2P` section contains configuration for peer-to-peer node communications and has
+the following format:
+```
+P2P:
+  Addresses:
+    - "0.0.0.0:0" # any free port on all available addresses (in form of "[host]:[port][:announcedPort]")
+  AttemptConnPeers: 20
+  BroadcastFactor: 0
+  DialTimeout: 0s
+  MaxPeers: 100
+  MinPeers: 5
+  PingInterval: 30s
+  PingTimeout: 90s
+  ProtoTickInterval: 5s
+  ExtensiblePoolSize: 20
+```
+where:
+- `Addresses` (`[]string`) is the list of the node addresses that P2P protocol
+   handler binds to. Each address has the form of `[address]:[nodePort][:announcedPort]`
+   where `address` is the address itself, `nodePort` is the actual P2P port node listens at;
+   `announcedPort` is the node port which should be used to announce node's port on P2P layer,
+   it can differ from the `nodePort` the node is bound to if specified (for example, if your
+   node is behind NAT).
+- `AttemptConnPeers` (`int`) is the number of connection to try to establish when the
+   connection count drops below the `MinPeers` value.
+- `BroadcastFactor` (`int`) is the multiplier that is used to determine the number of
+   optimal gossip fan-out peer number for broadcasted messages (0-100). By default, it's
+   zero, node uses the most optimized value depending on the estimated network size
+   (`2.5×log(size)`), so the node may have 20 peers and calculate that it needs to broadcast
+   messages to just 10 of them. With BroadcastFactor set to 100 it will always send messages
+   to all peers, any value in-between 0 and 100 is used for weighted calculation, for example
+   if it's 30 then 13 neighbors will be used in the previous case.
+- `DialTimeout` (`Duration`) is the maximum duration a single dial may take.
+- `ExtensiblePoolSize` (`int`) is the maximum amount of the extensible payloads from a single
+   sender stored in a local pool.
+- `MaxPeers` (`int`) is the maximum numbers of peers that can be connected to the server.
+- `MinPeers` (`int`) is the minimum number of peers for normal operation; when the node has
+   less than this number of peers it tries to connect with some new ones.
+- `PingInterval` (`Duration`) is the interval used in pinging mechanism for syncing
+   blocks.
+- `PingTimeout` (`Duration`) is the time to wait for pong (response for sent ping request).
+- `ProtoTickInterval` (`Duration`) is the duration between protocol ticks with each
+   connected peer.
 
 ### DB Configuration
 
