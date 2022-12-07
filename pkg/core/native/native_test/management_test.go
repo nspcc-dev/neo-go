@@ -566,6 +566,7 @@ func TestManagement_GetContract(t *testing.T) {
 	t.Run("by ID, positive", func(t *testing.T) {
 		managementInvoker.Invoke(t, si, "getContractById", cs1.ID)
 	})
+	/* C# compatibility
 	t.Run("by ID, native", func(t *testing.T) {
 		csm := managementInvoker.Executor.Chain.GetContractState(managementInvoker.Hash)
 		require.NotNil(t, csm)
@@ -573,6 +574,7 @@ func TestManagement_GetContract(t *testing.T) {
 		require.NoError(t, err)
 		managementInvoker.Invoke(t, sim, "getContractById", -1)
 	})
+	*/
 	t.Run("by ID, empty", func(t *testing.T) {
 		managementInvoker.Invoke(t, stackitem.Null{}, "getContractById", -100)
 	})
