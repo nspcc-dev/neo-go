@@ -51,11 +51,11 @@ var (
 var (
 	walletPathFlag = cli.StringFlag{
 		Name:  "wallet, w",
-		Usage: "Target location of the wallet file ('-' to read from stdin); conflicts with --wallet-config flag.",
+		Usage: "Path to the wallet file ('-' to read from stdin); conflicts with --wallet-config flag.",
 	}
 	walletConfigFlag = cli.StringFlag{
 		Name:  "wallet-config",
-		Usage: "Target location of the wallet config file; conflicts with --wallet flag.",
+		Usage: "Path to the wallet config file; conflicts with --wallet flag.",
 	}
 	wifFlag = cli.StringFlag{
 		Name:  "wif",
