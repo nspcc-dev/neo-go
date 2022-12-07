@@ -57,6 +57,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -2260,4 +2261,207 @@ waitloop:
 			t.Fatal("transaction failed to be awaited")
 		}
 	}
+}
+
+// TestWSClient_SubscriptionsCompat is aimed to test both deprecated and relevant
+// subscriptions API with filtered and non-filtered subscriptions from the WSClient
+// user side.
+func TestWSClient_SubscriptionsCompat(t *testing.T) {
+	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
+	c, err := rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+	blocks := getTestBlocks(t)
+	bCount := uint32(0)
+
+	getData := func(t *testing.T) (*block.Block, int, util.Uint160, string, string) {
+		b1 := blocks[bCount]
+		primary := int(b1.PrimaryIndex)
+		tx := b1.Transactions[0]
+		sender := tx.Sender()
+		ntfName := "Transfer"
+		st := vmstate.Halt.String()
+		bCount++
+		return b1, primary, sender, ntfName, st
+	}
+	checkDeprecated := func(t *testing.T, filtered bool) {
+		b, primary, sender, ntfName, st := getData(t)
+		var bID, txID, ntfID, aerID string
+		if filtered {
+			bID, err = c.SubscribeForNewBlocks(&primary) //nolint:staticcheck // SA1019: c.SubscribeForNewBlocks is deprecated
+			require.NoError(t, err)
+			txID, err = c.SubscribeForNewTransactions(&sender, nil) //nolint:staticcheck // SA1019: c.SubscribeForNewTransactions is deprecated
+			require.NoError(t, err)
+			ntfID, err = c.SubscribeForExecutionNotifications(nil, &ntfName) //nolint:staticcheck // SA1019: c.SubscribeForExecutionNotifications is deprecated
+			require.NoError(t, err)
+			aerID, err = c.SubscribeForTransactionExecutions(&st) //nolint:staticcheck // SA1019: c.SubscribeForTransactionExecutions is deprecated
+			require.NoError(t, err)
+		} else {
+			bID, err = c.SubscribeForNewBlocks(nil) //nolint:staticcheck // SA1019: c.SubscribeForNewBlocks is deprecated
+			require.NoError(t, err)
+			txID, err = c.SubscribeForNewTransactions(nil, nil) //nolint:staticcheck // SA1019: c.SubscribeForNewTransactions is deprecated
+			require.NoError(t, err)
+			ntfID, err = c.SubscribeForExecutionNotifications(nil, nil) //nolint:staticcheck // SA1019: c.SubscribeForExecutionNotifications is deprecated
+			require.NoError(t, err)
+			aerID, err = c.SubscribeForTransactionExecutions(nil) //nolint:staticcheck // SA1019: c.SubscribeForTransactionExecutions is deprecated
+			require.NoError(t, err)
+		}
+
+		var (
+			lock     sync.RWMutex
+			received byte
+			exitCh   = make(chan struct{})
+		)
+		go func() {
+		dispatcher:
+			for {
+				select {
+				case ntf := <-c.Notifications: //nolint:staticcheck // SA1019: c.Notifications is deprecated
+					lock.Lock()
+					switch ntf.Type {
+					case neorpc.BlockEventID:
+						received |= 1
+					case neorpc.TransactionEventID:
+						received |= 1 << 1
+					case neorpc.NotificationEventID:
+						received |= 1 << 2
+					case neorpc.ExecutionEventID:
+						received |= 1 << 3
+					}
+					lock.Unlock()
+				case <-exitCh:
+					break dispatcher
+				}
+			}
+		drainLoop:
+			for {
+				select {
+				case <-c.Notifications: //nolint:staticcheck // SA1019: c.Notifications is deprecated
+				default:
+					break drainLoop
+				}
+			}
+		}()
+
+		// Accept the next block and wait for events.
+		require.NoError(t, chain.AddBlock(b))
+		assert.Eventually(t, func() bool {
+			lock.RLock()
+			defer lock.RUnlock()
+
+			return received == 1<<4-1
+		}, time.Second, 100*time.Millisecond)
+
+		require.NoError(t, c.Unsubscribe(bID))
+		require.NoError(t, c.Unsubscribe(txID))
+		require.NoError(t, c.Unsubscribe(ntfID))
+		require.NoError(t, c.Unsubscribe(aerID))
+		exitCh <- struct{}{}
+	}
+	t.Run("deprecated, filtered", func(t *testing.T) {
+		checkDeprecated(t, true)
+	})
+	t.Run("deprecated, non-filtered", func(t *testing.T) {
+		checkDeprecated(t, false)
+	})
+
+	checkRelevant := func(t *testing.T, filtered bool) {
+		b, primary, sender, ntfName, st := getData(t)
+		var (
+			bID, txID, ntfID, aerID string
+			blockCh                 = make(chan *block.Block)
+			txCh                    = make(chan *transaction.Transaction)
+			ntfCh                   = make(chan *state.ContainedNotificationEvent)
+			aerCh                   = make(chan *state.AppExecResult)
+			bFlt                    *neorpc.BlockFilter
+			txFlt                   *neorpc.TxFilter
+			ntfFlt                  *neorpc.NotificationFilter
+			aerFlt                  *neorpc.ExecutionFilter
+		)
+		if filtered {
+			bFlt = &neorpc.BlockFilter{Primary: &primary}
+			txFlt = &neorpc.TxFilter{Sender: &sender}
+			ntfFlt = &neorpc.NotificationFilter{Name: &ntfName}
+			aerFlt = &neorpc.ExecutionFilter{State: &st}
+		}
+		bID, err = c.ReceiveBlocks(bFlt, blockCh)
+		require.NoError(t, err)
+		txID, err = c.ReceiveTransactions(txFlt, txCh)
+		require.NoError(t, err)
+		ntfID, err = c.ReceiveExecutionNotifications(ntfFlt, ntfCh)
+		require.NoError(t, err)
+		aerID, err = c.ReceiveExecutions(aerFlt, aerCh)
+		require.NoError(t, err)
+
+		var (
+			lock     sync.RWMutex
+			received byte
+			exitCh   = make(chan struct{})
+		)
+		go func() {
+		dispatcher:
+			for {
+				select {
+				case <-blockCh:
+					lock.Lock()
+					received |= 1
+					lock.Unlock()
+				case <-txCh:
+					lock.Lock()
+					received |= 1 << 1
+					lock.Unlock()
+				case <-ntfCh:
+					lock.Lock()
+					received |= 1 << 2
+					lock.Unlock()
+				case <-aerCh:
+					lock.Lock()
+					received |= 1 << 3
+					lock.Unlock()
+				case <-exitCh:
+					break dispatcher
+				}
+			}
+		drainLoop:
+			for {
+				select {
+				case <-blockCh:
+				case <-txCh:
+				case <-ntfCh:
+				case <-aerCh:
+				default:
+					break drainLoop
+				}
+			}
+			close(blockCh)
+			close(txCh)
+			close(ntfCh)
+			close(aerCh)
+		}()
+
+		// Accept the next block and wait for events.
+		require.NoError(t, chain.AddBlock(b))
+		assert.Eventually(t, func() bool {
+			lock.RLock()
+			defer lock.RUnlock()
+
+			return received == 1<<4-1
+		}, time.Second, 100*time.Millisecond)
+
+		require.NoError(t, c.Unsubscribe(bID))
+		require.NoError(t, c.Unsubscribe(txID))
+		require.NoError(t, c.Unsubscribe(ntfID))
+		require.NoError(t, c.Unsubscribe(aerID))
+		exitCh <- struct{}{}
+	}
+	t.Run("relevant, filtered", func(t *testing.T) {
+		checkRelevant(t, true)
+	})
+	t.Run("relevant, non-filtered", func(t *testing.T) {
+		checkRelevant(t, false)
+	})
 }

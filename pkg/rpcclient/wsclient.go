@@ -640,13 +640,13 @@ func (c *WSClient) performSubscription(params []interface{}, rcvr notificationRe
 //
 // Deprecated: please, use ReceiveBlocks. This method will be removed in future versions.
 func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
-	var flt *neorpc.BlockFilter
+	var flt interface{}
 	if primary != nil {
-		flt = &neorpc.BlockFilter{Primary: primary}
+		flt = neorpc.BlockFilter{Primary: primary}
 	}
 	params := []interface{}{"block_added"}
 	if flt != nil {
-		params = append(params, *flt)
+		params = append(params, flt)
 	}
 	r := &naiveReceiver{
 		eventID: neorpc.BlockEventID,
@@ -685,13 +685,13 @@ func (c *WSClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Blo
 //
 // Deprecated: please, use ReceiveTransactions. This method will be removed in future versions.
 func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, signer *util.Uint160) (string, error) {
-	var flt *neorpc.TxFilter
+	var flt interface{}
 	if sender != nil || signer != nil {
-		flt = &neorpc.TxFilter{Sender: sender, Signer: signer}
+		flt = neorpc.TxFilter{Sender: sender, Signer: signer}
 	}
 	params := []interface{}{"transaction_added"}
 	if flt != nil {
-		params = append(params, *flt)
+		params = append(params, flt)
 	}
 	r := &naiveReceiver{
 		eventID: neorpc.TransactionEventID,
@@ -731,13 +731,13 @@ func (c *WSClient) ReceiveTransactions(flt *neorpc.TxFilter, rcvr chan<- *transa
 //
 // Deprecated: please, use ReceiveExecutionNotifications. This method will be removed in future versions.
 func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160, name *string) (string, error) {
-	var flt *neorpc.NotificationFilter
+	var flt interface{}
 	if contract != nil || name != nil {
-		flt = &neorpc.NotificationFilter{Contract: contract, Name: name}
+		flt = neorpc.NotificationFilter{Contract: contract, Name: name}
 	}
 	params := []interface{}{"notification_from_execution"}
 	if flt != nil {
-		params = append(params, *flt)
+		params = append(params, flt)
 	}
 	r := &naiveReceiver{
 		eventID: neorpc.NotificationEventID,
@@ -777,18 +777,16 @@ func (c *WSClient) ReceiveExecutionNotifications(flt *neorpc.NotificationFilter,
 //
 // Deprecated: please, use ReceiveExecutions. This method will be removed in future versions.
 func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, error) {
-	var flt *neorpc.ExecutionFilter
+	var flt interface{}
 	if state != nil {
-		flt = &neorpc.ExecutionFilter{State: state}
+		if *state != "HALT" && *state != "FAULT" {
+			return "", errors.New("bad state parameter")
+		}
+		flt = neorpc.ExecutionFilter{State: state}
 	}
 	params := []interface{}{"transaction_executed"}
 	if flt != nil {
-		if flt.State != nil {
-			if *flt.State != "HALT" && *flt.State != "FAULT" {
-				return "", errors.New("bad state parameter")
-			}
-		}
-		params = append(params, *flt)
+		params = append(params, flt)
 	}
 	r := &naiveReceiver{
 		eventID: neorpc.ExecutionEventID,
@@ -834,13 +832,13 @@ func (c *WSClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *s
 //
 // Deprecated: please, use ReceiveNotaryRequests. This method will be removed in future versions.
 func (c *WSClient) SubscribeForNotaryRequests(sender *util.Uint160, mainSigner *util.Uint160) (string, error) {
-	var flt *neorpc.TxFilter
+	var flt interface{}
 	if sender != nil || mainSigner != nil {
-		flt = &neorpc.TxFilter{Sender: sender, Signer: mainSigner}
+		flt = neorpc.TxFilter{Sender: sender, Signer: mainSigner}
 	}
 	params := []interface{}{"notary_request_event"}
 	if flt != nil {
-		params = append(params, *flt)
+		params = append(params, flt)
 	}
 	r := &naiveReceiver{
 		eventID: neorpc.NotaryRequestEventID,
