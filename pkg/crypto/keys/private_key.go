@@ -17,7 +17,7 @@ import (
 	"github.com/nspcc-dev/rfc6979"
 )
 
-// PrivateKey represents a NEO private key and provides a high level API around
+// PrivateKey represents a Neo private key and provides a high level API around
 // ecdsa.PrivateKey.
 type PrivateKey struct {
 	ecdsa.PrivateKey

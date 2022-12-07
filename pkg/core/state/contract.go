@@ -15,7 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// Contract holds information about a smart contract in the NEO blockchain.
+// Contract holds information about a smart contract in the Neo blockchain.
 type Contract struct {
 	ContractBase
 	UpdateCounter uint16 `json:"updatecounter"`

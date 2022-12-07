@@ -34,8 +34,8 @@ type (
 
 		// The network mode the server will operate on.
 		// ModePrivNet docker private network.
-		// ModeTestNet NEO test network.
-		// ModeMainNet NEO main network.
+		// ModeTestNet Neo test network.
+		// ModeMainNet Neo main network.
 		Net netmode.Magic
 
 		// Relay determines whether the server is forwarding its inventory.

@@ -2,7 +2,7 @@ package opcode
 
 //go:generate stringer -type=Opcode -linecomment
 
-// Opcode represents a single operation code for the NEO virtual machine.
+// Opcode represents a single operation code for the Neo virtual machine.
 type Opcode byte
 
 // Viable list of supported instruction constants.

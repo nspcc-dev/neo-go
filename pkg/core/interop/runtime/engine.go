@@ -152,7 +152,7 @@ func GetTime(ic *interop.Context) error {
 	return nil
 }
 
-// BurnGas burns GAS to benefit NEO ecosystem.
+// BurnGas burns GAS to benefit Neo ecosystem.
 func BurnGas(ic *interop.Context) error {
 	gas := ic.VM.Estack().Pop().BigInt()
 	if !gas.IsInt64() {

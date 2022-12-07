@@ -107,7 +107,7 @@ func NewCommands() []cli.Command {
 	signFlags = append(signFlags, options.RPC...)
 	return []cli.Command{{
 		Name:  "wallet",
-		Usage: "create, open and manage a NEO wallet",
+		Usage: "create, open and manage a Neo wallet",
 		Subcommands: []cli.Command{
 			{
 				Name:      "claim",
@@ -145,7 +145,7 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:      "convert",
-				Usage:     "convert addresses from existing NEO2 NEP6-wallet to NEO3 format",
+				Usage:     "convert addresses from existing Neo Legacy NEP6-wallet to Neo N3 format",
 				UsageText: "neo-go wallet convert -w legacywallet [--wallet-config path] -o n3wallet",
 				Action:    convertWallet,
 				Flags: []cli.Flag{
@@ -169,7 +169,7 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:      "dump",
-				Usage:     "check and dump an existing NEO wallet",
+				Usage:     "check and dump an existing Neo wallet",
 				UsageText: "neo-go wallet dump -w wallet [--wallet-config path] [-d]",
 				Description: `Prints the given wallet (via -w option or via wallet configuration file) in JSON
    format to the standard output. If -d is given, private keys are unencrypted and

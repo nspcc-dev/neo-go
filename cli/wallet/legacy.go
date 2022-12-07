@@ -35,7 +35,7 @@ type (
 	}
 )
 
-// newWalletV2FromFile reads a NEO2 wallet from the file.
+// newWalletV2FromFile reads a Neo Legacy wallet from the file.
 // This should be used read-only, no operations are supported on the returned wallet.
 func newWalletV2FromFile(path string, configPath string) (*walletV2, *string, error) {
 	if len(path) != 0 && len(configPath) != 0 {
@@ -127,7 +127,7 @@ func getNumOfThingsFromInstr(script []byte) (int, int, bool) {
 
 const minMultisigLen = 37
 
-// parseMultisigContract accepts a multisig verification script from NEO2
+// parseMultisigContract accepts a multisig verification script from Neo2
 // and returns a list of public keys in the same order as in the script.
 func parseMultisigContract(script []byte) (int, keys.PublicKeys, bool) {
 	// It should contain at least 1 public key.
