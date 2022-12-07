@@ -1351,7 +1351,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			v.refs.Remove(toRemove)
 		case *stackitem.Map:
 			index := t.Index(key.Item())
-			// NEO 2.0 doesn't error on missing key.
+			// No error on missing key.
 			if index >= 0 {
 				elems := t.Value().([]stackitem.MapElement)
 				key := elems[index].Key

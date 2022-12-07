@@ -1,6 +1,6 @@
 # NeoGo smart contract compiler
 
-The neo-go compiler compiles Go programs to a bytecode that the NEO virtual machine can understand.
+The neo-go compiler compiles Go programs to a bytecode that the Neo virtual machine can understand.
 
 ## Language compatibility
 
@@ -33,8 +33,8 @@ a dialect of Go rather than a complete port of the language:
    it's up to the programmer whether assert can be performed successfully.
 
 ## VM API (interop layer)
-Compiler translates interop function calls into NEO VM syscalls or (for custom
-functions) into NEO VM instructions. [Refer to
+Compiler translates interop function calls into Neo VM syscalls or (for custom
+functions) into Neo VM instructions. [Refer to
 pkg.go.dev](https://pkg.go.dev/github.com/nspcc-dev/neo-go/pkg/interop)
 for full API documentation. In general it provides the same level of
 functionality as Neo .net Framework library.

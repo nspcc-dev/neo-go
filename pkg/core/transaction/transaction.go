@@ -32,7 +32,7 @@ const (
 // ErrInvalidWitnessNum returns when the number of witnesses does not match signers.
 var ErrInvalidWitnessNum = errors.New("number of signers doesn't match witnesses")
 
-// Transaction is a process recorded in the NEO blockchain.
+// Transaction is a process recorded in the Neo blockchain.
 type Transaction struct {
 	// The trading version which is currently 0.
 	Version uint8

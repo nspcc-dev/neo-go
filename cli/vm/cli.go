@@ -434,7 +434,7 @@ func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg
 	ctl.Writer = l.Stdout()
 	ctl.ErrWriter = l.Stderr()
 	ctl.Version = config.Version
-	ctl.Usage = "Official VM CLI for Neo-Go"
+	ctl.Usage = "Official VM CLI for NeoGo"
 
 	// Override default error handler in order not to exit on error.
 	ctl.ExitErrHandler = func(context *cli.Context, err error) {}

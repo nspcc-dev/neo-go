@@ -2312,7 +2312,7 @@ func (s *Server) terminateSession(reqParams params.Params) (interface{}, *neorpc
 	return ok, nil
 }
 
-// submitBlock broadcasts a raw block over the NEO network.
+// submitBlock broadcasts a raw block over the Neo network.
 func (s *Server) submitBlock(reqParams params.Params) (interface{}, *neorpc.Error) {
 	blockBytes, err := reqParams.Value(0).GetBytesBase64()
 	if err != nil {
@@ -2338,7 +2338,7 @@ func (s *Server) submitBlock(reqParams params.Params) (interface{}, *neorpc.Erro
 	}, nil
 }
 
-// submitNotaryRequest broadcasts P2PNotaryRequest over the NEO network.
+// submitNotaryRequest broadcasts P2PNotaryRequest over the Neo network.
 func (s *Server) submitNotaryRequest(ps params.Params) (interface{}, *neorpc.Error) {
 	if !s.chain.P2PSigExtensionsEnabled() {
 		return nil, neorpc.NewRPCError("P2PSignatureExtensions are disabled", "")
@@ -2796,7 +2796,7 @@ func (s *Server) writeHTTPServerResponse(r *params.Request, w http.ResponseWrite
 	}
 }
 
-// validateAddress verifies that the address is a correct NEO address
+// validateAddress verifies that the address is a correct Neo address
 // see https://docs.neo.org/en-us/node/cli/2.9.4/api/validateaddress.html
 func validateAddress(addr interface{}) bool {
 	if addr, ok := addr.(string); ok {

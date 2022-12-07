@@ -1,9 +1,9 @@
-# NEO-GO smart contract examples
+# NeoGo smart contract examples
 
 `examples` directory contains smart contract examples written in Go. 
 These examples are aimed to demonstrate the basic usage of Go programming 
-language to write NEO smart contracts as far as to provide a brief introduction
-to the NEO-specific interop package application.
+language to write Neo smart contracts as far as to provide a brief introduction
+to the Neo-specific interop package application.
 
 ## Examples structure
 
@@ -22,9 +22,9 @@ See the table below for the detailed examples description.
 
 | Example                  | Description |
 |--------------------------| --- |
-| [engine](engine)         | This contract demonstrates how to use `runtime` interop package which implements an API for `System.Runtime.*` NEO system calls. Please, refer to the `runtime` [package documentation](../pkg/interop/doc.go) for details. |
+| [engine](engine)         | This contract demonstrates how to use `runtime` interop package which implements an API for `System.Runtime.*` Neo system calls. Please, refer to the `runtime` [package documentation](../pkg/interop/doc.go) for details. |
 | [events](events)         | The contract shows how execution notifications with the different arguments types can be sent with the help of `runtime.Notify` function of the `runtime` interop package. Please, refer to the `runtime.Notify` [function documentation](../pkg/interop/runtime/runtime.go) for details. |
-| [iterator](iterator)     | This example describes a way to work with NEO iterators. Please, refer to the `iterator` [package documentation](../pkg/interop/iterator/iterator.go) for details. |
+| [iterator](iterator)     | This example describes a way to work with Neo iterators. Please, refer to the `iterator` [package documentation](../pkg/interop/iterator/iterator.go) for details. |
 | [nft-d](nft-d)           | NEP-11 divisible NFT. See NEP-11 token standard [specification](https://github.com/neo-project/proposals/blob/master/nep-11.mediawiki) for details. |
 | [nft-nd](nft-nd)         | NEP-11 non-divisible NFT. See NEP-11 token standard [specification](https://github.com/neo-project/proposals/blob/master/nep-11.mediawiki) for details. |
 | [nft-nd-nns](nft-nd-nns) | Neo Name Service contract which is NEP-11 non-divisible NFT. The contract implements methods for Neo domain name system managing such as domains registration/transferring, records addition and names resolving. The package also contains tests implemented with [neotest](https://pkg.go.dev/github.com/nspcc-dev/neo-go/pkg/neotest). |
@@ -53,7 +53,7 @@ To deploy smart contracts, refer to the
 
 Feel free to explore neo-go smart contract development 
 [workshop](https://github.com/nspcc-dev/neo-go-sc-wrkshp) to get the basic
-concepts of how to develop, compile, debug and deploy NEO smart contracts written
+concepts of how to develop, compile, debug and deploy Neo smart contracts written
 in go.
 
 

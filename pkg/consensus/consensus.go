@@ -34,7 +34,7 @@ import (
 // from C# implementation https://github.com/neo-project/neo/blob/master/neo/Ledger/Blockchain.cs#L64
 const cacheMaxCapacity = 100
 
-// defaultTimePerBlock is a period between blocks which is used in NEO.
+// defaultTimePerBlock is a period between blocks which is used in Neo.
 const defaultTimePerBlock = 15 * time.Second
 
 // Number of nanoseconds in millisecond.

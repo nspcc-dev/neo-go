@@ -84,7 +84,7 @@ func NewCommands() []cli.Command {
 	return []cli.Command{
 		{
 			Name:      "node",
-			Usage:     "start a NEO node",
+			Usage:     "start a NeoGo node",
 			UsageText: "neo-go node [--config-path path] [-d] [-p/-m/-t]",
 			Action:    startServer,
 			Flags:     cfgFlags,
@@ -673,7 +673,7 @@ func initBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, stora
 	return chain, store, nil
 }
 
-// Logo returns Neo-Go logo.
+// Logo returns NeoGo logo.
 func Logo() string {
 	return `
     _   ____________        __________

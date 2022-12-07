@@ -197,7 +197,7 @@ func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
 	}, nil
 }
 
-// Compile compiles a Go program into a bytecode that can run on the NEO virtual machine.
+// Compile compiles a Go program into a bytecode that can run on the Neo virtual machine.
 // If `r != nil`, `name` is interpreted as a filename, and `r` as file contents.
 // Otherwise `name` is either a file name or a name of the directory containing source files.
 func Compile(name string, r io.Reader) ([]byte, error) {

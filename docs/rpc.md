@@ -289,4 +289,4 @@ the client as JSON-RPC notifications. More details on that are written in the
 ## Reference
 
 * [JSON-RPC 2.0 Specification](http://www.jsonrpc.org/specification)
-* [NEO JSON-RPC 2.0 docs](https://docs.neo.org/docs/en-us/reference/rpc/latest-version/api.html)
+* [Neo JSON-RPC 2.0 docs](https://docs.neo.org/docs/en-us/reference/rpc/latest-version/api.html)

@@ -94,7 +94,7 @@ func (t Token) CanTransfer(ctx storage.Context, from []byte, to []byte, amount i
 	return amountFrom
 }
 
-// IsUsableAddress checks if the sender is either the correct NEO address or SC address
+// IsUsableAddress checks if the sender is either the correct Neo address or SC address
 func IsUsableAddress(addr []byte) bool {
 	if len(addr) == 20 {
 
