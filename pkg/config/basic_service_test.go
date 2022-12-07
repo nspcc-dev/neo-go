@@ -8,7 +8,7 @@ import (
 
 func TestBasicService_GetAddresses(t *testing.T) {
 	addr := "1.2.3.4"
-	port := uint16(1234)
+	port := "1234"
 	s := BasicService{
 		Enabled: false,
 		Address: &addr,

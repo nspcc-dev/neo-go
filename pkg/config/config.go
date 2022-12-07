@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"gopkg.in/yaml.v3"
@@ -66,8 +67,8 @@ func LoadFile(configPath string) (Config, error) {
 	config := Config{
 		ApplicationConfiguration: ApplicationConfiguration{
 			P2P: P2P{
-				PingInterval: 30,
-				PingTimeout:  30,
+				PingInterval: 30 * time.Second,
+				PingTimeout:  90 * time.Second,
 			},
 			RPC: RPC{
 				MaxIteratorResultItems: DefaultMaxIteratorResultItems,

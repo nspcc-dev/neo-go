@@ -2,7 +2,6 @@ package config
 
 import (
 	"net"
-	"strconv"
 )
 
 // BasicService is used as a simple base for node services like Pprof, RPC or
@@ -12,7 +11,7 @@ type BasicService struct {
 	// Deprecated: please, use Addresses section instead. This field will be removed later.
 	Address *string `yaml:"Address,omitempty"`
 	// Deprecated: please, use Addresses section instead. This field will be removed later.
-	Port *uint16 `yaml:"Port,omitempty"`
+	Port *string `yaml:"Port,omitempty"`
 	// Addresses holds the list of bind addresses in the form of "address:port".
 	Addresses []string `yaml:"Addresses"`
 }
@@ -25,7 +24,7 @@ func (s BasicService) GetAddresses() []string {
 	if s.Address != nil || s.Port != nil { //nolint:staticcheck // SA1019: s.Address is deprecated
 		var (
 			addr string
-			port uint16
+			port string
 		)
 		if s.Address != nil { //nolint:staticcheck // SA1019: s.Address is deprecated
 			addr = *s.Address //nolint:staticcheck // SA1019: s.Address is deprecated
@@ -33,7 +32,7 @@ func (s BasicService) GetAddresses() []string {
 		if s.Port != nil { //nolint:staticcheck // SA1019: s.Port is deprecated
 			port = *s.Port //nolint:staticcheck // SA1019: s.Port is deprecated
 		}
-		addrs = append(addrs, net.JoinHostPort(addr, strconv.FormatUint(uint64(port), 10)))
+		addrs = append(addrs, net.JoinHostPort(addr, port))
 	}
 	return addrs
 }

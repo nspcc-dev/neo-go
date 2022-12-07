@@ -20,5 +20,5 @@ MaxGasInvoke: 15
 	err := yaml.Unmarshal([]byte(data), &cfg)
 	require.NoError(t, err)
 	require.True(t, cfg.Enabled)
-	require.Equal(t, uint16(10332), *cfg.Port)
+	require.Equal(t, "10332", *cfg.Port)
 }
