@@ -12,6 +12,8 @@ import (
 
 // ApplicationConfiguration config specific to the node.
 type ApplicationConfiguration struct {
+	Ledger `yaml:",inline"`
+
 	// Deprecated: please, use Addresses field of P2P section instead, this field will be removed in future versions.
 	Address *string `yaml:"Address,omitempty"`
 	// Deprecated: please, use Addresses field of P2P section instead, this field will be removed in future versions.

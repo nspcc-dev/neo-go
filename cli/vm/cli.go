@@ -468,7 +468,7 @@ func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg
 		onExit(i)
 	}
 
-	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration, fLog)
+	chain, err := core.NewBlockchain(store, cfg.Blockchain(), fLog)
 	if err != nil {
 		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %w", err), 1)
 	}

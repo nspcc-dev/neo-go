@@ -33,7 +33,6 @@ ProtocolConfiguration:
   - seed3.neo.org:10333
   - seed4.neo.org:10333
   - seed5.neo.org:10333
-  VerifyBlocks: true
   VerifyTransactions: false
   P2PSigExtensions: false
   Hardforks:
@@ -50,6 +49,7 @@ ProtocolConfiguration:
     OracleContract: [0]
 
 ApplicationConfiguration:
+  SkipBlockVerification: false
   # LogPath could be set up in case you need stdout logs to some proper file.
   # LogPath: "./log/neogo.log"
   DBConfiguration:

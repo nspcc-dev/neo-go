@@ -298,7 +298,7 @@ func checkVoteBroadcasted(t *testing.T, bc *core.Blockchain, p *payload.Extensib
 }
 
 func TestStateroot_GetLatestStateHeight(t *testing.T) {
-	bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+	bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
 		c.P2PSigExtensions = true
 	})
 	e := neotest.NewExecutor(t, bc, validators, committee)

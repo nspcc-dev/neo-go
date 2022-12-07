@@ -13,7 +13,7 @@ import (
 type DumperRestorer interface {
 	AddBlock(block *block.Block) error
 	GetBlock(hash util.Uint256) (*block.Block, error)
-	GetConfig() config.ProtocolConfiguration
+	GetConfig() config.Blockchain
 	GetHeaderHash(uint32) util.Uint256
 }
 

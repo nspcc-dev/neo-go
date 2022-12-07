@@ -65,7 +65,7 @@ func generateOracleContract(t *testing.T, saveState bool) {
 // native hashes and saves the generated NEF and manifest to `management_contract` folder.
 // Set `saveState` flag to true and run the test to rewrite NEF and manifest files.
 func generateManagementHelperContracts(t *testing.T, saveState bool) {
-	bc, validator, committee := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+	bc, validator, committee := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
 		c.P2PSigExtensions = true
 	})
 	e := neotest.NewExecutor(t, bc, validator, committee)

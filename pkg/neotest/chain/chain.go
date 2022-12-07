@@ -128,7 +128,7 @@ func NewSingle(t testing.TB) (*core.Blockchain, neotest.Signer) {
 
 // NewSingleWithCustomConfig is similar to NewSingle, but allows to override the
 // default configuration.
-func NewSingleWithCustomConfig(t testing.TB, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer) {
+func NewSingleWithCustomConfig(t testing.TB, f func(*config.Blockchain)) (*core.Blockchain, neotest.Signer) {
 	return NewSingleWithCustomConfigAndStore(t, f, nil, true)
 }
 
@@ -137,24 +137,26 @@ func NewSingleWithCustomConfig(t testing.TB, f func(*config.ProtocolConfiguratio
 // Run method is called on the Blockchain instance. If not, it is its caller's
 // responsibility to do that before using the chain and
 // to properly Close the chain when done.
-func NewSingleWithCustomConfigAndStore(t testing.TB, f func(cfg *config.ProtocolConfiguration), st storage.Store, run bool) (*core.Blockchain, neotest.Signer) {
-	protoCfg := config.ProtocolConfiguration{
-		Magic:              netmode.UnitTestNet,
-		MaxTraceableBlocks: MaxTraceableBlocks,
-		TimePerBlock:       TimePerBlock,
-		StandbyCommittee:   []string{hex.EncodeToString(committeeAcc.PublicKey().Bytes())},
-		ValidatorsCount:    1,
-		VerifyBlocks:       true,
-		VerifyTransactions: true,
+func NewSingleWithCustomConfigAndStore(t testing.TB, f func(cfg *config.Blockchain), st storage.Store, run bool) (*core.Blockchain, neotest.Signer) {
+	var cfg = config.Blockchain{
+		ProtocolConfiguration: config.ProtocolConfiguration{
+			Magic:              netmode.UnitTestNet,
+			MaxTraceableBlocks: MaxTraceableBlocks,
+			TimePerBlock:       TimePerBlock,
+			StandbyCommittee:   []string{hex.EncodeToString(committeeAcc.PublicKey().Bytes())},
+			ValidatorsCount:    1,
+			VerifyTransactions: true,
+		},
 	}
+
 	if f != nil {
-		f(&protoCfg)
+		f(&cfg)
 	}
 	if st == nil {
 		st = storage.NewMemoryStore()
 	}
 	log := zaptest.NewLogger(t)
-	bc, err := core.NewBlockchain(st, protoCfg, log)
+	bc, err := core.NewBlockchain(st, cfg, log)
 	require.NoError(t, err)
 	if run {
 		go bc.Run()
@@ -172,7 +174,7 @@ func NewMulti(t testing.TB) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 
 // NewMultiWithCustomConfig is similar to NewMulti, except it allows to override the
 // default configuration.
-func NewMultiWithCustomConfig(t testing.TB, f func(*config.ProtocolConfiguration)) (*core.Blockchain, neotest.Signer, neotest.Signer) {
+func NewMultiWithCustomConfig(t testing.TB, f func(*config.Blockchain)) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 	return NewMultiWithCustomConfigAndStore(t, f, nil, true)
 }
 
@@ -181,7 +183,7 @@ func NewMultiWithCustomConfig(t testing.TB, f func(*config.ProtocolConfiguration
 // Run method is called on the Blockchain instance. If not, it is its caller's
 // responsibility to do that before using the chain and
 // to properly Close the chain when done.
-func NewMultiWithCustomConfigAndStore(t testing.TB, f func(*config.ProtocolConfiguration), st storage.Store, run bool) (*core.Blockchain, neotest.Signer, neotest.Signer) {
+func NewMultiWithCustomConfigAndStore(t testing.TB, f func(*config.Blockchain), st storage.Store, run bool) (*core.Blockchain, neotest.Signer, neotest.Signer) {
 	bc, validator, committee, err := NewMultiWithCustomConfigAndStoreNoCheck(t, f, st)
 	require.NoError(t, err)
 	if run {
@@ -193,24 +195,25 @@ func NewMultiWithCustomConfigAndStore(t testing.TB, f func(*config.ProtocolConfi
 
 // NewMultiWithCustomConfigAndStoreNoCheck is similar to NewMultiWithCustomConfig,
 // but do not perform Blockchain run and do not check Blockchain constructor error.
-func NewMultiWithCustomConfigAndStoreNoCheck(t testing.TB, f func(*config.ProtocolConfiguration), st storage.Store) (*core.Blockchain, neotest.Signer, neotest.Signer, error) {
-	protoCfg := config.ProtocolConfiguration{
-		Magic:              netmode.UnitTestNet,
-		MaxTraceableBlocks: MaxTraceableBlocks,
-		TimePerBlock:       TimePerBlock,
-		StandbyCommittee:   standByCommittee,
-		ValidatorsCount:    4,
-		VerifyBlocks:       true,
-		VerifyTransactions: true,
+func NewMultiWithCustomConfigAndStoreNoCheck(t testing.TB, f func(*config.Blockchain), st storage.Store) (*core.Blockchain, neotest.Signer, neotest.Signer, error) {
+	var cfg = config.Blockchain{
+		ProtocolConfiguration: config.ProtocolConfiguration{
+			Magic:              netmode.UnitTestNet,
+			MaxTraceableBlocks: MaxTraceableBlocks,
+			TimePerBlock:       TimePerBlock,
+			StandbyCommittee:   standByCommittee,
+			ValidatorsCount:    4,
+			VerifyTransactions: true,
+		},
 	}
 	if f != nil {
-		f(&protoCfg)
+		f(&cfg)
 	}
 	if st == nil {
 		st = storage.NewMemoryStore()
 	}
 
 	log := zaptest.NewLogger(t)
-	bc, err := core.NewBlockchain(st, protoCfg, log)
+	bc, err := core.NewBlockchain(st, cfg, log)
 	return bc, neotest.NewMultiSigner(multiValidatorAcc...), neotest.NewMultiSigner(multiCommitteeAcc...), err
 }

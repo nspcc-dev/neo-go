@@ -64,7 +64,7 @@ const (
 type Ledger interface {
 	AddHeaders(...*block.Header) error
 	BlockHeight() uint32
-	GetConfig() config.ProtocolConfiguration
+	GetConfig() config.Blockchain
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	GetHeaderHash(uint32) util.Uint256
 	HeaderHeight() uint32
@@ -97,7 +97,7 @@ type Module struct {
 
 // NewModule returns new instance of statesync module.
 func NewModule(bc Ledger, stateMod *stateroot.Module, log *zap.Logger, s *dao.Simple, jumpCallback func(p uint32) error) *Module {
-	if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().RemoveUntraceableBlocks) {
+	if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().Ledger.RemoveUntraceableBlocks) {
 		return &Module{
 			dao:       s,
 			bc:        bc,
@@ -220,7 +220,7 @@ func (s *Module) defineSyncStage() error {
 		}
 		var mode mpt.TrieMode
 		// No need to enable GC here, it only has latest things.
-		if s.bc.GetConfig().KeepOnlyLatestState || s.bc.GetConfig().RemoveUntraceableBlocks {
+		if s.bc.GetConfig().Ledger.KeepOnlyLatestState || s.bc.GetConfig().Ledger.RemoveUntraceableBlocks {
 			mode |= mpt.ModeLatest
 		}
 		s.billet = mpt.NewBillet(header.PrevStateRoot, mode,
@@ -323,7 +323,7 @@ func (s *Module) AddBlock(block *block.Block) error {
 	if s.bc.GetConfig().StateRootInHeader != block.StateRootEnabled {
 		return fmt.Errorf("stateroot setting mismatch: %v != %v", s.bc.GetConfig().StateRootInHeader, block.StateRootEnabled)
 	}
-	if s.bc.GetConfig().VerifyBlocks {
+	if !s.bc.GetConfig().SkipBlockVerification {
 		merkle := block.ComputeMerkleRoot()
 		if !block.MerkleRoot.Equals(merkle) {
 			return errors.New("invalid block: MerkleRoot mismatch")
@@ -492,7 +492,7 @@ func (s *Module) Traverse(root util.Uint256, process func(node mpt.Node, nodeByt
 
 	var mode mpt.TrieMode
 	// GC must be turned off here to allow access to the archived nodes.
-	if s.bc.GetConfig().KeepOnlyLatestState || s.bc.GetConfig().RemoveUntraceableBlocks {
+	if s.bc.GetConfig().Ledger.KeepOnlyLatestState || s.bc.GetConfig().Ledger.RemoveUntraceableBlocks {
 		mode |= mpt.ModeLatest
 	}
 	b := mpt.NewBillet(root, mode, 0, storage.NewMemCachedStore(s.dao.Store))

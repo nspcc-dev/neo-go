@@ -56,10 +56,11 @@ func (f *fakeConsensus) OnTransaction(tx *transaction.Transaction) {
 func (f *fakeConsensus) GetPayload(h util.Uint256) *payload.Extensible { panic("implement me") }
 
 func TestNewServer(t *testing.T) {
-	bc := &fakechain.FakeChain{ProtocolConfiguration: config.ProtocolConfiguration{
-		P2PStateExchangeExtensions: true,
-		StateRootInHeader:          true,
-	}}
+	bc := &fakechain.FakeChain{Blockchain: config.Blockchain{
+		ProtocolConfiguration: config.ProtocolConfiguration{
+			P2PStateExchangeExtensions: true,
+			StateRootInHeader:          true,
+		}}}
 	s, err := newServerFromConstructors(ServerConfig{}, bc, new(fakechain.FakeStateSync), nil, newFakeTransp, newTestDiscovery)
 	require.Error(t, err)
 
@@ -387,7 +388,7 @@ func (s *Server) testHandleMessage(t *testing.T, p Peer, cmd CommandType, pl pay
 	return s
 }
 
-func startTestServer(t *testing.T, protocolCfg ...func(*config.ProtocolConfiguration)) *Server {
+func startTestServer(t *testing.T, protocolCfg ...func(*config.Blockchain)) *Server {
 	var s *Server
 	srvCfg := ServerConfig{UserAgent: "/test/"}
 	if protocolCfg != nil {
@@ -820,15 +821,15 @@ func TestHandleGetMPTData(t *testing.T) {
 		require.Eventually(t, recvResponse.Load, time.Second, time.Millisecond)
 	}
 	t.Run("KeepOnlyLatestState on", func(t *testing.T) {
-		s := startTestServer(t, func(c *config.ProtocolConfiguration) {
+		s := startTestServer(t, func(c *config.Blockchain) {
 			c.P2PStateExchangeExtensions = true
-			c.KeepOnlyLatestState = true
+			c.Ledger.KeepOnlyLatestState = true
 		})
 		check(t, s)
 	})
 
 	t.Run("good", func(t *testing.T) {
-		s := startTestServer(t, func(c *config.ProtocolConfiguration) {
+		s := startTestServer(t, func(c *config.Blockchain) {
 			c.P2PStateExchangeExtensions = true
 		})
 		check(t, s)

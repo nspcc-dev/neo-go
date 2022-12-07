@@ -90,7 +90,7 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	})
 
 	t.Run("fail, bad NativeUpdateHistory height", func(t *testing.T) {
-		bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+		bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
 			c.NativeUpdateHistories = map[string][]uint32{
 				nativenames.Policy:      {0},
 				nativenames.Neo:         {0},

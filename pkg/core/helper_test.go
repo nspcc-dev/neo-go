@@ -52,7 +52,7 @@ func initTestChainNoCheck(t testing.TB, st storage.Store, f func(*config.Config)
 	if _, ok := t.(*testing.B); ok {
 		log = zap.NewNop()
 	}
-	return NewBlockchain(st, unitTestNetCfg.ProtocolConfiguration, log)
+	return NewBlockchain(st, unitTestNetCfg.Blockchain(), log)
 }
 
 func (bc *Blockchain) newBlock(txs ...*transaction.Transaction) *block.Block {
@@ -69,9 +69,9 @@ func (bc *Blockchain) newBlock(txs ...*transaction.Transaction) *block.Block {
 		if err != nil {
 			panic(err)
 		}
-		return newBlockWithState(bc.config, lastBlock.Index+1, lastBlock.Hash(), &sr.Root, txs...)
+		return newBlockWithState(bc.config.ProtocolConfiguration, lastBlock.Index+1, lastBlock.Hash(), &sr.Root, txs...)
 	}
-	return newBlock(bc.config, lastBlock.Index+1, lastBlock.Hash(), txs...)
+	return newBlock(bc.config.ProtocolConfiguration, lastBlock.Index+1, lastBlock.Hash(), txs...)
 }
 
 func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256, txs ...*transaction.Transaction) *block.Block {
@@ -118,7 +118,7 @@ func (bc *Blockchain) genBlocks(n int) ([]*block.Block, error) {
 	lastHash := bc.topBlock.Load().(*block.Block).Hash()
 	lastIndex := bc.topBlock.Load().(*block.Block).Index
 	for i := 0; i < n; i++ {
-		blocks[i] = newBlock(bc.config, uint32(i)+lastIndex+1, lastHash)
+		blocks[i] = newBlock(bc.config.ProtocolConfiguration, uint32(i)+lastIndex+1, lastHash)
 		if err := bc.AddBlock(blocks[i]); err != nil {
 			return blocks, err
 		}

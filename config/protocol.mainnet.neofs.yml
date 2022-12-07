@@ -21,7 +21,6 @@ ProtocolConfiguration:
   - morph5.fs.neo.org:40333
   - morph6.fs.neo.org:40333
   - morph7.fs.neo.org:40333
-  VerifyBlocks: true
   VerifyTransactions: true
   P2PSigExtensions: false
   Hardforks:
@@ -38,6 +37,7 @@ ProtocolConfiguration:
     OracleContract: [0]
 
 ApplicationConfiguration:
+  SkipBlockVerification: false
   # LogPath could be set up in case you need stdout logs to some proper file.
   # LogPath: "./log/neogo.log"
   DBConfiguration:

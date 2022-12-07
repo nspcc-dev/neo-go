@@ -50,7 +50,7 @@ func TestNewWatchingService(t *testing.T) {
 		Logger:                zaptest.NewLogger(t),
 		Broadcast:             func(*npayload.Extensible) {},
 		Chain:                 bc,
-		ProtocolConfiguration: bc.GetConfig(),
+		ProtocolConfiguration: bc.GetConfig().ProtocolConfiguration,
 		RequestTx:             func(...util.Uint256) {},
 		StopTxFlow:            func() {},
 		TimePerBlock:          bc.GetConfig().TimePerBlock,
@@ -495,7 +495,7 @@ func newTestServiceWithChain(t *testing.T, bc *core.Blockchain) *service {
 		Logger:                zaptest.NewLogger(t),
 		Broadcast:             func(*npayload.Extensible) {},
 		Chain:                 bc,
-		ProtocolConfiguration: bc.GetConfig(),
+		ProtocolConfiguration: bc.GetConfig().ProtocolConfiguration,
 		RequestTx:             func(...util.Uint256) {},
 		StopTxFlow:            func() {},
 		TimePerBlock:          bc.GetConfig().TimePerBlock,
@@ -519,7 +519,7 @@ func newSingleTestChain(t *testing.T) *core.Blockchain {
 	cfg, err := config.LoadFile(configPath)
 	require.NoError(t, err, "could not load config")
 
-	chain, err := core.NewBlockchain(storage.NewMemoryStore(), cfg.ProtocolConfiguration, zaptest.NewLogger(t))
+	chain, err := core.NewBlockchain(storage.NewMemoryStore(), cfg.Blockchain(), zaptest.NewLogger(t))
 	require.NoError(t, err, "could not create chain")
 
 	go chain.Run()
@@ -532,7 +532,7 @@ func newTestChain(t *testing.T, stateRootInHeader bool) *core.Blockchain {
 	require.NoError(t, err)
 	unitTestNetCfg.ProtocolConfiguration.StateRootInHeader = stateRootInHeader
 
-	chain, err := core.NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.ProtocolConfiguration, zaptest.NewLogger(t))
+	chain, err := core.NewBlockchain(storage.NewMemoryStore(), unitTestNetCfg.Blockchain(), zaptest.NewLogger(t))
 	require.NoError(t, err)
 
 	go chain.Run()

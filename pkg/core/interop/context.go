@@ -39,7 +39,7 @@ type Ledger interface {
 	BlockHeight() uint32
 	CurrentBlockHash() util.Uint256
 	GetBlock(hash util.Uint256) (*block.Block, error)
-	GetConfig() config.ProtocolConfiguration
+	GetConfig() config.Blockchain
 	GetHeaderHash(uint32) util.Uint256
 }
 
@@ -75,7 +75,7 @@ func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, bas
 	loadTokenFunc func(ic *Context, id int32) error,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
 	dao := d.GetPrivate()
-	cfg := bc.GetConfig()
+	cfg := bc.GetConfig().ProtocolConfiguration
 	return &Context{
 		Chain:          bc,
 		Network:        uint32(cfg.Magic),

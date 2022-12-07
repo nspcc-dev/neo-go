@@ -62,7 +62,7 @@ func newLevelDBForTestingWithPath(t testing.TB, dbPath string) (storage.Store, s
 
 func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	ps, path := newLevelDBForTestingWithPath(t, "")
-	customConfig := func(c *config.ProtocolConfiguration) {
+	customConfig := func(c *config.Blockchain) {
 		c.StateRootInHeader = true // Need for P2PStateExchangeExtensions check.
 		c.P2PSigExtensions = true  // Need for basic chain initializer.
 	}
@@ -106,7 +106,7 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	})
 	t.Run("mismatch StateRootInHeader", func(t *testing.T) {
 		ps = newPS(t)
-		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.ProtocolConfiguration) {
+		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.Blockchain) {
 			customConfig(c)
 			c.StateRootInHeader = false
 		}, ps)
@@ -115,7 +115,7 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	})
 	t.Run("mismatch P2PSigExtensions", func(t *testing.T) {
 		ps = newPS(t)
-		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.ProtocolConfiguration) {
+		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.Blockchain) {
 			customConfig(c)
 			c.P2PSigExtensions = false
 		}, ps)
@@ -124,7 +124,7 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	})
 	t.Run("mismatch P2PStateExchangeExtensions", func(t *testing.T) {
 		ps = newPS(t)
-		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.ProtocolConfiguration) {
+		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.Blockchain) {
 			customConfig(c)
 			c.StateRootInHeader = true
 			c.P2PStateExchangeExtensions = true
@@ -134,9 +134,9 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	})
 	t.Run("mismatch KeepOnlyLatestState", func(t *testing.T) {
 		ps = newPS(t)
-		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.ProtocolConfiguration) {
+		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.Blockchain) {
 			customConfig(c)
-			c.KeepOnlyLatestState = true
+			c.Ledger.KeepOnlyLatestState = true
 		}, ps)
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), "KeepOnlyLatestState setting mismatch"), err)
@@ -228,7 +228,7 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	*/
 	t.Run("invalid native contract deactivation", func(t *testing.T) {
 		ps = newPS(t)
-		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.ProtocolConfiguration) {
+		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.Blockchain) {
 			customConfig(c)
 			c.NativeUpdateHistories = map[string][]uint32{
 				nativenames.Policy:      {0},
@@ -291,7 +291,7 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 }
 
 func TestBlockchain_AddHeaders(t *testing.T) {
-	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 		c.StateRootInHeader = true
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
@@ -342,7 +342,7 @@ func TestBlockchain_AddHeaders(t *testing.T) {
 }
 
 func TestBlockchain_AddBlockStateRoot(t *testing.T) {
-	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 		c.StateRootInHeader = true
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
@@ -371,7 +371,7 @@ func TestBlockchain_AddBlockStateRoot(t *testing.T) {
 }
 
 func TestBlockchain_AddHeadersStateRoot(t *testing.T) {
-	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 		c.StateRootInHeader = true
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
@@ -401,7 +401,7 @@ func TestBlockchain_AddHeadersStateRoot(t *testing.T) {
 }
 
 func TestBlockchain_AddBadBlock(t *testing.T) {
-	check := func(t *testing.T, b *block.Block, cfg func(c *config.ProtocolConfiguration)) {
+	check := func(t *testing.T, b *block.Block, cfg func(c *config.Blockchain)) {
 		bc, _ := chain.NewSingleWithCustomConfig(t, cfg)
 		err := bc.AddBlock(b)
 		if cfg == nil {
@@ -420,25 +420,25 @@ func TestBlockchain_AddBadBlock(t *testing.T) {
 	b := e.NewUnsignedBlock(t, tx)
 	e.SignBlock(b)
 	check(t, b, nil)
-	check(t, b, func(c *config.ProtocolConfiguration) {
-		c.VerifyBlocks = false
+	check(t, b, func(c *config.Blockchain) {
+		c.SkipBlockVerification = true
 	})
 
 	b = e.NewUnsignedBlock(t)
 	b.PrevHash = util.Uint256{} // Intentionally make block invalid.
 	e.SignBlock(b)
 	check(t, b, nil)
-	check(t, b, func(c *config.ProtocolConfiguration) {
-		c.VerifyBlocks = false
+	check(t, b, func(c *config.Blockchain) {
+		c.SkipBlockVerification = true
 	})
 
 	tx = e.NewUnsignedTx(t, neoHash, "transfer", acc.ScriptHash(), util.Uint160{1, 2, 3}, 1, nil) // Check the good tx.
 	e.SignTx(t, tx, -1, acc)
 	b = e.NewUnsignedBlock(t, tx)
 	e.SignBlock(b)
-	check(t, b, func(c *config.ProtocolConfiguration) {
+	check(t, b, func(c *config.Blockchain) {
 		c.VerifyTransactions = true
-		c.VerifyBlocks = true
+		c.SkipBlockVerification = false
 	})
 }
 
@@ -584,7 +584,7 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 }
 
 func TestBlockchain_IsTxStillRelevant(t *testing.T) {
-	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 		c.P2PSigExtensions = true
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
@@ -903,10 +903,10 @@ func TestBlockchain_RemoveUntraceable(t *testing.T) {
 		}
 	}
 	t.Run("P2PStateExchangeExtensions off", func(t *testing.T) {
-		bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+		bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 			c.MaxTraceableBlocks = 2
-			c.GarbageCollectionPeriod = 2
-			c.RemoveUntraceableBlocks = true
+			c.Ledger.GarbageCollectionPeriod = 2
+			c.Ledger.RemoveUntraceableBlocks = true
 		})
 		e := neotest.NewExecutor(t, bc, acc, acc)
 		neoValidatorInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Neo))
@@ -934,10 +934,10 @@ func TestBlockchain_RemoveUntraceable(t *testing.T) {
 		check(t, bc, tx1Hash, b1.Hash(), sRoot.Root, true)
 	})
 	t.Run("P2PStateExchangeExtensions on", func(t *testing.T) {
-		bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+		bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 			c.MaxTraceableBlocks = 2
-			c.GarbageCollectionPeriod = 2
-			c.RemoveUntraceableBlocks = true
+			c.Ledger.GarbageCollectionPeriod = 2
+			c.Ledger.RemoveUntraceableBlocks = true
 			c.P2PStateExchangeExtensions = true
 			c.StateSyncInterval = 2
 			c.StateRootInHeader = true
@@ -1047,7 +1047,7 @@ func TestConfigNativeUpdateHistory(t *testing.T) {
 }
 
 func TestBlockchain_VerifyTx(t *testing.T) {
-	bc, validator, committee := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+	bc, validator, committee := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
 		c.P2PSigExtensions = true
 		c.ReservedAttributes = true
 	})
@@ -1467,7 +1467,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				return tx
 			}
 			t.Run("Disabled", func(t *testing.T) {
-				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
 					c.P2PSigExtensions = false
 					c.ReservedAttributes = false
 				})
@@ -1509,7 +1509,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				return tx
 			}
 			t.Run("Disabled", func(t *testing.T) {
-				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
 					c.P2PSigExtensions = false
 					c.ReservedAttributes = false
 				})
@@ -1553,7 +1553,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				return tx
 			}
 			t.Run("disabled", func(t *testing.T) {
-				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
 					c.P2PSigExtensions = false
 					c.ReservedAttributes = false
 				})
@@ -1649,7 +1649,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				return tx
 			}
 			t.Run("Disabled", func(t *testing.T) {
-				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.ProtocolConfiguration) {
+				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
 					c.P2PSigExtensions = false
 					c.ReservedAttributes = false
 				})
@@ -1909,7 +1909,7 @@ func TestBlockchain_Bug1728(t *testing.T) {
 
 func TestBlockchain_ResetStateErrors(t *testing.T) {
 	chainHeight := 3
-	checkResetErr := func(t *testing.T, cfg func(c *config.ProtocolConfiguration), h uint32, errText string) {
+	checkResetErr := func(t *testing.T, cfg func(c *config.Blockchain), h uint32, errText string) {
 		db, path := newLevelDBForTestingWithPath(t, t.TempDir())
 		bc, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, cfg, db, false)
 		e := neotest.NewExecutor(t, bc, validators, committee)
@@ -1937,13 +1937,13 @@ func TestBlockchain_ResetStateErrors(t *testing.T) {
 		checkResetErr(t, nil, uint32(chainHeight), "")
 	})
 	t.Run("KeepOnlyLatestState is enabled", func(t *testing.T) {
-		checkResetErr(t, func(c *config.ProtocolConfiguration) {
-			c.KeepOnlyLatestState = true
+		checkResetErr(t, func(c *config.Blockchain) {
+			c.Ledger.KeepOnlyLatestState = true
 		}, uint32(chainHeight-1), "KeepOnlyLatestState is enabled")
 	})
 	t.Run("some blocks where removed", func(t *testing.T) {
-		checkResetErr(t, func(c *config.ProtocolConfiguration) {
-			c.RemoveUntraceableBlocks = true
+		checkResetErr(t, func(c *config.Blockchain) {
+			c.Ledger.RemoveUntraceableBlocks = true
 			c.MaxTraceableBlocks = 2
 		}, uint32(chainHeight-3), "RemoveUntraceableBlocks is enabled, a necessary batch of traceable blocks has already been removed")
 	})
@@ -1954,7 +1954,7 @@ func TestBlockchain_ResetStateErrors(t *testing.T) {
 func TestBlockchain_ResetState(t *testing.T) {
 	// Create the DB.
 	db, path := newLevelDBForTestingWithPath(t, t.TempDir())
-	bc, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, func(cfg *config.ProtocolConfiguration) {
+	bc, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, func(cfg *config.Blockchain) {
 		cfg.P2PSigExtensions = true
 	}, db, false)
 	go bc.Run()
@@ -2025,7 +2025,7 @@ func TestBlockchain_ResetState(t *testing.T) {
 
 	// Start new chain with existing DB, but do not run it.
 	db, _ = newLevelDBForTestingWithPath(t, path)
-	bc, _, _ = chain.NewMultiWithCustomConfigAndStore(t, func(cfg *config.ProtocolConfiguration) {
+	bc, _, _ = chain.NewMultiWithCustomConfigAndStore(t, func(cfg *config.Blockchain) {
 		cfg.P2PSigExtensions = true
 	}, db, false)
 	defer db.Close()

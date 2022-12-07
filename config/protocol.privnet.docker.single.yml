@@ -8,7 +8,6 @@ ProtocolConfiguration:
   ValidatorsCount: 1
   SeedList:
     - node_single:20333
-  VerifyBlocks: true
   VerifyTransactions: true
   P2PSigExtensions: false
   NativeActivations:
@@ -23,6 +22,7 @@ ProtocolConfiguration:
     OracleContract: [0]
 
 ApplicationConfiguration:
+  SkipBlockVerification: false
   # LogPath could be set up in case you need stdout logs to some proper file.
   # LogPath: "./log/neogo.log"
   DBConfiguration:

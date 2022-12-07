@@ -22,7 +22,6 @@ ProtocolConfiguration:
   - morph5.t5.fs.neo.org:50333
   - morph6.t5.fs.neo.org:50333
   - morph7.t5.fs.neo.org:50333
-  VerifyBlocks: true
   VerifyTransactions: true
   P2PSigExtensions: true
   NativeActivations:
@@ -38,6 +37,7 @@ ProtocolConfiguration:
     Notary: [0]
 
 ApplicationConfiguration:
+  SkipBlockVerification: false
   # LogPath could be set up in case you need stdout logs to some proper file.
   # LogPath: "./log/neogo.log"
   DBConfiguration:

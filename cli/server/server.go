@@ -235,7 +235,7 @@ func restoreDB(ctx *cli.Context) error {
 
 	dumpDir := ctx.String("dump")
 	if dumpDir != "" {
-		cfg.ProtocolConfiguration.SaveStorageBatch = true
+		cfg.ApplicationConfiguration.SaveStorageBatch = true
 	}
 
 	chain, prometheus, pprof, err := initBCWithMetrics(cfg, log)
@@ -384,7 +384,7 @@ func mkConsensus(config config.Consensus, tpb time.Duration, chain *core.Blockch
 		Logger:                log,
 		Broadcast:             serv.BroadcastExtensible,
 		Chain:                 chain,
-		ProtocolConfiguration: chain.GetConfig(),
+		ProtocolConfiguration: chain.GetConfig().ProtocolConfiguration,
 		RequestTx:             serv.RequestTx,
 		StopTxFlow:            serv.StopTxFlow,
 		Wallet:                config.UnlockWallet,
@@ -658,7 +658,7 @@ func initBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, stora
 		return nil, nil, cli.NewExitError(fmt.Errorf("could not initialize storage: %w", err), 1)
 	}
 
-	chain, err := core.NewBlockchain(store, cfg.ProtocolConfiguration, log)
+	chain, err := core.NewBlockchain(store, cfg.Blockchain(), log)
 	if err != nil {
 		errText := "could not initialize blockchain: %w"
 		errArgs := []interface{}{err}

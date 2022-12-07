@@ -6,7 +6,6 @@ ProtocolConfiguration:
   StandbyCommittee:
     - 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2
   ValidatorsCount: 1
-  VerifyBlocks: true
   VerifyTransactions: true
   P2PSigExtensions: true
   NativeActivations:
@@ -24,6 +23,7 @@ ProtocolConfiguration:
     Aspidochelone: 25
 
 ApplicationConfiguration:
+  SkipBlockVerification: false
   # LogPath could be set up in case you need stdout logs to some proper file.
   # LogPath: "./log/neogo.log"
   DBConfiguration:

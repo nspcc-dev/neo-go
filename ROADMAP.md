@@ -145,3 +145,15 @@ supported, but this support will eventually be removed.
 
 Removal of this compatibility code is scheduled for May-June 2023 (~0.103.0
 release).
+
+## Node-specific configuration moved from Protocol to Application
+
+GarbageCollectionPeriod, KeepOnlyLatestState, RemoveUntraceableBlocks,
+SaveStorageBatch and VerifyBlocks settings were moved from
+ProtocolConfiguration to ApplicationConfiguration in version 0.100.0. Old
+configurations are still supported, except for VerifyBlocks which is replaced
+by SkipBlockVerification with inverted meaning (and hence an inverted default)
+for security reasons.
+
+Removal of these options from ProtocolConfiguration is scheduled for May-June
+2023 (~0.103.0 release).

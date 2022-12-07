@@ -122,7 +122,7 @@ func newTestVMClIWithState(t *testing.T) *executor {
 	}
 	store, err := storage.NewLevelDBStore(opts)
 	require.NoError(t, err)
-	customConfig := func(c *config.ProtocolConfiguration) {
+	customConfig := func(c *config.Blockchain) {
 		c.StateRootInHeader = true // Need for P2PStateExchangeExtensions check.
 		c.P2PSigExtensions = true  // Need for basic chain initializer.
 	}
