@@ -37,9 +37,10 @@ node-related settings described in the table below.
 | Prometheus | [Metrics Services Configuration](#Metrics-Services-Configuration) | | Configuration for Prometheus (monitoring system). See the [Metrics Services Configuration](#Metrics-Services-Configuration) section for details |
 | ProtoTickInterval | `int64` | `5` | Duration in seconds between protocol ticks with each connected peer. Warning: this field is deprecated and moved to `P2P` section. |
 | Relay | `bool` | `true` | Determines whether the server is forwarding its inventory. |
+| Consensus | [Consensus Configuration](#Consensus-Configuration) |  | Describes consensus (dBFT) configuration. See the [Consensus Configuration](#Consensus-Configuration) for details. |
 | RPC | [RPC Configuration](#RPC-Configuration) |  | Describes [RPC subsystem](rpc.md) configuration. See the [RPC Configuration](#RPC-Configuration) for details. |
 | StateRoot | [State Root Configuration](#State-Root-Configuration) |  | State root module configuration. See the [State Root Configuration](#State-Root-Configuration) section for details. |
-| UnlockWallet | [Unlock Wallet Configuration](#Unlock-Wallet-Configuration) |  | Node wallet configuration used for consensus (dBFT) operation. See the [Unlock Wallet Configuration](#Unlock-Wallet-Configuration) section for details. |
+| UnlockWallet | [Unlock Wallet Configuration](#Unlock-Wallet-Configuration) |  | Node wallet configuration used for consensus (dBFT) operation. See the [Unlock Wallet Configuration](#Unlock-Wallet-Configuration) section for details. This section is deprecated and replaced by Consensus, it only exists for compatibility with old configuration files, but will be removed in future node versions. |
 
 ### P2P Configuration
 
@@ -292,6 +293,26 @@ where:
 - `UnlockWallet` contains wallet settings, see
   [Unlock Wallet Configuration](#Unlock-Wallet-Configuration) section for
   structure details.
+
+### Consensus Configuration
+
+`Consensus` configuration section describes configuration for dBFT node
+module and has the following structure:
+```
+Consensus:
+  Enabled: false
+  UnlockWallet:
+    Path: "/consensus_node_wallet.json"
+    Password: "pass"
+```
+where:
+- `Enabled` denotes whether dBFT module is active.
+- `UnlockWallet` is a consensus node wallet configuration, see the
+  [Unlock Wallet Configuration](#Unlock-Wallet-Configuration) section for
+  structure details.
+
+Please, refer to the [consensus node documentation](./consensus.md) for more
+details on consensus node setup.
 
 ### Unlock Wallet Configuration
 

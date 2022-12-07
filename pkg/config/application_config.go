@@ -43,6 +43,7 @@ type ApplicationConfiguration struct {
 	// Deprecated: this option is moved to the P2P section.
 	ProtoTickInterval int64               `yaml:"ProtoTickInterval"`
 	Relay             bool                `yaml:"Relay"`
+	Consensus         Consensus           `yaml:"Consensus"`
 	RPC               RPC                 `yaml:"RPC"`
 	UnlockWallet      Wallet              `yaml:"UnlockWallet"`
 	Oracle            OracleConfiguration `yaml:"Oracle"`

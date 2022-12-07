@@ -42,7 +42,8 @@ func Load(path string, netMode netmode.Magic) (Config, error) {
 	return LoadFile(configPath)
 }
 
-// LoadFile loads config from the provided path.
+// LoadFile loads config from the provided path. It also applies backwards compatibility
+// fixups if necessary.
 func LoadFile(configPath string) (Config, error) {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return Config{}, fmt.Errorf("config '%s' doesn't exist", configPath)
@@ -70,6 +71,11 @@ func LoadFile(configPath string) (Config, error) {
 	err = yaml.Unmarshal(configData, &config)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to unmarshal config YAML: %w", err)
+	}
+
+	if len(config.ApplicationConfiguration.UnlockWallet.Path) > 0 && len(config.ApplicationConfiguration.Consensus.UnlockWallet.Path) == 0 {
+		config.ApplicationConfiguration.Consensus.UnlockWallet = config.ApplicationConfiguration.UnlockWallet
+		config.ApplicationConfiguration.Consensus.Enabled = true
 	}
 
 	err = config.ProtocolConfiguration.Validate()

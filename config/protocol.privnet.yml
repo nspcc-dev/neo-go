@@ -49,6 +49,11 @@ ApplicationConfiguration:
     AttemptConnPeers: 5
     MinPeers: 3
   Relay: true
+  Consensus:
+    Enabled: false
+    UnlockWallet:
+      Path: "/cn_wallet.json"
+      Password: "pass"
   P2PNotary:
     Enabled: false
     UnlockWallet:

@@ -81,6 +81,8 @@ ApplicationConfiguration:
     Enabled: false
     Addresses:
       - ":20012"
-  UnlockWallet:
-    Path: "/wallet2.json"
-    Password: "two"
+  Consensus:
+    Enabled: true
+    UnlockWallet:
+      Path: "/wallet2.json"
+      Password: "two"

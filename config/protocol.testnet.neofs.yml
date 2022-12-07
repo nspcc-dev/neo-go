@@ -58,6 +58,11 @@ ApplicationConfiguration:
     AttemptConnPeers: 20
     MinPeers: 5
   Relay: true
+  Consensus:
+    Enabled: false
+    UnlockWallet:
+      Path: "/cn_wallet.json"
+      Password: "pass"
   Oracle:
     Enabled: false
     AllowedContentTypes:

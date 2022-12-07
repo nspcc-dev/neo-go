@@ -81,6 +81,8 @@ ApplicationConfiguration:
     Enabled: false
     Addresses:
       - ":20013"
-  UnlockWallet:
-    Path: "/wallet3.json"
-    Password: "three"
+  Consensus:
+    Enabled: true
+    UnlockWallet:
+      Path: "/wallet3.json"
+      Password: "three"

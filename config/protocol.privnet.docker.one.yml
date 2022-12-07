@@ -80,6 +80,8 @@ ApplicationConfiguration:
   Pprof:
     Enabled: false
     Port: 20011
-  UnlockWallet:
-    Path: "/wallet1.json"
-    Password: "one"
+  Consensus:
+    Enabled: true
+    UnlockWallet:
+      Path: "/wallet1.json"
+      Password: "one"
