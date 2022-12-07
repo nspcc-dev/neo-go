@@ -256,10 +256,11 @@ func TestClientManagementContract(t *testing.T) {
 	cs2, err := c.GetContractStateByHash(gas.Hash)
 	require.NoError(t, err)
 	require.Equal(t, cs2, cs1)
+	/* C# compat
 	cs1, err = manReader.GetContractByID(-6)
 	require.NoError(t, err)
 	require.Equal(t, cs2, cs1)
-
+	*/
 	ret, err := manReader.HasMethod(gas.Hash, "transfer", 4)
 	require.NoError(t, err)
 	require.True(t, ret)
