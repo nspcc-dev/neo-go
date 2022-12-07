@@ -30,7 +30,7 @@ func TestQueryTx(t *testing.T) {
 
 	transferArgs := []string{
 		"neo-go", "wallet", "nep17", "transfer",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
 		"--to", w.Accounts[0].Address,
 		"--token", "NEO",
@@ -47,7 +47,7 @@ func TestQueryTx(t *testing.T) {
 	tx, ok := e.Chain.GetMemPool().TryGetValue(txHash)
 	require.True(t, ok)
 
-	args := []string{"neo-go", "query", "tx", "--rpc-endpoint", "http://" + e.RPC.Addr}
+	args := []string{"neo-go", "query", "tx", "--rpc-endpoint", "http://" + e.RPC.Addresses()[0]}
 	e.Run(t, append(args, txHash.StringLE())...)
 	e.CheckNextLine(t, `Hash:\s+`+txHash.StringLE())
 	e.CheckNextLine(t, `OnChain:\s+false`)
@@ -74,7 +74,7 @@ func TestQueryTx(t *testing.T) {
 		t.Run("FAULT", func(t *testing.T) {
 			e.In.WriteString("one\r")
 			e.Run(t, "neo-go", "contract", "invokefunction",
-				"--rpc-endpoint", "http://"+e.RPC.Addr,
+				"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 				"--wallet", testcli.ValidatorWallet,
 				"--address", testcli.ValidatorAddr,
 				"--force",
@@ -144,7 +144,7 @@ func compareQueryTxVerbose(t *testing.T, e *testcli.Executor, tx *transaction.Tr
 func TestQueryHeight(t *testing.T) {
 	e := testcli.NewExecutor(t, true)
 
-	args := []string{"neo-go", "query", "height", "--rpc-endpoint", "http://" + e.RPC.Addr}
+	args := []string{"neo-go", "query", "height", "--rpc-endpoint", "http://" + e.RPC.Addresses()[0]}
 	e.Run(t, args...)
 	e.CheckNextLine(t, `^Latest block: [0-9]+$`)
 	e.CheckNextLine(t, `^Validated state: [0-9]+$`)

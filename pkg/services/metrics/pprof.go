@@ -24,13 +24,13 @@ func NewPprofService(cfg config.BasicService, log *zap.Logger) *Service {
 	handler.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 	handler.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
-	return &Service{
-		Server: &http.Server{
-			Addr:    cfg.Address + ":" + cfg.Port,
+	addrs := cfg.GetAddresses()
+	srvs := make([]*http.Server, len(addrs))
+	for i, addr := range addrs {
+		srvs[i] = &http.Server{
+			Addr:    addr,
 			Handler: handler,
-		},
-		config:      cfg,
-		serviceType: "Pprof",
-		log:         log.With(zap.String("service", "Pprof")),
+		}
 	}
+	return NewService("Pprof", srvs, cfg, log)
 }

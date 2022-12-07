@@ -32,17 +32,17 @@ ApplicationConfiguration:
       DataDirectoryPath: "/chains/single"
   #    BoltDBOptions:
   #      FilePath: "./chains/privnet.bolt"
-  #  Uncomment in order to set up custom address for node.
-  #  Address: localhost
-  NodePort: 20333
+  P2P:
+    Addresses:
+      - ":20333" # in form of "[host]:[port][:announcedPort]"
+    DialTimeout: 3s
+    ProtoTickInterval: 2s
+    PingInterval: 30s
+    PingTimeout: 90s
+    MaxPeers: 10
+    AttemptConnPeers: 5
+    MinPeers: 0
   Relay: true
-  DialTimeout: 3
-  ProtoTickInterval: 2
-  PingInterval: 30
-  PingTimeout: 90
-  MaxPeers: 10
-  AttemptConnPeers: 5
-  MinPeers: 0
   Oracle:
     Enabled: false
     AllowedContentTypes:
@@ -60,15 +60,18 @@ ApplicationConfiguration:
       Password: "pass"
   RPC:
     Enabled: true
+    Addresses:
+      - ":30333"
     EnableCORSWorkaround: false
     MaxGasInvoke: 15
-    Port: 30333
   Prometheus:
     Enabled: true
-    Port: 20001
+    Addresses:
+      - ":20001"
   Pprof:
     Enabled: false
-    Port: 20011
+    Addresses:
+      - ":20011"
   UnlockWallet:
     Path: "/wallet1.json"
     Password: "one"

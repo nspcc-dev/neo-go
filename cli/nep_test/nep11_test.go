@@ -47,7 +47,7 @@ func TestNEP11Import(t *testing.T) {
 
 	args := []string{
 		"neo-go", "wallet", "nep11", "import",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", walletPath,
 	}
 	// missing token hash
@@ -123,7 +123,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	// transfer funds to contract owner
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "nep17", "transfer",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
 		"--to", nftOwnerAddr,
 		"--token", "GAS",
@@ -139,7 +139,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		// mint 1 HASHY token by transferring 10 GAS to HASHY contract
 		e.In.WriteString(nftOwnerPass + "\r")
 		e.Run(t, "neo-go", "wallet", "nep17", "transfer",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", wall,
 			"--to", h.StringLE(),
 			"--token", "GAS",
@@ -166,7 +166,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// check the balance
 	cmdCheckBalance := []string{"neo-go", "wallet", "nep11", "balance",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", wall,
 		"--address", nftOwnerAddr}
 	checkBalanceResult := func(t *testing.T, acc string, ids ...[]byte) {
@@ -201,7 +201,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// import token
 	e.Run(t, "neo-go", "wallet", "nep11", "import",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", wall,
 		"--token", h.StringLE())
 
@@ -211,7 +211,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// balance check: all accounts
 	e.Run(t, "neo-go", "wallet", "nep11", "balance",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", wall,
 		"--token", h.StringLE())
 	checkBalanceResult(t, nftOwnerAddr, tokenID)
@@ -223,7 +223,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// ownerOf: missing contract hash
 	cmdOwnerOf := []string{"neo-go", "wallet", "nep11", "ownerOf",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
 	e.RunWithError(t, cmdOwnerOf...)
 	cmdOwnerOf = append(cmdOwnerOf, "--token", h.StringLE())
@@ -238,7 +238,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// tokensOf: missing contract hash
 	cmdTokensOf := []string{"neo-go", "wallet", "nep11", "tokensOf",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
 	e.RunWithError(t, cmdTokensOf...)
 	cmdTokensOf = append(cmdTokensOf, "--token", h.StringLE())
@@ -254,7 +254,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	// properties: no contract
 	cmdProperties := []string{
 		"neo-go", "wallet", "nep11", "properties",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
 	e.RunWithError(t, cmdProperties...)
 	cmdProperties = append(cmdProperties, "--token", h.StringLE())
@@ -280,7 +280,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// tokens: missing contract hash
 	cmdTokens := []string{"neo-go", "wallet", "nep11", "tokens",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
 	e.RunWithError(t, cmdTokens...)
 	cmdTokens = append(cmdTokens, "--token", h.StringLE())
@@ -298,7 +298,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	cmdTransfer := []string{
 		"neo-go", "wallet", "nep11", "transfer",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", wall,
 		"--to", testcli.ValidatorAddr,
 		"--from", nftOwnerAddr,
@@ -328,7 +328,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	verifyH := deployVerifyContract(t, e)
 	cmdTransfer = []string{
 		"neo-go", "wallet", "nep11", "transfer",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", wall,
 		"--to", verifyH.StringLE(),
 		"--from", nftOwnerAddr,
@@ -398,7 +398,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		// mint 1.00 NFSO token by transferring 10 GAS to NFSO contract
 		e.In.WriteString(testcli.ValidatorPass + "\r")
 		e.Run(t, "neo-go", "wallet", "nep17", "transfer",
-			"--rpc-endpoint", "http://"+e.RPC.Addr,
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", wall,
 			"--to", h.StringLE(),
 			"--token", "GAS",
@@ -432,7 +432,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// check properties
 	e.Run(t, "neo-go", "wallet", "nep11", "properties",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--token", h.StringLE(),
 		"--id", hex.EncodeToString(token1ID))
 	jProps := e.GetNextLine(t)
@@ -449,7 +449,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// check the balance
 	cmdCheckBalance := []string{"neo-go", "wallet", "nep11", "balance",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", wall,
 		"--address", testcli.ValidatorAddr}
 	checkBalanceResult := func(t *testing.T, acc string, objs ...idAmount) {
@@ -481,7 +481,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// import token
 	e.Run(t, "neo-go", "wallet", "nep11", "import",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", wall,
 		"--token", h.StringLE())
 
@@ -500,7 +500,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// ownerOfD: missing contract hash
 	cmdOwnerOf := []string{"neo-go", "wallet", "nep11", "ownerOfD",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
 	e.RunWithError(t, cmdOwnerOf...)
 	cmdOwnerOf = append(cmdOwnerOf, "--token", h.StringLE())
@@ -515,7 +515,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// tokensOf: missing contract hash
 	cmdTokensOf := []string{"neo-go", "wallet", "nep11", "tokensOf",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
 	e.RunWithError(t, cmdTokensOf...)
 	cmdTokensOf = append(cmdTokensOf, "--token", h.StringLE())
@@ -533,7 +533,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	// properties: no contract
 	cmdProperties := []string{
 		"neo-go", "wallet", "nep11", "properties",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
 	e.RunWithError(t, cmdProperties...)
 	cmdProperties = append(cmdProperties, "--token", h.StringLE())
@@ -566,7 +566,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	// tokens: missing contract hash
 	cmdTokens := []string{"neo-go", "wallet", "nep11", "tokens",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
 	e.RunWithError(t, cmdTokens...)
 	cmdTokens = append(cmdTokens, "--token", h.StringLE())
@@ -582,7 +582,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 
 	cmdTransfer := []string{
 		"neo-go", "wallet", "nep11", "transfer",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", wall,
 		"--to", nftOwnerAddr,
 		"--from", testcli.ValidatorAddr,
@@ -612,7 +612,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	verifyH := deployVerifyContract(t, e)
 	cmdTransfer = []string{
 		"neo-go", "wallet", "nep11", "transfer",
-		"--rpc-endpoint", "http://" + e.RPC.Addr,
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", wall,
 		"--to", verifyH.StringLE(),
 		"--from", testcli.ValidatorAddr,

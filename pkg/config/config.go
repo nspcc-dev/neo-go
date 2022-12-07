@@ -55,8 +55,10 @@ func LoadFile(configPath string) (Config, error) {
 
 	config := Config{
 		ApplicationConfiguration: ApplicationConfiguration{
-			PingInterval: 30,
-			PingTimeout:  90,
+			P2P: P2P{
+				PingInterval: 30,
+				PingTimeout:  30,
+			},
 			RPC: RPC{
 				MaxIteratorResultItems: DefaultMaxIteratorResultItems,
 				MaxFindResultItems:     100,

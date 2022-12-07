@@ -146,7 +146,8 @@ func NewTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 		go chain.Run()
 	}
 
-	serverConfig := network.NewServerConfig(cfg)
+	serverConfig, err := network.NewServerConfig(cfg)
+	require.NoError(t, err)
 	serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.3-test")
 	netSrv, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), zap.NewNop())
 	require.NoError(t, err)
@@ -348,7 +349,7 @@ func DeployContract(t *testing.T, e *Executor, inPath, configPath, wallet, addre
 		"--out", nefName, "--manifest", manifestName)
 	e.In.WriteString(pass + "\r")
 	e.Run(t, "neo-go", "contract", "deploy",
-		"--rpc-endpoint", "http://"+e.RPC.Addr,
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", wallet, "--address", address,
 		"--force",
 		"--in", nefName, "--manifest", manifestName)

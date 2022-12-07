@@ -15,17 +15,32 @@ type TCPTransport struct {
 	server   *Server
 	listener net.Listener
 	bindAddr string
+	hostPort hostPort
 	lock     sync.RWMutex
 	quit     bool
+}
+
+type hostPort struct {
+	Host string
+	Port string
 }
 
 // NewTCPTransport returns a new TCPTransport that will listen for
 // new incoming peer connections.
 func NewTCPTransport(s *Server, bindAddr string, log *zap.Logger) *TCPTransport {
+	host, port, err := net.SplitHostPort(bindAddr)
+	if err != nil {
+		// Only host can be provided, it's OK.
+		host = bindAddr
+	}
 	return &TCPTransport{
 		log:      log,
 		server:   s,
 		bindAddr: bindAddr,
+		hostPort: hostPort{
+			Host: host,
+			Port: port,
+		},
 	}
 }
 
@@ -55,6 +70,8 @@ func (t *TCPTransport) Accept() {
 		return
 	}
 	t.listener = l
+	t.bindAddr = l.Addr().String()
+	t.hostPort.Host, t.hostPort.Port, _ = net.SplitHostPort(t.bindAddr) // no error expected as l.Addr() is a valid address.
 	t.lock.Unlock()
 
 	for {
@@ -66,7 +83,7 @@ func (t *TCPTransport) Accept() {
 			if errors.Is(err, net.ErrClosed) && quit {
 				break
 			}
-			t.log.Warn("TCP accept error", zap.Error(err))
+			t.log.Warn("TCP accept error", zap.String("address", l.Addr().String()), zap.Error(err))
 			continue
 		}
 		p := NewTCPPeer(conn, "", t.server)
@@ -89,12 +106,10 @@ func (t *TCPTransport) Proto() string {
 	return "tcp"
 }
 
-// Address implements the Transporter interface.
-func (t *TCPTransport) Address() string {
+// HostPort implements the Transporter interface.
+func (t *TCPTransport) HostPort() (string, string) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
-	if t.listener != nil {
-		return t.listener.Addr().String()
-	}
-	return ""
+
+	return t.hostPort.Host, t.hostPort.Port
 }

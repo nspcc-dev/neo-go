@@ -104,13 +104,13 @@ func TestServerStartAndShutdown(t *testing.T) {
 		s.register <- p
 		require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
 
-		assert.True(t, s.transport.(*fakeTransp).started.Load())
+		assert.True(t, s.transports[0].(*fakeTransp).started.Load())
 		assert.Nil(t, s.txCallback)
 
 		s.Shutdown()
 		<-ch
 
-		require.True(t, s.transport.(*fakeTransp).closed.Load())
+		require.True(t, s.transports[0].(*fakeTransp).closed.Load())
 		err, ok := p.droppedWith.Load().(error)
 		require.True(t, ok)
 		require.True(t, errors.Is(err, errServerShutdown))
@@ -191,7 +191,7 @@ func TestGetBlocksByIndex(t *testing.T) {
 }
 
 func testGetBlocksByIndex(t *testing.T, cmd CommandType) {
-	s := newTestServer(t, ServerConfig{Port: 0, UserAgent: "/test/"})
+	s := newTestServer(t, ServerConfig{UserAgent: "/test/"})
 	start := s.chain.BlockHeight()
 	if cmd == CMDGetHeaders {
 		start = s.chain.HeaderHeight()
@@ -217,7 +217,7 @@ func testGetBlocksByIndex(t *testing.T, cmd CommandType) {
 		expectsCmd[i] = cmd
 		expectedHeight[i] = []uint32{start + 1}
 	}
-	go s.transport.Accept()
+	go s.transports[0].Accept()
 
 	nonce := uint32(0)
 	checkPingRespond := func(t *testing.T, peerIndex int, peerHeight uint32, hs ...uint32) {
@@ -250,16 +250,15 @@ func testGetBlocksByIndex(t *testing.T, cmd CommandType) {
 
 func TestSendVersion(t *testing.T) {
 	var (
-		s = newTestServer(t, ServerConfig{Port: 0, UserAgent: "/test/"})
+		s = newTestServer(t, ServerConfig{UserAgent: "/test/"})
 		p = newLocalPeer(t, s)
 	)
 	// we need to set listener at least to handle dynamic port correctly
-	s.transport.Accept()
+	s.transports[0].Accept()
 	p.messageHandler = func(t *testing.T, msg *Message) {
-		// listener is already set, so Address() gives us proper address with port
-		_, p, err := net.SplitHostPort(s.transport.Address())
-		assert.NoError(t, err)
-		port, err := strconv.ParseUint(p, 10, 16)
+		// listener is already set, so Addresses(nil) gives us proper address with port
+		_, prt := s.transports[0].HostPort()
+		port, err := strconv.ParseUint(prt, 10, 16)
 		assert.NoError(t, err)
 		assert.Equal(t, CMDVersion, msg.Command)
 		assert.IsType(t, msg.Payload, &payload.Version{})
@@ -390,7 +389,7 @@ func (s *Server) testHandleMessage(t *testing.T, p Peer, cmd CommandType, pl pay
 
 func startTestServer(t *testing.T, protocolCfg ...func(*config.ProtocolConfiguration)) *Server {
 	var s *Server
-	srvCfg := ServerConfig{Port: 0, UserAgent: "/test/"}
+	srvCfg := ServerConfig{UserAgent: "/test/"}
 	if protocolCfg != nil {
 		s = newTestServerWithCustomCfg(t, srvCfg, protocolCfg[0])
 	} else {
@@ -849,7 +848,7 @@ func TestHandleMPTData(t *testing.T) {
 
 	t.Run("good", func(t *testing.T) {
 		expected := [][]byte{{1, 2, 3}, {2, 3, 4}}
-		s := newTestServer(t, ServerConfig{Port: 0, UserAgent: "/test/"})
+		s := newTestServer(t, ServerConfig{UserAgent: "/test/"})
 		s.config.P2PStateExchangeExtensions = true
 		s.stateSync = &fakechain.FakeStateSync{
 			AddMPTNodesFunc: func(nodes [][]byte) error {
@@ -1044,7 +1043,7 @@ func TestVerifyNotaryRequest(t *testing.T) {
 	bc := fakechain.NewFakeChain()
 	bc.MaxVerificationGAS = 10
 	bc.NotaryContractScriptHash = util.Uint160{1, 2, 3}
-	s, err := newServerFromConstructors(ServerConfig{}, bc, new(fakechain.FakeStateSync), zaptest.NewLogger(t), newFakeTransp, newTestDiscovery)
+	s, err := newServerFromConstructors(ServerConfig{Addresses: []config.AnnounceableAddress{{Address: ":0"}}}, bc, new(fakechain.FakeStateSync), zaptest.NewLogger(t), newFakeTransp, newTestDiscovery)
 	require.NoError(t, err)
 	newNotaryRequest := func() *payload.P2PNotaryRequest {
 		return &payload.P2PNotaryRequest{
@@ -1122,4 +1121,34 @@ func TestTryInitStateSync(t *testing.T) {
 		s.stateSync = ss
 		s.tryInitStateSync()
 	})
+}
+
+func TestServer_Port(t *testing.T) {
+	s := newTestServer(t, ServerConfig{
+		Addresses: []config.AnnounceableAddress{
+			{Address: "1.2.3.4:10"},                           // some random address
+			{Address: ":1"},                                   // listen all IPs
+			{Address: "127.0.0.1:2"},                          // address without announced port
+			{Address: "123.123.0.123:3", AnnouncedPort: 123}}, // address with announced port
+	})
+
+	// Default addr => first port available
+	actual, err := s.Port(nil)
+	require.NoError(t, err)
+	require.Equal(t, uint16(10), actual)
+
+	// Specified address with direct match => port of matched address
+	actual, err = s.Port(&net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 123})
+	require.NoError(t, err)
+	require.Equal(t, uint16(2), actual)
+
+	// No address match => 0.0.0.0's port
+	actual, err = s.Port(&net.TCPAddr{IP: net.IPv4(5, 6, 7, 8), Port: 123})
+	require.NoError(t, err)
+	require.Equal(t, uint16(1), actual)
+
+	// Specified address with match on announceable address => announced port
+	actual, err = s.Port(&net.TCPAddr{IP: net.IPv4(123, 123, 0, 123), Port: 123})
+	require.NoError(t, err)
+	require.Equal(t, uint16(123), actual)
 }

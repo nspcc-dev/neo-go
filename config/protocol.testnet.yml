@@ -62,17 +62,17 @@ ApplicationConfiguration:
       DataDirectoryPath: "./chains/testnet"
   #    BoltDBOptions:
   #      FilePath: "./chains/testnet.bolt"
-  #  Uncomment in order to set up custom address for node.
-  #  Address: localhost
-  NodePort: 20333
+  P2P:
+    Addresses:
+      - ":20333" # in form of "[host]:[port][:announcedPort]"
+    DialTimeout: 3s
+    ProtoTickInterval: 2s
+    PingInterval: 30s
+    PingTimeout: 90s
+    MaxPeers: 100
+    AttemptConnPeers: 20
+    MinPeers: 10
   Relay: true
-  DialTimeout: 3
-  ProtoTickInterval: 2
-  PingInterval: 30
-  PingTimeout: 90
-  MaxPeers: 100
-  AttemptConnPeers: 20
-  MinPeers: 10
   Oracle:
     Enabled: false
     AllowedContentTypes:
@@ -84,17 +84,21 @@ ApplicationConfiguration:
       Password: "pass"
   RPC:
     Enabled: true
+    Addresses:
+      - ":20332"
     MaxGasInvoke: 15
     EnableCORSWorkaround: false
-    Port: 20332
     TLSConfig:
       Enabled: false
-      Port: 20331
+      Addresses:
+        - ":20331"
       CertFile: serv.crt
       KeyFile: serv.key
   Prometheus:
     Enabled: true
-    Port: 2112
+    Addresses:
+      - ":2112"
   Pprof:
     Enabled: false
-    Port: 2113
+    Addresses:
+      - ":2113"

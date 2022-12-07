@@ -158,7 +158,7 @@ func (p *localPeer) HandleVersion(v *payload.Version) error {
 	return nil
 }
 func (p *localPeer) SendVersion() error {
-	m, err := p.server.getVersionMsg()
+	m, err := p.server.getVersionMsg(nil)
 	if err != nil {
 		return err
 	}
@@ -208,6 +208,10 @@ func newTestServer(t *testing.T, serverConfig ServerConfig) *Server {
 }
 
 func newTestServerWithCustomCfg(t *testing.T, serverConfig ServerConfig, protocolCfg func(*config.ProtocolConfiguration)) *Server {
+	if len(serverConfig.Addresses) == 0 {
+		// Normally it will be done by ApplicationConfiguration.GetAddresses().
+		serverConfig.Addresses = []config.AnnounceableAddress{{Address: ":0"}}
+	}
 	s, err := newServerFromConstructors(serverConfig, fakechain.NewFakeChainWithCustomCfg(protocolCfg), new(fakechain.FakeStateSync), zaptest.NewLogger(t),
 		newFakeTransp, newTestDiscovery)
 	require.NoError(t, err)

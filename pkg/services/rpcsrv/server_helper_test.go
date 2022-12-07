@@ -116,9 +116,10 @@ func initClearServerWithServices(t testing.TB, needOracle bool, needNotary bool,
 }
 
 func wrapUnitTestChain(t testing.TB, chain *core.Blockchain, orc *oracle.Oracle, cfg config.Config, logger *zap.Logger) (*core.Blockchain, *Server, *httptest.Server) {
-	serverConfig := network.NewServerConfig(cfg)
+	serverConfig, err := network.NewServerConfig(cfg)
+	require.NoError(t, err)
 	serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.6-test")
-	serverConfig.Port = 0
+	serverConfig.Addresses = []config.AnnounceableAddress{{Address: ":0"}}
 	server, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), logger)
 	require.NoError(t, err)
 	errCh := make(chan error, 2)

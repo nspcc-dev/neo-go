@@ -102,3 +102,36 @@ startup to inform about this, it's very easy to deal with this configuration
 change, just replace one line.
 
 Removal of SecondsPerBlock is scheduled for May-June 2023 (~0.103.0 release).
+
+## Services/node address and port configuration
+
+Version 0.100.0 of NeoGo introduces a multiple binding addresses capability to
+the node's services (RPC server, TLS RPC configuration, Prometheus, Pprof) and
+the node itself. It allows to specify several listen addresses/ports using an
+array of "address:port" pairs in the service's `Addresses` config section and
+array of "address:port:announcedPort" tuples in the `ApplicationConfiguration`'s
+`Addresses` node config section. Deprecated `Address` and `Port` sections of
+`RPC`, `Prometheus`, `Pprof` subsections of the `ApplicationConfiguration`
+as far as the one of RPC server's `TLSConfig` are still available, but will be
+removed, so please convert your node configuration file to use new `P2P`-level
+`Addresses` section for the node services. Deprecated `Address`, `NodePort` and
+`AnnouncedPort` sections of `ApplicationConfiguration` will also be removed
+eventually, so please update your node configuration file to use `Addresses`
+section for the P2P addresses configuration.
+
+Removal of these config sections is scheduled for May-June 2023 (~0.103.0 release).
+
+## P2P application settings configuration
+
+Version 0.100.0 of NeoGo marks the following P2P application settings as
+deprecated: `AttemptConnPeers`, `BroadcastFactor`, `DialTimeout`,
+`ExtensiblePoolSize`, `MaxPeers`, `MinPeers`, `PingInterval`, `PingTimeout`,
+`ProtoTickInterval`. These settings are moved to a separate `P2P` section of
+`ApplicationConfiguration`. The `DialTimeout`, `PingInterval`, `PingTimeout`,
+`ProtoTickInterval` settings are converted to more precise `Duration` format
+(allowing for subsecond time). Please, update your node configuration (all you
+need is to move specified settings under the `P2P` section and convert
+time-related settings to `Duration` format).
+
+Removal of deprecated P2P related application settings is scheduled for May-June
+2023 (~0.103.0 release).

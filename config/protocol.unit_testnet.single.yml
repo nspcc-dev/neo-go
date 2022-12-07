@@ -33,17 +33,17 @@ ApplicationConfiguration:
   #        DataDirectoryPath: "./chains/unit_testnet"
   #    BoltDBOptions:
   #      FilePath: "./chains/unit_testnet.bolt"
-  #  Uncomment in order to set up custom address for node.
-  #  Address: localhost
-  NodePort: 0
+  P2P:
+    Addresses:
+      - ":0" # in form of "[host]:[port][:announcedPort]"
+    DialTimeout: 3s
+    ProtoTickInterval: 2s
+    PingInterval: 30s
+    PingTimeout: 90s
+    MinPeers: 0
+    MaxPeers: 10
+    AttemptConnPeers: 5
   Relay: true
-  DialTimeout: 3
-  ProtoTickInterval: 2
-  PingInterval: 30
-  PingTimeout: 90
-  MinPeers: 0
-  MaxPeers: 10
-  AttemptConnPeers: 5
   UnlockWallet:
       Path: "../testdata/wallet1_solo.json"
       Password: "one"
@@ -53,14 +53,16 @@ ApplicationConfiguration:
       Path: "/notary_wallet.json"
       Password: "pass"
   RPC:
-    Address: localhost
     MaxGasInvoke: 15
     Enabled: true
+    Addresses:
+      - "localhost:0" # let the system choose port dynamically
     EnableCORSWorkaround: false
-    Port: 0 # let the system choose port dynamically
   Prometheus:
     Enabled: false #since it's not useful for unit tests.
-    Port: 2112
+    Addresses:
+      - ":2112"
   Pprof:
     Enabled: false #since it's not useful for unit tests.
-    Port: 2113
+    Addresses:
+      - ":2113"

@@ -1,6 +1,7 @@
 package network
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -28,14 +29,8 @@ type (
 		// The user agent of the server.
 		UserAgent string
 
-		// Address. Example: "localhost".
-		Address string
-
-		// AnnouncedPort is an announced node port for P2P version exchange.
-		AnnouncedPort uint16
-
-		// Port is the actual node port it is bound to. Example: 20332.
-		Port uint16
+		// Addresses stores the list of bind addresses for the node.
+		Addresses []config.AnnounceableAddress
 
 		// The network mode the server will operate on.
 		// ModePrivNet docker private network.
@@ -86,34 +81,72 @@ type (
 
 // NewServerConfig creates a new ServerConfig struct
 // using the main applications config.
-func NewServerConfig(cfg config.Config) ServerConfig {
+func NewServerConfig(cfg config.Config) (ServerConfig, error) {
 	appConfig := cfg.ApplicationConfiguration
 	protoConfig := cfg.ProtocolConfiguration
 	timePerBlock := protoConfig.TimePerBlock
 	if timePerBlock == 0 && protoConfig.SecondsPerBlock > 0 { //nolint:staticcheck // SA1019: protoConfig.SecondsPerBlock is deprecated
 		timePerBlock = time.Duration(protoConfig.SecondsPerBlock) * time.Second //nolint:staticcheck // SA1019: protoConfig.SecondsPerBlock is deprecated
 	}
-
-	return ServerConfig{
+	dialTimeout := appConfig.P2P.DialTimeout
+	if dialTimeout == 0 && appConfig.DialTimeout > 0 { //nolint:staticcheck // SA1019: appConfig.DialTimeout is deprecated
+		dialTimeout = time.Duration(appConfig.DialTimeout) * time.Second //nolint:staticcheck // SA1019: appConfig.DialTimeout is deprecated
+	}
+	protoTickInterval := appConfig.P2P.ProtoTickInterval
+	if protoTickInterval == 0 && appConfig.ProtoTickInterval > 0 { //nolint:staticcheck // SA1019: appConfig.ProtoTickInterval is deprecated
+		protoTickInterval = time.Duration(appConfig.ProtoTickInterval) * time.Second //nolint:staticcheck // SA1019: appConfig.ProtoTickInterval is deprecated
+	}
+	pingInterval := appConfig.P2P.PingInterval
+	if pingInterval == 0 && appConfig.PingInterval > 0 { //nolint:staticcheck // SA1019: appConfig.PingInterval is deprecated
+		pingInterval = time.Duration(appConfig.PingInterval) * time.Second //nolint:staticcheck // SA1019: appConfig.PingInterval is deprecated
+	}
+	pingTimeout := appConfig.P2P.PingTimeout
+	if pingTimeout == 0 && appConfig.PingTimeout > 0 { //nolint:staticcheck // SA1019: appConfig.PingTimeout is deprecated
+		pingTimeout = time.Duration(appConfig.PingTimeout) * time.Second //nolint:staticcheck // SA1019: appConfig.PingTimeout is deprecated
+	}
+	maxPeers := appConfig.P2P.MaxPeers
+	if maxPeers == 0 && appConfig.MaxPeers > 0 { //nolint:staticcheck // SA1019: appConfig.MaxPeers is deprecated
+		maxPeers = appConfig.MaxPeers //nolint:staticcheck // SA1019: appConfig.MaxPeers is deprecated
+	}
+	attemptConnPeers := appConfig.P2P.AttemptConnPeers
+	if attemptConnPeers == 0 && appConfig.AttemptConnPeers > 0 { //nolint:staticcheck // SA1019: appConfig.AttemptConnPeers is deprecated
+		attemptConnPeers = appConfig.AttemptConnPeers //nolint:staticcheck // SA1019: appConfig.AttemptConnPeers is deprecated
+	}
+	minPeers := appConfig.P2P.MinPeers
+	if minPeers == 0 && appConfig.MinPeers > 0 { //nolint:staticcheck // SA1019: appConfig.MinPeers is deprecated
+		minPeers = appConfig.MinPeers //nolint:staticcheck // SA1019: appConfig.MinPeers is deprecated
+	}
+	extPoolSize := appConfig.P2P.ExtensiblePoolSize
+	if extPoolSize == 0 && appConfig.ExtensiblePoolSize > 0 { //nolint:staticcheck // SA1019: appConfig.ExtensiblePoolSize is deprecated
+		extPoolSize = appConfig.ExtensiblePoolSize //nolint:staticcheck // SA1019: appConfig.ExtensiblePoolSize is deprecated
+	}
+	broadcastFactor := appConfig.P2P.BroadcastFactor
+	if broadcastFactor > 0 && appConfig.BroadcastFactor > 0 { //nolint:staticcheck // SA1019: appConfig.BroadcastFactor is deprecated
+		broadcastFactor = appConfig.BroadcastFactor //nolint:staticcheck // SA1019: appConfig.BroadcastFactor is deprecated
+	}
+	addrs, err := appConfig.GetAddresses()
+	if err != nil {
+		return ServerConfig{}, fmt.Errorf("failed to parse addresses: %w", err)
+	}
+	c := ServerConfig{
 		UserAgent:          cfg.GenerateUserAgent(),
-		Address:            appConfig.Address,
-		AnnouncedPort:      appConfig.AnnouncedNodePort,
-		Port:               appConfig.NodePort,
+		Addresses:          addrs,
 		Net:                protoConfig.Magic,
 		Relay:              appConfig.Relay,
 		Seeds:              protoConfig.SeedList,
-		DialTimeout:        time.Duration(appConfig.DialTimeout) * time.Second,
-		ProtoTickInterval:  time.Duration(appConfig.ProtoTickInterval) * time.Second,
-		PingInterval:       time.Duration(appConfig.PingInterval) * time.Second,
-		PingTimeout:        time.Duration(appConfig.PingTimeout) * time.Second,
-		MaxPeers:           appConfig.MaxPeers,
-		AttemptConnPeers:   appConfig.AttemptConnPeers,
-		MinPeers:           appConfig.MinPeers,
+		DialTimeout:        dialTimeout,
+		ProtoTickInterval:  protoTickInterval,
+		PingInterval:       pingInterval,
+		PingTimeout:        pingTimeout,
+		MaxPeers:           maxPeers,
+		AttemptConnPeers:   attemptConnPeers,
+		MinPeers:           minPeers,
 		TimePerBlock:       timePerBlock,
 		OracleCfg:          appConfig.Oracle,
 		P2PNotaryCfg:       appConfig.P2PNotary,
 		StateRootCfg:       appConfig.StateRoot,
-		ExtensiblePoolSize: appConfig.ExtensiblePoolSize,
-		BroadcastFactor:    appConfig.BroadcastFactor,
+		ExtensiblePoolSize: extPoolSize,
+		BroadcastFactor:    broadcastFactor,
 	}
+	return c, nil
 }

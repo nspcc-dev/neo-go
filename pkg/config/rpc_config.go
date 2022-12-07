@@ -7,9 +7,8 @@ import (
 type (
 	// RPC is an RPC service configuration information.
 	RPC struct {
-		Address              string `yaml:"Address"`
-		Enabled              bool   `yaml:"Enabled"`
-		EnableCORSWorkaround bool   `yaml:"EnableCORSWorkaround"`
+		BasicService         `yaml:",inline"`
+		EnableCORSWorkaround bool `yaml:"EnableCORSWorkaround"`
 		// MaxGasInvoke is the maximum amount of GAS which
 		// can be spent during an RPC call.
 		MaxGasInvoke           fixedn.Fixed8 `yaml:"MaxGasInvoke"`
@@ -17,7 +16,6 @@ type (
 		MaxFindResultItems     int           `yaml:"MaxFindResultItems"`
 		MaxNEP11Tokens         int           `yaml:"MaxNEP11Tokens"`
 		MaxWebSocketClients    int           `yaml:"MaxWebSocketClients"`
-		Port                   uint16        `yaml:"Port"`
 		SessionEnabled         bool          `yaml:"SessionEnabled"`
 		SessionExpirationTime  int           `yaml:"SessionExpirationTime"`
 		SessionBackedByMPT     bool          `yaml:"SessionBackedByMPT"`
@@ -28,10 +26,8 @@ type (
 
 	// TLS describes SSL/TLS configuration.
 	TLS struct {
-		Address  string `yaml:"Address"`
-		CertFile string `yaml:"CertFile"`
-		Enabled  bool   `yaml:"Enabled"`
-		Port     uint16 `yaml:"Port"`
-		KeyFile  string `yaml:"KeyFile"`
+		BasicService `yaml:",inline"`
+		CertFile     string `yaml:"CertFile"`
+		KeyFile      string `yaml:"KeyFile"`
 	}
 )

@@ -307,7 +307,7 @@ func (p *TCPPeer) IsFullNode() bool {
 
 // SendVersion checks for the handshake state and sends a message to the peer.
 func (p *TCPPeer) SendVersion() error {
-	msg, err := p.server.getVersionMsg()
+	msg, err := p.server.getVersionMsg(p.conn.LocalAddr())
 	if err != nil {
 		return err
 	}

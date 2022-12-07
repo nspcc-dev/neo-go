@@ -19,7 +19,9 @@ func TestPeerHandshake(t *testing.T) {
 	server, client := net.Pipe()
 
 	tcpS := NewTCPPeer(server, "", newTestServer(t, ServerConfig{}))
+	tcpS.server.transports[0].Accept() // properly initialize the address list
 	tcpC := NewTCPPeer(client, "", newTestServer(t, ServerConfig{}))
+	tcpC.server.transports[0].Accept()
 
 	// Something should read things written into the pipe.
 	go connReadStub(tcpS.conn)
