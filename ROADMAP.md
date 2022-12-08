@@ -7,10 +7,8 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.100.0 (aligned with C# node 3.5.0 release, ~December 2022)
- * 3.5.0 protocol changes
- * drop some deprecated code (see below)
- * RPC wrappers generator with extended type information
+## Version 0.100.1 (~January 2022)
+ * extended data types for iterators to be used by RPC wrapper generator
 
 ## Version 1.0 (2023, TBD)
  * stable version
@@ -23,30 +21,6 @@ it's impossible to do for some reason. But eventually old
 APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
-
-## getversion RPC reply Magic and StateRootInHeader fields
-
-"getversion" RPC reply format was extended to contain "protocol" section in
-version 0.97.3. Since then we have deprecated Magic and StateRootInHeader
-fields in the Version structure that allows to decode replies from pre-0.97.3
-servers while RPC server implementation populates both old and new fields for
-compatibility with pre-0.97.3 clients.
-
-Version 0.97.3 was released in October 2021 and can't really be used today on
-public networks, we expect at least 0.99.0+ to be used in production (0.99.2+
-for C# 3.4.0 compatibility). Therefore these old fields are scheduled to be
-removed in version 0.100.0 both client-side and server-side. If any of your
-code uses them, just use the Protocol section with the same data.
-
-## InitialGasDistribution field of getversion RPC reply
-
-An incompatibility with C# node's InitialGasDistribution representation was
-detected and fixed in version 0.99.0 of NeoGo (June 2022). Some compatibility
-code was added to handle pre-0.99.0 servers on the client side, however it was
-not possible to change pre-0.99.0 clients to work with newer servers.
-
-We expect all servers to be migrated to 0.99.0+ by now, therefore
-compatibility code will be removed in version 0.100.0.
 
 ## Old RPC client APIs
 
