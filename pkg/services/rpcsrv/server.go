@@ -48,6 +48,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -931,7 +932,7 @@ contract_loop:
 		if cs == nil {
 			continue
 		}
-		isDivisible := (cs.Manifest.ABI.GetMethod("balanceOf", 2) != nil)
+		isDivisible := (standard.ComplyABI(&cs.Manifest, standard.Nep11Divisible) == nil)
 		lub, ok := lastUpdated[cs.ID]
 		if !ok {
 			cfg := s.chain.GetConfig()
