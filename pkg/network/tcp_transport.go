@@ -83,7 +83,7 @@ func (t *TCPTransport) Accept() {
 			if errors.Is(err, net.ErrClosed) && quit {
 				break
 			}
-			t.log.Warn("TCP accept error", zap.String("address", l.Addr().String()), zap.Error(err))
+			t.log.Warn("TCP accept error", zap.Stringer("address", l.Addr()), zap.Error(err))
 			continue
 		}
 		p := NewTCPPeer(conn, "", t.server)
