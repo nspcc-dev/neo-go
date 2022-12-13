@@ -2639,14 +2639,14 @@ chloop:
 						if err != nil {
 							s.log.Error("failed to marshal notification",
 								zap.Error(err),
-								zap.String("type", resp.Event.String()))
+								zap.Stringer("type", resp.Event))
 							break subloop
 						}
 						msg, err = websocket.NewPreparedMessage(websocket.TextMessage, b)
 						if err != nil {
 							s.log.Error("failed to prepare notification message",
 								zap.Error(err),
-								zap.String("type", resp.Event.String()))
+								zap.Stringer("type", resp.Event))
 							break subloop
 						}
 					}

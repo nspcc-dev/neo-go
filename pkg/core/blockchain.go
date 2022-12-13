@@ -226,7 +226,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 	// Protocol configuration fixups/checks.
 	if cfg.InitialGASSupply <= 0 {
 		cfg.InitialGASSupply = fixedn.Fixed8(defaultInitialGAS)
-		log.Info("initial gas supply is not set or wrong, setting default value", zap.String("InitialGASSupply", cfg.InitialGASSupply.String()))
+		log.Info("initial gas supply is not set or wrong, setting default value", zap.Stringer("InitialGASSupply", cfg.InitialGASSupply))
 	}
 	if cfg.MemPoolSize <= 0 {
 		cfg.MemPoolSize = defaultMemPoolSize

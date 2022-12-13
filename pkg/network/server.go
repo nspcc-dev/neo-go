@@ -1292,7 +1292,7 @@ func getRequestBlocksPayload(p Peer, currHeight uint32, lastRequestedHeight *ato
 func (s *Server) handleMessage(peer Peer, msg *Message) error {
 	s.log.Debug("got msg",
 		zap.Stringer("addr", peer.RemoteAddr()),
-		zap.String("type", msg.Command.String()))
+		zap.Stringer("type", msg.Command))
 
 	start := time.Now()
 	defer func() { addCmdTimeMetric(msg.Command, time.Since(start)) }()
