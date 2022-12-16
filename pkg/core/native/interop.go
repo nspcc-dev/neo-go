@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -38,9 +40,14 @@ func Call(ic *interop.Context) error {
 	if !ok {
 		return fmt.Errorf("method not found")
 	}
-	if !ic.VM.Context().GetCallFlags().Has(m.RequiredFlags) {
+	reqFlags := m.RequiredFlags
+	if !ic.IsHardforkEnabled(config.HFAspidochelone) && c.Metadata().ID == ManagementContractID &&
+		(m.MD.Name == "deploy" || m.MD.Name == "update") {
+		reqFlags &= callflag.States | callflag.AllowNotify
+	}
+	if !ic.VM.Context().GetCallFlags().Has(reqFlags) {
 		return fmt.Errorf("missing call flags for native %d `%s` operation call: %05b vs %05b",
-			version, m.MD.Name, ic.VM.Context().GetCallFlags(), m.RequiredFlags)
+			version, m.MD.Name, ic.VM.Context().GetCallFlags(), reqFlags)
 	}
 	invokeFee := m.CPUFee*ic.BaseExecFee() +
 		m.StorageFee*ic.BaseStorageFee()

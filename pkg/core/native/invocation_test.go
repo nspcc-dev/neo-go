@@ -132,6 +132,48 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 		require.Equal(t, hash.RipeMD160(input).BytesBE(), value)
 	})
 
+	manState := bc.GetContractState(e.NativeHash(t, nativenames.Management))
+	require.NotNil(t, manState)
+	mdDeploy := manState.Manifest.ABI.GetMethod("deploy", 2)
+	require.NotNil(t, mdDeploy)
+	t.Run("fail, bad call flag", func(t *testing.T) {
+		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+		require.NoError(t, err)
+		v := ic.SpawnVM()
+		v.LoadScriptWithHash(manState.NEF.Script, manState.Hash, callflag.States|callflag.AllowNotify)
+		input := []byte{1, 2, 3, 4}
+		v.Estack().PushVal(input)
+		v.Estack().PushVal(input)
+		v.Context().Jump(mdDeploy.Offset)
+
+		// Can't call with these flags, Aspidochelone is active.
+		err = v.Run()
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "missing call flags for native 0 `deploy` operation call"))
+	})
+
+	t.Run("good, pre-aspidochelone deploy", func(t *testing.T) {
+		bc, _, _ := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
+			c.Hardforks = map[string]uint32{
+				config.HFAspidochelone.String(): 100500,
+			}
+		})
+
+		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
+		require.NoError(t, err)
+		v := ic.SpawnVM()
+		v.LoadScriptWithHash(manState.NEF.Script, manState.Hash, callflag.States|callflag.AllowNotify)
+		input := []byte{1, 2, 3, 4}
+		v.Estack().PushVal(input)
+		v.Estack().PushVal(input)
+		v.Context().Jump(mdDeploy.Offset)
+
+		// We have an invalid input, but call flags are OK.
+		err = v.Run()
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "invalid NEF file"))
+	})
+
 	t.Run("success", func(t *testing.T) {
 		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
 		require.NoError(t, err)
