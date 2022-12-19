@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -16,31 +18,37 @@ func Call(ic *interop.Context) error {
 	if version != 0 {
 		return fmt.Errorf("native contract of version %d is not active", version)
 	}
-	var c interop.Contract
+	var meta *interop.ContractMD
 	curr := ic.VM.GetCurrentScriptHash()
 	for _, ctr := range ic.Natives {
-		if ctr.Metadata().Hash == curr {
-			c = ctr
+		m := ctr.Metadata()
+		if m.Hash == curr {
+			meta = m
 			break
 		}
 	}
-	if c == nil {
+	if meta == nil {
 		return fmt.Errorf("native contract %s (version %d) not found", curr.StringLE(), version)
 	}
-	history := c.Metadata().UpdateHistory
+	history := meta.UpdateHistory
 	if len(history) == 0 {
-		return fmt.Errorf("native contract %s is disabled", c.Metadata().Name)
+		return fmt.Errorf("native contract %s is disabled", meta.Name)
 	}
 	if history[0] > ic.BlockHeight() {
-		return fmt.Errorf("native contract %s is active after height = %d", c.Metadata().Name, history[0])
+		return fmt.Errorf("native contract %s is active after height = %d", meta.Name, history[0])
 	}
-	m, ok := c.Metadata().GetMethodByOffset(ic.VM.Context().IP())
+	m, ok := meta.GetMethodByOffset(ic.VM.Context().IP())
 	if !ok {
 		return fmt.Errorf("method not found")
 	}
-	if !ic.VM.Context().GetCallFlags().Has(m.RequiredFlags) {
+	reqFlags := m.RequiredFlags
+	if !ic.IsHardforkEnabled(config.HFAspidochelone) && meta.ID == ManagementContractID &&
+		(m.MD.Name == "deploy" || m.MD.Name == "update") {
+		reqFlags &= callflag.States | callflag.AllowNotify
+	}
+	if !ic.VM.Context().GetCallFlags().Has(reqFlags) {
 		return fmt.Errorf("missing call flags for native %d `%s` operation call: %05b vs %05b",
-			version, m.MD.Name, ic.VM.Context().GetCallFlags(), m.RequiredFlags)
+			version, m.MD.Name, ic.VM.Context().GetCallFlags(), reqFlags)
 	}
 	invokeFee := m.CPUFee*ic.BaseExecFee() +
 		m.StorageFee*ic.BaseStorageFee()
