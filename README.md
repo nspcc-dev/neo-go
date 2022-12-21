@@ -1,5 +1,9 @@
 <p align="center">
-<img src="./.github/neo_color_dark_gopher.png" width="300px" alt="logo">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./.github/logo_dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="./.github/logo_light.png">
+    <img src="./.github/logo_light.png"  width="300px" alt="NeoGo logo">
+  </picture>
 </p>
 <p align="center">
   <b>Go</b> Node and SDK for the <a href="https://neo.org">Neo</a> blockchain.
