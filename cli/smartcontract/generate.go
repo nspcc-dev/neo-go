@@ -26,7 +26,7 @@ var generatorFlags = []cli.Flag{
 	cli.StringFlag{
 		Name:     "out, o",
 		Required: true,
-		Usage:    "Output of the compiled contract",
+		Usage:    "Output of the compiled wrapper",
 	},
 	cli.StringFlag{
 		Name:     "hash",
@@ -38,7 +38,7 @@ var generatorFlags = []cli.Flag{
 var generateWrapperCmd = cli.Command{
 	Name:        "generate-wrapper",
 	Usage:       "generate wrapper to use in other contracts",
-	UsageText:   "neo-go contract generate-wrapper --manifest <file.json> --out <file.go> --hash <hash>",
+	UsageText:   "neo-go contract generate-wrapper --manifest <file.json> --out <file.go> --hash <hash> [--config <config>]",
 	Description: ``,
 	Action:      contractGenerateWrapper,
 	Flags:       generatorFlags,
@@ -47,7 +47,7 @@ var generateWrapperCmd = cli.Command{
 var generateRPCWrapperCmd = cli.Command{
 	Name:      "generate-rpcwrapper",
 	Usage:     "generate RPC wrapper to use for data reads",
-	UsageText: "neo-go contract generate-rpcwrapper --manifest <file.json> --out <file.go> --hash <hash>",
+	UsageText: "neo-go contract generate-rpcwrapper --manifest <file.json> --out <file.go> --hash <hash> [--config <config>]",
 	Action:    contractGenerateRPCWrapper,
 	Flags:     generatorFlags,
 }
