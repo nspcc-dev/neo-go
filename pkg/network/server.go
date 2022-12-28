@@ -1250,7 +1250,7 @@ func (s *Server) requestBlocks(bq Blockqueuer, p Peer) error {
 	h := bq.BlockHeight()
 	pl := getRequestBlocksPayload(p, h, &s.lastRequestedBlock)
 	lq := s.bQueue.lastQueued()
-	if lq > pl.IndexStart {
+	if lq >= pl.IndexStart {
 		c := int16(h + blockCacheSize - lq)
 		if c < payload.MaxHashesCount {
 			pl.Count = c
