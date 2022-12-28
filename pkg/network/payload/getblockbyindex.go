@@ -1,7 +1,7 @@
 package payload
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
@@ -25,7 +25,7 @@ func (d *GetBlockByIndex) DecodeBinary(br *io.BinReader) {
 	d.IndexStart = br.ReadU32LE()
 	d.Count = int16(br.ReadU16LE())
 	if d.Count < -1 || d.Count == 0 || d.Count > MaxHeadersAllowed {
-		br.Err = errors.New("invalid block count")
+		br.Err = fmt.Errorf("invalid block count: %d", d.Count)
 	}
 }
 

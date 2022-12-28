@@ -136,10 +136,12 @@ func (bq *blockQueue) putBlock(block *block.Block) error {
 	return nil
 }
 
-func (bq *blockQueue) lastQueued() uint32 {
+// lastQueued returns the index of the last queued block and the queue's capacity
+// left.
+func (bq *blockQueue) lastQueued() (uint32, int) {
 	bq.queueLock.RLock()
 	defer bq.queueLock.RUnlock()
-	return bq.lastQ
+	return bq.lastQ, blockCacheSize - bq.len
 }
 
 func (bq *blockQueue) discard() {
