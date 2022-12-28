@@ -2,6 +2,27 @@
 
 This document outlines major changes between releases.
 
+## 0.100.1 "Chaptalization" (28 Dec 2022)
+
+This is a tiny update that 99.99% of users can easily skip. The reason for
+this release is the need to fix compatibility with the NeoFS mainnet
+sidechain and have some stable version to be used there. In any other case it
+can be ignored, but if you still decide to upgrade you don't need to
+resynchronize.
+
+Behaviour changes:
+ * Aspidochelone fork is made to include ContractManagement native contract
+   deploy/update methods call flags change, initially it was an unconditional
+   part of 0.99.0 NeoGo release (or 3.2.0 C# version), but this behavior is
+   incompatible with the NeoFS mainnet sidechain; the change to the fork logic
+   does not affect any other public networks (mainnet/testnet) and any new
+   networks that have Aspidochelone enabled since block 0 (#2848)
+
+Improvements:
+ * more robust NEP-11 divisibility check in the RPC server code (#2841)
+ * microoptimization for some debug log messages (#2842)
+ * additional fuzz tests for integer serialization and script parsing code (#2851)
+
 ## 0.100.0 "Centuplication" (08 Dec 2022)
 
 A 3.5.0-compatible version of NeoGo with all the appropriate protocol updates
