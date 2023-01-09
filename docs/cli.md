@@ -718,6 +718,6 @@ Some basic commands available there:
 - `run` -- executes currently loaded contract
 
 Use `help` command to get more detailed information on all options and
-particular commands. Note that this VM is completely disconnected from the
-blockchain, so you won't have all interop functionality available for smart
-contracts (use test invocations via RPC for that).
+particular commands. Note that this VM has a blockchain instance (an empty
+private in-memory chain by default), with all appropriate interop functionality
+available for smart contracts.
