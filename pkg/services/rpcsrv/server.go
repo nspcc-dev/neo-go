@@ -1264,18 +1264,15 @@ func (s *Server) getTokenTransfers(ps params.Params, isNEP11 bool) (interface{},
 			Index:     tr.Block,
 			TxHash:    tr.Tx,
 		}
+		if !tr.Counterparty.Equals(util.Uint160{}) {
+			transfer.Address = address.Uint160ToString(tr.Counterparty)
+		}
 		if tr.Amount.Sign() > 0 { // token was received
 			transfer.Amount = tr.Amount.String()
-			if !tr.From.Equals(util.Uint160{}) {
-				transfer.Address = address.Uint160ToString(tr.From)
-			}
 			received = &result.NEP17Transfer{}
 			*received = transfer // Make a copy, transfer is to be modified below.
 		} else {
-			transfer.Amount = new(big.Int).Neg(&tr.Amount).String()
-			if !tr.To.Equals(util.Uint160{}) {
-				transfer.Address = address.Uint160ToString(tr.To)
-			}
+			transfer.Amount = new(big.Int).Neg(tr.Amount).String()
 			sent = &result.NEP17Transfer{}
 			*sent = transfer
 		}
