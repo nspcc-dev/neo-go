@@ -1,6 +1,7 @@
 package bigint
 
 import (
+	"math"
 	"math/big"
 	"math/bits"
 
@@ -113,9 +114,28 @@ func ToPreallocatedBytes(n *big.Int, data []byte) []byte {
 	}
 
 	if sign < 0 {
-		n.Add(n, bigOne)
-		defer func() { n.Sub(n, bigOne) }()
-		if n.Sign() == 0 { // n == -1
+		bits := n.Bits()
+		carry := true
+		nonZero := false
+		for i := range bits {
+			if carry {
+				bits[i]--
+				carry = (bits[i] == math.MaxUint)
+			}
+			nonZero = nonZero || (bits[i] != 0)
+		}
+		defer func() {
+			var carry = true
+			for i := range bits {
+				if carry {
+					bits[i]++
+					carry = (bits[i] == 0)
+				} else {
+					break
+				}
+			}
+		}()
+		if !nonZero { // n == -1
 			return append(data[:0], 0xFF)
 		}
 	}
