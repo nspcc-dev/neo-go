@@ -714,6 +714,32 @@ var forLoopTestCases = []testCase{
 		`,
 		big.NewInt(6),
 	},
+	{
+		"shadow range key",
+		`func F%d() int {
+			i := 10
+			ints := []int{1, 2, 3, 4, 5}
+			for i := range ints {
+				_ = i
+			}
+			return i
+		}
+		`,
+		big.NewInt(10),
+	},
+	{
+		"shadow range value",
+		`func F%d() int {
+			i := 10
+			ints := []int{1, 2, 3, 4, 5}
+			for _, i := range ints {
+				_ = i
+			}
+			return i
+		}
+		`,
+		big.NewInt(10),
+	},
 }
 
 func TestForLoop(t *testing.T) {

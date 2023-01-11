@@ -1313,7 +1313,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			} else {
 				emit.Opcodes(c.prog.BinWriter, opcode.DUP)
 			}
-			c.emitStoreVar("", n.Key.(*ast.Ident).Name)
+			keyIdent := n.Key.(*ast.Ident)
+			if n.Tok == token.DEFINE {
+				c.scope.newLocal(keyIdent.Name)
+			}
+			c.emitStoreVar("", keyIdent.Name)
 		}
 		if needValue {
 			if !isMap || !keyLoaded {
@@ -1327,7 +1331,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					opcode.SWAP, // key should be on top
 					opcode.PICKITEM)
 			}
-			c.emitStoreVar("", n.Value.(*ast.Ident).Name)
+			valIdent := n.Value.(*ast.Ident)
+			if n.Tok == token.DEFINE {
+				c.scope.newLocal(valIdent.Name)
+			}
+			c.emitStoreVar("", valIdent.Name)
 		}
 
 		ast.Walk(c, n.Body)
