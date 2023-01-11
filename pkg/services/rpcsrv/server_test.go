@@ -472,22 +472,22 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "invalid contract",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "0xabcdef"]`,
+			params: `["` + block20StateRootLE + `", "0xabcdef"]`,
 			fail:   true,
 		},
 		{
 			name:   "invalid prefix",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "notabase64%"]`,
+			params: `["` + block20StateRootLE + `", "` + testContractHash + `", "notabase64%"]`,
 			fail:   true,
 		},
 		{
 			name:   "invalid key",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "QQ==", "notabase64%"]`,
+			params: `["` + block20StateRootLE + `", "` + testContractHash + `", "QQ==", "notabase64%"]`,
 			fail:   true,
 		},
 		{
 			name:   "unknown contract/large count",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "0000000000000000000000000000000000000000", "QQ==", "QQ==", 101]`,
+			params: `["` + block20StateRootLE + `", "0000000000000000000000000000000000000000", "QQ==", "QQ==", 101]`,
 			fail:   true,
 		},
 	},
