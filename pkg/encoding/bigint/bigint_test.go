@@ -106,8 +106,14 @@ var testCases = []struct {
 
 func TestIntToBytes(t *testing.T) {
 	for _, tc := range testCases {
-		buf := ToBytes(big.NewInt(tc.number))
+		num := big.NewInt(tc.number)
+		var numC = *num // See #2864.
+		buf := ToBytes(num)
 		assert.Equal(t, tc.buf, buf, "error while converting %d", tc.number)
+		_ = numC.Neg(&numC)
+		_ = ToBytes(&numC)
+		_ = numC.Neg(&numC)
+		assert.Equal(t, num, &numC, "number mismatch after converting %d", tc.number)
 	}
 }
 

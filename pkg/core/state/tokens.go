@@ -24,13 +24,11 @@ type TokenTransferLog struct {
 type NEP17Transfer struct {
 	// Asset is a NEP-17 contract ID.
 	Asset int32
-	// Address is the address of the sender.
-	From util.Uint160
-	// To is the address of the receiver.
-	To util.Uint160
+	// Counterparty is the address of the sender/receiver (the other side of the transfer).
+	Counterparty util.Uint160
 	// Amount is the amount of tokens transferred.
 	// It is negative when tokens are sent and positive if they are received.
-	Amount big.Int
+	Amount *big.Int
 	// Block is a number of block when the event occurred.
 	Block uint32
 	// Timestamp is the timestamp of the block where transfer occurred.
@@ -195,11 +193,10 @@ func (t *NEP17Transfer) EncodeBinary(w *io.BinWriter) {
 
 	w.WriteU32LE(uint32(t.Asset))
 	w.WriteBytes(t.Tx[:])
-	w.WriteBytes(t.From[:])
-	w.WriteBytes(t.To[:])
+	w.WriteBytes(t.Counterparty[:])
 	w.WriteU32LE(t.Block)
 	w.WriteU64LE(t.Timestamp)
-	amount := bigint.ToPreallocatedBytes(&t.Amount, buf[:])
+	amount := bigint.ToPreallocatedBytes(t.Amount, buf[:])
 	w.WriteVarBytes(amount)
 }
 
@@ -207,12 +204,11 @@ func (t *NEP17Transfer) EncodeBinary(w *io.BinWriter) {
 func (t *NEP17Transfer) DecodeBinary(r *io.BinReader) {
 	t.Asset = int32(r.ReadU32LE())
 	r.ReadBytes(t.Tx[:])
-	r.ReadBytes(t.From[:])
-	r.ReadBytes(t.To[:])
+	r.ReadBytes(t.Counterparty[:])
 	t.Block = r.ReadU32LE()
 	t.Timestamp = r.ReadU64LE()
 	amount := r.ReadVarBytes(bigint.MaxBytesLen)
-	t.Amount = *bigint.FromBytes(amount)
+	t.Amount = bigint.FromBytes(amount)
 }
 
 // EncodeBinary implements the io.Serializable interface.

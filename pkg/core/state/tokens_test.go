@@ -86,13 +86,12 @@ func BenchmarkTokenTransferLog_Append(b *testing.B) {
 
 func TestNEP17Transfer_DecodeBinary(t *testing.T) {
 	expected := &NEP17Transfer{
-		Asset:     123,
-		From:      util.Uint160{5, 6, 7},
-		To:        util.Uint160{8, 9, 10},
-		Amount:    *big.NewInt(42),
-		Block:     12345,
-		Timestamp: 54321,
-		Tx:        util.Uint256{8, 5, 3},
+		Asset:        123,
+		Counterparty: util.Uint160{5, 6, 7},
+		Amount:       big.NewInt(42),
+		Block:        12345,
+		Timestamp:    54321,
+		Tx:           util.Uint256{8, 5, 3},
 	}
 
 	testserdes.EncodeDecodeBinary(t, expected, new(NEP17Transfer))
@@ -101,13 +100,12 @@ func TestNEP17Transfer_DecodeBinary(t *testing.T) {
 func TestNEP11Transfer_DecodeBinary(t *testing.T) {
 	expected := &NEP11Transfer{
 		NEP17Transfer: NEP17Transfer{
-			Asset:     123,
-			From:      util.Uint160{5, 6, 7},
-			To:        util.Uint160{8, 9, 10},
-			Amount:    *big.NewInt(42),
-			Block:     12345,
-			Timestamp: 54321,
-			Tx:        util.Uint256{8, 5, 3},
+			Asset:        123,
+			Counterparty: util.Uint160{5, 6, 7},
+			Amount:       big.NewInt(42),
+			Block:        12345,
+			Timestamp:    54321,
+			Tx:           util.Uint256{8, 5, 3},
 		},
 		ID: []byte{42, 42, 42},
 	}
@@ -117,24 +115,22 @@ func TestNEP11Transfer_DecodeBinary(t *testing.T) {
 
 func random17Transfer(r *rand.Rand) *NEP17Transfer {
 	return &NEP17Transfer{
-		Amount: *big.NewInt(int64(r.Uint64())),
-		Block:  r.Uint32(),
-		Asset:  int32(random.Int(10, 10000000)),
-		From:   random.Uint160(),
-		To:     random.Uint160(),
-		Tx:     random.Uint256(),
+		Amount:       big.NewInt(int64(r.Uint64())),
+		Block:        r.Uint32(),
+		Asset:        int32(random.Int(10, 10000000)),
+		Counterparty: random.Uint160(),
+		Tx:           random.Uint256(),
 	}
 }
 
 func random11Transfer(r *rand.Rand) *NEP11Transfer {
 	return &NEP11Transfer{
 		NEP17Transfer: NEP17Transfer{
-			Amount: *big.NewInt(int64(r.Uint64())),
-			Block:  r.Uint32(),
-			Asset:  int32(random.Int(10, 10000000)),
-			From:   random.Uint160(),
-			To:     random.Uint160(),
-			Tx:     random.Uint256(),
+			Amount:       big.NewInt(int64(r.Uint64())),
+			Block:        r.Uint32(),
+			Asset:        int32(random.Int(10, 10000000)),
+			Counterparty: random.Uint160(),
+			Tx:           random.Uint256(),
 		},
 		ID: random.Uint256().BytesBE(),
 	}

@@ -45,7 +45,7 @@ import (
 
 // Tuning parameters.
 const (
-	version = "0.2.7"
+	version = "0.2.8"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultGCPeriod                        = 10000
@@ -1765,25 +1765,23 @@ func (bc *Blockchain) processTokenTransfer(cache *dao.Simple, transCache map[uti
 	var isNEP11 = (tokenID != nil)
 	if !isNEP11 {
 		nep17xfer = &state.NEP17Transfer{
-			Asset:     id,
-			Amount:    *amount,
-			From:      from,
-			To:        to,
-			Block:     b.Index,
-			Timestamp: b.Timestamp,
-			Tx:        h,
+			Asset:        id,
+			Amount:       amount,
+			Block:        b.Index,
+			Counterparty: to,
+			Timestamp:    b.Timestamp,
+			Tx:           h,
 		}
 		transfer = nep17xfer
 	} else {
 		nep11xfer := &state.NEP11Transfer{
 			NEP17Transfer: state.NEP17Transfer{
-				Asset:     id,
-				Amount:    *amount,
-				From:      from,
-				To:        to,
-				Block:     b.Index,
-				Timestamp: b.Timestamp,
-				Tx:        h,
+				Asset:        id,
+				Amount:       amount,
+				Block:        b.Index,
+				Counterparty: to,
+				Timestamp:    b.Timestamp,
+				Tx:           h,
 			},
 			ID: tokenID,
 		}
@@ -1791,14 +1789,15 @@ func (bc *Blockchain) processTokenTransfer(cache *dao.Simple, transCache map[uti
 		nep17xfer = &nep11xfer.NEP17Transfer
 	}
 	if !from.Equals(util.Uint160{}) {
-		_ = nep17xfer.Amount.Neg(&nep17xfer.Amount)
+		_ = nep17xfer.Amount.Neg(nep17xfer.Amount)
 		err := appendTokenTransfer(cache, transCache, from, transfer, id, b.Index, b.Timestamp, isNEP11)
-		_ = nep17xfer.Amount.Neg(&nep17xfer.Amount)
+		_ = nep17xfer.Amount.Neg(nep17xfer.Amount)
 		if err != nil {
 			return
 		}
 	}
 	if !to.Equals(util.Uint160{}) {
+		nep17xfer.Counterparty = from
 		_ = appendTokenTransfer(cache, transCache, to, transfer, id, b.Index, b.Timestamp, isNEP11) // Nothing useful we can do.
 	}
 }
