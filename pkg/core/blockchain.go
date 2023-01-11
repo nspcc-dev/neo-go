@@ -45,7 +45,7 @@ import (
 
 // Tuning parameters.
 const (
-	version = "0.2.7"
+	version = "0.2.8"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultGCPeriod                        = 10000
@@ -381,6 +381,7 @@ func (bc *Blockchain) init() error {
 			P2PSigExtensions:           bc.config.P2PSigExtensions,
 			P2PStateExchangeExtensions: bc.config.P2PStateExchangeExtensions,
 			KeepOnlyLatestState:        bc.config.Ledger.KeepOnlyLatestState,
+			Magic:                      uint32(bc.config.Magic),
 			Value:                      version,
 		}
 		bc.dao.PutVersion(ver)
@@ -414,6 +415,10 @@ func (bc *Blockchain) init() error {
 	if ver.KeepOnlyLatestState != bc.config.Ledger.KeepOnlyLatestState {
 		return fmt.Errorf("KeepOnlyLatestState setting mismatch (old=%v, new=%v)",
 			ver.KeepOnlyLatestState, bc.config.Ledger.KeepOnlyLatestState)
+	}
+	if ver.Magic != uint32(bc.config.Magic) {
+		return fmt.Errorf("protocol configuration Magic mismatch (old=%v, new=%v)",
+			ver.Magic, bc.config.Magic)
 	}
 	bc.dao.Version = ver
 	bc.persistent.Version = ver
