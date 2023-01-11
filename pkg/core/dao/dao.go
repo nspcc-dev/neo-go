@@ -440,6 +440,7 @@ type Version struct {
 	P2PSigExtensions           bool
 	P2PStateExchangeExtensions bool
 	KeepOnlyLatestState        bool
+	Magic                      uint32
 	Value                      string
 }
 
@@ -464,7 +465,7 @@ func (v *Version) FromBytes(data []byte) error {
 		return nil
 	}
 
-	if len(data) != i+3 {
+	if len(data) < i+3 {
 		return errors.New("version is invalid")
 	}
 
@@ -474,6 +475,11 @@ func (v *Version) FromBytes(data []byte) error {
 	v.P2PSigExtensions = data[i+2]&p2pSigExtensionsBit != 0
 	v.P2PStateExchangeExtensions = data[i+2]&p2pStateExchangeExtensionsBit != 0
 	v.KeepOnlyLatestState = data[i+2]&keepOnlyLatestStateBit != 0
+
+	m := i + 3
+	if len(data) == m+4 {
+		v.Magic = binary.LittleEndian.Uint32(data[m:])
+	}
 	return nil
 }
 
@@ -492,7 +498,9 @@ func (v *Version) Bytes() []byte {
 	if v.KeepOnlyLatestState {
 		mask |= keepOnlyLatestStateBit
 	}
-	return append([]byte(v.Value), '\x00', byte(v.StoragePrefix), mask)
+	res := append([]byte(v.Value), '\x00', byte(v.StoragePrefix), mask, 0, 0, 0, 0)
+	binary.LittleEndian.PutUint32(res[len(res)-4:], v.Magic)
+	return res
 }
 
 func (dao *Simple) mkKeyPrefix(k storage.KeyPrefix) []byte {

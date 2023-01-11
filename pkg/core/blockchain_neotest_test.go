@@ -141,6 +141,15 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), "KeepOnlyLatestState setting mismatch"), err)
 	})
+	t.Run("Magic mismatch", func(t *testing.T) {
+		ps = newPS(t)
+		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.Blockchain) {
+			customConfig(c)
+			c.Magic = 100500
+		}, ps)
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "protocol configuration Magic mismatch"), err)
+	})
 	t.Run("corrupted headers", func(t *testing.T) {
 		ps = newPS(t)
 
