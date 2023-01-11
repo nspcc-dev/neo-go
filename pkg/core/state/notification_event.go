@@ -218,7 +218,7 @@ type executionAux struct {
 	GasConsumed    int64               `json:"gasconsumed,string"`
 	Stack          json.RawMessage     `json:"stack"`
 	Events         []NotificationEvent `json:"notifications"`
-	FaultException string              `json:"exception,omitempty"`
+	FaultException *string             `json:"exception"`
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -235,13 +235,17 @@ func (e Execution) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	var exception *string
+	if e.FaultException != "" {
+		exception = &e.FaultException
+	}
 	return json.Marshal(&executionAux{
 		Trigger:        e.Trigger.String(),
 		VMState:        e.VMState.String(),
 		GasConsumed:    e.GasConsumed,
 		Stack:          st,
 		Events:         e.Events,
-		FaultException: e.FaultException,
+		FaultException: exception,
 	})
 }
 
@@ -280,7 +284,9 @@ func (e *Execution) UnmarshalJSON(data []byte) error {
 	e.VMState = state
 	e.Events = aux.Events
 	e.GasConsumed = aux.GasConsumed
-	e.FaultException = aux.FaultException
+	if aux.FaultException != nil {
+		e.FaultException = *aux.FaultException
+	}
 	return nil
 }
 
