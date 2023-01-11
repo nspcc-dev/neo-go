@@ -472,22 +472,22 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "invalid contract",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "0xabcdef"]`,
+			params: `["` + block20StateRootLE + `", "0xabcdef"]`,
 			fail:   true,
 		},
 		{
 			name:   "invalid prefix",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "notabase64%"]`,
+			params: `["` + block20StateRootLE + `", "` + testContractHash + `", "notabase64%"]`,
 			fail:   true,
 		},
 		{
 			name:   "invalid key",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "QQ==", "notabase64%"]`,
+			params: `["` + block20StateRootLE + `", "` + testContractHash + `", "QQ==", "notabase64%"]`,
 			fail:   true,
 		},
 		{
 			name:   "unknown contract/large count",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "0000000000000000000000000000000000000000", "QQ==", "QQ==", 101]`,
+			params: `["` + block20StateRootLE + `", "0000000000000000000000000000000000000000", "QQ==", "QQ==", 101]`,
 			fail:   true,
 		},
 	},
@@ -2123,7 +2123,9 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				require.NoError(t, json.Unmarshal(rawRes, vp))
 				require.Equal(t, value, vp.Value)
 			}
-			checkProof(t, actual.FirstProof, actual.Results[0].Value)
+			if len(actual.Results) > 0 {
+				checkProof(t, actual.FirstProof, actual.Results[0].Value)
+			}
 			if len(actual.Results) > 1 {
 				checkProof(t, actual.LastProof, actual.Results[len(actual.Results)-1].Value)
 			}
@@ -2154,6 +2156,17 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 					{Key: []byte("aa50"), Value: []byte("v3")},
 					{Key: []byte("aa"), Value: []byte("v1")},
 				},
+				Truncated: false,
+			})
+		})
+		t.Run("good: empty prefix, no limit, no data", func(t *testing.T) {
+			// empty prefix should be considered as no prefix specified.
+			root, err := e.chain.GetStateModule().GetStateRoot(20)
+			require.NoError(t, err)
+			stdHash, _ := e.chain.GetNativeContractScriptHash(nativenames.StdLib) // It has no data.
+			params := fmt.Sprintf(`"%s", "%s", ""`, root.Root.StringLE(), stdHash.StringLE())
+			testFindStates(t, params, root.Root, result.FindStates{
+				Results:   []result.KeyValue{},
 				Truncated: false,
 			})
 		})

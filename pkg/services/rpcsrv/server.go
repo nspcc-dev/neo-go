@@ -1538,8 +1538,8 @@ func (s *Server) findStates(ps params.Params) (interface{}, *neorpc.Error) {
 	}
 	pKey := makeStorageKey(cs.ID, prefix)
 	kvs, err := s.chain.GetStateModule().FindStates(root, pKey, key, count+1) // +1 to define result truncation
-	if err != nil {
-		return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to find historical items: %s", err))
+	if err != nil && !errors.Is(err, mpt.ErrNotFound) {
+		return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to find state items: %s", err))
 	}
 	res := result.FindStates{}
 	if len(kvs) == count+1 {
