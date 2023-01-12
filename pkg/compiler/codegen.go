@@ -1301,21 +1301,45 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		emit.Opcodes(c.prog.BinWriter, opcode.OVER, opcode.OVER)
 		emit.Jmp(c.prog.BinWriter, opcode.JMPLEL, end)
 
-		var keyLoaded bool
-		needValue := n.Value != nil && n.Value.(*ast.Ident).Name != "_"
-		if n.Key != nil && n.Key.(*ast.Ident).Name != "_" {
+		var (
+			haveKey   bool
+			haveVal   bool
+			keyIdent  *ast.Ident
+			keyLoaded bool
+			valIdent  *ast.Ident
+		)
+		if n.Key != nil {
+			keyIdent, haveKey = n.Key.(*ast.Ident)
+			if !haveKey {
+				c.prog.Err = errors.New("only simple identifiers can be used for range loop keys (see #2870)")
+				return nil
+			}
+			haveKey = (keyIdent.Name != "_")
+		}
+		if n.Value != nil {
+			valIdent, haveVal = n.Value.(*ast.Ident)
+			if !haveVal {
+				c.prog.Err = errors.New("only simple identifiers can be used for range loop values (see #2870)")
+				return nil
+			}
+			haveVal = (valIdent.Name != "_")
+		}
+		if haveKey {
 			if isMap {
 				c.rangeLoadKey()
-				if needValue {
+				if haveVal {
 					emit.Opcodes(c.prog.BinWriter, opcode.DUP)
 					keyLoaded = true
 				}
 			} else {
 				emit.Opcodes(c.prog.BinWriter, opcode.DUP)
 			}
-			c.emitStoreVar("", n.Key.(*ast.Ident).Name)
+			if n.Tok == token.DEFINE {
+				c.scope.newLocal(keyIdent.Name)
+			}
+			c.emitStoreVar("", keyIdent.Name)
 		}
-		if needValue {
+		if haveVal {
 			if !isMap || !keyLoaded {
 				c.rangeLoadKey()
 			}
@@ -1327,7 +1351,10 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					opcode.SWAP, // key should be on top
 					opcode.PICKITEM)
 			}
-			c.emitStoreVar("", n.Value.(*ast.Ident).Name)
+			if n.Tok == token.DEFINE {
+				c.scope.newLocal(valIdent.Name)
+			}
+			c.emitStoreVar("", valIdent.Name)
 		}
 
 		ast.Walk(c, n.Body)
