@@ -47,7 +47,7 @@ ApplicationConfiguration:
     PingTimeout: 90s
     MaxPeers: 10
     AttemptConnPeers: 5
-    MinPeers: 3
+    MinPeers: 2
   Relay: true
   Oracle:
     Enabled: false
