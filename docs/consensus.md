@@ -189,10 +189,11 @@ Examples can be found at `config/protocol.privnet.docker.one.yml` (`two`, `three
        `UnlockWallet` subsection with `Path` and `Password` strings for NEP-6
        wallet path and the password for the account to be used for the
        consensus node.
-    2. Make sure that your `MinPeers` setting is equal to
-       the number of nodes participating in consensus.
-       This requirement is needed for nodes to correctly
-       start and can be weakened in future.
+    2. Make sure that your `MinPeers` setting is no more than
+       the number of nodes participating in consensus minus one. The
+       recommended setting is 2F in terms of BFT, that's the minimum number
+       the network can operate with (0 for a single node, 2 for 4 CNs, 4 for 7
+       CNs).
     3. Set `Address`, `Port` and `RPC.Port` to the appropriate values.
        They must differ between nodes.
     4. If you start binary from the same directory, you will probably want to change
