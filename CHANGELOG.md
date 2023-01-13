@@ -2,6 +2,35 @@
 
 This document outlines major changes between releases.
 
+## 0.101.0 "Shortness" (13 Jan 2022)
+
+This release delivers an important fix for block execution application logs
+and requires a resynchronization, therefore it's 0.101.0 (even though it's
+also 3.5.0-compatible). It fixes some other minor problems as well (the other
+most notable change probably is in the compiler), so we recommend upgrading.
+
+Improvements:
+ * updated golang.org/x/* dependencies (#2854)
+ * CLI help and required flags handling fixes (#2852)
+ * transfer data storage optimization (#2865)
+ * network's magic number is stored (and checked against the config on
+   startup) in the DB now, reducing potential for node operator errors (#2867)
+
+Bugs fixed:
+ * in rare cases nodes could request an invalid number of blocks from peers
+   leading to disconnect (#2846)
+ * outdated documentation fixes (#2860, #2876)
+ * application logs for blocks that contained GAS spends for transaction fees
+   contained (and returned from getapplicationlog RPC) incorrect (off by one)
+   values for amount in Transfer events; transaction application logs were not
+   affected by this, but data returned to RPC event subscribers could
+   potentially be (#2865)
+ * findstates RPC returned an error instead of an empty data set for valid
+   contracts that have no data (unlike C# node, #2866)
+ * miscompiled shadowed range loop variable definition (#2871)
+ * missing (compared to C# node) explicit (even though null) 'exception' field
+   in the getapplicationlog RPC output from server (#2872)
+
 ## 0.100.1 "Chaptalization" (28 Dec 2022)
 
 This is a tiny update that 99.99% of users can easily skip. The reason for
