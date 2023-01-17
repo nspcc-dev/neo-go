@@ -552,7 +552,8 @@ func (s *Server) tryStartServices() {
 // broadcasting, so when a new P2PNotaryRequest is received or an existing
 // P2PNotaryRequest is removed from the pool you'll receive it via this channel.
 // Make sure it's read from regularly as not reading these events might affect
-// other Server functions.
+// other Server functions. Make sure you're not changing the received mempool
+// events, as it may affect the functionality of Blockchain and other subscribers.
 // Ensure that P2PSigExtensions are enabled before calling this method.
 func (s *Server) SubscribeForNotaryRequests(ch chan<- mempoolevent.Event) {
 	if !s.chain.P2PSigExtensionsEnabled() {

@@ -2142,7 +2142,8 @@ func (bc *Blockchain) GetConfig() config.Blockchain {
 // SubscribeForBlocks adds given channel to new block event broadcasting, so when
 // there is a new block added to the chain you'll receive it via this channel.
 // Make sure it's read from regularly as not reading these events might affect
-// other Blockchain functions.
+// other Blockchain functions. Make sure you're not changing the received blocks,
+// as it may affect the functionality of Blockchain and other subscribers.
 func (bc *Blockchain) SubscribeForBlocks(ch chan *block.Block) {
 	bc.subCh <- ch
 }
@@ -2150,7 +2151,9 @@ func (bc *Blockchain) SubscribeForBlocks(ch chan *block.Block) {
 // SubscribeForTransactions adds given channel to new transaction event
 // broadcasting, so when there is a new transaction added to the chain (in a
 // block) you'll receive it via this channel. Make sure it's read from regularly
-// as not reading these events might affect other Blockchain functions.
+// as not reading these events might affect other Blockchain functions. Make sure
+// you're not changing the received transactions, as it may affect the
+// functionality of Blockchain and other subscribers.
 func (bc *Blockchain) SubscribeForTransactions(ch chan *transaction.Transaction) {
 	bc.subCh <- ch
 }
@@ -2161,7 +2164,8 @@ func (bc *Blockchain) SubscribeForTransactions(ch chan *transaction.Transaction)
 // successful transactions are broadcasted, if you're interested in failed
 // transactions use SubscribeForExecutions instead. Make sure this channel is
 // read from regularly as not reading these events might affect other Blockchain
-// functions.
+// functions. Make sure you're not changing the received notification events, as
+// it may affect the functionality of Blockchain and other subscribers.
 func (bc *Blockchain) SubscribeForNotifications(ch chan *state.ContainedNotificationEvent) {
 	bc.subCh <- ch
 }
@@ -2169,7 +2173,9 @@ func (bc *Blockchain) SubscribeForNotifications(ch chan *state.ContainedNotifica
 // SubscribeForExecutions adds given channel to new transaction execution event
 // broadcasting, so when an in-block transaction execution happens you'll receive
 // the result of it via this channel. Make sure it's read from regularly as not
-// reading these events might affect other Blockchain functions.
+// reading these events might affect other Blockchain functions. Make sure you're
+// not changing the received execution results, as it may affect the
+// functionality of Blockchain and other subscribers.
 func (bc *Blockchain) SubscribeForExecutions(ch chan *state.AppExecResult) {
 	bc.subCh <- ch
 }
