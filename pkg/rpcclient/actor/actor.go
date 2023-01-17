@@ -26,6 +26,10 @@ import (
 type RPCActor interface {
 	invoker.RPCInvoke
 
+	// CalculateNetworkFee calculates network fee for the given transaction.
+	//
+	// CalculateNetworkFee MUST NOT call state-changing methods (like Hash or Size)
+	// of the transaction through the passed pointer: make a copy if necessary.
 	CalculateNetworkFee(tx *transaction.Transaction) (int64, error)
 	GetBlockCount() (uint32, error)
 	GetVersion() (*result.Version, error)
