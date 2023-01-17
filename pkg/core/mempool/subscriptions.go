@@ -27,7 +27,8 @@ func (mp *Pool) StopSubscriptions() {
 
 // SubscribeForTransactions adds the given channel to the new mempool event broadcasting, so when
 // there is a new transactions added to the mempool or an existing transaction removed from
-// the mempool, you'll receive it via this channel.
+// the mempool, you'll receive it via this channel. Make sure you're not changing the received
+// mempool events, as it may affect the functionality of other subscribers.
 func (mp *Pool) SubscribeForTransactions(ch chan<- mempoolevent.Event) {
 	if mp.subscriptionsOn.Load() {
 		mp.subCh <- ch
