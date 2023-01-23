@@ -133,7 +133,7 @@ type (
 		log              *zap.Logger
 		shutdown         chan struct{}
 		started          *atomic.Bool
-		errChan          chan error
+		errChan          chan<- error
 
 		sessionsLock sync.Mutex
 		sessions     map[string]*session
@@ -255,7 +255,7 @@ var invalidBlockHeightError = func(index int, height int) *neorpc.Error {
 
 // New creates a new Server struct.
 func New(chain Ledger, conf config.RPC, coreServer *network.Server,
-	orc OracleHandler, log *zap.Logger, errChan chan error) Server {
+	orc OracleHandler, log *zap.Logger, errChan chan<- error) Server {
 	addrs := conf.GetAddresses()
 	httpServers := make([]*http.Server, len(addrs))
 	for i, addr := range addrs {
