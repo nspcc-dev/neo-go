@@ -318,7 +318,7 @@ func TestWalletInit(t *testing.T) {
 					configPath := filepath.Join(tmp, "config.yaml")
 					cfg := config.Wallet{
 						Path:     walletPath,
-						Password: "pass", // This pass won't be taken into account.
+						Password: "qwerty",
 					}
 					res, err := yaml.Marshal(cfg)
 					require.NoError(t, err)
@@ -326,11 +326,25 @@ func TestWalletInit(t *testing.T) {
 					priv, err = keys.NewPrivateKey()
 					require.NoError(t, err)
 					e.In.WriteString("test_account_4\r")
-					e.In.WriteString("qwerty\r")
-					e.In.WriteString("qwerty\r")
 					e.Run(t, "neo-go", "wallet", "import",
 						"--wallet-config", configPath, "--wif", priv.WIF(), "--contract", "0a0b0c0d")
 					check(t, "test_account_4", "qwerty")
+				})
+				t.Run("from wallet config with account name argument", func(t *testing.T) {
+					tmp := t.TempDir()
+					configPath := filepath.Join(tmp, "config.yaml")
+					cfg := config.Wallet{
+						Path:     walletPath,
+						Password: "qwerty",
+					}
+					res, err := yaml.Marshal(cfg)
+					require.NoError(t, err)
+					require.NoError(t, os.WriteFile(configPath, res, 0666))
+					priv, err = keys.NewPrivateKey()
+					require.NoError(t, err)
+					e.Run(t, "neo-go", "wallet", "import",
+						"--wallet-config", configPath, "--wif", priv.WIF(), "--contract", "0a0b0c0d", "--name", "test_account_5")
+					check(t, "test_account_5", "qwerty")
 				})
 			})
 		})
@@ -586,21 +600,25 @@ func TestWalletImportDeployed(t *testing.T) {
 	e.In.WriteString("acc\rpass\rpass\r")
 	e.Run(t, "neo-go", "wallet", "import-deployed",
 		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
-		"--wallet", walletPath, "--wif", priv.WIF(), "--name", "my_acc",
+		"--wallet", walletPath, "--wif", priv.WIF(),
 		"--contract", h.StringLE())
 
-	w, err := wallet.NewWalletFromFile(walletPath)
-	require.NoError(t, err)
-	require.Equal(t, 1, len(w.Accounts))
-	contractAddr := w.Accounts[0].Address
-	require.Equal(t, address.Uint160ToString(h), contractAddr)
-	require.True(t, w.Accounts[0].Contract.Deployed)
+	contractAddr := address.Uint160ToString(h)
+	checkDeployed := func(t *testing.T) {
+		w, err := wallet.NewWalletFromFile(walletPath)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(w.Accounts))
+		actualAddr := w.Accounts[0].Address
+		require.Equal(t, contractAddr, actualAddr)
+		require.True(t, w.Accounts[0].Contract.Deployed)
+	}
+	checkDeployed(t)
 
 	t.Run("re-importing", func(t *testing.T) {
 		e.In.WriteString("acc\rpass\rpass\r")
 		e.RunWithError(t, "neo-go", "wallet", "import-deployed",
 			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
-			"--wallet", walletPath, "--wif", priv.WIF(), "--name", "my_acc",
+			"--wallet", walletPath, "--wif", priv.WIF(),
 			"--contract", h.StringLE())
 	})
 
@@ -629,6 +647,35 @@ func TestWalletImportDeployed(t *testing.T) {
 		require.Equal(t, big.NewInt(9), b)
 		b, _ = e.Chain.GetGoverningTokenBalance(privTo.GetScriptHash())
 		require.Equal(t, big.NewInt(1), b)
+	})
+
+	t.Run("import with name argument", func(t *testing.T) {
+		e.Run(t, "neo-go", "wallet", "remove",
+			"--wallet", walletPath, "--address", address.Uint160ToString(h), "--force")
+		e.In.WriteString("pass\rpass\r")
+		e.Run(t, "neo-go", "wallet", "import-deployed",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--wallet", walletPath, "--wif", priv.WIF(),
+			"--contract", h.StringLE(), "--name", "acc")
+		checkDeployed(t)
+	})
+
+	t.Run("import with name argument and wallet config", func(t *testing.T) {
+		e.Run(t, "neo-go", "wallet", "remove",
+			"--wallet", walletPath, "--address", address.Uint160ToString(h), "--force")
+		configPath := filepath.Join(t.TempDir(), "wallet-config.yaml")
+		cfg := &config.Wallet{
+			Path:     walletPath,
+			Password: "pass",
+		}
+		bytes, err := yaml.Marshal(cfg)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(configPath, bytes, os.ModePerm))
+		e.Run(t, "neo-go", "wallet", "import-deployed",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--wallet-config", configPath, "--wif", priv.WIF(),
+			"--contract", h.StringLE(), "--name", "acc")
+		checkDeployed(t)
 	})
 }
 
