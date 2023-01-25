@@ -369,6 +369,41 @@ func TestWalletInit(t *testing.T) {
 			require.NotNil(t, actual)
 			require.NoError(t, actual.Decrypt("somepass", w.Scrypt))
 		})
+		t.Run("EncryptedWIF with wallet config", func(t *testing.T) {
+			pass := "somepass"
+			check := func(t *testing.T, configPass string, needUserPass bool) {
+				acc, err := wallet.NewAccount()
+				require.NoError(t, acc.Encrypt(pass, keys.NEP2ScryptParams()))
+				configPath := filepath.Join(t.TempDir(), "wallet-config.yaml")
+				require.NoError(t, err)
+				cfg := &config.Wallet{
+					Path:     walletPath,
+					Password: configPass,
+				}
+				bytes, err := yaml.Marshal(cfg)
+				require.NoError(t, err)
+				require.NoError(t, os.WriteFile(configPath, bytes, os.ModePerm))
+
+				if needUserPass {
+					e.In.WriteString(pass + "\r")
+				}
+				e.Run(t, "neo-go", "wallet", "import", "--wallet-config", configPath,
+					"--wif", acc.EncryptedWIF)
+
+				w, err := wallet.NewWalletFromFile(walletPath)
+				require.NoError(t, err)
+				actual := w.GetAccount(acc.PrivateKey().GetScriptHash())
+				require.NotNil(t, actual)
+				require.NoError(t, actual.Decrypt(pass, w.Scrypt))
+			}
+			t.Run("config password mismatch", func(t *testing.T) {
+				check(t, pass+"badpass", true)
+			})
+
+			t.Run("good config password", func(t *testing.T) {
+				check(t, pass, false)
+			})
+		})
 		t.Run("Multisig", func(t *testing.T) {
 			t.Run("missing wallet", func(t *testing.T) {
 				e.RunWithError(t, "neo-go", "wallet", "import-multisig")

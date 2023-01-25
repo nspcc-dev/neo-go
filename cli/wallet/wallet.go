@@ -1000,7 +1000,19 @@ func newAccountFromWIF(w io.Writer, wif string, scrypt keys.ScryptParams, label 
 
 		acc, err := wallet.NewAccountFromEncryptedWIF(wif, phrase, scrypt)
 		if err != nil {
-			return nil, err
+			// If password from wallet config wasn't OK then retry with the user input,
+			// see the https://github.com/nspcc-dev/neo-go/issues/2883#issuecomment-1399923088.
+			if pass == nil {
+				return nil, err
+			}
+			phrase, err = input.ReadPassword(EnterPasswordPrompt)
+			if err != nil {
+				return nil, fmt.Errorf("error reading password: %w", err)
+			}
+			acc, err = wallet.NewAccountFromEncryptedWIF(wif, phrase, scrypt)
+			if err != nil {
+				return nil, err
+			}
 		}
 		acc.Label = name
 		return acc, nil
