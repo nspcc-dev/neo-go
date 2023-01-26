@@ -519,7 +519,7 @@ loop:
 }
 
 func importMultisig(ctx *cli.Context) error {
-	wall, _, err := openWallet(ctx, true)
+	wall, pass, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -540,7 +540,12 @@ func importMultisig(ctx *cli.Context) error {
 		}
 	}
 
-	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt)
+	var label *string
+	if ctx.IsSet("name") {
+		l := ctx.String("name")
+		label = &l
+	}
+	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt, label, pass)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -549,9 +554,6 @@ func importMultisig(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	if acc.Label == "" {
-		acc.Label = ctx.String("name")
-	}
 	if err := addAccountAndSave(wall, acc); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -563,7 +565,7 @@ func importDeployed(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
-	wall, _, err := openWallet(ctx, true)
+	wall, pass, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -574,7 +576,12 @@ func importDeployed(ctx *cli.Context) error {
 		return cli.NewExitError("contract hash was not provided", 1)
 	}
 
-	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt)
+	var label *string
+	if ctx.IsSet("name") {
+		l := ctx.String("name")
+		label = &l
+	}
+	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt, label, pass)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -606,9 +613,6 @@ func importDeployed(ctx *cli.Context) error {
 	}
 	acc.Contract.Deployed = true
 
-	if acc.Label == "" {
-		acc.Label = ctx.String("name")
-	}
 	if err := addAccountAndSave(wall, acc); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -620,13 +624,19 @@ func importWallet(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
-	wall, _, err := openWallet(ctx, true)
+	wall, pass, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	defer wall.Close()
 
-	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt)
+	var label *string
+	if ctx.IsSet("name") {
+		l := ctx.String("name")
+		label = &l
+	}
+
+	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt, label, pass)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -639,9 +649,6 @@ func importWallet(ctx *cli.Context) error {
 		acc.Contract.Script = ctr
 	}
 
-	if acc.Label == "" {
-		acc.Label = ctx.String("name")
-	}
 	if err := addAccountAndSave(wall, acc); err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -843,7 +850,7 @@ func createWallet(ctx *cli.Context) error {
 }
 
 func readAccountInfo() (string, string, error) {
-	name, err := input.ReadLine("Enter the name of the account > ")
+	name, err := readAccountName()
 	if err != nil {
 		return "", "", err
 	}
@@ -852,6 +859,10 @@ func readAccountInfo() (string, string, error) {
 		return "", "", err
 	}
 	return name, phrase, nil
+}
+
+func readAccountName() (string, error) {
+	return input.ReadLine("Enter the name of the account > ")
 }
 
 func readNewPassword() (string, error) {
@@ -966,16 +977,45 @@ func ReadWalletConfig(configPath string) (*config.Wallet, error) {
 	return cfg, nil
 }
 
-func newAccountFromWIF(w io.Writer, wif string, scrypt keys.ScryptParams) (*wallet.Account, error) {
+func newAccountFromWIF(w io.Writer, wif string, scrypt keys.ScryptParams, label *string, pass *string) (*wallet.Account, error) {
+	var (
+		phrase, name string
+		err          error
+	)
+	if pass != nil {
+		phrase = *pass
+	}
+	if label != nil {
+		name = *label
+	}
 	// note: NEP2 strings always have length of 58 even though
 	// base58 strings can have different lengths even if slice lengths are equal
 	if len(wif) == 58 {
-		pass, err := input.ReadPassword(EnterPasswordPrompt)
-		if err != nil {
-			return nil, fmt.Errorf("Error reading password: %w", err)
+		if pass == nil {
+			phrase, err = input.ReadPassword(EnterPasswordPrompt)
+			if err != nil {
+				return nil, fmt.Errorf("error reading password: %w", err)
+			}
 		}
 
-		return wallet.NewAccountFromEncryptedWIF(wif, pass, scrypt)
+		acc, err := wallet.NewAccountFromEncryptedWIF(wif, phrase, scrypt)
+		if err != nil {
+			// If password from wallet config wasn't OK then retry with the user input,
+			// see the https://github.com/nspcc-dev/neo-go/issues/2883#issuecomment-1399923088.
+			if pass == nil {
+				return nil, err
+			}
+			phrase, err = input.ReadPassword(EnterPasswordPrompt)
+			if err != nil {
+				return nil, fmt.Errorf("error reading password: %w", err)
+			}
+			acc, err = wallet.NewAccountFromEncryptedWIF(wif, phrase, scrypt)
+			if err != nil {
+				return nil, err
+			}
+		}
+		acc.Label = name
+		return acc, nil
 	}
 
 	acc, err := wallet.NewAccountFromWIF(wif)
@@ -984,13 +1024,21 @@ func newAccountFromWIF(w io.Writer, wif string, scrypt keys.ScryptParams) (*wall
 	}
 
 	fmt.Fprintln(w, "Provided WIF was unencrypted. Wallet can contain only encrypted keys.")
-	name, pass, err := readAccountInfo()
-	if err != nil {
-		return nil, err
+	if label == nil {
+		name, err = readAccountName()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read account label: %w", err)
+		}
+	}
+	if pass == nil {
+		phrase, err = readNewPassword()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read new password: %w", err)
+		}
 	}
 
 	acc.Label = name
-	if err := acc.Encrypt(pass, scrypt); err != nil {
+	if err := acc.Encrypt(phrase, scrypt); err != nil {
 		return nil, err
 	}
 
