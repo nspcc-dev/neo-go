@@ -356,9 +356,26 @@ func TestWalletInit(t *testing.T) {
 			t.Run("InvalidPassword", func(t *testing.T) {
 				e.In.WriteString("password1\r")
 				e.RunWithError(t, "neo-go", "wallet", "import", "--wallet", walletPath,
-					"--wif", acc.EncryptedWIF)
+					"--wif", acc.EncryptedWIF, "--name", "acc1")
 			})
 
+			e.In.WriteString("somepass\r")
+			e.Run(t, "neo-go", "wallet", "import", "--wallet", walletPath,
+				"--wif", acc.EncryptedWIF, "--name", "acc1")
+
+			w, err := wallet.NewWalletFromFile(walletPath)
+			require.NoError(t, err)
+			actual := w.GetAccount(acc.PrivateKey().GetScriptHash())
+			require.NotNil(t, actual)
+			require.Equal(t, "acc1", actual.Label)
+			require.NoError(t, actual.Decrypt("somepass", w.Scrypt))
+		})
+		t.Run("EncryptedWIF with name specified via input", func(t *testing.T) {
+			acc, err := wallet.NewAccount()
+			require.NoError(t, err)
+			require.NoError(t, acc.Encrypt("somepass", keys.NEP2ScryptParams()))
+
+			e.In.WriteString("acc2\r")
 			e.In.WriteString("somepass\r")
 			e.Run(t, "neo-go", "wallet", "import", "--wallet", walletPath,
 				"--wif", acc.EncryptedWIF)
@@ -367,6 +384,7 @@ func TestWalletInit(t *testing.T) {
 			require.NoError(t, err)
 			actual := w.GetAccount(acc.PrivateKey().GetScriptHash())
 			require.NotNil(t, actual)
+			require.Equal(t, "acc2", actual.Label)
 			require.NoError(t, actual.Decrypt("somepass", w.Scrypt))
 		})
 		t.Run("EncryptedWIF with wallet config", func(t *testing.T) {
@@ -388,12 +406,13 @@ func TestWalletInit(t *testing.T) {
 					e.In.WriteString(pass + "\r")
 				}
 				e.Run(t, "neo-go", "wallet", "import", "--wallet-config", configPath,
-					"--wif", acc.EncryptedWIF)
+					"--wif", acc.EncryptedWIF, "--name", "acc3"+configPass)
 
 				w, err := wallet.NewWalletFromFile(walletPath)
 				require.NoError(t, err)
 				actual := w.GetAccount(acc.PrivateKey().GetScriptHash())
 				require.NotNil(t, actual)
+				require.Equal(t, "acc3"+configPass, actual.Label)
 				require.NoError(t, actual.Decrypt(pass, w.Scrypt))
 			}
 			t.Run("config password mismatch", func(t *testing.T) {
