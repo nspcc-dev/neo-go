@@ -661,7 +661,8 @@ func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
 // ReceiveBlocks registers provided channel as a receiver for the new block events.
 // Events can be filtered by the given BlockFilter, nil value doesn't add any filter.
 // The receiver channel must be properly read and drained after usage in order not
-// to block other notification receivers. Make sure you're not changing the received
+// to block other notification receivers. Failing to do so will cause WSClient to
+// block even regular requests. Make sure you're not changing the received
 // blocks, as it may affect the functionality of other notification receivers.
 // If multiple subscriptions share the same receiver channel, then matching
 // notification is only sent once per channel. The receiver channel will be closed
@@ -708,7 +709,8 @@ func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, signer *uti
 // ReceiveTransactions registers provided channel as a receiver for new transaction
 // events. Events can be filtered by the given TxFilter, nil value doesn't add any
 // filter. The receiver channel must be properly read and drained after usage in
-// order not to block other notification receivers. Make sure you're not changing
+// order not to block other notification receivers. Failing to do so will cause
+// WSClient to block even regular requests. Make sure you're not changing
 // the received transactions, as it may affect the functionality of other
 // notification receivers.If multiple subscriptions share the same receiver channel,
 // then matching notification is only sent once per channel. The receiver channel
@@ -756,13 +758,13 @@ func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160, na
 // ReceiveExecutionNotifications registers provided channel as a receiver for execution
 // events. Events can be filtered by the given NotificationFilter, nil value doesn't add
 // any filter. The receiver channel must be properly read and drained after usage in
-// order not to block other notification receivers. Make sure you're not changing the
-// received notification events, as it may affect the functionality of other
-// notification receivers. If multiple subscriptions share the same receiver channel,
-// then matching notification is only sent once per channel. The receiver channel will
-// be closed by the WSClient immediately after MissedEvent is received from the server;
-// no unsubscription is performed in this case, so it's the user responsibility to
-// unsubscribe.
+// order not to block other notification receivers. Failing to do so will cause WSClient
+// to block even regular requests. Make sure you're not changing the received notification
+// events, as it may affect the functionality of other notification receivers. If multiple
+// subscriptions share the same receiver channel, then matching notification is only sent
+// once per channel. The receiver channel will be closed by the WSClient immediately after
+// MissedEvent is received from the server; no unsubscription is performed in this case,
+// so it's the user responsibility to unsubscribe.
 func (c *WSClient) ReceiveExecutionNotifications(flt *neorpc.NotificationFilter, rcvr chan<- *state.ContainedNotificationEvent) (string, error) {
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
@@ -808,7 +810,8 @@ func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, err
 // application execution result events generated during transaction execution.
 // Events can be filtered by the given ExecutionFilter, nil value doesn't add any filter.
 // The receiver channel must be properly read and drained after usage in order not
-// to block other notification receivers. Make sure you're not changing the received
+// to block other notification receivers. Failing to do so will cause WSClient to
+// block even regular requests. Make sure you're not changing the received
 // execution results, as it may affect the functionality of other notification
 // receivers. If multiple subscriptions share the same receiver channel, then
 // matching notification is only sent once per channel. The receiver channel will
@@ -863,8 +866,9 @@ func (c *WSClient) SubscribeForNotaryRequests(sender *util.Uint160, mainSigner *
 // where sender corresponds to notary request sender (the second fallback transaction
 // signer) and signer corresponds to main transaction signers. nil value doesn't add
 // any filter. The receiver channel must be properly read and drained after usage in
-// order not to block other notification receivers. Make sure you're not changing the
-// received notary requests, as it may affect the functionality of other notification
+// order not to block other notification receivers. Failing to do so will cause
+// WSClient to block even regular requests. Make sure you're not changing the received
+// notary requests, as it may affect the functionality of other notification
 // receivers. If multiple subscriptions share the same receiver channel, then matching
 // notification is only sent once per channel. The receiver channel will be closed by
 // the WSClient immediately after MissedEvent is received from the server; no
@@ -889,7 +893,8 @@ func (c *WSClient) ReceiveNotaryRequests(flt *neorpc.TxFilter, rcvr chan<- *resu
 // error in case if there's no subscription with the provided ID. Call to Unsubscribe
 // doesn't block notifications receive process for given subscriber, thus, ensure
 // that subscriber channel is properly drained while unsubscription is being
-// performed. You may probably need to run unsubscription process in a separate
+// performed. Failing to do so will cause WSClient to block even regular requests.
+// You may probably need to run unsubscription process in a separate
 // routine (in parallel with notification receiver routine) to avoid Client's
 // notification dispatcher blocking.
 func (c *WSClient) Unsubscribe(id string) error {
@@ -901,10 +906,10 @@ func (c *WSClient) Unsubscribe(id string) error {
 // time and tries to unsubscribe from us many feeds as possible returning the
 // chunk of unsubscription errors afterwards. Call to UnsubscribeAll doesn't block
 // notifications receive process for given subscribers, thus, ensure that subscribers
-// channels are properly drained while unsubscription is being performed. You may
-// probably need to run unsubscription process in a separate routine (in parallel
-// with notification receiver routines) to avoid Client's notification dispatcher
-// blocking.
+// channels are properly drained while unsubscription is being performed. Failing to
+// do so will cause WSClient to block even regular requests. You may probably need
+// to run unsubscription process in a separate routine (in parallel with notification
+// receiver routines) to avoid Client's notification dispatcher blocking.
 func (c *WSClient) UnsubscribeAll() error {
 	c.subscriptionsLock.Lock()
 	subs := make([]string, 0, len(c.subscriptions))
