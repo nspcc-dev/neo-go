@@ -232,6 +232,27 @@ func Deserialize(data []byte) (Item, error) {
 	return item, nil
 }
 
+// DeserializeLimited returns Item deserialized from the given byte slice. limit
+// restricts the maximum number of items deserialized item can contain (including
+// itself). The default limit of MaxDeserialized is used if non-positive limit is
+// specified.
+func DeserializeLimited(data []byte, limit int) (Item, error) {
+	r := io.NewBinReaderFromBuf(data)
+	dc := deserContext{
+		BinReader:    r,
+		allowInvalid: false,
+		limit:        MaxDeserialized,
+	}
+	if limit > 0 {
+		dc.limit = limit
+	}
+	item := dc.decodeBinary()
+	if r.Err != nil {
+		return nil, r.Err
+	}
+	return item, nil
+}
+
 // DecodeBinary decodes the previously serialized Item from the given
 // reader. It's similar to the io.Serializable's DecodeBinary() but implemented
 // as a function because Item itself is an interface. Caveat: always check
@@ -283,7 +304,7 @@ func (r *deserContext) decodeBinary() Item {
 		return NewBigInteger(num)
 	case ArrayT, StructT:
 		size := int(r.ReadVarUint())
-		if size > MaxDeserialized {
+		if size > r.limit {
 			r.Err = errTooBigElements
 			return nil
 		}
@@ -298,7 +319,7 @@ func (r *deserContext) decodeBinary() Item {
 		return NewStruct(arr)
 	case MapT:
 		size := int(r.ReadVarUint())
-		if size > MaxDeserialized {
+		if size > r.limit/2 {
 			r.Err = errTooBigElements
 			return nil
 		}

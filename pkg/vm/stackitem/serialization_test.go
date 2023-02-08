@@ -209,6 +209,26 @@ func TestDeserializeTooManyElements(t *testing.T) {
 	require.True(t, errors.Is(err, ErrTooBig), err)
 }
 
+func TestDeserializeLimited(t *testing.T) {
+	customLimit := MaxDeserialized + 1
+	item := Make(0)
+	for i := 0; i < customLimit-1; i++ { // 1 for zero inner element.
+		item = Make([]Item{item})
+	}
+	data, err := Serialize(item)
+	require.NoError(t, err)
+	actual, err := DeserializeLimited(data, customLimit)
+	require.NoError(t, err)
+	require.Equal(t, item, actual)
+
+	item = Make([]Item{item})
+	data, err = Serialize(item)
+	require.NoError(t, err)
+	_, err = DeserializeLimited(data, customLimit)
+	require.Error(t, err)
+	require.True(t, errors.Is(err, ErrTooBig), err)
+}
+
 func BenchmarkEncodeBinary(b *testing.B) {
 	arr := getBigArray(15)
 
