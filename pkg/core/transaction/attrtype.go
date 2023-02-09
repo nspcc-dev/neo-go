@@ -14,11 +14,12 @@ const (
 
 // List of valid attribute types.
 const (
-	HighPriority    AttrType = 1
-	OracleResponseT AttrType = 0x11 // OracleResponse
-	NotValidBeforeT AttrType = 0x20 // NotValidBefore
-	ConflictsT      AttrType = 0x21 // Conflicts
-	NotaryAssistedT AttrType = 0x22 // NotaryAssisted
+	HighPriority         AttrType = 1
+	OracleResponseT      AttrType = 0x11 // OracleResponse
+	NotValidBeforeT      AttrType = 0x20 // NotValidBefore
+	ConflictsT           AttrType = 0x21 // Conflicts
+	NotaryAssistedT      AttrType = 0x22 // NotaryAssisted
+	RefundableSystemFeeT AttrType = 0x30 // RefundableSystemFee
 )
 
 func (a AttrType) allowMultiple() bool {

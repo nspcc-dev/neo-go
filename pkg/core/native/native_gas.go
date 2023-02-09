@@ -129,6 +129,15 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements the Contract interface.
 func (g *GAS) PostPersist(ic *interop.Context) error {
+	for _, tx := range ic.Block.Transactions {
+		attrs := tx.GetAttributes(transaction.RefundableSystemFeeT)
+		if len(attrs) != 0 {
+			consumed := ic.TxesConsumed[tx.Hash()]
+			if consumed < tx.SystemFee {
+				g.mint(ic, tx.Sender(), big.NewInt(tx.SystemFee-consumed), false)
+			}
+		}
+	}
 	return nil
 }
 

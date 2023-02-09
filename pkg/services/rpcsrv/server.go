@@ -67,6 +67,7 @@ type (
 		CalculateClaimable(h util.Uint160, endHeight uint32) (*big.Int, error)
 		CurrentBlockHash() util.Uint256
 		FeePerByte() int64
+		SystemFeeRefundCost() int64
 		ForEachNEP11Transfer(acc util.Uint160, newestTimestamp uint64, f func(*state.NEP11Transfer) (bool, error)) error
 		ForEachNEP17Transfer(acc util.Uint160, newestTimestamp uint64, f func(*state.NEP17Transfer) (bool, error)) error
 		GetAppExecResults(util.Uint256, trigger.Type) ([]state.AppExecResult, error)
@@ -846,6 +847,9 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (interface{}, *neo
 			na := attrs[0].Value.(*transaction.NotaryAssisted)
 			netFee += (int64(na.NKeys) + 1) * s.chain.GetNotaryServiceFeePerKey()
 		}
+	}
+	if len(tx.GetAttributes(transaction.RefundableSystemFeeT)) > 0 {
+		netFee += s.chain.SystemFeeRefundCost()
 	}
 	fee := s.chain.FeePerByte()
 	netFee += int64(size) * fee

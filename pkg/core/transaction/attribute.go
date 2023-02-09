@@ -41,6 +41,8 @@ func (attr *Attribute) DecodeBinary(br *io.BinReader) {
 		attr.Value = new(Conflicts)
 	case NotaryAssistedT:
 		attr.Value = new(NotaryAssisted)
+	case RefundableSystemFeeT:
+		attr.Value = new(RefundableSystemFee)
 	default:
 		if t >= ReservedLowerBound && t <= ReservedUpperBound {
 			attr.Value = new(Reserved)
@@ -57,7 +59,7 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteB(byte(attr.Type))
 	switch t := attr.Type; t {
 	case HighPriority:
-	case OracleResponseT, NotValidBeforeT, ConflictsT, NotaryAssistedT:
+	case OracleResponseT, NotValidBeforeT, ConflictsT, NotaryAssistedT, RefundableSystemFeeT:
 		attr.Value.EncodeBinary(bw)
 	default:
 		if t >= ReservedLowerBound && t <= ReservedUpperBound {
@@ -102,6 +104,9 @@ func (attr *Attribute) UnmarshalJSON(data []byte) error {
 	case NotaryAssistedT.String():
 		attr.Type = NotaryAssistedT
 		attr.Value = new(NotaryAssisted)
+	case RefundableSystemFeeT.String():
+		attr.Type = RefundableSystemFeeT
+		attr.Value = new(RefundableSystemFee)
 	default:
 		return errors.New("wrong Type")
 	}
