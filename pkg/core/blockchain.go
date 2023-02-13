@@ -1418,7 +1418,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		cache          = bc.dao.GetPrivate()
 		aerCache       = bc.dao.GetPrivate()
 		appExecResults = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
-		txesConsumed   = make(map[util.Uint256]int64, len(block.Transactions))
+		txesConsumed   = make([]int64, len(block.Transactions))
 		aerchan        = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
 		aerdone        = make(chan error)
 	)
@@ -1511,7 +1511,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	appExecResults = append(appExecResults, aer)
 	aerchan <- aer
 
-	for _, tx := range block.Transactions {
+	for i, tx := range block.Transactions {
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 		systemInterop.ReuseVM(v)
 		v.LoadScriptWithFlags(tx.Script, callflag.All)
@@ -1534,7 +1534,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				zap.Error(err))
 			faultException = err.Error()
 		}
-		txesConsumed[tx.Hash()] = v.GasConsumed()
+		txesConsumed[i] = v.GasConsumed()
 		aer := &state.AppExecResult{
 			Container: tx.Hash(),
 			Execution: state.Execution{
@@ -1685,7 +1685,7 @@ func (bc *Blockchain) IsExtensibleAllowed(u util.Uint160) bool {
 	return n < len(us)
 }
 
-func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Simple, trig trigger.Type, v *vm.VM, txesConsumed map[util.Uint256]int64) (*state.AppExecResult, *vm.VM, error) {
+func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Simple, trig trigger.Type, v *vm.VM, txesConsumed []int64) (*state.AppExecResult, *vm.VM, error) {
 	systemInterop := bc.newInteropContext(trig, cache, block, nil)
 	if v == nil {
 		v = systemInterop.SpawnVM()

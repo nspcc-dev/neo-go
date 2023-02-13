@@ -60,7 +60,7 @@ type Context struct {
 	VM            *vm.VM
 	Functions     []Function
 	Invocations   map[util.Uint160]int
-	TxesConsumed  map[util.Uint256]int64
+	TxesConsumed  []int64
 
 	cancelFuncs      []context.CancelFunc
 	getContract      func(*dao.Simple, util.Uint160) (*state.Contract, error)
