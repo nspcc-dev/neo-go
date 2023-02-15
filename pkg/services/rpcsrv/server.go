@@ -470,7 +470,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 		}
 		resChan := make(chan abstractResult) // response.abstract or response.abstractBatch
 		subChan := make(chan intEvent, notificationBufSize)
-		subscr := &subscriber{writer: subChan, ws: ws}
+		subscr := &subscriber{writer: subChan}
 		s.subsLock.Lock()
 		s.subscribers[subscr] = true
 		s.subsLock.Unlock()

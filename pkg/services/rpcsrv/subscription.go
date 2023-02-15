@@ -17,7 +17,6 @@ type (
 	// subscriber is an event subscriber.
 	subscriber struct {
 		writer    chan<- intEvent
-		ws        *websocket.Conn
 		overflown atomic.Bool
 		// These work like slots as there is not a lot of them (it's
 		// cheaper doing it this way rather than creating a map),
