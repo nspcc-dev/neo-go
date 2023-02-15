@@ -255,3 +255,8 @@ func (c *Client) Ping() error {
 func (c *Client) Context() context.Context {
 	return c.ctx
 }
+
+// Endpoint returns the client endpoint.
+func (c *Client) Endpoint() string {
+	return c.endpoint.String()
+}
