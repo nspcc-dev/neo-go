@@ -13,12 +13,14 @@ func _() {
 	_ = x[NotValidBeforeT-32]
 	_ = x[ConflictsT-33]
 	_ = x[NotaryAssistedT-34]
+	_ = x[RefundableSystemFeeT-48]
 }
 
 const (
 	_AttrType_name_0 = "HighPriority"
 	_AttrType_name_1 = "OracleResponse"
 	_AttrType_name_2 = "NotValidBeforeConflictsNotaryAssisted"
+	_AttrType_name_3 = "RefundableSystemFee"
 )
 
 var (
@@ -34,6 +36,8 @@ func (i AttrType) String() string {
 	case 32 <= i && i <= 34:
 		i -= 32
 		return _AttrType_name_2[_AttrType_index_2[i]:_AttrType_index_2[i+1]]
+	case i == 48:
+		return _AttrType_name_3
 	default:
 		return "AttrType(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
