@@ -2033,15 +2033,45 @@ func TestClient_Wait(t *testing.T) {
 	check(t, util.Uint256{1, 2, 3}, chain.BlockHeight()-1, true)
 }
 
-func TestWSClient_Wait(t *testing.T) {
+func mkSubsClient(t *testing.T, rpcSrv *Server, httpSrv *httptest.Server, local bool) *rpcclient.WSClient {
+	var (
+		c   *rpcclient.WSClient
+		err error
+		icl *rpcclient.Internal
+	)
+	if local {
+		icl, err = rpcclient.NewInternal(context.Background(), rpcSrv.RegisterLocal)
+	} else {
+		url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
+		c, err = rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
+	}
+	require.NoError(t, err)
+	if local {
+		c = &icl.WSClient
+	}
+	require.NoError(t, c.Init())
+	return c
+}
+
+func runWSAndLocal(t *testing.T, test func(*testing.T, bool)) {
+	t.Run("ws", func(t *testing.T) {
+		test(t, false)
+	})
+	t.Run("local", func(t *testing.T) {
+		test(t, true)
+	})
+}
+
+func TestSubClientWait(t *testing.T) {
+	runWSAndLocal(t, testSubClientWait)
+}
+
+func testSubClientWait(t *testing.T, local bool) {
 	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
-	c, err := rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
-	require.NoError(t, err)
-	require.NoError(t, c.Init())
+	c := mkSubsClient(t, rpcSrv, httpSrv, local)
 	acc, err := wallet.NewAccount()
 	require.NoError(t, err)
 	act, err := actor.New(c, []actor.SignerAccount{
@@ -2135,15 +2165,16 @@ func TestWSClient_Wait(t *testing.T) {
 	require.True(t, faultedChecked, "FAULTed transaction wasn't checked")
 }
 
-func TestWSClient_WaitWithLateSubscription(t *testing.T) {
+func TestSubClientWaitWithLateSubscription(t *testing.T) {
+	runWSAndLocal(t, testSubClientWaitWithLateSubscription)
+}
+
+func testSubClientWaitWithLateSubscription(t *testing.T, local bool) {
 	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
-	c, err := rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
-	require.NoError(t, err)
-	require.NoError(t, c.Init())
+	c := mkSubsClient(t, rpcSrv, httpSrv, local)
 	acc, err := wallet.NewAccount()
 	require.NoError(t, err)
 	act, err := actor.New(c, []actor.SignerAccount{
@@ -2182,15 +2213,16 @@ func TestWSClientHandshakeError(t *testing.T) {
 	require.ErrorContains(t, err, "websocket users limit reached")
 }
 
-func TestWSClient_WaitWithMissedEvent(t *testing.T) {
+func TestSubClientWaitWithMissedEvent(t *testing.T) {
+	runWSAndLocal(t, testSubClientWaitWithMissedEvent)
+}
+
+func testSubClientWaitWithMissedEvent(t *testing.T, local bool) {
 	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
-	c, err := rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
-	require.NoError(t, err)
-	require.NoError(t, c.Init())
+	c := mkSubsClient(t, rpcSrv, httpSrv, local)
 	acc, err := wallet.NewAccount()
 	require.NoError(t, err)
 	act, err := actor.New(c, []actor.SignerAccount{
@@ -2272,10 +2304,7 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
-	c, err := rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
-	require.NoError(t, err)
-	require.NoError(t, c.Init())
+	c := mkSubsClient(t, rpcSrv, httpSrv, false)
 	blocks := getTestBlocks(t)
 	bCount := uint32(0)
 
@@ -2290,8 +2319,11 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 		return b1, primary, sender, ntfName, st
 	}
 	checkDeprecated := func(t *testing.T, filtered bool) {
+		var (
+			bID, txID, ntfID, aerID string
+			err                     error
+		)
 		b, primary, sender, ntfName, st := getData(t)
-		var bID, txID, ntfID, aerID string
 		if filtered {
 			bID, err = c.SubscribeForNewBlocks(&primary) //nolint:staticcheck // SA1019: c.SubscribeForNewBlocks is deprecated
 			require.NoError(t, err)
@@ -2382,6 +2414,7 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 			txFlt                   *neorpc.TxFilter
 			ntfFlt                  *neorpc.NotificationFilter
 			aerFlt                  *neorpc.ExecutionFilter
+			err                     error
 		)
 		if filtered {
 			bFlt = &neorpc.BlockFilter{Primary: &primary}

@@ -456,7 +456,7 @@ readloop:
 				connCloseErr = fmt.Errorf("bad event received: %s / %d", event, len(rr.RawParams))
 				break readloop
 			}
-			var val interface{}
+			ntf := Notification{Type: event}
 			switch event {
 			case neorpc.BlockEventID:
 				sr, err := c.StateRootInHeader()
@@ -465,15 +465,15 @@ readloop:
 					connCloseErr = fmt.Errorf("failed to fetch StateRootInHeader: %w", err)
 					break readloop
 				}
-				val = block.New(sr)
+				ntf.Value = block.New(sr)
 			case neorpc.TransactionEventID:
-				val = &transaction.Transaction{}
+				ntf.Value = &transaction.Transaction{}
 			case neorpc.NotificationEventID:
-				val = new(state.ContainedNotificationEvent)
+				ntf.Value = new(state.ContainedNotificationEvent)
 			case neorpc.ExecutionEventID:
-				val = new(state.AppExecResult)
+				ntf.Value = new(state.AppExecResult)
 			case neorpc.NotaryRequestEventID:
-				val = new(result.NotaryRequestEvent)
+				ntf.Value = new(result.NotaryRequestEvent)
 			case neorpc.MissedEventID:
 				// No value.
 			default:
@@ -482,32 +482,14 @@ readloop:
 				break readloop
 			}
 			if event != neorpc.MissedEventID {
-				err = json.Unmarshal(rr.RawParams[0], val)
+				err = json.Unmarshal(rr.RawParams[0], ntf.Value)
 				if err != nil {
 					// Bad event received.
 					connCloseErr = fmt.Errorf("failed to unmarshal event of type %s from JSON: %w", event, err)
 					break readloop
 				}
 			}
-			if event == neorpc.MissedEventID {
-				c.subscriptionsLock.Lock()
-				for rcvr, ids := range c.receivers {
-					c.subscriptions[ids[0]].Close()
-					delete(c.receivers, rcvr)
-				}
-				c.subscriptionsLock.Unlock()
-				continue readloop
-			}
-			c.subscriptionsLock.RLock()
-			ntf := Notification{Type: event, Value: val}
-			for _, ids := range c.receivers {
-				for _, id := range ids {
-					if c.subscriptions[id].TrySend(ntf) {
-						break // strictly one notification per channel
-					}
-				}
-			}
-			c.subscriptionsLock.RUnlock()
+			c.notifySubscribers(ntf)
 		} else if rr.ID != nil && (rr.Error != nil || rr.Result != nil) {
 			id, err := strconv.ParseUint(string(rr.ID), 10, 64)
 			if err != nil {
@@ -578,6 +560,27 @@ writeloop:
 	if connCloseErr != nil {
 		c.setCloseErr(connCloseErr)
 	}
+}
+
+func (c *WSClient) notifySubscribers(ntf Notification) {
+	if ntf.Type == neorpc.MissedEventID {
+		c.subscriptionsLock.Lock()
+		for rcvr, ids := range c.receivers {
+			c.subscriptions[ids[0]].Close()
+			delete(c.receivers, rcvr)
+		}
+		c.subscriptionsLock.Unlock()
+		return
+	}
+	c.subscriptionsLock.RLock()
+	for _, ids := range c.receivers {
+		for _, id := range ids {
+			if c.subscriptions[id].TrySend(ntf) {
+				break // strictly one notification per channel
+			}
+		}
+	}
+	c.subscriptionsLock.RUnlock()
 }
 
 func (c *WSClient) unregisterRespChannel(id uint64) {
