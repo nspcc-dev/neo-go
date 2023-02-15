@@ -2233,18 +2233,19 @@ func TestWSClient_WaitWithMissedEvent(t *testing.T) {
 	// Accept the next block, but subscriber will get no events because it's overflown.
 	require.NoError(t, chain.AddBlock(b1))
 
-	overEvent, err := json.Marshal(neorpc.Notification{
+	overNotification := neorpc.Notification{
 		JSONRPC: neorpc.JSONRPCVersion,
 		Event:   neorpc.MissedEventID,
 		Payload: make([]interface{}, 0),
-	})
+	}
+	overEvent, err := json.Marshal(overNotification)
 	require.NoError(t, err)
 	overflowMsg, err := websocket.NewPreparedMessage(websocket.TextMessage, overEvent)
 	require.NoError(t, err)
 	rpcSrv.subsLock.Lock()
 	// Deliver overflow message -> triggers subscriber to retry with polling waiter.
 	for s := range rpcSrv.subscribers {
-		s.writer <- overflowMsg
+		s.writer <- intEvent{overflowMsg, &overNotification}
 	}
 	rpcSrv.subsLock.Unlock()
 
