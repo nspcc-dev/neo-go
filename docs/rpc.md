@@ -3,7 +3,7 @@
 ## Client
 
 Client is provided as a Go package, so please refer to the
-[relevant godocs page](https://godoc.org/github.com/nspcc-dev/neo-go/pkg/rpc).
+[relevant godocs page](https://godoc.org/github.com/nspcc-dev/neo-go/pkg/rpcclient).
 
 ## Server
 
