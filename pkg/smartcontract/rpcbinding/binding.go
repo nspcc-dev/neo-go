@@ -565,7 +565,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 				ctr.HasIterator = true
 			} else {
 				imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
-				ctr.SafeMethods[i].ReturnType = "stackitem.Item"
+				ctr.SafeMethods[i].ReturnType = "interface{}"
 				ctr.SafeMethods[i].Unwrapper = "Item"
 			}
 		case "bool":

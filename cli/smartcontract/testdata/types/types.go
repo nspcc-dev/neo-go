@@ -20,6 +20,10 @@ func String(s string) string {
 	return ""
 }
 
+func Any(a interface{}) interface{} {
+	return nil
+}
+
 func Hash160(h interop.Hash160) interop.Hash160 {
 	return nil
 }
