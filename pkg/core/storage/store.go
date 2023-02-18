@@ -49,7 +49,9 @@ const (
 // SeekRange represents options for Store.Seek operation.
 type SeekRange struct {
 	// Prefix denotes the Seek's lookup key.
-	// Empty Prefix is not supported.
+	// If used directly with MemCachedStore's or MemoryStore's Seek, SeekAsync or
+	// SeekGC empty Prefix is not supported due to internal MemoryStore cache
+	// architecture; otherwise empty prefix can be used safely.
 	Prefix []byte
 	// Start denotes value appended to the Prefix to start Seek from.
 	// Seeking starting from some key includes this key to the result;
@@ -57,7 +59,7 @@ type SeekRange struct {
 	// Start may be empty. Empty Start means seeking through all keys in
 	// the DB with matching Prefix.
 	// Empty Prefix and empty Start can be combined, which means seeking
-	// through all keys in the DB.
+	// through all keys in the DB, but see the Prefix's comment.
 	Start []byte
 	// Backwards denotes whether Seek direction should be reversed, i.e.
 	// whether seeking should be performed in a descending way.
