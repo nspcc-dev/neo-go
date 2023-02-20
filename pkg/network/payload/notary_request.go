@@ -122,7 +122,7 @@ func (r *P2PNotaryRequest) isValid() error {
 		return errors.New("fallback transaction should have one Conflicts attribute")
 	}
 	if conflicts[0].Value.(*transaction.Conflicts).Hash != r.MainTransaction.Hash() {
-		return errors.New("fallback transaction does not conflicts with the main transaction")
+		return errors.New("fallback transaction does not conflict with the main transaction")
 	}
 	nKeysFallback := r.FallbackTransaction.GetAttributes(transaction.NotaryAssistedT)
 	if len(nKeysFallback) == 0 {
