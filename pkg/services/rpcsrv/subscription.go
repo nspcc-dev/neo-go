@@ -7,10 +7,16 @@ import (
 )
 
 type (
+	// intEvent is an internal event that has both a proper structure and
+	// a websocket-ready message. It's used to serve websocket-based clients
+	// as well as internal ones.
+	intEvent struct {
+		msg *websocket.PreparedMessage
+		ntf *neorpc.Notification
+	}
 	// subscriber is an event subscriber.
 	subscriber struct {
-		writer    chan<- *websocket.PreparedMessage
-		ws        *websocket.Conn
+		writer    chan<- intEvent
 		overflown atomic.Bool
 		// These work like slots as there is not a lot of them (it's
 		// cheaper doing it this way rather than creating a map),

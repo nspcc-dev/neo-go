@@ -469,8 +469,8 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 			return
 		}
 		resChan := make(chan abstractResult) // response.abstract or response.abstractBatch
-		subChan := make(chan *websocket.PreparedMessage, notificationBufSize)
-		subscr := &subscriber{writer: subChan, ws: ws}
+		subChan := make(chan intEvent, notificationBufSize)
+		subscr := &subscriber{writer: subChan}
 		s.subsLock.Lock()
 		s.subscribers[subscr] = true
 		s.subsLock.Unlock()
@@ -505,6 +505,19 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 	s.writeHTTPServerResponse(req, w, resp)
 }
 
+// RegisterLocal performs local client registration.
+func (s *Server) RegisterLocal(ctx context.Context, events chan<- neorpc.Notification) func(*neorpc.Request) (*neorpc.Response, error) {
+	subChan := make(chan intEvent, notificationBufSize)
+	subscr := &subscriber{writer: subChan}
+	s.subsLock.Lock()
+	s.subscribers[subscr] = true
+	s.subsLock.Unlock()
+	go s.handleLocalNotifications(ctx, events, subChan, subscr)
+	return func(req *neorpc.Request) (*neorpc.Response, error) {
+		return s.handleInternal(req, subscr)
+	}
+}
+
 func (s *Server) handleRequest(req *params.Request, sub *subscriber) abstractResult {
 	if req.In != nil {
 		req.In.Method = escapeForLog(req.In.Method) // No valid method name will be changed by it.
@@ -516,6 +529,51 @@ func (s *Server) handleRequest(req *params.Request, sub *subscriber) abstractRes
 		resp[i] = s.handleIn(&in, sub)
 	}
 	return resp
+}
+
+// handleInternal is an experimental interface to handle client requests directly.
+func (s *Server) handleInternal(req *neorpc.Request, sub *subscriber) (*neorpc.Response, error) {
+	var (
+		res    interface{}
+		rpcRes = &neorpc.Response{
+			HeaderAndError: neorpc.HeaderAndError{
+				Header: neorpc.Header{
+					JSONRPC: req.JSONRPC,
+					ID:      json.RawMessage(strconv.FormatUint(req.ID, 10)),
+				},
+			},
+		}
+	)
+	reqParams, err := params.FromAny(req.Params)
+	if err != nil {
+		return nil, err
+	}
+
+	s.log.Debug("processing local rpc request",
+		zap.String("method", req.Method),
+		zap.Stringer("params", reqParams))
+
+	start := time.Now()
+	defer func() { addReqTimeMetric(req.Method, time.Since(start)) }()
+
+	rpcRes.Error = neorpc.NewMethodNotFoundError(fmt.Sprintf("method %q not supported", req.Method))
+	handler, ok := rpcHandlers[req.Method]
+	if ok {
+		res, rpcRes.Error = handler(s, reqParams)
+	} else if sub != nil {
+		handler, ok := rpcWsHandlers[req.Method]
+		if ok {
+			res, rpcRes.Error = handler(s, reqParams, sub)
+		}
+	}
+	if res != nil {
+		b, err := json.Marshal(res)
+		if err != nil {
+			return nil, fmt.Errorf("response can't be JSONized: %w", err)
+		}
+		rpcRes.Result = json.RawMessage(b)
+	}
+	return rpcRes, nil
 }
 
 func (s *Server) handleIn(req *params.In, sub *subscriber) abstract {
@@ -547,7 +605,31 @@ func (s *Server) handleIn(req *params.In, sub *subscriber) abstract {
 	return s.packResponse(req, res, resErr)
 }
 
-func (s *Server) handleWsWrites(ws *websocket.Conn, resChan <-chan abstractResult, subChan <-chan *websocket.PreparedMessage) {
+func (s *Server) handleLocalNotifications(ctx context.Context, events chan<- neorpc.Notification, subChan <-chan intEvent, subscr *subscriber) {
+eventloop:
+	for {
+		select {
+		case <-s.shutdown:
+			break eventloop
+		case <-ctx.Done():
+			break eventloop
+		case ev := <-subChan:
+			events <- *ev.ntf // Make a copy.
+		}
+	}
+	close(events)
+	s.dropSubscriber(subscr)
+drainloop:
+	for {
+		select {
+		case <-subChan:
+		default:
+			break drainloop
+		}
+	}
+}
+
+func (s *Server) handleWsWrites(ws *websocket.Conn, resChan <-chan abstractResult, subChan <-chan intEvent) {
 	pingTicker := time.NewTicker(wsPingPeriod)
 eventloop:
 	for {
@@ -561,7 +643,7 @@ eventloop:
 			if err := ws.SetWriteDeadline(time.Now().Add(wsWriteLimit)); err != nil {
 				break eventloop
 			}
-			if err := ws.WritePreparedMessage(event); err != nil {
+			if err := ws.WritePreparedMessage(event.msg); err != nil {
 				break eventloop
 			}
 		case res, ok := <-resChan:
@@ -621,7 +703,12 @@ requestloop:
 		case resChan <- res:
 		}
 	}
+	s.dropSubscriber(subscr)
+	close(resChan)
+	ws.Close()
+}
 
+func (s *Server) dropSubscriber(subscr *subscriber) {
 	s.subsLock.Lock()
 	delete(s.subscribers, subscr)
 	s.subsLock.Unlock()
@@ -632,8 +719,6 @@ requestloop:
 		}
 	}
 	s.subsCounterLock.Unlock()
-	close(resChan)
-	ws.Close()
 }
 
 func (s *Server) getBestBlockHash(_ params.Params) (interface{}, *neorpc.Error) {
@@ -2581,11 +2666,12 @@ func (s *Server) unsubscribeFromChannel(event neorpc.EventID) {
 }
 
 func (s *Server) handleSubEvents() {
-	b, err := json.Marshal(neorpc.Notification{
+	var overflowEvent = neorpc.Notification{
 		JSONRPC: neorpc.JSONRPCVersion,
 		Event:   neorpc.MissedEventID,
 		Payload: make([]interface{}, 0),
-	})
+	}
+	b, err := json.Marshal(overflowEvent)
 	if err != nil {
 		s.log.Error("fatal: failed to marshal overflow event", zap.Error(err))
 		return
@@ -2649,12 +2735,12 @@ chloop:
 						}
 					}
 					select {
-					case sub.writer <- msg:
+					case sub.writer <- intEvent{msg, &resp}:
 					default:
 						sub.overflown.Store(true)
 						// MissedEvent is to be delivered eventually.
 						go func(sub *subscriber) {
-							sub.writer <- overflowMsg
+							sub.writer <- intEvent{overflowMsg, &overflowEvent}
 							sub.overflown.Store(false)
 						}(sub)
 					}
