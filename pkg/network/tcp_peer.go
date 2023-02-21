@@ -250,6 +250,16 @@ func (p *TCPPeer) handleQueues() {
 		p2pSkipCounter++
 	}
 	p.Disconnect(err)
+drainloop:
+	for {
+		select {
+		case <-p.hpSendQ:
+		case <-p.p2pSendQ:
+		case <-p.sendQ:
+		default:
+			break drainloop
+		}
+	}
 }
 
 // StartProtocol starts a long running background loop that interacts
