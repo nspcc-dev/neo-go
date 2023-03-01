@@ -37,9 +37,10 @@ type Actor interface {
 var Hash = state.CreateNativeContractHash(nativenames.Policy)
 
 const (
-	execFeeSetter      = "setExecFeeFactor"
-	feePerByteSetter   = "setFeePerByte"
-	storagePriceSetter = "setStoragePrice"
+	execFeeSetter             = "setExecFeeFactor"
+	feePerByteSetter          = "setFeePerByte"
+	storagePriceSetter        = "setStoragePrice"
+	systemFeeRefundCostSetter = "setSystemFeeRefundCost"
 )
 
 // ContractReader provides an interface to call read-only PolicyContract
@@ -86,6 +87,12 @@ func (c *ContractReader) GetFeePerByte() (int64, error) {
 // data to the storage pays for it according to this value.
 func (c *ContractReader) GetStoragePrice() (int64, error) {
 	return unwrap.Int64(c.invoker.Call(Hash, "getStoragePrice"))
+}
+
+// GetSystemFeeRefundCost returns extra network fee cost when using SystemFeeRefundableAttribute
+// in transaction
+func (c *ContractReader) GetSystemFeeRefundCost() (int64, error) {
+	return unwrap.Int64(c.invoker.Call(Hash, "getSystemFeeRefundCost"))
 }
 
 // IsBlocked checks if the given account is blocked in the PolicyContract.
@@ -156,6 +163,12 @@ func (c *Contract) SetStoragePriceTransaction(value int64) (*transaction.Transac
 // caller.
 func (c *Contract) SetStoragePriceUnsigned(value int64) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, storagePriceSetter, nil, value)
+}
+
+// SetSystemFeeRefundCost creates a transaction that sets the extra network fee cost in
+// system fee refundable transaction. This transaction is not signed and just returned to the caller.
+func (c *Contract) SetSystemFeeRefundCost(value int64) (*transaction.Transaction, error) {
+	return c.actor.MakeUnsignedCall(Hash, systemFeeRefundCostSetter, nil, value)
 }
 
 // BlockAccount creates and sends a transaction that blocks an account on the

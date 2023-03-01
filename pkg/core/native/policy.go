@@ -59,12 +59,12 @@ type Policy struct {
 }
 
 type PolicyCache struct {
-	execFeeFactor      uint32
-	feePerByte         int64
-	maxVerificationGas int64
-	storagePrice       uint32
-	systemFeeRefundCost       int64
-	blockedAccounts    []util.Uint160
+	execFeeFactor       uint32
+	feePerByte          int64
+	maxVerificationGas  int64
+	storagePrice        uint32
+	systemFeeRefundCost int64
+	blockedAccounts     []util.Uint160
 }
 
 var (
@@ -132,6 +132,11 @@ func newPolicy() *Policy {
 	md = newMethodAndPrice(p.unblockAccount, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
+	desc = newDescriptor("getSystemFeeRefundCost", smartcontract.IntegerType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.GetSystemFeeRefundCost, 1<<15, callflag.ReadStates)
+	p.AddMethod(md, desc)
+
 	desc = newDescriptor("setSystemFeeRefundCost", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(p.setSystemFeeRefundCost, 1<<15, callflag.States)
@@ -153,12 +158,12 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 	setIntWithKey(p.ID, ic.DAO, systemFeeRefundCostKey, defaultSystemFeeRefundCost)
 
 	cache := &PolicyCache{
-		execFeeFactor:      defaultExecFeeFactor,
-		feePerByte:         defaultFeePerByte,
-		maxVerificationGas: defaultMaxVerificationGas,
-		storagePrice:       DefaultStoragePrice,
-		systemFeeRefundCost:       defaultSystemFeeRefundCost,
-		blockedAccounts:    make([]util.Uint160, 0),
+		execFeeFactor:       defaultExecFeeFactor,
+		feePerByte:          defaultFeePerByte,
+		maxVerificationGas:  defaultMaxVerificationGas,
+		storagePrice:        DefaultStoragePrice,
+		systemFeeRefundCost: defaultSystemFeeRefundCost,
+		blockedAccounts:     make([]util.Uint160, 0),
 	}
 	ic.DAO.SetCache(p.ID, cache)
 
@@ -365,6 +370,10 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	cache.blockedAccounts = append(cache.blockedAccounts[:i], cache.blockedAccounts[i+1:]...)
 	return stackitem.NewBool(true)
+}
+
+func (p *Policy) GetSystemFeeRefundCost(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(p.GetSystemFeeRefundCostInternal(ic.DAO)))
 }
 
 func (p *Policy) GetSystemFeeRefundCostInternal(d *dao.Simple) int64 {

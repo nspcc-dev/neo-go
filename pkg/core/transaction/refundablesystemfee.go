@@ -4,7 +4,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
-// Conflicts represents attribute for refund gas transaction.
+// RefundableSystemFee represents attribute for system fee refundable transaction.
 type RefundableSystemFee struct {
 }
 
