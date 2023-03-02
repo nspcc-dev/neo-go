@@ -451,6 +451,52 @@ func TestBlockchain_AddBadBlock(t *testing.T) {
 	})
 }
 
+func TestBlockchain_RefundSystemFee(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	neoHash := e.NativeHash(t, nativenames.Neo)
+
+	bal0 := bc.GetUtilityTokenBalance(acc.ScriptHash())
+
+	// tx without sysfee refund
+	tx1 := e.NewUnsignedTx(t, neoHash, "symbol")
+	e.SignTx(t, tx1, 100000000, acc)
+	vm, err := neotest.TestInvoke(bc, tx1)
+	actualSysfee1 := vm.GasConsumed()
+	require.NoError(t, err)
+
+	block1 := e.NewUnsignedBlock(t, tx1)
+	e.SignBlock(block1)
+	err = bc.AddBlock(block1)
+	require.NoError(t, err)
+	bal1 := bc.GetUtilityTokenBalance(acc.ScriptHash())
+
+	// tx with sysfee refund
+	tx2 := e.NewUnsignedTx(t, neoHash, "symbol")
+	attr := transaction.Attribute{Type: transaction.RefundableSystemFeeT, Value: &transaction.RefundableSystemFee{}}
+	tx2.Attributes = append(tx2.Attributes, attr)
+	e.SignTx(t, tx2, 100000000, acc)
+	tx2.NetworkFee += bc.SystemFeeRefundCost()
+	vm, err = neotest.TestInvoke(bc, tx1)
+	actualSysfee2 := vm.GasConsumed()
+	require.NoError(t, err)
+	require.Equal(t, actualSysfee1, actualSysfee2)
+
+	block2 := e.NewUnsignedBlock(t, tx2)
+	e.SignBlock(block2)
+	err = bc.AddBlock(block2)
+	require.NoError(t, err)
+	bal2 := bc.GetUtilityTokenBalance(acc.ScriptHash())
+
+	gas1 := new(big.Int).Sub(bal0, bal1)
+	gas2 := new(big.Int).Sub(bal1, bal2)
+	extraNetfee := big.NewInt(int64(io.GetVarSize(&attr)) * int64(bc.FeePerByte()))
+	extraNetfee.Add(extraNetfee, big.NewInt(bc.SystemFeeRefundCost()))
+	expect := new(big.Int).Add(gas1, extraNetfee)
+	expect.Sub(expect, big.NewInt(100000000-actualSysfee1))
+	require.Equal(t, expect, gas2)
+}
+
 func TestBlockchain_GetHeader(t *testing.T) {
 	bc, acc := chain.NewSingle(t)
 	e := neotest.NewExecutor(t, bc, acc, acc)
@@ -1109,7 +1155,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 	}
 
 	testScript := []byte{byte(opcode.PUSH1)}
-	newTestTx := func(t *testing.T, signer util.Uint160, script []byte) *transaction.Transaction {
+	newTestTx := func(t *testing.T, signer util.Uint160, script []byte, attrs ...transaction.Attribute) *transaction.Transaction {
 		tx := transaction.New(script, 1_000_000)
 		tx.Nonce = neotest.Nonce()
 		tx.ValidUntilBlock = e.Chain.BlockHeight() + 5
@@ -1117,6 +1163,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			Account: signer,
 			Scopes:  transaction.CalledByEntry,
 		}}
+		tx.Attributes = attrs
 		tx.NetworkFee = int64(io.GetVarSize(tx)+200 /* witness */) * bc.FeePerByte()
 		tx.NetworkFee += 1_000_000 // verification cost
 		return tx
@@ -1337,6 +1384,14 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				VerificationScript: rawScript,
 			}}
 			require.NoError(t, bc.VerifyTx(tx))
+		})
+		t.Run("SystemFeeRefundableAttribute", func(t *testing.T) {
+			tx := newTestTx(t, h, testScript, transaction.Attribute{Type: transaction.RefundableSystemFeeT, Value: &transaction.RefundableSystemFee{}})
+			require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
+			checkErr(t, core.ErrTxSmallNetworkFee, tx)
+			tx.NetworkFee += bc.SystemFeeRefundCost()
+			require.Nil(t, bc.VerifyTx(tx))
+			t.Log("success")
 		})
 		t.Run("Oracle", func(t *testing.T) {
 			cs := contracts.GetOracleContractState(t, pathToInternalContracts, validator.ScriptHash(), 0)
