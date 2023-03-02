@@ -64,7 +64,12 @@ type (
 
 		mp *mempool.Pool
 		// requests channel
-		reqCh    chan mempoolevent.Event
+		reqCh chan mempoolevent.Event
+		// blocksCh is a channel used to receive block notifications from the
+		// Blockchain. It is not buffered intentionally, as it's important to keep
+		// the notary request pool in sync with the current blockchain heigh, thus,
+		// it's not recommended to use a large size of notary requests pool as it may
+		// slow down the block processing.
 		blocksCh chan *block.Block
 		stopCh   chan struct{}
 		done     chan struct{}

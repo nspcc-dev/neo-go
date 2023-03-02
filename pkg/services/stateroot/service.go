@@ -63,9 +63,12 @@ type (
 		timePerBlock    time.Duration
 		maxRetries      int
 		relayExtensible RelayCallback
-		blockCh         chan *block.Block
-		stopCh          chan struct{}
-		done            chan struct{}
+		// blockCh is a channel used to receive block notifications from the
+		// Blockchain. It has a tiny buffer in order to avoid Blockchain blocking
+		// on block addition under the high load.
+		blockCh chan *block.Block
+		stopCh  chan struct{}
+		done    chan struct{}
 	}
 )
 
@@ -84,7 +87,7 @@ func New(cfg config.StateRoot, sm *stateroot.Module, log *zap.Logger, bc Ledger,
 		chain:           bc,
 		log:             log,
 		incompleteRoots: make(map[uint32]*incompleteRoot),
-		blockCh:         make(chan *block.Block),
+		blockCh:         make(chan *block.Block, 1),
 		stopCh:          make(chan struct{}),
 		done:            make(chan struct{}),
 		timePerBlock:    bcConf.TimePerBlock,

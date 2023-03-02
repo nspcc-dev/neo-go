@@ -89,7 +89,8 @@ type service struct {
 	messages     chan Payload
 	transactions chan *transaction.Transaction
 	// blockEvents is used to pass a new block event to the consensus
-	// process.
+	// process. It has a tiny buffer in order to avoid Blockchain blocking
+	// on block addition under the high load.
 	blockEvents  chan *coreb.Block
 	lastProposal []util.Uint256
 	wallet       *wallet.Wallet
