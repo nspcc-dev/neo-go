@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -19,7 +20,7 @@ type Deposit struct {
 // error.
 func (d *Deposit) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct([]stackitem.Item{
-		stackitem.NewBigInteger(d.Amount),
+		stackitem.NewBigIntegerFromBig(d.Amount),
 		stackitem.Make(d.Till),
 	}), nil
 }
@@ -45,7 +46,7 @@ func (d *Deposit) FromStackItem(it stackitem.Item) error {
 	if !till.IsUint64() || tiu64 > math.MaxUint32 {
 		return errors.New("wrong till value")
 	}
-	d.Amount = amount
+	d.Amount = util.ToBig(amount)
 	d.Till = uint32(tiu64)
 	return nil
 }

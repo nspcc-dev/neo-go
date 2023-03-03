@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -76,7 +77,7 @@ func (m *Method) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return err
 	}
-	m.ReturnType, err = smartcontract.ConvertToParamType(int(rTyp.Int64()))
+	m.ReturnType, err = smartcontract.ConvertToParamType(int(util.ToInt64(rTyp)))
 	if err != nil {
 		return err
 	}
@@ -84,7 +85,7 @@ func (m *Method) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return err
 	}
-	m.Offset = int(offset.Int64())
+	m.Offset = int(util.ToInt64(offset))
 	safe, err := method[4].TryBool()
 	if err != nil {
 		return err

@@ -10,6 +10,8 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+
+	"github.com/holiman/uint256"
 )
 
 // decoder is a wrapper around json.Decoder helping to mimic C# json decoder behavior.
@@ -112,7 +114,7 @@ func toJSON(data []byte, seen map[Item]sliceNoPointer, item Item) ([]byte, error
 		data = append(data, '}')
 		seen[item] = sliceNoPointer{start, len(data)}
 	case *BigInteger:
-		if it.Big().CmpAbs(big.NewInt(MaxAllowedInteger)) == 1 {
+		if uint256.NewInt(0).Abs(it.Big()).Cmp(uint256.NewInt(MaxAllowedInteger)) == 1 {
 			return nil, fmt.Errorf("%w (MaxAllowedInteger)", ErrInvalidValue)
 		}
 		data = append(data, it.Big().String()...)
@@ -228,7 +230,7 @@ func (d *decoder) decode() (Item, error) {
 		if !ok {
 			return nil, fmt.Errorf("%w (integer)", ErrInvalidValue)
 		}
-		return NewBigInteger(num), nil
+		return NewBigIntegerFromBig(num), nil
 	case bool:
 		return NewBool(t), nil
 	default:
@@ -443,7 +445,7 @@ func FromJSONWithTypes(data []byte) (Item, error) {
 		if !ok {
 			return nil, mkErrValue(errors.New("not an integer"))
 		}
-		return NewBigInteger(val), nil
+		return NewBigIntegerFromBig(val), nil
 	case ByteArrayT, BufferT:
 		var s string
 		if err := json.Unmarshal(raw.Value, &s); err != nil {

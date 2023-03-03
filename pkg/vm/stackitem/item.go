@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"unicode/utf8"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -45,7 +46,7 @@ type Item interface {
 	// byte slice, it's returned as is without copying.
 	TryBytes() ([]byte, error)
 	// TryInteger converts Item to an integer.
-	TryInteger() (*big.Int, error)
+	TryInteger() (*uint256.Int, error)
 	// Equals checks if 2 StackItems are equal.
 	Equals(s Item) bool
 	// Type returns stack item type.
@@ -91,17 +92,19 @@ func mkInvConversion(from Item, to Type) error {
 func Make(v interface{}) Item {
 	switch val := v.(type) {
 	case int:
-		return (*BigInteger)(big.NewInt(int64(val)))
+		b, _ := uint256.FromBig(big.NewInt(int64(val)))
+		return NewBigInteger(b)
 	case int64:
-		return (*BigInteger)(big.NewInt(val))
+		b, _ := uint256.FromBig(big.NewInt(val))
+		return NewBigInteger(b)
 	case uint8:
-		return (*BigInteger)(big.NewInt(int64(val)))
+		return NewBigInteger(uint256.NewInt(uint64(val)))
 	case uint16:
-		return (*BigInteger)(big.NewInt(int64(val)))
+		return NewBigInteger(uint256.NewInt(uint64(val)))
 	case uint32:
-		return (*BigInteger)(big.NewInt(int64(val)))
+		return NewBigInteger(uint256.NewInt(uint64(val)))
 	case uint64:
-		return (*BigInteger)(new(big.Int).SetUint64(val))
+		return NewBigInteger(uint256.NewInt(uint64(val)))
 	case []byte:
 		return NewByteArray(val)
 	case string:
@@ -113,7 +116,14 @@ func Make(v interface{}) Item {
 			value: val,
 		}
 	case *big.Int:
-		return NewBigInteger(val)
+		b, overflow := uint256.FromBig(val)
+		if overflow {
+			panic(fmt.Sprintf(
+				"big int overflow: %v",
+				val,
+			))
+		}
+		return NewBigInteger(b)
 	case Item:
 		return val
 	case []int:
@@ -173,7 +183,7 @@ func convertPrimitive(item Item, typ Type) (Item, error) {
 		if err != nil {
 			return nil, err
 		}
-		return NewBigInteger(bi), nil
+		return (*BigInteger)(bi), nil
 	case ByteArrayT, BufferT:
 		b, err := item.TryBytes()
 		if err != nil {
@@ -264,7 +274,7 @@ func (i *Struct) TryBytes() ([]byte, error) {
 }
 
 // TryInteger implements the Item interface.
-func (i *Struct) TryInteger() (*big.Int, error) {
+func (i *Struct) TryInteger() (*uint256.Int, error) {
 	return nil, mkInvConversion(i, IntegerT)
 }
 
@@ -394,7 +404,7 @@ func (i Null) TryBytes() ([]byte, error) {
 }
 
 // TryInteger implements the Item interface.
-func (i Null) TryInteger() (*big.Int, error) {
+func (i Null) TryInteger() (*uint256.Int, error) {
 	return nil, mkInvConversion(i, IntegerT)
 }
 
@@ -416,14 +426,23 @@ func (i Null) Convert(typ Type) (Item, error) {
 }
 
 // BigInteger represents a big integer on the stack.
-type BigInteger big.Int
+type BigInteger uint256.Int
 
 // NewBigInteger returns an new BigInteger object.
-func NewBigInteger(value *big.Int) *BigInteger {
-	if err := CheckIntegerSize(value); err != nil {
-		panic(err)
-	}
+func NewBigInteger(value *uint256.Int) *BigInteger {
 	return (*BigInteger)(value)
+}
+
+func NewBigIntegerFromInt64(value int64) *BigInteger {
+	return NewBigIntegerFromBig(big.NewInt(value))
+}
+
+func NewBigIntegerFromBig(value *big.Int) *BigInteger {
+	b, overflow := uint256.FromBig(value)
+	if overflow {
+		panic("BigInter overflow")
+	}
+	return (*BigInteger)(b)
 }
 
 // CheckIntegerSize checks that the value size doesn't exceed the VM limit for Interer.
@@ -447,13 +466,13 @@ func CheckIntegerSize(value *big.Int) error {
 }
 
 // Big casts i to the big.Int type.
-func (i *BigInteger) Big() *big.Int {
-	return (*big.Int)(i)
+func (i *BigInteger) Big() *uint256.Int {
+	return (*uint256.Int)(i)
 }
 
 // Bytes converts i to a slice of bytes.
 func (i *BigInteger) Bytes() []byte {
-	return bigint.ToBytes(i.Big())
+	return bigint.Uint256ToBytes(i.Big())
 }
 
 // TryBool implements the Item interface.
@@ -467,7 +486,7 @@ func (i *BigInteger) TryBytes() ([]byte, error) {
 }
 
 // TryInteger implements the Item interface.
-func (i *BigInteger) TryInteger() (*big.Int, error) {
+func (i *BigInteger) TryInteger() (*uint256.Int, error) {
 	return i.Big(), nil
 }
 
@@ -493,8 +512,8 @@ func (i *BigInteger) String() string {
 
 // Dup implements the Item interface.
 func (i *BigInteger) Dup() Item {
-	n := new(big.Int)
-	return (*BigInteger)(n.Set(i.Big()))
+	n := new(uint256.Int)
+	return (*BigInteger)(n.Set((*uint256.Int)(i)))
 }
 
 // Type implements the Item interface.
@@ -554,11 +573,11 @@ func (i Bool) TryBytes() ([]byte, error) {
 }
 
 // TryInteger implements the Item interface.
-func (i Bool) TryInteger() (*big.Int, error) {
+func (i Bool) TryInteger() (*uint256.Int, error) {
 	if i {
-		return big.NewInt(1), nil
+		return uint256.NewInt(1), nil
 	}
-	return big.NewInt(0), nil
+	return uint256.NewInt(0), nil
 }
 
 // Equals implements the Item interface.
@@ -621,11 +640,11 @@ func (i ByteArray) TryBytes() ([]byte, error) {
 }
 
 // TryInteger implements the Item interface.
-func (i ByteArray) TryInteger() (*big.Int, error) {
+func (i ByteArray) TryInteger() (*uint256.Int, error) {
 	if len(i) > MaxBigIntegerSizeBits/8 {
 		return nil, errTooBigInteger
 	}
-	return bigint.FromBytes(i), nil
+	return uint256.NewInt(0).SetBytes(i), nil
 }
 
 // Equals implements the Item interface.
@@ -749,7 +768,7 @@ func (i *Array) TryBytes() ([]byte, error) {
 }
 
 // TryInteger implements the Item interface.
-func (i *Array) TryInteger() (*big.Int, error) {
+func (i *Array) TryInteger() (*uint256.Int, error) {
 	return nil, mkInvConversion(i, IntegerT)
 }
 
@@ -844,7 +863,7 @@ func (i *Map) TryBytes() ([]byte, error) {
 }
 
 // TryInteger implements the Item interface.
-func (i *Map) TryInteger() (*big.Int, error) {
+func (i *Map) TryInteger() (*uint256.Int, error) {
 	return nil, mkInvConversion(i, IntegerT)
 }
 
@@ -972,7 +991,7 @@ func (i *Interop) TryBytes() ([]byte, error) {
 }
 
 // TryInteger implements the Item interface.
-func (i *Interop) TryInteger() (*big.Int, error) {
+func (i *Interop) TryInteger() (*uint256.Int, error) {
 	return nil, mkInvConversion(i, IntegerT)
 }
 
@@ -1065,7 +1084,7 @@ func (p *Pointer) TryBytes() ([]byte, error) {
 }
 
 // TryInteger implements the Item interface.
-func (p *Pointer) TryInteger() (*big.Int, error) {
+func (p *Pointer) TryInteger() (*uint256.Int, error) {
 	return nil, mkInvConversion(p, IntegerT)
 }
 
@@ -1134,7 +1153,7 @@ func (i *Buffer) TryBytes() ([]byte, error) {
 }
 
 // TryInteger implements the Item interface.
-func (i *Buffer) TryInteger() (*big.Int, error) {
+func (i *Buffer) TryInteger() (*uint256.Int, error) {
 	return nil, mkInvConversion(i, IntegerT)
 }
 
@@ -1169,7 +1188,7 @@ func (i *Buffer) Convert(typ Type) (Item, error) {
 		if len(*i) > MaxBigIntegerSizeBits/8 {
 			return nil, errTooBigInteger
 		}
-		return NewBigInteger(bigint.FromBytes(*i)), nil
+		return NewBigInteger(bigint.Uint256FromBytes(*i)), nil
 	default:
 		return nil, mkInvConversion(i, typ)
 	}
@@ -1223,7 +1242,7 @@ func deepCopy(item Item, seen map[Item]Item, asImmutable bool) Item {
 		m.MarkAsReadOnly()
 		return m
 	case *BigInteger:
-		bi := new(big.Int).Set(it.Big())
+		bi := new(uint256.Int).Set(it.Big())
 		return (*BigInteger)(bi)
 	case *ByteArray:
 		return NewByteArray(slice.Copy(*it))

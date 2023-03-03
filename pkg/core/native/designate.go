@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/big"
 	"sort"
 	"sync/atomic"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
@@ -385,8 +385,8 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 	}
 
 	ic.AddNotification(s.Hash, DesignationEventName, stackitem.NewArray([]stackitem.Item{
-		stackitem.NewBigInteger(big.NewInt(int64(r))),
-		stackitem.NewBigInteger(big.NewInt(int64(ic.Block.Index))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(r))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(ic.Block.Index))),
 	}))
 	return nil
 }

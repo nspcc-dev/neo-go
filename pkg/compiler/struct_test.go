@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -278,8 +279,8 @@ var structTestCases = []testCase{
 		}
 		`,
 		[]stackitem.Item{
-			stackitem.NewBigInteger(big.NewInt(1)),
-			stackitem.NewBigInteger(big.NewInt(2)),
+			stackitem.NewBigInteger(uint256.NewInt(1)),
+			stackitem.NewBigInteger(uint256.NewInt(2)),
 			stackitem.NewByteArray([]byte("hello")),
 			stackitem.NewBool(false),
 		},

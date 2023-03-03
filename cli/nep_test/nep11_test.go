@@ -7,12 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/big"
 	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -351,7 +351,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		Name:       "OnNEP11Payment",
 		Item: stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(nftOwnerHash.BytesBE()),
-			stackitem.NewBigInteger(big.NewInt(1)),
+			stackitem.NewBigInteger(uint256.NewInt(1)),
 			stackitem.NewByteArray(tokenID1),
 			stackitem.NewByteArray([]byte("some_data")),
 		}),
@@ -636,7 +636,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		Name:       "OnNEP11Payment",
 		Item: stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(validatorHash.BytesBE()),
-			stackitem.NewBigInteger(big.NewInt(25)),
+			stackitem.NewBigInteger(uint256.NewInt(25)),
 			stackitem.NewByteArray(token2ID),
 			stackitem.NewByteArray([]byte("some_data")),
 		}),

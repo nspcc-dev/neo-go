@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
@@ -189,7 +190,7 @@ func TestLoadToken(t *testing.T) {
 
 	t.Run("good", func(t *testing.T) {
 		realBalance, _ := bc.GetGoverningTokenBalance(acc.ScriptHash())
-		cInvoker.Invoke(t, stackitem.NewBigInteger(big.NewInt(realBalance.Int64()+1)), "callT0", acc.ScriptHash())
+		cInvoker.Invoke(t, stackitem.NewBigInteger(uint256.NewInt(uint64(realBalance.Int64()+1))), "callT0", acc.ScriptHash())
 	})
 	t.Run("invalid param count", func(t *testing.T) {
 		cInvoker.InvokeFail(t, "method not found: callT2/1", "callT2", acc.ScriptHash())

@@ -18,6 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -1623,7 +1624,7 @@ func TestClient_IteratorSessions(t *testing.T) {
 	const storageItemsCount = 255
 	expected := make([][]byte, storageItemsCount)
 	for i := 0; i < storageItemsCount; i++ {
-		expected[i] = stackitem.NewBigInteger(big.NewInt(int64(i))).Bytes()
+		expected[i] = stackitem.NewBigInteger(uint256.NewInt(uint64(i))).Bytes()
 	}
 	sort.Slice(expected, func(i, j int) bool {
 		if len(expected[i]) != len(expected[j]) {
@@ -1823,7 +1824,7 @@ func TestClient_InvokeAndPackIteratorResults(t *testing.T) {
 	const storageItemsCount = 255
 	expected := make([][]byte, storageItemsCount)
 	for i := 0; i < storageItemsCount; i++ {
-		expected[i] = stackitem.NewBigInteger(big.NewInt(int64(i))).Bytes()
+		expected[i] = stackitem.NewBigInteger(uint256.NewInt(uint64(i))).Bytes()
 	}
 	sort.Slice(expected, func(i, j int) bool {
 		if len(expected[i]) != len(expected[j]) {
@@ -1909,7 +1910,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 		// Fill in expected stackitems set during the first test.
 		expected = make([][]byte, storageItemsCount)
 		for i := 0; i < storageItemsCount; i++ {
-			expected[i] = stackitem.NewBigInteger(big.NewInt(int64(i))).Bytes()
+			expected[i] = stackitem.NewBigInteger(uint256.NewInt(uint64(i))).Bytes()
 		}
 		sort.Slice(expected, func(i, j int) bool {
 			if len(expected[i]) != len(expected[j]) {

@@ -3,8 +3,8 @@ package runtime
 import (
 	"errors"
 	"fmt"
-	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -65,7 +65,7 @@ func Platform(ic *interop.Context) error {
 
 // GetTrigger returns the script trigger.
 func GetTrigger(ic *interop.Context) error {
-	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(ic.Trigger))))
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(uint256.NewInt(uint64(ic.Trigger))))
 	return nil
 }
 
@@ -110,7 +110,7 @@ func Notify(ic *interop.Context) error {
 // LoadScript takes a script and arguments from the stack and loads it into the VM.
 func LoadScript(ic *interop.Context) error {
 	script := ic.VM.Estack().Pop().Bytes()
-	fs := callflag.CallFlag(int32(ic.VM.Estack().Pop().BigInt().Int64()))
+	fs := callflag.CallFlag(int32(ic.VM.Estack().Pop().BigInt().Uint64()))
 	if fs&^callflag.All != 0 {
 		return errors.New("call flags out of range")
 	}
@@ -148,23 +148,20 @@ func Log(ic *interop.Context) error {
 // GetTime returns timestamp of the block being verified, or the latest
 // one in the blockchain if no block is given to Context.
 func GetTime(ic *interop.Context) error {
-	ic.VM.Estack().PushItem(stackitem.NewBigInteger(new(big.Int).SetUint64(ic.Block.Timestamp)))
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(uint256.NewInt((ic.Block.Timestamp))))
 	return nil
 }
 
 // BurnGas burns GAS to benefit Neo ecosystem.
 func BurnGas(ic *interop.Context) error {
 	gas := ic.VM.Estack().Pop().BigInt()
-	if !gas.IsInt64() {
+	if !gas.IsUint64() {
 		return errors.New("invalid GAS value")
 	}
 
-	g := gas.Int64()
-	if g <= 0 {
-		return errors.New("GAS must be positive")
-	}
+	g := gas.Uint64()
 
-	if !ic.VM.AddGas(g) {
+	if !ic.VM.AddGas(int64(g)) {
 		return errors.New("GAS limit exceeded")
 	}
 	return nil

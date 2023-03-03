@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -215,7 +216,7 @@ func TestPushVal(t *testing.T) {
 	// integer
 	s.PushVal(2)
 	elem := s.Pop()
-	assert.Equal(t, int64(2), elem.BigInt().Int64())
+	assert.Equal(t, int64(2), util.ToInt64(elem.BigInt()))
 
 	// byteArray
 	s.PushVal([]byte("foo"))
@@ -256,8 +257,8 @@ func TestSwapElemValues(t *testing.T) {
 	s.PushVal(4)
 
 	assert.NoError(t, s.Swap(0, 1))
-	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(2), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(4), util.ToInt64(s.Pop().BigInt()))
 
 	s.PushVal(1)
 	s.PushVal(2)
@@ -265,10 +266,10 @@ func TestSwapElemValues(t *testing.T) {
 	s.PushVal(4)
 
 	assert.NoError(t, s.Swap(1, 3))
-	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(1), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(2), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(3), util.ToInt64(s.Pop().BigInt()))
 
 	s.PushVal(1)
 	s.PushVal(2)
@@ -281,10 +282,10 @@ func TestSwapElemValues(t *testing.T) {
 	assert.Error(t, s.Swap(5, 0))
 
 	assert.NoError(t, s.Swap(1, 1))
-	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(3), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(2), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(1), util.ToInt64(s.Pop().BigInt()))
 }
 
 func TestRoll(t *testing.T) {
@@ -296,10 +297,10 @@ func TestRoll(t *testing.T) {
 	s.PushVal(4)
 
 	assert.NoError(t, s.Roll(2))
-	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(2), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(4), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(3), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(1), util.ToInt64(s.Pop().BigInt()))
 
 	s.PushVal(1)
 	s.PushVal(2)
@@ -307,10 +308,10 @@ func TestRoll(t *testing.T) {
 	s.PushVal(4)
 
 	assert.NoError(t, s.Roll(3))
-	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(4), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(3), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(2), util.ToInt64(s.Pop().BigInt()))
 
 	s.PushVal(1)
 	s.PushVal(2)
@@ -321,10 +322,10 @@ func TestRoll(t *testing.T) {
 	assert.Error(t, s.Roll(4))
 
 	assert.NoError(t, s.Roll(0))
-	assert.Equal(t, int64(4), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(3), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(2), s.Pop().BigInt().Int64())
-	assert.Equal(t, int64(1), s.Pop().BigInt().Int64())
+	assert.Equal(t, int64(4), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(3), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(2), util.ToInt64(s.Pop().BigInt()))
+	assert.Equal(t, int64(1), util.ToInt64(s.Pop().BigInt()))
 }
 
 func TestInsertAt(t *testing.T) {
@@ -338,12 +339,12 @@ func TestInsertAt(t *testing.T) {
 	e := s.Dup(1) // it's `4`
 	s.InsertAt(e, 3)
 
-	assert.Equal(t, int64(5), s.Peek(0).BigInt().Int64())
-	assert.Equal(t, int64(4), s.Peek(1).BigInt().Int64())
-	assert.Equal(t, int64(3), s.Peek(2).BigInt().Int64())
-	assert.Equal(t, int64(4), s.Peek(3).BigInt().Int64())
-	assert.Equal(t, int64(2), s.Peek(4).BigInt().Int64())
-	assert.Equal(t, int64(1), s.Peek(5).BigInt().Int64())
+	assert.Equal(t, int64(5), util.ToInt64(s.Peek(0).BigInt()))
+	assert.Equal(t, int64(4), util.ToInt64(s.Peek(1).BigInt()))
+	assert.Equal(t, int64(3), util.ToInt64(s.Peek(2).BigInt()))
+	assert.Equal(t, int64(4), util.ToInt64(s.Peek(3).BigInt()))
+	assert.Equal(t, int64(2), util.ToInt64(s.Peek(4).BigInt()))
+	assert.Equal(t, int64(1), util.ToInt64(s.Peek(5).BigInt()))
 }
 
 func TestPopSigElements(t *testing.T) {

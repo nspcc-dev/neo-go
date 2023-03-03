@@ -3,11 +3,11 @@ package native_test
 import (
 	"encoding/json"
 	"math"
-	"math/big"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -127,7 +127,7 @@ func TestOracle_Request(t *testing.T) {
 	require.Equal(t, stackitem.NewArray([]stackitem.Item{
 		stackitem.NewByteArray([]byte("url")),
 		stackitem.NewByteArray(userData),
-		stackitem.NewBigInteger(big.NewInt(int64(tx.Attributes[0].Value.(*transaction.OracleResponse).Code))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(tx.Attributes[0].Value.(*transaction.OracleResponse).Code))),
 		stackitem.NewByteArray(tx.Attributes[0].Value.(*transaction.OracleResponse).Result),
 	}), actual)
 

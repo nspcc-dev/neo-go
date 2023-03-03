@@ -1,7 +1,6 @@
 package manifest
 
 import (
-	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -42,7 +41,7 @@ func TestEvent_ToStackItemFromStackItem(t *testing.T) {
 		stackitem.NewArray([]stackitem.Item{
 			stackitem.NewStruct([]stackitem.Item{
 				stackitem.NewByteArray([]byte(m.Parameters[0].Name)),
-				stackitem.NewBigInteger(big.NewInt(int64(m.Parameters[0].Type))),
+				stackitem.NewBigIntegerFromInt64(int64(m.Parameters[0].Type)),
 			}),
 		}),
 	})

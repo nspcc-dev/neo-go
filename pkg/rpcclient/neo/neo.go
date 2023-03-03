@@ -211,11 +211,11 @@ func itemsToValidators(arr []stackitem.Item) ([]result.Validator, error) {
 		if err != nil {
 			return nil, fmt.Errorf("item #%d has wrong votes: %w", i, err)
 		}
-		if !votes.IsInt64() {
+		if !util.IsInt64(votes) {
 			return nil, fmt.Errorf("item #%d has too big number of votes", i)
 		}
 		res[i].PublicKey = *k
-		res[i].Votes = votes.Int64()
+		res[i].Votes = util.ToInt64(votes)
 	}
 	return res, nil
 }

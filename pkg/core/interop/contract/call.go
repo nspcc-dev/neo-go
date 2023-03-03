@@ -3,9 +3,9 @@ package contract
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"strings"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -47,7 +47,7 @@ func LoadToken(ic *interop.Context, id int32) error {
 func Call(ic *interop.Context) error {
 	h := ic.VM.Estack().Pop().Bytes()
 	method := ic.VM.Estack().Pop().String()
-	fs := callflag.CallFlag(int32(ic.VM.Estack().Pop().BigInt().Int64()))
+	fs := callflag.CallFlag(int32(ic.VM.Estack().Pop().BigInt().Uint64()))
 	if fs&^callflag.All != 0 {
 		return errors.New("call flags out of range")
 	}
@@ -176,6 +176,6 @@ func CallFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract
 
 // GetCallFlags returns current context calling flags.
 func GetCallFlags(ic *interop.Context) error {
-	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(ic.VM.Context().GetCallFlags()))))
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(uint256.NewInt(uint64(ic.VM.Context().GetCallFlags()))))
 	return nil
 }

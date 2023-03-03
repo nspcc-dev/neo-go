@@ -4,10 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"math/big"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -28,7 +28,7 @@ func TestInvoke_MarshalJSON(t *testing.T) {
 		State:          "HALT",
 		GasConsumed:    237626000,
 		Script:         []byte{10},
-		Stack:          []stackitem.Item{stackitem.NewBigInteger(big.NewInt(1))},
+		Stack:          []stackitem.Item{stackitem.NewBigInteger(uint256.NewInt(1))},
 		FaultException: "",
 		Notifications:  []state.NotificationEvent{},
 		Transaction:    tx,
@@ -66,7 +66,7 @@ func TestAppExecToInvocation(t *testing.T) {
 		Trigger:     trigger.Application,
 		VMState:     vmstate.Fault,
 		GasConsumed: 123,
-		Stack:       []stackitem.Item{stackitem.NewBigInteger(big.NewInt(123))},
+		Stack:       []stackitem.Item{stackitem.NewBigInteger(uint256.NewInt(123))},
 		Events: []state.NotificationEvent{{
 			ScriptHash: util.Uint160{3, 2, 1},
 			Name:       "Notification",

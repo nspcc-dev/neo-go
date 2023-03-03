@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -91,12 +92,16 @@ func (c *nep17TokenNative) Symbol(_ *interop.Context, _ []stackitem.Item) stacki
 }
 
 func (c *nep17TokenNative) Decimals(_ *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(c.decimals))
+	return stackitem.NewBigInteger(uint256.NewInt(uint64(c.decimals)))
 }
 
 func (c *nep17TokenNative) TotalSupply(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
 	_, supply := c.getTotalSupply(ic.DAO)
-	return stackitem.NewBigInteger(supply)
+	s, overflow := uint256.FromBig(supply)
+	if overflow {
+		panic("overflow")
+	}
+	return stackitem.NewBigInteger(s)
 }
 
 func (c *nep17TokenNative) getTotalSupply(d *dao.Simple) (state.StorageItem, *big.Int) {
@@ -152,9 +157,13 @@ func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint
 	if from != nil {
 		fromArg = stackitem.NewByteArray((*from).BytesBE())
 	}
+	a, overflow := uint256.FromBig(amount)
+	if overflow {
+		panic("overflow")
+	}
 	args := []stackitem.Item{
 		fromArg,
-		stackitem.NewBigInteger(amount),
+		stackitem.NewBigInteger(a),
 		data,
 	}
 	if err := contract.CallFromNative(ic, c.Hash, cs, manifest.MethodOnNEP17Payment, args, false); err != nil {
@@ -164,10 +173,14 @@ func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint
 }
 
 func (c *nep17TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint160, amount *big.Int) {
+	a, overflow := uint256.FromBig(amount)
+	if overflow {
+		panic("overflow")
+	}
 	ic.AddNotification(c.Hash, "Transfer", stackitem.NewArray([]stackitem.Item{
 		addrToStackItem(from),
 		addrToStackItem(to),
-		stackitem.NewBigInteger(amount),
+		stackitem.NewBigInteger(a),
 	}))
 }
 
@@ -245,7 +258,12 @@ func (c *nep17TokenNative) TransferInternal(ic *interop.Context, from, to util.U
 
 func (c *nep17TokenNative) balanceOf(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	h := toUint160(args[0])
-	return stackitem.NewBigInteger(c.balanceOfInternal(ic.DAO, h))
+	balance := c.balanceOfInternal(ic.DAO, h)
+	b, overflow := uint256.FromBig(balance)
+	if overflow {
+		panic("overflow")
+	}
+	return stackitem.NewBigInteger(b)
 }
 
 func (c *nep17TokenNative) balanceOfInternal(d *dao.Simple, h util.Uint160) *big.Int {
@@ -329,7 +347,7 @@ func toBigInt(s stackitem.Item) *big.Int {
 	if err != nil {
 		panic(err)
 	}
-	return bi
+	return util.ToBig(bi)
 }
 
 func toUint160(s stackitem.Item) util.Uint160 {

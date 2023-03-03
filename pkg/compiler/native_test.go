@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"math/big"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -362,7 +362,7 @@ func getTestStackItem(typ smartcontract.ParamType) stackitem.Item {
 	case smartcontract.BoolType:
 		return stackitem.NewBool(true)
 	case smartcontract.IntegerType:
-		return stackitem.NewBigInteger(big.NewInt(42))
+		return stackitem.NewBigInteger(uint256.NewInt(42))
 	case smartcontract.ByteArrayType, smartcontract.StringType, smartcontract.Hash160Type,
 		smartcontract.Hash256Type, smartcontract.PublicKeyType, smartcontract.SignatureType:
 		return stackitem.NewByteArray([]byte("result"))

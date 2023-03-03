@@ -95,7 +95,7 @@ func TestEmitBigInt(t *testing.T) {
 		bi.Sub(bi, big.NewInt(1))
 
 		// sanity check
-		require.NotPanics(t, func() { stackitem.NewBigInteger(bi) })
+		require.NotPanics(t, func() { stackitem.NewBigIntegerFromBig(bi) })
 
 		BigInt(buf.BinWriter, bi)
 		require.NoError(t, buf.Err)
@@ -114,7 +114,7 @@ func TestEmitBigInt(t *testing.T) {
 		bi.Lsh(bi, 255)
 
 		// sanity check
-		require.NotPanics(t, func() { stackitem.NewBigInteger(bi) })
+		require.NotPanics(t, func() { stackitem.NewBigIntegerFromBig(bi) })
 
 		BigInt(buf.BinWriter, bi)
 		require.NoError(t, buf.Err)
@@ -130,7 +130,7 @@ func TestEmitBigInt(t *testing.T) {
 		bi.Lsh(bi, 255)
 
 		// sanity check
-		require.Panics(t, func() { stackitem.NewBigInteger(bi) })
+		require.Panics(t, func() { stackitem.NewBigIntegerFromBig(bi) })
 
 		BigInt(buf.BinWriter, bi)
 		require.Error(t, buf.Err)
@@ -150,7 +150,7 @@ func TestEmitBigInt(t *testing.T) {
 		bi.Sub(bi, big.NewInt(1))
 
 		// sanity check
-		require.Panics(t, func() { stackitem.NewBigInteger(bi) })
+		require.Panics(t, func() { stackitem.NewBigIntegerFromBig(bi) })
 
 		BigInt(buf.BinWriter, bi)
 		require.Error(t, buf.Err)

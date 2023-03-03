@@ -2,9 +2,9 @@ package state
 
 import (
 	"errors"
-	"math/big"
 	"unicode/utf8"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -29,7 +29,7 @@ func (o *OracleRequest) ToStackItem() (stackitem.Item, error) {
 	}
 	return stackitem.NewArray([]stackitem.Item{
 		stackitem.NewByteArray(o.OriginalTxID.BytesBE()),
-		stackitem.NewBigInteger(new(big.Int).SetUint64(o.GasForResponse)),
+		stackitem.NewBigInteger(uint256.NewInt(o.GasForResponse)),
 		stackitem.Make(o.URL),
 		filter,
 		stackitem.NewByteArray(o.CallbackContract.BytesBE()),

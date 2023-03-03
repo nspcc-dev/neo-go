@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -463,7 +464,7 @@ func TestExpandParameterToEmitableToStackitem(t *testing.T) {
 		{
 			In:                Parameter{Type: IntegerType, Value: big.NewInt(123)},
 			Expected:          big.NewInt(123),
-			ExpectedStackitem: stackitem.NewBigInteger(big.NewInt(123)),
+			ExpectedStackitem: stackitem.NewBigInteger(uint256.NewInt(123)),
 		},
 		{
 			In:                Parameter{Type: ByteArrayType, Value: []byte{1, 2, 3}},
@@ -522,7 +523,7 @@ func TestExpandParameterToEmitableToStackitem(t *testing.T) {
 			}},
 			Expected: []interface{}{big.NewInt(123), []byte{1, 2, 3}, []interface{}{true}},
 			ExpectedStackitem: stackitem.NewArray([]stackitem.Item{
-				stackitem.NewBigInteger(big.NewInt(123)),
+				stackitem.NewBigInteger(uint256.NewInt(123)),
 				stackitem.NewByteArray([]byte{1, 2, 3}),
 				stackitem.NewArray([]stackitem.Item{
 					stackitem.NewBool(true),

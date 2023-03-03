@@ -1,7 +1,6 @@
 package manifest
 
 import (
-	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -39,7 +38,7 @@ func TestParameter_ToStackItemFromStackItem(t *testing.T) {
 	}
 	expected := stackitem.NewStruct([]stackitem.Item{
 		stackitem.NewByteArray([]byte(p.Name)),
-		stackitem.NewBigInteger(big.NewInt(int64(p.Type))),
+		stackitem.NewBigIntegerFromInt64(int64(p.Type)),
 	})
 	CheckToFromStackItem(t, p, expected)
 }
@@ -50,7 +49,7 @@ func TestParameter_FromStackItemErrors(t *testing.T) {
 		"invalid length":     stackitem.NewStruct([]stackitem.Item{}),
 		"invalid name type":  stackitem.NewStruct([]stackitem.Item{stackitem.NewInterop(nil), stackitem.Null{}}),
 		"invalid type type":  stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.Null{}}),
-		"invalid type value": stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewBigInteger(big.NewInt(-100500))}),
+		"invalid type value": stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewBigIntegerFromInt64(-100500)}),
 	}
 	for name, errCase := range errCases {
 		t.Run(name, func(t *testing.T) {

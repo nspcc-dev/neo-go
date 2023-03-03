@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
-	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -223,14 +223,14 @@ func (b *Block) GetExpectedBlockSizeWithoutTransactions(txCount int) int {
 func (b *Block) ToStackItem() stackitem.Item {
 	items := []stackitem.Item{
 		stackitem.NewByteArray(b.Hash().BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(b.Version))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(b.Version))),
 		stackitem.NewByteArray(b.PrevHash.BytesBE()),
 		stackitem.NewByteArray(b.MerkleRoot.BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(b.Timestamp))),
-		stackitem.NewBigInteger(new(big.Int).SetUint64(b.Nonce)),
-		stackitem.NewBigInteger(big.NewInt(int64(b.Index))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(b.Timestamp))),
+		stackitem.NewBigInteger(uint256.NewInt(b.Nonce)),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(b.Index))),
 		stackitem.NewByteArray(b.NextConsensus.BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(len(b.Transactions)))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(len(b.Transactions)))),
 	}
 	if b.StateRootEnabled {
 		items = append(items, stackitem.NewByteArray(b.PrevStateRoot.BytesBE()))

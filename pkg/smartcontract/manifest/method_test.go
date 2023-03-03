@@ -1,9 +1,9 @@
 package manifest
 
 import (
-	"math/big"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -44,11 +44,11 @@ func TestMethod_ToStackItemFromStackItem(t *testing.T) {
 		stackitem.NewArray([]stackitem.Item{
 			stackitem.NewStruct([]stackitem.Item{
 				stackitem.NewByteArray([]byte(m.Parameters[0].Name)),
-				stackitem.NewBigInteger(big.NewInt(int64(m.Parameters[0].Type))),
+				stackitem.NewBigIntegerFromInt64(int64(m.Parameters[0].Type)),
 			}),
 		}),
-		stackitem.NewBigInteger(big.NewInt(int64(m.ReturnType))),
-		stackitem.NewBigInteger(big.NewInt(int64(m.Offset))),
+		stackitem.NewBigIntegerFromInt64(int64(m.ReturnType)),
+		stackitem.NewBigIntegerFromInt64(int64(m.Offset)),
 		stackitem.NewBool(m.Safe),
 	})
 	CheckToFromStackItem(t, m, expected)
@@ -62,8 +62,8 @@ func TestMethod_FromStackItemErrors(t *testing.T) {
 		"invalid parameters type": stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
 		"invalid parameter":       stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{stackitem.NewStruct([]stackitem.Item{})}), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
 		"invalid return type":     stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{}), stackitem.Null{}, stackitem.Null{}, stackitem.Null{}}),
-		"invalid offset":          stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{}), stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewInterop(nil), stackitem.Null{}}),
-		"invalid safe":            stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{}), stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewBigInteger(big.NewInt(5)), stackitem.NewInterop(nil)}),
+		"invalid offset":          stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{}), stackitem.NewBigInteger(uint256.NewInt(1)), stackitem.NewInterop(nil), stackitem.Null{}}),
+		"invalid safe":            stackitem.NewStruct([]stackitem.Item{stackitem.NewByteArray([]byte{}), stackitem.NewArray([]stackitem.Item{}), stackitem.NewBigInteger(uint256.NewInt(1)), stackitem.NewBigInteger(uint256.NewInt(5)), stackitem.NewInterop(nil)}),
 	}
 	for name, errCase := range errCases {
 		t.Run(name, func(t *testing.T) {

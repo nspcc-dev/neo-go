@@ -3,8 +3,8 @@ package transaction
 import (
 	"encoding/json"
 	"errors"
-	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -633,7 +633,7 @@ func unmarshalConditionJSON(data []byte, maxDepth int) (WitnessCondition, error)
 
 func condToStackItem(typ WitnessConditionType, c interface{}) stackitem.Item {
 	res := make([]stackitem.Item, 0, 2)
-	res = append(res, stackitem.NewBigInteger(big.NewInt(int64(typ))))
+	res = append(res, stackitem.NewBigInteger(uint256.NewInt(uint64(typ))))
 	switch typ {
 	case WitnessBoolean:
 		res = append(res, stackitem.NewBool(c.(bool)))

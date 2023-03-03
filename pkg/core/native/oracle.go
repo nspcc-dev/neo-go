@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -346,7 +347,7 @@ func (o *Oracle) request(ic *interop.Context, args []stackitem.Item) stackitem.I
 	if !ic.VM.AddGas(o.getPriceInternal(ic.DAO)) {
 		panic("insufficient gas")
 	}
-	if err := o.RequestInternal(ic, url, filter, cb, userData, gas); err != nil {
+	if err := o.RequestInternal(ic, url, filter, cb, userData, util.ToBig(gas)); err != nil {
 		panic(err)
 	}
 	return stackitem.Null{}
@@ -468,7 +469,7 @@ func (o *Oracle) verify(ic *interop.Context, _ []stackitem.Item) stackitem.Item 
 }
 
 func (o *Oracle) getPrice(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(o.getPriceInternal(ic.DAO)))
+	return stackitem.NewBigInteger(uint256.NewInt(uint64(o.getPriceInternal(ic.DAO))))
 }
 
 func (o *Oracle) getPriceInternal(d *dao.Simple) int64 {

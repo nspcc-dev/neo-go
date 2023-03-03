@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -93,7 +94,7 @@ func Find(ic *interop.Context) error {
 		return fmt.Errorf("%T is not a storage,Context", stcInterface)
 	}
 	prefix := ic.VM.Estack().Pop().Bytes()
-	opts := ic.VM.Estack().Pop().BigInt().Int64()
+	opts := util.ToInt64(ic.VM.Estack().Pop().BigInt())
 	if opts&^FindAll != 0 {
 		return fmt.Errorf("%w: unknown flag", errFindInvalidOptions)
 	}

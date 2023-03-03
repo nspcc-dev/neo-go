@@ -896,10 +896,10 @@ func (s *Server) getNEP11Tokens(h util.Uint160, acc util.Uint160, bw *io.BufBinW
 	if err != nil {
 		return nil, "", 0, fmt.Errorf("`decimals` return value error: %w", err)
 	}
-	if !dec.IsInt64() || dec.Sign() == -1 || dec.Int64() > math.MaxInt32 {
+	if !util.IsInt64(dec) || dec.Sign() == -1 || util.ToInt64(dec) > math.MaxInt32 {
 		return nil, "", 0, errors.New("`decimals` returned a bad integer")
 	}
-	return vals, sym, int(dec.Int64()), nil
+	return vals, sym, int(util.ToInt64(dec)), nil
 }
 
 func (s *Server) getNEP11Balances(ps params.Params) (interface{}, *neorpc.Error) {
@@ -1137,10 +1137,10 @@ func (s *Server) getNEP17TokenBalance(h util.Uint160, acc util.Uint160, bw *io.B
 	if err != nil {
 		return nil, "", 0, fmt.Errorf("`decimals` return value error: %w", err)
 	}
-	if !dec.IsInt64() || dec.Sign() == -1 || dec.Int64() > math.MaxInt32 {
+	if !util.IsInt64(dec) || dec.Sign() == -1 || util.ToInt64(dec) > math.MaxInt32 {
 		return nil, "", 0, errors.New("`decimals` returned a bad integer")
 	}
-	return res, sym, int(dec.Int64()), nil
+	return util.ToBig(res), sym, int(util.ToInt64(dec)), nil
 }
 
 func (s *Server) getNEP11DTokenBalance(h util.Uint160, acc util.Uint160, id []byte, bw *io.BufBinWriter) (*big.Int, error) {
@@ -1153,7 +1153,7 @@ func (s *Server) getNEP11DTokenBalance(h util.Uint160, acc util.Uint160, id []by
 	if err != nil {
 		return nil, fmt.Errorf("unexpected `balanceOf` result type: %w", err)
 	}
-	return res, nil
+	return util.ToBig(res), nil
 }
 
 func getTimestampsAndLimit(ps params.Params, index int) (uint64, uint64, int, int, error) {

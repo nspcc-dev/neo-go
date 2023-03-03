@@ -14,7 +14,7 @@ import (
 
 // Call calls the specified native contract method.
 func Call(ic *interop.Context) error {
-	version := ic.VM.Estack().Pop().BigInt().Int64()
+	version := ic.VM.Estack().Pop().BigInt().Uint64()
 	if version != 0 {
 		return fmt.Errorf("native contract of version %d is not active", version)
 	}

@@ -1,9 +1,9 @@
 package vm
 
 import (
-	"math/big"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +21,7 @@ func TestSlot_Get(t *testing.T) {
 	item := s.Get(2)
 	require.Equal(t, stackitem.Null{}, item)
 
-	s.Set(1, stackitem.NewBigInteger(big.NewInt(42)), rc)
-	require.Equal(t, stackitem.NewBigInteger(big.NewInt(42)), s.Get(1))
+	s.Set(1, stackitem.NewBigInteger(uint256.NewInt(42)), rc)
+	require.Equal(t, stackitem.NewBigInteger(uint256.NewInt(42)), s.Get(1))
 	require.Equal(t, 3, int(*rc))
 }

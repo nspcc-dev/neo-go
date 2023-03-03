@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	gio "io"
-	"math/big"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -18,6 +17,7 @@ import (
 	"time"
 
 	"github.com/chzyer/readline"
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/internal/basicchain"
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -590,9 +590,9 @@ func TestRunWithDifferentArguments(t *testing.T) {
 
 	e.checkNextLine(t, "READY: loaded \\d.* instructions")
 	e.checkStack(t, []stackitem.Item{
-		stackitem.NewBigInteger(big.NewInt(1)),
-		stackitem.NewBigInteger(big.NewInt(2)),
-		stackitem.NewBigInteger(big.NewInt(3)),
+		stackitem.NewBigInteger(uint256.NewInt(1)),
+		stackitem.NewBigInteger(uint256.NewInt(2)),
+		stackitem.NewBigInteger(uint256.NewInt(3)),
 	})
 }
 

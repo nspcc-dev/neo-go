@@ -12,12 +12,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -46,7 +48,7 @@ func TestInteropHook(t *testing.T) {
 	v.Load(buf.Bytes())
 	runVM(t, v)
 	assert.Equal(t, 1, v.estack.Len())
-	assert.Equal(t, big.NewInt(1), v.estack.Pop().value.Value())
+	assert.Equal(t, uint256.NewInt(1), v.estack.Pop().value.Value())
 }
 
 func TestVM_SetPriceGetter(t *testing.T) {
@@ -196,7 +198,7 @@ func testISTYPE(t *testing.T, result bool, typ stackitem.Type, item stackitem.It
 
 func TestISTYPE(t *testing.T) {
 	t.Run("Integer", func(t *testing.T) {
-		testISTYPE(t, true, stackitem.IntegerT, stackitem.NewBigInteger(big.NewInt(42)))
+		testISTYPE(t, true, stackitem.IntegerT, stackitem.NewBigInteger(uint256.NewInt(42)))
 		testISTYPE(t, false, stackitem.IntegerT, stackitem.NewByteArray([]byte{}))
 	})
 	t.Run("Boolean", func(t *testing.T) {
@@ -205,7 +207,7 @@ func TestISTYPE(t *testing.T) {
 	})
 	t.Run("ByteArray", func(t *testing.T) {
 		testISTYPE(t, true, stackitem.ByteArrayT, stackitem.NewByteArray([]byte{}))
-		testISTYPE(t, false, stackitem.ByteArrayT, stackitem.NewBigInteger(big.NewInt(42)))
+		testISTYPE(t, false, stackitem.ByteArrayT, stackitem.NewBigInteger(uint256.NewInt(42)))
 	})
 	t.Run("Array", func(t *testing.T) {
 		testISTYPE(t, true, stackitem.ArrayT, stackitem.NewArray([]stackitem.Item{}))
@@ -237,7 +239,7 @@ func TestCONVERT(t *testing.T) {
 		item, res stackitem.Item
 	}
 	arr := []stackitem.Item{
-		stackitem.NewBigInteger(big.NewInt(7)),
+		stackitem.NewBigInteger(uint256.NewInt(7)),
 		stackitem.NewByteArray([]byte{4, 8, 15}),
 	}
 	m := stackitem.NewMap()
@@ -253,7 +255,7 @@ func TestCONVERT(t *testing.T) {
 		}
 
 		trueCases := []stackitem.Item{
-			stackitem.NewBool(true), stackitem.NewBigInteger(big.NewInt(11)), stackitem.NewByteArray([]byte{1, 2, 3}),
+			stackitem.NewBool(true), stackitem.NewBigInteger(uint256.NewInt(11)), stackitem.NewByteArray([]byte{1, 2, 3}),
 			stackitem.NewArray(arr), stackitem.NewArray(nil),
 			stackitem.NewStruct(arr), stackitem.NewStruct(nil),
 			stackitem.NewMap(), m, stackitem.NewInterop(struct{}{}),
@@ -264,7 +266,7 @@ func TestCONVERT(t *testing.T) {
 		}
 
 		falseCases := []stackitem.Item{
-			stackitem.NewBigInteger(big.NewInt(0)), stackitem.NewByteArray([]byte{0, 0}), stackitem.NewBool(false),
+			stackitem.NewBigInteger(uint256.NewInt(0)), stackitem.NewByteArray([]byte{0, 0}), stackitem.NewBool(false),
 		}
 		for i := range falseCases {
 			testBool(falseCases[i], stackitem.NewBool(false))
@@ -282,8 +284,8 @@ func TestCONVERT(t *testing.T) {
 	})
 
 	t.Run("primitive -> Integer/ByteArray", func(t *testing.T) {
-		n := big.NewInt(42)
-		b := bigint.ToBytes(n)
+		n := uint256.NewInt(42)
+		b := bigint.Uint256ToBytes(n)
 
 		itemInt := stackitem.NewBigInteger(n)
 		itemBytes := stackitem.NewByteArray(b)
@@ -292,8 +294,8 @@ func TestCONVERT(t *testing.T) {
 			stackitem.IntegerT: {
 				{itemInt, itemInt},
 				{itemBytes, itemInt},
-				{stackitem.NewBool(true), stackitem.NewBigInteger(big.NewInt(1))},
-				{stackitem.NewBool(false), stackitem.NewBigInteger(big.NewInt(0))},
+				{stackitem.NewBool(true), stackitem.NewBigInteger(uint256.NewInt(1))},
+				{stackitem.NewBool(false), stackitem.NewBigInteger(uint256.NewInt(0))},
 			},
 			stackitem.ByteArrayT: {
 				{itemInt, itemBytes},
@@ -335,7 +337,7 @@ func TestCONVERT(t *testing.T) {
 
 	t.Run("->Any", func(t *testing.T) {
 		items := []stackitem.Item{
-			stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewByteArray([]byte{1}), stackitem.NewBool(true),
+			stackitem.NewBigInteger(uint256.NewInt(1)), stackitem.NewByteArray([]byte{1}), stackitem.NewBool(true),
 			stackitem.NewArray(arr), stackitem.NewStruct(arr), m, stackitem.NewInterop(struct{}{}),
 		}
 
@@ -438,7 +440,7 @@ func TestPushm1to16(t *testing.T) {
 
 		elem := vm.estack.Pop()
 		val := i - int(opcode.PUSH1) + 1
-		assert.Equal(t, elem.BigInt().Int64(), int64(val))
+		assert.Equal(t, util.ToInt64(elem.BigInt()), int64(val))
 	}
 }
 
@@ -546,7 +548,7 @@ func testJMP(t *testing.T, op opcode.Opcode, res interface{}, items ...interface
 		return
 	}
 	runVM(t, v)
-	require.EqualValues(t, res, v.estack.Pop().BigInt().Int64())
+	require.EqualValues(t, res, util.ToInt64(v.estack.Pop().BigInt()))
 }
 
 func TestJMPs(t *testing.T) {
@@ -644,10 +646,18 @@ func TestNOT(t *testing.T) {
 	t.Run("Buffer1", getTestFuncForVM(prog, false, stackitem.NewBuffer([]byte{1})))
 }
 
+func uint256FromInt64(val int64) *uint256.Int {
+	n, overflow := uint256.FromBig(big.NewInt(val))
+	if overflow {
+		panic("overflow")
+	}
+	return n
+}
+
 // getBigInt returns 2^a+b.
-func getBigInt(a, b int64) *big.Int {
-	p := new(big.Int).Exp(big.NewInt(2), big.NewInt(a), nil)
-	p.Add(p, big.NewInt(b))
+func getBigInt(a, b int64) *uint256.Int {
+	p := new(uint256.Int).Exp(uint256.NewInt(2), uint256FromInt64(a))
+	p.Add(p, uint256FromInt64(b))
 	return p
 }
 
@@ -710,7 +720,7 @@ func TestArithNegativeArguments(t *testing.T) {
 func TestSUBBigResult(t *testing.T) {
 	prog := makeProgram(opcode.SUB)
 	bi := getBigInt(stackitem.MaxBigIntegerSizeBits-1, -1)
-	runWithArgs(t, prog, new(big.Int).Sub(big.NewInt(-1), bi), -1, bi)
+	runWithArgs(t, prog, new(uint256.Int).Sub(uint256FromInt64(-1), bi), -1, bi)
 	runWithArgs(t, prog, nil, -2, bi)
 }
 
@@ -817,7 +827,7 @@ func TestDepth(t *testing.T) {
 	vm.estack.PushVal(2)
 	vm.estack.PushVal(3)
 	runVM(t, vm)
-	assert.Equal(t, int64(3), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(3), util.ToInt64(vm.estack.Pop().BigInt()))
 }
 
 func TestEQUALTrue(t *testing.T) {
@@ -998,7 +1008,7 @@ func TestINCBigResult(t *testing.T) {
 	require.NoError(t, vm.Step())
 	require.False(t, vm.HasFailed())
 	require.Equal(t, 1, vm.estack.Len())
-	require.Equal(t, new(big.Int).Add(x, big.NewInt(1)), vm.estack.Top().BigInt())
+	require.Equal(t, new(uint256.Int).Add(x, uint256.NewInt(1)), vm.estack.Top().BigInt())
 
 	checkVMFailed(t, vm)
 }
@@ -1013,7 +1023,7 @@ func TestDECBigResult(t *testing.T) {
 	require.NoError(t, vm.Step())
 	require.False(t, vm.HasFailed())
 	require.Equal(t, 1, vm.estack.Len())
-	require.Equal(t, new(big.Int).Sub(x, big.NewInt(1)), vm.estack.Top().BigInt())
+	require.Equal(t, new(uint256.Int).Sub(x, uint256.NewInt(1)), vm.estack.Top().BigInt())
 
 	checkVMFailed(t, vm)
 }
@@ -1128,9 +1138,9 @@ func TestTRY(t *testing.T) {
 		v := load(outer)
 		runVM(t, v)
 		require.Equal(t, 3, v.Estack().Len())
-		require.Equal(t, big.NewInt(4), v.Estack().Pop().Value())  // outer FINALLY
-		require.Equal(t, big.NewInt(2), v.Estack().Pop().Value())  // inner FINALLY
-		require.Equal(t, big.NewInt(23), v.Estack().Pop().Value()) // inner THROW + CATCH
+		require.Equal(t, uint256.NewInt(4), v.Estack().Pop().Value())  // outer FINALLY
+		require.Equal(t, uint256.NewInt(2), v.Estack().Pop().Value())  // inner FINALLY
+		require.Equal(t, uint256.NewInt(23), v.Estack().Pop().Value()) // inner THROW + CATCH
 	})
 }
 
@@ -1201,7 +1211,7 @@ func TestNEWARRAYIssue437(t *testing.T) {
 func TestNEWARRAYT(t *testing.T) {
 	testCases := map[stackitem.Type]stackitem.Item{
 		stackitem.BooleanT:   stackitem.NewBool(false),
-		stackitem.IntegerT:   stackitem.NewBigInteger(big.NewInt(0)),
+		stackitem.IntegerT:   stackitem.NewBigInteger(uint256.NewInt(0)),
 		stackitem.ByteArrayT: stackitem.NewByteArray([]byte{}),
 		stackitem.ArrayT:     stackitem.Null{},
 		0xFF:                 nil,
@@ -1312,9 +1322,9 @@ func TestPICKITEMDupArray(t *testing.T) {
 	vm.estack.PushVal([]stackitem.Item{stackitem.Make(-1)})
 	runVM(t, vm)
 	assert.Equal(t, 2, vm.estack.Len())
-	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), util.ToInt64(vm.estack.Pop().BigInt()))
 	items := vm.estack.Pop().Value().([]stackitem.Item)
-	assert.Equal(t, big.NewInt(-1), items[0].Value())
+	assert.Equal(t, uint256FromInt64(-1), items[0].Value())
 }
 
 func TestPICKITEMDupMap(t *testing.T) {
@@ -1325,11 +1335,11 @@ func TestPICKITEMDupMap(t *testing.T) {
 	vm.estack.Push(Element{value: m})
 	runVM(t, vm)
 	assert.Equal(t, 2, vm.estack.Len())
-	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), util.ToInt64(vm.estack.Pop().BigInt()))
 	items := vm.estack.Pop().Value().([]stackitem.MapElement)
 	assert.Equal(t, 1, len(items))
-	assert.Equal(t, big.NewInt(42), items[0].Key.Value())
-	assert.Equal(t, big.NewInt(-1), items[0].Value.Value())
+	assert.Equal(t, uint256.NewInt(42), items[0].Key.Value())
+	assert.Equal(t, uint256FromInt64(-1), items[0].Value.Value())
 }
 
 func TestPICKITEMMap(t *testing.T) {
@@ -1405,8 +1415,8 @@ func TestSETITEMBigMapBad(t *testing.T) {
 func TestSETITEMMapStackLimit(t *testing.T) {
 	size := MaxStackSize/2 - 4
 	m := stackitem.NewMap()
-	m.Add(stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewArray(makeArrayOfType(size, stackitem.BooleanT)))
-	m.Add(stackitem.NewBigInteger(big.NewInt(2)), stackitem.NewArray(makeArrayOfType(size, stackitem.BooleanT)))
+	m.Add(stackitem.NewBigInteger(uint256.NewInt(1)), stackitem.NewArray(makeArrayOfType(size, stackitem.BooleanT)))
+	m.Add(stackitem.NewBigInteger(uint256.NewInt(2)), stackitem.NewArray(makeArrayOfType(size, stackitem.BooleanT)))
 
 	prog := makeProgram(
 		opcode.DUP, opcode.PUSH1, opcode.PUSH1, opcode.SETITEM,
@@ -1594,7 +1604,7 @@ func TestSimpleCall(t *testing.T) {
 	result := 12
 	vm := load(buf.Bytes())
 	runVM(t, vm)
-	assert.Equal(t, result, int(vm.estack.Pop().BigInt().Int64()))
+	assert.Equal(t, result, int(util.ToInt64(vm.estack.Pop().BigInt())))
 }
 
 func TestNZ(t *testing.T) {
@@ -1622,7 +1632,7 @@ func TestPICKgood(t *testing.T) {
 	vm.estack.PushVal(5)
 	vm.estack.PushVal(3)
 	runVM(t, vm)
-	assert.Equal(t, int64(result), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(result), util.ToInt64(vm.estack.Pop().BigInt()))
 }
 
 func TestPICKDup(t *testing.T) {
@@ -1634,10 +1644,10 @@ func TestPICKDup(t *testing.T) {
 	vm := load(prog)
 	runVM(t, vm)
 	assert.Equal(t, 4, vm.estack.Len())
-	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(0), vm.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(-1), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), util.ToInt64(vm.estack.Pop().BigInt()))
+	assert.Equal(t, int64(1), util.ToInt64(vm.estack.Pop().BigInt()))
+	assert.Equal(t, int64(0), util.ToInt64(vm.estack.Pop().BigInt()))
+	assert.Equal(t, int64(-1), util.ToInt64(vm.estack.Pop().BigInt()))
 }
 
 func TestROTBad(t *testing.T) {
@@ -1668,9 +1678,9 @@ func TestROLLBad2(t *testing.T) {
 	runWithArgs(t, prog, nil, 1, 2, 3, 3)
 }
 
-func maxu64Plus(x int64) *big.Int {
-	bi := new(big.Int).SetUint64(math.MaxUint64)
-	bi.Add(bi, big.NewInt(2))
+func maxu64Plus(x int64) *uint256.Int {
+	bi := uint256.NewInt(math.MaxUint64)
+	bi.Add(bi, uint256.NewInt(2))
 	return bi
 }
 
@@ -1739,9 +1749,9 @@ func TestTUCKgood(t *testing.T) {
 	vm.estack.PushVal(42)
 	vm.estack.PushVal(34)
 	runVM(t, vm)
-	assert.Equal(t, int64(34), vm.estack.Peek(0).BigInt().Int64())
-	assert.Equal(t, int64(42), vm.estack.Peek(1).BigInt().Int64())
-	assert.Equal(t, int64(34), vm.estack.Peek(2).BigInt().Int64())
+	assert.Equal(t, int64(34), util.ToInt64(vm.estack.Peek(0).BigInt()))
+	assert.Equal(t, int64(42), util.ToInt64(vm.estack.Peek(1).BigInt()))
+	assert.Equal(t, int64(34), util.ToInt64(vm.estack.Peek(2).BigInt()))
 }
 
 func TestTUCKgood2(t *testing.T) {
@@ -1751,10 +1761,10 @@ func TestTUCKgood2(t *testing.T) {
 	vm.estack.PushVal(42)
 	vm.estack.PushVal(34)
 	runVM(t, vm)
-	assert.Equal(t, int64(34), vm.estack.Peek(0).BigInt().Int64())
-	assert.Equal(t, int64(42), vm.estack.Peek(1).BigInt().Int64())
-	assert.Equal(t, int64(34), vm.estack.Peek(2).BigInt().Int64())
-	assert.Equal(t, int64(11), vm.estack.Peek(3).BigInt().Int64())
+	assert.Equal(t, int64(34), util.ToInt64(vm.estack.Peek(0).BigInt()))
+	assert.Equal(t, int64(42), util.ToInt64(vm.estack.Peek(1).BigInt()))
+	assert.Equal(t, int64(34), util.ToInt64(vm.estack.Peek(2).BigInt()))
+	assert.Equal(t, int64(11), util.ToInt64(vm.estack.Peek(3).BigInt()))
 }
 
 func TestOVER(t *testing.T) {
@@ -1769,9 +1779,9 @@ func TestOVERgood(t *testing.T) {
 	vm.estack.PushVal(42)
 	vm.estack.PushVal(34)
 	runVM(t, vm)
-	assert.Equal(t, int64(42), vm.estack.Peek(0).BigInt().Int64())
-	assert.Equal(t, int64(34), vm.estack.Peek(1).BigInt().Int64())
-	assert.Equal(t, int64(42), vm.estack.Peek(2).BigInt().Int64())
+	assert.Equal(t, int64(42), util.ToInt64(vm.estack.Peek(0).BigInt()))
+	assert.Equal(t, int64(34), util.ToInt64(vm.estack.Peek(1).BigInt()))
+	assert.Equal(t, int64(42), util.ToInt64(vm.estack.Peek(2).BigInt()))
 	assert.Equal(t, 3, vm.estack.Len())
 }
 
@@ -1787,7 +1797,7 @@ func TestOVERDup(t *testing.T) {
 	runVM(t, vm)
 	assert.Equal(t, 3, vm.estack.Len())
 	assert.Equal(t, []byte{0x01, 0x02}, vm.estack.Pop().Bytes())
-	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), util.ToInt64(vm.estack.Pop().BigInt()))
 	assert.Equal(t, []byte{0x01, 0x00}, vm.estack.Pop().Bytes())
 }
 
@@ -1831,8 +1841,8 @@ func TestXDROPgood(t *testing.T) {
 	vm.estack.PushVal(2)
 	runVM(t, vm)
 	assert.Equal(t, 2, vm.estack.Len())
-	assert.Equal(t, int64(2), vm.estack.Peek(0).BigInt().Int64())
-	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+	assert.Equal(t, int64(2), util.ToInt64(vm.estack.Peek(0).BigInt()))
+	assert.Equal(t, int64(1), util.ToInt64(vm.estack.Peek(1).BigInt()))
 }
 
 func TestCLEAR(t *testing.T) {
@@ -1859,7 +1869,7 @@ func TestINVERTgood2(t *testing.T) {
 	vm := load(prog)
 	vm.estack.PushVal(-1)
 	runVM(t, vm)
-	assert.Equal(t, int64(0), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(0), util.ToInt64(vm.estack.Peek(0).BigInt()))
 }
 
 func TestINVERTgood3(t *testing.T) {
@@ -1867,21 +1877,21 @@ func TestINVERTgood3(t *testing.T) {
 	vm := load(prog)
 	vm.estack.PushVal(0x69)
 	runVM(t, vm)
-	assert.Equal(t, int64(-0x6A), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(-0x6A), util.ToInt64(vm.estack.Peek(0).BigInt()))
 }
 
 func TestINVERTWithConversion1(t *testing.T) {
 	prog := makeProgram(opcode.PUSHDATA2, 0, 0, opcode.INVERT)
 	vm := load(prog)
 	runVM(t, vm)
-	assert.Equal(t, int64(-1), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(-1), util.ToInt64(vm.estack.Peek(0).BigInt()))
 }
 
 func TestINVERTWithConversion2(t *testing.T) {
 	prog := makeProgram(opcode.PUSH0, opcode.PUSH1, opcode.NUMEQUAL, opcode.INVERT)
 	vm := load(prog)
 	runVM(t, vm)
-	assert.Equal(t, int64(-1), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(-1), util.ToInt64(vm.estack.Peek(0).BigInt()))
 }
 
 func TestCAT(t *testing.T) {
@@ -1970,10 +1980,10 @@ func TestPACKGood(t *testing.T) {
 			a := vm.estack.Peek(0).Array()
 			assert.Equal(t, len(elements), len(a))
 			for i := 0; i < len(elements); i++ {
-				e := a[i].Value().(*big.Int)
-				assert.Equal(t, int64(elements[i]), e.Int64())
+				e := a[i].Value().(*uint256.Int)
+				assert.Equal(t, int64(elements[i]), util.ToInt64(e))
 			}
-			assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+			assert.Equal(t, int64(1), util.ToInt64(vm.estack.Peek(1).BigInt()))
 		})
 	}
 }
@@ -1992,13 +2002,13 @@ func TestPACK_UNPACK_MaxSize(t *testing.T) {
 	// check reference counter = 1+1+1024
 	assert.Equal(t, 1+1+len(elements), int(vm.refs))
 	assert.Equal(t, 1+1+len(elements), vm.estack.Len()) // canary + length + elements
-	assert.Equal(t, int64(len(elements)), vm.estack.Peek(0).Value().(*big.Int).Int64())
+	assert.Equal(t, int64(len(elements)), util.ToInt64(vm.estack.Peek(0).Value().(*uint256.Int)))
 	for i := 0; i < len(elements); i++ {
-		e, ok := vm.estack.Peek(i + 1).Value().(*big.Int)
+		e, ok := vm.estack.Peek(i + 1).Value().(*uint256.Int)
 		assert.True(t, ok)
-		assert.Equal(t, int64(elements[i]), e.Int64())
+		assert.Equal(t, int64(elements[i]), util.ToInt64(e))
 	}
-	assert.Equal(t, int64(1), vm.estack.Peek(1+len(elements)).BigInt().Int64())
+	assert.Equal(t, int64(1), util.ToInt64(vm.estack.Peek(1+len(elements)).BigInt()))
 }
 
 func TestPACK_UNPACK_PACK_MaxSize(t *testing.T) {
@@ -2018,10 +2028,10 @@ func TestPACK_UNPACK_PACK_MaxSize(t *testing.T) {
 	a := vm.estack.Peek(0).Array()
 	assert.Equal(t, len(elements), len(a))
 	for i := 0; i < len(elements); i++ {
-		e := a[i].Value().(*big.Int)
-		assert.Equal(t, int64(elements[i]), e.Int64())
+		e := a[i].Value().(*uint256.Int)
+		assert.Equal(t, int64(elements[i]), util.ToInt64(e))
 	}
-	assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+	assert.Equal(t, int64(1), util.ToInt64(vm.estack.Peek(1).BigInt()))
 }
 
 func TestPACKMAP_UNPACK_PACKMAP_MaxSize(t *testing.T) {
@@ -2043,12 +2053,12 @@ func TestPACKMAP_UNPACK_PACKMAP_MaxSize(t *testing.T) {
 	m := vm.estack.Peek(0).value.(*stackitem.Map).Value().([]stackitem.MapElement)
 	assert.Equal(t, len(elements), len(m))
 	for i := 0; i < len(elements); i++ {
-		k := m[i].Key.Value().(*big.Int)
-		v := m[i].Value.Value().(*big.Int)
-		assert.Equal(t, int64(elements[i]), k.Int64())
-		assert.Equal(t, int64(elements[i])*2, v.Int64())
+		k := m[i].Key.Value().(*uint256.Int)
+		v := m[i].Value.Value().(*uint256.Int)
+		assert.Equal(t, int64(elements[i]), util.ToInt64(k))
+		assert.Equal(t, int64(elements[i])*2, util.ToInt64(v))
 	}
-	assert.Equal(t, int64(-1), vm.estack.Peek(1).BigInt().Int64())
+	assert.Equal(t, int64(-1), util.ToInt64(vm.estack.Peek(1).BigInt()))
 }
 
 func TestPACKMAPBadKey(t *testing.T) {
@@ -2074,11 +2084,11 @@ func TestUNPACKGood(t *testing.T) {
 	vm.estack.PushVal(elements)
 	runVM(t, vm)
 	assert.Equal(t, 5, vm.estack.Len())
-	assert.Equal(t, int64(len(elements)), vm.estack.Peek(0).BigInt().Int64())
+	assert.Equal(t, int64(len(elements)), util.ToInt64(vm.estack.Peek(0).BigInt()))
 	for k, v := range elements {
-		assert.Equal(t, int64(v), vm.estack.Peek(k+1).BigInt().Int64())
+		assert.Equal(t, int64(v), util.ToInt64(vm.estack.Peek(k+1).BigInt()))
 	}
-	assert.Equal(t, int64(1), vm.estack.Peek(len(elements)+1).BigInt().Int64())
+	assert.Equal(t, int64(1), util.ToInt64(vm.estack.Peek(len(elements)+1).BigInt()))
 }
 
 func TestREVERSEITEMS(t *testing.T) {
@@ -2127,8 +2137,8 @@ func TestREVERSEITEMSGoodOneElem(t *testing.T) {
 	assert.Equal(t, 2, vm.estack.Len())
 	a := vm.estack.Peek(0).Array()
 	assert.Equal(t, len(elements), len(a))
-	e := a[0].Value().(*big.Int)
-	assert.Equal(t, int64(elements[0]), e.Int64())
+	e := a[0].Value().(*uint256.Int)
+	assert.Equal(t, int64(elements[0]), util.ToInt64(e))
 }
 
 func TestREVERSEITEMSGoodStruct(t *testing.T) {
@@ -2152,10 +2162,10 @@ func TestREVERSEITEMSGoodStruct(t *testing.T) {
 		a := vm.estack.Peek(0).Array()
 		assert.Equal(t, len(elements), len(a))
 		for k, v := range elements {
-			e := a[len(a)-1-k].Value().(*big.Int)
-			assert.Equal(t, int64(v), e.Int64())
+			e := a[len(a)-1-k].Value().(*uint256.Int)
+			assert.Equal(t, int64(v), util.ToInt64(e))
 		}
-		assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+		assert.Equal(t, int64(1), util.ToInt64(vm.estack.Peek(1).BigInt()))
 	}
 }
 
@@ -2174,10 +2184,10 @@ func TestREVERSEITEMSGood(t *testing.T) {
 		a := vm.estack.Peek(0).Array()
 		assert.Equal(t, len(elements), len(a))
 		for k, v := range elements {
-			e := a[len(a)-1-k].Value().(*big.Int)
-			assert.Equal(t, int64(v), e.Int64())
+			e := a[len(a)-1-k].Value().(*uint256.Int)
+			assert.Equal(t, int64(v), util.ToInt64(e))
 		}
-		assert.Equal(t, int64(1), vm.estack.Peek(1).BigInt().Int64())
+		assert.Equal(t, int64(1), util.ToInt64(vm.estack.Peek(1).BigInt()))
 	}
 }
 
@@ -2226,14 +2236,14 @@ func testCLEARITEMS(t *testing.T, item stackitem.Item) {
 	runVM(t, v)
 	require.Equal(t, 2, v.estack.Len())
 	require.EqualValues(t, 2, int(v.refs)) // empty collection + it's size
-	require.EqualValues(t, 0, v.estack.Pop().BigInt().Int64())
+	require.EqualValues(t, 0, util.ToInt64(v.estack.Pop().BigInt()))
 }
 
 func TestCLEARITEMS(t *testing.T) {
-	arr := []stackitem.Item{stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewByteArray([]byte{1})}
+	arr := []stackitem.Item{stackitem.NewBigInteger(uint256.NewInt(1)), stackitem.NewByteArray([]byte{1})}
 	m := stackitem.NewMap()
-	m.Add(stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewByteArray([]byte{}))
-	m.Add(stackitem.NewByteArray([]byte{42}), stackitem.NewBigInteger(big.NewInt(2)))
+	m.Add(stackitem.NewBigInteger(uint256.NewInt(1)), stackitem.NewByteArray([]byte{}))
+	m.Add(stackitem.NewByteArray([]byte{42}), stackitem.NewBigInteger(uint256.NewInt(2)))
 
 	testCases := map[string]stackitem.Item{
 		"empty Array":   stackitem.NewArray([]stackitem.Item{}),
@@ -2291,8 +2301,8 @@ func TestSWAPGood(t *testing.T) {
 	vm.estack.PushVal(4)
 	runVM(t, vm)
 	assert.Equal(t, 2, vm.estack.Len())
-	assert.Equal(t, int64(2), vm.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(4), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(2), util.ToInt64(vm.estack.Pop().BigInt()))
+	assert.Equal(t, int64(4), util.ToInt64(vm.estack.Pop().BigInt()))
 }
 
 func TestSWAP(t *testing.T) {
@@ -2307,8 +2317,8 @@ func TestDupInt(t *testing.T) {
 	vm.estack.PushVal(-1)
 	runVM(t, vm)
 	assert.Equal(t, 2, vm.estack.Len())
-	assert.Equal(t, int64(1), vm.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(-1), vm.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), util.ToInt64(vm.estack.Pop().BigInt()))
+	assert.Equal(t, int64(-1), util.ToInt64(vm.estack.Pop().BigInt()))
 }
 
 func TestNegateCopy(t *testing.T) {
@@ -2319,8 +2329,8 @@ func TestNegateCopy(t *testing.T) {
 	v.estack.PushVal(bi)
 	runVM(t, v)
 	assert.Equal(t, 2, v.estack.Len())
-	assert.Equal(t, int64(1), v.estack.Pop().BigInt().Int64())
-	assert.Equal(t, int64(-1), v.estack.Pop().BigInt().Int64())
+	assert.Equal(t, int64(1), util.ToInt64(v.estack.Pop().BigInt()))
+	assert.Equal(t, int64(-1), util.ToInt64(v.estack.Pop().BigInt()))
 }
 
 func TestDupByteArray(t *testing.T) {
@@ -2361,7 +2371,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{1, 1},
 			expected: int64(1),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2369,7 +2379,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{1, 0},
 			expected: int64(0),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2377,7 +2387,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{0, 1},
 			expected: int64(0),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2385,7 +2395,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{0, 0},
 			expected: int64(0),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2406,7 +2416,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{1, 1},
 			expected: int64(1),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2414,7 +2424,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{0, 0},
 			expected: int64(0),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2422,7 +2432,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{0, 1},
 			expected: int64(1),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2430,7 +2440,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{1, 0},
 			expected: int64(1),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2451,7 +2461,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{1, 1},
 			expected: int64(0),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2459,7 +2469,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{0, 0},
 			expected: int64(0),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2467,7 +2477,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{0, 1},
 			expected: int64(1),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2475,7 +2485,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{1, 0},
 			expected: int64(1),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2530,7 +2540,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{3, 5},
 			expected: int64(3),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2538,7 +2548,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{5, 3},
 			expected: int64(3),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2546,7 +2556,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{3, 3},
 			expected: int64(3),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 	},
@@ -2556,7 +2566,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{3, 5},
 			expected: int64(5),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2564,7 +2574,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{5, 3},
 			expected: int64(5),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2572,7 +2582,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{3, 3},
 			expected: int64(3),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 	},
@@ -2608,7 +2618,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{3},
 			expected: int64(-3),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2616,7 +2626,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{-3},
 			expected: int64(3),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 		{
@@ -2624,7 +2634,7 @@ var opcodesTestCases = map[opcode.Opcode][]struct {
 			args:     []interface{}{0},
 			expected: int64(0),
 			actual: func(vm *VM) interface{} {
-				return vm.estack.Pop().BigInt().Int64()
+				return util.ToInt64(vm.estack.Pop().BigInt())
 			},
 		},
 	},
@@ -2791,4 +2801,77 @@ func newTestVM() *VM {
 	v := New()
 	v.GasLimit = -1
 	return v
+}
+
+func TestSqrt(t *testing.T) {
+	cases := []struct {
+		expect uint64
+		number uint64
+	}{
+		{1, 1},
+		{1, 2},
+		{1, 3},
+		{2, 4},
+		{3, 9},
+		{3, 13},
+		{4, 16},
+		{9, 81},
+		{2603, 6777216},
+		{11111, 123456789},
+		{180, 32639},
+		{2890, 8355711},
+		{46249, 2139062143},
+		{11839999, 140185576636287},
+		{3031039747, 9187201950435737471},
+		{3031039747, 9187201947893824009},
+	}
+	for _, tc := range cases {
+		assert.Equal(t, uint256.NewInt(tc.expect), sqrt(uint256.NewInt(tc.number)), "sqrt failed", tc.number)
+	}
+}
+
+func BenchmarkSqrt_1(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sqrt(uint256.NewInt(9187201950435737471))
+	}
+}
+
+func BenchmarkSqrt_2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		new(big.Int).Sqrt(big.NewInt(9187201950435737471))
+	}
+}
+
+func TestModInverse(t *testing.T) {
+	cases := []struct {
+		expect  uint64
+		number  uint64
+		modulus uint64
+	}{
+		{52, 19, 141},
+	}
+	for _, tc := range cases {
+		assert.Equal(t, uint256.NewInt(tc.expect), modInverse(uint256.NewInt(tc.number), uint256.NewInt(tc.modulus)), "modinverse failed", tc.number)
+	}
+}
+
+func BenchmarkModInverse(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		modInverse(uint256.NewInt(19), uint256.NewInt(141))
+	}
+}
+
+func TestToInt(t *testing.T) {
+	min, _ := uint256.FromBig(big.NewInt(math.MinInt32))
+	max, _ := uint256.FromBig(big.NewInt(math.MaxInt32))
+	x := toInt(min)
+	assert.Equal(t, math.MinInt32, x)
+	x = toInt(max)
+	assert.Equal(t, math.MaxInt32, x)
+	b, _ := uint256.FromBig(big.NewInt(math.MinInt32 / 2))
+	x = toInt(b)
+	assert.Equal(t, math.MinInt32/2, x)
+	b, _ = uint256.FromBig(big.NewInt(math.MaxInt32 / 2))
+	x = toInt(b)
+	assert.Equal(t, math.MaxInt32/2, x)
 }

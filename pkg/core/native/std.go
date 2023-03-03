@@ -247,7 +247,7 @@ func (s *Std) itoa(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 func (s *Std) atoi10(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	num := s.toLimitedString(args[0])
 	res := s.atoi10Aux(num)
-	return stackitem.NewBigInteger(res)
+	return stackitem.NewBigIntegerFromBig(res)
 }
 
 func (s *Std) atoi10Aux(num string) *big.Int {
@@ -286,7 +286,7 @@ func (s *Std) atoi(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 		panic(ErrInvalidBase)
 	}
 
-	return stackitem.NewBigInteger(bi)
+	return stackitem.NewBigIntegerFromBig(bi)
 }
 
 func (s *Std) base64Encode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -343,14 +343,14 @@ func (s *Std) base58CheckDecode(_ *interop.Context, args []stackitem.Item) stack
 func (s *Std) memoryCompare(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	s1 := s.toLimitedBytes(args[0])
 	s2 := s.toLimitedBytes(args[1])
-	return stackitem.NewBigInteger(big.NewInt(int64(bytes.Compare(s1, s2))))
+	return stackitem.NewBigIntegerFromInt64(int64(bytes.Compare(s1, s2)))
 }
 
 func (s *Std) memorySearch2(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	mem := s.toLimitedBytes(args[0])
 	val := s.toLimitedBytes(args[1])
 	index := s.memorySearchAux(mem, val, 0, false)
-	return stackitem.NewBigInteger(big.NewInt(int64(index)))
+	return stackitem.NewBigIntegerFromInt64(int64(index))
 }
 
 func (s *Std) memorySearch3(_ *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -358,7 +358,7 @@ func (s *Std) memorySearch3(_ *interop.Context, args []stackitem.Item) stackitem
 	val := s.toLimitedBytes(args[1])
 	start := toUint32(args[2])
 	index := s.memorySearchAux(mem, val, int(start), false)
-	return stackitem.NewBigInteger(big.NewInt(int64(index)))
+	return stackitem.NewBigIntegerFromInt64(int64(index))
 }
 
 func (s *Std) memorySearch4(_ *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -371,7 +371,7 @@ func (s *Std) memorySearch4(_ *interop.Context, args []stackitem.Item) stackitem
 	}
 
 	index := s.memorySearchAux(mem, val, int(start), backward)
-	return stackitem.NewBigInteger(big.NewInt(int64(index)))
+	return stackitem.NewBigIntegerFromInt64(int64(index))
 }
 
 func (s *Std) memorySearchAux(mem, val []byte, start int, backward bool) int {
