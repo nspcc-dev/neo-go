@@ -37,7 +37,7 @@ func indexToPosition(i uint32) int {
 	return int(i) % blockCacheSize
 }
 
-func newBlockQueue(capacity int, bc Blockqueuer, log *zap.Logger, relayer func(*block.Block)) *blockQueue {
+func newBlockQueue(bc Blockqueuer, log *zap.Logger, relayer func(*block.Block)) *blockQueue {
 	if log == nil {
 		return nil
 	}

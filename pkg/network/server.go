@@ -204,11 +204,11 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 			}, s.notaryFeer)
 		})
 	}
-	s.bQueue = newBlockQueue(maxBlockBatch, chain, log, func(b *block.Block) {
+	s.bQueue = newBlockQueue(chain, log, func(b *block.Block) {
 		s.tryStartServices()
 	})
 
-	s.bSyncQueue = newBlockQueue(maxBlockBatch, s.stateSync, log, nil)
+	s.bSyncQueue = newBlockQueue(s.stateSync, log, nil)
 
 	if s.MinPeers < 0 {
 		s.log.Info("bad MinPeers configured, using the default value",
