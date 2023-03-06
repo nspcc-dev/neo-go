@@ -337,11 +337,16 @@ events:
 		case b := <-s.blockEvents:
 			s.handleChainBlock(b)
 		}
-		// Always process block event if there is any, we can add one above.
-		select {
-		case b := <-s.blockEvents:
-			s.handleChainBlock(b)
-		default:
+		// Always process block event if there is any, we can add one above or external
+		// services can add several blocks during message processing.
+	syncLoop:
+		for {
+			select {
+			case b := <-s.blockEvents:
+				s.handleChainBlock(b)
+			default:
+				break syncLoop
+			}
 		}
 	}
 drainLoop:
