@@ -1,4 +1,4 @@
-package network
+package bqueue
 
 import (
 	"sync"
@@ -15,7 +15,8 @@ type Blockqueuer interface {
 	BlockHeight() uint32
 }
 
-type blockQueue struct {
+// Queue is the block queue.
+type Queue struct {
 	log         *zap.Logger
 	queueLock   sync.RWMutex
 	queue       []*block.Block
@@ -25,34 +26,36 @@ type blockQueue struct {
 	relayF      func(*block.Block)
 	discarded   *atomic.Bool
 	len         int
+	lenUpdateF  func(int)
 }
 
-const (
-	// blockCacheSize is the amount of blocks above the current height
-	// which are stored in the queue.
-	blockCacheSize = 2000
-)
+// CacheSize is the amount of blocks above the current height
+// which are stored in the queue.
+const CacheSize = 2000
 
 func indexToPosition(i uint32) int {
-	return int(i) % blockCacheSize
+	return int(i) % CacheSize
 }
 
-func newBlockQueue(bc Blockqueuer, log *zap.Logger, relayer func(*block.Block)) *blockQueue {
+// New creates an instance of BlockQueue.
+func New(bc Blockqueuer, log *zap.Logger, relayer func(*block.Block), lenMetricsUpdater func(l int)) *Queue {
 	if log == nil {
 		return nil
 	}
 
-	return &blockQueue{
+	return &Queue{
 		log:         log,
-		queue:       make([]*block.Block, blockCacheSize),
+		queue:       make([]*block.Block, CacheSize),
 		checkBlocks: make(chan struct{}, 1),
 		chain:       bc,
 		relayF:      relayer,
 		discarded:   atomic.NewBool(false),
+		lenUpdateF:  lenMetricsUpdater,
 	}
 }
 
-func (bq *blockQueue) run() {
+// Run runs the BlockQueue queueing loop. It must be called in a separate routine.
+func (bq *Queue) Run() {
 	var lastHeight = bq.chain.BlockHeight()
 	for {
 		_, ok := <-bq.checkBlocks
@@ -97,19 +100,22 @@ func (bq *blockQueue) run() {
 				bq.queue[pos] = nil
 			}
 			bq.queueLock.Unlock()
-			updateBlockQueueLenMetric(l)
+			if bq.lenUpdateF != nil {
+				bq.lenUpdateF(l)
+			}
 		}
 	}
 }
 
-func (bq *blockQueue) putBlock(block *block.Block) error {
+// PutBlock enqueues block to be added to the chain.
+func (bq *Queue) PutBlock(block *block.Block) error {
 	h := bq.chain.BlockHeight()
 	bq.queueLock.Lock()
 	defer bq.queueLock.Unlock()
 	if bq.discarded.Load() {
 		return nil
 	}
-	if block.Index <= h || h+blockCacheSize < block.Index {
+	if block.Index <= h || h+CacheSize < block.Index {
 		// can easily happen when fetching the same blocks from
 		// different peers, thus not considered as error
 		return nil
@@ -119,14 +125,15 @@ func (bq *blockQueue) putBlock(block *block.Block) error {
 	if bq.queue[pos] == nil || bq.queue[pos].Index < block.Index {
 		bq.len++
 		bq.queue[pos] = block
-		for pos < blockCacheSize && bq.queue[pos] != nil && bq.lastQ+1 == bq.queue[pos].Index {
+		for pos < CacheSize && bq.queue[pos] != nil && bq.lastQ+1 == bq.queue[pos].Index {
 			bq.lastQ = bq.queue[pos].Index
 			pos++
 		}
 	}
-	l := bq.len
 	// update metrics
-	updateBlockQueueLenMetric(l)
+	if bq.lenUpdateF != nil {
+		bq.lenUpdateF(bq.len)
+	}
 	select {
 	case bq.checkBlocks <- struct{}{}:
 		// ok, signalled to goroutine processing queue
@@ -136,20 +143,21 @@ func (bq *blockQueue) putBlock(block *block.Block) error {
 	return nil
 }
 
-// lastQueued returns the index of the last queued block and the queue's capacity
+// LastQueued returns the index of the last queued block and the queue's capacity
 // left.
-func (bq *blockQueue) lastQueued() (uint32, int) {
+func (bq *Queue) LastQueued() (uint32, int) {
 	bq.queueLock.RLock()
 	defer bq.queueLock.RUnlock()
-	return bq.lastQ, blockCacheSize - bq.len
+	return bq.lastQ, CacheSize - bq.len
 }
 
-func (bq *blockQueue) discard() {
+// Discard stops the queue and prevents it from accepting more blocks to enqueue.
+func (bq *Queue) Discard() {
 	if bq.discarded.CAS(false, true) {
 		bq.queueLock.Lock()
 		close(bq.checkBlocks)
 		// Technically we could bq.queue = nil, but this would cost
-		// another if in run().
+		// another if in Run().
 		for i := 0; i < len(bq.queue); i++ {
 			bq.queue[i] = nil
 		}

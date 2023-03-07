@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/network/bqueue"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -57,7 +58,7 @@ type (
 	Ledger interface {
 		extpool.Ledger
 		mempool.Feer
-		Blockqueuer
+		bqueue.Blockqueuer
 		GetBlock(hash util.Uint256) (*block.Block, error)
 		GetConfig() config.Blockchain
 		GetHeader(hash util.Uint256) (*block.Header, error)
@@ -100,8 +101,8 @@ type (
 		transports        []Transporter
 		discovery         Discoverer
 		chain             Ledger
-		bQueue            *blockQueue
-		bSyncQueue        *blockQueue
+		bQueue            *bqueue.Queue
+		bSyncQueue        *bqueue.Queue
 		mempool           *mempool.Pool
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
@@ -204,11 +205,11 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 			}, s.notaryFeer)
 		})
 	}
-	s.bQueue = newBlockQueue(chain, log, func(b *block.Block) {
+	s.bQueue = bqueue.New(chain, log, func(b *block.Block) {
 		s.tryStartServices()
-	})
+	}, updateBlockQueueLenMetric)
 
-	s.bSyncQueue = newBlockQueue(s.stateSync, log, nil)
+	s.bSyncQueue = bqueue.New(s.stateSync, log, nil, updateBlockQueueLenMetric)
 
 	if s.MinPeers < 0 {
 		s.log.Info("bad MinPeers configured, using the default value",
@@ -278,8 +279,8 @@ func (s *Server) Start(errChan chan error) {
 	}
 	go s.broadcastTxLoop()
 	go s.relayBlocksLoop()
-	go s.bQueue.run()
-	go s.bSyncQueue.run()
+	go s.bQueue.Run()
+	go s.bSyncQueue.Run()
 	for _, tr := range s.transports {
 		go tr.Accept()
 	}
@@ -297,8 +298,8 @@ func (s *Server) Shutdown() {
 	for _, p := range s.getPeers(nil) {
 		p.Disconnect(errServerShutdown)
 	}
-	s.bQueue.discard()
-	s.bSyncQueue.discard()
+	s.bQueue.Discard()
+	s.bSyncQueue.Discard()
 	s.serviceLock.RLock()
 	for _, svc := range s.services {
 		svc.Shutdown()
@@ -723,9 +724,9 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 // handleBlockCmd processes the block received from its peer.
 func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 	if s.stateSync.IsActive() {
-		return s.bSyncQueue.putBlock(block)
+		return s.bSyncQueue.PutBlock(block)
 	}
-	return s.bQueue.putBlock(block)
+	return s.bQueue.PutBlock(block)
 }
 
 // handlePing processes a ping request.
@@ -749,7 +750,7 @@ func (s *Server) requestBlocksOrHeaders(p Peer) error {
 		return nil
 	}
 	var (
-		bq              Blockqueuer = s.chain
+		bq              bqueue.Blockqueuer = s.chain
 		requestMPTNodes bool
 	)
 	if s.stateSync.IsActive() {
@@ -1247,9 +1248,9 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 // 1. Block range is divided into chunks of payload.MaxHashesCount.
 // 2. Send requests for chunk in increasing order.
 // 3. After all requests have been sent, request random height.
-func (s *Server) requestBlocks(bq Blockqueuer, p Peer) error {
+func (s *Server) requestBlocks(bq bqueue.Blockqueuer, p Peer) error {
 	pl := getRequestBlocksPayload(p, bq.BlockHeight(), &s.lastRequestedBlock)
-	lq, capLeft := s.bQueue.lastQueued()
+	lq, capLeft := s.bQueue.LastQueued()
 	if capLeft == 0 {
 		// No more blocks will fit into the queue.
 		return nil
@@ -1274,7 +1275,7 @@ func getRequestBlocksPayload(p Peer, currHeight uint32, lastRequestedHeight *ato
 			if !lastRequestedHeight.CAS(old, needHeight) {
 				continue
 			}
-		} else if old < currHeight+(blockCacheSize-payload.MaxHashesCount) {
+		} else if old < currHeight+(bqueue.CacheSize-payload.MaxHashesCount) {
 			needHeight = currHeight + 1
 			if peerHeight > old+payload.MaxHashesCount {
 				needHeight = old + payload.MaxHashesCount
@@ -1283,7 +1284,7 @@ func getRequestBlocksPayload(p Peer, currHeight uint32, lastRequestedHeight *ato
 				}
 			}
 		} else {
-			index := mrand.Intn(blockCacheSize / payload.MaxHashesCount)
+			index := mrand.Intn(bqueue.CacheSize / payload.MaxHashesCount)
 			needHeight = currHeight + 1 + uint32(index*payload.MaxHashesCount)
 		}
 		break
@@ -1381,7 +1382,7 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 
 func (s *Server) tryInitStateSync() {
 	if !s.stateSync.IsActive() {
-		s.bSyncQueue.discard()
+		s.bSyncQueue.Discard()
 		return
 	}
 
@@ -1421,7 +1422,7 @@ func (s *Server) tryInitStateSync() {
 
 		// module can be inactive after init (i.e. full state is collected and ordinary block processing is needed)
 		if !s.stateSync.IsActive() {
-			s.bSyncQueue.discard()
+			s.bSyncQueue.Discard()
 		}
 	}
 }
