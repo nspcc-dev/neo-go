@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
+	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -50,6 +51,7 @@ func TestNewWatchingService(t *testing.T) {
 		Logger:                zaptest.NewLogger(t),
 		Broadcast:             func(*npayload.Extensible) {},
 		Chain:                 bc,
+		BlockQueue:            testBlockQueuer{bc: bc},
 		ProtocolConfiguration: bc.GetConfig().ProtocolConfiguration,
 		RequestTx:             func(...util.Uint256) {},
 		StopTxFlow:            func() {},
@@ -495,6 +497,7 @@ func newTestServiceWithChain(t *testing.T, bc *core.Blockchain) *service {
 		Logger:                zaptest.NewLogger(t),
 		Broadcast:             func(*npayload.Extensible) {},
 		Chain:                 bc,
+		BlockQueue:            testBlockQueuer{bc: bc},
 		ProtocolConfiguration: bc.GetConfig().ProtocolConfiguration,
 		RequestTx:             func(...util.Uint256) {},
 		StopTxFlow:            func() {},
@@ -507,6 +510,17 @@ func newTestServiceWithChain(t *testing.T, bc *core.Blockchain) *service {
 	require.NoError(t, err)
 
 	return srv.(*service)
+}
+
+type testBlockQueuer struct {
+	bc *core.Blockchain
+}
+
+var _ = BlockQueuer(testBlockQueuer{})
+
+// PutBlock implements BlockQueuer interface.
+func (bq testBlockQueuer) PutBlock(b *coreb.Block) error {
+	return bq.bc.AddBlock(b)
 }
 
 func getTestValidator(i int) (*privateKey, *publicKey) {

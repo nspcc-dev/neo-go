@@ -42,7 +42,6 @@ const nsInMs = 1000000
 
 // Ledger is the interface to Blockchain sufficient for Service.
 type Ledger interface {
-	AddBlock(block *coreb.Block) error
 	ApplyPolicyToTxSet([]*transaction.Transaction) []*transaction.Transaction
 	GetConfig() config.Blockchain
 	GetMemPool() *mempool.Pool
@@ -56,6 +55,11 @@ type Ledger interface {
 	GetBaseExecFee() int64
 	interop.Ledger
 	mempool.Feer
+}
+
+// BlockQueuer is an interface to the block queue manager sufficient for Service.
+type BlockQueuer interface {
+	PutBlock(block *coreb.Block) error
 }
 
 // Service represents a consensus instance.
@@ -115,6 +119,8 @@ type Config struct {
 	Broadcast func(p *npayload.Extensible)
 	// Chain is a Ledger instance.
 	Chain Ledger
+	// BlockQueue is a BlockQueuer instance.
+	BlockQueue BlockQueuer
 	// ProtocolConfiguration contains protocol settings.
 	ProtocolConfiguration config.ProtocolConfiguration
 	// RequestTx is a callback to which will be called
@@ -570,11 +576,11 @@ func (s *service) processBlock(b block.Block) {
 	bb := &b.(*neoBlock).Block
 	bb.Script = *(s.getBlockWitness(bb))
 
-	if err := s.Chain.AddBlock(bb); err != nil {
+	if err := s.BlockQueue.PutBlock(bb); err != nil {
 		// The block might already be added via the regular network
 		// interaction.
 		if _, errget := s.Chain.GetBlock(bb.Hash()); errget != nil {
-			s.log.Warn("error on add block", zap.Error(err))
+			s.log.Warn("error on enqueue block", zap.Error(err))
 		}
 	}
 	s.postBlock(bb)

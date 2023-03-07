@@ -324,6 +324,11 @@ func (s *Server) addService(svc Service) {
 	s.services[svc.Name()] = svc
 }
 
+// GetBlockQueue returns the block queue instance managed by Server.
+func (s *Server) GetBlockQueue() *bqueue.Queue {
+	return s.bQueue
+}
+
 // AddExtensibleService register a service that handles an extensible payload of some kind.
 func (s *Server) AddExtensibleService(svc Service, category string, handler func(*payload.Extensible) error) {
 	s.serviceLock.Lock()
