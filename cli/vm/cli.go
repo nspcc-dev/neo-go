@@ -607,7 +607,7 @@ func getInstructionParameter(c *cli.Context) (int, error) {
 	}
 	n, err := strconv.Atoi(args[0])
 	if err != nil {
-		return 0, fmt.Errorf("%w: %s", ErrInvalidParameter, err)
+		return 0, fmt.Errorf("%w: %s", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 	}
 	return n, nil
 }
@@ -690,7 +690,7 @@ func handleLoadNEF(c *cli.Context) error {
 	if len(args) > 2 {
 		signers, err = cmdargs.ParseSigners(c.Args()[2:])
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidParameter, err)
+			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 	}
 	err = prepareVM(c, createFakeTransaction(nef.Script, signers))
@@ -711,13 +711,13 @@ func handleLoadBase64(c *cli.Context) error {
 	}
 	b, err := base64.StdEncoding.DecodeString(args[0])
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrInvalidParameter, err)
+		return fmt.Errorf("%w: %s", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 	}
 	var signers []transaction.Signer
 	if len(args) > 1 {
 		signers, err = cmdargs.ParseSigners(args[1:])
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidParameter, err)
+			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 	}
 	err = prepareVM(c, createFakeTransaction(b, signers))
@@ -745,13 +745,13 @@ func handleLoadHex(c *cli.Context) error {
 	}
 	b, err := hex.DecodeString(args[0])
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrInvalidParameter, err)
+		return fmt.Errorf("%w: %s", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 	}
 	var signers []transaction.Signer
 	if len(args) > 1 {
 		signers, err = cmdargs.ParseSigners(args[1:])
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidParameter, err)
+			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 	}
 	err = prepareVM(c, createFakeTransaction(b, signers))
@@ -785,7 +785,7 @@ func handleLoadGo(c *cli.Context) error {
 	if len(args) > 1 {
 		signers, err = cmdargs.ParseSigners(args[1:])
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidParameter, err)
+			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 	}
 
@@ -871,7 +871,7 @@ func handleLoadDeployed(c *cli.Context) error {
 	if len(c.Args()) > 1 {
 		signers, err = cmdargs.ParseSigners(c.Args()[1:])
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidParameter, err)
+			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 	}
 	err = prepareVM(c, createFakeTransaction(cs.NEF.Script, signers)) // prepare VM one more time for proper IC initialization.
@@ -982,7 +982,7 @@ func handleRun(c *cli.Context) error {
 
 		_, scParams, err := cmdargs.ParseParams(args[1:], true)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidParameter, err)
+			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 		params = make([]stackitem.Item, len(scParams))
 		for i := range scParams {
@@ -1085,7 +1085,7 @@ func handleStep(c *cli.Context) error {
 	if len(args) > 0 {
 		n, err = strconv.Atoi(args[0])
 		if err != nil {
-			return fmt.Errorf("%w: %s", ErrInvalidParameter, err)
+			return fmt.Errorf("%w: %s", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 	}
 	v.AddBreakPointRel(n)

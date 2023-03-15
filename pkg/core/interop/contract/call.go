@@ -165,7 +165,7 @@ func CallFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contract
 
 	for !ic.VM.HasStopped() && len(ic.VM.Istack()) > startSize {
 		if err := ic.VM.Step(); err != nil {
-			return fmt.Errorf("%w: %v", ErrNativeCall, err)
+			return fmt.Errorf("%w: %v", ErrNativeCall, err) //nolint:errorlint // non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 	}
 	if ic.VM.HasFailed() {
