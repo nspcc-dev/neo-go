@@ -59,7 +59,7 @@ func NewBoltDBStore(cfg dbconfig.BoltDBOptions) (*BoltDBStore, error) {
 		closeErr := db.Close()
 		err = fmt.Errorf("failed to initialize BoltDB instance: %w", err)
 		if closeErr != nil {
-			err = fmt.Errorf("%w, failed to close BoltDB instance: %v", err, closeErr)
+			err = fmt.Errorf("%w, failed to close BoltDB instance: %v", err, closeErr) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 		return nil, err
 	}

@@ -197,9 +197,9 @@ func (w *PollingWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.
 				return nil, ErrTxNotAccepted
 			}
 		case <-w.polling.Context().Done():
-			return nil, fmt.Errorf("%w: %v", ErrContextDone, w.polling.Context().Err())
+			return nil, fmt.Errorf("%w: %v", ErrContextDone, w.polling.Context().Err()) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		case <-ctx.Done():
-			return nil, fmt.Errorf("%w: %v", ErrContextDone, ctx.Err())
+			return nil, fmt.Errorf("%w: %v", ErrContextDone, ctx.Err()) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 	}
 }
@@ -302,9 +302,9 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 			}
 			res = aer
 		case <-w.ws.Context().Done():
-			waitErr = fmt.Errorf("%w: %v", ErrContextDone, w.ws.Context().Err())
+			waitErr = fmt.Errorf("%w: %v", ErrContextDone, w.ws.Context().Err()) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		case <-ctx.Done():
-			waitErr = fmt.Errorf("%w: %v", ErrContextDone, ctx.Err())
+			waitErr = fmt.Errorf("%w: %v", ErrContextDone, ctx.Err()) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 	}
 	close(exit)
@@ -345,7 +345,7 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 		res, waitErr = w.polling.WaitAny(ctx, vub, hashes...)
 		if waitErr != nil {
 			// Wrap the poll-based error, it's more important.
-			waitErr = fmt.Errorf("event-based error: %v; poll-based waiter error: %w", wsWaitErr, waitErr)
+			waitErr = fmt.Errorf("event-based error: %v; poll-based waiter error: %w", wsWaitErr, waitErr) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 	}
 	return
