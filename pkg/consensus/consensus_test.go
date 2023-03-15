@@ -64,6 +64,14 @@ func TestNewWatchingService(t *testing.T) {
 	require.NotPanics(t, srv.Shutdown)
 }
 
+func collectBlock(t *testing.T, bc *core.Blockchain, srv *service) {
+	h := bc.BlockHeight()
+	srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.Context.BlockIndex}) // Collect and add block to the chain.
+	header, err := bc.GetHeader(bc.GetHeaderHash(h + 1))
+	require.NoError(t, err)
+	srv.dbft.InitializeConsensus(0, header.Timestamp*nsInMs) // Init consensus manually at the next height, as we don't run the consensus service.
+}
+
 func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint32) (*service, *wallet.Account) {
 	acc, err := wallet.NewAccountFromWIF(testchain.WIF(testchain.IDToOrder(0)))
 	require.NoError(t, err)
@@ -91,7 +99,11 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	require.NoError(t, bc.PoolTx(tx))
 
 	srv := newTestServiceWithChain(t, bc)
+	h := bc.BlockHeight()
 	srv.dbft.Start(0)
+	header, err := bc.GetHeader(bc.GetHeaderHash(h + 1))
+	require.NoError(t, err)
+	srv.dbft.InitializeConsensus(0, header.Timestamp*nsInMs) // Init consensus manually at the next height, as we don't run the consensus service.
 
 	// Register new candidate.
 	b.Reset()
@@ -106,11 +118,11 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	require.NoError(t, newAcc.SignTx(netmode.UnitTestNet, tx))
 
 	require.NoError(t, bc.PoolTx(tx))
-	srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.Context.BlockIndex})
+	collectBlock(t, bc, srv)
 
 	cfg := bc.GetConfig()
 	for i := srv.dbft.BlockIndex; !cfg.ShouldUpdateCommitteeAt(i + offset); i++ {
-		srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.Context.BlockIndex})
+		collectBlock(t, bc, srv)
 	}
 
 	// Vote for new candidate.
@@ -127,7 +139,7 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	require.NoError(t, newAcc.SignTx(netmode.UnitTestNet, tx))
 
 	require.NoError(t, bc.PoolTx(tx))
-	srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.BlockIndex})
+	collectBlock(t, bc, srv)
 
 	return srv, acc
 }
@@ -155,7 +167,7 @@ func TestService_NextConsensus(t *testing.T) {
 		// OnPersist <- update committee
 		// Block     <-
 
-		srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.BlockIndex})
+		collectBlock(t, bc, srv)
 		checkNextConsensus(t, bc, height+1, hash.Hash160(script))
 	})
 	/*
