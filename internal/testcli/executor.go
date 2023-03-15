@@ -155,6 +155,7 @@ func NewTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 		Logger:                zap.NewNop(),
 		Broadcast:             netSrv.BroadcastExtensible,
 		Chain:                 chain,
+		BlockQueue:            netSrv.GetBlockQueue(),
 		ProtocolConfiguration: cfg.ProtocolConfiguration,
 		RequestTx:             netSrv.RequestTx,
 		StopTxFlow:            netSrv.StopTxFlow,

@@ -384,6 +384,7 @@ func mkConsensus(config config.Consensus, tpb time.Duration, chain *core.Blockch
 		Logger:                log,
 		Broadcast:             serv.BroadcastExtensible,
 		Chain:                 chain,
+		BlockQueue:            serv.GetBlockQueue(),
 		ProtocolConfiguration: chain.GetConfig().ProtocolConfiguration,
 		RequestTx:             serv.RequestTx,
 		StopTxFlow:            serv.StopTxFlow,
