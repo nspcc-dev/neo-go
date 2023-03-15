@@ -345,14 +345,17 @@ events:
 		}
 		// Always process block event if there is any, we can add one above or external
 		// services can add several blocks during message processing.
+		var latestBlock *coreb.Block
 	syncLoop:
 		for {
 			select {
-			case b := <-s.blockEvents:
-				s.handleChainBlock(b)
+			case latestBlock = <-s.blockEvents:
 			default:
 				break syncLoop
 			}
+		}
+		if latestBlock != nil {
+			s.handleChainBlock(latestBlock)
 		}
 	}
 drainLoop:
