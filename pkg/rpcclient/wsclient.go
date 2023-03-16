@@ -26,6 +26,27 @@ import (
 // that is only provided via websockets (like event subscription mechanism).
 // WSClient is thread-safe and can be used from multiple goroutines to perform
 // RPC requests.
+//
+// It exposes a set of Receive* methods with the same behaviour pattern that
+// is caused by the fact that the client itself receives every message from the
+// server via a single channel. This includes any subscriptions and any replies
+// to ordinary requests at the same. The client then routes these messages to
+// channels provided on subscription (passed to Receive*) or to the respective
+// receivers (API callers) if it's an ordinary JSON-RPC reply. While synchronous
+// API users are blocked during their calls and wake up on reply, subscription
+// channels must be read from to avoid blocking the client. Failure to do so
+// will make WSClient wait for the channel reader to get the event and while
+// it waits every other messages (subscription-related or request replies)
+// will be blocked. This also means that subscription channel must be properly
+// drained after unsubscription.
+//
+// Any received subscription items (blocks/transactions/nofitications) are passed
+// via pointers for efficiency, but the actual structures MUST NOT be changed, as
+// it may affect the functionality of other notification receivers. If multiple
+// subscriptions share the same receiver channel, then matching notification is
+// only sent once per channel. The receiver channel will be closed by the WSClient
+// immediately after MissedEvent is received from the server; no unsubscription
+// is performed in this case, so it's the user responsibility to unsubscribe.
 type WSClient struct {
 	Client
 	// Notifications is a channel that is used to send events received from
@@ -663,15 +684,7 @@ func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
 
 // ReceiveBlocks registers provided channel as a receiver for the new block events.
 // Events can be filtered by the given BlockFilter, nil value doesn't add any filter.
-// The receiver channel must be properly read and drained after usage in order not
-// to block other notification receivers. Failing to do so will cause WSClient to
-// block even regular requests. Make sure you're not changing the received
-// blocks, as it may affect the functionality of other notification receivers.
-// If multiple subscriptions share the same receiver channel, then matching
-// notification is only sent once per channel. The receiver channel will be closed
-// by the WSClient immediately after MissedEvent is received from the server;
-// no unsubscription is performed in this case, so it's the user responsibility
-// to unsubscribe.
+// See WSClient comments for generic Receive* behaviour details.
 func (c *WSClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Block) (string, error) {
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
@@ -711,15 +724,7 @@ func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, signer *uti
 
 // ReceiveTransactions registers provided channel as a receiver for new transaction
 // events. Events can be filtered by the given TxFilter, nil value doesn't add any
-// filter. The receiver channel must be properly read and drained after usage in
-// order not to block other notification receivers. Failing to do so will cause
-// WSClient to block even regular requests. Make sure you're not changing
-// the received transactions, as it may affect the functionality of other
-// notification receivers.If multiple subscriptions share the same receiver channel,
-// then matching notification is only sent once per channel. The receiver channel
-// will be closed by the WSClient immediately after MissedEvent is received from
-// the server; no unsubscription is performed in this case, so it's the user
-// responsibility to unsubscribe.
+// filter. See WSClient comments for generic Receive* behaviour details.
 func (c *WSClient) ReceiveTransactions(flt *neorpc.TxFilter, rcvr chan<- *transaction.Transaction) (string, error) {
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
@@ -760,14 +765,7 @@ func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160, na
 
 // ReceiveExecutionNotifications registers provided channel as a receiver for execution
 // events. Events can be filtered by the given NotificationFilter, nil value doesn't add
-// any filter. The receiver channel must be properly read and drained after usage in
-// order not to block other notification receivers. Failing to do so will cause WSClient
-// to block even regular requests. Make sure you're not changing the received notification
-// events, as it may affect the functionality of other notification receivers. If multiple
-// subscriptions share the same receiver channel, then matching notification is only sent
-// once per channel. The receiver channel will be closed by the WSClient immediately after
-// MissedEvent is received from the server; no unsubscription is performed in this case,
-// so it's the user responsibility to unsubscribe.
+// any filter. See WSClient comments for generic Receive* behaviour details.
 func (c *WSClient) ReceiveExecutionNotifications(flt *neorpc.NotificationFilter, rcvr chan<- *state.ContainedNotificationEvent) (string, error) {
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
@@ -812,15 +810,7 @@ func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, err
 // ReceiveExecutions registers provided channel as a receiver for
 // application execution result events generated during transaction execution.
 // Events can be filtered by the given ExecutionFilter, nil value doesn't add any filter.
-// The receiver channel must be properly read and drained after usage in order not
-// to block other notification receivers. Failing to do so will cause WSClient to
-// block even regular requests. Make sure you're not changing the received
-// execution results, as it may affect the functionality of other notification
-// receivers. If multiple subscriptions share the same receiver channel, then
-// matching notification is only sent once per channel. The receiver channel will
-// be closed by the WSClient immediately after MissedEvent is received from the
-// server; no unsubscription is performed in this case, so it's the user responsibility
-// to unsubscribe.
+// See WSClient comments for generic Receive* behaviour details.
 func (c *WSClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *state.AppExecResult) (string, error) {
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
@@ -868,15 +858,7 @@ func (c *WSClient) SubscribeForNotaryRequests(sender *util.Uint160, mainSigner *
 // payload addition or removal events. Events can be filtered by the given TxFilter
 // where sender corresponds to notary request sender (the second fallback transaction
 // signer) and signer corresponds to main transaction signers. nil value doesn't add
-// any filter. The receiver channel must be properly read and drained after usage in
-// order not to block other notification receivers. Failing to do so will cause
-// WSClient to block even regular requests. Make sure you're not changing the received
-// notary requests, as it may affect the functionality of other notification
-// receivers. If multiple subscriptions share the same receiver channel, then matching
-// notification is only sent once per channel. The receiver channel will be closed by
-// the WSClient immediately after MissedEvent is received from the server; no
-// unsubscription is performed in this case, so it's the user responsibility to
-// unsubscribe.
+// any filter. See WSClient comments for generic Receive* behaviour details.
 func (c *WSClient) ReceiveNotaryRequests(flt *neorpc.TxFilter, rcvr chan<- *result.NotaryRequestEvent) (string, error) {
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
