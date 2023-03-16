@@ -647,7 +647,8 @@ func (c *WSClient) performSubscription(params []interface{}, rcvr notificationRe
 func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
 	var flt interface{}
 	if primary != nil {
-		flt = neorpc.BlockFilter{Primary: primary}
+		var f = neorpc.BlockFilter{Primary: primary}
+		flt = *f.Copy()
 	}
 	params := []interface{}{"block_added"}
 	if flt != nil {
@@ -678,6 +679,7 @@ func (c *WSClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Blo
 	}
 	params := []interface{}{"block_added"}
 	if flt != nil {
+		flt = flt.Copy()
 		params = append(params, *flt)
 	}
 	r := &blockReceiver{
@@ -695,7 +697,8 @@ func (c *WSClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Blo
 func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, signer *util.Uint160) (string, error) {
 	var flt interface{}
 	if sender != nil || signer != nil {
-		flt = neorpc.TxFilter{Sender: sender, Signer: signer}
+		var f = neorpc.TxFilter{Sender: sender, Signer: signer}
+		flt = *f.Copy()
 	}
 	params := []interface{}{"transaction_added"}
 	if flt != nil {
@@ -726,6 +729,7 @@ func (c *WSClient) ReceiveTransactions(flt *neorpc.TxFilter, rcvr chan<- *transa
 	}
 	params := []interface{}{"transaction_added"}
 	if flt != nil {
+		flt = flt.Copy()
 		params = append(params, *flt)
 	}
 	r := &txReceiver{
@@ -744,7 +748,8 @@ func (c *WSClient) ReceiveTransactions(flt *neorpc.TxFilter, rcvr chan<- *transa
 func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160, name *string) (string, error) {
 	var flt interface{}
 	if contract != nil || name != nil {
-		flt = neorpc.NotificationFilter{Contract: contract, Name: name}
+		var f = neorpc.NotificationFilter{Contract: contract, Name: name}
+		flt = *f.Copy()
 	}
 	params := []interface{}{"notification_from_execution"}
 	if flt != nil {
@@ -774,6 +779,7 @@ func (c *WSClient) ReceiveExecutionNotifications(flt *neorpc.NotificationFilter,
 	}
 	params := []interface{}{"notification_from_execution"}
 	if flt != nil {
+		flt = flt.Copy()
 		params = append(params, *flt)
 	}
 	r := &executionNotificationReceiver{
@@ -795,7 +801,8 @@ func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, err
 		if *state != "HALT" && *state != "FAULT" {
 			return "", errors.New("bad state parameter")
 		}
-		flt = neorpc.ExecutionFilter{State: state}
+		var f = neorpc.ExecutionFilter{State: state}
+		flt = *f.Copy()
 	}
 	params := []interface{}{"transaction_executed"}
 	if flt != nil {
@@ -832,6 +839,7 @@ func (c *WSClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *s
 				return "", errors.New("bad state parameter")
 			}
 		}
+		flt = flt.Copy()
 		params = append(params, *flt)
 	}
 	r := &executionReceiver{
@@ -850,7 +858,8 @@ func (c *WSClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *s
 func (c *WSClient) SubscribeForNotaryRequests(sender *util.Uint160, mainSigner *util.Uint160) (string, error) {
 	var flt interface{}
 	if sender != nil || mainSigner != nil {
-		flt = neorpc.TxFilter{Sender: sender, Signer: mainSigner}
+		var f = neorpc.TxFilter{Sender: sender, Signer: mainSigner}
+		flt = *f.Copy()
 	}
 	params := []interface{}{"notary_request_event"}
 	if flt != nil {
@@ -883,6 +892,7 @@ func (c *WSClient) ReceiveNotaryRequests(flt *neorpc.TxFilter, rcvr chan<- *resu
 	}
 	params := []interface{}{"notary_request_event"}
 	if flt != nil {
+		flt = flt.Copy()
 		params = append(params, *flt)
 	}
 	r := &notaryRequestReceiver{
