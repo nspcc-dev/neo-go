@@ -2,7 +2,7 @@
 
 This document outlines major changes between releases.
 
-## 0.101.0 "Shortness" (13 Jan 2022)
+## 0.101.0 "Shortness" (13 Jan 2023)
 
 This release delivers an important fix for block execution application logs
 and requires a resynchronization, therefore it's 0.101.0 (even though it's
