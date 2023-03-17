@@ -2,6 +2,7 @@ module github.com/nspcc-dev/neo-go
 
 require (
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
+	github.com/consensys/gnark-crypto v0.9.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1
 	github.com/google/uuid v1.2.0
@@ -36,10 +37,12 @@ require (
 	github.com/benbjohnson/clock v1.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
+	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
+	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/nspcc-dev/hrw v1.0.9 // indirect
 	github.com/nspcc-dev/neofs-api-go/v2 v2.11.1 // indirect
 	github.com/nspcc-dev/neofs-crypto v0.4.0 // indirect
@@ -58,6 +61,7 @@ require (
 	google.golang.org/genproto v0.0.0-20200825200019-8632dd797987 // indirect
 	google.golang.org/grpc v1.41.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
+	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
 go 1.18
