@@ -290,6 +290,8 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 		case _, ok := <-bRcvr:
 			if !ok {
 				// We're toast, retry with non-ws client.
+				bRcvr = nil
+				aerRcvr = nil
 				wsWaitErr = ErrMissedEvent
 				break
 			}
@@ -297,6 +299,8 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 		case aer, ok := <-aerRcvr:
 			if !ok {
 				// We're toast, retry with non-ws client.
+				bRcvr = nil
+				aerRcvr = nil
 				wsWaitErr = ErrMissedEvent
 				break
 			}
@@ -314,8 +318,16 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 	drainLoop:
 		for {
 			select {
-			case <-bRcvr:
-			case <-aerRcvr:
+			case _, ok := <-bRcvr:
+				if !ok { // Missed event means both channels are closed.
+					bRcvr = nil
+					aerRcvr = nil
+				}
+			case _, ok := <-aerRcvr:
+				if !ok { // Missed event means both channels are closed.
+					bRcvr = nil
+					aerRcvr = nil
+				}
 			case unsubErr := <-unsubErrs:
 				if unsubErr != nil {
 					errFmt := "unsubscription error: %v"
@@ -334,8 +346,10 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 			}
 		}
 	}
-	if wsWaitErr == nil || !errors.Is(wsWaitErr, ErrMissedEvent) {
+	if bRcvr != nil {
 		close(bRcvr)
+	}
+	if aerRcvr != nil {
 		close(aerRcvr)
 	}
 	close(unsubErrs)
