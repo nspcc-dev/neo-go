@@ -7,7 +7,10 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.101.1 (~February 2022)
+## Version 0.102.0 (~March 2022)
+ * 3.6.0 compatibility
+
+## Version 0.102.1 (~April 2022)
  * improved RPC error codes
  * extended data types for iterators to be used by RPC wrapper generator
 
@@ -35,7 +38,7 @@ APIs and convert your code to using them.
 
 While a lot of the code is already converted to new APIs, old ones still can
 be used in some code not known to us. Therefore we will remove old APIs not
-earlier than February-March 2023, with 0.101.0 or 0.102.0 release.
+earlier than May 2023, with 0.103.0 release.
 
 ## util.FromAddress smart contract helper
 
@@ -56,8 +59,7 @@ for specific subscriptions now. Old APIs and generic Notifications channel are
 still available, but will be removed, so please convert your code to using new
 Receive* APIs.
 
-Removal of these APIs is scheduled for March-April 2023 (~0.102.0-0.103.0
-releases).
+Removal of these APIs is scheduled for May 2023 (~0.103.0 release).
 
 ## Prometheus RPC counters
 
