@@ -2,7 +2,34 @@
 
 This document outlines major changes between releases.
 
-## 0.101.0 "Shortness" (13 Jan 2022)
+## 0.101.1 "Shallowness" (17 Mar 2023)
+
+Another 3.5.0-compatible version that delivers important bug fixes and
+provides a new API to be used by NeoFS. An upgrade is recommended, the DB
+doesn't need to be resynchronized.
+
+New features:
+ * internal RPC client for deeply integrated applications like NeoFS (#2916)
+
+Improvements:
+ * documentation updates (#2879, #2880, #2893, #2917, #2920, #2936)
+ * code style, spelling and updated linter fixes (#2884, #2922, #2933)
+ * NEP-2 import password can be provided via config file now (#2887)
+ * custom stack item deserialization limit is available via public APIs now (#2904)
+ * RPC client endpoint can be retrieved via public API (#2915)
+ * dependency updates (#2919, #2929)
+ * WSClient now copies filter parameters to Subscribe* and Receive* methods
+   improving code safety (#2937)
+
+Bugs fixed:
+ * name parameter ignored for wallet import command (#2887)
+ * incorrect RPC binding code generated for Any return type (#2918)
+ * memory leak on active peer disconnection (#2924)
+ * consensus process deadlock (#2930)
+ * dBFT deadlock in "committed at previous view" scenario (#2935)
+ * panic in RPC waiter code (#2938)
+
+## 0.101.0 "Shortness" (13 Jan 2023)
 
 This release delivers an important fix for block execution application logs
 and requires a resynchronization, therefore it's 0.101.0 (even though it's
