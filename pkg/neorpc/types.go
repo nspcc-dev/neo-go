@@ -71,39 +71,6 @@ type (
 		Payload []interface{} `json:"params"`
 	}
 
-	// BlockFilter is a wrapper structure for the block event filter. It allows
-	// to filter blocks by primary index and/or by block index (allowing blocks
-	// since/till the specified index inclusively). nil value treated as missing
-	// filter.
-	BlockFilter struct {
-		Primary *int    `json:"primary,omitempty"`
-		Since   *uint32 `json:"since,omitempty"`
-		Till    *uint32 `json:"till,omitempty"`
-	}
-	// TxFilter is a wrapper structure for the transaction event filter. It
-	// allows to filter transactions by senders and/or signers. nil value treated
-	// as missing filter.
-	TxFilter struct {
-		Sender *util.Uint160 `json:"sender,omitempty"`
-		Signer *util.Uint160 `json:"signer,omitempty"`
-	}
-	// NotificationFilter is a wrapper structure representing a filter used for
-	// notifications generated during transaction execution. Notifications can
-	// be filtered by contract hash and/or by name. nil value treated as missing
-	// filter.
-	NotificationFilter struct {
-		Contract *util.Uint160 `json:"contract,omitempty"`
-		Name     *string       `json:"name,omitempty"`
-	}
-	// ExecutionFilter is a wrapper structure used for transaction and persisting
-	// scripts execution events. It allows to choose failing or successful
-	// transactions and persisting scripts based on their VM state and/or to
-	// choose execution event with the specified container. nil value treated as
-	// missing filter.
-	ExecutionFilter struct {
-		State     *string       `json:"state,omitempty"`
-		Container *util.Uint256 `json:"container,omitempty"`
-	}
 	// SignerWithWitness represents transaction's signer with the corresponding witness.
 	SignerWithWitness struct {
 		transaction.Signer
