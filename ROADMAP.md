@@ -50,15 +50,6 @@ Receive* APIs.
 
 Removal of these APIs is scheduled for May 2023 (~0.103.0 release).
 
-## Prometheus RPC counters
-
-A number of neogo_${method}_called Prometheus counters are marked as
-deprecated since version 0.99.5, neogo_rpc_${method}_time histograms can be
-used instead (that also have a counter).
-
-It's not a frequently used thing and it's easy to replace it, so removal of
-old counters is scheduled for January-February 2023 (~0.100.X release).
-
 ## SecondsPerBlock protocol configuration
 
 With 0.100.0 version SecondsPerBlock protocol configuration setting was
