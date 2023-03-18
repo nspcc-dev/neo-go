@@ -40,17 +40,6 @@ While a lot of the code is already converted to new APIs, old ones still can
 be used in some code not known to us. Therefore we will remove old APIs not
 earlier than May 2023, with 0.103.0 release.
 
-## util.FromAddress smart contract helper
-
-`util` smart contract library has a FromAddress function that is one of the
-oldest lines in the entire NeoGo code base, dating back to 2018. Version
-0.99.4 of NeoGo (October 2022) has introduced a new `address` package with
-`ToHash160` function, it covers a bit more use cases but can be used as a
-direct replacement of the old function, so please update your code.
-
-util.FromAddress is expected to be removed around March 2023 (~0.102.0
-release).
-
 ## WSClient Notifications channel and SubscribeFor* APIs
 
 Version 0.99.5 of NeoGo introduces a new set of subscription APIs that gives

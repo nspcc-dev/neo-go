@@ -24,10 +24,6 @@ var (
 var (
 	// Go language builtin functions.
 	goBuiltins = []string{"len", "append", "panic", "make", "copy", "recover", "delete"}
-	// Custom builtin utility functions.
-	customBuiltins = []string{
-		"FromAddress",
-	}
 	// Custom builtin utility functions that contain some meaningful code inside and
 	// require code generation using standard rules, but sometimes (depending on
 	// the expression usage condition) may be optimized at compile time.
@@ -636,18 +632,6 @@ func (c *codegen) pickVarsFromNodes(nodes []nodeContext, markAsUsed func(name st
 func isGoBuiltin(name string) bool {
 	for i := range goBuiltins {
 		if name == goBuiltins[i] {
-			return true
-		}
-	}
-	return false
-}
-
-func isCustomBuiltin(f *funcScope) bool {
-	if !isInteropPath(f.pkg.Path()) {
-		return false
-	}
-	for _, n := range customBuiltins {
-		if f.name == n {
 			return true
 		}
 	}
