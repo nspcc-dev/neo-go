@@ -123,14 +123,14 @@ func curveFromStackitem(si stackitem.Item) (elliptic.Curve, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !curve.IsInt64() {
+	if !curve.IsUint64() {
 		return nil, errors.New("not an int64")
 	}
-	c := curve.Int64()
+	c := curve.Uint64()
 	switch c {
-	case int64(Secp256k1):
+	case uint64(Secp256k1):
 		return secp256k1.S256(), nil
-	case int64(Secp256r1):
+	case uint64(Secp256r1):
 		return elliptic.P256(), nil
 	default:
 		return nil, errors.New("unsupported curve type")

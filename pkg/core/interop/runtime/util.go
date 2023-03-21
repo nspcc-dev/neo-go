@@ -3,8 +3,8 @@ package runtime
 import (
 	"encoding/binary"
 	"errors"
-	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -19,9 +19,9 @@ import (
 // GasLeft returns the remaining amount of GAS.
 func GasLeft(ic *interop.Context) error {
 	if ic.VM.GasLimit == -1 {
-		ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(ic.VM.GasLimit)))
+		ic.VM.Estack().PushItem(stackitem.NewBigIntegerFromInt64(ic.VM.GasLimit))
 	} else {
-		ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(ic.VM.GasLimit - ic.VM.GasConsumed())))
+		ic.VM.Estack().PushItem(stackitem.NewBigIntegerFromInt64(ic.VM.GasLimit - ic.VM.GasConsumed()))
 	}
 	return nil
 }
@@ -70,20 +70,20 @@ func GetInvocationCounter(ic *interop.Context) error {
 		count = 1
 		ic.Invocations[currentScriptHash] = count
 	}
-	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(count))))
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(uint256.NewInt(uint64(count))))
 	return nil
 }
 
 // GetAddressVersion returns the address version of the current protocol.
 func GetAddressVersion(ic *interop.Context) error {
-	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(address.NEO3Prefix))))
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(uint256.NewInt(uint64(address.NEO3Prefix))))
 	return nil
 }
 
 // GetNetwork returns chain network number.
 func GetNetwork(ic *interop.Context) error {
 	m := ic.Chain.GetConfig().Magic
-	ic.VM.Estack().PushItem(stackitem.NewBigInteger(big.NewInt(int64(m))))
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(uint256.NewInt(uint64(m))))
 	return nil
 }
 
@@ -108,7 +108,7 @@ func GetRandom(ic *interop.Context) error {
 	if !ic.VM.AddGas(ic.BaseExecFee() * price) {
 		return errors.New("gas limit exceeded")
 	}
-	ic.VM.Estack().PushItem(stackitem.NewBigInteger(bigint.FromBytesUnsigned(res)))
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(bigint.Uint256FromBytesUnsigned(res)))
 	return nil
 }
 

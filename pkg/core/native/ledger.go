@@ -3,8 +3,8 @@ package native
 import (
 	"fmt"
 	"math"
-	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -245,7 +245,7 @@ func SignersToStackItem(signers []transaction.Signer) stackitem.Item {
 		}
 		res[i] = stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(s.Account.BytesBE()),
-			stackitem.NewBigInteger(big.NewInt(int64(s.Scopes))),
+			stackitem.NewBigInteger(uint256.NewInt(uint64(s.Scopes))),
 			stackitem.NewArray(contracts),
 			stackitem.NewArray(groups),
 			stackitem.NewArray(rules),

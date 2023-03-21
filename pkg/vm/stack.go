@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 
+	"github.com/holiman/uint256"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -38,7 +39,7 @@ func (e Element) Value() interface{} {
 
 // BigInt attempts to get the underlying value of the element as a big integer.
 // It will panic if the assertion has failed, which will be caught by the VM.
-func (e Element) BigInt() *big.Int {
+func (e Element) BigInt() *uint256.Int {
 	val, err := e.value.TryInteger()
 	if err != nil {
 		panic(err)
@@ -343,7 +344,10 @@ func (s *Stack) PopSigElements() ([][]byte, error) {
 			elems[k] = b
 		}
 	default:
-		num = int(item.BigInt().Int64())
+		if !util.IsInt64(item.BigInt()) {
+			return nil, fmt.Errorf("bad element count %s", item.value.String())
+		}
+		num = int(util.ToInt64(item.BigInt()))
 		if num < 1 || num > s.Len() {
 			return nil, fmt.Errorf("wrong number of elements: %d", num)
 		}

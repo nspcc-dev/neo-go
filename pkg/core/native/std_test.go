@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -323,7 +324,7 @@ func TestStdLibSerializeDeserialize(t *testing.T) {
 		checkSerializeDeserialize(t, []byte{1, 2, 3}, stackitem.NewByteArray([]byte{1, 2, 3}))
 	})
 	t.Run("Integer", func(t *testing.T) {
-		checkSerializeDeserialize(t, 48, stackitem.NewBigInteger(big.NewInt(48)))
+		checkSerializeDeserialize(t, 48, stackitem.NewBigInteger(uint256.NewInt(48)))
 	})
 	t.Run("Array", func(t *testing.T) {
 		arr := stackitem.NewArray([]stackitem.Item{
@@ -373,7 +374,7 @@ func TestStdLibSerializeDeserialize(t *testing.T) {
 		})
 	})
 	t.Run("Deserialize unknown", func(t *testing.T) {
-		data, err := stackitem.Serialize(stackitem.NewBigInteger(big.NewInt(123)))
+		data, err := stackitem.Serialize(stackitem.NewBigInteger(uint256.NewInt(123)))
 		require.NoError(t, err)
 
 		data[0] = 0xFF

@@ -2,8 +2,8 @@ package vm
 
 import (
 	"errors"
-	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -65,7 +65,7 @@ func (c *exceptionHandlingContext) TryBytes() ([]byte, error) {
 }
 
 // TryInteger implements the stackitem.Item interface.
-func (c *exceptionHandlingContext) TryInteger() (*big.Int, error) {
+func (c *exceptionHandlingContext) TryInteger() (*uint256.Int, error) {
 	return nil, errors.New("can't convert exceptionHandlingContext to Integer")
 }
 

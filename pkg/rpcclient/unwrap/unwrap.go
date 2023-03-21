@@ -38,7 +38,11 @@ func BigInt(r *result.Invoke, err error) (*big.Int, error) {
 	if err != nil {
 		return nil, err
 	}
-	return itm.TryInteger()
+	n, err := itm.TryInteger()
+	if err != nil {
+		return nil, err
+	}
+	return util.ToBig(n), nil
 }
 
 // Bool expects correct execution (HALT state) with a single stack item
@@ -62,10 +66,10 @@ func Int64(r *result.Invoke, err error) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if !i.IsInt64() {
+	if !util.IsInt64(i) {
 		return 0, errors.New("int64 overflow")
 	}
-	return i.Int64(), nil
+	return util.ToInt64(i), nil
 }
 
 // LimitedInt64 is similar to Int64 except it allows to set minimum and maximum
@@ -227,7 +231,7 @@ func ArrayOfBigInts(r *result.Invoke, err error) ([]*big.Int, error) {
 		if err != nil {
 			return nil, fmt.Errorf("element %d is not an integer: %w", i, err)
 		}
-		res[i] = v
+		res[i] = util.ToBig(v)
 	}
 	return res, nil
 }

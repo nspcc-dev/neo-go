@@ -3,7 +3,6 @@ package stackitem
 import (
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -160,7 +159,7 @@ func (w *SerializationContext) serialize(item Item) error {
 		w.data = append(w.data, byte(IntegerT))
 		ln := len(w.data)
 		w.data = append(w.data, 0)
-		data := bigint.ToPreallocatedBytes((*big.Int)(t), w.data[len(w.data):])
+		data := bigint.Uint256ToBytes(t.Big())
 		w.data[ln] = byte(len(data))
 		w.data = append(w.data, data...)
 	case *Interop:
@@ -300,7 +299,7 @@ func (r *deserContext) decodeBinary() Item {
 		return NewBool(b)
 	case IntegerT:
 		data := r.ReadVarBytes(bigint.MaxBytesLen)
-		num := bigint.FromBytes(data)
+		num := bigint.Uint256FromBytes(data)
 		return NewBigInteger(num)
 	case ArrayT, StructT:
 		size := int(r.ReadVarUint())

@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -72,7 +74,7 @@ func balanceFromBytes(b []byte, item stackitem.Convertible) error {
 
 // ToStackItem implements stackitem.Convertible. It never returns an error.
 func (s *NEP17Balance) ToStackItem() (stackitem.Item, error) {
-	return stackitem.NewStruct([]stackitem.Item{stackitem.NewBigInteger(&s.Balance)}), nil
+	return stackitem.NewStruct([]stackitem.Item{stackitem.NewBigIntegerFromBig(&s.Balance)}), nil
 }
 
 // FromStackItem implements stackitem.Convertible.
@@ -88,7 +90,7 @@ func (s *NEP17Balance) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return fmt.Errorf("invalid balance: %w", err)
 	}
-	s.Balance = *balance
+	s.Balance = *util.ToBig(balance)
 	return nil
 }
 
@@ -122,8 +124,8 @@ func (s *NEOBalance) ToStackItem() (stackitem.Item, error) {
 		voteItem = stackitem.Null{}
 	}
 	return stackitem.NewStruct([]stackitem.Item{
-		stackitem.NewBigInteger(&s.Balance),
-		stackitem.NewBigInteger(big.NewInt(int64(s.BalanceHeight))),
+		stackitem.NewBigIntegerFromBig(&s.Balance),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(s.BalanceHeight))),
 		voteItem,
 	}), nil
 }
@@ -138,12 +140,12 @@ func (s *NEOBalance) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return fmt.Errorf("invalid balance stackitem: %w", err)
 	}
-	s.Balance = *balance
+	s.Balance = *util.ToBig(balance)
 	h, err := structItem[1].TryInteger()
 	if err != nil {
 		return fmt.Errorf("invalid heigh stackitem")
 	}
-	s.BalanceHeight = uint32(h.Int64())
+	s.BalanceHeight = uint32(h.Uint64())
 	if _, ok := structItem[2].(stackitem.Null); ok {
 		s.VoteTo = nil
 		return nil

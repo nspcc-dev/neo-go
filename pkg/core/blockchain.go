@@ -1736,7 +1736,7 @@ func (bc *Blockchain) handleNotification(note *state.NotificationEvent, d *dao.S
 			return
 		}
 	}
-	bc.processTokenTransfer(d, transCache, h, b, note.ScriptHash, from, to, amount, id)
+	bc.processTokenTransfer(d, transCache, h, b, note.ScriptHash, from, to, util.ToBig(amount), id)
 }
 
 func parseUint160(itm stackitem.Item) (util.Uint160, error) {

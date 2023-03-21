@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -131,7 +132,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 							Trigger:     trigger.Application,
 							VMState:     vmstate.Halt,
 							GasConsumed: 1,
-							Stack:       []stackitem.Item{stackitem.NewBigInteger(big.NewInt(1))},
+							Stack:       []stackitem.Item{stackitem.NewBigInteger(uint256.NewInt(1))},
 							Events:      []state.NotificationEvent{},
 						},
 					},

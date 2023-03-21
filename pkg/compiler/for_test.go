@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -36,7 +37,7 @@ func TestEntryPointWithArgs(t *testing.T) {
 			return 2 + args[1].(int)
 		}
 	`
-	args := []stackitem.Item{stackitem.NewBigInteger(big.NewInt(0)), stackitem.NewBigInteger(big.NewInt(1))}
+	args := []stackitem.Item{stackitem.NewBigInteger(uint256.NewInt(0)), stackitem.NewBigInteger(uint256.NewInt(1))}
 	evalWithArgs(t, src, nil, args, big.NewInt(3))
 }
 
@@ -51,7 +52,7 @@ func TestEntryPointWithMethodAndArgs(t *testing.T) {
 			return 0
 		}
 	`
-	args := []stackitem.Item{stackitem.NewBigInteger(big.NewInt(0)), stackitem.NewBigInteger(big.NewInt(1))}
+	args := []stackitem.Item{stackitem.NewBigInteger(uint256.NewInt(0)), stackitem.NewBigInteger(uint256.NewInt(1))}
 	evalWithArgs(t, src, []byte("foobar"), args, big.NewInt(3))
 }
 
@@ -156,9 +157,9 @@ func TestIntArray(t *testing.T) {
 		}
 	`
 	eval(t, src, []stackitem.Item{
-		stackitem.NewBigInteger(big.NewInt(1)),
-		stackitem.NewBigInteger(big.NewInt(2)),
-		stackitem.NewBigInteger(big.NewInt(3)),
+		stackitem.NewBigInteger(uint256.NewInt(1)),
+		stackitem.NewBigInteger(uint256.NewInt(2)),
+		stackitem.NewBigInteger(uint256.NewInt(3)),
 	})
 }
 

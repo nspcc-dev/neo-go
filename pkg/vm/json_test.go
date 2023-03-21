@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -292,7 +293,7 @@ func (v *vmUTStackItem) toStackItem() stackitem.Item {
 	case typeBoolean:
 		return stackitem.NewBool(v.Value.(bool))
 	case typeInteger:
-		return stackitem.NewBigInteger(v.Value.(*big.Int))
+		return stackitem.NewBigInteger(v.Value.(*uint256.Int))
 	case typeStruct:
 		items := v.Value.([]vmUTStackItem)
 		result := make([]stackitem.Item, len(items))
@@ -331,7 +332,7 @@ func execStep(t *testing.T, v *VM, step vmUTStep) {
 func jsonStringToInteger(s string) stackitem.Item {
 	b, err := decodeHex(s)
 	if err == nil {
-		return stackitem.NewBigInteger(new(big.Int).SetBytes(b))
+		return stackitem.NewBigInteger(new(uint256.Int).SetBytes(b))
 	}
 	return nil
 }

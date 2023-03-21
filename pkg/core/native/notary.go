@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -315,7 +316,7 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	if err != nil {
 		panic(fmt.Errorf("failed to get GAS contract state: %w", err))
 	}
-	transferArgs := []stackitem.Item{stackitem.NewByteArray(n.Hash.BytesBE()), stackitem.NewByteArray(to.BytesBE()), stackitem.NewBigInteger(deposit.Amount), stackitem.Null{}}
+	transferArgs := []stackitem.Item{stackitem.NewByteArray(n.Hash.BytesBE()), stackitem.NewByteArray(to.BytesBE()), stackitem.NewBigIntegerFromBig(deposit.Amount), stackitem.Null{}}
 	err = contract.CallFromNative(ic, n.Hash, cs, "transfer", transferArgs, true)
 	if err != nil {
 		panic(fmt.Errorf("failed to transfer GAS from Notary account: %w", err))
@@ -330,7 +331,7 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 // balanceOf returns the deposited GAS amount for the specified address.
 func (n *Notary) balanceOf(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	acc := toUint160(args[0])
-	return stackitem.NewBigInteger(n.BalanceOf(ic.DAO, acc))
+	return stackitem.NewBigIntegerFromBig(n.BalanceOf(ic.DAO, acc))
 }
 
 // BalanceOf is an internal representation of `balanceOf` Notary method.
@@ -408,7 +409,7 @@ func (n *Notary) GetNotaryNodes(d *dao.Simple) (keys.PublicKeys, error) {
 
 // getMaxNotValidBeforeDelta is a Notary contract method and returns the maximum NotValidBefore delta.
 func (n *Notary) getMaxNotValidBeforeDelta(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(int64(n.GetMaxNotValidBeforeDelta(ic.DAO))))
+	return stackitem.NewBigInteger(uint256.NewInt(uint64(n.GetMaxNotValidBeforeDelta(ic.DAO))))
 }
 
 // GetMaxNotValidBeforeDelta is an internal representation of Notary getMaxNotValidBeforeDelta method.
@@ -436,7 +437,7 @@ func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem
 
 // getNotaryServiceFeePerKey is a Notary contract method and returns a reward per notary request key for notary nodes.
 func (n *Notary) getNotaryServiceFeePerKey(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(int64(n.GetNotaryServiceFeePerKey(ic.DAO))))
+	return stackitem.NewBigInteger(uint256.NewInt(uint64(n.GetNotaryServiceFeePerKey(ic.DAO))))
 }
 
 // GetNotaryServiceFeePerKey is an internal representation of Notary getNotaryServiceFeePerKey method.

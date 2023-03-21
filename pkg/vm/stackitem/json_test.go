@@ -2,9 +2,9 @@ package stackitem
 
 import (
 	"errors"
-	"math/big"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -47,7 +47,7 @@ func TestFromToJSON(t *testing.T) {
 	t.Run("Array", func(t *testing.T) {
 		t.Run("Empty", getTestDecodeFunc(`[]`, NewArray([]Item{})))
 		t.Run("Simple", getTestDecodeFunc((`[1,"test",true,null]`),
-			NewArray([]Item{NewBigInteger(big.NewInt(1)), NewByteArray([]byte("test")), NewBool(true), Null{}})))
+			NewArray([]Item{NewBigInteger(uint256.NewInt(1)), NewByteArray([]byte("test")), NewBool(true), Null{}})))
 		t.Run("Nested", getTestDecodeFunc(`[[],[{},null]]`,
 			NewArray([]Item{NewArray([]Item{}), NewArray([]Item{NewMap(), Null{}})})))
 		t.Run("ManyElements", func(t *testing.T) {
@@ -61,7 +61,7 @@ func TestFromToJSON(t *testing.T) {
 	})
 	t.Run("Map", func(t *testing.T) {
 		small := NewMap()
-		small.Add(NewByteArray([]byte("a")), NewBigInteger(big.NewInt(3)))
+		small.Add(NewByteArray([]byte("a")), NewBigInteger(uint256.NewInt(3)))
 		large := NewMap()
 		large.Add(NewByteArray([]byte("3")), small)
 		large.Add(NewByteArray([]byte("arr")), NewArray([]Item{NewByteArray([]byte("test"))}))
@@ -89,7 +89,7 @@ func TestFromToJSON(t *testing.T) {
 		t.Run("InvalidMapValue", getTestDecodeFunc(`{"a":{]}`, nil))
 		t.Run("AfterArray", getTestDecodeFunc(`[]XX`, nil))
 		t.Run("EncodeBigInteger", func(t *testing.T) {
-			item := NewBigInteger(big.NewInt(MaxAllowedInteger + 1))
+			item := NewBigInteger(uint256.NewInt(MaxAllowedInteger + 1))
 			_, err := ToJSON(item)
 			require.Error(t, err)
 		})
@@ -224,14 +224,14 @@ func TestToJSONWithTypes(t *testing.T) {
 		result string
 	}{
 		{"Null", Null{}, `{"type":"Any"}`},
-		{"Integer", NewBigInteger(big.NewInt(42)), `{"type":"Integer","value":"42"}`},
+		{"Integer", NewBigInteger(uint256.NewInt(42)), `{"type":"Integer","value":"42"}`},
 		{"ByteString", NewByteArray([]byte{1, 2, 3}), `{"type":"ByteString","value":"AQID"}`},
 		{"Buffer", NewBuffer([]byte{1, 2, 3}), `{"type":"Buffer","value":"AQID"}`},
 		{"BoolTrue", NewBool(true), `{"type":"Boolean","value":true}`},
 		{"BoolFalse", NewBool(false), `{"type":"Boolean","value":false}`},
 		{"Struct", NewStruct([]Item{Make(11)}),
 			`{"type":"Struct","value":[{"type":"Integer","value":"11"}]}`},
-		{"Map", NewMapWithValue([]MapElement{{Key: NewBigInteger(big.NewInt(42)), Value: NewBool(false)}}),
+		{"Map", NewMapWithValue([]MapElement{{Key: NewBigInteger(uint256.NewInt(42)), Value: NewBool(false)}}),
 			`{"type":"Map","value":[{"key":{"type":"Integer","value":"42"},` +
 				`"value":{"type":"Boolean","value":false}}]}`},
 		{"Interop", NewInterop(nil),
@@ -337,7 +337,7 @@ func TestToJSONWithTypesBadCases(t *testing.T) {
 		// until the necessary branch is covered #ididthemath.
 		arr := NewArray([]Item{
 			NewByteArray(bigBuf[:MaxSize/4*3-70]),
-			NewBigInteger(big.NewInt(1234)),
+			NewBigInteger(uint256.NewInt(1234)),
 		})
 		_, err := ToJSONWithTypes(arr)
 		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)

@@ -3,8 +3,8 @@ package native
 import (
 	"crypto/elliptic"
 	"errors"
-	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -19,7 +19,7 @@ type NodeList keys.PublicKeys
 func (l IDList) ToStackItem() (stackitem.Item, error) {
 	arr := make([]stackitem.Item, len(l))
 	for i := range l {
-		arr[i] = stackitem.NewBigInteger(new(big.Int).SetUint64(l[i]))
+		arr[i] = stackitem.NewBigInteger(uint256.NewInt(l[i]))
 	}
 	return stackitem.NewArray(arr), nil
 }

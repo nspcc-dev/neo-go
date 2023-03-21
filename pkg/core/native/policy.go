@@ -2,9 +2,9 @@ package native
 
 import (
 	"fmt"
-	"math/big"
 	"sort"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -199,7 +199,7 @@ func (p *Policy) PostPersist(ic *interop.Context) error {
 // getFeePerByte is a Policy contract method that returns the required transaction's fee
 // per byte.
 func (p *Policy) getFeePerByte(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(p.GetFeePerByteInternal(ic.DAO)))
+	return stackitem.NewBigInteger(uint256.NewInt(uint64(p.GetFeePerByteInternal(ic.DAO))))
 }
 
 // GetFeePerByteInternal returns required transaction's fee per byte.
@@ -215,7 +215,7 @@ func (p *Policy) GetMaxVerificationGas(dao *dao.Simple) int64 {
 }
 
 func (p *Policy) getExecFeeFactor(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(int64(p.GetExecFeeFactorInternal(ic.DAO))))
+	return stackitem.NewBigInteger(uint256.NewInt(uint64(p.GetExecFeeFactorInternal(ic.DAO))))
 }
 
 // GetExecFeeFactorInternal returns current execution fee factor.
@@ -267,7 +267,7 @@ func (p *Policy) isBlockedInternal(dao *dao.Simple, hash util.Uint160) (int, boo
 }
 
 func (p *Policy) getStoragePrice(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(p.GetStoragePriceInternal(ic.DAO)))
+	return stackitem.NewBigInteger(uint256.NewInt(uint64(p.GetStoragePriceInternal(ic.DAO))))
 }
 
 // GetStoragePriceInternal returns current execution fee factor.

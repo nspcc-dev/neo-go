@@ -23,7 +23,7 @@ func (t *testIter) Next() bool {
 }
 
 func (t testIter) Value() stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(int64(t.arr[t.index])))
+	return stackitem.NewBigIntegerFromInt64(int64(t.arr[t.index]))
 }
 
 // Iterator is thoroughly tested in VM package, these are smoke tests.

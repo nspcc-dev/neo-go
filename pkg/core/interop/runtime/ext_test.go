@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -491,7 +492,7 @@ func TestGetAddressVersion(t *testing.T) {
 
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetAddressVersion)
 	require.NoError(t, w.Err)
-	e.InvokeScriptCheckHALT(t, w.Bytes(), []neotest.Signer{acc}, stackitem.NewBigInteger(big.NewInt(int64(address.NEO3Prefix))))
+	e.InvokeScriptCheckHALT(t, w.Bytes(), []neotest.Signer{acc}, stackitem.NewBigInteger(uint256.NewInt(uint64(address.NEO3Prefix))))
 }
 
 func TestGetInvocationCounter(t *testing.T) {
@@ -506,19 +507,19 @@ func TestGetInvocationCounter(t *testing.T) {
 		v.Load([]byte{1})
 		// do not return an error in this case.
 		require.NoError(t, runtime.GetInvocationCounter(ic))
-		require.EqualValues(t, 1, v.Estack().Pop().BigInt().Int64())
+		require.EqualValues(t, 1, v.Estack().Pop().BigInt().Uint64())
 	})
 	t.Run("NonZero", func(t *testing.T) {
 		v.Load([]byte{2})
 		require.NoError(t, runtime.GetInvocationCounter(ic))
-		require.EqualValues(t, 42, v.Estack().Pop().BigInt().Int64())
+		require.EqualValues(t, 42, v.Estack().Pop().BigInt().Uint64())
 	})
 	t.Run("Contract", func(t *testing.T) {
 		script, err := smartcontract.CreateCallScript(cs.Hash, "invocCounter")
 		require.NoError(t, err)
 		v.LoadWithFlags(script, callflag.All)
 		require.NoError(t, v.Run())
-		require.EqualValues(t, 1, v.Estack().Pop().BigInt().Int64())
+		require.EqualValues(t, 1, v.Estack().Pop().BigInt().Uint64())
 	})
 }
 
@@ -529,7 +530,7 @@ func TestGetNetwork(t *testing.T) {
 
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetNetwork)
 	require.NoError(t, w.Err)
-	e.InvokeScriptCheckHALT(t, w.Bytes(), []neotest.Signer{acc}, stackitem.NewBigInteger(big.NewInt(int64(bc.GetConfig().Magic))))
+	e.InvokeScriptCheckHALT(t, w.Bytes(), []neotest.Signer{acc}, stackitem.NewBigInteger(uint256.NewInt(uint64(bc.GetConfig().Magic))))
 }
 
 func TestGetNotifications(t *testing.T) {

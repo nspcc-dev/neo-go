@@ -586,7 +586,7 @@ func TestForcedNotifyArgumentsConversion(t *testing.T) {
 				Name: strconv.Itoa(i),
 				Type: targetSCParamTypes[i],
 			}
-			defaultValue := stackitem.NewBigInteger(big.NewInt(int64(i)))
+			defaultValue := stackitem.NewBigIntegerFromInt64(int64(i))
 			var (
 				val stackitem.Item
 				err error

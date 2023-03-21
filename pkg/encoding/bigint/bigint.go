@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"math/bits"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
@@ -23,6 +24,14 @@ func FromBytesUnsigned(data []byte) *big.Int {
 	return new(big.Int).SetBytes(bs)
 }
 
+// Uint256FromBytesUnsigned converts data in little-endian format to an unsigned integer.
+func Uint256FromBytesUnsigned(data []byte) *uint256.Int {
+	bs := slice.CopyReverse(data)
+	return new(uint256.Int).SetBytes(bs)
+}
+
+// FromBytes converts data in little-endian format to
+// an integer.
 // FromBytes converts data in little-endian format to
 // an integer.
 func FromBytes(data []byte) *big.Int {
@@ -78,6 +87,34 @@ func FromBytes(data []byte) *big.Int {
 	return n.SetBits(ws)
 }
 
+func Uint256FromBytes(data []byte) *uint256.Int {
+	n := new(uint256.Int)
+	size := len(data)
+	if size == 0 {
+		if data == nil {
+			panic("nil slice provided to `FromBytes`")
+		}
+		return uint256.NewInt(0)
+	}
+	isNeg := data[len(data)-1]&0x80 != 0
+	slice.Reverse(data)
+	if !isNeg {
+		n.SetBytes(data)
+	} else {
+		carry := true
+		for i := len(data) - 1; i >= 0; i-- {
+			if carry {
+				data[i]--
+				carry = data[i] == math.MaxUint8
+			}
+			data[i] = ^data[i]
+		}
+		n.SetBytes(data)
+		n.Neg(n)
+	}
+	return n
+}
+
 // getEffectiveSize returns the minimal number of bytes required
 // to represent a number (two's complement for negatives).
 func getEffectiveSize(buf []byte, isNeg bool) int {
@@ -105,6 +142,8 @@ func ToBytes(n *big.Int) []byte {
 	return ToPreallocatedBytes(n, []byte{})
 }
 
+// ToPreallocatedBytes converts an integer to a slice in little-endian format using the given
+// byte array for conversion result.
 // ToPreallocatedBytes converts an integer to a slice in little-endian format using the given
 // byte array for conversion result.
 func ToPreallocatedBytes(n *big.Int, data []byte) []byte {
@@ -157,4 +196,36 @@ func ToPreallocatedBytes(n *big.Int, data []byte) []byte {
 	}
 
 	return data
+}
+
+func Uint256ToBytes(n *uint256.Int) []byte {
+	if n.Sign() == 0 {
+		return []byte{}
+	}
+	fill := true
+	var filler byte
+	b := n.Bytes()
+	if n.Sign() < 0 {
+		var sig int
+		for ; sig < len(b); sig++ {
+			if b[sig] < 0xff {
+				if b[sig] >= 0x80 {
+					fill = false
+				}
+				break
+			}
+		}
+		b = b[sig:]
+		filler = 0xff
+	} else {
+		filler = 0
+		if b[0] < 0x80 {
+			fill = false
+		}
+	}
+	slice.Reverse(b)
+	if fill {
+		b = append(b, filler)
+	}
+	return b
 }

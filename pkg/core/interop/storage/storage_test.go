@@ -2,9 +2,9 @@ package storage_test
 
 import (
 	"errors"
-	"math/big"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -119,7 +119,7 @@ func TestFind(t *testing.T) {
 	v, contractState, context, _ := createVMAndContractState(t)
 
 	arr := []stackitem.Item{
-		stackitem.NewBigInteger(big.NewInt(42)),
+		stackitem.NewBigInteger(uint256.NewInt(42)),
 		stackitem.NewByteArray([]byte("second")),
 		stackitem.Null{},
 	}

@@ -3,6 +3,7 @@ package native
 import (
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -24,7 +25,7 @@ func (c *candidate) FromBytes(data []byte) *candidate {
 func (c *candidate) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct([]stackitem.Item{
 		stackitem.NewBool(c.Registered),
-		stackitem.NewBigInteger(&c.Votes),
+		stackitem.NewBigIntegerFromBig(&c.Votes),
 	}), nil
 }
 
@@ -40,6 +41,6 @@ func (c *candidate) FromStackItem(item stackitem.Item) error {
 		return err
 	}
 	c.Registered = reg
-	c.Votes = *vs
+	c.Votes = *util.ToBig(vs)
 	return nil
 }

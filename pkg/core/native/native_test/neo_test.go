@@ -8,6 +8,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
@@ -359,7 +360,7 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	require.NoError(t, err)
 	managementValidatorsInvoker.Invoke(t, si, "deploy", nefB, manifB)
 
-	const amount int64 = 2
+	const amount uint64 = 2
 
 	h := neoValidatorsInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), cs.Hash, amount, nil)
 	aer := e.GetTxExecResult(t, h)
@@ -370,7 +371,7 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 		Item: stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(neoValidatorsInvoker.Hash.BytesBE()),
 			stackitem.NewByteArray(e.Validator.ScriptHash().BytesBE()),
-			stackitem.NewBigInteger(big.NewInt(amount)),
+			stackitem.NewBigInteger(uint256.NewInt(amount)),
 			stackitem.Null{},
 		}),
 	})
@@ -384,7 +385,7 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 		Item: stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(e.NativeHash(t, nativenames.Neo).BytesBE()),
 			stackitem.NewByteArray(e.Validator.ScriptHash().BytesBE()),
-			stackitem.NewBigInteger(big.NewInt(amount)),
+			stackitem.NewBigInteger(uint256.NewInt(amount)),
 			stackitem.Null{},
 		}),
 	})
@@ -394,7 +395,7 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 		Item: stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(e.NativeHash(t, nativenames.Gas).BytesBE()),
 			stackitem.Null{},
-			stackitem.NewBigInteger(big.NewInt(1)),
+			stackitem.NewBigInteger(uint256.NewInt(1)),
 			stackitem.Null{},
 		}),
 	})
@@ -445,8 +446,8 @@ func TestNEO_TransferZeroWithZeroBalance(t *testing.T) {
 		h := acc.Invoke(t, true, "transfer", accH, to, int64(0), nil)
 		aer, err := e.Chain.GetAppExecResults(h, trigger.Application)
 		require.NoError(t, err)
-		require.Equal(t, 1, len(aer[0].Events))                                                                       // roundtrip/transfer only, no GAS claim
-		require.Equal(t, stackitem.NewBigInteger(big.NewInt(0)), aer[0].Events[0].Item.Value().([]stackitem.Item)[2]) // amount is 0
+		require.Equal(t, 1, len(aer[0].Events))                                                                           // roundtrip/transfer only, no GAS claim
+		require.Equal(t, stackitem.NewBigInteger(uint256.NewInt(0)), aer[0].Events[0].Item.Value().([]stackitem.Item)[2]) // amount is 0
 		// check balance wasn't changed and height was updated
 		updatedBalance, updatedHeight := e.Chain.GetGoverningTokenBalance(accH)
 		require.Equal(t, int64(0), updatedBalance.Int64())
@@ -478,8 +479,8 @@ func TestNEO_TransferZeroWithNonZeroBalance(t *testing.T) {
 
 		aer, err := e.Chain.GetAppExecResults(h, trigger.Application)
 		require.NoError(t, err)
-		require.Equal(t, 2, len(aer[0].Events))                                                                       // roundtrip + GAS claim
-		require.Equal(t, stackitem.NewBigInteger(big.NewInt(0)), aer[0].Events[0].Item.Value().([]stackitem.Item)[2]) // amount is 0
+		require.Equal(t, 2, len(aer[0].Events))                                                                           // roundtrip + GAS claim
+		require.Equal(t, stackitem.NewBigInteger(uint256.NewInt(0)), aer[0].Events[0].Item.Value().([]stackitem.Item)[2]) // amount is 0
 		// check balance wasn't changed and height was updated
 		updatedBalance, updatedHeight := e.Chain.GetGoverningTokenBalance(acc.ScriptHash())
 		require.Equal(t, initialBalance, updatedBalance)
@@ -577,7 +578,7 @@ func TestNEO_GetCandidates(t *testing.T) {
 	expected := make([]stackitem.Item, candidatesCount)
 	for i := range expected {
 		pub := candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes()
-		v := stackitem.NewBigInteger(big.NewInt(int64(candidatesCount-i+1) * 1000000))
+		v := stackitem.NewBigInteger(uint256.NewInt(uint64(candidatesCount-i+1) * 1000000))
 		expected[i] = stackitem.NewStruct([]stackitem.Item{
 			stackitem.NewByteArray(pub),
 			v,

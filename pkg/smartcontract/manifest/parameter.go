@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -64,7 +65,7 @@ func (p *Parameter) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return err
 	}
-	p.Type, err = smartcontract.ConvertToParamType(int(typ.Int64()))
+	p.Type, err = smartcontract.ConvertToParamType(int(util.ToInt64(typ)))
 	if err != nil {
 		return err
 	}

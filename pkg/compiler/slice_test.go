@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -162,11 +163,11 @@ var sliceTestCases = []testCase{
 		}
 		`,
 		[]stackitem.Item{
-			stackitem.NewBigInteger(big.NewInt(1)),
-			stackitem.NewBigInteger(big.NewInt(2)),
-			stackitem.NewBigInteger(big.NewInt(3)),
-			stackitem.NewBigInteger(big.NewInt(4)),
-			stackitem.NewBigInteger(big.NewInt(5)),
+			stackitem.NewBigInteger(uint256.NewInt(1)),
+			stackitem.NewBigInteger(uint256.NewInt(2)),
+			stackitem.NewBigInteger(uint256.NewInt(3)),
+			stackitem.NewBigInteger(uint256.NewInt(4)),
+			stackitem.NewBigInteger(uint256.NewInt(5)),
 		},
 	},
 	{

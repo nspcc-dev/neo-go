@@ -2,9 +2,9 @@ package manifest
 
 import (
 	"encoding/json"
-	"math/big"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -368,11 +368,11 @@ func TestABI_ToStackItemFromStackItem(t *testing.T) {
 				stackitem.NewArray([]stackitem.Item{
 					stackitem.NewStruct([]stackitem.Item{
 						stackitem.NewByteArray([]byte("p1")),
-						stackitem.NewBigInteger(big.NewInt(int64(smartcontract.BoolType))),
+						stackitem.NewBigInteger(uint256.NewInt(uint64(smartcontract.BoolType))),
 					}),
 				}),
-				stackitem.NewBigInteger(big.NewInt(int64(smartcontract.StringType))),
-				stackitem.NewBigInteger(big.NewInt(int64(5))),
+				stackitem.NewBigInteger(uint256.NewInt(uint64(smartcontract.StringType))),
+				stackitem.NewBigInteger(uint256.NewInt(uint64(5))),
 				stackitem.NewBool(true),
 			}),
 		}),
@@ -382,7 +382,7 @@ func TestABI_ToStackItemFromStackItem(t *testing.T) {
 				stackitem.NewArray([]stackitem.Item{
 					stackitem.NewStruct([]stackitem.Item{
 						stackitem.NewByteArray([]byte("p1")),
-						stackitem.NewBigInteger(big.NewInt(int64(smartcontract.BoolType))),
+						stackitem.NewBigInteger(uint256.NewInt(uint64(smartcontract.BoolType))),
 					}),
 				}),
 			}),

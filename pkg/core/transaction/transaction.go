@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/big"
 	"math/rand"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -459,12 +459,12 @@ func (t *Transaction) HasSigner(hash util.Uint160) bool {
 func (t *Transaction) ToStackItem() stackitem.Item {
 	return stackitem.NewArray([]stackitem.Item{
 		stackitem.NewByteArray(t.Hash().BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(t.Version))),
-		stackitem.NewBigInteger(big.NewInt(int64(t.Nonce))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(t.Version))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(t.Nonce))),
 		stackitem.NewByteArray(t.Sender().BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(t.SystemFee))),
-		stackitem.NewBigInteger(big.NewInt(int64(t.NetworkFee))),
-		stackitem.NewBigInteger(big.NewInt(int64(t.ValidUntilBlock))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(t.SystemFee))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(t.NetworkFee))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(t.ValidUntilBlock))),
 		stackitem.NewByteArray(t.Script),
 	})
 }

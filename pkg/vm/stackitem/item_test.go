@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,35 +16,35 @@ var makeStackItemTestCases = []struct {
 }{
 	{
 		input:  int64(3),
-		result: (*BigInteger)(big.NewInt(3)),
+		result: (*BigInteger)(uint256.NewInt(3)),
 	},
 	{
 		input:  int16(3),
-		result: (*BigInteger)(big.NewInt(3)),
+		result: (*BigInteger)(uint256.NewInt(3)),
 	},
 	{
 		input:  3,
-		result: (*BigInteger)(big.NewInt(3)),
+		result: (*BigInteger)(uint256.NewInt(3)),
 	},
 	{
 		input:  uint8(3),
-		result: (*BigInteger)(big.NewInt(3)),
+		result: (*BigInteger)(uint256.NewInt(3)),
 	},
 	{
 		input:  uint16(3),
-		result: (*BigInteger)(big.NewInt(3)),
+		result: (*BigInteger)(uint256.NewInt(3)),
 	},
 	{
 		input:  uint32(3),
-		result: (*BigInteger)(big.NewInt(3)),
+		result: (*BigInteger)(uint256.NewInt(3)),
 	},
 	{
 		input:  uint64(3),
-		result: (*BigInteger)(big.NewInt(3)),
+		result: (*BigInteger)(uint256.NewInt(3)),
 	},
 	{
 		input:  big.NewInt(3),
-		result: (*BigInteger)(big.NewInt(3)),
+		result: (*BigInteger)(uint256.NewInt(3)),
 	},
 	{
 		input:  []byte{1, 2, 3, 4},
@@ -70,12 +71,12 @@ var makeStackItemTestCases = []struct {
 		result: Bool(false),
 	},
 	{
-		input:  []Item{(*BigInteger)(big.NewInt(3)), NewByteArray([]byte{1, 2, 3})},
-		result: &Array{value: []Item{(*BigInteger)(big.NewInt(3)), NewByteArray([]byte{1, 2, 3})}},
+		input:  []Item{(*BigInteger)(uint256.NewInt(3)), NewByteArray([]byte{1, 2, 3})},
+		result: &Array{value: []Item{(*BigInteger)(uint256.NewInt(3)), NewByteArray([]byte{1, 2, 3})}},
 	},
 	{
 		input:  []int{1, 2, 3},
-		result: &Array{value: []Item{(*BigInteger)(big.NewInt(1)), (*BigInteger)(big.NewInt(2)), (*BigInteger)(big.NewInt(3))}},
+		result: &Array{value: []Item{(*BigInteger)(uint256.NewInt(1)), (*BigInteger)(uint256.NewInt(2)), (*BigInteger)(uint256.NewInt(3))}},
 	},
 	{
 		input:  nil,
@@ -109,7 +110,7 @@ var stringerTestCases = []struct {
 		result: "Struct",
 	},
 	{
-		input:  NewBigInteger(big.NewInt(3)),
+		input:  NewBigInteger(uint256.NewInt(3)),
 		result: "BigInteger",
 	},
 	{
@@ -158,53 +159,53 @@ var equalsTestCases = map[string][]struct {
 		},
 		{
 			item1:  NewStruct(nil),
-			item2:  NewBigInteger(big.NewInt(1)),
+			item2:  NewBigInteger(uint256.NewInt(1)),
 			result: false,
 		},
 		{
 			item1:  NewStruct(nil),
-			item2:  NewStruct([]Item{NewBigInteger(big.NewInt(1))}),
+			item2:  NewStruct([]Item{NewBigInteger(uint256.NewInt(1))}),
 			result: false,
 		},
 		{
-			item1:  NewStruct([]Item{NewBigInteger(big.NewInt(1))}),
-			item2:  NewStruct([]Item{NewBigInteger(big.NewInt(2))}),
+			item1:  NewStruct([]Item{NewBigInteger(uint256.NewInt(1))}),
+			item2:  NewStruct([]Item{NewBigInteger(uint256.NewInt(2))}),
 			result: false,
 		},
 		{
-			item1:  NewStruct([]Item{NewBigInteger(big.NewInt(1))}),
-			item2:  NewStruct([]Item{NewBigInteger(big.NewInt(1))}),
+			item1:  NewStruct([]Item{NewBigInteger(uint256.NewInt(1))}),
+			item2:  NewStruct([]Item{NewBigInteger(uint256.NewInt(1))}),
 			result: true,
 		},
 		{
-			item1:  NewStruct([]Item{NewBigInteger(big.NewInt(1)), NewStruct([]Item{})}),
-			item2:  NewStruct([]Item{NewBigInteger(big.NewInt(1)), NewStruct([]Item{})}),
+			item1:  NewStruct([]Item{NewBigInteger(uint256.NewInt(1)), NewStruct([]Item{})}),
+			item2:  NewStruct([]Item{NewBigInteger(uint256.NewInt(1)), NewStruct([]Item{})}),
 			result: true,
 		},
 	},
 	"bigint": {
 		{
-			item1:  NewBigInteger(big.NewInt(2)),
+			item1:  NewBigInteger(uint256.NewInt(2)),
 			item2:  nil,
 			result: false,
 		},
 		{
-			item1:  NewBigInteger(big.NewInt(2)),
-			item2:  NewBigInteger(big.NewInt(2)),
+			item1:  NewBigInteger(uint256.NewInt(2)),
+			item2:  NewBigInteger(uint256.NewInt(2)),
 			result: true,
 		},
 		{
-			item1:  NewBigInteger(big.NewInt(2)),
+			item1:  NewBigInteger(uint256.NewInt(2)),
 			item2:  NewBool(false),
 			result: false,
 		},
 		{
-			item1:  NewBigInteger(big.NewInt(0)),
+			item1:  NewBigInteger(uint256.NewInt(0)),
 			item2:  NewBool(false),
 			result: false,
 		},
 		{
-			item1:  NewBigInteger(big.NewInt(2)),
+			item1:  NewBigInteger(uint256.NewInt(2)),
 			item2:  Make(int32(2)),
 			result: true,
 		},
@@ -222,7 +223,7 @@ var equalsTestCases = map[string][]struct {
 		},
 		{
 			item1:  NewBool(true),
-			item2:  NewBigInteger(big.NewInt(1)),
+			item2:  NewBigInteger(uint256.NewInt(1)),
 			result: false,
 		},
 		{
@@ -249,7 +250,7 @@ var equalsTestCases = map[string][]struct {
 		},
 		{
 			item1:  NewByteArray([]byte{1}),
-			item2:  NewBigInteger(big.NewInt(1)),
+			item2:  NewBigInteger(uint256.NewInt(1)),
 			result: false,
 		},
 		{
@@ -285,18 +286,18 @@ var equalsTestCases = map[string][]struct {
 			result: false,
 		},
 		{
-			item1:  NewArray([]Item{(*BigInteger)(big.NewInt(1)), (*BigInteger)(big.NewInt(2)), (*BigInteger)(big.NewInt(3))}),
-			item2:  NewArray([]Item{(*BigInteger)(big.NewInt(1)), (*BigInteger)(big.NewInt(2)), (*BigInteger)(big.NewInt(3))}),
+			item1:  NewArray([]Item{(*BigInteger)(uint256.NewInt(1)), (*BigInteger)(uint256.NewInt(2)), (*BigInteger)(uint256.NewInt(3))}),
+			item2:  NewArray([]Item{(*BigInteger)(uint256.NewInt(1)), (*BigInteger)(uint256.NewInt(2)), (*BigInteger)(uint256.NewInt(3))}),
 			result: false,
 		},
 		{
-			item1:  NewArray([]Item{(*BigInteger)(big.NewInt(1))}),
-			item2:  NewBigInteger(big.NewInt(1)),
+			item1:  NewArray([]Item{(*BigInteger)(uint256.NewInt(1))}),
+			item2:  NewBigInteger(uint256.NewInt(1)),
 			result: false,
 		},
 		{
-			item1:  NewArray([]Item{(*BigInteger)(big.NewInt(1)), (*BigInteger)(big.NewInt(2)), (*BigInteger)(big.NewInt(3))}),
-			item2:  NewArray([]Item{(*BigInteger)(big.NewInt(1)), (*BigInteger)(big.NewInt(2)), (*BigInteger)(big.NewInt(4))}),
+			item1:  NewArray([]Item{(*BigInteger)(uint256.NewInt(1)), (*BigInteger)(uint256.NewInt(2)), (*BigInteger)(uint256.NewInt(3))}),
+			item2:  NewArray([]Item{(*BigInteger)(uint256.NewInt(1)), (*BigInteger)(uint256.NewInt(2)), (*BigInteger)(uint256.NewInt(4))}),
 			result: false,
 		},
 	},
@@ -312,13 +313,13 @@ var equalsTestCases = map[string][]struct {
 			result: false,
 		},
 		{
-			item1:  &Map{value: []MapElement{{NewByteArray([]byte("first")), NewBigInteger(big.NewInt(1))}, {NewBool(true), NewByteArray([]byte{2})}}},
-			item2:  &Map{value: []MapElement{{NewByteArray([]byte("first")), NewBigInteger(big.NewInt(1))}, {NewBool(true), NewByteArray([]byte{2})}}},
+			item1:  &Map{value: []MapElement{{NewByteArray([]byte("first")), NewBigInteger(uint256.NewInt(1))}, {NewBool(true), NewByteArray([]byte{2})}}},
+			item2:  &Map{value: []MapElement{{NewByteArray([]byte("first")), NewBigInteger(uint256.NewInt(1))}, {NewBool(true), NewByteArray([]byte{2})}}},
 			result: false,
 		},
 		{
-			item1:  &Map{value: []MapElement{{NewByteArray([]byte("first")), NewBigInteger(big.NewInt(1))}, {NewBool(true), NewByteArray([]byte{2})}}},
-			item2:  &Map{value: []MapElement{{NewByteArray([]byte("first")), NewBigInteger(big.NewInt(1))}, {NewBool(true), NewByteArray([]byte{3})}}},
+			item1:  &Map{value: []MapElement{{NewByteArray([]byte("first")), NewBigInteger(uint256.NewInt(1))}, {NewBool(true), NewByteArray([]byte{2})}}},
+			item2:  &Map{value: []MapElement{{NewByteArray([]byte("first")), NewBigInteger(uint256.NewInt(1))}, {NewBool(true), NewByteArray([]byte{3})}}},
 			result: false,
 		},
 	},
@@ -366,7 +367,7 @@ var equalsTestCases = map[string][]struct {
 		},
 		{
 			item1:  NewPointer(0, []byte{}),
-			item2:  NewBigInteger(big.NewInt(0)),
+			item2:  NewBigInteger(uint256.NewInt(0)),
 			result: false,
 		},
 	},
@@ -429,7 +430,7 @@ var marshalJSONTestCases = []struct {
 	result []byte
 }{
 	{
-		input:  NewBigInteger(big.NewInt(2)),
+		input:  NewBigInteger(uint256.NewInt(2)),
 		result: []byte(`2`),
 	},
 	{
@@ -445,7 +446,7 @@ var marshalJSONTestCases = []struct {
 		result: []byte(`"010203"`),
 	},
 	{
-		input:  &Array{value: []Item{(*BigInteger)(big.NewInt(3)), NewByteArray([]byte{1, 2, 3})}},
+		input:  &Array{value: []Item{(*BigInteger)(uint256.NewInt(3)), NewByteArray([]byte{1, 2, 3})}},
 		result: []byte(`[3,"010203"]`),
 	},
 	{
@@ -487,7 +488,7 @@ func TestNewVeryBigInteger(t *testing.T) {
 			assert.True(t, len(bs)*8 <= MaxBigIntegerSizeBits)
 		} else {
 			assert.True(t, len(bs)*8 > MaxBigIntegerSizeBits)
-			assert.Panics(t, func() { NewBigInteger(v) })
+			assert.Panics(t, func() { NewBigIntegerFromBig(v) })
 		}
 	}
 
@@ -525,7 +526,7 @@ func TestDeepCopy(t *testing.T) {
 		name string
 		item Item
 	}{
-		{"Integer", NewBigInteger(big.NewInt(1))},
+		{"Integer", NewBigInteger(uint256.NewInt(1))},
 		{"ByteArray", NewByteArray([]byte{1, 2, 3})},
 		{"Buffer", NewBuffer([]byte{1, 2, 3})},
 		{"Bool", NewBool(true)},
@@ -576,7 +577,7 @@ func TestDeepCopy(t *testing.T) {
 	t.Run("Map", func(t *testing.T) {
 		m := NewMapWithValue(make([]MapElement, 2))
 		m.value[0] = MapElement{Key: NewBool(true), Value: m}
-		m.value[1] = MapElement{Key: NewBigInteger(big.NewInt(1)), Value: NewByteArray([]byte{1, 2, 3})}
+		m.value[1] = MapElement{Key: NewBigInteger(uint256.NewInt(1)), Value: NewByteArray([]byte{1, 2, 3})}
 
 		actual := DeepCopy(m, false)
 		m.isReadOnly = true // tiny hack for test to be able to compare object references.

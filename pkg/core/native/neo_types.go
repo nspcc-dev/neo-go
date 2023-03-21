@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -46,7 +47,7 @@ func (k keysWithVotes) toStackItem() stackitem.Item {
 	for i := range k {
 		arr[i] = stackitem.NewStruct([]stackitem.Item{
 			stackitem.NewByteArray([]byte(k[i].Key)),
-			stackitem.NewBigInteger(k[i].Votes),
+			stackitem.NewBigIntegerFromBig(k[i].Votes),
 		})
 	}
 	return stackitem.NewArray(arr)
@@ -75,7 +76,7 @@ func (k *keysWithVotes) fromStackItem(item stackitem.Item) error {
 			return err
 		}
 		kvs[i].Key = string(pub)
-		kvs[i].Votes = vs
+		kvs[i].Votes = util.ToBig(vs)
 	}
 	*k = kvs
 	return nil

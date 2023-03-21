@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/big"
 	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -202,8 +201,8 @@ func (m *Management) getContractByID(ic *interop.Context, args []stackitem.Item)
 	if err != nil {
 		panic(err)
 	}
-	id := idBig.Int64()
-	if !idBig.IsInt64() || id < math.MinInt32 || id > math.MaxInt32 {
+	id := util.ToInt64(idBig)
+	if !util.IsInt64(idBig) || id < math.MinInt32 || id > math.MaxInt32 {
 		panic("id is not a correct int32")
 	}
 	ctr, err := GetContractByID(ic.DAO, int32(id))
@@ -508,7 +507,7 @@ func (m *Management) Destroy(d *dao.Simple, hash util.Uint160) error {
 }
 
 func (m *Management) getMinimumDeploymentFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(m.minimumDeploymentFee(ic.DAO)))
+	return stackitem.NewBigIntegerFromInt64(m.minimumDeploymentFee(ic.DAO))
 }
 
 // minimumDeploymentFee returns the minimum required fee for contract deploy.

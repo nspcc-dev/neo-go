@@ -3,8 +3,8 @@ package transaction
 import (
 	"encoding/json"
 	"errors"
-	"math/big"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -90,7 +90,7 @@ func (w *WitnessRule) UnmarshalJSON(data []byte) error {
 // ToStackItem implements Convertible interface.
 func (w *WitnessRule) ToStackItem() stackitem.Item {
 	return stackitem.NewArray([]stackitem.Item{
-		stackitem.NewBigInteger(big.NewInt(int64(w.Action))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(w.Action))),
 		w.Condition.ToStackItem(),
 	})
 }

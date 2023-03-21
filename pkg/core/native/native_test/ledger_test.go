@@ -2,10 +2,10 @@ package native_test
 
 import (
 	"fmt"
-	"math/big"
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -86,12 +86,12 @@ func TestLedger_GetTransaction(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		ledgerInvoker.Invoke(t, []stackitem.Item{
 			stackitem.NewByteArray(tx.Hash().BytesBE()),
-			stackitem.NewBigInteger(big.NewInt(int64(tx.Version))),
-			stackitem.NewBigInteger(big.NewInt(int64(tx.Nonce))),
+			stackitem.NewBigInteger(uint256.NewInt(uint64(tx.Version))),
+			stackitem.NewBigInteger(uint256.NewInt(uint64(tx.Nonce))),
 			stackitem.NewByteArray(tx.Sender().BytesBE()),
-			stackitem.NewBigInteger(big.NewInt(tx.SystemFee)),
-			stackitem.NewBigInteger(big.NewInt(tx.NetworkFee)),
-			stackitem.NewBigInteger(big.NewInt(int64(tx.ValidUntilBlock))),
+			stackitem.NewBigIntegerFromInt64(tx.SystemFee),
+			stackitem.NewBigIntegerFromInt64(tx.NetworkFee),
+			stackitem.NewBigInteger(uint256.NewInt(uint64(tx.ValidUntilBlock))),
 			stackitem.NewByteArray(tx.Script),
 		}, "getTransaction", tx.Hash())
 	})
@@ -153,14 +153,14 @@ func TestLedger_GetBlock(t *testing.T) {
 
 	expected := []stackitem.Item{
 		stackitem.NewByteArray(b.Hash().BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(b.Version))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(b.Version))),
 		stackitem.NewByteArray(b.PrevHash.BytesBE()),
 		stackitem.NewByteArray(b.MerkleRoot.BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(b.Timestamp))),
-		stackitem.NewBigInteger(big.NewInt(int64(b.Nonce))),
-		stackitem.NewBigInteger(big.NewInt(int64(b.Index))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(b.Timestamp))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(b.Nonce))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(b.Index))),
 		stackitem.NewByteArray(b.NextConsensus.BytesBE()),
-		stackitem.NewBigInteger(big.NewInt(int64(len(b.Transactions)))),
+		stackitem.NewBigInteger(uint256.NewInt(uint64(len(b.Transactions)))),
 	}
 	t.Run("good, by hash", func(t *testing.T) {
 		ledgerInvoker.Invoke(t, expected, "getBlock", b.Hash())
@@ -192,7 +192,7 @@ func TestLedger_GetTransactionSigners(t *testing.T) {
 		expected := stackitem.NewArray([]stackitem.Item{
 			stackitem.NewArray([]stackitem.Item{
 				stackitem.NewByteArray(s.Account.BytesBE()),
-				stackitem.NewBigInteger(big.NewInt(int64(s.Scopes))),
+				stackitem.NewBigInteger(uint256.NewInt(uint64(s.Scopes))),
 				stackitem.NewArray([]stackitem.Item{}),
 				stackitem.NewArray([]stackitem.Item{}),
 				stackitem.NewArray([]stackitem.Item{}),

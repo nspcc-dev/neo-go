@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -543,12 +544,16 @@ func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem
 	if err != nil {
 		panic(err)
 	}
-	return stackitem.NewBigInteger(gen)
+	g, overflow := uint256.FromBig(gen)
+	if overflow {
+		panic("overflow")
+	}
+	return stackitem.NewBigInteger(g)
 }
 
 func (n *NEO) getGASPerBlock(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
 	gas := n.GetGASPerBlock(ic.DAO, ic.Block.Index)
-	return stackitem.NewBigInteger(gas)
+	return stackitem.NewBigIntegerFromBig(gas)
 }
 
 func (n *NEO) getSortedGASRecordFromDAO(d *dao.Simple) gasRecord {
@@ -617,7 +622,7 @@ func (n *NEO) SetGASPerBlock(ic *interop.Context, index uint32, gas *big.Int) er
 }
 
 func (n *NEO) getRegisterPrice(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	return stackitem.NewBigInteger(big.NewInt(n.getRegisterPriceInternal(ic.DAO)))
+	return stackitem.NewBigIntegerFromInt64(n.getRegisterPriceInternal(ic.DAO))
 }
 
 func (n *NEO) getRegisterPriceInternal(d *dao.Simple) int64 {
@@ -764,7 +769,7 @@ func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey
 		ic.AddNotification(n.Hash, "CandidateStateChanged", stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(pub.Bytes()),
 			stackitem.NewBool(c.Registered),
-			stackitem.NewBigInteger(&c.Votes),
+			stackitem.NewBigIntegerFromBig(&c.Votes),
 		}))
 	}
 	return err
@@ -804,7 +809,7 @@ func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicK
 		ic.AddNotification(n.Hash, "CandidateStateChanged", stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(pub.Bytes()),
 			stackitem.NewBool(c.Registered),
-			stackitem.NewBigInteger(&c.Votes),
+			stackitem.NewBigIntegerFromBig(&c.Votes),
 		}))
 	}
 	return err
@@ -880,7 +885,7 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 		stackitem.NewByteArray(h.BytesBE()),
 		keyToStackItem(oldVote),
 		keyToStackItem(pub),
-		stackitem.NewBigInteger(&acc.Balance),
+		stackitem.NewBigIntegerFromBig(&acc.Balance),
 	}))
 
 	if newGas != nil { // Can be if it was already distributed in the same block.
@@ -987,7 +992,7 @@ func (n *NEO) getCandidatesCall(ic *interop.Context, _ []stackitem.Item) stackit
 	for i := range validators {
 		arr[i] = stackitem.NewStruct([]stackitem.Item{
 			stackitem.NewByteArray([]byte(validators[i].Key)),
-			stackitem.NewBigInteger(validators[i].Votes),
+			stackitem.NewBigIntegerFromBig(validators[i].Votes),
 		})
 	}
 	return stackitem.NewArray(arr)
@@ -1033,13 +1038,13 @@ func (n *NEO) getCandidateVoteCall(ic *interop.Context, args []stackitem.Item) s
 	key := makeValidatorKey(pub)
 	si := ic.DAO.GetStorageItem(n.ID, key)
 	if si == nil {
-		return stackitem.NewBigInteger(big.NewInt(-1))
+		return stackitem.NewBigIntegerFromInt64(-1)
 	}
 	c := new(candidate).FromBytes(si)
 	if !c.Registered {
-		return stackitem.NewBigInteger(big.NewInt(-1))
+		return stackitem.NewBigIntegerFromInt64(-1)
 	}
-	return stackitem.NewBigInteger(&c.Votes)
+	return stackitem.NewBigIntegerFromBig(&c.Votes)
 }
 
 func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stackitem.Item {

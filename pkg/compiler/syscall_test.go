@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -201,7 +202,7 @@ func TestNotify(t *testing.T) {
 	require.NoError(t, v.Run())
 	require.Equal(t, 2, len(s.events))
 
-	exp0 := []stackitem.Item{stackitem.NewBigInteger(big.NewInt(11)), stackitem.NewByteArray([]byte("sum")), stackitem.NewBigInteger(big.NewInt(12))}
+	exp0 := []stackitem.Item{stackitem.NewBigInteger(uint256.NewInt(11)), stackitem.NewByteArray([]byte("sum")), stackitem.NewBigInteger(uint256.NewInt(12))}
 	assert.Equal(t, "Event1", s.events[0].Name)
 	assert.Equal(t, exp0, s.events[0].Item.Value())
 	assert.Equal(t, "single", s.events[1].Name)

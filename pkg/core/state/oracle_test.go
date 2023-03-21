@@ -1,9 +1,9 @@
 package state
 
 import (
-	"math/big"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -37,7 +37,7 @@ func TestOracleRequestToFromSI(t *testing.T) {
 
 		items := []stackitem.Item{
 			stackitem.NewByteArray(random.Uint256().BytesBE()),
-			stackitem.NewBigInteger(big.NewInt(123)),
+			stackitem.NewBigInteger(uint256.NewInt(123)),
 			stackitem.Make("url"),
 			stackitem.Null{},
 			stackitem.NewByteArray(random.Uint160().BytesBE()),

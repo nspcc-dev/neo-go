@@ -13,6 +13,7 @@ import (
 	"text/tabwriter"
 	"unicode/utf8"
 
+	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
@@ -92,10 +93,12 @@ type VM struct {
 }
 
 var (
-	bigMinusOne = big.NewInt(-1)
-	bigZero     = big.NewInt(0)
-	bigOne      = big.NewInt(1)
-	bigTwo      = big.NewInt(2)
+	bigMinusOne = new(uint256.Int).Neg(uint256.NewInt(1))
+	bigZero     = uint256.NewInt(0)
+	bigOne      = uint256.NewInt(1)
+	bigTwo      = uint256.NewInt(2)
+	minInt32, _ = uint256.FromBig(big.NewInt(math.MinInt32))
+	maxInt32, _ = uint256.FromBig(big.NewInt(math.MaxInt32))
 )
 
 // New returns a new VM object ready to load AVM bytecode scripts.
@@ -596,7 +599,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	}
 
 	if op <= opcode.PUSHINT256 {
-		v.estack.PushItem(stackitem.NewBigInteger(bigint.FromBytes(parameter)))
+		v.estack.PushItem(stackitem.NewBigInteger(bigint.Uint256FromBytes(parameter)))
 		return
 	}
 
@@ -607,7 +610,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		opcode.PUSH12, opcode.PUSH13, opcode.PUSH14, opcode.PUSH15,
 		opcode.PUSH16:
 		val := int(op) - int(opcode.PUSH0)
-		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(val))))
+		v.estack.PushItem(stackitem.NewBigInteger(uint256.NewInt(uint64(val))))
 
 	case opcode.PUSHDATA1, opcode.PUSHDATA2, opcode.PUSHDATA4:
 		v.estack.PushItem(stackitem.NewByteArray(parameter))
@@ -796,7 +799,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		v.estack.PushItem(stackitem.NewBuffer(res))
 
 	case opcode.DEPTH:
-		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(v.estack.Len()))))
+		v.estack.PushItem(stackitem.NewBigInteger(uint256.NewInt(uint64(v.estack.Len()))))
 
 	case opcode.DROP:
 		if v.estack.Len() < 1 {
@@ -885,22 +888,22 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	// Bit operations.
 	case opcode.INVERT:
 		i := v.estack.Pop().BigInt()
-		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Not(i)))
+		v.estack.PushItem(stackitem.NewBigInteger(new(uint256.Int).Not(i)))
 
 	case opcode.AND:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
-		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).And(b, a)))
+		v.estack.PushItem(stackitem.NewBigInteger(new(uint256.Int).And(b, a)))
 
 	case opcode.OR:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
-		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Or(b, a)))
+		v.estack.PushItem(stackitem.NewBigInteger(new(uint256.Int).Or(b, a)))
 
 	case opcode.XOR:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
-		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Xor(b, a)))
+		v.estack.PushItem(stackitem.NewBigInteger(new(uint256.Int).Xor(b, a)))
 
 	case opcode.EQUAL, opcode.NOTEQUAL:
 		if v.estack.Len() < 2 {
@@ -914,58 +917,58 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 	// Numeric operations.
 	case opcode.SIGN:
 		x := v.estack.Pop().BigInt()
-		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(x.Sign()))))
+		v.estack.PushItem(stackitem.NewBigIntegerFromInt64(int64(x.Sign())))
 
 	case opcode.ABS:
 		x := v.estack.Pop().BigInt()
-		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Abs(x)))
+		v.estack.PushItem(stackitem.NewBigInteger(new(uint256.Int).Abs(x)))
 
 	case opcode.NEGATE:
 		x := v.estack.Pop().BigInt()
-		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Neg(x)))
+		v.estack.PushItem(stackitem.NewBigInteger(new(uint256.Int).Neg(x)))
 
 	case opcode.INC:
 		x := v.estack.Pop().BigInt()
-		a := new(big.Int).Add(x, bigOne)
+		a := new(uint256.Int).Add(x, bigOne)
 		v.estack.PushItem(stackitem.NewBigInteger(a))
 
 	case opcode.DEC:
 		x := v.estack.Pop().BigInt()
-		a := new(big.Int).Sub(x, bigOne)
+		a := new(uint256.Int).Sub(x, bigOne)
 		v.estack.PushItem(stackitem.NewBigInteger(a))
 
 	case opcode.ADD:
 		a := v.estack.Pop().BigInt()
 		b := v.estack.Pop().BigInt()
 
-		c := new(big.Int).Add(a, b)
+		c := new(uint256.Int).Add(a, b)
 		v.estack.PushItem(stackitem.NewBigInteger(c))
 
 	case opcode.SUB:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
 
-		c := new(big.Int).Sub(a, b)
+		c := new(uint256.Int).Sub(a, b)
 		v.estack.PushItem(stackitem.NewBigInteger(c))
 
 	case opcode.MUL:
 		a := v.estack.Pop().BigInt()
 		b := v.estack.Pop().BigInt()
 
-		c := new(big.Int).Mul(a, b)
+		c := new(uint256.Int).Mul(a, b)
 		v.estack.PushItem(stackitem.NewBigInteger(c))
 
 	case opcode.DIV:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
 
-		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Quo(a, b)))
+		v.estack.PushItem(stackitem.NewBigInteger(new(uint256.Int).Div(a, b)))
 
 	case opcode.MOD:
 		b := v.estack.Pop().BigInt()
 		a := v.estack.Pop().BigInt()
 
-		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Rem(a, b)))
+		v.estack.PushItem(stackitem.NewBigInteger(mod(a, b)))
 
 	case opcode.POW:
 		exp := v.estack.Pop().BigInt()
@@ -973,7 +976,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		if ei := exp.Uint64(); !exp.IsUint64() || ei > maxSHLArg {
 			panic("invalid exponent")
 		}
-		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Exp(a, exp, nil)))
+		v.estack.PushItem(stackitem.NewBigInteger(new(uint256.Int).Exp(a, exp)))
 
 	case opcode.SQRT:
 		a := v.estack.Pop().BigInt()
@@ -981,7 +984,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("negative value")
 		}
 
-		v.estack.PushItem(stackitem.NewBigInteger(new(big.Int).Sqrt(a)))
+		v.estack.PushItem(stackitem.NewBigInteger(sqrt(a)))
 
 	case opcode.MODMUL:
 		modulus := v.estack.Pop().BigInt()
@@ -991,14 +994,14 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		x2 := v.estack.Pop().BigInt()
 		x1 := v.estack.Pop().BigInt()
 
-		res := new(big.Int).Mul(x1, x2)
-		v.estack.PushItem(stackitem.NewBigInteger(res.Mod(res, modulus)))
+		res := new(uint256.Int).MulMod(x1, x2, modulus)
+		v.estack.PushItem(stackitem.NewBigInteger(res))
 
 	case opcode.MODPOW:
 		modulus := v.estack.Pop().BigInt()
 		exponent := v.estack.Pop().BigInt()
 		base := v.estack.Pop().BigInt()
-		res := new(big.Int)
+		res := new(uint256.Int)
 		switch exponent.Cmp(bigMinusOne) {
 		case -1:
 			panic("exponent should be >= -1")
@@ -1009,14 +1012,16 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if modulus.Cmp(bigTwo) < 0 {
 				panic("invalid modulus")
 			}
-			if res.ModInverse(base, modulus) == nil {
+			res = modInverse(base, modulus)
+			if res == nil {
 				panic("base and modulus are not relatively prime")
 			}
 		case 1:
 			if modulus.Sign() == 0 {
 				panic("zero modulus") // https://docs.microsoft.com/en-us/dotnet/api/system.numerics.biginteger.modpow?view=net-6.0#exceptions
 			}
-			res.Exp(base, exponent, modulus)
+			res.Exp(base, exponent)
+			res.Mod(res, modulus)
 		}
 
 		v.estack.PushItem(stackitem.NewBigInteger(res))
@@ -1030,7 +1035,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		}
 		a := v.estack.Pop().BigInt()
 
-		var item big.Int
+		var item uint256.Int
 		if op == opcode.SHL {
 			item.Lsh(a, uint(b))
 		} else {
@@ -1216,7 +1221,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				v.estack.PushItem(arr[i])
 			}
 		}
-		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(l))))
+		v.estack.PushItem(stackitem.NewBigIntegerFromInt64(int64(l)))
 
 	case opcode.PICKITEM:
 		key := v.estack.Pop()
@@ -1252,7 +1257,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				return
 			}
 			item := arr[index]
-			v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(item))))
+			v.estack.PushItem(stackitem.NewBigIntegerFromInt64(int64(item)))
 		}
 
 	case opcode.SETITEM:
@@ -1424,7 +1429,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		default:
 			res = len(elem.Bytes())
 		}
-		v.estack.PushItem(stackitem.NewBigInteger(big.NewInt(int64(res))))
+		v.estack.PushItem(stackitem.NewBigIntegerFromInt64(int64(res)))
 
 	case opcode.JMP, opcode.JMPL, opcode.JMPIF, opcode.JMPIFL, opcode.JMPIFNOT, opcode.JMPIFNOTL,
 		opcode.JMPEQ, opcode.JMPEQL, opcode.JMPNE, opcode.JMPNEL,
@@ -1673,7 +1678,7 @@ func getTryParams(op opcode.Opcode, p []byte) ([]byte, []byte) {
 }
 
 // getJumpCondition performs opcode specific comparison of a and b.
-func getJumpCondition(op opcode.Opcode, a, b *big.Int) bool {
+func getJumpCondition(op opcode.Opcode, a, b *uint256.Int) bool {
 	cmp := a.Cmp(b)
 	switch op {
 	case opcode.JMPEQ, opcode.JMPEQL:
@@ -1931,7 +1936,7 @@ func makeArrayOfType(n int, typ stackitem.Type) []stackitem.Item {
 		case stackitem.BooleanT:
 			items[i] = stackitem.NewBool(false)
 		case stackitem.IntegerT:
-			items[i] = stackitem.NewBigInteger(big.NewInt(0))
+			items[i] = stackitem.NewBigInteger(uint256.NewInt(0))
 		case stackitem.ByteArrayT:
 			items[i] = stackitem.NewByteArray([]byte{})
 		default:
@@ -1983,13 +1988,73 @@ func (v *VM) GetCurrentScriptHash() util.Uint160 {
 }
 
 // toInt converts an item to a 32-bit int.
-func toInt(i *big.Int) int {
-	if !i.IsInt64() {
+func toInt(i *uint256.Int) int {
+	if i.Sgt(maxInt32) || i.Slt(minInt32) {
 		panic("not an int32")
 	}
-	n := i.Int64()
-	if n < math.MinInt32 || n > math.MaxInt32 {
-		panic("not an int32")
+	var v int64
+	if i.Sign() < 0 {
+		v -= int64(new(uint256.Int).Neg(i).Uint64())
+	} else {
+		v = int64(i.Uint64())
 	}
-	return int(n)
+	return int(v)
+}
+
+// sqrt calculate square root of uint256.Int.
+func sqrt(value *uint256.Int) *uint256.Int {
+	if value.Sign() < 0 {
+		panic("square root of negative number")
+	}
+	if value.Sign() == 0 {
+		return uint256.NewInt(0)
+	}
+	if value.Lt(uint256.NewInt(4)) {
+		return uint256.NewInt(1)
+	}
+	x := new(uint256.Int).Lsh(uint256.NewInt(1), uint(value.BitLen()+1)/2)
+	for n := 0; ; n++ {
+		a := new(uint256.Int).Div(value, x)
+		a.Add(a, x)
+		a.Rsh(a, 1)
+		if a.Cmp(x) >= 0 {
+			if n&1 == 0 {
+				return x
+			}
+			return a
+		}
+		x = a
+	}
+}
+
+// mod calculate mod of uint256.Int and ganrantee the result is positive.
+func mod(value, modulus *uint256.Int) *uint256.Int {
+	x := new(uint256.Int).SMod(value, modulus)
+	if x.Sign() < 0 {
+		x.Add(x, modulus)
+	}
+	return x
+}
+
+// modInverse calculate multiplicative inverse of value in modulus.
+func modInverse(value, modulus *uint256.Int) *uint256.Int {
+	x, y := new(uint256.Int), new(uint256.Int)
+	g := exgcd(value, modulus, x, y)
+	if g.Cmp(uint256.NewInt(1)) != 0 {
+		return nil
+	}
+	return x
+}
+
+func exgcd(a, b, x, y *uint256.Int) *uint256.Int {
+	if b.Sign() == 0 {
+		x.SetUint64(1)
+		y.SetUint64(0)
+		return a
+	}
+	r := exgcd(b, mod(a, b), y, x)
+	t := new(uint256.Int).Div(a, b)
+	t.Mul(t, x)
+	y.Sub(y, t)
+	return r
 }
