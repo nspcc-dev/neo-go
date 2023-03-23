@@ -218,6 +218,12 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"ripemd160", []string{"[]byte{1, 2, 3}"}},
 		{"murmur32", []string{"[]byte{1, 2, 3}", "123"}},
 		{"verifyWithECDsa", []string{"[]byte{1, 2, 3}", pub, sig, "crypto.Secp256k1"}},
+		{"bls12381Serialize", []string{"crypto.Bls12381Point{}"}},
+		{"bls12381Deserialize", []string{"[]byte{1, 2, 3}"}},
+		{"bls12381Equal", []string{"crypto.Bls12381Point{}", "crypto.Bls12381Point{}"}},
+		{"bls12381Add", []string{"crypto.Bls12381Point{}", "crypto.Bls12381Point{}"}},
+		{"bls12381Mul", []string{"crypto.Bls12381Point{}", "[]byte{1, 2, 3}", "true"}},
+		{"bls12381Pairing", []string{"crypto.Bls12381Point{}", "crypto.Bls12381Point{}"}},
 	})
 	runNativeTestCases(t, cs.Std.ContractMD, "std", []nativeTestCase{
 		{"serialize", []string{"[]byte{1, 2, 3}"}},
