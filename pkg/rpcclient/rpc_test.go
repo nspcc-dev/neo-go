@@ -25,6 +25,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -829,6 +830,66 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			result: func(c *Client) interface{} {
 				return []byte("testvalue")
 			},
+		},
+	},
+	"getproof": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				root, _ := util.Uint256DecodeStringLE("272002b11a6a39035c719defec3e4e6a8d1f4ae37a995b44734911413fcc2ba5")
+				cHash, _ := util.Uint160DecodeStringLE("cc5e4edd9f5f8dba8bb65734541df7a1c081c67b")
+				key := []byte{10}
+				return c.GetProof(root, cHash, key)
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"Bfn///8KBiQBAQ8DogBnMdiiPTEW05A6bJPmQ2TNVpuca/nB1rJRdQX7R4SyAAQEBAQEBAQDHvo5Rc9v\u002BWSpfsnMXM75ku\u002BZjvbLJhWXn/lh6L\u002B1yB0EA4k\u002Bsx4f7IgmdHNm3wRMpj5kTU4l0gChSGppo5p5wZyWA2\u002BKSFn16W6tRrGSfJob\u002BgqJukLcNDk0DBFYW2wIS2/NAzkugdLfZRXHOLqq5XJr89ElzlqyXU1o9D87l9YOcXjGBAQEA7oDTOxuU4iMAKPuhn5eJjzsM56bQrx3uORa8LKm42oDBCkBBg8PDw8PDwN96s39UOSCwMJmMQZzNjfNAPCbRRyke1B4VRKqOZ0NHlIAA2woQ13XO4Ug2aQ/cW4WBricVcUVqobFUU0dnRPtfIHeAxuYERXsV6HwdGjW\u002BhtpM0FEkw/mllbH5pyhn\u002BBx4r8wBAQEBAQEBAQEBAQEBAQEJAEBCgPXvpMqBogTeGhXjtFY4Rsn9bY/PgNX0l4iYOHMzUBQQgQCAugD"}`,
+			result: func(c *Client) interface{} {
+				b, _ := base64.StdEncoding.DecodeString("Bfn///8KBiQBAQ8DogBnMdiiPTEW05A6bJPmQ2TNVpuca/nB1rJRdQX7R4SyAAQEBAQEBAQDHvo5Rc9v\u002BWSpfsnMXM75ku\u002BZjvbLJhWXn/lh6L\u002B1yB0EA4k\u002Bsx4f7IgmdHNm3wRMpj5kTU4l0gChSGppo5p5wZyWA2\u002BKSFn16W6tRrGSfJob\u002BgqJukLcNDk0DBFYW2wIS2/NAzkugdLfZRXHOLqq5XJr89ElzlqyXU1o9D87l9YOcXjGBAQEA7oDTOxuU4iMAKPuhn5eJjzsM56bQrx3uORa8LKm42oDBCkBBg8PDw8PDwN96s39UOSCwMJmMQZzNjfNAPCbRRyke1B4VRKqOZ0NHlIAA2woQ13XO4Ug2aQ/cW4WBricVcUVqobFUU0dnRPtfIHeAxuYERXsV6HwdGjW\u002BhtpM0FEkw/mllbH5pyhn\u002BBx4r8wBAQEBAQEBAQEBAQEBAQEJAEBCgPXvpMqBogTeGhXjtFY4Rsn9bY/PgNX0l4iYOHMzUBQQgQCAugD")
+				proof := &result.ProofWithKey{}
+				r := io.NewBinReaderFromBuf(b)
+				proof.DecodeBinary(r)
+				return proof
+			},
+		},
+		{
+			name: "not found",
+			invoke: func(c *Client) (interface{}, error) {
+				root, _ := util.Uint256DecodeStringLE("272002b11a6a39035c719defec3e4e6a8d1f4ae37a995b44734911413fcc2ba5")
+				cHash, _ := util.Uint160DecodeStringLE("cc5e4edd9f5f8dba8bb65734541df7a1c081c67b")
+				key := []byte{01}
+				return c.GetProof(root, cHash, key)
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":"failed to get proof: item not found"}}`,
+			fails:          true,
+		},
+	},
+	"verifyproof": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (interface{}, error) {
+				root, _ := util.Uint256DecodeStringLE("272002b11a6a39035c719defec3e4e6a8d1f4ae37a995b44734911413fcc2ba5")
+				b, _ := base64.StdEncoding.DecodeString("Bfn///8KBiQBAQ8DogBnMdiiPTEW05A6bJPmQ2TNVpuca/nB1rJRdQX7R4SyAAQEBAQEBAQDHvo5Rc9v\u002BWSpfsnMXM75ku\u002BZjvbLJhWXn/lh6L\u002B1yB0EA4k\u002Bsx4f7IgmdHNm3wRMpj5kTU4l0gChSGppo5p5wZyWA2\u002BKSFn16W6tRrGSfJob\u002BgqJukLcNDk0DBFYW2wIS2/NAzkugdLfZRXHOLqq5XJr89ElzlqyXU1o9D87l9YOcXjGBAQEA7oDTOxuU4iMAKPuhn5eJjzsM56bQrx3uORa8LKm42oDBCkBBg8PDw8PDwN96s39UOSCwMJmMQZzNjfNAPCbRRyke1B4VRKqOZ0NHlIAA2woQ13XO4Ug2aQ/cW4WBricVcUVqobFUU0dnRPtfIHeAxuYERXsV6HwdGjW\u002BhtpM0FEkw/mllbH5pyhn\u002BBx4r8wBAQEBAQEBAQEBAQEBAQEJAEBCgPXvpMqBogTeGhXjtFY4Rsn9bY/PgNX0l4iYOHMzUBQQgQCAugD")
+				proof := &result.ProofWithKey{}
+				r := io.NewBinReaderFromBuf(b)
+				proof.DecodeBinary(r)
+				return c.VerifyProof(root, proof)
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"6AM="}`,
+			result: func(c *Client) interface{} {
+				return bigint.ToPreallocatedBytes(big.NewInt(1000), nil)
+			},
+		},
+		{
+			name: "fail",
+			invoke: func(c *Client) (interface{}, error) {
+				root, _ := util.Uint256DecodeStringLE("272002b11a6a39035c719defec3e4e6a8d1f4ae37a995b44734911413fcc2ba5")
+				b, _ := base64.StdEncoding.DecodeString("Bfn///8KBiQBAQ8DogBnMdiiPTEW05A6bJPmQ2TNVpuca/nB1rJRdQX7R4SyAAQEBAQEBAQDHvo5Rc9v\u002BWSpfsnMXM75ku\u002BZjvbLJhWXn/lh6L\u002B1yB0EA4k\u002Bsx4f7IgmdHNm3wRMpj5kTU4l0gChSGppo5p5wZyWA2\u002BKSFn16W6tRrGSfJob\u002BgqJukLcNDk0DBFYW2wIS2/NAzkugdLfZRXHOLqq5XJr89ElzlqyXU1o9D87l9YOcXjGBAQEA7oDTOxuU4iMAKPuhn5eJjzsM56bQrx3uORa8LKm42oDBCkBBg8PDw8PDwN96s39UOSCwMJmMQZzNjfNAPCbRRyke1B4VRKqOZ0NHlIAA2woQ13XO4Ug2aQ/cW4WBricVcUVqobFUU0dnRPtfIHeAxuYERXsV6HwdGjW\u002BhtpM0FEkw/mllbH5pyhn\u002BBx4r8wBAQEBAQEBAQEBAQEBAQEJAEBCgPXvpMqBogTeGhXjtFY4Rsn9bY/PgNX0l4iYOHMzUBQQgQCAugD")
+				proof := &result.ProofWithKey{}
+				r := io.NewBinReaderFromBuf(b)
+				proof.DecodeBinary(r)
+				return c.VerifyProof(root, proof)
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"invalid"}`,
+			fails:          true,
 		},
 	},
 	"findstates": {

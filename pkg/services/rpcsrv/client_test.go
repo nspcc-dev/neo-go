@@ -23,12 +23,15 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -1762,6 +1765,33 @@ func TestClient_GetNotaryServiceFeePerKey(t *testing.T) {
 	actual, err := c.GetNotaryServiceFeePerKey() //nolint:staticcheck // SA1019: c.GetNotaryServiceFeePerKey is deprecated
 	require.NoError(t, err)
 	require.Equal(t, defaultNotaryServiceFeePerKey, actual)
+}
+
+func TestClient_States(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	stateheight, err := c.GetStateHeight()
+	assert.NoError(t, err)
+	assert.Equal(t, chain.BlockHeight(), stateheight.Local)
+
+	stateroot, err := c.GetStateRootByHeight(stateheight.Local)
+	assert.NoError(t, err)
+
+	t.Run("proof", func(t *testing.T) {
+		policy, err := chain.GetNativeContractScriptHash(nativenames.Policy)
+		assert.NoError(t, err)
+		proof, err := c.GetProof(stateroot.Root, policy, []byte{19}) // storagePrice key in policy contract
+		assert.NoError(t, err)
+		value, err := c.VerifyProof(stateroot.Root, proof)
+		assert.NoError(t, err)
+		assert.Equal(t, big.NewInt(native.DefaultStoragePrice), bigint.FromBytes(value))
+	})
 }
 
 func TestClientOracle(t *testing.T) {
