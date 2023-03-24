@@ -197,7 +197,18 @@ func TestFind(t *testing.T) {
 			}),
 		})
 	})
-
+	t.Run("normal invocation, backwards", func(t *testing.T) {
+		testFind(t, []byte{0x01}, istorage.FindBackwards, []stackitem.Item{
+			stackitem.NewStruct([]stackitem.Item{
+				stackitem.NewByteArray(skeys[0]),
+				stackitem.NewByteArray(items[0]),
+			}),
+			stackitem.NewStruct([]stackitem.Item{
+				stackitem.NewByteArray(skeys[2]),
+				stackitem.NewByteArray(items[2]),
+			}),
+		})
+	})
 	t.Run("keys only", func(t *testing.T) {
 		testFind(t, []byte{0x01}, istorage.FindKeysOnly, []stackitem.Item{
 			stackitem.NewByteArray(skeys[2]),
