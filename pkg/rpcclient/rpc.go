@@ -447,6 +447,31 @@ func (c *Client) GetRawTransactionVerbose(hash util.Uint256) (*result.Transactio
 	return resp, nil
 }
 
+// GetProof returns existence proof of storage item state by the given stateroot
+// historical contract hash and historical item key.
+func (c *Client) GetProof(stateroot util.Uint256, historicalContractHash util.Uint160, historicalKey []byte) (*result.ProofWithKey, error) {
+	var (
+		params = []interface{}{stateroot.StringLE(), historicalContractHash.StringLE(), historicalKey}
+		resp   = &result.ProofWithKey{}
+	)
+	if err := c.performRequest("getproof", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// VerifyProof returns value by the given stateroot and proof.
+func (c *Client) VerifyProof(stateroot util.Uint256, proof *result.ProofWithKey) ([]byte, error) {
+	var (
+		params = []interface{}{stateroot.StringLE(), proof.String()}
+		resp   []byte
+	)
+	if err := c.performRequest("verifyproof", params, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // GetState returns historical contract storage item state by the given stateroot,
 // historical contract hash and historical item key.
 func (c *Client) GetState(stateroot util.Uint256, historicalContractHash util.Uint160, historicalKey []byte) ([]byte, error) {
