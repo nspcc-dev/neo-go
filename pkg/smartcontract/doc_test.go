@@ -34,17 +34,17 @@ func ExampleBuilder() {
 	// Actor has an Invoker inside, so we can perform test invocation using the script.
 	res, _ := a.Run(script)
 	if res.State != "HALT" || len(res.Stack) != 2 {
-		// The script failed completely or didn't return proper number of return values.
+		panic("failed") // The script failed completely or didn't return proper number of return values.
 	}
 
 	transferResult, _ := res.Stack[0].TryBool()
 	voteResult, _ := res.Stack[1].TryBool()
 
 	if !transferResult {
-		// Transfer failed.
+		panic("transfer failed")
 	}
 	if !voteResult {
-		// Vote failed.
+		panic("vote failed")
 	}
 
 	b.Reset() // Copy the old script above if you need it!

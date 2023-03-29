@@ -120,7 +120,7 @@ func Find(ic *interop.Context) error {
 		// Underlying persistent store is likely to be a private MemCachedStore. Thus,
 		// to avoid concurrent map iteration and map write we need to wait until internal
 		// seek goroutine is finished, because it can access underlying persistent store.
-		for range seekres {
+		for range seekres { //nolint:revive //empty-block
 		}
 	})
 

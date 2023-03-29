@@ -69,3 +69,7 @@ issues:
     - EXC0003 # test/Test ... consider calling this
     - EXC0004 # govet
     - EXC0005 # C-style breaks
+  exclude-rules:
+    - linters:
+        - revive
+      text: "unused-parameter"
