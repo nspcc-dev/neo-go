@@ -282,7 +282,7 @@ func (m *Management) getContractHashes(ic *interop.Context, _ []stackitem.Item) 
 	item := istorage.NewIterator(filteredRes, prefix, int64(opts))
 	ic.RegisterCancelFunc(func() {
 		cancel()
-		for range seekres {
+		for range seekres { //nolint:revive //empty-block
 		}
 	})
 	return stackitem.NewInterop(item)

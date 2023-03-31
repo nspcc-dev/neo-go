@@ -457,7 +457,8 @@ func (v *Version) FromBytes(data []byte) error {
 		return errors.New("missing version")
 	}
 	i := 0
-	for ; i < len(data) && data[i] != '\x00'; i++ {
+	for i < len(data) && data[i] != '\x00' {
+		i++
 	}
 
 	if i == len(data) {

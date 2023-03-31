@@ -1022,7 +1022,7 @@ func (n *NEO) getAllCandidatesCall(ic *interop.Context, _ []stackitem.Item) stac
 	item := istorage.NewIterator(filteredRes, prefix, int64(opts))
 	ic.RegisterCancelFunc(func() {
 		cancel()
-		for range seekres {
+		for range seekres { //nolint:revive //empty-block
 		}
 	})
 	return stackitem.NewInterop(item)

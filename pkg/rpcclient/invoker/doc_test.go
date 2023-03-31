@@ -33,9 +33,9 @@ func ExampleInvoker() {
 	// Test-invoke transfer call.
 	res, _ := inv.Call(neo.Hash, "transfer", acc, util.Uint160{1, 2, 3}, 1, nil)
 	if res.State == vmstate.Halt.String() {
-		// NEO is broken! inv has no signers and transfer requires a witness to be performed.
+		panic("NEO is broken!") // inv has no signers and transfer requires a witness to be performed.
 	} else {
-		// OK, this actually should fail.
+		println("ok") // this actually should fail
 	}
 
 	// A historic invoker with no signers at block 1000000.
@@ -57,9 +57,11 @@ func ExampleInvoker() {
 		// transfer actually returns a value, so check it too.
 		ok, _ := unwrap.Bool(res, nil)
 		if ok {
-			// OK, as expected. res.Script contains the corresponding
-			// script and res.GasConsumed has an appropriate system fee
-			// required for a transaction.
+			// OK, as expected.
+			// res.Script contains the corresponding script.
+			_ = res.Script
+			// res.GasConsumed has an appropriate system fee required for a transaction.
+			_ = res.GasConsumed
 		}
 	}
 

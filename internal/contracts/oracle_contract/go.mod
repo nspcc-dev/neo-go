@@ -1,4 +1,4 @@
-module github.com/nspcc-dev/neo-go/examples/oracle
+module github.com/nspcc-dev/neo-go/internal/examples/oracle
 
 go 1.17
 
