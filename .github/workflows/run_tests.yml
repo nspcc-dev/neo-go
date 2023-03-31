@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: '1.20'
       - uses: actions/checkout@v3
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
@@ -103,7 +103,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: '1.20'
           cache: true
 
       - name: Update Go modules
@@ -125,20 +125,20 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, windows-2022, macos-12]
-        go_versions: [ '1.17', '1.18', '1.19' ]
+        go_versions: [ '1.18', '1.19', '1.20' ]
         exclude:
           # Only latest Go version for Windows and MacOS.
           - os: windows-2022
-            go_versions: '1.17'
+            go_versions: '1.18'
           - os: windows-2022
-            go_versions: '1.18'
-          - os: macos-12
-            go_versions: '1.17'
+            go_versions: '1.19'
           - os: macos-12
             go_versions: '1.18'
+          - os: macos-12
+            go_versions: '1.19'
           # Exclude latest Go version for Ubuntu as Coverage uses it.
           - os: ubuntu-20.04
-            go_versions: '1.19'
+            go_versions: '1.20'
       fail-fast: false
     steps:
       - uses: actions/checkout@v3

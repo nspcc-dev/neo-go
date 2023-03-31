@@ -376,7 +376,7 @@ func TestLoad(t *testing.T) {
 			require.NoError(t, os.WriteFile(filenameErr, []byte(src+"invalid_token"), os.ModePerm))
 			filenameErr = "'" + filenameErr + "'"
 			goMod := []byte(`module test.example/vmcli
-go 1.17`)
+go 1.18`)
 			require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 
 			e := newTestVMCLI(t)
@@ -407,7 +407,7 @@ require (
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0
 )
 replace github.com/nspcc-dev/neo-go/pkg/interop => ` + filepath.Join(wd, "../../pkg/interop") + `
-go 1.17`)
+go 1.18`)
 		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 		return filename
 	}
