@@ -25,9 +25,15 @@ func TestEncodeDecodeAddress(t *testing.T) {
 	)
 
 	assert.Equal(t, ts.UTC().Unix(), int64(addr.Timestamp))
+
+	// On Windows or macOS localhost can be resolved to 4-bytes IPv4.
+	expected := make(net.IP, 16)
+	copy(expected, e.IP[:])
+
 	aatip := make(net.IP, 16)
 	copy(aatip, addr.IP[:])
-	assert.Equal(t, e.IP, aatip)
+
+	assert.Equal(t, expected, aatip)
 	assert.Equal(t, 1, len(addr.Capabilities))
 	assert.Equal(t, capability.Capability{
 		Type: capability.TCPServer,
