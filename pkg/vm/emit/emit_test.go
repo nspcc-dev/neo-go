@@ -224,7 +224,7 @@ func TestEmitArray(t *testing.T) {
 		veryBig := new(big.Int).SetUint64(math.MaxUint64)
 		veryBig.Add(veryBig, big.NewInt(1))
 		Array(buf.BinWriter, p160, p256, &u160, &u256, u160, u256, big.NewInt(0), veryBig,
-			[]interface{}{int64(1), int64(2)}, nil, int64(1), "str", false, true, []byte{0xCA, 0xFE})
+			[]any{int64(1), int64(2)}, nil, int64(1), "str", false, true, []byte{0xCA, 0xFE})
 		require.NoError(t, buf.Err)
 
 		res := buf.Bytes()

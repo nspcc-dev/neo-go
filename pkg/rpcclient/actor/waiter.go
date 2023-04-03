@@ -331,10 +331,10 @@ func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Ui
 			case unsubErr := <-unsubErrs:
 				if unsubErr != nil {
 					errFmt := "unsubscription error: %v"
-					errArgs := []interface{}{unsubErr}
+					errArgs := []any{unsubErr}
 					if waitErr != nil {
 						errFmt = "%w; " + errFmt
-						errArgs = append([]interface{}{waitErr}, errArgs...)
+						errArgs = append([]any{waitErr}, errArgs...)
 					}
 					waitErr = fmt.Errorf(errFmt, errArgs...)
 				}

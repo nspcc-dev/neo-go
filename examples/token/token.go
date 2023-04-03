@@ -53,7 +53,7 @@ func BalanceOf(holder interop.Hash160) int {
 }
 
 // Transfer token from one user to another
-func Transfer(from interop.Hash160, to interop.Hash160, amount int, data interface{}) bool {
+func Transfer(from interop.Hash160, to interop.Hash160, amount int, data any) bool {
 	return token.Transfer(ctx, from, to, amount, data)
 }
 

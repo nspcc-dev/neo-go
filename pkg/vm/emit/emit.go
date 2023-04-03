@@ -99,14 +99,14 @@ func bigInt(w *io.BinWriter, n *big.Int, trySmall bool) {
 }
 
 // Array emits an array of elements to the given buffer.
-func Array(w *io.BinWriter, es ...interface{}) {
+func Array(w *io.BinWriter, es ...any) {
 	if len(es) == 0 {
 		Opcodes(w, opcode.NEWARRAY0)
 		return
 	}
 	for i := len(es) - 1; i >= 0; i-- {
 		switch e := es[i].(type) {
-		case []interface{}:
+		case []any:
 			Array(w, e...)
 		case int64:
 			Int(w, e)
@@ -225,7 +225,7 @@ func AppCallNoArgs(w *io.BinWriter, scriptHash util.Uint160, operation string, f
 }
 
 // AppCall emits SYSCALL with System.Contract.Call parameter for given contract, operation, call flag and arguments.
-func AppCall(w *io.BinWriter, scriptHash util.Uint160, operation string, f callflag.CallFlag, args ...interface{}) {
+func AppCall(w *io.BinWriter, scriptHash util.Uint160, operation string, f callflag.CallFlag, args ...any) {
 	Array(w, args...)
 	AppCallNoArgs(w, scriptHash, operation, f)
 }

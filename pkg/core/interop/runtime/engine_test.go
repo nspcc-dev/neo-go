@@ -21,7 +21,7 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-func checkStack(t *testing.T, v *vm.VM, args ...interface{}) {
+func checkStack(t *testing.T, v *vm.VM, args ...any) {
 	require.Equal(t, len(args), v.Estack().Len())
 	for i := range args {
 		require.Equal(t, stackitem.Make(args[i]), v.Estack().Pop().Item(), "%d", i)
@@ -122,7 +122,7 @@ func TestLog(t *testing.T) {
 		ls := buf.Lines()
 		require.Equal(t, 1, len(ls))
 
-		var logMsg map[string]interface{}
+		var logMsg map[string]any
 		require.NoError(t, json.Unmarshal([]byte(ls[0]), &logMsg))
 		require.Equal(t, "info", logMsg["level"])
 		require.Equal(t, "hello", logMsg["msg"])

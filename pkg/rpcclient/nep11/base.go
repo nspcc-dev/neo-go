@@ -28,7 +28,7 @@ import (
 type Invoker interface {
 	neptoken.Invoker
 
-	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...interface{}) (*result.Invoke, error)
+	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...any) (*result.Invoke, error)
 	TerminateSession(sessionID uuid.UUID) error
 	TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error)
 }
@@ -149,7 +149,7 @@ func (t *BaseReader) TokensOfExpanded(account util.Uint160, num int) ([][]byte, 
 // transaction if it's not true. It works for divisible NFTs only when there is
 // one owner for the particular token. The returned values are transaction hash,
 // its ValidUntilBlock value and an error if any.
-func (t *BaseWriter) Transfer(to util.Uint160, id []byte, data interface{}) (util.Uint256, uint32, error) {
+func (t *BaseWriter) Transfer(to util.Uint160, id []byte, data any) (util.Uint256, uint32, error) {
 	script, err := t.transferScript(to, id, data)
 	if err != nil {
 		return util.Uint256{}, 0, err
@@ -162,7 +162,7 @@ func (t *BaseWriter) Transfer(to util.Uint160, id []byte, data interface{}) (uti
 // transaction if it's not true. It works for divisible NFTs only when there is
 // one owner for the particular token. This transaction is signed, but not sent
 // to the network, instead it's returned to the caller.
-func (t *BaseWriter) TransferTransaction(to util.Uint160, id []byte, data interface{}) (*transaction.Transaction, error) {
+func (t *BaseWriter) TransferTransaction(to util.Uint160, id []byte, data any) (*transaction.Transaction, error) {
 	script, err := t.transferScript(to, id, data)
 	if err != nil {
 		return nil, err
@@ -175,7 +175,7 @@ func (t *BaseWriter) TransferTransaction(to util.Uint160, id []byte, data interf
 // transaction if it's not true. It works for divisible NFTs only when there is
 // one owner for the particular token. This transaction is not signed and just
 // returned to the caller.
-func (t *BaseWriter) TransferUnsigned(to util.Uint160, id []byte, data interface{}) (*transaction.Transaction, error) {
+func (t *BaseWriter) TransferUnsigned(to util.Uint160, id []byte, data any) (*transaction.Transaction, error) {
 	script, err := t.transferScript(to, id, data)
 	if err != nil {
 		return nil, err
@@ -183,7 +183,7 @@ func (t *BaseWriter) TransferUnsigned(to util.Uint160, id []byte, data interface
 	return t.actor.MakeUnsignedRun(script, nil)
 }
 
-func (t *BaseWriter) transferScript(params ...interface{}) ([]byte, error) {
+func (t *BaseWriter) transferScript(params ...any) ([]byte, error) {
 	return smartcontract.CreateCallWithAssertScript(t.hash, "transfer", params...)
 }
 

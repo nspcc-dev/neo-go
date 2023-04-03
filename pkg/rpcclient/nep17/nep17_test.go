@@ -20,7 +20,7 @@ type testAct struct {
 	vub uint32
 }
 
-func (t *testAct) Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error) {
+func (t *testAct) Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error) {
 	return t.res, t.err
 }
 func (t *testAct) MakeRun(script []byte) (*transaction.Transaction, error) {
@@ -66,9 +66,9 @@ func TestTokenTransfer(t *testing.T) {
 	ta := new(testAct)
 	tok := New(ta, util.Uint160{1, 2, 3})
 
-	for name, fun := range map[string]func(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (util.Uint256, uint32, error){
+	for name, fun := range map[string]func(from util.Uint160, to util.Uint160, amount *big.Int, data any) (util.Uint256, uint32, error){
 		"Tranfer": tok.Transfer,
-		"MultiTransfer": func(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (util.Uint256, uint32, error) {
+		"MultiTransfer": func(from util.Uint160, to util.Uint160, amount *big.Int, data any) (util.Uint256, uint32, error) {
 			return tok.MultiTransfer([]TransferParameters{{from, to, amount, data}, {from, to, amount, data}})
 		},
 	} {
@@ -99,13 +99,13 @@ func TestTokenTransferTransaction(t *testing.T) {
 	ta := new(testAct)
 	tok := New(ta, util.Uint160{1, 2, 3})
 
-	for name, fun := range map[string]func(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error){
+	for name, fun := range map[string]func(from util.Uint160, to util.Uint160, amount *big.Int, data any) (*transaction.Transaction, error){
 		"TransferTransaction": tok.TransferTransaction,
 		"TransferUnsigned":    tok.TransferUnsigned,
-		"MultiTransferTransaction": func(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
+		"MultiTransferTransaction": func(from util.Uint160, to util.Uint160, amount *big.Int, data any) (*transaction.Transaction, error) {
 			return tok.MultiTransferTransaction([]TransferParameters{{from, to, amount, data}, {from, to, amount, data}})
 		},
-		"MultiTransferUnsigned": func(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
+		"MultiTransferUnsigned": func(from util.Uint160, to util.Uint160, amount *big.Int, data any) (*transaction.Transaction, error) {
 			return tok.MultiTransferUnsigned([]TransferParameters{{from, to, amount, data}, {from, to, amount, data}})
 		},
 	} {

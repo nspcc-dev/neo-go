@@ -11,7 +11,7 @@ import (
 // (20 bytes in BE form) using the provided arguments and call flags. It fails
 // if the contract has version mismatch. It returns whatever this contract
 // returns. This function uses `System.Contract.Call` syscall.
-func CallWithVersion(scriptHash interop.Hash160, version int, method string, f contract.CallFlag, args ...interface{}) interface{} {
+func CallWithVersion(scriptHash interop.Hash160, version int, method string, f contract.CallFlag, args ...any) any {
 	cs := management.GetContract(scriptHash)
 	if cs == nil {
 		panic("unknown contract")

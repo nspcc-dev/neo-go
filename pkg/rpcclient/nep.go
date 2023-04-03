@@ -25,7 +25,7 @@ func (c *Client) nepTotalSupply(tokenHash util.Uint160) (int64, error) {
 
 // nepBalanceOf invokes `balanceOf` NEP* method on the specified contract.
 func (c *Client) nepBalanceOf(tokenHash, acc util.Uint160, tokenID []byte) (int64, error) {
-	params := []interface{}{acc}
+	params := []any{acc}
 	if tokenID != nil {
 		params = append(params, tokenID)
 	}

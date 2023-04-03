@@ -2298,7 +2298,7 @@ func testSubClientWaitWithMissedEvent(t *testing.T, local bool) {
 	overNotification := neorpc.Notification{
 		JSONRPC: neorpc.JSONRPCVersion,
 		Event:   neorpc.MissedEventID,
-		Payload: make([]interface{}, 0),
+		Payload: make([]any, 0),
 	}
 	overEvent, err := json.Marshal(overNotification)
 	require.NoError(t, err)

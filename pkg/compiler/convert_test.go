@@ -16,7 +16,7 @@ import (
 type convertTestCase struct {
 	returnType string
 	argValue   string
-	result     interface{}
+	result     any
 }
 
 func getFunctionName(typ string) string {
@@ -85,7 +85,7 @@ func TestTypeAssertion(t *testing.T) {
 		src := `package foo
 				func Main() int {
 					a := []byte{1}
-					var u interface{}
+					var u any
 					u = a
 					return u.(int)
 				}`
@@ -95,7 +95,7 @@ func TestTypeAssertion(t *testing.T) {
 		src := `package foo
 				func Main() int {
 					a := []byte{1}
-					var u interface{}
+					var u any
 					u = a
 					var ret = u.(int)
 					return ret
@@ -106,7 +106,7 @@ func TestTypeAssertion(t *testing.T) {
 		src := `package foo
 				func Main() int {
 					a := []byte{1}
-					var u interface{}
+					var u any
 					u = a
 					var ret int
 					ret = u.(int)
@@ -118,7 +118,7 @@ func TestTypeAssertion(t *testing.T) {
 		src := `package foo
 				func Main() int {
 					a := []byte{1}
-					var u interface{}
+					var u any
 					u = a
 					ret := u.(int)
 					return ret
@@ -132,7 +132,7 @@ func TestTypeAssertionWithOK(t *testing.T) {
 		src := `package foo
 				func Main() bool {
 					a := 1
-					var u interface{}
+					var u any
 					u = a
 					var _, ok = u.(int)	//	*ast.GenDecl
 					return ok
@@ -145,7 +145,7 @@ func TestTypeAssertionWithOK(t *testing.T) {
 		src := `package foo
 				func Main() bool {
 					a := 1
-					var u interface{}
+					var u any
 					u = a
 					var ok bool
 					_, ok = u.(int)	// *ast.AssignStmt
@@ -159,7 +159,7 @@ func TestTypeAssertionWithOK(t *testing.T) {
 		src := `package foo
 				func Main() bool {
 					a := 1
-					var u interface{}
+					var u any
 					u = a
 					_, ok := u.(int)	// *ast.AssignStmt
 					return ok
@@ -231,7 +231,7 @@ func TestInterfaceTypeConversion(t *testing.T) {
 	src := `package foo
 	func Main() int {
 		a := 1
-		b := interface{}(a).(int)
+		b := any(a).(int)
 		return b
 	}`
 	eval(t, src, big.NewInt(1))

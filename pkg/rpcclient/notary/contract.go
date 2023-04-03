@@ -27,18 +27,18 @@ const (
 
 // ContractInvoker is used by ContractReader to perform read-only calls.
 type ContractInvoker interface {
-	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
 }
 
 // ContractActor is used by Contract to create and send transactions.
 type ContractActor interface {
 	ContractInvoker
 
-	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
+	MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error)
 	MakeRun(script []byte) (*transaction.Transaction, error)
-	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error)
+	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...any) (*transaction.Transaction, error)
 	MakeUnsignedRun(script []byte, attrs []transaction.Attribute) (*transaction.Transaction, error)
-	SendCall(contract util.Uint160, method string, params ...interface{}) (util.Uint256, uint32, error)
+	SendCall(contract util.Uint160, method string, params ...any) (util.Uint256, uint32, error)
 	SendRun(script []byte) (util.Uint256, uint32, error)
 }
 

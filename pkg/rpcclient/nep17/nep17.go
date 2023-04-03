@@ -63,7 +63,7 @@ type TransferParameters struct {
 	From   util.Uint160
 	To     util.Uint160
 	Amount *big.Int
-	Data   interface{}
+	Data   any
 }
 
 // NewReader creates an instance of TokenReader for contract with the given
@@ -82,7 +82,7 @@ func New(actor Actor, hash util.Uint160) *Token {
 // call using the given parameters and checks for this call result, failing the
 // transaction if it's not true. The returned values are transaction hash, its
 // ValidUntilBlock value and an error if any.
-func (t *TokenWriter) Transfer(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (util.Uint256, uint32, error) {
+func (t *TokenWriter) Transfer(from util.Uint160, to util.Uint160, amount *big.Int, data any) (util.Uint256, uint32, error) {
 	return t.MultiTransfer([]TransferParameters{{from, to, amount, data}})
 }
 
@@ -90,7 +90,7 @@ func (t *TokenWriter) Transfer(from util.Uint160, to util.Uint160, amount *big.I
 // call using the given parameters and checks for this call result, failing the
 // transaction if it's not true. This transaction is signed, but not sent to the
 // network, instead it's returned to the caller.
-func (t *TokenWriter) TransferTransaction(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
+func (t *TokenWriter) TransferTransaction(from util.Uint160, to util.Uint160, amount *big.Int, data any) (*transaction.Transaction, error) {
 	return t.MultiTransferTransaction([]TransferParameters{{from, to, amount, data}})
 }
 
@@ -98,7 +98,7 @@ func (t *TokenWriter) TransferTransaction(from util.Uint160, to util.Uint160, am
 // call using the given parameters and checks for this call result, failing the
 // transaction if it's not true. This transaction is not signed and just returned
 // to the caller.
-func (t *TokenWriter) TransferUnsigned(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
+func (t *TokenWriter) TransferUnsigned(from util.Uint160, to util.Uint160, amount *big.Int, data any) (*transaction.Transaction, error) {
 	return t.MultiTransferUnsigned([]TransferParameters{{from, to, amount, data}})
 }
 

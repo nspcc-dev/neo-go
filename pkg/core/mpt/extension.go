@@ -80,7 +80,7 @@ func (e *ExtensionNode) Size() int {
 
 // MarshalJSON implements the json.Marshaler.
 func (e *ExtensionNode) MarshalJSON() ([]byte, error) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"key":  hex.EncodeToString(e.key),
 		"next": e.next,
 	}

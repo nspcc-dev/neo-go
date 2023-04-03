@@ -41,7 +41,7 @@ var pathToInternalContracts = filepath.Join("..", "..", "..", "internal", "contr
 
 func putOracleRequest(t *testing.T, oracleValidatorInvoker *neotest.ContractInvoker,
 	url string, filter *string, cb string, userData []byte, gas int64) util.Uint256 {
-	var filtItem interface{}
+	var filtItem any
 	if filter != nil {
 		filtItem = *filter
 	}
@@ -153,7 +153,7 @@ func TestOracle(t *testing.T) {
 	oracleNodes := keys.PublicKeys{acc1.PublicKey(), acc2.PrivateKey().PublicKey()}
 	// Must be set in native contract for tx verification.
 	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-		int64(roles.Oracle), []interface{}{oracleNodes[0].Bytes(), oracleNodes[1].Bytes()})
+		int64(roles.Oracle), []any{oracleNodes[0].Bytes(), oracleNodes[1].Bytes()})
 	orc1.UpdateOracleNodes(oracleNodes.Copy())
 	orc2.UpdateOracleNodes(oracleNodes.Copy())
 
@@ -357,7 +357,7 @@ func TestOracleFull(t *testing.T) {
 	})
 
 	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-		int64(roles.Oracle), []interface{}{acc.PublicKey().Bytes()})
+		int64(roles.Oracle), []any{acc.PublicKey().Bytes()})
 
 	cs := contracts.GetOracleContractState(t, pathToInternalContracts, validator.ScriptHash(), 0)
 	e.DeployContract(t, &neotest.Contract{
@@ -391,7 +391,7 @@ func TestNotYetRunningOracle(t *testing.T) {
 	t.Cleanup(bc.Close)
 
 	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-		int64(roles.Oracle), []interface{}{acc.PublicKey().Bytes()})
+		int64(roles.Oracle), []any{acc.PublicKey().Bytes()})
 
 	var req state.OracleRequest
 	var reqs = make(map[uint64]*state.OracleRequest)

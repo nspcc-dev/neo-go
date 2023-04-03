@@ -76,7 +76,7 @@ func TestMemPoolRemoveStale(t *testing.T) {
 	}
 
 	staleTxs := make(chan *transaction.Transaction, 5)
-	f := func(tx *transaction.Transaction, _ interface{}) {
+	f := func(tx *transaction.Transaction, _ any) {
 		staleTxs <- tx
 	}
 	mp.SetResendThreshold(5, f)

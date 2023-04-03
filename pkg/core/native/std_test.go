@@ -306,7 +306,7 @@ func TestStdLibSerializeDeserialize(t *testing.T) {
 	ic := &interop.Context{VM: vm.New(), DAO: &dao.Simple{}}
 	var actual stackitem.Item
 
-	checkSerializeDeserialize := func(t *testing.T, value interface{}, expected stackitem.Item) {
+	checkSerializeDeserialize := func(t *testing.T, value any, expected stackitem.Item) {
 		require.NotPanics(t, func() {
 			actual = s.serialize(ic, []stackitem.Item{stackitem.Make(value)})
 		})
@@ -427,7 +427,7 @@ func TestMemorySearch(t *testing.T) {
 	s := newStd()
 	ic := &interop.Context{VM: vm.New()}
 
-	check := func(t *testing.T, result int64, args ...interface{}) {
+	check := func(t *testing.T, result int64, args ...any) {
 		items := make([]stackitem.Item, len(args))
 		for i := range args {
 			items[i] = stackitem.Make(args[i])
@@ -519,7 +519,7 @@ func TestStringSplit(t *testing.T) {
 	s := newStd()
 	ic := &interop.Context{VM: vm.New()}
 
-	check := func(t *testing.T, result []string, str, sep string, remove interface{}) {
+	check := func(t *testing.T, result []string, str, sep string, remove any) {
 		args := []stackitem.Item{stackitem.Make(str), stackitem.Make(sep)}
 		var actual stackitem.Item
 		if remove == nil {

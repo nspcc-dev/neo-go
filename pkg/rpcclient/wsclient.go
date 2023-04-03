@@ -79,7 +79,7 @@ type WSClient struct {
 	// It must be accessed with subscriptionsLock taken. Its keys must be used to deliver
 	// notifications, if channel is not in the receivers list and corresponding subscription
 	// still exists, notification must not be sent.
-	receivers map[interface{}][]string
+	receivers map[any][]string
 
 	respLock     sync.RWMutex
 	respChannels map[uint64]chan *neorpc.Response
@@ -91,7 +91,7 @@ type notificationReceiver interface {
 	// Comparator provides notification filtering functionality.
 	rpcevent.Comparator
 	// Receiver returns notification receiver channel.
-	Receiver() interface{}
+	Receiver() any
 	// TrySend checks whether notification passes receiver filter and sends it
 	// to the underlying channel if so.
 	TrySend(ntf Notification) bool
@@ -111,7 +111,7 @@ func (r *blockReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *blockReceiver) Filter() interface{} {
+func (r *blockReceiver) Filter() any {
 	if r.filter == nil {
 		return nil
 	}
@@ -119,7 +119,7 @@ func (r *blockReceiver) Filter() interface{} {
 }
 
 // Receiver implements notificationReceiver interface.
-func (r *blockReceiver) Receiver() interface{} {
+func (r *blockReceiver) Receiver() any {
 	return r.ch
 }
 
@@ -149,7 +149,7 @@ func (r *txReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *txReceiver) Filter() interface{} {
+func (r *txReceiver) Filter() any {
 	if r.filter == nil {
 		return nil
 	}
@@ -157,7 +157,7 @@ func (r *txReceiver) Filter() interface{} {
 }
 
 // Receiver implements notificationReceiver interface.
-func (r *txReceiver) Receiver() interface{} {
+func (r *txReceiver) Receiver() any {
 	return r.ch
 }
 
@@ -187,7 +187,7 @@ func (r *executionNotificationReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *executionNotificationReceiver) Filter() interface{} {
+func (r *executionNotificationReceiver) Filter() any {
 	if r.filter == nil {
 		return nil
 	}
@@ -195,7 +195,7 @@ func (r *executionNotificationReceiver) Filter() interface{} {
 }
 
 // Receiver implements notificationReceiver interface.
-func (r *executionNotificationReceiver) Receiver() interface{} {
+func (r *executionNotificationReceiver) Receiver() any {
 	return r.ch
 }
 
@@ -225,7 +225,7 @@ func (r *executionReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *executionReceiver) Filter() interface{} {
+func (r *executionReceiver) Filter() any {
 	if r.filter == nil {
 		return nil
 	}
@@ -233,7 +233,7 @@ func (r *executionReceiver) Filter() interface{} {
 }
 
 // Receiver implements notificationReceiver interface.
-func (r *executionReceiver) Receiver() interface{} {
+func (r *executionReceiver) Receiver() any {
 	return r.ch
 }
 
@@ -263,7 +263,7 @@ func (r *notaryRequestReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *notaryRequestReceiver) Filter() interface{} {
+func (r *notaryRequestReceiver) Filter() any {
 	if r.filter == nil {
 		return nil
 	}
@@ -271,7 +271,7 @@ func (r *notaryRequestReceiver) Filter() interface{} {
 }
 
 // Receiver implements notificationReceiver interface.
-func (r *notaryRequestReceiver) Receiver() interface{} {
+func (r *notaryRequestReceiver) Receiver() any {
 	return r.ch
 }
 
@@ -295,7 +295,7 @@ func (r *notaryRequestReceiver) Close() {
 // Deprecated: this receiver must be removed after outdated subscriptions API removal.
 type naiveReceiver struct {
 	eventID neorpc.EventID
-	filter  interface{}
+	filter  any
 	ch      chan<- Notification
 }
 
@@ -305,12 +305,12 @@ func (r *naiveReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *naiveReceiver) Filter() interface{} {
+func (r *naiveReceiver) Filter() any {
 	return r.filter
 }
 
 // Receiver implements notificationReceiver interface.
-func (r *naiveReceiver) Receiver() interface{} {
+func (r *naiveReceiver) Receiver() any {
 	return r.ch
 }
 
@@ -335,7 +335,7 @@ func (r *naiveReceiver) Close() {
 // *transaction.Transaction or *subscriptions.NotaryRequestEvent based on Type.
 type Notification struct {
 	Type  neorpc.EventID
-	Value interface{}
+	Value any
 }
 
 // EventID implements Container interface and returns notification ID.
@@ -345,7 +345,7 @@ func (n Notification) EventID() neorpc.EventID {
 
 // EventPayload implements Container interface and returns notification
 // object.
-func (n Notification) EventPayload() interface{} {
+func (n Notification) EventPayload() any {
 	return n.Value
 }
 
@@ -410,7 +410,7 @@ func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error
 		respChannels:  make(map[uint64]chan *neorpc.Response),
 		requests:      make(chan *neorpc.Request),
 		subscriptions: make(map[string]notificationReceiver),
-		receivers:     make(map[interface{}][]string),
+		receivers:     make(map[any][]string),
 	}
 
 	err = initClient(ctx, &wsc.Client, endpoint, opts)
@@ -644,7 +644,7 @@ func (c *WSClient) makeWsRequest(r *neorpc.Request) (*neorpc.Response, error) {
 	}
 }
 
-func (c *WSClient) performSubscription(params []interface{}, rcvr notificationReceiver) (string, error) {
+func (c *WSClient) performSubscription(params []any, rcvr notificationReceiver) (string, error) {
 	var resp string
 
 	if err := c.performRequest("subscribe", params, &resp); err != nil {
@@ -666,12 +666,12 @@ func (c *WSClient) performSubscription(params []interface{}, rcvr notificationRe
 //
 // Deprecated: please, use ReceiveBlocks. This method will be removed in future versions.
 func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
-	var flt interface{}
+	var flt any
 	if primary != nil {
 		var f = neorpc.BlockFilter{Primary: primary}
 		flt = *f.Copy()
 	}
-	params := []interface{}{"block_added"}
+	params := []any{"block_added"}
 	if flt != nil {
 		params = append(params, flt)
 	}
@@ -690,7 +690,7 @@ func (c *WSClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Blo
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
 	}
-	params := []interface{}{"block_added"}
+	params := []any{"block_added"}
 	if flt != nil {
 		flt = flt.Copy()
 		params = append(params, *flt)
@@ -708,12 +708,12 @@ func (c *WSClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Blo
 //
 // Deprecated: please, use ReceiveTransactions. This method will be removed in future versions.
 func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, signer *util.Uint160) (string, error) {
-	var flt interface{}
+	var flt any
 	if sender != nil || signer != nil {
 		var f = neorpc.TxFilter{Sender: sender, Signer: signer}
 		flt = *f.Copy()
 	}
-	params := []interface{}{"transaction_added"}
+	params := []any{"transaction_added"}
 	if flt != nil {
 		params = append(params, flt)
 	}
@@ -732,7 +732,7 @@ func (c *WSClient) ReceiveTransactions(flt *neorpc.TxFilter, rcvr chan<- *transa
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
 	}
-	params := []interface{}{"transaction_added"}
+	params := []any{"transaction_added"}
 	if flt != nil {
 		flt = flt.Copy()
 		params = append(params, *flt)
@@ -751,12 +751,12 @@ func (c *WSClient) ReceiveTransactions(flt *neorpc.TxFilter, rcvr chan<- *transa
 //
 // Deprecated: please, use ReceiveExecutionNotifications. This method will be removed in future versions.
 func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160, name *string) (string, error) {
-	var flt interface{}
+	var flt any
 	if contract != nil || name != nil {
 		var f = neorpc.NotificationFilter{Contract: contract, Name: name}
 		flt = *f.Copy()
 	}
-	params := []interface{}{"notification_from_execution"}
+	params := []any{"notification_from_execution"}
 	if flt != nil {
 		params = append(params, flt)
 	}
@@ -775,7 +775,7 @@ func (c *WSClient) ReceiveExecutionNotifications(flt *neorpc.NotificationFilter,
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
 	}
-	params := []interface{}{"notification_from_execution"}
+	params := []any{"notification_from_execution"}
 	if flt != nil {
 		flt = flt.Copy()
 		params = append(params, *flt)
@@ -794,7 +794,7 @@ func (c *WSClient) ReceiveExecutionNotifications(flt *neorpc.NotificationFilter,
 //
 // Deprecated: please, use ReceiveExecutions. This method will be removed in future versions.
 func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, error) {
-	var flt interface{}
+	var flt any
 	if state != nil {
 		if *state != "HALT" && *state != "FAULT" {
 			return "", errors.New("bad state parameter")
@@ -802,7 +802,7 @@ func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, err
 		var f = neorpc.ExecutionFilter{State: state}
 		flt = *f.Copy()
 	}
-	params := []interface{}{"transaction_executed"}
+	params := []any{"transaction_executed"}
 	if flt != nil {
 		params = append(params, flt)
 	}
@@ -822,7 +822,7 @@ func (c *WSClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *s
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
 	}
-	params := []interface{}{"transaction_executed"}
+	params := []any{"transaction_executed"}
 	if flt != nil {
 		if flt.State != nil {
 			if *flt.State != "HALT" && *flt.State != "FAULT" {
@@ -846,12 +846,12 @@ func (c *WSClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *s
 //
 // Deprecated: please, use ReceiveNotaryRequests. This method will be removed in future versions.
 func (c *WSClient) SubscribeForNotaryRequests(sender *util.Uint160, mainSigner *util.Uint160) (string, error) {
-	var flt interface{}
+	var flt any
 	if sender != nil || mainSigner != nil {
 		var f = neorpc.TxFilter{Sender: sender, Signer: mainSigner}
 		flt = *f.Copy()
 	}
-	params := []interface{}{"notary_request_event"}
+	params := []any{"notary_request_event"}
 	if flt != nil {
 		params = append(params, flt)
 	}
@@ -872,7 +872,7 @@ func (c *WSClient) ReceiveNotaryRequests(flt *neorpc.TxFilter, rcvr chan<- *resu
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
 	}
-	params := []interface{}{"notary_request_event"}
+	params := []any{"notary_request_event"}
 	if flt != nil {
 		flt = flt.Copy()
 		params = append(params, *flt)
@@ -918,10 +918,10 @@ func (c *WSClient) UnsubscribeAll() error {
 		err := c.performUnsubscription(id)
 		if err != nil {
 			errFmt := "failed to unsubscribe from feed %d: %v"
-			errArgs := []interface{}{err}
+			errArgs := []any{err}
 			if resErr != nil {
 				errFmt = "%w; " + errFmt
-				errArgs = append([]interface{}{resErr}, errArgs...)
+				errArgs = append([]any{resErr}, errArgs...)
 			}
 			resErr = fmt.Errorf(errFmt, errArgs...)
 		}
@@ -935,7 +935,7 @@ func (c *WSClient) UnsubscribeAll() error {
 // may still receive WS notifications.
 func (c *WSClient) performUnsubscription(id string) error {
 	var resp bool
-	if err := c.performRequest("unsubscribe", []interface{}{id}, &resp); err != nil {
+	if err := c.performRequest("unsubscribe", []any{id}, &resp); err != nil {
 		return err
 	}
 	if !resp {

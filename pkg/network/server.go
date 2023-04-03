@@ -73,7 +73,7 @@ type (
 		HeaderHeight() uint32
 		P2PSigExtensionsEnabled() bool
 		PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
-		PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data interface{}) error) error
+		PoolTxWithData(t *transaction.Transaction, data any, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data any) error) error
 		RegisterPostBlock(f func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block))
 		SubscribeForBlocks(ch chan *block.Block)
 		UnsubscribeFromBlocks(ch chan *block.Block)
@@ -1189,7 +1189,7 @@ func (s *Server) verifyAndPoolNotaryRequest(r *payload.P2PNotaryRequest) error {
 }
 
 // verifyNotaryRequest is a function for state-dependant P2PNotaryRequest payload verification which is executed before ordinary blockchain's verification.
-func (s *Server) verifyNotaryRequest(_ *transaction.Transaction, data interface{}) error {
+func (s *Server) verifyNotaryRequest(_ *transaction.Transaction, data any) error {
 	r := data.(*payload.P2PNotaryRequest)
 	payer := r.FallbackTransaction.Signers[1].Account
 	if _, err := s.chain.VerifyWitness(payer, r, &r.Witness, s.chain.GetMaxVerificationGAS()); err != nil {
@@ -1206,7 +1206,7 @@ func (s *Server) verifyNotaryRequest(_ *transaction.Transaction, data interface{
 	return nil
 }
 
-func (s *Server) broadcastP2PNotaryRequestPayload(_ *transaction.Transaction, data interface{}) {
+func (s *Server) broadcastP2PNotaryRequestPayload(_ *transaction.Transaction, data any) {
 	r := data.(*payload.P2PNotaryRequest) // we can guarantee that cast is successful
 	msg := NewMessage(CMDInv, payload.NewInventory(payload.P2PNotaryRequestType, []util.Uint256{r.FallbackTransaction.Hash()}))
 	s.broadcastMessage(msg)
@@ -1592,7 +1592,7 @@ func (s *Server) RelayTxn(t *transaction.Transaction) error {
 }
 
 // broadcastTX broadcasts an inventory message about new transaction.
-func (s *Server) broadcastTX(t *transaction.Transaction, _ interface{}) {
+func (s *Server) broadcastTX(t *transaction.Transaction, _ any) {
 	select {
 	case s.transactions <- t:
 	case <-s.quit:

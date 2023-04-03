@@ -181,9 +181,9 @@ func (c *Client) Close() {
 	c.cli.CloseIdleConnections()
 }
 
-func (c *Client) performRequest(method string, p []interface{}, v interface{}) error {
+func (c *Client) performRequest(method string, p []any, v any) error {
 	if p == nil {
-		p = []interface{}{} // neo-project/neo-modules#742
+		p = []any{} // neo-project/neo-modules#742
 	}
 	var r = neorpc.Request{
 		JSONRPC: neorpc.JSONRPCVersion,

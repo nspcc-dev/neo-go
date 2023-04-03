@@ -19,6 +19,6 @@ func (n *NotaryAssisted) EncodeBinary(w *io.BinWriter) {
 	w.WriteB(n.NKeys)
 }
 
-func (n *NotaryAssisted) toJSONMap(m map[string]interface{}) {
+func (n *NotaryAssisted) toJSONMap(m map[string]any) {
 	m["nkeys"] = n.NKeys
 }

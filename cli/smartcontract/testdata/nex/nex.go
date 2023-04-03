@@ -24,11 +24,11 @@ type Actor interface {
 
 	nep17.Actor
 
-	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
+	MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error)
 	MakeRun(script []byte) (*transaction.Transaction, error)
-	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error)
+	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...any) (*transaction.Transaction, error)
 	MakeUnsignedRun(script []byte, attrs []transaction.Attribute) (*transaction.Transaction, error)
-	SendCall(contract util.Uint160, method string, params ...interface{}) (util.Uint256, uint32, error)
+	SendCall(contract util.Uint160, method string, params ...any) (util.Uint256, uint32, error)
 	SendRun(script []byte) (util.Uint256, uint32, error)
 }
 
@@ -168,14 +168,14 @@ func (c *Contract) MaxSupplyUnsigned() (*transaction.Transaction, error) {
 // Mint creates a transaction invoking `mint` method of the contract.
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
-func (c *Contract) Mint(from util.Uint160, to util.Uint160, amount *big.Int, swapId *big.Int, signature []byte, data interface{}) (util.Uint256, uint32, error) {
+func (c *Contract) Mint(from util.Uint160, to util.Uint160, amount *big.Int, swapId *big.Int, signature []byte, data any) (util.Uint256, uint32, error) {
 	return c.actor.SendCall(Hash, "mint", from, to, amount, swapId, signature, data)
 }
 
 // MintTransaction creates a transaction invoking `mint` method of the contract.
 // This transaction is signed, but not sent to the network, instead it's
 // returned to the caller.
-func (c *Contract) MintTransaction(from util.Uint160, to util.Uint160, amount *big.Int, swapId *big.Int, signature []byte, data interface{}) (*transaction.Transaction, error) {
+func (c *Contract) MintTransaction(from util.Uint160, to util.Uint160, amount *big.Int, swapId *big.Int, signature []byte, data any) (*transaction.Transaction, error) {
 	return c.actor.MakeCall(Hash, "mint", from, to, amount, swapId, signature, data)
 }
 
@@ -183,7 +183,7 @@ func (c *Contract) MintTransaction(from util.Uint160, to util.Uint160, amount *b
 // This transaction is not signed, it's simply returned to the caller.
 // Any fields of it that do not affect fees can be changed (ValidUntilBlock,
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
-func (c *Contract) MintUnsigned(from util.Uint160, to util.Uint160, amount *big.Int, swapId *big.Int, signature []byte, data interface{}) (*transaction.Transaction, error) {
+func (c *Contract) MintUnsigned(from util.Uint160, to util.Uint160, amount *big.Int, swapId *big.Int, signature []byte, data any) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, "mint", nil, from, to, amount, swapId, signature, data)
 }
 

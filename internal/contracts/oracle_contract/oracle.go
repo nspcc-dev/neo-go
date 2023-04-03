@@ -12,22 +12,22 @@ import (
 
 // RequestURL accepts a complete set of parameters to make an oracle request and
 // performs it.
-func RequestURL(url string, filter []byte, callback string, userData interface{}, gasForResponse int) {
+func RequestURL(url string, filter []byte, callback string, userData any, gasForResponse int) {
 	oracle.Request(url, filter, callback, userData, gasForResponse)
 }
 
 // Handle is a response handler that writes response data to the storage.
-func Handle(url string, data interface{}, code int, res []byte) {
+func Handle(url string, data any, code int, res []byte) {
 	// ABORT if len(data) == 2, some tests use this feature.
 	if data != nil && len(data.(string)) == 2 {
 		util.Abort()
 	}
-	params := []interface{}{url, data, code, res}
+	params := []any{url, data, code, res}
 	storage.Put(storage.GetContext(), "lastOracleResponse", std.Serialize(params))
 }
 
 // HandleRecursive invokes oracle.finish again to test Oracle reentrance.
-func HandleRecursive(url string, data interface{}, code int, res []byte) {
+func HandleRecursive(url string, data any, code int, res []byte) {
 	// Regular safety check.
 	callingHash := runtime.GetCallingScriptHash()
 	if !callingHash.Equals(oracle.Hash) {

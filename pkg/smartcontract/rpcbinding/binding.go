@@ -121,9 +121,9 @@ type Invoker interface {
 {{if or .IsNep11D .IsNep11ND}}	nep11.Invoker
 {{else -}}
 {{ if .IsNep17}}	nep17.Invoker
-{{else if len .SafeMethods}}	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+{{else if len .SafeMethods}}	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
 {{end -}}
-{{if .HasIterator}}	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...interface{}) (*result.Invoke, error)
+{{if .HasIterator}}	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...any) (*result.Invoke, error)
 	TerminateSession(sessionID uuid.UUID) error
 	TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error)
 {{end -}}
@@ -142,11 +142,11 @@ type Actor interface {
 	nep17.Actor
 {{end}}
 {{- if len .Methods}}
-	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
+	MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error)
 	MakeRun(script []byte) (*transaction.Transaction, error)
-	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error)
+	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...any) (*transaction.Transaction, error)
 	MakeUnsignedRun(script []byte, attrs []transaction.Attribute) (*transaction.Transaction, error)
-	SendCall(contract util.Uint160, method string, params ...interface{}) (util.Uint256, uint32, error)
+	SendCall(contract util.Uint160, method string, params ...any) (util.Uint256, uint32, error)
 	SendRun(script []byte) (util.Uint256, uint32, error)
 {{end -}}
 }
@@ -358,7 +358,7 @@ func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.
 func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.ExtendedType) (string, string) {
 	switch et.Base {
 	case smartcontract.AnyType:
-		return "interface{}", ""
+		return "any", ""
 	case smartcontract.BoolType:
 		return "bool", ""
 	case smartcontract.IntegerType:
@@ -385,14 +385,14 @@ func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.Extended
 			sub, pkg := extendedTypeToGo(*et.Value, named)
 			return "[]" + sub, pkg
 		}
-		return "[]interface{}", ""
+		return "[]any", ""
 
 	case smartcontract.MapType:
 		kt, _ := extendedTypeToGo(binding.ExtendedType{Base: et.Key}, named)
 		vt, _ := extendedTypeToGo(*et.Value, named)
 		return "map[" + kt + "]" + vt, "github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	case smartcontract.InteropInterfaceType:
-		return "interface{}", ""
+		return "any", ""
 	case smartcontract.VoidType:
 		return "", ""
 	}
@@ -554,7 +554,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 
 	for i := range ctr.SafeMethods {
 		switch ctr.SafeMethods[i].ReturnType {
-		case "interface{}":
+		case "any":
 			abim := cfg.Manifest.ABI.GetMethod(ctr.SafeMethods[i].NameABI, len(ctr.SafeMethods[i].Arguments))
 			if abim.ReturnType == smartcontract.InteropInterfaceType {
 				imports["github.com/google/uuid"] = struct{}{}
@@ -565,7 +565,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 				ctr.HasIterator = true
 			} else {
 				imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
-				ctr.SafeMethods[i].ReturnType = "interface{}"
+				ctr.SafeMethods[i].ReturnType = "any"
 				ctr.SafeMethods[i].Unwrapper = "Item"
 			}
 		case "bool":
@@ -582,7 +582,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 			ctr.SafeMethods[i].Unwrapper = "PublicKey"
 		case "[]byte":
 			ctr.SafeMethods[i].Unwrapper = "Bytes"
-		case "[]interface{}":
+		case "[]any":
 			imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
 			ctr.SafeMethods[i].ReturnType = "[]stackitem.Item"
 			ctr.SafeMethods[i].Unwrapper = "Array"

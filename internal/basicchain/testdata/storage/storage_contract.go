@@ -16,7 +16,7 @@ const valuesCount = 255
 // valuesPrefix is the prefix values are stored by.
 var valuesPrefix = []byte{0x01}
 
-func _deploy(data interface{}, isUpdate bool) {
+func _deploy(data any, isUpdate bool) {
 	if !isUpdate {
 		ctx := storage.GetContext()
 		for i := 0; i < valuesCount; i++ {

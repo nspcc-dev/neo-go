@@ -16,7 +16,7 @@ type testInv struct {
 	res *result.Invoke
 }
 
-func (t *testInv) Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error) {
+func (t *testInv) Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error) {
 	return t.res, t.err
 }
 

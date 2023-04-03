@@ -19,7 +19,7 @@ const (
 	permMethodKey = "methods"
 )
 
-func (p permission) MarshalYAML() (interface{}, error) {
+func (p permission) MarshalYAML() (any, error) {
 	m := yaml.Node{Kind: yaml.MappingNode}
 	switch p.Contract.Type {
 	case manifest.PermissionWildcard:
@@ -36,7 +36,7 @@ func (p permission) MarshalYAML() (interface{}, error) {
 		return nil, fmt.Errorf("invalid permission type: %d", p.Contract.Type)
 	}
 
-	var val interface{} = "*"
+	var val any = "*"
 	if !p.Methods.IsWildcard() {
 		val = p.Methods.Value
 	}
@@ -53,8 +53,8 @@ func (p permission) MarshalYAML() (interface{}, error) {
 	return m, nil
 }
 
-func (p *permission) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var m map[string]interface{}
+func (p *permission) UnmarshalYAML(unmarshal func(any) error) error {
+	var m map[string]any
 	if err := unmarshal(&m); err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (p *permission) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return p.fillMethods(m)
 }
 
-func (p *permission) fillType(m map[string]interface{}) error {
+func (p *permission) fillType(m map[string]any) error {
 	vh, ok1 := m[permHashKey]
 	vg, ok2 := m[permGroupKey]
 	switch {
@@ -104,7 +104,7 @@ func (p *permission) fillType(m map[string]interface{}) error {
 	return nil
 }
 
-func (p *permission) fillMethods(m map[string]interface{}) error {
+func (p *permission) fillMethods(m map[string]any) error {
 	methods, ok := m[permMethodKey]
 	if !ok {
 		return errors.New("'methods' field is missing from permission")
@@ -116,7 +116,7 @@ func (p *permission) fillMethods(m map[string]interface{}) error {
 			p.Methods.Value = nil
 			return nil
 		}
-	case []interface{}:
+	case []any:
 		ms := make([]string, len(mt))
 		for i := range mt {
 			ms[i], ok = mt[i].(string)

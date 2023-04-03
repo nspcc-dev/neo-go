@@ -34,7 +34,7 @@ func BalanceOf(addr interop.Hash160) int {
 }
 
 // Transfer represents `transfer` method of GAS native contract.
-func Transfer(from, to interop.Hash160, amount int, data interface{}) bool {
+func Transfer(from, to interop.Hash160, amount int, data any) bool {
 	return neogointernal.CallWithToken(Hash, "transfer",
 		int(contract.All), from, to, amount, data).(bool)
 }

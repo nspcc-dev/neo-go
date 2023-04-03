@@ -10,7 +10,7 @@ import (
 )
 
 var makeStackItemTestCases = []struct {
-	input  interface{}
+	input  any
 	result Item
 }{
 	{
@@ -84,7 +84,7 @@ var makeStackItemTestCases = []struct {
 }
 
 var makeStackItemErrorCases = []struct {
-	input interface{}
+	input any
 }{
 	{
 		input: map[int]int{1: 2},

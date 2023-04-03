@@ -483,7 +483,7 @@ func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg
 		shell: ctl,
 	}
 
-	vmcli.shell.Metadata = map[string]interface{}{
+	vmcli.shell.Metadata = map[string]any{
 		chainKey:            chain,
 		chainCfgKey:         cfg,
 		icKey:               ic,

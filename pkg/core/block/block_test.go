@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func trim0x(value interface{}) string {
+func trim0x(value any) string {
 	s := value.(string)
 	return strings.TrimPrefix(s, "0x")
 }
@@ -42,15 +42,15 @@ func TestDecodeBlock1(t *testing.T) {
 	assert.Equal(t, trim0x(data["merkleroot"]), block.MerkleRoot.StringLE())
 	assert.Equal(t, trim0x(data["nextconsensus"]), address.Uint160ToString(block.NextConsensus))
 
-	scripts := data["witnesses"].([]interface{})
-	script := scripts[0].(map[string]interface{})
+	scripts := data["witnesses"].([]any)
+	script := scripts[0].(map[string]any)
 	assert.Equal(t, script["invocation"].(string), base64.StdEncoding.EncodeToString(block.Script.InvocationScript))
 	assert.Equal(t, script["verification"].(string), base64.StdEncoding.EncodeToString(block.Script.VerificationScript))
 
-	tx := data["tx"].([]interface{})
-	tx0 := tx[0].(map[string]interface{})
+	tx := data["tx"].([]any)
+	tx0 := tx[0].(map[string]any)
 	assert.Equal(t, len(tx), len(block.Transactions))
-	assert.Equal(t, len(tx0["attributes"].([]interface{})), len(block.Transactions[0].Attributes))
+	assert.Equal(t, len(tx0["attributes"].([]any)), len(block.Transactions[0].Attributes))
 }
 
 func TestTrimmedBlock(t *testing.T) {

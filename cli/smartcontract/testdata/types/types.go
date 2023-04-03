@@ -20,7 +20,7 @@ func String(s string) string {
 	return ""
 }
 
-func Any(a interface{}) interface{} {
+func Any(a any) any {
 	return nil
 }
 

@@ -36,14 +36,14 @@ type PublicKey []byte
 
 // Interface represents interop interface type which is needed for
 // transparent handling of VM-internal types (e.g. storage.Context).
-type Interface interface{}
+type Interface any
 
 // Equals compares Hash160 with the provided stackitem using EQUAL opcode.
 // The provided stackitem `b` must be either one of the primitive type (int,
 // bool, string, []byte) or derived from the primitive type, otherwise Equals
 // will fail on .(string) conversion.
-func (a Hash160) Equals(b interface{}) bool {
-	ha := interface{}(a)
+func (a Hash160) Equals(b any) bool {
+	ha := any(a)
 	return bytesEquals(ha, b)
 }
 
@@ -51,8 +51,8 @@ func (a Hash160) Equals(b interface{}) bool {
 // The provided stackitem `b` must be either one of the primitive type (int,
 // bool, string, []byte) or derived from the primitive type, otherwise Equals
 // will fail on .(string) conversion.
-func (a Hash256) Equals(b interface{}) bool {
-	ha := interface{}(a)
+func (a Hash256) Equals(b any) bool {
+	ha := any(a)
 	return bytesEquals(ha, b)
 }
 
@@ -60,8 +60,8 @@ func (a Hash256) Equals(b interface{}) bool {
 // The provided stackitem `b` must be either one of the primitive type (int,
 // bool, string, []byte) or derived from the primitive type, otherwise Equals
 // will fail on .(string) conversion.
-func (a PublicKey) Equals(b interface{}) bool {
-	ha := interface{}(a)
+func (a PublicKey) Equals(b any) bool {
+	ha := any(a)
 	return bytesEquals(ha, b)
 }
 
@@ -69,14 +69,14 @@ func (a PublicKey) Equals(b interface{}) bool {
 // The provided stackitem `b` must be either one of the primitive types (int,
 // bool, string, []byte) or derived from the primitive type, otherwise Equals
 // will fail on .(string) conversion.
-func (a Signature) Equals(b interface{}) bool {
-	ha := interface{}(a)
+func (a Signature) Equals(b any) bool {
+	ha := any(a)
 	return bytesEquals(ha, b)
 }
 
 // bytesEquals is an internal helper function allowed to compare types that can be
 // converted to ByteString.
-func bytesEquals(a interface{}, b interface{}) bool {
+func bytesEquals(a any, b any) bool {
 	return (a == nil && b == nil) ||
 		(a != nil && b != nil && neogointernal.Opcode2("EQUAL", a.(string), b.(string)).(bool))
 }

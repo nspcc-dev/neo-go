@@ -39,7 +39,7 @@ func TestTypeConstantSize(t *testing.T) {
 	src := `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/interop"
 	var a %T // type declaration is always ok
-	func Main() interface{} {
+	func Main() any {
 		return %#v
 	}`
 
@@ -532,7 +532,7 @@ func TestCallWithVersion(t *testing.T) {
 			"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 			util "github.com/nspcc-dev/neo-go/pkg/interop/lib/contract"
 		)
-		func CallWithVersion(hash interop.Hash160, version int, method string) interface{} {
+		func CallWithVersion(hash interop.Hash160, version int, method string) any {
 			return util.CallWithVersion(hash, version, method, contract.All)
 		}`
 	ctr := neotest.CompileSource(t, e.CommitteeHash, strings.NewReader(src), &compiler.Options{Name: "Helper"})
@@ -569,7 +569,7 @@ func TestForcedNotifyArgumentsConversion(t *testing.T) {
 			runtime.Notify("withoutEllipsis", arg0, arg1, arg2, arg3, arg4, 5, f(6))	// The fifth argument is basic literal.
 		}
 		func WithEllipsis() {
-			arg := []interface{}{0, 1, f(2), 3, 4, 5, 6}
+			arg := []any{0, 1, f(2), 3, 4, 5, 6}
 			runtime.Notify("withEllipsis", arg...)
 		}
 		func f(i int) int {

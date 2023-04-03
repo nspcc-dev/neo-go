@@ -34,7 +34,7 @@ func New(cfg config.OracleConfiguration, log *zap.Logger) *OracleBroadcaster {
 	}
 	for i := range cfg.Nodes {
 		r.Clients[cfg.Nodes[i]] = r.NewRPCClient(cfg.Nodes[i], (*rpcclient.Client).SubmitRawOracleResponse,
-			cfg.ResponseTimeout, make(chan []interface{}, defaultChanCapacity))
+			cfg.ResponseTimeout, make(chan []any, defaultChanCapacity))
 	}
 	return r
 }
@@ -44,7 +44,7 @@ func (r *OracleBroadcaster) SendResponse(priv *keys.PrivateKey, resp *transactio
 	pub := priv.PublicKey()
 	data := GetMessage(pub.Bytes(), resp.ID, txSig)
 	msgSig := priv.Sign(data)
-	params := []interface{}{
+	params := []any{
 		base64.StdEncoding.EncodeToString(pub.Bytes()),
 		resp.ID,
 		base64.StdEncoding.EncodeToString(txSig),

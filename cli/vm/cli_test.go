@@ -180,9 +180,9 @@ func (e *executor) checkError(t *testing.T, expectedErr error) {
 	require.True(t, strings.HasPrefix(line, expected), fmt.Errorf("expected `%s`, got `%s`", expected, line))
 }
 
-func (e *executor) checkStack(t *testing.T, items ...interface{}) {
+func (e *executor) checkStack(t *testing.T, items ...any) {
 	d := json.NewDecoder(e.out)
-	var actual interface{}
+	var actual any
 	require.NoError(t, d.Decode(&actual))
 	rawActual, err := json.Marshal(actual)
 	require.NoError(t, err)
@@ -210,7 +210,7 @@ func (e *executor) checkEvents(t *testing.T, isKeywordExpected bool, events ...s
 		e.checkNextLine(t, "Events:")
 	}
 	d := json.NewDecoder(e.out)
-	var actual interface{}
+	var actual any
 	require.NoError(t, d.Decode(&actual))
 	rawActual, err := json.Marshal(actual)
 	require.NoError(t, err)
@@ -249,9 +249,9 @@ func (e *executor) checkChange(t *testing.T, c storageChange) {
 	}
 }
 
-func (e *executor) checkSlot(t *testing.T, items ...interface{}) {
+func (e *executor) checkSlot(t *testing.T, items ...any) {
 	d := json.NewDecoder(e.out)
-	var actual interface{}
+	var actual any
 	require.NoError(t, d.Decode(&actual))
 	rawActual, err := json.Marshal(actual)
 	require.NoError(t, err)
@@ -532,7 +532,7 @@ func TestRunWithDifferentArguments(t *testing.T) {
 	func GetString(arg string) string {
 		return arg
 	}
-	func GetArr(arg []interface{}) []interface{}{
+	func GetArr(arg []any) []any{
 		return arg
 	}`
 
@@ -933,7 +933,7 @@ func TestEvents(t *testing.T) {
 	script := io.NewBufBinWriter()
 	h, err := e.cli.chain.GetContractScriptHash(2) // examples/runtime/runtime.go
 	require.NoError(t, err)
-	emit.AppCall(script.BinWriter, h, "notify", callflag.All, []interface{}{true, 5})
+	emit.AppCall(script.BinWriter, h, "notify", callflag.All, []any{true, 5})
 	e.runProg(t,
 		"loadhex "+hex.EncodeToString(script.Bytes()),
 		"run",

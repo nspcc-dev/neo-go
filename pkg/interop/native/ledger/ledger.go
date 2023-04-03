@@ -39,7 +39,7 @@ func CurrentIndex() int {
 }
 
 // GetBlock represents `getBlock` method of Ledger native contract.
-func GetBlock(indexOrHash interface{}) *Block {
+func GetBlock(indexOrHash any) *Block {
 	return neogointernal.CallWithToken(Hash, "getBlock", int(contract.ReadStates), indexOrHash).(*Block)
 }
 
@@ -54,7 +54,7 @@ func GetTransactionHeight(hash interop.Hash256) int {
 }
 
 // GetTransactionFromBlock represents `getTransactionFromBlock` method of Ledger native contract.
-func GetTransactionFromBlock(indexOrHash interface{}, txIndex int) *Transaction {
+func GetTransactionFromBlock(indexOrHash any, txIndex int) *Transaction {
 	return neogointernal.CallWithToken(Hash, "getTransactionFromBlock", int(contract.ReadStates),
 		indexOrHash, txIndex).(*Transaction)
 }

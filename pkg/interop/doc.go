@@ -14,6 +14,7 @@ correspond to smartcontract and VM types:
 	[]byte - ByteArray (Buffer in VM)
 	string - String (ByteString in VM)
 	(interface{})(nil) - Any
+	(any)(nil) - Any
 	non-byte slice - Array
 	map[K]V - map
 

@@ -22,7 +22,7 @@ type Element struct {
 
 // NewElement returns a new Element object, with its underlying value inferred
 // to the corresponding type.
-func NewElement(v interface{}) Element {
+func NewElement(v any) Element {
 	return Element{stackitem.Make(v)}
 }
 
@@ -32,7 +32,7 @@ func (e Element) Item() stackitem.Item {
 }
 
 // Value returns the value of the Item contained in the element.
-func (e Element) Value() interface{} {
+func (e Element) Value() any {
 	return e.value.Value()
 }
 
@@ -185,7 +185,7 @@ func (s *Stack) PushItem(i stackitem.Item) {
 
 // PushVal pushes the given value on the stack. It will infer the
 // underlying Item to its corresponding type.
-func (s *Stack) PushVal(v interface{}) {
+func (s *Stack) PushVal(v any) {
 	s.Push(NewElement(v))
 }
 

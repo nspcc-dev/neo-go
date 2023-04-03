@@ -171,7 +171,7 @@ func TestAdjustValToType(t *testing.T) {
 	var inouts = []struct {
 		typ ParamType
 		val string
-		out interface{}
+		out any
 		err bool
 	}{{
 		typ: SignatureType,

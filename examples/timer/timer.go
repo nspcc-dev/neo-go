@@ -25,7 +25,7 @@ func init() {
 	ctx = storage.GetContext()
 }
 
-func _deploy(_ interface{}, isUpdate bool) {
+func _deploy(_ any, isUpdate bool) {
 	if isUpdate {
 		ticksLeft := storage.Get(ctx, ticksKey).(int) + 1
 		storage.Put(ctx, ticksKey, ticksLeft)

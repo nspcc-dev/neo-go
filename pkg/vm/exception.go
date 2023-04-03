@@ -45,7 +45,7 @@ func (c *exceptionHandlingContext) String() string {
 }
 
 // Value implements the stackitem.Item interface.
-func (c *exceptionHandlingContext) Value() interface{} {
+func (c *exceptionHandlingContext) Value() any {
 	return c
 }
 

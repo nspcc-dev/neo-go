@@ -308,7 +308,7 @@ func scAndVMInteropTypeFromExpr(named *types.Named, isPointer bool) (smartcontra
 	}
 	return smartcontract.InteropInterfaceType,
 		stackitem.InteropT,
-		binding.Override{TypeName: "interface{}"},
+		binding.Override{TypeName: "any"},
 		&binding.ExtendedType{Base: smartcontract.InteropInterfaceType, Interface: "iterator"} // Temporarily all interops are iterators.
 }
 
@@ -318,7 +318,7 @@ func (c *codegen) scAndVMTypeFromExpr(typ ast.Expr, exts map[string]binding.Exte
 
 func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.ExtendedType) (smartcontract.ParamType, stackitem.Type, binding.Override, *binding.ExtendedType) {
 	if t == nil {
-		return smartcontract.AnyType, stackitem.AnyT, binding.Override{TypeName: "interface{}"}, nil
+		return smartcontract.AnyType, stackitem.AnyT, binding.Override{TypeName: "any"}, nil
 	}
 
 	var isPtr bool
@@ -357,7 +357,7 @@ func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.Exte
 			over.TypeName = "string"
 			return smartcontract.StringType, stackitem.ByteArrayT, over, nil
 		default:
-			over.TypeName = "interface{}"
+			over.TypeName = "any"
 			return smartcontract.AnyType, stackitem.AnyT, over, nil
 		}
 	case *types.Map:
@@ -412,7 +412,7 @@ func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.Exte
 		}
 		return smartcontract.ArrayType, stackitem.ArrayT, over, et
 	default:
-		over.TypeName = "interface{}"
+		over.TypeName = "any"
 		return smartcontract.AnyType, stackitem.AnyT, over, nil
 	}
 }

@@ -12,7 +12,7 @@ type (
 
 // FromAny allows to create Params for a slice of abstract values (by
 // JSON-marshaling them).
-func FromAny(arr []interface{}) (Params, error) {
+func FromAny(arr []any) (Params, error) {
 	var res Params
 	for i := range arr {
 		b, err := json.Marshal(arr[i])

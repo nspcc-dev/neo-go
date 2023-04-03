@@ -29,7 +29,7 @@ func (e EmptyNode) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements Node interface.
 func (e EmptyNode) UnmarshalJSON(bytes []byte) error {
-	var m map[string]interface{}
+	var m map[string]any
 	err := json.Unmarshal(bytes, &m)
 	if err != nil {
 		return err

@@ -141,7 +141,7 @@ func (u Uint160) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalYAML implements the YAML Unmarshaler interface.
-func (u *Uint160) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (u *Uint160) UnmarshalYAML(unmarshal func(any) error) error {
 	var s string
 
 	err := unmarshal(&s)
@@ -155,7 +155,7 @@ func (u *Uint160) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // MarshalYAML implements the YAML marshaller interface.
-func (u Uint160) MarshalYAML() (interface{}, error) {
+func (u Uint160) MarshalYAML() (any, error) {
 	return "0x" + u.StringLE(), nil
 }
 

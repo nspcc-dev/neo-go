@@ -36,7 +36,7 @@ func TestOracle_GetSetPriceCache(t *testing.T) {
 
 func putOracleRequest(t *testing.T, oracleInvoker *neotest.ContractInvoker,
 	url string, filter *string, cb string, userData []byte, gas int64, errStr ...string) {
-	var filtItem interface{}
+	var filtItem any
 	if filter != nil {
 		filtItem = *filter
 	}
@@ -71,7 +71,7 @@ func TestOracle_Request(t *testing.T) {
 
 	// Designate single Oracle node.
 	oracleNode := e.NewAccount(t)
-	designationCommitteeInvoker.Invoke(t, stackitem.Null{}, "designateAsRole", int(noderoles.Oracle), []interface{}{oracleNode.(neotest.SingleSigner).Account().PublicKey().Bytes()})
+	designationCommitteeInvoker.Invoke(t, stackitem.Null{}, "designateAsRole", int(noderoles.Oracle), []any{oracleNode.(neotest.SingleSigner).Account().PublicKey().Bytes()})
 	err = oracleNode.(neotest.SingleSigner).Account().ConvertMultisig(1, []*keys.PublicKey{oracleNode.(neotest.SingleSigner).Account().PublicKey()})
 	require.NoError(t, err)
 	oracleNodeMulti := neotest.NewMultiSigner(oracleNode.(neotest.SingleSigner).Account())

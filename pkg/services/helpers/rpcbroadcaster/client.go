@@ -14,17 +14,17 @@ type RPCClient struct {
 	addr        string
 	close       chan struct{}
 	finished    chan struct{}
-	responses   chan []interface{}
+	responses   chan []any
 	log         *zap.Logger
 	sendTimeout time.Duration
 	method      SendMethod
 }
 
 // SendMethod represents an rpc method for sending data to other nodes.
-type SendMethod func(*rpcclient.Client, []interface{}) error
+type SendMethod func(*rpcclient.Client, []any) error
 
 // NewRPCClient returns a new rpc client for the provided address and method.
-func (r *RPCBroadcaster) NewRPCClient(addr string, method SendMethod, timeout time.Duration, ch chan []interface{}) *RPCClient {
+func (r *RPCBroadcaster) NewRPCClient(addr string, method SendMethod, timeout time.Duration, ch chan []any) *RPCClient {
 	return &RPCClient{
 		addr:        addr,
 		close:       r.close,

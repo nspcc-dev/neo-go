@@ -154,7 +154,7 @@ func TestNotary(t *testing.T) {
 		mp1.StopSubscriptions()
 	})
 
-	notaryNodes := []interface{}{acc1.PublicKey().Bytes(), acc2.PrivateKey().PublicKey().Bytes()}
+	notaryNodes := []any{acc1.PublicKey().Bytes(), acc2.PrivateKey().PublicKey().Bytes()}
 	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
 		int64(noderoles.P2PNotary), notaryNodes)
 
@@ -721,9 +721,9 @@ func TestNotary(t *testing.T) {
 	requester1, _ := wallet.NewAccount()
 	requester2, _ := wallet.NewAccount()
 	amount := int64(100_0000_0000)
-	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), bc.GetNotaryContractScriptHash(), amount, []interface{}{requester1.ScriptHash(), int64(bc.BlockHeight() + 50)})
+	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), bc.GetNotaryContractScriptHash(), amount, []any{requester1.ScriptHash(), int64(bc.BlockHeight() + 50)})
 	e.CheckGASBalance(t, notaryHash, big.NewInt(amount))
-	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), bc.GetNotaryContractScriptHash(), amount, []interface{}{requester2.ScriptHash(), int64(bc.BlockHeight() + 50)})
+	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), bc.GetNotaryContractScriptHash(), amount, []any{requester2.ScriptHash(), int64(bc.BlockHeight() + 50)})
 	e.CheckGASBalance(t, notaryHash, big.NewInt(2*amount))
 
 	// create request for 2 standard signatures => main tx should be completed after the second request is added to the pool

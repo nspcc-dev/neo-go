@@ -173,6 +173,21 @@ func TestFunctionCallWithInterfaceType(t *testing.T) {
 	eval(t, src, big.NewInt(10))
 }
 
+func TestFunctionCallWithAnyKeywordType(t *testing.T) {
+	src := `
+		package testcase
+		func Main() any {
+			x := getSomeInteger(10)
+			return x
+		}
+
+		func getSomeInteger(x any) any {
+			return x
+		}
+	`
+	eval(t, src, big.NewInt(10))
+}
+
 func TestFunctionCallMultiArg(t *testing.T) {
 	src := `
 		package testcase
@@ -312,7 +327,7 @@ func TestJumpOptimize(t *testing.T) {
 		var a int
 		_ = a
 	}
-	func _deploy(_ interface{}, upd bool) {
+	func _deploy(_ any, upd bool) {
 		if true {} else {}
 		t := upd
 		_ = t

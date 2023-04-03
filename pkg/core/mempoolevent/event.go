@@ -21,7 +21,7 @@ const (
 type Event struct {
 	Type Type
 	Tx   *transaction.Transaction
-	Data interface{}
+	Data any
 }
 
 // String is a Stringer implementation.

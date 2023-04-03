@@ -183,8 +183,8 @@ type Blockchain struct {
 
 	// Notification subsystem.
 	events  chan bcEvent
-	subCh   chan interface{}
-	unsubCh chan interface{}
+	subCh   chan any
+	unsubCh chan any
 }
 
 // StateRoot represents local state root module.
@@ -312,8 +312,8 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		memPool:     mempool.New(cfg.MemPoolSize, 0, false),
 		log:         log,
 		events:      make(chan bcEvent),
-		subCh:       make(chan interface{}),
-		unsubCh:     make(chan interface{}),
+		subCh:       make(chan any),
+		unsubCh:     make(chan any),
 		contracts:   *native.NewContracts(cfg.ProtocolConfiguration),
 	}
 
@@ -2334,7 +2334,7 @@ var (
 
 // verifyAndPoolTx verifies whether a transaction is bonafide or not and tries
 // to add it to the mempool given.
-func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.Pool, feer mempool.Feer, data ...interface{}) error {
+func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.Pool, feer mempool.Feer, data ...any) error {
 	// This code can technically be moved out of here, because it doesn't
 	// really require a chain lock.
 	err := vm.IsScriptCorrect(t.Script, nil)
@@ -2552,7 +2552,7 @@ func (bc *Blockchain) PoolTx(t *transaction.Transaction, pools ...*mempool.Pool)
 }
 
 // PoolTxWithData verifies and tries to add given transaction with additional data into the mempool.
-func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(tx *transaction.Transaction, data interface{}) error) error {
+func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data any, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(tx *transaction.Transaction, data any) error) error {
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 

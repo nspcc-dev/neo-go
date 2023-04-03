@@ -139,7 +139,7 @@ func (h *historicConverter) TraverseIterator(sessionID, iteratorID uuid.UUID, ma
 
 // Call invokes a method of the contract with the given parameters (and
 // Invoker-specific list of signers) and returns the result as is.
-func (v *Invoker) Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error) {
+func (v *Invoker) Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error) {
 	ps, err := smartcontract.NewParametersFromValues(params...)
 	if err != nil {
 		return nil, err
@@ -155,7 +155,7 @@ func (v *Invoker) Call(contract util.Uint160, operation string, params ...interf
 // result of the whole script is an array containing up to maxResultItems elements
 // from the iterator returned from the contract's method call. This script is executed
 // using regular JSON-API (according to the way Iterator is set up).
-func (v *Invoker) CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...interface{}) (*result.Invoke, error) {
+func (v *Invoker) CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...any) (*result.Invoke, error) {
 	bytes, err := smartcontract.CreateCallAndUnwrapIteratorScript(contract, method, maxItems, params...)
 	if err != nil {
 		return nil, fmt.Errorf("iterator unwrapper script: %w", err)
@@ -165,7 +165,7 @@ func (v *Invoker) CallAndExpandIterator(contract util.Uint160, method string, ma
 
 // Verify invokes contract's verify method in the verification context with
 // Invoker-specific signers and given witnesses and parameters.
-func (v *Invoker) Verify(contract util.Uint160, witnesses []transaction.Witness, params ...interface{}) (*result.Invoke, error) {
+func (v *Invoker) Verify(contract util.Uint160, witnesses []transaction.Witness, params ...any) (*result.Invoke, error) {
 	ps, err := smartcontract.NewParametersFromValues(params...)
 	if err != nil {
 		return nil, err

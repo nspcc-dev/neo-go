@@ -17,7 +17,7 @@ type abstractResult interface {
 type abstract struct {
 	neorpc.Header
 	Error  *neorpc.Error `json:"error,omitempty"`
-	Result interface{}   `json:"result,omitempty"`
+	Result any           `json:"result,omitempty"`
 }
 
 // RunForErrors implements abstractResult interface.

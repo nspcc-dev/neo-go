@@ -187,7 +187,7 @@ func Zum(typev int, typev_ int, funcv int) int {
 }
 
 // JustExecute invokes ` + "`justExecute`" + ` method of contract.
-func JustExecute(arr []interface{}) {
+func JustExecute(arr []any) {
 	neogointernal.CallWithTokenNoRet(Hash, "justExecute", int(contract.All), arr)
 }
 
@@ -197,7 +197,7 @@ func GetPublicKey() interop.PublicKey {
 }
 
 // OtherTypes invokes ` + "`otherTypes`" + ` method of contract.
-func OtherTypes(ctr interop.Hash160, tx interop.Hash256, sig interop.Signature, data interface{}) bool {
+func OtherTypes(ctr interop.Hash160, tx interop.Hash256, sig interop.Signature, data any) bool {
 	return neogointernal.CallWithToken(Hash, "otherTypes", int(contract.All), ctr, tx, sig, data).(bool)
 }
 
@@ -212,8 +212,8 @@ func GetFromMap(intMap map[string]int, indices []string) []int {
 }
 
 // DoSomething invokes ` + "`doSomething`" + ` method of contract.
-func DoSomething(bytes []byte, str string) interface{} {
-	return neogointernal.CallWithToken(Hash, "doSomething", int(contract.ReadStates), bytes, str).(interface{})
+func DoSomething(bytes []byte, str string) any {
+	return neogointernal.CallWithToken(Hash, "doSomething", int(contract.ReadStates), bytes, str).(any)
 }
 
 // GetBlockWrapper invokes ` + "`getBlockWrapper`" + ` method of contract.
@@ -303,7 +303,7 @@ var Hash = util.Uint160{0x4, 0x8, 0x15, 0x16, 0x23, 0x42, 0x43, 0x44, 0x0, 0x1, 
 
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
-	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
 }
 
 // ContractReader implements safe contract methods.

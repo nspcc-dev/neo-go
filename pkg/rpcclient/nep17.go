@@ -15,7 +15,7 @@ type TransferTarget struct {
 	Token   util.Uint160
 	Address util.Uint160
 	Amount  int64
-	Data    interface{}
+	Data    any
 }
 
 // SignerAccount represents combination of the transaction.Signer and the
@@ -75,7 +75,7 @@ func (c *Client) NEP17TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 // Deprecated: please use nep17 package, this method will be removed in future
 // versions.
 func (c *Client) CreateNEP17TransferTx(acc *wallet.Account, to util.Uint160,
-	token util.Uint160, amount int64, gas int64, data interface{}, cosigners []SignerAccount) (*transaction.Transaction, error) {
+	token util.Uint160, amount int64, gas int64, data any, cosigners []SignerAccount) (*transaction.Transaction, error) {
 	return c.CreateNEP17MultiTransferTx(acc, gas, []TransferTarget{
 		{Token: token,
 			Address: to,
@@ -164,7 +164,7 @@ func (c *Client) CreateTxFromScript(script []byte, acc *wallet.Account, sysFee, 
 // Deprecated: please use nep17 package, this method will be removed in future
 // versions.
 func (c *Client) TransferNEP17(acc *wallet.Account, to util.Uint160, token util.Uint160,
-	amount int64, gas int64, data interface{}, cosigners []SignerAccount) (util.Uint256, error) {
+	amount int64, gas int64, data any, cosigners []SignerAccount) (util.Uint256, error) {
 	tx, err := c.CreateNEP17TransferTx(acc, to, token, amount, gas, data, cosigners)
 	if err != nil {
 		return util.Uint256{}, err

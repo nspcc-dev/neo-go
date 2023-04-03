@@ -11,7 +11,7 @@ import (
 )
 
 func TestUnexpectedNonInterops(t *testing.T) {
-	vals := map[string]interface{}{
+	vals := map[string]any{
 		"int":    1,
 		"bool":   false,
 		"string": "smth",

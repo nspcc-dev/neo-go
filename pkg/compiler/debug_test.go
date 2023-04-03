@@ -65,7 +65,7 @@ func MethodParams(addr interop.Hash160, h interop.Hash256,
 type MyStruct struct {}
 func (ms MyStruct) MethodOnStruct() { }
 func (ms *MyStruct) MethodOnPointerToStruct() { }
-func _deploy(data interface{}, isUpdate bool) { x := 1; _ = x }
+func _deploy(data any, isUpdate bool) { x := 1; _ = x }
 `
 
 	ne, d, err := CompileWithOptions("foo.go", strings.NewReader(src), nil)

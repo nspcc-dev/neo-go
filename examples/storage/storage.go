@@ -29,12 +29,12 @@ func PutDefault(value []byte) []byte {
 }
 
 // Get returns the value at the passed key.
-func Get(key []byte) interface{} {
+func Get(key []byte) any {
 	return storage.Get(ctx, key)
 }
 
 // GetDefault returns the value at the default key.
-func GetDefault() interface{} {
+func GetDefault() any {
 	return storage.Get(ctx, defaultKey)
 }
 

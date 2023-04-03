@@ -295,7 +295,7 @@ func addNativeTestCase(t *testing.T, srcBuilder *bytes.Buffer, ctr interop.Contr
 	isVoid := md.MD.ReturnType == smartcontract.VoidType
 	srcBuilder.WriteString("func F" + strconv.Itoa(i) + "() ")
 	if !isVoid {
-		srcBuilder.WriteString("interface{} { return ")
+		srcBuilder.WriteString("any { return ")
 	} else {
 		srcBuilder.WriteString("{ ")
 	}

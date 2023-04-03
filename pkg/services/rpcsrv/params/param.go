@@ -25,7 +25,7 @@ type (
 	// the client.
 	Param struct {
 		json.RawMessage
-		cache interface{}
+		cache any
 	}
 
 	// FuncParam represents a function argument parameter used in the
@@ -193,7 +193,7 @@ func (p *Param) GetIntStrict() (int, error) {
 	return 0, errNotAnInt
 }
 
-func (p *Param) fillIntCache() (interface{}, error) {
+func (p *Param) fillIntCache() (any, error) {
 	if p.cache != nil {
 		return p.cache, nil
 	}
