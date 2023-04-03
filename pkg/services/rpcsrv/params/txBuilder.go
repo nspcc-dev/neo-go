@@ -84,7 +84,7 @@ func ExpandArrayIntoScript(script *io.BinWriter, slice []Param) error {
 				return err
 			}
 		case smartcontract.AnyType:
-			if fp.Value.IsNull() {
+			if fp.Value.IsNull() || len(fp.Value.RawMessage) == 0 {
 				emit.Opcodes(script, opcode.PUSHNULL)
 			}
 		default:
