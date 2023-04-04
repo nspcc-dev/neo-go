@@ -62,7 +62,7 @@ func (c *Client) NEP11TokenInfo(tokenHash util.Uint160) (*wallet.Token, error) {
 // Deprecated: please use nep11 package, this method will be removed in future
 // versions.
 func (c *Client) TransferNEP11(acc *wallet.Account, to util.Uint160,
-	tokenHash util.Uint160, tokenID string, data interface{}, gas int64, cosigners []SignerAccount) (util.Uint256, error) {
+	tokenHash util.Uint160, tokenID string, data any, gas int64, cosigners []SignerAccount) (util.Uint256, error) {
 	tx, err := c.CreateNEP11TransferTx(acc, tokenHash, gas, cosigners, to, tokenID, data)
 	if err != nil {
 		return util.Uint256{}, err
@@ -82,7 +82,7 @@ func (c *Client) TransferNEP11(acc *wallet.Account, to util.Uint160,
 // Deprecated: please use nep11 package, this method will be removed in future
 // versions.
 func (c *Client) CreateNEP11TransferTx(acc *wallet.Account, tokenHash util.Uint160,
-	gas int64, cosigners []SignerAccount, args ...interface{}) (*transaction.Transaction, error) {
+	gas int64, cosigners []SignerAccount, args ...any) (*transaction.Transaction, error) {
 	script, err := smartcontract.CreateCallWithAssertScript(tokenHash, "transfer", args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create NEP-11 transfer script: %w", err)
@@ -142,7 +142,7 @@ func (c *Client) NEP11NDOwnerOf(tokenHash util.Uint160, tokenID []byte) (util.Ui
 // Deprecated: please use nep11 package, this method will be removed in future
 // versions.
 func (c *Client) TransferNEP11D(acc *wallet.Account, to util.Uint160,
-	tokenHash util.Uint160, amount int64, tokenID []byte, data interface{}, gas int64, cosigners []SignerAccount) (util.Uint256, error) {
+	tokenHash util.Uint160, amount int64, tokenID []byte, data any, gas int64, cosigners []SignerAccount) (util.Uint256, error) {
 	tx, err := c.CreateNEP11TransferTx(acc, tokenHash, gas, cosigners, acc.ScriptHash(), to, amount, tokenID, data)
 	if err != nil {
 		return util.Uint256{}, err

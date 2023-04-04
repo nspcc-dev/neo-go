@@ -71,7 +71,7 @@ func createVM(t testing.TB) (*vm.VM, *interop.Context, *core.Blockchain) {
 	return v, ic, chain
 }
 
-func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Uint160, f callflag.CallFlag, args ...interface{}) {
+func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Uint160, f callflag.CallFlag, args ...any) {
 	ic.SpawnVM()
 	ic.VM.LoadScriptWithHash(script, hash, f)
 	for i := range args {
@@ -80,7 +80,7 @@ func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Ui
 	ic.VM.GasLimit = -1
 }
 
-func wrapDynamicScript(t *testing.T, script []byte, flags callflag.CallFlag, args ...interface{}) []byte {
+func wrapDynamicScript(t *testing.T, script []byte, flags callflag.CallFlag, args ...any) []byte {
 	b := io.NewBufBinWriter()
 
 	// Params.
@@ -150,7 +150,7 @@ func TestCheckWitness(t *testing.T) {
 
 	script := []byte{byte(opcode.RET)}
 	scriptHash := hash.Hash160(script)
-	check := func(t *testing.T, ic *interop.Context, arg interface{}, shouldFail bool, expected ...bool) {
+	check := func(t *testing.T, ic *interop.Context, arg any, shouldFail bool, expected ...bool) {
 		ic.VM.Estack().PushVal(arg)
 		err := runtime.CheckWitness(ic)
 		if shouldFail {
@@ -632,7 +632,7 @@ func TestGetRandomCompatibility(t *testing.T) {
 
 func TestNotify(t *testing.T) {
 	caller := random.Uint160()
-	newIC := func(name string, args interface{}) *interop.Context {
+	newIC := func(name string, args any) *interop.Context {
 		_, _, bc, cs := getDeployedInternal(t)
 		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
 		require.NoError(t, err)

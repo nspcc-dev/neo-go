@@ -123,12 +123,12 @@ func (pt *ParamType) UnmarshalJSON(data []byte) error {
 }
 
 // MarshalYAML implements the YAML Marshaler interface.
-func (pt ParamType) MarshalYAML() (interface{}, error) {
+func (pt ParamType) MarshalYAML() (any, error) {
 	return pt.String(), nil
 }
 
 // UnmarshalYAML implements the YAML Unmarshaler interface.
-func (pt *ParamType) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (pt *ParamType) UnmarshalYAML(unmarshal func(any) error) error {
 	var name string
 
 	err := unmarshal(&name)
@@ -275,7 +275,7 @@ func ParseParamType(typ string) (ParamType, error) {
 }
 
 // adjustValToType is a value type-checker and converter.
-func adjustValToType(typ ParamType, val string) (interface{}, error) {
+func adjustValToType(typ ParamType, val string) (any, error) {
 	switch typ {
 	case SignatureType:
 		b, err := hex.DecodeString(val)

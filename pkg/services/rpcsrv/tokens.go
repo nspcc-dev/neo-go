@@ -6,9 +6,9 @@ import (
 
 // tokenTransfers is a generic type used to represent NEP-11 and NEP-17 transfers.
 type tokenTransfers struct {
-	Sent     []interface{} `json:"sent"`
-	Received []interface{} `json:"received"`
-	Address  string        `json:"address"`
+	Sent     []any  `json:"sent"`
+	Received []any  `json:"received"`
+	Address  string `json:"address"`
 }
 
 // nep17TransferToNEP11 adds an ID to the provided NEP-17 transfer and returns a new

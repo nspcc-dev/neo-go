@@ -68,7 +68,7 @@ func TestOracleResponse_toJSONMap(t *testing.T) {
 	b1, err := json.Marshal(r)
 	require.NoError(t, err)
 
-	m := map[string]interface{}{}
+	m := map[string]any{}
 	r.toJSONMap(m)
 	b2, err := json.Marshal(m)
 	require.NoError(t, err)

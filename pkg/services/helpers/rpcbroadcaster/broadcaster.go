@@ -10,7 +10,7 @@ import (
 type RPCBroadcaster struct {
 	Clients   map[string]*RPCClient
 	Log       *zap.Logger
-	Responses chan []interface{}
+	Responses chan []any
 
 	close       chan struct{}
 	finished    chan struct{}
@@ -24,7 +24,7 @@ func NewRPCBroadcaster(log *zap.Logger, sendTimeout time.Duration) *RPCBroadcast
 		Log:         log,
 		close:       make(chan struct{}),
 		finished:    make(chan struct{}),
-		Responses:   make(chan []interface{}),
+		Responses:   make(chan []any),
 		sendTimeout: sendTimeout,
 	}
 }
@@ -65,7 +65,7 @@ drain:
 }
 
 // SendParams sends a request using all clients if the broadcaster is active.
-func (r *RPCBroadcaster) SendParams(params []interface{}) {
+func (r *RPCBroadcaster) SendParams(params []any) {
 	select {
 	case <-r.close:
 	case r.Responses <- params:

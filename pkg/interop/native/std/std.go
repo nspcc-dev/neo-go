@@ -16,14 +16,14 @@ const Hash = "\xc0\xef\x39\xce\xe0\xe4\xe9\x25\xc6\xc2\xa0\x6a\x79\xe1\x44\x0d\x
 // any given item into a byte slice. It works for all regular VM types (not ones
 // from interop package) and allows to save them in the storage or pass them into Notify
 // and then Deserialize them on the next run or in the external event receiver.
-func Serialize(item interface{}) []byte {
+func Serialize(item any) []byte {
 	return neogointernal.CallWithToken(Hash, "serialize", int(contract.NoneFlag),
 		item).([]byte)
 }
 
 // Deserialize calls `deserialize` method of StdLib native contract and unpacks
 // a previously serialized value from a byte slice, it's the opposite of Serialize.
-func Deserialize(b []byte) interface{} {
+func Deserialize(b []byte) any {
 	return neogointernal.CallWithToken(Hash, "deserialize", int(contract.NoneFlag),
 		b)
 }
@@ -37,8 +37,9 @@ func Deserialize(b []byte) interface{} {
 // string -> base64 encoded sequence of underlying bytes
 // (u)int* -> integer, only value in -2^53..2^53 are allowed
 // []interface{} -> json array
+// []any -> json array
 // map[type1]type2 -> json object with string keys marshaled as strings (not base64).
-func JSONSerialize(item interface{}) []byte {
+func JSONSerialize(item any) []byte {
 	return neogointernal.CallWithToken(Hash, "jsonSerialize", int(contract.NoneFlag),
 		item).([]byte)
 }
@@ -52,7 +53,7 @@ func JSONSerialize(item interface{}) []byte {
 //	null -> interface{}(nil)
 //	arrays -> []interface{}
 //	maps -> map[string]interface{}
-func JSONDeserialize(data []byte) interface{} {
+func JSONDeserialize(data []byte) any {
 	return neogointernal.CallWithToken(Hash, "jsonDeserialize", int(contract.NoneFlag),
 		data)
 }

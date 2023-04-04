@@ -7,7 +7,7 @@ import (
 )
 
 // _deploy primes contract's storage with some data to be used later.
-func _deploy(_ interface{}, _ bool) {
+func _deploy(_ any, _ bool) {
 	ctx := storage.GetContext() // RW context.
 	storage.Put(ctx, "foo1", "1")
 	storage.Put(ctx, "foo2", "2")

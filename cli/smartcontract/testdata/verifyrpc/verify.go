@@ -12,11 +12,11 @@ var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xa
 
 // Actor is used by Contract to call state-changing methods.
 type Actor interface {
-	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
+	MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error)
 	MakeRun(script []byte) (*transaction.Transaction, error)
-	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error)
+	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...any) (*transaction.Transaction, error)
 	MakeUnsignedRun(script []byte, attrs []transaction.Attribute) (*transaction.Transaction, error)
-	SendCall(contract util.Uint160, method string, params ...interface{}) (util.Uint256, uint32, error)
+	SendCall(contract util.Uint160, method string, params ...any) (util.Uint256, uint32, error)
 	SendRun(script []byte) (util.Uint256, uint32, error)
 }
 

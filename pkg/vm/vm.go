@@ -30,14 +30,14 @@ import (
 type errorAtInstruct struct {
 	ip  int
 	op  opcode.Opcode
-	err interface{}
+	err any
 }
 
 func (e *errorAtInstruct) Error() string {
 	return fmt.Sprintf("at instruction %d (%s): %s", e.ip, e.op, e.err)
 }
 
-func newError(ip int, op opcode.Opcode, err interface{}) *errorAtInstruct {
+func newError(ip int, op opcode.Opcode, err any) *errorAtInstruct {
 	return &errorAtInstruct{ip: ip, op: op, err: err}
 }
 
@@ -379,7 +379,7 @@ func (v *VM) Context() *Context {
 
 // PopResult is used to pop the first item of the evaluation stack. This allows
 // us to test the compiler and the vm in a bi-directional way.
-func (v *VM) PopResult() interface{} {
+func (v *VM) PopResult() any {
 	if v.estack.Len() == 0 {
 		return nil
 	}

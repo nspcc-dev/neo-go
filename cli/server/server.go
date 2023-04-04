@@ -662,7 +662,7 @@ func initBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, stora
 	chain, err := core.NewBlockchain(store, cfg.Blockchain(), log)
 	if err != nil {
 		errText := "could not initialize blockchain: %w"
-		errArgs := []interface{}{err}
+		errArgs := []any{err}
 		closeErr := store.Close()
 		if closeErr != nil {
 			errText += "; failed to close the DB: %w"

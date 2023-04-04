@@ -27,7 +27,7 @@ func Init() bool {
 	return true
 }
 
-func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
+func OnNEP17Payment(from interop.Hash160, amount int, data any) {
 	curr := runtime.GetExecutingScriptHash()
 	balance := neo.BalanceOf(curr)
 	if ledger.CurrentIndex() >= 100 {
@@ -47,7 +47,7 @@ func Verify() bool {
 	return true
 }
 
-func Transfer(from, to interop.Hash160, amount int, data interface{}) bool {
+func Transfer(from, to interop.Hash160, amount int, data any) bool {
 	ctx := storage.GetContext()
 	if len(from) != 20 {
 		runtime.Log("invalid 'from' address")

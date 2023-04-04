@@ -22,7 +22,7 @@ func init() {
 
 // _deploy is called after contract deployment or update, it'll be called
 // in deployment transaction and if call update method of this contract.
-func _deploy(_ interface{}, isUpdate bool) {
+func _deploy(_ any, isUpdate bool) {
 	if isUpdate {
 		Log("_deploy method called after contract update")
 		return
@@ -46,7 +46,7 @@ func Log(message string) {
 }
 
 // Notify emits an event with the specified data.
-func Notify(event interface{}) {
+func Notify(event any) {
 	runtime.Notify("Event", event)
 }
 

@@ -124,7 +124,7 @@ func TestTypeAssertReturn(t *testing.T) {
 	src := `
 		package main
 
-		func foo() interface{} {
+		func foo() any {
 			return 5
 		}
 

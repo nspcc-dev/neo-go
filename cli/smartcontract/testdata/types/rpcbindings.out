@@ -18,7 +18,7 @@ var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xa
 
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
-	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
 }
 
 // ContractReader implements safe contract methods.
@@ -91,8 +91,8 @@ func (c *ContractReader) AAAStrings(s [][][]string) ([][][]string, error) {
 }
 
 // Any invokes `any` method of contract.
-func (c *ContractReader) Any(a interface{}) (interface{}, error) {
-	return func (item stackitem.Item, err error) (interface{}, error) {
+func (c *ContractReader) Any(a any) (any, error) {
+	return func (item stackitem.Item, err error) (any, error) {
 		if err != nil {
 			return nil, err
 		}

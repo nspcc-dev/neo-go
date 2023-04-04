@@ -17,24 +17,24 @@ import (
 type (
 	testComparator struct {
 		id     neorpc.EventID
-		filter interface{}
+		filter any
 	}
 	testContainer struct {
 		id  neorpc.EventID
-		pld interface{}
+		pld any
 	}
 )
 
 func (c testComparator) EventID() neorpc.EventID {
 	return c.id
 }
-func (c testComparator) Filter() interface{} {
+func (c testComparator) Filter() any {
 	return c.filter
 }
 func (c testContainer) EventID() neorpc.EventID {
 	return c.id
 }
-func (c testContainer) EventPayload() interface{} {
+func (c testContainer) EventPayload() any {
 	return c.pld
 }
 

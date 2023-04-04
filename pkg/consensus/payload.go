@@ -65,12 +65,12 @@ func (p *Payload) SetType(t payload.MessageType) {
 }
 
 // Payload implements the payload.ConsensusPayload interface.
-func (p Payload) Payload() interface{} {
+func (p Payload) Payload() any {
 	return p.payload
 }
 
 // SetPayload implements the payload.ConsensusPayload interface.
-func (p *Payload) SetPayload(pl interface{}) {
+func (p *Payload) SetPayload(pl any) {
 	p.payload = pl.(io.Serializable)
 }
 

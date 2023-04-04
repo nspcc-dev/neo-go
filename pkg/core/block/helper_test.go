@@ -24,12 +24,12 @@ func getDecodedBlock(t *testing.T, i int) *Block {
 	return block
 }
 
-func getBlockData(i int) (map[string]interface{}, error) {
+func getBlockData(i int) (map[string]any, error) {
 	b, err := os.ReadFile(fmt.Sprintf("../test_data/block_%d.json", i))
 	if err != nil {
 		return nil, err
 	}
-	var data map[string]interface{}
+	var data map[string]any
 	if err := json.Unmarshal(b, &data); err != nil {
 		return nil, err
 	}

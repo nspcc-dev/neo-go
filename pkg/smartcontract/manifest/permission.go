@@ -27,7 +27,7 @@ const (
 // PermissionDesc is a permission descriptor.
 type PermissionDesc struct {
 	Type  PermissionType
-	Value interface{}
+	Value any
 }
 
 // Permission describes which contracts may be invoked and which methods are called.
@@ -45,13 +45,13 @@ type permissionAux struct {
 }
 
 // NewPermission returns a new permission of the given type.
-func NewPermission(typ PermissionType, args ...interface{}) *Permission {
+func NewPermission(typ PermissionType, args ...any) *Permission {
 	return &Permission{
 		Contract: *newPermissionDesc(typ, args...),
 	}
 }
 
-func newPermissionDesc(typ PermissionType, args ...interface{}) *PermissionDesc {
+func newPermissionDesc(typ PermissionType, args ...any) *PermissionDesc {
 	desc := &PermissionDesc{Type: typ}
 	switch typ {
 	case PermissionWildcard:

@@ -23,7 +23,7 @@ import (
 type testCase struct {
 	name   string
 	src    string
-	result interface{}
+	result any
 }
 
 // testMainIdent is a method invoked in tests by default.
@@ -35,7 +35,7 @@ func runTestCases(t *testing.T, tcases []testCase) {
 	}
 }
 
-func eval(t *testing.T, src string, result interface{}, expectedOps ...interface{}) []byte {
+func eval(t *testing.T, src string, result any, expectedOps ...any) []byte {
 	vm, _, script := vmAndCompileInterop(t, src)
 	if len(expectedOps) != 0 {
 		expected := io.NewBufBinWriter()
@@ -43,7 +43,7 @@ func eval(t *testing.T, src string, result interface{}, expectedOps ...interface
 			switch typ := op.(type) {
 			case opcode.Opcode:
 				emit.Opcodes(expected.BinWriter, typ)
-			case []interface{}:
+			case []any:
 				emit.Instruction(expected.BinWriter, typ[0].(opcode.Opcode), typ[1].([]byte))
 			default:
 				t.Fatalf("unexpected evaluation operation: %v", typ)
@@ -64,14 +64,14 @@ func evalWithError(t *testing.T, src string, e string) []byte {
 	return prog
 }
 
-func runAndCheck(t *testing.T, v *vm.VM, result interface{}) {
+func runAndCheck(t *testing.T, v *vm.VM, result any) {
 	err := v.Run()
 	require.NoError(t, err)
 	assert.Equal(t, 1, v.Estack().Len(), "stack contains unexpected items")
 	assertResult(t, v, result)
 }
 
-func evalWithArgs(t *testing.T, src string, op []byte, args []stackitem.Item, result interface{}) {
+func evalWithArgs(t *testing.T, src string, op []byte, args []stackitem.Item, result any) {
 	vm := vmAndCompile(t, src)
 	if len(args) > 0 {
 		vm.Estack().PushVal(args)
@@ -82,7 +82,7 @@ func evalWithArgs(t *testing.T, src string, op []byte, args []stackitem.Item, re
 	runAndCheck(t, vm, result)
 }
 
-func assertResult(t *testing.T, vm *vm.VM, result interface{}) {
+func assertResult(t *testing.T, vm *vm.VM, result any) {
 	assert.Equal(t, result, vm.PopResult())
 	assert.Nil(t, vm.Context())
 }

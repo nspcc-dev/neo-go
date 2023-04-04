@@ -47,6 +47,6 @@ func GetCallFlags() CallFlag {
 // (20 bytes in BE form) using the provided arguments and call flags.
 // It returns whatever this contract returns. This function uses
 // `System.Contract.Call` syscall.
-func Call(scriptHash interop.Hash160, method string, f CallFlag, args ...interface{}) interface{} {
+func Call(scriptHash interop.Hash160, method string, f CallFlag, args ...any) any {
 	return neogointernal.Syscall4("System.Contract.Call", scriptHash, method, f, args)
 }

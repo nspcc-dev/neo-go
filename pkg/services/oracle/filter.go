@@ -19,7 +19,7 @@ func filter(value []byte, path string) ([]byte, error) {
 	d := json.NewDecoder(buf)
 	d.UseOrderedObject()
 
-	var v interface{}
+	var v any
 	if err := d.Decode(&v); err != nil {
 		return nil, err
 	}

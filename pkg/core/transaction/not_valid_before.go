@@ -19,6 +19,6 @@ func (n *NotValidBefore) EncodeBinary(w *io.BinWriter) {
 	w.WriteU32LE(n.Height)
 }
 
-func (n *NotValidBefore) toJSONMap(m map[string]interface{}) {
+func (n *NotValidBefore) toJSONMap(m map[string]any) {
 	m["height"] = n.Height
 }

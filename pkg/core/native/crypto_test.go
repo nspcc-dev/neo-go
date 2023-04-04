@@ -91,7 +91,7 @@ func testECDSAVerify(t *testing.T, curve NamedCurve) {
 	}
 	require.NoError(t, err)
 
-	runCase := func(t *testing.T, isErr bool, result interface{}, args ...interface{}) {
+	runCase := func(t *testing.T, isErr bool, result any, args ...any) {
 		argsArr := make([]stackitem.Item, len(args))
 		for i := range args {
 			argsArr[i] = stackitem.Make(args[i])

@@ -27,7 +27,7 @@ type (
 	// feed stores subscriber's desired event ID with filter.
 	feed struct {
 		event  neorpc.EventID
-		filter interface{}
+		filter any
 	}
 )
 
@@ -37,7 +37,7 @@ func (f feed) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.EventComparator interface and returns notification filter.
-func (f feed) Filter() interface{} {
+func (f feed) Filter() any {
 	return f.filter
 }
 

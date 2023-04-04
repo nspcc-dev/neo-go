@@ -31,7 +31,7 @@ func (*smthNotReallySerializable) EncodeBinary(bw *io.BinWriter) {
 
 func TestVarSize(t *testing.T) {
 	testCases := []struct {
-		variable interface{}
+		variable any
 		name     string
 		expected int
 	}{
@@ -189,7 +189,7 @@ func TestVarSize(t *testing.T) {
 	}
 }
 
-func panicVarSize(t *testing.T, v interface{}) {
+func panicVarSize(t *testing.T, v any) {
 	defer func() {
 		r := recover()
 		assert.NotNil(t, r)

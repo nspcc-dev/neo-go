@@ -111,7 +111,7 @@ func (r *OracleResponse) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(r.Result)
 }
 
-func (r *OracleResponse) toJSONMap(m map[string]interface{}) {
+func (r *OracleResponse) toJSONMap(m map[string]any) {
 	m["id"] = r.ID
 	m["code"] = r.Code
 	m["result"] = r.Result

@@ -51,7 +51,7 @@ func init() {
 }
 
 // RuntimeNotify sends runtime notification with "Hello world!" name
-func RuntimeNotify(args []interface{}) {
+func RuntimeNotify(args []any) {
     runtime.Notify(notificationName, args)
 }`, string(main))
 

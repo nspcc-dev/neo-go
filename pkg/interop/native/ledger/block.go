@@ -51,5 +51,5 @@ type BlockSR struct {
 
 // ToBlockSR converts Block into BlockSR for chains with StateRootInHeader option.
 func (b *Block) ToBlockSR() *BlockSR {
-	return interface{}(b).(*BlockSR)
+	return any(b).(*BlockSR)
 }

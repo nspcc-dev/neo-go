@@ -63,7 +63,7 @@ func TestCreateMultisigAccount(t *testing.T) {
 	e := neotest.NewExecutor(t, bc, acc, acc)
 	w := io.NewBufBinWriter()
 
-	createScript := func(t *testing.T, pubs []interface{}, m int) []byte {
+	createScript := func(t *testing.T, pubs []any, m int) []byte {
 		w.Reset()
 		emit.Array(w.BinWriter, pubs...)
 		emit.Int(w.BinWriter, int64(m))
@@ -74,7 +74,7 @@ func TestCreateMultisigAccount(t *testing.T) {
 	t.Run("Good", func(t *testing.T) {
 		m, n := 3, 5
 		pubs := make(keys.PublicKeys, n)
-		arr := make([]interface{}, n)
+		arr := make([]any, n)
 		for i := range pubs {
 			pk, err := keys.NewPrivateKey()
 			require.NoError(t, err)
@@ -94,13 +94,13 @@ func TestCreateMultisigAccount(t *testing.T) {
 		require.Equal(t, hash.Hash160(expected), u)
 	})
 	t.Run("InvalidKey", func(t *testing.T) {
-		script := createScript(t, []interface{}{[]byte{1, 2, 3}}, 1)
+		script := createScript(t, []any{[]byte{1, 2, 3}}, 1)
 		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "invalid prefix 1")
 	})
 	t.Run("Invalid m", func(t *testing.T) {
 		pk, err := keys.NewPrivateKey()
 		require.NoError(t, err)
-		script := createScript(t, []interface{}{pk.PublicKey().Bytes()}, 2)
+		script := createScript(t, []any{pk.PublicKey().Bytes()}, 2)
 		e.InvokeScriptCheckFAULT(t, script, []neotest.Signer{acc}, "length of the signatures (2) is higher then the number of public keys")
 	})
 	t.Run("m overflows int32", func(t *testing.T) {
@@ -131,7 +131,7 @@ func TestCreateAccount_Hardfork(t *testing.T) {
 	pub := priv.PublicKey()
 
 	w := io.NewBufBinWriter()
-	emit.Array(w.BinWriter, []interface{}{pub.Bytes(), pub.Bytes(), pub.Bytes()}...)
+	emit.Array(w.BinWriter, []any{pub.Bytes(), pub.Bytes(), pub.Bytes()}...)
 	emit.Int(w.BinWriter, int64(2))
 	emit.Syscall(w.BinWriter, interopnames.SystemContractCreateMultisigAccount)
 	require.NoError(t, w.Err)

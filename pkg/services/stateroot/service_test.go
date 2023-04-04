@@ -85,7 +85,7 @@ func TestStateRoot(t *testing.T) {
 	gasValidatorInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Gas))
 
 	h, pubs, accs := newMajorityMultisigWithGAS(t, 2)
-	validatorNodes := []interface{}{pubs[0].Bytes(), pubs[1].Bytes()}
+	validatorNodes := []any{pubs[0].Bytes(), pubs[1].Bytes()}
 	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
 		int64(roles.StateValidator), validatorNodes)
 	updateIndex := bc.BlockHeight()
@@ -166,7 +166,7 @@ func TestStateRootInitNonZeroHeight(t *testing.T) {
 		designationSuperInvoker := e.NewInvoker(e.NativeHash(t, nativenames.Designation), validator, committee)
 		gasValidatorInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Gas))
 
-		validatorNodes := []interface{}{pubs[0].Bytes(), pubs[1].Bytes()}
+		validatorNodes := []any{pubs[0].Bytes(), pubs[1].Bytes()}
 		designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
 			int64(roles.StateValidator), validatorNodes)
 		gasValidatorInvoker.Invoke(t, true, "transfer", validator.ScriptHash(), h, 1_0000_0000, nil)
@@ -244,7 +244,7 @@ func TestStateRootFull(t *testing.T) {
 	srv.Start()
 	t.Cleanup(srv.Shutdown)
 
-	validatorNodes := []interface{}{pubs[0].Bytes(), pubs[1].Bytes()}
+	validatorNodes := []any{pubs[0].Bytes(), pubs[1].Bytes()}
 	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
 		int64(roles.StateValidator), validatorNodes)
 	gasValidatorInvoker.Invoke(t, true, "transfer", validator.ScriptHash(), h, 1_0000_0000, nil)

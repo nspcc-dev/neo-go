@@ -452,7 +452,7 @@ func TestExpandParameterToEmitableToStackitem(t *testing.T) {
 	pk, _ := keys.NewPrivateKey()
 	testCases := []struct {
 		In                Parameter
-		Expected          interface{}
+		Expected          any
 		ExpectedStackitem stackitem.Item
 	}{
 		{
@@ -520,7 +520,7 @@ func TestExpandParameterToEmitableToStackitem(t *testing.T) {
 					},
 				},
 			}},
-			Expected: []interface{}{big.NewInt(123), []byte{1, 2, 3}, []interface{}{true}},
+			Expected: []any{big.NewInt(123), []byte{1, 2, 3}, []any{true}},
 			ExpectedStackitem: stackitem.NewArray([]stackitem.Item{
 				stackitem.NewBigInteger(big.NewInt(123)),
 				stackitem.NewByteArray([]byte{1, 2, 3}),
@@ -558,9 +558,9 @@ func TestParameterFromValue(t *testing.T) {
 	pk1, _ := keys.NewPrivateKey()
 	pk2, _ := keys.NewPrivateKey()
 	items := []struct {
-		value   interface{}
+		value   any
 		expType ParamType
-		expVal  interface{}
+		expVal  any
 	}{
 		{
 			value:   []byte{1, 2, 3},
@@ -723,7 +723,7 @@ func TestParameterFromValue(t *testing.T) {
 			}},
 		},
 		{
-			value:   []interface{}{-42, "random", []byte{1, 2, 3}},
+			value:   []any{-42, "random", []byte{1, 2, 3}},
 			expType: ArrayType,
 			expVal: []Parameter{{
 				Type:  IntegerType,
@@ -748,7 +748,7 @@ func TestParameterFromValue(t *testing.T) {
 	}
 	_, err := NewParameterFromValue(make(map[string]int))
 	require.Error(t, err)
-	_, err = NewParameterFromValue([]interface{}{1, 2, make(map[string]int)})
+	_, err = NewParameterFromValue([]any{1, 2, make(map[string]int)})
 	require.Error(t, err)
 }
 

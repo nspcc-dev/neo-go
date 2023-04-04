@@ -80,7 +80,7 @@ func (e *Executor) NativeID(t testing.TB, name string) int32 {
 }
 
 // NewUnsignedTx creates a new unsigned transaction which invokes the method of the contract with the hash.
-func (e *Executor) NewUnsignedTx(t testing.TB, hash util.Uint160, method string, args ...interface{}) *transaction.Transaction {
+func (e *Executor) NewUnsignedTx(t testing.TB, hash util.Uint160, method string, args ...any) *transaction.Transaction {
 	script, err := smartcontract.CreateCallScript(hash, method, args...)
 	require.NoError(t, err)
 
@@ -93,7 +93,7 @@ func (e *Executor) NewUnsignedTx(t testing.TB, hash util.Uint160, method string,
 // NewTx creates a new transaction which invokes the contract method.
 // The transaction is signed by the signers.
 func (e *Executor) NewTx(t testing.TB, signers []Signer,
-	hash util.Uint160, method string, args ...interface{}) *transaction.Transaction {
+	hash util.Uint160, method string, args ...any) *transaction.Transaction {
 	tx := e.NewUnsignedTx(t, hash, method, args...)
 	return e.SignTx(t, tx, -1, signers...)
 }
@@ -137,7 +137,7 @@ func (e *Executor) NewAccount(t testing.TB, expectedGASBalance ...int64) Signer 
 // the precalculated contract hash matches the actual one.
 // data is an optional argument to `_deploy`.
 // It returns the hash of the deploy transaction.
-func (e *Executor) DeployContract(t testing.TB, c *Contract, data interface{}) util.Uint256 {
+func (e *Executor) DeployContract(t testing.TB, c *Contract, data any) util.Uint256 {
 	return e.DeployContractBy(t, e.Validator, c, data)
 }
 
@@ -145,7 +145,7 @@ func (e *Executor) DeployContract(t testing.TB, c *Contract, data interface{}) u
 // It also checks that the precalculated contract hash matches the actual one.
 // data is an optional argument to `_deploy`.
 // It returns the hash of the deploy transaction.
-func (e *Executor) DeployContractBy(t testing.TB, signer Signer, c *Contract, data interface{}) util.Uint256 {
+func (e *Executor) DeployContractBy(t testing.TB, signer Signer, c *Contract, data any) util.Uint256 {
 	tx := NewDeployTxBy(t, e.Chain, signer, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckHalt(t, tx.Hash())
@@ -164,7 +164,7 @@ func (e *Executor) DeployContractBy(t testing.TB, signer Signer, c *Contract, da
 
 // DeployContractCheckFAULT compiles and deploys a contract to the bc using the validator
 // account. It checks that the deploy transaction FAULTed with the specified error.
-func (e *Executor) DeployContractCheckFAULT(t testing.TB, c *Contract, data interface{}, errMessage string) {
+func (e *Executor) DeployContractCheckFAULT(t testing.TB, c *Contract, data any, errMessage string) {
 	tx := e.NewDeployTx(t, e.Chain, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckFault(t, tx.Hash(), errMessage)
@@ -253,12 +253,12 @@ func (e *Executor) EnsureGASBalance(t testing.TB, acc util.Uint160, isOk func(ba
 }
 
 // NewDeployTx returns a new deployment tx for the contract signed by the committee.
-func (e *Executor) NewDeployTx(t testing.TB, bc *core.Blockchain, c *Contract, data interface{}) *transaction.Transaction {
+func (e *Executor) NewDeployTx(t testing.TB, bc *core.Blockchain, c *Contract, data any) *transaction.Transaction {
 	return NewDeployTxBy(t, bc, e.Validator, c, data)
 }
 
 // NewDeployTxBy returns a new deployment tx for the contract signed by the specified signer.
-func NewDeployTxBy(t testing.TB, bc *core.Blockchain, signer Signer, c *Contract, data interface{}) *transaction.Transaction {
+func NewDeployTxBy(t testing.TB, bc *core.Blockchain, signer Signer, c *Contract, data any) *transaction.Transaction {
 	rawManifest, err := json.Marshal(c.Manifest)
 	require.NoError(t, err)
 

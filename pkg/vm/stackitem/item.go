@@ -36,7 +36,7 @@ const (
 // Item represents the "real" value that is pushed on the stack.
 type Item interface {
 	fmt.Stringer
-	Value() interface{}
+	Value() any
 	// Dup duplicates current Item.
 	Dup() Item
 	// TryBool converts Item to a boolean value.
@@ -88,7 +88,7 @@ func mkInvConversion(from Item, to Type) error {
 
 // Make tries to make an appropriate stack item from the provided value.
 // It will panic if it's not possible.
-func Make(v interface{}) Item {
+func Make(v any) Item {
 	switch val := v.(type) {
 	case int:
 		return (*BigInteger)(big.NewInt(int64(val)))
@@ -122,7 +122,7 @@ func Make(v interface{}) Item {
 			a = append(a, Make(i))
 		}
 		return Make(a)
-	case []interface{}:
+	case []any:
 		res := make([]Item, len(val))
 		for i := range val {
 			res[i] = Make(val[i])
@@ -210,7 +210,7 @@ func NewStruct(items []Item) *Struct {
 }
 
 // Value implements the Item interface.
-func (i *Struct) Value() interface{} {
+func (i *Struct) Value() any {
 	return i.value
 }
 
@@ -374,7 +374,7 @@ func (i Null) String() string {
 }
 
 // Value implements the Item interface.
-func (i Null) Value() interface{} {
+func (i Null) Value() any {
 	return nil
 }
 
@@ -483,7 +483,7 @@ func (i *BigInteger) Equals(s Item) bool {
 }
 
 // Value implements the Item interface.
-func (i *BigInteger) Value() interface{} {
+func (i *BigInteger) Value() any {
 	return i.Big()
 }
 
@@ -519,7 +519,7 @@ func NewBool(val bool) Bool {
 }
 
 // Value implements the Item interface.
-func (i Bool) Value() interface{} {
+func (i Bool) Value() any {
 	return bool(i)
 }
 
@@ -589,7 +589,7 @@ func NewByteArray(b []byte) *ByteArray {
 }
 
 // Value implements the Item interface.
-func (i *ByteArray) Value() interface{} {
+func (i *ByteArray) Value() any {
 	return []byte(*i)
 }
 
@@ -697,7 +697,7 @@ func NewArray(items []Item) *Array {
 }
 
 // Value implements the Item interface.
-func (i *Array) Value() interface{} {
+func (i *Array) Value() any {
 	return i.value
 }
 
@@ -818,7 +818,7 @@ func NewMapWithValue(value []MapElement) *Map {
 }
 
 // Value implements the Item interface.
-func (i *Map) Value() interface{} {
+func (i *Map) Value() any {
 	return i.value
 }
 
@@ -937,18 +937,18 @@ func IsValidMapKey(key Item) error {
 
 // Interop represents interop data on the stack.
 type Interop struct {
-	value interface{}
+	value any
 }
 
 // NewInterop returns a new Interop object.
-func NewInterop(value interface{}) *Interop {
+func NewInterop(value any) *Interop {
 	return &Interop{
 		value: value,
 	}
 }
 
 // Value implements the Item interface.
-func (i *Interop) Value() interface{} {
+func (i *Interop) Value() any {
 	return i.value
 }
 
@@ -1041,7 +1041,7 @@ func (p *Pointer) String() string {
 }
 
 // Value implements the Item interface.
-func (p *Pointer) Value() interface{} {
+func (p *Pointer) Value() any {
 	return p.pos
 }
 
@@ -1114,7 +1114,7 @@ func NewBuffer(b []byte) *Buffer {
 }
 
 // Value implements the Item interface.
-func (i *Buffer) Value() interface{} {
+func (i *Buffer) Value() any {
 	return []byte(*i)
 }
 

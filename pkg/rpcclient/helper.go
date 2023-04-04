@@ -36,7 +36,7 @@ func (c *Client) InvokeAndPackIteratorResults(contract util.Uint160, operation s
 	if err != nil {
 		return nil, fmt.Errorf("expanding params to emitable: %w", err)
 	}
-	bytes, err := smartcontract.CreateCallAndUnwrapIteratorScript(contract, operation, max, values.([]interface{})...)
+	bytes, err := smartcontract.CreateCallAndUnwrapIteratorScript(contract, operation, max, values.([]any)...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create iterator unwrapper script: %w", err)
 	}

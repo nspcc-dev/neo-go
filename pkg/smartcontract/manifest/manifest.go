@@ -182,7 +182,7 @@ func extraToStackItem(rawExtra []byte) stackitem.Item {
 	// Prevent accidental precision loss.
 	d.UseNumber()
 
-	var obj interface{}
+	var obj any
 
 	// The error can't really occur because `json.RawMessage` is already a valid json.
 	_ = d.Decode(&obj)

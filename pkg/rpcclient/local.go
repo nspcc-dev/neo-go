@@ -34,7 +34,7 @@ func NewInternal(ctx context.Context, register InternalHook) (*Internal, error) 
 			done:          make(chan struct{}),
 			closeCalled:   *atomic.NewBool(false),
 			subscriptions: make(map[string]notificationReceiver),
-			receivers:     make(map[interface{}][]string),
+			receivers:     make(map[any][]string),
 		},
 		events: make(chan neorpc.Notification),
 	}

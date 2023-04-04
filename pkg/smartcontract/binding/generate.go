@@ -126,7 +126,7 @@ func scTypeToGo(name string, typ smartcontract.ParamType, cfg *Config) (string, 
 
 	switch typ {
 	case smartcontract.AnyType:
-		return "interface{}", ""
+		return "any", ""
 	case smartcontract.BoolType:
 		return "bool", ""
 	case smartcontract.IntegerType:
@@ -144,11 +144,11 @@ func scTypeToGo(name string, typ smartcontract.ParamType, cfg *Config) (string, 
 	case smartcontract.SignatureType:
 		return "interop.Signature", "github.com/nspcc-dev/neo-go/pkg/interop"
 	case smartcontract.ArrayType:
-		return "[]interface{}", ""
+		return "[]any", ""
 	case smartcontract.MapType:
-		return "map[string]interface{}", ""
+		return "map[string]any", ""
 	case smartcontract.InteropInterfaceType:
-		return "interface{}", ""
+		return "any", ""
 	case smartcontract.VoidType:
 		return "", ""
 	default:

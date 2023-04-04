@@ -106,11 +106,11 @@ func TestDesignate_Cache(t *testing.T) {
 	}
 	privGood, err := keys.NewPrivateKey()
 	require.NoError(t, err)
-	pubsGood := []interface{}{privGood.PublicKey().Bytes()}
+	pubsGood := []any{privGood.PublicKey().Bytes()}
 
 	privBad, err := keys.NewPrivateKey()
 	require.NoError(t, err)
-	pubsBad := []interface{}{privBad.PublicKey().Bytes()}
+	pubsBad := []any{privBad.PublicKey().Bytes()}
 
 	// Firstly, designate good Oracle node and check that OracleService callback was called during PostPersist.
 	e.Chain.SetOracle(oracleServ)

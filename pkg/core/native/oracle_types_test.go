@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func getInvalidTestFunc(actual stackitem.Convertible, value interface{}) func(t *testing.T) {
+func getInvalidTestFunc(actual stackitem.Convertible, value any) func(t *testing.T) {
 	return func(t *testing.T) {
 		it := stackitem.Make(value)
 		require.Error(t, actual.FromStackItem(it))

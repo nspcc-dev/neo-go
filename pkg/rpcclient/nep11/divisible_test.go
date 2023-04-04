@@ -198,7 +198,7 @@ func TestDivisibleTransferTransaction(t *testing.T) {
 	ta := new(testAct)
 	tok := NewDivisible(ta, util.Uint160{1, 2, 3})
 
-	for _, fun := range []func(from util.Uint160, to util.Uint160, amount *big.Int, id []byte, data interface{}) (*transaction.Transaction, error){
+	for _, fun := range []func(from util.Uint160, to util.Uint160, amount *big.Int, id []byte, data any) (*transaction.Transaction, error){
 		tok.TransferDTransaction,
 		tok.TransferDUnsigned,
 	} {

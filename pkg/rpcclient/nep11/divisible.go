@@ -79,7 +79,7 @@ func (t *DivisibleReader) BalanceOfD(owner util.Uint160, token []byte) (*big.Int
 // method call using the given parameters and checks for this call result,
 // failing the transaction if it's not true. The returned values are transaction
 // hash, its ValidUntilBlock value and an error if any.
-func (t *DivisibleWriter) TransferD(from util.Uint160, to util.Uint160, amount *big.Int, id []byte, data interface{}) (util.Uint256, uint32, error) {
+func (t *DivisibleWriter) TransferD(from util.Uint160, to util.Uint160, amount *big.Int, id []byte, data any) (util.Uint256, uint32, error) {
 	script, err := t.transferScript(from, to, amount, id, data)
 	if err != nil {
 		return util.Uint256{}, 0, err
@@ -92,7 +92,7 @@ func (t *DivisibleWriter) TransferD(from util.Uint160, to util.Uint160, amount *
 // `transfer` method call using the given parameters and checks for this call
 // result, failing the transaction if it's not true. This transaction is signed,
 // but not sent to the network, instead it's returned to the caller.
-func (t *DivisibleWriter) TransferDTransaction(from util.Uint160, to util.Uint160, amount *big.Int, id []byte, data interface{}) (*transaction.Transaction, error) {
+func (t *DivisibleWriter) TransferDTransaction(from util.Uint160, to util.Uint160, amount *big.Int, id []byte, data any) (*transaction.Transaction, error) {
 	script, err := t.transferScript(from, to, amount, id, data)
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func (t *DivisibleWriter) TransferDTransaction(from util.Uint160, to util.Uint16
 // `transfer` method call using the given parameters and checks for this call
 // result, failing the transaction if it's not true. This transaction is not
 // signed and just returned to the caller.
-func (t *DivisibleWriter) TransferDUnsigned(from util.Uint160, to util.Uint160, amount *big.Int, id []byte, data interface{}) (*transaction.Transaction, error) {
+func (t *DivisibleWriter) TransferDUnsigned(from util.Uint160, to util.Uint160, amount *big.Int, id []byte, data any) (*transaction.Transaction, error) {
 	script, err := t.transferScript(from, to, amount, id, data)
 	if err != nil {
 		return nil, err

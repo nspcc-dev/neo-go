@@ -12,7 +12,7 @@ import (
 
 // MarshalUnmarshalJSON checks if the expected stays the same after
 // marshal/unmarshal via JSON.
-func MarshalUnmarshalJSON(t *testing.T, expected, actual interface{}) {
+func MarshalUnmarshalJSON(t *testing.T, expected, actual any) {
 	data, err := json.Marshal(expected)
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(data, actual))
@@ -21,7 +21,7 @@ func MarshalUnmarshalJSON(t *testing.T, expected, actual interface{}) {
 
 // MarshalUnmarshalYAML checks if the expected stays the same after
 // marshal/unmarshal via YAML.
-func MarshalUnmarshalYAML(t *testing.T, expected, actual interface{}) {
+func MarshalUnmarshalYAML(t *testing.T, expected, actual any) {
 	data, err := yaml.Marshal(expected)
 	require.NoError(t, err)
 	require.NoError(t, yaml.Unmarshal(data, actual))

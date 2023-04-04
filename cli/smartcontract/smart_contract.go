@@ -81,7 +81,7 @@ func init() {
 }
 
 // RuntimeNotify sends runtime notification with "Hello world!" name
-func RuntimeNotify(args []interface{}) {
+func RuntimeNotify(args []any) {
     runtime.Notify(notificationName, args)
 }`
 )
@@ -495,7 +495,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		err             error
 		exitErr         *cli.ExitError
 		operation       string
-		params          []interface{}
+		params          []any
 		paramsStart     = 1
 		scParams        []smartcontract.Parameter
 		cosigners       []transaction.Signer
@@ -521,7 +521,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		params = make([]interface{}, len(scParams))
+		params = make([]any, len(scParams))
 		for i := range scParams {
 			params[i] = scParams[i]
 		}
@@ -548,7 +548,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	return invokeWithArgs(ctx, acc, w, script, operation, params, cosigners)
 }
 
-func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, script util.Uint160, operation string, params []interface{}, cosigners []transaction.Signer) error {
+func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, script util.Uint160, operation string, params []any, cosigners []transaction.Signer) error {
 	var (
 		err             error
 		signersAccounts []actor.SignerAccount
@@ -787,7 +787,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to read manifest file: %w", err), 1)
 	}
 
-	var appCallParams = []interface{}{f, manifestBytes}
+	var appCallParams = []any{f, manifestBytes}
 
 	signOffset, data, err := cmdargs.ParseParams(ctx.Args(), true)
 	if err != nil {

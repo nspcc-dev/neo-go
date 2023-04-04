@@ -50,7 +50,7 @@ const MinimumResponseGas = 10_000_000
 //     of the same contract that invokes Request and it must have the following
 //     signature for correct invocation:
 //
-//   - Method(url string, userData interface{}, code int, result []byte)
+//   - Method(url string, userData any, code int, result []byte)
 //     where url is the same url specified for Request, userData is anything
 //     passed in the next parameter, code is the status of the reply and
 //     result is the data returned from the request if any.
@@ -64,7 +64,7 @@ const MinimumResponseGas = 10_000_000
 //     GAS is used for oracle transaction's network and system fees,
 //     so it should be enough to pay for reply data as well as
 //     its processing.
-func Request(url string, filter []byte, cb string, userData interface{}, gasForResponse int) {
+func Request(url string, filter []byte, cb string, userData any, gasForResponse int) {
 	neogointernal.CallWithTokenNoRet(Hash, "request",
 		int(contract.States|contract.AllowNotify),
 		url, filter, cb, userData, gasForResponse)

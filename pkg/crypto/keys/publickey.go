@@ -181,7 +181,7 @@ func (p *PublicKey) UncompressedBytes() []byte {
 func NewPublicKeyFromASN1(data []byte) (*PublicKey, error) {
 	var (
 		err    error
-		pubkey interface{}
+		pubkey any
 	)
 	if pubkey, err = x509.ParsePKIXPublicKey(data); err != nil {
 		return nil, err

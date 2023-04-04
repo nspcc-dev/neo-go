@@ -69,7 +69,7 @@ type LedgerTransactionSigner struct {
 // LedgerWitnessCondition is a contract-specific ledger.WitnessCondition type used by its methods.
 type LedgerWitnessCondition struct {
 	Type *big.Int
-	Value interface{}
+	Value any
 }
 
 // LedgerWitnessRule is a contract-specific ledger.WitnessRule type used by its methods.
@@ -114,7 +114,7 @@ type ManagementManifest struct {
 	ABI *ManagementABI
 	Permissions []*ManagementPermission
 	Trusts []util.Uint160
-	Extra interface{}
+	Extra any
 }
 
 // ManagementMethod is a contract-specific management.Method type used by its methods.
@@ -156,7 +156,7 @@ type StructsInternal struct {
 }
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
-	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
 }
 
 // ContractReader implements safe contract methods.

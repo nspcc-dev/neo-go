@@ -32,7 +32,7 @@ func TestEntryPointWithArgs(t *testing.T) {
 	src := `
 		package foo
 
-		func Main(args []interface{}) int {
+		func Main(args []any) int {
 			return 2 + args[1].(int)
 		}
 	`
@@ -44,7 +44,7 @@ func TestEntryPointWithMethodAndArgs(t *testing.T) {
 	src := `
 		package foo
 
-		func Main(method string, args []interface{}) int {
+		func Main(method string, args []any) int {
 			if method == "foobar" {
 				return 2 + args[1].(int)
 			}

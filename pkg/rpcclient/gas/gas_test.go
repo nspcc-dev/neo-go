@@ -17,7 +17,7 @@ type testAct struct {
 	vub uint32
 }
 
-func (t *testAct) Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error) {
+func (t *testAct) Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error) {
 	return t.res, t.err
 }
 func (t *testAct) MakeRun(script []byte) (*transaction.Transaction, error) {

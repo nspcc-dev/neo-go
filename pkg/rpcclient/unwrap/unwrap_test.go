@@ -15,66 +15,66 @@ import (
 )
 
 func TestStdErrors(t *testing.T) {
-	funcs := []func(r *result.Invoke, err error) (interface{}, error){
-		func(r *result.Invoke, err error) (interface{}, error) {
+	funcs := []func(r *result.Invoke, err error) (any, error){
+		func(r *result.Invoke, err error) (any, error) {
 			return BigInt(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return Bool(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return Int64(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return LimitedInt64(r, err, 0, 1)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return Bytes(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return UTF8String(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return PrintableASCIIString(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return Uint160(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return Uint256(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return PublicKey(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			_, _, err = SessionIterator(r, err)
 			return nil, err
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return Array(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return ArrayOfBools(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return ArrayOfBigInts(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return ArrayOfBytes(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return ArrayOfUTF8Strings(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return ArrayOfUint160(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return ArrayOfUint256(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return ArrayOfPublicKeys(r, err)
 		},
-		func(r *result.Invoke, err error) (interface{}, error) {
+		func(r *result.Invoke, err error) (any, error) {
 			return Map(r, err)
 		},
 	}

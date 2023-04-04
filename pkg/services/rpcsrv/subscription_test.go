@@ -171,7 +171,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 		"tx matching sender": {
 			params: `["transaction_added", {"sender":"` + goodSender.StringLE() + `"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
-				rmap := resp.Payload[0].(map[string]interface{})
+				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.TransactionEventID, resp.Event)
 				sender := rmap["sender"].(string)
 				require.Equal(t, address.Uint160ToString(goodSender), sender)
@@ -180,10 +180,10 @@ func TestFilteredSubscriptions(t *testing.T) {
 		"tx matching signer": {
 			params: `["transaction_added", {"signer":"` + goodSender.StringLE() + `"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
-				rmap := resp.Payload[0].(map[string]interface{})
+				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.TransactionEventID, resp.Event)
-				signers := rmap["signers"].([]interface{})
-				signer0 := signers[0].(map[string]interface{})
+				signers := rmap["signers"].([]any)
+				signer0 := signers[0].(map[string]any)
 				signer0acc := signer0["account"].(string)
 				require.Equal(t, "0x"+goodSender.StringLE(), signer0acc)
 			},
@@ -191,12 +191,12 @@ func TestFilteredSubscriptions(t *testing.T) {
 		"tx matching sender and signer": {
 			params: `["transaction_added", {"sender":"` + goodSender.StringLE() + `", "signer":"` + goodSender.StringLE() + `"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
-				rmap := resp.Payload[0].(map[string]interface{})
+				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.TransactionEventID, resp.Event)
 				sender := rmap["sender"].(string)
 				require.Equal(t, address.Uint160ToString(goodSender), sender)
-				signers := rmap["signers"].([]interface{})
-				signer0 := signers[0].(map[string]interface{})
+				signers := rmap["signers"].([]any)
+				signer0 := signers[0].(map[string]any)
 				signer0acc := signer0["account"].(string)
 				require.Equal(t, "0x"+goodSender.StringLE(), signer0acc)
 			},
@@ -204,7 +204,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 		"notification matching contract hash": {
 			params: `["notification_from_execution", {"contract":"` + testContractHash + `"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
-				rmap := resp.Payload[0].(map[string]interface{})
+				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotificationEventID, resp.Event)
 				c := rmap["contract"].(string)
 				require.Equal(t, "0x"+testContractHash, c)
@@ -213,7 +213,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 		"notification matching name": {
 			params: `["notification_from_execution", {"name":"my_pretty_notification"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
-				rmap := resp.Payload[0].(map[string]interface{})
+				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotificationEventID, resp.Event)
 				n := rmap["name"].(string)
 				require.Equal(t, "my_pretty_notification", n)
@@ -222,7 +222,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 		"notification matching contract hash and name": {
 			params: `["notification_from_execution", {"contract":"` + testContractHash + `", "name":"my_pretty_notification"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
-				rmap := resp.Payload[0].(map[string]interface{})
+				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotificationEventID, resp.Event)
 				c := rmap["contract"].(string)
 				require.Equal(t, "0x"+testContractHash, c)
@@ -233,7 +233,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 		"execution matching state": {
 			params: `["transaction_executed", {"state":"HALT"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
-				rmap := resp.Payload[0].(map[string]interface{})
+				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.ExecutionEventID, resp.Event)
 				st := rmap["vmstate"].(string)
 				require.Equal(t, "HALT", st)
@@ -242,7 +242,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 		"execution matching container": {
 			params: `["transaction_executed", {"container":"` + deploymentTxHash + `"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
-				rmap := resp.Payload[0].(map[string]interface{})
+				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.ExecutionEventID, resp.Event)
 				tx := rmap["container"].(string)
 				require.Equal(t, "0x"+deploymentTxHash, tx)
@@ -251,7 +251,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 		"execution matching state and container": {
 			params: `["transaction_executed", {"state":"HALT", "container":"` + deploymentTxHash + `"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
-				rmap := resp.Payload[0].(map[string]interface{})
+				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.ExecutionEventID, resp.Event)
 				tx := rmap["container"].(string)
 				require.Equal(t, "0x"+deploymentTxHash, tx)
@@ -299,7 +299,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 
 			for {
 				resp := getNotification(t, respMsgs)
-				rmap := resp.Payload[0].(map[string]interface{})
+				rmap := resp.Payload[0].(map[string]any)
 				if resp.Event == neorpc.BlockEventID {
 					index := rmap["index"].(float64)
 					if uint32(index) == lastBlock {
@@ -331,25 +331,25 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 		"matching sender": {
 			params: `["notary_request_event", {"sender":"` + goodSender.StringLE() + `"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
-				rmap := resp.Payload[0].(map[string]interface{})
+				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotaryRequestEventID, resp.Event)
 				require.Equal(t, "added", rmap["type"].(string))
-				req := rmap["notaryrequest"].(map[string]interface{})
-				fbTx := req["fallbacktx"].(map[string]interface{})
-				sender := fbTx["signers"].([]interface{})[1].(map[string]interface{})["account"].(string)
+				req := rmap["notaryrequest"].(map[string]any)
+				fbTx := req["fallbacktx"].(map[string]any)
+				sender := fbTx["signers"].([]any)[1].(map[string]any)["account"].(string)
 				require.Equal(t, "0x"+goodSender.StringLE(), sender)
 			},
 		},
 		"matching signer": {
 			params: `["notary_request_event", {"signer":"` + goodSender.StringLE() + `"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
-				rmap := resp.Payload[0].(map[string]interface{})
+				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotaryRequestEventID, resp.Event)
 				require.Equal(t, "added", rmap["type"].(string))
-				req := rmap["notaryrequest"].(map[string]interface{})
-				mainTx := req["maintx"].(map[string]interface{})
-				signers := mainTx["signers"].([]interface{})
-				signer0 := signers[0].(map[string]interface{})
+				req := rmap["notaryrequest"].(map[string]any)
+				mainTx := req["maintx"].(map[string]any)
+				signers := mainTx["signers"].([]any)
+				signer0 := signers[0].(map[string]any)
 				signer0acc := signer0["account"].(string)
 				require.Equal(t, "0x"+goodSender.StringLE(), signer0acc)
 			},
@@ -357,16 +357,16 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 		"matching sender and signer": {
 			params: `["notary_request_event", {"sender":"` + goodSender.StringLE() + `", "signer":"` + goodSender.StringLE() + `"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
-				rmap := resp.Payload[0].(map[string]interface{})
+				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotaryRequestEventID, resp.Event)
 				require.Equal(t, "added", rmap["type"].(string))
-				req := rmap["notaryrequest"].(map[string]interface{})
-				mainTx := req["maintx"].(map[string]interface{})
-				fbTx := req["fallbacktx"].(map[string]interface{})
-				sender := fbTx["signers"].([]interface{})[1].(map[string]interface{})["account"].(string)
+				req := rmap["notaryrequest"].(map[string]any)
+				mainTx := req["maintx"].(map[string]any)
+				fbTx := req["fallbacktx"].(map[string]any)
+				sender := fbTx["signers"].([]any)[1].(map[string]any)["account"].(string)
 				require.Equal(t, "0x"+goodSender.StringLE(), sender)
-				signers := mainTx["signers"].([]interface{})
-				signer0 := signers[0].(map[string]interface{})
+				signers := mainTx["signers"].([]any)
+				signer0 := signers[0].(map[string]any)
 				signer0acc := signer0["account"].(string)
 				require.Equal(t, "0x"+goodSender.StringLE(), signer0acc)
 			},
@@ -443,7 +443,7 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 		}
 
 		require.Equal(t, neorpc.BlockEventID, resp.Event)
-		rmap := resp.Payload[0].(map[string]interface{})
+		rmap := resp.Payload[0].(map[string]any)
 		primary := rmap["primary"].(float64)
 		require.Equal(t, 3, int(primary))
 	}

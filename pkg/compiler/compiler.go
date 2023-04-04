@@ -122,7 +122,7 @@ func (c *codegen) fillImportMap(f *ast.File, pkg *packages.Package) {
 	}
 }
 
-func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
+func getBuildInfo(name string, src any) (*buildInfo, error) {
 	dir, err := filepath.Abs(name)
 	if err != nil {
 		return nil, err

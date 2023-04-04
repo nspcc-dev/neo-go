@@ -19,16 +19,16 @@ import (
 
 // Invoker is used by ContractReader to call various methods.
 type Invoker interface {
-	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
 }
 
 // Actor is used by Contract to create and send transactions.
 type Actor interface {
 	Invoker
 
-	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
-	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error)
-	SendCall(contract util.Uint160, method string, params ...interface{}) (util.Uint256, uint32, error)
+	MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error)
+	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...any) (*transaction.Transaction, error)
+	SendCall(contract util.Uint160, method string, params ...any) (util.Uint256, uint32, error)
 }
 
 // Hash stores the hash of the native RoleManagement contract.

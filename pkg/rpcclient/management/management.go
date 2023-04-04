@@ -27,8 +27,8 @@ import (
 
 // Invoker is used by ContractReader to call various methods.
 type Invoker interface {
-	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
-	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...interface{}) (*result.Invoke, error)
+	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
+	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...any) (*result.Invoke, error)
 	TerminateSession(sessionID uuid.UUID) error
 	TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error)
 }
@@ -37,11 +37,11 @@ type Invoker interface {
 type Actor interface {
 	Invoker
 
-	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
+	MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error)
 	MakeRun(script []byte) (*transaction.Transaction, error)
-	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error)
+	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...any) (*transaction.Transaction, error)
 	MakeUnsignedRun(script []byte, attrs []transaction.Attribute) (*transaction.Transaction, error)
-	SendCall(contract util.Uint160, method string, params ...interface{}) (util.Uint256, uint32, error)
+	SendCall(contract util.Uint160, method string, params ...any) (util.Uint256, uint32, error)
 	SendRun(script []byte) (util.Uint256, uint32, error)
 }
 
@@ -222,7 +222,7 @@ func (c *ContractReader) HasMethod(hash util.Uint160, method string, pcount int)
 // to the invocation and will be used for "_deploy" method invocation done by
 // the ContractManagement contract. If successful, this method returns deployed
 // contract state that can be retrieved from the stack after execution.
-func (c *Contract) Deploy(exe *nef.File, manif *manifest.Manifest, data interface{}) (util.Uint256, uint32, error) {
+func (c *Contract) Deploy(exe *nef.File, manif *manifest.Manifest, data any) (util.Uint256, uint32, error) {
 	script, err := mkDeployScript(exe, manif, data)
 	if err != nil {
 		return util.Uint256{}, 0, err
@@ -235,7 +235,7 @@ func (c *Contract) Deploy(exe *nef.File, manif *manifest.Manifest, data interfac
 // to the invocation and will be used for "_deploy" method invocation done by
 // the ContractManagement contract. If successful, this method returns deployed
 // contract state that can be retrieved from the stack after execution.
-func (c *Contract) DeployTransaction(exe *nef.File, manif *manifest.Manifest, data interface{}) (*transaction.Transaction, error) {
+func (c *Contract) DeployTransaction(exe *nef.File, manif *manifest.Manifest, data any) (*transaction.Transaction, error) {
 	script, err := mkDeployScript(exe, manif, data)
 	if err != nil {
 		return nil, err
@@ -248,7 +248,7 @@ func (c *Contract) DeployTransaction(exe *nef.File, manif *manifest.Manifest, da
 // to the invocation and will be used for "_deploy" method invocation done by
 // the ContractManagement contract. If successful, this method returns deployed
 // contract state that can be retrieved from the stack after execution.
-func (c *Contract) DeployUnsigned(exe *nef.File, manif *manifest.Manifest, data interface{}) (*transaction.Transaction, error) {
+func (c *Contract) DeployUnsigned(exe *nef.File, manif *manifest.Manifest, data any) (*transaction.Transaction, error) {
 	script, err := mkDeployScript(exe, manif, data)
 	if err != nil {
 		return nil, err
@@ -256,7 +256,7 @@ func (c *Contract) DeployUnsigned(exe *nef.File, manif *manifest.Manifest, data 
 	return c.actor.MakeUnsignedRun(script, nil)
 }
 
-func mkDeployScript(exe *nef.File, manif *manifest.Manifest, data interface{}) ([]byte, error) {
+func mkDeployScript(exe *nef.File, manif *manifest.Manifest, data any) ([]byte, error) {
 	exeB, err := exe.Bytes()
 	if err != nil {
 		return nil, fmt.Errorf("bad NEF: %w", err)

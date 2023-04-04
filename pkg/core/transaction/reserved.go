@@ -19,6 +19,6 @@ func (e *Reserved) EncodeBinary(w *io.BinWriter) {
 	w.WriteVarBytes(e.Value)
 }
 
-func (e *Reserved) toJSONMap(m map[string]interface{}) {
+func (e *Reserved) toJSONMap(m map[string]any) {
 	m["value"] = e.Value
 }

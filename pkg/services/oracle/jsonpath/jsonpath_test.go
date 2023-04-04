@@ -16,8 +16,8 @@ type pathTestCase struct {
 	result string
 }
 
-func unmarshalGet(t *testing.T, js string, path string) ([]interface{}, bool) {
-	var v interface{}
+func unmarshalGet(t *testing.T, js string, path string) ([]any, bool) {
+	var v any
 	buf := bytes.NewBuffer([]byte(js))
 	d := json.NewDecoder(buf)
 	d.UseOrderedObject()

@@ -41,7 +41,7 @@ var (
 type item struct {
 	txn        *transaction.Transaction
 	blockStamp uint32
-	data       interface{}
+	data       any
 }
 
 // items is a slice of an item.
@@ -70,7 +70,7 @@ type Pool struct {
 	payerIndex int
 
 	resendThreshold uint32
-	resendFunc      func(*transaction.Transaction, interface{})
+	resendFunc      func(*transaction.Transaction, any)
 
 	// subscriptions for mempool events
 	subscriptionsEnabled bool
@@ -197,7 +197,7 @@ func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) (u
 }
 
 // Add tries to add the given transaction to the Pool.
-func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) error {
+func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 	var pItem = item{
 		txn:        t,
 		blockStamp: fee.BlockHeight(),
@@ -441,7 +441,7 @@ func New(capacity int, payerIndex int, enableSubscriptions bool) *Pool {
 
 // SetResendThreshold sets a threshold after which the transaction will be considered stale
 // and returned for retransmission by `GetStaleTransactions`.
-func (mp *Pool) SetResendThreshold(h uint32, f func(*transaction.Transaction, interface{})) {
+func (mp *Pool) SetResendThreshold(h uint32, f func(*transaction.Transaction, any)) {
 	mp.lock.Lock()
 	defer mp.lock.Unlock()
 	mp.resendThreshold = h
@@ -466,7 +466,7 @@ func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) 
 }
 
 // TryGetData returns data associated with the specified transaction if it exists in the memory pool.
-func (mp *Pool) TryGetData(hash util.Uint256) (interface{}, bool) {
+func (mp *Pool) TryGetData(hash util.Uint256) (any, bool) {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 	if tx, ok := mp.verifiedMap[hash]; ok {

@@ -38,7 +38,7 @@ func getVarIntSize(value int) int {
 // them with variable-length encoding that is used in Neo), strings, pointers to Serializable structures,
 // slices and arrays of ints/uints or Serializable structures. It's similar to GetVarSize<T>(this T[] value)
 // used in C#, but differs in that it also supports things like Uint160 or Uint256.
-func GetVarSize(value interface{}) int {
+func GetVarSize(value any) int {
 	v := reflect.ValueOf(value)
 	switch v.Kind() {
 	case reflect.String:

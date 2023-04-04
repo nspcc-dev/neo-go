@@ -20,16 +20,16 @@ type testAct struct {
 	vub uint32
 }
 
-func (t *testAct) Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error) {
+func (t *testAct) Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error) {
 	return t.res, t.err
 }
-func (t *testAct) MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error) {
+func (t *testAct) MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error) {
 	return t.tx, t.err
 }
-func (t *testAct) MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error) {
+func (t *testAct) MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...any) (*transaction.Transaction, error) {
 	return t.tx, t.err
 }
-func (t *testAct) SendCall(contract util.Uint160, method string, params ...interface{}) (util.Uint256, uint32, error) {
+func (t *testAct) SendCall(contract util.Uint160, method string, params ...any) (util.Uint256, uint32, error) {
 	return t.txh, t.vub, t.err
 }
 

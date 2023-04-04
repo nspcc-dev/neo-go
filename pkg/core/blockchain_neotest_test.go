@@ -1024,7 +1024,7 @@ func TestBlockchain_MPTDeleteNoKey(t *testing.T) {
 // native contract.
 func TestConfigNativeUpdateHistory(t *testing.T) {
 	var prefixPath = filepath.Join("..", "..", "config")
-	check := func(t *testing.T, cfgFileSuffix interface{}) {
+	check := func(t *testing.T, cfgFileSuffix any) {
 		cfgPath := filepath.Join(prefixPath, fmt.Sprintf("protocol.%s.yml", cfgFileSuffix))
 		cfg, err := config.LoadFile(cfgPath)
 		require.NoError(t, err, fmt.Errorf("failed to load %s", cfgPath))
@@ -1038,7 +1038,7 @@ func TestConfigNativeUpdateHistory(t *testing.T) {
 					"edit the test if the contract should be disabled", cfgPath, c.Metadata().Name))
 		}
 	}
-	testCases := []interface{}{
+	testCases := []any{
 		netmode.MainNet,
 		netmode.PrivNet,
 		netmode.TestNet,
@@ -1390,7 +1390,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				checkErr(t, core.ErrInvalidAttribute, tx)
 			})
 
-			keys := make([]interface{}, 0, len(oraclePubs))
+			keys := make([]any, 0, len(oraclePubs))
 			for _, p := range oraclePubs {
 				keys = append(keys, p.Bytes())
 			}
@@ -1612,7 +1612,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			notary, err := wallet.NewAccount()
 			require.NoError(t, err)
 			designateSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-				int64(noderoles.P2PNotary), []interface{}{notary.PublicKey().Bytes()})
+				int64(noderoles.P2PNotary), []any{notary.PublicKey().Bytes()})
 			txSetNotary := transaction.New([]byte{byte(opcode.RET)}, 0)
 			txSetNotary.Signers = []transaction.Signer{
 				{
@@ -1861,7 +1861,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		}
 
 		mp := mempool.New(10, 1, false)
-		verificationF := func(tx *transaction.Transaction, data interface{}) error {
+		verificationF := func(tx *transaction.Transaction, data any) error {
 			if data.(int) > 5 {
 				return errors.New("bad data")
 			}
@@ -1909,7 +1909,7 @@ func TestBlockchain_Bug1728(t *testing.T) {
 	src := `package example
 	import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	func init() { if true { } else { } }
-	func _deploy(_ interface{}, isUpdate bool) {
+	func _deploy(_ any, isUpdate bool) {
 		runtime.Log("Deploy")
 	}`
 	c := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(src), &compiler.Options{Name: "TestContract"})

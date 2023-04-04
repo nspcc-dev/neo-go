@@ -173,7 +173,7 @@ func OwnerOf(token []byte) interop.Hash160 {
 
 // Transfer token from its owner to another user, notice that it only has three
 // parameters because token owner can be deduced from token ID itself.
-func Transfer(to interop.Hash160, token []byte, data interface{}) bool {
+func Transfer(to interop.Hash160, token []byte, data any) bool {
 	if len(to) != 20 {
 		panic("invalid 'to' address")
 	}
@@ -199,7 +199,7 @@ func Transfer(to interop.Hash160, token []byte, data interface{}) bool {
 }
 
 // postTransfer emits Transfer event and calls onNEP11Payment if needed.
-func postTransfer(from interop.Hash160, to interop.Hash160, token []byte, data interface{}) {
+func postTransfer(from interop.Hash160, to interop.Hash160, token []byte, data any) {
 	runtime.Notify("Transfer", from, to, 1, token)
 	if management.GetContract(to) != nil {
 		contract.Call(to, "onNEP11Payment", contract.All, from, 1, token, data)
@@ -209,7 +209,7 @@ func postTransfer(from interop.Hash160, to interop.Hash160, token []byte, data i
 // OnNEP17Payment mints tokens if at least 10 GAS is provided. You don't call
 // this method directly, instead it's called by GAS contract when you transfer
 // GAS from your address to the address of this NFT contract.
-func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
+func OnNEP17Payment(from interop.Hash160, amount int, data any) {
 	defer func() {
 		if r := recover(); r != nil {
 			runtime.Log(r.(string))

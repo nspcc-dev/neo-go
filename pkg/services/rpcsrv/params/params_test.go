@@ -10,7 +10,7 @@ import (
 func TestParamsFromAny(t *testing.T) {
 	str := "jajaja"
 
-	ps, err := FromAny([]interface{}{str, smartcontract.Parameter{Type: smartcontract.StringType, Value: str}})
+	ps, err := FromAny([]any{str, smartcontract.Parameter{Type: smartcontract.StringType, Value: str}})
 	require.NoError(t, err)
 	require.Equal(t, 2, len(ps))
 
@@ -26,6 +26,6 @@ func TestParamsFromAny(t *testing.T) {
 	require.Equal(t, resStr, str)
 
 	// Invalid item.
-	_, err = FromAny([]interface{}{smartcontract.Parameter{Type: smartcontract.IntegerType, Value: str}})
+	_, err = FromAny([]any{smartcontract.Parameter{Type: smartcontract.IntegerType, Value: str}})
 	require.Error(t, err)
 }

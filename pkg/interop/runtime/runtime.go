@@ -41,7 +41,7 @@ func CheckWitness(hashOrKey []byte) bool {
 // script can ABORT the transaction or THROW an exception, make sure you
 // appropriately handle exceptions if bytecode comes from untrusted source.
 // This function uses `System.Runtime.LoadScript` syscall.
-func LoadScript(script []byte, f contract.CallFlag, args ...interface{}) interface{} {
+func LoadScript(script []byte, f contract.CallFlag, args ...any) any {
 	return neogointernal.Syscall3("System.Runtime.LoadScript", script, f, args)
 }
 
@@ -58,7 +58,7 @@ func Log(message string) {
 // part of contract's API to external systems, these events can be monitored
 // from outside and act upon accordingly. This function uses
 // `System.Runtime.Notify` syscall.
-func Notify(name string, args ...interface{}) {
+func Notify(name string, args ...any) {
 	neogointernal.Syscall2NoReturn("System.Runtime.Notify", name, args)
 }
 
@@ -105,8 +105,8 @@ func GasLeft() int {
 // 'nil' literal means no filtering. It returns slice consisting of following elements:
 // [  scripthash of notification's contract  ,  emitted item  ].
 // This function uses `System.Runtime.GetNotifications` syscall.
-func GetNotifications(h interop.Hash160) [][]interface{} {
-	return neogointernal.Syscall1("System.Runtime.GetNotifications", h).([][]interface{})
+func GetNotifications(h interop.Hash160) [][]any {
+	return neogointernal.Syscall1("System.Runtime.GetNotifications", h).([][]any)
 }
 
 // GetInvocationCounter returns how many times current contract was invoked during current tx execution.

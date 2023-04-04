@@ -1,6 +1,6 @@
 # Builder image
 # Keep go version in sync with Build GA job.
-FROM golang:1.18-alpine as builder
+FROM golang:1.20-alpine as builder
 
 # Display go version for information purposes.
 RUN go version

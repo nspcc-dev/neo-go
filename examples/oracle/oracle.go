@@ -23,7 +23,7 @@ func FilteredRequest(url string, filter []byte) {
 // OracleCallback is called by Oracle native contract when request is finished.
 // It either throws an error (if the result is not successful) or logs the data
 // got as a result.
-func OracleCallback(url string, data interface{}, code int, res []byte) {
+func OracleCallback(url string, data any, code int, res []byte) {
 	// This function shouldn't be called directly, we only expect oracle native
 	// contract to be calling it.
 	callingHash := runtime.GetCallingScriptHash()

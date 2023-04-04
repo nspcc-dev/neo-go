@@ -48,7 +48,7 @@ func NewOverrideFromString(s string) Override {
 }
 
 // UnmarshalYAML implements the YAML Unmarshaler interface.
-func (o *Override) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (o *Override) UnmarshalYAML(unmarshal func(any) error) error {
 	var s string
 
 	err := unmarshal(&s)
@@ -61,7 +61,7 @@ func (o *Override) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 // MarshalYAML implements the YAML marshaler interface.
-func (o Override) MarshalYAML() (interface{}, error) {
+func (o Override) MarshalYAML() (any, error) {
 	if o.Package == "" {
 		return o.TypeName, nil
 	}
