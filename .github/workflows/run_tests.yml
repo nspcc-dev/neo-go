@@ -15,7 +15,7 @@ on:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
       - uses: actions/setup-go@v4
@@ -29,7 +29,7 @@ jobs:
 
   gomodcheck:
     name: Check internal dependencies
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
       - uses: actions/checkout@v3
@@ -41,7 +41,7 @@ jobs:
 
   codeql:
     name: CodeQL
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
 
     strategy:
       fail-fast: false
@@ -54,6 +54,11 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
+
+    # Go needs to be installed for CodeQL tool autobuild.
+    - uses: actions/setup-go@v4
+      with:
+        go-version: '1.20'
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -86,7 +91,7 @@ jobs:
 
   test_cover:
     name: Coverage
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted, Linux, X64]
 
     env:
       CGO_ENABLED: 0
@@ -124,10 +129,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, windows-2022, macos-12]
+        os: [ubuntu-20.04, windows-2022, macos-12, [self-hosted, Linux, X64]]
         go_versions: [ '1.18', '1.19', '1.20' ]
         exclude:
-          # Only latest Go version for Windows and MacOS.
+          # Only latest Go version for Windows, MacOS and Ubuntu.
           - os: windows-2022
             go_versions: '1.18'
           - os: windows-2022
@@ -136,8 +141,12 @@ jobs:
             go_versions: '1.18'
           - os: macos-12
             go_versions: '1.19'
-          # Exclude latest Go version for Ubuntu as Coverage uses it.
           - os: ubuntu-20.04
+            go_versions: '1.18'
+          - os: ubuntu-20.04
+            go_versions: '1.19'
+          # Exclude latest Go version for self-hosted as Coverage uses it.
+          - os: [self-hosted, Linux, X64]
             go_versions: '1.20'
       fail-fast: false
     steps:
