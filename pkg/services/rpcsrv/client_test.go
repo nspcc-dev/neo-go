@@ -18,6 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/nspcc-dev/neo-go/internal/basicchain"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
@@ -2528,4 +2529,35 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 	t.Run("relevant, non-filtered", func(t *testing.T) {
 		checkRelevant(t, false)
 	})
+}
+
+func TestActor_CallWithNilParam(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	acc, err := wallet.NewAccount()
+	require.NoError(t, err)
+	act, err := actor.New(c, []actor.SignerAccount{
+		{
+			Signer: transaction.Signer{
+				Account: acc.ScriptHash(),
+			},
+			Account: acc,
+		},
+	})
+	require.NoError(t, err)
+
+	rubles, err := chain.GetContractScriptHash(basicchain.RublesContractID)
+	require.NoError(t, err)
+
+	// We don't have a suitable contract, thus use Rubles with simple put method,
+	// it should fail at the moment of conversion Null value to ByteString (not earlier,
+	// and that's the point of the test!).
+	res, err := act.Call(rubles, "putValue", "123", (*util.Uint160)(nil))
+	require.NoError(t, err)
+
+	require.True(t, strings.Contains(res.FaultException, "invalid conversion: Null/ByteString"), res.FaultException)
 }
