@@ -432,10 +432,10 @@ go 1.18`)
 		srcCheckWitness := `package kek
 		import (
 			"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
-			"github.com/nspcc-dev/neo-go/pkg/interop/util"
+			"github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
 		)
 		func Main() bool {
-			var owner = util.FromAddress("` + ownerAddress + `")
+			var owner = address.ToHash160("` + ownerAddress + `")
 			return runtime.CheckWitness(owner)
 		}
 `

@@ -89,10 +89,10 @@ func TestNotAssignedFunctionCall(t *testing.T) {
 	})
 	t.Run("Builtin", func(t *testing.T) {
 		src := `package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
 		func Main() int {
-			util.FromAddress("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
-			util.FromAddress("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
+			address.ToHash160("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
+			address.ToHash160("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
 			return 1
 		}`
 		eval(t, src, big.NewInt(1))

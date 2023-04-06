@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
+	"github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/gas"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
@@ -39,7 +40,7 @@ var (
 	// contractOwner is a special address that can perform some management
 	// functions on this contract like updating/destroying it and can also
 	// be used for contract address verification.
-	contractOwner = util.FromAddress("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
+	contractOwner = address.ToHash160("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
 )
 
 // ObjectIdentifier represents NFT structure and contains the container ID and

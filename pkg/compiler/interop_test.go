@@ -71,61 +71,12 @@ func TestTypeConstantSize(t *testing.T) {
 	})
 }
 
-func TestFromAddress(t *testing.T) {
-	as1 := "NQRLhCpAru9BjGsMwk67vdMwmzKMRgsnnN"
-	addr1, err := address.StringToUint160(as1)
-	require.NoError(t, err)
-
-	as2 := "NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8"
-	addr2, err := address.StringToUint160(as2)
-	require.NoError(t, err)
-
-	t.Run("append 2 addresses", func(t *testing.T) {
-		src := `
-		package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/util"
-		func Main() []byte {
-			addr1 := util.FromAddress("` + as1 + `")
-			addr2 := util.FromAddress("` + as2 + `")
-			sum := append(addr1, addr2...)
-			return sum
-		}
-		`
-
-		eval(t, src, append(addr1.BytesBE(), addr2.BytesBE()...))
-	})
-
-	t.Run("append 2 addresses inline", func(t *testing.T) {
-		src := `
-		package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/util"
-		func Main() []byte {
-			addr1 := util.FromAddress("` + as1 + `")
-			sum := append(addr1, util.FromAddress("` + as2 + `")...)
-			return sum
-		}
-		`
-
-		eval(t, src, append(addr1.BytesBE(), addr2.BytesBE()...))
-	})
-
-	t.Run("AliasPackage", func(t *testing.T) {
-		src := `
-		package foo
-		import uu "github.com/nspcc-dev/neo-go/pkg/interop/util"
-		func Main() []byte {
-			addr1 := uu.FromAddress("` + as1 + `")
-			addr2 := uu.FromAddress("` + as2 + `")
-			sum := append(addr1, addr2...)
-			return sum
-		}`
-		eval(t, src, append(addr1.BytesBE(), addr2.BytesBE()...))
-	})
-}
-
 func TestAddressToHash160BuiltinConversion(t *testing.T) {
 	a := "NQRLhCpAru9BjGsMwk67vdMwmzKMRgsnnN"
 	h, err := address.StringToUint160(a)
+	require.NoError(t, err)
+	a2 := "NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8"
+	addr2, err := address.StringToUint160(a2)
 	require.NoError(t, err)
 	t.Run("builtin conversion", func(t *testing.T) {
 		src := `package foo
@@ -162,6 +113,18 @@ func TestAddressToHash160BuiltinConversion(t *testing.T) {
 		require.False(t, strings.Contains(string(prog), string(h.BytesBE())))
 		// On the contrary, there should be an address string.
 		require.True(t, strings.Contains(string(prog), a))
+	})
+	t.Run("AliasPackage", func(t *testing.T) {
+		src := `
+		package foo
+		import ad "github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
+		func Main() []byte {
+			addr1 := ad.ToHash160("` + a + `")
+			addr2 := ad.ToHash160("` + a2 + `")
+			sum := append(addr1, addr2...)
+			return sum
+		}`
+		eval(t, src, append(h.BytesBE(), addr2.BytesBE()...))
 	})
 }
 

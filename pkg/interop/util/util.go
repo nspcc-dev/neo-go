@@ -14,16 +14,6 @@ func Abort() {
 	neogointernal.Opcode0NoReturn("ABORT")
 }
 
-// FromAddress is an utility function that converts a Neo address to its hash
-// (160 bit BE value in a 20 byte slice). It can only be used for strings known
-// at compilation time, because the conversion is actually being done by the
-// compiler.
-//
-// Deprecated: use address.ToHash160 instead.
-func FromAddress(address string) interop.Hash160 {
-	return nil
-}
-
 // Equals compares a with b and will return true when a and b are equal. It's
 // implemented as an EQUAL VM opcode, so the rules of comparison are those
 // of EQUAL.

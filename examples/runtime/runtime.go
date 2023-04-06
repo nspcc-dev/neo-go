@@ -1,14 +1,14 @@
 package runtimecontract
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
-	"github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
 
 var (
 	// Check if the invoker of the contract is the specified owner
-	owner = util.FromAddress("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
+	owner = address.ToHash160("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
 )
 
 // init is transformed into _initialize method that is called whenever contract

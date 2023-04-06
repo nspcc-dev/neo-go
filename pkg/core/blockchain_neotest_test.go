@@ -650,10 +650,10 @@ func TestBlockchain_IsTxStillRelevant(t *testing.T) {
 		src := fmt.Sprintf(`package verify
 		import (
 			"github.com/nspcc-dev/neo-go/pkg/interop/contract"
-			"github.com/nspcc-dev/neo-go/pkg/interop/util"
+			"github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
 		)
 		func Verify() bool {
-			addr := util.FromAddress("`+address.Uint160ToString(e.NativeHash(t, nativenames.Ledger))+`")
+			addr := address.ToHash160("`+address.Uint160ToString(e.NativeHash(t, nativenames.Ledger))+`")
 			currentHeight := contract.Call(addr, "currentIndex", contract.ReadStates)
 			return currentHeight.(int) < %d
 		}`, bc.BlockHeight()+2) // deploy + next block
