@@ -114,3 +114,12 @@ for security reasons.
 
 Removal of these options from ProtocolConfiguration is scheduled for May-June
 2023 (~0.103.0 release).
+
+## GetPeers RPC server response type changes and RPC client support
+
+GetPeers RPC command returns a list of Peers where the port type has changed from 
+string to uint16 to match C#. The RPC client currently supports unmarshalling both
+formats. 
+
+Removal of Peer unmarshalling with string based ports is scheduled for ~September 2023
+(~0.105.0 release).

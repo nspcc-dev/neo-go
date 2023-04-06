@@ -700,25 +700,26 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			invoke: func(c *Client) (any, error) {
 				return c.GetPeers()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"unconnected":[{"address":"172.200.0.1","port":"20333"}],"connected":[{"address":"127.0.0.1","port":"20335"}],"bad":[{"address":"172.200.0.254","port":"20332"}]}}`,
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"unconnected":[{"address":"172.200.0.1","port":20333}],"connected":[{"address":"127.0.0.1","port":20335}],"bad":[{"address":"172.200.0.254","port":20332}]}}`,
 			result: func(c *Client) any {
+
 				return &result.GetPeers{
 					Unconnected: result.Peers{
 						{
 							Address: "172.200.0.1",
-							Port:    "20333",
+							Port:    20333,
 						},
 					},
 					Connected: result.Peers{
 						{
 							Address: "127.0.0.1",
-							Port:    "20335",
+							Port:    20335,
 						},
 					},
 					Bad: result.Peers{
 						{
 							Address: "172.200.0.254",
-							Port:    "20332",
+							Port:    20332,
 						},
 					},
 				}

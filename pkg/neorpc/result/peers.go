@@ -1,7 +1,9 @@
 package result
 
 import (
-	"strings"
+	"encoding/json"
+	"net"
+	"strconv"
 )
 
 type (
@@ -18,7 +20,7 @@ type (
 	// Peer represents a peer.
 	Peer struct {
 		Address string `json:"address"`
-		Port    string `json:"port"`
+		Port    uint16 `json:"port"`
 	}
 )
 
@@ -49,12 +51,50 @@ func (g *GetPeers) AddBad(addrs []string) {
 // addPeers adds a set of peers to the given peer slice.
 func (p *Peers) addPeers(addrs []string) {
 	for i := range addrs {
-		addressParts := strings.Split(addrs[i], ":")
+		host, portStr, err := net.SplitHostPort(addrs[i])
+		if err != nil {
+			continue
+		}
+		port, err := strconv.ParseUint(portStr, 10, 16)
+		if err != nil {
+			port = 0
+		}
 		peer := Peer{
-			Address: addressParts[0],
-			Port:    addressParts[1],
+			Address: host,
+			Port:    uint16(port),
 		}
 
 		*p = append(*p, peer)
 	}
+}
+
+func (p *Peer) UnmarshalJSON(data []byte) error {
+	type NewPeer Peer
+	var np NewPeer
+
+	err := json.Unmarshal(data, &np)
+	if err == nil {
+		*p = Peer(np)
+		return nil
+	}
+
+	type OldPeer struct {
+		Address string `json:"address"`
+		Port    string `json:"port"`
+	}
+	var op OldPeer
+
+	err = json.Unmarshal(data, &op)
+	if err == nil {
+		port, err := strconv.ParseUint(op.Port, 10, 16)
+		if err != nil {
+			return err
+		}
+
+		*p = Peer{
+			Address: op.Address,
+			Port:    uint16(port),
+		}
+	}
+	return err
 }
