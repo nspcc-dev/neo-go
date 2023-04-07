@@ -1001,7 +1001,6 @@ type feerStub struct {
 func (f feerStub) FeePerByte() int64                            { return 1 }
 func (f feerStub) GetUtilityTokenBalance(util.Uint160) *big.Int { return big.NewInt(100000000) }
 func (f feerStub) BlockHeight() uint32                          { return f.blockHeight }
-func (f feerStub) P2PSigExtensionsEnabled() bool                { return false }
 func (f feerStub) GetBaseExecFee() int64                        { return interop.DefaultBaseExecFee }
 
 func TestMemPool(t *testing.T) {

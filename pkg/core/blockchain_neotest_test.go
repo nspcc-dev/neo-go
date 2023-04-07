@@ -1535,7 +1535,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				}}
 				return tx
 			}
-			t.Run("Disabled", func(t *testing.T) {
+			t.Run("Disabled", func(t *testing.T) { // check that NVB attribute is not an extension anymore.
 				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
 					c.P2PSigExtensions = false
 					c.ReservedAttributes = false
@@ -1543,8 +1543,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				eBad := neotest.NewExecutor(t, bcBad, validatorBad, committeeBad)
 				tx := getNVBTx(eBad, bcBad.BlockHeight())
 				err := bcBad.VerifyTx(tx)
-				require.Error(t, err)
-				require.True(t, strings.Contains(err.Error(), "invalid attribute: NotValidBefore attribute was found, but P2PSigExtensions are disabled"))
+				require.NoError(t, err)
 			})
 			t.Run("Enabled", func(t *testing.T) {
 				t.Run("NotYetValid", func(t *testing.T) {
@@ -1621,7 +1620,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				}}
 				return tx
 			}
-			t.Run("disabled", func(t *testing.T) {
+			t.Run("disabled", func(t *testing.T) { // check that Conflicts attribute is not an extension anymore.
 				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
 					c.P2PSigExtensions = false
 					c.ReservedAttributes = false
@@ -1629,8 +1628,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				eBad := neotest.NewExecutor(t, bcBad, validatorBad, committeeBad)
 				tx := getConflictsTx(eBad, util.Uint256{1, 2, 3})
 				err := bcBad.VerifyTx(tx)
-				require.Error(t, err)
-				require.True(t, strings.Contains(err.Error(), "invalid attribute: Conflicts attribute was found, but P2PSigExtensions are disabled"))
+				require.NoError(t, err)
 			})
 			t.Run("enabled", func(t *testing.T) {
 				t.Run("dummy on-chain conflict", func(t *testing.T) {

@@ -40,10 +40,6 @@ func (fs *FeerStub) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 	return big.NewInt(fs.balance)
 }
 
-func (fs *FeerStub) P2PSigExtensionsEnabled() bool {
-	return fs.p2pSigExt
-}
-
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	mp := New(10, 0, false, nil)
 	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)

@@ -26,11 +26,6 @@ func (f NotaryFeer) BlockHeight() uint32 {
 	return f.bc.BlockHeight()
 }
 
-// P2PSigExtensionsEnabled implements mempool.Feer interface.
-func (f NotaryFeer) P2PSigExtensionsEnabled() bool {
-	return f.bc.P2PSigExtensionsEnabled()
-}
-
 // NewNotaryFeer returns new NotaryFeer instance.
 func NewNotaryFeer(bc Ledger) NotaryFeer {
 	return NotaryFeer{
