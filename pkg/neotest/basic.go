@@ -181,13 +181,18 @@ func (e *Executor) InvokeScript(t testing.TB, script []byte, signers []Signer) u
 // PrepareInvocation creates a transaction with the specified script and signs it
 // by the provided signer.
 func (e *Executor) PrepareInvocation(t testing.TB, script []byte, signers []Signer, validUntilBlock ...uint32) *transaction.Transaction {
+	tx := e.PrepareInvocationNoSign(t, script, validUntilBlock...)
+	e.SignTx(t, tx, -1, signers...)
+	return tx
+}
+
+func (e *Executor) PrepareInvocationNoSign(t testing.TB, script []byte, validUntilBlock ...uint32) *transaction.Transaction {
 	tx := transaction.New(script, 0)
 	tx.Nonce = Nonce()
 	tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
 	if len(validUntilBlock) != 0 {
 		tx.ValidUntilBlock = validUntilBlock[0]
 	}
-	e.SignTx(t, tx, -1, signers...)
 	return tx
 }
 

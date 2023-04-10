@@ -47,7 +47,28 @@ func (e *Executor) ValidatorInvoker(h util.Uint160) *ContractInvoker {
 	}
 }
 
-// TestInvoke creates test the VM and invokes the method with the args.
+// TestInvokeScript creates test VM and invokes the script with the args and signers.
+func (c *ContractInvoker) TestInvokeScript(t testing.TB, script []byte, signers []Signer, validUntilBlock ...uint32) (*vm.Stack, error) {
+	tx := c.PrepareInvocationNoSign(t, script, validUntilBlock...)
+	for _, acc := range signers {
+		tx.Signers = append(tx.Signers, transaction.Signer{
+			Account: acc.ScriptHash(),
+			Scopes:  transaction.Global,
+		})
+	}
+	b := c.NewUnsignedBlock(t, tx)
+	ic, err := c.Chain.GetTestVM(trigger.Application, tx, b)
+	if err != nil {
+		return nil, err
+	}
+	t.Cleanup(ic.Finalize)
+
+	ic.VM.LoadWithFlags(tx.Script, callflag.All)
+	err = ic.VM.Run()
+	return ic.VM.Estack(), err
+}
+
+// TestInvoke creates test VM and invokes the method with the args.
 func (c *ContractInvoker) TestInvoke(t testing.TB, method string, args ...any) (*vm.Stack, error) {
 	tx := c.PrepareInvokeNoSign(t, method, args...)
 	b := c.NewUnsignedBlock(t, tx)
