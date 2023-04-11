@@ -682,7 +682,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 	v := bc.dao.Version
 	cache := bc.dao // dao is MemCachedStore over DB, so use dao directly to persist cached changes right to the underlying DB
 
-	bc.log.Info("initialize state reset", zap.Uint32("target height", height))
+	bc.log.Info("initializing state reset", zap.Uint32("target height", height))
 	start := time.Now()
 	p := start
 	keys := 0
