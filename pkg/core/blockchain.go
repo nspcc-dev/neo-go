@@ -697,7 +697,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		}
 		fallthrough
 	case stateJumpStarted:
-		bc.log.Info("trying to reset blocks, transactions and AERs")
+		bc.log.Debug("trying to reset blocks, transactions and AERs")
 		// Remove blocks/transactions/aers from currHeight down to height (not including height itself).
 		// Keep headers for now, they'll be removed later. It's hard to handle the whole set of changes in
 		// one stage, so persist periodically.
@@ -738,7 +738,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		p = time.Now()
 		fallthrough
 	case staleBlocksRemoved:
-		bc.log.Info("trying to reset contract storage items")
+		bc.log.Debug("trying to reset contract storage items")
 		pStorageStart := p
 
 		var mode = mpt.ModeAll
@@ -797,7 +797,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		fallthrough
 	case newStorageItemsAdded:
 		// Reset SYS-prefixed and IX-prefixed information.
-		bc.log.Info("trying to reset headers information")
+		bc.log.Debug("trying to reset headers information")
 		for i := height + 1; i <= hHeight; i++ {
 			cache.PurgeHeader(bc.GetHeaderHash(i))
 		}
@@ -819,7 +819,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		fallthrough
 	case headersReset:
 		// Reset MPT.
-		bc.log.Info("trying to reset state root information and NEP transfers")
+		bc.log.Debug("trying to reset state root information and NEP transfers")
 		err = bc.stateRoot.ResetState(height, cache.Store)
 		if err != nil {
 			return fmt.Errorf("failed to rollback MPT state: %w", err)
@@ -848,7 +848,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 	}
 
 	// Direct (cache-less) DB operation:  remove stale storage items.
-	bc.log.Info("trying to remove stale storage items")
+	bc.log.Debug("trying to remove stale storage items")
 	keys = 0
 	err = bc.store.SeekGC(storage.SeekRange{
 		Prefix: []byte{byte(statesync.TemporaryPrefix(v.StoragePrefix))},
@@ -862,7 +862,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 	bc.log.Info("stale storage items are reset", zap.Duration("took", time.Since(p)), zap.Int("keys", keys))
 	p = time.Now()
 
-	bc.log.Info("trying to remove state reset point")
+	bc.log.Debug("trying to remove state reset point")
 	cache.Store.Delete(resetStageKey)
 	// Unlike the state jump, state sync point must be removed as we have complete state for this height.
 	cache.Store.Delete([]byte{byte(storage.SYSStateSyncPoint)})
