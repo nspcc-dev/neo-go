@@ -19,9 +19,10 @@ const (
 	FindDeserialize  = 1 << 3
 	FindPick0        = 1 << 4
 	FindPick1        = 1 << 5
+	FindBackwards    = 1 << 7
 
 	FindAll = FindDefault | FindKeysOnly | FindRemovePrefix | FindValuesOnly |
-		FindDeserialize | FindPick0 | FindPick1
+		FindDeserialize | FindPick0 | FindPick1 | FindBackwards
 )
 
 // Iterator is an iterator state representation.
@@ -111,8 +112,9 @@ func Find(ic *interop.Context) error {
 	if opts&FindDeserialize == 0 && (opts&FindPick0 != 0 || opts&FindPick1 != 0) {
 		return fmt.Errorf("%w: PickN is specified without Deserialize", errFindInvalidOptions)
 	}
+	bkwrds := opts&FindBackwards != 0
 	ctx, cancel := context.WithCancel(context.Background())
-	seekres := ic.DAO.SeekAsync(ctx, stc.ID, storage.SeekRange{Prefix: prefix})
+	seekres := ic.DAO.SeekAsync(ctx, stc.ID, storage.SeekRange{Prefix: prefix, Backwards: bkwrds})
 	item := NewIterator(seekres, prefix, opts)
 	ic.VM.Estack().PushItem(stackitem.NewInterop(item))
 	ic.RegisterCancelFunc(func() {

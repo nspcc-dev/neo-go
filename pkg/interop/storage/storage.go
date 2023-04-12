@@ -36,6 +36,8 @@ const (
 	PickField0 FindFlags = 1 << 4
 	// PickField1 is used to get second field in a serialized struct or array.
 	PickField1 FindFlags = 1 << 5
+	// Backwards is used to iterate over elements in reversed (descending) order.
+	Backwards FindFlags = 1 << 7
 )
 
 // ConvertContextToReadOnly returns new context from the given one, but with
