@@ -130,6 +130,9 @@ func (p *ProtocolConfiguration) Validate() error {
 	}
 	var arr = make([]heightNumber, 0, len(p.CommitteeHistory))
 	for h, n := range p.CommitteeHistory {
+		if n == 0 {
+			return fmt.Errorf("invalid CommitteeHistory: bad members count (%d) for height %d", n, h)
+		}
 		if int(n) > len(p.StandbyCommittee) {
 			return fmt.Errorf("too small StandbyCommittee for required number of committee members at %d", h)
 		}
@@ -148,6 +151,9 @@ func (p *ProtocolConfiguration) Validate() error {
 	}
 	arr = arr[:0]
 	for h, n := range p.ValidatorsHistory {
+		if n == 0 {
+			return fmt.Errorf("invalid ValidatorsHistory: bad members count (%d) for height %d", n, h)
+		}
 		if int(n) > len(p.StandbyCommittee) {
 			return fmt.Errorf("too small StandbyCommittee for required number of validators at %d", h)
 		}
