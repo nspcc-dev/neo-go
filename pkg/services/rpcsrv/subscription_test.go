@@ -99,7 +99,7 @@ func TestSubscriptions(t *testing.T) {
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	go rpcSrv.coreServer.Start(make(chan error))
+	go rpcSrv.coreServer.Start()
 	defer rpcSrv.coreServer.Shutdown()
 
 	for _, feed := range subFeeds {
@@ -374,7 +374,7 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 	}
 
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
-	go rpcSrv.coreServer.Start(make(chan error, 1))
+	go rpcSrv.coreServer.Start()
 
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
