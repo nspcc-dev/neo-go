@@ -25,7 +25,7 @@ func TestCalculateValidUntilBlock(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(42+7+1), vub)
 
-	client.version.Protocol.ValidatorsHistory = map[uint32]int{
+	client.version.Protocol.ValidatorsHistory = map[uint32]uint32{
 		0:  7,
 		40: 4,
 		80: 10,
