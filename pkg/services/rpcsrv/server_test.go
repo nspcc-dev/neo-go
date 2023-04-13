@@ -50,6 +50,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/atomic"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -3330,4 +3331,22 @@ func BenchmarkHandleIn(b *testing.B) {
 "0x50befd26fdf6e4d957c11e078b24ebce6291456f", "someMethod", [{"type": "String", "value": "50befd26fdf6e4d957c11e078b24ebce6291456f"}, 
 {"type": "Integer", "value": "42"}, {"type": "Boolean", "value": false}]]}`))
 	})
+}
+
+func TestFailedPreconditionShutdown(t *testing.T) {
+	_, srv, _ := initClearServerWithCustomConfig(t, func(c *config.Config) {
+		c.ApplicationConfiguration.RPC.Addresses = []string{"not an address"}
+	})
+
+	srv.Start()
+	require.Positive(t, len(srv.errChan)) // this is how Start reports internal failures
+
+	var stopped atomic.Bool
+
+	go func() {
+		srv.Shutdown()
+		stopped.Store(true)
+	}()
+
+	require.Eventually(t, stopped.Load, 5*time.Second, 100*time.Millisecond, "Shutdown should return")
 }
