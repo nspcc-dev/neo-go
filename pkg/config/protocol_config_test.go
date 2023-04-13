@@ -52,7 +52,7 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 			"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62",
 		},
 		ValidatorsCount:   4,
-		ValidatorsHistory: map[uint32]int{0: 4},
+		ValidatorsHistory: map[uint32]uint32{0: 4},
 	}
 	require.Error(t, p.Validate())
 	p = &ProtocolConfiguration{
@@ -62,8 +62,8 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 			"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699",
 			"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62",
 		},
-		CommitteeHistory:  map[uint32]int{0: 4},
-		ValidatorsHistory: map[uint32]int{0: 4, 1000: 5},
+		CommitteeHistory:  map[uint32]uint32{0: 4},
+		ValidatorsHistory: map[uint32]uint32{0: 4, 1000: 5},
 	}
 	require.Error(t, p.Validate())
 	p = &ProtocolConfiguration{
@@ -73,8 +73,8 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 			"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699",
 			"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62",
 		},
-		CommitteeHistory:  map[uint32]int{0: 4, 1000: 5},
-		ValidatorsHistory: map[uint32]int{0: 4},
+		CommitteeHistory:  map[uint32]uint32{0: 4, 1000: 5},
+		ValidatorsHistory: map[uint32]uint32{0: 4},
 	}
 	require.Error(t, p.Validate())
 	p = &ProtocolConfiguration{
@@ -84,8 +84,8 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 			"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699",
 			"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62",
 		},
-		CommitteeHistory:  map[uint32]int{0: 1, 999: 4},
-		ValidatorsHistory: map[uint32]int{0: 1},
+		CommitteeHistory:  map[uint32]uint32{0: 1, 999: 4},
+		ValidatorsHistory: map[uint32]uint32{0: 1},
 	}
 	require.Error(t, p.Validate())
 	p = &ProtocolConfiguration{
@@ -95,8 +95,8 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 			"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699",
 			"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62",
 		},
-		CommitteeHistory:  map[uint32]int{0: 1, 1000: 4},
-		ValidatorsHistory: map[uint32]int{0: 1, 999: 4},
+		CommitteeHistory:  map[uint32]uint32{0: 1, 1000: 4},
+		ValidatorsHistory: map[uint32]uint32{0: 1, 999: 4},
 	}
 	require.Error(t, p.Validate())
 	p = &ProtocolConfiguration{
@@ -106,8 +106,30 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 			"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699",
 			"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62",
 		},
-		CommitteeHistory:  map[uint32]int{0: 1, 100: 4},
-		ValidatorsHistory: map[uint32]int{0: 4, 100: 4},
+		CommitteeHistory:  map[uint32]uint32{0: 1, 100: 4},
+		ValidatorsHistory: map[uint32]uint32{0: 4, 100: 4},
+	}
+	require.Error(t, p.Validate())
+	p = &ProtocolConfiguration{
+		StandbyCommittee: []string{
+			"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2",
+			"02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e",
+			"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699",
+			"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62",
+		},
+		CommitteeHistory:  map[uint32]uint32{0: 0, 100: 4},
+		ValidatorsHistory: map[uint32]uint32{0: 1, 100: 4},
+	}
+	require.Error(t, p.Validate())
+	p = &ProtocolConfiguration{
+		StandbyCommittee: []string{
+			"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2",
+			"02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e",
+			"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699",
+			"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62",
+		},
+		CommitteeHistory:  map[uint32]uint32{0: 1, 100: 4},
+		ValidatorsHistory: map[uint32]uint32{0: 0, 100: 4},
 	}
 	require.Error(t, p.Validate())
 	p = &ProtocolConfiguration{
@@ -123,8 +145,8 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 			"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699",
 			"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62",
 		},
-		CommitteeHistory:  map[uint32]int{0: 1, 100: 4},
-		ValidatorsHistory: map[uint32]int{0: 1, 100: 4},
+		CommitteeHistory:  map[uint32]uint32{0: 1, 100: 4},
+		ValidatorsHistory: map[uint32]uint32{0: 1, 100: 4},
 	}
 	require.NoError(t, p.Validate())
 }
@@ -137,8 +159,8 @@ func TestGetCommitteeAndCNs(t *testing.T) {
 			"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699",
 			"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62",
 		},
-		CommitteeHistory:  map[uint32]int{0: 1, 100: 4},
-		ValidatorsHistory: map[uint32]int{0: 1, 200: 4},
+		CommitteeHistory:  map[uint32]uint32{0: 1, 100: 4},
+		ValidatorsHistory: map[uint32]uint32{0: 1, 200: 4},
 	}
 	require.Equal(t, 1, p.GetCommitteeSize(0))
 	require.Equal(t, 1, p.GetCommitteeSize(99))
@@ -173,8 +195,8 @@ func TestProtocolConfigurationEquals(t *testing.T) {
 	o = &cfg2.ProtocolConfiguration
 	require.True(t, p.Equals(o))
 
-	o.CommitteeHistory = map[uint32]int{111: 7}
-	p.CommitteeHistory = map[uint32]int{111: 7}
+	o.CommitteeHistory = map[uint32]uint32{111: 7}
+	p.CommitteeHistory = map[uint32]uint32{111: 7}
 	require.True(t, p.Equals(o))
 	p.CommitteeHistory[111] = 8
 	require.False(t, p.Equals(o))
@@ -220,9 +242,9 @@ func TestProtocolConfigurationEquals(t *testing.T) {
 	p.StandbyCommittee = nil
 	o.StandbyCommittee = nil
 
-	o.ValidatorsHistory = map[uint32]int{111: 0}
-	p.ValidatorsHistory = map[uint32]int{111: 0}
+	o.ValidatorsHistory = map[uint32]uint32{111: 0}
+	p.ValidatorsHistory = map[uint32]uint32{111: 0}
 	require.True(t, p.Equals(o))
-	p.ValidatorsHistory = map[uint32]int{112: 0}
+	p.ValidatorsHistory = map[uint32]uint32{112: 0}
 	require.False(t, p.Equals(o))
 }

@@ -247,12 +247,12 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 func TestChainWithVolatileNumOfValidators(t *testing.T) {
 	bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
 		c.ProtocolConfiguration.ValidatorsCount = 0
-		c.ProtocolConfiguration.CommitteeHistory = map[uint32]int{
+		c.ProtocolConfiguration.CommitteeHistory = map[uint32]uint32{
 			0:  1,
 			4:  4,
 			24: 6,
 		}
-		c.ProtocolConfiguration.ValidatorsHistory = map[uint32]int{
+		c.ProtocolConfiguration.ValidatorsHistory = map[uint32]uint32{
 			0: 1,
 			4: 4,
 		}
