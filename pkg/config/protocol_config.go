@@ -15,7 +15,7 @@ import (
 type (
 	ProtocolConfiguration struct {
 		// CommitteeHistory stores committee size change history (height: size).
-		CommitteeHistory map[uint32]int `yaml:"CommitteeHistory"`
+		CommitteeHistory map[uint32]uint32 `yaml:"CommitteeHistory"`
 		// GarbageCollectionPeriod sets the number of blocks to wait before
 		// starting the next MPT garbage collection cycle when RemoveUntraceableBlocks
 		// option is used.
@@ -84,7 +84,7 @@ type (
 		TimePerBlock    time.Duration `yaml:"TimePerBlock"`
 		ValidatorsCount int           `yaml:"ValidatorsCount"`
 		// Validators stores history of changes to consensus node number (height: number).
-		ValidatorsHistory map[uint32]int `yaml:"ValidatorsHistory"`
+		ValidatorsHistory map[uint32]uint32 `yaml:"ValidatorsHistory"`
 		// Whether to verify received blocks.
 		//
 		// Deprecated: please use the same setting in the ApplicationConfiguration, this field will be removed in future versions.
@@ -97,7 +97,7 @@ type (
 // heightNumber is an auxiliary structure for configuration checks.
 type heightNumber struct {
 	h uint32
-	n int
+	n uint32
 }
 
 // Validate checks ProtocolConfiguration for internal consistency and returns
@@ -187,11 +187,11 @@ func (p *ProtocolConfiguration) GetCommitteeSize(height uint32) int {
 	if len(p.CommitteeHistory) == 0 {
 		return len(p.StandbyCommittee)
 	}
-	return getBestFromMap(p.CommitteeHistory, height)
+	return int(getBestFromMap(p.CommitteeHistory, height))
 }
 
-func getBestFromMap(dict map[uint32]int, height uint32) int {
-	var res int
+func getBestFromMap(dict map[uint32]uint32, height uint32) uint32 {
+	var res uint32
 	var bestH = uint32(0)
 	for h, n := range dict {
 		if h >= bestH && h <= height {
@@ -208,7 +208,7 @@ func (p *ProtocolConfiguration) GetNumOfCNs(height uint32) int {
 	if len(p.ValidatorsHistory) == 0 {
 		return p.ValidatorsCount
 	}
-	return getBestFromMap(p.ValidatorsHistory, height)
+	return int(getBestFromMap(p.ValidatorsHistory, height))
 }
 
 // ShouldUpdateCommitteeAt answers the question of whether the committee

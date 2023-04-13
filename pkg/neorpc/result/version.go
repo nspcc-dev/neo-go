@@ -34,13 +34,13 @@ type (
 		// returned by the server in case they're enabled.
 
 		// CommitteeHistory stores height:size map of the committee size.
-		CommitteeHistory map[uint32]int
+		CommitteeHistory map[uint32]uint32
 		// P2PSigExtensions is true when Notary subsystem is enabled on the network.
 		P2PSigExtensions bool
 		// StateRootInHeader is true if state root is contained in block header.
 		StateRootInHeader bool
 		// ValidatorsHistory stores height:size map of the validators count.
-		ValidatorsHistory map[uint32]int
+		ValidatorsHistory map[uint32]uint32
 	}
 
 	// protocolMarshallerAux is an auxiliary struct used for Protocol JSON marshalling.
@@ -55,10 +55,10 @@ type (
 		ValidatorsCount             byte          `json:"validatorscount"`
 		InitialGasDistribution      int64         `json:"initialgasdistribution"`
 
-		CommitteeHistory  map[uint32]int `json:"committeehistory,omitempty"`
-		P2PSigExtensions  bool           `json:"p2psigextensions,omitempty"`
-		StateRootInHeader bool           `json:"staterootinheader,omitempty"`
-		ValidatorsHistory map[uint32]int `json:"validatorshistory,omitempty"`
+		CommitteeHistory  map[uint32]uint32 `json:"committeehistory,omitempty"`
+		P2PSigExtensions  bool              `json:"p2psigextensions,omitempty"`
+		StateRootInHeader bool              `json:"staterootinheader,omitempty"`
+		ValidatorsHistory map[uint32]uint32 `json:"validatorshistory,omitempty"`
 	}
 )
 
