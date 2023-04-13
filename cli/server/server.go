@@ -491,7 +491,10 @@ func startServer(ctx *cli.Context) error {
 
 	go serv.Start(errChan)
 	if !cfg.ApplicationConfiguration.RPC.StartWhenSynchronized {
-		rpcServer.Start()
+		// Run RPC server in a separate routine. This is necessary to avoid a potential
+		// deadlock: Start() can write errors to errChan which is not yet read in the
+		// current execution context (see for-loop below).
+		go rpcServer.Start()
 	}
 
 	sigCh := make(chan os.Signal, 1)
@@ -546,7 +549,8 @@ Main:
 				rpcServer = rpcsrv.New(chain, cfgnew.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
 				serv.AddService(&rpcServer)
 				if !cfgnew.ApplicationConfiguration.RPC.StartWhenSynchronized || serv.IsInSync() {
-					rpcServer.Start()
+					// Here similar to the initial run (see above for-loop), so async.
+					go rpcServer.Start()
 				}
 				pprof.ShutDown()
 				pprof = metrics.NewPprofService(cfgnew.ApplicationConfiguration.Pprof, log)
