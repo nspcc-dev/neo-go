@@ -50,6 +50,15 @@ var (
 		},
 	)
 	p2pCmds = make(map[CommandType]prometheus.Histogram)
+
+	// notarypoolUnsortedTx prometheus metric.
+	notarypoolUnsortedTx = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Help:      "Notary request pool fallback txs",
+			Name:      "notarypool_unsorted_tx",
+			Namespace: "neogo",
+		},
+	)
 )
 
 func init() {
@@ -59,6 +68,7 @@ func init() {
 		servAndNodeVersion,
 		poolCount,
 		blockQueueLength,
+		notarypoolUnsortedTx,
 	)
 	for _, cmd := range []CommandType{CMDVersion, CMDVerack, CMDGetAddr,
 		CMDAddr, CMDPing, CMDPong, CMDGetHeaders, CMDHeaders, CMDGetBlocks,
@@ -102,4 +112,10 @@ func addCmdTimeMetric(cmd CommandType, t time.Duration) {
 		return
 	}
 	p2pCmds[cmd].Observe(t.Seconds())
+}
+
+// updateNotarypoolMetrics updates metric of the number of fallback txs inside
+// the notary request pool.
+func updateNotarypoolMetrics(unsortedTxnLen int) {
+	notarypoolUnsortedTx.Set(float64(unsortedTxnLen))
 }

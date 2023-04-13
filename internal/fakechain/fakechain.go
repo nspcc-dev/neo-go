@@ -62,7 +62,7 @@ func NewFakeChainWithCustomCfg(protocolCfg func(c *config.Blockchain)) *FakeChai
 		protocolCfg(&cfg)
 	}
 	return &FakeChain{
-		Pool:           mempool.New(10, 0, false),
+		Pool:           mempool.New(10, 0, false, nil),
 		PoolTxF:        func(*transaction.Transaction) error { return nil },
 		poolTxWithData: func(*transaction.Transaction, any, *mempool.Pool) error { return nil },
 		blocks:         make(map[util.Uint256]*block.Block),

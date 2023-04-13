@@ -27,21 +27,21 @@ func TestWallet(t *testing.T) {
 	}
 	t.Run("unexisting wallet", func(t *testing.T) {
 		cfg.MainCfg.UnlockWallet.Path = "./testdata/does_not_exists.json"
-		_, err := NewNotary(cfg, netmode.UnitTestNet, mempool.New(1, 1, true), nil)
+		_, err := NewNotary(cfg, netmode.UnitTestNet, mempool.New(1, 1, true, nil), nil)
 		require.Error(t, err)
 	})
 
 	t.Run("bad password", func(t *testing.T) {
 		cfg.MainCfg.UnlockWallet.Path = "./testdata/notary1.json"
 		cfg.MainCfg.UnlockWallet.Password = "invalid"
-		_, err := NewNotary(cfg, netmode.UnitTestNet, mempool.New(1, 1, true), nil)
+		_, err := NewNotary(cfg, netmode.UnitTestNet, mempool.New(1, 1, true, nil), nil)
 		require.Error(t, err)
 	})
 
 	t.Run("good", func(t *testing.T) {
 		cfg.MainCfg.UnlockWallet.Path = "./testdata/notary1.json"
 		cfg.MainCfg.UnlockWallet.Password = "one"
-		_, err := NewNotary(cfg, netmode.UnitTestNet, mempool.New(1, 1, true), nil)
+		_, err := NewNotary(cfg, netmode.UnitTestNet, mempool.New(1, 1, true, nil), nil)
 		require.NoError(t, err)
 	})
 }
