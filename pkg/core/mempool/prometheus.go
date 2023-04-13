@@ -3,7 +3,7 @@ package mempool
 import "github.com/prometheus/client_golang/prometheus"
 
 var (
-	//mempoolUnsortedTx prometheus metric.
+	// mempoolUnsortedTx prometheus metric.
 	mempoolUnsortedTx = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Help:      "Mempool Unsorted TXs",
