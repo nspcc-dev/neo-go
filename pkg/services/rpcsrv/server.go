@@ -344,6 +344,9 @@ func (s *Server) Start() {
 		s.log.Info("RPC server already started")
 		return
 	}
+
+	go s.handleSubEvents()
+
 	for _, srv := range s.http {
 		srv.Handler = http.HandlerFunc(s.handleHTTPRequest)
 		s.log.Info("starting rpc-server", zap.String("endpoint", srv.Addr))
@@ -363,7 +366,6 @@ func (s *Server) Start() {
 		}(srv)
 	}
 
-	go s.handleSubEvents()
 	if cfg := s.config.TLSConfig; cfg.Enabled {
 		for _, srv := range s.https {
 			srv.Handler = http.HandlerFunc(s.handleHTTPRequest)
