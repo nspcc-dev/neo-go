@@ -87,20 +87,11 @@ func TestNewServer(t *testing.T) {
 	})
 }
 
-func startWithChannel(s *Server) chan error {
-	ch := make(chan error)
-	go func() {
-		s.Start(ch)
-		close(ch)
-	}()
-	return ch
-}
-
 func TestServerStartAndShutdown(t *testing.T) {
 	t.Run("no consensus", func(t *testing.T) {
 		s := newTestServer(t, ServerConfig{})
 
-		ch := startWithChannel(s)
+		go s.Start()
 		p := newLocalPeer(t, s)
 		s.register <- p
 		require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
@@ -109,7 +100,6 @@ func TestServerStartAndShutdown(t *testing.T) {
 		assert.Nil(t, s.txCallback)
 
 		s.Shutdown()
-		<-ch
 
 		require.True(t, s.transports[0].(*fakeTransp).closed.Load())
 		err, ok := p.droppedWith.Load().(error)
@@ -121,14 +111,13 @@ func TestServerStartAndShutdown(t *testing.T) {
 		cons := new(fakeConsensus)
 		s.AddConsensusService(cons, cons.OnPayload, cons.OnTransaction)
 
-		ch := startWithChannel(s)
+		go s.Start()
 		p := newLocalPeer(t, s)
 		s.register <- p
 
 		assert.True(t, s.services["fake"].(*fakeConsensus).started.Load())
 
 		s.Shutdown()
-		<-ch
 
 		require.True(t, s.services["fake"].(*fakeConsensus).stopped.Load())
 	})
@@ -401,10 +390,9 @@ func startTestServer(t *testing.T, protocolCfg ...func(*config.Blockchain)) *Ser
 }
 
 func startWithCleanup(t *testing.T, s *Server) {
-	ch := startWithChannel(s)
+	go s.Start()
 	t.Cleanup(func() {
 		s.Shutdown()
-		<-ch
 	})
 }
 
