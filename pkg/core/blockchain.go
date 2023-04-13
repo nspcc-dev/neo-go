@@ -328,8 +328,8 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 	return bc, nil
 }
 
-// SetOracle sets oracle module. It doesn't protected by mutex and
-// must be called before `bc.Run()` to avoid data race.
+// SetOracle sets oracle module. It can safely be called on the running blockchain.
+// To unregister Oracle service use SetOracle(nil).
 func (bc *Blockchain) SetOracle(mod native.OracleService) {
 	orc := bc.contracts.Oracle
 	if mod != nil {
@@ -356,8 +356,8 @@ func (bc *Blockchain) SetOracle(mod native.OracleService) {
 	bc.contracts.Designate.OracleService.Store(&mod)
 }
 
-// SetNotary sets notary module. It doesn't protected by mutex and
-// must be called before `bc.Run()` to avoid data race.
+// SetNotary sets notary module. It may safely be called on the running blockchain.
+// To unregister Notary service use SetNotary(nil).
 func (bc *Blockchain) SetNotary(mod native.NotaryService) {
 	if mod != nil {
 		keys, _, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.P2PNotary, bc.BlockHeight())
