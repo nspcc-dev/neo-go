@@ -82,7 +82,7 @@ type (
 		// TimePerBlock is the time interval between blocks that consensus nodes work with.
 		// It must be an integer number of milliseconds.
 		TimePerBlock    time.Duration `yaml:"TimePerBlock"`
-		ValidatorsCount int           `yaml:"ValidatorsCount"`
+		ValidatorsCount uint32        `yaml:"ValidatorsCount"`
 		// Validators stores history of changes to consensus node number (height: number).
 		ValidatorsHistory map[uint32]uint32 `yaml:"ValidatorsHistory"`
 		// Whether to verify received blocks.
@@ -125,7 +125,7 @@ func (p *ProtocolConfiguration) Validate() error {
 	if p.ValidatorsCount != 0 && len(p.ValidatorsHistory) != 0 {
 		return errors.New("configuration should either have ValidatorsCount or ValidatorsHistory, not both")
 	}
-	if len(p.StandbyCommittee) < p.ValidatorsCount {
+	if len(p.StandbyCommittee) < int(p.ValidatorsCount) {
 		return errors.New("validators count can't exceed the size of StandbyCommittee")
 	}
 	var arr = make([]heightNumber, 0, len(p.CommitteeHistory))
@@ -212,7 +212,7 @@ func getBestFromMap(dict map[uint32]uint32, height uint32) uint32 {
 // It implies valid configuration file.
 func (p *ProtocolConfiguration) GetNumOfCNs(height uint32) int {
 	if len(p.ValidatorsHistory) == 0 {
-		return p.ValidatorsCount
+		return int(p.ValidatorsCount)
 	}
 	return int(getBestFromMap(p.ValidatorsHistory, height))
 }
