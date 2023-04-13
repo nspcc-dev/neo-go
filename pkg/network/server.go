@@ -265,7 +265,7 @@ func (s *Server) ID() uint32 {
 
 // Start will start the server and its underlying transport. Calling it twice
 // is an error.
-func (s *Server) Start(errChan chan error) {
+func (s *Server) Start() {
 	s.log.Info("node started",
 		zap.Uint32("blockHeight", s.chain.BlockHeight()),
 		zap.Uint32("headerHeight", s.chain.HeaderHeight()))

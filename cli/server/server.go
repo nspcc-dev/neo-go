@@ -489,7 +489,7 @@ func startServer(ctx *cli.Context) error {
 	rpcServer := rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
 	serv.AddService(&rpcServer)
 
-	go serv.Start(errChan)
+	go serv.Start()
 	if !cfg.ApplicationConfiguration.RPC.StartWhenSynchronized {
 		rpcServer.Start()
 	}
