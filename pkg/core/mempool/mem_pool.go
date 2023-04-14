@@ -65,9 +65,10 @@ type Pool struct {
 	// oracleResp contains the ids of oracle responses for the tx in the pool.
 	oracleResp map[uint64]util.Uint256
 
-	capacity   int
-	feePerByte int64
-	payerIndex int
+	capacity        int
+	feePerByte      int64
+	payerIndex      int
+	updateMetricsCb func(int)
 
 	resendThreshold uint32
 	resendFunc      func(*transaction.Transaction, any)
@@ -286,7 +287,9 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 	// we already checked balance in checkTxConflicts, so don't need to check again
 	mp.tryAddSendersFee(pItem.txn, fee, false)
 
-	updateMempoolMetrics(len(mp.verifiedTxes))
+	if mp.updateMetricsCb != nil {
+		mp.updateMetricsCb(len(mp.verifiedTxes))
+	}
 	mp.lock.Unlock()
 
 	if mp.subscriptionsOn.Load() {
@@ -342,7 +345,9 @@ func (mp *Pool) removeInternal(hash util.Uint256, feer Feer) {
 			}
 		}
 	}
-	updateMempoolMetrics(len(mp.verifiedTxes))
+	if mp.updateMetricsCb != nil {
+		mp.updateMetricsCb(len(mp.verifiedTxes))
+	}
 }
 
 // RemoveStale filters verified transactions through the given function keeping
@@ -420,7 +425,7 @@ func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) boo
 }
 
 // New returns a new Pool struct.
-func New(capacity int, payerIndex int, enableSubscriptions bool) *Pool {
+func New(capacity int, payerIndex int, enableSubscriptions bool, updateMetricsCb func(int)) *Pool {
 	mp := &Pool{
 		verifiedMap:          make(map[util.Uint256]*transaction.Transaction, capacity),
 		verifiedTxes:         make([]item, 0, capacity),
@@ -434,6 +439,7 @@ func New(capacity int, payerIndex int, enableSubscriptions bool) *Pool {
 		events:               make(chan mempoolevent.Event),
 		subCh:                make(chan chan<- mempoolevent.Event),
 		unsubCh:              make(chan chan<- mempoolevent.Event),
+		updateMetricsCb:      updateMetricsCb,
 	}
 	mp.subscriptionsOn.Store(false)
 	return mp

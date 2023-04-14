@@ -13,7 +13,7 @@ import (
 
 func TestSubscriptions(t *testing.T) {
 	t.Run("disabled subscriptions", func(t *testing.T) {
-		mp := New(5, 0, false)
+		mp := New(5, 0, false, nil)
 		require.Panics(t, func() {
 			mp.RunSubscriptions()
 		})
@@ -24,7 +24,7 @@ func TestSubscriptions(t *testing.T) {
 
 	t.Run("enabled subscriptions", func(t *testing.T) {
 		fs := &FeerStub{balance: 100}
-		mp := New(2, 0, true)
+		mp := New(2, 0, true, nil)
 		mp.RunSubscriptions()
 		subChan1 := make(chan mempoolevent.Event, 3)
 		subChan2 := make(chan mempoolevent.Event, 3)

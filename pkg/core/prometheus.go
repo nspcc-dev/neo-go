@@ -6,7 +6,7 @@ import (
 
 // Metrics for monitoring service.
 var (
-	//blockHeight prometheus metric.
+	// blockHeight prometheus metric.
 	blockHeight = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Help:      "Current index of processed block",
@@ -14,7 +14,7 @@ var (
 			Namespace: "neogo",
 		},
 	)
-	//persistedHeight prometheus metric.
+	// persistedHeight prometheus metric.
 	persistedHeight = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Help:      "Current persisted block count",
@@ -22,11 +22,19 @@ var (
 			Namespace: "neogo",
 		},
 	)
-	//headerHeight prometheus metric.
+	// headerHeight prometheus metric.
 	headerHeight = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Help:      "Current header height",
 			Name:      "current_header_height",
+			Namespace: "neogo",
+		},
+	)
+	// mempoolUnsortedTx prometheus metric.
+	mempoolUnsortedTx = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Help:      "Mempool unsorted transactions",
+			Name:      "mempool_unsorted_tx",
 			Namespace: "neogo",
 		},
 	)
@@ -37,6 +45,7 @@ func init() {
 		blockHeight,
 		persistedHeight,
 		headerHeight,
+		mempoolUnsortedTx,
 	)
 }
 
@@ -50,4 +59,9 @@ func updateHeaderHeightMetric(hHeight uint32) {
 
 func updateBlockHeightMetric(bHeight uint32) {
 	blockHeight.Set(float64(bHeight))
+}
+
+// updateMempoolMetrics updates metric of the number of unsorted txs inside the mempool.
+func updateMempoolMetrics(unsortedTxnLen int) {
+	mempoolUnsortedTx.Set(float64(unsortedTxnLen))
 }
