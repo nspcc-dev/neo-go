@@ -384,7 +384,7 @@ subpackage with an example written in Go doc.
      `Invocation` script **should be empty**.
    - A multisignature witness must have regular `Verification` script filled even
      if `Invocation` script is to be collected from other notary requests.
-     `Invocation` script either **should be empty**.
+     `Invocation` script **should be empty**.
 8. Calculate network fee for the transaction (that will be `NetworkFee`
    transaction field). Use [func (*Client) CalculateNetworkFee](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.99.2/pkg/rpcclient#Client.CalculateNetworkFee)
    method with the main transaction given to it.
