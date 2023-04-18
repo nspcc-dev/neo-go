@@ -3,6 +3,7 @@ package rpcsrv
 import (
 	"bytes"
 	"context"
+	"crypto/elliptic"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -52,6 +53,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -60,6 +62,130 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func getCosigners(t *testing.T, multisig *wallet.Account, acc *wallet.Account, rubles util.Uint160) []actor.SignerAccount {
+	ss := make([]actor.SignerAccount, 0, 3)
+
+	m, pubsB, ok := vm.ParseMultiSigContract(multisig.Contract.Script)
+	require.True(t, ok)
+	pubs := make(keys.PublicKeys, len(pubsB))
+	var err error
+	for i := range pubsB {
+		pubs[i], err = keys.NewPublicKeyFromBytes(pubsB[i], elliptic.P256())
+		require.NoError(t, err)
+	}
+	fakeMultisig, err := notary.FakeMultisigAccount(m, pubs)
+	require.NoError(t, err)
+
+	ss = append(ss, []actor.SignerAccount{
+		{
+			// proxy contract
+			Signer: transaction.Signer{
+				Account: rubles,
+				Scopes:  transaction.None,
+			},
+			Account: notary.FakeContractAccount(rubles),
+		},
+		{
+			// multi signature (committee, in fact)
+			Signer: transaction.Signer{
+				Account: multisig.ScriptHash(),
+				Scopes:  transaction.Global,
+			},
+			Account: fakeMultisig, // encrypted
+		},
+	}...)
+
+	// invoker signature
+	ss = append(ss, actor.SignerAccount{
+		Signer: transaction.Signer{
+			Account: hash.Hash160(acc.GetVerificationScript()),
+			Scopes:  transaction.Global,
+		},
+		Account: acc,
+	})
+	return ss
+}
+
+func TestNotarizator(t *testing.T) {
+	c, err := rpcclient.NewWS(context.Background(), "ws://localhost:20331/ws", rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	w, err := wallet.NewWalletFromFile("../../../.docker/wallets/wallet1.json")
+	require.NoError(t, err)
+	acc := w.Accounts[0]
+	require.NoError(t, acc.Decrypt("one", w.Scrypt))
+
+	rubles, err := util.Uint160DecodeStringLE(testContractHash)
+	require.NoError(t, err)
+
+	multisig := w.Accounts[1]
+	cosigners := getCosigners(t, multisig, acc, rubles)
+
+	nAct, err := notary.NewActor(c, cosigners, acc)
+	require.NoError(t, err)
+
+	fmt.Println("actor created, starting subscriptions")
+	go subsLoop(t, rubles)
+
+	time.Sleep(10 * time.Second)
+
+	fmt.Println("starting notarizator")
+	mainH, fbHash, VUB, err := nAct.Notarize(nAct.MakeTunedCall(rubles, "putValue", nil, func(r *result.Invoke, t *transaction.Transaction) error {
+		if r.State != vmstate.Halt.String() {
+			return fmt.Errorf("FAULT putValue call: %s", r.FaultException)
+		}
+
+		t.ValidUntilBlock = 64
+		t.Nonce = 4
+
+		return nil
+	}, "notarykey", "notaryvalue"))
+
+	fmt.Printf("Notary request sent:\n\tmain hash: %s\n\tfb hash: %s\n\tVUB: %d\n\terr: %v\n\n", mainH.StringLE(), fbHash.StringLE(), VUB, err)
+
+	time.Sleep(20 * time.Second)
+}
+
+func subsLoop(t *testing.T, rubles util.Uint160) {
+	c, err := rpcclient.NewWS(context.Background(), "ws://localhost:20331/ws", rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+	ch := c.Notifications
+	exitCh := make(chan struct{})
+	go func() {
+	subsLoop:
+		for {
+			select {
+			case r, ok := <-ch:
+				if !ok {
+					fmt.Println("Subscriptions listener: !ok")
+					break subsLoop
+				}
+				switch r.Type {
+				case neorpc.NotaryRequestEventID:
+					val := r.Value.(*result.NotaryRequestEvent)
+					fmt.Printf("Notary request event:\n\ttype: %s\n\tmain hash: %s\n\tfb hash: %s\n\n", val.Type, val.NotaryRequest.MainTransaction.Hash().StringLE(), val.NotaryRequest.FallbackTransaction.Hash().StringLE())
+				default:
+					fmt.Printf("Non-notary event: %s\n", r.Type)
+				}
+			}
+		}
+
+		for range ch {
+		}
+		exitCh <- struct{}{}
+	}()
+	id, err := c.SubscribeForNotaryRequests(nil, &rubles)
+	require.NoError(t, err)
+	fmt.Println("subscribed for notary requests")
+	<-exitCh
+	close(ch)
+	close(exitCh)
+	require.NoError(t, c.Unsubscribe(id))
+	fmt.Println("unsubscribed from notary requests")
+}
 
 func TestClient_NEP17(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)

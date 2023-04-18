@@ -176,7 +176,12 @@ func (n *Notary) Start() {
 	}
 	n.Config.Log.Info("starting notary service")
 	n.Config.Chain.SubscribeForBlocks(n.blocksCh)
-	n.mp.SubscribeForTransactions(n.reqCh)
+	// TODO: we need to be strictly sure that mempool subscriptions are properly enabled by
+	// the moment Notary service is starting
+	err := n.mp.SubscribeForTransactions(n.reqCh)
+	if err != nil {
+		n.Config.Log.Fatal("failed to subscribe for notary requests", zap.Error(err))
+	}
 	go n.newTxCallbackLoop()
 	go n.mainLoop()
 }

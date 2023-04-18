@@ -10,6 +10,7 @@ import (
 	"github.com/holiman/uint256"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
 )
@@ -289,7 +290,13 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) e
 	updateMempoolMetrics(len(mp.verifiedTxes))
 	mp.lock.Unlock()
 
+	if pItem.data != nil {
+		r := pItem.data.(*payload.P2PNotaryRequest)
+		fmt.Printf("Mempool: notary request added:\n\tmain hash: %s\n\tfb hash: %s\n\tVUB: %d\n", r.MainTransaction.Hash(), r.FallbackTransaction.Hash(), r.MainTransaction.ValidUntilBlock)
+	}
+
 	if mp.subscriptionsOn.Load() {
+		fmt.Println("Mempool: event sent to events")
 		mp.events <- mempoolevent.Event{
 			Type: mempoolevent.TransactionAdded,
 			Tx:   pItem.txn,

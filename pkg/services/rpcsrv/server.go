@@ -2572,7 +2572,10 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (interface{
 		return nil, neorpc.NewInternalServerError("server is shutting down")
 	default:
 	}
-	s.subscribeToChannel(event)
+	err = s.subscribeToChannel(event)
+	if err != nil {
+		return nil, neorpc.NewInternalServerError(fmt.Errorf("failed to subscribe: %w", err).Error())
+	}
 	s.subsCounterLock.Unlock()
 	return strconv.FormatInt(int64(id), 10), nil
 }
@@ -2580,7 +2583,7 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (interface{
 // subscribeToChannel subscribes RPC server to appropriate chain events if
 // it's not yet subscribed for them. It's supposed to be called with s.subsCounterLock
 // taken by the caller.
-func (s *Server) subscribeToChannel(event neorpc.EventID) {
+func (s *Server) subscribeToChannel(event neorpc.EventID) error {
 	switch event {
 	case neorpc.BlockEventID:
 		if s.blockSubs == 0 {
@@ -2604,10 +2607,16 @@ func (s *Server) subscribeToChannel(event neorpc.EventID) {
 		s.executionSubs++
 	case neorpc.NotaryRequestEventID:
 		if s.notaryRequestSubs == 0 {
-			s.coreServer.SubscribeForNotaryRequests(s.notaryRequestCh)
+			s.log.Info("rpc: subscribing for notary request pool")
+			err := s.coreServer.SubscribeForNotaryRequests(s.notaryRequestCh)
+			if err != nil {
+				s.log.Warn("failed to subscribe for notary requests", zap.Error(err))
+				break
+			}
 		}
 		s.notaryRequestSubs++
 	}
+	return nil
 }
 
 // unsubscribe handles unsubscription requests from websocket clients.

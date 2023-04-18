@@ -28,7 +28,7 @@ func TestSubscriptions(t *testing.T) {
 		mp.RunSubscriptions()
 		subChan1 := make(chan mempoolevent.Event, 3)
 		subChan2 := make(chan mempoolevent.Event, 3)
-		mp.SubscribeForTransactions(subChan1)
+		_ = mp.SubscribeForTransactions(subChan1)
 		t.Cleanup(mp.StopSubscriptions)
 
 		txs := make([]*transaction.Transaction, 4)
@@ -46,7 +46,7 @@ func TestSubscriptions(t *testing.T) {
 		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: txs[0]}, event)
 
 		// severak subscribers
-		mp.SubscribeForTransactions(subChan2)
+		_ = mp.SubscribeForTransactions(subChan2)
 		require.NoError(t, mp.Add(txs[1], fs))
 		require.Eventually(t, func() bool { return len(subChan1) == 1 && len(subChan2) == 1 }, time.Second, time.Millisecond*100)
 		event1 := <-subChan1

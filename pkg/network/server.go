@@ -544,6 +544,7 @@ func (s *Server) tryStartServices() {
 	if s.IsInSync() && s.syncReached.CAS(false, true) {
 		s.log.Info("node reached synchronized state, starting services")
 		if s.chain.P2PSigExtensionsEnabled() {
+			s.log.Info("starting notary request pool subscriptions")
 			s.notaryRequestPool.RunSubscriptions() // WSClient is also a subscriber.
 		}
 		s.serviceLock.RLock()
@@ -561,11 +562,11 @@ func (s *Server) tryStartServices() {
 // other Server functions. Make sure you're not changing the received mempool
 // events, as it may affect the functionality of Blockchain and other subscribers.
 // Ensure that P2PSigExtensions are enabled before calling this method.
-func (s *Server) SubscribeForNotaryRequests(ch chan<- mempoolevent.Event) {
+func (s *Server) SubscribeForNotaryRequests(ch chan<- mempoolevent.Event) error {
 	if !s.chain.P2PSigExtensionsEnabled() {
 		panic("P2PSigExtensions are disabled")
 	}
-	s.notaryRequestPool.SubscribeForTransactions(ch)
+	return s.notaryRequestPool.SubscribeForTransactions(ch)
 }
 
 // UnsubscribeFromNotaryRequests unsubscribes the given channel from notary request
