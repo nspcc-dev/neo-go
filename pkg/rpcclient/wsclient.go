@@ -638,7 +638,10 @@ func (c *WSClient) makeWsRequest(r *neorpc.Request) (*neorpc.Response, error) {
 	select {
 	case <-c.done:
 		return nil, errors.New("connection lost while waiting for the response")
-	case resp := <-ch:
+	case resp, ok := <-ch:
+		if !ok {
+			return nil, errors.New("connection lost while waiting for the response")
+		}
 		c.unregisterRespChannel(r.ID)
 		return resp, nil
 	}
