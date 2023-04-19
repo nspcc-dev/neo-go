@@ -46,7 +46,8 @@ import (
 // subscriptions share the same receiver channel, then matching notification is
 // only sent once per channel. The receiver channel will be closed by the WSClient
 // immediately after MissedEvent is received from the server; no unsubscription
-// is performed in this case, so it's the user responsibility to unsubscribe.
+// is performed in this case, so it's the user responsibility to unsubscribe. It
+// will also be closed on disconnection from server.
 type WSClient struct {
 	Client
 	// Notifications is a channel that is used to send events received from
@@ -539,6 +540,16 @@ readloop:
 	}
 	c.respChannels = nil
 	c.respLock.Unlock()
+	c.subscriptionsLock.Lock()
+	for rcvrCh, ids := range c.receivers {
+		rcvr := c.subscriptions[ids[0]]
+		_, ok := rcvr.(*naiveReceiver)
+		if !ok { // naiveReceiver uses c.Notifications that is about to be closed below.
+			c.subscriptions[ids[0]].Close()
+		}
+		delete(c.receivers, rcvrCh)
+	}
+	c.subscriptionsLock.Unlock()
 	close(c.Notifications)
 	c.Client.ctxCancel()
 }
@@ -638,7 +649,10 @@ func (c *WSClient) makeWsRequest(r *neorpc.Request) (*neorpc.Response, error) {
 	select {
 	case <-c.done:
 		return nil, errors.New("connection lost while waiting for the response")
-	case resp := <-ch:
+	case resp, ok := <-ch:
+		if !ok {
+			return nil, errors.New("connection lost while waiting for the response")
+		}
 		c.unregisterRespChannel(r.ID)
 		return resp, nil
 	}
