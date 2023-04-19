@@ -356,9 +356,9 @@ subpackage with an example written in Go doc.
      with `Deployed` set to `false` and `Script` set to the signer's verification
      script.
    - An account for a notary signer is **just a placeholder** and should have
-     `Contract` field with `Deployed` set to `false`, i.e. the default value for
-     `Contract` field. That's needed to skip notary verification during regular
-     network fee calculation at the next step.
+     `Contract` field with `Deployed` set to `true`. Its `Invocation` witness script
+     parameters will be guessed by the `verify` method signature of Notary contract
+     during the network fee calculation at the next step.
      
 6. Fill in the main transaction `Nonce` field.
 7. Construct a list of main transactions witnesses (that will be `Scripts`
@@ -367,11 +367,17 @@ subpackage with an example written in Go doc.
    - A contract-based witness should have `Invocation` script that pushes arguments
      on stack (it may be empty) and empty `Verification` script. If multiple notary
      requests provide different `Invocation` scripts, the first one will be used
-     to construct contract-based witness.
+     to construct contract-based witness. If non-empty `Invocation` script is
+     specified then it will be taken into account during network fee calculation.
+     In case of an empty `Invocation` script, its parameters will be guessed from
+     the contract's `verify` signature during network fee calculation.
    - A **Notary contract witness** (which is also a contract-based witness) should
-     have empty `Verification` script. `Invocation` script should be of the form
-     [opcode.PUSHDATA1, 64, make([]byte, 64)...], i.e. to be a placeholder for
-     a notary contract signature.
+     have empty `Verification` script. `Invocation` script should be either empty
+     (allowed for main transaction and forbidden for fallback transaction) or of
+     the form [opcode.PUSHDATA1, 64, make([]byte, 64)...] (allowed for main
+     transaction and required for fallback transaction by the Notary subsystem to
+     pass verification), i.e. to be a placeholder for a notary contract signature.
+     Both ways are OK for network fee calculation.
    - A standard signature witness must have regular `Verification` script filled
      even if the `Invocation` script is to be collected from other notary
      requests.
