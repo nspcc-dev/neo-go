@@ -372,9 +372,9 @@ func TestClientNEOContract(t *testing.T) {
 	require.Equal(t, int64(1000_0000_0000), regP)
 
 	acc0 := testchain.PrivateKey(0).PublicKey().GetScriptHash()
-	uncl, err := neoR.UnclaimedGas(acc0, 100)
+	uncl, err := neoR.UnclaimedGas(acc0, chain.BlockHeight()+1)
 	require.NoError(t, err)
-	require.Equal(t, big.NewInt(48000), uncl)
+	require.Equal(t, big.NewInt(10000), uncl)
 
 	accState, err := neoR.GetAccountState(acc0)
 	require.NoError(t, err)

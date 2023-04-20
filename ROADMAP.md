@@ -123,3 +123,10 @@ formats.
 
 Removal of Peer unmarshalling with string based ports is scheduled for ~September 2023
 (~0.105.0 release).
+
+## `NEOBalance` from stack item
+ 
+We check struct items count before convert LastGasPerVote to let RPC client be compatible with
+old versions.
+
+Removal of this compatiblility code is scheduled for Sep-Oct 2023. 

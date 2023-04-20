@@ -739,9 +739,6 @@ func TestBlockchain_GetTransaction(t *testing.T) {
 
 func TestBlockchain_GetClaimable(t *testing.T) {
 	bc, acc := chain.NewSingle(t)
-	e := neotest.NewExecutor(t, bc, acc, acc)
-
-	e.GenerateNewBlocks(t, 10)
 
 	t.Run("first generation period", func(t *testing.T) {
 		amount, err := bc.CalculateClaimable(acc.ScriptHash(), 1)

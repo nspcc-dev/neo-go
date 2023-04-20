@@ -19,8 +19,9 @@ type NEP17Balance struct {
 // NEOBalance represents the balance state of a NEO-token.
 type NEOBalance struct {
 	NEP17Balance
-	BalanceHeight uint32
-	VoteTo        *keys.PublicKey
+	BalanceHeight  uint32
+	VoteTo         *keys.PublicKey
+	LastGasPerVote big.Int
 }
 
 // NEP17BalanceFromBytes converts the serialized NEP17Balance to a structure.
@@ -125,6 +126,7 @@ func (s *NEOBalance) ToStackItem() (stackitem.Item, error) {
 		stackitem.NewBigInteger(&s.Balance),
 		stackitem.NewBigInteger(big.NewInt(int64(s.BalanceHeight))),
 		voteItem,
+		stackitem.NewBigInteger(&s.LastGasPerVote),
 	}), nil
 }
 
@@ -157,5 +159,12 @@ func (s *NEOBalance) FromStackItem(item stackitem.Item) error {
 		return fmt.Errorf("invalid public key bytes: %w", err)
 	}
 	s.VoteTo = pub
+	if len(structItem) >= 4 {
+		lastGasPerVote, err := structItem[3].TryInteger()
+		if err != nil {
+			return fmt.Errorf("invalid last vote reward per neo stackitem: %w", err)
+		}
+		s.LastGasPerVote = *lastGasPerVote
+	}
 	return nil
 }
