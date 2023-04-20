@@ -15,9 +15,10 @@ import (
 
 // AccountState contains info about a NEO holder.
 type AccountState struct {
-	Balance int
-	Height  int
-	VoteTo  interop.PublicKey
+	Balance        int
+	Height         int
+	VoteTo         interop.PublicKey
+	LastGasPerVote int
 }
 
 // Hash represents NEO contract hash.
