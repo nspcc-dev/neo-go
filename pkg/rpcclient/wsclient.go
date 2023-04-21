@@ -38,7 +38,11 @@ import (
 // will make WSClient wait for the channel reader to get the event and while
 // it waits every other messages (subscription-related or request replies)
 // will be blocked. This also means that subscription channel must be properly
-// drained after unsubscription.
+// drained after unsubscription. If CloseNotificationChannelIfFull option is on
+// then the receiver channel will be closed immediately in case if a subsequent
+// notification can't be sent to it, which means WSClient's operations are
+// unblocking in this mode. No unsubscription is performed in this case, so it's
+// still the user responsibility to unsubscribe.
 //
 // Any received subscription items (blocks/transactions/nofitications) are passed
 // via pointers for efficiency, but the actual structures MUST NOT be changed, as
@@ -47,7 +51,9 @@ import (
 // only sent once per channel. The receiver channel will be closed by the WSClient
 // immediately after MissedEvent is received from the server; no unsubscription
 // is performed in this case, so it's the user responsibility to unsubscribe. It
-// will also be closed on disconnection from server.
+// will also be closed on disconnection from server or on situation when it's
+// impossible to send a subsequent notification to the subscriber's channel and
+// CloseNotificationChannelIfFull option is on.
 type WSClient struct {
 	Client
 	// Notifications is a channel that is used to send events received from
@@ -92,6 +98,14 @@ type WSClient struct {
 // WSClient-specific options. See Options documentation for more details.
 type WSOptions struct {
 	Options
+	// CloseNotificationChannelIfFull allows WSClient to close a subscriber's
+	// receive channel in case if the channel isn't read properly and no more
+	// events can be pushed to it. This option, if set, allows to avoid WSClient
+	// blocking on a subsequent notification dispatch. However, if enabled, the
+	// corresponding subscription is kept even after receiver's channel closing,
+	// thus it's still the caller's duty to call Unsubscribe() for this
+	// subscription.
+	CloseNotificationChannelIfFull bool
 }
 
 // notificationReceiver is an interface aimed to provide WS subscriber functionality
@@ -102,8 +116,11 @@ type notificationReceiver interface {
 	// Receiver returns notification receiver channel.
 	Receiver() any
 	// TrySend checks whether notification passes receiver filter and sends it
-	// to the underlying channel if so.
-	TrySend(ntf Notification) bool
+	// to the underlying channel if so. It is performed under subscriptions lock
+	// taken. nonBlocking denotes whether the receiving operation shouldn't block
+	// the client's operation. It returns whether notification matches the filter
+	// and whether the receiver channel is overflown.
+	TrySend(ntf Notification, nonBlocking bool) (bool, bool)
 	// Close closes underlying receiver channel.
 	Close()
 }
@@ -133,12 +150,21 @@ func (r *blockReceiver) Receiver() any {
 }
 
 // TrySend implements notificationReceiver interface.
-func (r *blockReceiver) TrySend(ntf Notification) bool {
+func (r *blockReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
 	if rpcevent.Matches(r, ntf) {
-		r.ch <- ntf.Value.(*block.Block)
-		return true
+		if nonBlocking {
+			select {
+			case r.ch <- ntf.Value.(*block.Block):
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf.Value.(*block.Block)
+		}
+
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // Close implements notificationReceiver interface.
@@ -171,12 +197,21 @@ func (r *txReceiver) Receiver() any {
 }
 
 // TrySend implements notificationReceiver interface.
-func (r *txReceiver) TrySend(ntf Notification) bool {
+func (r *txReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
 	if rpcevent.Matches(r, ntf) {
-		r.ch <- ntf.Value.(*transaction.Transaction)
-		return true
+		if nonBlocking {
+			select {
+			case r.ch <- ntf.Value.(*transaction.Transaction):
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf.Value.(*transaction.Transaction)
+		}
+
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // Close implements notificationReceiver interface.
@@ -209,12 +244,21 @@ func (r *executionNotificationReceiver) Receiver() any {
 }
 
 // TrySend implements notificationReceiver interface.
-func (r *executionNotificationReceiver) TrySend(ntf Notification) bool {
+func (r *executionNotificationReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
 	if rpcevent.Matches(r, ntf) {
-		r.ch <- ntf.Value.(*state.ContainedNotificationEvent)
-		return true
+		if nonBlocking {
+			select {
+			case r.ch <- ntf.Value.(*state.ContainedNotificationEvent):
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf.Value.(*state.ContainedNotificationEvent)
+		}
+
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // Close implements notificationReceiver interface.
@@ -247,12 +291,21 @@ func (r *executionReceiver) Receiver() any {
 }
 
 // TrySend implements notificationReceiver interface.
-func (r *executionReceiver) TrySend(ntf Notification) bool {
+func (r *executionReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
 	if rpcevent.Matches(r, ntf) {
-		r.ch <- ntf.Value.(*state.AppExecResult)
-		return true
+		if nonBlocking {
+			select {
+			case r.ch <- ntf.Value.(*state.AppExecResult):
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf.Value.(*state.AppExecResult)
+		}
+
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // Close implements notificationReceiver interface.
@@ -285,12 +338,21 @@ func (r *notaryRequestReceiver) Receiver() any {
 }
 
 // TrySend implements notificationReceiver interface.
-func (r *notaryRequestReceiver) TrySend(ntf Notification) bool {
+func (r *notaryRequestReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
 	if rpcevent.Matches(r, ntf) {
-		r.ch <- ntf.Value.(*result.NotaryRequestEvent)
-		return true
+		if nonBlocking {
+			select {
+			case r.ch <- ntf.Value.(*result.NotaryRequestEvent):
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf.Value.(*result.NotaryRequestEvent)
+		}
+
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // Close implements notificationReceiver interface.
@@ -324,12 +386,21 @@ func (r *naiveReceiver) Receiver() any {
 }
 
 // TrySend implements notificationReceiver interface.
-func (r *naiveReceiver) TrySend(ntf Notification) bool {
+func (r *naiveReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
 	if rpcevent.Matches(r, ntf) {
-		r.ch <- ntf
-		return true
+		if nonBlocking {
+			select {
+			case r.ch <- ntf:
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf
+		}
+
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // Close implements notificationReceiver interface.
@@ -551,16 +622,30 @@ readloop:
 	c.respLock.Unlock()
 	c.subscriptionsLock.Lock()
 	for rcvrCh, ids := range c.receivers {
-		rcvr := c.subscriptions[ids[0]]
+		c.dropSubCh(rcvrCh, ids[0], true)
+	}
+	c.subscriptionsLock.Unlock()
+	c.Client.ctxCancel()
+}
+
+// dropSubCh closes corresponding subscriber's channel and removes it from the
+// receivers map. If the channel belongs to a naive subscriber then it will be
+// closed manually without call to Close(). The channel is still being kept in
+// the subscribers map as technically the server-side subscription still exists
+// and the user is responsible for unsubscription. This method must be called
+// under subscriptionsLock taken. It's the caller's duty to ensure dropSubCh
+// will be called once per channel, otherwise panic will occur.
+func (c *WSClient) dropSubCh(rcvrCh any, id string, ignoreCloseNotificationChannelIfFull bool) {
+	if ignoreCloseNotificationChannelIfFull || c.wsOpts.CloseNotificationChannelIfFull {
+		rcvr := c.subscriptions[id]
 		_, ok := rcvr.(*naiveReceiver)
-		if !ok { // naiveReceiver uses c.Notifications that is about to be closed below.
-			c.subscriptions[ids[0]].Close()
+		if ok { // naiveReceiver uses c.Notifications that should be handled separately.
+			close(c.Notifications)
+		} else {
+			c.subscriptions[id].Close()
 		}
 		delete(c.receivers, rcvrCh)
 	}
-	c.subscriptionsLock.Unlock()
-	close(c.Notifications)
-	c.Client.ctxCancel()
 }
 
 func (c *WSClient) wsWriter() {
@@ -613,15 +698,20 @@ func (c *WSClient) notifySubscribers(ntf Notification) {
 		c.subscriptionsLock.Unlock()
 		return
 	}
-	c.subscriptionsLock.RLock()
-	for _, ids := range c.receivers {
+	c.subscriptionsLock.Lock()
+	for rcvrCh, ids := range c.receivers {
 		for _, id := range ids {
-			if c.subscriptions[id].TrySend(ntf) {
+			ok, dropCh := c.subscriptions[id].TrySend(ntf, c.wsOpts.CloseNotificationChannelIfFull)
+			if dropCh {
+				c.dropSubCh(rcvrCh, id, false)
+				break // strictly single drop per channel
+			}
+			if ok {
 				break // strictly one notification per channel
 			}
 		}
 	}
-	c.subscriptionsLock.RUnlock()
+	c.subscriptionsLock.Unlock()
 }
 
 func (c *WSClient) unregisterRespChannel(id uint64) {
