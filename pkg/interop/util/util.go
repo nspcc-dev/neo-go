@@ -4,7 +4,6 @@ Package util contains some special useful functions that are provided by compile
 package util
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
 )
 
