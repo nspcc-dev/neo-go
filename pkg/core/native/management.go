@@ -688,10 +688,8 @@ func putContractState(d *dao.Simple, cs *state.Contract, updateCache bool) error
 	if cs.UpdateCounter != 0 { // Update.
 		return nil
 	}
-	if cs.ID > 0 {
-		key = putHashKey(key, cs.ID)
-		d.PutStorageItem(ManagementContractID, key, cs.Hash.BytesBE())
-	}
+	key = putHashKey(key, cs.ID)
+	d.PutStorageItem(ManagementContractID, key, cs.Hash.BytesBE())
 	return nil
 }
 

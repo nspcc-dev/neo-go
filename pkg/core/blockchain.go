@@ -2228,14 +2228,6 @@ func (bc *Blockchain) GetContractState(hash util.Uint160) *state.Contract {
 
 // GetContractScriptHash returns contract script hash by its ID.
 func (bc *Blockchain) GetContractScriptHash(id int32) (util.Uint160, error) {
-	if id < 0 {
-		for _, n := range bc.contracts.Contracts {
-			nc := n.Metadata().NativeContract
-			if nc.ID == id {
-				return nc.Hash, nil
-			}
-		}
-	}
 	return native.GetContractScriptHash(bc.dao, id)
 }
 
