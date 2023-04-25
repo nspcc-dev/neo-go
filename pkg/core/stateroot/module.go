@@ -152,7 +152,9 @@ func (s *Module) CurrentValidatedHeight() uint32 {
 func (s *Module) Init(height uint32) error {
 	data, err := s.Store.Get([]byte{byte(storage.DataMPTAux), prefixValidated})
 	if err == nil {
-		s.validatedHeight.Store(binary.LittleEndian.Uint32(data))
+		h := binary.LittleEndian.Uint32(data)
+		s.validatedHeight.Store(h)
+		updateStateHeightMetric(h)
 	}
 
 	if height == 0 {

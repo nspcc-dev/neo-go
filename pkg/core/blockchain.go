@@ -503,6 +503,10 @@ func (bc *Blockchain) init() error {
 		}
 	}
 
+	updateBlockHeightMetric(bHeight)
+	updatePersistedHeightMetric(bHeight)
+	updateHeaderHeightMetric(bc.HeaderHeight())
+
 	return bc.updateExtensibleWhitelist(bHeight)
 }
 
@@ -632,6 +636,8 @@ func (bc *Blockchain) resetRAMState(height uint32, resetHeaders bool) error {
 	}
 
 	updateBlockHeightMetric(height)
+	updatePersistedHeightMetric(height)
+	updateHeaderHeightMetric(bc.HeaderHeight())
 	return nil
 }
 
