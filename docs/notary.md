@@ -261,10 +261,14 @@ with the `data` parameter matching the following requirements:
 - `to` denotes the receiver of the deposit. It can be nil in case `to` equals
   the GAS sender.
 - `till` denotes chain's height before which deposit is locked and can't be
-  withdrawn. `till` can't be set if you're not the deposit owner. Default `till`
-  value is the current chain height + 5760. `till` can't be less than the current chain
-  height. `till` can't be less than the currently set `till` value for that deposit if
-  the deposit already exists.
+  withdrawn. `till` can't be less than the current chain height. `till`
+  can't be less than the current `till` value for the deposit if the deposit
+  already exists. `till` can be set to the provided value iff the transaction
+  sender is the owner of the deposit, otherwise the provided `till` value will
+  be overridden by the system. If the sender is not the deposit owner, the
+  overridden `till` value is either set to be the current chain height + 5760
+  (for the newly added deposit) or set to the old `till` value (for the existing
+  deposit).
 
 Note, that the first deposit call for the `to` address can't transfer less than 2×`FEE` GAS.
 Deposit is allowed for renewal, i.e. consequent `deposit` calls for the same `to`
