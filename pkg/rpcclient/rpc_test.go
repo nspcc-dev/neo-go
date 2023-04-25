@@ -1803,7 +1803,7 @@ func TestRPCClients(t *testing.T) {
 	})
 	t.Run("WSClient", func(t *testing.T) {
 		testRPCClient(t, func(ctx context.Context, endpoint string, opts Options) (*Client, error) {
-			wsc, err := NewWS(ctx, httpURLtoWS(endpoint), opts)
+			wsc, err := NewWS(ctx, httpURLtoWS(endpoint), WSOptions{opts})
 			require.NoError(t, err)
 			wsc.getNextRequestID = getTestRequestID
 			require.NoError(t, wsc.Init())

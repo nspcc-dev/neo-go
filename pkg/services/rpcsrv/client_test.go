@@ -2074,7 +2074,7 @@ func mkSubsClient(t *testing.T, rpcSrv *Server, httpSrv *httptest.Server, local 
 		icl, err = rpcclient.NewInternal(context.Background(), rpcSrv.RegisterLocal)
 	} else {
 		url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
-		c, err = rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
+		c, err = rpcclient.NewWS(context.Background(), url, rpcclient.WSOptions{})
 	}
 	require.NoError(t, err)
 	if local {
@@ -2240,7 +2240,7 @@ func TestWSClientHandshakeError(t *testing.T) {
 	defer rpcSrv.Shutdown()
 
 	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
-	_, err := rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
+	_, err := rpcclient.NewWS(context.Background(), url, rpcclient.WSOptions{})
 	require.ErrorContains(t, err, "websocket users limit reached")
 }
 

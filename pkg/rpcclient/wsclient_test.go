@@ -31,7 +31,7 @@ import (
 
 func TestWSClientClose(t *testing.T) {
 	srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": "55aaff00"}`)
-	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 	require.NoError(t, err)
 	wsc.getNextRequestID = getTestRequestID
 	bCh := make(chan *block.Block)
@@ -70,7 +70,7 @@ func TestWSClientSubscription(t *testing.T) {
 		for name, f := range cases {
 			t.Run(name, func(t *testing.T) {
 				srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": "55aaff00"}`)
-				wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+				wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 				require.NoError(t, err)
 				wsc.getNextRequestID = getTestRequestID
 				require.NoError(t, wsc.Init())
@@ -84,7 +84,7 @@ func TestWSClientSubscription(t *testing.T) {
 		for name, f := range cases {
 			t.Run(name, func(t *testing.T) {
 				srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "error":{"code":-32602,"message":"Invalid Params"}}`)
-				wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+				wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 				require.NoError(t, err)
 				wsc.getNextRequestID = getTestRequestID
 				require.NoError(t, wsc.Init())
@@ -134,7 +134,7 @@ func TestWSClientUnsubscription(t *testing.T) {
 	for name, rc := range cases {
 		t.Run(name, func(t *testing.T) {
 			srv := initTestServer(t, rc.response)
-			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 			require.NoError(t, err)
 			wsc.getNextRequestID = getTestRequestID
 			require.NoError(t, wsc.Init())
@@ -170,7 +170,7 @@ func TestWSClientEvents(t *testing.T) {
 			return
 		}
 	}))
-	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 	require.NoError(t, err)
 	wsc.getNextRequestID = getTestRequestID
 	wsc.cacheLock.Lock()
@@ -292,7 +292,7 @@ func TestWSClientEvents(t *testing.T) {
 func TestWSExecutionVMStateCheck(t *testing.T) {
 	// Will answer successfully if request slips through.
 	srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": "55aaff00"}`)
-	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 	require.NoError(t, err)
 	wsc.getNextRequestID = getTestRequestID
 	require.NoError(t, wsc.Init())
@@ -527,7 +527,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 					ws.Close()
 				}
 			}))
-			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 			require.NoError(t, err)
 			wsc.getNextRequestID = getTestRequestID
 			wsc.cache.network = netmode.UnitTestNet
@@ -541,14 +541,14 @@ func TestNewWS(t *testing.T) {
 	srv := initTestServer(t, "")
 
 	t.Run("good", func(t *testing.T) {
-		c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+		c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 		require.NoError(t, err)
 		c.getNextRequestID = getTestRequestID
 		c.cache.network = netmode.UnitTestNet
 		require.NoError(t, c.Init())
 	})
 	t.Run("bad URL", func(t *testing.T) {
-		_, err := NewWS(context.TODO(), strings.TrimPrefix(srv.URL, "http://"), Options{})
+		_, err := NewWS(context.TODO(), strings.TrimPrefix(srv.URL, "http://"), WSOptions{})
 		require.Error(t, err)
 	})
 }
@@ -605,7 +605,7 @@ func TestWSConcurrentAccess(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 	require.NoError(t, err)
 	batchCount := 100
 	completed := atomic.NewInt32(0)
@@ -649,7 +649,7 @@ func TestWSConcurrentAccess(t *testing.T) {
 func TestWSDoubleClose(t *testing.T) {
 	srv := initTestServer(t, "")
 
-	c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+	c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 	require.NoError(t, err)
 
 	require.NotPanics(t, func() {
@@ -661,7 +661,7 @@ func TestWSDoubleClose(t *testing.T) {
 func TestWS_RequestAfterClose(t *testing.T) {
 	srv := initTestServer(t, "")
 
-	c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+	c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 	require.NoError(t, err)
 
 	c.Close()
@@ -676,7 +676,7 @@ func TestWS_RequestAfterClose(t *testing.T) {
 func TestWSClient_ConnClosedError(t *testing.T) {
 	t.Run("standard closing", func(t *testing.T) {
 		srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": 123}`)
-		c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+		c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 		require.NoError(t, err)
 
 		// Check client is working.
@@ -692,7 +692,7 @@ func TestWSClient_ConnClosedError(t *testing.T) {
 
 	t.Run("malformed request", func(t *testing.T) {
 		srv := initTestServer(t, "")
-		c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), Options{})
+		c, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 		require.NoError(t, err)
 
 		defaultMaxBlockSize := 262144

@@ -66,6 +66,7 @@ type WSClient struct {
 	Notifications chan Notification
 
 	ws          *websocket.Conn
+	wsOpts      WSOptions
 	done        chan struct{}
 	requests    chan *neorpc.Request
 	shutdown    chan struct{}
@@ -84,6 +85,13 @@ type WSClient struct {
 
 	respLock     sync.RWMutex
 	respChannels map[uint64]chan *neorpc.Response
+}
+
+// WSOptions defines options for the web-socket RPC client. It contains a
+// set of options for the underlying standard RPC client as far as
+// WSClient-specific options. See Options documentation for more details.
+type WSOptions struct {
+	Options
 }
 
 // notificationReceiver is an interface aimed to provide WS subscriber functionality
@@ -382,7 +390,7 @@ var errConnClosedByUser = errors.New("connection closed by user")
 // connection). You need to use websocket URL for it like `ws://1.2.3.4/ws`.
 // You should call Init method to initialize the network magic the client is
 // operating on.
-func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error) {
+func NewWS(ctx context.Context, endpoint string, opts WSOptions) (*WSClient, error) {
 	dialer := websocket.Dialer{HandshakeTimeout: opts.DialTimeout}
 	ws, resp, err := dialer.DialContext(ctx, endpoint, nil)
 	if resp != nil && resp.Body != nil { // Can be non-nil even with error returned.
@@ -405,6 +413,7 @@ func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error
 		Notifications: make(chan Notification),
 
 		ws:            ws,
+		wsOpts:        opts,
 		shutdown:      make(chan struct{}),
 		done:          make(chan struct{}),
 		closeCalled:   *atomic.NewBool(false),
@@ -414,7 +423,7 @@ func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error
 		receivers:     make(map[any][]string),
 	}
 
-	err = initClient(ctx, &wsc.Client, endpoint, opts)
+	err = initClient(ctx, &wsc.Client, endpoint, opts.Options)
 	if err != nil {
 		return nil, err
 	}
