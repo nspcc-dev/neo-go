@@ -299,6 +299,71 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	})
 }
 
+// This test enables Notary native contract at non-zero height and checks that no
+// Notary cache initialization is performed before that height on node restart.
+func TestBlockchain_InitializeNativeCacheWrtNativeActivations(t *testing.T) {
+	const notaryEnabledHeight = 3
+	ps, path := newLevelDBForTestingWithPath(t, "")
+	customConfig := func(c *config.Blockchain) {
+		c.P2PSigExtensions = true
+		c.NativeUpdateHistories = make(map[string][]uint32)
+		for _, n := range []string{
+			nativenames.Neo,
+			nativenames.Gas,
+			nativenames.Designation,
+			nativenames.Management,
+			nativenames.CryptoLib,
+			nativenames.Ledger,
+			nativenames.Management,
+			nativenames.Oracle,
+			nativenames.Policy,
+			nativenames.StdLib,
+			nativenames.Notary,
+		} {
+			if n == nativenames.Notary {
+				c.NativeUpdateHistories[n] = []uint32{notaryEnabledHeight}
+			} else {
+				c.NativeUpdateHistories[n] = []uint32{0}
+			}
+		}
+	}
+	bc, validators, committee, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, ps)
+	require.NoError(t, err)
+	go bc.Run()
+	e := neotest.NewExecutor(t, bc, validators, committee)
+	e.AddNewBlock(t)
+	bc.Close() // Ensure persist is done and persistent store is properly closed.
+
+	ps, _ = newLevelDBForTestingWithPath(t, path)
+
+	// If NativeActivations are not taken into account during native cache initialization,
+	// bs.init() will panic on Notary cache initialization as it's not deployed yet.
+	require.NotPanics(t, func() {
+		bc, _, _, err = chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, ps)
+		require.NoError(t, err)
+	})
+	go bc.Run()
+	defer bc.Close()
+	e = neotest.NewExecutor(t, bc, validators, committee)
+	h := e.Chain.BlockHeight()
+
+	// Notary isn't initialized yet, so accessing Notary cache should panic.
+	require.Panics(t, func() {
+		_ = e.Chain.GetMaxNotValidBeforeDelta()
+	})
+
+	// Ensure Notary will be properly initialized and accessing Notary cache works
+	// as expected.
+	for i := 0; i < notaryEnabledHeight; i++ {
+		require.NotPanics(t, func() {
+			e.AddNewBlock(t)
+		}, h+uint32(i)+1)
+	}
+	require.NotPanics(t, func() {
+		_ = e.Chain.GetMaxNotValidBeforeDelta()
+	})
+}
+
 func TestBlockchain_AddHeaders(t *testing.T) {
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 		c.StateRootInHeader = true
