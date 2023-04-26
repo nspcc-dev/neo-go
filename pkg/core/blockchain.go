@@ -889,9 +889,14 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 
 func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) error {
 	for _, c := range bc.contracts.Contracts {
-		err := c.InitializeCache(blockHeight, d)
-		if err != nil {
-			return fmt.Errorf("failed to initialize cache for %s: %w", c.Metadata().Name, err)
+		for _, h := range c.Metadata().UpdateHistory {
+			if blockHeight >= h { // check that contract was deployed.
+				err := c.InitializeCache(blockHeight, d)
+				if err != nil {
+					return fmt.Errorf("failed to initialize cache for %s: %w", c.Metadata().Name, err)
+				}
+				break
+			}
 		}
 	}
 	return nil
