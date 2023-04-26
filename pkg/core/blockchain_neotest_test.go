@@ -347,10 +347,9 @@ func TestBlockchain_InitializeNativeCacheWrtNativeActivations(t *testing.T) {
 	e = neotest.NewExecutor(t, bc, validators, committee)
 	h := e.Chain.BlockHeight()
 
-	// Notary isn't initialized yet, so accessing Notary cache should panic.
-	require.Panics(t, func() {
-		_ = e.Chain.GetMaxNotValidBeforeDelta()
-	})
+	// Notary isn't initialized yet, so accessing Notary cache should return error.
+	_, err = e.Chain.GetMaxNotValidBeforeDelta()
+	require.Error(t, err)
 
 	// Ensure Notary will be properly initialized and accessing Notary cache works
 	// as expected.
@@ -359,9 +358,8 @@ func TestBlockchain_InitializeNativeCacheWrtNativeActivations(t *testing.T) {
 			e.AddNewBlock(t)
 		}, h+uint32(i)+1)
 	}
-	require.NotPanics(t, func() {
-		_ = e.Chain.GetMaxNotValidBeforeDelta()
-	})
+	_, err = e.Chain.GetMaxNotValidBeforeDelta()
+	require.NoError(t, err)
 }
 
 func TestBlockchain_AddHeaders(t *testing.T) {
@@ -1949,11 +1947,15 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			require.Error(t, bc.PoolTxWithData(tx, 5, mp, bc, verificationF))
 		})
 		t.Run("bad NVB: too big", func(t *testing.T) {
-			tx := getPartiallyFilledTx(bc.BlockHeight()+bc.GetMaxNotValidBeforeDelta()+1, bc.BlockHeight()+1)
+			maxNVB, err := bc.GetMaxNotValidBeforeDelta()
+			require.NoError(t, err)
+			tx := getPartiallyFilledTx(bc.BlockHeight()+maxNVB+1, bc.BlockHeight()+1)
 			require.True(t, errors.Is(bc.PoolTxWithData(tx, 5, mp, bc, verificationF), core.ErrInvalidAttribute))
 		})
 		t.Run("bad ValidUntilBlock: too small", func(t *testing.T) {
-			tx := getPartiallyFilledTx(bc.BlockHeight(), bc.BlockHeight()+bc.GetMaxNotValidBeforeDelta()+1)
+			maxNVB, err := bc.GetMaxNotValidBeforeDelta()
+			require.NoError(t, err)
+			tx := getPartiallyFilledTx(bc.BlockHeight(), bc.BlockHeight()+maxNVB+1)
 			require.True(t, errors.Is(bc.PoolTxWithData(tx, 5, mp, bc, verificationF), core.ErrInvalidAttribute))
 		})
 		t.Run("good", func(t *testing.T) {
