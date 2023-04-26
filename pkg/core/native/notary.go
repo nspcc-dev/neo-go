@@ -152,7 +152,7 @@ func (n *Notary) Initialize(ic *interop.Context) error {
 	return nil
 }
 
-func (n *Notary) InitializeCache(d *dao.Simple) error {
+func (n *Notary) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	cache := &NotaryCache{
 		maxNotValidBeforeDelta: uint32(getIntWithKey(n.ID, d, maxNotValidBeforeDeltaKey)),
 		notaryServiceFeePerKey: getIntWithKey(n.ID, d, notaryServiceFeeKey),

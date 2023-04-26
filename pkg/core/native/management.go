@@ -608,7 +608,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 // InitializeCache initializes contract cache with the proper values from storage.
 // Cache initialization should be done apart from Initialize because Initialize is
 // called only when deploying native contracts.
-func (m *Management) InitializeCache(d *dao.Simple) error {
+func (m *Management) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	cache := &ManagementCache{
 		contracts: make(map[util.Uint160]*state.Contract),
 		nep11:     make(map[util.Uint160]struct{}),

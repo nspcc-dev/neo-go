@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -144,6 +145,11 @@ func (c *Crypto) Metadata() *interop.ContractMD {
 
 // Initialize implements the Contract interface.
 func (c *Crypto) Initialize(ic *interop.Context) error {
+	return nil
+}
+
+// InitializeCache implements the Contract interface.
+func (c *Crypto) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	return nil
 }
 

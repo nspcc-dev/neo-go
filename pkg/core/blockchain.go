@@ -888,28 +888,11 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 }
 
 func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) error {
-	err := bc.contracts.NEO.InitializeCache(blockHeight, d)
-	if err != nil {
-		return fmt.Errorf("can't init cache for NEO native contract: %w", err)
-	}
-	err = bc.contracts.Management.InitializeCache(d)
-	if err != nil {
-		return fmt.Errorf("can't init cache for Management native contract: %w", err)
-	}
-	err = bc.contracts.Designate.InitializeCache(d)
-	if err != nil {
-		return fmt.Errorf("can't init cache for Designation native contract: %w", err)
-	}
-	bc.contracts.Oracle.InitializeCache(d)
-	if bc.P2PSigExtensionsEnabled() {
-		err = bc.contracts.Notary.InitializeCache(d)
+	for _, c := range bc.contracts.Contracts {
+		err := c.InitializeCache(blockHeight, d)
 		if err != nil {
-			return fmt.Errorf("can't init cache for Notary native contract: %w", err)
+			return fmt.Errorf("failed to initialize cache for %s: %w", c.Metadata().Name, err)
 		}
-	}
-	err = bc.contracts.Policy.InitializeCache(d)
-	if err != nil {
-		return fmt.Errorf("can't init cache for Policy native contract: %w", err)
 	}
 	return nil
 }

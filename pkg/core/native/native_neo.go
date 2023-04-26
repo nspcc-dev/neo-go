@@ -305,7 +305,8 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 
 // InitializeCache initializes all NEO cache with the proper values from the storage.
 // Cache initialization should be done apart from Initialize because Initialize is
-// called only when deploying native contracts.
+// called only when deploying native contracts. InitializeCache implements the Contract
+// interface.
 func (n *NEO) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	cache := &NeoCache{
 		gasPerVoteCache: make(map[string]big.Int),

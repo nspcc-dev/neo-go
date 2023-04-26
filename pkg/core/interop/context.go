@@ -153,6 +153,11 @@ type MethodAndPrice struct {
 // Contract is an interface for all native contracts.
 type Contract interface {
 	Initialize(*Context) error
+	// InitializeCache aimed to initialize contract's cache when the contract has
+	// been deployed, but in-memory cached data were lost due to the node reset.
+	// It should be called each time after node restart iff the contract was
+	// deployed and no Initialize method was called.
+	InitializeCache(blockHeight uint32, d *dao.Simple) error
 	Metadata() *ContractMD
 	OnPersist(*Context) error
 	PostPersist(*Context) error
