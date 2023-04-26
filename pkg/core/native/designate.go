@@ -132,7 +132,7 @@ func (s *Designate) Initialize(ic *interop.Context) error {
 
 // InitializeCache fills native Designate cache from DAO. It is called at non-zero height, thus
 // we can fetch the roles data right from the storage.
-func (s *Designate) InitializeCache(d *dao.Simple) error {
+func (s *Designate) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	cache := &DesignationCache{}
 	roles := []noderoles.Role{noderoles.Oracle, noderoles.NeoFSAlphabet, noderoles.StateValidator}
 	if s.p2pSigExtensionsEnabled {

@@ -153,7 +153,7 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 	return nil
 }
 
-func (p *Policy) InitializeCache(d *dao.Simple) error {
+func (p *Policy) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	cache := &PolicyCache{}
 	err := p.fillCacheFromDAO(cache, d)
 	if err != nil {

@@ -1011,28 +1011,16 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 }
 
 func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) error {
-	err := bc.contracts.NEO.InitializeCache(blockHeight, d)
-	if err != nil {
-		return fmt.Errorf("can't init cache for NEO native contract: %w", err)
-	}
-	err = bc.contracts.Management.InitializeCache(d)
-	if err != nil {
-		return fmt.Errorf("can't init cache for Management native contract: %w", err)
-	}
-	err = bc.contracts.Designate.InitializeCache(d)
-	if err != nil {
-		return fmt.Errorf("can't init cache for Designation native contract: %w", err)
-	}
-	bc.contracts.Oracle.InitializeCache(d)
-	if bc.P2PSigExtensionsEnabled() {
-		err = bc.contracts.Notary.InitializeCache(d)
-		if err != nil {
-			return fmt.Errorf("can't init cache for Notary native contract: %w", err)
+	for _, c := range bc.contracts.Contracts {
+		for _, h := range c.Metadata().UpdateHistory {
+			if blockHeight >= h { // check that contract was deployed.
+				err := c.InitializeCache(blockHeight, d)
+				if err != nil {
+					return fmt.Errorf("failed to initialize cache for %s: %w", c.Metadata().Name, err)
+				}
+				break
+			}
 		}
-	}
-	err = bc.contracts.Policy.InitializeCache(d)
-	if err != nil {
-		return fmt.Errorf("can't init cache for Policy native contract: %w", err)
 	}
 	return nil
 }
@@ -2579,7 +2567,10 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 			nvb := tx.Attributes[i].Value.(*transaction.NotValidBefore).Height
 			curHeight := bc.BlockHeight()
 			if isPartialTx {
-				maxNVBDelta := bc.contracts.Notary.GetMaxNotValidBeforeDelta(bc.dao)
+				maxNVBDelta, err := bc.GetMaxNotValidBeforeDelta()
+				if err != nil {
+					return fmt.Errorf("%w: failed to retrieve MaxNotValidBeforeDelta value from native Notary contract: %v", ErrInvalidAttribute, err)
+				}
 				if curHeight+maxNVBDelta < nvb {
 					return fmt.Errorf("%w: NotValidBefore (%d) bigger than MaxNVBDelta (%d) allows at height %d", ErrInvalidAttribute, nvb, maxNVBDelta, curHeight)
 				}
@@ -2984,11 +2975,14 @@ func (bc *Blockchain) GetMaxVerificationGAS() int64 {
 }
 
 // GetMaxNotValidBeforeDelta returns maximum NotValidBeforeDelta Notary limit.
-func (bc *Blockchain) GetMaxNotValidBeforeDelta() uint32 {
+func (bc *Blockchain) GetMaxNotValidBeforeDelta() (uint32, error) {
 	if !bc.config.P2PSigExtensions {
-		panic("disallowed call to Notary")
+		panic("disallowed call to Notary") // critical error, thus panic.
 	}
-	return bc.contracts.Notary.GetMaxNotValidBeforeDelta(bc.dao)
+	if bc.contracts.Notary.Metadata().UpdateHistory[0] > bc.BlockHeight() {
+		return 0, fmt.Errorf("native Notary is active starting from %d", bc.contracts.Notary.Metadata().UpdateHistory[0])
+	}
+	return bc.contracts.Notary.GetMaxNotValidBeforeDelta(bc.dao), nil
 }
 
 // GetStoragePrice returns current storage price.
