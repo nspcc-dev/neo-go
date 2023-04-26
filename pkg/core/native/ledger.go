@@ -85,6 +85,11 @@ func (l *Ledger) Initialize(ic *interop.Context) error {
 	return nil
 }
 
+// InitializeCache implements the Contract interface.
+func (l *Ledger) InitializeCache(blockHeight uint32, d *dao.Simple) error {
+	return nil
+}
+
 // OnPersist implements the Contract interface.
 func (l *Ledger) OnPersist(ic *interop.Context) error {
 	// Actual block/tx processing is done in Blockchain.storeBlock().

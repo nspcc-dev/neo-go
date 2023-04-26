@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/mr-tron/base58"
+	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	base58neogo "github.com/nspcc-dev/neo-go/pkg/encoding/base58"
@@ -426,6 +427,11 @@ func (s *Std) Metadata() *interop.ContractMD {
 
 // Initialize implements the Contract interface.
 func (s *Std) Initialize(ic *interop.Context) error {
+	return nil
+}
+
+// InitializeCache implements the Contract interface.
+func (s *Std) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	return nil
 }
 

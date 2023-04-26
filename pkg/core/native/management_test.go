@@ -82,7 +82,7 @@ func TestManagement_Initialize(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		d := dao.NewSimple(storage.NewMemoryStore(), false, false)
 		mgmt := newManagement()
-		require.NoError(t, mgmt.InitializeCache(d))
+		require.NoError(t, mgmt.InitializeCache(0, d))
 	})
 	/* See #2801
 	t.Run("invalid contract state", func(t *testing.T) {
@@ -101,7 +101,7 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 	err := mgmt.Initialize(&interop.Context{DAO: d})
 	require.NoError(t, err)
 	require.NoError(t, mgmt.Policy.Initialize(&interop.Context{DAO: d}))
-	err = mgmt.InitializeCache(d)
+	err = mgmt.InitializeCache(0, d)
 	require.NoError(t, err)
 
 	require.Empty(t, mgmt.GetNEP17Contracts(d))

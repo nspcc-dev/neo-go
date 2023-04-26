@@ -99,6 +99,11 @@ func (g *GAS) Initialize(ic *interop.Context) error {
 	return nil
 }
 
+// InitializeCache implements the Contract interface.
+func (g *GAS) InitializeCache(blockHeight uint32, d *dao.Simple) error {
+	return nil
+}
+
 // OnPersist implements the Contract interface.
 func (g *GAS) OnPersist(ic *interop.Context) error {
 	if len(ic.Block.Transactions) == 0 {

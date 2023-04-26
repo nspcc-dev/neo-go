@@ -251,10 +251,11 @@ func (o *Oracle) Initialize(ic *interop.Context) error {
 	return nil
 }
 
-func (o *Oracle) InitializeCache(d *dao.Simple) {
+func (o *Oracle) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	cache := &OracleCache{}
 	cache.requestPrice = getIntWithKey(o.ID, d, prefixRequestPrice)
 	d.SetCache(o.ID, cache)
+	return nil
 }
 
 func getResponse(tx *transaction.Transaction) *transaction.OracleResponse {
