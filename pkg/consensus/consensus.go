@@ -276,7 +276,7 @@ func (s *service) Name() string {
 }
 
 func (s *service) Start() {
-	if s.started.CAS(false, true) {
+	if s.started.CompareAndSwap(false, true) {
 		s.log.Info("starting consensus service")
 		b, _ := s.Chain.GetBlock(s.Chain.CurrentBlockHash()) // Can't fail, we have some current block!
 		s.lastTimestamp = b.Timestamp
@@ -288,7 +288,7 @@ func (s *service) Start() {
 
 // Shutdown implements the Service interface.
 func (s *service) Shutdown() {
-	if s.started.CAS(true, false) {
+	if s.started.CompareAndSwap(true, false) {
 		s.log.Info("stopping consensus service")
 		close(s.quit)
 		<-s.finished

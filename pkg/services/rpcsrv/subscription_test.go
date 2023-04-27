@@ -156,7 +156,7 @@ func TestSubscriptions(t *testing.T) {
 	for _, id := range subIDs {
 		callUnsubscribe(t, c, respMsgs, id)
 	}
-	finishedFlag.CAS(false, true)
+	finishedFlag.CompareAndSwap(false, true)
 	c.Close()
 }
 
@@ -312,7 +312,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 
 			callUnsubscribe(t, c, respMsgs, subID)
 			callUnsubscribe(t, c, respMsgs, blockSubID)
-			finishedFlag.CAS(false, true)
+			finishedFlag.CompareAndSwap(false, true)
 			c.Close()
 		})
 	}
@@ -408,7 +408,7 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 			callUnsubscribe(t, c, respMsgs, subID)
 		})
 	}
-	finishedFlag.CAS(false, true)
+	finishedFlag.CompareAndSwap(false, true)
 	c.Close()
 }
 
@@ -448,7 +448,7 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 		require.Equal(t, 3, int(primary))
 	}
 	callUnsubscribe(t, c, respMsgs, blockSubID)
-	finishedFlag.CAS(false, true)
+	finishedFlag.CompareAndSwap(false, true)
 	c.Close()
 }
 
@@ -477,7 +477,7 @@ func TestMaxSubscriptions(t *testing.T) {
 		}
 	}
 
-	finishedFlag.CAS(false, true)
+	finishedFlag.CompareAndSwap(false, true)
 	c.Close()
 }
 
@@ -519,7 +519,7 @@ func TestBadSubUnsub(t *testing.T) {
 	t.Run("subscribe", testF(t, subCases))
 	t.Run("unsubscribe", testF(t, unsubCases))
 
-	finishedFlag.CAS(false, true)
+	finishedFlag.CompareAndSwap(false, true)
 	c.Close()
 }
 
@@ -614,6 +614,6 @@ func TestSubscriptionOverflow(t *testing.T) {
 	// `Missed` is the last event and there is nothing afterwards.
 	require.Equal(t, 0, len(respMsgs))
 
-	finishedFlag.CAS(false, true)
+	finishedFlag.CompareAndSwap(false, true)
 	c.Close()
 }

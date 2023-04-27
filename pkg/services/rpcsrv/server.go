@@ -342,7 +342,7 @@ func (s *Server) Start() {
 		s.log.Info("RPC server is not enabled")
 		return
 	}
-	if !s.started.CAS(false, true) {
+	if !s.started.CompareAndSwap(false, true) {
 		s.log.Info("RPC server already started")
 		return
 	}
@@ -397,7 +397,7 @@ func (s *Server) Start() {
 // that was stopped can not be started again by calling Start (use a new
 // instance if needed).
 func (s *Server) Shutdown() {
-	if !s.started.CAS(true, false) {
+	if !s.started.CompareAndSwap(true, false) {
 		return
 	}
 	// Signal to websocket writer routines and handleSubEvents.
