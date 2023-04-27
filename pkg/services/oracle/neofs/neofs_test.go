@@ -5,8 +5,7 @@ import (
 	"net/url"
 	"testing"
 
-	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,17 +36,11 @@ func TestParseRange(t *testing.T) {
 
 func TestParseNeoFSURL(t *testing.T) {
 	cStr := "C3swfg8MiMJ9bXbeFG6dWJTCoHp9hAEZkHezvbSwK1Cc"
-	containerID := cid.New()
-	require.NoError(t, containerID.Parse(cStr))
-
 	oStr := "3nQH1L8u3eM9jt2mZCs6MyjzdjerdSzBkXCYYj4M4Znk"
-	oid := object.NewID()
-	require.NoError(t, oid.Parse(oStr))
+	var objectAddr oid.Address
+	require.NoError(t, objectAddr.DecodeString(cStr+"/"+oStr))
 
 	validPrefix := "neofs:" + cStr + "/" + oStr
-	objectAddr := object.NewAddress()
-	objectAddr.SetContainerID(containerID)
-	objectAddr.SetObjectID(oid)
 
 	testCases := []struct {
 		url    string
@@ -72,21 +65,11 @@ func TestParseNeoFSURL(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, objectAddr, oa)
+			require.Equal(t, objectAddr, *oa)
 			require.Equal(t, len(tc.params), len(ps))
 			if len(ps) != 0 {
 				require.Equal(t, tc.params, ps)
 			}
 		})
 	}
-}
-
-func Test_checkUTF8(t *testing.T) {
-	_, err := checkUTF8([]byte{0xFF})
-	require.Error(t, err)
-
-	a := []byte{1, 2, 3}
-	b, err := checkUTF8(a)
-	require.NoError(t, err)
-	require.Equal(t, a, b)
 }

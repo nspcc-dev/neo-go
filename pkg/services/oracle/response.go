@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	gio "io"
+	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -67,16 +68,24 @@ func (o *Oracle) AddResponse(pub *keys.PublicKey, reqID uint64, txSig []byte) {
 // ErrResponseTooLarge is returned when a response exceeds the max allowed size.
 var ErrResponseTooLarge = errors.New("too big response")
 
-func readResponse(rc gio.ReadCloser, limit int) ([]byte, error) {
+func readResponse(rc gio.Reader) ([]byte, error) {
+	const limit = transaction.MaxOracleResultSize
 	buf := make([]byte, limit+1)
 	n, err := gio.ReadFull(rc, buf)
 	if errors.Is(err, gio.ErrUnexpectedEOF) && n <= limit {
-		return buf[:n], nil
+		return checkUTF8(buf[:n])
 	}
 	if err == nil || n > limit {
 		return nil, ErrResponseTooLarge
 	}
 	return nil, err
+}
+
+func checkUTF8(v []byte) ([]byte, error) {
+	if !utf8.Valid(v) {
+		return nil, errors.New("invalid UTF-8")
+	}
+	return v, nil
 }
 
 // CreateResponseTx creates an unsigned oracle response transaction.
