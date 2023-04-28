@@ -2569,7 +2569,7 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 			if isPartialTx {
 				maxNVBDelta, err := bc.GetMaxNotValidBeforeDelta()
 				if err != nil {
-					return fmt.Errorf("%w: failed to retrieve MaxNotValidBeforeDelta value from native Notary contract: %v", ErrInvalidAttribute, err)
+					return fmt.Errorf("%w: failed to retrieve MaxNotValidBeforeDelta value from native Notary contract: %v", ErrInvalidAttribute, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 				}
 				if curHeight+maxNVBDelta < nvb {
 					return fmt.Errorf("%w: NotValidBefore (%d) bigger than MaxNVBDelta (%d) allows at height %d", ErrInvalidAttribute, nvb, maxNVBDelta, curHeight)
