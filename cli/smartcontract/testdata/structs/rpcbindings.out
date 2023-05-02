@@ -154,6 +154,8 @@ type StructsInternal struct {
 	Map map[*big.Int]keys.PublicKeys
 	Struct *StructsInternal
 }
+
+
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)

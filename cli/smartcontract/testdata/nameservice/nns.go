@@ -2,6 +2,8 @@
 package nameservice
 
 import (
+	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -16,6 +18,27 @@ import (
 // Hash contains contract hash.
 var Hash = util.Uint160{0xde, 0x46, 0x5f, 0x5d, 0x50, 0x57, 0xcf, 0x33, 0x28, 0x47, 0x94, 0xc5, 0xcf, 0xc2, 0xc, 0x69, 0x37, 0x1c, 0xac, 0x50}
 
+
+
+// TransferEvent represents event emitted by the contract.
+type TransferEvent struct {
+	From util.Uint160
+	To util.Uint160
+	Amount *big.Int
+	TokenId []byte
+}
+// SetAdminEvent represents event emitted by the contract.
+type SetAdminEvent struct {
+	Name string
+	OldAdmin util.Uint160
+	NewAdmin util.Uint160
+}
+// RenewEvent represents event emitted by the contract.
+type RenewEvent struct {
+	Name string
+	OldExpiration *big.Int
+	NewExpiration *big.Int
+}
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 	nep11.Invoker
@@ -320,4 +343,248 @@ func (c *Contract) DeleteRecordTransaction(name string, typev *big.Int) (*transa
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) DeleteRecordUnsigned(name string, typev *big.Int) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, "deleteRecord", nil, name, typev)
+}
+
+// TransferEventFromApplicationLog retrieves TransferEvent from the
+// provided ApplicationLog located at the specified index in the events list
+// of the specified execution.
+func TransferEventFromApplicationLog(log *result.ApplicationLog, executionIdx, eventIdx int) (*TransferEvent, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+	if len(log.Executions) < executionIdx+1 {
+		return nil, fmt.Errorf("missing execution result: expected %d, got %d", executionIdx+1, len(log.Executions))
+	}
+	ex := log.Executions[executionIdx]
+	if len(ex.Events) < eventIdx+1 {
+		return nil, fmt.Errorf("missing event: expected %d, got %d", eventIdx+1, len(ex.Events))
+	}
+	e := ex.Events[eventIdx].Item
+
+	res := new(TransferEvent)
+	err := res.FromStackItem(e)
+	return res, err
+}
+
+// FromStackItem converts provided stackitem.Array to TransferEvent and
+// returns an error if so.
+func (e *TransferEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 4 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err error
+	)
+	index++
+	e.From, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field From: %w", err)
+	}
+	
+	index++
+	e.To, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field To: %w", err)
+	}
+	
+	index++
+	e.Amount, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field Amount: %w", err)
+	}
+	
+	index++
+	e.TokenId, err = arr[index].TryBytes()
+	if err != nil {
+		return fmt.Errorf("field TokenId: %w", err)
+	}
+	
+	return nil
+}
+
+// SetAdminEventFromApplicationLog retrieves SetAdminEvent from the
+// provided ApplicationLog located at the specified index in the events list
+// of the specified execution.
+func SetAdminEventFromApplicationLog(log *result.ApplicationLog, executionIdx, eventIdx int) (*SetAdminEvent, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+	if len(log.Executions) < executionIdx+1 {
+		return nil, fmt.Errorf("missing execution result: expected %d, got %d", executionIdx+1, len(log.Executions))
+	}
+	ex := log.Executions[executionIdx]
+	if len(ex.Events) < eventIdx+1 {
+		return nil, fmt.Errorf("missing event: expected %d, got %d", eventIdx+1, len(ex.Events))
+	}
+	e := ex.Events[eventIdx].Item
+
+	res := new(SetAdminEvent)
+	err := res.FromStackItem(e)
+	return res, err
+}
+
+// FromStackItem converts provided stackitem.Array to SetAdminEvent and
+// returns an error if so.
+func (e *SetAdminEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 3 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err error
+	)
+	index++
+	e.Name, err = func (item stackitem.Item) (string, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return "", err
+		}
+		if !utf8.Valid(b) {
+			return "", errors.New("not a UTF-8 string")
+		}
+		return string(b), nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field Name: %w", err)
+	}
+	
+	index++
+	e.OldAdmin, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field OldAdmin: %w", err)
+	}
+	
+	index++
+	e.NewAdmin, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field NewAdmin: %w", err)
+	}
+	
+	return nil
+}
+
+// RenewEventFromApplicationLog retrieves RenewEvent from the
+// provided ApplicationLog located at the specified index in the events list
+// of the specified execution.
+func RenewEventFromApplicationLog(log *result.ApplicationLog, executionIdx, eventIdx int) (*RenewEvent, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+	if len(log.Executions) < executionIdx+1 {
+		return nil, fmt.Errorf("missing execution result: expected %d, got %d", executionIdx+1, len(log.Executions))
+	}
+	ex := log.Executions[executionIdx]
+	if len(ex.Events) < eventIdx+1 {
+		return nil, fmt.Errorf("missing event: expected %d, got %d", eventIdx+1, len(ex.Events))
+	}
+	e := ex.Events[eventIdx].Item
+
+	res := new(RenewEvent)
+	err := res.FromStackItem(e)
+	return res, err
+}
+
+// FromStackItem converts provided stackitem.Array to RenewEvent and
+// returns an error if so.
+func (e *RenewEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 3 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err error
+	)
+	index++
+	e.Name, err = func (item stackitem.Item) (string, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return "", err
+		}
+		if !utf8.Valid(b) {
+			return "", errors.New("not a UTF-8 string")
+		}
+		return string(b), nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field Name: %w", err)
+	}
+	
+	index++
+	e.OldExpiration, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field OldExpiration: %w", err)
+	}
+	
+	index++
+	e.NewExpiration, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field NewExpiration: %w", err)
+	}
+	
+	return nil
 }

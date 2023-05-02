@@ -2,14 +2,24 @@
 package verify
 
 import (
+	"errors"
+	"fmt"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Hash contains contract hash.
 var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x0}
 
+
+
+// HelloWorld!Event represents event emitted by the contract.
+type HelloWorld!Event struct {
+	Args []any
+}
 // Actor is used by Contract to call state-changing methods.
 type Actor interface {
 	MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error)
@@ -67,4 +77,65 @@ func (c *Contract) VerifyUnsigned() (*transaction.Transaction, error) {
 		return nil, err
 	}
 	return c.actor.MakeUnsignedRun(script, nil)
+}
+
+// HelloWorld!EventFromApplicationLog retrieves HelloWorld!Event from the
+// provided ApplicationLog located at the specified index in the events list
+// of the specified execution.
+func HelloWorld!EventFromApplicationLog(log *result.ApplicationLog, executionIdx, eventIdx int) (*HelloWorld!Event, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+	if len(log.Executions) < executionIdx+1 {
+		return nil, fmt.Errorf("missing execution result: expected %d, got %d", executionIdx+1, len(log.Executions))
+	}
+	ex := log.Executions[executionIdx]
+	if len(ex.Events) < eventIdx+1 {
+		return nil, fmt.Errorf("missing event: expected %d, got %d", eventIdx+1, len(ex.Events))
+	}
+	e := ex.Events[eventIdx].Item
+
+	res := new(HelloWorld!Event)
+	err := res.FromStackItem(e)
+	return res, err
+}
+
+// FromStackItem converts provided stackitem.Array to HelloWorld!Event and
+// returns an error if so.
+func (e *HelloWorld!Event) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 1 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err error
+	)
+	index++
+	e.Args, err = func (item stackitem.Item) ([]any, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]any, len(arr))
+		for i := range res {
+			res[i], err = arr[i].Value(), error(nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field Args: %w", err)
+	}
+	
+	return nil
 }

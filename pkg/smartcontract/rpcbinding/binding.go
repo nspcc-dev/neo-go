@@ -13,6 +13,14 @@ import (
 )
 
 const srcTmpl = `
+{{- define "EVENT" -}}
+// {{.Name}}Event represents event emitted by the contract.
+type {{.Name}}Event struct {
+	{{- range $index, $arg := .Parameters}}
+	{{.Name}} {{.Type}}
+	{{- end}}
+}
+{{- end -}}
 {{- define "SAFEMETHOD" -}}
 // {{.Name}} {{.Comment}}
 func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
@@ -115,7 +123,10 @@ type {{toTypeName $name}} struct {
 	{{.Field}} {{etTypeToStr .ExtendedType}}
 {{- end}}
 }
-{{end -}}
+{{end}}
+{{range $e := .Events}}
+{{template "EVENT" $e }}
+{{- end}}
 {{if .HasReader}}// Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 {{if or .IsNep11D .IsNep11ND}}	nep11.Invoker
@@ -249,6 +260,57 @@ func (res *{{toTypeName $name}}) FromStackItem(item stackitem.Item) error {
 	}
 {{end}}
 {{end}}
+	return nil
+}
+{{end -}}
+{{range $e := .Events}}
+// {{$e.Name}}EventFromApplicationLog retrieves {{$e.Name}}Event from the
+// provided ApplicationLog located at the specified index in the events list
+// of the specified execution.
+func {{$e.Name}}EventFromApplicationLog(log *result.ApplicationLog, executionIdx, eventIdx int) (*{{$e.Name}}Event, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+	if len(log.Executions) < executionIdx+1 {
+		return nil, fmt.Errorf("missing execution result: expected %d, got %d", executionIdx+1, len(log.Executions))
+	}
+	ex := log.Executions[executionIdx]
+	if len(ex.Events) < eventIdx+1 {
+		return nil, fmt.Errorf("missing event: expected %d, got %d", eventIdx+1, len(ex.Events))
+	}
+	e := ex.Events[eventIdx].Item
+
+	res := new({{$e.Name}}Event)
+	err := res.FromStackItem(e)
+	return res, err
+}
+
+// FromStackItem converts provided stackitem.Array to {{$e.Name}}Event and
+// returns an error if so.
+func (e *{{$e.Name}}Event) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != {{len $e.Parameters}} {
+		return errors.New("wrong number of structure elements")
+	}
+
+	{{if len $e.Parameters}}var (
+		index = -1
+		err error
+	)
+	{{- range $p := $e.Parameters}}
+	index++
+	e.{{.Name}}, err = {{etTypeConverter .ExtType "arr[index]"}}
+	if err != nil {
+		return fmt.Errorf("field {{.Name}}: %w", err)
+	}
+	{{end}}
+	{{end -}}
 	return nil
 }
 {{end}}`
@@ -575,6 +637,13 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	}
 	if len(cfg.NamedTypes) > 0 {
 		imports["errors"] = struct{}{}
+	}
+	if len(cfg.Manifest.ABI.Events) > 0 {
+		imports["github.com/nspcc-dev/neo-go/pkg/neorpc/result"] = struct{}{}
+		imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
+		imports["fmt"] = struct{}{}
+		imports["errors"] = struct{}{}
+
 	}
 
 	for i := range ctr.SafeMethods {

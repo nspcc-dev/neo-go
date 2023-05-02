@@ -78,6 +78,7 @@ type (
 		Imports      []string
 		Hash         string
 		Methods      []MethodTmpl
+		Events       []EventTmpl
 	}
 
 	MethodTmpl struct {
@@ -89,9 +90,21 @@ type (
 		ReturnType string
 	}
 
+	EventTmpl struct {
+		Name       string
+		Parameters []EventParamTmpl
+	}
+
 	ParamTmpl struct {
 		Name string
 		Type string
+	}
+
+	EventParamTmpl struct {
+		ParamTmpl
+		// ExtType holds the event parameter's type information provided by Manifest,
+		// i.e. simple types only.
+		ExtType ExtendedType
 	}
 )
 
@@ -246,6 +259,36 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 		ctr.Methods = append(ctr.Methods, mtd)
 	}
 
+	for _, e := range cfg.Manifest.ABI.Events {
+		eTmp := EventTmpl{
+			Name: toPascalCase(e.Name),
+		}
+
+		var varnames = make(map[string]bool)
+		for i := range e.Parameters {
+			name := toPascalCase(e.Parameters[i].Name)
+			typeStr, pkg := scTypeConverter(e.Name+"."+name, e.Parameters[i].Type, &cfg)
+			if pkg != "" {
+				imports[pkg] = struct{}{}
+			}
+			for varnames[name] {
+				name = name + "_"
+			}
+			varnames[name] = true
+
+			eTmp.Parameters = append(eTmp.Parameters, EventParamTmpl{
+				ParamTmpl: ParamTmpl{
+					Name: name,
+					Type: typeStr,
+				},
+				ExtType: ExtendedType{
+					Base: e.Parameters[i].Type,
+				},
+			})
+		}
+		ctr.Events = append(ctr.Events, eTmp)
+	}
+
 	for imp := range imports {
 		ctr.Imports = append(ctr.Imports, imp)
 	}
@@ -255,4 +298,15 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 
 func upperFirst(s string) string {
 	return strings.ToUpper(s[0:1]) + s[1:]
+}
+
+func toPascalCase(s string) string {
+	var res string
+	ss := strings.Split(s, " ")
+	for i := range ss {
+		if len(ss[i]) > 0 {
+			res += upperFirst(ss[i])
+		}
+	}
+	return res
 }
