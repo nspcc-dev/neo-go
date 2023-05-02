@@ -541,7 +541,7 @@ func (s *Server) tryStartServices() {
 		return
 	}
 
-	if s.IsInSync() && s.syncReached.CAS(false, true) {
+	if s.IsInSync() && s.syncReached.CompareAndSwap(false, true) {
 		s.log.Info("node reached synchronized state, starting services")
 		if s.chain.P2PSigExtensionsEnabled() {
 			s.notaryRequestPool.RunSubscriptions() // WSClient is also a subscriber.
@@ -1277,14 +1277,14 @@ func getRequestBlocksPayload(p Peer, currHeight uint32, lastRequestedHeight *ato
 		old := lastRequestedHeight.Load()
 		if old <= currHeight {
 			needHeight = currHeight + 1
-			if !lastRequestedHeight.CAS(old, needHeight) {
+			if !lastRequestedHeight.CompareAndSwap(old, needHeight) {
 				continue
 			}
 		} else if old < currHeight+(bqueue.CacheSize-payload.MaxHashesCount) {
 			needHeight = currHeight + 1
 			if peerHeight > old+payload.MaxHashesCount {
 				needHeight = old + payload.MaxHashesCount
-				if !lastRequestedHeight.CAS(old, needHeight) {
+				if !lastRequestedHeight.CompareAndSwap(old, needHeight) {
 					continue
 				}
 			}

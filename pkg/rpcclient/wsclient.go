@@ -509,7 +509,7 @@ func NewWS(ctx context.Context, endpoint string, opts WSOptions) (*WSClient, err
 // Close closes connection to the remote side rendering this client instance
 // unusable.
 func (c *WSClient) Close() {
-	if c.closeCalled.CAS(false, true) {
+	if c.closeCalled.CompareAndSwap(false, true) {
 		c.setCloseErr(errConnClosedByUser)
 		// Closing shutdown channel sends a signal to wsWriter to break out of the
 		// loop. In doing so it does ws.Close() closing the network connection

@@ -146,7 +146,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 					break
 				}
 
-				resp.Result, err = readResponse(r.Body, transaction.MaxOracleResultSize)
+				resp.Result, err = readResponse(r.Body)
 				if err != nil {
 					if errors.Is(err, ErrResponseTooLarge) {
 						resp.Code = transaction.ResponseTooLarge
@@ -169,10 +169,14 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 			ctx, cancel := context.WithTimeout(context.Background(), o.MainCfg.NeoFS.Timeout)
 			defer cancel()
 			index := (int(req.ID) + incTx.attempts) % len(o.MainCfg.NeoFS.Nodes)
-			resp.Result, err = neofs.Get(ctx, priv, u, o.MainCfg.NeoFS.Nodes[index])
+			resp.Result, err = neofs.Get(ctx, priv, u, o.MainCfg.NeoFS.Nodes[index], readResponse)
 			if err != nil {
+				if errors.Is(err, ErrResponseTooLarge) {
+					resp.Code = transaction.ResponseTooLarge
+				} else {
+					resp.Code = transaction.Error
+				}
 				o.Log.Warn("oracle request failed", zap.String("url", req.Req.URL), zap.Error(err))
-				resp.Code = transaction.Error
 			}
 		default:
 			resp.Code = transaction.ProtocolNotSupported

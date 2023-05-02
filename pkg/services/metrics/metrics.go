@@ -35,7 +35,7 @@ func NewService(name string, httpServers []*http.Server, cfg config.BasicService
 // Start runs http service with the exposed endpoint on the configured port.
 func (ms *Service) Start() error {
 	if ms.config.Enabled {
-		if !ms.started.CAS(false, true) {
+		if !ms.started.CompareAndSwap(false, true) {
 			ms.log.Info("service already started")
 			return nil
 		}
@@ -66,7 +66,7 @@ func (ms *Service) ShutDown() {
 	if !ms.config.Enabled {
 		return
 	}
-	if !ms.started.CAS(true, false) {
+	if !ms.started.CompareAndSwap(true, false) {
 		return
 	}
 	for _, srv := range ms.http {
