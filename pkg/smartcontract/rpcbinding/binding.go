@@ -221,25 +221,35 @@ func itemTo{{toTypeName $name}}(item stackitem.Item, err error) (*{{toTypeName $
 	if err != nil {
 		return nil, err
 	}
+	var res = new({{toTypeName $name}})
+	err = res.FromStackItem(item)
+	return res, err
+}
+
+// FromStackItem retrieves fields of {{toTypeName $name}} from the given stack item
+// and returns an error if so.
+func (res *{{toTypeName $name}}) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
-		return nil, errors.New("not an array")
+		return errors.New("not an array")
 	}
 	if len(arr) != {{len $typ.Fields}} {
-		return nil, errors.New("wrong number of structure elements")
+		return errors.New("wrong number of structure elements")
 	}
 
-	var res = new({{toTypeName $name}})
-{{if len .Fields}}	var index = -1
+{{if len .Fields}}	var (
+		index = -1
+		err error
+	)
 {{- range $m := $typ.Fields}}
 	index++
 	res.{{.Field}}, err = {{etTypeConverter .ExtendedType "arr[index]"}}
 	if err != nil {
-		return nil, fmt.Errorf("field {{.Field}}: %w", err)
+		return fmt.Errorf("field {{.Field}}: %w", err)
 	}
 {{end}}
 {{end}}
-	return res, err
+	return nil
 }
 {{end}}`
 
