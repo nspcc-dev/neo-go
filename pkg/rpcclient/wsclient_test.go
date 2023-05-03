@@ -3,6 +3,7 @@ package rpcclient
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -752,7 +753,7 @@ func TestWS_RequestAfterClose(t *testing.T) {
 		_, err = c.GetBlockCount()
 	})
 	require.Error(t, err)
-	require.True(t, strings.Contains(err.Error(), "connection lost before registering response channel"))
+	require.True(t, errors.Is(err, ErrWSConnLost))
 }
 
 func TestWSClient_ConnClosedError(t *testing.T) {
