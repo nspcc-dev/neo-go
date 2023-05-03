@@ -412,7 +412,7 @@ func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.Extended
 func etTypeConverter(et binding.ExtendedType, v string) string {
 	switch et.Base {
 	case smartcontract.AnyType:
-		return v + ".Value(), nil"
+		return v + ".Value(), error(nil)"
 	case smartcontract.BoolType:
 		return v + ".TryBool()"
 	case smartcontract.IntegerType:
