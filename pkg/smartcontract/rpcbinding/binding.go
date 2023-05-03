@@ -399,7 +399,12 @@ func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.Extended
 
 	case smartcontract.MapType:
 		kt, _ := extendedTypeToGo(binding.ExtendedType{Base: et.Key}, named)
-		vt, _ := extendedTypeToGo(*et.Value, named)
+		var vt string
+		if et.Value != nil {
+			vt, _ = extendedTypeToGo(*et.Value, named)
+		} else {
+			vt = "any"
+		}
 		return "map[" + kt + "]" + vt, "github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	case smartcontract.InteropInterfaceType:
 		return "any", ""
@@ -494,8 +499,9 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		}, v)
 
 	case smartcontract.MapType:
-		at, _ := extendedTypeToGo(et, nil)
-		return `func (item stackitem.Item) (` + at + `, error) {
+		if et.Value != nil {
+			at, _ := extendedTypeToGo(et, nil)
+			return `func (item stackitem.Item) (` + at + `, error) {
 		m, ok := item.Value().([]stackitem.MapElement)
 		if !ok {
 			return nil, fmt.Errorf("%s is not a map", item.Type().String())
@@ -514,6 +520,15 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		}
 		return res, nil
 	} (` + v + `)`
+		} else {
+			return etTypeConverter(binding.ExtendedType{
+				Base: smartcontract.MapType,
+				Key:  et.Key,
+				Value: &binding.ExtendedType{
+					Base: smartcontract.AnyType,
+				},
+			}, v)
+		}
 	case smartcontract.InteropInterfaceType:
 		return "item.Value(), nil"
 	case smartcontract.VoidType:
