@@ -5,3 +5,11 @@ events:
     parameters:
       - name: ! complicated param @#$%
         type: String
+  - name: "SomeMap"
+    parameters:
+      - name: m
+        type: Map
+  - name: "SomeStruct"
+    parameters:
+      - name: s
+        type: Struct

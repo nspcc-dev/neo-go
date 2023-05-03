@@ -83,3 +83,7 @@ func Maps(m map[string]string) map[string]string {
 func CrazyMaps(m map[int][]map[string][]interop.Hash160) map[int][]map[string][]interop.Hash160 {
 	return m
 }
+
+func AnyMaps(m map[int]any) map[int]any {
+	return m
+}

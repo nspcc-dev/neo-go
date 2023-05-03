@@ -18,6 +18,10 @@ events:
     parameters:
       - name: m
         type: Map
+  - name: SomeCrazyMap
+    parameters:
+      - name: m
+        type: Map
   - name: SomeArray
     parameters:
       - name: a

@@ -99,6 +99,34 @@ func (c *ContractReader) Any(a any) (any, error) {
 	} (unwrap.Item(c.invoker.Call(Hash, "any", a)))
 }
 
+// AnyMaps invokes `anyMaps` method of contract.
+func (c *ContractReader) AnyMaps(m map[*big.Int]any) (map[*big.Int]any, error) {
+	return func (item stackitem.Item, err error) (map[*big.Int]any, error) {
+		if err != nil {
+			return nil, err
+		}
+		return func (item stackitem.Item) (map[*big.Int]any, error) {
+			m, ok := item.Value().([]stackitem.MapElement)
+			if !ok {
+				return nil, fmt.Errorf("%s is not a map", item.Type().String())
+			}
+			res := make(map[*big.Int]any)
+			for i := range m {
+				k, err := m[i].Key.TryInteger()
+				if err != nil {
+					return nil, fmt.Errorf("key %d: %w", i, err)
+				}
+				v, err := m[i].Value.Value(), error(nil)
+				if err != nil {
+					return nil, fmt.Errorf("value %d: %w", i, err)
+				}
+				res[k] = v
+			}
+			return res, nil
+		} (item)
+	} (unwrap.Item(c.invoker.Call(Hash, "anyMaps", m)))
+}
+
 // Bool invokes `bool` method of contract.
 func (c *ContractReader) Bool(b bool) (bool, error) {
 	return unwrap.Bool(c.invoker.Call(Hash, "bool", b))
