@@ -709,7 +709,7 @@ func (res *LedgerWitnessCondition) FromStackItem(item stackitem.Item) error {
 	}
 
 	index++
-	res.Value, err = arr[index].Value(), nil
+	res.Value, err = arr[index].Value(), error(nil)
 	if err != nil {
 		return fmt.Errorf("field Value: %w", err)
 	}
@@ -1193,7 +1193,7 @@ func (res *ManagementManifest) FromStackItem(item stackitem.Item) error {
 	}
 
 	index++
-	res.Extra, err = arr[index].Value(), nil
+	res.Extra, err = arr[index].Value(), error(nil)
 	if err != nil {
 		return fmt.Errorf("field Extra: %w", err)
 	}

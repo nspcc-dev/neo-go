@@ -96,7 +96,7 @@ func (c *ContractReader) Any(a any) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		return item.Value(), nil
+		return item.Value(), error(nil)
 	} (unwrap.Item(c.invoker.Call(Hash, "any", a)))
 }
 
