@@ -454,6 +454,11 @@ const (
 // ErrNilNotificationReceiver is returned when notification receiver channel is nil.
 var ErrNilNotificationReceiver = errors.New("nil notification receiver")
 
+// ErrWSConnLost is a WSClient-specific error that will be returned for any
+// requests after disconnection (including intentional ones via
+// (*WSClient).Close).
+var ErrWSConnLost = errors.New("connection lost")
+
 // errConnClosedByUser is a WSClient error used iff the user calls (*WSClient).Close method by himself.
 var errConnClosedByUser = errors.New("connection closed by user")
 
@@ -735,22 +740,22 @@ func (c *WSClient) makeWsRequest(r *neorpc.Request) (*neorpc.Response, error) {
 	select {
 	case <-c.done:
 		c.respLock.Unlock()
-		return nil, errors.New("connection lost before registering response channel")
+		return nil, fmt.Errorf("%w: before registering response channel", ErrWSConnLost)
 	default:
 		c.respChannels[r.ID] = ch
 		c.respLock.Unlock()
 	}
 	select {
 	case <-c.done:
-		return nil, errors.New("connection lost before sending the request")
+		return nil, fmt.Errorf("%w: before sending the request", ErrWSConnLost)
 	case c.requests <- r:
 	}
 	select {
 	case <-c.done:
-		return nil, errors.New("connection lost while waiting for the response")
+		return nil, fmt.Errorf("%w: while waiting for the response", ErrWSConnLost)
 	case resp, ok := <-ch:
 		if !ok {
-			return nil, errors.New("connection lost while waiting for the response")
+			return nil, fmt.Errorf("%w: while waiting for the response", ErrWSConnLost)
 		}
 		c.unregisterRespChannel(r.ID)
 		return resp, nil
