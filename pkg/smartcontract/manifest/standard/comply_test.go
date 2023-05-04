@@ -1,7 +1,6 @@
 package standard
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -39,14 +38,14 @@ func TestComplyMissingMethod(t *testing.T) {
 	m := fooMethodBarEvent()
 	m.ABI.GetMethod("foo", -1).Name = "notafoo"
 	err := Comply(m, &Standard{Manifest: *fooMethodBarEvent()})
-	require.True(t, errors.Is(err, ErrMethodMissing))
+	require.ErrorIs(t, err, ErrMethodMissing)
 }
 
 func TestComplyInvalidReturnType(t *testing.T) {
 	m := fooMethodBarEvent()
 	m.ABI.GetMethod("foo", -1).ReturnType = smartcontract.VoidType
 	err := Comply(m, &Standard{Manifest: *fooMethodBarEvent()})
-	require.True(t, errors.Is(err, ErrInvalidReturnType))
+	require.ErrorIs(t, err, ErrInvalidReturnType)
 }
 
 func TestComplyMethodParameterCount(t *testing.T) {
@@ -55,14 +54,14 @@ func TestComplyMethodParameterCount(t *testing.T) {
 		f := m.ABI.GetMethod("foo", -1)
 		f.Parameters = append(f.Parameters, manifest.Parameter{Type: smartcontract.BoolType})
 		err := Comply(m, &Standard{Manifest: *fooMethodBarEvent()})
-		require.True(t, errors.Is(err, ErrMethodMissing))
+		require.ErrorIs(t, err, ErrMethodMissing)
 	})
 	t.Run("Event", func(t *testing.T) {
 		m := fooMethodBarEvent()
 		ev := m.ABI.GetEvent("bar")
 		ev.Parameters = ev.Parameters[:0]
 		err := Comply(m, &Standard{Manifest: *fooMethodBarEvent()})
-		require.True(t, errors.Is(err, ErrInvalidParameterCount))
+		require.ErrorIs(t, err, ErrInvalidParameterCount)
 	})
 }
 
@@ -71,13 +70,13 @@ func TestComplyParameterType(t *testing.T) {
 		m := fooMethodBarEvent()
 		m.ABI.GetMethod("foo", -1).Parameters[0].Type = smartcontract.InteropInterfaceType
 		err := Comply(m, &Standard{Manifest: *fooMethodBarEvent()})
-		require.True(t, errors.Is(err, ErrInvalidParameterType))
+		require.ErrorIs(t, err, ErrInvalidParameterType)
 	})
 	t.Run("Event", func(t *testing.T) {
 		m := fooMethodBarEvent()
 		m.ABI.GetEvent("bar").Parameters[0].Type = smartcontract.InteropInterfaceType
 		err := Comply(m, &Standard{Manifest: *fooMethodBarEvent()})
-		require.True(t, errors.Is(err, ErrInvalidParameterType))
+		require.ErrorIs(t, err, ErrInvalidParameterType)
 	})
 }
 
@@ -87,7 +86,7 @@ func TestComplyParameterName(t *testing.T) {
 		m.ABI.GetMethod("foo", -1).Parameters[0].Name = "hehe"
 		s := &Standard{Manifest: *fooMethodBarEvent()}
 		err := Comply(m, s)
-		require.True(t, errors.Is(err, ErrInvalidParameterName))
+		require.ErrorIs(t, err, ErrInvalidParameterName)
 		require.NoError(t, ComplyABI(m, s))
 	})
 	t.Run("Event", func(t *testing.T) {
@@ -95,7 +94,7 @@ func TestComplyParameterName(t *testing.T) {
 		m.ABI.GetEvent("bar").Parameters[0].Name = "hehe"
 		s := &Standard{Manifest: *fooMethodBarEvent()}
 		err := Comply(m, s)
-		require.True(t, errors.Is(err, ErrInvalidParameterName))
+		require.ErrorIs(t, err, ErrInvalidParameterName)
 		require.NoError(t, ComplyABI(m, s))
 	})
 }
@@ -104,14 +103,14 @@ func TestMissingEvent(t *testing.T) {
 	m := fooMethodBarEvent()
 	m.ABI.GetEvent("bar").Name = "notabar"
 	err := Comply(m, &Standard{Manifest: *fooMethodBarEvent()})
-	require.True(t, errors.Is(err, ErrEventMissing))
+	require.ErrorIs(t, err, ErrEventMissing)
 }
 
 func TestSafeFlag(t *testing.T) {
 	m := fooMethodBarEvent()
 	m.ABI.GetMethod("foo", -1).Safe = false
 	err := Comply(m, &Standard{Manifest: *fooMethodBarEvent()})
-	require.True(t, errors.Is(err, ErrSafeMethodMismatch))
+	require.ErrorIs(t, err, ErrSafeMethodMismatch)
 }
 
 func TestComplyValid(t *testing.T) {

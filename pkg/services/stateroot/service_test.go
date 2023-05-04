@@ -2,7 +2,6 @@ package stateroot_test
 
 import (
 	"crypto/elliptic"
-	"errors"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -133,7 +132,7 @@ func TestStateRoot(t *testing.T) {
 		require.NoError(t, err)
 		data := testSignStateRoot(t, r, pubs, accInv)
 		err = srv.OnPayload(&payload.Extensible{Data: data})
-		require.True(t, errors.Is(err, core.ErrWitnessHashMismatch), "got: %v", err)
+		require.ErrorIs(t, err, core.ErrWitnessHashMismatch)
 		require.EqualValues(t, 0, bc.GetStateModule().CurrentValidatedHeight())
 	})
 

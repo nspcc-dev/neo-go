@@ -2,7 +2,6 @@ package core
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -33,16 +32,16 @@ func TestVerifyHeader(t *testing.T) {
 			h := prev.Hash()
 			h[0] = ^h[0]
 			hdr := newBlock(bc.config.ProtocolConfiguration, 1, h).Header
-			require.True(t, errors.Is(bc.verifyHeader(&hdr, &prev), ErrHdrHashMismatch))
+			require.ErrorIs(t, bc.verifyHeader(&hdr, &prev), ErrHdrHashMismatch)
 		})
 		t.Run("Index", func(t *testing.T) {
 			hdr := newBlock(bc.config.ProtocolConfiguration, 3, prev.Hash()).Header
-			require.True(t, errors.Is(bc.verifyHeader(&hdr, &prev), ErrHdrIndexMismatch))
+			require.ErrorIs(t, bc.verifyHeader(&hdr, &prev), ErrHdrIndexMismatch)
 		})
 		t.Run("Timestamp", func(t *testing.T) {
 			hdr := newBlock(bc.config.ProtocolConfiguration, 1, prev.Hash()).Header
 			hdr.Timestamp = 0
-			require.True(t, errors.Is(bc.verifyHeader(&hdr, &prev), ErrHdrInvalidTimestamp))
+			require.ErrorIs(t, bc.verifyHeader(&hdr, &prev), ErrHdrInvalidTimestamp)
 		})
 	})
 	t.Run("Valid", func(t *testing.T) {

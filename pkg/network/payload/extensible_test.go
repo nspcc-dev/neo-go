@@ -1,7 +1,6 @@
 package payload
 
 import (
-	"errors"
 	gio "io"
 	"testing"
 
@@ -34,11 +33,11 @@ func TestExtensible_Serializable(t *testing.T) {
 
 		t.Run("unexpected EOF", func(t *testing.T) {
 			err := testserdes.DecodeBinary(unsigned, new(Extensible))
-			require.True(t, errors.Is(err, gio.EOF))
+			require.ErrorIs(t, err, gio.EOF)
 		})
 		t.Run("invalid padding", func(t *testing.T) {
 			err := testserdes.DecodeBinary(append(unsigned, 42), new(Extensible))
-			require.True(t, errors.Is(err, errInvalidPadding))
+			require.ErrorIs(t, err, errInvalidPadding)
 		})
 		t.Run("too large data size", func(t *testing.T) {
 			expected.Data = make([]byte, MaxSize+1)

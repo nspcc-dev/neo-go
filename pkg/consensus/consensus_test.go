@@ -1,7 +1,6 @@
 package consensus
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -343,7 +342,7 @@ func TestService_PrepareRequest(t *testing.T) {
 			require.NoError(t, err)
 			return
 		}
-		require.True(t, errors.Is(err, expectedErr), "got: %v", err)
+		require.ErrorIs(t, err, expectedErr)
 	}
 
 	checkRequest(t, errInvalidVersion, &prepareRequest{version: 0xFF, prevHash: prevHash})

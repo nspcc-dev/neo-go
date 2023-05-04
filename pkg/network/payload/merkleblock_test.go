@@ -1,7 +1,6 @@
 package payload
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -52,7 +51,7 @@ func TestMerkleBlock_EncodeDecodeBinary(t *testing.T) {
 		}
 		data, err := testserdes.EncodeBinary(expected)
 		require.NoError(t, err)
-		require.True(t, errors.Is(block.ErrMaxContentsPerBlock, testserdes.DecodeBinary(data, new(MerkleBlock))))
+		require.ErrorIs(t, testserdes.DecodeBinary(data, new(MerkleBlock)), block.ErrMaxContentsPerBlock)
 	})
 
 	t.Run("bad flags size", func(t *testing.T) {

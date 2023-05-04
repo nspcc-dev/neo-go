@@ -427,7 +427,7 @@ func TestBlockchain_AddBlockStateRoot(t *testing.T) {
 	b.PrevStateRoot = util.Uint256{}
 	e.SignBlock(b)
 	err = bc.AddBlock(b)
-	require.True(t, errors.Is(err, core.ErrHdrStateRootSetting), "got: %v", err)
+	require.ErrorIs(t, err, core.ErrHdrStateRootSetting)
 
 	u := sr.Root
 	u[0] ^= 0xFF
@@ -435,7 +435,7 @@ func TestBlockchain_AddBlockStateRoot(t *testing.T) {
 	b.PrevStateRoot = u
 	e.SignBlock(b)
 	err = bc.AddBlock(b)
-	require.True(t, errors.Is(err, core.ErrHdrInvalidStateRoot), "got: %v", err)
+	require.ErrorIs(t, err, core.ErrHdrInvalidStateRoot)
 
 	b = e.NewUnsignedBlock(t)
 	e.SignBlock(b)
@@ -455,7 +455,7 @@ func TestBlockchain_AddHeadersStateRoot(t *testing.T) {
 
 	// invalid stateroot
 	h1.PrevStateRoot[0] ^= 0xFF
-	require.True(t, errors.Is(bc.AddHeaders(&h1), core.ErrHdrInvalidStateRoot))
+	require.ErrorIs(t, bc.AddHeaders(&h1), core.ErrHdrInvalidStateRoot)
 
 	// valid stateroot
 	h1.PrevStateRoot = r
@@ -597,12 +597,12 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 			newH[0] = ^newH[0]
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
 			_, err := bc.VerifyWitness(newH, nil, w, gas)
-			require.True(t, errors.Is(err, core.ErrUnknownVerificationContract))
+			require.ErrorIs(t, err, core.ErrUnknownVerificationContract)
 		})
 		t.Run("Invalid", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
 			_, err := bc.VerifyWitness(csInvalid.Hash, nil, w, gas)
-			require.True(t, errors.Is(err, core.ErrInvalidVerificationContract))
+			require.ErrorIs(t, err, core.ErrInvalidVerificationContract)
 		})
 		t.Run("ValidSignature", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
@@ -612,7 +612,7 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 		t.Run("InvalidSignature", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH3)}}
 			_, err := bc.VerifyWitness(cs.Hash, nil, w, gas)
-			require.True(t, errors.Is(err, core.ErrVerificationFailed))
+			require.ErrorIs(t, err, core.ErrVerificationFailed)
 		})
 	})
 	t.Run("NotEnoughGas", func(t *testing.T) {
@@ -622,7 +622,7 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 			VerificationScript: verif,
 		}
 		_, err := bc.VerifyWitness(hash.Hash160(verif), nil, w, 1)
-		require.True(t, errors.Is(err, core.ErrVerificationFailed))
+		require.ErrorIs(t, err, core.ErrVerificationFailed)
 	})
 	t.Run("NoResult", func(t *testing.T) {
 		verif := []byte{byte(opcode.DROP)}
@@ -631,7 +631,7 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 			VerificationScript: verif,
 		}
 		_, err := bc.VerifyWitness(hash.Hash160(verif), nil, w, gas)
-		require.True(t, errors.Is(err, core.ErrVerificationFailed))
+		require.ErrorIs(t, err, core.ErrVerificationFailed)
 	})
 	t.Run("BadResult", func(t *testing.T) {
 		verif := make([]byte, keys.SignatureLen+2)
@@ -642,7 +642,7 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 			VerificationScript: verif,
 		}
 		_, err := bc.VerifyWitness(hash.Hash160(verif), nil, w, gas)
-		require.True(t, errors.Is(err, core.ErrVerificationFailed))
+		require.ErrorIs(t, err, core.ErrVerificationFailed)
 	})
 	t.Run("TooManyResults", func(t *testing.T) {
 		verif := []byte{byte(opcode.NOP)}
@@ -651,7 +651,7 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 			VerificationScript: verif,
 		}
 		_, err := bc.VerifyWitness(hash.Hash160(verif), nil, w, gas)
-		require.True(t, errors.Is(err, core.ErrVerificationFailed))
+		require.ErrorIs(t, err, core.ErrVerificationFailed)
 	})
 }
 
@@ -1165,7 +1165,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 
 	checkErr := func(t *testing.T, expectedErr error, tx *transaction.Transaction) {
 		err := bc.VerifyTx(tx)
-		require.True(t, errors.Is(err, expectedErr), "expected: %v, got: %v", expectedErr, err)
+		require.ErrorIs(t, err, expectedErr)
 	}
 
 	testScript := []byte{byte(opcode.PUSH1)}
@@ -1321,7 +1321,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		tx2.NetworkFee = balance / 2
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx2))
 		err := bc.PoolTx(tx2)
-		require.True(t, errors.Is(err, core.ErrMemPoolConflict))
+		require.ErrorIs(t, err, core.ErrMemPoolConflict)
 	})
 	t.Run("InvalidWitnessHash", func(t *testing.T) {
 		tx := newTestTx(t, h, testScript)
@@ -1358,7 +1358,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		require.NoError(t, bc.PoolTx(tx))
 
 		err := bc.PoolTx(tx)
-		require.True(t, errors.Is(err, core.ErrAlreadyExists))
+		require.ErrorIs(t, err, core.ErrAlreadyExists)
 	})
 	t.Run("MemPoolOOM", func(t *testing.T) {
 		mp := mempool.New(1, 0, false, nil)
@@ -1370,7 +1370,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		tx2 := newTestTx(t, h, testScript)
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx2))
 		err := bc.PoolTx(tx2, mp)
-		require.True(t, errors.Is(err, core.ErrOOM))
+		require.ErrorIs(t, err, core.ErrOOM)
 	})
 	t.Run("Attribute", func(t *testing.T) {
 		t.Run("InvalidHighPriority", func(t *testing.T) {
@@ -1476,7 +1476,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 						emit.String(w.BinWriter, nativenames.Oracle)
 						tx.Scripts[len(tx.Scripts)-1].VerificationScript = w.Bytes()
 						err := bc.VerifyTx(tx)
-						require.True(t, errors.Is(err, core.ErrNativeContractWitness), "got: %v", err)
+						require.ErrorIs(t, err, core.ErrNativeContractWitness)
 					})
 					t.Run("Good", func(t *testing.T) {
 						tx.Scripts[len(tx.Scripts)-1].VerificationScript = nil
@@ -1549,7 +1549,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			t.Run("Enabled", func(t *testing.T) {
 				t.Run("NotYetValid", func(t *testing.T) {
 					tx := getNVBTx(e, bc.BlockHeight()+1)
-					require.True(t, errors.Is(bc.VerifyTx(tx), core.ErrInvalidAttribute))
+					require.ErrorIs(t, bc.VerifyTx(tx), core.ErrInvalidAttribute)
 				})
 				t.Run("positive", func(t *testing.T) {
 					tx := getNVBTx(e, bc.BlockHeight())
@@ -1655,7 +1655,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 					conflicting.NetworkFee = 1000_0000
 					require.NoError(t, validator.SignTx(netmode.UnitTestNet, conflicting))
 					e.AddNewBlock(t, conflicting)
-					require.True(t, errors.Is(bc.VerifyTx(tx), core.ErrHasConflicts))
+					require.ErrorIs(t, bc.VerifyTx(tx), core.ErrHasConflicts)
 				})
 				t.Run("attribute on-chain conflict", func(t *testing.T) {
 					tx := neoValidatorsInvoker.Invoke(t, stackitem.NewBool(true), "transfer", neoOwner, neoOwner, 1, nil)
@@ -1950,13 +1950,13 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			maxNVB, err := bc.GetMaxNotValidBeforeDelta()
 			require.NoError(t, err)
 			tx := getPartiallyFilledTx(bc.BlockHeight()+maxNVB+1, bc.BlockHeight()+1)
-			require.True(t, errors.Is(bc.PoolTxWithData(tx, 5, mp, bc, verificationF), core.ErrInvalidAttribute))
+			require.ErrorIs(t, bc.PoolTxWithData(tx, 5, mp, bc, verificationF), core.ErrInvalidAttribute)
 		})
 		t.Run("bad ValidUntilBlock: too small", func(t *testing.T) {
 			maxNVB, err := bc.GetMaxNotValidBeforeDelta()
 			require.NoError(t, err)
 			tx := getPartiallyFilledTx(bc.BlockHeight(), bc.BlockHeight()+maxNVB+1)
-			require.True(t, errors.Is(bc.PoolTxWithData(tx, 5, mp, bc, verificationF), core.ErrInvalidAttribute))
+			require.ErrorIs(t, bc.PoolTxWithData(tx, 5, mp, bc, verificationF), core.ErrInvalidAttribute)
 		})
 		t.Run("good", func(t *testing.T) {
 			tx := getPartiallyFilledTx(bc.BlockHeight(), bc.BlockHeight()+1)

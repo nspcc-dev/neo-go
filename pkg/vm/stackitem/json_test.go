@@ -1,7 +1,6 @@
 package stackitem
 
 import (
-	"errors"
 	"math/big"
 	"testing"
 
@@ -56,7 +55,7 @@ func TestFromToJSON(t *testing.T) {
 			require.NoError(t, err)
 
 			_, err = FromJSON([]byte(js), 3)
-			require.True(t, errors.Is(err, errTooBigElements), err)
+			require.ErrorIs(t, err, errTooBigElements)
 		})
 	})
 	t.Run("Map", func(t *testing.T) {
@@ -79,7 +78,7 @@ func TestFromToJSON(t *testing.T) {
 			require.NoError(t, err)
 
 			_, err = FromJSON([]byte(js), 4)
-			require.True(t, errors.Is(err, errTooBigElements), err)
+			require.ErrorIs(t, err, errTooBigElements)
 		})
 	})
 	t.Run("Invalid", func(t *testing.T) {
@@ -126,7 +125,7 @@ func TestFromToJSON(t *testing.T) {
 func testToJSON(t *testing.T, expectedErr error, item Item) {
 	data, err := ToJSON(item)
 	if expectedErr != nil {
-		require.True(t, errors.Is(err, expectedErr), err)
+		require.ErrorIs(t, err, expectedErr)
 		return
 	}
 	require.NoError(t, err)
@@ -313,16 +312,16 @@ func TestToJSONWithTypesBadCases(t *testing.T) {
 			items[i] = NewBuffer(bigBuf)
 		}
 		_, err := ToJSONWithTypes(NewArray(items))
-		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+		require.ErrorIs(t, err, errTooBigSize)
 	})
 	t.Run("overflow on primitive item", func(t *testing.T) {
 		_, err := ToJSONWithTypes(NewBuffer(bigBuf))
-		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+		require.ErrorIs(t, err, errTooBigSize)
 	})
 	t.Run("overflow on array element", func(t *testing.T) {
 		b := NewBuffer(bigBuf[:MaxSize/2])
 		_, err := ToJSONWithTypes(NewArray([]Item{b, b}))
-		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+		require.ErrorIs(t, err, errTooBigSize)
 	})
 	t.Run("overflow on map key", func(t *testing.T) {
 		m := NewMapWithValue([]MapElement{
@@ -330,7 +329,7 @@ func TestToJSONWithTypesBadCases(t *testing.T) {
 			{NewByteArray(bigBuf), NewBool(true)},
 		})
 		_, err := ToJSONWithTypes(m)
-		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+		require.ErrorIs(t, err, errTooBigSize)
 	})
 	t.Run("overflow on the last byte of array", func(t *testing.T) {
 		// Construct big enough buffer and pad with integer digits
@@ -340,7 +339,7 @@ func TestToJSONWithTypesBadCases(t *testing.T) {
 			NewBigInteger(big.NewInt(1234)),
 		})
 		_, err := ToJSONWithTypes(arr)
-		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+		require.ErrorIs(t, err, errTooBigSize)
 	})
 	t.Run("overflow on the item prefix", func(t *testing.T) {
 		arr := NewArray([]Item{
@@ -348,7 +347,7 @@ func TestToJSONWithTypesBadCases(t *testing.T) {
 			NewBool(true),
 		})
 		_, err := ToJSONWithTypes(arr)
-		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+		require.ErrorIs(t, err, errTooBigSize)
 	})
 	t.Run("overflow on null", func(t *testing.T) {
 		arr := NewArray([]Item{
@@ -356,7 +355,7 @@ func TestToJSONWithTypesBadCases(t *testing.T) {
 			Null{},
 		})
 		_, err := ToJSONWithTypes(arr)
-		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+		require.ErrorIs(t, err, errTooBigSize)
 	})
 	t.Run("overflow on interop", func(t *testing.T) {
 		arr := NewArray([]Item{
@@ -364,17 +363,17 @@ func TestToJSONWithTypesBadCases(t *testing.T) {
 			NewInterop(42),
 		})
 		_, err := ToJSONWithTypes(arr)
-		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+		require.ErrorIs(t, err, errTooBigSize)
 	})
 	t.Run("overflow on cached item", func(t *testing.T) {
 		b := NewArray([]Item{NewByteArray(bigBuf[:MaxSize/2])})
 		arr := NewArray([]Item{b, b})
 		_, err := ToJSONWithTypes(arr)
-		require.True(t, errors.Is(err, errTooBigSize), "got: %v", err)
+		require.ErrorIs(t, err, errTooBigSize)
 	})
 	t.Run("invalid type", func(t *testing.T) {
 		_, err := ToJSONWithTypes(nil)
-		require.True(t, errors.Is(err, ErrUnserializable), "got: %v", err)
+		require.ErrorIs(t, err, ErrUnserializable)
 	})
 }
 

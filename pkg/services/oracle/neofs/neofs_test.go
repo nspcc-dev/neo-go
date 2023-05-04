@@ -1,7 +1,6 @@
 package neofs
 
 import (
-	"errors"
 	"net/url"
 	"testing"
 
@@ -61,7 +60,7 @@ func TestParseNeoFSURL(t *testing.T) {
 			require.NoError(t, err)
 			oa, ps, err := parseNeoFSURL(u)
 			if tc.err != nil {
-				require.True(t, errors.Is(err, tc.err), "got: %#v", err)
+				require.ErrorIs(t, err, tc.err)
 				return
 			}
 			require.NoError(t, err)

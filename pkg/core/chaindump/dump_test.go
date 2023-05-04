@@ -85,7 +85,7 @@ func testDumpAndRestore(t *testing.T, dumpF, restoreF func(c *config.Blockchain)
 
 			r = io.NewBinReaderFromBuf(buf)
 			err := chaindump.Restore(bc2, r, 4, bc.BlockHeight()-bc2.BlockHeight(), f)
-			require.True(t, errors.Is(err, errStopped))
+			require.ErrorIs(t, err, errStopped)
 			require.Equal(t, bc.BlockHeight()-1, lastIndex)
 		})
 	})

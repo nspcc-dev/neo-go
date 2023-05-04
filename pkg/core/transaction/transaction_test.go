@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"math"
 	"testing"
 
@@ -125,7 +124,7 @@ func TestDecodingTxWithInvalidWitnessesNumber(t *testing.T) {
 	tx.Scripts = []Witness{{InvocationScript: []byte{}, VerificationScript: []byte{}}, {InvocationScript: []byte{}, VerificationScript: []byte{}}}
 	data, err := testserdes.EncodeBinary(tx)
 	require.NoError(t, err)
-	require.True(t, errors.Is(testserdes.DecodeBinary(data, new(Transaction)), ErrInvalidWitnessNum))
+	require.ErrorIs(t, testserdes.DecodeBinary(data, new(Transaction)), ErrInvalidWitnessNum)
 }
 
 func TestUnmarshalNeoFSTX(t *testing.T) {
@@ -216,32 +215,32 @@ func TestTransaction_isValid(t *testing.T) {
 	t.Run("InvalidVersion", func(t *testing.T) {
 		tx := newTx()
 		tx.Version = 1
-		require.True(t, errors.Is(tx.isValid(), ErrInvalidVersion))
+		require.ErrorIs(t, tx.isValid(), ErrInvalidVersion)
 	})
 	t.Run("NegativeSystemFee", func(t *testing.T) {
 		tx := newTx()
 		tx.SystemFee = -1
-		require.True(t, errors.Is(tx.isValid(), ErrNegativeSystemFee))
+		require.ErrorIs(t, tx.isValid(), ErrNegativeSystemFee)
 	})
 	t.Run("NegativeNetworkFee", func(t *testing.T) {
 		tx := newTx()
 		tx.NetworkFee = -1
-		require.True(t, errors.Is(tx.isValid(), ErrNegativeNetworkFee))
+		require.ErrorIs(t, tx.isValid(), ErrNegativeNetworkFee)
 	})
 	t.Run("TooBigFees", func(t *testing.T) {
 		tx := newTx()
 		tx.SystemFee = math.MaxInt64 - tx.NetworkFee + 1
-		require.True(t, errors.Is(tx.isValid(), ErrTooBigFees))
+		require.ErrorIs(t, tx.isValid(), ErrTooBigFees)
 	})
 	t.Run("EmptySigners", func(t *testing.T) {
 		tx := newTx()
 		tx.Signers = tx.Signers[:0]
-		require.True(t, errors.Is(tx.isValid(), ErrEmptySigners))
+		require.ErrorIs(t, tx.isValid(), ErrEmptySigners)
 	})
 	t.Run("NonUniqueSigners", func(t *testing.T) {
 		tx := newTx()
 		tx.Signers[1].Account = tx.Signers[0].Account
-		require.True(t, errors.Is(tx.isValid(), ErrNonUniqueSigners))
+		require.ErrorIs(t, tx.isValid(), ErrNonUniqueSigners)
 	})
 	t.Run("MultipleHighPriority", func(t *testing.T) {
 		tx := newTx()
@@ -249,7 +248,7 @@ func TestTransaction_isValid(t *testing.T) {
 			{Type: HighPriority},
 			{Type: HighPriority},
 		}
-		require.True(t, errors.Is(tx.isValid(), ErrInvalidAttribute))
+		require.ErrorIs(t, tx.isValid(), ErrInvalidAttribute)
 	})
 	t.Run("MultipleOracle", func(t *testing.T) {
 		tx := newTx()
@@ -257,12 +256,12 @@ func TestTransaction_isValid(t *testing.T) {
 			{Type: OracleResponseT},
 			{Type: OracleResponseT},
 		}
-		require.True(t, errors.Is(tx.isValid(), ErrInvalidAttribute))
+		require.ErrorIs(t, tx.isValid(), ErrInvalidAttribute)
 	})
 	t.Run("NoScript", func(t *testing.T) {
 		tx := newTx()
 		tx.Script = []byte{}
-		require.True(t, errors.Is(tx.isValid(), ErrEmptyScript))
+		require.ErrorIs(t, tx.isValid(), ErrEmptyScript)
 	})
 }
 

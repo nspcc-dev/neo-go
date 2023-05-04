@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -2013,7 +2012,7 @@ func TestGetNetwork(t *testing.T) {
 		c.getNextRequestID = getTestRequestID
 		// network was not initialised
 		_, err = c.GetNetwork()
-		require.True(t, errors.Is(err, errNetworkNotInitialized))
+		require.ErrorIs(t, err, errNetworkNotInitialized)
 		require.Equal(t, false, c.cache.initDone)
 	})
 
