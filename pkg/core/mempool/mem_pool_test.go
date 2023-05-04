@@ -1,7 +1,6 @@
 package mempool
 
 import (
-	"errors"
 	"math/big"
 	"sort"
 	"testing"
@@ -380,7 +379,7 @@ func TestMempoolAddRemoveOracleResponse(t *testing.T) {
 	// smaller network fee
 	tx2 := newTx(5, 1)
 	err := mp.Add(tx2, fs)
-	require.True(t, errors.Is(err, ErrOracleResponse))
+	require.ErrorIs(t, err, ErrOracleResponse)
 
 	// ok if old tx is removed
 	mp.Remove(tx1.Hash(), fs)
@@ -457,7 +456,7 @@ func TestMempoolAddRemoveConflicts(t *testing.T) {
 
 	// tx2 conflicts with tx1 and has smaller netfee (Step 2, negative)
 	tx2 := getConflictsTx(smallNetFee-1, tx1.Hash())
-	require.True(t, errors.Is(mp.Add(tx2, fs), ErrConflictsAttribute))
+	require.ErrorIs(t, mp.Add(tx2, fs), ErrConflictsAttribute)
 
 	// tx3 conflicts with mempooled tx1 and has larger netfee => tx1 should be replaced by tx3 (Step 2, positive)
 	tx3 := getConflictsTx(smallNetFee+1, tx1.Hash())
@@ -468,7 +467,7 @@ func TestMempoolAddRemoveConflicts(t *testing.T) {
 
 	// tx1 still does not conflicts with anyone, but tx3 is mempooled, conflicts with tx1
 	// and has larger netfee => tx1 shouldn't be added again (Step 1, negative)
-	require.True(t, errors.Is(mp.Add(tx1, fs), ErrConflictsAttribute))
+	require.ErrorIs(t, mp.Add(tx1, fs), ErrConflictsAttribute)
 
 	// tx2 can now safely be added because conflicting tx1 is not in mempool => we
 	// cannot check that tx2 is signed by tx1.Sender
@@ -541,7 +540,7 @@ func TestMempoolAddRemoveConflicts(t *testing.T) {
 	}}
 	_, ok := mp.TryGetValue(tx13.Hash())
 	require.Equal(t, false, ok)
-	require.True(t, errors.Is(mp.Add(tx13, fs), ErrConflictsAttribute))
+	require.ErrorIs(t, mp.Add(tx13, fs), ErrConflictsAttribute)
 }
 
 func TestMempoolAddWithDataGetData(t *testing.T) {
@@ -570,7 +569,7 @@ func TestMempoolAddWithDataGetData(t *testing.T) {
 		MainTransaction:     newTx(t, 0),
 		FallbackTransaction: newTx(t, fs.balance+1),
 	}
-	require.True(t, errors.Is(mp.Add(r1.FallbackTransaction, fs, r1), ErrInsufficientFunds))
+	require.ErrorIs(t, mp.Add(r1.FallbackTransaction, fs, r1), ErrInsufficientFunds)
 
 	// good
 	r2 := &payload.P2PNotaryRequest{
@@ -584,7 +583,7 @@ func TestMempoolAddWithDataGetData(t *testing.T) {
 	require.Equal(t, r2, data)
 
 	// bad, already in pool
-	require.True(t, errors.Is(mp.Add(r2.FallbackTransaction, fs, r2), ErrDup))
+	require.ErrorIs(t, mp.Add(r2.FallbackTransaction, fs, r2), ErrDup)
 
 	// good, higher priority than r2. The resulting mp.verifiedTxes: [r3, r2]
 	r3 := &payload.P2PNotaryRequest{

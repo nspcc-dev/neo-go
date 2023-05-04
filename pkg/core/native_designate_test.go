@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testchain"
@@ -30,7 +29,7 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 
 	_, _, err := des.GetDesignatedByRole(bc.dao, 0xFF, 255)
-	require.True(t, errors.Is(err, native.ErrInvalidRole), "got: %v", err)
+	require.ErrorIs(t, err, native.ErrInvalidRole)
 
 	pubs, index, err := des.GetDesignatedByRole(bc.dao, noderoles.Oracle, 255)
 	require.NoError(t, err)
@@ -38,20 +37,20 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	require.Equal(t, uint32(0), index)
 
 	err = des.DesignateAsRole(ic, noderoles.Oracle, keys.PublicKeys{})
-	require.True(t, errors.Is(err, native.ErrEmptyNodeList), "got: %v", err)
+	require.ErrorIs(t, err, native.ErrEmptyNodeList)
 
 	err = des.DesignateAsRole(ic, noderoles.Oracle, make(keys.PublicKeys, 32+1))
-	require.True(t, errors.Is(err, native.ErrLargeNodeList), "got: %v", err)
+	require.ErrorIs(t, err, native.ErrLargeNodeList)
 
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 	pub := priv.PublicKey()
 
 	err = des.DesignateAsRole(ic, 0xFF, keys.PublicKeys{pub})
-	require.True(t, errors.Is(err, native.ErrInvalidRole), "got: %v", err)
+	require.ErrorIs(t, err, native.ErrInvalidRole)
 
 	err = des.DesignateAsRole(ic, noderoles.Oracle, keys.PublicKeys{pub})
-	require.True(t, errors.Is(err, native.ErrInvalidWitness), "got: %v", err)
+	require.ErrorIs(t, err, native.ErrInvalidWitness)
 
 	setSigner(tx, testchain.CommitteeScriptHash())
 	err = des.DesignateAsRole(ic, noderoles.Oracle, keys.PublicKeys{pub})

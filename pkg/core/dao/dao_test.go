@@ -2,7 +2,6 @@ package dao
 
 import (
 	"encoding/binary"
-	"errors"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -219,9 +218,9 @@ func TestStoreAsTransaction(t *testing.T) {
 		err := dao.StoreAsTransaction(tx, 0, aer)
 		require.NoError(t, err)
 		err = dao.HasTransaction(hash)
-		require.True(t, errors.Is(err, ErrAlreadyExists))
+		require.ErrorIs(t, err, ErrAlreadyExists)
 		err = dao.HasTransaction(conflictsH)
-		require.True(t, errors.Is(err, ErrHasConflicts))
+		require.ErrorIs(t, err, ErrHasConflicts)
 		gotAppExecResult, err := dao.GetAppExecResults(hash, trigger.All)
 		require.NoError(t, err)
 		require.Equal(t, 1, len(gotAppExecResult))

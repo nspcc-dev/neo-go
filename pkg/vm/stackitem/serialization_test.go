@@ -1,7 +1,6 @@
 package stackitem
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -20,13 +19,13 @@ func TestSerializationMaxErr(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = Serialize(aitem)
-	require.True(t, errors.Is(err, ErrTooBig), err)
+	require.ErrorIs(t, err, ErrTooBig)
 }
 
 func testSerialize(t *testing.T, expectedErr error, item Item) {
 	data, err := Serialize(item)
 	if expectedErr != nil {
-		require.True(t, errors.Is(err, expectedErr), err)
+		require.ErrorIs(t, err, expectedErr)
 		return
 	}
 	require.NoError(t, err)
@@ -62,7 +61,7 @@ func TestSerialize(t *testing.T) {
 		data, err := Serialize(newItem(items))
 		require.NoError(t, err)
 		_, err = Deserialize(data)
-		require.True(t, errors.Is(err, ErrTooBig), err)
+		require.ErrorIs(t, err, ErrTooBig)
 	}
 	t.Run("array", func(t *testing.T) {
 		testArray(t, func(items []Item) Item { return NewArray(items) })
@@ -169,7 +168,7 @@ func TestSerialize(t *testing.T) {
 		data, err := Serialize(m)
 		require.NoError(t, err)
 		_, err = Deserialize(data)
-		require.True(t, errors.Is(err, ErrTooBig), err)
+		require.ErrorIs(t, err, ErrTooBig)
 	})
 }
 
@@ -189,7 +188,7 @@ func TestMapDeserializationError(t *testing.T) {
 	EncodeBinaryProtected(m, w.BinWriter)
 	require.NoError(t, w.Err)
 	_, err := Deserialize(w.Bytes())
-	require.True(t, errors.Is(err, ErrInvalidType), err)
+	require.ErrorIs(t, err, ErrInvalidType)
 }
 
 func TestDeserializeTooManyElements(t *testing.T) {
@@ -206,7 +205,7 @@ func TestDeserializeTooManyElements(t *testing.T) {
 	data, err = Serialize(item)
 	require.NoError(t, err)
 	_, err = Deserialize(data)
-	require.True(t, errors.Is(err, ErrTooBig), err)
+	require.ErrorIs(t, err, ErrTooBig)
 }
 
 func TestDeserializeLimited(t *testing.T) {
@@ -226,7 +225,7 @@ func TestDeserializeLimited(t *testing.T) {
 	require.NoError(t, err)
 	_, err = DeserializeLimited(data, customLimit)
 	require.Error(t, err)
-	require.True(t, errors.Is(err, ErrTooBig), err)
+	require.ErrorIs(t, err, ErrTooBig)
 }
 
 func BenchmarkEncodeBinary(b *testing.B) {

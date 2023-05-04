@@ -1,7 +1,6 @@
 package interopnames
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,6 +15,6 @@ func TestFromID(t *testing.T) {
 	})
 	t.Run("Invalid", func(t *testing.T) {
 		_, err := FromID(0x42424242)
-		require.True(t, errors.Is(err, errNotFound))
+		require.ErrorIs(t, err, errNotFound)
 	})
 }

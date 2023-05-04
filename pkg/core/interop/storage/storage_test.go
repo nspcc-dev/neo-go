@@ -1,7 +1,6 @@
 package storage_test
 
 import (
-	"errors"
 	"math/big"
 	"testing"
 
@@ -42,7 +41,7 @@ func TestPut(t *testing.T) {
 	t.Run("create, not enough gas", func(t *testing.T) {
 		initVM(t, []byte{1}, []byte{2, 3}, 2*native.DefaultStoragePrice)
 		err := istorage.Put(ic)
-		require.True(t, errors.Is(err, istorage.ErrGasLimitExceeded), "got: %v", err)
+		require.ErrorIs(t, err, istorage.ErrGasLimitExceeded)
 	})
 
 	initVM(t, []byte{4}, []byte{5, 6}, 3*native.DefaultStoragePrice)
@@ -52,7 +51,7 @@ func TestPut(t *testing.T) {
 		t.Run("not enough gas", func(t *testing.T) {
 			initVM(t, []byte{4}, []byte{5, 6, 7, 8}, native.DefaultStoragePrice)
 			err := istorage.Put(ic)
-			require.True(t, errors.Is(err, istorage.ErrGasLimitExceeded), "got: %v", err)
+			require.ErrorIs(t, err, istorage.ErrGasLimitExceeded)
 		})
 		initVM(t, []byte{4}, []byte{5, 6, 7, 8}, 3*native.DefaultStoragePrice)
 		require.NoError(t, istorage.Put(ic))

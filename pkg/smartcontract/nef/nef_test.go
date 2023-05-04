@@ -3,7 +3,6 @@ package nef
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"strconv"
 	"testing"
 
@@ -87,12 +86,12 @@ func TestEncodeDecodeBinary(t *testing.T) {
 		sz := io.GetVarSize(&expected.Header)
 		bytes[sz] = 1
 		err = testserdes.DecodeBinary(bytes, new(File))
-		require.True(t, errors.Is(err, errInvalidReserved), "got: %v", err)
+		require.ErrorIs(t, err, errInvalidReserved)
 
 		bytes[sz] = 0
 		bytes[sz+3] = 1
 		err = testserdes.DecodeBinary(bytes, new(File))
-		require.True(t, errors.Is(err, errInvalidReserved), "got: %v", err)
+		require.ErrorIs(t, err, errInvalidReserved)
 	})
 }
 

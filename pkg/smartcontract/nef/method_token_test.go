@@ -1,7 +1,6 @@
 package nef
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
@@ -37,7 +36,7 @@ func TestMethodToken_Serializable(t *testing.T) {
 		data, err := testserdes.EncodeBinary(tok)
 		require.NoError(t, err)
 		err = testserdes.DecodeBinary(data, new(MethodToken))
-		require.True(t, errors.Is(err, errInvalidMethodName))
+		require.ErrorIs(t, err, errInvalidMethodName)
 	})
 	t.Run("invalid call flag", func(t *testing.T) {
 		tok := getToken()
@@ -45,6 +44,6 @@ func TestMethodToken_Serializable(t *testing.T) {
 		data, err := testserdes.EncodeBinary(tok)
 		require.NoError(t, err)
 		err = testserdes.DecodeBinary(data, new(MethodToken))
-		require.True(t, errors.Is(err, errInvalidCallFlag))
+		require.ErrorIs(t, err, errInvalidCallFlag)
 	})
 }

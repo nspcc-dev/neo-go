@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"strings"
 	"testing"
 
@@ -236,7 +235,7 @@ func TestBlockEncodeDecode(t *testing.T) {
 		data, err := testserdes.EncodeBinary(b)
 		require.NoError(t, err)
 
-		require.True(t, errors.Is(testserdes.DecodeBinary(data, new(Block)), ErrMaxContentsPerBlock))
+		require.ErrorIs(t, testserdes.DecodeBinary(data, new(Block)), ErrMaxContentsPerBlock)
 	})
 }
 
