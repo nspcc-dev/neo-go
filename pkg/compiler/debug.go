@@ -108,7 +108,7 @@ type DebugRange struct {
 	End   uint16
 }
 
-// DebugParam represents the variables's name and type.
+// DebugParam represents the variable's name and type.
 type DebugParam struct {
 	Name         string                  `json:"name"`
 	Type         string                  `json:"type"`
