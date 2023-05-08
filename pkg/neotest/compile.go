@@ -60,6 +60,7 @@ func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath s
 	o := &compiler.Options{}
 	o.Name = conf.Name
 	o.ContractEvents = conf.Events
+	o.DeclaredNamedTypes = conf.NamedTypes
 	o.ContractSupportedStandards = conf.SupportedStandards
 	o.Permissions = make([]manifest.Permission, len(conf.Permissions))
 	for i := range conf.Permissions {

@@ -593,9 +593,20 @@ func (di *DebugInfo) ConvertToManifest(o *Options) (*manifest.Manifest, error) {
 	if o.ContractSupportedStandards != nil {
 		result.SupportedStandards = o.ContractSupportedStandards
 	}
+	events := make([]manifest.Event, len(o.ContractEvents))
+	for i, e := range o.ContractEvents {
+		params := make([]manifest.Parameter, len(e.Parameters))
+		for j, p := range e.Parameters {
+			params[j] = p.Parameter
+		}
+		events[i] = manifest.Event{
+			Name:       o.ContractEvents[i].Name,
+			Parameters: params,
+		}
+	}
 	result.ABI = manifest.ABI{
 		Methods: methods,
-		Events:  o.ContractEvents,
+		Events:  events,
 	}
 	if result.ABI.Events == nil {
 		result.ABI.Events = make([]manifest.Event, 0)

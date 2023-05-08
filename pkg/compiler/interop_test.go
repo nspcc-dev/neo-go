@@ -542,13 +542,13 @@ func TestForcedNotifyArgumentsConversion(t *testing.T) {
 		if count != len(expectedVMParamTypes) {
 			t.Fatalf("parameters count mismatch: %d vs %d", count, len(expectedVMParamTypes))
 		}
-		scParams := make([]manifest.Parameter, len(targetSCParamTypes))
+		scParams := make([]compiler.HybridParameter, len(targetSCParamTypes))
 		vmParams := make([]stackitem.Item, len(expectedVMParamTypes))
 		for i := range scParams {
-			scParams[i] = manifest.Parameter{
+			scParams[i] = compiler.HybridParameter{Parameter: manifest.Parameter{
 				Name: strconv.Itoa(i),
 				Type: targetSCParamTypes[i],
-			}
+			}}
 			defaultValue := stackitem.NewBigInteger(big.NewInt(int64(i)))
 			var (
 				val stackitem.Item
@@ -564,7 +564,7 @@ func TestForcedNotifyArgumentsConversion(t *testing.T) {
 		}
 		ctr := neotest.CompileSource(t, e.CommitteeHash, strings.NewReader(src), &compiler.Options{
 			Name: "Helper",
-			ContractEvents: []manifest.Event{
+			ContractEvents: []compiler.HybridEvent{
 				{
 					Name:       methodWithoutEllipsis,
 					Parameters: scParams,

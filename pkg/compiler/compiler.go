@@ -52,14 +52,26 @@ type Options struct {
 	// This setting has effect only if manifest is emitted.
 	NoPermissionsCheck bool
 
+	// GuessEventTypes specifies if types of runtime notifications need to be guessed
+	// from the usage context. These types are used for RPC binding generation only and
+	// can be defined for events with name known at the compilation time and without
+	// variadic args usages. If some type is specified via config file, then the config's
+	// one is preferable. Currently, event's parameter type is defined from the first
+	// occurrence of event call.
+	GuessEventTypes bool
+
 	// Name is a contract's name to be written to manifest.
 	Name string
 
 	// SourceURL is a contract's source URL to be written to manifest.
 	SourceURL string
 
-	// Runtime notifications.
-	ContractEvents []manifest.Event
+	// Runtime notifications declared in the contract configuration file.
+	ContractEvents []HybridEvent
+
+	// DeclaredNamedTypes is the set of named types that were declared in the
+	// contract configuration type and are the part of manifest events.
+	DeclaredNamedTypes map[string]binding.ExtendedType
 
 	// The list of standards supported by the contract.
 	ContractSupportedStandards []string
@@ -76,6 +88,23 @@ type Options struct {
 
 	// BindingsFile contains configuration for smart-contract bindings generator.
 	BindingsFile string
+}
+
+// HybridEvent represents the description of event emitted by the contract squashed
+// with extended event's parameters description. We have it as a separate type for
+// the user's convenience. It is applied for the smart contract configuration file
+// only.
+type HybridEvent struct {
+	Name       string            `json:"name"`
+	Parameters []HybridParameter `json:"parameters"`
+}
+
+// HybridParameter contains the manifest's event parameter description united with
+// the extended type description for this parameter. It is applied for the smart
+// contract configuration file only.
+type HybridParameter struct {
+	manifest.Parameter `yaml:",inline"`
+	ExtendedType       *binding.ExtendedType `yaml:"extendedtype,omitempty"`
 }
 
 type buildInfo struct {
@@ -309,18 +338,42 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		if len(di.NamedTypes) > 0 {
 			cfg.NamedTypes = di.NamedTypes
 		}
-		if len(di.EmittedEvents) > 0 {
-			for eventName, eventUsages := range di.EmittedEvents {
-				for typeName, extType := range eventUsages[0].ExtTypes {
-					cfg.NamedTypes[typeName] = extType
+		for name, et := range o.DeclaredNamedTypes {
+			// TODO: handle name conflict
+			cfg.NamedTypes[name] = et
+		}
+		for _, e := range o.ContractEvents {
+			for _, p := range e.Parameters {
+				// TODO: proper imports handling during bindings generation (see utf8 example).
+				if p.ExtendedType != nil {
+					pName := e.Name + "." + p.Name
+					cfg.Types[pName] = *p.ExtendedType
 				}
-				for _, p := range eventUsages[0].Params {
-					pname := eventName + "." + p.Name
-					if p.RealType.TypeName != "" {
-						cfg.Overrides[pname] = p.RealType
+			}
+		}
+		if o.GuessEventTypes {
+			if len(di.EmittedEvents) > 0 {
+				for eventName, eventUsages := range di.EmittedEvents {
+					// Take into account the first usage only.
+					// TODO: extend it to the rest of invocations.
+					for typeName, extType := range eventUsages[0].ExtTypes {
+						if _, ok := cfg.NamedTypes[typeName]; !ok {
+							cfg.NamedTypes[typeName] = extType
+						}
 					}
-					if p.ExtendedType != nil {
-						cfg.Types[pname] = *p.ExtendedType
+					for _, p := range eventUsages[0].Params {
+						// TODO: prettify notification name in-place.
+						pname := eventName + "." + p.Name
+						if p.RealType.TypeName != "" {
+							if _, ok := cfg.Overrides[pname]; !ok {
+								cfg.Overrides[pname] = p.RealType
+							}
+						}
+						if p.ExtendedType != nil {
+							if _, ok := cfg.Types[pname]; !ok {
+								cfg.Types[pname] = *p.ExtendedType
+							}
+						}
 					}
 				}
 			}
