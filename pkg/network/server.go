@@ -285,6 +285,8 @@ func (s *Server) Start() {
 		go tr.Accept()
 	}
 	setServerAndNodeVersions(s.UserAgent, strconv.FormatUint(uint64(s.id), 10))
+	setNeoGoVersion(config.Version)
+	setSeverID(strconv.FormatUint(uint64(s.id), 10))
 	s.run()
 }
 
