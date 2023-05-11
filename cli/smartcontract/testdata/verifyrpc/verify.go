@@ -32,15 +32,17 @@ type Actor interface {
 // Contract implements all contract methods.
 type Contract struct {
 	actor Actor
+	hash util.Uint160
 }
 
 // New creates an instance of Contract using Hash and the given Actor.
 func New(actor Actor) *Contract {
-	return &Contract{actor}
+	var hash = Hash
+	return &Contract{actor, hash}
 }
 
 func scriptForVerify() ([]byte, error) {
-	return smartcontract.CreateCallWithAssertScript(Hash, "verify")
+	return smartcontract.CreateCallWithAssertScript(c.hash, "verify")
 }
 
 // Verify creates a transaction invoking `verify` method of the contract.

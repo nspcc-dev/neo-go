@@ -48,8 +48,10 @@ const Hash = "{{ .Hash }}"
 type (
 	// Config contains parameter for the generated binding.
 	Config struct {
-		Package   string                       `yaml:"package,omitempty"`
-		Manifest  *manifest.Manifest           `yaml:"-"`
+		Package  string             `yaml:"package,omitempty"`
+		Manifest *manifest.Manifest `yaml:"-"`
+		// Hash denotes the contract hash and is allowed to be empty for RPC bindings
+		// generation (if not provided by the user).
 		Hash      util.Uint160                 `yaml:"hash,omitempty"`
 		Overrides map[string]Override          `yaml:"overrides,omitempty"`
 		CallFlags map[string]callflag.CallFlag `yaml:"callflags,omitempty"`
@@ -169,9 +171,11 @@ func scTypeToGo(name string, typ smartcontract.ParamType, cfg *Config) (string, 
 // and type conversion function. It assumes manifest to be present in the
 // configuration and assumes it to be correct (passing IsValid check).
 func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract.ParamType, *Config) (string, string)) ContractTmpl {
-	hStr := ""
-	for _, b := range cfg.Hash.BytesBE() {
-		hStr += fmt.Sprintf("\\x%02x", b)
+	var hStr string
+	if !cfg.Hash.Equals(util.Uint160{}) {
+		for _, b := range cfg.Hash.BytesBE() {
+			hStr += fmt.Sprintf("\\x%02x", b)
+		}
 	}
 
 	ctr := ContractTmpl{
