@@ -129,4 +129,13 @@ Removal of Peer unmarshalling with string based ports is scheduled for ~Septembe
 We check struct items count before convert LastGasPerVote to let RPC client be compatible with
 old versions.
 
-Removal of this compatiblility code is scheduled for Sep-Oct 2023. 
+Removal of this compatiblility code is scheduled for Sep-Oct 2023.
+
+## `serv_node_version` Prometheus gauge metric
+
+This metric is replaced by the new `neogo_version` and `server_id` Prometheus gauge
+metrics with proper version formatting. `neogo_version` contains NeoGo version
+hidden under `version` label and `server_id` contains network server ID hidden
+under `server_id` label.
+
+Removal of `serv_node_version` is scheduled for Sep-Oct 2023 (~0.105.0 release).
