@@ -34,7 +34,7 @@ import (
 
 // NewCommands returns 'node' command.
 func NewCommands() []cli.Command {
-	cfgFlags := []cli.Flag{options.Config}
+	cfgFlags := []cli.Flag{options.Config, options.ConfigFile}
 	cfgFlags = append(cfgFlags, options.Network...)
 	var cfgWithCountFlags = make([]cli.Flag, len(cfgFlags))
 	copy(cfgWithCountFlags, cfgFlags)
@@ -85,7 +85,7 @@ func NewCommands() []cli.Command {
 		{
 			Name:      "node",
 			Usage:     "start a NeoGo node",
-			UsageText: "neo-go node [--config-path path] [-d] [-p/-m/-t]",
+			UsageText: "neo-go node [--config-path path] [-d] [-p/-m/-t] [--config-file file]",
 			Action:    startServer,
 			Flags:     cfgFlags,
 		},
@@ -96,21 +96,21 @@ func NewCommands() []cli.Command {
 				{
 					Name:      "dump",
 					Usage:     "dump blocks (starting with block #1) to the file",
-					UsageText: "neo-go db dump -o file [-s start] [-c count] [--config-path path] [-p/-m/-t]",
+					UsageText: "neo-go db dump -o file [-s start] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",
 					Action:    dumpDB,
 					Flags:     cfgCountOutFlags,
 				},
 				{
 					Name:      "restore",
 					Usage:     "restore blocks from the file",
-					UsageText: "neo-go db restore -i file [--dump] [-n] [-c count] [--config-path path] [-p/-m/-t]",
+					UsageText: "neo-go db restore -i file [--dump] [-n] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",
 					Action:    restoreDB,
 					Flags:     cfgCountInFlags,
 				},
 				{
 					Name:      "reset",
 					Usage:     "reset database to the previous state",
-					UsageText: "neo-go db reset --height height [--config-path path] [-p/-m/-t]",
+					UsageText: "neo-go db reset --height height [--config-path path] [-p/-m/-t] [--config-file file]",
 					Action:    resetDB,
 					Flags:     cfgHeightFlags,
 				},
