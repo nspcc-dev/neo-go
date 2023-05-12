@@ -13,7 +13,7 @@ import (
 
 // NewCommands returns 'vm' command.
 func NewCommands() []cli.Command {
-	cfgFlags := []cli.Flag{options.Config}
+	cfgFlags := []cli.Flag{options.Config, options.ConfigFile}
 	cfgFlags = append(cfgFlags, options.Network...)
 	return []cli.Command{{
 		Name:   "vm",
