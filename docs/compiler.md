@@ -80,6 +80,14 @@ $ go mod tidy
 
 By default, the filename will be the name of your .go file with the .nef
 extension, the file will be located in the same directory with your Go contract.
+Along with the compiled contract and if the contract configuration file
+`contract.yml` exist, the following files will be generated:
+* smart-contract manifest file (`contract.manifest.json`) that is needed to deploy
+  the contract to the network
+* bindings configuration file (`contract.bindings.yml`) that is needed to generate
+  code-based or RPC contract bindings
+All of them will be located in the same directory with your Go contract.
+
 If you want another location for your compiled contract:
 
 ```
