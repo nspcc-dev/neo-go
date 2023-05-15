@@ -41,9 +41,10 @@ func NewBuilder() *Builder {
 
 // InvokeMethod is the most generic contract method invoker, the code it produces
 // packs all of the arguments given into an array and calls some method of the
-// contract. The correctness of this invocation (number and type of parameters) is
-// out of scope of this method, as well as return value, if contract's method returns
-// something this value just remains on the execution stack.
+// contract. It accepts as parameters everything that emit.Array accepts. The
+// correctness of this invocation (number and type of parameters) is out of scope
+// of this method, as well as return value, if contract's method returns something
+// this value just remains on the execution stack.
 func (b *Builder) InvokeMethod(contract util.Uint160, method string, params ...any) {
 	emit.AppCall(b.bw.BinWriter, contract, method, callflag.All, params...)
 }

@@ -62,6 +62,22 @@ func TestReaderBalanceOf(t *testing.T) {
 	require.Error(t, err)
 }
 
+type tData struct {
+	someInt    int
+	someString string
+}
+
+func (d *tData) ToStackItem() (stackitem.Item, error) {
+	return stackitem.NewStruct([]stackitem.Item{
+		stackitem.Make(d.someInt),
+		stackitem.Make(d.someString),
+	}), nil
+}
+
+func (d *tData) FromStackItem(si stackitem.Item) error {
+	panic("TODO")
+}
+
 func TestTokenTransfer(t *testing.T) {
 	ta := new(testAct)
 	tok := New(ta, util.Uint160{1, 2, 3})
@@ -85,7 +101,18 @@ func TestTokenTransfer(t *testing.T) {
 			require.Equal(t, ta.txh, h)
 			require.Equal(t, ta.vub, vub)
 
-			_, _, err = fun(util.Uint160{3, 2, 1}, util.Uint160{3, 2, 1}, big.NewInt(1), stackitem.NewMap())
+			ta.err = nil
+			ta.txh = util.Uint256{1, 2, 3}
+			ta.vub = 42
+			h, vub, err = fun(util.Uint160{3, 2, 1}, util.Uint160{3, 2, 1}, big.NewInt(1), &tData{
+				someInt:    5,
+				someString: "ur",
+			})
+			require.NoError(t, err)
+			require.Equal(t, ta.txh, h)
+			require.Equal(t, ta.vub, vub)
+
+			_, _, err = fun(util.Uint160{3, 2, 1}, util.Uint160{3, 2, 1}, big.NewInt(1), stackitem.NewInterop(nil))
 			require.Error(t, err)
 		})
 	}
@@ -120,7 +147,16 @@ func TestTokenTransferTransaction(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, ta.tx, tx)
 
-			_, err = fun(util.Uint160{3, 2, 1}, util.Uint160{3, 2, 1}, big.NewInt(1), stackitem.NewMap())
+			ta.err = nil
+			ta.tx = &transaction.Transaction{Nonce: 100500, ValidUntilBlock: 42}
+			tx, err = fun(util.Uint160{3, 2, 1}, util.Uint160{3, 2, 1}, big.NewInt(1), &tData{
+				someInt:    5,
+				someString: "ur",
+			})
+			require.NoError(t, err)
+			require.Equal(t, ta.tx, tx)
+
+			_, err = fun(util.Uint160{3, 2, 1}, util.Uint160{3, 2, 1}, big.NewInt(1), stackitem.NewInterop(nil))
 			require.Error(t, err)
 		})
 	}

@@ -32,7 +32,7 @@ func ExampleActor() {
 	// Transfer some GAS to the Notary contract to be able to send notary requests
 	// from the first account.
 	gasSingle := gas.New(single)
-	txid, vub, _ := gasSingle.Transfer(single.Sender(), notary.Hash, big.NewInt(10_0000_0000), notary.OnNEP17PaymentData{Till: 10000000})
+	txid, vub, _ := gasSingle.Transfer(single.Sender(), notary.Hash, big.NewInt(10_0000_0000), &notary.OnNEP17PaymentData{Till: 10000000})
 
 	var depositOK bool
 	// Wait for transaction to be persisted, either it gets in and we get

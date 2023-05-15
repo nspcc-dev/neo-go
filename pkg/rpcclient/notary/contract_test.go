@@ -2,9 +2,12 @@ package notary
 
 import (
 	"errors"
+	"math"
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -194,6 +197,78 @@ func TestTxMakers(t *testing.T) {
 			tx, err := fun()
 			require.NoError(t, err)
 			require.Equal(t, ta.tx, tx)
+		})
+	}
+}
+
+func TestOnNEP17PaymentData_Convertible(t *testing.T) {
+	t.Run("non-empty owner", func(t *testing.T) {
+		d := &OnNEP17PaymentData{
+			Account: &util.Uint160{1, 2, 3},
+			Till:    123,
+		}
+		testserdes.ToFromStackItem(t, d, new(OnNEP17PaymentData))
+	})
+	t.Run("empty owner", func(t *testing.T) {
+		d := &OnNEP17PaymentData{
+			Account: nil,
+			Till:    123,
+		}
+		testserdes.ToFromStackItem(t, d, new(OnNEP17PaymentData))
+	})
+}
+
+func TestOnNEP17PaymentDataToStackItem(t *testing.T) {
+	testCases := map[string]struct {
+		data     *OnNEP17PaymentData
+		expected stackitem.Item
+	}{
+		"non-empty owner": {
+			data: &OnNEP17PaymentData{
+				Account: &util.Uint160{1, 2, 3},
+				Till:    123,
+			},
+			expected: stackitem.NewArray([]stackitem.Item{
+				stackitem.Make(util.Uint160{1, 2, 3}),
+				stackitem.Make(123),
+			}),
+		},
+		"empty owner": {
+			data: &OnNEP17PaymentData{
+				Account: nil,
+				Till:    123,
+			},
+			expected: stackitem.NewArray([]stackitem.Item{
+				stackitem.Null{},
+				stackitem.Make(123),
+			}),
+		},
+	}
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			actual, err := tc.data.ToStackItem()
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestOnNEP17PaymentData_FromStackItem(t *testing.T) {
+	errCases := map[string]stackitem.Item{
+		"unexpected stackitem type":            stackitem.NewBool(true),
+		"unexpected number of fields":          stackitem.NewArray([]stackitem.Item{stackitem.NewBool(true)}),
+		"failed to retrieve account bytes":     stackitem.NewArray([]stackitem.Item{stackitem.NewInterop(nil), stackitem.Make(1)}),
+		"failed to decode account bytes":       stackitem.NewArray([]stackitem.Item{stackitem.Make([]byte{1}), stackitem.Make(1)}),
+		"failed to retrieve till":              stackitem.NewArray([]stackitem.Item{stackitem.Make(util.Uint160{1}), stackitem.NewInterop(nil)}),
+		"till is not an int64":                 stackitem.NewArray([]stackitem.Item{stackitem.Make(util.Uint160{1}), stackitem.NewBigInteger(new(big.Int).Add(big.NewInt(math.MaxInt64), big.NewInt(1)))}),
+		"till is larger than max uint32 value": stackitem.NewArray([]stackitem.Item{stackitem.Make(util.Uint160{1}), stackitem.Make(math.MaxUint32 + 1)}),
+	}
+	for name, errCase := range errCases {
+		t.Run(name, func(t *testing.T) {
+			d := new(OnNEP17PaymentData)
+			err := d.FromStackItem(errCase)
+			require.Error(t, err)
+			require.True(t, strings.Contains(err.Error(), name), name)
 		})
 	}
 }
