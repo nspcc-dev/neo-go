@@ -132,6 +132,16 @@ func Make(v any) Item {
 		return Make(val.BytesBE())
 	case util.Uint256:
 		return Make(val.BytesBE())
+	case *util.Uint160:
+		if val == nil {
+			return Null{}
+		}
+		return Make(*val)
+	case *util.Uint256:
+		if val == nil {
+			return Null{}
+		}
+		return Make(*val)
 	case nil:
 		return Null{}
 	default:
