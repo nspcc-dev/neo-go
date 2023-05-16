@@ -30,13 +30,25 @@ func init() {
 }
 
 func TestGetConfigFromContext(t *testing.T) {
-	set := flag.NewFlagSet("flagSet", flag.ExitOnError)
-	set.String("config-path", "../../config", "")
-	set.Bool("testnet", true, "")
-	ctx := cli.NewContext(cli.NewApp(), set, nil)
-	cfg, err := options.GetConfigFromContext(ctx)
-	require.NoError(t, err)
-	require.Equal(t, netmode.TestNet, cfg.ProtocolConfiguration.Magic)
+	t.Run("config-path", func(t *testing.T) {
+		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
+		set.String("config-path", "../../config", "")
+		set.Bool("testnet", true, "")
+		ctx := cli.NewContext(cli.NewApp(), set, nil)
+		cfg, err := options.GetConfigFromContext(ctx)
+		require.NoError(t, err)
+		require.Equal(t, netmode.TestNet, cfg.ProtocolConfiguration.Magic)
+	})
+	t.Run("config-file", func(t *testing.T) {
+		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
+		set.String("config-path", "../../config", "")
+		set.Bool("testnet", true, "")
+		set.String("config-file", "../../config/protocol.testnet.yml", "")
+		ctx := cli.NewContext(cli.NewApp(), set, nil)
+		cfg, err := options.GetConfigFromContext(ctx)
+		require.NoError(t, err)
+		require.Equal(t, netmode.TestNet, cfg.ProtocolConfiguration.Magic)
+	})
 }
 
 func TestHandleLoggingParams(t *testing.T) {

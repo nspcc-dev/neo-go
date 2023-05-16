@@ -35,6 +35,10 @@ If you want to use some non-default configuration directory path, specify
 
 The file loaded is chosen automatically depending on network mode flag.
 
+Or just provide path to the configuration file using `--config-file` flag:
+
+`./bin/neo-go node --config-file /user/yourConfigPath/yourConfigFile.yml`
+
 Refer to the [node configuration documentation](./node-configuration.md) for
 detailed configuration file description.
 

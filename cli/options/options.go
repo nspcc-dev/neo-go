@@ -35,9 +35,9 @@ const RPCEndpointFlag = "rpc-endpoint"
 // Network is a set of flags for choosing the network to operate on
 // (privnet/mainnet/testnet).
 var Network = []cli.Flag{
-	cli.BoolFlag{Name: "privnet, p", Usage: "use private network configuration"},
-	cli.BoolFlag{Name: "mainnet, m", Usage: "use mainnet network configuration"},
-	cli.BoolFlag{Name: "testnet, t", Usage: "use testnet network configuration"},
+	cli.BoolFlag{Name: "privnet, p", Usage: "use private network configuration (if --config-file option is not specified)"},
+	cli.BoolFlag{Name: "mainnet, m", Usage: "use mainnet network configuration (if --config-file option is not specified)"},
+	cli.BoolFlag{Name: "testnet, t", Usage: "use testnet network configuration (if --config-file option is not specified)"},
 	cli.BoolFlag{Name: "unittest", Hidden: true},
 }
 
@@ -63,7 +63,14 @@ var Historic = cli.StringFlag{
 // Config is a flag for commands that use node configuration.
 var Config = cli.StringFlag{
 	Name:  "config-path",
-	Usage: "path to directory with configuration files",
+	Usage: "path to directory with per-network configuration files (may be overridden by --config-file option for the configuration file)",
+}
+
+// ConfigFile is a flag for commands that use node configuration and provide
+// path to the specific config file instead of config path.
+var ConfigFile = cli.StringFlag{
+	Name:  "config-file",
+	Usage: "path to the node configuration file (overrides --config-path option)",
 }
 
 // Debug is a flag for commands that allow node in debug mode usage.
@@ -152,7 +159,11 @@ func GetRPCWithInvoker(gctx context.Context, ctx *cli.Context, signers []transac
 // GetConfigFromContext looks at the path and the mode flags in the given config and
 // returns an appropriate config.
 func GetConfigFromContext(ctx *cli.Context) (config.Config, error) {
-	configPath := "./config"
+	var configFile = ctx.String("config-file")
+	if len(configFile) != 0 {
+		return config.LoadFile(configFile)
+	}
+	var configPath = "./config"
 	if argCp := ctx.String("config-path"); argCp != "" {
 		configPath = argCp
 	}
