@@ -527,13 +527,32 @@ go 1.18`)
 			"loadnef "+filename+" "+notExists,
 			"loadnef "+filename+" "+filename,
 			"loadnef "+filename+" "+manifestFile,
-			"run main add 3 5")
+			"run main add 3 5",
+			"loadnef "+filename,
+			"run main add 3 5",
+			"loadnef "+filename+" "+cmdargs.CosignersSeparator,
+			"loadnef "+filename+" "+manifestFile+" "+cmdargs.CosignersSeparator,
+			"loadnef "+filename+" "+manifestFile+" "+"not-a-separator",
+			"loadnef "+filename+" "+cmdargs.CosignersSeparator+" "+util.Uint160{1, 2, 3}.StringLE(),
+			"run main add 3 5",
+			"loadnef "+filename+" "+manifestFile+" "+cmdargs.CosignersSeparator+" "+util.Uint160{1, 2, 3}.StringLE(),
+			"run main add 3 5",
+		)
 
 		e.checkError(t, ErrMissingParameter)
 		e.checkNextLine(t, "Error:")
 		e.checkNextLine(t, "Error:")
 		e.checkNextLine(t, "Error:")
 		e.checkNextLine(t, "READY: loaded \\d* instructions")
+		e.checkStack(t, 8)
+		e.checkNextLine(t, "READY: loaded \\d* instructions")
+		e.checkStack(t, 8)
+		e.checkNextLine(t, "Error:")                          // manifest missing, missing signer after --
+		e.checkNextLine(t, "Error:")                          // manifest present, missing signer after --
+		e.checkNextLine(t, "Error:")                          // manifest present, invalid separator
+		e.checkNextLine(t, "READY: loaded \\d* instructions") // manifest missing, signer present, OK
+		e.checkStack(t, 8)
+		e.checkNextLine(t, "READY: loaded \\d* instructions") // manifest present, signer present, OK
 		e.checkStack(t, 8)
 	})
 }
