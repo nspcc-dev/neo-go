@@ -400,7 +400,8 @@ func contractCompile(ctx *cli.Context) error {
 	manifestFile := ctx.String("manifest")
 	confFile := ctx.String("config")
 	debugFile := ctx.String("debug")
-	if len(confFile) == 0 && (len(manifestFile) != 0 || len(debugFile) != 0) {
+	bindings := ctx.String("bindings")
+	if len(confFile) == 0 && (len(manifestFile) != 0 || len(debugFile) != 0 || len(bindings) != 0) {
 		return cli.NewExitError(errNoConfFile, 1)
 	}
 
@@ -409,7 +410,7 @@ func contractCompile(ctx *cli.Context) error {
 
 		DebugInfo:    debugFile,
 		ManifestFile: manifestFile,
-		BindingsFile: ctx.String("bindings"),
+		BindingsFile: bindings,
 
 		NoStandardCheck:    ctx.Bool("no-standards"),
 		NoEventsCheck:      ctx.Bool("no-events"),
