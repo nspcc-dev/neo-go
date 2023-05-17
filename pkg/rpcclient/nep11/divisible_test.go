@@ -190,7 +190,18 @@ func TestDivisibleTransfer(t *testing.T) {
 	require.Equal(t, ta.txh, h)
 	require.Equal(t, ta.vub, vub)
 
-	_, _, err = tok.TransferD(util.Uint160{1, 2, 3}, util.Uint160{3, 2, 1}, big.NewInt(10), []byte{3, 2, 1}, stackitem.NewMap())
+	ta.err = nil
+	ta.txh = util.Uint256{1, 2, 3}
+	ta.vub = 42
+	h, vub, err = tok.TransferD(util.Uint160{1, 2, 3}, util.Uint160{3, 2, 1}, big.NewInt(10), []byte{3, 2, 1}, &tData{
+		someInt:    5,
+		someString: "ur",
+	})
+	require.NoError(t, err)
+	require.Equal(t, ta.txh, h)
+	require.Equal(t, ta.vub, vub)
+
+	_, _, err = tok.TransferD(util.Uint160{1, 2, 3}, util.Uint160{3, 2, 1}, big.NewInt(10), []byte{3, 2, 1}, stackitem.NewInterop(nil))
 	require.Error(t, err)
 }
 
@@ -212,7 +223,16 @@ func TestDivisibleTransferTransaction(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, ta.tx, tx)
 
-		_, err = fun(util.Uint160{1, 2, 3}, util.Uint160{3, 2, 1}, big.NewInt(10), []byte{3, 2, 1}, stackitem.NewMap())
+		ta.err = nil
+		ta.tx = &transaction.Transaction{Nonce: 100500, ValidUntilBlock: 42}
+		tx, err = fun(util.Uint160{1, 2, 3}, util.Uint160{3, 2, 1}, big.NewInt(10), []byte{3, 2, 1}, &tData{
+			someInt:    5,
+			someString: "ur",
+		})
+		require.NoError(t, err)
+		require.Equal(t, ta.tx, tx)
+
+		_, err = fun(util.Uint160{1, 2, 3}, util.Uint160{3, 2, 1}, big.NewInt(10), []byte{3, 2, 1}, stackitem.NewInterop(nil))
 		require.Error(t, err)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
@@ -223,7 +224,34 @@ func TestEmitArray(t *testing.T) {
 		u256 := util.Uint256{1, 2, 3}
 		veryBig := new(big.Int).SetUint64(math.MaxUint64)
 		veryBig.Add(veryBig, big.NewInt(1))
-		Array(buf.BinWriter, p160, p256, &u160, &u256, u160, u256, big.NewInt(0), veryBig,
+		Array(buf.BinWriter,
+			uint64(math.MaxUint64),
+			uint(math.MaxUint32), // don't use MaxUint to keep test results the same throughout all platforms.
+			stackitem.NewMapWithValue([]stackitem.MapElement{
+				{
+					Key:   stackitem.Make(1),
+					Value: stackitem.Make("str1"),
+				},
+				{
+					Key:   stackitem.Make(2),
+					Value: stackitem.Make("str2"),
+				},
+			}),
+			stackitem.NewStruct([]stackitem.Item{
+				stackitem.Make(4),
+				stackitem.Make("str"),
+			}),
+			&ConvertibleStruct{
+				SomeInt:    5,
+				SomeString: "str",
+			},
+			stackitem.Make(5),
+			stackitem.Make("str"),
+			stackitem.NewArray([]stackitem.Item{
+				stackitem.Make(true),
+				stackitem.Make("str"),
+			}),
+			p160, p256, &u160, &u256, u160, u256, big.NewInt(0), veryBig,
 			[]any{int64(1), int64(2)}, nil, int64(1), "str", false, true, []byte{0xCA, 0xFE})
 		require.NoError(t, buf.Err)
 
@@ -259,6 +287,65 @@ func TestEmitArray(t *testing.T) {
 		assert.EqualValues(t, u160.BytesBE(), res[127:147])
 		assert.EqualValues(t, opcode.PUSHNULL, res[147])
 		assert.EqualValues(t, opcode.PUSHNULL, res[148])
+		// Array of two stackitems:
+		assert.EqualValues(t, opcode.PUSHDATA1, res[149])
+		assert.EqualValues(t, 3, res[150])
+		assert.EqualValues(t, []byte("str"), res[151:154])
+		assert.EqualValues(t, opcode.PUSHT, res[154])
+		assert.EqualValues(t, opcode.PUSH2, res[155])
+		assert.EqualValues(t, opcode.PACK, res[156])
+		// ByteString stackitem ("str"):
+		assert.EqualValues(t, opcode.PUSHDATA1, res[157])
+		assert.EqualValues(t, 3, res[158])
+		assert.EqualValues(t, []byte("str"), res[159:162])
+		// Integer stackitem (5):
+		assert.EqualValues(t, opcode.PUSH5, res[162])
+		// Convertible struct:
+		assert.EqualValues(t, opcode.PUSHDATA1, res[163])
+		assert.EqualValues(t, 3, res[164])
+		assert.EqualValues(t, []byte("str"), res[165:168])
+		assert.EqualValues(t, opcode.PUSH5, res[168])
+		assert.EqualValues(t, opcode.PUSH2, res[169])
+		assert.EqualValues(t, opcode.PACK, res[170])
+		// Struct stackitem (4, "str")
+		assert.EqualValues(t, opcode.PUSHDATA1, res[171])
+		assert.EqualValues(t, 3, res[172])
+		assert.EqualValues(t, []byte("str"), res[173:176])
+		assert.EqualValues(t, opcode.PUSH4, res[176])
+		assert.EqualValues(t, opcode.PUSH2, res[177])
+		assert.EqualValues(t, opcode.PACKSTRUCT, res[178])
+		// Map stackitem (1:"str1", 2:"str2")
+		assert.EqualValues(t, opcode.PUSHDATA1, res[179])
+		assert.EqualValues(t, 4, res[180])
+		assert.EqualValues(t, []byte("str2"), res[181:185])
+		assert.EqualValues(t, opcode.PUSH2, res[185])
+		assert.EqualValues(t, opcode.PUSHDATA1, res[186])
+		assert.EqualValues(t, 4, res[187])
+		assert.EqualValues(t, []byte("str1"), res[188:192])
+		assert.EqualValues(t, opcode.PUSH1, res[192])
+		assert.EqualValues(t, opcode.PUSH2, res[193])
+		assert.EqualValues(t, opcode.PACKMAP, res[194])
+		// uint (MaxUint32)
+		assert.EqualValues(t, opcode.PUSHINT64, res[195])
+		assert.EqualValues(t, []byte{
+			0xff, 0xff, 0xff, 0xff,
+			0, 0, 0, 0,
+		}, res[196:204])
+		// uint64 (MaxUint64)
+		assert.EqualValues(t, opcode.PUSHINT128, res[204])
+		assert.EqualValues(t, []byte{
+			0xff, 0xff, 0xff, 0xff,
+			0xff, 0xff, 0xff, 0xff,
+			0, 0, 0, 0,
+			0, 0, 0, 0}, res[205:221])
+
+		// Values packing:
+		assert.EqualValues(t, opcode.PUSHINT8, res[221])
+		assert.EqualValues(t, byte(23), res[222])
+		assert.EqualValues(t, opcode.PACK, res[223])
+
+		// Overall script length:
+		assert.EqualValues(t, 224, len(res))
 	})
 
 	t.Run("empty", func(t *testing.T) {
@@ -373,4 +460,192 @@ func TestEmitCall(t *testing.T) {
 	assert.Equal(t, opcode.Opcode(result[0]), opcode.JMP)
 	label := binary.LittleEndian.Uint16(result[1:3])
 	assert.Equal(t, label, uint16(100))
+}
+
+func TestEmitStackitem(t *testing.T) {
+	t.Run("good", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		itms := []stackitem.Item{
+			stackitem.Make(true),
+			stackitem.Make(false),
+			stackitem.Make(5),
+			stackitem.Make("str"),
+			stackitem.Make([]stackitem.Item{
+				stackitem.Make(true),
+				stackitem.Make([]stackitem.Item{
+					stackitem.Make(1),
+					stackitem.Make("str"),
+				}),
+			}),
+			stackitem.NewStruct([]stackitem.Item{
+				stackitem.Make(true),
+				stackitem.Make(7),
+			}),
+			stackitem.NewMapWithValue([]stackitem.MapElement{
+				{
+					Key:   stackitem.Make(7),
+					Value: stackitem.Make("str1"),
+				},
+				{
+					Key:   stackitem.Make(8),
+					Value: stackitem.Make("str2"),
+				},
+			}),
+			stackitem.Null{},
+		}
+		for _, si := range itms {
+			StackItem(buf.BinWriter, si)
+		}
+		require.NoError(t, buf.Err)
+		res := buf.Bytes()
+
+		// Single values:
+		assert.EqualValues(t, opcode.PUSHT, res[0])
+		assert.EqualValues(t, opcode.PUSHF, res[1])
+		assert.EqualValues(t, opcode.PUSH5, res[2])
+		assert.EqualValues(t, opcode.PUSHDATA1, res[3])
+		assert.EqualValues(t, 3, res[4])
+		assert.EqualValues(t, []byte("str"), res[5:8])
+		// Nested array:
+		assert.EqualValues(t, opcode.PUSHDATA1, res[8])
+		assert.EqualValues(t, 3, res[9])
+		assert.EqualValues(t, []byte("str"), res[10:13])
+		assert.EqualValues(t, opcode.PUSH1, res[13])
+		assert.EqualValues(t, opcode.PUSH2, res[14])
+		assert.EqualValues(t, opcode.PACK, res[15])
+		assert.EqualValues(t, opcode.PUSHT, res[16])
+		assert.EqualValues(t, opcode.PUSH2, res[17])
+		assert.EqualValues(t, opcode.PACK, res[18])
+		// Struct (true, 7):
+		assert.EqualValues(t, opcode.PUSH7, res[19])
+		assert.EqualValues(t, opcode.PUSHT, res[20])
+		assert.EqualValues(t, opcode.PUSH2, res[21])
+		assert.EqualValues(t, opcode.PACKSTRUCT, res[22])
+		// Map (7:"str1", 8:"str2"):
+		assert.EqualValues(t, opcode.PUSHDATA1, res[23])
+		assert.EqualValues(t, 4, res[24])
+		assert.EqualValues(t, []byte("str2"), res[25:29])
+		assert.EqualValues(t, opcode.PUSH8, res[29])
+		assert.EqualValues(t, opcode.PUSHDATA1, res[30])
+		assert.EqualValues(t, 4, res[31])
+		assert.EqualValues(t, []byte("str1"), res[32:36])
+		assert.EqualValues(t, opcode.PUSH7, res[36])
+		assert.EqualValues(t, opcode.PUSH2, res[37])
+		assert.EqualValues(t, opcode.PACKMAP, res[38])
+		// Null:
+		assert.EqualValues(t, opcode.PUSHNULL, res[39])
+
+		// Overall script length:
+		require.Equal(t, 40, len(res))
+	})
+
+	t.Run("unsupported", func(t *testing.T) {
+		itms := []stackitem.Item{
+			stackitem.NewInterop(nil),
+			stackitem.NewPointer(123, []byte{123}),
+		}
+		for _, si := range itms {
+			buf := io.NewBufBinWriter()
+			StackItem(buf.BinWriter, si)
+			require.Error(t, buf.Err)
+		}
+	})
+
+	t.Run("invalid any", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		StackItem(buf.BinWriter, StrangeStackItem{})
+		actualErr := buf.Err
+		require.Error(t, actualErr)
+		require.True(t, strings.Contains(actualErr.Error(), "only nil value supported"), actualErr.Error())
+	})
+}
+
+type StrangeStackItem struct{}
+
+var _ = stackitem.Item(StrangeStackItem{})
+
+func (StrangeStackItem) Value() any {
+	return struct{}{}
+}
+func (StrangeStackItem) Type() stackitem.Type {
+	return stackitem.AnyT
+}
+func (StrangeStackItem) String() string {
+	panic("TODO")
+}
+func (StrangeStackItem) Dup() stackitem.Item {
+	panic("TODO")
+}
+func (StrangeStackItem) TryBool() (bool, error) {
+	panic("TODO")
+}
+func (StrangeStackItem) TryBytes() ([]byte, error) {
+	panic("TODO")
+}
+func (StrangeStackItem) TryInteger() (*big.Int, error) {
+	panic("TODO")
+}
+func (StrangeStackItem) Equals(stackitem.Item) bool {
+	panic("TODO")
+}
+func (StrangeStackItem) Convert(stackitem.Type) (stackitem.Item, error) {
+	panic("TODO")
+}
+
+type ConvertibleStruct struct {
+	SomeInt    int
+	SomeString string
+	err        error
+}
+
+var _ = stackitem.Convertible(&ConvertibleStruct{})
+
+func (s *ConvertibleStruct) ToStackItem() (stackitem.Item, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.Make(s.SomeInt),
+		stackitem.Make(s.SomeString),
+	}), nil
+}
+
+func (s *ConvertibleStruct) FromStackItem(si stackitem.Item) error {
+	panic("TODO")
+}
+
+func TestEmitConvertible(t *testing.T) {
+	t.Run("good", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		str := &ConvertibleStruct{
+			SomeInt:    5,
+			SomeString: "str",
+		}
+		Convertible(buf.BinWriter, str)
+		require.NoError(t, buf.Err)
+		res := buf.Bytes()
+
+		// The struct itself:
+		assert.EqualValues(t, opcode.PUSHDATA1, res[0])
+		assert.EqualValues(t, 3, res[1])
+		assert.EqualValues(t, []byte("str"), res[2:5])
+		assert.EqualValues(t, opcode.PUSH5, res[5])
+		assert.EqualValues(t, opcode.PUSH2, res[6])
+		assert.EqualValues(t, opcode.PACK, res[7])
+
+		// Overall length:
+		assert.EqualValues(t, 8, len(res))
+	})
+
+	t.Run("error on conversion", func(t *testing.T) {
+		buf := io.NewBufBinWriter()
+		expectedErr := errors.New("error on conversion")
+		str := &ConvertibleStruct{
+			err: expectedErr,
+		}
+		Convertible(buf.BinWriter, str)
+		actualErr := buf.Err
+		require.Error(t, actualErr)
+		require.ErrorIs(t, actualErr, expectedErr)
+	})
 }

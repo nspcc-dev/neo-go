@@ -8,6 +8,8 @@ creation of notary requests.
 package notary
 
 import (
+	"errors"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -18,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 const (
@@ -67,6 +70,10 @@ type OnNEP17PaymentData struct {
 	// Till specifies the deposit lock time (in blocks).
 	Till uint32
 }
+
+// OnNEP17PaymentData have to implement stackitem.Convertible interface to be
+// compatible with emit package.
+var _ = stackitem.Convertible(&OnNEP17PaymentData{})
 
 // Hash stores the hash of the native Notary contract.
 var Hash = state.CreateNativeContractHash(nativenames.Notary)
@@ -233,4 +240,49 @@ func withdrawScript(from util.Uint160, to util.Uint160) []byte {
 	// We know parameters exactly (unlike with nep17.Transfer), so this can't fail.
 	script, _ := smartcontract.CreateCallWithAssertScript(Hash, "withdraw", from.BytesBE(), to.BytesBE())
 	return script
+}
+
+// ToStackItem implements stackitem.Convertible interface.
+func (d *OnNEP17PaymentData) ToStackItem() (stackitem.Item, error) {
+	return stackitem.NewArray([]stackitem.Item{
+		stackitem.Make(d.Account),
+		stackitem.Make(d.Till),
+	}), nil
+}
+
+// FromStackItem implements stackitem.Convertible interface.
+func (d *OnNEP17PaymentData) FromStackItem(si stackitem.Item) error {
+	arr, ok := si.Value().([]stackitem.Item)
+	if !ok {
+		return fmt.Errorf("unexpected stackitem type: %s", si.Type())
+	}
+	if len(arr) != 2 {
+		return fmt.Errorf("unexpected number of fields: %d vs %d", len(arr), 2)
+	}
+
+	if arr[0] != stackitem.Item(stackitem.Null{}) {
+		accBytes, err := arr[0].TryBytes()
+		if err != nil {
+			return fmt.Errorf("failed to retrieve account bytes: %w", err)
+		}
+		acc, err := util.Uint160DecodeBytesBE(accBytes)
+		if err != nil {
+			return fmt.Errorf("failed to decode account bytes: %w", err)
+		}
+		d.Account = &acc
+	}
+	till, err := arr[1].TryInteger()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve till: %w", err)
+	}
+	if !till.IsInt64() {
+		return errors.New("till is not an int64")
+	}
+	val := till.Int64()
+	if val > math.MaxUint32 {
+		return fmt.Errorf("till is larger than max uint32 value: %d", val)
+	}
+	d.Till = uint32(val)
+
+	return nil
 }
