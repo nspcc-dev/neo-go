@@ -100,7 +100,7 @@ func bigInt(w *io.BinWriter, n *big.Int, trySmall bool) {
 
 // Array emits an array of elements to the given buffer. It accepts elements of the following types:
 //   - int8, int16, int32, int64, int
-//   - uint8, uint16, uint32
+//   - uint8, uint16, uint32, uint64, uint
 //   - *big.Int
 //   - string, []byte
 //   - util.Uint160, *util.Uint160, util.Uint256, *util.Uint256
@@ -119,6 +119,8 @@ func Array(w *io.BinWriter, es ...any) {
 			Array(w, e...)
 		case int64:
 			Int(w, e)
+		case uint64:
+			BigInt(w, new(big.Int).SetUint64(e))
 		case int32:
 			Int(w, int64(e))
 		case uint32:
@@ -133,6 +135,8 @@ func Array(w *io.BinWriter, es ...any) {
 			Int(w, int64(e))
 		case int:
 			Int(w, int64(e))
+		case uint:
+			BigInt(w, new(big.Int).SetUint64(uint64(e)))
 		case *big.Int:
 			BigInt(w, e)
 		case string:

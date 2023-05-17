@@ -225,6 +225,8 @@ func TestEmitArray(t *testing.T) {
 		veryBig := new(big.Int).SetUint64(math.MaxUint64)
 		veryBig.Add(veryBig, big.NewInt(1))
 		Array(buf.BinWriter,
+			uint64(math.MaxUint64),
+			uint(math.MaxUint32), // don't use MaxUint to keep test results the same throughout all platforms.
 			stackitem.NewMapWithValue([]stackitem.MapElement{
 				{
 					Key:   stackitem.Make(1),
@@ -323,14 +325,27 @@ func TestEmitArray(t *testing.T) {
 		assert.EqualValues(t, opcode.PUSH1, res[192])
 		assert.EqualValues(t, opcode.PUSH2, res[193])
 		assert.EqualValues(t, opcode.PACKMAP, res[194])
+		// uint (MaxUint32)
+		assert.EqualValues(t, opcode.PUSHINT64, res[195])
+		assert.EqualValues(t, []byte{
+			0xff, 0xff, 0xff, 0xff,
+			0, 0, 0, 0,
+		}, res[196:204])
+		// uint64 (MaxUint64)
+		assert.EqualValues(t, opcode.PUSHINT128, res[204])
+		assert.EqualValues(t, []byte{
+			0xff, 0xff, 0xff, 0xff,
+			0xff, 0xff, 0xff, 0xff,
+			0, 0, 0, 0,
+			0, 0, 0, 0}, res[205:221])
 
 		// Values packing:
-		assert.EqualValues(t, opcode.PUSHINT8, res[195])
-		assert.EqualValues(t, byte(21), res[196])
-		assert.EqualValues(t, opcode.PACK, res[197])
+		assert.EqualValues(t, opcode.PUSHINT8, res[221])
+		assert.EqualValues(t, byte(23), res[222])
+		assert.EqualValues(t, opcode.PACK, res[223])
 
 		// Overall script length:
-		assert.EqualValues(t, 198, len(res))
+		assert.EqualValues(t, 224, len(res))
 	})
 
 	t.Run("empty", func(t *testing.T) {
