@@ -126,11 +126,18 @@ func NewCommands() []cli.Command {
 				Name:      "compile",
 				Usage:     "compile a smart contract to a .nef file",
 				UsageText: "neo-go contract compile -i path [-o nef] [-v] [-d] [-m manifest] [-c yaml] [--bindings file] [--no-standards] [--no-events] [--no-permissions]",
-				Action:    contractCompile,
+				Description: `Compiles given smart contract to a .nef file and emits other associated
+   information (manifest, bindings configuration, debug information files) if
+   asked to. If none of --out, --manifest, --config, --bindings flags are specified,
+   then the output filenames for these flags will be guessed using the contract
+   name or path provided via --in option by trimming/adding corresponding suffixes
+   to the common part of the path. In the latter case the configuration filepath
+   will be guessed from the --in option using the same rule."`,
+				Action: contractCompile,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "in, i",
-						Usage: "Input file for the smart contract to be compiled",
+						Usage: "Input file for the smart contract to be compiled (*.go file or directory)",
 					},
 					cli.StringFlag{
 						Name:  "out, o",
@@ -400,16 +407,42 @@ func contractCompile(ctx *cli.Context) error {
 	manifestFile := ctx.String("manifest")
 	confFile := ctx.String("config")
 	debugFile := ctx.String("debug")
-	if len(confFile) == 0 && (len(manifestFile) != 0 || len(debugFile) != 0) {
+	out := ctx.String("out")
+	bindings := ctx.String("bindings")
+	if len(confFile) == 0 && (len(manifestFile) != 0 || len(debugFile) != 0 || len(bindings) != 0) {
 		return cli.NewExitError(errNoConfFile, 1)
+	}
+	autocomplete := len(manifestFile) == 0 &&
+		len(confFile) == 0 &&
+		len(out) == 0 &&
+		len(bindings) == 0
+	if autocomplete {
+		var root string
+		fileInfo, err := os.Stat(src)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to stat source file or directory: %w", err), 1)
+		}
+		if fileInfo.IsDir() {
+			base := filepath.Base(fileInfo.Name())
+			if base == string(filepath.Separator) {
+				base = "contract"
+			}
+			root = filepath.Join(src, base)
+		} else {
+			root = strings.TrimSuffix(src, ".go")
+		}
+		manifestFile = root + ".manifest.json"
+		confFile = root + ".yml"
+		out = root + ".nef"
+		bindings = root + ".bindings.yml"
 	}
 
 	o := &compiler.Options{
-		Outfile: ctx.String("out"),
+		Outfile: out,
 
 		DebugInfo:    debugFile,
 		ManifestFile: manifestFile,
-		BindingsFile: ctx.String("bindings"),
+		BindingsFile: bindings,
 
 		NoStandardCheck:    ctx.Bool("no-standards"),
 		NoEventsCheck:      ctx.Bool("no-events"),

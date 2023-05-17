@@ -151,9 +151,11 @@ Example:
 	{
 		Name:      "loadnef",
 		Usage:     "Load a NEF-consistent script into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadnef [--historic <height>] [--gas <int>] <file> <manifest> [<signer-with-scope>, ...]`,
+		UsageText: `loadnef [--historic <height>] [--gas <int>] <file> [<manifest>] [-- <signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag, gasFlag},
-		Description: `<file> and <manifest> parameters are mandatory.
+		Description: `<file> parameter is mandatory, <manifest> parameter (if omitted) will
+   be guessed from the <file> parameter by replacing '.nef' suffix with '.manifest.json'
+   suffix.
 
 ` + cmdargs.SignersParsingDoc + `
 
@@ -164,7 +166,7 @@ Example:
 	{
 		Name:      "loadbase64",
 		Usage:     "Load a base64-encoded script string into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadbase64 [--historic <height>] [--gas <int>] <string> [<signer-with-scope>, ...]`,
+		UsageText: `loadbase64 [--historic <height>] [--gas <int>] <string> [-- <signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `<string> is mandatory parameter.
 
@@ -177,7 +179,7 @@ Example:
 	{
 		Name:      "loadhex",
 		Usage:     "Load a hex-encoded script string into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadhex [--historic <height>] [--gas <int>] <string> [<signer-with-scope>, ...]`,
+		UsageText: `loadhex [--historic <height>] [--gas <int>] <string> [-- <signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `<string> is mandatory parameter.
 
@@ -190,7 +192,7 @@ Example:
 	{
 		Name:      "loadgo",
 		Usage:     "Compile and load a Go file with the manifest into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadgo [--historic <height>] [--gas <int>] <file> [<signer-with-scope>, ...]`,
+		UsageText: `loadgo [--historic <height>] [--gas <int>] <file> [-- <signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `<file> is mandatory parameter.
 
@@ -220,7 +222,7 @@ Example:
 	{
 		Name:      "loaddeployed",
 		Usage:     "Load deployed contract into the VM from chain optionally attaching to it provided signers with scopes",
-		UsageText: `loaddeployed [--historic <height>] [--gas <int>] <hash-or-address-or-id>  [<signer-with-scope>, ...]`,
+		UsageText: `loaddeployed [--historic <height>] [--gas <int>] <hash-or-address-or-id>  [-- <signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `Load deployed contract into the VM from chain optionally attaching to it provided signers with scopes.
 If '--historic' flag specified, then the historic contract state (historic script and manifest) will be loaded.
@@ -671,10 +673,36 @@ func prepareVM(c *cli.Context, tx *transaction.Transaction) error {
 
 func handleLoadNEF(c *cli.Context) error {
 	args := c.Args()
-	if len(args) < 2 {
-		return fmt.Errorf("%w: <file> <manifest>", ErrMissingParameter)
+	if len(args) < 1 {
+		return fmt.Errorf("%w: <nef> is required", ErrMissingParameter)
 	}
-	b, err := os.ReadFile(args[0])
+	nefFile := args[0]
+	var (
+		manifestFile       string
+		signersStartOffset int
+	)
+	if len(args) == 2 {
+		manifestFile = args[1]
+	} else if len(args) == 3 {
+		if args[1] != cmdargs.CosignersSeparator {
+			return fmt.Errorf("%w: `%s` was expected as the second parameter, got %s", ErrInvalidParameter, cmdargs.CosignersSeparator, args[1])
+		}
+		signersStartOffset = 2
+	} else if len(args) > 3 {
+		if args[1] == cmdargs.CosignersSeparator {
+			signersStartOffset = 2
+		} else {
+			manifestFile = args[1]
+			if args[2] != cmdargs.CosignersSeparator {
+				return fmt.Errorf("%w: `%s` was expected as the third parameter, got %s", ErrInvalidParameter, cmdargs.CosignersSeparator, args[2])
+			}
+			signersStartOffset = 3
+		}
+	}
+	if len(manifestFile) == 0 {
+		manifestFile = strings.TrimSuffix(nefFile, ".nef") + ".manifest.json"
+	}
+	b, err := os.ReadFile(nefFile)
 	if err != nil {
 		return err
 	}
@@ -682,15 +710,15 @@ func handleLoadNEF(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to decode NEF file: %w", err)
 	}
-	m, err := getManifestFromFile(args[1])
+	m, err := getManifestFromFile(manifestFile)
 	if err != nil {
 		return fmt.Errorf("failed to read manifest: %w", err)
 	}
 	var signers []transaction.Signer
-	if len(args) > 2 {
-		signers, err = cmdargs.ParseSigners(c.Args()[2:])
+	if signersStartOffset != 0 && len(args) > signersStartOffset {
+		signers, err = cmdargs.ParseSigners(c.Args()[signersStartOffset:])
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: failed to parse signers: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 	}
 	err = prepareVM(c, createFakeTransaction(nef.Script, signers))
@@ -715,7 +743,13 @@ func handleLoadBase64(c *cli.Context) error {
 	}
 	var signers []transaction.Signer
 	if len(args) > 1 {
-		signers, err = cmdargs.ParseSigners(args[1:])
+		if args[1] != cmdargs.CosignersSeparator {
+			return fmt.Errorf("%w: `%s` was expected as the second parameter, got %s", ErrInvalidParameter, cmdargs.CosignersSeparator, args[1])
+		}
+		if len(args) < 3 {
+			return fmt.Errorf("%w: signers expected after `%s`, got none", ErrInvalidParameter, cmdargs.CosignersSeparator)
+		}
+		signers, err = cmdargs.ParseSigners(args[2:])
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
@@ -749,7 +783,13 @@ func handleLoadHex(c *cli.Context) error {
 	}
 	var signers []transaction.Signer
 	if len(args) > 1 {
-		signers, err = cmdargs.ParseSigners(args[1:])
+		if args[1] != cmdargs.CosignersSeparator {
+			return fmt.Errorf("%w: `%s` was expected as the second parameter, got %s", ErrInvalidParameter, cmdargs.CosignersSeparator, args[1])
+		}
+		if len(args) < 3 {
+			return fmt.Errorf("%w: signers expected after `%s`, got none", ErrInvalidParameter, cmdargs.CosignersSeparator)
+		}
+		signers, err = cmdargs.ParseSigners(args[2:])
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
@@ -783,7 +823,13 @@ func handleLoadGo(c *cli.Context) error {
 	}
 	var signers []transaction.Signer
 	if len(args) > 1 {
-		signers, err = cmdargs.ParseSigners(args[1:])
+		if args[1] != cmdargs.CosignersSeparator {
+			return fmt.Errorf("%w: `%s` was expected as the second parameter, got %s", ErrInvalidParameter, cmdargs.CosignersSeparator, args[1])
+		}
+		if len(args) < 3 {
+			return fmt.Errorf("%w: signers expected after `%s`, got none", ErrInvalidParameter, cmdargs.CosignersSeparator)
+		}
+		signers, err = cmdargs.ParseSigners(args[2:])
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
@@ -849,7 +895,8 @@ func handleLoadDeployed(c *cli.Context) error {
 	if !c.Args().Present() {
 		return errors.New("contract hash, address or ID is mandatory argument")
 	}
-	hashOrID := c.Args().Get(0)
+	args := c.Args()
+	hashOrID := args[0]
 	ic := getInteropContextFromContext(c.App)
 	h, err := flags.ParseAddress(hashOrID)
 	if err != nil {
@@ -868,8 +915,14 @@ func handleLoadDeployed(c *cli.Context) error {
 	}
 
 	var signers []transaction.Signer
-	if len(c.Args()) > 1 {
-		signers, err = cmdargs.ParseSigners(c.Args()[1:])
+	if len(args) > 1 {
+		if args[1] != cmdargs.CosignersSeparator {
+			return fmt.Errorf("%w: %s was expected as the second parameter, got %s", ErrInvalidParameter, cmdargs.CosignersSeparator, args[1])
+		}
+		if len(args) < 3 {
+			return fmt.Errorf("%w: signers expected after `%s`, got none", ErrInvalidParameter, cmdargs.CosignersSeparator)
+		}
+		signers, err = cmdargs.ParseSigners(args[2:])
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}

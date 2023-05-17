@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/chzyer/readline"
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/internal/basicchain"
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -298,21 +299,27 @@ func TestLoad(t *testing.T) {
 			"loadhex",
 			"loadhex notahex",
 			"loadhex "+hex.EncodeToString(script),
-			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+ownerAddress, // owner:DefaultScope => true
+			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator,
+			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+"not-a-separator",
+			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator+" "+"not-a-signer",
+			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator+" "+ownerAddress, // owner:DefaultScope => true
 			"run",
-			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+ownerAddress+":None", // owner:None => false
+			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator+" "+ownerAddress+":None", // owner:None => false
 			"run",
-			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+ownerAcc.StringLE(), // ownerLE:DefaultScope => true
+			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator+" "+ownerAcc.StringLE(), // ownerLE:DefaultScope => true
 			"run",
-			"loadhex "+hex.EncodeToString(checkWitnessScript)+" 0x"+ownerAcc.StringLE(), // owner0xLE:DefaultScope => true
+			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator+" "+"0x"+ownerAcc.StringLE(), // owner0xLE:DefaultScope => true
 			"run",
-			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+sideAcc.StringLE(), // sideLE:DefaultScope => false
+			"loadhex "+hex.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator+" "+sideAcc.StringLE(), // sideLE:DefaultScope => false
 			"run",
 		)
 
 		e.checkError(t, ErrMissingParameter)
 		e.checkError(t, ErrInvalidParameter)
 		e.checkNextLine(t, "READY: loaded 3 instructions")
+		e.checkError(t, ErrInvalidParameter)
+		e.checkError(t, ErrInvalidParameter)
+		e.checkError(t, ErrInvalidParameter)
 		e.checkNextLine(t, "READY: loaded \\d+ instructions")
 		e.checkStack(t, true)
 		e.checkNextLine(t, "READY: loaded \\d+ instructions")
@@ -330,21 +337,27 @@ func TestLoad(t *testing.T) {
 			"loadbase64",
 			"loadbase64 not_a_base64",
 			"loadbase64 "+base64.StdEncoding.EncodeToString(script),
-			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+ownerAddress, // owner:DefaultScope => true
+			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator,
+			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+"not-a-separator",
+			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator+" not-a-signer",
+			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator+" "+ownerAddress, // owner:DefaultScope => true
 			"run",
-			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+ownerAddress+":None", // owner:None => false
+			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator+" "+ownerAddress+":None", // owner:None => false
 			"run",
-			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+ownerAcc.StringLE(), // ownerLE:DefaultScope => true
+			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator+" "+ownerAcc.StringLE(), // ownerLE:DefaultScope => true
 			"run",
-			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" 0x"+ownerAcc.StringLE(), // owner0xLE:DefaultScope => true
+			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator+" "+"0x"+ownerAcc.StringLE(), // owner0xLE:DefaultScope => true
 			"run",
-			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+sideAcc.StringLE(), // sideLE:DefaultScope => false
+			"loadbase64 "+base64.StdEncoding.EncodeToString(checkWitnessScript)+" "+cmdargs.CosignersSeparator+" "+sideAcc.StringLE(), // sideLE:DefaultScope => false
 			"run",
 		)
 
 		e.checkError(t, ErrMissingParameter)
 		e.checkError(t, ErrInvalidParameter)
 		e.checkNextLine(t, "READY: loaded 3 instructions")
+		e.checkError(t, ErrInvalidParameter)
+		e.checkError(t, ErrInvalidParameter)
+		e.checkError(t, ErrInvalidParameter)
 		e.checkNextLine(t, "READY: loaded \\d+ instructions")
 		e.checkStack(t, true)
 		e.checkNextLine(t, "READY: loaded \\d+ instructions")
@@ -440,12 +453,23 @@ go 1.18`)
 		}
 `
 		filename := prepareLoadgoSrc(t, srcCheckWitness)
+		t.Run("invalid", func(t *testing.T) {
+			e := newTestVMCLI(t)
+			e.runProg(t,
+				"loadgo "+filename+" "+cmdargs.CosignersSeparator,
+				"loadgo "+filename+" "+"not-a-separator",
+				"loadgo "+filename+" "+cmdargs.CosignersSeparator+" not-a-signer",
+			)
+			e.checkError(t, ErrInvalidParameter)
+			e.checkError(t, ErrInvalidParameter)
+			e.checkError(t, ErrInvalidParameter)
+		})
 		t.Run("address", func(t *testing.T) {
 			e := newTestVMCLI(t)
 			e.runProg(t,
-				"loadgo "+filename+" "+ownerAddress, // owner:DefaultScope => true
+				"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+ownerAddress, // owner:DefaultScope => true
 				"run main",
-				"loadgo "+filename+" "+ownerAddress+":None", // owner:None => false
+				"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+ownerAddress+":None", // owner:None => false
 				"run main")
 			e.checkNextLine(t, "READY: loaded \\d+ instructions")
 			e.checkStack(t, true)
@@ -455,9 +479,9 @@ go 1.18`)
 		t.Run("string LE", func(t *testing.T) {
 			e := newTestVMCLI(t)
 			e.runProg(t,
-				"loadgo "+filename+" "+ownerAcc.StringLE(), // ownerLE:DefaultScope => true
+				"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+ownerAcc.StringLE(), // ownerLE:DefaultScope => true
 				"run main",
-				"loadgo "+filename+" 0x"+ownerAcc.StringLE(), // owner0xLE:DefaultScope => true
+				"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+"0x"+ownerAcc.StringLE(), // owner0xLE:DefaultScope => true
 				"run main")
 			e.checkNextLine(t, "READY: loaded \\d+ instructions")
 			e.checkStack(t, true)
@@ -467,7 +491,7 @@ go 1.18`)
 		t.Run("nonwitnessed signer", func(t *testing.T) {
 			e := newTestVMCLI(t)
 			e.runProg(t,
-				"loadgo "+filename+" "+sideAcc.StringLE(), // sideLE:DefaultScope => false
+				"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+sideAcc.StringLE(), // sideLE:DefaultScope => false
 				"run main")
 			e.checkNextLine(t, "READY: loaded \\d+ instructions")
 			e.checkStack(t, false)
@@ -503,13 +527,32 @@ go 1.18`)
 			"loadnef "+filename+" "+notExists,
 			"loadnef "+filename+" "+filename,
 			"loadnef "+filename+" "+manifestFile,
-			"run main add 3 5")
+			"run main add 3 5",
+			"loadnef "+filename,
+			"run main add 3 5",
+			"loadnef "+filename+" "+cmdargs.CosignersSeparator,
+			"loadnef "+filename+" "+manifestFile+" "+cmdargs.CosignersSeparator,
+			"loadnef "+filename+" "+manifestFile+" "+"not-a-separator",
+			"loadnef "+filename+" "+cmdargs.CosignersSeparator+" "+util.Uint160{1, 2, 3}.StringLE(),
+			"run main add 3 5",
+			"loadnef "+filename+" "+manifestFile+" "+cmdargs.CosignersSeparator+" "+util.Uint160{1, 2, 3}.StringLE(),
+			"run main add 3 5",
+		)
 
 		e.checkError(t, ErrMissingParameter)
 		e.checkNextLine(t, "Error:")
 		e.checkNextLine(t, "Error:")
 		e.checkNextLine(t, "Error:")
 		e.checkNextLine(t, "READY: loaded \\d* instructions")
+		e.checkStack(t, 8)
+		e.checkNextLine(t, "READY: loaded \\d* instructions")
+		e.checkStack(t, 8)
+		e.checkNextLine(t, "Error:")                          // manifest missing, missing signer after --
+		e.checkNextLine(t, "Error:")                          // manifest present, missing signer after --
+		e.checkNextLine(t, "Error:")                          // manifest present, invalid separator
+		e.checkNextLine(t, "READY: loaded \\d* instructions") // manifest missing, signer present, OK
+		e.checkStack(t, 8)
+		e.checkNextLine(t, "READY: loaded \\d* instructions") // manifest present, signer present, OK
 		e.checkStack(t, 8)
 	})
 }
@@ -1153,24 +1196,27 @@ func TestLoaddeployed(t *testing.T) {
 		"run get 1",
 		"loaddeployed --gas 420000 "+h.StringLE(), // gas-limited
 		"run get 1",
-		"loaddeployed 0x"+h.StringLE(), //  hash LE with 0x prefix
+		"loaddeployed "+"0x"+h.StringLE(), //  hash LE with 0x prefix
 		"run get 1",
 		"loaddeployed 1", // contract ID
 		"run get 1",
 		"loaddeployed --historic 2 1", // historic state, check that hash is properly set
 		"run get 1",
 		// Check signers parsing:
-		"loaddeployed 2 "+ownerAddress, // check witness (owner:DefautScope => true)
+		"loaddeployed 2 "+cmdargs.CosignersSeparator,
+		"loaddeployed 2 "+"not-a-separator",
+		"loaddeployed 2 "+cmdargs.CosignersSeparator+" not-a-signer",
+		"loaddeployed 2 "+cmdargs.CosignersSeparator+" "+ownerAddress, // check witness (owner:DefautScope => true)
 		"run checkWitness",
-		"loaddeployed 2 "+ownerAddress+":None", // check witness (owner:None => false)
+		"loaddeployed 2 "+cmdargs.CosignersSeparator+" "+ownerAddress+":None", // check witness (owner:None => false)
 		"run checkWitness",
-		"loaddeployed 2 "+ownerAddress+":CalledByEntry", // check witness (owner:CalledByEntry => true)
+		"loaddeployed 2 "+cmdargs.CosignersSeparator+" "+ownerAddress+":CalledByEntry", // check witness (owner:CalledByEntry => true)
 		"run checkWitness",
-		"loaddeployed 2 "+ownerAcc.StringLE()+":CalledByEntry", // check witness (ownerLE:CalledByEntry => true)
+		"loaddeployed 2 "+cmdargs.CosignersSeparator+" "+ownerAcc.StringLE()+":CalledByEntry", // check witness (ownerLE:CalledByEntry => true)
 		"run checkWitness",
-		"loaddeployed 2 0x"+ownerAcc.StringLE()+":CalledByEntry", // check witness (owner0xLE:CalledByEntry => true)
+		"loaddeployed 2 "+cmdargs.CosignersSeparator+" "+"0x"+ownerAcc.StringLE()+":CalledByEntry", // check witness (owner0xLE:CalledByEntry => true)
 		"run checkWitness",
-		"loaddeployed 2 "+sideAcc.StringLE()+":Global", // check witness (sideLE:Global => false)
+		"loaddeployed 2 "+cmdargs.CosignersSeparator+" "+sideAcc.StringLE()+":Global", // check witness (sideLE:Global => false)
 		"run checkWitness",
 		"loaddeployed", // missing argument
 		"exit",
@@ -1186,6 +1232,9 @@ func TestLoaddeployed(t *testing.T) {
 	e.checkNextLine(t, "READY: loaded \\d+ instructions")
 	e.checkStack(t, []byte{1})
 	// Check signers parsing:
+	e.checkError(t, ErrInvalidParameter)
+	e.checkError(t, ErrInvalidParameter)
+	e.checkError(t, ErrInvalidParameter)
 	e.checkNextLine(t, "READY: loaded \\d+ instructions") // check witness of owner:DefaultScope
 	e.checkStack(t, true)
 	e.checkNextLine(t, "READY: loaded \\d+ instructions") // check witness of owner:None
