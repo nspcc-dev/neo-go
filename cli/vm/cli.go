@@ -1085,7 +1085,7 @@ func handleRun(c *cli.Context) error {
 		}
 		if runCurrent {
 			if cs == nil {
-				return fmt.Errorf("manifest is not loaded; either use 'run' command to run loaded script from the start or use 'loadgo' and 'loadnef' commands to provide manifest")
+				return fmt.Errorf("manifest is not loaded; either use 'run' command to run loaded script from the start or use 'loadgo', 'loadnef' or 'loaddeployed' commands to provide manifest")
 			}
 			md := cs.Manifest.ABI.GetMethod(args[0], len(params))
 			if md == nil {
