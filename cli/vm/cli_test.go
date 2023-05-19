@@ -281,6 +281,97 @@ func (e *executor) checkSlot(t *testing.T, items ...any) {
 	require.NoError(t, err)
 }
 
+func TestRun_WithNewVMContextAndBreakpoints(t *testing.T) {
+	t.Run("contract without init", func(t *testing.T) {
+		src := `package kek
+		func Main(a, b int) int {
+			var c = a + b
+			return c + 5
+		}`
+		tmpDir := t.TempDir()
+		filename := prepareLoadgoSrc(t, tmpDir, src)
+
+		e := newTestVMCLI(t)
+		e.runProgWithTimeout(t, 10*time.Second,
+			"loadgo "+filename,
+			"break 8",
+			"run main 3 5",
+			"run",
+		)
+
+		e.checkNextLine(t, "READY: loaded \\d* instructions")
+		e.checkNextLine(t, "breakpoint added at instruction 8")
+		e.checkNextLine(t, "at breakpoint 8 (PUSH5)*")
+		e.checkStack(t, 13)
+	})
+	t.Run("contract with init", func(t *testing.T) {
+		src := `package kek
+		var I = 5
+		func Main(a, b int) int {
+			var c = a + b
+			return c + I
+		}`
+
+		tmpDir := t.TempDir()
+		filename := prepareLoadgoSrc(t, tmpDir, src)
+
+		e := newTestVMCLI(t)
+		e.runProgWithTimeout(t, 10*time.Second,
+			"loadgo "+filename,
+			"break 10",
+			"run main 3 5",
+			"run",
+		)
+
+		e.checkNextLine(t, "READY: loaded \\d* instructions")
+		e.checkNextLine(t, "breakpoint added at instruction 10")
+		e.checkNextLine(t, "at breakpoint 10 (ADD)*")
+		e.checkStack(t, 13)
+	})
+}
+
+// prepareLoadgoSrc prepares provided SC source file for loading into VM via `loadgo` command.
+func prepareLoadgoSrc(t *testing.T, tmpDir, src string) string {
+	filename := filepath.Join(tmpDir, "vmtestcontract.go")
+	require.NoError(t, os.WriteFile(filename, []byte(src), os.ModePerm))
+	filename = "'" + filename + "'"
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	goMod := []byte(`module test.example/kek
+require (
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0
+)
+replace github.com/nspcc-dev/neo-go/pkg/interop => ` + filepath.Join(wd, "../../pkg/interop") + `
+go 1.18`)
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
+	return filename
+}
+
+// prepareLoadnefSrc compiles provided SC source and prepares NEF and manifest for loading into VM
+// via `loadnef` command. It returns the name of manifest and NEF files ready to be used in CLI
+// commands.
+func prepareLoadnefSrc(t *testing.T, tmpDir, src string) (string, string) {
+	config.Version = "0.92.0-test"
+
+	nefFile, di, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+	require.NoError(t, err)
+	filename := filepath.Join(tmpDir, "vmtestcontract.nef")
+	rawNef, err := nefFile.Bytes()
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filename, rawNef, os.ModePerm))
+	m, err := di.ConvertToManifest(&compiler.Options{})
+	require.NoError(t, err)
+	manifestFile := filepath.Join(tmpDir, "vmtestcontract.manifest.json")
+	rawManifest, err := json.Marshal(m)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(manifestFile, rawManifest, os.ModePerm))
+
+	manifestFile = "'" + manifestFile + "'"
+	filename = "'" + filename + "'"
+
+	return manifestFile, filename
+}
+
 func TestLoad(t *testing.T) {
 	script := []byte{byte(opcode.PUSH3), byte(opcode.PUSH4), byte(opcode.ADD)}
 
@@ -378,19 +469,13 @@ func TestLoad(t *testing.T) {
 			return a * b
 		}
 	}`
-	tmpDir := t.TempDir()
 
-	checkLoadgo := func(t *testing.T, tName, cName, cErrName string) {
-		t.Run("loadgo "+tName, func(t *testing.T) {
-			filename := filepath.Join(tmpDir, cName)
-			require.NoError(t, os.WriteFile(filename, []byte(src), os.ModePerm))
-			filename = "'" + filename + "'"
+	t.Run("loadgo", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		checkLoadgo := func(t *testing.T, cName, cErrName string) {
+			filename := prepareLoadgoSrc(t, tmpDir, src)
 			filenameErr := filepath.Join(tmpDir, cErrName)
-			require.NoError(t, os.WriteFile(filenameErr, []byte(src+"invalid_token"), os.ModePerm))
-			filenameErr = "'" + filenameErr + "'"
-			goMod := []byte(`module test.example/vmcli
-go 1.18`)
-			require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 
 			e := newTestVMCLI(t)
 			e.runProgWithTimeout(t, 10*time.Second,
@@ -403,46 +488,34 @@ go 1.18`)
 			e.checkNextLine(t, "Error:")
 			e.checkNextLine(t, "READY: loaded \\d* instructions")
 			e.checkStack(t, 8)
+		}
+
+		t.Run("simple", func(t *testing.T) {
+			checkLoadgo(t, "vmtestcontract.go", "vmtestcontract_err.go")
 		})
-	}
+		t.Run("utf-8 with spaces", func(t *testing.T) {
+			checkLoadgo(t, "тестовый контракт.go", "тестовый контракт с ошибкой.go")
+		})
 
-	checkLoadgo(t, "simple", "vmtestcontract.go", "vmtestcontract_err.go")
-	checkLoadgo(t, "utf-8 with spaces", "тестовый контракт.go", "тестовый контракт с ошибкой.go")
-
-	prepareLoadgoSrc := func(t *testing.T, srcAllowNotify string) string {
-		filename := filepath.Join(tmpDir, "vmtestcontract.go")
-		require.NoError(t, os.WriteFile(filename, []byte(srcAllowNotify), os.ModePerm))
-		filename = "'" + filename + "'"
-		wd, err := os.Getwd()
-		require.NoError(t, err)
-		goMod := []byte(`module test.example/kek
-require (
-	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0
-)
-replace github.com/nspcc-dev/neo-go/pkg/interop => ` + filepath.Join(wd, "../../pkg/interop") + `
-go 1.18`)
-		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
-		return filename
-	}
-	t.Run("loadgo, check calling flags", func(t *testing.T) {
-		srcAllowNotify := `package kek
+		t.Run("check calling flags", func(t *testing.T) {
+			srcAllowNotify := `package kek
 		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 		func Main() int {
 			runtime.Log("Hello, world!")
 			return 1
 		}
 `
-		filename := prepareLoadgoSrc(t, srcAllowNotify)
+			filename := prepareLoadgoSrc(t, tmpDir, srcAllowNotify)
 
-		e := newTestVMCLI(t)
-		e.runProg(t,
-			"loadgo "+filename,
-			"run main")
-		e.checkNextLine(t, "READY: loaded \\d* instructions")
-		e.checkStack(t, 1)
-	})
-	t.Run("loadgo, check signers", func(t *testing.T) {
-		srcCheckWitness := `package kek
+			e := newTestVMCLI(t)
+			e.runProg(t,
+				"loadgo "+filename,
+				"run main")
+			e.checkNextLine(t, "READY: loaded \\d* instructions")
+			e.checkStack(t, 1)
+		})
+		t.Run("check signers", func(t *testing.T) {
+			srcCheckWitness := `package kek
 		import (
 			"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 			"github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
@@ -452,90 +525,78 @@ go 1.18`)
 			return runtime.CheckWitness(owner)
 		}
 `
-		filename := prepareLoadgoSrc(t, srcCheckWitness)
-		t.Run("invalid", func(t *testing.T) {
-			e := newTestVMCLI(t)
-			e.runProg(t,
-				"loadgo "+filename+" "+cmdargs.CosignersSeparator,
-				"loadgo "+filename+" "+"not-a-separator",
-				"loadgo "+filename+" "+cmdargs.CosignersSeparator+" not-a-signer",
-			)
-			e.checkError(t, ErrInvalidParameter)
-			e.checkError(t, ErrInvalidParameter)
-			e.checkError(t, ErrInvalidParameter)
-		})
-		t.Run("address", func(t *testing.T) {
-			e := newTestVMCLI(t)
-			e.runProg(t,
-				"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+ownerAddress, // owner:DefaultScope => true
-				"run main",
-				"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+ownerAddress+":None", // owner:None => false
-				"run main")
-			e.checkNextLine(t, "READY: loaded \\d+ instructions")
-			e.checkStack(t, true)
-			e.checkNextLine(t, "READY: loaded \\d+ instructions")
-			e.checkStack(t, false)
-		})
-		t.Run("string LE", func(t *testing.T) {
-			e := newTestVMCLI(t)
-			e.runProg(t,
-				"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+ownerAcc.StringLE(), // ownerLE:DefaultScope => true
-				"run main",
-				"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+"0x"+ownerAcc.StringLE(), // owner0xLE:DefaultScope => true
-				"run main")
-			e.checkNextLine(t, "READY: loaded \\d+ instructions")
-			e.checkStack(t, true)
-			e.checkNextLine(t, "READY: loaded \\d+ instructions")
-			e.checkStack(t, true)
-		})
-		t.Run("nonwitnessed signer", func(t *testing.T) {
-			e := newTestVMCLI(t)
-			e.runProg(t,
-				"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+sideAcc.StringLE(), // sideLE:DefaultScope => false
-				"run main")
-			e.checkNextLine(t, "READY: loaded \\d+ instructions")
-			e.checkStack(t, false)
+			filename := prepareLoadgoSrc(t, tmpDir, srcCheckWitness)
+			t.Run("invalid", func(t *testing.T) {
+				e := newTestVMCLI(t)
+				e.runProg(t,
+					"loadgo "+filename+" "+cmdargs.CosignersSeparator,
+					"loadgo "+filename+" "+"not-a-separator",
+					"loadgo "+filename+" "+cmdargs.CosignersSeparator+" not-a-signer",
+				)
+				e.checkError(t, ErrInvalidParameter)
+				e.checkError(t, ErrInvalidParameter)
+				e.checkError(t, ErrInvalidParameter)
+			})
+			t.Run("address", func(t *testing.T) {
+				e := newTestVMCLI(t)
+				e.runProg(t,
+					"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+ownerAddress, // owner:DefaultScope => true
+					"run main",
+					"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+ownerAddress+":None", // owner:None => false
+					"run main")
+				e.checkNextLine(t, "READY: loaded \\d+ instructions")
+				e.checkStack(t, true)
+				e.checkNextLine(t, "READY: loaded \\d+ instructions")
+				e.checkStack(t, false)
+			})
+			t.Run("string LE", func(t *testing.T) {
+				e := newTestVMCLI(t)
+				e.runProg(t,
+					"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+ownerAcc.StringLE(), // ownerLE:DefaultScope => true
+					"run main",
+					"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+"0x"+ownerAcc.StringLE(), // owner0xLE:DefaultScope => true
+					"run main")
+				e.checkNextLine(t, "READY: loaded \\d+ instructions")
+				e.checkStack(t, true)
+				e.checkNextLine(t, "READY: loaded \\d+ instructions")
+				e.checkStack(t, true)
+			})
+			t.Run("nonwitnessed signer", func(t *testing.T) {
+				e := newTestVMCLI(t)
+				e.runProg(t,
+					"loadgo "+filename+" "+cmdargs.CosignersSeparator+" "+sideAcc.StringLE(), // sideLE:DefaultScope => false
+					"run main")
+				e.checkNextLine(t, "READY: loaded \\d+ instructions")
+				e.checkStack(t, false)
+			})
 		})
 	})
+
 	t.Run("loadnef", func(t *testing.T) {
-		config.Version = "0.92.0-test"
+		tmpDir := t.TempDir()
 
-		nefFile, di, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
-		require.NoError(t, err)
-		filename := filepath.Join(tmpDir, "vmtestcontract.nef")
-		rawNef, err := nefFile.Bytes()
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(filename, rawNef, os.ModePerm))
-		m, err := di.ConvertToManifest(&compiler.Options{})
-		require.NoError(t, err)
-		manifestFile := filepath.Join(tmpDir, "vmtestcontract.manifest.json")
-		rawManifest, err := json.Marshal(m)
-		require.NoError(t, err)
-		require.NoError(t, os.WriteFile(manifestFile, rawManifest, os.ModePerm))
+		manifestFile, nefFile := prepareLoadnefSrc(t, tmpDir, src)
 		filenameErr := filepath.Join(tmpDir, "vmtestcontract_err.nef")
-		require.NoError(t, os.WriteFile(filenameErr, append([]byte{1, 2, 3, 4}, rawNef...), os.ModePerm))
+		require.NoError(t, os.WriteFile(filenameErr, []byte{1, 2, 3, 4}, os.ModePerm))
 		notExists := filepath.Join(tmpDir, "notexists.json")
-
-		manifestFile = "'" + manifestFile + "'"
-		filename = "'" + filename + "'"
 		filenameErr = "'" + filenameErr + "'"
 
 		e := newTestVMCLI(t)
 		e.runProg(t,
 			"loadnef",
 			"loadnef "+filenameErr+" "+manifestFile,
-			"loadnef "+filename+" "+notExists,
-			"loadnef "+filename+" "+filename,
-			"loadnef "+filename+" "+manifestFile,
+			"loadnef "+nefFile+" "+notExists,
+			"loadnef "+nefFile+" "+nefFile,
+			"loadnef "+nefFile+" "+manifestFile,
 			"run main add 3 5",
-			"loadnef "+filename,
+			"loadnef "+nefFile,
 			"run main add 3 5",
-			"loadnef "+filename+" "+cmdargs.CosignersSeparator,
-			"loadnef "+filename+" "+manifestFile+" "+cmdargs.CosignersSeparator,
-			"loadnef "+filename+" "+manifestFile+" "+"not-a-separator",
-			"loadnef "+filename+" "+cmdargs.CosignersSeparator+" "+util.Uint160{1, 2, 3}.StringLE(),
+			"loadnef "+nefFile+" "+cmdargs.CosignersSeparator,
+			"loadnef "+nefFile+" "+manifestFile+" "+cmdargs.CosignersSeparator,
+			"loadnef "+nefFile+" "+manifestFile+" "+"not-a-separator",
+			"loadnef "+nefFile+" "+cmdargs.CosignersSeparator+" "+util.Uint160{1, 2, 3}.StringLE(),
 			"run main add 3 5",
-			"loadnef "+filename+" "+manifestFile+" "+cmdargs.CosignersSeparator+" "+util.Uint160{1, 2, 3}.StringLE(),
+			"loadnef "+nefFile+" "+manifestFile+" "+cmdargs.CosignersSeparator+" "+util.Uint160{1, 2, 3}.StringLE(),
 			"run main add 3 5",
 		)
 
@@ -554,6 +615,72 @@ go 1.18`)
 		e.checkStack(t, 8)
 		e.checkNextLine(t, "READY: loaded \\d* instructions") // manifest present, signer present, OK
 		e.checkStack(t, 8)
+	})
+}
+
+func TestLoad_RunWithCALLT(t *testing.T) {
+	// Our smart compiler will generate CALLT instruction for the following StdLib call:
+	src := `package kek
+		import "github.com/nspcc-dev/neo-go/pkg/interop/native/std"
+		func Main() int {
+			return std.Atoi("123", 10)
+		}`
+
+	t.Run("loadgo", func(t *testing.T) {
+		tmp := t.TempDir()
+		filename := prepareLoadgoSrc(t, tmp, src)
+		e := newTestVMCLI(t)
+		e.runProg(t,
+			"loadgo "+filename,
+			"run main",
+		)
+		e.checkNextLine(t, "READY: loaded \\d* instructions")
+		e.checkStack(t, 123)
+	})
+
+	t.Run("loadnef", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		manifestFile, nefFile := prepareLoadnefSrc(t, tmpDir, src)
+
+		e := newTestVMCLI(t)
+		e.runProg(t,
+			"loadnef "+nefFile+" "+manifestFile,
+			"run main",
+		)
+		e.checkNextLine(t, "READY: loaded \\d* instructions")
+		e.checkStack(t, 123)
+	})
+
+	t.Run("loaddeployed", func(t *testing.T) {
+		// We'll use `Runtime example` example contract which has a call to native Management
+		// inside performed via CALLT instruction (`destroy` method).
+		e := newTestVMClIWithState(t)
+		var (
+			cH    util.Uint160
+			cName = "Runtime example"
+			bc    = e.cli.chain
+		)
+		for i := int32(1); ; i++ {
+			h, err := bc.GetContractScriptHash(i)
+			if err != nil {
+				break
+			}
+			cs := bc.GetContractState(h)
+			if cs == nil {
+				break
+			}
+			if cs.Manifest.Name == cName {
+				cH = cs.Hash
+				break
+			}
+		}
+		require.NotEmpty(t, cH, fmt.Sprintf("failed to locate `%s` example contract with CALLT usage in the simple chain", cName))
+		e.runProg(t,
+			"loaddeployed "+cH.StringLE()+" -- NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB:Global", // the contract's owner got from the contract's code.
+			"run destroy",
+		)
+		e.checkNextLine(t, "READY: loaded \\d* instructions")
+		e.checkStack(t) // Nothing on stack, successful execution.
 	})
 }
 

@@ -350,3 +350,10 @@ func DynamicOnUnload(v *VM, ctx *Context, commit bool) error {
 	}
 	return nil
 }
+
+// BreakPoints returns the current set of Context's breakpoints.
+func (c *Context) BreakPoints() []int {
+	res := make([]int, len(c.sc.breakPoints))
+	copy(res, c.sc.breakPoints)
+	return res
+}
