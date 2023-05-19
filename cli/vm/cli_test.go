@@ -474,15 +474,8 @@ func TestLoad(t *testing.T) {
 		tmpDir := t.TempDir()
 
 		checkLoadgo := func(t *testing.T, cName, cErrName string) {
-			filename := filepath.Join(tmpDir, cName)
-			require.NoError(t, os.WriteFile(filename, []byte(src), os.ModePerm))
-			filename = "'" + filename + "'"
+			filename := prepareLoadgoSrc(t, tmpDir, src)
 			filenameErr := filepath.Join(tmpDir, cErrName)
-			require.NoError(t, os.WriteFile(filenameErr, []byte(src+"invalid_token"), os.ModePerm))
-			filenameErr = "'" + filenameErr + "'"
-			goMod := []byte(`module test.example/vmcli
-go 1.18`)
-			require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 
 			e := newTestVMCLI(t)
 			e.runProgWithTimeout(t, 10*time.Second,
