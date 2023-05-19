@@ -65,7 +65,7 @@ func Verify() bool {
 
 // Destroy destroys the contract, only the owner can do that.
 func Destroy() {
-	if !Verify() {
+	if !CheckWitness() {
 		panic("only owner can destroy")
 	}
 	management.Destroy()
@@ -74,7 +74,7 @@ func Destroy() {
 // Update updates the contract, only the owner can do that. _deploy will be called
 // after update.
 func Update(nef, manifest []byte) {
-	if !Verify() {
+	if !CheckWitness() {
 		panic("only owner can update")
 	}
 	management.Update(nef, manifest)
