@@ -396,12 +396,14 @@ func Generate(cfg binding.Config) error {
 				mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11NonDivisible)
 				ctr.IsNep11ND = true
 			}
+			mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep11Base)
 			break // Can't be NEP-17 at the same time.
 		}
 		if std == manifest.NEP17StandardName && standard.ComplyABI(cfg.Manifest, standard.Nep17) == nil {
 			mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep17)
 			imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"] = struct{}{}
 			ctr.IsNep17 = true
+			mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep17)
 			break // Can't be NEP-11 at the same time.
 		}
 	}
@@ -445,6 +447,18 @@ func dropManifestMethods(meths []manifest.Method, manifested []manifest.Method) 
 	return meths
 }
 
+func dropManifestEvents(events []manifest.Event, manifested []manifest.Event) []manifest.Event {
+	for _, e := range manifested {
+		for i := 0; i < len(events); i++ {
+			if events[i].Name == e.Name && len(events[i].Parameters) == len(e.Parameters) {
+				events = append(events[:i], events[i+1:]...)
+				i--
+			}
+		}
+	}
+	return events
+}
+
 func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.Method {
 	meths = dropManifestMethods(meths, std.Manifest.ABI.Methods)
 	if std.Optional != nil {
@@ -454,6 +468,14 @@ func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.
 		return dropStdMethods(meths, std.Base)
 	}
 	return meths
+}
+
+func dropStdEvents(events []manifest.Event, std *standard.Standard) []manifest.Event {
+	events = dropManifestEvents(events, std.Manifest.ABI.Events)
+	if std.Base != nil {
+		return dropStdEvents(events, std.Base)
+	}
+	return events
 }
 
 func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.ExtendedType) (string, string) {

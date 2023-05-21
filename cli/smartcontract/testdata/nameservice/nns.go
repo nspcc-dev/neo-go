@@ -18,14 +18,6 @@ import (
 // Hash contains contract hash.
 var Hash = util.Uint160{0xde, 0x46, 0x5f, 0x5d, 0x50, 0x57, 0xcf, 0x33, 0x28, 0x47, 0x94, 0xc5, 0xcf, 0xc2, 0xc, 0x69, 0x37, 0x1c, 0xac, 0x50}
 
-// TransferEvent represents "Transfer" event emitted by the contract.
-type TransferEvent struct {
-	From util.Uint160
-	To util.Uint160
-	Amount *big.Int
-	TokenId []byte
-}
-
 // SetAdminEvent represents "SetAdmin" event emitted by the contract.
 type SetAdminEvent struct {
 	Name string
@@ -343,96 +335,6 @@ func (c *Contract) DeleteRecordTransaction(name string, typev *big.Int) (*transa
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) DeleteRecordUnsigned(name string, typev *big.Int) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, "deleteRecord", nil, name, typev)
-}
-
-// TransferEventsFromApplicationLog retrieves a set of all emitted events
-// with "Transfer" name from the provided ApplicationLog.
-func TransferEventsFromApplicationLog(log *result.ApplicationLog) ([]*TransferEvent, error) {
-	if log == nil {
-		return nil, errors.New("nil application log")
-	}
-
-	var res []*TransferEvent
-	for i, ex := range log.Executions {
-		for j, e := range ex.Events {
-			if e.Name != "Transfer" {
-				continue
-			}
-			event := new(TransferEvent)
-			err := event.FromStackItem(e.Item)
-			if err != nil {
-				return nil, fmt.Errorf("failed to deserialize TransferEvent from stackitem (execution %d, event %d): %w", i, j, err)
-			}
-			res = append(res, event)
-		}
-	}
-
-	return res, nil
-}
-
-// FromStackItem converts provided stackitem.Array to TransferEvent and
-// returns an error if so.
-func (e *TransferEvent) FromStackItem(item *stackitem.Array) error {
-	if item == nil {
-		return errors.New("nil item")
-	}
-	arr, ok := item.Value().([]stackitem.Item)
-	if !ok {
-		return errors.New("not an array")
-	}
-	if len(arr) != 4 {
-		return errors.New("wrong number of structure elements")
-	}
-
-	var (
-		index = -1
-		err error
-	)
-	index++
-	e.From, err = func (item stackitem.Item) (util.Uint160, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		u, err := util.Uint160DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		return u, nil
-	} (arr[index])
-	if err != nil {
-		return fmt.Errorf("field From: %w", err)
-	}
-
-	index++
-	e.To, err = func (item stackitem.Item) (util.Uint160, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		u, err := util.Uint160DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		return u, nil
-	} (arr[index])
-	if err != nil {
-		return fmt.Errorf("field To: %w", err)
-	}
-
-	index++
-	e.Amount, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Amount: %w", err)
-	}
-
-	index++
-	e.TokenId, err = arr[index].TryBytes()
-	if err != nil {
-		return fmt.Errorf("field TokenId: %w", err)
-	}
-
-	return nil
 }
 
 // SetAdminEventsFromApplicationLog retrieves a set of all emitted events
