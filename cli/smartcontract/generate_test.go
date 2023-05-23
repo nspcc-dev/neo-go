@@ -416,6 +416,7 @@ func TestAssistedRPCBindings(t *testing.T) {
 
 	checkBinding(filepath.Join("testdata", "types"))
 	checkBinding(filepath.Join("testdata", "structs"))
+	checkBinding(filepath.Join("testdata", "notifications"))
 
 	require.False(t, rewriteExpectedOutputs)
 }

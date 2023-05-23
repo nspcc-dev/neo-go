@@ -1,0 +1,7 @@
+name: "Notifications"
+sourceurl: https://github.com/nspcc-dev/neo-go/
+events:
+  - name: "! complicated name %$#"
+    parameters:
+      - name: ! complicated param @#$%
+        type: String

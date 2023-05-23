@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/rpcbinding"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"golang.org/x/tools/go/packages"
 	"gopkg.in/yaml.v3"
@@ -339,14 +340,17 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 			cfg.NamedTypes = di.NamedTypes
 		}
 		for name, et := range o.DeclaredNamedTypes {
-			// TODO: handle name conflict
+			// TODO: handle name conflict (it can happen due to invalid user input e.g.)
 			cfg.NamedTypes[name] = et
 		}
 		for _, e := range o.ContractEvents {
+			eStructName := rpcbinding.ToEventBindingName(e.Name)
 			for _, p := range e.Parameters {
+				pStructName := rpcbinding.ToParameterBindingName(p.Name)
 				// TODO: proper imports handling during bindings generation (see utf8 example).
+				// Probably, we should always add p type to the list of types.
 				if p.ExtendedType != nil {
-					pName := e.Name + "." + p.Name
+					pName := eStructName + "." + pStructName
 					cfg.Types[pName] = *p.ExtendedType
 				}
 			}
@@ -354,6 +358,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		if o.GuessEventTypes {
 			if len(di.EmittedEvents) > 0 {
 				for eventName, eventUsages := range di.EmittedEvents {
+					eBindingName := rpcbinding.ToEventBindingName(eventName)
 					// Take into account the first usage only.
 					// TODO: extend it to the rest of invocations.
 					for typeName, extType := range eventUsages[0].ExtTypes {
@@ -361,9 +366,10 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 							cfg.NamedTypes[typeName] = extType
 						}
 					}
+
 					for _, p := range eventUsages[0].Params {
-						// TODO: prettify notification name in-place.
-						pname := eventName + "." + p.Name
+						pBindingName := rpcbinding.ToParameterBindingName(p.Name)
+						pname := eBindingName + "." + pBindingName
 						if p.RealType.TypeName != "" {
 							if _, ok := cfg.Overrides[pname]; !ok {
 								cfg.Overrides[pname] = p.RealType

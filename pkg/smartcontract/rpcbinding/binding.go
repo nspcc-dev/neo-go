@@ -19,10 +19,10 @@ import (
 // ensure that this block has new line at the start and in the end of the block.
 const (
 	eventDefinition = `{{ define "EVENT" }}
-// {{.Name}}Event represents "{{.ManifestName}}" event emitted by the contract.
-type {{.Name}}Event struct {
+// {{.Name}} represents "{{.ManifestName}}" event emitted by the contract.
+type {{.Name}} struct {
 	{{- range $index, $arg := .Parameters}}
-	{{toPascalCase .Name}} {{.Type}}
+	{{.Name}} {{.Type}}
 	{{- end}}
 }
 {{ end }}`
@@ -262,23 +262,23 @@ func (res *{{toTypeName $name}}) FromStackItem(item stackitem.Item) error {
 }
 {{ end -}}
 {{- range $e := .CustomEvents }}
-// {{$e.Name}}EventsFromApplicationLog retrieves a set of all emitted events
+// {{$e.Name}}sFromApplicationLog retrieves a set of all emitted events
 // with "{{$e.ManifestName}}" name from the provided ApplicationLog.
-func {{$e.Name}}EventsFromApplicationLog(log *result.ApplicationLog) ([]*{{$e.Name}}Event, error) {
+func {{$e.Name}}sFromApplicationLog(log *result.ApplicationLog) ([]*{{$e.Name}}, error) {
 	if log == nil {
 		return nil, errors.New("nil application log")
 	}
 
-	var res []*{{$e.Name}}Event
+	var res []*{{$e.Name}}
 	for i, ex := range log.Executions {
 		for j, e := range ex.Events {
 			if e.Name != "{{$e.ManifestName}}" {
 				continue
 			}
-			event := new({{$e.Name}}Event)
+			event := new({{$e.Name}})
 			err := event.FromStackItem(e.Item)
 			if err != nil {
-				return nil, fmt.Errorf("failed to deserialize {{$e.Name}}Event from stackitem (execution %d, event %d): %w", i, j, err)
+				return nil, fmt.Errorf("failed to deserialize {{$e.Name}} from stackitem (execution %d, event %d): %w", i, j, err)
 			}
 			res = append(res, event)
 		}
@@ -287,9 +287,9 @@ func {{$e.Name}}EventsFromApplicationLog(log *result.ApplicationLog) ([]*{{$e.Na
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to {{$e.Name}}Event and
+// FromStackItem converts provided stackitem.Array to {{$e.Name}} and
 // returns an error if so.
-func (e *{{$e.Name}}Event) FromStackItem(item *stackitem.Array) error {
+func (e *{{$e.Name}}) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
 		return errors.New("nil item")
 	}
@@ -307,9 +307,9 @@ func (e *{{$e.Name}}Event) FromStackItem(item *stackitem.Array) error {
 	)
 	{{- range $p := $e.Parameters}}
 	index++
-	e.{{toPascalCase .Name}}, err = {{etTypeConverter .ExtType "arr[index]"}}
+	e.{{.Name}}, err = {{etTypeConverter .ExtType "arr[index]"}}
 	if err != nil {
-		return fmt.Errorf("field {{toPascalCase .Name}}: %w", err)
+		return fmt.Errorf("field {{.Name}}: %w", err)
 	}
 {{end}}
 {{- end}}
@@ -427,9 +427,8 @@ func Generate(cfg binding.Config) error {
 			r, _ := extendedTypeToGo(et, ctr.NamedTypes)
 			return r
 		},
-		"toTypeName":   toTypeName,
-		"cutPointer":   cutPointer,
-		"toPascalCase": toPascalCase,
+		"toTypeName": toTypeName,
+		"cutPointer": cutPointer,
 	}).Parse(srcTmpl))
 
 	return srcTemplate.Execute(cfg.Output, ctr)
@@ -675,23 +674,18 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 		imports["errors"] = struct{}{}
 	}
 	for _, abiEvent := range cfg.Manifest.ABI.Events {
+		eBindingName := ToEventBindingName(abiEvent.Name)
 		eTmp := CustomEventTemplate{
-			// TODO: proper event name is better to be set right into config binding in normal form.
-			Name:         toPascalCase(abiEvent.Name),
+			Name:         eBindingName,
 			ManifestName: abiEvent.Name,
 		}
-		var varnames = make(map[string]bool)
 		for i := range abiEvent.Parameters {
-			name := abiEvent.Parameters[i].Name
-			fullPName := abiEvent.Name + "." + name
+			pBindingName := ToParameterBindingName(abiEvent.Parameters[i].Name)
+			fullPName := eBindingName + "." + pBindingName
 			typeStr, pkg := scTypeConverter(fullPName, abiEvent.Parameters[i].Type, &cfg)
 			if pkg != "" {
 				imports[pkg] = struct{}{}
 			}
-			for varnames[name] {
-				name = name + "_"
-			}
-			varnames[name] = true
 
 			var (
 				extType binding.ExtendedType
@@ -699,12 +693,12 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 			)
 			if extType, ok = cfg.Types[fullPName]; !ok {
 				extType = binding.ExtendedType{
-					Base: abiEvent.Parameters[i].Type,
+					Base: abiEvent.Parameters[i].Type, // TODO: properly handle imports for this case (see utf8 example)
 				}
 			}
 			eTmp.Parameters = append(eTmp.Parameters, EventParamTmpl{
 				ParamTmpl: binding.ParamTmpl{
-					Name: name,
+					Name: pBindingName,
 					Type: typeStr,
 				},
 				ExtType: extType,
@@ -847,6 +841,18 @@ func toTypeName(s string) string {
 
 func addIndent(str string, ind string) string {
 	return strings.ReplaceAll(str, "\n", "\n"+ind)
+}
+
+// ToEventBindingName converts event name specified in the contract manifest to
+// a valid go exported event structure name.
+func ToEventBindingName(eventName string) string {
+	return toPascalCase(eventName) + "Event"
+}
+
+// ToParameterBindingName converts parameter name specified in the contract
+// manifest to a valid go structure's exported field name.
+func ToParameterBindingName(paramName string) string {
+	return toPascalCase(paramName)
 }
 
 // toPascalCase removes all non-unicode characters from the provided string and
