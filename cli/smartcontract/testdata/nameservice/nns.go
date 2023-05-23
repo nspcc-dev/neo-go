@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"math/big"
+	"unicode/utf8"
 )
 
 // Hash contains contract hash.

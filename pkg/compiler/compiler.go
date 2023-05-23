@@ -347,8 +347,6 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 			eStructName := rpcbinding.ToEventBindingName(e.Name)
 			for _, p := range e.Parameters {
 				pStructName := rpcbinding.ToParameterBindingName(p.Name)
-				// TODO: proper imports handling during bindings generation (see utf8 example).
-				// Probably, we should always add p type to the list of types.
 				if p.ExtendedType != nil {
 					pName := eStructName + "." + pStructName
 					cfg.Types[pName] = *p.ExtendedType

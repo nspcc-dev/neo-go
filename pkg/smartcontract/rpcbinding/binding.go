@@ -693,8 +693,9 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 			)
 			if extType, ok = cfg.Types[fullPName]; !ok {
 				extType = binding.ExtendedType{
-					Base: abiEvent.Parameters[i].Type, // TODO: properly handle imports for this case (see utf8 example)
+					Base: abiEvent.Parameters[i].Type,
 				}
+				addETImports(extType, ctr.NamedTypes, imports)
 			}
 			eTmp.Parameters = append(eTmp.Parameters, EventParamTmpl{
 				ParamTmpl: binding.ParamTmpl{
