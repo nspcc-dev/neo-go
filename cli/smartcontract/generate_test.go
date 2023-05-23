@@ -324,6 +324,10 @@ func (c *ContractReader) Get() (*big.Int, error) {
 `, string(data))
 }
 
+// rewriteExpectedOutputs denotes whether expected output files should be rewritten
+// for TestGenerateRPCBindings and TestAssistedRPCBindings.
+const rewriteExpectedOutputs = false
+
 func TestGenerateRPCBindings(t *testing.T) {
 	tmpDir := t.TempDir()
 	app := cli.NewApp()
@@ -341,10 +345,14 @@ func TestGenerateRPCBindings(t *testing.T) {
 			data, err := os.ReadFile(outFile)
 			require.NoError(t, err)
 			data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
-			expected, err := os.ReadFile(good)
-			require.NoError(t, err)
-			expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
-			require.Equal(t, string(expected), string(data))
+			if rewriteExpectedOutputs {
+				require.NoError(t, os.WriteFile(good, data, os.ModePerm))
+			} else {
+				expected, err := os.ReadFile(good)
+				require.NoError(t, err)
+				expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
+				require.Equal(t, string(expected), string(data))
+			}
 		})
 	}
 
@@ -363,6 +371,8 @@ func TestGenerateRPCBindings(t *testing.T) {
 	checkBinding(filepath.Join("testdata", "nonepiter", "iter.manifest.json"),
 		"0x00112233445566778899aabbccddeeff00112233",
 		filepath.Join("testdata", "nonepiter", "iter.go"))
+
+	require.False(t, rewriteExpectedOutputs)
 }
 
 func TestAssistedRPCBindings(t *testing.T) {
@@ -393,15 +403,22 @@ func TestAssistedRPCBindings(t *testing.T) {
 			data, err := os.ReadFile(outFile)
 			require.NoError(t, err)
 			data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
-			expected, err := os.ReadFile(filepath.Join(source, "rpcbindings.out"))
-			require.NoError(t, err)
-			expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
-			require.Equal(t, string(expected), string(data))
+			expectedFile := filepath.Join(source, "rpcbindings.out")
+			if rewriteExpectedOutputs {
+				require.NoError(t, os.WriteFile(expectedFile, data, os.ModePerm))
+			} else {
+				expected, err := os.ReadFile(expectedFile)
+				require.NoError(t, err)
+				expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
+				require.Equal(t, string(expected), string(data))
+			}
 		})
 	}
 
 	checkBinding(filepath.Join("testdata", "types"))
 	checkBinding(filepath.Join("testdata", "structs"))
+
+	require.False(t, rewriteExpectedOutputs)
 }
 
 func TestGenerate_Errors(t *testing.T) {
