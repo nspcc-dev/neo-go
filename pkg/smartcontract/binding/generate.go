@@ -48,14 +48,22 @@ const Hash = "{{ .Hash }}"
 type (
 	// Config contains parameter for the generated binding.
 	Config struct {
-		Package    string                       `yaml:"package,omitempty"`
-		Manifest   *manifest.Manifest           `yaml:"-"`
-		Hash       util.Uint160                 `yaml:"hash,omitempty"`
-		Overrides  map[string]Override          `yaml:"overrides,omitempty"`
-		CallFlags  map[string]callflag.CallFlag `yaml:"callflags,omitempty"`
-		NamedTypes map[string]ExtendedType      `yaml:"namedtypes,omitempty"`
-		Types      map[string]ExtendedType      `yaml:"types,omitempty"`
-		Output     io.Writer                    `yaml:"-"`
+		Package   string                       `yaml:"package,omitempty"`
+		Manifest  *manifest.Manifest           `yaml:"-"`
+		Hash      util.Uint160                 `yaml:"hash,omitempty"`
+		Overrides map[string]Override          `yaml:"overrides,omitempty"`
+		CallFlags map[string]callflag.CallFlag `yaml:"callflags,omitempty"`
+		// NamedTypes contains exported structured types that have some name (even
+		// if the original structure doesn't) and a number of internal fields. The
+		// map key is in the form of `namespace.name`, the value is fully-qualified
+		// and possibly nested description of the type structure.
+		NamedTypes map[string]ExtendedType `yaml:"namedtypes,omitempty"`
+		// Types contains type structure description for various types used in
+		// smartcontract. The map key has one of the following forms:
+		// - `methodName` for method return value;
+		// - `mathodName.paramName` for method's parameter value.
+		Types  map[string]ExtendedType `yaml:"types,omitempty"`
+		Output io.Writer               `yaml:"-"`
 	}
 
 	ExtendedType struct {
