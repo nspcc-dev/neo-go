@@ -12,8 +12,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
 )
 
-const srcTmpl = `
-{{- define "SAFEMETHOD" -}}
+// The set of constants containing parts of RPC binding template. Each block of code
+// including template definition and var/type/method definitions contain new line at the
+// start and ends with a new line. On adding new block of code to the template, please,
+// ensure that this block has new line at the start and in the end of the block.
+const (
+	safemethodDefinition = `{{ define "SAFEMETHOD" }}
 // {{.Name}} {{.Comment}}
 func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
@@ -32,8 +36,7 @@ func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 		{{- range $arg := .Arguments -}}, {{.Name}}{{end}})
 	{{- end}}
 }
-{{- if eq .Unwrapper "SessionIterator"}}
-
+{{ if eq .Unwrapper "SessionIterator" }}
 // {{.Name}}Expanded is similar to {{.Name}} (uses the same contract
 // method), but can be useful if the server used doesn't support sessions and
 // doesn't expand iterators. It creates a script that will get the specified
@@ -42,17 +45,16 @@ func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 func (c *ContractReader) {{.Name}}Expanded({{range $index, $arg := .Arguments}}{{.Name}} {{.Type}}, {{end}}_numOfIteratorItems int) ([]stackitem.Item, error) {
 	return unwrap.Array(c.invoker.CallAndExpandIterator(Hash, "{{.NameABI}}", _numOfIteratorItems{{range $arg := .Arguments}}, {{.Name}}{{end}}))
 }
-{{- end -}}
-{{- end -}}
-{{- define "METHOD" -}}
-{{- if eq .ReturnType "bool"}}func scriptFor{{.Name}}({{range $index, $arg := .Arguments -}}
+{{ end }}{{ end }}`
+	methodDefinition = `{{ define "METHOD" }}{{ if eq .ReturnType "bool"}}
+func scriptFor{{.Name}}({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) ([]byte, error) {
 	return smartcontract.CreateCallWithAssertScript(Hash, "{{ .NameABI }}"{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}})
 }
-
-{{end}}// {{.Name}} {{.Comment}}
+{{ end }}
+// {{.Name}} {{.Comment}}
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
 func (c *Contract) {{.Name}}({{range $index, $arg := .Arguments -}}
@@ -97,8 +99,9 @@ func (c *Contract) {{.Name}}Unsigned({{range $index, $arg := .Arguments -}}
 	}
 	return c.actor.MakeUnsignedRun(script, nil){{end}}
 }
-{{- end -}}
-// Package {{.PackageName}} contains RPC wrappers for {{.ContractName}} contract.
+{{end}}`
+
+	bindingDefinition = `// Package {{.PackageName}} contains RPC wrappers for {{.ContractName}} contract.
 package {{.PackageName}}
 
 import (
@@ -107,16 +110,16 @@ import (
 
 // Hash contains contract hash.
 var Hash = {{ .Hash }}
-
-{{range $name, $typ := .NamedTypes}}
+{{ range $name, $typ := .NamedTypes }}
 // {{toTypeName $name}} is a contract-specific {{$name}} type used by its methods.
 type {{toTypeName $name}} struct {
 {{- range $m := $typ.Fields}}
 	{{.Field}} {{etTypeToStr .ExtendedType}}
 {{- end}}
 }
-{{end -}}
-{{if .HasReader}}// Invoker is used by ContractReader to call various safe methods.
+{{end}}
+{{- if .HasReader}}
+// Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 {{if or .IsNep11D .IsNep11ND}}	nep11.Invoker
 {{else -}}
@@ -129,9 +132,9 @@ type Invoker interface {
 {{end -}}
 {{end -}}
 }
-
 {{end -}}
-{{if .HasWriter}}// Actor is used by Contract to call state-changing methods.
+{{- if .HasWriter}}
+// Actor is used by Contract to call state-changing methods.
 type Actor interface {
 {{- if .HasReader}}
 	Invoker
@@ -150,9 +153,9 @@ type Actor interface {
 	SendRun(script []byte) (util.Uint256, uint32, error)
 {{end -}}
 }
-
 {{end -}}
-{{if .HasReader}}// ContractReader implements safe contract methods.
+{{- if .HasReader}}
+// ContractReader implements safe contract methods.
 type ContractReader struct {
 	{{if .IsNep11D}}nep11.DivisibleReader
 	{{end -}}
@@ -162,9 +165,9 @@ type ContractReader struct {
 	{{end -}}
 	invoker Invoker
 }
-
 {{end -}}
-{{if .HasWriter}}// Contract implements all contract methods.
+{{- if .HasWriter}}
+// Contract implements all contract methods.
 type Contract struct {
 	{{if .HasReader}}ContractReader
 	{{end -}}
@@ -176,9 +179,9 @@ type Contract struct {
 	{{end -}}
 	actor Actor
 }
-
 {{end -}}
-{{if .HasReader}}// NewReader creates an instance of ContractReader using Hash and the given Invoker.
+{{- if .HasReader}}
+// NewReader creates an instance of ContractReader using Hash and the given Invoker.
 func NewReader(invoker Invoker) *ContractReader {
 	return &ContractReader{
 		{{- if .IsNep11D}}*nep11.NewDivisibleReader(invoker, Hash), {{end}}
@@ -186,9 +189,9 @@ func NewReader(invoker Invoker) *ContractReader {
 		{{- if .IsNep17}}*nep17.NewReader(invoker, Hash), {{end -}}
 		invoker}
 }
-
 {{end -}}
-{{if .HasWriter}}// New creates an instance of Contract using Hash and the given Actor.
+{{- if .HasWriter}}
+// New creates an instance of Contract using Hash and the given Actor.
 func New(actor Actor) *Contract {
 	{{if .IsNep11D}}var nep11dt = nep11.NewDivisible(actor, Hash)
 	{{end -}}
@@ -207,15 +210,10 @@ func New(actor Actor) *Contract {
 		{{- if .IsNep17}}nep17t.TokenWriter, {{end -}}
 		actor}
 }
-
 {{end -}}
-{{range $m := .SafeMethods}}
-{{template "SAFEMETHOD" $m }}
-{{end}}
-{{- range $m := .Methods}}
-{{template "METHOD" $m }}
-{{end}}
-{{- range $name, $typ := .NamedTypes}}
+{{- range $m := .SafeMethods }}{{template "SAFEMETHOD" $m }}{{ end -}}
+{{- range $m := .Methods -}}{{template "METHOD" $m }}{{ end -}}
+{{- range $name, $typ := .NamedTypes }}
 // itemTo{{toTypeName $name}} converts stack item into *{{toTypeName $name}}.
 func itemTo{{toTypeName $name}}(item stackitem.Item, err error) (*{{toTypeName $name}}, error) {
 	if err != nil {
@@ -236,8 +234,8 @@ func (res *{{toTypeName $name}}) FromStackItem(item stackitem.Item) error {
 	if len(arr) != {{len $typ.Fields}} {
 		return errors.New("wrong number of structure elements")
 	}
-
-{{if len .Fields}}	var (
+{{if len .Fields}}
+	var (
 		index = -1
 		err error
 	)
@@ -248,10 +246,15 @@ func (res *{{toTypeName $name}}) FromStackItem(item stackitem.Item) error {
 		return fmt.Errorf("field {{.Field}}: %w", err)
 	}
 {{end}}
-{{end}}
+{{- end}}
 	return nil
 }
-{{end}}`
+{{end -}}`
+
+	srcTmpl = bindingDefinition +
+		safemethodDefinition +
+		methodDefinition
+)
 
 type (
 	ContractTmpl struct {

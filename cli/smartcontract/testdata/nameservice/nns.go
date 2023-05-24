@@ -59,7 +59,6 @@ func New(actor Actor) *Contract {
 	return &Contract{ContractReader{nep11ndt.NonDivisibleReader, actor}, nep11ndt.BaseWriter, actor}
 }
 
-
 // Roots invokes `roots` method of contract.
 func (c *ContractReader) Roots() (uuid.UUID, result.Iterator, error) {
 	return unwrap.SessionIterator(c.invoker.Call(Hash, "roots"))

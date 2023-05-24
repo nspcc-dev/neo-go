@@ -17,7 +17,6 @@ import (
 // Hash contains contract hash.
 var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x0}
 
-
 // LedgerBlock is a contract-specific ledger.Block type used by its methods.
 type LedgerBlock struct {
 	Hash util.Uint256
@@ -154,6 +153,7 @@ type StructsInternal struct {
 	Map map[*big.Int]keys.PublicKeys
 	Struct *StructsInternal
 }
+
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
@@ -168,7 +168,6 @@ type ContractReader struct {
 func NewReader(invoker Invoker) *ContractReader {
 	return &ContractReader{invoker}
 }
-
 
 // Block invokes `block` method of contract.
 func (c *ContractReader) Block(b *LedgerBlock) (*LedgerBlock, error) {
@@ -309,7 +308,6 @@ func (res *LedgerBlock) FromStackItem(item stackitem.Item) error {
 		return fmt.Errorf("field TransactionsLength: %w", err)
 	}
 
-
 	return nil
 }
 
@@ -448,7 +446,6 @@ func (res *LedgerBlockSR) FromStackItem(item stackitem.Item) error {
 		return fmt.Errorf("field PrevStateRoot: %w", err)
 	}
 
-
 	return nil
 }
 
@@ -544,7 +541,6 @@ func (res *LedgerTransaction) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return fmt.Errorf("field Script: %w", err)
 	}
-
 
 	return nil
 }
@@ -673,7 +669,6 @@ func (res *LedgerTransactionSigner) FromStackItem(item stackitem.Item) error {
 		return fmt.Errorf("field Rules: %w", err)
 	}
 
-
 	return nil
 }
 
@@ -714,7 +709,6 @@ func (res *LedgerWitnessCondition) FromStackItem(item stackitem.Item) error {
 		return fmt.Errorf("field Value: %w", err)
 	}
 
-
 	return nil
 }
 
@@ -754,7 +748,6 @@ func (res *LedgerWitnessRule) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return fmt.Errorf("field Condition: %w", err)
 	}
-
 
 	return nil
 }
@@ -821,7 +814,6 @@ func (res *ManagementABI) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return fmt.Errorf("field Events: %w", err)
 	}
-
 
 	return nil
 }
@@ -891,7 +883,6 @@ func (res *ManagementContract) FromStackItem(item stackitem.Item) error {
 		return fmt.Errorf("field Manifest: %w", err)
 	}
 
-
 	return nil
 }
 
@@ -954,7 +945,6 @@ func (res *ManagementEvent) FromStackItem(item stackitem.Item) error {
 		return fmt.Errorf("field Params: %w", err)
 	}
 
-
 	return nil
 }
 
@@ -1004,7 +994,6 @@ func (res *ManagementGroup) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return fmt.Errorf("field Signature: %w", err)
 	}
-
 
 	return nil
 }
@@ -1198,7 +1187,6 @@ func (res *ManagementManifest) FromStackItem(item stackitem.Item) error {
 		return fmt.Errorf("field Extra: %w", err)
 	}
 
-
 	return nil
 }
 
@@ -1279,7 +1267,6 @@ func (res *ManagementMethod) FromStackItem(item stackitem.Item) error {
 		return fmt.Errorf("field Safe: %w", err)
 	}
 
-
 	return nil
 }
 
@@ -1328,7 +1315,6 @@ func (res *ManagementParameter) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return fmt.Errorf("field Type: %w", err)
 	}
-
 
 	return nil
 }
@@ -1401,7 +1387,6 @@ func (res *ManagementPermission) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return fmt.Errorf("field Methods: %w", err)
 	}
-
 
 	return nil
 }
@@ -1634,7 +1619,6 @@ func (res *StructsInternal) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return fmt.Errorf("field Struct: %w", err)
 	}
-
 
 	return nil
 }

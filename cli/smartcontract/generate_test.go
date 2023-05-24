@@ -316,7 +316,6 @@ func NewReader(invoker Invoker) *ContractReader {
 	return &ContractReader{invoker}
 }
 
-
 // Get invokes `+"`get`"+` method of contract.
 func (c *ContractReader) Get() (*big.Int, error) {
 	return unwrap.BigInt(c.invoker.Call(Hash, "get"))

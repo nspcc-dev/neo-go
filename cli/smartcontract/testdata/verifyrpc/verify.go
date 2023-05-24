@@ -30,7 +30,6 @@ func New(actor Actor) *Contract {
 	return &Contract{actor}
 }
 
-
 func scriptForVerify() ([]byte, error) {
 	return smartcontract.CreateCallWithAssertScript(Hash, "verify")
 }

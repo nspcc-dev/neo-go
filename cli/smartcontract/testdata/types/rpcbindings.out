@@ -31,7 +31,6 @@ func NewReader(invoker Invoker) *ContractReader {
 	return &ContractReader{invoker}
 }
 
-
 // AAAStrings invokes `aAAStrings` method of contract.
 func (c *ContractReader) AAAStrings(s [][][]string) ([][][]string, error) {
 	return func (item stackitem.Item, err error) ([][][]string, error) {

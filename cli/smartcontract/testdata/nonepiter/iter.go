@@ -30,7 +30,6 @@ func NewReader(invoker Invoker) *ContractReader {
 	return &ContractReader{invoker}
 }
 
-
 // Tokens invokes `tokens` method of contract.
 func (c *ContractReader) Tokens() (uuid.UUID, result.Iterator, error) {
 	return unwrap.SessionIterator(c.invoker.Call(Hash, "tokens"))

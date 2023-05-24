@@ -56,7 +56,6 @@ func New(actor Actor) *Contract {
 	return &Contract{ContractReader{nep17t.TokenReader, actor}, nep17t.TokenWriter, actor}
 }
 
-
 // Cap invokes `cap` method of contract.
 func (c *ContractReader) Cap() (*big.Int, error) {
 	return unwrap.BigInt(c.invoker.Call(Hash, "cap"))
