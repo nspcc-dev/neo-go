@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+	"unicode"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
@@ -17,6 +18,15 @@ import (
 // start and ends with a new line. On adding new block of code to the template, please,
 // ensure that this block has new line at the start and in the end of the block.
 const (
+	eventDefinition = `{{ define "EVENT" }}
+// {{.Name}}Event represents "{{.ManifestName}}" event emitted by the contract.
+type {{.Name}}Event struct {
+	{{- range $index, $arg := .Parameters}}
+	{{toPascalCase .Name}} {{.Type}}
+	{{- end}}
+}
+{{ end }}`
+
 	safemethodDefinition = `{{ define "SAFEMETHOD" }}
 // {{.Name}} {{.Comment}}
 func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
@@ -118,6 +128,7 @@ type {{toTypeName $name}} struct {
 {{- end}}
 }
 {{end}}
+{{- range $e := .CustomEvents }}{{template "EVENT" $e }}{{ end -}}
 {{- if .HasReader}}
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
@@ -249,9 +260,65 @@ func (res *{{toTypeName $name}}) FromStackItem(item stackitem.Item) error {
 {{- end}}
 	return nil
 }
+{{ end -}}
+{{- range $e := .CustomEvents }}
+// {{$e.Name}}EventsFromApplicationLog retrieves a set of all emitted events
+// with "{{$e.ManifestName}}" name from the provided ApplicationLog.
+func {{$e.Name}}EventsFromApplicationLog(log *result.ApplicationLog) ([]*{{$e.Name}}Event, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+
+	var res []*{{$e.Name}}Event
+	for i, ex := range log.Executions {
+		for j, e := range ex.Events {
+			if e.Name != "{{$e.ManifestName}}" {
+				continue
+			}
+			event := new({{$e.Name}}Event)
+			err := event.FromStackItem(e.Item)
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize {{$e.Name}}Event from stackitem (execution %d, event %d): %w", i, j, err)
+			}
+			res = append(res, event)
+		}
+	}
+
+	return res, nil
+}
+
+// FromStackItem converts provided stackitem.Array to {{$e.Name}}Event and
+// returns an error if so.
+func (e *{{$e.Name}}Event) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != {{len $e.Parameters}} {
+		return errors.New("wrong number of structure elements")
+	}
+
+	{{if len $e.Parameters}}var (
+		index = -1
+		err error
+	)
+	{{- range $p := $e.Parameters}}
+	index++
+	e.{{toPascalCase .Name}}, err = {{etTypeConverter .ExtType "arr[index]"}}
+	if err != nil {
+		return fmt.Errorf("field {{toPascalCase .Name}}: %w", err)
+	}
+{{end}}
+{{- end}}
+	return nil
+}
 {{end -}}`
 
 	srcTmpl = bindingDefinition +
+		eventDefinition +
 		safemethodDefinition +
 		methodDefinition
 )
@@ -260,8 +327,9 @@ type (
 	ContractTmpl struct {
 		binding.ContractTmpl
 
-		SafeMethods []SafeMethodTmpl
-		NamedTypes  map[string]binding.ExtendedType
+		SafeMethods  []SafeMethodTmpl
+		CustomEvents []CustomEventTemplate
+		NamedTypes   map[string]binding.ExtendedType
 
 		IsNep11D  bool
 		IsNep11ND bool
@@ -277,6 +345,25 @@ type (
 		Unwrapper      string
 		ItemTo         string
 		ExtendedReturn binding.ExtendedType
+	}
+
+	CustomEventTemplate struct {
+		// Name is the event's name that will be used as the event structure name in
+		// the resulting RPC binding. It is a valid go structure name and may differ
+		// from ManifestName.
+		Name string
+		// ManifestName is the event's name declared in the contract manifest.
+		// It may contain any UTF8 character.
+		ManifestName string
+		Parameters   []EventParamTmpl
+	}
+
+	EventParamTmpl struct {
+		binding.ParamTmpl
+
+		// ExtType holds the event parameter's type information provided by Manifest,
+		// i.e. simple types only.
+		ExtType binding.ExtendedType
 	}
 )
 
@@ -328,7 +415,7 @@ func Generate(cfg binding.Config) error {
 	}
 
 	ctr.ContractTmpl = binding.TemplateFromManifest(cfg, scTypeToGo)
-	ctr = scTemplateToRPC(cfg, ctr, imports)
+	ctr = scTemplateToRPC(cfg, ctr, imports, scTypeToGo)
 	ctr.NamedTypes = cfg.NamedTypes
 
 	var srcTemplate = template.Must(template.New("generate").Funcs(template.FuncMap{
@@ -338,8 +425,9 @@ func Generate(cfg binding.Config) error {
 			r, _ := extendedTypeToGo(et, ctr.NamedTypes)
 			return r
 		},
-		"toTypeName": toTypeName,
-		"cutPointer": cutPointer,
+		"toTypeName":   toTypeName,
+		"cutPointer":   cutPointer,
+		"toPascalCase": toPascalCase,
 	}).Parse(srcTmpl))
 
 	return srcTemplate.Execute(cfg.Output, ctr)
@@ -533,7 +621,7 @@ func scTypeToGo(name string, typ smartcontract.ParamType, cfg *binding.Config) (
 	return extendedTypeToGo(et, cfg.NamedTypes)
 }
 
-func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]struct{}) ContractTmpl {
+func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]struct{}, scTypeConverter func(string, smartcontract.ParamType, *binding.Config) (string, string)) ContractTmpl {
 	for i := range ctr.Imports {
 		imports[ctr.Imports[i]] = struct{}{}
 	}
@@ -562,6 +650,51 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 		addETImports(et, ctr.NamedTypes, imports)
 	}
 	if len(cfg.NamedTypes) > 0 {
+		imports["errors"] = struct{}{}
+	}
+	for _, abiEvent := range cfg.Manifest.ABI.Events {
+		eTmp := CustomEventTemplate{
+			// TODO: proper event name is better to be set right into config binding in normal form.
+			Name:         toPascalCase(abiEvent.Name),
+			ManifestName: abiEvent.Name,
+		}
+		var varnames = make(map[string]bool)
+		for i := range abiEvent.Parameters {
+			name := abiEvent.Parameters[i].Name
+			fullPName := abiEvent.Name + "." + name
+			typeStr, pkg := scTypeConverter(fullPName, abiEvent.Parameters[i].Type, &cfg)
+			if pkg != "" {
+				imports[pkg] = struct{}{}
+			}
+			for varnames[name] {
+				name = name + "_"
+			}
+			varnames[name] = true
+
+			var (
+				extType binding.ExtendedType
+				ok      bool
+			)
+			if extType, ok = cfg.Types[fullPName]; !ok {
+				extType = binding.ExtendedType{
+					Base: abiEvent.Parameters[i].Type,
+				}
+			}
+			eTmp.Parameters = append(eTmp.Parameters, EventParamTmpl{
+				ParamTmpl: binding.ParamTmpl{
+					Name: name,
+					Type: typeStr,
+				},
+				ExtType: extType,
+			})
+		}
+		ctr.CustomEvents = append(ctr.CustomEvents, eTmp)
+	}
+
+	if len(ctr.CustomEvents) > 0 {
+		imports["github.com/nspcc-dev/neo-go/pkg/neorpc/result"] = struct{}{}
+		imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
+		imports["fmt"] = struct{}{}
 		imports["errors"] = struct{}{}
 	}
 
@@ -692,4 +825,33 @@ func toTypeName(s string) string {
 
 func addIndent(str string, ind string) string {
 	return strings.ReplaceAll(str, "\n", "\n"+ind)
+}
+
+// toPascalCase removes all non-unicode characters from the provided string and
+// converts it to pascal case using space as delimiter.
+func toPascalCase(s string) string {
+	var res string
+	ss := strings.Split(s, " ")
+	for i := range ss { // TODO: use DecodeRuneInString instead.
+		var word string
+		for _, ch := range ss[i] {
+			var ok bool
+			if len(res) == 0 && len(word) == 0 {
+				ok = unicode.IsLetter(ch)
+			} else {
+				ok = unicode.IsLetter(ch) || unicode.IsDigit(ch) || ch == '_'
+			}
+			if ok {
+				word += string(ch)
+			}
+		}
+		if len(word) > 0 {
+			res += upperFirst(word)
+		}
+	}
+	return res
+}
+
+func upperFirst(s string) string {
+	return strings.ToUpper(s[0:1]) + s[1:]
 }

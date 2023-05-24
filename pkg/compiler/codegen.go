@@ -110,7 +110,7 @@ type codegen struct {
 	docIndex map[string]int
 
 	// emittedEvents contains all events emitted by the contract.
-	emittedEvents map[string][][]string
+	emittedEvents map[string][]EmittedEventInfo
 
 	// invokedContracts contains invoked methods of other contracts.
 	invokedContracts map[util.Uint160][]string
@@ -2269,7 +2269,7 @@ func newCodegen(info *buildInfo, pkg *packages.Package) *codegen {
 		initEndOffset:   -1,
 		deployEndOffset: -1,
 
-		emittedEvents:    make(map[string][][]string),
+		emittedEvents:    make(map[string][]EmittedEventInfo),
 		invokedContracts: make(map[util.Uint160][]string),
 		sequencePoints:   make(map[string][]DebugSeqPoint),
 	}

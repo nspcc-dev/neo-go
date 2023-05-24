@@ -309,6 +309,22 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		if len(di.NamedTypes) > 0 {
 			cfg.NamedTypes = di.NamedTypes
 		}
+		if len(di.EmittedEvents) > 0 {
+			for eventName, eventUsages := range di.EmittedEvents {
+				for typeName, extType := range eventUsages[0].ExtTypes {
+					cfg.NamedTypes[typeName] = extType
+				}
+				for _, p := range eventUsages[0].Params {
+					pname := eventName + "." + p.Name
+					if p.RealType.TypeName != "" {
+						cfg.Overrides[pname] = p.RealType
+					}
+					if p.ExtendedType != nil {
+						cfg.Types[pname] = *p.ExtendedType
+					}
+				}
+			}
+		}
 		data, err := yaml.Marshal(&cfg)
 		if err != nil {
 			return nil, fmt.Errorf("can't marshal bindings configuration: %w", err)
@@ -366,24 +382,23 @@ func CreateManifest(di *DebugInfo, o *Options) (*manifest.Manifest, error) {
 	}
 	if !o.NoEventsCheck {
 		for name := range di.EmittedEvents {
-			ev := m.ABI.GetEvent(name)
-			if ev == nil {
+			expected := m.ABI.GetEvent(name)
+			if expected == nil {
 				return nil, fmt.Errorf("event '%s' is emitted but not specified in manifest", name)
 			}
-			argsList := di.EmittedEvents[name]
-			for i := range argsList {
-				if len(argsList[i]) != len(ev.Parameters) {
+			for _, emitted := range di.EmittedEvents[name] {
+				if len(emitted.Params) != len(expected.Parameters) {
 					return nil, fmt.Errorf("event '%s' should have %d parameters but has %d",
-						name, len(ev.Parameters), len(argsList[i]))
+						name, len(expected.Parameters), len(emitted.Params))
 				}
-				for j := range ev.Parameters {
-					if ev.Parameters[j].Type == smartcontract.AnyType {
+				for j := range expected.Parameters {
+					if expected.Parameters[j].Type == smartcontract.AnyType {
 						continue
 					}
-					expected := ev.Parameters[j].Type.String()
-					if argsList[i][j] != expected {
+					expectedT := expected.Parameters[j].Type
+					if emitted.Params[j].TypeSC != expectedT {
 						return nil, fmt.Errorf("event '%s' should have '%s' as type of %d parameter, "+
-							"got: %s", name, expected, j+1, argsList[i][j])
+							"got: %s", name, expectedT, j+1, emitted.Params[j].TypeSC)
 					}
 				}
 			}

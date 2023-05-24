@@ -29,9 +29,14 @@ type DebugInfo struct {
 	// NamedTypes are exported structured types that have some name (even
 	// if the original structure doesn't) and a number of internal fields.
 	NamedTypes map[string]binding.ExtendedType `json:"-"`
-	Events     []EventDebugInfo                `json:"events"`
-	// EmittedEvents contains events occurring in code.
-	EmittedEvents map[string][][]string `json:"-"`
+	// Events are the events that contract is allowed to emit and that have to
+	// be presented in the resulting contract manifest and debug info file.
+	Events []EventDebugInfo `json:"events"`
+	// EmittedEvents contains events occurring in code, i.e. events emitted
+	// via runtime.Notify(...) call in the contract code if they have constant
+	// names and doesn't have ellipsis arguments. EmittedEvents are not related
+	// to the debug info and are aimed to serve bindings generation.
+	EmittedEvents map[string][]EmittedEventInfo `json:"-"`
 	// InvokedContracts contains foreign contract invocations.
 	InvokedContracts map[util.Uint160][]string `json:"-"`
 	// StaticVariables contains a list of static variable names and types.
@@ -110,6 +115,14 @@ type DebugParam struct {
 	RealType     binding.Override        `json:"-"`
 	ExtendedType *binding.ExtendedType   `json:"-"`
 	TypeSC       smartcontract.ParamType `json:"-"`
+}
+
+// EmittedEventInfo describes information about single emitted event got from
+// the contract code. It has the map of extended types used as the parameters to
+// runtime.Notify(...) call (if any) and the parameters info itself.
+type EmittedEventInfo struct {
+	ExtTypes map[string]binding.ExtendedType
+	Params   []DebugParam
 }
 
 func (c *codegen) saveSequencePoint(n ast.Node) {

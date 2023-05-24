@@ -2,16 +2,35 @@
 package nextoken
 
 import (
+	"errors"
+	"fmt"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"math/big"
 )
 
 // Hash contains contract hash.
 var Hash = util.Uint160{0xa8, 0x1a, 0xa1, 0xf0, 0x4b, 0xf, 0xdc, 0x4a, 0xa2, 0xce, 0xd5, 0xbf, 0xc6, 0x22, 0xcf, 0xe8, 0x9, 0x7f, 0xa6, 0xa2}
+
+// TransferEvent represents "Transfer" event emitted by the contract.
+type TransferEvent struct {
+	From util.Uint160
+	To util.Uint160
+	Amount *big.Int
+}
+
+// OnMintEvent represents "OnMint" event emitted by the contract.
+type OnMintEvent struct {
+	From util.Uint160
+	To util.Uint160
+	Amount *big.Int
+	SwapId *big.Int
+}
 
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
@@ -228,4 +247,178 @@ func (c *Contract) UpdateCapTransaction(newCap *big.Int) (*transaction.Transacti
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) UpdateCapUnsigned(newCap *big.Int) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, "updateCap", nil, newCap)
+}
+
+// TransferEventsFromApplicationLog retrieves a set of all emitted events
+// with "Transfer" name from the provided ApplicationLog.
+func TransferEventsFromApplicationLog(log *result.ApplicationLog) ([]*TransferEvent, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+
+	var res []*TransferEvent
+	for i, ex := range log.Executions {
+		for j, e := range ex.Events {
+			if e.Name != "Transfer" {
+				continue
+			}
+			event := new(TransferEvent)
+			err := event.FromStackItem(e.Item)
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize TransferEvent from stackitem (execution %d, event %d): %w", i, j, err)
+			}
+			res = append(res, event)
+		}
+	}
+
+	return res, nil
+}
+
+// FromStackItem converts provided stackitem.Array to TransferEvent and
+// returns an error if so.
+func (e *TransferEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 3 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err error
+	)
+	index++
+	e.From, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field From: %w", err)
+	}
+
+	index++
+	e.To, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field To: %w", err)
+	}
+
+	index++
+	e.Amount, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field Amount: %w", err)
+	}
+
+	return nil
+}
+
+// OnMintEventsFromApplicationLog retrieves a set of all emitted events
+// with "OnMint" name from the provided ApplicationLog.
+func OnMintEventsFromApplicationLog(log *result.ApplicationLog) ([]*OnMintEvent, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+
+	var res []*OnMintEvent
+	for i, ex := range log.Executions {
+		for j, e := range ex.Events {
+			if e.Name != "OnMint" {
+				continue
+			}
+			event := new(OnMintEvent)
+			err := event.FromStackItem(e.Item)
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize OnMintEvent from stackitem (execution %d, event %d): %w", i, j, err)
+			}
+			res = append(res, event)
+		}
+	}
+
+	return res, nil
+}
+
+// FromStackItem converts provided stackitem.Array to OnMintEvent and
+// returns an error if so.
+func (e *OnMintEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 4 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err error
+	)
+	index++
+	e.From, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field From: %w", err)
+	}
+
+	index++
+	e.To, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field To: %w", err)
+	}
+
+	index++
+	e.Amount, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field Amount: %w", err)
+	}
+
+	index++
+	e.SwapId, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field SwapId: %w", err)
+	}
+
+	return nil
 }
