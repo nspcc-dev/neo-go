@@ -379,7 +379,7 @@ func TestAssistedRPCBindings(t *testing.T) {
 	app := cli.NewApp()
 	app.Commands = NewCommands()
 
-	var checkBinding = func(source string, suffix ...string) {
+	var checkBinding = func(source string, guessEventTypes bool, suffix ...string) {
 		testName := source
 		if len(suffix) != 0 {
 			testName += suffix[0]
@@ -394,13 +394,17 @@ func TestAssistedRPCBindings(t *testing.T) {
 			manifestF := filepath.Join(tmpDir, "manifest.json")
 			bindingF := filepath.Join(tmpDir, "binding.yml")
 			nefF := filepath.Join(tmpDir, "out.nef")
-			require.NoError(t, app.Run([]string{"", "contract", "compile",
+			cmd := []string{"", "contract", "compile",
 				"--in", source,
 				"--config", configFile,
 				"--manifest", manifestF,
 				"--bindings", bindingF,
 				"--out", nefF,
-			}))
+			}
+			if guessEventTypes {
+				cmd = append(cmd, "--guess-eventtypes")
+			}
+			require.NoError(t, app.Run(cmd))
 			outFile := filepath.Join(tmpDir, "out.go")
 			require.NoError(t, app.Run([]string{"", "contract", "generate-rpcwrapper",
 				"--config", bindingF,
@@ -423,10 +427,11 @@ func TestAssistedRPCBindings(t *testing.T) {
 		})
 	}
 
-	checkBinding(filepath.Join("testdata", "types"))
-	checkBinding(filepath.Join("testdata", "structs"))
-	checkBinding(filepath.Join("testdata", "notifications"))
-	checkBinding(filepath.Join("testdata", "notifications"), "_extended")
+	checkBinding(filepath.Join("testdata", "types"), false)
+	checkBinding(filepath.Join("testdata", "structs"), false)
+	checkBinding(filepath.Join("testdata", "notifications"), false)
+	checkBinding(filepath.Join("testdata", "notifications"), false, "_extended")
+	checkBinding(filepath.Join("testdata", "notifications"), true, "_guessed")
 
 	require.False(t, rewriteExpectedOutputs)
 }
