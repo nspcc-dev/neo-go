@@ -386,10 +386,12 @@ func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.Exte
 		over.TypeName = "map[" + t.Key().String() + "]" + over.TypeName
 		return smartcontract.MapType, stackitem.MapT, over, et
 	case *types.Struct:
+		var extName string
 		if isNamed {
 			over.Package = named.Obj().Pkg().Path()
 			over.TypeName = named.Obj().Pkg().Name() + "." + named.Obj().Name()
 			_ = c.genStructExtended(t, over.TypeName, exts)
+			extName = over.TypeName
 		} else {
 			name := "unnamed"
 			if exts != nil {
@@ -398,11 +400,14 @@ func (c *codegen) scAndVMTypeFromType(t types.Type, exts map[string]binding.Exte
 				}
 				_ = c.genStructExtended(t, name, exts)
 			}
+			// For bindings configurator this structure becomes named in fact. Its name
+			// is "unnamed[X...X]".
+			extName = name
 		}
 		return smartcontract.ArrayType, stackitem.StructT, over,
 			&binding.ExtendedType{ // Value-less, refer to exts.
 				Base: smartcontract.ArrayType,
-				Name: over.TypeName,
+				Name: extName,
 			}
 
 	case *types.Slice:

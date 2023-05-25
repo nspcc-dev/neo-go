@@ -95,7 +95,7 @@ type SomeMapEvent struct {
 
 // SomeStructEvent represents "SomeStruct" event emitted by the contract.
 type SomeStructEvent struct {
-	S []any
+	S *Unnamed
 }
 
 // SomeArrayEvent represents "SomeArray" event emitted by the contract.
@@ -1052,20 +1052,7 @@ func (e *SomeStructEvent) FromStackItem(item *stackitem.Array) error {
 		err error
 	)
 	index++
-	e.S, err = func (item stackitem.Item) ([]any, error) {
-		arr, ok := item.Value().([]stackitem.Item)
-		if !ok {
-			return nil, errors.New("not an array")
-		}
-		res := make([]any, len(arr))
-		for i := range res {
-			res[i], err = arr[i].Value(), error(nil)
-			if err != nil {
-				return nil, fmt.Errorf("item %d: %w", i, err)
-			}
-		}
-		return res, nil
-	} (arr[index])
+	e.S, err = itemToUnnamed(arr[index], nil)
 	if err != nil {
 		return fmt.Errorf("field S: %w", err)
 	}
