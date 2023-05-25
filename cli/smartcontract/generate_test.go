@@ -499,3 +499,52 @@ callflags:
 			"--config", cfgPath, "--out", "zzz")
 	})
 }
+
+func TestCompile_GuessEventTypes(t *testing.T) {
+	app := cli.NewApp()
+	app.Commands = NewCommands()
+	app.ExitErrHandler = func(*cli.Context, error) {}
+
+	checkError := func(t *testing.T, msg string, args ...string) {
+		// cli.ExitError doesn't implement wraping properly, so we check for an error message.
+		err := app.Run(args)
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), msg), "got: %v", err)
+	}
+	check := func(t *testing.T, source string, expectedErrText string) {
+		tmpDir := t.TempDir()
+		configFile := filepath.Join(source, "invalid.yml")
+		manifestF := filepath.Join(tmpDir, "invalid.manifest.json")
+		bindingF := filepath.Join(tmpDir, "invalid.binding.yml")
+		nefF := filepath.Join(tmpDir, "invalid.out.nef")
+		cmd := []string{"", "contract", "compile",
+			"--in", source,
+			"--config", configFile,
+			"--manifest", manifestF,
+			"--bindings", bindingF,
+			"--out", nefF,
+			"--guess-eventtypes",
+		}
+		checkError(t, expectedErrText, cmd...)
+	}
+
+	t.Run("not declared in manifest", func(t *testing.T) {
+		check(t, filepath.Join("testdata", "invalid5"), "inconsistent usages of event `Non declared event`: not declared in the contract config")
+	})
+	t.Run("invalid number of params", func(t *testing.T) {
+		check(t, filepath.Join("testdata", "invalid6"), "inconsistent usages of event `SomeEvent` against config: number of params mismatch: 2 vs 1")
+	})
+	/*
+		// TODO: this on is a controversial one. If event information is provided in the config file, then conversion code
+		// will be emitted by the compiler according to the parameter type provided via config. Thus, we can be sure that
+		// either event parameter has the type specified in the config file or the execution of the contract will fail.
+		// Thus, this testcase is always failing (no compilation error occures).
+		// Question: do we want to compare `RealType` of the emitted parameter with the one expected in the manifest?
+		t.Run("SC parameter type mismatch", func(t *testing.T) {
+			check(t, filepath.Join("testdata", "invalid7"), "inconsistent usages of event `SomeEvent` against config: number of params mismatch: 2 vs 1")
+		})
+	*/
+	t.Run("extended types mismatch", func(t *testing.T) {
+		check(t, filepath.Join("testdata", "invalid8"), "inconsistent usages of event `SomeEvent`: extended type of param #0 mismatch")
+	})
+}

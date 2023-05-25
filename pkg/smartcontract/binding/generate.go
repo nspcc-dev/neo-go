@@ -265,3 +265,34 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 func upperFirst(s string) string {
 	return strings.ToUpper(s[0:1]) + s[1:]
 }
+
+// Equals compares two extended types field-by-field and returns true if they are
+// equal.
+func (e *ExtendedType) Equals(other *ExtendedType) bool {
+	if e == nil && other == nil {
+		return true
+	}
+	if e != nil && other == nil ||
+		e == nil && other != nil {
+		return false
+	}
+	if !((e.Base == other.Base || (e.Base == smartcontract.ByteArrayType || e.Base == smartcontract.StringType) &&
+		(other.Base == smartcontract.ByteArrayType || other.Base == smartcontract.StringType)) &&
+		e.Name == other.Name &&
+		e.Interface == other.Interface &&
+		e.Key == other.Key) {
+		return false
+	}
+	if len(e.Fields) != len(other.Fields) {
+		return false
+	}
+	for i := range e.Fields {
+		if e.Fields[i].Field != other.Fields[i].Field {
+			return false
+		}
+		if !e.Fields[i].ExtendedType.Equals(&other.Fields[i].ExtendedType) {
+			return false
+		}
+	}
+	return (e.Value == nil && other.Value == nil) || (e.Value != nil && other.Value != nil && e.Value.Equals(other.Value))
+}

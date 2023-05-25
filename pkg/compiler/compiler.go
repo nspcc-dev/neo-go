@@ -356,16 +356,43 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		if o.GuessEventTypes {
 			if len(di.EmittedEvents) > 0 {
 				for eventName, eventUsages := range di.EmittedEvents {
+					var manifestEvent HybridEvent
+					for _, e := range o.ContractEvents {
+						if e.Name == eventName {
+							manifestEvent = e
+							break
+						}
+					}
+					if len(manifestEvent.Name) == 0 {
+						return nil, fmt.Errorf("inconsistent usages of event `%s`: not declared in the contract config", eventName)
+					}
+					exampleUsage := eventUsages[0]
+					for _, usage := range eventUsages {
+						if len(usage.Params) != len(manifestEvent.Parameters) {
+							return nil, fmt.Errorf("inconsistent usages of event `%s` against config: number of params mismatch: %d vs %d", eventName, len(exampleUsage.Params), len(manifestEvent.Parameters))
+						}
+						for i, actual := range usage.Params {
+							mParam := manifestEvent.Parameters[i]
+							// TODO: see the TestCompile_GuessEventTypes, "SC parameter type mismatch" section,
+							// do we want to compare with actual.RealType? The conversion code is emitted by the
+							// compiler for it, so we expect the parameter to be of the proper type.
+							if !(mParam.Type == smartcontract.AnyType || actual.TypeSC == mParam.Type) {
+								return nil, fmt.Errorf("inconsistent usages of event `%s` against config: SC type of param #%d mismatch: %s vs %s", eventName, i, actual.TypeSC, mParam.Type)
+							}
+							expected := exampleUsage.Params[i]
+							if !actual.ExtendedType.Equals(expected.ExtendedType) {
+								return nil, fmt.Errorf("inconsistent usages of event `%s`: extended type of param #%d mismatch", eventName, i)
+							}
+						}
+					}
 					eBindingName := rpcbinding.ToEventBindingName(eventName)
-					// Take into account the first usage only.
-					// TODO: extend it to the rest of invocations.
-					for typeName, extType := range eventUsages[0].ExtTypes {
+					for typeName, extType := range exampleUsage.ExtTypes {
 						if _, ok := cfg.NamedTypes[typeName]; !ok {
 							cfg.NamedTypes[typeName] = extType
 						}
 					}
 
-					for _, p := range eventUsages[0].Params {
+					for _, p := range exampleUsage.Params {
 						pBindingName := rpcbinding.ToParameterBindingName(p.Name)
 						pname := eBindingName + "." + pBindingName
 						if p.RealType.TypeName != "" {
