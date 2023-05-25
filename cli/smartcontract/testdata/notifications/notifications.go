@@ -19,3 +19,7 @@ func Struct() {
 		B bool
 	}{I: 123, B: true})
 }
+
+func Array() {
+	runtime.Notify("SomeArray", [][]int{})
+}

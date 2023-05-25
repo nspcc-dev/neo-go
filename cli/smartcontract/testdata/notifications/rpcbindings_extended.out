@@ -17,6 +17,12 @@ import (
 // Hash contains contract hash.
 var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x0}
 
+// CrazyStruct is a contract-specific crazyStruct type used by its methods.
+type CrazyStruct struct {
+	I *big.Int
+	B bool
+}
+
 // LedgerBlock is a contract-specific ledger.Block type used by its methods.
 type LedgerBlock struct {
 	Hash util.Uint256
@@ -84,17 +90,17 @@ type ComplicatedNameEvent struct {
 
 // SomeMapEvent represents "SomeMap" event emitted by the contract.
 type SomeMapEvent struct {
-	M map[any]any
+	M map[*big.Int]map[string][]util.Uint160
 }
 
 // SomeStructEvent represents "SomeStruct" event emitted by the contract.
 type SomeStructEvent struct {
-	S []any
+	S *CrazyStruct
 }
 
 // SomeArrayEvent represents "SomeArray" event emitted by the contract.
 type SomeArrayEvent struct {
-	A []any
+	A [][]*big.Int
 }
 
 // Actor is used by Contract to call state-changing methods.
@@ -203,6 +209,46 @@ func (c *Contract) StructTransaction() (*transaction.Transaction, error) {
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) StructUnsigned() (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, "struct", nil)
+}
+
+// itemToCrazyStruct converts stack item into *CrazyStruct.
+func itemToCrazyStruct(item stackitem.Item, err error) (*CrazyStruct, error) {
+	if err != nil {
+		return nil, err
+	}
+	var res = new(CrazyStruct)
+	err = res.FromStackItem(item)
+	return res, err
+}
+
+// FromStackItem retrieves fields of CrazyStruct from the given stack item
+// and returns an error if so.
+func (res *CrazyStruct) FromStackItem(item stackitem.Item) error {
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 2 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err error
+	)
+	index++
+	res.I, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field I: %w", err)
+	}
+
+	index++
+	res.B, err = arr[index].TryBool()
+	if err != nil {
+		return fmt.Errorf("field B: %w", err)
+	}
+
+	return nil
 }
 
 // itemToLedgerBlock converts stack item into *LedgerBlock.
@@ -873,18 +919,68 @@ func (e *SomeMapEvent) FromStackItem(item *stackitem.Array) error {
 		err error
 	)
 	index++
-	e.M, err = func (item stackitem.Item) (map[any]any, error) {
+	e.M, err = func (item stackitem.Item) (map[*big.Int]map[string][]util.Uint160, error) {
 		m, ok := item.Value().([]stackitem.MapElement)
 		if !ok {
 			return nil, fmt.Errorf("%s is not a map", item.Type().String())
 		}
-		res := make(map[any]any)
+		res := make(map[*big.Int]map[string][]util.Uint160)
 		for i := range m {
-			k, err := m[i].Key.Value(), error(nil)
+			k, err := m[i].Key.TryInteger()
 			if err != nil {
 				return nil, fmt.Errorf("key %d: %w", i, err)
 			}
-			v, err := m[i].Value.Value(), error(nil)
+			v, err := func (item stackitem.Item) (map[string][]util.Uint160, error) {
+				m, ok := item.Value().([]stackitem.MapElement)
+				if !ok {
+					return nil, fmt.Errorf("%s is not a map", item.Type().String())
+				}
+				res := make(map[string][]util.Uint160)
+				for i := range m {
+					k, err := func (item stackitem.Item) (string, error) {
+						b, err := item.TryBytes()
+						if err != nil {
+							return "", err
+						}
+						if !utf8.Valid(b) {
+							return "", errors.New("not a UTF-8 string")
+						}
+						return string(b), nil
+					} (m[i].Key)
+					if err != nil {
+						return nil, fmt.Errorf("key %d: %w", i, err)
+					}
+					v, err := func (item stackitem.Item) ([]util.Uint160, error) {
+						arr, ok := item.Value().([]stackitem.Item)
+						if !ok {
+							return nil, errors.New("not an array")
+						}
+						res := make([]util.Uint160, len(arr))
+						for i := range res {
+							res[i], err = func (item stackitem.Item) (util.Uint160, error) {
+								b, err := item.TryBytes()
+								if err != nil {
+									return util.Uint160{}, err
+								}
+								u, err := util.Uint160DecodeBytesBE(b)
+								if err != nil {
+									return util.Uint160{}, err
+								}
+								return u, nil
+							} (arr[i])
+							if err != nil {
+								return nil, fmt.Errorf("item %d: %w", i, err)
+							}
+						}
+						return res, nil
+					} (m[i].Value)
+					if err != nil {
+						return nil, fmt.Errorf("value %d: %w", i, err)
+					}
+					res[k] = v
+				}
+				return res, nil
+			} (m[i].Value)
 			if err != nil {
 				return nil, fmt.Errorf("value %d: %w", i, err)
 			}
@@ -943,20 +1039,7 @@ func (e *SomeStructEvent) FromStackItem(item *stackitem.Array) error {
 		err error
 	)
 	index++
-	e.S, err = func (item stackitem.Item) ([]any, error) {
-		arr, ok := item.Value().([]stackitem.Item)
-		if !ok {
-			return nil, errors.New("not an array")
-		}
-		res := make([]any, len(arr))
-		for i := range res {
-			res[i], err = arr[i].Value(), error(nil)
-			if err != nil {
-				return nil, fmt.Errorf("item %d: %w", i, err)
-			}
-		}
-		return res, nil
-	} (arr[index])
+	e.S, err = itemToCrazyStruct(arr[index], nil)
 	if err != nil {
 		return fmt.Errorf("field S: %w", err)
 	}
@@ -1008,14 +1091,27 @@ func (e *SomeArrayEvent) FromStackItem(item *stackitem.Array) error {
 		err error
 	)
 	index++
-	e.A, err = func (item stackitem.Item) ([]any, error) {
+	e.A, err = func (item stackitem.Item) ([][]*big.Int, error) {
 		arr, ok := item.Value().([]stackitem.Item)
 		if !ok {
 			return nil, errors.New("not an array")
 		}
-		res := make([]any, len(arr))
+		res := make([][]*big.Int, len(arr))
 		for i := range res {
-			res[i], err = arr[i].Value(), error(nil)
+			res[i], err = func (item stackitem.Item) ([]*big.Int, error) {
+				arr, ok := item.Value().([]stackitem.Item)
+				if !ok {
+					return nil, errors.New("not an array")
+				}
+				res := make([]*big.Int, len(arr))
+				for i := range res {
+					res[i], err = arr[i].TryInteger()
+					if err != nil {
+						return nil, fmt.Errorf("item %d: %w", i, err)
+					}
+				}
+				return res, nil
+			} (arr[i])
 			if err != nil {
 				return nil, fmt.Errorf("item %d: %w", i, err)
 			}

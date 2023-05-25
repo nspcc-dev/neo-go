@@ -13,3 +13,7 @@ events:
     parameters:
       - name: s
         type: Struct
+  - name: "SomeArray"
+    parameters:
+      - name: a
+        type: Array

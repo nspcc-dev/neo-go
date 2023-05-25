@@ -379,14 +379,24 @@ func TestAssistedRPCBindings(t *testing.T) {
 	app := cli.NewApp()
 	app.Commands = NewCommands()
 
-	var checkBinding = func(source string) {
-		t.Run(source, func(t *testing.T) {
+	var checkBinding = func(source string, suffix ...string) {
+		testName := source
+		if len(suffix) != 0 {
+			testName += suffix[0]
+		}
+		t.Run(testName, func(t *testing.T) {
+			configFile := filepath.Join(source, "config.yml")
+			expectedFile := filepath.Join(source, "rpcbindings.out")
+			if len(suffix) != 0 {
+				configFile = filepath.Join(source, "config"+suffix[0]+".yml")
+				expectedFile = filepath.Join(source, "rpcbindings"+suffix[0]+".out")
+			}
 			manifestF := filepath.Join(tmpDir, "manifest.json")
 			bindingF := filepath.Join(tmpDir, "binding.yml")
 			nefF := filepath.Join(tmpDir, "out.nef")
 			require.NoError(t, app.Run([]string{"", "contract", "compile",
 				"--in", source,
-				"--config", filepath.Join(source, "config.yml"),
+				"--config", configFile,
 				"--manifest", manifestF,
 				"--bindings", bindingF,
 				"--out", nefF,
@@ -402,7 +412,6 @@ func TestAssistedRPCBindings(t *testing.T) {
 			data, err := os.ReadFile(outFile)
 			require.NoError(t, err)
 			data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
-			expectedFile := filepath.Join(source, "rpcbindings.out")
 			if rewriteExpectedOutputs {
 				require.NoError(t, os.WriteFile(expectedFile, data, os.ModePerm))
 			} else {
@@ -417,6 +426,7 @@ func TestAssistedRPCBindings(t *testing.T) {
 	checkBinding(filepath.Join("testdata", "types"))
 	checkBinding(filepath.Join("testdata", "structs"))
 	checkBinding(filepath.Join("testdata", "notifications"))
+	checkBinding(filepath.Join("testdata", "notifications"), "_extended")
 
 	require.False(t, rewriteExpectedOutputs)
 }
