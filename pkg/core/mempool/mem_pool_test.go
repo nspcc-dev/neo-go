@@ -541,6 +541,13 @@ func TestMempoolAddRemoveConflicts(t *testing.T) {
 	_, ok := mp.TryGetValue(tx13.Hash())
 	require.Equal(t, false, ok)
 	require.ErrorIs(t, mp.Add(tx13, fs), ErrConflictsAttribute)
+
+	tx14 := getConflictsTx(smallNetFee)
+	tx15 := getConflictsTx(smallNetFee, tx14.Hash())
+	require.NoError(t, mp.Add(tx15, fs))
+	require.NoError(t, mp.Add(tx14, fs))
+	err := mp.Add(tx15, fs)
+	require.ErrorIs(t, err, ErrConflictsAttribute)
 }
 
 func TestMempoolAddWithDataGetData(t *testing.T) {
