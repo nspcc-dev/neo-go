@@ -547,4 +547,7 @@ func TestCompile_GuessEventTypes(t *testing.T) {
 	t.Run("extended types mismatch", func(t *testing.T) {
 		check(t, filepath.Join("testdata", "invalid8"), "inconsistent usages of event `SomeEvent`: extended type of param #0 mismatch")
 	})
+	t.Run("named types redeclare", func(t *testing.T) {
+		check(t, filepath.Join("testdata", "invalid9"), "configured declared named type intersects with the contract's one: `invalid9.NamedStruct`")
+	})
 }

@@ -340,7 +340,9 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 			cfg.NamedTypes = di.NamedTypes
 		}
 		for name, et := range o.DeclaredNamedTypes {
-			// TODO: handle name conflict (it can happen due to invalid user input e.g.)
+			if _, ok := cfg.NamedTypes[name]; ok {
+				return nil, fmt.Errorf("configured declared named type intersects with the contract's one: `%s`", name)
+			}
 			cfg.NamedTypes[name] = et
 		}
 		for _, e := range o.ContractEvents {
