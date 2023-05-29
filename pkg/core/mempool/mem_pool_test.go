@@ -548,6 +548,17 @@ func TestMempoolAddRemoveConflicts(t *testing.T) {
 	require.NoError(t, mp.Add(tx14, fs))
 	err := mp.Add(tx15, fs)
 	require.ErrorIs(t, err, ErrConflictsAttribute)
+
+	// tx16 is malicious and will be sent in the end.
+	capacity = 10000
+	mp = New(capacity, 0, false, nil)
+	tx16 := getConflictsTx(smallNetFee + 1)
+	for i := 0; i < mp.capacity-1; i++ {
+		require.NoError(t, mp.Add(getConflictsTx(smallNetFee, tx16.Hash()), fs))
+	}
+	require.Equal(t, capacity-1, mp.Count())
+	require.NoError(t, mp.Add(tx16, fs))
+	require.Equal(t, 1, mp.Count())
 }
 
 func TestMempoolAddWithDataGetData(t *testing.T) {
