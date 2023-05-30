@@ -267,8 +267,8 @@ func OnMintEventsFromApplicationLog(log *result.ApplicationLog) ([]*OnMintEvent,
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to OnMintEvent and
-// returns an error if so.
+// FromStackItem converts provided stackitem.Array to OnMintEvent or
+// returns an error if it's not possible to do to so.
 func (e *OnMintEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
 		return errors.New("nil item")

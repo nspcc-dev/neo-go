@@ -236,7 +236,7 @@ func itemTo{{toTypeName $name}}(item stackitem.Item, err error) (*{{toTypeName $
 }
 
 // FromStackItem retrieves fields of {{toTypeName $name}} from the given stack item
-// and returns an error if so.
+// or returns an error if it's not possible to do to so.
 func (res *{{toTypeName $name}}) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -287,8 +287,8 @@ func {{$e.Name}}sFromApplicationLog(log *result.ApplicationLog) ([]*{{$e.Name}},
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to {{$e.Name}} and
-// returns an error if so.
+// FromStackItem converts provided stackitem.Array to {{$e.Name}} or
+// returns an error if it's not possible to do to so.
 func (e *{{$e.Name}}) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
 		return errors.New("nil item")

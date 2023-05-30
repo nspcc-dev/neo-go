@@ -222,7 +222,7 @@ func itemToLedgerBlock(item stackitem.Item, err error) (*LedgerBlock, error) {
 }
 
 // FromStackItem retrieves fields of LedgerBlock from the given stack item
-// and returns an error if so.
+// or returns an error if it's not possible to do to so.
 func (res *LedgerBlock) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -344,7 +344,7 @@ func itemToLedgerBlockSR(item stackitem.Item, err error) (*LedgerBlockSR, error)
 }
 
 // FromStackItem retrieves fields of LedgerBlockSR from the given stack item
-// and returns an error if so.
+// or returns an error if it's not possible to do to so.
 func (res *LedgerBlockSR) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -482,7 +482,7 @@ func itemToLedgerTransaction(item stackitem.Item, err error) (*LedgerTransaction
 }
 
 // FromStackItem retrieves fields of LedgerTransaction from the given stack item
-// and returns an error if so.
+// or returns an error if it's not possible to do to so.
 func (res *LedgerTransaction) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -578,7 +578,7 @@ func itemToLedgerTransactionSigner(item stackitem.Item, err error) (*LedgerTrans
 }
 
 // FromStackItem retrieves fields of LedgerTransactionSigner from the given stack item
-// and returns an error if so.
+// or returns an error if it's not possible to do to so.
 func (res *LedgerTransactionSigner) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -705,7 +705,7 @@ func itemToLedgerWitnessCondition(item stackitem.Item, err error) (*LedgerWitnes
 }
 
 // FromStackItem retrieves fields of LedgerWitnessCondition from the given stack item
-// and returns an error if so.
+// or returns an error if it's not possible to do to so.
 func (res *LedgerWitnessCondition) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -745,7 +745,7 @@ func itemToLedgerWitnessRule(item stackitem.Item, err error) (*LedgerWitnessRule
 }
 
 // FromStackItem retrieves fields of LedgerWitnessRule from the given stack item
-// and returns an error if so.
+// or returns an error if it's not possible to do to so.
 func (res *LedgerWitnessRule) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -785,7 +785,7 @@ func itemToUnnamed(item stackitem.Item, err error) (*Unnamed, error) {
 }
 
 // FromStackItem retrieves fields of Unnamed from the given stack item
-// and returns an error if so.
+// or returns an error if it's not possible to do to so.
 func (res *Unnamed) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -839,8 +839,8 @@ func ComplicatedNameEventsFromApplicationLog(log *result.ApplicationLog) ([]*Com
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to ComplicatedNameEvent and
-// returns an error if so.
+// FromStackItem converts provided stackitem.Array to ComplicatedNameEvent or
+// returns an error if it's not possible to do to so.
 func (e *ComplicatedNameEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
 		return errors.New("nil item")
@@ -900,8 +900,8 @@ func SomeMapEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeMapEven
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to SomeMapEvent and
-// returns an error if so.
+// FromStackItem converts provided stackitem.Array to SomeMapEvent or
+// returns an error if it's not possible to do to so.
 func (e *SomeMapEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
 		return errors.New("nil item")
@@ -1033,8 +1033,8 @@ func SomeStructEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeStru
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to SomeStructEvent and
-// returns an error if so.
+// FromStackItem converts provided stackitem.Array to SomeStructEvent or
+// returns an error if it's not possible to do to so.
 func (e *SomeStructEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
 		return errors.New("nil item")
@@ -1085,8 +1085,8 @@ func SomeArrayEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeArray
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to SomeArrayEvent and
-// returns an error if so.
+// FromStackItem converts provided stackitem.Array to SomeArrayEvent or
+// returns an error if it's not possible to do to so.
 func (e *SomeArrayEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
 		return errors.New("nil item")

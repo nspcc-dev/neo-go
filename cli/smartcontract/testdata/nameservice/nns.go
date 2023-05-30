@@ -363,8 +363,8 @@ func SetAdminEventsFromApplicationLog(log *result.ApplicationLog) ([]*SetAdminEv
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to SetAdminEvent and
-// returns an error if so.
+// FromStackItem converts provided stackitem.Array to SetAdminEvent or
+// returns an error if it's not possible to do to so.
 func (e *SetAdminEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
 		return errors.New("nil item")
@@ -456,8 +456,8 @@ func RenewEventsFromApplicationLog(log *result.ApplicationLog) ([]*RenewEvent, e
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to RenewEvent and
-// returns an error if so.
+// FromStackItem converts provided stackitem.Array to RenewEvent or
+// returns an error if it's not possible to do to so.
 func (e *RenewEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
 		return errors.New("nil item")
