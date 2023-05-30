@@ -354,7 +354,7 @@ func SetAdminEventsFromApplicationLog(log *result.ApplicationLog) ([]*SetAdminEv
 			event := new(SetAdminEvent)
 			err := event.FromStackItem(e.Item)
 			if err != nil {
-				return nil, fmt.Errorf("failed to deserialize SetAdminEvent from stackitem (execution %d, event %d): %w", i, j, err)
+				return nil, fmt.Errorf("failed to deserialize SetAdminEvent from stackitem (execution #%d, event #%d): %w", i, j, err)
 			}
 			res = append(res, event)
 		}
@@ -447,7 +447,7 @@ func RenewEventsFromApplicationLog(log *result.ApplicationLog) ([]*RenewEvent, e
 			event := new(RenewEvent)
 			err := event.FromStackItem(e.Item)
 			if err != nil {
-				return nil, fmt.Errorf("failed to deserialize RenewEvent from stackitem (execution %d, event %d): %w", i, j, err)
+				return nil, fmt.Errorf("failed to deserialize RenewEvent from stackitem (execution #%d, event #%d): %w", i, j, err)
 			}
 			res = append(res, event)
 		}

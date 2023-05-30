@@ -93,7 +93,7 @@ func HelloWorldEventsFromApplicationLog(log *result.ApplicationLog) ([]*HelloWor
 			event := new(HelloWorldEvent)
 			err := event.FromStackItem(e.Item)
 			if err != nil {
-				return nil, fmt.Errorf("failed to deserialize HelloWorldEvent from stackitem (execution %d, event %d): %w", i, j, err)
+				return nil, fmt.Errorf("failed to deserialize HelloWorldEvent from stackitem (execution #%d, event #%d): %w", i, j, err)
 			}
 			res = append(res, event)
 		}

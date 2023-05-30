@@ -278,7 +278,7 @@ func {{$e.Name}}sFromApplicationLog(log *result.ApplicationLog) ([]*{{$e.Name}},
 			event := new({{$e.Name}})
 			err := event.FromStackItem(e.Item)
 			if err != nil {
-				return nil, fmt.Errorf("failed to deserialize {{$e.Name}} from stackitem (execution %d, event %d): %w", i, j, err)
+				return nil, fmt.Errorf("failed to deserialize {{$e.Name}} from stackitem (execution #%d, event #%d): %w", i, j, err)
 			}
 			res = append(res, event)
 		}

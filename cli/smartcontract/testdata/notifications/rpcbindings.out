@@ -784,7 +784,7 @@ func ComplicatedNameEventsFromApplicationLog(log *result.ApplicationLog) ([]*Com
 			event := new(ComplicatedNameEvent)
 			err := event.FromStackItem(e.Item)
 			if err != nil {
-				return nil, fmt.Errorf("failed to deserialize ComplicatedNameEvent from stackitem (execution %d, event %d): %w", i, j, err)
+				return nil, fmt.Errorf("failed to deserialize ComplicatedNameEvent from stackitem (execution #%d, event #%d): %w", i, j, err)
 			}
 			res = append(res, event)
 		}
@@ -845,7 +845,7 @@ func SomeMapEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeMapEven
 			event := new(SomeMapEvent)
 			err := event.FromStackItem(e.Item)
 			if err != nil {
-				return nil, fmt.Errorf("failed to deserialize SomeMapEvent from stackitem (execution %d, event %d): %w", i, j, err)
+				return nil, fmt.Errorf("failed to deserialize SomeMapEvent from stackitem (execution #%d, event #%d): %w", i, j, err)
 			}
 			res = append(res, event)
 		}
@@ -915,7 +915,7 @@ func SomeStructEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeStru
 			event := new(SomeStructEvent)
 			err := event.FromStackItem(e.Item)
 			if err != nil {
-				return nil, fmt.Errorf("failed to deserialize SomeStructEvent from stackitem (execution %d, event %d): %w", i, j, err)
+				return nil, fmt.Errorf("failed to deserialize SomeStructEvent from stackitem (execution #%d, event #%d): %w", i, j, err)
 			}
 			res = append(res, event)
 		}
@@ -980,7 +980,7 @@ func SomeArrayEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeArray
 			event := new(SomeArrayEvent)
 			err := event.FromStackItem(e.Item)
 			if err != nil {
-				return nil, fmt.Errorf("failed to deserialize SomeArrayEvent from stackitem (execution %d, event %d): %w", i, j, err)
+				return nil, fmt.Errorf("failed to deserialize SomeArrayEvent from stackitem (execution #%d, event #%d): %w", i, j, err)
 			}
 			res = append(res, event)
 		}
