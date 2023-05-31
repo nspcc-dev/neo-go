@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+	"unicode"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
@@ -12,8 +13,21 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
 )
 
-const srcTmpl = `
-{{- define "SAFEMETHOD" -}}
+// The set of constants containing parts of RPC binding template. Each block of code
+// including template definition and var/type/method definitions contain new line at the
+// start and ends with a new line. On adding new block of code to the template, please,
+// ensure that this block has new line at the start and in the end of the block.
+const (
+	eventDefinition = `{{ define "EVENT" }}
+// {{.Name}} represents "{{.ManifestName}}" event emitted by the contract.
+type {{.Name}} struct {
+	{{- range $index, $arg := .Parameters}}
+	{{.Name}} {{.Type}}
+	{{- end}}
+}
+{{ end }}`
+
+	safemethodDefinition = `{{ define "SAFEMETHOD" }}
 // {{.Name}} {{.Comment}}
 func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
@@ -32,8 +46,7 @@ func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 		{{- range $arg := .Arguments -}}, {{.Name}}{{end}})
 	{{- end}}
 }
-{{- if eq .Unwrapper "SessionIterator"}}
-
+{{ if eq .Unwrapper "SessionIterator" }}
 // {{.Name}}Expanded is similar to {{.Name}} (uses the same contract
 // method), but can be useful if the server used doesn't support sessions and
 // doesn't expand iterators. It creates a script that will get the specified
@@ -42,17 +55,16 @@ func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 func (c *ContractReader) {{.Name}}Expanded({{range $index, $arg := .Arguments}}{{.Name}} {{.Type}}, {{end}}_numOfIteratorItems int) ([]stackitem.Item, error) {
 	return unwrap.Array(c.invoker.CallAndExpandIterator(Hash, "{{.NameABI}}", _numOfIteratorItems{{range $arg := .Arguments}}, {{.Name}}{{end}}))
 }
-{{- end -}}
-{{- end -}}
-{{- define "METHOD" -}}
-{{- if eq .ReturnType "bool"}}func scriptFor{{.Name}}({{range $index, $arg := .Arguments -}}
+{{ end }}{{ end }}`
+	methodDefinition = `{{ define "METHOD" }}{{ if eq .ReturnType "bool"}}
+func scriptFor{{.Name}}({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) ([]byte, error) {
 	return smartcontract.CreateCallWithAssertScript(Hash, "{{ .NameABI }}"{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}})
 }
-
-{{end}}// {{.Name}} {{.Comment}}
+{{ end }}
+// {{.Name}} {{.Comment}}
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
 func (c *Contract) {{.Name}}({{range $index, $arg := .Arguments -}}
@@ -97,8 +109,9 @@ func (c *Contract) {{.Name}}Unsigned({{range $index, $arg := .Arguments -}}
 	}
 	return c.actor.MakeUnsignedRun(script, nil){{end}}
 }
-{{- end -}}
-// Package {{.PackageName}} contains RPC wrappers for {{.ContractName}} contract.
+{{end}}`
+
+	bindingDefinition = `// Package {{.PackageName}} contains RPC wrappers for {{.ContractName}} contract.
 package {{.PackageName}}
 
 import (
@@ -107,16 +120,17 @@ import (
 
 // Hash contains contract hash.
 var Hash = {{ .Hash }}
-
-{{range $name, $typ := .NamedTypes}}
+{{ range $name, $typ := .NamedTypes }}
 // {{toTypeName $name}} is a contract-specific {{$name}} type used by its methods.
 type {{toTypeName $name}} struct {
 {{- range $m := $typ.Fields}}
 	{{.Field}} {{etTypeToStr .ExtendedType}}
 {{- end}}
 }
-{{end -}}
-{{if .HasReader}}// Invoker is used by ContractReader to call various safe methods.
+{{end}}
+{{- range $e := .CustomEvents }}{{template "EVENT" $e }}{{ end -}}
+{{- if .HasReader}}
+// Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 {{if or .IsNep11D .IsNep11ND}}	nep11.Invoker
 {{else -}}
@@ -129,9 +143,9 @@ type Invoker interface {
 {{end -}}
 {{end -}}
 }
-
 {{end -}}
-{{if .HasWriter}}// Actor is used by Contract to call state-changing methods.
+{{- if .HasWriter}}
+// Actor is used by Contract to call state-changing methods.
 type Actor interface {
 {{- if .HasReader}}
 	Invoker
@@ -150,9 +164,9 @@ type Actor interface {
 	SendRun(script []byte) (util.Uint256, uint32, error)
 {{end -}}
 }
-
 {{end -}}
-{{if .HasReader}}// ContractReader implements safe contract methods.
+{{- if .HasReader}}
+// ContractReader implements safe contract methods.
 type ContractReader struct {
 	{{if .IsNep11D}}nep11.DivisibleReader
 	{{end -}}
@@ -162,9 +176,9 @@ type ContractReader struct {
 	{{end -}}
 	invoker Invoker
 }
-
 {{end -}}
-{{if .HasWriter}}// Contract implements all contract methods.
+{{- if .HasWriter}}
+// Contract implements all contract methods.
 type Contract struct {
 	{{if .HasReader}}ContractReader
 	{{end -}}
@@ -176,9 +190,9 @@ type Contract struct {
 	{{end -}}
 	actor Actor
 }
-
 {{end -}}
-{{if .HasReader}}// NewReader creates an instance of ContractReader using Hash and the given Invoker.
+{{- if .HasReader}}
+// NewReader creates an instance of ContractReader using Hash and the given Invoker.
 func NewReader(invoker Invoker) *ContractReader {
 	return &ContractReader{
 		{{- if .IsNep11D}}*nep11.NewDivisibleReader(invoker, Hash), {{end}}
@@ -186,9 +200,9 @@ func NewReader(invoker Invoker) *ContractReader {
 		{{- if .IsNep17}}*nep17.NewReader(invoker, Hash), {{end -}}
 		invoker}
 }
-
 {{end -}}
-{{if .HasWriter}}// New creates an instance of Contract using Hash and the given Actor.
+{{- if .HasWriter}}
+// New creates an instance of Contract using Hash and the given Actor.
 func New(actor Actor) *Contract {
 	{{if .IsNep11D}}var nep11dt = nep11.NewDivisible(actor, Hash)
 	{{end -}}
@@ -207,48 +221,115 @@ func New(actor Actor) *Contract {
 		{{- if .IsNep17}}nep17t.TokenWriter, {{end -}}
 		actor}
 }
-
 {{end -}}
-{{range $m := .SafeMethods}}
-{{template "SAFEMETHOD" $m }}
-{{end}}
-{{- range $m := .Methods}}
-{{template "METHOD" $m }}
-{{end}}
-{{- range $name, $typ := .NamedTypes}}
+{{- range $m := .SafeMethods }}{{template "SAFEMETHOD" $m }}{{ end -}}
+{{- range $m := .Methods -}}{{template "METHOD" $m }}{{ end -}}
+{{- range $name, $typ := .NamedTypes }}
 // itemTo{{toTypeName $name}} converts stack item into *{{toTypeName $name}}.
 func itemTo{{toTypeName $name}}(item stackitem.Item, err error) (*{{toTypeName $name}}, error) {
 	if err != nil {
 		return nil, err
 	}
+	var res = new({{toTypeName $name}})
+	err = res.FromStackItem(item)
+	return res, err
+}
+
+// FromStackItem retrieves fields of {{toTypeName $name}} from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
+func (res *{{toTypeName $name}}) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
-		return nil, errors.New("not an array")
+		return errors.New("not an array")
 	}
 	if len(arr) != {{len $typ.Fields}} {
-		return nil, errors.New("wrong number of structure elements")
+		return errors.New("wrong number of structure elements")
 	}
-
-	var res = new({{toTypeName $name}})
-{{if len .Fields}}	var index = -1
+{{if len .Fields}}
+	var (
+		index = -1
+		err error
+	)
 {{- range $m := $typ.Fields}}
 	index++
 	res.{{.Field}}, err = {{etTypeConverter .ExtendedType "arr[index]"}}
 	if err != nil {
-		return nil, fmt.Errorf("field {{.Field}}: %w", err)
+		return fmt.Errorf("field {{.Field}}: %w", err)
 	}
 {{end}}
-{{end}}
-	return res, err
+{{- end}}
+	return nil
 }
-{{end}}`
+{{ end -}}
+{{- range $e := .CustomEvents }}
+// {{$e.Name}}sFromApplicationLog retrieves a set of all emitted events
+// with "{{$e.ManifestName}}" name from the provided [result.ApplicationLog].
+func {{$e.Name}}sFromApplicationLog(log *result.ApplicationLog) ([]*{{$e.Name}}, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+
+	var res []*{{$e.Name}}
+	for i, ex := range log.Executions {
+		for j, e := range ex.Events {
+			if e.Name != "{{$e.ManifestName}}" {
+				continue
+			}
+			event := new({{$e.Name}})
+			err := event.FromStackItem(e.Item)
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize {{$e.Name}} from stackitem (execution #%d, event #%d): %w", i, j, err)
+			}
+			res = append(res, event)
+		}
+	}
+
+	return res, nil
+}
+
+// FromStackItem converts provided [stackitem.Array] to {{$e.Name}} or
+// returns an error if it's not possible to do to so.
+func (e *{{$e.Name}}) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != {{len $e.Parameters}} {
+		return errors.New("wrong number of structure elements")
+	}
+
+	{{if len $e.Parameters}}var (
+		index = -1
+		err error
+	)
+	{{- range $p := $e.Parameters}}
+	index++
+	e.{{.Name}}, err = {{etTypeConverter .ExtType "arr[index]"}}
+	if err != nil {
+		return fmt.Errorf("field {{.Name}}: %w", err)
+	}
+{{end}}
+{{- end}}
+	return nil
+}
+{{end -}}`
+
+	srcTmpl = bindingDefinition +
+		eventDefinition +
+		safemethodDefinition +
+		methodDefinition
+)
 
 type (
 	ContractTmpl struct {
 		binding.ContractTmpl
 
-		SafeMethods []SafeMethodTmpl
-		NamedTypes  map[string]binding.ExtendedType
+		SafeMethods  []SafeMethodTmpl
+		CustomEvents []CustomEventTemplate
+		NamedTypes   map[string]binding.ExtendedType
 
 		IsNep11D  bool
 		IsNep11ND bool
@@ -264,6 +345,25 @@ type (
 		Unwrapper      string
 		ItemTo         string
 		ExtendedReturn binding.ExtendedType
+	}
+
+	CustomEventTemplate struct {
+		// Name is the event's name that will be used as the event structure name in
+		// the resulting RPC binding. It is a valid go structure name and may differ
+		// from ManifestName.
+		Name string
+		// ManifestName is the event's name declared in the contract manifest.
+		// It may contain any UTF8 character.
+		ManifestName string
+		Parameters   []EventParamTmpl
+	}
+
+	EventParamTmpl struct {
+		binding.ParamTmpl
+
+		// ExtType holds the event parameter's type information provided by Manifest,
+		// i.e. simple types only.
+		ExtType binding.ExtendedType
 	}
 )
 
@@ -296,12 +396,14 @@ func Generate(cfg binding.Config) error {
 				mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11NonDivisible)
 				ctr.IsNep11ND = true
 			}
+			mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep11Base)
 			break // Can't be NEP-17 at the same time.
 		}
 		if std == manifest.NEP17StandardName && standard.ComplyABI(cfg.Manifest, standard.Nep17) == nil {
 			mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep17)
 			imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"] = struct{}{}
 			ctr.IsNep17 = true
+			mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep17)
 			break // Can't be NEP-11 at the same time.
 		}
 	}
@@ -315,7 +417,7 @@ func Generate(cfg binding.Config) error {
 	}
 
 	ctr.ContractTmpl = binding.TemplateFromManifest(cfg, scTypeToGo)
-	ctr = scTemplateToRPC(cfg, ctr, imports)
+	ctr = scTemplateToRPC(cfg, ctr, imports, scTypeToGo)
 	ctr.NamedTypes = cfg.NamedTypes
 
 	var srcTemplate = template.Must(template.New("generate").Funcs(template.FuncMap{
@@ -344,6 +446,18 @@ func dropManifestMethods(meths []manifest.Method, manifested []manifest.Method) 
 	return meths
 }
 
+func dropManifestEvents(events []manifest.Event, manifested []manifest.Event) []manifest.Event {
+	for _, e := range manifested {
+		for i := 0; i < len(events); i++ {
+			if events[i].Name == e.Name && len(events[i].Parameters) == len(e.Parameters) {
+				events = append(events[:i], events[i+1:]...)
+				i--
+			}
+		}
+	}
+	return events
+}
+
 func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.Method {
 	meths = dropManifestMethods(meths, std.Manifest.ABI.Methods)
 	if std.Optional != nil {
@@ -353,6 +467,14 @@ func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.
 		return dropStdMethods(meths, std.Base)
 	}
 	return meths
+}
+
+func dropStdEvents(events []manifest.Event, std *standard.Standard) []manifest.Event {
+	events = dropManifestEvents(events, std.Manifest.ABI.Events)
+	if std.Base != nil {
+		return dropStdEvents(events, std.Base)
+	}
+	return events
 }
 
 func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.ExtendedType) (string, string) {
@@ -389,7 +511,12 @@ func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.Extended
 
 	case smartcontract.MapType:
 		kt, _ := extendedTypeToGo(binding.ExtendedType{Base: et.Key}, named)
-		vt, _ := extendedTypeToGo(*et.Value, named)
+		var vt string
+		if et.Value != nil {
+			vt, _ = extendedTypeToGo(*et.Value, named)
+		} else {
+			vt = "any"
+		}
 		return "map[" + kt + "]" + vt, "github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	case smartcontract.InteropInterfaceType:
 		return "any", ""
@@ -402,7 +529,7 @@ func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.Extended
 func etTypeConverter(et binding.ExtendedType, v string) string {
 	switch et.Base {
 	case smartcontract.AnyType:
-		return v + ".Value(), nil"
+		return v + ".Value(), error(nil)"
 	case smartcontract.BoolType:
 		return v + ".TryBool()"
 	case smartcontract.IntegerType:
@@ -484,8 +611,9 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		}, v)
 
 	case smartcontract.MapType:
-		at, _ := extendedTypeToGo(et, nil)
-		return `func (item stackitem.Item) (` + at + `, error) {
+		if et.Value != nil {
+			at, _ := extendedTypeToGo(et, nil)
+			return `func (item stackitem.Item) (` + at + `, error) {
 		m, ok := item.Value().([]stackitem.MapElement)
 		if !ok {
 			return nil, fmt.Errorf("%s is not a map", item.Type().String())
@@ -504,6 +632,14 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		}
 		return res, nil
 	} (` + v + `)`
+		}
+		return etTypeConverter(binding.ExtendedType{
+			Base: smartcontract.MapType,
+			Key:  et.Key,
+			Value: &binding.ExtendedType{
+				Base: smartcontract.AnyType,
+			},
+		}, v)
 	case smartcontract.InteropInterfaceType:
 		return "item.Value(), nil"
 	case smartcontract.VoidType:
@@ -520,7 +656,7 @@ func scTypeToGo(name string, typ smartcontract.ParamType, cfg *binding.Config) (
 	return extendedTypeToGo(et, cfg.NamedTypes)
 }
 
-func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]struct{}) ContractTmpl {
+func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]struct{}, scTypeConverter func(string, smartcontract.ParamType, *binding.Config) (string, string)) ContractTmpl {
 	for i := range ctr.Imports {
 		imports[ctr.Imports[i]] = struct{}{}
 	}
@@ -549,6 +685,47 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 		addETImports(et, ctr.NamedTypes, imports)
 	}
 	if len(cfg.NamedTypes) > 0 {
+		imports["errors"] = struct{}{}
+	}
+	for _, abiEvent := range cfg.Manifest.ABI.Events {
+		eBindingName := ToEventBindingName(abiEvent.Name)
+		eTmp := CustomEventTemplate{
+			Name:         eBindingName,
+			ManifestName: abiEvent.Name,
+		}
+		for i := range abiEvent.Parameters {
+			pBindingName := ToParameterBindingName(abiEvent.Parameters[i].Name)
+			fullPName := eBindingName + "." + pBindingName
+			typeStr, pkg := scTypeConverter(fullPName, abiEvent.Parameters[i].Type, &cfg)
+			if pkg != "" {
+				imports[pkg] = struct{}{}
+			}
+
+			var (
+				extType binding.ExtendedType
+				ok      bool
+			)
+			if extType, ok = cfg.Types[fullPName]; !ok {
+				extType = binding.ExtendedType{
+					Base: abiEvent.Parameters[i].Type,
+				}
+				addETImports(extType, ctr.NamedTypes, imports)
+			}
+			eTmp.Parameters = append(eTmp.Parameters, EventParamTmpl{
+				ParamTmpl: binding.ParamTmpl{
+					Name: pBindingName,
+					Type: typeStr,
+				},
+				ExtType: extType,
+			})
+		}
+		ctr.CustomEvents = append(ctr.CustomEvents, eTmp)
+	}
+
+	if len(ctr.CustomEvents) > 0 {
+		imports["github.com/nspcc-dev/neo-go/pkg/neorpc/result"] = struct{}{}
+		imports["github.com/nspcc-dev/neo-go/pkg/vm/stackitem"] = struct{}{}
+		imports["fmt"] = struct{}{}
 		imports["errors"] = struct{}{}
 	}
 
@@ -679,4 +856,45 @@ func toTypeName(s string) string {
 
 func addIndent(str string, ind string) string {
 	return strings.ReplaceAll(str, "\n", "\n"+ind)
+}
+
+// ToEventBindingName converts event name specified in the contract manifest to
+// a valid go exported event structure name.
+func ToEventBindingName(eventName string) string {
+	return toPascalCase(eventName) + "Event"
+}
+
+// ToParameterBindingName converts parameter name specified in the contract
+// manifest to a valid go structure's exported field name.
+func ToParameterBindingName(paramName string) string {
+	return toPascalCase(paramName)
+}
+
+// toPascalCase removes all non-unicode characters from the provided string and
+// converts it to pascal case using space as delimiter.
+func toPascalCase(s string) string {
+	var res string
+	ss := strings.Split(s, " ")
+	for i := range ss { // TODO: use DecodeRuneInString instead.
+		var word string
+		for _, ch := range ss[i] {
+			var ok bool
+			if len(res) == 0 && len(word) == 0 {
+				ok = unicode.IsLetter(ch)
+			} else {
+				ok = unicode.IsLetter(ch) || unicode.IsDigit(ch) || ch == '_'
+			}
+			if ok {
+				word += string(ch)
+			}
+		}
+		if len(word) > 0 {
+			res += upperFirst(word)
+		}
+	}
+	return res
+}
+
+func upperFirst(s string) string {
+	return strings.ToUpper(s[0:1]) + s[1:]
 }

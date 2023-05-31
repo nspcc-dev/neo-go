@@ -1,0 +1,6 @@
+name: Test undeclared event
+events:
+  - name: SomeEvent
+    parameters:
+      - name: p1
+        type: String

@@ -48,14 +48,23 @@ const Hash = "{{ .Hash }}"
 type (
 	// Config contains parameter for the generated binding.
 	Config struct {
-		Package    string                       `yaml:"package,omitempty"`
-		Manifest   *manifest.Manifest           `yaml:"-"`
-		Hash       util.Uint160                 `yaml:"hash,omitempty"`
-		Overrides  map[string]Override          `yaml:"overrides,omitempty"`
-		CallFlags  map[string]callflag.CallFlag `yaml:"callflags,omitempty"`
-		NamedTypes map[string]ExtendedType      `yaml:"namedtypes,omitempty"`
-		Types      map[string]ExtendedType      `yaml:"types,omitempty"`
-		Output     io.Writer                    `yaml:"-"`
+		Package   string                       `yaml:"package,omitempty"`
+		Manifest  *manifest.Manifest           `yaml:"-"`
+		Hash      util.Uint160                 `yaml:"hash,omitempty"`
+		Overrides map[string]Override          `yaml:"overrides,omitempty"`
+		CallFlags map[string]callflag.CallFlag `yaml:"callflags,omitempty"`
+		// NamedTypes contains exported structured types that have some name (even
+		// if the original structure doesn't) and a number of internal fields. The
+		// map key is in the form of `namespace.name`, the value is fully-qualified
+		// and possibly nested description of the type structure.
+		NamedTypes map[string]ExtendedType `yaml:"namedtypes,omitempty"`
+		// Types contains type structure description for various types used in
+		// smartcontract. The map key has one of the following forms:
+		// - `methodName` for method return value;
+		// - `mathodName.paramName` for method's parameter value.
+		// - `eventName.paramName` for event's parameter value.
+		Types  map[string]ExtendedType `yaml:"types,omitempty"`
+		Output io.Writer               `yaml:"-"`
 	}
 
 	ExtendedType struct {
@@ -63,7 +72,7 @@ type (
 		Name      string                  `yaml:"name,omitempty"`      // Structure name, omitted for arrays, interfaces and maps.
 		Interface string                  `yaml:"interface,omitempty"` // Interface type name, "iterator" only for now.
 		Key       smartcontract.ParamType `yaml:"key,omitempty"`       // Key type (only simple types can be used for keys) for maps.
-		Value     *ExtendedType           `yaml:"value,omitempty"`     // Value type for iterators and arrays.
+		Value     *ExtendedType           `yaml:"value,omitempty"`     // Value type for iterators, arrays and maps.
 		Fields    []FieldExtendedType     `yaml:"fields,omitempty"`    // Ordered type data for structure fields.
 	}
 
@@ -255,4 +264,35 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 
 func upperFirst(s string) string {
 	return strings.ToUpper(s[0:1]) + s[1:]
+}
+
+// Equals compares two extended types field-by-field and returns true if they are
+// equal.
+func (e *ExtendedType) Equals(other *ExtendedType) bool {
+	if e == nil && other == nil {
+		return true
+	}
+	if e != nil && other == nil ||
+		e == nil && other != nil {
+		return false
+	}
+	if !((e.Base == other.Base || (e.Base == smartcontract.ByteArrayType || e.Base == smartcontract.StringType) &&
+		(other.Base == smartcontract.ByteArrayType || other.Base == smartcontract.StringType)) &&
+		e.Name == other.Name &&
+		e.Interface == other.Interface &&
+		e.Key == other.Key) {
+		return false
+	}
+	if len(e.Fields) != len(other.Fields) {
+		return false
+	}
+	for i := range e.Fields {
+		if e.Fields[i].Field != other.Fields[i].Field {
+			return false
+		}
+		if !e.Fields[i].ExtendedType.Equals(&other.Fields[i].ExtendedType) {
+			return false
+		}
+	}
+	return (e.Value == nil && other.Value == nil) || (e.Value != nil && other.Value != nil && e.Value.Equals(other.Value))
 }

@@ -316,13 +316,16 @@ func NewReader(invoker Invoker) *ContractReader {
 	return &ContractReader{invoker}
 }
 
-
 // Get invokes `+"`get`"+` method of contract.
 func (c *ContractReader) Get() (*big.Int, error) {
 	return unwrap.BigInt(c.invoker.Call(Hash, "get"))
 }
 `, string(data))
 }
+
+// rewriteExpectedOutputs denotes whether expected output files should be rewritten
+// for TestGenerateRPCBindings and TestAssistedRPCBindings.
+const rewriteExpectedOutputs = false
 
 func TestGenerateRPCBindings(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -341,10 +344,14 @@ func TestGenerateRPCBindings(t *testing.T) {
 			data, err := os.ReadFile(outFile)
 			require.NoError(t, err)
 			data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
-			expected, err := os.ReadFile(good)
-			require.NoError(t, err)
-			expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
-			require.Equal(t, string(expected), string(data))
+			if rewriteExpectedOutputs {
+				require.NoError(t, os.WriteFile(good, data, os.ModePerm))
+			} else {
+				expected, err := os.ReadFile(good)
+				require.NoError(t, err)
+				expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
+				require.Equal(t, string(expected), string(data))
+			}
 		})
 	}
 
@@ -363,6 +370,8 @@ func TestGenerateRPCBindings(t *testing.T) {
 	checkBinding(filepath.Join("testdata", "nonepiter", "iter.manifest.json"),
 		"0x00112233445566778899aabbccddeeff00112233",
 		filepath.Join("testdata", "nonepiter", "iter.go"))
+
+	require.False(t, rewriteExpectedOutputs)
 }
 
 func TestAssistedRPCBindings(t *testing.T) {
@@ -370,18 +379,32 @@ func TestAssistedRPCBindings(t *testing.T) {
 	app := cli.NewApp()
 	app.Commands = NewCommands()
 
-	var checkBinding = func(source string) {
-		t.Run(source, func(t *testing.T) {
+	var checkBinding = func(source string, guessEventTypes bool, suffix ...string) {
+		testName := source
+		if len(suffix) != 0 {
+			testName += suffix[0]
+		}
+		t.Run(testName, func(t *testing.T) {
+			configFile := filepath.Join(source, "config.yml")
+			expectedFile := filepath.Join(source, "rpcbindings.out")
+			if len(suffix) != 0 {
+				configFile = filepath.Join(source, "config"+suffix[0]+".yml")
+				expectedFile = filepath.Join(source, "rpcbindings"+suffix[0]+".out")
+			}
 			manifestF := filepath.Join(tmpDir, "manifest.json")
 			bindingF := filepath.Join(tmpDir, "binding.yml")
 			nefF := filepath.Join(tmpDir, "out.nef")
-			require.NoError(t, app.Run([]string{"", "contract", "compile",
+			cmd := []string{"", "contract", "compile",
 				"--in", source,
-				"--config", filepath.Join(source, "config.yml"),
+				"--config", configFile,
 				"--manifest", manifestF,
 				"--bindings", bindingF,
 				"--out", nefF,
-			}))
+			}
+			if guessEventTypes {
+				cmd = append(cmd, "--guess-eventtypes")
+			}
+			require.NoError(t, app.Run(cmd))
 			outFile := filepath.Join(tmpDir, "out.go")
 			require.NoError(t, app.Run([]string{"", "contract", "generate-rpcwrapper",
 				"--config", bindingF,
@@ -393,15 +416,24 @@ func TestAssistedRPCBindings(t *testing.T) {
 			data, err := os.ReadFile(outFile)
 			require.NoError(t, err)
 			data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
-			expected, err := os.ReadFile(filepath.Join(source, "rpcbindings.out"))
-			require.NoError(t, err)
-			expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
-			require.Equal(t, string(expected), string(data))
+			if rewriteExpectedOutputs {
+				require.NoError(t, os.WriteFile(expectedFile, data, os.ModePerm))
+			} else {
+				expected, err := os.ReadFile(expectedFile)
+				require.NoError(t, err)
+				expected = bytes.ReplaceAll(expected, []byte("\r"), []byte{}) // Windows.
+				require.Equal(t, string(expected), string(data))
+			}
 		})
 	}
 
-	checkBinding(filepath.Join("testdata", "types"))
-	checkBinding(filepath.Join("testdata", "structs"))
+	checkBinding(filepath.Join("testdata", "types"), false)
+	checkBinding(filepath.Join("testdata", "structs"), false)
+	checkBinding(filepath.Join("testdata", "notifications"), false)
+	checkBinding(filepath.Join("testdata", "notifications"), false, "_extended")
+	checkBinding(filepath.Join("testdata", "notifications"), true, "_guessed")
+
+	require.False(t, rewriteExpectedOutputs)
 }
 
 func TestGenerate_Errors(t *testing.T) {
@@ -465,5 +497,57 @@ callflags:
 		checkError(t, "can't parse config file",
 			"--manifest", manifestFile, "--hash", util.Uint160{}.StringLE(),
 			"--config", cfgPath, "--out", "zzz")
+	})
+}
+
+func TestCompile_GuessEventTypes(t *testing.T) {
+	app := cli.NewApp()
+	app.Commands = NewCommands()
+	app.ExitErrHandler = func(*cli.Context, error) {}
+
+	checkError := func(t *testing.T, msg string, args ...string) {
+		// cli.ExitError doesn't implement wraping properly, so we check for an error message.
+		err := app.Run(args)
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), msg), "got: %v", err)
+	}
+	check := func(t *testing.T, source string, expectedErrText string) {
+		tmpDir := t.TempDir()
+		configFile := filepath.Join(source, "invalid.yml")
+		manifestF := filepath.Join(tmpDir, "invalid.manifest.json")
+		bindingF := filepath.Join(tmpDir, "invalid.binding.yml")
+		nefF := filepath.Join(tmpDir, "invalid.out.nef")
+		cmd := []string{"", "contract", "compile",
+			"--in", source,
+			"--config", configFile,
+			"--manifest", manifestF,
+			"--bindings", bindingF,
+			"--out", nefF,
+			"--guess-eventtypes",
+		}
+		checkError(t, expectedErrText, cmd...)
+	}
+
+	t.Run("not declared in manifest", func(t *testing.T) {
+		check(t, filepath.Join("testdata", "invalid5"), "inconsistent usages of event `Non declared event`: not declared in the contract config")
+	})
+	t.Run("invalid number of params", func(t *testing.T) {
+		check(t, filepath.Join("testdata", "invalid6"), "inconsistent usages of event `SomeEvent` against config: number of params mismatch: 2 vs 1")
+	})
+	/*
+		// TODO: this on is a controversial one. If event information is provided in the config file, then conversion code
+		// will be emitted by the compiler according to the parameter type provided via config. Thus, we can be sure that
+		// either event parameter has the type specified in the config file or the execution of the contract will fail.
+		// Thus, this testcase is always failing (no compilation error occures).
+		// Question: do we want to compare `RealType` of the emitted parameter with the one expected in the manifest?
+		t.Run("SC parameter type mismatch", func(t *testing.T) {
+			check(t, filepath.Join("testdata", "invalid7"), "inconsistent usages of event `SomeEvent` against config: number of params mismatch: 2 vs 1")
+		})
+	*/
+	t.Run("extended types mismatch", func(t *testing.T) {
+		check(t, filepath.Join("testdata", "invalid8"), "inconsistent usages of event `SomeEvent`: extended type of param #0 mismatch")
+	})
+	t.Run("named types redeclare", func(t *testing.T) {
+		check(t, filepath.Join("testdata", "invalid9"), "configured declared named type intersects with the contract's one: `invalid9.NamedStruct`")
 	})
 }

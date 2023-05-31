@@ -44,4 +44,3 @@ func New(actor Actor) *Contract {
 	var nep17t = nep17.New(actor, Hash)
 	return &Contract{ContractReader{nep17t.TokenReader, actor}, nep17t.TokenWriter, actor}
 }
-

@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/management"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -125,7 +126,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "compile",
 				Usage:     "compile a smart contract to a .nef file",
-				UsageText: "neo-go contract compile -i path [-o nef] [-v] [-d] [-m manifest] [-c yaml] [--bindings file] [--no-standards] [--no-events] [--no-permissions]",
+				UsageText: "neo-go contract compile -i path [-o nef] [-v] [-d] [-m manifest] [-c yaml] [--bindings file] [--no-standards] [--no-events] [--no-permissions] [--guess-eventtypes]",
 				Description: `Compiles given smart contract to a .nef file and emits other associated
    information (manifest, bindings configuration, debug information files) if
    asked to. If none of --out, --manifest, --config, --bindings flags are specified,
@@ -170,6 +171,10 @@ func NewCommands() []cli.Command {
 					cli.BoolFlag{
 						Name:  "no-permissions",
 						Usage: "do not check if invoked contracts are allowed in manifest",
+					},
+					cli.BoolFlag{
+						Name:  "guess-eventtypes",
+						Usage: "guess event types for smart-contract bindings configuration from the code usages",
 					},
 					cli.StringFlag{
 						Name:  "bindings",
@@ -352,13 +357,15 @@ func initSmartContract(ctx *cli.Context) error {
 		SourceURL:          "http://example.com/",
 		SupportedStandards: []string{},
 		SafeMethods:        []string{},
-		Events: []manifest.Event{
+		Events: []compiler.HybridEvent{
 			{
 				Name: "Hello world!",
-				Parameters: []manifest.Parameter{
+				Parameters: []compiler.HybridParameter{
 					{
-						Name: "args",
-						Type: smartcontract.ArrayType,
+						Parameter: manifest.Parameter{
+							Name: "args",
+							Type: smartcontract.ArrayType,
+						},
 					},
 				},
 			},
@@ -447,6 +454,8 @@ func contractCompile(ctx *cli.Context) error {
 		NoStandardCheck:    ctx.Bool("no-standards"),
 		NoEventsCheck:      ctx.Bool("no-events"),
 		NoPermissionsCheck: ctx.Bool("no-permissions"),
+
+		GuessEventTypes: ctx.Bool("guess-eventtypes"),
 	}
 
 	if len(confFile) != 0 {
@@ -457,6 +466,7 @@ func contractCompile(ctx *cli.Context) error {
 		o.Name = conf.Name
 		o.SourceURL = conf.SourceURL
 		o.ContractEvents = conf.Events
+		o.DeclaredNamedTypes = conf.NamedTypes
 		o.ContractSupportedStandards = conf.SupportedStandards
 		o.Permissions = make([]manifest.Permission, len(conf.Permissions))
 		for i := range conf.Permissions {
@@ -705,9 +715,10 @@ type ProjectConfig struct {
 	SourceURL          string
 	SafeMethods        []string
 	SupportedStandards []string
-	Events             []manifest.Event
+	Events             []compiler.HybridEvent
 	Permissions        []permission
-	Overloads          map[string]string `yaml:"overloads,omitempty"`
+	Overloads          map[string]string               `yaml:"overloads,omitempty"`
+	NamedTypes         map[string]binding.ExtendedType `yaml:"namedtypes,omitempty"`
 }
 
 func inspect(ctx *cli.Context) error {

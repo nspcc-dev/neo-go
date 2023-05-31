@@ -2,6 +2,8 @@
 package nameservice
 
 import (
+	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -11,10 +13,25 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"math/big"
+	"unicode/utf8"
 )
 
 // Hash contains contract hash.
 var Hash = util.Uint160{0xde, 0x46, 0x5f, 0x5d, 0x50, 0x57, 0xcf, 0x33, 0x28, 0x47, 0x94, 0xc5, 0xcf, 0xc2, 0xc, 0x69, 0x37, 0x1c, 0xac, 0x50}
+
+// SetAdminEvent represents "SetAdmin" event emitted by the contract.
+type SetAdminEvent struct {
+	Name string
+	OldAdmin util.Uint160
+	NewAdmin util.Uint160
+}
+
+// RenewEvent represents "Renew" event emitted by the contract.
+type RenewEvent struct {
+	Name string
+	OldExpiration *big.Int
+	NewExpiration *big.Int
+}
 
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
@@ -58,7 +75,6 @@ func New(actor Actor) *Contract {
 	var nep11ndt = nep11.NewNonDivisible(actor, Hash)
 	return &Contract{ContractReader{nep11ndt.NonDivisibleReader, actor}, nep11ndt.BaseWriter, actor}
 }
-
 
 // Roots invokes `roots` method of contract.
 func (c *ContractReader) Roots() (uuid.UUID, result.Iterator, error) {
@@ -320,4 +336,170 @@ func (c *Contract) DeleteRecordTransaction(name string, typev *big.Int) (*transa
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) DeleteRecordUnsigned(name string, typev *big.Int) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, "deleteRecord", nil, name, typev)
+}
+
+// SetAdminEventsFromApplicationLog retrieves a set of all emitted events
+// with "SetAdmin" name from the provided [result.ApplicationLog].
+func SetAdminEventsFromApplicationLog(log *result.ApplicationLog) ([]*SetAdminEvent, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+
+	var res []*SetAdminEvent
+	for i, ex := range log.Executions {
+		for j, e := range ex.Events {
+			if e.Name != "SetAdmin" {
+				continue
+			}
+			event := new(SetAdminEvent)
+			err := event.FromStackItem(e.Item)
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize SetAdminEvent from stackitem (execution #%d, event #%d): %w", i, j, err)
+			}
+			res = append(res, event)
+		}
+	}
+
+	return res, nil
+}
+
+// FromStackItem converts provided [stackitem.Array] to SetAdminEvent or
+// returns an error if it's not possible to do to so.
+func (e *SetAdminEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 3 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err error
+	)
+	index++
+	e.Name, err = func (item stackitem.Item) (string, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return "", err
+		}
+		if !utf8.Valid(b) {
+			return "", errors.New("not a UTF-8 string")
+		}
+		return string(b), nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field Name: %w", err)
+	}
+
+	index++
+	e.OldAdmin, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field OldAdmin: %w", err)
+	}
+
+	index++
+	e.NewAdmin, err = func (item stackitem.Item) (util.Uint160, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		u, err := util.Uint160DecodeBytesBE(b)
+		if err != nil {
+			return util.Uint160{}, err
+		}
+		return u, nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field NewAdmin: %w", err)
+	}
+
+	return nil
+}
+
+// RenewEventsFromApplicationLog retrieves a set of all emitted events
+// with "Renew" name from the provided [result.ApplicationLog].
+func RenewEventsFromApplicationLog(log *result.ApplicationLog) ([]*RenewEvent, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+
+	var res []*RenewEvent
+	for i, ex := range log.Executions {
+		for j, e := range ex.Events {
+			if e.Name != "Renew" {
+				continue
+			}
+			event := new(RenewEvent)
+			err := event.FromStackItem(e.Item)
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize RenewEvent from stackitem (execution #%d, event #%d): %w", i, j, err)
+			}
+			res = append(res, event)
+		}
+	}
+
+	return res, nil
+}
+
+// FromStackItem converts provided [stackitem.Array] to RenewEvent or
+// returns an error if it's not possible to do to so.
+func (e *RenewEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 3 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err error
+	)
+	index++
+	e.Name, err = func (item stackitem.Item) (string, error) {
+		b, err := item.TryBytes()
+		if err != nil {
+			return "", err
+		}
+		if !utf8.Valid(b) {
+			return "", errors.New("not a UTF-8 string")
+		}
+		return string(b), nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field Name: %w", err)
+	}
+
+	index++
+	e.OldExpiration, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field OldExpiration: %w", err)
+	}
+
+	index++
+	e.NewExpiration, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field NewExpiration: %w", err)
+	}
+
+	return nil
 }

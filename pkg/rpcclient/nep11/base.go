@@ -10,6 +10,7 @@ purposes, otherwise more specific types are recommended.
 package nep11
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"unicode/utf8"
@@ -245,4 +246,72 @@ func UnwrapKnownProperties(m *stackitem.Map, err error) (map[string]string, erro
 		res[ks] = string(v)
 	}
 	return res, nil
+}
+
+// TransferEventsFromApplicationLog retrieves all emitted TransferEvents from the
+// provided [result.ApplicationLog].
+func TransferEventsFromApplicationLog(log *result.ApplicationLog) ([]*TransferEvent, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+	var res []*TransferEvent
+	for i, ex := range log.Executions {
+		for j, e := range ex.Events {
+			if e.Name != "Transfer" {
+				continue
+			}
+			event := new(TransferEvent)
+			err := event.FromStackItem(e.Item)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode event from stackitem (event #%d, execution #%d): %w", j, i, err)
+			}
+			res = append(res, event)
+		}
+	}
+	return res, nil
+}
+
+// FromStackItem converts provided [stackitem.Array] to TransferEvent or returns an
+// error if it's not possible to do to so.
+func (e *TransferEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 4 {
+		return errors.New("wrong number of event parameters")
+	}
+
+	b, err := arr[0].TryBytes()
+	if err != nil {
+		return fmt.Errorf("invalid From: %w", err)
+	}
+	e.From, err = util.Uint160DecodeBytesBE(b)
+	if err != nil {
+		return fmt.Errorf("failed to decode From: %w", err)
+	}
+
+	b, err = arr[1].TryBytes()
+	if err != nil {
+		return fmt.Errorf("invalid To: %w", err)
+	}
+	e.To, err = util.Uint160DecodeBytesBE(b)
+	if err != nil {
+		return fmt.Errorf("failed to decode To: %w", err)
+	}
+
+	e.Amount, err = arr[2].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field to decode Avount: %w", err)
+	}
+
+	e.ID, err = arr[3].TryBytes()
+	if err != nil {
+		return fmt.Errorf("failed to decode ID: %w", err)
+	}
+
+	return nil
 }

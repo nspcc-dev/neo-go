@@ -2,13 +2,22 @@
 package verify
 
 import (
+	"errors"
+	"fmt"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Hash contains contract hash.
 var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x0}
+
+// HelloWorldEvent represents "Hello world!" event emitted by the contract.
+type HelloWorldEvent struct {
+	Args []any
+}
 
 // Actor is used by Contract to call state-changing methods.
 type Actor interface {
@@ -29,7 +38,6 @@ type Contract struct {
 func New(actor Actor) *Contract {
 	return &Contract{actor}
 }
-
 
 func scriptForVerify() ([]byte, error) {
 	return smartcontract.CreateCallWithAssertScript(Hash, "verify")
@@ -67,4 +75,69 @@ func (c *Contract) VerifyUnsigned() (*transaction.Transaction, error) {
 		return nil, err
 	}
 	return c.actor.MakeUnsignedRun(script, nil)
+}
+
+// HelloWorldEventsFromApplicationLog retrieves a set of all emitted events
+// with "Hello world!" name from the provided [result.ApplicationLog].
+func HelloWorldEventsFromApplicationLog(log *result.ApplicationLog) ([]*HelloWorldEvent, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+
+	var res []*HelloWorldEvent
+	for i, ex := range log.Executions {
+		for j, e := range ex.Events {
+			if e.Name != "Hello world!" {
+				continue
+			}
+			event := new(HelloWorldEvent)
+			err := event.FromStackItem(e.Item)
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize HelloWorldEvent from stackitem (execution #%d, event #%d): %w", i, j, err)
+			}
+			res = append(res, event)
+		}
+	}
+
+	return res, nil
+}
+
+// FromStackItem converts provided [stackitem.Array] to HelloWorldEvent or
+// returns an error if it's not possible to do to so.
+func (e *HelloWorldEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 1 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err error
+	)
+	index++
+	e.Args, err = func (item stackitem.Item) ([]any, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]any, len(arr))
+		for i := range res {
+			res[i], err = arr[i].Value(), error(nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field Args: %w", err)
+	}
+
+	return nil
 }
