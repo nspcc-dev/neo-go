@@ -72,7 +72,7 @@ type (
 		Name      string                  `yaml:"name,omitempty"`      // Structure name, omitted for arrays, interfaces and maps.
 		Interface string                  `yaml:"interface,omitempty"` // Interface type name, "iterator" only for now.
 		Key       smartcontract.ParamType `yaml:"key,omitempty"`       // Key type (only simple types can be used for keys) for maps.
-		Value     *ExtendedType           `yaml:"value,omitempty"`     // Value type for iterators and arrays.
+		Value     *ExtendedType           `yaml:"value,omitempty"`     // Value type for iterators, arrays and maps.
 		Fields    []FieldExtendedType     `yaml:"fields,omitempty"`    // Ordered type data for structure fields.
 	}
 
