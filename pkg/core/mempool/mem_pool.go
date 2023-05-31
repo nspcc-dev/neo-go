@@ -520,14 +520,17 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*tran
 
 	var expectedSenderFee utilityBalanceAndFees
 	// Check Conflicts attributes.
-	var conflictsToBeRemoved []*transaction.Transaction
+	var (
+		conflictsToBeRemoved []*transaction.Transaction
+		conflictingFee       int64
+	)
 	if fee.P2PSigExtensionsEnabled() {
 		// Step 1: check if `tx` was in attributes of mempooled transactions.
 		if conflictingHashes, ok := mp.conflicts[tx.Hash()]; ok {
 			for _, hash := range conflictingHashes {
 				existingTx := mp.verifiedMap[hash]
-				if existingTx.HasSigner(payer) && existingTx.NetworkFee > tx.NetworkFee {
-					return nil, fmt.Errorf("%w: conflicting transaction %s has bigger network fee", ErrConflictsAttribute, existingTx.Hash().StringBE())
+				if existingTx.HasSigner(payer) {
+					conflictingFee += existingTx.NetworkFee
 				}
 				conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
 			}
@@ -542,10 +545,11 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*tran
 			if !tx.HasSigner(existingTx.Signers[mp.payerIndex].Account) {
 				return nil, fmt.Errorf("%w: not signed by the sender of conflicting transaction %s", ErrConflictsAttribute, existingTx.Hash().StringBE())
 			}
-			if existingTx.NetworkFee >= tx.NetworkFee {
-				return nil, fmt.Errorf("%w: conflicting transaction %s has bigger or equal network fee", ErrConflictsAttribute, existingTx.Hash().StringBE())
-			}
+			conflictingFee += existingTx.NetworkFee
 			conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
+		}
+		if conflictingFee != 0 && tx.NetworkFee <= conflictingFee {
+			return nil, fmt.Errorf("%w: conflicting transactions have bigger or equal network fee: %d vs %d", ErrConflictsAttribute, tx.NetworkFee, conflictingFee)
 		}
 		// Step 3: take into account sender's conflicting transactions before balance check.
 		expectedSenderFee = actualSenderFee
