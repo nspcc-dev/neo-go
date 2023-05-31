@@ -84,8 +84,8 @@ const (
     * 'dead' is a byte array with a value of 'dead'
     * 'string:dead' is a string with a value of 'dead'
     * 'filebytes:my_data.txt' is bytes decoded from a content of my_data.txt
-    * 'AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y' is a hash160 with a value
-      of '23ba2703c53263e8d6e522dc32203339dcd8eee9'
+    * 'NSiVJYZej4XsxG5CUpdwn7VRQk8iiiDMPM' is a hash160 with a value
+      of '682cca3ebdc66210e5847d7f8115846586079d4a'
     * '\4\2' is an integer with a value of 42
     * '\\4\2' is a string with a value of '\42'
     * 'string:string' is a string with a value of 'string'
