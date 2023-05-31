@@ -339,7 +339,7 @@ func (c *Contract) DeleteRecordUnsigned(name string, typev *big.Int) (*transacti
 }
 
 // SetAdminEventsFromApplicationLog retrieves a set of all emitted events
-// with "SetAdmin" name from the provided ApplicationLog.
+// with "SetAdmin" name from the provided [result.ApplicationLog].
 func SetAdminEventsFromApplicationLog(log *result.ApplicationLog) ([]*SetAdminEvent, error) {
 	if log == nil {
 		return nil, errors.New("nil application log")
@@ -363,7 +363,7 @@ func SetAdminEventsFromApplicationLog(log *result.ApplicationLog) ([]*SetAdminEv
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to SetAdminEvent or
+// FromStackItem converts provided [stackitem.Array] to SetAdminEvent or
 // returns an error if it's not possible to do to so.
 func (e *SetAdminEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
@@ -432,7 +432,7 @@ func (e *SetAdminEvent) FromStackItem(item *stackitem.Array) error {
 }
 
 // RenewEventsFromApplicationLog retrieves a set of all emitted events
-// with "Renew" name from the provided ApplicationLog.
+// with "Renew" name from the provided [result.ApplicationLog].
 func RenewEventsFromApplicationLog(log *result.ApplicationLog) ([]*RenewEvent, error) {
 	if log == nil {
 		return nil, errors.New("nil application log")
@@ -456,7 +456,7 @@ func RenewEventsFromApplicationLog(log *result.ApplicationLog) ([]*RenewEvent, e
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to RenewEvent or
+// FromStackItem converts provided [stackitem.Array] to RenewEvent or
 // returns an error if it's not possible to do to so.
 func (e *RenewEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {

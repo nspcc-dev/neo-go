@@ -199,8 +199,8 @@ func itemToLedgerBlock(item stackitem.Item, err error) (*LedgerBlock, error) {
 	return res, err
 }
 
-// FromStackItem retrieves fields of LedgerBlock from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of LedgerBlock from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *LedgerBlock) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -321,8 +321,8 @@ func itemToLedgerBlockSR(item stackitem.Item, err error) (*LedgerBlockSR, error)
 	return res, err
 }
 
-// FromStackItem retrieves fields of LedgerBlockSR from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of LedgerBlockSR from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *LedgerBlockSR) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -459,8 +459,8 @@ func itemToLedgerTransaction(item stackitem.Item, err error) (*LedgerTransaction
 	return res, err
 }
 
-// FromStackItem retrieves fields of LedgerTransaction from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of LedgerTransaction from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *LedgerTransaction) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -555,8 +555,8 @@ func itemToLedgerTransactionSigner(item stackitem.Item, err error) (*LedgerTrans
 	return res, err
 }
 
-// FromStackItem retrieves fields of LedgerTransactionSigner from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of LedgerTransactionSigner from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *LedgerTransactionSigner) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -682,8 +682,8 @@ func itemToLedgerWitnessCondition(item stackitem.Item, err error) (*LedgerWitnes
 	return res, err
 }
 
-// FromStackItem retrieves fields of LedgerWitnessCondition from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of LedgerWitnessCondition from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *LedgerWitnessCondition) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -722,8 +722,8 @@ func itemToLedgerWitnessRule(item stackitem.Item, err error) (*LedgerWitnessRule
 	return res, err
 }
 
-// FromStackItem retrieves fields of LedgerWitnessRule from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of LedgerWitnessRule from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *LedgerWitnessRule) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -762,8 +762,8 @@ func itemToManagementABI(item stackitem.Item, err error) (*ManagementABI, error)
 	return res, err
 }
 
-// FromStackItem retrieves fields of ManagementABI from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of ManagementABI from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *ManagementABI) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -828,8 +828,8 @@ func itemToManagementContract(item stackitem.Item, err error) (*ManagementContra
 	return res, err
 }
 
-// FromStackItem retrieves fields of ManagementContract from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of ManagementContract from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *ManagementContract) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -896,8 +896,8 @@ func itemToManagementEvent(item stackitem.Item, err error) (*ManagementEvent, er
 	return res, err
 }
 
-// FromStackItem retrieves fields of ManagementEvent from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of ManagementEvent from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *ManagementEvent) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -958,8 +958,8 @@ func itemToManagementGroup(item stackitem.Item, err error) (*ManagementGroup, er
 	return res, err
 }
 
-// FromStackItem retrieves fields of ManagementGroup from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of ManagementGroup from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *ManagementGroup) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -1008,8 +1008,8 @@ func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManife
 	return res, err
 }
 
-// FromStackItem retrieves fields of ManagementManifest from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of ManagementManifest from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *ManagementManifest) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -1200,8 +1200,8 @@ func itemToManagementMethod(item stackitem.Item, err error) (*ManagementMethod, 
 	return res, err
 }
 
-// FromStackItem retrieves fields of ManagementMethod from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of ManagementMethod from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *ManagementMethod) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -1280,8 +1280,8 @@ func itemToManagementParameter(item stackitem.Item, err error) (*ManagementParam
 	return res, err
 }
 
-// FromStackItem retrieves fields of ManagementParameter from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of ManagementParameter from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *ManagementParameter) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -1329,8 +1329,8 @@ func itemToManagementPermission(item stackitem.Item, err error) (*ManagementPerm
 	return res, err
 }
 
-// FromStackItem retrieves fields of ManagementPermission from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of ManagementPermission from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *ManagementPermission) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -1401,8 +1401,8 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 	return res, err
 }
 
-// FromStackItem retrieves fields of StructsInternal from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of StructsInternal from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *StructsInternal) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {

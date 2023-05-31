@@ -78,7 +78,7 @@ func (c *Contract) VerifyUnsigned() (*transaction.Transaction, error) {
 }
 
 // HelloWorldEventsFromApplicationLog retrieves a set of all emitted events
-// with "Hello world!" name from the provided ApplicationLog.
+// with "Hello world!" name from the provided [result.ApplicationLog].
 func HelloWorldEventsFromApplicationLog(log *result.ApplicationLog) ([]*HelloWorldEvent, error) {
 	if log == nil {
 		return nil, errors.New("nil application log")
@@ -102,7 +102,7 @@ func HelloWorldEventsFromApplicationLog(log *result.ApplicationLog) ([]*HelloWor
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to HelloWorldEvent or
+// FromStackItem converts provided [stackitem.Array] to HelloWorldEvent or
 // returns an error if it's not possible to do to so.
 func (e *HelloWorldEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {

@@ -215,8 +215,8 @@ func itemToLedgerBlock(item stackitem.Item, err error) (*LedgerBlock, error) {
 	return res, err
 }
 
-// FromStackItem retrieves fields of LedgerBlock from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of LedgerBlock from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *LedgerBlock) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -337,8 +337,8 @@ func itemToLedgerBlockSR(item stackitem.Item, err error) (*LedgerBlockSR, error)
 	return res, err
 }
 
-// FromStackItem retrieves fields of LedgerBlockSR from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of LedgerBlockSR from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *LedgerBlockSR) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -475,8 +475,8 @@ func itemToLedgerTransaction(item stackitem.Item, err error) (*LedgerTransaction
 	return res, err
 }
 
-// FromStackItem retrieves fields of LedgerTransaction from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of LedgerTransaction from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *LedgerTransaction) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -571,8 +571,8 @@ func itemToLedgerTransactionSigner(item stackitem.Item, err error) (*LedgerTrans
 	return res, err
 }
 
-// FromStackItem retrieves fields of LedgerTransactionSigner from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of LedgerTransactionSigner from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *LedgerTransactionSigner) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -698,8 +698,8 @@ func itemToLedgerWitnessCondition(item stackitem.Item, err error) (*LedgerWitnes
 	return res, err
 }
 
-// FromStackItem retrieves fields of LedgerWitnessCondition from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of LedgerWitnessCondition from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *LedgerWitnessCondition) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -738,8 +738,8 @@ func itemToLedgerWitnessRule(item stackitem.Item, err error) (*LedgerWitnessRule
 	return res, err
 }
 
-// FromStackItem retrieves fields of LedgerWitnessRule from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of LedgerWitnessRule from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *LedgerWitnessRule) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -769,7 +769,7 @@ func (res *LedgerWitnessRule) FromStackItem(item stackitem.Item) error {
 }
 
 // ComplicatedNameEventsFromApplicationLog retrieves a set of all emitted events
-// with "! complicated name %$#" name from the provided ApplicationLog.
+// with "! complicated name %$#" name from the provided [result.ApplicationLog].
 func ComplicatedNameEventsFromApplicationLog(log *result.ApplicationLog) ([]*ComplicatedNameEvent, error) {
 	if log == nil {
 		return nil, errors.New("nil application log")
@@ -793,7 +793,7 @@ func ComplicatedNameEventsFromApplicationLog(log *result.ApplicationLog) ([]*Com
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to ComplicatedNameEvent or
+// FromStackItem converts provided [stackitem.Array] to ComplicatedNameEvent or
 // returns an error if it's not possible to do to so.
 func (e *ComplicatedNameEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
@@ -830,7 +830,7 @@ func (e *ComplicatedNameEvent) FromStackItem(item *stackitem.Array) error {
 }
 
 // SomeMapEventsFromApplicationLog retrieves a set of all emitted events
-// with "SomeMap" name from the provided ApplicationLog.
+// with "SomeMap" name from the provided [result.ApplicationLog].
 func SomeMapEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeMapEvent, error) {
 	if log == nil {
 		return nil, errors.New("nil application log")
@@ -854,7 +854,7 @@ func SomeMapEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeMapEven
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to SomeMapEvent or
+// FromStackItem converts provided [stackitem.Array] to SomeMapEvent or
 // returns an error if it's not possible to do to so.
 func (e *SomeMapEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
@@ -900,7 +900,7 @@ func (e *SomeMapEvent) FromStackItem(item *stackitem.Array) error {
 }
 
 // SomeStructEventsFromApplicationLog retrieves a set of all emitted events
-// with "SomeStruct" name from the provided ApplicationLog.
+// with "SomeStruct" name from the provided [result.ApplicationLog].
 func SomeStructEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeStructEvent, error) {
 	if log == nil {
 		return nil, errors.New("nil application log")
@@ -924,7 +924,7 @@ func SomeStructEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeStru
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to SomeStructEvent or
+// FromStackItem converts provided [stackitem.Array] to SomeStructEvent or
 // returns an error if it's not possible to do to so.
 func (e *SomeStructEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
@@ -965,7 +965,7 @@ func (e *SomeStructEvent) FromStackItem(item *stackitem.Array) error {
 }
 
 // SomeArrayEventsFromApplicationLog retrieves a set of all emitted events
-// with "SomeArray" name from the provided ApplicationLog.
+// with "SomeArray" name from the provided [result.ApplicationLog].
 func SomeArrayEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeArrayEvent, error) {
 	if log == nil {
 		return nil, errors.New("nil application log")
@@ -989,7 +989,7 @@ func SomeArrayEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeArray
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to SomeArrayEvent or
+// FromStackItem converts provided [stackitem.Array] to SomeArrayEvent or
 // returns an error if it's not possible to do to so.
 func (e *SomeArrayEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {

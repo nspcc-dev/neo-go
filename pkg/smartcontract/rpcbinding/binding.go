@@ -235,8 +235,8 @@ func itemTo{{toTypeName $name}}(item stackitem.Item, err error) (*{{toTypeName $
 	return res, err
 }
 
-// FromStackItem retrieves fields of {{toTypeName $name}} from the given stack item
-// or returns an error if it's not possible to do to so.
+// FromStackItem retrieves fields of {{toTypeName $name}} from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *{{toTypeName $name}}) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -263,7 +263,7 @@ func (res *{{toTypeName $name}}) FromStackItem(item stackitem.Item) error {
 {{ end -}}
 {{- range $e := .CustomEvents }}
 // {{$e.Name}}sFromApplicationLog retrieves a set of all emitted events
-// with "{{$e.ManifestName}}" name from the provided ApplicationLog.
+// with "{{$e.ManifestName}}" name from the provided [result.ApplicationLog].
 func {{$e.Name}}sFromApplicationLog(log *result.ApplicationLog) ([]*{{$e.Name}}, error) {
 	if log == nil {
 		return nil, errors.New("nil application log")
@@ -287,7 +287,7 @@ func {{$e.Name}}sFromApplicationLog(log *result.ApplicationLog) ([]*{{$e.Name}},
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to {{$e.Name}} or
+// FromStackItem converts provided [stackitem.Array] to {{$e.Name}} or
 // returns an error if it's not possible to do to so.
 func (e *{{$e.Name}}) FromStackItem(item *stackitem.Array) error {
 	if item == nil {

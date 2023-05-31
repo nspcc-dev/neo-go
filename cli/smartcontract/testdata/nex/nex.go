@@ -243,7 +243,7 @@ func (c *Contract) UpdateCapUnsigned(newCap *big.Int) (*transaction.Transaction,
 }
 
 // OnMintEventsFromApplicationLog retrieves a set of all emitted events
-// with "OnMint" name from the provided ApplicationLog.
+// with "OnMint" name from the provided [result.ApplicationLog].
 func OnMintEventsFromApplicationLog(log *result.ApplicationLog) ([]*OnMintEvent, error) {
 	if log == nil {
 		return nil, errors.New("nil application log")
@@ -267,7 +267,7 @@ func OnMintEventsFromApplicationLog(log *result.ApplicationLog) ([]*OnMintEvent,
 	return res, nil
 }
 
-// FromStackItem converts provided stackitem.Array to OnMintEvent or
+// FromStackItem converts provided [stackitem.Array] to OnMintEvent or
 // returns an error if it's not possible to do to so.
 func (e *OnMintEvent) FromStackItem(item *stackitem.Array) error {
 	if item == nil {
