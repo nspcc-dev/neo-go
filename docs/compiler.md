@@ -403,11 +403,11 @@ see `contract` command help for more details. They all work via RPC, so it's a
 mandatory parameter.
 
 Example call (contract `f84d6a337fbc3d3a201d41da99e86b479e7a2554` with method
-`balanceOf` and method's parameter `AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y` using
+`balanceOf` and method's parameter `NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq` using
 given RPC server and wallet and paying 0.00001 extra GAS for this transaction):
 
 ```
-$ ./bin/neo-go contract invokefunction -r http://localhost:20331 -w my_wallet.json -g 0.00001 f84d6a337fbc3d3a201d41da99e86b479e7a2554 balanceOf AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y
+$ ./bin/neo-go contract invokefunction -r http://localhost:20331 -w my_wallet.json -g 0.00001 f84d6a337fbc3d3a201d41da99e86b479e7a2554 balanceOf NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq
 ```
 
 ### Generating contract bindings
