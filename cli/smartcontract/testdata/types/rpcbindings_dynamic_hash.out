@@ -13,9 +13,6 @@ import (
 	"unicode/utf8"
 )
 
-// Hash contains contract hash.
-var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x0}
-
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
@@ -27,9 +24,8 @@ type ContractReader struct {
 	hash util.Uint160
 }
 
-// NewReader creates an instance of ContractReader using Hash and the given Invoker.
-func NewReader(invoker Invoker) *ContractReader {
-	var hash = Hash
+// NewReader creates an instance of ContractReader using provided contract hash and the given Invoker.
+func NewReader(invoker Invoker, hash util.Uint160) *ContractReader {
 	return &ContractReader{invoker, hash}
 }
 

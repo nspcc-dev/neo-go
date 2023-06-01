@@ -48,6 +48,7 @@ type Actor interface {
 type ContractReader struct {
 	nep17.TokenReader
 	invoker Invoker
+	hash util.Uint160
 }
 
 // Contract implements all contract methods.
@@ -55,51 +56,54 @@ type Contract struct {
 	ContractReader
 	nep17.TokenWriter
 	actor Actor
+	hash util.Uint160
 }
 
 // NewReader creates an instance of ContractReader using Hash and the given Invoker.
 func NewReader(invoker Invoker) *ContractReader {
-	return &ContractReader{*nep17.NewReader(invoker, Hash), invoker}
+	var hash = Hash
+	return &ContractReader{*nep17.NewReader(invoker, hash), invoker, hash}
 }
 
 // New creates an instance of Contract using Hash and the given Actor.
 func New(actor Actor) *Contract {
-	var nep17t = nep17.New(actor, Hash)
-	return &Contract{ContractReader{nep17t.TokenReader, actor}, nep17t.TokenWriter, actor}
+	var hash = Hash
+	var nep17t = nep17.New(actor, hash)
+	return &Contract{ContractReader{nep17t.TokenReader, actor, hash}, nep17t.TokenWriter, actor, hash}
 }
 
 // Cap invokes `cap` method of contract.
 func (c *ContractReader) Cap() (*big.Int, error) {
-	return unwrap.BigInt(c.invoker.Call(Hash, "cap"))
+	return unwrap.BigInt(c.invoker.Call(c.hash, "cap"))
 }
 
 // GetMinter invokes `getMinter` method of contract.
 func (c *ContractReader) GetMinter() (*keys.PublicKey, error) {
-	return unwrap.PublicKey(c.invoker.Call(Hash, "getMinter"))
+	return unwrap.PublicKey(c.invoker.Call(c.hash, "getMinter"))
 }
 
 // GetOwner invokes `getOwner` method of contract.
 func (c *ContractReader) GetOwner() (util.Uint160, error) {
-	return unwrap.Uint160(c.invoker.Call(Hash, "getOwner"))
+	return unwrap.Uint160(c.invoker.Call(c.hash, "getOwner"))
 }
 
 // TotalMinted invokes `totalMinted` method of contract.
 func (c *ContractReader) TotalMinted() (*big.Int, error) {
-	return unwrap.BigInt(c.invoker.Call(Hash, "totalMinted"))
+	return unwrap.BigInt(c.invoker.Call(c.hash, "totalMinted"))
 }
 
 // ChangeMinter creates a transaction invoking `changeMinter` method of the contract.
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
 func (c *Contract) ChangeMinter(newMinter *keys.PublicKey) (util.Uint256, uint32, error) {
-	return c.actor.SendCall(Hash, "changeMinter", newMinter)
+	return c.actor.SendCall(c.hash, "changeMinter", newMinter)
 }
 
 // ChangeMinterTransaction creates a transaction invoking `changeMinter` method of the contract.
 // This transaction is signed, but not sent to the network, instead it's
 // returned to the caller.
 func (c *Contract) ChangeMinterTransaction(newMinter *keys.PublicKey) (*transaction.Transaction, error) {
-	return c.actor.MakeCall(Hash, "changeMinter", newMinter)
+	return c.actor.MakeCall(c.hash, "changeMinter", newMinter)
 }
 
 // ChangeMinterUnsigned creates a transaction invoking `changeMinter` method of the contract.
@@ -107,21 +111,21 @@ func (c *Contract) ChangeMinterTransaction(newMinter *keys.PublicKey) (*transact
 // Any fields of it that do not affect fees can be changed (ValidUntilBlock,
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) ChangeMinterUnsigned(newMinter *keys.PublicKey) (*transaction.Transaction, error) {
-	return c.actor.MakeUnsignedCall(Hash, "changeMinter", nil, newMinter)
+	return c.actor.MakeUnsignedCall(c.hash, "changeMinter", nil, newMinter)
 }
 
 // ChangeOwner creates a transaction invoking `changeOwner` method of the contract.
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
 func (c *Contract) ChangeOwner(newOwner util.Uint160) (util.Uint256, uint32, error) {
-	return c.actor.SendCall(Hash, "changeOwner", newOwner)
+	return c.actor.SendCall(c.hash, "changeOwner", newOwner)
 }
 
 // ChangeOwnerTransaction creates a transaction invoking `changeOwner` method of the contract.
 // This transaction is signed, but not sent to the network, instead it's
 // returned to the caller.
 func (c *Contract) ChangeOwnerTransaction(newOwner util.Uint160) (*transaction.Transaction, error) {
-	return c.actor.MakeCall(Hash, "changeOwner", newOwner)
+	return c.actor.MakeCall(c.hash, "changeOwner", newOwner)
 }
 
 // ChangeOwnerUnsigned creates a transaction invoking `changeOwner` method of the contract.
@@ -129,21 +133,21 @@ func (c *Contract) ChangeOwnerTransaction(newOwner util.Uint160) (*transaction.T
 // Any fields of it that do not affect fees can be changed (ValidUntilBlock,
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) ChangeOwnerUnsigned(newOwner util.Uint160) (*transaction.Transaction, error) {
-	return c.actor.MakeUnsignedCall(Hash, "changeOwner", nil, newOwner)
+	return c.actor.MakeUnsignedCall(c.hash, "changeOwner", nil, newOwner)
 }
 
 // Destroy creates a transaction invoking `destroy` method of the contract.
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
 func (c *Contract) Destroy() (util.Uint256, uint32, error) {
-	return c.actor.SendCall(Hash, "destroy")
+	return c.actor.SendCall(c.hash, "destroy")
 }
 
 // DestroyTransaction creates a transaction invoking `destroy` method of the contract.
 // This transaction is signed, but not sent to the network, instead it's
 // returned to the caller.
 func (c *Contract) DestroyTransaction() (*transaction.Transaction, error) {
-	return c.actor.MakeCall(Hash, "destroy")
+	return c.actor.MakeCall(c.hash, "destroy")
 }
 
 // DestroyUnsigned creates a transaction invoking `destroy` method of the contract.
@@ -151,21 +155,21 @@ func (c *Contract) DestroyTransaction() (*transaction.Transaction, error) {
 // Any fields of it that do not affect fees can be changed (ValidUntilBlock,
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) DestroyUnsigned() (*transaction.Transaction, error) {
-	return c.actor.MakeUnsignedCall(Hash, "destroy", nil)
+	return c.actor.MakeUnsignedCall(c.hash, "destroy", nil)
 }
 
 // MaxSupply creates a transaction invoking `maxSupply` method of the contract.
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
 func (c *Contract) MaxSupply() (util.Uint256, uint32, error) {
-	return c.actor.SendCall(Hash, "maxSupply")
+	return c.actor.SendCall(c.hash, "maxSupply")
 }
 
 // MaxSupplyTransaction creates a transaction invoking `maxSupply` method of the contract.
 // This transaction is signed, but not sent to the network, instead it's
 // returned to the caller.
 func (c *Contract) MaxSupplyTransaction() (*transaction.Transaction, error) {
-	return c.actor.MakeCall(Hash, "maxSupply")
+	return c.actor.MakeCall(c.hash, "maxSupply")
 }
 
 // MaxSupplyUnsigned creates a transaction invoking `maxSupply` method of the contract.
@@ -173,21 +177,21 @@ func (c *Contract) MaxSupplyTransaction() (*transaction.Transaction, error) {
 // Any fields of it that do not affect fees can be changed (ValidUntilBlock,
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) MaxSupplyUnsigned() (*transaction.Transaction, error) {
-	return c.actor.MakeUnsignedCall(Hash, "maxSupply", nil)
+	return c.actor.MakeUnsignedCall(c.hash, "maxSupply", nil)
 }
 
 // Mint creates a transaction invoking `mint` method of the contract.
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
 func (c *Contract) Mint(from util.Uint160, to util.Uint160, amount *big.Int, swapId *big.Int, signature []byte, data any) (util.Uint256, uint32, error) {
-	return c.actor.SendCall(Hash, "mint", from, to, amount, swapId, signature, data)
+	return c.actor.SendCall(c.hash, "mint", from, to, amount, swapId, signature, data)
 }
 
 // MintTransaction creates a transaction invoking `mint` method of the contract.
 // This transaction is signed, but not sent to the network, instead it's
 // returned to the caller.
 func (c *Contract) MintTransaction(from util.Uint160, to util.Uint160, amount *big.Int, swapId *big.Int, signature []byte, data any) (*transaction.Transaction, error) {
-	return c.actor.MakeCall(Hash, "mint", from, to, amount, swapId, signature, data)
+	return c.actor.MakeCall(c.hash, "mint", from, to, amount, swapId, signature, data)
 }
 
 // MintUnsigned creates a transaction invoking `mint` method of the contract.
@@ -195,21 +199,21 @@ func (c *Contract) MintTransaction(from util.Uint160, to util.Uint160, amount *b
 // Any fields of it that do not affect fees can be changed (ValidUntilBlock,
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) MintUnsigned(from util.Uint160, to util.Uint160, amount *big.Int, swapId *big.Int, signature []byte, data any) (*transaction.Transaction, error) {
-	return c.actor.MakeUnsignedCall(Hash, "mint", nil, from, to, amount, swapId, signature, data)
+	return c.actor.MakeUnsignedCall(c.hash, "mint", nil, from, to, amount, swapId, signature, data)
 }
 
 // Update creates a transaction invoking `update` method of the contract.
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
 func (c *Contract) Update(nef []byte, manifest []byte) (util.Uint256, uint32, error) {
-	return c.actor.SendCall(Hash, "update", nef, manifest)
+	return c.actor.SendCall(c.hash, "update", nef, manifest)
 }
 
 // UpdateTransaction creates a transaction invoking `update` method of the contract.
 // This transaction is signed, but not sent to the network, instead it's
 // returned to the caller.
 func (c *Contract) UpdateTransaction(nef []byte, manifest []byte) (*transaction.Transaction, error) {
-	return c.actor.MakeCall(Hash, "update", nef, manifest)
+	return c.actor.MakeCall(c.hash, "update", nef, manifest)
 }
 
 // UpdateUnsigned creates a transaction invoking `update` method of the contract.
@@ -217,21 +221,21 @@ func (c *Contract) UpdateTransaction(nef []byte, manifest []byte) (*transaction.
 // Any fields of it that do not affect fees can be changed (ValidUntilBlock,
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) UpdateUnsigned(nef []byte, manifest []byte) (*transaction.Transaction, error) {
-	return c.actor.MakeUnsignedCall(Hash, "update", nil, nef, manifest)
+	return c.actor.MakeUnsignedCall(c.hash, "update", nil, nef, manifest)
 }
 
 // UpdateCap creates a transaction invoking `updateCap` method of the contract.
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
 func (c *Contract) UpdateCap(newCap *big.Int) (util.Uint256, uint32, error) {
-	return c.actor.SendCall(Hash, "updateCap", newCap)
+	return c.actor.SendCall(c.hash, "updateCap", newCap)
 }
 
 // UpdateCapTransaction creates a transaction invoking `updateCap` method of the contract.
 // This transaction is signed, but not sent to the network, instead it's
 // returned to the caller.
 func (c *Contract) UpdateCapTransaction(newCap *big.Int) (*transaction.Transaction, error) {
-	return c.actor.MakeCall(Hash, "updateCap", newCap)
+	return c.actor.MakeCall(c.hash, "updateCap", newCap)
 }
 
 // UpdateCapUnsigned creates a transaction invoking `updateCap` method of the contract.
@@ -239,7 +243,7 @@ func (c *Contract) UpdateCapTransaction(newCap *big.Int) (*transaction.Transacti
 // Any fields of it that do not affect fees can be changed (ValidUntilBlock,
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) UpdateCapUnsigned(newCap *big.Int) (*transaction.Transaction, error) {
-	return c.actor.MakeUnsignedCall(Hash, "updateCap", nil, newCap)
+	return c.actor.MakeUnsignedCall(c.hash, "updateCap", nil, newCap)
 }
 
 // OnMintEventsFromApplicationLog retrieves a set of all emitted events

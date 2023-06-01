@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
 // The set of constants containing parts of RPC binding template. Each block of code
@@ -39,10 +40,10 @@ func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 		}
 		return {{addIndent (etTypeConverter .ExtendedReturn "item") "\t"}}
 	} ( {{- end -}} {{if .ItemTo -}} itemTo{{ .ItemTo }}( {{- end -}}
-			unwrap.{{.Unwrapper}}(c.invoker.Call(Hash, "{{ .NameABI }}"
+			unwrap.{{.Unwrapper}}(c.invoker.Call(c.hash, "{{ .NameABI }}"
 		{{- range $arg := .Arguments -}}, {{.Name}}{{end -}} )) {{- if or .ItemTo (eq .Unwrapper "Item") -}} ) {{- end}}
 	{{- else -}} (*result.Invoke, error) {
-	c.invoker.Call(Hash, "{{ .NameABI }}"
+	c.invoker.Call(c.hash, "{{ .NameABI }}"
 		{{- range $arg := .Arguments -}}, {{.Name}}{{end}})
 	{{- end}}
 }
@@ -53,7 +54,7 @@ func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 // number of result items from the iterator right in the VM and return them to
 // you. It's only limited by VM stack and GAS available for RPC invocations.
 func (c *ContractReader) {{.Name}}Expanded({{range $index, $arg := .Arguments}}{{.Name}} {{.Type}}, {{end}}_numOfIteratorItems int) ([]stackitem.Item, error) {
-	return unwrap.Array(c.invoker.CallAndExpandIterator(Hash, "{{.NameABI}}", _numOfIteratorItems{{range $arg := .Arguments}}, {{.Name}}{{end}}))
+	return unwrap.Array(c.invoker.CallAndExpandIterator(c.hash, "{{.NameABI}}", _numOfIteratorItems{{range $arg := .Arguments}}, {{.Name}}{{end}}))
 }
 {{ end }}{{ end }}`
 	methodDefinition = `{{ define "METHOD" }}{{ if eq .ReturnType "bool"}}
@@ -61,7 +62,7 @@ func scriptFor{{.Name}}({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) ([]byte, error) {
-	return smartcontract.CreateCallWithAssertScript(Hash, "{{ .NameABI }}"{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}})
+	return smartcontract.CreateCallWithAssertScript(c.hash, "{{ .NameABI }}"{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}})
 }
 {{ end }}
 // {{.Name}} {{.Comment}}
@@ -71,7 +72,7 @@ func (c *Contract) {{.Name}}({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) (util.Uint256, uint32, error) {
-	{{if ne .ReturnType "bool"}}return c.actor.SendCall(Hash, "{{ .NameABI }}"
+	{{if ne .ReturnType "bool"}}return c.actor.SendCall(c.hash, "{{ .NameABI }}"
 	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
 	if err != nil {
 		return util.Uint256{}, 0, err
@@ -86,7 +87,7 @@ func (c *Contract) {{.Name}}Transaction({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) (*transaction.Transaction, error) {
-	{{if ne .ReturnType "bool"}}return c.actor.MakeCall(Hash, "{{ .NameABI }}"
+	{{if ne .ReturnType "bool"}}return c.actor.MakeCall(c.hash, "{{ .NameABI }}"
 	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
 	if err != nil {
 		return nil, err
@@ -102,7 +103,7 @@ func (c *Contract) {{.Name}}Unsigned({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) (*transaction.Transaction, error) {
-	{{if ne .ReturnType "bool"}}return c.actor.MakeUnsignedCall(Hash, "{{ .NameABI }}", nil
+	{{if ne .ReturnType "bool"}}return c.actor.MakeUnsignedCall(c.hash, "{{ .NameABI }}", nil
 	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
 	if err != nil {
 		return nil, err
@@ -117,10 +118,11 @@ package {{.PackageName}}
 import (
 {{range $m := .Imports}}	"{{ $m }}"
 {{end}})
-
+{{if len .Hash}}
 // Hash contains contract hash.
 var Hash = {{ .Hash }}
-{{ range $name, $typ := .NamedTypes }}
+{{end -}}
+{{- range $name, $typ := .NamedTypes }}
 // {{toTypeName $name}} is a contract-specific {{$name}} type used by its methods.
 type {{toTypeName $name}} struct {
 {{- range $m := $typ.Fields}}
@@ -175,6 +177,7 @@ type ContractReader struct {
 	{{if .IsNep17}}nep17.TokenReader
 	{{end -}}
 	invoker Invoker
+	hash util.Uint160
 }
 {{end -}}
 {{- if .HasWriter}}
@@ -189,37 +192,44 @@ type Contract struct {
 	{{if .IsNep17}}nep17.TokenWriter
 	{{end -}}
 	actor Actor
+	hash util.Uint160
 }
 {{end -}}
 {{- if .HasReader}}
-// NewReader creates an instance of ContractReader using Hash and the given Invoker.
-func NewReader(invoker Invoker) *ContractReader {
+// NewReader creates an instance of ContractReader using {{if len .Hash -}}Hash{{- else -}}provided contract hash{{- end}} and the given Invoker.
+func NewReader(invoker Invoker{{- if not (len .Hash) -}}, hash util.Uint160{{- end -}}) *ContractReader {
+	{{if len .Hash -}}
+	var hash = Hash
+	{{end -}}
 	return &ContractReader{
-		{{- if .IsNep11D}}*nep11.NewDivisibleReader(invoker, Hash), {{end}}
-		{{- if .IsNep11ND}}*nep11.NewNonDivisibleReader(invoker, Hash), {{end}}
-		{{- if .IsNep17}}*nep17.NewReader(invoker, Hash), {{end -}}
-		invoker}
+		{{- if .IsNep11D}}*nep11.NewDivisibleReader(invoker, hash), {{end}}
+		{{- if .IsNep11ND}}*nep11.NewNonDivisibleReader(invoker, hash), {{end}}
+		{{- if .IsNep17}}*nep17.NewReader(invoker, hash), {{end -}}
+		invoker, hash}
 }
 {{end -}}
 {{- if .HasWriter}}
-// New creates an instance of Contract using Hash and the given Actor.
-func New(actor Actor) *Contract {
-	{{if .IsNep11D}}var nep11dt = nep11.NewDivisible(actor, Hash)
+// New creates an instance of Contract using {{if len .Hash -}}Hash{{- else -}}provided contract hash{{- end}} and the given Actor.
+func New(actor Actor{{- if not (len .Hash) -}}, hash util.Uint160{{- end -}}) *Contract {
+	{{if len .Hash -}}
+	var hash = Hash
 	{{end -}}
-	{{if .IsNep11ND}}var nep11ndt = nep11.NewNonDivisible(actor, Hash)
+	{{if .IsNep11D}}var nep11dt = nep11.NewDivisible(actor, hash)
 	{{end -}}
-	{{if .IsNep17}}var nep17t = nep17.New(actor, Hash)
+	{{if .IsNep11ND}}var nep11ndt = nep11.NewNonDivisible(actor, hash)
+	{{end -}}
+	{{if .IsNep17}}var nep17t = nep17.New(actor, hash)
 	{{end -}}
 	return &Contract{
 		{{- if .HasReader}}ContractReader{
 		{{- if .IsNep11D}}nep11dt.DivisibleReader, {{end -}}
 		{{- if .IsNep11ND}}nep11ndt.NonDivisibleReader, {{end -}}
 		{{- if .IsNep17}}nep17t.TokenReader, {{end -}}
-		actor}, {{end -}}
+		actor, hash}, {{end -}}
 		{{- if .IsNep11D}}nep11dt.DivisibleWriter, {{end -}}
 		{{- if .IsNep11ND}}nep11ndt.BaseWriter, {{end -}}
 		{{- if .IsNep17}}nep17t.TokenWriter, {{end -}}
-		actor}
+		actor, hash}
 }
 {{end -}}
 {{- range $m := .SafeMethods }}{{template "SAFEMETHOD" $m }}{{ end -}}
@@ -660,7 +670,9 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	for i := range ctr.Imports {
 		imports[ctr.Imports[i]] = struct{}{}
 	}
-	ctr.Hash = fmt.Sprintf("%#v", cfg.Hash)
+	if !cfg.Hash.Equals(util.Uint160{}) {
+		ctr.Hash = fmt.Sprintf("%#v", cfg.Hash)
+	}
 	for i := 0; i < len(ctr.Methods); i++ {
 		abim := cfg.Manifest.ABI.GetMethod(ctr.Methods[i].NameABI, len(ctr.Methods[i].Arguments))
 		if abim.Safe {

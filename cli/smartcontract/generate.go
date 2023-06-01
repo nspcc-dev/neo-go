@@ -29,9 +29,8 @@ var generatorFlags = []cli.Flag{
 		Usage:    "Output of the compiled wrapper",
 	},
 	cli.StringFlag{
-		Name:     "hash",
-		Required: true,
-		Usage:    "Smart-contract hash",
+		Name:  "hash",
+		Usage: "Smart-contract hash",
 	},
 }
 
@@ -53,21 +52,29 @@ var generateRPCWrapperCmd = cli.Command{
 }
 
 func contractGenerateWrapper(ctx *cli.Context) error {
-	return contractGenerateSomething(ctx, binding.Generate)
+	return contractGenerateSomething(ctx, binding.Generate, false)
 }
 
 func contractGenerateRPCWrapper(ctx *cli.Context) error {
-	return contractGenerateSomething(ctx, rpcbinding.Generate)
+	return contractGenerateSomething(ctx, rpcbinding.Generate, true)
 }
 
 // contractGenerateSomething reads generator parameters and calls the given callback.
-func contractGenerateSomething(ctx *cli.Context, cb func(binding.Config) error) error {
+func contractGenerateSomething(ctx *cli.Context, cb func(binding.Config) error, allowEmptyHash bool) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
-	h, err := util.Uint160DecodeStringLE(strings.TrimPrefix(ctx.String("hash"), "0x"))
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid contract hash: %w", err), 1)
+	var (
+		h   util.Uint160
+		err error
+	)
+	if hStr := ctx.String("hash"); len(hStr) != 0 {
+		h, err = util.Uint160DecodeStringLE(strings.TrimPrefix(hStr, "0x"))
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("invalid contract hash: %w", err), 1)
+		}
+	} else if !allowEmptyHash {
+		return cli.NewExitError("contract hash must be provided via --hash flag", 1)
 	}
 	m, _, err := readManifest(ctx.String("manifest"), h)
 	if err != nil {

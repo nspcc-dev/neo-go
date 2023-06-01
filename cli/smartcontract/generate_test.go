@@ -3,6 +3,7 @@ package smartcontract
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -309,16 +310,18 @@ type Invoker interface {
 // ContractReader implements safe contract methods.
 type ContractReader struct {
 	invoker Invoker
+	hash util.Uint160
 }
 
 // NewReader creates an instance of ContractReader using Hash and the given Invoker.
 func NewReader(invoker Invoker) *ContractReader {
-	return &ContractReader{invoker}
+	var hash = Hash
+	return &ContractReader{invoker, hash}
 }
 
 // Get invokes `+"`get`"+` method of contract.
 func (c *ContractReader) Get() (*big.Int, error) {
-	return unwrap.BigInt(c.invoker.Call(Hash, "get"))
+	return unwrap.BigInt(c.invoker.Call(c.hash, "get"))
 }
 `, string(data))
 }
@@ -379,17 +382,20 @@ func TestAssistedRPCBindings(t *testing.T) {
 	app := cli.NewApp()
 	app.Commands = NewCommands()
 
-	var checkBinding = func(source string, guessEventTypes bool, suffix ...string) {
+	var checkBinding = func(source string, hasDefinedHash bool, guessEventTypes bool, suffix ...string) {
 		testName := source
 		if len(suffix) != 0 {
 			testName += suffix[0]
 		}
+		testName += fmt.Sprintf(", predefined hash: %t", hasDefinedHash)
 		t.Run(testName, func(t *testing.T) {
 			configFile := filepath.Join(source, "config.yml")
 			expectedFile := filepath.Join(source, "rpcbindings.out")
 			if len(suffix) != 0 {
 				configFile = filepath.Join(source, "config"+suffix[0]+".yml")
 				expectedFile = filepath.Join(source, "rpcbindings"+suffix[0]+".out")
+			} else if !hasDefinedHash {
+				expectedFile = filepath.Join(source, "rpcbindings_dynamic_hash.out")
 			}
 			manifestF := filepath.Join(tmpDir, "manifest.json")
 			bindingF := filepath.Join(tmpDir, "binding.yml")
@@ -405,15 +411,18 @@ func TestAssistedRPCBindings(t *testing.T) {
 				cmd = append(cmd, "--guess-eventtypes")
 			}
 			require.NoError(t, app.Run(cmd))
-			outFile := filepath.Join(tmpDir, "out.go")
-			require.NoError(t, app.Run([]string{"", "contract", "generate-rpcwrapper",
+
+			cmds := []string{"", "contract", "generate-rpcwrapper",
 				"--config", bindingF,
 				"--manifest", manifestF,
-				"--out", outFile,
-				"--hash", "0x00112233445566778899aabbccddeeff00112233",
-			}))
+				"--out", expectedFile,
+			}
+			if hasDefinedHash {
+				cmds = append(cmds, "--hash", "0x00112233445566778899aabbccddeeff00112233")
+			}
+			require.NoError(t, app.Run(cmds))
 
-			data, err := os.ReadFile(outFile)
+			data, err := os.ReadFile(expectedFile)
 			require.NoError(t, err)
 			data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
 			if rewriteExpectedOutputs {
@@ -427,11 +436,13 @@ func TestAssistedRPCBindings(t *testing.T) {
 		})
 	}
 
-	checkBinding(filepath.Join("testdata", "types"), false)
-	checkBinding(filepath.Join("testdata", "structs"), false)
-	checkBinding(filepath.Join("testdata", "notifications"), false)
-	checkBinding(filepath.Join("testdata", "notifications"), false, "_extended")
-	checkBinding(filepath.Join("testdata", "notifications"), true, "_guessed")
+	for _, hasDefinedHash := range []bool{true, false} {
+		checkBinding(filepath.Join("testdata", "types"), hasDefinedHash, false)
+		checkBinding(filepath.Join("testdata", "structs"), hasDefinedHash, false)
+	}
+	checkBinding(filepath.Join("testdata", "notifications"), true, false)
+	checkBinding(filepath.Join("testdata", "notifications"), true, false, "_extended")
+	checkBinding(filepath.Join("testdata", "notifications"), true, true, "_guessed")
 
 	require.False(t, rewriteExpectedOutputs)
 }
