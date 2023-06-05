@@ -41,7 +41,7 @@ func New(actor Actor) *Contract {
 	return &Contract{actor, hash}
 }
 
-func scriptForVerify() ([]byte, error) {
+func (c *Contract) scriptForVerify() ([]byte, error) {
 	return smartcontract.CreateCallWithAssertScript(c.hash, "verify")
 }
 

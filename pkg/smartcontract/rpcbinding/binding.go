@@ -58,7 +58,7 @@ func (c *ContractReader) {{.Name}}Expanded({{range $index, $arg := .Arguments}}{
 }
 {{ end }}{{ end }}`
 	methodDefinition = `{{ define "METHOD" }}{{ if eq .ReturnType "bool"}}
-func scriptFor{{.Name}}({{range $index, $arg := .Arguments -}}
+func (c *Contract) scriptFor{{.Name}}({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) ([]byte, error) {

@@ -194,7 +194,7 @@ func (c *Contract) SetPriceUnsigned(priceList []any) (*transaction.Transaction, 
 	return c.actor.MakeUnsignedCall(c.hash, "setPrice", nil, priceList)
 }
 
-func scriptForRegister(name string, owner util.Uint160) ([]byte, error) {
+func (c *Contract) scriptForRegister(name string, owner util.Uint160) ([]byte, error) {
 	return smartcontract.CreateCallWithAssertScript(c.hash, "register", name, owner)
 }
 
