@@ -202,7 +202,7 @@ func (c *Contract) scriptForRegister(name string, owner util.Uint160) ([]byte, e
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
 func (c *Contract) Register(name string, owner util.Uint160) (util.Uint256, uint32, error) {
-	script, err := scriptForRegister(name, owner)
+	script, err := c.scriptForRegister(name, owner)
 	if err != nil {
 		return util.Uint256{}, 0, err
 	}
@@ -213,7 +213,7 @@ func (c *Contract) Register(name string, owner util.Uint160) (util.Uint256, uint
 // This transaction is signed, but not sent to the network, instead it's
 // returned to the caller.
 func (c *Contract) RegisterTransaction(name string, owner util.Uint160) (*transaction.Transaction, error) {
-	script, err := scriptForRegister(name, owner)
+	script, err := c.scriptForRegister(name, owner)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +225,7 @@ func (c *Contract) RegisterTransaction(name string, owner util.Uint160) (*transa
 // Any fields of it that do not affect fees can be changed (ValidUntilBlock,
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) RegisterUnsigned(name string, owner util.Uint160) (*transaction.Transaction, error) {
-	script, err := scriptForRegister(name, owner)
+	script, err := c.scriptForRegister(name, owner)
 	if err != nil {
 		return nil, err
 	}

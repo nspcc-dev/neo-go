@@ -73,7 +73,7 @@ func (c *Contract) {{.Name}}({{range $index, $arg := .Arguments -}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) (util.Uint256, uint32, error) {
 	{{if ne .ReturnType "bool"}}return c.actor.SendCall(c.hash, "{{ .NameABI }}"
-	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
+	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := c.scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
 	if err != nil {
 		return util.Uint256{}, 0, err
 	}
@@ -88,7 +88,7 @@ func (c *Contract) {{.Name}}Transaction({{range $index, $arg := .Arguments -}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) (*transaction.Transaction, error) {
 	{{if ne .ReturnType "bool"}}return c.actor.MakeCall(c.hash, "{{ .NameABI }}"
-	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
+	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := c.scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func (c *Contract) {{.Name}}Unsigned({{range $index, $arg := .Arguments -}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) (*transaction.Transaction, error) {
 	{{if ne .ReturnType "bool"}}return c.actor.MakeUnsignedCall(c.hash, "{{ .NameABI }}", nil
-	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
+	{{- range $index, $arg := .Arguments -}}, {{.Name}}{{end}}){{else}}script, err := c.scriptFor{{.Name}}({{- range $index, $arg := .Arguments -}}{{- if ne $index 0}}, {{end}}{{.Name}}{{end}})
 	if err != nil {
 		return nil, err
 	}
