@@ -49,7 +49,7 @@ func (c *Contract) scriptForVerify() ([]byte, error) {
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
 func (c *Contract) Verify() (util.Uint256, uint32, error) {
-	script, err := scriptForVerify()
+	script, err := c.scriptForVerify()
 	if err != nil {
 		return util.Uint256{}, 0, err
 	}
@@ -60,7 +60,7 @@ func (c *Contract) Verify() (util.Uint256, uint32, error) {
 // This transaction is signed, but not sent to the network, instead it's
 // returned to the caller.
 func (c *Contract) VerifyTransaction() (*transaction.Transaction, error) {
-	script, err := scriptForVerify()
+	script, err := c.scriptForVerify()
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (c *Contract) VerifyTransaction() (*transaction.Transaction, error) {
 // Any fields of it that do not affect fees can be changed (ValidUntilBlock,
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) VerifyUnsigned() (*transaction.Transaction, error) {
-	script, err := scriptForVerify()
+	script, err := c.scriptForVerify()
 	if err != nil {
 		return nil, err
 	}
