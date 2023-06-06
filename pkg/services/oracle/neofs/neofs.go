@@ -53,11 +53,15 @@ func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string, re
 		return nil, err
 	}
 
-	var c = new(client.Client)
-	var prmi client.PrmInit
-	prmi.ResolveNeoFSFailures()
+	var (
+		prmi client.PrmInit
+		c    *client.Client
+	)
 	prmi.SetDefaultSigner(neofsecdsa.Signer(priv.PrivateKey))
-	c.Init(prmi)
+	c, err = client.New(prmi)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client: %w", err)
+	}
 
 	var prmd client.PrmDial
 	prmd.SetServerURI(addr)
@@ -109,11 +113,7 @@ func parseNeoFSURL(u *url.URL) (*oid.Address, []string, error) {
 }
 
 func getPayload(ctx context.Context, c *client.Client, addr *oid.Address, resReader ResultReader) ([]byte, error) {
-	var getPrm client.PrmObjectGet
-	getPrm.FromContainer(addr.Container())
-	getPrm.ByID(addr.Object())
-
-	objR, err := c.ObjectGetInit(ctx, getPrm)
+	objR, err := c.ObjectGetInit(ctx, addr.Container(), addr.Object(), client.PrmObjectGet{})
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func getPayload(ctx context.Context, c *client.Client, addr *oid.Address, resRea
 	if err != nil {
 		return nil, err
 	}
-	_, err = objR.Close() // Using ResolveNeoFSFailures.
+	err = objR.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -137,13 +137,8 @@ func getRange(ctx context.Context, c *client.Client, addr *oid.Address, resReade
 	if err != nil {
 		return nil, err
 	}
-	var rangePrm client.PrmObjectRange
-	rangePrm.FromContainer(addr.Container())
-	rangePrm.ByID(addr.Object())
-	rangePrm.SetLength(r.GetLength())
-	rangePrm.SetOffset(r.GetOffset())
 
-	rangeR, err := c.ObjectRangeInit(ctx, rangePrm)
+	rangeR, err := c.ObjectRangeInit(ctx, addr.Container(), addr.Object(), r.GetOffset(), r.GetLength(), client.PrmObjectRange{})
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +146,7 @@ func getRange(ctx context.Context, c *client.Client, addr *oid.Address, resReade
 	if err != nil {
 		return nil, err
 	}
-	_, err = rangeR.Close() // Using ResolveNeoFSFailures.
+	err = rangeR.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -160,11 +155,7 @@ func getRange(ctx context.Context, c *client.Client, addr *oid.Address, resReade
 }
 
 func getObjHeader(ctx context.Context, c *client.Client, addr *oid.Address) (*object.Object, error) {
-	var headPrm client.PrmObjectHead
-	headPrm.FromContainer(addr.Container())
-	headPrm.ByID(addr.Object())
-
-	res, err := c.ObjectHead(ctx, headPrm)
+	res, err := c.ObjectHead(ctx, addr.Container(), addr.Object(), client.PrmObjectHead{})
 	if err != nil {
 		return nil, err
 	}
@@ -200,15 +191,12 @@ func getHash(ctx context.Context, c *client.Client, addr *oid.Address, ps ...str
 		return nil, err
 	}
 	var hashPrm client.PrmObjectHash
-	hashPrm.FromContainer(addr.Container())
-	hashPrm.ByID(addr.Object())
 	hashPrm.SetRangeList(r.GetOffset(), r.GetLength())
 
-	res, err := c.ObjectHash(ctx, hashPrm)
+	hashes, err := c.ObjectHash(ctx, addr.Container(), addr.Object(), hashPrm)
 	if err != nil {
 		return nil, err
 	}
-	hashes := res.Checksums() // Using ResolveNeoFSFailures.
 	if len(hashes) == 0 {
 		return nil, fmt.Errorf("%w: empty response", ErrInvalidRange)
 	}
