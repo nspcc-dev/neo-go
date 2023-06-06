@@ -1,6 +1,7 @@
 package neofs
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -17,10 +18,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
-
-// ResultReader is a function that reads required amount of data and
-// checks it.
-type ResultReader func(io.Reader) ([]byte, error)
 
 const (
 	// URIScheme is the name of neofs URI scheme.
@@ -47,7 +44,7 @@ var (
 // Get returns a neofs object from the provided url.
 // URI scheme is "neofs:<Container-ID>/<Object-ID/<Command>/<Params>".
 // If Command is not provided, full object is requested.
-func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string, resReader ResultReader) ([]byte, error) {
+func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string) (io.ReadCloser, error) {
 	objectAddr, ps, err := parseNeoFSURL(u)
 	if err != nil {
 		return nil, err
@@ -63,27 +60,44 @@ func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string, re
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
-	var prmd client.PrmDial
+	var (
+		res  = clientCloseWrapper{c: c}
+		prmd client.PrmDial
+	)
 	prmd.SetServerURI(addr)
 	prmd.SetContext(ctx)
 	err = c.Dial(prmd) //nolint:contextcheck // contextcheck: Function `Dial->Balance->SendUnary->Init->setNeoFSAPIServer` should pass the context parameter
 	if err != nil {
-		return nil, err
+		return res, err
 	}
-	defer c.Close()
 
 	switch {
 	case len(ps) == 0 || ps[0] == "": // Get request
-		return getPayload(ctx, c, objectAddr, resReader)
+		res.ReadCloser, err = getPayload(ctx, c, objectAddr)
 	case ps[0] == rangeCmd:
-		return getRange(ctx, c, objectAddr, resReader, ps[1:]...)
+		res.ReadCloser, err = getRange(ctx, c, objectAddr, ps[1:]...)
 	case ps[0] == headerCmd:
-		return getHeader(ctx, c, objectAddr)
+		res.ReadCloser, err = getHeader(ctx, c, objectAddr)
 	case ps[0] == hashCmd:
-		return getHash(ctx, c, objectAddr, ps[1:]...)
+		res.ReadCloser, err = getHash(ctx, c, objectAddr, ps[1:]...)
 	default:
-		return nil, ErrInvalidCommand
+		err = ErrInvalidCommand
 	}
+	return res, err
+}
+
+type clientCloseWrapper struct {
+	io.ReadCloser
+	c *client.Client
+}
+
+func (w clientCloseWrapper) Close() error {
+	var res error
+	if w.ReadCloser != nil {
+		res = w.ReadCloser.Close()
+	}
+	w.c.Close()
+	return res
 }
 
 // parseNeoFSURL returns parsed neofs address.
@@ -112,24 +126,11 @@ func parseNeoFSURL(u *url.URL) (*oid.Address, []string, error) {
 	return objAddr, ps[2:], nil
 }
 
-func getPayload(ctx context.Context, c *client.Client, addr *oid.Address, resReader ResultReader) ([]byte, error) {
-	objR, err := c.ObjectGetInit(ctx, addr.Container(), addr.Object(), client.PrmObjectGet{})
-	if err != nil {
-		return nil, err
-	}
-	resp, err := resReader(objR)
-	if err != nil {
-		return nil, err
-	}
-	err = objR.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+func getPayload(ctx context.Context, c *client.Client, addr *oid.Address) (io.ReadCloser, error) {
+	return c.ObjectGetInit(ctx, addr.Container(), addr.Object(), client.PrmObjectGet{})
 }
 
-func getRange(ctx context.Context, c *client.Client, addr *oid.Address, resReader ResultReader, ps ...string) ([]byte, error) {
+func getRange(ctx context.Context, c *client.Client, addr *oid.Address, ps ...string) (io.ReadCloser, error) {
 	if len(ps) == 0 {
 		return nil, ErrInvalidRange
 	}
@@ -138,20 +139,7 @@ func getRange(ctx context.Context, c *client.Client, addr *oid.Address, resReade
 		return nil, err
 	}
 
-	rangeR, err := c.ObjectRangeInit(ctx, addr.Container(), addr.Object(), r.GetOffset(), r.GetLength(), client.PrmObjectRange{})
-	if err != nil {
-		return nil, err
-	}
-	resp, err := resReader(rangeR)
-	if err != nil {
-		return nil, err
-	}
-	err = rangeR.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return c.ObjectRangeInit(ctx, addr.Container(), addr.Object(), r.GetOffset(), r.GetLength(), client.PrmObjectRange{})
 }
 
 func getObjHeader(ctx context.Context, c *client.Client, addr *oid.Address) (*object.Object, error) {
@@ -166,15 +154,19 @@ func getObjHeader(ctx context.Context, c *client.Client, addr *oid.Address) (*ob
 	return obj, nil
 }
 
-func getHeader(ctx context.Context, c *client.Client, addr *oid.Address) ([]byte, error) {
+func getHeader(ctx context.Context, c *client.Client, addr *oid.Address) (io.ReadCloser, error) {
 	obj, err := getObjHeader(ctx, c, addr)
 	if err != nil {
 		return nil, err
 	}
-	return obj.MarshalHeaderJSON()
+	res, err := obj.MarshalHeaderJSON()
+	if err != nil {
+		return nil, err
+	}
+	return io.NopCloser(bytes.NewReader(res)), nil
 }
 
-func getHash(ctx context.Context, c *client.Client, addr *oid.Address, ps ...string) ([]byte, error) {
+func getHash(ctx context.Context, c *client.Client, addr *oid.Address, ps ...string) (io.ReadCloser, error) {
 	if len(ps) == 0 || ps[0] == "" { // hash of the full payload
 		obj, err := getObjHeader(ctx, c, addr)
 		if err != nil {
@@ -184,7 +176,7 @@ func getHash(ctx context.Context, c *client.Client, addr *oid.Address, ps ...str
 		if !flag {
 			return nil, errors.New("missing checksum in the reply")
 		}
-		return sum.Value(), nil
+		return io.NopCloser(bytes.NewReader(sum.Value())), nil
 	}
 	r, err := parseRange(ps[0])
 	if err != nil {
@@ -204,7 +196,11 @@ func getHash(ctx context.Context, c *client.Client, addr *oid.Address, ps ...str
 	if err != nil {
 		return nil, fmt.Errorf("decode Uint256: %w", err)
 	}
-	return u256.MarshalJSON()
+	res, err := u256.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	return io.NopCloser(bytes.NewReader(res)), nil
 }
 
 func parseRange(s string) (*object.Range, error) {
