@@ -68,17 +68,30 @@ func (o *Oracle) AddResponse(pub *keys.PublicKey, reqID uint64, txSig []byte) {
 // ErrResponseTooLarge is returned when a response exceeds the max allowed size.
 var ErrResponseTooLarge = errors.New("too big response")
 
-func readResponse(rc gio.Reader) ([]byte, error) {
+func (o *Oracle) readResponse(rc gio.Reader, url string) ([]byte, transaction.OracleResponseCode) {
 	const limit = transaction.MaxOracleResultSize
 	buf := make([]byte, limit+1)
 	n, err := gio.ReadFull(rc, buf)
 	if errors.Is(err, gio.ErrUnexpectedEOF) && n <= limit {
-		return checkUTF8(buf[:n])
+		res, err := checkUTF8(buf[:n])
+		return o.handleResponseError(res, err, url)
 	}
 	if err == nil || n > limit {
-		return nil, ErrResponseTooLarge
+		return o.handleResponseError(nil, ErrResponseTooLarge, url)
 	}
-	return nil, err
+
+	return o.handleResponseError(nil, err, url)
+}
+
+func (o *Oracle) handleResponseError(data []byte, err error, url string) ([]byte, transaction.OracleResponseCode) {
+	if err != nil {
+		o.Log.Warn("failed to read data for oracle request", zap.String("url", url), zap.Error(err))
+		if errors.Is(err, ErrResponseTooLarge) {
+			return nil, transaction.ResponseTooLarge
+		}
+		return nil, transaction.Error
+	}
+	return data, transaction.Success
 }
 
 func checkUTF8(v []byte) ([]byte, error) {

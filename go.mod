@@ -14,7 +14,7 @@ require (
 	github.com/nspcc-dev/dbft v0.0.0-20230515113611-25db6ba61d5c
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20220111165707-25110be27d22
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20230420112658-c50ab951645a
-	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.8
+	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.9
 	github.com/nspcc-dev/rfc6979 v0.2.0
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/pmezard/go-difflib v1.0.0
@@ -49,7 +49,7 @@ require (
 	github.com/nspcc-dev/hrw v1.0.9 // indirect
 	github.com/nspcc-dev/neofs-api-go/v2 v2.14.0 // indirect
 	github.com/nspcc-dev/neofs-crypto v0.4.0 // indirect
-	github.com/nspcc-dev/tzhash v1.6.1 // indirect
+	github.com/nspcc-dev/tzhash v1.7.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
@@ -62,7 +62,7 @@ require (
 	golang.org/x/mod v0.6.0 // indirect
 	golang.org/x/net v0.7.0 // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
-	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/sys v0.8.0 // indirect
 	google.golang.org/genproto v0.0.0-20200825200019-8632dd797987 // indirect
 	google.golang.org/grpc v1.48.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
