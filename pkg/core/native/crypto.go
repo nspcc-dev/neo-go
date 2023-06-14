@@ -251,7 +251,7 @@ func (c *Crypto) bls12381Add(_ *interop.Context, args []stackitem.Item) stackite
 			yJac.AddMixed(x)
 			res = yJac
 		default:
-			panic("inconsistent point types")
+			panic(fmt.Errorf("add: inconsistent bls12381 point types: %T and %T", x, y))
 		}
 	case *bls12381.G1Jac:
 		resJac := new(bls12381.G1Jac)
@@ -262,7 +262,7 @@ func (c *Crypto) bls12381Add(_ *interop.Context, args []stackitem.Item) stackite
 		case *bls12381.G1Jac:
 			resJac.AddAssign(y)
 		default:
-			panic("inconsistent")
+			panic(fmt.Errorf("add: inconsistent bls12381 point types: %T and %T", x, y))
 		}
 		res = resJac
 	case *bls12381.G2Affine:
@@ -278,7 +278,7 @@ func (c *Crypto) bls12381Add(_ *interop.Context, args []stackitem.Item) stackite
 			yJac.AddMixed(x)
 			res = yJac
 		default:
-			panic("inconsistent")
+			panic(fmt.Errorf("add: inconsistent bls12381 point types: %T and %T", x, y))
 		}
 	case *bls12381.G2Jac:
 		resJac := new(bls12381.G2Jac)
@@ -289,7 +289,7 @@ func (c *Crypto) bls12381Add(_ *interop.Context, args []stackitem.Item) stackite
 		case *bls12381.G2Jac:
 			resJac.AddAssign(y)
 		default:
-			panic("invalid")
+			panic(fmt.Errorf("add: inconsistent bls12381 point types: %T and %T", x, y))
 		}
 		res = resJac
 	case *bls12381.GT:
@@ -300,11 +300,11 @@ func (c *Crypto) bls12381Add(_ *interop.Context, args []stackitem.Item) stackite
 			// It's multiplication, see https://github.com/neo-project/Neo.Cryptography.BLS12_381/issues/4.
 			resGT.Mul(x, y)
 		default:
-			panic("invalid")
+			panic(fmt.Errorf("add: inconsistent bls12381 point types: %T and %T", x, y))
 		}
 		res = resGT
 	default:
-		panic(fmt.Errorf("unexpected bls12381 point type: %T", x))
+		panic(fmt.Errorf("add: unexpected bls12381 point type: %T", x))
 	}
 	return stackitem.NewInterop(blsPoint{point: res})
 }
@@ -384,7 +384,7 @@ func (c *Crypto) bls12381Mul(_ *interop.Context, args []stackitem.Item) stackite
 
 		res = gt
 	default:
-		panic(fmt.Errorf("unexpected bls12381 point type: %T", x))
+		panic(fmt.Errorf("mul: unexpected bls12381 point type: %T", x))
 	}
 	return stackitem.NewInterop(blsPoint{point: res})
 }
@@ -406,7 +406,7 @@ func (c *Crypto) bls12381Pairing(_ *interop.Context, args []stackitem.Item) stac
 		x = new(bls12381.G1Affine)
 		x.FromJacobian(p)
 	default:
-		panic(fmt.Errorf("unexpected bls12381 point type (g1): %T", x))
+		panic(fmt.Errorf("pairing: unexpected bls12381 point type (g1): %T", x))
 	}
 	switch p := b.point.(type) {
 	case *bls12381.G2Affine:
@@ -415,11 +415,11 @@ func (c *Crypto) bls12381Pairing(_ *interop.Context, args []stackitem.Item) stac
 		y = new(bls12381.G2Affine)
 		y.FromJacobian(p)
 	default:
-		panic(fmt.Errorf("unexpected bls12381 point type (g2): %T", x))
+		panic(fmt.Errorf("pairing: unexpected bls12381 point type (g2): %T", x))
 	}
 	gt, err := bls12381.Pair([]bls12381.G1Affine{*x}, []bls12381.G2Affine{*y})
 	if err != nil {
-		panic(fmt.Errorf("failed to perform pairing operation"))
+		panic(fmt.Errorf("failed to perform pairing operation: %w", err))
 	}
 	return stackitem.NewInterop(blsPoint{&gt})
 }
