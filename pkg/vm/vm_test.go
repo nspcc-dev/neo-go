@@ -820,11 +820,23 @@ func TestDepth(t *testing.T) {
 	assert.Equal(t, int64(3), vm.estack.Pop().BigInt().Int64())
 }
 
+type simpleEquatable struct {
+	ok bool
+}
+
+var _ = stackitem.Equatable(simpleEquatable{})
+
+func (e simpleEquatable) Equals(other stackitem.Equatable) bool {
+	_, ok := other.(simpleEquatable)
+	return ok && e.ok
+}
+
 func TestEQUALTrue(t *testing.T) {
 	prog := makeProgram(opcode.DUP, opcode.EQUAL)
 	t.Run("Array", getTestFuncForVM(prog, true, []stackitem.Item{}))
 	t.Run("Map", getTestFuncForVM(prog, true, stackitem.NewMap()))
 	t.Run("Buffer", getTestFuncForVM(prog, true, stackitem.NewBuffer([]byte{1, 2})))
+	t.Run("Equatable", getTestFuncForVM(prog, true, stackitem.NewInterop(simpleEquatable{ok: true})))
 }
 
 func TestEQUAL(t *testing.T) {
@@ -837,6 +849,8 @@ func TestEQUAL(t *testing.T) {
 	t.Run("Map", getTestFuncForVM(prog, false, stackitem.NewMap(), stackitem.NewMap()))
 	t.Run("Array", getTestFuncForVM(prog, false, []stackitem.Item{}, []stackitem.Item{}))
 	t.Run("Buffer", getTestFuncForVM(prog, false, stackitem.NewBuffer([]byte{42}), stackitem.NewBuffer([]byte{42})))
+	t.Run("EquatableFalse", getTestFuncForVM(prog, false, stackitem.NewInterop(simpleEquatable{false}), stackitem.NewInterop(simpleEquatable{})))
+	t.Run("EquatableTrue", getTestFuncForVM(prog, true, stackitem.NewInterop(simpleEquatable{true}), stackitem.NewInterop(simpleEquatable{})))
 }
 
 func TestEQUALByteArrayWithLimit(t *testing.T) {
