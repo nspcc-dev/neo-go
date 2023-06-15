@@ -60,6 +60,13 @@ type Convertible interface {
 	FromStackItem(Item) error
 }
 
+// Equatable describes a special value of Interop that can be compared with
+// value of some other Interop that implements Equatable.
+type Equatable interface {
+	// Equals checks if two objects are equal.
+	Equals(other Equatable) bool
+}
+
 var (
 	// ErrInvalidConversion is returned upon an attempt to make an incorrect
 	// conversion between item types.
@@ -994,7 +1001,12 @@ func (i *Interop) Equals(s Item) bool {
 		return false
 	}
 	val, ok := s.(*Interop)
-	return ok && i.value == val.value
+	if !ok {
+		return false
+	}
+	a, okA := i.value.(Equatable)
+	b, okB := val.value.(Equatable)
+	return (okA && okB && a.Equals(b)) || (!okA && !okB && i.value == val.value)
 }
 
 // Type implements the Item interface.

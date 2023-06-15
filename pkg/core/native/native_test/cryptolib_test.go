@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -38,6 +37,10 @@ func newCryptolibClient(t *testing.T) *neotest.ContractInvoker {
 	return newNativeClient(t, nativenames.CryptoLib)
 }
 
+type serializable interface {
+	Bytes() []byte
+}
+
 func TestCryptolib_TestG1_Compat(t *testing.T) {
 	c := newCryptolibClient(t)
 	cryptoInvoker := c.WithSigners(c.Committee)
@@ -48,9 +51,9 @@ func TestCryptolib_TestG1_Compat(t *testing.T) {
 	require.Equal(t, 1, stack.Len())
 	itm := stack.Pop().Item()
 	require.Equal(t, stackitem.InteropT, itm.Type())
-	actual, ok := itm.(*stackitem.Interop).Value().(*bls12381.G1Affine)
+	actual, ok := itm.(*stackitem.Interop).Value().(serializable)
 	require.True(t, ok)
-	arr := actual.Bytes() // the result in compressed form.
+	arr := actual.Bytes() // the G1Affine result in compressed form.
 	// Expected value is taken from the reference test.
 	require.Equal(t, "97f1d3a73197d7942695638c4fa9ac0fc3688c4f9774b905a14e3a3f171bac586c55e83ff97a1aeffb3af00adb22c6bb",
 		hex.EncodeToString(arr[:]))
@@ -66,9 +69,9 @@ func TestCryptolib_TestG2_Compat(t *testing.T) {
 	require.Equal(t, 1, stack.Len())
 	itm := stack.Pop().Item()
 	require.Equal(t, stackitem.InteropT, itm.Type())
-	actual, ok := itm.(*stackitem.Interop).Value().(*bls12381.G2Affine)
+	actual, ok := itm.(*stackitem.Interop).Value().(serializable)
 	require.True(t, ok)
-	arr := actual.Bytes() // the result in compressed form.
+	arr := actual.Bytes() // the result G2Affine in compressed form.
 	// Expected value is taken from the reference test.
 	require.Equal(t, "93e02b6052719f607dacd3a088274f65596bd0d09920b61ab5da61bbdc7f5049334cf11213945d57e5ac7d055d042b7e024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8",
 		hex.EncodeToString(arr[:]))
@@ -102,10 +105,10 @@ func TestCryptolib_TestBls12381Add_Compat(t *testing.T) {
 	require.Equal(t, 1, stack.Len())
 	itm := stack.Pop().Item()
 	require.Equal(t, stackitem.InteropT, itm.Type())
-	actual, ok := itm.(*stackitem.Interop).Value().(*bls12381.GT)
+	actual, ok := itm.(*stackitem.Interop).Value().(serializable)
 	require.True(t, ok)
 	arr := actual.Bytes()
-	// Expected value is taken from the reference test.
+	// Expected GT value is taken from the reference test.
 	require.Equal(t, strings.ToLower("079AB7B345EB23C944C957A36A6B74C37537163D4CBF73BAD9751DE1DD9C68EF72CB21447E259880F72A871C3EDA1B0C017F1C95CF79B22B459599EA57E613E00CB75E35DE1F837814A93B443C54241015AC9761F8FB20A44512FF5CFC04AC7F0F6B8B52B2B5D0661CBF232820A257B8C5594309C01C2A45E64C6A7142301E4FB36E6E16B5A85BD2E437599D103C3ACE06D8046C6B3424C4CD2D72CE98D279F2290A28A87E8664CB0040580D0C485F34DF45267F8C215DCBCD862787AB555C7E113286DEE21C9C63A458898BEB35914DC8DAAAC453441E7114B21AF7B5F47D559879D477CF2A9CBD5B40C86BECD071280900410BB2751D0A6AF0FE175DCF9D864ECAAC463C6218745B543F9E06289922434EE446030923A3E4C4473B4E3B1914081ABD33A78D31EB8D4C1BB3BAAB0529BB7BAF1103D848B4CEAD1A8E0AA7A7B260FBE79C67DBE41CA4D65BA8A54A72B61692A61CE5F4D7A093B2C46AA4BCA6C4A66CF873D405EBC9C35D8AA639763720177B23BEFFAF522D5E41D3C5310EA3331409CEBEF9EF393AA00F2AC64673675521E8FC8FDDAF90976E607E62A740AC59C3DDDF95A6DE4FBA15BEB30C43D4E3F803A3734DBEB064BF4BC4A03F945A4921E49D04AB8D45FD753A28B8FA082616B4B17BBCB685E455FF3BF8F60C3BD32A0C185EF728CF41A1B7B700B7E445F0B372BC29E370BC227D443C70AE9DBCF73FEE8ACEDBD317A286A53266562D817269C004FB0F149DD925D2C590A960936763E519C2B62E14C7759F96672CD852194325904197B0B19C6B528AB33566946AF39B"),
 		hex.EncodeToString(arr[:]))
 }
@@ -132,10 +135,10 @@ func TestCryptolib_TestBls12381Mul_Compat(t *testing.T) {
 		require.Equal(t, 1, stack.Len())
 		itm := stack.Pop().Item()
 		require.Equal(t, stackitem.InteropT, itm.Type())
-		actual, ok := itm.(*stackitem.Interop).Value().(*bls12381.GT)
+		actual, ok := itm.(*stackitem.Interop).Value().(serializable)
 		require.True(t, ok)
 		arr := actual.Bytes()
-		// Expected value is taken from the reference test.
+		// Expected GT value is taken from the reference test.
 		require.Equal(t, strings.ToLower(expected), hex.EncodeToString(arr[:]))
 	}
 	check(t, false, "18B2DB6B3286BAEA116CCAD8F5554D170A69B329A6DE5B24C50B8834965242001A1C58089FD872B211ACD3263897FA660B117248D69D8AC745283A3E6A4CCEC607F6CF7CEDEE919575D4B7C8AE14C36001F76BE5FCA50ADC296EF8DF4926FA7F0B55A75F255FE61FC2DA7CFFE56ADC8775AAAB54C50D0C4952AD919D90FB0EB221C41ABB9F2352A11BE2D7F176ABE41E0E30AFB34FC2CE16136DE66900D92068F30011E9882C0A56E7E7B30F08442BE9E58D093E1888151136259D059FB539210D635BC491D5244A16CA28FDCF10546EC0F7104D3A419DDC081BA30ECB0CD2289010C2D385946229B7A9735ADC82736914FE61AD26C6C38B787775DE3B939105DE055F8D7004358272A0823F6F1787A7ABB6C3C59C8C9CBD1674AC900512632818CDD273F0D38833C07467EAF77743B70C924D43975D3821D47110A358757F926FCF970660FBDD74EF15D93B81E3AA290C78F59CBC6ED0C1E0DCBADFD11A73EB7137850D29EFEB6FA321330D0CF70F5C7F6B004BCF86AC99125F8FECF83157930BEC2AF89F8B378C6D7F63B0A07B3651F5207A84F62CEE929D574DA154EBE795D519B661086F069C9F061BA3B53DC4910EA1614C87B114E2F9EF328AC94E93D00440B412D5AE5A3C396D52D26C0CDF2156EBD3D3F60EA500C42120A7CE1F7EF80F15323118956B17C09E80E96ED4E1572461D604CDE2533330C684F86680406B1D3EE830CBAFE6D29C9A0A2F41E03E26095B713EB7E782144DB1EC6B53047FCB606B7B665B3DD1F52E95FCF2AE59C4AB159C3F98468C0A43C36C022B548189B6")
@@ -156,10 +159,10 @@ func TestCryptolib_TestBls12381Pairing_Compat(t *testing.T) {
 	require.Equal(t, 1, stack.Len())
 	itm := stack.Pop().Item()
 	require.Equal(t, stackitem.InteropT, itm.Type())
-	actual, ok := itm.(*stackitem.Interop).Value().(*bls12381.GT)
+	actual, ok := itm.(*stackitem.Interop).Value().(serializable)
 	require.True(t, ok)
 	arr := actual.Bytes()
-	// Expected value is taken from the reference test.
+	// Expected GT value is taken from the reference test.
 	require.Equal(t, strings.ToLower("0F41E58663BF08CF068672CBD01A7EC73BACA4D72CA93544DEFF686BFD6DF543D48EAA24AFE47E1EFDE449383B67663104C581234D086A9902249B64728FFD21A189E87935A954051C7CDBA7B3872629A4FAFC05066245CB9108F0242D0FE3EF03350F55A7AEFCD3C31B4FCB6CE5771CC6A0E9786AB5973320C806AD360829107BA810C5A09FFDD9BE2291A0C25A99A211B8B424CD48BF38FCEF68083B0B0EC5C81A93B330EE1A677D0D15FF7B984E8978EF48881E32FAC91B93B47333E2BA5706FBA23EB7C5AF0D9F80940CA771B6FFD5857BAAF222EB95A7D2809D61BFE02E1BFD1B68FF02F0B8102AE1C2D5D5AB1A19F26337D205FB469CD6BD15C3D5A04DC88784FBB3D0B2DBDEA54D43B2B73F2CBB12D58386A8703E0F948226E47EE89D018107154F25A764BD3C79937A45B84546DA634B8F6BE14A8061E55CCEBA478B23F7DACAA35C8CA78BEAE9624045B4B601B2F522473D171391125BA84DC4007CFBF2F8DA752F7C74185203FCCA589AC719C34DFFBBAAD8431DAD1C1FB597AAA5193502B86EDB8857C273FA075A50512937E0794E1E65A7617C90D8BD66065B1FFFE51D7A579973B1315021EC3C19934F1368BB445C7C2D209703F239689CE34C0378A68E72A6B3B216DA0E22A5031B54DDFF57309396B38C881C4C849EC23E87089A1C5B46E5110B86750EC6A532348868A84045483C92B7AF5AF689452EAFABF1A8943E50439F1D59882A98EAA0170F1250EBD871FC0A92A7B2D83168D0D727272D441BEFA15C503DD8E90CE98DB3E7B6D194F60839C508A84305AACA1789B6"),
 		hex.EncodeToString(arr[:]))
 }
@@ -313,30 +316,10 @@ func TestCryptolib_TestBls12381Mul_CompatCustom(t *testing.T) {
 		require.Equal(t, 1, stack.Len())
 		itm := stack.Pop().Item()
 		require.Equal(t, stackitem.InteropT, itm.Type())
-		var actual []byte
-		switch resTyp {
-		case gtP:
-			gt, ok := itm.(*stackitem.Interop).Value().(*bls12381.GT)
-			require.True(t, ok)
-			arr := gt.Bytes()
-			actual = arr[:]
-		case g1JacP:
-			g1Jac, ok := itm.(*stackitem.Interop).Value().(*bls12381.G1Jac)
-			require.True(t, ok)
-			g1Affine := new(bls12381.G1Affine)
-			g1Affine.FromJacobian(g1Jac)
-			arr := g1Affine.Bytes()
-			actual = arr[:]
-		case g2JacP:
-			g2Jac, ok := itm.(*stackitem.Interop).Value().(*bls12381.G2Jac)
-			require.True(t, ok)
-			g2Affine := new(bls12381.G2Affine)
-			g2Affine.FromJacobian(g2Jac)
-			arr := g2Affine.Bytes()
-			actual = arr[:]
-		default:
-			t.Fatal("unexpected result type", resTyp)
-		}
+		p, ok := itm.(*stackitem.Interop).Value().(serializable)
+		require.True(t, ok)
+		arr := p.Bytes()
+		actual := arr[:]
 		require.Equal(t, strings.ToLower(expected), hex.EncodeToString(actual))
 	}
 
@@ -349,4 +332,91 @@ func TestCryptolib_TestBls12381Mul_CompatCustom(t *testing.T) {
 				tc.expected)
 		})
 	}
+}
+
+func TestCryptolib_Bls12381PointsEQUAL_DUP(t *testing.T) {
+	c := newCryptolibClient(t)
+
+	check := func(t *testing.T, point string) {
+		bytes, err := hex.DecodeString(point)
+		require.NoError(t, err)
+		script := io.NewBufBinWriter()
+		emit.AppCall(script.BinWriter, c.Hash, "bls12381Deserialize", callflag.All, bytes)
+		emit.Opcodes(script.BinWriter, opcode.DUP, opcode.EQUAL)
+
+		c.InvokeScriptCheckHALT(t, script.Bytes(), c.Signers, stackitem.NewBool(true))
+	}
+	t.Run("GT", func(t *testing.T) {
+		check(t, "14fd52fe9bfd08bbe23fcdf1d3bc5390c62e75a8786a72f8a343123a30a7c5f8d18508a21a2bf902f4db2c068913bc1c130e7ce13260d601c89ee717acfd3d4e1d80f409dd2a5c38b176f0b64d3d0a224c502717270dfecf2b825ac24608215c0d7fcfdf3c1552ada42b7e0521bc2e7389436660c352ecbf2eedf30b77b6b501df302399e6240473af47abe56fc974780c214542fcc0cf10e3001fa5e82d398f6ba1ddd1ccdf133bfd75e033eae50aec66bd5e884b8c74d4c1c6ac7c01278ac5164a54600cb2e24fec168f82542fbf98234dbb9ddf06503dc3c497da88b73db584ba19e685b1b398b51f40160e6c8f0917b4a68dedcc04674e5f5739cf0d845ba801263f712ed4ddda59c1d9909148e3f28124ae770682c9b19233bf0bcfa00d05bfe708d381b066b83a883ba8251ce2ea6772cbde51e1322d82b2c8a026a2153f4822e20cb69b8b05003ee74e09cb481728d688caa8a671f90b55488e272f48c7c5ae32526d3635a5343eb02640358d9ac445c76a5d8f52f653bbaee04ba5ce03c68b88c25be6fd3611cc21c9968e4f87e541beeccc5170b8696a439bb666ad8a6608ab30ebc7dfe56eaf0dd9ab8439171a6e4e0d608e6e6c8ac5ddcf8d6d2a950d06051e6b6c4d3feb6dc8dac2acadd345cadfb890454a2101a112f7471f0e001701f60f3d4352c4d388c0f198854908c0e939719709c1b3f82d2a25cc7156a3838bc141e041c259849326fbd0839f15cea6a78b89349dcd1c03695a74e72d3657af4ee2cf267337bc96363ef4a1c5d5d7a673cc3a3c1a1350043f99537d62")
+	})
+	t.Run("G1", func(t *testing.T) {
+		check(t, "a1f9855f7670a63e4c80d64dfe6ddedc2ed2bfaebae27e4da82d71ba474987a39808e8921d3df97df6e5d4b979234de8")
+	})
+	t.Run("G2", func(t *testing.T) {
+		check(t, "a41e586fdd58d39616fea921a855e65417a5732809afc35e28466e3acaeed3d53dd4b97ca398b2f29bf6bbcaca026a6609a42bdeaaeef42813ae225e35c23c61c293e6ecb6759048fb76ac648ba3bc49f0fcf62f73fca38cdc5e7fa5bf511365")
+	})
+}
+
+func TestCryptolib_Bls12381PointsEQUAL(t *testing.T) {
+	c := newCryptolibClient(t)
+
+	check := func(t *testing.T, point1, point2 string, expected bool) {
+		bytes1, err := hex.DecodeString(point1)
+		require.NoError(t, err)
+		bytes2, err := hex.DecodeString(point2)
+		require.NoError(t, err)
+		script := io.NewBufBinWriter()
+		emit.AppCall(script.BinWriter, c.Hash, "bls12381Deserialize", callflag.All, bytes1)
+		emit.AppCall(script.BinWriter, c.Hash, "bls12381Deserialize", callflag.All, bytes2)
+		emit.Opcodes(script.BinWriter, opcode.EQUAL)
+
+		c.InvokeScriptCheckHALT(t, script.Bytes(), c.Signers, stackitem.NewBool(expected))
+	}
+	t.Run("GT true", func(t *testing.T) {
+		check(t, "14fd52fe9bfd08bbe23fcdf1d3bc5390c62e75a8786a72f8a343123a30a7c5f8d18508a21a2bf902f4db2c068913bc1c130e7ce13260d601c89ee717acfd3d4e1d80f409dd2a5c38b176f0b64d3d0a224c502717270dfecf2b825ac24608215c0d7fcfdf3c1552ada42b7e0521bc2e7389436660c352ecbf2eedf30b77b6b501df302399e6240473af47abe56fc974780c214542fcc0cf10e3001fa5e82d398f6ba1ddd1ccdf133bfd75e033eae50aec66bd5e884b8c74d4c1c6ac7c01278ac5164a54600cb2e24fec168f82542fbf98234dbb9ddf06503dc3c497da88b73db584ba19e685b1b398b51f40160e6c8f0917b4a68dedcc04674e5f5739cf0d845ba801263f712ed4ddda59c1d9909148e3f28124ae770682c9b19233bf0bcfa00d05bfe708d381b066b83a883ba8251ce2ea6772cbde51e1322d82b2c8a026a2153f4822e20cb69b8b05003ee74e09cb481728d688caa8a671f90b55488e272f48c7c5ae32526d3635a5343eb02640358d9ac445c76a5d8f52f653bbaee04ba5ce03c68b88c25be6fd3611cc21c9968e4f87e541beeccc5170b8696a439bb666ad8a6608ab30ebc7dfe56eaf0dd9ab8439171a6e4e0d608e6e6c8ac5ddcf8d6d2a950d06051e6b6c4d3feb6dc8dac2acadd345cadfb890454a2101a112f7471f0e001701f60f3d4352c4d388c0f198854908c0e939719709c1b3f82d2a25cc7156a3838bc141e041c259849326fbd0839f15cea6a78b89349dcd1c03695a74e72d3657af4ee2cf267337bc96363ef4a1c5d5d7a673cc3a3c1a1350043f99537d62",
+			"14fd52fe9bfd08bbe23fcdf1d3bc5390c62e75a8786a72f8a343123a30a7c5f8d18508a21a2bf902f4db2c068913bc1c130e7ce13260d601c89ee717acfd3d4e1d80f409dd2a5c38b176f0b64d3d0a224c502717270dfecf2b825ac24608215c0d7fcfdf3c1552ada42b7e0521bc2e7389436660c352ecbf2eedf30b77b6b501df302399e6240473af47abe56fc974780c214542fcc0cf10e3001fa5e82d398f6ba1ddd1ccdf133bfd75e033eae50aec66bd5e884b8c74d4c1c6ac7c01278ac5164a54600cb2e24fec168f82542fbf98234dbb9ddf06503dc3c497da88b73db584ba19e685b1b398b51f40160e6c8f0917b4a68dedcc04674e5f5739cf0d845ba801263f712ed4ddda59c1d9909148e3f28124ae770682c9b19233bf0bcfa00d05bfe708d381b066b83a883ba8251ce2ea6772cbde51e1322d82b2c8a026a2153f4822e20cb69b8b05003ee74e09cb481728d688caa8a671f90b55488e272f48c7c5ae32526d3635a5343eb02640358d9ac445c76a5d8f52f653bbaee04ba5ce03c68b88c25be6fd3611cc21c9968e4f87e541beeccc5170b8696a439bb666ad8a6608ab30ebc7dfe56eaf0dd9ab8439171a6e4e0d608e6e6c8ac5ddcf8d6d2a950d06051e6b6c4d3feb6dc8dac2acadd345cadfb890454a2101a112f7471f0e001701f60f3d4352c4d388c0f198854908c0e939719709c1b3f82d2a25cc7156a3838bc141e041c259849326fbd0839f15cea6a78b89349dcd1c03695a74e72d3657af4ee2cf267337bc96363ef4a1c5d5d7a673cc3a3c1a1350043f99537d62",
+			true)
+	})
+	t.Run("GT false", func(t *testing.T) {
+		check(t, "14fd52fe9bfd08bbe23fcdf1d3bc5390c62e75a8786a72f8a343123a30a7c5f8d18508a21a2bf902f4db2c068913bc1c130e7ce13260d601c89ee717acfd3d4e1d80f409dd2a5c38b176f0b64d3d0a224c502717270dfecf2b825ac24608215c0d7fcfdf3c1552ada42b7e0521bc2e7389436660c352ecbf2eedf30b77b6b501df302399e6240473af47abe56fc974780c214542fcc0cf10e3001fa5e82d398f6ba1ddd1ccdf133bfd75e033eae50aec66bd5e884b8c74d4c1c6ac7c01278ac5164a54600cb2e24fec168f82542fbf98234dbb9ddf06503dc3c497da88b73db584ba19e685b1b398b51f40160e6c8f0917b4a68dedcc04674e5f5739cf0d845ba801263f712ed4ddda59c1d9909148e3f28124ae770682c9b19233bf0bcfa00d05bfe708d381b066b83a883ba8251ce2ea6772cbde51e1322d82b2c8a026a2153f4822e20cb69b8b05003ee74e09cb481728d688caa8a671f90b55488e272f48c7c5ae32526d3635a5343eb02640358d9ac445c76a5d8f52f653bbaee04ba5ce03c68b88c25be6fd3611cc21c9968e4f87e541beeccc5170b8696a439bb666ad8a6608ab30ebc7dfe56eaf0dd9ab8439171a6e4e0d608e6e6c8ac5ddcf8d6d2a950d06051e6b6c4d3feb6dc8dac2acadd345cadfb890454a2101a112f7471f0e001701f60f3d4352c4d388c0f198854908c0e939719709c1b3f82d2a25cc7156a3838bc141e041c259849326fbd0839f15cea6a78b89349dcd1c03695a74e72d3657af4ee2cf267337bc96363ef4a1c5d5d7a673cc3a3c1a1350043f99537d62",
+			hex.EncodeToString(gt),
+			false)
+	})
+	t.Run("G1 true", func(t *testing.T) {
+		check(t, "a1f9855f7670a63e4c80d64dfe6ddedc2ed2bfaebae27e4da82d71ba474987a39808e8921d3df97df6e5d4b979234de8",
+			"a1f9855f7670a63e4c80d64dfe6ddedc2ed2bfaebae27e4da82d71ba474987a39808e8921d3df97df6e5d4b979234de8",
+			true)
+	})
+	t.Run("G1 false", func(t *testing.T) {
+		check(t, "a1f9855f7670a63e4c80d64dfe6ddedc2ed2bfaebae27e4da82d71ba474987a39808e8921d3df97df6e5d4b979234de8",
+			hex.EncodeToString(g1),
+			false)
+	})
+	t.Run("G2 true", func(t *testing.T) {
+		check(t, "a41e586fdd58d39616fea921a855e65417a5732809afc35e28466e3acaeed3d53dd4b97ca398b2f29bf6bbcaca026a6609a42bdeaaeef42813ae225e35c23c61c293e6ecb6759048fb76ac648ba3bc49f0fcf62f73fca38cdc5e7fa5bf511365",
+			"a41e586fdd58d39616fea921a855e65417a5732809afc35e28466e3acaeed3d53dd4b97ca398b2f29bf6bbcaca026a6609a42bdeaaeef42813ae225e35c23c61c293e6ecb6759048fb76ac648ba3bc49f0fcf62f73fca38cdc5e7fa5bf511365",
+			true)
+	})
+	t.Run("G2 false", func(t *testing.T) {
+		check(t, "a41e586fdd58d39616fea921a855e65417a5732809afc35e28466e3acaeed3d53dd4b97ca398b2f29bf6bbcaca026a6609a42bdeaaeef42813ae225e35c23c61c293e6ecb6759048fb76ac648ba3bc49f0fcf62f73fca38cdc5e7fa5bf511365",
+			hex.EncodeToString(g2),
+			false)
+	})
+}
+
+func TestCryptolib_Bls12381Equal_GT(t *testing.T) {
+	c := newCryptolibClient(t)
+
+	script := io.NewBufBinWriter()
+	emit.AppCall(script.BinWriter, c.Hash, "bls12381Deserialize", callflag.All, gt)
+	emit.AppCall(script.BinWriter, c.Hash, "bls12381Deserialize", callflag.All, gt)
+	emit.Opcodes(script.BinWriter, opcode.PUSH2, opcode.PACK)
+	emit.AppCallNoArgs(script.BinWriter, c.Hash, "bls12381Equal", callflag.All)
+
+	stack, err := c.TestInvokeScript(t, script.Bytes(), c.Signers)
+	require.NoError(t, err)
+	require.Equal(t, 1, stack.Len())
+	itm := stack.Pop().Item()
+	require.Equal(t, stackitem.BooleanT, itm.Type())
+	require.True(t, itm.Value().(bool))
 }
