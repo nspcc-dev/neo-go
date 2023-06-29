@@ -304,6 +304,9 @@ func TestSnapshotIsolation_Exceptions(t *testing.T) {
 			for i := 0; i < nNtfB1; i++ {
 				runtime.Notify("NotificationFromB before panic", i)
 			}
+			internalCaller(keyA, valueA, nNtfA)
+		}
+		func internalCaller(keyA, valueA []byte, nNtfA int) {
 			contract.Call(interop.Hash160{` + hashAStr + `}, "doAndPanic", contract.All, keyA, valueA, nNtfA)
 		}
 		func CheckStorageChanges() bool {
