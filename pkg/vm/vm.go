@@ -1804,6 +1804,28 @@ func throwUnhandledException(item stackitem.Item) {
 	panic(msg)
 }
 
+// ContractHasTryBlock checks if the currently executing contract has a TRY
+// block in one of its contexts.
+func (v *VM) ContractHasTryBlock() bool {
+	var topctx *Context // Currently executing context.
+	for i := 0; i < len(v.istack); i++ {
+		ictx := v.istack[len(v.istack)-1-i] // It's a stack, going backwards like handleException().
+		if topctx == nil {
+			topctx = ictx
+		}
+		if ictx.sc != topctx.sc {
+			return false // Different contract -> no one cares.
+		}
+		for j := 0; j < ictx.tryStack.Len(); j++ {
+			eCtx := ictx.tryStack.Peek(j).Value().(*exceptionHandlingContext)
+			if eCtx.State == eTry {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // CheckMultisigPar checks if the sigs contains sufficient valid signatures.
 func CheckMultisigPar(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sigs [][]byte) bool {
 	if len(sigs) == 1 {
