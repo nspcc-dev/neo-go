@@ -315,16 +315,6 @@ func (v *VM) PushContextScriptHash(n int) error {
 	return nil
 }
 
-func (c *Context) HasTryBlock() bool {
-	for i := 0; i < c.tryStack.Len(); i++ {
-		eCtx := c.tryStack.Peek(i).Value().(*exceptionHandlingContext)
-		if eCtx.State == eTry {
-			return true
-		}
-	}
-	return false
-}
-
 // MarshalJSON implements the JSON marshalling interface.
 func (c *Context) MarshalJSON() ([]byte, error) {
 	var aux = contextAux{
