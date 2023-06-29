@@ -2,6 +2,22 @@
 
 This document outlines major changes between releases.
 
+## 0.101.2 "Excavation" (29 Jun 2023)
+
+One more (and unexpected one!) 3.5.0-compatible version that fixes a VM bug
+leading to mainnet state incompatibility (since 3672783) which in turn leads
+to inability to process new blocks (since 3682290).
+
+Mainnet chain needs to be resynchronized for this version.
+
+Improvements:
+ * documentation updates (#3029, #2990, #2981)
+
+Bugs fixed:
+ * incorrect handling of empty Any-type parameter for RPC invocations (#2959)
+ * incorrect state rollbacks in case of exception during cross-contract call
+   when the call is made from non-TRYing context (#3046)
+
 ## 0.101.1 "Shallowness" (17 Mar 2023)
 
 Another 3.5.0-compatible version that delivers important bug fixes and
