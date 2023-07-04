@@ -2,6 +2,27 @@
 
 This document outlines major changes between releases.
 
+## 0.101.3 "Yuckiness" (08 Jul 2023)
+
+Yet another 3.5.0-compatible emergency version that removes scrupulous
+instructions check of smart contract's script on contract deployment or update.
+Presence of this check leads to the known T5 testnet state incompatibility
+(since 1670095) which causes inability to process new blocks (since 2272533).
+It should be noted that the corresponding check was accidentally removed from
+the reference C# node implementation way back in neo-project/neo#2266 and added
+again in neo-project/neo#2849 which is planned to be a part of the upcoming
+3.6.0 C# node release. Thus, changes made in the presented 0.101.3 release will
+be reverted afterwards and strict contract script check will be present in the
+next 3.6.0-compatible version of NeoGo node.
+
+T5 testnet chain requires a complete resynchronization for this version. Mainnet
+chain resynchronization is recommended.
+
+Bugs fixed:
+
+ * extra strict contract script check on contract deployment or update is
+   removed (#3052)
+
 ## 0.101.2 "Excavation" (29 Jun 2023)
 
 One more (and unexpected one!) 3.5.0-compatible version that fixes a VM bug
