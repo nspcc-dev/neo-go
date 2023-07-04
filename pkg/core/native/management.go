@@ -23,8 +23,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -719,12 +717,10 @@ func (m *Management) emitNotification(ic *interop.Context, name string, hash uti
 
 func checkScriptAndMethods(script []byte, methods []manifest.Method) error {
 	l := len(script)
-	offsets := bitfield.New(l)
 	for i := range methods {
 		if methods[i].Offset >= l {
 			return fmt.Errorf("method %s/%d: offset is out of the script range", methods[i].Name, len(methods[i].Parameters))
 		}
-		offsets.Set(methods[i].Offset)
 	}
-	return vm.IsScriptCorrect(script, offsets)
+	return nil
 }
