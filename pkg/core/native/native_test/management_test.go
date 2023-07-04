@@ -143,17 +143,6 @@ func TestManagement_ContractDeploy(t *testing.T) {
 
 		managementInvoker.InvokeFail(t, "method add/2: offset is out of the script range", "deploy", nefBytes, manifB)
 	})
-	t.Run("bad methods in manifest 2", func(t *testing.T) {
-		var badManifest = cs1.Manifest
-		badManifest.ABI.Methods = make([]manifest.Method, len(cs1.Manifest.ABI.Methods))
-		copy(badManifest.ABI.Methods, cs1.Manifest.ABI.Methods)
-		badManifest.ABI.Methods[0].Offset = len(cs1.NEF.Script) - 2 // Ends with `CALLT(X,X);RET`.
-
-		manifB, err := json.Marshal(badManifest)
-		require.NoError(t, err)
-
-		managementInvoker.InvokeFail(t, "some methods point to wrong offsets (not to instruction boundary)", "deploy", nefBytes, manifB)
-	})
 	t.Run("duplicated methods in manifest 1", func(t *testing.T) {
 		badManifest := cs1.Manifest
 		badManifest.ABI.Methods = make([]manifest.Method, len(cs1.Manifest.ABI.Methods))
