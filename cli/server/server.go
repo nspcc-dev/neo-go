@@ -198,6 +198,9 @@ func dumpDB(ctx *cli.Context) error {
 	if count == 0 {
 		count = chainCount - start
 	}
+	if start != 0 {
+		writer.WriteU32LE(start)
+	}
 	writer.WriteU32LE(count)
 	err = chaindump.Dump(chain, writer, start, count)
 	if err != nil {

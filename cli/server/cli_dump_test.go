@@ -13,6 +13,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// generated via `go run ./scripts/gendump/main.go --out ./cli/server/testdata/chain50x2.acc --blocks 50 --txs 2`.
+const inDump = "./testdata/chain50x2.acc"
+
 func TestDBRestoreDump(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -32,8 +35,6 @@ func TestDBRestoreDump(t *testing.T) {
 	cfgPath := filepath.Join(tmpDir, "protocol.unit_testnet.yml")
 	require.NoError(t, os.WriteFile(cfgPath, out, os.ModePerm))
 
-	// generated via `go run ./scripts/gendump/main.go --out ./cli/server/testdata/chain50x2.acc --blocks 50 --txs 2`
-	const inDump = "./testdata/chain50x2.acc"
 	e := testcli.NewExecutor(t, false)
 
 	stateDump := filepath.Join(tmpDir, "neogo.teststate")
@@ -110,4 +111,48 @@ func TestDBRestoreDump(t *testing.T) {
 	d2, err := os.ReadFile(dumpPath)
 	require.NoError(t, err)
 	require.Equal(t, d1, d2, "dumps differ")
+}
+
+func TestDBDumpRestoreIncremental(t *testing.T) {
+	tmpDir := t.TempDir()
+	chainPath := filepath.Join(tmpDir, "neogotestchain")
+	nonincDump := filepath.Join(tmpDir, "nonincDump.acc")
+	incDump := filepath.Join(tmpDir, "incDump.acc")
+
+	cfg, err := config.LoadFile(filepath.Join("..", "..", "config", "protocol.unit_testnet.yml"))
+	require.NoError(t, err, "could not load config")
+	cfg.ApplicationConfiguration.DBConfiguration.Type = dbconfig.LevelDB
+	cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions.DataDirectoryPath = chainPath
+	out, err := yaml.Marshal(cfg)
+	require.NoError(t, err)
+
+	cfgPath := filepath.Join(tmpDir, "protocol.unit_testnet.yml")
+	require.NoError(t, os.WriteFile(cfgPath, out, os.ModePerm))
+
+	e := testcli.NewExecutor(t, false)
+
+	// Create DB from dump.
+	e.Run(t, "neo-go", "db", "restore", "--unittest", "--config-path", tmpDir, "--in", inDump)
+
+	// Create two dumps: non-incremental and incremental.
+	dumpBaseArgs := []string{"neo-go", "db", "dump", "--unittest",
+		"--config-path", tmpDir}
+
+	// Dump first 15 blocks to a non-incremental dump.
+	e.Run(t, append(dumpBaseArgs, "--out", nonincDump, "--count", "15")...)
+
+	// Dump second 15 blocks to an incremental dump.
+	e.Run(t, append(dumpBaseArgs, "--out", incDump, "--start", "15", "--count", "15")...)
+
+	// Clean the DB.
+	require.NoError(t, os.RemoveAll(chainPath))
+
+	// Restore chain from two dumps.
+	restoreBaseArgs := []string{"neo-go", "db", "restore", "--unittest", "--config-path", tmpDir}
+
+	// Restore first 15 blocks from non-incremental dump.
+	e.Run(t, append(restoreBaseArgs, "--in", nonincDump)...)
+
+	// Restore second 15 blocks from incremental dump.
+	e.Run(t, append(restoreBaseArgs, "--in", incDump, "-n", "--count", "15")...)
 }
