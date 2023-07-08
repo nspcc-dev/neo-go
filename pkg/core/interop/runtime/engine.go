@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -177,5 +178,18 @@ func BurnGas(ic *interop.Context) error {
 	if !ic.VM.AddGas(g) {
 		return errors.New("GAS limit exceeded")
 	}
+	return nil
+}
+
+// CurrentSigners returns signers of the currently loaded transaction or stackitem.Null
+// if script container is not a transaction.
+func CurrentSigners(ic *interop.Context) error {
+	tx, ok := ic.Container.(*transaction.Transaction)
+	if ok {
+		ic.VM.Estack().PushItem(transaction.SignersToStackItem(tx.Signers))
+	} else {
+		ic.VM.Estack().PushItem(stackitem.Null{})
+	}
+
 	return nil
 }

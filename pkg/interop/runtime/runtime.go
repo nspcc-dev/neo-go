@@ -7,6 +7,7 @@ package runtime
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
 	"github.com/nspcc-dev/neo-go/pkg/interop/neogointernal"
 )
 
@@ -28,6 +29,13 @@ func BurnGas(gas int) {
 // this invocation. It uses `System.Runtime.CheckWitness` syscall.
 func CheckWitness(hashOrKey []byte) bool {
 	return neogointernal.Syscall1("System.Runtime.CheckWitness", hashOrKey).(bool)
+}
+
+// CurrentSigners returns signers of the currently loaded transaction or nil if
+// executing script container is not a transaction. It uses
+// `System.Runtime.CurrentSigners` syscall.
+func CurrentSigners() []ledger.TransactionSigner {
+	return neogointernal.Syscall0("System.Runtime.CurrentSigners").([]ledger.TransactionSigner)
 }
 
 // LoadScript loads the given bytecode into the VM and executes it with the
