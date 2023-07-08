@@ -73,6 +73,7 @@ func TestSyscallExecution(t *testing.T) {
 		"iterator.Value":                   {interopnames.SystemIteratorValue, []string{"iterator.Iterator{}"}, false},
 		"runtime.BurnGas":                  {interopnames.SystemRuntimeBurnGas, []string{"1"}, true},
 		"runtime.CheckWitness":             {interopnames.SystemRuntimeCheckWitness, []string{b}, false},
+		"runtime.CurrentSigners":           {interopnames.SystemRuntimeCurrentSigners, nil, false},
 		"runtime.GasLeft":                  {interopnames.SystemRuntimeGasLeft, nil, false},
 		"runtime.GetAddressVersion":        {interopnames.SystemRuntimeGetAddressVersion, nil, false},
 		"runtime.GetCallingScriptHash":     {interopnames.SystemRuntimeGetCallingScriptHash, nil, false},
