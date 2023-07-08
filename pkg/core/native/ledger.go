@@ -3,7 +3,6 @@ package native
 import (
 	"fmt"
 	"math"
-	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -163,7 +162,7 @@ func (l *Ledger) getTransactionSigners(ic *interop.Context, params []stackitem.I
 	if err != nil || !isTraceableBlock(ic, h) {
 		return stackitem.Null{}
 	}
-	return SignersToStackItem(tx.Signers)
+	return transaction.SignersToStackItem(tx.Signers)
 }
 
 // getTransactionVMState returns VM state got after transaction invocation.
@@ -230,31 +229,4 @@ func getTransactionAndHeight(d *dao.Simple, item stackitem.Item) (*transaction.T
 		panic(err)
 	}
 	return d.GetTransaction(hash)
-}
-
-// SignersToStackItem converts transaction.Signers to stackitem.Item.
-func SignersToStackItem(signers []transaction.Signer) stackitem.Item {
-	res := make([]stackitem.Item, len(signers))
-	for i, s := range signers {
-		contracts := make([]stackitem.Item, len(s.AllowedContracts))
-		for j, c := range s.AllowedContracts {
-			contracts[j] = stackitem.NewByteArray(c.BytesBE())
-		}
-		groups := make([]stackitem.Item, len(s.AllowedGroups))
-		for j, g := range s.AllowedGroups {
-			groups[j] = stackitem.NewByteArray(g.Bytes())
-		}
-		rules := make([]stackitem.Item, len(s.Rules))
-		for j, r := range s.Rules {
-			rules[j] = r.ToStackItem()
-		}
-		res[i] = stackitem.NewArray([]stackitem.Item{
-			stackitem.NewByteArray(s.Account.BytesBE()),
-			stackitem.NewBigInteger(big.NewInt(int64(s.Scopes))),
-			stackitem.NewArray(contracts),
-			stackitem.NewArray(groups),
-			stackitem.NewArray(rules),
-		})
-	}
-	return stackitem.NewArray(res)
 }
