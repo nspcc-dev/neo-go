@@ -3,6 +3,7 @@ package transaction
 //go:generate stringer -type=WitnessScope -linecomment -output=witness_scope_string.go
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -28,6 +29,19 @@ const (
 	// This cannot be combined with other flags.
 	Global WitnessScope = 0x80
 )
+
+// ScopesFromByte converts byte to a set of WitnessScopes and performs validity
+// check.
+func ScopesFromByte(b byte) (WitnessScope, error) {
+	var res = WitnessScope(b)
+	if (res&Global != 0) && (res&(None|CalledByEntry|CustomContracts|CustomGroups|Rules) != 0) {
+		return 0, errors.New("Global scope can not be combined with other scopes")
+	}
+	if res&^(None|CalledByEntry|CustomContracts|CustomGroups|Rules|Global) != 0 {
+		return 0, fmt.Errorf("invalid scope %d", res)
+	}
+	return res, nil
+}
 
 // ScopesFromString converts string of comma-separated scopes to a set of scopes
 // (case-sensitive). String can combine several scopes, e.g. be any of: 'Global',
