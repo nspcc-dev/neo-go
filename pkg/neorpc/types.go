@@ -97,7 +97,7 @@ func (s *SignerWithWitness) MarshalJSON() ([]byte, error) {
 		return nil, fmt.Errorf("failed to marshal scopes: %w", err)
 	}
 	signer := &signerWithWitnessAux{
-		Account:            s.Account.StringLE(),
+		Account:            `0x` + s.Account.StringLE(),
 		Scopes:             sc,
 		AllowedContracts:   s.AllowedContracts,
 		AllowedGroups:      s.AllowedGroups,
