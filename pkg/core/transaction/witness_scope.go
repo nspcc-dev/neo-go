@@ -68,7 +68,7 @@ func ScopesFromString(s string) (WitnessScope, error) {
 			return result, fmt.Errorf("invalid witness scope: %v", scopeStr)
 		}
 		if isGlobal && !(scope == Global) {
-			return result, fmt.Errorf("Global scope can not be combined with other scopes")
+			return result, errors.New("Global scope can not be combined with other scopes")
 		}
 		result |= scope
 		if scope == Global {
