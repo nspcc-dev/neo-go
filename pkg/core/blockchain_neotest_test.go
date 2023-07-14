@@ -1634,28 +1634,159 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			})
 			t.Run("enabled", func(t *testing.T) {
 				t.Run("dummy on-chain conflict", func(t *testing.T) {
-					tx := newTestTx(t, h, testScript)
-					require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
-					conflicting := transaction.New([]byte{byte(opcode.RET)}, 1000_0000)
-					conflicting.ValidUntilBlock = bc.BlockHeight() + 1
-					conflicting.Signers = []transaction.Signer{
-						{
-							Account: validator.ScriptHash(),
-							Scopes:  transaction.CalledByEntry,
-						},
-					}
-					conflicting.Attributes = []transaction.Attribute{
-						{
-							Type: transaction.ConflictsT,
-							Value: &transaction.Conflicts{
-								Hash: tx.Hash(),
+					t.Run("on-chain conflict signed by malicious party", func(t *testing.T) {
+						tx := newTestTx(t, h, testScript)
+						require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
+						conflicting := transaction.New([]byte{byte(opcode.RET)}, 1000_0000)
+						conflicting.ValidUntilBlock = bc.BlockHeight() + 1
+						conflicting.Signers = []transaction.Signer{
+							{
+								Account: validator.ScriptHash(),
+								Scopes:  transaction.CalledByEntry,
 							},
-						},
-					}
-					conflicting.NetworkFee = 1000_0000
-					require.NoError(t, validator.SignTx(netmode.UnitTestNet, conflicting))
-					e.AddNewBlock(t, conflicting)
-					require.ErrorIs(t, bc.VerifyTx(tx), core.ErrHasConflicts)
+						}
+						conflicting.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: tx.Hash(),
+								},
+							},
+						}
+						conflicting.NetworkFee = 1000_0000
+						require.NoError(t, validator.SignTx(netmode.UnitTestNet, conflicting))
+						e.AddNewBlock(t, conflicting)
+						// We expect `tx` to pass verification, because on-chained `conflicting` doesn't have
+						// `tx`'s payer in the signers list, thus, `confclicting` should be considered as
+						// malicious conflict.
+						require.NoError(t, bc.VerifyTx(tx))
+					})
+					t.Run("multiple on-chain conflicts signed by malicious parties", func(t *testing.T) {
+						m1 := e.NewAccount(t)
+						m2 := e.NewAccount(t)
+						m3 := e.NewAccount(t)
+						good := e.NewAccount(t)
+
+						// txGood doesn't conflivt with anyone and signed by good signer.
+						txGood := newTestTx(t, good.ScriptHash(), testScript)
+						require.NoError(t, good.SignTx(netmode.UnitTestNet, txGood))
+
+						// txM1 conflicts with txGood and signed by two malicious signers.
+						txM1 := newTestTx(t, m1.ScriptHash(), testScript)
+						txM1.Signers = append(txM1.Signers, transaction.Signer{Account: m2.ScriptHash()})
+						txM1.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: txGood.Hash(),
+								},
+							},
+						}
+						txM1.NetworkFee = 1_000_0000
+						require.NoError(t, m1.SignTx(netmode.UnitTestNet, txM1))
+						require.NoError(t, m2.SignTx(netmode.UnitTestNet, txM1))
+						e.AddNewBlock(t, txM1)
+
+						// txM2 conflicts with txGood and signed by one malicious signers.
+						txM2 := newTestTx(t, m3.ScriptHash(), testScript)
+						txM2.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: txGood.Hash(),
+								},
+							},
+						}
+						txM2.NetworkFee = 1_000_0000
+						require.NoError(t, m3.SignTx(netmode.UnitTestNet, txM2))
+						e.AddNewBlock(t, txM2)
+
+						// We expect `tx` to pass verification, because on-chained `conflicting` doesn't have
+						// `tx`'s payer in the signers list, thus, `confclicting` should be considered as
+						// malicious conflict.
+						require.NoError(t, bc.VerifyTx(txGood))
+
+						// After that txGood can be added to the chain normally.
+						e.AddNewBlock(t, txGood)
+
+						// And after that ErrAlreadyExist is expected on verification.
+						require.ErrorIs(t, bc.VerifyTx(txGood), core.ErrAlreadyExists)
+					})
+
+					t.Run("multiple on-chain conflicts signed by malicious and valid parties", func(t *testing.T) {
+						m1 := e.NewAccount(t)
+						m2 := e.NewAccount(t)
+						m3 := e.NewAccount(t)
+						good := e.NewAccount(t)
+
+						// txGood doesn't conflivt with anyone and signed by good signer.
+						txGood := newTestTx(t, good.ScriptHash(), testScript)
+						require.NoError(t, good.SignTx(netmode.UnitTestNet, txGood))
+
+						// txM1 conflicts with txGood and signed by one malicious and one good signers.
+						txM1 := newTestTx(t, m1.ScriptHash(), testScript)
+						txM1.Signers = append(txM1.Signers, transaction.Signer{Account: good.ScriptHash()})
+						txM1.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: txGood.Hash(),
+								},
+							},
+						}
+						txM1.NetworkFee = 1_000_0000
+						require.NoError(t, m1.SignTx(netmode.UnitTestNet, txM1))
+						require.NoError(t, good.SignTx(netmode.UnitTestNet, txM1))
+						e.AddNewBlock(t, txM1)
+
+						// txM2 conflicts with txGood and signed by two malicious signers.
+						txM2 := newTestTx(t, m2.ScriptHash(), testScript)
+						txM2.Signers = append(txM2.Signers, transaction.Signer{Account: m3.ScriptHash()})
+						txM2.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: txGood.Hash(),
+								},
+							},
+						}
+						txM2.NetworkFee = 1_000_0000
+						require.NoError(t, m2.SignTx(netmode.UnitTestNet, txM2))
+						require.NoError(t, m3.SignTx(netmode.UnitTestNet, txM2))
+						e.AddNewBlock(t, txM2)
+
+						// We expect `tx` to pass verification, because on-chained `conflicting` doesn't have
+						// `tx`'s payer in the signers list, thus, `confclicting` should be considered as
+						// malicious conflict.
+						require.ErrorIs(t, bc.VerifyTx(txGood), core.ErrHasConflicts)
+					})
+					t.Run("on-chain conflict signed by valid sender", func(t *testing.T) {
+						tx := newTestTx(t, h, testScript)
+						tx.Signers = []transaction.Signer{{Account: validator.ScriptHash()}}
+						require.NoError(t, validator.SignTx(netmode.UnitTestNet, tx))
+						conflicting := transaction.New([]byte{byte(opcode.RET)}, 1000_0000)
+						conflicting.ValidUntilBlock = bc.BlockHeight() + 1
+						conflicting.Signers = []transaction.Signer{
+							{
+								Account: validator.ScriptHash(),
+								Scopes:  transaction.CalledByEntry,
+							},
+						}
+						conflicting.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: tx.Hash(),
+								},
+							},
+						}
+						conflicting.NetworkFee = 1000_0000
+						require.NoError(t, validator.SignTx(netmode.UnitTestNet, conflicting))
+						e.AddNewBlock(t, conflicting)
+						// We expect `tx` to fail verification, because on-chained `conflicting` has
+						// `tx`'s payer as a signer.
+						require.ErrorIs(t, bc.VerifyTx(tx), core.ErrHasConflicts)
+					})
 				})
 				t.Run("attribute on-chain conflict", func(t *testing.T) {
 					tx := neoValidatorsInvoker.Invoke(t, stackitem.NewBool(true), "transfer", neoOwner, neoOwner, 1, nil)

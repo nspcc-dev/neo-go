@@ -542,8 +542,19 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*tran
 			if !ok {
 				continue
 			}
-			if !tx.HasSigner(existingTx.Signers[mp.payerIndex].Account) {
-				return nil, fmt.Errorf("%w: not signed by the sender of conflicting transaction %s", ErrConflictsAttribute, existingTx.Hash().StringBE())
+			signers := make(map[util.Uint160]struct{}, len(existingTx.Signers))
+			for _, s := range existingTx.Signers {
+				signers[s.Account] = struct{}{}
+			}
+			var signerOK bool
+			for _, s := range tx.Signers {
+				if _, ok := signers[s.Account]; ok {
+					signerOK = true
+					break
+				}
+			}
+			if !signerOK {
+				return nil, fmt.Errorf("%w: not signed by a signer of conflicting transaction %s", ErrConflictsAttribute, existingTx.Hash().StringBE())
 			}
 			conflictingFee += existingTx.NetworkFee
 			conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
