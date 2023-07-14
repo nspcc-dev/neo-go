@@ -2174,15 +2174,6 @@ func (bc *Blockchain) GetHeader(hash util.Uint256) (*block.Header, error) {
 	return &block.Header, nil
 }
 
-// HasTransaction returns true if the blockchain contains he given
-// transaction hash.
-func (bc *Blockchain) HasTransaction(hash util.Uint256) bool {
-	if bc.memPool.ContainsKey(hash) {
-		return true
-	}
-	return errors.Is(bc.dao.HasTransaction(hash), dao.ErrAlreadyExists)
-}
-
 // HasBlock returns true if the blockchain contains the given
 // block hash.
 func (bc *Blockchain) HasBlock(hash util.Uint256) bool {
