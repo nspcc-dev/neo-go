@@ -45,7 +45,7 @@ import (
 
 // Tuning parameters.
 const (
-	version = "0.2.8"
+	version = "0.2.9"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultGCPeriod                        = 10000
@@ -2477,7 +2477,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		return fmt.Errorf("%w: net fee is %v, need %v", ErrTxSmallNetworkFee, t.NetworkFee, needNetworkFee)
 	}
 	// check that current tx wasn't included in the conflicts attributes of some other transaction which is already in the chain
-	if err := bc.dao.HasTransaction(t.Hash()); err != nil {
+	if err := bc.dao.HasTransaction(t.Hash(), t.Signers); err != nil {
 		switch {
 		case errors.Is(err, dao.ErrAlreadyExists):
 			return fmt.Errorf("blockchain: %w", ErrAlreadyExists)
@@ -2578,7 +2578,9 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 				return fmt.Errorf("%w: Conflicts attribute was found, but P2PSigExtensions are disabled", ErrInvalidAttribute)
 			}
 			conflicts := tx.Attributes[i].Value.(*transaction.Conflicts)
-			if err := bc.dao.HasTransaction(conflicts.Hash); errors.Is(err, dao.ErrAlreadyExists) {
+			// Only fully-qualified dao.ErrAlreadyExists error bothers us here, thus, we
+			// can safely omit the payer argument to HasTransaction call to improve performance a bit.
+			if err := bc.dao.HasTransaction(conflicts.Hash, nil); errors.Is(err, dao.ErrAlreadyExists) {
 				return fmt.Errorf("%w: conflicting transaction %s is already on chain", ErrInvalidAttribute, conflicts.Hash.StringLE())
 			}
 		case transaction.NotaryAssistedT:
@@ -2611,7 +2613,7 @@ func (bc *Blockchain) IsTxStillRelevant(t *transaction.Transaction, txpool *memp
 		return false
 	}
 	if txpool == nil {
-		if bc.dao.HasTransaction(t.Hash()) != nil {
+		if bc.dao.HasTransaction(t.Hash(), t.Signers) != nil {
 			return false
 		}
 	} else if txpool.HasConflicts(t, bc) {

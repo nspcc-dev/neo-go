@@ -684,8 +684,11 @@ func (dao *Simple) StoreHeaderHashes(hashes []util.Uint256, height uint32) error
 
 // HasTransaction returns nil if the given store does not contain the given
 // Transaction hash. It returns an error in case the transaction is in chain
-// or in the list of conflicting transactions.
-func (dao *Simple) HasTransaction(hash util.Uint256) error {
+// or in the list of conflicting transactions. If non-zero signers are specified,
+// then additional check against the conflicting transaction signers intersection
+// is held. Do not omit signers in case if it's important to check the validity
+// of a supposedly conflicting on-chain transaction.
+func (dao *Simple) HasTransaction(hash util.Uint256, signers []transaction.Signer) error {
 	key := dao.makeExecutableKey(hash)
 	bytes, err := dao.Store.Get(key)
 	if err != nil {
@@ -695,10 +698,33 @@ func (dao *Simple) HasTransaction(hash util.Uint256) error {
 	if len(bytes) < 6 {
 		return nil
 	}
-	if bytes[5] == transaction.DummyVersion {
+	if bytes[5] != transaction.DummyVersion {
+		return ErrAlreadyExists
+	}
+	if len(signers) == 0 {
 		return ErrHasConflicts
 	}
-	return ErrAlreadyExists
+
+	sMap := make(map[util.Uint160]struct{}, len(signers))
+	for _, s := range signers {
+		sMap[s.Account] = struct{}{}
+	}
+	br := io.NewBinReaderFromBuf(bytes[6:])
+	for {
+		var u util.Uint160
+		u.DecodeBinary(br)
+		if br.Err != nil {
+			if errors.Is(br.Err, iocore.EOF) {
+				break
+			}
+			return fmt.Errorf("failed to decode conflict record: %w", err)
+		}
+		if _, ok := sMap[u]; ok {
+			return ErrHasConflicts
+		}
+	}
+
+	return nil
 }
 
 // StoreAsBlock stores given block as DataBlock. It can reuse given buffer for
@@ -805,18 +831,50 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 	}
 	dao.Store.Put(key, buf.Bytes())
 	if dao.Version.P2PSigExtensions {
-		var value []byte
-		for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
+		var (
+			valuePrefix []byte
+			newSigners  []byte
+		)
+		attrs := tx.GetAttributes(transaction.ConflictsT)
+		for _, attr := range attrs {
 			hash := attr.Value.(*transaction.Conflicts).Hash
 			copy(key[1:], hash.BytesBE())
-			if value == nil {
-				buf.Reset()
-				buf.WriteB(storage.ExecTransaction)
-				buf.WriteU32LE(index)
-				buf.BinWriter.WriteB(transaction.DummyVersion)
-				value = buf.Bytes()
+
+			old, err := dao.Store.Get(key)
+			if err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
+				return fmt.Errorf("failed to retrieve previous conflict record for %s: %w", hash.StringLE(), err)
 			}
-			dao.Store.Put(key, value)
+			if err == nil {
+				if len(old) <= 6 { // storage.ExecTransaction + U32LE index + transaction.DummyVersion
+					return fmt.Errorf("invalid conflict record format of length %d", len(old))
+				}
+			}
+			buf.Reset()
+			buf.WriteBytes(old)
+			if len(old) == 0 {
+				if len(valuePrefix) != 0 {
+					buf.WriteBytes(valuePrefix)
+				} else {
+					buf.WriteB(storage.ExecTransaction)
+					buf.WriteU32LE(index)
+					buf.WriteB(transaction.DummyVersion)
+				}
+			}
+			newSignersOffset := buf.Len()
+			if len(newSigners) == 0 {
+				for _, s := range tx.Signers {
+					s.Account.EncodeBinary(buf.BinWriter)
+				}
+			} else {
+				buf.WriteBytes(newSigners)
+			}
+			val := buf.Bytes()
+			dao.Store.Put(key, val)
+
+			if len(attrs) > 1 && len(valuePrefix) == 0 {
+				valuePrefix = slice.Copy(val[:6])
+				newSigners = slice.Copy(val[newSignersOffset:])
+			}
 		}
 	}
 	return nil
