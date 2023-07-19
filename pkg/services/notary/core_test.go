@@ -3,6 +3,7 @@ package notary_test
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -746,4 +747,147 @@ func TestNotary(t *testing.T) {
 		return completedTxes[requests[0].MainTransaction.Hash()] != nil
 	}, 3*time.Second, 100*time.Millisecond)
 	checkFallbackTxs(t, requests, false)
+}
+
+func TestNotaryAttack_Case2(t *testing.T) {
+	bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) { c.P2PSigExtensions = true })
+	e := neotest.NewExecutor(t, bc, validators, committee)
+	notaryHash := e.NativeHash(t, nativenames.Notary)
+	designationSuperInvoker := e.NewInvoker(e.NativeHash(t, nativenames.Designation), validators, committee)
+
+	var maliciousFallbackFinilized *transaction.Transaction
+	onTransaction := func(tx *transaction.Transaction) error {
+		fmt.Printf("\n\n\nMalicious fallback %s sent to chain!\n\n\n", tx.Hash().StringLE())
+		maliciousFallbackFinilized = tx
+		return nil
+	}
+
+	// Start notary service.
+	acc1, ntr1, mp1 := getTestNotary(t, bc, "./testdata/notary1.json", "one", onTransaction)
+	bc.SetNotary(ntr1)
+	bc.RegisterPostBlock(func(f func(*transaction.Transaction, *mempool.Pool, bool) bool, pool *mempool.Pool, b *block.Block) {
+		ntr1.PostPersist()
+	})
+	mp1.RunSubscriptions()
+	ntr1.Start()
+	t.Cleanup(func() {
+		ntr1.Shutdown()
+		mp1.StopSubscriptions()
+	})
+
+	// Designate notary node.
+	notaryNodes := []any{acc1.PublicKey().Bytes()}
+	designationSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole", int64(noderoles.P2PNotary), notaryNodes)
+
+	// Good signer is just a good signer trying to send notary request; bad signer is
+	// malicious and tries to ruin the notary nodes reward for the good signer's request.
+	goodSigner := e.NewAccount(t)
+	badSigner := e.NewAccount(t)
+
+	// Make notary deposit.
+	gasGoodInv := e.NewInvoker(e.NativeHash(t, nativenames.Gas), goodSigner)
+	gasBadInv := e.NewInvoker(e.NativeHash(t, nativenames.Gas), badSigner)
+	gasGoodInv.Invoke(t, true, "transfer", goodSigner.ScriptHash(), notaryHash, 3_0000_0000, []interface{}{goodSigner.ScriptHash(), math.MaxUint32})
+	gasBadInv.Invoke(t, true, "transfer", badSigner.ScriptHash(), notaryHash, 3_0000_0000, []interface{}{badSigner.ScriptHash(), math.MaxUint32})
+
+	// Create good notary request.
+	mainTx := &transaction.Transaction{
+		Nonce:           rand.Uint32(),
+		SystemFee:       1_0000_0000,
+		NetworkFee:      1_0000_0000,
+		ValidUntilBlock: bc.BlockHeight() + 100,
+		Script:          []byte{byte(opcode.RET)},
+		Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
+		Signers: []transaction.Signer{
+			{Account: goodSigner.ScriptHash()},
+			{Account: notaryHash},
+		},
+		Scripts: []transaction.Witness{
+			{
+				InvocationScript:   []byte{}, // Pretend it will be filled later to simplify the test.
+				VerificationScript: goodSigner.Script(),
+			},
+			{
+				InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, 64)...),
+				VerificationScript: []byte{},
+			},
+		},
+	}
+	fallbackTx := &transaction.Transaction{
+		Nonce:           rand.Uint32(),
+		SystemFee:       1_0000_0000,
+		NetworkFee:      1_0000_0000,
+		ValidUntilBlock: bc.BlockHeight() + 100,
+		Script:          []byte{byte(opcode.RET)},
+		Attributes: []transaction.Attribute{
+			{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
+			{Type: transaction.NotValidBeforeT, Value: &transaction.NotValidBefore{Height: bc.BlockHeight() + 50}},
+			{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: mainTx.Hash()}},
+		},
+		Signers: []transaction.Signer{
+			{Account: notaryHash},
+			{Account: goodSigner.ScriptHash()},
+		},
+		Scripts: []transaction.Witness{
+			{
+				InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, 64)...),
+				VerificationScript: []byte{},
+			},
+		},
+	}
+	require.NoError(t, goodSigner.SignTx(netmode.UnitTestNet, fallbackTx))
+	goodReq := &payload.P2PNotaryRequest{
+		MainTransaction:     mainTx,
+		FallbackTransaction: fallbackTx,
+	}
+	goodReq.Witness = transaction.Witness{
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, goodSigner.SignHashable(uint32(netmode.UnitTestNet), goodReq)...),
+		VerificationScript: goodSigner.Script(),
+	}
+
+	// Create malicious notary request. Its main transaction is `fallbackTx`,
+	// and although its main transaction isn't valid, the fallback will be successfully
+	// finalized and pushed to the chain, which will prevent the good `fallbackTx` from
+	// entering the chain and break Notary nodes reward scheme.
+	cp := *fallbackTx
+	mainBad := &cp
+	fallbackBad := &transaction.Transaction{
+		Nonce:           rand.Uint32(),
+		SystemFee:       1_0000_0000,
+		NetworkFee:      1_0000_0000 + 1,
+		ValidUntilBlock: bc.BlockHeight() + 100,
+		Script:          []byte{byte(opcode.RET)},
+		Attributes: []transaction.Attribute{
+			{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
+			{Type: transaction.NotValidBeforeT, Value: &transaction.NotValidBefore{Height: bc.BlockHeight() + 1}},
+			{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: mainBad.Hash()}},
+		},
+		Signers: []transaction.Signer{
+			{Account: notaryHash},
+			{Account: badSigner.ScriptHash()},
+		},
+		Scripts: []transaction.Witness{
+			{
+				InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, 64)...),
+				VerificationScript: []byte{},
+			},
+		},
+	}
+	require.NoError(t, badSigner.SignTx(netmode.UnitTestNet, fallbackBad))
+	badReq := &payload.P2PNotaryRequest{
+		MainTransaction:     mainBad,
+		FallbackTransaction: fallbackBad,
+	}
+	badReq.Witness = transaction.Witness{
+		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, badSigner.SignHashable(uint32(netmode.UnitTestNet), badReq)...),
+		VerificationScript: badSigner.Script(),
+	}
+
+	ntr1.OnNewRequest(goodReq)
+	ntr1.OnNewRequest(badReq)
+	e.AddNewBlock(t)
+	e.AddNewBlock(t)
+
+	require.NotNil(t, maliciousFallbackFinilized)
+	e.AddNewBlock(t, maliciousFallbackFinilized)
 }
