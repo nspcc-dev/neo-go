@@ -192,6 +192,60 @@ func TestAbort(t *testing.T) {
 	require.True(t, v.HasFailed())
 }
 
+func TestAbortMsg(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+	func Main() int {
+		util.AbortMsg("some message")
+		return 1
+	}`
+	v := vmAndCompile(t, src)
+	err := v.Run()
+	require.Error(t, err)
+	require.True(t, v.HasFailed())
+	require.True(t, strings.Contains(err.Error(), "ABORTMSG is executed. Reason: some message"), err)
+}
+
+func TestAssert(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+	func Main(ok bool) int {
+		util.Assert(ok)
+		return 1
+	}`
+
+	// assert OK
+	evalWithArgs(t, src, nil, []stackitem.Item{stackitem.Make(true)}, big.NewInt(1))
+
+	// assert FALSE
+	v := vmAndCompile(t, src)
+	v.Estack().PushVal(false)
+	err := v.Run()
+	require.Error(t, err)
+	require.True(t, v.HasFailed())
+	require.True(t, strings.Contains(err.Error(), "ASSERT"), err)
+}
+
+func TestAssertMsg(t *testing.T) {
+	src := `package foo
+	import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+	func Main(ok bool) int {
+		util.AssertMsg(ok, "some message")
+		return 1
+	}`
+
+	// assert OK
+	evalWithArgs(t, src, nil, []stackitem.Item{stackitem.Make(true)}, big.NewInt(1))
+
+	// assert FALSE
+	v := vmAndCompile(t, src)
+	v.Estack().PushVal(false)
+	err := v.Run()
+	require.Error(t, err)
+	require.True(t, v.HasFailed())
+	require.True(t, strings.Contains(err.Error(), "ASSERTMSG is executed with false result. Reason: some message"), err)
+}
+
 func spawnVM(t *testing.T, ic *interop.Context, src string) *vm.VM {
 	b, di, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
