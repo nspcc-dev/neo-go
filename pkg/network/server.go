@@ -1201,6 +1201,9 @@ func (s *Server) verifyNotaryRequest(_ *transaction.Transaction, data any) error
 	if r.FallbackTransaction.Sender() != notaryHash {
 		return fmt.Errorf("P2PNotary contract should be a sender of the fallback transaction, got %s", address.Uint160ToString(r.FallbackTransaction.Sender()))
 	}
+	if r.MainTransaction.Sender() == notaryHash {
+		return errors.New("P2PNotary contract is not allowed to be the sender of the main transaction")
+	}
 	depositExpiration := s.chain.GetNotaryDepositExpiration(payer)
 	if r.FallbackTransaction.ValidUntilBlock >= depositExpiration {
 		return fmt.Errorf("fallback transaction is valid after deposit is unlocked: ValidUntilBlock is %d, deposit lock for %s expires at %d", r.FallbackTransaction.ValidUntilBlock, address.Uint160ToString(payer), depositExpiration)
