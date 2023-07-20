@@ -82,7 +82,7 @@ type (
 // DisallowUnknownFields JSON marshaller setting.
 type signerWithWitnessAux struct {
 	Account            string                    `json:"account"`
-	Scopes             transaction.WitnessScope  `json:"scopes"`
+	Scopes             json.RawMessage           `json:"scopes"`
 	AllowedContracts   []util.Uint160            `json:"allowedcontracts,omitempty"`
 	AllowedGroups      []*keys.PublicKey         `json:"allowedgroups,omitempty"`
 	Rules              []transaction.WitnessRule `json:"rules,omitempty"`
@@ -92,9 +92,13 @@ type signerWithWitnessAux struct {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (s *SignerWithWitness) MarshalJSON() ([]byte, error) {
+	sc, err := s.Scopes.MarshalJSON()
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal scopes: %w", err)
+	}
 	signer := &signerWithWitnessAux{
-		Account:            s.Account.StringLE(),
-		Scopes:             s.Scopes,
+		Account:            `0x` + s.Account.StringLE(),
+		Scopes:             sc,
 		AllowedContracts:   s.AllowedContracts,
 		AllowedGroups:      s.AllowedGroups,
 		Rules:              s.Rules,
@@ -118,9 +122,31 @@ func (s *SignerWithWitness) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("not a signer: %w", err)
 	}
+	var (
+		jStr   string
+		jByte  byte
+		scopes transaction.WitnessScope
+	)
+	if len(aux.Scopes) != 0 {
+		if err := json.Unmarshal(aux.Scopes, &jStr); err == nil {
+			scopes, err = transaction.ScopesFromString(jStr)
+			if err != nil {
+				return fmt.Errorf("failed to retrieve scopes from string: %w", err)
+			}
+		} else {
+			err := json.Unmarshal(aux.Scopes, &jByte)
+			if err != nil {
+				return fmt.Errorf("failed to unmarshal scopes from byte: %w", err)
+			}
+			scopes, err = transaction.ScopesFromByte(jByte)
+			if err != nil {
+				return fmt.Errorf("failed to retrieve scopes from byte: %w", err)
+			}
+		}
+	}
 	s.Signer = transaction.Signer{
 		Account:          acc,
-		Scopes:           aux.Scopes,
+		Scopes:           scopes,
 		AllowedContracts: aux.AllowedContracts,
 		AllowedGroups:    aux.AllowedGroups,
 		Rules:            aux.Rules,

@@ -243,38 +243,96 @@ func TestGetWitness(t *testing.T) {
 	require.NoError(t, err)
 
 	testCases := []struct {
-		raw      string
-		expected neorpc.SignerWithWitness
+		raw        string
+		expected   neorpc.SignerWithWitness
+		shouldFail bool
 	}{
-		{`{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569"}`, neorpc.SignerWithWitness{
-			Signer: transaction.Signer{
-				Account: accountHash,
-				Scopes:  transaction.None,
-			}},
+		{
+			raw: `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569"}`,
+			expected: neorpc.SignerWithWitness{
+				Signer: transaction.Signer{
+					Account: accountHash,
+					Scopes:  transaction.None,
+				},
+			},
 		},
-		{`{"account": "NYxb4fSZVKAz8YsgaPK2WkT3KcAE9b3Vag", "scopes": "Global"}`, neorpc.SignerWithWitness{
-			Signer: transaction.Signer{
-				Account: addrHash,
-				Scopes:  transaction.Global,
-			}},
+		{
+			raw: `{"account": "NYxb4fSZVKAz8YsgaPK2WkT3KcAE9b3Vag", "scopes": "Global"}`,
+			expected: neorpc.SignerWithWitness{
+				Signer: transaction.Signer{
+					Account: addrHash,
+					Scopes:  transaction.Global,
+				},
+			},
 		},
-		{`{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": "Global"}`, neorpc.SignerWithWitness{
-			Signer: transaction.Signer{
-				Account: accountHash,
-				Scopes:  transaction.Global,
-			}},
+		{
+			raw: `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": "Global"}`,
+			expected: neorpc.SignerWithWitness{
+				Signer: transaction.Signer{
+					Account: accountHash,
+					Scopes:  transaction.Global,
+				},
+			},
+		},
+		{
+			raw: `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 128}`,
+			expected: neorpc.SignerWithWitness{
+				Signer: transaction.Signer{
+					Account: accountHash,
+					Scopes:  transaction.Global,
+				},
+			},
+		},
+		{
+			raw: `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 0}`,
+			expected: neorpc.SignerWithWitness{
+				Signer: transaction.Signer{
+					Account: accountHash,
+					Scopes:  transaction.None,
+				},
+			},
+		},
+		{
+			raw: `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 1}`,
+			expected: neorpc.SignerWithWitness{
+				Signer: transaction.Signer{
+					Account: accountHash,
+					Scopes:  transaction.CalledByEntry,
+				},
+			},
+		},
+		{
+			raw: `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 17}`,
+			expected: neorpc.SignerWithWitness{
+				Signer: transaction.Signer{
+					Account: accountHash,
+					Scopes:  transaction.CalledByEntry | transaction.CustomContracts,
+				},
+			},
+		},
+		{
+			raw:        `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 178}`,
+			shouldFail: true,
+		},
+		{
+			raw:        `{"account": "0xcadb3dc2faa3ef14a13b619c9a43124755aa2569", "scopes": 2}`,
+			shouldFail: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		p := Param{RawMessage: json.RawMessage(tc.raw)}
 		actual, err := p.GetSignerWithWitness()
-		require.NoError(t, err)
-		require.Equal(t, tc.expected, actual)
+		if tc.shouldFail {
+			require.Error(t, err, tc.raw)
+		} else {
+			require.NoError(t, err, tc.raw)
+			require.Equal(t, tc.expected, actual)
 
-		actual, err = p.GetSignerWithWitness() // valid second invocation.
-		require.NoError(t, err)
-		require.Equal(t, tc.expected, actual)
+			actual, err = p.GetSignerWithWitness() // valid second invocation.
+			require.NoError(t, err, tc.raw)
+			require.Equal(t, tc.expected, actual)
+		}
 	}
 }
 
