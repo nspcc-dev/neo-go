@@ -70,6 +70,8 @@ var coefficients = [256]uint16{
 	opcode.CALLT:        1 << 15,
 	opcode.ABORT:        0,
 	opcode.ASSERT:       1 << 0,
+	opcode.ABORTMSG:     0,      // TODO
+	opcode.ASSERTMSG:    1 << 0, // TODO
 	opcode.THROW:        1 << 9,
 	opcode.TRY:          1 << 2,
 	opcode.TRYL:         1 << 2,

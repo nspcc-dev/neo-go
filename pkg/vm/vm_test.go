@@ -1097,6 +1097,7 @@ func TestTRY(t *testing.T) {
 			t.Run("Simple", getTRYTestFunc(1, push1, add5, nil))
 			t.Run("Throw", getTRYTestFunc(18, throw, add5, nil))
 			t.Run("Abort", getTRYTestFunc(nil, []byte{byte(opcode.ABORT)}, push1, nil))
+			t.Run("AbortMSG", getTRYTestFunc(nil, []byte{byte(opcode.PUSH1), byte(opcode.ABORTMSG)}, push1, nil))
 			t.Run("ThrowInCatch", getTRYTestFunc(nil, throw, throw, nil))
 		})
 		t.Run("WithFinally", func(t *testing.T) {
