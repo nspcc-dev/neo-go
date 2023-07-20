@@ -1036,7 +1036,10 @@ func TestVerifyNotaryRequest(t *testing.T) {
 	require.NoError(t, err)
 	newNotaryRequest := func() *payload.P2PNotaryRequest {
 		return &payload.P2PNotaryRequest{
-			MainTransaction: &transaction.Transaction{Script: []byte{0, 1, 2}},
+			MainTransaction: &transaction.Transaction{
+				Script:  []byte{0, 1, 2},
+				Signers: []transaction.Signer{{Account: random.Uint160()}},
+			},
 			FallbackTransaction: &transaction.Transaction{
 				ValidUntilBlock: 321,
 				Signers:         []transaction.Signer{{Account: bc.NotaryContractScriptHash}, {Account: random.Uint160()}},
@@ -1054,6 +1057,13 @@ func TestVerifyNotaryRequest(t *testing.T) {
 		bc.VerifyWitnessF = func() (int64, error) { return 0, nil }
 		r := newNotaryRequest()
 		r.FallbackTransaction.Signers[0] = transaction.Signer{Account: util.Uint160{7, 8, 9}}
+		require.Error(t, s.verifyNotaryRequest(nil, r))
+	})
+
+	t.Run("bad main sender", func(t *testing.T) {
+		bc.VerifyWitnessF = func() (int64, error) { return 0, nil }
+		r := newNotaryRequest()
+		r.MainTransaction.Signers[0] = transaction.Signer{Account: bc.NotaryContractScriptHash}
 		require.Error(t, s.verifyNotaryRequest(nil, r))
 	})
 
