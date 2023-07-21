@@ -536,17 +536,31 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*tran
 			}
 		}
 		// Step 2: check if mempooled transactions were in `tx`'s attributes.
-		for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
-			hash := attr.Value.(*transaction.Conflicts).Hash
-			existingTx, ok := mp.verifiedMap[hash]
-			if !ok {
-				continue
+		conflictsAttrs := tx.GetAttributes(transaction.ConflictsT)
+		if len(conflictsAttrs) != 0 {
+			txSigners := make(map[util.Uint160]struct{}, len(tx.Signers))
+			for _, s := range tx.Signers {
+				txSigners[s.Account] = struct{}{}
 			}
-			if !tx.HasSigner(existingTx.Signers[mp.payerIndex].Account) {
-				return nil, fmt.Errorf("%w: not signed by the sender of conflicting transaction %s", ErrConflictsAttribute, existingTx.Hash().StringBE())
+			for _, attr := range conflictsAttrs {
+				hash := attr.Value.(*transaction.Conflicts).Hash
+				existingTx, ok := mp.verifiedMap[hash]
+				if !ok {
+					continue
+				}
+				var signerOK bool
+				for _, s := range existingTx.Signers {
+					if _, ok := txSigners[s.Account]; ok {
+						signerOK = true
+						break
+					}
+				}
+				if !signerOK {
+					return nil, fmt.Errorf("%w: not signed by a signer of conflicting transaction %s", ErrConflictsAttribute, existingTx.Hash().StringBE())
+				}
+				conflictingFee += existingTx.NetworkFee
+				conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
 			}
-			conflictingFee += existingTx.NetworkFee
-			conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
 		}
 		if conflictingFee != 0 && tx.NetworkFee <= conflictingFee {
 			return nil, fmt.Errorf("%w: conflicting transactions have bigger or equal network fee: %d vs %d", ErrConflictsAttribute, tx.NetworkFee, conflictingFee)

@@ -193,7 +193,7 @@ func (t *Transaction) decodeBinaryNoSize(br *io.BinReader, buf []byte) {
 		br.Err = errors.New("too many witnesses")
 		return
 	} else if int(nscripts) != len(t.Signers) {
-		br.Err = fmt.Errorf("%w: %d vs %d", ErrInvalidWitnessNum, len(t.Signers), len(t.Scripts))
+		br.Err = fmt.Errorf("%w: %d vs %d", ErrInvalidWitnessNum, len(t.Signers), nscripts)
 		return
 	}
 	t.Scripts = make([]Witness, nscripts)
