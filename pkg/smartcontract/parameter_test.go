@@ -691,6 +691,11 @@ func TestParameterFromValue(t *testing.T) {
 			expVal:  pk2.PublicKey().Bytes(),
 		},
 		{
+			value:   nil,
+			expType: AnyType,
+			expVal:  nil,
+		},
+		{
 			value:   [][]byte{{1, 2, 3}, {3, 2, 1}},
 			expType: ArrayType,
 			expVal:  []Parameter{{ByteArrayType, []byte{1, 2, 3}}, {ByteArrayType, []byte{3, 2, 1}}},

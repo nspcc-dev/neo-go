@@ -360,6 +360,8 @@ func NewParameterFromValue(value interface{}) (Parameter, error) {
 		}
 		result.Type = ArrayType
 		result.Value = arr
+	case nil:
+		result.Type = AnyType
 	default:
 		return result, fmt.Errorf("unsupported parameter %T", value)
 	}
