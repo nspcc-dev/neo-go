@@ -1358,7 +1358,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		require.NoError(t, bc.PoolTx(tx))
 
 		err := bc.PoolTx(tx)
-		require.ErrorIs(t, err, core.ErrAlreadyExists)
+		require.ErrorIs(t, err, core.ErrAlreadyInPool)
 	})
 	t.Run("MemPoolOOM", func(t *testing.T) {
 		mp := mempool.New(1, 0, false, nil)

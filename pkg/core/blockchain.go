@@ -88,10 +88,12 @@ const (
 )
 
 var (
-	// ErrAlreadyExists is returned when trying to add some already existing
-	// transaction into the pool (not specifying whether it exists in the
-	// chain or mempool).
-	ErrAlreadyExists = errors.New("already exists")
+	// ErrAlreadyExists is returned when trying to add some transaction
+	// that already exists on chain.
+	ErrAlreadyExists = errors.New("already exists in blockchain")
+	// ErrAlreadyInPool is returned when trying to add some already existing
+	// transaction into the mempool.
+	ErrAlreadyInPool = errors.New("already exists in mempool")
 	// ErrOOM is returned when adding transaction to the memory pool because
 	// it reached its full capacity.
 	ErrOOM = errors.New("no space left in the memory pool")
@@ -2480,7 +2482,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	if err := bc.dao.HasTransaction(t.Hash(), t.Signers); err != nil {
 		switch {
 		case errors.Is(err, dao.ErrAlreadyExists):
-			return fmt.Errorf("blockchain: %w", ErrAlreadyExists)
+			return ErrAlreadyExists
 		case errors.Is(err, dao.ErrHasConflicts):
 			return fmt.Errorf("blockchain: %w", ErrHasConflicts)
 		default:
@@ -2500,7 +2502,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		case errors.Is(err, mempool.ErrConflict):
 			return ErrMemPoolConflict
 		case errors.Is(err, mempool.ErrDup):
-			return fmt.Errorf("mempool: %w", ErrAlreadyExists)
+			return ErrAlreadyInPool
 		case errors.Is(err, mempool.ErrInsufficientFunds):
 			return ErrInsufficientFunds
 		case errors.Is(err, mempool.ErrOOM):
