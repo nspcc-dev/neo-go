@@ -26,6 +26,11 @@ const MaxAllowedInteger = 2<<53 - 1
 // MaxJSONDepth is the maximum allowed nesting level of an encoded/decoded JSON.
 const MaxJSONDepth = 10
 
+// MaxIntegerPrec is the maximum precision allowed for big.Integer parsing.
+// It equals to the reference value and doesn't allow to precisely parse big
+// numbers, see the https://github.com/neo-project/neo/issues/2879.
+const MaxIntegerPrec = 53
+
 // ErrInvalidValue is returned when an item value doesn't fit some constraints
 // during serialization or deserialization.
 var ErrInvalidValue = errors.New("invalid value")
@@ -213,18 +218,35 @@ func (d *decoder) decode() (Item, error) {
 		return NewByteArray([]byte(t)), nil
 	case json.Number:
 		ts := t.String()
-		dot := strings.IndexByte(ts, '.')
-		if dot != -1 {
-			// As a special case numbers like 123.000 are allowed (SetString rejects them).
-			// And yes, that's the way C# code works also.
-			for _, r := range ts[dot+1:] {
-				if r != '0' {
-					return nil, fmt.Errorf("%w (real value for int)", ErrInvalidValue)
-				}
+		var (
+			num *big.Int
+			ok  bool
+		)
+		isScientific := strings.Contains(ts, "e+") || strings.Contains(ts, "E+")
+		if isScientific {
+			// As a special case numbers like 2.8e+22 are allowed (SetString rejects them).
+			// That's the way how C# code works.
+			f, _, err := big.ParseFloat(ts, 10, MaxIntegerPrec, big.ToNearestEven)
+			if err != nil {
+				return nil, fmt.Errorf("%w (malformed exp value for int)", ErrInvalidValue)
 			}
-			ts = ts[:dot]
+			num = new(big.Int)
+			_, acc := f.Int(num)
+			ok = acc == big.Exact
+		} else {
+			dot := strings.IndexByte(ts, '.')
+			if dot != -1 {
+				// As a special case numbers like 123.000 are allowed (SetString rejects them).
+				// And yes, that's the way C# code works also.
+				for _, r := range ts[dot+1:] {
+					if r != '0' {
+						return nil, fmt.Errorf("%w (real value for int)", ErrInvalidValue)
+					}
+				}
+				ts = ts[:dot]
+			}
+			num, ok = new(big.Int).SetString(ts, 10)
 		}
-		num, ok := new(big.Int).SetString(ts, 10)
 		if !ok {
 			return nil, fmt.Errorf("%w (integer)", ErrInvalidValue)
 		}
