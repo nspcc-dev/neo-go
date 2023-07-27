@@ -105,15 +105,22 @@ func (c *ContractReader) GetContract(hash util.Uint160) (*state.Contract, error)
 	return unwrapContract(c.invoker.Call(Hash, "getContract", hash))
 }
 
-// GetContractByID allows to get contract data from its ID.
+// GetContractByID allows to get contract data from its ID. In case of missing
+// contract it returns nil state.Contract and nil error.
 func (c *ContractReader) GetContractByID(id int32) (*state.Contract, error) {
 	return unwrapContract(c.invoker.Call(Hash, "getContractById", id))
 }
 
+// unwrapContract tries to retrieve state.Contract from the provided result.Invoke.
+// If the resulting stack contains stackitem.Null, then nil state and nil error
+// will be returned.
 func unwrapContract(r *result.Invoke, err error) (*state.Contract, error) {
 	itm, err := unwrap.Item(r, err)
 	if err != nil {
 		return nil, err
+	}
+	if itm.Equals(stackitem.Null{}) {
+		return nil, nil
 	}
 	res := new(state.Contract)
 	err = res.FromStackItem(itm)
