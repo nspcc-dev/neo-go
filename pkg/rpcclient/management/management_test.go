@@ -103,6 +103,17 @@ func TestReader(t *testing.T) {
 	ta.res = &result.Invoke{
 		State: "HALT",
 		Stack: []stackitem.Item{
+			stackitem.Null{},
+		},
+	}
+
+	cs, err := man.GetContract(util.Uint160{1, 2, 3})
+	require.NoError(t, err)
+	require.Nil(t, cs)
+
+	ta.res = &result.Invoke{
+		State: "HALT",
+		Stack: []stackitem.Item{
 			stackitem.Make([]stackitem.Item{}),
 		},
 	}
@@ -127,7 +138,7 @@ func TestReader(t *testing.T) {
 			}),
 		},
 	}
-	cs, err := man.GetContract(util.Uint160{1, 2, 3})
+	cs, err = man.GetContract(util.Uint160{1, 2, 3})
 	require.NoError(t, err)
 	require.Equal(t, int32(1), cs.ID)
 	require.Equal(t, uint16(0), cs.UpdateCounter)
