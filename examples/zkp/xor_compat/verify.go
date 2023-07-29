@@ -7,6 +7,12 @@
 // not be deployed into chain to verify other circuits.
 //
 // This example is constructed to prove that a&b=0 where a and b are private input.
+//
+// Please, do not use this example to create, proof and verify your own circuits.
+// Refer to examples/cubic_circuit package to get an example of a custom circuit
+// creation in Go and check out the
+// [zkpbinding](https://pkg.go.dev/github.com/nspcc-dev/neo-go/pkg/smartcontract/zkpbinding)
+// package to create your own verification contract for the circuit.
 package xor
 
 import (
