@@ -231,6 +231,8 @@ func scalarFromBytes(bytes []byte, neg bool) (*fr.Element, error) {
 	}
 	// The input bytes are in the LE form, so we can't use fr.Element.SetBytesCanonical as far
 	// as it accepts BE.
+	// TODO: ensure that LE is really used in the C# node. More common way is to use BE form, and these
+	// lines of code are here only because that's the way how C# example works (https://github.com/neo-project/neo/issues/2647#issuecomment-1129849870).
 	v, err := fr.LittleEndian.Element((*[fr.Bytes]byte)(bytes))
 	if err != nil {
 		return nil, fmt.Errorf("invalid multiplier: failed to decode scalar: %w", err)
