@@ -8,7 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func getTestDecodeFunc(js string, expected ...any) func(t *testing.T) {
+func getTestDecodeFunc(js string, expected ...interface{}) func(t *testing.T) {
+	return getTestDecodeEncodeFunc(js, true, expected...)
+}
+
+func getTestDecodeEncodeFunc(js string, needEncode bool, expected ...interface{}) func(t *testing.T) {
 	return func(t *testing.T) {
 		actual, err := FromJSON([]byte(js), 20)
 		if expected[0] == nil {
@@ -18,7 +22,7 @@ func getTestDecodeFunc(js string, expected ...any) func(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, Make(expected[0]), actual)
 
-		if len(expected) == 1 {
+		if needEncode && len(expected) == 1 {
 			encoded, err := ToJSON(actual)
 			require.NoError(t, err)
 			require.Equal(t, js, string(encoded))
@@ -27,6 +31,8 @@ func getTestDecodeFunc(js string, expected ...any) func(t *testing.T) {
 }
 
 func TestFromToJSON(t *testing.T) {
+	bigInt, ok := new(big.Int).SetString("28000000000000000000000", 10)
+	require.True(t, ok)
 	t.Run("ByteString", func(t *testing.T) {
 		t.Run("Empty", getTestDecodeFunc(`""`, []byte{}))
 		t.Run("Base64", getTestDecodeFunc(`"test"`, "test"))
@@ -35,6 +41,8 @@ func TestFromToJSON(t *testing.T) {
 	t.Run("BigInteger", func(t *testing.T) {
 		t.Run("ZeroFloat", getTestDecodeFunc(`12.000`, 12, nil))
 		t.Run("NonZeroFloat", getTestDecodeFunc(`12.01`, nil))
+		t.Run("ExpInteger", getTestDecodeEncodeFunc(`2.8e+22`, false, bigInt))
+		t.Run("ExpFloat", getTestDecodeEncodeFunc(`1.2345e+3`, false, nil)) // float value, parsing should fail for it.
 		t.Run("Negative", getTestDecodeFunc(`-4`, -4))
 		t.Run("Positive", getTestDecodeFunc(`123`, 123))
 	})
@@ -120,6 +128,24 @@ func TestFromToJSON(t *testing.T) {
 			})
 		})
 	})
+}
+
+// TestFromJSON_CompatBigInt ensures that maximum BigInt parsing precision matches
+// the C# one, ref. https://github.com/neo-project/neo/issues/2879.
+func TestFromJSON_CompatBigInt(t *testing.T) {
+	tcs := map[string]string{
+		`9.05e+28`:   "90499999999999993918259200000",
+		`1.871e+21`:  "1871000000000000000000",
+		`3.0366e+32`: "303660000000000004445016810323968",
+		`1e+30`:      "1000000000000000019884624838656",
+	}
+	for in, expected := range tcs {
+		t.Run(in, func(t *testing.T) {
+			actual, err := FromJSON([]byte(in), 5)
+			require.NoError(t, err)
+			require.Equal(t, expected, actual.Value().(*big.Int).String())
+		})
+	}
 }
 
 func testToJSON(t *testing.T, expectedErr error, item Item) {
