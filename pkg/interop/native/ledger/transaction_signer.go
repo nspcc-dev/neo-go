@@ -82,7 +82,7 @@ type WitnessCondition struct {
 	// WitnessCalledByContract -> interop.Hash160
 	// WitnessCalledByGroup -> interop.PublicKey
 	// WitnessCalledByEntry -> doesn't have value, thus, an attempt to access the Value leads to runtime exception.
-	Value interface{}
+	Value any
 }
 
 // WitnessConditionType represents the type of rule-based witness condition.

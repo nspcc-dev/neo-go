@@ -237,7 +237,8 @@ func TestContractInitAndCompile(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "init", "--name", ctrPath)
 	})
 
-	srcPath := filepath.Join(ctrPath, "main.go")
+	ctrRootPath := filepath.Join(ctrPath, "main")
+	srcPath := ctrRootPath + ".go"
 	cfgPath := filepath.Join(ctrPath, "neo-go.yml")
 	nefPath := filepath.Join(tmpDir, "testcontract.nef")
 	manifestPath := filepath.Join(tmpDir, "testcontract.manifest.json")
@@ -287,6 +288,19 @@ func TestContractInitAndCompile(t *testing.T) {
 	t.Run("output hex script with --verbose", func(t *testing.T) {
 		e.Run(t, append(cmd, "--verbose")...)
 		e.CheckNextLine(t, "^[0-9a-hA-H]+$")
+	})
+
+	t.Run("autocomplete outputs", func(t *testing.T) {
+		cfg, err := os.ReadFile(cfgPath)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(ctrPath, "main.yml"), cfg, os.ModePerm))
+		e.Run(t, "neo-go", "contract", "compile", "--in", srcPath)
+		defaultNefPath := ctrRootPath + ".nef"
+		defaultManifestPath := ctrRootPath + ".manifest.json"
+		defaultBindingsPath := ctrRootPath + ".bindings.yml"
+		require.FileExists(t, defaultNefPath)
+		require.FileExists(t, defaultManifestPath)
+		require.FileExists(t, defaultBindingsPath)
 	})
 }
 

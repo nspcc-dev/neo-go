@@ -28,12 +28,14 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -51,7 +53,7 @@ const (
 	chainKey            = "chain"
 	chainCfgKey         = "chainCfg"
 	icKey               = "ic"
-	manifestKey         = "manifest"
+	contractStateKey    = "contractState"
 	exitFuncKey         = "exitFunc"
 	readlineInstanceKey = "readlineKey"
 	printLogoKey        = "printLogoKey"
@@ -64,6 +66,7 @@ const (
 	gasFlagFullName       = "gas"
 	backwardsFlagFullName = "backwards"
 	diffFlagFullName      = "diff"
+	hashFlagFullName      = "hash"
 )
 
 var (
@@ -75,6 +78,10 @@ var (
 	gasFlag = cli.Int64Flag{
 		Name:  gasFlagFullName,
 		Usage: "GAS limit for this execution (integer number, satoshi).",
+	}
+	hashFlag = cli.StringFlag{
+		Name:  hashFlagFullName,
+		Usage: "Smart-contract hash in LE form or address",
 	}
 )
 
@@ -150,10 +157,12 @@ Example:
 	},
 	{
 		Name:      "loadnef",
-		Usage:     "Load a NEF-consistent script into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadnef [--historic <height>] [--gas <int>] <file> <manifest> [<signer-with-scope>, ...]`,
-		Flags:     []cli.Flag{historicFlag, gasFlag},
-		Description: `<file> and <manifest> parameters are mandatory.
+		Usage:     "Load a NEF (possibly with a contract hash) into the VM optionally using provided scoped signers in the context",
+		UsageText: `loadnef [--historic <height>] [--gas <int>] [--hash <hash-or-address>] <file> [<manifest>] [-- <signer-with-scope>, ...]`,
+		Flags:     []cli.Flag{historicFlag, gasFlag, hashFlag},
+		Description: `<file> parameter is mandatory, <manifest> parameter (if omitted) will
+   be guessed from the <file> parameter by replacing '.nef' suffix with '.manifest.json'
+   suffix.
 
 ` + cmdargs.SignersParsingDoc + `
 
@@ -164,7 +173,7 @@ Example:
 	{
 		Name:      "loadbase64",
 		Usage:     "Load a base64-encoded script string into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadbase64 [--historic <height>] [--gas <int>] <string> [<signer-with-scope>, ...]`,
+		UsageText: `loadbase64 [--historic <height>] [--gas <int>] <string> [-- <signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `<string> is mandatory parameter.
 
@@ -177,7 +186,7 @@ Example:
 	{
 		Name:      "loadhex",
 		Usage:     "Load a hex-encoded script string into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadhex [--historic <height>] [--gas <int>] <string> [<signer-with-scope>, ...]`,
+		UsageText: `loadhex [--historic <height>] [--gas <int>] <string> [-- <signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `<string> is mandatory parameter.
 
@@ -189,9 +198,9 @@ Example:
 	},
 	{
 		Name:      "loadgo",
-		Usage:     "Compile and load a Go file with the manifest into the VM optionally attaching to it provided signers with scopes",
-		UsageText: `loadgo [--historic <height>] [--gas <int>] <file> [<signer-with-scope>, ...]`,
-		Flags:     []cli.Flag{historicFlag, gasFlag},
+		Usage:     "Compile and load a Go file with the manifest into the VM optionally attaching to it provided signers with scopes and setting provided hash",
+		UsageText: `loadgo [--historic <height>] [--gas <int>] [--hash <hash-or-address>] <file> [-- <signer-with-scope>, ...]`,
+		Flags:     []cli.Flag{historicFlag, gasFlag, hashFlag},
 		Description: `<file> is mandatory parameter.
 
 ` + cmdargs.SignersParsingDoc + `
@@ -220,7 +229,7 @@ Example:
 	{
 		Name:      "loaddeployed",
 		Usage:     "Load deployed contract into the VM from chain optionally attaching to it provided signers with scopes",
-		UsageText: `loaddeployed [--historic <height>] [--gas <int>] <hash-or-address-or-id>  [<signer-with-scope>, ...]`,
+		UsageText: `loaddeployed [--historic <height>] [--gas <int>] <hash-or-address-or-id>  [-- <signer-with-scope>, ...]`,
 		Flags:     []cli.Flag{historicFlag, gasFlag},
 		Description: `Load deployed contract into the VM from chain optionally attaching to it provided signers with scopes.
 If '--historic' flag specified, then the historic contract state (historic script and manifest) will be loaded.
@@ -483,11 +492,11 @@ func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg
 		shell: ctl,
 	}
 
-	vmcli.shell.Metadata = map[string]interface{}{
+	vmcli.shell.Metadata = map[string]any{
 		chainKey:            chain,
 		chainCfgKey:         cfg,
 		icKey:               ic,
-		manifestKey:         new(manifest.Manifest),
+		contractStateKey:    new(state.ContractBase),
 		exitFuncKey:         exitF,
 		readlineInstanceKey: l,
 		printLogoKey:        printLogotype,
@@ -520,8 +529,8 @@ func getInteropContextFromContext(app *cli.App) *interop.Context {
 	return app.Metadata[icKey].(*interop.Context)
 }
 
-func getManifestFromContext(app *cli.App) *manifest.Manifest {
-	return app.Metadata[manifestKey].(*manifest.Manifest)
+func getContractStateFromContext(app *cli.App) *state.ContractBase {
+	return app.Metadata[contractStateKey].(*state.ContractBase)
 }
 
 func getPrintLogoFromContext(app *cli.App) bool {
@@ -532,8 +541,8 @@ func setInteropContextInContext(app *cli.App, ic *interop.Context) {
 	app.Metadata[icKey] = ic
 }
 
-func setManifestInContext(app *cli.App, m *manifest.Manifest) {
-	app.Metadata[manifestKey] = m
+func setContractStateInContext(app *cli.App, cs *state.ContractBase) {
+	app.Metadata[contractStateKey] = cs
 }
 
 func checkVMIsReady(app *cli.App) bool {
@@ -669,12 +678,49 @@ func prepareVM(c *cli.Context, tx *transaction.Transaction) error {
 	return nil
 }
 
+func getHashFlag(c *cli.Context) (util.Uint160, error) {
+	if !c.IsSet(hashFlagFullName) {
+		return util.Uint160{}, nil
+	}
+	h, err := flags.ParseAddress(c.String(hashFlagFullName))
+	if err != nil {
+		return util.Uint160{}, fmt.Errorf("failed to parse contract hash: %w", err)
+	}
+	return h, nil
+}
+
 func handleLoadNEF(c *cli.Context) error {
 	args := c.Args()
-	if len(args) < 2 {
-		return fmt.Errorf("%w: <file> <manifest>", ErrMissingParameter)
+	if len(args) < 1 {
+		return fmt.Errorf("%w: <nef> is required", ErrMissingParameter)
 	}
-	b, err := os.ReadFile(args[0])
+	nefFile := args[0]
+	var (
+		manifestFile       string
+		signersStartOffset int
+	)
+	if len(args) == 2 {
+		manifestFile = args[1]
+	} else if len(args) == 3 {
+		if args[1] != cmdargs.CosignersSeparator {
+			return fmt.Errorf("%w: `%s` was expected as the second parameter, got %s", ErrInvalidParameter, cmdargs.CosignersSeparator, args[1])
+		}
+		signersStartOffset = 2
+	} else if len(args) > 3 {
+		if args[1] == cmdargs.CosignersSeparator {
+			signersStartOffset = 2
+		} else {
+			manifestFile = args[1]
+			if args[2] != cmdargs.CosignersSeparator {
+				return fmt.Errorf("%w: `%s` was expected as the third parameter, got %s", ErrInvalidParameter, cmdargs.CosignersSeparator, args[2])
+			}
+			signersStartOffset = 3
+		}
+	}
+	if len(manifestFile) == 0 {
+		manifestFile = strings.TrimSuffix(nefFile, ".nef") + ".manifest.json"
+	}
+	b, err := os.ReadFile(nefFile)
 	if err != nil {
 		return err
 	}
@@ -682,24 +728,34 @@ func handleLoadNEF(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to decode NEF file: %w", err)
 	}
-	m, err := getManifestFromFile(args[1])
+	m, err := getManifestFromFile(manifestFile)
 	if err != nil {
 		return fmt.Errorf("failed to read manifest: %w", err)
 	}
 	var signers []transaction.Signer
-	if len(args) > 2 {
-		signers, err = cmdargs.ParseSigners(c.Args()[2:])
+	if signersStartOffset != 0 && len(args) > signersStartOffset {
+		signers, err = cmdargs.ParseSigners(c.Args()[signersStartOffset:])
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: failed to parse signers: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 	}
 	err = prepareVM(c, createFakeTransaction(nef.Script, signers))
 	if err != nil {
 		return err
 	}
+	h, err := getHashFlag(c)
+	if err != nil {
+		return err
+	}
+	cs := &state.ContractBase{
+		Hash:     h,
+		NEF:      nef,
+		Manifest: *m,
+	}
+	setContractStateInContext(c.App, cs)
+
 	v := getVMFromContext(c.App)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
-	setManifestInContext(c.App, m)
 	changePrompt(c.App)
 	return nil
 }
@@ -715,7 +771,13 @@ func handleLoadBase64(c *cli.Context) error {
 	}
 	var signers []transaction.Signer
 	if len(args) > 1 {
-		signers, err = cmdargs.ParseSigners(args[1:])
+		if args[1] != cmdargs.CosignersSeparator {
+			return fmt.Errorf("%w: `%s` was expected as the second parameter, got %s", ErrInvalidParameter, cmdargs.CosignersSeparator, args[1])
+		}
+		if len(args) < 3 {
+			return fmt.Errorf("%w: signers expected after `%s`, got none", ErrInvalidParameter, cmdargs.CosignersSeparator)
+		}
+		signers, err = cmdargs.ParseSigners(args[2:])
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
@@ -749,7 +811,13 @@ func handleLoadHex(c *cli.Context) error {
 	}
 	var signers []transaction.Signer
 	if len(args) > 1 {
-		signers, err = cmdargs.ParseSigners(args[1:])
+		if args[1] != cmdargs.CosignersSeparator {
+			return fmt.Errorf("%w: `%s` was expected as the second parameter, got %s", ErrInvalidParameter, cmdargs.CosignersSeparator, args[1])
+		}
+		if len(args) < 3 {
+			return fmt.Errorf("%w: signers expected after `%s`, got none", ErrInvalidParameter, cmdargs.CosignersSeparator)
+		}
+		signers, err = cmdargs.ParseSigners(args[2:])
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
@@ -771,7 +839,7 @@ func handleLoadGo(c *cli.Context) error {
 	}
 
 	name := strings.TrimSuffix(args[0], ".go")
-	b, di, err := compiler.CompileWithOptions(args[0], nil, &compiler.Options{Name: name})
+	ne, di, err := compiler.CompileWithOptions(args[0], nil, &compiler.Options{Name: name})
 	if err != nil {
 		return fmt.Errorf("failed to compile: %w", err)
 	}
@@ -783,18 +851,34 @@ func handleLoadGo(c *cli.Context) error {
 	}
 	var signers []transaction.Signer
 	if len(args) > 1 {
-		signers, err = cmdargs.ParseSigners(args[1:])
+		if args[1] != cmdargs.CosignersSeparator {
+			return fmt.Errorf("%w: `%s` was expected as the second parameter, got %s", ErrInvalidParameter, cmdargs.CosignersSeparator, args[1])
+		}
+		if len(args) < 3 {
+			return fmt.Errorf("%w: signers expected after `%s`, got none", ErrInvalidParameter, cmdargs.CosignersSeparator)
+		}
+		signers, err = cmdargs.ParseSigners(args[2:])
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 	}
 
-	err = prepareVM(c, createFakeTransaction(b.Script, signers))
+	err = prepareVM(c, createFakeTransaction(ne.Script, signers))
 	if err != nil {
 		return err
 	}
+	h, err := getHashFlag(c)
+	if err != nil {
+		return err
+	}
+	cs := &state.ContractBase{
+		Hash:     h,
+		NEF:      *ne,
+		Manifest: *m,
+	}
+	setContractStateInContext(c.App, cs)
+
 	v := getVMFromContext(c.App)
-	setManifestInContext(c.App, m)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", v.Context().LenInstr())
 	changePrompt(c.App)
 	return nil
@@ -849,7 +933,8 @@ func handleLoadDeployed(c *cli.Context) error {
 	if !c.Args().Present() {
 		return errors.New("contract hash, address or ID is mandatory argument")
 	}
-	hashOrID := c.Args().Get(0)
+	args := c.Args()
+	hashOrID := args[0]
 	ic := getInteropContextFromContext(c.App)
 	h, err := flags.ParseAddress(hashOrID)
 	if err != nil {
@@ -868,8 +953,14 @@ func handleLoadDeployed(c *cli.Context) error {
 	}
 
 	var signers []transaction.Signer
-	if len(c.Args()) > 1 {
-		signers, err = cmdargs.ParseSigners(c.Args()[1:])
+	if len(args) > 1 {
+		if args[1] != cmdargs.CosignersSeparator {
+			return fmt.Errorf("%w: %s was expected as the second parameter, got %s", ErrInvalidParameter, cmdargs.CosignersSeparator, args[1])
+		}
+		if len(args) < 3 {
+			return fmt.Errorf("%w: signers expected after `%s`, got none", ErrInvalidParameter, cmdargs.CosignersSeparator)
+		}
+		signers, err = cmdargs.ParseSigners(args[2:])
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
@@ -884,7 +975,7 @@ func handleLoadDeployed(c *cli.Context) error {
 	ic.VM.GasLimit = gasLimit
 	ic.VM.LoadScriptWithHash(cs.NEF.Script, cs.Hash, callflag.All)
 	fmt.Fprintf(c.App.Writer, "READY: loaded %d instructions\n", ic.VM.Context().LenInstr())
-	setManifestInContext(c.App, &cs.Manifest)
+	setContractStateInContext(c.App, &cs.ContractBase)
 	changePrompt(c.App)
 	return nil
 }
@@ -939,9 +1030,9 @@ func resetInteropContext(app *cli.App, tx *transaction.Transaction, height ...ui
 	return nil
 }
 
-// resetManifest removes manifest from app context.
-func resetManifest(app *cli.App) {
-	setManifestInContext(app, nil)
+// resetContractState removes loaded contract state from app context.
+func resetContractState(app *cli.App) {
+	setContractStateInContext(app, nil)
 }
 
 // resetState resets state of the app (clear interop context and manifest) so that it's ready
@@ -951,7 +1042,7 @@ func resetState(app *cli.App, tx *transaction.Transaction, height ...uint32) err
 	if err != nil {
 		return err
 	}
-	resetManifest(app)
+	resetContractState(app)
 	return nil
 }
 
@@ -970,7 +1061,7 @@ func getManifestFromFile(name string) (*manifest.Manifest, error) {
 
 func handleRun(c *cli.Context) error {
 	v := getVMFromContext(c.App)
-	m := getManifestFromContext(c.App)
+	cs := getContractStateFromContext(c.App)
 	args := c.Args()
 	if len(args) != 0 {
 		var (
@@ -978,6 +1069,7 @@ func handleRun(c *cli.Context) error {
 			offset     int
 			err        error
 			runCurrent = args[0] != "_"
+			hasRet     bool
 		)
 
 		_, scParams, err := cmdargs.ParseParams(args[1:], true)
@@ -992,26 +1084,34 @@ func handleRun(c *cli.Context) error {
 			}
 		}
 		if runCurrent {
-			if m == nil {
-				return fmt.Errorf("manifest is not loaded; either use 'run' command to run loaded script from the start or use 'loadgo' and 'loadnef' commands to provide manifest")
+			if cs == nil {
+				return fmt.Errorf("manifest is not loaded; either use 'run' command to run loaded script from the start or use 'loadgo', 'loadnef' or 'loaddeployed' commands to provide manifest")
 			}
-			md := m.ABI.GetMethod(args[0], len(params))
+			md := cs.Manifest.ABI.GetMethod(args[0], len(params))
 			if md == nil {
 				return fmt.Errorf("%w: method not found", ErrInvalidParameter)
 			}
+			hasRet = md.ReturnType != smartcontract.VoidType
 			offset = md.Offset
+			var initOff = -1
+			if initMD := cs.Manifest.ABI.GetMethod(manifest.MethodInit, 0); initMD != nil {
+				initOff = initMD.Offset
+			}
+
+			// Clear context loaded by 'loadgo', 'loadnef' or 'loaddeployed' to properly handle LoadNEFMethod.
+			// At the same time, preserve previously set gas limit and the set of breakpoints.
+			ic := getInteropContextFromContext(c.App)
+			gasLimit := v.GasLimit
+			breaks := v.Context().BreakPoints() // We ensure that there's a context loaded.
+			ic.ReuseVM(v)
+			v.GasLimit = gasLimit
+			v.LoadNEFMethod(&cs.NEF, util.Uint160{}, cs.Hash, callflag.All, hasRet, offset, initOff, nil)
+			for _, bp := range breaks {
+				v.AddBreakPoint(bp)
+			}
 		}
 		for i := len(params) - 1; i >= 0; i-- {
 			v.Estack().PushVal(params[i])
-		}
-		if runCurrent {
-			if !v.Ready() {
-				return errors.New("no program loaded")
-			}
-			v.Context().Jump(offset)
-			if initMD := m.ABI.GetMethod(manifest.MethodInit, 0); initMD != nil {
-				v.Call(initMD.Offset)
-			}
 		}
 	}
 	runVMWithHandling(c)

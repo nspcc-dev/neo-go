@@ -631,7 +631,7 @@ func unmarshalConditionJSON(data []byte, maxDepth int) (WitnessCondition, error)
 	return res, nil
 }
 
-func condToStackItem(typ WitnessConditionType, c interface{}) stackitem.Item {
+func condToStackItem(typ WitnessConditionType, c any) stackitem.Item {
 	res := make([]stackitem.Item, 0, 2)
 	res = append(res, stackitem.NewBigInteger(big.NewInt(int64(typ))))
 	switch typ {

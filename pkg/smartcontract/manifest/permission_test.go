@@ -144,7 +144,7 @@ func TestPermissionDesc_MarshalJSON(t *testing.T) {
 	})
 }
 
-func testMarshalUnmarshal(t *testing.T, expected, actual interface{}) {
+func testMarshalUnmarshal(t *testing.T, expected, actual any) {
 	data, err := json.Marshal(expected)
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(data, actual))

@@ -86,7 +86,9 @@ where:
    sender stored in a local pool.
 - `MaxPeers` (`int`) is the maximum numbers of peers that can be connected to the server.
 - `MinPeers` (`int`) is the minimum number of peers for normal operation; when the node has
-   less than this number of peers it tries to connect with some new ones.
+   less than this number of peers it tries to connect with some new ones. Note that consensus
+   node won't start the consensus process until at least `MinPeers` number of peers are
+   connected.
 - `PingInterval` (`Duration`) is the interval used in pinging mechanism for syncing
    blocks.
 - `PingTimeout` (`Duration`) is the time to wait for pong (response for sent ping request).

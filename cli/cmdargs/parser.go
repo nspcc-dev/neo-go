@@ -230,9 +230,9 @@ func parseCosigner(c string) (transaction.Signer, error) {
 }
 
 // GetDataFromContext returns data parameter from context args.
-func GetDataFromContext(ctx *cli.Context) (int, interface{}, *cli.ExitError) {
+func GetDataFromContext(ctx *cli.Context) (int, any, *cli.ExitError) {
 	var (
-		data   interface{}
+		data   any
 		offset int
 		params []smartcontract.Parameter
 		err    error

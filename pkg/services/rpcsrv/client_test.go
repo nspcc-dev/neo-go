@@ -24,12 +24,15 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -258,11 +261,10 @@ func TestClientManagementContract(t *testing.T) {
 	cs2, err := c.GetContractStateByHash(gas.Hash)
 	require.NoError(t, err)
 	require.Equal(t, cs2, cs1)
-	/* C# compat
 	cs1, err = manReader.GetContractByID(-6)
 	require.NoError(t, err)
 	require.Equal(t, cs2, cs1)
-	*/
+
 	ret, err := manReader.HasMethod(gas.Hash, "transfer", 4)
 	require.NoError(t, err)
 	require.True(t, ret)
@@ -369,9 +371,9 @@ func TestClientNEOContract(t *testing.T) {
 	require.Equal(t, int64(1000_0000_0000), regP)
 
 	acc0 := testchain.PrivateKey(0).PublicKey().GetScriptHash()
-	uncl, err := neoR.UnclaimedGas(acc0, 100)
+	uncl, err := neoR.UnclaimedGas(acc0, chain.BlockHeight()+1)
 	require.NoError(t, err)
-	require.Equal(t, big.NewInt(48000), uncl)
+	require.Equal(t, big.NewInt(10000), uncl)
 
 	accState, err := neoR.GetAccountState(acc0)
 	require.NoError(t, err)
@@ -1765,6 +1767,33 @@ func TestClient_GetNotaryServiceFeePerKey(t *testing.T) {
 	require.Equal(t, defaultNotaryServiceFeePerKey, actual)
 }
 
+func TestClient_States(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	stateheight, err := c.GetStateHeight()
+	assert.NoError(t, err)
+	assert.Equal(t, chain.BlockHeight(), stateheight.Local)
+
+	stateroot, err := c.GetStateRootByHeight(stateheight.Local)
+	assert.NoError(t, err)
+
+	t.Run("proof", func(t *testing.T) {
+		policy, err := chain.GetNativeContractScriptHash(nativenames.Policy)
+		assert.NoError(t, err)
+		proof, err := c.GetProof(stateroot.Root, policy, []byte{19}) // storagePrice key in policy contract
+		assert.NoError(t, err)
+		value, err := c.VerifyProof(stateroot.Root, proof)
+		assert.NoError(t, err)
+		assert.Equal(t, big.NewInt(native.DefaultStoragePrice), bigint.FromBytes(value))
+	})
+}
+
 func TestClientOracle(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
@@ -2044,7 +2073,7 @@ func mkSubsClient(t *testing.T, rpcSrv *Server, httpSrv *httptest.Server, local 
 		icl, err = rpcclient.NewInternal(context.Background(), rpcSrv.RegisterLocal)
 	} else {
 		url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
-		c, err = rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
+		c, err = rpcclient.NewWS(context.Background(), url, rpcclient.WSOptions{})
 	}
 	require.NoError(t, err)
 	if local {
@@ -2210,7 +2239,7 @@ func TestWSClientHandshakeError(t *testing.T) {
 	defer rpcSrv.Shutdown()
 
 	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
-	_, err := rpcclient.NewWS(context.Background(), url, rpcclient.Options{})
+	_, err := rpcclient.NewWS(context.Background(), url, rpcclient.WSOptions{})
 	require.ErrorContains(t, err, "websocket users limit reached")
 }
 
@@ -2269,7 +2298,7 @@ func testSubClientWaitWithMissedEvent(t *testing.T, local bool) {
 	overNotification := neorpc.Notification{
 		JSONRPC: neorpc.JSONRPCVersion,
 		Event:   neorpc.MissedEventID,
-		Payload: make([]interface{}, 0),
+		Payload: make([]any, 0),
 	}
 	overEvent, err := json.Marshal(overNotification)
 	require.NoError(t, err)

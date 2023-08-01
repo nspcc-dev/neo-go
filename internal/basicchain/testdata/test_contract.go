@@ -3,12 +3,12 @@ package testdata
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/ledger"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/neo"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
-	"github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 	decimals    = 2
 )
 
-var owner = util.FromAddress("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
+var owner = address.ToHash160("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
 
 func Init() bool {
 	ctx := storage.GetContext()
@@ -27,7 +27,7 @@ func Init() bool {
 	return true
 }
 
-func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
+func OnNEP17Payment(from interop.Hash160, amount int, data any) {
 	curr := runtime.GetExecutingScriptHash()
 	balance := neo.BalanceOf(curr)
 	if ledger.CurrentIndex() >= 100 {
@@ -47,7 +47,7 @@ func Verify() bool {
 	return true
 }
 
-func Transfer(from, to interop.Hash160, amount int, data interface{}) bool {
+func Transfer(from, to interop.Hash160, amount int, data any) bool {
 	ctx := storage.GetContext()
 	if len(from) != 20 {
 		runtime.Log("invalid 'from' address")

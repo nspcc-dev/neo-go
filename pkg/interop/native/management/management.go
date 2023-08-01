@@ -29,7 +29,7 @@ func Deploy(script, manifest []byte) *Contract {
 }
 
 // DeployWithData represents `deploy` method of Management native contract.
-func DeployWithData(script, manifest []byte, data interface{}) *Contract {
+func DeployWithData(script, manifest []byte, data any) *Contract {
 	return neogointernal.CallWithToken(Hash, "deploy",
 		int(contract.All), script, manifest, data).(*Contract)
 }
@@ -80,7 +80,7 @@ func Update(script, manifest []byte) {
 }
 
 // UpdateWithData represents `update` method of Management native contract.
-func UpdateWithData(script, manifest []byte, data interface{}) {
+func UpdateWithData(script, manifest []byte, data any) {
 	neogointernal.CallWithTokenNoRet(Hash, "update",
 		int(contract.All), script, manifest, data)
 }

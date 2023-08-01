@@ -985,7 +985,12 @@ func newAccountFromWIF(w io.Writer, wif string, scrypt keys.ScryptParams, label 
 	if pass != nil {
 		phrase = *pass
 	}
-	if label != nil {
+	if label == nil {
+		name, err = readAccountName()
+		if err != nil {
+			return nil, fmt.Errorf("failed to read account label: %w", err)
+		}
+	} else {
 		name = *label
 	}
 	// note: NEP2 strings always have length of 58 even though
@@ -1024,12 +1029,6 @@ func newAccountFromWIF(w io.Writer, wif string, scrypt keys.ScryptParams, label 
 	}
 
 	fmt.Fprintln(w, "Provided WIF was unencrypted. Wallet can contain only encrypted keys.")
-	if label == nil {
-		name, err = readAccountName()
-		if err != nil {
-			return nil, fmt.Errorf("failed to read account label: %w", err)
-		}
-	}
 	if pass == nil {
 		phrase, err = readNewPassword()
 		if err != nil {

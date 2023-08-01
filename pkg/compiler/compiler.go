@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/rpcbinding"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"golang.org/x/tools/go/packages"
 	"gopkg.in/yaml.v3"
@@ -52,14 +53,26 @@ type Options struct {
 	// This setting has effect only if manifest is emitted.
 	NoPermissionsCheck bool
 
+	// GuessEventTypes specifies if types of runtime notifications need to be guessed
+	// from the usage context. These types are used for RPC binding generation only and
+	// can be defined for events with name known at the compilation time and without
+	// variadic args usages. If some type is specified via config file, then the config's
+	// one is preferable. Currently, event's parameter type is defined from the first
+	// occurrence of event call.
+	GuessEventTypes bool
+
 	// Name is a contract's name to be written to manifest.
 	Name string
 
 	// SourceURL is a contract's source URL to be written to manifest.
 	SourceURL string
 
-	// Runtime notifications.
-	ContractEvents []manifest.Event
+	// Runtime notifications declared in the contract configuration file.
+	ContractEvents []HybridEvent
+
+	// DeclaredNamedTypes is the set of named types that were declared in the
+	// contract configuration type and are the part of manifest events.
+	DeclaredNamedTypes map[string]binding.ExtendedType
 
 	// The list of standards supported by the contract.
 	ContractSupportedStandards []string
@@ -76,6 +89,23 @@ type Options struct {
 
 	// BindingsFile contains configuration for smart-contract bindings generator.
 	BindingsFile string
+}
+
+// HybridEvent represents the description of event emitted by the contract squashed
+// with extended event's parameters description. We have it as a separate type for
+// the user's convenience. It is applied for the smart contract configuration file
+// only.
+type HybridEvent struct {
+	Name       string            `json:"name"`
+	Parameters []HybridParameter `json:"parameters"`
+}
+
+// HybridParameter contains the manifest's event parameter description united with
+// the extended type description for this parameter. It is applied for the smart
+// contract configuration file only.
+type HybridParameter struct {
+	manifest.Parameter `yaml:",inline"`
+	ExtendedType       *binding.ExtendedType `yaml:"extendedtype,omitempty"`
 }
 
 type buildInfo struct {
@@ -122,7 +152,7 @@ func (c *codegen) fillImportMap(f *ast.File, pkg *packages.Package) {
 	}
 }
 
-func getBuildInfo(name string, src interface{}) (*buildInfo, error) {
+func getBuildInfo(name string, src any) (*buildInfo, error) {
 	dir, err := filepath.Abs(name)
 	if err != nil {
 		return nil, err
@@ -309,6 +339,78 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		if len(di.NamedTypes) > 0 {
 			cfg.NamedTypes = di.NamedTypes
 		}
+		for name, et := range o.DeclaredNamedTypes {
+			if _, ok := cfg.NamedTypes[name]; ok {
+				return nil, fmt.Errorf("configured declared named type intersects with the contract's one: `%s`", name)
+			}
+			cfg.NamedTypes[name] = et
+		}
+		for _, e := range o.ContractEvents {
+			eStructName := rpcbinding.ToEventBindingName(e.Name)
+			for _, p := range e.Parameters {
+				pStructName := rpcbinding.ToParameterBindingName(p.Name)
+				if p.ExtendedType != nil {
+					pName := eStructName + "." + pStructName
+					cfg.Types[pName] = *p.ExtendedType
+				}
+			}
+		}
+		if o.GuessEventTypes {
+			if len(di.EmittedEvents) > 0 {
+				for eventName, eventUsages := range di.EmittedEvents {
+					var manifestEvent HybridEvent
+					for _, e := range o.ContractEvents {
+						if e.Name == eventName {
+							manifestEvent = e
+							break
+						}
+					}
+					if len(manifestEvent.Name) == 0 {
+						return nil, fmt.Errorf("inconsistent usages of event `%s`: not declared in the contract config", eventName)
+					}
+					exampleUsage := eventUsages[0]
+					for _, usage := range eventUsages {
+						if len(usage.Params) != len(manifestEvent.Parameters) {
+							return nil, fmt.Errorf("inconsistent usages of event `%s` against config: number of params mismatch: %d vs %d", eventName, len(exampleUsage.Params), len(manifestEvent.Parameters))
+						}
+						for i, actual := range usage.Params {
+							mParam := manifestEvent.Parameters[i]
+							// TODO: see the TestCompile_GuessEventTypes, "SC parameter type mismatch" section,
+							// do we want to compare with actual.RealType? The conversion code is emitted by the
+							// compiler for it, so we expect the parameter to be of the proper type.
+							if !(mParam.Type == smartcontract.AnyType || actual.TypeSC == mParam.Type) {
+								return nil, fmt.Errorf("inconsistent usages of event `%s` against config: SC type of param #%d mismatch: %s vs %s", eventName, i, actual.TypeSC, mParam.Type)
+							}
+							expected := exampleUsage.Params[i]
+							if !actual.ExtendedType.Equals(expected.ExtendedType) {
+								return nil, fmt.Errorf("inconsistent usages of event `%s`: extended type of param #%d mismatch", eventName, i)
+							}
+						}
+					}
+					eBindingName := rpcbinding.ToEventBindingName(eventName)
+					for typeName, extType := range exampleUsage.ExtTypes {
+						if _, ok := cfg.NamedTypes[typeName]; !ok {
+							cfg.NamedTypes[typeName] = extType
+						}
+					}
+
+					for _, p := range exampleUsage.Params {
+						pBindingName := rpcbinding.ToParameterBindingName(p.Name)
+						pname := eBindingName + "." + pBindingName
+						if p.RealType.TypeName != "" {
+							if _, ok := cfg.Overrides[pname]; !ok {
+								cfg.Overrides[pname] = p.RealType
+							}
+						}
+						if p.ExtendedType != nil {
+							if _, ok := cfg.Types[pname]; !ok {
+								cfg.Types[pname] = *p.ExtendedType
+							}
+						}
+					}
+				}
+			}
+		}
 		data, err := yaml.Marshal(&cfg)
 		if err != nil {
 			return nil, fmt.Errorf("can't marshal bindings configuration: %w", err)
@@ -366,24 +468,23 @@ func CreateManifest(di *DebugInfo, o *Options) (*manifest.Manifest, error) {
 	}
 	if !o.NoEventsCheck {
 		for name := range di.EmittedEvents {
-			ev := m.ABI.GetEvent(name)
-			if ev == nil {
+			expected := m.ABI.GetEvent(name)
+			if expected == nil {
 				return nil, fmt.Errorf("event '%s' is emitted but not specified in manifest", name)
 			}
-			argsList := di.EmittedEvents[name]
-			for i := range argsList {
-				if len(argsList[i]) != len(ev.Parameters) {
+			for _, emitted := range di.EmittedEvents[name] {
+				if len(emitted.Params) != len(expected.Parameters) {
 					return nil, fmt.Errorf("event '%s' should have %d parameters but has %d",
-						name, len(ev.Parameters), len(argsList[i]))
+						name, len(expected.Parameters), len(emitted.Params))
 				}
-				for j := range ev.Parameters {
-					if ev.Parameters[j].Type == smartcontract.AnyType {
+				for j := range expected.Parameters {
+					if expected.Parameters[j].Type == smartcontract.AnyType {
 						continue
 					}
-					expected := ev.Parameters[j].Type.String()
-					if argsList[i][j] != expected {
+					expectedT := expected.Parameters[j].Type
+					if emitted.Params[j].TypeSC != expectedT {
 						return nil, fmt.Errorf("event '%s' should have '%s' as type of %d parameter, "+
-							"got: %s", name, expected, j+1, argsList[i][j])
+							"got: %s", name, expectedT, j+1, emitted.Params[j].TypeSC)
 					}
 				}
 			}

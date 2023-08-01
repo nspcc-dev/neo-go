@@ -137,9 +137,9 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 				func f() int {
 					return 4
 				}`
-		eval(t, src, big.NewInt(4), []interface{}{opcode.INITSSLOT, []byte{2}}, // sslot for A and C
+		eval(t, src, big.NewInt(4), []any{opcode.INITSSLOT, []byte{2}}, // sslot for A and C
 			opcode.PUSH1, opcode.STSFLD0, // store A
-			[]interface{}{opcode.CALL, []byte{10}}, opcode.DROP, // evaluate B and drop
+			[]any{opcode.CALL, []byte{10}}, opcode.DROP, // evaluate B and drop
 			opcode.PUSH3, opcode.STSFLD1, opcode.RET, // store C
 			opcode.LDSFLD0, opcode.LDSFLD1, opcode.ADD, opcode.RET, // Main
 			opcode.PUSH4, opcode.RET) // f
@@ -166,7 +166,7 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 				func Main() int {
 					return A
 				}`
-		eval(t, src, big.NewInt(1), []interface{}{opcode.INITSSLOT, []byte{1}}, // sslot for A
+		eval(t, src, big.NewInt(1), []any{opcode.INITSSLOT, []byte{1}}, // sslot for A
 			opcode.PUSH1, opcode.STSFLD0, opcode.RET, // store A
 			opcode.LDSFLD0, opcode.RET) // Main
 	})
@@ -176,7 +176,7 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 				func Main() int {
 					return A + B
 				}`
-		eval(t, src, big.NewInt(4), []interface{}{opcode.INITSSLOT, []byte{2}}, // sslot for A and B
+		eval(t, src, big.NewInt(4), []any{opcode.INITSSLOT, []byte{2}}, // sslot for A and B
 			opcode.PUSH1, opcode.STSFLD0, // store A
 			opcode.PUSH3, opcode.STSFLD1, opcode.RET, // store B
 			opcode.LDSFLD0, opcode.LDSFLD1, opcode.ADD, opcode.RET) // Main
@@ -190,7 +190,7 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 				func Main() int {
 					return A + B + C
 				}`
-		eval(t, src, big.NewInt(4), []interface{}{opcode.INITSSLOT, []byte{3}}, // sslot for A, B, C
+		eval(t, src, big.NewInt(4), []any{opcode.INITSSLOT, []byte{3}}, // sslot for A, B, C
 			opcode.PUSH1, opcode.STSFLD0, // store A
 			opcode.PUSH3, opcode.STSFLD1, // store B
 			opcode.PUSH0, opcode.STSFLD2, opcode.RET, // store C
@@ -205,9 +205,9 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 				func f() int {
 					return 2
 				}`
-		eval(t, src, big.NewInt(1), []interface{}{opcode.INITSSLOT, []byte{1}}, // sslot for A
+		eval(t, src, big.NewInt(1), []any{opcode.INITSSLOT, []byte{1}}, // sslot for A
 			opcode.PUSH1, opcode.STSFLD0, // store A
-			[]interface{}{opcode.CALL, []byte{6}}, opcode.DROP, opcode.RET, // evaluate Unused1 (call to f) and drop its value
+			[]any{opcode.CALL, []byte{6}}, opcode.DROP, opcode.RET, // evaluate Unused1 (call to f) and drop its value
 			opcode.LDSFLD0, opcode.RET, // Main
 			opcode.PUSH2, opcode.RET) // f
 	})
@@ -221,7 +221,7 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 				func f() int {
 					return 2
 				}`
-		eval(t, src, big.NewInt(1), []interface{}{opcode.CALL, []byte{8}}, opcode.PUSH1, opcode.PACKSTRUCT, opcode.DROP, opcode.RET, // evaluate struct val
+		eval(t, src, big.NewInt(1), []any{opcode.CALL, []byte{8}}, opcode.PUSH1, opcode.PACKSTRUCT, opcode.DROP, opcode.RET, // evaluate struct val
 			opcode.PUSH1, opcode.RET, // Main
 			opcode.PUSH2, opcode.RET) // f
 	})
@@ -319,11 +319,11 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 					func f() int {
 						return 2
 					}`
-			eval(t, src, big.NewInt(1), []interface{}{opcode.INITSSLOT, []byte{3}}, // sslot for A
+			eval(t, src, big.NewInt(1), []any{opcode.INITSSLOT, []byte{3}}, // sslot for A
 				opcode.PUSH1, opcode.STSFLD0, // store A
 				opcode.LDSFLD0, opcode.PUSH1, opcode.ADD, opcode.STSFLD1, // store B
 				opcode.PUSH3, opcode.STSFLD2, // store C
-				opcode.LDSFLD1, []interface{}{opcode.CALL, []byte{9}}, opcode.ADD, opcode.LDSFLD2, opcode.ADD, opcode.DROP, opcode.RET, // evaluate D and drop
+				opcode.LDSFLD1, []any{opcode.CALL, []byte{9}}, opcode.ADD, opcode.LDSFLD2, opcode.ADD, opcode.DROP, opcode.RET, // evaluate D and drop
 				opcode.PUSH1, opcode.RET, // Main
 				opcode.PUSH2, opcode.RET) // f
 		})
@@ -337,11 +337,11 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 					func f(a int) int {
 						return a
 					}`
-			eval(t, src, big.NewInt(1), []interface{}{opcode.INITSSLOT, []byte{1}}, // sslot for A
+			eval(t, src, big.NewInt(1), []any{opcode.INITSSLOT, []byte{1}}, // sslot for A
 				opcode.PUSH1, opcode.STSFLD0, // store A
-				opcode.LDSFLD0, []interface{}{opcode.CALL, []byte{6}}, opcode.DROP, opcode.RET, // evaluate B and drop
+				opcode.LDSFLD0, []any{opcode.CALL, []byte{6}}, opcode.DROP, opcode.RET, // evaluate B and drop
 				opcode.PUSH1, opcode.RET, // Main
-				[]interface{}{opcode.INITSLOT, []byte{0, 1}}, opcode.LDARG0, opcode.RET) // f
+				[]any{opcode.INITSLOT, []byte{0, 1}}, opcode.LDARG0, opcode.RET) // f
 		})
 		t.Run("named, inside multi-specs and multi-vals var declaration", func(t *testing.T) {
 			src := `package foo
@@ -355,7 +355,7 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 					func f() int {
 						return 5
 					}`
-			eval(t, src, big.NewInt(1), opcode.PUSH3, []interface{}{opcode.CALL, []byte{7}}, opcode.ADD, opcode.DROP, opcode.RET, // evaluate and drop A
+			eval(t, src, big.NewInt(1), opcode.PUSH3, []any{opcode.CALL, []byte{7}}, opcode.ADD, opcode.DROP, opcode.RET, // evaluate and drop A
 				opcode.PUSH1, opcode.RET, // Main
 				opcode.PUSH5, opcode.RET) // f
 		})
@@ -367,7 +367,7 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 					func Main() int {
 						return A
 					}`
-			eval(t, src, big.NewInt(1), []interface{}{opcode.INITSSLOT, []byte{1}}, //  sslot for A
+			eval(t, src, big.NewInt(1), []any{opcode.INITSSLOT, []byte{1}}, //  sslot for A
 				opcode.PUSH1, opcode.STSFLD0, opcode.RET, // store A
 				opcode.LDSFLD0, opcode.RET) // Main
 		})
@@ -395,8 +395,8 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 					func f() (int, int) {
 						return 3, 4
 					}`
-			eval(t, src, big.NewInt(3), []interface{}{opcode.INITSSLOT, []byte{1}}, // sslot for A
-				[]interface{}{opcode.CALL, []byte{7}}, opcode.STSFLD0, opcode.DROP, opcode.RET, // evaluate and store A, drop B
+			eval(t, src, big.NewInt(3), []any{opcode.INITSSLOT, []byte{1}}, // sslot for A
+				[]any{opcode.CALL, []byte{7}}, opcode.STSFLD0, opcode.DROP, opcode.RET, // evaluate and store A, drop B
 				opcode.LDSFLD0, opcode.RET, // Main
 				opcode.PUSH4, opcode.PUSH3, opcode.RET) // f
 		})
@@ -460,12 +460,12 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 				func f(a int) int {
 					return a
 				}`
-		eval(t, src, big.NewInt(1), []interface{}{opcode.INITSSLOT, []byte{2}}, // sslot for A, B
+		eval(t, src, big.NewInt(1), []any{opcode.INITSSLOT, []byte{2}}, // sslot for A, B
 			opcode.PUSH2, opcode.STSFLD0, // store A
 			opcode.PUSH3, opcode.LDSFLD0, opcode.PUSH1, opcode.PUSH3, opcode.PACK, opcode.PUSH1, opcode.PICKITEM, opcode.STSFLD1, // evaluate B
-			opcode.PUSH1, []interface{}{opcode.CALL, []byte{8}}, opcode.LDSFLD1, opcode.ADD, opcode.DROP, opcode.RET, // evalute C and drop
+			opcode.PUSH1, []any{opcode.CALL, []byte{8}}, opcode.LDSFLD1, opcode.ADD, opcode.DROP, opcode.RET, // evalute C and drop
 			opcode.PUSH1, opcode.RET, // Main
-			[]interface{}{opcode.INITSLOT, []byte{0, 1}}, opcode.LDARG0, opcode.RET) // f
+			[]any{opcode.INITSLOT, []byte{0, 1}}, opcode.LDARG0, opcode.RET) // f
 	})
 	t.Run("index expression", func(t *testing.T) {
 		src := `package foo
@@ -477,13 +477,13 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 				func f(a int) int {
 					return a
 				}`
-		eval(t, src, big.NewInt(1), []interface{}{opcode.INITSSLOT, []byte{1}}, // sslot for Unused
+		eval(t, src, big.NewInt(1), []any{opcode.INITSSLOT, []byte{1}}, // sslot for Unused
 			opcode.PUSH2, opcode.STSFLD0, // store Unused
-			opcode.PUSH1, []interface{}{opcode.CALL, []byte{14}}, // call f(1)
+			opcode.PUSH1, []any{opcode.CALL, []byte{14}}, // call f(1)
 			opcode.PUSH3, opcode.PUSH2, opcode.PUSH1, opcode.PUSH3, opcode.PACK, opcode.LDSFLD0, opcode.PICKITEM, // eval index expression
 			opcode.ADD, opcode.DROP, opcode.RET, // eval and drop A
 			opcode.PUSH1, opcode.RET, // Main
-			[]interface{}{opcode.INITSLOT, []byte{0, 1}}, opcode.LDARG0, opcode.RET) // f(a)
+			[]any{opcode.INITSLOT, []byte{0, 1}}, opcode.LDARG0, opcode.RET) // f(a)
 	})
 	t.Run("used via nested function calls", func(t *testing.T) {
 		src := `package foo
@@ -497,10 +497,10 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 				func g() int {
 					return A
 				}`
-		eval(t, src, big.NewInt(1), []interface{}{opcode.INITSSLOT, []byte{1}}, // sslot for A
+		eval(t, src, big.NewInt(1), []any{opcode.INITSSLOT, []byte{1}}, // sslot for A
 			opcode.PUSH1, opcode.STSFLD0, opcode.RET, // store A
-			[]interface{}{opcode.CALL, []byte{3}}, opcode.RET, // Main
-			[]interface{}{opcode.CALL, []byte{3}}, opcode.RET, // f
+			[]any{opcode.CALL, []byte{3}}, opcode.RET, // Main
+			[]any{opcode.CALL, []byte{3}}, opcode.RET, // f
 			opcode.LDSFLD0, opcode.RET) // g
 	})
 	t.Run("struct field name matches global var name", func(t *testing.T) {
@@ -511,7 +511,7 @@ func TestUnusedOptimizedGlobalVar(t *testing.T) {
 				func Main() int {
 					return str.Int
 				}`
-		eval(t, src, big.NewInt(2), []interface{}{opcode.INITSSLOT, []byte{1}}, // sslot for str
+		eval(t, src, big.NewInt(2), []any{opcode.INITSSLOT, []byte{1}}, // sslot for str
 			opcode.PUSH2, opcode.PUSH1, opcode.PACKSTRUCT, opcode.STSFLD0, opcode.RET, // store str
 			opcode.LDSFLD0, opcode.PUSH0, opcode.PICKITEM, opcode.RET) // Main
 	})
@@ -929,11 +929,11 @@ func TestUnderscoreGlobalVarDontEmitCode(t *testing.T) {
 		func f(a, b int) (int, int, int) {
 			return 8, 9, 10
 		}`
-	eval(t, src, big.NewInt(1), []interface{}{opcode.INITSSLOT, []byte{2}}, // sslot for A, B
+	eval(t, src, big.NewInt(1), []any{opcode.INITSSLOT, []byte{2}}, // sslot for A, B
 		opcode.PUSH2, opcode.STSFLD0, // store A
 		opcode.PUSH5, opcode.STSFLD1, // store B
-		opcode.LDSFLD0, opcode.LDSFLD1, opcode.SWAP, []interface{}{opcode.CALL, []byte{8}}, // evaluate f(A,B)
+		opcode.LDSFLD0, opcode.LDSFLD1, opcode.SWAP, []any{opcode.CALL, []byte{8}}, // evaluate f(A,B)
 		opcode.DROP, opcode.DROP, opcode.DROP, opcode.RET, // drop result of f(A,B)
 		opcode.PUSH1, opcode.RET, // Main
-		[]interface{}{opcode.INITSLOT, []byte{0, 2}}, opcode.PUSH10, opcode.PUSH9, opcode.PUSH8, opcode.RET) // f
+		[]any{opcode.INITSLOT, []byte{0, 2}}, opcode.PUSH10, opcode.PUSH9, opcode.PUSH8, opcode.RET) // f
 }

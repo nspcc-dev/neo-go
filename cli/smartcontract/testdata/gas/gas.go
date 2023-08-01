@@ -25,6 +25,7 @@ type Actor interface {
 type ContractReader struct {
 	nep17.TokenReader
 	invoker Invoker
+	hash util.Uint160
 }
 
 // Contract implements all contract methods.
@@ -32,16 +33,18 @@ type Contract struct {
 	ContractReader
 	nep17.TokenWriter
 	actor Actor
+	hash util.Uint160
 }
 
 // NewReader creates an instance of ContractReader using Hash and the given Invoker.
 func NewReader(invoker Invoker) *ContractReader {
-	return &ContractReader{*nep17.NewReader(invoker, Hash), invoker}
+	var hash = Hash
+	return &ContractReader{*nep17.NewReader(invoker, hash), invoker, hash}
 }
 
 // New creates an instance of Contract using Hash and the given Actor.
 func New(actor Actor) *Contract {
-	var nep17t = nep17.New(actor, Hash)
-	return &Contract{ContractReader{nep17t.TokenReader, actor}, nep17t.TokenWriter, actor}
+	var hash = Hash
+	var nep17t = nep17.New(actor, hash)
+	return &Contract{ContractReader{nep17t.TokenReader, actor, hash}, nep17t.TokenWriter, actor, hash}
 }
-

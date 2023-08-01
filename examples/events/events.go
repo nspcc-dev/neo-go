@@ -1,6 +1,7 @@
 package events
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 )
 
@@ -22,6 +23,11 @@ func NotifySomeString(arg string) {
 // NotifySomeMap emits notification with Map.
 func NotifySomeMap(arg map[string]int) {
 	runtime.Notify("SomeMap", arg)
+}
+
+// NotifySomeCrazyMap emits notification with complicated Map.
+func NotifySomeCrazyMap(arg map[int][]map[string][]interop.Hash160) {
+	runtime.Notify("SomeCrazyMap", arg)
 }
 
 // NotifySomeArray emits notification with Array.

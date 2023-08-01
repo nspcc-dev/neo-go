@@ -98,7 +98,7 @@ func TestManagement_ContractDeploy(t *testing.T) {
 		managementInvoker.InvokeFail(t, "invalid NEF file", "deploy", []byte{}, manifestBytes)
 	})
 	t.Run("array for NEF", func(t *testing.T) {
-		managementInvoker.InvokeFail(t, "invalid NEF file", "deploy", []interface{}{int64(1)}, manifestBytes)
+		managementInvoker.InvokeFail(t, "invalid NEF file", "deploy", []any{int64(1)}, manifestBytes)
 	})
 	t.Run("bad script in NEF", func(t *testing.T) {
 		nf, err := nef.FileFromBytes(nefBytes) // make a full copy
@@ -116,7 +116,7 @@ func TestManagement_ContractDeploy(t *testing.T) {
 		managementInvoker.InvokeFail(t, "invalid manifest", "deploy", nefBytes, []byte{})
 	})
 	t.Run("array for manifest", func(t *testing.T) {
-		managementInvoker.InvokeFail(t, "invalid manifest", "deploy", nefBytes, []interface{}{int64(1)})
+		managementInvoker.InvokeFail(t, "invalid manifest", "deploy", nefBytes, []any{int64(1)})
 	})
 	t.Run("non-utf8 manifest", func(t *testing.T) {
 		manifestBad := bytes.Replace(manifestBytes, []byte("TestMain"), []byte("\xff\xfe\xfd"), 1) // Replace name.
@@ -538,7 +538,7 @@ func TestManagement_GetContract(t *testing.T) {
 	managementInvoker.Invoke(t, si, "deploy", nefBytes, manifestBytes)
 
 	t.Run("bad parameter type", func(t *testing.T) {
-		managementInvoker.InvokeFail(t, "invalid conversion: Array/ByteString", "getContract", []interface{}{int64(1)})
+		managementInvoker.InvokeFail(t, "invalid conversion: Array/ByteString", "getContract", []any{int64(1)})
 	})
 	t.Run("not a hash", func(t *testing.T) {
 		managementInvoker.InvokeFail(t, "expected byte size of 20 got 3", "getContract", []byte{1, 2, 3})
@@ -547,7 +547,7 @@ func TestManagement_GetContract(t *testing.T) {
 		managementInvoker.Invoke(t, si, "getContract", cs1.Hash.BytesBE())
 	})
 	t.Run("by ID, bad parameter type", func(t *testing.T) {
-		managementInvoker.InvokeFail(t, "invalid conversion: Array/Integer", "getContractById", []interface{}{int64(1)})
+		managementInvoker.InvokeFail(t, "invalid conversion: Array/Integer", "getContractById", []any{int64(1)})
 	})
 	t.Run("by ID, bad num", func(t *testing.T) {
 		managementInvoker.InvokeFail(t, "id is not a correct int32", "getContractById", []byte{1, 2, 3, 4, 5})
@@ -555,7 +555,6 @@ func TestManagement_GetContract(t *testing.T) {
 	t.Run("by ID, positive", func(t *testing.T) {
 		managementInvoker.Invoke(t, si, "getContractById", cs1.ID)
 	})
-	/* C# compatibility
 	t.Run("by ID, native", func(t *testing.T) {
 		csm := managementInvoker.Executor.Chain.GetContractState(managementInvoker.Hash)
 		require.NotNil(t, csm)
@@ -563,7 +562,6 @@ func TestManagement_GetContract(t *testing.T) {
 		require.NoError(t, err)
 		managementInvoker.Invoke(t, sim, "getContractById", -1)
 	})
-	*/
 	t.Run("by ID, empty", func(t *testing.T) {
 		managementInvoker.Invoke(t, stackitem.Null{}, "getContractById", -100)
 	})

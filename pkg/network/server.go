@@ -73,7 +73,7 @@ type (
 		HeaderHeight() uint32
 		P2PSigExtensionsEnabled() bool
 		PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
-		PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data interface{}) error) error
+		PoolTxWithData(t *transaction.Transaction, data any, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data any) error) error
 		RegisterPostBlock(f func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block))
 		SubscribeForBlocks(ch chan *block.Block)
 		UnsubscribeFromBlocks(ch chan *block.Block)
@@ -198,7 +198,7 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	}
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
-		s.notaryRequestPool = mempool.New(s.config.P2PNotaryRequestPayloadPoolSize, 1, true)
+		s.notaryRequestPool = mempool.New(s.config.P2PNotaryRequestPayloadPoolSize, 1, true, updateNotarypoolMetrics)
 		chain.RegisterPostBlock(func(isRelevant func(*transaction.Transaction, *mempool.Pool, bool) bool, txpool *mempool.Pool, _ *block.Block) {
 			s.notaryRequestPool.RemoveStale(func(t *transaction.Transaction) bool {
 				return isRelevant(t, txpool, true)
@@ -285,6 +285,8 @@ func (s *Server) Start() {
 		go tr.Accept()
 	}
 	setServerAndNodeVersions(s.UserAgent, strconv.FormatUint(uint64(s.id), 10))
+	setNeoGoVersion(config.Version)
+	setSeverID(strconv.FormatUint(uint64(s.id), 10))
 	s.run()
 }
 
@@ -541,7 +543,7 @@ func (s *Server) tryStartServices() {
 		return
 	}
 
-	if s.IsInSync() && s.syncReached.CAS(false, true) {
+	if s.IsInSync() && s.syncReached.CompareAndSwap(false, true) {
 		s.log.Info("node reached synchronized state, starting services")
 		if s.chain.P2PSigExtensionsEnabled() {
 			s.notaryRequestPool.RunSubscriptions() // WSClient is also a subscriber.
@@ -1189,7 +1191,7 @@ func (s *Server) verifyAndPoolNotaryRequest(r *payload.P2PNotaryRequest) error {
 }
 
 // verifyNotaryRequest is a function for state-dependant P2PNotaryRequest payload verification which is executed before ordinary blockchain's verification.
-func (s *Server) verifyNotaryRequest(_ *transaction.Transaction, data interface{}) error {
+func (s *Server) verifyNotaryRequest(_ *transaction.Transaction, data any) error {
 	r := data.(*payload.P2PNotaryRequest)
 	payer := r.FallbackTransaction.Signers[1].Account
 	if _, err := s.chain.VerifyWitness(payer, r, &r.Witness, s.chain.GetMaxVerificationGAS()); err != nil {
@@ -1209,7 +1211,7 @@ func (s *Server) verifyNotaryRequest(_ *transaction.Transaction, data interface{
 	return nil
 }
 
-func (s *Server) broadcastP2PNotaryRequestPayload(_ *transaction.Transaction, data interface{}) {
+func (s *Server) broadcastP2PNotaryRequestPayload(_ *transaction.Transaction, data any) {
 	r := data.(*payload.P2PNotaryRequest) // we can guarantee that cast is successful
 	msg := NewMessage(CMDInv, payload.NewInventory(payload.P2PNotaryRequestType, []util.Uint256{r.FallbackTransaction.Hash()}))
 	s.broadcastMessage(msg)
@@ -1280,14 +1282,14 @@ func getRequestBlocksPayload(p Peer, currHeight uint32, lastRequestedHeight *ato
 		old := lastRequestedHeight.Load()
 		if old <= currHeight {
 			needHeight = currHeight + 1
-			if !lastRequestedHeight.CAS(old, needHeight) {
+			if !lastRequestedHeight.CompareAndSwap(old, needHeight) {
 				continue
 			}
 		} else if old < currHeight+(bqueue.CacheSize-payload.MaxHashesCount) {
 			needHeight = currHeight + 1
 			if peerHeight > old+payload.MaxHashesCount {
 				needHeight = old + payload.MaxHashesCount
-				if !lastRequestedHeight.CAS(old, needHeight) {
+				if !lastRequestedHeight.CompareAndSwap(old, needHeight) {
 					continue
 				}
 			}
@@ -1595,7 +1597,7 @@ func (s *Server) RelayTxn(t *transaction.Transaction) error {
 }
 
 // broadcastTX broadcasts an inventory message about new transaction.
-func (s *Server) broadcastTX(t *transaction.Transaction, _ interface{}) {
+func (s *Server) broadcastTX(t *transaction.Transaction, _ any) {
 	select {
 	case s.transactions <- t:
 	case <-s.quit:

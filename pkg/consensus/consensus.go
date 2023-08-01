@@ -238,7 +238,7 @@ func NewPayload(m netmode.Magic, stateRootEnabled bool) *Payload {
 	}
 }
 
-func (s *service) newPayload(c *dbft.Context, t payload.MessageType, msg interface{}) payload.ConsensusPayload {
+func (s *service) newPayload(c *dbft.Context, t payload.MessageType, msg any) payload.ConsensusPayload {
 	cp := NewPayload(s.ProtocolConfiguration.Magic, s.ProtocolConfiguration.StateRootInHeader)
 	cp.SetHeight(c.BlockIndex)
 	cp.SetValidatorIndex(uint16(c.MyIndex))
@@ -276,7 +276,7 @@ func (s *service) Name() string {
 }
 
 func (s *service) Start() {
-	if s.started.CAS(false, true) {
+	if s.started.CompareAndSwap(false, true) {
 		s.log.Info("starting consensus service")
 		b, _ := s.Chain.GetBlock(s.Chain.CurrentBlockHash()) // Can't fail, we have some current block!
 		s.lastTimestamp = b.Timestamp
@@ -288,7 +288,7 @@ func (s *service) Start() {
 
 // Shutdown implements the Service interface.
 func (s *service) Shutdown() {
-	if s.started.CAS(true, false) {
+	if s.started.CompareAndSwap(true, false) {
 		s.log.Info("stopping consensus service")
 		close(s.quit)
 		<-s.finished
@@ -506,7 +506,7 @@ func (s *service) verifyBlock(b block.Block) bool {
 	}
 
 	var fee int64
-	var pool = mempool.New(len(coreb.Transactions), 0, false)
+	var pool = mempool.New(len(coreb.Transactions), 0, false, nil)
 	var mainPool = s.Chain.GetMemPool()
 	for _, tx := range coreb.Transactions {
 		var err error

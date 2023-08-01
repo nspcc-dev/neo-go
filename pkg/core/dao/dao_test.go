@@ -2,7 +2,6 @@ package dao
 
 import (
 	"encoding/binary"
-	"errors"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -187,8 +186,8 @@ func TestStoreAsTransaction(t *testing.T) {
 		}
 		err := dao.StoreAsTransaction(tx, 0, aer)
 		require.NoError(t, err)
-		err = dao.HasTransaction(hash)
-		require.NotNil(t, err)
+		err = dao.HasTransaction(hash, nil)
+		require.ErrorIs(t, err, ErrAlreadyExists)
 		gotAppExecResult, err := dao.GetAppExecResults(hash, trigger.All)
 		require.NoError(t, err)
 		require.Equal(t, 1, len(gotAppExecResult))
@@ -198,34 +197,84 @@ func TestStoreAsTransaction(t *testing.T) {
 	t.Run("P2PSigExtensions on", func(t *testing.T) {
 		dao := NewSimple(storage.NewMemoryStore(), false, true)
 		conflictsH := util.Uint256{1, 2, 3}
-		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 1)
-		tx.Signers = append(tx.Signers, transaction.Signer{})
-		tx.Scripts = append(tx.Scripts, transaction.Witness{})
-		tx.Attributes = []transaction.Attribute{
+		signer1 := util.Uint160{1, 2, 3}
+		signer2 := util.Uint160{4, 5, 6}
+		signer3 := util.Uint160{7, 8, 9}
+		signerMalicious := util.Uint160{10, 11, 12}
+		tx1 := transaction.New([]byte{byte(opcode.PUSH1)}, 1)
+		tx1.Signers = append(tx1.Signers, transaction.Signer{Account: signer1}, transaction.Signer{Account: signer2})
+		tx1.Scripts = append(tx1.Scripts, transaction.Witness{}, transaction.Witness{})
+		tx1.Attributes = []transaction.Attribute{
 			{
 				Type:  transaction.ConflictsT,
 				Value: &transaction.Conflicts{Hash: conflictsH},
 			},
 		}
-		hash := tx.Hash()
-		aer := &state.AppExecResult{
-			Container: hash,
+		hash1 := tx1.Hash()
+		tx2 := transaction.New([]byte{byte(opcode.PUSH1)}, 1)
+		tx2.Signers = append(tx2.Signers, transaction.Signer{Account: signer3})
+		tx2.Scripts = append(tx2.Scripts, transaction.Witness{})
+		tx2.Attributes = []transaction.Attribute{
+			{
+				Type:  transaction.ConflictsT,
+				Value: &transaction.Conflicts{Hash: conflictsH},
+			},
+		}
+		hash2 := tx2.Hash()
+		aer1 := &state.AppExecResult{
+			Container: hash1,
 			Execution: state.Execution{
 				Trigger: trigger.Application,
 				Events:  []state.NotificationEvent{},
 				Stack:   []stackitem.Item{},
 			},
 		}
-		err := dao.StoreAsTransaction(tx, 0, aer)
+		err := dao.StoreAsTransaction(tx1, 0, aer1)
 		require.NoError(t, err)
-		err = dao.HasTransaction(hash)
-		require.True(t, errors.Is(err, ErrAlreadyExists))
-		err = dao.HasTransaction(conflictsH)
-		require.True(t, errors.Is(err, ErrHasConflicts))
-		gotAppExecResult, err := dao.GetAppExecResults(hash, trigger.All)
+		aer2 := &state.AppExecResult{
+			Container: hash2,
+			Execution: state.Execution{
+				Trigger: trigger.Application,
+				Events:  []state.NotificationEvent{},
+				Stack:   []stackitem.Item{},
+			},
+		}
+		err = dao.StoreAsTransaction(tx2, 0, aer2)
+		require.NoError(t, err)
+		err = dao.HasTransaction(hash1, nil)
+		require.ErrorIs(t, err, ErrAlreadyExists)
+		err = dao.HasTransaction(hash2, nil)
+		require.ErrorIs(t, err, ErrAlreadyExists)
+
+		// Conflicts: unimportant payer.
+		err = dao.HasTransaction(conflictsH, nil)
+		require.ErrorIs(t, err, ErrHasConflicts)
+
+		// Conflicts: payer is important, conflict isn't malicious, test signer #1.
+		err = dao.HasTransaction(conflictsH, []transaction.Signer{{Account: signer1}})
+		require.ErrorIs(t, err, ErrHasConflicts)
+
+		// Conflicts: payer is important, conflict isn't malicious, test signer #2.
+		err = dao.HasTransaction(conflictsH, []transaction.Signer{{Account: signer2}})
+		require.ErrorIs(t, err, ErrHasConflicts)
+
+		// Conflicts: payer is important, conflict isn't malicious, test signer #3.
+		err = dao.HasTransaction(conflictsH, []transaction.Signer{{Account: signer3}})
+		require.ErrorIs(t, err, ErrHasConflicts)
+
+		// Conflicts: payer is important, conflict is malicious.
+		err = dao.HasTransaction(conflictsH, []transaction.Signer{{Account: signerMalicious}})
+		require.NoError(t, err)
+
+		gotAppExecResult, err := dao.GetAppExecResults(hash1, trigger.All)
 		require.NoError(t, err)
 		require.Equal(t, 1, len(gotAppExecResult))
-		require.Equal(t, *aer, gotAppExecResult[0])
+		require.Equal(t, *aer1, gotAppExecResult[0])
+
+		gotAppExecResult, err = dao.GetAppExecResults(hash2, trigger.All)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(gotAppExecResult))
+		require.Equal(t, *aer2, gotAppExecResult[0])
 	})
 }
 

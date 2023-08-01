@@ -180,7 +180,7 @@ func TestCheckSig(t *testing.T) {
 	verifyFunc := ECDSASecp256r1CheckSig
 	d := dao.NewSimple(storage.NewMemoryStore(), false, false)
 	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), DAO: d}
-	runCase := func(t *testing.T, isErr bool, result interface{}, args ...interface{}) {
+	runCase := func(t *testing.T, isErr bool, result any, args ...any) {
 		ic.SpawnVM()
 		for i := range args {
 			ic.VM.Estack().PushVal(args[i])

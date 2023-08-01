@@ -196,7 +196,7 @@ const (
 	defaultSessionPoolSize = 20
 )
 
-var rpcHandlers = map[string]func(*Server, params.Params) (interface{}, *neorpc.Error){
+var rpcHandlers = map[string]func(*Server, params.Params) (any, *neorpc.Error){
 	"calculatenetworkfee":          (*Server).calculateNetworkFee,
 	"findstates":                   (*Server).findStates,
 	"getapplicationlog":            (*Server).getApplicationLog,
@@ -245,7 +245,7 @@ var rpcHandlers = map[string]func(*Server, params.Params) (interface{}, *neorpc.
 	"verifyproof":                  (*Server).verifyProof,
 }
 
-var rpcWsHandlers = map[string]func(*Server, params.Params, *subscriber) (interface{}, *neorpc.Error){
+var rpcWsHandlers = map[string]func(*Server, params.Params, *subscriber) (any, *neorpc.Error){
 	"subscribe":   (*Server).subscribe,
 	"unsubscribe": (*Server).unsubscribe,
 }
@@ -342,7 +342,7 @@ func (s *Server) Start() {
 		s.log.Info("RPC server is not enabled")
 		return
 	}
-	if !s.started.CAS(false, true) {
+	if !s.started.CompareAndSwap(false, true) {
 		s.log.Info("RPC server already started")
 		return
 	}
@@ -397,7 +397,7 @@ func (s *Server) Start() {
 // that was stopped can not be started again by calling Start (use a new
 // instance if needed).
 func (s *Server) Shutdown() {
-	if !s.started.CAS(true, false) {
+	if !s.started.CompareAndSwap(true, false) {
 		return
 	}
 	// Signal to websocket writer routines and handleSubEvents.
@@ -538,7 +538,7 @@ func (s *Server) handleRequest(req *params.Request, sub *subscriber) abstractRes
 // handleInternal is an experimental interface to handle client requests directly.
 func (s *Server) handleInternal(req *neorpc.Request, sub *subscriber) (*neorpc.Response, error) {
 	var (
-		res    interface{}
+		res    any
 		rpcRes = &neorpc.Response{
 			HeaderAndError: neorpc.HeaderAndError{
 				Header: neorpc.Header{
@@ -581,7 +581,7 @@ func (s *Server) handleInternal(req *neorpc.Request, sub *subscriber) (*neorpc.R
 }
 
 func (s *Server) handleIn(req *params.In, sub *subscriber) abstract {
-	var res interface{}
+	var res any
 	var resErr *neorpc.Error
 	if req.JSONRPC != neorpc.JSONRPCVersion {
 		return s.packResponse(req, nil, neorpc.NewInvalidParamsError(fmt.Sprintf("problem parsing JSON: invalid version, expected 2.0 got '%s'", req.JSONRPC)))
@@ -725,19 +725,19 @@ func (s *Server) dropSubscriber(subscr *subscriber) {
 	s.subsCounterLock.Unlock()
 }
 
-func (s *Server) getBestBlockHash(_ params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getBestBlockHash(_ params.Params) (any, *neorpc.Error) {
 	return "0x" + s.chain.CurrentBlockHash().StringLE(), nil
 }
 
-func (s *Server) getBlockCount(_ params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getBlockCount(_ params.Params) (any, *neorpc.Error) {
 	return s.chain.BlockHeight() + 1, nil
 }
 
-func (s *Server) getBlockHeaderCount(_ params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getBlockHeaderCount(_ params.Params) (any, *neorpc.Error) {
 	return s.chain.HeaderHeight() + 1, nil
 }
 
-func (s *Server) getConnectionCount(_ params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getConnectionCount(_ params.Params) (any, *neorpc.Error) {
 	return s.coreServer.PeerCount(), nil
 }
 
@@ -773,7 +773,7 @@ func (s *Server) fillBlockMetadata(obj io.Serializable, h *block.Header) result.
 	return res
 }
 
-func (s *Server) getBlock(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getBlock(reqParams params.Params) (any, *neorpc.Error) {
 	param := reqParams.Value(0)
 	hash, respErr := s.blockHashFromParam(param)
 	if respErr != nil {
@@ -797,7 +797,7 @@ func (s *Server) getBlock(reqParams params.Params) (interface{}, *neorpc.Error) 
 	return writer.Bytes(), nil
 }
 
-func (s *Server) getBlockHash(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getBlockHash(reqParams params.Params) (any, *neorpc.Error) {
 	num, err := s.blockHeightFromParam(reqParams.Value(0))
 	if err != nil {
 		return nil, neorpc.ErrInvalidParams
@@ -806,7 +806,7 @@ func (s *Server) getBlockHash(reqParams params.Params) (interface{}, *neorpc.Err
 	return s.chain.GetHeaderHash(num), nil
 }
 
-func (s *Server) getVersion(_ params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 	port, err := s.coreServer.Port(nil) // any port will suite
 	if err != nil {
 		return nil, neorpc.NewInternalServerError(fmt.Sprintf("cannot fetch tcp port: %s", err))
@@ -836,7 +836,7 @@ func (s *Server) getVersion(_ params.Params) (interface{}, *neorpc.Error) {
 	}, nil
 }
 
-func (s *Server) getPeers(_ params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getPeers(_ params.Params) (any, *neorpc.Error) {
 	peers := result.NewGetPeers()
 	peers.AddUnconnected(s.coreServer.UnconnectedPeers())
 	peers.AddConnected(s.coreServer.ConnectedPeers())
@@ -844,7 +844,7 @@ func (s *Server) getPeers(_ params.Params) (interface{}, *neorpc.Error) {
 	return peers, nil
 }
 
-func (s *Server) getRawMempool(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getRawMempool(reqParams params.Params) (any, *neorpc.Error) {
 	verbose, _ := reqParams.Value(0).GetBoolean()
 	mp := s.chain.GetMemPool()
 	hashList := make([]util.Uint256, 0)
@@ -861,7 +861,7 @@ func (s *Server) getRawMempool(reqParams params.Params) (interface{}, *neorpc.Er
 	}, nil
 }
 
-func (s *Server) validateAddress(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) validateAddress(reqParams params.Params) (any, *neorpc.Error) {
 	param, err := reqParams.Value(0).GetString()
 	if err != nil {
 		return nil, neorpc.ErrInvalidParams
@@ -874,7 +874,7 @@ func (s *Server) validateAddress(reqParams params.Params) (interface{}, *neorpc.
 }
 
 // calculateNetworkFee calculates network fee for the transaction.
-func (s *Server) calculateNetworkFee(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) calculateNetworkFee(reqParams params.Params) (any, *neorpc.Error) {
 	if len(reqParams) < 1 {
 		return 0, neorpc.ErrInvalidParams
 	}
@@ -942,7 +942,7 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (interface{}, *neo
 }
 
 // getApplicationLog returns the contract log based on the specified txid or blockid.
-func (s *Server) getApplicationLog(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getApplicationLog(reqParams params.Params) (any, *neorpc.Error) {
 	hash, err := reqParams.Value(0).GetUint256()
 	if err != nil {
 		return nil, neorpc.ErrInvalidParams
@@ -968,7 +968,7 @@ func (s *Server) getApplicationLog(reqParams params.Params) (interface{}, *neorp
 }
 
 func (s *Server) getNEP11Tokens(h util.Uint160, acc util.Uint160, bw *io.BufBinWriter) ([]stackitem.Item, string, int, error) {
-	items, finalize, err := s.invokeReadOnlyMulti(bw, h, []string{"tokensOf", "symbol", "decimals"}, [][]interface{}{{acc}, nil, nil})
+	items, finalize, err := s.invokeReadOnlyMulti(bw, h, []string{"tokensOf", "symbol", "decimals"}, [][]any{{acc}, nil, nil})
 	if err != nil {
 		return nil, "", 0, err
 	}
@@ -991,7 +991,7 @@ func (s *Server) getNEP11Tokens(h util.Uint160, acc util.Uint160, bw *io.BufBinW
 	return vals, sym, int(dec.Int64()), nil
 }
 
-func (s *Server) getNEP11Balances(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getNEP11Balances(ps params.Params) (any, *neorpc.Error) {
 	u, err := ps.Value(0).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, neorpc.ErrInvalidParams
@@ -1080,7 +1080,7 @@ func (s *Server) invokeNEP11Properties(h util.Uint160, id []byte, bw *io.BufBinW
 	return item.Value().([]stackitem.MapElement), nil
 }
 
-func (s *Server) getNEP11Properties(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getNEP11Properties(ps params.Params) (any, *neorpc.Error) {
 	asset, err := ps.Value(0).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, neorpc.ErrInvalidParams
@@ -1093,13 +1093,13 @@ func (s *Server) getNEP11Properties(ps params.Params) (interface{}, *neorpc.Erro
 	if err != nil {
 		return nil, neorpc.NewRPCError("Failed to get NEP-11 properties", err.Error())
 	}
-	res := make(map[string]interface{})
+	res := make(map[string]any)
 	for _, kv := range props {
 		key, err := kv.Key.TryBytes()
 		if err != nil {
 			continue
 		}
-		var val interface{}
+		var val any
 		if result.KnownNEP11Properties[string(key)] || kv.Value.Type() != stackitem.AnyT {
 			v, err := kv.Value.TryBytes()
 			if err != nil {
@@ -1116,7 +1116,7 @@ func (s *Server) getNEP11Properties(ps params.Params) (interface{}, *neorpc.Erro
 	return res, nil
 }
 
-func (s *Server) getNEP17Balances(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getNEP17Balances(ps params.Params) (any, *neorpc.Error) {
 	u, err := ps.Value(0).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, neorpc.ErrInvalidParams
@@ -1164,15 +1164,15 @@ func (s *Server) getNEP17Balances(ps params.Params) (interface{}, *neorpc.Error)
 	return bs, nil
 }
 
-func (s *Server) invokeReadOnly(bw *io.BufBinWriter, h util.Uint160, method string, params ...interface{}) (stackitem.Item, func(), error) {
-	r, f, err := s.invokeReadOnlyMulti(bw, h, []string{method}, [][]interface{}{params})
+func (s *Server) invokeReadOnly(bw *io.BufBinWriter, h util.Uint160, method string, params ...any) (stackitem.Item, func(), error) {
+	r, f, err := s.invokeReadOnlyMulti(bw, h, []string{method}, [][]any{params})
 	if err != nil {
 		return nil, nil, err
 	}
 	return r[0], f, nil
 }
 
-func (s *Server) invokeReadOnlyMulti(bw *io.BufBinWriter, h util.Uint160, methods []string, params [][]interface{}) ([]stackitem.Item, func(), error) {
+func (s *Server) invokeReadOnlyMulti(bw *io.BufBinWriter, h util.Uint160, methods []string, params [][]any) ([]stackitem.Item, func(), error) {
 	if bw == nil {
 		bw = io.NewBufBinWriter()
 	} else {
@@ -1209,7 +1209,7 @@ func (s *Server) invokeReadOnlyMulti(bw *io.BufBinWriter, h util.Uint160, method
 }
 
 func (s *Server) getNEP17TokenBalance(h util.Uint160, acc util.Uint160, bw *io.BufBinWriter) (*big.Int, string, int, error) {
-	items, finalize, err := s.invokeReadOnlyMulti(bw, h, []string{"balanceOf", "symbol", "decimals"}, [][]interface{}{{acc}, nil, nil})
+	items, finalize, err := s.invokeReadOnlyMulti(bw, h, []string{"balanceOf", "symbol", "decimals"}, [][]any{{acc}, nil, nil})
 	if err != nil {
 		return nil, "", 0, err
 	}
@@ -1295,15 +1295,15 @@ func getTimestampsAndLimit(ps params.Params, index int) (uint64, uint64, int, in
 	return start, end, limit, page, nil
 }
 
-func (s *Server) getNEP11Transfers(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getNEP11Transfers(ps params.Params) (any, *neorpc.Error) {
 	return s.getTokenTransfers(ps, true)
 }
 
-func (s *Server) getNEP17Transfers(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getNEP17Transfers(ps params.Params) (any, *neorpc.Error) {
 	return s.getTokenTransfers(ps, false)
 }
 
-func (s *Server) getTokenTransfers(ps params.Params, isNEP11 bool) (interface{}, *neorpc.Error) {
+func (s *Server) getTokenTransfers(ps params.Params, isNEP11 bool) (any, *neorpc.Error) {
 	u, err := ps.Value(0).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, neorpc.ErrInvalidParams
@@ -1316,8 +1316,8 @@ func (s *Server) getTokenTransfers(ps params.Params, isNEP11 bool) (interface{},
 
 	bs := &tokenTransfers{
 		Address:  address.Uint160ToString(u),
-		Received: []interface{}{},
-		Sent:     []interface{}{},
+		Received: []any{},
+		Sent:     []any{},
 	}
 	cache := make(map[int32]util.Uint160)
 	var resCount, frameCount int
@@ -1482,7 +1482,7 @@ func makeStorageKey(id int32, key []byte) []byte {
 
 var errKeepOnlyLatestState = errors.New("'KeepOnlyLatestState' setting is enabled")
 
-func (s *Server) getProof(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getProof(ps params.Params) (any, *neorpc.Error) {
 	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
 		return nil, neorpc.NewInvalidRequestError(fmt.Sprintf("'getproof' is not supported: %s", errKeepOnlyLatestState))
 	}
@@ -1513,7 +1513,7 @@ func (s *Server) getProof(ps params.Params) (interface{}, *neorpc.Error) {
 	}, nil
 }
 
-func (s *Server) verifyProof(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) verifyProof(ps params.Params) (any, *neorpc.Error) {
 	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
 		return nil, neorpc.NewInvalidRequestError(fmt.Sprintf("'verifyproof' is not supported: %s", errKeepOnlyLatestState))
 	}
@@ -1537,7 +1537,7 @@ func (s *Server) verifyProof(ps params.Params) (interface{}, *neorpc.Error) {
 	return vp, nil
 }
 
-func (s *Server) getState(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getState(ps params.Params) (any, *neorpc.Error) {
 	root, err := ps.Value(0).GetUint256()
 	if err != nil {
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, "invalid stateroot")
@@ -1571,7 +1571,7 @@ func (s *Server) getState(ps params.Params) (interface{}, *neorpc.Error) {
 	return res, nil
 }
 
-func (s *Server) findStates(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) findStates(ps params.Params) (any, *neorpc.Error) {
 	root, err := ps.Value(0).GetUint256()
 	if err != nil {
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, "invalid stateroot")
@@ -1679,7 +1679,7 @@ func (s *Server) getHistoricalContractState(root util.Uint256, csHash util.Uint1
 	return contract, nil
 }
 
-func (s *Server) getStateHeight(_ params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getStateHeight(_ params.Params) (any, *neorpc.Error) {
 	var height = s.chain.BlockHeight()
 	var stateHeight = s.chain.GetStateModule().CurrentValidatedHeight()
 	if s.chain.GetConfig().StateRootInHeader {
@@ -1691,7 +1691,7 @@ func (s *Server) getStateHeight(_ params.Params) (interface{}, *neorpc.Error) {
 	}, nil
 }
 
-func (s *Server) getStateRoot(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getStateRoot(ps params.Params) (any, *neorpc.Error) {
 	p := ps.Value(0)
 	if p == nil {
 		return nil, neorpc.NewInvalidParamsError("missing stateroot identifier")
@@ -1717,7 +1717,7 @@ func (s *Server) getStateRoot(ps params.Params) (interface{}, *neorpc.Error) {
 	return rt, nil
 }
 
-func (s *Server) getStorage(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getStorage(ps params.Params) (any, *neorpc.Error) {
 	id, rErr := s.contractIDFromParam(ps.Value(0))
 	if rErr == neorpc.ErrUnknown {
 		return nil, nil
@@ -1739,7 +1739,7 @@ func (s *Server) getStorage(ps params.Params) (interface{}, *neorpc.Error) {
 	return []byte(item), nil
 }
 
-func (s *Server) getrawtransaction(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getrawtransaction(reqParams params.Params) (any, *neorpc.Error) {
 	txHash, err := reqParams.Value(0).GetUint256()
 	if err != nil {
 		return nil, neorpc.ErrInvalidParams
@@ -1778,7 +1778,7 @@ func (s *Server) getrawtransaction(reqParams params.Params) (interface{}, *neorp
 	return tx.Bytes(), nil
 }
 
-func (s *Server) getTransactionHeight(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getTransactionHeight(ps params.Params) (any, *neorpc.Error) {
 	h, err := ps.Value(0).GetUint256()
 	if err != nil {
 		return nil, neorpc.ErrInvalidParams
@@ -1794,7 +1794,7 @@ func (s *Server) getTransactionHeight(ps params.Params) (interface{}, *neorpc.Er
 
 // getContractState returns contract state (contract information, according to the contract script hash,
 // contract id or native contract name).
-func (s *Server) getContractState(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getContractState(reqParams params.Params) (any, *neorpc.Error) {
 	scriptHash, err := s.contractScriptHashFromParam(reqParams.Value(0))
 	if err != nil {
 		return nil, err
@@ -1806,12 +1806,12 @@ func (s *Server) getContractState(reqParams params.Params) (interface{}, *neorpc
 	return cs, nil
 }
 
-func (s *Server) getNativeContracts(_ params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getNativeContracts(_ params.Params) (any, *neorpc.Error) {
 	return s.chain.GetNatives(), nil
 }
 
 // getBlockSysFee returns the system fees of the block, based on the specified index.
-func (s *Server) getBlockSysFee(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getBlockSysFee(reqParams params.Params) (any, *neorpc.Error) {
 	num, err := s.blockHeightFromParam(reqParams.Value(0))
 	if err != nil {
 		return 0, neorpc.NewRPCError("Invalid height", "invalid block identifier")
@@ -1832,7 +1832,7 @@ func (s *Server) getBlockSysFee(reqParams params.Params) (interface{}, *neorpc.E
 }
 
 // getBlockHeader returns the corresponding block header information according to the specified script hash.
-func (s *Server) getBlockHeader(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getBlockHeader(reqParams params.Params) (any, *neorpc.Error) {
 	param := reqParams.Value(0)
 	hash, respErr := s.blockHashFromParam(param)
 	if respErr != nil {
@@ -1862,7 +1862,7 @@ func (s *Server) getBlockHeader(reqParams params.Params) (interface{}, *neorpc.E
 }
 
 // getUnclaimedGas returns unclaimed GAS amount of the specified address.
-func (s *Server) getUnclaimedGas(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getUnclaimedGas(ps params.Params) (any, *neorpc.Error) {
 	u, err := ps.Value(0).GetUint160FromAddressOrHex()
 	if err != nil {
 		return nil, neorpc.ErrInvalidParams
@@ -1885,7 +1885,7 @@ func (s *Server) getUnclaimedGas(ps params.Params) (interface{}, *neorpc.Error) 
 }
 
 // getCandidates returns the current list of candidates with their active/inactive voting status.
-func (s *Server) getCandidates(_ params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getCandidates(_ params.Params) (any, *neorpc.Error) {
 	var validators keys.PublicKeys
 
 	validators, err := s.chain.GetNextBlockValidators()
@@ -1908,7 +1908,7 @@ func (s *Server) getCandidates(_ params.Params) (interface{}, *neorpc.Error) {
 }
 
 // getNextBlockValidators returns validators for the next block with voting status.
-func (s *Server) getNextBlockValidators(_ params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getNextBlockValidators(_ params.Params) (any, *neorpc.Error) {
 	var validators keys.PublicKeys
 
 	validators, err := s.chain.GetNextBlockValidators()
@@ -1933,7 +1933,7 @@ func (s *Server) getNextBlockValidators(_ params.Params) (interface{}, *neorpc.E
 }
 
 // getCommittee returns the current list of NEO committee members.
-func (s *Server) getCommittee(_ params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) getCommittee(_ params.Params) (any, *neorpc.Error) {
 	keys, err := s.chain.GetCommittee()
 	if err != nil {
 		return nil, neorpc.NewInternalServerError(fmt.Sprintf("can't get committee members: %s", err))
@@ -1942,7 +1942,7 @@ func (s *Server) getCommittee(_ params.Params) (interface{}, *neorpc.Error) {
 }
 
 // invokeFunction implements the `invokeFunction` RPC call.
-func (s *Server) invokeFunction(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) invokeFunction(reqParams params.Params) (any, *neorpc.Error) {
 	tx, verbose, respErr := s.getInvokeFunctionParams(reqParams)
 	if respErr != nil {
 		return nil, respErr
@@ -1951,7 +1951,7 @@ func (s *Server) invokeFunction(reqParams params.Params) (interface{}, *neorpc.E
 }
 
 // invokeFunctionHistoric implements the `invokeFunctionHistoric` RPC call.
-func (s *Server) invokeFunctionHistoric(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) invokeFunctionHistoric(reqParams params.Params) (any, *neorpc.Error) {
 	nextH, respErr := s.getHistoricParams(reqParams)
 	if respErr != nil {
 		return nil, respErr
@@ -2009,7 +2009,7 @@ func (s *Server) getInvokeFunctionParams(reqParams params.Params) (*transaction.
 }
 
 // invokescript implements the `invokescript` RPC call.
-func (s *Server) invokescript(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) invokescript(reqParams params.Params) (any, *neorpc.Error) {
 	tx, verbose, respErr := s.getInvokeScriptParams(reqParams)
 	if respErr != nil {
 		return nil, respErr
@@ -2018,7 +2018,7 @@ func (s *Server) invokescript(reqParams params.Params) (interface{}, *neorpc.Err
 }
 
 // invokescripthistoric implements the `invokescripthistoric` RPC call.
-func (s *Server) invokescripthistoric(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) invokescripthistoric(reqParams params.Params) (any, *neorpc.Error) {
 	nextH, respErr := s.getHistoricParams(reqParams)
 	if respErr != nil {
 		return nil, respErr
@@ -2063,7 +2063,7 @@ func (s *Server) getInvokeScriptParams(reqParams params.Params) (*transaction.Tr
 }
 
 // invokeContractVerify implements the `invokecontractverify` RPC call.
-func (s *Server) invokeContractVerify(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) invokeContractVerify(reqParams params.Params) (any, *neorpc.Error) {
 	scriptHash, tx, invocationScript, respErr := s.getInvokeContractVerifyParams(reqParams)
 	if respErr != nil {
 		return nil, respErr
@@ -2072,7 +2072,7 @@ func (s *Server) invokeContractVerify(reqParams params.Params) (interface{}, *ne
 }
 
 // invokeContractVerifyHistoric implements the `invokecontractverifyhistoric` RPC call.
-func (s *Server) invokeContractVerifyHistoric(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) invokeContractVerifyHistoric(reqParams params.Params) (any, *neorpc.Error) {
 	nextH, respErr := s.getHistoricParams(reqParams)
 	if respErr != nil {
 		return nil, respErr
@@ -2316,7 +2316,7 @@ func (s *Server) registerOrDumpIterator(item stackitem.Item) (stackitem.Item, uu
 	return stackitem.NewInterop(resIterator), iterID
 }
 
-func (s *Server) traverseIterator(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) {
 	if !s.config.SessionEnabled {
 		return nil, neorpc.NewInvalidRequestError("sessions are disabled")
 	}
@@ -2373,7 +2373,7 @@ func (s *Server) traverseIterator(reqParams params.Params) (interface{}, *neorpc
 	return result, nil
 }
 
-func (s *Server) terminateSession(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) terminateSession(reqParams params.Params) (any, *neorpc.Error) {
 	if !s.config.SessionEnabled {
 		return nil, neorpc.NewInvalidRequestError("sessions are disabled")
 	}
@@ -2400,7 +2400,7 @@ func (s *Server) terminateSession(reqParams params.Params) (interface{}, *neorpc
 }
 
 // submitBlock broadcasts a raw block over the Neo network.
-func (s *Server) submitBlock(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) submitBlock(reqParams params.Params) (any, *neorpc.Error) {
 	blockBytes, err := reqParams.Value(0).GetBytesBase64()
 	if err != nil {
 		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("missing parameter or not a base64: %s", err))
@@ -2426,7 +2426,7 @@ func (s *Server) submitBlock(reqParams params.Params) (interface{}, *neorpc.Erro
 }
 
 // submitNotaryRequest broadcasts P2PNotaryRequest over the Neo network.
-func (s *Server) submitNotaryRequest(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) submitNotaryRequest(ps params.Params) (any, *neorpc.Error) {
 	if !s.chain.P2PSigExtensionsEnabled() {
 		return nil, neorpc.NewRPCError("P2PSignatureExtensions are disabled", "")
 	}
@@ -2443,7 +2443,7 @@ func (s *Server) submitNotaryRequest(ps params.Params) (interface{}, *neorpc.Err
 }
 
 // getRelayResult returns successful relay result or an error.
-func getRelayResult(err error, hash util.Uint256) (interface{}, *neorpc.Error) {
+func getRelayResult(err error, hash util.Uint256) (any, *neorpc.Error) {
 	switch {
 	case err == nil:
 		return result.RelayResult{
@@ -2460,7 +2460,7 @@ func getRelayResult(err error, hash util.Uint256) (interface{}, *neorpc.Error) {
 	}
 }
 
-func (s *Server) submitOracleResponse(ps params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) submitOracleResponse(ps params.Params) (any, *neorpc.Error) {
 	oracle := s.oracle.Load().(*OracleHandler)
 	if oracle == nil || *oracle == nil {
 		return nil, neorpc.NewRPCError("Oracle is not enabled", "")
@@ -2493,7 +2493,7 @@ func (s *Server) submitOracleResponse(ps params.Params) (interface{}, *neorpc.Er
 	return json.RawMessage([]byte("{}")), nil
 }
 
-func (s *Server) sendrawtransaction(reqParams params.Params) (interface{}, *neorpc.Error) {
+func (s *Server) sendrawtransaction(reqParams params.Params) (any, *neorpc.Error) {
 	if len(reqParams) < 1 {
 		return nil, neorpc.NewInvalidParamsError("not enough parameters")
 	}
@@ -2509,7 +2509,7 @@ func (s *Server) sendrawtransaction(reqParams params.Params) (interface{}, *neor
 }
 
 // subscribe handles subscription requests from websocket clients.
-func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (interface{}, *neorpc.Error) {
+func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (any, *neorpc.Error) {
 	streamName, err := reqParams.Value(0).GetString()
 	if err != nil {
 		return nil, neorpc.ErrInvalidParams
@@ -2522,7 +2522,7 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (interface{
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, "P2PSigExtensions are disabled")
 	}
 	// Optional filter.
-	var filter interface{}
+	var filter any
 	if p := reqParams.Value(1); p != nil {
 		param := *p
 		jd := json.NewDecoder(bytes.NewReader(param.RawMessage))
@@ -2615,7 +2615,7 @@ func (s *Server) subscribeToChannel(event neorpc.EventID) {
 }
 
 // unsubscribe handles unsubscription requests from websocket clients.
-func (s *Server) unsubscribe(reqParams params.Params, sub *subscriber) (interface{}, *neorpc.Error) {
+func (s *Server) unsubscribe(reqParams params.Params, sub *subscriber) (any, *neorpc.Error) {
 	id, err := reqParams.Value(0).GetInt()
 	if err != nil || id < 0 {
 		return nil, neorpc.ErrInvalidParams
@@ -2675,7 +2675,7 @@ func (s *Server) handleSubEvents() {
 	var overflowEvent = neorpc.Notification{
 		JSONRPC: neorpc.JSONRPCVersion,
 		Event:   neorpc.MissedEventID,
-		Payload: make([]interface{}, 0),
+		Payload: make([]any, 0),
 	}
 	b, err := json.Marshal(overflowEvent)
 	if err != nil {
@@ -2691,7 +2691,7 @@ chloop:
 	for {
 		var resp = neorpc.Notification{
 			JSONRPC: neorpc.JSONRPCVersion,
-			Payload: make([]interface{}, 1),
+			Payload: make([]any, 1),
 		}
 		var msg *websocket.PreparedMessage
 		select {
@@ -2806,7 +2806,7 @@ func (s *Server) blockHeightFromParam(param *params.Param) (uint32, *neorpc.Erro
 	return uint32(num), nil
 }
 
-func (s *Server) packResponse(r *params.In, result interface{}, respErr *neorpc.Error) abstract {
+func (s *Server) packResponse(r *params.In, result any, respErr *neorpc.Error) abstract {
 	resp := abstract{
 		Header: neorpc.Header{
 			JSONRPC: r.JSONRPC,
@@ -2890,7 +2890,7 @@ func (s *Server) writeHTTPServerResponse(r *params.Request, w http.ResponseWrite
 
 // validateAddress verifies that the address is a correct Neo address
 // see https://docs.neo.org/en-us/node/cli/2.9.4/api/validateaddress.html
-func validateAddress(addr interface{}) bool {
+func validateAddress(addr any) bool {
 	if addr, ok := addr.(string); ok {
 		_, err := address.StringToUint160(addr)
 		return err == nil

@@ -21,7 +21,7 @@ type testAct struct {
 	vub uint32
 }
 
-func (t *testAct) Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error) {
+func (t *testAct) Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error) {
 	return t.res, t.err
 }
 func (t *testAct) MakeRun(script []byte) (*transaction.Transaction, error) {
@@ -33,7 +33,7 @@ func (t *testAct) MakeUnsignedRun(script []byte, attrs []transaction.Attribute) 
 func (t *testAct) SendRun(script []byte) (util.Uint256, uint32, error) {
 	return t.txh, t.vub, t.err
 }
-func (t *testAct) CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...interface{}) (*result.Invoke, error) {
+func (t *testAct) CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...any) (*result.Invoke, error) {
 	return t.res, t.err
 }
 func (t *testAct) TerminateSession(sessionID uuid.UUID) error {
@@ -217,6 +217,22 @@ func TestReaderTokensOf(t *testing.T) {
 	}
 }
 
+type tData struct {
+	someInt    int
+	someString string
+}
+
+func (d *tData) ToStackItem() (stackitem.Item, error) {
+	return stackitem.NewStruct([]stackitem.Item{
+		stackitem.Make(d.someInt),
+		stackitem.Make(d.someString),
+	}), nil
+}
+
+func (d *tData) FromStackItem(si stackitem.Item) error {
+	panic("TODO")
+}
+
 func TestTokenTransfer(t *testing.T) {
 	ta := new(testAct)
 	tok := NewBase(ta, util.Uint160{1, 2, 3})
@@ -233,7 +249,18 @@ func TestTokenTransfer(t *testing.T) {
 	require.Equal(t, ta.txh, h)
 	require.Equal(t, ta.vub, vub)
 
-	_, _, err = tok.Transfer(util.Uint160{3, 2, 1}, []byte{3, 2, 1}, stackitem.NewMap())
+	ta.err = nil
+	ta.txh = util.Uint256{1, 2, 3}
+	ta.vub = 42
+	h, vub, err = tok.Transfer(util.Uint160{3, 2, 1}, []byte{3, 2, 1}, &tData{
+		someInt:    5,
+		someString: "ur",
+	})
+	require.NoError(t, err)
+	require.Equal(t, ta.txh, h)
+	require.Equal(t, ta.vub, vub)
+
+	_, _, err = tok.Transfer(util.Uint160{3, 2, 1}, []byte{3, 2, 1}, stackitem.NewPointer(123, []byte{123}))
 	require.Error(t, err)
 }
 
@@ -241,7 +268,7 @@ func TestTokenTransferTransaction(t *testing.T) {
 	ta := new(testAct)
 	tok := NewBase(ta, util.Uint160{1, 2, 3})
 
-	for _, fun := range []func(to util.Uint160, token []byte, data interface{}) (*transaction.Transaction, error){
+	for _, fun := range []func(to util.Uint160, token []byte, data any) (*transaction.Transaction, error){
 		tok.TransferTransaction,
 		tok.TransferUnsigned,
 	} {
@@ -255,7 +282,16 @@ func TestTokenTransferTransaction(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, ta.tx, tx)
 
-		_, err = fun(util.Uint160{3, 2, 1}, []byte{3, 2, 1}, stackitem.NewMap())
+		ta.err = nil
+		ta.tx = &transaction.Transaction{Nonce: 100500, ValidUntilBlock: 42}
+		tx, err = fun(util.Uint160{3, 2, 1}, []byte{3, 2, 1}, &tData{
+			someInt:    5,
+			someString: "ur",
+		})
+		require.NoError(t, err)
+		require.Equal(t, ta.tx, tx)
+
+		_, err = fun(util.Uint160{3, 2, 1}, []byte{3, 2, 1}, stackitem.NewInterop(nil))
 		require.Error(t, err)
 	}
 }

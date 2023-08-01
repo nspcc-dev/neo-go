@@ -40,17 +40,6 @@ While a lot of the code is already converted to new APIs, old ones still can
 be used in some code not known to us. Therefore we will remove old APIs not
 earlier than May 2023, with 0.103.0 release.
 
-## util.FromAddress smart contract helper
-
-`util` smart contract library has a FromAddress function that is one of the
-oldest lines in the entire NeoGo code base, dating back to 2018. Version
-0.99.4 of NeoGo (October 2022) has introduced a new `address` package with
-`ToHash160` function, it covers a bit more use cases but can be used as a
-direct replacement of the old function, so please update your code.
-
-util.FromAddress is expected to be removed around March 2023 (~0.102.0
-release).
-
 ## WSClient Notifications channel and SubscribeFor* APIs
 
 Version 0.99.5 of NeoGo introduces a new set of subscription APIs that gives
@@ -60,15 +49,6 @@ still available, but will be removed, so please convert your code to using new
 Receive* APIs.
 
 Removal of these APIs is scheduled for May 2023 (~0.103.0 release).
-
-## Prometheus RPC counters
-
-A number of neogo_${method}_called Prometheus counters are marked as
-deprecated since version 0.99.5, neogo_rpc_${method}_time histograms can be
-used instead (that also have a counter).
-
-It's not a frequently used thing and it's easy to replace it, so removal of
-old counters is scheduled for January-February 2023 (~0.100.X release).
 
 ## SecondsPerBlock protocol configuration
 
@@ -134,3 +114,28 @@ for security reasons.
 
 Removal of these options from ProtocolConfiguration is scheduled for May-June
 2023 (~0.103.0 release).
+
+## GetPeers RPC server response type changes and RPC client support
+
+GetPeers RPC command returns a list of Peers where the port type has changed from 
+string to uint16 to match C#. The RPC client currently supports unmarshalling both
+formats. 
+
+Removal of Peer unmarshalling with string based ports is scheduled for ~September 2023
+(~0.105.0 release).
+
+## `NEOBalance` from stack item
+ 
+We check struct items count before convert LastGasPerVote to let RPC client be compatible with
+old versions.
+
+Removal of this compatiblility code is scheduled for Sep-Oct 2023.
+
+## `serv_node_version` Prometheus gauge metric
+
+This metric is replaced by the new `neogo_version` and `server_id` Prometheus gauge
+metrics with proper version formatting. `neogo_version` contains NeoGo version
+hidden under `version` label and `server_id` contains network server ID hidden
+under `server_id` label.
+
+Removal of `serv_node_version` is scheduled for Sep-Oct 2023 (~0.105.0 release).

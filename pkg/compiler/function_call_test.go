@@ -89,10 +89,10 @@ func TestNotAssignedFunctionCall(t *testing.T) {
 	})
 	t.Run("Builtin", func(t *testing.T) {
 		src := `package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/util"
+		import "github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
 		func Main() int {
-			util.FromAddress("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
-			util.FromAddress("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
+			address.ToHash160("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
+			address.ToHash160("NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8")
 			return 1
 		}`
 		eval(t, src, big.NewInt(1))
@@ -167,6 +167,21 @@ func TestFunctionCallWithInterfaceType(t *testing.T) {
 		}
 
 		func getSomeInteger(x interface{}) interface{} {
+			return x
+		}
+	`
+	eval(t, src, big.NewInt(10))
+}
+
+func TestFunctionCallWithAnyKeywordType(t *testing.T) {
+	src := `
+		package testcase
+		func Main() any {
+			x := getSomeInteger(10)
+			return x
+		}
+
+		func getSomeInteger(x any) any {
 			return x
 		}
 	`
@@ -312,7 +327,7 @@ func TestJumpOptimize(t *testing.T) {
 		var a int
 		_ = a
 	}
-	func _deploy(_ interface{}, upd bool) {
+	func _deploy(_ any, upd bool) {
 		if true {} else {}
 		t := upd
 		_ = t

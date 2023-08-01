@@ -104,7 +104,7 @@ func TestServerStartAndShutdown(t *testing.T) {
 		require.True(t, s.transports[0].(*fakeTransp).closed.Load())
 		err, ok := p.droppedWith.Load().(error)
 		require.True(t, ok)
-		require.True(t, errors.Is(err, errServerShutdown))
+		require.ErrorIs(t, err, errServerShutdown)
 	})
 	t.Run("with consensus", func(t *testing.T) {
 		s := newTestServer(t, ServerConfig{})
@@ -161,7 +161,7 @@ func TestServerRegisterPeer(t *testing.T) {
 	require.True(t, index >= 0)
 	err, ok := ps[index].droppedWith.Load().(error)
 	require.True(t, ok)
-	require.True(t, errors.Is(err, errMaxPeers))
+	require.ErrorIs(t, err, errMaxPeers)
 
 	index = (index + 1) % peerCount
 	s.unregister <- peerDrop{ps[index], errIdenticalID}

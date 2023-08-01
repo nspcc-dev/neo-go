@@ -56,11 +56,13 @@ Press the "Publish release" button.
 
 New release created at the previous step triggers automatic builds (if not,
 start them manually from the Build GitHub workflow), so wait for them to
-finish. Then download currently supported binaries (at the time of writing
-that's `neo-go-darwin-arm64`, `neo-go-linux-amd64`, `neo-go-linux-arm64` and
-`neo-go-windows-amd64`), unpack archives and add resulting binaries (named in
-the same way as archives) to the previously created release via "Edit release"
-button.
+finish. Built binaries should be automatically attached to the release as an
+asset, check it on the release page. If binaries weren't attached after building
+workflow completion, then submit the bug, download currently supported binaries
+(at the time of writing they are `neo-go-darwin-arm64`, `neo-go-linux-amd64`,
+`neo-go-linux-arm64` and `neo-go-windows-amd64`) from the building job artifacts,
+unpack archives and add resulting binaries (named in the same way as archives)
+to the previously created release via "Edit release" button.
 
 ## Close GitHub milestone
 

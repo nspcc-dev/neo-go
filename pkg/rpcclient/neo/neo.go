@@ -33,7 +33,7 @@ const (
 type Invoker interface {
 	nep17.Invoker
 
-	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...interface{}) (*result.Invoke, error)
+	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...any) (*result.Invoke, error)
 	TerminateSession(sessionID uuid.UUID) error
 	TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error)
 }
@@ -44,10 +44,10 @@ type Actor interface {
 	Invoker
 
 	Run(script []byte) (*result.Invoke, error)
-	MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error)
-	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error)
+	MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error)
+	MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...any) (*transaction.Transaction, error)
 	MakeUnsignedUncheckedRun(script []byte, sysFee int64, attrs []transaction.Attribute) (*transaction.Transaction, error)
-	SendCall(contract util.Uint160, method string, params ...interface{}) (util.Uint256, uint32, error)
+	SendCall(contract util.Uint160, method string, params ...any) (util.Uint256, uint32, error)
 	Sign(tx *transaction.Transaction) error
 	SignAndSend(tx *transaction.Transaction) (util.Uint256, uint32, error)
 }
@@ -398,7 +398,7 @@ func (c *Contract) VoteUnsigned(account util.Uint160, voteTo *keys.PublicKey) (*
 }
 
 func voteScript(account util.Uint160, voteTo *keys.PublicKey) []byte {
-	var param interface{}
+	var param any
 
 	if voteTo != nil {
 		param = voteTo.Bytes()

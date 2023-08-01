@@ -90,7 +90,7 @@ func TestCall(t *testing.T) {
 		require.Error(t, contract.Call(ic))
 	})
 
-	runInvalid := func(args ...interface{}) func(t *testing.T) {
+	runInvalid := func(args ...any) func(t *testing.T) {
 		return func(t *testing.T) {
 			loadScriptWithHashAndFlags(ic, currScript, h, callflag.All, 42)
 			for i := range args {
@@ -594,7 +594,7 @@ func TestCALLL_from_VoidContext(t *testing.T) {
 	ctrInvoker.Invoke(t, stackitem.Null{}, "callHasRet")
 }
 
-func loadScript(ic *interop.Context, script []byte, args ...interface{}) {
+func loadScript(ic *interop.Context, script []byte, args ...any) {
 	ic.SpawnVM()
 	ic.VM.LoadScriptWithFlags(script, callflag.AllowCall)
 	for i := range args {
@@ -603,7 +603,7 @@ func loadScript(ic *interop.Context, script []byte, args ...interface{}) {
 	ic.VM.GasLimit = -1
 }
 
-func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Uint160, f callflag.CallFlag, args ...interface{}) {
+func loadScriptWithHashAndFlags(ic *interop.Context, script []byte, hash util.Uint160, f callflag.CallFlag, args ...any) {
 	ic.SpawnVM()
 	ic.VM.LoadScriptWithHash(script, hash, f)
 	for i := range args {

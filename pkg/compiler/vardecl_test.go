@@ -59,18 +59,18 @@ func TestUnderscoreLocalVarDontEmitCode(t *testing.T) {
 		func (fo Foo) GetInt() int {
 			return fo.Int
 		}`
-	eval(t, src, big.NewInt(9), []interface{}{opcode.INITSLOT, []byte{5, 0}}, // local slot for A, B, C, D, fo
+	eval(t, src, big.NewInt(9), []any{opcode.INITSLOT, []byte{5, 0}}, // local slot for A, B, C, D, fo
 		opcode.PUSH2, opcode.STLOC0, // store A
 		opcode.PUSH5, opcode.STLOC1, // store B
-		opcode.LDLOC0, opcode.LDLOC1, opcode.SWAP, []interface{}{opcode.CALL, []byte{27}}, // evaluate f() first time
+		opcode.LDLOC0, opcode.LDLOC1, opcode.SWAP, []any{opcode.CALL, []byte{27}}, // evaluate f() first time
 		opcode.DROP, opcode.DROP, opcode.DROP, // drop all values from f
-		opcode.LDLOC0, opcode.LDLOC1, opcode.SWAP, []interface{}{opcode.CALL, []byte{19}}, // evaluate f() second time
+		opcode.LDLOC0, opcode.LDLOC1, opcode.SWAP, []any{opcode.CALL, []byte{19}}, // evaluate f() second time
 		opcode.DROP, opcode.STLOC2, opcode.DROP, // store C
 		opcode.PUSH7, opcode.STLOC3, // store D
 		opcode.LDLOC3, opcode.DROP, // empty assignment
 		opcode.PUSH3, opcode.PUSH1, opcode.PACKSTRUCT, opcode.STLOC4, // fo decl
-		opcode.LDLOC4, []interface{}{opcode.CALL, []byte{12}}, opcode.DROP, // fo.GetInt()
+		opcode.LDLOC4, []any{opcode.CALL, []byte{12}}, opcode.DROP, // fo.GetInt()
 		opcode.LDLOC2, opcode.RET, // return C
-		[]interface{}{opcode.INITSLOT, []byte{0, 2}}, opcode.PUSH10, opcode.PUSH9, opcode.PUSH8, opcode.RET, // f
-		[]interface{}{opcode.INITSLOT, []byte{0, 1}}, opcode.LDARG0, opcode.PUSH0, opcode.PICKITEM, opcode.RET) // (fo Foo) GetInt() int
+		[]any{opcode.INITSLOT, []byte{0, 2}}, opcode.PUSH10, opcode.PUSH9, opcode.PUSH8, opcode.RET, // f
+		[]any{opcode.INITSLOT, []byte{0, 1}}, opcode.LDARG0, opcode.PUSH0, opcode.PICKITEM, opcode.RET) // (fo Foo) GetInt() int
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 	"github.com/nspcc-dev/neo-go/pkg/interop/iterator"
+	"github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/crypto"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/gas"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
@@ -39,7 +40,7 @@ var (
 	// contractOwner is a special address that can perform some management
 	// functions on this contract like updating/destroying it and can also
 	// be used for contract address verification.
-	contractOwner = util.FromAddress("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
+	contractOwner = address.ToHash160("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
 )
 
 // ObjectIdentifier represents NFT structure and contains the container ID and
@@ -172,7 +173,7 @@ func tokensOf(ctx storage.Context, holder interop.Hash160) iterator.Iterator {
 
 // Transfer token from its owner to another user, if there's one owner of the token.
 // It will return false if token is shared between multiple owners.
-func Transfer(to interop.Hash160, token []byte, data interface{}) bool {
+func Transfer(to interop.Hash160, token []byte, data any) bool {
 	if len(to) != interop.Hash160Len {
 		panic("invalid 'to' address")
 	}
@@ -215,7 +216,7 @@ func Transfer(to interop.Hash160, token []byte, data interface{}) bool {
 }
 
 // postTransfer emits Transfer event and calls onNEP11Payment if needed.
-func postTransfer(from interop.Hash160, to interop.Hash160, token []byte, amount int, data interface{}) {
+func postTransfer(from interop.Hash160, to interop.Hash160, token []byte, amount int, data any) {
 	runtime.Notify("Transfer", from, to, amount, token)
 	if management.GetContract(to) != nil {
 		contract.Call(to, "onNEP11Payment", contract.All, from, amount, token, data)
@@ -263,7 +264,7 @@ func isTokenValid(ctx storage.Context, tokenID []byte) bool {
 
 // TransferDivisible token from its owner to another user, notice that it only has three
 // parameters because token owner can be deduced from token ID itself.
-func TransferDivisible(from, to interop.Hash160, amount int, token []byte, data interface{}) bool {
+func TransferDivisible(from, to interop.Hash160, amount int, token []byte, data any) bool {
 	if len(from) != interop.Hash160Len {
 		panic("invalid 'from' address")
 	}
@@ -350,7 +351,7 @@ func removeOwner(ctx storage.Context, token []byte, holder interop.Hash160) {
 // OnNEP17Payment mints tokens if at least 10 GAS is provided. You don't call
 // this method directly, instead it's called by GAS contract when you transfer
 // GAS from your address to the address of this NFT contract.
-func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
+func OnNEP17Payment(from interop.Hash160, amount int, data any) {
 	defer func() {
 		if r := recover(); r != nil {
 			runtime.Log(r.(string))
@@ -364,7 +365,7 @@ func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {
 	if amount < 10_00000000 {
 		panic("minting NFSO costs at least 10 GAS")
 	}
-	tokenInfo := data.([]interface{})
+	tokenInfo := data.([]any)
 	if len(tokenInfo) != 2 {
 		panic("invalid 'data'")
 	}

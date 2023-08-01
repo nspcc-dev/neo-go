@@ -8,12 +8,15 @@ package nep17
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neptoken"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Invoker is used by TokenReader to call various safe methods.
@@ -63,7 +66,7 @@ type TransferParameters struct {
 	From   util.Uint160
 	To     util.Uint160
 	Amount *big.Int
-	Data   interface{}
+	Data   any
 }
 
 // NewReader creates an instance of TokenReader for contract with the given
@@ -82,7 +85,7 @@ func New(actor Actor, hash util.Uint160) *Token {
 // call using the given parameters and checks for this call result, failing the
 // transaction if it's not true. The returned values are transaction hash, its
 // ValidUntilBlock value and an error if any.
-func (t *TokenWriter) Transfer(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (util.Uint256, uint32, error) {
+func (t *TokenWriter) Transfer(from util.Uint160, to util.Uint160, amount *big.Int, data any) (util.Uint256, uint32, error) {
 	return t.MultiTransfer([]TransferParameters{{from, to, amount, data}})
 }
 
@@ -90,7 +93,7 @@ func (t *TokenWriter) Transfer(from util.Uint160, to util.Uint160, amount *big.I
 // call using the given parameters and checks for this call result, failing the
 // transaction if it's not true. This transaction is signed, but not sent to the
 // network, instead it's returned to the caller.
-func (t *TokenWriter) TransferTransaction(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
+func (t *TokenWriter) TransferTransaction(from util.Uint160, to util.Uint160, amount *big.Int, data any) (*transaction.Transaction, error) {
 	return t.MultiTransferTransaction([]TransferParameters{{from, to, amount, data}})
 }
 
@@ -98,7 +101,7 @@ func (t *TokenWriter) TransferTransaction(from util.Uint160, to util.Uint160, am
 // call using the given parameters and checks for this call result, failing the
 // transaction if it's not true. This transaction is not signed and just returned
 // to the caller.
-func (t *TokenWriter) TransferUnsigned(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
+func (t *TokenWriter) TransferUnsigned(from util.Uint160, to util.Uint160, amount *big.Int, data any) (*transaction.Transaction, error) {
 	return t.MultiTransferUnsigned([]TransferParameters{{from, to, amount, data}})
 }
 
@@ -146,4 +149,67 @@ func (t *TokenWriter) MultiTransferUnsigned(params []TransferParameters) (*trans
 		return nil, err
 	}
 	return t.actor.MakeUnsignedRun(script, nil)
+}
+
+// TransferEventsFromApplicationLog retrieves all emitted TransferEvents from the
+// provided [result.ApplicationLog].
+func TransferEventsFromApplicationLog(log *result.ApplicationLog) ([]*TransferEvent, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+	var res []*TransferEvent
+	for i, ex := range log.Executions {
+		for j, e := range ex.Events {
+			if e.Name != "Transfer" {
+				continue
+			}
+			event := new(TransferEvent)
+			err := event.FromStackItem(e.Item)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode event from stackitem (event #%d, execution #%d): %w", j, i, err)
+			}
+			res = append(res, event)
+		}
+	}
+	return res, nil
+}
+
+// FromStackItem converts provided [stackitem.Array] to TransferEvent or returns an
+// error if it's not possible to do to so.
+func (e *TransferEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 3 {
+		return errors.New("wrong number of event parameters")
+	}
+
+	b, err := arr[0].TryBytes()
+	if err != nil {
+		return fmt.Errorf("invalid From: %w", err)
+	}
+	e.From, err = util.Uint160DecodeBytesBE(b)
+	if err != nil {
+		return fmt.Errorf("failed to decode From: %w", err)
+	}
+
+	b, err = arr[1].TryBytes()
+	if err != nil {
+		return fmt.Errorf("invalid To: %w", err)
+	}
+	e.To, err = util.Uint160DecodeBytesBE(b)
+	if err != nil {
+		return fmt.Errorf("failed to decode To: %w", err)
+	}
+
+	e.Amount, err = arr[2].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field to decode Avount: %w", err)
+	}
+
+	return nil
 }

@@ -78,7 +78,7 @@ func TestGAS_RewardWithP2PSigExtensionsEnabled(t *testing.T) {
 
 	// set Notary nodes and check their balance
 	notaryNodes := make([]*keys.PrivateKey, nNotaries)
-	notaryNodesPublicKeys := make([]interface{}, nNotaries)
+	notaryNodesPublicKeys := make([]any, nNotaries)
 	var err error
 	for i := range notaryNodes {
 		notaryNodes[i], err = keys.NewPrivateKey()
@@ -92,7 +92,7 @@ func TestGAS_RewardWithP2PSigExtensionsEnabled(t *testing.T) {
 
 	// deposit GAS for `signer` with lock until the next block
 	depositAmount := 100_0000 + (2+int64(nKeys))*notaryServiceFeePerKey // sysfee + netfee of the next transaction
-	gasCommitteeInvoker.Invoke(t, true, "transfer", e.CommitteeHash, notaryHash, depositAmount, []interface{}{e.CommitteeHash, e.Chain.BlockHeight() + 1})
+	gasCommitteeInvoker.Invoke(t, true, "transfer", e.CommitteeHash, notaryHash, depositAmount, []any{e.CommitteeHash, e.Chain.BlockHeight() + 1})
 
 	// save initial GAS total supply
 	getGASTS := func(t *testing.T) int64 {

@@ -35,7 +35,7 @@ type (
 		// used by the method implementation on the server side. While JSON-RPC
 		// technically allows it to be an object, all Neo calls expect params
 		// to be an array.
-		Params []interface{} `json:"params"`
+		Params []any `json:"params"`
 		// ID is an identifier associated with this request. JSON-RPC itself allows
 		// any strings to be used for it as well, but NeoGo RPC client uses numeric
 		// identifiers.
@@ -66,9 +66,9 @@ type (
 	// special in that they look like requests but they don't have IDs and their
 	// "method" is actually an event name.
 	Notification struct {
-		JSONRPC string        `json:"jsonrpc"`
-		Event   EventID       `json:"method"`
-		Payload []interface{} `json:"params"`
+		JSONRPC string  `json:"jsonrpc"`
+		Event   EventID `json:"method"`
+		Payload []any   `json:"params"`
 	}
 
 	// SignerWithWitness represents transaction's signer with the corresponding witness.
@@ -165,6 +165,6 @@ func (n *Notification) EventID() EventID {
 
 // EventPayload implements EventContainer interface and returns notification
 // object.
-func (n *Notification) EventPayload() interface{} {
+func (n *Notification) EventPayload() any {
 	return n.Payload[0]
 }

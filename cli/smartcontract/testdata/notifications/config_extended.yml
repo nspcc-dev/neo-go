@@ -1,0 +1,47 @@
+name: "Notifications"
+sourceurl: https://github.com/nspcc-dev/neo-go/
+events:
+  - name: "! complicated name %$#"
+    parameters:
+      - name: ! complicated param @#$%
+        type: String
+  - name: "SomeMap"
+    parameters:
+      - name: m
+        type: Map
+        extendedtype:
+          base: Map
+          key: Integer
+          value:
+            base: Map
+            key: String
+            value:
+              base: Array
+              value:
+                base: Hash160
+  - name: "SomeStruct"
+    parameters:
+      - name: s
+        type: Struct
+        extendedtype:
+          base: Struct
+          name: crazyStruct
+  - name: "SomeArray"
+    parameters:
+      - name: a
+        type: Array
+        extendedtype:
+          base: Array
+          value:
+            base: Array
+            value:
+              base: Integer
+namedtypes:
+  crazyStruct:
+    base: Struct
+    name: crazyStruct
+    fields:
+      - field: I
+        base: Integer
+      - field: B
+        base: Boolean

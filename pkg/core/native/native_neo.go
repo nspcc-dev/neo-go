@@ -410,7 +410,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 		var (
 			cs        = cache.committee
 			isCacheRW bool
-			key       = make([]byte, 38)
+			key       = make([]byte, 34)
 		)
 		for i := range cs {
 			if cs[i].Votes.Sign() > 0 {
@@ -424,17 +424,9 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 				tmp.Div(tmp, cs[i].Votes)
 
 				key = makeVoterKey([]byte(cs[i].Key), key)
+				r := n.getLatestGASPerVote(ic.DAO, key)
+				tmp.Add(tmp, &r)
 
-				var r *big.Int
-				if g, ok := cache.gasPerVoteCache[cs[i].Key]; ok {
-					r = &g
-				} else {
-					reward := n.getGASPerVote(ic.DAO, key[:34], []uint32{ic.Block.Index + 1})
-					r = &reward[0]
-				}
-				tmp.Add(tmp, r)
-
-				binary.BigEndian.PutUint32(key[34:], ic.Block.Index+1)
 				if !isCacheRW {
 					cache = ic.DAO.GetRWCache(n.ID).(*NeoCache)
 					isCacheRW = true
@@ -448,33 +440,19 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 	return nil
 }
 
-func (n *NEO) getGASPerVote(d *dao.Simple, key []byte, indexes []uint32) []big.Int {
-	sort.Slice(indexes, func(i, j int) bool {
-		return indexes[i] < indexes[j]
-	})
-	start := make([]byte, 4)
-	binary.BigEndian.PutUint32(start, indexes[len(indexes)-1])
-
-	need := len(indexes)
-	var reward = make([]big.Int, need)
-	collected := 0
-	d.Seek(n.ID, storage.SeekRange{
-		Prefix:    key,
-		Start:     start,
-		Backwards: true,
-	}, func(k, v []byte) bool {
-		if len(k) == 4 {
-			num := binary.BigEndian.Uint32(k)
-			for i, ind := range indexes {
-				if reward[i].Sign() == 0 && num <= ind {
-					reward[i] = *bigint.FromBytes(v)
-					collected++
-				}
-			}
-		}
-		return collected < need
-	})
-	return reward
+func (n *NEO) getLatestGASPerVote(d *dao.Simple, key []byte) big.Int {
+	var g big.Int
+	cache := d.GetROCache(n.ID).(*NeoCache)
+	if g, ok := cache.gasPerVoteCache[string(key[1:])]; ok {
+		return g
+	}
+	item := d.GetStorageItem(n.ID, key)
+	if item == nil {
+		g = *big.NewInt(0)
+	} else {
+		g = *bigint.FromBytes(item)
+	}
+	return g
 }
 
 func (n *NEO) increaseBalance(ic *interop.Context, h util.Uint160, si *state.StorageItem, amount *big.Int, checkBal *big.Int) (func(), error) {
@@ -528,11 +506,15 @@ func (n *NEO) distributeGas(ic *interop.Context, acc *state.NEOBalance) (*big.In
 	if ic.Block == nil || ic.Block.Index == 0 || ic.Block.Index == acc.BalanceHeight {
 		return nil, nil
 	}
-	gen, err := n.calculateBonus(ic.DAO, acc.VoteTo, &acc.Balance, acc.BalanceHeight, ic.Block.Index)
+	gen, err := n.calculateBonus(ic.DAO, acc, ic.Block.Index)
 	if err != nil {
 		return nil, err
 	}
 	acc.BalanceHeight = ic.Block.Index
+	if acc.VoteTo != nil {
+		latestGasPerVote := n.getLatestGASPerVote(ic.DAO, makeVoterKey(acc.VoteTo.Bytes()))
+		acc.LastGasPerVote = latestGasPerVote
+	}
 
 	return gen, nil
 }
@@ -540,7 +522,7 @@ func (n *NEO) distributeGas(ic *interop.Context, acc *state.NEOBalance) (*big.In
 func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	u := toUint160(args[0])
 	end := uint32(toBigInt(args[1]).Int64())
-	gen, err := n.CalculateBonus(ic.DAO, u, end)
+	gen, err := n.CalculateBonus(ic, u, end)
 	if err != nil {
 		panic(err)
 	}
@@ -648,10 +630,7 @@ func (n *NEO) dropCandidateIfZero(d *dao.Simple, cache *NeoCache, pub *keys.Publ
 	d.DeleteStorageItem(n.ID, makeValidatorKey(pub))
 
 	voterKey := makeVoterKey(pub.Bytes())
-	d.Seek(n.ID, storage.SeekRange{Prefix: voterKey}, func(k, v []byte) bool {
-		d.DeleteStorageItem(n.ID, append(voterKey, k...)) // d.Seek cuts prefix, thus need to append it again.
-		return true
-	})
+	d.DeleteStorageItem(n.ID, voterKey)
 	delete(cache.gasPerVoteCache, string(voterKey))
 
 	return true
@@ -662,7 +641,7 @@ func makeVoterKey(pub []byte, prealloc ...[]byte) []byte {
 	if len(prealloc) != 0 {
 		key = prealloc[0]
 	} else {
-		key = make([]byte, 34, 38)
+		key = make([]byte, 34)
 	}
 	key[0] = prefixVoterRewardPerCommittee
 	copy(key[1:], pub)
@@ -671,9 +650,12 @@ func makeVoterKey(pub []byte, prealloc ...[]byte) []byte {
 
 // CalculateBonus calculates amount of gas generated for holding value NEO from start to end block
 // and having voted for active committee member.
-func (n *NEO) CalculateBonus(d *dao.Simple, acc util.Uint160, end uint32) (*big.Int, error) {
+func (n *NEO) CalculateBonus(ic *interop.Context, acc util.Uint160, end uint32) (*big.Int, error) {
+	if ic.Block == nil || end != ic.Block.Index {
+		return nil, errors.New("can't calculate bonus of height unequal (BlockHeight + 1)")
+	}
 	key := makeAccountKey(acc)
-	si := d.GetStorageItem(n.ID, key)
+	si := ic.DAO.GetStorageItem(n.ID, key)
 	if si == nil {
 		return nil, storage.ErrKeyNotFound
 	}
@@ -681,19 +663,19 @@ func (n *NEO) CalculateBonus(d *dao.Simple, acc util.Uint160, end uint32) (*big.
 	if err != nil {
 		return nil, err
 	}
-	return n.calculateBonus(d, st.VoteTo, &st.Balance, st.BalanceHeight, end)
+	return n.calculateBonus(ic.DAO, st, end)
 }
 
-func (n *NEO) calculateBonus(d *dao.Simple, vote *keys.PublicKey, value *big.Int, start, end uint32) (*big.Int, error) {
-	r, err := n.CalculateNEOHolderReward(d, value, start, end)
-	if err != nil || vote == nil {
+func (n *NEO) calculateBonus(d *dao.Simple, acc *state.NEOBalance, end uint32) (*big.Int, error) {
+	r, err := n.CalculateNEOHolderReward(d, &acc.Balance, acc.BalanceHeight, end)
+	if err != nil || acc.VoteTo == nil {
 		return r, err
 	}
 
-	var key = makeVoterKey(vote.Bytes())
-	var reward = n.getGASPerVote(d, key, []uint32{start, end})
-	var tmp = (&reward[1]).Sub(&reward[1], &reward[0])
-	tmp.Mul(tmp, value)
+	var key = makeVoterKey(acc.VoteTo.Bytes())
+	var reward = n.getLatestGASPerVote(d, key)
+	var tmp = big.NewInt(0).Sub(&reward, &acc.LastGasPerVote)
+	tmp.Mul(tmp, &acc.Balance)
 	tmp.Div(tmp, bigVoterRewardFactor)
 	tmp.Add(tmp, r)
 	return tmp, nil
@@ -870,6 +852,9 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	if err := n.ModifyAccountVotes(acc, ic.DAO, new(big.Int).Neg(&acc.Balance), false); err != nil {
 		return err
 	}
+	if pub != nil && pub != acc.VoteTo {
+		acc.LastGasPerVote = n.getLatestGASPerVote(ic.DAO, makeVoterKey(pub.Bytes()))
+	}
 	oldVote := acc.VoteTo
 	acc.VoteTo = pub
 	if err := n.ModifyAccountVotes(acc, ic.DAO, &acc.Balance, true); err != nil {
@@ -1023,7 +1008,7 @@ func (n *NEO) getAllCandidatesCall(ic *interop.Context, _ []stackitem.Item) stac
 	item := istorage.NewIterator(filteredRes, prefix, int64(opts))
 	ic.RegisterCancelFunc(func() {
 		cancel()
-		for range seekres {
+		for range seekres { //nolint:revive //empty-block
 		}
 	})
 	return stackitem.NewInterop(item)

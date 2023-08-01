@@ -107,7 +107,7 @@ func TestRemoveStale(t *testing.T) {
 func (p *Pool) testAdd(t *testing.T, expectedOk bool, expectedErr error, ep *payload.Extensible) {
 	ok, err := p.Add(ep)
 	if expectedErr != nil {
-		require.True(t, errors.Is(err, expectedErr), "got: %v", err)
+		require.ErrorIs(t, err, expectedErr)
 	} else {
 		require.NoError(t, err)
 	}

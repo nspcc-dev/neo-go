@@ -11,7 +11,7 @@ var nilTestCases = []testCase{
 		`
 		package foo
 		func Main() int {
-			var t interface{}
+			var t any
 			if t == nil {
 				return 1
 			}
@@ -39,7 +39,7 @@ var nilTestCases = []testCase{
 		`
 		package foo
 		func Main() int {
-			var t interface{}
+			var t any
 			if nil == t {
 				return 1
 			}

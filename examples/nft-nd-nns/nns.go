@@ -79,7 +79,7 @@ func Update(nef []byte, manifest string) {
 }
 
 // _deploy initializes defaults (total supply and registration price) on contract deploy.
-func _deploy(data interface{}, isUpdate bool) {
+func _deploy(data any, isUpdate bool) {
 	if isUpdate {
 		return
 	}
@@ -112,10 +112,10 @@ func OwnerOf(tokenID []byte) interop.Hash160 {
 }
 
 // Properties returns domain name and expiration date of the specified domain.
-func Properties(tokenID []byte) map[string]interface{} {
+func Properties(tokenID []byte) map[string]any {
 	ctx := storage.GetReadOnlyContext()
 	ns := getNameState(ctx, tokenID)
-	return map[string]interface{}{
+	return map[string]any{
 		"name":       ns.Name,
 		"expiration": ns.Expiration,
 		"admin":      ns.Admin,
@@ -151,7 +151,7 @@ func TokensOf(owner interop.Hash160) iterator.Iterator {
 }
 
 // Transfer transfers domain with the specified name to new owner.
-func Transfer(to interop.Hash160, tokenID []byte, data interface{}) bool {
+func Transfer(to interop.Hash160, tokenID []byte, data any) bool {
 	if !isValid(to) {
 		panic(`invalid receiver`)
 	}
@@ -398,7 +398,7 @@ func updateBalance(ctx storage.Context, tokenId []byte, acc interop.Hash160, dif
 
 // postTransfer sends Transfer notification to the network and calls onNEP11Payment
 // method.
-func postTransfer(from, to interop.Hash160, tokenID []byte, data interface{}) {
+func postTransfer(from, to interop.Hash160, tokenID []byte, data any) {
 	runtime.Notify("Transfer", from, to, 1, tokenID)
 	if management.GetContract(to) != nil {
 		contract.Call(to, "onNEP11Payment", contract.All, from, 1, tokenID, data)

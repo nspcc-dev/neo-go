@@ -43,3 +43,52 @@ func Murmur32(b []byte, seed int) []byte {
 func VerifyWithECDsa(msg []byte, pub interop.PublicKey, sig interop.Signature, curve NamedCurve) bool {
 	return neogointernal.CallWithToken(Hash, "verifyWithECDsa", int(contract.NoneFlag), msg, pub, sig, curve).(bool)
 }
+
+// Bls12381Point represents BLS12-381 curve point (G1 or G2 in the Affine or
+// Jacobian form or GT). Bls12381Point structure is needed for the operations
+// with the curve's points (serialization, addition, multiplication, pairing and
+// equality checks). It's an opaque type that can only be created properly by
+// Bls12381Deserialize, Bls12381Add, Bls12381Mul or Bls12381Pairing. The only
+// way to expose the Bls12381Point out of the runtime to the outside world is by
+// serializing it with Bls12381Serialize method call.
+type Bls12381Point struct{}
+
+// Bls12381Serialize calls `bls12381Serialize` method of native CryptoLib contract
+// and serializes given BLS12-381 point into byte array.
+func Bls12381Serialize(g Bls12381Point) []byte {
+	return neogointernal.CallWithToken(Hash, "bls12381Serialize", int(contract.NoneFlag), g).([]byte)
+}
+
+// Bls12381Deserialize calls `bls12381Deserialize` method of native CryptoLib
+// contract and deserializes given BLS12-381 point from byte array.
+func Bls12381Deserialize(data []byte) Bls12381Point {
+	return neogointernal.CallWithToken(Hash, "bls12381Deserialize", int(contract.NoneFlag), data).(Bls12381Point)
+}
+
+// Bls12381Equal calls `bls12381Equal` method of native CryptoLib contract and
+// checks whether two BLS12-381 points are equal.
+func Bls12381Equal(x, y Bls12381Point) bool {
+	return neogointernal.CallWithToken(Hash, "bls12381Equal", int(contract.NoneFlag), x, y).(bool)
+}
+
+// Bls12381Add calls `bls12381Add` method of native CryptoLib contract and
+// performs addition operation over two BLS12-381 points.
+func Bls12381Add(x, y Bls12381Point) Bls12381Point {
+	return neogointernal.CallWithToken(Hash, "bls12381Add", int(contract.NoneFlag), x, y).(Bls12381Point)
+}
+
+// Bls12381Mul calls `bls12381Mul` method of native CryptoLib contract and
+// performs multiplication operation over BLS12-381 point and the given scalar
+// multiplicator. The multiplicator is the serialized LE representation of the
+// field element stored on 4 words (uint64) with 32-bytes length. The last
+// argument denotes whether the multiplicator should be negative.
+func Bls12381Mul(x Bls12381Point, mul []byte, neg bool) Bls12381Point {
+	return neogointernal.CallWithToken(Hash, "bls12381Mul", int(contract.NoneFlag), x, mul, neg).(Bls12381Point)
+}
+
+// Bls12381Pairing calls `bls12381Pairing` method of native CryptoLib contract and
+// performs pairing operation over two BLS12-381 points which must be G1 and G2 either
+// in Affine or Jacobian forms. The result of this operation is GT point.
+func Bls12381Pairing(g1, g2 Bls12381Point) Bls12381Point {
+	return neogointernal.CallWithToken(Hash, "bls12381Pairing", int(contract.NoneFlag), g1, g2).(Bls12381Point)
+}

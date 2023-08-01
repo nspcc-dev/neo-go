@@ -39,7 +39,7 @@ func TestTypeConstantSize(t *testing.T) {
 	src := `package foo
 	import "github.com/nspcc-dev/neo-go/pkg/interop"
 	var a %T // type declaration is always ok
-	func Main() interface{} {
+	func Main() any {
 		return %#v
 	}`
 
@@ -71,61 +71,12 @@ func TestTypeConstantSize(t *testing.T) {
 	})
 }
 
-func TestFromAddress(t *testing.T) {
-	as1 := "NQRLhCpAru9BjGsMwk67vdMwmzKMRgsnnN"
-	addr1, err := address.StringToUint160(as1)
-	require.NoError(t, err)
-
-	as2 := "NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8"
-	addr2, err := address.StringToUint160(as2)
-	require.NoError(t, err)
-
-	t.Run("append 2 addresses", func(t *testing.T) {
-		src := `
-		package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/util"
-		func Main() []byte {
-			addr1 := util.FromAddress("` + as1 + `")
-			addr2 := util.FromAddress("` + as2 + `")
-			sum := append(addr1, addr2...)
-			return sum
-		}
-		`
-
-		eval(t, src, append(addr1.BytesBE(), addr2.BytesBE()...))
-	})
-
-	t.Run("append 2 addresses inline", func(t *testing.T) {
-		src := `
-		package foo
-		import "github.com/nspcc-dev/neo-go/pkg/interop/util"
-		func Main() []byte {
-			addr1 := util.FromAddress("` + as1 + `")
-			sum := append(addr1, util.FromAddress("` + as2 + `")...)
-			return sum
-		}
-		`
-
-		eval(t, src, append(addr1.BytesBE(), addr2.BytesBE()...))
-	})
-
-	t.Run("AliasPackage", func(t *testing.T) {
-		src := `
-		package foo
-		import uu "github.com/nspcc-dev/neo-go/pkg/interop/util"
-		func Main() []byte {
-			addr1 := uu.FromAddress("` + as1 + `")
-			addr2 := uu.FromAddress("` + as2 + `")
-			sum := append(addr1, addr2...)
-			return sum
-		}`
-		eval(t, src, append(addr1.BytesBE(), addr2.BytesBE()...))
-	})
-}
-
 func TestAddressToHash160BuiltinConversion(t *testing.T) {
 	a := "NQRLhCpAru9BjGsMwk67vdMwmzKMRgsnnN"
 	h, err := address.StringToUint160(a)
+	require.NoError(t, err)
+	a2 := "NPAsqZkx9WhNd4P72uhZxBhLinSuNkxfB8"
+	addr2, err := address.StringToUint160(a2)
 	require.NoError(t, err)
 	t.Run("builtin conversion", func(t *testing.T) {
 		src := `package foo
@@ -162,6 +113,18 @@ func TestAddressToHash160BuiltinConversion(t *testing.T) {
 		require.False(t, strings.Contains(string(prog), string(h.BytesBE())))
 		// On the contrary, there should be an address string.
 		require.True(t, strings.Contains(string(prog), a))
+	})
+	t.Run("AliasPackage", func(t *testing.T) {
+		src := `
+		package foo
+		import ad "github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
+		func Main() []byte {
+			addr1 := ad.ToHash160("` + a + `")
+			addr2 := ad.ToHash160("` + a2 + `")
+			sum := append(addr1, addr2...)
+			return sum
+		}`
+		eval(t, src, append(h.BytesBE(), addr2.BytesBE()...))
 	})
 }
 
@@ -532,7 +495,7 @@ func TestCallWithVersion(t *testing.T) {
 			"github.com/nspcc-dev/neo-go/pkg/interop/contract"
 			util "github.com/nspcc-dev/neo-go/pkg/interop/lib/contract"
 		)
-		func CallWithVersion(hash interop.Hash160, version int, method string) interface{} {
+		func CallWithVersion(hash interop.Hash160, version int, method string) any {
 			return util.CallWithVersion(hash, version, method, contract.All)
 		}`
 	ctr := neotest.CompileSource(t, e.CommitteeHash, strings.NewReader(src), &compiler.Options{Name: "Helper"})
@@ -569,7 +532,7 @@ func TestForcedNotifyArgumentsConversion(t *testing.T) {
 			runtime.Notify("withoutEllipsis", arg0, arg1, arg2, arg3, arg4, 5, f(6))	// The fifth argument is basic literal.
 		}
 		func WithEllipsis() {
-			arg := []interface{}{0, 1, f(2), 3, 4, 5, 6}
+			arg := []any{0, 1, f(2), 3, 4, 5, 6}
 			runtime.Notify("withEllipsis", arg...)
 		}
 		func f(i int) int {
@@ -579,13 +542,13 @@ func TestForcedNotifyArgumentsConversion(t *testing.T) {
 		if count != len(expectedVMParamTypes) {
 			t.Fatalf("parameters count mismatch: %d vs %d", count, len(expectedVMParamTypes))
 		}
-		scParams := make([]manifest.Parameter, len(targetSCParamTypes))
+		scParams := make([]compiler.HybridParameter, len(targetSCParamTypes))
 		vmParams := make([]stackitem.Item, len(expectedVMParamTypes))
 		for i := range scParams {
-			scParams[i] = manifest.Parameter{
+			scParams[i] = compiler.HybridParameter{Parameter: manifest.Parameter{
 				Name: strconv.Itoa(i),
 				Type: targetSCParamTypes[i],
-			}
+			}}
 			defaultValue := stackitem.NewBigInteger(big.NewInt(int64(i)))
 			var (
 				val stackitem.Item
@@ -601,7 +564,7 @@ func TestForcedNotifyArgumentsConversion(t *testing.T) {
 		}
 		ctr := neotest.CompileSource(t, e.CommitteeHash, strings.NewReader(src), &compiler.Options{
 			Name: "Helper",
-			ContractEvents: []manifest.Event{
+			ContractEvents: []compiler.HybridEvent{
 				{
 					Name:       methodWithoutEllipsis,
 					Parameters: scParams,

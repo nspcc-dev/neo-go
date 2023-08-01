@@ -40,7 +40,7 @@ type Manifest struct {
 	ABI                ABI
 	Permissions        []Permission
 	Trusts             []interop.Hash160
-	Extra              interface{}
+	Extra              any
 }
 
 // ABI represents contract's ABI.

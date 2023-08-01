@@ -245,7 +245,7 @@ func (a *Actor) sendWrapper(tx *transaction.Transaction, err error) (util.Uint25
 // SendCall creates a transaction that calls the given method of the given
 // contract with the given parameters (see also MakeCall) and sends it to the
 // network.
-func (a *Actor) SendCall(contract util.Uint160, method string, params ...interface{}) (util.Uint256, uint32, error) {
+func (a *Actor) SendCall(contract util.Uint160, method string, params ...any) (util.Uint256, uint32, error) {
 	return a.sendWrapper(a.MakeCall(contract, method, params...))
 }
 
@@ -253,7 +253,7 @@ func (a *Actor) SendCall(contract util.Uint160, method string, params ...interfa
 // contract with the given parameters (see also MakeTunedCall) and attributes,
 // allowing to check for execution results of this call and modify transaction
 // before it's signed; this transaction is then sent to the network.
-func (a *Actor) SendTunedCall(contract util.Uint160, method string, attrs []transaction.Attribute, txHook TransactionCheckerModifier, params ...interface{}) (util.Uint256, uint32, error) {
+func (a *Actor) SendTunedCall(contract util.Uint160, method string, attrs []transaction.Attribute, txHook TransactionCheckerModifier, params ...any) (util.Uint256, uint32, error) {
 	return a.sendWrapper(a.MakeTunedCall(contract, method, attrs, txHook, params...))
 }
 

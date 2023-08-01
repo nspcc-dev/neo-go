@@ -18,7 +18,7 @@ import (
 // processed this way (and this number can't exceed VM limits), the result of the
 // script is an array containing extracted value elements. This script can be useful
 // for interactions with RPC server that have iterator sessions disabled.
-func CreateCallAndUnwrapIteratorScript(contract util.Uint160, operation string, maxIteratorResultItems int, params ...interface{}) ([]byte, error) {
+func CreateCallAndUnwrapIteratorScript(contract util.Uint160, operation string, maxIteratorResultItems int, params ...any) ([]byte, error) {
 	script := io.NewBufBinWriter()
 	emit.Int(script.BinWriter, int64(maxIteratorResultItems))
 	emit.AppCall(script.BinWriter, contract, operation, callflag.All, params...) // The System.Contract.Call itself, it will push Iterator on estack.
@@ -71,7 +71,7 @@ func CreateCallAndUnwrapIteratorScript(contract util.Uint160, operation string, 
 // CreateCallScript returns a script that calls contract's method with
 // the specified parameters. Whatever this method returns remains on the stack.
 // See also (*Builder).InvokeMethod.
-func CreateCallScript(contract util.Uint160, method string, params ...interface{}) ([]byte, error) {
+func CreateCallScript(contract util.Uint160, method string, params ...any) ([]byte, error) {
 	b := NewBuilder()
 	b.InvokeMethod(contract, method, params...)
 	return b.Script()
@@ -80,7 +80,7 @@ func CreateCallScript(contract util.Uint160, method string, params ...interface{
 // CreateCallWithAssertScript returns a script that calls contract's method with
 // the specified parameters expecting a Boolean value to be return that then is
 // used for ASSERT. See also (*Builder).InvokeWithAssert.
-func CreateCallWithAssertScript(contract util.Uint160, method string, params ...interface{}) ([]byte, error) {
+func CreateCallWithAssertScript(contract util.Uint160, method string, params ...any) ([]byte, error) {
 	b := NewBuilder()
 	b.InvokeWithAssert(contract, method, params...)
 	return b.Script()

@@ -427,7 +427,7 @@ func TestBlockchain_AddBlockStateRoot(t *testing.T) {
 	b.PrevStateRoot = util.Uint256{}
 	e.SignBlock(b)
 	err = bc.AddBlock(b)
-	require.True(t, errors.Is(err, core.ErrHdrStateRootSetting), "got: %v", err)
+	require.ErrorIs(t, err, core.ErrHdrStateRootSetting)
 
 	u := sr.Root
 	u[0] ^= 0xFF
@@ -435,7 +435,7 @@ func TestBlockchain_AddBlockStateRoot(t *testing.T) {
 	b.PrevStateRoot = u
 	e.SignBlock(b)
 	err = bc.AddBlock(b)
-	require.True(t, errors.Is(err, core.ErrHdrInvalidStateRoot), "got: %v", err)
+	require.ErrorIs(t, err, core.ErrHdrInvalidStateRoot)
 
 	b = e.NewUnsignedBlock(t)
 	e.SignBlock(b)
@@ -455,7 +455,7 @@ func TestBlockchain_AddHeadersStateRoot(t *testing.T) {
 
 	// invalid stateroot
 	h1.PrevStateRoot[0] ^= 0xFF
-	require.True(t, errors.Is(bc.AddHeaders(&h1), core.ErrHdrInvalidStateRoot))
+	require.ErrorIs(t, bc.AddHeaders(&h1), core.ErrHdrInvalidStateRoot)
 
 	// valid stateroot
 	h1.PrevStateRoot = r
@@ -597,12 +597,12 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 			newH[0] = ^newH[0]
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
 			_, err := bc.VerifyWitness(newH, nil, w, gas)
-			require.True(t, errors.Is(err, core.ErrUnknownVerificationContract))
+			require.ErrorIs(t, err, core.ErrUnknownVerificationContract)
 		})
 		t.Run("Invalid", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
 			_, err := bc.VerifyWitness(csInvalid.Hash, nil, w, gas)
-			require.True(t, errors.Is(err, core.ErrInvalidVerificationContract))
+			require.ErrorIs(t, err, core.ErrInvalidVerificationContract)
 		})
 		t.Run("ValidSignature", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH4)}}
@@ -612,7 +612,7 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 		t.Run("InvalidSignature", func(t *testing.T) {
 			w := &transaction.Witness{InvocationScript: []byte{byte(opcode.PUSH3)}}
 			_, err := bc.VerifyWitness(cs.Hash, nil, w, gas)
-			require.True(t, errors.Is(err, core.ErrVerificationFailed))
+			require.ErrorIs(t, err, core.ErrVerificationFailed)
 		})
 	})
 	t.Run("NotEnoughGas", func(t *testing.T) {
@@ -622,7 +622,7 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 			VerificationScript: verif,
 		}
 		_, err := bc.VerifyWitness(hash.Hash160(verif), nil, w, 1)
-		require.True(t, errors.Is(err, core.ErrVerificationFailed))
+		require.ErrorIs(t, err, core.ErrVerificationFailed)
 	})
 	t.Run("NoResult", func(t *testing.T) {
 		verif := []byte{byte(opcode.DROP)}
@@ -631,7 +631,7 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 			VerificationScript: verif,
 		}
 		_, err := bc.VerifyWitness(hash.Hash160(verif), nil, w, gas)
-		require.True(t, errors.Is(err, core.ErrVerificationFailed))
+		require.ErrorIs(t, err, core.ErrVerificationFailed)
 	})
 	t.Run("BadResult", func(t *testing.T) {
 		verif := make([]byte, keys.SignatureLen+2)
@@ -642,7 +642,7 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 			VerificationScript: verif,
 		}
 		_, err := bc.VerifyWitness(hash.Hash160(verif), nil, w, gas)
-		require.True(t, errors.Is(err, core.ErrVerificationFailed))
+		require.ErrorIs(t, err, core.ErrVerificationFailed)
 	})
 	t.Run("TooManyResults", func(t *testing.T) {
 		verif := []byte{byte(opcode.NOP)}
@@ -651,7 +651,7 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 			VerificationScript: verif,
 		}
 		_, err := bc.VerifyWitness(hash.Hash160(verif), nil, w, gas)
-		require.True(t, errors.Is(err, core.ErrVerificationFailed))
+		require.ErrorIs(t, err, core.ErrVerificationFailed)
 	})
 }
 
@@ -713,10 +713,10 @@ func TestBlockchain_IsTxStillRelevant(t *testing.T) {
 		src := fmt.Sprintf(`package verify
 		import (
 			"github.com/nspcc-dev/neo-go/pkg/interop/contract"
-			"github.com/nspcc-dev/neo-go/pkg/interop/util"
+			"github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
 		)
 		func Verify() bool {
-			addr := util.FromAddress("`+address.Uint160ToString(e.NativeHash(t, nativenames.Ledger))+`")
+			addr := address.ToHash160("`+address.Uint160ToString(e.NativeHash(t, nativenames.Ledger))+`")
 			currentHeight := contract.Call(addr, "currentIndex", contract.ReadStates)
 			return currentHeight.(int) < %d
 		}`, bc.BlockHeight()+2) // deploy + next block
@@ -802,9 +802,6 @@ func TestBlockchain_GetTransaction(t *testing.T) {
 
 func TestBlockchain_GetClaimable(t *testing.T) {
 	bc, acc := chain.NewSingle(t)
-	e := neotest.NewExecutor(t, bc, acc, acc)
-
-	e.GenerateNewBlocks(t, 10)
 
 	t.Run("first generation period", func(t *testing.T) {
 		amount, err := bc.CalculateClaimable(acc.ScriptHash(), 1)
@@ -1087,7 +1084,7 @@ func TestBlockchain_MPTDeleteNoKey(t *testing.T) {
 // native contract.
 func TestConfigNativeUpdateHistory(t *testing.T) {
 	var prefixPath = filepath.Join("..", "..", "config")
-	check := func(t *testing.T, cfgFileSuffix interface{}) {
+	check := func(t *testing.T, cfgFileSuffix any) {
 		cfgPath := filepath.Join(prefixPath, fmt.Sprintf("protocol.%s.yml", cfgFileSuffix))
 		cfg, err := config.LoadFile(cfgPath)
 		require.NoError(t, err, fmt.Errorf("failed to load %s", cfgPath))
@@ -1101,7 +1098,7 @@ func TestConfigNativeUpdateHistory(t *testing.T) {
 					"edit the test if the contract should be disabled", cfgPath, c.Metadata().Name))
 		}
 	}
-	testCases := []interface{}{
+	testCases := []any{
 		netmode.MainNet,
 		netmode.PrivNet,
 		netmode.TestNet,
@@ -1168,7 +1165,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 
 	checkErr := func(t *testing.T, expectedErr error, tx *transaction.Transaction) {
 		err := bc.VerifyTx(tx)
-		require.True(t, errors.Is(err, expectedErr), "expected: %v, got: %v", expectedErr, err)
+		require.ErrorIs(t, err, expectedErr)
 	}
 
 	testScript := []byte{byte(opcode.PUSH1)}
@@ -1324,7 +1321,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		tx2.NetworkFee = balance / 2
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx2))
 		err := bc.PoolTx(tx2)
-		require.True(t, errors.Is(err, core.ErrMemPoolConflict))
+		require.ErrorIs(t, err, core.ErrMemPoolConflict)
 	})
 	t.Run("InvalidWitnessHash", func(t *testing.T) {
 		tx := newTestTx(t, h, testScript)
@@ -1361,10 +1358,10 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		require.NoError(t, bc.PoolTx(tx))
 
 		err := bc.PoolTx(tx)
-		require.True(t, errors.Is(err, core.ErrAlreadyExists))
+		require.ErrorIs(t, err, core.ErrAlreadyExists)
 	})
 	t.Run("MemPoolOOM", func(t *testing.T) {
-		mp := mempool.New(1, 0, false)
+		mp := mempool.New(1, 0, false, nil)
 		tx1 := newTestTx(t, h, testScript)
 		tx1.NetworkFee += 10000 // Give it more priority.
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx1))
@@ -1373,7 +1370,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 		tx2 := newTestTx(t, h, testScript)
 		require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx2))
 		err := bc.PoolTx(tx2, mp)
-		require.True(t, errors.Is(err, core.ErrOOM))
+		require.ErrorIs(t, err, core.ErrOOM)
 	})
 	t.Run("Attribute", func(t *testing.T) {
 		t.Run("InvalidHighPriority", func(t *testing.T) {
@@ -1453,7 +1450,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				checkErr(t, core.ErrInvalidAttribute, tx)
 			})
 
-			keys := make([]interface{}, 0, len(oraclePubs))
+			keys := make([]any, 0, len(oraclePubs))
 			for _, p := range oraclePubs {
 				keys = append(keys, p.Bytes())
 			}
@@ -1479,7 +1476,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 						emit.String(w.BinWriter, nativenames.Oracle)
 						tx.Scripts[len(tx.Scripts)-1].VerificationScript = w.Bytes()
 						err := bc.VerifyTx(tx)
-						require.True(t, errors.Is(err, core.ErrNativeContractWitness), "got: %v", err)
+						require.ErrorIs(t, err, core.ErrNativeContractWitness)
 					})
 					t.Run("Good", func(t *testing.T) {
 						tx.Scripts[len(tx.Scripts)-1].VerificationScript = nil
@@ -1552,7 +1549,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			t.Run("Enabled", func(t *testing.T) {
 				t.Run("NotYetValid", func(t *testing.T) {
 					tx := getNVBTx(e, bc.BlockHeight()+1)
-					require.True(t, errors.Is(bc.VerifyTx(tx), core.ErrInvalidAttribute))
+					require.ErrorIs(t, bc.VerifyTx(tx), core.ErrInvalidAttribute)
 				})
 				t.Run("positive", func(t *testing.T) {
 					tx := getNVBTx(e, bc.BlockHeight())
@@ -1637,28 +1634,272 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			})
 			t.Run("enabled", func(t *testing.T) {
 				t.Run("dummy on-chain conflict", func(t *testing.T) {
-					tx := newTestTx(t, h, testScript)
-					require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
-					conflicting := transaction.New([]byte{byte(opcode.RET)}, 1000_0000)
-					conflicting.ValidUntilBlock = bc.BlockHeight() + 1
-					conflicting.Signers = []transaction.Signer{
-						{
-							Account: validator.ScriptHash(),
-							Scopes:  transaction.CalledByEntry,
-						},
-					}
-					conflicting.Attributes = []transaction.Attribute{
-						{
-							Type: transaction.ConflictsT,
-							Value: &transaction.Conflicts{
-								Hash: tx.Hash(),
+					t.Run("on-chain conflict signed by malicious party", func(t *testing.T) {
+						tx := newTestTx(t, h, testScript)
+						require.NoError(t, accs[0].SignTx(netmode.UnitTestNet, tx))
+						conflicting := transaction.New([]byte{byte(opcode.RET)}, 1000_0000)
+						conflicting.ValidUntilBlock = bc.BlockHeight() + 1
+						conflicting.Signers = []transaction.Signer{
+							{
+								Account: validator.ScriptHash(),
+								Scopes:  transaction.CalledByEntry,
 							},
-						},
-					}
-					conflicting.NetworkFee = 1000_0000
-					require.NoError(t, validator.SignTx(netmode.UnitTestNet, conflicting))
-					e.AddNewBlock(t, conflicting)
-					require.True(t, errors.Is(bc.VerifyTx(tx), core.ErrHasConflicts))
+						}
+						conflicting.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: tx.Hash(),
+								},
+							},
+						}
+						conflicting.NetworkFee = 1000_0000
+						require.NoError(t, validator.SignTx(netmode.UnitTestNet, conflicting))
+						e.AddNewBlock(t, conflicting)
+						// We expect `tx` to pass verification, because on-chained `conflicting` doesn't have
+						// `tx`'s payer in the signers list, thus, `conflicting` should be considered as
+						// malicious conflict.
+						require.NoError(t, bc.VerifyTx(tx))
+					})
+					t.Run("multiple on-chain conflicts signed by malicious parties", func(t *testing.T) {
+						m1 := e.NewAccount(t)
+						m2 := e.NewAccount(t)
+						m3 := e.NewAccount(t)
+						good := e.NewAccount(t)
+
+						// txGood doesn't conflict with anyone and signed by good signer.
+						txGood := newTestTx(t, good.ScriptHash(), testScript)
+						require.NoError(t, good.SignTx(netmode.UnitTestNet, txGood))
+
+						// txM1 conflicts with txGood and signed by two malicious signers.
+						txM1 := newTestTx(t, m1.ScriptHash(), testScript)
+						txM1.Signers = append(txM1.Signers, transaction.Signer{Account: m2.ScriptHash()})
+						txM1.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: txGood.Hash(),
+								},
+							},
+						}
+						txM1.NetworkFee = 1_000_0000
+						require.NoError(t, m1.SignTx(netmode.UnitTestNet, txM1))
+						require.NoError(t, m2.SignTx(netmode.UnitTestNet, txM1))
+						e.AddNewBlock(t, txM1)
+
+						// txM2 conflicts with txGood and signed by one malicious signer.
+						txM2 := newTestTx(t, m3.ScriptHash(), testScript)
+						txM2.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: txGood.Hash(),
+								},
+							},
+						}
+						txM2.NetworkFee = 1_000_0000
+						require.NoError(t, m3.SignTx(netmode.UnitTestNet, txM2))
+						e.AddNewBlock(t, txM2)
+
+						// We expect `tx` to pass verification, because on-chained `conflicting` doesn't have
+						// `tx`'s payer in the signers list, thus, `conflicting` should be considered as
+						// malicious conflict.
+						require.NoError(t, bc.VerifyTx(txGood))
+
+						// After that txGood can be added to the chain normally.
+						e.AddNewBlock(t, txGood)
+
+						// And after that ErrAlreadyExist is expected on verification.
+						require.ErrorIs(t, bc.VerifyTx(txGood), core.ErrAlreadyExists)
+					})
+
+					t.Run("multiple on-chain conflicts signed by [valid+malicious] parties", func(t *testing.T) {
+						m1 := e.NewAccount(t)
+						m2 := e.NewAccount(t)
+						m3 := e.NewAccount(t)
+						good := e.NewAccount(t)
+
+						// txGood doesn't conflict with anyone and signed by good signer.
+						txGood := newTestTx(t, good.ScriptHash(), testScript)
+						require.NoError(t, good.SignTx(netmode.UnitTestNet, txGood))
+
+						// txM1 conflicts with txGood and signed by one malicious and one good signers.
+						txM1 := newTestTx(t, m1.ScriptHash(), testScript)
+						txM1.Signers = append(txM1.Signers, transaction.Signer{Account: good.ScriptHash()})
+						txM1.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: txGood.Hash(),
+								},
+							},
+						}
+						txM1.NetworkFee = 1_000_0000
+						require.NoError(t, m1.SignTx(netmode.UnitTestNet, txM1))
+						require.NoError(t, good.SignTx(netmode.UnitTestNet, txM1))
+						e.AddNewBlock(t, txM1)
+
+						// txM2 conflicts with txGood and signed by two malicious signers.
+						txM2 := newTestTx(t, m2.ScriptHash(), testScript)
+						txM2.Signers = append(txM2.Signers, transaction.Signer{Account: m3.ScriptHash()})
+						txM2.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: txGood.Hash(),
+								},
+							},
+						}
+						txM2.NetworkFee = 1_000_0000
+						require.NoError(t, m2.SignTx(netmode.UnitTestNet, txM2))
+						require.NoError(t, m3.SignTx(netmode.UnitTestNet, txM2))
+						e.AddNewBlock(t, txM2)
+
+						// We expect `tx` to fail verification, because one of the on-chained `conflicting`
+						// transactions has common signers with `tx`, thus, `conflicting` should be
+						// considered as a valid conflict.
+						require.ErrorIs(t, bc.VerifyTx(txGood), core.ErrHasConflicts)
+					})
+
+					t.Run("multiple on-chain conflicts signed by [malicious+valid] parties", func(t *testing.T) {
+						m1 := e.NewAccount(t)
+						m2 := e.NewAccount(t)
+						m3 := e.NewAccount(t)
+						good := e.NewAccount(t)
+
+						// txGood doesn't conflict with anyone and signed by good signer.
+						txGood := newTestTx(t, good.ScriptHash(), testScript)
+						require.NoError(t, good.SignTx(netmode.UnitTestNet, txGood))
+
+						// txM2 conflicts with txGood and signed by two malicious signers.
+						txM2 := newTestTx(t, m2.ScriptHash(), testScript)
+						txM2.Signers = append(txM2.Signers, transaction.Signer{Account: m3.ScriptHash()})
+						txM2.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: txGood.Hash(),
+								},
+							},
+						}
+						txM2.NetworkFee = 1_000_0000
+						require.NoError(t, m2.SignTx(netmode.UnitTestNet, txM2))
+						require.NoError(t, m3.SignTx(netmode.UnitTestNet, txM2))
+						e.AddNewBlock(t, txM2)
+
+						// txM1 conflicts with txGood and signed by one malicious and one good signers.
+						txM1 := newTestTx(t, m1.ScriptHash(), testScript)
+						txM1.Signers = append(txM1.Signers, transaction.Signer{Account: good.ScriptHash()})
+						txM1.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: txGood.Hash(),
+								},
+							},
+						}
+						txM1.NetworkFee = 1_000_0000
+						require.NoError(t, m1.SignTx(netmode.UnitTestNet, txM1))
+						require.NoError(t, good.SignTx(netmode.UnitTestNet, txM1))
+						e.AddNewBlock(t, txM1)
+
+						// We expect `tx` to fail verification, because one of the on-chained `conflicting`
+						// transactions has common signers with `tx`, thus, `conflicting` should be
+						// considered as a valid conflict.
+						require.ErrorIs(t, bc.VerifyTx(txGood), core.ErrHasConflicts)
+					})
+
+					t.Run("multiple on-chain conflicts signed by [valid + malicious + valid] parties", func(t *testing.T) {
+						m1 := e.NewAccount(t)
+						m2 := e.NewAccount(t)
+						m3 := e.NewAccount(t)
+						good := e.NewAccount(t)
+
+						// txGood doesn't conflict with anyone and signed by good signer.
+						txGood := newTestTx(t, good.ScriptHash(), testScript)
+						require.NoError(t, good.SignTx(netmode.UnitTestNet, txGood))
+
+						// txM1 conflicts with txGood and signed by one malicious and one good signers.
+						txM1 := newTestTx(t, m1.ScriptHash(), testScript)
+						txM1.Signers = append(txM1.Signers, transaction.Signer{Account: good.ScriptHash()})
+						txM1.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: txGood.Hash(),
+								},
+							},
+						}
+						txM1.NetworkFee = 1_000_0000
+						require.NoError(t, m1.SignTx(netmode.UnitTestNet, txM1))
+						require.NoError(t, good.SignTx(netmode.UnitTestNet, txM1))
+						e.AddNewBlock(t, txM1)
+
+						// txM2 conflicts with txGood and signed by two malicious signers.
+						txM2 := newTestTx(t, m2.ScriptHash(), testScript)
+						txM2.Signers = append(txM2.Signers, transaction.Signer{Account: m3.ScriptHash()})
+						txM2.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: txGood.Hash(),
+								},
+							},
+						}
+						txM2.NetworkFee = 1_000_0000
+						require.NoError(t, m2.SignTx(netmode.UnitTestNet, txM2))
+						require.NoError(t, m3.SignTx(netmode.UnitTestNet, txM2))
+						e.AddNewBlock(t, txM2)
+
+						// txM3 conflicts with txGood and signed by one good and one malicious signers.
+						txM3 := newTestTx(t, good.ScriptHash(), testScript)
+						txM3.Signers = append(txM3.Signers, transaction.Signer{Account: m1.ScriptHash()})
+						txM3.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: txGood.Hash(),
+								},
+							},
+						}
+						txM3.NetworkFee = 1_000_0000
+						require.NoError(t, good.SignTx(netmode.UnitTestNet, txM3))
+						require.NoError(t, m1.SignTx(netmode.UnitTestNet, txM3))
+						e.AddNewBlock(t, txM3)
+
+						// We expect `tx` to fail verification, because one of the on-chained `conflicting`
+						// transactions has common signers with `tx`, thus, `conflicting` should be
+						// considered as a valid conflict.
+						require.ErrorIs(t, bc.VerifyTx(txGood), core.ErrHasConflicts)
+					})
+
+					t.Run("on-chain conflict signed by single valid sender", func(t *testing.T) {
+						tx := newTestTx(t, h, testScript)
+						tx.Signers = []transaction.Signer{{Account: validator.ScriptHash()}}
+						require.NoError(t, validator.SignTx(netmode.UnitTestNet, tx))
+						conflicting := transaction.New([]byte{byte(opcode.RET)}, 1000_0000)
+						conflicting.ValidUntilBlock = bc.BlockHeight() + 1
+						conflicting.Signers = []transaction.Signer{
+							{
+								Account: validator.ScriptHash(),
+								Scopes:  transaction.CalledByEntry,
+							},
+						}
+						conflicting.Attributes = []transaction.Attribute{
+							{
+								Type: transaction.ConflictsT,
+								Value: &transaction.Conflicts{
+									Hash: tx.Hash(),
+								},
+							},
+						}
+						conflicting.NetworkFee = 1000_0000
+						require.NoError(t, validator.SignTx(netmode.UnitTestNet, conflicting))
+						e.AddNewBlock(t, conflicting)
+						// We expect `tx` to fail verification, because on-chained `conflicting` has
+						// `tx`'s payer as a signer.
+						require.ErrorIs(t, bc.VerifyTx(tx), core.ErrHasConflicts)
+					})
 				})
 				t.Run("attribute on-chain conflict", func(t *testing.T) {
 					tx := neoValidatorsInvoker.Invoke(t, stackitem.NewBool(true), "transfer", neoOwner, neoOwner, 1, nil)
@@ -1675,7 +1916,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			notary, err := wallet.NewAccount()
 			require.NoError(t, err)
 			designateSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-				int64(noderoles.P2PNotary), []interface{}{notary.PublicKey().Bytes()})
+				int64(noderoles.P2PNotary), []any{notary.PublicKey().Bytes()})
 			txSetNotary := transaction.New([]byte{byte(opcode.RET)}, 0)
 			txSetNotary.Signers = []transaction.Signer{
 				{
@@ -1923,8 +2164,8 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			return tx
 		}
 
-		mp := mempool.New(10, 1, false)
-		verificationF := func(tx *transaction.Transaction, data interface{}) error {
+		mp := mempool.New(10, 1, false, nil)
+		verificationF := func(tx *transaction.Transaction, data any) error {
 			if data.(int) > 5 {
 				return errors.New("bad data")
 			}
@@ -1953,13 +2194,13 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			maxNVB, err := bc.GetMaxNotValidBeforeDelta()
 			require.NoError(t, err)
 			tx := getPartiallyFilledTx(bc.BlockHeight()+maxNVB+1, bc.BlockHeight()+1)
-			require.True(t, errors.Is(bc.PoolTxWithData(tx, 5, mp, bc, verificationF), core.ErrInvalidAttribute))
+			require.ErrorIs(t, bc.PoolTxWithData(tx, 5, mp, bc, verificationF), core.ErrInvalidAttribute)
 		})
 		t.Run("bad ValidUntilBlock: too small", func(t *testing.T) {
 			maxNVB, err := bc.GetMaxNotValidBeforeDelta()
 			require.NoError(t, err)
 			tx := getPartiallyFilledTx(bc.BlockHeight(), bc.BlockHeight()+maxNVB+1)
-			require.True(t, errors.Is(bc.PoolTxWithData(tx, 5, mp, bc, verificationF), core.ErrInvalidAttribute))
+			require.ErrorIs(t, bc.PoolTxWithData(tx, 5, mp, bc, verificationF), core.ErrInvalidAttribute)
 		})
 		t.Run("good", func(t *testing.T) {
 			tx := getPartiallyFilledTx(bc.BlockHeight(), bc.BlockHeight()+1)
@@ -1976,7 +2217,7 @@ func TestBlockchain_Bug1728(t *testing.T) {
 	src := `package example
 	import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	func init() { if true { } else { } }
-	func _deploy(_ interface{}, isUpdate bool) {
+	func _deploy(_ any, isUpdate bool) {
 		runtime.Log("Deploy")
 	}`
 	c := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(src), &compiler.Options{Name: "TestContract"})

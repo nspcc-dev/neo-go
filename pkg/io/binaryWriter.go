@@ -68,7 +68,7 @@ func (w *BinWriter) WriteBool(b bool) {
 // WriteArray writes a slice or an array arr into w. Note that nil slices and
 // empty slices are gonna be treated the same resulting in an equal zero-length
 // array encoded.
-func (w *BinWriter) WriteArray(arr interface{}) {
+func (w *BinWriter) WriteArray(arr any) {
 	switch val := reflect.ValueOf(arr); val.Kind() {
 	case reflect.Slice, reflect.Array:
 		if w.Err != nil {

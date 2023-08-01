@@ -110,7 +110,7 @@ type codegen struct {
 	docIndex map[string]int
 
 	// emittedEvents contains all events emitted by the contract.
-	emittedEvents map[string][][]string
+	emittedEvents map[string][]EmittedEventInfo
 
 	// invokedContracts contains invoked methods of other contracts.
 	invokedContracts map[util.Uint160][]string
@@ -458,10 +458,10 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 	} else {
 		f, ok = c.funcs[c.getFuncNameFromDecl("", decl)]
 		if ok {
-			// If this function is a syscall or builtin we will not convert it to bytecode.
+			// If this function is a syscall we will not convert it to bytecode.
 			// If it's a potential custom builtin then it needs more specific usages research,
 			// thus let's emit the code for it.
-			if isSyscall(f) || isCustomBuiltin(f) {
+			if isSyscall(f) {
 				return f
 			}
 			c.setLabel(f.label)
@@ -978,7 +978,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			f, ok = c.funcs[name]
 			if ok {
 				f.selector = fun.X
-				isBuiltin = isCustomBuiltin(f) || isPotentialCustomBuiltin(f, n)
+				isBuiltin = isPotentialCustomBuiltin(f, n)
 				if canInline(f.pkg.Path(), f.decl.Name.Name, isBuiltin) {
 					c.inlineCall(f, n)
 					return nil
@@ -1926,7 +1926,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 		c.emitStoreByIndex(varGlobal, c.exceptionIndex)
 	case "delete":
 		emit.Opcodes(c.prog.BinWriter, opcode.REMOVE)
-	case "FromAddress", "ToHash160":
+	case "ToHash160":
 		// We can be sure that this is an ast.BasicLit just containing a simple
 		// address string. Note that the string returned from calling Value will
 		// contain double quotes that need to be stripped.
@@ -1946,7 +1946,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 // transformArgs returns a list of function arguments
 // which should be put on stack.
 // There are special cases for builtins:
-//  1. With FromAddress and with ToHash160 in case if it behaves like builtin,
+//  1. With ToHash160 in case if it behaves like builtin,
 //     parameter conversion is happening at compile-time so there is no need to
 //     push parameters on stack and perform an actual call
 //  2. With panic, the generated code depends on the fact if an argument was nil or a string;
@@ -1954,7 +1954,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 func transformArgs(fs *funcScope, fun ast.Expr, isBuiltin bool, args []ast.Expr) []ast.Expr {
 	switch f := fun.(type) {
 	case *ast.SelectorExpr:
-		if f.Sel.Name == "FromAddress" || (isBuiltin && f.Sel.Name == "ToHash160") {
+		if isBuiltin && f.Sel.Name == "ToHash160" {
 			return args[1:]
 		}
 		if fs != nil && isSyscall(fs) {
@@ -2269,7 +2269,7 @@ func newCodegen(info *buildInfo, pkg *packages.Package) *codegen {
 		initEndOffset:   -1,
 		deployEndOffset: -1,
 
-		emittedEvents:    make(map[string][][]string),
+		emittedEvents:    make(map[string][]EmittedEventInfo),
 		invokedContracts: make(map[util.Uint160][]string),
 		sequencePoints:   make(map[string][]DebugSeqPoint),
 	}

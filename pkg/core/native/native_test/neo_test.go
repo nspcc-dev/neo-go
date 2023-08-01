@@ -3,13 +3,16 @@ package native_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"math"
 	"math/big"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -305,6 +308,15 @@ func TestNEO_GetAccountState(t *testing.T) {
 	neoValidatorInvoker := newNeoValidatorsClient(t)
 	e := neoValidatorInvoker.Executor
 
+	cfg := e.Chain.GetConfig()
+	committeeSize := cfg.GetCommitteeSize(0)
+	validatorSize := cfg.GetNumOfCNs(0)
+	advanceChain := func(t *testing.T) {
+		for i := 0; i < committeeSize; i++ {
+			neoValidatorInvoker.AddNewBlock(t)
+		}
+	}
+
 	t.Run("empty", func(t *testing.T) {
 		neoValidatorInvoker.Invoke(t, stackitem.Null{}, "getAccountState", util.Uint160{})
 	})
@@ -318,8 +330,100 @@ func TestNEO_GetAccountState(t *testing.T) {
 			stackitem.Make(amount),
 			stackitem.Make(lub),
 			stackitem.Null{},
+			stackitem.Make(0),
 		}), "getAccountState", acc.ScriptHash())
 	})
+
+	t.Run("lastGasPerVote", func(t *testing.T) {
+		const (
+			GasPerBlock      = 5
+			VoterRewardRatio = 80
+		)
+		getAccountState := func(t *testing.T, account util.Uint160) *state.NEOBalance {
+			stack, err := neoValidatorInvoker.TestInvoke(t, "getAccountState", account)
+			require.NoError(t, err)
+			as := new(state.NEOBalance)
+			err = as.FromStackItem(stack.Pop().Item())
+			require.NoError(t, err)
+			return as
+		}
+
+		amount := int64(1000)
+		acc := e.NewAccount(t)
+		neoValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), acc.ScriptHash(), amount, nil)
+		as := getAccountState(t, acc.ScriptHash())
+		require.Equal(t, uint64(amount), as.Balance.Uint64())
+		require.Equal(t, e.Chain.BlockHeight(), as.BalanceHeight)
+		require.Equal(t, uint64(0), as.LastGasPerVote.Uint64())
+		committee, _ := e.Chain.GetCommittee()
+		neoValidatorInvoker.WithSigners(e.Validator, e.Validator.(neotest.MultiSigner).Single(0)).Invoke(t, true, "registerCandidate", committee[0].Bytes())
+		neoValidatorInvoker.WithSigners(acc).Invoke(t, true, "vote", acc.ScriptHash(), committee[0].Bytes())
+		as = getAccountState(t, acc.ScriptHash())
+		require.Equal(t, uint64(0), as.LastGasPerVote.Uint64())
+		advanceChain(t)
+		neoValidatorInvoker.WithSigners(acc).Invoke(t, true, "transfer", acc.ScriptHash(), acc.ScriptHash(), amount, nil)
+		as = getAccountState(t, acc.ScriptHash())
+		expect := GasPerBlock * native.GASFactor * VoterRewardRatio / 100 * (uint64(e.Chain.BlockHeight()) / uint64(committeeSize))
+		expect = expect * uint64(committeeSize) / uint64(validatorSize+committeeSize) * native.NEOTotalSupply / as.Balance.Uint64()
+		require.Equal(t, e.Chain.BlockHeight(), as.BalanceHeight)
+		require.Equal(t, expect, as.LastGasPerVote.Uint64())
+	})
+}
+
+func TestNEO_GetAccountStateInteropAPI(t *testing.T) {
+	neoValidatorInvoker := newNeoValidatorsClient(t)
+	e := neoValidatorInvoker.Executor
+
+	cfg := e.Chain.GetConfig()
+	committeeSize := cfg.GetCommitteeSize(0)
+	validatorSize := cfg.GetNumOfCNs(0)
+	advanceChain := func(t *testing.T) {
+		for i := 0; i < committeeSize; i++ {
+			neoValidatorInvoker.AddNewBlock(t)
+		}
+	}
+
+	amount := int64(1000)
+	acc := e.NewAccount(t)
+	neoValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), acc.ScriptHash(), amount, nil)
+	committee, _ := e.Chain.GetCommittee()
+	neoValidatorInvoker.WithSigners(e.Validator, e.Validator.(neotest.MultiSigner).Single(0)).Invoke(t, true, "registerCandidate", committee[0].Bytes())
+	neoValidatorInvoker.WithSigners(acc).Invoke(t, true, "vote", acc.ScriptHash(), committee[0].Bytes())
+	advanceChain(t)
+	neoValidatorInvoker.WithSigners(acc).Invoke(t, true, "transfer", acc.ScriptHash(), acc.ScriptHash(), amount, nil)
+
+	var hashAStr string
+	for i := 0; i < util.Uint160Size; i++ {
+		hashAStr += fmt.Sprintf("%#x", acc.ScriptHash()[i])
+		if i != util.Uint160Size-1 {
+			hashAStr += ", "
+		}
+	}
+	src := `package testaccountstate
+	  import (
+		  "github.com/nspcc-dev/neo-go/pkg/interop/native/neo"
+		  "github.com/nspcc-dev/neo-go/pkg/interop"
+	  )
+	  func GetLastGasPerVote() int {
+		  accState := neo.GetAccountState(interop.Hash160{` + hashAStr + `})
+		  if accState == nil {
+			  panic("nil state")
+		  }
+		  return accState.LastGasPerVote
+	  }`
+	ctr := neotest.CompileSource(t, e.Validator.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "testaccountstate_contract",
+	})
+	e.DeployContract(t, ctr, nil)
+
+	const (
+		GasPerBlock      = 5
+		VoterRewardRatio = 80
+	)
+	expect := GasPerBlock * native.GASFactor * VoterRewardRatio / 100 * (uint64(e.Chain.BlockHeight()) / uint64(committeeSize))
+	expect = expect * uint64(committeeSize) / uint64(validatorSize+committeeSize) * native.NEOTotalSupply / uint64(amount)
+	ctrInvoker := e.NewInvoker(ctr.Hash, e.Committee)
+	ctrInvoker.Invoke(t, stackitem.Make(expect), "getLastGasPerVote")
 }
 
 func TestNEO_CommitteeBountyOnPersist(t *testing.T) {

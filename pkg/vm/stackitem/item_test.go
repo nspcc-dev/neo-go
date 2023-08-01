@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 var makeStackItemTestCases = []struct {
-	input  interface{}
+	input  any
 	result Item
 }{
 	{
@@ -81,10 +82,26 @@ var makeStackItemTestCases = []struct {
 		input:  nil,
 		result: Null{},
 	},
+	{
+		input:  &util.Uint160{1, 2, 3},
+		result: NewByteArray(util.Uint160{1, 2, 3}.BytesBE()),
+	},
+	{
+		input:  &util.Uint256{1, 2, 3},
+		result: NewByteArray(util.Uint256{1, 2, 3}.BytesBE()),
+	},
+	{
+		input:  (*util.Uint160)(nil),
+		result: Null{},
+	},
+	{
+		input:  (*util.Uint256)(nil),
+		result: Null{},
+	},
 }
 
 var makeStackItemErrorCases = []struct {
-	input interface{}
+	input any
 }{
 	{
 		input: map[int]int{1: 2},

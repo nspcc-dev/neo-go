@@ -1,10 +1,14 @@
 package util
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"os"
 
 	"github.com/nspcc-dev/neo-go/cli/options"
 	vmcli "github.com/nspcc-dev/neo-go/cli/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/urfave/cli"
 )
 
@@ -44,6 +48,22 @@ func NewCommands() []cli.Command {
 					Action:    txDump,
 					Flags:     txDumpFlags,
 				},
+				{
+					Name:      "ops",
+					Usage:     "Pretty-print VM opcodes of the given base64- or hex- encoded script (base64 is checked first). If the input file is specified, then the script is taken from the file.",
+					UsageText: "ops <base64/hex-encoded script> [-i path-to-file] [--hex]",
+					Action:    handleOps,
+					Flags: []cli.Flag{
+						cli.StringFlag{
+							Name:  "in, i",
+							Usage: "input file containing base64- or hex- encoded script representation",
+						},
+						cli.BoolFlag{
+							Name:  "hex",
+							Usage: "use hex encoding and do not check base64",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -55,5 +75,37 @@ func handleParse(ctx *cli.Context) error {
 		return cli.NewExitError(err, 1)
 	}
 	fmt.Fprint(ctx.App.Writer, res)
+	return nil
+}
+
+func handleOps(ctx *cli.Context) error {
+	var (
+		s   string
+		err error
+		b   []byte
+	)
+	in := ctx.String("in")
+	if len(in) != 0 {
+		b, err := os.ReadFile(in)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to read file: %w", err), 1)
+		}
+		s = string(b)
+	} else {
+		if !ctx.Args().Present() {
+			return cli.NewExitError("missing script", 1)
+		}
+		s = ctx.Args()[0]
+	}
+	b, err = base64.StdEncoding.DecodeString(s)
+	if err != nil || ctx.Bool("hex") {
+		b, err = hex.DecodeString(s)
+	}
+	if err != nil {
+		return cli.NewExitError("unknown encoding: base64 or hex are supported", 1)
+	}
+	v := vm.New()
+	v.LoadScript(b)
+	v.PrintOps(ctx.App.Writer)
 	return nil
 }

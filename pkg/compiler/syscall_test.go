@@ -44,6 +44,7 @@ func TestFindFlags(t *testing.T) {
 	require.EqualValues(t, storage.DeserializeValues, istorage.FindDeserialize)
 	require.EqualValues(t, storage.PickField0, istorage.FindPick0)
 	require.EqualValues(t, storage.PickField1, istorage.FindPick1)
+	require.EqualValues(t, storage.Backwards, istorage.FindBackwards)
 }
 
 type syscallTestCase struct {
@@ -121,7 +122,7 @@ func TestSyscallExecution(t *testing.T) {
 		if tc.isVoid {
 			tmpl = "func %s() { %s(%s) }\n"
 		} else {
-			tmpl = "func %s() interface{} { return %s(%s) }\n"
+			tmpl = "func %s() any { return %s(%s) }\n"
 		}
 		srcBuilder.WriteString(fmt.Sprintf(tmpl, realName, goName, strings.Join(tc.params, ", ")))
 	}

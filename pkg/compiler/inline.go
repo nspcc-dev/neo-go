@@ -7,6 +7,7 @@ import (
 	"go/types"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -172,11 +173,21 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr, hasEllipsis bool)
 		return nil
 	}
 
-	params := make([]string, 0, len(args[1:]))
+	params := make([]DebugParam, 0, len(args[1:]))
 	vParams := make([]*stackitem.Type, 0, len(args[1:]))
+	// extMap holds the extended parameter types used for the given event call.
+	// It will be unified with the common extMap later during bindings config
+	// generation.
+	extMap := make(map[string]binding.ExtendedType)
 	for _, p := range args[1:] {
-		st, vt, _, _ := c.scAndVMTypeFromExpr(p, nil)
-		params = append(params, st.String())
+		st, vt, over, extT := c.scAndVMTypeFromExpr(p, extMap)
+		params = append(params, DebugParam{
+			Name:         "", // Parameter name will be filled in several lines below if the corresponding event exists in the buildinfo.options.
+			Type:         vt.String(),
+			RealType:     over,
+			ExtendedType: extT,
+			TypeSC:       st,
+		})
 		vParams = append(vParams, &vt)
 	}
 
@@ -187,36 +198,43 @@ func (c *codegen) processNotify(f *funcScope, args []ast.Expr, hasEllipsis bool)
 		return nil
 	}
 	var eventFound bool
-	if c.buildInfo.options != nil && c.buildInfo.options.ContractEvents != nil && !c.buildInfo.options.NoEventsCheck {
+	if c.buildInfo.options != nil && c.buildInfo.options.ContractEvents != nil {
 		for _, e := range c.buildInfo.options.ContractEvents {
 			if e.Name == name && len(e.Parameters) == len(vParams) {
 				eventFound = true
 				for i, scParam := range e.Parameters {
-					expectedType := scParam.Type.ConvertToStackitemType()
-					// No need to cast if the desired type is unknown.
-					if expectedType == stackitem.AnyT ||
-						// Do not cast if desired type is Interop, the actual type is likely to be Any, leave the resolving to runtime.Notify.
-						expectedType == stackitem.InteropT ||
-						// No need to cast if actual parameter type matches the desired one.
-						*vParams[i] == expectedType ||
-						// expectedType doesn't contain Buffer anyway, but if actual variable type is Buffer,
-						// then runtime.Notify will convert it to ByteArray automatically, thus no need to emit conversion code.
-						(*vParams[i] == stackitem.BufferT && expectedType == stackitem.ByteArrayT) {
-						vParams[i] = nil
-					} else {
-						// For other cases the conversion code will be emitted using vParams...
-						vParams[i] = &expectedType
-						// ...thus, update emitted notification info in advance.
-						params[i] = scParam.Type.String()
+					params[i].Name = scParam.Name
+					if !c.buildInfo.options.NoEventsCheck {
+						expectedType := scParam.Type.ConvertToStackitemType()
+						// No need to cast if the desired type is unknown.
+						if expectedType == stackitem.AnyT ||
+							// Do not cast if desired type is Interop, the actual type is likely to be Any, leave the resolving to runtime.Notify.
+							expectedType == stackitem.InteropT ||
+							// No need to cast if actual parameter type matches the desired one.
+							*vParams[i] == expectedType ||
+							// expectedType doesn't contain Buffer anyway, but if actual variable type is Buffer,
+							// then runtime.Notify will convert it to ByteArray automatically, thus no need to emit conversion code.
+							(*vParams[i] == stackitem.BufferT && expectedType == stackitem.ByteArrayT) {
+							vParams[i] = nil
+						} else {
+							// For other cases the conversion code will be emitted using vParams...
+							vParams[i] = &expectedType
+							// ...thus, update emitted notification info in advance.
+							params[i].Type = scParam.Type.String()
+							params[i].TypeSC = scParam.Type
+						}
 					}
 				}
 			}
 		}
 	}
-	c.emittedEvents[name] = append(c.emittedEvents[name], params)
+	c.emittedEvents[name] = append(c.emittedEvents[name], EmittedEventInfo{
+		ExtTypes: extMap,
+		Params:   params,
+	})
 	// Do not enforce perfect expected/actual events match on this step, the final
 	// check wil be performed after compilation if --no-events option is off.
-	if eventFound {
+	if eventFound && !c.buildInfo.options.NoEventsCheck {
 		return vParams
 	}
 	return nil

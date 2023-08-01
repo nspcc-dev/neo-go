@@ -1,7 +1,6 @@
 package oracle
 
 import (
-	"errors"
 	"net"
 	"strings"
 	"testing"
@@ -41,8 +40,7 @@ func TestDefaultClient_RestrictedRedirectErr(t *testing.T) {
 	for _, c := range testCases {
 		t.Run(c, func(t *testing.T) {
 			_, err := cl.Get(c) //nolint:bodyclose // It errors out and it's a test.
-			require.Error(t, err)
-			require.True(t, errors.Is(err, ErrRestrictedRedirect), err)
+			require.ErrorIs(t, err, ErrRestrictedRedirect)
 			require.True(t, strings.Contains(err.Error(), "IP is not global unicast"), err)
 		})
 	}

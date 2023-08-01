@@ -20,7 +20,7 @@ func String(s string) string {
 	return ""
 }
 
-func Any(a interface{}) interface{} {
+func Any(a any) any {
 	return nil
 }
 
@@ -81,5 +81,9 @@ func Maps(m map[string]string) map[string]string {
 }
 
 func CrazyMaps(m map[int][]map[string][]interop.Hash160) map[int][]map[string][]interop.Hash160 {
+	return m
+}
+
+func AnyMaps(m map[int]any) map[int]any {
 	return m
 }

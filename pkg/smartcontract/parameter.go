@@ -22,7 +22,7 @@ type Parameter struct {
 	// Type of the parameter.
 	Type ParamType `json:"type"`
 	// The actual value of the parameter.
-	Value interface{} `json:"value"`
+	Value any `json:"value"`
 }
 
 // ParameterPair represents a key-value pair, a slice of which is stored in
@@ -259,7 +259,7 @@ func NewParameterFromString(in string) (*Parameter, error) {
 // the value if needed. It does not copy the value if it can avoid doing so. All
 // regular integers, util.*, keys.PublicKey*, string and bool types are supported,
 // slice of byte slices is accepted and converted as well.
-func NewParameterFromValue(value interface{}) (Parameter, error) {
+func NewParameterFromValue(value any) (Parameter, error) {
 	var result = Parameter{
 		Value: value,
 	}
@@ -353,7 +353,7 @@ func NewParameterFromValue(value interface{}) (Parameter, error) {
 		}
 		result.Type = ArrayType
 		result.Value = arr
-	case []interface{}:
+	case []any:
 		arr, err := NewParametersFromValues(v...)
 		if err != nil {
 			return result, err
@@ -371,7 +371,7 @@ func NewParameterFromValue(value interface{}) (Parameter, error) {
 
 // NewParametersFromValues is similar to NewParameterFromValue except that it
 // works with multiple values and returns a simple slice of Parameter.
-func NewParametersFromValues(values ...interface{}) ([]Parameter, error) {
+func NewParametersFromValues(values ...any) ([]Parameter, error) {
 	res := make([]Parameter, 0, len(values))
 	for i := range values {
 		elem, err := NewParameterFromValue(values[i])
@@ -386,12 +386,12 @@ func NewParametersFromValues(values ...interface{}) ([]Parameter, error) {
 // ExpandParameterToEmitable converts a parameter to a type which can be handled as
 // an array item by emit.Array. It correlates with the way an RPC server handles
 // FuncParams for invoke* calls inside the request.ExpandArrayIntoScript function.
-func ExpandParameterToEmitable(param Parameter) (interface{}, error) {
+func ExpandParameterToEmitable(param Parameter) (any, error) {
 	var err error
 	switch t := param.Type; t {
 	case ArrayType:
 		arr := param.Value.([]Parameter)
-		res := make([]interface{}, len(arr))
+		res := make([]any, len(arr))
 		for i := range arr {
 			res[i], err = ExpandParameterToEmitable(arr[i])
 			if err != nil {

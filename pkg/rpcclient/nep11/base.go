@@ -10,6 +10,7 @@ purposes, otherwise more specific types are recommended.
 package nep11
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"unicode/utf8"
@@ -28,7 +29,7 @@ import (
 type Invoker interface {
 	neptoken.Invoker
 
-	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...interface{}) (*result.Invoke, error)
+	CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...any) (*result.Invoke, error)
 	TerminateSession(sessionID uuid.UUID) error
 	TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error)
 }
@@ -149,7 +150,7 @@ func (t *BaseReader) TokensOfExpanded(account util.Uint160, num int) ([][]byte, 
 // transaction if it's not true. It works for divisible NFTs only when there is
 // one owner for the particular token. The returned values are transaction hash,
 // its ValidUntilBlock value and an error if any.
-func (t *BaseWriter) Transfer(to util.Uint160, id []byte, data interface{}) (util.Uint256, uint32, error) {
+func (t *BaseWriter) Transfer(to util.Uint160, id []byte, data any) (util.Uint256, uint32, error) {
 	script, err := t.transferScript(to, id, data)
 	if err != nil {
 		return util.Uint256{}, 0, err
@@ -162,7 +163,7 @@ func (t *BaseWriter) Transfer(to util.Uint160, id []byte, data interface{}) (uti
 // transaction if it's not true. It works for divisible NFTs only when there is
 // one owner for the particular token. This transaction is signed, but not sent
 // to the network, instead it's returned to the caller.
-func (t *BaseWriter) TransferTransaction(to util.Uint160, id []byte, data interface{}) (*transaction.Transaction, error) {
+func (t *BaseWriter) TransferTransaction(to util.Uint160, id []byte, data any) (*transaction.Transaction, error) {
 	script, err := t.transferScript(to, id, data)
 	if err != nil {
 		return nil, err
@@ -175,7 +176,7 @@ func (t *BaseWriter) TransferTransaction(to util.Uint160, id []byte, data interf
 // transaction if it's not true. It works for divisible NFTs only when there is
 // one owner for the particular token. This transaction is not signed and just
 // returned to the caller.
-func (t *BaseWriter) TransferUnsigned(to util.Uint160, id []byte, data interface{}) (*transaction.Transaction, error) {
+func (t *BaseWriter) TransferUnsigned(to util.Uint160, id []byte, data any) (*transaction.Transaction, error) {
 	script, err := t.transferScript(to, id, data)
 	if err != nil {
 		return nil, err
@@ -183,7 +184,7 @@ func (t *BaseWriter) TransferUnsigned(to util.Uint160, id []byte, data interface
 	return t.actor.MakeUnsignedRun(script, nil)
 }
 
-func (t *BaseWriter) transferScript(params ...interface{}) ([]byte, error) {
+func (t *BaseWriter) transferScript(params ...any) ([]byte, error) {
 	return smartcontract.CreateCallWithAssertScript(t.hash, "transfer", params...)
 }
 
@@ -245,4 +246,72 @@ func UnwrapKnownProperties(m *stackitem.Map, err error) (map[string]string, erro
 		res[ks] = string(v)
 	}
 	return res, nil
+}
+
+// TransferEventsFromApplicationLog retrieves all emitted TransferEvents from the
+// provided [result.ApplicationLog].
+func TransferEventsFromApplicationLog(log *result.ApplicationLog) ([]*TransferEvent, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+	var res []*TransferEvent
+	for i, ex := range log.Executions {
+		for j, e := range ex.Events {
+			if e.Name != "Transfer" {
+				continue
+			}
+			event := new(TransferEvent)
+			err := event.FromStackItem(e.Item)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode event from stackitem (event #%d, execution #%d): %w", j, i, err)
+			}
+			res = append(res, event)
+		}
+	}
+	return res, nil
+}
+
+// FromStackItem converts provided [stackitem.Array] to TransferEvent or returns an
+// error if it's not possible to do to so.
+func (e *TransferEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 4 {
+		return errors.New("wrong number of event parameters")
+	}
+
+	b, err := arr[0].TryBytes()
+	if err != nil {
+		return fmt.Errorf("invalid From: %w", err)
+	}
+	e.From, err = util.Uint160DecodeBytesBE(b)
+	if err != nil {
+		return fmt.Errorf("failed to decode From: %w", err)
+	}
+
+	b, err = arr[1].TryBytes()
+	if err != nil {
+		return fmt.Errorf("invalid To: %w", err)
+	}
+	e.To, err = util.Uint160DecodeBytesBE(b)
+	if err != nil {
+		return fmt.Errorf("failed to decode To: %w", err)
+	}
+
+	e.Amount, err = arr[2].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field to decode Avount: %w", err)
+	}
+
+	e.ID, err = arr[3].TryBytes()
+	if err != nil {
+		return fmt.Errorf("failed to decode ID: %w", err)
+	}
+
+	return nil
 }

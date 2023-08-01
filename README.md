@@ -51,7 +51,7 @@ NeoGo, `:latest` points to the latest release) or build yourself.
 
 ### Building
 
-Building NeoGo requires Go 1.17+ and `make`:
+Building NeoGo requires Go 1.18+ and `make`:
 
 ```
 make

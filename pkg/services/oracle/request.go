@@ -146,16 +146,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 					break
 				}
 
-				resp.Result, err = readResponse(r.Body, transaction.MaxOracleResultSize)
-				if err != nil {
-					if errors.Is(err, ErrResponseTooLarge) {
-						resp.Code = transaction.ResponseTooLarge
-					} else {
-						resp.Code = transaction.Error
-					}
-					o.Log.Warn("failed to read data for oracle request", zap.String("url", req.Req.URL), zap.Error(err))
-					break
-				}
+				resp.Result, resp.Code = o.readResponse(r.Body, req.Req.URL)
 			case http.StatusForbidden:
 				resp.Code = transaction.Forbidden
 			case http.StatusNotFound:
@@ -169,11 +160,17 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 			ctx, cancel := context.WithTimeout(context.Background(), o.MainCfg.NeoFS.Timeout)
 			defer cancel()
 			index := (int(req.ID) + incTx.attempts) % len(o.MainCfg.NeoFS.Nodes)
-			resp.Result, err = neofs.Get(ctx, priv, u, o.MainCfg.NeoFS.Nodes[index])
+			rc, err := neofs.Get(ctx, priv, u, o.MainCfg.NeoFS.Nodes[index])
 			if err != nil {
-				o.Log.Warn("oracle request failed", zap.String("url", req.Req.URL), zap.Error(err))
 				resp.Code = transaction.Error
+				o.Log.Warn("failed to perform oracle request", zap.String("url", req.Req.URL), zap.Error(err))
+				if rc != nil {
+					rc.Close() // intentionally skip the closing error, make it unified with Oracle `https` protocol.
+				}
+				break
 			}
+			resp.Result, resp.Code = o.readResponse(rc, req.Req.URL)
+			rc.Close() // intentionally skip the closing error, make it unified with Oracle `https` protocol.
 		default:
 			resp.Code = transaction.ProtocolNotSupported
 			o.Log.Warn("unknown oracle request scheme", zap.String("url", req.Req.URL))

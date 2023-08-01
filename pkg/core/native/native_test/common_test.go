@@ -113,7 +113,7 @@ func testGetSetCache(t *testing.T, c *neotest.ContractInvoker, name string, defa
 }
 
 func setNodesByRole(t *testing.T, designateInvoker *neotest.ContractInvoker, ok bool, r noderoles.Role, nodes keys.PublicKeys) {
-	pubs := make([]interface{}, len(nodes))
+	pubs := make([]any, len(nodes))
 	for i := range nodes {
 		pubs[i] = nodes[i].Bytes()
 	}

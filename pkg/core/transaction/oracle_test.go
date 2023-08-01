@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"encoding/json"
-	"errors"
 	"math/rand"
 	"testing"
 
@@ -41,7 +40,7 @@ func TestOracleResponse_EncodeBinary(t *testing.T) {
 			require.NoError(t, err)
 
 			err = testserdes.DecodeBinary(bs, new(OracleResponse))
-			require.True(t, errors.Is(err, ErrInvalidResponseCode), "got: %v", err)
+			require.ErrorIs(t, err, ErrInvalidResponseCode)
 		})
 		t.Run("InvalidResult", func(t *testing.T) {
 			r := &OracleResponse{
@@ -53,7 +52,7 @@ func TestOracleResponse_EncodeBinary(t *testing.T) {
 			require.NoError(t, err)
 
 			err = testserdes.DecodeBinary(bs, new(OracleResponse))
-			require.True(t, errors.Is(err, ErrInvalidResult), "got: %v", err)
+			require.ErrorIs(t, err, ErrInvalidResult)
 		})
 	})
 }
@@ -68,7 +67,7 @@ func TestOracleResponse_toJSONMap(t *testing.T) {
 	b1, err := json.Marshal(r)
 	require.NoError(t, err)
 
-	m := map[string]interface{}{}
+	m := map[string]any{}
 	r.toJSONMap(m)
 	b2, err := json.Marshal(m)
 	require.NoError(t, err)

@@ -41,10 +41,11 @@ func NewBuilder() *Builder {
 
 // InvokeMethod is the most generic contract method invoker, the code it produces
 // packs all of the arguments given into an array and calls some method of the
-// contract. The correctness of this invocation (number and type of parameters) is
-// out of scope of this method, as well as return value, if contract's method returns
-// something this value just remains on the execution stack.
-func (b *Builder) InvokeMethod(contract util.Uint160, method string, params ...interface{}) {
+// contract. It accepts as parameters everything that emit.Array accepts. The
+// correctness of this invocation (number and type of parameters) is out of scope
+// of this method, as well as return value, if contract's method returns something
+// this value just remains on the execution stack.
+func (b *Builder) InvokeMethod(contract util.Uint160, method string, params ...any) {
 	emit.AppCall(b.bw.BinWriter, contract, method, callflag.All, params...)
 }
 
@@ -61,7 +62,7 @@ func (b *Builder) Assert() {
 // that as well as NEO's 'vote'. The ASSERT then allow to simplify transaction
 // status checking, if action is successful then transaction is successful as
 // well, if it went wrong than whole transaction fails (ends with vmstate.FAULT).
-func (b *Builder) InvokeWithAssert(contract util.Uint160, method string, params ...interface{}) {
+func (b *Builder) InvokeWithAssert(contract util.Uint160, method string, params ...any) {
 	b.InvokeMethod(contract, method, params...)
 	b.Assert()
 }

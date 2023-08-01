@@ -43,11 +43,11 @@ func opParamVM(op opcode.Opcode, param []byte) func() *VM {
 	return opParamPushVM(op, param)
 }
 
-func opParamPushVM(op opcode.Opcode, param []byte, items ...interface{}) func() *VM {
+func opParamPushVM(op opcode.Opcode, param []byte, items ...any) func() *VM {
 	return opParamSlotsPushVM(op, param, 0, 0, 0, items...)
 }
 
-func opParamSlotsPushVM(op opcode.Opcode, param []byte, sslot int, slotloc int, slotarg int, items ...interface{}) func() *VM {
+func opParamSlotsPushVM(op opcode.Opcode, param []byte, sslot int, slotloc int, slotarg int, items ...any) func() *VM {
 	return func() *VM {
 		script := []byte{byte(op)}
 		script = append(script, param...)
@@ -75,7 +75,7 @@ func opParamSlotsPushVM(op opcode.Opcode, param []byte, sslot int, slotloc int, 
 	}
 }
 
-func exceptParamPushVM(op opcode.Opcode, param []byte, ilen int, elen int, exception bool, items ...interface{}) func() *VM {
+func exceptParamPushVM(op opcode.Opcode, param []byte, ilen int, elen int, exception bool, items ...any) func() *VM {
 	return func() *VM {
 		regVMF := opParamPushVM(op, param, items...)
 		v := regVMF()
@@ -136,8 +136,8 @@ func arrayOfOnes(size int) []stackitem.Item {
 	return elems
 }
 
-func arrayOfIfaces(size int) []interface{} {
-	var elems = make([]interface{}, size)
+func arrayOfIfaces(size int) []any {
+	var elems = make([]any, size)
 	for i := range elems {
 		elems[i] = 1
 	}
@@ -388,14 +388,14 @@ func BenchmarkOpcodes(t *testing.B) {
 		if cp.op == opcode.PICK {
 			name += "/" + strconv.Itoa(cp.pos)
 		}
-		var getitems = func(element interface{}) []interface{} {
+		var getitems = func(element any) []any {
 			l := cp.l
 			pos := cp.pos
 			if cp.op == opcode.PICK {
 				pos++
 				l++
 			}
-			var items = make([]interface{}, l)
+			var items = make([]any, l)
 			for i := range items {
 				items[i] = 0
 			}
@@ -461,12 +461,12 @@ func BenchmarkOpcodes(t *testing.B) {
 		if sw.op == opcode.ROLL || sw.op == opcode.REVERSEN {
 			name += "/" + strconv.Itoa(sw.num)
 		}
-		var getitems = func(element interface{}) []interface{} {
+		var getitems = func(element any) []any {
 			l := sw.num
 			if sw.op == opcode.ROLL || sw.op == opcode.REVERSEN {
 				l++
 			}
-			var items = make([]interface{}, l)
+			var items = make([]any, l)
 			for i := range items {
 				items[i] = element
 			}
@@ -656,7 +656,7 @@ func BenchmarkOpcodes(t *testing.B) {
 		var nums = []int{1, 255, 1024}
 		for _, n := range nums {
 			t.Run(strconv.Itoa(n), func(t *testing.B) {
-				var elems = make([]interface{}, n+1)
+				var elems = make([]any, n+1)
 				for i := range elems {
 					elems[i] = 0
 				}

@@ -38,7 +38,11 @@ import (
 // will make WSClient wait for the channel reader to get the event and while
 // it waits every other messages (subscription-related or request replies)
 // will be blocked. This also means that subscription channel must be properly
-// drained after unsubscription.
+// drained after unsubscription. If CloseNotificationChannelIfFull option is on
+// then the receiver channel will be closed immediately in case if a subsequent
+// notification can't be sent to it, which means WSClient's operations are
+// unblocking in this mode. No unsubscription is performed in this case, so it's
+// still the user responsibility to unsubscribe.
 //
 // Any received subscription items (blocks/transactions/nofitications) are passed
 // via pointers for efficiency, but the actual structures MUST NOT be changed, as
@@ -47,7 +51,9 @@ import (
 // only sent once per channel. The receiver channel will be closed by the WSClient
 // immediately after MissedEvent is received from the server; no unsubscription
 // is performed in this case, so it's the user responsibility to unsubscribe. It
-// will also be closed on disconnection from server.
+// will also be closed on disconnection from server or on situation when it's
+// impossible to send a subsequent notification to the subscriber's channel and
+// CloseNotificationChannelIfFull option is on.
 type WSClient struct {
 	Client
 	// Notifications is a channel that is used to send events received from
@@ -66,6 +72,7 @@ type WSClient struct {
 	Notifications chan Notification
 
 	ws          *websocket.Conn
+	wsOpts      WSOptions
 	done        chan struct{}
 	requests    chan *neorpc.Request
 	shutdown    chan struct{}
@@ -80,10 +87,25 @@ type WSClient struct {
 	// It must be accessed with subscriptionsLock taken. Its keys must be used to deliver
 	// notifications, if channel is not in the receivers list and corresponding subscription
 	// still exists, notification must not be sent.
-	receivers map[interface{}][]string
+	receivers map[any][]string
 
 	respLock     sync.RWMutex
 	respChannels map[uint64]chan *neorpc.Response
+}
+
+// WSOptions defines options for the web-socket RPC client. It contains a
+// set of options for the underlying standard RPC client as far as
+// WSClient-specific options. See Options documentation for more details.
+type WSOptions struct {
+	Options
+	// CloseNotificationChannelIfFull allows WSClient to close a subscriber's
+	// receive channel in case if the channel isn't read properly and no more
+	// events can be pushed to it. This option, if set, allows to avoid WSClient
+	// blocking on a subsequent notification dispatch. However, if enabled, the
+	// corresponding subscription is kept even after receiver's channel closing,
+	// thus it's still the caller's duty to call Unsubscribe() for this
+	// subscription.
+	CloseNotificationChannelIfFull bool
 }
 
 // notificationReceiver is an interface aimed to provide WS subscriber functionality
@@ -92,10 +114,13 @@ type notificationReceiver interface {
 	// Comparator provides notification filtering functionality.
 	rpcevent.Comparator
 	// Receiver returns notification receiver channel.
-	Receiver() interface{}
+	Receiver() any
 	// TrySend checks whether notification passes receiver filter and sends it
-	// to the underlying channel if so.
-	TrySend(ntf Notification) bool
+	// to the underlying channel if so. It is performed under subscriptions lock
+	// taken. nonBlocking denotes whether the receiving operation shouldn't block
+	// the client's operation. It returns whether notification matches the filter
+	// and whether the receiver channel is overflown.
+	TrySend(ntf Notification, nonBlocking bool) (bool, bool)
 	// Close closes underlying receiver channel.
 	Close()
 }
@@ -112,7 +137,7 @@ func (r *blockReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *blockReceiver) Filter() interface{} {
+func (r *blockReceiver) Filter() any {
 	if r.filter == nil {
 		return nil
 	}
@@ -120,17 +145,26 @@ func (r *blockReceiver) Filter() interface{} {
 }
 
 // Receiver implements notificationReceiver interface.
-func (r *blockReceiver) Receiver() interface{} {
+func (r *blockReceiver) Receiver() any {
 	return r.ch
 }
 
 // TrySend implements notificationReceiver interface.
-func (r *blockReceiver) TrySend(ntf Notification) bool {
+func (r *blockReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
 	if rpcevent.Matches(r, ntf) {
-		r.ch <- ntf.Value.(*block.Block)
-		return true
+		if nonBlocking {
+			select {
+			case r.ch <- ntf.Value.(*block.Block):
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf.Value.(*block.Block)
+		}
+
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // Close implements notificationReceiver interface.
@@ -150,7 +184,7 @@ func (r *txReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *txReceiver) Filter() interface{} {
+func (r *txReceiver) Filter() any {
 	if r.filter == nil {
 		return nil
 	}
@@ -158,17 +192,26 @@ func (r *txReceiver) Filter() interface{} {
 }
 
 // Receiver implements notificationReceiver interface.
-func (r *txReceiver) Receiver() interface{} {
+func (r *txReceiver) Receiver() any {
 	return r.ch
 }
 
 // TrySend implements notificationReceiver interface.
-func (r *txReceiver) TrySend(ntf Notification) bool {
+func (r *txReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
 	if rpcevent.Matches(r, ntf) {
-		r.ch <- ntf.Value.(*transaction.Transaction)
-		return true
+		if nonBlocking {
+			select {
+			case r.ch <- ntf.Value.(*transaction.Transaction):
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf.Value.(*transaction.Transaction)
+		}
+
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // Close implements notificationReceiver interface.
@@ -188,7 +231,7 @@ func (r *executionNotificationReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *executionNotificationReceiver) Filter() interface{} {
+func (r *executionNotificationReceiver) Filter() any {
 	if r.filter == nil {
 		return nil
 	}
@@ -196,17 +239,26 @@ func (r *executionNotificationReceiver) Filter() interface{} {
 }
 
 // Receiver implements notificationReceiver interface.
-func (r *executionNotificationReceiver) Receiver() interface{} {
+func (r *executionNotificationReceiver) Receiver() any {
 	return r.ch
 }
 
 // TrySend implements notificationReceiver interface.
-func (r *executionNotificationReceiver) TrySend(ntf Notification) bool {
+func (r *executionNotificationReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
 	if rpcevent.Matches(r, ntf) {
-		r.ch <- ntf.Value.(*state.ContainedNotificationEvent)
-		return true
+		if nonBlocking {
+			select {
+			case r.ch <- ntf.Value.(*state.ContainedNotificationEvent):
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf.Value.(*state.ContainedNotificationEvent)
+		}
+
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // Close implements notificationReceiver interface.
@@ -226,7 +278,7 @@ func (r *executionReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *executionReceiver) Filter() interface{} {
+func (r *executionReceiver) Filter() any {
 	if r.filter == nil {
 		return nil
 	}
@@ -234,17 +286,26 @@ func (r *executionReceiver) Filter() interface{} {
 }
 
 // Receiver implements notificationReceiver interface.
-func (r *executionReceiver) Receiver() interface{} {
+func (r *executionReceiver) Receiver() any {
 	return r.ch
 }
 
 // TrySend implements notificationReceiver interface.
-func (r *executionReceiver) TrySend(ntf Notification) bool {
+func (r *executionReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
 	if rpcevent.Matches(r, ntf) {
-		r.ch <- ntf.Value.(*state.AppExecResult)
-		return true
+		if nonBlocking {
+			select {
+			case r.ch <- ntf.Value.(*state.AppExecResult):
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf.Value.(*state.AppExecResult)
+		}
+
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // Close implements notificationReceiver interface.
@@ -264,7 +325,7 @@ func (r *notaryRequestReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *notaryRequestReceiver) Filter() interface{} {
+func (r *notaryRequestReceiver) Filter() any {
 	if r.filter == nil {
 		return nil
 	}
@@ -272,17 +333,26 @@ func (r *notaryRequestReceiver) Filter() interface{} {
 }
 
 // Receiver implements notificationReceiver interface.
-func (r *notaryRequestReceiver) Receiver() interface{} {
+func (r *notaryRequestReceiver) Receiver() any {
 	return r.ch
 }
 
 // TrySend implements notificationReceiver interface.
-func (r *notaryRequestReceiver) TrySend(ntf Notification) bool {
+func (r *notaryRequestReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
 	if rpcevent.Matches(r, ntf) {
-		r.ch <- ntf.Value.(*result.NotaryRequestEvent)
-		return true
+		if nonBlocking {
+			select {
+			case r.ch <- ntf.Value.(*result.NotaryRequestEvent):
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf.Value.(*result.NotaryRequestEvent)
+		}
+
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // Close implements notificationReceiver interface.
@@ -296,7 +366,7 @@ func (r *notaryRequestReceiver) Close() {
 // Deprecated: this receiver must be removed after outdated subscriptions API removal.
 type naiveReceiver struct {
 	eventID neorpc.EventID
-	filter  interface{}
+	filter  any
 	ch      chan<- Notification
 }
 
@@ -306,22 +376,31 @@ func (r *naiveReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *naiveReceiver) Filter() interface{} {
+func (r *naiveReceiver) Filter() any {
 	return r.filter
 }
 
 // Receiver implements notificationReceiver interface.
-func (r *naiveReceiver) Receiver() interface{} {
+func (r *naiveReceiver) Receiver() any {
 	return r.ch
 }
 
 // TrySend implements notificationReceiver interface.
-func (r *naiveReceiver) TrySend(ntf Notification) bool {
+func (r *naiveReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
 	if rpcevent.Matches(r, ntf) {
-		r.ch <- ntf
-		return true
+		if nonBlocking {
+			select {
+			case r.ch <- ntf:
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf
+		}
+
+		return true, false
 	}
-	return false
+	return false, false
 }
 
 // Close implements notificationReceiver interface.
@@ -336,7 +415,7 @@ func (r *naiveReceiver) Close() {
 // *transaction.Transaction or *subscriptions.NotaryRequestEvent based on Type.
 type Notification struct {
 	Type  neorpc.EventID
-	Value interface{}
+	Value any
 }
 
 // EventID implements Container interface and returns notification ID.
@@ -346,7 +425,7 @@ func (n Notification) EventID() neorpc.EventID {
 
 // EventPayload implements Container interface and returns notification
 // object.
-func (n Notification) EventPayload() interface{} {
+func (n Notification) EventPayload() any {
 	return n.Value
 }
 
@@ -375,6 +454,11 @@ const (
 // ErrNilNotificationReceiver is returned when notification receiver channel is nil.
 var ErrNilNotificationReceiver = errors.New("nil notification receiver")
 
+// ErrWSConnLost is a WSClient-specific error that will be returned for any
+// requests after disconnection (including intentional ones via
+// (*WSClient).Close).
+var ErrWSConnLost = errors.New("connection lost")
+
 // errConnClosedByUser is a WSClient error used iff the user calls (*WSClient).Close method by himself.
 var errConnClosedByUser = errors.New("connection closed by user")
 
@@ -382,7 +466,7 @@ var errConnClosedByUser = errors.New("connection closed by user")
 // connection). You need to use websocket URL for it like `ws://1.2.3.4/ws`.
 // You should call Init method to initialize the network magic the client is
 // operating on.
-func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error) {
+func NewWS(ctx context.Context, endpoint string, opts WSOptions) (*WSClient, error) {
 	dialer := websocket.Dialer{HandshakeTimeout: opts.DialTimeout}
 	ws, resp, err := dialer.DialContext(ctx, endpoint, nil)
 	if resp != nil && resp.Body != nil { // Can be non-nil even with error returned.
@@ -405,16 +489,17 @@ func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error
 		Notifications: make(chan Notification),
 
 		ws:            ws,
+		wsOpts:        opts,
 		shutdown:      make(chan struct{}),
 		done:          make(chan struct{}),
 		closeCalled:   *atomic.NewBool(false),
 		respChannels:  make(map[uint64]chan *neorpc.Response),
 		requests:      make(chan *neorpc.Request),
 		subscriptions: make(map[string]notificationReceiver),
-		receivers:     make(map[interface{}][]string),
+		receivers:     make(map[any][]string),
 	}
 
-	err = initClient(ctx, &wsc.Client, endpoint, opts)
+	err = initClient(ctx, &wsc.Client, endpoint, opts.Options)
 	if err != nil {
 		return nil, err
 	}
@@ -429,7 +514,7 @@ func NewWS(ctx context.Context, endpoint string, opts Options) (*WSClient, error
 // Close closes connection to the remote side rendering this client instance
 // unusable.
 func (c *WSClient) Close() {
-	if c.closeCalled.CAS(false, true) {
+	if c.closeCalled.CompareAndSwap(false, true) {
 		c.setCloseErr(errConnClosedByUser)
 		// Closing shutdown channel sends a signal to wsWriter to break out of the
 		// loop. In doing so it does ws.Close() closing the network connection
@@ -542,16 +627,30 @@ readloop:
 	c.respLock.Unlock()
 	c.subscriptionsLock.Lock()
 	for rcvrCh, ids := range c.receivers {
-		rcvr := c.subscriptions[ids[0]]
+		c.dropSubCh(rcvrCh, ids[0], true)
+	}
+	c.subscriptionsLock.Unlock()
+	c.Client.ctxCancel()
+}
+
+// dropSubCh closes corresponding subscriber's channel and removes it from the
+// receivers map. If the channel belongs to a naive subscriber then it will be
+// closed manually without call to Close(). The channel is still being kept in
+// the subscribers map as technically the server-side subscription still exists
+// and the user is responsible for unsubscription. This method must be called
+// under subscriptionsLock taken. It's the caller's duty to ensure dropSubCh
+// will be called once per channel, otherwise panic will occur.
+func (c *WSClient) dropSubCh(rcvrCh any, id string, ignoreCloseNotificationChannelIfFull bool) {
+	if ignoreCloseNotificationChannelIfFull || c.wsOpts.CloseNotificationChannelIfFull {
+		rcvr := c.subscriptions[id]
 		_, ok := rcvr.(*naiveReceiver)
-		if !ok { // naiveReceiver uses c.Notifications that is about to be closed below.
-			c.subscriptions[ids[0]].Close()
+		if ok { // naiveReceiver uses c.Notifications that should be handled separately.
+			close(c.Notifications)
+		} else {
+			c.subscriptions[id].Close()
 		}
 		delete(c.receivers, rcvrCh)
 	}
-	c.subscriptionsLock.Unlock()
-	close(c.Notifications)
-	c.Client.ctxCancel()
 }
 
 func (c *WSClient) wsWriter() {
@@ -604,15 +703,20 @@ func (c *WSClient) notifySubscribers(ntf Notification) {
 		c.subscriptionsLock.Unlock()
 		return
 	}
-	c.subscriptionsLock.RLock()
-	for _, ids := range c.receivers {
+	c.subscriptionsLock.Lock()
+	for rcvrCh, ids := range c.receivers {
 		for _, id := range ids {
-			if c.subscriptions[id].TrySend(ntf) {
+			ok, dropCh := c.subscriptions[id].TrySend(ntf, c.wsOpts.CloseNotificationChannelIfFull)
+			if dropCh {
+				c.dropSubCh(rcvrCh, id, false)
+				break // strictly single drop per channel
+			}
+			if ok {
 				break // strictly one notification per channel
 			}
 		}
 	}
-	c.subscriptionsLock.RUnlock()
+	c.subscriptionsLock.Unlock()
 }
 
 func (c *WSClient) unregisterRespChannel(id uint64) {
@@ -636,29 +740,29 @@ func (c *WSClient) makeWsRequest(r *neorpc.Request) (*neorpc.Response, error) {
 	select {
 	case <-c.done:
 		c.respLock.Unlock()
-		return nil, errors.New("connection lost before registering response channel")
+		return nil, fmt.Errorf("%w: before registering response channel", ErrWSConnLost)
 	default:
 		c.respChannels[r.ID] = ch
 		c.respLock.Unlock()
 	}
 	select {
 	case <-c.done:
-		return nil, errors.New("connection lost before sending the request")
+		return nil, fmt.Errorf("%w: before sending the request", ErrWSConnLost)
 	case c.requests <- r:
 	}
 	select {
 	case <-c.done:
-		return nil, errors.New("connection lost while waiting for the response")
+		return nil, fmt.Errorf("%w: while waiting for the response", ErrWSConnLost)
 	case resp, ok := <-ch:
 		if !ok {
-			return nil, errors.New("connection lost while waiting for the response")
+			return nil, fmt.Errorf("%w: while waiting for the response", ErrWSConnLost)
 		}
 		c.unregisterRespChannel(r.ID)
 		return resp, nil
 	}
 }
 
-func (c *WSClient) performSubscription(params []interface{}, rcvr notificationReceiver) (string, error) {
+func (c *WSClient) performSubscription(params []any, rcvr notificationReceiver) (string, error) {
 	var resp string
 
 	if err := c.performRequest("subscribe", params, &resp); err != nil {
@@ -680,12 +784,12 @@ func (c *WSClient) performSubscription(params []interface{}, rcvr notificationRe
 //
 // Deprecated: please, use ReceiveBlocks. This method will be removed in future versions.
 func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
-	var flt interface{}
+	var flt any
 	if primary != nil {
 		var f = neorpc.BlockFilter{Primary: primary}
 		flt = *f.Copy()
 	}
-	params := []interface{}{"block_added"}
+	params := []any{"block_added"}
 	if flt != nil {
 		params = append(params, flt)
 	}
@@ -704,7 +808,7 @@ func (c *WSClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Blo
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
 	}
-	params := []interface{}{"block_added"}
+	params := []any{"block_added"}
 	if flt != nil {
 		flt = flt.Copy()
 		params = append(params, *flt)
@@ -722,12 +826,12 @@ func (c *WSClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Blo
 //
 // Deprecated: please, use ReceiveTransactions. This method will be removed in future versions.
 func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, signer *util.Uint160) (string, error) {
-	var flt interface{}
+	var flt any
 	if sender != nil || signer != nil {
 		var f = neorpc.TxFilter{Sender: sender, Signer: signer}
 		flt = *f.Copy()
 	}
-	params := []interface{}{"transaction_added"}
+	params := []any{"transaction_added"}
 	if flt != nil {
 		params = append(params, flt)
 	}
@@ -746,7 +850,7 @@ func (c *WSClient) ReceiveTransactions(flt *neorpc.TxFilter, rcvr chan<- *transa
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
 	}
-	params := []interface{}{"transaction_added"}
+	params := []any{"transaction_added"}
 	if flt != nil {
 		flt = flt.Copy()
 		params = append(params, *flt)
@@ -765,12 +869,12 @@ func (c *WSClient) ReceiveTransactions(flt *neorpc.TxFilter, rcvr chan<- *transa
 //
 // Deprecated: please, use ReceiveExecutionNotifications. This method will be removed in future versions.
 func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160, name *string) (string, error) {
-	var flt interface{}
+	var flt any
 	if contract != nil || name != nil {
 		var f = neorpc.NotificationFilter{Contract: contract, Name: name}
 		flt = *f.Copy()
 	}
-	params := []interface{}{"notification_from_execution"}
+	params := []any{"notification_from_execution"}
 	if flt != nil {
 		params = append(params, flt)
 	}
@@ -789,7 +893,7 @@ func (c *WSClient) ReceiveExecutionNotifications(flt *neorpc.NotificationFilter,
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
 	}
-	params := []interface{}{"notification_from_execution"}
+	params := []any{"notification_from_execution"}
 	if flt != nil {
 		flt = flt.Copy()
 		params = append(params, *flt)
@@ -808,7 +912,7 @@ func (c *WSClient) ReceiveExecutionNotifications(flt *neorpc.NotificationFilter,
 //
 // Deprecated: please, use ReceiveExecutions. This method will be removed in future versions.
 func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, error) {
-	var flt interface{}
+	var flt any
 	if state != nil {
 		if *state != "HALT" && *state != "FAULT" {
 			return "", errors.New("bad state parameter")
@@ -816,7 +920,7 @@ func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, err
 		var f = neorpc.ExecutionFilter{State: state}
 		flt = *f.Copy()
 	}
-	params := []interface{}{"transaction_executed"}
+	params := []any{"transaction_executed"}
 	if flt != nil {
 		params = append(params, flt)
 	}
@@ -836,7 +940,7 @@ func (c *WSClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *s
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
 	}
-	params := []interface{}{"transaction_executed"}
+	params := []any{"transaction_executed"}
 	if flt != nil {
 		if flt.State != nil {
 			if *flt.State != "HALT" && *flt.State != "FAULT" {
@@ -860,12 +964,12 @@ func (c *WSClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *s
 //
 // Deprecated: please, use ReceiveNotaryRequests. This method will be removed in future versions.
 func (c *WSClient) SubscribeForNotaryRequests(sender *util.Uint160, mainSigner *util.Uint160) (string, error) {
-	var flt interface{}
+	var flt any
 	if sender != nil || mainSigner != nil {
 		var f = neorpc.TxFilter{Sender: sender, Signer: mainSigner}
 		flt = *f.Copy()
 	}
-	params := []interface{}{"notary_request_event"}
+	params := []any{"notary_request_event"}
 	if flt != nil {
 		params = append(params, flt)
 	}
@@ -886,7 +990,7 @@ func (c *WSClient) ReceiveNotaryRequests(flt *neorpc.TxFilter, rcvr chan<- *resu
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
 	}
-	params := []interface{}{"notary_request_event"}
+	params := []any{"notary_request_event"}
 	if flt != nil {
 		flt = flt.Copy()
 		params = append(params, *flt)
@@ -932,10 +1036,10 @@ func (c *WSClient) UnsubscribeAll() error {
 		err := c.performUnsubscription(id)
 		if err != nil {
 			errFmt := "failed to unsubscribe from feed %d: %v"
-			errArgs := []interface{}{err}
+			errArgs := []any{err}
 			if resErr != nil {
 				errFmt = "%w; " + errFmt
-				errArgs = append([]interface{}{resErr}, errArgs...)
+				errArgs = append([]any{resErr}, errArgs...)
 			}
 			resErr = fmt.Errorf(errFmt, errArgs...)
 		}
@@ -949,7 +1053,7 @@ func (c *WSClient) UnsubscribeAll() error {
 // may still receive WS notifications.
 func (c *WSClient) performUnsubscription(id string) error {
 	var resp bool
-	if err := c.performRequest("unsubscribe", []interface{}{id}, &resp); err != nil {
+	if err := c.performRequest("unsubscribe", []any{id}, &resp); err != nil {
 		return err
 	}
 	if !resp {

@@ -153,7 +153,7 @@ func (bq *Queue) LastQueued() (uint32, int) {
 
 // Discard stops the queue and prevents it from accepting more blocks to enqueue.
 func (bq *Queue) Discard() {
-	if bq.discarded.CAS(false, true) {
+	if bq.discarded.CompareAndSwap(false, true) {
 		bq.queueLock.Lock()
 		close(bq.checkBlocks)
 		// Technically we could bq.queue = nil, but this would cost

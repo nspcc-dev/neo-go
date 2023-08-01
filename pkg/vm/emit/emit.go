@@ -98,18 +98,29 @@ func bigInt(w *io.BinWriter, n *big.Int, trySmall bool) {
 	w.WriteBytes(padRight(1<<padSize, buf))
 }
 
-// Array emits an array of elements to the given buffer.
-func Array(w *io.BinWriter, es ...interface{}) {
+// Array emits an array of elements to the given buffer. It accepts elements of the following types:
+//   - int8, int16, int32, int64, int
+//   - uint8, uint16, uint32, uint64, uint
+//   - *big.Int
+//   - string, []byte
+//   - util.Uint160, *util.Uint160, util.Uint256, *util.Uint256
+//   - bool
+//   - stackitem.Convertible, stackitem.Item
+//   - nil
+//   - []any
+func Array(w *io.BinWriter, es ...any) {
 	if len(es) == 0 {
 		Opcodes(w, opcode.NEWARRAY0)
 		return
 	}
 	for i := len(es) - 1; i >= 0; i-- {
 		switch e := es[i].(type) {
-		case []interface{}:
+		case []any:
 			Array(w, e...)
 		case int64:
 			Int(w, e)
+		case uint64:
+			BigInt(w, new(big.Int).SetUint64(e))
 		case int32:
 			Int(w, int64(e))
 		case uint32:
@@ -124,6 +135,8 @@ func Array(w *io.BinWriter, es ...interface{}) {
 			Int(w, int64(e))
 		case int:
 			Int(w, int64(e))
+		case uint:
+			BigInt(w, new(big.Int).SetUint64(uint64(e)))
 		case *big.Int:
 			BigInt(w, e)
 		case string:
@@ -148,6 +161,10 @@ func Array(w *io.BinWriter, es ...interface{}) {
 			Bytes(w, e)
 		case bool:
 			Bool(w, e)
+		case stackitem.Convertible:
+			Convertible(w, e)
+		case stackitem.Item:
+			StackItem(w, e)
 		default:
 			if es[i] != nil {
 				w.Err = fmt.Errorf("unsupported type: %T", e)
@@ -158,6 +175,63 @@ func Array(w *io.BinWriter, es ...interface{}) {
 	}
 	Int(w, int64(len(es)))
 	Opcodes(w, opcode.PACK)
+}
+
+// Convertible converts provided stackitem.Convertible to the stackitem.Item and
+// emits the item to the given buffer.
+func Convertible(w *io.BinWriter, c stackitem.Convertible) {
+	si, err := c.ToStackItem()
+	if err != nil {
+		w.Err = fmt.Errorf("failed to convert stackitem.Convertible to stackitem: %w", err)
+		return
+	}
+	StackItem(w, si)
+}
+
+// StackItem emits provided stackitem.Item to the given buffer.
+func StackItem(w *io.BinWriter, si stackitem.Item) {
+	switch t := si.Type(); t {
+	case stackitem.AnyT:
+		if si.Value() == nil {
+			Opcodes(w, opcode.PUSHNULL)
+		} else {
+			w.Err = fmt.Errorf("only nil value supported for %s", t)
+			return
+		}
+	case stackitem.BooleanT:
+		Bool(w, si.Value().(bool))
+	case stackitem.IntegerT:
+		BigInt(w, si.Value().(*big.Int))
+	case stackitem.ByteArrayT, stackitem.BufferT:
+		Bytes(w, si.Value().([]byte))
+	case stackitem.ArrayT:
+		arr := si.Value().([]stackitem.Item)
+		arrAny := make([]any, len(arr))
+		for i := range arr {
+			arrAny[i] = arr[i]
+		}
+		Array(w, arrAny...)
+	case stackitem.StructT:
+		arr := si.Value().([]stackitem.Item)
+		for i := len(arr) - 1; i >= 0; i-- {
+			StackItem(w, arr[i])
+		}
+
+		Int(w, int64(len(arr)))
+		Opcodes(w, opcode.PACKSTRUCT)
+	case stackitem.MapT:
+		arr := si.Value().([]stackitem.MapElement)
+		for i := len(arr) - 1; i >= 0; i-- {
+			StackItem(w, arr[i].Value)
+			StackItem(w, arr[i].Key)
+		}
+
+		Int(w, int64(len(arr)))
+		Opcodes(w, opcode.PACKMAP)
+	default:
+		w.Err = fmt.Errorf("%s is unsuppoted", t)
+		return
+	}
 }
 
 // String emits a string to the given buffer.
@@ -225,7 +299,7 @@ func AppCallNoArgs(w *io.BinWriter, scriptHash util.Uint160, operation string, f
 }
 
 // AppCall emits SYSCALL with System.Contract.Call parameter for given contract, operation, call flag and arguments.
-func AppCall(w *io.BinWriter, scriptHash util.Uint160, operation string, f callflag.CallFlag, args ...interface{}) {
+func AppCall(w *io.BinWriter, scriptHash util.Uint160, operation string, f callflag.CallFlag, args ...any) {
 	Array(w, args...)
 	AppCallNoArgs(w, scriptHash, operation, f)
 }

@@ -4,6 +4,6 @@ package result
 // Address is an interface{} here because the server echoes back whatever address
 // value a user has sent to it, even if it's not a string.
 type ValidateAddress struct {
-	Address interface{} `json:"address"`
-	IsValid bool        `json:"isvalid"`
+	Address any  `json:"address"`
+	IsValid bool `json:"isvalid"`
 }

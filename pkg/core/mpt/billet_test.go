@@ -2,7 +2,6 @@ package mpt
 
 import (
 	"encoding/binary"
-	"errors"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -21,7 +20,7 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, expectedRefCount, binary.LittleEndian.Uint32(expectedBytes[len(expectedBytes)-4:]))
 		} else {
-			require.True(t, errors.Is(err, storage.ErrKeyNotFound))
+			require.ErrorIs(t, err, storage.ErrKeyNotFound)
 		}
 	}
 
@@ -49,11 +48,11 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 			check(t, tr, expected, n.Node, 1)
 
 			// Same path, but wrong hash => error expected, no refcount changes
-			require.True(t, errors.Is(tr.RestoreHashNode(path, NewBranchNode()), ErrRestoreFailed))
+			require.ErrorIs(t, tr.RestoreHashNode(path, NewBranchNode()), ErrRestoreFailed)
 			check(t, tr, expected, n.Node, 1)
 
 			// New path (changes in the MPT structure are not allowed) => error expected, no refcount changes
-			require.True(t, errors.Is(tr.RestoreHashNode(toNibbles([]byte{0xAB}), n.Node), ErrRestoreFailed))
+			require.ErrorIs(t, tr.RestoreHashNode(toNibbles([]byte{0xAB}), n.Node), ErrRestoreFailed)
 			check(t, tr, expected, n.Node, 1)
 		})
 
@@ -75,11 +74,11 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 			check(t, tr, expected, l, 1)
 
 			// Same path, but wrong hash => error expected, no refcount changes
-			require.True(t, errors.Is(tr.RestoreHashNode(path, NewLeafNode([]byte{0xAB, 0xEF})), ErrRestoreFailed))
+			require.ErrorIs(t, tr.RestoreHashNode(path, NewLeafNode([]byte{0xAB, 0xEF})), ErrRestoreFailed)
 			check(t, tr, expected, l, 1)
 
 			// New path (changes in the MPT structure are not allowed) => error expected, no refcount changes
-			require.True(t, errors.Is(tr.RestoreHashNode(toNibbles([]byte{0xAB}), l), ErrRestoreFailed))
+			require.ErrorIs(t, tr.RestoreHashNode(toNibbles([]byte{0xAB}), l), ErrRestoreFailed)
 			check(t, tr, expected, l, 1)
 		})
 
@@ -91,7 +90,7 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 			tr.root = e
 
 			// no-op
-			require.True(t, errors.Is(tr.RestoreHashNode(path, h), ErrRestoreFailed))
+			require.ErrorIs(t, tr.RestoreHashNode(path, h), ErrRestoreFailed)
 			check(t, tr, e, h, 0)
 		})
 	})
@@ -108,10 +107,10 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 		})
 
 		// Same path, but wrong hash => error expected, no refcount changes
-		require.True(t, errors.Is(tr.RestoreHashNode(path, NewLeafNode([]byte{0xAB, 0xEF})), ErrRestoreFailed))
+		require.ErrorIs(t, tr.RestoreHashNode(path, NewLeafNode([]byte{0xAB, 0xEF})), ErrRestoreFailed)
 
 		// Non-nil path, but MPT structure can't be changed => error expected, no refcount changes
-		require.True(t, errors.Is(tr.RestoreHashNode(toNibbles([]byte{0xAC}), NewLeafNode([]byte{0xAB, 0xEF})), ErrRestoreFailed))
+		require.ErrorIs(t, tr.RestoreHashNode(toNibbles([]byte{0xAC}), NewLeafNode([]byte{0xAB, 0xEF})), ErrRestoreFailed)
 	})
 
 	t.Run("parent is Branch", func(t *testing.T) {
@@ -138,11 +137,11 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 			check(t, tr, b, l1, 1)
 
 			// Same path, but wrong hash => error expected, no refcount changes
-			require.True(t, errors.Is(tr.RestoreHashNode(path, NewLeafNode([]byte{0xAD})), ErrRestoreFailed))
+			require.ErrorIs(t, tr.RestoreHashNode(path, NewLeafNode([]byte{0xAD})), ErrRestoreFailed)
 			check(t, tr, b, l1, 1)
 
 			// New path pointing to the empty HashNode (changes in the MPT structure are not allowed) => error expected, no refcount changes
-			require.True(t, errors.Is(tr.RestoreHashNode([]byte{0x01}, l1), ErrRestoreFailed))
+			require.ErrorIs(t, tr.RestoreHashNode([]byte{0x01}, l1), ErrRestoreFailed)
 			check(t, tr, b, l1, 1)
 		})
 
@@ -169,7 +168,7 @@ func TestBillet_RestoreHashNode(t *testing.T) {
 			check(t, tr, b, l2, 1)
 
 			// Same path, but wrong hash => error expected, no refcount changes
-			require.True(t, errors.Is(tr.RestoreHashNode(path, NewLeafNode([]byte{0xAD})), ErrRestoreFailed))
+			require.ErrorIs(t, tr.RestoreHashNode(path, NewLeafNode([]byte{0xAD})), ErrRestoreFailed)
 			check(t, tr, b, l2, 1)
 		})
 

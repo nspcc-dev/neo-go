@@ -63,8 +63,8 @@ type rpcTestCase struct {
 	name   string
 	params string
 	fail   bool
-	result func(e *executor) interface{}
-	check  func(t *testing.T, e *executor, result interface{})
+	result func(e *executor) any
+	check  func(t *testing.T, e *executor, result any)
 }
 
 const genesisBlockHash = "0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4"
@@ -83,7 +83,7 @@ const (
 	faultedTxHashLE                   = "82279bfe9bada282ca0f8cb8e0bb124b921af36f00c69a518320322c6f4fef60"
 	faultedTxBlock             uint32 = 23
 	invokescriptContractAVM           = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
-	block20StateRootLE                = "811a287a0235cfb3c7def100ae7029335a10e8b90d0ca59c460955c0546a0414"
+	block20StateRootLE                = "ae445869283f8d7e0debc3f455014c73cde21b9802db99e80248da9f393bce14"
 )
 
 var (
@@ -98,8 +98,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["` + deploymentTxHash + `"]`,
-			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
-			check: func(t *testing.T, e *executor, acc interface{}) {
+			result: func(e *executor) any { return &result.ApplicationLog{} },
+			check: func(t *testing.T, e *executor, acc any) {
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
 				expectedTxHash, err := util.Uint256DecodeStringLE(deploymentTxHash)
@@ -113,8 +113,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, genesis block",
 			params: `["` + genesisBlockHash + `"]`,
-			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
-			check: func(t *testing.T, e *executor, acc interface{}) {
+			result: func(e *executor) any { return &result.ApplicationLog{} },
+			check: func(t *testing.T, e *executor, acc any) {
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
 				assert.Equal(t, genesisBlockHash, res.Container.StringLE())
@@ -127,8 +127,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, genesis block, postPersist",
 			params: `["` + genesisBlockHash + `", "PostPersist"]`,
-			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
-			check: func(t *testing.T, e *executor, acc interface{}) {
+			result: func(e *executor) any { return &result.ApplicationLog{} },
+			check: func(t *testing.T, e *executor, acc any) {
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
 				assert.Equal(t, genesisBlockHash, res.Container.StringLE())
@@ -140,8 +140,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, genesis block, onPersist",
 			params: `["` + genesisBlockHash + `", "OnPersist"]`,
-			result: func(e *executor) interface{} { return &result.ApplicationLog{} },
-			check: func(t *testing.T, e *executor, acc interface{}) {
+			result: func(e *executor) any { return &result.ApplicationLog{} },
+			check: func(t *testing.T, e *executor, acc any) {
 				res, ok := acc.(*result.ApplicationLog)
 				require.True(t, ok)
 				assert.Equal(t, genesisBlockHash, res.Container.StringLE())
@@ -175,8 +175,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, by hash",
 			params: fmt.Sprintf(`["%s"]`, testContractHash),
-			result: func(e *executor) interface{} { return &state.Contract{} },
-			check: func(t *testing.T, e *executor, cs interface{}) {
+			result: func(e *executor) any { return &state.Contract{} },
+			check: func(t *testing.T, e *executor, cs any) {
 				res, ok := cs.(*state.Contract)
 				require.True(t, ok)
 				assert.Equal(t, testContractHash, res.Hash.StringLE())
@@ -185,8 +185,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, by id",
 			params: `[1]`,
-			result: func(e *executor) interface{} { return &state.Contract{} },
-			check: func(t *testing.T, e *executor, cs interface{}) {
+			result: func(e *executor) any { return &state.Contract{} },
+			check: func(t *testing.T, e *executor, cs any) {
 				res, ok := cs.(*state.Contract)
 				require.True(t, ok)
 				assert.Equal(t, int32(1), res.ID)
@@ -195,8 +195,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, native by id",
 			params: `[-3]`,
-			result: func(e *executor) interface{} { return &state.Contract{} },
-			check: func(t *testing.T, e *executor, cs interface{}) {
+			result: func(e *executor) any { return &state.Contract{} },
+			check: func(t *testing.T, e *executor, cs any) {
 				res, ok := cs.(*state.Contract)
 				require.True(t, ok)
 				assert.Equal(t, int32(-3), res.ID)
@@ -205,8 +205,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, native by name",
 			params: `["PolicyContract"]`,
-			result: func(e *executor) interface{} { return &state.Contract{} },
-			check: func(t *testing.T, e *executor, cs interface{}) {
+			result: func(e *executor) any { return &state.Contract{} },
+			check: func(t *testing.T, e *executor, cs any) {
 				res, ok := cs.(*state.Contract)
 				require.True(t, ok)
 				assert.Equal(t, int32(-7), res.ID)
@@ -252,13 +252,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["` + testchain.PrivateKeyByID(0).GetScriptHash().StringLE() + `"]`,
-			result: func(e *executor) interface{} { return &result.NEP11Balances{} },
+			result: func(e *executor) any { return &result.NEP11Balances{} },
 			check:  checkNep11Balances,
 		},
 		{
 			name:   "positive_address",
 			params: `["` + address.Uint160ToString(testchain.PrivateKeyByID(0).GetScriptHash()) + `"]`,
-			result: func(e *executor) interface{} { return &result.NEP11Balances{} },
+			result: func(e *executor) any { return &result.NEP11Balances{} },
 			check:  checkNep11Balances,
 		},
 	},
@@ -286,8 +286,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["` + nnsContractHash + `", "6e656f2e636f6d"]`,
-			result: func(e *executor) interface{} {
-				return &map[string]interface{}{
+			result: func(e *executor) any {
+				return &map[string]any{
 					"name":       "neo.com",
 					"expiration": "lhbLRl0B",
 					"admin":      nil,
@@ -319,7 +319,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["` + testchain.PrivateKeyByID(0).Address() + `", 0]`,
-			result: func(e *executor) interface{} { return &result.NEP11Transfers{} },
+			result: func(e *executor) any { return &result.NEP11Transfers{} },
 			check:  checkNep11Transfers,
 		},
 	},
@@ -337,13 +337,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["` + testchain.PrivateKeyByID(0).GetScriptHash().StringLE() + `"]`,
-			result: func(e *executor) interface{} { return &result.NEP17Balances{} },
+			result: func(e *executor) any { return &result.NEP17Balances{} },
 			check:  checkNep17Balances,
 		},
 		{
 			name:   "positive_address",
 			params: `["` + address.Uint160ToString(testchain.PrivateKeyByID(0).GetScriptHash()) + `"]`,
-			result: func(e *executor) interface{} { return &result.NEP17Balances{} },
+			result: func(e *executor) any { return &result.NEP17Balances{} },
 			check:  checkNep17Balances,
 		},
 	},
@@ -396,13 +396,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["` + testchain.PrivateKeyByID(0).Address() + `", 0]`,
-			result: func(e *executor) interface{} { return &result.NEP17Transfers{} },
+			result: func(e *executor) any { return &result.NEP17Transfers{} },
 			check:  checkNep17Transfers,
 		},
 		{
 			name:   "positive_hash",
 			params: `["` + testchain.PrivateKeyByID(0).GetScriptHash().StringLE() + `", 0]`,
-			result: func(e *executor) interface{} { return &result.NEP17Transfers{} },
+			result: func(e *executor) any { return &result.NEP17Transfers{} },
 			check:  checkNep17Transfers,
 		},
 	},
@@ -496,8 +496,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `[]`,
-			result: func(_ *executor) interface{} { return new(result.StateHeight) },
-			check: func(t *testing.T, e *executor, res interface{}) {
+			result: func(_ *executor) any { return new(result.StateHeight) },
+			check: func(t *testing.T, e *executor, res any) {
 				sh, ok := res.(*result.StateHeight)
 				require.True(t, ok)
 
@@ -522,7 +522,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: fmt.Sprintf(`["%s", "dGVzdGtleQ=="]`, testContractHash),
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				v := base64.StdEncoding.EncodeToString([]byte("newtestvalue"))
 				return &v
 			},
@@ -530,7 +530,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "missing key",
 			params: fmt.Sprintf(`["%s", "dGU="]`, testContractHash),
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				v := ""
 				return &v
 			},
@@ -559,7 +559,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getbestblockhash": {
 		{
 			params: "[]",
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				v := "0x" + e.chain.CurrentBlockHash().StringLE()
 				return &v
 			},
@@ -569,8 +569,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: "[3, 1]",
-			result: func(_ *executor) interface{} { return &result.Block{} },
-			check: func(t *testing.T, e *executor, blockRes interface{}) {
+			result: func(_ *executor) any { return &result.Block{} },
+			check: func(t *testing.T, e *executor, blockRes any) {
 				res, ok := blockRes.(*result.Block)
 				require.True(t, ok)
 
@@ -615,7 +615,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getblockcount": {
 		{
 			params: "[]",
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				v := int(e.chain.BlockHeight() + 1)
 				return &v
 			},
@@ -624,7 +624,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getblockhash": {
 		{
 			params: "[1]",
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				// We don't have `t` here for proper handling, but
 				// error here would lead to panic down below.
 				block, _ := e.chain.GetBlock(e.chain.GetHeaderHash(1))
@@ -668,7 +668,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getblockheadercount": {
 		{
 			params: "[]",
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				v := int(e.chain.HeaderHeight() + 1)
 				return &v
 			},
@@ -678,7 +678,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: "[1]",
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				block, _ := e.chain.GetBlock(e.chain.GetHeaderHash(1))
 
 				var expectedBlockSysFee int64
@@ -707,7 +707,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getcommittee": {
 		{
 			params: "[]",
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				expected, _ := e.chain.GetCommittee()
 				sort.Sort(expected)
 				return &expected
@@ -717,7 +717,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getconnectioncount": {
 		{
 			params: "[]",
-			result: func(*executor) interface{} {
+			result: func(*executor) any {
 				v := 0
 				return &v
 			},
@@ -726,10 +726,10 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getnativecontracts": {
 		{
 			params: "[]",
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				return new([]state.NativeContract)
 			},
-			check: func(t *testing.T, e *executor, res interface{}) {
+			check: func(t *testing.T, e *executor, res any) {
 				lst := res.(*[]state.NativeContract)
 				for i := range *lst {
 					cs := e.chain.GetContractState((*lst)[i].Hash)
@@ -743,7 +743,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getpeers": {
 		{
 			params: "[]",
-			result: func(*executor) interface{} {
+			result: func(*executor) any {
 				return &result.GetPeers{
 					Unconnected: []result.Peer{},
 					Connected:   []result.Peer{},
@@ -773,11 +773,11 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["` + deploymentTxHash + `"]`,
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				h := 0
 				return &h
 			},
-			check: func(t *testing.T, e *executor, resp interface{}) {
+			check: func(t *testing.T, e *executor, resp any) {
 				h, ok := resp.(*int)
 				require.True(t, ok)
 				assert.Equal(t, 2, *h)
@@ -813,10 +813,10 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["` + testchain.MultisigAddress() + `"]`,
-			result: func(*executor) interface{} {
+			result: func(*executor) any {
 				return &result.UnclaimedGas{}
 			},
-			check: func(t *testing.T, e *executor, resp interface{}) {
+			check: func(t *testing.T, e *executor, resp any) {
 				actual, ok := resp.(*result.UnclaimedGas)
 				require.True(t, ok)
 				expected := result.UnclaimedGas{
@@ -830,7 +830,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getcandidates": {
 		{
 			params: "[]",
-			result: func(*executor) interface{} {
+			result: func(*executor) any {
 				return &[]result.Candidate{}
 			},
 		},
@@ -838,11 +838,11 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getnextblockvalidators": {
 		{
 			params: "[]",
-			result: func(*executor) interface{} {
+			result: func(*executor) any {
 				return &[]result.Validator{}
 			},
 			/* preview3 doesn't return any validators until there is a vote
-			check: func(t *testing.T, e *executor, validators interface{}) {
+			check: func(t *testing.T, e *executor, validators any) {
 				var expected []result.Validator
 				sBValidators := e.chain.GetStandByValidators()
 				for _, sbValidator := range sBValidators {
@@ -864,8 +864,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getversion": {
 		{
 			params: "[]",
-			result: func(*executor) interface{} { return &result.Version{} },
-			check: func(t *testing.T, e *executor, ver interface{}) {
+			result: func(*executor) any { return &result.Version{} },
+			check: func(t *testing.T, e *executor, ver any) {
 				resp, ok := ver.(*result.Version)
 				require.True(t, ok)
 				require.Equal(t, "/NEO-GO:0.98.6-test/", resp.UserAgent)
@@ -892,8 +892,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", "test", []]`,
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.NotNil(t, res.Script)
@@ -904,7 +904,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, with notifications",
 			params: `["` + nnsContractHash + `", "transfer", [{"type":"Hash160", "value":"0x0bcd2978634d961c24f5aea0802297ff128724d6"},{"type":"String", "value":"neo.com"},{"type":"Any", "value":null}],["0xb248508f4ef7088e10c48f14d04be3272ca29eee"]]`,
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				script := append([]byte{0x0b, 0x0c, 0x07, 0x6e, 0x65, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x0c, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb, 0x13, 0xc0, 0x1f, 0xc, 0x8, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0xc, 0x14}, nnsHash.BytesBE()...)
 				script = append(script, 0x41, 0x62, 0x7d, 0x5b, 0x52)
 				return &result.Invoke{
@@ -928,8 +928,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, with storage changes",
 			params: `["0xef4073a0f2b305a38ec4050e4d3d28bc40ea63f5", "transfer", [{"type":"Hash160", "value":"0xb248508f4ef7088e10c48f14d04be3272ca29eee"},{"type":"Hash160", "value":"0x0bcd2978634d961c24f5aea0802297ff128724d6"},{"type":"Integer", "value":1},{"type":"Any", "value":null}],["0xb248508f4ef7088e10c48f14d04be3272ca29eee"],true]`,
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.NotNil(t, res.Script)
@@ -943,11 +943,11 @@ var rpcTestCases = map[string][]rpcTestCase{
 				}, {
 					State: "Added",
 					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb},
-					Value: []byte{0x41, 0x03, 0x21, 0x01, 0x01, 0x21, 0x01, 0x18, 0},
+					Value: []byte{0x41, 0x04, 0x21, 0x01, 0x01, 0x21, 0x01, 0x18, 0x00, 0x21, 0x00},
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
-					Value: []byte{0x41, 0x03, 0x21, 0x04, 0x2f, 0xd9, 0xf5, 0x05, 0x21, 0x01, 0x18, 0},
+					Value: []byte{0x41, 0x04, 0x21, 0x04, 0x2f, 0xd9, 0xf5, 0x05, 0x21, 0x01, 0x18, 0x00, 0x21, 0x00},
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
@@ -960,7 +960,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, verbose",
 			params: `["` + nnsContractHash + `", "resolve", [{"type":"String", "value":"neo.com"},{"type":"Integer","value":1}], [], true]`,
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				script := append([]byte{0x11, 0xc, 0x7, 0x6e, 0x65, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x12, 0xc0, 0x1f, 0xc, 0x7, 0x72, 0x65, 0x73, 0x6f, 0x6c, 0x76, 0x65, 0xc, 0x14}, nnsHash.BytesBE()...)
 				script = append(script, 0x41, 0x62, 0x7d, 0x5b, 0x52)
 				stdHash, _ := e.chain.GetNativeContractScriptHash(nativenames.StdLib)
@@ -1027,8 +1027,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, by index",
 			params: `[20, "50befd26fdf6e4d957c11e078b24ebce6291456f", "test", []]`,
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.NotNil(t, res.Script)
@@ -1039,8 +1039,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, by stateroot",
 			params: `["` + block20StateRootLE + `", "50befd26fdf6e4d957c11e078b24ebce6291456f", "test", []]`,
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.NotNil(t, res.Script)
@@ -1051,7 +1051,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, with notifications",
 			params: `[20, "` + nnsContractHash + `", "transfer", [{"type":"Hash160", "value":"0x0bcd2978634d961c24f5aea0802297ff128724d6"},{"type":"String", "value":"neo.com"},{"type":"Any", "value":null}],["0xb248508f4ef7088e10c48f14d04be3272ca29eee"]]`,
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				script := append([]byte{0x0b, 0x0c, 0x07, 0x6e, 0x65, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x0c, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb, 0x13, 0xc0, 0x1f, 0xc, 0x8, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0xc, 0x14}, nnsHash.BytesBE()...)
 				script = append(script, 0x41, 0x62, 0x7d, 0x5b, 0x52)
 				return &result.Invoke{
@@ -1075,7 +1075,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, verbose",
 			params: `[20, "` + nnsContractHash + `", "resolve", [{"type":"String", "value":"neo.com"},{"type":"Integer","value":1}], [], true]`,
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				script := append([]byte{0x11, 0xc, 0x7, 0x6e, 0x65, 0x6f, 0x2e, 0x63, 0x6f, 0x6d, 0x12, 0xc0, 0x1f, 0xc, 0x7, 0x72, 0x65, 0x73, 0x6f, 0x6c, 0x76, 0x65, 0xc, 0x14}, nnsHash.BytesBE()...)
 				script = append(script, 0x41, 0x62, 0x7d, 0x5b, 0x52)
 				stdHash, _ := e.chain.GetNativeContractScriptHash(nativenames.StdLib)
@@ -1157,8 +1157,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY="]`,
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.NotEqual(t, "", res.Script)
@@ -1169,7 +1169,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive,verbose",
 			params: `["UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY=",[],true]`,
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				script := []byte{0x51, 0xc5, 0x6b, 0xd, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x68, 0xf, 0x4e, 0x65, 0x6f, 0x2e, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x2e, 0x4c, 0x6f, 0x67, 0x61, 0x6c, 0x75, 0x66}
 				return &result.Invoke{
 					State:          "FAULT",
@@ -1191,8 +1191,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name: "positive, good witness",
 			// script is base64-encoded `invokescript_contract.avm` representation, hashes are hex-encoded LE bytes of hashes used in the contract with `0x` prefix
 			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c01","0x090c060e00010205040307030102000902030f0d"]]`, invokescriptContractAVM),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Equal(t, "HALT", res.State)
@@ -1203,8 +1203,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, bad witness of second hash",
 			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c01"]]`, invokescriptContractAVM),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Equal(t, "HALT", res.State)
@@ -1215,8 +1215,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, no good hashes",
 			params: fmt.Sprintf(`["%s"]`, invokescriptContractAVM),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Equal(t, "HALT", res.State)
@@ -1227,8 +1227,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, bad hashes witness",
 			params: fmt.Sprintf(`["%s",["0x0000000009070e030d0f0e020d0c06050e030c02"]]`, invokescriptContractAVM),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Equal(t, "HALT", res.State)
@@ -1256,8 +1256,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, by index",
 			params: `[20,"UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY="]`,
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.NotEqual(t, "", res.Script)
@@ -1268,8 +1268,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, by stateroot",
 			params: `["` + block20StateRootLE + `","UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY="]`,
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.NotEqual(t, "", res.Script)
@@ -1280,7 +1280,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive,verbose",
 			params: `[20, "UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY=",[],true]`,
-			result: func(e *executor) interface{} {
+			result: func(e *executor) any {
 				script := []byte{0x51, 0xc5, 0x6b, 0xd, 0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x21, 0x68, 0xf, 0x4e, 0x65, 0x6f, 0x2e, 0x52, 0x75, 0x6e, 0x74, 0x69, 0x6d, 0x65, 0x2e, 0x4c, 0x6f, 0x67, 0x61, 0x6c, 0x75, 0x66}
 				return &result.Invoke{
 					State:          "FAULT",
@@ -1302,8 +1302,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 			name: "positive, good witness",
 			// script is base64-encoded `invokescript_contract.avm` representation, hashes are hex-encoded LE bytes of hashes used in the contract with `0x` prefix
 			params: fmt.Sprintf(`[20,"%s",["0x0000000009070e030d0f0e020d0c06050e030c01","0x090c060e00010205040307030102000902030f0d"]]`, invokescriptContractAVM),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Equal(t, "HALT", res.State)
@@ -1314,8 +1314,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, bad witness of second hash",
 			params: fmt.Sprintf(`[20,"%s",["0x0000000009070e030d0f0e020d0c06050e030c01"]]`, invokescriptContractAVM),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Equal(t, "HALT", res.State)
@@ -1326,8 +1326,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, no good hashes",
 			params: fmt.Sprintf(`[20,"%s"]`, invokescriptContractAVM),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Equal(t, "HALT", res.State)
@@ -1338,8 +1338,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, bad hashes witness",
 			params: fmt.Sprintf(`[20,"%s",["0x0000000009070e030d0f0e020d0c06050e030c02"]]`, invokescriptContractAVM),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Equal(t, "HALT", res.State)
@@ -1382,8 +1382,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: fmt.Sprintf(`["%s", [], [{"account":"%s"}]]`, verifyContractHash, testchain.PrivateKeyByID(0).PublicKey().GetScriptHash().StringLE()),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Nil(t, res.Script) // empty witness invocation script (pushes args of `verify` on stack, but this `verify` don't have args)
@@ -1395,8 +1395,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, no signers",
 			params: fmt.Sprintf(`["%s", []]`, verifyContractHash),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Nil(t, res.Script)
@@ -1408,8 +1408,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, no arguments",
 			params: fmt.Sprintf(`["%s"]`, verifyContractHash),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Nil(t, res.Script)
@@ -1421,8 +1421,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, with signers and scripts",
 			params: fmt.Sprintf(`["%s", [], [{"account":"%s", "invocation":"MQo=", "verification": ""}]]`, verifyContractHash, testchain.PrivateKeyByID(0).PublicKey().GetScriptHash().StringLE()),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Nil(t, res.Script)
@@ -1434,8 +1434,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, with arguments, result=true",
 			params: fmt.Sprintf(`["%s", [{"type": "String", "value": "good_string"}, {"type": "Integer", "value": "4"}, {"type":"Boolean", "value": false}]]`, verifyWithArgsContractHash),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				expectedInvScript := io.NewBufBinWriter()
@@ -1452,8 +1452,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, with arguments, result=false",
 			params: fmt.Sprintf(`["%s", [{"type": "String", "value": "invalid_string"}, {"type": "Integer", "value": "4"}, {"type":"Boolean", "value": false}]]`, verifyWithArgsContractHash),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				expectedInvScript := io.NewBufBinWriter()
@@ -1487,8 +1487,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, by index",
 			params: fmt.Sprintf(`[20,"%s", [], [{"account":"%s"}]]`, verifyContractHash, testchain.PrivateKeyByID(0).PublicKey().GetScriptHash().StringLE()),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Nil(t, res.Script) // empty witness invocation script (pushes args of `verify` on stack, but this `verify` don't have args)
@@ -1500,8 +1500,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, by stateroot",
 			params: fmt.Sprintf(`["`+block20StateRootLE+`","%s", [], [{"account":"%s"}]]`, verifyContractHash, testchain.PrivateKeyByID(0).PublicKey().GetScriptHash().StringLE()),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Nil(t, res.Script) // empty witness invocation script (pushes args of `verify` on stack, but this `verify` don't have args)
@@ -1513,8 +1513,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, no signers",
 			params: fmt.Sprintf(`[20,"%s", []]`, verifyContractHash),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Nil(t, res.Script)
@@ -1526,8 +1526,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, no arguments",
 			params: fmt.Sprintf(`[20,"%s"]`, verifyContractHash),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Nil(t, res.Script)
@@ -1539,8 +1539,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, with signers and scripts",
 			params: fmt.Sprintf(`[20,"%s", [], [{"account":"%s", "invocation":"MQo=", "verification": ""}]]`, verifyContractHash, testchain.PrivateKeyByID(0).PublicKey().GetScriptHash().StringLE()),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				assert.Nil(t, res.Script)
@@ -1552,8 +1552,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, with arguments, result=true",
 			params: fmt.Sprintf(`[20,"%s", [{"type": "String", "value": "good_string"}, {"type": "Integer", "value": "4"}, {"type":"Boolean", "value": false}]]`, verifyWithArgsContractHash),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				expectedInvScript := io.NewBufBinWriter()
@@ -1570,8 +1570,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive, with arguments, result=false",
 			params: fmt.Sprintf(`[20, "%s", [{"type": "String", "value": "invalid_string"}, {"type": "Integer", "value": "4"}, {"type":"Boolean", "value": false}]]`, verifyWithArgsContractHash),
-			result: func(e *executor) interface{} { return &result.Invoke{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.Invoke{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.Invoke)
 				require.True(t, ok)
 				expectedInvScript := io.NewBufBinWriter()
@@ -1610,8 +1610,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["AB0AAACWP5gAAAAAAEDaEgAAAAAAGAAAAAHunqIsJ+NL0BSPxBCOCPdOj1BIsoAAXgsDAOh2SBcAAAAMFBEmW7QXJQBBvgTo+iQOOPV8HlabDBTunqIsJ+NL0BSPxBCOCPdOj1BIshTAHwwIdHJhbnNmZXIMFPVj6kC8KD1NDgXEjqMFs/Kgc0DvQWJ9W1IBQgxAJ6norhWoZxp+Hj1JFhi+Z3qI9DUkLSbfsbaLSaJIqxTfdmPbNFDVK1G+oa+LWmpRp/bj9+QZM7yC+S6HXUI7rigMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwkFW57Mn"]`,
-			result: func(e *executor) interface{} { return &result.RelayResult{} },
-			check: func(t *testing.T, e *executor, inv interface{}) {
+			result: func(e *executor) any { return &result.RelayResult{} },
+			check: func(t *testing.T, e *executor, inv any) {
 				res, ok := inv.(*result.RelayResult)
 				require.True(t, ok)
 				expectedHash := "c11861dec1dd0f188608b725095041fcfc90abe51eea044993f122f22472753e"
@@ -1674,8 +1674,8 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "positive",
 			params: `["Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2"]`,
-			result: func(*executor) interface{} { return &result.ValidateAddress{} },
-			check: func(t *testing.T, e *executor, va interface{}) {
+			result: func(*executor) any { return &result.ValidateAddress{} },
+			check: func(t *testing.T, e *executor, va any) {
 				res, ok := va.(*result.ValidateAddress)
 				require.True(t, ok)
 				assert.Equal(t, "Nbb1qkwcwNSBs9pAnrVVrnFbWnbWBk91U2", res.Address)
@@ -1685,7 +1685,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:   "negative",
 			params: "[1]",
-			result: func(*executor) interface{} {
+			result: func(*executor) any {
 				return &result.ValidateAddress{
 					Address: float64(1),
 					IsValid: false,
@@ -2267,7 +2267,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		testHeaderHash := chain.GetHeaderHash(1).StringLE()
 		hdr := e.getHeader(testHeaderHash)
 
-		runCase := func(t *testing.T, rpc string, expected, actual interface{}) {
+		runCase := func(t *testing.T, rpc string, expected, actual any) {
 			body := doRPCCall(rpc, httpSrv.URL, t)
 			data := checkErrGetResult(t, body, false)
 			require.NoError(t, json.Unmarshal(data, actual))
@@ -2617,7 +2617,7 @@ func encodeBlock(t *testing.T, b *block.Block) string {
 	return base64.StdEncoding.EncodeToString(w.Bytes())
 }
 
-func (tc rpcTestCase) getResultPair(e *executor) (expected interface{}, res interface{}) {
+func (tc rpcTestCase) getResultPair(e *executor) (expected any, res any) {
 	expected = tc.result(e)
 	resVal := reflect.New(reflect.TypeOf(expected).Elem())
 	res = resVal.Interface()
@@ -2683,7 +2683,7 @@ func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
 	return bytes.TrimSpace(body)
 }
 
-func checkNep11Balances(t *testing.T, e *executor, acc interface{}) {
+func checkNep11Balances(t *testing.T, e *executor, acc any) {
 	res, ok := acc.(*result.NEP11Balances)
 	require.True(t, ok)
 
@@ -2721,7 +2721,7 @@ func checkNep11Balances(t *testing.T, e *executor, acc interface{}) {
 	require.ElementsMatch(t, expected.Balances, res.Balances)
 }
 
-func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
+func checkNep17Balances(t *testing.T, e *executor, acc any) {
 	res, ok := acc.(*result.NEP17Balances)
 	require.True(t, ok)
 	rubles, err := util.Uint160DecodeStringLE(testContractHash)
@@ -2757,11 +2757,11 @@ func checkNep17Balances(t *testing.T, e *executor, acc interface{}) {
 	require.ElementsMatch(t, expected.Balances, res.Balances)
 }
 
-func checkNep11Transfers(t *testing.T, e *executor, acc interface{}) {
+func checkNep11Transfers(t *testing.T, e *executor, acc any) {
 	checkNep11TransfersAux(t, e, acc, []int{0}, []int{0, 1, 2})
 }
 
-func checkNep11TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
+func checkNep11TransfersAux(t *testing.T, e *executor, acc any, sent, rcvd []int) {
 	res, ok := acc.(*result.NEP11Transfers)
 	require.True(t, ok)
 
@@ -2859,11 +2859,11 @@ func checkNep11TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rc
 	require.Equal(t, arr, res.Received)
 }
 
-func checkNep17Transfers(t *testing.T, e *executor, acc interface{}) {
+func checkNep17Transfers(t *testing.T, e *executor, acc any) {
 	checkNep17TransfersAux(t, e, acc, []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}, []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
 }
 
-func checkNep17TransfersAux(t *testing.T, e *executor, acc interface{}, sent, rcvd []int) {
+func checkNep17TransfersAux(t *testing.T, e *executor, acc any, sent, rcvd []int) {
 	res, ok := acc.(*result.NEP17Transfers)
 	require.True(t, ok)
 	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)

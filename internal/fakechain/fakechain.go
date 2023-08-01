@@ -28,7 +28,7 @@ type FakeChain struct {
 	blocksCh                 []chan *block.Block
 	Blockheight              uint32
 	PoolTxF                  func(*transaction.Transaction) error
-	poolTxWithData           func(*transaction.Transaction, interface{}, *mempool.Pool) error
+	poolTxWithData           func(*transaction.Transaction, any, *mempool.Pool) error
 	blocks                   map[util.Uint256]*block.Block
 	hdrHashes                map[uint32]util.Uint256
 	txs                      map[util.Uint256]*transaction.Transaction
@@ -62,9 +62,9 @@ func NewFakeChainWithCustomCfg(protocolCfg func(c *config.Blockchain)) *FakeChai
 		protocolCfg(&cfg)
 	}
 	return &FakeChain{
-		Pool:           mempool.New(10, 0, false),
+		Pool:           mempool.New(10, 0, false, nil),
 		PoolTxF:        func(*transaction.Transaction) error { return nil },
-		poolTxWithData: func(*transaction.Transaction, interface{}, *mempool.Pool) error { return nil },
+		poolTxWithData: func(*transaction.Transaction, any, *mempool.Pool) error { return nil },
 		blocks:         make(map[util.Uint256]*block.Block),
 		hdrHashes:      make(map[uint32]util.Uint256),
 		txs:            make(map[util.Uint256]*transaction.Transaction),
@@ -149,7 +149,7 @@ func (chain *FakeChain) GetMaxVerificationGAS() int64 {
 }
 
 // PoolTxWithData implements the Blockchainer interface.
-func (chain *FakeChain) PoolTxWithData(t *transaction.Transaction, data interface{}, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data interface{}) error) error {
+func (chain *FakeChain) PoolTxWithData(t *transaction.Transaction, data any, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data any) error) error {
 	return chain.poolTxWithData(t, data, mp)
 }
 

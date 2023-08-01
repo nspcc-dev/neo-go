@@ -24,7 +24,7 @@ const (
 
 // Invoker is used by Base to call various methods.
 type Invoker interface {
-	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
 }
 
 // Base is a reader interface for common NEP-11 and NEP-17 methods built

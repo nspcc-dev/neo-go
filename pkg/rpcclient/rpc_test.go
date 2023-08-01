@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -25,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -43,11 +43,11 @@ import (
 
 type rpcClientTestCase struct {
 	name           string
-	invoke         func(c *Client) (interface{}, error)
+	invoke         func(c *Client) (any, error)
 	fails          bool
 	serverResponse string
-	result         func(c *Client) interface{}
-	check          func(t *testing.T, c *Client, result interface{})
+	result         func(c *Client) any
+	check          func(t *testing.T, c *Client, result any)
 }
 
 const base64B1 = "AAAAAMSdeyVO3QCekJTbQ4D7YEEGFv2nXPd6CfO5Kn3htI8P9tVA4+VXLyyMG12BUj6qB3CZ+JIFwWCcDF+KBHH0VSjJICSkegEAAAAAAAAAAAAAAQAAAABouegejA5skHm0udEF6HinbT8iPwHGDEBg0hpK90iZlB4ZSCG7BOr7BsvPXGDax360lvqKeNFuzaGI1RYNH50/dhQLxocy90JdsIOyodd1sOJGEjZIt7ztDEAHc2avJzz6tK+FOQMIZO/FEEikJdLJX0+iZXFcsmDRpB7lo2wWMSQbcoTXNg7leuR0VeDsKJ+YdvCuTG5WbiqWDECa6Yjj+bK4te5KR5jdLF5kLt03csyozZcd/X7NPt89IsX01zpX8ec3e+B2qySJIOhEf3cK0i+5U5wyXiFcRI8xkxMMIQIQOn990BZVhZf3lg0nxRakOU/ZaLnmUVXrSwE+QEBAbgwhAqe8Vf6GhOARl2jRBLoweVvcyGYZ6GSt0mFWcj7Rhc1iDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIMIQPZDAffY+aQzneRLhCrUazJRLZoYCN7YIxPj4MJ5x7mmRRBntDcOgIAAgAAAMDYpwAAAAAADHlDAAAAAACwBAAAAWi56B6MDmyQebS50QXoeKdtPyI/AQBbCwIY3fUFDBTunqIsJ+NL0BSPxBCOCPdOj1BIsgwUaLnoHowObJB5tLnRBeh4p20/Ij8UwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQHGDEC8InWg8rQHWjklRojobu7kn4r0xZY2xWYs15ggVX4PQyEHpNTU6vZHT2TXRdPXAOKHhgWAttO0oTvo+9VZAjIVDEBF0qvBMlvmYJIYLqSoCjhBykcSN78UXrBjO5BKL8BpHtejWCld1VT6Z7nYrEBLgySD6HeMcp/fa6vqHzU220e/DECXtm5AA1jy9GFA7t8U6a+1uPrQFk4Ufp0UyXsun0PvN0NdhrHc37xm8k9Z0dB85V/7WLtkMaLLyjVNVIKImC76kxMMIQIQOn990BZVhZf3lg0nxRakOU/ZaLnmUVXrSwE+QEBAbgwhAqe8Vf6GhOARl2jRBLoweVvcyGYZ6GSt0mFWcj7Rhc1iDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIMIQPZDAffY+aQzneRLhCrUazJRLZoYCN7YIxPj4MJ5x7mmRRBntDcOgADAAAAwNinAAAAAACsiEMAAAAAALAEAAABaLnoHowObJB5tLnRBeh4p20/Ij8BAF8LAwDodkgXAAAADBTunqIsJ+NL0BSPxBCOCPdOj1BIsgwUaLnoHowObJB5tLnRBeh4p20/Ij8UwB8MCHRyYW5zZmVyDBTPduKL0AYsSkeO41VhARMZ88+k0kFifVtSOQHGDEDgj/SQT84EbWRZ4ZKhyjJTuLwVPDgVlQO3CGmgacItvni9nziJvTxziZXBG/0Hqkv68ddS1EH94RtWlqLQWRCjDEAWZUeSQ8KskILSvoWPN3836xpg/TYzOGiFVoePv91CFnap4fRFxdbporBgnZ/sUsjFZ74U8f+r0riqtvkdMMyGDEDx5iho79oDVYOCwIDH3K1UeDjAT6Hq9YsD9SCfJSE1rRsAdJPh2StYxdh9Jah1lwGbW0U+Wu6zpbVFf5CS6fFckxMMIQIQOn990BZVhZf3lg0nxRakOU/ZaLnmUVXrSwE+QEBAbgwhAqe8Vf6GhOARl2jRBLoweVvcyGYZ6GSt0mFWcj7Rhc1iDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIMIQPZDAffY+aQzneRLhCrUazJRLZoYCN7YIxPj4MJ5x7mmRRBntDcOg=="
@@ -115,11 +115,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getapplicationlog": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetApplicationLog(util.Uint256{}, nil)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"txid":"0x17145a039fca704fcdbeb46e6b210af98a1a9e5b9768e46ffc38f71c79ac2521","executions":[{"trigger":"Application","vmstate":"HALT","gasconsumed":"1","stack":[{"type":"Integer","value":"1"}],"notifications":[]}]}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				txHash, err := util.Uint256DecodeStringLE("17145a039fca704fcdbeb46e6b210af98a1a9e5b9768e46ffc38f71c79ac2521")
 				if err != nil {
 					panic(err)
@@ -142,11 +142,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getbestblockhash": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBestBlockHash()
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"0x773dd2dae4a9c9275290f89b56e67d7363ea4826dfd4fc13cc01cf73a44b0d0e"}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				result, err := util.Uint256DecodeStringLE("773dd2dae4a9c9275290f89b56e67d7363ea4826dfd4fc13cc01cf73a44b0d0e")
 				if err != nil {
 					panic(err)
@@ -158,29 +158,29 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getblock": {
 		{
 			name: "byIndex_positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockByIndex(1)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"` + base64B1 + `"}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				b := getResultBlock1()
 				return &b.Block
 			},
 		},
 		{
 			name: "byIndex_verbose_positive",
-			invoke: func(c *Client) (i interface{}, err error) {
+			invoke: func(c *Client) (i any, err error) {
 				return c.GetBlockByIndexVerbose(1)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":` + b1Verbose + `}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				res := getResultBlock1()
 				return res
 			},
 		},
 		{
 			name: "byHash_positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint256DecodeStringLE("d151651e86680a7ecbc87babf3346a42e7bc9974414ce192c9c22ac4f2e9d043")
 				if err != nil {
 					panic(err)
@@ -188,14 +188,14 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetBlockByHash(hash)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"` + base64B1 + `"}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				b := getResultBlock1()
 				return &b.Block
 			},
 		},
 		{
 			name: "byHash_verbose_positive",
-			invoke: func(c *Client) (i interface{}, err error) {
+			invoke: func(c *Client) (i any, err error) {
 				hash, err := util.Uint256DecodeStringLE("86fe1061140b2ea791b0739fb9732abc6e5e47de4927228a1ac41de3d93eb7cb")
 				if err != nil {
 					panic(err)
@@ -203,7 +203,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetBlockByHashVerbose(hash)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":` + b1Verbose + `}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				res := getResultBlock1()
 				return res
 			},
@@ -212,11 +212,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getblockcount": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockCount()
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":991991}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return uint32(991991)
 			},
 		},
@@ -224,11 +224,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getblockhash": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockHash(1)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"0x4c1e879872344349067c3b1a30781eeb4f9040d3795db7922f513f6f9660b9b2"}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				hash, err := util.Uint256DecodeStringLE("4c1e879872344349067c3b1a30781eeb4f9040d3795db7922f513f6f9660b9b2")
 				if err != nil {
 					panic(err)
@@ -240,7 +240,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getblockheader": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint256DecodeStringLE("68e4bd688b852e807eef13a0ff7da7b02223e359a35153667e88f9cb4a3b0801")
 				if err != nil {
 					panic(err)
@@ -248,14 +248,14 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetBlockHeader(hash)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"` + base64Header1 + `"}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				b := getResultBlock1()
 				return &b.Header
 			},
 		},
 		{
 			name: "verbose_positive",
-			invoke: func(c *Client) (i interface{}, err error) {
+			invoke: func(c *Client) (i any, err error) {
 				hash, err := util.Uint256DecodeStringLE("cbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86")
 				if err != nil {
 					panic(err)
@@ -263,7 +263,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetBlockHeaderVerbose(hash)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":` + header1Verbose + `}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				b := getResultBlock1()
 				return &result.Header{
 					Header: b.Header,
@@ -279,11 +279,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getblockheadercount": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockHeaderCount()
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":2021}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return uint32(2021)
 			},
 		},
@@ -291,11 +291,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getblocksysfee": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockSysFee(1)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"195500"}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return fixedn.Fixed8FromInt64(195500)
 			},
 		},
@@ -303,11 +303,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getcommittee": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetCommittee()
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":["02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e"]}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				member, err := keys.NewPublicKeyFromString("02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e")
 				if err != nil {
 					panic(fmt.Errorf("failed to decode public key: %w", err))
@@ -319,11 +319,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getconnectioncount": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetConnectionCount()
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":10}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return 10
 			},
 		},
@@ -331,7 +331,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getcontractstate": {
 		{
 			name: "positive, by hash",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint160DecodeStringLE("1b4357bff5a01bdf2a6581247cf9ed1e24629176")
 				if err != nil {
 					panic(err)
@@ -339,7 +339,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetContractStateByHash(hash)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"id":0,"nef":{"magic":860243278,"compiler":"neo-go-3.0","script":"VgJXHwIMDWNvbnRyYWN0IGNhbGx4eVMTwEEFB5IWIXhKDANQdXSXJyQAAAAQVUGEGNYNIXJqeRDOeRHOU0FSoUH1IUURQCOPAgAASgwLdG90YWxTdXBwbHmXJxEAAABFAkBCDwBAI28CAABKDAhkZWNpbWFsc5cnDQAAAEUSQCNWAgAASgwEbmFtZZcnEgAAAEUMBFJ1YmxAIzwCAABKDAZzeW1ib2yXJxEAAABFDANSVUJAIyECAABKDAliYWxhbmNlT2aXJ2IAAAAQVUGEGNYNIXN5EM50bMoAFLQnIwAAAAwPaW52YWxpZCBhZGRyZXNzEVVBNtNSBiFFENsgQGtsUEEfLnsHIXUMCWJhbGFuY2VPZmxtUxPAQQUHkhYhRW1AI7IBAABKDAh0cmFuc2ZlcpcnKwEAABBVQYQY1g0hdnkQzncHbwfKABS0JyoAAAAMFmludmFsaWQgJ2Zyb20nIGFkZHJlc3MRVUE201IGIUUQ2yBAeRHOdwhvCMoAFLQnKAAAAAwUaW52YWxpZCAndG8nIGFkZHJlc3MRVUE201IGIUUQ2yBAeRLOdwlvCRC1JyIAAAAMDmludmFsaWQgYW1vdW50EVVBNtNSBiFFENsgQG5vB1BBHy57ByF3Cm8Kbwm1JyYAAAAMEmluc3VmZmljaWVudCBmdW5kcxFVQTbTUgYhRRDbIEBvCm8Jn3cKbm8HbwpTQVKhQfUhbm8IUEEfLnsHIXcLbwtvCZ53C25vCG8LU0FSoUH1IQwIdHJhbnNmZXJvB28IbwlUFMBBBQeSFiFFEUAjewAAAEoMBGluaXSXJ1AAAAAQVUGEGNYNIXcMEFVBh8PSZCF3DQJAQg8Adw5vDG8Nbw5TQVKhQfUhDAh0cmFuc2ZlcgwA2zBvDW8OVBTAQQUHkhYhRRFAIyMAAAAMEWludmFsaWQgb3BlcmF0aW9uQTbTUgY6IwUAAABFQA==","checksum":2512077441},"manifest":{"name":"Test","abi":{"methods":[],"events":[]},"groups":[],"features":{},"permissions":[],"trusts":[],"supportedstandards":[],"safemethods":[],"extra":null},"hash":"0x1b4357bff5a01bdf2a6581247cf9ed1e24629176"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				script, err := base64.StdEncoding.DecodeString("VgJXHwIMDWNvbnRyYWN0IGNhbGx4eVMTwEEFB5IWIXhKDANQdXSXJyQAAAAQVUGEGNYNIXJqeRDOeRHOU0FSoUH1IUURQCOPAgAASgwLdG90YWxTdXBwbHmXJxEAAABFAkBCDwBAI28CAABKDAhkZWNpbWFsc5cnDQAAAEUSQCNWAgAASgwEbmFtZZcnEgAAAEUMBFJ1YmxAIzwCAABKDAZzeW1ib2yXJxEAAABFDANSVUJAIyECAABKDAliYWxhbmNlT2aXJ2IAAAAQVUGEGNYNIXN5EM50bMoAFLQnIwAAAAwPaW52YWxpZCBhZGRyZXNzEVVBNtNSBiFFENsgQGtsUEEfLnsHIXUMCWJhbGFuY2VPZmxtUxPAQQUHkhYhRW1AI7IBAABKDAh0cmFuc2ZlcpcnKwEAABBVQYQY1g0hdnkQzncHbwfKABS0JyoAAAAMFmludmFsaWQgJ2Zyb20nIGFkZHJlc3MRVUE201IGIUUQ2yBAeRHOdwhvCMoAFLQnKAAAAAwUaW52YWxpZCAndG8nIGFkZHJlc3MRVUE201IGIUUQ2yBAeRLOdwlvCRC1JyIAAAAMDmludmFsaWQgYW1vdW50EVVBNtNSBiFFENsgQG5vB1BBHy57ByF3Cm8Kbwm1JyYAAAAMEmluc3VmZmljaWVudCBmdW5kcxFVQTbTUgYhRRDbIEBvCm8Jn3cKbm8HbwpTQVKhQfUhbm8IUEEfLnsHIXcLbwtvCZ53C25vCG8LU0FSoUH1IQwIdHJhbnNmZXJvB28IbwlUFMBBBQeSFiFFEUAjewAAAEoMBGluaXSXJ1AAAAAQVUGEGNYNIXcMEFVBh8PSZCF3DQJAQg8Adw5vDG8Nbw5TQVKhQfUhDAh0cmFuc2ZlcgwA2zBvDW8OVBTAQQUHkhYhRRFAIyMAAAAMEWludmFsaWQgb3BlcmF0aW9uQTbTUgY6IwUAAABFQA==")
 				if err != nil {
 					panic(err)
@@ -358,11 +358,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		},
 		{
 			name: "positive, by address",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetContractStateByAddressOrName("NWiu5oejTu925aeL9Hc1LX8SvaJhE23h15")
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"id":0,"nef":{"magic":860243278,"compiler":"neo-go-3.0","script":"VgJXHwIMDWNvbnRyYWN0IGNhbGx4eVMTwEEFB5IWIXhKDANQdXSXJyQAAAAQVUGEGNYNIXJqeRDOeRHOU0FSoUH1IUURQCOPAgAASgwLdG90YWxTdXBwbHmXJxEAAABFAkBCDwBAI28CAABKDAhkZWNpbWFsc5cnDQAAAEUSQCNWAgAASgwEbmFtZZcnEgAAAEUMBFJ1YmxAIzwCAABKDAZzeW1ib2yXJxEAAABFDANSVUJAIyECAABKDAliYWxhbmNlT2aXJ2IAAAAQVUGEGNYNIXN5EM50bMoAFLQnIwAAAAwPaW52YWxpZCBhZGRyZXNzEVVBNtNSBiFFENsgQGtsUEEfLnsHIXUMCWJhbGFuY2VPZmxtUxPAQQUHkhYhRW1AI7IBAABKDAh0cmFuc2ZlcpcnKwEAABBVQYQY1g0hdnkQzncHbwfKABS0JyoAAAAMFmludmFsaWQgJ2Zyb20nIGFkZHJlc3MRVUE201IGIUUQ2yBAeRHOdwhvCMoAFLQnKAAAAAwUaW52YWxpZCAndG8nIGFkZHJlc3MRVUE201IGIUUQ2yBAeRLOdwlvCRC1JyIAAAAMDmludmFsaWQgYW1vdW50EVVBNtNSBiFFENsgQG5vB1BBHy57ByF3Cm8Kbwm1JyYAAAAMEmluc3VmZmljaWVudCBmdW5kcxFVQTbTUgYhRRDbIEBvCm8Jn3cKbm8HbwpTQVKhQfUhbm8IUEEfLnsHIXcLbwtvCZ53C25vCG8LU0FSoUH1IQwIdHJhbnNmZXJvB28IbwlUFMBBBQeSFiFFEUAjewAAAEoMBGluaXSXJ1AAAAAQVUGEGNYNIXcMEFVBh8PSZCF3DQJAQg8Adw5vDG8Nbw5TQVKhQfUhDAh0cmFuc2ZlcgwA2zBvDW8OVBTAQQUHkhYhRRFAIyMAAAAMEWludmFsaWQgb3BlcmF0aW9uQTbTUgY6IwUAAABFQA==","checksum":2512077441},"manifest":{"name":"Test","abi":{"methods":[],"events":[]},"groups":[],"features":{},"permissions":[],"trusts":[],"supportedstandards":[],"safemethods":[],"extra":null},"hash":"0x1b4357bff5a01bdf2a6581247cf9ed1e24629176"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				script, err := base64.StdEncoding.DecodeString("VgJXHwIMDWNvbnRyYWN0IGNhbGx4eVMTwEEFB5IWIXhKDANQdXSXJyQAAAAQVUGEGNYNIXJqeRDOeRHOU0FSoUH1IUURQCOPAgAASgwLdG90YWxTdXBwbHmXJxEAAABFAkBCDwBAI28CAABKDAhkZWNpbWFsc5cnDQAAAEUSQCNWAgAASgwEbmFtZZcnEgAAAEUMBFJ1YmxAIzwCAABKDAZzeW1ib2yXJxEAAABFDANSVUJAIyECAABKDAliYWxhbmNlT2aXJ2IAAAAQVUGEGNYNIXN5EM50bMoAFLQnIwAAAAwPaW52YWxpZCBhZGRyZXNzEVVBNtNSBiFFENsgQGtsUEEfLnsHIXUMCWJhbGFuY2VPZmxtUxPAQQUHkhYhRW1AI7IBAABKDAh0cmFuc2ZlcpcnKwEAABBVQYQY1g0hdnkQzncHbwfKABS0JyoAAAAMFmludmFsaWQgJ2Zyb20nIGFkZHJlc3MRVUE201IGIUUQ2yBAeRHOdwhvCMoAFLQnKAAAAAwUaW52YWxpZCAndG8nIGFkZHJlc3MRVUE201IGIUUQ2yBAeRLOdwlvCRC1JyIAAAAMDmludmFsaWQgYW1vdW50EVVBNtNSBiFFENsgQG5vB1BBHy57ByF3Cm8Kbwm1JyYAAAAMEmluc3VmZmljaWVudCBmdW5kcxFVQTbTUgYhRRDbIEBvCm8Jn3cKbm8HbwpTQVKhQfUhbm8IUEEfLnsHIXcLbwtvCZ53C25vCG8LU0FSoUH1IQwIdHJhbnNmZXJvB28IbwlUFMBBBQeSFiFFEUAjewAAAEoMBGluaXSXJ1AAAAAQVUGEGNYNIXcMEFVBh8PSZCF3DQJAQg8Adw5vDG8Nbw5TQVKhQfUhDAh0cmFuc2ZlcgwA2zBvDW8OVBTAQQUHkhYhRRFAIyMAAAAMEWludmFsaWQgb3BlcmF0aW9uQTbTUgY6IwUAAABFQA==")
 				if err != nil {
 					panic(err)
@@ -381,11 +381,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		},
 		{
 			name: "positive, by id",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetContractStateByID(0)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"id":0,"nef":{"magic":860243278,"compiler":"neo-go-3.0","script":"VgJXHwIMDWNvbnRyYWN0IGNhbGx4eVMTwEEFB5IWIXhKDANQdXSXJyQAAAAQVUGEGNYNIXJqeRDOeRHOU0FSoUH1IUURQCOPAgAASgwLdG90YWxTdXBwbHmXJxEAAABFAkBCDwBAI28CAABKDAhkZWNpbWFsc5cnDQAAAEUSQCNWAgAASgwEbmFtZZcnEgAAAEUMBFJ1YmxAIzwCAABKDAZzeW1ib2yXJxEAAABFDANSVUJAIyECAABKDAliYWxhbmNlT2aXJ2IAAAAQVUGEGNYNIXN5EM50bMoAFLQnIwAAAAwPaW52YWxpZCBhZGRyZXNzEVVBNtNSBiFFENsgQGtsUEEfLnsHIXUMCWJhbGFuY2VPZmxtUxPAQQUHkhYhRW1AI7IBAABKDAh0cmFuc2ZlcpcnKwEAABBVQYQY1g0hdnkQzncHbwfKABS0JyoAAAAMFmludmFsaWQgJ2Zyb20nIGFkZHJlc3MRVUE201IGIUUQ2yBAeRHOdwhvCMoAFLQnKAAAAAwUaW52YWxpZCAndG8nIGFkZHJlc3MRVUE201IGIUUQ2yBAeRLOdwlvCRC1JyIAAAAMDmludmFsaWQgYW1vdW50EVVBNtNSBiFFENsgQG5vB1BBHy57ByF3Cm8Kbwm1JyYAAAAMEmluc3VmZmljaWVudCBmdW5kcxFVQTbTUgYhRRDbIEBvCm8Jn3cKbm8HbwpTQVKhQfUhbm8IUEEfLnsHIXcLbwtvCZ53C25vCG8LU0FSoUH1IQwIdHJhbnNmZXJvB28IbwlUFMBBBQeSFiFFEUAjewAAAEoMBGluaXSXJ1AAAAAQVUGEGNYNIXcMEFVBh8PSZCF3DQJAQg8Adw5vDG8Nbw5TQVKhQfUhDAh0cmFuc2ZlcgwA2zBvDW8OVBTAQQUHkhYhRRFAIyMAAAAMEWludmFsaWQgb3BlcmF0aW9uQTbTUgY6IwUAAABFQA==","checksum":2512077441},"manifest":{"name":"Test","abi":{"methods":[],"events":[]},"groups":[],"features":{},"permissions":[],"trusts":[],"supportedstandards":[],"safemethods":[],"extra":null},"hash":"0x1b4357bff5a01bdf2a6581247cf9ed1e24629176"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				script, err := base64.StdEncoding.DecodeString("VgJXHwIMDWNvbnRyYWN0IGNhbGx4eVMTwEEFB5IWIXhKDANQdXSXJyQAAAAQVUGEGNYNIXJqeRDOeRHOU0FSoUH1IUURQCOPAgAASgwLdG90YWxTdXBwbHmXJxEAAABFAkBCDwBAI28CAABKDAhkZWNpbWFsc5cnDQAAAEUSQCNWAgAASgwEbmFtZZcnEgAAAEUMBFJ1YmxAIzwCAABKDAZzeW1ib2yXJxEAAABFDANSVUJAIyECAABKDAliYWxhbmNlT2aXJ2IAAAAQVUGEGNYNIXN5EM50bMoAFLQnIwAAAAwPaW52YWxpZCBhZGRyZXNzEVVBNtNSBiFFENsgQGtsUEEfLnsHIXUMCWJhbGFuY2VPZmxtUxPAQQUHkhYhRW1AI7IBAABKDAh0cmFuc2ZlcpcnKwEAABBVQYQY1g0hdnkQzncHbwfKABS0JyoAAAAMFmludmFsaWQgJ2Zyb20nIGFkZHJlc3MRVUE201IGIUUQ2yBAeRHOdwhvCMoAFLQnKAAAAAwUaW52YWxpZCAndG8nIGFkZHJlc3MRVUE201IGIUUQ2yBAeRLOdwlvCRC1JyIAAAAMDmludmFsaWQgYW1vdW50EVVBNtNSBiFFENsgQG5vB1BBHy57ByF3Cm8Kbwm1JyYAAAAMEmluc3VmZmljaWVudCBmdW5kcxFVQTbTUgYhRRDbIEBvCm8Jn3cKbm8HbwpTQVKhQfUhbm8IUEEfLnsHIXcLbwtvCZ53C25vCG8LU0FSoUH1IQwIdHJhbnNmZXJvB28IbwlUFMBBBQeSFiFFEUAjewAAAEoMBGluaXSXJ1AAAAAQVUGEGNYNIXcMEFVBh8PSZCF3DQJAQg8Adw5vDG8Nbw5TQVKhQfUhDAh0cmFuc2ZlcgwA2zBvDW8OVBTAQQUHkhYhRRFAIyMAAAAMEWludmFsaWQgb3BlcmF0aW9uQTbTUgY6IwUAAABFQA==")
 				if err != nil {
 					panic(err)
@@ -406,11 +406,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getFeePerByte": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetFeePerByte()
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"1000"}],"tx":null}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return int64(1000)
 			},
 		},
@@ -418,11 +418,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getExecFeeFactor": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetExecFeeFactor()
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"1000"}],"tx":null}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return int64(1000)
 			},
 		},
@@ -430,11 +430,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getStoragePrice": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetStoragePrice()
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"100000"}],"tx":null}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return int64(100000)
 			},
 		},
@@ -442,11 +442,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getOraclePrice": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetOraclePrice()
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"10000000"}],"tx":null}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return int64(10000000)
 			},
 		},
@@ -454,11 +454,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getNNSPrice": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNNSPrice(util.Uint160{1, 2, 3})
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"1000000"}],"tx":null}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return int64(1000000)
 			},
 		},
@@ -466,11 +466,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getGasPerBlock": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetGasPerBlock()
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"500000000"}],"tx":null}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return int64(500000000)
 			},
 		},
@@ -478,11 +478,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getCandidateRegisterPrice": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetCandidateRegisterPrice()
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"100000000000"}],"tx":null}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return int64(100000000000)
 			},
 		},
@@ -490,11 +490,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getDesignatedByRole": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetDesignatedByRole(noderoles.P2PNotary, 10)
 			},
 			serverResponse: `{"id" : 1,"result" : {"stack" : [{"value" : [{"type":"ByteString","value":"Aw0WkQoDc8WqpG18xPMTEgfHO6gRTVtMN0Mw6zw06fzl"},{"type":"ByteString","value":"A+bmJ9wIaj96Ygr+uQQvQ0AaUrQmj2b3AGnztAOkU3/L"}],"type" : "Array"}],"exception" : null,"script" : "ERQSwB8ME2dldERlc2lnbmF0ZWRCeVJvbGUMFOKV45FUTBeK2U8D7E3N/3hTTs9JQWJ9W1I=","gasconsumed" : "2028150","state" : "HALT"}, "jsonrpc" : "2.0"}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				pk1Bytes, _ := base64.StdEncoding.DecodeString("Aw0WkQoDc8WqpG18xPMTEgfHO6gRTVtMN0Mw6zw06fzl")
 				pk1, err := keys.NewPublicKeyFromBytes(pk1Bytes, elliptic.P256())
 				if err != nil {
@@ -512,11 +512,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getMaxNotValidBeforeDelta": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetMaxNotValidBeforeDelta()
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMD2dldE1heEJsb2NrU2l6ZQwUmmGkbuyXuJMG186B8VtGIJHQCTJBYn1bUg==","stack":[{"type":"Integer","value":"262144"}],"tx":null}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return int64(262144)
 			},
 		},
@@ -524,11 +524,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"isBlocked": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.IsBlocked(util.Uint160{1, 2, 3})
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMEmdldEJsb2NrZWRBY2NvdW50cwwUmmGkbuyXuJMG186B8VtGIJHQCTJBYn1bUg==","stack":[{"type":"Boolean","value":false}],"tx":null}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return false
 			},
 		},
@@ -536,7 +536,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getnep11balances": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint160DecodeStringLE("1aada0032aba1ef6d1f07bbd8bec1d85f5380fb3")
 				if err != nil {
 					panic(err)
@@ -544,7 +544,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetNEP11Balances(hash)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"balance":[{"assethash":"a48b6e1291ba24211ad11bb90ae2a10bf1fcd5a8","symbol":"SOME","decimals":"42","name":"Contract","tokens":[{"tokenid":"abcdef","amount":"1","lastupdatedblock":251604}]}],"address":"NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				hash, err := util.Uint160DecodeStringLE("a48b6e1291ba24211ad11bb90ae2a10bf1fcd5a8")
 				if err != nil {
 					panic(err)
@@ -569,7 +569,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getnep17balances": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint160DecodeStringLE("1aada0032aba1ef6d1f07bbd8bec1d85f5380fb3")
 				if err != nil {
 					panic(err)
@@ -577,7 +577,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetNEP17Balances(hash)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"balance":[{"assethash":"a48b6e1291ba24211ad11bb90ae2a10bf1fcd5a8","symbol":"N17","decimals":"8","name":"Token","amount":"50000000000","lastupdatedblock":251604}],"address":"AY6eqWjsUFCzsVELG7yG72XDukKvC34p2w"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				hash, err := util.Uint160DecodeStringLE("a48b6e1291ba24211ad11bb90ae2a10bf1fcd5a8")
 				if err != nil {
 					panic(err)
@@ -599,7 +599,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getnep11properties": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint160DecodeStringLE("1aada0032aba1ef6d1f07bbd8bec1d85f5380fb3")
 				if err != nil {
 					panic(err)
@@ -607,8 +607,8 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetNEP11Properties(hash, []byte("abcdef"))
 			}, // NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"name":"sometoken","field1":"c29tZXRoaW5n","field2":null}}`,
-			result: func(c *Client) interface{} {
-				return map[string]interface{}{
+			result: func(c *Client) any {
+				return map[string]any{
 					"name":   "sometoken",
 					"field1": []byte("something"),
 					"field2": nil,
@@ -619,7 +619,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getnep11transfers": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := address.StringToUint160("NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe")
 				if err != nil {
 					panic(err)
@@ -627,7 +627,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetNEP11Transfers(hash, nil, nil, nil, nil)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"sent":[],"received":[{"timestamp":1555651816,"assethash":"600c4f5200db36177e3e8a09e9f18e2fc7d12a0f","transferaddress":"NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP","amount":"1","tokenid":"abcdef","blockindex":436036,"transfernotifyindex":0,"txhash":"df7683ece554ecfb85cf41492c5f143215dd43ef9ec61181a28f922da06aba58"}],"address":"NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				assetHash, err := util.Uint160DecodeStringLE("600c4f5200db36177e3e8a09e9f18e2fc7d12a0f")
 				if err != nil {
 					panic(err)
@@ -658,7 +658,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getnep17transfers": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := address.StringToUint160("NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe")
 				if err != nil {
 					panic(err)
@@ -666,7 +666,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetNEP17Transfers(hash, nil, nil, nil, nil)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"sent":[],"received":[{"timestamp":1555651816,"assethash":"600c4f5200db36177e3e8a09e9f18e2fc7d12a0f","transferaddress":"AYwgBNMepiv5ocGcyNT4mA8zPLTQ8pDBis","amount":"1000000","blockindex":436036,"transfernotifyindex":0,"txhash":"df7683ece554ecfb85cf41492c5f143215dd43ef9ec61181a28f922da06aba58"}],"address":"NcEkNmgWmf7HQVQvzhxpengpnt4DXjmZLe"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				assetHash, err := util.Uint160DecodeStringLE("600c4f5200db36177e3e8a09e9f18e2fc7d12a0f")
 				if err != nil {
 					panic(err)
@@ -696,28 +696,29 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getpeers": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetPeers()
 			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"unconnected":[{"address":"172.200.0.1","port":"20333"}],"connected":[{"address":"127.0.0.1","port":"20335"}],"bad":[{"address":"172.200.0.254","port":"20332"}]}}`,
-			result: func(c *Client) interface{} {
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"unconnected":[{"address":"172.200.0.1","port":20333}],"connected":[{"address":"127.0.0.1","port":20335}],"bad":[{"address":"172.200.0.254","port":20332}]}}`,
+			result: func(c *Client) any {
+
 				return &result.GetPeers{
 					Unconnected: result.Peers{
 						{
 							Address: "172.200.0.1",
-							Port:    "20333",
+							Port:    20333,
 						},
 					},
 					Connected: result.Peers{
 						{
 							Address: "127.0.0.1",
-							Port:    "20335",
+							Port:    20335,
 						},
 					},
 					Bad: result.Peers{
 						{
 							Address: "172.200.0.254",
-							Port:    "20332",
+							Port:    20332,
 						},
 					},
 				}
@@ -727,11 +728,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getrawmempool": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetRawMemPool()
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":["0x9786cce0dddb524c40ddbdd5e31a41ed1f6b5c8a683c122f627ca4a007a7cf4e"]}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				hash, err := util.Uint256DecodeStringLE("9786cce0dddb524c40ddbdd5e31a41ed1f6b5c8a683c122f627ca4a007a7cf4e")
 				if err != nil {
 					panic(err)
@@ -743,7 +744,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getrawtransaction": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (i interface{}, err error) {
+			invoke: func(c *Client) (i any, err error) {
 				hash, err := util.Uint256DecodeStringLE("f5fbd303799f24ba247529d7544d4276cca54ea79f4b98095f2b0557313c5275")
 				if err != nil {
 					panic(err)
@@ -751,14 +752,14 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetRawTransaction(hash)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"` + base64TxMoveNeo + `"}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				tx := getTxMoveNeo()
 				return &tx.Transaction
 			},
 		},
 		{
 			name: "verbose_positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint256DecodeStringLE("f5fbd303799f24ba247529d7544d4276cca54ea79f4b98095f2b0557313c5275")
 				if err != nil {
 					panic(err)
@@ -771,7 +772,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return out, nil
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":` + txMoveNeoVerbose + `}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return getTxMoveNeo()
 			},
 		},
@@ -779,11 +780,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getstateroot": {
 		{
 			name: "positive, by height",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetStateRootByHeight(5)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"version":0,"index":5,"roothash":"0x65d19151694321e70c6d184b37a2bcf7af4a2c60c099af332a4f7815e3670686","witnesses":[]}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				h, err := util.Uint256DecodeStringLE("65d19151694321e70c6d184b37a2bcf7af4a2c60c099af332a4f7815e3670686")
 				if err != nil {
 					panic(err)
@@ -798,7 +799,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		},
 		{
 			name: "positive, by hash",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint256DecodeStringLE("86fe1061140b2ea791b0739fb9732abc6e5e47de4927228a1ac41de3d93eb7cb")
 				if err != nil {
 					panic(err)
@@ -806,7 +807,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetStateRootByBlockHash(hash)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"version":0,"index":5,"roothash":"0x65d19151694321e70c6d184b37a2bcf7af4a2c60c099af332a4f7815e3670686","witnesses":[]}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				h, _ := util.Uint256DecodeStringLE("65d19151694321e70c6d184b37a2bcf7af4a2c60c099af332a4f7815e3670686")
 				return &state.MPTRoot{
 					Version: 0,
@@ -820,28 +821,88 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getstate": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				root, _ := util.Uint256DecodeStringLE("252e9d73d49c95c7618d40650da504e05183a1b2eed0685e42c360413c329170")
 				cHash, _ := util.Uint160DecodeStringLE("5c9e40a12055c6b9e3f72271c9779958c842135d")
 				return c.GetState(root, cHash, []byte("testkey"))
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"dGVzdHZhbHVl"}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return []byte("testvalue")
 			},
+		},
+	},
+	"getproof": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (any, error) {
+				root, _ := util.Uint256DecodeStringLE("272002b11a6a39035c719defec3e4e6a8d1f4ae37a995b44734911413fcc2ba5")
+				cHash, _ := util.Uint160DecodeStringLE("cc5e4edd9f5f8dba8bb65734541df7a1c081c67b")
+				key := []byte{10}
+				return c.GetProof(root, cHash, key)
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"Bfn///8KBiQBAQ8DogBnMdiiPTEW05A6bJPmQ2TNVpuca/nB1rJRdQX7R4SyAAQEBAQEBAQDHvo5Rc9v\u002BWSpfsnMXM75ku\u002BZjvbLJhWXn/lh6L\u002B1yB0EA4k\u002Bsx4f7IgmdHNm3wRMpj5kTU4l0gChSGppo5p5wZyWA2\u002BKSFn16W6tRrGSfJob\u002BgqJukLcNDk0DBFYW2wIS2/NAzkugdLfZRXHOLqq5XJr89ElzlqyXU1o9D87l9YOcXjGBAQEA7oDTOxuU4iMAKPuhn5eJjzsM56bQrx3uORa8LKm42oDBCkBBg8PDw8PDwN96s39UOSCwMJmMQZzNjfNAPCbRRyke1B4VRKqOZ0NHlIAA2woQ13XO4Ug2aQ/cW4WBricVcUVqobFUU0dnRPtfIHeAxuYERXsV6HwdGjW\u002BhtpM0FEkw/mllbH5pyhn\u002BBx4r8wBAQEBAQEBAQEBAQEBAQEJAEBCgPXvpMqBogTeGhXjtFY4Rsn9bY/PgNX0l4iYOHMzUBQQgQCAugD"}`,
+			result: func(c *Client) any {
+				b, _ := base64.StdEncoding.DecodeString("Bfn///8KBiQBAQ8DogBnMdiiPTEW05A6bJPmQ2TNVpuca/nB1rJRdQX7R4SyAAQEBAQEBAQDHvo5Rc9v\u002BWSpfsnMXM75ku\u002BZjvbLJhWXn/lh6L\u002B1yB0EA4k\u002Bsx4f7IgmdHNm3wRMpj5kTU4l0gChSGppo5p5wZyWA2\u002BKSFn16W6tRrGSfJob\u002BgqJukLcNDk0DBFYW2wIS2/NAzkugdLfZRXHOLqq5XJr89ElzlqyXU1o9D87l9YOcXjGBAQEA7oDTOxuU4iMAKPuhn5eJjzsM56bQrx3uORa8LKm42oDBCkBBg8PDw8PDwN96s39UOSCwMJmMQZzNjfNAPCbRRyke1B4VRKqOZ0NHlIAA2woQ13XO4Ug2aQ/cW4WBricVcUVqobFUU0dnRPtfIHeAxuYERXsV6HwdGjW\u002BhtpM0FEkw/mllbH5pyhn\u002BBx4r8wBAQEBAQEBAQEBAQEBAQEJAEBCgPXvpMqBogTeGhXjtFY4Rsn9bY/PgNX0l4iYOHMzUBQQgQCAugD")
+				proof := &result.ProofWithKey{}
+				r := io.NewBinReaderFromBuf(b)
+				proof.DecodeBinary(r)
+				return proof
+			},
+		},
+		{
+			name: "not found",
+			invoke: func(c *Client) (any, error) {
+				root, _ := util.Uint256DecodeStringLE("272002b11a6a39035c719defec3e4e6a8d1f4ae37a995b44734911413fcc2ba5")
+				cHash, _ := util.Uint160DecodeStringLE("cc5e4edd9f5f8dba8bb65734541df7a1c081c67b")
+				key := []byte{01}
+				return c.GetProof(root, cHash, key)
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error","data":"failed to get proof: item not found"}}`,
+			fails:          true,
+		},
+	},
+	"verifyproof": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (any, error) {
+				root, _ := util.Uint256DecodeStringLE("272002b11a6a39035c719defec3e4e6a8d1f4ae37a995b44734911413fcc2ba5")
+				b, _ := base64.StdEncoding.DecodeString("Bfn///8KBiQBAQ8DogBnMdiiPTEW05A6bJPmQ2TNVpuca/nB1rJRdQX7R4SyAAQEBAQEBAQDHvo5Rc9v\u002BWSpfsnMXM75ku\u002BZjvbLJhWXn/lh6L\u002B1yB0EA4k\u002Bsx4f7IgmdHNm3wRMpj5kTU4l0gChSGppo5p5wZyWA2\u002BKSFn16W6tRrGSfJob\u002BgqJukLcNDk0DBFYW2wIS2/NAzkugdLfZRXHOLqq5XJr89ElzlqyXU1o9D87l9YOcXjGBAQEA7oDTOxuU4iMAKPuhn5eJjzsM56bQrx3uORa8LKm42oDBCkBBg8PDw8PDwN96s39UOSCwMJmMQZzNjfNAPCbRRyke1B4VRKqOZ0NHlIAA2woQ13XO4Ug2aQ/cW4WBricVcUVqobFUU0dnRPtfIHeAxuYERXsV6HwdGjW\u002BhtpM0FEkw/mllbH5pyhn\u002BBx4r8wBAQEBAQEBAQEBAQEBAQEJAEBCgPXvpMqBogTeGhXjtFY4Rsn9bY/PgNX0l4iYOHMzUBQQgQCAugD")
+				proof := &result.ProofWithKey{}
+				r := io.NewBinReaderFromBuf(b)
+				proof.DecodeBinary(r)
+				return c.VerifyProof(root, proof)
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"6AM="}`,
+			result: func(c *Client) any {
+				return bigint.ToPreallocatedBytes(big.NewInt(1000), nil)
+			},
+		},
+		{
+			name: "fail",
+			invoke: func(c *Client) (any, error) {
+				root, _ := util.Uint256DecodeStringLE("272002b11a6a39035c719defec3e4e6a8d1f4ae37a995b44734911413fcc2ba5")
+				b, _ := base64.StdEncoding.DecodeString("Bfn///8KBiQBAQ8DogBnMdiiPTEW05A6bJPmQ2TNVpuca/nB1rJRdQX7R4SyAAQEBAQEBAQDHvo5Rc9v\u002BWSpfsnMXM75ku\u002BZjvbLJhWXn/lh6L\u002B1yB0EA4k\u002Bsx4f7IgmdHNm3wRMpj5kTU4l0gChSGppo5p5wZyWA2\u002BKSFn16W6tRrGSfJob\u002BgqJukLcNDk0DBFYW2wIS2/NAzkugdLfZRXHOLqq5XJr89ElzlqyXU1o9D87l9YOcXjGBAQEA7oDTOxuU4iMAKPuhn5eJjzsM56bQrx3uORa8LKm42oDBCkBBg8PDw8PDwN96s39UOSCwMJmMQZzNjfNAPCbRRyke1B4VRKqOZ0NHlIAA2woQ13XO4Ug2aQ/cW4WBricVcUVqobFUU0dnRPtfIHeAxuYERXsV6HwdGjW\u002BhtpM0FEkw/mllbH5pyhn\u002BBx4r8wBAQEBAQEBAQEBAQEBAQEJAEBCgPXvpMqBogTeGhXjtFY4Rsn9bY/PgNX0l4iYOHMzUBQQgQCAugD")
+				proof := &result.ProofWithKey{}
+				r := io.NewBinReaderFromBuf(b)
+				proof.DecodeBinary(r)
+				return c.VerifyProof(root, proof)
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"invalid"}`,
+			fails:          true,
 		},
 	},
 	"findstates": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				root, _ := util.Uint256DecodeStringLE("252e9d73d49c95c7618d40650da504e05183a1b2eed0685e42c360413c329170")
 				cHash, _ := util.Uint160DecodeStringLE("5c9e40a12055c6b9e3f72271c9779958c842135d")
 				count := 1
 				return c.FindStates(root, cHash, []byte("aa"), []byte("aa00"), &count)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"results":[{"key":"YWExMA==","value":"djI="}],"firstProof":"CAEAAABhYTEwCXIAA5KNHjQ1+LFX4lQBLjMAhaLtTJnfuI86O7WnNdlshsYWBAQEBAQEBAQDTzD7MJp2KW6E8BNVjjjgZMTAjI/GI3ZrTmR2UUOtSeIEBAQEBAPKPqb0qnb4Ywz6gqpNKCUNQsfBmAnKc5p3dxokSQRpwgRSAAQDPplG1wee4KOfkehaF94R5uoKSgvQL1j5gkFTN4ywYaIEBAOhOyI39MZfoKc940g57XeqwRnxh7P62fKjnfEtBzQxHQQEBAQEBAQEBAQEBCkBBgAAAAAAAAM6A1UrwFYZAEMfe6go3jX25xz2sHsovQ2UO/UHqZZOXLIABAOwg7pkXyaTR85yQIvYnoGaG/OVRLRHOj+nhZnXb6dVtAQEBAPnciBUp3uspLQTajKTlAxgrNe+3tlqlbwlNRkz0eNmhQMzoMcWOFi9nCyn+eM5lA6Pq67DxzTQDlHljh8g8kRtJAPq9hxzTgreK0qDTavsethixguZYfV7wDmKfumMglnoqQQEBAQEBAM1x2dVBdf5BJ0Xvw2qqhvpKqxdHb8/HMFWiXkJj1uAAQQEJgEDAQYBA5kV2WLkgey9C5z6gZT69VLKcEuwyY8P853rNtGhT3NeUgAEBAQDiX59K9PuJ5RE7Z1uj7q/QJ8FGf8avLdWM7hwmWkVH2gEBAQEBAQEBAQEBAQD1SubX5XhFHcUOWdUzg1bXmDwWJwt+wpU3FOdFkU1PXBSAAQDHCzfEQyqwOO263EE6HER1vWDrwz8JiEHEOXfZ3kX7NYEBAQDEH++Hy8wBcniKuWVevaAwzHCh60kzncU30E5fDC3gJsEBAQEBAQEBAQEBCUBAgMAA1wt18LbxMKdYcJ+nEDMMWZbRsu550l8HGhcYhpl6DjSBAICdjI=","truncated":true}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				proofB, _ := base64.StdEncoding.DecodeString("CAEAAABhYTEwCXIAA5KNHjQ1+LFX4lQBLjMAhaLtTJnfuI86O7WnNdlshsYWBAQEBAQEBAQDTzD7MJp2KW6E8BNVjjjgZMTAjI/GI3ZrTmR2UUOtSeIEBAQEBAPKPqb0qnb4Ywz6gqpNKCUNQsfBmAnKc5p3dxokSQRpwgRSAAQDPplG1wee4KOfkehaF94R5uoKSgvQL1j5gkFTN4ywYaIEBAOhOyI39MZfoKc940g57XeqwRnxh7P62fKjnfEtBzQxHQQEBAQEBAQEBAQEBCkBBgAAAAAAAAM6A1UrwFYZAEMfe6go3jX25xz2sHsovQ2UO/UHqZZOXLIABAOwg7pkXyaTR85yQIvYnoGaG/OVRLRHOj+nhZnXb6dVtAQEBAPnciBUp3uspLQTajKTlAxgrNe+3tlqlbwlNRkz0eNmhQMzoMcWOFi9nCyn+eM5lA6Pq67DxzTQDlHljh8g8kRtJAPq9hxzTgreK0qDTavsethixguZYfV7wDmKfumMglnoqQQEBAQEBAM1x2dVBdf5BJ0Xvw2qqhvpKqxdHb8/HMFWiXkJj1uAAQQEJgEDAQYBA5kV2WLkgey9C5z6gZT69VLKcEuwyY8P853rNtGhT3NeUgAEBAQDiX59K9PuJ5RE7Z1uj7q/QJ8FGf8avLdWM7hwmWkVH2gEBAQEBAQEBAQEBAQD1SubX5XhFHcUOWdUzg1bXmDwWJwt+wpU3FOdFkU1PXBSAAQDHCzfEQyqwOO263EE6HER1vWDrwz8JiEHEOXfZ3kX7NYEBAQDEH++Hy8wBcniKuWVevaAwzHCh60kzncU30E5fDC3gJsEBAQEBAQEBAQEBCUBAgMAA1wt18LbxMKdYcJ+nEDMMWZbRsu550l8HGhcYhpl6DjSBAICdjI=")
 				proof := &result.ProofWithKey{}
 				r := io.NewBinReaderFromBuf(proofB)
@@ -857,11 +918,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getstateheight": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetStateHeight()
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"localrootindex":11646,"validatedrootindex":11645}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return &result.StateHeight{
 					Local:     11646,
 					Validated: 11645,
@@ -872,7 +933,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getstorage": {
 		{
 			name: "by hash, positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint160DecodeStringLE("03febccf81ac85e3d795bc5cbd4e84e907812aa3")
 				if err != nil {
 					panic(err)
@@ -884,7 +945,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetStorageByHash(hash, key)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"TGlu"}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				value, err := hex.DecodeString("4c696e")
 				if err != nil {
 					panic(err)
@@ -894,7 +955,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		},
 		{
 			name: "by ID, positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				key, err := hex.DecodeString("5065746572")
 				if err != nil {
 					panic(err)
@@ -902,7 +963,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetStorageByID(-1, key)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"TGlu"}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				value, err := hex.DecodeString("4c696e")
 				if err != nil {
 					panic(err)
@@ -914,7 +975,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"gettransactionheight": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint256DecodeStringLE("cb6ddb5f99d6af4c94a6c396d5294472f2eebc91a2c933e0f527422296fa9fb2")
 				if err != nil {
 					panic(err)
@@ -922,7 +983,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.GetTransactionHeight(hash)
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":1}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return uint32(1)
 			},
 		},
@@ -930,11 +991,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getunclaimedgas": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetUnclaimedGas("NMipL5VsNoLUBUJKPKLhxaEbPQVCZnyJyB")
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"address":"NMipL5VsNoLUBUJKPKLhxaEbPQVCZnyJyB","unclaimed":"897299680935"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				addr, err := address.StringToUint160("NMipL5VsNoLUBUJKPKLhxaEbPQVCZnyJyB")
 				if err != nil {
 					panic(fmt.Errorf("failed to parse UnclaimedGas address: %w", err))
@@ -949,12 +1010,12 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getcandidates": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetCandidates()
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":[{"publickey":"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2","votes":"0","active":true},{"publickey":"02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e","votes":"0","active":true},{"publickey":"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699","votes":"0","active":true},{"publickey":"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62","votes":"0","active":true}]}`,
-			result:         func(c *Client) interface{} { return []result.Candidate{} },
-			check: func(t *testing.T, c *Client, uns interface{}) {
+			result:         func(c *Client) any { return []result.Candidate{} },
+			check: func(t *testing.T, c *Client, uns any) {
 				res, ok := uns.([]result.Candidate)
 				require.True(t, ok)
 				assert.Equal(t, 4, len(res))
@@ -964,12 +1025,12 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getvalidators": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNextBlockValidators()
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":[{"publickey":"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2","votes":"0","active":true},{"publickey":"02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e","votes":"0","active":true},{"publickey":"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699","votes":"0","active":true},{"publickey":"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62","votes":"0","active":true}]}`,
-			result:         func(c *Client) interface{} { return []result.Validator{} },
-			check: func(t *testing.T, c *Client, uns interface{}) {
+			result:         func(c *Client) any { return []result.Validator{} },
+			check: func(t *testing.T, c *Client, uns any) {
 				res, ok := uns.([]result.Validator)
 				require.True(t, ok)
 				assert.Equal(t, 4, len(res))
@@ -979,11 +1040,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"getversion": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetVersion()
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"tcpport":20332,"wsport":20342,"nonce":2153672787,"useragent":"/NEO-GO:0.73.1-pre-273-ge381358/"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return &result.Version{
 					TCPPort:   uint16(20332),
 					WSPort:    uint16(20342),
@@ -999,7 +1060,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"invokefunction": {
 		{
 			name: "positive, by scripthash",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint160DecodeStringLE("91b83e96f2a7c4fdf0c1688441ec61986c7cae26")
 				if err != nil {
 					panic(err)
@@ -1018,10 +1079,10 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}})
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"FCaufGyYYexBhGjB8P3Ep/KWPriRUcEJYmFsYW5jZU9mZ74557Vi9gy/4q68o3Wi5e4oc3yv","state":"HALT","gasconsumed":"31100000","stack":[{"type":"ByteString","value":"JivsCEQy"}],"tx":"AAgAAACAlpgAAAAAAAIEEwAAAAAAsAQAAAGqis+FnU/kArNOZz8hVoIXlqSI6wEAVwHoAwwUqorPhZ1P5AKzTmc/IVaCF5akiOsMFOeetm08E0pKd27oB9LluEbdpP2wE8AMCHRyYW5zZmVyDBTnnrZtPBNKSndu6AfS5bhG3aT9sEFifVtSOAFCDEDYNAh3TUvYsZrocFYdBvJ0Trdnj1jRuQzy9Q6YroP2Cwgk4v7q3vbeZBikz8Q7vB+RbDPsWUy+ZiqdkkeG4XoUKQwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CC0GVRA14"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return &result.Invoke{}
 			},
-			check: func(t *testing.T, c *Client, uns interface{}) {
+			check: func(t *testing.T, c *Client, uns any) {
 				res, ok := uns.(*result.Invoke)
 				require.True(t, ok)
 				bytes, err := hex.DecodeString("262bec084432")
@@ -1041,7 +1102,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		},
 		{
 			name: "positive, FAULT state",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint160DecodeStringLE("91b83e96f2a7c4fdf0c1688441ec61986c7cae26")
 				if err != nil {
 					panic(err)
@@ -1060,10 +1121,10 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}})
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"FCaufGyYYexBhGjB8P3Ep/KWPriRUcEJYmFsYW5jZU9mZ74557Vi9gy/4q68o3Wi5e4oc3yv","state":"FAULT","gasconsumed":"31100000","stack":[{"type":"ByteString","value":"JivsCEQy"}],"tx":"AAgAAACAlpgAAAAAAAIEEwAAAAAAsAQAAAGqis+FnU/kArNOZz8hVoIXlqSI6wEAVwHoAwwUqorPhZ1P5AKzTmc/IVaCF5akiOsMFOeetm08E0pKd27oB9LluEbdpP2wE8AMCHRyYW5zZmVyDBTnnrZtPBNKSndu6AfS5bhG3aT9sEFifVtSOAFCDEDYNAh3TUvYsZrocFYdBvJ0Trdnj1jRuQzy9Q6YroP2Cwgk4v7q3vbeZBikz8Q7vB+RbDPsWUy+ZiqdkkeG4XoUKQwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CC0GVRA14","exception":"gas limit exceeded"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return &result.Invoke{}
 			},
-			check: func(t *testing.T, c *Client, uns interface{}) {
+			check: func(t *testing.T, c *Client, uns any) {
 				res, ok := uns.(*result.Invoke)
 				require.True(t, ok)
 				bytes, err := hex.DecodeString("262bec084432")
@@ -1085,7 +1146,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"invokescript": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				script, err := base64.StdEncoding.DecodeString("AARuYW1lZyQFjl4bYAiEfNZicoVJCIqe6CGR")
 				if err != nil {
 					panic(err)
@@ -1095,7 +1156,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				}})
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"AARuYW1lZyQFjl4bYAiEfNZicoVJCIqe6CGR","state":"HALT","gasconsumed":"16100000","stack":[{"type":"ByteString","value":"TkVQNSBHQVM="}],"tx":null}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				bytes, err := hex.DecodeString("4e45503520474153")
 				if err != nil {
 					panic(err)
@@ -1116,7 +1177,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"invokecontractverify": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				contr, err := util.Uint160DecodeStringLE("af7c7328eee5a275a3bcaee2bf0cf662b5e739be")
 				if err != nil {
 					panic(err)
@@ -1124,10 +1185,10 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				return c.InvokeContractVerify(contr, nil, []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}, transaction.Witness{InvocationScript: []byte{1, 2, 3}})
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"script":"FCaufGyYYexBhGjB8P3Ep/KWPriRUcEJYmFsYW5jZU9mZ74557Vi9gy/4q68o3Wi5e4oc3yv","state":"HALT","gasconsumed":"31100000","stack":[{"type":"ByteString","value":"JivsCEQy"}],"tx":"AAgAAACAlpgAAAAAAAIEEwAAAAAAsAQAAAGqis+FnU/kArNOZz8hVoIXlqSI6wEAVwHoAwwUqorPhZ1P5AKzTmc/IVaCF5akiOsMFOeetm08E0pKd27oB9LluEbdpP2wE8AMCHRyYW5zZmVyDBTnnrZtPBNKSndu6AfS5bhG3aT9sEFifVtSOAFCDEDYNAh3TUvYsZrocFYdBvJ0Trdnj1jRuQzy9Q6YroP2Cwgk4v7q3vbeZBikz8Q7vB+RbDPsWUy+ZiqdkkeG4XoUKQwhArNiK/QBe9/jF8WK7V9MdT8ga324lgRvp9d0u8S/f43CC0GVRA14"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				return &result.Invoke{}
 			},
-			check: func(t *testing.T, c *Client, uns interface{}) {
+			check: func(t *testing.T, c *Client, uns any) {
 				res, ok := uns.(*result.Invoke)
 				require.True(t, ok)
 				bytes, err := hex.DecodeString("262bec084432")
@@ -1147,7 +1208,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 		},
 		{
 			name: "bad witness number",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.InvokeContractVerify(util.Uint160{}, nil, []transaction.Signer{{}}, []transaction.Witness{{}, {}}...)
 			},
 			fails: true,
@@ -1156,11 +1217,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"sendrawtransaction": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.SendRawTransaction(transaction.New([]byte{byte(opcode.PUSH1)}, 0))
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"hash":"0x72159b0cf1221110daad6e1df6ef4ff03012173b63c86910bd7134deb659c875"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				h, err := util.Uint256DecodeStringLE("72159b0cf1221110daad6e1df6ef4ff03012173b63c86910bd7134deb659c875")
 				if err != nil {
 					panic(fmt.Errorf("can't decode `sendrawtransaction` result hash: %w", err))
@@ -1172,7 +1233,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"submitblock": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.SubmitBlock(block.Block{
 					Header:       block.Header{},
 					Transactions: nil,
@@ -1180,7 +1241,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 				})
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"hash":"0x1bdea8f80eb5bd97fade38d5e7fb93b02c9d3e01394e9f4324218132293f7ea6"}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				h, err := util.Uint256DecodeStringLE("1bdea8f80eb5bd97fade38d5e7fb93b02c9d3e01394e9f4324218132293f7ea6")
 				if err != nil {
 					panic(fmt.Errorf("can't decode `submitblock` result hash: %w", err))
@@ -1192,11 +1253,11 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	"validateaddress": {
 		{
 			name: "positive",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return nil, c.ValidateAddress("AQVh2pG732YvtNaxEGkQUei3YA4cvo7d2i")
 			},
 			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"address":"AQVh2pG732YvtNaxEGkQUei3YA4cvo7d2i","isvalid":true}}`,
-			result: func(c *Client) interface{} {
+			result: func(c *Client) any {
 				// no error expected
 				return nil
 			},
@@ -1206,14 +1267,14 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 
 type rpcClientErrorCase struct {
 	name   string
-	invoke func(c *Client) (interface{}, error)
+	invoke func(c *Client) (any, error)
 }
 
 var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 	`{"jsonrpc":"2.0","id":1,"result":{"name":"name","bad":42}}`: {
 		{
 			name: "getnep11properties_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNEP11Properties(util.Uint160{}, []byte{})
 			},
 		},
@@ -1221,7 +1282,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 	`{"jsonrpc":"2.0","id":1,"result":{"name":100500,"good":"c29tZXRoaW5n"}}`: {
 		{
 			name: "getnep11properties_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNEP11Properties(util.Uint160{}, []byte{})
 			},
 		},
@@ -1229,13 +1290,13 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 	`{"jsonrpc":"2.0","id":1,"result":"not-a-hex-string"}`: {
 		{
 			name: "getblock_not_a_hex_response",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockByIndex(1)
 			},
 		},
 		{
 			name: "getblockheader_not_a_hex_response",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint256DecodeStringLE("e93d17a52967f9e69314385482bf86f85260e811b46bf4d4b261a7f4135a623c")
 				if err != nil {
 					panic(err)
@@ -1245,7 +1306,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		},
 		{
 			name: "getrawtransaction_not_a_hex_response",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint256DecodeStringLE("e93d17a52967f9e69314385482bf86f85260e811b46bf4d4b261a7f4135a623c")
 				if err != nil {
 					panic(err)
@@ -1255,7 +1316,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		},
 		{
 			name: "getstoragebyhash_not_a_hex_response",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint160DecodeStringLE("03febccf81ac85e3d795bc5cbd4e84e907812aa3")
 				if err != nil {
 					panic(err)
@@ -1269,7 +1330,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		},
 		{
 			name: "getstoragebyid_not_a_hex_response",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				key, err := hex.DecodeString("5065746572")
 				if err != nil {
 					panic(err)
@@ -1281,13 +1342,13 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 	`{"jsonrpc":"2.0","id":1,"result":"01"}`: {
 		{
 			name: "getblock_decodebin_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockByIndex(1)
 			},
 		},
 		{
 			name: "getheader_decodebin_err",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint256DecodeStringLE("e93d17a52967f9e69314385482bf86f85260e811b46bf4d4b261a7f4135a623c")
 				if err != nil {
 					panic(err)
@@ -1297,7 +1358,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		},
 		{
 			name: "getrawtransaction_decodebin_err",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint256DecodeStringLE("e93d17a52967f9e69314385482bf86f85260e811b46bf4d4b261a7f4135a623c")
 				if err != nil {
 					panic(err)
@@ -1309,13 +1370,13 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 	`{"jsonrpc":"2.0","id":1,"result":false}`: {
 		{
 			name: "sendrawtransaction_bad_server_answer",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.SendRawTransaction(transaction.New([]byte{byte(opcode.PUSH1)}, 0))
 			},
 		},
 		{
 			name: "submitblock_bad_server_answer",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.SubmitBlock(block.Block{
 					Header:       block.Header{},
 					Transactions: nil,
@@ -1325,7 +1386,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		},
 		{
 			name: "validateaddress_bad_server_answer",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return nil, c.ValidateAddress("AQVh2pG732YvtNaxEGkQUei3YA4cvo7d2i")
 			},
 		},
@@ -1333,116 +1394,116 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 	`{"id":1,"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params"}}`: {
 		{
 			name: "getapplicationlog_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetApplicationLog(util.Uint256{}, nil)
 			},
 		},
 		{
 			name: "getbestblockhash_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBestBlockHash()
 			},
 		},
 		{
 			name: "getblock_byindex_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockByIndex(1)
 			},
 		},
 		{
 			name: "getblock_byindex_verbose_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockByIndexVerbose(1)
 			},
 		},
 		{
 			name: "getblock_byhash_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockByHash(util.Uint256{})
 			},
 		},
 		{
 			name: "getblock_byhash_verbose_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockByHashVerbose(util.Uint256{})
 			},
 		},
 		{
 			name: "getblockhash_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockHash(0)
 			},
 		},
 		{
 			name: "getblockheader_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockHeader(util.Uint256{})
 			},
 		},
 		{
 			name: "getblockheader_verbose_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockHeaderVerbose(util.Uint256{})
 			},
 		},
 		{
 			name: "getblocksysfee_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockSysFee(1)
 			},
 		},
 		{
 			name: "getconnectioncount_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetConnectionCount()
 			},
 		},
 		{
 			name: "getcontractstate_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetContractStateByHash(util.Uint160{})
 			},
 		},
 		{
 			name: "getnep11balances_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNEP11Balances(util.Uint160{})
 			},
 		},
 		{
 			name: "getnep17balances_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNEP17Balances(util.Uint160{})
 			},
 		},
 		{
 			name: "getnep11properties_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNEP11Properties(util.Uint160{}, []byte{})
 			},
 		},
 		{
 			name: "getnep11transfers_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNEP11Transfers(util.Uint160{}, nil, nil, nil, nil)
 			},
 		},
 		{
 			name: "getnep17transfers_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNEP17Transfers(util.Uint160{}, nil, nil, nil, nil)
 			},
 		},
 		{
 			name: "getnep17transfers_invalid_params_error 2",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				var stop uint64
 				return c.GetNEP17Transfers(util.Uint160{}, nil, &stop, nil, nil)
 			},
 		},
 		{
 			name: "getnep17transfers_invalid_params_error 3",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				var start uint64
 				var limit int
 				return c.GetNEP17Transfers(util.Uint160{}, &start, nil, &limit, nil)
@@ -1450,7 +1511,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		},
 		{
 			name: "getnep17transfers_invalid_params_error 4",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				var start, stop uint64
 				var page int
 				return c.GetNEP17Transfers(util.Uint160{}, &start, &stop, nil, &page)
@@ -1458,67 +1519,67 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		},
 		{
 			name: "getrawtransaction_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetRawTransaction(util.Uint256{})
 			},
 		},
 		{
 			name: "getrawtransaction_verbose_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetRawTransactionVerbose(util.Uint256{})
 			},
 		},
 		{
 			name: "getstoragebyhash_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetStorageByHash(util.Uint160{}, []byte{})
 			},
 		},
 		{
 			name: "getstoragebyid_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetStorageByID(-1, []byte{})
 			},
 		},
 		{
 			name: "gettransactionheight_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetTransactionHeight(util.Uint256{})
 			},
 		},
 		{
 			name: "getunclaimedgas_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetUnclaimedGas("")
 			},
 		},
 		{
 			name: "invokefunction_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.InvokeFunction(util.Uint160{}, "", []smartcontract.Parameter{}, nil)
 			},
 		},
 		{
 			name: "invokescript_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.InvokeScript([]byte{}, nil)
 			},
 		},
 		{
 			name: "sendrawtransaction_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.SendRawTransaction(&transaction.Transaction{})
 			},
 		},
 		{
 			name: "submitblock_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.SubmitBlock(block.Block{})
 			},
 		},
 		{
 			name: "validateaddress_invalid_params_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return nil, c.ValidateAddress("")
 			},
 		},
@@ -1526,193 +1587,193 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 	`{}`: {
 		{
 			name: "getapplicationlog_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetApplicationLog(util.Uint256{}, nil)
 			},
 		},
 		{
 			name: "getbestblockhash_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBestBlockHash()
 			},
 		},
 		{
 			name: "getblock_byindex_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockByIndex(1)
 			},
 		},
 		{
 			name: "getblock_byindex_verbose_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockByIndexVerbose(1)
 			},
 		},
 		{
 			name: "getblock_byhash_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockByHash(util.Uint256{})
 			},
 		},
 		{
 			name: "getblock_byhash_verbose_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockByHashVerbose(util.Uint256{})
 			},
 		},
 		{
 			name: "getblockcount_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockCount()
 			},
 		},
 		{
 			name: "getblockhash_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockHash(1)
 			},
 		},
 		{
 			name: "getblockheader_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockHeader(util.Uint256{})
 			},
 		},
 		{
 			name: "getblockheader_verbose_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockHeaderVerbose(util.Uint256{})
 			},
 		},
 		{
 			name: "getblocksysfee_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetBlockSysFee(1)
 			},
 		},
 		{
 			name: "getcommittee_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetCommittee()
 			},
 		},
 		{
 			name: "getconnectioncount_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetConnectionCount()
 			},
 		},
 		{
 			name: "getcontractstate_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetContractStateByHash(util.Uint160{})
 			},
 		},
 		{
 			name: "getnep11balances_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNEP11Balances(util.Uint160{})
 			},
 		},
 		{
 			name: "getnep17balances_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNEP17Balances(util.Uint160{})
 			},
 		},
 		{
 			name: "getnep11transfers_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNEP11Transfers(util.Uint160{}, nil, nil, nil, nil)
 			},
 		},
 		{
 			name: "getnep17transfers_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNEP17Transfers(util.Uint160{}, nil, nil, nil, nil)
 			},
 		},
 		{
 			name: "getpeers_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetPeers()
 			},
 		},
 		{
 			name: "getrawmempool_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetRawMemPool()
 			},
 		},
 		{
 			name: "getrawtransaction_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetRawTransaction(util.Uint256{})
 			},
 		},
 		{
 			name: "getrawtransaction_verbose_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetRawTransactionVerbose(util.Uint256{})
 			},
 		},
 		{
 			name: "getstoragebyhash_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetStorageByHash(util.Uint160{}, []byte{})
 			},
 		},
 		{
 			name: "getstoragebyid_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetStorageByID(-1, []byte{})
 			},
 		},
 		{
 			name: "gettransactionheight_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetTransactionHeight(util.Uint256{})
 			},
 		},
 		{
 			name: "getunclaimedgas_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetUnclaimedGas("")
 			},
 		},
 		{
 			name: "getcandidates_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetCandidates()
 			},
 		},
 		{
 			name: "getvalidators_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.GetNextBlockValidators()
 			},
 		},
 		{
 			name: "invokefunction_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.InvokeFunction(util.Uint160{}, "", []smartcontract.Parameter{}, nil)
 			},
 		},
 		{
 			name: "invokescript_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.InvokeScript([]byte{}, nil)
 			},
 		},
 		{
 			name: "sendrawtransaction_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.SendRawTransaction(transaction.New([]byte{byte(opcode.PUSH1)}, 0))
 			},
 		},
 		{
 			name: "submitblock_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return c.SubmitBlock(block.Block{
 					Header:       block.Header{},
 					Transactions: nil,
@@ -1722,7 +1783,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		},
 		{
 			name: "validateaddress_unmarshalling_error",
-			invoke: func(c *Client) (interface{}, error) {
+			invoke: func(c *Client) (any, error) {
 				return nil, c.ValidateAddress("")
 			},
 		},
@@ -1741,7 +1802,7 @@ func TestRPCClients(t *testing.T) {
 	})
 	t.Run("WSClient", func(t *testing.T) {
 		testRPCClient(t, func(ctx context.Context, endpoint string, opts Options) (*Client, error) {
-			wsc, err := NewWS(ctx, httpURLtoWS(endpoint), opts)
+			wsc, err := NewWS(ctx, httpURLtoWS(endpoint), WSOptions{Options: opts})
 			require.NoError(t, err)
 			wsc.getNextRequestID = getTestRequestID
 			require.NoError(t, wsc.Init())
@@ -1951,7 +2012,7 @@ func TestGetNetwork(t *testing.T) {
 		c.getNextRequestID = getTestRequestID
 		// network was not initialised
 		_, err = c.GetNetwork()
-		require.True(t, errors.Is(err, errNetworkNotInitialized))
+		require.ErrorIs(t, err, errNetworkNotInitialized)
 		require.Equal(t, false, c.cache.initDone)
 	})
 

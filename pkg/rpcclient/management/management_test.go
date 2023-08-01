@@ -23,16 +23,16 @@ type testAct struct {
 	vub uint32
 }
 
-func (t *testAct) Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error) {
+func (t *testAct) Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error) {
 	return t.res, t.err
 }
-func (t *testAct) MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error) {
+func (t *testAct) MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error) {
 	return t.tx, t.err
 }
-func (t *testAct) MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error) {
+func (t *testAct) MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...any) (*transaction.Transaction, error) {
 	return t.tx, t.err
 }
-func (t *testAct) SendCall(contract util.Uint160, method string, params ...interface{}) (util.Uint256, uint32, error) {
+func (t *testAct) SendCall(contract util.Uint160, method string, params ...any) (util.Uint256, uint32, error) {
 	return t.txh, t.vub, t.err
 }
 func (t *testAct) MakeRun(script []byte) (*transaction.Transaction, error) {
@@ -44,7 +44,7 @@ func (t *testAct) MakeUnsignedRun(script []byte, attrs []transaction.Attribute) 
 func (t *testAct) SendRun(script []byte) (util.Uint256, uint32, error) {
 	return t.txh, t.vub, t.err
 }
-func (t *testAct) CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...interface{}) (*result.Invoke, error) {
+func (t *testAct) CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...any) (*result.Invoke, error) {
 	return t.res, t.err
 }
 func (t *testAct) TerminateSession(sessionID uuid.UUID) error {
@@ -294,7 +294,7 @@ func TestDeploy(t *testing.T) {
 	_, _, err := man.Deploy(nefFile, manif, nil)
 	require.Error(t, err)
 
-	for _, m := range []func(exe *nef.File, manif *manifest.Manifest, data interface{}) (*transaction.Transaction, error){
+	for _, m := range []func(exe *nef.File, manif *manifest.Manifest, data any) (*transaction.Transaction, error){
 		man.DeployTransaction,
 		man.DeployUnsigned,
 	} {
@@ -312,7 +312,7 @@ func TestDeploy(t *testing.T) {
 	require.Equal(t, ta.vub, vub)
 
 	ta.tx = transaction.New([]byte{1, 2, 3}, 100500)
-	for _, m := range []func(exe *nef.File, manif *manifest.Manifest, data interface{}) (*transaction.Transaction, error){
+	for _, m := range []func(exe *nef.File, manif *manifest.Manifest, data any) (*transaction.Transaction, error){
 		man.DeployTransaction,
 		man.DeployUnsigned,
 	} {

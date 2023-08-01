@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -91,7 +92,7 @@ func testECDSAVerify(t *testing.T, curve NamedCurve) {
 	}
 	require.NoError(t, err)
 
-	runCase := func(t *testing.T, isErr bool, result interface{}, args ...interface{}) {
+	runCase := func(t *testing.T, isErr bool, result any, args ...any) {
 		argsArr := make([]stackitem.Item, len(args))
 		for i := range args {
 			argsArr[i] = stackitem.Make(args[i])
@@ -140,4 +141,64 @@ func testECDSAVerify(t *testing.T, curve NamedCurve) {
 	t.Run("success", func(t *testing.T) {
 		runCase(t, false, true, msg, priv.PublicKey().Bytes(), sign, int64(curve))
 	})
+}
+
+func TestCryptolib_ScalarFromBytes_Compat(t *testing.T) {
+	r2Ref := &fr.Element{
+		0xc999_e990_f3f2_9c6d,
+		0x2b6c_edcb_8792_5c23,
+		0x05d3_1496_7254_398f,
+		0x0748_d9d9_9f59_ff11,
+	} // R2 Scalar representation taken from the https://github.com/neo-project/Neo.Cryptography.BLS12_381/blob/844bc3a4f7d8ba2c545ace90ca124f8ada4c8d29/src/Neo.Cryptography.BLS12_381/ScalarConstants.cs#L55
+
+	tcs := map[string]struct {
+		bytes      []byte
+		expected   *fr.Element
+		shouldFail bool
+	}{
+		"zero": {
+			bytes:    []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			expected: new(fr.Element).SetZero(),
+		},
+		"one": {
+			bytes:    []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+			expected: new(fr.Element).SetOne(),
+		},
+		"R2": {
+			bytes:    []byte{254, 255, 255, 255, 1, 0, 0, 0, 2, 72, 3, 0, 250, 183, 132, 88, 245, 79, 188, 236, 239, 79, 140, 153, 111, 5, 197, 172, 89, 177, 36, 24},
+			expected: r2Ref,
+		},
+		"negative": {
+			bytes: []byte{0, 0, 0, 0, 255, 255, 255, 255, 254, 91, 254, 255, 2, 164, 189, 83, 5, 216, 161, 9, 8, 216, 57, 51, 72, 125, 157, 41, 83, 167, 237, 115},
+		},
+		"modulus": {
+			bytes:      []byte{1, 0, 0, 0, 255, 255, 255, 255, 254, 91, 254, 255, 2, 164, 189, 83, 5, 216, 161, 9, 8, 216, 57, 51, 72, 125, 157, 41, 83, 167, 237, 115},
+			shouldFail: true,
+		},
+		"larger than modulus": {
+			bytes:      []byte{2, 0, 0, 0, 255, 255, 255, 255, 254, 91, 254, 255, 2, 164, 189, 83, 5, 216, 161, 9, 8, 216, 57, 51, 72, 125, 157, 41, 83, 167, 237, 115},
+			shouldFail: true,
+		},
+		"larger than modulus 2": {
+			bytes:      []byte{1, 0, 0, 0, 255, 255, 255, 255, 254, 91, 254, 255, 2, 164, 189, 83, 5, 216, 161, 9, 8, 216, 58, 51, 72, 125, 157, 41, 83, 167, 237, 115},
+			shouldFail: true,
+		},
+		"larger than modulus 3": {
+			bytes:      []byte{1, 0, 0, 0, 255, 255, 255, 255, 254, 91, 254, 255, 2, 164, 189, 83, 5, 216, 161, 9, 8, 216, 57, 51, 72, 125, 157, 41, 83, 167, 237, 116},
+			shouldFail: true,
+		},
+	}
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			actual, err := scalarFromBytes(tc.bytes, false)
+			if tc.shouldFail {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				if tc.expected != nil {
+					require.Equal(t, tc.expected, actual)
+				}
+			}
+		})
+	}
 }

@@ -53,9 +53,9 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: 1.19
+          go-version: '1.20'
           cache: true
 
       - name: Update Go modules
@@ -75,6 +75,12 @@ jobs:
           name: neo-go-${{ matrix.os.bin-name }}-${{ matrix.arch }}
           path: ./bin/neo-go*
           if-no-files-found: error
+
+      - name: Attach binary to the release as an asset
+        if: ${{ github.event_name == 'release' }}
+        run: gh release upload ${{ github.event.release.tag_name }} ./bin/neo-go-${{ matrix.os.bin-name }}-${{ matrix.arch }}${{ (matrix.os.bin-name == 'windows' && '.exe') || '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build_image:
     needs: build_cli
@@ -133,9 +139,9 @@ jobs:
 
       # For proper `deps` make target execution.
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: 1.19
+          go-version: '1.20'
           cache: true
 
       - name: Login to DockerHub

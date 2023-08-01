@@ -52,7 +52,7 @@ func DefaultCheckerModifier(r *result.Invoke, t *transaction.Transaction) error 
 // Actor-configured TransactionCheckerModifier. The resulting transaction has
 // Actor-configured attributes added as well. If you need to override attributes
 // and/or TransactionCheckerModifier use MakeTunedCall.
-func (a *Actor) MakeCall(contract util.Uint160, method string, params ...interface{}) (*transaction.Transaction, error) {
+func (a *Actor) MakeCall(contract util.Uint160, method string, params ...any) (*transaction.Transaction, error) {
 	return a.MakeTunedCall(contract, method, nil, nil, params...)
 }
 
@@ -61,7 +61,7 @@ func (a *Actor) MakeCall(contract util.Uint160, method string, params ...interfa
 // parameters. It's filtered through the provided callback (or Actor default
 // one's if nil, see TransactionCheckerModifier documentation also), so the
 // process can be aborted and transaction can be modified before signing.
-func (a *Actor) MakeTunedCall(contract util.Uint160, method string, attrs []transaction.Attribute, txHook TransactionCheckerModifier, params ...interface{}) (*transaction.Transaction, error) {
+func (a *Actor) MakeTunedCall(contract util.Uint160, method string, attrs []transaction.Attribute, txHook TransactionCheckerModifier, params ...any) (*transaction.Transaction, error) {
 	r, err := a.Call(contract, method, params...)
 	return a.makeUncheckedWrapper(r, err, attrs, txHook)
 }
@@ -130,7 +130,7 @@ func (a *Actor) MakeUncheckedRun(script []byte, sysfee int64, attrs []transactio
 // transaction returned has correct SystemFee and NetworkFee values.
 // TransactionModifier is not applied to the result of this method, but default
 // attributes are used if attrs is nil.
-func (a *Actor) MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...interface{}) (*transaction.Transaction, error) {
+func (a *Actor) MakeUnsignedCall(contract util.Uint160, method string, attrs []transaction.Attribute, params ...any) (*transaction.Transaction, error) {
 	r, err := a.Call(contract, method, params...)
 	return a.makeUnsignedWrapper(r, err, attrs)
 }

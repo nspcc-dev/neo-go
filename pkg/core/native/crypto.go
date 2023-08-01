@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/big"
 
+	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -62,6 +64,42 @@ func newCrypto() *Crypto {
 		manifest.NewParameter("curve", smartcontract.IntegerType))
 	md = newMethodAndPrice(c.verifyWithECDsa, 1<<15, callflag.NoneFlag)
 	c.AddMethod(md, desc)
+
+	desc = newDescriptor("bls12381Serialize", smartcontract.ByteArrayType,
+		manifest.NewParameter("g", smartcontract.InteropInterfaceType))
+	md = newMethodAndPrice(c.bls12381Serialize, 1<<19, callflag.NoneFlag)
+	c.AddMethod(md, desc)
+
+	desc = newDescriptor("bls12381Deserialize", smartcontract.InteropInterfaceType,
+		manifest.NewParameter("data", smartcontract.ByteArrayType))
+	md = newMethodAndPrice(c.bls12381Deserialize, 1<<19, callflag.NoneFlag)
+	c.AddMethod(md, desc)
+
+	desc = newDescriptor("bls12381Equal", smartcontract.BoolType,
+		manifest.NewParameter("x", smartcontract.InteropInterfaceType),
+		manifest.NewParameter("y", smartcontract.InteropInterfaceType))
+	md = newMethodAndPrice(c.bls12381Equal, 1<<5, callflag.NoneFlag)
+	c.AddMethod(md, desc)
+
+	desc = newDescriptor("bls12381Add", smartcontract.InteropInterfaceType,
+		manifest.NewParameter("x", smartcontract.InteropInterfaceType),
+		manifest.NewParameter("y", smartcontract.InteropInterfaceType))
+	md = newMethodAndPrice(c.bls12381Add, 1<<19, callflag.NoneFlag)
+	c.AddMethod(md, desc)
+
+	desc = newDescriptor("bls12381Mul", smartcontract.InteropInterfaceType,
+		manifest.NewParameter("x", smartcontract.InteropInterfaceType),
+		manifest.NewParameter("mul", smartcontract.ByteArrayType),
+		manifest.NewParameter("neg", smartcontract.BoolType))
+	md = newMethodAndPrice(c.bls12381Mul, 1<<21, callflag.NoneFlag)
+	c.AddMethod(md, desc)
+
+	desc = newDescriptor("bls12381Pairing", smartcontract.InteropInterfaceType,
+		manifest.NewParameter("g1", smartcontract.InteropInterfaceType),
+		manifest.NewParameter("g2", smartcontract.InteropInterfaceType))
+	md = newMethodAndPrice(c.bls12381Pairing, 1<<23, callflag.NoneFlag)
+	c.AddMethod(md, desc)
+
 	return c
 }
 
@@ -136,6 +174,113 @@ func curveFromStackitem(si stackitem.Item) (elliptic.Curve, error) {
 	default:
 		return nil, errors.New("unsupported curve type")
 	}
+}
+
+func (c *Crypto) bls12381Serialize(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	val, ok := args[0].(*stackitem.Interop).Value().(blsPoint)
+	if !ok {
+		panic(errors.New("not a bls12381 point"))
+	}
+	return stackitem.NewByteArray(val.Bytes())
+}
+
+func (c *Crypto) bls12381Deserialize(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	buf, err := args[0].TryBytes()
+	if err != nil {
+		panic(fmt.Errorf("invalid serialized bls12381 point: %w", err))
+	}
+	p := new(blsPoint)
+	err = p.FromBytes(buf)
+	if err != nil {
+		panic(err)
+	}
+	return stackitem.NewInterop(*p)
+}
+
+func (c *Crypto) bls12381Equal(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	a, okA := args[0].(*stackitem.Interop).Value().(blsPoint)
+	b, okB := args[1].(*stackitem.Interop).Value().(blsPoint)
+	if !(okA && okB) {
+		panic("some of the arguments are not a bls12381 point")
+	}
+	res, err := a.EqualsCheckType(b)
+	if err != nil {
+		panic(err)
+	}
+	return stackitem.NewBool(res)
+}
+
+func (c *Crypto) bls12381Add(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	a, okA := args[0].(*stackitem.Interop).Value().(blsPoint)
+	b, okB := args[1].(*stackitem.Interop).Value().(blsPoint)
+	if !(okA && okB) {
+		panic("some of the arguments are not a bls12381 point")
+	}
+
+	p, err := blsPointAdd(a, b)
+	if err != nil {
+		panic(err)
+	}
+	return stackitem.NewInterop(p)
+}
+
+func scalarFromBytes(bytes []byte, neg bool) (*fr.Element, error) {
+	alpha := new(fr.Element)
+	if len(bytes) != fr.Bytes {
+		return nil, fmt.Errorf("invalid multiplier: 32-bytes scalar is expected, got %d", len(bytes))
+	}
+	// The input bytes are in the LE form, so we can't use fr.Element.SetBytesCanonical as far
+	// as it accepts BE.
+	v, err := fr.LittleEndian.Element((*[fr.Bytes]byte)(bytes))
+	if err != nil {
+		return nil, fmt.Errorf("invalid multiplier: failed to decode scalar: %w", err)
+	}
+	*alpha = v
+	if neg {
+		alpha.Neg(alpha)
+	}
+	return alpha, nil
+}
+
+func (c *Crypto) bls12381Mul(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	a, okA := args[0].(*stackitem.Interop).Value().(blsPoint)
+	if !okA {
+		panic("multiplier is not a bls12381 point")
+	}
+	mulBytes, err := args[1].TryBytes()
+	if err != nil {
+		panic(fmt.Errorf("invalid multiplier: %w", err))
+	}
+	neg, err := args[2].TryBool()
+	if err != nil {
+		panic(fmt.Errorf("invalid negative argument: %w", err))
+	}
+	alpha, err := scalarFromBytes(mulBytes, neg)
+	if err != nil {
+		panic(err)
+	}
+	alphaBi := new(big.Int)
+	alpha.BigInt(alphaBi)
+
+	p, err := blsPointMul(a, alphaBi)
+	if err != nil {
+		panic(err)
+	}
+	return stackitem.NewInterop(p)
+}
+
+func (c *Crypto) bls12381Pairing(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	a, okA := args[0].(*stackitem.Interop).Value().(blsPoint)
+	b, okB := args[1].(*stackitem.Interop).Value().(blsPoint)
+	if !(okA && okB) {
+		panic("some of the arguments are not a bls12381 point")
+	}
+
+	p, err := blsPointPairing(a, b)
+	if err != nil {
+		panic(err)
+	}
+	return stackitem.NewInterop(p)
 }
 
 // Metadata implements the Contract interface.

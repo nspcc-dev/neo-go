@@ -11,7 +11,8 @@ import (
 func connReadStub(conn net.Conn) {
 	b := make([]byte, 1024)
 	var err error
-	for ; err == nil; _, err = conn.Read(b) {
+	for err == nil {
+		_, err = conn.Read(b)
 	}
 }
 

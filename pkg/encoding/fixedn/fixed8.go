@@ -85,7 +85,7 @@ func (f *Fixed8) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalYAML implements the yaml unmarshaler interface.
-func (f *Fixed8) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (f *Fixed8) UnmarshalYAML(unmarshal func(any) error) error {
 	var s string
 	err := unmarshal(&s)
 	if err != nil {
@@ -109,7 +109,7 @@ func (f Fixed8) MarshalJSON() ([]byte, error) {
 }
 
 // MarshalYAML implements the yaml marshaller interface.
-func (f Fixed8) MarshalYAML() (interface{}, error) {
+func (f Fixed8) MarshalYAML() (any, error) {
 	return f.String(), nil
 }
 

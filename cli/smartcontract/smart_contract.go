@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/management"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -81,7 +82,7 @@ func init() {
 }
 
 // RuntimeNotify sends runtime notification with "Hello world!" name
-func RuntimeNotify(args []interface{}) {
+func RuntimeNotify(args []any) {
     runtime.Notify(notificationName, args)
 }`
 )
@@ -125,12 +126,19 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "compile",
 				Usage:     "compile a smart contract to a .nef file",
-				UsageText: "neo-go contract compile -i path [-o nef] [-v] [-d] [-m manifest] [-c yaml] [--bindings file] [--no-standards] [--no-events] [--no-permissions]",
-				Action:    contractCompile,
+				UsageText: "neo-go contract compile -i path [-o nef] [-v] [-d] [-m manifest] [-c yaml] [--bindings file] [--no-standards] [--no-events] [--no-permissions] [--guess-eventtypes]",
+				Description: `Compiles given smart contract to a .nef file and emits other associated
+   information (manifest, bindings configuration, debug information files) if
+   asked to. If none of --out, --manifest, --config, --bindings flags are specified,
+   then the output filenames for these flags will be guessed using the contract
+   name or path provided via --in option by trimming/adding corresponding suffixes
+   to the common part of the path. In the latter case the configuration filepath
+   will be guessed from the --in option using the same rule."`,
+				Action: contractCompile,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "in, i",
-						Usage: "Input file for the smart contract to be compiled",
+						Usage: "Input file for the smart contract to be compiled (*.go file or directory)",
 					},
 					cli.StringFlag{
 						Name:  "out, o",
@@ -163,6 +171,10 @@ func NewCommands() []cli.Command {
 					cli.BoolFlag{
 						Name:  "no-permissions",
 						Usage: "do not check if invoked contracts are allowed in manifest",
+					},
+					cli.BoolFlag{
+						Name:  "guess-eventtypes",
+						Usage: "guess event types for smart-contract bindings configuration from the code usages",
 					},
 					cli.StringFlag{
 						Name:  "bindings",
@@ -345,13 +357,15 @@ func initSmartContract(ctx *cli.Context) error {
 		SourceURL:          "http://example.com/",
 		SupportedStandards: []string{},
 		SafeMethods:        []string{},
-		Events: []manifest.Event{
+		Events: []compiler.HybridEvent{
 			{
 				Name: "Hello world!",
-				Parameters: []manifest.Parameter{
+				Parameters: []compiler.HybridParameter{
 					{
-						Name: "args",
-						Type: smartcontract.ArrayType,
+						Parameter: manifest.Parameter{
+							Name: "args",
+							Type: smartcontract.ArrayType,
+						},
 					},
 				},
 			},
@@ -400,20 +414,48 @@ func contractCompile(ctx *cli.Context) error {
 	manifestFile := ctx.String("manifest")
 	confFile := ctx.String("config")
 	debugFile := ctx.String("debug")
-	if len(confFile) == 0 && (len(manifestFile) != 0 || len(debugFile) != 0) {
+	out := ctx.String("out")
+	bindings := ctx.String("bindings")
+	if len(confFile) == 0 && (len(manifestFile) != 0 || len(debugFile) != 0 || len(bindings) != 0) {
 		return cli.NewExitError(errNoConfFile, 1)
+	}
+	autocomplete := len(manifestFile) == 0 &&
+		len(confFile) == 0 &&
+		len(out) == 0 &&
+		len(bindings) == 0
+	if autocomplete {
+		var root string
+		fileInfo, err := os.Stat(src)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to stat source file or directory: %w", err), 1)
+		}
+		if fileInfo.IsDir() {
+			base := filepath.Base(fileInfo.Name())
+			if base == string(filepath.Separator) {
+				base = "contract"
+			}
+			root = filepath.Join(src, base)
+		} else {
+			root = strings.TrimSuffix(src, ".go")
+		}
+		manifestFile = root + ".manifest.json"
+		confFile = root + ".yml"
+		out = root + ".nef"
+		bindings = root + ".bindings.yml"
 	}
 
 	o := &compiler.Options{
-		Outfile: ctx.String("out"),
+		Outfile: out,
 
 		DebugInfo:    debugFile,
 		ManifestFile: manifestFile,
-		BindingsFile: ctx.String("bindings"),
+		BindingsFile: bindings,
 
 		NoStandardCheck:    ctx.Bool("no-standards"),
 		NoEventsCheck:      ctx.Bool("no-events"),
 		NoPermissionsCheck: ctx.Bool("no-permissions"),
+
+		GuessEventTypes: ctx.Bool("guess-eventtypes"),
 	}
 
 	if len(confFile) != 0 {
@@ -424,6 +466,7 @@ func contractCompile(ctx *cli.Context) error {
 		o.Name = conf.Name
 		o.SourceURL = conf.SourceURL
 		o.ContractEvents = conf.Events
+		o.DeclaredNamedTypes = conf.NamedTypes
 		o.ContractSupportedStandards = conf.SupportedStandards
 		o.Permissions = make([]manifest.Permission, len(conf.Permissions))
 		for i := range conf.Permissions {
@@ -495,7 +538,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		err             error
 		exitErr         *cli.ExitError
 		operation       string
-		params          []interface{}
+		params          []any
 		paramsStart     = 1
 		scParams        []smartcontract.Parameter
 		cosigners       []transaction.Signer
@@ -521,7 +564,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		params = make([]interface{}, len(scParams))
+		params = make([]any, len(scParams))
 		for i := range scParams {
 			params[i] = scParams[i]
 		}
@@ -548,7 +591,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	return invokeWithArgs(ctx, acc, w, script, operation, params, cosigners)
 }
 
-func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, script util.Uint160, operation string, params []interface{}, cosigners []transaction.Signer) error {
+func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, script util.Uint160, operation string, params []any, cosigners []transaction.Signer) error {
 	var (
 		err             error
 		signersAccounts []actor.SignerAccount
@@ -672,9 +715,10 @@ type ProjectConfig struct {
 	SourceURL          string
 	SafeMethods        []string
 	SupportedStandards []string
-	Events             []manifest.Event
+	Events             []compiler.HybridEvent
 	Permissions        []permission
-	Overloads          map[string]string `yaml:"overloads,omitempty"`
+	Overloads          map[string]string               `yaml:"overloads,omitempty"`
+	NamedTypes         map[string]binding.ExtendedType `yaml:"namedtypes,omitempty"`
 }
 
 func inspect(ctx *cli.Context) error {
@@ -787,7 +831,7 @@ func contractDeploy(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("failed to read manifest file: %w", err), 1)
 	}
 
-	var appCallParams = []interface{}{f, manifestBytes}
+	var appCallParams = []any{f, manifestBytes}
 
 	signOffset, data, err := cmdargs.ParseParams(ctx.Args(), true)
 	if err != nil {

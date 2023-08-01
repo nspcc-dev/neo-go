@@ -33,7 +33,7 @@ func ExampleActor() {
 	// have a signer with the first wallet account and CalledByEntry scope.
 	res, _ := a.Call(customContract, "method", 1, 2, 3)
 	if res.State != vmstate.Halt.String() {
-		// The call failed.
+		panic("failed")
 	}
 	// All of the side-effects in res can be analyzed.
 

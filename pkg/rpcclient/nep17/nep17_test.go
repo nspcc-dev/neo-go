@@ -20,7 +20,7 @@ type testAct struct {
 	vub uint32
 }
 
-func (t *testAct) Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error) {
+func (t *testAct) Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error) {
 	return t.res, t.err
 }
 func (t *testAct) MakeRun(script []byte) (*transaction.Transaction, error) {
@@ -62,13 +62,29 @@ func TestReaderBalanceOf(t *testing.T) {
 	require.Error(t, err)
 }
 
+type tData struct {
+	someInt    int
+	someString string
+}
+
+func (d *tData) ToStackItem() (stackitem.Item, error) {
+	return stackitem.NewStruct([]stackitem.Item{
+		stackitem.Make(d.someInt),
+		stackitem.Make(d.someString),
+	}), nil
+}
+
+func (d *tData) FromStackItem(si stackitem.Item) error {
+	panic("TODO")
+}
+
 func TestTokenTransfer(t *testing.T) {
 	ta := new(testAct)
 	tok := New(ta, util.Uint160{1, 2, 3})
 
-	for name, fun := range map[string]func(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (util.Uint256, uint32, error){
+	for name, fun := range map[string]func(from util.Uint160, to util.Uint160, amount *big.Int, data any) (util.Uint256, uint32, error){
 		"Tranfer": tok.Transfer,
-		"MultiTransfer": func(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (util.Uint256, uint32, error) {
+		"MultiTransfer": func(from util.Uint160, to util.Uint160, amount *big.Int, data any) (util.Uint256, uint32, error) {
 			return tok.MultiTransfer([]TransferParameters{{from, to, amount, data}, {from, to, amount, data}})
 		},
 	} {
@@ -85,7 +101,18 @@ func TestTokenTransfer(t *testing.T) {
 			require.Equal(t, ta.txh, h)
 			require.Equal(t, ta.vub, vub)
 
-			_, _, err = fun(util.Uint160{3, 2, 1}, util.Uint160{3, 2, 1}, big.NewInt(1), stackitem.NewMap())
+			ta.err = nil
+			ta.txh = util.Uint256{1, 2, 3}
+			ta.vub = 42
+			h, vub, err = fun(util.Uint160{3, 2, 1}, util.Uint160{3, 2, 1}, big.NewInt(1), &tData{
+				someInt:    5,
+				someString: "ur",
+			})
+			require.NoError(t, err)
+			require.Equal(t, ta.txh, h)
+			require.Equal(t, ta.vub, vub)
+
+			_, _, err = fun(util.Uint160{3, 2, 1}, util.Uint160{3, 2, 1}, big.NewInt(1), stackitem.NewInterop(nil))
 			require.Error(t, err)
 		})
 	}
@@ -99,13 +126,13 @@ func TestTokenTransferTransaction(t *testing.T) {
 	ta := new(testAct)
 	tok := New(ta, util.Uint160{1, 2, 3})
 
-	for name, fun := range map[string]func(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error){
+	for name, fun := range map[string]func(from util.Uint160, to util.Uint160, amount *big.Int, data any) (*transaction.Transaction, error){
 		"TransferTransaction": tok.TransferTransaction,
 		"TransferUnsigned":    tok.TransferUnsigned,
-		"MultiTransferTransaction": func(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
+		"MultiTransferTransaction": func(from util.Uint160, to util.Uint160, amount *big.Int, data any) (*transaction.Transaction, error) {
 			return tok.MultiTransferTransaction([]TransferParameters{{from, to, amount, data}, {from, to, amount, data}})
 		},
-		"MultiTransferUnsigned": func(from util.Uint160, to util.Uint160, amount *big.Int, data interface{}) (*transaction.Transaction, error) {
+		"MultiTransferUnsigned": func(from util.Uint160, to util.Uint160, amount *big.Int, data any) (*transaction.Transaction, error) {
 			return tok.MultiTransferUnsigned([]TransferParameters{{from, to, amount, data}, {from, to, amount, data}})
 		},
 	} {
@@ -120,7 +147,16 @@ func TestTokenTransferTransaction(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, ta.tx, tx)
 
-			_, err = fun(util.Uint160{3, 2, 1}, util.Uint160{3, 2, 1}, big.NewInt(1), stackitem.NewMap())
+			ta.err = nil
+			ta.tx = &transaction.Transaction{Nonce: 100500, ValidUntilBlock: 42}
+			tx, err = fun(util.Uint160{3, 2, 1}, util.Uint160{3, 2, 1}, big.NewInt(1), &tData{
+				someInt:    5,
+				someString: "ur",
+			})
+			require.NoError(t, err)
+			require.Equal(t, ta.tx, tx)
+
+			_, err = fun(util.Uint160{3, 2, 1}, util.Uint160{3, 2, 1}, big.NewInt(1), stackitem.NewInterop(nil))
 			require.Error(t, err)
 		})
 	}

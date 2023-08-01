@@ -190,8 +190,8 @@ func TestRegisterAndRenew(t *testing.T) {
 	t.Run("invalid token ID", func(t *testing.T) {
 		c.InvokeFail(t, "token not found", "properties", "not.exists")
 		c.InvokeFail(t, "token not found", "ownerOf", "not.exists")
-		c.InvokeFail(t, "invalid conversion", "properties", []interface{}{})
-		c.InvokeFail(t, "invalid conversion", "ownerOf", []interface{}{})
+		c.InvokeFail(t, "invalid conversion", "properties", []any{})
+		c.InvokeFail(t, "invalid conversion", "ownerOf", []any{})
 	})
 
 	// Renew
@@ -294,7 +294,7 @@ func TestSetGetRecord(t *testing.T) {
 			{Type: nns.AAAA, Name: "2001::13.1.68.3", ShouldFail: true},
 		}
 		for _, testCase := range testCases {
-			args := []interface{}{"neo.com", int64(testCase.Type), testCase.Name}
+			args := []any{"neo.com", int64(testCase.Type), testCase.Name}
 			t.Run(testCase.Name, func(t *testing.T) {
 				if testCase.ShouldFail {
 					c.InvokeFail(t, "", "setRecord", args...)
@@ -377,7 +377,7 @@ func TestTransfer(t *testing.T) {
 	ctr = neotest.CompileSource(t, e.CommitteeHash,
 		strings.NewReader(`package foo
 			import "github.com/nspcc-dev/neo-go/pkg/interop"
-			func OnNEP11Payment(from interop.Hash160, amount int, token []byte, data interface{}) {}`),
+			func OnNEP11Payment(from interop.Hash160, amount int, token []byte, data any) {}`),
 		&compiler.Options{Name: "foo"})
 	e.DeployContract(t, ctr, nil)
 	cTo.Invoke(t, true, "transfer", ctr.Hash, []byte("neo.com"), nil)
@@ -404,7 +404,7 @@ func TestTokensOf(t *testing.T) {
 	testTokensOf(t, c, [][]byte{}, util.Uint160{}.BytesBE()) // empty hash is a valid hash still
 }
 
-func testTokensOf(t *testing.T, c *neotest.ContractInvoker, result [][]byte, args ...interface{}) {
+func testTokensOf(t *testing.T, c *neotest.ContractInvoker, result [][]byte, args ...any) {
 	method := "tokensOf"
 	if len(args) == 0 {
 		method = "tokens"

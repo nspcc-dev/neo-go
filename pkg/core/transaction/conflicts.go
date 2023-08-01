@@ -20,6 +20,6 @@ func (c *Conflicts) EncodeBinary(w *io.BinWriter) {
 	c.Hash.EncodeBinary(w)
 }
 
-func (c *Conflicts) toJSONMap(m map[string]interface{}) {
+func (c *Conflicts) toJSONMap(m map[string]any) {
 	m["hash"] = c.Hash
 }

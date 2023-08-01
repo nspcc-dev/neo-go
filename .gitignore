@@ -7,9 +7,6 @@
 # Test binary, build with `go test -c`
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-
 # Added by CoZ developers
 vendor/
 bin/
@@ -54,6 +51,7 @@ testdata/
 !pkg/services/notary/testdata
 !pkg/services/oracle/testdata
 !pkg/smartcontract/testdata
+!cli/smartcontract/testdata
 pkg/vm/testdata/fuzz
 !pkg/vm/testdata
 !pkg/wallet/testdata

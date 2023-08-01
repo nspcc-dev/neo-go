@@ -54,7 +54,7 @@ type (
 
 	vmUTStackItem struct {
 		Type  vmUTStackItemType
-		Value interface{}
+		Value any
 	}
 
 	vmUTStep struct {

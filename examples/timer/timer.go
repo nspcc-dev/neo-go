@@ -3,10 +3,10 @@ package timer
 import (
 	"github.com/nspcc-dev/neo-go/pkg/interop"
 	"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+	"github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/std"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
-	"github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
 
 const defaultTicks = 3
@@ -16,7 +16,7 @@ var (
 	// ctx holds storage context for contract methods
 	ctx storage.Context
 	// Check if the invoker of the contract is the specified owner
-	owner = util.FromAddress("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
+	owner = address.ToHash160("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
 	// ticksKey is a storage key for ticks counter
 	ticksKey = []byte("ticks")
 )
@@ -25,7 +25,7 @@ func init() {
 	ctx = storage.GetContext()
 }
 
-func _deploy(_ interface{}, isUpdate bool) {
+func _deploy(_ any, isUpdate bool) {
 	if isUpdate {
 		ticksLeft := storage.Get(ctx, ticksKey).(int) + 1
 		storage.Put(ctx, ticksKey, ticksLeft)

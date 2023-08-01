@@ -187,7 +187,7 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	_, _, _ = deployContractFromPriv0(t, verifyPath, "Verify", verifyCfg, VerifyContractID)
 
 	// Block #8: deposit some GAS to notary contract for priv0.
-	transferTxH = gasPriv0Invoker.Invoke(t, true, "transfer", priv0ScriptHash, notaryHash, 10_0000_0000, []interface{}{priv0ScriptHash, int64(e.Chain.BlockHeight() + 1000)})
+	transferTxH = gasPriv0Invoker.Invoke(t, true, "transfer", priv0ScriptHash, notaryHash, 10_0000_0000, []any{priv0ScriptHash, int64(e.Chain.BlockHeight() + 1000)})
 	t.Logf("notaryDepositTxPriv0: %v", transferTxH.StringLE())
 
 	// Block #9: designate new Notary node.
@@ -195,7 +195,7 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	require.NoError(t, err)
 	require.NoError(t, ntr.Accounts[0].Decrypt("one", ntr.Scrypt))
 	designateSuperInvoker.Invoke(t, stackitem.Null{}, "designateAsRole",
-		int64(noderoles.P2PNotary), []interface{}{ntr.Accounts[0].PublicKey().Bytes()})
+		int64(noderoles.P2PNotary), []any{ntr.Accounts[0].PublicKey().Bytes()})
 	t.Logf("Designated Notary node: %s", hex.EncodeToString(ntr.Accounts[0].PublicKey().Bytes()))
 
 	// Block #10: push verification contract with arguments into the chain.
@@ -252,7 +252,7 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	containerID := util.Uint256{1, 2, 3}
 	objectID := util.Uint256{4, 5, 6}
 	txGas0toNFSH := gasPriv0Invoker.Invoke(t, true, "transfer",
-		priv0ScriptHash, nfsHash, 10_0000_0000, []interface{}{containerID.BytesBE(), objectID.BytesBE()}) // block #18
+		priv0ScriptHash, nfsHash, 10_0000_0000, []any{containerID.BytesBE(), objectID.BytesBE()}) // block #18
 	res = e.GetTxExecResult(t, txGas0toNFSH)
 	require.Equal(t, 2, len(res.Events)) // GAS transfer + NFSO transfer
 	tokenID, err = res.Events[1].Item.Value().([]stackitem.Item)[3].TryBytes()

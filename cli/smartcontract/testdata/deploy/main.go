@@ -13,7 +13,7 @@ var key = "key"
 
 const mgmtKey = "mgmt"
 
-func _deploy(data interface{}, isUpdate bool) {
+func _deploy(data any, isUpdate bool) {
 	var value string
 
 	ctx := storage.GetContext()
@@ -25,7 +25,7 @@ func _deploy(data interface{}, isUpdate bool) {
 		storage.Put(ctx, mgmtKey, sh)
 
 		if data != nil {
-			arr := data.([]interface{})
+			arr := data.([]any)
 			for i := 0; i < len(arr)-1; i += 2 {
 				storage.Put(ctx, arr[i], arr[i+1])
 			}
@@ -70,12 +70,12 @@ func GetValueWithKey(key string) string {
 }
 
 // TestFind finds items with the specified prefix.
-func TestFind(f storage.FindFlags) []interface{} {
+func TestFind(f storage.FindFlags) []any {
 	ctx := storage.GetContext()
 	storage.Put(ctx, "findkey1", "value1")
 	storage.Put(ctx, "findkey2", "value2")
 
-	var result []interface{}
+	var result []any
 	iter := storage.Find(ctx, "findkey", f)
 	for iterator.Next(iter) {
 		result = append(result, iterator.Value(iter))

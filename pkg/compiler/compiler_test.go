@@ -102,25 +102,25 @@ func TestOnPayableChecks(t *testing.T) {
 	t.Run("NEP-11, good", func(t *testing.T) {
 		src := `package payable
 		import "github.com/nspcc-dev/neo-go/pkg/interop"
-		func OnNEP11Payment(from interop.Hash160, amount int, tokenID []byte, data interface{}) {}`
+		func OnNEP11Payment(from interop.Hash160, amount int, tokenID []byte, data any) {}`
 		require.NoError(t, compileAndCheck(t, src))
 	})
 	t.Run("NEP-11, bad", func(t *testing.T) {
 		src := `package payable
 		import "github.com/nspcc-dev/neo-go/pkg/interop"
-		func OnNEP11Payment(from interop.Hash160, amount int, oldParam string, tokenID []byte, data interface{}) {}`
+		func OnNEP11Payment(from interop.Hash160, amount int, oldParam string, tokenID []byte, data any) {}`
 		require.Error(t, compileAndCheck(t, src))
 	})
 	t.Run("NEP-17, good", func(t *testing.T) {
 		src := `package payable
 		import "github.com/nspcc-dev/neo-go/pkg/interop"
-		func OnNEP17Payment(from interop.Hash160, amount int, data interface{}) {}`
+		func OnNEP17Payment(from interop.Hash160, amount int, data any) {}`
 		require.NoError(t, compileAndCheck(t, src))
 	})
 	t.Run("NEP-17, bad", func(t *testing.T) {
 		src := `package payable
 		import "github.com/nspcc-dev/neo-go/pkg/interop"
-		func OnNEP17Payment(from interop.Hash160, amount int, data interface{}, extra int) {}`
+		func OnNEP17Payment(from interop.Hash160, amount int, data any, extra int) {}`
 		require.Error(t, compileAndCheck(t, src))
 	})
 }
@@ -159,16 +159,16 @@ func TestEventWarnings(t *testing.T) {
 	})
 	t.Run("wrong parameter number", func(t *testing.T) {
 		_, err = compiler.CreateManifest(di, &compiler.Options{
-			ContractEvents: []manifest.Event{{Name: "Event"}},
+			ContractEvents: []compiler.HybridEvent{{Name: "Event"}},
 			Name:           "payable",
 		})
 		require.Error(t, err)
 	})
 	t.Run("wrong parameter type", func(t *testing.T) {
 		_, err = compiler.CreateManifest(di, &compiler.Options{
-			ContractEvents: []manifest.Event{{
+			ContractEvents: []compiler.HybridEvent{{
 				Name:       "Event",
-				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.StringType)},
+				Parameters: []compiler.HybridParameter{{Parameter: manifest.NewParameter("number", smartcontract.StringType)}},
 			}},
 			Name: "payable",
 		})
@@ -176,9 +176,9 @@ func TestEventWarnings(t *testing.T) {
 	})
 	t.Run("any parameter type", func(t *testing.T) {
 		_, err = compiler.CreateManifest(di, &compiler.Options{
-			ContractEvents: []manifest.Event{{
+			ContractEvents: []compiler.HybridEvent{{
 				Name:       "Event",
-				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.AnyType)},
+				Parameters: []compiler.HybridParameter{{Parameter: manifest.NewParameter("number", smartcontract.AnyType)}},
 			}},
 			Name: "payable",
 		})
@@ -186,9 +186,9 @@ func TestEventWarnings(t *testing.T) {
 	})
 	t.Run("good", func(t *testing.T) {
 		_, err = compiler.CreateManifest(di, &compiler.Options{
-			ContractEvents: []manifest.Event{{
+			ContractEvents: []compiler.HybridEvent{{
 				Name:       "Event",
-				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.IntegerType)},
+				Parameters: []compiler.HybridParameter{{Parameter: manifest.NewParameter("number", smartcontract.IntegerType)}},
 			}},
 			Name: "payable",
 		})
@@ -224,7 +224,7 @@ func TestEventWarnings(t *testing.T) {
 			require.Error(t, err)
 
 			_, err = compiler.CreateManifest(di, &compiler.Options{
-				ContractEvents: []manifest.Event{{Name: "Event"}},
+				ContractEvents: []compiler.HybridEvent{{Name: "Event"}},
 				Name:           "eventTest",
 			})
 			require.NoError(t, err)
@@ -234,7 +234,7 @@ func TestEventWarnings(t *testing.T) {
 		src := `package payable
 		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 		func Main() {
-			runtime.Notify("Event", []interface{}{1}...)
+			runtime.Notify("Event", []any{1}...)
 		}`
 
 		_, di, err := compiler.CompileWithOptions("eventTest.go", strings.NewReader(src), nil)
@@ -242,9 +242,9 @@ func TestEventWarnings(t *testing.T) {
 
 		_, err = compiler.CreateManifest(di, &compiler.Options{
 			Name: "eventTest",
-			ContractEvents: []manifest.Event{{
+			ContractEvents: []compiler.HybridEvent{{
 				Name:       "Event",
-				Parameters: []manifest.Parameter{manifest.NewParameter("number", smartcontract.IntegerType)},
+				Parameters: []compiler.HybridParameter{{Parameter: manifest.NewParameter("number", smartcontract.IntegerType)}},
 			}},
 		})
 		require.NoError(t, err)
@@ -260,7 +260,7 @@ func TestNotifyInVerify(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			src := fmt.Sprintf(srcTmpl, name)
 			_, _, err := compiler.CompileWithOptions("eventTest.go", strings.NewReader(src),
-				&compiler.Options{ContractEvents: []manifest.Event{{Name: "Event"}}})
+				&compiler.Options{ContractEvents: []compiler.HybridEvent{{Name: "Event"}}})
 			require.Error(t, err)
 
 			t.Run("suppress", func(t *testing.T) {
@@ -407,7 +407,7 @@ func TestUnnamedParameterCheck(t *testing.T) {
 	t.Run("interface", func(t *testing.T) {
 		src := `
 		package testcase
-		func OnNEP17Payment(h string, i int, _ interface{}){}
+		func OnNEP17Payment(h string, i int, _ any){}
 	`
 		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
 		require.Error(t, err)
@@ -416,7 +416,7 @@ func TestUnnamedParameterCheck(t *testing.T) {
 	t.Run("a set of unnamed params", func(t *testing.T) {
 		src := `
 		package testcase
-		func OnNEP17Payment(_ string, _ int, _ interface{}){}
+		func OnNEP17Payment(_ string, _ int, _ any){}
 	`
 		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
 		require.Error(t, err)
@@ -447,11 +447,19 @@ func TestUnnamedParameterCheck(t *testing.T) {
 		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
 		require.NoError(t, err)
 	})
+	t.Run("good, use any keyword", func(t *testing.T) {
+		src := `
+		package testcase
+		func OnNEP17Payment(s string, i int, iface any){}
+	`
+		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
+		require.NoError(t, err)
+	})
 	t.Run("method with unnamed params", func(t *testing.T) {
 		src := `
 		package testcase
 		type A int
-		func (rsv A) OnNEP17Payment(_ string, _ int, iface interface{}){}
+		func (rsv A) OnNEP17Payment(_ string, _ int, iface any){}
 	`
 		_, _, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
 		require.NoError(t, err) // it's OK for exported method to have unnamed params as it won't be included into manifest

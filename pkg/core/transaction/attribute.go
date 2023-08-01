@@ -17,7 +17,7 @@ type Attribute struct {
 		// Anonymous interface fields are not considered anonymous by
 		// json lib and marshaling Value together with type makes code
 		// harder to follow.
-		toJSONMap(map[string]interface{})
+		toJSONMap(map[string]any)
 	}
 }
 
@@ -70,7 +70,7 @@ func (attr *Attribute) EncodeBinary(bw *io.BinWriter) {
 
 // MarshalJSON implements the json Marshaller interface.
 func (attr *Attribute) MarshalJSON() ([]byte, error) {
-	m := map[string]interface{}{"type": attr.Type.String()}
+	m := map[string]any{"type": attr.Type.String()}
 	if attr.Value != nil {
 		attr.Value.toJSONMap(m)
 	}

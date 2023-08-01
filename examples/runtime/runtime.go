@@ -1,14 +1,14 @@
 package runtimecontract
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/interop/lib/address"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
 	"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
-	"github.com/nspcc-dev/neo-go/pkg/interop/util"
 )
 
 var (
 	// Check if the invoker of the contract is the specified owner
-	owner = util.FromAddress("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
+	owner = address.ToHash160("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
 )
 
 // init is transformed into _initialize method that is called whenever contract
@@ -22,7 +22,7 @@ func init() {
 
 // _deploy is called after contract deployment or update, it'll be called
 // in deployment transaction and if call update method of this contract.
-func _deploy(_ interface{}, isUpdate bool) {
+func _deploy(_ any, isUpdate bool) {
 	if isUpdate {
 		Log("_deploy method called after contract update")
 		return
@@ -46,7 +46,7 @@ func Log(message string) {
 }
 
 // Notify emits an event with the specified data.
-func Notify(event interface{}) {
+func Notify(event any) {
 	runtime.Notify("Event", event)
 }
 
@@ -65,7 +65,7 @@ func Verify() bool {
 
 // Destroy destroys the contract, only the owner can do that.
 func Destroy() {
-	if !Verify() {
+	if !CheckWitness() {
 		panic("only owner can destroy")
 	}
 	management.Destroy()
@@ -74,7 +74,7 @@ func Destroy() {
 // Update updates the contract, only the owner can do that. _deploy will be called
 // after update.
 func Update(nef, manifest []byte) {
-	if !Verify() {
+	if !CheckWitness() {
 		panic("only owner can update")
 	}
 	management.Update(nef, manifest)

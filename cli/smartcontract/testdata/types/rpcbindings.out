@@ -18,19 +18,20 @@ var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xa
 
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
-	Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
 }
 
 // ContractReader implements safe contract methods.
 type ContractReader struct {
 	invoker Invoker
+	hash util.Uint160
 }
 
 // NewReader creates an instance of ContractReader using Hash and the given Invoker.
 func NewReader(invoker Invoker) *ContractReader {
-	return &ContractReader{invoker}
+	var hash = Hash
+	return &ContractReader{invoker, hash}
 }
-
 
 // AAAStrings invokes `aAAStrings` method of contract.
 func (c *ContractReader) AAAStrings(s [][][]string) ([][][]string, error) {
@@ -87,37 +88,65 @@ func (c *ContractReader) AAAStrings(s [][][]string) ([][][]string, error) {
 			}
 			return res, nil
 		} (item)
-	} (unwrap.Item(c.invoker.Call(Hash, "aAAStrings", s)))
+	} (unwrap.Item(c.invoker.Call(c.hash, "aAAStrings", s)))
 }
 
 // Any invokes `any` method of contract.
-func (c *ContractReader) Any(a interface{}) (interface{}, error) {
-	return func (item stackitem.Item, err error) (interface{}, error) {
+func (c *ContractReader) Any(a any) (any, error) {
+	return func (item stackitem.Item, err error) (any, error) {
 		if err != nil {
 			return nil, err
 		}
-		return item.Value(), nil
-	} (unwrap.Item(c.invoker.Call(Hash, "any", a)))
+		return item.Value(), error(nil)
+	} (unwrap.Item(c.invoker.Call(c.hash, "any", a)))
+}
+
+// AnyMaps invokes `anyMaps` method of contract.
+func (c *ContractReader) AnyMaps(m map[*big.Int]any) (map[*big.Int]any, error) {
+	return func (item stackitem.Item, err error) (map[*big.Int]any, error) {
+		if err != nil {
+			return nil, err
+		}
+		return func (item stackitem.Item) (map[*big.Int]any, error) {
+			m, ok := item.Value().([]stackitem.MapElement)
+			if !ok {
+				return nil, fmt.Errorf("%s is not a map", item.Type().String())
+			}
+			res := make(map[*big.Int]any)
+			for i := range m {
+				k, err := m[i].Key.TryInteger()
+				if err != nil {
+					return nil, fmt.Errorf("key %d: %w", i, err)
+				}
+				v, err := m[i].Value.Value(), error(nil)
+				if err != nil {
+					return nil, fmt.Errorf("value %d: %w", i, err)
+				}
+				res[k] = v
+			}
+			return res, nil
+		} (item)
+	} (unwrap.Item(c.invoker.Call(c.hash, "anyMaps", m)))
 }
 
 // Bool invokes `bool` method of contract.
 func (c *ContractReader) Bool(b bool) (bool, error) {
-	return unwrap.Bool(c.invoker.Call(Hash, "bool", b))
+	return unwrap.Bool(c.invoker.Call(c.hash, "bool", b))
 }
 
 // Bools invokes `bools` method of contract.
 func (c *ContractReader) Bools(b []bool) ([]bool, error) {
-	return unwrap.ArrayOfBools(c.invoker.Call(Hash, "bools", b))
+	return unwrap.ArrayOfBools(c.invoker.Call(c.hash, "bools", b))
 }
 
 // Bytes invokes `bytes` method of contract.
 func (c *ContractReader) Bytes(b []byte) ([]byte, error) {
-	return unwrap.Bytes(c.invoker.Call(Hash, "bytes", b))
+	return unwrap.Bytes(c.invoker.Call(c.hash, "bytes", b))
 }
 
 // Bytess invokes `bytess` method of contract.
 func (c *ContractReader) Bytess(b [][]byte) ([][]byte, error) {
-	return unwrap.ArrayOfBytes(c.invoker.Call(Hash, "bytess", b))
+	return unwrap.ArrayOfBytes(c.invoker.Call(c.hash, "bytess", b))
 }
 
 // CrazyMaps invokes `crazyMaps` method of contract.
@@ -208,37 +237,37 @@ func (c *ContractReader) CrazyMaps(m map[*big.Int][]map[string][]util.Uint160) (
 			}
 			return res, nil
 		} (item)
-	} (unwrap.Item(c.invoker.Call(Hash, "crazyMaps", m)))
+	} (unwrap.Item(c.invoker.Call(c.hash, "crazyMaps", m)))
 }
 
 // Hash160 invokes `hash160` method of contract.
 func (c *ContractReader) Hash160(h util.Uint160) (util.Uint160, error) {
-	return unwrap.Uint160(c.invoker.Call(Hash, "hash160", h))
+	return unwrap.Uint160(c.invoker.Call(c.hash, "hash160", h))
 }
 
 // Hash160s invokes `hash160s` method of contract.
 func (c *ContractReader) Hash160s(h []util.Uint160) ([]util.Uint160, error) {
-	return unwrap.ArrayOfUint160(c.invoker.Call(Hash, "hash160s", h))
+	return unwrap.ArrayOfUint160(c.invoker.Call(c.hash, "hash160s", h))
 }
 
 // Hash256 invokes `hash256` method of contract.
 func (c *ContractReader) Hash256(h util.Uint256) (util.Uint256, error) {
-	return unwrap.Uint256(c.invoker.Call(Hash, "hash256", h))
+	return unwrap.Uint256(c.invoker.Call(c.hash, "hash256", h))
 }
 
 // Hash256s invokes `hash256s` method of contract.
 func (c *ContractReader) Hash256s(h []util.Uint256) ([]util.Uint256, error) {
-	return unwrap.ArrayOfUint256(c.invoker.Call(Hash, "hash256s", h))
+	return unwrap.ArrayOfUint256(c.invoker.Call(c.hash, "hash256s", h))
 }
 
 // Int invokes `int` method of contract.
 func (c *ContractReader) Int(i *big.Int) (*big.Int, error) {
-	return unwrap.BigInt(c.invoker.Call(Hash, "int", i))
+	return unwrap.BigInt(c.invoker.Call(c.hash, "int", i))
 }
 
 // Ints invokes `ints` method of contract.
 func (c *ContractReader) Ints(i []*big.Int) ([]*big.Int, error) {
-	return unwrap.ArrayOfBigInts(c.invoker.Call(Hash, "ints", i))
+	return unwrap.ArrayOfBigInts(c.invoker.Call(c.hash, "ints", i))
 }
 
 // Maps invokes `maps` method of contract.
@@ -284,35 +313,35 @@ func (c *ContractReader) Maps(m map[string]string) (map[string]string, error) {
 			}
 			return res, nil
 		} (item)
-	} (unwrap.Item(c.invoker.Call(Hash, "maps", m)))
+	} (unwrap.Item(c.invoker.Call(c.hash, "maps", m)))
 }
 
 // PublicKey invokes `publicKey` method of contract.
 func (c *ContractReader) PublicKey(k *keys.PublicKey) (*keys.PublicKey, error) {
-	return unwrap.PublicKey(c.invoker.Call(Hash, "publicKey", k))
+	return unwrap.PublicKey(c.invoker.Call(c.hash, "publicKey", k))
 }
 
 // PublicKeys invokes `publicKeys` method of contract.
 func (c *ContractReader) PublicKeys(k keys.PublicKeys) (keys.PublicKeys, error) {
-	return unwrap.ArrayOfPublicKeys(c.invoker.Call(Hash, "publicKeys", k))
+	return unwrap.ArrayOfPublicKeys(c.invoker.Call(c.hash, "publicKeys", k))
 }
 
 // Signature invokes `signature` method of contract.
 func (c *ContractReader) Signature(s []byte) ([]byte, error) {
-	return unwrap.Bytes(c.invoker.Call(Hash, "signature", s))
+	return unwrap.Bytes(c.invoker.Call(c.hash, "signature", s))
 }
 
 // Signatures invokes `signatures` method of contract.
 func (c *ContractReader) Signatures(s [][]byte) ([][]byte, error) {
-	return unwrap.ArrayOfBytes(c.invoker.Call(Hash, "signatures", s))
+	return unwrap.ArrayOfBytes(c.invoker.Call(c.hash, "signatures", s))
 }
 
 // String invokes `string` method of contract.
 func (c *ContractReader) String(s string) (string, error) {
-	return unwrap.UTF8String(c.invoker.Call(Hash, "string", s))
+	return unwrap.UTF8String(c.invoker.Call(c.hash, "string", s))
 }
 
 // Strings invokes `strings` method of contract.
 func (c *ContractReader) Strings(s []string) ([]string, error) {
-	return unwrap.ArrayOfUTF8Strings(c.invoker.Call(Hash, "strings", s))
+	return unwrap.ArrayOfUTF8Strings(c.invoker.Call(c.hash, "strings", s))
 }

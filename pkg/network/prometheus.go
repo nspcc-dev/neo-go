@@ -25,6 +25,7 @@ var (
 		},
 	)
 
+	// Deprecated: please, use neogoVersion and serverID instead.
 	servAndNodeVersion = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Help:      "Server and Node versions",
@@ -33,6 +34,22 @@ var (
 		},
 		[]string{"description", "value"},
 	)
+
+	neogoVersion = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Help:      "NeoGo version",
+			Name:      "version",
+			Namespace: "neogo",
+		},
+		[]string{"version"})
+
+	serverID = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Help:      "network server ID",
+			Name:      "server_id",
+			Namespace: "neogo",
+		},
+		[]string{"server_id"})
 
 	poolCount = prometheus.NewGauge(
 		prometheus.GaugeOpts{
@@ -50,6 +67,15 @@ var (
 		},
 	)
 	p2pCmds = make(map[CommandType]prometheus.Histogram)
+
+	// notarypoolUnsortedTx prometheus metric.
+	notarypoolUnsortedTx = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Help:      "Notary request pool fallback txs",
+			Name:      "notarypool_unsorted_tx",
+			Namespace: "neogo",
+		},
+	)
 )
 
 func init() {
@@ -57,8 +83,11 @@ func init() {
 		estimatedNetworkSize,
 		peersConnected,
 		servAndNodeVersion,
+		neogoVersion,
+		serverID,
 		poolCount,
 		blockQueueLength,
+		notarypoolUnsortedTx,
 	)
 	for _, cmd := range []CommandType{CMDVersion, CMDVerack, CMDGetAddr,
 		CMDAddr, CMDPing, CMDPong, CMDGetHeaders, CMDHeaders, CMDGetBlocks,
@@ -92,14 +121,31 @@ func updatePoolCountMetric(pCount int) {
 func updatePeersConnectedMetric(pConnected int) {
 	peersConnected.Set(float64(pConnected))
 }
+
+// Deprecated: please, use setNeoGoVersion and setSeverID instead.
 func setServerAndNodeVersions(nodeVer string, serverID string) {
 	servAndNodeVersion.WithLabelValues("Node version: ", nodeVer).Add(0)
 	servAndNodeVersion.WithLabelValues("Server id: ", serverID).Add(0)
 }
+
+func setNeoGoVersion(nodeVer string) {
+	neogoVersion.WithLabelValues(nodeVer).Add(1)
+}
+
+func setSeverID(id string) {
+	serverID.WithLabelValues(id).Add(1)
+}
+
 func addCmdTimeMetric(cmd CommandType, t time.Duration) {
 	// Shouldn't happen, message decoder checks the type, but better safe than sorry.
 	if p2pCmds[cmd] == nil {
 		return
 	}
 	p2pCmds[cmd].Observe(t.Seconds())
+}
+
+// updateNotarypoolMetrics updates metric of the number of fallback txs inside
+// the notary request pool.
+func updateNotarypoolMetrics(unsortedTxnLen int) {
+	notarypoolUnsortedTx.Set(float64(unsortedTxnLen))
 }

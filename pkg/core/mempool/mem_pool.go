@@ -41,7 +41,7 @@ var (
 type item struct {
 	txn        *transaction.Transaction
 	blockStamp uint32
-	data       interface{}
+	data       any
 }
 
 // items is a slice of an item.
@@ -65,12 +65,13 @@ type Pool struct {
 	// oracleResp contains the ids of oracle responses for the tx in the pool.
 	oracleResp map[uint64]util.Uint256
 
-	capacity   int
-	feePerByte int64
-	payerIndex int
+	capacity        int
+	feePerByte      int64
+	payerIndex      int
+	updateMetricsCb func(int)
 
 	resendThreshold uint32
-	resendFunc      func(*transaction.Transaction, interface{})
+	resendFunc      func(*transaction.Transaction, any)
 
 	// subscriptions for mempool events
 	subscriptionsEnabled bool
@@ -197,7 +198,7 @@ func checkBalance(tx *transaction.Transaction, balance utilityBalanceAndFees) (u
 }
 
 // Add tries to add the given transaction to the Pool.
-func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) error {
+func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 	var pItem = item{
 		txn:        t,
 		blockStamp: fee.BlockHeight(),
@@ -286,7 +287,9 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...interface{}) e
 	// we already checked balance in checkTxConflicts, so don't need to check again
 	mp.tryAddSendersFee(pItem.txn, fee, false)
 
-	updateMempoolMetrics(len(mp.verifiedTxes))
+	if mp.updateMetricsCb != nil {
+		mp.updateMetricsCb(len(mp.verifiedTxes))
+	}
 	mp.lock.Unlock()
 
 	if mp.subscriptionsOn.Load() {
@@ -342,7 +345,9 @@ func (mp *Pool) removeInternal(hash util.Uint256, feer Feer) {
 			}
 		}
 	}
-	updateMempoolMetrics(len(mp.verifiedTxes))
+	if mp.updateMetricsCb != nil {
+		mp.updateMetricsCb(len(mp.verifiedTxes))
+	}
 }
 
 // RemoveStale filters verified transactions through the given function keeping
@@ -420,7 +425,7 @@ func (mp *Pool) checkPolicy(tx *transaction.Transaction, policyChanged bool) boo
 }
 
 // New returns a new Pool struct.
-func New(capacity int, payerIndex int, enableSubscriptions bool) *Pool {
+func New(capacity int, payerIndex int, enableSubscriptions bool, updateMetricsCb func(int)) *Pool {
 	mp := &Pool{
 		verifiedMap:          make(map[util.Uint256]*transaction.Transaction, capacity),
 		verifiedTxes:         make([]item, 0, capacity),
@@ -434,6 +439,7 @@ func New(capacity int, payerIndex int, enableSubscriptions bool) *Pool {
 		events:               make(chan mempoolevent.Event),
 		subCh:                make(chan chan<- mempoolevent.Event),
 		unsubCh:              make(chan chan<- mempoolevent.Event),
+		updateMetricsCb:      updateMetricsCb,
 	}
 	mp.subscriptionsOn.Store(false)
 	return mp
@@ -441,7 +447,7 @@ func New(capacity int, payerIndex int, enableSubscriptions bool) *Pool {
 
 // SetResendThreshold sets a threshold after which the transaction will be considered stale
 // and returned for retransmission by `GetStaleTransactions`.
-func (mp *Pool) SetResendThreshold(h uint32, f func(*transaction.Transaction, interface{})) {
+func (mp *Pool) SetResendThreshold(h uint32, f func(*transaction.Transaction, any)) {
 	mp.lock.Lock()
 	defer mp.lock.Unlock()
 	mp.resendThreshold = h
@@ -466,7 +472,7 @@ func (mp *Pool) TryGetValue(hash util.Uint256) (*transaction.Transaction, bool) 
 }
 
 // TryGetData returns data associated with the specified transaction if it exists in the memory pool.
-func (mp *Pool) TryGetData(hash util.Uint256) (interface{}, bool) {
+func (mp *Pool) TryGetData(hash util.Uint256) (any, bool) {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 	if tx, ok := mp.verifiedMap[hash]; ok {
@@ -514,32 +520,50 @@ func (mp *Pool) checkTxConflicts(tx *transaction.Transaction, fee Feer) ([]*tran
 
 	var expectedSenderFee utilityBalanceAndFees
 	// Check Conflicts attributes.
-	var conflictsToBeRemoved []*transaction.Transaction
+	var (
+		conflictsToBeRemoved []*transaction.Transaction
+		conflictingFee       int64
+	)
 	if fee.P2PSigExtensionsEnabled() {
 		// Step 1: check if `tx` was in attributes of mempooled transactions.
 		if conflictingHashes, ok := mp.conflicts[tx.Hash()]; ok {
 			for _, hash := range conflictingHashes {
 				existingTx := mp.verifiedMap[hash]
-				if existingTx.HasSigner(payer) && existingTx.NetworkFee > tx.NetworkFee {
-					return nil, fmt.Errorf("%w: conflicting transaction %s has bigger network fee", ErrConflictsAttribute, existingTx.Hash().StringBE())
+				if existingTx.HasSigner(payer) {
+					conflictingFee += existingTx.NetworkFee
 				}
 				conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
 			}
 		}
 		// Step 2: check if mempooled transactions were in `tx`'s attributes.
-		for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
-			hash := attr.Value.(*transaction.Conflicts).Hash
-			existingTx, ok := mp.verifiedMap[hash]
-			if !ok {
-				continue
+		conflictsAttrs := tx.GetAttributes(transaction.ConflictsT)
+		if len(conflictsAttrs) != 0 {
+			txSigners := make(map[util.Uint160]struct{}, len(tx.Signers))
+			for _, s := range tx.Signers {
+				txSigners[s.Account] = struct{}{}
 			}
-			if !tx.HasSigner(existingTx.Signers[mp.payerIndex].Account) {
-				return nil, fmt.Errorf("%w: not signed by the sender of conflicting transaction %s", ErrConflictsAttribute, existingTx.Hash().StringBE())
+			for _, attr := range conflictsAttrs {
+				hash := attr.Value.(*transaction.Conflicts).Hash
+				existingTx, ok := mp.verifiedMap[hash]
+				if !ok {
+					continue
+				}
+				var signerOK bool
+				for _, s := range existingTx.Signers {
+					if _, ok := txSigners[s.Account]; ok {
+						signerOK = true
+						break
+					}
+				}
+				if !signerOK {
+					return nil, fmt.Errorf("%w: not signed by a signer of conflicting transaction %s", ErrConflictsAttribute, existingTx.Hash().StringBE())
+				}
+				conflictingFee += existingTx.NetworkFee
+				conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
 			}
-			if existingTx.NetworkFee >= tx.NetworkFee {
-				return nil, fmt.Errorf("%w: conflicting transaction %s has bigger or equal network fee", ErrConflictsAttribute, existingTx.Hash().StringBE())
-			}
-			conflictsToBeRemoved = append(conflictsToBeRemoved, existingTx)
+		}
+		if conflictingFee != 0 && tx.NetworkFee <= conflictingFee {
+			return nil, fmt.Errorf("%w: conflicting transactions have bigger or equal network fee: %d vs %d", ErrConflictsAttribute, tx.NetworkFee, conflictingFee)
 		}
 		// Step 3: take into account sender's conflicting transactions before balance check.
 		expectedSenderFee = actualSenderFee
