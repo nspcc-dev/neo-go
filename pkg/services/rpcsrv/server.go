@@ -2861,15 +2861,15 @@ func (s *Server) writeHTTPServerResponse(r *params.Request, w http.ResponseWrite
 	resp.RunForErrors(func(jsonErr *neorpc.Error) {
 		s.logRequestError(r, jsonErr)
 	})
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if s.config.EnableCORSWorkaround {
+		setCORSOriginHeaders(w.Header())
+	}
 	if r.In != nil {
 		resp := resp.(abstract)
 		if resp.Error != nil {
 			w.WriteHeader(getHTTPCodeForError(resp.Error))
 		}
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if s.config.EnableCORSWorkaround {
-		setCORSOriginHeaders(w.Header())
 	}
 
 	encoder := json.NewEncoder(w)
