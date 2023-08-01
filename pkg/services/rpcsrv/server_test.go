@@ -3350,3 +3350,21 @@ func TestFailedPreconditionShutdown(t *testing.T) {
 
 	require.Eventually(t, stopped.Load, 5*time.Second, 100*time.Millisecond, "Shutdown should return")
 }
+
+func TestErrorResponseContentType(t *testing.T) {
+	chain, rpcSrv, httpSrv := initClearServerWithServices(t, true, false, false)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	const (
+		expectedContentType = "application/json; charset=utf-8"
+		req                 = `{"jsonrpc":"2.0", "method":"unknown","params":[]}`
+	)
+
+	cl := http.Client{Timeout: time.Second}
+	resp, err := cl.Post(httpSrv.URL, "application/json", strings.NewReader(req))
+	require.NoErrorf(t, err, "could not make a POST request")
+	resp.Body.Close()
+	contentType := resp.Header.Get("Content-Type")
+	require.Equal(t, expectedContentType, contentType)
+}
