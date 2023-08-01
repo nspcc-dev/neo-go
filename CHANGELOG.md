@@ -2,6 +2,47 @@
 
 This document outlines major changes between releases.
 
+## 0.101.4 "Yarborough" (01 Aug 2023)
+
+Another one 3.5.0-compatible version that is aimed to fix T5 testnet state
+difference that has happened at block 2336911 which leads to inability to process
+new blocks since 2418703. The issue is fixed by allowing JSON numbers
+unmarshalling from scientific notation to Integer stackitem. Maximum parsing
+precision for such numbers is currently restricted by 53 bits. This is a
+temporary C#-compatible solution that is likely to change in the future versions
+when an appropriate C# node bug is fixed (neo-project/neo#2879).
+
+A set of minor bug fixes is included as well to flush some of the long-awaited
+changes that were blocked by the 0.102.0 release delay (caused by v3.6.0 C# node
+release delay). In particular, invalid headers returned by an RPC server for
+error responses, invalid format of incremental dumps created by CLI and deadlock
+on unhealthy RPC server shutdown. Long-awaited `--config-file` CLI option to
+start the node providing a single configuration file is added.
+
+T5 testnet chain requires a complete resynchronization for this version. Mainnet
+chain resynchronization is recommended, but not required.
+
+New features:
+ * `--config-file` CLI option allowing to start the node with a single configuration file (#3014)
+
+Improvements:
+ * blockchain Notary and Oracle services documentation improvement (#2972)
+ * BoltDB (`go.etcd.io/bbolt`) dependency upgrade that fixes a number of Windows-related issues (#3034)
+
+Bugs fixed:
+ * panic on node start with invalid configuration (#2968)
+ * deadlock on unhealthy RPC server shutdown (#2966)
+ * improper WSClient notification channels managing after disconnection (#2980)
+ * missing Prometheus metric initialisation on node start (#2992)
+ * invalid initialisation of native contracts cache (#2994)
+ * incorrect way of incremental DB dumps creation (#3047)
+ * Notary contract is allowed to be a sender of main Notary request transaction (#3065)
+ * discrepancy in signer's witness scope parsing on the RPC server side (#3060)
+ * Invoker calling API isn't allowed to accept nil parameter (#3067)
+ * contract RPC Client unwrapper helper can't handle missing contract case (#3072)
+ * JSON numbers can't be unmarshalled to stackitem from scientific notation (#3073)
+ * invalid content-type header returned by RPC server on error responses (#3075)
+
 ## 0.101.3 "Yuckiness" (08 Jul 2023)
 
 Yet another 3.5.0-compatible emergency version that removes scrupulous
