@@ -37,10 +37,6 @@ func TestWSClientClose(t *testing.T) {
 	bCh := make(chan *block.Block)
 	_, err = wsc.ReceiveBlocks(nil, bCh)
 	require.NoError(t, err)
-	wsc.getNextRequestID = getTestRequestID
-	bCh := make(chan *block.Block)
-	_, err = wsc.ReceiveBlocks(nil, bCh)
-	require.NoError(t, err)
 	wsc.Close()
 	// Subscriber channel must be closed by server.
 	_, ok := <-bCh
