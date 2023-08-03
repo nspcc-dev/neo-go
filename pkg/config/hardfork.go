@@ -10,6 +10,9 @@ const (
 	// https://github.com/neo-project/neo/pull/2712) and #2519 (ported from
 	// https://github.com/neo-project/neo/pull/2749).
 	HFAspidochelone Hardfork = 1 << iota // Aspidochelone
+	// HFBasilisk represents hard-fork introduced in #3056 (ported from
+	// https://github.com/neo-project/neo/pull/2881).
+	HFBasilisk // Basilisk
 )
 
 // hardforks holds a map of Hardfork string representation to its type.
@@ -17,7 +20,7 @@ var hardforks map[string]Hardfork
 
 func init() {
 	hardforks = make(map[string]Hardfork)
-	for _, hf := range []Hardfork{HFAspidochelone} {
+	for _, hf := range []Hardfork{HFAspidochelone, HFBasilisk} {
 		hardforks[hf.String()] = hf
 	}
 }

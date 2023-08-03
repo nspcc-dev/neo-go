@@ -19,7 +19,8 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	mgmt := newManagement()
 	mgmt.Policy = newPolicy()
 	d := dao.NewSimple(storage.NewMemoryStore(), false, false)
-	err := mgmt.Initialize(&interop.Context{DAO: d})
+	ic := &interop.Context{DAO: d}
+	err := mgmt.Initialize(ic)
 	require.NoError(t, err)
 	require.NoError(t, mgmt.Policy.Initialize(&interop.Context{DAO: d}))
 	script := []byte{byte(opcode.RET)}
@@ -35,7 +36,7 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 
 	h := state.CreateContractHash(sender, ne.Checksum, manif.Name)
 
-	contract, err := mgmt.Deploy(d, sender, ne, manif)
+	contract, err := mgmt.Deploy(ic, sender, ne, manif)
 	require.NoError(t, err)
 	require.Equal(t, int32(1), contract.ID)
 	require.Equal(t, uint16(0), contract.UpdateCounter)
@@ -44,12 +45,12 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	require.Equal(t, *manif, contract.Manifest)
 
 	// Double deploy.
-	_, err = mgmt.Deploy(d, sender, ne, manif)
+	_, err = mgmt.Deploy(ic, sender, ne, manif)
 	require.Error(t, err)
 
 	// Different sender.
 	sender2 := util.Uint160{3, 2, 1}
-	contract2, err := mgmt.Deploy(d, sender2, ne, manif)
+	contract2, err := mgmt.Deploy(ic, sender2, ne, manif)
 	require.NoError(t, err)
 	require.Equal(t, int32(2), contract2.ID)
 	require.Equal(t, uint16(0), contract2.UpdateCounter)
@@ -65,7 +66,7 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, contract, refContract)
 
-	upContract, err := mgmt.Update(d, h, ne, manif)
+	upContract, err := mgmt.Update(ic, h, ne, manif)
 	refContract.UpdateCounter++
 	require.NoError(t, err)
 	require.Equal(t, refContract, upContract)
@@ -106,6 +107,7 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 
 	require.Empty(t, mgmt.GetNEP17Contracts(d))
 	private := d.GetPrivate()
+	ic := &interop.Context{DAO: private}
 
 	// Deploy NEP-17 contract
 	script := []byte{byte(opcode.RET)}
@@ -119,7 +121,7 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 		Parameters: []manifest.Parameter{},
 	})
 	manif.SupportedStandards = []string{manifest.NEP17StandardName}
-	c1, err := mgmt.Deploy(private, sender, ne, manif)
+	c1, err := mgmt.Deploy(ic, sender, ne, manif)
 	require.NoError(t, err)
 
 	// c1 contract hash should be returned, as private DAO already contains changed cache.
@@ -140,7 +142,7 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 		ReturnType: smartcontract.VoidType,
 		Parameters: []manifest.Parameter{},
 	})
-	c1Updated, err := mgmt.Update(private, c1.Hash, ne, manif)
+	c1Updated, err := mgmt.Update(&interop.Context{DAO: private}, c1.Hash, ne, manif)
 	require.NoError(t, err)
 	require.Equal(t, c1.Hash, c1Updated.Hash)
 

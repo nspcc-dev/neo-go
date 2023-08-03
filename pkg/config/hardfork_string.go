@@ -9,11 +9,12 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[HFAspidochelone-1]
+	_ = x[HFBasilisk-2]
 }
 
-const _Hardfork_name = "Aspidochelone"
+const _Hardfork_name = "AspidocheloneBasilisk"
 
-var _Hardfork_index = [...]uint8{0, 13}
+var _Hardfork_index = [...]uint8{0, 13, 21}
 
 func (i Hardfork) String() string {
 	i -= 1
