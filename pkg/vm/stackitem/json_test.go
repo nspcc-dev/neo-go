@@ -134,10 +134,10 @@ func TestFromToJSON(t *testing.T) {
 // the C# one, ref. https://github.com/neo-project/neo/issues/2879.
 func TestFromJSON_CompatBigInt(t *testing.T) {
 	tcs := map[string]string{
-		`9.05e+28`:   "90499999999999993918259200000",
+		`9.05e+28`:   "90500000000000000000000000000",
 		`1.871e+21`:  "1871000000000000000000",
-		`3.0366e+32`: "303660000000000004445016810323968",
-		`1e+30`:      "1000000000000000019884624838656",
+		`3.0366e+32`: "303660000000000000000000000000000",
+		`1e+30`:      "1000000000000000000000000000000",
 	}
 	for in, expected := range tcs {
 		t.Run(in, func(t *testing.T) {

@@ -27,9 +27,9 @@ const MaxAllowedInteger = 2<<53 - 1
 const MaxJSONDepth = 10
 
 // MaxIntegerPrec is the maximum precision allowed for big.Integer parsing.
-// It equals to the reference value and doesn't allow to precisely parse big
-// numbers, see the https://github.com/neo-project/neo/issues/2879.
-const MaxIntegerPrec = 53
+// It allows to properly parse integer numbers that our 256-bit VM is able to
+// handle.
+const MaxIntegerPrec = 1<<8 + 1
 
 // ErrInvalidValue is returned when an item value doesn't fit some constraints
 // during serialization or deserialization.
