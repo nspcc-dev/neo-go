@@ -14,7 +14,7 @@ func getTestDecodeFunc(js string, expected ...interface{}) func(t *testing.T) {
 
 func getTestDecodeEncodeFunc(js string, needEncode bool, expected ...interface{}) func(t *testing.T) {
 	return func(t *testing.T) {
-		actual, err := FromJSON([]byte(js), 20)
+		actual, err := FromJSON([]byte(js), 20, true)
 		if expected[0] == nil {
 			require.Error(t, err)
 			return
@@ -59,10 +59,10 @@ func TestFromToJSON(t *testing.T) {
 			NewArray([]Item{NewArray([]Item{}), NewArray([]Item{NewMap(), Null{}})})))
 		t.Run("ManyElements", func(t *testing.T) {
 			js := `[1, 2, 3]` // 3 elements + array itself
-			_, err := FromJSON([]byte(js), 4)
+			_, err := FromJSON([]byte(js), 4, true)
 			require.NoError(t, err)
 
-			_, err = FromJSON([]byte(js), 3)
+			_, err = FromJSON([]byte(js), 3, true)
 			require.ErrorIs(t, err, errTooBigElements)
 		})
 	})
@@ -82,10 +82,10 @@ func TestFromToJSON(t *testing.T) {
 
 		t.Run("ManyElements", func(t *testing.T) {
 			js := `{"a":1,"b":3}` // 4 elements + map itself
-			_, err := FromJSON([]byte(js), 5)
+			_, err := FromJSON([]byte(js), 5, true)
 			require.NoError(t, err)
 
-			_, err = FromJSON([]byte(js), 4)
+			_, err = FromJSON([]byte(js), 4, true)
 			require.ErrorIs(t, err, errTooBigElements)
 		})
 	})
@@ -133,17 +133,38 @@ func TestFromToJSON(t *testing.T) {
 // TestFromJSON_CompatBigInt ensures that maximum BigInt parsing precision matches
 // the C# one, ref. https://github.com/neo-project/neo/issues/2879.
 func TestFromJSON_CompatBigInt(t *testing.T) {
-	tcs := map[string]string{
-		`9.05e+28`:   "90500000000000000000000000000",
-		`1.871e+21`:  "1871000000000000000000",
-		`3.0366e+32`: "303660000000000000000000000000000",
-		`1e+30`:      "1000000000000000000000000000000",
+	tcs := map[string]struct {
+		bestPrec   string
+		compatPrec string
+	}{
+		`9.05e+28`: {
+			bestPrec:   "90500000000000000000000000000",
+			compatPrec: "90499999999999993918259200000",
+		},
+		`1.871e+21`: {
+			bestPrec:   "1871000000000000000000",
+			compatPrec: "1871000000000000000000",
+		},
+		`3.0366e+32`: {
+			bestPrec:   "303660000000000000000000000000000",
+			compatPrec: "303660000000000004445016810323968",
+		},
+		`1e+30`: {
+			bestPrec:   "1000000000000000000000000000000",
+			compatPrec: "1000000000000000019884624838656",
+		},
 	}
 	for in, expected := range tcs {
 		t.Run(in, func(t *testing.T) {
-			actual, err := FromJSON([]byte(in), 5)
+			// Best precision.
+			actual, err := FromJSON([]byte(in), 5, true)
 			require.NoError(t, err)
-			require.Equal(t, expected, actual.Value().(*big.Int).String())
+			require.Equal(t, expected.bestPrec, actual.Value().(*big.Int).String())
+
+			// Compatible precision.
+			actual, err = FromJSON([]byte(in), 5, false)
+			require.NoError(t, err)
+			require.Equal(t, expected.compatPrec, actual.Value().(*big.Int).String())
 		})
 	}
 }
@@ -156,7 +177,7 @@ func testToJSON(t *testing.T, expectedErr error, item Item) {
 	}
 	require.NoError(t, err)
 
-	actual, err := FromJSON(data, 1024)
+	actual, err := FromJSON(data, 1024, true)
 	require.NoError(t, err)
 	require.Equal(t, item, actual)
 }

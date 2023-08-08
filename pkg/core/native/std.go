@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/mr-tron/base58"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -199,13 +200,13 @@ func (s *Std) jsonSerialize(_ *interop.Context, args []stackitem.Item) stackitem
 	return stackitem.NewByteArray(data)
 }
 
-func (s *Std) jsonDeserialize(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+func (s *Std) jsonDeserialize(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	data, err := args[0].TryBytes()
 	if err != nil {
 		panic(err)
 	}
 
-	item, err := stackitem.FromJSON(data, stackitem.MaxDeserialized)
+	item, err := stackitem.FromJSON(data, stackitem.MaxDeserialized, ic.IsHardforkEnabled(config.HFBasilisk))
 	if err != nil {
 		panic(err)
 	}

@@ -18,6 +18,11 @@ type decoder struct {
 
 	count int
 	depth int
+	// bestIntPrecision denotes whether maximum allowed integer precision should
+	// be used to parse big.Int items. If false, then default NeoC# value will be
+	// used which doesn't allow to precisely parse big values. This behaviour is
+	// managed by the config.HFBasilisk.
+	bestIntPrecision bool
 }
 
 // MaxAllowedInteger is the maximum integer allowed to be encoded.
@@ -26,10 +31,16 @@ const MaxAllowedInteger = 2<<53 - 1
 // MaxJSONDepth is the maximum allowed nesting level of an encoded/decoded JSON.
 const MaxJSONDepth = 10
 
-// MaxIntegerPrec is the maximum precision allowed for big.Integer parsing.
-// It allows to properly parse integer numbers that our 256-bit VM is able to
-// handle.
-const MaxIntegerPrec = 1<<8 + 1
+const (
+	// MaxIntegerPrec is the maximum precision allowed for big.Integer parsing.
+	// It allows to properly parse integer numbers that our 256-bit VM is able to
+	// handle.
+	MaxIntegerPrec = 1<<8 + 1
+	// CompatIntegerPrec is the maximum precision allowed for big.Integer parsing
+	// by the C# node before the Basilisk hardfork. It doesn't allow to precisely
+	// parse big numbers, see the https://github.com/neo-project/neo/issues/2879.
+	CompatIntegerPrec = 53
+)
 
 // ErrInvalidValue is returned when an item value doesn't fit some constraints
 // during serialization or deserialization.
@@ -166,10 +177,11 @@ func itemToJSONString(it Item) ([]byte, error) {
 //	null -> Null
 //	array -> Array
 //	map -> Map, keys are UTF-8
-func FromJSON(data []byte, maxCount int) (Item, error) {
+func FromJSON(data []byte, maxCount int, bestIntPrecision bool) (Item, error) {
 	d := decoder{
-		Decoder: *json.NewDecoder(bytes.NewReader(data)),
-		count:   maxCount,
+		Decoder:          *json.NewDecoder(bytes.NewReader(data)),
+		count:            maxCount,
+		bestIntPrecision: bestIntPrecision,
 	}
 	d.UseNumber()
 	if item, err := d.decode(); err != nil {
@@ -226,7 +238,11 @@ func (d *decoder) decode() (Item, error) {
 		if isScientific {
 			// As a special case numbers like 2.8e+22 are allowed (SetString rejects them).
 			// That's the way how C# code works.
-			f, _, err := big.ParseFloat(ts, 10, MaxIntegerPrec, big.ToNearestEven)
+			var prec uint = CompatIntegerPrec
+			if d.bestIntPrecision {
+				prec = MaxIntegerPrec
+			}
+			f, _, err := big.ParseFloat(ts, 10, prec, big.ToNearestEven)
 			if err != nil {
 				return nil, fmt.Errorf("%w (malformed exp value for int)", ErrInvalidValue)
 			}
