@@ -73,6 +73,7 @@ ApplicationConfiguration:
       - ":30333"
     MaxGasInvoke: 15
     EnableCORSWorkaround: false
+    SessionEnabled: true
   Prometheus:
     Enabled: true
     Addresses:
