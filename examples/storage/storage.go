@@ -54,3 +54,9 @@ func Find(value []byte) []string {
 	}
 	return result
 }
+
+// FindReturnIter returns an iterator over key-value pairs with the key that has the specified prefix.
+func FindReturnIter(prefix []byte) iterator.Iterator {
+	iter := storage.Find(ctx, prefix, storage.None)
+	return iter
+}
