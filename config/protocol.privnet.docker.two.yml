@@ -73,6 +73,7 @@ ApplicationConfiguration:
     EnableCORSWorkaround: false
     Addresses:
       - ":30334"
+    SessionEnabled: true
   Prometheus:
     Enabled: true
     Addresses:
