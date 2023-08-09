@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"unicode/utf8"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -23,6 +24,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
+	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -351,7 +354,7 @@ func (m *Management) deployWithData(ic *interop.Context, args []stackitem.Item) 
 	if ic.Tx == nil {
 		panic(errors.New("no transaction provided"))
 	}
-	newcontract, err := m.Deploy(ic.DAO, ic.Tx.Sender(), neff, manif)
+	newcontract, err := m.Deploy(ic, ic.Tx.Sender(), neff, manif)
 	if err != nil {
 		panic(err)
 	}
@@ -373,16 +376,16 @@ func markUpdated(d *dao.Simple, hash util.Uint160, cs *state.Contract) {
 
 // Deploy creates a contract's hash/ID and saves a new contract into the given DAO.
 // It doesn't run _deploy method and doesn't emit notification.
-func (m *Management) Deploy(d *dao.Simple, sender util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
+func (m *Management) Deploy(ic *interop.Context, sender util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	h := state.CreateContractHash(sender, neff.Checksum, manif.Name)
-	if m.Policy.IsBlocked(d, h) {
+	if m.Policy.IsBlocked(ic.DAO, h) {
 		return nil, fmt.Errorf("the contract %s has been blocked", h.StringLE())
 	}
-	_, err := GetContract(d, h)
+	_, err := GetContract(ic.DAO, h)
 	if err == nil {
 		return nil, errors.New("contract already exists")
 	}
-	id, err := m.getNextContractID(d)
+	id, err := m.getNextContractID(ic.DAO)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +393,7 @@ func (m *Management) Deploy(d *dao.Simple, sender util.Uint160, neff *nef.File, 
 	if err != nil {
 		return nil, fmt.Errorf("invalid manifest: %w", err)
 	}
-	err = checkScriptAndMethods(neff.Script, manif.ABI.Methods)
+	err = checkScriptAndMethods(ic, neff.Script, manif.ABI.Methods)
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +405,7 @@ func (m *Management) Deploy(d *dao.Simple, sender util.Uint160, neff *nef.File, 
 			Manifest: *manif,
 		},
 	}
-	err = PutContractState(d, newcontract)
+	err = PutContractState(ic.DAO, newcontract)
 	if err != nil {
 		return nil, err
 	}
@@ -423,7 +426,7 @@ func (m *Management) updateWithData(ic *interop.Context, args []stackitem.Item) 
 	if neff == nil && manif == nil {
 		panic(errors.New("both NEF and manifest are nil"))
 	}
-	contract, err := m.Update(ic.DAO, ic.VM.GetCallingScriptHash(), neff, manif)
+	contract, err := m.Update(ic, ic.VM.GetCallingScriptHash(), neff, manif)
 	if err != nil {
 		panic(err)
 	}
@@ -434,10 +437,10 @@ func (m *Management) updateWithData(ic *interop.Context, args []stackitem.Item) 
 
 // Update updates contract's script and/or manifest in the given DAO.
 // It doesn't run _deploy method and doesn't emit notification.
-func (m *Management) Update(d *dao.Simple, hash util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
+func (m *Management) Update(ic *interop.Context, hash util.Uint160, neff *nef.File, manif *manifest.Manifest) (*state.Contract, error) {
 	var contract state.Contract
 
-	oldcontract, err := GetContract(d, hash)
+	oldcontract, err := GetContract(ic.DAO, hash)
 	if err != nil {
 		return nil, errors.New("contract doesn't exist")
 	}
@@ -461,12 +464,12 @@ func (m *Management) Update(d *dao.Simple, hash util.Uint160, neff *nef.File, ma
 		}
 		contract.Manifest = *manif
 	}
-	err = checkScriptAndMethods(contract.NEF.Script, contract.Manifest.ABI.Methods)
+	err = checkScriptAndMethods(ic, contract.NEF.Script, contract.Manifest.ABI.Methods)
 	if err != nil {
 		return nil, err
 	}
 	contract.UpdateCounter++
-	err = PutContractState(d, &contract)
+	err = PutContractState(ic.DAO, &contract)
 	if err != nil {
 		return nil, err
 	}
@@ -713,12 +716,22 @@ func (m *Management) emitNotification(ic *interop.Context, name string, hash uti
 	ic.AddNotification(m.Hash, name, stackitem.NewArray([]stackitem.Item{addrToStackItem(&hash)}))
 }
 
-func checkScriptAndMethods(script []byte, methods []manifest.Method) error {
+func checkScriptAndMethods(ic *interop.Context, script []byte, methods []manifest.Method) error {
 	l := len(script)
+	offsets := bitfield.New(l)
 	for i := range methods {
 		if methods[i].Offset >= l {
 			return fmt.Errorf("method %s/%d: offset is out of the script range", methods[i].Name, len(methods[i].Parameters))
 		}
+		offsets.Set(methods[i].Offset)
 	}
+	if !ic.IsHardforkEnabled(config.HFBasilisk) {
+		return nil
+	}
+	err := vm.IsScriptCorrect(script, offsets)
+	if err != nil {
+		return fmt.Errorf("invalid contract script: %w", err)
+	}
+
 	return nil
 }
