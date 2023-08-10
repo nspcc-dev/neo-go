@@ -132,14 +132,14 @@ func generateManagementHelperContracts(t *testing.T, saveState bool) {
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetCallingScriptHash)
 	emit.Int(w.BinWriter, 4)
 	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.String(w.BinWriter, "LastPayment")
+	emit.String(w.BinWriter, "LastPaymentNEP17")
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeNotify)
 	emit.Opcodes(w.BinWriter, opcode.RET)
 	onNEP11PaymentOff := w.Len()
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeGetCallingScriptHash)
 	emit.Int(w.BinWriter, 5)
 	emit.Opcodes(w.BinWriter, opcode.PACK)
-	emit.String(w.BinWriter, "LostPayment")
+	emit.String(w.BinWriter, "LastPaymentNEP11")
 	emit.Syscall(w.BinWriter, interopnames.SystemRuntimeNotify)
 	emit.Opcodes(w.BinWriter, opcode.RET)
 	update3Off := w.Len()
@@ -350,6 +350,63 @@ func generateManagementHelperContracts(t *testing.T, saveState bool) {
 			Name:       "invocCounter",
 			Offset:     invocCounterOff,
 			ReturnType: smartcontract.IntegerType,
+		},
+	}
+	m.ABI.Events = []manifest.Event{
+		{
+			Name: "LastPaymentNEP17",
+			Parameters: []manifest.Parameter{
+				{
+					Name: "from",
+					Type: smartcontract.Hash160Type,
+				},
+				{
+					Name: "to",
+					Type: smartcontract.Hash160Type,
+				},
+				{
+					Name: "amount",
+					Type: smartcontract.IntegerType,
+				},
+				{
+					Name: "data",
+					Type: smartcontract.AnyType,
+				},
+			},
+		},
+		{
+			Name: "LastPaymentNEP11",
+			Parameters: []manifest.Parameter{
+				{
+					Name: "from",
+					Type: smartcontract.Hash160Type,
+				},
+				{
+					Name: "to",
+					Type: smartcontract.Hash160Type,
+				},
+				{
+					Name: "amount",
+					Type: smartcontract.IntegerType,
+				},
+				{
+					Name: "tokenId",
+					Type: smartcontract.ByteArrayType,
+				},
+				{
+					Name: "data",
+					Type: smartcontract.AnyType,
+				},
+			},
+		},
+		{
+			Name: "event", // This event is not emitted by the contract code and needed for System.Runtime.Notify tests.
+			Parameters: []manifest.Parameter{
+				{
+					Name: "any",
+					Type: smartcontract.AnyType,
+				},
+			},
 		},
 	}
 	m.Permissions = make([]manifest.Permission, 2)

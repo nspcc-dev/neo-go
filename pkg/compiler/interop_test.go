@@ -10,6 +10,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -572,7 +573,9 @@ func TestForcedNotifyArgumentsConversion(t *testing.T) {
 	const methodWithEllipsis = "withEllipsis"
 	const methodWithoutEllipsis = "withoutEllipsis"
 	check := func(t *testing.T, method string, targetSCParamTypes []smartcontract.ParamType, expectedVMParamTypes []stackitem.Type, noEventsCheck bool) {
-		bc, acc := chain.NewSingle(t)
+		bc, acc := chain.NewSingleWithCustomConfig(t, func(blockchain *config.Blockchain) {
+			blockchain.Hardforks = map[string]uint32{config.HFBasilisk.String(): 100500} // Disable runtime notifications check to reuse the same contract for different event parameter types.
+		})
 		e := neotest.NewExecutor(t, bc, acc, acc)
 		src := `package foo
 		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"

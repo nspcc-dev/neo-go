@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -247,6 +248,9 @@ func TestSnapshotIsolation_Exceptions(t *testing.T) {
 		NoPermissionsCheck: true,
 		Name:               "contractA",
 		Permissions:        []manifest.Permission{{Methods: manifest.WildStrings{Value: nil}}},
+		ContractEvents: []compiler.HybridEvent{
+			{Name: "NotificationFromA", Parameters: []compiler.HybridParameter{{Parameter: manifest.Parameter{Name: "i", Type: smartcontract.IntegerType}}}},
+		},
 	})
 	e.DeployContract(t, ctrA, nil)
 
@@ -319,6 +323,10 @@ func TestSnapshotIsolation_Exceptions(t *testing.T) {
 		NoEventsCheck:      true,
 		NoPermissionsCheck: true,
 		Permissions:        []manifest.Permission{{Methods: manifest.WildStrings{Value: nil}}},
+		ContractEvents: []compiler.HybridEvent{
+			{Name: "NotificationFromB before panic", Parameters: []compiler.HybridParameter{{Parameter: manifest.Parameter{Name: "i", Type: smartcontract.IntegerType}}}},
+			{Name: "NotificationFromB after panic", Parameters: []compiler.HybridParameter{{Parameter: manifest.Parameter{Name: "i", Type: smartcontract.IntegerType}}}},
+		},
 	})
 	e.DeployContract(t, ctrB, nil)
 
@@ -382,6 +390,16 @@ func TestSnapshotIsolation_NestedContextException(t *testing.T) {
 		NoPermissionsCheck: true,
 		Name:               "contractA",
 		Permissions:        []manifest.Permission{{Methods: manifest.WildStrings{Value: nil}}},
+		ContractEvents: []compiler.HybridEvent{
+			{Name: "Calling A"},
+			{Name: "Finish"},
+			{Name: "Caught"},
+			{Name: "A"},
+			{Name: "Unreachable A"},
+			{Name: "B"},
+			{Name: "Unreachable B"},
+			{Name: "C"},
+		},
 	})
 	e.DeployContract(t, ctrA, nil)
 
@@ -515,10 +533,10 @@ func TestRET_after_FINALLY_CallNonVoidAfterVoidMethod(t *testing.T) {
 	srcA := `package contractA
 		import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 		func NoRet() {
-			runtime.Notify("no ret")
+			runtime.Log("no ret")
 		}
 		func HasRet() int {
-			runtime.Notify("ret")
+			runtime.Log("ret")
 			return 5
 		}`
 	ctrA := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(srcA), &compiler.Options{

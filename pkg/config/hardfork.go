@@ -11,8 +11,9 @@ const (
 	// https://github.com/neo-project/neo/pull/2749).
 	HFAspidochelone Hardfork = 1 << iota // Aspidochelone
 	// HFBasilisk represents hard-fork introduced in #3056 (ported from
-	// https://github.com/neo-project/neo/pull/2881) and #3080 (ported from
-	// https://github.com/neo-project/neo/pull/2883).
+	// https://github.com/neo-project/neo/pull/2881), #3080 (ported from
+	// https://github.com/neo-project/neo/pull/2883) and #3085 (ported from
+	// https://github.com/neo-project/neo/pull/2810).
 	HFBasilisk // Basilisk
 )
 
