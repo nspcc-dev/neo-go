@@ -91,7 +91,7 @@ const (
 	typeString     vmUTStackItemType = "string"
 	typeStruct     vmUTStackItemType = "struct"
 
-	testsDir = "testdata/neo-vm/tests/neo-vm.Tests/Tests/"
+	testsDir = "testdata/neo-vm/tests/Neo.VM.Tests/Tests/"
 )
 
 func TestUT(t *testing.T) {
