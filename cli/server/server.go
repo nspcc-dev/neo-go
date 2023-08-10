@@ -359,7 +359,14 @@ func resetDB(ctx *cli.Context) error {
 	return nil
 }
 
-func mkOracle(config config.OracleConfiguration, magic netmode.Magic, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (*oracle.Oracle, error) {
+// oracleService is an interface representing Oracle service with network.Service
+// capabilities and ability to submit oracle responses.
+type oracleService interface {
+	rpcsrv.OracleHandler
+	network.Service
+}
+
+func mkOracle(config config.OracleConfiguration, magic netmode.Magic, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (oracleService, error) {
 	if !config.Enabled {
 		return nil, nil
 	}

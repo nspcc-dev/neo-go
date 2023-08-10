@@ -254,7 +254,8 @@ var invalidBlockHeightError = func(index int, height int) *neorpc.Error {
 	return neorpc.NewRPCError("Invalid block height", fmt.Sprintf("param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height))
 }
 
-// New creates a new Server struct.
+// New creates a new Server struct. Pay attention that orc is expected to be either
+// untyped nil or non-nil structure implementing OracleHandler interface.
 func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	orc OracleHandler, log *zap.Logger, errChan chan<- error) Server {
 	addrs := conf.GetAddresses()
@@ -293,7 +294,7 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	}
 	var oracleWrapped = new(atomic.Value)
 	if orc != nil {
-		oracleWrapped.Store(&orc)
+		oracleWrapped.Store(orc)
 	}
 	var wsOriginChecker func(*http.Request) bool
 	if conf.EnableCORSWorkaround {
@@ -445,7 +446,7 @@ func (s *Server) Shutdown() {
 
 // SetOracleHandler allows to update oracle handler used by the Server.
 func (s *Server) SetOracleHandler(orc OracleHandler) {
-	s.oracle.Store(&orc)
+	s.oracle.Store(orc)
 }
 
 func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Request) {
@@ -2461,10 +2462,11 @@ func getRelayResult(err error, hash util.Uint256) (any, *neorpc.Error) {
 }
 
 func (s *Server) submitOracleResponse(ps params.Params) (any, *neorpc.Error) {
-	oracle := s.oracle.Load().(*OracleHandler)
-	if oracle == nil || *oracle == nil {
+	oraclePtr := s.oracle.Load()
+	if oraclePtr == nil {
 		return nil, neorpc.NewRPCError("Oracle is not enabled", "")
 	}
+	oracle := oraclePtr.(OracleHandler)
 	var pub *keys.PublicKey
 	pubBytes, err := ps.Value(0).GetBytesBase64()
 	if err == nil {
@@ -2489,7 +2491,7 @@ func (s *Server) submitOracleResponse(ps params.Params) (any, *neorpc.Error) {
 	if !pub.Verify(msgSig, hash.Sha256(data).BytesBE()) {
 		return nil, neorpc.NewRPCError("Invalid request signature", "")
 	}
-	(*oracle).AddResponse(pub, uint64(reqID), txSig)
+	oracle.AddResponse(pub, uint64(reqID), txSig)
 	return json.RawMessage([]byte("{}")), nil
 }
 

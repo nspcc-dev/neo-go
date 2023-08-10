@@ -29,7 +29,7 @@ const (
 	notaryPass = "one"
 )
 
-func getUnitTestChain(t testing.TB, enableOracle bool, enableNotary bool, disableIteratorSessions bool) (*core.Blockchain, *oracle.Oracle, config.Config, *zap.Logger) {
+func getUnitTestChain(t testing.TB, enableOracle bool, enableNotary bool, disableIteratorSessions bool) (*core.Blockchain, OracleHandler, config.Config, *zap.Logger) {
 	return getUnitTestChainWithCustomConfig(t, enableOracle, enableNotary, func(cfg *config.Config) {
 		if disableIteratorSessions {
 			cfg.ApplicationConfiguration.RPC.SessionEnabled = false
@@ -56,7 +56,7 @@ func getUnitTestChain(t testing.TB, enableOracle bool, enableNotary bool, disabl
 		}
 	})
 }
-func getUnitTestChainWithCustomConfig(t testing.TB, enableOracle bool, enableNotary bool, customCfg func(configuration *config.Config)) (*core.Blockchain, *oracle.Oracle, config.Config, *zap.Logger) {
+func getUnitTestChainWithCustomConfig(t testing.TB, enableOracle bool, enableNotary bool, customCfg func(configuration *config.Config)) (*core.Blockchain, OracleHandler, config.Config, *zap.Logger) {
 	net := netmode.UnitTestNet
 	configPath := "../../../config"
 	cfg, err := config.Load(configPath, net)
@@ -70,7 +70,7 @@ func getUnitTestChainWithCustomConfig(t testing.TB, enableOracle bool, enableNot
 	chain, err := core.NewBlockchain(memoryStore, cfg.Blockchain(), logger)
 	require.NoError(t, err, "could not create chain")
 
-	var orc *oracle.Oracle
+	var orc OracleHandler
 	if enableOracle {
 		orc, err = oracle.NewOracle(oracle.Config{
 			Log:     logger,
@@ -79,7 +79,7 @@ func getUnitTestChainWithCustomConfig(t testing.TB, enableOracle bool, enableNot
 			Chain:   chain,
 		})
 		require.NoError(t, err)
-		chain.SetOracle(orc)
+		chain.SetOracle(orc.(*oracle.Oracle))
 	}
 
 	go chain.Run()
@@ -115,7 +115,7 @@ func initClearServerWithServices(t testing.TB, needOracle bool, needNotary bool,
 	return wrapUnitTestChain(t, chain, orc, cfg, logger)
 }
 
-func wrapUnitTestChain(t testing.TB, chain *core.Blockchain, orc *oracle.Oracle, cfg config.Config, logger *zap.Logger) (*core.Blockchain, *Server, *httptest.Server) {
+func wrapUnitTestChain(t testing.TB, chain *core.Blockchain, orc OracleHandler, cfg config.Config, logger *zap.Logger) (*core.Blockchain, *Server, *httptest.Server) {
 	serverConfig, err := network.NewServerConfig(cfg)
 	require.NoError(t, err)
 	serverConfig.UserAgent = fmt.Sprintf(config.UserAgentFormat, "0.98.6-test")
