@@ -9,12 +9,16 @@ func Opcode1(op string, arg any) any {
 	return nil
 }
 
+// Opcode1NoReturn emits opcode with 1 argument and no return value.
+func Opcode1NoReturn(op string, arg any) {
+}
+
 // Opcode2 emits opcode with 2 arguments.
 func Opcode2(op string, arg1, arg2 any) any {
 	return nil
 }
 
-// Opcode2NoReturn emits opcode with 2 arguments.
+// Opcode2NoReturn emits opcode with 2 arguments and no return value.
 func Opcode2NoReturn(op string, arg1, arg2 any) {
 }
 

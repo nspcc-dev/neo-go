@@ -225,6 +225,10 @@ const (
 	ISNULL  Opcode = 0xD8
 	ISTYPE  Opcode = 0xD9
 	CONVERT Opcode = 0xDB
+
+	// Extensions.
+	ABORTMSG  Opcode = 0xE0
+	ASSERTMSG Opcode = 0xE1
 )
 
 var validCodes [256]bool
