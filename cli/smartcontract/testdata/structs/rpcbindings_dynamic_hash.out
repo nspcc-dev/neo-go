@@ -149,6 +149,7 @@ type StructsInternal struct {
 	ArrOfH160 []util.Uint160
 	Map map[*big.Int]keys.PublicKeys
 	Struct *StructsInternal
+	UnexportedField *big.Int
 }
 
 // Invoker is used by ContractReader to call various safe methods.
@@ -1406,7 +1407,7 @@ func (res *StructsInternal) FromStackItem(item stackitem.Item) error {
 	if !ok {
 		return errors.New("not an array")
 	}
-	if len(arr) != 13 {
+	if len(arr) != 14 {
 		return errors.New("wrong number of structure elements")
 	}
 
@@ -1616,6 +1617,12 @@ func (res *StructsInternal) FromStackItem(item stackitem.Item) error {
 	res.Struct, err = itemToStructsInternal(arr[index], nil)
 	if err != nil {
 		return fmt.Errorf("field Struct: %w", err)
+	}
+
+	index++
+	res.UnexportedField, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field UnexportedField: %w", err)
 	}
 
 	return nil

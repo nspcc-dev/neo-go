@@ -83,6 +83,11 @@ type LedgerWitnessRule struct {
 	Condition *LedgerWitnessCondition
 }
 
+// SimpleStruct is a contract-specific simpleStruct type used by its methods.
+type SimpleStruct struct {
+	I *big.Int
+}
+
 // ComplicatedNameEvent represents "! complicated name %$#" event emitted by the contract.
 type ComplicatedNameEvent struct {
 	ComplicatedParam string
@@ -101,6 +106,11 @@ type SomeStructEvent struct {
 // SomeArrayEvent represents "SomeArray" event emitted by the contract.
 type SomeArrayEvent struct {
 	A [][]*big.Int
+}
+
+// SomeUnexportedFieldEvent represents "SomeUnexportedField" event emitted by the contract.
+type SomeUnexportedFieldEvent struct {
+	S *SimpleStruct
 }
 
 // Actor is used by Contract to call state-changing methods.
@@ -211,6 +221,28 @@ func (c *Contract) StructTransaction() (*transaction.Transaction, error) {
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
 func (c *Contract) StructUnsigned() (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(c.hash, "struct", nil)
+}
+
+// UnexportedField creates a transaction invoking `unexportedField` method of the contract.
+// This transaction is signed and immediately sent to the network.
+// The values returned are its hash, ValidUntilBlock value and error if any.
+func (c *Contract) UnexportedField() (util.Uint256, uint32, error) {
+	return c.actor.SendCall(c.hash, "unexportedField")
+}
+
+// UnexportedFieldTransaction creates a transaction invoking `unexportedField` method of the contract.
+// This transaction is signed, but not sent to the network, instead it's
+// returned to the caller.
+func (c *Contract) UnexportedFieldTransaction() (*transaction.Transaction, error) {
+	return c.actor.MakeCall(c.hash, "unexportedField")
+}
+
+// UnexportedFieldUnsigned creates a transaction invoking `unexportedField` method of the contract.
+// This transaction is not signed, it's simply returned to the caller.
+// Any fields of it that do not affect fees can be changed (ValidUntilBlock,
+// Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
+func (c *Contract) UnexportedFieldUnsigned() (*transaction.Transaction, error) {
+	return c.actor.MakeUnsignedCall(c.hash, "unexportedField", nil)
 }
 
 // itemToCrazyStruct converts stack item into *CrazyStruct.
@@ -816,6 +848,40 @@ func (res *LedgerWitnessRule) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
+// itemToSimpleStruct converts stack item into *SimpleStruct.
+func itemToSimpleStruct(item stackitem.Item, err error) (*SimpleStruct, error) {
+	if err != nil {
+		return nil, err
+	}
+	var res = new(SimpleStruct)
+	err = res.FromStackItem(item)
+	return res, err
+}
+
+// FromStackItem retrieves fields of SimpleStruct from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
+func (res *SimpleStruct) FromStackItem(item stackitem.Item) error {
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 1 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err error
+	)
+	index++
+	res.I, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field I: %w", err)
+	}
+
+	return nil
+}
+
 // ComplicatedNameEventsFromApplicationLog retrieves a set of all emitted events
 // with "! complicated name %$#" name from the provided [result.ApplicationLog].
 func ComplicatedNameEventsFromApplicationLog(log *result.ApplicationLog) ([]*ComplicatedNameEvent, error) {
@@ -1122,6 +1188,58 @@ func (e *SomeArrayEvent) FromStackItem(item *stackitem.Array) error {
 	} (arr[index])
 	if err != nil {
 		return fmt.Errorf("field A: %w", err)
+	}
+
+	return nil
+}
+
+// SomeUnexportedFieldEventsFromApplicationLog retrieves a set of all emitted events
+// with "SomeUnexportedField" name from the provided [result.ApplicationLog].
+func SomeUnexportedFieldEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeUnexportedFieldEvent, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+
+	var res []*SomeUnexportedFieldEvent
+	for i, ex := range log.Executions {
+		for j, e := range ex.Events {
+			if e.Name != "SomeUnexportedField" {
+				continue
+			}
+			event := new(SomeUnexportedFieldEvent)
+			err := event.FromStackItem(e.Item)
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize SomeUnexportedFieldEvent from stackitem (execution #%d, event #%d): %w", i, j, err)
+			}
+			res = append(res, event)
+		}
+	}
+
+	return res, nil
+}
+
+// FromStackItem converts provided [stackitem.Array] to SomeUnexportedFieldEvent or
+// returns an error if it's not possible to do to so.
+func (e *SomeUnexportedFieldEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 1 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err error
+	)
+	index++
+	e.S, err = itemToSimpleStruct(arr[index], nil)
+	if err != nil {
+		return fmt.Errorf("field S: %w", err)
 	}
 
 	return nil

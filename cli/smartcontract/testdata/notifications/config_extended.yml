@@ -36,6 +36,13 @@ events:
             base: Array
             value:
               base: Integer
+  - name: "SomeUnexportedField"
+    parameters:
+      - name: s
+        type: Struct
+        extendedtype:
+          base: Struct
+          name: simpleStruct
 namedtypes:
   crazyStruct:
     base: Struct
@@ -45,3 +52,9 @@ namedtypes:
         base: Integer
       - field: B
         base: Boolean
+  simpleStruct:
+    base: Struct
+    name: simpleStruct
+    fields:
+      - field: i
+        base: Integer

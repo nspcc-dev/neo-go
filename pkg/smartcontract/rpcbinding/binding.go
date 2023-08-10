@@ -23,7 +23,7 @@ const (
 // {{.Name}} represents "{{.ManifestName}}" event emitted by the contract.
 type {{.Name}} struct {
 	{{- range $index, $arg := .Parameters}}
-	{{.Name}} {{.Type}}
+	{{ upperFirst .Name}} {{.Type}}
 	{{- end}}
 }
 {{ end }}`
@@ -126,7 +126,7 @@ var Hash = {{ .Hash }}
 // {{toTypeName $name}} is a contract-specific {{$name}} type used by its methods.
 type {{toTypeName $name}} struct {
 {{- range $m := $typ.Fields}}
-	{{.Field}} {{etTypeToStr .ExtendedType}}
+	{{ upperFirst .Field}} {{etTypeToStr .ExtendedType}}
 {{- end}}
 }
 {{end}}
@@ -262,9 +262,9 @@ func (res *{{toTypeName $name}}) FromStackItem(item stackitem.Item) error {
 	)
 {{- range $m := $typ.Fields}}
 	index++
-	res.{{.Field}}, err = {{etTypeConverter .ExtendedType "arr[index]"}}
+	res.{{ upperFirst .Field}}, err = {{etTypeConverter .ExtendedType "arr[index]"}}
 	if err != nil {
-		return fmt.Errorf("field {{.Field}}: %w", err)
+		return fmt.Errorf("field {{ upperFirst .Field}}: %w", err)
 	}
 {{end}}
 {{- end}}
@@ -317,9 +317,9 @@ func (e *{{$e.Name}}) FromStackItem(item *stackitem.Array) error {
 	)
 	{{- range $p := $e.Parameters}}
 	index++
-	e.{{.Name}}, err = {{etTypeConverter .ExtType "arr[index]"}}
+	e.{{ upperFirst .Name}}, err = {{etTypeConverter .ExtType "arr[index]"}}
 	if err != nil {
-		return fmt.Errorf("field {{.Name}}: %w", err)
+		return fmt.Errorf("field {{ upperFirst .Name}}: %w", err)
 	}
 {{end}}
 {{- end}}
@@ -439,6 +439,7 @@ func Generate(cfg binding.Config) error {
 		},
 		"toTypeName": toTypeName,
 		"cutPointer": cutPointer,
+		"upperFirst": upperFirst,
 	}).Parse(srcTmpl))
 
 	return srcTemplate.Execute(cfg.Output, ctr)

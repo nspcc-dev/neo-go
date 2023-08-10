@@ -23,3 +23,11 @@ func Struct() {
 func Array() {
 	runtime.Notify("SomeArray", [][]int{})
 }
+
+// UnexportedField emits notification with unexported field that must be converted
+// to exported in the resulting RPC binding.
+func UnexportedField() {
+	runtime.Notify("SomeUnexportedField", struct {
+		i int
+	}{i: 123})
+}

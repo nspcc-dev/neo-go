@@ -7,19 +7,20 @@ import (
 )
 
 type Internal struct {
-	Bool       bool
-	Int        int
-	Bytes      []byte
-	String     string
-	H160       interop.Hash160
-	H256       interop.Hash256
-	PK         interop.PublicKey
-	PubKey     interop.PublicKey
-	Sign       interop.Signature
-	ArrOfBytes [][]byte
-	ArrOfH160  []interop.Hash160
-	Map        map[int][]interop.PublicKey
-	Struct     *Internal
+	Bool            bool
+	Int             int
+	Bytes           []byte
+	String          string
+	H160            interop.Hash160
+	H256            interop.Hash256
+	PK              interop.PublicKey
+	PubKey          interop.PublicKey
+	Sign            interop.Signature
+	ArrOfBytes      [][]byte
+	ArrOfH160       []interop.Hash160
+	Map             map[int][]interop.PublicKey
+	Struct          *Internal
+	unexportedField int // this one should be exported in the resulting RPC binding.
 }
 
 func Contract(mc management.Contract) management.Contract {
