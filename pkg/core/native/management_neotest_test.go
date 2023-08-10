@@ -37,7 +37,7 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 	})
 }
 
-func TestManagement_DeployUpdateHardfork(t *testing.T) {
+func TestManagement_DeployUpdate_HFBasilisk(t *testing.T) {
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 		c.Hardforks = map[string]uint32{
 			config.HFBasilisk.String(): 2,
