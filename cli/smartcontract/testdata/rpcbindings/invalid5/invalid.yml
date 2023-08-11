@@ -6,11 +6,11 @@ events:
         type: Array
         extendedtype:
           base: Array
-          name: invalid9.NamedStruct
+          name: invalid5.NamedStruct
 namedtypes:
-  invalid9.NamedStruct:
+  invalid5.NamedStruct:
     base: Array
-    name: invalid9.NamedStruct
+    name: invalid5.NamedStruct
     fields:
       - field: SomeInt
         base: Integer

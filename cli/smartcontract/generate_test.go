@@ -437,12 +437,12 @@ func TestAssistedRPCBindings(t *testing.T) {
 	}
 
 	for _, hasDefinedHash := range []bool{true, false} {
-		checkBinding(filepath.Join("testdata", "types"), hasDefinedHash, false)
-		checkBinding(filepath.Join("testdata", "structs"), hasDefinedHash, false)
+		checkBinding(filepath.Join("testdata", "rpcbindings", "types"), hasDefinedHash, false)
+		checkBinding(filepath.Join("testdata", "rpcbindings", "structs"), hasDefinedHash, false)
 	}
-	checkBinding(filepath.Join("testdata", "notifications"), true, false)
-	checkBinding(filepath.Join("testdata", "notifications"), true, false, "_extended")
-	checkBinding(filepath.Join("testdata", "notifications"), true, true, "_guessed")
+	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), true, false)
+	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), true, false, "_extended")
+	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), true, true, "_guessed")
 
 	require.False(t, rewriteExpectedOutputs)
 }
@@ -540,10 +540,10 @@ func TestCompile_GuessEventTypes(t *testing.T) {
 	}
 
 	t.Run("not declared in manifest", func(t *testing.T) {
-		check(t, filepath.Join("testdata", "invalid5"), "inconsistent usages of event `Non declared event`: not declared in the contract config")
+		check(t, filepath.Join("testdata", "rpcbindings", "invalid1"), "inconsistent usages of event `Non declared event`: not declared in the contract config")
 	})
 	t.Run("invalid number of params", func(t *testing.T) {
-		check(t, filepath.Join("testdata", "invalid6"), "inconsistent usages of event `SomeEvent` against config: number of params mismatch: 2 vs 1")
+		check(t, filepath.Join("testdata", "rpcbindings", "invalid2"), "inconsistent usages of event `SomeEvent` against config: number of params mismatch: 2 vs 1")
 	})
 	/*
 		// TODO: this on is a controversial one. If event information is provided in the config file, then conversion code
@@ -552,13 +552,13 @@ func TestCompile_GuessEventTypes(t *testing.T) {
 		// Thus, this testcase is always failing (no compilation error occures).
 		// Question: do we want to compare `RealType` of the emitted parameter with the one expected in the manifest?
 		t.Run("SC parameter type mismatch", func(t *testing.T) {
-			check(t, filepath.Join("testdata", "invalid7"), "inconsistent usages of event `SomeEvent` against config: number of params mismatch: 2 vs 1")
+			check(t, filepath.Join("testdata", "rpcbindings", "invalid3"), "inconsistent usages of event `SomeEvent` against config: number of params mismatch: 2 vs 1")
 		})
 	*/
 	t.Run("extended types mismatch", func(t *testing.T) {
-		check(t, filepath.Join("testdata", "invalid8"), "inconsistent usages of event `SomeEvent`: extended type of param #0 mismatch")
+		check(t, filepath.Join("testdata", "rpcbindings", "invalid4"), "inconsistent usages of event `SomeEvent`: extended type of param #0 mismatch")
 	})
 	t.Run("named types redeclare", func(t *testing.T) {
-		check(t, filepath.Join("testdata", "invalid9"), "configured declared named type intersects with the contract's one: `invalid9.NamedStruct`")
+		check(t, filepath.Join("testdata", "rpcbindings", "invalid5"), "configured declared named type intersects with the contract's one: `invalid5.NamedStruct`")
 	})
 }

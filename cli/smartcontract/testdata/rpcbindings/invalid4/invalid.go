@@ -1,4 +1,4 @@
-package invalid8
+package invalid4
 
 import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 

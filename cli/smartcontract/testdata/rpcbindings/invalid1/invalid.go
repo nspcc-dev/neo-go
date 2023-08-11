@@ -1,7 +1,7 @@
-package invalid6
+package invalid1
 
 import "github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 
 func Main() {
-	runtime.Notify("SomeEvent", "p1", "p2")
+	runtime.Notify("Non declared event")
 }
