@@ -864,7 +864,7 @@ func toTypeName(s string) string {
 			return -1
 		}
 		return c
-	}, strings.ToUpper(s[0:1])+s[1:])
+	}, upperFirst(s))
 }
 
 func addIndent(str string, ind string) string {
