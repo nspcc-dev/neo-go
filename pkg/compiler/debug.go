@@ -138,9 +138,9 @@ func (c *codegen) saveSequencePoint(n ast.Node) {
 		Opcode:    c.prog.Len(),
 		Document:  c.docIndex[start.Filename],
 		StartLine: start.Line,
-		StartCol:  start.Offset,
+		StartCol:  start.Column,
 		EndLine:   end.Line,
-		EndCol:    end.Offset,
+		EndCol:    end.Column,
 	})
 }
 
