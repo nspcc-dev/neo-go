@@ -1293,7 +1293,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			InvocationScript:   []byte{},
 			VerificationScript: verif,
 		})
-		checkErr(t, core.ErrInvalidVerification, tx)
+		checkErr(t, core.ErrInvalidVerificationScript, tx)
 	})
 	t.Run("InvalidInvocationScript", func(t *testing.T) {
 		tx := newTestTx(t, h, testScript)
@@ -1308,7 +1308,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			InvocationScript:   []byte{byte(opcode.JMP), 3, 0xff},
 			VerificationScript: verif,
 		})
-		checkErr(t, core.ErrInvalidInvocation, tx)
+		checkErr(t, core.ErrInvalidInvocationScript, tx)
 	})
 	t.Run("Conflict", func(t *testing.T) {
 		balance := bc.GetUtilityTokenBalance(h).Int64()

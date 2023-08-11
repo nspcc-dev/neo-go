@@ -2769,9 +2769,9 @@ var (
 	ErrWitnessHashMismatch         = errors.New("witness hash mismatch")
 	ErrNativeContractWitness       = errors.New("native contract witness must have empty verification script")
 	ErrVerificationFailed          = errors.New("signature check failed")
-	ErrInvalidInvocation           = errors.New("invalid invocation script")
+	ErrInvalidInvocationScript     = errors.New("invalid invocation script")
 	ErrInvalidSignature            = fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
-	ErrInvalidVerification         = errors.New("invalid verification script")
+	ErrInvalidVerificationScript   = errors.New("invalid verification script")
 	ErrUnknownVerificationContract = errors.New("unknown verification contract")
 	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
 )
@@ -2787,7 +2787,7 @@ func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uin
 		}
 		err := vm.IsScriptCorrect(witness.VerificationScript, nil)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidVerification, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: %v", ErrInvalidVerificationScript, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 		ic.VM.LoadScriptWithHash(witness.VerificationScript, hash, callflag.ReadOnly)
 	} else {
@@ -2812,7 +2812,7 @@ func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uin
 	if len(witness.InvocationScript) != 0 {
 		err := vm.IsScriptCorrect(witness.InvocationScript, nil)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidInvocation, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: %v", ErrInvalidInvocationScript, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 		ic.VM.LoadScript(witness.InvocationScript)
 	}
