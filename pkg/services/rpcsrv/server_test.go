@@ -621,12 +621,10 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "missing key",
-			params: fmt.Sprintf(`["%s", "dGU="]`, testContractHash),
-			result: func(e *executor) any {
-				v := ""
-				return &v
-			},
+			name:    "missing key",
+			params:  fmt.Sprintf(`["%s", "dGU="]`, testContractHash),
+			fail:    true,
+			errCode: neorpc.ErrUnknownStorageItemCode,
 		},
 		{
 			name:    "no params",

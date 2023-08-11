@@ -1722,9 +1722,6 @@ func (s *Server) getStateRoot(ps params.Params) (any, *neorpc.Error) {
 
 func (s *Server) getStorage(ps params.Params) (any, *neorpc.Error) {
 	id, rErr := s.contractIDFromParam(ps.Value(0))
-	if rErr == neorpc.ErrUnknownContract {
-		return nil, nil
-	}
 	if rErr != nil {
 		return nil, rErr
 	}
@@ -1736,7 +1733,7 @@ func (s *Server) getStorage(ps params.Params) (any, *neorpc.Error) {
 
 	item := s.chain.GetStorageItem(id, key)
 	if item == nil {
-		return "", nil
+		return "", neorpc.ErrUnknownStorageItem
 	}
 
 	return []byte(item), nil
