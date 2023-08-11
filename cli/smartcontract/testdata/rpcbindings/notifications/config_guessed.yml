@@ -17,3 +17,7 @@ events:
     parameters:
       - name: a
         type: Array
+  - name: "SomeUnexportedField"
+    parameters:
+      - name: s
+        type: Struct

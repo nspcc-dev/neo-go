@@ -17,12 +17,6 @@ import (
 // Hash contains contract hash.
 var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x0}
 
-// CrazyStruct is a contract-specific crazyStruct type used by its methods.
-type CrazyStruct struct {
-	I *big.Int
-	B bool
-}
-
 // LedgerBlock is a contract-specific ledger.Block type used by its methods.
 type LedgerBlock struct {
 	Hash util.Uint256
@@ -90,17 +84,22 @@ type ComplicatedNameEvent struct {
 
 // SomeMapEvent represents "SomeMap" event emitted by the contract.
 type SomeMapEvent struct {
-	M map[*big.Int]map[string][]util.Uint160
+	M map[any]any
 }
 
 // SomeStructEvent represents "SomeStruct" event emitted by the contract.
 type SomeStructEvent struct {
-	S *CrazyStruct
+	S []any
 }
 
 // SomeArrayEvent represents "SomeArray" event emitted by the contract.
 type SomeArrayEvent struct {
-	A [][]*big.Int
+	A []any
+}
+
+// SomeUnexportedFieldEvent represents "SomeUnexportedField" event emitted by the contract.
+type SomeUnexportedFieldEvent struct {
+	S []any
 }
 
 // Actor is used by Contract to call state-changing methods.
@@ -213,44 +212,26 @@ func (c *Contract) StructUnsigned() (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(c.hash, "struct", nil)
 }
 
-// itemToCrazyStruct converts stack item into *CrazyStruct.
-func itemToCrazyStruct(item stackitem.Item, err error) (*CrazyStruct, error) {
-	if err != nil {
-		return nil, err
-	}
-	var res = new(CrazyStruct)
-	err = res.FromStackItem(item)
-	return res, err
+// UnexportedField creates a transaction invoking `unexportedField` method of the contract.
+// This transaction is signed and immediately sent to the network.
+// The values returned are its hash, ValidUntilBlock value and error if any.
+func (c *Contract) UnexportedField() (util.Uint256, uint32, error) {
+	return c.actor.SendCall(c.hash, "unexportedField")
 }
 
-// FromStackItem retrieves fields of CrazyStruct from the given
-// [stackitem.Item] or returns an error if it's not possible to do to so.
-func (res *CrazyStruct) FromStackItem(item stackitem.Item) error {
-	arr, ok := item.Value().([]stackitem.Item)
-	if !ok {
-		return errors.New("not an array")
-	}
-	if len(arr) != 2 {
-		return errors.New("wrong number of structure elements")
-	}
+// UnexportedFieldTransaction creates a transaction invoking `unexportedField` method of the contract.
+// This transaction is signed, but not sent to the network, instead it's
+// returned to the caller.
+func (c *Contract) UnexportedFieldTransaction() (*transaction.Transaction, error) {
+	return c.actor.MakeCall(c.hash, "unexportedField")
+}
 
-	var (
-		index = -1
-		err error
-	)
-	index++
-	res.I, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field I: %w", err)
-	}
-
-	index++
-	res.B, err = arr[index].TryBool()
-	if err != nil {
-		return fmt.Errorf("field B: %w", err)
-	}
-
-	return nil
+// UnexportedFieldUnsigned creates a transaction invoking `unexportedField` method of the contract.
+// This transaction is not signed, it's simply returned to the caller.
+// Any fields of it that do not affect fees can be changed (ValidUntilBlock,
+// Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
+func (c *Contract) UnexportedFieldUnsigned() (*transaction.Transaction, error) {
+	return c.actor.MakeUnsignedCall(c.hash, "unexportedField", nil)
 }
 
 // itemToLedgerBlock converts stack item into *LedgerBlock.
@@ -921,68 +902,18 @@ func (e *SomeMapEvent) FromStackItem(item *stackitem.Array) error {
 		err error
 	)
 	index++
-	e.M, err = func (item stackitem.Item) (map[*big.Int]map[string][]util.Uint160, error) {
+	e.M, err = func (item stackitem.Item) (map[any]any, error) {
 		m, ok := item.Value().([]stackitem.MapElement)
 		if !ok {
 			return nil, fmt.Errorf("%s is not a map", item.Type().String())
 		}
-		res := make(map[*big.Int]map[string][]util.Uint160)
+		res := make(map[any]any)
 		for i := range m {
-			k, err := m[i].Key.TryInteger()
+			k, err := m[i].Key.Value(), error(nil)
 			if err != nil {
 				return nil, fmt.Errorf("key %d: %w", i, err)
 			}
-			v, err := func (item stackitem.Item) (map[string][]util.Uint160, error) {
-				m, ok := item.Value().([]stackitem.MapElement)
-				if !ok {
-					return nil, fmt.Errorf("%s is not a map", item.Type().String())
-				}
-				res := make(map[string][]util.Uint160)
-				for i := range m {
-					k, err := func (item stackitem.Item) (string, error) {
-						b, err := item.TryBytes()
-						if err != nil {
-							return "", err
-						}
-						if !utf8.Valid(b) {
-							return "", errors.New("not a UTF-8 string")
-						}
-						return string(b), nil
-					} (m[i].Key)
-					if err != nil {
-						return nil, fmt.Errorf("key %d: %w", i, err)
-					}
-					v, err := func (item stackitem.Item) ([]util.Uint160, error) {
-						arr, ok := item.Value().([]stackitem.Item)
-						if !ok {
-							return nil, errors.New("not an array")
-						}
-						res := make([]util.Uint160, len(arr))
-						for i := range res {
-							res[i], err = func (item stackitem.Item) (util.Uint160, error) {
-								b, err := item.TryBytes()
-								if err != nil {
-									return util.Uint160{}, err
-								}
-								u, err := util.Uint160DecodeBytesBE(b)
-								if err != nil {
-									return util.Uint160{}, err
-								}
-								return u, nil
-							} (arr[i])
-							if err != nil {
-								return nil, fmt.Errorf("item %d: %w", i, err)
-							}
-						}
-						return res, nil
-					} (m[i].Value)
-					if err != nil {
-						return nil, fmt.Errorf("value %d: %w", i, err)
-					}
-					res[k] = v
-				}
-				return res, nil
-			} (m[i].Value)
+			v, err := m[i].Value.Value(), error(nil)
 			if err != nil {
 				return nil, fmt.Errorf("value %d: %w", i, err)
 			}
@@ -1041,7 +972,20 @@ func (e *SomeStructEvent) FromStackItem(item *stackitem.Array) error {
 		err error
 	)
 	index++
-	e.S, err = itemToCrazyStruct(arr[index], nil)
+	e.S, err = func (item stackitem.Item) ([]any, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]any, len(arr))
+		for i := range res {
+			res[i], err = arr[i].Value(), error(nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
 	if err != nil {
 		return fmt.Errorf("field S: %w", err)
 	}
@@ -1093,27 +1037,14 @@ func (e *SomeArrayEvent) FromStackItem(item *stackitem.Array) error {
 		err error
 	)
 	index++
-	e.A, err = func (item stackitem.Item) ([][]*big.Int, error) {
+	e.A, err = func (item stackitem.Item) ([]any, error) {
 		arr, ok := item.Value().([]stackitem.Item)
 		if !ok {
 			return nil, errors.New("not an array")
 		}
-		res := make([][]*big.Int, len(arr))
+		res := make([]any, len(arr))
 		for i := range res {
-			res[i], err = func (item stackitem.Item) ([]*big.Int, error) {
-				arr, ok := item.Value().([]stackitem.Item)
-				if !ok {
-					return nil, errors.New("not an array")
-				}
-				res := make([]*big.Int, len(arr))
-				for i := range res {
-					res[i], err = arr[i].TryInteger()
-					if err != nil {
-						return nil, fmt.Errorf("item %d: %w", i, err)
-					}
-				}
-				return res, nil
-			} (arr[i])
+			res[i], err = arr[i].Value(), error(nil)
 			if err != nil {
 				return nil, fmt.Errorf("item %d: %w", i, err)
 			}
@@ -1122,6 +1053,71 @@ func (e *SomeArrayEvent) FromStackItem(item *stackitem.Array) error {
 	} (arr[index])
 	if err != nil {
 		return fmt.Errorf("field A: %w", err)
+	}
+
+	return nil
+}
+
+// SomeUnexportedFieldEventsFromApplicationLog retrieves a set of all emitted events
+// with "SomeUnexportedField" name from the provided [result.ApplicationLog].
+func SomeUnexportedFieldEventsFromApplicationLog(log *result.ApplicationLog) ([]*SomeUnexportedFieldEvent, error) {
+	if log == nil {
+		return nil, errors.New("nil application log")
+	}
+
+	var res []*SomeUnexportedFieldEvent
+	for i, ex := range log.Executions {
+		for j, e := range ex.Events {
+			if e.Name != "SomeUnexportedField" {
+				continue
+			}
+			event := new(SomeUnexportedFieldEvent)
+			err := event.FromStackItem(e.Item)
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize SomeUnexportedFieldEvent from stackitem (execution #%d, event #%d): %w", i, j, err)
+			}
+			res = append(res, event)
+		}
+	}
+
+	return res, nil
+}
+
+// FromStackItem converts provided [stackitem.Array] to SomeUnexportedFieldEvent or
+// returns an error if it's not possible to do to so.
+func (e *SomeUnexportedFieldEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 1 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err error
+	)
+	index++
+	e.S, err = func (item stackitem.Item) ([]any, error) {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		res := make([]any, len(arr))
+		for i := range res {
+			res[i], err = arr[i].Value(), error(nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+		}
+		return res, nil
+	} (arr[index])
+	if err != nil {
+		return fmt.Errorf("field S: %w", err)
 	}
 
 	return nil

@@ -14,6 +14,9 @@ import (
 	"unicode/utf8"
 )
 
+// Hash contains contract hash.
+var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x0}
+
 // LedgerBlock is a contract-specific ledger.Block type used by its methods.
 type LedgerBlock struct {
 	Hash util.Uint256
@@ -149,6 +152,7 @@ type StructsInternal struct {
 	ArrOfH160 []util.Uint160
 	Map map[*big.Int]keys.PublicKeys
 	Struct *StructsInternal
+	UnexportedField *big.Int
 }
 
 // Invoker is used by ContractReader to call various safe methods.
@@ -162,8 +166,9 @@ type ContractReader struct {
 	hash util.Uint160
 }
 
-// NewReader creates an instance of ContractReader using provided contract hash and the given Invoker.
-func NewReader(invoker Invoker, hash util.Uint160) *ContractReader {
+// NewReader creates an instance of ContractReader using Hash and the given Invoker.
+func NewReader(invoker Invoker) *ContractReader {
+	var hash = Hash
 	return &ContractReader{invoker, hash}
 }
 
@@ -1406,7 +1411,7 @@ func (res *StructsInternal) FromStackItem(item stackitem.Item) error {
 	if !ok {
 		return errors.New("not an array")
 	}
-	if len(arr) != 13 {
+	if len(arr) != 14 {
 		return errors.New("wrong number of structure elements")
 	}
 
@@ -1616,6 +1621,12 @@ func (res *StructsInternal) FromStackItem(item stackitem.Item) error {
 	res.Struct, err = itemToStructsInternal(arr[index], nil)
 	if err != nil {
 		return fmt.Errorf("field Struct: %w", err)
+	}
+
+	index++
+	res.UnexportedField, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field UnexportedField: %w", err)
 	}
 
 	return nil
