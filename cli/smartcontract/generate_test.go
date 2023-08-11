@@ -562,3 +562,51 @@ func TestCompile_GuessEventTypes(t *testing.T) {
 		check(t, filepath.Join("testdata", "rpcbindings", "invalid5"), "configured declared named type intersects with the contract's one: `invalid5.NamedStruct`")
 	})
 }
+
+func TestGenerateRPCBindings_Errors(t *testing.T) {
+	app := cli.NewApp()
+	app.Commands = NewCommands()
+	app.ExitErrHandler = func(*cli.Context, error) {}
+
+	t.Run("duplicating resulting fields", func(t *testing.T) {
+		check := func(t *testing.T, packageName string, autogen bool, expectedError string) {
+			tmpDir := t.TempDir()
+			source := filepath.Join("testdata", "rpcbindings", packageName)
+			configFile := filepath.Join(source, "invalid.yml")
+			out := filepath.Join(tmpDir, "rpcbindings.out")
+			manifestF := filepath.Join(tmpDir, "manifest.json")
+			bindingF := filepath.Join(tmpDir, "binding.yml")
+			nefF := filepath.Join(tmpDir, "out.nef")
+			cmd := []string{"", "contract", "compile",
+				"--in", source,
+				"--config", configFile,
+				"--manifest", manifestF,
+				"--bindings", bindingF,
+				"--out", nefF,
+			}
+			if autogen {
+				cmd = append(cmd, "--guess-eventtypes")
+			}
+			require.NoError(t, app.Run(cmd))
+
+			cmds := []string{"", "contract", "generate-rpcwrapper",
+				"--config", bindingF,
+				"--manifest", manifestF,
+				"--out", out,
+			}
+			err := app.Run(cmds)
+			require.Error(t, err)
+			require.True(t, strings.Contains(err.Error(), expectedError), err.Error())
+		}
+
+		t.Run("event", func(t *testing.T) {
+			check(t, "invalid6", false, "error during generation: named type `SomeStruct` has two fields with identical resulting binding name `Field`")
+		})
+		t.Run("autogen event", func(t *testing.T) {
+			check(t, "invalid7", true, "error during generation: named type `invalid7.SomeStruct` has two fields with identical resulting binding name `Field`")
+		})
+		t.Run("struct", func(t *testing.T) {
+			check(t, "invalid8", false, "error during generation: named type `invalid8.SomeStruct` has two fields with identical resulting binding name `Field`")
+		})
+	})
+}
