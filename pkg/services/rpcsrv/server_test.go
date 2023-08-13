@@ -2582,6 +2582,13 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		return res.Session, *iterator.ID
 	}
 	t.Run("traverseiterator", func(t *testing.T) {
+		t.Run("sessions disabled", func(t *testing.T) {
+			_, _, httpSrv2 := initClearServerWithCustomConfig(t, func(c *config.Config) {
+				c.ApplicationConfiguration.RPC.SessionEnabled = false
+			})
+			body := doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": []}"`, httpSrv2.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrSessionsDisabledCode)
+		})
 		t.Run("good", func(t *testing.T) {
 			sID, iID := prepareIteratorSession(t)
 			expectedCount := 99
@@ -2626,36 +2633,35 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			_, iID := prepareIteratorSession(t)
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, uuid.NewString(), iID.String(), 1)
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			resp := checkErrGetResult(t, body, false, 0)
-			res := new([]json.RawMessage)
-			require.NoError(t, json.Unmarshal(resp, res))
-			require.Equal(t, 0, len(*res)) // No errors expected, no elements should be returned.
+			checkErrGetResult(t, body, true, neorpc.ErrUnknownSessionCode)
 		})
 		t.Run("unknown iterator", func(t *testing.T) {
 			sID, _ := prepareIteratorSession(t)
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, sID.String(), uuid.NewString(), 1)
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			resp := checkErrGetResult(t, body, false, 0)
-			res := new([]json.RawMessage)
-			require.NoError(t, json.Unmarshal(resp, res))
-			require.Equal(t, 0, len(*res)) // No errors expected, no elements should be returned.
+			checkErrGetResult(t, body, true, neorpc.ErrUnknownIteratorCode)
 		})
 	})
 	t.Run("terminatesession", func(t *testing.T) {
-		check := func(t *testing.T, id string, expected bool) {
-			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "terminatesession", "params": ["%s"]}"`, id)
-			body := doRPCCall(rpc, httpSrv.URL, t)
+		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "terminatesession", "params": ["%s"]}"`
+		t.Run("sessions disabled", func(t *testing.T) {
+			_, _, httpSrv2 := initClearServerWithCustomConfig(t, func(c *config.Config) {
+				c.ApplicationConfiguration.RPC.SessionEnabled = false
+			})
+			body := doRPCCall(fmt.Sprintf(rpc, uuid.NewString()), httpSrv2.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrSessionsDisabledCode)
+		})
+		t.Run("true", func(t *testing.T) {
+			sID, _ := prepareIteratorSession(t)
+			body := doRPCCall(fmt.Sprintf(rpc, sID.String()), httpSrv.URL, t)
 			resp := checkErrGetResult(t, body, false, 0)
 			res := new(bool)
 			require.NoError(t, json.Unmarshal(resp, res))
-			require.Equal(t, expected, *res)
-		}
-		t.Run("true", func(t *testing.T) {
-			sID, _ := prepareIteratorSession(t)
-			check(t, sID.String(), true)
+			require.Equal(t, true, *res)
 		})
 		t.Run("false", func(t *testing.T) {
-			check(t, uuid.NewString(), false)
+			body := doRPCCall(fmt.Sprintf(rpc, uuid.NewString()), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrUnknownSessionCode)
 		})
 		t.Run("expired", func(t *testing.T) {
 			_, _ = prepareIteratorSession(t)

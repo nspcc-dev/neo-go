@@ -196,6 +196,11 @@ enabled in the server's protocol configuration.
 ##### `getnep11transfers` and `getnep17transfers`
 `transfernotifyindex` is not tracked by NeoGo, thus this field is always zero.
 
+##### `traverseiterator` and `terminatesession`
+
+NeoGo returns an error when it is unable to find a session or iterator, unlike 
+the error-free C# response that provides a default result.
+
 ##### `verifyProof`
 
 NeoGo can generate an error in response to an invalid proof, unlike

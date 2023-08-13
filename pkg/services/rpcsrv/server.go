@@ -2351,7 +2351,7 @@ func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) 
 	session, ok := s.sessions[sID.String()]
 	if !ok {
 		s.sessionsLock.Unlock()
-		return []json.RawMessage{}, nil
+		return nil, neorpc.ErrUnknownSession
 	}
 	session.iteratorsLock.Lock()
 	// Perform `till` update only after session.iteratorsLock is taken in order to have more
@@ -2362,14 +2362,19 @@ func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) 
 	var (
 		iIDStr = iID.String()
 		iVals  []stackitem.Item
+		found  bool
 	)
 	for _, it := range session.iteratorIdentifiers {
 		if iIDStr == it.ID {
 			iVals = iterator.Values(it.Item, count)
+			found = true
 			break
 		}
 	}
 	session.iteratorsLock.Unlock()
+	if !found {
+		return nil, neorpc.ErrUnknownIterator
+	}
 
 	result := make([]json.RawMessage, len(iVals))
 	for j := range iVals {
@@ -2393,17 +2398,18 @@ func (s *Server) terminateSession(reqParams params.Params) (any, *neorpc.Error) 
 	s.sessionsLock.Lock()
 	defer s.sessionsLock.Unlock()
 	session, ok := s.sessions[strSID]
-	if ok {
-		// Iterators access Seek channel under the hood; finalizer closes this channel, thus,
-		// we need to perform finalisation under iteratorsLock.
-		session.iteratorsLock.Lock()
-		session.finalize()
-		if !session.timer.Stop() {
-			<-session.timer.C
-		}
-		delete(s.sessions, strSID)
-		session.iteratorsLock.Unlock()
+	if !ok {
+		return nil, neorpc.ErrUnknownSession
 	}
+	// Iterators access Seek channel under the hood; finalizer closes this channel, thus,
+	// we need to perform finalisation under iteratorsLock.
+	session.iteratorsLock.Lock()
+	session.finalize()
+	if !session.timer.Stop() {
+		<-session.timer.C
+	}
+	delete(s.sessions, strSID)
+	session.iteratorsLock.Unlock()
 	return ok, nil
 }
 
