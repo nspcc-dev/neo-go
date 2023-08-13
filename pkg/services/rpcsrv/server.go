@@ -1531,9 +1531,10 @@ func (s *Server) verifyProof(ps params.Params) (any, *neorpc.Error) {
 	}
 	vp := new(result.VerifyProof)
 	val, ok := mpt.VerifyProof(root, p.Key, p.Proof)
-	if ok {
-		vp.Value = val
+	if !ok {
+		return nil, neorpc.ErrInvalidProof
 	}
+	vp.Value = val
 	return vp, nil
 }
 

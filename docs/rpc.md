@@ -196,6 +196,11 @@ enabled in the server's protocol configuration.
 ##### `getnep11transfers` and `getnep17transfers`
 `transfernotifyindex` is not tracked by NeoGo, thus this field is always zero.
 
+##### `verifyProof`
+
+NeoGo can generate an error in response to an invalid proof, unlike
+the error-free C# implementation.
+
 ### Unsupported methods
 
 Methods listed below are not going to be supported for various reasons
