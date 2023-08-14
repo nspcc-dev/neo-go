@@ -44,7 +44,7 @@ func getHTTPCodeForError(respErr *neorpc.Error) int {
 	switch respErr.Code {
 	case neorpc.BadRequestCode:
 		httpCode = http.StatusBadRequest
-	case neorpc.InvalidRequestCode, neorpc.RPCErrorCode, neorpc.InvalidParamsCode:
+	case neorpc.InvalidRequestCode, neorpc.InvalidParamsCode:
 		httpCode = http.StatusUnprocessableEntity
 	case neorpc.MethodNotFoundCode:
 		httpCode = http.StatusMethodNotAllowed
