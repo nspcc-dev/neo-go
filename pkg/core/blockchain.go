@@ -2773,7 +2773,7 @@ var (
 	ErrInvalidSignature            = fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
 	ErrInvalidVerificationScript   = errors.New("invalid verification script")
 	ErrUnknownVerificationContract = errors.New("unknown verification contract")
-	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
+	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method or `verify` method has unexpected return value")
 )
 
 // InitVerificationContext initializes context for witness check.
