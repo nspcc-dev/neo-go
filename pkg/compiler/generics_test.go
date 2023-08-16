@@ -51,3 +51,41 @@ func TestGenericFuncArgument(t *testing.T) {
 	_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.ErrorIs(t, err, compiler.ErrGenericsUnsuppored)
 }
+
+func TestGenericTypeDecl(t *testing.T) {
+	t.Run("global scope", func(t *testing.T) {
+		src := `
+		package sum
+		type List[T any] struct {
+			next *List[T]
+			val  T
+		}
+
+		func Main() any {
+			l := List[int]{}
+			return l
+		}
+`
+		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
+		require.ErrorIs(t, err, compiler.ErrGenericsUnsuppored)
+	})
+	t.Run("local scope", func(t *testing.T) {
+		src := `
+		package sum
+		func Main() any {
+			type (
+				SomeGoodType int
+			
+				List[T any] struct {
+					next *List[T]
+					val  T
+				}
+			)
+			l := List[int]{}
+			return l
+		}
+`
+		_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
+		require.ErrorIs(t, err, compiler.ErrGenericsUnsuppored)
+	})
+}

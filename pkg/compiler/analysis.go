@@ -397,6 +397,13 @@ func (c *codegen) analyzeFuncAndGlobalVarUsage() funcUsage {
 				nodeCache[name] = declPair{n, c.importMap, pkgPath}
 				return false // will be processed in the next stage
 			case *ast.GenDecl:
+				// Filter out generics usage.
+				err := c.checkGenericsGenDecl(n, pkgPath)
+				if err != nil {
+					c.prog.Err = err
+					return false // Program is invalid.
+				}
+
 				// After skipping all funcDecls, we are sure that each value spec
 				// is a globally declared variable or constant. We need to gather global
 				// vars from both main and imported packages.
@@ -570,6 +577,23 @@ func (c *codegen) checkGenericsFuncDecl(n *ast.FuncDecl, funcName string) error 
 
 	if errGenerics != nil {
 		return fmt.Errorf("%w: %s has %s", ErrGenericsUnsuppored, funcName, errGenerics.Error())
+	}
+
+	return nil
+}
+
+// checkGenericsGenDecl checks whether provided ast.GenDecl has generic code.
+func (c *codegen) checkGenericsGenDecl(n *ast.GenDecl, pkgPath string) error {
+	// Generic type declaration:
+	// 	type List[T any] struct
+	// 	type List[T any] interface
+	if n.Tok == token.TYPE {
+		for _, s := range n.Specs {
+			typeSpec := s.(*ast.TypeSpec)
+			if typeSpec.TypeParams != nil {
+				return fmt.Errorf("%w: type %s is generic", ErrGenericsUnsuppored, c.getIdentName(pkgPath, typeSpec.Name.Name))
+			}
+		}
 	}
 
 	return nil
