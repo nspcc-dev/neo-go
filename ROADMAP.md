@@ -139,3 +139,11 @@ hidden under `version` label and `server_id` contains network server ID hidden
 under `server_id` label.
 
 Removal of `serv_node_version` is scheduled for Sep-Oct 2023 (~0.105.0 release).
+
+## RPC error codes returned by old versions and C#-nodes 
+
+NeoGo retains certain deprecated error codes: `neorpc.ErrCompatGeneric`, 
+`neorpc.ErrCompatNoOpenedWallet`. They returned by nodes not compliant with the 
+neo-project/proposals#156 (NeoGo pre-0.102.0 and all known C# versions).
+
+Removal of the deprecated RPC error codes is planned once all nodes adopt the new error standard.

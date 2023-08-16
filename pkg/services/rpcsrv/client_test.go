@@ -1723,7 +1723,8 @@ func TestClient_IteratorSessions(t *testing.T) {
 			require.True(t, ok)
 
 			ok, err = c.TerminateSession(sID)
-			require.NoError(t, err)
+			require.Error(t, err)
+			require.ErrorIs(t, err, neorpc.ErrUnknownSession)
 			require.False(t, ok) // session has already been terminated.
 		})
 		t.Run("automatically", func(t *testing.T) {
@@ -1746,7 +1747,8 @@ func TestClient_IteratorSessions(t *testing.T) {
 				time.Duration(rpcSrv.config.SessionExpirationTime)*time.Second/4)
 
 			ok, err := c.TerminateSession(sID)
-			require.NoError(t, err)
+			require.Error(t, err)
+			require.ErrorIs(t, err, neorpc.ErrUnknownSession)
 			require.False(t, ok) // session has already been terminated.
 		})
 	})

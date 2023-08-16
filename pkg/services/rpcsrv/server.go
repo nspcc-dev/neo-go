@@ -250,10 +250,6 @@ var rpcWsHandlers = map[string]func(*Server, params.Params, *subscriber) (any, *
 	"unsubscribe": (*Server).unsubscribe,
 }
 
-var invalidBlockHeightError = func(index int, height int) *neorpc.Error {
-	return neorpc.NewRPCError("Invalid block height", fmt.Sprintf("param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", index, height))
-}
-
 // New creates a new Server struct. Pay attention that orc is expected to be either
 // untyped nil or non-nil structure implementing OracleHandler interface.
 func New(chain Ledger, conf config.RPC, coreServer *network.Server,
@@ -783,7 +779,7 @@ func (s *Server) getBlock(reqParams params.Params) (any, *neorpc.Error) {
 
 	block, err := s.chain.GetBlock(hash)
 	if err != nil {
-		return nil, neorpc.NewRPCError("Failed to get block", err.Error())
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrUnknownBlock, err.Error())
 	}
 
 	if v, _ := reqParams.Value(1).GetBoolean(); v {
@@ -801,7 +797,7 @@ func (s *Server) getBlock(reqParams params.Params) (any, *neorpc.Error) {
 func (s *Server) getBlockHash(reqParams params.Params) (any, *neorpc.Error) {
 	num, err := s.blockHeightFromParam(reqParams.Value(0))
 	if err != nil {
-		return nil, neorpc.ErrInvalidParams
+		return nil, err
 	}
 
 	return s.chain.GetHeaderHash(num), nil
@@ -900,11 +896,11 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (any, *neorpc.Erro
 			if len(w.VerificationScript) == 0 { // Contract-based verification
 				cs := s.chain.GetContractState(signer.Account)
 				if cs == nil {
-					return 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("signer %d has no verification script and no deployed contract", i))
+					return 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidVerificationFunction, fmt.Sprintf("signer %d has no verification script and no deployed contract", i))
 				}
 				md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify, -1)
 				if md == nil || md.ReturnType != smartcontract.BoolType {
-					return 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("signer %d has no verify method in deployed contract", i))
+					return 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidVerificationFunction, fmt.Sprintf("signer %d has no verify method in deployed contract", i))
 				}
 				paramz = md.Parameters // Might as well have none params and it's OK.
 			} else { // Regular signature verification.
@@ -1004,7 +1000,7 @@ func (s *Server) getNEP11Balances(ps params.Params) (any, *neorpc.Error) {
 	}
 	lastUpdated, err := s.chain.GetTokenLastUpdated(u)
 	if err != nil {
-		return nil, neorpc.NewRPCError("Failed to get NEP-11 last updated block", err.Error())
+		return nil, neorpc.NewInternalServerError(fmt.Sprintf("Failed to get NEP-11 last updated block: %s", err.Error()))
 	}
 	var count int
 	stateSyncPoint := lastUpdated[math.MinInt32]
@@ -1092,7 +1088,7 @@ func (s *Server) getNEP11Properties(ps params.Params) (any, *neorpc.Error) {
 	}
 	props, err := s.invokeNEP11Properties(asset, token, nil)
 	if err != nil {
-		return nil, neorpc.NewRPCError("Failed to get NEP-11 properties", err.Error())
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrExecutionFailed, fmt.Sprintf("Failed to get NEP-11 properties: %s", err.Error()))
 	}
 	res := make(map[string]any)
 	for _, kv := range props {
@@ -1129,7 +1125,7 @@ func (s *Server) getNEP17Balances(ps params.Params) (any, *neorpc.Error) {
 	}
 	lastUpdated, err := s.chain.GetTokenLastUpdated(u)
 	if err != nil {
-		return nil, neorpc.NewRPCError("Failed to get NEP-17 last updated block", err.Error())
+		return nil, neorpc.NewInternalServerError(fmt.Sprintf("Failed to get NEP-17 last updated block: %s", err.Error()))
 	}
 	stateSyncPoint := lastUpdated[math.MinInt32]
 	bw := io.NewBufBinWriter()
@@ -1426,7 +1422,7 @@ func (s *Server) contractIDFromParam(param *params.Param) (int32, *neorpc.Error)
 	if scriptHash, err := param.GetUint160FromHex(); err == nil {
 		cs := s.chain.GetContractState(scriptHash)
 		if cs == nil {
-			return 0, neorpc.ErrUnknown
+			return 0, neorpc.ErrUnknownContract
 		}
 		result = cs.ID
 	} else {
@@ -1462,14 +1458,14 @@ func (s *Server) contractScriptHashFromParam(param *params.Param) (util.Uint160,
 	}
 	id, err := strconv.Atoi(nameOrHashOrIndex)
 	if err != nil {
-		return result, neorpc.NewRPCError("Invalid contract identifier (name/hash/index is expected)", err.Error())
+		return result, neorpc.NewInvalidParamsError(fmt.Sprintf("Invalid contract identifier (name/hash/index is expected) : %s", err.Error()))
 	}
 	if err := checkInt32(id); err != nil {
 		return result, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, err.Error())
 	}
 	result, err = s.chain.GetContractScriptHash(int32(id))
 	if err != nil {
-		return result, neorpc.NewRPCError("Unknown contract", "")
+		return result, neorpc.ErrUnknownContract
 	}
 	return result, nil
 }
@@ -1485,7 +1481,7 @@ var errKeepOnlyLatestState = errors.New("'KeepOnlyLatestState' setting is enable
 
 func (s *Server) getProof(ps params.Params) (any, *neorpc.Error) {
 	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
-		return nil, neorpc.NewInvalidRequestError(fmt.Sprintf("'getproof' is not supported: %s", errKeepOnlyLatestState))
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrUnsupportedState, fmt.Sprintf("'getproof' is not supported: %s", errKeepOnlyLatestState))
 	}
 	root, err := ps.Value(0).GetUint256()
 	if err != nil {
@@ -1506,6 +1502,9 @@ func (s *Server) getProof(ps params.Params) (any, *neorpc.Error) {
 	skey := makeStorageKey(cs.ID, key)
 	proof, err := s.chain.GetStateModule().GetStateProof(root, skey)
 	if err != nil {
+		if errors.Is(err, mpt.ErrNotFound) {
+			return nil, neorpc.ErrUnknownStorageItem
+		}
 		return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to get proof: %s", err))
 	}
 	return &result.ProofWithKey{
@@ -1516,7 +1515,7 @@ func (s *Server) getProof(ps params.Params) (any, *neorpc.Error) {
 
 func (s *Server) verifyProof(ps params.Params) (any, *neorpc.Error) {
 	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
-		return nil, neorpc.NewInvalidRequestError(fmt.Sprintf("'verifyproof' is not supported: %s", errKeepOnlyLatestState))
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrUnsupportedState, fmt.Sprintf("'verifyproof' is not supported: %s", errKeepOnlyLatestState))
 	}
 	root, err := ps.Value(0).GetUint256()
 	if err != nil {
@@ -1532,9 +1531,10 @@ func (s *Server) verifyProof(ps params.Params) (any, *neorpc.Error) {
 	}
 	vp := new(result.VerifyProof)
 	val, ok := mpt.VerifyProof(root, p.Key, p.Proof)
-	if ok {
-		vp.Value = val
+	if !ok {
+		return nil, neorpc.ErrInvalidProof
 	}
+	vp.Value = val
 	return vp, nil
 }
 
@@ -1549,7 +1549,7 @@ func (s *Server) getState(ps params.Params) (any, *neorpc.Error) {
 			return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to get current stateroot: %s", err))
 		}
 		if !curr.Root.Equals(root) {
-			return nil, neorpc.NewInvalidRequestError(fmt.Sprintf("'getstate' is not supported for old states: %s", errKeepOnlyLatestState))
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrUnsupportedState, fmt.Sprintf("'getstate' is not supported for old states: %s", errKeepOnlyLatestState))
 		}
 	}
 	csHash, err := ps.Value(1).GetUint160FromHex()
@@ -1567,7 +1567,10 @@ func (s *Server) getState(ps params.Params) (any, *neorpc.Error) {
 	sKey := makeStorageKey(cs.ID, key)
 	res, err := s.chain.GetStateModule().GetState(root, sKey)
 	if err != nil {
-		return nil, neorpc.NewRPCError("Failed to get historical item state", err.Error())
+		if errors.Is(err, mpt.ErrNotFound) {
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid key: %s", err.Error()))
+		}
+		return nil, neorpc.NewInternalServerError(fmt.Sprintf("Failed to get historical item state: %s", err.Error()))
 	}
 	return res, nil
 }
@@ -1583,7 +1586,7 @@ func (s *Server) findStates(ps params.Params) (any, *neorpc.Error) {
 			return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to get current stateroot: %s", err))
 		}
 		if !curr.Root.Equals(root) {
-			return nil, neorpc.NewInvalidRequestError(fmt.Sprintf("'findstates' is not supported for old states: %s", errKeepOnlyLatestState))
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrUnsupportedState, fmt.Sprintf("'findstates' is not supported for old states: %s", errKeepOnlyLatestState))
 		}
 	}
 	csHash, err := ps.Value(1).GetUint160FromHex()
@@ -1670,7 +1673,7 @@ func (s *Server) getHistoricalContractState(root util.Uint256, csHash util.Uint1
 	csKey := makeStorageKey(native.ManagementContractID, native.MakeContractKey(csHash))
 	csBytes, err := s.chain.GetStateModule().GetState(root, csKey)
 	if err != nil {
-		return nil, neorpc.NewRPCError("Failed to get historical contract state", err.Error())
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrUnknownContract, fmt.Sprintf("Failed to get historical contract state: %s", err.Error()))
 	}
 	contract := new(state.Contract)
 	err = stackitem.DeserializeConvertible(csBytes, contract)
@@ -1720,9 +1723,6 @@ func (s *Server) getStateRoot(ps params.Params) (any, *neorpc.Error) {
 
 func (s *Server) getStorage(ps params.Params) (any, *neorpc.Error) {
 	id, rErr := s.contractIDFromParam(ps.Value(0))
-	if rErr == neorpc.ErrUnknown {
-		return nil, nil
-	}
 	if rErr != nil {
 		return nil, rErr
 	}
@@ -1734,7 +1734,7 @@ func (s *Server) getStorage(ps params.Params) (any, *neorpc.Error) {
 
 	item := s.chain.GetStorageItem(id, key)
 	if item == nil {
-		return "", nil
+		return "", neorpc.ErrUnknownStorageItem
 	}
 
 	return []byte(item), nil
@@ -1759,14 +1759,14 @@ func (s *Server) getrawtransaction(reqParams params.Params) (any, *neorpc.Error)
 		_header := s.chain.GetHeaderHash(height)
 		header, err := s.chain.GetHeader(_header)
 		if err != nil {
-			return nil, neorpc.NewRPCError("Failed to get header for the transaction", err.Error())
+			return nil, neorpc.NewInternalServerError(fmt.Sprintf("Failed to get header for the transaction: %s", err.Error()))
 		}
 		aers, err := s.chain.GetAppExecResults(txHash, trigger.Application)
 		if err != nil {
-			return nil, neorpc.NewRPCError("Failed to get application log for the transaction", err.Error())
+			return nil, neorpc.NewInternalServerError(fmt.Sprintf("Failed to get application log for the transaction: %s", err.Error()))
 		}
 		if len(aers) == 0 {
-			return nil, neorpc.NewRPCError("Inconsistent application log", "application log for the transaction is empty")
+			return nil, neorpc.NewInternalServerError("Inconsistent application log: application log for the transaction is empty")
 		}
 		res.TransactionMetadata = result.TransactionMetadata{
 			Blockhash:     header.Hash(),
@@ -1802,7 +1802,7 @@ func (s *Server) getContractState(reqParams params.Params) (any, *neorpc.Error) 
 	}
 	cs := s.chain.GetContractState(scriptHash)
 	if cs == nil {
-		return nil, neorpc.NewRPCError("Unknown contract", "")
+		return nil, neorpc.ErrUnknownContract
 	}
 	return cs, nil
 }
@@ -1815,7 +1815,7 @@ func (s *Server) getNativeContracts(_ params.Params) (any, *neorpc.Error) {
 func (s *Server) getBlockSysFee(reqParams params.Params) (any, *neorpc.Error) {
 	num, err := s.blockHeightFromParam(reqParams.Value(0))
 	if err != nil {
-		return 0, neorpc.NewRPCError("Invalid height", "invalid block identifier")
+		return 0, neorpc.WrapErrorWithData(err, fmt.Sprintf("invalid block height: %s", err.Data))
 	}
 
 	headerHash := s.chain.GetHeaderHash(num)
@@ -1843,7 +1843,7 @@ func (s *Server) getBlockHeader(reqParams params.Params) (any, *neorpc.Error) {
 	verbose, _ := reqParams.Value(1).GetBoolean()
 	h, err := s.chain.GetHeader(hash)
 	if err != nil {
-		return nil, neorpc.ErrUnknownHeader
+		return nil, neorpc.ErrUnknownBlock
 	}
 
 	if verbose {
@@ -1877,7 +1877,7 @@ func (s *Server) getUnclaimedGas(ps params.Params) (any, *neorpc.Error) {
 	}
 	gas, err := s.chain.CalculateClaimable(u, s.chain.BlockHeight()+1) // +1 as in C#, for the next block.
 	if err != nil {
-		return nil, neorpc.NewRPCError("Can't calculate claimable", err.Error())
+		return nil, neorpc.NewInternalServerError(fmt.Sprintf("Can't calculate claimable: %s", err.Error()))
 	}
 	return result.UnclaimedGas{
 		Address:   u,
@@ -1891,11 +1891,11 @@ func (s *Server) getCandidates(_ params.Params) (any, *neorpc.Error) {
 
 	validators, err := s.chain.GetNextBlockValidators()
 	if err != nil {
-		return nil, neorpc.NewRPCError("Can't get next block validators", err.Error())
+		return nil, neorpc.NewInternalServerError(fmt.Sprintf("Can't get next block validators: %s", err.Error()))
 	}
 	enrollments, err := s.chain.GetEnrollments()
 	if err != nil {
-		return nil, neorpc.NewRPCError("Can't get enrollments", err.Error())
+		return nil, neorpc.NewInternalServerError(fmt.Sprintf("Can't get enrollments: %s", err.Error()))
 	}
 	var res = make([]result.Candidate, 0)
 	for _, v := range enrollments {
@@ -1914,11 +1914,11 @@ func (s *Server) getNextBlockValidators(_ params.Params) (any, *neorpc.Error) {
 
 	validators, err := s.chain.GetNextBlockValidators()
 	if err != nil {
-		return nil, neorpc.NewRPCError("Can't get next block validators", err.Error())
+		return nil, neorpc.NewInternalServerError(fmt.Sprintf("Can't get next block validators: %s", err.Error()))
 	}
 	enrollments, err := s.chain.GetEnrollments()
 	if err != nil {
-		return nil, neorpc.NewRPCError("Can't get enrollments", err.Error())
+		return nil, neorpc.NewInternalServerError(fmt.Sprintf("Can't get enrollments: %s", err.Error()))
 	}
 	var res = make([]result.Validator, 0)
 	for _, v := range enrollments {
@@ -2003,7 +2003,7 @@ func (s *Server) getInvokeFunctionParams(reqParams params.Params) (*transaction.
 	}
 	script, err := params.CreateFunctionInvocationScript(scriptHash, method, invparams)
 	if err != nil {
-		return nil, false, neorpc.NewInternalServerError(fmt.Sprintf("can't create invocation script: %s", err))
+		return nil, false, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("can't create invocation script: %s", err))
 	}
 	tx.Script = script
 	return tx, verbose, nil
@@ -2130,7 +2130,7 @@ func (s *Server) getInvokeContractVerifyParams(reqParams params.Params) (util.Ui
 // handling consistency.
 func (s *Server) getHistoricParams(reqParams params.Params) (uint32, *neorpc.Error) {
 	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
-		return 0, neorpc.NewInvalidRequestError(fmt.Sprintf("only latest state is supported: %s", errKeepOnlyLatestState))
+		return 0, neorpc.WrapErrorWithData(neorpc.ErrUnsupportedState, fmt.Sprintf("only latest state is supported: %s", errKeepOnlyLatestState))
 	}
 	if len(reqParams) < 1 {
 		return 0, neorpc.ErrInvalidParams
@@ -2185,7 +2185,14 @@ func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contrac
 
 		err = s.chain.InitVerificationContext(ic, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})
 		if err != nil {
-			return nil, neorpc.NewInternalServerError(fmt.Sprintf("can't prepare verification VM: %s", err))
+			switch {
+			case errors.Is(err, core.ErrUnknownVerificationContract):
+				return nil, neorpc.WrapErrorWithData(neorpc.ErrUnknownContract, err.Error())
+			case errors.Is(err, core.ErrInvalidVerificationContract):
+				return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidVerificationFunction, err.Error())
+			default:
+				return nil, neorpc.NewInternalServerError(fmt.Sprintf("can't prepare verification VM: %s", err))
+			}
 		}
 	} else {
 		ic.VM.LoadScriptWithFlags(script, callflag.All)
@@ -2319,7 +2326,7 @@ func (s *Server) registerOrDumpIterator(item stackitem.Item) (stackitem.Item, uu
 
 func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) {
 	if !s.config.SessionEnabled {
-		return nil, neorpc.NewInvalidRequestError("sessions are disabled")
+		return nil, neorpc.ErrSessionsDisabled
 	}
 	sID, err := reqParams.Value(0).GetUUID()
 	if err != nil {
@@ -2344,7 +2351,7 @@ func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) 
 	session, ok := s.sessions[sID.String()]
 	if !ok {
 		s.sessionsLock.Unlock()
-		return []json.RawMessage{}, nil
+		return nil, neorpc.ErrUnknownSession
 	}
 	session.iteratorsLock.Lock()
 	// Perform `till` update only after session.iteratorsLock is taken in order to have more
@@ -2355,14 +2362,19 @@ func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) 
 	var (
 		iIDStr = iID.String()
 		iVals  []stackitem.Item
+		found  bool
 	)
 	for _, it := range session.iteratorIdentifiers {
 		if iIDStr == it.ID {
 			iVals = iterator.Values(it.Item, count)
+			found = true
 			break
 		}
 	}
 	session.iteratorsLock.Unlock()
+	if !found {
+		return nil, neorpc.ErrUnknownIterator
+	}
 
 	result := make([]json.RawMessage, len(iVals))
 	for j := range iVals {
@@ -2376,7 +2388,7 @@ func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) 
 
 func (s *Server) terminateSession(reqParams params.Params) (any, *neorpc.Error) {
 	if !s.config.SessionEnabled {
-		return nil, neorpc.NewInvalidRequestError("sessions are disabled")
+		return nil, neorpc.ErrSessionsDisabled
 	}
 	sID, err := reqParams.Value(0).GetUUID()
 	if err != nil {
@@ -2386,17 +2398,18 @@ func (s *Server) terminateSession(reqParams params.Params) (any, *neorpc.Error) 
 	s.sessionsLock.Lock()
 	defer s.sessionsLock.Unlock()
 	session, ok := s.sessions[strSID]
-	if ok {
-		// Iterators access Seek channel under the hood; finalizer closes this channel, thus,
-		// we need to perform finalisation under iteratorsLock.
-		session.iteratorsLock.Lock()
-		session.finalize()
-		if !session.timer.Stop() {
-			<-session.timer.C
-		}
-		delete(s.sessions, strSID)
-		session.iteratorsLock.Unlock()
+	if !ok {
+		return nil, neorpc.ErrUnknownSession
 	}
+	// Iterators access Seek channel under the hood; finalizer closes this channel, thus,
+	// we need to perform finalisation under iteratorsLock.
+	session.iteratorsLock.Lock()
+	session.finalize()
+	if !session.timer.Stop() {
+		<-session.timer.C
+	}
+	delete(s.sessions, strSID)
+	session.iteratorsLock.Unlock()
 	return ok, nil
 }
 
@@ -2412,24 +2425,13 @@ func (s *Server) submitBlock(reqParams params.Params) (any, *neorpc.Error) {
 	if r.Err != nil {
 		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("can't decode block: %s", r.Err))
 	}
-	err = s.chain.AddBlock(b)
-	if err != nil {
-		switch {
-		case errors.Is(err, core.ErrInvalidBlockIndex) || errors.Is(err, core.ErrAlreadyExists):
-			return nil, neorpc.WrapErrorWithData(neorpc.ErrAlreadyExists, err.Error())
-		default:
-			return nil, neorpc.WrapErrorWithData(neorpc.ErrValidationFailed, err.Error())
-		}
-	}
-	return &result.RelayResult{
-		Hash: b.Hash(),
-	}, nil
+	return getRelayResult(s.chain.AddBlock(b), b.Hash())
 }
 
 // submitNotaryRequest broadcasts P2PNotaryRequest over the Neo network.
 func (s *Server) submitNotaryRequest(ps params.Params) (any, *neorpc.Error) {
 	if !s.chain.P2PSigExtensionsEnabled() {
-		return nil, neorpc.NewRPCError("P2PSignatureExtensions are disabled", "")
+		return nil, neorpc.NewInternalServerError("P2PSignatureExtensions are disabled")
 	}
 
 	bytePayload, err := ps.Value(0).GetBytesBase64()
@@ -2450,21 +2452,37 @@ func getRelayResult(err error, hash util.Uint256) (any, *neorpc.Error) {
 		return result.RelayResult{
 			Hash: hash,
 		}, nil
-	case errors.Is(err, core.ErrAlreadyExists):
+	case errors.Is(err, core.ErrTxExpired):
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrExpiredTransaction, err.Error())
+	case errors.Is(err, core.ErrAlreadyExists) || errors.Is(err, core.ErrInvalidBlockIndex):
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrAlreadyExists, err.Error())
+	case errors.Is(err, core.ErrAlreadyInPool):
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrAlreadyInPool, err.Error())
 	case errors.Is(err, core.ErrOOM):
-		return nil, neorpc.WrapErrorWithData(neorpc.ErrOutOfMemory, err.Error())
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrMempoolCapReached, err.Error())
 	case errors.Is(err, core.ErrPolicy):
-		return nil, neorpc.WrapErrorWithData(neorpc.ErrPolicyFail, err.Error())
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrPolicyFailed, err.Error())
+	case errors.Is(err, core.ErrInvalidScript):
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidScript, err.Error())
+	case errors.Is(err, core.ErrTxTooBig):
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidSize, err.Error())
+	case errors.Is(err, core.ErrTxSmallNetworkFee):
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInsufficientNetworkFee, err.Error())
+	case errors.Is(err, core.ErrInvalidAttribute):
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidAttribute, err.Error())
+	case errors.Is(err, core.ErrInsufficientFunds):
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInsufficientFunds, err.Error())
+	case errors.Is(err, core.ErrInvalidSignature):
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidSignature, err.Error())
 	default:
-		return nil, neorpc.WrapErrorWithData(neorpc.ErrValidationFailed, err.Error())
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrVerificationFailed, err.Error())
 	}
 }
 
 func (s *Server) submitOracleResponse(ps params.Params) (any, *neorpc.Error) {
 	oraclePtr := s.oracle.Load()
 	if oraclePtr == nil {
-		return nil, neorpc.NewRPCError("Oracle is not enabled", "")
+		return nil, neorpc.ErrOracleDisabled
 	}
 	oracle := oraclePtr.(OracleHandler)
 	var pub *keys.PublicKey
@@ -2481,15 +2499,15 @@ func (s *Server) submitOracleResponse(ps params.Params) (any, *neorpc.Error) {
 	}
 	txSig, err := ps.Value(2).GetBytesBase64()
 	if err != nil {
-		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("tx signature is missing: %s", err))
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("tx signature is missing: %s", err))
 	}
 	msgSig, err := ps.Value(3).GetBytesBase64()
 	if err != nil {
-		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("msg signature is missing: %s", err))
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("msg signature is missing: %s", err))
 	}
 	data := broadcaster.GetMessage(pubBytes, uint64(reqID), txSig)
 	if !pub.Verify(msgSig, hash.Sha256(data).BytesBE()) {
-		return nil, neorpc.NewRPCError("Invalid request signature", "")
+		return nil, neorpc.ErrInvalidSignature
 	}
 	oracle.AddResponse(pub, uint64(reqID), txSig)
 	return json.RawMessage([]byte("{}")), nil
@@ -2803,7 +2821,7 @@ func (s *Server) blockHeightFromParam(param *params.Param) (uint32, *neorpc.Erro
 	}
 
 	if num < 0 || int64(num) > int64(s.chain.BlockHeight()) {
-		return 0, invalidBlockHeightError(0, num)
+		return 0, neorpc.WrapErrorWithData(neorpc.ErrUnknownHeight, fmt.Sprintf("param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", 0, num))
 	}
 	return uint32(num), nil
 }

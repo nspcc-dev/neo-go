@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -60,11 +61,12 @@ type executor struct {
 }
 
 type rpcTestCase struct {
-	name   string
-	params string
-	fail   bool
-	result func(e *executor) any
-	check  func(t *testing.T, e *executor, result any)
+	name    string
+	params  string
+	fail    bool
+	errCode int64
+	result  func(e *executor) any
+	check   func(t *testing.T, e *executor, result any)
 }
 
 const genesisBlockHash = "0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4"
@@ -92,6 +94,49 @@ var (
 	nfsoToken1ContainerID = util.Uint256{1, 2, 3}
 	nfsoToken1ObjectID    = util.Uint256{4, 5, 6}
 )
+
+var rpcFunctionsWithUnsupportedStatesTestCases = map[string][]rpcTestCase{
+	"getproof": {
+		{
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.ErrUnsupportedStateCode,
+		},
+	},
+	"verifyproof": {
+		{
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.ErrUnsupportedStateCode,
+		},
+	},
+	"getstate": {
+		{
+			name:    "unknown root/item",
+			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "QQ=="]`,
+			fail:    true,
+			errCode: neorpc.ErrUnsupportedStateCode,
+		},
+	},
+	"findstates": {
+		{
+			name:    "invalid contract",
+			params:  `["` + block20StateRootLE + `", "0xabcdef"]`,
+			fail:    true,
+			errCode: neorpc.ErrUnsupportedStateCode,
+		},
+	},
+	"invokefunctionhistoric": {
+		{
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.ErrUnsupportedStateCode,
+		},
+	},
+}
 
 var rpcTestCases = map[string][]rpcTestCase{
 	"getapplicationlog": {
@@ -151,24 +196,28 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "invalid trigger (not a string)",
-			params: `["` + genesisBlockHash + `", 1]`,
-			fail:   true,
+			name:    "invalid trigger (not a string)",
+			params:  `["` + genesisBlockHash + `", 1]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid address",
-			params: `["notahash"]`,
-			fail:   true,
+			name:    "invalid address",
+			params:  `["notahash"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid tx hash",
-			params: `["d24cc1d52b5c0216cbf3835bb5bac8ccf32639fa1ab6627ec4e2b9f33f7ec02f"]`,
-			fail:   true,
+			name:    "invalid tx hash",
+			params:  `["d24cc1d52b5c0216cbf3835bb5bac8ccf32639fa1ab6627ec4e2b9f33f7ec02f"]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownScriptContainerCode,
 		},
 	},
 	"getcontractstate": {
@@ -213,41 +262,48 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "negative, bad hash",
-			params: `["6d1eeca891ee93de2b7a77eb91c26f3b3c04d6c3"]`,
-			fail:   true,
+			name:    "negative, bad hash",
+			params:  `["6d1eeca891ee93de2b7a77eb91c26f3b3c04d6c3"]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownContractCode,
 		},
 		{
-			name:   "negative, bad ID",
-			params: `[-100]`,
-			fail:   true,
+			name:    "negative, bad ID",
+			params:  `[-100]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownContractCode,
 		},
 		{
-			name:   "negative, bad native name",
-			params: `["unknown_native"]`,
-			fail:   true,
+			name:    "negative, bad native name",
+			params:  `["unknown_native"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid hash",
-			params: `["notahex"]`,
-			fail:   true,
+			name:    "invalid hash",
+			params:  `["notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 	},
 	"getnep11balances": {
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid address",
-			params: `["notahex"]`,
-			fail:   true,
+			name:    "invalid address",
+			params:  `["notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
 			name:   "positive",
@@ -264,24 +320,28 @@ var rpcTestCases = map[string][]rpcTestCase{
 	},
 	"getnep11properties": {
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid address",
-			params: `["notahex"]`,
-			fail:   true,
+			name:    "invalid address",
+			params:  `["notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "no token",
-			params: `["` + nnsContractHash + `"]`,
-			fail:   true,
+			name:    "no token",
+			params:  `["` + nnsContractHash + `"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "bad token",
-			params: `["` + nnsContractHash + `", "abcdef"]`,
-			fail:   true,
+			name:    "bad token",
+			params:  `["` + nnsContractHash + `", "abcdef"]`,
+			fail:    true,
+			errCode: neorpc.ErrExecutionFailedCode,
 		},
 		{
 			name:   "positive",
@@ -297,24 +357,28 @@ var rpcTestCases = map[string][]rpcTestCase{
 	},
 	"getnep11transfers": {
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid address",
-			params: `["notahex"]`,
-			fail:   true,
+			name:    "invalid address",
+			params:  `["notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid timestamp",
-			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "notanumber"]`,
-			fail:   true,
+			name:    "invalid timestamp",
+			params:  `["` + testchain.PrivateKeyByID(0).Address() + `", "notanumber"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid stop timestamp",
-			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "blah"]`,
-			fail:   true,
+			name:    "invalid stop timestamp",
+			params:  `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "blah"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
 			name:   "positive",
@@ -325,14 +389,16 @@ var rpcTestCases = map[string][]rpcTestCase{
 	},
 	"getnep17balances": {
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid address",
-			params: `["notahex"]`,
-			fail:   true,
+			name:    "invalid address",
+			params:  `["notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
 			name:   "positive",
@@ -349,49 +415,58 @@ var rpcTestCases = map[string][]rpcTestCase{
 	},
 	"getnep17transfers": {
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid address",
-			params: `["notahex"]`,
-			fail:   true,
+			name:    "invalid address",
+			params:  `["notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid timestamp",
-			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "notanumber"]`,
-			fail:   true,
+			name:    "invalid timestamp",
+			params:  `["` + testchain.PrivateKeyByID(0).Address() + `", "notanumber"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid stop timestamp",
-			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "blah"]`,
-			fail:   true,
+			name:    "invalid stop timestamp",
+			params:  `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "blah"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid limit",
-			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "0"]`,
-			fail:   true,
+			name:    "invalid limit",
+			params:  `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "0"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid limit 2",
-			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "bleh"]`,
-			fail:   true,
+			name:    "invalid limit 2",
+			params:  `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "bleh"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid limit 3",
-			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "100500"]`,
-			fail:   true,
+			name:    "invalid limit 3",
+			params:  `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "100500"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid page",
-			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "3", "-1"]`,
-			fail:   true,
+			name:    "invalid page",
+			params:  `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "3", "-1"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid page 2",
-			params: `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "3", "jajaja"]`,
-			fail:   true,
+			name:    "invalid page 2",
+			params:  `["` + testchain.PrivateKeyByID(0).Address() + `", "1", "2", "3", "jajaja"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
 			name:   "positive",
@@ -408,88 +483,104 @@ var rpcTestCases = map[string][]rpcTestCase{
 	},
 	"getproof": {
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid root",
-			params: `["0xabcdef"]`,
-			fail:   true,
+			name:    "invalid root",
+			params:  `["0xabcdef"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid contract",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "0xabcdef"]`,
-			fail:   true,
+			name:    "invalid contract",
+			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "0xabcdef"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid key",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "notahex"]`,
-			fail:   true,
+			name:    "invalid key",
+			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 	},
 	"getstate": {
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid root",
-			params: `["0xabcdef"]`,
-			fail:   true,
+			name:    "invalid root",
+			params:  `["0xabcdef"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid contract",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "0xabcdef"]`,
-			fail:   true,
+			name:    "invalid contract",
+			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "0xabcdef"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid key",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "notabase64%"]`,
-			fail:   true,
+			name:    "invalid key",
+			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "notabase64%"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "unknown contract",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "0000000000000000000000000000000000000000", "QQ=="]`,
-			fail:   true,
+			name:    "unknown contract",
+			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "0000000000000000000000000000000000000000", "QQ=="]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownContractCode,
 		},
 		{
-			name:   "unknown root/item",
-			params: `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "QQ=="]`,
-			fail:   true,
+			name:    "unknown root/item",
+			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "QQ=="]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownContractCode,
 		},
 	},
 	"findstates": {
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid root",
-			params: `["0xabcdef"]`,
-			fail:   true,
+			name:    "invalid root",
+			params:  `["0xabcdef"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid contract",
-			params: `["` + block20StateRootLE + `", "0xabcdef"]`,
-			fail:   true,
+			name:    "invalid contract",
+			params:  `["` + block20StateRootLE + `", "0xabcdef"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid prefix",
-			params: `["` + block20StateRootLE + `", "` + testContractHash + `", "notabase64%"]`,
-			fail:   true,
+			name:    "invalid prefix",
+			params:  `["` + block20StateRootLE + `", "` + testContractHash + `", "notabase64%"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid key",
-			params: `["` + block20StateRootLE + `", "` + testContractHash + `", "QQ==", "notabase64%"]`,
-			fail:   true,
+			name:    "invalid key",
+			params:  `["` + block20StateRootLE + `", "` + testContractHash + `", "QQ==", "notabase64%"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "unknown contract/large count",
-			params: `["` + block20StateRootLE + `", "0000000000000000000000000000000000000000", "QQ==", "QQ==", 101]`,
-			fail:   true,
+			name:    "unknown contract/large count",
+			params:  `["` + block20StateRootLE + `", "0000000000000000000000000000000000000000", "QQ==", "QQ==", 101]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownContractCode,
 		},
 	},
 	"getstateheight": {
@@ -508,14 +599,16 @@ var rpcTestCases = map[string][]rpcTestCase{
 	},
 	"getstateroot": {
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid hash",
-			params: `["0x1234567890"]`,
-			fail:   true,
+			name:    "invalid hash",
+			params:  `["0x1234567890"]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownStateRootCode,
 		},
 	},
 	"getstorage": {
@@ -528,32 +621,34 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "missing key",
-			params: fmt.Sprintf(`["%s", "dGU="]`, testContractHash),
-			result: func(e *executor) any {
-				v := ""
-				return &v
-			},
+			name:    "missing key",
+			params:  fmt.Sprintf(`["%s", "dGU="]`, testContractHash),
+			fail:    true,
+			errCode: neorpc.ErrUnknownStorageItemCode,
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "no second parameter",
-			params: fmt.Sprintf(`["%s"]`, testContractHash),
-			fail:   true,
+			name:    "no second parameter",
+			params:  fmt.Sprintf(`["%s"]`, testContractHash),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid hash",
-			params: `["notahex"]`,
-			fail:   true,
+			name:    "invalid hash",
+			params:  `["notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid key",
-			params: fmt.Sprintf(`["%s", "notabase64$"]`, testContractHash),
-			fail:   true,
+			name:    "invalid key",
+			params:  fmt.Sprintf(`["%s", "notabase64$"]`, testContractHash),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 	},
 	"getbestblockhash": {
@@ -587,29 +682,34 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "bad params",
-			params: `[[]]`,
-			fail:   true,
+			name:    "bad params",
+			params:  `[[]]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid height",
-			params: `[-1]`,
-			fail:   true,
+			name:    "invalid height",
+			params:  `[-1]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownHeightCode,
 		},
 		{
-			name:   "invalid hash",
-			params: `["notahex"]`,
-			fail:   true,
+			name:    "invalid hash",
+			params:  `["notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "missing hash",
-			params: `["` + util.Uint256{}.String() + `"]`,
-			fail:   true,
+			name:    "missing hash",
+			params:  `["` + util.Uint256{}.String() + `"]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownBlockCode,
 		},
 	},
 	"getblockcount": {
@@ -633,36 +733,42 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "string height",
-			params: `["first"]`,
-			fail:   true,
+			name:    "string height",
+			params:  `["first"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid number height",
-			params: `[-2]`,
-			fail:   true,
+			name:    "invalid number height",
+			params:  `[-2]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownHeightCode,
 		},
 	},
 	"getblockheader": {
 		{
-			name:   "invalid verbose type",
-			params: `["9673799c5b5a294427401cb07d6cc615ada3a0d5c5bf7ed6f0f54f24abb2e2ac", true]`,
-			fail:   true,
+			name:    "invalid verbose type",
+			params:  `["9673799c5b5a294427401cb07d6cc615ada3a0d5c5bf7ed6f0f54f24abb2e2ac", true]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownBlockCode,
 		},
 		{
-			name:   "invalid block hash",
-			params: `["notahash"]`,
-			fail:   true,
+			name:    "invalid block hash",
+			params:  `["notahash"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "unknown block",
-			params: `["a6e526375a780335112299f2262501e5e9574c3ba61b16bbc1e282b344f6c141"]`,
-			fail:   true,
+			name:    "unknown block",
+			params:  `["a6e526375a780335112299f2262501e5e9574c3ba61b16bbc1e282b344f6c141"]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownBlockCode,
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 	},
 	"getblockheadercount": {
@@ -689,19 +795,22 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "string height",
-			params: `["first"]`,
-			fail:   true,
+			name:    "string height",
+			params:  `["first"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid number height",
-			params: `[-2]`,
-			fail:   true,
+			name:    "invalid number height",
+			params:  `[-2]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownHeightCode,
 		},
 	},
 	"getcommittee": {
@@ -754,19 +863,22 @@ var rpcTestCases = map[string][]rpcTestCase{
 	},
 	"getrawtransaction": {
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid hash",
-			params: `["notahex"]`,
-			fail:   true,
+			name:    "invalid hash",
+			params:  `["notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "missing hash",
-			params: `["` + util.Uint256{}.String() + `"]`,
-			fail:   true,
+			name:    "missing hash",
+			params:  `["` + util.Uint256{}.String() + `"]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownTransactionCode,
 		},
 	},
 	"gettransactionheight": {
@@ -784,31 +896,36 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid hash",
-			params: `["notahex"]`,
-			fail:   true,
+			name:    "invalid hash",
+			params:  `["notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "missing hash",
-			params: `["` + util.Uint256{}.String() + `"]`,
-			fail:   true,
+			name:    "missing hash",
+			params:  `["` + util.Uint256{}.String() + `"]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownTransactionCode,
 		},
 	},
 	"getunclaimedgas": {
 		{
-			name:   "no params",
-			params: "[]",
-			fail:   true,
+			name:    "no params",
+			params:  "[]",
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid address",
-			params: `["invalid"]`,
-			fail:   true,
+			name:    "invalid address",
+			params:  `["invalid"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
 			name:   "positive",
@@ -1003,24 +1120,28 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "not a string",
-			params: `[42, "test", []]`,
-			fail:   true,
+			name:    "not a string",
+			params:  `[42, "test", []]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownContractCode,
 		},
 		{
-			name:   "not a scripthash",
-			params: `["qwerty", "test", []]`,
-			fail:   true,
+			name:    "not a scripthash",
+			params:  `["qwerty", "test", []]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "bad params",
-			params: `["50befd26fdf6e4d957c11e078b24ebce6291456f", "test", [{"type": "Integer", "value": "qwerty"}]]`,
-			fail:   true,
+			name:    "bad params",
+			params:  `["50befd26fdf6e4d957c11e078b24ebce6291456f", "test", [{"type": "Integer", "value": "qwerty"}]]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 	},
 	"invokefunctionhistoric": {
@@ -1118,39 +1239,46 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "no args",
-			params: `[20]`,
-			fail:   true,
+			name:    "no args",
+			params:  `[20]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "not a string",
-			params: `[20, 42, "test", []]`,
-			fail:   true,
+			name:    "not a string",
+			params:  `[20, 42, "test", []]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownContractCode,
 		},
 		{
-			name:   "not a scripthash",
-			params: `[20,"qwerty", "test", []]`,
-			fail:   true,
+			name:    "not a scripthash",
+			params:  `[20,"qwerty", "test", []]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "bad params",
-			params: `[20,"50befd26fdf6e4d957c11e078b24ebce6291456f", "test", [{"type": "Integer", "value": "qwerty"}]]`,
-			fail:   true,
+			name:    "bad params",
+			params:  `[20,"50befd26fdf6e4d957c11e078b24ebce6291456f", "test", [{"type": "Integer", "value": "qwerty"}]]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "bad height",
-			params: `[100500,"50befd26fdf6e4d957c11e078b24ebce6291456f", "test", [{"type": "Integer", "value": 1}]]`,
-			fail:   true,
+			name:    "bad height",
+			params:  `[100500,"50befd26fdf6e4d957c11e078b24ebce6291456f", "test", [{"type": "Integer", "value": 1}]]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "bad stateroot",
-			params: `["` + util.Uint256{1, 2, 3}.StringLE() + `","50befd26fdf6e4d957c11e078b24ebce6291456f", "test", [{"type": "Integer", "value": 1}]]`,
-			fail:   true,
+			name:    "bad stateroot",
+			params:  `["` + util.Uint256{1, 2, 3}.StringLE() + `","50befd26fdf6e4d957c11e078b24ebce6291456f", "test", [{"type": "Integer", "value": 1}]]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 	},
 	"invokescript": {
@@ -1237,19 +1365,22 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "not a string",
-			params: `[42]`,
-			fail:   true,
+			name:    "not a string",
+			params:  `[42]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "bas string",
-			params: `["qwerty"]`,
-			fail:   true,
+			name:    "bas string",
+			params:  `["qwerty"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 	},
 	"invokescripthistoric": {
@@ -1348,34 +1479,40 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "no script",
-			params: `[20]`,
-			fail:   true,
+			name:    "no script",
+			params:  `[20]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "not a string",
-			params: `[20,42]`,
-			fail:   true,
+			name:    "not a string",
+			params:  `[20,42]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "bas string",
-			params: `[20, "qwerty"]`,
-			fail:   true,
+			name:    "bad string",
+			params:  `[20, "qwerty"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "bas height",
-			params: `[100500,"qwerty"]`,
-			fail:   true,
+			name:    "bad height",
+			params:  `[100500,"qwerty"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "bas stateroot",
-			params: `["` + util.Uint256{1, 2, 3}.StringLE() + `","UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY="]`,
-			fail:   true,
+			name:    "bad stateroot",
+			params:  `["` + util.Uint256{1, 2, 3}.StringLE() + `","UcVrDUhlbGxvLCB3b3JsZCFoD05lby5SdW50aW1lLkxvZ2FsdWY="]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 	},
 	"invokecontractverify": {
@@ -1468,19 +1605,34 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "unknown contract",
-			params: fmt.Sprintf(`["%s", []]`, util.Uint160{}.String()),
-			fail:   true,
+			name:    "invalid call args",
+			params:  fmt.Sprintf(`["%s", [{"type":"Map","value":{"key":"value"}}]]`, verifyWithArgsContractHash),
+			fail:    true,
+			errCode: neorpc.InternalServerErrorCode,
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "negative, wrong signer",
+			params:  fmt.Sprintf(`["%s", [], [{"account":"aaa"}]]`, verifyContractHash),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "not a string",
-			params: `[42, []]`,
-			fail:   true,
+			name:    "unknown contract",
+			params:  fmt.Sprintf(`["%s", []]`, util.Uint160{}.String()),
+			fail:    true,
+			errCode: neorpc.ErrUnknownContractCode,
+		},
+		{
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "not a string",
+			params:  `[42, []]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownContractCode,
 		},
 	},
 	"invokecontractverifyhistoric": {
@@ -1586,24 +1738,28 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "unknown contract",
-			params: fmt.Sprintf(`[20, "%s", []]`, util.Uint160{}.String()),
-			fail:   true,
+			name:    "unknown contract",
+			params:  fmt.Sprintf(`[20, "%s", []]`, util.Uint160{}.String()),
+			fail:    true,
+			errCode: neorpc.ErrUnknownContractCode,
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "no args",
-			params: `[20]`,
-			fail:   true,
+			name:    "no args",
+			params:  `[20]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "not a string",
-			params: `[20,42, []]`,
-			fail:   true,
+			name:    "not a string",
+			params:  `[20,42, []]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownContractCode,
 		},
 	},
 	"sendrawtransaction": {
@@ -1619,55 +1775,70 @@ var rpcTestCases = map[string][]rpcTestCase{
 			},
 		},
 		{
-			name:   "negative",
-			params: `["AAoAAAAxboUQOQGdOd/Cw31sP+4Z/VgJhwAAAAAAAAAA8q0FAAAAAACwBAAAAAExboUQOQGdOd/Cw31sP+4Z/VgJhwFdAwDodkgXAAAADBQgcoJ0r6/Db0OgcdMoz6PmKdnLsAwUMW6FEDkBnTnfwsN9bD/uGf1YCYcTwAwIdHJhbnNmZXIMFIl3INjNdvTwCr+jfA7diJwgj96bQWJ9W1I4AUIMQN+VMUEnEWlCHOurXSegFj4pTXx/LQUltEmHRTRIFP09bFxZHJsXI9BdQoVvQJrbCEz2esySHPr8YpEzpeteen4pDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcILQQqQav8="]`,
-			fail:   true,
+			name:    "already in pool",
+			params:  `["AB0AAACWP5gAAAAAAEDaEgAAAAAAGAAAAAHunqIsJ+NL0BSPxBCOCPdOj1BIsoAAXgsDAOh2SBcAAAAMFBEmW7QXJQBBvgTo+iQOOPV8HlabDBTunqIsJ+NL0BSPxBCOCPdOj1BIshTAHwwIdHJhbnNmZXIMFPVj6kC8KD1NDgXEjqMFs/Kgc0DvQWJ9W1IBQgxAJ6norhWoZxp+Hj1JFhi+Z3qI9DUkLSbfsbaLSaJIqxTfdmPbNFDVK1G+oa+LWmpRp/bj9+QZM7yC+S6HXUI7rigMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwkFW57Mn"]`,
+			fail:    true,
+			errCode: neorpc.ErrAlreadyInPoolCode,
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "negative",
+			params:  `["AAoAAAAxboUQOQGdOd/Cw31sP+4Z/VgJhwAAAAAAAAAA8q0FAAAAAACwBAAAAAExboUQOQGdOd/Cw31sP+4Z/VgJhwFdAwDodkgXAAAADBQgcoJ0r6/Db0OgcdMoz6PmKdnLsAwUMW6FEDkBnTnfwsN9bD/uGf1YCYcTwAwIdHJhbnNmZXIMFIl3INjNdvTwCr+jfA7diJwgj96bQWJ9W1I4AUIMQN+VMUEnEWlCHOurXSegFj4pTXx/LQUltEmHRTRIFP09bFxZHJsXI9BdQoVvQJrbCEz2esySHPr8YpEzpeteen4pDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcILQQqQav8="]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid string",
-			params: `["notabase64%"]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid tx",
-			params: `["AnTXkgcmF3IGNvbnRyYWNw=="]`,
-			fail:   true,
+			name:    "invalid string",
+			params:  `["notabase64%"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid tx",
+			params:  `["AnTXkgcmF3IGNvbnRyYWNw=="]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 	},
 	"submitblock": {
 		{
-			name:   "invalid base64",
-			params: `["%%%"]`,
-			fail:   true,
+			name:    "invalid base64",
+			params:  `["%%%"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "invalid block bytes",
-			params: `["AAAAACc="]`,
-			fail:   true,
+			name:    "invalid block bytes",
+			params:  `["AAAAACc="]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 	},
 	"submitoracleresponse": {
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.ErrOracleDisabledCode,
 		},
 	},
 	"submitnotaryrequest": {
 		{
-			name:   "no params",
-			params: `[]`,
-			fail:   true,
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
 		},
 	},
 	"validateaddress": {
@@ -1692,6 +1863,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 				}
 			},
 		},
+		{
+			name:    "no params",
+			params:  "[]",
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
 	},
 }
 
@@ -1706,65 +1883,79 @@ func TestRPC(t *testing.T) {
 }
 
 func TestSubmitOracle(t *testing.T) {
+	rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitoracleresponse", "params": %s}`
+
+	t.Run("OracleDisabled", func(t *testing.T) {
+		chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
+			c.ApplicationConfiguration.Oracle.Enabled = false
+		})
+		defer chain.Close()
+		defer rpcSrv.Shutdown()
+		req := fmt.Sprintf(rpc, "[]")
+		body := doRPCCallOverHTTP(req, httpSrv.URL, t)
+		checkErrGetResult(t, body, true, neorpc.ErrOracleDisabledCode)
+	})
+
 	chain, rpcSrv, httpSrv := initClearServerWithServices(t, true, false, false)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitoracleresponse", "params": %s}`
-	runCase := func(t *testing.T, fail bool, params ...string) func(t *testing.T) {
+	runCase := func(t *testing.T, fail bool, errCode int64, params ...string) func(t *testing.T) {
 		return func(t *testing.T) {
 			ps := `[` + strings.Join(params, ",") + `]`
 			req := fmt.Sprintf(rpc, ps)
 			body := doRPCCallOverHTTP(req, httpSrv.URL, t)
-			checkErrGetResult(t, body, fail)
+			checkErrGetResult(t, body, fail, errCode)
 		}
 	}
-	t.Run("MissingKey", runCase(t, true))
-	t.Run("InvalidKey", runCase(t, true, `"1234"`))
+	t.Run("MissingKey", runCase(t, true, neorpc.InvalidParamsCode))
+	t.Run("InvalidKey", runCase(t, true, neorpc.InvalidParamsCode, `"1234"`))
 
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 	pubStr := `"` + base64.StdEncoding.EncodeToString(priv.PublicKey().Bytes()) + `"`
-	t.Run("InvalidReqID", runCase(t, true, pubStr, `"notanumber"`))
-	t.Run("InvalidTxSignature", runCase(t, true, pubStr, `1`, `"qwerty"`))
+	t.Run("InvalidReqID", runCase(t, true, neorpc.InvalidParamsCode, pubStr, `"notanumber"`))
+	t.Run("InvalidTxSignature", runCase(t, true, neorpc.InvalidParamsCode, pubStr, `1`, `"qwerty"`))
 
 	txSig := priv.Sign([]byte{1, 2, 3})
 	txSigStr := `"` + base64.StdEncoding.EncodeToString(txSig) + `"`
-	t.Run("MissingMsgSignature", runCase(t, true, pubStr, `1`, txSigStr))
-	t.Run("InvalidMsgSignature", runCase(t, true, pubStr, `1`, txSigStr, `"0123"`))
+	t.Run("MissingMsgSignature", runCase(t, true, neorpc.InvalidParamsCode, pubStr, `1`, txSigStr))
+	t.Run("InvalidMsgSignature", runCase(t, true, neorpc.ErrInvalidSignatureCode, pubStr, `1`, txSigStr, `"0123"`))
 
 	msg := rpc2.GetMessage(priv.PublicKey().Bytes(), 1, txSig)
 	msgSigStr := `"` + base64.StdEncoding.EncodeToString(priv.Sign(msg)) + `"`
-	t.Run("Valid", runCase(t, false, pubStr, `1`, txSigStr, msgSigStr))
+	t.Run("Valid", runCase(t, false, 0, pubStr, `1`, txSigStr, msgSigStr))
 }
 
 func TestSubmitNotaryRequest(t *testing.T) {
 	rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitnotaryrequest", "params": %s}`
 
 	t.Run("disabled P2PSigExtensions", func(t *testing.T) {
-		chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, false)
+		chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
+			c.ProtocolConfiguration.P2PSigExtensions = false
+		})
 		defer chain.Close()
 		defer rpcSrv.Shutdown()
 		req := fmt.Sprintf(rpc, "[]")
 		body := doRPCCallOverHTTP(req, httpSrv.URL, t)
-		checkErrGetResult(t, body, true)
+		checkErrGetResult(t, body, true, neorpc.InternalServerErrorCode)
 	})
 
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	runCase := func(t *testing.T, fail bool, params ...string) func(t *testing.T) {
+	runCase := func(t *testing.T, fail bool, errCode int64, params ...string) func(t *testing.T) {
 		return func(t *testing.T) {
 			ps := `[` + strings.Join(params, ",") + `]`
 			req := fmt.Sprintf(rpc, ps)
 			body := doRPCCallOverHTTP(req, httpSrv.URL, t)
-			checkErrGetResult(t, body, fail)
+			checkErrGetResult(t, body, fail, errCode)
 		}
 	}
-	t.Run("missing request", runCase(t, true))
-	t.Run("not a base64", runCase(t, true, `"not-a-base64$"`))
-	t.Run("invalid request bytes", runCase(t, true, `"not-a-request"`))
+	t.Run("missing request", runCase(t, true, neorpc.InvalidParamsCode))
+	t.Run("not a base64", runCase(t, true, neorpc.InvalidParamsCode, `"not-a-base64$"`))
+	t.Run("invalid request bytes", runCase(t, true, neorpc.InvalidParamsCode, `"not-a-request"`))
 	t.Run("invalid request", func(t *testing.T) {
 		mainTx := &transaction.Transaction{
 			Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
@@ -1800,7 +1991,7 @@ func TestSubmitNotaryRequest(t *testing.T) {
 		bytes, err := p.Bytes()
 		require.NoError(t, err)
 		str := fmt.Sprintf(`"%s"`, base64.StdEncoding.EncodeToString(bytes))
-		runCase(t, true, str)(t)
+		runCase(t, true, neorpc.ErrVerificationFailedCode, str)(t)
 	})
 	t.Run("valid request", func(t *testing.T) {
 		sender := testchain.PrivateKeyByID(0) // owner of the deposit in testchain
@@ -1808,7 +1999,7 @@ func TestSubmitNotaryRequest(t *testing.T) {
 		bytes, err := p.Bytes()
 		require.NoError(t, err)
 		str := fmt.Sprintf(`"%s"`, base64.StdEncoding.EncodeToString(bytes))
-		runCase(t, false, str)(t)
+		runCase(t, false, 0, str)(t)
 	})
 }
 
@@ -1856,6 +2047,30 @@ func createValidNotaryRequest(chain *core.Blockchain, sender *keys.PrivateKey, n
 	return p
 }
 
+func runTestCasesWithExecutor(t *testing.T, e *executor, rpcCall string, method string, testCases []rpcTestCase, doRPCCall func(string, string, *testing.T) []byte, checkErrResult func(t *testing.T, body []byte, expectingFail bool, expectedErrCode int64, expectedErr ...string) json.RawMessage) {
+	t.Run(method, func(t *testing.T) {
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				body := doRPCCall(fmt.Sprintf(rpcCall, method, tc.params), e.httpSrv.URL, t)
+				result := checkErrResult(t, body, tc.fail, tc.errCode)
+				if tc.fail {
+					return
+				}
+
+				expected, res := tc.getResultPair(e)
+				err := json.Unmarshal(result, res)
+				require.NoErrorf(t, err, "could not parse response: %s", result)
+
+				if tc.check == nil {
+					assert.Equal(t, expected, res)
+				} else {
+					tc.check(t, e, res)
+				}
+			})
+		}
+	})
+}
+
 // testRPCProtocol runs a full set of tests using given callback to make actual
 // calls. Some tests change the chain state, thus we reinitialize the chain from
 // scratch here.
@@ -1867,30 +2082,9 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 	e := &executor{chain: chain, httpSrv: httpSrv}
 	t.Run("single request", func(t *testing.T) {
+		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "%s", "params": %s}`
 		for method, cases := range rpcTestCases {
-			t.Run(method, func(t *testing.T) {
-				rpc := `{"jsonrpc": "2.0", "id": 1, "method": "%s", "params": %s}`
-
-				for _, tc := range cases {
-					t.Run(tc.name, func(t *testing.T) {
-						body := doRPCCall(fmt.Sprintf(rpc, method, tc.params), httpSrv.URL, t)
-						result := checkErrGetResult(t, body, tc.fail)
-						if tc.fail {
-							return
-						}
-
-						expected, res := tc.getResultPair(e)
-						err := json.Unmarshal(result, res)
-						require.NoErrorf(t, err, "could not parse response: %s", result)
-
-						if tc.check == nil {
-							assert.Equal(t, expected, res)
-						} else {
-							tc.check(t, e, res)
-						}
-					})
-				}
-			})
+			runTestCasesWithExecutor(t, e, rpc, method, cases, doRPCCall, checkErrGetResult)
 		}
 	})
 	t.Run("batch with single request", func(t *testing.T) {
@@ -1898,29 +2092,8 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			if method == "sendrawtransaction" {
 				continue // cannot send the same transaction twice
 			}
-			t.Run(method, func(t *testing.T) {
-				rpc := `[{"jsonrpc": "2.0", "id": 1, "method": "%s", "params": %s}]`
-
-				for _, tc := range cases {
-					t.Run(tc.name, func(t *testing.T) {
-						body := doRPCCall(fmt.Sprintf(rpc, method, tc.params), httpSrv.URL, t)
-						result := checkErrGetBatchResult(t, body, tc.fail)
-						if tc.fail {
-							return
-						}
-
-						expected, res := tc.getResultPair(e)
-						err := json.Unmarshal(result, res)
-						require.NoErrorf(t, err, "could not parse response: %s", result)
-
-						if tc.check == nil {
-							assert.Equal(t, expected, res)
-						} else {
-							tc.check(t, e, res)
-						}
-					})
-				}
-			})
+			rpc := `[{"jsonrpc": "2.0", "id": 1, "method": "%s", "params": %s}]`
+			runTestCasesWithExecutor(t, e, rpc, method, cases, doRPCCall, checkErrGetBatchResult)
 		}
 	})
 
@@ -1975,7 +2148,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	t.Run("getapplicationlog for block", func(t *testing.T) {
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getapplicationlog", "params": ["%s"]}`
 		body := doRPCCall(fmt.Sprintf(rpc, e.chain.GetHeaderHash(1).StringLE()), httpSrv.URL, t)
-		data := checkErrGetResult(t, body, false)
+		data := checkErrGetResult(t, body, false, 0)
 		var res result.ApplicationLog
 		require.NoError(t, json.Unmarshal(data, &res))
 		require.Equal(t, 2, len(res.Executions))
@@ -1984,48 +2157,54 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.Equal(t, trigger.PostPersist, res.Executions[1].Trigger)
 		require.Equal(t, vmstate.Halt, res.Executions[1].VMState)
 	})
-
-	t.Run("submit", func(t *testing.T) {
+	t.Run("submitblock", func(t *testing.T) {
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitblock", "params": ["%s"]}`
 		t.Run("invalid signature", func(t *testing.T) {
 			s := testchain.NewBlock(t, chain, 1, 0)
 			s.Script.VerificationScript[8] ^= 0xff
-			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, s)), httpSrv.URL, t)
-			checkErrGetResult(t, body, true)
+			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, s)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrVerificationFailedCode)
 		})
-
-		priv0 := testchain.PrivateKeyByID(0)
-		acc0 := wallet.NewAccountFromPrivateKey(priv0)
-
-		addNetworkFee := func(tx *transaction.Transaction) {
-			size := io.GetVarSize(tx)
-			netFee, sizeDelta := fee.Calculate(chain.GetBaseExecFee(), acc0.Contract.Script)
-			tx.NetworkFee += netFee
-			size += sizeDelta
-			tx.NetworkFee += int64(size) * chain.FeePerByte()
-		}
-
-		newTx := func() *transaction.Transaction {
-			height := chain.BlockHeight()
-			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-			tx.Nonce = height + 1
-			tx.ValidUntilBlock = height + 10
-			tx.Signers = []transaction.Signer{{Account: acc0.PrivateKey().GetScriptHash()}}
-			addNetworkFee(tx)
-			require.NoError(t, acc0.SignTx(testchain.Network(), tx))
-			return tx
-		}
 
 		t.Run("invalid height", func(t *testing.T) {
-			b := testchain.NewBlock(t, chain, 2, 0, newTx())
-			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, b)), httpSrv.URL, t)
-			checkErrGetResult(t, body, true)
+			b := testchain.NewBlock(t, chain, 2, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 1, false))
+			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrAlreadyExistsCode)
 		})
-
+		t.Run("invalid script", func(t *testing.T) {
+			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, 0xDD, 10, 0, 1, false))
+			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrInvalidScriptCode)
+		})
+		t.Run("invalid ValidUntilBlock", func(t *testing.T) {
+			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 0, 0, 1, false))
+			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrExpiredTransactionCode)
+		})
+		t.Run("invalid SystemFee", func(t *testing.T) {
+			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 999999999999, 1, false))
+			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrPolicyFailedCode)
+		})
+		t.Run("invalid NetworkFee", func(t *testing.T) {
+			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 0, false))
+			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrInsufficientNetworkFeeCode)
+		})
+		t.Run("invalid attribute", func(t *testing.T) {
+			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 2, true))
+			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrInvalidAttributeCode)
+		})
+		t.Run("insufficient funds", func(t *testing.T) {
+			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 899999999999, 1, false))
+			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrInsufficientFundsCode)
+		})
 		t.Run("positive", func(t *testing.T) {
-			b := testchain.NewBlock(t, chain, 1, 0, newTx())
-			body := doRPCCall(fmt.Sprintf(rpc, encodeBlock(t, b)), httpSrv.URL, t)
-			data := checkErrGetResult(t, body, false)
+			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 1, false))
+			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
+			data := checkErrGetResult(t, body, false, 0)
 			var res = new(result.RelayResult)
 			require.NoError(t, json.Unmarshal(data, res))
 			require.Equal(t, b.Hash(), res.Hash)
@@ -2038,7 +2217,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getproof", "params": ["%s", "%s", "%s"]}`,
 			r.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("testkey")))
 		body := doRPCCall(rpc, httpSrv.URL, t)
-		rawRes := checkErrGetResult(t, body, false)
+		rawRes := checkErrGetResult(t, body, false, 0)
 		res := new(result.ProofWithKey)
 		require.NoError(t, json.Unmarshal(rawRes, res))
 		h, _ := util.Uint160DecodeStringLE(testContractHash)
@@ -2049,7 +2228,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		rpc = fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "verifyproof", "params": ["%s", "%s"]}`,
 			r.Root.StringLE(), res.String())
 		body = doRPCCall(rpc, httpSrv.URL, t)
-		rawRes = checkErrGetResult(t, body, false)
+		rawRes = checkErrGetResult(t, body, false, 0)
 		vp := new(result.VerifyProof)
 		require.NoError(t, json.Unmarshal(rawRes, vp))
 		require.Equal(t, []byte("testvalue"), vp.Value)
@@ -2058,7 +2237,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		testRoot := func(t *testing.T, p string) {
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getstateroot", "params": [%s]}`, p)
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			rawRes := checkErrGetResult(t, body, false)
+			rawRes := checkErrGetResult(t, body, false, 0)
 
 			res := &state.MPTRoot{}
 			require.NoError(t, json.Unmarshal(rawRes, res))
@@ -2073,7 +2252,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		t.Run("20", func(t *testing.T) {
 			rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getstateroot", "params": [20]}`
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			rawRes := checkErrGetResult(t, body, false)
+			rawRes := checkErrGetResult(t, body, false, 0)
 
 			res := &state.MPTRoot{}
 			require.NoError(t, json.Unmarshal(rawRes, res))
@@ -2081,10 +2260,10 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		})
 	})
 	t.Run("getstate", func(t *testing.T) {
+		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getstate", "params": [%s]}`
 		testGetState := func(t *testing.T, p string, expected string) {
-			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getstate", "params": [%s]}`, p)
-			body := doRPCCall(rpc, httpSrv.URL, t)
-			rawRes := checkErrGetResult(t, body, false)
+			body := doRPCCall(fmt.Sprintf(rpc, p), httpSrv.URL, t)
+			rawRes := checkErrGetResult(t, body, false, 0)
 
 			var actual string
 			require.NoError(t, json.Unmarshal(rawRes, &actual))
@@ -2096,6 +2275,14 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			// `testkey`-`testvalue` pair was put to the contract storage at block #3
 			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("testkey")))
 			testGetState(t, params, base64.StdEncoding.EncodeToString([]byte("testvalue")))
+		})
+		t.Run("negative: invalid key", func(t *testing.T) {
+			root, err := e.chain.GetStateModule().GetStateRoot(4)
+			require.NoError(t, err)
+			// `testkey`-`testvalue` pair was put to the contract storage at block #3
+			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("invalidkey")))
+			body := doRPCCall(fmt.Sprintf(rpc, params), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode)
 		})
 		t.Run("good: fresh state", func(t *testing.T) {
 			root, err := e.chain.GetStateModule().GetStateRoot(16)
@@ -2109,7 +2296,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		testFindStates := func(t *testing.T, p string, root util.Uint256, expected result.FindStates) {
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "findstates", "params": [%s]}`, p)
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			rawRes := checkErrGetResult(t, body, false)
+			rawRes := checkErrGetResult(t, body, false, 0)
 
 			var actual result.FindStates
 			require.NoError(t, json.Unmarshal(rawRes, &actual))
@@ -2119,7 +2306,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				rpc = fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "verifyproof", "params": ["%s", "%s"]}`,
 					root.StringLE(), proof.String())
 				body = doRPCCall(rpc, httpSrv.URL, t)
-				rawRes = checkErrGetResult(t, body, false)
+				rawRes = checkErrGetResult(t, body, false, 0)
 				vp := new(result.VerifyProof)
 				require.NoError(t, json.Unmarshal(rawRes, vp))
 				require.Equal(t, value, vp.Value)
@@ -2221,7 +2408,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		tx := block.Transactions[0]
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s"]}"`, tx.Hash().StringLE())
 		body := doRPCCall(rpc, httpSrv.URL, t)
-		result := checkErrGetResult(t, body, false)
+		result := checkErrGetResult(t, body, false, 0)
 		var res string
 		err := json.Unmarshal(result, &res)
 		require.NoErrorf(t, err, "could not parse response: %s", result)
@@ -2236,7 +2423,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		tx := block.Transactions[0]
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 0]}"`, tx.Hash().StringLE())
 		body := doRPCCall(rpc, httpSrv.URL, t)
-		result := checkErrGetResult(t, body, false)
+		result := checkErrGetResult(t, body, false, 0)
 		var res string
 		err := json.Unmarshal(result, &res)
 		require.NoErrorf(t, err, "could not parse response: %s", result)
@@ -2252,7 +2439,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		_ = block.Transactions[0].Size()
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getrawtransaction", "params": ["%s", 1]}"`, TXHash.StringLE())
 		body := doRPCCall(rpc, httpSrv.URL, t)
-		txOut := checkErrGetResult(t, body, false)
+		txOut := checkErrGetResult(t, body, false, 0)
 		actual := result.TransactionOutputRaw{Transaction: transaction.Transaction{}}
 		err := json.Unmarshal(txOut, &actual)
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
@@ -2269,7 +2456,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		runCase := func(t *testing.T, rpc string, expected, actual any) {
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			data := checkErrGetResult(t, body, false)
+			data := checkErrGetResult(t, body, false, 0)
 			require.NoError(t, json.Unmarshal(data, actual))
 			require.Equal(t, expected, actual)
 		}
@@ -2325,7 +2512,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "getrawmempool", "params": []}`
 		body := doRPCCall(rpc, httpSrv.URL, t)
-		res := checkErrGetResult(t, body, false)
+		res := checkErrGetResult(t, body, false, 0)
 
 		var actual []util.Uint256
 		err := json.Unmarshal(res, &actual)
@@ -2366,7 +2553,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			p := strings.Join(ps, ", ")
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getnep17transfers", "params": [%s]}`, p)
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			res := checkErrGetResult(t, body, false)
+			res := checkErrGetResult(t, body, false, 0)
 			actual := new(result.NEP17Transfers)
 			require.NoError(t, json.Unmarshal(res, actual))
 			checkNep17TransfersAux(t, e, actual, sent, rcvd)
@@ -2382,7 +2569,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	prepareIteratorSession := func(t *testing.T) (uuid.UUID, uuid.UUID) {
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "invokefunction", "params": ["%s", "iterateOverValues"]}"`, storageContractHash)
 		body := doRPCCall(rpc, httpSrv.URL, t)
-		resp := checkErrGetResult(t, body, false)
+		resp := checkErrGetResult(t, body, false, 0)
 		res := new(result.Invoke)
 		err := json.Unmarshal(resp, &res)
 		require.NoErrorf(t, err, "could not parse response: %s", resp)
@@ -2395,12 +2582,19 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		return res.Session, *iterator.ID
 	}
 	t.Run("traverseiterator", func(t *testing.T) {
+		t.Run("sessions disabled", func(t *testing.T) {
+			_, _, httpSrv2 := initClearServerWithCustomConfig(t, func(c *config.Config) {
+				c.ApplicationConfiguration.RPC.SessionEnabled = false
+			})
+			body := doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": []}"`, httpSrv2.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrSessionsDisabledCode)
+		})
 		t.Run("good", func(t *testing.T) {
 			sID, iID := prepareIteratorSession(t)
 			expectedCount := 99
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, sID.String(), iID.String(), expectedCount)
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			resp := checkErrGetResult(t, body, false)
+			resp := checkErrGetResult(t, body, false, 0)
 			res := new([]json.RawMessage)
 			require.NoError(t, json.Unmarshal(resp, res))
 			require.Equal(t, expectedCount, len(*res))
@@ -2409,66 +2603,65 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			_, iID := prepareIteratorSession(t)
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["not-a-uuid", "%s", %d]}"`, iID.String(), 1)
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			checkErrGetResult(t, body, true, "invalid session ID: not a valid UUID")
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "invalid session ID: not a valid UUID")
 		})
 		t.Run("invalid iterator id", func(t *testing.T) {
 			sID, _ := prepareIteratorSession(t)
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "not-a-uuid", %d]}"`, sID.String(), 1)
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			checkErrGetResult(t, body, true, "invalid iterator ID: not a valid UUID")
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "invalid iterator ID: not a valid UUID")
 		})
 		t.Run("invalid items count", func(t *testing.T) {
 			sID, iID := prepareIteratorSession(t)
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s"]}"`, sID.String(), iID.String())
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			checkErrGetResult(t, body, true, "invalid iterator items count")
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "invalid iterator items count")
 		})
 		t.Run("items count is not an int32", func(t *testing.T) {
 			sID, iID := prepareIteratorSession(t)
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, sID.String(), iID.String(), math.MaxInt32+1)
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			checkErrGetResult(t, body, true, "invalid iterator items count: not an int32")
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "invalid iterator items count: not an int32")
 		})
 		t.Run("count is out of range", func(t *testing.T) {
 			sID, iID := prepareIteratorSession(t)
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, sID.String(), iID.String(), rpcSrv.config.MaxIteratorResultItems+1)
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			checkErrGetResult(t, body, true, fmt.Sprintf("iterator items count is out of range (%d at max)", rpcSrv.config.MaxIteratorResultItems))
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, fmt.Sprintf("iterator items count is out of range (%d at max)", rpcSrv.config.MaxIteratorResultItems))
 		})
 		t.Run("unknown session", func(t *testing.T) {
 			_, iID := prepareIteratorSession(t)
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, uuid.NewString(), iID.String(), 1)
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			resp := checkErrGetResult(t, body, false)
-			res := new([]json.RawMessage)
-			require.NoError(t, json.Unmarshal(resp, res))
-			require.Equal(t, 0, len(*res)) // No errors expected, no elements should be returned.
+			checkErrGetResult(t, body, true, neorpc.ErrUnknownSessionCode)
 		})
 		t.Run("unknown iterator", func(t *testing.T) {
 			sID, _ := prepareIteratorSession(t)
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, sID.String(), uuid.NewString(), 1)
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			resp := checkErrGetResult(t, body, false)
-			res := new([]json.RawMessage)
-			require.NoError(t, json.Unmarshal(resp, res))
-			require.Equal(t, 0, len(*res)) // No errors expected, no elements should be returned.
+			checkErrGetResult(t, body, true, neorpc.ErrUnknownIteratorCode)
 		})
 	})
 	t.Run("terminatesession", func(t *testing.T) {
-		check := func(t *testing.T, id string, expected bool) {
-			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "terminatesession", "params": ["%s"]}"`, id)
-			body := doRPCCall(rpc, httpSrv.URL, t)
-			resp := checkErrGetResult(t, body, false)
-			res := new(bool)
-			require.NoError(t, json.Unmarshal(resp, res))
-			require.Equal(t, expected, *res)
-		}
+		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "terminatesession", "params": ["%s"]}"`
+		t.Run("sessions disabled", func(t *testing.T) {
+			_, _, httpSrv2 := initClearServerWithCustomConfig(t, func(c *config.Config) {
+				c.ApplicationConfiguration.RPC.SessionEnabled = false
+			})
+			body := doRPCCall(fmt.Sprintf(rpc, uuid.NewString()), httpSrv2.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrSessionsDisabledCode)
+		})
 		t.Run("true", func(t *testing.T) {
 			sID, _ := prepareIteratorSession(t)
-			check(t, sID.String(), true)
+			body := doRPCCall(fmt.Sprintf(rpc, sID.String()), httpSrv.URL, t)
+			resp := checkErrGetResult(t, body, false, 0)
+			res := new(bool)
+			require.NoError(t, json.Unmarshal(resp, res))
+			require.Equal(t, true, *res)
 		})
 		t.Run("false", func(t *testing.T) {
-			check(t, uuid.NewString(), false)
+			body := doRPCCall(fmt.Sprintf(rpc, uuid.NewString()), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrUnknownSessionCode)
 		})
 		t.Run("expired", func(t *testing.T) {
 			_, _ = prepareIteratorSession(t)
@@ -2483,15 +2676,15 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	t.Run("calculatenetworkfee", func(t *testing.T) {
 		t.Run("no parameters", func(t *testing.T) {
 			body := doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": []}"`, httpSrv.URL, t)
-			_ = checkErrGetResult(t, body, true, "Invalid Params")
+			_ = checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "Invalid Params")
 		})
 		t.Run("non-base64 parameter", func(t *testing.T) {
 			body := doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": ["noatbase64"]}"`, httpSrv.URL, t)
-			_ = checkErrGetResult(t, body, true, "Invalid Params")
+			_ = checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "Invalid Params")
 		})
 		t.Run("non-transaction parameter", func(t *testing.T) {
 			body := doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": ["bm90IGEgdHJhbnNhY3Rpb24K"]}"`, httpSrv.URL, t)
-			_ = checkErrGetResult(t, body, true, "Invalid Params")
+			_ = checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "Invalid Params")
 		})
 		calcReq := func(t *testing.T, tx *transaction.Transaction) []byte {
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": ["%s"]}"`, base64.StdEncoding.EncodeToString(tx.Bytes()))
@@ -2507,7 +2700,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				}},
 			}
 			body := calcReq(t, tx)
-			_ = checkErrGetResult(t, body, true, "signer 0 has no verification script and no deployed contract")
+			_ = checkErrGetResult(t, body, true, neorpc.ErrInvalidVerificationFunctionCode, "signer 0 has no verification script and no deployed contract")
 		})
 		t.Run("contract with no verify", func(t *testing.T) {
 			tx := &transaction.Transaction{
@@ -2519,10 +2712,10 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				}},
 			}
 			body := calcReq(t, tx)
-			_ = checkErrGetResult(t, body, true, "signer 0 has no verify method in deployed contract")
+			_ = checkErrGetResult(t, body, true, neorpc.ErrInvalidVerificationFunctionCode, "signer 0 has no verify method in deployed contract")
 		})
 		checkCalc := func(t *testing.T, tx *transaction.Transaction, fee int64) {
-			resp := checkErrGetResult(t, calcReq(t, tx), false)
+			resp := checkErrGetResult(t, calcReq(t, tx), false, 0)
 			res := new(result.NetworkFee)
 			require.NoError(t, json.Unmarshal(resp, res))
 			require.Equal(t, fee, res.Value)
@@ -2596,6 +2789,87 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			checkContract(t, verAcc, invocScript, 146960) // No C# match, but we believe it's OK and it has a specific invocation script overriding anything server-side.
 		})
 	})
+	t.Run("sendrawtransaction", func(t *testing.T) {
+		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "sendrawtransaction", "params": ["%s"]}`
+		t.Run("invalid signature", func(t *testing.T) {
+			tx := newTxWithParams(t, chain, opcode.PUSH1, 10, 1, 1, false)
+			tx.Scripts[0].InvocationScript[10] = ^tx.Scripts[0].InvocationScript[10]
+			rawTx := encodeBinaryToString(t, tx)
+			body := doRPCCall(fmt.Sprintf(rpc, rawTx), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrInvalidSignatureCode)
+		})
+		t.Run("too big tx", func(t *testing.T) {
+			script := make([]byte, transaction.MaxScriptLength)
+			for i := range script {
+				script[i] = byte(opcode.PUSH0)
+			}
+			groups := make([]*keys.PublicKey, 16)
+			for i := range groups {
+				pk, _ := keys.NewPrivateKey()
+				groups[i] = pk.PublicKey()
+			}
+			signers := make([]transaction.Signer, transaction.MaxAttributes)
+			for i := range signers {
+				signers[i] = transaction.Signer{
+					Account:          random.Uint160(),
+					Scopes:           transaction.CustomContracts | transaction.CustomGroups,
+					AllowedContracts: make([]util.Uint160, 16),
+					AllowedGroups:    groups,
+				}
+			}
+			scripts := make([]transaction.Witness, len(signers))
+			for i := range scripts {
+				scripts[i] = transaction.Witness{
+					InvocationScript:   random.Bytes(transaction.MaxInvocationScript),
+					VerificationScript: random.Bytes(transaction.MaxVerificationScript),
+				}
+			}
+			tx := &transaction.Transaction{
+				ValidUntilBlock: chain.BlockHeight() + 1,
+				Script:          script,
+				Attributes:      []transaction.Attribute{},
+				Signers:         signers,
+				Scripts:         scripts,
+			}
+			rawTx := encodeBinaryToString(t, tx)
+			body := doRPCCall(fmt.Sprintf(rpc, rawTx), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrInvalidSizeCode)
+		})
+		t.Run("mempool OOM", func(t *testing.T) {
+			chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
+				c.ProtocolConfiguration.MemPoolSize = 1
+			})
+
+			defer chain.Close()
+			defer rpcSrv.Shutdown()
+
+			// create and push the first (prioritized) transaction with increased networkFee
+			tx := newTxWithParams(t, chain, opcode.PUSH1, 10, 1, 2, false)
+			rawTx := encodeBinaryToString(t, tx)
+			body := doRPCCall(fmt.Sprintf(rpc, rawTx), httpSrv.URL, t)
+			checkErrGetResult(t, body, false, 0)
+
+			// create and push the second transaction with standard networkFee
+			tx2 := newTxWithParams(t, chain, opcode.PUSH1, 10, 1, 1, false)
+			rawTx2 := encodeBinaryToString(t, tx2)
+			body2 := doRPCCall(fmt.Sprintf(rpc, rawTx2), httpSrv.URL, t)
+			checkErrGetResult(t, body2, true, neorpc.ErrMempoolCapReachedCode)
+		})
+	})
+	t.Run("test functions with unsupported states", func(t *testing.T) {
+		chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
+			c.ApplicationConfiguration.Ledger.KeepOnlyLatestState = true
+		})
+
+		defer chain.Close()
+		defer rpcSrv.Shutdown()
+
+		e := &executor{chain: chain, httpSrv: httpSrv}
+		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "%s", "params": %s}`
+		for method, cases := range rpcFunctionsWithUnsupportedStatesTestCases {
+			runTestCasesWithExecutor(t, e, rpc, method, cases, doRPCCall, checkErrGetResult)
+		}
+	})
 }
 
 func (e *executor) getHeader(s string) *block.Header {
@@ -2610,11 +2884,37 @@ func (e *executor) getHeader(s string) *block.Header {
 	return &block.Header
 }
 
-func encodeBlock(t *testing.T, b *block.Block) string {
-	w := io.NewBufBinWriter()
-	b.EncodeBinary(w.BinWriter)
-	require.NoError(t, w.Err)
-	return base64.StdEncoding.EncodeToString(w.Bytes())
+func encodeBinaryToString(t *testing.T, a io.Serializable) string {
+	bytes, err := testserdes.EncodeBinary(a)
+	require.NoError(t, err)
+	return base64.StdEncoding.EncodeToString(bytes)
+}
+
+func newTxWithParams(t *testing.T, chain *core.Blockchain, code opcode.Opcode, validUntilIncr uint32, systemFee int64,
+	networkFeeMultiplier int64, addAttrNotValidBeforeT bool) *transaction.Transaction {
+	priv0 := testchain.PrivateKeyByID(0)
+	acc0 := wallet.NewAccountFromPrivateKey(priv0)
+
+	height := chain.BlockHeight()
+	tx := transaction.New([]byte{byte(code)}, 0)
+	tx.Nonce = height + 1
+	tx.ValidUntilBlock = height + validUntilIncr
+	tx.Signers = []transaction.Signer{{Account: acc0.PrivateKey().GetScriptHash()}}
+	tx.SystemFee = systemFee
+	// add network fee
+	size := io.GetVarSize(tx)
+	netFee, sizeDelta := fee.Calculate(chain.GetBaseExecFee(), acc0.Contract.Script)
+	tx.NetworkFee += netFee
+	size += sizeDelta
+	tx.NetworkFee += int64(size) * chain.FeePerByte()
+	tx.NetworkFee = tx.NetworkFee * networkFeeMultiplier
+	if addAttrNotValidBeforeT {
+		tx.Attributes = []transaction.Attribute{
+			{Type: transaction.NotValidBeforeT, Value: &transaction.NotValidBefore{Height: height + 1}},
+		}
+	}
+	require.NoError(t, acc0.SignTx(testchain.Network(), tx))
+	return tx
 }
 
 func (tc rpcTestCase) getResultPair(e *executor) (expected any, res any) {
@@ -2624,13 +2924,14 @@ func (tc rpcTestCase) getResultPair(e *executor) (expected any, res any) {
 	return expected, res
 }
 
-func checkErrGetResult(t *testing.T, body []byte, expectingFail bool, expectedErr ...string) json.RawMessage {
+func checkErrGetResult(t *testing.T, body []byte, expectingFail bool, expectedErrCode int64, expectedErr ...string) json.RawMessage {
 	var resp neorpc.Response
 	err := json.Unmarshal(body, &resp)
 	require.Nil(t, err)
 	if expectingFail {
 		require.NotNil(t, resp.Error)
 		assert.NotEqual(t, 0, resp.Error.Code)
+		assert.Equal(t, expectedErrCode, resp.Error.Code)
 		assert.NotEqual(t, "", resp.Error.Message)
 		if len(expectedErr) != 0 {
 			assert.True(t, strings.Contains(resp.Error.Error(), expectedErr[0]), fmt.Sprintf("expected: %s, got: %s", expectedErr[0], resp.Error.Error()))
@@ -2641,7 +2942,7 @@ func checkErrGetResult(t *testing.T, body []byte, expectingFail bool, expectedEr
 	return resp.Result
 }
 
-func checkErrGetBatchResult(t *testing.T, body []byte, expectingFail bool) json.RawMessage {
+func checkErrGetBatchResult(t *testing.T, body []byte, expectingFail bool, expectedErrCode int64, expectedErr ...string) json.RawMessage {
 	var resp []neorpc.Response
 	err := json.Unmarshal(body, &resp)
 	require.Nil(t, err)

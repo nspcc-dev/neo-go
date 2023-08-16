@@ -88,10 +88,12 @@ const (
 )
 
 var (
-	// ErrAlreadyExists is returned when trying to add some already existing
-	// transaction into the pool (not specifying whether it exists in the
-	// chain or mempool).
-	ErrAlreadyExists = errors.New("already exists")
+	// ErrAlreadyExists is returned when trying to add some transaction
+	// that already exists on chain.
+	ErrAlreadyExists = errors.New("already exists in blockchain")
+	// ErrAlreadyInPool is returned when trying to add some already existing
+	// transaction into the mempool.
+	ErrAlreadyInPool = errors.New("already exists in mempool")
 	// ErrOOM is returned when adding transaction to the memory pool because
 	// it reached its full capacity.
 	ErrOOM = errors.New("no space left in the memory pool")
@@ -2480,7 +2482,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	if err := bc.dao.HasTransaction(t.Hash(), t.Signers); err != nil {
 		switch {
 		case errors.Is(err, dao.ErrAlreadyExists):
-			return fmt.Errorf("blockchain: %w", ErrAlreadyExists)
+			return ErrAlreadyExists
 		case errors.Is(err, dao.ErrHasConflicts):
 			return fmt.Errorf("blockchain: %w", ErrHasConflicts)
 		default:
@@ -2500,7 +2502,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		case errors.Is(err, mempool.ErrConflict):
 			return ErrMemPoolConflict
 		case errors.Is(err, mempool.ErrDup):
-			return fmt.Errorf("mempool: %w", ErrAlreadyExists)
+			return ErrAlreadyInPool
 		case errors.Is(err, mempool.ErrInsufficientFunds):
 			return ErrInsufficientFunds
 		case errors.Is(err, mempool.ErrOOM):
@@ -2767,11 +2769,11 @@ var (
 	ErrWitnessHashMismatch         = errors.New("witness hash mismatch")
 	ErrNativeContractWitness       = errors.New("native contract witness must have empty verification script")
 	ErrVerificationFailed          = errors.New("signature check failed")
-	ErrInvalidInvocation           = errors.New("invalid invocation script")
+	ErrInvalidInvocationScript     = errors.New("invalid invocation script")
 	ErrInvalidSignature            = fmt.Errorf("%w: invalid signature", ErrVerificationFailed)
-	ErrInvalidVerification         = errors.New("invalid verification script")
+	ErrInvalidVerificationScript   = errors.New("invalid verification script")
 	ErrUnknownVerificationContract = errors.New("unknown verification contract")
-	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method")
+	ErrInvalidVerificationContract = errors.New("verification contract is missing `verify` method or `verify` method has unexpected return value")
 )
 
 // InitVerificationContext initializes context for witness check.
@@ -2785,7 +2787,7 @@ func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uin
 		}
 		err := vm.IsScriptCorrect(witness.VerificationScript, nil)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidVerification, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: %v", ErrInvalidVerificationScript, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 		ic.VM.LoadScriptWithHash(witness.VerificationScript, hash, callflag.ReadOnly)
 	} else {
@@ -2810,7 +2812,7 @@ func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uin
 	if len(witness.InvocationScript) != 0 {
 		err := vm.IsScriptCorrect(witness.InvocationScript, nil)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidInvocation, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: %v", ErrInvalidInvocationScript, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
 		}
 		ic.VM.LoadScript(witness.InvocationScript)
 	}
