@@ -36,3 +36,18 @@ func TestGenericMethodReceiver(t *testing.T) {
 		require.ErrorIs(t, err, compiler.ErrGenericsUnsuppored)
 	})
 }
+
+func TestGenericFuncArgument(t *testing.T) {
+	src := `
+		package sum
+		func SumInts[V int64 | int32 | int16](vals []V) V { // doesn't make sense with NeoVM, but still it's a valid go code.
+			var s V
+			for i := range vals {
+				s += vals[i]
+			}
+			return s
+		}
+`
+	_, _, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
+	require.ErrorIs(t, err, compiler.ErrGenericsUnsuppored)
+}

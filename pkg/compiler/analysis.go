@@ -563,6 +563,11 @@ func (c *codegen) checkGenericsFuncDecl(n *ast.FuncDecl, funcName string) error 
 		}
 	}
 
+	// Generic function parameters type: func SumInts[V int64 | int32](vals []V) V
+	if n.Type.TypeParams != nil {
+		errGenerics = errors.New("function type parameters")
+	}
+
 	if errGenerics != nil {
 		return fmt.Errorf("%w: %s has %s", ErrGenericsUnsuppored, funcName, errGenerics.Error())
 	}
