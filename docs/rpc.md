@@ -98,6 +98,13 @@ following data types:
 
 Any call that takes any of these types for input in JSON format is affected.
 
+##### Response error codes
+
+NeoGo currently uses a different set of error codes in comparison to C# implementation, see 
+[proposal](https://github.com/neo-project/proposals/pull/156).
+NeoGo retains certain deprecated error codes, which will be removed once 
+all nodes adopt the new error standard.
+
 ##### `calculatenetworkfee`
 
 NeoGo tries to cover more cases with its calculatenetworkfee implementation,
