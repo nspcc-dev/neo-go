@@ -19,6 +19,8 @@ var (
 	ErrMissingExportedParamName = errors.New("exported method is not allowed to have unnamed parameter")
 	// ErrInvalidExportedRetCount is returned when exported contract method has invalid return values count.
 	ErrInvalidExportedRetCount = errors.New("exported method is not allowed to have more than one return value")
+	// ErrGenericsUnsuppored is returned when generics-related tokens are encountered.
+	ErrGenericsUnsuppored = errors.New("generics are currently unsupported, please, see the https://github.com/nspcc-dev/neo-go/issues/2376")
 )
 
 var (
@@ -361,6 +363,13 @@ func (c *codegen) analyzeFuncAndGlobalVarUsage() funcUsage {
 			case *ast.FuncDecl:
 				name := c.getFuncNameFromDecl(pkgPath, n)
 
+				// filter out generic functions
+				err := c.checkGenericsFuncDecl(n, name)
+				if err != nil {
+					c.prog.Err = err
+					return false // Program is invalid.
+				}
+
 				// exported functions and methods are always assumed to be used
 				if isMain && n.Name.IsExported() || isInitFunc(n) || isDeployFunc(n) {
 					diff[name] = true
@@ -533,6 +542,32 @@ func (c *codegen) analyzeFuncAndGlobalVarUsage() funcUsage {
 		}
 	}
 	return usage
+}
+
+// checkGenericFuncDecl checks whether provided ast.FuncDecl has generic code.
+func (c *codegen) checkGenericsFuncDecl(n *ast.FuncDecl, funcName string) error {
+	var errGenerics error
+
+	// Generic function receiver.
+	if n.Recv != nil {
+		switch t := n.Recv.List[0].Type.(type) {
+		case *ast.StarExpr:
+			switch t.X.(type) {
+			case *ast.IndexExpr:
+				// func (x *Pointer[T]) Load() *T
+				errGenerics = errors.New("generic pointer function receiver")
+			}
+		case *ast.IndexExpr:
+			// func (x Structure[T]) Load() *T
+			errGenerics = errors.New("generic function receiver")
+		}
+	}
+
+	if errGenerics != nil {
+		return fmt.Errorf("%w: %s has %s", ErrGenericsUnsuppored, funcName, errGenerics.Error())
+	}
+
+	return nil
 }
 
 // nodeContext contains ast node with the corresponding import map, type info and package information
