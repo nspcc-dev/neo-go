@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 )
@@ -85,7 +86,23 @@ func (c *codegen) getFuncNameFromDecl(pkgPath string, decl *ast.FuncDecl) string
 		case *ast.Ident:
 			name = t.Name + "." + name
 		case *ast.StarExpr:
-			name = t.X.(*ast.Ident).Name + "." + name
+			switch t.X.(type) {
+			case *ast.Ident:
+				name = t.X.(*ast.Ident).Name + "." + name
+			case *ast.IndexExpr:
+				// Generic func declaration receiver: func (x *Pointer[T]) Load() *T
+				name = t.X.(*ast.IndexExpr).X.(*ast.Ident).Name + "." + name
+			default:
+				panic(fmt.Errorf("unexpected function `%s` receiver type: %T", name, t.X))
+			}
+		case *ast.IndexExpr:
+			switch t.X.(type) {
+			case *ast.Ident:
+				// Generic func declaration receiver: func (x Pointer[T]) Load() *T
+				name = t.X.(*ast.Ident).Name + "." + name
+			default:
+				panic(fmt.Errorf("unexpected function `%s` receiver type: %T", name, t.X))
+			}
 		}
 	}
 	return c.getIdentName(pkgPath, name)
