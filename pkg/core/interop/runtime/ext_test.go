@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/contracts"
@@ -643,26 +644,34 @@ func TestNotify(t *testing.T) {
 	}
 	t.Run("big name", func(t *testing.T) {
 		ic := newIC(string(make([]byte, runtime.MaxEventNameLen+1)), stackitem.NewArray([]stackitem.Item{stackitem.Null{}}))
-		require.Error(t, runtime.Notify(ic))
+		err := runtime.Notify(ic)
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "event name must be less than 32"), err)
 	})
 	t.Run("dynamic script", func(t *testing.T) {
 		ic := newIC("some", stackitem.Null{})
 		ic.VM.LoadScriptWithHash([]byte{1}, random.Uint160(), callflag.NoneFlag)
 		ic.VM.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(42)}))
 		ic.VM.Estack().PushVal("event")
-		require.Error(t, runtime.Notify(ic))
+		err := runtime.Notify(ic)
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "notifications are not allowed in dynamic scripts"), err)
 	})
 	t.Run("recursive struct", func(t *testing.T) {
 		arr := stackitem.NewArray([]stackitem.Item{stackitem.Null{}})
 		arr.Append(arr)
 		ic := newIC("event", stackitem.NewArray([]stackitem.Item{arr})) // upper array is needed to match manifest event signature.
-		require.Error(t, runtime.Notify(ic))
+		err := runtime.Notify(ic)
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "bad notification: recursive item"), err)
 	})
 	t.Run("big notification", func(t *testing.T) {
 		bs := stackitem.NewByteArray(make([]byte, runtime.MaxNotificationSize+1))
 		arr := stackitem.NewArray([]stackitem.Item{bs})
 		ic := newIC("event", arr)
-		require.Error(t, runtime.Notify(ic))
+		err := runtime.Notify(ic)
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "notification size shouldn't exceed 1024"), err)
 	})
 	t.Run("good", func(t *testing.T) {
 		arr := stackitem.NewArray([]stackitem.Item{stackitem.Make(42)})
