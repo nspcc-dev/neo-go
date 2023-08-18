@@ -470,7 +470,7 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	require.Equal(t, 3, len(aer.Events)) // transfer + GAS claim for sender + onPayment
 	e.CheckTxNotificationEvent(t, h, 1, state.NotificationEvent{
 		ScriptHash: cs.Hash,
-		Name:       "LastPayment",
+		Name:       "LastPaymentNEP17",
 		Item: stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(neoValidatorsInvoker.Hash.BytesBE()),
 			stackitem.NewByteArray(e.Validator.ScriptHash().BytesBE()),
@@ -484,7 +484,7 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	require.Equal(t, 5, len(aer.Events))                         // Now we must also have GAS claim for contract and corresponding `onPayment`.
 	e.CheckTxNotificationEvent(t, h, 1, state.NotificationEvent{ // onPayment for NEO transfer
 		ScriptHash: cs.Hash,
-		Name:       "LastPayment",
+		Name:       "LastPaymentNEP17",
 		Item: stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(e.NativeHash(t, nativenames.Neo).BytesBE()),
 			stackitem.NewByteArray(e.Validator.ScriptHash().BytesBE()),
@@ -494,7 +494,7 @@ func TestNEO_TransferOnPayment(t *testing.T) {
 	})
 	e.CheckTxNotificationEvent(t, h, 4, state.NotificationEvent{ // onPayment for GAS claim
 		ScriptHash: cs.Hash,
-		Name:       "LastPayment",
+		Name:       "LastPaymentNEP17",
 		Item: stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(e.NativeHash(t, nativenames.Gas).BytesBE()),
 			stackitem.Null{},

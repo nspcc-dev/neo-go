@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -83,14 +84,23 @@ func Notify(ic *interop.Context) error {
 	if err != nil {
 		return errors.New("notifications are not allowed in dynamic scripts")
 	}
-	ev := ctr.Manifest.ABI.GetEvent(name)
+	var (
+		ev       = ctr.Manifest.ABI.GetEvent(name)
+		checkErr error
+	)
 	if ev == nil {
-		ic.Log.Info("bad notification", zap.String("contract", curHash.StringLE()), zap.String("event", name), zap.Error(fmt.Errorf("event %s does not exist", name)))
+		checkErr = fmt.Errorf("notification %s does not exist", name)
 	} else {
 		err = ev.CheckCompliance(args)
 		if err != nil {
-			ic.Log.Info("bad notification", zap.String("contract", curHash.StringLE()), zap.String("event", name), zap.Error(err))
+			checkErr = fmt.Errorf("notification %s is invalid: %w", name, err)
 		}
+	}
+	if checkErr != nil {
+		if ic.IsHardforkEnabled(config.HFBasilisk) {
+			return checkErr
+		}
+		ic.Log.Info("bad notification", zap.String("contract", curHash.StringLE()), zap.String("event", name), zap.Error(checkErr))
 	}
 
 	// But it has to be serializable, otherwise we either have some broken

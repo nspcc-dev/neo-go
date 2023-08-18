@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/contracts"
@@ -643,40 +644,108 @@ func TestNotify(t *testing.T) {
 	}
 	t.Run("big name", func(t *testing.T) {
 		ic := newIC(string(make([]byte, runtime.MaxEventNameLen+1)), stackitem.NewArray([]stackitem.Item{stackitem.Null{}}))
-		require.Error(t, runtime.Notify(ic))
+		err := runtime.Notify(ic)
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "event name must be less than 32"), err)
 	})
 	t.Run("dynamic script", func(t *testing.T) {
 		ic := newIC("some", stackitem.Null{})
 		ic.VM.LoadScriptWithHash([]byte{1}, random.Uint160(), callflag.NoneFlag)
 		ic.VM.Estack().PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(42)}))
 		ic.VM.Estack().PushVal("event")
-		require.Error(t, runtime.Notify(ic))
+		err := runtime.Notify(ic)
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "notifications are not allowed in dynamic scripts"), err)
 	})
 	t.Run("recursive struct", func(t *testing.T) {
 		arr := stackitem.NewArray([]stackitem.Item{stackitem.Null{}})
 		arr.Append(arr)
-		ic := newIC("event", arr)
-		require.Error(t, runtime.Notify(ic))
+		ic := newIC("event", stackitem.NewArray([]stackitem.Item{arr})) // upper array is needed to match manifest event signature.
+		err := runtime.Notify(ic)
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "bad notification: recursive item"), err)
 	})
 	t.Run("big notification", func(t *testing.T) {
 		bs := stackitem.NewByteArray(make([]byte, runtime.MaxNotificationSize+1))
 		arr := stackitem.NewArray([]stackitem.Item{bs})
 		ic := newIC("event", arr)
-		require.Error(t, runtime.Notify(ic))
+		err := runtime.Notify(ic)
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), "notification size shouldn't exceed 1024"), err)
 	})
 	t.Run("good", func(t *testing.T) {
 		arr := stackitem.NewArray([]stackitem.Item{stackitem.Make(42)})
-		ic := newIC("good event", arr)
+		ic := newIC("event", arr)
 		require.NoError(t, runtime.Notify(ic))
 		require.Equal(t, 1, len(ic.Notifications))
 
 		arr.MarkAsReadOnly() // tiny hack for test to be able to compare object references.
 		ev := ic.Notifications[0]
-		require.Equal(t, "good event", ev.Name)
+		require.Equal(t, "event", ev.Name)
 		require.Equal(t, ic.VM.GetCurrentScriptHash(), ev.ScriptHash)
 		require.Equal(t, arr, ev.Item)
 		// Check deep copy.
 		arr.Value().([]stackitem.Item)[0] = stackitem.Null{}
 		require.NotEqual(t, arr, ev.Item)
 	})
+}
+
+func TestSystemRuntimeNotify_HFBasilisk(t *testing.T) {
+	const ntfName = "Hello, world!"
+
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Hardforks = map[string]uint32{
+			config.HFBasilisk.String(): 2,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	script := io.NewBufBinWriter()
+	emit.Array(script.BinWriter, stackitem.Make(true)) // Boolean instead of Integer declared in manifest
+	emit.String(script.BinWriter, ntfName)
+	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeNotify)
+	require.NoError(t, script.Err)
+	ne, err := nef.NewFile(script.Bytes())
+	require.NoError(t, err)
+
+	m := &manifest.Manifest{
+		Name: "ctr",
+		ABI: manifest.ABI{
+			Methods: []manifest.Method{
+				{
+					Name:       "main",
+					Offset:     0,
+					ReturnType: smartcontract.VoidType,
+				},
+			},
+			Events: []manifest.Event{
+				{
+					Name: ntfName,
+					Parameters: []manifest.Parameter{
+						{
+							Name: "int",
+							Type: smartcontract.IntegerType,
+						},
+					},
+				},
+			},
+		},
+	}
+	ctr := &neotest.Contract{
+		Hash:     state.CreateContractHash(e.Validator.ScriptHash(), ne.Checksum, m.Name),
+		NEF:      ne,
+		Manifest: m,
+	}
+	ctrInv := e.NewInvoker(ctr.Hash, e.Validator)
+
+	// Block 1: deploy contract.
+	e.DeployContract(t, ctr, nil)
+
+	// Block 2: bad event should be logged.
+	ctrInv.Invoke(t, nil, "main")
+
+	// Block 3: bad event should fault the execution.
+	ctrInv.InvokeFail(t,
+		"System.Runtime.Notify failed: notification Hello, world! is invalid: parameter 0 type mismatch: Integer (manifest) vs Boolean (notification)",
+		"main")
 }

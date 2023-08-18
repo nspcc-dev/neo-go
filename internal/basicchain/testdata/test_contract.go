@@ -23,7 +23,8 @@ func Init() bool {
 	h := runtime.GetExecutingScriptHash()
 	amount := totalSupply
 	storage.Put(ctx, h, amount)
-	runtime.Notify("Transfer", interop.Hash160([]byte{}), h, amount)
+	runtime.Notify("Transfer", interop.Hash160(nil), // should use `nil` (not `[]byte{}`) due to notifications manifest compliance check.
+		h, amount)
 	return true
 }
 
