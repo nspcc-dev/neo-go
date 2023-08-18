@@ -31,6 +31,8 @@ a dialect of Go rather than a complete port of the language:
  * type assertion with two return values is not supported; single return value (of the desired type)
    is supported; type assertion panics if value can't be asserted to the desired type, therefore
    it's up to the programmer whether assert can be performed successfully.
+ * type aliases including the built-in `any` alias are supported.
+ * generics are not supported, but eventually will be (at least, partially), ref. https://github.com/nspcc-dev/neo-go/issues/2376.
 
 ## VM API (interop layer)
 Compiler translates interop function calls into Neo VM syscalls or (for custom

@@ -566,6 +566,13 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	//     x = 2
 	// )
 	case *ast.GenDecl:
+		// Filter out generics usage.
+		err := c.checkGenericsGenDecl(n, c.currPkg.PkgPath)
+		if err != nil {
+			c.prog.Err = err
+			return nil // Program is invalid.
+		}
+
 		if n.Tok == token.VAR || n.Tok == token.CONST {
 			c.saveSequencePoint(n)
 		}

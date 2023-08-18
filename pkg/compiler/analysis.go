@@ -19,6 +19,8 @@ var (
 	ErrMissingExportedParamName = errors.New("exported method is not allowed to have unnamed parameter")
 	// ErrInvalidExportedRetCount is returned when exported contract method has invalid return values count.
 	ErrInvalidExportedRetCount = errors.New("exported method is not allowed to have more than one return value")
+	// ErrGenericsUnsuppored is returned when generics-related tokens are encountered.
+	ErrGenericsUnsuppored = errors.New("generics are currently unsupported, please, see the https://github.com/nspcc-dev/neo-go/issues/2376")
 )
 
 var (
@@ -361,6 +363,13 @@ func (c *codegen) analyzeFuncAndGlobalVarUsage() funcUsage {
 			case *ast.FuncDecl:
 				name := c.getFuncNameFromDecl(pkgPath, n)
 
+				// filter out generic functions
+				err := c.checkGenericsFuncDecl(n, name)
+				if err != nil {
+					c.prog.Err = err
+					return false // Program is invalid.
+				}
+
 				// exported functions and methods are always assumed to be used
 				if isMain && n.Name.IsExported() || isInitFunc(n) || isDeployFunc(n) {
 					diff[name] = true
@@ -388,6 +397,13 @@ func (c *codegen) analyzeFuncAndGlobalVarUsage() funcUsage {
 				nodeCache[name] = declPair{n, c.importMap, pkgPath}
 				return false // will be processed in the next stage
 			case *ast.GenDecl:
+				// Filter out generics usage.
+				err := c.checkGenericsGenDecl(n, pkgPath)
+				if err != nil {
+					c.prog.Err = err
+					return false // Program is invalid.
+				}
+
 				// After skipping all funcDecls, we are sure that each value spec
 				// is a globally declared variable or constant. We need to gather global
 				// vars from both main and imported packages.
@@ -533,6 +549,54 @@ func (c *codegen) analyzeFuncAndGlobalVarUsage() funcUsage {
 		}
 	}
 	return usage
+}
+
+// checkGenericFuncDecl checks whether provided ast.FuncDecl has generic code.
+func (c *codegen) checkGenericsFuncDecl(n *ast.FuncDecl, funcName string) error {
+	var errGenerics error
+
+	// Generic function receiver.
+	if n.Recv != nil {
+		switch t := n.Recv.List[0].Type.(type) {
+		case *ast.StarExpr:
+			switch t.X.(type) {
+			case *ast.IndexExpr:
+				// func (x *Pointer[T]) Load() *T
+				errGenerics = errors.New("generic pointer function receiver")
+			}
+		case *ast.IndexExpr:
+			// func (x Structure[T]) Load() *T
+			errGenerics = errors.New("generic function receiver")
+		}
+	}
+
+	// Generic function parameters type: func SumInts[V int64 | int32](vals []V) V
+	if n.Type.TypeParams != nil {
+		errGenerics = errors.New("function type parameters")
+	}
+
+	if errGenerics != nil {
+		return fmt.Errorf("%w: %s has %s", ErrGenericsUnsuppored, funcName, errGenerics.Error())
+	}
+
+	return nil
+}
+
+// checkGenericsGenDecl checks whether provided ast.GenDecl has generic code.
+func (c *codegen) checkGenericsGenDecl(n *ast.GenDecl, pkgPath string) error {
+	// Generic type declaration:
+	// 	type List[T any] struct
+	// 	type List[T any] interface
+	if n.Tok == token.TYPE {
+		for _, s := range n.Specs {
+			typeSpec := s.(*ast.TypeSpec)
+			if typeSpec.TypeParams != nil {
+				return fmt.Errorf("%w: type %s is generic", ErrGenericsUnsuppored, c.getIdentName(pkgPath, typeSpec.Name.Name))
+			}
+		}
+	}
+
+	return nil
 }
 
 // nodeContext contains ast node with the corresponding import map, type info and package information
