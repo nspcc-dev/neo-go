@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -203,8 +204,10 @@ func (pt ParamType) Match(v stackitem.Item) bool {
 		return vt == stackitem.BooleanT
 	case IntegerType:
 		return vt == stackitem.IntegerT
-	case ByteArrayType, StringType:
+	case ByteArrayType:
 		return vt == stackitem.ByteArrayT || vt == stackitem.BufferT || vt == stackitem.AnyT
+	case StringType:
+		return (vt == stackitem.ByteArrayT || vt == stackitem.BufferT) && utf8.Valid(v.Value().([]byte))
 	case Hash160Type:
 		return checkBytesWithLen(vt, v, Hash160Len)
 	case Hash256Type:
