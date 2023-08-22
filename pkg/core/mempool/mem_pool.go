@@ -609,3 +609,19 @@ func (mp *Pool) removeConflictsOf(tx *transaction.Transaction) {
 		}
 	}
 }
+
+// IterateVerifiedTransactions iterates through verified transactions and invokes
+// function `cont`. Iterations continue while the function `cont` returns true.
+// Function `cont` is executed within a read-locked memory pool,
+// thus IterateVerifiedTransactions will block any write mempool operation,
+// use it with care. Do not modify transaction or data via `cont`.
+func (mp *Pool) IterateVerifiedTransactions(cont func(tx *transaction.Transaction, data any) bool) {
+	mp.lock.RLock()
+	defer mp.lock.RUnlock()
+
+	for i := range mp.verifiedTxes {
+		if !cont(mp.verifiedTxes[i].txn, mp.verifiedTxes[i].data) {
+			return
+		}
+	}
+}
