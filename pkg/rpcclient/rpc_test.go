@@ -1040,6 +1040,50 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"getstoragehistoric": {
+		{
+			name: "by hash, positive",
+			invoke: func(c *Client) (any, error) {
+				root, _ := util.Uint256DecodeStringLE("252e9d73d49c95c7618d40650da504e05183a1b2eed0685e42c360413c329170")
+				hash, err := util.Uint160DecodeStringLE("03febccf81ac85e3d795bc5cbd4e84e907812aa3")
+				if err != nil {
+					panic(err)
+				}
+				key, err := hex.DecodeString("5065746572")
+				if err != nil {
+					panic(err)
+				}
+				return c.GetStorageByHashHistoric(root, hash, key)
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"TGlu"}`,
+			result: func(c *Client) any {
+				value, err := hex.DecodeString("4c696e")
+				if err != nil {
+					panic(err)
+				}
+				return value
+			},
+		},
+		{
+			name: "by ID, positive",
+			invoke: func(c *Client) (any, error) {
+				root, _ := util.Uint256DecodeStringLE("252e9d73d49c95c7618d40650da504e05183a1b2eed0685e42c360413c329170")
+				key, err := hex.DecodeString("5065746572")
+				if err != nil {
+					panic(err)
+				}
+				return c.GetStorageByIDHistoric(root, -1, key)
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":"TGlu"}`,
+			result: func(c *Client) any {
+				value, err := hex.DecodeString("4c696e")
+				if err != nil {
+					panic(err)
+				}
+				return value
+			},
+		},
+	},
 	"gettransactionheight": {
 		{
 			name: "positive",

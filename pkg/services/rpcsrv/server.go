@@ -229,6 +229,7 @@ var rpcHandlers = map[string]func(*Server, params.Params) (any, *neorpc.Error){
 	"getstateheight":               (*Server).getStateHeight,
 	"getstateroot":                 (*Server).getStateRoot,
 	"getstorage":                   (*Server).getStorage,
+	"getstoragehistoric":           (*Server).getStorageHistoric,
 	"gettransactionheight":         (*Server).getTransactionHeight,
 	"getunclaimedgas":              (*Server).getUnclaimedGas,
 	"getnextblockvalidators":       (*Server).getNextBlockValidators,
@@ -1853,6 +1854,36 @@ func (s *Server) getStorage(ps params.Params) (any, *neorpc.Error) {
 	}
 
 	return []byte(item), nil
+}
+
+func (s *Server) getStorageHistoric(ps params.Params) (any, *neorpc.Error) {
+	root, respErr := s.getStateRootFromParam(ps.Value(0))
+	if respErr != nil {
+		return nil, respErr
+	}
+	if len(ps) < 2 {
+		return nil, neorpc.ErrInvalidParams
+	}
+
+	id, rErr := s.contractIDFromParam(ps.Value(1), root)
+	if rErr != nil {
+		return nil, rErr
+	}
+	key, err := ps.Value(2).GetBytesBase64()
+	if err != nil {
+		return nil, neorpc.ErrInvalidParams
+	}
+	pKey := makeStorageKey(id, key)
+
+	v, err := s.chain.GetStateModule().GetState(root, pKey)
+	if err != nil && !errors.Is(err, mpt.ErrNotFound) {
+		return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to get state item: %s", err))
+	}
+	if v == nil {
+		return "", neorpc.ErrUnknownStorageItem
+	}
+
+	return v, nil
 }
 
 func (s *Server) getrawtransaction(reqParams params.Params) (any, *neorpc.Error) {

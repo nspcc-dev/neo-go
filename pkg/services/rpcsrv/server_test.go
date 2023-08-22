@@ -659,6 +659,58 @@ var rpcTestCases = map[string][]rpcTestCase{
 			errCode: neorpc.InvalidParamsCode,
 		},
 	},
+	"getstoragehistoric": {
+		{
+			name:   "positive",
+			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa10"))),
+			result: func(e *executor) any {
+				v := base64.StdEncoding.EncodeToString([]byte("v2"))
+				return &v
+			},
+		},
+		{
+			name:    "missing key",
+			params:  fmt.Sprintf(`["%s", "%s", "dGU="]`, block20StateRootLE, testContractHash),
+			fail:    true,
+			errCode: neorpc.ErrUnknownStorageItemCode,
+		},
+		{
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "no second parameter",
+			params:  fmt.Sprintf(`["%s"]`, block20StateRootLE),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "no third parameter",
+			params:  fmt.Sprintf(`["%s", "%s"]`, block20StateRootLE, testContractHash),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid stateroot",
+			params:  `["notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid hash",
+			params:  fmt.Sprintf(`["%s", "notahex"]`, block20StateRootLE),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid key",
+			params:  fmt.Sprintf(`["%s", "%s", "notabase64$"]`, block20StateRootLE, testContractHash),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+	},
 	"findstorage": {
 		{
 			name:   "not truncated",

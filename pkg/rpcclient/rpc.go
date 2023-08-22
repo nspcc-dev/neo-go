@@ -559,6 +559,26 @@ func (c *Client) getStorage(params []any) ([]byte, error) {
 	return resp, nil
 }
 
+// GetStorageByIDHistoric returns the historical stored value according to the
+// contract ID and, stored key and specified stateroot.
+func (c *Client) GetStorageByIDHistoric(root util.Uint256, id int32, key []byte) ([]byte, error) {
+	return c.getStorageHistoric([]any{root.StringLE(), id, key})
+}
+
+// GetStorageByHashHistoric returns the historical stored value according to the
+// contract script hash, the stored key and specified stateroot.
+func (c *Client) GetStorageByHashHistoric(root util.Uint256, hash util.Uint160, key []byte) ([]byte, error) {
+	return c.getStorageHistoric([]any{root.StringLE(), hash.StringLE(), key})
+}
+
+func (c *Client) getStorageHistoric(params []any) ([]byte, error) {
+	var resp []byte
+	if err := c.performRequest("getstoragehistoric", params, &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // FindStorageByHash returns contract storage items by the given contract hash and prefix.
 // If `start` index is specified, items starting from `start` index are being returned
 // (including item located at the start index).

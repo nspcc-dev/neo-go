@@ -2690,3 +2690,36 @@ func TestClient_FindStorageHistoric(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, result.FindStorage{}, actual)
 }
+
+func TestClient_GetStorageHistoric(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	root, err := util.Uint256DecodeStringLE(block20StateRootLE)
+	require.NoError(t, err)
+	h, err := util.Uint160DecodeStringLE(testContractHash)
+	require.NoError(t, err)
+	key := []byte("aa10")
+	expected := []byte("v2")
+
+	// By hash.
+	actual, err := c.GetStorageByHashHistoric(root, h, key)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+
+	// By ID.
+	actual, err = c.GetStorageByIDHistoric(root, 1, key) // Rubles contract
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+
+	// Missing item.
+	earlyRoot, err := chain.GetStateRoot(15) // there's no `aa10` value in Rubles contract by the moment of block #15
+	require.NoError(t, err)
+	_, err = c.GetStorageByHashHistoric(earlyRoot.Root, h, key)
+	require.ErrorIs(t, neorpc.ErrUnknownStorageItem, err)
+}
