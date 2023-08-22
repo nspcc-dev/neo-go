@@ -37,6 +37,7 @@ which would yield the response:
 | ------- |
 | `calculatenetworkfee` |
 | `findstates` |
+| `findstorage` |
 | `getapplicationlog` |
 | `getbestblockhash` |
 | `getblock` |
@@ -237,7 +238,30 @@ block. It can be removed in future versions, but at the moment you can use it
 to see how much GAS is burned with a particular block (because system fees are
 burned).
 
-#### `invokecontractverifyhistoric`, `invokefunctionhistoric` and `invokescripthistoric` calls
+#### Historic calls
+
+A set of `*historic` extension methods provide the ability of interacting with
+*historical* chain state including invoking contract methods, running scripts and
+retrieving contract storage items. It means that the contracts' storage state has
+all its values got from MPT with the specified stateroot from past (or, which is
+the same, with the stateroot of the block of the specified height). All
+operations related to the contract storage will be performed using this past
+contracts' storage state and using interop context (if required by the RPC
+handler) with a block which is next to the block with the specified height.
+
+Any historical RPC call needs the historical chain state to be presented in the
+node storage, thus if the node keeps only latest MPT state the historical call
+can not be handled properly and
+[neorpc.ErrUnsupportedState](https://github.com/nspcc-dev/neo-go/blob/87e4b6beaafa3c180184cbbe88ba143378c5024c/pkg/neorpc/errors.go#L134)
+is returned in this case. The historical calls only guaranteed to correctly work
+on archival node that stores all MPT data. If a node keeps the number of latest
+states and has the GC on (this setting corresponds to the
+`RemoveUntraceableBlocks` set to `true`), then the behaviour of historical RPC
+call is undefined. GC can always kick some data out of the storage while the
+historical call is executing, thus keep in mind that the call can be processed
+with `RemoveUntraceableBlocks` only with limitations on available data.
+
+##### `invokecontractverifyhistoric`, `invokefunctionhistoric` and `invokescripthistoric` calls
 
 These methods provide the ability of *historical* calls and accept block hash or
 block index or stateroot hash as the first parameter and the list of parameters
@@ -250,16 +274,15 @@ the block with the specified height. This allows to perform test invocation usin
 the specified past chain state. These methods may be useful for debugging
 purposes.
 
-Behavior note: any historical RPC call need the historical chain state to be
-presented in the node storage, thus if the node keeps only latest MPT state
-the historical call can not be handled properly.The historical calls only
-guaranteed to correctly work on archival node that stores all MPT data. If a
-node keeps the number of latest states and has the GC on (this setting
-corresponds to the `RemoveUntraceableBlocks` set to `true`), then the behaviour
-of historical RPC call is undefined. GC can always kick some data out of the
-storage while the historical call is executing, thus keep in mind that the call
-can be processed with `RemoveUntraceableBlocks` only with limitations on
-available data.
+##### `getstoragehistoric` and `findstoragehistoric` calls
+
+These methods provide the ability of retrieving *historical* contract storage
+items and accept stateroot hash as the first parameter and the list of parameters
+that is the same as of `getstorage` and `findstorage` correspondingly. The
+historical storage items retrieval process assume that the contracts' storage
+state has all its values got from MPT with the specified stateroot. This allows
+to track the contract storage scheme using the specified past chain state. These
+methods may be useful for debugging purposes.
 
 #### `submitnotaryrequest` call
 
