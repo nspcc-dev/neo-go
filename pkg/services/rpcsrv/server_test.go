@@ -98,7 +98,7 @@ var (
 var rpcFunctionsWithUnsupportedStatesTestCases = map[string][]rpcTestCase{
 	"getproof": {
 		{
-			name:    "no params",
+			name:    "unsupported state",
 			params:  `[]`,
 			fail:    true,
 			errCode: neorpc.ErrUnsupportedStateCode,
@@ -106,7 +106,7 @@ var rpcFunctionsWithUnsupportedStatesTestCases = map[string][]rpcTestCase{
 	},
 	"verifyproof": {
 		{
-			name:    "no params",
+			name:    "unsupported state",
 			params:  `[]`,
 			fail:    true,
 			errCode: neorpc.ErrUnsupportedStateCode,
@@ -114,7 +114,7 @@ var rpcFunctionsWithUnsupportedStatesTestCases = map[string][]rpcTestCase{
 	},
 	"getstate": {
 		{
-			name:    "unknown root/item",
+			name:    "unsupported state",
 			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "QQ=="]`,
 			fail:    true,
 			errCode: neorpc.ErrUnsupportedStateCode,
@@ -122,7 +122,7 @@ var rpcFunctionsWithUnsupportedStatesTestCases = map[string][]rpcTestCase{
 	},
 	"findstates": {
 		{
-			name:    "invalid contract",
+			name:    "unsupported state",
 			params:  `["` + block20StateRootLE + `", "0xabcdef"]`,
 			fail:    true,
 			errCode: neorpc.ErrUnsupportedStateCode,
@@ -130,7 +130,7 @@ var rpcFunctionsWithUnsupportedStatesTestCases = map[string][]rpcTestCase{
 	},
 	"invokefunctionhistoric": {
 		{
-			name:    "no params",
+			name:    "unsupported state",
 			params:  `[]`,
 			fail:    true,
 			errCode: neorpc.ErrUnsupportedStateCode,
