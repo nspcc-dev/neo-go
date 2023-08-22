@@ -51,6 +51,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -98,6 +99,7 @@ type (
 		GetValidators() ([]*keys.PublicKey, error)
 		HeaderHeight() uint32
 		InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
+		SeekStorage(id int32, prefix []byte, cont func(k, v []byte) bool)
 		SubscribeForBlocks(ch chan *block.Block)
 		SubscribeForExecutions(ch chan *state.AppExecResult)
 		SubscribeForNotifications(ch chan *state.ContainedNotificationEvent)
@@ -199,6 +201,8 @@ const (
 var rpcHandlers = map[string]func(*Server, params.Params) (any, *neorpc.Error){
 	"calculatenetworkfee":          (*Server).calculateNetworkFee,
 	"findstates":                   (*Server).findStates,
+	"findstorage":                  (*Server).findStorage,
+	"findstoragehistoric":          (*Server).findStorageHistoric,
 	"getapplicationlog":            (*Server).getApplicationLog,
 	"getbestblockhash":             (*Server).getBestBlockHash,
 	"getblock":                     (*Server).getBlock,
@@ -1414,17 +1418,25 @@ func (s *Server) getHash(contractID int32, cache map[int32]util.Uint160) (util.U
 	return h, nil
 }
 
-func (s *Server) contractIDFromParam(param *params.Param) (int32, *neorpc.Error) {
+func (s *Server) contractIDFromParam(param *params.Param, root ...util.Uint256) (int32, *neorpc.Error) {
 	var result int32
 	if param == nil {
 		return 0, neorpc.ErrInvalidParams
 	}
 	if scriptHash, err := param.GetUint160FromHex(); err == nil {
-		cs := s.chain.GetContractState(scriptHash)
-		if cs == nil {
-			return 0, neorpc.ErrUnknownContract
+		if len(root) == 0 {
+			cs := s.chain.GetContractState(scriptHash)
+			if cs == nil {
+				return 0, neorpc.ErrUnknownContract
+			}
+			result = cs.ID
+		} else {
+			cs, respErr := s.getHistoricalContractState(root[0], scriptHash)
+			if respErr != nil {
+				return 0, respErr
+			}
+			result = cs.ID
 		}
-		result = cs.ID
 	} else {
 		id, err := param.GetInt()
 		if err != nil {
@@ -1539,18 +1551,9 @@ func (s *Server) verifyProof(ps params.Params) (any, *neorpc.Error) {
 }
 
 func (s *Server) getState(ps params.Params) (any, *neorpc.Error) {
-	root, err := ps.Value(0).GetUint256()
-	if err != nil {
-		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, "invalid stateroot")
-	}
-	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
-		curr, err := s.chain.GetStateModule().GetStateRoot(s.chain.BlockHeight())
-		if err != nil {
-			return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to get current stateroot: %s", err))
-		}
-		if !curr.Root.Equals(root) {
-			return nil, neorpc.WrapErrorWithData(neorpc.ErrUnsupportedState, fmt.Sprintf("'getstate' is not supported for old states: %s", errKeepOnlyLatestState))
-		}
+	root, respErr := s.getStateRootFromParam(ps.Value(0))
+	if respErr != nil {
+		return nil, respErr
 	}
 	csHash, err := ps.Value(1).GetUint160FromHex()
 	if err != nil {
@@ -1576,18 +1579,9 @@ func (s *Server) getState(ps params.Params) (any, *neorpc.Error) {
 }
 
 func (s *Server) findStates(ps params.Params) (any, *neorpc.Error) {
-	root, err := ps.Value(0).GetUint256()
-	if err != nil {
-		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, "invalid stateroot")
-	}
-	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
-		curr, err := s.chain.GetStateModule().GetStateRoot(s.chain.BlockHeight())
-		if err != nil {
-			return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to get current stateroot: %s", err))
-		}
-		if !curr.Root.Equals(root) {
-			return nil, neorpc.WrapErrorWithData(neorpc.ErrUnsupportedState, fmt.Sprintf("'findstates' is not supported for old states: %s", errKeepOnlyLatestState))
-		}
+	root, respErr := s.getStateRootFromParam(ps.Value(0))
+	if respErr != nil {
+		return nil, respErr
 	}
 	csHash, err := ps.Value(1).GetUint160FromHex()
 	if err != nil {
@@ -1667,6 +1661,127 @@ func (s *Server) findStates(ps params.Params) (any, *neorpc.Error) {
 		}
 	}
 	return res, nil
+}
+
+// getStateRootFromParam retrieves state root hash from the provided parameter
+// (only util.Uint256 serialized representation is allowed) and checks whether
+// MPT states are supported for the old stateroot.
+func (s *Server) getStateRootFromParam(p *params.Param) (util.Uint256, *neorpc.Error) {
+	root, err := p.GetUint256()
+	if err != nil {
+		return util.Uint256{}, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, "invalid stateroot")
+	}
+	if s.chain.GetConfig().Ledger.KeepOnlyLatestState {
+		curr, err := s.chain.GetStateModule().GetStateRoot(s.chain.BlockHeight())
+		if err != nil {
+			return util.Uint256{}, neorpc.NewInternalServerError(fmt.Sprintf("failed to get current stateroot: %s", err))
+		}
+		if !curr.Root.Equals(root) {
+			return util.Uint256{}, neorpc.WrapErrorWithData(neorpc.ErrUnsupportedState, fmt.Sprintf("state-based methods are not supported for old states: %s", errKeepOnlyLatestState))
+		}
+	}
+	return root, nil
+}
+
+func (s *Server) findStorage(reqParams params.Params) (any, *neorpc.Error) {
+	id, prefix, start, take, respErr := s.getFindStorageParams(reqParams)
+	if respErr != nil {
+		return nil, respErr
+	}
+	var (
+		i   int
+		end = start + take
+		res = new(result.FindStorage)
+	)
+	s.chain.SeekStorage(id, prefix, func(k, v []byte) bool {
+		if i < start {
+			i++
+			return true
+		}
+		if i < end {
+			res.Results = append(res.Results, result.KeyValue{
+				Key:   slice.Copy(append(prefix, k...)), // Don't strip prefix, as it is done in C#.
+				Value: v,
+			})
+			i++
+			return true
+		}
+		res.Truncated = true
+		return false
+	})
+	res.Next = i
+	return res, nil
+}
+
+func (s *Server) findStorageHistoric(reqParams params.Params) (any, *neorpc.Error) {
+	root, respErr := s.getStateRootFromParam(reqParams.Value(0))
+	if respErr != nil {
+		return nil, respErr
+	}
+	if len(reqParams) < 2 {
+		return nil, neorpc.ErrInvalidParams
+	}
+	id, prefix, start, take, respErr := s.getFindStorageParams(reqParams[1:], root)
+	if respErr != nil {
+		return nil, respErr
+	}
+
+	var (
+		end  = start + take
+		res  = new(result.FindStorage)
+		pKey = makeStorageKey(id, prefix)
+	)
+	// @roman-khimov, retrieving only the necessary part of the contract storage
+	// requires an mpt Billet refactoring, we can do it in a separate issue, create?
+	kvs, err := s.chain.GetStateModule().FindStates(root, pKey, nil, end+1) // +1 to define result truncation
+	if err != nil && !errors.Is(err, mpt.ErrNotFound) {
+		return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to find state items: %s", err))
+	}
+	if len(kvs) == end+1 {
+		res.Truncated = true
+		kvs = kvs[:len(kvs)-1]
+	}
+	if start >= len(kvs) {
+		kvs = nil
+	} else {
+		kvs = kvs[start:]
+	}
+
+	if len(kvs) != 0 { // keep consistency with `findstorage` response
+		res.Results = make([]result.KeyValue, len(kvs))
+		for i := range res.Results {
+			res.Results[i] = result.KeyValue{
+				Key:   kvs[i].Key[4:], // Cut contract ID as it is done in C#.
+				Value: kvs[i].Value,
+			}
+		}
+	}
+	res.Next = start + len(res.Results)
+	return res, nil
+}
+
+func (s *Server) getFindStorageParams(reqParams params.Params, root ...util.Uint256) (int32, []byte, int, int, *neorpc.Error) {
+	if len(reqParams) < 2 {
+		return 0, nil, 0, 0, neorpc.ErrInvalidParams
+	}
+	id, respErr := s.contractIDFromParam(reqParams.Value(0), root...)
+	if respErr != nil {
+		return 0, nil, 0, 0, respErr
+	}
+
+	prefix, err := reqParams.Value(1).GetBytesBase64()
+	if err != nil {
+		return 0, nil, 0, 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid prefix: %s", err))
+	}
+
+	var skip int
+	if len(reqParams) > 2 {
+		skip, err = reqParams.Value(2).GetInt()
+		if err != nil {
+			return 0, nil, 0, 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid start: %s", err))
+		}
+	}
+	return id, prefix, skip, s.config.MaxFindStorageResultItems, nil
 }
 
 func (s *Server) getHistoricalContractState(root util.Uint256, csHash util.Uint160) (*state.Contract, *neorpc.Error) {

@@ -2562,3 +2562,131 @@ func TestActor_CallWithNilParam(t *testing.T) {
 
 	require.True(t, strings.Contains(res.FaultException, "invalid conversion: Null/ByteString"), res.FaultException)
 }
+
+func TestClient_FindStorage(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	h, err := util.Uint160DecodeStringLE(testContractHash)
+	require.NoError(t, err)
+	prefix := []byte("aa")
+	expected := result.FindStorage{
+		Results: []result.KeyValue{
+			{
+				Key:   []byte("aa"),
+				Value: []byte("v1"),
+			},
+			{
+				Key:   []byte("aa10"),
+				Value: []byte("v2"),
+			},
+		},
+		Next:      2,
+		Truncated: true,
+	}
+
+	// By hash.
+	actual, err := c.FindStorageByHash(h, prefix, nil)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+
+	// By ID.
+	actual, err = c.FindStorageByID(1, prefix, nil) // Rubles contract
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+
+	// Non-nil start.
+	start := 1
+	actual, err = c.FindStorageByHash(h, prefix, &start)
+	require.NoError(t, err)
+	require.Equal(t, result.FindStorage{
+		Results: []result.KeyValue{
+			{
+				Key:   []byte("aa10"),
+				Value: []byte("v2"),
+			},
+			{
+				Key:   []byte("aa50"),
+				Value: []byte("v3"),
+			},
+		},
+		Next:      3,
+		Truncated: false,
+	}, actual)
+
+	// Missing item.
+	actual, err = c.FindStorageByHash(h, []byte("unknown prefix"), nil)
+	require.NoError(t, err)
+	require.Equal(t, result.FindStorage{}, actual)
+}
+
+func TestClient_FindStorageHistoric(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	root, err := util.Uint256DecodeStringLE(block20StateRootLE)
+	require.NoError(t, err)
+	h, err := util.Uint160DecodeStringLE(testContractHash)
+	require.NoError(t, err)
+	prefix := []byte("aa")
+	expected := result.FindStorage{
+		Results: []result.KeyValue{
+			{
+				Key:   []byte("aa10"),
+				Value: []byte("v2"),
+			},
+			{
+				Key:   []byte("aa50"),
+				Value: []byte("v3"),
+			},
+		},
+		Next:      2,
+		Truncated: true,
+	}
+
+	// By hash.
+	actual, err := c.FindStorageByHashHistoric(root, h, prefix, nil)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+
+	// By ID.
+	actual, err = c.FindStorageByIDHistoric(root, 1, prefix, nil) // Rubles contract
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+
+	// Non-nil start.
+	start := 1
+	actual, err = c.FindStorageByHashHistoric(root, h, prefix, &start)
+	require.NoError(t, err)
+	require.Equal(t, result.FindStorage{
+		Results: []result.KeyValue{
+			{
+				Key:   []byte("aa50"),
+				Value: []byte("v3"),
+			},
+			{
+				Key:   []byte("aa"), // order differs due to MPT traversal strategy.
+				Value: []byte("v1"),
+			},
+		},
+		Next:      3,
+		Truncated: false,
+	}, actual)
+
+	// Missing item.
+	earlyRoot, err := chain.GetStateRoot(15) // there's no `aa10` value in Rubles contract by the moment of block #15
+	require.NoError(t, err)
+	actual, err = c.FindStorageByHashHistoric(earlyRoot.Root, h, prefix, nil)
+	require.NoError(t, err)
+	require.Equal(t, result.FindStorage{}, actual)
+}

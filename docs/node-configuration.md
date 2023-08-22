@@ -202,6 +202,7 @@ RPC:
   MaxGasInvoke: 50
   MaxIteratorResultItems: 100
   MaxFindResultItems: 100
+  MaxFindStoragePageSize: 50
   MaxNEP11Tokens: 100
   MaxWebSocketClients: 64
   SessionEnabled: false
@@ -238,6 +239,7 @@ where:
    `n`, only `n` iterations are returned and truncated is true, indicating that
    there is still data to be returned.
 - `MaxFindResultItems` - the maximum number of elements for `findstates` response.
+- `MaxFindStoragePageSize` - the maximum number of elements for `findstorage` response per single page.
 - `MaxNEP11Tokens` - limit for the number of tokens returned from
   `getnep11balances` call.
 - `MaxWebSocketClients` - the maximum simultaneous websocket client connection

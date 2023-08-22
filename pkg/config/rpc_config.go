@@ -11,17 +11,18 @@ type (
 		EnableCORSWorkaround bool `yaml:"EnableCORSWorkaround"`
 		// MaxGasInvoke is the maximum amount of GAS which
 		// can be spent during an RPC call.
-		MaxGasInvoke           fixedn.Fixed8 `yaml:"MaxGasInvoke"`
-		MaxIteratorResultItems int           `yaml:"MaxIteratorResultItems"`
-		MaxFindResultItems     int           `yaml:"MaxFindResultItems"`
-		MaxNEP11Tokens         int           `yaml:"MaxNEP11Tokens"`
-		MaxWebSocketClients    int           `yaml:"MaxWebSocketClients"`
-		SessionEnabled         bool          `yaml:"SessionEnabled"`
-		SessionExpirationTime  int           `yaml:"SessionExpirationTime"`
-		SessionBackedByMPT     bool          `yaml:"SessionBackedByMPT"`
-		SessionPoolSize        int           `yaml:"SessionPoolSize"`
-		StartWhenSynchronized  bool          `yaml:"StartWhenSynchronized"`
-		TLSConfig              TLS           `yaml:"TLSConfig"`
+		MaxGasInvoke              fixedn.Fixed8 `yaml:"MaxGasInvoke"`
+		MaxIteratorResultItems    int           `yaml:"MaxIteratorResultItems"`
+		MaxFindResultItems        int           `yaml:"MaxFindResultItems"`
+		MaxFindStorageResultItems int           `yaml:"MaxFindStoragePageSize"`
+		MaxNEP11Tokens            int           `yaml:"MaxNEP11Tokens"`
+		MaxWebSocketClients       int           `yaml:"MaxWebSocketClients"`
+		SessionEnabled            bool          `yaml:"SessionEnabled"`
+		SessionExpirationTime     int           `yaml:"SessionExpirationTime"`
+		SessionBackedByMPT        bool          `yaml:"SessionBackedByMPT"`
+		SessionPoolSize           int           `yaml:"SessionPoolSize"`
+		StartWhenSynchronized     bool          `yaml:"StartWhenSynchronized"`
+		TLSConfig                 TLS           `yaml:"TLSConfig"`
 	}
 
 	// TLS describes SSL/TLS configuration.

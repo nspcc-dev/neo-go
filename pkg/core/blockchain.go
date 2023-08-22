@@ -2133,6 +2133,11 @@ func (bc *Blockchain) GetStorageItem(id int32, key []byte) state.StorageItem {
 	return bc.dao.GetStorageItem(id, key)
 }
 
+// SeekStorage performs seek operation over contract storage.
+func (bc *Blockchain) SeekStorage(id int32, prefix []byte, cont func(k, v []byte) bool) {
+	bc.dao.Seek(id, storage.SeekRange{Prefix: prefix}, cont)
+}
+
 // GetBlock returns a Block by the given hash.
 func (bc *Blockchain) GetBlock(hash util.Uint256) (*block.Block, error) {
 	topBlock := bc.topBlock.Load()
