@@ -144,7 +144,7 @@ func TestSubscriptions(t *testing.T) {
 
 	// We should manually add NotaryRequest to test notification.
 	sender := testchain.PrivateKeyByID(0)
-	err := rpcSrv.coreServer.RelayP2PNotaryRequest(createValidNotaryRequest(chain, sender, 1))
+	err := rpcSrv.coreServer.RelayP2PNotaryRequest(createValidNotaryRequest(chain, sender, 1, 2_0000_0000, nil))
 	require.NoError(t, err)
 	for {
 		resp := getNotification(t, respMsgs)
@@ -390,7 +390,7 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			subID := callSubscribe(t, c, respMsgs, this.params)
 
-			err := rpcSrv.coreServer.RelayP2PNotaryRequest(createValidNotaryRequest(chain, priv0, nonce))
+			err := rpcSrv.coreServer.RelayP2PNotaryRequest(createValidNotaryRequest(chain, priv0, nonce, 2_0000_0000, nil))
 			require.NoError(t, err)
 			nonce++
 
