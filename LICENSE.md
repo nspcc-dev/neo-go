@@ -1,7 +1,6 @@
 MIT License
 
-Copyright (c) 2018-2022 Anthony De Meulemeester (@anthdm), City of Zion
-community (@CityOfZion), NeoSPCC (@nspcc-dev)
+Copyright (c) 2018-2023 NeoSPCC (@nspcc-dev), Anthony De Meulemeester (@anthdm), City of Zion community (@CityOfZion)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
