@@ -281,7 +281,7 @@ where:
   pool, then invocation result will contain corresponding error inside the
   `FaultException` field.
 - `StartWhenSynchronized` controls when RPC server will be started, by default
-  (`false` setting) it's started immediately and RPC is availabe during node
+  (`false` setting) it's started immediately and RPC is available during node
   synchronization. Setting it to `true` will make the node start RPC service only
   after full synchronization.
 - `TLS` section configures TLS protocol.
