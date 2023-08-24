@@ -19,6 +19,9 @@ const (
 	// DefaultMaxIteratorResultItems is the default upper bound of traversed
 	// iterator items per JSON-RPC response.
 	DefaultMaxIteratorResultItems = 100
+	// DefaultMaxFindStorageResultItems is the default maximum number of resulting
+	// contract storage items that can be retrieved by `findstorge` JSON-RPC handler.
+	DefaultMaxFindStorageResultItems = 50
 )
 
 // Version is the version of the node, set at the build time.
@@ -71,9 +74,10 @@ func LoadFile(configPath string) (Config, error) {
 				PingTimeout:  90 * time.Second,
 			},
 			RPC: RPC{
-				MaxIteratorResultItems: DefaultMaxIteratorResultItems,
-				MaxFindResultItems:     100,
-				MaxNEP11Tokens:         100,
+				MaxIteratorResultItems:    DefaultMaxIteratorResultItems,
+				MaxFindResultItems:        100,
+				MaxFindStorageResultItems: DefaultMaxFindStorageResultItems,
+				MaxNEP11Tokens:            100,
 			},
 		},
 	}

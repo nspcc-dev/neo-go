@@ -98,7 +98,7 @@ var (
 var rpcFunctionsWithUnsupportedStatesTestCases = map[string][]rpcTestCase{
 	"getproof": {
 		{
-			name:    "no params",
+			name:    "unsupported state",
 			params:  `[]`,
 			fail:    true,
 			errCode: neorpc.ErrUnsupportedStateCode,
@@ -106,7 +106,7 @@ var rpcFunctionsWithUnsupportedStatesTestCases = map[string][]rpcTestCase{
 	},
 	"verifyproof": {
 		{
-			name:    "no params",
+			name:    "unsupported state",
 			params:  `[]`,
 			fail:    true,
 			errCode: neorpc.ErrUnsupportedStateCode,
@@ -114,7 +114,7 @@ var rpcFunctionsWithUnsupportedStatesTestCases = map[string][]rpcTestCase{
 	},
 	"getstate": {
 		{
-			name:    "unknown root/item",
+			name:    "unsupported state",
 			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "QQ=="]`,
 			fail:    true,
 			errCode: neorpc.ErrUnsupportedStateCode,
@@ -122,7 +122,15 @@ var rpcFunctionsWithUnsupportedStatesTestCases = map[string][]rpcTestCase{
 	},
 	"findstates": {
 		{
-			name:    "invalid contract",
+			name:    "unsupported state",
+			params:  `["` + block20StateRootLE + `", "0xabcdef"]`,
+			fail:    true,
+			errCode: neorpc.ErrUnsupportedStateCode,
+		},
+	},
+	"findstoragehistoric": {
+		{
+			name:    "unsupported state",
 			params:  `["` + block20StateRootLE + `", "0xabcdef"]`,
 			fail:    true,
 			errCode: neorpc.ErrUnsupportedStateCode,
@@ -130,7 +138,7 @@ var rpcFunctionsWithUnsupportedStatesTestCases = map[string][]rpcTestCase{
 	},
 	"invokefunctionhistoric": {
 		{
-			name:    "no params",
+			name:    "unsupported state",
 			params:  `[]`,
 			fail:    true,
 			errCode: neorpc.ErrUnsupportedStateCode,
@@ -647,6 +655,346 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:    "invalid key",
 			params:  fmt.Sprintf(`["%s", "notabase64$"]`, testContractHash),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+	},
+	"getstoragehistoric": {
+		{
+			name:   "positive",
+			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa10"))),
+			result: func(e *executor) any {
+				v := base64.StdEncoding.EncodeToString([]byte("v2"))
+				return &v
+			},
+		},
+		{
+			name:    "missing key",
+			params:  fmt.Sprintf(`["%s", "%s", "dGU="]`, block20StateRootLE, testContractHash),
+			fail:    true,
+			errCode: neorpc.ErrUnknownStorageItemCode,
+		},
+		{
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "no second parameter",
+			params:  fmt.Sprintf(`["%s"]`, block20StateRootLE),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "no third parameter",
+			params:  fmt.Sprintf(`["%s", "%s"]`, block20StateRootLE, testContractHash),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid stateroot",
+			params:  `["notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid hash",
+			params:  fmt.Sprintf(`["%s", "notahex"]`, block20StateRootLE),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid key",
+			params:  fmt.Sprintf(`["%s", "%s", "notabase64$"]`, block20StateRootLE, testContractHash),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+	},
+	"findstorage": {
+		{
+			name:   "not truncated",
+			params: fmt.Sprintf(`["%s", "%s"]`, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa1"))),
+			result: func(_ *executor) any { return new(result.FindStorage) },
+			check: func(t *testing.T, e *executor, res any) {
+				actual, ok := res.(*result.FindStorage)
+				require.True(t, ok)
+
+				expected := &result.FindStorage{
+					Results: []result.KeyValue{
+						{
+							Key:   []byte("aa10"),
+							Value: []byte("v2"),
+						},
+					},
+					Next:      1,
+					Truncated: false,
+				}
+				require.Equal(t, expected, actual)
+			},
+		},
+		{
+			name:   "truncated first page",
+			params: fmt.Sprintf(`["%s", "%s"]`, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa"))),
+			result: func(_ *executor) any { return new(result.FindStorage) },
+			check: func(t *testing.T, e *executor, res any) {
+				actual, ok := res.(*result.FindStorage)
+				require.True(t, ok)
+
+				expected := &result.FindStorage{
+					Results: []result.KeyValue{
+						{
+							Key:   []byte("aa"),
+							Value: []byte("v1"),
+						},
+						{
+							Key:   []byte("aa10"),
+							Value: []byte("v2"),
+						},
+					},
+					Next:      2,
+					Truncated: true,
+				}
+				require.Equal(t, expected, actual)
+			},
+		},
+		{
+			name:   "truncated second page",
+			params: fmt.Sprintf(`["%s", "%s", 2]`, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa"))),
+			result: func(_ *executor) any { return new(result.FindStorage) },
+			check: func(t *testing.T, e *executor, res any) {
+				actual, ok := res.(*result.FindStorage)
+				require.True(t, ok)
+
+				expected := &result.FindStorage{
+					Results: []result.KeyValue{
+						{
+							Key:   []byte("aa50"),
+							Value: []byte("v3"),
+						},
+					},
+					Next:      3,
+					Truncated: false,
+				}
+				require.Equal(t, expected, actual)
+			},
+		},
+		{
+			name:   "empty prefix",
+			params: fmt.Sprintf(`["%s", ""]`, storageContractHash),
+			result: func(_ *executor) any { return new(result.FindStorage) },
+			check: func(t *testing.T, e *executor, res any) {
+				actual, ok := res.(*result.FindStorage)
+				require.True(t, ok)
+
+				expected := &result.FindStorage{
+					Results: []result.KeyValue{
+						{
+							Key:   []byte{0x01, 0x00},
+							Value: []byte{},
+						},
+						{
+							Key:   []byte{0x01, 0x01},
+							Value: []byte{0x01},
+						},
+					},
+					Next:      2,
+					Truncated: true,
+				}
+				require.Equal(t, expected, actual)
+			},
+		},
+		{
+			name:   "unknown key",
+			params: fmt.Sprintf(`["%s", "%s"]`, testContractHash, base64.StdEncoding.EncodeToString([]byte("unknown-key"))),
+			result: func(_ *executor) any { return new(result.FindStorage) },
+			check: func(t *testing.T, e *executor, res any) {
+				actual, ok := res.(*result.FindStorage)
+				require.True(t, ok)
+
+				expected := &result.FindStorage{
+					Results:   nil,
+					Next:      0,
+					Truncated: false,
+				}
+				require.Equal(t, expected, actual)
+			},
+		},
+		{
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "no second parameter",
+			params:  fmt.Sprintf(`["%s"]`, testContractHash),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid hash",
+			params:  `["notahex"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid key",
+			params:  fmt.Sprintf(`["%s", "notabase64$"]`, testContractHash),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid page",
+			params:  fmt.Sprintf(`["%s", "", "not-an-int"]`, testContractHash),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+	},
+	"findstoragehistoric": {
+		{
+			name:   "not truncated",
+			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa1"))),
+			result: func(_ *executor) any { return new(result.FindStorage) },
+			check: func(t *testing.T, e *executor, res any) {
+				actual, ok := res.(*result.FindStorage)
+				require.True(t, ok)
+
+				expected := &result.FindStorage{
+					Results: []result.KeyValue{
+						{
+							Key:   []byte("aa10"),
+							Value: []byte("v2"),
+						},
+					},
+					Next:      1,
+					Truncated: false,
+				}
+				require.Equal(t, expected, actual)
+			},
+		},
+		{
+			name:   "truncated first page",
+			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa"))),
+			result: func(_ *executor) any { return new(result.FindStorage) },
+			check: func(t *testing.T, e *executor, res any) {
+				actual, ok := res.(*result.FindStorage)
+				require.True(t, ok)
+
+				expected := &result.FindStorage{
+					Results: []result.KeyValue{
+						{
+							Key:   []byte("aa10"), // items traversal order may differ from the one provided by `findstorage` due to MPT traversal strategy.
+							Value: []byte("v2"),
+						},
+						{
+							Key:   []byte("aa50"),
+							Value: []byte("v3"),
+						},
+					},
+					Next:      2,
+					Truncated: true,
+				}
+				require.Equal(t, expected, actual)
+			},
+		},
+		{
+			name:   "truncated second page",
+			params: fmt.Sprintf(`["%s","%s", "%s", 2]`, block20StateRootLE, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa"))),
+			result: func(_ *executor) any { return new(result.FindStorage) },
+			check: func(t *testing.T, e *executor, res any) {
+				actual, ok := res.(*result.FindStorage)
+				require.True(t, ok)
+
+				expected := &result.FindStorage{
+					Results: []result.KeyValue{
+						{
+							Key:   []byte("aa"),
+							Value: []byte("v1"),
+						},
+					},
+					Next:      3,
+					Truncated: false,
+				}
+				require.Equal(t, expected, actual)
+			},
+		},
+		{
+			name:   "empty prefix",
+			params: fmt.Sprintf(`["%s", "%s", ""]`, block20StateRootLE, nnsContractHash),
+			result: func(_ *executor) any { return new(result.FindStorage) },
+			check: func(t *testing.T, e *executor, res any) {
+				actual, ok := res.(*result.FindStorage)
+				require.True(t, ok)
+
+				expected := &result.FindStorage{
+					Results: []result.KeyValue{
+						{
+							Key:   []byte{0x00}, // total supply
+							Value: []byte{0x01},
+						},
+						{
+							Key:   append([]byte{0x01}, testchain.PrivateKeyByID(0).GetScriptHash().BytesBE()...), // balance of priv0
+							Value: []byte{0x01},
+						},
+					},
+					Next:      2,
+					Truncated: true,
+				}
+				require.Equal(t, expected, actual)
+			},
+		},
+		{
+			name:   "unknown key",
+			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHash, base64.StdEncoding.EncodeToString([]byte("unknown-key"))),
+			result: func(_ *executor) any { return new(result.FindStorage) },
+			check: func(t *testing.T, e *executor, res any) {
+				actual, ok := res.(*result.FindStorage)
+				require.True(t, ok)
+
+				expected := &result.FindStorage{}
+				require.Equal(t, expected, actual)
+			},
+		},
+		{
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid stateroot",
+			params:  `[12345]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "no second parameter",
+			params:  fmt.Sprintf(`["%s"]`, block20StateRootLE),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "no third parameter",
+			params:  fmt.Sprintf(`["%s", "%s"]`, block20StateRootLE, testContractHash),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid hash",
+			params:  fmt.Sprintf(`["%s", "notahex"]`, block20StateRootLE),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid key",
+			params:  fmt.Sprintf(`["%s", "%s", "notabase64$"]`, block20StateRootLE, testContractHash),
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid page",
+			params:  fmt.Sprintf(`["%s", "%s", "", "not-an-int"]`, block20StateRootLE, testContractHash),
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},

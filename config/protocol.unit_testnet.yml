@@ -66,6 +66,7 @@ ApplicationConfiguration:
     EnableCORSWorkaround: false
     SessionEnabled: true
     SessionExpirationTime: 2 # enough for tests as they run locally.
+    MaxFindStoragePageSize: 2 # small value to test server-side paging
   Prometheus:
     Enabled: false #since it's not useful for unit tests.
     Addresses:

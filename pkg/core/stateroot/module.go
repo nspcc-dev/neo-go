@@ -93,6 +93,32 @@ func (s *Module) FindStates(root util.Uint256, prefix, start []byte, max int) ([
 	return tr.Find(prefix, start, max)
 }
 
+// SeekStates traverses over contract storage with the state based on the
+// specified root. `prefix` is expected to consist of contract ID and the desired
+// storage items prefix. `cont` is called for every matching key-value pair;
+// the resulting key does not include contract ID and the desired storage item
+// prefix (they are stripped to match the Blockchain's SeekStorage behaviour.
+// The result includes item with the key that equals to the `prefix` (if
+// such item is found in the storage). Traversal process is stopped when `false`
+// is returned from `cont`.
+func (s *Module) SeekStates(root util.Uint256, prefix []byte, cont func(k, v []byte) bool) {
+	// Allow accessing old values, it's RO thing.
+	store := mpt.NewTrieStore(root, s.mode&^mpt.ModeGCFlag, storage.NewMemCachedStore(s.Store))
+
+	// Tiny hack to satisfy TrieStore with the given prefix. This
+	// storage.STStorage prefix is a stub that will be stripped by the
+	// TrieStore.Seek while performing MPT traversal and isn't actually relevant
+	// here.
+	key := make([]byte, len(prefix)+1)
+	key[0] = byte(storage.STStorage)
+	copy(key[1:], prefix)
+
+	store.Seek(storage.SeekRange{Prefix: key}, func(k, v []byte) bool {
+		// Cut the prefix to match the Blockchain's SeekStorage behaviour.
+		return cont(k[len(key):], v)
+	})
+}
+
 // GetStateProof returns proof of having key in the MPT with the specified root.
 func (s *Module) GetStateProof(root util.Uint256, key []byte) ([][]byte, error) {
 	// Allow accessing old values, it's RO thing.
