@@ -290,7 +290,20 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 	}
 	if cfg.Hardforks == nil {
 		cfg.Hardforks = map[string]uint32{}
+		for _, hf := range config.Hardforks {
+			cfg.Hardforks[hf.String()] = 0
+		}
 		log.Info("Hardforks are not set, using default value")
+	} else {
+		// Explicitly set the height of all old omitted hardforks to 0 for proper
+		// IsHardforkEnabled behaviour.
+		for _, hf := range config.Hardforks {
+			if _, ok := cfg.Hardforks[hf.String()]; !ok {
+				cfg.Hardforks[hf.String()] = 0
+				continue
+			}
+			break
+		}
 	}
 	// Compatibility with the old ProtocolConfiguration.
 	if cfg.ProtocolConfiguration.GarbageCollectionPeriod > 0 && cfg.Ledger.GarbageCollectionPeriod == 0 { //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.GarbageCollectionPeriod is deprecated

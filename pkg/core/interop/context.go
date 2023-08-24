@@ -405,7 +405,8 @@ func (ic *Context) IsHardforkEnabled(hf config.Hardfork) bool {
 	if ok {
 		return ic.BlockHeight() >= height
 	}
-	return len(ic.Hardforks) == 0 // Enable each hard-fork by default.
+	// Completely rely on proper hardforks initialisation made by core.NewBlockchain.
+	return false
 }
 
 // AddNotification creates notification event and appends it to the notification list.

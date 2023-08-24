@@ -15,14 +15,23 @@ const (
 	// https://github.com/neo-project/neo/pull/2883) and #3085 (ported from
 	// https://github.com/neo-project/neo/pull/2810).
 	HFBasilisk // Basilisk
+	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
+	// before hfLast.
+	hfLast
 )
+
+// Hardforks represents the ordered slice of all possible hardforks.
+var Hardforks []Hardfork
 
 // hardforks holds a map of Hardfork string representation to its type.
 var hardforks map[string]Hardfork
 
 func init() {
-	hardforks = make(map[string]Hardfork)
-	for _, hf := range []Hardfork{HFAspidochelone, HFBasilisk} {
+	for i := HFAspidochelone; i < hfLast; i = i << 1 {
+		Hardforks = append(Hardforks, i)
+	}
+	hardforks = make(map[string]Hardfork, len(Hardforks))
+	for _, hf := range Hardforks {
 		hardforks[hf.String()] = hf
 	}
 }

@@ -133,12 +133,6 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 	}
 	require.Error(t, p.Validate())
 	p = &ProtocolConfiguration{
-		Hardforks: map[string]uint32{
-			"Unknown": 123, // Unknown hard-fork.
-		},
-	}
-	require.Error(t, p.Validate())
-	p = &ProtocolConfiguration{
 		StandbyCommittee: []string{
 			"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2",
 			"02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e",
@@ -147,6 +141,48 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 		},
 		CommitteeHistory:  map[uint32]uint32{0: 1, 100: 4},
 		ValidatorsHistory: map[uint32]uint32{0: 1, 100: 4},
+	}
+	require.NoError(t, p.Validate())
+}
+
+func TestProtocolConfigurationValidation_Hardforks(t *testing.T) {
+	p := &ProtocolConfiguration{
+		Hardforks: map[string]uint32{
+			"Unknown": 123, // Unknown hard-fork.
+		},
+	}
+	require.Error(t, p.Validate())
+	p = &ProtocolConfiguration{
+		Hardforks: map[string]uint32{
+			"Aspidochelone": 2,
+			"Basilisk":      1, // Lower height in higher hard-fork.
+		},
+	}
+	require.Error(t, p.Validate())
+	p = &ProtocolConfiguration{
+		Hardforks: map[string]uint32{
+			"Aspidochelone": 2,
+			"Basilisk":      2, // Same height is OK.
+		},
+	}
+	require.NoError(t, p.Validate())
+	p = &ProtocolConfiguration{
+		Hardforks: map[string]uint32{
+			"Aspidochelone": 2,
+			"Basilisk":      3, // Larger height is OK.
+		},
+	}
+	require.NoError(t, p.Validate())
+	p = &ProtocolConfiguration{
+		Hardforks: map[string]uint32{
+			"Aspidochelone": 2,
+		},
+	}
+	require.NoError(t, p.Validate())
+	p = &ProtocolConfiguration{
+		Hardforks: map[string]uint32{
+			"Basilisk": 2,
+		},
 	}
 	require.NoError(t, p.Validate())
 }
