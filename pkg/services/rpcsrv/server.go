@@ -99,7 +99,6 @@ type (
 		GetValidators() ([]*keys.PublicKey, error)
 		HeaderHeight() uint32
 		InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
-		SeekStorage(id int32, prefix []byte, cont func(k, v []byte) bool)
 		SubscribeForBlocks(ch chan *block.Block)
 		SubscribeForExecutions(ch chan *state.AppExecResult)
 		SubscribeForNotifications(ch chan *state.ContainedNotificationEvent)
@@ -111,6 +110,13 @@ type (
 		VerifyTx(*transaction.Transaction) error
 		VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
 		mempool.Feer // fee interface
+		ContractStorageSeeker
+	}
+
+	// ContractStorageSeeker is the interface `findstorage*` handlers need to be able to
+	// seek over contract storage.
+	ContractStorageSeeker interface {
+		SeekStorage(id int32, prefix []byte, cont func(k, v []byte) bool)
 	}
 
 	// OracleHandler is the interface oracle service needs to provide for the Server.
@@ -1689,12 +1695,16 @@ func (s *Server) findStorage(reqParams params.Params) (any, *neorpc.Error) {
 	if respErr != nil {
 		return nil, respErr
 	}
+	return s.findStorageInternal(id, prefix, start, take, s.chain)
+}
+
+func (s *Server) findStorageInternal(id int32, prefix []byte, start, take int, seeker ContractStorageSeeker) (any, *neorpc.Error) {
 	var (
 		i   int
 		end = start + take
 		res = new(result.FindStorage)
 	)
-	s.chain.SeekStorage(id, prefix, func(k, v []byte) bool {
+	seeker.SeekStorage(id, prefix, func(k, v []byte) bool {
 		if i < start {
 			i++
 			return true
@@ -1727,38 +1737,21 @@ func (s *Server) findStorageHistoric(reqParams params.Params) (any, *neorpc.Erro
 		return nil, respErr
 	}
 
-	var (
-		end  = start + take
-		res  = new(result.FindStorage)
-		pKey = makeStorageKey(id, prefix)
-	)
-	// @roman-khimov, retrieving only the necessary part of the contract storage
-	// requires an mpt Billet refactoring, we can do it in a separate issue, create?
-	kvs, err := s.chain.GetStateModule().FindStates(root, pKey, nil, end+1) // +1 to define result truncation
-	if err != nil && !errors.Is(err, mpt.ErrNotFound) {
-		return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to find state items: %s", err))
-	}
-	if len(kvs) == end+1 {
-		res.Truncated = true
-		kvs = kvs[:len(kvs)-1]
-	}
-	if start >= len(kvs) {
-		kvs = nil
-	} else {
-		kvs = kvs[start:]
-	}
+	return s.findStorageInternal(id, prefix, start, take, mptStorageSeeker{
+		root:   root,
+		module: s.chain.GetStateModule(),
+	})
+}
 
-	if len(kvs) != 0 { // keep consistency with `findstorage` response
-		res.Results = make([]result.KeyValue, len(kvs))
-		for i := range res.Results {
-			res.Results[i] = result.KeyValue{
-				Key:   kvs[i].Key[4:], // Cut contract ID as it is done in C#.
-				Value: kvs[i].Value,
-			}
-		}
-	}
-	res.Next = start + len(res.Results)
-	return res, nil
+// mptStorageSeeker is an auxiliary structure that implements ContractStorageSeeker interface.
+type mptStorageSeeker struct {
+	root   util.Uint256
+	module core.StateRoot
+}
+
+func (s mptStorageSeeker) SeekStorage(id int32, prefix []byte, cont func(k, v []byte) bool) {
+	key := makeStorageKey(id, prefix)
+	s.module.SeekStates(s.root, key, cont)
 }
 
 func (s *Server) getFindStorageParams(reqParams params.Params, root ...util.Uint256) (int32, []byte, int, int, *neorpc.Error) {
