@@ -122,6 +122,24 @@ func (p *ProtocolConfiguration) Validate() error {
 			return fmt.Errorf("Hardforks configuration section contains unexpected hardfork: %s", name)
 		}
 	}
+	var (
+		prev             uint32
+		shouldBeDisabled bool
+	)
+	for _, cfgHf := range Hardforks {
+		h := p.Hardforks[cfgHf.String()]
+		if h != 0 && shouldBeDisabled {
+			return fmt.Errorf("missing previous hardfork configuration with %s present", cfgHf.String())
+		}
+		if h != 0 && h < prev {
+			return fmt.Errorf("hardfork %s has inconsistent enabling height %d (lower than the previouse one)", cfgHf.String(), h)
+		}
+		if h != 0 {
+			prev = h
+		} else if prev != 0 {
+			shouldBeDisabled = true
+		}
+	}
 	if p.ValidatorsCount != 0 && len(p.ValidatorsHistory) != 0 {
 		return errors.New("configuration should either have ValidatorsCount or ValidatorsHistory, not both")
 	}
