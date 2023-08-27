@@ -284,7 +284,27 @@ state has all its values got from MPT with the specified stateroot. This allows
 to track the contract storage scheme using the specified past chain state. These
 methods may be useful for debugging purposes.
 
-#### `submitnotaryrequest` call
+#### P2PNotary extensions
+
+The following P2PNotary extensions can be used on P2P Notary enabled networks
+only.
+
+##### `getrawnotarypool` call
+
+`getrawnotarypool` method provides the ability to retrieve the content of the 
+RPC node's notary pool (a map from main transaction hashes to the corresponding
+fallback transaction hashes for currently processing P2PNotaryRequest payloads).
+You can use the `getrawnotarytransaction` method to iterate through
+the results of `getrawnotarypool`, retrieve main/fallback transactions,
+check their contents and act accordingly.
+
+##### `getrawnotarytransaction` call
+
+The `getrawnotarytransaction` method takes a transaction hash and aims to locate
+the corresponding transaction in the P2PNotaryRequest pool. It performs
+this search across all the verified main and fallback transactions.
+
+##### `submitnotaryrequest` call
 
 This method can be used on P2P Notary enabled networks to submit new notary
 payloads to be relayed from RPC to P2P.
