@@ -1135,6 +1135,137 @@ func TestSignAndPushP2PNotaryRequest(t *testing.T) {
 	})
 }
 
+func TestGetRawNotaryPoolAndTransaction(t *testing.T) {
+	var (
+		mainHash1, fallbackHash1, mainHash2, fallbackHash2 util.Uint256
+		tx1, tx2                                           *transaction.Transaction
+	)
+
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	t.Run("getrawnotarypool", func(t *testing.T) {
+		t.Run("empty pool", func(t *testing.T) {
+			np, err := c.GetRawNotaryPool()
+			require.NoError(t, err)
+			require.Equal(t, 0, len(np.Hashes))
+		})
+
+		sender := testchain.PrivateKeyByID(0) // owner of the deposit in testchain
+		acc := wallet.NewAccountFromPrivateKey(sender)
+
+		comm, err := c.GetCommittee()
+		require.NoError(t, err)
+
+		multiAcc := &wallet.Account{}
+		*multiAcc = *acc
+		require.NoError(t, multiAcc.ConvertMultisig(smartcontract.GetMajorityHonestNodeCount(len(comm)), comm))
+
+		nact, err := notary.NewActor(c, []actor.SignerAccount{{
+			Signer: transaction.Signer{
+				Account: multiAcc.Contract.ScriptHash(),
+				Scopes:  transaction.CalledByEntry,
+			},
+			Account: multiAcc,
+		}}, acc)
+		require.NoError(t, err)
+		neoW := neo.New(nact)
+		// Send the 1st notary request
+		tx1, err = neoW.SetRegisterPriceTransaction(1_0000_0000)
+		require.NoError(t, err)
+		mainHash1, fallbackHash1, _, err = nact.Notarize(tx1, err)
+		require.NoError(t, err)
+
+		checkTxInPool := func(t *testing.T, mainHash, fallbackHash util.Uint256, res *result.RawNotaryPool) {
+			actFallbacks, ok := res.Hashes[mainHash]
+			require.Equal(t, true, ok)
+			require.Equal(t, 1, len(actFallbacks))
+			require.Equal(t, fallbackHash, actFallbacks[0])
+		}
+		t.Run("nonempty pool", func(t *testing.T) {
+			actNotaryPool, err := c.GetRawNotaryPool()
+			require.NoError(t, err)
+			require.Equal(t, 1, len(actNotaryPool.Hashes))
+			checkTxInPool(t, mainHash1, fallbackHash1, actNotaryPool)
+		})
+
+		// Send the 2nd notary request
+		tx2, err = neoW.SetRegisterPriceTransaction(2_0000_0000)
+		require.NoError(t, err)
+		mainHash2, fallbackHash2, _, err = nact.Notarize(tx2, err)
+		require.NoError(t, err)
+
+		t.Run("pool with 2", func(t *testing.T) {
+			actNotaryPool, err := c.GetRawNotaryPool()
+			require.NoError(t, err)
+			require.Equal(t, 2, len(actNotaryPool.Hashes))
+			checkTxInPool(t, mainHash1, fallbackHash1, actNotaryPool)
+			checkTxInPool(t, mainHash2, fallbackHash2, actNotaryPool)
+		})
+	})
+	t.Run("getrawnotarytransaction", func(t *testing.T) {
+		t.Run("client GetRawNotaryTransaction", func(t *testing.T) {
+			t.Run("unknown transaction", func(t *testing.T) {
+				_, err := c.GetRawNotaryTransaction(util.Uint256{0, 0, 0})
+				require.Error(t, err)
+				require.ErrorIs(t, err, neorpc.ErrUnknownTransaction)
+			})
+			_ = tx1.Size()
+			_ = tx2.Size()
+			// RPC server returns empty scripts in transaction.Witness,
+			// thus here the nil-value was changed to empty value.
+			if tx1.Scripts[1].InvocationScript == nil && tx1.Scripts[1].VerificationScript == nil {
+				tx1.Scripts[1] = transaction.Witness{
+					InvocationScript:   []byte{},
+					VerificationScript: []byte{},
+				}
+			}
+			if tx2.Scripts[1].InvocationScript == nil && tx2.Scripts[1].VerificationScript == nil {
+				tx2.Scripts[1] = transaction.Witness{
+					InvocationScript:   []byte{},
+					VerificationScript: []byte{},
+				}
+			}
+			t.Run("transactions from pool", func(t *testing.T) {
+				mainTx1, err := c.GetRawNotaryTransaction(mainHash1)
+				require.NoError(t, err)
+				require.Equal(t, tx1, mainTx1)
+				_, err = c.GetRawNotaryTransaction(fallbackHash1)
+				require.NoError(t, err)
+
+				mainTx2, err := c.GetRawNotaryTransaction(mainHash2)
+				require.NoError(t, err)
+				require.Equal(t, tx2, mainTx2)
+				_, err = c.GetRawNotaryTransaction(fallbackHash2)
+				require.NoError(t, err)
+			})
+		})
+		t.Run("client GetRawNotaryTransactionVerbose", func(t *testing.T) {
+			t.Run("unknown transaction", func(t *testing.T) {
+				_, err := c.GetRawNotaryTransactionVerbose(util.Uint256{0, 0, 0})
+				require.Error(t, err)
+				require.ErrorIs(t, err, neorpc.ErrUnknownTransaction)
+			})
+			t.Run("transactions from pool", func(t *testing.T) {
+				mainTx1, err := c.GetRawNotaryTransactionVerbose(mainHash1)
+				require.NoError(t, err)
+				require.Equal(t, tx1, mainTx1)
+				_, err = c.GetRawNotaryTransactionVerbose(fallbackHash1)
+				require.NoError(t, err)
+
+				mainTx2, err := c.GetRawNotaryTransactionVerbose(mainHash2)
+				require.NoError(t, err)
+				require.Equal(t, tx2, mainTx2)
+				_, err = c.GetRawNotaryTransactionVerbose(fallbackHash2)
+				require.NoError(t, err)
+			})
+		})
+	})
+}
+
 func TestCalculateNotaryFee(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()

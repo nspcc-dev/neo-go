@@ -96,6 +96,8 @@ Supported methods
 Extensions:
 
 	getblocksysfee
+	getrawnotarypool
+	getrawnotarytransaction
 	submitnotaryrequest
 
 Unsupported methods
