@@ -2487,7 +2487,7 @@ func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) 
 		return nil, neorpc.NewInvalidParamsError("invalid iterator items count: not an int32")
 	}
 	if count > s.config.MaxIteratorResultItems {
-		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("iterator items count is out of range (%d at max)", s.config.MaxIteratorResultItems))
+		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("iterator items count (%d) is out of range (%d at max)", count, s.config.MaxIteratorResultItems))
 	}
 
 	s.sessionsLock.Lock()

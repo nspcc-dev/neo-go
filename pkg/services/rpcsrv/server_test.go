@@ -2975,7 +2975,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			sID, iID := prepareIteratorSession(t)
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, sID.String(), iID.String(), config.DefaultMaxIteratorResultItems+1)
 			body := doRPCCall(rpc, httpSrv.URL, t)
-			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, fmt.Sprintf("iterator items count is out of range (%d at max)", config.DefaultMaxIteratorResultItems))
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, fmt.Sprintf("iterator items count (%d) is out of range (%d at max)", config.DefaultMaxIteratorResultItems+1, config.DefaultMaxIteratorResultItems))
 		})
 		t.Run("unknown session", func(t *testing.T) {
 			_, iID := prepareIteratorSession(t)
