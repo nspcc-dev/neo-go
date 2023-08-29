@@ -17,7 +17,8 @@ const (
 	// UserAgentFormat is a formatted string used to generate user agent string.
 	UserAgentFormat = UserAgentWrapper + UserAgentPrefix + "%s" + UserAgentWrapper
 	// DefaultMaxIteratorResultItems is the default upper bound of traversed
-	// iterator items per JSON-RPC response.
+	// iterator items per JSON-RPC response. It covers both session-based and
+	// naive iterators.
 	DefaultMaxIteratorResultItems = 100
 	// DefaultMaxFindStorageResultItems is the default maximum number of resulting
 	// contract storage items that can be retrieved by `findstorge` JSON-RPC handler.
@@ -74,7 +75,6 @@ func LoadFile(configPath string) (Config, error) {
 				PingTimeout:  90 * time.Second,
 			},
 			RPC: RPC{
-				MaxIteratorResultItems:    DefaultMaxIteratorResultItems,
 				MaxFindResultItems:        100,
 				MaxFindStorageResultItems: DefaultMaxFindStorageResultItems,
 				MaxNEP11Tokens:            100,
