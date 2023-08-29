@@ -20,6 +20,9 @@ const (
 	// iterator items per JSON-RPC response. It covers both session-based and
 	// naive iterators.
 	DefaultMaxIteratorResultItems = 100
+	// DefaultMaxFindResultItems is the default maximum number of resulting
+	// contract states items that can be retrieved by `findstates` JSON-RPC handler.
+	DefaultMaxFindResultItems = 100
 	// DefaultMaxFindStorageResultItems is the default maximum number of resulting
 	// contract storage items that can be retrieved by `findstorge` JSON-RPC handler.
 	DefaultMaxFindStorageResultItems = 50
@@ -75,7 +78,6 @@ func LoadFile(configPath string) (Config, error) {
 				PingTimeout:  90 * time.Second,
 			},
 			RPC: RPC{
-				MaxFindResultItems:        100,
 				MaxFindStorageResultItems: DefaultMaxFindStorageResultItems,
 				MaxNEP11Tokens:            100,
 			},

@@ -299,6 +299,10 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		conf.MaxIteratorResultItems = config.DefaultMaxIteratorResultItems
 		log.Info("MaxIteratorResultItems is not set or wrong, setting default value", zap.Int("MaxIteratorResultItems", config.DefaultMaxIteratorResultItems))
 	}
+	if conf.MaxFindResultItems <= 0 {
+		conf.MaxFindResultItems = config.DefaultMaxFindResultItems
+		log.Info("MaxFindResultItems is not set or wrong, setting default value", zap.Int("MaxFindResultItems", config.DefaultMaxFindResultItems))
+	}
 	if conf.MaxWebSocketClients == 0 {
 		conf.MaxWebSocketClients = defaultMaxWebSocketClients
 		log.Info("MaxWebSocketClients is not set or wrong, setting default value", zap.Int("MaxWebSocketClients", defaultMaxWebSocketClients))
