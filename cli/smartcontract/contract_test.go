@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testcli"
+	"github.com/nspcc-dev/neo-go/internal/versionutil"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -30,6 +31,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
+
+// Keep contract NEFs consistent between runs.
+const _ = versionutil.TestVersion
 
 func TestCalcHash(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -97,9 +101,6 @@ func TestCalcHash(t *testing.T) {
 }
 
 func TestContractBindings(t *testing.T) {
-	// For proper nef generation.
-	config.Version = "v0.98.1-test"
-
 	// For proper contract init. The actual version as it will be replaced.
 	smartcontract.ModVersion = "v0.0.0"
 
@@ -210,9 +211,6 @@ func ToMap(a []testcontract.MyPair) map[int]string {
 }
 
 func TestContractInitAndCompile(t *testing.T) {
-	// For proper nef generation.
-	config.Version = "v0.98.1-test"
-
 	// For proper contract init. The actual version as it will be replaced.
 	smartcontract.ModVersion = "v0.0.0"
 
@@ -310,9 +308,6 @@ func TestDeployBigContract(t *testing.T) {
 	e := testcli.NewExecutorWithConfig(t, true, true, func(c *config.Config) {
 		c.ApplicationConfiguration.RPC.MaxGasInvoke = fixedn.Fixed8(1)
 	})
-
-	// For proper nef generation.
-	config.Version = "0.90.0-test"
 	tmpDir := t.TempDir()
 
 	nefName := filepath.Join(tmpDir, "deploy.nef")
@@ -331,9 +326,6 @@ func TestDeployBigContract(t *testing.T) {
 
 func TestContractDeployWithData(t *testing.T) {
 	eCompile := testcli.NewExecutor(t, false)
-
-	// For proper nef generation.
-	config.Version = "0.90.0-test"
 	tmpDir := t.TempDir()
 
 	nefName := filepath.Join(tmpDir, "deploy.nef")
@@ -408,9 +400,6 @@ func TestContractDeployWithData(t *testing.T) {
 
 func TestDeployWithSigners(t *testing.T) {
 	e := testcli.NewExecutor(t, true)
-
-	// For proper nef generation.
-	config.Version = "0.90.0-test"
 	tmpDir := t.TempDir()
 
 	nefName := filepath.Join(tmpDir, "deploy.nef")
@@ -472,9 +461,6 @@ func TestDeployWithSigners(t *testing.T) {
 
 func TestContractManifestGroups(t *testing.T) {
 	e := testcli.NewExecutor(t, true)
-
-	// For proper nef generation.
-	config.Version = "0.90.0-test"
 	tmpDir := t.TempDir()
 
 	_, err := wallet.NewWalletFromFile(testcli.TestWalletPath)
@@ -631,9 +617,6 @@ func TestContract_TestInvokeScript(t *testing.T) {
 
 func TestComlileAndInvokeFunction(t *testing.T) {
 	e := testcli.NewExecutor(t, true)
-
-	// For proper nef generation.
-	config.Version = "0.90.0-test"
 	tmpDir := t.TempDir()
 
 	nefName := filepath.Join(tmpDir, "deploy.nef")
@@ -963,9 +946,6 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 func TestContractInspect(t *testing.T) {
 	e := testcli.NewExecutor(t, false)
-
-	// For proper nef generation.
-	config.Version = "0.90.0-test"
 	const srcPath = "testdata/deploy/main.go"
 	tmpDir := t.TempDir()
 
@@ -999,9 +979,6 @@ func TestCompileExamples(t *testing.T) {
 	const examplePath = "../../examples"
 	infos, err := os.ReadDir(examplePath)
 	require.NoError(t, err)
-
-	// For proper nef generation.
-	config.Version = "0.90.0-test"
 
 	e := testcli.NewExecutor(t, false)
 

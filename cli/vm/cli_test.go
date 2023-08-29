@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
 	"github.com/nspcc-dev/neo-go/internal/basicchain"
 	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/internal/versionutil"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -43,6 +44,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/atomic"
 )
+
+// Keep contract NEFs consistent between runs.
+const _ = versionutil.TestVersion
 
 type readCloser struct {
 	sync.Mutex
@@ -351,8 +355,6 @@ go 1.18`)
 // via `loadnef` command. It returns the name of manifest and NEF files ready to be used in CLI
 // commands.
 func prepareLoadnefSrc(t *testing.T, tmpDir, src string) (string, string) {
-	config.Version = "0.92.0-test"
-
 	nefFile, di, err := compiler.CompileWithOptions("test.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
 	filename := filepath.Join(tmpDir, "vmtestcontract.nef")
