@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -264,11 +265,8 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 	} else {
 		// Avoid changes in the main transaction witnesses got from the notary request pool to
 		// keep the pooled tx valid. We will update its copy => the copy's size will be changed.
-		cp := *payload.MainTransaction
-		cp.Scripts = make([]transaction.Witness, len(payload.MainTransaction.Scripts))
-		copy(cp.Scripts, payload.MainTransaction.Scripts)
 		r = &request{
-			main:              &cp,
+			main:              safeCopy(payload.MainTransaction),
 			minNotValidBefore: nvbFallback,
 		}
 		n.requests[payload.MainTransaction.Hash()] = r
@@ -276,9 +274,12 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 	if r.witnessInfo == nil && validationErr == nil {
 		r.witnessInfo = newInfo
 	}
-	// Allow modification of a fallback transaction got from the notary request pool.
-	// It has dummy Notary witness attached => its size won't be changed.
-	r.fallbacks = append(r.fallbacks, payload.FallbackTransaction)
+	// Disallow modification of a fallback transaction got from the notary
+	// request pool. Even though it has dummy Notary witness attached and its
+	// size won't be changed after finalisation, the witness bytes changes may
+	// affect the other users of notary pool and cause race. Avoid this by making
+	// the copy.
+	r.fallbacks = append(r.fallbacks, safeCopy(payload.FallbackTransaction))
 	if exists && r.isMainCompleted() || validationErr != nil {
 		return
 	}
@@ -336,6 +337,21 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 				zap.Error(err))
 		}
 	}
+}
+
+// safeCopy creates a copy of provided transaction by dereferencing it and creating
+// fresh witnesses so that the tx's witnesses may be modified without affecting the
+// copy's ones.
+func safeCopy(tx *transaction.Transaction) *transaction.Transaction {
+	cp := *tx
+	cp.Scripts = make([]transaction.Witness, len(tx.Scripts))
+	for i := range cp.Scripts {
+		cp.Scripts[i] = transaction.Witness{
+			InvocationScript:   slice.Copy(tx.Scripts[i].InvocationScript),
+			VerificationScript: slice.Copy(tx.Scripts[i].VerificationScript),
+		}
+	}
+	return &cp
 }
 
 // OnRequestRemoval is a callback which is called after fallback transaction is removed
