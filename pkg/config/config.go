@@ -78,8 +78,7 @@ func LoadFile(configPath string) (Config, error) {
 				PingTimeout:  90 * time.Second,
 			},
 			RPC: RPC{
-				MaxFindStorageResultItems: DefaultMaxFindStorageResultItems,
-				MaxNEP11Tokens:            100,
+				MaxNEP11Tokens: 100,
 			},
 		},
 	}
