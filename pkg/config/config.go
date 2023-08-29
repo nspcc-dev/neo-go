@@ -26,6 +26,9 @@ const (
 	// DefaultMaxFindStorageResultItems is the default maximum number of resulting
 	// contract storage items that can be retrieved by `findstorge` JSON-RPC handler.
 	DefaultMaxFindStorageResultItems = 50
+	// DefaultMaxNEP11Tokens is the default maximum number of resulting NEP11 tokens
+	// that can be traversed by `getnep11balances` JSON-RPC handler.
+	DefaultMaxNEP11Tokens = 100
 )
 
 // Version is the version of the node, set at the build time.
@@ -76,9 +79,6 @@ func LoadFile(configPath string) (Config, error) {
 			P2P: P2P{
 				PingInterval: 30 * time.Second,
 				PingTimeout:  90 * time.Second,
-			},
-			RPC: RPC{
-				MaxNEP11Tokens: 100,
 			},
 		},
 	}
