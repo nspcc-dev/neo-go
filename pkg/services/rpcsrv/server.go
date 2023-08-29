@@ -295,6 +295,22 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 			log.Info("SessionPoolSize is not set or wrong, setting default value", zap.Int("SessionPoolSize", defaultSessionPoolSize))
 		}
 	}
+	if conf.MaxIteratorResultItems <= 0 {
+		conf.MaxIteratorResultItems = config.DefaultMaxIteratorResultItems
+		log.Info("MaxIteratorResultItems is not set or wrong, setting default value", zap.Int("MaxIteratorResultItems", config.DefaultMaxIteratorResultItems))
+	}
+	if conf.MaxFindResultItems <= 0 {
+		conf.MaxFindResultItems = config.DefaultMaxFindResultItems
+		log.Info("MaxFindResultItems is not set or wrong, setting default value", zap.Int("MaxFindResultItems", config.DefaultMaxFindResultItems))
+	}
+	if conf.MaxFindStorageResultItems <= 0 {
+		conf.MaxFindStorageResultItems = config.DefaultMaxFindStorageResultItems
+		log.Info("MaxFindStorageResultItems is not set or wrong, setting default value", zap.Int("MaxFindStorageResultItems", config.DefaultMaxFindStorageResultItems))
+	}
+	if conf.MaxNEP11Tokens <= 0 {
+		conf.MaxNEP11Tokens = config.DefaultMaxNEP11Tokens
+		log.Info("MaxNEP11Tokens is not set or wrong, setting default value", zap.Int("MaxNEP11Tokens", config.DefaultMaxNEP11Tokens))
+	}
 	if conf.MaxWebSocketClients == 0 {
 		conf.MaxWebSocketClients = defaultMaxWebSocketClients
 		log.Info("MaxWebSocketClients is not set or wrong, setting default value", zap.Int("MaxWebSocketClients", defaultMaxWebSocketClients))
@@ -2483,7 +2499,7 @@ func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) 
 		return nil, neorpc.NewInvalidParamsError("invalid iterator items count: not an int32")
 	}
 	if count > s.config.MaxIteratorResultItems {
-		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("iterator items count is out of range (%d at max)", s.config.MaxIteratorResultItems))
+		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("iterator items count (%d) is out of range (%d at max)", count, s.config.MaxIteratorResultItems))
 	}
 
 	s.sessionsLock.Lock()
