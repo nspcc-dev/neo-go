@@ -96,7 +96,6 @@ type (
 		GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error)
 		GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, error)
 		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
-		GetValidators() ([]*keys.PublicKey, error)
 		HeaderHeight() uint32
 		InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
 		SubscribeForBlocks(ch chan *block.Block)
