@@ -261,7 +261,7 @@ func TestChainWithVolatileNumOfValidators(t *testing.T) {
 
 	priv0 := testchain.PrivateKeyByID(0)
 
-	vals := bc.GetValidators()
+	vals := bc.ComputeNextBlockValidators()
 	script, err := smartcontract.CreateDefaultMultiSigRedeemScript(vals)
 	require.NoError(t, err)
 	curWit := transaction.Witness{
@@ -279,7 +279,7 @@ func TestChainWithVolatileNumOfValidators(t *testing.T) {
 		}
 		// Mimic consensus.
 		if bc.config.ShouldUpdateCommitteeAt(uint32(i)) {
-			vals = bc.GetValidators()
+			vals = bc.ComputeNextBlockValidators()
 		} else {
 			vals, err = bc.GetNextBlockValidators()
 		}

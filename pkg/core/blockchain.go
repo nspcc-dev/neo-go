@@ -2697,18 +2697,20 @@ func (bc *Blockchain) GetCommittee() (keys.PublicKeys, error) {
 	return pubs, nil
 }
 
-// GetValidators returns current validators. Validators list returned from this
-// method may be updated every block (depending on register/unregister/vote
-// calls to NeoToken contract), not only once per (committee size) number of
-// blocks.
-func (bc *Blockchain) GetValidators() []*keys.PublicKey {
+// ComputeNextBlockValidators returns current validators. Validators list
+// returned from this method may be updated every block (depending on
+// register/unregister/vote calls to NeoToken contract), not only once per
+// (committee size) number of blocks.
+func (bc *Blockchain) ComputeNextBlockValidators() []*keys.PublicKey {
 	return bc.contracts.NEO.ComputeNextBlockValidators(bc.dao)
 }
 
 // GetNextBlockValidators returns next block validators. Validators list returned
 // from this method is the sorted top NumOfCNs number of public keys from the
-// current committee, thus, validators list returned from this method is being
-// updated once per (committee size) number of blocks.
+// committee of the current dBFT round (that was calculated once for the
+// CommitteeSize number of blocks), thus, validators list returned from this
+// method is being updated once per (committee size) number of blocks, but not
+// every block.
 func (bc *Blockchain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
 	return bc.contracts.NEO.GetNextBlockValidatorsInternal(bc.dao), nil
 }

@@ -138,7 +138,7 @@ func TestNEO_Vote(t *testing.T) {
 	require.NoError(t, err)
 	standBySorted = standBySorted[:validatorsCount]
 	sort.Sort(standBySorted)
-	pubs := e.Chain.GetValidators()
+	pubs := e.Chain.ComputeNextBlockValidators()
 	require.Equal(t, standBySorted, keys.PublicKeys(pubs))
 
 	// voters vote for candidates. The aim of this test is to check if voting
@@ -175,7 +175,7 @@ func TestNEO_Vote(t *testing.T) {
 	}
 
 	// We still haven't voted enough validators in.
-	pubs = e.Chain.GetValidators()
+	pubs = e.Chain.ComputeNextBlockValidators()
 	require.NoError(t, err)
 	require.Equal(t, standBySorted, keys.PublicKeys(pubs))
 
@@ -266,7 +266,7 @@ func TestNEO_Vote(t *testing.T) {
 
 	advanceChain(t)
 
-	pubs = e.Chain.GetValidators()
+	pubs = e.Chain.ComputeNextBlockValidators()
 	for i := range pubs {
 		require.NotEqual(t, candidates[0], pubs[i])
 		require.NotEqual(t, candidates[len(candidates)-1], pubs[i])
