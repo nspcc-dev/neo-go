@@ -50,7 +50,12 @@ type NeoCache struct {
 
 	votesChanged   bool
 	nextValidators keys.PublicKeys
-	validators     keys.PublicKeys
+	// validators contains cached next block validators. This list is updated every
+	// PostPersist if candidates votes ratio has been changed or register/unregister
+	// operation was performed within the persisted block. The updated value is
+	// being persisted following the standard layered DAO persist rules, so that
+	// external users will always get the proper value with upper Blockchain's DAO.
+	validators keys.PublicKeys
 	// committee contains cached committee members and their votes.
 	// It is updated once in a while depending on committee size
 	// (every 28 blocks for mainnet). It's value
@@ -269,6 +274,7 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	cache := &NeoCache{
 		gasPerVoteCache: make(map[string]big.Int),
 		votesChanged:    true,
+		validators:      nil, // will be updated in genesis PostPersist.
 	}
 
 	// We need cache to be present in DAO before the subsequent call to `mint`.
@@ -325,6 +331,12 @@ func (n *NEO) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	cache.gasPerBlock = n.getSortedGASRecordFromDAO(d)
 	cache.registerPrice = getIntWithKey(n.ID, d, []byte{prefixRegisterPrice})
 
+	numOfCNs := n.cfg.GetNumOfCNs(blockHeight + 1)
+	err := n.updateCachedValidators(d, cache, blockHeight, numOfCNs)
+	if err != nil {
+		return fmt.Errorf("failed to update next block validators cache: %w", err)
+	}
+
 	d.SetCache(n.ID, cache)
 	return nil
 }
@@ -350,6 +362,20 @@ func (n *NEO) updateCache(cache *NeoCache, cvs keysWithVotes, blockHeight uint32
 	nextVals := committee[:n.cfg.GetNumOfCNs(blockHeight+1)].Copy()
 	sort.Sort(nextVals)
 	cache.nextValidators = nextVals
+	return nil
+}
+
+// updateCachedValidators sets validators cache that will be used by external users
+// to retrieve next block validators list. Thus, it stores the list of validators
+// computed using the currently persisted block state.
+func (n *NEO) updateCachedValidators(d *dao.Simple, cache *NeoCache, blockHeight uint32, numOfCNs int) error {
+	result, _, err := n.computeCommitteeMembers(blockHeight, d)
+	if err != nil {
+		return fmt.Errorf("failed to compute committee members: %w", err)
+	}
+	result = result[:numOfCNs]
+	sort.Sort(result)
+	cache.validators = result
 	return nil
 }
 
@@ -399,6 +425,7 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 	committeeReward := new(big.Int).Mul(gas, bigCommitteeRewardRatio)
 	n.GAS.mint(ic, pubs[index].GetScriptHash(), committeeReward.Div(committeeReward, big100), false)
 
+	var isCacheRW bool
 	if n.cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
 		var voterReward = new(big.Int).Set(bigVoterRewardRatio)
 		voterReward.Mul(voterReward, gas)
@@ -408,9 +435,8 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 		voterReward.Div(voterReward, big100)
 
 		var (
-			cs        = cache.committee
-			isCacheRW bool
-			key       = make([]byte, 34)
+			cs  = cache.committee
+			key = make([]byte, 34)
 		)
 		for i := range cs {
 			if cs[i].Votes.Sign() > 0 {
@@ -437,6 +463,21 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 			}
 		}
 	}
+	// Update next block validators cache for external users.
+	var (
+		h        = ic.Block.Index // consider persisting block as stored to get _next_ block validators
+		numOfCNs = n.cfg.GetNumOfCNs(h + 1)
+	)
+	if cache.validators == nil || numOfCNs != len(cache.validators) {
+		if !isCacheRW {
+			cache = ic.DAO.GetRWCache(n.ID).(*NeoCache)
+		}
+		err := n.updateCachedValidators(ic.DAO, cache, h, numOfCNs)
+		if err != nil {
+			return fmt.Errorf("failed to update next block validators cache: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -1042,24 +1083,21 @@ func (n *NEO) getAccountState(ic *interop.Context, args []stackitem.Item) stacki
 	return item
 }
 
-// ComputeNextBlockValidators returns an actual list of current validators.
-func (n *NEO) ComputeNextBlockValidators(blockHeight uint32, d *dao.Simple) (keys.PublicKeys, error) {
-	numOfCNs := n.cfg.GetNumOfCNs(blockHeight + 1)
-	// Most of the time it should be OK with RO cache, thus try to retrieve
-	// validators without RW cache creation to avoid cached values copying.
+// ComputeNextBlockValidators computes an actual list of current validators that is
+// relevant for the latest persisted block and based on the latest changes made by
+// register/unregister/vote calls.
+// Note: this method isn't actually "computes" new committee list and calculates
+// new validators list from it. Instead, it uses cache, but the cache itself is
+// updated every block.
+func (n *NEO) ComputeNextBlockValidators(d *dao.Simple) keys.PublicKeys {
+	// It should always be OK with RO cache if using lower-layered DAO with proper
+	// cache set.
 	cache := d.GetROCache(n.ID).(*NeoCache)
-	if vals := cache.validators; vals != nil && numOfCNs == len(vals) {
-		return vals.Copy(), nil
+	if vals := cache.validators; vals != nil {
+		return vals.Copy()
 	}
-	cache = d.GetRWCache(n.ID).(*NeoCache)
-	result, _, err := n.computeCommitteeMembers(blockHeight, d)
-	if err != nil {
-		return nil, err
-	}
-	result = result[:numOfCNs]
-	sort.Sort(result)
-	cache.validators = result
-	return result, nil
+	// It's a program error not to have the right value in lower cache.
+	panic(fmt.Errorf("unexpected validators cache content: %v", cache.validators))
 }
 
 func (n *NEO) getCommittee(ic *interop.Context, _ []stackitem.Item) stackitem.Item {

@@ -48,7 +48,7 @@ type Ledger interface {
 	GetNextBlockValidators() ([]*keys.PublicKey, error)
 	GetStateRoot(height uint32) (*state.MPTRoot, error)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
-	GetValidators() ([]*keys.PublicKey, error)
+	GetValidators() []*keys.PublicKey
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
 	SubscribeForBlocks(ch chan *coreb.Block)
 	UnsubscribeFromBlocks(ch chan *coreb.Block)
@@ -679,7 +679,7 @@ func (s *service) getValidators(txes ...block.Transaction) []crypto.PublicKey {
 	if txes == nil {
 		pKeys, err = s.Chain.GetNextBlockValidators()
 	} else {
-		pKeys, err = s.Chain.GetValidators()
+		pKeys = s.Chain.GetValidators()
 	}
 	if err != nil {
 		s.log.Error("error while trying to get validators", zap.Error(err))
@@ -725,7 +725,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	var err error
 	cfg := s.Chain.GetConfig().ProtocolConfiguration
 	if cfg.ShouldUpdateCommitteeAt(ctx.BlockIndex) {
-		validators, err = s.Chain.GetValidators()
+		validators = s.Chain.GetValidators()
 	} else {
 		validators, err = s.Chain.GetNextBlockValidators()
 	}
