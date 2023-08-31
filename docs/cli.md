@@ -64,7 +64,7 @@ logging.
 
 Most of the services (state validation, oracle, consensus and RPC if
 configured with `StartWhenSynchronized` option) are only started after the
-node is completely synchronizaed because running them before that is either
+node is completely synchronized because running them before that is either
 pointless or even dangerous. The node considers itself to be fully
 synchronized with the network if it has more than `MinPeers` neighbours and if
 at least 2/3 of them are known to have a height less than or equal to the
@@ -413,7 +413,7 @@ $ ./bin/neo-go query voter -r http://localhost:20332 Nj91C8TxQSxW1jCE1ytFre6mg5q
 
 ### Transaction signing
 
-`wallet sign` command allows to sign arbitary transactions stored in JSON
+`wallet sign` command allows to sign arbitrary transactions stored in JSON
 format (also known as ContractParametersContext). Usually it's used in one of
 the two cases: multisignature signing (when you don't have all keys for an
 account and need to share the context with others until enough signatures
@@ -435,7 +435,7 @@ $ neo-go wallet sign -w .docker/wallets/wallet2.json --in some.part.json --out s
 $ neo-go wallet sign -w .docker/wallets/wallet3.json --in some.part.json -r http://localhost:30333 -a NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq
 ```
 Notice that the last command sends the transaction (which has a complete set
-of singatures for 3/4 multisignature account by that time) to the network.
+of signatures for 3/4 multisignature account by that time) to the network.
 
 #### Offline signing
 
