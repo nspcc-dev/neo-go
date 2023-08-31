@@ -3,6 +3,7 @@ package vm
 import (
 	"crypto/elliptic"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -217,7 +219,14 @@ func (v *VM) PrintOps(out io.Writer) {
 				if utf8.Valid(parameter) {
 					desc = fmt.Sprintf("%x (%q)", parameter, parameter)
 				} else {
-					desc = fmt.Sprintf("%x", parameter)
+					// Try converting the parameter to an address and swap the endianness
+					// if the parameter is a 20-byte value.
+					u, err := util.Uint160DecodeBytesBE(parameter)
+					if err == nil {
+						desc = fmt.Sprintf("%x (%q, %q)", parameter, address.Uint160ToString(u), "0x"+hex.EncodeToString(slice.CopyReverse(parameter)))
+					} else {
+						desc = fmt.Sprintf("%x", parameter)
+					}
 				}
 			}
 		}
