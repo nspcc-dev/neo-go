@@ -1,4 +1,4 @@
-name: DCO check
+name: Contribution guidelines
 
 on:
   pull_request:
@@ -7,4 +7,5 @@ on:
 
 jobs:
   commits_check_job:
+    name: DCO check
     uses: nspcc-dev/.github/.github/workflows/dco.yml@master
