@@ -229,6 +229,8 @@ var rpcHandlers = map[string]func(*Server, params.Params) (any, *neorpc.Error){
 	"getpeers":                     (*Server).getPeers,
 	"getproof":                     (*Server).getProof,
 	"getrawmempool":                (*Server).getRawMempool,
+	"getrawnotarypool":             (*Server).getRawNotaryPool,
+	"getrawnotarytransaction":      (*Server).getRawNotaryTransaction,
 	"getrawtransaction":            (*Server).getrawtransaction,
 	"getstate":                     (*Server).getState,
 	"getstateheight":               (*Server).getStateHeight,
@@ -3089,4 +3091,55 @@ func (s *Server) Addresses() []string {
 		res[i] = srv.Addr
 	}
 	return res
+}
+
+func (s *Server) getRawNotaryPool(_ params.Params) (any, *neorpc.Error) {
+	if !s.chain.P2PSigExtensionsEnabled() {
+		return nil, neorpc.NewInternalServerError("P2PSignatureExtensions are disabled")
+	}
+	nrp := s.coreServer.GetNotaryPool()
+	res := &result.RawNotaryPool{Hashes: make(map[util.Uint256][]util.Uint256)}
+	nrp.IterateVerifiedTransactions(func(tx *transaction.Transaction, data any) bool {
+		if data != nil {
+			d := data.(*payload.P2PNotaryRequest)
+			mainHash := d.MainTransaction.Hash()
+			fallbackHash := d.FallbackTransaction.Hash()
+			res.Hashes[mainHash] = append(res.Hashes[mainHash], fallbackHash)
+		}
+		return true
+	})
+	return res, nil
+}
+
+func (s *Server) getRawNotaryTransaction(reqParams params.Params) (any, *neorpc.Error) {
+	if !s.chain.P2PSigExtensionsEnabled() {
+		return nil, neorpc.NewInternalServerError("P2PSignatureExtensions are disabled")
+	}
+
+	txHash, err := reqParams.Value(0).GetUint256()
+	if err != nil {
+		return nil, neorpc.ErrInvalidParams
+	}
+	nrp := s.coreServer.GetNotaryPool()
+	// Try to find fallback transaction.
+	tx, ok := nrp.TryGetValue(txHash)
+	if !ok {
+		// Try to find main transaction.
+		nrp.IterateVerifiedTransactions(func(t *transaction.Transaction, data any) bool {
+			if data != nil && data.(*payload.P2PNotaryRequest).MainTransaction.Hash().Equals(txHash) {
+				tx = data.(*payload.P2PNotaryRequest).MainTransaction
+				return false
+			}
+			return true
+		})
+		// The transaction was not found.
+		if tx == nil {
+			return nil, neorpc.ErrUnknownTransaction
+		}
+	}
+
+	if v, _ := reqParams.Value(1).GetBoolean(); v {
+		return tx, nil
+	}
+	return tx.Bytes(), nil
 }

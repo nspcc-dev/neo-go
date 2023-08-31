@@ -2275,8 +2275,11 @@ func TestSubmitOracle(t *testing.T) {
 	t.Run("Valid", runCase(t, false, 0, pubStr, `1`, txSigStr, msgSigStr))
 }
 
-func TestSubmitNotaryRequest(t *testing.T) {
-	rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitnotaryrequest", "params": %s}`
+func TestNotaryRequestRPC(t *testing.T) {
+	var notaryRequest1, notaryRequest2 *payload.P2PNotaryRequest
+	rpcSubmit := `{"jsonrpc": "2.0", "id": 1, "method": "submitnotaryrequest", "params": %s}`
+	rpcPool := `{"jsonrpc": "2.0", "id": 1, "method": "getrawnotarypool", "params": []}`
+	rpcTx := `{"jsonrpc": "2.0", "id": 1, "method": "getrawnotarytransaction", "params": ["%s", %d]}`
 
 	t.Run("disabled P2PSigExtensions", func(t *testing.T) {
 		chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
@@ -2284,87 +2287,206 @@ func TestSubmitNotaryRequest(t *testing.T) {
 		})
 		defer chain.Close()
 		defer rpcSrv.Shutdown()
-		req := fmt.Sprintf(rpc, "[]")
-		body := doRPCCallOverHTTP(req, httpSrv.URL, t)
-		checkErrGetResult(t, body, true, neorpc.InternalServerErrorCode)
+		t.Run("submitnotaryrequest", func(t *testing.T) {
+			body := doRPCCallOverHTTP(fmt.Sprintf(rpcSubmit, "[]"), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.InternalServerErrorCode)
+		})
+		t.Run("getrawnotarypool", func(t *testing.T) {
+			body := doRPCCallOverHTTP(rpcPool, httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.InternalServerErrorCode)
+		})
+		t.Run("getrawnotarytransaction", func(t *testing.T) {
+			body := doRPCCallOverHTTP(fmt.Sprintf(rpcTx, " ", 1), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.InternalServerErrorCode)
+		})
 	})
 
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
 
-	runCase := func(t *testing.T, fail bool, errCode int64, params ...string) func(t *testing.T) {
+	submitNotaryRequest := func(t *testing.T, fail bool, errCode int64, params ...string) func(t *testing.T) {
 		return func(t *testing.T) {
 			ps := `[` + strings.Join(params, ",") + `]`
-			req := fmt.Sprintf(rpc, ps)
+			req := fmt.Sprintf(rpcSubmit, ps)
 			body := doRPCCallOverHTTP(req, httpSrv.URL, t)
 			checkErrGetResult(t, body, fail, errCode)
 		}
 	}
-	t.Run("missing request", runCase(t, true, neorpc.InvalidParamsCode))
-	t.Run("not a base64", runCase(t, true, neorpc.InvalidParamsCode, `"not-a-base64$"`))
-	t.Run("invalid request bytes", runCase(t, true, neorpc.InvalidParamsCode, `"not-a-request"`))
-	t.Run("invalid request", func(t *testing.T) {
-		mainTx := &transaction.Transaction{
+
+	t.Run("getrawnotarypool", func(t *testing.T) {
+		t.Run("empty pool", func(t *testing.T) {
+			body := doRPCCallOverHTTP(rpcPool, httpSrv.URL, t)
+			res := checkErrGetResult(t, body, false, 0)
+			actual := new(result.RawNotaryPool)
+			require.NoError(t, json.Unmarshal(res, actual))
+			require.Equal(t, 0, len(actual.Hashes))
+		})
+
+		sender := testchain.PrivateKeyByID(0) // owner of the deposit in testchain
+		notaryRequest1 = createValidNotaryRequest(chain, sender, 1, 2_0000_0000, nil)
+		nrBytes, err := notaryRequest1.Bytes()
+		require.NoError(t, err)
+		str := fmt.Sprintf(`"%s"`, base64.StdEncoding.EncodeToString(nrBytes))
+		submitNotaryRequest(t, false, 0, str)(t)
+
+		t.Run("nonempty pool", func(t *testing.T) {
+			//get notary pool & check tx hashes
+			body := doRPCCallOverHTTP(rpcPool, httpSrv.URL, t)
+			res := checkErrGetResult(t, body, false, 0)
+			actual := new(result.RawNotaryPool)
+			require.NoError(t, json.Unmarshal(res, actual))
+			require.Equal(t, 1, len(actual.Hashes))
+			for actMain, actFallbacks := range actual.Hashes {
+				require.Equal(t, notaryRequest1.MainTransaction.Hash(), actMain)
+				require.Equal(t, 1, len(actFallbacks))
+				require.Equal(t, notaryRequest1.FallbackTransaction.Hash(), actFallbacks[0])
+			}
+		})
+
+		notaryRequest2 = createValidNotaryRequest(chain, sender, 2, 3_0000_0000, notaryRequest1.MainTransaction)
+		nrBytes2, err := notaryRequest2.Bytes()
+		require.NoError(t, err)
+		str2 := fmt.Sprintf(`"%s"`, base64.StdEncoding.EncodeToString(nrBytes2))
+		submitNotaryRequest(t, false, 0, str2)(t)
+
+		t.Run("pool with 2", func(t *testing.T) {
+			//get notary pool & check tx hashes
+			body := doRPCCallOverHTTP(rpcPool, httpSrv.URL, t)
+			res := checkErrGetResult(t, body, false, 0)
+			actual := new(result.RawNotaryPool)
+			require.NoError(t, json.Unmarshal(res, actual))
+			require.Equal(t, 1, len(actual.Hashes))
+			for actMain, actFallbacks := range actual.Hashes {
+				require.Equal(t, notaryRequest1.MainTransaction.Hash(), actMain)
+				require.Equal(t, 2, len(actFallbacks))
+				// The second fallback transaction has higher priority, so it's first in the slice.
+				require.Equal(t, notaryRequest1.FallbackTransaction.Hash(), actFallbacks[1])
+				require.Equal(t, notaryRequest2.FallbackTransaction.Hash(), actFallbacks[0])
+			}
+		})
+	})
+
+	t.Run("submitnotaryrequest", func(t *testing.T) {
+		t.Run("missing request", submitNotaryRequest(t, true, neorpc.InvalidParamsCode))
+		t.Run("not a base64", submitNotaryRequest(t, true, neorpc.InvalidParamsCode, `"not-a-base64$"`))
+		t.Run("invalid request bytes", submitNotaryRequest(t, true, neorpc.InvalidParamsCode, `"not-a-request"`))
+		t.Run("invalid request", func(t *testing.T) {
+			mainTx := &transaction.Transaction{
+				Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
+				Script:          []byte{byte(opcode.RET)},
+				ValidUntilBlock: 123,
+				Signers:         []transaction.Signer{{Account: util.Uint160{1, 5, 9}}},
+				Scripts: []transaction.Witness{{
+					InvocationScript:   []byte{1, 4, 7},
+					VerificationScript: []byte{3, 6, 9},
+				}},
+			}
+			fallbackTx := &transaction.Transaction{
+				Script:          []byte{byte(opcode.RET)},
+				ValidUntilBlock: 123,
+				Attributes: []transaction.Attribute{
+					{Type: transaction.NotValidBeforeT, Value: &transaction.NotValidBefore{Height: 123}},
+					{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: mainTx.Hash()}},
+					{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
+				},
+				Signers: []transaction.Signer{{Account: util.Uint160{1, 4, 7}}, {Account: util.Uint160{9, 8, 7}}},
+				Scripts: []transaction.Witness{
+					{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: make([]byte, 0)},
+					{InvocationScript: []byte{1, 2, 3}, VerificationScript: []byte{1, 2, 3}}},
+			}
+			p := &payload.P2PNotaryRequest{
+				MainTransaction:     mainTx,
+				FallbackTransaction: fallbackTx,
+				Witness: transaction.Witness{
+					InvocationScript:   []byte{1, 2, 3},
+					VerificationScript: []byte{7, 8, 9},
+				},
+			}
+			nrBytes, err := p.Bytes()
+			require.NoError(t, err)
+			str := fmt.Sprintf(`"%s"`, base64.StdEncoding.EncodeToString(nrBytes))
+			submitNotaryRequest(t, true, neorpc.ErrVerificationFailedCode, str)(t)
+		})
+		t.Run("valid request", func(t *testing.T) {
+			sender := testchain.PrivateKeyByID(0) // owner of the deposit in testchain
+			notaryRequest1 = createValidNotaryRequest(chain, sender, 3, 2_0000_0000, nil)
+			nrBytes, err := notaryRequest1.Bytes()
+			require.NoError(t, err)
+			str := fmt.Sprintf(`"%s"`, base64.StdEncoding.EncodeToString(nrBytes))
+			submitNotaryRequest(t, false, 0, str)(t)
+		})
+	})
+
+	t.Run("getrawnotarytransaction", func(t *testing.T) {
+		t.Run("invalid param", func(t *testing.T) {
+			req := fmt.Sprintf(rpcTx, "invalid", 1)
+			body := doRPCCallOverHTTP(req, httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode)
+		})
+		t.Run("unknown transaction", func(t *testing.T) {
+			req := fmt.Sprintf(rpcTx, (util.Uint256{0, 0, 0}).StringLE(), 1)
+			body := doRPCCallOverHTTP(req, httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.ErrUnknownTransactionCode)
+		})
+
+		checkGetTxVerbose := func(t *testing.T, tx *transaction.Transaction) {
+			req := fmt.Sprintf(rpcTx, tx.Hash().StringLE(), 1)
+			body := doRPCCallOverHTTP(req, httpSrv.URL, t)
+			res := checkErrGetResult(t, body, false, 0)
+			actual := new(transaction.Transaction)
+			require.NoError(t, json.Unmarshal(res, actual))
+			_ = tx.Size()
+			require.Equal(t, tx, actual)
+		}
+		t.Run("mainTx verbose", func(t *testing.T) {
+			checkGetTxVerbose(t, notaryRequest1.MainTransaction)
+		})
+		t.Run("fallbackTx verbose", func(t *testing.T) {
+			checkGetTxVerbose(t, notaryRequest1.FallbackTransaction)
+			checkGetTxVerbose(t, notaryRequest2.FallbackTransaction)
+		})
+
+		checkGetTxBytes := func(t *testing.T, tx *transaction.Transaction) {
+			req := fmt.Sprintf(rpcTx, tx.Hash().StringLE(), 0)
+			body := doRPCCallOverHTTP(req, httpSrv.URL, t)
+			res := checkErrGetResult(t, body, false, 0)
+
+			var s string
+			err := json.Unmarshal(res, &s)
+			require.NoErrorf(t, err, "could not parse response: %s", res)
+			txBin, err := testserdes.EncodeBinary(tx)
+			require.NoError(t, err)
+			expected := base64.StdEncoding.EncodeToString(txBin)
+			assert.Equal(t, expected, s)
+		}
+		t.Run("mainTx bytes", func(t *testing.T) {
+			checkGetTxBytes(t, notaryRequest1.MainTransaction)
+		})
+		t.Run("fallbackTx bytes", func(t *testing.T) {
+			checkGetTxBytes(t, notaryRequest1.FallbackTransaction)
+			checkGetTxBytes(t, notaryRequest2.FallbackTransaction)
+		})
+	})
+}
+
+// createValidNotaryRequest creates and signs P2PNotaryRequest payload which can
+// pass verification. It uses the provided mainTx if it's a nonempty structure.
+func createValidNotaryRequest(chain *core.Blockchain, sender *keys.PrivateKey, nonce uint32, networkFee int64, mainTx *transaction.Transaction) *payload.P2PNotaryRequest {
+	h := chain.BlockHeight()
+	// If mainTx is nil, then generate it.
+	if mainTx == nil {
+		mainTx = &transaction.Transaction{
+			Nonce:           nonce,
 			Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
 			Script:          []byte{byte(opcode.RET)},
-			ValidUntilBlock: 123,
-			Signers:         []transaction.Signer{{Account: util.Uint160{1, 5, 9}}},
+			ValidUntilBlock: h + 100,
+			Signers:         []transaction.Signer{{Account: sender.GetScriptHash()}},
 			Scripts: []transaction.Witness{{
 				InvocationScript:   []byte{1, 4, 7},
 				VerificationScript: []byte{3, 6, 9},
 			}},
 		}
-		fallbackTx := &transaction.Transaction{
-			Script:          []byte{byte(opcode.RET)},
-			ValidUntilBlock: 123,
-			Attributes: []transaction.Attribute{
-				{Type: transaction.NotValidBeforeT, Value: &transaction.NotValidBefore{Height: 123}},
-				{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: mainTx.Hash()}},
-				{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
-			},
-			Signers: []transaction.Signer{{Account: util.Uint160{1, 4, 7}}, {Account: util.Uint160{9, 8, 7}}},
-			Scripts: []transaction.Witness{
-				{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: make([]byte, 0)},
-				{InvocationScript: []byte{1, 2, 3}, VerificationScript: []byte{1, 2, 3}}},
-		}
-		p := &payload.P2PNotaryRequest{
-			MainTransaction:     mainTx,
-			FallbackTransaction: fallbackTx,
-			Witness: transaction.Witness{
-				InvocationScript:   []byte{1, 2, 3},
-				VerificationScript: []byte{7, 8, 9},
-			},
-		}
-		bytes, err := p.Bytes()
-		require.NoError(t, err)
-		str := fmt.Sprintf(`"%s"`, base64.StdEncoding.EncodeToString(bytes))
-		runCase(t, true, neorpc.ErrVerificationFailedCode, str)(t)
-	})
-	t.Run("valid request", func(t *testing.T) {
-		sender := testchain.PrivateKeyByID(0) // owner of the deposit in testchain
-		p := createValidNotaryRequest(chain, sender, 1)
-		bytes, err := p.Bytes()
-		require.NoError(t, err)
-		str := fmt.Sprintf(`"%s"`, base64.StdEncoding.EncodeToString(bytes))
-		runCase(t, false, 0, str)(t)
-	})
-}
-
-// createValidNotaryRequest creates and signs P2PNotaryRequest payload which can
-// pass verification.
-func createValidNotaryRequest(chain *core.Blockchain, sender *keys.PrivateKey, nonce uint32) *payload.P2PNotaryRequest {
-	h := chain.BlockHeight()
-	mainTx := &transaction.Transaction{
-		Nonce:           nonce,
-		Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
-		Script:          []byte{byte(opcode.RET)},
-		ValidUntilBlock: h + 100,
-		Signers:         []transaction.Signer{{Account: sender.GetScriptHash()}},
-		Scripts: []transaction.Witness{{
-			InvocationScript:   []byte{1, 4, 7},
-			VerificationScript: []byte{3, 6, 9},
-		}},
 	}
 	fallbackTx := &transaction.Transaction{
 		Script:          []byte{byte(opcode.RET)},
@@ -2378,7 +2500,7 @@ func createValidNotaryRequest(chain *core.Blockchain, sender *keys.PrivateKey, n
 		Scripts: []transaction.Witness{
 			{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: []byte{}},
 		},
-		NetworkFee: 2_0000_0000,
+		NetworkFee: networkFee,
 	}
 	fallbackTx.Scripts = append(fallbackTx.Scripts, transaction.Witness{
 		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, sender.SignHashable(uint32(testchain.Network()), fallbackTx)...),

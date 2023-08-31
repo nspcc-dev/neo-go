@@ -637,26 +637,18 @@ func TestMempoolAddWithDataGetData(t *testing.T) {
 		balance:     100,
 	}
 	mp := New(10, 1, false, nil)
-	newTx := func(t *testing.T, netFee int64) *transaction.Transaction {
-		tx := transaction.New([]byte{byte(opcode.RET)}, 0)
-		tx.Signers = []transaction.Signer{{}, {}}
-		tx.NetworkFee = netFee
-		nonce++
-		tx.Nonce = nonce
-		return tx
-	}
 
 	// bad, insufficient deposit
 	r1 := &payload.P2PNotaryRequest{
-		MainTransaction:     newTx(t, 0),
-		FallbackTransaction: newTx(t, fs.balance+1),
+		MainTransaction:     mkTwoSignersTx(0, &nonce),
+		FallbackTransaction: mkTwoSignersTx(fs.balance+1, &nonce),
 	}
 	require.ErrorIs(t, mp.Add(r1.FallbackTransaction, fs, r1), ErrInsufficientFunds)
 
 	// good
 	r2 := &payload.P2PNotaryRequest{
-		MainTransaction:     newTx(t, 0),
-		FallbackTransaction: newTx(t, smallNetFee),
+		MainTransaction:     mkTwoSignersTx(0, &nonce),
+		FallbackTransaction: mkTwoSignersTx(smallNetFee, &nonce),
 	}
 	require.NoError(t, mp.Add(r2.FallbackTransaction, fs, r2))
 	require.True(t, mp.ContainsKey(r2.FallbackTransaction.Hash()))
@@ -669,8 +661,8 @@ func TestMempoolAddWithDataGetData(t *testing.T) {
 
 	// good, higher priority than r2. The resulting mp.verifiedTxes: [r3, r2]
 	r3 := &payload.P2PNotaryRequest{
-		MainTransaction:     newTx(t, 0),
-		FallbackTransaction: newTx(t, smallNetFee+1),
+		MainTransaction:     mkTwoSignersTx(0, &nonce),
+		FallbackTransaction: mkTwoSignersTx(smallNetFee+1, &nonce),
 	}
 	require.NoError(t, mp.Add(r3.FallbackTransaction, fs, r3))
 	require.True(t, mp.ContainsKey(r3.FallbackTransaction.Hash()))
@@ -680,8 +672,8 @@ func TestMempoolAddWithDataGetData(t *testing.T) {
 
 	// good, same priority as r2. The resulting mp.verifiedTxes: [r3, r2, r4]
 	r4 := &payload.P2PNotaryRequest{
-		MainTransaction:     newTx(t, 0),
-		FallbackTransaction: newTx(t, smallNetFee),
+		MainTransaction:     mkTwoSignersTx(0, &nonce),
+		FallbackTransaction: mkTwoSignersTx(smallNetFee, &nonce),
 	}
 	require.NoError(t, mp.Add(r4.FallbackTransaction, fs, r4))
 	require.True(t, mp.ContainsKey(r4.FallbackTransaction.Hash()))
@@ -691,8 +683,8 @@ func TestMempoolAddWithDataGetData(t *testing.T) {
 
 	// good, same priority as r2. The resulting mp.verifiedTxes: [r3, r2, r4, r5]
 	r5 := &payload.P2PNotaryRequest{
-		MainTransaction:     newTx(t, 0),
-		FallbackTransaction: newTx(t, smallNetFee),
+		MainTransaction:     mkTwoSignersTx(0, &nonce),
+		FallbackTransaction: mkTwoSignersTx(smallNetFee, &nonce),
 	}
 	require.NoError(t, mp.Add(r5.FallbackTransaction, fs, r5))
 	require.True(t, mp.ContainsKey(r5.FallbackTransaction.Hash()))
@@ -713,7 +705,7 @@ func TestMempoolAddWithDataGetData(t *testing.T) {
 	require.False(t, ok)
 
 	// but getting nil data is OK. The resulting mp.verifiedTxes: [r3, r2, r4, r5, r6]
-	r6 := newTx(t, smallNetFee)
+	r6 := mkTwoSignersTx(smallNetFee, &nonce)
 	require.NoError(t, mp.Add(r6, fs, nil))
 	require.True(t, mp.ContainsKey(r6.Hash()))
 	data, ok = mp.TryGetData(r6.Hash())
@@ -722,18 +714,114 @@ func TestMempoolAddWithDataGetData(t *testing.T) {
 
 	// getting data: item is in verifiedMap, but not in verifiedTxes
 	r7 := &payload.P2PNotaryRequest{
-		MainTransaction:     newTx(t, 0),
-		FallbackTransaction: newTx(t, smallNetFee),
+		MainTransaction:     mkTwoSignersTx(0, &nonce),
+		FallbackTransaction: mkTwoSignersTx(smallNetFee, &nonce),
 	}
 	require.NoError(t, mp.Add(r7.FallbackTransaction, fs, r4))
 	require.True(t, mp.ContainsKey(r7.FallbackTransaction.Hash()))
 	r8 := &payload.P2PNotaryRequest{
-		MainTransaction:     newTx(t, 0),
-		FallbackTransaction: newTx(t, smallNetFee-1),
+		MainTransaction:     mkTwoSignersTx(0, &nonce),
+		FallbackTransaction: mkTwoSignersTx(smallNetFee-1, &nonce),
 	}
 	require.NoError(t, mp.Add(r8.FallbackTransaction, fs, r4))
 	require.True(t, mp.ContainsKey(r8.FallbackTransaction.Hash()))
 	mp.verifiedTxes = append(mp.verifiedTxes[:len(mp.verifiedTxes)-2], mp.verifiedTxes[len(mp.verifiedTxes)-1])
 	_, ok = mp.TryGetData(r7.FallbackTransaction.Hash())
 	require.False(t, ok)
+}
+
+func mkTwoSignersTx(netFee int64, nonce *uint32) *transaction.Transaction {
+	tx := transaction.New([]byte{byte(opcode.RET)}, 0)
+	tx.Signers = []transaction.Signer{{}, {}}
+	tx.NetworkFee = netFee
+	*nonce++
+	tx.Nonce = *nonce
+	return tx
+}
+
+func TestMempoolIterateVerifiedTransactions(t *testing.T) {
+	var (
+		smallNetFee        int64 = 3
+		nonce              uint32
+		r1, r2, r3, r4, r5 *payload.P2PNotaryRequest
+	)
+	fs := &FeerStub{
+		feePerByte:  0,
+		p2pSigExt:   true,
+		blockHeight: 5,
+		balance:     100,
+	}
+	mp := New(10, 1, false, nil)
+
+	checkRequestsOrder := func(orderedRequests []*payload.P2PNotaryRequest) {
+		var pooledRequests []*payload.P2PNotaryRequest
+		mp.IterateVerifiedTransactions(func(tx *transaction.Transaction, data any) bool {
+			d := data.(*payload.P2PNotaryRequest)
+			pooledRequests = append(pooledRequests, d)
+			return true
+		})
+		require.Equal(t, orderedRequests, pooledRequests)
+	}
+
+	r1 = &payload.P2PNotaryRequest{
+		MainTransaction:     mkTwoSignersTx(0, &nonce),
+		FallbackTransaction: mkTwoSignersTx(smallNetFee, &nonce),
+	}
+	require.NoError(t, mp.Add(r1.FallbackTransaction, fs, r1))
+	checkRequestsOrder([]*payload.P2PNotaryRequest{r1})
+
+	// r2 has higher priority than r1. The resulting mp.verifiedTxes: [r2, r1]
+	r2 = &payload.P2PNotaryRequest{
+		MainTransaction:     mkTwoSignersTx(0, &nonce),
+		FallbackTransaction: mkTwoSignersTx(smallNetFee+1, &nonce),
+	}
+	require.NoError(t, mp.Add(r2.FallbackTransaction, fs, r2))
+	checkRequestsOrder([]*payload.P2PNotaryRequest{r2, r1})
+
+	// r3 has the same priority as r1. The resulting mp.verifiedTxes: [r2, r1, r3]
+	r3 = &payload.P2PNotaryRequest{
+		MainTransaction:     mkTwoSignersTx(0, &nonce),
+		FallbackTransaction: mkTwoSignersTx(smallNetFee, &nonce),
+	}
+	require.NoError(t, mp.Add(r3.FallbackTransaction, fs, r3))
+	checkRequestsOrder([]*payload.P2PNotaryRequest{r2, r1, r3})
+
+	// r4 has the same priority as r1. The resulting mp.verifiedTxes: [r2, r1, r3, r4]
+	r4 = &payload.P2PNotaryRequest{
+		MainTransaction:     mkTwoSignersTx(0, &nonce),
+		FallbackTransaction: mkTwoSignersTx(smallNetFee, &nonce),
+	}
+	require.NoError(t, mp.Add(r4.FallbackTransaction, fs, r4))
+	checkRequestsOrder([]*payload.P2PNotaryRequest{r2, r1, r3, r4})
+
+	checkPooledRequest := func(t *testing.T, r *payload.P2PNotaryRequest, isPooled bool) {
+		cont := true
+		notaryRequest := &payload.P2PNotaryRequest{}
+		mp.IterateVerifiedTransactions(func(tx *transaction.Transaction, data any) bool {
+			if data != nil {
+				notaryRequest = data.(*payload.P2PNotaryRequest)
+				if notaryRequest.MainTransaction.Hash() == r.MainTransaction.Hash() {
+					cont = false
+				}
+			}
+			return cont
+		})
+
+		if isPooled {
+			require.Equal(t, false, cont)
+			require.Equal(t, r, notaryRequest)
+		} else {
+			require.Equal(t, true, cont)
+		}
+	}
+	checkPooledRequest(t, r1, true)
+	checkPooledRequest(t, r2, true)
+	checkPooledRequest(t, r3, true)
+	checkPooledRequest(t, r4, true)
+
+	r5 = &payload.P2PNotaryRequest{
+		MainTransaction:     mkTwoSignersTx(0, &nonce),
+		FallbackTransaction: mkTwoSignersTx(smallNetFee, &nonce),
+	}
+	checkPooledRequest(t, r5, false)
 }

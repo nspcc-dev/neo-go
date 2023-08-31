@@ -1285,3 +1285,44 @@ func (c *Client) TerminateSession(sessionID uuid.UUID) (bool, error) {
 
 	return resp, nil
 }
+
+// GetRawNotaryTransaction  returns main or fallback transaction from the
+// RPC node's notary request pool.
+func (c *Client) GetRawNotaryTransaction(hash util.Uint256) (*transaction.Transaction, error) {
+	var (
+		params = []any{hash.StringLE()}
+		resp   []byte
+		err    error
+	)
+	if err = c.performRequest("getrawnotarytransaction", params, &resp); err != nil {
+		return nil, err
+	}
+	return transaction.NewTransactionFromBytes(resp)
+}
+
+// GetRawNotaryTransactionVerbose returns main or fallback transaction from the
+// RPC node's notary request pool.
+// NOTE: to get transaction.ID and transaction.Size, use t.Hash() and
+// io.GetVarSize(t) respectively.
+func (c *Client) GetRawNotaryTransactionVerbose(hash util.Uint256) (*transaction.Transaction, error) {
+	var (
+		params = []any{hash.StringLE(), 1} // 1 for verbose.
+		resp   = &transaction.Transaction{}
+		err    error
+	)
+	if err = c.performRequest("getrawnotarytransaction", params, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetRawNotaryPool returns hashes of main P2PNotaryRequest transactions that
+// are currently in the RPC node's notary request pool with the corresponding
+// hashes of fallback transactions.
+func (c *Client) GetRawNotaryPool() (*result.RawNotaryPool, error) {
+	resp := &result.RawNotaryPool{}
+	if err := c.performRequest("getrawnotarypool", nil, resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}

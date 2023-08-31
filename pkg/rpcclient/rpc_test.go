@@ -1375,6 +1375,89 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"getrawnotarytransaction": {
+		{
+			name: "positive",
+			invoke: func(c *Client) (any, error) {
+				hash, err := util.Uint256DecodeStringLE("ad1c2875de823a54188949490e2d68580fd070fcc5ff409609f478d23d12355f")
+				if err != nil {
+					panic(err)
+				}
+				return c.GetRawNotaryTransaction(hash)
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"AAMAAAAAAAAAAAAAAAAAAAAAAAAAewAAAAHunqIsJ+NL0BSPxBCOCPdOj1BIsgABIgEBQAEDAQQHAwMGCQ=="}`,
+			result: func(c *Client) any {
+				return &transaction.Transaction{}
+			},
+			check: func(t *testing.T, c *Client, uns any) {
+				res, ok := uns.(*transaction.Transaction)
+				require.True(t, ok)
+				assert.NotNil(t, res)
+				expectHash, err := util.Uint256DecodeStringLE("ad1c2875de823a54188949490e2d68580fd070fcc5ff409609f478d23d12355f")
+				require.NoError(t, err)
+				assert.Equal(t, expectHash, res.Hash())
+			},
+		},
+		{
+			name: "positive verbose",
+			invoke: func(c *Client) (any, error) {
+				hash, err := util.Uint256DecodeStringLE("ad1c2875de823a54188949490e2d68580fd070fcc5ff409609f478d23d12355f")
+				if err != nil {
+					panic(err)
+				}
+				return c.GetRawNotaryTransactionVerbose(hash)
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"hash":"0xad1c2875de823a54188949490e2d68580fd070fcc5ff409609f478d23d12355f","size":61,"version":0,"nonce":3,"sender":"Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn","sysfee":"0","netfee":"0","validuntilblock":123,"attributes":[{"nkeys":1,"type":"NotaryAssisted"}],"signers":[{"account":"0xb248508f4ef7088e10c48f14d04be3272ca29eee","scopes":"None"}],"script":"QA==","witnesses":[{"invocation":"AQQH","verification":"AwYJ"}]}}`,
+			result: func(c *Client) any {
+				return &transaction.Transaction{}
+			},
+			check: func(t *testing.T, c *Client, uns any) {
+				res, ok := uns.(*transaction.Transaction)
+				require.True(t, ok)
+				assert.NotNil(t, res)
+				expectHash, err := util.Uint256DecodeStringLE("ad1c2875de823a54188949490e2d68580fd070fcc5ff409609f478d23d12355f")
+				require.NoError(t, err)
+				assert.Equal(t, expectHash, res.Hash())
+			},
+		},
+	},
+	"getrawnotarypool": {
+		{
+			name: "empty pool",
+			invoke: func(c *Client) (any, error) {
+				return c.GetRawNotaryPool()
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{}}`,
+			result: func(c *Client) any {
+				return &result.RawNotaryPool{
+					Hashes: map[util.Uint256][]util.Uint256{},
+				}
+			},
+		},
+		{
+			name: "nonempty pool",
+			invoke: func(c *Client) (any, error) {
+				return c.GetRawNotaryPool()
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"hashes":{"0xd86b5346e9bbe6dba845cc4192fa716535a3d05c4f2084431edc99dc3862a299":["0xbb0b2f1d5539dd776637f00e5011d97921a1400d3a63c02977a38446180c6d7c"]}}}`,
+			result: func(c *Client) any {
+				return &result.RawNotaryPool{
+					Hashes: map[util.Uint256][]util.Uint256{},
+				}
+			},
+			check: func(t *testing.T, c *Client, uns any) {
+				res, ok := uns.(*result.RawNotaryPool)
+				require.True(t, ok)
+				mainHash, err := util.Uint256DecodeStringLE("d86b5346e9bbe6dba845cc4192fa716535a3d05c4f2084431edc99dc3862a299")
+				require.NoError(t, err, "can't decode `mainHash` result hash")
+				fallbackHash, err := util.Uint256DecodeStringLE("bb0b2f1d5539dd776637f00e5011d97921a1400d3a63c02977a38446180c6d7c")
+				require.NoError(t, err, "can't decode `fallbackHash` result hash")
+				fallbacks, ok := res.Hashes[mainHash]
+				require.True(t, ok)
+				assert.Equal(t, fallbacks[0], fallbackHash)
+			},
+		},
+	},
 }
 
 type rpcClientErrorCase struct {
