@@ -677,9 +677,22 @@ func (s *service) getValidators(txes ...block.Transaction) []crypto.PublicKey {
 		err   error
 	)
 	if txes == nil {
+		// getValidators with empty args is used by dbft to fill the list of
+		// block's validators, thus should return validators from the current
+		// epoch without recalculation.
 		pKeys, err = s.Chain.GetNextBlockValidators()
 	} else {
-		pKeys = s.Chain.ComputeNextBlockValidators()
+		// getValidators with non-empty args is used by dbft to fill block's
+		// NextConsensus field, thus should return proper value for NextConsensus.
+		cfg := s.Chain.GetConfig().ProtocolConfiguration
+		if cfg.ShouldUpdateCommitteeAt(s.dbft.Context.BlockIndex) {
+			// Calculate NextConsensus based on the most fresh chain state.
+			pKeys = s.Chain.ComputeNextBlockValidators()
+		} else {
+			// Take the cached validators that are relevant for the current dBFT epoch
+			// to make NextConsensus.
+			pKeys, err = s.Chain.GetNextBlockValidators()
+		}
 	}
 	if err != nil {
 		s.log.Error("error while trying to get validators", zap.Error(err))
@@ -725,8 +738,11 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	var err error
 	cfg := s.Chain.GetConfig().ProtocolConfiguration
 	if cfg.ShouldUpdateCommitteeAt(ctx.BlockIndex) {
+		// Calculate NextConsensus based on the most fresh chain state.
 		validators = s.Chain.ComputeNextBlockValidators()
 	} else {
+		// Take the cached validators that are relevant for the current dBFT epoch
+		// to make NextConsensus.
 		validators, err = s.Chain.GetNextBlockValidators()
 	}
 	if err != nil {
