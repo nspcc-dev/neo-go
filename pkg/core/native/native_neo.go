@@ -50,14 +50,14 @@ type NeoCache struct {
 
 	votesChanged   bool
 	nextValidators keys.PublicKeys
-	// validators contains cached next block validators. This list is updated once
+	// newEpochNextValidators contains cached next block newEpochNextValidators. This list is updated once
 	// per dBFT epoch in PostPersist of the last block in the epoch if candidates
 	// votes ratio has been changed or register/unregister operation was performed
 	// within the last processed epoch. The updated value is being persisted
 	// following the standard layered DAO persist rules, so that external users
 	// will get the proper value with upper Blockchain's DAO (but this value is
 	// relevant only by the moment of first epoch block creation).
-	validators keys.PublicKeys
+	newEpochNextValidators keys.PublicKeys
 	// committee contains cached committee members and their votes.
 	// It is updated once in a while depending on committee size
 	// (every 28 blocks for mainnet). It's value
@@ -132,9 +132,9 @@ func (c *NeoCache) Copy() dao.NativeContractCache {
 func copyNeoCache(src, dst *NeoCache) {
 	dst.votesChanged = src.votesChanged
 	// Can safely omit copying because the new array is created each time
-	// validators list, nextValidators and committee are updated.
+	// newEpochNextValidators list, nextValidators and committee are updated.
 	dst.nextValidators = src.nextValidators
-	dst.validators = src.validators
+	dst.newEpochNextValidators = src.newEpochNextValidators
 	dst.committee = src.committee
 	dst.committeeHash = src.committeeHash
 
@@ -274,9 +274,9 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	}
 
 	cache := &NeoCache{
-		gasPerVoteCache: make(map[string]big.Int),
-		votesChanged:    true,
-		validators:      nil, // will be updated in the last epoch block's PostPersist right before the committee update block.
+		gasPerVoteCache:        make(map[string]big.Int),
+		votesChanged:           true,
+		newEpochNextValidators: nil, // will be updated in the last epoch block's PostPersist right before the committee update block.
 	}
 
 	// We need cache to be present in DAO before the subsequent call to `mint`.
@@ -323,7 +323,7 @@ func (n *NEO) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 		// this field, and it will be updated during the PostPersist of the last
 		// block in the current epoch. If it's the laast block of the current epoch,
 		// then update this cache manually below.
-		validators: nil,
+		newEpochNextValidators: nil,
 	}
 
 	var committee = keysWithVotes{}
@@ -344,7 +344,7 @@ func (n *NEO) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 		var numOfCNs = n.cfg.GetNumOfCNs(blockHeight + 1)
 		err := n.updateCachedValidators(d, cache, blockHeight, numOfCNs)
 		if err != nil {
-			return fmt.Errorf("failed to update next block validators cache: %w", err)
+			return fmt.Errorf("failed to update next block newEpochNextValidators cache: %w", err)
 		}
 	}
 
@@ -376,7 +376,7 @@ func (n *NEO) updateCache(cache *NeoCache, cvs keysWithVotes, blockHeight uint32
 	return nil
 }
 
-// updateCachedValidators sets validators cache that will be used by external users
+// updateCachedValidators sets newEpochNextValidators cache that will be used by external users
 // to retrieve next block validators list of the next dBFT epoch that wasn't yet
 // started. Thus, it stores the list of validators computed using the persisted
 // blocks state of the latest epoch.
@@ -387,7 +387,7 @@ func (n *NEO) updateCachedValidators(d *dao.Simple, cache *NeoCache, blockHeight
 	}
 	result = result[:numOfCNs]
 	sort.Sort(result)
-	cache.validators = result
+	cache.newEpochNextValidators = result
 	return nil
 }
 
@@ -475,20 +475,20 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 			}
 		}
 	}
-	// Update next block validators cache for external users if committee should be
+	// Update next block newEpochNextValidators cache for external users if committee should be
 	// updated in the next block.
 	if n.cfg.ShouldUpdateCommitteeAt(ic.Block.Index + 1) {
 		var (
-			h        = ic.Block.Index // consider persisting block as stored to get _next_ block validators
+			h        = ic.Block.Index // consider persisting block as stored to get _next_ block newEpochNextValidators
 			numOfCNs = n.cfg.GetNumOfCNs(h + 1)
 		)
-		if cache.validators == nil || numOfCNs != len(cache.validators) {
+		if cache.newEpochNextValidators == nil || numOfCNs != len(cache.newEpochNextValidators) {
 			if !isCacheRW {
 				cache = ic.DAO.GetRWCache(n.ID).(*NeoCache)
 			}
 			err := n.updateCachedValidators(ic.DAO, cache, h, numOfCNs)
 			if err != nil {
-				return fmt.Errorf("failed to update next block validators cache: %w", err)
+				return fmt.Errorf("failed to update next block newEpochNextValidators cache: %w", err)
 			}
 		}
 	}
@@ -831,7 +831,7 @@ func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicK
 		return nil
 	}
 	cache := ic.DAO.GetRWCache(n.ID).(*NeoCache)
-	cache.validators = nil
+	cache.newEpochNextValidators = nil
 	c := new(candidate).FromBytes(si)
 	emitEvent := c.Registered
 	c.Registered = false
@@ -957,7 +957,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalance, d *dao.Simple, value *bi
 				return nil
 			}
 		}
-		cache.validators = nil
+		cache.newEpochNextValidators = nil
 		return putConvertibleToDAO(n.ID, d, key, cd)
 	}
 	return nil
@@ -1108,12 +1108,12 @@ func (n *NEO) ComputeNextBlockValidators(d *dao.Simple) keys.PublicKeys {
 	// It should always be OK with RO cache if using lower-layered DAO with proper
 	// cache set.
 	cache := d.GetROCache(n.ID).(*NeoCache)
-	if vals := cache.validators; vals != nil {
+	if vals := cache.newEpochNextValidators; vals != nil {
 		return vals.Copy()
 	}
 	// It's a caller's program error to call ComputeNextBlockValidators not having
 	// the right value in lower cache.
-	panic("bug: unexpected external call to validators cache")
+	panic("bug: unexpected external call to newEpochNextValidators cache")
 }
 
 func (n *NEO) getCommittee(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
