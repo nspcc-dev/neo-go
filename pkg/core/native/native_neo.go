@@ -363,7 +363,7 @@ func (n *NEO) initConfigCache(cfg config.ProtocolConfiguration) error {
 func (n *NEO) updateCache(cache *NeoCache, cvs keysWithVotes, blockHeight uint32) error {
 	cache.committee = cvs
 
-	var committee = getCommitteeMembers(cache)
+	var committee = getCommitteeMembers(cache.committee)
 	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(committee.Copy())
 	if err != nil {
 		return err
@@ -431,7 +431,7 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 func (n *NEO) PostPersist(ic *interop.Context) error {
 	gas := n.GetGASPerBlock(ic.DAO, ic.Block.Index)
 	cache := ic.DAO.GetROCache(n.ID).(*NeoCache)
-	pubs := getCommitteeMembers(cache)
+	pubs := getCommitteeMembers(cache.committee)
 	committeeSize := n.cfg.GetCommitteeSize(ic.Block.Index)
 	index := int(ic.Block.Index) % committeeSize
 	committeeReward := new(big.Int).Mul(gas, bigCommitteeRewardRatio)
@@ -1137,11 +1137,10 @@ func (n *NEO) modifyVoterTurnout(d *dao.Simple, amount *big.Int) error {
 // GetCommitteeMembers returns public keys of nodes in committee using cached value.
 func (n *NEO) GetCommitteeMembers(d *dao.Simple) keys.PublicKeys {
 	cache := d.GetROCache(n.ID).(*NeoCache)
-	return getCommitteeMembers(cache)
+	return getCommitteeMembers(cache.committee)
 }
 
-func getCommitteeMembers(cache *NeoCache) keys.PublicKeys {
-	var cvs = cache.committee
+func getCommitteeMembers(cvs keysWithVotes) keys.PublicKeys {
 	var committee = make(keys.PublicKeys, len(cvs))
 	var err error
 	for i := range committee {
