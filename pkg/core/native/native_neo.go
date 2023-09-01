@@ -63,8 +63,13 @@ type NeoCache struct {
 	// (every 28 blocks for mainnet). It's value
 	// is always equal to the value stored by `prefixCommittee`.
 	committee keysWithVotes
+	// newEpochCommittee contains cached committee members updated once per dBFT
+	// epoch in PostPersist of the last block in the epoch.
+	newEpochCommittee keysWithVotes
 	// committeeHash contains the script hash of the committee.
 	committeeHash util.Uint160
+	// newEpochCommitteeHash contains the script hash of the newEpochCommittee.
+	newEpochCommitteeHash util.Uint160
 
 	// gasPerVoteCache contains the last updated value of GAS per vote reward for candidates.
 	// It is set in state-modifying methods only and read in `PostPersist`, thus is not protected
@@ -274,9 +279,13 @@ func (n *NEO) Initialize(ic *interop.Context) error {
 	}
 
 	cache := &NeoCache{
-		gasPerVoteCache:        make(map[string]big.Int),
-		votesChanged:           true,
-		newEpochNextValidators: nil, // will be updated in the last epoch block's PostPersist right before the committee update block.
+		gasPerVoteCache: make(map[string]big.Int),
+		votesChanged:    true,
+		// Will be updated in the last epoch block's PostPersist right before the committee update block.
+		// NeoToken's deployment (and initialization) isn't intended to be performed not-in-genesis block anyway.
+		newEpochNextValidators: nil,
+		newEpochCommittee:      nil,
+		newEpochCommitteeHash:  util.Uint160{},
 	}
 
 	// We need cache to be present in DAO before the subsequent call to `mint`.
@@ -319,11 +328,13 @@ func (n *NEO) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	cache := &NeoCache{
 		gasPerVoteCache: make(map[string]big.Int),
 		votesChanged:    true,
-		// If it's a block in the middle of dbft epoch, then no one must access
-		// this field, and it will be updated during the PostPersist of the last
-		// block in the current epoch. If it's the laast block of the current epoch,
+		// If it's a block in the middle of dBFT epoch, then no one must access
+		// these NewEpoch* fields, and they will be updated during the PostPersist of the last
+		// block in the current epoch. If it's the last block of the current epoch,
 		// then update this cache manually below.
 		newEpochNextValidators: nil,
+		newEpochCommittee:      nil,
+		newEpochCommitteeHash:  util.Uint160{},
 	}
 
 	var committee = keysWithVotes{}
@@ -338,13 +349,13 @@ func (n *NEO) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	cache.gasPerBlock = n.getSortedGASRecordFromDAO(d)
 	cache.registerPrice = getIntWithKey(n.ID, d, []byte{prefixRegisterPrice})
 
-	// Update next block validators cache for external users if committee should be
+	// Update newEpoch* cache for external users if committee should be
 	// updated in the next block.
 	if n.cfg.ShouldUpdateCommitteeAt(blockHeight + 1) {
 		var numOfCNs = n.cfg.GetNumOfCNs(blockHeight + 1)
-		err := n.updateCachedValidators(d, cache, blockHeight, numOfCNs)
+		err := n.updateCachedNewEpochValues(d, cache, blockHeight, numOfCNs)
 		if err != nil {
-			return fmt.Errorf("failed to update next block newEpochNextValidators cache: %w", err)
+			return fmt.Errorf("failed to update next block newEpoch* cache: %w", err)
 		}
 	}
 
@@ -376,37 +387,28 @@ func (n *NEO) updateCache(cache *NeoCache, cvs keysWithVotes, blockHeight uint32
 	return nil
 }
 
-// updateCachedValidators sets newEpochNextValidators cache that will be used by external users
-// to retrieve next block validators list of the next dBFT epoch that wasn't yet
-// started. Thus, it stores the list of validators computed using the persisted
-// blocks state of the latest epoch.
-func (n *NEO) updateCachedValidators(d *dao.Simple, cache *NeoCache, blockHeight uint32, numOfCNs int) error {
-	result, _, err := n.computeCommitteeMembers(blockHeight, d)
+// updateCachedNewEpochValues sets newEpochNextValidators, newEpochCommittee and
+// newEpochCommitteeHash cache that will be used by external users to retrieve
+// next block validators list of the next dBFT epoch that wasn't yet started and
+// will be used by corresponding values initialisation on the next epoch start.
+// The updated new epoch cached values computed using the persisted blocks state
+// of the latest epoch.
+func (n *NEO) updateCachedNewEpochValues(d *dao.Simple, cache *NeoCache, blockHeight uint32, numOfCNs int) error {
+	committee, cvs, err := n.computeCommitteeMembers(blockHeight, d)
 	if err != nil {
 		return fmt.Errorf("failed to compute committee members: %w", err)
 	}
-	result = result[:numOfCNs]
-	sort.Sort(result)
-	cache.newEpochNextValidators = result
-	return nil
-}
+	cache.newEpochCommittee = cvs
 
-func (n *NEO) updateCommittee(cache *NeoCache, ic *interop.Context) error {
-	if !cache.votesChanged {
-		// We need to put in storage anyway, as it affects dumps
-		ic.DAO.PutStorageItem(n.ID, prefixCommittee, cache.committee.Bytes(ic.DAO.GetItemCtx()))
-		return nil
-	}
-
-	_, cvs, err := n.computeCommitteeMembers(ic.BlockHeight(), ic.DAO)
+	script, err := smartcontract.CreateMajorityMultiSigRedeemScript(committee.Copy())
 	if err != nil {
 		return err
 	}
-	if err := n.updateCache(cache, cvs, ic.BlockHeight()); err != nil {
-		return err
-	}
-	cache.votesChanged = false
-	ic.DAO.PutStorageItem(n.ID, prefixCommittee, cvs.Bytes(ic.DAO.GetItemCtx()))
+	cache.newEpochCommitteeHash = hash.Hash160(script)
+
+	nextVals := committee[:numOfCNs].Copy()
+	sort.Sort(nextVals)
+	cache.newEpochNextValidators = nextVals
 	return nil
 }
 
@@ -414,15 +416,20 @@ func (n *NEO) updateCommittee(cache *NeoCache, ic *interop.Context) error {
 func (n *NEO) OnPersist(ic *interop.Context) error {
 	if n.cfg.ShouldUpdateCommitteeAt(ic.Block.Index) {
 		cache := ic.DAO.GetRWCache(n.ID).(*NeoCache)
+		// Cached newEpoch* values always have proper value set (either by PostPersist
+		// during the last epoch block handling or by initialization code).
 		oldKeys := cache.nextValidators
 		oldCom := cache.committee
 		if n.cfg.GetNumOfCNs(ic.Block.Index) != len(oldKeys) ||
 			n.cfg.GetCommitteeSize(ic.Block.Index) != len(oldCom) {
-			cache.votesChanged = true
+			cache.nextValidators = cache.newEpochNextValidators
+			cache.committee = cache.newEpochCommittee
+			cache.committeeHash = cache.newEpochCommitteeHash
+			cache.votesChanged = false
 		}
-		if err := n.updateCommittee(cache, ic); err != nil {
-			return err
-		}
+
+		// We need to put in storage anyway, as it affects dumps
+		ic.DAO.PutStorageItem(n.ID, prefixCommittee, cache.committee.Bytes(ic.DAO.GetItemCtx()))
 	}
 	return nil
 }
@@ -475,8 +482,9 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 			}
 		}
 	}
-	// Update next block newEpochNextValidators cache for external users if committee should be
-	// updated in the next block.
+	// Update newEpoch cache for external users and further committee, committeeHash
+	// and nextBlockValidators cache initialisation if committee should be updated in
+	// the next block.
 	if n.cfg.ShouldUpdateCommitteeAt(ic.Block.Index + 1) {
 		var (
 			h        = ic.Block.Index // consider persisting block as stored to get _next_ block newEpochNextValidators
@@ -486,9 +494,9 @@ func (n *NEO) PostPersist(ic *interop.Context) error {
 			if !isCacheRW {
 				cache = ic.DAO.GetRWCache(n.ID).(*NeoCache)
 			}
-			err := n.updateCachedValidators(ic.DAO, cache, h, numOfCNs)
+			err := n.updateCachedNewEpochValues(ic.DAO, cache, h, numOfCNs)
 			if err != nil {
-				return fmt.Errorf("failed to update next block newEpochNextValidators cache: %w", err)
+				return fmt.Errorf("failed to update next block newEpoch* cache: %w", err)
 			}
 		}
 	}
