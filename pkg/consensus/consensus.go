@@ -683,16 +683,9 @@ func (s *service) getValidators(txes ...block.Transaction) []crypto.PublicKey {
 		pKeys, err = s.Chain.GetNextBlockValidators()
 	} else {
 		// getValidators with non-empty args is used by dbft to fill block's
-		// NextConsensus field, thus should return proper value for NextConsensus.
-		cfg := s.Chain.GetConfig().ProtocolConfiguration
-		if cfg.ShouldUpdateCommitteeAt(s.dbft.Context.BlockIndex) {
-			// Calculate NextConsensus based on the most fresh chain state.
-			pKeys = s.Chain.ComputeNextBlockValidators()
-		} else {
-			// Take the cached validators that are relevant for the current dBFT epoch
-			// to make NextConsensus.
-			pKeys, err = s.Chain.GetNextBlockValidators()
-		}
+		// NextConsensus field, ComputeNextBlockValidators will return proper
+		// value for NextConsensus wrt dBFT epoch start/end.
+		pKeys = s.Chain.ComputeNextBlockValidators()
 	}
 	if err != nil {
 		s.log.Error("error while trying to get validators", zap.Error(err))
@@ -734,20 +727,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 		block.PrevStateRoot = sr.Root
 	}
 
-	var validators keys.PublicKeys
-	var err error
-	cfg := s.Chain.GetConfig().ProtocolConfiguration
-	if cfg.ShouldUpdateCommitteeAt(ctx.BlockIndex) {
-		// Calculate NextConsensus based on the most fresh chain state.
-		validators = s.Chain.ComputeNextBlockValidators()
-	} else {
-		// Take the cached validators that are relevant for the current dBFT epoch
-		// to make NextConsensus.
-		validators, err = s.Chain.GetNextBlockValidators()
-	}
-	if err != nil {
-		s.log.Fatal(fmt.Sprintf("failed to get validators: %s", err.Error()))
-	}
+	var validators = s.Chain.ComputeNextBlockValidators()
 	script, err := smartcontract.CreateDefaultMultiSigRedeemScript(validators)
 	if err != nil {
 		s.log.Fatal(fmt.Sprintf("failed to create multisignature script: %s", err.Error()))

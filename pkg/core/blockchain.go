@@ -2698,9 +2698,12 @@ func (bc *Blockchain) GetCommittee() (keys.PublicKeys, error) {
 }
 
 // ComputeNextBlockValidators returns current validators. Validators list
-// returned from this method may be updated every block (depending on
-// register/unregister/vote calls to NeoToken contract), not only once per
-// (committee size) number of blocks.
+// returned from this method is updated once per CommitteeSize number of blocks.
+// For the last block in the dBFT epoch this method returns the list of validators
+// recalculated from the latest relevant information about NEO votes; in this case
+// list of validators may differ from the one returned by GetNextBlockValidators.
+// For the not-last block of dBFT epoch this method returns the same list as
+// GetNextBlockValidators.
 func (bc *Blockchain) ComputeNextBlockValidators() []*keys.PublicKey {
 	return bc.contracts.NEO.ComputeNextBlockValidators(bc.dao)
 }
