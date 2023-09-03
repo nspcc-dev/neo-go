@@ -4,7 +4,8 @@ Package dbconfig is a micropackage that contains storage DB configuration option
 package dbconfig
 
 type (
-	// DBConfiguration describes configuration for DB. Supported: 'levelDB', 'boltDB'.
+	// DBConfiguration describes configuration for DB. Supported types:
+	// [LevelDB], [BoltDB] or [InMemoryDB] (not recommended for production usage).
 	DBConfiguration struct {
 		Type           string         `yaml:"Type"`
 		LevelDBOptions LevelDBOptions `yaml:"LevelDBOptions"`
