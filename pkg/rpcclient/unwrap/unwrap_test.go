@@ -123,6 +123,24 @@ func TestBool(t *testing.T) {
 	require.True(t, b)
 }
 
+func TestNothing(t *testing.T) {
+	// Error on input.
+	err := Nothing(&result.Invoke{State: "HALT", Stack: []stackitem.Item{}}, errors.New("some"))
+	require.Error(t, err)
+
+	// Nonempty stack.
+	err = Nothing(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make(42)}}, nil)
+	require.Error(t, err)
+
+	// FAULT state.
+	err = Nothing(&result.Invoke{State: "FAULT", Stack: []stackitem.Item{}}, nil)
+	require.Error(t, err)
+
+	// Positive.
+	err = Nothing(&result.Invoke{State: "HALT", Stack: []stackitem.Item{}}, nil)
+	require.NoError(t, err)
+}
+
 func TestInt64(t *testing.T) {
 	_, err := Int64(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make("0x03c564ed28ba3d50beb1a52dcb751b929e1d747281566bd510363470be186bc0")}}, nil)
 	require.Error(t, err)
