@@ -374,3 +374,15 @@ func Item(r *result.Invoke, err error) (stackitem.Item, error) {
 	}
 	return r.Stack[0], nil
 }
+
+// Nothing expects zero stack items and a successful invocation (HALT state).
+func Nothing(r *result.Invoke, err error) error {
+	err = checkResOK(r, err)
+	if err != nil {
+		return err
+	}
+	if len(r.Stack) != 0 {
+		return errors.New("result stack is not empty")
+	}
+	return nil
+}
