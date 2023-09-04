@@ -18,7 +18,7 @@ import (
 )
 
 func TestPutGetAndDecode(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	serializable := &TestSerializable{field: random.String(4)}
 	hash := []byte{1}
 	require.NoError(t, dao.putWithBuffer(serializable, hash, io.NewBufBinWriter()))
@@ -42,7 +42,7 @@ func (t *TestSerializable) DecodeBinary(reader *io.BinReader) {
 }
 
 func TestPutGetStorageItem(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	id := int32(random.Int(0, 1024))
 	key := []byte{0}
 	storageItem := state.StorageItem{}
@@ -52,7 +52,7 @@ func TestPutGetStorageItem(t *testing.T) {
 }
 
 func TestDeleteStorageItem(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	id := int32(random.Int(0, 1024))
 	key := []byte{0}
 	storageItem := state.StorageItem{}
@@ -63,7 +63,7 @@ func TestDeleteStorageItem(t *testing.T) {
 }
 
 func TestGetBlock_NotExists(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	hash := random.Uint256()
 	block, err := dao.GetBlock(hash)
 	require.Error(t, err)
@@ -71,7 +71,7 @@ func TestGetBlock_NotExists(t *testing.T) {
 }
 
 func TestPutGetBlock(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	b := &block.Block{
 		Header: block.Header{
 			Script: transaction.Witness{
@@ -110,14 +110,14 @@ func TestPutGetBlock(t *testing.T) {
 }
 
 func TestGetVersion_NoVersion(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	version, err := dao.GetVersion()
 	require.Error(t, err)
 	require.Equal(t, "", version.Value)
 }
 
 func TestGetVersion(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	expected := Version{
 		StoragePrefix:     0x42,
 		P2PSigExtensions:  true,
@@ -130,14 +130,14 @@ func TestGetVersion(t *testing.T) {
 	require.Equal(t, expected, actual)
 
 	t.Run("invalid", func(t *testing.T) {
-		dao := NewSimple(storage.NewMemoryStore(), false, false)
+		dao := NewSimple(storage.NewMemoryStore(), false)
 		dao.Store.Put([]byte{byte(storage.SYSVersion)}, []byte("0.1.2\x00x"))
 
 		_, err := dao.GetVersion()
 		require.Error(t, err)
 	})
 	t.Run("old format", func(t *testing.T) {
-		dao := NewSimple(storage.NewMemoryStore(), false, false)
+		dao := NewSimple(storage.NewMemoryStore(), false)
 		dao.Store.Put([]byte{byte(storage.SYSVersion)}, []byte("0.1.2"))
 
 		version, err := dao.GetVersion()
@@ -147,14 +147,14 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestGetCurrentHeaderHeight_NoHeader(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	height, err := dao.GetCurrentBlockHeight()
 	require.Error(t, err)
 	require.Equal(t, uint32(0), height)
 }
 
 func TestGetCurrentHeaderHeight_Store(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), false, false)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	b := &block.Block{
 		Header: block.Header{
 			Script: transaction.Witness{
@@ -170,8 +170,8 @@ func TestGetCurrentHeaderHeight_Store(t *testing.T) {
 }
 
 func TestStoreAsTransaction(t *testing.T) {
-	t.Run("P2PSigExtensions off", func(t *testing.T) {
-		dao := NewSimple(storage.NewMemoryStore(), false, false)
+	t.Run("no conflicts", func(t *testing.T) {
+		dao := NewSimple(storage.NewMemoryStore(), false)
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 1)
 		tx.Signers = append(tx.Signers, transaction.Signer{})
 		tx.Scripts = append(tx.Scripts, transaction.Witness{})
@@ -194,8 +194,8 @@ func TestStoreAsTransaction(t *testing.T) {
 		require.Equal(t, *aer, gotAppExecResult[0])
 	})
 
-	t.Run("P2PSigExtensions on", func(t *testing.T) {
-		dao := NewSimple(storage.NewMemoryStore(), false, true)
+	t.Run("with conflicts", func(t *testing.T) {
+		dao := NewSimple(storage.NewMemoryStore(), false)
 		conflictsH := util.Uint256{1, 2, 3}
 		signer1 := util.Uint160{1, 2, 3}
 		signer2 := util.Uint160{4, 5, 6}
@@ -279,7 +279,7 @@ func TestStoreAsTransaction(t *testing.T) {
 }
 
 func BenchmarkStoreAsTransaction(b *testing.B) {
-	dao := NewSimple(storage.NewMemoryStore(), false, true)
+	dao := NewSimple(storage.NewMemoryStore(), false)
 	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 1)
 	tx.Attributes = []transaction.Attribute{
 		{
@@ -324,7 +324,7 @@ func BenchmarkStoreAsTransaction(b *testing.B) {
 func TestMakeStorageItemKey(t *testing.T) {
 	var id int32 = 5
 
-	dao := NewSimple(storage.NewMemoryStore(), true, false)
+	dao := NewSimple(storage.NewMemoryStore(), true)
 
 	expected := []byte{byte(storage.STStorage), 0, 0, 0, 0, 1, 2, 3}
 	binary.LittleEndian.PutUint32(expected[1:5], uint32(id))
@@ -343,7 +343,7 @@ func TestMakeStorageItemKey(t *testing.T) {
 }
 
 func TestPutGetStateSyncPoint(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), true, false)
+	dao := NewSimple(storage.NewMemoryStore(), true)
 
 	// empty store
 	_, err := dao.GetStateSyncPoint()
@@ -358,7 +358,7 @@ func TestPutGetStateSyncPoint(t *testing.T) {
 }
 
 func TestPutGetStateSyncCurrentBlockHeight(t *testing.T) {
-	dao := NewSimple(storage.NewMemoryStore(), true, false)
+	dao := NewSimple(storage.NewMemoryStore(), true)
 
 	// empty store
 	_, err := dao.GetStateSyncCurrentBlockHeight()

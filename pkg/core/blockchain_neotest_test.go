@@ -94,7 +94,7 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	t.Run("mismatch storage version", func(t *testing.T) {
 		ps = newPS(t)
 		cache := storage.NewMemCachedStore(ps) // Extra wrapper to avoid good DB corruption.
-		d := dao.NewSimple(cache, bc.GetConfig().StateRootInHeader, bc.GetConfig().P2PStateExchangeExtensions)
+		d := dao.NewSimple(cache, bc.GetConfig().StateRootInHeader)
 		d.PutVersion(dao.Version{
 			Value: "0.0.0",
 		})

@@ -320,8 +320,8 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 	}
 	bc := &Blockchain{
 		config:      cfg,
-		dao:         dao.NewSimple(s, cfg.StateRootInHeader, cfg.P2PSigExtensions),
-		persistent:  dao.NewSimple(s, cfg.StateRootInHeader, cfg.P2PSigExtensions),
+		dao:         dao.NewSimple(s, cfg.StateRootInHeader),
+		persistent:  dao.NewSimple(s, cfg.StateRootInHeader),
 		store:       s,
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
@@ -2752,7 +2752,7 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 		return nil, fmt.Errorf("failed to retrieve stateroot for height %d: %w", b.Index, err)
 	}
 	s := mpt.NewTrieStore(sr.Root, mode, storage.NewPrivateMemCachedStore(bc.dao.Store))
-	dTrie := dao.NewSimple(s, bc.config.StateRootInHeader, bc.config.P2PSigExtensions)
+	dTrie := dao.NewSimple(s, bc.config.StateRootInHeader)
 	dTrie.Version = bc.dao.Version
 	// Initialize native cache before passing DAO to interop context constructor, because
 	// the constructor will call BaseExecFee/StoragePrice policy methods on the passed DAO.

@@ -62,17 +62,16 @@ type NativeContractCache interface {
 }
 
 // NewSimple creates a new simple dao using the provided backend store.
-func NewSimple(backend storage.Store, stateRootInHeader bool, p2pSigExtensions bool) *Simple {
+func NewSimple(backend storage.Store, stateRootInHeader bool) *Simple {
 	st := storage.NewMemCachedStore(backend)
-	return newSimple(st, stateRootInHeader, p2pSigExtensions)
+	return newSimple(st, stateRootInHeader)
 }
 
-func newSimple(st *storage.MemCachedStore, stateRootInHeader bool, p2pSigExtensions bool) *Simple {
+func newSimple(st *storage.MemCachedStore, stateRootInHeader bool) *Simple {
 	return &Simple{
 		Version: Version{
 			StoragePrefix:     storage.STStorage,
 			StateRootInHeader: stateRootInHeader,
-			P2PSigExtensions:  p2pSigExtensions,
 		},
 		Store:       st,
 		nativeCache: make(map[int32]NativeContractCache),
@@ -87,7 +86,7 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // GetWrapped returns a new DAO instance with another layer of wrapped
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() *Simple {
-	d := NewSimple(dao.Store, dao.Version.StateRootInHeader, dao.Version.P2PSigExtensions)
+	d := NewSimple(dao.Store, dao.Version.StateRootInHeader)
 	d.Version = dao.Version
 	d.nativeCachePS = dao
 	return d
