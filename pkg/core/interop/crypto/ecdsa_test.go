@@ -72,7 +72,7 @@ func initCheckMultisigVMNoArgs(container *transaction.Transaction) *vm.VM {
 	ic := interop.NewContext(
 		trigger.Verification,
 		fakechain.NewFakeChain(),
-		dao.NewSimple(storage.NewMemoryStore(), false, false),
+		dao.NewSimple(storage.NewMemoryStore(), false),
 		interop.DefaultBaseExecFee, native.DefaultStoragePrice, nil, nil, nil, nil,
 		container,
 		nil)
@@ -178,7 +178,7 @@ func TestCheckSig(t *testing.T) {
 	require.NoError(t, err)
 
 	verifyFunc := ECDSASecp256r1CheckSig
-	d := dao.NewSimple(storage.NewMemoryStore(), false, false)
+	d := dao.NewSimple(storage.NewMemoryStore(), false)
 	ic := &interop.Context{Network: uint32(netmode.UnitTestNet), DAO: d}
 	runCase := func(t *testing.T, isErr bool, result any, args ...any) {
 		ic.SpawnVM()

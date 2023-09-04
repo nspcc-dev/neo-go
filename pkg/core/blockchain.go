@@ -320,8 +320,8 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 	}
 	bc := &Blockchain{
 		config:      cfg,
-		dao:         dao.NewSimple(s, cfg.StateRootInHeader, cfg.P2PSigExtensions),
-		persistent:  dao.NewSimple(s, cfg.StateRootInHeader, cfg.P2PSigExtensions),
+		dao:         dao.NewSimple(s, cfg.StateRootInHeader),
+		persistent:  dao.NewSimple(s, cfg.StateRootInHeader),
 		store:       s,
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
@@ -2573,9 +2573,6 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 				return fmt.Errorf("%w: oracle tx has insufficient gas", ErrInvalidAttribute)
 			}
 		case transaction.NotValidBeforeT:
-			if !bc.config.P2PSigExtensions {
-				return fmt.Errorf("%w: NotValidBefore attribute was found, but P2PSigExtensions are disabled", ErrInvalidAttribute)
-			}
 			nvb := tx.Attributes[i].Value.(*transaction.NotValidBefore).Height
 			curHeight := bc.BlockHeight()
 			if isPartialTx {
@@ -2595,9 +2592,6 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 				}
 			}
 		case transaction.ConflictsT:
-			if !bc.config.P2PSigExtensions {
-				return fmt.Errorf("%w: Conflicts attribute was found, but P2PSigExtensions are disabled", ErrInvalidAttribute)
-			}
 			conflicts := tx.Attributes[i].Value.(*transaction.Conflicts)
 			// Only fully-qualified dao.ErrAlreadyExists error bothers us here, thus, we
 			// can safely omit the payer argument to HasTransaction call to improve performance a bit.
@@ -2758,7 +2752,7 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 		return nil, fmt.Errorf("failed to retrieve stateroot for height %d: %w", b.Index, err)
 	}
 	s := mpt.NewTrieStore(sr.Root, mode, storage.NewPrivateMemCachedStore(bc.dao.Store))
-	dTrie := dao.NewSimple(s, bc.config.StateRootInHeader, bc.config.P2PSigExtensions)
+	dTrie := dao.NewSimple(s, bc.config.StateRootInHeader)
 	dTrie.Version = bc.dao.Version
 	// Initialize native cache before passing DAO to interop context constructor, because
 	// the constructor will call BaseExecFee/StoragePrice policy methods on the passed DAO.

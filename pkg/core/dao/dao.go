@@ -62,17 +62,16 @@ type NativeContractCache interface {
 }
 
 // NewSimple creates a new simple dao using the provided backend store.
-func NewSimple(backend storage.Store, stateRootInHeader bool, p2pSigExtensions bool) *Simple {
+func NewSimple(backend storage.Store, stateRootInHeader bool) *Simple {
 	st := storage.NewMemCachedStore(backend)
-	return newSimple(st, stateRootInHeader, p2pSigExtensions)
+	return newSimple(st, stateRootInHeader)
 }
 
-func newSimple(st *storage.MemCachedStore, stateRootInHeader bool, p2pSigExtensions bool) *Simple {
+func newSimple(st *storage.MemCachedStore, stateRootInHeader bool) *Simple {
 	return &Simple{
 		Version: Version{
 			StoragePrefix:     storage.STStorage,
 			StateRootInHeader: stateRootInHeader,
-			P2PSigExtensions:  p2pSigExtensions,
 		},
 		Store:       st,
 		nativeCache: make(map[int32]NativeContractCache),
@@ -87,7 +86,7 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // GetWrapped returns a new DAO instance with another layer of wrapped
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() *Simple {
-	d := NewSimple(dao.Store, dao.Version.StateRootInHeader, dao.Version.P2PSigExtensions)
+	d := NewSimple(dao.Store, dao.Version.StateRootInHeader)
 	d.Version = dao.Version
 	d.nativeCachePS = dao
 	return d
@@ -766,12 +765,10 @@ func (dao *Simple) DeleteBlock(h util.Uint256) error {
 	for _, tx := range b.Transactions {
 		copy(key[1:], tx.Hash().BytesBE())
 		dao.Store.Delete(key)
-		if dao.Version.P2PSigExtensions {
-			for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
-				hash := attr.Value.(*transaction.Conflicts).Hash
-				copy(key[1:], hash.BytesBE())
-				dao.Store.Delete(key)
-			}
+		for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
+			hash := attr.Value.(*transaction.Conflicts).Hash
+			copy(key[1:], hash.BytesBE())
+			dao.Store.Delete(key)
 		}
 	}
 
@@ -830,51 +827,50 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 		return buf.Err
 	}
 	dao.Store.Put(key, buf.Bytes())
-	if dao.Version.P2PSigExtensions {
-		var (
-			valuePrefix []byte
-			newSigners  []byte
-		)
-		attrs := tx.GetAttributes(transaction.ConflictsT)
-		for _, attr := range attrs {
-			hash := attr.Value.(*transaction.Conflicts).Hash
-			copy(key[1:], hash.BytesBE())
 
-			old, err := dao.Store.Get(key)
-			if err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
-				return fmt.Errorf("failed to retrieve previous conflict record for %s: %w", hash.StringLE(), err)
+	var (
+		valuePrefix []byte
+		newSigners  []byte
+	)
+	attrs := tx.GetAttributes(transaction.ConflictsT)
+	for _, attr := range attrs {
+		hash := attr.Value.(*transaction.Conflicts).Hash
+		copy(key[1:], hash.BytesBE())
+
+		old, err := dao.Store.Get(key)
+		if err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
+			return fmt.Errorf("failed to retrieve previous conflict record for %s: %w", hash.StringLE(), err)
+		}
+		if err == nil {
+			if len(old) <= 6 { // storage.ExecTransaction + U32LE index + transaction.DummyVersion
+				return fmt.Errorf("invalid conflict record format of length %d", len(old))
 			}
-			if err == nil {
-				if len(old) <= 6 { // storage.ExecTransaction + U32LE index + transaction.DummyVersion
-					return fmt.Errorf("invalid conflict record format of length %d", len(old))
-				}
-			}
-			buf.Reset()
-			buf.WriteBytes(old)
-			if len(old) == 0 {
-				if len(valuePrefix) != 0 {
-					buf.WriteBytes(valuePrefix)
-				} else {
-					buf.WriteB(storage.ExecTransaction)
-					buf.WriteU32LE(index)
-					buf.WriteB(transaction.DummyVersion)
-				}
-			}
-			newSignersOffset := buf.Len()
-			if len(newSigners) == 0 {
-				for _, s := range tx.Signers {
-					s.Account.EncodeBinary(buf.BinWriter)
-				}
+		}
+		buf.Reset()
+		buf.WriteBytes(old)
+		if len(old) == 0 {
+			if len(valuePrefix) != 0 {
+				buf.WriteBytes(valuePrefix)
 			} else {
-				buf.WriteBytes(newSigners)
+				buf.WriteB(storage.ExecTransaction)
+				buf.WriteU32LE(index)
+				buf.WriteB(transaction.DummyVersion)
 			}
-			val := buf.Bytes()
-			dao.Store.Put(key, val)
+		}
+		newSignersOffset := buf.Len()
+		if len(newSigners) == 0 {
+			for _, s := range tx.Signers {
+				s.Account.EncodeBinary(buf.BinWriter)
+			}
+		} else {
+			buf.WriteBytes(newSigners)
+		}
+		val := buf.Bytes()
+		dao.Store.Put(key, val)
 
-			if len(attrs) > 1 && len(valuePrefix) == 0 {
-				valuePrefix = slice.Copy(val[:6])
-				newSigners = slice.Copy(val[newSignersOffset:])
-			}
+		if len(attrs) > 1 && len(valuePrefix) == 0 {
+			valuePrefix = slice.Copy(val[:6])
+			newSigners = slice.Copy(val[newSignersOffset:])
 		}
 	}
 	return nil

@@ -173,10 +173,6 @@ func (fs *FeerStub) GetUtilityTokenBalance(acc util.Uint160) *big.Int {
 	return big.NewInt(1000000 * native.GASFactor)
 }
 
-func (fs FeerStub) P2PSigExtensionsEnabled() bool {
-	return false
-}
-
 func (fs FeerStub) GetBaseExecFee() int64 {
 	return interop.DefaultBaseExecFee
 }
