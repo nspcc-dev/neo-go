@@ -53,8 +53,8 @@ type multiSigner struct {
 	m        int
 }
 
-// NewSingleSigner returns a multi-signature signer for the provided account.
-// It must contain exactly as many accounts as needed to sign the script.
+// NewSingleSigner creates a [SingleSigner] from the provided account. It has
+// just one key, see [NewMultiSigner] for multisignature accounts.
 func NewSingleSigner(acc *wallet.Account) SingleSigner {
 	if !vm.IsSignatureContract(acc.Contract.Script) {
 		panic("account must have simple-signature verification script")
