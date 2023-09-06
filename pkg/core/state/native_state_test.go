@@ -1,8 +1,10 @@
 package state
 
 import (
+	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -45,6 +47,36 @@ func TestNEP17BalanceFromBytesInvalid(t *testing.T) {
 
 	_, err = NEP17BalanceFromBytes([]byte{byte(stackitem.StructT), 1, byte(stackitem.IntegerT), 2, 1})
 	require.Error(t, err)
+}
+
+func TestNEOBalanceSerialization(t *testing.T) {
+	var b = NEOBalance{
+		NEP17Balance:  NEP17Balance{*big.NewInt(100500)},
+		BalanceHeight: 42,
+	}
+	si, err := b.ToStackItem()
+	require.NoError(t, err)
+
+	var bb NEOBalance
+	require.NoError(t, bb.FromStackItem(si))
+	require.Equal(t, b, bb)
+
+	b.VoteTo, err = keys.NewPublicKeyFromString("03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c")
+	require.NoError(t, err)
+	b.LastGasPerVote = *big.NewInt(100500)
+
+	si, err = b.ToStackItem()
+	require.NoError(t, err)
+	bb = NEOBalance{}
+	require.NoError(t, bb.FromStackItem(si))
+	require.Equal(t, b, bb)
+
+	b.VoteTo = nil
+	si, err = b.ToStackItem()
+	require.NoError(t, err)
+	bb = NEOBalance{}
+	require.NoError(t, bb.FromStackItem(si))
+	require.Equal(t, b, bb)
 }
 
 func BenchmarkNEP17BalanceBytes(b *testing.B) {

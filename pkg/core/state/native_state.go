@@ -148,17 +148,17 @@ func (s *NEOBalance) FromStackItem(item stackitem.Item) error {
 	s.BalanceHeight = uint32(h.Int64())
 	if _, ok := structItem[2].(stackitem.Null); ok {
 		s.VoteTo = nil
-		return nil
+	} else {
+		bs, err := structItem[2].TryBytes()
+		if err != nil {
+			return fmt.Errorf("invalid public key stackitem: %w", err)
+		}
+		pub, err := keys.NewPublicKeyFromBytes(bs, elliptic.P256())
+		if err != nil {
+			return fmt.Errorf("invalid public key bytes: %w", err)
+		}
+		s.VoteTo = pub
 	}
-	bs, err := structItem[2].TryBytes()
-	if err != nil {
-		return fmt.Errorf("invalid public key stackitem: %w", err)
-	}
-	pub, err := keys.NewPublicKeyFromBytes(bs, elliptic.P256())
-	if err != nil {
-		return fmt.Errorf("invalid public key bytes: %w", err)
-	}
-	s.VoteTo = pub
 	if len(structItem) >= 4 {
 		lastGasPerVote, err := structItem[3].TryInteger()
 		if err != nil {
