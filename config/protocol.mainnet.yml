@@ -37,6 +37,7 @@ ProtocolConfiguration:
   P2PSigExtensions: false
   Hardforks:
     Aspidochelone: 1730000
+    Basilisk: 4120000
   NativeActivations:
     ContractManagement: [0]
     StdLib: [0]
