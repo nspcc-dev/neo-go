@@ -14,9 +14,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 const (
@@ -50,12 +50,7 @@ func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string) (i
 		return nil, err
 	}
 
-	var (
-		prmi client.PrmInit
-		c    *client.Client
-	)
-	prmi.SetDefaultSigner(neofsecdsa.Signer(priv.PrivateKey))
-	c, err = client.New(prmi)
+	c, err := client.New(client.PrmInit{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
@@ -71,15 +66,16 @@ func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string) (i
 		return res, err
 	}
 
+	var s = user.NewAutoIDSignerRFC6979(priv.PrivateKey)
 	switch {
 	case len(ps) == 0 || ps[0] == "": // Get request
-		res.ReadCloser, err = getPayload(ctx, c, objectAddr)
+		res.ReadCloser, err = getPayload(ctx, s, c, objectAddr)
 	case ps[0] == rangeCmd:
-		res.ReadCloser, err = getRange(ctx, c, objectAddr, ps[1:]...)
+		res.ReadCloser, err = getRange(ctx, s, c, objectAddr, ps[1:]...)
 	case ps[0] == headerCmd:
-		res.ReadCloser, err = getHeader(ctx, c, objectAddr)
+		res.ReadCloser, err = getHeader(ctx, s, c, objectAddr)
 	case ps[0] == hashCmd:
-		res.ReadCloser, err = getHash(ctx, c, objectAddr, ps[1:]...)
+		res.ReadCloser, err = getHash(ctx, s, c, objectAddr, ps[1:]...)
 	default:
 		err = ErrInvalidCommand
 	}
@@ -126,11 +122,17 @@ func parseNeoFSURL(u *url.URL) (*oid.Address, []string, error) {
 	return objAddr, ps[2:], nil
 }
 
-func getPayload(ctx context.Context, c *client.Client, addr *oid.Address) (io.ReadCloser, error) {
-	return c.ObjectGetInit(ctx, addr.Container(), addr.Object(), client.PrmObjectGet{})
+func getPayload(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Address) (io.ReadCloser, error) {
+	var iorc io.ReadCloser
+	_, rc, err := c.ObjectGetInit(ctx, addr.Container(), addr.Object(), s, client.PrmObjectGet{})
+	if rc != nil {
+		iorc = rc
+	}
+	return iorc, err
 }
 
-func getRange(ctx context.Context, c *client.Client, addr *oid.Address, ps ...string) (io.ReadCloser, error) {
+func getRange(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Address, ps ...string) (io.ReadCloser, error) {
+	var iorc io.ReadCloser
 	if len(ps) == 0 {
 		return nil, ErrInvalidRange
 	}
@@ -139,23 +141,19 @@ func getRange(ctx context.Context, c *client.Client, addr *oid.Address, ps ...st
 		return nil, err
 	}
 
-	return c.ObjectRangeInit(ctx, addr.Container(), addr.Object(), r.GetOffset(), r.GetLength(), client.PrmObjectRange{})
+	rc, err := c.ObjectRangeInit(ctx, addr.Container(), addr.Object(), r.GetOffset(), r.GetLength(), s, client.PrmObjectRange{})
+	if rc != nil {
+		iorc = rc
+	}
+	return iorc, err
 }
 
-func getObjHeader(ctx context.Context, c *client.Client, addr *oid.Address) (*object.Object, error) {
-	res, err := c.ObjectHead(ctx, addr.Container(), addr.Object(), client.PrmObjectHead{})
-	if err != nil {
-		return nil, err
-	}
-	var obj = object.New()
-	if !res.ReadHeader(obj) {
-		return nil, errors.New("missing header in the reply")
-	}
-	return obj, nil
+func getObjHeader(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Address) (*object.Object, error) {
+	return c.ObjectHead(ctx, addr.Container(), addr.Object(), s, client.PrmObjectHead{})
 }
 
-func getHeader(ctx context.Context, c *client.Client, addr *oid.Address) (io.ReadCloser, error) {
-	obj, err := getObjHeader(ctx, c, addr)
+func getHeader(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Address) (io.ReadCloser, error) {
+	obj, err := getObjHeader(ctx, s, c, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -166,9 +164,9 @@ func getHeader(ctx context.Context, c *client.Client, addr *oid.Address) (io.Rea
 	return io.NopCloser(bytes.NewReader(res)), nil
 }
 
-func getHash(ctx context.Context, c *client.Client, addr *oid.Address, ps ...string) (io.ReadCloser, error) {
+func getHash(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Address, ps ...string) (io.ReadCloser, error) {
 	if len(ps) == 0 || ps[0] == "" { // hash of the full payload
-		obj, err := getObjHeader(ctx, c, addr)
+		obj, err := getObjHeader(ctx, s, c, addr)
 		if err != nil {
 			return nil, err
 		}
@@ -185,7 +183,7 @@ func getHash(ctx context.Context, c *client.Client, addr *oid.Address, ps ...str
 	var hashPrm client.PrmObjectHash
 	hashPrm.SetRangeList(r.GetOffset(), r.GetLength())
 
-	hashes, err := c.ObjectHash(ctx, addr.Container(), addr.Object(), hashPrm)
+	hashes, err := c.ObjectHash(ctx, addr.Container(), addr.Object(), s, hashPrm)
 	if err != nil {
 		return nil, err
 	}
