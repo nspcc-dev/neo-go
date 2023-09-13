@@ -123,11 +123,16 @@ func parseNeoFSURL(u *url.URL) (*oid.Address, []string, error) {
 }
 
 func getPayload(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Address) (io.ReadCloser, error) {
+	var iorc io.ReadCloser
 	_, rc, err := c.ObjectGetInit(ctx, addr.Container(), addr.Object(), s, client.PrmObjectGet{})
-	return rc, err
+	if rc != nil {
+		iorc = rc
+	}
+	return iorc, err
 }
 
 func getRange(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Address, ps ...string) (io.ReadCloser, error) {
+	var iorc io.ReadCloser
 	if len(ps) == 0 {
 		return nil, ErrInvalidRange
 	}
@@ -136,7 +141,11 @@ func getRange(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Ad
 		return nil, err
 	}
 
-	return c.ObjectRangeInit(ctx, addr.Container(), addr.Object(), r.GetOffset(), r.GetLength(), s, client.PrmObjectRange{})
+	rc, err := c.ObjectRangeInit(ctx, addr.Container(), addr.Object(), r.GetOffset(), r.GetLength(), s, client.PrmObjectRange{})
+	if rc != nil {
+		iorc = rc
+	}
+	return iorc, err
 }
 
 func getObjHeader(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Address) (*object.Object, error) {
