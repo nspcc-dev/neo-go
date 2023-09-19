@@ -22,7 +22,7 @@ ProtocolConfiguration:
   - morph6.fs.neo.org:40333
   - morph7.fs.neo.org:40333
   VerifyTransactions: true
-  P2PSigExtensions: false
+  P2PSigExtensions: true
   Hardforks:
     Aspidochelone: 3000000
     Basilisk: 4500000
@@ -36,6 +36,7 @@ ProtocolConfiguration:
     PolicyContract: [0]
     RoleManagement: [0]
     OracleContract: [0]
+    Notary: [0]
 
 ApplicationConfiguration:
   SkipBlockVerification: false
