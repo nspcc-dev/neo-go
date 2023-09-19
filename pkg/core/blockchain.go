@@ -45,7 +45,7 @@ import (
 
 // Tuning parameters.
 const (
-	version = "0.2.9"
+	version = "0.2.10"
 
 	defaultInitialGAS                      = 52000000_00000000
 	defaultGCPeriod                        = 10000
@@ -2488,7 +2488,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		return fmt.Errorf("%w: net fee is %v, need %v", ErrTxSmallNetworkFee, t.NetworkFee, needNetworkFee)
 	}
 	// check that current tx wasn't included in the conflicts attributes of some other transaction which is already in the chain
-	if err := bc.dao.HasTransaction(t.Hash(), t.Signers); err != nil {
+	if err := bc.dao.HasTransaction(t.Hash(), t.Signers, height, bc.config.MaxTraceableBlocks); err != nil {
 		switch {
 		case errors.Is(err, dao.ErrAlreadyExists):
 			return ErrAlreadyExists
@@ -2584,8 +2584,8 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 		case transaction.ConflictsT:
 			conflicts := tx.Attributes[i].Value.(*transaction.Conflicts)
 			// Only fully-qualified dao.ErrAlreadyExists error bothers us here, thus, we
-			// can safely omit the payer argument to HasTransaction call to improve performance a bit.
-			if err := bc.dao.HasTransaction(conflicts.Hash, nil); errors.Is(err, dao.ErrAlreadyExists) {
+			// can safely omit the signers, current index and MTB arguments to HasTransaction call to improve performance a bit.
+			if err := bc.dao.HasTransaction(conflicts.Hash, nil, 0, 0); errors.Is(err, dao.ErrAlreadyExists) {
 				return fmt.Errorf("%w: conflicting transaction %s is already on chain", ErrInvalidAttribute, conflicts.Hash.StringLE())
 			}
 		case transaction.NotaryAssistedT:
@@ -2611,14 +2611,16 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 // was already done so we don't need to check basic things like size, input/output
 // correctness, presence in blocks before the new one, etc.
 func (bc *Blockchain) IsTxStillRelevant(t *transaction.Transaction, txpool *mempool.Pool, isPartialTx bool) bool {
-	var recheckWitness bool
-	var curheight = bc.BlockHeight()
+	var (
+		recheckWitness bool
+		curheight      = bc.BlockHeight()
+	)
 
 	if t.ValidUntilBlock <= curheight {
 		return false
 	}
 	if txpool == nil {
-		if bc.dao.HasTransaction(t.Hash(), t.Signers) != nil {
+		if bc.dao.HasTransaction(t.Hash(), t.Signers, curheight, bc.config.MaxTraceableBlocks) != nil {
 			return false
 		}
 	} else if txpool.HasConflicts(t, bc) {

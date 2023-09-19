@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -610,14 +611,15 @@ func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, 
 	if err != nil {
 		return nil, 0, err
 	}
-	if len(b) < 6 {
+	if len(b) < 1 {
 		return nil, 0, errors.New("bad transaction bytes")
 	}
 	if b[0] != storage.ExecTransaction {
 		// It may be a block.
 		return nil, 0, storage.ErrKeyNotFound
 	}
-	if b[5] == transaction.DummyVersion {
+	if len(b) == 1+4 { // storage.ExecTransaction + index
+		// It's a conflict record stub.
 		return nil, 0, storage.ErrKeyNotFound
 	}
 	r := io.NewBinReaderFromBuf(b)
@@ -686,44 +688,46 @@ func (dao *Simple) StoreHeaderHashes(hashes []util.Uint256, height uint32) error
 // or in the list of conflicting transactions. If non-zero signers are specified,
 // then additional check against the conflicting transaction signers intersection
 // is held. Do not omit signers in case if it's important to check the validity
-// of a supposedly conflicting on-chain transaction.
-func (dao *Simple) HasTransaction(hash util.Uint256, signers []transaction.Signer) error {
+// of a supposedly conflicting on-chain transaction. The retrieved conflict isn't
+// checked against the maxTraceableBlocks setting if signers are omitted.
+// HasTransaction does not consider the case of block executable.
+func (dao *Simple) HasTransaction(hash util.Uint256, signers []transaction.Signer, currentIndex uint32, maxTraceableBlocks uint32) error {
 	key := dao.makeExecutableKey(hash)
 	bytes, err := dao.Store.Get(key)
 	if err != nil {
 		return nil
 	}
 
-	if len(bytes) < 6 {
+	if len(bytes) < 5 { // (storage.ExecTransaction + index) for conflict record
 		return nil
 	}
-	if bytes[5] != transaction.DummyVersion {
-		return ErrAlreadyExists
+	if len(bytes) != 5 {
+		return ErrAlreadyExists // fully-qualified transaction
 	}
 	if len(signers) == 0 {
 		return ErrHasConflicts
 	}
 
-	sMap := make(map[util.Uint160]struct{}, len(signers))
-	for _, s := range signers {
-		sMap[s.Account] = struct{}{}
+	if !isTraceableBlock(bytes[1:], currentIndex, maxTraceableBlocks) {
+		// The most fresh conflict record is already outdated.
+		return nil
 	}
-	br := io.NewBinReaderFromBuf(bytes[6:])
-	for {
-		var u util.Uint160
-		u.DecodeBinary(br)
-		if br.Err != nil {
-			if errors.Is(br.Err, iocore.EOF) {
-				break
+
+	for _, s := range signers {
+		v, err := dao.Store.Get(append(key, s.Account.BytesBE()...))
+		if err == nil {
+			if isTraceableBlock(v[1:], currentIndex, maxTraceableBlocks) {
+				return ErrHasConflicts
 			}
-			return fmt.Errorf("failed to decode conflict record: %w", err)
-		}
-		if _, ok := sMap[u]; ok {
-			return ErrHasConflicts
 		}
 	}
 
 	return nil
+}
+
+func isTraceableBlock(indexBytes []byte, height, maxTraceableBlocks uint32) bool {
+	index := binary.LittleEndian.Uint32(indexBytes)
+	return index <= height && index+maxTraceableBlocks > height
 }
 
 // StoreAsBlock stores given block as DataBlock. It can reuse given buffer for
@@ -768,7 +772,30 @@ func (dao *Simple) DeleteBlock(h util.Uint256) error {
 		for _, attr := range tx.GetAttributes(transaction.ConflictsT) {
 			hash := attr.Value.(*transaction.Conflicts).Hash
 			copy(key[1:], hash.BytesBE())
-			dao.Store.Delete(key)
+
+			v, err := dao.Store.Get(key)
+			if err != nil {
+				return fmt.Errorf("failed to retrieve conflict record stub for %s (height %d, conflict %s): %w", tx.Hash().StringLE(), b.Index, hash.StringLE(), err)
+			}
+			index := binary.LittleEndian.Uint32(v[1:])
+			// We can check for `<=` here, but use equality comparison to be more precise
+			// and do not touch earlier conflict records (if any). Their removal must be triggered
+			// by the caller code.
+			if index == b.Index {
+				dao.Store.Delete(key)
+			}
+
+			for _, s := range tx.Signers {
+				sKey := append(key, s.Account.BytesBE()...)
+				v, err := dao.Store.Get(sKey)
+				if err != nil {
+					return fmt.Errorf("failed to retrieve conflict record for %s (height %d, conflict %s, signer %s): %w", tx.Hash().StringLE(), b.Index, hash.StringLE(), address.Uint160ToString(s.Account), err)
+				}
+				index = binary.LittleEndian.Uint32(v[1:])
+				if index == b.Index {
+					dao.Store.Delete(sKey)
+				}
+			}
 		}
 	}
 
@@ -826,51 +853,23 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 	if buf.Err != nil {
 		return buf.Err
 	}
-	dao.Store.Put(key, buf.Bytes())
+	val := buf.Bytes()
+	dao.Store.Put(key, val)
 
-	var (
-		valuePrefix []byte
-		newSigners  []byte
-	)
+	val = val[:5] // storage.ExecTransaction (1 byte) + index (4 bytes)
 	attrs := tx.GetAttributes(transaction.ConflictsT)
 	for _, attr := range attrs {
+		// Conflict record stub.
 		hash := attr.Value.(*transaction.Conflicts).Hash
 		copy(key[1:], hash.BytesBE())
-
-		old, err := dao.Store.Get(key)
-		if err != nil && !errors.Is(err, storage.ErrKeyNotFound) {
-			return fmt.Errorf("failed to retrieve previous conflict record for %s: %w", hash.StringLE(), err)
-		}
-		if err == nil {
-			if len(old) <= 6 { // storage.ExecTransaction + U32LE index + transaction.DummyVersion
-				return fmt.Errorf("invalid conflict record format of length %d", len(old))
-			}
-		}
-		buf.Reset()
-		buf.WriteBytes(old)
-		if len(old) == 0 {
-			if len(valuePrefix) != 0 {
-				buf.WriteBytes(valuePrefix)
-			} else {
-				buf.WriteB(storage.ExecTransaction)
-				buf.WriteU32LE(index)
-				buf.WriteB(transaction.DummyVersion)
-			}
-		}
-		newSignersOffset := buf.Len()
-		if len(newSigners) == 0 {
-			for _, s := range tx.Signers {
-				s.Account.EncodeBinary(buf.BinWriter)
-			}
-		} else {
-			buf.WriteBytes(newSigners)
-		}
-		val := buf.Bytes()
 		dao.Store.Put(key, val)
 
-		if len(attrs) > 1 && len(valuePrefix) == 0 {
-			valuePrefix = slice.Copy(val[:6])
-			newSigners = slice.Copy(val[newSignersOffset:])
+		// Conflicting signers.
+		sKey := make([]byte, len(key)+util.Uint160Size)
+		copy(sKey, key)
+		for _, s := range tx.Signers {
+			copy(sKey[len(key):], s.Account.BytesBE())
+			dao.Store.Put(sKey, val)
 		}
 	}
 	return nil

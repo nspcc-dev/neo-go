@@ -186,7 +186,7 @@ func TestStoreAsTransaction(t *testing.T) {
 		}
 		err := dao.StoreAsTransaction(tx, 0, aer)
 		require.NoError(t, err)
-		err = dao.HasTransaction(hash, nil)
+		err = dao.HasTransaction(hash, nil, 0, 0)
 		require.ErrorIs(t, err, ErrAlreadyExists)
 		gotAppExecResult, err := dao.GetAppExecResults(hash, trigger.All)
 		require.NoError(t, err)
@@ -229,7 +229,8 @@ func TestStoreAsTransaction(t *testing.T) {
 				Stack:   []stackitem.Item{},
 			},
 		}
-		err := dao.StoreAsTransaction(tx1, 0, aer1)
+		const blockIndex = 5
+		err := dao.StoreAsTransaction(tx1, blockIndex, aer1)
 		require.NoError(t, err)
 		aer2 := &state.AppExecResult{
 			Container: hash2,
@@ -239,31 +240,35 @@ func TestStoreAsTransaction(t *testing.T) {
 				Stack:   []stackitem.Item{},
 			},
 		}
-		err = dao.StoreAsTransaction(tx2, 0, aer2)
+		err = dao.StoreAsTransaction(tx2, blockIndex, aer2)
 		require.NoError(t, err)
-		err = dao.HasTransaction(hash1, nil)
+		err = dao.HasTransaction(hash1, nil, 0, 0)
 		require.ErrorIs(t, err, ErrAlreadyExists)
-		err = dao.HasTransaction(hash2, nil)
+		err = dao.HasTransaction(hash2, nil, 0, 0)
 		require.ErrorIs(t, err, ErrAlreadyExists)
 
 		// Conflicts: unimportant payer.
-		err = dao.HasTransaction(conflictsH, nil)
+		err = dao.HasTransaction(conflictsH, nil, 0, 0)
 		require.ErrorIs(t, err, ErrHasConflicts)
 
 		// Conflicts: payer is important, conflict isn't malicious, test signer #1.
-		err = dao.HasTransaction(conflictsH, []transaction.Signer{{Account: signer1}})
+		err = dao.HasTransaction(conflictsH, []transaction.Signer{{Account: signer1}}, blockIndex+1, 5)
 		require.ErrorIs(t, err, ErrHasConflicts)
 
 		// Conflicts: payer is important, conflict isn't malicious, test signer #2.
-		err = dao.HasTransaction(conflictsH, []transaction.Signer{{Account: signer2}})
+		err = dao.HasTransaction(conflictsH, []transaction.Signer{{Account: signer2}}, blockIndex+1, 5)
 		require.ErrorIs(t, err, ErrHasConflicts)
 
 		// Conflicts: payer is important, conflict isn't malicious, test signer #3.
-		err = dao.HasTransaction(conflictsH, []transaction.Signer{{Account: signer3}})
+		err = dao.HasTransaction(conflictsH, []transaction.Signer{{Account: signer3}}, blockIndex+1, 5)
 		require.ErrorIs(t, err, ErrHasConflicts)
 
+		// Conflicts: payer is important, conflict isn't malicious, but the conflict is far away than MTB.
+		err = dao.HasTransaction(conflictsH, []transaction.Signer{{Account: signer3}}, blockIndex+10, 5)
+		require.NoError(t, err)
+
 		// Conflicts: payer is important, conflict is malicious.
-		err = dao.HasTransaction(conflictsH, []transaction.Signer{{Account: signerMalicious}})
+		err = dao.HasTransaction(conflictsH, []transaction.Signer{{Account: signerMalicious}}, blockIndex+1, 5)
 		require.NoError(t, err)
 
 		gotAppExecResult, err := dao.GetAppExecResults(hash1, trigger.All)
