@@ -2333,7 +2333,7 @@ func TestNotaryRequestRPC(t *testing.T) {
 		submitNotaryRequest(t, false, 0, str)(t)
 
 		t.Run("nonempty pool", func(t *testing.T) {
-			//get notary pool & check tx hashes
+			// get notary pool & check tx hashes
 			body := doRPCCallOverHTTP(rpcPool, httpSrv.URL, t)
 			res := checkErrGetResult(t, body, false, 0)
 			actual := new(result.RawNotaryPool)
@@ -2353,7 +2353,7 @@ func TestNotaryRequestRPC(t *testing.T) {
 		submitNotaryRequest(t, false, 0, str2)(t)
 
 		t.Run("pool with 2", func(t *testing.T) {
-			//get notary pool & check tx hashes
+			// get notary pool & check tx hashes
 			body := doRPCCallOverHTTP(rpcPool, httpSrv.URL, t)
 			res := checkErrGetResult(t, body, false, 0)
 			actual := new(result.RawNotaryPool)
