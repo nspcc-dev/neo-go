@@ -743,12 +743,13 @@ func TestCalculateNetworkFee(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
+	h, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
+	require.NoError(t, err)
+	priv := testchain.PrivateKeyByID(0)
+	acc0 := wallet.NewAccountFromPrivateKey(priv)
+
 	t.Run("ContractWithArgs", func(t *testing.T) {
 		check := func(t *testing.T, extraFee int64) {
-			h, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
-			require.NoError(t, err)
-			priv := testchain.PrivateKeyByID(0)
-			acc0 := wallet.NewAccountFromPrivateKey(priv)
 			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 			require.NoError(t, err)
 			tx.ValidUntilBlock = chain.BlockHeight() + 10
@@ -801,6 +802,62 @@ func TestCalculateNetworkFee(t *testing.T) {
 			// check that we don't add unexpected extra GAS
 			check(t, -1)
 		})
+	})
+	t.Run("extra attribute fee", func(t *testing.T) {
+		const conflictsFee = 100
+
+		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+		tx.ValidUntilBlock = chain.BlockHeight() + 10
+		signer0 := transaction.Signer{
+			Account: acc0.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		}
+		priv1 := testchain.PrivateKeyByID(1)
+		acc1 := wallet.NewAccountFromPrivateKey(priv1)
+		signer1 := transaction.Signer{
+			Account: acc1.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		}
+		tx.Signers = []transaction.Signer{signer0, signer1}
+		tx.Attributes = []transaction.Attribute{
+			{
+				Type:  transaction.ConflictsT,
+				Value: &transaction.Conflicts{Hash: util.Uint256{1, 2, 3}},
+			},
+		}
+		tx.Scripts = []transaction.Witness{
+			{VerificationScript: acc0.Contract.Script},
+			{VerificationScript: acc1.Contract.Script},
+		}
+		oldFee, err := c.CalculateNetworkFee(tx)
+		require.NoError(t, err)
+
+		// Set fee per Conflicts attribute.
+		script, err := smartcontract.CreateCallScript(state.CreateNativeContractHash(nativenames.Policy), "setAttributeFee", byte(transaction.ConflictsT), conflictsFee)
+		require.NoError(t, err)
+		txSetFee := transaction.New(script, 1_0000_0000)
+		txSetFee.ValidUntilBlock = chain.BlockHeight() + 1
+		txSetFee.Signers = []transaction.Signer{
+			signer0,
+			{
+				Account: testchain.CommitteeScriptHash(),
+				Scopes:  transaction.CalledByEntry,
+			},
+		}
+		txSetFee.NetworkFee = 10_0000_0000
+		require.NoError(t, acc0.SignTx(testchain.Network(), txSetFee))
+		txSetFee.Scripts = append(txSetFee.Scripts, transaction.Witness{
+			InvocationScript:   testchain.SignCommittee(txSetFee),
+			VerificationScript: testchain.CommitteeVerificationScript(),
+		})
+		require.NoError(t, chain.AddBlock(testchain.NewBlock(t, chain, 1, 0, txSetFee)))
+
+		// Calculate network fee one more time with updated Conflicts price.
+		newFee, err := c.CalculateNetworkFee(tx)
+		require.NoError(t, err)
+
+		expectedDiff := len(tx.Signers) * len(tx.GetAttributes(transaction.ConflictsT)) * conflictsFee
+		require.Equal(t, int64(expectedDiff), newFee-oldFee)
 	})
 }
 

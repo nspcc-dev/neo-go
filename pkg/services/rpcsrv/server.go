@@ -65,6 +65,7 @@ type (
 	Ledger interface {
 		AddBlock(block *block.Block) error
 		BlockHeight() uint32
+		CalculateAttributesFee(tx *transaction.Transaction) int64
 		CalculateClaimable(h util.Uint160, endHeight uint32) (*big.Int, error)
 		CurrentBlockHash() util.Uint256
 		FeePerByte() int64
@@ -983,7 +984,7 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (any, *neorpc.Erro
 		}
 	}
 	fee := s.chain.FeePerByte()
-	netFee += int64(size) * fee
+	netFee += int64(size)*fee + s.chain.CalculateAttributesFee(tx)
 	return result.NetworkFee{Value: netFee}, nil
 }
 

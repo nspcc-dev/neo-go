@@ -40,6 +40,7 @@ const (
 	execFeeSetter      = "setExecFeeFactor"
 	feePerByteSetter   = "setFeePerByte"
 	storagePriceSetter = "setStoragePrice"
+	attributeFeeSetter = "setAttributeFee"
 )
 
 // ContractReader provides an interface to call read-only PolicyContract
@@ -86,6 +87,12 @@ func (c *ContractReader) GetFeePerByte() (int64, error) {
 // data to the storage pays for it according to this value.
 func (c *ContractReader) GetStoragePrice() (int64, error) {
 	return unwrap.Int64(c.invoker.Call(Hash, "getStoragePrice"))
+}
+
+// GetAttributeFee returns current fee for the specified attribute usage. Any
+// contract saving data to the storage pays for it according to this value.
+func (c *ContractReader) GetAttributeFee(t transaction.AttrType) (int64, error) {
+	return unwrap.Int64(c.invoker.Call(Hash, "getAttributeFee", byte(t)))
 }
 
 // IsBlocked checks if the given account is blocked in the PolicyContract.
@@ -156,6 +163,28 @@ func (c *Contract) SetStoragePriceTransaction(value int64) (*transaction.Transac
 // caller.
 func (c *Contract) SetStoragePriceUnsigned(value int64) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, storagePriceSetter, nil, value)
+}
+
+// SetAttributeFee creates and sends a transaction that sets the new attribute
+// fee value for the specified attribute. The action is successful when
+// transaction ends in HALT state. The returned values are transaction hash, its
+// ValidUntilBlock value and an error if any.
+func (c *Contract) SetAttributeFee(t transaction.AttrType, value int64) (util.Uint256, uint32, error) {
+	return c.actor.SendCall(Hash, attributeFeeSetter, byte(t), value)
+}
+
+// SetAttributeFeeTransaction creates a transaction that sets the new attribute
+// fee value for the specified attribute. This transaction is signed, but not
+// sent to the network, instead it's returned to the caller.
+func (c *Contract) SetAttributeFeeTransaction(t transaction.AttrType, value int64) (*transaction.Transaction, error) {
+	return c.actor.MakeCall(Hash, attributeFeeSetter, byte(t), value)
+}
+
+// SetAttributeFeeUnsigned creates a transaction that sets the new attribute fee
+// value for the specified attribute. This transaction is not signed and just
+// returned to the caller.
+func (c *Contract) SetAttributeFeeUnsigned(t transaction.AttrType, value int64) (*transaction.Transaction, error) {
+	return c.actor.MakeUnsignedCall(Hash, attributeFeeSetter, nil, byte(t), value)
 }
 
 // BlockAccount creates and sends a transaction that blocks an account on the

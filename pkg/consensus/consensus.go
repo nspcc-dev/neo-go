@@ -53,6 +53,7 @@ type Ledger interface {
 	SubscribeForBlocks(ch chan *coreb.Block)
 	UnsubscribeFromBlocks(ch chan *coreb.Block)
 	GetBaseExecFee() int64
+	CalculateAttributesFee(tx *transaction.Transaction) int64
 	interop.Ledger
 	mempool.Feer
 }

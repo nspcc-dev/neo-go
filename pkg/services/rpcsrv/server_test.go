@@ -87,7 +87,7 @@ const (
 	faultedTxHashLE                   = "82279bfe9bada282ca0f8cb8e0bb124b921af36f00c69a518320322c6f4fef60"
 	faultedTxBlock             uint32 = 23
 	invokescriptContractAVM           = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
-	block20StateRootLE                = "cc8315751c5b6edf39c14f1637bfa0595d6ca86b8ed4d41cb495d572b680504f"
+	block20StateRootLE                = "66900c59a718d76cc754635aa49b714cc79dc820b4a34290a19c6dfecd56b03a"
 )
 
 var (

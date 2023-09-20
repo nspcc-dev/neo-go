@@ -123,6 +123,14 @@ func TestLedgerVMStates(t *testing.T) {
 	require.EqualValues(t, ledger.BreakState, vmstate.Break)
 }
 
+func TestPolicyAttributeType(t *testing.T) {
+	require.EqualValues(t, policy.HighPriorityT, transaction.HighPriority)
+	require.EqualValues(t, policy.OracleResponseT, transaction.OracleResponseT)
+	require.EqualValues(t, policy.NotValidBeforeT, transaction.NotValidBeforeT)
+	require.EqualValues(t, policy.ConflictsT, transaction.ConflictsT)
+	require.EqualValues(t, policy.NotaryAssistedT, transaction.NotaryAssistedT)
+}
+
 type nativeTestCase struct {
 	method string
 	params []string
@@ -179,6 +187,8 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"setFeePerByte", []string{"42"}},
 		{"setStoragePrice", []string{"42"}},
 		{"unblockAccount", []string{u160}},
+		{"getAttributeFee", []string{"1"}},
+		{"setAttributeFee", []string{"1", "123"}},
 	})
 	runNativeTestCases(t, cs.Ledger.ContractMD, "ledger", []nativeTestCase{
 		{"currentHash", nil},

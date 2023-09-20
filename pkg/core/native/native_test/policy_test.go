@@ -7,8 +7,14 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 func newPolicyClient(t *testing.T) *neotest.ContractInvoker {
@@ -37,6 +43,67 @@ func TestPolicy_StoragePrice(t *testing.T) {
 
 func TestPolicy_StoragePriceCache(t *testing.T) {
 	testGetSetCache(t, newPolicyClient(t), "StoragePrice", native.DefaultStoragePrice)
+}
+
+func TestPolicy_AttributeFee(t *testing.T) {
+	c := newPolicyClient(t)
+	getName := "getAttributeFee"
+	setName := "setAttributeFee"
+
+	randomInvoker := c.WithSigners(c.NewAccount(t))
+	committeeInvoker := c.WithSigners(c.Committee)
+
+	t.Run("set, not signed by committee", func(t *testing.T) {
+		randomInvoker.InvokeFail(t, "invalid committee signature", setName, byte(transaction.ConflictsT), 123)
+	})
+	t.Run("get, unknown attribute", func(t *testing.T) {
+		randomInvoker.InvokeFail(t, "invalid attribute type: 84", getName, byte(0x54))
+	})
+	t.Run("get, default value", func(t *testing.T) {
+		randomInvoker.Invoke(t, 0, getName, byte(transaction.ConflictsT))
+	})
+	t.Run("set, too large value", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "out of range", setName, byte(transaction.ConflictsT), 10_0000_0001)
+	})
+	t.Run("set, unknown attribute", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "invalid attribute type: 84", setName, 0x54, 5)
+	})
+	t.Run("set, success", func(t *testing.T) {
+		// Set and get in the same block.
+		txSet := committeeInvoker.PrepareInvoke(t, setName, byte(transaction.ConflictsT), 1)
+		txGet := randomInvoker.PrepareInvoke(t, getName, byte(transaction.ConflictsT))
+		c.AddNewBlock(t, txSet, txGet)
+		c.CheckHalt(t, txSet.Hash(), stackitem.Null{})
+		c.CheckHalt(t, txGet.Hash(), stackitem.Make(1))
+		// Get in the next block.
+		randomInvoker.Invoke(t, 1, getName, byte(transaction.ConflictsT))
+	})
+}
+
+func TestPolicy_AttributeFeeCache(t *testing.T) {
+	c := newPolicyClient(t)
+	getName := "getAttributeFee"
+	setName := "setAttributeFee"
+
+	committeeInvoker := c.WithSigners(c.Committee)
+
+	// Change fee, abort the transaction and check that contract cache wasn't persisted
+	// for FAULTed tx at the same block.
+	w := io.NewBufBinWriter()
+	emit.AppCall(w.BinWriter, committeeInvoker.Hash, setName, callflag.All, byte(transaction.ConflictsT), 5)
+	emit.Opcodes(w.BinWriter, opcode.ABORT)
+	tx1 := committeeInvoker.PrepareInvocation(t, w.Bytes(), committeeInvoker.Signers)
+	tx2 := committeeInvoker.PrepareInvoke(t, getName, byte(transaction.ConflictsT))
+	committeeInvoker.AddNewBlock(t, tx1, tx2)
+	committeeInvoker.CheckFault(t, tx1.Hash(), "ABORT")
+	committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(0))
+
+	// Change fee and check that change is available for the next tx.
+	tx1 = committeeInvoker.PrepareInvoke(t, setName, byte(transaction.ConflictsT), 5)
+	tx2 = committeeInvoker.PrepareInvoke(t, getName, byte(transaction.ConflictsT))
+	committeeInvoker.AddNewBlock(t, tx1, tx2)
+	committeeInvoker.CheckHalt(t, tx1.Hash())
+	committeeInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(5))
 }
 
 func TestPolicy_BlockedAccounts(t *testing.T) {
