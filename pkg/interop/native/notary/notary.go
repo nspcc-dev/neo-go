@@ -45,13 +45,3 @@ func GetMaxNotValidBeforeDelta() int {
 func SetMaxNotValidBeforeDelta(value int) {
 	neogointernal.CallWithTokenNoRet(Hash, "setMaxNotValidBeforeDelta", int(contract.States), value)
 }
-
-// GetNotaryServiceFeePerKey represents `getNotaryServiceFeePerKey` method of Notary native contract.
-func GetNotaryServiceFeePerKey() int {
-	return neogointernal.CallWithToken(Hash, "getNotaryServiceFeePerKey", int(contract.ReadStates)).(int)
-}
-
-// SetNotaryServiceFeePerKey represents `setNotaryServiceFeePerKey` method of Notary native contract.
-func SetNotaryServiceFeePerKey(value int) {
-	neogointernal.CallWithTokenNoRet(Hash, "setNotaryServiceFeePerKey", int(contract.States), value)
-}

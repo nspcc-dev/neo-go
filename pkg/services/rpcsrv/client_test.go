@@ -183,6 +183,10 @@ func TestClientPolicyContract(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(100000), val)
 
+	val, err = polizei.GetAttributeFee(transaction.NotaryAssistedT)
+	require.NoError(t, err)
+	require.Equal(t, int64(1000_0000), val)
+
 	ret, err := polizei.IsBlocked(util.Uint160{})
 	require.NoError(t, err)
 	require.False(t, ret)
@@ -212,14 +216,17 @@ func TestClientPolicyContract(t *testing.T) {
 	txstorage, err := polis.SetStoragePriceUnsigned(100500)
 	require.NoError(t, err)
 
+	txattr, err := polis.SetAttributeFeeUnsigned(transaction.NotaryAssistedT, 100500)
+	require.NoError(t, err)
+
 	txblock, err := polis.BlockAccountUnsigned(util.Uint160{1, 2, 3})
 	require.NoError(t, err)
 
-	for _, tx := range []*transaction.Transaction{txblock, txstorage, txnetfee, txexec} {
+	for _, tx := range []*transaction.Transaction{txattr, txblock, txstorage, txnetfee, txexec} {
 		tx.Scripts[0].InvocationScript = testchain.SignCommittee(tx)
 	}
 
-	bl := testchain.NewBlock(t, chain, 1, 0, txblock, txstorage, txnetfee, txexec)
+	bl := testchain.NewBlock(t, chain, 1, 0, txattr, txblock, txstorage, txnetfee, txexec)
 	_, err = c.SubmitBlock(*bl)
 	require.NoError(t, err)
 
@@ -232,6 +239,10 @@ func TestClientPolicyContract(t *testing.T) {
 	require.Equal(t, int64(500), val)
 
 	val, err = polizei.GetStoragePrice()
+	require.NoError(t, err)
+	require.Equal(t, int64(100500), val)
+
+	val, err = polizei.GetAttributeFee(transaction.NotaryAssistedT)
 	require.NoError(t, err)
 	require.Equal(t, int64(100500), val)
 
@@ -480,10 +491,6 @@ func TestClientNotary(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(140), maxNVBd)
 
-	feePerKey, err := notaReader.GetNotaryServiceFeePerKey()
-	require.NoError(t, err)
-	require.Equal(t, int64(1000_0000), feePerKey)
-
 	commAct, err := actor.New(c, []actor.SignerAccount{{
 		Signer: transaction.Signer{
 			Account: testchain.CommitteeScriptHash(),
@@ -501,22 +508,15 @@ func TestClientNotary(t *testing.T) {
 
 	txNVB, err := notaComm.SetMaxNotValidBeforeDeltaUnsigned(210)
 	require.NoError(t, err)
-	txFee, err := notaComm.SetNotaryServiceFeePerKeyUnsigned(500_0000)
-	require.NoError(t, err)
 
 	txNVB.Scripts[0].InvocationScript = testchain.SignCommittee(txNVB)
-	txFee.Scripts[0].InvocationScript = testchain.SignCommittee(txFee)
-	bl := testchain.NewBlock(t, chain, 1, 0, txNVB, txFee)
+	bl := testchain.NewBlock(t, chain, 1, 0, txNVB)
 	_, err = c.SubmitBlock(*bl)
 	require.NoError(t, err)
 
 	maxNVBd, err = notaReader.GetMaxNotValidBeforeDelta()
 	require.NoError(t, err)
 	require.Equal(t, uint32(210), maxNVBd)
-
-	feePerKey, err = notaReader.GetNotaryServiceFeePerKey()
-	require.NoError(t, err)
-	require.Equal(t, int64(500_0000), feePerKey)
 
 	privAct, err := actor.New(c, []actor.SignerAccount{{
 		Signer: transaction.Signer{

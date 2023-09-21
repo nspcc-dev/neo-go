@@ -2054,10 +2054,10 @@ func (bc *Blockchain) GetNotaryBalance(acc util.Uint160) *big.Int {
 	return bc.contracts.Notary.BalanceOf(bc.dao, acc)
 }
 
-// GetNotaryServiceFeePerKey returns NotaryServiceFeePerKey which is a reward per
-// notary request key for designated notary nodes.
+// GetNotaryServiceFeePerKey returns a NotaryAssisted transaction attribute fee
+// per key which is a reward per notary request key for designated notary nodes.
 func (bc *Blockchain) GetNotaryServiceFeePerKey() int64 {
-	return bc.contracts.Notary.GetNotaryServiceFeePerKey(bc.dao)
+	return bc.contracts.Policy.GetAttributeFeeInternal(bc.dao, transaction.NotaryAssistedT)
 }
 
 // GetNotaryContractScriptHash returns Notary native contract hash.
@@ -2480,13 +2480,6 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		return fmt.Errorf("%w: (%d > MaxTransactionSize %d)", ErrTxTooBig, size, transaction.MaxTransactionSize)
 	}
 	needNetworkFee := int64(size)*bc.FeePerByte() + bc.CalculateAttributesFee(t)
-	if bc.P2PSigExtensionsEnabled() {
-		attrs := t.GetAttributes(transaction.NotaryAssistedT)
-		if len(attrs) != 0 {
-			na := attrs[0].Value.(*transaction.NotaryAssisted)
-			needNetworkFee += (int64(na.NKeys) + 1) * bc.contracts.Notary.GetNotaryServiceFeePerKey(bc.dao)
-		}
-	}
 	netFee := t.NetworkFee - needNetworkFee
 	if netFee < 0 {
 		return fmt.Errorf("%w: net fee is %v, need %v", ErrTxSmallNetworkFee, t.NetworkFee, needNetworkFee)
@@ -2539,6 +2532,11 @@ func (bc *Blockchain) CalculateAttributesFee(tx *transaction.Transaction) int64 
 		switch attr.Type {
 		case transaction.ConflictsT:
 			feeSum += base * int64(len(tx.Signers))
+		case transaction.NotaryAssistedT:
+			if bc.P2PSigExtensionsEnabled() {
+				na := attr.Value.(*transaction.NotaryAssisted)
+				feeSum += base * (int64(na.NKeys) + 1)
+			}
 		default:
 			feeSum += base
 		}
@@ -2914,13 +2912,6 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 	var gasLimit int64
 	if len(verificationFee) == 0 {
 		gasLimit = t.NetworkFee - int64(t.Size())*bc.FeePerByte() - bc.CalculateAttributesFee(t)
-		if bc.P2PSigExtensionsEnabled() {
-			attrs := t.GetAttributes(transaction.NotaryAssistedT)
-			if len(attrs) != 0 {
-				na := attrs[0].Value.(*transaction.NotaryAssisted)
-				gasLimit -= (int64(na.NKeys) + 1) * bc.contracts.Notary.GetNotaryServiceFeePerKey(bc.dao)
-			}
-		}
 	} else {
 		gasLimit = verificationFee[0]
 	}

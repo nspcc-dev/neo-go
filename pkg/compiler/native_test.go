@@ -207,8 +207,6 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"expirationOf", []string{u160}},
 		{"getMaxNotValidBeforeDelta", nil},
 		{"setMaxNotValidBeforeDelta", []string{"42"}},
-		{"getNotaryServiceFeePerKey", nil},
-		{"setNotaryServiceFeePerKey", []string{"42"}},
 	})
 	runNativeTestCases(t, cs.Management.ContractMD, "management", []nativeTestCase{
 		{"deploy", []string{"nil", "nil"}},

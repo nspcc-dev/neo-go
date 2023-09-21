@@ -28,6 +28,8 @@ const (
 	defaultMaxVerificationGas = 1_50000000
 	// defaultAttributeFee is a default fee for a transaction attribute those price wasn't set yet.
 	defaultAttributeFee = 0
+	// defaultNotaryAssistedFee is a default fee for a NotaryAssisted transaction attribute per key.
+	defaultNotaryAssistedFee = 1000_0000 // 0.1 GAS
 	// DefaultStoragePrice is the price to pay for 1 byte of storage.
 	DefaultStoragePrice = 100000
 
@@ -60,6 +62,9 @@ var (
 type Policy struct {
 	interop.ContractMD
 	NEO *NEO
+
+	// p2pSigExtensionsEnabled defines whether the P2P signature extensions logic is relevant.
+	p2pSigExtensionsEnabled bool
 }
 
 type PolicyCache struct {
@@ -94,8 +99,11 @@ func copyPolicyCache(src, dst *PolicyCache) {
 }
 
 // newPolicy returns Policy native contract.
-func newPolicy() *Policy {
-	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy, policyContractID)}
+func newPolicy(p2pSigExtensionsEnabled bool) *Policy {
+	p := &Policy{
+		ContractMD:              *interop.NewContractMD(nativenames.Policy, policyContractID),
+		p2pSigExtensionsEnabled: p2pSigExtensionsEnabled,
+	}
 	defer p.UpdateHash()
 
 	desc := newDescriptor("getFeePerByte", smartcontract.IntegerType)
@@ -172,6 +180,10 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 		storagePrice:       DefaultStoragePrice,
 		attributeFee:       map[transaction.AttrType]uint32{},
 		blockedAccounts:    make([]util.Uint160, 0),
+	}
+	if p.p2pSigExtensionsEnabled {
+		setIntWithKey(p.ID, ic.DAO, []byte{attributeFeePrefix, byte(transaction.NotaryAssistedT)}, defaultNotaryAssistedFee)
+		cache.attributeFee[transaction.NotaryAssistedT] = defaultNotaryAssistedFee
 	}
 	ic.DAO.SetCache(p.ID, cache)
 

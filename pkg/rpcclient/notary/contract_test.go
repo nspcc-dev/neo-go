@@ -103,26 +103,6 @@ func TestUint32Getters(t *testing.T) {
 	}
 }
 
-func TestGetNotaryServiceFeePerKey(t *testing.T) {
-	ta := &testAct{}
-	ntr := NewReader(ta)
-
-	ta.err = errors.New("")
-	_, err := ntr.GetNotaryServiceFeePerKey()
-	require.Error(t, err)
-
-	ta.err = nil
-	ta.res = &result.Invoke{
-		State: "HALT",
-		Stack: []stackitem.Item{
-			stackitem.Make(42),
-		},
-	}
-	res, err := ntr.GetNotaryServiceFeePerKey()
-	require.NoError(t, err)
-	require.Equal(t, int64(42), res)
-}
-
 func TestTxSenders(t *testing.T) {
 	ta := new(testAct)
 	ntr := New(ta)
@@ -133,9 +113,6 @@ func TestTxSenders(t *testing.T) {
 		},
 		"SetMaxNotValidBeforeDelta": func() (util.Uint256, uint32, error) {
 			return ntr.SetMaxNotValidBeforeDelta(42)
-		},
-		"SetNotaryServiceFeePerKey": func() (util.Uint256, uint32, error) {
-			return ntr.SetNotaryServiceFeePerKey(100500)
 		},
 		"Withdraw": func() (util.Uint256, uint32, error) {
 			return ntr.Withdraw(util.Uint160{1, 2, 3}, util.Uint160{3, 2, 1})
@@ -173,12 +150,6 @@ func TestTxMakers(t *testing.T) {
 		},
 		"SetMaxNotValidBeforeDeltaUnsigned": func() (*transaction.Transaction, error) {
 			return ntr.SetMaxNotValidBeforeDeltaUnsigned(42)
-		},
-		"SetNotaryServiceFeePerKeyTransaction": func() (*transaction.Transaction, error) {
-			return ntr.SetNotaryServiceFeePerKeyTransaction(100500)
-		},
-		"SetNotaryServiceFeePerKeyUnsigned": func() (*transaction.Transaction, error) {
-			return ntr.SetNotaryServiceFeePerKeyUnsigned(100500)
 		},
 		"WithdrawTransaction": func() (*transaction.Transaction, error) {
 			return ntr.WithdrawTransaction(util.Uint160{1, 2, 3}, util.Uint160{3, 2, 1})
