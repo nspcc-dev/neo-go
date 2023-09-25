@@ -55,6 +55,16 @@ func TestContractStateToFromSI(t *testing.T) {
 	t.Run("Convertible", func(t *testing.T) {
 		contractDecoded := new(Contract)
 		testserdes.ToFromStackItem(t, contract, contractDecoded)
+
+		t.Run("preserve wildcard trusts", func(t *testing.T) {
+			contract.Manifest.Trusts.Value = nil
+			require.True(t, contract.Manifest.Trusts.IsWildcard())
+			actual := new(Contract)
+			item, err := contract.ToStackItem()
+			require.NoError(t, err)
+			require.NoError(t, actual.FromStackItem(item))
+			require.True(t, actual.Manifest.Trusts.IsWildcard())
+		})
 	})
 	t.Run("JSON", func(t *testing.T) {
 		contractDecoded := new(Contract)

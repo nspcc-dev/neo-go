@@ -250,7 +250,7 @@ func (m *Manifest) FromStackItem(item stackitem.Item) error {
 		m.Permissions[i] = *p
 	}
 	if _, ok := str[6].(stackitem.Null); ok {
-		m.Trusts.Restrict()
+		m.Trusts = WildPermissionDescs{Value: nil} // wildcard by default
 	} else {
 		if str[6].Type() != stackitem.ArrayT {
 			return errors.New("invalid Trusts stackitem type")
