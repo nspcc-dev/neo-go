@@ -951,7 +951,10 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (any, *neorpc.Erro
 			}
 			w.InvocationScript = inv.Bytes()
 		}
-		gasConsumed, _ := s.chain.VerifyWitness(signer.Account, tx, &w, int64(s.config.MaxGasInvoke))
+		gasConsumed, err := s.chain.VerifyWitness(signer.Account, tx, &w, int64(s.config.MaxGasInvoke))
+		if err != nil && !errors.Is(err, core.ErrInvalidSignature) {
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidSignature, err.Error())
+		}
 		netFee += gasConsumed
 		size += io.GetVarSize(w.VerificationScript) + io.GetVarSize(w.InvocationScript)
 	}
