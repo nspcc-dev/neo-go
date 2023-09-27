@@ -233,7 +233,9 @@ where:
   proxy can be used to have proper app-specific CORS settings), but it's an
   easy way to make RPC interface accessible from the browser.
 - `MaxGasInvoke` is the maximum GAS allowed to spend during `invokefunction` and
-  `invokescript` RPC-calls.
+  `invokescript` RPC-calls. `calculatenetworkfee` also can't exceed this GAS amount
+  (normally the limit for it is MaxVerificationGAS from Policy, but if MaxGasInvoke
+  is lower than that then this limit is respected).
 - `MaxIteratorResultItems` - maximum number of elements extracted from iterator
    returned by `invoke*` call. When the `MaxIteratorResultItems` value is set to
    `n`, only `n` iterations are returned and truncated is true, indicating that

@@ -3,6 +3,7 @@ package rpcsrv
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	gio "io"
@@ -26,6 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dboper"
@@ -3184,6 +3186,21 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			body := calcReq(t, tx)
 			_ = checkErrGetResult(t, body, true, neorpc.ErrInvalidVerificationFunctionCode, "signer 0 has no verify method in deployed contract")
 		})
+		t.Run("execution limit, fail", func(t *testing.T) {
+			// 1_6000_0000 GAS with the default 1.5 allowed by Policy
+			verifScript := []byte{byte(opcode.PUSHINT32), 0x00, 0x58, 0x89, 0x09, byte(opcode.SYSCALL), 0, 0, 0, 0, byte(opcode.PUSHT)}
+			binary.LittleEndian.PutUint32(verifScript[6:], interopnames.ToID([]byte(interopnames.SystemRuntimeBurnGas)))
+			tx := &transaction.Transaction{
+				Script:  []byte{byte(opcode.RET)},
+				Signers: []transaction.Signer{{Account: hash.Hash160(verifScript)}},
+				Scripts: []transaction.Witness{{
+					InvocationScript:   []byte{byte(opcode.NOP)},
+					VerificationScript: verifScript,
+				}},
+			}
+			body := calcReq(t, tx)
+			_ = checkErrGetResult(t, body, true, neorpc.ErrInvalidSignatureCode, "GAS limit exceeded")
+		})
 		checkCalc := func(t *testing.T, tx *transaction.Transaction, fee int64) {
 			resp := checkErrGetResult(t, calcReq(t, tx), false, 0)
 			res := new(result.NetworkFee)
@@ -3257,6 +3274,20 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			emit.String(invocWriter.BinWriter, "")
 			invocScript := invocWriter.Bytes()
 			checkContract(t, verAcc, invocScript, 146960) // No C# match, but we believe it's OK and it has a specific invocation script overriding anything server-side.
+		})
+		t.Run("execution limit, ok", func(t *testing.T) {
+			// 1_4000_0000 GAS with the default 1.5 allowed by Policy
+			verifScript := []byte{byte(opcode.PUSHINT32), 0x00, 0x3b, 0x58, 0x08, byte(opcode.SYSCALL), 0, 0, 0, 0, byte(opcode.PUSHT)}
+			binary.LittleEndian.PutUint32(verifScript[6:], interopnames.ToID([]byte(interopnames.SystemRuntimeBurnGas)))
+			tx := &transaction.Transaction{
+				Script:  []byte{byte(opcode.RET)},
+				Signers: []transaction.Signer{{Account: hash.Hash160(verifScript)}},
+				Scripts: []transaction.Witness{{
+					InvocationScript:   []byte{byte(opcode.NOP)},
+					VerificationScript: verifScript,
+				}},
+			}
+			checkCalc(t, tx, 140065570)
 		})
 	})
 	t.Run("sendrawtransaction", func(t *testing.T) {

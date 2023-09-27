@@ -917,7 +917,15 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (any, *neorpc.Erro
 		return 0, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("failed to compute tx size: %s", err))
 	}
 	size := len(hashablePart) + io.GetVarSize(len(tx.Signers))
-	var netFee int64
+	var (
+		netFee int64
+		// Verification GAS cost can't exceed this policy.
+		gasLimit = s.chain.GetMaxVerificationGAS()
+	)
+	if gasLimit > int64(s.config.MaxGasInvoke) {
+		// But we honor instance configuration as well.
+		gasLimit = int64(s.config.MaxGasInvoke)
+	}
 	for i, signer := range tx.Signers {
 		w := tx.Scripts[i]
 		if len(w.InvocationScript) == 0 { // No invocation provided, try to infer one.
@@ -951,10 +959,11 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (any, *neorpc.Erro
 			}
 			w.InvocationScript = inv.Bytes()
 		}
-		gasConsumed, err := s.chain.VerifyWitness(signer.Account, tx, &w, int64(s.config.MaxGasInvoke))
+		gasConsumed, err := s.chain.VerifyWitness(signer.Account, tx, &w, gasLimit)
 		if err != nil && !errors.Is(err, core.ErrInvalidSignature) {
 			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidSignature, err.Error())
 		}
+		gasLimit -= gasConsumed
 		netFee += gasConsumed
 		size += io.GetVarSize(w.VerificationScript) + io.GetVarSize(w.InvocationScript)
 	}
