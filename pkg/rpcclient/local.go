@@ -29,7 +29,8 @@ func NewInternal(ctx context.Context, register InternalHook) (*Internal, error) 
 			Client: Client{},
 
 			shutdown:      make(chan struct{}),
-			done:          make(chan struct{}),
+			readerDone:    make(chan struct{}),
+			writerDone:    make(chan struct{}),
 			subscriptions: make(map[string]notificationReceiver),
 			receivers:     make(map[any][]string),
 		},
@@ -63,7 +64,7 @@ eventloop:
 			c.notifySubscribers(ntf)
 		}
 	}
-	close(c.done)
+	close(c.readerDone)
 	c.ctxCancel()
 	// ctx is cancelled, server is notified and will finish soon.
 drainloop:
