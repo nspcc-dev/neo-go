@@ -107,7 +107,8 @@ var (
 // follows the Groth-16 proving system and is taken from the
 // https://github.com/neo-project/neo/issues/2647#issuecomment-1002893109 without
 // any changes. Verification process checks the following equality:
-// A*B = alpha*beta + sum(pub_input[i]*(beta*u_i(x)+alpha*v_i(x)+w_i(x))/gamma)*gamma + C*delta
+//
+//	A * B = alpha * beta + sum(pub_input[i] * (beta * u_i(x) + alpha * v_i(x) + w_i(x)) / gamma) * gamma + C * delta
 func VerifyProof(a []byte, b []byte, c []byte, publicInput [][]byte) bool {
 	alphaPoint := crypto.Bls12381Deserialize(alpha)
 	betaPoint := crypto.Bls12381Deserialize(beta)
