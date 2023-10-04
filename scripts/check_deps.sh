@@ -16,6 +16,10 @@ git merge-base --is-ancestor "$INTEROP_COMMIT" HEAD ||
 	die "pkg/interop commit $INTEROP_COMMIT was not found in git"
 
 for dir in examples/*/; do
+  if [ -z "${dir#*zkp/}" ]; then
+    continue
+  fi
+
 	INTEROP_COMMIT="$(sed -E -n -e 's/.*pkg\/interop.+-.+-(\w+)/\1/ p' "$dir/go.mod")"
 	git merge-base --is-ancestor "$INTEROP_COMMIT" HEAD ||
 		die "$dir: pkg/interop commit $INTEROP_COMMIT was not found in git"

@@ -18,6 +18,12 @@ for dir in "$root"/examples/*/; do
 	go mod tidy
 done
 
+for dir in "$root"/examples/zkp/*/; do
+	cd "$dir" || exit 1
+	go get github.com/nspcc-dev/neo-go/pkg/interop@"$REV"
+	go mod tidy
+done
+
 cd "$root"/internal/contracts/oracle_contract || exit 1
 go get github.com/nspcc-dev/neo-go/pkg/interop@"$REV"
 go mod tidy
