@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/consensys/gnark v0.9.0
-	github.com/consensys/gnark-crypto v0.11.2
+	github.com/consensys/gnark-crypto v0.12.0
 	github.com/nspcc-dev/neo-go v0.102.0
 	github.com/stretchr/testify v1.8.4
 )
