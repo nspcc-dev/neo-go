@@ -167,12 +167,12 @@ supportedstandards: []`
 
 go 1.18
 
-require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20230606150208-a2daad6ba614
+require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231004150345-8849ccde2524
 `
 
 	// verifyGosum is a standard go.sum file needed for contract compilation.
-	verifyGosum = `github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20230606150208-a2daad6ba614 h1:MiDBj73HNgPUbJRpXWLXrsGvX4rkYVDrdSmfOwivGR8=
-github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20230606150208-a2daad6ba614/go.mod h1:ZUuXOkdtHZgaC13za/zMgXfQFncZ0jLzfQTe+OsDOtg=
+	verifyGosum = `github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231004150345-8849ccde2524 h1:LKp/89ftf+MwMExKgnbwjQp5zQTUZ3lDCc+DZ4VeSRc=
+github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231004150345-8849ccde2524/go.mod h1:ZUuXOkdtHZgaC13za/zMgXfQFncZ0jLzfQTe+OsDOtg=
 `
 )
 
