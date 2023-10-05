@@ -18,6 +18,14 @@ var numericTestCases = []testCase{
 		`,
 		big.NewInt(6),
 	},
+	{
+		"shift uint64",
+		`package foo
+		func Main() uint64 {
+			return 1 << 63
+		}`,
+		new(big.Int).SetUint64(1 << 63),
+	},
 }
 
 func TestNumericExprs(t *testing.T) {
