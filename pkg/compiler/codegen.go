@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"go/types"
 	"math"
+	"math/big"
 	"sort"
 	"strings"
 
@@ -208,9 +209,12 @@ func (c *codegen) emitLoadConst(t types.TypeAndValue) {
 	case types.Int, types.UntypedInt, types.Uint,
 		types.Int8, types.Uint8,
 		types.Int16, types.Uint16,
-		types.Int32, types.Uint32, types.Int64, types.Uint64:
+		types.Int32, types.Uint32, types.Int64:
 		val, _ := constant.Int64Val(t.Value)
 		emit.Int(c.prog.BinWriter, val)
+	case types.Uint64:
+		val, _ := constant.Int64Val(t.Value)
+		emit.BigInt(c.prog.BinWriter, new(big.Int).SetUint64(uint64(val)))
 	case types.String, types.UntypedString:
 		val := constant.StringVal(t.Value)
 		emit.String(c.prog.BinWriter, val)
