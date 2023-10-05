@@ -1011,6 +1011,10 @@ func TestCompileExamples(t *testing.T) {
 			// there are also a couple of files inside the `/examples` which doesn't need to be compiled
 			continue
 		}
+		if info.Name() == "zkp" {
+			// A set of special ZKP-related examples, they have their own tests.
+			continue
+		}
 		t.Run(info.Name(), func(t *testing.T) {
 			infos, err := os.ReadDir(filepath.Join(examplePath, info.Name()))
 			require.NoError(t, err)

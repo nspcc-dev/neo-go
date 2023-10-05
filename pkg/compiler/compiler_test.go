@@ -57,6 +57,10 @@ func TestCompiler(t *testing.T) {
 						// there is also a couple of files inside the `examplePath` which don't need to be compiled
 						continue
 					}
+					if info.Name() == "zkp" {
+						// A set of special ZKP-related examples, they have their own tests.
+						continue
+					}
 
 					targetPath := filepath.Join(examplePath, info.Name())
 					require.NoError(t, compileFile(targetPath), info.Name())

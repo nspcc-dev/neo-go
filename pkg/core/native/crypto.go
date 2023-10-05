@@ -230,7 +230,8 @@ func scalarFromBytes(bytes []byte, neg bool) (*fr.Element, error) {
 		return nil, fmt.Errorf("invalid multiplier: 32-bytes scalar is expected, got %d", len(bytes))
 	}
 	// The input bytes are in the LE form, so we can't use fr.Element.SetBytesCanonical as far
-	// as it accepts BE.
+	// as it accepts BE. Confirmed by https://github.com/neo-project/neo/issues/2647#issuecomment-1129849870
+	// and by https://github.com/nspcc-dev/neo-go/pull/3043#issuecomment-1733424840.
 	v, err := fr.LittleEndian.Element((*[fr.Bytes]byte)(bytes))
 	if err != nil {
 		return nil, fmt.Errorf("invalid multiplier: failed to decode scalar: %w", err)

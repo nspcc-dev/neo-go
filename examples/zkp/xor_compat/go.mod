@@ -1,4 +1,4 @@
-module github.com/nspcc-dev/neo-go/examples/timer
+module github.com/nspcc-dev/neo-go/examples/zkp/xor
 
 go 1.18
 

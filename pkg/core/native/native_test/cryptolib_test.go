@@ -6,10 +6,12 @@ import (
 	"strings"
 	"testing"
 
+	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -419,4 +421,33 @@ func TestCryptolib_Bls12381Equal_GT(t *testing.T) {
 	itm := stack.Pop().Item()
 	require.Equal(t, stackitem.BooleanT, itm.Type())
 	require.True(t, itm.Value().(bool))
+}
+
+func TestVerifyGroth16Proof(t *testing.T) {
+	bc, committee := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, committee, committee)
+
+	c := neotest.CompileFile(t, e.Validator.ScriptHash(), "../../../../examples/zkp/xor_compat/verify.go", "../../../../examples/zkp/xor_compat/verify.yml")
+	e.DeployContract(t, c, nil)
+
+	validatorInvoker := e.ValidatorInvoker(c.Hash)
+
+	// These arguments are compressed representation of points provided in the original example:
+	argA := []byte{130, 88, 157, 112, 250, 72, 149, 167, 140, 203, 82, 224, 80, 178, 25, 167, 81, 78, 135, 22, 195, 186, 98, 114, 127, 47, 79, 56, 198, 115, 4, 214, 73, 171, 97, 187, 13, 111, 1, 183, 215, 199, 12, 128, 78, 187, 113, 209}
+	argB := []byte{167, 246, 242, 75, 174, 218, 111, 64, 63, 27, 36, 177, 240, 72, 121, 94, 39, 63, 55, 176, 199, 165, 152, 27, 179, 54, 3, 3, 9, 133, 97, 181, 16, 235, 109, 82, 127, 169, 66, 174, 106, 16, 71, 106, 131, 175, 30, 175, 13, 144, 171, 46, 215, 21, 184, 238, 78, 159, 15, 185, 177, 13, 48, 231, 51, 143, 203, 173, 213, 154, 160, 1, 242, 227, 2, 164, 124, 144, 199, 98, 167, 175, 122, 114, 102, 137, 12, 48, 84, 131, 0, 169, 158, 55, 128, 230}
+	argC := []byte{128, 213, 12, 150, 48, 255, 49, 226, 134, 136, 162, 136, 138, 49, 33, 226, 130, 57, 233, 218, 189, 99, 250, 116, 33, 92, 163, 118, 177, 216, 143, 174, 221, 225, 73, 100, 94, 84, 243, 228, 142, 40, 246, 162, 241, 48, 175, 173}
+
+	require.Equal(t, bls12381.SizeOfG1AffineCompressed, len(argA))
+	require.Equal(t, bls12381.SizeOfG2AffineCompressed, len(argB))
+	require.Equal(t, bls12381.SizeOfG1AffineCompressed, len(argC))
+
+	// This example is constructed to prove that a&b=0 where a and b are private input.
+	// The only public input we have is `0` from the right sight of this equation,
+	// but we can't pass `0` as an integer value, because CryptoLib's `bls12381Mul`
+	// operation that uses public witnesses requires LE bytes representation of the
+	// field element.
+	publicWitness := make([]byte, fr.Bytes)
+
+	// Verify.
+	validatorInvoker.Invoke(t, true, "verifyProof", argA, argB, argC, []interface{}{publicWitness})
 }
