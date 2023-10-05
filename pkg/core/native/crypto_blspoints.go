@@ -272,7 +272,7 @@ func blsPointPairing(a, b blsPoint) (blsPoint, error) {
 		x = new(bls12381.G1Affine)
 		x.FromJacobian(p)
 	default:
-		return blsPoint{}, fmt.Errorf("pairing: unexpected bls12381 point type (g1): %T", x)
+		return blsPoint{}, fmt.Errorf("pairing: unexpected bls12381 point type (g1): %T", p)
 	}
 	switch p := b.point.(type) {
 	case *bls12381.G2Affine:
@@ -281,7 +281,7 @@ func blsPointPairing(a, b blsPoint) (blsPoint, error) {
 		y = new(bls12381.G2Affine)
 		y.FromJacobian(p)
 	default:
-		return blsPoint{}, fmt.Errorf("pairing: unexpected bls12381 point type (g2): %T", x)
+		return blsPoint{}, fmt.Errorf("pairing: unexpected bls12381 point type (g2): %T", p)
 	}
 
 	gt, err := bls12381.Pair([]bls12381.G1Affine{*x}, []bls12381.G2Affine{*y})
