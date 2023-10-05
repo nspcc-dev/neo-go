@@ -3,7 +3,7 @@ module github.com/nspcc-dev/neo-go
 require (
 	github.com/chzyer/readline v1.5.0
 	github.com/consensys/gnark v0.8.1
-	github.com/consensys/gnark-crypto v0.9.2
+	github.com/consensys/gnark-crypto v0.12.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1
 	github.com/google/uuid v1.3.0
@@ -38,6 +38,7 @@ require (
 	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20221202181307-76fa05c21b12 // indirect
 	github.com/benbjohnson/clock v1.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/bits-and-blooms/bitset v1.7.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
