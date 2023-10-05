@@ -242,8 +242,8 @@ func GenerateVerifier(cfg Config) error {
 		return errors.New("unexpected len of constant-size part of serialized verifying key")
 	}
 	kvkLen := binary.BigEndian.Uint32(vkBytes[verifyingKeyConstantPartLen-4:])
-	if len(vkBytes) != verifyingKeyConstantPartLen+int(kvkLen*bls12381.SizeOfG1AffineCompressed) {
-		return errors.New("unexpected len of serialized verifying key")
+	if len(vkBytes) < verifyingKeyConstantPartLen+int(kvkLen*bls12381.SizeOfG1AffineCompressed) {
+		return fmt.Errorf("unexpected len of serialized verifying key: expected at least %d got %d", verifyingKeyConstantPartLen+int(kvkLen*bls12381.SizeOfG1AffineCompressed), len(vkBytes))
 	}
 
 	var (
@@ -340,14 +340,14 @@ func GetVerifyProofArgs(proof groth16.Proof, publicWitness witness.Witness) (*Ve
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize proof: %w", err)
 	}
-	if n != proofSizeCompressed {
-		return nil, fmt.Errorf("unexpected serialized proof length: %d", n)
+	if n < proofSizeCompressed {
+		return nil, fmt.Errorf("unexpected serialized proof length: expected at least %d, got %d", proofSizeCompressed, n)
 	}
 	proofBytes := slice.Copy(buf.Bytes())
 
 	aBytes := proofBytes[:bls12381.SizeOfG1AffineCompressed]
 	bBytes := proofBytes[bls12381.SizeOfG1AffineCompressed : bls12381.SizeOfG1AffineCompressed+bls12381.SizeOfG2AffineCompressed]
-	cBytes := proofBytes[bls12381.SizeOfG1AffineCompressed+bls12381.SizeOfG2AffineCompressed:]
+	cBytes := proofBytes[bls12381.SizeOfG1AffineCompressed+bls12381.SizeOfG2AffineCompressed : bls12381.SizeOfG1AffineCompressed+bls12381.SizeOfG2AffineCompressed+bls12381.SizeOfG1AffineCompressed]
 
 	publicWitnessBytes, err := publicWitness.MarshalBinary()
 	if err != nil {
