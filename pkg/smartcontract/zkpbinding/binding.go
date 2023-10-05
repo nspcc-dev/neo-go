@@ -10,7 +10,6 @@
 package zkpbinding
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -18,9 +17,9 @@ import (
 	"text/template"
 
 	"github.com/consensys/gnark-crypto/ecc"
-	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/consensys/gnark/backend/groth16"
+	curve "github.com/consensys/gnark/backend/groth16/bls12-381"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
@@ -176,14 +175,6 @@ github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231004150345-8849ccde2524/go.mo
 `
 )
 
-// verifyingKeyConstantPartLen is the length of the constant-len part of a
-// serialized compressed verifying key. It is used to check that serialization
-// format of a verifying key is expected.
-const verifyingKeyConstantPartLen = bls12381.SizeOfG1AffineCompressed + bls12381.SizeOfG1AffineCompressed + // [α]1,[β]1
-	bls12381.SizeOfG2AffineCompressed + bls12381.SizeOfG2AffineCompressed + // [β]2,[γ]2
-	bls12381.SizeOfG1AffineCompressed + bls12381.SizeOfG2AffineCompressed + // [δ]1,[δ]2
-	4 // len(Kvk) in BE (a number of public wires for this circuit)
-
 // VerifyProofArgs is the set of arguments of `verifyProof` method of a
 // Verifier contract in serialized form (as the contract accepts them).
 type VerifyProofArgs struct {
@@ -224,51 +215,17 @@ func GenerateVerifier(cfg Config) error {
 		return fmt.Errorf("unexpected elliptic curve: %s", cfg.VerifyingKey.CurveID())
 	}
 
-	// Fetch the contract's public verification parameters. We can't directly access
-	// the VerifyingKey elements, because it's hidden under internal package, thus,
-	// take these parameters from the serialized VerifyingKey representation. It
-	// follows the bellman format:
-	// https://github.com/zkcrypto/bellman/blob/fa9be45588227a8c6ec34957de3f68705f07bd92/src/groth16/mod.rs#L143
-	// [α]1,[β]1,[β]2,[γ]2,[δ]1,[δ]2,uint32(len(Kvk)),[Kvk]1
-	// See also the serialisation code: https://github.com/Consensys/gnark/blob/165b49ab88d69c97867a76e147e6fd41af138210/internal/backend/bls12-381/groth16/marshal.go#L95
-	var buf bytes.Buffer
-	_, err := cfg.VerifyingKey.WriteTo(&buf)
-	if err != nil {
-		return fmt.Errorf("failed to serialize verifying key: %w", err)
-	}
-	vkBytes := slice.Copy(buf.Bytes())
-
-	// Ensure the serialized verifier key has the expected length/format (just in case).
-	if len(vkBytes) < verifyingKeyConstantPartLen {
-		return errors.New("unexpected len of constant-size part of serialized verifying key")
-	}
-	kvkLen := binary.BigEndian.Uint32(vkBytes[verifyingKeyConstantPartLen-4:])
-	if len(vkBytes) < verifyingKeyConstantPartLen+int(kvkLen*bls12381.SizeOfG1AffineCompressed) {
-		return fmt.Errorf("unexpected len of serialized verifying key: expected at least %d got %d", verifyingKeyConstantPartLen+int(kvkLen*bls12381.SizeOfG1AffineCompressed), len(vkBytes))
-	}
-
-	var (
-		alphaG1Offset = 0
-		betaG2Offset  = bls12381.SizeOfG1AffineCompressed + bls12381.SizeOfG1AffineCompressed   // [α]1,[β]1
-		gammaG2Offset = bls12381.SizeOfG1AffineCompressed + bls12381.SizeOfG1AffineCompressed + // [α]1,[β]1
-			bls12381.SizeOfG2AffineCompressed // [β]2
-		deltaG2Offset = bls12381.SizeOfG1AffineCompressed + bls12381.SizeOfG1AffineCompressed + // [α]1,[β]1
-			bls12381.SizeOfG2AffineCompressed + bls12381.SizeOfG2AffineCompressed + // [β]2,[γ]2
-			bls12381.SizeOfG1AffineCompressed // [δ]1
-		kvkLenOffset = bls12381.SizeOfG1AffineCompressed + bls12381.SizeOfG1AffineCompressed + // [α]1,[β]1
-			bls12381.SizeOfG2AffineCompressed + bls12381.SizeOfG2AffineCompressed + // [β]2,[γ]2
-			bls12381.SizeOfG1AffineCompressed + bls12381.SizeOfG2AffineCompressed // [δ]1,[δ]2
-		kvkStartOffset = kvkLenOffset + 4
-	)
-	alphaG1 := vkBytes[alphaG1Offset : alphaG1Offset+bls12381.SizeOfG1AffineCompressed]
-	betaG2 := vkBytes[betaG2Offset : betaG2Offset+bls12381.SizeOfG2AffineCompressed]
-	gammaG2 := vkBytes[gammaG2Offset : gammaG2Offset+bls12381.SizeOfG2AffineCompressed]
-	deltaG2 := vkBytes[deltaG2Offset : deltaG2Offset+bls12381.SizeOfG2AffineCompressed]
-	kvks := make([][]byte, kvkLen)
+	// Fetch the contract's public verification parameters. We can directly access
+	// the VerifyingKey elements since gnark v0.9.0.
+	vk := cfg.VerifyingKey.(*curve.VerifyingKey)
+	alphaG1 := vk.G1.Alpha.Bytes()
+	betaG2 := vk.G2.Beta.Bytes()
+	gammaG2 := vk.G2.Gamma.Bytes()
+	deltaG2 := vk.G2.Delta.Bytes()
+	kvks := make([][]byte, len(vk.G1.K))
 	for i := range kvks {
-		start := kvkStartOffset + i*bls12381.SizeOfG1AffineCompressed
-		end := start + bls12381.SizeOfG1AffineCompressed
-		kvks[i] = vkBytes[start:end]
+		arr := vk.G1.K[i].Bytes()
+		kvks[i] = arr[:]
 	}
 
 	// Generate verification contract from the template using the retrieved
@@ -277,11 +234,11 @@ func GenerateVerifier(cfg Config) error {
 		"byteSliceToStr": byteSliceToStr,
 	}).Parse(goVerificationTmpl))
 
-	err = tmpl.Execute(cfg.Output, tmplParams{
-		Alpha: alphaG1,
-		Beta:  betaG2,
-		Gamma: gammaG2,
-		Delta: deltaG2,
+	err := tmpl.Execute(cfg.Output, tmplParams{
+		Alpha: alphaG1[:],
+		Beta:  betaG2[:],
+		Gamma: gammaG2[:],
+		Delta: deltaG2[:],
 		ICs:   kvks,
 	})
 	if err != nil {
@@ -335,20 +292,10 @@ func GetVerifyProofArgs(proof groth16.Proof, publicWitness witness.Witness) (*Ve
 		return nil, fmt.Errorf("failed to retrieve public witness: %w", err)
 	}
 	// Get the proof bytes (points are in the compressed form, as Verification contract accepts it).
-	proofSizeCompressed := int64(bls12381.SizeOfG1AffineCompressed + bls12381.SizeOfG2AffineCompressed + bls12381.SizeOfG1AffineCompressed)
-	var buf bytes.Buffer
-	n, err := proof.WriteTo(&buf)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize proof: %w", err)
-	}
-	if n < proofSizeCompressed {
-		return nil, fmt.Errorf("unexpected serialized proof length: expected at least %d, got %d", proofSizeCompressed, n)
-	}
-	proofBytes := slice.Copy(buf.Bytes())
-
-	aBytes := proofBytes[:bls12381.SizeOfG1AffineCompressed]
-	bBytes := proofBytes[bls12381.SizeOfG1AffineCompressed : bls12381.SizeOfG1AffineCompressed+bls12381.SizeOfG2AffineCompressed]
-	cBytes := proofBytes[bls12381.SizeOfG1AffineCompressed+bls12381.SizeOfG2AffineCompressed : bls12381.SizeOfG1AffineCompressed+bls12381.SizeOfG2AffineCompressed+bls12381.SizeOfG1AffineCompressed]
+	p := proof.(*curve.Proof)
+	aBytes := p.Ar.Bytes()
+	bBytes := p.Bs.Bytes()
+	cBytes := p.Krs.Bytes()
 
 	publicWitnessBytes, err := publicWitness.MarshalBinary()
 	if err != nil {
@@ -376,9 +323,9 @@ func GetVerifyProofArgs(proof groth16.Proof, publicWitness witness.Witness) (*Ve
 		input[i] = publicWitnessBytes[start:end]
 	}
 	return &VerifyProofArgs{
-		A:               aBytes,
-		B:               bBytes,
-		C:               cBytes,
+		A:               aBytes[:],
+		B:               bBytes[:],
+		C:               cBytes[:],
 		PublicWitnesses: input,
 	}, nil
 }
