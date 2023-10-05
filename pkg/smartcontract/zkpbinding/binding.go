@@ -6,7 +6,7 @@
 //
 // Please, check out the example of zkpbinding package usage to generate and
 // verify proofs on the Neo chain:
-// https://pkg.go.dev/github.com/nspcc-dev/neo-go/pkg/smartcontract/zkpbinding
+// https://github.com/nspcc-dev/neo-go/blob/91c928e8d35164055e5b2e8efbc898440cc2b486/examples/zkp/cubic_circuit/README.md
 package zkpbinding
 
 import (
