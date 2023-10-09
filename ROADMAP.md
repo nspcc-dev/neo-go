@@ -26,16 +26,6 @@ APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
 
-## WSClient Notifications channel and SubscribeFor* APIs
-
-Version 0.99.5 of NeoGo introduces a new set of subscription APIs that gives
-more control to the WSClient user that can pass specific channels to be used
-for specific subscriptions now. Old APIs and generic Notifications channel are
-still available, but will be removed, so please convert your code to using new
-Receive* APIs.
-
-Removal of these APIs is scheduled for May 2023 (~0.103.0 release).
-
 ## SecondsPerBlock protocol configuration
 
 With 0.100.0 version SecondsPerBlock protocol configuration setting was

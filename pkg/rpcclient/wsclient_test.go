@@ -205,31 +205,23 @@ func TestWSClientEvents(t *testing.T) {
 	wsc.receivers[chan<- *state.AppExecResult(aerCh3)] = []string{"6"}
 	// MissedEvent must close the channels above.
 
-	wsc.subscriptions["7"] = &naiveReceiver{eventID: neorpc.BlockEventID, ch: wsc.Notifications}
-	wsc.subscriptions["8"] = &naiveReceiver{eventID: neorpc.BlockEventID, ch: wsc.Notifications}     // check duplicating subscriptions
-	wsc.subscriptions["9"] = &naiveReceiver{eventID: neorpc.ExecutionEventID, ch: wsc.Notifications} // check different events
-	wsc.receivers[wsc.Notifications] = []string{"7", "8", "9"}
 	wsc.subscriptionsLock.Unlock()
 
 	var (
 		b1Cnt, b2Cnt                                      int
 		aer1Cnt, aer2Cnt, aer3Cnt                         int
 		ntfCnt                                            int
-		defaultCount                                      int
-		expectedb1Cnt, expectedb2Cnt                      = 1, 1      // single Block event
-		expectedaer1Cnt, expectedaer2Cnt, expectedaer3Cnt = 2, 2, 0   // two HALTED AERs
-		expectedntfCnt                                    = 1         // single notification event
-		expectedDefaultCnt                                = 1 + 2 + 1 // single Block event + two AERs + missed event
+		expectedb1Cnt, expectedb2Cnt                      = 1, 1    // single Block event
+		expectedaer1Cnt, expectedaer2Cnt, expectedaer3Cnt = 2, 2, 0 // two HALTED AERs
+		expectedntfCnt                                    = 1       // single notification event
 		aer                                               *state.AppExecResult
 	)
 	for b1Cnt+b2Cnt+
 		aer1Cnt+aer2Cnt+aer3Cnt+
-		ntfCnt+
-		defaultCount !=
+		ntfCnt !=
 		expectedb1Cnt+expectedb2Cnt+
 			expectedaer1Cnt+expectedaer2Cnt+expectedaer3Cnt+
-			expectedntfCnt+
-			expectedDefaultCnt {
+			expectedntfCnt {
 		select {
 		case _, ok = <-bCh1:
 			if ok {
@@ -256,10 +248,6 @@ func TestWSClientEvents(t *testing.T) {
 			if ok {
 				ntfCnt++
 			}
-		case _, ok = <-wsc.Notifications:
-			if ok {
-				defaultCount++
-			}
 		case <-time.After(time.Second):
 			t.Fatal("timeout waiting for event")
 		}
@@ -270,7 +258,6 @@ func TestWSClientEvents(t *testing.T) {
 	assert.Equal(t, expectedaer2Cnt, aer2Cnt)
 	assert.Equal(t, expectedaer3Cnt, aer3Cnt)
 	assert.Equal(t, expectedntfCnt, ntfCnt)
-	assert.Equal(t, expectedDefaultCnt, defaultCount)
 
 	// Channels must be closed by server
 	_, ok = <-bCh1
