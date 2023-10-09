@@ -16,12 +16,6 @@ type (
 	ProtocolConfiguration struct {
 		// CommitteeHistory stores committee size change history (height: size).
 		CommitteeHistory map[uint32]uint32 `yaml:"CommitteeHistory"`
-		// GarbageCollectionPeriod sets the number of blocks to wait before
-		// starting the next MPT garbage collection cycle when RemoveUntraceableBlocks
-		// option is used.
-		//
-		// Deprecated: please use the same setting in the ApplicationConfiguration, this field will be removed in future versions.
-		GarbageCollectionPeriod uint32 `yaml:"GarbageCollectionPeriod"`
 
 		Magic       netmode.Magic `yaml:"Magic"`
 		MemPoolSize int           `yaml:"MemPoolSize"`
@@ -34,16 +28,6 @@ type (
 		// P2PNotaryRequestPayloadPoolSize specifies the memory pool size for P2PNotaryRequestPayloads.
 		// It is valid only if P2PSigExtensions are enabled.
 		P2PNotaryRequestPayloadPoolSize int `yaml:"P2PNotaryRequestPayloadPoolSize"`
-		// KeepOnlyLatestState specifies if MPT should only store the latest state.
-		// If true, DB size will be smaller, but older roots won't be accessible.
-		// This value should remain the same for the same database.
-		//
-		// Deprecated: please use the same setting in the ApplicationConfiguration, this field will be removed in future versions.
-		KeepOnlyLatestState bool `yaml:"KeepOnlyLatestState"`
-		// RemoveUntraceableBlocks specifies if old data should be removed.
-		//
-		// Deprecated: please use the same setting in the ApplicationConfiguration, this field will be removed in future versions.
-		RemoveUntraceableBlocks bool `yaml:"RemoveUntraceableBlocks"`
 		// MaxBlockSize is the maximum block size in bytes.
 		MaxBlockSize uint32 `yaml:"MaxBlockSize"`
 		// MaxBlockSystemFee is the maximum overall system fee per block.
@@ -64,10 +48,7 @@ type (
 		P2PStateExchangeExtensions bool `yaml:"P2PStateExchangeExtensions"`
 		// ReservedAttributes allows to have reserved attributes range for experimental or private purposes.
 		ReservedAttributes bool `yaml:"ReservedAttributes"`
-		// SaveStorageBatch enables storage batch saving before every persist.
-		//
-		// Deprecated: please use the same setting in the ApplicationConfiguration, this field will be removed in future versions.
-		SaveStorageBatch bool     `yaml:"SaveStorageBatch"`
+
 		SeedList         []string `yaml:"SeedList"`
 		StandbyCommittee []string `yaml:"StandbyCommittee"`
 		// StateRooInHeader enables storing state root in block header.
@@ -81,10 +62,6 @@ type (
 		ValidatorsCount uint32        `yaml:"ValidatorsCount"`
 		// Validators stores history of changes to consensus node number (height: number).
 		ValidatorsHistory map[uint32]uint32 `yaml:"ValidatorsHistory"`
-		// Whether to verify received blocks.
-		//
-		// Deprecated: please use the same setting in the ApplicationConfiguration, this field will be removed in future versions.
-		VerifyBlocks bool `yaml:"VerifyBlocks"`
 		// Whether to verify transactions in the received blocks.
 		VerifyTransactions bool `yaml:"VerifyTransactions"`
 	}
@@ -102,9 +79,6 @@ type heightNumber struct {
 func (p *ProtocolConfiguration) Validate() error {
 	var err error
 
-	if p.P2PStateExchangeExtensions && p.KeepOnlyLatestState && !p.RemoveUntraceableBlocks {
-		return fmt.Errorf("P2PStateExchangeExtensions can be enabled either on MPT-complete node (KeepOnlyLatestState=false) or on light GC-enabled node (RemoveUntraceableBlocks=true)")
-	}
 	if p.TimePerBlock%time.Millisecond != 0 {
 		return errors.New("TimePerBlock must be an integer number of milliseconds")
 	}
@@ -240,9 +214,7 @@ func (p *ProtocolConfiguration) ShouldUpdateCommitteeAt(height uint32) bool {
 // Equals allows to compare two ProtocolConfiguration instances, returns true if
 // they're equal.
 func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
-	if p.GarbageCollectionPeriod != o.GarbageCollectionPeriod ||
-		p.InitialGASSupply != o.InitialGASSupply ||
-		p.KeepOnlyLatestState != o.KeepOnlyLatestState ||
+	if p.InitialGASSupply != o.InitialGASSupply ||
 		p.Magic != o.Magic ||
 		p.MaxBlockSize != o.MaxBlockSize ||
 		p.MaxBlockSystemFee != o.MaxBlockSystemFee ||
@@ -253,14 +225,11 @@ func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
 		p.P2PNotaryRequestPayloadPoolSize != o.P2PNotaryRequestPayloadPoolSize ||
 		p.P2PSigExtensions != o.P2PSigExtensions ||
 		p.P2PStateExchangeExtensions != o.P2PStateExchangeExtensions ||
-		p.RemoveUntraceableBlocks != o.RemoveUntraceableBlocks ||
 		p.ReservedAttributes != o.ReservedAttributes ||
-		p.SaveStorageBatch != o.SaveStorageBatch ||
 		p.StateRootInHeader != o.StateRootInHeader ||
 		p.StateSyncInterval != o.StateSyncInterval ||
 		p.TimePerBlock != o.TimePerBlock ||
 		p.ValidatorsCount != o.ValidatorsCount ||
-		p.VerifyBlocks != o.VerifyBlocks ||
 		p.VerifyTransactions != o.VerifyTransactions ||
 		len(p.CommitteeHistory) != len(o.CommitteeHistory) ||
 		len(p.Hardforks) != len(o.Hardforks) ||

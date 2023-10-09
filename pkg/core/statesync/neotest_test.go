@@ -37,14 +37,6 @@ func TestStateSyncModule_Init(t *testing.T) {
 		c.Ledger.KeepOnlyLatestState = true
 		c.Ledger.RemoveUntraceableBlocks = true
 	}
-	t.Run("error: module disabled by config", func(t *testing.T) {
-		bcBolt, _, _ := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-			boltCfg(c)
-			c.Ledger.RemoveUntraceableBlocks = false
-		})
-		module := bcBolt.GetStateSyncModule()
-		require.Error(t, module.Init(bcSpout.BlockHeight())) // module inactive (non-archival node)
-	})
 
 	t.Run("inactive: spout chain is too low to start state sync process", func(t *testing.T) {
 		bcBolt, _, _ := chain.NewMultiWithCustomConfig(t, boltCfg)
