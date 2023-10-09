@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"net"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,10 +13,6 @@ import (
 type ApplicationConfiguration struct {
 	Ledger `yaml:",inline"`
 
-	// Deprecated: please, use Addresses field of P2P section instead, this field will be removed in future versions.
-	Address *string `yaml:"Address,omitempty"`
-	// Deprecated: please, use Addresses field of P2P section instead, this field will be removed in future versions.
-	AnnouncedNodePort *uint16 `yaml:"AnnouncedPort,omitempty"`
 	// Deprecated: this option is moved to the P2P section.
 	AttemptConnPeers int `yaml:"AttemptConnPeers"`
 	// BroadcastFactor is the factor (0-100) controlling gossip fan-out number optimization.
@@ -33,9 +28,7 @@ type ApplicationConfiguration struct {
 	MaxPeers int `yaml:"MaxPeers"`
 	// Deprecated: this option is moved to the P2P section.
 	MinPeers int `yaml:"MinPeers"`
-	// Deprecated: please, use Addresses field of P2P section instead, this field will be removed in future versions.
-	NodePort *uint16 `yaml:"NodePort,omitempty"`
-	P2P      P2P     `yaml:"P2P"`
+	P2P      P2P `yaml:"P2P"`
 	// Deprecated: this option is moved to the P2P section.
 	PingInterval int64 `yaml:"PingInterval"`
 	// Deprecated: this option is moved to the P2P section.
@@ -75,9 +68,7 @@ func (a *ApplicationConfiguration) EqualsButServices(o *ApplicationConfiguration
 			return false
 		}
 	}
-	if a.Address != o.Address || //nolint:staticcheck // SA1019: a.Address is deprecated
-		a.AnnouncedNodePort != o.AnnouncedNodePort || //nolint:staticcheck // SA1019: a.AnnouncedNodePort is deprecated
-		a.AttemptConnPeers != o.AttemptConnPeers || //nolint:staticcheck // SA1019: a.AttemptConnPeers is deprecated
+	if a.AttemptConnPeers != o.AttemptConnPeers || //nolint:staticcheck // SA1019: a.AttemptConnPeers is deprecated
 		a.P2P.AttemptConnPeers != o.P2P.AttemptConnPeers ||
 		a.BroadcastFactor != o.BroadcastFactor || //nolint:staticcheck // SA1019: a.BroadcastFactor is deprecated
 		a.P2P.BroadcastFactor != o.P2P.BroadcastFactor ||
@@ -91,7 +82,6 @@ func (a *ApplicationConfiguration) EqualsButServices(o *ApplicationConfiguration
 		a.P2P.MaxPeers != o.P2P.MaxPeers ||
 		a.MinPeers != o.MinPeers || //nolint:staticcheck // SA1019: a.MinPeers is deprecated
 		a.P2P.MinPeers != o.P2P.MinPeers ||
-		a.NodePort != o.NodePort || //nolint:staticcheck // SA1019: a.NodePort is deprecated
 		a.PingInterval != o.PingInterval || //nolint:staticcheck // SA1019: a.PingInterval is deprecated
 		a.P2P.PingInterval != o.P2P.PingInterval ||
 		a.PingTimeout != o.PingTimeout || //nolint:staticcheck // SA1019: a.PingTimeout is deprecated
@@ -112,27 +102,9 @@ type AnnounceableAddress struct {
 }
 
 // GetAddresses parses returns the list of AnnounceableAddress containing information
-// gathered from both deprecated Address / NodePort / AnnouncedNodePort and newly
-// created Addresses fields.
+// gathered from Addresses.
 func (a *ApplicationConfiguration) GetAddresses() ([]AnnounceableAddress, error) {
-	addrs := make([]AnnounceableAddress, 0, len(a.P2P.Addresses)+1)
-	if a.Address != nil || a.NodePort != nil || a.AnnouncedNodePort != nil { //nolint:staticcheck // SA1019: a.Address is deprecated
-		var (
-			host     string
-			nodePort uint16
-		)
-		if a.Address != nil { //nolint:staticcheck // SA1019: a.Address is deprecated
-			host = *a.Address //nolint:staticcheck // SA1019: a.Address is deprecated
-		}
-		if a.NodePort != nil { //nolint:staticcheck // SA1019: a.NodePort is deprecated
-			nodePort = *a.NodePort //nolint:staticcheck // SA1019: a.NodePort is deprecated
-		}
-		addr := AnnounceableAddress{Address: net.JoinHostPort(host, strconv.Itoa(int(nodePort)))}
-		if a.AnnouncedNodePort != nil { //nolint:staticcheck // SA1019: a.AnnouncedNodePort is deprecated
-			addr.AnnouncedPort = *a.AnnouncedNodePort //nolint:staticcheck // SA1019: a.AnnouncedNodePort is deprecated
-		}
-		addrs = append(addrs, addr)
-	}
+	addrs := make([]AnnounceableAddress, 0, len(a.P2P.Addresses))
 	for i, addrStr := range a.P2P.Addresses {
 		if len(addrStr) == 0 {
 			return nil, fmt.Errorf("address #%d is empty", i)

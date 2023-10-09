@@ -324,64 +324,6 @@ func TestRestoreDB(t *testing.T) {
 	require.NoError(t, restoreDB(ctx))
 }
 
-// TestConfigureAddresses checks deprecated code compatibility, it should be removed
-// along with deprecated `Address` field removal.
-func TestConfigureAddresses(t *testing.T) {
-	defaultAddress := "http://localhost:10333"
-	customAddress := "http://localhost:10334"
-
-	t.Run("default addresses", func(t *testing.T) {
-		cfg := &config.ApplicationConfiguration{
-			Address: &defaultAddress, //nolint:staticcheck // SA1019: Address is deprecated
-		}
-		configureAddresses(cfg)
-		require.Equal(t, defaultAddress, *cfg.RPC.Address)        //nolint:staticcheck // SA1019: cfg.RPC.Address is deprecated
-		require.Equal(t, defaultAddress, *cfg.Prometheus.Address) //nolint:staticcheck // SA1019: cfg.Prometheus.Address is deprecated
-		require.Equal(t, defaultAddress, *cfg.Pprof.Address)      //nolint:staticcheck // SA1019: cfg.Pprof.Address is deprecated
-	})
-
-	t.Run("custom RPC address", func(t *testing.T) {
-		cfg := &config.ApplicationConfiguration{
-			Address: &defaultAddress, //nolint:staticcheck // SA1019: Address is deprecated
-			RPC: config.RPC{
-				BasicService: config.BasicService{
-					Address: &customAddress, //nolint:staticcheck // SA1019: Address is deprecated
-				},
-			},
-		}
-		configureAddresses(cfg)
-		require.Equal(t, *cfg.RPC.Address, customAddress)         //nolint:staticcheck // SA1019: cfg.RPC.Address is deprecated
-		require.Equal(t, *cfg.Prometheus.Address, defaultAddress) //nolint:staticcheck // SA1019: cfg.Prometheus.Address is deprecated
-		require.Equal(t, *cfg.Pprof.Address, defaultAddress)      //nolint:staticcheck // SA1019: cfg.Pprof.Address is deprecated
-	})
-
-	t.Run("custom Pprof address", func(t *testing.T) {
-		cfg := &config.ApplicationConfiguration{
-			Address: &defaultAddress, //nolint:staticcheck // SA1019: Address is deprecated
-			Pprof: config.BasicService{
-				Address: &customAddress, //nolint:staticcheck // SA1019: Address is deprecated
-			},
-		}
-		configureAddresses(cfg)
-		require.Equal(t, *cfg.RPC.Address, defaultAddress)        //nolint:staticcheck // SA1019: cfg.RPC.Address is deprecated
-		require.Equal(t, *cfg.Prometheus.Address, defaultAddress) //nolint:staticcheck // SA1019: cfg.Prometheus.Address is deprecated
-		require.Equal(t, *cfg.Pprof.Address, customAddress)       //nolint:staticcheck // SA1019: cfg.Pprof.Address is deprecated
-	})
-
-	t.Run("custom Prometheus address", func(t *testing.T) {
-		cfg := &config.ApplicationConfiguration{
-			Address: &defaultAddress, //nolint:staticcheck // SA1019: Address is deprecated
-			Prometheus: config.BasicService{
-				Address: &customAddress, //nolint:staticcheck // SA1019: Address is deprecated
-			},
-		}
-		configureAddresses(cfg)
-		require.Equal(t, *cfg.RPC.Address, defaultAddress)       //nolint:staticcheck // SA1019: cfg.RPC.Address is deprecated
-		require.Equal(t, *cfg.Prometheus.Address, customAddress) //nolint:staticcheck // SA1019: cfg.Prometheus.Address is deprecated
-		require.Equal(t, *cfg.Pprof.Address, defaultAddress)     //nolint:staticcheck // SA1019: cfg.Pprof.Address is deprecated
-	})
-}
-
 func TestInitBlockChain(t *testing.T) {
 	t.Run("bad storage", func(t *testing.T) {
 		_, _, err := initBlockChain(config.Config{}, nil)

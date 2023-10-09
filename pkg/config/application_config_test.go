@@ -29,7 +29,6 @@ func TestGetAddresses(t *testing.T) {
 	}
 	addr1 := "1.2.3.4"
 	addr2 := "5.6.7.8"
-	addr3 := "4.3.2.1"
 	v6Plain0 := "3731:54:65fe:2::a7"
 	v6Plain1 := "3731:54:65fe:2::1"
 	v6Plain2 := "3731:54:65fe::a:1"
@@ -37,58 +36,7 @@ func TestGetAddresses(t *testing.T) {
 	v6Plain4 := "3731:54:65fe:2::"
 	port1 := uint16(1)
 	port2 := uint16(2)
-	port3 := uint16(3)
 	cases := []testcase{
-		// Compatibility with the old behaviour.
-		{
-			cfg:      &ApplicationConfiguration{},
-			expected: []AnnounceableAddress{{Address: ":0"}},
-		},
-		{
-			cfg:      &ApplicationConfiguration{Address: &addr1},
-			expected: []AnnounceableAddress{{Address: addr1 + ":0"}},
-		},
-		{
-			cfg:      &ApplicationConfiguration{NodePort: &port1},
-			expected: []AnnounceableAddress{{Address: ":1"}},
-		},
-		{
-			cfg:      &ApplicationConfiguration{AnnouncedNodePort: &port1},
-			expected: []AnnounceableAddress{{Address: ":0", AnnouncedPort: port1}},
-		},
-		{
-			cfg:      &ApplicationConfiguration{Address: &addr1, NodePort: &port1},
-			expected: []AnnounceableAddress{{Address: addr1 + ":1"}},
-		},
-		{
-			cfg:      &ApplicationConfiguration{Address: &addr1, AnnouncedNodePort: &port1},
-			expected: []AnnounceableAddress{{Address: addr1 + ":0", AnnouncedPort: port1}},
-		},
-		{
-			cfg:      &ApplicationConfiguration{NodePort: &port1, AnnouncedNodePort: &port2},
-			expected: []AnnounceableAddress{{Address: ":1", AnnouncedPort: port2}},
-		},
-		{
-			cfg:      &ApplicationConfiguration{NodePort: &port1, AnnouncedNodePort: &port2},
-			expected: []AnnounceableAddress{{Address: ":1", AnnouncedPort: port2}},
-		},
-		{
-			cfg:      &ApplicationConfiguration{Address: &addr1, NodePort: &port1, AnnouncedNodePort: &port2},
-			expected: []AnnounceableAddress{{Address: addr1 + ":1", AnnouncedPort: port2}},
-		},
-		// Compatibility with new multi-addresses.
-		{
-			cfg: &ApplicationConfiguration{
-				Address: &addr1, NodePort: &port1, AnnouncedNodePort: &port2,
-				P2P: P2P{Addresses: []string{addr1, addr2 + ":3", addr3 + ":1:3"}},
-			},
-			expected: []AnnounceableAddress{
-				{Address: addr1 + ":1", AnnouncedPort: port2},
-				{Address: addr1},
-				{Address: addr2 + ":3"},
-				{Address: addr3 + ":1", AnnouncedPort: port3},
-			},
-		},
 		// Multi-addresses checks.
 		{
 			cfg: &ApplicationConfiguration{
