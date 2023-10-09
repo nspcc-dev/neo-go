@@ -566,7 +566,7 @@ readloop:
 			ntf := Notification{Type: event}
 			switch event {
 			case neorpc.BlockEventID:
-				sr, err := c.StateRootInHeader()
+				sr, err := c.stateRootInHeader()
 				if err != nil {
 					// Client is not initialized.
 					connCloseErr = fmt.Errorf("failed to fetch StateRootInHeader: %w", err)

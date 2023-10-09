@@ -26,20 +26,6 @@ APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
 
-## Old RPC client APIs
-
-A huge set of RPC client APIs was deprecated in versions 0.99.2 and 0.99.3
-(August-September 2022), including very frequently used ones like
-SignAndPushInvocationTx, AddNetworkFee, TransferNEP17. A new set of
-invoker/actor/unwrap/nep17/etc packages was introduced decoupling these
-functions from RPC client and simplifying typical backend code. Please refer
-to rpcclient package documentation for specific replacements for each of these
-APIs and convert your code to using them.
-
-While a lot of the code is already converted to new APIs, old ones still can
-be used in some code not known to us. Therefore we will remove old APIs not
-earlier than May 2023, with 0.103.0 release.
-
 ## WSClient Notifications channel and SubscribeFor* APIs
 
 Version 0.99.5 of NeoGo introduces a new set of subscription APIs that gives

@@ -2,7 +2,6 @@ package rpcclient
 
 import (
 	"context"
-	"crypto/elliptic"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -18,7 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -400,136 +398,6 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					},
 				}
 				return cs
-			},
-		},
-	},
-	"getFeePerByte": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (any, error) {
-				return c.GetFeePerByte()
-			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"1000"}],"tx":null}}`,
-			result: func(c *Client) any {
-				return int64(1000)
-			},
-		},
-	},
-	"getExecFeeFactor": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (any, error) {
-				return c.GetExecFeeFactor()
-			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"1000"}],"tx":null}}`,
-			result: func(c *Client) any {
-				return int64(1000)
-			},
-		},
-	},
-	"getStoragePrice": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (any, error) {
-				return c.GetStoragePrice()
-			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"100000"}],"tx":null}}`,
-			result: func(c *Client) any {
-				return int64(100000)
-			},
-		},
-	},
-	"getOraclePrice": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (any, error) {
-				return c.GetOraclePrice()
-			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"10000000"}],"tx":null}}`,
-			result: func(c *Client) any {
-				return int64(10000000)
-			},
-		},
-	},
-	"getNNSPrice": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (any, error) {
-				return c.GetNNSPrice(util.Uint160{1, 2, 3})
-			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"1000000"}],"tx":null}}`,
-			result: func(c *Client) any {
-				return int64(1000000)
-			},
-		},
-	},
-	"getGasPerBlock": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (any, error) {
-				return c.GetGasPerBlock()
-			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"500000000"}],"tx":null}}`,
-			result: func(c *Client) any {
-				return int64(500000000)
-			},
-		},
-	},
-	"getCandidateRegisterPrice": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (any, error) {
-				return c.GetCandidateRegisterPrice()
-			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMDWdldEZlZVBlckJ5dGUMFJphpG7sl7iTBtfOgfFbRiCR0AkyQWJ9W1I=","stack":[{"type":"Integer","value":"100000000000"}],"tx":null}}`,
-			result: func(c *Client) any {
-				return int64(100000000000)
-			},
-		},
-	},
-	"getDesignatedByRole": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (any, error) {
-				return c.GetDesignatedByRole(noderoles.P2PNotary, 10)
-			},
-			serverResponse: `{"id" : 1,"result" : {"stack" : [{"value" : [{"type":"ByteString","value":"Aw0WkQoDc8WqpG18xPMTEgfHO6gRTVtMN0Mw6zw06fzl"},{"type":"ByteString","value":"A+bmJ9wIaj96Ygr+uQQvQ0AaUrQmj2b3AGnztAOkU3/L"}],"type" : "Array"}],"exception" : null,"script" : "ERQSwB8ME2dldERlc2lnbmF0ZWRCeVJvbGUMFOKV45FUTBeK2U8D7E3N/3hTTs9JQWJ9W1I=","gasconsumed" : "2028150","state" : "HALT"}, "jsonrpc" : "2.0"}`,
-			result: func(c *Client) any {
-				pk1Bytes, _ := base64.StdEncoding.DecodeString("Aw0WkQoDc8WqpG18xPMTEgfHO6gRTVtMN0Mw6zw06fzl")
-				pk1, err := keys.NewPublicKeyFromBytes(pk1Bytes, elliptic.P256())
-				if err != nil {
-					panic("invalid pub key #1 bytes")
-				}
-				pk2Bytes, _ := base64.StdEncoding.DecodeString("A+bmJ9wIaj96Ygr+uQQvQ0AaUrQmj2b3AGnztAOkU3/L")
-				pk2, err := keys.NewPublicKeyFromBytes(pk2Bytes, elliptic.P256())
-				if err != nil {
-					panic("invalid pub key #2 bytes")
-				}
-				return keys.PublicKeys{pk1, pk2}
-			},
-		},
-	},
-	"getMaxNotValidBeforeDelta": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (any, error) {
-				return c.GetMaxNotValidBeforeDelta()
-			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMD2dldE1heEJsb2NrU2l6ZQwUmmGkbuyXuJMG186B8VtGIJHQCTJBYn1bUg==","stack":[{"type":"Integer","value":"262144"}],"tx":null}}`,
-			result: func(c *Client) any {
-				return int64(262144)
-			},
-		},
-	},
-	"isBlocked": {
-		{
-			name: "positive",
-			invoke: func(c *Client) (any, error) {
-				return c.IsBlocked(util.Uint160{1, 2, 3})
-			},
-			serverResponse: `{"id":1,"jsonrpc":"2.0","result":{"state":"HALT","gasconsumed":"2007390","script":"EMAMEmdldEJsb2NrZWRBY2NvdW50cwwUmmGkbuyXuJMG186B8VtGIJHQCTJBYn1bUg==","stack":[{"type":"Boolean","value":false}],"tx":null}}`,
-			result: func(c *Client) any {
-				return false
 			},
 		},
 	},
@@ -2138,92 +2006,6 @@ func wrapInitResponse(r *params.In, resp string) string {
 	return response
 }
 
-func TestCalculateValidUntilBlock(t *testing.T) {
-	var (
-		getBlockCountCalled int
-		getValidatorsCalled int
-	)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		r := params.NewRequest()
-		err := r.DecodeData(req.Body)
-		if err != nil {
-			t.Fatalf("Cannot decode request body: %s", req.Body)
-		}
-		var response string
-		switch r.In.Method {
-		case "getblockcount":
-			getBlockCountCalled++
-			response = `{"jsonrpc":"2.0","id":1,"result":50}`
-		case "getnextblockvalidators":
-			getValidatorsCalled++
-			response = `{"id":1,"jsonrpc":"2.0","result":[{"publickey":"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2","votes":"0","active":true},{"publickey":"02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e","votes":"0","active":true},{"publickey":"03d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699","votes":"0","active":true},{"publickey":"02a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd62","votes":"0","active":true}]}`
-		}
-		requestHandler(t, r.In, w, response)
-	}))
-	t.Cleanup(srv.Close)
-
-	endpoint := srv.URL
-	opts := Options{}
-	c, err := New(context.TODO(), endpoint, opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	c.getNextRequestID = getTestRequestID
-	require.NoError(t, c.Init())
-
-	validUntilBlock, err := c.CalculateValidUntilBlock()
-	assert.NoError(t, err)
-	assert.Equal(t, uint32(55), validUntilBlock)
-	assert.Equal(t, 1, getBlockCountCalled)
-	assert.Equal(t, 1, getValidatorsCalled)
-
-	// check, whether caching is working
-	validUntilBlock, err = c.CalculateValidUntilBlock()
-	assert.NoError(t, err)
-	assert.Equal(t, uint32(55), validUntilBlock)
-	assert.Equal(t, 2, getBlockCountCalled)
-	assert.Equal(t, 1, getValidatorsCalled)
-}
-
-func TestGetNetwork(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		r := params.NewRequest()
-		err := r.DecodeData(req.Body)
-		if err != nil {
-			t.Fatalf("Cannot decode request body: %s", req.Body)
-		}
-		// request handler already have `getversion` response wrapper
-		requestHandler(t, r.In, w, "")
-	}))
-	t.Cleanup(srv.Close)
-	endpoint := srv.URL
-	opts := Options{}
-
-	t.Run("bad", func(t *testing.T) {
-		c, err := New(context.TODO(), endpoint, opts)
-		if err != nil {
-			t.Fatal(err)
-		}
-		c.getNextRequestID = getTestRequestID
-		// network was not initialised
-		_, err = c.GetNetwork()
-		require.ErrorIs(t, err, errNetworkNotInitialized)
-		require.Equal(t, false, c.cache.initDone)
-	})
-
-	t.Run("good", func(t *testing.T) {
-		c, err := New(context.TODO(), endpoint, opts)
-		if err != nil {
-			t.Fatal(err)
-		}
-		c.getNextRequestID = getTestRequestID
-		require.NoError(t, c.Init())
-		m, err := c.GetNetwork()
-		require.NoError(t, err)
-		require.Equal(t, netmode.UnitTestNet, m)
-	})
-}
-
 func TestUninitedClient(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		r := params.NewRequest()
@@ -2249,10 +2031,6 @@ func TestUninitedClient(t *testing.T) {
 	_, err = c.GetRawTransaction(util.Uint256{})
 	require.Error(t, err)
 	_, err = c.GetRawTransactionVerbose(util.Uint256{})
-	require.Error(t, err)
-	_, err = c.IsBlocked(util.Uint160{})
-	require.Error(t, err)
-	_, err = c.GetFeePerByte()
 	require.Error(t, err)
 }
 

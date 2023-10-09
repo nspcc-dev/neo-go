@@ -9,27 +9,19 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"github.com/nspcc-dev/neo-go/pkg/core/fee"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeprices"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
 
 var errNetworkNotInitialized = errors.New("RPC client network is not initialized")
@@ -103,7 +95,7 @@ func (c *Client) getBlock(param any) (*block.Block, error) {
 		return nil, err
 	}
 	r := io.NewBinReaderFromBuf(resp)
-	sr, err := c.StateRootInHeader()
+	sr, err := c.stateRootInHeader()
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +128,7 @@ func (c *Client) getBlockVerbose(param any) (*result.Block, error) {
 		resp   = &result.Block{}
 		err    error
 	)
-	sr, err := c.StateRootInHeader()
+	sr, err := c.stateRootInHeader()
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +163,7 @@ func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	if err := c.performRequest("getblockheader", params, &resp); err != nil {
 		return nil, err
 	}
-	sr, err := c.StateRootInHeader()
+	sr, err := c.stateRootInHeader()
 	if err != nil {
 		return nil, err
 	}
@@ -844,234 +836,6 @@ func (c *Client) SubmitRawOracleResponse(ps []any) error {
 	return c.performRequest("submitoracleresponse", ps, new(result.RelayResult))
 }
 
-// SignAndPushInvocationTx signs and pushes the given script as an invocation
-// transaction using the given wif to sign it and the given cosigners to cosign it if
-// possible. It spends the amount of gas specified. It returns a hash of the
-// invocation transaction and an error. If one of the cosigners accounts is
-// neither contract-based nor unlocked, an error is returned.
-//
-// Deprecated: please use actor.Actor API, this method will be removed in future
-// versions.
-func (c *Client) SignAndPushInvocationTx(script []byte, acc *wallet.Account, sysfee int64, netfee fixedn.Fixed8, cosigners []SignerAccount) (util.Uint256, error) {
-	tx, err := c.CreateTxFromScript(script, acc, sysfee, int64(netfee), cosigners)
-	if err != nil {
-		return util.Uint256{}, fmt.Errorf("failed to create tx: %w", err)
-	}
-	return c.SignAndPushTx(tx, acc, cosigners)
-}
-
-// SignAndPushTx signs the given transaction using the given wif and cosigners and pushes
-// it to the chain. It returns a hash of the transaction and an error. If one of
-// the cosigners accounts is neither contract-based nor unlocked, an error is
-// returned.
-//
-// Deprecated: please use actor.Actor API, this method will be removed in future
-// versions.
-func (c *Client) SignAndPushTx(tx *transaction.Transaction, acc *wallet.Account, cosigners []SignerAccount) (util.Uint256, error) {
-	var (
-		txHash util.Uint256
-		err    error
-	)
-	m, err := c.GetNetwork()
-	if err != nil {
-		return txHash, fmt.Errorf("failed to sign tx: %w", err)
-	}
-	if err = acc.SignTx(m, tx); err != nil {
-		return txHash, fmt.Errorf("failed to sign tx: %w", err)
-	}
-	// try to add witnesses for the rest of the signers
-	for i, signer := range tx.Signers[1:] {
-		var isOk bool
-		for _, cosigner := range cosigners {
-			if signer.Account == cosigner.Signer.Account {
-				err = cosigner.Account.SignTx(m, tx)
-				if err != nil { // then account is non-contract-based and locked, but let's provide more detailed error
-					if paramNum := len(cosigner.Account.Contract.Parameters); paramNum != 0 && cosigner.Account.Contract.Deployed {
-						return txHash, fmt.Errorf("failed to add contract-based witness for signer #%d (%s): "+
-							"%d parameters must be provided to construct invocation script", i, address.Uint160ToString(signer.Account), paramNum)
-					}
-					return txHash, fmt.Errorf("failed to add witness for signer #%d (%s): account should be unlocked to add the signature. "+
-						"Store partially-signed transaction and then use 'wallet sign' command to cosign it", i, address.Uint160ToString(signer.Account))
-				}
-				isOk = true
-				break
-			}
-		}
-		if !isOk {
-			return txHash, fmt.Errorf("failed to add witness for signer #%d (%s): account wasn't provided", i, address.Uint160ToString(signer.Account))
-		}
-	}
-	txHash = tx.Hash()
-	actualHash, err := c.SendRawTransaction(tx)
-	if err != nil {
-		return txHash, fmt.Errorf("failed to send tx: %w", err)
-	}
-	if !actualHash.Equals(txHash) {
-		return actualHash, fmt.Errorf("sent and actual tx hashes mismatch:\n\tsent: %v\n\tactual: %v", txHash.StringLE(), actualHash.StringLE())
-	}
-	return txHash, nil
-}
-
-// getSigners returns an array of transaction signers and corresponding accounts from
-// given sender and cosigners. If cosigners list already contains sender, the sender
-// will be placed at the start of the list.
-func getSigners(sender *wallet.Account, cosigners []SignerAccount) ([]transaction.Signer, []*wallet.Account, error) {
-	var (
-		signers  []transaction.Signer
-		accounts []*wallet.Account
-	)
-	from := sender.ScriptHash()
-	s := transaction.Signer{
-		Account: from,
-		Scopes:  transaction.None,
-	}
-	for _, c := range cosigners {
-		if c.Signer.Account == from {
-			s = c.Signer
-			continue
-		}
-		signers = append(signers, c.Signer)
-		accounts = append(accounts, c.Account)
-	}
-	signers = append([]transaction.Signer{s}, signers...)
-	accounts = append([]*wallet.Account{sender}, accounts...)
-	return signers, accounts, nil
-}
-
-// SignAndPushP2PNotaryRequest creates and pushes a P2PNotary request constructed from the main
-// and fallback transactions using the given wif to sign it. It returns the request and an error.
-// Fallback transaction is constructed from the given script using the amount of gas specified.
-// For successful fallback transaction validation at least 2*transaction.NotaryServiceFeePerKey
-// GAS should be deposited to the Notary contract.
-// Main transaction should be constructed by the user. Several rules should be met for
-// successful main transaction acceptance:
-//  1. Native Notary contract should be a signer of the main transaction.
-//  2. Notary signer should have None scope.
-//  3. Main transaction should have dummy contract witness for Notary signer.
-//  4. Main transaction should have NotaryAssisted attribute with NKeys specified.
-//  5. NotaryAssisted attribute and dummy Notary witness (as long as the other incomplete witnesses)
-//     should be paid for. Use CalculateNotaryWitness to calculate the amount of network fee to pay
-//     for the attribute and Notary witness.
-//  6. Main transaction either shouldn't have all witnesses attached (in this case none of them
-//     can be multisignature), or it only should have a partial multisignature.
-//
-// Note: client should be initialized before SignAndPushP2PNotaryRequest call.
-//
-// Deprecated: please use Actor from the notary subpackage. This method will be
-// deleted in future versions.
-func (c *Client) SignAndPushP2PNotaryRequest(mainTx *transaction.Transaction, fallbackScript []byte, fallbackSysFee int64, fallbackNetFee int64, fallbackValidFor uint32, acc *wallet.Account) (*payload.P2PNotaryRequest, error) {
-	var err error
-	notaryHash, err := c.GetNativeContractHash(nativenames.Notary)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get native Notary hash: %w", err)
-	}
-	from := acc.ScriptHash()
-	signers := []transaction.Signer{{Account: notaryHash}, {Account: from}}
-	if fallbackSysFee < 0 {
-		result, err := c.InvokeScript(fallbackScript, signers)
-		if err != nil {
-			return nil, fmt.Errorf("can't add system fee to fallback transaction: %w", err)
-		}
-		if result.State != "HALT" {
-			return nil, fmt.Errorf("can't add system fee to fallback transaction: bad vm state %s due to an error: %s", result.State, result.FaultException)
-		}
-		fallbackSysFee = result.GasConsumed
-	}
-
-	maxNVBDelta, err := c.GetMaxNotValidBeforeDelta()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get MaxNotValidBeforeDelta")
-	}
-	if int64(fallbackValidFor) > maxNVBDelta {
-		return nil, fmt.Errorf("fallback transaction should be valid for not more than %d blocks", maxNVBDelta)
-	}
-	fallbackTx := transaction.New(fallbackScript, fallbackSysFee)
-	fallbackTx.Signers = signers
-	fallbackTx.ValidUntilBlock = mainTx.ValidUntilBlock
-	fallbackTx.Attributes = []transaction.Attribute{
-		{
-			Type:  transaction.NotaryAssistedT,
-			Value: &transaction.NotaryAssisted{NKeys: 0},
-		},
-		{
-			Type:  transaction.NotValidBeforeT,
-			Value: &transaction.NotValidBefore{Height: fallbackTx.ValidUntilBlock - fallbackValidFor + 1},
-		},
-		{
-			Type:  transaction.ConflictsT,
-			Value: &transaction.Conflicts{Hash: mainTx.Hash()},
-		},
-	}
-
-	fallbackTx.Scripts = []transaction.Witness{
-		{
-			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...),
-			VerificationScript: []byte{},
-		},
-		{
-			InvocationScript:   []byte{},
-			VerificationScript: acc.GetVerificationScript(),
-		},
-	}
-	fallbackTx.NetworkFee, err = c.CalculateNetworkFee(fallbackTx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add network fee: %w", err)
-	}
-	fallbackTx.NetworkFee += fallbackNetFee
-	m, err := c.GetNetwork()
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign fallback tx: %w", err)
-	}
-	if err = acc.SignTx(m, fallbackTx); err != nil {
-		return nil, fmt.Errorf("failed to sign fallback tx: %w", err)
-	}
-	fallbackHash := fallbackTx.Hash()
-	req := &payload.P2PNotaryRequest{
-		MainTransaction:     mainTx,
-		FallbackTransaction: fallbackTx,
-	}
-	req.Witness = transaction.Witness{
-		InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, acc.SignHashable(m, req)...),
-		VerificationScript: acc.GetVerificationScript(),
-	}
-	actualHash, err := c.SubmitP2PNotaryRequest(req)
-	if err != nil {
-		return req, fmt.Errorf("failed to submit notary request: %w", err)
-	}
-	if !actualHash.Equals(fallbackHash) {
-		return req, fmt.Errorf("sent and actual fallback tx hashes mismatch:\n\tsent: %v\n\tactual: %v", fallbackHash.StringLE(), actualHash.StringLE())
-	}
-	return req, nil
-}
-
-// CalculateNotaryFee calculates network fee for one dummy Notary witness and NotaryAssisted attribute with NKeys specified.
-// The result should be added to the transaction's net fee for successful verification.
-//
-// Deprecated: NeoGo calculatenetworkfee method handles notary fees as well since 0.99.3, so
-// this method is just no longer needed and will be removed in future versions.
-func (c *Client) CalculateNotaryFee(nKeys uint8) (int64, error) {
-	baseExecFee, err := c.GetExecFeeFactor()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get BaseExecFeeFactor: %w", err)
-	}
-	feePerByte, err := c.GetFeePerByte()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get FeePerByte: %w", err)
-	}
-	feePerKey, err := c.GetNotaryServiceFeePerKey()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get NotaryServiceFeePerKey: %w", err)
-	}
-	return int64((nKeys+1))*feePerKey + // fee for NotaryAssisted attribute
-			fee.Opcode(baseExecFee, // Notary node witness
-				opcode.PUSHDATA1, opcode.RET, // invocation script
-				opcode.PUSH0, opcode.SYSCALL, opcode.RET) + // System.Contract.CallNative
-			nativeprices.NotaryVerificationPrice*baseExecFee + // Notary witness verification price
-			feePerByte*int64(io.GetVarSize(make([]byte, 66))) + // invocation script per-byte fee
-			feePerByte*int64(io.GetVarSize([]byte{})), // verification script per-byte fee
-		nil
-}
-
 // SubmitP2PNotaryRequest submits given P2PNotaryRequest payload to the RPC node.
 func (c *Client) SubmitP2PNotaryRequest(req *payload.P2PNotaryRequest) (util.Uint256, error) {
 	var resp = new(result.RelayResult)
@@ -1103,113 +867,9 @@ func (c *Client) ValidateAddress(address string) error {
 	return nil
 }
 
-// CalculateValidUntilBlock calculates ValidUntilBlock field for tx as
-// current blockchain height + number of validators. Number of validators
-// is the length of blockchain validators list got from GetNextBlockValidators()
-// method. Validators count is being cached and updated every 100 blocks.
-//
-// Deprecated: please use (*Actor).CalculateValidUntilBlock. This method will be
-// removed in future versions.
-func (c *Client) CalculateValidUntilBlock() (uint32, error) {
-	var (
-		result          uint32
-		validatorsCount uint32
-	)
-	blockCount, err := c.GetBlockCount()
-	if err != nil {
-		return result, fmt.Errorf("can't get block count: %w", err)
-	}
-
-	c.cacheLock.RLock()
-	if c.cache.calculateValidUntilBlock.expiresAt > blockCount {
-		validatorsCount = c.cache.calculateValidUntilBlock.validatorsCount
-		c.cacheLock.RUnlock()
-	} else {
-		c.cacheLock.RUnlock()
-		validators, err := c.GetNextBlockValidators()
-		if err != nil {
-			return result, fmt.Errorf("can't get validators: %w", err)
-		}
-		validatorsCount = uint32(len(validators))
-		c.cacheLock.Lock()
-		c.cache.calculateValidUntilBlock = calculateValidUntilBlockCache{
-			validatorsCount: validatorsCount,
-			expiresAt:       blockCount + cacheTimeout,
-		}
-		c.cacheLock.Unlock()
-	}
-	return blockCount + validatorsCount + 1, nil
-}
-
-// AddNetworkFee adds network fee for each witness script and optional extra
-// network fee to transaction. `accs` is an array signer's accounts.
-//
-// Deprecated: please use CalculateNetworkFee or actor.Actor. This method will
-// be removed in future versions.
-func (c *Client) AddNetworkFee(tx *transaction.Transaction, extraFee int64, accs ...*wallet.Account) error {
-	if len(tx.Signers) != len(accs) {
-		return errors.New("number of signers must match number of scripts")
-	}
-	size := io.GetVarSize(tx)
-	var ef int64
-	for i, cosigner := range tx.Signers {
-		if accs[i].Contract.Deployed {
-			res, err := c.InvokeContractVerify(cosigner.Account, []smartcontract.Parameter{}, tx.Signers)
-			if err != nil {
-				return fmt.Errorf("failed to invoke verify: %w", err)
-			}
-			r, err := unwrap.Bool(res, err)
-			if err != nil {
-				return fmt.Errorf("signer #%d: %w", i, err)
-			}
-			if !r {
-				return fmt.Errorf("signer #%d: `verify` returned `false`", i)
-			}
-			tx.NetworkFee += res.GasConsumed
-			size += io.GetVarSize([]byte{}) * 2 // both scripts are empty
-			continue
-		}
-
-		if ef == 0 {
-			var err error
-			ef, err = c.GetExecFeeFactor()
-			if err != nil {
-				return fmt.Errorf("can't get `ExecFeeFactor`: %w", err)
-			}
-		}
-		netFee, sizeDelta := fee.Calculate(ef, accs[i].Contract.Script)
-		tx.NetworkFee += netFee
-		size += sizeDelta
-	}
-	fee, err := c.GetFeePerByte()
-	if err != nil {
-		return err
-	}
-	tx.NetworkFee += int64(size)*fee + extraFee
-	return nil
-}
-
-// GetNetwork returns the network magic of the RPC node the client connected to. It
-// requires Init to be done first, otherwise an error is returned.
-//
-// Deprecated: please use GetVersion (it has the same data in the Protocol section)
-// or actor subpackage. This method will be removed in future versions.
-func (c *Client) GetNetwork() (netmode.Magic, error) {
-	c.cacheLock.RLock()
-	defer c.cacheLock.RUnlock()
-
-	if !c.cache.initDone {
-		return 0, errNetworkNotInitialized
-	}
-	return c.cache.network, nil
-}
-
-// StateRootInHeader returns true if the state root is contained in the block header.
-// You should initialize Client cache with Init() before calling StateRootInHeader.
-//
-// Deprecated: please use GetVersion (it has the same data in the Protocol section).
-// This method will be removed in future versions.
-func (c *Client) StateRootInHeader() (bool, error) {
+// stateRootInHeader returns true if the state root is contained in the block header.
+// Requires Init() before use.
+func (c *Client) stateRootInHeader() (bool, error) {
 	c.cacheLock.RLock()
 	defer c.cacheLock.RUnlock()
 
@@ -1217,29 +877,6 @@ func (c *Client) StateRootInHeader() (bool, error) {
 		return false, errNetworkNotInitialized
 	}
 	return c.cache.stateRootInHeader, nil
-}
-
-// GetNativeContractHash returns native contract hash by its name.
-//
-// Deprecated: please use native contract subpackages that have hashes directly
-// (gas, management, neo, notary, oracle, policy, rolemgmt) or
-// GetContractStateByAddressOrName method that will return hash along with other
-// data.
-func (c *Client) GetNativeContractHash(name string) (util.Uint160, error) {
-	c.cacheLock.RLock()
-	hash, ok := c.cache.nativeHashes[name]
-	c.cacheLock.RUnlock()
-	if ok {
-		return hash, nil
-	}
-	cs, err := c.GetContractStateByAddressOrName(name)
-	if err != nil {
-		return util.Uint160{}, err
-	}
-	c.cacheLock.Lock()
-	c.cache.nativeHashes[name] = cs.Hash
-	c.cacheLock.Unlock()
-	return cs.Hash, nil
 }
 
 // TraverseIterator returns a set of iterator values (maxItemsCount at max) for

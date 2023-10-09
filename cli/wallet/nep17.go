@@ -30,6 +30,14 @@ import (
 	"github.com/urfave/cli"
 )
 
+// transferTarget represents target address, token amount and data for transfer.
+type transferTarget struct {
+	Token   util.Uint160
+	Address util.Uint160
+	Amount  int64
+	Data    any
+}
+
 var (
 	tokenFlag = cli.StringFlag{
 		Name:  "token",
@@ -531,7 +539,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		return cli.NewExitError("empty recipients list", 1)
 	}
 	var (
-		recipients      []rpcclient.TransferTarget
+		recipients      []transferTarget
 		cosignersOffset = ctx.NArg()
 	)
 	cache := make(map[string]*wallet.Token)
@@ -564,7 +572,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
 		}
-		recipients = append(recipients, rpcclient.TransferTarget{
+		recipients = append(recipients, transferTarget{
 			Token:   token.Hash,
 			Address: addr,
 			Amount:  amount.Int64(),
@@ -690,7 +698,7 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	return txctx.SignAndSend(ctx, act, acc, tx)
 }
 
-func makeMultiTransferNEP17(act *actor.Actor, recipients []rpcclient.TransferTarget) (*transaction.Transaction, error) {
+func makeMultiTransferNEP17(act *actor.Actor, recipients []transferTarget) (*transaction.Transaction, error) {
 	scr := smartcontract.NewBuilder()
 	for i := range recipients {
 		scr.InvokeWithAssert(recipients[i].Token, "transfer", act.Sender(),

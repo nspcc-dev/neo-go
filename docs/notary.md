@@ -392,34 +392,17 @@ subpackage with an example written in Go doc.
    that includes simple-signature accounts and multisignature accounts where
    the client has one of the keys (in which case an invocation script is
    created that pushes just one signature onto the stack).
-10. Define lifetime for the fallback transaction. Let the `fallbackValidFor` be
-    the lifetime. Let `N` be the current chain's height and `VUB` be
-    `ValidUntilBlock` value estimated at step 3. Then, the notary node is trying to
-    collect signatures for the main transaction from `N` up to
-    `VUB-fallbackValidFor`. In case of failure after `VUB-fallbackValidFor`-th
-    block is accepted, the notary node abandons attempts to complete the main transaction and
-    tries to push all associated fallbacks. Use the following rules to define
-    `fallbackValidFor`:
-       - `fallbackValidFor` shouldn't be more than `MaxNotValidBeforeDelta` value.
-       - Use notary package's GetMaxNotValidBeforeDelta to check `MaxNotValidBefore` value.
-11. Construct a script for the fallback transaction. The script may do something useful,
-    i.g. invoke method of a contract. However, if you don't need to perform anything
-    special on fallback invocation, you can use simple `opcode.RET` script.
-12. Sign and submit P2P notary request. Use
-    [func (*Client) SignAndPushP2PNotaryRequest](https://pkg.go.dev/github.com/nspcc-dev/neo-go@v0.97.2/pkg/rpcclient#Client.SignAndPushP2PNotaryRequest) for it.
+10. Sign and submit P2P notary request. Use
+    [func (*Actor) Notarize](https://pkg.go.dev/github.com/nspcc-dev/neo-go/pkg/rpcclient/notary#Actor.Notarize) for it.
     - Use the signed main transaction from step 9 as `mainTx` argument.
-    - Use the fallback script from step 10 as `fallbackScript` argument.
-    - Use `-1` as `fallbackSysFee` argument to define system fee by test
-      invocation or provide any custom value.
-    - Use `0` as `fallbackNetFee` argument not to add extra network fee to the
-      fallback.
-    - Use the `fallbackValidFor` estimated at step 9 as `fallbackValidFor` argument.
-    - Use your account you'd like to send request (and fallback transaction) from
-      to sign the request (and fallback transaction).
     
-    `SignAndPushP2PNotaryRequest` will construct and sign a fallback transaction,
-    construct and sign a P2PNotaryRequest and submit it to the RPC node. The
-    resulting notary request and an error are returned.
+    `Notarize` will construct and sign a fallback transaction using `Actor`
+    configuration (just a simple `RET` script by default), pack both transactions
+    into a P2PNotaryRequest and submit it to the RPC node. It returns hashes of
+    the main and fallback transactions as well as their `ValidUntilBlock` value.
+    If you need more control over fallback transction use `Actor` options or
+    [func (*Actor) SendRequest](https://pkg.go.dev/github.com/nspcc-dev/neo-go/pkg/rpcclient/notary#Actor.SendRequest)
+    API.
 
 After P2PNotaryRequests are sent, participants should wait for one of their
 transactions (main or fallback) to get accepted into one of subsequent blocks.

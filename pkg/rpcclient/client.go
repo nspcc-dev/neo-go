@@ -22,8 +22,6 @@ import (
 const (
 	defaultDialTimeout    = 4 * time.Second
 	defaultRequestTimeout = 4 * time.Second
-	// Number of blocks after which cache is expired.
-	cacheTimeout = 100
 )
 
 // Client represents the middleman for executing JSON RPC calls
@@ -74,18 +72,10 @@ type Options struct {
 
 // cache stores cache values for the RPC client methods.
 type cache struct {
-	initDone                 bool
-	network                  netmode.Magic
-	stateRootInHeader        bool
-	calculateValidUntilBlock calculateValidUntilBlockCache
-	nativeHashes             map[string]util.Uint160
-}
-
-// calculateValidUntilBlockCache stores a cached number of validators and
-// cache expiration value in blocks.
-type calculateValidUntilBlockCache struct {
-	validatorsCount uint32
-	expiresAt       uint32
+	initDone          bool
+	network           netmode.Magic
+	stateRootInHeader bool
+	nativeHashes      map[string]util.Uint160
 }
 
 // New returns a new Client ready to use. You should call Init method to
