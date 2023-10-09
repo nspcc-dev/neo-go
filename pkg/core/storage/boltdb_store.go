@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -21,6 +22,10 @@ type BoltDBStore struct {
 	db *bbolt.DB
 }
 
+// defaultOpenTimeout is the default timeout for performing flock on a bbolt database.
+// bbolt does retries every 50ms during this interval.
+const defaultOpenTimeout = 1 * time.Second
+
 // NewBoltDBStore returns a new ready to use BoltDB storage with created bucket.
 func NewBoltDBStore(cfg dbconfig.BoltDBOptions) (*BoltDBStore, error) {
 	cp := *bbolt.DefaultOptions // Do not change bbolt's global variable.
@@ -34,6 +39,8 @@ func NewBoltDBStore(cfg dbconfig.BoltDBOptions) (*BoltDBStore, error) {
 			return nil, err
 		}
 	}
+	opts.Timeout = defaultOpenTimeout
+
 	db, err := bbolt.Open(fileName, fileMode, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open BoltDB instance: %w", err)
