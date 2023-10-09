@@ -13,41 +13,23 @@ import (
 type ApplicationConfiguration struct {
 	Ledger `yaml:",inline"`
 
-	// Deprecated: this option is moved to the P2P section.
-	AttemptConnPeers int `yaml:"AttemptConnPeers"`
-	// BroadcastFactor is the factor (0-100) controlling gossip fan-out number optimization.
-	//
-	// Deprecated: this option is moved to the P2P section.
-	BroadcastFactor int                      `yaml:"BroadcastFactor"`
 	DBConfiguration dbconfig.DBConfiguration `yaml:"DBConfiguration"`
-	// Deprecated: this option is moved to the P2P section.
-	DialTimeout int64  `yaml:"DialTimeout"`
-	LogLevel    string `yaml:"LogLevel"`
-	LogPath     string `yaml:"LogPath"`
-	// Deprecated: this option is moved to the P2P section.
-	MaxPeers int `yaml:"MaxPeers"`
-	// Deprecated: this option is moved to the P2P section.
-	MinPeers int `yaml:"MinPeers"`
-	P2P      P2P `yaml:"P2P"`
-	// Deprecated: this option is moved to the P2P section.
-	PingInterval int64 `yaml:"PingInterval"`
-	// Deprecated: this option is moved to the P2P section.
-	PingTimeout int64        `yaml:"PingTimeout"`
-	Pprof       BasicService `yaml:"Pprof"`
-	Prometheus  BasicService `yaml:"Prometheus"`
-	// Deprecated: this option is moved to the P2P section.
-	ProtoTickInterval int64               `yaml:"ProtoTickInterval"`
-	Relay             bool                `yaml:"Relay"`
-	Consensus         Consensus           `yaml:"Consensus"`
-	RPC               RPC                 `yaml:"RPC"`
-	UnlockWallet      Wallet              `yaml:"UnlockWallet"`
-	Oracle            OracleConfiguration `yaml:"Oracle"`
-	P2PNotary         P2PNotary           `yaml:"P2PNotary"`
-	StateRoot         StateRoot           `yaml:"StateRoot"`
-	// ExtensiblePoolSize is the maximum amount of the extensible payloads from a single sender.
-	//
-	// Deprecated: this option is moved to the P2P section.
-	ExtensiblePoolSize int `yaml:"ExtensiblePoolSize"`
+
+	LogLevel string `yaml:"LogLevel"`
+	LogPath  string `yaml:"LogPath"`
+
+	P2P P2P `yaml:"P2P"`
+
+	Pprof      BasicService `yaml:"Pprof"`
+	Prometheus BasicService `yaml:"Prometheus"`
+
+	Relay        bool                `yaml:"Relay"`
+	Consensus    Consensus           `yaml:"Consensus"`
+	RPC          RPC                 `yaml:"RPC"`
+	UnlockWallet Wallet              `yaml:"UnlockWallet"`
+	Oracle       OracleConfiguration `yaml:"Oracle"`
+	P2PNotary    P2PNotary           `yaml:"P2PNotary"`
+	StateRoot    StateRoot           `yaml:"StateRoot"`
 }
 
 // EqualsButServices returns true when the o is the same as a except for services
@@ -68,25 +50,16 @@ func (a *ApplicationConfiguration) EqualsButServices(o *ApplicationConfiguration
 			return false
 		}
 	}
-	if a.AttemptConnPeers != o.AttemptConnPeers || //nolint:staticcheck // SA1019: a.AttemptConnPeers is deprecated
-		a.P2P.AttemptConnPeers != o.P2P.AttemptConnPeers ||
-		a.BroadcastFactor != o.BroadcastFactor || //nolint:staticcheck // SA1019: a.BroadcastFactor is deprecated
+	if a.P2P.AttemptConnPeers != o.P2P.AttemptConnPeers ||
 		a.P2P.BroadcastFactor != o.P2P.BroadcastFactor ||
 		a.DBConfiguration != o.DBConfiguration ||
-		a.DialTimeout != o.DialTimeout || //nolint:staticcheck // SA1019: a.DialTimeout is deprecated
 		a.P2P.DialTimeout != o.P2P.DialTimeout ||
-		a.ExtensiblePoolSize != o.ExtensiblePoolSize || //nolint:staticcheck // SA1019: a.ExtensiblePoolSize is deprecated
 		a.P2P.ExtensiblePoolSize != o.P2P.ExtensiblePoolSize ||
 		a.LogPath != o.LogPath ||
-		a.MaxPeers != o.MaxPeers || //nolint:staticcheck // SA1019: a.MaxPeers is deprecated
 		a.P2P.MaxPeers != o.P2P.MaxPeers ||
-		a.MinPeers != o.MinPeers || //nolint:staticcheck // SA1019: a.MinPeers is deprecated
 		a.P2P.MinPeers != o.P2P.MinPeers ||
-		a.PingInterval != o.PingInterval || //nolint:staticcheck // SA1019: a.PingInterval is deprecated
 		a.P2P.PingInterval != o.P2P.PingInterval ||
-		a.PingTimeout != o.PingTimeout || //nolint:staticcheck // SA1019: a.PingTimeout is deprecated
 		a.P2P.PingTimeout != o.P2P.PingTimeout ||
-		a.ProtoTickInterval != o.ProtoTickInterval || //nolint:staticcheck // SA1019: a.ProtoTickInterval is deprecated
 		a.P2P.ProtoTickInterval != o.P2P.ProtoTickInterval ||
 		a.Relay != o.Relay {
 		return false

@@ -84,42 +84,6 @@ type (
 func NewServerConfig(cfg config.Config) (ServerConfig, error) {
 	appConfig := cfg.ApplicationConfiguration
 	protoConfig := cfg.ProtocolConfiguration
-	dialTimeout := appConfig.P2P.DialTimeout
-	if dialTimeout == 0 && appConfig.DialTimeout > 0 { //nolint:staticcheck // SA1019: appConfig.DialTimeout is deprecated
-		dialTimeout = time.Duration(appConfig.DialTimeout) * time.Second //nolint:staticcheck // SA1019: appConfig.DialTimeout is deprecated
-	}
-	protoTickInterval := appConfig.P2P.ProtoTickInterval
-	if protoTickInterval == 0 && appConfig.ProtoTickInterval > 0 { //nolint:staticcheck // SA1019: appConfig.ProtoTickInterval is deprecated
-		protoTickInterval = time.Duration(appConfig.ProtoTickInterval) * time.Second //nolint:staticcheck // SA1019: appConfig.ProtoTickInterval is deprecated
-	}
-	pingInterval := appConfig.P2P.PingInterval
-	if pingInterval == 0 && appConfig.PingInterval > 0 { //nolint:staticcheck // SA1019: appConfig.PingInterval is deprecated
-		pingInterval = time.Duration(appConfig.PingInterval) * time.Second //nolint:staticcheck // SA1019: appConfig.PingInterval is deprecated
-	}
-	pingTimeout := appConfig.P2P.PingTimeout
-	if pingTimeout == 0 && appConfig.PingTimeout > 0 { //nolint:staticcheck // SA1019: appConfig.PingTimeout is deprecated
-		pingTimeout = time.Duration(appConfig.PingTimeout) * time.Second //nolint:staticcheck // SA1019: appConfig.PingTimeout is deprecated
-	}
-	maxPeers := appConfig.P2P.MaxPeers
-	if maxPeers == 0 && appConfig.MaxPeers > 0 { //nolint:staticcheck // SA1019: appConfig.MaxPeers is deprecated
-		maxPeers = appConfig.MaxPeers //nolint:staticcheck // SA1019: appConfig.MaxPeers is deprecated
-	}
-	attemptConnPeers := appConfig.P2P.AttemptConnPeers
-	if attemptConnPeers == 0 && appConfig.AttemptConnPeers > 0 { //nolint:staticcheck // SA1019: appConfig.AttemptConnPeers is deprecated
-		attemptConnPeers = appConfig.AttemptConnPeers //nolint:staticcheck // SA1019: appConfig.AttemptConnPeers is deprecated
-	}
-	minPeers := appConfig.P2P.MinPeers
-	if minPeers == 0 && appConfig.MinPeers > 0 { //nolint:staticcheck // SA1019: appConfig.MinPeers is deprecated
-		minPeers = appConfig.MinPeers //nolint:staticcheck // SA1019: appConfig.MinPeers is deprecated
-	}
-	extPoolSize := appConfig.P2P.ExtensiblePoolSize
-	if extPoolSize == 0 && appConfig.ExtensiblePoolSize > 0 { //nolint:staticcheck // SA1019: appConfig.ExtensiblePoolSize is deprecated
-		extPoolSize = appConfig.ExtensiblePoolSize //nolint:staticcheck // SA1019: appConfig.ExtensiblePoolSize is deprecated
-	}
-	broadcastFactor := appConfig.P2P.BroadcastFactor
-	if broadcastFactor > 0 && appConfig.BroadcastFactor > 0 { //nolint:staticcheck // SA1019: appConfig.BroadcastFactor is deprecated
-		broadcastFactor = appConfig.BroadcastFactor //nolint:staticcheck // SA1019: appConfig.BroadcastFactor is deprecated
-	}
 	addrs, err := appConfig.GetAddresses()
 	if err != nil {
 		return ServerConfig{}, fmt.Errorf("failed to parse addresses: %w", err)
@@ -130,19 +94,19 @@ func NewServerConfig(cfg config.Config) (ServerConfig, error) {
 		Net:                protoConfig.Magic,
 		Relay:              appConfig.Relay,
 		Seeds:              protoConfig.SeedList,
-		DialTimeout:        dialTimeout,
-		ProtoTickInterval:  protoTickInterval,
-		PingInterval:       pingInterval,
-		PingTimeout:        pingTimeout,
-		MaxPeers:           maxPeers,
-		AttemptConnPeers:   attemptConnPeers,
-		MinPeers:           minPeers,
+		DialTimeout:        appConfig.P2P.DialTimeout,
+		ProtoTickInterval:  appConfig.P2P.ProtoTickInterval,
+		PingInterval:       appConfig.P2P.PingInterval,
+		PingTimeout:        appConfig.P2P.PingTimeout,
+		MaxPeers:           appConfig.P2P.MaxPeers,
+		AttemptConnPeers:   appConfig.P2P.AttemptConnPeers,
+		MinPeers:           appConfig.P2P.MinPeers,
 		TimePerBlock:       protoConfig.TimePerBlock,
 		OracleCfg:          appConfig.Oracle,
 		P2PNotaryCfg:       appConfig.P2PNotary,
 		StateRootCfg:       appConfig.StateRoot,
-		ExtensiblePoolSize: extPoolSize,
-		BroadcastFactor:    broadcastFactor,
+		ExtensiblePoolSize: appConfig.P2P.ExtensiblePoolSize,
+		BroadcastFactor:    appConfig.P2P.BroadcastFactor,
 	}
 	return c, nil
 }
