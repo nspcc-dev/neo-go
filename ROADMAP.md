@@ -26,16 +26,6 @@ APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
 
-## SecondsPerBlock protocol configuration
-
-With 0.100.0 version SecondsPerBlock protocol configuration setting was
-deprecated and replaced by a bit more generic and precise TimePerBlock
-(allowing for subsecond time). An informational message is printed on node
-startup to inform about this, it's very easy to deal with this configuration
-change, just replace one line.
-
-Removal of SecondsPerBlock is scheduled for May-June 2023 (~0.103.0 release).
-
 ## Services/node address and port configuration
 
 Version 0.100.0 of NeoGo introduces a multiple binding addresses capability to

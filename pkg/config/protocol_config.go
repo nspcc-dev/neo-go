@@ -67,11 +67,7 @@ type (
 		// SaveStorageBatch enables storage batch saving before every persist.
 		//
 		// Deprecated: please use the same setting in the ApplicationConfiguration, this field will be removed in future versions.
-		SaveStorageBatch bool `yaml:"SaveStorageBatch"`
-		// SecondsPerBlock is the time interval (in seconds) between blocks that consensus nodes work with.
-		//
-		// Deprecated: replaced by TimePerBlock, to be removed in future versions.
-		SecondsPerBlock  int      `yaml:"SecondsPerBlock"`
+		SaveStorageBatch bool     `yaml:"SaveStorageBatch"`
 		SeedList         []string `yaml:"SeedList"`
 		StandbyCommittee []string `yaml:"StandbyCommittee"`
 		// StateRooInHeader enables storing state root in block header.
@@ -260,7 +256,6 @@ func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
 		p.RemoveUntraceableBlocks != o.RemoveUntraceableBlocks ||
 		p.ReservedAttributes != o.ReservedAttributes ||
 		p.SaveStorageBatch != o.SaveStorageBatch ||
-		p.SecondsPerBlock != o.SecondsPerBlock ||
 		p.StateRootInHeader != o.StateRootInHeader ||
 		p.StateSyncInterval != o.StateSyncInterval ||
 		p.TimePerBlock != o.TimePerBlock ||

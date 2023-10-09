@@ -84,10 +84,6 @@ type (
 func NewServerConfig(cfg config.Config) (ServerConfig, error) {
 	appConfig := cfg.ApplicationConfiguration
 	protoConfig := cfg.ProtocolConfiguration
-	timePerBlock := protoConfig.TimePerBlock
-	if timePerBlock == 0 && protoConfig.SecondsPerBlock > 0 { //nolint:staticcheck // SA1019: protoConfig.SecondsPerBlock is deprecated
-		timePerBlock = time.Duration(protoConfig.SecondsPerBlock) * time.Second //nolint:staticcheck // SA1019: protoConfig.SecondsPerBlock is deprecated
-	}
 	dialTimeout := appConfig.P2P.DialTimeout
 	if dialTimeout == 0 && appConfig.DialTimeout > 0 { //nolint:staticcheck // SA1019: appConfig.DialTimeout is deprecated
 		dialTimeout = time.Duration(appConfig.DialTimeout) * time.Second //nolint:staticcheck // SA1019: appConfig.DialTimeout is deprecated
@@ -141,7 +137,7 @@ func NewServerConfig(cfg config.Config) (ServerConfig, error) {
 		MaxPeers:           maxPeers,
 		AttemptConnPeers:   attemptConnPeers,
 		MinPeers:           minPeers,
-		TimePerBlock:       timePerBlock,
+		TimePerBlock:       protoConfig.TimePerBlock,
 		OracleCfg:          appConfig.Oracle,
 		P2PNotaryCfg:       appConfig.P2PNotary,
 		StateRootCfg:       appConfig.StateRoot,

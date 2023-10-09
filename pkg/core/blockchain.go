@@ -257,15 +257,9 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 			zap.Uint16("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
 	}
 	if cfg.TimePerBlock <= 0 {
-		if cfg.SecondsPerBlock > 0 { //nolint:staticcheck // SA1019: cfg.SecondsPerBlock is deprecated
-			cfg.TimePerBlock = time.Duration(cfg.SecondsPerBlock) * time.Second //nolint:staticcheck // SA1019: cfg.SecondsPerBlock is deprecated
-			log.Info("TimePerBlock is not set, using deprecated SecondsPerBlock setting, consider updating your config",
-				zap.Duration("TimePerBlock", cfg.TimePerBlock))
-		} else {
-			cfg.TimePerBlock = defaultTimePerBlock
-			log.Info("TimePerBlock is not set or wrong, using default value",
-				zap.Duration("TimePerBlock", cfg.TimePerBlock))
-		}
+		cfg.TimePerBlock = defaultTimePerBlock
+		log.Info("TimePerBlock is not set or wrong, using default value",
+			zap.Duration("TimePerBlock", cfg.TimePerBlock))
 	}
 	if cfg.MaxValidUntilBlockIncrement == 0 {
 		const timePerDay = 24 * time.Hour
