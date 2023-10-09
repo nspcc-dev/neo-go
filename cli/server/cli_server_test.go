@@ -77,7 +77,8 @@ func TestServerStart(t *testing.T) {
 	})
 	t.Run("invalid consensus config", func(t *testing.T) {
 		saveCfg(t, func(cfg *config.Config) {
-			cfg.ApplicationConfiguration.UnlockWallet.Path = "bad_consensus_wallet.json"
+			cfg.ApplicationConfiguration.Consensus.Enabled = true
+			cfg.ApplicationConfiguration.Consensus.UnlockWallet.Path = "bad_consensus_wallet.json"
 		})
 		e.RunWithError(t, baseCmd...)
 	})

@@ -26,16 +26,6 @@ APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
 
-## Direct UnlockWallet consensus configuration
-
-Top-level UnlockWallet section in ApplicationConfiguration was used as an
-implicit consensus service configuration, now this setting (with Enabled flag)
-is moved into a section of its own (Consensus). Old configurations are still
-supported, but this support will eventually be removed.
-
-Removal of this compatibility code is scheduled for May-June 2023 (~0.103.0
-release).
-
 ## Node-specific configuration moved from Protocol to Application
 
 GarbageCollectionPeriod, KeepOnlyLatestState, RemoveUntraceableBlocks,

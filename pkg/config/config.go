@@ -88,11 +88,6 @@ func LoadFile(configPath string) (Config, error) {
 		return Config{}, fmt.Errorf("failed to unmarshal config YAML: %w", err)
 	}
 
-	if len(config.ApplicationConfiguration.UnlockWallet.Path) > 0 && len(config.ApplicationConfiguration.Consensus.UnlockWallet.Path) == 0 {
-		config.ApplicationConfiguration.Consensus.UnlockWallet = config.ApplicationConfiguration.UnlockWallet
-		config.ApplicationConfiguration.Consensus.Enabled = true
-	}
-
 	err = config.ProtocolConfiguration.Validate()
 	if err != nil {
 		return Config{}, err

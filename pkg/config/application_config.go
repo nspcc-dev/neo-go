@@ -23,17 +23,16 @@ type ApplicationConfiguration struct {
 	Pprof      BasicService `yaml:"Pprof"`
 	Prometheus BasicService `yaml:"Prometheus"`
 
-	Relay        bool                `yaml:"Relay"`
-	Consensus    Consensus           `yaml:"Consensus"`
-	RPC          RPC                 `yaml:"RPC"`
-	UnlockWallet Wallet              `yaml:"UnlockWallet"`
-	Oracle       OracleConfiguration `yaml:"Oracle"`
-	P2PNotary    P2PNotary           `yaml:"P2PNotary"`
-	StateRoot    StateRoot           `yaml:"StateRoot"`
+	Relay     bool                `yaml:"Relay"`
+	Consensus Consensus           `yaml:"Consensus"`
+	RPC       RPC                 `yaml:"RPC"`
+	Oracle    OracleConfiguration `yaml:"Oracle"`
+	P2PNotary P2PNotary           `yaml:"P2PNotary"`
+	StateRoot StateRoot           `yaml:"StateRoot"`
 }
 
 // EqualsButServices returns true when the o is the same as a except for services
-// (Oracle, P2PNotary, Pprof, Prometheus, RPC, StateRoot and UnlockWallet sections)
+// (Oracle, P2PNotary, Pprof, Prometheus, RPC and StateRoot sections)
 // and LogLevel field.
 func (a *ApplicationConfiguration) EqualsButServices(o *ApplicationConfiguration) bool {
 	if len(a.P2P.Addresses) != len(o.P2P.Addresses) {
