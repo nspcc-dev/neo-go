@@ -48,7 +48,7 @@ type Ledger interface {
 	GetNextBlockValidators() ([]*keys.PublicKey, error)
 	GetStateRoot(height uint32) (*state.MPTRoot, error)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
-	GetValidators() ([]*keys.PublicKey, error)
+	ComputeNextBlockValidators() []*keys.PublicKey
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
 	SubscribeForBlocks(ch chan *coreb.Block)
 	UnsubscribeFromBlocks(ch chan *coreb.Block)
@@ -677,9 +677,15 @@ func (s *service) getValidators(txes ...block.Transaction) []crypto.PublicKey {
 		err   error
 	)
 	if txes == nil {
+		// getValidators with empty args is used by dbft to fill the list of
+		// block's validators, thus should return validators from the current
+		// epoch without recalculation.
 		pKeys, err = s.Chain.GetNextBlockValidators()
 	} else {
-		pKeys, err = s.Chain.GetValidators()
+		// getValidators with non-empty args is used by dbft to fill block's
+		// NextConsensus field, ComputeNextBlockValidators will return proper
+		// value for NextConsensus wrt dBFT epoch start/end.
+		pKeys = s.Chain.ComputeNextBlockValidators()
 	}
 	if err != nil {
 		s.log.Error("error while trying to get validators", zap.Error(err))
@@ -721,17 +727,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 		block.PrevStateRoot = sr.Root
 	}
 
-	var validators keys.PublicKeys
-	var err error
-	cfg := s.Chain.GetConfig().ProtocolConfiguration
-	if cfg.ShouldUpdateCommitteeAt(ctx.BlockIndex) {
-		validators, err = s.Chain.GetValidators()
-	} else {
-		validators, err = s.Chain.GetNextBlockValidators()
-	}
-	if err != nil {
-		s.log.Fatal(fmt.Sprintf("failed to get validators: %s", err.Error()))
-	}
+	var validators = s.Chain.ComputeNextBlockValidators()
 	script, err := smartcontract.CreateDefaultMultiSigRedeemScript(validators)
 	if err != nil {
 		s.log.Fatal(fmt.Sprintf("failed to create multisignature script: %s", err.Error()))
