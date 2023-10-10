@@ -340,7 +340,6 @@ func (e *Executor) CheckScriptDump(t *testing.T, scriptSize int) {
 }
 
 func DeployContract(t *testing.T, e *Executor, inPath, configPath, wallet, address, pass string) util.Uint160 {
-	config.Version = "0.90.0-test" // Contracts are compiled and we want NEFs to not change from run to run.
 	tmpDir := t.TempDir()
 	nefName := filepath.Join(tmpDir, "contract.nef")
 	manifestName := filepath.Join(tmpDir, "contract.manifest.json")

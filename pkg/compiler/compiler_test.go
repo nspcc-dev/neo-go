@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/internal/versionutil"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
-	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/neo"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -23,14 +23,15 @@ const examplePath = "../../examples"
 const exampleCompilePath = "testdata/compile"
 const exampleSavePath = exampleCompilePath + "/save"
 
+// Keep contract NEFs consistent between runs.
+const _ = versionutil.TestVersion
+
 type compilerTestCase struct {
 	name     string
 	function func(*testing.T)
 }
 
 func TestCompiler(t *testing.T) {
-	// CompileAndSave uses config.Version for proper .nef generation.
-	config.Version = "0.90.0-test"
 	testCases := []compilerTestCase{
 		{
 			name: "TestCompileDirectory",

@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testcli"
+	"github.com/nspcc-dev/neo-go/internal/versionutil"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -29,6 +30,9 @@ const (
 	nftOwnerAddr   = "NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB"
 	nftOwnerWallet = "../../examples/my_wallet.json"
 	nftOwnerPass   = "qwerty"
+
+	// Keep contract NEFs consistent between runs.
+	_ = versionutil.TestVersion
 )
 
 func TestNEP11Import(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	clisc "github.com/nspcc-dev/neo-go/cli/smartcontract"
+	"github.com/nspcc-dev/neo-go/internal/versionutil"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -61,7 +62,7 @@ func NewTransferFromOwner(bc Ledger, contractHash, to util.Uint160, amount int64
 // the filename without '.go' suffix.
 func NewDeployTx(bc Ledger, name string, sender util.Uint160, r gio.Reader, confFile *string) (*transaction.Transaction, util.Uint160, []byte, error) {
 	// nef.NewFile() cares about version a lot.
-	config.Version = "0.90.0-test"
+	config.Version = versionutil.TestVersion
 
 	o := &compiler.Options{
 		Name:            strings.TrimSuffix(name, ".go"),
