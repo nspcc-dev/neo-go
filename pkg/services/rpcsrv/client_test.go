@@ -31,7 +31,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
@@ -544,7 +543,7 @@ func TestClientNotary(t *testing.T) {
 	require.Error(t, err) // Can't be withdrawn until 1111.
 }
 
-func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
+func TestCalculateNetworkFee_Base(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
 	defer rpcSrv.Shutdown()
@@ -555,27 +554,8 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
-	getAccounts := func(t *testing.T, n int) []*wallet.Account {
-		accs := make([]*wallet.Account, n)
-		var err error
-		for i := range accs {
-			accs[i], err = wallet.NewAccount()
-			require.NoError(t, err)
-		}
-		return accs
-	}
-
 	feePerByte := chain.FeePerByte()
 
-	t.Run("Invalid", func(t *testing.T) {
-		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-		accs := getAccounts(t, 2)
-		tx.Signers = []transaction.Signer{{
-			Account: accs[0].PrivateKey().GetScriptHash(),
-			Scopes:  transaction.CalledByEntry,
-		}}
-		require.Error(t, c.AddNetworkFee(tx, extraFee, accs[0], accs[1])) //nolint:staticcheck // SA1019: c.AddNetworkFee is deprecated
-	})
 	t.Run("Simple", func(t *testing.T) {
 		acc0 := wallet.NewAccountFromPrivateKey(testchain.PrivateKeyByID(0))
 		check := func(t *testing.T, extraFee int64) {
@@ -593,16 +573,12 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 			}
 			actualCalculatedNetFee, err := c.CalculateNetworkFee(tx)
 			require.NoError(t, err)
-
-			tx.Scripts = nil
-			require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0)) //nolint:staticcheck // SA1019: c.AddNetworkFee is deprecated
-			actual := tx.NetworkFee
+			tx.NetworkFee = actualCalculatedNetFee + extraFee
 
 			require.NoError(t, acc0.SignTx(testchain.Network(), tx))
 			cFee, _ := fee.Calculate(chain.GetBaseExecFee(), acc0.Contract.Script)
 			expected := int64(io.GetVarSize(tx))*feePerByte + cFee + extraFee
 
-			require.Equal(t, expected, actual)
 			require.Equal(t, expected, actualCalculatedNetFee+extraFee)
 			err = chain.VerifyTx(tx)
 			if extraFee < 0 {
@@ -658,12 +634,9 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 			}
 			actualCalculatedNetFee, err := c.CalculateNetworkFee(tx)
 			require.NoError(t, err)
+			tx.NetworkFee = actualCalculatedNetFee + extraFee
 
 			tx.Scripts = nil
-
-			require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0, acc1)) //nolint:staticcheck // SA1019: c.AddNetworkFee is deprecated
-			actual := tx.NetworkFee
-
 			require.NoError(t, acc0.SignTx(testchain.Network(), tx))
 			tx.Scripts = append(tx.Scripts, transaction.Witness{
 				InvocationScript:   testchain.Sign(tx),
@@ -673,7 +646,6 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 			cFeeM, _ := fee.Calculate(chain.GetBaseExecFee(), acc1.Contract.Script)
 			expected := int64(io.GetVarSize(tx))*feePerByte + cFee + cFeeM + extraFee
 
-			require.Equal(t, expected, actual)
 			require.Equal(t, expected, actualCalculatedNetFee+extraFee)
 			err = chain.VerifyTx(tx)
 			if extraFee < 0 {
@@ -732,12 +704,11 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 				}
 				actual, err := c.CalculateNetworkFee(tx)
 				require.NoError(t, err)
-				tx.Scripts = nil
+				tx.NetworkFee = actual + extraFee
 
-				require.NoError(t, c.AddNetworkFee(tx, extraFee, acc0, acc1)) //nolint:staticcheck // SA1019: c.AddNetworkFee is deprecated
+				tx.Scripts = nil
 				require.NoError(t, acc0.SignTx(testchain.Network(), tx))
 				tx.Scripts = append(tx.Scripts, transaction.Witness{})
-				require.Equal(t, tx.NetworkFee, actual+extraFee)
 				err = chain.VerifyTx(tx)
 				if extraFee < 0 {
 					require.Error(t, err)
@@ -758,37 +729,6 @@ func TestAddNetworkFeeCalculateNetworkFee(t *testing.T) {
 				// check that we don't add unexpected extra GAS
 				check(t, -1)
 			})
-		})
-		t.Run("Invalid", func(t *testing.T) {
-			tx := newTx(t)
-			acc0, err := wallet.NewAccount()
-			require.NoError(t, err)
-			tx.Signers = []transaction.Signer{
-				{
-					Account: acc0.PrivateKey().GetScriptHash(),
-					Scopes:  transaction.CalledByEntry,
-				},
-				{
-					Account: h,
-					Scopes:  transaction.Global,
-				},
-			}
-			require.Error(t, c.AddNetworkFee(tx, 10, acc0, acc1)) //nolint:staticcheck // SA1019: c.AddNetworkFee is deprecated
-		})
-		t.Run("InvalidContract", func(t *testing.T) {
-			tx := newTx(t)
-			acc0 := wallet.NewAccountFromPrivateKey(priv)
-			tx.Signers = []transaction.Signer{
-				{
-					Account: acc0.PrivateKey().GetScriptHash(),
-					Scopes:  transaction.CalledByEntry,
-				},
-				{
-					Account: util.Uint160{},
-					Scopes:  transaction.Global,
-				},
-			}
-			require.Error(t, c.AddNetworkFee(tx, 10, acc0, acc1)) //nolint:staticcheck // SA1019: c.AddNetworkFee is deprecated
 		})
 	})
 }
@@ -863,160 +803,6 @@ func TestCalculateNetworkFee(t *testing.T) {
 		})
 	})
 }
-func TestSignAndPushInvocationTx(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
-
-	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
-	require.NoError(t, err)
-	require.NoError(t, c.Init())
-
-	priv0 := testchain.PrivateKeyByID(0)
-	acc0 := wallet.NewAccountFromPrivateKey(priv0)
-
-	verifyWithoutParamsCtr, err := util.Uint160DecodeStringLE(verifyContractHash)
-	require.NoError(t, err)
-	acc1 := &wallet.Account{
-		Address: address.Uint160ToString(verifyWithoutParamsCtr),
-		Contract: &wallet.Contract{
-			Parameters: []wallet.ContractParam{},
-			Deployed:   true,
-		},
-		Default: false,
-	}
-
-	verifyWithParamsCtr, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
-	require.NoError(t, err)
-	acc2 := &wallet.Account{
-		Address: address.Uint160ToString(verifyWithParamsCtr),
-		Contract: &wallet.Contract{
-			Parameters: []wallet.ContractParam{
-				{Name: "argString", Type: smartcontract.StringType},
-				{Name: "argInt", Type: smartcontract.IntegerType},
-				{Name: "argBool", Type: smartcontract.BoolType},
-			},
-			Deployed: true,
-		},
-		Default: false,
-	}
-
-	priv3 := testchain.PrivateKeyByID(3)
-	acc3 := wallet.NewAccountFromPrivateKey(priv3)
-
-	check := func(t *testing.T, h util.Uint256) {
-		mp := chain.GetMemPool()
-		tx, ok := mp.TryGetValue(h)
-		require.True(t, ok)
-		require.Equal(t, h, tx.Hash())
-		require.EqualValues(t, 30, tx.SystemFee)
-	}
-
-	t.Run("good", func(t *testing.T) {
-		t.Run("signer0: sig", func(t *testing.T) {
-			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
-				{
-					Signer: transaction.Signer{
-						Account: priv0.GetScriptHash(),
-						Scopes:  transaction.CalledByEntry,
-					},
-					Account: acc0,
-				},
-			})
-			require.NoError(t, err)
-			check(t, h)
-		})
-		t.Run("signer0: sig; signer1: sig", func(t *testing.T) {
-			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
-				{
-					Signer: transaction.Signer{
-						Account: priv0.GetScriptHash(),
-						Scopes:  transaction.CalledByEntry,
-					},
-					Account: acc0,
-				},
-				{
-					Signer: transaction.Signer{
-						Account: priv3.GetScriptHash(),
-						Scopes:  transaction.CalledByEntry,
-					},
-					Account: acc3,
-				},
-			})
-			require.NoError(t, err)
-			check(t, h)
-		})
-		t.Run("signer0: sig; signer1: contract-based paramless", func(t *testing.T) {
-			h, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
-				{
-					Signer: transaction.Signer{
-						Account: priv0.GetScriptHash(),
-						Scopes:  transaction.CalledByEntry,
-					},
-					Account: acc0,
-				},
-				{
-					Signer: transaction.Signer{
-						Account: verifyWithoutParamsCtr,
-						Scopes:  transaction.CalledByEntry,
-					},
-					Account: acc1,
-				},
-			})
-			require.NoError(t, err)
-			check(t, h)
-		})
-	})
-	t.Run("error", func(t *testing.T) {
-		t.Run("signer0: sig; signer1: contract-based with params", func(t *testing.T) {
-			_, err := c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
-				{
-					Signer: transaction.Signer{
-						Account: priv0.GetScriptHash(),
-						Scopes:  transaction.CalledByEntry,
-					},
-					Account: acc0,
-				},
-				{
-					Signer: transaction.Signer{
-						Account: verifyWithParamsCtr,
-						Scopes:  transaction.CalledByEntry,
-					},
-					Account: acc2,
-				},
-			})
-			require.Error(t, err)
-		})
-		t.Run("signer0: sig; signer1: locked sig", func(t *testing.T) {
-			pk, err := keys.NewPrivateKey()
-			require.NoError(t, err)
-			acc4 := &wallet.Account{
-				Address: address.Uint160ToString(pk.GetScriptHash()),
-				Contract: &wallet.Contract{
-					Script:     pk.PublicKey().GetVerificationScript(),
-					Parameters: []wallet.ContractParam{{Name: "parameter0", Type: smartcontract.SignatureType}},
-				},
-			}
-			_, err = c.SignAndPushInvocationTx([]byte{byte(opcode.PUSH1)}, acc0, 30, 0, []rpcclient.SignerAccount{ //nolint:staticcheck // SA1019: c.SignAndPushInvocationTx is deprecated
-				{
-					Signer: transaction.Signer{
-						Account: priv0.GetScriptHash(),
-						Scopes:  transaction.CalledByEntry,
-					},
-					Account: acc0,
-				},
-				{
-					Signer: transaction.Signer{
-						Account: util.Uint160{1, 2, 3},
-						Scopes:  transaction.CalledByEntry,
-					},
-					Account: acc4,
-				},
-			})
-			require.Error(t, err)
-		})
-	})
-}
 
 func TestNotaryActor(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
@@ -1047,92 +833,6 @@ func TestNotaryActor(t *testing.T) {
 	neoW := neo.New(nact)
 	_, _, _, err = nact.Notarize(neoW.SetRegisterPriceTransaction(1_0000_0000))
 	require.NoError(t, err)
-}
-
-func TestSignAndPushP2PNotaryRequest(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
-
-	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
-	require.NoError(t, err)
-	acc, err := wallet.NewAccount()
-	require.NoError(t, err)
-
-	t.Run("client wasn't initialized", func(t *testing.T) {
-		_, err := c.SignAndPushP2PNotaryRequest(transaction.New([]byte{byte(opcode.RET)}, 123), []byte{byte(opcode.RET)}, -1, 0, 100, acc) //nolint:staticcheck // SA1019: c.SignAndPushP2PNotaryRequest is deprecated
-		require.NotNil(t, err)
-	})
-
-	require.NoError(t, c.Init())
-	t.Run("bad fallback script", func(t *testing.T) {
-		_, err := c.SignAndPushP2PNotaryRequest(nil, []byte{byte(opcode.ASSERT)}, -1, 0, 0, acc) //nolint:staticcheck // SA1019: c.SignAndPushP2PNotaryRequest is deprecated
-		require.NotNil(t, err)
-	})
-
-	t.Run("too large fallbackValidFor", func(t *testing.T) {
-		_, err := c.SignAndPushP2PNotaryRequest(nil, []byte{byte(opcode.RET)}, -1, 0, 141, acc) //nolint:staticcheck // SA1019: c.SignAndPushP2PNotaryRequest is deprecated
-		require.NotNil(t, err)
-	})
-
-	t.Run("good", func(t *testing.T) {
-		sender := testchain.PrivateKeyByID(0) // owner of the deposit in testchain
-		acc := wallet.NewAccountFromPrivateKey(sender)
-		expected := transaction.Transaction{
-			Attributes:      []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}}},
-			Script:          []byte{byte(opcode.RET)},
-			ValidUntilBlock: chain.BlockHeight() + 5,
-			Signers:         []transaction.Signer{{Account: util.Uint160{1, 5, 9}}},
-			Scripts: []transaction.Witness{{
-				InvocationScript:   []byte{1, 4, 7},
-				VerificationScript: []byte{3, 6, 9},
-			}},
-		}
-		mainTx := expected
-		_ = expected.Hash()
-		req, err := c.SignAndPushP2PNotaryRequest(&mainTx, []byte{byte(opcode.RET)}, -1, 0, 6, acc) //nolint:staticcheck // SA1019: c.SignAndPushP2PNotaryRequest is deprecated
-		require.NoError(t, err)
-
-		// check that request was correctly completed
-		require.Equal(t, expected, *req.MainTransaction) // main tx should be the same
-		require.ElementsMatch(t, []transaction.Attribute{
-			{
-				Type:  transaction.NotaryAssistedT,
-				Value: &transaction.NotaryAssisted{NKeys: 0},
-			},
-			{
-				Type:  transaction.NotValidBeforeT,
-				Value: &transaction.NotValidBefore{Height: chain.BlockHeight()},
-			},
-			{
-				Type:  transaction.ConflictsT,
-				Value: &transaction.Conflicts{Hash: mainTx.Hash()},
-			},
-		}, req.FallbackTransaction.Attributes)
-		require.Equal(t, []transaction.Signer{
-			{Account: chain.GetNotaryContractScriptHash()},
-			{Account: acc.PrivateKey().GetScriptHash()},
-		}, req.FallbackTransaction.Signers)
-
-		// it shouldn't be an error to add completed fallback to the chain
-		w, err := wallet.NewWalletFromFile(notaryPath)
-		require.NoError(t, err)
-		ntr := w.Accounts[0]
-		err = ntr.Decrypt(notaryPass, w.Scrypt)
-		require.NoError(t, err)
-		req.FallbackTransaction.Scripts[0] = transaction.Witness{
-			InvocationScript:   append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, ntr.PrivateKey().SignHashable(uint32(testchain.Network()), req.FallbackTransaction)...),
-			VerificationScript: []byte{},
-		}
-		b := testchain.NewBlock(t, chain, 1, 0, req.FallbackTransaction)
-		require.NoError(t, chain.AddBlock(b))
-		appLogs, err := chain.GetAppExecResults(req.FallbackTransaction.Hash(), trigger.Application)
-		require.NoError(t, err)
-		require.Equal(t, 1, len(appLogs))
-		appLog := appLogs[0]
-		require.Equal(t, vmstate.Halt, appLog.VMState)
-		require.Equal(t, appLog.GasConsumed, req.FallbackTransaction.SystemFee)
-	})
 }
 
 func TestGetRawNotaryPoolAndTransaction(t *testing.T) {
@@ -1266,20 +966,6 @@ func TestGetRawNotaryPoolAndTransaction(t *testing.T) {
 	})
 }
 
-func TestCalculateNotaryFee(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
-
-	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
-	require.NoError(t, err)
-
-	t.Run("client not initialized", func(t *testing.T) {
-		_, err := c.CalculateNotaryFee(0) //nolint:staticcheck // SA1019: c.CalculateNotaryFee is deprecated
-		require.NoError(t, err)           // Do not require client initialisation for this.
-	})
-}
-
 func TestPing(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
@@ -1292,35 +978,6 @@ func TestPing(t *testing.T) {
 	rpcSrv.Shutdown()
 	httpSrv.Close()
 	require.Error(t, c.Ping())
-}
-
-func TestCreateTxFromScript(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
-
-	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
-	require.NoError(t, err)
-	require.NoError(t, c.Init())
-
-	priv := testchain.PrivateKey(0)
-	acc := wallet.NewAccountFromPrivateKey(priv)
-	t.Run("NoSystemFee", func(t *testing.T) {
-		tx, err := c.CreateTxFromScript([]byte{byte(opcode.PUSH1)}, acc, -1, 10, nil) //nolint:staticcheck // SA1019: c.CreateTxFromScript is deprecated
-		require.NoError(t, err)
-		require.True(t, tx.ValidUntilBlock > chain.BlockHeight())
-		require.EqualValues(t, 30, tx.SystemFee) // PUSH1
-		require.True(t, len(tx.Signers) == 1)
-		require.Equal(t, acc.PrivateKey().GetScriptHash(), tx.Signers[0].Account)
-	})
-	t.Run("ProvideSystemFee", func(t *testing.T) {
-		tx, err := c.CreateTxFromScript([]byte{byte(opcode.PUSH1)}, acc, 123, 10, nil) //nolint:staticcheck // SA1019: c.CreateTxFromScript is deprecated
-		require.NoError(t, err)
-		require.True(t, tx.ValidUntilBlock > chain.BlockHeight())
-		require.EqualValues(t, 123, tx.SystemFee)
-		require.True(t, len(tx.Signers) == 1)
-		require.Equal(t, acc.PrivateKey().GetScriptHash(), tx.Signers[0].Account)
-	})
 }
 
 func TestCreateNEP17TransferTx(t *testing.T) {
@@ -1885,21 +1542,6 @@ func TestClient_IteratorSessions(t *testing.T) {
 	})
 }
 
-func TestClient_GetNotaryServiceFeePerKey(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
-
-	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
-	require.NoError(t, err)
-	require.NoError(t, c.Init())
-
-	var defaultNotaryServiceFeePerKey int64 = 1000_0000
-	actual, err := c.GetNotaryServiceFeePerKey() //nolint:staticcheck // SA1019: c.GetNotaryServiceFeePerKey is deprecated
-	require.NoError(t, err)
-	require.Equal(t, defaultNotaryServiceFeePerKey, actual)
-}
-
 func TestClient_States(t *testing.T) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 	defer chain.Close()
@@ -1971,63 +1613,6 @@ func TestClientOracle(t *testing.T) {
 	actual, err = ora.GetPrice()
 	require.NoError(t, err)
 	require.Equal(t, newPrice, actual)
-}
-
-func TestClient_InvokeAndPackIteratorResults(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
-
-	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
-	require.NoError(t, err)
-	require.NoError(t, c.Init())
-
-	// storageItemsCount is the amount of storage items stored in Storage contract, it's hard-coded in the contract code.
-	const storageItemsCount = 255
-	expected := make([][]byte, storageItemsCount)
-	for i := 0; i < storageItemsCount; i++ {
-		expected[i] = stackitem.NewBigInteger(big.NewInt(int64(i))).Bytes()
-	}
-	sort.Slice(expected, func(i, j int) bool {
-		if len(expected[i]) != len(expected[j]) {
-			return len(expected[i]) < len(expected[j])
-		}
-		return bytes.Compare(expected[i], expected[j]) < 0
-	})
-	storageHash, err := util.Uint160DecodeStringLE(storageContractHash)
-	require.NoError(t, err)
-
-	t.Run("default max items constraint", func(t *testing.T) {
-		res, err := c.InvokeAndPackIteratorResults(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil) //nolint:staticcheck // SA1019: c.InvokeAndPackIteratorResults is deprecated
-		require.NoError(t, err)
-		require.Equal(t, vmstate.Halt.String(), res.State)
-		require.Equal(t, 1, len(res.Stack))
-		require.Equal(t, stackitem.ArrayT, res.Stack[0].Type())
-		arr, ok := res.Stack[0].Value().([]stackitem.Item)
-		require.True(t, ok)
-		require.Equal(t, config.DefaultMaxIteratorResultItems, len(arr))
-
-		for i := range arr {
-			require.Equal(t, stackitem.ByteArrayT, arr[i].Type())
-			require.Equal(t, expected[i], arr[i].Value().([]byte))
-		}
-	})
-	t.Run("custom max items constraint", func(t *testing.T) {
-		max := 123
-		res, err := c.InvokeAndPackIteratorResults(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil, max) //nolint:staticcheck // SA1019: c.InvokeAndPackIteratorResults is deprecated
-		require.NoError(t, err)
-		require.Equal(t, vmstate.Halt.String(), res.State)
-		require.Equal(t, 1, len(res.Stack))
-		require.Equal(t, stackitem.ArrayT, res.Stack[0].Type())
-		arr, ok := res.Stack[0].Value().([]stackitem.Item)
-		require.True(t, ok)
-		require.Equal(t, max, len(arr))
-
-		for i := range arr {
-			require.Equal(t, stackitem.ByteArrayT, arr[i].Type())
-			require.Equal(t, expected[i], arr[i].Value().([]byte))
-		}
-	})
 }
 
 func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
@@ -2481,89 +2066,6 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 		bCount++
 		return b1, primary, sender, ntfName, st
 	}
-	checkDeprecated := func(t *testing.T, filtered bool) {
-		var (
-			bID, txID, ntfID, aerID string
-			err                     error
-		)
-		b, primary, sender, ntfName, st := getData(t)
-		if filtered {
-			bID, err = c.SubscribeForNewBlocks(&primary) //nolint:staticcheck // SA1019: c.SubscribeForNewBlocks is deprecated
-			require.NoError(t, err)
-			txID, err = c.SubscribeForNewTransactions(&sender, nil) //nolint:staticcheck // SA1019: c.SubscribeForNewTransactions is deprecated
-			require.NoError(t, err)
-			ntfID, err = c.SubscribeForExecutionNotifications(nil, &ntfName) //nolint:staticcheck // SA1019: c.SubscribeForExecutionNotifications is deprecated
-			require.NoError(t, err)
-			aerID, err = c.SubscribeForTransactionExecutions(&st) //nolint:staticcheck // SA1019: c.SubscribeForTransactionExecutions is deprecated
-			require.NoError(t, err)
-		} else {
-			bID, err = c.SubscribeForNewBlocks(nil) //nolint:staticcheck // SA1019: c.SubscribeForNewBlocks is deprecated
-			require.NoError(t, err)
-			txID, err = c.SubscribeForNewTransactions(nil, nil) //nolint:staticcheck // SA1019: c.SubscribeForNewTransactions is deprecated
-			require.NoError(t, err)
-			ntfID, err = c.SubscribeForExecutionNotifications(nil, nil) //nolint:staticcheck // SA1019: c.SubscribeForExecutionNotifications is deprecated
-			require.NoError(t, err)
-			aerID, err = c.SubscribeForTransactionExecutions(nil) //nolint:staticcheck // SA1019: c.SubscribeForTransactionExecutions is deprecated
-			require.NoError(t, err)
-		}
-
-		var (
-			lock     sync.RWMutex
-			received byte
-			exitCh   = make(chan struct{})
-		)
-		go func() {
-		dispatcher:
-			for {
-				select {
-				case ntf := <-c.Notifications: //nolint:staticcheck // SA1019: c.Notifications is deprecated
-					lock.Lock()
-					switch ntf.Type {
-					case neorpc.BlockEventID:
-						received |= 1
-					case neorpc.TransactionEventID:
-						received |= 1 << 1
-					case neorpc.NotificationEventID:
-						received |= 1 << 2
-					case neorpc.ExecutionEventID:
-						received |= 1 << 3
-					}
-					lock.Unlock()
-				case <-exitCh:
-					break dispatcher
-				}
-			}
-		drainLoop:
-			for {
-				select {
-				case <-c.Notifications: //nolint:staticcheck // SA1019: c.Notifications is deprecated
-				default:
-					break drainLoop
-				}
-			}
-		}()
-
-		// Accept the next block and wait for events.
-		require.NoError(t, chain.AddBlock(b))
-		assert.Eventually(t, func() bool {
-			lock.RLock()
-			defer lock.RUnlock()
-
-			return received == 1<<4-1
-		}, time.Second, 100*time.Millisecond)
-
-		require.NoError(t, c.Unsubscribe(bID))
-		require.NoError(t, c.Unsubscribe(txID))
-		require.NoError(t, c.Unsubscribe(ntfID))
-		require.NoError(t, c.Unsubscribe(aerID))
-		exitCh <- struct{}{}
-	}
-	t.Run("deprecated, filtered", func(t *testing.T) {
-		checkDeprecated(t, true)
-	})
-	t.Run("deprecated, non-filtered", func(t *testing.T) {
-		checkDeprecated(t, false)
-	})
 
 	checkRelevant := func(t *testing.T, filtered bool) {
 		b, primary, sender, ntfName, st := getData(t)

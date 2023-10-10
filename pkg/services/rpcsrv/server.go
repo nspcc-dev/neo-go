@@ -267,7 +267,7 @@ var rpcWsHandlers = map[string]func(*Server, params.Params, *subscriber) (any, *
 // untyped nil or non-nil structure implementing OracleHandler interface.
 func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	orc OracleHandler, log *zap.Logger, errChan chan<- error) Server {
-	addrs := conf.GetAddresses()
+	addrs := conf.Addresses
 	httpServers := make([]*http.Server, len(addrs))
 	for i, addr := range addrs {
 		httpServers[i] = &http.Server{
@@ -277,7 +277,7 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 
 	var tlsServers []*http.Server
 	if cfg := conf.TLSConfig; cfg.Enabled {
-		addrs := cfg.GetAddresses()
+		addrs := cfg.Addresses
 		tlsServers = make([]*http.Server, len(addrs))
 		for i, addr := range addrs {
 			tlsServers[i] = &http.Server{

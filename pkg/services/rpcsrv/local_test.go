@@ -21,11 +21,7 @@ func TestLocalClient(t *testing.T) {
 		// No addresses configured -> RPC server listens nothing (but it
 		// has MaxGasInvoke, sessions and other stuff).
 		cfg.ApplicationConfiguration.RPC.BasicService.Enabled = true
-		cfg.ApplicationConfiguration.RPC.BasicService.Address = nil //nolint:staticcheck // SA1019: cfg.ApplicationConfiguration.RPC.BasicService.Address is deprecated
-		cfg.ApplicationConfiguration.RPC.BasicService.Port = nil    //nolint:staticcheck // SA1019: cfg.ApplicationConfiguration.RPC.BasicService.Port is deprecated
 		cfg.ApplicationConfiguration.RPC.BasicService.Addresses = nil
-		cfg.ApplicationConfiguration.RPC.TLSConfig.Address = nil //nolint:staticcheck // SA1019: cfg.ApplicationConfiguration.RPC.TLSConfig.Address is deprecated
-		cfg.ApplicationConfiguration.RPC.TLSConfig.Port = nil    //nolint:staticcheck // SA1019: cfg.ApplicationConfiguration.RPC.TLSConfig.Port is deprecated
 		cfg.ApplicationConfiguration.RPC.TLSConfig.Addresses = nil
 	})
 	// RPC server listens nothing (not exposed in any way), but it works for internal clients.

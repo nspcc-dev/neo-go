@@ -257,15 +257,9 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 			zap.Uint16("MaxTransactionsPerBlock", cfg.MaxTransactionsPerBlock))
 	}
 	if cfg.TimePerBlock <= 0 {
-		if cfg.SecondsPerBlock > 0 { //nolint:staticcheck // SA1019: cfg.SecondsPerBlock is deprecated
-			cfg.TimePerBlock = time.Duration(cfg.SecondsPerBlock) * time.Second //nolint:staticcheck // SA1019: cfg.SecondsPerBlock is deprecated
-			log.Info("TimePerBlock is not set, using deprecated SecondsPerBlock setting, consider updating your config",
-				zap.Duration("TimePerBlock", cfg.TimePerBlock))
-		} else {
-			cfg.TimePerBlock = defaultTimePerBlock
-			log.Info("TimePerBlock is not set or wrong, using default value",
-				zap.Duration("TimePerBlock", cfg.TimePerBlock))
-		}
+		cfg.TimePerBlock = defaultTimePerBlock
+		log.Info("TimePerBlock is not set or wrong, using default value",
+			zap.Duration("TimePerBlock", cfg.TimePerBlock))
 	}
 	if cfg.MaxValidUntilBlockIncrement == 0 {
 		const timePerDay = 24 * time.Hour
@@ -277,6 +271,9 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 	if cfg.P2PStateExchangeExtensions {
 		if !cfg.StateRootInHeader {
 			return nil, errors.New("P2PStatesExchangeExtensions are enabled, but StateRootInHeader is off")
+		}
+		if cfg.KeepOnlyLatestState && !cfg.RemoveUntraceableBlocks {
+			return nil, errors.New("P2PStateExchangeExtensions can be enabled either on MPT-complete node (KeepOnlyLatestState=false) or on light GC-enabled node (RemoveUntraceableBlocks=true)")
 		}
 		if cfg.StateSyncInterval <= 0 {
 			cfg.StateSyncInterval = defaultStateSyncInterval
@@ -305,13 +302,6 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 			break
 		}
 	}
-	// Compatibility with the old ProtocolConfiguration.
-	if cfg.ProtocolConfiguration.GarbageCollectionPeriod > 0 && cfg.Ledger.GarbageCollectionPeriod == 0 { //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.GarbageCollectionPeriod is deprecated
-		cfg.Ledger.GarbageCollectionPeriod = cfg.ProtocolConfiguration.GarbageCollectionPeriod //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.GarbageCollectionPeriod is deprecated
-	}
-	cfg.Ledger.KeepOnlyLatestState = cfg.Ledger.KeepOnlyLatestState || cfg.ProtocolConfiguration.KeepOnlyLatestState             //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.KeepOnlyLatestState is deprecated
-	cfg.Ledger.RemoveUntraceableBlocks = cfg.Ledger.RemoveUntraceableBlocks || cfg.ProtocolConfiguration.RemoveUntraceableBlocks //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.RemoveUntraceableBlocks is deprecated
-	cfg.Ledger.SaveStorageBatch = cfg.Ledger.SaveStorageBatch || cfg.ProtocolConfiguration.SaveStorageBatch                      //nolint:staticcheck // SA1019: cfg.ProtocolConfiguration.SaveStorageBatch is deprecated
 
 	// Local config consistency checks.
 	if cfg.Ledger.RemoveUntraceableBlocks && cfg.Ledger.GarbageCollectionPeriod == 0 {

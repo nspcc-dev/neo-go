@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"net"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,51 +13,26 @@ import (
 type ApplicationConfiguration struct {
 	Ledger `yaml:",inline"`
 
-	// Deprecated: please, use Addresses field of P2P section instead, this field will be removed in future versions.
-	Address *string `yaml:"Address,omitempty"`
-	// Deprecated: please, use Addresses field of P2P section instead, this field will be removed in future versions.
-	AnnouncedNodePort *uint16 `yaml:"AnnouncedPort,omitempty"`
-	// Deprecated: this option is moved to the P2P section.
-	AttemptConnPeers int `yaml:"AttemptConnPeers"`
-	// BroadcastFactor is the factor (0-100) controlling gossip fan-out number optimization.
-	//
-	// Deprecated: this option is moved to the P2P section.
-	BroadcastFactor int                      `yaml:"BroadcastFactor"`
 	DBConfiguration dbconfig.DBConfiguration `yaml:"DBConfiguration"`
-	// Deprecated: this option is moved to the P2P section.
-	DialTimeout int64  `yaml:"DialTimeout"`
-	LogLevel    string `yaml:"LogLevel"`
-	LogPath     string `yaml:"LogPath"`
-	// Deprecated: this option is moved to the P2P section.
-	MaxPeers int `yaml:"MaxPeers"`
-	// Deprecated: this option is moved to the P2P section.
-	MinPeers int `yaml:"MinPeers"`
-	// Deprecated: please, use Addresses field of P2P section instead, this field will be removed in future versions.
-	NodePort *uint16 `yaml:"NodePort,omitempty"`
-	P2P      P2P     `yaml:"P2P"`
-	// Deprecated: this option is moved to the P2P section.
-	PingInterval int64 `yaml:"PingInterval"`
-	// Deprecated: this option is moved to the P2P section.
-	PingTimeout int64        `yaml:"PingTimeout"`
-	Pprof       BasicService `yaml:"Pprof"`
-	Prometheus  BasicService `yaml:"Prometheus"`
-	// Deprecated: this option is moved to the P2P section.
-	ProtoTickInterval int64               `yaml:"ProtoTickInterval"`
-	Relay             bool                `yaml:"Relay"`
-	Consensus         Consensus           `yaml:"Consensus"`
-	RPC               RPC                 `yaml:"RPC"`
-	UnlockWallet      Wallet              `yaml:"UnlockWallet"`
-	Oracle            OracleConfiguration `yaml:"Oracle"`
-	P2PNotary         P2PNotary           `yaml:"P2PNotary"`
-	StateRoot         StateRoot           `yaml:"StateRoot"`
-	// ExtensiblePoolSize is the maximum amount of the extensible payloads from a single sender.
-	//
-	// Deprecated: this option is moved to the P2P section.
-	ExtensiblePoolSize int `yaml:"ExtensiblePoolSize"`
+
+	LogLevel string `yaml:"LogLevel"`
+	LogPath  string `yaml:"LogPath"`
+
+	P2P P2P `yaml:"P2P"`
+
+	Pprof      BasicService `yaml:"Pprof"`
+	Prometheus BasicService `yaml:"Prometheus"`
+
+	Relay     bool                `yaml:"Relay"`
+	Consensus Consensus           `yaml:"Consensus"`
+	RPC       RPC                 `yaml:"RPC"`
+	Oracle    OracleConfiguration `yaml:"Oracle"`
+	P2PNotary P2PNotary           `yaml:"P2PNotary"`
+	StateRoot StateRoot           `yaml:"StateRoot"`
 }
 
 // EqualsButServices returns true when the o is the same as a except for services
-// (Oracle, P2PNotary, Pprof, Prometheus, RPC, StateRoot and UnlockWallet sections)
+// (Oracle, P2PNotary, Pprof, Prometheus, RPC and StateRoot sections)
 // and LogLevel field.
 func (a *ApplicationConfiguration) EqualsButServices(o *ApplicationConfiguration) bool {
 	if len(a.P2P.Addresses) != len(o.P2P.Addresses) {
@@ -75,28 +49,16 @@ func (a *ApplicationConfiguration) EqualsButServices(o *ApplicationConfiguration
 			return false
 		}
 	}
-	if a.Address != o.Address || //nolint:staticcheck // SA1019: a.Address is deprecated
-		a.AnnouncedNodePort != o.AnnouncedNodePort || //nolint:staticcheck // SA1019: a.AnnouncedNodePort is deprecated
-		a.AttemptConnPeers != o.AttemptConnPeers || //nolint:staticcheck // SA1019: a.AttemptConnPeers is deprecated
-		a.P2P.AttemptConnPeers != o.P2P.AttemptConnPeers ||
-		a.BroadcastFactor != o.BroadcastFactor || //nolint:staticcheck // SA1019: a.BroadcastFactor is deprecated
+	if a.P2P.AttemptConnPeers != o.P2P.AttemptConnPeers ||
 		a.P2P.BroadcastFactor != o.P2P.BroadcastFactor ||
 		a.DBConfiguration != o.DBConfiguration ||
-		a.DialTimeout != o.DialTimeout || //nolint:staticcheck // SA1019: a.DialTimeout is deprecated
 		a.P2P.DialTimeout != o.P2P.DialTimeout ||
-		a.ExtensiblePoolSize != o.ExtensiblePoolSize || //nolint:staticcheck // SA1019: a.ExtensiblePoolSize is deprecated
 		a.P2P.ExtensiblePoolSize != o.P2P.ExtensiblePoolSize ||
 		a.LogPath != o.LogPath ||
-		a.MaxPeers != o.MaxPeers || //nolint:staticcheck // SA1019: a.MaxPeers is deprecated
 		a.P2P.MaxPeers != o.P2P.MaxPeers ||
-		a.MinPeers != o.MinPeers || //nolint:staticcheck // SA1019: a.MinPeers is deprecated
 		a.P2P.MinPeers != o.P2P.MinPeers ||
-		a.NodePort != o.NodePort || //nolint:staticcheck // SA1019: a.NodePort is deprecated
-		a.PingInterval != o.PingInterval || //nolint:staticcheck // SA1019: a.PingInterval is deprecated
 		a.P2P.PingInterval != o.P2P.PingInterval ||
-		a.PingTimeout != o.PingTimeout || //nolint:staticcheck // SA1019: a.PingTimeout is deprecated
 		a.P2P.PingTimeout != o.P2P.PingTimeout ||
-		a.ProtoTickInterval != o.ProtoTickInterval || //nolint:staticcheck // SA1019: a.ProtoTickInterval is deprecated
 		a.P2P.ProtoTickInterval != o.P2P.ProtoTickInterval ||
 		a.Relay != o.Relay {
 		return false
@@ -112,27 +74,9 @@ type AnnounceableAddress struct {
 }
 
 // GetAddresses parses returns the list of AnnounceableAddress containing information
-// gathered from both deprecated Address / NodePort / AnnouncedNodePort and newly
-// created Addresses fields.
+// gathered from Addresses.
 func (a *ApplicationConfiguration) GetAddresses() ([]AnnounceableAddress, error) {
-	addrs := make([]AnnounceableAddress, 0, len(a.P2P.Addresses)+1)
-	if a.Address != nil || a.NodePort != nil || a.AnnouncedNodePort != nil { //nolint:staticcheck // SA1019: a.Address is deprecated
-		var (
-			host     string
-			nodePort uint16
-		)
-		if a.Address != nil { //nolint:staticcheck // SA1019: a.Address is deprecated
-			host = *a.Address //nolint:staticcheck // SA1019: a.Address is deprecated
-		}
-		if a.NodePort != nil { //nolint:staticcheck // SA1019: a.NodePort is deprecated
-			nodePort = *a.NodePort //nolint:staticcheck // SA1019: a.NodePort is deprecated
-		}
-		addr := AnnounceableAddress{Address: net.JoinHostPort(host, strconv.Itoa(int(nodePort)))}
-		if a.AnnouncedNodePort != nil { //nolint:staticcheck // SA1019: a.AnnouncedNodePort is deprecated
-			addr.AnnouncedPort = *a.AnnouncedNodePort //nolint:staticcheck // SA1019: a.AnnouncedNodePort is deprecated
-		}
-		addrs = append(addrs, addr)
-	}
+	addrs := make([]AnnounceableAddress, 0, len(a.P2P.Addresses))
 	for i, addrStr := range a.P2P.Addresses {
 		if len(addrStr) == 0 {
 			return nil, fmt.Errorf("address #%d is empty", i)

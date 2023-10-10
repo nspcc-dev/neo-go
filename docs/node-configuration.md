@@ -16,28 +16,16 @@ node-related settings described in the table below.
 
 | Section | Type | Default value | Description |
 | --- | --- | --- | --- |
-| Address | `string` | `0.0.0.0` | Node address that P2P protocol handler binds to. Warning: this field is deprecated, please, use `Addresses` instead. |
-| AnnouncedPort | `uint16` | Same as `NodePort` | Node port which should be used to announce node's port on P2P layer, it can differ from the `NodePort` the node is bound to (for example, if your node is behind NAT). Warning: this field is deprecated, please, use `Addresses` instead. |
-| AttemptConnPeers | `int` | `20` | Number of connection to try to establish when the connection count drops below the `MinPeers` value. Warning: this field is deprecated and moved to `P2P` section. |
-| BroadcastFactor | `int` | `0` | Multiplier that is used to determine the number of optimal gossip fan-out peer number for broadcasted messages (0-100). By default it's zero, node uses the most optimized value depending on the estimated network size (`2.5×log(size)`), so the node may have 20 peers and calculate that it needs to broadcast messages to just 10 of them. With BroadcastFactor set to 100 it will always send messages to all peers, any value in-between 0 and 100 is used for weighted calculation, for example if it's 30 then 13 neighbors will be used in the previous case. Warning: this field is deprecated and moved to `P2P` section. |
 | DBConfiguration | [DB Configuration](#DB-Configuration) |  | Describes configuration for database. See the [DB Configuration](#DB-Configuration) section for details. |
-| DialTimeout | `int64` | `0` | Maximum duration a single dial may take in seconds. Warning: this field is deprecated and moved to `P2P` section. |
-| ExtensiblePoolSize | `int` | `20` | Maximum amount of the extensible payloads from a single sender stored in a local pool. Warning: this field is deprecated and moved to `P2P` section. |
 | LogLevel | `string` | "info" | Minimal logged messages level (can be "debug", "info", "warn", "error", "dpanic", "panic" or "fatal"). |
 | GarbageCollectionPeriod | `uint32` | 10000 | Controls MPT garbage collection interval (in blocks) for configurations with `RemoveUntraceableBlocks` enabled and `KeepOnlyLatestState` disabled. In this mode the node stores a number of MPT trees (corresponding to `MaxTraceableBlocks` and `StateSyncInterval`), but the DB needs to be clean from old entries from time to time. Doing it too often will cause too much processing overhead, doing it too rarely will leave more useless data in the DB. |
 | KeepOnlyLatestState | `bool` | `false` | Specifies if MPT should only store the latest state (or a set of latest states, see `P2PStateExchangeExtensions` section in the ProtocolConfiguration for details). If true, DB size will be smaller, but older roots won't be accessible. This value should remain the same for the same database. |  |
 | LogPath | `string` | "", so only console logging | File path where to store node logs. |
-| MaxPeers | `int` | `100` | Maximum numbers of peers that can be connected to the server. Warning: this field is deprecated and moved to `P2P` section. |
-| MinPeers | `int` | `5` | Minimum number of peers for normal operation; when the node has less than this number of peers it tries to connect with some new ones. Warning: this field is deprecated and moved to `P2P` section. |
-| NodePort | `uint16` | `0`, which is any free port | The actual node port it is bound to. Warning: this field is deprecated, please, use `Addresses` instead. |
 | Oracle | [Oracle Configuration](#Oracle-Configuration) | | Oracle module configuration. See the [Oracle Configuration](#Oracle-Configuration) section for details. |
 | P2P | [P2P Configuration](#P2P-Configuration) | | Configuration values for P2P network interaction. See the [P2P Configuration](#P2P-Configuration) section for details. |
 | P2PNotary | [P2P Notary Configuration](#P2P-Notary-Configuration) | | P2P Notary module configuration. See the [P2P Notary Configuration](#P2P-Notary-Configuration) section for details. |
-| PingInterval | `int64` | `30` | Interval in seconds used in pinging mechanism for syncing blocks. Warning: this field is deprecated and moved to `P2P` section. |
-| PingTimeout | `int64` | `90` | Time to wait for pong (response for sent ping request). Warning: this field is deprecated and moved to `P2P` section. |
 | Pprof | [Metrics Services Configuration](#Metrics-Services-Configuration) | | Configuration for pprof service (profiling statistics gathering). See the [Metrics Services Configuration](#Metrics-Services-Configuration) section for details. |
 | Prometheus | [Metrics Services Configuration](#Metrics-Services-Configuration) | | Configuration for Prometheus (monitoring system). See the [Metrics Services Configuration](#Metrics-Services-Configuration) section for details |
-| ProtoTickInterval | `int64` | `5` | Duration in seconds between protocol ticks with each connected peer. Warning: this field is deprecated and moved to `P2P` section. |
 | Relay | `bool` | `true` | Determines whether the server is forwarding its inventory. |
 | Consensus | [Consensus Configuration](#Consensus-Configuration) |  | Describes consensus (dBFT) configuration. See the [Consensus Configuration](#Consensus-Configuration) for details. |
 | RemoveUntraceableBlocks | `bool`| `false` | Denotes whether old blocks should be removed from cache and database. If enabled, then only the last `MaxTraceableBlocks` are stored and accessible to smart contracts. Old MPT data is also deleted in accordance with `GarbageCollectionPeriod` setting. If enabled along with `P2PStateExchangeExtensions` protocol extension, then old blocks and MPT states will be removed up to the second latest state synchronisation point (see `StateSyncInterval`). |
@@ -45,7 +33,6 @@ node-related settings described in the table below.
 | SaveStorageBatch | `bool` | `false` | Enables storage batch saving before every persist. It is similar to StorageDump plugin for C# node. |
 | SkipBlockVerification | `bool` | `false` | Allows to disable verification of received/processed blocks (including cryptographic checks). |
 | StateRoot | [State Root Configuration](#State-Root-Configuration) |  | State root module configuration. See the [State Root Configuration](#State-Root-Configuration) section for details. |
-| UnlockWallet | [Unlock Wallet Configuration](#Unlock-Wallet-Configuration) |  | Node wallet configuration used for consensus (dBFT) operation. See the [Unlock Wallet Configuration](#Unlock-Wallet-Configuration) section for details. This section is deprecated and replaced by Consensus, it only exists for compatibility with old configuration files, but will be removed in future node versions. |
 
 ### P2P Configuration
 
@@ -182,10 +169,6 @@ Prometheus:
 ```
 where:
 - `Enabled` denotes whether the service is enabled.
-- `Address` is a service address to be running at. Warning: this field is deprecated,
-   please, use `Addresses` instead.
-- `Port` is a service port to be bound to. Warning: this field is deprecated, please,
-   use `Addresses` instead.
 - `Addresses` is a list of service addresses to be running at and listen to in
    the form of "host:port".
 
@@ -219,8 +202,6 @@ RPC:
 ```
 where:
 - `Enabled` denotes whether an RPC server should be started.
-- `Address` is an RPC server address to be running at. Warning: this field is
-   deprecated, please, use `Addresses` instead.
 - `Addresses` is a list of RPC server addresses to be running at and listen to in
   the form of "host:port".
 - `EnableCORSWorkaround` turns on a set of origin-related behaviors that make
@@ -248,8 +229,6 @@ where:
   number (64 by default). Attempts to establish additional connections will
   lead to websocket handshake failures. Use "-1" to disable websocket
   connections (0 will lead to using the default value).
-- `Port` is an RPC server port it should be bound to. Warning: this field is
-   deprecated, please, use `Addresses` instead.
 - `SessionEnabled` denotes whether session-based iterator JSON-RPC API is enabled.
   If true, then all iterators got from `invoke*` calls will be stored as sessions
   on the server side available for further traverse. `traverseiterator` and
@@ -346,9 +325,7 @@ protocol-related settings described in the table below.
 | Section | Type | Default value | Description | Notes |
 | --- | --- | --- | --- | --- |
 | CommitteeHistory | map[uint32]uint32 | none | Number of committee members after the given height, for example `{0: 1, 20: 4}` sets up a chain with one committee member since the genesis and then changes the setting to 4 committee members at the height of 20. `StandbyCommittee` committee setting must have the number of keys equal or exceeding the highest value in this option. Blocks numbers where the change happens must be divisible by the old and by the new values simultaneously. If not set, committee size is derived from the `StandbyCommittee` setting and never changes. |
-| GarbageCollectionPeriod | `uint32` | 10000 | Controls MPT garbage collection interval (in blocks) for configurations with `RemoveUntraceableBlocks` enabled and `KeepOnlyLatestState` disabled. In this mode the node stores a number of MPT trees (corresponding to `MaxTraceableBlocks` and `StateSyncInterval`), but the DB needs to be clean from old entries from time to time. Doing it too often will cause too much processing overhead, doing it too rarely will leave more useless data in the DB. This setting is deprecated in favor of the same setting in the ApplicationConfiguration and will be removed in future node versions. If both settings are used, ApplicationConfiguration is prioritized over this one. |
 | Hardforks | `map[string]uint32` | [] | The set of incompatible changes that affect node behaviour starting from the specified height. The default value is an empty set which should be interpreted as "each known hard-fork is applied from the zero blockchain height". The list of valid hard-fork names:<br>• `Aspidochelone` represents hard-fork introduced in [#2469](https://github.com/nspcc-dev/neo-go/pull/2469) (ported from the [reference](https://github.com/neo-project/neo/pull/2712)). It adjusts the prices of `System.Contract.CreateStandardAccount` and `System.Contract.CreateMultisigAccount` interops so that the resulting prices are in accordance with `sha256` method of native `CryptoLib` contract. It also includes [#2519](https://github.com/nspcc-dev/neo-go/pull/2519) (ported from the [reference](https://github.com/neo-project/neo/pull/2749)) that adjusts the price of `System.Runtime.GetRandom` interop and fixes its vulnerability. A special NeoGo-specific change is included as well for ContractManagement's update/deploy call flags behaviour to be compatible with pre-0.99.0 behaviour that was changed because of the [3.2.0 protocol change](https://github.com/neo-project/neo/pull/2653).<br>• `Basilisk` represents hard-fork introduced in [#3056](https://github.com/nspcc-dev/neo-go/pull/3056) (ported from the [reference](https://github.com/neo-project/neo/pull/2881)). It enables strict smart contract script check against a set of JMP instructions and against method boundaries enabled on contract deploy or update. It also includes [#3080](https://github.com/nspcc-dev/neo-go/pull/3080) (ported from the [reference](https://github.com/neo-project/neo/pull/2883)) that increases `stackitem.Integer` JSON parsing precision up to the maximum value supported by the NeoVM. It also includes [#3085](https://github.com/nspcc-dev/neo-go/pull/3085) (ported from the [reference](https://github.com/neo-project/neo/pull/2810)) that enables strict check for notifications emitted by a contract to precisely match the events specified in the contract manifest. |
-| KeepOnlyLatestState | `bool` | `false` | Specifies if MPT should only store the latest state (or a set of latest states, see `P2PStateExcangeExtensions` section for details). If true, DB size will be smaller, but older roots won't be accessible. This value should remain the same for the same database. | This setting is deprecated in favor of the same setting in the ApplicationConfiguration and will be removed in future node versions. If both settings are used, setting any of them to true enables the function. |
 | Magic | `uint32` | `0` | Magic number which uniquely identifies Neo network. |
 | MaxBlockSize | `uint32` | `262144` | Maximum block size in bytes. |
 | MaxBlockSystemFee | `int64` | `900000000000` | Maximum overall transactions system fee per block. |
@@ -360,10 +337,7 @@ protocol-related settings described in the table below.
 | P2PNotaryRequestPayloadPoolSize | `int` | `1000` | Size of the node's P2P Notary request payloads memory pool where P2P Notary requests are stored before main or fallback transaction is completed and added to the chain.<br>This option is valid only if `P2PSigExtensions` are enabled. | Not supported by the C# node, thus may affect heterogeneous networks functionality. |
 | P2PSigExtensions | `bool` | `false` | Enables following additional Notary service related logic:<br>• Transaction attribute `NotaryAssisted`<br>• Network payload of the `P2PNotaryRequest` type<br>• Native `Notary` contract<br>• Notary node module | Not supported by the C# node, thus may affect heterogeneous networks functionality. |
 | P2PStateExchangeExtensions | `bool` | `false` | Enables the following P2P MPT state data exchange logic: <br>• `StateSyncInterval` protocol setting <br>• P2P commands `GetMPTDataCMD` and `MPTDataCMD` | Not supported by the C# node, thus may affect heterogeneous networks functionality. Can be supported either on MPT-complete node (`KeepOnlyLatestState`=`false`) or on light GC-enabled node (`RemoveUntraceableBlocks=true`) in which case `KeepOnlyLatestState` setting doesn't change the behavior, an appropriate set of MPTs is always stored (see `RemoveUntraceableBlocks`). |
-| RemoveUntraceableBlocks | `bool`| `false` | Denotes whether old blocks should be removed from cache and database. If enabled, then only the last `MaxTraceableBlocks` are stored and accessible to smart contracts. Old MPT data is also deleted in accordance with `GarbageCollectionPeriod` setting. If enabled along with `P2PStateExchangeExtensions`, then old blocks and MPT states will be removed up to the second latest state synchronisation point (see `StateSyncInterval`). | This setting is deprecated in favor of the same setting in the ApplicationConfiguration and will be removed in future node versions. If both settings are used, setting any of them to true enables the function. |
 | ReservedAttributes | `bool` | `false` | Allows to have reserved attributes range for experimental or private purposes. |
-| SaveStorageBatch | `bool` | `false` | Enables storage batch saving before every persist. It is similar to StorageDump plugin for C# node. | This setting is deprecated in favor of the same setting in the ApplicationConfiguration and will be removed in future node versions. If both settings are used, setting any of them to true enables the function. |
-| SecondsPerBlock | `int` | `15` | Minimal time that should pass before next block is accepted. Deprecated: please use TimePerBlock setting (which overrides anything set here), SecondsPerBlock will be removed in future versions. |
 | SeedList | `[]string` | [] | List of initial nodes addresses used to establish connectivity. |
 | StandbyCommittee | `[]string` | [] | List of public keys of standby committee validators are chosen from. |
 | StateRootInHeader | `bool` | `false` | Enables storing state root in block header. | Experimental protocol extension! |
@@ -371,5 +345,4 @@ protocol-related settings described in the table below.
 | TimePerBlock | `Duration` | `15s` | Minimal (and targeted for) time interval between blocks. Must be an integer number of milliseconds. |
 | ValidatorsCount | `uint32` | `0` | Number of validators set for the whole network lifetime, can't be set if `ValidatorsHistory` setting is used. |
 | ValidatorsHistory | map[uint32]uint32 | none | Number of consensus nodes to use after given height (see `CommitteeHistory` also). Heights where the change occurs must be divisible by the number of committee members at that height. Can't be used with `ValidatorsCount` not equal to zero. |
-| VerifyBlocks | `bool` | `false` | This setting is deprecated and no longer works, please use `SkipBlockVerification` in the `ApplicationConfiguration`, it will be removed in future node versions. |
 | VerifyTransactions | `bool` | `false` | Denotes whether to verify transactions in the received blocks. |

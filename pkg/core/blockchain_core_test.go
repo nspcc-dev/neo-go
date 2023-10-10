@@ -219,7 +219,7 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 		checkNewBlockchainErr(t, func(c *config.Config) {
 			boltCfg(c)
 			c.ApplicationConfiguration.RemoveUntraceableBlocks = false
-		}, bcSpout.dao.Store, "state jump was not completed, but P2PStateExchangeExtensions are disabled or archival node capability is on")
+		}, bcSpout.dao.Store, "P2PStateExchangeExtensions can be enabled either on MPT-complete node")
 	})
 	t.Run("invalid state sync point", func(t *testing.T) {
 		bcSpout.dao.Store.Put(bPrefix, []byte{byte(stateJumpStarted)})

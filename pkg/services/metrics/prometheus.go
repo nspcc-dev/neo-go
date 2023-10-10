@@ -17,7 +17,7 @@ func NewPrometheusService(cfg config.BasicService, log *zap.Logger) *Service {
 		return nil
 	}
 
-	addrs := cfg.GetAddresses()
+	addrs := cfg.Addresses
 	srvs := make([]*http.Server, len(addrs))
 	for i, addr := range addrs {
 		srvs[i] = &http.Server{

@@ -27,8 +27,7 @@ type Internal struct {
 func NewInternal(ctx context.Context, register InternalHook) (*Internal, error) {
 	c := &Internal{
 		WSClient: WSClient{
-			Client:        Client{},
-			Notifications: make(chan Notification),
+			Client: Client{},
 
 			shutdown:      make(chan struct{}),
 			done:          make(chan struct{}),
@@ -67,7 +66,6 @@ eventloop:
 		}
 	}
 	close(c.done)
-	close(c.Notifications)
 	c.ctxCancel()
 	// ctx is cancelled, server is notified and will finish soon.
 drainloop:

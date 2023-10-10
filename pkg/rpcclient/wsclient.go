@@ -16,7 +16,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/rpcevent"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/atomic"
 )
 
@@ -56,20 +55,6 @@ import (
 // CloseNotificationChannelIfFull option is on.
 type WSClient struct {
 	Client
-	// Notifications is a channel that is used to send events received from
-	// the server. Client's code is supposed to be reading from this channel if
-	// it wants to use subscription mechanism. Failing to do so will cause
-	// WSClient to block even regular requests. This channel is not buffered.
-	// In case of protocol error or upon connection closure, this channel will
-	// be closed, so make sure to handle this. Make sure you're not changing the
-	// received notifications, as it may affect the functionality of other
-	// notification receivers.
-	//
-	// Deprecated: please, use custom channels with ReceiveBlocks, ReceiveTransactions,
-	// ReceiveExecutionNotifications, ReceiveExecutions, ReceiveNotaryRequests
-	// methods to subscribe for notifications. This field will be removed in future
-	// versions.
-	Notifications chan Notification
 
 	ws          *websocket.Conn
 	wsOpts      WSOptions
@@ -360,56 +345,6 @@ func (r *notaryRequestReceiver) Close() {
 	close(r.ch)
 }
 
-// naiveReceiver is a structure leaved for deprecated single channel based notifications
-// delivering.
-//
-// Deprecated: this receiver must be removed after outdated subscriptions API removal.
-type naiveReceiver struct {
-	eventID neorpc.EventID
-	filter  any
-	ch      chan<- Notification
-}
-
-// EventID implements neorpc.Comparator interface.
-func (r *naiveReceiver) EventID() neorpc.EventID {
-	return r.eventID
-}
-
-// Filter implements neorpc.Comparator interface.
-func (r *naiveReceiver) Filter() any {
-	return r.filter
-}
-
-// Receiver implements notificationReceiver interface.
-func (r *naiveReceiver) Receiver() any {
-	return r.ch
-}
-
-// TrySend implements notificationReceiver interface.
-func (r *naiveReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
-	if rpcevent.Matches(r, ntf) {
-		if nonBlocking {
-			select {
-			case r.ch <- ntf:
-			default:
-				return true, true
-			}
-		} else {
-			r.ch <- ntf
-		}
-
-		return true, false
-	}
-	return false, false
-}
-
-// Close implements notificationReceiver interface.
-func (r *naiveReceiver) Close() {
-	r.ch <- Notification{
-		Type: neorpc.MissedEventID, // backwards-compatible behaviour
-	}
-}
-
 // Notification represents a server-generated notification for client subscriptions.
 // Value can be one of *block.Block, *state.AppExecResult, *state.ContainedNotificationEvent
 // *transaction.Transaction or *subscriptions.NotaryRequestEvent based on Type.
@@ -485,8 +420,7 @@ func NewWS(ctx context.Context, endpoint string, opts WSOptions) (*WSClient, err
 		return nil, err
 	}
 	wsc := &WSClient{
-		Client:        Client{},
-		Notifications: make(chan Notification),
+		Client: Client{},
 
 		ws:            ws,
 		wsOpts:        opts,
@@ -566,7 +500,7 @@ readloop:
 			ntf := Notification{Type: event}
 			switch event {
 			case neorpc.BlockEventID:
-				sr, err := c.StateRootInHeader()
+				sr, err := c.stateRootInHeader()
 				if err != nil {
 					// Client is not initialized.
 					connCloseErr = fmt.Errorf("failed to fetch StateRootInHeader: %w", err)
@@ -634,21 +568,14 @@ readloop:
 }
 
 // dropSubCh closes corresponding subscriber's channel and removes it from the
-// receivers map. If the channel belongs to a naive subscriber then it will be
-// closed manually without call to Close(). The channel is still being kept in
+// receivers map. The channel is still being kept in
 // the subscribers map as technically the server-side subscription still exists
 // and the user is responsible for unsubscription. This method must be called
 // under subscriptionsLock taken. It's the caller's duty to ensure dropSubCh
 // will be called once per channel, otherwise panic will occur.
 func (c *WSClient) dropSubCh(rcvrCh any, id string, ignoreCloseNotificationChannelIfFull bool) {
 	if ignoreCloseNotificationChannelIfFull || c.wsOpts.CloseNotificationChannelIfFull {
-		rcvr := c.subscriptions[id]
-		_, ok := rcvr.(*naiveReceiver)
-		if ok { // naiveReceiver uses c.Notifications that should be handled separately.
-			close(c.Notifications)
-		} else {
-			c.subscriptions[id].Close()
-		}
+		c.subscriptions[id].Close()
 		delete(c.receivers, rcvrCh)
 	}
 }
@@ -778,29 +705,6 @@ func (c *WSClient) performSubscription(params []any, rcvr notificationReceiver) 
 	return resp, nil
 }
 
-// SubscribeForNewBlocks adds subscription for new block events to this instance
-// of the client. It can be filtered by primary consensus node index, nil value doesn't
-// add any filters.
-//
-// Deprecated: please, use ReceiveBlocks. This method will be removed in future versions.
-func (c *WSClient) SubscribeForNewBlocks(primary *int) (string, error) {
-	var flt any
-	if primary != nil {
-		var f = neorpc.BlockFilter{Primary: primary}
-		flt = *f.Copy()
-	}
-	params := []any{"block_added"}
-	if flt != nil {
-		params = append(params, flt)
-	}
-	r := &naiveReceiver{
-		eventID: neorpc.BlockEventID,
-		filter:  flt,
-		ch:      c.Notifications,
-	}
-	return c.performSubscription(params, r)
-}
-
 // ReceiveBlocks registers provided channel as a receiver for the new block events.
 // Events can be filtered by the given BlockFilter, nil value doesn't add any filter.
 // See WSClient comments for generic Receive* behaviour details.
@@ -816,29 +720,6 @@ func (c *WSClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Blo
 	r := &blockReceiver{
 		filter: flt,
 		ch:     rcvr,
-	}
-	return c.performSubscription(params, r)
-}
-
-// SubscribeForNewTransactions adds subscription for new transaction events to
-// this instance of the client. It can be filtered by the sender and/or the signer, nil
-// value is treated as missing filter.
-//
-// Deprecated: please, use ReceiveTransactions. This method will be removed in future versions.
-func (c *WSClient) SubscribeForNewTransactions(sender *util.Uint160, signer *util.Uint160) (string, error) {
-	var flt any
-	if sender != nil || signer != nil {
-		var f = neorpc.TxFilter{Sender: sender, Signer: signer}
-		flt = *f.Copy()
-	}
-	params := []any{"transaction_added"}
-	if flt != nil {
-		params = append(params, flt)
-	}
-	r := &naiveReceiver{
-		eventID: neorpc.TransactionEventID,
-		filter:  flt,
-		ch:      c.Notifications,
 	}
 	return c.performSubscription(params, r)
 }
@@ -862,30 +743,6 @@ func (c *WSClient) ReceiveTransactions(flt *neorpc.TxFilter, rcvr chan<- *transa
 	return c.performSubscription(params, r)
 }
 
-// SubscribeForExecutionNotifications adds subscription for notifications
-// generated during transaction execution to this instance of the client. It can be
-// filtered by the contract's hash (that emits notifications), nil value puts no such
-// restrictions.
-//
-// Deprecated: please, use ReceiveExecutionNotifications. This method will be removed in future versions.
-func (c *WSClient) SubscribeForExecutionNotifications(contract *util.Uint160, name *string) (string, error) {
-	var flt any
-	if contract != nil || name != nil {
-		var f = neorpc.NotificationFilter{Contract: contract, Name: name}
-		flt = *f.Copy()
-	}
-	params := []any{"notification_from_execution"}
-	if flt != nil {
-		params = append(params, flt)
-	}
-	r := &naiveReceiver{
-		eventID: neorpc.NotificationEventID,
-		filter:  flt,
-		ch:      c.Notifications,
-	}
-	return c.performSubscription(params, r)
-}
-
 // ReceiveExecutionNotifications registers provided channel as a receiver for execution
 // events. Events can be filtered by the given NotificationFilter, nil value doesn't add
 // any filter. See WSClient comments for generic Receive* behaviour details.
@@ -901,33 +758,6 @@ func (c *WSClient) ReceiveExecutionNotifications(flt *neorpc.NotificationFilter,
 	r := &executionNotificationReceiver{
 		filter: flt,
 		ch:     rcvr,
-	}
-	return c.performSubscription(params, r)
-}
-
-// SubscribeForTransactionExecutions adds subscription for application execution
-// results generated during transaction execution to this instance of the client. It can
-// be filtered by state (HALT/FAULT) to check for successful or failing
-// transactions, nil value means no filtering.
-//
-// Deprecated: please, use ReceiveExecutions. This method will be removed in future versions.
-func (c *WSClient) SubscribeForTransactionExecutions(state *string) (string, error) {
-	var flt any
-	if state != nil {
-		if *state != "HALT" && *state != "FAULT" {
-			return "", errors.New("bad state parameter")
-		}
-		var f = neorpc.ExecutionFilter{State: state}
-		flt = *f.Copy()
-	}
-	params := []any{"transaction_executed"}
-	if flt != nil {
-		params = append(params, flt)
-	}
-	r := &naiveReceiver{
-		eventID: neorpc.ExecutionEventID,
-		filter:  flt,
-		ch:      c.Notifications,
 	}
 	return c.performSubscription(params, r)
 }
@@ -953,30 +783,6 @@ func (c *WSClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *s
 	r := &executionReceiver{
 		filter: flt,
 		ch:     rcvr,
-	}
-	return c.performSubscription(params, r)
-}
-
-// SubscribeForNotaryRequests adds subscription for notary request payloads
-// addition or removal events to this instance of client. It can be filtered by
-// request sender's hash, or main tx signer's hash, nil value puts no such
-// restrictions.
-//
-// Deprecated: please, use ReceiveNotaryRequests. This method will be removed in future versions.
-func (c *WSClient) SubscribeForNotaryRequests(sender *util.Uint160, mainSigner *util.Uint160) (string, error) {
-	var flt any
-	if sender != nil || mainSigner != nil {
-		var f = neorpc.TxFilter{Sender: sender, Signer: mainSigner}
-		flt = *f.Copy()
-	}
-	params := []any{"notary_request_event"}
-	if flt != nil {
-		params = append(params, flt)
-	}
-	r := &naiveReceiver{
-		eventID: neorpc.NotaryRequestEventID,
-		filter:  flt,
-		ch:      c.Notifications,
 	}
 	return c.performSubscription(params, r)
 }
