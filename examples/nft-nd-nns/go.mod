@@ -1,6 +1,6 @@
 module github.com/nspcc-dev/neo-go/examples/nft-nd-nns
 
-go 1.18
+go 1.19
 
 require (
 	github.com/nspcc-dev/neo-go v0.99.5-0.20221108145959-8746d9877eb5

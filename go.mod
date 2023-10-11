@@ -76,4 +76,4 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-go 1.18
+go 1.19
