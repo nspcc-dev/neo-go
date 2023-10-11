@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 )
 
 const testOverflow = false
@@ -68,7 +68,7 @@ func initCleanServerAndWSClient(t *testing.T) (*core.Blockchain, *Server, *webso
 	// Use buffered channel to read server's messages and then read expected
 	// responses from it.
 	respMsgs := make(chan []byte, 16)
-	finishedFlag := atomic.NewBool(false)
+	finishedFlag := &atomic.Bool{}
 	go wsReader(t, ws, respMsgs, finishedFlag)
 	return chain, rpcSrv, ws, respMsgs, finishedFlag
 }

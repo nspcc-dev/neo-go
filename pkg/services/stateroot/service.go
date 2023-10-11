@@ -3,6 +3,7 @@ package stateroot
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -14,7 +15,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -50,7 +50,7 @@ type (
 		Network netmode.Magic
 
 		log       *zap.Logger
-		started   *atomic.Bool
+		started   atomic.Bool
 		accMtx    sync.RWMutex
 		accHeight uint32
 		myIndex   byte
@@ -83,7 +83,6 @@ func New(cfg config.StateRoot, sm *stateroot.Module, log *zap.Logger, bc Ledger,
 	s := &service{
 		Module:          sm,
 		Network:         bcConf.Magic,
-		started:         atomic.NewBool(false),
 		chain:           bc,
 		log:             log,
 		incompleteRoots: make(map[uint32]*incompleteRoot),

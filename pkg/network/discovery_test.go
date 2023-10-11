@@ -12,13 +12,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	atomic2 "go.uber.org/atomic"
 )
 
 type fakeTransp struct {
-	retFalse int32
-	started  atomic2.Bool
-	closed   atomic2.Bool
+	retFalse atomic.Int32
+	started  atomic.Bool
+	closed   atomic.Bool
 	dialCh   chan string
 	host     string
 	port     string
@@ -58,7 +57,7 @@ func newFakeTransp(s *Server, addr string) Transporter {
 
 func (ft *fakeTransp) Dial(addr string, timeout time.Duration) (AddressablePeer, error) {
 	var ret error
-	if atomic.LoadInt32(&ft.retFalse) > 0 {
+	if ft.retFalse.Load() > 0 {
 		ret = errors.New("smth bad happened")
 	}
 	ft.dialCh <- addr
@@ -174,7 +173,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 	require.Equal(t, 2, d.PoolCount())
 
 	// Now make Dial() fail and wait to see addresses in the bad list.
-	atomic.StoreInt32(&ts.retFalse, 1)
+	ts.retFalse.Store(1)
 	assert.Equal(t, len(set1), d.PoolCount())
 	set1D := d.UnconnectedPeers()
 	sort.Strings(set1D)
@@ -216,7 +215,7 @@ func TestSeedDiscovery(t *testing.T) {
 	var seeds = []string{"1.1.1.1:10333", "2.2.2.2:10333"}
 	ts := &fakeTransp{}
 	ts.dialCh = make(chan string)
-	atomic.StoreInt32(&ts.retFalse, 1) // Fail all dial requests.
+	ts.retFalse.Store(1) // Fail all dial requests.
 	sort.Strings(seeds)
 
 	d := NewDefaultDiscovery(seeds, time.Second/10, ts)

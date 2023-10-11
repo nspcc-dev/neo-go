@@ -1,9 +1,10 @@
 package rpcsrv
 
 import (
+	"sync/atomic"
+
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
-	"go.uber.org/atomic"
 )
 
 type (

@@ -7,12 +7,12 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
-	"go.uber.org/atomic"
 )
 
 type handShakeStage uint8
@@ -494,12 +494,12 @@ func (p *TCPPeer) HandlePong(pong *payload.Ping) error {
 // AddGetAddrSent increments internal outstanding getaddr requests counter. Then,
 // the peer can only send one addr reply per getaddr request.
 func (p *TCPPeer) AddGetAddrSent() {
-	p.getAddrSent.Inc()
+	p.getAddrSent.Add(1)
 }
 
 // CanProcessAddr decrements internal outstanding getaddr requests counter and
 // answers whether the addr command from the peer can be safely processed.
 func (p *TCPPeer) CanProcessAddr() bool {
-	v := p.getAddrSent.Dec()
+	v := p.getAddrSent.Add(-1)
 	return v >= 0
 }

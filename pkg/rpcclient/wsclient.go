@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -16,7 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/rpcevent"
-	"go.uber.org/atomic"
 )
 
 // WSClient is a websocket-enabled RPC client that can be used with appropriate
@@ -426,7 +426,6 @@ func NewWS(ctx context.Context, endpoint string, opts WSOptions) (*WSClient, err
 		wsOpts:        opts,
 		shutdown:      make(chan struct{}),
 		done:          make(chan struct{}),
-		closeCalled:   *atomic.NewBool(false),
 		respChannels:  make(map[uint64]chan *neorpc.Response),
 		requests:      make(chan *neorpc.Request),
 		subscriptions: make(map[string]notificationReceiver),

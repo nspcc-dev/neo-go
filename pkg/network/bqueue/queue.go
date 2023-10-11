@@ -2,9 +2,9 @@ package bqueue
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -24,7 +24,7 @@ type Queue struct {
 	checkBlocks chan struct{}
 	chain       Blockqueuer
 	relayF      func(*block.Block)
-	discarded   *atomic.Bool
+	discarded   atomic.Bool
 	len         int
 	lenUpdateF  func(int)
 }
@@ -49,7 +49,6 @@ func New(bc Blockqueuer, log *zap.Logger, relayer func(*block.Block), lenMetrics
 		checkBlocks: make(chan struct{}, 1),
 		chain:       bc,
 		relayF:      relayer,
-		discarded:   atomic.NewBool(false),
 		lenUpdateF:  lenMetricsUpdater,
 	}
 }

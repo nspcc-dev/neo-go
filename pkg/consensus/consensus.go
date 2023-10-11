@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"sync/atomic"
 	"time"
 
 	"github.com/nspcc-dev/dbft"
@@ -26,7 +27,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -100,7 +100,7 @@ type service struct {
 	wallet       *wallet.Wallet
 	// started is a flag set with Start method that runs an event handling
 	// goroutine.
-	started  *atomic.Bool
+	started  atomic.Bool
 	quit     chan struct{}
 	finished chan struct{}
 	// lastTimestamp contains timestamp for the last processed block.
@@ -155,7 +155,6 @@ func NewService(cfg Config) (Service, error) {
 
 		transactions: make(chan *transaction.Transaction, 100),
 		blockEvents:  make(chan *coreb.Block, 1),
-		started:      atomic.NewBool(false),
 		quit:         make(chan struct{}),
 		finished:     make(chan struct{}),
 	}

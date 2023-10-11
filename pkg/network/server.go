@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
-	satomic "sync/atomic"
+	"sync/atomic"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -29,7 +29,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -112,7 +111,7 @@ type (
 		services       map[string]Service
 		extensHandlers map[string]func(*payload.Extensible) error
 		txCallback     func(*transaction.Transaction)
-		txCbList       satomic.Value
+		txCbList       atomic.Value
 
 		txInLock sync.RWMutex
 		txin     chan *transaction.Transaction
@@ -134,7 +133,7 @@ type (
 
 		transactions chan *transaction.Transaction
 
-		syncReached *atomic.Bool
+		syncReached atomic.Bool
 
 		stateSync StateSync
 
@@ -186,7 +185,6 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		handshake:      make(chan Peer),
 		txInMap:        make(map[util.Uint256]struct{}),
 		peers:          make(map[Peer]bool),
-		syncReached:    atomic.NewBool(false),
 		mempool:        chain.GetMemPool(),
 		extensiblePool: extpool.New(chain, config.ExtensiblePoolSize),
 		log:            log,

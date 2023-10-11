@@ -7,7 +7,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
-	atomic2 "sync/atomic"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -27,7 +27,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -223,7 +222,7 @@ func testGetBlocksByIndex(t *testing.T, cmd CommandType) {
 	checkPingRespond(t, 3, 5000, 1+3*payload.MaxHashesCount)
 
 	// Receive some blocks.
-	s.chain.(*fakechain.FakeChain).Blockheight = 2123
+	s.chain.(*fakechain.FakeChain).Blockheight.Store(2123)
 
 	// Minimum chunk has priority.
 	checkPingRespond(t, 5, 5000, 2124)
@@ -399,7 +398,7 @@ func startWithCleanup(t *testing.T, s *Server) {
 func TestBlock(t *testing.T) {
 	s := startTestServer(t)
 
-	atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Blockheight, 12344)
+	s.chain.(*fakechain.FakeChain).Blockheight.Store(12344)
 	require.Equal(t, uint32(12344), s.chain.BlockHeight())
 
 	b := block.New(false)
@@ -414,7 +413,7 @@ func TestConsensus(t *testing.T) {
 	s.AddConsensusService(cons, cons.OnPayload, cons.OnTransaction)
 	startWithCleanup(t, s)
 
-	atomic2.StoreUint32(&s.chain.(*fakechain.FakeChain).Blockheight, 4)
+	s.chain.(*fakechain.FakeChain).Blockheight.Store(4)
 	p := newLocalPeer(t, s)
 	p.handshaked = 1
 	s.register <- p
