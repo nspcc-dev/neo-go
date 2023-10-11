@@ -499,8 +499,8 @@ func (v *Version) Bytes() []byte {
 	if v.KeepOnlyLatestState {
 		mask |= keepOnlyLatestStateBit
 	}
-	res := append([]byte(v.Value), '\x00', byte(v.StoragePrefix), mask, 0, 0, 0, 0)
-	binary.LittleEndian.PutUint32(res[len(res)-4:], v.Magic)
+	res := append([]byte(v.Value), '\x00', byte(v.StoragePrefix), mask)
+	res = binary.LittleEndian.AppendUint32(res, v.Magic)
 	return res
 }
 
