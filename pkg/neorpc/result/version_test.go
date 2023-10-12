@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/stretchr/testify/require"
 )
@@ -38,7 +39,8 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
             "memorypoolmaxtransactions": 50000,
             "msperblock": 15000,
             "network": 860833102,
-            "validatorscount": 7
+            "validatorscount": 7,
+            "hardforks": [{"name": "Aspidochelone", "blockheight": 123}, {"name": "Basilisk", "blockheight": 1234}]
         },
         "tcpport": 10333,
         "useragent": "/NEO-GO:0.98.6/",
@@ -55,7 +57,8 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
             "memorypoolmaxtransactions": 50000,
             "msperblock": 15000,
             "network": 860833102,
-            "validatorscount": 7
+            "validatorscount": 7,
+            "hardforks": [{"name": "HF_Aspidochelone", "blockheight": 123}, {"name": "HF_Basilisk", "blockheight": 1234}]
         },
         "tcpport": 10333,
         "useragent": "/Neo:3.1.0/",
@@ -78,6 +81,7 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 			// Unmarshalled InitialGasDistribution should always be a valid Fixed8 for both old and new clients.
 			InitialGasDistribution: fixedn.Fixed8FromInt64(52000000),
 			StateRootInHeader:      false,
+			Hardforks:              map[config.Hardfork]uint32{config.HFAspidochelone: 123, config.HFBasilisk: 1234},
 		},
 	}
 	t.Run("MarshalJSON", func(t *testing.T) {

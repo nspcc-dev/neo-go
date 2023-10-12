@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -1031,7 +1032,8 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					Nonce:     2153672787,
 					UserAgent: "/NEO-GO:0.73.1-pre-273-ge381358/",
 					Protocol: result.Protocol{
-						Network: netmode.UnitTestNet,
+						Network:   netmode.UnitTestNet,
+						Hardforks: map[config.Hardfork]uint32{},
 					},
 				}
 			},
