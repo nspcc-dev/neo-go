@@ -1436,58 +1436,57 @@ func Parse(args []string) (string, error) {
 		return "", ErrMissingParameter
 	}
 	arg := args[0]
-	buf := bytes.NewBuffer(nil)
+	var buf []byte
 	if val, err := strconv.ParseInt(arg, 10, 64); err == nil {
 		bs := bigint.ToBytes(big.NewInt(val))
-		buf.WriteString(fmt.Sprintf("Integer to Hex\t%s\n", hex.EncodeToString(bs)))
-		buf.WriteString(fmt.Sprintf("Integer to Base64\t%s\n", base64.StdEncoding.EncodeToString(bs)))
+		buf = fmt.Appendf(buf, "Integer to Hex\t%s\n", hex.EncodeToString(bs))
+		buf = fmt.Appendf(buf, "Integer to Base64\t%s\n", base64.StdEncoding.EncodeToString(bs))
 	}
 	noX := strings.TrimPrefix(arg, "0x")
 	if rawStr, err := hex.DecodeString(noX); err == nil {
 		if val, err := util.Uint160DecodeBytesBE(rawStr); err == nil {
-			buf.WriteString(fmt.Sprintf("BE ScriptHash to Address\t%s\n", address.Uint160ToString(val)))
-			buf.WriteString(fmt.Sprintf("LE ScriptHash to Address\t%s\n", address.Uint160ToString(val.Reverse())))
+			buf = fmt.Appendf(buf, "BE ScriptHash to Address\t%s\n", address.Uint160ToString(val))
+			buf = fmt.Appendf(buf, "LE ScriptHash to Address\t%s\n", address.Uint160ToString(val.Reverse()))
 		}
 		if pub, err := keys.NewPublicKeyFromBytes(rawStr, elliptic.P256()); err == nil {
 			sh := pub.GetScriptHash()
-			buf.WriteString(fmt.Sprintf("Public key to BE ScriptHash\t%s\n", sh))
-			buf.WriteString(fmt.Sprintf("Public key to LE ScriptHash\t%s\n", sh.Reverse()))
-			buf.WriteString(fmt.Sprintf("Public key to Address\t%s\n", address.Uint160ToString(sh)))
+			buf = fmt.Appendf(buf, "Public key to BE ScriptHash\t%s\n", sh)
+			buf = fmt.Appendf(buf, "Public key to LE ScriptHash\t%s\n", sh.Reverse())
+			buf = fmt.Appendf(buf, "Public key to Address\t%s\n", address.Uint160ToString(sh))
 		}
-		buf.WriteString(fmt.Sprintf("Hex to String\t%s\n", fmt.Sprintf("%q", string(rawStr))))
-		buf.WriteString(fmt.Sprintf("Hex to Integer\t%s\n", bigint.FromBytes(rawStr)))
-		buf.WriteString(fmt.Sprintf("Swap Endianness\t%s\n", hex.EncodeToString(slice.CopyReverse(rawStr))))
+		buf = fmt.Appendf(buf, "Hex to String\t%s\n", fmt.Sprintf("%q", string(rawStr)))
+		buf = fmt.Appendf(buf, "Hex to Integer\t%s\n", bigint.FromBytes(rawStr))
+		buf = fmt.Appendf(buf, "Swap Endianness\t%s\n", hex.EncodeToString(slice.CopyReverse(rawStr)))
 	}
 	if addr, err := address.StringToUint160(arg); err == nil {
-		buf.WriteString(fmt.Sprintf("Address to BE ScriptHash\t%s\n", addr))
-		buf.WriteString(fmt.Sprintf("Address to LE ScriptHash\t%s\n", addr.Reverse()))
-		buf.WriteString(fmt.Sprintf("Address to Base64 (BE)\t%s\n", base64.StdEncoding.EncodeToString(addr.BytesBE())))
-		buf.WriteString(fmt.Sprintf("Address to Base64 (LE)\t%s\n", base64.StdEncoding.EncodeToString(addr.BytesLE())))
+		buf = fmt.Appendf(buf, "Address to BE ScriptHash\t%s\n", addr)
+		buf = fmt.Appendf(buf, "Address to LE ScriptHash\t%s\n", addr.Reverse())
+		buf = fmt.Appendf(buf, "Address to Base64 (BE)\t%s\n", base64.StdEncoding.EncodeToString(addr.BytesBE()))
+		buf = fmt.Appendf(buf, "Address to Base64 (LE)\t%s\n", base64.StdEncoding.EncodeToString(addr.BytesLE()))
 	}
 	if rawStr, err := base64.StdEncoding.DecodeString(arg); err == nil {
-		buf.WriteString(fmt.Sprintf("Base64 to String\t%s\n", fmt.Sprintf("%q", string(rawStr))))
-		buf.WriteString(fmt.Sprintf("Base64 to BigInteger\t%s\n", bigint.FromBytes(rawStr)))
+		buf = fmt.Appendf(buf, "Base64 to String\t%s\n", fmt.Sprintf("%q", string(rawStr)))
+		buf = fmt.Appendf(buf, "Base64 to BigInteger\t%s\n", bigint.FromBytes(rawStr))
 		if u, err := util.Uint160DecodeBytesBE(rawStr); err == nil {
-			buf.WriteString(fmt.Sprintf("Base64 to BE ScriptHash\t%s\n", u.StringBE()))
-			buf.WriteString(fmt.Sprintf("Base64 to LE ScriptHash\t%s\n", u.StringLE()))
-			buf.WriteString(fmt.Sprintf("Base64 to Address (BE)\t%s\n", address.Uint160ToString(u)))
-			buf.WriteString(fmt.Sprintf("Base64 to Address (LE)\t%s\n", address.Uint160ToString(u.Reverse())))
+			buf = fmt.Appendf(buf, "Base64 to BE ScriptHash\t%s\n", u.StringBE())
+			buf = fmt.Appendf(buf, "Base64 to LE ScriptHash\t%s\n", u.StringLE())
+			buf = fmt.Appendf(buf, "Base64 to Address (BE)\t%s\n", address.Uint160ToString(u))
+			buf = fmt.Appendf(buf, "Base64 to Address (LE)\t%s\n", address.Uint160ToString(u.Reverse()))
 		}
 	}
 
-	buf.WriteString(fmt.Sprintf("String to Hex\t%s\n", hex.EncodeToString([]byte(arg))))
-	buf.WriteString(fmt.Sprintf("String to Base64\t%s\n", base64.StdEncoding.EncodeToString([]byte(arg))))
+	buf = fmt.Appendf(buf, "String to Hex\t%s\n", hex.EncodeToString([]byte(arg)))
+	buf = fmt.Appendf(buf, "String to Base64\t%s\n", base64.StdEncoding.EncodeToString([]byte(arg)))
 
-	out := buf.Bytes()
-	buf = bytes.NewBuffer(nil)
-	w := tabwriter.NewWriter(buf, 0, 4, 4, '\t', 0)
-	if _, err := w.Write(out); err != nil {
+	res := bytes.NewBuffer(nil)
+	w := tabwriter.NewWriter(res, 0, 4, 4, '\t', 0)
+	if _, err := w.Write(buf); err != nil {
 		return "", err
 	}
 	if err := w.Flush(); err != nil {
 		return "", err
 	}
-	return buf.String(), nil
+	return res.String(), nil
 }
 
 const logo = `

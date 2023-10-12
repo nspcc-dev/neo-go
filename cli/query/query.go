@@ -111,7 +111,10 @@ func queryTx(ctx *cli.Context) error {
 		}
 	}
 
-	DumpApplicationLog(ctx, res, &txOut.Transaction, &txOut.TransactionMetadata, ctx.Bool("verbose"))
+	err = DumpApplicationLog(ctx, res, &txOut.Transaction, &txOut.TransactionMetadata, ctx.Bool("verbose"))
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 	return nil
 }
 
@@ -120,47 +123,49 @@ func DumpApplicationLog(
 	res *result.ApplicationLog,
 	tx *transaction.Transaction,
 	txMeta *result.TransactionMetadata,
-	verbose bool) {
-	buf := bytes.NewBuffer(nil)
+	verbose bool) error {
+	var buf []byte
 
-	// Ignore the errors below because `Write` to buffer doesn't return error.
-	tw := tabwriter.NewWriter(buf, 0, 4, 4, '\t', 0)
-	_, _ = tw.Write([]byte("Hash:\t" + tx.Hash().StringLE() + "\n"))
-	_, _ = tw.Write([]byte(fmt.Sprintf("OnChain:\t%t\n", res != nil)))
+	buf = fmt.Appendf(buf, "Hash:\t%s\n", tx.Hash().StringLE())
+	buf = fmt.Appendf(buf, "OnChain:\t%t\n", res != nil)
 	if res == nil {
-		_, _ = tw.Write([]byte("ValidUntil:\t" + strconv.FormatUint(uint64(tx.ValidUntilBlock), 10) + "\n"))
+		buf = fmt.Appendf(buf, "ValidUntil:\t%s\n", strconv.FormatUint(uint64(tx.ValidUntilBlock), 10))
 	} else {
 		if txMeta != nil {
-			_, _ = tw.Write([]byte("BlockHash:\t" + txMeta.Blockhash.StringLE() + "\n"))
+			buf = fmt.Appendf(buf, "BlockHash:\t%s\n", txMeta.Blockhash.StringLE())
 		}
 		if len(res.Executions) != 1 {
-			_, _ = tw.Write([]byte("Success:\tunknown (no execution data)\n"))
+			buf = fmt.Appendf(buf, "Success:\tunknown (no execution data)\n")
 		} else {
-			_, _ = tw.Write([]byte(fmt.Sprintf("Success:\t%t\n", res.Executions[0].VMState == vmstate.Halt)))
+			buf = fmt.Appendf(buf, "Success:\t%t\n", res.Executions[0].VMState == vmstate.Halt)
 		}
 	}
 	if verbose {
 		for _, sig := range tx.Signers {
-			_, _ = tw.Write([]byte(fmt.Sprintf("Signer:\t%s (%s)",
-				address.Uint160ToString(sig.Account),
-				sig.Scopes) + "\n"))
+			buf = fmt.Appendf(buf, "Signer:\t%s (%s)\n", address.Uint160ToString(sig.Account), sig.Scopes)
 		}
-		_, _ = tw.Write([]byte("SystemFee:\t" + fixedn.Fixed8(tx.SystemFee).String() + " GAS\n"))
-		_, _ = tw.Write([]byte("NetworkFee:\t" + fixedn.Fixed8(tx.NetworkFee).String() + " GAS\n"))
-		_, _ = tw.Write([]byte("Script:\t" + base64.StdEncoding.EncodeToString(tx.Script) + "\n"))
+		buf = fmt.Appendf(buf, "SystemFee:\t%s GAS\n", fixedn.Fixed8(tx.SystemFee).String())
+		buf = fmt.Appendf(buf, "NetworkFee:\t%s GAS\n", fixedn.Fixed8(tx.NetworkFee).String())
+		buf = fmt.Appendf(buf, "Script:\t%s\n", base64.StdEncoding.EncodeToString(tx.Script))
 		v := vm.New()
 		v.Load(tx.Script)
-		v.PrintOps(tw)
+		opts := bytes.NewBuffer(nil)
+		v.PrintOps(opts)
+		buf = append(buf, opts.Bytes()...)
 		if res != nil {
 			for _, e := range res.Executions {
 				if e.VMState != vmstate.Halt {
-					_, _ = tw.Write([]byte("Exception:\t" + e.FaultException + "\n"))
+					buf = fmt.Appendf(buf, "Exception:\t%s\n", e.FaultException)
 				}
 			}
 		}
 	}
-	_ = tw.Flush()
-	fmt.Fprint(ctx.App.Writer, buf.String())
+	tw := tabwriter.NewWriter(ctx.App.Writer, 0, 4, 4, '\t', 0)
+	_, err := tw.Write(buf)
+	if err != nil {
+		return err
+	}
+	return tw.Flush()
 }
 
 func queryCandidates(ctx *cli.Context) error {
@@ -196,15 +201,17 @@ func queryCandidates(ctx *cli.Context) error {
 		}
 		return vals[i].PublicKey.Cmp(&vals[j].PublicKey) == -1
 	})
-	buf := bytes.NewBuffer(nil)
-	tw := tabwriter.NewWriter(buf, 0, 2, 2, ' ', 0)
-	_, _ = tw.Write([]byte("Key\tVotes\tCommittee\tConsensus\n"))
+	var res []byte
+	res = fmt.Appendf(res, "Key\tVotes\tCommittee\tConsensus\n")
 	for _, val := range vals {
-		_, _ = tw.Write([]byte(fmt.Sprintf("%s\t%d\t%t\t%t\n", hex.EncodeToString(val.PublicKey.Bytes()), val.Votes, comm.Contains(&val.PublicKey), val.Active)))
+		res = fmt.Appendf(res, "%s\t%d\t%t\t%t\n", hex.EncodeToString(val.PublicKey.Bytes()), val.Votes, comm.Contains(&val.PublicKey), val.Active)
 	}
-	_ = tw.Flush()
-	fmt.Fprint(ctx.App.Writer, buf.String())
-	return nil
+	tw := tabwriter.NewWriter(ctx.App.Writer, 0, 2, 2, ' ', 0)
+	_, err = tw.Write(res)
+	if err != nil {
+		return err
+	}
+	return tw.Flush()
 }
 
 func queryCommittee(ctx *cli.Context) error {
