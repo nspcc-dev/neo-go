@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -42,7 +43,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 )
 
 // Keep contract NEFs consistent between runs.
@@ -346,7 +346,7 @@ require (
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0
 )
 replace github.com/nspcc-dev/neo-go/pkg/interop => ` + filepath.Join(wd, "../../pkg/interop") + `
-go 1.18`)
+go 1.19`)
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 	return filename
 }

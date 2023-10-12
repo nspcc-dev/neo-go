@@ -29,7 +29,10 @@ func txDump(ctx *cli.Context) error {
 		return cli.NewExitError("verifiable item is not a transaction", 1)
 	}
 
-	query.DumpApplicationLog(ctx, nil, tx, nil, true)
+	err = query.DumpApplicationLog(ctx, nil, tx, nil, true)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 
 	if ctx.String(options.RPCEndpointFlag) != "" {
 		gctx, cancel := options.GetTimeoutContext(ctx)

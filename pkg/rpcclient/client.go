@@ -10,13 +10,13 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"go.uber.org/atomic"
 )
 
 const (
@@ -48,7 +48,7 @@ type Client struct {
 	// during regular Client lifecycle.
 	cache cache
 
-	latestReqID *atomic.Uint64
+	latestReqID atomic.Uint64
 	// getNextRequestID returns an ID to be used for the subsequent request creation.
 	// It is defined on Client, so that our testing code can override this method
 	// for the sake of more predictable request IDs generation behavior.
@@ -126,7 +126,7 @@ func initClient(ctx context.Context, cl *Client, endpoint string, opts Options) 
 	cl.cache = cache{
 		nativeHashes: make(map[string]util.Uint160),
 	}
-	cl.latestReqID = atomic.NewUint64(0)
+	cl.latestReqID = atomic.Uint64{}
 	cl.getNextRequestID = (cl).getRequestID
 	cl.opts = opts
 	cl.requestF = cl.makeHTTPRequest
@@ -135,7 +135,7 @@ func initClient(ctx context.Context, cl *Client, endpoint string, opts Options) 
 }
 
 func (c *Client) getRequestID() uint64 {
-	return c.latestReqID.Inc()
+	return c.latestReqID.Add(1)
 }
 
 // Init sets magic of the network client connected to, stateRootInHeader option

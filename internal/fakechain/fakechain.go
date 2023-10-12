@@ -18,7 +18,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	uatomic "go.uber.org/atomic"
 )
 
 // FakeChain implements the Blockchainer interface, but does not provide real functionality.
@@ -26,7 +25,7 @@ type FakeChain struct {
 	config.Blockchain
 	*mempool.Pool
 	blocksCh                 []chan *block.Block
-	Blockheight              uint32
+	Blockheight              atomic.Uint32
 	PoolTxF                  func(*transaction.Transaction) error
 	poolTxWithData           func(*transaction.Transaction, any, *mempool.Pool) error
 	blocks                   map[util.Uint256]*block.Block
@@ -42,9 +41,9 @@ type FakeChain struct {
 
 // FakeStateSync implements the StateSync interface.
 type FakeStateSync struct {
-	IsActiveFlag      uatomic.Bool
-	IsInitializedFlag uatomic.Bool
-	RequestHeaders    uatomic.Bool
+	IsActiveFlag      atomic.Bool
+	IsInitializedFlag atomic.Bool
+	RequestHeaders    atomic.Bool
 	InitFunc          func(h uint32) error
 	TraverseFunc      func(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error
 	AddMPTNodesFunc   func(nodes [][]byte) error
@@ -76,7 +75,7 @@ func NewFakeChainWithCustomCfg(protocolCfg func(c *config.Blockchain)) *FakeChai
 func (chain *FakeChain) PutBlock(b *block.Block) {
 	chain.blocks[b.Hash()] = b
 	chain.hdrHashes[b.Index] = b.Hash()
-	atomic.StoreUint32(&chain.Blockheight, b.Index)
+	chain.Blockheight.Store(b.Index)
 }
 
 // PutHeader implements the Blockchainer interface.
@@ -185,7 +184,7 @@ func (chain *FakeChain) AddHeaders(...*block.Header) error {
 
 // AddBlock implements the Blockchainer interface.
 func (chain *FakeChain) AddBlock(block *block.Block) error {
-	if block.Index == atomic.LoadUint32(&chain.Blockheight)+1 {
+	if block.Index == chain.Blockheight.Load()+1 {
 		chain.PutBlock(block)
 	}
 	return nil
@@ -193,12 +192,12 @@ func (chain *FakeChain) AddBlock(block *block.Block) error {
 
 // BlockHeight implements the Feer interface.
 func (chain *FakeChain) BlockHeight() uint32 {
-	return atomic.LoadUint32(&chain.Blockheight)
+	return chain.Blockheight.Load()
 }
 
 // HeaderHeight implements the Blockchainer interface.
 func (chain *FakeChain) HeaderHeight() uint32 {
-	return atomic.LoadUint32(&chain.Blockheight)
+	return chain.Blockheight.Load()
 }
 
 // GetAppExecResults implements the Blockchainer interface.

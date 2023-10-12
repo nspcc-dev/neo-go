@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -18,7 +18,7 @@ type Service struct {
 	config      config.BasicService
 	log         *zap.Logger
 	serviceType string
-	started     *atomic.Bool
+	started     atomic.Bool
 }
 
 // NewService configures logger and returns new service instance.
@@ -28,7 +28,6 @@ func NewService(name string, httpServers []*http.Server, cfg config.BasicService
 		config:      cfg,
 		serviceType: name,
 		log:         log.With(zap.String("service", name)),
-		started:     atomic.NewBool(false),
 	}
 }
 

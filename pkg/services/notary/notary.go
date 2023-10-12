@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -23,7 +24,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -50,7 +50,7 @@ type (
 		// to be processed in an `onTransaction` callback.
 		newTxs chan txHashPair
 		// started is a status bool to protect from double start/shutdown.
-		started *atomic.Bool
+		started atomic.Bool
 
 		// reqMtx protects requests list.
 		reqMtx sync.RWMutex
@@ -152,7 +152,6 @@ func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction fu
 		requests:      make(map[util.Uint256]*request),
 		Config:        cfg,
 		Network:       net,
-		started:       atomic.NewBool(false),
 		wallet:        wallet,
 		onTransaction: onTransaction,
 		newTxs:        make(chan txHashPair, defaultTxChannelCapacity),

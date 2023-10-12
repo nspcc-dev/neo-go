@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
-	"go.uber.org/atomic"
 )
 
 // InternalHook is a function signature that is required to create a local client
@@ -31,7 +30,6 @@ func NewInternal(ctx context.Context, register InternalHook) (*Internal, error) 
 
 			shutdown:      make(chan struct{}),
 			done:          make(chan struct{}),
-			closeCalled:   *atomic.NewBool(false),
 			subscriptions: make(map[string]notificationReceiver),
 			receivers:     make(map[any][]string),
 		},

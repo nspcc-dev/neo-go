@@ -14,7 +14,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/dbft v0.0.0-20230515113611-25db6ba61d5c
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20220111165707-25110be27d22
-	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231005104605-a2d28272ef22
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231012150754-e06051e14c9f
 	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.11
 	github.com/nspcc-dev/rfc6979 v0.2.0
 	github.com/pierrec/lz4 v2.6.1+incompatible
@@ -25,7 +25,6 @@ require (
 	github.com/twmb/murmur3 v1.1.5
 	github.com/urfave/cli v1.22.5
 	go.etcd.io/bbolt v1.3.7
-	go.uber.org/atomic v1.10.0
 	go.uber.org/zap v1.24.0
 	golang.org/x/crypto v0.14.0
 	golang.org/x/term v0.13.0
@@ -64,6 +63,7 @@ require (
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b // indirect
 	golang.org/x/mod v0.12.0 // indirect
@@ -76,4 +76,4 @@ require (
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
 
-go 1.18
+go 1.19

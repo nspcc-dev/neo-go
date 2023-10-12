@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -18,7 +19,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -203,8 +203,9 @@ func (s *Module) Init(height uint32) error {
 // outdated MPT data before state sync process can be started.
 // Note: this method is aimed to be called for genesis block only, an error is returned otherwise.
 func (s *Module) CleanStorage() error {
-	if s.localHeight.Load() != 0 {
-		return fmt.Errorf("can't clean MPT data for non-genesis block: expected local stateroot height 0, got %d", s.localHeight.Load())
+	lH := s.localHeight.Load()
+	if lH != 0 {
+		return fmt.Errorf("can't clean MPT data for non-genesis block: expected local stateroot height 0, got %d", lH)
 	}
 	b := storage.NewMemCachedStore(s.Store)
 	s.Store.Seek(storage.SeekRange{Prefix: []byte{byte(storage.DataMPT)}}, func(k, _ []byte) bool {

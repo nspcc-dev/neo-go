@@ -4,6 +4,7 @@ import (
 	"crypto/elliptic"
 	"path/filepath"
 	"sort"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -32,7 +33,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 	"go.uber.org/zap/zaptest"
 )
 

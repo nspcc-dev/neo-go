@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -56,7 +57,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -140,7 +140,7 @@ type (
 		oracle           *atomic.Value
 		log              *zap.Logger
 		shutdown         chan struct{}
-		started          *atomic.Bool
+		started          atomic.Bool
 		errChan          chan<- error
 
 		sessionsLock sync.Mutex
@@ -339,7 +339,6 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		log:              log,
 		oracle:           oracleWrapped,
 		shutdown:         make(chan struct{}),
-		started:          atomic.NewBool(false),
 		errChan:          errChan,
 
 		sessions: make(map[string]*session),

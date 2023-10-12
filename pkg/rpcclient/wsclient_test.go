@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 )
 
 func TestWSClientClose(t *testing.T) {
@@ -677,23 +677,23 @@ func TestWSConcurrentAccess(t *testing.T) {
 	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 	require.NoError(t, err)
 	batchCount := 100
-	completed := atomic.NewInt32(0)
+	completed := &atomic.Int32{}
 	for i := 0; i < batchCount; i++ {
 		go func() {
 			_, err := wsc.GetBlockCount()
 			require.NoError(t, err)
-			completed.Inc()
+			completed.Add(1)
 		}()
 		go func() {
 			_, err := wsc.GetBlockHash(123)
 			require.NoError(t, err)
-			completed.Inc()
+			completed.Add(1)
 		}()
 
 		go func() {
 			_, err := wsc.GetVersion()
 			require.NoError(t, err)
-			completed.Inc()
+			completed.Add(1)
 		}()
 	}
 	require.Eventually(t, func() bool {
