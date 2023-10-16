@@ -838,6 +838,14 @@ func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 	}
 
 	cfg := s.chain.GetConfig()
+	hfs := make(map[config.Hardfork]uint32, len(cfg.Hardforks))
+	for _, cfgHf := range config.Hardforks {
+		height, ok := cfg.Hardforks[cfgHf.String()]
+		if !ok {
+			continue
+		}
+		hfs[cfgHf] = height
+	}
 	return &result.Version{
 		TCPPort:   port,
 		Nonce:     s.coreServer.ID(),
@@ -852,6 +860,7 @@ func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 			MemoryPoolMaxTransactions:   cfg.MemPoolSize,
 			ValidatorsCount:             byte(cfg.GetNumOfCNs(s.chain.BlockHeight())),
 			InitialGasDistribution:      cfg.InitialGASSupply,
+			Hardforks:                   hfs,
 
 			CommitteeHistory:  cfg.CommitteeHistory,
 			P2PSigExtensions:  cfg.P2PSigExtensions,

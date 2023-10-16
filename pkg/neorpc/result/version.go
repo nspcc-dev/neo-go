@@ -2,7 +2,10 @@ package result
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 )
@@ -29,6 +32,8 @@ type (
 		MemoryPoolMaxTransactions   int
 		ValidatorsCount             byte
 		InitialGasDistribution      fixedn.Fixed8
+		// Hardforks is the map of network hardforks with the enabling height.
+		Hardforks map[config.Hardfork]uint32
 
 		// Below are NeoGo-specific extensions to the protocol that are
 		// returned by the server in case they're enabled.
@@ -54,16 +59,36 @@ type (
 		MemoryPoolMaxTransactions   int           `json:"memorypoolmaxtransactions"`
 		ValidatorsCount             byte          `json:"validatorscount"`
 		InitialGasDistribution      int64         `json:"initialgasdistribution"`
+		Hardforks                   []hardforkAux `json:"hardforks"`
 
 		CommitteeHistory  map[uint32]uint32 `json:"committeehistory,omitempty"`
 		P2PSigExtensions  bool              `json:"p2psigextensions,omitempty"`
 		StateRootInHeader bool              `json:"staterootinheader,omitempty"`
 		ValidatorsHistory map[uint32]uint32 `json:"validatorshistory,omitempty"`
 	}
+
+	// hardforkAux is an auxiliary struct used for Hardfork JSON marshalling.
+	hardforkAux struct {
+		Name   string `json:"name"`
+		Height uint32 `json:"blockheight"`
+	}
 )
+
+// prefixHardfork is a prefix used for hardfork names in C# node.
+const prefixHardfork = "HF_"
 
 // MarshalJSON implements the JSON marshaler interface.
 func (p Protocol) MarshalJSON() ([]byte, error) {
+	// Keep hardforks sorted by name in the result.
+	hfs := make([]hardforkAux, 0, len(p.Hardforks))
+	for _, hf := range config.Hardforks {
+		if h, ok := p.Hardforks[hf]; ok {
+			hfs = append(hfs, hardforkAux{
+				Name:   hf.String(),
+				Height: h,
+			})
+		}
+	}
 	aux := protocolMarshallerAux{
 		AddressVersion:              p.AddressVersion,
 		Network:                     p.Network,
@@ -74,6 +99,7 @@ func (p Protocol) MarshalJSON() ([]byte, error) {
 		MemoryPoolMaxTransactions:   p.MemoryPoolMaxTransactions,
 		ValidatorsCount:             p.ValidatorsCount,
 		InitialGasDistribution:      int64(p.InitialGasDistribution),
+		Hardforks:                   hfs,
 
 		CommitteeHistory:  p.CommitteeHistory,
 		P2PSigExtensions:  p.P2PSigExtensions,
@@ -103,6 +129,22 @@ func (p *Protocol) UnmarshalJSON(data []byte) error {
 	p.StateRootInHeader = aux.StateRootInHeader
 	p.ValidatorsHistory = aux.ValidatorsHistory
 	p.InitialGasDistribution = fixedn.Fixed8(aux.InitialGasDistribution)
+
+	// Filter out unknown hardforks.
+	for i := range aux.Hardforks {
+		aux.Hardforks[i].Name = strings.TrimPrefix(aux.Hardforks[i].Name, prefixHardfork)
+		if !config.IsHardforkValid(aux.Hardforks[i].Name) {
+			return fmt.Errorf("unexpected hardfork: %s", aux.Hardforks[i].Name)
+		}
+	}
+	p.Hardforks = make(map[config.Hardfork]uint32, len(aux.Hardforks))
+	for _, cfgHf := range config.Hardforks {
+		for _, auxHf := range aux.Hardforks {
+			if auxHf.Name == cfgHf.String() {
+				p.Hardforks[cfgHf] = auxHf.Height
+			}
+		}
+	}
 
 	return nil
 }

@@ -2356,3 +2356,20 @@ func TestClient_GetStorageHistoric(t *testing.T) {
 	_, err = c.GetStorageByHashHistoric(earlyRoot.Root, h, key)
 	require.ErrorIs(t, neorpc.ErrUnknownStorageItem, err)
 }
+
+func TestClient_GetVersion_Hardforks(t *testing.T) {
+	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+
+	v, err := c.GetVersion()
+	require.NoError(t, err)
+	expected := map[config.Hardfork]uint32{
+		config.HFAspidochelone: 25,
+	}
+	require.InDeltaMapValues(t, expected, v.Protocol.Hardforks, 0)
+}
