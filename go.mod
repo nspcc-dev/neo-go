@@ -2,8 +2,8 @@ module github.com/nspcc-dev/neo-go
 
 require (
 	github.com/chzyer/readline v1.5.1
-	github.com/consensys/gnark v0.9.0
-	github.com/consensys/gnark-crypto v0.12.0
+	github.com/consensys/gnark v0.9.1
+	github.com/consensys/gnark-crypto v0.12.2-0.20231013160410-1f65e75b6dfb
 	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1
 	github.com/google/uuid v1.3.0
