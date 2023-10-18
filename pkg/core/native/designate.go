@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -32,6 +33,9 @@ type Designate struct {
 
 	// p2pSigExtensionsEnabled defines whether the P2P signature extensions logic is relevant.
 	p2pSigExtensionsEnabled bool
+	// initialNodeRoles defines a set of node roles that should be defined at the contract
+	// deployment (initialization).
+	initialNodeRoles map[noderoles.Role]keys.PublicKeys
 
 	OracleService atomic.Value
 	// NotaryService represents a Notary node module.
@@ -97,9 +101,10 @@ func (s *Designate) isValidRole(r noderoles.Role) bool {
 		r == noderoles.NeoFSAlphabet || (s.p2pSigExtensionsEnabled && r == noderoles.P2PNotary)
 }
 
-func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
+func newDesignate(p2pSigExtensionsEnabled bool, initialNodeRoles map[noderoles.Role]keys.PublicKeys) *Designate {
 	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation, designateContractID)}
 	s.p2pSigExtensionsEnabled = p2pSigExtensionsEnabled
+	s.initialNodeRoles = initialNodeRoles
 	defer s.UpdateHash()
 
 	desc := newDescriptor("getDesignatedByRole", smartcontract.ArrayType,
@@ -127,6 +132,19 @@ func newDesignate(p2pSigExtensionsEnabled bool) *Designate {
 func (s *Designate) Initialize(ic *interop.Context) error {
 	cache := &DesignationCache{}
 	ic.DAO.SetCache(s.ID, cache)
+
+	if len(s.initialNodeRoles) != 0 {
+		for _, r := range noderoles.Roles {
+			pubs, ok := s.initialNodeRoles[r]
+			if !ok {
+				continue
+			}
+			err := s.DesignateAsRole(ic, r, pubs)
+			if err != nil {
+				return fmt.Errorf("failed to initialize Designation role data for role %s: %w", r, err)
+			}
+		}
+	}
 	return nil
 }
 
@@ -355,10 +373,14 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 	if !s.isValidRole(r) {
 		return ErrInvalidRole
 	}
-	h := s.NEO.GetCommitteeAddress(ic.DAO)
-	if ok, err := runtime.CheckHashedWitness(ic, h); err != nil || !ok {
-		return ErrInvalidWitness
+
+	if ic.Trigger != trigger.OnPersist {
+		h := s.NEO.GetCommitteeAddress(ic.DAO)
+		if ok, err := runtime.CheckHashedWitness(ic, h); err != nil || !ok {
+			return ErrInvalidWitness
+		}
 	}
+
 	if ic.Block == nil {
 		return ErrNoBlock
 	}

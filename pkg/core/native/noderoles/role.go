@@ -17,6 +17,9 @@ const (
 	last
 )
 
+// Roles is a set of all available roles sorted by values.
+var Roles []Role
+
 // roles is a map of valid Role string representation to its type.
 var roles map[string]Role
 
@@ -24,6 +27,7 @@ func init() {
 	roles = make(map[string]Role)
 	for i := StateValidator; i < last; i = i << 1 {
 		roles[i.String()] = i
+		Roles = append(Roles, i)
 	}
 }
 

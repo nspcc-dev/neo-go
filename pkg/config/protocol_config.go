@@ -16,6 +16,10 @@ type (
 	ProtocolConfiguration struct {
 		// CommitteeHistory stores committee size change history (height: size).
 		CommitteeHistory map[uint32]uint32 `yaml:"CommitteeHistory"`
+		// Genesis stores genesis-related settings including a set of NeoGo
+		// extensions that should be included into genesis block or be enabled
+		// at the moment of native contracts initialization.
+		Genesis Genesis `yaml:"Genesis"`
 
 		Magic       netmode.Magic `yaml:"Magic"`
 		MemPoolSize int           `yaml:"MemPoolSize"`
