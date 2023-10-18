@@ -34,7 +34,7 @@ func (c *ContractReader) {{.Name}}({{range $index, $arg := .Arguments -}}
 	{{- if ne $index 0}}, {{end}}
 		{{- .Name}} {{.Type}}
 	{{- end}}) {{if .ReturnType }}({{ .ReturnType }}, error) {
-	return {{if and (not .ItemTo) (eq .Unwrapper "Item")}}func (item stackitem.Item, err error) ({{ .ReturnType }}, error) {
+	return {{if and (not .ItemTo) (eq .Unwrapper "Item")}}func(item stackitem.Item, err error) ({{ .ReturnType }}, error) {
 		if err != nil {
 			return nil, err
 		}
@@ -258,7 +258,7 @@ func (res *{{toTypeName $name}}) FromStackItem(item stackitem.Item) error {
 {{if len .Fields}}
 	var (
 		index = -1
-		err error
+		err   error
 	)
 {{- range $m := $typ.Fields}}
 	index++
@@ -313,7 +313,7 @@ func (e *{{$e.Name}}) FromStackItem(item *stackitem.Array) error {
 
 	{{if len $e.Parameters}}var (
 		index = -1
-		err error
+		err   error
 	)
 	{{- range $p := $e.Parameters}}
 	index++
@@ -570,7 +570,7 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 	case smartcontract.ByteArrayType, smartcontract.SignatureType:
 		return v + ".TryBytes()"
 	case smartcontract.StringType:
-		return `func (item stackitem.Item) (string, error) {
+		return `func(item stackitem.Item) (string, error) {
 		b, err := item.TryBytes()
 		if err != nil {
 			return "", err
@@ -579,9 +579,9 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 			return "", errors.New("not a UTF-8 string")
 		}
 		return string(b), nil
-	} (` + v + `)`
+	}(` + v + `)`
 	case smartcontract.Hash160Type:
-		return `func (item stackitem.Item) (util.Uint160, error) {
+		return `func(item stackitem.Item) (util.Uint160, error) {
 		b, err := item.TryBytes()
 		if err != nil {
 			return util.Uint160{}, err
@@ -591,9 +591,9 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 			return util.Uint160{}, err
 		}
 		return u, nil
-	} (` + v + `)`
+	}(` + v + `)`
 	case smartcontract.Hash256Type:
-		return `func (item stackitem.Item) (util.Uint256, error) {
+		return `func(item stackitem.Item) (util.Uint256, error) {
 		b, err := item.TryBytes()
 		if err != nil {
 			return util.Uint256{}, err
@@ -603,9 +603,9 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 			return util.Uint256{}, err
 		}
 		return u, nil
-	} (` + v + `)`
+	}(` + v + `)`
 	case smartcontract.PublicKeyType:
-		return `func (item stackitem.Item) (*keys.PublicKey, error) {
+		return `func(item stackitem.Item) (*keys.PublicKey, error) {
 		b, err := item.TryBytes()
 		if err != nil {
 			return nil, err
@@ -615,13 +615,13 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 			return nil, err
 		}
 		return k, nil
-	} (` + v + `)`
+	}(` + v + `)`
 	case smartcontract.ArrayType:
 		if len(et.Name) > 0 {
 			return "itemTo" + toTypeName(et.Name) + "(" + v + ", nil)"
 		} else if et.Value != nil {
 			at, _ := extendedTypeToGo(et, nil)
-			return `func (item stackitem.Item) (` + at + `, error) {
+			return `func(item stackitem.Item) (` + at + `, error) {
 		arr, ok := item.Value().([]stackitem.Item)
 		if !ok {
 			return nil, errors.New("not an array")
@@ -634,7 +634,7 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 			}
 		}
 		return res, nil
-	} (` + v + `)`
+	}(` + v + `)`
 		}
 		return etTypeConverter(binding.ExtendedType{
 			Base: smartcontract.ArrayType,
@@ -646,7 +646,7 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 	case smartcontract.MapType:
 		if et.Value != nil {
 			at, _ := extendedTypeToGo(et, nil)
-			return `func (item stackitem.Item) (` + at + `, error) {
+			return `func(item stackitem.Item) (` + at + `, error) {
 		m, ok := item.Value().([]stackitem.MapElement)
 		if !ok {
 			return nil, fmt.Errorf("%s is not a map", item.Type().String())
@@ -664,7 +664,7 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 			res[k] = v
 		}
 		return res, nil
-	} (` + v + `)`
+	}(` + v + `)`
 		}
 		return etTypeConverter(binding.ExtendedType{
 			Base: smartcontract.MapType,
