@@ -46,7 +46,7 @@ var generateWrapperCmd = cli.Command{
 var generateRPCWrapperCmd = cli.Command{
 	Name:      "generate-rpcwrapper",
 	Usage:     "generate RPC wrapper to use for data reads",
-	UsageText: "neo-go contract generate-rpcwrapper --manifest <file.json> --out <file.go> --hash <hash> [--config <config>]",
+	UsageText: "neo-go contract generate-rpcwrapper --manifest <file.json> --out <file.go> [--hash <hash>] [--config <config>]",
 	Action:    contractGenerateRPCWrapper,
 	Flags:     generatorFlags,
 }
