@@ -578,6 +578,9 @@ func (c *Client) FindStorageByHash(contractHash util.Uint160, prefix []byte, sta
 	var params = []any{contractHash.StringLE(), prefix}
 	if start != nil {
 		params = append(params, *start)
+	} else {
+		// C# node expects `start` parameter in any case.
+		params = append(params, 0)
 	}
 	return c.findStorage(params)
 }
@@ -589,6 +592,9 @@ func (c *Client) FindStorageByID(contractID int32, prefix []byte, start *int) (r
 	var params = []any{contractID, prefix}
 	if start != nil {
 		params = append(params, *start)
+	} else {
+		// C# node expects `start` parameter in any case.
+		params = append(params, 0)
 	}
 	return c.findStorage(params)
 }
