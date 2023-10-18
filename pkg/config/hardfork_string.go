@@ -10,16 +10,26 @@ func _() {
 	var x [1]struct{}
 	_ = x[HFAspidochelone-1]
 	_ = x[HFBasilisk-2]
+	_ = x[hfLast-4]
 }
 
-const _Hardfork_name = "AspidocheloneBasilisk"
+const (
+	_Hardfork_name_0 = "AspidocheloneBasilisk"
+	_Hardfork_name_1 = "hfLast"
+)
 
-var _Hardfork_index = [...]uint8{0, 13, 21}
+var (
+	_Hardfork_index_0 = [...]uint8{0, 13, 21}
+)
 
 func (i Hardfork) String() string {
-	i -= 1
-	if i >= Hardfork(len(_Hardfork_index)-1) {
-		return "Hardfork(" + strconv.FormatInt(int64(i+1), 10) + ")"
+	switch {
+	case 1 <= i && i <= 2:
+		i -= 1
+		return _Hardfork_name_0[_Hardfork_index_0[i]:_Hardfork_index_0[i+1]]
+	case i == 4:
+		return _Hardfork_name_1
+	default:
+		return "Hardfork(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Hardfork_name[_Hardfork_index[i]:_Hardfork_index[i+1]]
 }

@@ -62,7 +62,7 @@ var (
 
 func (i CommandType) String() string {
 	switch {
-	case 0 <= i && i <= 1:
+	case i <= 1:
 		return _CommandType_name_0[_CommandType_index_0[i]:_CommandType_index_0[i+1]]
 	case 16 <= i && i <= 17:
 		i -= 16
