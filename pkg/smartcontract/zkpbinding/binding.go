@@ -21,6 +21,7 @@ import (
 	"github.com/consensys/gnark/backend/groth16"
 	curve "github.com/consensys/gnark/backend/groth16/bls12-381"
 	"github.com/consensys/gnark/backend/witness"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
@@ -234,7 +235,7 @@ func GenerateVerifier(cfg Config) error {
 		"byteSliceToStr": byteSliceToStr,
 	}).Parse(goVerificationTmpl))
 
-	err := tmpl.Execute(cfg.Output, tmplParams{
+	err := binding.FExecute(tmpl, cfg.Output, tmplParams{
 		Alpha: alphaG1[:],
 		Beta:  betaG2[:],
 		Gamma: gammaG2[:],
@@ -242,7 +243,7 @@ func GenerateVerifier(cfg Config) error {
 		ICs:   kvks,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to generate template: %w", err)
+		return err
 	}
 
 	if cfg.CfgOutput != nil {

@@ -464,7 +464,7 @@ func Generate(cfg binding.Config) error {
 		"upperFirst": upperFirst,
 	}).Parse(srcTmpl))
 
-	return srcTemplate.Execute(cfg.Output, ctr)
+	return binding.FExecute(srcTemplate, cfg.Output, ctr)
 }
 
 func dropManifestMethods(meths []manifest.Method, manifested []manifest.Method) []manifest.Method {

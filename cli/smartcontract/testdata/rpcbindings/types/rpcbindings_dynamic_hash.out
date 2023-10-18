@@ -21,7 +21,7 @@ type Invoker interface {
 // ContractReader implements safe contract methods.
 type ContractReader struct {
 	invoker Invoker
-	hash util.Uint160
+	hash    util.Uint160
 }
 
 // NewReader creates an instance of ContractReader using provided contract hash and the given Invoker.
@@ -31,32 +31,32 @@ func NewReader(invoker Invoker, hash util.Uint160) *ContractReader {
 
 // AAAStrings invokes `aAAStrings` method of contract.
 func (c *ContractReader) AAAStrings(s [][][]string) ([][][]string, error) {
-	return func (item stackitem.Item, err error) ([][][]string, error) {
+	return func(item stackitem.Item, err error) ([][][]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		return func (item stackitem.Item) ([][][]string, error) {
+		return func(item stackitem.Item) ([][][]string, error) {
 			arr, ok := item.Value().([]stackitem.Item)
 			if !ok {
 				return nil, errors.New("not an array")
 			}
 			res := make([][][]string, len(arr))
 			for i := range res {
-				res[i], err = func (item stackitem.Item) ([][]string, error) {
+				res[i], err = func(item stackitem.Item) ([][]string, error) {
 					arr, ok := item.Value().([]stackitem.Item)
 					if !ok {
 						return nil, errors.New("not an array")
 					}
 					res := make([][]string, len(arr))
 					for i := range res {
-						res[i], err = func (item stackitem.Item) ([]string, error) {
+						res[i], err = func(item stackitem.Item) ([]string, error) {
 							arr, ok := item.Value().([]stackitem.Item)
 							if !ok {
 								return nil, errors.New("not an array")
 							}
 							res := make([]string, len(arr))
 							for i := range res {
-								res[i], err = func (item stackitem.Item) (string, error) {
+								res[i], err = func(item stackitem.Item) (string, error) {
 									b, err := item.TryBytes()
 									if err != nil {
 										return "", err
@@ -65,45 +65,45 @@ func (c *ContractReader) AAAStrings(s [][][]string) ([][][]string, error) {
 										return "", errors.New("not a UTF-8 string")
 									}
 									return string(b), nil
-								} (arr[i])
+								}(arr[i])
 								if err != nil {
 									return nil, fmt.Errorf("item %d: %w", i, err)
 								}
 							}
 							return res, nil
-						} (arr[i])
+						}(arr[i])
 						if err != nil {
 							return nil, fmt.Errorf("item %d: %w", i, err)
 						}
 					}
 					return res, nil
-				} (arr[i])
+				}(arr[i])
 				if err != nil {
 					return nil, fmt.Errorf("item %d: %w", i, err)
 				}
 			}
 			return res, nil
-		} (item)
-	} (unwrap.Item(c.invoker.Call(c.hash, "aAAStrings", s)))
+		}(item)
+	}(unwrap.Item(c.invoker.Call(c.hash, "aAAStrings", s)))
 }
 
 // Any invokes `any` method of contract.
 func (c *ContractReader) Any(a any) (any, error) {
-	return func (item stackitem.Item, err error) (any, error) {
+	return func(item stackitem.Item, err error) (any, error) {
 		if err != nil {
 			return nil, err
 		}
 		return item.Value(), error(nil)
-	} (unwrap.Item(c.invoker.Call(c.hash, "any", a)))
+	}(unwrap.Item(c.invoker.Call(c.hash, "any", a)))
 }
 
 // AnyMaps invokes `anyMaps` method of contract.
 func (c *ContractReader) AnyMaps(m map[*big.Int]any) (map[*big.Int]any, error) {
-	return func (item stackitem.Item, err error) (map[*big.Int]any, error) {
+	return func(item stackitem.Item, err error) (map[*big.Int]any, error) {
 		if err != nil {
 			return nil, err
 		}
-		return func (item stackitem.Item) (map[*big.Int]any, error) {
+		return func(item stackitem.Item) (map[*big.Int]any, error) {
 			m, ok := item.Value().([]stackitem.MapElement)
 			if !ok {
 				return nil, fmt.Errorf("%s is not a map", item.Type().String())
@@ -121,8 +121,8 @@ func (c *ContractReader) AnyMaps(m map[*big.Int]any) (map[*big.Int]any, error) {
 				res[k] = v
 			}
 			return res, nil
-		} (item)
-	} (unwrap.Item(c.invoker.Call(c.hash, "anyMaps", m)))
+		}(item)
+	}(unwrap.Item(c.invoker.Call(c.hash, "anyMaps", m)))
 }
 
 // Bool invokes `bool` method of contract.
@@ -147,11 +147,11 @@ func (c *ContractReader) Bytess(b [][]byte) ([][]byte, error) {
 
 // CrazyMaps invokes `crazyMaps` method of contract.
 func (c *ContractReader) CrazyMaps(m map[*big.Int][]map[string][]util.Uint160) (map[*big.Int][]map[string][]util.Uint160, error) {
-	return func (item stackitem.Item, err error) (map[*big.Int][]map[string][]util.Uint160, error) {
+	return func(item stackitem.Item, err error) (map[*big.Int][]map[string][]util.Uint160, error) {
 		if err != nil {
 			return nil, err
 		}
-		return func (item stackitem.Item) (map[*big.Int][]map[string][]util.Uint160, error) {
+		return func(item stackitem.Item) (map[*big.Int][]map[string][]util.Uint160, error) {
 			m, ok := item.Value().([]stackitem.MapElement)
 			if !ok {
 				return nil, fmt.Errorf("%s is not a map", item.Type().String())
@@ -162,21 +162,21 @@ func (c *ContractReader) CrazyMaps(m map[*big.Int][]map[string][]util.Uint160) (
 				if err != nil {
 					return nil, fmt.Errorf("key %d: %w", i, err)
 				}
-				v, err := func (item stackitem.Item) ([]map[string][]util.Uint160, error) {
+				v, err := func(item stackitem.Item) ([]map[string][]util.Uint160, error) {
 					arr, ok := item.Value().([]stackitem.Item)
 					if !ok {
 						return nil, errors.New("not an array")
 					}
 					res := make([]map[string][]util.Uint160, len(arr))
 					for i := range res {
-						res[i], err = func (item stackitem.Item) (map[string][]util.Uint160, error) {
+						res[i], err = func(item stackitem.Item) (map[string][]util.Uint160, error) {
 							m, ok := item.Value().([]stackitem.MapElement)
 							if !ok {
 								return nil, fmt.Errorf("%s is not a map", item.Type().String())
 							}
 							res := make(map[string][]util.Uint160)
 							for i := range m {
-								k, err := func (item stackitem.Item) (string, error) {
+								k, err := func(item stackitem.Item) (string, error) {
 									b, err := item.TryBytes()
 									if err != nil {
 										return "", err
@@ -185,18 +185,18 @@ func (c *ContractReader) CrazyMaps(m map[*big.Int][]map[string][]util.Uint160) (
 										return "", errors.New("not a UTF-8 string")
 									}
 									return string(b), nil
-								} (m[i].Key)
+								}(m[i].Key)
 								if err != nil {
 									return nil, fmt.Errorf("key %d: %w", i, err)
 								}
-								v, err := func (item stackitem.Item) ([]util.Uint160, error) {
+								v, err := func(item stackitem.Item) ([]util.Uint160, error) {
 									arr, ok := item.Value().([]stackitem.Item)
 									if !ok {
 										return nil, errors.New("not an array")
 									}
 									res := make([]util.Uint160, len(arr))
 									for i := range res {
-										res[i], err = func (item stackitem.Item) (util.Uint160, error) {
+										res[i], err = func(item stackitem.Item) (util.Uint160, error) {
 											b, err := item.TryBytes()
 											if err != nil {
 												return util.Uint160{}, err
@@ -206,34 +206,34 @@ func (c *ContractReader) CrazyMaps(m map[*big.Int][]map[string][]util.Uint160) (
 												return util.Uint160{}, err
 											}
 											return u, nil
-										} (arr[i])
+										}(arr[i])
 										if err != nil {
 											return nil, fmt.Errorf("item %d: %w", i, err)
 										}
 									}
 									return res, nil
-								} (m[i].Value)
+								}(m[i].Value)
 								if err != nil {
 									return nil, fmt.Errorf("value %d: %w", i, err)
 								}
 								res[k] = v
 							}
 							return res, nil
-						} (arr[i])
+						}(arr[i])
 						if err != nil {
 							return nil, fmt.Errorf("item %d: %w", i, err)
 						}
 					}
 					return res, nil
-				} (m[i].Value)
+				}(m[i].Value)
 				if err != nil {
 					return nil, fmt.Errorf("value %d: %w", i, err)
 				}
 				res[k] = v
 			}
 			return res, nil
-		} (item)
-	} (unwrap.Item(c.invoker.Call(c.hash, "crazyMaps", m)))
+		}(item)
+	}(unwrap.Item(c.invoker.Call(c.hash, "crazyMaps", m)))
 }
 
 // Hash160 invokes `hash160` method of contract.
@@ -268,18 +268,18 @@ func (c *ContractReader) Ints(i []*big.Int) ([]*big.Int, error) {
 
 // Maps invokes `maps` method of contract.
 func (c *ContractReader) Maps(m map[string]string) (map[string]string, error) {
-	return func (item stackitem.Item, err error) (map[string]string, error) {
+	return func(item stackitem.Item, err error) (map[string]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		return func (item stackitem.Item) (map[string]string, error) {
+		return func(item stackitem.Item) (map[string]string, error) {
 			m, ok := item.Value().([]stackitem.MapElement)
 			if !ok {
 				return nil, fmt.Errorf("%s is not a map", item.Type().String())
 			}
 			res := make(map[string]string)
 			for i := range m {
-				k, err := func (item stackitem.Item) (string, error) {
+				k, err := func(item stackitem.Item) (string, error) {
 					b, err := item.TryBytes()
 					if err != nil {
 						return "", err
@@ -288,11 +288,11 @@ func (c *ContractReader) Maps(m map[string]string) (map[string]string, error) {
 						return "", errors.New("not a UTF-8 string")
 					}
 					return string(b), nil
-				} (m[i].Key)
+				}(m[i].Key)
 				if err != nil {
 					return nil, fmt.Errorf("key %d: %w", i, err)
 				}
-				v, err := func (item stackitem.Item) (string, error) {
+				v, err := func(item stackitem.Item) (string, error) {
 					b, err := item.TryBytes()
 					if err != nil {
 						return "", err
@@ -301,15 +301,15 @@ func (c *ContractReader) Maps(m map[string]string) (map[string]string, error) {
 						return "", errors.New("not a UTF-8 string")
 					}
 					return string(b), nil
-				} (m[i].Value)
+				}(m[i].Value)
 				if err != nil {
 					return nil, fmt.Errorf("value %d: %w", i, err)
 				}
 				res[k] = v
 			}
 			return res, nil
-		} (item)
-	} (unwrap.Item(c.invoker.Call(c.hash, "maps", m)))
+		}(item)
+	}(unwrap.Item(c.invoker.Call(c.hash, "maps", m)))
 }
 
 // PublicKey invokes `publicKey` method of contract.

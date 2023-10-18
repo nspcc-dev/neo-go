@@ -310,7 +310,7 @@ type Invoker interface {
 // ContractReader implements safe contract methods.
 type ContractReader struct {
 	invoker Invoker
-	hash util.Uint160
+	hash    util.Uint160
 }
 
 // NewReader creates an instance of ContractReader using Hash and the given Invoker.

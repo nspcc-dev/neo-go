@@ -25,7 +25,7 @@ type Actor interface {
 type ContractReader struct {
 	nep17.TokenReader
 	invoker Invoker
-	hash util.Uint160
+	hash    util.Uint160
 }
 
 // Contract implements all contract methods.
@@ -33,7 +33,7 @@ type Contract struct {
 	ContractReader
 	nep17.TokenWriter
 	actor Actor
-	hash util.Uint160
+	hash  util.Uint160
 }
 
 // NewReader creates an instance of ContractReader using Hash and the given Invoker.
