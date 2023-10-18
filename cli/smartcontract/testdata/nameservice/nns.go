@@ -21,14 +21,14 @@ var Hash = util.Uint160{0xde, 0x46, 0x5f, 0x5d, 0x50, 0x57, 0xcf, 0x33, 0x28, 0x
 
 // SetAdminEvent represents "SetAdmin" event emitted by the contract.
 type SetAdminEvent struct {
-	Name string
+	Name     string
 	OldAdmin util.Uint160
 	NewAdmin util.Uint160
 }
 
 // RenewEvent represents "Renew" event emitted by the contract.
 type RenewEvent struct {
-	Name string
+	Name          string
 	OldExpiration *big.Int
 	NewExpiration *big.Int
 }
@@ -56,7 +56,7 @@ type Actor interface {
 type ContractReader struct {
 	nep11.NonDivisibleReader
 	invoker Invoker
-	hash util.Uint160
+	hash    util.Uint160
 }
 
 // Contract implements all contract methods.
@@ -64,7 +64,7 @@ type Contract struct {
 	ContractReader
 	nep11.BaseWriter
 	actor Actor
-	hash util.Uint160
+	hash  util.Uint160
 }
 
 // NewReader creates an instance of ContractReader using Hash and the given Invoker.
@@ -383,10 +383,10 @@ func (e *SetAdminEvent) FromStackItem(item *stackitem.Array) error {
 
 	var (
 		index = -1
-		err error
+		err   error
 	)
 	index++
-	e.Name, err = func (item stackitem.Item) (string, error) {
+	e.Name, err = func(item stackitem.Item) (string, error) {
 		b, err := item.TryBytes()
 		if err != nil {
 			return "", err
@@ -395,13 +395,13 @@ func (e *SetAdminEvent) FromStackItem(item *stackitem.Array) error {
 			return "", errors.New("not a UTF-8 string")
 		}
 		return string(b), nil
-	} (arr[index])
+	}(arr[index])
 	if err != nil {
 		return fmt.Errorf("field Name: %w", err)
 	}
 
 	index++
-	e.OldAdmin, err = func (item stackitem.Item) (util.Uint160, error) {
+	e.OldAdmin, err = func(item stackitem.Item) (util.Uint160, error) {
 		b, err := item.TryBytes()
 		if err != nil {
 			return util.Uint160{}, err
@@ -411,13 +411,13 @@ func (e *SetAdminEvent) FromStackItem(item *stackitem.Array) error {
 			return util.Uint160{}, err
 		}
 		return u, nil
-	} (arr[index])
+	}(arr[index])
 	if err != nil {
 		return fmt.Errorf("field OldAdmin: %w", err)
 	}
 
 	index++
-	e.NewAdmin, err = func (item stackitem.Item) (util.Uint160, error) {
+	e.NewAdmin, err = func(item stackitem.Item) (util.Uint160, error) {
 		b, err := item.TryBytes()
 		if err != nil {
 			return util.Uint160{}, err
@@ -427,7 +427,7 @@ func (e *SetAdminEvent) FromStackItem(item *stackitem.Array) error {
 			return util.Uint160{}, err
 		}
 		return u, nil
-	} (arr[index])
+	}(arr[index])
 	if err != nil {
 		return fmt.Errorf("field NewAdmin: %w", err)
 	}
@@ -476,10 +476,10 @@ func (e *RenewEvent) FromStackItem(item *stackitem.Array) error {
 
 	var (
 		index = -1
-		err error
+		err   error
 	)
 	index++
-	e.Name, err = func (item stackitem.Item) (string, error) {
+	e.Name, err = func(item stackitem.Item) (string, error) {
 		b, err := item.TryBytes()
 		if err != nil {
 			return "", err
@@ -488,7 +488,7 @@ func (e *RenewEvent) FromStackItem(item *stackitem.Array) error {
 			return "", errors.New("not a UTF-8 string")
 		}
 		return string(b), nil
-	} (arr[index])
+	}(arr[index])
 	if err != nil {
 		return fmt.Errorf("field Name: %w", err)
 	}

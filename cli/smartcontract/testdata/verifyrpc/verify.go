@@ -32,7 +32,7 @@ type Actor interface {
 // Contract implements all contract methods.
 type Contract struct {
 	actor Actor
-	hash util.Uint160
+	hash  util.Uint160
 }
 
 // New creates an instance of Contract using Hash and the given Actor.
@@ -120,10 +120,10 @@ func (e *HelloWorldEvent) FromStackItem(item *stackitem.Array) error {
 
 	var (
 		index = -1
-		err error
+		err   error
 	)
 	index++
-	e.Args, err = func (item stackitem.Item) ([]any, error) {
+	e.Args, err = func(item stackitem.Item) ([]any, error) {
 		arr, ok := item.Value().([]stackitem.Item)
 		if !ok {
 			return nil, errors.New("not an array")
@@ -136,7 +136,7 @@ func (e *HelloWorldEvent) FromStackItem(item *stackitem.Array) error {
 			}
 		}
 		return res, nil
-	} (arr[index])
+	}(arr[index])
 	if err != nil {
 		return fmt.Errorf("field Args: %w", err)
 	}

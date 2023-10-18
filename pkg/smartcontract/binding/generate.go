@@ -3,6 +3,7 @@ package binding
 import (
 	"bytes"
 	"fmt"
+	"go/format"
 	"go/token"
 	"io"
 	"sort"
@@ -127,7 +128,32 @@ func Generate(cfg Config) error {
 	ctr.Imports = append(ctr.Imports, "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal")
 	sort.Strings(ctr.Imports)
 
-	return srcTemplate.Execute(cfg.Output, ctr)
+	return FExecute(srcTemplate, cfg.Output, ctr)
+}
+
+// FExecute tries to execute given template over the data provided, apply gofmt
+// rules to the result and write the result to the provided io.Writer. If a
+// format error occurs while formatting the resulting binding, then the generated
+// binding is written "as is" and no error is returned.
+func FExecute(tmplt *template.Template, out io.Writer, data any) error {
+	in := bytes.NewBuffer(nil)
+	err := tmplt.Execute(in, data)
+	if err != nil {
+		return fmt.Errorf("failed to execute template: %w", err)
+	}
+	res := in.Bytes()
+
+	fmtRes, err := format.Source(res)
+	if err != nil {
+		// OK, still write something to the resulting file, our generator has known
+		// bugs that make the resulting code uncompilable.
+		fmtRes = res
+	}
+	_, err = out.Write(fmtRes)
+	if err != nil {
+		return fmt.Errorf("failed to write the resulting binding: %w", err)
+	}
+	return nil
 }
 
 func scTypeToGo(name string, typ smartcontract.ParamType, cfg *Config) (string, string) {

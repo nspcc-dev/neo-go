@@ -19,8 +19,8 @@ var Hash = util.Uint160{0xa8, 0x1a, 0xa1, 0xf0, 0x4b, 0xf, 0xdc, 0x4a, 0xa2, 0xc
 
 // OnMintEvent represents "OnMint" event emitted by the contract.
 type OnMintEvent struct {
-	From util.Uint160
-	To util.Uint160
+	From   util.Uint160
+	To     util.Uint160
 	Amount *big.Int
 	SwapId *big.Int
 }
@@ -48,7 +48,7 @@ type Actor interface {
 type ContractReader struct {
 	nep17.TokenReader
 	invoker Invoker
-	hash util.Uint160
+	hash    util.Uint160
 }
 
 // Contract implements all contract methods.
@@ -56,7 +56,7 @@ type Contract struct {
 	ContractReader
 	nep17.TokenWriter
 	actor Actor
-	hash util.Uint160
+	hash  util.Uint160
 }
 
 // NewReader creates an instance of ContractReader using Hash and the given Invoker.
@@ -287,10 +287,10 @@ func (e *OnMintEvent) FromStackItem(item *stackitem.Array) error {
 
 	var (
 		index = -1
-		err error
+		err   error
 	)
 	index++
-	e.From, err = func (item stackitem.Item) (util.Uint160, error) {
+	e.From, err = func(item stackitem.Item) (util.Uint160, error) {
 		b, err := item.TryBytes()
 		if err != nil {
 			return util.Uint160{}, err
@@ -300,13 +300,13 @@ func (e *OnMintEvent) FromStackItem(item *stackitem.Array) error {
 			return util.Uint160{}, err
 		}
 		return u, nil
-	} (arr[index])
+	}(arr[index])
 	if err != nil {
 		return fmt.Errorf("field From: %w", err)
 	}
 
 	index++
-	e.To, err = func (item stackitem.Item) (util.Uint160, error) {
+	e.To, err = func(item stackitem.Item) (util.Uint160, error) {
 		b, err := item.TryBytes()
 		if err != nil {
 			return util.Uint160{}, err
@@ -316,7 +316,7 @@ func (e *OnMintEvent) FromStackItem(item *stackitem.Array) error {
 			return util.Uint160{}, err
 		}
 		return u, nil
-	} (arr[index])
+	}(arr[index])
 	if err != nil {
 		return fmt.Errorf("field To: %w", err)
 	}
