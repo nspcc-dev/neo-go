@@ -30,7 +30,7 @@ var (
 
 func (i WitnessScope) String() string {
 	switch {
-	case 0 <= i && i <= 1:
+	case i <= 1:
 		return _WitnessScope_name_0[_WitnessScope_index_0[i]:_WitnessScope_index_0[i+1]]
 	case i == 16:
 		return _WitnessScope_name_1

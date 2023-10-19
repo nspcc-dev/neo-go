@@ -1,11 +1,18 @@
 package config
 
 import (
+	"encoding/base64"
+	"encoding/hex"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestProtocolConfigurationValidation(t *testing.T) {
@@ -274,4 +281,86 @@ func TestProtocolConfigurationEquals(t *testing.T) {
 	require.True(t, p.Equals(o))
 	p.ValidatorsHistory = map[uint32]uint32{112: 0}
 	require.False(t, p.Equals(o))
+}
+
+func TestGenesisExtensionsMarshalYAML(t *testing.T) {
+	pk, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	pub := pk.PublicKey()
+
+	t.Run("MarshalUnmarshalYAML", func(t *testing.T) {
+		g := &Genesis{
+			Roles: map[noderoles.Role]keys.PublicKeys{
+				noderoles.NeoFSAlphabet: {pub},
+				noderoles.P2PNotary:     {pub},
+			},
+			Transaction: &GenesisTransaction{
+				Script:    []byte{1, 2, 3, 4},
+				SystemFee: 123,
+			},
+		}
+		testserdes.MarshalUnmarshalYAML(t, g, new(Genesis))
+	})
+
+	t.Run("unmarshal config", func(t *testing.T) {
+		t.Run("good", func(t *testing.T) {
+			pubStr := hex.EncodeToString(pub.Bytes())
+			script := []byte{1, 2, 3, 4}
+			cfgYml := fmt.Sprintf(`ProtocolConfiguration:
+  Genesis:
+    Transaction:
+      Script: "%s"
+      SystemFee: 123
+    Roles:
+      NeoFSAlphabet:
+        - %s
+        - %s
+      Oracle:
+        - %s
+        - %s`, base64.StdEncoding.EncodeToString(script), pubStr, pubStr, pubStr, pubStr)
+			cfg := new(Config)
+			require.NoError(t, yaml.Unmarshal([]byte(cfgYml), cfg))
+			require.Equal(t, 2, len(cfg.ProtocolConfiguration.Genesis.Roles))
+			require.Equal(t, keys.PublicKeys{pub, pub}, cfg.ProtocolConfiguration.Genesis.Roles[noderoles.NeoFSAlphabet])
+			require.Equal(t, keys.PublicKeys{pub, pub}, cfg.ProtocolConfiguration.Genesis.Roles[noderoles.Oracle])
+			require.Equal(t, &GenesisTransaction{
+				Script:    script,
+				SystemFee: 123,
+			}, cfg.ProtocolConfiguration.Genesis.Transaction)
+		})
+
+		t.Run("empty", func(t *testing.T) {
+			cfgYml := `ProtocolConfiguration:`
+			cfg := new(Config)
+			require.NoError(t, yaml.Unmarshal([]byte(cfgYml), cfg))
+			require.Nil(t, cfg.ProtocolConfiguration.Genesis.Transaction)
+			require.Empty(t, cfg.ProtocolConfiguration.Genesis.Roles)
+		})
+
+		t.Run("unknown role", func(t *testing.T) {
+			pubStr := hex.EncodeToString(pub.Bytes())
+			cfgYml := fmt.Sprintf(`ProtocolConfiguration:
+  Genesis:
+    Roles:
+      BadRole:
+        - %s`, pubStr)
+			cfg := new(Config)
+			err := yaml.Unmarshal([]byte(cfgYml), cfg)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "unknown node role: BadRole")
+		})
+
+		t.Run("last role", func(t *testing.T) {
+			pubStr := hex.EncodeToString(pub.Bytes())
+			cfgYml := fmt.Sprintf(`ProtocolConfiguration:
+  Genesis:
+    Roles:
+      last:
+        - %s`, pubStr)
+			cfg := new(Config)
+			err := yaml.Unmarshal([]byte(cfgYml), cfg)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "unknown node role: last")
+		})
+	})
 }

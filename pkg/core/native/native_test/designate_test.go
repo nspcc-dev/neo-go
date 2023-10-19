@@ -1,14 +1,17 @@
 package native_test
 
 import (
+	"sort"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -136,4 +139,24 @@ func TestDesignate_Cache(t *testing.T) {
 	designateInvoker.InvokeScriptCheckFAULT(t, script, designateInvoker.Signers, "ABORT")
 	require.Nil(t, updatedNodes)
 	require.False(t, updateCalled)
+}
+
+func TestDesignate_GenesisRolesExtension(t *testing.T) {
+	pk1, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	pk2, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	pubs := keys.PublicKeys{pk1.PublicKey(), pk2.PublicKey()}
+
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(blockchain *config.Blockchain) {
+		blockchain.Genesis.Roles = map[noderoles.Role]keys.PublicKeys{
+			noderoles.StateValidator: pubs,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	c := e.CommitteeInvoker(e.NativeHash(t, nativenames.Designation))
+
+	// Check designated node in a separate block.
+	sort.Sort(pubs)
+	checkNodeRoles(t, c, true, noderoles.StateValidator, e.Chain.BlockHeight()+1, pubs)
 }

@@ -390,3 +390,23 @@ func (p *PublicKey) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+// MarshalYAML implements the YAML marshaler interface.
+func (p *PublicKey) MarshalYAML() (any, error) {
+	return hex.EncodeToString(p.Bytes()), nil
+}
+
+// UnmarshalYAML implements the YAML unmarshaler interface.
+func (p *PublicKey) UnmarshalYAML(unmarshal func(any) error) error {
+	var s string
+	err := unmarshal(&s)
+	if err != nil {
+		return err
+	}
+
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("failed to decode public key from hex bytes: %w", err)
+	}
+	return p.DecodeBytes(b)
+}

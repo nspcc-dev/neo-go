@@ -325,6 +325,7 @@ protocol-related settings described in the table below.
 | Section | Type | Default value | Description | Notes |
 | --- | --- | --- | --- | --- |
 | CommitteeHistory | map[uint32]uint32 | none | Number of committee members after the given height, for example `{0: 1, 20: 4}` sets up a chain with one committee member since the genesis and then changes the setting to 4 committee members at the height of 20. `StandbyCommittee` committee setting must have the number of keys equal or exceeding the highest value in this option. Blocks numbers where the change happens must be divisible by the old and by the new values simultaneously. If not set, committee size is derived from the `StandbyCommittee` setting and never changes. |
+| Genesis | [Genesis](#Genesis-Configuration) | none | The set of genesis block settings including NeoGo-specific protocol extensions that should be enabled at the genesis block or during native contracts initialisation. |
 | Hardforks | `map[string]uint32` | [] | The set of incompatible changes that affect node behaviour starting from the specified height. The default value is an empty set which should be interpreted as "each known hard-fork is applied from the zero blockchain height". The list of valid hard-fork names:<br>• `Aspidochelone` represents hard-fork introduced in [#2469](https://github.com/nspcc-dev/neo-go/pull/2469) (ported from the [reference](https://github.com/neo-project/neo/pull/2712)). It adjusts the prices of `System.Contract.CreateStandardAccount` and `System.Contract.CreateMultisigAccount` interops so that the resulting prices are in accordance with `sha256` method of native `CryptoLib` contract. It also includes [#2519](https://github.com/nspcc-dev/neo-go/pull/2519) (ported from the [reference](https://github.com/neo-project/neo/pull/2749)) that adjusts the price of `System.Runtime.GetRandom` interop and fixes its vulnerability. A special NeoGo-specific change is included as well for ContractManagement's update/deploy call flags behaviour to be compatible with pre-0.99.0 behaviour that was changed because of the [3.2.0 protocol change](https://github.com/neo-project/neo/pull/2653).<br>• `Basilisk` represents hard-fork introduced in [#3056](https://github.com/nspcc-dev/neo-go/pull/3056) (ported from the [reference](https://github.com/neo-project/neo/pull/2881)). It enables strict smart contract script check against a set of JMP instructions and against method boundaries enabled on contract deploy or update. It also includes [#3080](https://github.com/nspcc-dev/neo-go/pull/3080) (ported from the [reference](https://github.com/neo-project/neo/pull/2883)) that increases `stackitem.Integer` JSON parsing precision up to the maximum value supported by the NeoVM. It also includes [#3085](https://github.com/nspcc-dev/neo-go/pull/3085) (ported from the [reference](https://github.com/neo-project/neo/pull/2810)) that enables strict check for notifications emitted by a contract to precisely match the events specified in the contract manifest. |
 | Magic | `uint32` | `0` | Magic number which uniquely identifies Neo network. |
 | MaxBlockSize | `uint32` | `262144` | Maximum block size in bytes. |
@@ -346,3 +347,54 @@ protocol-related settings described in the table below.
 | ValidatorsCount | `uint32` | `0` | Number of validators set for the whole network lifetime, can't be set if `ValidatorsHistory` setting is used. |
 | ValidatorsHistory | map[uint32]uint32 | none | Number of consensus nodes to use after given height (see `CommitteeHistory` also). Heights where the change occurs must be divisible by the number of committee members at that height. Can't be used with `ValidatorsCount` not equal to zero. |
 | VerifyTransactions | `bool` | `false` | Denotes whether to verify transactions in the received blocks. |
+
+### Genesis Configuration
+
+`Genesis` subsection of protocol configuration section contains a set of settings
+specific for genesis block including NeoGo node extensions that should be enabled
+during genesis block persist or at the moment of native contracts initialisation.
+`Genesis` has the following structure:
+```
+Genesis:
+  Roles:
+    NeoFSAlphabet:
+      - 033238fa63bd08115ebf442d4af897eea2f6866e4c2001cd1f6e7656acdd91a5d3
+      - 03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c
+      - 02aaec38470f6aad0042c6e877cfd8087d2676b0f516fddd362801b9bd3936399e
+      - 03c6aa6e12638b36e88adc1ccdceac4db9929575c3e03576c617c49cce7114a050
+    Oracle:
+      - 03409f31f0d66bdc2f70a9730b66fe186658f84a8018204db01c106edc36553cd0
+      - 0222038884bbd1d8ff109ed3bdef3542e768eef76c1247aea8bc8171f532928c30
+  Transaction:
+    Script: "DCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG5BVuezJw=="
+    SystemFee: 100000000
+```
+where:
+- `Roles` is a map from node roles that should be set at the moment of native
+  RoleManagement contract initialisation to the list of hex-encoded public keys
+  corresponding to this role. The set of valid roles includes:
+  - `StateValidator`
+  - `Oracle`
+  - `NeoFSAlphabet`
+  - `P2PNotary`
+  
+  Roles designation order follows the enumeration above. Designation
+  notifications will be emitted after each configured role designation.
+  
+  Note that Roles is a NeoGo extension that isn't supported by the NeoC# node and
+  must be disabled on the public Neo N3 networks. Roles extension is compatible
+  with NativeUpdateHistory setting, which means that specified roles will be set
+  only during native RoleManagement contract initialisation (which may be
+  performed in some non-genesis block). By default, no roles are designated.
+
+- `Transaction` is a container for transaction script that should be deployed in
+  the genesis block if provided. `Transaction` includes `Script` which is a
+  base64-encoded transaction script and `SystemFee` which is a transaction's
+  system fee value (in GAS) that will be spent during transaction execution.
+  Transaction generated from the provided parameters has two signers at max with
+  CalledByEntry witness scope: the first one is standby validators multisignature
+  signer and the second one (if differs from the first) is committee
+  multisignature signer.
+
+  Note that `Transaction` is a NeoGo extension that isn't supported by the NeoC#
+  node and must be disabled on the public Neo N3 networks.

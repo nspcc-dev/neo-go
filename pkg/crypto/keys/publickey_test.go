@@ -10,6 +10,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestEncodeDecodeInfinity(t *testing.T) {
@@ -245,4 +246,62 @@ func BenchmarkPublicDecodeBytes(t *testing.B) {
 	for n := 0; n < t.N; n++ {
 		require.NoError(t, k.DecodeBytes(keyBytes))
 	}
+}
+
+func TestMarshallYAML(t *testing.T) {
+	str := "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"
+	pubKey, err := NewPublicKeyFromString(str)
+	require.NoError(t, err)
+
+	bytes, err := yaml.Marshal(&pubKey)
+	require.NoError(t, err)
+
+	expected := []byte(str + "\n") // YAML marshaller adds new line in the end which is expected.
+	require.Equal(t, expected, bytes)
+}
+
+func TestUnmarshallYAML(t *testing.T) {
+	str := "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"
+	expected, err := NewPublicKeyFromString(str)
+	require.NoError(t, err)
+
+	actual := &PublicKey{}
+	err = yaml.Unmarshal([]byte(str), actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+func TestUnmarshallYAMLBadCompresed(t *testing.T) {
+	str := `"02ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"`
+	actual := &PublicKey{}
+	err := yaml.Unmarshal([]byte(str), actual)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "error computing Y for compressed point")
+}
+
+func TestUnmarshallYAMLNotAHex(t *testing.T) {
+	str := `"04Tb17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"`
+	actual := &PublicKey{}
+	err := yaml.Unmarshal([]byte(str), actual)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to decode public key from hex bytes")
+}
+
+func TestUnmarshallYAMLUncompressed(t *testing.T) {
+	str := "046b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c2964fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"
+	expected, err := NewPublicKeyFromString(str)
+	require.NoError(t, err)
+
+	actual := &PublicKey{}
+	err = yaml.Unmarshal([]byte(str), actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
+func TestMarshalUnmarshalYAML(t *testing.T) {
+	str := "03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c"
+	expected, err := NewPublicKeyFromString(str)
+	require.NoError(t, err)
+
+	testserdes.MarshalUnmarshalYAML(t, expected, new(PublicKey))
 }

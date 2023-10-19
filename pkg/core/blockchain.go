@@ -47,7 +47,9 @@ import (
 const (
 	version = "0.2.10"
 
-	defaultInitialGAS                      = 52000000_00000000
+	// DefaultInitialGAS is the default amount of GAS emitted to the standby validators
+	// multisignature account during native GAS contract initialization.
+	DefaultInitialGAS                      = 52000000_00000000
 	defaultGCPeriod                        = 10000
 	defaultMemPoolSize                     = 50000
 	defaultP2PNotaryRequestPayloadPoolSize = 1000
@@ -228,7 +230,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 
 	// Protocol configuration fixups/checks.
 	if cfg.InitialGASSupply <= 0 {
-		cfg.InitialGASSupply = fixedn.Fixed8(defaultInitialGAS)
+		cfg.InitialGASSupply = fixedn.Fixed8(DefaultInitialGAS)
 		log.Info("initial gas supply is not set or wrong, setting default value", zap.Stringer("InitialGASSupply", cfg.InitialGASSupply))
 	}
 	if cfg.MemPoolSize <= 0 {

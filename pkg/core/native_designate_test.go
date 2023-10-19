@@ -24,7 +24,7 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	bl := block.New(bc.config.StateRootInHeader)
 	bl.Index = bc.BlockHeight() + 1
-	ic := bc.newInteropContext(trigger.OnPersist, bc.dao, bl, tx)
+	ic := bc.newInteropContext(trigger.Application, bc.dao, bl, tx)
 	ic.SpawnVM()
 	ic.VM.LoadScript([]byte{byte(opcode.RET)})
 
