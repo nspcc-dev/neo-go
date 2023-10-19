@@ -80,7 +80,7 @@ func newBlock(cfg config.ProtocolConfiguration, index uint32, prev util.Uint256,
 
 func newBlockCustom(cfg config.ProtocolConfiguration, f func(b *block.Block),
 	txs ...*transaction.Transaction) *block.Block {
-	validators, _ := validatorsFromConfig(cfg)
+	validators, _, _ := validatorsFromConfig(cfg)
 	valScript, _ := smartcontract.CreateDefaultMultiSigRedeemScript(validators)
 	witness := transaction.Witness{
 		VerificationScript: valScript,

@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/basicchain"
 	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -37,6 +38,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -2437,4 +2439,37 @@ func TestBlockchain_ResetState(t *testing.T) {
 		neoID:                       4,                   // transfer of 1000 NEO to priv1
 	}
 	require.Equal(t, expectedLUB, lub)
+}
+
+func TestBlockchain_GenesisTransactionExtension(t *testing.T) {
+	priv0 := testchain.PrivateKeyByID(0)
+	acc0 := wallet.NewAccountFromPrivateKey(priv0)
+	require.NoError(t, acc0.ConvertMultisig(1, []*keys.PublicKey{priv0.PublicKey()}))
+	from := acc0.ScriptHash()
+	to := util.Uint160{1, 2, 3}
+	amount := 1
+
+	script := io.NewBufBinWriter()
+	emit.Bytes(script.BinWriter, from.BytesBE())
+	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeCheckWitness)
+	emit.Bytes(script.BinWriter, to.BytesBE())
+	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeCheckWitness)
+	emit.AppCall(script.BinWriter, state.CreateNativeContractHash(nativenames.Neo), "transfer", callflag.All, from, to, amount, nil)
+	emit.Opcodes(script.BinWriter, opcode.ASSERT)
+
+	var sysFee int64 = 1_0000_0000
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(blockchain *config.Blockchain) {
+		blockchain.Genesis.Transaction = &config.GenesisTransaction{
+			Script:    script.Bytes(),
+			SystemFee: sysFee,
+		}
+	})
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	b := e.GetBlockByIndex(t, 0)
+	tx := b.Transactions[0]
+	e.CheckHalt(t, tx.Hash(), stackitem.NewBool(true), stackitem.NewBool(false))
+	e.CheckGASBalance(t, e.Validator.ScriptHash(), big.NewInt(core.DefaultInitialGAS-sysFee))
+	actualNeo, lub := e.Chain.GetGoverningTokenBalance(to)
+	require.Equal(t, int64(amount), actualNeo.Int64())
+	require.Equal(t, 0, int(lub))
 }

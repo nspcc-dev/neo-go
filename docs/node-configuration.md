@@ -365,6 +365,9 @@ Genesis:
     Oracle:
       - 03409f31f0d66bdc2f70a9730b66fe186658f84a8018204db01c106edc36553cd0
       - 0222038884bbd1d8ff109ed3bdef3542e768eef76c1247aea8bc8171f532928c30
+  Transaction:
+    Script: "DCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG5BVuezJw=="
+    SystemFee: 100000000
 ```
 where:
 - `Roles` is a map from node roles that should be set at the moment of native
@@ -383,3 +386,15 @@ where:
   with NativeUpdateHistory setting, which means that specified roles will be set
   only during native RoleManagement contract initialisation (which may be
   performed in some non-genesis block). By default, no roles are designated.
+
+- `Transaction` is a container for transaction script that should be deployed in
+  the genesis block if provided. `Transaction` includes `Script` which is a
+  base64-encoded transaction script and `SystemFee` which is a transaction's
+  system fee value (in GAS) that will be spent during transaction execution.
+  Transaction generated from the provided parameters has two signers at max with
+  CalledByEntry witness scope: the first one is standby validators multisignature
+  signer and the second one (if differs from the first) is committee
+  multisignature signer.
+
+  Note that `Transaction` is a NeoGo extension that isn't supported by the NeoC#
+  node and must be disabled on the public Neo N3 networks.

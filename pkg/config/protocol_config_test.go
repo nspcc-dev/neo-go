@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
@@ -293,6 +294,10 @@ func TestGenesisExtensionsMarshalYAML(t *testing.T) {
 				noderoles.NeoFSAlphabet: {pub},
 				noderoles.P2PNotary:     {pub},
 			},
+			Transaction: &GenesisTransaction{
+				Script:    []byte{1, 2, 3, 4},
+				SystemFee: 123,
+			},
 		}
 		testserdes.MarshalUnmarshalYAML(t, g, new(Genesis))
 	})
@@ -300,20 +305,36 @@ func TestGenesisExtensionsMarshalYAML(t *testing.T) {
 	t.Run("unmarshal config", func(t *testing.T) {
 		t.Run("good", func(t *testing.T) {
 			pubStr := hex.EncodeToString(pub.Bytes())
+			script := []byte{1, 2, 3, 4}
 			cfgYml := fmt.Sprintf(`ProtocolConfiguration:
   Genesis:
+    Transaction:
+      Script: "%s"
+      SystemFee: 123
     Roles:
       NeoFSAlphabet:
         - %s
         - %s
       Oracle:
         - %s
-        - %s`, pubStr, pubStr, pubStr, pubStr)
+        - %s`, base64.StdEncoding.EncodeToString(script), pubStr, pubStr, pubStr, pubStr)
 			cfg := new(Config)
 			require.NoError(t, yaml.Unmarshal([]byte(cfgYml), cfg))
 			require.Equal(t, 2, len(cfg.ProtocolConfiguration.Genesis.Roles))
 			require.Equal(t, keys.PublicKeys{pub, pub}, cfg.ProtocolConfiguration.Genesis.Roles[noderoles.NeoFSAlphabet])
 			require.Equal(t, keys.PublicKeys{pub, pub}, cfg.ProtocolConfiguration.Genesis.Roles[noderoles.Oracle])
+			require.Equal(t, &GenesisTransaction{
+				Script:    script,
+				SystemFee: 123,
+			}, cfg.ProtocolConfiguration.Genesis.Transaction)
+		})
+
+		t.Run("empty", func(t *testing.T) {
+			cfgYml := `ProtocolConfiguration:`
+			cfg := new(Config)
+			require.NoError(t, yaml.Unmarshal([]byte(cfgYml), cfg))
+			require.Nil(t, cfg.ProtocolConfiguration.Genesis.Transaction)
+			require.Empty(t, cfg.ProtocolConfiguration.Genesis.Roles)
 		})
 
 		t.Run("unknown role", func(t *testing.T) {

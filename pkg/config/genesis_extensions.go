@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
@@ -14,12 +15,34 @@ type Genesis struct {
 	// Designation contract initialization. It is NeoGo extension and must be
 	// disabled on the public Neo N3 networks.
 	Roles map[noderoles.Role]keys.PublicKeys
+	// Transaction contains transaction script that should be deployed in the
+	// genesis block. It is NeoGo extension and must be disabled on the public
+	// Neo N3 networks.
+	Transaction *GenesisTransaction
 }
 
-// genesisAux is an auxiliary structure for Genesis YAML marshalling.
-type genesisAux struct {
-	Roles map[string]keys.PublicKeys `yaml:"Roles"`
+// GenesisTransaction is a placeholder for script that should be included into genesis
+// block as a transaction script with the given system fee. Provided
+// system fee value will be taken from the standby validators account which is
+// added to the list of Signers as a sender with CalledByEntry scope.
+type GenesisTransaction struct {
+	Script    []byte
+	SystemFee int64
 }
+
+type (
+	// genesisAux is an auxiliary structure for Genesis YAML marshalling.
+	genesisAux struct {
+		Roles       map[string]keys.PublicKeys `yaml:"Roles"`
+		Transaction *genesisTransactionAux     `yaml:"Transaction"`
+	}
+	// genesisTransactionAux is an auxiliary structure for GenesisTransaction YAML
+	// marshalling.
+	genesisTransactionAux struct {
+		Script    string `yaml:"Script"`
+		SystemFee int64  `yaml:"SystemFee"`
+	}
+)
 
 // MarshalYAML implements the YAML marshaler interface.
 func (e Genesis) MarshalYAML() (any, error) {
@@ -27,6 +50,12 @@ func (e Genesis) MarshalYAML() (any, error) {
 	aux.Roles = make(map[string]keys.PublicKeys, len(e.Roles))
 	for r, ks := range e.Roles {
 		aux.Roles[r.String()] = ks
+	}
+	if e.Transaction != nil {
+		aux.Transaction = &genesisTransactionAux{
+			Script:    base64.StdEncoding.EncodeToString(e.Transaction.Script),
+			SystemFee: e.Transaction.SystemFee,
+		}
 	}
 	return aux, nil
 }
@@ -45,6 +74,17 @@ func (e *Genesis) UnmarshalYAML(unmarshal func(any) error) error {
 			return fmt.Errorf("unknown node role: %s", s)
 		}
 		e.Roles[r] = ks
+	}
+
+	if aux.Transaction != nil {
+		script, err := base64.StdEncoding.DecodeString(aux.Transaction.Script)
+		if err != nil {
+			return fmt.Errorf("failed to decode script of genesis transaction: %w", err)
+		}
+		e.Transaction = &GenesisTransaction{
+			Script:    script,
+			SystemFee: aux.Transaction.SystemFee,
+		}
 	}
 
 	return nil
