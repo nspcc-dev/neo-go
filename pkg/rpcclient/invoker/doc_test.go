@@ -34,7 +34,7 @@ func ExampleInvoker() {
 	res, _ := inv.Call(neo.Hash, "transfer", acc, util.Uint160{1, 2, 3}, 1, nil)
 	if res.State == vmstate.Halt.String() {
 		panic("NEO is broken!") // inv has no signers and transfer requires a witness to be performed.
-	} else {
+	} else { // nolint:superfluous-else // superfluous-else: if block ends with call to panic function, so drop this else and outdent its block (revive)
 		println("ok") // this actually should fail
 	}
 
