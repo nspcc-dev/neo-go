@@ -14,7 +14,7 @@ import (
 
 func TestEncodeDecodeAddress(t *testing.T) {
 	var (
-		e, _ = net.ResolveTCPAddr("tcp", "localhost:2000")
+		e, _ = net.ResolveTCPAddr("tcp", "127.0.0.1:2000")
 		ts   = time.Now()
 		addr = NewAddressAndTime(e, ts, capability.Capabilities{
 			{
@@ -45,7 +45,7 @@ func TestEncodeDecodeAddress(t *testing.T) {
 
 func fillAddressList(al *AddressList) {
 	for i := 0; i < len(al.Addrs); i++ {
-		e, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("localhost:20%d", i))
+		e, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:20%d", i))
 		al.Addrs[i] = NewAddressAndTime(e, time.Now(), capability.Capabilities{
 			{
 				Type: capability.TCPServer,

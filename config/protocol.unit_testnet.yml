@@ -12,9 +12,9 @@ ProtocolConfiguration:
     - 02c4de32252c50fa171dbe25379e4e2d55cdc12f69e382c39f59a44573ecff2f9d
   ValidatorsCount: 4
   SeedList:
-    - localhost:20334
-    - localhost:20335
-    - localhost:20336
+    - 127.0.0.1:20334
+    - 127.0.0.1:20335
+    - 127.0.0.1:20336
   VerifyTransactions: true
   P2PSigExtensions: true
   NativeActivations:
@@ -62,7 +62,7 @@ ApplicationConfiguration:
     MaxGasInvoke: 15
     Enabled: true
     Addresses:
-      - "localhost:0" # let the system choose port dynamically
+      - "127.0.0.1:0" # let the system choose port dynamically
     EnableCORSWorkaround: false
     SessionEnabled: true
     SessionExpirationTime: 2 # enough for tests as they run locally.
