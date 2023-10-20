@@ -6,13 +6,13 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
-	. "github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestInventoryEncodeDecode(t *testing.T) {
-	hashes := []Uint256{
+	hashes := []util.Uint256{
 		hash.Sha256([]byte("a")),
 		hash.Sha256([]byte("b")),
 	}
@@ -22,7 +22,7 @@ func TestInventoryEncodeDecode(t *testing.T) {
 }
 
 func TestEmptyInv(t *testing.T) {
-	msgInv := NewInventory(TXType, []Uint256{})
+	msgInv := NewInventory(TXType, []util.Uint256{})
 
 	data, err := testserdes.EncodeBinary(msgInv)
 	assert.Nil(t, err)
