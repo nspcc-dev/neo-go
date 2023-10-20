@@ -55,7 +55,7 @@ type (
 		Error *Error `json:"error,omitempty"`
 	}
 
-	// Raw represents a standard raw JSON-RPC 2.0
+	// Response represents a standard raw JSON-RPC 2.0
 	// response: http://www.jsonrpc.org/specification#response_object.
 	Response struct {
 		HeaderAndError
