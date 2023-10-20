@@ -184,13 +184,15 @@ func FromJSON(data []byte, maxCount int, bestIntPrecision bool) (Item, error) {
 		bestIntPrecision: bestIntPrecision,
 	}
 	d.UseNumber()
-	if item, err := d.decode(); err != nil {
+	item, err := d.decode()
+	if err != nil {
 		return nil, err
-	} else if _, err := d.Token(); !errors.Is(err, gio.EOF) {
-		return nil, fmt.Errorf("%w: unexpected items", ErrInvalidValue)
-	} else {
-		return item, nil
 	}
+	_, err = d.Token()
+	if !errors.Is(err, gio.EOF) {
+		return nil, fmt.Errorf("%w: unexpected items", ErrInvalidValue)
+	}
+	return item, nil
 }
 
 func (d *decoder) decode() (Item, error) {
