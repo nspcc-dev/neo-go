@@ -301,6 +301,42 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	})
 }
 
+// TestBlockchain_InitializeNeoCache_Bug3181 is aimed to reproduce and check situation
+// when panic occures on native Neo cache initialization due to access to native Policy
+// cache when it's not yet initialized to recalculate candidates.
+func TestBlockchain_InitializeNeoCache_Bug3181(t *testing.T) {
+	ps, path := newLevelDBForTestingWithPath(t, "")
+	bc, validators, committee, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, nil, ps)
+	require.NoError(t, err)
+	go bc.Run()
+	e := neotest.NewExecutor(t, bc, validators, committee)
+
+	// Add at least one registered candidate to enable candidates Policy check.
+	acc := e.NewAccount(t, 10000_0000_0000) // block #1
+	neo := e.NewInvoker(e.NativeHash(t, nativenames.Neo), acc)
+	neo.Invoke(t, true, "registerCandidate", acc.(neotest.SingleSigner).Account().PublicKey().Bytes()) // block #2
+
+	// Put some empty blocks to reach N-1 block height, so that newEpoch cached
+	// values of native Neo contract require an update on the subsequent cache
+	// initialization.
+	for i := 0; i < len(bc.GetConfig().StandbyCommittee)-1-2; i++ {
+		e.AddNewBlock(t)
+	}
+	bc.Close() // Ensure persist is done and persistent store is properly closed.
+
+	ps, _ = newLevelDBForTestingWithPath(t, path)
+	t.Cleanup(func() { require.NoError(t, ps.Close()) })
+
+	// Start chain from the existing database that should trigger an update of native
+	// Neo newEpoch* cached values during initializaition. This update requires candidates
+	// list recalculation and policies checks, thus, access to native Policy cache
+	// that is not yet initialized by that moment.
+	require.NotPanics(t, func() {
+		_, _, _, err = chain.NewMultiWithCustomConfigAndStoreNoCheck(t, nil, ps)
+		require.NoError(t, err)
+	})
+}
+
 // This test enables Notary native contract at non-zero height and checks that no
 // Notary cache initialization is performed before that height on node restart.
 func TestBlockchain_InitializeNativeCacheWrtNativeActivations(t *testing.T) {
