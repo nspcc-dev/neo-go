@@ -37,6 +37,8 @@ type NativeContract struct {
 
 // ToStackItem converts state.Contract to stackitem.Item.
 func (c *Contract) ToStackItem() (stackitem.Item, error) {
+	// Do not skip the NEF size check, it won't affect native Management related
+	// states as the same checked is performed during contract deploy/update.
 	rawNef, err := c.NEF.Bytes()
 	if err != nil {
 		return nil, err

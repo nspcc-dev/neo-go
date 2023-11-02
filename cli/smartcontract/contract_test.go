@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -1069,4 +1070,28 @@ func filterFilename(infos []os.DirEntry, ext string) string {
 		}
 	}
 	return ""
+}
+
+func TestContractCompile_NEFSizeCheck(t *testing.T) {
+	tmpDir := t.TempDir()
+	e := testcli.NewExecutor(t, false)
+
+	src := `package nefconstraints
+       var data = "%s"
+
+       func Main() string {
+               return data
+       }`
+	data := make([]byte, stackitem.MaxSize-10)
+	for i := range data {
+		data[i] = byte('a')
+	}
+
+	in := filepath.Join(tmpDir, "main.go")
+	cfg := filepath.Join(tmpDir, "main.yml")
+	require.NoError(t, os.WriteFile(cfg, []byte("name: main"), os.ModePerm))
+	require.NoError(t, os.WriteFile(in, []byte(fmt.Sprintf(src, data)), os.ModePerm))
+
+	e.RunWithError(t, "neo-go", "contract", "compile", "--in", in)
+	require.NoFileExists(t, filepath.Join(tmpDir, "main.nef"))
 }

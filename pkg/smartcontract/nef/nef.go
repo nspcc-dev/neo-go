@@ -99,8 +99,11 @@ func (h *Header) DecodeBinary(r *io.BinReader) {
 }
 
 // CalculateChecksum returns first 4 bytes of double-SHA256(Header) converted to uint32.
+// CalculateChecksum doesn't perform the resulting serialized NEF size check, and return
+// the checksum irrespectively to the size limit constraint. It's a caller's duty to check
+// the resulting NEF size.
 func (n *File) CalculateChecksum() uint32 {
-	bb, err := n.Bytes()
+	bb, err := n.BytesLong()
 	if err != nil {
 		panic(err)
 	}
@@ -152,14 +155,32 @@ func (n *File) DecodeBinary(r *io.BinReader) {
 	}
 }
 
-// Bytes returns a byte array with a serialized NEF File.
+// Bytes returns a byte array with a serialized NEF File. It performs the
+// resulting NEF file size check and returns an error if serialized slice length
+// exceeds [stackitem.MaxSize].
 func (n File) Bytes() ([]byte, error) {
+	return n.bytes(true)
+}
+
+// BytesLong returns a byte array with a serialized NEF File. It performs no
+// resulting slice check.
+func (n File) BytesLong() ([]byte, error) {
+	return n.bytes(false)
+}
+
+// bytes returns the serialized NEF File representation and performs the resulting
+// byte array size check if needed.
+func (n File) bytes(checkSize bool) ([]byte, error) {
 	buf := io.NewBufBinWriter()
 	n.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		return nil, buf.Err
 	}
-	return buf.Bytes(), nil
+	res := buf.Bytes()
+	if checkSize && len(res) > stackitem.MaxSize {
+		return nil, fmt.Errorf("serialized NEF size exceeds VM stackitem limits: %d bytes is allowed at max, got %d", stackitem.MaxSize, len(res))
+	}
+	return res, nil
 }
 
 // FileFromBytes returns a NEF File deserialized from the given bytes.

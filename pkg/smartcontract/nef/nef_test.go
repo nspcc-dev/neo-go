@@ -144,7 +144,7 @@ func TestNewFileFromBytesLimits(t *testing.T) {
 	}
 	expected.Checksum = expected.CalculateChecksum()
 
-	bytes, err := expected.Bytes()
+	bytes, err := expected.BytesLong()
 	require.NoError(t, err)
 	_, err = FileFromBytes(bytes)
 	require.Error(t, err)
