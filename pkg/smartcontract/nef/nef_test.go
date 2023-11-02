@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,7 +50,7 @@ func TestEncodeDecodeBinary(t *testing.T) {
 	})
 
 	t.Run("invalid script length", func(t *testing.T) {
-		newScript := make([]byte, MaxScriptLength+1)
+		newScript := make([]byte, stackitem.MaxSize+1)
 		expected.Script = newScript
 		expected.Checksum = expected.CalculateChecksum()
 		checkDecodeError(t, expected)
@@ -124,6 +125,30 @@ func TestBytesFromBytes(t *testing.T) {
 	actual, err := FileFromBytes(bytes)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
+}
+
+func TestNewFileFromBytesLimits(t *testing.T) {
+	expected := File{
+		Header: Header{
+			Magic:    Magic,
+			Compiler: "best compiler version 1",
+		},
+		Tokens: []MethodToken{{
+			Hash:       random.Uint160(),
+			Method:     "someMethod",
+			ParamCount: 3,
+			HasReturn:  true,
+			CallFlag:   callflag.WriteStates,
+		}},
+		Script: make([]byte, stackitem.MaxSize-100),
+	}
+	expected.Checksum = expected.CalculateChecksum()
+
+	bytes, err := expected.Bytes()
+	require.NoError(t, err)
+	_, err = FileFromBytes(bytes)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid NEF file size")
 }
 
 func TestMarshalUnmarshalJSON(t *testing.T) {

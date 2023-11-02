@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // NEO Executable Format 3 (NEF3)
@@ -31,8 +33,6 @@ import (
 const (
 	// Magic is a magic File header constant.
 	Magic uint32 = 0x3346454E
-	// MaxScriptLength is the maximum allowed contract script length.
-	MaxScriptLength = 512 * 1024
 	// MaxSourceURLLength is the maximum allowed source URL length.
 	MaxSourceURLLength = 256
 	// compilerFieldSize is the length of `Compiler` File header field in bytes.
@@ -139,7 +139,7 @@ func (n *File) DecodeBinary(r *io.BinReader) {
 		r.Err = errInvalidReserved
 		return
 	}
-	n.Script = r.ReadVarBytes(MaxScriptLength)
+	n.Script = r.ReadVarBytes(stackitem.MaxSize)
 	if r.Err == nil && len(n.Script) == 0 {
 		r.Err = errors.New("empty script")
 		return
@@ -165,6 +165,9 @@ func (n File) Bytes() ([]byte, error) {
 // FileFromBytes returns a NEF File deserialized from the given bytes.
 func FileFromBytes(source []byte) (File, error) {
 	result := File{}
+	if len(source) > stackitem.MaxSize {
+		return result, fmt.Errorf("invalid NEF file size: expected %d at max, got %d", stackitem.MaxSize, len(source))
+	}
 	r := io.NewBinReaderFromBuf(source)
 	result.DecodeBinary(r)
 	if r.Err != nil {
