@@ -365,8 +365,9 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 // like not being signed by a blocked account or not exceeding the block-level system
 // fee limit.
 func (p *Policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error {
+	cache := d.GetROCache(p.ID).(*PolicyCache)
 	for _, signer := range tx.Signers {
-		if _, isBlocked := p.isBlockedInternal(d.GetROCache(p.ID).(*PolicyCache), signer.Account); isBlocked {
+		if _, isBlocked := p.isBlockedInternal(cache, signer.Account); isBlocked {
 			return fmt.Errorf("account %s is blocked", signer.Account.StringLE())
 		}
 	}
