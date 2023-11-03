@@ -468,6 +468,8 @@ func (bc *Blockchain) init() error {
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
+
+	bc.log.Debug("initializing caches", zap.Uint32("blockHeight", bHeight))
 	if err = bc.stateRoot.Init(bHeight); err != nil {
 		return fmt.Errorf("can't init MPT at height %d: %w", bHeight, err)
 	}

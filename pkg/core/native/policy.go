@@ -241,26 +241,33 @@ func (p *Policy) setExecFeeFactor(ic *interop.Context, args []stackitem.Item) st
 // isBlocked is Policy contract method that checks whether provided account is blocked.
 func (p *Policy) isBlocked(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	hash := toUint160(args[0])
-	_, blocked := p.isBlockedInternal(ic.DAO, hash)
+	_, blocked := p.isBlockedInternal(ic.DAO.GetROCache(p.ID).(*PolicyCache), hash)
 	return stackitem.NewBool(blocked)
 }
 
-// IsBlocked checks whether provided account is blocked.
+// IsBlocked checks whether provided account is blocked. Normally it uses Policy
+// cache, falling back to the DB queries when Policy cache is not available yet
+// (the only case is native cache initialization pipeline, where native Neo cache
+// is being initialized before the Policy's one).
 func (p *Policy) IsBlocked(dao *dao.Simple, hash util.Uint160) bool {
-	_, isBlocked := p.isBlockedInternal(dao, hash)
+	cache := dao.GetROCache(p.ID)
+	if cache == nil {
+		key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
+		return dao.GetStorageItem(p.ID, key) == nil
+	}
+	_, isBlocked := p.isBlockedInternal(cache.(*PolicyCache), hash)
 	return isBlocked
 }
 
 // isBlockedInternal checks whether provided account is blocked. It returns position
 // of the blocked account in the blocked accounts list (or the position it should be
 // put at).
-func (p *Policy) isBlockedInternal(dao *dao.Simple, hash util.Uint160) (int, bool) {
-	cache := dao.GetROCache(p.ID).(*PolicyCache)
-	length := len(cache.blockedAccounts)
+func (p *Policy) isBlockedInternal(roCache *PolicyCache, hash util.Uint160) (int, bool) {
+	length := len(roCache.blockedAccounts)
 	i := sort.Search(length, func(i int) bool {
-		return !cache.blockedAccounts[i].Less(hash)
+		return !roCache.blockedAccounts[i].Less(hash)
 	})
-	if length != 0 && i != length && cache.blockedAccounts[i].Equals(hash) {
+	if length != 0 && i != length && roCache.blockedAccounts[i].Equals(hash) {
 		return i, true
 	}
 	return i, false
@@ -320,7 +327,7 @@ func (p *Policy) blockAccount(ic *interop.Context, args []stackitem.Item) stacki
 	return stackitem.NewBool(p.blockAccountInternal(ic.DAO, hash))
 }
 func (p *Policy) blockAccountInternal(d *dao.Simple, hash util.Uint160) bool {
-	i, blocked := p.isBlockedInternal(d, hash)
+	i, blocked := p.isBlockedInternal(d.GetROCache(p.ID).(*PolicyCache), hash)
 	if blocked {
 		return false
 	}
@@ -343,7 +350,7 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 		panic("invalid committee signature")
 	}
 	hash := toUint160(args[0])
-	i, blocked := p.isBlockedInternal(ic.DAO, hash)
+	i, blocked := p.isBlockedInternal(ic.DAO.GetROCache(p.ID).(*PolicyCache), hash)
 	if !blocked {
 		return stackitem.NewBool(false)
 	}
@@ -358,8 +365,9 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 // like not being signed by a blocked account or not exceeding the block-level system
 // fee limit.
 func (p *Policy) CheckPolicy(d *dao.Simple, tx *transaction.Transaction) error {
+	cache := d.GetROCache(p.ID).(*PolicyCache)
 	for _, signer := range tx.Signers {
-		if _, isBlocked := p.isBlockedInternal(d, signer.Account); isBlocked {
+		if _, isBlocked := p.isBlockedInternal(cache, signer.Account); isBlocked {
 			return fmt.Errorf("account %s is blocked", signer.Account.StringLE())
 		}
 	}

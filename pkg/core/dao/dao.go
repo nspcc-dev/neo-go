@@ -970,7 +970,7 @@ func (dao *Simple) GetRWCache(id int32) NativeContractCache {
 func (dao *Simple) getCache(k int32, ro bool) NativeContractCache {
 	if itm, ok := dao.nativeCache[k]; ok {
 		// Don't need to create itm copy, because its value was already copied
-		// the first time it was retrieved from loser ps.
+		// the first time it was retrieved from lower ps.
 		return itm
 	}
 
