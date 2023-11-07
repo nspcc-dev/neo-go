@@ -180,6 +180,9 @@ func (c *nep17TokenNative) updateAccBalance(ic *interop.Context, acc util.Uint16
 		if amount.Sign() < 0 {
 			return nil, errors.New("insufficient funds")
 		}
+		if requiredBalance != nil && requiredBalance.Sign() > 0 {
+			return nil, errors.New("insufficient funds")
+		}
 		if amount.Sign() == 0 {
 			// it's OK to transfer 0 if the balance is 0, no need to put si to the storage
 			return nil, nil
