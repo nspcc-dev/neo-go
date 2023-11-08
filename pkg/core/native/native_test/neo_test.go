@@ -595,6 +595,22 @@ func TestNEO_TransferZeroWithNonZeroBalance(t *testing.T) {
 	})
 }
 
+// https://github.com/nspcc-dev/neo-go/issues/3190
+func TestNEO_TransferNonZeroWithZeroBalance(t *testing.T) {
+	neoValidatorsInvoker := newNeoValidatorsClient(t)
+	e := neoValidatorsInvoker.Executor
+
+	acc := neoValidatorsInvoker.WithSigners(e.NewAccount(t))
+	accH := acc.Signers[0].ScriptHash()
+	h := acc.Invoke(t, false, "transfer", accH, accH, int64(5), nil)
+	aer := e.CheckHalt(t, h, stackitem.Make(false))
+	require.Equal(t, 0, len(aer.Events))
+	// check balance wasn't changed and height was not updated
+	updatedBalance, updatedHeight := e.Chain.GetGoverningTokenBalance(accH)
+	require.Equal(t, int64(0), updatedBalance.Int64())
+	require.Equal(t, uint32(0), updatedHeight)
+}
+
 func TestNEO_CalculateBonus(t *testing.T) {
 	neoCommitteeInvoker := newNeoCommitteeClient(t, 10_0000_0000)
 	e := neoCommitteeInvoker.Executor
