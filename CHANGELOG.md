@@ -2,6 +2,23 @@
 
 This document outlines major changes between releases.
 
+## 0.103.1 "Verification" (09 Nov 2023)
+
+An urgent 3.6.0-compatible version that contains a hotfix for the bug that
+prevents node from starting from the existing database every new dBFT epoch.
+Also, the release includes a bugfix that fails any non-zero NEO and GAS
+roundtrips from accounts with zero balance.
+
+Although the DB format and storage states were not affected by this release,
+the node resynchronization is still recommended for those who want to keep
+correct application logs. Resynchronization can be skipped if you're ok with
+wrong application logs for some transactions (e.g. CN doesn't care, and RPC node
+cares a lot).
+
+Bugs fixed:
+* properly initialize cache of native NeoToken contract every new dBFT epoch (#3187)
+* forbid non-zero NEO and GAS roundtrips from accounts with zero balance (#3191)
+
 ## 0.103.0 "Backwardation" (20 Oct 2023)
 
 A minor 3.6.0-compatible version of NeoGo with new salty ZKP-related
