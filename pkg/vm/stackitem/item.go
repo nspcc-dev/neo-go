@@ -21,7 +21,7 @@ const (
 	// MaxBigIntegerSizeBits is the maximum size of a BigInt item in bits.
 	MaxBigIntegerSizeBits = 32 * 8
 	// MaxSize is the maximum item size allowed in the VM.
-	MaxSize = 1024 * 1024
+	MaxSize = math.MaxUint16 * 2
 	// MaxComparableNumOfItems is the maximum number of items that can be compared for structs.
 	MaxComparableNumOfItems = MaxDeserialized
 	// MaxClonableNumOfItems is the maximum number of items that can be cloned in structs.

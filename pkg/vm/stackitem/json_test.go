@@ -383,7 +383,7 @@ func TestToJSONWithTypesBadCases(t *testing.T) {
 		// until the necessary branch is covered #ididthemath.
 		arr := NewArray([]Item{
 			NewByteArray(bigBuf[:MaxSize/4*3-70]),
-			NewBigInteger(big.NewInt(1234)),
+			NewBigInteger(big.NewInt(123456)),
 		})
 		_, err := ToJSONWithTypes(arr)
 		require.ErrorIs(t, err, errTooBigSize)
