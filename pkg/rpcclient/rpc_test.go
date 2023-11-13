@@ -1456,7 +1456,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			},
 		},
 	},
-	`{"id":1,"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid Params"}}`: {
+	`{"id":1,"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params"}}`: {
 		{
 			name: "getapplicationlog_invalid_params_error",
 			invoke: func(c *Client) (any, error) {

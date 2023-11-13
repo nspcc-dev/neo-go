@@ -83,7 +83,7 @@ func TestWSClientSubscription(t *testing.T) {
 	t.Run("bad", func(t *testing.T) {
 		for name, f := range cases {
 			t.Run(name, func(t *testing.T) {
-				srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "error":{"code":-32602,"message":"Invalid Params"}}`)
+				srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "error":{"code":-32602,"message":"Invalid params"}}`)
 				wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 				require.NoError(t, err)
 				wsc.getNextRequestID = getTestRequestID
@@ -118,7 +118,7 @@ func TestWSClientUnsubscription(t *testing.T) {
 			err := wsc.Unsubscribe("0")
 			require.Error(t, err)
 		}},
-		"error returned": {`{"jsonrpc": "2.0", "id": 1, "error":{"code":-32602,"message":"Invalid Params"}}`, func(t *testing.T, wsc *WSClient) {
+		"error returned": {`{"jsonrpc": "2.0", "id": 1, "error":{"code":-32602,"message":"Invalid params"}}`, func(t *testing.T, wsc *WSClient) {
 			// We can't really subscribe using this stub server, so set up wsc internals.
 			wsc.subscriptions["0"] = &blockReceiver{}
 			err := wsc.Unsubscribe("0")

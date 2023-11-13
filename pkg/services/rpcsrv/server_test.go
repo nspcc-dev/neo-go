@@ -3148,15 +3148,15 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 	t.Run("calculatenetworkfee", func(t *testing.T) {
 		t.Run("no parameters", func(t *testing.T) {
 			body := doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": []}"`, httpSrv.URL, t)
-			_ = checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "Invalid Params")
+			_ = checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "Invalid params")
 		})
 		t.Run("non-base64 parameter", func(t *testing.T) {
 			body := doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": ["noatbase64"]}"`, httpSrv.URL, t)
-			_ = checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "Invalid Params")
+			_ = checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "Invalid params")
 		})
 		t.Run("non-transaction parameter", func(t *testing.T) {
 			body := doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": ["bm90IGEgdHJhbnNhY3Rpb24K"]}"`, httpSrv.URL, t)
-			_ = checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "Invalid Params")
+			_ = checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "Invalid params")
 		})
 		calcReq := func(t *testing.T, tx *transaction.Transaction) []byte {
 			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": ["%s"]}"`, base64.StdEncoding.EncodeToString(tx.Bytes()))

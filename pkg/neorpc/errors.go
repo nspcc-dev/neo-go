@@ -282,13 +282,13 @@ func NewError(code int64, message string, data string) *Error {
 // NewParseError creates a new error with code
 // -32700.
 func NewParseError(data string) *Error {
-	return NewError(BadRequestCode, "Parse Error", data)
+	return NewError(BadRequestCode, "Parse error", data)
 }
 
 // NewInvalidRequestError creates a new error with
 // code -32600.
 func NewInvalidRequestError(data string) *Error {
-	return NewError(InvalidRequestCode, "Invalid Request", data)
+	return NewError(InvalidRequestCode, "Invalid request", data)
 }
 
 // NewMethodNotFoundError creates a new error with
@@ -300,7 +300,7 @@ func NewMethodNotFoundError(data string) *Error {
 // NewInvalidParamsError creates a new error with
 // code -32602.
 func NewInvalidParamsError(data string) *Error {
-	return NewError(InvalidParamsCode, "Invalid Params", data)
+	return NewError(InvalidParamsCode, "Invalid params", data)
 }
 
 // NewInternalServerError creates a new error with
