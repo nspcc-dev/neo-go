@@ -73,11 +73,11 @@ var ConfigFile = cli.StringFlag{
 	Usage: "path to the node configuration file (overrides --config-path option)",
 }
 
-// RelativePath is a flag for commands that use node configuration and provides
+// ConsensusWalletPath is a flag for commands that use node configuration and provides
 // the path to the consensus wallet instead of reading it from the config file.
-var RelativePath = cli.StringFlag{
-	Name:  "relative-path",
-	Usage: "path to the consensus wallet file (overrides path defined in the config)",
+var ConsensusWalletPath = cli.StringFlag{
+	Name:  "consensus-wallet",
+	Usage: "path to the consensus wallet file (overrides path defined in the Consensus subsection of the node configuration file)",
 }
 
 // Debug is a flag for commands that allow node in debug mode usage.
@@ -166,22 +166,30 @@ func GetRPCWithInvoker(gctx context.Context, ctx *cli.Context, signers []transac
 // GetConfigFromContext looks at the path and the mode flags in the given config and
 // returns an appropriate config.
 func GetConfigFromContext(ctx *cli.Context) (config.Config, error) {
-	var configFile = ctx.String("config-file")
-	var relativePath = ctx.String("relative-path")
+	var (
+		configFile   = ctx.String("config-file")
+		relativePath = ctx.String("consensus-wallet")
+		cfg          config.Config
+		err          error
+	)
 	if len(configFile) != 0 {
-		cfg, err := config.LoadFile(configFile)
-		if err == nil && len(relativePath) != 0 {
-			cfg.ApplicationConfiguration.Consensus.UnlockWallet.Path = relativePath
+		cfg, err = config.LoadFile(configFile)
+		if err != nil {
+			return cfg, err
 		}
-		return cfg, err
-	}
-	var configPath = "./config"
-	if argCp := ctx.String("config-path"); argCp != "" {
-		configPath = argCp
+	} else {
+		var configPath = "./config"
+		if argCp := ctx.String("config-path"); argCp != "" {
+			configPath = argCp
+		}
+
+		cfg, err = config.Load(configPath, GetNetwork(ctx))
+		if err != nil {
+			return cfg, err
+		}
 	}
 
-	cfg, err := config.Load(configPath, GetNetwork(ctx))
-	if err == nil && len(relativePath) != 0 {
+	if len(relativePath) != 0 {
 		cfg.ApplicationConfiguration.Consensus.UnlockWallet.Path = relativePath
 	}
 	return cfg, err
