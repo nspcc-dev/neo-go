@@ -305,6 +305,25 @@ func TestManifestToStackItem(t *testing.T) {
 		}
 		check(t, expected)
 	})
+
+	t.Run("compat", func(t *testing.T) {
+		// Compatibility test with NeoC#, see https://github.com/neo-project/neo/pull/2948.
+		var mJSON = `{"name":"CallOracleContract-6","groups":[],"features":{},"supportedstandards":[],"abi":{"methods":[{"name":"request","parameters":[{"name":"url","type":"String"},{"name":"filter","type":"String"},{"name":"gasForResponse","type":"Integer"}],"returntype":"Void","offset":0,"safe":false},{"name":"callback","parameters":[{"name":"url","type":"String"},{"name":"userData","type":"Any"},{"name":"responseCode","type":"Integer"},{"name":"response","type":"ByteArray"}],"returntype":"Void","offset":86,"safe":false},{"name":"getStoredUrl","parameters":[],"returntype":"String","offset":129,"safe":false},{"name":"getStoredResponseCode","parameters":[],"returntype":"Integer","offset":142,"safe":false},{"name":"getStoredResponse","parameters":[],"returntype":"ByteArray","offset":165,"safe":false}],"events":[]},"permissions":[{"contract":"0xfe924b7cfe89ddd271abaf7210a80a7e11178758","methods":"*"},{"contract":"*","methods":"*"}],"trusts":["0xfe924b7cfe89ddd271abaf7210a80a7e11178758","*"],"extra":{}}`
+		c := NewManifest("Test")
+		require.NoError(t, json.Unmarshal([]byte(mJSON), c))
+
+		si, err := c.ToStackItem()
+		require.NoError(t, err)
+		actual := new(Manifest)
+		require.NoError(t, actual.FromStackItem(si))
+		require.NotEqual(t, actual.Permissions[0].Contract.Type, PermissionWildcard)
+		require.True(t, actual.Permissions[0].Methods.IsWildcard())
+		require.Equal(t, actual.Permissions[1].Contract.Type, PermissionWildcard)
+		require.True(t, actual.Permissions[1].Methods.IsWildcard())
+
+		require.NotEqual(t, actual.Trusts.Value[0].Type, PermissionWildcard)
+		require.Equal(t, actual.Trusts.Value[1].Type, PermissionWildcard)
+	})
 }
 
 func TestManifest_FromStackItemErrors(t *testing.T) {
