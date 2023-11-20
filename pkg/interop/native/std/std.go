@@ -173,3 +173,10 @@ func StringSplitNonEmpty(s, sep string) []string {
 	return neogointernal.CallWithToken(Hash, "stringSplit", int(contract.NoneFlag),
 		s, sep, true).([]string)
 }
+
+// StrLen returns length of the string in Utf- characters.
+// It uses `strLen` method of StdLib native contract.
+func StrLen(s string) int {
+	return neogointernal.CallWithToken(Hash, "strLen", int(contract.NoneFlag),
+		s).(int)
+}

@@ -558,3 +558,25 @@ func TestStringSplit(t *testing.T) {
 			func() { s.stringSplit2(ic, []stackitem.Item{s1, s2}) })
 	})
 }
+
+func TestStd_StrLen(t *testing.T) {
+	s := newStd()
+	ic := &interop.Context{VM: vm.New()}
+
+	check := func(t *testing.T, expected int64, str string) {
+		args := []stackitem.Item{stackitem.Make(str)}
+		actual := s.strLen(ic, args)
+		l, ok := actual.Value().(*big.Int)
+		require.True(t, ok)
+		require.Equal(t, expected, l.Int64())
+	}
+
+	// These tests are taken from https://github.com/neo-project/neo/pull/2854/files.
+	check(t, 1, "🦆")
+	check(t, 1, "ã")
+	check(t, 1, "a")
+
+	bad := string(rune(0xff))
+	check(t, 1, bad)
+	check(t, 3, bad+"ab")
+}

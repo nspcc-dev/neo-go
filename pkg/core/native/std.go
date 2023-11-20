@@ -7,6 +7,7 @@ import (
 	"errors"
 	"math/big"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -157,6 +158,11 @@ func newStd() *Std {
 		manifest.NewParameter("separator", smartcontract.StringType),
 		manifest.NewParameter("removeEmptyEntries", smartcontract.BoolType))
 	md = newMethodAndPrice(s.stringSplit3, 1<<8, callflag.NoneFlag)
+	s.AddMethod(md, desc)
+
+	desc = newDescriptor("strLen", smartcontract.IntegerType,
+		manifest.NewParameter("str", smartcontract.StringType))
+	md = newMethodAndPrice(s.strLen, 1<<8, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
 	return s
@@ -419,6 +425,12 @@ func (s *Std) stringSplitAux(str, sep string, removeEmpty bool) []stackitem.Item
 	}
 
 	return result
+}
+
+func (s *Std) strLen(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	str := s.toLimitedString(args[0])
+
+	return stackitem.NewBigInteger(big.NewInt(int64(utf8.RuneCountInString(str))))
 }
 
 // Metadata implements the Contract interface.

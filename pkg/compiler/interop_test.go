@@ -277,6 +277,29 @@ func TestCurrentSigners(t *testing.T) {
 	})
 }
 
+func TestStdLib_StrLen(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	src := `package foo
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/std"
+		)
+		func Main(s string) int {
+			return std.StrLen(s)
+		}`
+	ctr := neotest.CompileSource(t, e.CommitteeHash, strings.NewReader(src), &compiler.Options{Name: "Helper"})
+	e.DeployContract(t, ctr, nil)
+	c := e.CommitteeInvoker(ctr.Hash)
+
+	expected := stackitem.Make(1)
+	c.Invoke(t, expected, "main", "🦆")
+	c.Invoke(t, expected, "main", "ã")
+	c.Invoke(t, expected, "main", "a")
+
+	expected = stackitem.Make(7)
+	c.Invoke(t, expected, "main", "abc 123")
+}
+
 func spawnVM(t *testing.T, ic *interop.Context, src string) *vm.VM {
 	b, di, err := compiler.CompileWithOptions("foo.go", strings.NewReader(src), nil)
 	require.NoError(t, err)
