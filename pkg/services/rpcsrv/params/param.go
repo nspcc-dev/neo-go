@@ -399,6 +399,9 @@ func (p Param) GetSignersWithWitnesses() ([]transaction.Signer, []transaction.Wi
 	if err != nil {
 		return nil, nil, err
 	}
+	if len(hashes) > transaction.MaxAttributes {
+		return nil, nil, errors.New("too many signers")
+	}
 	signers := make([]transaction.Signer, len(hashes))
 	witnesses := make([]transaction.Witness, len(hashes))
 	// try to extract hashes first
