@@ -2,10 +2,12 @@ package transaction
 
 import (
 	"errors"
+	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // The maximum number of AllowedContracts or AllowedGroups.
@@ -56,4 +58,31 @@ func (c *Signer) DecodeBinary(br *io.BinReader) {
 	if c.Scopes&Rules != 0 {
 		br.ReadArray(&c.Rules, maxSubitems)
 	}
+}
+
+// SignersToStackItem converts transaction.Signers to stackitem.Item.
+func SignersToStackItem(signers []Signer) stackitem.Item {
+	res := make([]stackitem.Item, len(signers))
+	for i, s := range signers {
+		contracts := make([]stackitem.Item, len(s.AllowedContracts))
+		for j, c := range s.AllowedContracts {
+			contracts[j] = stackitem.NewByteArray(c.BytesBE())
+		}
+		groups := make([]stackitem.Item, len(s.AllowedGroups))
+		for j, g := range s.AllowedGroups {
+			groups[j] = stackitem.NewByteArray(g.Bytes())
+		}
+		rules := make([]stackitem.Item, len(s.Rules))
+		for j, r := range s.Rules {
+			rules[j] = r.ToStackItem()
+		}
+		res[i] = stackitem.NewArray([]stackitem.Item{
+			stackitem.NewByteArray(s.Account.BytesBE()),
+			stackitem.NewBigInteger(big.NewInt(int64(s.Scopes))),
+			stackitem.NewArray(contracts),
+			stackitem.NewArray(groups),
+			stackitem.NewArray(rules),
+		})
+	}
+	return stackitem.NewArray(res)
 }

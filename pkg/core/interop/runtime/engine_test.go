@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
@@ -127,5 +128,47 @@ func TestLog(t *testing.T) {
 		require.Equal(t, "info", logMsg["level"])
 		require.Equal(t, "hello", logMsg["msg"])
 		require.Equal(t, h.StringLE(), logMsg["script"])
+	})
+}
+
+func TestCurrentSigners(t *testing.T) {
+	t.Run("container is block", func(t *testing.T) {
+		b := block.New(false)
+		ic := &interop.Context{VM: vm.New(), Container: b}
+		require.NoError(t, CurrentSigners(ic))
+		checkStack(t, ic.VM, stackitem.Null{})
+	})
+
+	t.Run("container is transaction", func(t *testing.T) {
+		tx := &transaction.Transaction{
+			Signers: []transaction.Signer{
+				{
+					Account: util.Uint160{1},
+					Scopes:  transaction.None,
+				},
+				{
+					Account: util.Uint160{2},
+					Scopes:  transaction.CalledByEntry,
+				},
+			},
+		}
+		ic := &interop.Context{VM: vm.New(), Container: tx}
+		require.NoError(t, CurrentSigners(ic))
+		checkStack(t, ic.VM, stackitem.NewArray([]stackitem.Item{
+			stackitem.NewArray([]stackitem.Item{
+				stackitem.NewByteArray(util.Uint160{1}.BytesBE()),
+				stackitem.NewBigInteger(big.NewInt(int64(transaction.None))),
+				stackitem.NewArray([]stackitem.Item{}),
+				stackitem.NewArray([]stackitem.Item{}),
+				stackitem.NewArray([]stackitem.Item{}),
+			}),
+			stackitem.NewArray([]stackitem.Item{
+				stackitem.NewByteArray(util.Uint160{2}.BytesBE()),
+				stackitem.NewBigInteger(big.NewInt(int64(transaction.CalledByEntry))),
+				stackitem.NewArray([]stackitem.Item{}),
+				stackitem.NewArray([]stackitem.Item{}),
+				stackitem.NewArray([]stackitem.Item{}),
+			}),
+		}))
 	})
 }

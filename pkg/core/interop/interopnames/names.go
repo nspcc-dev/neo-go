@@ -15,6 +15,7 @@ const (
 	SystemIteratorValue                 = "System.Iterator.Value"
 	SystemRuntimeBurnGas                = "System.Runtime.BurnGas"
 	SystemRuntimeCheckWitness           = "System.Runtime.CheckWitness"
+	SystemRuntimeCurrentSigners         = "System.Runtime.CurrentSigners"
 	SystemRuntimeGasLeft                = "System.Runtime.GasLeft"
 	SystemRuntimeGetAddressVersion      = "System.Runtime.GetAddressVersion"
 	SystemRuntimeGetCallingScriptHash   = "System.Runtime.GetCallingScriptHash"
@@ -52,6 +53,7 @@ var names = []string{
 	SystemIteratorValue,
 	SystemRuntimeBurnGas,
 	SystemRuntimeCheckWitness,
+	SystemRuntimeCurrentSigners,
 	SystemRuntimeGasLeft,
 	SystemRuntimeGetAddressVersion,
 	SystemRuntimeGetCallingScriptHash,
