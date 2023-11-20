@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // NEO Executable Format 3 (NEF3)
@@ -31,8 +33,6 @@ import (
 const (
 	// Magic is a magic File header constant.
 	Magic uint32 = 0x3346454E
-	// MaxScriptLength is the maximum allowed contract script length.
-	MaxScriptLength = 512 * 1024
 	// MaxSourceURLLength is the maximum allowed source URL length.
 	MaxSourceURLLength = 256
 	// compilerFieldSize is the length of `Compiler` File header field in bytes.
@@ -99,8 +99,11 @@ func (h *Header) DecodeBinary(r *io.BinReader) {
 }
 
 // CalculateChecksum returns first 4 bytes of double-SHA256(Header) converted to uint32.
+// CalculateChecksum doesn't perform the resulting serialized NEF size check, and return
+// the checksum irrespectively to the size limit constraint. It's a caller's duty to check
+// the resulting NEF size.
 func (n *File) CalculateChecksum() uint32 {
-	bb, err := n.Bytes()
+	bb, err := n.BytesLong()
 	if err != nil {
 		panic(err)
 	}
@@ -139,7 +142,7 @@ func (n *File) DecodeBinary(r *io.BinReader) {
 		r.Err = errInvalidReserved
 		return
 	}
-	n.Script = r.ReadVarBytes(MaxScriptLength)
+	n.Script = r.ReadVarBytes(stackitem.MaxSize)
 	if r.Err == nil && len(n.Script) == 0 {
 		r.Err = errors.New("empty script")
 		return
@@ -152,19 +155,40 @@ func (n *File) DecodeBinary(r *io.BinReader) {
 	}
 }
 
-// Bytes returns a byte array with a serialized NEF File.
+// Bytes returns a byte array with a serialized NEF File. It performs the
+// resulting NEF file size check and returns an error if serialized slice length
+// exceeds [stackitem.MaxSize].
 func (n File) Bytes() ([]byte, error) {
+	return n.bytes(true)
+}
+
+// BytesLong returns a byte array with a serialized NEF File. It performs no
+// resulting slice check.
+func (n File) BytesLong() ([]byte, error) {
+	return n.bytes(false)
+}
+
+// bytes returns the serialized NEF File representation and performs the resulting
+// byte array size check if needed.
+func (n File) bytes(checkSize bool) ([]byte, error) {
 	buf := io.NewBufBinWriter()
 	n.EncodeBinary(buf.BinWriter)
 	if buf.Err != nil {
 		return nil, buf.Err
 	}
-	return buf.Bytes(), nil
+	res := buf.Bytes()
+	if checkSize && len(res) > stackitem.MaxSize {
+		return nil, fmt.Errorf("serialized NEF size exceeds VM stackitem limits: %d bytes is allowed at max, got %d", stackitem.MaxSize, len(res))
+	}
+	return res, nil
 }
 
 // FileFromBytes returns a NEF File deserialized from the given bytes.
 func FileFromBytes(source []byte) (File, error) {
 	result := File{}
+	if len(source) > stackitem.MaxSize {
+		return result, fmt.Errorf("invalid NEF file size: expected %d at max, got %d", stackitem.MaxSize, len(source))
+	}
 	r := io.NewBinReaderFromBuf(source)
 	result.DecodeBinary(r)
 	if r.Err != nil {

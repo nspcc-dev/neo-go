@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
 
@@ -82,6 +83,29 @@ func TestCompiler(t *testing.T) {
 				outfile := exampleSavePath + "/test.nef"
 				_, err = compiler.CompileAndSave(exampleCompilePath+"/"+infos[0].Name(), &compiler.Options{Outfile: outfile})
 				require.NoError(t, err)
+			},
+		},
+		{
+			name: "TestCompileAndSave_NEF_constraints",
+			function: func(t *testing.T) {
+				tmp := t.TempDir()
+				src := `package nefconstraints
+	var data = "%s"
+
+	func Main() string {
+		return data
+	}
+`
+				data := make([]byte, stackitem.MaxSize-10)
+				for i := range data {
+					data[i] = byte('a')
+				}
+				in := filepath.Join(tmp, "src.go")
+				require.NoError(t, os.WriteFile(in, []byte(fmt.Sprintf(src, data)), os.ModePerm))
+				out := filepath.Join(tmp, "test.nef")
+				_, err := compiler.CompileAndSave(in, &compiler.Options{Outfile: out})
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "serialized NEF size exceeds VM stackitem limits")
 			},
 		},
 	}
