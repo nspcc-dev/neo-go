@@ -496,6 +496,15 @@ func TestParamGetSigners(t *testing.T) {
 		require.True(t, u2.Equals(actual[1].Account))
 	})
 
+	t.Run("overflow", func(t *testing.T) {
+		var hashes = make([]util.Uint256, transaction.MaxAttributes+1)
+		msg, err := json.Marshal(hashes)
+		require.NoError(t, err)
+		p := Param{RawMessage: msg}
+		_, _, err = p.GetSignersWithWitnesses()
+		require.Error(t, err)
+	})
+
 	t.Run("bad format", func(t *testing.T) {
 		p := Param{RawMessage: []byte(`"not a signer"`)}
 		_, _, err := p.GetSignersWithWitnesses()
