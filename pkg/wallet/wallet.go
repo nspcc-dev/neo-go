@@ -3,6 +3,7 @@ package wallet
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 
@@ -56,7 +57,7 @@ func NewWallet(location string) (*Wallet, error) {
 func NewWalletFromFile(path string) (*Wallet, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open wallet: %w", err)
 	}
 	defer file.Close()
 
@@ -64,7 +65,7 @@ func NewWalletFromFile(path string) (*Wallet, error) {
 		path: file.Name(),
 	}
 	if err := json.NewDecoder(file).Decode(wall); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unmarshal wallet: %w", err)
 	}
 	return wall, nil
 }
