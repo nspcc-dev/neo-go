@@ -21,9 +21,10 @@ import (
 const (
 	policyContractID = -7
 
-	defaultExecFeeFactor      = interop.DefaultBaseExecFee
-	defaultFeePerByte         = 1000
-	defaultMaxVerificationGas = 1_50000000
+	defaultExecFeeFactor       = interop.DefaultBaseExecFee
+	defaultFeePerByte          = 1000
+	defaultMaxVerificationGas  = 1_50000000
+	defaultSystemFeeRefundCost = 0_10000000
 	// DefaultStoragePrice is the price to pay for 1 byte of storage.
 	DefaultStoragePrice = 100000
 
@@ -33,7 +34,8 @@ const (
 	maxFeePerByte = 100_000_000
 	// maxStoragePrice is the maximum allowed price for a byte of storage.
 	maxStoragePrice = 10000000
-
+	// maxSystemFeeRefundCost is the maximun allowed extra fee for gas refundable transaction
+	maxSystemFeeRefundCost = 1_00000000
 	// blockedAccountPrefix is a prefix used to store blocked account.
 	blockedAccountPrefix = 15
 )
@@ -46,6 +48,8 @@ var (
 	feePerByteKey = []byte{10}
 	// storagePriceKey is a key used to store storage price.
 	storagePriceKey = []byte{19}
+	// systemFeeRefundCostKey is a key usesd to store gas refund fee
+	systemFeeRefundCostKey = []byte{20}
 )
 
 // Policy represents Policy native contract.
@@ -55,11 +59,12 @@ type Policy struct {
 }
 
 type PolicyCache struct {
-	execFeeFactor      uint32
-	feePerByte         int64
-	maxVerificationGas int64
-	storagePrice       uint32
-	blockedAccounts    []util.Uint160
+	execFeeFactor       uint32
+	feePerByte          int64
+	maxVerificationGas  int64
+	storagePrice        uint32
+	systemFeeRefundCost int64
+	blockedAccounts     []util.Uint160
 }
 
 var (
@@ -127,6 +132,16 @@ func newPolicy() *Policy {
 	md = newMethodAndPrice(p.unblockAccount, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
+	desc = newDescriptor("getSystemFeeRefundCost", smartcontract.IntegerType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.GetSystemFeeRefundCost, 1<<15, callflag.ReadStates)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("setSystemFeeRefundCost", smartcontract.VoidType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.setSystemFeeRefundCost, 1<<15, callflag.States)
+	p.AddMethod(md, desc)
+
 	return p
 }
 
@@ -140,13 +155,15 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 	setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte)
 	setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor)
 	setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice)
+	setIntWithKey(p.ID, ic.DAO, systemFeeRefundCostKey, defaultSystemFeeRefundCost)
 
 	cache := &PolicyCache{
-		execFeeFactor:      defaultExecFeeFactor,
-		feePerByte:         defaultFeePerByte,
-		maxVerificationGas: defaultMaxVerificationGas,
-		storagePrice:       DefaultStoragePrice,
-		blockedAccounts:    make([]util.Uint160, 0),
+		execFeeFactor:       defaultExecFeeFactor,
+		feePerByte:          defaultFeePerByte,
+		maxVerificationGas:  defaultMaxVerificationGas,
+		storagePrice:        DefaultStoragePrice,
+		systemFeeRefundCost: defaultSystemFeeRefundCost,
+		blockedAccounts:     make([]util.Uint160, 0),
 	}
 	ic.DAO.SetCache(p.ID, cache)
 
@@ -168,6 +185,7 @@ func (p *Policy) fillCacheFromDAO(cache *PolicyCache, d *dao.Simple) error {
 	cache.feePerByte = getIntWithKey(p.ID, d, feePerByteKey)
 	cache.maxVerificationGas = defaultMaxVerificationGas
 	cache.storagePrice = uint32(getIntWithKey(p.ID, d, storagePriceKey))
+	cache.systemFeeRefundCost = getIntWithKey(p.ID, d, systemFeeRefundCostKey)
 
 	cache.blockedAccounts = make([]util.Uint160, 0)
 	var fErr error
@@ -359,6 +377,30 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	cache.blockedAccounts = append(cache.blockedAccounts[:i], cache.blockedAccounts[i+1:]...)
 	return stackitem.NewBool(true)
+}
+
+func (p *Policy) GetSystemFeeRefundCost(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(p.GetSystemFeeRefundCostInternal(ic.DAO)))
+}
+
+func (p *Policy) GetSystemFeeRefundCostInternal(d *dao.Simple) int64 {
+	cache := d.GetROCache(p.ID).(*PolicyCache)
+	return cache.systemFeeRefundCost
+}
+
+// setSystemFeeRefundCost is a Policy contract method that set extra network fee for gas refundable transaction.
+func (p *Policy) setSystemFeeRefundCost(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toBigInt(args[0]).Int64()
+	if value < 0 || value > maxSystemFeeRefundCost {
+		panic(fmt.Errorf("SystemFeeRefundCost shouldn't be negative or greater than %d", maxSystemFeeRefundCost))
+	}
+	if !p.NEO.checkCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	setIntWithKey(p.ID, ic.DAO, systemFeeRefundCostKey, value)
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	cache.systemFeeRefundCost = value
+	return stackitem.Null{}
 }
 
 // CheckPolicy checks whether a transaction conforms to the current policy restrictions,

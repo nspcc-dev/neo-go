@@ -57,3 +57,13 @@ func BlockAccount(addr interop.Hash160) bool {
 func UnblockAccount(addr interop.Hash160) bool {
 	return neogointernal.CallWithToken(Hash, "unblockAccount", int(contract.States), addr).(bool)
 }
+
+// GetSystemFeeRefundableCost represents `getSystemFeeRefundCost` method of Policy native contract.
+func GetSystemFeeRefundableCost() int {
+	return neogointernal.CallWithToken(Hash, "getSystemFeeRefundCost", int(contract.ReadStates)).(int)
+}
+
+// SetSystemFeeRefundableCost represents `setSystemFeeRefundCost` method of Policy native contract.
+func SetSystemFeeRefundableCost(value int) {
+	neogointernal.CallWithTokenNoRet(Hash, "setSystemFeeRefundCost", int(contract.States), value)
+}

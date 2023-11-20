@@ -1545,6 +1545,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		cache          = bc.dao.GetPrivate()
 		aerCache       = bc.dao.GetPrivate()
 		appExecResults = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
+		txesConsumed   = make([]int64, len(block.Transactions))
 		aerchan        = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
 		aerdone        = make(chan error)
 	)
@@ -1627,7 +1628,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		close(aerdone)
 	}()
 	_ = cache.GetItemCtx() // Prime serialization context cache (it'll be reused by upper layer DAOs).
-	aer, v, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache, trigger.OnPersist, nil)
+	aer, v, err := bc.runPersist(bc.contracts.GetPersistScript(), block, cache, trigger.OnPersist, nil, nil)
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
 		close(aerchan)
@@ -1637,7 +1638,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	appExecResults = append(appExecResults, aer)
 	aerchan <- aer
 
-	for _, tx := range block.Transactions {
+	for i, tx := range block.Transactions {
 		systemInterop := bc.newInteropContext(trigger.Application, cache, block, tx)
 		systemInterop.ReuseVM(v)
 		v.LoadScriptWithFlags(tx.Script, callflag.All)
@@ -1660,6 +1661,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				zap.Error(err))
 			faultException = err.Error()
 		}
+		txesConsumed[i] = v.GasConsumed()
 		aer := &state.AppExecResult{
 			Container: tx.Hash(),
 			Execution: state.Execution{
@@ -1675,7 +1677,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		aerchan <- aer
 	}
 
-	aer, _, err = bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache, trigger.PostPersist, v)
+	aer, _, err = bc.runPersist(bc.contracts.GetPostPersistScript(), block, cache, trigger.PostPersist, v, txesConsumed)
 	if err != nil {
 		// Release goroutines, don't care about errors, we already have one.
 		close(aerchan)
@@ -1810,13 +1812,14 @@ func (bc *Blockchain) IsExtensibleAllowed(u util.Uint160) bool {
 	return n < len(us)
 }
 
-func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Simple, trig trigger.Type, v *vm.VM) (*state.AppExecResult, *vm.VM, error) {
+func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Simple, trig trigger.Type, v *vm.VM, txesConsumed []int64) (*state.AppExecResult, *vm.VM, error) {
 	systemInterop := bc.newInteropContext(trig, cache, block, nil)
 	if v == nil {
 		v = systemInterop.SpawnVM()
 	} else {
 		systemInterop.ReuseVM(v)
 	}
+	systemInterop.TxesConsumed = txesConsumed
 	v.LoadScriptWithFlags(script, callflag.All)
 	if err := systemInterop.Exec(); err != nil {
 		return nil, v, fmt.Errorf("VM has failed: %w", err)
@@ -2368,6 +2371,11 @@ func (bc *Blockchain) FeePerByte() int64 {
 	return bc.contracts.Policy.GetFeePerByteInternal(bc.dao)
 }
 
+// GasRefundFee returns extra fee for system fee refundable transaction
+func (bc *Blockchain) SystemFeeRefundCost() int64 {
+	return bc.contracts.Policy.GetSystemFeeRefundCostInternal(bc.dao)
+}
+
 // GetMemPool returns the memory pool of the blockchain.
 func (bc *Blockchain) GetMemPool() *mempool.Pool {
 	return bc.memPool
@@ -2487,6 +2495,9 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 			needNetworkFee += (int64(na.NKeys) + 1) * bc.contracts.Notary.GetNotaryServiceFeePerKey(bc.dao)
 		}
 	}
+	if len(t.GetAttributes(transaction.RefundableSystemFeeT)) > 0 {
+		needNetworkFee += bc.SystemFeeRefundCost()
+	}
 	netFee := t.NetworkFee - needNetworkFee
 	if netFee < 0 {
 		return fmt.Errorf("%w: net fee is %v, need %v", ErrTxSmallNetworkFee, t.NetworkFee, needNetworkFee)
@@ -2598,6 +2609,11 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 			}
 			if !tx.HasSigner(bc.contracts.Notary.Hash) {
 				return fmt.Errorf("%w: NotaryAssisted attribute was found, but transaction is not signed by the Notary native contract", ErrInvalidAttribute)
+			}
+		case transaction.RefundableSystemFeeT:
+			state := bc.GetContractState(tx.Sender())
+			if state != nil {
+				return fmt.Errorf("%w: RefundableSystemFee attribute was found, but transaction sender is contract", ErrInvalidAttribute)
 			}
 		default:
 			if !bc.config.ReservedAttributes && attrType >= transaction.ReservedLowerBound && attrType <= transaction.ReservedUpperBound {
