@@ -1149,7 +1149,9 @@ func TestConfigNativeUpdateHistory(t *testing.T) {
 		"unit_testnet.single",
 	}
 	for _, tc := range testCases {
-		check(t, tc)
+		t.Run(fmt.Sprintf("%s", tc), func(t *testing.T) {
+			check(t, tc)
+		})
 	}
 }
 
