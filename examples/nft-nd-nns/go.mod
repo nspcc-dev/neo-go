@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/nspcc-dev/neo-go v0.102.1-0.20231020181554-d89c8801d689
-	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231120114907-e63a93b8a00e
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231120162333-406c9f8b9214
 	github.com/stretchr/testify v1.8.4
 )
 
