@@ -395,6 +395,7 @@ func TestAssistedRPCBindings(t *testing.T) {
 		}
 		testName += fmt.Sprintf(", predefined hash: %t", hasDefinedHash)
 		t.Run(testName, func(t *testing.T) {
+			outFile := filepath.Join(tmpDir, "out.go")
 			configFile := filepath.Join(source, "config.yml")
 			expectedFile := filepath.Join(source, "rpcbindings.out")
 			if len(suffix) != 0 {
@@ -421,14 +422,14 @@ func TestAssistedRPCBindings(t *testing.T) {
 			cmds := []string{"", "contract", "generate-rpcwrapper",
 				"--config", bindingF,
 				"--manifest", manifestF,
-				"--out", expectedFile,
+				"--out", outFile,
 			}
 			if hasDefinedHash {
 				cmds = append(cmds, "--hash", "0x00112233445566778899aabbccddeeff00112233")
 			}
 			require.NoError(t, app.Run(cmds))
 
-			data, err := os.ReadFile(expectedFile)
+			data, err := os.ReadFile(outFile)
 			require.NoError(t, err)
 			data = bytes.ReplaceAll(data, []byte("\r"), []byte{}) // Windows.
 			if rewriteExpectedOutputs {
