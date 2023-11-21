@@ -117,11 +117,12 @@ func TestCreateMultisigAccount(t *testing.T) {
 	})
 }
 
-func TestCreateAccount_Hardfork(t *testing.T) {
+func TestCreateAccount_HFAspidochelone(t *testing.T) {
+	const enabledHeight = 3
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 		c.P2PSigExtensions = true // `basicchain.Init` requires Notary enabled
 		c.Hardforks = map[string]uint32{
-			config.HFAspidochelone.String(): 2,
+			config.HFAspidochelone.String(): enabledHeight,
 		}
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
@@ -161,6 +162,7 @@ func TestCreateAccount_Hardfork(t *testing.T) {
 	e.CheckHalt(t, tx2Multisig.Hash())
 
 	// block #3: updated prices (larger than the previous ones)
+	require.Equal(t, uint32(enabledHeight-1), e.Chain.BlockHeight())
 	tx3Standard := createAccTx(t, standardScript)
 	tx3Multisig := createAccTx(t, multisigScript)
 	e.AddNewBlock(t, tx3Standard, tx3Multisig)

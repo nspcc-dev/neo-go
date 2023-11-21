@@ -90,9 +90,9 @@ func TestGAS_RewardWithP2PSigExtensionsEnabled(t *testing.T) {
 		e.CheckGASBalance(t, notaryNode.GetScriptHash(), big.NewInt(0))
 	}
 
-	// deposit GAS for `signer` with lock until the next block
+	// deposit GAS for `signer` with lock until the next block (inclusively)
 	depositAmount := 100_0000 + (2+int64(nKeys))*notaryServiceFeePerKey // sysfee + netfee of the next transaction
-	gasCommitteeInvoker.Invoke(t, true, "transfer", e.CommitteeHash, notaryHash, depositAmount, []any{e.CommitteeHash, e.Chain.BlockHeight() + 1})
+	gasCommitteeInvoker.Invoke(t, true, "transfer", e.CommitteeHash, notaryHash, depositAmount, []any{e.CommitteeHash, e.Chain.BlockHeight() + 2})
 
 	// save initial GAS total supply
 	getGASTS := func(t *testing.T) int64 {

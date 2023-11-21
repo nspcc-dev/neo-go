@@ -2998,7 +2998,7 @@ func (s *Server) blockHeightFromParam(param *params.Param) (uint32, *neorpc.Erro
 	}
 
 	if num < 0 || int64(num) > int64(s.chain.BlockHeight()) {
-		return 0, neorpc.WrapErrorWithData(neorpc.ErrUnknownHeight, fmt.Sprintf("param at index %d should be greater than or equal to 0 and less then or equal to current block height, got: %d", 0, num))
+		return 0, neorpc.WrapErrorWithData(neorpc.ErrUnknownHeight, fmt.Sprintf("param at index %d should be greater than or equal to 0 and less than or equal to current block height, got: %d", 0, num))
 	}
 	return uint32(num), nil
 }

@@ -371,7 +371,9 @@ func (ic *Context) Exec() error {
 	return ic.VM.Run()
 }
 
-// BlockHeight returns current block height got from Context's block if it's set.
+// BlockHeight returns the latest persisted and stored block height/index.
+// Persisting block index is not taken into account. If Context's block is set,
+// then BlockHeight calculations relies on persisting block index.
 func (ic *Context) BlockHeight() uint32 {
 	if ic.Block != nil {
 		return ic.Block.Index - 1 // Persisting block is not yet stored.
@@ -393,7 +395,7 @@ func (ic *Context) GetBlock(hash util.Uint256) (*block.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	if block.Index > ic.BlockHeight() {
+	if block.Index > ic.BlockHeight() { // persisting block is not reachable.
 		return nil, storage.ErrKeyNotFound
 	}
 	return block, nil
@@ -403,7 +405,7 @@ func (ic *Context) GetBlock(hash util.Uint256) (*block.Block, error) {
 func (ic *Context) IsHardforkEnabled(hf config.Hardfork) bool {
 	height, ok := ic.Hardforks[hf.String()]
 	if ok {
-		return ic.BlockHeight() >= height
+		return (ic.BlockHeight() + 1) >= height // persisting block should be taken into account.
 	}
 	// Completely rely on proper hardforks initialisation made by core.NewBlockchain.
 	return false
