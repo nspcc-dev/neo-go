@@ -214,6 +214,7 @@ and we're not accepting issues related to them.
 
 | Method  | Reason |
 | ------- | ------------|
+| `canceltransaction` | Doesn't fit neo-go wallet model |
 | `closewallet` | Doesn't fit neo-go wallet model |
 | `dumpprivkey` | Shouldn't exist for security reasons, see `closewallet` comment also |
 | `getnewaddress` | See `closewallet` comment, use CLI to do that |
