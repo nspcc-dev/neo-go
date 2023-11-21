@@ -305,7 +305,7 @@ func AddNetworkFee(bc *core.Blockchain, tx *transaction.Transaction, signers ...
 		tx.NetworkFee += netFee
 		size += sizeDelta
 	}
-	tx.NetworkFee += int64(size) * bc.FeePerByte()
+	tx.NetworkFee += int64(size)*bc.FeePerByte() + bc.CalculateAttributesFee(tx)
 }
 
 // NewUnsignedBlock creates a new unsigned block from txs.

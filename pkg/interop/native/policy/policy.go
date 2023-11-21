@@ -43,6 +43,16 @@ func SetStoragePrice(value int) {
 	neogointernal.CallWithTokenNoRet(Hash, "setStoragePrice", int(contract.States), value)
 }
 
+// GetAttributeFee represents `getAttributeFee` method of Policy native contract.
+func GetAttributeFee(t AttributeType) int {
+	return neogointernal.CallWithToken(Hash, "getAttributeFee", int(contract.ReadStates), t).(int)
+}
+
+// SetAttributeFee represents `setAttributeFee` method of Policy native contract.
+func SetAttributeFee(t AttributeType, value int) {
+	neogointernal.CallWithTokenNoRet(Hash, "setAttributeFee", int(contract.States), t, value)
+}
+
 // IsBlocked represents `isBlocked` method of Policy native contract.
 func IsBlocked(addr interop.Hash160) bool {
 	return neogointernal.CallWithToken(Hash, "isBlocked", int(contract.ReadStates), addr).(bool)

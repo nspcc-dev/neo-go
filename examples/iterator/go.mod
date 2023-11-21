@@ -2,4 +2,4 @@ module github.com/nspcc-dev/neo-go/examples/iterator
 
 go 1.19
 
-require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231120162333-406c9f8b9214
+require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231121104256-0493ddbd70b2

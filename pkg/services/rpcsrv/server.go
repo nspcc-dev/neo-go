@@ -65,6 +65,7 @@ type (
 	Ledger interface {
 		AddBlock(block *block.Block) error
 		BlockHeight() uint32
+		CalculateAttributesFee(tx *transaction.Transaction) int64
 		CalculateClaimable(h util.Uint160, endHeight uint32) (*big.Int, error)
 		CurrentBlockHash() util.Uint256
 		FeePerByte() int64
@@ -89,7 +90,6 @@ type (
 		GetNatives() []state.NativeContract
 		GetNextBlockValidators() ([]*keys.PublicKey, error)
 		GetNotaryContractScriptHash() util.Uint160
-		GetNotaryServiceFeePerKey() int64
 		GetStateModule() core.StateRoot
 		GetStorageItem(id int32, key []byte) state.StorageItem
 		GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, nextBlockHeight uint32) (*interop.Context, error)
@@ -975,15 +975,7 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (any, *neorpc.Erro
 		netFee += gasConsumed
 		size += io.GetVarSize(w.VerificationScript) + io.GetVarSize(w.InvocationScript)
 	}
-	if s.chain.P2PSigExtensionsEnabled() {
-		attrs := tx.GetAttributes(transaction.NotaryAssistedT)
-		if len(attrs) != 0 {
-			na := attrs[0].Value.(*transaction.NotaryAssisted)
-			netFee += (int64(na.NKeys) + 1) * s.chain.GetNotaryServiceFeePerKey()
-		}
-	}
-	fee := s.chain.FeePerByte()
-	netFee += int64(size) * fee
+	netFee += int64(size)*s.chain.FeePerByte() + s.chain.CalculateAttributesFee(tx)
 	return result.NetworkFee{Value: netFee}, nil
 }
 

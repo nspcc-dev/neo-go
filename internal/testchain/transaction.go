@@ -25,6 +25,7 @@ import (
 // Ledger is an interface that abstracts the implementation of the blockchain.
 type Ledger interface {
 	BlockHeight() uint32
+	CalculateAttributesFee(tx *transaction.Transaction) int64
 	FeePerByte() int64
 	GetBaseExecFee() int64
 	GetHeader(hash util.Uint256) (*block.Header, error)
@@ -135,7 +136,7 @@ func signTxGeneric(bc Ledger, sign func(hash.Hashable) []byte, verif []byte, txs
 		netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), verif)
 		tx.NetworkFee += netFee
 		size += sizeDelta
-		tx.NetworkFee += int64(size) * bc.FeePerByte()
+		tx.NetworkFee += int64(size)*bc.FeePerByte() + bc.CalculateAttributesFee(tx)
 		tx.Scripts = []transaction.Witness{{
 			InvocationScript:   sign(tx),
 			VerificationScript: verif,

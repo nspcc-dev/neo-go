@@ -111,12 +111,6 @@ func (c *ContractReader) GetMaxNotValidBeforeDelta() (uint32, error) {
 	return uint32(ret), err
 }
 
-// GetNotaryServiceFeePerKey returns the per-key fee amount paid by transactions
-// for the NotaryAssisted attribute.
-func (c *ContractReader) GetNotaryServiceFeePerKey() (int64, error) {
-	return unwrap.Int64(c.invoker.Call(Hash, "getNotaryServiceFeePerKey"))
-}
-
 // LockDepositUntil creates and sends a transaction that extends the deposit lock
 // time for the given account. The return result from the "lockDepositUntil"
 // method is checked to be true, so transaction fails (with FAULT state) if not
@@ -180,33 +174,6 @@ func (c *Contract) SetMaxNotValidBeforeDeltaTransaction(blocks uint32) (*transac
 // signed and just returned to the caller.
 func (c *Contract) SetMaxNotValidBeforeDeltaUnsigned(blocks uint32) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, setMaxNVBDeltaMethod, nil, blocks)
-}
-
-// SetNotaryServiceFeePerKey creates and sends a transaction that sets the new
-// per-key fee value paid for using the notary service. The action is successful
-// when transaction ends in HALT state. Notice that this setting can be changed
-// only by the network's committee, so use an appropriate Actor. The returned
-// values are transaction hash, its ValidUntilBlock value and an error if any.
-func (c *Contract) SetNotaryServiceFeePerKey(fee int64) (util.Uint256, uint32, error) {
-	return c.actor.SendCall(Hash, setFeePKMethod, fee)
-}
-
-// SetNotaryServiceFeePerKeyTransaction creates a transaction that sets the new
-// per-key fee value paid for using the notary service. The action is successful
-// when transaction ends in HALT state. Notice that this setting can be changed
-// only by the network's committee, so use an appropriate Actor. The transaction
-// is signed, but not sent to the network, instead it's returned to the caller.
-func (c *Contract) SetNotaryServiceFeePerKeyTransaction(fee int64) (*transaction.Transaction, error) {
-	return c.actor.MakeCall(Hash, setFeePKMethod, fee)
-}
-
-// SetNotaryServiceFeePerKeyUnsigned creates a transaction that sets the new
-// per-key fee value paid for using the notary service. The action is successful
-// when transaction ends in HALT state. Notice that this setting can be changed
-// only by the network's committee, so use an appropriate Actor. The transaction
-// is not signed and just returned to the caller.
-func (c *Contract) SetNotaryServiceFeePerKeyUnsigned(fee int64) (*transaction.Transaction, error) {
-	return c.actor.MakeUnsignedCall(Hash, setFeePKMethod, nil, fee)
 }
 
 // Withdraw creates and sends a transaction that withdraws the deposit belonging

@@ -592,7 +592,7 @@ func signTx(t *testing.T, bc Ledger, txs ...*transaction.Transaction) {
 		netFee, sizeDelta := fee.Calculate(bc.GetBaseExecFee(), rawScript)
 		tx.NetworkFee += +netFee
 		size += sizeDelta
-		tx.NetworkFee += int64(size) * bc.FeePerByte()
+		tx.NetworkFee += int64(size)*bc.FeePerByte() + bc.CalculateAttributesFee(tx)
 
 		buf := io.NewBufBinWriter()
 		for _, key := range privNetKeys {

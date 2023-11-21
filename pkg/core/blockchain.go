@@ -2054,10 +2054,10 @@ func (bc *Blockchain) GetNotaryBalance(acc util.Uint160) *big.Int {
 	return bc.contracts.Notary.BalanceOf(bc.dao, acc)
 }
 
-// GetNotaryServiceFeePerKey returns NotaryServiceFeePerKey which is a reward per
-// notary request key for designated notary nodes.
+// GetNotaryServiceFeePerKey returns a NotaryAssisted transaction attribute fee
+// per key which is a reward per notary request key for designated notary nodes.
 func (bc *Blockchain) GetNotaryServiceFeePerKey() int64 {
-	return bc.contracts.Notary.GetNotaryServiceFeePerKey(bc.dao)
+	return bc.contracts.Policy.GetAttributeFeeInternal(bc.dao, transaction.NotaryAssistedT)
 }
 
 // GetNotaryContractScriptHash returns Notary native contract hash.
@@ -2479,14 +2479,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	if size > transaction.MaxTransactionSize {
 		return fmt.Errorf("%w: (%d > MaxTransactionSize %d)", ErrTxTooBig, size, transaction.MaxTransactionSize)
 	}
-	needNetworkFee := int64(size) * bc.FeePerByte()
-	if bc.P2PSigExtensionsEnabled() {
-		attrs := t.GetAttributes(transaction.NotaryAssistedT)
-		if len(attrs) != 0 {
-			na := attrs[0].Value.(*transaction.NotaryAssisted)
-			needNetworkFee += (int64(na.NKeys) + 1) * bc.contracts.Notary.GetNotaryServiceFeePerKey(bc.dao)
-		}
-	}
+	needNetworkFee := int64(size)*bc.FeePerByte() + bc.CalculateAttributesFee(t)
 	netFee := t.NetworkFee - needNetworkFee
 	if netFee < 0 {
 		return fmt.Errorf("%w: net fee is %v, need %v", ErrTxSmallNetworkFee, t.NetworkFee, needNetworkFee)
@@ -2502,7 +2495,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 			return err
 		}
 	}
-	err = bc.verifyTxWitnesses(t, nil, isPartialTx)
+	err = bc.verifyTxWitnesses(t, nil, isPartialTx, netFee)
 	if err != nil {
 		return err
 	}
@@ -2528,6 +2521,27 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	}
 
 	return nil
+}
+
+// CalculateAttributesFee returns network fee for all transaction attributes that should be
+// paid according to native Policy.
+func (bc *Blockchain) CalculateAttributesFee(tx *transaction.Transaction) int64 {
+	var feeSum int64
+	for _, attr := range tx.Attributes {
+		base := bc.contracts.Policy.GetAttributeFeeInternal(bc.dao, attr.Type)
+		switch attr.Type {
+		case transaction.ConflictsT:
+			feeSum += base * int64(len(tx.Signers))
+		case transaction.NotaryAssistedT:
+			if bc.P2PSigExtensionsEnabled() {
+				na := attr.Value.(*transaction.NotaryAssisted)
+				feeSum += base * (int64(na.NKeys) + 1)
+			}
+		default:
+			feeSum += base
+		}
+	}
+	return feeSum
 }
 
 func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transaction, isPartialTx bool) error {
@@ -2889,17 +2903,17 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 // transaction. It can reorder them by ScriptHash, because that's required to
 // match a slice of script hashes from the Blockchain. Block parameter
 // is used for easy interop access and can be omitted for transactions that are
-// not yet added into any block.
+// not yet added into any block. verificationFee argument can be provided to
+// restrict the maximum amount of GAS allowed to spend on transaction
+// verification.
 // Golang implementation of VerifyWitnesses method in C# (https://github.com/neo-project/neo/blob/master/neo/SmartContract/Helper.cs#L87).
-func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block.Block, isPartialTx bool) error {
+func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block.Block, isPartialTx bool, verificationFee ...int64) error {
 	interopCtx := bc.newInteropContext(trigger.Verification, bc.dao, block, t)
-	gasLimit := t.NetworkFee - int64(t.Size())*bc.FeePerByte()
-	if bc.P2PSigExtensionsEnabled() {
-		attrs := t.GetAttributes(transaction.NotaryAssistedT)
-		if len(attrs) != 0 {
-			na := attrs[0].Value.(*transaction.NotaryAssisted)
-			gasLimit -= (int64(na.NKeys) + 1) * bc.contracts.Notary.GetNotaryServiceFeePerKey(bc.dao)
-		}
+	var gasLimit int64
+	if len(verificationFee) == 0 {
+		gasLimit = t.NetworkFee - int64(t.Size())*bc.FeePerByte() - bc.CalculateAttributesFee(t)
+	} else {
+		gasLimit = verificationFee[0]
 	}
 	for i := range t.Signers {
 		gasConsumed, err := bc.verifyHashAgainstScript(t.Signers[i].Account, &t.Scripts[i], interopCtx, gasLimit)

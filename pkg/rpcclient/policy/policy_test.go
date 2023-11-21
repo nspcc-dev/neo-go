@@ -58,6 +58,8 @@ func TestReader(t *testing.T) {
 	}
 	_, err := pc.IsBlocked(util.Uint160{1, 2, 3})
 	require.Error(t, err)
+	_, err = pc.GetAttributeFee(transaction.ConflictsT)
+	require.Error(t, err)
 
 	ta.err = nil
 	ta.res = &result.Invoke{
@@ -71,6 +73,9 @@ func TestReader(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, int64(42), val)
 	}
+	v, err := pc.GetAttributeFee(transaction.ConflictsT)
+	require.NoError(t, err)
+	require.Equal(t, int64(42), v)
 	ta.res = &result.Invoke{
 		State: "HALT",
 		Stack: []stackitem.Item{
@@ -97,6 +102,8 @@ func TestIntSetters(t *testing.T) {
 		_, _, err := m(42)
 		require.Error(t, err)
 	}
+	_, _, err := pc.SetAttributeFee(transaction.OracleResponseT, 123)
+	require.Error(t, err)
 
 	ta.err = nil
 	ta.txh = util.Uint256{1, 2, 3}
@@ -107,6 +114,10 @@ func TestIntSetters(t *testing.T) {
 		require.Equal(t, ta.txh, h)
 		require.Equal(t, ta.vub, vub)
 	}
+	h, vub, err := pc.SetAttributeFee(transaction.OracleResponseT, 123)
+	require.NoError(t, err)
+	require.Equal(t, ta.txh, h)
+	require.Equal(t, ta.vub, vub)
 }
 
 func TestUint160Setters(t *testing.T) {

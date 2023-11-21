@@ -1,6 +1,7 @@
 package native
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"sort"
@@ -11,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -24,6 +26,10 @@ const (
 	defaultExecFeeFactor      = interop.DefaultBaseExecFee
 	defaultFeePerByte         = 1000
 	defaultMaxVerificationGas = 1_50000000
+	// defaultAttributeFee is a default fee for a transaction attribute those price wasn't set yet.
+	defaultAttributeFee = 0
+	// defaultNotaryAssistedFee is a default fee for a NotaryAssisted transaction attribute per key.
+	defaultNotaryAssistedFee = 1000_0000 // 0.1 GAS
 	// DefaultStoragePrice is the price to pay for 1 byte of storage.
 	DefaultStoragePrice = 100000
 
@@ -33,9 +39,13 @@ const (
 	maxFeePerByte = 100_000_000
 	// maxStoragePrice is the maximum allowed price for a byte of storage.
 	maxStoragePrice = 10000000
+	// maxAttributeFee is the maximum allowed value for a transaction attribute fee.
+	maxAttributeFee = 10_00000000
 
 	// blockedAccountPrefix is a prefix used to store blocked account.
 	blockedAccountPrefix = 15
+	// attributeFeePrefix is a prefix used to store attribute fee.
+	attributeFeePrefix = 20
 )
 
 var (
@@ -52,6 +62,9 @@ var (
 type Policy struct {
 	interop.ContractMD
 	NEO *NEO
+
+	// p2pSigExtensionsEnabled defines whether the P2P signature extensions logic is relevant.
+	p2pSigExtensionsEnabled bool
 }
 
 type PolicyCache struct {
@@ -59,6 +72,7 @@ type PolicyCache struct {
 	feePerByte         int64
 	maxVerificationGas int64
 	storagePrice       uint32
+	attributeFee       map[transaction.AttrType]uint32
 	blockedAccounts    []util.Uint160
 }
 
@@ -76,13 +90,20 @@ func (c *PolicyCache) Copy() dao.NativeContractCache {
 
 func copyPolicyCache(src, dst *PolicyCache) {
 	*dst = *src
+	dst.attributeFee = make(map[transaction.AttrType]uint32, len(src.attributeFee))
+	for t, v := range src.attributeFee {
+		dst.attributeFee[t] = v
+	}
 	dst.blockedAccounts = make([]util.Uint160, len(src.blockedAccounts))
 	copy(dst.blockedAccounts, src.blockedAccounts)
 }
 
 // newPolicy returns Policy native contract.
-func newPolicy() *Policy {
-	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy, policyContractID)}
+func newPolicy(p2pSigExtensionsEnabled bool) *Policy {
+	p := &Policy{
+		ContractMD:              *interop.NewContractMD(nativenames.Policy, policyContractID),
+		p2pSigExtensionsEnabled: p2pSigExtensionsEnabled,
+	}
 	defer p.UpdateHash()
 
 	desc := newDescriptor("getFeePerByte", smartcontract.IntegerType)
@@ -110,6 +131,17 @@ func newPolicy() *Policy {
 	desc = newDescriptor("setStoragePrice", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(p.setStoragePrice, 1<<15, callflag.States)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("getAttributeFee", smartcontract.IntegerType,
+		manifest.NewParameter("attributeType", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.getAttributeFee, 1<<15, callflag.ReadStates)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("setAttributeFee", smartcontract.VoidType,
+		manifest.NewParameter("attributeType", smartcontract.IntegerType),
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.setAttributeFee, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
 	desc = newDescriptor("setFeePerByte", smartcontract.VoidType,
@@ -146,7 +178,12 @@ func (p *Policy) Initialize(ic *interop.Context) error {
 		feePerByte:         defaultFeePerByte,
 		maxVerificationGas: defaultMaxVerificationGas,
 		storagePrice:       DefaultStoragePrice,
+		attributeFee:       map[transaction.AttrType]uint32{},
 		blockedAccounts:    make([]util.Uint160, 0),
+	}
+	if p.p2pSigExtensionsEnabled {
+		setIntWithKey(p.ID, ic.DAO, []byte{attributeFeePrefix, byte(transaction.NotaryAssistedT)}, defaultNotaryAssistedFee)
+		cache.attributeFee[transaction.NotaryAssistedT] = defaultNotaryAssistedFee
 	}
 	ic.DAO.SetCache(p.ID, cache)
 
@@ -182,6 +219,25 @@ func (p *Policy) fillCacheFromDAO(cache *PolicyCache, d *dao.Simple) error {
 	})
 	if fErr != nil {
 		return fmt.Errorf("failed to initialize blocked accounts: %w", fErr)
+	}
+
+	cache.attributeFee = make(map[transaction.AttrType]uint32)
+	d.Seek(p.ID, storage.SeekRange{Prefix: []byte{attributeFeePrefix}}, func(k, v []byte) bool {
+		if len(k) != 1 {
+			fErr = fmt.Errorf("unexpected attribute type len %d (%s)", len(k), hex.EncodeToString(k))
+			return false
+		}
+		t := transaction.AttrType(k[0])
+		value := bigint.FromBytes(v)
+		if value == nil {
+			fErr = fmt.Errorf("unexpected attribute value format: key=%s, value=%s", hex.EncodeToString(k), hex.EncodeToString(v))
+			return false
+		}
+		cache.attributeFee[t] = uint32(value.Int64())
+		return true
+	})
+	if fErr != nil {
+		return fmt.Errorf("failed to initialize attribute fees: %w", fErr)
 	}
 	return nil
 }
@@ -294,6 +350,43 @@ func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) sta
 	setIntWithKey(p.ID, ic.DAO, storagePriceKey, int64(value))
 	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	cache.storagePrice = value
+	return stackitem.Null{}
+}
+
+func (p *Policy) getAttributeFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	t := transaction.AttrType(toUint8(args[0]))
+	if !transaction.IsValidAttrType(ic.Chain.GetConfig().ReservedAttributes, t) {
+		panic(fmt.Errorf("invalid attribute type: %d", t))
+	}
+	return stackitem.NewBigInteger(big.NewInt(p.GetAttributeFeeInternal(ic.DAO, t)))
+}
+
+// GetAttributeFeeInternal returns required transaction's attribute fee.
+func (p *Policy) GetAttributeFeeInternal(d *dao.Simple, t transaction.AttrType) int64 {
+	cache := d.GetROCache(p.ID).(*PolicyCache)
+	v, ok := cache.attributeFee[t]
+	if !ok {
+		// We may safely omit this part, but let it be here in case if defaultAttributeFee value is changed.
+		v = defaultAttributeFee
+	}
+	return int64(v)
+}
+
+func (p *Policy) setAttributeFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	t := transaction.AttrType(toUint8(args[0]))
+	value := toUint32(args[1])
+	if !transaction.IsValidAttrType(ic.Chain.GetConfig().ReservedAttributes, t) {
+		panic(fmt.Errorf("invalid attribute type: %d", t))
+	}
+	if value > maxAttributeFee {
+		panic(fmt.Errorf("attribute value is out of range: %d", value))
+	}
+	if !p.NEO.checkCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	setIntWithKey(p.ID, ic.DAO, []byte{attributeFeePrefix, byte(t)}, int64(value))
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	cache.attributeFee[t] = value
 	return stackitem.Null{}
 }
 

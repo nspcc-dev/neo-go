@@ -138,7 +138,7 @@ func initClearServerWithCustomConfig(t testing.TB, ccfg func(configuration *conf
 }
 
 func initClearServerWithInMemoryChain(t testing.TB) (*core.Blockchain, *Server, *httptest.Server) {
-	return initClearServerWithServices(t, false, false, false)
+	return initClearServerWithServices(t, false, true, false)
 }
 
 func initServerWithInMemoryChain(t *testing.T) (*core.Blockchain, *Server, *httptest.Server) {

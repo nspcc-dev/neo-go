@@ -21,6 +21,15 @@ const (
 	NotaryAssistedT AttrType = 0x22 // NotaryAssisted
 )
 
+// attrTypes contains a set of valid attribute types (does not include reserved attributes).
+var attrTypes = map[AttrType]struct{}{
+	HighPriority:    {},
+	OracleResponseT: {},
+	NotValidBeforeT: {},
+	ConflictsT:      {},
+	NotaryAssistedT: {},
+}
+
 func (a AttrType) allowMultiple() bool {
 	switch a {
 	case ConflictsT:
@@ -28,4 +37,12 @@ func (a AttrType) allowMultiple() bool {
 	default:
 		return false
 	}
+}
+
+// IsValidAttrType returns whether the provided attribute type is valid.
+func IsValidAttrType(reservedAttributesEnabled bool, attrType AttrType) bool {
+	if _, ok := attrTypes[attrType]; ok {
+		return true
+	}
+	return reservedAttributesEnabled && ReservedLowerBound <= attrType && attrType <= ReservedUpperBound
 }

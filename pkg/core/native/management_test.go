@@ -17,7 +17,7 @@ import (
 
 func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	mgmt := newManagement()
-	mgmt.Policy = newPolicy()
+	mgmt.Policy = newPolicy(false)
 	d := dao.NewSimple(storage.NewMemoryStore(), false)
 	ic := &interop.Context{DAO: d}
 	err := mgmt.Initialize(ic)
@@ -97,7 +97,7 @@ func TestManagement_Initialize(t *testing.T) {
 
 func TestManagement_GetNEP17Contracts(t *testing.T) {
 	mgmt := newManagement()
-	mgmt.Policy = newPolicy()
+	mgmt.Policy = newPolicy(false)
 	d := dao.NewSimple(storage.NewMemoryStore(), false)
 	err := mgmt.Initialize(&interop.Context{DAO: d})
 	require.NoError(t, err)
