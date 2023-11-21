@@ -232,8 +232,8 @@ func (n *Notary) onPayment(ic *interop.Context, args []stackitem.Item) stackitem
 	currentHeight := ic.BlockHeight()
 	deposit := n.GetDepositFor(ic.DAO, to)
 	till := toUint32(additionalParams[1])
-	if till < currentHeight {
-		panic(fmt.Errorf("`till` shouldn't be less then the chain's height %d", currentHeight))
+	if till < currentHeight+2 {
+		panic(fmt.Errorf("`till` shouldn't be less then the chain's height + 1 (%d at min)", currentHeight+2))
 	}
 	if deposit != nil && till < deposit.Till {
 		panic(fmt.Errorf("`till` shouldn't be less then the previous value %d", deposit.Till))
@@ -272,7 +272,7 @@ func (n *Notary) lockDepositUntil(ic *interop.Context, args []stackitem.Item) st
 		return stackitem.NewBool(false)
 	}
 	till := toUint32(args[1])
-	if till < ic.BlockHeight() {
+	if till < (ic.BlockHeight() + 1 + 1) { // deposit can't expire at the current persisting block.
 		return stackitem.NewBool(false)
 	}
 	deposit := n.GetDepositFor(ic.DAO, addr)
@@ -308,6 +308,7 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	if deposit == nil {
 		return stackitem.NewBool(false)
 	}
+	// Allow withdrawal only after `till` block was persisted, thus, use ic.BlockHeight().
 	if ic.BlockHeight() < deposit.Till {
 		return stackitem.NewBool(false)
 	}

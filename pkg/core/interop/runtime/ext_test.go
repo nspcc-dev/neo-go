@@ -691,11 +691,14 @@ func TestNotify(t *testing.T) {
 }
 
 func TestSystemRuntimeNotify_HFBasilisk(t *testing.T) {
-	const ntfName = "Hello, world!"
+	const (
+		ntfName       = "Hello, world!"
+		enabledHeight = 3
+	)
 
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
 		c.Hardforks = map[string]uint32{
-			config.HFBasilisk.String(): 2,
+			config.HFBasilisk.String(): enabledHeight,
 		}
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
@@ -738,6 +741,8 @@ func TestSystemRuntimeNotify_HFBasilisk(t *testing.T) {
 	}
 	ctrInv := e.NewInvoker(ctr.Hash, e.Validator)
 
+	// Block 0 is genesis.
+
 	// Block 1: deploy contract.
 	e.DeployContract(t, ctr, nil)
 
@@ -745,6 +750,7 @@ func TestSystemRuntimeNotify_HFBasilisk(t *testing.T) {
 	ctrInv.Invoke(t, nil, "main")
 
 	// Block 3: bad event should fault the execution.
+	require.Equal(t, uint32(enabledHeight-1), e.Chain.BlockHeight())
 	ctrInv.InvokeFail(t,
 		"System.Runtime.Notify failed: notification Hello, world! is invalid: parameter 0 type mismatch: Integer (manifest) vs Boolean (notification)",
 		"main")

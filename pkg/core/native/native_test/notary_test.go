@@ -197,12 +197,12 @@ func TestNotary_NotaryNodesReward(t *testing.T) {
 			e.CheckGASBalance(t, notaryNode.GetScriptHash(), big.NewInt(0))
 		}
 
-		// deposit GAS for `signer` with lock until the next block
+		// deposit GAS for `signer` with lock until the next block inclusively
 		depositAmount := 100_0000 + (2+int64(nKeys))*feePerKey // sysfee + netfee of the next transaction
 		if !spendFullDeposit {
 			depositAmount += 1_0000
 		}
-		gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, depositAmount, &notary.OnNEP17PaymentData{Account: &multisigHash, Till: e.Chain.BlockHeight() + 1})
+		gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, depositAmount, &notary.OnNEP17PaymentData{Account: &multisigHash, Till: e.Chain.BlockHeight() + 2})
 
 		// send transaction with Notary contract as a sender
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 1_000_000)
