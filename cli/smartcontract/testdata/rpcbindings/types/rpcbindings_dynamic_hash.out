@@ -15,6 +15,17 @@ import (
 	"unicode/utf8"
 )
 
+// Unnamed is a contract-specific unnamed type used by its methods.
+type Unnamed struct {
+	I *big.Int
+}
+
+// UnnamedX is a contract-specific unnamedX type used by its methods.
+type UnnamedX struct {
+	I *big.Int
+	B bool
+}
+
 // Invoker is used by ContractReader to call various safe methods.
 type Invoker interface {
 	Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
@@ -342,4 +353,88 @@ func (c *ContractReader) String(s string) (string, error) {
 // Strings invokes `strings` method of contract.
 func (c *ContractReader) Strings(s []string) ([]string, error) {
 	return unwrap.ArrayOfUTF8Strings(c.invoker.Call(c.hash, "strings", s))
+}
+
+// UnnamedStructs invokes `unnamedStructs` method of contract.
+func (c *ContractReader) UnnamedStructs() (*Unnamed, error) {
+	return itemToUnnamed(unwrap.Item(c.invoker.Call(c.hash, "unnamedStructs")))
+}
+
+// UnnamedStructsX invokes `unnamedStructsX` method of contract.
+func (c *ContractReader) UnnamedStructsX() (*UnnamedX, error) {
+	return itemToUnnamedX(unwrap.Item(c.invoker.Call(c.hash, "unnamedStructsX")))
+}
+
+// itemToUnnamed converts stack item into *Unnamed.
+func itemToUnnamed(item stackitem.Item, err error) (*Unnamed, error) {
+	if err != nil {
+		return nil, err
+	}
+	var res = new(Unnamed)
+	err = res.FromStackItem(item)
+	return res, err
+}
+
+// FromStackItem retrieves fields of Unnamed from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
+func (res *Unnamed) FromStackItem(item stackitem.Item) error {
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 1 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err   error
+	)
+	index++
+	res.I, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field I: %w", err)
+	}
+
+	return nil
+}
+
+// itemToUnnamedX converts stack item into *UnnamedX.
+func itemToUnnamedX(item stackitem.Item, err error) (*UnnamedX, error) {
+	if err != nil {
+		return nil, err
+	}
+	var res = new(UnnamedX)
+	err = res.FromStackItem(item)
+	return res, err
+}
+
+// FromStackItem retrieves fields of UnnamedX from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
+func (res *UnnamedX) FromStackItem(item stackitem.Item) error {
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 2 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err   error
+	)
+	index++
+	res.I, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field I: %w", err)
+	}
+
+	index++
+	res.B, err = arr[index].TryBool()
+	if err != nil {
+		return fmt.Errorf("field B: %w", err)
+	}
+
+	return nil
 }

@@ -124,9 +124,9 @@ import (
 // Hash contains contract hash.
 var Hash = {{ .Hash }}
 {{end -}}
-{{- range $name, $typ := .NamedTypes }}
-// {{toTypeName $name}} is a contract-specific {{$name}} type used by its methods.
-type {{toTypeName $name}} struct {
+{{- range $index, $typ := .NamedTypes }}
+// {{toTypeName $typ.Name}} is a contract-specific {{$typ.Name}} type used by its methods.
+type {{toTypeName $typ.Name}} struct {
 {{- range $m := $typ.Fields}}
 	{{ upperFirst .Field}} {{etTypeToStr .ExtendedType}}
 {{- end}}
@@ -236,20 +236,20 @@ func New(actor Actor{{- if not (len .Hash) -}}, hash util.Uint160{{- end -}}) *C
 {{end -}}
 {{- range $m := .SafeMethods }}{{template "SAFEMETHOD" $m }}{{ end -}}
 {{- range $m := .Methods -}}{{template "METHOD" $m }}{{ end -}}
-{{- range $name, $typ := .NamedTypes }}
-// itemTo{{toTypeName $name}} converts stack item into *{{toTypeName $name}}.
-func itemTo{{toTypeName $name}}(item stackitem.Item, err error) (*{{toTypeName $name}}, error) {
+{{- range $index, $typ := .NamedTypes }}
+// itemTo{{toTypeName $typ.Name}} converts stack item into *{{toTypeName $typ.Name}}.
+func itemTo{{toTypeName $typ.Name}}(item stackitem.Item, err error) (*{{toTypeName $typ.Name}}, error) {
 	if err != nil {
 		return nil, err
 	}
-	var res = new({{toTypeName $name}})
+	var res = new({{toTypeName $typ.Name}})
 	err = res.FromStackItem(item)
 	return res, err
 }
 
-// FromStackItem retrieves fields of {{toTypeName $name}} from the given
+// FromStackItem retrieves fields of {{toTypeName $typ.Name}} from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
-func (res *{{toTypeName $name}}) FromStackItem(item stackitem.Item) error {
+func (res *{{toTypeName $typ.Name}}) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
 		return errors.New("not an array")
@@ -341,7 +341,7 @@ type (
 
 		SafeMethods  []SafeMethodTmpl
 		CustomEvents []CustomEventTemplate
-		NamedTypes   map[string]binding.ExtendedType
+		NamedTypes   []binding.ExtendedType
 
 		IsNep11D  bool
 		IsNep11ND bool
@@ -430,7 +430,13 @@ func Generate(cfg binding.Config) error {
 
 	ctr.ContractTmpl = binding.TemplateFromManifest(cfg, scTypeToGo)
 	ctr = scTemplateToRPC(cfg, ctr, imports, scTypeToGo)
-	ctr.NamedTypes = cfg.NamedTypes
+	ctr.NamedTypes = make([]binding.ExtendedType, 0, len(cfg.NamedTypes))
+	for k := range cfg.NamedTypes {
+		ctr.NamedTypes = append(ctr.NamedTypes, cfg.NamedTypes[k])
+	}
+	sort.Slice(ctr.NamedTypes, func(i, j int) bool {
+		return strings.Compare(ctr.NamedTypes[i].Name, ctr.NamedTypes[j].Name) < 0
+	})
 
 	// Check resulting named types and events don't have duplicating field names.
 	for _, t := range ctr.NamedTypes {
@@ -458,7 +464,7 @@ func Generate(cfg binding.Config) error {
 		"addIndent":       addIndent,
 		"etTypeConverter": etTypeConverter,
 		"etTypeToStr": func(et binding.ExtendedType) string {
-			r, _ := extendedTypeToGo(et, ctr.NamedTypes)
+			r, _ := extendedTypeToGo(et, cfg.NamedTypes)
 			return r
 		},
 		"toTypeName": toTypeName,
@@ -719,7 +725,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 		}
 	}
 	for _, et := range cfg.NamedTypes {
-		addETImports(et, ctr.NamedTypes, imports)
+		addETImports(et, cfg.NamedTypes, imports)
 	}
 	if len(cfg.NamedTypes) > 0 {
 		imports["errors"] = struct{}{}
@@ -746,7 +752,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 				extType = binding.ExtendedType{
 					Base: abiEvent.Parameters[i].Type,
 				}
-				addETImports(extType, ctr.NamedTypes, imports)
+				addETImports(extType, cfg.NamedTypes, imports)
 			}
 			eTmp.Parameters = append(eTmp.Parameters, EventParamTmpl{
 				ParamTmpl: binding.ParamTmpl{
@@ -817,7 +823,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 		case "keys.PublicKeys":
 			ctr.SafeMethods[i].Unwrapper = "ArrayOfPublicKeys"
 		default:
-			addETImports(ctr.SafeMethods[i].ExtendedReturn, ctr.NamedTypes, imports)
+			addETImports(ctr.SafeMethods[i].ExtendedReturn, cfg.NamedTypes, imports)
 			ctr.SafeMethods[i].Unwrapper = "Item"
 		}
 	}
