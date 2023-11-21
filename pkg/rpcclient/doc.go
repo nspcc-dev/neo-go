@@ -102,6 +102,7 @@ Extensions:
 
 Unsupported methods
 
+	canceltransaction
 	claimgas
 	dumpprivkey
 	getbalance
