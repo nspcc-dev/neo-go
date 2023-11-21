@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"time"
@@ -82,8 +83,9 @@ func LoadFile(configPath string) (Config, error) {
 			},
 		},
 	}
-
-	err = yaml.Unmarshal(configData, &config)
+	decoder := yaml.NewDecoder(bytes.NewReader(configData))
+	decoder.KnownFields(true)
+	err = decoder.Decode(&config)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to unmarshal config YAML: %w", err)
 	}

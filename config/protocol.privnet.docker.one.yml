@@ -80,7 +80,8 @@ ApplicationConfiguration:
       - ":20001"
   Pprof:
     Enabled: false
-    Port: 20011
+    Addresses:
+      - ":20011"
   Consensus:
     Enabled: true
     UnlockWallet:
