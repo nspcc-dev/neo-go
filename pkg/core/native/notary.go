@@ -233,15 +233,15 @@ func (n *Notary) onPayment(ic *interop.Context, args []stackitem.Item) stackitem
 	deposit := n.GetDepositFor(ic.DAO, to)
 	till := toUint32(additionalParams[1])
 	if till < currentHeight+2 {
-		panic(fmt.Errorf("`till` shouldn't be less then the chain's height + 1 (%d at min)", currentHeight+2))
+		panic(fmt.Errorf("`till` shouldn't be less than the chain's height + 1 (%d at min)", currentHeight+2))
 	}
 	if deposit != nil && till < deposit.Till {
-		panic(fmt.Errorf("`till` shouldn't be less then the previous value %d", deposit.Till))
+		panic(fmt.Errorf("`till` shouldn't be less than the previous value %d", deposit.Till))
 	}
 	feePerKey := n.GetNotaryServiceFeePerKey(ic.DAO)
 	if deposit == nil {
 		if amount.Cmp(big.NewInt(2*feePerKey)) < 0 {
-			panic(fmt.Errorf("first deposit can not be less then %d, got %d", 2*feePerKey, amount.Int64()))
+			panic(fmt.Errorf("first deposit can not be less than %d, got %d", 2*feePerKey, amount.Int64()))
 		}
 		deposit = &state.Deposit{
 			Amount: new(big.Int),
