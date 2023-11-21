@@ -20,12 +20,12 @@ var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xa
 // Unnamed is a contract-specific unnamed type used by its methods.
 type Unnamed struct {
 	I *big.Int
+	B bool
 }
 
 // UnnamedX is a contract-specific unnamedX type used by its methods.
 type UnnamedX struct {
 	I *big.Int
-	B bool
 }
 
 // ComplicatedNameEvent represents "! complicated name %$#" event emitted by the contract.
@@ -40,7 +40,7 @@ type SomeMapEvent struct {
 
 // SomeStructEvent represents "SomeStruct" event emitted by the contract.
 type SomeStructEvent struct {
-	S *UnnamedX
+	S *Unnamed
 }
 
 // SomeArrayEvent represents "SomeArray" event emitted by the contract.
@@ -50,7 +50,7 @@ type SomeArrayEvent struct {
 
 // SomeUnexportedFieldEvent represents "SomeUnexportedField" event emitted by the contract.
 type SomeUnexportedFieldEvent struct {
-	S *Unnamed
+	S *UnnamedX
 }
 
 // Actor is used by Contract to call state-changing methods.
@@ -202,7 +202,7 @@ func (res *Unnamed) FromStackItem(item stackitem.Item) error {
 	if !ok {
 		return errors.New("not an array")
 	}
-	if len(arr) != 1 {
+	if len(arr) != 2 {
 		return errors.New("wrong number of structure elements")
 	}
 
@@ -214,6 +214,12 @@ func (res *Unnamed) FromStackItem(item stackitem.Item) error {
 	res.I, err = arr[index].TryInteger()
 	if err != nil {
 		return fmt.Errorf("field I: %w", err)
+	}
+
+	index++
+	res.B, err = arr[index].TryBool()
+	if err != nil {
+		return fmt.Errorf("field B: %w", err)
 	}
 
 	return nil
@@ -236,7 +242,7 @@ func (res *UnnamedX) FromStackItem(item stackitem.Item) error {
 	if !ok {
 		return errors.New("not an array")
 	}
-	if len(arr) != 2 {
+	if len(arr) != 1 {
 		return errors.New("wrong number of structure elements")
 	}
 
@@ -248,12 +254,6 @@ func (res *UnnamedX) FromStackItem(item stackitem.Item) error {
 	res.I, err = arr[index].TryInteger()
 	if err != nil {
 		return fmt.Errorf("field I: %w", err)
-	}
-
-	index++
-	res.B, err = arr[index].TryBool()
-	if err != nil {
-		return fmt.Errorf("field B: %w", err)
 	}
 
 	return nil
@@ -497,7 +497,7 @@ func (e *SomeStructEvent) FromStackItem(item *stackitem.Array) error {
 		err   error
 	)
 	index++
-	e.S, err = itemToUnnamedX(arr[index], nil)
+	e.S, err = itemToUnnamed(arr[index], nil)
 	if err != nil {
 		return fmt.Errorf("field S: %w", err)
 	}
@@ -627,7 +627,7 @@ func (e *SomeUnexportedFieldEvent) FromStackItem(item *stackitem.Array) error {
 		err   error
 	)
 	index++
-	e.S, err = itemToUnnamed(arr[index], nil)
+	e.S, err = itemToUnnamedX(arr[index], nil)
 	if err != nil {
 		return fmt.Errorf("field S: %w", err)
 	}

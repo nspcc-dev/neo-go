@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -357,8 +358,16 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		}
 		if o.GuessEventTypes {
 			if len(di.EmittedEvents) > 0 {
-				for eventName, eventUsages := range di.EmittedEvents {
-					var manifestEvent HybridEvent
+				var keys = make([]string, 0, len(di.EmittedEvents))
+				for k := range di.EmittedEvents {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				for _, eventName := range keys {
+					var (
+						eventUsages   = di.EmittedEvents[eventName]
+						manifestEvent HybridEvent
+					)
 					for _, e := range o.ContractEvents {
 						if e.Name == eventName {
 							manifestEvent = e
