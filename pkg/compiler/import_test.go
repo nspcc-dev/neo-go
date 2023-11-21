@@ -2,7 +2,11 @@ package compiler_test
 
 import (
 	"math/big"
+	"strings"
 	"testing"
+
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/stretchr/testify/require"
 )
 
 func TestImportFunction(t *testing.T) {
@@ -60,4 +64,28 @@ func TestImportNameSameAsOwn(t *testing.T) {
 		return foo.Bar()
 	}`
 	eval(t, src, big.NewInt(3))
+}
+
+func TestImportCycleDirect(t *testing.T) {
+	src := `
+		package some
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/importcycle/pkg2"
+		func Main() int {
+			return pkg2.A
+		}
+	`
+	_, _, err := compiler.CompileWithOptions("some.go", strings.NewReader(src), nil)
+	require.Error(t, err)
+}
+
+func TestImportCycleIndirect(t *testing.T) {
+	src := `
+		package some
+		import "github.com/nspcc-dev/neo-go/pkg/compiler/testdata/importcycle/pkg1"
+		func Main() int {
+			return pkg1.A
+		}
+	`
+	_, _, err := compiler.CompileWithOptions("some.go", strings.NewReader(src), nil)
+	require.Error(t, err)
 }

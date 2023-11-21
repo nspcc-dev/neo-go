@@ -2209,6 +2209,9 @@ func (c *codegen) newLambda(u uint16, lit *ast.FuncLit) {
 func (c *codegen) compile(info *buildInfo, pkg *packages.Package) error {
 	c.mainPkg = pkg
 	c.analyzePkgOrder()
+	if c.prog.Err != nil {
+		return c.prog.Err
+	}
 	c.fillDocumentInfo()
 	funUsage := c.analyzeFuncAndGlobalVarUsage()
 	if c.prog.Err != nil {
