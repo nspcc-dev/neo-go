@@ -16,16 +16,6 @@ ProtocolConfiguration:
     - localhost:20336
   VerifyTransactions: true
   P2PSigExtensions: false
-  NativeActivations:
-    ContractManagement: [0]
-    StdLib: [0]
-    CryptoLib: [0]
-    LedgerContract: [0]
-    NeoToken: [0]
-    GasToken: [0]
-    PolicyContract: [0]
-    RoleManagement: [0]
-    OracleContract: [0]
 
 ApplicationConfiguration:
   SkipBlockVerification: false

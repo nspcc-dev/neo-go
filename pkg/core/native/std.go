@@ -458,6 +458,11 @@ func (s *Std) PostPersist(ic *interop.Context) error {
 	return nil
 }
 
+// ActiveIn implements the Contract interface.
+func (s *Std) ActiveIn() *config.Hardfork {
+	return nil
+}
+
 func (s *Std) toLimitedBytes(item stackitem.Item) []byte {
 	src, err := item.TryBytes()
 	if err != nil {

@@ -153,6 +153,9 @@ type MethodAndPrice struct {
 // Contract is an interface for all native contracts.
 type Contract interface {
 	Initialize(*Context) error
+	// ActiveIn returns the hardfork native contract is active from or nil in case
+	// it's always active.
+	ActiveIn() *config.Hardfork
 	// InitializeCache aimed to initialize contract's cache when the contract has
 	// been deployed, but in-memory cached data were lost due to the node reset.
 	// It should be called each time after node restart iff the contract was
@@ -267,12 +270,6 @@ func (c *ContractMD) AddEvent(name string, ps ...manifest.Parameter) {
 		Name:       name,
 		Parameters: ps,
 	})
-}
-
-// IsActive returns true if the contract was deployed by the specified height.
-func (c *ContractMD) IsActive(height uint32) bool {
-	history := c.UpdateHistory
-	return len(history) != 0 && history[0] <= height
 }
 
 // Sort sorts interop functions by id.
@@ -409,6 +406,14 @@ func (ic *Context) IsHardforkEnabled(hf config.Hardfork) bool {
 	}
 	// Completely rely on proper hardforks initialisation made by core.NewBlockchain.
 	return false
+}
+
+// IsHardforkActivation denotes whether current block height is the height of
+// specified hardfork activation.
+func (ic *Context) IsHardforkActivation(hf config.Hardfork) bool {
+	// Completely rely on proper hardforks initialisation made by core.NewBlockchain.
+	height, ok := ic.Hardforks[hf.String()]
+	return ok && ic.Block.Index == height
 }
 
 // AddNotification creates notification event and appends it to the notification list.

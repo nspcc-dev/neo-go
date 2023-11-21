@@ -583,12 +583,13 @@ func updateContractCache(cache *ManagementCache, cs *state.Contract) {
 func (m *Management) OnPersist(ic *interop.Context) error {
 	var cache *ManagementCache
 	for _, native := range ic.Natives {
-		md := native.Metadata()
-		history := md.UpdateHistory
-		if len(history) == 0 || history[0] != ic.Block.Index {
+		activeIn := native.ActiveIn()
+		if !(activeIn == nil && ic.Block.Index == 0 ||
+			activeIn != nil && ic.IsHardforkActivation(*activeIn)) {
 			continue
 		}
 
+		md := native.Metadata()
 		cs := &state.Contract{
 			ContractBase: md.ContractBase,
 		}
@@ -669,6 +670,11 @@ func (m *Management) Initialize(ic *interop.Context) error {
 		nep17:     make(map[util.Uint160]struct{}),
 	}
 	ic.DAO.SetCache(m.ID, cache)
+	return nil
+}
+
+// ActiveIn implements the Contract interface.
+func (m *Management) ActiveIn() *config.Hardfork {
 	return nil
 }
 

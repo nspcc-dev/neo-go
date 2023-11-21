@@ -334,7 +334,6 @@ protocol-related settings described in the table below.
 | MaxTransactionsPerBlock | `uint16` | `512` | Maximum number of transactions per block. |
 | MaxValidUntilBlockIncrement | `uint32` | `5760` | Upper height increment limit for transaction's ValidUntilBlock field value relative to the current blockchain height, exceeding which a transaction will fail validation. It is set to estimated daily number of blocks with 15s interval by default. |
 | MemPoolSize | `int` | `50000` | Size of the node's memory pool where transactions are stored before they are added to block. |
-| NativeActivations | `map[string][]uint32` | ContractManagement: [0]<br>StdLib: [0]<br>CryptoLib: [0]<br>LedgerContract: [0]<br>NeoToken: [0]<br>GasToken: [0]<br>PolicyContract: [0]<br>RoleManagement: [0]<br>OracleContract: [0] | The list of histories of native contracts updates. Each list item shod be presented as a known native contract name with the corresponding list of chain's heights. The contract is not active until chain reaches the first height value specified in the list. | `Notary` is supported. |
 | P2PNotaryRequestPayloadPoolSize | `int` | `1000` | Size of the node's P2P Notary request payloads memory pool where P2P Notary requests are stored before main or fallback transaction is completed and added to the chain.<br>This option is valid only if `P2PSigExtensions` are enabled. | Not supported by the C# node, thus may affect heterogeneous networks functionality. |
 | P2PSigExtensions | `bool` | `false` | Enables following additional Notary service related logic:<br>• Transaction attribute `NotaryAssisted`<br>• Network payload of the `P2PNotaryRequest` type<br>• Native `Notary` contract<br>• Notary node module | Not supported by the C# node, thus may affect heterogeneous networks functionality. |
 | P2PStateExchangeExtensions | `bool` | `false` | Enables the following P2P MPT state data exchange logic: <br>• `StateSyncInterval` protocol setting <br>• P2P commands `GetMPTDataCMD` and `MPTDataCMD` | Not supported by the C# node, thus may affect heterogeneous networks functionality. Can be supported either on MPT-complete node (`KeepOnlyLatestState`=`false`) or on light GC-enabled node (`RemoveUntraceableBlocks=true`) in which case `KeepOnlyLatestState` setting doesn't change the behavior, an appropriate set of MPTs is always stored (see `RemoveUntraceableBlocks`). |
@@ -383,9 +382,9 @@ where:
   
   Note that Roles is a NeoGo extension that isn't supported by the NeoC# node and
   must be disabled on the public Neo N3 networks. Roles extension is compatible
-  with NativeUpdateHistory setting, which means that specified roles will be set
+  with Hardforks setting, which means that specified roles will be set
   only during native RoleManagement contract initialisation (which may be
-  performed in some non-genesis block). By default, no roles are designated.
+  performed in some non-genesis hardfork). By default, no roles are designated.
 
 - `Transaction` is a container for transaction script that should be deployed in
   the genesis block if provided. `Transaction` includes `Script` which is a

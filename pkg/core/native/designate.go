@@ -9,6 +9,7 @@ import (
 	"sort"
 	"sync/atomic"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
@@ -192,6 +193,11 @@ func (s *Designate) PostPersist(ic *interop.Context) error {
 // Metadata returns contract metadata.
 func (s *Designate) Metadata() *interop.ContractMD {
 	return &s.ContractMD
+}
+
+// ActiveIn implements the Contract interface.
+func (s *Designate) ActiveIn() *config.Hardfork {
+	return nil
 }
 
 func (s *Designate) getDesignatedByRole(ic *interop.Context, args []stackitem.Item) stackitem.Item {

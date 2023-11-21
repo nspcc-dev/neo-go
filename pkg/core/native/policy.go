@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -193,6 +194,11 @@ func (p *Policy) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements Contract interface.
 func (p *Policy) PostPersist(ic *interop.Context) error {
+	return nil
+}
+
+// ActiveIn implements the Contract interface.
+func (p *Policy) ActiveIn() *config.Hardfork {
 	return nil
 }
 

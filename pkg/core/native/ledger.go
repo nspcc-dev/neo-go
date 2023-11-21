@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -101,6 +102,11 @@ func (l *Ledger) OnPersist(ic *interop.Context) error {
 // PostPersist implements the Contract interface.
 func (l *Ledger) PostPersist(ic *interop.Context) error {
 	return nil // Actual block/tx processing is done in Blockchain.storeBlock().
+}
+
+// ActiveIn implements the Contract interface.
+func (l *Ledger) ActiveIn() *config.Hardfork {
+	return nil
 }
 
 // currentHash implements currentHash SC method.

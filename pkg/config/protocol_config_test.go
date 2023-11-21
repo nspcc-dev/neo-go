@@ -29,12 +29,6 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 	}
 	require.Error(t, p.Validate())
 	p = &ProtocolConfiguration{
-		NativeUpdateHistories: map[string][]uint32{
-			"someContract": {0, 10},
-		},
-	}
-	require.Error(t, p.Validate())
-	p = &ProtocolConfiguration{
 		StandbyCommittee: []string{
 			"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2",
 			"02103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e",
@@ -246,17 +240,6 @@ func TestProtocolConfigurationEquals(t *testing.T) {
 
 	p.Hardforks = nil
 	o.Hardforks = nil
-
-	p.NativeUpdateHistories = map[string][]uint32{"Contract": {1, 2, 3}}
-	o.NativeUpdateHistories = map[string][]uint32{"Contract": {1, 2, 3}}
-	require.True(t, p.Equals(o))
-	p.NativeUpdateHistories["Contract"] = []uint32{1, 2, 3, 4}
-	require.False(t, p.Equals(o))
-	p.NativeUpdateHistories["Contract"] = []uint32{1, 2, 4}
-	require.False(t, p.Equals(o))
-
-	p.NativeUpdateHistories = nil
-	o.NativeUpdateHistories = nil
 
 	p.SeedList = []string{"url1", "url2"}
 	o.SeedList = []string{"url1", "url2"}

@@ -1194,7 +1194,6 @@ var rpcTestCases = map[string][]rpcTestCase{
 					cs := e.chain.GetContractState((*lst)[i].Hash)
 					require.NotNil(t, cs)
 					require.True(t, cs.ID <= 0)
-					require.Equal(t, []uint32{0}, (*lst)[i].UpdateHistory)
 				}
 			},
 		},

@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -207,6 +208,11 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements the Contract interface.
 func (n *Notary) PostPersist(ic *interop.Context) error {
+	return nil
+}
+
+// ActiveIn implements the Contract interface.
+func (n *Notary) ActiveIn() *config.Hardfork {
 	return nil
 }
 

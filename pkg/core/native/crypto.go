@@ -9,6 +9,7 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -306,5 +307,10 @@ func (c *Crypto) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements the Contract interface.
 func (c *Crypto) PostPersist(ic *interop.Context) error {
+	return nil
+}
+
+// ActiveIn implements the Contract interface.
+func (c *Crypto) ActiveIn() *config.Hardfork {
 	return nil
 }
