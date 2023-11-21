@@ -20,6 +20,11 @@ var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xa
 // Unnamed is a contract-specific unnamed type used by its methods.
 type Unnamed struct {
 	I *big.Int
+}
+
+// UnnamedX is a contract-specific unnamedX type used by its methods.
+type UnnamedX struct {
+	I *big.Int
 	B bool
 }
 
@@ -35,7 +40,7 @@ type SomeMapEvent struct {
 
 // SomeStructEvent represents "SomeStruct" event emitted by the contract.
 type SomeStructEvent struct {
-	S *Unnamed
+	S *UnnamedX
 }
 
 // SomeArrayEvent represents "SomeArray" event emitted by the contract.
@@ -193,6 +198,40 @@ func itemToUnnamed(item stackitem.Item, err error) (*Unnamed, error) {
 // FromStackItem retrieves fields of Unnamed from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
 func (res *Unnamed) FromStackItem(item stackitem.Item) error {
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 1 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err   error
+	)
+	index++
+	res.I, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field I: %w", err)
+	}
+
+	return nil
+}
+
+// itemToUnnamedX converts stack item into *UnnamedX.
+func itemToUnnamedX(item stackitem.Item, err error) (*UnnamedX, error) {
+	if err != nil {
+		return nil, err
+	}
+	var res = new(UnnamedX)
+	err = res.FromStackItem(item)
+	return res, err
+}
+
+// FromStackItem retrieves fields of UnnamedX from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
+func (res *UnnamedX) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
 		return errors.New("not an array")
@@ -458,7 +497,7 @@ func (e *SomeStructEvent) FromStackItem(item *stackitem.Array) error {
 		err   error
 	)
 	index++
-	e.S, err = itemToUnnamed(arr[index], nil)
+	e.S, err = itemToUnnamedX(arr[index], nil)
 	if err != nil {
 		return fmt.Errorf("field S: %w", err)
 	}

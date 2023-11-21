@@ -388,12 +388,6 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 						}
 					}
 					eBindingName := rpcbinding.ToEventBindingName(eventName)
-					for typeName, extType := range exampleUsage.ExtTypes {
-						if _, ok := cfg.NamedTypes[typeName]; !ok {
-							cfg.NamedTypes[typeName] = extType
-						}
-					}
-
 					for _, p := range exampleUsage.Params {
 						pBindingName := rpcbinding.ToParameterBindingName(p.Name)
 						pname := eBindingName + "." + pBindingName
@@ -403,6 +397,15 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 							}
 						}
 						if p.ExtendedType != nil {
+							typeName := p.ExtendedType.Name
+							if extType, ok := exampleUsage.ExtTypes[typeName]; ok {
+								for _, ok := cfg.NamedTypes[typeName]; ok; _, ok = cfg.NamedTypes[typeName] {
+									typeName = typeName + "X"
+								}
+								extType.Name = typeName
+								p.ExtendedType.Name = typeName
+								cfg.NamedTypes[typeName] = extType
+							}
 							if _, ok := cfg.Types[pname]; !ok {
 								cfg.Types[pname] = *p.ExtendedType
 							}
