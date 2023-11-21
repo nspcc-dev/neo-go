@@ -365,6 +365,11 @@ func (n *NEO) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	return nil
 }
 
+// ActiveIn implements the Contract interface.
+func (n *NEO) ActiveIn() *config.Hardfork {
+	return nil
+}
+
 func (n *NEO) initConfigCache(cfg config.ProtocolConfiguration) error {
 	var err error
 

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 )
 
@@ -44,8 +43,6 @@ type (
 		// exceeding that a transaction should fail validation. It is set to estimated daily number
 		// of blocks with 15s interval.
 		MaxValidUntilBlockIncrement uint32 `yaml:"MaxValidUntilBlockIncrement"`
-		// NativeUpdateHistories is a list of histories of native contracts updates.
-		NativeUpdateHistories map[string][]uint32 `yaml:"NativeActivations"`
 		// P2PSigExtensions enables additional signature-related logic.
 		P2PSigExtensions bool `yaml:"P2PSigExtensions"`
 		// P2PStateExchangeExtensions enables additional P2P MPT state data exchange logic.
@@ -85,11 +82,6 @@ func (p *ProtocolConfiguration) Validate() error {
 
 	if p.TimePerBlock%time.Millisecond != 0 {
 		return errors.New("TimePerBlock must be an integer number of milliseconds")
-	}
-	for name := range p.NativeUpdateHistories {
-		if !nativenames.IsValid(name) {
-			return fmt.Errorf("NativeActivations configuration section contains unexpected native contract name: %s", name)
-		}
 	}
 	for name := range p.Hardforks {
 		if !IsHardforkValid(name) {
@@ -237,7 +229,6 @@ func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
 		p.VerifyTransactions != o.VerifyTransactions ||
 		len(p.CommitteeHistory) != len(o.CommitteeHistory) ||
 		len(p.Hardforks) != len(o.Hardforks) ||
-		len(p.NativeUpdateHistories) != len(o.NativeUpdateHistories) ||
 		len(p.SeedList) != len(o.SeedList) ||
 		len(p.StandbyCommittee) != len(o.StandbyCommittee) ||
 		len(p.ValidatorsHistory) != len(o.ValidatorsHistory) {
@@ -253,17 +244,6 @@ func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
 		vo, ok := o.Hardforks[k]
 		if !ok || v != vo {
 			return false
-		}
-	}
-	for k, v := range p.NativeUpdateHistories {
-		vo := o.NativeUpdateHistories[k]
-		if len(v) != len(vo) {
-			return false
-		}
-		for i := range v {
-			if v[i] != vo[i] {
-				return false
-			}
 		}
 	}
 	for i := range p.SeedList {

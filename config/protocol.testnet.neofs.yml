@@ -24,17 +24,6 @@ ProtocolConfiguration:
   - morph7.t5.fs.neo.org:50333
   VerifyTransactions: true
   P2PSigExtensions: true
-  NativeActivations:
-    ContractManagement: [0]
-    StdLib: [0]
-    CryptoLib: [0]
-    LedgerContract: [0]
-    NeoToken: [0]
-    GasToken: [0]
-    PolicyContract: [0]
-    RoleManagement: [0]
-    OracleContract: [0]
-    Notary: [0]
 
 ApplicationConfiguration:
   SkipBlockVerification: false

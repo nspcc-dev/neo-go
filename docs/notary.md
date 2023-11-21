@@ -171,9 +171,8 @@ verify and broadcast `P2PNotaryRequest` P2P payloads, properly initialize native
 Notary contract and designate `P2PNotary` node role in RoleManagement native
 contract.
 
-If you use custom `NativeActivations` subsection of the `ProtocolConfiguration`
-section in your node config, specify the height of the Notary contract
-activation, e.g. `0`.
+Currently, Notary contract activation height is not configurable and is always
+set to 0 (if `P2PSigExtensions` are enabled).
 
 Note, that even if `P2PSigExtensions` config subsection enables notary-related
 logic in the network, it still does not turn your node into notary service node.
@@ -184,17 +183,6 @@ To enable notary service node functionality refer to the
 
 ```
   P2PSigExtensions: true
-  NativeActivations:
-    Notary: [0]
-    ContractManagement: [0]
-    StdLib: [0]
-    CryptoLib: [0]
-    LedgerContract: [0]
-    NeoToken: [0]
-    GasToken: [0]
-    PolicyContract: [0]
-    RoleManagement: [0]
-    OracleContract: [0]
 ```
 
 

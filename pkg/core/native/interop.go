@@ -18,24 +18,30 @@ func Call(ic *interop.Context) error {
 	if version != 0 {
 		return fmt.Errorf("native contract of version %d is not active", version)
 	}
-	var meta *interop.ContractMD
-	curr := ic.VM.GetCurrentScriptHash()
+	var (
+		c    interop.Contract
+		curr = ic.VM.GetCurrentScriptHash()
+	)
 	for _, ctr := range ic.Natives {
-		m := ctr.Metadata()
-		if m.Hash == curr {
-			meta = m
+		if ctr.Metadata().Hash == curr {
+			c = ctr
 			break
 		}
 	}
-	if meta == nil {
+	if c == nil {
 		return fmt.Errorf("native contract %s (version %d) not found", curr.StringLE(), version)
 	}
-	history := meta.UpdateHistory
-	if len(history) == 0 {
-		return fmt.Errorf("native contract %s is disabled", meta.Name)
-	}
-	if history[0] > ic.BlockHeight() { // persisting block must not be taken into account.
-		return fmt.Errorf("native contract %s is active after height = %d", meta.Name, history[0])
+	var (
+		meta     = c.Metadata()
+		activeIn = c.ActiveIn()
+	)
+	if activeIn != nil {
+		height, ok := ic.Hardforks[activeIn.String()]
+		// Persisting block must not be taken into account, native contract can be called
+		// only AFTER its initialization block persist, thus, can't use ic.IsHardforkEnabled.
+		if !ok || ic.BlockHeight() < height {
+			return fmt.Errorf("native contract %s is active after hardfork %s", meta.Name, activeIn.String())
+		}
 	}
 	m, ok := meta.GetMethodByOffset(ic.VM.Context().IP())
 	if !ok {
@@ -76,7 +82,8 @@ func OnPersist(ic *interop.Context) error {
 		return errors.New("onPersist must be trigered by system")
 	}
 	for _, c := range ic.Natives {
-		if !c.Metadata().IsActive(ic.Block.Index) {
+		activeIn := c.ActiveIn()
+		if !(activeIn == nil || ic.IsHardforkEnabled(*activeIn)) {
 			continue
 		}
 		err := c.OnPersist(ic)
@@ -93,7 +100,8 @@ func PostPersist(ic *interop.Context) error {
 		return errors.New("postPersist must be trigered by system")
 	}
 	for _, c := range ic.Natives {
-		if !c.Metadata().IsActive(ic.Block.Index) {
+		activeIn := c.ActiveIn()
+		if !(activeIn == nil || ic.IsHardforkEnabled(*activeIn)) {
 			continue
 		}
 		err := c.PostPersist(ic)

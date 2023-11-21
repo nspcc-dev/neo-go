@@ -237,26 +237,6 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 		require.True(t, strings.Contains(err.Error(), "can't init cache for Management native contract"), err)
 	})
 	*/
-	t.Run("invalid native contract deactivation", func(t *testing.T) {
-		ps = newPS(t)
-		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.Blockchain) {
-			customConfig(c)
-			c.NativeUpdateHistories = map[string][]uint32{
-				nativenames.Policy:      {0},
-				nativenames.Neo:         {0},
-				nativenames.Gas:         {0},
-				nativenames.Designation: {0},
-				nativenames.StdLib:      {0},
-				nativenames.Management:  {0},
-				nativenames.Oracle:      {0},
-				nativenames.Ledger:      {0},
-				nativenames.Notary:      {0},
-				nativenames.CryptoLib:   {h + 10},
-			}
-		}, ps)
-		require.Error(t, err)
-		require.True(t, strings.Contains(err.Error(), fmt.Sprintf("native contract %s is already stored, but marked as inactive for height %d in config", nativenames.CryptoLib, h)), err)
-	})
 	t.Run("invalid native contract activation", func(t *testing.T) {
 		ps = newPS(t)
 
@@ -339,6 +319,7 @@ func TestBlockchain_InitializeNeoCache_Bug3181(t *testing.T) {
 
 // This test enables Notary native contract at non-zero height and checks that no
 // Notary cache initialization is performed before that height on node restart.
+/*
 func TestBlockchain_InitializeNativeCacheWrtNativeActivations(t *testing.T) {
 	const notaryEnabledHeight = 3
 	ps, path := newLevelDBForTestingWithPath(t, "")
@@ -399,6 +380,7 @@ func TestBlockchain_InitializeNativeCacheWrtNativeActivations(t *testing.T) {
 	_, err = e.Chain.GetMaxNotValidBeforeDelta()
 	require.NoError(t, err)
 }
+*/
 
 func TestBlockchain_AddHeaders(t *testing.T) {
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
@@ -1116,25 +1098,13 @@ func TestBlockchain_MPTDeleteNoKey(t *testing.T) {
 	cValidatorInvoker.Invoke(t, stackitem.Null{}, "delValue", "non-existent-key")
 }
 
-// Test that UpdateHistory is added to ProtocolConfiguration for all native contracts
-// for all default configurations. If UpdateHistory is not added to config, then
-// native contract is disabled. It's easy to forget about config while adding new
-// native contract.
-func TestConfigNativeUpdateHistory(t *testing.T) {
+// Test that all default configurations are loadable.
+func TestConfig_LoadDefaultConfigs(t *testing.T) {
 	var prefixPath = filepath.Join("..", "..", "config")
 	check := func(t *testing.T, cfgFileSuffix any) {
 		cfgPath := filepath.Join(prefixPath, fmt.Sprintf("protocol.%s.yml", cfgFileSuffix))
-		cfg, err := config.LoadFile(cfgPath)
+		_, err := config.LoadFile(cfgPath)
 		require.NoError(t, err, fmt.Errorf("failed to load %s", cfgPath))
-		natives := native.NewContracts(cfg.ProtocolConfiguration)
-		assert.Equal(t, len(natives.Contracts),
-			len(cfg.ProtocolConfiguration.NativeUpdateHistories),
-			fmt.Errorf("protocol configuration file %s: extra or missing NativeUpdateHistory in NativeActivations section", cfgPath))
-		for _, c := range natives.Contracts {
-			assert.NotNil(t, cfg.ProtocolConfiguration.NativeUpdateHistories[c.Metadata().Name],
-				fmt.Errorf("protocol configuration file %s: configuration for %s native contract is missing in NativeActivations section; "+
-					"edit the test if the contract should be disabled", cfgPath, c.Metadata().Name))
-		}
 	}
 	testCases := []any{
 		netmode.MainNet,

@@ -38,16 +38,6 @@ ProtocolConfiguration:
   Hardforks:
     Aspidochelone: 1730000
     Basilisk: 4120000
-  NativeActivations:
-    ContractManagement: [0]
-    StdLib: [0]
-    CryptoLib: [0]
-    LedgerContract: [0]
-    NeoToken: [0]
-    GasToken: [0]
-    PolicyContract: [0]
-    RoleManagement: [0]
-    OracleContract: [0]
 
 ApplicationConfiguration:
   SkipBlockVerification: false

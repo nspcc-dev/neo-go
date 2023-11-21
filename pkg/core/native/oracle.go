@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -255,6 +256,11 @@ func (o *Oracle) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	cache := &OracleCache{}
 	cache.requestPrice = getIntWithKey(o.ID, d, prefixRequestPrice)
 	d.SetCache(o.ID, cache)
+	return nil
+}
+
+// ActiveIn implements the Contract interface.
+func (o *Oracle) ActiveIn() *config.Hardfork {
 	return nil
 }
 

@@ -283,10 +283,6 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 				zap.Int("StateSyncInterval", cfg.StateSyncInterval))
 		}
 	}
-	if len(cfg.NativeUpdateHistories) == 0 {
-		cfg.NativeUpdateHistories = map[string][]uint32{}
-		log.Info("NativeActivations are not set, using default values")
-	}
 	if cfg.Hardforks == nil {
 		cfg.Hardforks = map[string]uint32{}
 		for _, hf := range config.Hardforks {
@@ -485,8 +481,8 @@ func (bc *Blockchain) init() error {
 	for _, c := range bc.contracts.Contracts {
 		md := c.Metadata()
 		storedCS := bc.GetContractState(md.Hash)
-		history := md.UpdateHistory
-		if len(history) == 0 || history[0] > bHeight {
+		// Check that contract was deployed.
+		if !bc.isHardforkEnabled(c.ActiveIn(), bHeight) {
 			if storedCS != nil {
 				return fmt.Errorf("native contract %s is already stored, but marked as inactive for height %d in config", md.Name, bHeight)
 			}
@@ -1022,17 +1018,29 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 
 func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) error {
 	for _, c := range bc.contracts.Contracts {
-		for _, h := range c.Metadata().UpdateHistory {
-			if blockHeight >= h { // check that contract was deployed.
-				err := c.InitializeCache(blockHeight, d)
-				if err != nil {
-					return fmt.Errorf("failed to initialize cache for %s: %w", c.Metadata().Name, err)
-				}
-				break
-			}
+		// Check that contract was deployed.
+		if !bc.isHardforkEnabled(c.ActiveIn(), blockHeight) {
+			continue
+		}
+		err := c.InitializeCache(blockHeight, d)
+		if err != nil {
+			return fmt.Errorf("failed to initialize cache for %s: %w", c.Metadata().Name, err)
 		}
 	}
 	return nil
+}
+
+// isHardforkEnabled returns true if the specified hardfork is enabled at the
+// given height. nil hardfork is treated as always enabled.
+func (bc *Blockchain) isHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool {
+	hfs := bc.config.Hardforks
+	if hf != nil {
+		start, ok := hfs[hf.String()]
+		if !ok || start < blockHeight {
+			return false
+		}
+	}
+	return true
 }
 
 // Run runs chain loop, it needs to be run as goroutine and executing it is
@@ -3008,8 +3016,8 @@ func (bc *Blockchain) GetMaxNotValidBeforeDelta() (uint32, error) {
 	if !bc.config.P2PSigExtensions {
 		panic("disallowed call to Notary") // critical error, thus panic.
 	}
-	if bc.contracts.Notary.Metadata().UpdateHistory[0] > bc.BlockHeight() {
-		return 0, fmt.Errorf("native Notary is active starting from %d", bc.contracts.Notary.Metadata().UpdateHistory[0])
+	if !bc.isHardforkEnabled(bc.contracts.Notary.ActiveIn(), bc.BlockHeight()) {
+		return 0, fmt.Errorf("native Notary is active starting from %s", bc.contracts.Notary.ActiveIn().String())
 	}
 	return bc.contracts.Notary.GetMaxNotValidBeforeDelta(bc.dao), nil
 }

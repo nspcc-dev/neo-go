@@ -110,14 +110,6 @@ func NewContracts(cfg config.ProtocolConfiguration) *Contracts {
 		cs.Contracts = append(cs.Contracts, notary)
 	}
 
-	setDefaultHistory := len(cfg.NativeUpdateHistories) == 0
-	for _, c := range cs.Contracts {
-		var history = []uint32{0}
-		if !setDefaultHistory {
-			history = cfg.NativeUpdateHistories[c.Metadata().Name]
-		}
-		c.Metadata().NativeContract.UpdateHistory = history
-	}
 	return cs
 }
 

@@ -89,48 +89,50 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 		require.True(t, strings.Contains(err.Error(), fmt.Sprintf("native contract %s (version 0) not found", fakeH.StringLE())), err.Error())
 	})
 
-	t.Run("fail, bad NativeUpdateHistory height", func(t *testing.T) {
-		bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-			c.NativeUpdateHistories = map[string][]uint32{
-				nativenames.Policy:      {0},
-				nativenames.Neo:         {0},
-				nativenames.Gas:         {0},
-				nativenames.Designation: {0},
-				nativenames.StdLib:      {0},
-				nativenames.Management:  {0},
-				nativenames.Oracle:      {0},
-				nativenames.Ledger:      {0},
-				nativenames.CryptoLib:   {1},
-			}
+	/*
+		t.Run("fail, bad NativeUpdateHistory height", func(t *testing.T) {
+			bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
+				c.NativeUpdateHistories = map[string][]uint32{
+					nativenames.Policy:      {0},
+					nativenames.Neo:         {0},
+					nativenames.Gas:         {0},
+					nativenames.Designation: {0},
+					nativenames.StdLib:      {0},
+					nativenames.Management:  {0},
+					nativenames.Oracle:      {0},
+					nativenames.Ledger:      {0},
+					nativenames.CryptoLib:   {1},
+				}
+			})
+			eBad := neotest.NewExecutor(t, bcBad, validatorBad, committeeBad)
+
+			ic, err := bcBad.GetTestVM(trigger.Application, nil, nil)
+			require.NoError(t, err)
+			v := ic.SpawnVM()
+			v.LoadScriptWithHash(clState.NEF.Script, clState.Hash, callflag.All) // hash is not affected by native update history
+			input := []byte{1, 2, 3, 4}
+			v.Estack().PushVal(input)
+			v.Context().Jump(md.Offset)
+
+			// It's prohibited to call natives before NativeUpdateHistory[0] height.
+			err = v.Run()
+			require.Error(t, err)
+			require.True(t, strings.Contains(err.Error(), "native contract CryptoLib is active after height = 1"))
+
+			// Add new block => CryptoLib should be active now.
+			eBad.AddNewBlock(t)
+			ic, err = bcBad.GetTestVM(trigger.Application, nil, nil)
+			require.NoError(t, err)
+			v = ic.SpawnVM()
+			v.LoadScriptWithHash(clState.NEF.Script, clState.Hash, callflag.All) // hash is not affected by native update history
+			v.Estack().PushVal(input)
+			v.Context().Jump(md.Offset)
+
+			require.NoError(t, v.Run())
+			value := v.Estack().Pop().Bytes()
+			require.Equal(t, hash.RipeMD160(input).BytesBE(), value)
 		})
-		eBad := neotest.NewExecutor(t, bcBad, validatorBad, committeeBad)
-
-		ic, err := bcBad.GetTestVM(trigger.Application, nil, nil)
-		require.NoError(t, err)
-		v := ic.SpawnVM()
-		v.LoadScriptWithHash(clState.NEF.Script, clState.Hash, callflag.All) // hash is not affected by native update history
-		input := []byte{1, 2, 3, 4}
-		v.Estack().PushVal(input)
-		v.Context().Jump(md.Offset)
-
-		// It's prohibited to call natives before NativeUpdateHistory[0] height.
-		err = v.Run()
-		require.Error(t, err)
-		require.True(t, strings.Contains(err.Error(), "native contract CryptoLib is active after height = 1"))
-
-		// Add new block => CryptoLib should be active now.
-		eBad.AddNewBlock(t)
-		ic, err = bcBad.GetTestVM(trigger.Application, nil, nil)
-		require.NoError(t, err)
-		v = ic.SpawnVM()
-		v.LoadScriptWithHash(clState.NEF.Script, clState.Hash, callflag.All) // hash is not affected by native update history
-		v.Estack().PushVal(input)
-		v.Context().Jump(md.Offset)
-
-		require.NoError(t, v.Run())
-		value := v.Estack().Pop().Bytes()
-		require.Equal(t, hash.RipeMD160(input).BytesBE(), value)
-	})
+	*/
 
 	manState := bc.GetContractState(e.NativeHash(t, nativenames.Management))
 	require.NotNil(t, manState)
