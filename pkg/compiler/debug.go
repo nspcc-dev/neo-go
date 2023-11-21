@@ -206,10 +206,10 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 	start := len(d.Methods)
 	d.NamedTypes = make(map[string]binding.ExtendedType)
 	for name, scope := range c.funcs {
-		m := c.methodInfoFromScope(name, scope, d.NamedTypes)
-		if m.Range.Start == m.Range.End {
+		if scope.rng.Start == scope.rng.End {
 			continue
 		}
+		m := c.methodInfoFromScope(name, scope, d.NamedTypes)
 		d.Methods = append(d.Methods, *m)
 	}
 	sort.Slice(d.Methods[start:], func(i, j int) bool {
