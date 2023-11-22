@@ -65,9 +65,12 @@ func ToJSON(item Item) ([]byte, error) {
 }
 
 // sliceNoPointer represents a sub-slice of a known slice.
-// It doesn't contain any pointer and uses less memory than `[]byte`.
+// It doesn't contain any pointer and uses the same amount of memory as `[]byte`,
+// but at the same type has additional information about the number of items in
+// the stackitem (including the stackitem itself).
 type sliceNoPointer struct {
 	start, end int
+	itemsCount int
 }
 
 func toJSON(data []byte, seen map[Item]sliceNoPointer, item Item) ([]byte, error) {
@@ -105,7 +108,7 @@ func toJSON(data []byte, seen map[Item]sliceNoPointer, item Item) ([]byte, error
 			}
 		}
 		data = append(data, ']')
-		seen[item] = sliceNoPointer{start, len(data)}
+		seen[item] = sliceNoPointer{start: start, end: len(data)}
 	case *Map:
 		data = append(data, '{')
 		for i := range it.value {
@@ -126,7 +129,7 @@ func toJSON(data []byte, seen map[Item]sliceNoPointer, item Item) ([]byte, error
 			}
 		}
 		data = append(data, '}')
-		seen[item] = sliceNoPointer{start, len(data)}
+		seen[item] = sliceNoPointer{start: start, end: len(data)}
 	case *BigInteger:
 		if it.Big().CmpAbs(big.NewInt(MaxAllowedInteger)) == 1 {
 			return nil, fmt.Errorf("%w (MaxAllowedInteger)", ErrInvalidValue)
@@ -420,7 +423,7 @@ func toJSONWithTypes(data []byte, item Item, seen map[Item]sliceNoPointer) ([]by
 		data = append(data, '}')
 
 		if isBuffer {
-			seen[item] = sliceNoPointer{start, len(data)}
+			seen[item] = sliceNoPointer{start: start, end: len(data)}
 		}
 	} else {
 		if len(data)+2 > MaxSize { // also take care of '}'
@@ -428,7 +431,7 @@ func toJSONWithTypes(data []byte, item Item, seen map[Item]sliceNoPointer) ([]by
 		}
 		data = append(data, ']', '}')
 
-		seen[item] = sliceNoPointer{start, len(data)}
+		seen[item] = sliceNoPointer{start: start, end: len(data)}
 	}
 	return data, nil
 }

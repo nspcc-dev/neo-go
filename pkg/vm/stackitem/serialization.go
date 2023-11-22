@@ -14,6 +14,10 @@ import (
 // (including itself).
 const MaxDeserialized = 2048
 
+// MaxSerialized is the maximum number one serialized item can contain
+// (including itself).
+const MaxSerialized = MaxDeserialized
+
 // typicalNumOfItems is the number of items covering most serialization needs.
 // It's a hint used for map creation, so it does not limit anything, it's just
 // a microoptimization to avoid excessive reallocations. Most of the serialized
@@ -33,6 +37,7 @@ type SerializationContext struct {
 	uv           [9]byte
 	data         []byte
 	allowInvalid bool
+	limit        int
 	seen         map[Item]sliceNoPointer
 }
 
@@ -45,9 +50,19 @@ type deserContext struct {
 
 // Serialize encodes the given Item into a byte slice.
 func Serialize(item Item) ([]byte, error) {
+	return SerializeLimited(item, MaxSerialized)
+}
+
+// SerializeLimited encodes the given Item into a byte slice using custom
+// limit to restrict the maximum serialized number of elements.
+func SerializeLimited(item Item, limit int) ([]byte, error) {
 	sc := SerializationContext{
 		allowInvalid: false,
+		limit:        MaxSerialized,
 		seen:         make(map[Item]sliceNoPointer, typicalNumOfItems),
+	}
+	if limit > 0 {
+		sc.limit = limit
 	}
 	err := sc.serialize(item)
 	if err != nil {
@@ -76,6 +91,7 @@ func EncodeBinary(item Item, w *io.BinWriter) {
 func EncodeBinaryProtected(item Item, w *io.BinWriter) {
 	sc := SerializationContext{
 		allowInvalid: true,
+		limit:        MaxSerialized,
 		seen:         make(map[Item]sliceNoPointer, typicalNumOfItems),
 	}
 	err := sc.serialize(item)
@@ -88,28 +104,32 @@ func EncodeBinaryProtected(item Item, w *io.BinWriter) {
 
 func (w *SerializationContext) writeArray(item Item, arr []Item, start int) error {
 	w.seen[item] = sliceNoPointer{}
+	limit := w.limit
 	w.appendVarUint(uint64(len(arr)))
 	for i := range arr {
 		if err := w.serialize(arr[i]); err != nil {
 			return err
 		}
 	}
-	w.seen[item] = sliceNoPointer{start, len(w.data)}
+	w.seen[item] = sliceNoPointer{start, len(w.data), limit - w.limit + 1} // number of items including the array itself.
 	return nil
 }
 
 // NewSerializationContext returns reusable stack item serialization context.
 func NewSerializationContext() *SerializationContext {
 	return &SerializationContext{
-		seen: make(map[Item]sliceNoPointer, typicalNumOfItems),
+		limit: MaxSerialized,
+		seen:  make(map[Item]sliceNoPointer, typicalNumOfItems),
 	}
 }
 
 // Serialize returns flat slice of bytes with the given item. The process can be protected
 // from bad elements if appropriate flag is given (otherwise an error is returned on
 // encountering any of them). The buffer returned is only valid until the call to Serialize.
+// The number of serialized items is restricted with MaxSerialized.
 func (w *SerializationContext) Serialize(item Item, protected bool) ([]byte, error) {
 	w.allowInvalid = protected
+	w.limit = MaxSerialized
 	if w.data != nil {
 		w.data = w.data[:0]
 	}
@@ -135,10 +155,17 @@ func (w *SerializationContext) serialize(item Item) error {
 		if len(w.data)+v.end-v.start > MaxSize {
 			return ErrTooBig
 		}
+		w.limit -= v.itemsCount
+		if w.limit < 0 {
+			return errTooBigElements
+		}
 		w.data = append(w.data, w.data[v.start:v.end]...)
 		return nil
 	}
-
+	w.limit--
+	if w.limit < 0 {
+		return errTooBigElements
+	}
 	start := len(w.data)
 	switch t := item.(type) {
 	case *ByteArray:
@@ -188,6 +215,7 @@ func (w *SerializationContext) serialize(item Item) error {
 		}
 	case *Map:
 		w.seen[item] = sliceNoPointer{}
+		limit := w.limit
 
 		elems := t.value
 		w.data = append(w.data, byte(MapT))
@@ -200,7 +228,7 @@ func (w *SerializationContext) serialize(item Item) error {
 				return err
 			}
 		}
-		w.seen[item] = sliceNoPointer{start, len(w.data)}
+		w.seen[item] = sliceNoPointer{start, len(w.data), limit - w.limit + 1} // number of items including Map itself.
 	case Null:
 		w.data = append(w.data, byte(AnyT))
 	case nil:

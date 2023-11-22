@@ -109,7 +109,7 @@ func readManifest(filename string, hash util.Uint160) (*manifest.Manifest, []byt
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := m.IsValid(hash); err != nil {
+	if err := m.IsValid(hash, true); err != nil {
 		return nil, nil, fmt.Errorf("manifest is invalid: %w", err)
 	}
 	return m, manifestBytes, nil

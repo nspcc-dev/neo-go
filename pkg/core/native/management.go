@@ -389,7 +389,7 @@ func (m *Management) Deploy(ic *interop.Context, sender util.Uint160, neff *nef.
 	if err != nil {
 		return nil, err
 	}
-	err = manif.IsValid(h)
+	err = manif.IsValid(h, false) // do not check manifest size, the whole state.Contract will be checked later.
 	if err != nil {
 		return nil, fmt.Errorf("invalid manifest: %w", err)
 	}
@@ -458,7 +458,7 @@ func (m *Management) Update(ic *interop.Context, hash util.Uint160, neff *nef.Fi
 		if manif.Name != contract.Manifest.Name {
 			return nil, errors.New("contract name can't be changed")
 		}
-		err = manif.IsValid(contract.Hash)
+		err = manif.IsValid(contract.Hash, false) // do not check manifest size, the whole state.Contract will be checked later.
 		if err != nil {
 			return nil, fmt.Errorf("invalid manifest: %w", err)
 		}
@@ -619,13 +619,19 @@ func (m *Management) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 		nep17:     make(map[util.Uint160]struct{}),
 	}
 
-	d.Seek(m.ID, storage.SeekRange{Prefix: []byte{PrefixContract}}, func(k, v []byte) bool {
+	var initErr error
+	d.Seek(m.ID, storage.SeekRange{Prefix: []byte{PrefixContract}}, func(_, v []byte) bool {
 		var cs = new(state.Contract)
-		if stackitem.DeserializeConvertible(v, cs) == nil {
-			updateContractCache(cache, cs)
+		initErr = stackitem.DeserializeConvertible(v, cs)
+		if initErr != nil {
+			return false
 		}
+		updateContractCache(cache, cs)
 		return true
 	})
+	if initErr != nil {
+		return initErr
+	}
 	d.SetCache(m.ID, cache)
 	return nil
 }
