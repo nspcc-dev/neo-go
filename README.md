@@ -180,9 +180,8 @@ describing the feature/topic you are going to implement.
 
 # Contact
 
-- [@roman-khimov](https://github.com/roman-khimov) on GitHub
 - [@AnnaShaleva](https://github.com/AnnaShaleva) on GitHub
-- [@fyrchik](https://github.com/fyrchik) on GitHub
+- [@roman-khimov](https://github.com/roman-khimov) on GitHub
 - Reach out to us on the [Neo Discord](https://discordapp.com/invite/R8v48YA) channel
 
 # License
