@@ -4,11 +4,9 @@
 package structs
 
 import (
-	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -19,70 +17,15 @@ import (
 // Hash contains contract hash.
 var Hash = util.Uint160{0x33, 0x22, 0x11, 0x0, 0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x0}
 
-// LedgerBlock is a contract-specific ledger.Block type used by its methods.
-type LedgerBlock struct {
-	Hash               util.Uint256
-	Version            *big.Int
-	PrevHash           util.Uint256
-	MerkleRoot         util.Uint256
-	Timestamp          *big.Int
-	Nonce              *big.Int
-	Index              *big.Int
-	NextConsensus      util.Uint160
-	TransactionsLength *big.Int
-}
-
-// LedgerBlockSR is a contract-specific ledger.BlockSR type used by its methods.
-type LedgerBlockSR struct {
-	Hash               util.Uint256
-	Version            *big.Int
-	PrevHash           util.Uint256
-	MerkleRoot         util.Uint256
-	Timestamp          *big.Int
-	Nonce              *big.Int
-	Index              *big.Int
-	NextConsensus      util.Uint160
-	TransactionsLength *big.Int
-	PrevStateRoot      util.Uint256
-}
-
-// LedgerTransaction is a contract-specific ledger.Transaction type used by its methods.
-type LedgerTransaction struct {
-	Hash            util.Uint256
-	Version         *big.Int
-	Nonce           *big.Int
-	Sender          util.Uint160
-	SysFee          *big.Int
-	NetFee          *big.Int
-	ValidUntilBlock *big.Int
-	Script          []byte
-}
-
-// LedgerTransactionSigner is a contract-specific ledger.TransactionSigner type used by its methods.
-type LedgerTransactionSigner struct {
-	Account          util.Uint160
-	Scopes           *big.Int
-	AllowedContracts []util.Uint160
-	AllowedGroups    keys.PublicKeys
-	Rules            []*LedgerWitnessRule
-}
-
-// LedgerWitnessCondition is a contract-specific ledger.WitnessCondition type used by its methods.
-type LedgerWitnessCondition struct {
-	Type  *big.Int
-	Value any
-}
-
-// LedgerWitnessRule is a contract-specific ledger.WitnessRule type used by its methods.
-type LedgerWitnessRule struct {
-	Action    *big.Int
-	Condition *LedgerWitnessCondition
-}
-
 // Unnamed is a contract-specific unnamed type used by its methods.
 type Unnamed struct {
 	I *big.Int
 	B bool
+}
+
+// UnnamedX is a contract-specific unnamedX type used by its methods.
+type UnnamedX struct {
+	I *big.Int
 }
 
 // ComplicatedNameEvent represents "! complicated name %$#" event emitted by the contract.
@@ -107,7 +50,7 @@ type SomeArrayEvent struct {
 
 // SomeUnexportedFieldEvent represents "SomeUnexportedField" event emitted by the contract.
 type SomeUnexportedFieldEvent struct {
-	S *Unnamed
+	S *UnnamedX
 }
 
 // Actor is used by Contract to call state-changing methods.
@@ -242,569 +185,6 @@ func (c *Contract) UnexportedFieldUnsigned() (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(c.hash, "unexportedField", nil)
 }
 
-// itemToLedgerBlock converts stack item into *LedgerBlock.
-func itemToLedgerBlock(item stackitem.Item, err error) (*LedgerBlock, error) {
-	if err != nil {
-		return nil, err
-	}
-	var res = new(LedgerBlock)
-	err = res.FromStackItem(item)
-	return res, err
-}
-
-// FromStackItem retrieves fields of LedgerBlock from the given
-// [stackitem.Item] or returns an error if it's not possible to do to so.
-func (res *LedgerBlock) FromStackItem(item stackitem.Item) error {
-	arr, ok := item.Value().([]stackitem.Item)
-	if !ok {
-		return errors.New("not an array")
-	}
-	if len(arr) != 9 {
-		return errors.New("wrong number of structure elements")
-	}
-
-	var (
-		index = -1
-		err   error
-	)
-	index++
-	res.Hash, err = func(item stackitem.Item) (util.Uint256, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		u, err := util.Uint256DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		return u, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field Hash: %w", err)
-	}
-
-	index++
-	res.Version, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Version: %w", err)
-	}
-
-	index++
-	res.PrevHash, err = func(item stackitem.Item) (util.Uint256, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		u, err := util.Uint256DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		return u, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field PrevHash: %w", err)
-	}
-
-	index++
-	res.MerkleRoot, err = func(item stackitem.Item) (util.Uint256, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		u, err := util.Uint256DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		return u, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field MerkleRoot: %w", err)
-	}
-
-	index++
-	res.Timestamp, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Timestamp: %w", err)
-	}
-
-	index++
-	res.Nonce, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Nonce: %w", err)
-	}
-
-	index++
-	res.Index, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Index: %w", err)
-	}
-
-	index++
-	res.NextConsensus, err = func(item stackitem.Item) (util.Uint160, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		u, err := util.Uint160DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		return u, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field NextConsensus: %w", err)
-	}
-
-	index++
-	res.TransactionsLength, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field TransactionsLength: %w", err)
-	}
-
-	return nil
-}
-
-// itemToLedgerBlockSR converts stack item into *LedgerBlockSR.
-func itemToLedgerBlockSR(item stackitem.Item, err error) (*LedgerBlockSR, error) {
-	if err != nil {
-		return nil, err
-	}
-	var res = new(LedgerBlockSR)
-	err = res.FromStackItem(item)
-	return res, err
-}
-
-// FromStackItem retrieves fields of LedgerBlockSR from the given
-// [stackitem.Item] or returns an error if it's not possible to do to so.
-func (res *LedgerBlockSR) FromStackItem(item stackitem.Item) error {
-	arr, ok := item.Value().([]stackitem.Item)
-	if !ok {
-		return errors.New("not an array")
-	}
-	if len(arr) != 10 {
-		return errors.New("wrong number of structure elements")
-	}
-
-	var (
-		index = -1
-		err   error
-	)
-	index++
-	res.Hash, err = func(item stackitem.Item) (util.Uint256, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		u, err := util.Uint256DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		return u, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field Hash: %w", err)
-	}
-
-	index++
-	res.Version, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Version: %w", err)
-	}
-
-	index++
-	res.PrevHash, err = func(item stackitem.Item) (util.Uint256, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		u, err := util.Uint256DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		return u, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field PrevHash: %w", err)
-	}
-
-	index++
-	res.MerkleRoot, err = func(item stackitem.Item) (util.Uint256, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		u, err := util.Uint256DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		return u, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field MerkleRoot: %w", err)
-	}
-
-	index++
-	res.Timestamp, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Timestamp: %w", err)
-	}
-
-	index++
-	res.Nonce, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Nonce: %w", err)
-	}
-
-	index++
-	res.Index, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Index: %w", err)
-	}
-
-	index++
-	res.NextConsensus, err = func(item stackitem.Item) (util.Uint160, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		u, err := util.Uint160DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		return u, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field NextConsensus: %w", err)
-	}
-
-	index++
-	res.TransactionsLength, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field TransactionsLength: %w", err)
-	}
-
-	index++
-	res.PrevStateRoot, err = func(item stackitem.Item) (util.Uint256, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		u, err := util.Uint256DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		return u, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field PrevStateRoot: %w", err)
-	}
-
-	return nil
-}
-
-// itemToLedgerTransaction converts stack item into *LedgerTransaction.
-func itemToLedgerTransaction(item stackitem.Item, err error) (*LedgerTransaction, error) {
-	if err != nil {
-		return nil, err
-	}
-	var res = new(LedgerTransaction)
-	err = res.FromStackItem(item)
-	return res, err
-}
-
-// FromStackItem retrieves fields of LedgerTransaction from the given
-// [stackitem.Item] or returns an error if it's not possible to do to so.
-func (res *LedgerTransaction) FromStackItem(item stackitem.Item) error {
-	arr, ok := item.Value().([]stackitem.Item)
-	if !ok {
-		return errors.New("not an array")
-	}
-	if len(arr) != 8 {
-		return errors.New("wrong number of structure elements")
-	}
-
-	var (
-		index = -1
-		err   error
-	)
-	index++
-	res.Hash, err = func(item stackitem.Item) (util.Uint256, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		u, err := util.Uint256DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint256{}, err
-		}
-		return u, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field Hash: %w", err)
-	}
-
-	index++
-	res.Version, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Version: %w", err)
-	}
-
-	index++
-	res.Nonce, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Nonce: %w", err)
-	}
-
-	index++
-	res.Sender, err = func(item stackitem.Item) (util.Uint160, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		u, err := util.Uint160DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		return u, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field Sender: %w", err)
-	}
-
-	index++
-	res.SysFee, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field SysFee: %w", err)
-	}
-
-	index++
-	res.NetFee, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field NetFee: %w", err)
-	}
-
-	index++
-	res.ValidUntilBlock, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field ValidUntilBlock: %w", err)
-	}
-
-	index++
-	res.Script, err = arr[index].TryBytes()
-	if err != nil {
-		return fmt.Errorf("field Script: %w", err)
-	}
-
-	return nil
-}
-
-// itemToLedgerTransactionSigner converts stack item into *LedgerTransactionSigner.
-func itemToLedgerTransactionSigner(item stackitem.Item, err error) (*LedgerTransactionSigner, error) {
-	if err != nil {
-		return nil, err
-	}
-	var res = new(LedgerTransactionSigner)
-	err = res.FromStackItem(item)
-	return res, err
-}
-
-// FromStackItem retrieves fields of LedgerTransactionSigner from the given
-// [stackitem.Item] or returns an error if it's not possible to do to so.
-func (res *LedgerTransactionSigner) FromStackItem(item stackitem.Item) error {
-	arr, ok := item.Value().([]stackitem.Item)
-	if !ok {
-		return errors.New("not an array")
-	}
-	if len(arr) != 5 {
-		return errors.New("wrong number of structure elements")
-	}
-
-	var (
-		index = -1
-		err   error
-	)
-	index++
-	res.Account, err = func(item stackitem.Item) (util.Uint160, error) {
-		b, err := item.TryBytes()
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		u, err := util.Uint160DecodeBytesBE(b)
-		if err != nil {
-			return util.Uint160{}, err
-		}
-		return u, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field Account: %w", err)
-	}
-
-	index++
-	res.Scopes, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Scopes: %w", err)
-	}
-
-	index++
-	res.AllowedContracts, err = func(item stackitem.Item) ([]util.Uint160, error) {
-		arr, ok := item.Value().([]stackitem.Item)
-		if !ok {
-			return nil, errors.New("not an array")
-		}
-		res := make([]util.Uint160, len(arr))
-		for i := range res {
-			res[i], err = func(item stackitem.Item) (util.Uint160, error) {
-				b, err := item.TryBytes()
-				if err != nil {
-					return util.Uint160{}, err
-				}
-				u, err := util.Uint160DecodeBytesBE(b)
-				if err != nil {
-					return util.Uint160{}, err
-				}
-				return u, nil
-			}(arr[i])
-			if err != nil {
-				return nil, fmt.Errorf("item %d: %w", i, err)
-			}
-		}
-		return res, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field AllowedContracts: %w", err)
-	}
-
-	index++
-	res.AllowedGroups, err = func(item stackitem.Item) (keys.PublicKeys, error) {
-		arr, ok := item.Value().([]stackitem.Item)
-		if !ok {
-			return nil, errors.New("not an array")
-		}
-		res := make(keys.PublicKeys, len(arr))
-		for i := range res {
-			res[i], err = func(item stackitem.Item) (*keys.PublicKey, error) {
-				b, err := item.TryBytes()
-				if err != nil {
-					return nil, err
-				}
-				k, err := keys.NewPublicKeyFromBytes(b, elliptic.P256())
-				if err != nil {
-					return nil, err
-				}
-				return k, nil
-			}(arr[i])
-			if err != nil {
-				return nil, fmt.Errorf("item %d: %w", i, err)
-			}
-		}
-		return res, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field AllowedGroups: %w", err)
-	}
-
-	index++
-	res.Rules, err = func(item stackitem.Item) ([]*LedgerWitnessRule, error) {
-		arr, ok := item.Value().([]stackitem.Item)
-		if !ok {
-			return nil, errors.New("not an array")
-		}
-		res := make([]*LedgerWitnessRule, len(arr))
-		for i := range res {
-			res[i], err = itemToLedgerWitnessRule(arr[i], nil)
-			if err != nil {
-				return nil, fmt.Errorf("item %d: %w", i, err)
-			}
-		}
-		return res, nil
-	}(arr[index])
-	if err != nil {
-		return fmt.Errorf("field Rules: %w", err)
-	}
-
-	return nil
-}
-
-// itemToLedgerWitnessCondition converts stack item into *LedgerWitnessCondition.
-func itemToLedgerWitnessCondition(item stackitem.Item, err error) (*LedgerWitnessCondition, error) {
-	if err != nil {
-		return nil, err
-	}
-	var res = new(LedgerWitnessCondition)
-	err = res.FromStackItem(item)
-	return res, err
-}
-
-// FromStackItem retrieves fields of LedgerWitnessCondition from the given
-// [stackitem.Item] or returns an error if it's not possible to do to so.
-func (res *LedgerWitnessCondition) FromStackItem(item stackitem.Item) error {
-	arr, ok := item.Value().([]stackitem.Item)
-	if !ok {
-		return errors.New("not an array")
-	}
-	if len(arr) != 2 {
-		return errors.New("wrong number of structure elements")
-	}
-
-	var (
-		index = -1
-		err   error
-	)
-	index++
-	res.Type, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Type: %w", err)
-	}
-
-	index++
-	res.Value, err = arr[index].Value(), error(nil)
-	if err != nil {
-		return fmt.Errorf("field Value: %w", err)
-	}
-
-	return nil
-}
-
-// itemToLedgerWitnessRule converts stack item into *LedgerWitnessRule.
-func itemToLedgerWitnessRule(item stackitem.Item, err error) (*LedgerWitnessRule, error) {
-	if err != nil {
-		return nil, err
-	}
-	var res = new(LedgerWitnessRule)
-	err = res.FromStackItem(item)
-	return res, err
-}
-
-// FromStackItem retrieves fields of LedgerWitnessRule from the given
-// [stackitem.Item] or returns an error if it's not possible to do to so.
-func (res *LedgerWitnessRule) FromStackItem(item stackitem.Item) error {
-	arr, ok := item.Value().([]stackitem.Item)
-	if !ok {
-		return errors.New("not an array")
-	}
-	if len(arr) != 2 {
-		return errors.New("wrong number of structure elements")
-	}
-
-	var (
-		index = -1
-		err   error
-	)
-	index++
-	res.Action, err = arr[index].TryInteger()
-	if err != nil {
-		return fmt.Errorf("field Action: %w", err)
-	}
-
-	index++
-	res.Condition, err = itemToLedgerWitnessCondition(arr[index], nil)
-	if err != nil {
-		return fmt.Errorf("field Condition: %w", err)
-	}
-
-	return nil
-}
-
 // itemToUnnamed converts stack item into *Unnamed.
 func itemToUnnamed(item stackitem.Item, err error) (*Unnamed, error) {
 	if err != nil {
@@ -840,6 +220,40 @@ func (res *Unnamed) FromStackItem(item stackitem.Item) error {
 	res.B, err = arr[index].TryBool()
 	if err != nil {
 		return fmt.Errorf("field B: %w", err)
+	}
+
+	return nil
+}
+
+// itemToUnnamedX converts stack item into *UnnamedX.
+func itemToUnnamedX(item stackitem.Item, err error) (*UnnamedX, error) {
+	if err != nil {
+		return nil, err
+	}
+	var res = new(UnnamedX)
+	err = res.FromStackItem(item)
+	return res, err
+}
+
+// FromStackItem retrieves fields of UnnamedX from the given
+// [stackitem.Item] or returns an error if it's not possible to do to so.
+func (res *UnnamedX) FromStackItem(item stackitem.Item) error {
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 1 {
+		return errors.New("wrong number of structure elements")
+	}
+
+	var (
+		index = -1
+		err   error
+	)
+	index++
+	res.I, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field I: %w", err)
 	}
 
 	return nil
@@ -1213,7 +627,7 @@ func (e *SomeUnexportedFieldEvent) FromStackItem(item *stackitem.Array) error {
 		err   error
 	)
 	index++
-	e.S, err = itemToUnnamed(arr[index], nil)
+	e.S, err = itemToUnnamedX(arr[index], nil)
 	if err != nil {
 		return fmt.Errorf("field S: %w", err)
 	}

@@ -87,3 +87,17 @@ func CrazyMaps(m map[int][]map[string][]interop.Hash160) map[int][]map[string][]
 func AnyMaps(m map[int]any) map[int]any {
 	return m
 }
+
+func UnnamedStructs() struct{ I int } {
+	return struct{ I int }{I: 123}
+}
+
+func UnnamedStructsX() struct {
+	I int
+	B bool
+} {
+	return struct {
+		I int
+		B bool
+	}{I: 123, B: true}
+}

@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -357,8 +358,16 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 		}
 		if o.GuessEventTypes {
 			if len(di.EmittedEvents) > 0 {
-				for eventName, eventUsages := range di.EmittedEvents {
-					var manifestEvent HybridEvent
+				var keys = make([]string, 0, len(di.EmittedEvents))
+				for k := range di.EmittedEvents {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				for _, eventName := range keys {
+					var (
+						eventUsages   = di.EmittedEvents[eventName]
+						manifestEvent HybridEvent
+					)
 					for _, e := range o.ContractEvents {
 						if e.Name == eventName {
 							manifestEvent = e
@@ -388,12 +397,6 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 						}
 					}
 					eBindingName := rpcbinding.ToEventBindingName(eventName)
-					for typeName, extType := range exampleUsage.ExtTypes {
-						if _, ok := cfg.NamedTypes[typeName]; !ok {
-							cfg.NamedTypes[typeName] = extType
-						}
-					}
-
 					for _, p := range exampleUsage.Params {
 						pBindingName := rpcbinding.ToParameterBindingName(p.Name)
 						pname := eBindingName + "." + pBindingName
@@ -403,6 +406,15 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 							}
 						}
 						if p.ExtendedType != nil {
+							typeName := p.ExtendedType.Name
+							if extType, ok := exampleUsage.ExtTypes[typeName]; ok {
+								for _, ok := cfg.NamedTypes[typeName]; ok; _, ok = cfg.NamedTypes[typeName] {
+									typeName = typeName + "X"
+								}
+								extType.Name = typeName
+								p.ExtendedType.Name = typeName
+								cfg.NamedTypes[typeName] = extType
+							}
 							if _, ok := cfg.Types[pname]; !ok {
 								cfg.Types[pname] = *p.ExtendedType
 							}

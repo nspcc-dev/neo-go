@@ -282,7 +282,14 @@ func (c *codegen) visitPkg(pkg *packages.Package, seen map[string]bool) {
 		return
 	}
 	for _, imp := range pkg.Types.Imports() {
-		c.visitPkg(pkg.Imports[imp.Path()], seen)
+		var subpkg = pkg.Imports[imp.Path()]
+		if subpkg == nil {
+			if c.prog.Err == nil {
+				c.prog.Err = fmt.Errorf("failed to load %q package from %q, import cycle?", imp.Path(), pkg.PkgPath)
+			}
+			return
+		}
+		c.visitPkg(subpkg, seen)
 	}
 	seen[pkg.PkgPath] = true
 	c.packages = append(c.packages, pkg.PkgPath)
