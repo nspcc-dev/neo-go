@@ -84,7 +84,7 @@ func (m *Manifest) CanCall(hash util.Uint160, toCall *Manifest, method string) b
 // IsValid checks manifest internal consistency and correctness, one of the
 // checks is for group signature correctness, contract hash is passed for it.
 // If hash is empty, then hash-related checks are omitted.
-func (m *Manifest) IsValid(hash util.Uint160) error {
+func (m *Manifest) IsValid(hash util.Uint160, checkSize bool) error {
 	var err error
 
 	if m.Name == "" {
@@ -121,6 +121,9 @@ func (m *Manifest) IsValid(hash util.Uint160) error {
 	err = Permissions(m.Permissions).AreValid()
 	if err != nil {
 		return err
+	}
+	if !checkSize {
+		return nil
 	}
 	si, err := m.ToStackItem()
 	if err != nil {

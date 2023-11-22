@@ -125,13 +125,13 @@ func TestIsValid(t *testing.T) {
 	m := &Manifest{}
 
 	t.Run("invalid, no name", func(t *testing.T) {
-		require.Error(t, m.IsValid(contractHash))
+		require.Error(t, m.IsValid(contractHash, true))
 	})
 
 	m = NewManifest("Test")
 
 	t.Run("invalid, no ABI methods", func(t *testing.T) {
-		require.Error(t, m.IsValid(contractHash))
+		require.Error(t, m.IsValid(contractHash, true))
 	})
 
 	m.ABI.Methods = append(m.ABI.Methods, Method{
@@ -141,7 +141,7 @@ func TestIsValid(t *testing.T) {
 	})
 
 	t.Run("valid, no groups/events", func(t *testing.T) {
-		require.NoError(t, m.IsValid(contractHash))
+		require.NoError(t, m.IsValid(contractHash, true))
 	})
 
 	m.ABI.Events = append(m.ABI.Events, Event{
@@ -150,7 +150,7 @@ func TestIsValid(t *testing.T) {
 	})
 
 	t.Run("valid, with events", func(t *testing.T) {
-		require.NoError(t, m.IsValid(contractHash))
+		require.NoError(t, m.IsValid(contractHash, true))
 	})
 
 	m.ABI.Events = append(m.ABI.Events, Event{
@@ -162,52 +162,52 @@ func TestIsValid(t *testing.T) {
 	})
 
 	t.Run("invalid, bad event", func(t *testing.T) {
-		require.Error(t, m.IsValid(contractHash))
+		require.Error(t, m.IsValid(contractHash, true))
 	})
 	m.ABI.Events = m.ABI.Events[:1]
 
 	m.Permissions = append(m.Permissions, *NewPermission(PermissionHash, util.Uint160{1, 2, 3}))
 	t.Run("valid, with permissions", func(t *testing.T) {
-		require.NoError(t, m.IsValid(contractHash))
+		require.NoError(t, m.IsValid(contractHash, true))
 	})
 
 	m.Permissions = append(m.Permissions, *NewPermission(PermissionHash, util.Uint160{1, 2, 3}))
 	t.Run("invalid, with permissions", func(t *testing.T) {
-		require.Error(t, m.IsValid(contractHash))
+		require.Error(t, m.IsValid(contractHash, true))
 	})
 	m.Permissions = m.Permissions[:1]
 
 	m.SupportedStandards = append(m.SupportedStandards, "NEP-17")
 	t.Run("valid, with standards", func(t *testing.T) {
-		require.NoError(t, m.IsValid(contractHash))
+		require.NoError(t, m.IsValid(contractHash, true))
 	})
 
 	m.SupportedStandards = append(m.SupportedStandards, "")
 	t.Run("invalid, with nameless standard", func(t *testing.T) {
-		require.Error(t, m.IsValid(contractHash))
+		require.Error(t, m.IsValid(contractHash, true))
 	})
 	m.SupportedStandards = m.SupportedStandards[:1]
 
 	m.SupportedStandards = append(m.SupportedStandards, "NEP-17")
 	t.Run("invalid, with duplicate standards", func(t *testing.T) {
-		require.Error(t, m.IsValid(contractHash))
+		require.Error(t, m.IsValid(contractHash, true))
 	})
 	m.SupportedStandards = m.SupportedStandards[:1]
 
 	d := PermissionDesc{Type: PermissionHash, Value: util.Uint160{1, 2, 3}}
 	m.Trusts.Add(d)
 	t.Run("valid, with trust", func(t *testing.T) {
-		require.NoError(t, m.IsValid(contractHash))
+		require.NoError(t, m.IsValid(contractHash, true))
 	})
 
 	m.Trusts.Add(PermissionDesc{Type: PermissionHash, Value: util.Uint160{3, 2, 1}})
 	t.Run("valid, with trusts", func(t *testing.T) {
-		require.NoError(t, m.IsValid(contractHash))
+		require.NoError(t, m.IsValid(contractHash, true))
 	})
 
 	m.Trusts.Add(d)
 	t.Run("invalid, with trusts", func(t *testing.T) {
-		require.Error(t, m.IsValid(contractHash))
+		require.Error(t, m.IsValid(contractHash, true))
 	})
 	m.Trusts.Restrict()
 
@@ -225,11 +225,11 @@ func TestIsValid(t *testing.T) {
 		}
 
 		t.Run("valid", func(t *testing.T) {
-			require.NoError(t, m.IsValid(contractHash))
+			require.NoError(t, m.IsValid(contractHash, true))
 		})
 
 		t.Run("invalid, wrong contract hash", func(t *testing.T) {
-			require.Error(t, m.IsValid(util.Uint160{4, 5, 6}))
+			require.Error(t, m.IsValid(util.Uint160{4, 5, 6}, true))
 		})
 
 		t.Run("invalid, wrong group signature", func(t *testing.T) {
@@ -241,7 +241,7 @@ func TestIsValid(t *testing.T) {
 				// of the contract hash.
 				Signature: pk.Sign([]byte{1, 2, 3}),
 			})
-			require.Error(t, m.IsValid(contractHash))
+			require.Error(t, m.IsValid(contractHash, true))
 		})
 	})
 	m.Groups = m.Groups[:0]
@@ -253,7 +253,7 @@ func TestIsValid(t *testing.T) {
 				Parameters: []Parameter{},
 			})
 		}
-		err := m.IsValid(contractHash)
+		err := m.IsValid(contractHash, true)
 		require.ErrorIs(t, err, stackitem.ErrTooBig)
 	})
 }
