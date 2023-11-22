@@ -1,6 +1,7 @@
 package stackitem
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -23,7 +24,19 @@ func TestSerializationMaxErr(t *testing.T) {
 }
 
 func testSerialize(t *testing.T, expectedErr error, item Item) {
-	data, err := Serialize(item)
+	testSerializeLimited(t, expectedErr, item, -1)
+}
+
+func testSerializeLimited(t *testing.T, expectedErr error, item Item, limit int) {
+	var (
+		data []byte
+		err  error
+	)
+	if limit > 0 {
+		data, err = SerializeLimited(item, limit)
+	} else {
+		data, err = Serialize(item)
+	}
 	if expectedErr != nil {
 		require.ErrorIs(t, err, expectedErr)
 		return
@@ -58,7 +71,9 @@ func TestSerialize(t *testing.T) {
 		testSerialize(t, nil, newItem(items))
 
 		items = append(items, zeroByteArray)
-		data, err := Serialize(newItem(items))
+		_, err := Serialize(newItem(items))
+		require.ErrorIs(t, err, errTooBigElements)
+		data, err := SerializeLimited(newItem(items), MaxSerialized+1) // a tiny hack to check deserialization error.
 		require.NoError(t, err)
 		_, err = Deserialize(data)
 		require.ErrorIs(t, err, ErrTooBig)
@@ -165,10 +180,67 @@ func TestSerialize(t *testing.T) {
 		for i := 0; i <= MaxDeserialized; i++ {
 			m.Add(Make(i), zeroByteArray)
 		}
-		data, err := Serialize(m)
+		_, err := Serialize(m)
+		require.ErrorIs(t, err, errTooBigElements)
+		data, err := SerializeLimited(m, (MaxSerialized+1)*2+1) // a tiny hack to check deserialization error.
 		require.NoError(t, err)
 		_, err = Deserialize(data)
 		require.ErrorIs(t, err, ErrTooBig)
+	})
+}
+
+func TestSerializeLimited(t *testing.T) {
+	const customLimit = 10
+
+	smallArray := make([]Item, customLimit-1)
+	for i := range smallArray {
+		smallArray[i] = NewBool(true)
+	}
+	bigArray := make([]Item, customLimit)
+	for i := range bigArray {
+		bigArray[i] = NewBool(true)
+	}
+	t.Run("array", func(t *testing.T) {
+		testSerializeLimited(t, nil, NewArray(smallArray), customLimit)
+		testSerializeLimited(t, errTooBigElements, NewArray(bigArray), customLimit)
+	})
+	t.Run("struct", func(t *testing.T) {
+		testSerializeLimited(t, nil, NewStruct(smallArray), customLimit)
+		testSerializeLimited(t, errTooBigElements, NewStruct(bigArray), customLimit)
+	})
+	t.Run("map", func(t *testing.T) {
+		smallMap := make([]MapElement, (customLimit-1)/2)
+		for i := range smallMap {
+			smallMap[i] = MapElement{
+				Key:   NewByteArray([]byte(strconv.Itoa(i))),
+				Value: NewBool(true),
+			}
+		}
+		bigMap := make([]MapElement, customLimit/2)
+		for i := range bigMap {
+			bigMap[i] = MapElement{
+				Key:   NewByteArray([]byte("key")),
+				Value: NewBool(true),
+			}
+		}
+		testSerializeLimited(t, nil, NewMapWithValue(smallMap), customLimit)
+		testSerializeLimited(t, errTooBigElements, NewMapWithValue(bigMap), customLimit)
+	})
+	t.Run("seen", func(t *testing.T) {
+		t.Run("OK", func(t *testing.T) {
+			tinyArray := NewArray(make([]Item, (customLimit-3)/2)) // 1 for outer array, 1+1 for two inner arrays and the rest are for arrays' elements.
+			for i := range tinyArray.value {
+				tinyArray.value[i] = NewBool(true)
+			}
+			testSerializeLimited(t, nil, NewArray([]Item{tinyArray, tinyArray}), customLimit)
+		})
+		t.Run("big", func(t *testing.T) {
+			tinyArray := NewArray(make([]Item, (customLimit-2)/2)) // should break on the second array serialisation.
+			for i := range tinyArray.value {
+				tinyArray.value[i] = NewBool(true)
+			}
+			testSerializeLimited(t, errTooBigElements, NewArray([]Item{tinyArray, tinyArray}), customLimit)
+		})
 	})
 }
 
@@ -202,7 +274,7 @@ func TestDeserializeTooManyElements(t *testing.T) {
 	require.NoError(t, err)
 
 	item = Make([]Item{item})
-	data, err = Serialize(item)
+	data, err = SerializeLimited(item, MaxSerialized+1) // tiny hack to avoid serialization error.
 	require.NoError(t, err)
 	_, err = Deserialize(data)
 	require.ErrorIs(t, err, ErrTooBig)
@@ -214,14 +286,14 @@ func TestDeserializeLimited(t *testing.T) {
 	for i := 0; i < customLimit-1; i++ { // 1 for zero inner element.
 		item = Make([]Item{item})
 	}
-	data, err := Serialize(item)
+	data, err := SerializeLimited(item, customLimit) // tiny hack to avoid serialization error.
 	require.NoError(t, err)
 	actual, err := DeserializeLimited(data, customLimit)
 	require.NoError(t, err)
 	require.Equal(t, item, actual)
 
 	item = Make([]Item{item})
-	data, err = Serialize(item)
+	data, err = SerializeLimited(item, customLimit+1) // tiny hack to avoid serialization error.
 	require.NoError(t, err)
 	_, err = DeserializeLimited(data, customLimit)
 	require.Error(t, err)
