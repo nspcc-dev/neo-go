@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -242,6 +243,18 @@ func TestIsValid(t *testing.T) {
 			})
 			require.Error(t, m.IsValid(contractHash))
 		})
+	})
+	m.Groups = m.Groups[:0]
+
+	t.Run("invalid, unserializable", func(t *testing.T) {
+		for i := 0; i < stackitem.MaxSerialized; i++ {
+			m.ABI.Events = append(m.ABI.Events, Event{
+				Name:       fmt.Sprintf("Event%d", i),
+				Parameters: []Parameter{},
+			})
+		}
+		err := m.IsValid(contractHash)
+		require.ErrorIs(t, err, stackitem.ErrTooBig)
 	})
 }
 

@@ -118,7 +118,19 @@ func (m *Manifest) IsValid(hash util.Uint160) error {
 			return errors.New("duplicate trusted contracts")
 		}
 	}
-	return Permissions(m.Permissions).AreValid()
+	err = Permissions(m.Permissions).AreValid()
+	if err != nil {
+		return err
+	}
+	si, err := m.ToStackItem()
+	if err != nil {
+		return fmt.Errorf("failed to check manifest serialisation: %w", err)
+	}
+	_, err = stackitem.Serialize(si)
+	if err != nil {
+		return fmt.Errorf("manifest is not serializable: %w", err)
+	}
+	return nil
 }
 
 // IsStandardSupported denotes whether the specified standard is supported by the contract.
