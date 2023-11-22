@@ -219,7 +219,6 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), "can't init MPT at height"), err)
 	})
-	/* See #2801
 	t.Run("failed native Management initialisation", func(t *testing.T) {
 		ps = newPS(t)
 
@@ -234,9 +233,8 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 
 		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, cache)
 		require.Error(t, err)
-		require.True(t, strings.Contains(err.Error(), "can't init cache for Management native contract"), err)
+		require.True(t, strings.Contains(err.Error(), "can't init natives cache: failed to initialize cache for ContractManagement"), err)
 	})
-	*/
 	t.Run("invalid native contract activation", func(t *testing.T) {
 		ps = newPS(t)
 
