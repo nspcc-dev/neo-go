@@ -203,18 +203,19 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 		})
 	}
 
-	start := len(d.Methods)
-	d.NamedTypes = make(map[string]binding.ExtendedType)
+	var fnames = make([]string, 0, len(c.funcs))
 	for name, scope := range c.funcs {
 		if scope.rng.Start == scope.rng.End {
 			continue
 		}
-		m := c.methodInfoFromScope(name, scope, d.NamedTypes)
+		fnames = append(fnames, name)
+	}
+	sort.Strings(fnames)
+	d.NamedTypes = make(map[string]binding.ExtendedType)
+	for _, name := range fnames {
+		m := c.methodInfoFromScope(name, c.funcs[name], d.NamedTypes)
 		d.Methods = append(d.Methods, *m)
 	}
-	sort.Slice(d.Methods[start:], func(i, j int) bool {
-		return d.Methods[start+i].Name.Name < d.Methods[start+j].Name.Name
-	})
 	d.EmittedEvents = c.emittedEvents
 	d.InvokedContracts = c.invokedContracts
 	return d
