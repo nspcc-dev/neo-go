@@ -313,6 +313,10 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		conf.MaxNEP11Tokens = config.DefaultMaxNEP11Tokens
 		log.Info("MaxNEP11Tokens is not set or wrong, setting default value", zap.Int("MaxNEP11Tokens", config.DefaultMaxNEP11Tokens))
 	}
+	if conf.MaxRequestBodyBytes <= 0 {
+		conf.MaxRequestBodyBytes = config.DefaultMaxRequestBodyBytes
+		log.Info("MaxRequestBodyBytes is not set or wong, setting default value", zap.Int("MaxRequestBodyBytes", config.DefaultMaxRequestBodyBytes))
+	}
 	if conf.MaxWebSocketClients == 0 {
 		conf.MaxWebSocketClients = defaultMaxWebSocketClients
 		log.Info("MaxWebSocketClients is not set or wrong, setting default value", zap.Int("MaxWebSocketClients", defaultMaxWebSocketClients))
@@ -474,6 +478,8 @@ func (s *Server) SetOracleHandler(orc OracleHandler) {
 }
 
 func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Request) {
+	// Restrict request body before further processing.
+	httpRequest.Body = http.MaxBytesReader(w, httpRequest.Body, int64(s.config.MaxRequestBodyBytes))
 	req := params.NewRequest()
 
 	if httpRequest.URL.Path == "/ws" && httpRequest.Method == "GET" {
