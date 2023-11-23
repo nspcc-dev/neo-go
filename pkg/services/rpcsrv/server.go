@@ -114,7 +114,7 @@ type (
 	}
 
 	// ContractStorageSeeker is the interface `findstorage*` handlers need to be able to
-	// seek over contract storage.
+	// seek over contract storage. Prefix is trimmed in the resulting pair's key.
 	ContractStorageSeeker interface {
 		SeekStorage(id int32, prefix []byte, cont func(k, v []byte) bool)
 	}
