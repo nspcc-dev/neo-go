@@ -49,6 +49,18 @@ func TestGetConfigFromContext(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, netmode.TestNet, cfg.ProtocolConfiguration.Magic)
 	})
+	t.Run("relative-path", func(t *testing.T) {
+		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
+		set.String("relative-path", "../../config", "")
+		set.Bool("testnet", true, "")
+		set.String("config-file", "../../config/protocol.testnet.yml", "")
+		ctx := cli.NewContext(cli.NewApp(), set, nil)
+		cfg, err := options.GetConfigFromContext(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "../../config/chains/testnet", cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions.DataDirectoryPath)
+		require.Equal(t, "/cn_wallet.json", cfg.ApplicationConfiguration.Consensus.UnlockWallet.Path)
+		require.Equal(t, "/notary_wallet.json", cfg.ApplicationConfiguration.P2PNotary.UnlockWallet.Path)
+	})
 }
 
 func TestHandleLoggingParams(t *testing.T) {

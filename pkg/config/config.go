@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -57,15 +58,17 @@ func (c Config) Blockchain() Blockchain {
 }
 
 // Load attempts to load the config from the given
-// path for the given netMode.
-func Load(path string, netMode netmode.Magic) (Config, error) {
+// path for the given netMode. If relativePath is not empty, relative paths in the
+// config will be updated based on the provided relative path.
+func Load(path string, netMode netmode.Magic, relativePath ...string) (Config, error) {
 	configPath := fmt.Sprintf("%s/protocol.%s.yml", path, netMode)
-	return LoadFile(configPath)
+	return LoadFile(configPath, relativePath...)
 }
 
 // LoadFile loads config from the provided path. It also applies backwards compatibility
-// fixups if necessary.
-func LoadFile(configPath string) (Config, error) {
+// fixups if necessary. If relativePath is not empty, relative paths in the config will
+// be updated based on the provided relative path.
+func LoadFile(configPath string, relativePath ...string) (Config, error) {
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return Config{}, fmt.Errorf("config '%s' doesn't exist", configPath)
 	}
@@ -89,6 +92,9 @@ func LoadFile(configPath string) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to unmarshal config YAML: %w", err)
 	}
+	if len(relativePath) == 1 && relativePath[0] != "" {
+		updateRelativePaths(relativePath[0], &config)
+	}
 
 	err = config.ProtocolConfiguration.Validate()
 	if err != nil {
@@ -96,4 +102,21 @@ func LoadFile(configPath string) (Config, error) {
 	}
 
 	return config, nil
+}
+
+// updateRelativePaths updates relative paths in the config structure based on the provided relative path.
+func updateRelativePaths(relativePath string, config *Config) {
+	updatePath := func(path *string) {
+		if *path != "" && !filepath.IsAbs(*path) {
+			*path = filepath.Join(relativePath, *path)
+		}
+	}
+
+	updatePath(&config.ApplicationConfiguration.LogPath)
+	updatePath(&config.ApplicationConfiguration.DBConfiguration.BoltDBOptions.FilePath)
+	updatePath(&config.ApplicationConfiguration.DBConfiguration.LevelDBOptions.DataDirectoryPath)
+	updatePath(&config.ApplicationConfiguration.Consensus.UnlockWallet.Path)
+	updatePath(&config.ApplicationConfiguration.P2PNotary.UnlockWallet.Path)
+	updatePath(&config.ApplicationConfiguration.Oracle.UnlockWallet.Path)
+	updatePath(&config.ApplicationConfiguration.StateRoot.UnlockWallet.Path)
 }

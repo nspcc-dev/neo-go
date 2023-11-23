@@ -73,6 +73,13 @@ var ConfigFile = cli.StringFlag{
 	Usage: "path to the node configuration file (overrides --config-path option)",
 }
 
+// RelativePath is a flag for commands that use node configuration and provide
+// a prefix to all relative paths in config files.
+var RelativePath = cli.StringFlag{
+	Name:  "relative-path",
+	Usage: "a prefix to all relative paths in the node configuration file",
+}
+
 // Debug is a flag for commands that allow node in debug mode usage.
 var Debug = cli.BoolFlag{
 	Name:  "debug, d",
@@ -159,15 +166,18 @@ func GetRPCWithInvoker(gctx context.Context, ctx *cli.Context, signers []transac
 // GetConfigFromContext looks at the path and the mode flags in the given config and
 // returns an appropriate config.
 func GetConfigFromContext(ctx *cli.Context) (config.Config, error) {
-	var configFile = ctx.String("config-file")
+	var (
+		configFile   = ctx.String("config-file")
+		relativePath = ctx.String("relative-path")
+	)
 	if len(configFile) != 0 {
-		return config.LoadFile(configFile)
+		return config.LoadFile(configFile, relativePath)
 	}
 	var configPath = "./config"
 	if argCp := ctx.String("config-path"); argCp != "" {
 		configPath = argCp
 	}
-	return config.Load(configPath, GetNetwork(ctx))
+	return config.Load(configPath, GetNetwork(ctx), relativePath)
 }
 
 var (
