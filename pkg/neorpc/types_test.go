@@ -2,10 +2,12 @@ package neorpc
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
@@ -37,4 +39,54 @@ func TestSignerWithWitnessMarshalUnmarshalJSON(t *testing.T) {
 	actual, err := json.Marshal(s)
 	require.NoError(t, err)
 	require.Equal(t, expected, string(actual))
+
+	t.Run("subitems overflow", func(t *testing.T) {
+		checkSubitems := func(t *testing.T, bad any) {
+			data, err := json.Marshal(bad)
+			require.NoError(t, err)
+			err = json.Unmarshal(data, &SignerWithWitness{})
+
+			require.Error(t, err)
+			require.Contains(t, err.Error(), fmt.Sprintf("got %d, allowed %d at max", transaction.MaxAttributes+1, transaction.MaxAttributes))
+		}
+
+		t.Run("groups", func(t *testing.T) {
+			pk, err := keys.NewPrivateKey()
+			require.NoError(t, err)
+			bad := &SignerWithWitness{
+				Signer: transaction.Signer{
+					AllowedGroups: make([]*keys.PublicKey, transaction.MaxAttributes+1),
+				},
+			}
+			for i := range bad.AllowedGroups {
+				bad.AllowedGroups[i] = pk.PublicKey()
+			}
+
+			checkSubitems(t, bad)
+		})
+		t.Run("contracts", func(t *testing.T) {
+			bad := &SignerWithWitness{
+				Signer: transaction.Signer{
+					AllowedContracts: make([]util.Uint160, transaction.MaxAttributes+1),
+				},
+			}
+
+			checkSubitems(t, bad)
+		})
+		t.Run("rules", func(t *testing.T) {
+			bad := &SignerWithWitness{
+				Signer: transaction.Signer{
+					Rules: make([]transaction.WitnessRule, transaction.MaxAttributes+1),
+				},
+			}
+			for i := range bad.Rules {
+				bad.Rules[i] = transaction.WitnessRule{
+					Action:    transaction.WitnessAllow,
+					Condition: &transaction.ConditionScriptHash{},
+				}
+			}
+
+			checkSubitems(t, bad)
+		})
+	})
 }

@@ -115,6 +115,15 @@ func (s *SignerWithWitness) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return fmt.Errorf("not a signer: %w", err)
 	}
+	if len(aux.AllowedContracts) > transaction.MaxAttributes {
+		return fmt.Errorf("invalid number of AllowedContracts: got %d, allowed %d at max", len(aux.AllowedContracts), transaction.MaxAttributes)
+	}
+	if len(aux.AllowedGroups) > transaction.MaxAttributes {
+		return fmt.Errorf("invalid number of AllowedGroups: got %d, allowed %d at max", len(aux.AllowedGroups), transaction.MaxAttributes)
+	}
+	if len(aux.Rules) > transaction.MaxAttributes {
+		return fmt.Errorf("invalid number of Rules: got %d, allowed %d at max", len(aux.Rules), transaction.MaxAttributes)
+	}
 	acc, err := util.Uint160DecodeStringLE(strings.TrimPrefix(aux.Account, "0x"))
 	if err != nil {
 		acc, err = address.StringToUint160(aux.Account)
