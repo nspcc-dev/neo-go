@@ -394,7 +394,7 @@ func (p *Param) GetSignerWithWitness() (neorpc.SignerWithWitness, error) {
 // GetSignersWithWitnesses returns a slice of SignerWithWitness with CalledByEntry
 // scope from an array of Uint160 or an array of serialized transaction.Signer stored
 // in the parameter.
-func (p Param) GetSignersWithWitnesses() ([]transaction.Signer, []transaction.Witness, error) {
+func (p *Param) GetSignersWithWitnesses() ([]transaction.Signer, []transaction.Witness, error) {
 	hashes, err := p.GetArray()
 	if err != nil {
 		return nil, nil, err

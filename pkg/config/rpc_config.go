@@ -16,6 +16,8 @@ type (
 		MaxFindResultItems        int           `yaml:"MaxFindResultItems"`
 		MaxFindStorageResultItems int           `yaml:"MaxFindStoragePageSize"`
 		MaxNEP11Tokens            int           `yaml:"MaxNEP11Tokens"`
+		MaxRequestBodyBytes       int           `yaml:"MaxRequestBodyBytes"`
+		MaxRequestHeaderBytes     int           `yaml:"MaxRequestHeaderBytes"`
 		MaxWebSocketClients       int           `yaml:"MaxWebSocketClients"`
 		SessionEnabled            bool          `yaml:"SessionEnabled"`
 		SessionExpirationTime     int           `yaml:"SessionExpirationTime"`
