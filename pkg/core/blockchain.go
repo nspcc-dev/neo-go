@@ -2149,7 +2149,7 @@ func (bc *Blockchain) GetStorageItem(id int32, key []byte) state.StorageItem {
 	return bc.dao.GetStorageItem(id, key)
 }
 
-// SeekStorage performs seek operation over contract storage.
+// SeekStorage performs seek operation over contract storage. Prefix is trimmed in the resulting pair's key.
 func (bc *Blockchain) SeekStorage(id int32, prefix []byte, cont func(k, v []byte) bool) {
 	bc.dao.Seek(id, storage.SeekRange{Prefix: prefix}, cont)
 }

@@ -380,7 +380,8 @@ func (dao *Simple) DeleteStorageItem(id int32, key []byte) {
 
 // Seek executes f for all storage items matching the given `rng` (matching the given prefix and
 // starting from the point specified). If the key or the value is to be used outside of f, they
-// may not be copied. Seek continues iterating until false is returned from f.
+// may not be copied. Seek continues iterating until false is returned from f. A requested prefix
+// (if any non-empty) is trimmed before passing to f.
 func (dao *Simple) Seek(id int32, rng storage.SeekRange, f func(k, v []byte) bool) {
 	rng.Prefix = slice.Copy(dao.makeStorageItemKey(id, rng.Prefix)) // f() can use dao too.
 	dao.Store.Seek(rng, func(k, v []byte) bool {
