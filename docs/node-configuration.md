@@ -188,6 +188,7 @@ RPC:
   MaxFindStoragePageSize: 50
   MaxNEP11Tokens: 100
   MaxRequestBodyBytes: 5242880
+  MaxRequestHeaderBytes: 1048576
   MaxWebSocketClients: 64
   SessionEnabled: false
   SessionExpirationTime: 15
@@ -228,6 +229,8 @@ where:
   `getnep11balances` call.
 - `MaxRequestBodyBytes` - the maximum allowed HTTP request body size in bytes
   (5MB by default).
+- `MaxRequestHeaderBytes` - the maximum allowed HTTP request header size in bytes
+  (1MB by default).
 - `MaxWebSocketClients` - the maximum simultaneous websocket client connection
   number (64 by default). Attempts to establish additional connections will
   lead to websocket handshake failures. Use "-1" to disable websocket

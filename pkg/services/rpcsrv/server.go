@@ -267,25 +267,6 @@ var rpcWsHandlers = map[string]func(*Server, params.Params, *subscriber) (any, *
 // untyped nil or non-nil structure implementing OracleHandler interface.
 func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	orc OracleHandler, log *zap.Logger, errChan chan<- error) Server {
-	addrs := conf.Addresses
-	httpServers := make([]*http.Server, len(addrs))
-	for i, addr := range addrs {
-		httpServers[i] = &http.Server{
-			Addr: addr,
-		}
-	}
-
-	var tlsServers []*http.Server
-	if cfg := conf.TLSConfig; cfg.Enabled {
-		addrs := cfg.Addresses
-		tlsServers = make([]*http.Server, len(addrs))
-		for i, addr := range addrs {
-			tlsServers[i] = &http.Server{
-				Addr: addr,
-			}
-		}
-	}
-
 	protoCfg := chain.GetConfig().ProtocolConfiguration
 	if conf.SessionEnabled {
 		if conf.SessionExpirationTime <= 0 {
@@ -317,6 +298,10 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		conf.MaxRequestBodyBytes = config.DefaultMaxRequestBodyBytes
 		log.Info("MaxRequestBodyBytes is not set or wong, setting default value", zap.Int("MaxRequestBodyBytes", config.DefaultMaxRequestBodyBytes))
 	}
+	if conf.MaxRequestHeaderBytes <= 0 {
+		conf.MaxRequestHeaderBytes = config.DefaultMaxRequestHeaderBytes
+		log.Info("MaxRequestHeaderBytes is not set or wong, setting default value", zap.Int("MaxRequestHeaderBytes", config.DefaultMaxRequestHeaderBytes))
+	}
 	if conf.MaxWebSocketClients == 0 {
 		conf.MaxWebSocketClients = defaultMaxWebSocketClients
 		log.Info("MaxWebSocketClients is not set or wrong, setting default value", zap.Int("MaxWebSocketClients", defaultMaxWebSocketClients))
@@ -329,6 +314,28 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	if conf.EnableCORSWorkaround {
 		wsOriginChecker = func(_ *http.Request) bool { return true }
 	}
+
+	addrs := conf.Addresses
+	httpServers := make([]*http.Server, len(addrs))
+	for i, addr := range addrs {
+		httpServers[i] = &http.Server{
+			Addr:           addr,
+			MaxHeaderBytes: conf.MaxRequestHeaderBytes,
+		}
+	}
+
+	var tlsServers []*http.Server
+	if cfg := conf.TLSConfig; cfg.Enabled {
+		addrs := cfg.Addresses
+		tlsServers = make([]*http.Server, len(addrs))
+		for i, addr := range addrs {
+			tlsServers[i] = &http.Server{
+				Addr:           addr,
+				MaxHeaderBytes: conf.MaxRequestHeaderBytes,
+			}
+		}
+	}
+
 	return Server{
 		http:  httpServers,
 		https: tlsServers,

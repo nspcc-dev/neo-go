@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
@@ -33,6 +34,9 @@ const (
 	// DefaultMaxRequestBodyBytes is the default maximum allowed size of HTTP
 	// request body in bytes.
 	DefaultMaxRequestBodyBytes = 5 * 1024 * 1024
+	// DefaultMaxRequestHeaderBytes is the maximum permitted size of the headers
+	// in an HTTP request.
+	DefaultMaxRequestHeaderBytes = http.DefaultMaxHeaderBytes
 )
 
 // Version is the version of the node, set at the build time.
