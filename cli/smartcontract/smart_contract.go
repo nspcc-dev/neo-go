@@ -581,7 +581,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		w   *wallet.Wallet
 	)
 	if signAndPush {
-		acc, w, err = getAccFromContext(ctx)
+		acc, w, err = GetAccFromContext(ctx)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -757,7 +757,8 @@ func inspect(ctx *cli.Context) error {
 	return nil
 }
 
-func getAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error) {
+// GetAccFromContext returns account and wallet from context. If address is not set, default address is used.
+func GetAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error) {
 	var addr util.Uint160
 
 	wPath := ctx.String("wallet")
@@ -789,11 +790,13 @@ func getAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error
 		addr = wall.GetChangeAddress()
 	}
 
-	acc, err := getUnlockedAccount(wall, addr, pass)
+	acc, err := GetUnlockedAccount(wall, addr, pass)
 	return acc, wall, err
 }
 
-func getUnlockedAccount(wall *wallet.Wallet, addr util.Uint160, pass *string) (*wallet.Account, error) {
+// GetUnlockedAccount returns account from wallet, address and uses pass to unlock specified account if given.
+// If the password is not given, then it is requested from user.
+func GetUnlockedAccount(wall *wallet.Wallet, addr util.Uint160, pass *string) (*wallet.Account, error) {
 	acc := wall.GetAccount(addr)
 	if acc == nil {
 		return nil, fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr))
@@ -844,7 +847,7 @@ func contractDeploy(ctx *cli.Context) error {
 		appCallParams = append(appCallParams, data[0])
 	}
 
-	acc, w, err := getAccFromContext(ctx)
+	acc, w, err := GetAccFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't get sender address: %w", err), 1)
 	}
