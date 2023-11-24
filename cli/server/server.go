@@ -34,7 +34,7 @@ import (
 
 // NewCommands returns 'node' command.
 func NewCommands() []cli.Command {
-	cfgFlags := []cli.Flag{options.Config, options.ConfigFile}
+	cfgFlags := []cli.Flag{options.Config, options.ConfigFile, options.RelativePath}
 	cfgFlags = append(cfgFlags, options.Network...)
 	var cfgWithCountFlags = make([]cli.Flag, len(cfgFlags))
 	copy(cfgWithCountFlags, cfgFlags)
