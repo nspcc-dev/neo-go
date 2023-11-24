@@ -148,6 +148,25 @@ func TestStateRoot(t *testing.T) {
 	require.Equal(t, h, r.Witness[0].ScriptHash())
 }
 
+func TestStateRoot_GenesisRole(t *testing.T) {
+	_, _, accs := newMajorityMultisigWithGAS(t, 2)
+
+	bc, _, _ := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Genesis.Roles = map[noderoles.Role]keys.PublicKeys{
+			noderoles.StateValidator: {accs[0].PublicKey(), accs[1].PublicKey()},
+		}
+	})
+
+	tmpDir := t.TempDir()
+	w := createAndWriteWallet(t, accs[0], filepath.Join(tmpDir, "w"), "pass")
+	cfg := createStateRootConfig(w.Path(), "pass")
+	srMod := bc.GetStateModule().(*corestate.Module) // Take full responsibility here.
+	srv, err := stateroot.New(cfg, srMod, zaptest.NewLogger(t), bc, nil)
+	require.NoError(t, err)
+
+	require.True(t, srv.IsAuthorized())
+}
+
 type memoryStore struct {
 	*storage.MemoryStore
 }

@@ -747,3 +747,28 @@ func TestNotary(t *testing.T) {
 	}, 3*time.Second, 100*time.Millisecond)
 	checkFallbackTxs(t, requests, false)
 }
+
+func TestNotary_GenesisRoles(t *testing.T) {
+	const (
+		notaryPath = "./testdata/notary1.json"
+		notaryPass = "one"
+	)
+
+	w, err := wallet.NewWalletFromFile(notaryPath)
+	require.NoError(t, err)
+	require.NoError(t, w.Accounts[0].Decrypt(notaryPass, w.Scrypt))
+	acc := w.Accounts[0]
+
+	bc, _, _ := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
+		c.P2PSigExtensions = true
+		c.Genesis.Roles = map[noderoles.Role]keys.PublicKeys{
+			noderoles.P2PNotary: {acc.PublicKey()},
+		}
+	})
+
+	_, ntr, _ := getTestNotary(t, bc, "./testdata/notary1.json", "one", func(tx *transaction.Transaction) error { return nil })
+	require.False(t, ntr.IsAuthorized())
+
+	bc.SetNotary(ntr)
+	require.True(t, ntr.IsAuthorized())
+}

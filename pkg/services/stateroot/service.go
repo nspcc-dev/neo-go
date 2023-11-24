@@ -2,6 +2,7 @@ package stateroot
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -22,6 +24,7 @@ type (
 	// Ledger is an interface to Blockchain sufficient for Service.
 	Ledger interface {
 		GetConfig() config.Blockchain
+		GetDesignatedByRole(role noderoles.Role) (keys.PublicKeys, uint32, error)
 		HeaderHeight() uint32
 		SubscribeForBlocks(ch chan *block.Block)
 		UnsubscribeFromBlocks(ch chan *block.Block)
@@ -40,6 +43,10 @@ type (
 		// to Shutdown on the same instance are no-op. The instance that was stopped can
 		// not be started again by calling Start (use a new instance if needed).
 		Shutdown()
+		// IsAuthorized returns whether state root service currently is authorized to sign
+		// state roots. It returns true iff designated StateValidator node's account
+		// provided to the state root service in decrypted state.
+		IsAuthorized() bool
 	}
 
 	service struct {
@@ -116,6 +123,12 @@ func New(cfg config.StateRoot, sm *stateroot.Module, log *zap.Logger, bc Ledger,
 			return nil, errors.New("no wallet account could be unlocked")
 		}
 
+		keys, h, err := bc.GetDesignatedByRole(noderoles.StateValidator)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get designated StateValidators: %w", err)
+		}
+		s.updateValidators(h, keys)
+
 		s.SetUpdateValidatorsCallback(s.updateValidators)
 	}
 	return s, nil
@@ -172,4 +185,10 @@ func (s *service) updateValidators(height uint32, pubs keys.PublicKeys) {
 			}
 		}
 	}
+}
+
+// IsAuthorized implements Service interface.
+func (s *service) IsAuthorized() bool {
+	_, acc := s.getAccount()
+	return acc != nil
 }

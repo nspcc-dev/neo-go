@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -337,6 +338,30 @@ func TestOracle(t *testing.T) {
 			Code: transaction.ContentTypeNotSupported,
 		})
 	})
+}
+
+func TestOracle_GenesisRole(t *testing.T) {
+	const (
+		oraclePath = "./testdata/oracle1.json"
+		oraclePass = "one"
+	)
+	w, err := wallet.NewWalletFromFile(oraclePath)
+	require.NoError(t, err)
+	require.NoError(t, w.Accounts[0].Decrypt(oraclePass, w.Scrypt))
+	acc := w.Accounts[0]
+
+	bc, _, _ := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
+		c.Genesis.Roles = map[noderoles.Role]keys.PublicKeys{
+			noderoles.Oracle: {acc.PublicKey()},
+		}
+	})
+
+	orc, err := oracle.NewOracle(getOracleConfig(t, bc, "./testdata/oracle1.json", "one", nil))
+	require.NoError(t, err)
+	require.False(t, orc.IsAuthorized())
+
+	bc.SetOracle(orc)
+	require.True(t, orc.IsAuthorized())
 }
 
 func TestOracleFull(t *testing.T) {

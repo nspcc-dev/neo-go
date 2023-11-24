@@ -206,6 +206,13 @@ func (o *Oracle) Start() {
 	go o.start()
 }
 
+// IsAuthorized returns whether Oracle service currently is authorized to collect
+// signatures. It returns true iff designated Oracle node's account provided to
+// the Oracle service in decrypted state.
+func (o *Oracle) IsAuthorized() bool {
+	return o.getAccount() != nil
+}
+
 func (o *Oracle) start() {
 	o.requestMap <- o.pending // Guaranteed to not block, only AddRequests sends to it.
 	o.pending = nil
