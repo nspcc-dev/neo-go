@@ -332,6 +332,16 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 	return bc, nil
 }
 
+// GetDesignatedByRole returns a set of designated public keys for the given role
+// relevant for the next block.
+func (bc *Blockchain) GetDesignatedByRole(r noderoles.Role) (keys.PublicKeys, uint32, error) {
+	// Retrieve designated nodes starting from the next block, because the current
+	// block is already stored, thus, dependant services can't use PostPersist callback
+	// to fetch relevant information at their start.
+	res, h, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, r, bc.BlockHeight()+1)
+	return res, h, err
+}
+
 // SetOracle sets oracle module. It can safely be called on the running blockchain.
 // To unregister Oracle service use SetOracle(nil).
 func (bc *Blockchain) SetOracle(mod native.OracleService) {
@@ -343,7 +353,7 @@ func (bc *Blockchain) SetOracle(mod native.OracleService) {
 		}
 		mod.UpdateNativeContract(orc.NEF.Script, orc.GetOracleResponseScript(),
 			orc.Hash, md.MD.Offset)
-		keys, _, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.Oracle, bc.BlockHeight())
+		keys, _, err := bc.GetDesignatedByRole(noderoles.Oracle)
 		if err != nil {
 			bc.log.Error("failed to get oracle key list")
 			return
@@ -364,7 +374,7 @@ func (bc *Blockchain) SetOracle(mod native.OracleService) {
 // To unregister Notary service use SetNotary(nil).
 func (bc *Blockchain) SetNotary(mod native.NotaryService) {
 	if mod != nil {
-		keys, _, err := bc.contracts.Designate.GetDesignatedByRole(bc.dao, noderoles.P2PNotary, bc.BlockHeight())
+		keys, _, err := bc.GetDesignatedByRole(noderoles.P2PNotary)
 		if err != nil {
 			bc.log.Error("failed to get notary key list")
 			return

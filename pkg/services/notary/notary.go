@@ -230,6 +230,13 @@ func (n *Notary) Shutdown() {
 	n.wallet.Close()
 }
 
+// IsAuthorized returns whether Notary service currently is authorized to collect
+// signatures. It returnes true iff designated Notary node's account provided to
+// the Notary service in decrypted state.
+func (n *Notary) IsAuthorized() bool {
+	return n.getAccount() != nil
+}
+
 // OnNewRequest is a callback method which is called after a new notary request is added to the notary request pool.
 func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 	if !n.started.Load() {
