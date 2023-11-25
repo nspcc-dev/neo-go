@@ -32,6 +32,15 @@ const DefaultTimeout = 10 * time.Second
 // check for flag presence in the context.
 const RPCEndpointFlag = "rpc-endpoint"
 
+// Wallet is a set of flags used for wallet operations.
+var Wallet = []cli.Flag{cli.StringFlag{
+	Name:  "wallet, w",
+	Usage: "wallet to use to get the key for transaction signing; conflicts with --wallet-config flag",
+}, cli.StringFlag{
+	Name:  "wallet-config",
+	Usage: "path to wallet config to use to get the key for transaction signing; conflicts with --wallet flag"},
+}
+
 // Network is a set of flags for choosing the network to operate on
 // (privnet/mainnet/testnet).
 var Network = []cli.Flag{

@@ -48,16 +48,7 @@ var (
 	errNoScriptHash           = errors.New("no smart contract hash was provided, specify one as the first argument")
 	errNoSmartContractName    = errors.New("no name was provided, specify the '--name or -n' flag")
 	errFileExist              = errors.New("A file with given smart-contract name already exists")
-
-	walletFlag = cli.StringFlag{
-		Name:  "wallet, w",
-		Usage: "wallet to use to get the key for transaction signing; conflicts with --wallet-config flag",
-	}
-	walletConfigFlag = cli.StringFlag{
-		Name:  "wallet-config",
-		Usage: "path to wallet config to use to get the key for transaction signing; conflicts with --wallet flag",
-	}
-	addressFlag = flags.AddressFlag{
+	addressFlag               = flags.AddressFlag{
 		Name:  addressFlagName,
 		Usage: "address to use as transaction signee (and gas source)",
 	}
@@ -100,14 +91,13 @@ func NewCommands() []cli.Command {
 	testInvokeFunctionFlags := []cli.Flag{options.Historic}
 	testInvokeFunctionFlags = append(testInvokeFunctionFlags, options.RPC...)
 	invokeFunctionFlags := []cli.Flag{
-		walletFlag,
-		walletConfigFlag,
 		addressFlag,
 		txctx.GasFlag,
 		txctx.SysGasFlag,
 		txctx.OutFlag,
 		txctx.ForceFlag,
 	}
+	invokeFunctionFlags = append(invokeFunctionFlags, options.Wallet...)
 	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
 	deployFlags := append(invokeFunctionFlags, []cli.Flag{
 		cli.StringFlag{
@@ -119,6 +109,24 @@ func NewCommands() []cli.Command {
 			Usage: "Manifest input file (*.manifest.json)",
 		},
 	}...)
+	manifestAddGroupFlags := append([]cli.Flag{
+		cli.StringFlag{
+			Name:  "sender, s",
+			Usage: "deploy transaction sender",
+		},
+		flags.AddressFlag{
+			Name:  addressFlagName, // use the same name for handler code unification.
+			Usage: "account to sign group with",
+		},
+		cli.StringFlag{
+			Name:  "nef, n",
+			Usage: "path to the NEF file",
+		},
+		cli.StringFlag{
+			Name:  "manifest, m",
+			Usage: "path to the manifest",
+		},
+	}, options.Wallet...)
 	return []cli.Command{{
 		Name:  "contract",
 		Usage: "compile - debug - deploy smart contracts",
@@ -301,26 +309,7 @@ func NewCommands() []cli.Command {
 						Usage:     "adds group to the manifest",
 						UsageText: "neo-go contract manifest add-group -w wallet [--wallet-config path] -n nef -m manifest -a address -s address",
 						Action:    manifestAddGroup,
-						Flags: []cli.Flag{
-							walletFlag,
-							walletConfigFlag,
-							cli.StringFlag{
-								Name:  "sender, s",
-								Usage: "deploy transaction sender",
-							},
-							flags.AddressFlag{
-								Name:  addressFlagName, // use the same name for handler code unification.
-								Usage: "account to sign group with",
-							},
-							cli.StringFlag{
-								Name:  "nef, n",
-								Usage: "path to the NEF file",
-							},
-							cli.StringFlag{
-								Name:  "manifest, m",
-								Usage: "path to the manifest",
-							},
-						},
+						Flags:     manifestAddGroupFlags,
 					},
 				},
 			},
