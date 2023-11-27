@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/cli/txctx"
 	vmcli "github.com/nspcc-dev/neo-go/cli/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/urfave/cli"
@@ -15,6 +17,14 @@ import (
 // NewCommands returns util commands for neo-go CLI.
 func NewCommands() []cli.Command {
 	txDumpFlags := append([]cli.Flag{}, options.RPC...)
+	txCancelFlags := append([]cli.Flag{
+		flags.AddressFlag{
+			Name:  "address, a",
+			Usage: "address to use as conflicting transaction signee (and gas source)",
+		},
+		txctx.GasFlag,
+	}, options.RPC...)
+	txCancelFlags = append(txCancelFlags, options.Wallet...)
 	return []cli.Command{
 		{
 			Name:  "util",
@@ -40,6 +50,24 @@ func NewCommands() []cli.Command {
 `,
 					Action: sendTx,
 					Flags:  txDumpFlags,
+				},
+				{
+					Name:      "canceltx",
+					Usage:     "Cancel transaction by sending conflicting transaction",
+					UsageText: "canceltx <txid> -r <endpoint> --wallet <wallet> [--account <account>] [--wallet-config <path>] [--gas <gas>]",
+					Description: `Aims to prevent a transaction from being added to the blockchain by dispatching a more 
+prioritized conflicting transaction to the specified RPC node. The input for this command should 
+be the transaction hash. If another account is not specified, the conflicting transaction is 
+automatically generated and signed by the default account in the wallet. If the target transaction 
+is in the memory pool of the provided RPC node, the NetworkFee value of the conflicting transaction 
+is set to the target transaction's NetworkFee value plus one (if it's sufficient for the 
+conflicting transaction itself). If the target transaction is not in the memory pool, standard 
+NetworkFee calculations are performed based on the calculatenetworkfee RPC request. If the --gas 
+flag is included, the specified value is added to the resulting conflicting transaction network fee 
+in both scenarios.
+`,
+					Action: cancelTx,
+					Flags:  txCancelFlags,
 				},
 				{
 					Name:      "txdump",
