@@ -4,9 +4,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/testcli"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,4 +65,74 @@ func TestUtilOps(t *testing.T) {
 	require.NoError(t, os.WriteFile(tmp, []byte(hexStr), os.ModePerm))
 	e.Run(t, "neo-go", "util", "ops", "--hex", "--in", tmp) // hex from file
 	check(t)
+}
+
+func TestUtilCancelTx(t *testing.T) {
+	e := testcli.NewExecutorSuspended(t)
+
+	w, err := wallet.NewWalletFromFile("../testdata/testwallet.json")
+	require.NoError(t, err)
+
+	transferArgs := []string{
+		"neo-go", "wallet", "nep17", "transfer",
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
+		"--wallet", testcli.ValidatorWallet,
+		"--to", w.Accounts[0].Address,
+		"--token", "NEO",
+		"--from", testcli.ValidatorAddr,
+		"--force",
+	}
+	args := []string{"neo-go", "util", "canceltx",
+		"-r", "http://" + e.RPC.Addresses()[0],
+		"--wallet", testcli.ValidatorWallet,
+		"--address", testcli.ValidatorAddr}
+
+	e.In.WriteString("one\r")
+	e.Run(t, append(transferArgs, "--amount", "1")...)
+	line := e.GetNextLine(t)
+	txHash, err := util.Uint256DecodeStringLE(line)
+	require.NoError(t, err)
+
+	_, ok := e.Chain.GetMemPool().TryGetValue(txHash)
+	require.True(t, ok)
+
+	t.Run("invalid", func(t *testing.T) {
+		t.Run("missing tx argument", func(t *testing.T) {
+			e.RunWithError(t, args...)
+		})
+		t.Run("excessive arguments", func(t *testing.T) {
+			e.RunWithError(t, append(args, txHash.StringLE(), txHash.StringLE())...)
+		})
+		t.Run("invalid hash", func(t *testing.T) {
+			e.RunWithError(t, append(args, "notahash")...)
+		})
+		t.Run("not signed by main signer", func(t *testing.T) {
+			e.In.WriteString("one\r")
+			e.RunWithError(t, "neo-go", "util", "canceltx",
+				"-r", "http://"+e.RPC.Addresses()[0],
+				"--wallet", testcli.ValidatorWallet,
+				"--address", testcli.MultisigAddr, txHash.StringLE())
+		})
+		t.Run("wrong rpc endpoint", func(t *testing.T) {
+			e.In.WriteString("one\r")
+			e.RunWithError(t, "neo-go", "util", "canceltx",
+				"-r", "http://localhost:20331",
+				"--wallet", testcli.ValidatorWallet, txHash.StringLE())
+		})
+	})
+
+	e.In.WriteString("one\r")
+	e.Run(t, append(args, txHash.StringLE())...)
+	resHash, err := util.Uint256DecodeStringLE(e.GetNextLine(t))
+	require.NoError(t, err)
+
+	_, _, err = e.Chain.GetTransaction(resHash)
+	require.NoError(t, err)
+	e.CheckEOF(t)
+	go e.Chain.Run()
+
+	require.Eventually(t, func() bool {
+		_, aerErr := e.Chain.GetAppExecResults(resHash, trigger.Application)
+		return aerErr == nil
+	}, time.Second*2, time.Millisecond*50)
 }

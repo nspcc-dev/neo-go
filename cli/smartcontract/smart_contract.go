@@ -48,16 +48,7 @@ var (
 	errNoScriptHash           = errors.New("no smart contract hash was provided, specify one as the first argument")
 	errNoSmartContractName    = errors.New("no name was provided, specify the '--name or -n' flag")
 	errFileExist              = errors.New("A file with given smart-contract name already exists")
-
-	walletFlag = cli.StringFlag{
-		Name:  "wallet, w",
-		Usage: "wallet to use to get the key for transaction signing; conflicts with --wallet-config flag",
-	}
-	walletConfigFlag = cli.StringFlag{
-		Name:  "wallet-config",
-		Usage: "path to wallet config to use to get the key for transaction signing; conflicts with --wallet flag",
-	}
-	addressFlag = flags.AddressFlag{
+	addressFlag               = flags.AddressFlag{
 		Name:  addressFlagName,
 		Usage: "address to use as transaction signee (and gas source)",
 	}
@@ -100,14 +91,13 @@ func NewCommands() []cli.Command {
 	testInvokeFunctionFlags := []cli.Flag{options.Historic}
 	testInvokeFunctionFlags = append(testInvokeFunctionFlags, options.RPC...)
 	invokeFunctionFlags := []cli.Flag{
-		walletFlag,
-		walletConfigFlag,
 		addressFlag,
 		txctx.GasFlag,
 		txctx.SysGasFlag,
 		txctx.OutFlag,
 		txctx.ForceFlag,
 	}
+	invokeFunctionFlags = append(invokeFunctionFlags, options.Wallet...)
 	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
 	deployFlags := append(invokeFunctionFlags, []cli.Flag{
 		cli.StringFlag{
@@ -119,6 +109,24 @@ func NewCommands() []cli.Command {
 			Usage: "Manifest input file (*.manifest.json)",
 		},
 	}...)
+	manifestAddGroupFlags := append([]cli.Flag{
+		cli.StringFlag{
+			Name:  "sender, s",
+			Usage: "deploy transaction sender",
+		},
+		flags.AddressFlag{
+			Name:  addressFlagName, // use the same name for handler code unification.
+			Usage: "account to sign group with",
+		},
+		cli.StringFlag{
+			Name:  "nef, n",
+			Usage: "path to the NEF file",
+		},
+		cli.StringFlag{
+			Name:  "manifest, m",
+			Usage: "path to the manifest",
+		},
+	}, options.Wallet...)
 	return []cli.Command{{
 		Name:  "contract",
 		Usage: "compile - debug - deploy smart contracts",
@@ -301,26 +309,7 @@ func NewCommands() []cli.Command {
 						Usage:     "adds group to the manifest",
 						UsageText: "neo-go contract manifest add-group -w wallet [--wallet-config path] -n nef -m manifest -a address -s address",
 						Action:    manifestAddGroup,
-						Flags: []cli.Flag{
-							walletFlag,
-							walletConfigFlag,
-							cli.StringFlag{
-								Name:  "sender, s",
-								Usage: "deploy transaction sender",
-							},
-							flags.AddressFlag{
-								Name:  addressFlagName, // use the same name for handler code unification.
-								Usage: "account to sign group with",
-							},
-							cli.StringFlag{
-								Name:  "nef, n",
-								Usage: "path to the NEF file",
-							},
-							cli.StringFlag{
-								Name:  "manifest, m",
-								Usage: "path to the manifest",
-							},
-						},
+						Flags:     manifestAddGroupFlags,
 					},
 				},
 			},
@@ -581,7 +570,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		w   *wallet.Wallet
 	)
 	if signAndPush {
-		acc, w, err = getAccFromContext(ctx)
+		acc, w, err = GetAccFromContext(ctx)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -757,7 +746,8 @@ func inspect(ctx *cli.Context) error {
 	return nil
 }
 
-func getAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error) {
+// GetAccFromContext returns account and wallet from context. If address is not set, default address is used.
+func GetAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error) {
 	var addr util.Uint160
 
 	wPath := ctx.String("wallet")
@@ -789,11 +779,13 @@ func getAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error
 		addr = wall.GetChangeAddress()
 	}
 
-	acc, err := getUnlockedAccount(wall, addr, pass)
+	acc, err := GetUnlockedAccount(wall, addr, pass)
 	return acc, wall, err
 }
 
-func getUnlockedAccount(wall *wallet.Wallet, addr util.Uint160, pass *string) (*wallet.Account, error) {
+// GetUnlockedAccount returns account from wallet, address and uses pass to unlock specified account if given.
+// If the password is not given, then it is requested from user.
+func GetUnlockedAccount(wall *wallet.Wallet, addr util.Uint160, pass *string) (*wallet.Account, error) {
 	acc := wall.GetAccount(addr)
 	if acc == nil {
 		return nil, fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr))
@@ -844,7 +836,7 @@ func contractDeploy(ctx *cli.Context) error {
 		appCallParams = append(appCallParams, data[0])
 	}
 
-	acc, w, err := getAccFromContext(ctx)
+	acc, w, err := GetAccFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't get sender address: %w", err), 1)
 	}

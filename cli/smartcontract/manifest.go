@@ -37,7 +37,7 @@ func manifestAddGroup(ctx *cli.Context) error {
 
 	h := state.CreateContractHash(sender, nf.Checksum, m.Name)
 
-	gAcc, w, err := getAccFromContext(ctx)
+	gAcc, w, err := GetAccFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't get account to sign group with: %w", err), 1)
 	}
