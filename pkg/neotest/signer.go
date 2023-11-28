@@ -2,6 +2,7 @@ package neotest
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"sort"
 	"testing"
@@ -10,8 +11,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
@@ -42,6 +45,13 @@ type MultiSigner interface {
 	Signer
 	// Single returns a simple-signature signer for the n-th account in a list.
 	Single(n int) SingleSigner
+}
+
+// ContractSigner is an interface for contract signer.
+type ContractSigner interface {
+	Signer
+	// InvocationScript returns an invocation script to be used as invocation script for contract-based witness.
+	InvocationScript(tx *transaction.Transaction) ([]byte, error)
 }
 
 // signer represents a simple-signature signer.
@@ -178,4 +188,73 @@ func checkMultiSigner(t testing.TB, s Signer) {
 		require.Equal(t, m, len(accs[i].Contract.Parameters), "inconsistent multi-signer accounts")
 		require.Equal(t, h, accs[i].Contract.ScriptHash(), "inconsistent multi-signer accounts")
 	}
+}
+
+type contractSigner struct {
+	params     func(tx *transaction.Transaction) []any
+	scriptHash util.Uint160
+}
+
+// NewContractSigner returns a contract signer for the provided contract hash.
+// getInvParams must return params to be used as invocation script for contract-based witness.
+func NewContractSigner(h util.Uint160, getInvParams func(tx *transaction.Transaction) []any) ContractSigner {
+	return &contractSigner{
+		scriptHash: h,
+		params:     getInvParams,
+	}
+}
+
+// InvocationScript implements ContractSigner.
+func (s *contractSigner) InvocationScript(tx *transaction.Transaction) ([]byte, error) {
+	params := s.params(tx)
+	script := io.NewBufBinWriter()
+	for i := range params {
+		emit.Any(script.BinWriter, params[i])
+	}
+	if script.Err != nil {
+		return nil, script.Err
+	}
+	return script.Bytes(), nil
+}
+
+// Script implements ContractSigner.
+func (s *contractSigner) Script() []byte {
+	return []byte{}
+}
+
+// ScriptHash implements ContractSigner.
+func (s *contractSigner) ScriptHash() util.Uint160 {
+	return s.scriptHash
+}
+
+// SignHashable implements ContractSigner.
+func (s *contractSigner) SignHashable(uint32, hash.Hashable) []byte {
+	panic("not supported")
+}
+
+// SignTx implements ContractSigner.
+func (s *contractSigner) SignTx(magic netmode.Magic, tx *transaction.Transaction) error {
+	pos := -1
+	for idx := range tx.Signers {
+		if tx.Signers[idx].Account.Equals(s.ScriptHash()) {
+			pos = idx
+			break
+		}
+	}
+	if pos < 0 {
+		return fmt.Errorf("signer %s not found", s.ScriptHash().String())
+	}
+	if len(tx.Scripts) < pos {
+		return errors.New("transaction is not yet signed by the previous signer")
+	}
+	invoc, err := s.InvocationScript(tx)
+	if err != nil {
+		return err
+	}
+	if len(tx.Scripts) == pos {
+		tx.Scripts = append(tx.Scripts, transaction.Witness{})
+	}
+	tx.Scripts[pos].InvocationScript = invoc
+	tx.Scripts[pos].VerificationScript = s.Script()
+	return nil
 }
