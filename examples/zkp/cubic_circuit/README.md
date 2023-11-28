@@ -31,20 +31,25 @@ to organize the ceremony and generate proving and verifying keys for a circuit.
 However, both phases take a significant amount of time and computations to be
 performed. Luckily for the developers, it is possible to omit a curve-specific
 part of the MPC and reuse the existing results of Phase 1 got from a trusted
-source, e.g. from [Powers of Tau ceremony](https://github.com/filecoin-project/powersoftau/)
-held by the [Filecoin project](https://github.com/filecoin-project/phase2-attestations#phase1).
+source, e.g. from [Zcash PowersOfTau](https://github.com/ZcashFoundation/powersoftau-attestations)
+held by the [Zcash Foundation](https://github.com/ZcashFoundation).
 `TestCubicCircuit_EndToEnd_Prod` test of the current circuit example demonstrates
 how to use the `response` output file from the Phase 1 of the Filecoin's Powers
 of Tau ceremony for BLS12-381 curve:
-* [`response8`](./response8) file is the response output from the [Powers of Tau ceremony](https://github.com/filecoin-project/powersoftau/)
-  with the `REQUIRED_POWER` set to 8 (to reduce computations and response file size)
-  that was run locally with the help of [testing script](https://github.com/filecoin-project/powersoftau/blob/master/test.sh).
+* [`response8`](./response8) file is the response output from the ceremony that was run locally
+  based on the [Filecoin Powers of Tau](https://github.com/filecoin-project/powersoftau/)
+  with the `REQUIRED_POWER` set to 8 (to reduce computations and response file size).
+  The ceremony itself was run with the help of [testing script](https://github.com/filecoin-project/powersoftau/blob/master/test.sh).
   To get the response file for a production environment, the user has two options:
   1. Organize his own ceremony with required number of powers following the
      [guide](https://github.com/filecoin-project/powersoftau/tree/master#instructions)
-     from the source repo.
-  2. Download the existing suitable `response` file from the
-     [attestations page](https://github.com/arielgabizon/perpetualpowersoftau#perpetual-powers-of-tau-for-bls381).
+     from the ceremony source repo.
+  2. Download the existing suitable `response` file from the trusted existing ceremony.
+     Please, be careful while choosing `response` file and ensure that it has enough
+     powers computed (at least as much as the number of the circuit's constraints requires).
+     Example of suitable ceremonies:
+     * Zcash Powers Of Tau [attestations page](https://github.com/ZcashFoundation/powersoftau-attestations) (up to 2^21)
+     * Filecoin Perpetual Powers Of Tau [attestations page](https://github.com/arielgabizon/perpetualpowersoftau#perpetual-powers-of-tau-for-bls381) (up to 2^27)
 * [main_test](./main_test.go) contains the `TestCubicCircuit_EndToEnd_Prod` test
   itself and demonstrates how to properly initialize Phase 2 based on the given
   response file and make some dummy contributions into it.
