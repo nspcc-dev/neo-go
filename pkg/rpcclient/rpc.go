@@ -843,6 +843,7 @@ func (c *Client) SubmitRawOracleResponse(ps []any) error {
 }
 
 // SubmitP2PNotaryRequest submits given P2PNotaryRequest payload to the RPC node.
+// It returns fallback transaction hash.
 func (c *Client) SubmitP2PNotaryRequest(req *payload.P2PNotaryRequest) (util.Uint256, error) {
 	var resp = new(result.RelayResult)
 	bytes, err := req.Bytes()
