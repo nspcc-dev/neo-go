@@ -1,6 +1,7 @@
 package cubic
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -156,6 +157,12 @@ func TestCubicCircuit_EndToEnd(t *testing.T) {
 // result for proving/verifying keys generation and demonstrates how to contribute
 // some randomness into it.
 func TestCubicCircuit_EndToEnd_Prod(t *testing.T) {
+	const (
+		// Response file generated locally for 2^8 powers.
+		pathToResponseFile = "./response8"
+		// The order of Powers of Tau ceremony, it depends on the response file.
+		orderOfResponseFile = 8
+	)
 	var (
 		circuit    CubicCircuit
 		assignment = CubicCircuit{X: 3, Y: 35}
@@ -166,8 +173,10 @@ func TestCubicCircuit_EndToEnd_Prod(t *testing.T) {
 	require.NoError(t, err)
 
 	// Setup (groth16 zkSNARK), use MPC-based solution for proving and verifying
-	// keys generation.
-	pk, vk := setup(t, ccs, "./response8", 8) // the order of Powers of Tau ceremony, depends on the response file.
+	// keys generation. Please, be careful while adopting this code for your circuit.
+	// Ensure that response file that you've provided contains enough powers computed
+	// so that the number of constraints in your circuit can be handled.
+	pk, vk := setup(t, ccs, pathToResponseFile, orderOfResponseFile)
 
 	// Intermediate step: witness definition.
 	witness, err := frontend.NewWitness(&assignment, ecc.BLS12_381.ScalarField())
@@ -262,20 +271,21 @@ func setup(t *testing.T, ccs constraint.ConstraintSystem, phase1ResponsePath str
 	beta_coef_g1 := make([]curve.G1Affine, inN)
 
 	// Accumulator serialization: https://github.com/filecoin-project/powersoftau/blob/ab8f85c28f04af5a99cfcc93a3b1f74c06f94105/src/accumulator.rs#L111
+	errMessage := fmt.Sprintf("ensure your response file contains exactly 2^%d powers of tau for BLS12-381 curve", inPow)
 	for i := range coef_g1 {
-		require.NoError(t, dec.Decode(&coef_g1[i]))
+		require.NoError(t, dec.Decode(&coef_g1[i]), errMessage)
 	}
 	for i := range coef_g2 {
-		require.NoError(t, dec.Decode(&coef_g2[i]))
+		require.NoError(t, dec.Decode(&coef_g2[i]), errMessage)
 	}
 	for i := range alpha_coef_g1 {
-		require.NoError(t, dec.Decode(&alpha_coef_g1[i]))
+		require.NoError(t, dec.Decode(&alpha_coef_g1[i]), errMessage)
 	}
 	for i := range beta_coef_g1 {
-		require.NoError(t, dec.Decode(&beta_coef_g1[i]))
+		require.NoError(t, dec.Decode(&beta_coef_g1[i]), errMessage)
 	}
 	beta_g2 := &curve.G2Affine{}
-	require.NoError(t, dec.Decode(beta_g2))
+	require.NoError(t, dec.Decode(beta_g2), errMessage)
 
 	// Transform (take exactly those number of powers that needed for the given number of constraints).
 	var (
@@ -286,6 +296,9 @@ func setup(t *testing.T, ccs constraint.ConstraintSystem, phase1ResponsePath str
 	}
 	outN := int64(math.Pow(2, float64(outPow)))
 
+	if len(coef_g1) < int(2*outN-1) {
+		t.Fatalf("number of circuit constraints is too large for the provided response file: nbConstraints is %d, required at least %d powers to be computed", numConstraints, outN)
+	}
 	srs1 := mpcsetup.Phase1{}
 	srs1.Parameters.G1.Tau = coef_g1[:2*outN-1]        // outN + (outN-1)
 	srs1.Parameters.G2.Tau = coef_g2[:outN]            // outN
