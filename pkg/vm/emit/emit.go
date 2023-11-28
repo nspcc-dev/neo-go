@@ -98,7 +98,21 @@ func bigInt(w *io.BinWriter, n *big.Int, trySmall bool) {
 	w.WriteBytes(padRight(1<<padSize, buf))
 }
 
-// Array emits an array of elements to the given buffer. It accepts elements of the following types:
+// Array emits an array of elements to the given buffer. It accepts everything that
+// Any accepts.
+func Array(w *io.BinWriter, es ...any) {
+	if len(es) == 0 {
+		Opcodes(w, opcode.NEWARRAY0)
+		return
+	}
+	for i := len(es) - 1; i >= 0; i-- {
+		Any(w, es[i])
+	}
+	Int(w, int64(len(es)))
+	Opcodes(w, opcode.PACK)
+}
+
+// Any emits element if supported. It accepts elements of the following types:
 //   - int8, int16, int32, int64, int
 //   - uint8, uint16, uint32, uint64, uint
 //   - *big.Int
@@ -108,73 +122,65 @@ func bigInt(w *io.BinWriter, n *big.Int, trySmall bool) {
 //   - stackitem.Convertible, stackitem.Item
 //   - nil
 //   - []any
-func Array(w *io.BinWriter, es ...any) {
-	if len(es) == 0 {
-		Opcodes(w, opcode.NEWARRAY0)
-		return
-	}
-	for i := len(es) - 1; i >= 0; i-- {
-		switch e := es[i].(type) {
-		case []any:
-			Array(w, e...)
-		case int64:
-			Int(w, e)
-		case uint64:
-			BigInt(w, new(big.Int).SetUint64(e))
-		case int32:
-			Int(w, int64(e))
-		case uint32:
-			Int(w, int64(e))
-		case int16:
-			Int(w, int64(e))
-		case uint16:
-			Int(w, int64(e))
-		case int8:
-			Int(w, int64(e))
-		case uint8:
-			Int(w, int64(e))
-		case int:
-			Int(w, int64(e))
-		case uint:
-			BigInt(w, new(big.Int).SetUint64(uint64(e)))
-		case *big.Int:
-			BigInt(w, e)
-		case string:
-			String(w, e)
-		case util.Uint160:
-			Bytes(w, e.BytesBE())
-		case util.Uint256:
-			Bytes(w, e.BytesBE())
-		case *util.Uint160:
-			if e == nil {
-				Opcodes(w, opcode.PUSHNULL)
-			} else {
-				Bytes(w, e.BytesBE())
-			}
-		case *util.Uint256:
-			if e == nil {
-				Opcodes(w, opcode.PUSHNULL)
-			} else {
-				Bytes(w, e.BytesBE())
-			}
-		case []byte:
-			Bytes(w, e)
-		case bool:
-			Bool(w, e)
-		case stackitem.Convertible:
-			Convertible(w, e)
-		case stackitem.Item:
-			StackItem(w, e)
-		default:
-			if es[i] != nil {
-				w.Err = fmt.Errorf("unsupported type: %T", e)
-				return
-			}
+func Any(w *io.BinWriter, something any) {
+	switch e := something.(type) {
+	case []any:
+		Array(w, e...)
+	case int64:
+		Int(w, e)
+	case uint64:
+		BigInt(w, new(big.Int).SetUint64(e))
+	case int32:
+		Int(w, int64(e))
+	case uint32:
+		Int(w, int64(e))
+	case int16:
+		Int(w, int64(e))
+	case uint16:
+		Int(w, int64(e))
+	case int8:
+		Int(w, int64(e))
+	case uint8:
+		Int(w, int64(e))
+	case int:
+		Int(w, int64(e))
+	case uint:
+		BigInt(w, new(big.Int).SetUint64(uint64(e)))
+	case *big.Int:
+		BigInt(w, e)
+	case string:
+		String(w, e)
+	case util.Uint160:
+		Bytes(w, e.BytesBE())
+	case util.Uint256:
+		Bytes(w, e.BytesBE())
+	case *util.Uint160:
+		if e == nil {
 			Opcodes(w, opcode.PUSHNULL)
+		} else {
+			Bytes(w, e.BytesBE())
 		}
+	case *util.Uint256:
+		if e == nil {
+			Opcodes(w, opcode.PUSHNULL)
+		} else {
+			Bytes(w, e.BytesBE())
+		}
+	case []byte:
+		Bytes(w, e)
+	case bool:
+		Bool(w, e)
+	case stackitem.Convertible:
+		Convertible(w, e)
+	case stackitem.Item:
+		StackItem(w, e)
+	default:
+		if something != nil {
+			w.Err = fmt.Errorf("unsupported type: %T", e)
+			return
+		}
+		Opcodes(w, opcode.PUSHNULL)
 	}
-	Int(w, int64(len(es)))
-	Opcodes(w, opcode.PACK)
 }
 
 // Convertible converts provided stackitem.Convertible to the stackitem.Item and
