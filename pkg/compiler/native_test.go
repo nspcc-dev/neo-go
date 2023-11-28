@@ -11,6 +11,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/config/limits"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
@@ -25,6 +26,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/policy"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/roles"
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/std"
+	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
@@ -129,6 +131,11 @@ func TestPolicyAttributeType(t *testing.T) {
 	require.EqualValues(t, policy.NotValidBeforeT, transaction.NotValidBeforeT)
 	require.EqualValues(t, policy.ConflictsT, transaction.ConflictsT)
 	require.EqualValues(t, policy.NotaryAssistedT, transaction.NotaryAssistedT)
+}
+
+func TestStorageLimits(t *testing.T) {
+	require.EqualValues(t, storage.MaxKeyLen, limits.MaxStorageKeyLen)
+	require.EqualValues(t, storage.MaxValueLen, limits.MaxStorageValueLen)
 }
 
 type nativeTestCase struct {
