@@ -43,6 +43,10 @@ import (
 // unblocking in this mode. No unsubscription is performed in this case, so it's
 // still the user responsibility to unsubscribe.
 //
+// All Receive* methods provide notifications ordering and persistence guarantees.
+// See https://github.com/nspcc-dev/neo-go/blob/master/docs/notifications.md#ordering-and-persistence-guarantees
+// for more details on this topic.
+//
 // Any received subscription items (blocks/transactions/nofitications) are passed
 // via pointers for efficiency, but the actual structures MUST NOT be changed, as
 // it may affect the functionality of other notification receivers. If multiple
