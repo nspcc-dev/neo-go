@@ -32,7 +32,6 @@ type ContractBase struct {
 // NativeContract holds information about the native contract.
 type NativeContract struct {
 	ContractBase
-	UpdateHistory []uint32 `json:"updatehistory"`
 }
 
 // ToStackItem converts state.Contract to stackitem.Item.
