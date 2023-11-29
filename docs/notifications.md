@@ -33,7 +33,7 @@ Filters use conjunctional logic.
  * new in-block transaction is announced after block processing, but before
    announcing the block itself
  * transaction notifications are only announced for successful transactions
- * all announcements are being done in the same order they happen on the chain
+ * all announcements are being done in the same order they happen on the chain.
    First, OnPersist script execution is announced followed by notifications generated
    during the script execution. After that transaction execution is announced. It is
    then followed by notifications generated during this execution. Next, follows the
