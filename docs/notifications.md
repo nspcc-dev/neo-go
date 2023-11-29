@@ -41,6 +41,10 @@ Filters use conjunctional logic.
    they're in the block. After all in-block transactions announcements PostPersist
    script execution is announced followed by notifications generated during the
    script execution. Finally, block announcement is followed.
+ * notary request events announcements are not bound to the chain processing.
+   Trigger for notary request notifications is notary request mempool content
+   change, thus, notary request event is announced every time notary request
+   enters or leaves notary pool.
  * unsubscription may not cancel pending, but not yet sent events
 
 ## Subscription management
