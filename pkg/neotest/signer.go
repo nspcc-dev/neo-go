@@ -19,9 +19,9 @@ import (
 
 // Signer is a generic interface which can be either a simple- or multi-signature signer.
 type Signer interface {
-	// ScriptHash returns a signer script hash.
-	Script() []byte
 	// Script returns a signer verification script.
+	Script() []byte
+	// ScriptHash returns a signer script hash.
 	ScriptHash() util.Uint160
 	// SignHashable returns an invocation script for signing an item.
 	SignHashable(uint32, hash.Hashable) []byte
