@@ -225,7 +225,7 @@ func TestLedger_GetTransactionSignersInteropAPI(t *testing.T) {
 			},
 		},
 	}}
-	neotest.AddNetworkFee(e.Chain, tx, c.Committee)
+	neotest.AddNetworkFee(t, e.Chain, tx, c.Committee)
 	neotest.AddSystemFee(e.Chain, tx, -1)
 	require.NoError(t, c.Committee.SignTx(e.Chain.GetConfig().Magic, tx))
 	c.AddNewBlock(t, tx)

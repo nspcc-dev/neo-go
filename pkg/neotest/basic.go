@@ -106,7 +106,7 @@ func (e *Executor) SignTx(t testing.TB, tx *transaction.Transaction, sysFee int6
 			Scopes:  transaction.Global,
 		})
 	}
-	AddNetworkFee(e.Chain, tx, signers...)
+	AddNetworkFee(t, e.Chain, tx, signers...)
 	AddSystemFee(e.Chain, tx, sysFee)
 
 	for _, acc := range signers {
@@ -280,7 +280,7 @@ func NewDeployTxBy(t testing.TB, bc *core.Blockchain, signer Signer, c *Contract
 		Account: signer.ScriptHash(),
 		Scopes:  transaction.Global,
 	}}
-	AddNetworkFee(bc, tx, signer)
+	AddNetworkFee(t, bc, tx, signer)
 	require.NoError(t, signer.SignTx(netmode.UnitTestNet, tx))
 	return tx
 }
@@ -297,13 +297,31 @@ func AddSystemFee(bc *core.Blockchain, tx *transaction.Transaction, sysFee int64
 }
 
 // AddNetworkFee adds network fee to the transaction.
-func AddNetworkFee(bc *core.Blockchain, tx *transaction.Transaction, signers ...Signer) {
+func AddNetworkFee(t testing.TB, bc *core.Blockchain, tx *transaction.Transaction, signers ...Signer) {
 	baseFee := bc.GetBaseExecFee()
 	size := io.GetVarSize(tx)
 	for _, sgr := range signers {
-		netFee, sizeDelta := fee.Calculate(baseFee, sgr.Script())
-		tx.NetworkFee += netFee
-		size += sizeDelta
+		if csgr, ok := sgr.(ContractSigner); ok {
+			sc, err := csgr.InvocationScript(tx)
+			require.NoError(t, err)
+
+			txCopy := *tx
+			ic, err := bc.GetTestVM(trigger.Verification, &txCopy, nil)
+			require.NoError(t, err)
+
+			ic.UseSigners(tx.Signers)
+			ic.VM.GasLimit = bc.GetMaxVerificationGAS()
+
+			require.NoError(t, bc.InitVerificationContext(ic, csgr.ScriptHash(), &transaction.Witness{InvocationScript: sc, VerificationScript: csgr.Script()}))
+			require.NoError(t, ic.VM.Run())
+
+			tx.NetworkFee += ic.VM.GasConsumed()
+			size += io.GetVarSize(sc) + io.GetVarSize(csgr.Script())
+		} else {
+			netFee, sizeDelta := fee.Calculate(baseFee, sgr.Script())
+			tx.NetworkFee += netFee
+			size += sizeDelta
+		}
 	}
 	tx.NetworkFee += int64(size)*bc.FeePerByte() + bc.CalculateAttributesFee(tx)
 }
