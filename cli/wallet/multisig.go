@@ -47,20 +47,13 @@ func signStoredTransaction(ctx *cli.Context) error {
 		return cli.NewExitError("verifiable item is not a transaction", 1)
 	}
 
-	signerFound := false
-	for i := range tx.Signers {
-		if tx.Signers[i].Account == ch {
-			signerFound = true
-			break
-		}
-	}
-	if !signerFound {
+	if !tx.HasSigner(acc.ScriptHash()) {
 		return cli.NewExitError("tx signers don't contain provided account", 1)
 	}
 
 	if acc.CanSign() {
 		sign := acc.SignHashable(pc.Network, pc.Verifiable)
-		if err := pc.AddSignature(ch, acc.Contract, acc.PublicKey(), sign); err != nil {
+		if err := pc.AddSignature(acc.ScriptHash(), acc.Contract, acc.PublicKey(), sign); err != nil {
 			return cli.NewExitError(fmt.Errorf("can't add signature: %w", err), 1)
 		}
 	} else if rpcNode == "" {
