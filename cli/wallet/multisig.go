@@ -21,11 +21,6 @@ func signStoredTransaction(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
-	wall, pass, err := readWallet(ctx)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	defer wall.Close()
 
 	pc, err := paramcontext.Read(ctx.String("in"))
 	if err != nil {
@@ -35,9 +30,7 @@ func signStoredTransaction(ctx *cli.Context) error {
 	if !addrFlag.IsSet {
 		return cli.NewExitError("address was not provided", 1)
 	}
-
-	var ch = addrFlag.Uint160()
-	acc, err := getDecryptedAccount(wall, ch, pass)
+	acc, _, err := options.GetAccFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

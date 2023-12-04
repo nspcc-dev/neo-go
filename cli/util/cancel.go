@@ -6,7 +6,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
-	"github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
@@ -40,7 +39,7 @@ func cancelTx(ctx *cli.Context) error {
 	if mainTx != nil && !mainTx.Blockhash.Equals(util.Uint256{}) {
 		return cli.NewExitError(fmt.Errorf("transaction %s is already accepted at block %s", txHash, mainTx.Blockhash.StringLE()), 1)
 	}
-	acc, w, err := smartcontract.GetAccFromContext(ctx)
+	acc, w, err = options.GetAccFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to get account from context to sign the conflicting transaction: %w", err), 1)
 	}

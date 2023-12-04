@@ -11,18 +11,24 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/yaml.v3"
 )
 
 // DefaultTimeout is the default timeout used for RPC requests.
@@ -97,6 +103,8 @@ var Debug = cli.BoolFlag{
 
 var errNoEndpoint = errors.New("no RPC endpoint specified, use option '--" + RPCEndpointFlag + "' or '-r'")
 var errInvalidHistoric = errors.New("invalid 'historic' parameter, neither a block number, nor a block/state hash")
+var errNoWallet = errors.New("no wallet parameter found, specify it with the '--wallet' or '-w' flag or specify wallet config file with the '--wallet-config' flag")
+var errConflictingWalletFlags = errors.New("--wallet flag conflicts with --wallet-config flag, please, provide one of them to specify wallet location")
 
 // GetNetwork examines Context's flags and returns the appropriate network. It
 // defaults to PrivNet if no flags are given.
@@ -278,4 +286,94 @@ func HandleLoggingParams(debug bool, cfg config.ApplicationConfiguration) (*zap.
 
 	log, err := cc.Build()
 	return log, &cc.Level, _winfileSinkCloser, err
+}
+
+// GetAccFromContext returns account and wallet from context. If address is not set, default address is used.
+func GetAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error) {
+	var addr util.Uint160
+
+	wPath := ctx.String("wallet")
+	walletConfigPath := ctx.String("wallet-config")
+	if len(wPath) != 0 && len(walletConfigPath) != 0 {
+		return nil, nil, errConflictingWalletFlags
+	}
+	if len(wPath) == 0 && len(walletConfigPath) == 0 {
+		return nil, nil, errNoWallet
+	}
+	var pass *string
+	if len(walletConfigPath) != 0 {
+		cfg, err := ReadWalletConfig(walletConfigPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		wPath = cfg.Path
+		pass = &cfg.Password
+	}
+
+	wall, err := wallet.NewWalletFromFile(wPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	addrFlag := ctx.Generic("address").(*flags.Address)
+	if addrFlag.IsSet {
+		addr = addrFlag.Uint160()
+	} else {
+		addr = wall.GetChangeAddress()
+		if addr.Equals(util.Uint160{}) {
+			return nil, wall, errors.New("can't get default address")
+		}
+	}
+
+	acc, err := GetUnlockedAccount(wall, addr, pass)
+	return acc, wall, err
+}
+
+// GetUnlockedAccount returns account from wallet, address and uses pass to unlock specified account if given.
+// If the password is not given, then it is requested from user.
+func GetUnlockedAccount(wall *wallet.Wallet, addr util.Uint160, pass *string) (*wallet.Account, error) {
+	acc := wall.GetAccount(addr)
+	if acc == nil {
+		return nil, fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr))
+	}
+
+	if acc.CanSign() || acc.EncryptedWIF == "" {
+		return acc, nil
+	}
+
+	if pass == nil {
+		rawPass, err := input.ReadPassword(
+			fmt.Sprintf("Enter account %s password > ", address.Uint160ToString(addr)))
+		if err != nil {
+			return nil, fmt.Errorf("Error reading password: %w", err)
+		}
+		trimmed := strings.TrimRight(string(rawPass), "\n")
+		pass = &trimmed
+	}
+	err := acc.Decrypt(*pass, wall.Scrypt)
+	if err != nil {
+		return nil, err
+	}
+	return acc, nil
+}
+
+// ReadWalletConfig reads wallet config from the given path.
+func ReadWalletConfig(configPath string) (*config.Wallet, error) {
+	file, err := os.Open(configPath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	configData, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read wallet config: %w", err)
+	}
+
+	cfg := &config.Wallet{}
+
+	err = yaml.Unmarshal(configData, &cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal wallet config YAML: %w", err)
+	}
+	return cfg, nil
 }

@@ -11,14 +11,11 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
-	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/txctx"
-	cliwallet "github.com/nspcc-dev/neo-go/cli/wallet"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
@@ -39,16 +36,14 @@ import (
 const addressFlagName = "address, a"
 
 var (
-	errNoInput                = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
-	errNoConfFile             = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
-	errNoManifestFile         = errors.New("no manifest file was found, specify manifest file with '--manifest' or '-m' flag")
-	errNoMethod               = errors.New("no method specified for function invocation command")
-	errNoWallet               = errors.New("no wallet parameter found, specify it with the '--wallet' or '-w' flag or specify wallet config file with the '--wallet-config' flag")
-	errConflictingWalletFlags = errors.New("--wallet flag conflicts with --wallet-config flag, please, provide one of them to specify wallet location")
-	errNoScriptHash           = errors.New("no smart contract hash was provided, specify one as the first argument")
-	errNoSmartContractName    = errors.New("no name was provided, specify the '--name or -n' flag")
-	errFileExist              = errors.New("A file with given smart-contract name already exists")
-	addressFlag               = flags.AddressFlag{
+	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
+	errNoConfFile          = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
+	errNoManifestFile      = errors.New("no manifest file was found, specify manifest file with '--manifest' or '-m' flag")
+	errNoMethod            = errors.New("no method specified for function invocation command")
+	errNoScriptHash        = errors.New("no smart contract hash was provided, specify one as the first argument")
+	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
+	errFileExist           = errors.New("A file with given smart-contract name already exists")
+	addressFlag            = flags.AddressFlag{
 		Name:  addressFlagName,
 		Usage: "address to use as transaction signee (and gas source)",
 	}
@@ -570,7 +565,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 		w   *wallet.Wallet
 	)
 	if signAndPush {
-		acc, w, err = GetAccFromContext(ctx)
+		acc, w, err = options.GetAccFromContext(ctx)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -746,71 +741,6 @@ func inspect(ctx *cli.Context) error {
 	return nil
 }
 
-// GetAccFromContext returns account and wallet from context. If address is not set, default address is used.
-func GetAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error) {
-	var addr util.Uint160
-
-	wPath := ctx.String("wallet")
-	walletConfigPath := ctx.String("wallet-config")
-	if len(wPath) != 0 && len(walletConfigPath) != 0 {
-		return nil, nil, errConflictingWalletFlags
-	}
-	if len(wPath) == 0 && len(walletConfigPath) == 0 {
-		return nil, nil, errNoWallet
-	}
-	var pass *string
-	if len(walletConfigPath) != 0 {
-		cfg, err := cliwallet.ReadWalletConfig(walletConfigPath)
-		if err != nil {
-			return nil, nil, err
-		}
-		wPath = cfg.Path
-		pass = &cfg.Password
-	}
-
-	wall, err := wallet.NewWalletFromFile(wPath)
-	if err != nil {
-		return nil, nil, err
-	}
-	addrFlag := ctx.Generic("address").(*flags.Address)
-	if addrFlag.IsSet {
-		addr = addrFlag.Uint160()
-	} else {
-		addr = wall.GetChangeAddress()
-	}
-
-	acc, err := GetUnlockedAccount(wall, addr, pass)
-	return acc, wall, err
-}
-
-// GetUnlockedAccount returns account from wallet, address and uses pass to unlock specified account if given.
-// If the password is not given, then it is requested from user.
-func GetUnlockedAccount(wall *wallet.Wallet, addr util.Uint160, pass *string) (*wallet.Account, error) {
-	acc := wall.GetAccount(addr)
-	if acc == nil {
-		return nil, fmt.Errorf("wallet contains no account for '%s'", address.Uint160ToString(addr))
-	}
-
-	if acc.CanSign() {
-		return acc, nil
-	}
-
-	if pass == nil {
-		rawPass, err := input.ReadPassword(
-			fmt.Sprintf("Enter account %s password > ", address.Uint160ToString(addr)))
-		if err != nil {
-			return nil, fmt.Errorf("Error reading password: %w", err)
-		}
-		trimmed := strings.TrimRight(string(rawPass), "\n")
-		pass = &trimmed
-	}
-	err := acc.Decrypt(*pass, wall.Scrypt)
-	if err != nil {
-		return nil, err
-	}
-	return acc, nil
-}
-
 // contractDeploy deploys contract.
 func contractDeploy(ctx *cli.Context) error {
 	nefFile, f, err := readNEFFile(ctx.String("in"))
@@ -836,7 +766,7 @@ func contractDeploy(ctx *cli.Context) error {
 		appCallParams = append(appCallParams, data[0])
 	}
 
-	acc, w, err := GetAccFromContext(ctx)
+	acc, w, err := options.GetAccFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't get sender address: %w", err), 1)
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
+	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
@@ -37,7 +38,7 @@ func manifestAddGroup(ctx *cli.Context) error {
 
 	h := state.CreateContractHash(sender, nf.Checksum, m.Name)
 
-	gAcc, w, err := GetAccFromContext(ctx)
+	gAcc, w, err := options.GetAccFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("can't get account to sign group with: %w", err), 1)
 	}

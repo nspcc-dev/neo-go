@@ -522,7 +522,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	acc, err := getDecryptedAccount(wall, from, pass)
+	acc, err := options.GetUnlockedAccount(wall, from, pass)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -618,7 +618,7 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	acc, err := getDecryptedAccount(wall, from, pass)
+	acc, err := options.GetUnlockedAccount(wall, from, pass)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

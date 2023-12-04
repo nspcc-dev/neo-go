@@ -5,7 +5,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
-	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/txctx"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -111,7 +110,7 @@ func handleNeoAction(ctx *cli.Context, mkTx func(*neo.Contract, util.Uint160, *w
 		return cli.NewExitError("address was not provided", 1)
 	}
 	addr := addrFlag.Uint160()
-	acc, err := getDecryptedAccount(wall, addr, pass)
+	acc, err := options.GetUnlockedAccount(wall, addr, pass)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -152,33 +151,4 @@ func handleVote(ctx *cli.Context) error {
 
 		return contract.VoteUnsigned(addr, pub)
 	})
-}
-
-// getDecryptedAccount tries to get and unlock the specified account if it has a
-// key inside (otherwise it's returned as is, without an ability to sign). If
-// password is nil, it will be requested via terminal.
-func getDecryptedAccount(wall *wallet.Wallet, addr util.Uint160, password *string) (*wallet.Account, error) {
-	acc := wall.GetAccount(addr)
-	if acc == nil {
-		return nil, fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addr))
-	}
-
-	// No private key available, nothing to decrypt, but it's still a useful account for many purposes.
-	if acc.EncryptedWIF == "" {
-		return acc, nil
-	}
-
-	if password == nil {
-		pass, err := input.ReadPassword(EnterPasswordPrompt)
-		if err != nil {
-			fmt.Println("Error reading password", err)
-			return nil, err
-		}
-		password = &pass
-	}
-	err := acc.Decrypt(*password, wall.Scrypt)
-	if err != nil {
-		return nil, err
-	}
-	return acc, nil
 }
