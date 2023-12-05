@@ -24,7 +24,7 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
 	github.com/twmb/murmur3 v1.1.5
 	github.com/urfave/cli v1.22.5
-	go.etcd.io/bbolt v1.3.7
+	go.etcd.io/bbolt v1.3.8
 	go.uber.org/zap v1.24.0
 	golang.org/x/crypto v0.14.0
 	golang.org/x/term v0.13.0
