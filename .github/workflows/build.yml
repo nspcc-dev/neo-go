@@ -42,8 +42,6 @@ jobs:
         exclude:
           - os: { name: windows-2022, bin-name: windows }
             arch: 'arm64'
-          - os: { name: macos-12, bin-name: darwin }
-            arch: 'amd64'
 
     steps:
       - uses: actions/checkout@v3
