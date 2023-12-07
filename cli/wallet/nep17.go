@@ -535,16 +535,16 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	}
 	var (
 		recipients      []transferTarget
-		cosignersOffset = ctx.NArg()
+		cosignersSepPos = ctx.NArg() // `--` position.
 	)
 	for i := 0; i < ctx.NArg(); i++ {
 		arg := ctx.Args().Get(i)
 		if arg == cmdargs.CosignersSeparator {
-			cosignersOffset = i + 1
+			cosignersSepPos = i
 			break
 		}
 	}
-	cosigners, extErr := cmdargs.GetSignersFromContext(ctx, cosignersOffset)
+	cosigners, extErr := cmdargs.GetSignersFromContext(ctx, cosignersSepPos+1)
 	if extErr != nil {
 		return extErr
 	}
@@ -558,11 +558,8 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	}
 
 	cache := make(map[string]*wallet.Token)
-	for i := 0; i < cosignersOffset; i++ {
+	for i := 0; i < cosignersSepPos; i++ {
 		arg := ctx.Args().Get(i)
-		if arg == cmdargs.CosignersSeparator {
-			break
-		}
 		ss := strings.SplitN(arg, ":", 3)
 		if len(ss) != 3 {
 			return cli.NewExitError("send format must be '<token>:<addr>:<amount>", 1)
