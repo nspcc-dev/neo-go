@@ -530,11 +530,6 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := options.GetRPCClient(gctx, ctx)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
 	if ctx.NArg() == 0 {
 		return cli.NewExitError("empty recipients list", 1)
 	}
@@ -542,11 +537,30 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		recipients      []transferTarget
 		cosignersOffset = ctx.NArg()
 	)
-	cache := make(map[string]*wallet.Token)
 	for i := 0; i < ctx.NArg(); i++ {
 		arg := ctx.Args().Get(i)
 		if arg == cmdargs.CosignersSeparator {
 			cosignersOffset = i + 1
+			break
+		}
+	}
+	cosigners, extErr := cmdargs.GetSignersFromContext(ctx, cosignersOffset)
+	if extErr != nil {
+		return extErr
+	}
+	signersAccounts, err := cmdargs.GetSignersAccounts(acc, wall, cosigners, transaction.CalledByEntry)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
+	}
+	c, act, exitErr := options.GetRPCWithActor(gctx, ctx, signersAccounts)
+	if exitErr != nil {
+		return exitErr
+	}
+
+	cache := make(map[string]*wallet.Token)
+	for i := 0; i < cosignersOffset; i++ {
+		arg := ctx.Args().Get(i)
+		if arg == cmdargs.CosignersSeparator {
 			break
 		}
 		ss := strings.SplitN(arg, ":", 3)
@@ -578,19 +592,6 @@ func multiTransferNEP17(ctx *cli.Context) error {
 			Amount:  amount.Int64(),
 			Data:    nil,
 		})
-	}
-
-	cosigners, extErr := cmdargs.GetSignersFromContext(ctx, cosignersOffset)
-	if extErr != nil {
-		return extErr
-	}
-	signersAccounts, err := cmdargs.GetSignersAccounts(acc, wall, cosigners, transaction.CalledByEntry)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
-	}
-	act, err := actor.New(c, signersAccounts)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create RPC actor: %w", err), 1)
 	}
 
 	tx, err := makeMultiTransferNEP17(act, recipients)
@@ -626,9 +627,22 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := options.GetRPCClient(gctx, ctx)
+	cosignersOffset, data, extErr := cmdargs.GetDataFromContext(ctx)
+	if extErr != nil {
+		return extErr
+	}
+	cosigners, extErr := cmdargs.GetSignersFromContext(ctx, cosignersOffset)
+	if extErr != nil {
+		return extErr
+	}
+	signersAccounts, err := cmdargs.GetSignersAccounts(acc, wall, cosigners, transaction.CalledByEntry)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
+	}
+
+	c, act, exitErr := options.GetRPCWithActor(gctx, ctx, signersAccounts)
+	if exitErr != nil {
+		return exitErr
 	}
 
 	toFlag := ctx.Generic("to").(*flags.Address)
@@ -642,24 +656,6 @@ func transferNEP(ctx *cli.Context, standard string) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("can't fetch matching token from RPC-node: %w", err), 1)
 		}
-	}
-
-	cosignersOffset, data, extErr := cmdargs.GetDataFromContext(ctx)
-	if extErr != nil {
-		return extErr
-	}
-
-	cosigners, extErr := cmdargs.GetSignersFromContext(ctx, cosignersOffset)
-	if extErr != nil {
-		return extErr
-	}
-	signersAccounts, err := cmdargs.GetSignersAccounts(acc, wall, cosigners, transaction.CalledByEntry)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
-	}
-	act, err := actor.New(c, signersAccounts)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create RPC actor: %w", err), 1)
 	}
 
 	amountArg := ctx.String("amount")

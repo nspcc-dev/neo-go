@@ -592,19 +592,14 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 	}
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
-
-	c, err := options.GetRPCClient(gctx, ctx)
-	if err != nil {
-		return err
-	}
 	if signAndPush {
-		act, err = actor.New(c, signersAccounts)
+		_, act, err = options.GetRPCWithActor(gctx, ctx, signersAccounts)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to create RPC actor: %w", err), 1)
+			return err
 		}
 		inv = &act.Invoker
 	} else {
-		inv, err = options.GetInvoker(c, ctx, cosigners)
+		_, inv, err = options.GetRPCWithInvoker(gctx, ctx, cosigners)
 		if err != nil {
 			return err
 		}

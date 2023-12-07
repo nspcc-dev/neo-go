@@ -9,8 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/txctx"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -118,13 +116,13 @@ func handleNeoAction(ctx *cli.Context, mkTx func(*neo.Contract, util.Uint160, *w
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := options.GetRPCClient(gctx, ctx)
+	signers, err := cmdargs.GetSignersAccounts(acc, wall, nil, transaction.CalledByEntry)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
 	}
-	act, err := actor.NewSimple(c, acc)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("RPC actor issue: %w", err), 1)
+	_, act, exitErr := options.GetRPCWithActor(gctx, ctx, signers)
+	if exitErr != nil {
+		return exitErr
 	}
 
 	contract := neo.New(act)

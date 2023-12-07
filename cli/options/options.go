@@ -22,6 +22,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -286,6 +287,21 @@ func HandleLoggingParams(debug bool, cfg config.ApplicationConfiguration) (*zap.
 
 	log, err := cc.Build()
 	return log, &cc.Level, _winfileSinkCloser, err
+}
+
+// GetRPCWithActor returns an RPC client instance and Actor instance for the given context.
+func GetRPCWithActor(gctx context.Context, ctx *cli.Context, signers []actor.SignerAccount) (*rpcclient.Client, *actor.Actor, cli.ExitCoder) {
+	c, err := GetRPCClient(gctx, ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	a, actorErr := actor.New(c, signers)
+	if actorErr != nil {
+		c.Close()
+		return nil, nil, cli.NewExitError(fmt.Errorf("failed to create Actor: %w", actorErr), 1)
+	}
+	return c, a, nil
 }
 
 // GetAccFromContext returns account and wallet from context. If address is not set, default address is used.
