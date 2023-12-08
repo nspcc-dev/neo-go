@@ -732,6 +732,9 @@ func (c *WSClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Blo
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
 	}
+	if !c.cache.initDone {
+		return "", errNetworkNotInitialized
+	}
 	params := []any{"block_added"}
 	if flt != nil {
 		flt = flt.Copy()
