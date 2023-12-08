@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,13 @@ import (
 const (
 	// The current version of neo-go wallet implementations.
 	walletVersion = "1.0"
+)
+
+var (
+	// ErrPathIsEmpty appears if wallet was created without linking to file system path,
+	// for instance with [NewInMemoryWallet] or [NewWalletFromBytes].
+	// Despite this, there was an attempt to save it via [Wallet.Save] or [Wallet.SavePretty] without [Wallet.SetPath].
+	ErrPathIsEmpty = errors.New("path is empty")
 )
 
 // Wallet represents a NEO (NEP-2, NEP-6) compliant wallet.
@@ -53,6 +61,12 @@ func NewWallet(location string) (*Wallet, error) {
 	return newWallet(file), nil
 }
 
+// NewInMemoryWallet creates a new NEO wallet without linking to the read file on file system.
+// If wallet required to be written to the file system, [Wallet.SetPath] should be used to set the path.
+func NewInMemoryWallet() *Wallet {
+	return newWallet(nil)
+}
+
 // NewWalletFromFile creates a Wallet from the given wallet file path.
 func NewWalletFromFile(path string) (*Wallet, error) {
 	file, err := os.Open(path)
@@ -67,6 +81,20 @@ func NewWalletFromFile(path string) (*Wallet, error) {
 	if err := json.NewDecoder(file).Decode(wall); err != nil {
 		return nil, fmt.Errorf("unmarshal wallet: %w", err)
 	}
+	return wall, nil
+}
+
+// NewWalletFromBytes creates a [Wallet] from the given byte slice.
+// Parameter wallet contains JSON representation of wallet, see [Wallet.JSON] for details.
+//
+// NewWalletFromBytes constructor doesn't set wallet's path. If you want to save the wallet to file system,
+// use [Wallet.SetPath].
+func NewWalletFromBytes(wallet []byte) (*Wallet, error) {
+	wall := &Wallet{}
+	if err := json.NewDecoder(bytes.NewReader(wallet)).Decode(wall); err != nil {
+		return nil, fmt.Errorf("unmarshal wallet: %w", err)
+	}
+
 	return wall, nil
 }
 
@@ -138,9 +166,15 @@ func (w *Wallet) Path() string {
 	return w.path
 }
 
-// Save saves the wallet data. It's the internal io.ReadWriter
-// that is responsible for saving the data. This can
-// be a buffer, file, etc..
+// SetPath sets the location of the wallet on the filesystem.
+func (w *Wallet) SetPath(path string) {
+	w.path = path
+}
+
+// Save saves the wallet data to the file located at the path that was either provided
+// via [NewWalletFromFile] constructor or via [Wallet.SetPath].
+//
+// Returns [ErrPathIsEmpty] if wallet path is not set. See [Wallet.SetPath].
 func (w *Wallet) Save() error {
 	data, err := json.Marshal(w)
 	if err != nil {
@@ -151,6 +185,8 @@ func (w *Wallet) Save() error {
 }
 
 // SavePretty saves the wallet in a beautiful JSON.
+//
+// Returns [ErrPathIsEmpty] if wallet path is not set. See [Wallet.SetPath].
 func (w *Wallet) SavePretty() error {
 	data, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
@@ -161,6 +197,10 @@ func (w *Wallet) SavePretty() error {
 }
 
 func (w *Wallet) writeRaw(data []byte) error {
+	if w.path == "" {
+		return ErrPathIsEmpty
+	}
+
 	return os.WriteFile(w.path, data, 0644)
 }
 

@@ -47,24 +47,29 @@ func TestCreateAccountAndClose(t *testing.T) {
 }
 
 func TestAddAccount(t *testing.T) {
-	wallet := checkWalletConstructor(t)
+	wallets := []*Wallet{
+		checkWalletConstructor(t),
+		NewInMemoryWallet(),
+	}
 
-	wallet.AddAccount(&Account{
-		privateKey:   nil,
-		Address:      "real",
-		EncryptedWIF: "",
-		Label:        "",
-		Contract:     nil,
-		Locked:       false,
-		Default:      false,
-	})
-	accounts := wallet.Accounts
-	require.Len(t, accounts, 1)
+	for _, w := range wallets {
+		w.AddAccount(&Account{
+			privateKey:   nil,
+			Address:      "real",
+			EncryptedWIF: "",
+			Label:        "",
+			Contract:     nil,
+			Locked:       false,
+			Default:      false,
+		})
+		accounts := w.Accounts
+		require.Len(t, accounts, 1)
 
-	require.Error(t, wallet.RemoveAccount("abc"))
-	require.Len(t, wallet.Accounts, 1)
-	require.NoError(t, wallet.RemoveAccount("real"))
-	require.Len(t, wallet.Accounts, 0)
+		require.Error(t, w.RemoveAccount("abc"))
+		require.Len(t, w.Accounts, 1)
+		require.NoError(t, w.RemoveAccount("real"))
+		require.Len(t, w.Accounts, 0)
+	}
 }
 
 func TestPath(t *testing.T) {
@@ -75,36 +80,47 @@ func TestPath(t *testing.T) {
 }
 
 func TestSave(t *testing.T) {
-	wallet := checkWalletConstructor(t)
+	inMemWallet := NewInMemoryWallet()
 
-	wallet.AddAccount(&Account{
-		privateKey:   nil,
-		Address:      "",
-		EncryptedWIF: "",
-		Label:        "",
-		Contract:     nil,
-		Locked:       false,
-		Default:      false,
-	})
+	tmpDir := t.TempDir()
+	file := filepath.Join(tmpDir, walletTemplate)
+	inMemWallet.SetPath(file)
 
-	errForSave := wallet.Save()
-	require.NoError(t, errForSave)
+	wallets := []*Wallet{
+		checkWalletConstructor(t),
+		inMemWallet,
+	}
 
-	openedWallet, err := NewWalletFromFile(wallet.path)
-	require.NoError(t, err)
-	require.Equal(t, wallet.Accounts, openedWallet.Accounts)
+	for _, w := range wallets {
+		w.AddAccount(&Account{
+			privateKey:   nil,
+			Address:      "",
+			EncryptedWIF: "",
+			Label:        "",
+			Contract:     nil,
+			Locked:       false,
+			Default:      false,
+		})
 
-	t.Run("change and rewrite", func(t *testing.T) {
-		err := openedWallet.CreateAccount("test", "pass")
+		errForSave := w.Save()
+		require.NoError(t, errForSave)
+
+		openedWallet, err := NewWalletFromFile(w.path)
 		require.NoError(t, err)
+		require.Equal(t, w.Accounts, openedWallet.Accounts)
 
-		w2, err := NewWalletFromFile(openedWallet.path)
-		require.NoError(t, err)
-		require.Equal(t, 2, len(w2.Accounts))
-		require.NoError(t, w2.Accounts[1].Decrypt("pass", w2.Scrypt))
-		_ = w2.Accounts[1].ScriptHash() // openedWallet has it for acc 1.
-		require.Equal(t, openedWallet.Accounts, w2.Accounts)
-	})
+		t.Run("change and rewrite", func(t *testing.T) {
+			err := openedWallet.CreateAccount("test", "pass")
+			require.NoError(t, err)
+
+			w2, err := NewWalletFromFile(openedWallet.path)
+			require.NoError(t, err)
+			require.Equal(t, 2, len(w2.Accounts))
+			require.NoError(t, w2.Accounts[1].Decrypt("pass", w2.Scrypt))
+			_ = w2.Accounts[1].ScriptHash() // openedWallet has it for acc 1.
+			require.Equal(t, openedWallet.Accounts, w2.Accounts)
+		})
+	}
 }
 
 func TestJSONMarshallUnmarshal(t *testing.T) {
@@ -197,4 +213,18 @@ func TestWalletForExamples(t *testing.T) {
 
 	// we need to keep the owner of the example contracts the same as the wallet account
 	require.Equal(t, "NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB", w.Accounts[0].Address, "need to change `owner` in the example contracts")
+}
+
+func TestFromBytes(t *testing.T) {
+	wallet := checkWalletConstructor(t)
+	bts, err := wallet.JSON()
+	require.NoError(t, err)
+
+	w, err := NewWalletFromBytes(bts)
+	require.NoError(t, err)
+
+	require.Len(t, w.path, 0)
+	w.SetPath(wallet.path)
+
+	require.Equal(t, wallet, w)
 }
