@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
@@ -47,11 +48,13 @@ func TestMatches(t *testing.T) {
 	sender := util.Uint160{1, 2, 3}
 	signer := util.Uint160{4, 5, 6}
 	contract := util.Uint160{7, 8, 9}
+	notaryType := mempoolevent.TransactionAdded
 	badUint160 := util.Uint160{9, 9, 9}
 	cnt := util.Uint256{1, 2, 3}
 	badUint256 := util.Uint256{9, 9, 9}
 	name := "ntf name"
 	badName := "bad name"
+	badType := mempoolevent.TransactionRemoved
 	bContainer := testContainer{
 		id: neorpc.BlockEventID,
 		pld: &block.Block{
@@ -76,6 +79,7 @@ func TestMatches(t *testing.T) {
 	ntrContainer := testContainer{
 		id: neorpc.NotaryRequestEventID,
 		pld: &result.NotaryRequestEvent{
+			Type: notaryType,
 			NotaryRequest: &payload.P2PNotaryRequest{
 				MainTransaction:     &transaction.Transaction{Signers: []transaction.Signer{{Account: signer}}},
 				FallbackTransaction: &transaction.Transaction{Signers: []transaction.Signer{{Account: util.Uint160{}}, {Account: sender}}},
@@ -254,7 +258,7 @@ func TestMatches(t *testing.T) {
 			name: "notary request, sender mismatch",
 			comparator: testComparator{
 				id:     neorpc.NotaryRequestEventID,
-				filter: neorpc.TxFilter{Sender: &badUint160},
+				filter: neorpc.NotaryRequestFilter{Sender: &badUint160},
 			},
 			container: ntrContainer,
 			expected:  false,
@@ -263,7 +267,16 @@ func TestMatches(t *testing.T) {
 			name: "notary request, signer mismatch",
 			comparator: testComparator{
 				id:     neorpc.NotaryRequestEventID,
-				filter: neorpc.TxFilter{Signer: &badUint160},
+				filter: neorpc.NotaryRequestFilter{Signer: &badUint160},
+			},
+			container: ntrContainer,
+			expected:  false,
+		},
+		{
+			name: "notary request, type mismatch",
+			comparator: testComparator{
+				id:     neorpc.NotaryRequestEventID,
+				filter: neorpc.NotaryRequestFilter{Type: &badType},
 			},
 			container: ntrContainer,
 			expected:  false,
@@ -272,7 +285,7 @@ func TestMatches(t *testing.T) {
 			name: "notary request, filter match",
 			comparator: testComparator{
 				id:     neorpc.NotaryRequestEventID,
-				filter: neorpc.TxFilter{Sender: &sender, Signer: &signer},
+				filter: neorpc.NotaryRequestFilter{Sender: &sender, Signer: &signer, Type: &notaryType},
 			},
 			container: ntrContainer,
 			expected:  true,

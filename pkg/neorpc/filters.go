@@ -1,6 +1,7 @@
 package neorpc
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -37,6 +38,14 @@ type (
 	ExecutionFilter struct {
 		State     *string       `json:"state,omitempty"`
 		Container *util.Uint256 `json:"container,omitempty"`
+	}
+	// NotaryRequestFilter is a wrapper structure used for notary request events.
+	// It allows to choose notary request events with the specified request sender,
+	// main transaction signer and/or type. nil value treated as missing filter.
+	NotaryRequestFilter struct {
+		Sender *util.Uint160      `json:"sender,omitempty"`
+		Signer *util.Uint160      `json:"signer,omitempty"`
+		Type   *mempoolevent.Type `json:"type,omitempty"`
 	}
 )
 
@@ -108,6 +117,27 @@ func (f *ExecutionFilter) Copy() *ExecutionFilter {
 	if f.Container != nil {
 		res.Container = new(util.Uint256)
 		*res.Container = *f.Container
+	}
+	return res
+}
+
+// Copy creates a deep copy of the NotaryRequestFilter. It handles nil NotaryRequestFilter correctly.
+func (f *NotaryRequestFilter) Copy() *NotaryRequestFilter {
+	if f == nil {
+		return nil
+	}
+	var res = new(NotaryRequestFilter)
+	if f.Sender != nil {
+		res.Sender = new(util.Uint160)
+		*res.Sender = *f.Sender
+	}
+	if f.Signer != nil {
+		res.Signer = new(util.Uint160)
+		*res.Signer = *f.Signer
+	}
+	if f.Type != nil {
+		res.Type = new(mempoolevent.Type)
+		*res.Type = *f.Type
 	}
 	return res
 }

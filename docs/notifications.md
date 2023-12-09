@@ -84,7 +84,8 @@ Recognized stream names:
  * `notary_request_event`
    Filter: `sender` field containing a string with hex-encoded Uint160 (LE
    representation) for notary request's `Sender` and/or `signer` in the same
-   format for one of main transaction's `Signers`.
+   format for one of main transaction's `Signers`. `type` field containing a
+   string with event type, which could be one of "added" or "removed".
 
 Response: returns subscription ID (string) as a result. This ID can be used to
 cancel this subscription and has no meaning other than that.
