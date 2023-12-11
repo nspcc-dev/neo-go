@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
-	"github.com/nspcc-dev/neo-go/cli/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
@@ -31,28 +31,28 @@ func cancelTx(ctx *cli.Context) error {
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := options.GetRPCClient(gctx, ctx)
+	acc, w, err := options.GetAccFromContext(ctx)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create RPC client: %w", err), 1)
+		return cli.NewExitError(fmt.Errorf("failed to get account from context to sign the conflicting transaction: %w", err), 1)
+	}
+	defer w.Close()
+
+	signers, err := cmdargs.GetSignersAccounts(acc, w, nil, transaction.CalledByEntry)
+	if err != nil {
+		return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
+	}
+	c, a, exitErr := options.GetRPCWithActor(gctx, ctx, signers)
+	if exitErr != nil {
+		return exitErr
 	}
 
 	mainTx, _ := c.GetRawTransactionVerbose(txHash)
 	if mainTx != nil && !mainTx.Blockhash.Equals(util.Uint256{}) {
 		return cli.NewExitError(fmt.Errorf("transaction %s is already accepted at block %s", txHash, mainTx.Blockhash.StringLE()), 1)
 	}
-	acc, w, err := smartcontract.GetAccFromContext(ctx)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to get account from context to sign the conflicting transaction: %w", err), 1)
-	}
-	defer w.Close()
 
 	if mainTx != nil && !mainTx.HasSigner(acc.ScriptHash()) {
 		return cli.NewExitError(fmt.Errorf("account %s is not a signer of the conflicting transaction", acc.Address), 1)
-	}
-
-	a, err := actor.NewSimple(c, acc)
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create Actor: %w", err), 1)
 	}
 
 	resHash, _, err := a.SendTunedRun([]byte{byte(opcode.RET)}, []transaction.Attribute{{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: txHash}}}, func(r *result.Invoke, t *transaction.Transaction) error {

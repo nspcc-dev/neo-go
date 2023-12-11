@@ -21,11 +21,6 @@ func signStoredTransaction(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
-	wall, pass, err := readWallet(ctx)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	defer wall.Close()
 
 	pc, err := paramcontext.Read(ctx.String("in"))
 	if err != nil {
@@ -35,9 +30,7 @@ func signStoredTransaction(ctx *cli.Context) error {
 	if !addrFlag.IsSet {
 		return cli.NewExitError("address was not provided", 1)
 	}
-
-	var ch = addrFlag.Uint160()
-	acc, err := getDecryptedAccount(wall, ch, pass)
+	acc, _, err := options.GetAccFromContext(ctx)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -47,20 +40,13 @@ func signStoredTransaction(ctx *cli.Context) error {
 		return cli.NewExitError("verifiable item is not a transaction", 1)
 	}
 
-	signerFound := false
-	for i := range tx.Signers {
-		if tx.Signers[i].Account == ch {
-			signerFound = true
-			break
-		}
-	}
-	if !signerFound {
+	if !tx.HasSigner(acc.ScriptHash()) {
 		return cli.NewExitError("tx signers don't contain provided account", 1)
 	}
 
 	if acc.CanSign() {
 		sign := acc.SignHashable(pc.Network, pc.Verifiable)
-		if err := pc.AddSignature(ch, acc.Contract, acc.PublicKey(), sign); err != nil {
+		if err := pc.AddSignature(acc.ScriptHash(), acc.Contract, acc.PublicKey(), sign); err != nil {
 			return cli.NewExitError(fmt.Errorf("can't add signature: %w", err), 1)
 		}
 	} else if rpcNode == "" {

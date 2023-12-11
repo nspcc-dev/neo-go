@@ -15,7 +15,6 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/txctx"
-	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -26,7 +25,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -822,7 +820,7 @@ func createWallet(ctx *cli.Context) error {
 	}
 	var pass *string
 	if len(configPath) != 0 {
-		cfg, err := ReadWalletConfig(configPath)
+		cfg, err := options.ReadWalletConfig(configPath)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -946,7 +944,7 @@ func getWalletPathAndPass(ctx *cli.Context, canUseWalletConfig bool) (string, *s
 	}
 	var pass *string
 	if len(configPath) != 0 {
-		cfg, err := ReadWalletConfig(configPath)
+		cfg, err := options.ReadWalletConfig(configPath)
 		if err != nil {
 			return "", nil, err
 		}
@@ -954,27 +952,6 @@ func getWalletPathAndPass(ctx *cli.Context, canUseWalletConfig bool) (string, *s
 		pass = &cfg.Password
 	}
 	return path, pass, nil
-}
-
-func ReadWalletConfig(configPath string) (*config.Wallet, error) {
-	file, err := os.Open(configPath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	configData, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("unable to read wallet config: %w", err)
-	}
-
-	cfg := &config.Wallet{}
-
-	err = yaml.Unmarshal(configData, &cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal wallet config YAML: %w", err)
-	}
-	return cfg, nil
 }
 
 func newAccountFromWIF(w io.Writer, wif string, scrypt keys.ScryptParams, label *string, pass *string) (*wallet.Account, error) {

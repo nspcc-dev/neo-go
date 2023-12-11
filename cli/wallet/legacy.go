@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 
+	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -46,7 +47,7 @@ func newWalletV2FromFile(path string, configPath string) (*walletV2, *string, er
 	}
 	var pass *string
 	if len(configPath) != 0 {
-		cfg, err := ReadWalletConfig(configPath)
+		cfg, err := options.ReadWalletConfig(configPath)
 		if err != nil {
 			return nil, nil, err
 		}
