@@ -2734,8 +2734,12 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (any, *neor
 			flt := new(neorpc.BlockFilter)
 			err = jd.Decode(flt)
 			filter = *flt
-		case neorpc.TransactionEventID, neorpc.NotaryRequestEventID:
+		case neorpc.TransactionEventID:
 			flt := new(neorpc.TxFilter)
+			err = jd.Decode(flt)
+			filter = *flt
+		case neorpc.NotaryRequestEventID:
+			flt := new(neorpc.NotaryRequestFilter)
 			err = jd.Decode(flt)
 			filter = *flt
 		case neorpc.NotificationEventID:

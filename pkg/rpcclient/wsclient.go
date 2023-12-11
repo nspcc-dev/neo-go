@@ -305,7 +305,7 @@ func (r *executionReceiver) Close() {
 
 // notaryRequestReceiver stores information about notary requests subscriber.
 type notaryRequestReceiver struct {
-	filter *neorpc.TxFilter
+	filter *neorpc.NotaryRequestFilter
 	ch     chan<- *result.NotaryRequestEvent
 }
 
@@ -811,11 +811,13 @@ func (c *WSClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *s
 }
 
 // ReceiveNotaryRequests registers provided channel as a receiver for notary request
-// payload addition or removal events. Events can be filtered by the given TxFilter
+// payload addition or removal events. Events can be filtered by the given NotaryRequestFilter
 // where sender corresponds to notary request sender (the second fallback transaction
-// signer) and signer corresponds to main transaction signers. nil value doesn't add
-// any filter. See WSClient comments for generic Receive* behaviour details.
-func (c *WSClient) ReceiveNotaryRequests(flt *neorpc.TxFilter, rcvr chan<- *result.NotaryRequestEvent) (string, error) {
+// signer), signer corresponds to main transaction signers and type corresponds to the
+// [mempoolevent.Type] and denotes whether notary request was added to or removed from
+// the notary request pool. nil value doesn't add any filter. See WSClient comments
+// for generic Receive* behaviour details.
+func (c *WSClient) ReceiveNotaryRequests(flt *neorpc.NotaryRequestFilter, rcvr chan<- *result.NotaryRequestEvent) (string, error) {
 	if rcvr == nil {
 		return "", ErrNilNotificationReceiver
 	}

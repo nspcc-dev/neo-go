@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
@@ -572,6 +573,71 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, "FAULT", *filt.State)
 				require.Equal(t, util.Uint256{1, 2, 3}, *filt.Container)
+			},
+		},
+		{
+			"notary request sender",
+			func(t *testing.T, wsc *WSClient) {
+				sender := util.Uint160{1, 2, 3, 4, 5}
+				_, err := wsc.ReceiveNotaryRequests(&neorpc.NotaryRequestFilter{Sender: &sender}, make(chan *result.NotaryRequestEvent))
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.NotaryRequestFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, *filt.Sender)
+				require.Nil(t, filt.Signer)
+				require.Nil(t, filt.Type)
+			},
+		},
+		{
+			"notary request signer",
+			func(t *testing.T, wsc *WSClient) {
+				signer := util.Uint160{0, 42}
+				_, err := wsc.ReceiveNotaryRequests(&neorpc.NotaryRequestFilter{Signer: &signer}, make(chan *result.NotaryRequestEvent))
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.NotaryRequestFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Nil(t, filt.Sender)
+				require.Equal(t, util.Uint160{0, 42}, *filt.Signer)
+				require.Nil(t, filt.Type)
+			},
+		},
+		{
+			"notary request type",
+			func(t *testing.T, wsc *WSClient) {
+				mempoolType := mempoolevent.TransactionAdded
+				_, err := wsc.ReceiveNotaryRequests(&neorpc.NotaryRequestFilter{Type: &mempoolType}, make(chan *result.NotaryRequestEvent))
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.NotaryRequestFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Equal(t, mempoolevent.TransactionAdded, *filt.Type)
+				require.Nil(t, filt.Sender)
+				require.Nil(t, filt.Signer)
+			},
+		},
+		{"notary request sender, signer and type",
+			func(t *testing.T, wsc *WSClient) {
+				sender := util.Uint160{1, 2, 3, 4, 5}
+				signer := util.Uint160{0, 42}
+				mempoolType := mempoolevent.TransactionAdded
+				_, err := wsc.ReceiveNotaryRequests(&neorpc.NotaryRequestFilter{Type: &mempoolType, Signer: &signer, Sender: &sender}, make(chan *result.NotaryRequestEvent))
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.NotaryRequestFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, *filt.Sender)
+				require.Equal(t, util.Uint160{0, 42}, *filt.Signer)
+				require.Equal(t, mempoolevent.TransactionAdded, *filt.Type)
 			},
 		},
 	}

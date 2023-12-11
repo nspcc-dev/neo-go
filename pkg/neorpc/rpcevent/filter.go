@@ -69,8 +69,9 @@ func Matches(f Comparator, r Container) bool {
 		containerOK := filt.Container == nil || applog.Container.Equals(*filt.Container)
 		return stateOK && containerOK
 	case neorpc.NotaryRequestEventID:
-		filt := filter.(neorpc.TxFilter)
+		filt := filter.(neorpc.NotaryRequestFilter)
 		req := r.EventPayload().(*result.NotaryRequestEvent)
+		typeOk := filt.Type == nil || req.Type == *filt.Type
 		senderOk := filt.Sender == nil || req.NotaryRequest.FallbackTransaction.Signers[1].Account == *filt.Sender
 		signerOK := true
 		if filt.Signer != nil {
@@ -82,7 +83,7 @@ func Matches(f Comparator, r Container) bool {
 				}
 			}
 		}
-		return senderOk && signerOK
+		return senderOk && signerOK && typeOk
 	}
 	return false
 }

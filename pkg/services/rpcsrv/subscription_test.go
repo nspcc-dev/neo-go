@@ -354,8 +354,16 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 				require.Equal(t, "0x"+goodSender.StringLE(), signer0acc)
 			},
 		},
-		"matching sender and signer": {
-			params: `["notary_request_event", {"sender":"` + goodSender.StringLE() + `", "signer":"` + goodSender.StringLE() + `"}]`,
+		"matching type": {
+			params: `["notary_request_event", {"type":"added"}]`,
+			check: func(t *testing.T, resp *neorpc.Notification) {
+				require.Equal(t, neorpc.NotaryRequestEventID, resp.Event)
+				rmap := resp.Payload[0].(map[string]any)
+				require.Equal(t, "added", rmap["type"].(string))
+			},
+		},
+		"matching sender, signer and type": {
+			params: `["notary_request_event", {"sender":"` + goodSender.StringLE() + `", "signer":"` + goodSender.StringLE() + `","type":"added"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotaryRequestEventID, resp.Event)
