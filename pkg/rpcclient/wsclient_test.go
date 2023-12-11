@@ -34,6 +34,7 @@ func TestWSClientClose(t *testing.T) {
 	srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": "55aaff00"}`)
 	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 	require.NoError(t, err)
+	wsc.cache.initDone = true
 	wsc.getNextRequestID = getTestRequestID
 	bCh := make(chan *block.Block)
 	_, err = wsc.ReceiveBlocks(nil, bCh)
@@ -666,6 +667,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			require.NoError(t, err)
 			wsc.getNextRequestID = getTestRequestID
 			wsc.cache.network = netmode.UnitTestNet
+			wsc.cache.initDone = true
 			c.clientCode(t, wsc)
 			wsc.Close()
 		})
