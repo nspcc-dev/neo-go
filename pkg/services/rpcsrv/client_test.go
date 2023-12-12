@@ -2113,9 +2113,9 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 	blocks := getTestBlocks(t)
 	bCount := uint32(0)
 
-	getData := func(t *testing.T) (*block.Block, int, util.Uint160, string, string) {
+	getData := func(t *testing.T) (*block.Block, byte, util.Uint160, string, string) {
 		b1 := blocks[bCount]
-		primary := int(b1.PrimaryIndex)
+		primary := b1.PrimaryIndex
 		tx := b1.Transactions[0]
 		sender := tx.Sender()
 		ntfName := "Transfer"

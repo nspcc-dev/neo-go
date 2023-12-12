@@ -67,11 +67,11 @@ omitted if empty).
 
 Recognized stream names:
  * `block_added`
-   Filter: `primary` as an integer with primary (speaker) node index from
-   ConsensusData and/or `since` field as an integer value with block
-   index starting from which new block notifications will be received and/or
-   `till` field as an integer values containing block index till which new
-   block notifications will be received.
+   Filter: `primary` as an integer with a valid range of 0-255 with 
+   primary (speaker) node index from ConsensusData and/or `since` field as 
+   an integer value with block index starting from which new block 
+   notifications will be received and/or `till` field as an integer values
+   containing block index till which new block notifications will be received.
  * `header_of_added_block`
    Filter: `primary` as an integer with primary (speaker) node index from
    ConsensusData and/or `since` field as an integer value with header

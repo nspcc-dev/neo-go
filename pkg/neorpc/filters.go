@@ -11,7 +11,7 @@ type (
 	// since/till the specified index inclusively). nil value treated as missing
 	// filter.
 	BlockFilter struct {
-		Primary *int    `json:"primary,omitempty"`
+		Primary *byte   `json:"primary,omitempty"`
 		Since   *uint32 `json:"since,omitempty"`
 		Till    *uint32 `json:"till,omitempty"`
 	}
@@ -56,7 +56,7 @@ func (f *BlockFilter) Copy() *BlockFilter {
 	}
 	var res = new(BlockFilter)
 	if f.Primary != nil {
-		res.Primary = new(int)
+		res.Primary = new(byte)
 		*res.Primary = *f.Primary
 	}
 	if f.Since != nil {

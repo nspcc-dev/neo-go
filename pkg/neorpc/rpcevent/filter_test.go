@@ -40,8 +40,8 @@ func (c testContainer) EventPayload() any {
 }
 
 func TestMatches(t *testing.T) {
-	primary := 1
-	badPrimary := 2
+	primary := byte(1)
+	badPrimary := byte(2)
 	index := uint32(5)
 	badHigherIndex := uint32(6)
 	badLowerIndex := index - 1

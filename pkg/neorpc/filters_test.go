@@ -16,12 +16,12 @@ func TestBlockFilterCopy(t *testing.T) {
 	tf = bf.Copy()
 	require.Equal(t, bf, tf)
 
-	bf.Primary = new(int)
+	bf.Primary = new(byte)
 	*bf.Primary = 42
 
 	tf = bf.Copy()
 	require.Equal(t, bf, tf)
-	*bf.Primary = 100500
+	*bf.Primary = 100
 	require.NotEqual(t, bf, tf)
 
 	bf.Since = new(uint32)
