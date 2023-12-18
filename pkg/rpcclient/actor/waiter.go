@@ -100,10 +100,13 @@ func errIsAlreadyExists(err error) bool {
 	return strings.Contains(strings.ToLower(err.Error()), "already exists")
 }
 
-// newWaiter creates Waiter instance. It can be either websocket-based or
-// polling-base, otherwise Waiter stub is returned.
-func newWaiter(ra RPCActor, v *result.Version) Waiter {
-	if eventW, ok := ra.(RPCEventWaiter); ok {
+// NewWaiter creates Waiter instance. It can be either websocket-based or
+// polling-base, otherwise Waiter stub is returned. As a first argument
+// it accepts RPCEventWaiter implementation, RPCPollingWaiter implementation
+// or not an implementation of these two interfaces. It returns websocket-based
+// waiter, polling-based waiter or a stub correspondingly.
+func NewWaiter(base any, v *result.Version) Waiter {
+	if eventW, ok := base.(RPCEventWaiter); ok {
 		return &EventWaiter{
 			ws: eventW,
 			polling: &PollingWaiter{
@@ -112,7 +115,7 @@ func newWaiter(ra RPCActor, v *result.Version) Waiter {
 			},
 		}
 	}
-	if pollW, ok := ra.(RPCPollingWaiter); ok {
+	if pollW, ok := base.(RPCPollingWaiter); ok {
 		return &PollingWaiter{
 			polling: pollW,
 			version: v,

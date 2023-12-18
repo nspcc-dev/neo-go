@@ -126,7 +126,7 @@ func New(ra RPCActor, signers []SignerAccount) (*Actor, error) {
 	}
 	return &Actor{
 		Invoker:   *inv,
-		Waiter:    newWaiter(ra, version),
+		Waiter:    NewWaiter(ra, version),
 		client:    ra,
 		opts:      NewDefaultOptions(),
 		signers:   signers,

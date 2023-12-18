@@ -38,15 +38,15 @@ func (c *AwaitableRPCClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr
 func (c *AwaitableRPCClient) Unsubscribe(id string) error { return nil }
 
 func TestNewWaiter(t *testing.T) {
-	w := newWaiter((RPCActor)(nil), nil)
+	w := NewWaiter((RPCActor)(nil), nil)
 	_, ok := w.(NullWaiter)
 	require.True(t, ok)
 
-	w = newWaiter(&RPCClient{}, &result.Version{})
+	w = NewWaiter(&RPCClient{}, &result.Version{})
 	_, ok = w.(*PollingWaiter)
 	require.True(t, ok)
 
-	w = newWaiter(&AwaitableRPCClient{RPCClient: RPCClient{}}, &result.Version{})
+	w = NewWaiter(&AwaitableRPCClient{RPCClient: RPCClient{}}, &result.Version{})
 	_, ok = w.(*EventWaiter)
 	require.True(t, ok)
 }
@@ -58,7 +58,7 @@ func TestPollingWaiter_Wait(t *testing.T) {
 	expected := &state.AppExecResult{Container: h, Execution: state.Execution{}}
 	c := &RPCClient{appLog: appLog}
 	c.bCount.Store(bCount)
-	w := newWaiter(c, &result.Version{Protocol: result.Protocol{MillisecondsPerBlock: 1}}) // reduce testing time.
+	w := NewWaiter(c, &result.Version{Protocol: result.Protocol{MillisecondsPerBlock: 1}}) // reduce testing time.
 	_, ok := w.(*PollingWaiter)
 	require.True(t, ok)
 
@@ -123,7 +123,7 @@ func TestWSWaiter_Wait(t *testing.T) {
 	expected := &state.AppExecResult{Container: h, Execution: state.Execution{}}
 	c := &AwaitableRPCClient{RPCClient: RPCClient{appLog: appLog}}
 	c.bCount.Store(bCount)
-	w := newWaiter(c, &result.Version{Protocol: result.Protocol{MillisecondsPerBlock: 1}}) // reduce testing time.
+	w := NewWaiter(c, &result.Version{Protocol: result.Protocol{MillisecondsPerBlock: 1}}) // reduce testing time.
 	_, ok := w.(*EventWaiter)
 	require.True(t, ok)
 
