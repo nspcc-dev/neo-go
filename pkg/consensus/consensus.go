@@ -681,12 +681,12 @@ func (s *service) getValidators(txes ...block.Transaction) []crypto.PublicKey {
 		// block's validators, thus should return validators from the current
 		// epoch without recalculation.
 		pKeys, err = s.Chain.GetNextBlockValidators()
-	} else {
-		// getValidators with non-empty args is used by dbft to fill block's
-		// NextConsensus field, ComputeNextBlockValidators will return proper
-		// value for NextConsensus wrt dBFT epoch start/end.
-		pKeys = s.Chain.ComputeNextBlockValidators()
 	}
+	// getValidators with non-empty args is used by dbft to fill block's
+	// NextConsensus field, but NeoGo doesn't provide WithGetConsensusAddress
+	// callback and fills NextConsensus by itself via WithNewBlockFromContext
+	// callback. Thus, leave pKeys empty if txes != nil.
+
 	if err != nil {
 		s.log.Error("error while trying to get validators", zap.Error(err))
 	}
@@ -727,6 +727,16 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 		block.PrevStateRoot = sr.Root
 	}
 
+	// ComputeNextBlockValidators returns proper set of validators wrt dBFT epochs
+	// boundary. I.e. for the last block in the dBFT epoch this method returns the
+	// list of validators recalculated from the latest relevant information about
+	// NEO votes; in this case list of validators may differ from the one returned
+	// by GetNextBlockValidators. For the not-last block of dBFT epoch this method
+	// returns the same list as GetNextBlockValidators. Note, that by this moment
+	// we must be sure that previous block was successfully persisted to chain
+	// (i.e. PostPersist was completed for native Neo contract and PostPersist
+	// execution cache was persisted to s.Chain's DAO), otherwise the wrong
+	// (outdated, relevant for the previous dBFT epoch) value will be returned.
 	var validators = s.Chain.ComputeNextBlockValidators()
 	script, err := smartcontract.CreateDefaultMultiSigRedeemScript(validators)
 	if err != nil {
