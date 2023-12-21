@@ -9,8 +9,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
@@ -55,6 +57,12 @@ type Contract struct {
 
 	// Indicates whether the contract has been deployed to the blockchain.
 	Deployed bool `json:"deployed"`
+
+	// InvocationBuilder returns invocation script for deployed contracts.
+	// In case contract is not deployed or has 0 arguments, this field is ignored.
+	// It might be executed on a partially formed tx, and is primarily needed to properly
+	// calculate network fee for complex contract signers.
+	InvocationBuilder func(tx *transaction.Transaction) ([]byte, error) `json:"-"`
 }
 
 // ContractParam is a descriptor of a contract parameter
@@ -76,6 +84,29 @@ func NewAccount() (*Account, error) {
 		return nil, err
 	}
 	return NewAccountFromPrivateKey(priv), nil
+}
+
+// NewContractAccount creates a contract account belonging to some deployed contract.
+// SignTx can be called on this account with no error and will create invocation script,
+// which puts provided arguments on stack for use in `verify`.
+func NewContractAccount(hash util.Uint160, args ...any) *Account {
+	return &Account{
+		Address: address.Uint160ToString(hash),
+		Contract: &Contract{
+			Parameters: make([]ContractParam, len(args)),
+			Deployed:   true,
+			InvocationBuilder: func(tx *transaction.Transaction) ([]byte, error) {
+				w := io.NewBufBinWriter()
+				for i := range args {
+					emit.Any(w.BinWriter, args[i])
+				}
+				if w.Err != nil {
+					return nil, w.Err
+				}
+				return w.Bytes(), nil
+			},
+		},
+	}
 }
 
 // SignTx signs transaction t and updates it's Witnesses.
@@ -107,6 +138,11 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 		t.Scripts = append(t.Scripts, transaction.Witness{
 			VerificationScript: a.Contract.Script, // Can be nil for deployed contract.
 		})
+	}
+	if a.Contract.Deployed && a.Contract.InvocationBuilder != nil {
+		invoc, err := a.Contract.InvocationBuilder(t)
+		t.Scripts[pos].InvocationScript = invoc
+		return err
 	}
 	if len(a.Contract.Parameters) == 0 {
 		return nil

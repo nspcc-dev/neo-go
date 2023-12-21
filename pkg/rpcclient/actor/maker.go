@@ -191,6 +191,14 @@ func (a *Actor) MakeUnsignedUncheckedRun(script []byte, sysFee int64, attrs []tr
 	for i := range a.signers {
 		if !a.signers[i].Account.Contract.Deployed {
 			tx.Scripts[i].VerificationScript = a.signers[i].Account.Contract.Script
+			continue
+		}
+		if build := a.signers[i].Account.Contract.InvocationBuilder; build != nil {
+			invoc, err := build(tx)
+			if err != nil {
+				return nil, fmt.Errorf("building witness for contract signer: %w", err)
+			}
+			tx.Scripts[i].InvocationScript = invoc
 		}
 	}
 	// CalculateNetworkFee doesn't call Hash or Size, only serializes the
