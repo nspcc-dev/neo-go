@@ -112,14 +112,14 @@ func newNEP17Commands() []cli.Command {
    account (if they use the same names/symbols).
 `,
 			Action: getNEP17Balance,
-			Flags:  balanceFlags,
+			Flags:  flags.MarkRequired(balanceFlags, options.RPCEndpointFlag+", r"),
 		},
 		{
 			Name:      "import",
 			Usage:     "import NEP-17 token to a wallet",
 			UsageText: "import -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --token <hash>",
 			Action:    importNEP17Token,
-			Flags:     importFlags,
+			Flags:     flags.MarkRequired(importFlags, options.RPCEndpointFlag+", r"),
 		},
 		{
 			Name:      "info",
@@ -147,9 +147,9 @@ func newNEP17Commands() []cli.Command {
 		{
 			Name:      "transfer",
 			Usage:     "transfer NEP-17 tokens",
-			UsageText: "transfer -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --amount string [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
+			UsageText: "transfer -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] --from <addr> --to <addr> --token <hash-or-name> --amount string [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP17,
-			Flags:     transferFlags,
+			Flags:     flags.MarkRequired(transferFlags, options.RPCEndpointFlag+", r", "from", "to", "amount"),
 			Description: `Transfers specified NEP-17 token amount with optional 'data' parameter and cosigners
    list attached to the transfer. See 'contract testinvokefunction' documentation
    for the details about 'data' parameter and cosigners syntax. If no 'data' is
@@ -160,10 +160,10 @@ func newNEP17Commands() []cli.Command {
 		{
 			Name:  "multitransfer",
 			Usage: "transfer NEP-17 tokens to multiple recipients",
-			UsageText: `multitransfer -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --from <addr>` +
+			UsageText: `multitransfer -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] --from <addr>` +
 				` <token1>:<addr1>:<amount1> [<token2>:<addr2>:<amount2> [...]] [-- <cosigner1:Scope> [<cosigner2> [...]]]`,
 			Action: multiTransferNEP17,
-			Flags:  multiTransferFlags,
+			Flags:  flags.MarkRequired(multiTransferFlags, options.RPCEndpointFlag+", r", "from"),
 		},
 	}
 }

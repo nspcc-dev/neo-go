@@ -75,51 +75,56 @@ func RuntimeNotify(args []any) {
 
 // NewCommands returns 'contract' command.
 func NewCommands() []cli.Command {
-	testInvokeScriptFlags := []cli.Flag{
+	testInvokeScriptFlags := append([]cli.Flag{
 		cli.StringFlag{
-			Name:  "in, i",
-			Usage: "Input location of the .nef file that needs to be invoked",
+			Name:     "in, i",
+			Required: true,
+			Usage:    "Input location of the .nef file that needs to be invoked",
 		},
 		options.Historic,
-	}
-	testInvokeScriptFlags = append(testInvokeScriptFlags, options.RPC...)
-	testInvokeFunctionFlags := []cli.Flag{options.Historic}
-	testInvokeFunctionFlags = append(testInvokeFunctionFlags, options.RPC...)
-	invokeFunctionFlags := []cli.Flag{
+	}, options.RPC...)
+	testInvokeFunctionFlags := append([]cli.Flag{options.Historic}, options.RPC...)
+	invokeFunctionFlags := append([]cli.Flag{
 		addressFlag,
 		txctx.GasFlag,
 		txctx.SysGasFlag,
 		txctx.OutFlag,
 		txctx.ForceFlag,
-	}
-	invokeFunctionFlags = append(invokeFunctionFlags, options.Wallet...)
+	}, options.Wallet...)
 	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
+
 	deployFlags := append(invokeFunctionFlags, []cli.Flag{
 		cli.StringFlag{
-			Name:  "in, i",
-			Usage: "Input file for the smart contract (*.nef)",
+			Name:     "in, i",
+			Required: true,
+			Usage:    "Input file for the smart contract (*.nef)",
 		},
 		cli.StringFlag{
-			Name:  "manifest, m",
-			Usage: "Manifest input file (*.manifest.json)",
+			Name:     "manifest, m",
+			Required: true,
+			Usage:    "Manifest input file (*.manifest.json)",
 		},
 	}...)
+
 	manifestAddGroupFlags := append([]cli.Flag{
 		cli.StringFlag{
-			Name:  "sender, s",
-			Usage: "deploy transaction sender",
+			Name:     "sender, s",
+			Required: true,
+			Usage:    "deploy transaction sender",
 		},
 		flags.AddressFlag{
 			Name:  addressFlagName, // use the same name for handler code unification.
 			Usage: "account to sign group with",
 		},
 		cli.StringFlag{
-			Name:  "nef, n",
-			Usage: "path to the NEF file",
+			Name:     "nef, n",
+			Required: true,
+			Usage:    "path to the NEF file",
 		},
 		cli.StringFlag{
-			Name:  "manifest, m",
-			Usage: "path to the manifest",
+			Name:     "manifest, m",
+			Required: true,
+			Usage:    "path to the manifest",
 		},
 	}, options.Wallet...)
 	return []cli.Command{{
@@ -140,8 +145,9 @@ func NewCommands() []cli.Command {
 				Action: contractCompile,
 				Flags: []cli.Flag{
 					cli.StringFlag{
-						Name:  "in, i",
-						Usage: "Input file for the smart contract to be compiled (*.go file or directory)",
+						Name:     "in, i",
+						Required: true,
+						Usage:    "Input file for the smart contract to be compiled (*.go file or directory)",
 					},
 					cli.StringFlag{
 						Name:  "out, o",
@@ -188,20 +194,20 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "deploy",
 				Usage:     "deploy a smart contract (.nef with description)",
-				UsageText: "neo-go contract deploy -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] --in contract.nef --manifest contract.manifest.json [--out file] [--force] [data]",
+				UsageText: "neo-go contract deploy -r endpoint -w wallet [--wallet-config path] [-a address] [-g gas] [-e sysgas] --in contract.nef --manifest contract.manifest.json [--out file] [--force] [data]",
 				Description: `Deploys given contract into the chain. The gas parameter is for additional
    gas to be added as a network fee to prioritize the transaction. The data 
    parameter is an optional parameter to be passed to '_deploy' method.
 `,
 				Action: contractDeploy,
-				Flags:  deployFlags,
+				Flags:  flags.MarkRequired(deployFlags, options.RPCEndpointFlag+", r"),
 			},
 			generateWrapperCmd,
 			generateRPCWrapperCmd,
 			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] [--out file] [--force] scripthash [method] [arguments...] [--] [signers...]",
+				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [--wallet-config path] [-a address] [-g gas] [-e sysgas] [--out file] [--force] scripthash [method] [arguments...] [--] [signers...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
    arguments and signers. Sender is included in the list of signers by default
    with None witness scope. If you'd like to change default sender's scope, 
@@ -210,7 +216,7 @@ func NewCommands() []cli.Command {
    command sends an invocation transaction to the network.
 `,
 				Action: invokeFunction,
-				Flags:  invokeFunctionFlags,
+				Flags:  flags.MarkRequired(invokeFunctionFlags, options.RPCEndpointFlag+", r"),
 			},
 			{
 				Name:      "testinvokefunction",
@@ -230,7 +236,7 @@ func NewCommands() []cli.Command {
 ` + cmdargs.SignersParsingDoc + `
 `,
 				Action: testInvokeFunction,
-				Flags:  testInvokeFunctionFlags,
+				Flags:  flags.MarkRequired(testInvokeFunctionFlags, options.RPCEndpointFlag+", r"),
 			},
 			{
 				Name:      "testinvokescript",
@@ -241,7 +247,7 @@ func NewCommands() []cli.Command {
    for the details about parameters.
 `,
 				Action: testInvokeScript,
-				Flags:  testInvokeScriptFlags,
+				Flags:  flags.MarkRequired(testInvokeScriptFlags, options.RPCEndpointFlag+", r"),
 			},
 			{
 				Name:      "init",
@@ -250,8 +256,9 @@ func NewCommands() []cli.Command {
 				Action:    initSmartContract,
 				Flags: []cli.Flag{
 					cli.StringFlag{
-						Name:  "name, n",
-						Usage: "name of the smart-contract to be initialized",
+						Name:     "name, n",
+						Required: true,
+						Usage:    "name of the smart-contract to be initialized",
 					},
 					cli.BoolFlag{
 						Name:  "skip-details, skip",
@@ -270,8 +277,9 @@ func NewCommands() []cli.Command {
 						Usage: "compile input file (it should be go code then)",
 					},
 					cli.StringFlag{
-						Name:  "in, i",
-						Usage: "input file of the program (either .go or .nef)",
+						Name:     "in, i",
+						Required: true,
+						Usage:    "input file of the program (either .go or .nef)",
 					},
 				},
 			},
@@ -286,12 +294,14 @@ func NewCommands() []cli.Command {
 						Usage: "sender script hash or address",
 					},
 					cli.StringFlag{
-						Name:  "in",
-						Usage: "path to NEF file",
+						Name:     "in",
+						Required: true,
+						Usage:    "path to NEF file",
 					},
 					cli.StringFlag{
-						Name:  "manifest, m",
-						Usage: "path to manifest file",
+						Name:     "manifest, m",
+						Required: true,
+						Usage:    "path to manifest file",
 					},
 				},
 			},

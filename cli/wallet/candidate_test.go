@@ -153,8 +153,8 @@ func TestRegisterCandidate(t *testing.T) {
 	vs, err = e.Chain.GetEnrollments()
 	require.Equal(t, 0, len(vs))
 
-	// query voter: missing address
-	e.RunWithError(t, "neo-go", "query", "voter")
+	// query voter: bad address
+	e.RunWithError(t, "neo-go", "query", "voter", "-r", "")
 	// Excessive parameters.
 	e.RunWithError(t, "neo-go", "query", "voter", "--rpc-endpoint", "http://"+e.RPC.Addresses()[0], validatorAddress, validatorAddress)
 	e.RunWithError(t, "neo-go", "query", "committee", "--rpc-endpoint", "http://"+e.RPC.Addresses()[0], "something")

@@ -228,12 +228,10 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	// ownerOf: missing contract hash
 	cmdOwnerOf := []string{"neo-go", "wallet", "nep11", "ownerOf",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
-	}
-	e.RunWithError(t, cmdOwnerOf...)
-	cmdOwnerOf = append(cmdOwnerOf, "--token", h.StringLE())
+		"--token", h.StringLE()}
 
-	// ownerOf: missing token ID
-	e.RunWithError(t, cmdOwnerOf...)
+	// ownerOf: bad token ID
+	e.RunWithError(t, append(cmdOwnerOf, "--id", "test")...)
 	cmdOwnerOf = append(cmdOwnerOf, "--id", hex.EncodeToString(tokenID))
 
 	// ownerOf: good
@@ -259,12 +257,10 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	cmdProperties := []string{
 		"neo-go", "wallet", "nep11", "properties",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
-	}
-	e.RunWithError(t, cmdProperties...)
-	cmdProperties = append(cmdProperties, "--token", h.StringLE())
+		"--token", h.StringLE()}
 
-	// properties: no token ID
-	e.RunWithError(t, cmdProperties...)
+	// properties: bad token ID
+	e.RunWithError(t, append(cmdProperties, "--id", "test")...)
 	cmdProperties = append(cmdProperties, "--id", hex.EncodeToString(tokenID))
 
 	// properties: ok
@@ -312,12 +308,12 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	// transfer: unimported token with symbol id specified
 	e.In.WriteString(nftOwnerPass + "\r")
 	e.RunWithError(t, append(cmdTransfer,
-		"--token", "HASHY")...)
+		"--token", "HASHY", "--id", "test")...)
 	cmdTransfer = append(cmdTransfer, "--token", h.StringLE())
 
-	// transfer: no id specified
+	// transfer: bad id
 	e.In.WriteString(nftOwnerPass + "\r")
-	e.RunWithError(t, cmdTransfer...)
+	e.RunWithError(t, append(cmdTransfer, "--id", "test")...)
 
 	// transfer: good
 	e.In.WriteString(nftOwnerPass + "\r")
@@ -506,10 +502,10 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	cmdOwnerOf := []string{"neo-go", "wallet", "nep11", "ownerOfD",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
-	e.RunWithError(t, cmdOwnerOf...)
-	cmdOwnerOf = append(cmdOwnerOf, "--token", h.StringLE())
+	e.RunWithError(t, append(cmdOwnerOf, "--id", "")...)
+	cmdOwnerOf = append(cmdOwnerOf, "--token", h.StringLE(), "--id", "")
 
-	// ownerOfD: missing token ID
+	// ownerOfD: bad token ID
 	e.RunWithError(t, cmdOwnerOf...)
 	cmdOwnerOf = append(cmdOwnerOf, "--id", hex.EncodeToString(token1ID))
 
@@ -539,11 +535,11 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		"neo-go", "wallet", "nep11", "properties",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
-	e.RunWithError(t, cmdProperties...)
+	e.RunWithError(t, append(cmdProperties, "--id", "")...)
 	cmdProperties = append(cmdProperties, "--token", h.StringLE())
 
-	// properties: no token ID
-	e.RunWithError(t, cmdProperties...)
+	// properties: bad token ID
+	e.RunWithError(t, append(cmdProperties, "--id", "")...)
 	cmdProperties = append(cmdProperties, "--id", hex.EncodeToString(token2ID))
 
 	// properties: additional parameter
@@ -596,12 +592,12 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	// transfer: unimported token with symbol id specified
 	e.In.WriteString(testcli.ValidatorPass + "\r")
 	e.RunWithError(t, append(cmdTransfer,
-		"--token", "NFSO")...)
+		"--token", "NFSO", "--id", "")...)
 	cmdTransfer = append(cmdTransfer, "--token", h.StringLE())
 
-	// transfer: no id specified
+	// transfer: bad id specified
 	e.In.WriteString(testcli.ValidatorPass + "\r")
-	e.RunWithError(t, cmdTransfer...)
+	e.RunWithError(t, append(cmdTransfer, "--id", "")...)
 
 	// transfer: good
 	e.In.WriteString(testcli.ValidatorPass + "\r")

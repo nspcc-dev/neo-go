@@ -66,14 +66,14 @@ func newNEP11Commands() []cli.Command {
    account (if they use the same names/symbols).
 `,
 			Action: getNEP11Balance,
-			Flags:  balanceFlags,
+			Flags:  flags.MarkRequired(balanceFlags, options.RPCEndpointFlag+", r"),
 		},
 		{
 			Name:      "import",
 			Usage:     "import NEP-11 token to a wallet",
-			UsageText: "import -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --token <hash>",
+			UsageText: "import -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] --token <hash>",
 			Action:    importNEP11Token,
-			Flags:     importFlags,
+			Flags:     flags.MarkRequired(importFlags, options.RPCEndpointFlag+", r"),
 		},
 		{
 			Name:      "info",
@@ -103,7 +103,7 @@ func newNEP11Commands() []cli.Command {
 			Usage:     "transfer NEP-11 tokens",
 			UsageText: "transfer -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP11,
-			Flags:     transferFlags,
+			Flags:     flags.MarkRequired(transferFlags, options.RPCEndpointFlag+", r", "from", "to", tokenID.GetName(), tokenFlag.GetName()),
 			Description: `Transfers specified NEP-11 token with optional cosigners list attached to
    the transfer. Amount should be specified for divisible NEP-11
    tokens and omitted for non-divisible NEP-11 tokens. See
@@ -118,54 +118,54 @@ func newNEP11Commands() []cli.Command {
 			Usage:     "print properties of NEP-11 token",
 			UsageText: "properties --rpc-endpoint <node> [--timeout <time>] --token <hash> --id <token-id> [--historic <block/hash>]",
 			Action:    printNEP11Properties,
-			Flags: append([]cli.Flag{
+			Flags: flags.MarkRequired(append([]cli.Flag{
 				tokenAddressFlag,
 				tokenID,
 				options.Historic,
-			}, options.RPC...),
+			}, options.RPC...), options.RPCEndpointFlag+", r", tokenID.GetName()),
 		},
 		{
 			Name:      "ownerOf",
 			Usage:     "print owner of non-divisible NEP-11 token with the specified ID",
 			UsageText: "ownerOf --rpc-endpoint <node> [--timeout <time>] --token <hash> --id <token-id> [--historic <block/hash>]",
 			Action:    printNEP11NDOwner,
-			Flags: append([]cli.Flag{
+			Flags: flags.MarkRequired(append([]cli.Flag{
 				tokenAddressFlag,
 				tokenID,
 				options.Historic,
-			}, options.RPC...),
+			}, options.RPC...), options.RPCEndpointFlag+", r", tokenID.GetName()),
 		},
 		{
 			Name:      "ownerOfD",
 			Usage:     "print set of owners of divisible NEP-11 token with the specified ID (" + maxIters + " will be printed at max)",
 			UsageText: "ownerOfD --rpc-endpoint <node> [--timeout <time>] --token <hash> --id <token-id> [--historic <block/hash>]",
 			Action:    printNEP11DOwner,
-			Flags: append([]cli.Flag{
+			Flags: flags.MarkRequired(append([]cli.Flag{
 				tokenAddressFlag,
 				tokenID,
 				options.Historic,
-			}, options.RPC...),
+			}, options.RPC...), options.RPCEndpointFlag+", r", tokenID.GetName()),
 		},
 		{
 			Name:      "tokensOf",
 			Usage:     "print list of tokens IDs for the specified NFT owner (" + maxIters + " will be printed at max)",
 			UsageText: "tokensOf --rpc-endpoint <node> [--timeout <time>] --token <hash> --address <addr> [--historic <block/hash>]",
 			Action:    printNEP11TokensOf,
-			Flags: append([]cli.Flag{
+			Flags: flags.MarkRequired(append([]cli.Flag{
 				tokenAddressFlag,
 				ownerAddressFlag,
 				options.Historic,
-			}, options.RPC...),
+			}, options.RPC...), options.RPCEndpointFlag+", r"),
 		},
 		{
 			Name:      "tokens",
 			Usage:     "print list of tokens IDs minted by the specified NFT (optional method; " + maxIters + " will be printed at max)",
 			UsageText: "tokens --rpc-endpoint <node> [--timeout <time>] --token <hash> [--historic <block/hash>]",
 			Action:    printNEP11Tokens,
-			Flags: append([]cli.Flag{
+			Flags: flags.MarkRequired(append([]cli.Flag{
 				tokenAddressFlag,
 				options.Historic,
-			}, options.RPC...),
+			}, options.RPC...), options.RPCEndpointFlag+", r"),
 		},
 	}
 }

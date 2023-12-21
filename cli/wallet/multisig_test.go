@@ -80,11 +80,11 @@ func TestSignMultisigTx(t *testing.T) {
 			"--out", txPath)
 
 		// missing wallet
-		e.RunWithError(t, "neo-go", "wallet", "sign")
+		e.RunWithError(t, "neo-go", "wallet", "sign", "--in", "")
 
 		// missing in
 		e.RunWithError(t, "neo-go", "wallet", "sign",
-			"--wallet", wallet2Path)
+			"--wallet", wallet2Path, "--in", "")
 
 		// missing address
 		e.RunWithError(t, "neo-go", "wallet", "sign",

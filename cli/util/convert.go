@@ -67,7 +67,7 @@ flag is included, the specified value is added to the resulting conflicting tran
 in both scenarios.
 `,
 					Action: cancelTx,
-					Flags:  txCancelFlags,
+					Flags:  flags.MarkRequired(txCancelFlags, options.RPCEndpointFlag+", r"),
 				},
 				{
 					Name:      "txdump",

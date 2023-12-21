@@ -260,7 +260,7 @@ func TestWalletInit(t *testing.T) {
 	t.Run("Import", func(t *testing.T) {
 		t.Run("WIF", func(t *testing.T) {
 			t.Run("missing wallet", func(t *testing.T) {
-				e.RunWithError(t, "neo-go", "wallet", "import")
+				e.RunWithError(t, "neo-go", "wallet", "import", "--wif", "")
 			})
 			priv, err := keys.NewPrivateKey()
 			require.NoError(t, err)
@@ -425,25 +425,25 @@ func TestWalletInit(t *testing.T) {
 		})
 		t.Run("Multisig", func(t *testing.T) {
 			t.Run("missing wallet", func(t *testing.T) {
-				e.RunWithError(t, "neo-go", "wallet", "import-multisig")
+				e.RunWithError(t, "neo-go", "wallet", "import-multisig", "--wif", "", "--min", "2")
 			})
 			t.Run("insufficient pubs", func(t *testing.T) {
 				e.RunWithError(t, "neo-go", "wallet", "import-multisig",
 					"--wallet", walletPath,
-					"--min", "2")
+					"--min", "2", "--wif", "")
 			})
 			privs, pubs := testcli.GenerateKeys(t, 4)
 			cmd := []string{"neo-go", "wallet", "import-multisig",
 				"--wallet", walletPath,
 				"--min", "2"}
 			t.Run("invalid pub encoding", func(t *testing.T) {
-				e.RunWithError(t, append(cmd, hex.EncodeToString(pubs[1].Bytes()),
+				e.RunWithError(t, append(cmd, "--wif", "", hex.EncodeToString(pubs[1].Bytes()),
 					hex.EncodeToString(pubs[1].Bytes()),
 					hex.EncodeToString(pubs[2].Bytes()),
 					"not-a-pub")...)
 			})
-			t.Run("missing WIF", func(t *testing.T) {
-				e.RunWithError(t, append(cmd, hex.EncodeToString(pubs[0].Bytes()),
+			t.Run("bad WIF", func(t *testing.T) {
+				e.RunWithError(t, append(cmd, "--wif", "", hex.EncodeToString(pubs[0].Bytes()),
 					hex.EncodeToString(pubs[1].Bytes()),
 					hex.EncodeToString(pubs[2].Bytes()),
 					hex.EncodeToString(pubs[3].Bytes()))...)
@@ -618,22 +618,19 @@ func TestWalletImportDeployed(t *testing.T) {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
-	t.Run("missing wallet", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "wallet", "import-deployed")
+	t.Run("bad wallet", func(t *testing.T) {
+		e.RunWithError(t, "neo-go", "wallet", "import-deployed", "--wallet", "", "--wif", priv.WIF(), "--contract", h.StringLE(), "--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
 	})
 	t.Run("missing contract sh", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "import-deployed",
-			"--wallet", walletPath)
+			"--wallet", walletPath, "--wif", priv.WIF(), "--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
 	})
-	t.Run("missing WIF", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "wallet", "import-deployed",
-			"--wallet", walletPath, "--contract", h.StringLE())
+	t.Run("bad WIF", func(t *testing.T) {
+		e.RunWithError(t, "neo-go", "wallet", "import-deployed", "--wallet", walletPath, "--wif", "", "--contract", h.StringLE(), "--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
 	})
-	t.Run("missing endpoint", func(t *testing.T) {
+	t.Run("bad endpoint", func(t *testing.T) {
 		e.In.WriteString("acc\rpass\rpass\r")
-		e.RunWithError(t, "neo-go", "wallet", "import-deployed",
-			"--wallet", walletPath, "--contract", h.StringLE(),
-			"--wif", priv.WIF())
+		e.RunWithError(t, "neo-go", "wallet", "import-deployed", "--wallet", walletPath, "--wif", priv.WIF(), "--contract", h.StringLE(), "--rpc-endpoint", "")
 	})
 	t.Run("unknown contract", func(t *testing.T) {
 		e.In.WriteString("acc\rpass\rpass\r")
@@ -965,11 +962,11 @@ func TestWalletConvert(t *testing.T) {
 	outPath := filepath.Join(tmpDir, "wallet.json")
 	cmd := []string{"neo-go", "wallet", "convert"}
 	t.Run("missing wallet", func(t *testing.T) {
-		e.RunWithError(t, cmd...)
+		e.RunWithError(t, append(cmd, "-w", "", "--out", "")...)
 	})
 	cmd = append(cmd, "--wallet", "testdata/testwallet_NEO2.json")
 	t.Run("missing out path", func(t *testing.T) {
-		e.RunWithError(t, cmd...)
+		e.RunWithError(t, append(cmd, "--out", "")...)
 	})
 	t.Run("invalid out path", func(t *testing.T) {
 		dir := t.TempDir()

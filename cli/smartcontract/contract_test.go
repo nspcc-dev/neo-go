@@ -30,6 +30,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli"
 	"gopkg.in/yaml.v3"
 )
 
@@ -58,10 +59,10 @@ func TestCalcHash(t *testing.T) {
 		e.RunWithError(t, append(cmd, "--in", nefPath, "--manifest", manifestPath)...)
 	})
 	t.Run("no nef file", func(t *testing.T) {
-		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--manifest", manifestPath)...)
+		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--manifest", manifestPath, "--in", "")...)
 	})
 	t.Run("no manifest file", func(t *testing.T) {
-		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--in", nefPath)...)
+		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--in", nefPath, "--manifest", "")...)
 	})
 	t.Run("invalid nef path", func(t *testing.T) {
 		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(),
@@ -220,9 +221,6 @@ func TestContractInitAndCompile(t *testing.T) {
 	tmpDir := t.TempDir()
 	e := testcli.NewExecutor(t, false)
 
-	t.Run("no path is provided", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "contract", "init")
-	})
 	t.Run("invalid path", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "init", "--name", "\x00")
 	})
@@ -244,9 +242,6 @@ func TestContractInitAndCompile(t *testing.T) {
 	nefPath := filepath.Join(tmpDir, "testcontract.nef")
 	manifestPath := filepath.Join(tmpDir, "testcontract.manifest.json")
 	cmd := []string{"neo-go", "contract", "compile"}
-	t.Run("missing source", func(t *testing.T) {
-		e.RunWithError(t, cmd...)
-	})
 
 	cmd = append(cmd, "--in", srcPath, "--out", nefPath, "--manifest", manifestPath)
 	t.Run("missing config, but require manifest", func(t *testing.T) {
@@ -447,7 +442,7 @@ func TestDeployWithSigners(t *testing.T) {
 	})
 	t.Run("missing RPC", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "deploy",
-			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
+			"--wallet", testcli.ValidatorWallet, "-r", "", "--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", manifestName,
 			"[", "str1", "str2", "]")
 	})
@@ -477,28 +472,28 @@ func TestContractManifestGroups(t *testing.T) {
 		"--out", nefName, "--manifest", manifestName)
 
 	t.Run("missing wallet", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group")
+		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group", "-s", "test", "--nef", "test", "--manifest", "test")
 	})
 	t.Run("invalid wallet", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", t.TempDir())
+			"--wallet", t.TempDir(), "-s", "test", "--nef", "test", "--manifest", "test")
 	})
 	t.Run("invalid sender", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
 			"--wallet", testcli.TestWalletPath, "--address", testcli.TestWalletAccount,
-			"--sender", "not-a-sender")
+			"--sender", "not-a-sender", "--nef", "test", "--manifest", "test")
 	})
 	t.Run("invalid NEF file", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
 			"--wallet", testcli.TestWalletPath, "--address", testcli.TestWalletAccount,
-			"--sender", testcli.TestWalletAccount, "--nef", tmpDir)
+			"--sender", testcli.TestWalletAccount, "--nef", tmpDir, "--manifest", "test")
 	})
 	t.Run("corrupted NEF file", func(t *testing.T) {
 		f := filepath.Join(tmpDir, "invalid.nef")
 		require.NoError(t, os.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
 			"--wallet", testcli.TestWalletPath, "--address", testcli.TestWalletAccount,
-			"--sender", testcli.TestWalletAccount, "--nef", f)
+			"--sender", testcli.TestWalletAccount, "--nef", f, "--manifest", "test")
 	})
 	t.Run("invalid manifest file", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
@@ -558,10 +553,6 @@ func TestContract_TestInvokeScript(t *testing.T) {
 		"--config", "testdata/deploy/neo-go.yml",
 		"--out", goodNef, "--manifest", manifestName)
 
-	t.Run("missing in", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "contract", "testinvokescript",
-			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
-	})
 	t.Run("unexisting in", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "testinvokescript",
 			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
@@ -682,10 +673,6 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 	})
 	t.Run("invalid cosigner", func(t *testing.T) {
 		e.RunWithError(t, append(cmd, "--", "notahash")...)
-	})
-	t.Run("missing RPC address", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "contract", "testinvokefunction",
-			h.StringLE(), "getValue")
 	})
 
 	e.Run(t, cmd...)
@@ -960,9 +947,6 @@ func TestContractInspect(t *testing.T) {
 		"--out", nefName, "--manifest", manifestName)
 
 	cmd := []string{"neo-go", "contract", "inspect"}
-	t.Run("missing input", func(t *testing.T) {
-		e.RunWithError(t, cmd...)
-	})
 	t.Run("with raw '.go'", func(t *testing.T) {
 		e.RunWithError(t, append(cmd, "--in", srcPath)...)
 		e.Run(t, append(cmd, "--in", srcPath, "--compile")...)
@@ -1094,4 +1078,53 @@ func TestContractCompile_NEFSizeCheck(t *testing.T) {
 
 	e.RunWithError(t, "neo-go", "contract", "compile", "--in", in)
 	require.NoFileExists(t, filepath.Join(tmpDir, "main.nef"))
+}
+
+func TestSmartcontractCommands(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := cli.NewApp()
+	app.Commands = smartcontract.NewCommands()
+	app.ExitErrHandler = func(*cli.Context, error) {}
+
+	manifestF := filepath.Join(tmpDir, "manifest.json")
+	bindingF := filepath.Join(tmpDir, "binding.yml")
+	nefF := filepath.Join(tmpDir, "out.nef")
+
+	checkError := func(t *testing.T, msg string, args ...string) {
+		// cli.ExitError doesn't implement wraping properly, so we check for an error message.
+		err := app.Run(append([]string{"", "contract"}, args...))
+		require.True(t, strings.Contains(err.Error(), msg), "got: %v", err)
+	}
+	cmd := []string{"compile",
+		"--manifest", manifestF,
+		"--bindings", bindingF,
+		"--out", nefF,
+	}
+	t.Run("contract compile missing in", func(t *testing.T) {
+		checkError(t, "Required flag \"in\" not set", cmd...)
+	})
+	cmd = []string{"deploy",
+		"-r", "test",
+		"-w", "test",
+	}
+	t.Run("contract deploy missing in, manifest", func(t *testing.T) {
+		checkError(t, "Required flags \"in, manifest\" not set", cmd...)
+	})
+	cmd = []string{"testinvokescript",
+		"-r", "test"}
+	t.Run("contract testinvokescript missing in", func(t *testing.T) {
+		checkError(t, "Required flag \"in\" not set", cmd...)
+	})
+
+	t.Run("contract init missing name", func(t *testing.T) {
+		checkError(t, "Required flag \"name\" not set", "init", "--skip")
+	})
+
+	t.Run("contract inspect missing in, manifest", func(t *testing.T) {
+		checkError(t, "Required flags \"in, manifest\" not set", "calc-hash", "--s", random.Uint160().StringLE())
+	})
+
+	t.Run("contract manifest add-group missing in, manifest", func(t *testing.T) {
+		checkError(t, "Required flags \"sender, nef, manifest\" not set", "manifest", "add-group", "-w", random.Uint160().StringLE())
+	})
 }

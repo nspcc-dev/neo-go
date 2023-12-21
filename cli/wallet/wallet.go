@@ -56,16 +56,18 @@ var (
 		Usage: "Path to the wallet config file; conflicts with --wallet flag.",
 	}
 	wifFlag = cli.StringFlag{
-		Name:  "wif",
-		Usage: "WIF to import",
+		Name:     "wif",
+		Required: true,
+		Usage:    "WIF to import",
 	}
 	decryptFlag = cli.BoolFlag{
 		Name:  "decrypt, d",
 		Usage: "Decrypt encrypted keys.",
 	}
 	inFlag = cli.StringFlag{
-		Name:  "in",
-		Usage: "file with JSON transaction",
+		Name:     "in",
+		Required: true,
+		Usage:    "file with JSON transaction",
 	}
 	fromAddrFlag = flags.AddressFlag{
 		Name:  "from",
@@ -150,8 +152,9 @@ func NewCommands() []cli.Command {
 					walletPathFlag,
 					walletConfigFlag,
 					cli.StringFlag{
-						Name:  "out, o",
-						Usage: "where to write converted wallet",
+						Name:     "out, o",
+						Required: true,
+						Usage:    "where to write converted wallet",
 					},
 				},
 			},
@@ -246,17 +249,18 @@ func NewCommands() []cli.Command {
 						Usage: "Optional account name",
 					},
 					cli.IntFlag{
-						Name:  "min, m",
-						Usage: "Minimal number of signatures",
+						Name:     "min, m",
+						Required: true,
+						Usage:    "Minimal number of signatures",
 					},
 				},
 			},
 			{
 				Name:      "import-deployed",
 				Usage:     "import deployed contract",
-				UsageText: "import-deployed -w wallet [--wallet-config path] --wif <wif> --contract <hash> [--name <account_name>]",
+				UsageText: "import-deployed -w wallet [--wallet-config path] --wif <wif> --contract <hash> [--name <account_name>], -r <endpoint>",
 				Action:    importDeployed,
-				Flags: append([]cli.Flag{
+				Flags: flags.MarkRequired(append([]cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
 					wifFlag,
@@ -268,7 +272,7 @@ func NewCommands() []cli.Command {
 						Name:  "contract, c",
 						Usage: "Contract hash or address",
 					},
-				}, options.RPC...),
+				}, options.RPC...), options.RPCEndpointFlag+", r"),
 			},
 			{
 				Name:      "remove",

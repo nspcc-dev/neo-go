@@ -22,7 +22,7 @@ func newValidatorCommands() []cli.Command {
 			Usage:     "register as a new candidate",
 			UsageText: "register -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas] [--out file] [--force]",
 			Action:    handleRegister,
-			Flags: append([]cli.Flag{
+			Flags: flags.MarkRequired(append([]cli.Flag{
 				walletPathFlag,
 				walletConfigFlag,
 				txctx.GasFlag,
@@ -33,14 +33,14 @@ func newValidatorCommands() []cli.Command {
 					Name:  "address, a",
 					Usage: "Address to register",
 				},
-			}, options.RPC...),
+			}, options.RPC...), options.RPCEndpointFlag+", r"),
 		},
 		{
 			Name:      "unregister",
 			Usage:     "unregister self as a candidate",
 			UsageText: "unregister -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas] [--out file] [--force]",
 			Action:    handleUnregister,
-			Flags: append([]cli.Flag{
+			Flags: flags.MarkRequired(append([]cli.Flag{
 				walletPathFlag,
 				walletConfigFlag,
 				txctx.GasFlag,
@@ -51,7 +51,7 @@ func newValidatorCommands() []cli.Command {
 					Name:  "address, a",
 					Usage: "Address to unregister",
 				},
-			}, options.RPC...),
+			}, options.RPC...), options.RPCEndpointFlag+", r"),
 		},
 		{
 			Name:      "vote",
@@ -61,7 +61,7 @@ func newValidatorCommands() []cli.Command {
    contract. Do not provide candidate argument to perform unvoting.
 `,
 			Action: handleVote,
-			Flags: append([]cli.Flag{
+			Flags: flags.MarkRequired(append([]cli.Flag{
 				walletPathFlag,
 				walletConfigFlag,
 				txctx.GasFlag,
@@ -76,7 +76,7 @@ func newValidatorCommands() []cli.Command {
 					Name:  "candidate, c",
 					Usage: "Public key of candidate to vote for",
 				},
-			}, options.RPC...),
+			}, options.RPC...), options.RPCEndpointFlag+", r"),
 		},
 	}
 }

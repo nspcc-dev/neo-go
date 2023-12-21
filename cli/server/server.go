@@ -54,16 +54,18 @@ func NewCommands() []cli.Command {
 			Usage: "block number to start from (default: 0)",
 		},
 		cli.StringFlag{
-			Name:  "out, o",
-			Usage: "Output file (stdout if not given)",
+			Name:     "out, o",
+			Required: true,
+			Usage:    "Output file (stdout if not given)",
 		},
 	)
 	var cfgCountInFlags = make([]cli.Flag, len(cfgWithCountFlags))
 	copy(cfgCountInFlags, cfgWithCountFlags)
 	cfgCountInFlags = append(cfgCountInFlags,
 		cli.StringFlag{
-			Name:  "in, i",
-			Usage: "Input file (stdin if not given)",
+			Name:     "in, i",
+			Required: true,
+			Usage:    "Input file (stdin if not given)",
 		},
 		cli.StringFlag{
 			Name:  "dump",
