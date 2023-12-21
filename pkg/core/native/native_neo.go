@@ -971,7 +971,6 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalance, d *dao.Simple, value *bi
 				return nil
 			}
 		}
-		cache.newEpochNextValidators = nil
 		return putConvertibleToDAO(n.ID, d, key, cd)
 	}
 	return nil
