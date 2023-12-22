@@ -93,7 +93,7 @@ func callUnsubscribe(t *testing.T, ws *websocket.Conn, msgs <-chan []byte, id st
 
 func TestSubscriptions(t *testing.T) {
 	var subIDs = make([]string, 0)
-	var subFeeds = []string{"block_added", "transaction_added", "notification_from_execution", "transaction_executed", "notary_request_event"}
+	var subFeeds = []string{"block_added", "transaction_added", "notification_from_execution", "transaction_executed", "notary_request_event", "header_of_added_block"}
 
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 	defer chain.Close()
@@ -139,6 +139,8 @@ func TestSubscriptions(t *testing.T) {
 				break
 			}
 		}
+		require.Equal(t, neorpc.HeaderOfAddedBlockEventID, resp.Event)
+		resp = getNotification(t, respMsgs)
 		require.Equal(t, neorpc.BlockEventID, resp.Event)
 	}
 
@@ -276,6 +278,17 @@ func TestFilteredSubscriptions(t *testing.T) {
 			params: `["transaction_executed", {"container":"0x` + util.Uint256{}.StringLE() + `"}]`,
 			check: func(t *testing.T, n *neorpc.Notification) {
 				t.Fatal("unexpected match for faulted execution")
+			},
+		},
+		"header of added block": {
+			params: `["header_of_added_block", {"primary": 0, "since": 5}]`,
+			check: func(t *testing.T, resp *neorpc.Notification) {
+				rmap := resp.Payload[0].(map[string]any)
+				require.Equal(t, neorpc.HeaderOfAddedBlockEventID, resp.Event)
+				primary := rmap["primary"].(float64)
+				require.Equal(t, 0, int(primary))
+				index := rmap["index"].(float64)
+				require.Less(t, 4, int(index))
 			},
 		},
 	}
@@ -456,6 +469,44 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 		require.Equal(t, 3, int(primary))
 	}
 	callUnsubscribe(t, c, respMsgs, blockSubID)
+	finishedFlag.CompareAndSwap(false, true)
+	c.Close()
+}
+
+func TestHeaderOfAddedBlockSubscriptions(t *testing.T) {
+	const numBlocks = 10
+	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
+
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	headerSubID := callSubscribe(t, c, respMsgs, `["header_of_added_block", {"primary":3}]`)
+
+	var expectedCnt int
+	for i := 0; i < numBlocks; i++ {
+		primary := uint32(i % 4)
+		if primary == 3 {
+			expectedCnt++
+		}
+		b := testchain.NewBlock(t, chain, 1, primary)
+		require.NoError(t, chain.AddBlock(b))
+	}
+
+	for i := 0; i < expectedCnt; i++ {
+		var resp = new(neorpc.Notification)
+		select {
+		case body := <-respMsgs:
+			require.NoError(t, json.Unmarshal(body, resp))
+		case <-time.After(time.Second):
+			t.Fatal("timeout waiting for event")
+		}
+
+		require.Equal(t, neorpc.HeaderOfAddedBlockEventID, resp.Event)
+		rmap := resp.Payload[0].(map[string]any)
+		primary := rmap["primary"].(float64)
+		require.Equal(t, 3, int(primary))
+	}
+	callUnsubscribe(t, c, respMsgs, headerSubID)
 	finishedFlag.CompareAndSwap(false, true)
 	c.Close()
 }

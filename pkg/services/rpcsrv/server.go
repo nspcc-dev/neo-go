@@ -100,10 +100,12 @@ type (
 		InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
 		P2PSigExtensionsEnabled() bool
 		SubscribeForBlocks(ch chan *block.Block)
+		SubscribeForHeadersOfAddedBlocks(ch chan *block.Header)
 		SubscribeForExecutions(ch chan *state.AppExecResult)
 		SubscribeForNotifications(ch chan *state.ContainedNotificationEvent)
 		SubscribeForTransactions(ch chan *transaction.Transaction)
 		UnsubscribeFromBlocks(ch chan *block.Block)
+		UnsubscribeFromHeadersOfAddedBlocks(ch chan *block.Header)
 		UnsubscribeFromExecutions(ch chan *state.AppExecResult)
 		UnsubscribeFromNotifications(ch chan *state.ContainedNotificationEvent)
 		UnsubscribeFromTransactions(ch chan *transaction.Transaction)
@@ -151,12 +153,14 @@ type (
 
 		subsCounterLock   sync.RWMutex
 		blockSubs         int
+		blockHeaderSubs   int
 		executionSubs     int
 		notificationSubs  int
 		transactionSubs   int
 		notaryRequestSubs int
 
 		blockCh           chan *block.Block
+		blockHeaderCh     chan *block.Header
 		executionCh       chan *state.AppExecResult
 		notificationCh    chan *state.ContainedNotificationEvent
 		transactionCh     chan *transaction.Transaction
@@ -361,6 +365,7 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		notificationCh:    make(chan *state.ContainedNotificationEvent),
 		transactionCh:     make(chan *transaction.Transaction),
 		notaryRequestCh:   make(chan mempoolevent.Event),
+		blockHeaderCh:     make(chan *block.Header),
 		subEventsToExitCh: make(chan struct{}),
 	}
 }
@@ -2730,7 +2735,7 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (any, *neor
 		jd := json.NewDecoder(bytes.NewReader(param.RawMessage))
 		jd.DisallowUnknownFields()
 		switch event {
-		case neorpc.BlockEventID:
+		case neorpc.BlockEventID, neorpc.HeaderOfAddedBlockEventID:
 			flt := new(neorpc.BlockFilter)
 			err = jd.Decode(flt)
 			filter = *flt
@@ -2817,6 +2822,11 @@ func (s *Server) subscribeToChannel(event neorpc.EventID) {
 			s.coreServer.SubscribeForNotaryRequests(s.notaryRequestCh)
 		}
 		s.notaryRequestSubs++
+	case neorpc.HeaderOfAddedBlockEventID:
+		if s.blockHeaderSubs == 0 {
+			s.chain.SubscribeForHeadersOfAddedBlocks(s.blockHeaderCh)
+		}
+		s.blockHeaderSubs++
 	}
 }
 
@@ -2872,6 +2882,11 @@ func (s *Server) unsubscribeFromChannel(event neorpc.EventID) {
 		if s.notaryRequestSubs == 0 {
 			s.coreServer.UnsubscribeFromNotaryRequests(s.notaryRequestCh)
 		}
+	case neorpc.HeaderOfAddedBlockEventID:
+		s.blockHeaderSubs--
+		if s.blockHeaderSubs == 0 {
+			s.chain.UnsubscribeFromHeadersOfAddedBlocks(s.blockHeaderCh)
+		}
 	}
 }
 
@@ -2921,6 +2936,9 @@ chloop:
 				Type:          e.Type,
 				NotaryRequest: e.Data.(*payload.P2PNotaryRequest),
 			}
+		case header := <-s.blockHeaderCh:
+			resp.Event = neorpc.HeaderOfAddedBlockEventID
+			resp.Payload[0] = header
 		}
 		s.subsLock.RLock()
 	subloop:
@@ -2973,6 +2991,7 @@ chloop:
 	s.chain.UnsubscribeFromTransactions(s.transactionCh)
 	s.chain.UnsubscribeFromNotifications(s.notificationCh)
 	s.chain.UnsubscribeFromExecutions(s.executionCh)
+	s.chain.UnsubscribeFromHeadersOfAddedBlocks(s.blockHeaderCh)
 	if s.chain.P2PSigExtensionsEnabled() {
 		s.coreServer.UnsubscribeFromNotaryRequests(s.notaryRequestCh)
 	}
@@ -2985,6 +3004,7 @@ drainloop:
 		case <-s.notificationCh:
 		case <-s.transactionCh:
 		case <-s.notaryRequestCh:
+		case <-s.blockHeaderCh:
 		default:
 			break drainloop
 		}
@@ -2996,6 +3016,7 @@ drainloop:
 	close(s.notificationCh)
 	close(s.executionCh)
 	close(s.notaryRequestCh)
+	close(s.blockHeaderCh)
 	// notify Shutdown routine
 	close(s.subEventsToExitCh)
 }

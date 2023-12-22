@@ -61,6 +61,10 @@ func TestMatches(t *testing.T) {
 			Header: block.Header{PrimaryIndex: byte(primary), Index: index},
 		},
 	}
+	headerContainer := testContainer{
+		id:  neorpc.HeaderOfAddedBlockEventID,
+		pld: &block.Header{PrimaryIndex: byte(primary), Index: index},
+	}
 	st := vmstate.Halt
 	goodState := st.String()
 	badState := "FAULT"
@@ -147,6 +151,48 @@ func TestMatches(t *testing.T) {
 				filter: neorpc.BlockFilter{Primary: &primary, Since: &index, Till: &index},
 			},
 			container: bContainer,
+			expected:  true,
+		},
+		{
+			name:       "header, no filter",
+			comparator: testComparator{id: neorpc.HeaderOfAddedBlockEventID},
+			container:  headerContainer,
+			expected:   true,
+		},
+		{
+			name: "header, primary mismatch",
+			comparator: testComparator{
+				id:     neorpc.HeaderOfAddedBlockEventID,
+				filter: neorpc.BlockFilter{Primary: &badPrimary},
+			},
+			container: headerContainer,
+			expected:  false,
+		},
+		{
+			name: "header, since mismatch",
+			comparator: testComparator{
+				id:     neorpc.HeaderOfAddedBlockEventID,
+				filter: neorpc.BlockFilter{Since: &badHigherIndex},
+			},
+			container: headerContainer,
+			expected:  false,
+		},
+		{
+			name: "header, till mismatch",
+			comparator: testComparator{
+				id:     neorpc.HeaderOfAddedBlockEventID,
+				filter: neorpc.BlockFilter{Till: &badLowerIndex},
+			},
+			container: headerContainer,
+			expected:  false,
+		},
+		{
+			name: "header, filter match",
+			comparator: testComparator{
+				id:     neorpc.HeaderOfAddedBlockEventID,
+				filter: neorpc.BlockFilter{Primary: &primary, Since: &index, Till: &index},
+			},
+			container: headerContainer,
 			expected:  true,
 		},
 		{

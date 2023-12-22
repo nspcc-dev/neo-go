@@ -162,6 +162,52 @@ func (r *blockReceiver) Close() {
 	close(r.ch)
 }
 
+// headerOfAddedBlockReceiver stores information about header of added block events subscriber.
+type headerOfAddedBlockReceiver struct {
+	filter *neorpc.BlockFilter
+	ch     chan<- *block.Header
+}
+
+// EventID implements neorpc.Comparator interface.
+func (r *headerOfAddedBlockReceiver) EventID() neorpc.EventID {
+	return neorpc.HeaderOfAddedBlockEventID
+}
+
+// Filter implements neorpc.Comparator interface.
+func (r *headerOfAddedBlockReceiver) Filter() any {
+	if r.filter == nil {
+		return nil
+	}
+	return *r.filter
+}
+
+// Receiver implements notificationReceiver interface.
+func (r *headerOfAddedBlockReceiver) Receiver() any {
+	return r.ch
+}
+
+// TrySend implements notificationReceiver interface.
+func (r *headerOfAddedBlockReceiver) TrySend(ntf Notification, nonBlocking bool) (bool, bool) {
+	if rpcevent.Matches(r, ntf) {
+		if nonBlocking {
+			select {
+			case r.ch <- ntf.Value.(*block.Header):
+			default:
+				return true, true
+			}
+		} else {
+			r.ch <- ntf.Value.(*block.Header)
+		}
+		return true, false
+	}
+	return false, false
+}
+
+// Close implements notificationReceiver interface.
+func (r *headerOfAddedBlockReceiver) Close() {
+	close(r.ch)
+}
+
 // txReceiver stores information about transaction events subscriber.
 type txReceiver struct {
 	filter *neorpc.TxFilter
@@ -520,6 +566,14 @@ readloop:
 				ntf.Value = new(state.AppExecResult)
 			case neorpc.NotaryRequestEventID:
 				ntf.Value = new(result.NotaryRequestEvent)
+			case neorpc.HeaderOfAddedBlockEventID:
+				sr, err := c.stateRootInHeader()
+				if err != nil {
+					// Client is not initialized.
+					connCloseErr = fmt.Errorf("failed to fetch StateRootInHeader: %w", err)
+					break readloop
+				}
+				ntf.Value = &block.New(sr).Header
 			case neorpc.MissedEventID:
 				// No value.
 			default:
@@ -741,6 +795,29 @@ func (c *WSClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Blo
 		params = append(params, *flt)
 	}
 	r := &blockReceiver{
+		filter: flt,
+		ch:     rcvr,
+	}
+	return c.performSubscription(params, r)
+}
+
+// ReceiveHeadersOfAddedBlocks registers provided channel as a receiver for new
+// block's header events. Events can be filtered by the given [neorpc.BlockFilter],
+// nil value doesn't add any filter. See WSClient comments for generic
+// Receive* behaviour details.
+func (c *WSClient) ReceiveHeadersOfAddedBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Header) (string, error) {
+	if rcvr == nil {
+		return "", ErrNilNotificationReceiver
+	}
+	if !c.cache.initDone {
+		return "", errNetworkNotInitialized
+	}
+	params := []any{"header_of_added_block"}
+	if flt != nil {
+		flt = flt.Copy()
+		params = append(params, *flt)
+	}
+	r := &headerOfAddedBlockReceiver{
 		filter: flt,
 		ch:     rcvr,
 	}
