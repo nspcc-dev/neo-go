@@ -1328,6 +1328,7 @@ func (bc *Blockchain) notificationDispatcher() {
 		// for ease of management (not a lot of subscriptions is really
 		// expected, but maps are convenient for adding/deleting elements).
 		blockFeed        = make(map[chan *block.Block]bool)
+		headerFeed       = make(map[chan *block.Header]bool)
 		txFeed           = make(map[chan *transaction.Transaction]bool)
 		notificationFeed = make(map[chan *state.ContainedNotificationEvent]bool)
 		executionFeed    = make(map[chan *state.AppExecResult]bool)
@@ -1338,6 +1339,8 @@ func (bc *Blockchain) notificationDispatcher() {
 			return
 		case sub := <-bc.subCh:
 			switch ch := sub.(type) {
+			case chan *block.Header:
+				headerFeed[ch] = true
 			case chan *block.Block:
 				blockFeed[ch] = true
 			case chan *transaction.Transaction:
@@ -1351,6 +1354,8 @@ func (bc *Blockchain) notificationDispatcher() {
 			}
 		case unsub := <-bc.unsubCh:
 			switch ch := unsub.(type) {
+			case chan *block.Header:
+				delete(headerFeed, ch)
 			case chan *block.Block:
 				delete(blockFeed, ch)
 			case chan *transaction.Transaction:
@@ -1422,6 +1427,9 @@ func (bc *Blockchain) notificationDispatcher() {
 						}
 					}
 				}
+			}
+			for ch := range headerFeed {
+				ch <- &event.block.Header
 			}
 			for ch := range blockFeed {
 				ch <- event.block
@@ -2281,6 +2289,16 @@ func (bc *Blockchain) SubscribeForBlocks(ch chan *block.Block) {
 	bc.subCh <- ch
 }
 
+// SubscribeForHeadersOfAddedBlocks adds given channel to new header event broadcasting, so
+// when there is a new block added to the chain you'll receive its header via this
+// channel. Make sure it's read from regularly as not reading these events might
+// affect other Blockchain functions. Make sure you're not changing the received
+// headers, as it may affect the functionality of Blockchain and other
+// subscribers.
+func (bc *Blockchain) SubscribeForHeadersOfAddedBlocks(ch chan *block.Header) {
+	bc.subCh <- ch
+}
+
 // SubscribeForTransactions adds given channel to new transaction event
 // broadcasting, so when there is a new transaction added to the chain (in a
 // block) you'll receive it via this channel. Make sure it's read from regularly
@@ -2317,6 +2335,21 @@ func (bc *Blockchain) SubscribeForExecutions(ch chan *state.AppExecResult) {
 // you can close it afterwards. Passing non-subscribed channel is a no-op, but
 // the method can read from this channel (discarding any read data).
 func (bc *Blockchain) UnsubscribeFromBlocks(ch chan *block.Block) {
+unsubloop:
+	for {
+		select {
+		case <-ch:
+		case bc.unsubCh <- ch:
+			break unsubloop
+		}
+	}
+}
+
+// UnsubscribeFromHeadersOfAddedBlocks unsubscribes given channel from new
+// block's header notifications, you can close it afterwards. Passing
+// non-subscribed channel is a no-op, but the method can read from this
+// channel (discarding any read data).
+func (bc *Blockchain) UnsubscribeFromHeadersOfAddedBlocks(ch chan *block.Header) {
 unsubloop:
 	for {
 		select {

@@ -34,9 +34,14 @@ func Matches(f Comparator, r Container) bool {
 		return true
 	}
 	switch f.EventID() {
-	case neorpc.BlockEventID:
+	case neorpc.BlockEventID, neorpc.HeaderOfAddedBlockEventID:
 		filt := filter.(neorpc.BlockFilter)
-		b := r.EventPayload().(*block.Block)
+		var b *block.Header
+		if f.EventID() == neorpc.HeaderOfAddedBlockEventID {
+			b = r.EventPayload().(*block.Header)
+		} else {
+			b = &r.EventPayload().(*block.Block).Header
+		}
 		primaryOk := filt.Primary == nil || *filt.Primary == int(b.PrimaryIndex)
 		sinceOk := filt.Since == nil || *filt.Since <= b.Index
 		tillOk := filt.Till == nil || b.Index <= *filt.Till

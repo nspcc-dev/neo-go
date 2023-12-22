@@ -379,6 +379,74 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 		clientCode func(*testing.T, *WSClient)
 		serverCode func(*testing.T, *params.Params)
 	}{
+		{"block header primary",
+			func(t *testing.T, wsc *WSClient) {
+				primary := 3
+				_, err := wsc.ReceiveHeadersOfAddedBlocks(&neorpc.BlockFilter{Primary: &primary}, make(chan *block.Header))
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.BlockFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Equal(t, 3, *filt.Primary)
+				require.Equal(t, (*uint32)(nil), filt.Since)
+				require.Equal(t, (*uint32)(nil), filt.Till)
+			},
+		},
+		{"header since",
+			func(t *testing.T, wsc *WSClient) {
+				var since uint32 = 3
+				_, err := wsc.ReceiveHeadersOfAddedBlocks(&neorpc.BlockFilter{Since: &since}, make(chan *block.Header))
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.BlockFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Equal(t, (*int)(nil), filt.Primary)
+				require.Equal(t, uint32(3), *filt.Since)
+				require.Equal(t, (*uint32)(nil), filt.Till)
+			},
+		},
+		{"header till",
+			func(t *testing.T, wsc *WSClient) {
+				var till uint32 = 3
+				_, err := wsc.ReceiveHeadersOfAddedBlocks(&neorpc.BlockFilter{Till: &till}, make(chan *block.Header))
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.BlockFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Equal(t, (*int)(nil), filt.Primary)
+				require.Equal(t, (*uint32)(nil), filt.Since)
+				require.Equal(t, (uint32)(3), *filt.Till)
+			},
+		},
+		{"header primary, since and till",
+			func(t *testing.T, wsc *WSClient) {
+				var (
+					since   uint32 = 3
+					primary        = 2
+					till    uint32 = 5
+				)
+				_, err := wsc.ReceiveHeadersOfAddedBlocks(&neorpc.BlockFilter{
+					Primary: &primary,
+					Since:   &since,
+					Till:    &till,
+				}, make(chan *block.Header))
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.BlockFilter)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Equal(t, 2, *filt.Primary)
+				require.Equal(t, uint32(3), *filt.Since)
+				require.Equal(t, uint32(5), *filt.Till)
+			},
+		},
 		{"blocks primary",
 			func(t *testing.T, wsc *WSClient) {
 				primary := 3

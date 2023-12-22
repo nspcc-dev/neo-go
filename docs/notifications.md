@@ -27,11 +27,13 @@ Currently supported events:
 Filters use conjunctional logic.
 
 ## Ordering and persistence guarantees
- * new block is only announced after its processing is complete and the chain
-   is updated to the new height
+ * new block and header of this block are only announced after block's processing
+   is complete and the chain is updated to the new height
  * no disk-level persistence guarantees are given
- * new in-block transaction is announced after block processing, but before
+ * header of newly added block is announced after block processing, but before
    announcing the block itself
+ * new in-block transaction is announced after block processing, but before
+   announcing the block header and the block itself
  * transaction notifications are only announced for successful transactions
  * all announcements are being done in the same order they happen on the chain.
    First, OnPersist script execution is announced followed by notifications generated
@@ -40,7 +42,8 @@ Filters use conjunctional logic.
    transaction announcement. Transaction announcements are ordered the same way
    they're in the block. After all in-block transactions announcements PostPersist
    script execution is announced followed by notifications generated during the
-   script execution. Finally, block announcement is followed.
+   script execution. Finally, block header is announced followed by the block 
+   announcement itself.
  * notary request events announcements are not bound to the chain processing.
    Trigger for notary request notifications is notary request mempool content
    change, thus, notary request event is announced every time notary request
@@ -69,6 +72,12 @@ Recognized stream names:
    index starting from which new block notifications will be received and/or
    `till` field as an integer values containing block index till which new
    block notifications will be received.
+ * `header_of_added_block`
+   Filter: `primary` as an integer with primary (speaker) node index from
+   ConsensusData and/or `since` field as an integer value with header
+   index starting from which new header notifications will be received and/or
+   `till` field as an integer values containing header index till which new
+   header notifications will be received.
  * `transaction_added`
    Filter: `sender` field containing a string with hex-encoded Uint160 (LE
    representation) for transaction's `Sender` and/or `signer` in the same
@@ -247,6 +256,47 @@ Example:
    ],
    "jsonrpc" : "2.0",
    "method" : "block_added"
+}
+```
+
+### `header_of_added_block` notification
+
+The first parameter (`params` section) contains a header of added block 
+converted to a JSON structure, which is similar to a verbose
+`getblockheader` response but with the following differences:
+ * it doesn't have `size` field (you can calculate it client-side)
+ * it doesn't have `nextblockhash` field (it's supposed to be the latest
+   one anyway)
+ * it doesn't have `confirmations` field (see previous)
+
+No other parameters are sent.
+
+Example:
+```
+{
+   "jsonrpc": "2.0",
+   "method": "header_of_added_block",
+   "params": [
+      {
+         "index" : 207,
+         "time" : 1590006200,
+         "nextconsensus" : "AXSvJVzydxXuL9da4GVwK25zdesCrVKkHL",
+         "consensusdata" : {
+            "primary" : 0,
+            "nonce" : "0000000000000457"
+         },
+         "previousblockhash" : "0x04f7580b111ec75f0ce68d3a9fd70a0544b4521b4a98541694d8575c548b759e",
+         "witnesses" : [
+            {
+               "invocation" : "0c4063429fca5ff75c964d9e38179c75978e33f8174d91a780c2e825265cf2447281594afdd5f3e216dcaf5ff0693aec83f415996cf224454495495f6bd0a4c5d08f0c4099680903a954278580d8533121c2cd3e53a089817b6a784901ec06178a60b5f1da6e70422bdcadc89029767e08d66ce4180b99334cb2d42f42e4216394af15920c4067d5e362189e48839a24e187c59d46f5d9db862c8a029777f1548b19632bfdc73ad373827ed02369f925e89c2303b64e6b9838dca229949b9b9d3bd4c0c3ed8f0c4021d4c00d4522805883f1db929554441bcbbee127c48f6b7feeeb69a72a78c7f0a75011663e239c0820ef903f36168f42936de10f0ef20681cb735a4b53d0390f",
+               "verification" : "130c2102103a7f7dd016558597f7960d27c516a4394fd968b9e65155eb4b013e4040406e0c2102a7bc55fe8684e0119768d104ba30795bdcc86619e864add26156723ed185cd620c2102b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc20c2103d90c07df63e690ce77912e10ab51acc944b66860237b608c4f8f8309e71ee699140b413073b3bb"
+            }
+         ],
+         "version" : 0,
+         "hash" : "0x239fea00c54c2f6812612874183b72bef4473fcdf68bf8da08d74fd5b6cab030",
+         "merkleroot" : "0xb2c7230ebee4cb83bc03afadbba413e6bca8fcdeaf9c077bea060918da0e52a1"
+      }
+   ]
 }
 ```
 
