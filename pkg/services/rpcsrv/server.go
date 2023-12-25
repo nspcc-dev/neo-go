@@ -2729,7 +2729,7 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (any, *neor
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, "P2PSigExtensions are disabled")
 	}
 	// Optional filter.
-	var filter any
+	var filter neorpc.SubscriptionFilter
 	if p := reqParams.Value(1); p != nil {
 		param := *p
 		jd := json.NewDecoder(bytes.NewReader(param.RawMessage))
@@ -2754,12 +2754,14 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (any, *neor
 		case neorpc.ExecutionEventID:
 			flt := new(neorpc.ExecutionFilter)
 			err = jd.Decode(flt)
-			if err == nil && (flt.State == nil || (*flt.State == "HALT" || *flt.State == "FAULT")) {
-				filter = *flt
-			} else if err == nil {
-				err = errors.New("invalid state")
-			}
+			filter = *flt
 		}
+		if err != nil {
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, err.Error())
+		}
+	}
+	if filter != nil {
+		err = filter.IsValid()
 		if err != nil {
 			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, err.Error())
 		}

@@ -13,7 +13,7 @@ type (
 	// filter notifications.
 	Comparator interface {
 		EventID() neorpc.EventID
-		Filter() any
+		Filter() neorpc.SubscriptionFilter
 	}
 	// Container is an interface required from notification event to be able to
 	// pass filter.

@@ -369,7 +369,20 @@ func TestWSExecutionVMStateCheck(t *testing.T) {
 	require.NoError(t, wsc.Init())
 	filter := "NONE"
 	_, err = wsc.ReceiveExecutions(&neorpc.ExecutionFilter{State: &filter}, make(chan *state.AppExecResult))
-	require.Error(t, err)
+	require.ErrorIs(t, err, neorpc.ErrInvalidSubscriptionFilter)
+	wsc.Close()
+}
+
+func TestWSExecutionNotificationNameCheck(t *testing.T) {
+	// Will answer successfully if request slips through.
+	srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": "55aaff00"}`)
+	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
+	require.NoError(t, err)
+	wsc.getNextRequestID = getTestRequestID
+	require.NoError(t, wsc.Init())
+	filter := "notification_from_execution_with_long_name"
+	_, err = wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Name: &filter}, make(chan *state.ContainedNotificationEvent))
+	require.ErrorIs(t, err, neorpc.ErrInvalidSubscriptionFilter)
 	wsc.Close()
 }
 

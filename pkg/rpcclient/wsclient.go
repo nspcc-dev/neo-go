@@ -127,7 +127,7 @@ func (r *blockReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *blockReceiver) Filter() any {
+func (r *blockReceiver) Filter() neorpc.SubscriptionFilter {
 	if r.filter == nil {
 		return nil
 	}
@@ -174,7 +174,7 @@ func (r *headerOfAddedBlockReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *headerOfAddedBlockReceiver) Filter() any {
+func (r *headerOfAddedBlockReceiver) Filter() neorpc.SubscriptionFilter {
 	if r.filter == nil {
 		return nil
 	}
@@ -220,7 +220,7 @@ func (r *txReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *txReceiver) Filter() any {
+func (r *txReceiver) Filter() neorpc.SubscriptionFilter {
 	if r.filter == nil {
 		return nil
 	}
@@ -267,7 +267,7 @@ func (r *executionNotificationReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *executionNotificationReceiver) Filter() any {
+func (r *executionNotificationReceiver) Filter() neorpc.SubscriptionFilter {
 	if r.filter == nil {
 		return nil
 	}
@@ -314,7 +314,7 @@ func (r *executionReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *executionReceiver) Filter() any {
+func (r *executionReceiver) Filter() neorpc.SubscriptionFilter {
 	if r.filter == nil {
 		return nil
 	}
@@ -361,7 +361,7 @@ func (r *notaryRequestReceiver) EventID() neorpc.EventID {
 }
 
 // Filter implements neorpc.Comparator interface.
-func (r *notaryRequestReceiver) Filter() any {
+func (r *notaryRequestReceiver) Filter() neorpc.SubscriptionFilter {
 	if r.filter == nil {
 		return nil
 	}
@@ -766,6 +766,11 @@ func (c *WSClient) makeWsRequest(r *neorpc.Request) (*neorpc.Response, error) {
 func (c *WSClient) performSubscription(params []any, rcvr notificationReceiver) (string, error) {
 	var resp string
 
+	if flt := rcvr.Filter(); flt != nil {
+		if err := flt.IsValid(); err != nil {
+			return "", err
+		}
+	}
 	if err := c.performRequest("subscribe", params, &resp); err != nil {
 		return "", err
 	}
@@ -872,11 +877,6 @@ func (c *WSClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *s
 	}
 	params := []any{"transaction_executed"}
 	if flt != nil {
-		if flt.State != nil {
-			if *flt.State != "HALT" && *flt.State != "FAULT" {
-				return "", errors.New("bad state parameter")
-			}
-		}
 		flt = flt.Copy()
 		params = append(params, *flt)
 	}

@@ -85,7 +85,8 @@ Recognized stream names:
  * `notification_from_execution`
    Filter: `contract` field containing a string with hex-encoded Uint160 (LE
    representation) and/or `name` field containing a string with execution 
-   notification name.
+   notification name which should be a valid UTF-8 string not longer than 
+   32 bytes.
  * `transaction_executed`
    Filter: `state` field containing `HALT` or `FAULT` string for successful
    and failed executions respectively and/or `container` field containing

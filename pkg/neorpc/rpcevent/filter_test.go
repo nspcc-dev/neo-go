@@ -18,7 +18,7 @@ import (
 type (
 	testComparator struct {
 		id     neorpc.EventID
-		filter any
+		filter neorpc.SubscriptionFilter
 	}
 	testContainer struct {
 		id  neorpc.EventID
@@ -29,7 +29,7 @@ type (
 func (c testComparator) EventID() neorpc.EventID {
 	return c.id
 }
-func (c testComparator) Filter() any {
+func (c testComparator) Filter() neorpc.SubscriptionFilter {
 	return c.filter
 }
 func (c testContainer) EventID() neorpc.EventID {
