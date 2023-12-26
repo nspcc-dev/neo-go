@@ -1,4 +1,4 @@
-package actor
+package waiter
 
 import (
 	"context"
@@ -100,12 +100,12 @@ func errIsAlreadyExists(err error) bool {
 	return strings.Contains(strings.ToLower(err.Error()), "already exists")
 }
 
-// NewWaiter creates Waiter instance. It can be either websocket-based or
+// New creates Waiter instance. It can be either websocket-based or
 // polling-base, otherwise Waiter stub is returned. As a first argument
 // it accepts RPCEventWaiter implementation, RPCPollingWaiter implementation
 // or not an implementation of these two interfaces. It returns websocket-based
 // waiter, polling-based waiter or a stub correspondingly.
-func NewWaiter(base any, v *result.Version) Waiter {
+func New(base any, v *result.Version) Waiter {
 	if eventW, ok := base.(RPCEventWaiter); ok {
 		return &EventWaiter{
 			ws: eventW,

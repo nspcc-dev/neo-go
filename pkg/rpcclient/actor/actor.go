@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/waiter"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 )
@@ -72,7 +73,7 @@ type SignerAccount struct {
 // and ErrTxNotAccepted is returned if transaction wasn't accepted by this moment.
 type Actor struct {
 	invoker.Invoker
-	Waiter
+	waiter.Waiter
 
 	client    RPCActor
 	opts      Options
@@ -126,7 +127,7 @@ func New(ra RPCActor, signers []SignerAccount) (*Actor, error) {
 	}
 	return &Actor{
 		Invoker:   *inv,
-		Waiter:    NewWaiter(ra, version),
+		Waiter:    waiter.New(ra, version),
 		client:    ra,
 		opts:      NewDefaultOptions(),
 		signers:   signers,
