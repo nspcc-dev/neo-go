@@ -8,7 +8,10 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
+	"github.com/nspcc-dev/neo-go/cli/txctx"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/waiter"
 	"github.com/urfave/cli"
 )
 
@@ -17,6 +20,7 @@ func signStoredTransaction(ctx *cli.Context) error {
 		out      = ctx.String("out")
 		rpcNode  = ctx.String(options.RPCEndpointFlag)
 		addrFlag = ctx.Generic("address").(*flags.Address)
+		aer      *state.AppExecResult
 	)
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
@@ -84,10 +88,15 @@ func signStoredTransaction(ctx *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("failed to submit transaction to RPC node: %w", err), 1)
 		}
-		fmt.Fprintln(ctx.App.Writer, res.StringLE())
-		return nil
+		if ctx.Bool("await") {
+			version, err := c.GetVersion()
+			aer, err = waiter.New(c, version).Wait(res, tx.ValidUntilBlock, err)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("failed to await transaction %s: %w", res.StringLE(), err), 1)
+			}
+		}
 	}
 
-	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
+	txctx.DumpTransactionInfo(ctx.App.Writer, tx.Hash(), aer)
 	return nil
 }

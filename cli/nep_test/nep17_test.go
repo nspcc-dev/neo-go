@@ -223,12 +223,19 @@ func TestNEP17Transfer(t *testing.T) {
 		"neo-go", "wallet", "nep17", "transfer",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
-		"--to", address.Uint160ToString(e.Chain.GetNotaryContractScriptHash()),
 		"--token", "GAS",
 		"--amount", "1",
-		"--from", testcli.ValidatorAddr,
 		"--force",
-		"[", testcli.ValidatorAddr, strconv.Itoa(int(validTil)), "]"}
+		"--from", testcli.ValidatorAddr}
+
+	t.Run("with await", func(t *testing.T) {
+		e.In.WriteString("one\r")
+		e.Run(t, append(cmd, "--to", nftOwnerAddr, "--await")...)
+		e.CheckAwaitableTxPersisted(t)
+	})
+
+	cmd = append(cmd, "--to", address.Uint160ToString(e.Chain.GetNotaryContractScriptHash()),
+		"[", testcli.ValidatorAddr, strconv.Itoa(int(validTil)), "]")
 
 	t.Run("with data", func(t *testing.T) {
 		e.In.WriteString("one\r")

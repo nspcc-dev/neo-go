@@ -338,7 +338,7 @@ func TestContractDeployWithData(t *testing.T) {
 		"--config", "testdata/deploy/neo-go.yml",
 		"--out", nefName, "--manifest", manifestName)
 
-	deployContract := func(t *testing.T, haveData bool, scope string) {
+	deployContract := func(t *testing.T, haveData bool, scope string, await bool) {
 		e := testcli.NewExecutor(t, true)
 		cmd := []string{
 			"neo-go", "contract", "deploy",
@@ -348,6 +348,9 @@ func TestContractDeployWithData(t *testing.T) {
 			"--force",
 		}
 
+		if await {
+			cmd = append(cmd, "--await")
+		}
 		if haveData {
 			cmd = append(cmd, "[", "key1", "12", "key2", "take_me_to_church", "]")
 		}
@@ -358,8 +361,13 @@ func TestContractDeployWithData(t *testing.T) {
 		}
 		e.In.WriteString(testcli.ValidatorPass + "\r")
 		e.Run(t, cmd...)
+		var tx *transaction.Transaction
+		if await {
+			tx, _ = e.CheckAwaitableTxPersisted(t)
+		} else {
+			tx, _ = e.CheckTxPersisted(t)
+		}
 
-		tx, _ := e.CheckTxPersisted(t, "Sent invocation transaction ")
 		require.Equal(t, scope, tx.Signers[0].Scopes.String())
 		if !haveData {
 			return
@@ -396,9 +404,12 @@ func TestContractDeployWithData(t *testing.T) {
 		require.Equal(t, []byte("take_me_to_church"), res.Stack[0].Value())
 	}
 
-	deployContract(t, true, "")
-	deployContract(t, false, "Global")
-	deployContract(t, true, "Global")
+	deployContract(t, true, "", false)
+	deployContract(t, false, "Global", false)
+	deployContract(t, true, "Global", false)
+	deployContract(t, false, "", true)
+	deployContract(t, true, "Global", true)
+	deployContract(t, true, "", true)
 }
 
 func TestDeployWithSigners(t *testing.T) {
@@ -771,6 +782,12 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 			e.In.WriteString("y\r")
 			e.Run(t, append(cmd, h.StringLE(), "getValue",
 				"--", testcli.ValidatorAddr, hVerify.StringLE())...)
+		})
+
+		t.Run("with await", func(t *testing.T) {
+			e.In.WriteString("one\r")
+			e.Run(t, append(cmd, "--force", "--await", h.StringLE(), "getValue")...)
+			e.CheckAwaitableTxPersisted(t)
 		})
 	})
 

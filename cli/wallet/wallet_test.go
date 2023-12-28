@@ -605,6 +605,47 @@ func TestWalletClaimGas(t *testing.T) {
 	} else {
 		require.Equal(t, 1, balanceAfter.Cmp(balanceBefore))
 	}
+	t.Run("await", func(t *testing.T) {
+		args := []string{
+			"neo-go", "wallet", "nep17", "multitransfer",
+			"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
+			"--wallet", testcli.ValidatorWallet,
+			"--from", testcli.ValidatorAddr, "--await",
+			"--force",
+			"NEO:" + testcli.TestWalletAccount + ":1000",
+			"GAS:" + testcli.TestWalletAccount + ":1000", // for tx send
+		}
+		e.In.WriteString("one\r")
+		e.Run(t, args...)
+		e.CheckAwaitableTxPersisted(t)
+
+		h, err := address.StringToUint160(testcli.TestWalletAccount)
+		require.NoError(t, err)
+
+		balanceBefore := e.Chain.GetUtilityTokenBalance(h)
+		claimHeight := e.Chain.BlockHeight() + 1
+		cl, err := e.Chain.CalculateClaimable(h, claimHeight)
+		require.NoError(t, err)
+		require.True(t, cl.Sign() > 0)
+
+		e.In.WriteString("testpass\r")
+		e.Run(t, "neo-go", "wallet", "claim",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--wallet", testcli.TestWalletPath,
+			"--address", testcli.TestWalletAccount,
+			"--force", "--await")
+		tx, height = e.CheckAwaitableTxPersisted(t)
+		balanceBefore.Sub(balanceBefore, big.NewInt(tx.NetworkFee+tx.SystemFee))
+		balanceBefore.Add(balanceBefore, cl)
+
+		balanceAfter = e.Chain.GetUtilityTokenBalance(h)
+		// height can be bigger than claimHeight especially when tests are executed with -race.
+		if height == claimHeight {
+			require.Equal(t, 0, balanceAfter.Cmp(balanceBefore))
+		} else {
+			require.Equal(t, 1, balanceAfter.Cmp(balanceBefore))
+		}
+	})
 }
 
 func TestWalletImportDeployed(t *testing.T) {
@@ -822,6 +863,31 @@ func TestOfflineSigning(t *testing.T) {
 			"--in", txPath)
 	})
 	e.CheckTxPersisted(t)
+
+	t.Run("await 1/1 multisig", func(t *testing.T) {
+		args := []string{"neo-go", "wallet", "nep17", "transfer",
+			"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
+			"--wallet", walletPath,
+			"--from", testcli.ValidatorAddr,
+			"--to", w.Accounts[0].Address,
+			"--token", "NEO",
+			"--amount", "1",
+			"--force",
+		}
+		e.Run(t, append(args, "--out", txPath)...)
+
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "wallet", "sign",
+			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
+			"--in", txPath, "--out", txPath)
+
+		e.Run(t, "neo-go", "wallet", "sign",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--wallet", walletPath, "--address", testcli.ValidatorAddr,
+			"--in", txPath, "--await")
+		e.CheckAwaitableTxPersisted(t)
+	})
+
 	t.Run("simple signature", func(t *testing.T) {
 		simpleAddr := w.Accounts[0].Address
 		args := []string{"neo-go", "wallet", "nep17", "transfer",
@@ -852,6 +918,31 @@ func TestOfflineSigning(t *testing.T) {
 		e.Run(t, "neo-go", "util", "sendtx",
 			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			txPath)
+	})
+
+	t.Run("await simple signature", func(t *testing.T) {
+		simpleAddr := w.Accounts[0].Address
+		args := []string{"neo-go", "wallet", "nep17", "transfer",
+			"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
+			"--wallet", walletPath,
+			"--from", simpleAddr,
+			"--to", testcli.ValidatorAddr,
+			"--token", "NEO",
+			"--amount", "1",
+			"--force",
+		}
+
+		e.Run(t, append(args, "--out", txPath)...)
+
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "wallet", "sign",
+			"--wallet", testcli.ValidatorWallet, "--address", simpleAddr,
+			"--in", txPath, "--out", txPath)
+
+		e.Run(t, "neo-go", "util", "sendtx",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			txPath, "--await")
+		e.CheckAwaitableTxPersisted(t)
 	})
 }
 

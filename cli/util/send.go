@@ -5,6 +5,9 @@ import (
 
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
+	"github.com/nspcc-dev/neo-go/cli/txctx"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/waiter"
 	"github.com/urfave/cli"
 )
 
@@ -37,6 +40,14 @@ func sendTx(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to submit transaction to RPC node: %w", err), 1)
 	}
-	fmt.Fprintln(ctx.App.Writer, res.StringLE())
+	var aer *state.AppExecResult
+	if ctx.Bool("await") {
+		version, err := c.GetVersion()
+		aer, err = waiter.New(c, version).Wait(res, tx.ValidUntilBlock, err)
+		if err != nil {
+			return cli.NewExitError(fmt.Errorf("failed to await transaction %s: %w", res.StringLE(), err), 1)
+		}
+	}
+	txctx.DumpTransactionInfo(ctx.App.Writer, res, aer)
 	return nil
 }

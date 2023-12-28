@@ -1,15 +1,19 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/options"
+	"github.com/nspcc-dev/neo-go/cli/txctx"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/waiter"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/urfave/cli"
@@ -55,7 +59,7 @@ func cancelTx(ctx *cli.Context) error {
 		return cli.NewExitError(fmt.Errorf("account %s is not a signer of the conflicting transaction", acc.Address), 1)
 	}
 
-	resHash, _, err := a.SendTunedRun([]byte{byte(opcode.RET)}, []transaction.Attribute{{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: txHash}}}, func(r *result.Invoke, t *transaction.Transaction) error {
+	resHash, resVub, err := a.SendTunedRun([]byte{byte(opcode.RET)}, []transaction.Attribute{{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: txHash}}}, func(r *result.Invoke, t *transaction.Transaction) error {
 		err := actor.DefaultCheckerModifier(r, t)
 		if err != nil {
 			return err
@@ -72,6 +76,29 @@ func cancelTx(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to send conflicting transaction: %w", err), 1)
 	}
-	fmt.Fprintln(ctx.App.Writer, resHash.StringLE())
+	var (
+		acceptedH = resHash
+		res       *state.AppExecResult
+	)
+	if ctx.Bool("await") {
+		res, err = a.WaitAny(gctx, resVub, txHash, resHash)
+		if err != nil {
+			if errors.Is(err, waiter.ErrTxNotAccepted) {
+				if mainTx == nil {
+					return cli.NewExitError(fmt.Errorf("neither target nor conflicting transaction is accepted before the current height %d (ValidUntilBlock value of conlicting transaction). Main transaction is unknown to the provided RPC node, thus still has chances to be accepted, you may try cancellation again", resVub), 1)
+				}
+				fmt.Fprintf(ctx.App.Writer, "Neither target nor conflicting transaction is accepted before the current height %d (ValidUntilBlock value of both target and conflicting transactions). Main transaction is not valid anymore, cancellation is successful\n", resVub)
+				return nil
+			}
+			return cli.NewExitError(fmt.Errorf("failed to await target/ conflicting transaction %s/ %s: %w", txHash.StringLE(), resHash.StringLE(), err), 1)
+		}
+		if txHash.Equals(res.Container) {
+			fmt.Fprintln(ctx.App.Writer, "Target transaction accepted")
+			acceptedH = txHash
+		} else {
+			fmt.Fprintln(ctx.App.Writer, "Conflicting transaction accepted")
+		}
+	}
+	txctx.DumpTransactionInfo(ctx.App.Writer, acceptedH, res)
 	return nil
 }

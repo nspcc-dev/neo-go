@@ -91,6 +91,7 @@ func NewCommands() []cli.Command {
 		txctx.SysGasFlag,
 		txctx.OutFlag,
 		txctx.ForceFlag,
+		txctx.AwaitFlag,
 	}
 	invokeFunctionFlags = append(invokeFunctionFlags, options.Wallet...)
 	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
@@ -188,10 +189,12 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "deploy",
 				Usage:     "deploy a smart contract (.nef with description)",
-				UsageText: "neo-go contract deploy -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] --in contract.nef --manifest contract.manifest.json [--out file] [--force] [data]",
+				UsageText: "neo-go contract deploy -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] --in contract.nef --manifest contract.manifest.json [--out file] [--force] [--await] [data]",
 				Description: `Deploys given contract into the chain. The gas parameter is for additional
    gas to be added as a network fee to prioritize the transaction. The data 
-   parameter is an optional parameter to be passed to '_deploy' method.
+   parameter is an optional parameter to be passed to '_deploy' method. When
+   --await flag is specified, it waits for the transaction to be included 
+   in a block.
 `,
 				Action: contractDeploy,
 				Flags:  deployFlags,
@@ -201,13 +204,14 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "invokefunction",
 				Usage:     "invoke deployed contract on the blockchain",
-				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] [--out file] [--force] scripthash [method] [arguments...] [--] [signers...]",
+				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] [--out file] [--force] [--await] scripthash [method] [arguments...] [--] [signers...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
    arguments and signers. Sender is included in the list of signers by default
    with None witness scope. If you'd like to change default sender's scope, 
    specify it via signers parameter. See testinvokefunction documentation for 
    the details about parameters. It differs from testinvokefunction in that this
-   command sends an invocation transaction to the network.
+   command sends an invocation transaction to the network. When --await flag is
+   specified, it waits for the transaction to be included in a block.
 `,
 				Action: invokeFunction,
 				Flags:  invokeFunctionFlags,

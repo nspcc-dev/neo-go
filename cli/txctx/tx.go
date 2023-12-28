@@ -5,13 +5,16 @@ package txctx
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/cli/paramcontext"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/urfave/cli"
 )
@@ -37,6 +40,11 @@ var (
 		Name:  "force",
 		Usage: "Do not ask for a confirmation (and ignore errors)",
 	}
+	// AwaitFlag is a flag used to wait for the transaction to be included in a block.
+	AwaitFlag = cli.BoolFlag{
+		Name:  "await",
+		Usage: "wait for the transaction to be included in a block",
+	}
 )
 
 // SignAndSend adds network and system fees to the provided transaction and
@@ -48,6 +56,7 @@ func SignAndSend(ctx *cli.Context, act *actor.Actor, acc *wallet.Account, tx *tr
 		gas    = flags.Fixed8FromContext(ctx, "gas")
 		sysgas = flags.Fixed8FromContext(ctx, "sysgas")
 		ver    = act.GetVersion()
+		aer    *state.AppExecResult
 	)
 
 	tx.SystemFee += int64(sysgas)
@@ -68,12 +77,37 @@ func SignAndSend(ctx *cli.Context, act *actor.Actor, acc *wallet.Account, tx *tr
 			// Compensate for confirmation waiting.
 			tx.ValidUntilBlock += uint32((waitTime.Milliseconds() / int64(ver.Protocol.MillisecondsPerBlock))) + 1
 		}
-		_, _, err = act.SignAndSend(tx)
+		var (
+			resTx util.Uint256
+			vub   uint32
+		)
+		resTx, vub, err = act.SignAndSend(tx)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		if ctx.Bool("await") {
+			aer, err = act.Wait(resTx, vub, err)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("failed to await transaction %s: %w", resTx.StringLE(), err), 1)
+			}
+		}
 	}
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 
-	fmt.Fprintln(ctx.App.Writer, tx.Hash().StringLE())
+	DumpTransactionInfo(ctx.App.Writer, tx.Hash(), aer)
 	return nil
+}
+
+// DumpTransactionInfo prints transaction info to the given writer.
+func DumpTransactionInfo(w io.Writer, h util.Uint256, res *state.AppExecResult) {
+	fmt.Fprintln(w, h.StringLE())
+	if res != nil {
+		fmt.Fprintf(w, "OnChain:\t%t\n", res != nil)
+		fmt.Fprintf(w, "VMState:\t%s\n", res.VMState.String())
+		if res.FaultException != "" {
+			fmt.Fprintf(w, "FaultException:\t%s\n", res.FaultException)
+		}
+	}
 }

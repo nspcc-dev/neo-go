@@ -70,6 +70,7 @@ var (
 		txctx.GasFlag,
 		txctx.SysGasFlag,
 		txctx.ForceFlag,
+		txctx.AwaitFlag,
 		cli.StringFlag{
 			Name:  "amount",
 			Usage: "Amount of asset to send",
@@ -83,6 +84,7 @@ var (
 		txctx.GasFlag,
 		txctx.SysGasFlag,
 		txctx.ForceFlag,
+		txctx.AwaitFlag,
 	}, options.RPC...)
 )
 
@@ -147,20 +149,22 @@ func newNEP17Commands() []cli.Command {
 		{
 			Name:      "transfer",
 			Usage:     "transfer NEP-17 tokens",
-			UsageText: "transfer -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --amount string [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
+			UsageText: "transfer -w wallet [--wallet-config path] [--await] --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --amount string [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP17,
 			Flags:     transferFlags,
 			Description: `Transfers specified NEP-17 token amount with optional 'data' parameter and cosigners
    list attached to the transfer. See 'contract testinvokefunction' documentation
    for the details about 'data' parameter and cosigners syntax. If no 'data' is
    given then default nil value will be used. If no cosigners are given then the
-   sender with CalledByEntry scope will be used as the only signer.
+   sender with CalledByEntry scope will be used as the only signer. When --await
+   flag is used, the command waits for the transaction to be included in a block
+   before exiting.
 `,
 		},
 		{
 			Name:  "multitransfer",
 			Usage: "transfer NEP-17 tokens to multiple recipients",
-			UsageText: `multitransfer -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --from <addr>` +
+			UsageText: `multitransfer -w wallet [--wallet-config path] [--await] --rpc-endpoint <node> --timeout <time> --from <addr>` +
 				` <token1>:<addr1>:<amount1> [<token2>:<addr2>:<amount2> [...]] [-- <cosigner1:Scope> [<cosigner2> [...]]]`,
 			Action: multiTransferNEP17,
 			Flags:  multiTransferFlags,
