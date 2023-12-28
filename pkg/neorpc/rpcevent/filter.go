@@ -13,7 +13,7 @@ type (
 	// filter notifications.
 	Comparator interface {
 		EventID() neorpc.EventID
-		Filter() any
+		Filter() neorpc.SubscriptionFilter
 	}
 	// Container is an interface required from notification event to be able to
 	// pass filter.
@@ -42,7 +42,7 @@ func Matches(f Comparator, r Container) bool {
 		} else {
 			b = &r.EventPayload().(*block.Block).Header
 		}
-		primaryOk := filt.Primary == nil || *filt.Primary == int(b.PrimaryIndex)
+		primaryOk := filt.Primary == nil || *filt.Primary == b.PrimaryIndex
 		sinceOk := filt.Since == nil || *filt.Since <= b.Index
 		tillOk := filt.Till == nil || b.Index <= *filt.Till
 		return primaryOk && sinceOk && tillOk

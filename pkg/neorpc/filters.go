@@ -1,8 +1,13 @@
 package neorpc
 
 import (
+	"errors"
+	"fmt"
+
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 )
 
 type (
@@ -11,7 +16,7 @@ type (
 	// since/till the specified index inclusively). nil value treated as missing
 	// filter.
 	BlockFilter struct {
-		Primary *int    `json:"primary,omitempty"`
+		Primary *byte   `json:"primary,omitempty"`
 		Since   *uint32 `json:"since,omitempty"`
 		Till    *uint32 `json:"till,omitempty"`
 	}
@@ -49,6 +54,16 @@ type (
 	}
 )
 
+// SubscriptionFilter is an interface for all subscription filters.
+type SubscriptionFilter interface {
+	// IsValid checks whether the filter is valid and returns
+	// a specific [ErrInvalidSubscriptionFilter] error if not.
+	IsValid() error
+}
+
+// ErrInvalidSubscriptionFilter is returned when the subscription filter is invalid.
+var ErrInvalidSubscriptionFilter = errors.New("invalid subscription filter")
+
 // Copy creates a deep copy of the BlockFilter. It handles nil BlockFilter correctly.
 func (f *BlockFilter) Copy() *BlockFilter {
 	if f == nil {
@@ -56,7 +71,7 @@ func (f *BlockFilter) Copy() *BlockFilter {
 	}
 	var res = new(BlockFilter)
 	if f.Primary != nil {
-		res.Primary = new(int)
+		res.Primary = new(byte)
 		*res.Primary = *f.Primary
 	}
 	if f.Since != nil {
@@ -68,6 +83,11 @@ func (f *BlockFilter) Copy() *BlockFilter {
 		*res.Till = *f.Till
 	}
 	return res
+}
+
+// IsValid implements SubscriptionFilter interface.
+func (f BlockFilter) IsValid() error {
+	return nil
 }
 
 // Copy creates a deep copy of the TxFilter. It handles nil TxFilter correctly.
@@ -87,6 +107,11 @@ func (f *TxFilter) Copy() *TxFilter {
 	return res
 }
 
+// IsValid implements SubscriptionFilter interface.
+func (f TxFilter) IsValid() error {
+	return nil
+}
+
 // Copy creates a deep copy of the NotificationFilter. It handles nil NotificationFilter correctly.
 func (f *NotificationFilter) Copy() *NotificationFilter {
 	if f == nil {
@@ -104,6 +129,14 @@ func (f *NotificationFilter) Copy() *NotificationFilter {
 	return res
 }
 
+// IsValid implements SubscriptionFilter interface.
+func (f NotificationFilter) IsValid() error {
+	if f.Name != nil && len(*f.Name) > runtime.MaxEventNameLen {
+		return fmt.Errorf("%w: NotificationFilter name parameter must be less than %d", ErrInvalidSubscriptionFilter, runtime.MaxEventNameLen)
+	}
+	return nil
+}
+
 // Copy creates a deep copy of the ExecutionFilter. It handles nil ExecutionFilter correctly.
 func (f *ExecutionFilter) Copy() *ExecutionFilter {
 	if f == nil {
@@ -119,6 +152,17 @@ func (f *ExecutionFilter) Copy() *ExecutionFilter {
 		*res.Container = *f.Container
 	}
 	return res
+}
+
+// IsValid implements SubscriptionFilter interface.
+func (f ExecutionFilter) IsValid() error {
+	if f.State != nil {
+		if *f.State != vmstate.Halt.String() && *f.State != vmstate.Fault.String() {
+			return fmt.Errorf("%w: ExecutionFilter state parameter must be either %s or %s", ErrInvalidSubscriptionFilter, vmstate.Halt, vmstate.Fault)
+		}
+	}
+
+	return nil
 }
 
 // Copy creates a deep copy of the NotaryRequestFilter. It handles nil NotaryRequestFilter correctly.
@@ -140,4 +184,9 @@ func (f *NotaryRequestFilter) Copy() *NotaryRequestFilter {
 		*res.Type = *f.Type
 	}
 	return res
+}
+
+// IsValid implements SubscriptionFilter interface.
+func (f NotaryRequestFilter) IsValid() error {
+	return nil
 }

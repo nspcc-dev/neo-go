@@ -369,7 +369,20 @@ func TestWSExecutionVMStateCheck(t *testing.T) {
 	require.NoError(t, wsc.Init())
 	filter := "NONE"
 	_, err = wsc.ReceiveExecutions(&neorpc.ExecutionFilter{State: &filter}, make(chan *state.AppExecResult))
-	require.Error(t, err)
+	require.ErrorIs(t, err, neorpc.ErrInvalidSubscriptionFilter)
+	wsc.Close()
+}
+
+func TestWSExecutionNotificationNameCheck(t *testing.T) {
+	// Will answer successfully if request slips through.
+	srv := initTestServer(t, `{"jsonrpc": "2.0", "id": 1, "result": "55aaff00"}`)
+	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
+	require.NoError(t, err)
+	wsc.getNextRequestID = getTestRequestID
+	require.NoError(t, wsc.Init())
+	filter := "notification_from_execution_with_long_name"
+	_, err = wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Name: &filter}, make(chan *state.ContainedNotificationEvent))
+	require.ErrorIs(t, err, neorpc.ErrInvalidSubscriptionFilter)
 	wsc.Close()
 }
 
@@ -381,7 +394,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 	}{
 		{"block header primary",
 			func(t *testing.T, wsc *WSClient) {
-				primary := 3
+				primary := byte(3)
 				_, err := wsc.ReceiveHeadersOfAddedBlocks(&neorpc.BlockFilter{Primary: &primary}, make(chan *block.Header))
 				require.NoError(t, err)
 			},
@@ -389,7 +402,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				param := p.Value(1)
 				filt := new(neorpc.BlockFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
-				require.Equal(t, 3, *filt.Primary)
+				require.Equal(t, byte(3), *filt.Primary)
 				require.Equal(t, (*uint32)(nil), filt.Since)
 				require.Equal(t, (*uint32)(nil), filt.Till)
 			},
@@ -404,7 +417,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				param := p.Value(1)
 				filt := new(neorpc.BlockFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
-				require.Equal(t, (*int)(nil), filt.Primary)
+				require.Equal(t, (*byte)(nil), filt.Primary)
 				require.Equal(t, uint32(3), *filt.Since)
 				require.Equal(t, (*uint32)(nil), filt.Till)
 			},
@@ -419,7 +432,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				param := p.Value(1)
 				filt := new(neorpc.BlockFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
-				require.Equal(t, (*int)(nil), filt.Primary)
+				require.Equal(t, (*byte)(nil), filt.Primary)
 				require.Equal(t, (*uint32)(nil), filt.Since)
 				require.Equal(t, (uint32)(3), *filt.Till)
 			},
@@ -428,7 +441,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			func(t *testing.T, wsc *WSClient) {
 				var (
 					since   uint32 = 3
-					primary        = 2
+					primary        = byte(2)
 					till    uint32 = 5
 				)
 				_, err := wsc.ReceiveHeadersOfAddedBlocks(&neorpc.BlockFilter{
@@ -442,14 +455,14 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				param := p.Value(1)
 				filt := new(neorpc.BlockFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
-				require.Equal(t, 2, *filt.Primary)
+				require.Equal(t, byte(2), *filt.Primary)
 				require.Equal(t, uint32(3), *filt.Since)
 				require.Equal(t, uint32(5), *filt.Till)
 			},
 		},
 		{"blocks primary",
 			func(t *testing.T, wsc *WSClient) {
-				primary := 3
+				primary := byte(3)
 				_, err := wsc.ReceiveBlocks(&neorpc.BlockFilter{Primary: &primary}, make(chan *block.Block))
 				require.NoError(t, err)
 			},
@@ -457,7 +470,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				param := p.Value(1)
 				filt := new(neorpc.BlockFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
-				require.Equal(t, 3, *filt.Primary)
+				require.Equal(t, byte(3), *filt.Primary)
 				require.Equal(t, (*uint32)(nil), filt.Since)
 				require.Equal(t, (*uint32)(nil), filt.Till)
 			},
@@ -472,7 +485,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				param := p.Value(1)
 				filt := new(neorpc.BlockFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
-				require.Equal(t, (*int)(nil), filt.Primary)
+				require.Equal(t, (*byte)(nil), filt.Primary)
 				require.Equal(t, uint32(3), *filt.Since)
 				require.Equal(t, (*uint32)(nil), filt.Till)
 			},
@@ -487,7 +500,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				param := p.Value(1)
 				filt := new(neorpc.BlockFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
-				require.Equal(t, (*int)(nil), filt.Primary)
+				require.Equal(t, (*byte)(nil), filt.Primary)
 				require.Equal(t, (*uint32)(nil), filt.Since)
 				require.Equal(t, (uint32)(3), *filt.Till)
 			},
@@ -496,7 +509,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 			func(t *testing.T, wsc *WSClient) {
 				var (
 					since   uint32 = 3
-					primary        = 2
+					primary        = byte(2)
 					till    uint32 = 5
 				)
 				_, err := wsc.ReceiveBlocks(&neorpc.BlockFilter{
@@ -510,7 +523,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				param := p.Value(1)
 				filt := new(neorpc.BlockFilter)
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
-				require.Equal(t, 2, *filt.Primary)
+				require.Equal(t, byte(2), *filt.Primary)
 				require.Equal(t, uint32(3), *filt.Since)
 				require.Equal(t, uint32(5), *filt.Till)
 			},

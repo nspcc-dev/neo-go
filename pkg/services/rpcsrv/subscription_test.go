@@ -676,3 +676,30 @@ func TestSubscriptionOverflow(t *testing.T) {
 	finishedFlag.CompareAndSwap(false, true)
 	c.Close()
 }
+
+func TestFilteredSubscriptions_InvalidFilter(t *testing.T) {
+	var cases = map[string]struct {
+		params string
+	}{
+		"notification with long name": {
+			params: `["notification_from_execution", {"name":"notification_from_execution_with_long_name"}]`,
+		},
+		"execution with invalid vm state": {
+			params: `["transaction_executed", {"state":"NOTHALT"}]`,
+		},
+	}
+	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
+	defer chain.Close()
+	defer rpcSrv.Shutdown()
+
+	for name, this := range cases {
+		t.Run(name, func(t *testing.T) {
+			resp := callWSGetRaw(t, c, fmt.Sprintf(`{"jsonrpc": "2.0","method": "subscribe","params": %s,"id": 1}`, this.params), respMsgs)
+			require.NotNil(t, resp.Error)
+			require.Nil(t, resp.Result)
+			require.Contains(t, resp.Error.Error(), neorpc.ErrInvalidSubscriptionFilter.Error())
+		})
+	}
+	finishedFlag.CompareAndSwap(false, true)
+	c.Close()
+}
