@@ -2,6 +2,60 @@
 
 This document outlines major changes between releases.
 
+## 0.105.0 "Designation" (29 Dec 2023)
+
+We're rolling out an update for NeoGo nodes that contains a number of user-facing
+API improvements for RPC web-socket notification subsystem, CLI utility, wallet
+related packages and not only. Try out our new `--await` CLI option for those
+commands that relay transactions to the network to automatically wait for the
+on-chain transaction execution result. Subscribe for new block headers with
+extended RPC notification subsystem interface. Use contract-based accounts
+provided by `wallet` package and `neotest` framework to sign transactions. These
+and a set of other improvements are available to our users while this release is
+staying compatible with 3.6.2 version of C# node.
+
+This version also delivers a bug fix for consensus node panic caused by improper
+native NeoToken cache initialisation. Moreover, there's a set of RPC server side
+improvements, thus, we recommend to upgrade both consensus and RPC nodes to
+provide more stable consensus node functioning and extended user APIs functionality.
+No database resynchronisation is needed.
+
+New features:
+ * block headers RPC web-socket subscription (#3252)
+ * --await option to synchronize on transaction execution for CLI commands (#3265)
+ * partial session-based RPC iterator unwrapping (#3274)
+ * contract-based transaction signers in neotest framework (#3233)
+ * AMD64 release binaries for macOS (#3251)
+ * complex contract signature schemes in wallet.Account (#3256)
+
+Behavior changes:
+ * basic RPC subscription filter validity checks are implemented on both RPC
+   client and RPC server sides (#3258)
+ * filter of notary request event RPC subscription is extended with `type` field
+   (#3236)
+ * if available, use block headers RPC web-socket subscription for transaction
+   awaiting via `waiter` package API (#3283)
+
+Improvements:
+ * add smart contract storage limits to interop utilities (#3232)
+ * extend ZKP examples documentation with additional links to PoT ceremony
+   response files (#3234)
+ * support Go types in VM emitter API (#3237)
+ * documentation update (#3239, #3242, #3246)
+ * BoltDB (go.etcd.io/bbolt) dependency upgrade (#3250)
+ * CLI code refactoring (#2682)
+ * extend wallet package to work with byte slice based wallets (#3255)
+ * export RPC client side transaction awaiting functionality via `waiter` package
+   (#3265, #3283)
+
+Bugs fixed:
+ * remove stale `updatehistory` section of `getnativecontracts` RPC response (#3240)
+ * immediately check RPC client initialisation on access to blocks RPC subscription
+   API (#3257, #3261)
+ * fix CN panic caused by unexpected call to native NeoToken cache (#3253)
+ * make "automatically generated" warning of all automatically generated files
+   follow the standard (#3280)
+
 ## 0.104.0 "Globalization" (27 Nov 2023)
 
 We're updating NeoGo to push out a number of useful updates and protocol
