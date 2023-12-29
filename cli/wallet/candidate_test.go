@@ -159,4 +159,61 @@ func TestRegisterCandidate(t *testing.T) {
 	e.RunWithError(t, "neo-go", "query", "voter", "--rpc-endpoint", "http://"+e.RPC.Addresses()[0], validatorAddress, validatorAddress)
 	e.RunWithError(t, "neo-go", "query", "committee", "--rpc-endpoint", "http://"+e.RPC.Addresses()[0], "something")
 	e.RunWithError(t, "neo-go", "query", "candidates", "--rpc-endpoint", "http://"+e.RPC.Addresses()[0], "something")
+
+	t.Run("VoteUnvote await", func(t *testing.T) {
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "wallet", "candidate", "register",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--wallet", testcli.ValidatorWallet,
+			"--address", validatorAddress,
+			"--force", "--await")
+		e.CheckAwaitableTxPersisted(t)
+
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "wallet", "candidate", "vote",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--wallet", testcli.ValidatorWallet,
+			"--address", validatorAddress,
+			"--candidate", validatorHex,
+			"--force",
+			"--await")
+
+		e.CheckAwaitableTxPersisted(t)
+		b, _ := e.Chain.GetGoverningTokenBalance(testcli.ValidatorPriv.GetScriptHash())
+
+		// unvote
+		e.In.WriteString("one\r")
+		e.Run(t, "neo-go", "wallet", "candidate", "vote",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			"--wallet", testcli.ValidatorWallet,
+			"--address", validatorAddress,
+			"--force", "--await")
+		_, index := e.CheckAwaitableTxPersisted(t)
+
+		vs, err = e.Chain.GetEnrollments()
+		require.Equal(t, 1, len(vs))
+		require.Equal(t, validatorPublic, vs[0].Key)
+		require.Equal(t, big.NewInt(0), vs[0].Votes)
+
+		// check state
+		e.Run(t, "neo-go", "query", "voter",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+			validatorAddress)
+		e.CheckNextLine(t, "^\\s*Voted:\\s+"+"null") // no vote.
+		e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String()+"$")
+		e.CheckNextLine(t, "^\\s*Block\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
+		e.CheckEOF(t)
+	})
+
+	e.In.WriteString("one\r")
+	e.Run(t, "neo-go", "wallet", "candidate", "unregister",
+		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
+		"--wallet", testcli.ValidatorWallet,
+		"--address", validatorAddress,
+		"--force",
+		"--await")
+	e.CheckAwaitableTxPersisted(t)
+
+	vs, err = e.Chain.GetEnrollments()
+	require.Equal(t, 0, len(vs))
 }

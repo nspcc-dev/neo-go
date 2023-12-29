@@ -32,8 +32,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// DefaultTimeout is the default timeout used for RPC requests.
-const DefaultTimeout = 10 * time.Second
+const (
+	// DefaultTimeout is the default timeout used for RPC requests.
+	DefaultTimeout = 10 * time.Second
+	// DefaultAwaitableTimeout is the default timeout used for RPC requests that
+	// require transaction awaiting. It is set to the approximate time of three
+	// Neo N3 mainnet blocks accepting.
+	DefaultAwaitableTimeout = 3 * 15 * time.Second
+)
 
 // RPCEndpointFlag is a long flag name for an RPC endpoint. It can be used to
 // check for flag presence in the context.
@@ -128,6 +134,9 @@ func GetTimeoutContext(ctx *cli.Context) (context.Context, func()) {
 	dur := ctx.Duration("timeout")
 	if dur == 0 {
 		dur = DefaultTimeout
+	}
+	if !ctx.IsSet("timeout") && ctx.Bool("await") {
+		dur = DefaultAwaitableTimeout
 	}
 	return context.WithTimeout(context.Background(), dur)
 }

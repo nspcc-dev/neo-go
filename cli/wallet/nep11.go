@@ -101,7 +101,7 @@ func newNEP11Commands() []cli.Command {
 		{
 			Name:      "transfer",
 			Usage:     "transfer NEP-11 tokens",
-			UsageText: "transfer -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
+			UsageText: "transfer -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [--await] [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP11,
 			Flags:     transferFlags,
 			Description: `Transfers specified NEP-11 token with optional cosigners list attached to
@@ -110,7 +110,8 @@ func newNEP11Commands() []cli.Command {
    'contract testinvokefunction' documentation for the details
    about cosigners syntax. If no cosigners are given then the
    sender with CalledByEntry scope will be used as the only
-   signer.
+   signer. If --await flag is set then the command will wait
+   for the transaction to be included in a block.
 `,
 		},
 		{

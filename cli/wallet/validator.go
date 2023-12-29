@@ -20,7 +20,7 @@ func newValidatorCommands() []cli.Command {
 		{
 			Name:      "register",
 			Usage:     "register as a new candidate",
-			UsageText: "register -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas] [--out file] [--force]",
+			UsageText: "register -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas] [--out file] [--force] [--await]",
 			Action:    handleRegister,
 			Flags: append([]cli.Flag{
 				walletPathFlag,
@@ -29,6 +29,7 @@ func newValidatorCommands() []cli.Command {
 				txctx.SysGasFlag,
 				txctx.OutFlag,
 				txctx.ForceFlag,
+				txctx.AwaitFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
 					Usage: "Address to register",
@@ -38,7 +39,7 @@ func newValidatorCommands() []cli.Command {
 		{
 			Name:      "unregister",
 			Usage:     "unregister self as a candidate",
-			UsageText: "unregister -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas] [--out file] [--force]",
+			UsageText: "unregister -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas] [--out file] [--force] [--await]",
 			Action:    handleUnregister,
 			Flags: append([]cli.Flag{
 				walletPathFlag,
@@ -47,6 +48,7 @@ func newValidatorCommands() []cli.Command {
 				txctx.SysGasFlag,
 				txctx.OutFlag,
 				txctx.ForceFlag,
+				txctx.AwaitFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
 					Usage: "Address to unregister",
@@ -56,9 +58,10 @@ func newValidatorCommands() []cli.Command {
 		{
 			Name:      "vote",
 			Usage:     "vote for a validator",
-			UsageText: "vote -w <path> -r <rpc> [-s <timeout>] [-g gas] [-e sysgas] -a <addr> [-c <public key>] [--out file] [--force]",
+			UsageText: "vote -w <path> -r <rpc> [-s <timeout>] [-g gas] [-e sysgas] -a <addr> [-c <public key>] [--out file] [--force] [--await]",
 			Description: `Votes for a validator by calling "vote" method of a NEO native
-   contract. Do not provide candidate argument to perform unvoting.
+   contract. Do not provide candidate argument to perform unvoting. If --await flag is 
+   included, the command waits for the transaction to be included in a block before exiting.
 `,
 			Action: handleVote,
 			Flags: append([]cli.Flag{
@@ -68,6 +71,7 @@ func newValidatorCommands() []cli.Command {
 				txctx.SysGasFlag,
 				txctx.OutFlag,
 				txctx.ForceFlag,
+				txctx.AwaitFlag,
 				flags.AddressFlag{
 					Name:  "address, a",
 					Usage: "Address to vote from",

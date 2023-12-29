@@ -86,6 +86,7 @@ func NewCommands() []cli.Command {
 		txctx.SysGasFlag,
 		txctx.OutFlag,
 		txctx.ForceFlag,
+		txctx.AwaitFlag,
 		flags.AddressFlag{
 			Name:  "address, a",
 			Usage: "Address to claim GAS for",
@@ -96,6 +97,7 @@ func NewCommands() []cli.Command {
 		walletPathFlag,
 		walletConfigFlag,
 		txctx.OutFlag,
+		txctx.AwaitFlag,
 		inFlag,
 		flags.AddressFlag{
 			Name:  "address, a",
@@ -110,7 +112,7 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "claim",
 				Usage:     "claim GAS",
-				UsageText: "neo-go wallet claim -w wallet [--wallet-config path] [-g gas] [-e sysgas] -a address -r endpoint [-s timeout] [--out file] [--force]",
+				UsageText: "neo-go wallet claim -w wallet [--wallet-config path] [-g gas] [-e sysgas] -a address -r endpoint [-s timeout] [--out file] [--force] [--await]",
 				Action:    claimGas,
 				Flags:     claimFlags,
 			},
@@ -288,13 +290,15 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "sign",
 				Usage:     "cosign transaction with multisig/contract/additional account",
-				UsageText: "sign -w wallet [--wallet-config path] --address <address> --in <file.in> [--out <file.out>] [-r <endpoint>]",
+				UsageText: "sign -w wallet [--wallet-config path] --address <address> --in <file.in> [--out <file.out>] [-r <endpoint>] [--await]",
 				Description: `Signs the given (in file.in) context (which must be a transaction
    signing context) for the given address using the given wallet. This command can
    output the resulting JSON (with additional signature added) right to the console
    (if no file.out and no RPC endpoint specified) or into a file (which can be the
    same as input one). If an RPC endpoint is given it'll also try to construct a
-   complete transaction and send it via RPC (printing its hash if everything is OK).
+   complete transaction and send it via RPC (printing its hash if everything is OK). 
+   If the --await (with a given RPC endpoint) flag is included, the command waits 
+   for the transaction to be included in a block before exiting.
 `,
 				Action: signStoredTransaction,
 				Flags:  signFlags,

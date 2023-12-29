@@ -136,3 +136,44 @@ func TestUtilCancelTx(t *testing.T) {
 		return aerErr == nil
 	}, time.Second*2, time.Millisecond*50)
 }
+
+func TestAwaitUtilCancelTx(t *testing.T) {
+	e := testcli.NewExecutor(t, true)
+
+	w, err := wallet.NewWalletFromFile("../testdata/testwallet.json")
+	require.NoError(t, err)
+
+	transferArgs := []string{
+		"neo-go", "wallet", "nep17", "transfer",
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
+		"--wallet", testcli.ValidatorWallet,
+		"--to", w.Accounts[0].Address,
+		"--token", "NEO",
+		"--from", testcli.ValidatorAddr,
+		"--force",
+	}
+	args := []string{"neo-go", "util", "canceltx",
+		"-r", "http://" + e.RPC.Addresses()[0],
+		"--wallet", testcli.ValidatorWallet,
+		"--address", testcli.ValidatorAddr,
+		"--await"}
+
+	e.In.WriteString("one\r")
+	e.Run(t, append(transferArgs, "--amount", "1")...)
+	line := e.GetNextLine(t)
+	txHash, err := util.Uint256DecodeStringLE(line)
+	require.NoError(t, err)
+
+	_, ok := e.Chain.GetMemPool().TryGetValue(txHash)
+	require.True(t, ok)
+
+	e.In.WriteString("one\r")
+	e.Run(t, append(args, txHash.StringLE())...)
+	e.CheckNextLine(t, "Conflicting transaction accepted")
+	resHash, _ := e.CheckAwaitableTxPersisted(t)
+
+	require.Eventually(t, func() bool {
+		_, aerErr := e.Chain.GetAppExecResults(resHash.Hash(), trigger.Application)
+		return aerErr == nil
+	}, time.Second*2, time.Millisecond*50)
+}

@@ -328,6 +328,14 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
 	checkBalanceResult(t, nftOwnerAddr, tokenID1)
 
+	// check --await flag
+	tokenID2 := mint(t)
+	e.In.WriteString(nftOwnerPass + "\r")
+	e.Run(t, append(cmdTransfer, "--await", "--id", hex.EncodeToString(tokenID2))...)
+	e.CheckAwaitableTxPersisted(t)
+	e.Run(t, append(cmdCheckBalance, "--token", h.StringLE())...)
+	checkBalanceResult(t, nftOwnerAddr, tokenID1)
+
 	// transfer: good, to NEP-11-Payable contract, with data
 	verifyH := deployVerifyContract(t, e)
 	cmdTransfer = []string{

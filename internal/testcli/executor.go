@@ -309,6 +309,13 @@ func (e *Executor) CheckTxPersisted(t *testing.T, prefix ...string) (*transactio
 	return tx, height
 }
 
+func (e *Executor) CheckAwaitableTxPersisted(t *testing.T, prefix ...string) (*transaction.Transaction, uint32) {
+	tx, vub := e.CheckTxPersisted(t, prefix...)
+	e.CheckNextLine(t, "OnChain:\ttrue")
+	e.CheckNextLine(t, "VMState:\tHALT")
+	return tx, vub
+}
+
 func GenerateKeys(t *testing.T, n int) ([]*keys.PrivateKey, keys.PublicKeys) {
 	privs := make([]*keys.PrivateKey, n)
 	pubs := make(keys.PublicKeys, n)

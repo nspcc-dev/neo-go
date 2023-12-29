@@ -17,12 +17,14 @@ import (
 // NewCommands returns util commands for neo-go CLI.
 func NewCommands() []cli.Command {
 	txDumpFlags := append([]cli.Flag{}, options.RPC...)
+	txSendFlags := append(txDumpFlags, txctx.AwaitFlag)
 	txCancelFlags := append([]cli.Flag{
 		flags.AddressFlag{
 			Name:  "address, a",
 			Usage: "address to use as conflicting transaction signee (and gas source)",
 		},
 		txctx.GasFlag,
+		txctx.AwaitFlag,
 	}, options.RPC...)
 	txCancelFlags = append(txCancelFlags, options.Wallet...)
 	return []cli.Command{
@@ -42,30 +44,32 @@ func NewCommands() []cli.Command {
 				{
 					Name:      "sendtx",
 					Usage:     "Send complete transaction stored in a context file",
-					UsageText: "sendtx [-r <endpoint>] <file.in>",
+					UsageText: "sendtx [-r <endpoint>] <file.in> [--await]",
 					Description: `Sends the transaction from the given context file to the given RPC node if it's
    completely signed and ready. This command expects a ContractParametersContext
    JSON file for input, it can't handle binary (or hex- or base64-encoded)
-   transactions.
+   transactions. If the --await flag is included, the command waits for the
+   transaction to be included in a block before exiting.
 `,
 					Action: sendTx,
-					Flags:  txDumpFlags,
+					Flags:  txSendFlags,
 				},
 				{
 					Name:      "canceltx",
 					Usage:     "Cancel transaction by sending conflicting transaction",
-					UsageText: "canceltx <txid> -r <endpoint> --wallet <wallet> [--account <account>] [--wallet-config <path>] [--gas <gas>]",
+					UsageText: "canceltx <txid> -r <endpoint> --wallet <wallet> [--account <account>] [--wallet-config <path>] [--gas <gas>] [--await]",
 					Description: `Aims to prevent a transaction from being added to the blockchain by dispatching a more 
-prioritized conflicting transaction to the specified RPC node. The input for this command should 
-be the transaction hash. If another account is not specified, the conflicting transaction is 
-automatically generated and signed by the default account in the wallet. If the target transaction 
-is in the memory pool of the provided RPC node, the NetworkFee value of the conflicting transaction 
-is set to the target transaction's NetworkFee value plus one (if it's sufficient for the 
-conflicting transaction itself). If the target transaction is not in the memory pool, standard 
-NetworkFee calculations are performed based on the calculatenetworkfee RPC request. If the --gas 
-flag is included, the specified value is added to the resulting conflicting transaction network fee 
-in both scenarios.
-`,
+   prioritized conflicting transaction to the specified RPC node. The input for this command should 
+   be the transaction hash. If another account is not specified, the conflicting transaction is 
+   automatically generated and signed by the default account in the wallet. If the target transaction 
+   is in the memory pool of the provided RPC node, the NetworkFee value of the conflicting transaction 
+   is set to the target transaction's NetworkFee value plus one (if it's sufficient for the 
+   conflicting transaction itself), the ValidUntilBlock value of the conflicting transaction is set to the
+   target transaction's ValidUntilBlock value. If the target transaction is not in the memory pool, standard 
+   NetworkFee calculations are performed based on the calculatenetworkfee RPC request. If the --gas 
+   flag is included, the specified value is added to the resulting conflicting transaction network fee 
+   in both scenarios. When the --await flag is included, the command waits for one of the conflicting 
+   or target transactions to be included in a block.`,
 					Action: cancelTx,
 					Flags:  txCancelFlags,
 				},
@@ -75,6 +79,11 @@ in both scenarios.
 					UsageText: "txdump [-r <endpoint>] <file.in>",
 					Action:    txDump,
 					Flags:     txDumpFlags,
+					Description: `Dumps the transaction from the given parameter context file to 
+   the output. This command expects a ContractParametersContext JSON file for input, it can't handle
+   binary (or hex- or base64-encoded) transactions. If --rpc-endpoint flag is specified the result 
+   of the given script after running it true the VM will be printed. Otherwise only transaction will
+   be printed.`,
 				},
 				{
 					Name:      "ops",

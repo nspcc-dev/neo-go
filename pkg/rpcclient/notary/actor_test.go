@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/waiter"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -78,7 +79,7 @@ func (r *RPCClient) GetApplicationLog(hash util.Uint256, trig *trigger.Type) (*r
 	return r.applog, nil
 }
 
-var _ = actor.RPCPollingWaiter(&RPCClient{})
+var _ = waiter.RPCPollingWaiter(&RPCClient{})
 
 func TestNewActor(t *testing.T) {
 	rc := &RPCClient{
