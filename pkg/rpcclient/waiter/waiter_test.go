@@ -35,6 +35,8 @@ type RPCClient struct {
 	context context.Context
 }
 
+var _ = waiter.RPCPollingBased(&RPCClient{})
+
 func (r *RPCClient) InvokeContractVerify(contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {
 	return r.invRes, r.err
 }
@@ -80,10 +82,13 @@ func (r *RPCClient) GetApplicationLog(hash util.Uint256, trig *trigger.Type) (*r
 type AwaitableRPCClient struct {
 	RPCClient
 
-	chLock     sync.RWMutex
-	subBlockCh chan<- *block.Block
-	subTxCh    chan<- *state.AppExecResult
+	chLock      sync.RWMutex
+	subHeaderCh chan<- *block.Header
+	subBlockCh  chan<- *block.Block
+	subTxCh     chan<- *state.AppExecResult
 }
+
+var _ = waiter.RPCEventBased(&AwaitableRPCClient{})
 
 func (c *AwaitableRPCClient) ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Block) (string, error) {
 	c.chLock.Lock()
@@ -97,19 +102,25 @@ func (c *AwaitableRPCClient) ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr
 	c.subTxCh = rcvr
 	return "2", nil
 }
+func (c *AwaitableRPCClient) ReceiveHeadersOfAddedBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Header) (string, error) {
+	c.chLock.Lock()
+	defer c.chLock.Unlock()
+	c.subHeaderCh = rcvr
+	return "3", nil
+}
 func (c *AwaitableRPCClient) Unsubscribe(id string) error { return nil }
 
 func TestNewWaiter(t *testing.T) {
 	w := waiter.New((actor.RPCActor)(nil), nil)
-	_, ok := w.(waiter.NullWaiter)
+	_, ok := w.(waiter.Null)
 	require.True(t, ok)
 
 	w = waiter.New(&RPCClient{}, &result.Version{})
-	_, ok = w.(*waiter.PollingWaiter)
+	_, ok = w.(*waiter.PollingBased)
 	require.True(t, ok)
 
 	w = waiter.New(&AwaitableRPCClient{RPCClient: RPCClient{}}, &result.Version{})
-	_, ok = w.(*waiter.EventWaiter)
+	_, ok = w.(*waiter.EventBased)
 	require.True(t, ok)
 }
 
@@ -121,7 +132,7 @@ func TestPollingWaiter_Wait(t *testing.T) {
 	c := &RPCClient{appLog: appLog}
 	c.bCount.Store(bCount)
 	w := waiter.New(c, &result.Version{Protocol: result.Protocol{MillisecondsPerBlock: 1}}) // reduce testing time.
-	_, ok := w.(*waiter.PollingWaiter)
+	_, ok := w.(*waiter.PollingBased)
 	require.True(t, ok)
 
 	// Wait with error.
@@ -186,7 +197,7 @@ func TestWSWaiter_Wait(t *testing.T) {
 	c := &AwaitableRPCClient{RPCClient: RPCClient{appLog: appLog}}
 	c.bCount.Store(bCount)
 	w := waiter.New(c, &result.Version{Protocol: result.Protocol{MillisecondsPerBlock: 1}}) // reduce testing time.
-	_, ok := w.(*waiter.EventWaiter)
+	_, ok := w.(*waiter.EventBased)
 	require.True(t, ok)
 
 	// Wait with error.
@@ -244,12 +255,12 @@ func TestWSWaiter_Wait(t *testing.T) {
 	check(t, func() {
 		c.chLock.RLock()
 		defer c.chLock.RUnlock()
-		c.subBlockCh <- &block.Block{}
+		c.subHeaderCh <- &block.Header{}
 	})
 }
 
 func TestRPCWaiterRPCClientCompat(t *testing.T) {
-	_ = waiter.RPCPollingWaiter(&rpcclient.Client{})
-	_ = waiter.RPCPollingWaiter(&rpcclient.WSClient{})
-	_ = waiter.RPCEventWaiter(&rpcclient.WSClient{})
+	_ = waiter.RPCPollingBased(&rpcclient.Client{})
+	_ = waiter.RPCPollingBased(&rpcclient.WSClient{})
+	_ = waiter.RPCEventBased(&rpcclient.WSClient{})
 }
