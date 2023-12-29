@@ -15,11 +15,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// PollingWaiterRetryCount is a threshold for a number of subsequent failed
-// attempts to get block count from the RPC server for PollingWaiter. If it fails
-// to retrieve block count PollingWaiterRetryCount times in a raw then transaction
+// PollingBasedRetryCount is a threshold for a number of subsequent failed
+// attempts to get block count from the RPC server for PollingBased. If it fails
+// to retrieve block count PollingBasedRetryCount times in a raw then transaction
 // awaiting attempt considered to be failed and an error is returned.
-const PollingWaiterRetryCount = 3
+const PollingBasedRetryCount = 3
 
 var (
 	// ErrTxNotAccepted is returned when transaction wasn't accepted to the chain
@@ -31,13 +31,13 @@ var (
 	// ErrAwaitingNotSupported is returned from Wait method if Waiter instance
 	// doesn't support transaction awaiting.
 	ErrAwaitingNotSupported = errors.New("awaiting not supported")
-	// ErrMissedEvent is returned when RPCEventWaiter closes receiver channel
+	// ErrMissedEvent is returned when RPCEventBased closes receiver channel
 	// which happens if missed event was received from the RPC server.
 	ErrMissedEvent = errors.New("some event was missed")
 )
 
 type (
-	// Waiter is an interface providing transaction awaiting functionality to Actor.
+	// Waiter is an interface providing transaction awaiting functionality.
 	Waiter interface {
 		// Wait allows to wait until transaction will be accepted to the chain. It can be
 		// used as a wrapper for Send or SignAndSend and accepts transaction hash,
@@ -51,14 +51,14 @@ type (
 		// WaitAny waits until at least one of the specified transactions will be accepted
 		// to the chain until vub (including). It returns execution result of this
 		// transaction or an error if none of the transactions was accepted to the chain.
-		// It uses underlying RPCPollingWaiter or RPCEventWaiter context to interrupt
+		// It uses underlying RPCPollingBased or RPCEventBased context to interrupt
 		// awaiting process, but additional ctx can be passed as an argument for the same
 		// purpose.
 		WaitAny(ctx context.Context, vub uint32, hashes ...util.Uint256) (*state.AppExecResult, error)
 	}
-	// RPCPollingWaiter is an interface that enables transaction awaiting functionality
-	// for Actor instance based on periodical BlockCount and ApplicationLog polls.
-	RPCPollingWaiter interface {
+	// RPCPollingBased is an interface that enables transaction awaiting functionality
+	// based on periodical BlockCount and ApplicationLog polls.
+	RPCPollingBased interface {
 		// Context should return the RPC client context to be able to gracefully
 		// shut down all running processes (if so).
 		Context() context.Context
@@ -66,12 +66,12 @@ type (
 		GetBlockCount() (uint32, error)
 		GetApplicationLog(hash util.Uint256, trig *trigger.Type) (*result.ApplicationLog, error)
 	}
-	// RPCEventWaiter is an interface that enables improved transaction awaiting functionality
-	// for Actor instance based on web-socket Block and ApplicationLog notifications. RPCEventWaiter
-	// contains RPCPollingWaiter under the hood and falls back to polling when subscription-based
+	// RPCEventBased is an interface that enables improved transaction awaiting functionality
+	// based on web-socket Block and ApplicationLog notifications. RPCEventBased
+	// contains RPCPollingBased under the hood and falls back to polling when subscription-based
 	// awaiting fails.
-	RPCEventWaiter interface {
-		RPCPollingWaiter
+	RPCEventBased interface {
+		RPCPollingBased
 
 		ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Block) (string, error)
 		ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *state.AppExecResult) (string, error)
@@ -79,18 +79,18 @@ type (
 	}
 )
 
-// NullWaiter is a Waiter stub that doesn't support transaction awaiting functionality.
-type NullWaiter struct{}
+// Null is a Waiter stub that doesn't support transaction awaiting functionality.
+type Null struct{}
 
-// PollingWaiter is a polling-based Waiter.
-type PollingWaiter struct {
-	polling RPCPollingWaiter
+// PollingBased is a polling-based Waiter.
+type PollingBased struct {
+	polling RPCPollingBased
 	version *result.Version
 }
 
-// EventWaiter is a websocket-based Waiter.
-type EventWaiter struct {
-	ws      RPCEventWaiter
+// EventBased is a websocket-based Waiter.
+type EventBased struct {
+	ws      RPCEventBased
 	polling Waiter
 }
 
@@ -102,57 +102,57 @@ func errIsAlreadyExists(err error) bool {
 
 // New creates Waiter instance. It can be either websocket-based or
 // polling-base, otherwise Waiter stub is returned. As a first argument
-// it accepts RPCEventWaiter implementation, RPCPollingWaiter implementation
+// it accepts RPCEventBased implementation, RPCPollingBased implementation
 // or not an implementation of these two interfaces. It returns websocket-based
 // waiter, polling-based waiter or a stub correspondingly.
 func New(base any, v *result.Version) Waiter {
-	if eventW, ok := base.(RPCEventWaiter); ok {
-		return &EventWaiter{
+	if eventW, ok := base.(RPCEventBased); ok {
+		return &EventBased{
 			ws: eventW,
-			polling: &PollingWaiter{
+			polling: &PollingBased{
 				polling: eventW,
 				version: v,
 			},
 		}
 	}
-	if pollW, ok := base.(RPCPollingWaiter); ok {
-		return &PollingWaiter{
+	if pollW, ok := base.(RPCPollingBased); ok {
+		return &PollingBased{
 			polling: pollW,
 			version: v,
 		}
 	}
-	return NewNullWaiter()
+	return NewNull()
 }
 
-// NewNullWaiter creates an instance of Waiter stub.
-func NewNullWaiter() NullWaiter {
-	return NullWaiter{}
+// NewNull creates an instance of Waiter stub.
+func NewNull() Null {
+	return Null{}
 }
 
 // Wait implements Waiter interface.
-func (NullWaiter) Wait(h util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
+func (Null) Wait(h util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
 	return nil, ErrAwaitingNotSupported
 }
 
 // WaitAny implements Waiter interface.
-func (NullWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uint256) (*state.AppExecResult, error) {
+func (Null) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uint256) (*state.AppExecResult, error) {
 	return nil, ErrAwaitingNotSupported
 }
 
-// NewPollingWaiter creates an instance of Waiter supporting poll-based transaction awaiting.
-func NewPollingWaiter(waiter RPCPollingWaiter) (*PollingWaiter, error) {
+// NewPollingBased creates an instance of Waiter supporting poll-based transaction awaiting.
+func NewPollingBased(waiter RPCPollingBased) (*PollingBased, error) {
 	v, err := waiter.GetVersion()
 	if err != nil {
 		return nil, err
 	}
-	return &PollingWaiter{
+	return &PollingBased{
 		polling: waiter,
 		version: v,
 	}, nil
 }
 
 // Wait implements Waiter interface.
-func (w *PollingWaiter) Wait(h util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
+func (w *PollingBased) Wait(h util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
 	if err != nil && !errIsAlreadyExists(err) {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (w *PollingWaiter) Wait(h util.Uint256, vub uint32, err error) (*state.AppE
 }
 
 // WaitAny implements Waiter interface.
-func (w *PollingWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uint256) (*state.AppExecResult, error) {
+func (w *PollingBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uint256) (*state.AppExecResult, error) {
 	var (
 		currentHeight uint32
 		failedAttempt int
@@ -177,7 +177,7 @@ func (w *PollingWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.
 			blockCount, err := w.polling.GetBlockCount()
 			if err != nil {
 				failedAttempt++
-				if failedAttempt > PollingWaiterRetryCount {
+				if failedAttempt > PollingBasedRetryCount {
 					return nil, fmt.Errorf("failed to retrieve block count: %w", err)
 				}
 				continue
@@ -207,22 +207,22 @@ func (w *PollingWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.
 	}
 }
 
-// NewEventWaiter creates an instance of Waiter supporting websocket event-based transaction awaiting.
-// EventWaiter contains PollingWaiter under the hood and falls back to polling when subscription-based
+// NewEventBased creates an instance of Waiter supporting websocket event-based transaction awaiting.
+// EventBased contains PollingBased under the hood and falls back to polling when subscription-based
 // awaiting fails.
-func NewEventWaiter(waiter RPCEventWaiter) (*EventWaiter, error) {
-	polling, err := NewPollingWaiter(waiter)
+func NewEventBased(waiter RPCEventBased) (*EventBased, error) {
+	polling, err := NewPollingBased(waiter)
 	if err != nil {
 		return nil, err
 	}
-	return &EventWaiter{
+	return &EventBased{
 		ws:      waiter,
 		polling: polling,
 	}, nil
 }
 
 // Wait implements Waiter interface.
-func (w *EventWaiter) Wait(h util.Uint256, vub uint32, err error) (res *state.AppExecResult, waitErr error) {
+func (w *EventBased) Wait(h util.Uint256, vub uint32, err error) (res *state.AppExecResult, waitErr error) {
 	if err != nil && !errIsAlreadyExists(err) {
 		return nil, err
 	}
@@ -230,7 +230,7 @@ func (w *EventWaiter) Wait(h util.Uint256, vub uint32, err error) (res *state.Ap
 }
 
 // WaitAny implements Waiter interface.
-func (w *EventWaiter) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uint256) (res *state.AppExecResult, waitErr error) {
+func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uint256) (res *state.AppExecResult, waitErr error) {
 	var (
 		wsWaitErr     error
 		waitersActive int

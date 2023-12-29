@@ -59,18 +59,18 @@ type SignerAccount struct {
 // transactions in various ways, while "Send" prefix is used by methods that
 // directly transmit created transactions to the RPC server.
 //
-// Actor also provides a Waiter interface to wait until transaction will be
+// Actor also provides a [waiter.Waiter] interface to wait until transaction will be
 // accepted to the chain. Depending on the underlying RPCActor functionality,
 // transaction awaiting can be performed via web-socket using RPC notifications
-// subsystem with EventWaiter, via regular RPC requests using a poll-based
-// algorithm with PollingWaiter or can not be performed if RPCActor doesn't
-// implement none of RPCEventWaiter and RPCPollingWaiter interfaces with
-// NullWaiter. ErrAwaitingNotSupported will be returned on attempt to await the
-// transaction in the latter case. Waiter uses context of the underlying RPCActor
+// subsystem with [waiter.EventBased], via regular RPC requests using a poll-based
+// algorithm with [waiter.PollingBased] or can not be performed if RPCActor doesn't
+// implement none of [waiter.RPCEventBased] and [waiter.RPCPollingBased] interfaces with
+// [waiter.Null]. [waiter.ErrAwaitingNotSupported] will be returned on attempt to await the
+// transaction in the latter case. [waiter.Waiter] uses context of the underlying RPCActor
 // and interrupts transaction awaiting process if the context is done.
-// ErrContextDone wrapped with the context's error will be returned in this case.
+// [waiter.ErrContextDone] wrapped with the context's error will be returned in this case.
 // Otherwise, transaction awaiting process is ended with ValidUntilBlock acceptance
-// and ErrTxNotAccepted is returned if transaction wasn't accepted by this moment.
+// and [waiter.ErrTxNotAccepted] is returned if transaction wasn't accepted by this moment.
 type Actor struct {
 	invoker.Invoker
 	waiter.Waiter

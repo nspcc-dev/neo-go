@@ -101,15 +101,15 @@ func (c *AwaitableRPCClient) Unsubscribe(id string) error { return nil }
 
 func TestNewWaiter(t *testing.T) {
 	w := waiter.New((actor.RPCActor)(nil), nil)
-	_, ok := w.(waiter.NullWaiter)
+	_, ok := w.(waiter.Null)
 	require.True(t, ok)
 
 	w = waiter.New(&RPCClient{}, &result.Version{})
-	_, ok = w.(*waiter.PollingWaiter)
+	_, ok = w.(*waiter.PollingBased)
 	require.True(t, ok)
 
 	w = waiter.New(&AwaitableRPCClient{RPCClient: RPCClient{}}, &result.Version{})
-	_, ok = w.(*waiter.EventWaiter)
+	_, ok = w.(*waiter.EventBased)
 	require.True(t, ok)
 }
 
@@ -121,7 +121,7 @@ func TestPollingWaiter_Wait(t *testing.T) {
 	c := &RPCClient{appLog: appLog}
 	c.bCount.Store(bCount)
 	w := waiter.New(c, &result.Version{Protocol: result.Protocol{MillisecondsPerBlock: 1}}) // reduce testing time.
-	_, ok := w.(*waiter.PollingWaiter)
+	_, ok := w.(*waiter.PollingBased)
 	require.True(t, ok)
 
 	// Wait with error.
@@ -186,7 +186,7 @@ func TestWSWaiter_Wait(t *testing.T) {
 	c := &AwaitableRPCClient{RPCClient: RPCClient{appLog: appLog}}
 	c.bCount.Store(bCount)
 	w := waiter.New(c, &result.Version{Protocol: result.Protocol{MillisecondsPerBlock: 1}}) // reduce testing time.
-	_, ok := w.(*waiter.EventWaiter)
+	_, ok := w.(*waiter.EventBased)
 	require.True(t, ok)
 
 	// Wait with error.
@@ -249,7 +249,7 @@ func TestWSWaiter_Wait(t *testing.T) {
 }
 
 func TestRPCWaiterRPCClientCompat(t *testing.T) {
-	_ = waiter.RPCPollingWaiter(&rpcclient.Client{})
-	_ = waiter.RPCPollingWaiter(&rpcclient.WSClient{})
-	_ = waiter.RPCEventWaiter(&rpcclient.WSClient{})
+	_ = waiter.RPCPollingBased(&rpcclient.Client{})
+	_ = waiter.RPCPollingBased(&rpcclient.WSClient{})
+	_ = waiter.RPCEventBased(&rpcclient.WSClient{})
 }

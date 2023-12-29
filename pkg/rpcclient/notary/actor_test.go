@@ -79,7 +79,7 @@ func (r *RPCClient) GetApplicationLog(hash util.Uint256, trig *trigger.Type) (*r
 	return r.applog, nil
 }
 
-var _ = waiter.RPCPollingWaiter(&RPCClient{})
+var _ = waiter.RPCPollingBased(&RPCClient{})
 
 func TestNewActor(t *testing.T) {
 	rc := &RPCClient{
