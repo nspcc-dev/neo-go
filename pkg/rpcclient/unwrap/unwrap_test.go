@@ -101,6 +101,12 @@ func TestStdErrors(t *testing.T) {
 			require.Error(t, err)
 		}
 	})
+	t.Run("HALT state with empty stack", func(t *testing.T) {
+		for _, f := range funcs {
+			_, err := f(&result.Invoke{State: "HALT"}, nil)
+			require.Error(t, err)
+		}
+	})
 	t.Run("multiple return values", func(t *testing.T) {
 		for _, f := range funcs {
 			_, err := f(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make(42), stackitem.Make(42)}}, nil)
