@@ -167,17 +167,62 @@ func SessionIterator(r *result.Invoke, err error) (uuid.UUID, result.Iterator, e
 	if err != nil {
 		return uuid.UUID{}, result.Iterator{}, err
 	}
-	if t := itm.Type(); t != stackitem.InteropT {
-		return uuid.UUID{}, result.Iterator{}, fmt.Errorf("expected InteropInterface, got %s", t)
-	}
-	iter, ok := itm.Value().(result.Iterator)
-	if !ok {
-		return uuid.UUID{}, result.Iterator{}, errors.New("the item is InteropInterface, but not an Iterator")
+	iter, err := itemToSessionIterator(itm)
+	if err != nil {
+		return uuid.UUID{}, result.Iterator{}, err
 	}
 	if (r.Session == uuid.UUID{}) && iter.ID != nil {
 		return uuid.UUID{}, result.Iterator{}, ErrNoSessionID
 	}
 	return r.Session, iter, nil
+}
+
+// ArrayAndSessionIterator expects correct execution (HALT state) with one or two stack
+// items returned. If there is 1 item, it must be an array. If there is a second item,
+// it must be an iterator. This is exactly the result of smartcontract.CreateCallAndPrefetchIteratorScript.
+// Sessions must be enabled on the RPC server for this to function correctly.
+func ArrayAndSessionIterator(r *result.Invoke, err error) ([]stackitem.Item, uuid.UUID, result.Iterator, error) {
+	if err := checkResOK(r, err); err != nil {
+		return nil, uuid.UUID{}, result.Iterator{}, err
+	}
+	if len(r.Stack) == 0 {
+		return nil, uuid.UUID{}, result.Iterator{}, errors.New("result stack is empty")
+	}
+	if len(r.Stack) != 1 && len(r.Stack) != 2 {
+		return nil, uuid.UUID{}, result.Iterator{}, fmt.Errorf("expected 1 or 2 result items, got %d", len(r.Stack))
+	}
+
+	// Unwrap array.
+	itm := r.Stack[0]
+	arr, ok := itm.Value().([]stackitem.Item)
+	if !ok {
+		return nil, uuid.UUID{}, result.Iterator{}, errors.New("not an array")
+	}
+
+	// Check whether iterator exists and unwrap it.
+	if len(r.Stack) == 1 {
+		return arr, uuid.UUID{}, result.Iterator{}, nil
+	}
+
+	iter, err := itemToSessionIterator(r.Stack[1])
+	if err != nil {
+		return nil, uuid.UUID{}, result.Iterator{}, err
+	}
+	if (r.Session == uuid.UUID{}) {
+		return nil, uuid.UUID{}, result.Iterator{}, ErrNoSessionID
+	}
+	return arr, r.Session, iter, nil
+}
+
+func itemToSessionIterator(itm stackitem.Item) (result.Iterator, error) {
+	if t := itm.Type(); t != stackitem.InteropT {
+		return result.Iterator{}, fmt.Errorf("expected InteropInterface, got %s", t)
+	}
+	iter, ok := itm.Value().(result.Iterator)
+	if !ok {
+		return result.Iterator{}, errors.New("the item is InteropInterface, but not an Iterator")
+	}
+	return iter, nil
 }
 
 // Array expects correct execution (HALT state) with a single array stack item
