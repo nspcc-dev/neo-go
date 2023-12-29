@@ -7,14 +7,12 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.102.1 (~October 2023)
- * bug fixes
-
-## Version 0.103.0 (~November 2023)
+## Version 0.106.0 (~February 2023)
  * extended data types for iterators to be used by RPC wrapper generator
- * RPC subscription extensions
+ * protocol updates
+ * test fixes
 
-## Version 1.0 (2023, TBD)
+## Version 1.0 (2024, TBD)
  * stable version
 
 # Deprecated functionality
