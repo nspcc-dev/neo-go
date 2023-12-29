@@ -51,6 +51,10 @@ func TestStdErrors(t *testing.T) {
 			return nil, err
 		},
 		func(r *result.Invoke, err error) (any, error) {
+			_, _, _, err = ArrayAndSessionIterator(r, err)
+			return nil, err
+		},
+		func(r *result.Invoke, err error) (any, error) {
 			return Array(r, err)
 		},
 		func(r *result.Invoke, err error) (any, error) {
@@ -94,6 +98,12 @@ func TestStdErrors(t *testing.T) {
 	t.Run("nothing returned", func(t *testing.T) {
 		for _, f := range funcs {
 			_, err := f(&result.Invoke{State: "HALT"}, errors.New("some"))
+			require.Error(t, err)
+		}
+	})
+	t.Run("HALT state with empty stack", func(t *testing.T) {
+		for _, f := range funcs {
+			_, err := f(&result.Invoke{State: "HALT"}, nil)
 			require.Error(t, err)
 		}
 	})
@@ -254,6 +264,39 @@ func TestSessionIterator(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, sid, rs)
 	require.Equal(t, iter, ri)
+}
+
+func TestArraySessionIterator(t *testing.T) {
+	_, _, _, err := ArrayAndSessionIterator(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make(42)}}, nil)
+	require.Error(t, err)
+
+	_, _, _, err = ArrayAndSessionIterator(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.NewInterop(42)}}, nil)
+	require.Error(t, err)
+
+	arr := stackitem.NewArray([]stackitem.Item{stackitem.Make(42)})
+	ra, rs, ri, err := ArrayAndSessionIterator(&result.Invoke{State: "HALT", Stack: []stackitem.Item{arr}}, nil)
+	require.NoError(t, err)
+	require.Equal(t, arr.Value(), ra)
+	require.Empty(t, rs)
+	require.Empty(t, ri)
+
+	_, _, _, err = ArrayAndSessionIterator(&result.Invoke{State: "HALT", Stack: []stackitem.Item{arr, stackitem.NewInterop(42)}}, nil)
+	require.Error(t, err)
+
+	iid := uuid.New()
+	iter := result.Iterator{ID: &iid}
+	_, _, _, err = ArrayAndSessionIterator(&result.Invoke{State: "HALT", Stack: []stackitem.Item{arr, stackitem.NewInterop(iter)}}, nil)
+	require.ErrorIs(t, err, ErrNoSessionID)
+
+	sid := uuid.New()
+	_, rs, ri, err = ArrayAndSessionIterator(&result.Invoke{Session: sid, State: "HALT", Stack: []stackitem.Item{arr, stackitem.NewInterop(iter)}}, nil)
+	require.NoError(t, err)
+	require.Equal(t, arr.Value(), ra)
+	require.Equal(t, sid, rs)
+	require.Equal(t, iter, ri)
+
+	_, _, _, err = ArrayAndSessionIterator(&result.Invoke{Session: sid, State: "HALT", Stack: []stackitem.Item{arr, stackitem.NewInterop(iter), stackitem.Make(42)}}, nil)
+	require.Error(t, err)
 }
 
 func TestArray(t *testing.T) {

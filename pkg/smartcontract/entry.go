@@ -20,6 +20,61 @@ import (
 // for interactions with RPC server that have iterator sessions disabled.
 func CreateCallAndUnwrapIteratorScript(contract util.Uint160, operation string, maxIteratorResultItems int, params ...any) ([]byte, error) {
 	script := io.NewBufBinWriter()
+	jmpIfNotOffset, jmpIfMaxReachedOffset := emitCallAndUnwrapIteratorScript(script, contract, operation, maxIteratorResultItems, params...)
+
+	// End of the program: push the result on stack and return.
+	loadResultOffset := script.Len()
+	emit.Opcodes(script.BinWriter, opcode.NIP, // Remove iterator from the 1-st cell of estack
+		opcode.NIP) // Remove maxIteratorResultItems from the 1-st cell of estack, so that only resulting array is left on estack.
+	if err := script.Err; err != nil {
+		return nil, fmt.Errorf("emitting iterator unwrapper script: %w", err)
+	}
+
+	// Fill in JMPIFNOT instruction parameter.
+	bytes := script.Bytes()
+	bytes[jmpIfNotOffset+1] = uint8(loadResultOffset - jmpIfNotOffset) // +1 is for JMPIFNOT itself; offset is relative to JMPIFNOT position.
+	// Fill in jmpIfMaxReachedOffset instruction parameter.
+	bytes[jmpIfMaxReachedOffset+1] = uint8(loadResultOffset - jmpIfMaxReachedOffset) // +1 is for JMPIF itself; offset is relative to JMPIF position.
+	return bytes, nil
+}
+
+// CreateCallAndPrefetchIteratorScript creates a script that calls 'operation' method
+// of the 'contract' with the specified arguments. This method is expected to return
+// an array of the first iterator items (up to maxIteratorResultItems, which cannot exceed VM limits)
+// and, optionally, an iterator that then is traversed (using iterator.Next).
+// The result of the script is an array containing extracted value elements and an iterator, if it can contain more items.
+// If the iterator is present, it lies on top of the stack.
+// Note, however, that if an iterator is returned, the number of remaining items can still be 0.
+// This script should only be used for interactions with RPC server that have iterator sessions enabled.
+func CreateCallAndPrefetchIteratorScript(contract util.Uint160, operation string, maxIteratorResultItems int, params ...any) ([]byte, error) {
+	script := io.NewBufBinWriter()
+	jmpIfNotOffset, jmpIfMaxReachedOffset := emitCallAndUnwrapIteratorScript(script, contract, operation, maxIteratorResultItems, params...)
+
+	// 1st possibility: jump here when the maximum number of items was reached.
+	retainIteratorOffset := script.Len()
+	emit.Opcodes(script.BinWriter, opcode.ROT, // Put maxIteratorResultItems from the 2-nd cell of estack, to the top
+		opcode.DROP, // ... and then drop it.
+		opcode.SWAP, // Put the iterator on top of the stack.
+		opcode.RET)
+
+	// 2nd possibility: jump here when the iterator has no more items.
+	loadResultOffset := script.Len()
+	emit.Opcodes(script.BinWriter, opcode.ROT, // Put maxIteratorResultItems from the 2-nd cell of estack, to the top
+		opcode.DROP, // ... and then drop it.
+		opcode.NIP)  // Drop iterator as the 1-st cell on the stack.
+	if err := script.Err; err != nil {
+		return nil, fmt.Errorf("emitting iterator unwrapper script: %w", err)
+	}
+
+	// Fill in JMPIFNOT instruction parameter.
+	bytes := script.Bytes()
+	bytes[jmpIfNotOffset+1] = uint8(loadResultOffset - jmpIfNotOffset) // +1 is for JMPIFNOT itself; offset is relative to JMPIFNOT position.
+	// Fill in jmpIfMaxReachedOffset instruction parameter.
+	bytes[jmpIfMaxReachedOffset+1] = uint8(retainIteratorOffset - jmpIfMaxReachedOffset) // +1 is for JMPIF itself; offset is relative to JMPIF position.
+	return bytes, nil
+}
+
+func emitCallAndUnwrapIteratorScript(script *io.BufBinWriter, contract util.Uint160, operation string, maxIteratorResultItems int, params ...any) (int, int) {
 	emit.Int(script.BinWriter, int64(maxIteratorResultItems))
 	emit.AppCall(script.BinWriter, contract, operation, callflag.All, params...) // The System.Contract.Call itself, it will push Iterator on estack.
 	emit.Opcodes(script.BinWriter, opcode.NEWARRAY0)                             // Push new empty array to estack. This array will store iterator's elements.
@@ -51,21 +106,7 @@ func CreateCallAndUnwrapIteratorScript(contract util.Uint160, operation string, 
 		[]byte{
 			uint8(iteratorTraverseCycleStartOffset - jmpOffset), // jump to iteratorTraverseCycleStartOffset; offset is relative to JMP position.
 		})
-
-	// End of the program: push the result on stack and return.
-	loadResultOffset := script.Len()
-	emit.Opcodes(script.BinWriter, opcode.NIP, // Remove iterator from the 1-st cell of estack
-		opcode.NIP) // Remove maxIteratorResultItems from the 1-st cell of estack, so that only resulting array is left on estack.
-	if err := script.Err; err != nil {
-		return nil, fmt.Errorf("emitting iterator unwrapper script: %w", err)
-	}
-
-	// Fill in JMPIFNOT instruction parameter.
-	bytes := script.Bytes()
-	bytes[jmpIfNotOffset+1] = uint8(loadResultOffset - jmpIfNotOffset) // +1 is for JMPIFNOT itself; offset is relative to JMPIFNOT position.
-	// Fill in jmpIfMaxReachedOffset instruction parameter.
-	bytes[jmpIfMaxReachedOffset+1] = uint8(loadResultOffset - jmpIfMaxReachedOffset) // +1 is for JMPIF itself; offset is relative to JMPIF position.
-	return bytes, nil
+	return jmpIfNotOffset, jmpIfMaxReachedOffset
 }
 
 // CreateCallScript returns a script that calls contract's method with
