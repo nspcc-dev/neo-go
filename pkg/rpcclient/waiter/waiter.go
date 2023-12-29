@@ -73,6 +73,7 @@ type (
 	RPCEventBased interface {
 		RPCPollingBased
 
+		ReceiveHeadersOfAddedBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Header) (string, error)
 		ReceiveBlocks(flt *neorpc.BlockFilter, rcvr chan<- *block.Block) (string, error)
 		ReceiveExecutions(flt *neorpc.ExecutionFilter, rcvr chan<- *state.AppExecResult) (string, error)
 		Unsubscribe(id string) error
@@ -234,6 +235,7 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 	var (
 		wsWaitErr     error
 		waitersActive int
+		hRcvr         = make(chan *block.Header, 2)
 		bRcvr         = make(chan *block.Block, 2)
 		aerRcvr       = make(chan *state.AppExecResult, len(hashes))
 		unsubErrs     = make(chan error)
@@ -242,16 +244,22 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 
 	// Execution event preceded the block event, thus wait until the VUB-th block to be sure.
 	since := vub
-	blocksID, err := w.ws.ReceiveBlocks(&neorpc.BlockFilter{Since: &since}, bRcvr)
+	blocksID, err := w.ws.ReceiveHeadersOfAddedBlocks(&neorpc.BlockFilter{Since: &since}, hRcvr)
 	if err != nil {
-		wsWaitErr = fmt.Errorf("failed to subscribe for new blocks: %w", err)
+		// Falling back to block-based subscription.
+		if errors.Is(err, neorpc.ErrInvalidParams) {
+			blocksID, err = w.ws.ReceiveBlocks(&neorpc.BlockFilter{Since: &since}, bRcvr)
+		}
+	}
+	if err != nil {
+		wsWaitErr = fmt.Errorf("failed to subscribe for new blocks/headers: %w", err)
 	} else {
 		waitersActive++
 		go func() {
 			<-exit
 			err = w.ws.Unsubscribe(blocksID)
 			if err != nil {
-				unsubErrs <- fmt.Errorf("failed to unsubscribe from blocks (id: %s): %w", blocksID, err)
+				unsubErrs <- fmt.Errorf("failed to unsubscribe from blocks/headers (id: %s): %w", blocksID, err)
 				return
 			}
 			unsubErrs <- nil
@@ -290,9 +298,20 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 
 	if wsWaitErr == nil && res == nil {
 		select {
+		case _, ok := <-hRcvr:
+			if !ok {
+				// We're toast, retry with non-ws client.
+				hRcvr = nil
+				bRcvr = nil
+				aerRcvr = nil
+				wsWaitErr = ErrMissedEvent
+				break
+			}
+			waitErr = ErrTxNotAccepted
 		case _, ok := <-bRcvr:
 			if !ok {
 				// We're toast, retry with non-ws client.
+				hRcvr = nil
 				bRcvr = nil
 				aerRcvr = nil
 				wsWaitErr = ErrMissedEvent
@@ -302,6 +321,7 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 		case aer, ok := <-aerRcvr:
 			if !ok {
 				// We're toast, retry with non-ws client.
+				hRcvr = nil
 				bRcvr = nil
 				aerRcvr = nil
 				wsWaitErr = ErrMissedEvent
@@ -321,13 +341,21 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 	drainLoop:
 		for {
 			select {
+			case _, ok := <-hRcvr:
+				if !ok { // Missed event means both channels are closed.
+					hRcvr = nil
+					bRcvr = nil
+					aerRcvr = nil
+				}
 			case _, ok := <-bRcvr:
 				if !ok { // Missed event means both channels are closed.
+					hRcvr = nil
 					bRcvr = nil
 					aerRcvr = nil
 				}
 			case _, ok := <-aerRcvr:
 				if !ok { // Missed event means both channels are closed.
+					hRcvr = nil
 					bRcvr = nil
 					aerRcvr = nil
 				}
@@ -348,6 +376,9 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 				}
 			}
 		}
+	}
+	if hRcvr != nil {
+		close(hRcvr)
 	}
 	if bRcvr != nil {
 		close(bRcvr)
