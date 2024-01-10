@@ -1327,11 +1327,11 @@ func (bc *Blockchain) notificationDispatcher() {
 		// These are just sets of subscribers, though modelled as maps
 		// for ease of management (not a lot of subscriptions is really
 		// expected, but maps are convenient for adding/deleting elements).
-		blockFeed        = make(map[chan *block.Block]bool)
-		headerFeed       = make(map[chan *block.Header]bool)
-		txFeed           = make(map[chan *transaction.Transaction]bool)
-		notificationFeed = make(map[chan *state.ContainedNotificationEvent]bool)
-		executionFeed    = make(map[chan *state.AppExecResult]bool)
+		blockFeed        = make(map[chan<- *block.Block]bool)
+		headerFeed       = make(map[chan<- *block.Header]bool)
+		txFeed           = make(map[chan<- *transaction.Transaction]bool)
+		notificationFeed = make(map[chan<- *state.ContainedNotificationEvent]bool)
+		executionFeed    = make(map[chan<- *state.AppExecResult]bool)
 	)
 	for {
 		select {
@@ -1339,30 +1339,30 @@ func (bc *Blockchain) notificationDispatcher() {
 			return
 		case sub := <-bc.subCh:
 			switch ch := sub.(type) {
-			case chan *block.Header:
+			case chan<- *block.Header:
 				headerFeed[ch] = true
-			case chan *block.Block:
+			case chan<- *block.Block:
 				blockFeed[ch] = true
-			case chan *transaction.Transaction:
+			case chan<- *transaction.Transaction:
 				txFeed[ch] = true
-			case chan *state.ContainedNotificationEvent:
+			case chan<- *state.ContainedNotificationEvent:
 				notificationFeed[ch] = true
-			case chan *state.AppExecResult:
+			case chan<- *state.AppExecResult:
 				executionFeed[ch] = true
 			default:
 				panic(fmt.Sprintf("bad subscription: %T", sub))
 			}
 		case unsub := <-bc.unsubCh:
 			switch ch := unsub.(type) {
-			case chan *block.Header:
+			case chan<- *block.Header:
 				delete(headerFeed, ch)
-			case chan *block.Block:
+			case chan<- *block.Block:
 				delete(blockFeed, ch)
-			case chan *transaction.Transaction:
+			case chan<- *transaction.Transaction:
 				delete(txFeed, ch)
-			case chan *state.ContainedNotificationEvent:
+			case chan<- *state.ContainedNotificationEvent:
 				delete(notificationFeed, ch)
-			case chan *state.AppExecResult:
+			case chan<- *state.AppExecResult:
 				delete(executionFeed, ch)
 			default:
 				panic(fmt.Sprintf("bad unsubscription: %T", unsub))
@@ -2285,7 +2285,7 @@ func (bc *Blockchain) GetConfig() config.Blockchain {
 // Make sure it's read from regularly as not reading these events might affect
 // other Blockchain functions. Make sure you're not changing the received blocks,
 // as it may affect the functionality of Blockchain and other subscribers.
-func (bc *Blockchain) SubscribeForBlocks(ch chan *block.Block) {
+func (bc *Blockchain) SubscribeForBlocks(ch chan<- *block.Block) {
 	bc.subCh <- ch
 }
 
@@ -2295,7 +2295,7 @@ func (bc *Blockchain) SubscribeForBlocks(ch chan *block.Block) {
 // affect other Blockchain functions. Make sure you're not changing the received
 // headers, as it may affect the functionality of Blockchain and other
 // subscribers.
-func (bc *Blockchain) SubscribeForHeadersOfAddedBlocks(ch chan *block.Header) {
+func (bc *Blockchain) SubscribeForHeadersOfAddedBlocks(ch chan<- *block.Header) {
 	bc.subCh <- ch
 }
 
@@ -2305,7 +2305,7 @@ func (bc *Blockchain) SubscribeForHeadersOfAddedBlocks(ch chan *block.Header) {
 // as not reading these events might affect other Blockchain functions. Make sure
 // you're not changing the received transactions, as it may affect the
 // functionality of Blockchain and other subscribers.
-func (bc *Blockchain) SubscribeForTransactions(ch chan *transaction.Transaction) {
+func (bc *Blockchain) SubscribeForTransactions(ch chan<- *transaction.Transaction) {
 	bc.subCh <- ch
 }
 
@@ -2317,7 +2317,7 @@ func (bc *Blockchain) SubscribeForTransactions(ch chan *transaction.Transaction)
 // read from regularly as not reading these events might affect other Blockchain
 // functions. Make sure you're not changing the received notification events, as
 // it may affect the functionality of Blockchain and other subscribers.
-func (bc *Blockchain) SubscribeForNotifications(ch chan *state.ContainedNotificationEvent) {
+func (bc *Blockchain) SubscribeForNotifications(ch chan<- *state.ContainedNotificationEvent) {
 	bc.subCh <- ch
 }
 
@@ -2327,80 +2327,45 @@ func (bc *Blockchain) SubscribeForNotifications(ch chan *state.ContainedNotifica
 // reading these events might affect other Blockchain functions. Make sure you're
 // not changing the received execution results, as it may affect the
 // functionality of Blockchain and other subscribers.
-func (bc *Blockchain) SubscribeForExecutions(ch chan *state.AppExecResult) {
+func (bc *Blockchain) SubscribeForExecutions(ch chan<- *state.AppExecResult) {
 	bc.subCh <- ch
 }
 
 // UnsubscribeFromBlocks unsubscribes given channel from new block notifications,
 // you can close it afterwards. Passing non-subscribed channel is a no-op, but
 // the method can read from this channel (discarding any read data).
-func (bc *Blockchain) UnsubscribeFromBlocks(ch chan *block.Block) {
-unsubloop:
-	for {
-		select {
-		case <-ch:
-		case bc.unsubCh <- ch:
-			break unsubloop
-		}
-	}
+func (bc *Blockchain) UnsubscribeFromBlocks(ch chan<- *block.Block) {
+	bc.unsubCh <- ch
 }
 
 // UnsubscribeFromHeadersOfAddedBlocks unsubscribes given channel from new
 // block's header notifications, you can close it afterwards. Passing
 // non-subscribed channel is a no-op, but the method can read from this
 // channel (discarding any read data).
-func (bc *Blockchain) UnsubscribeFromHeadersOfAddedBlocks(ch chan *block.Header) {
-unsubloop:
-	for {
-		select {
-		case <-ch:
-		case bc.unsubCh <- ch:
-			break unsubloop
-		}
-	}
+func (bc *Blockchain) UnsubscribeFromHeadersOfAddedBlocks(ch chan<- *block.Header) {
+	bc.unsubCh <- ch
 }
 
 // UnsubscribeFromTransactions unsubscribes given channel from new transaction
 // notifications, you can close it afterwards. Passing non-subscribed channel is
 // a no-op, but the method can read from this channel (discarding any read data).
-func (bc *Blockchain) UnsubscribeFromTransactions(ch chan *transaction.Transaction) {
-unsubloop:
-	for {
-		select {
-		case <-ch:
-		case bc.unsubCh <- ch:
-			break unsubloop
-		}
-	}
+func (bc *Blockchain) UnsubscribeFromTransactions(ch chan<- *transaction.Transaction) {
+	bc.unsubCh <- ch
 }
 
 // UnsubscribeFromNotifications unsubscribes given channel from new
 // execution-generated notifications, you can close it afterwards. Passing
 // non-subscribed channel is a no-op, but the method can read from this channel
 // (discarding any read data).
-func (bc *Blockchain) UnsubscribeFromNotifications(ch chan *state.ContainedNotificationEvent) {
-unsubloop:
-	for {
-		select {
-		case <-ch:
-		case bc.unsubCh <- ch:
-			break unsubloop
-		}
-	}
+func (bc *Blockchain) UnsubscribeFromNotifications(ch chan<- *state.ContainedNotificationEvent) {
+	bc.unsubCh <- ch
 }
 
 // UnsubscribeFromExecutions unsubscribes given channel from new execution
 // notifications, you can close it afterwards. Passing non-subscribed channel is
 // a no-op, but the method can read from this channel (discarding any read data).
-func (bc *Blockchain) UnsubscribeFromExecutions(ch chan *state.AppExecResult) {
-unsubloop:
-	for {
-		select {
-		case <-ch:
-		case bc.unsubCh <- ch:
-			break unsubloop
-		}
-	}
+func (bc *Blockchain) UnsubscribeFromExecutions(ch chan<- *state.AppExecResult) {
+	bc.unsubCh <- ch
 }
 
 // CalculateClaimable calculates the amount of GAS generated by owning specified

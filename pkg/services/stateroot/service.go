@@ -26,8 +26,8 @@ type (
 		GetConfig() config.Blockchain
 		GetDesignatedByRole(role noderoles.Role) (keys.PublicKeys, uint32, error)
 		HeaderHeight() uint32
-		SubscribeForBlocks(ch chan *block.Block)
-		UnsubscribeFromBlocks(ch chan *block.Block)
+		SubscribeForBlocks(ch chan<- *block.Block)
+		UnsubscribeFromBlocks(ch chan<- *block.Block)
 	}
 
 	// Service represents a state root service.

@@ -50,8 +50,8 @@ type Ledger interface {
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	ComputeNextBlockValidators() []*keys.PublicKey
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
-	SubscribeForBlocks(ch chan *coreb.Block)
-	UnsubscribeFromBlocks(ch chan *coreb.Block)
+	SubscribeForBlocks(ch chan<- *coreb.Block)
+	UnsubscribeFromBlocks(ch chan<- *coreb.Block)
 	GetBaseExecFee() int64
 	CalculateAttributesFee(tx *transaction.Transaction) int64
 	interop.Ledger

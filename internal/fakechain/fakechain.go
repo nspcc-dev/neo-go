@@ -24,7 +24,7 @@ import (
 type FakeChain struct {
 	config.Blockchain
 	*mempool.Pool
-	blocksCh                 []chan *block.Block
+	blocksCh                 []chan<- *block.Block
 	Blockheight              atomic.Uint32
 	PoolTxF                  func(*transaction.Transaction) error
 	poolTxWithData           func(*transaction.Transaction, any, *mempool.Pool) error
@@ -346,7 +346,7 @@ func (chain *FakeChain) PoolTx(tx *transaction.Transaction, _ ...*mempool.Pool) 
 }
 
 // SubscribeForBlocks implements the Blockchainer interface.
-func (chain *FakeChain) SubscribeForBlocks(ch chan *block.Block) {
+func (chain *FakeChain) SubscribeForBlocks(ch chan<- *block.Block) {
 	chain.blocksCh = append(chain.blocksCh, ch)
 }
 
@@ -379,7 +379,7 @@ func (chain *FakeChain) VerifyWitness(util.Uint160, hash.Hashable, *transaction.
 }
 
 // UnsubscribeFromBlocks implements the Blockchainer interface.
-func (chain *FakeChain) UnsubscribeFromBlocks(ch chan *block.Block) {
+func (chain *FakeChain) UnsubscribeFromBlocks(ch chan<- *block.Block) {
 	for i, c := range chain.blocksCh {
 		if c == ch {
 			if i < len(chain.blocksCh) {

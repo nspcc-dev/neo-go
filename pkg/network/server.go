@@ -74,8 +74,8 @@ type (
 		PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
 		PoolTxWithData(t *transaction.Transaction, data any, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data any) error) error
 		RegisterPostBlock(f func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block))
-		SubscribeForBlocks(ch chan *block.Block)
-		UnsubscribeFromBlocks(ch chan *block.Block)
+		SubscribeForBlocks(ch chan<- *block.Block)
+		UnsubscribeFromBlocks(ch chan<- *block.Block)
 	}
 
 	// Service is a service abstraction (oracle, state root, consensus, etc).
