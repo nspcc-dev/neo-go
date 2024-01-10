@@ -1169,7 +1169,10 @@ func (s *Server) handleP2PNotaryRequestCmd(r *payload.P2PNotaryRequest) error {
 	}
 	// It's OK for it to fail for various reasons like request already existing
 	// in the pool.
-	_ = s.RelayP2PNotaryRequest(r)
+	err := s.RelayP2PNotaryRequest(r)
+	if err != nil {
+		s.log.Debug("p2p notary request", zap.Error(err), zap.String("hash", r.Hash().StringLE()), zap.String("main", r.MainTransaction.Hash().StringLE()))
+	}
 	return nil
 }
 
