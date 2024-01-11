@@ -1142,8 +1142,11 @@ txloop:
 					}
 				}
 			}
-			if s.verifyAndPoolTX(tx) == nil {
+			err := s.verifyAndPoolTX(tx)
+			if err == nil {
 				s.broadcastTX(tx, nil)
+			} else {
+				s.log.Debug("tx handler", zap.Error(err), zap.String("hash", tx.Hash().StringLE()))
 			}
 			s.txInLock.Lock()
 			delete(s.txInMap, tx.Hash())
