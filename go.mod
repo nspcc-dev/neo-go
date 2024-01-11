@@ -13,7 +13,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/dbft v0.0.0-20230515113611-25db6ba61d5c
-	github.com/nspcc-dev/go-ordered-json v0.0.0-20231123160306-3374ff1e7a3c
+	github.com/nspcc-dev/go-ordered-json v0.0.0-20240112074137-296698a162ae
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231127165613-b35f351f0ba0
 	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.11
 	github.com/nspcc-dev/rfc6979 v0.2.0
