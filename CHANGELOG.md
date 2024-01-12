@@ -2,6 +2,21 @@
 
 This document outlines major changes between releases.
 
+## 0.105.1 "Enumeration" (12 Jan 2024)
+
+This is another v3.6.2-compatible release that fixes mainnet state difference at
+block 4688591. It is confirmed to have the same state up to 4723K height (which
+is current), but to get proper mainnet state you need to resynchronize your node
+from the genesis. T5 testnet state is not affected (at least up to the current
+3323K height), thus DB resynchronisation may be skipped for testnet nodes.
+
+Improvements:
+ * better network services logging (#3287, #3290)
+
+Bugs fixed:
+ * state difference at block 4688591 of N3 mainnet caused by difference at
+   characters escaping during manifest's `Extra` field JSON serialisation (#3286)
+
 ## 0.105.0 "Designation" (29 Dec 2023)
 
 We're rolling out an update for NeoGo nodes that contains a number of user-facing
