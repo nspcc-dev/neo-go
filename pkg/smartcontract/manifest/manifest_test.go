@@ -452,6 +452,11 @@ func TestExtraToStackItem(t *testing.T) {
 			`{"a":1,"sss":{"m":1,"a":2},"x":2,"c":3,"z":4,"s":"5"}`},
 		{`  [ 1, "array", { "d": "z", "a":"x",  "c" : "y",  "b":3}]`,
 			`[1,"array",{"d":"z","a":"x","c":"y","b":3}]`},
+		{
+			// C# double quotes marshalling compatibility test, ref. #3284.
+			`{"Author":"NEOZEN","Description":"NEO\u0027s First Inscriptions Meta Protocol","Deployment":"{\"p\":\"neoz-20\",\"op\":\"deploy\",\"tick\":\"neoz\",\"max\":\"21000000\",\"lim\":\"1000\"}"}`,
+			`{"Author":"NEOZEN","Description":"NEO\u0027s First Inscriptions Meta Protocol","Deployment":"{\u0022p\u0022:\u0022neoz-20\u0022,\u0022op\u0022:\u0022deploy\u0022,\u0022tick\u0022:\u0022neoz\u0022,\u0022max\u0022:\u002221000000\u0022,\u0022lim\u0022:\u00221000\u0022}"}`,
+		},
 	}
 
 	for _, tc := range testCases {
