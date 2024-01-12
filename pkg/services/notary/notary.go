@@ -480,7 +480,9 @@ func (n *Notary) newTxCallbackLoop() {
 			n.reqMtx.Unlock()
 			err := n.onTransaction(tx.tx)
 			if err != nil {
-				n.Config.Log.Error("new transaction callback finished with error", zap.Error(err))
+				n.Config.Log.Error("new transaction callback finished with error",
+					zap.Error(err),
+					zap.Bool("is main", isMain))
 				continue
 			}
 
