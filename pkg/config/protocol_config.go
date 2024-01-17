@@ -106,8 +106,12 @@ func (p *ProtocolConfiguration) Validate() error {
 			shouldBeDisabled = true
 		}
 	}
-	if p.ValidatorsCount != 0 && len(p.ValidatorsHistory) != 0 {
-		return errors.New("configuration should either have ValidatorsCount or ValidatorsHistory, not both")
+	if p.ValidatorsCount != 0 && len(p.ValidatorsHistory) != 0 || p.ValidatorsCount == 0 && len(p.ValidatorsHistory) == 0 {
+		return errors.New("configuration should either have one of ValidatorsCount or ValidatorsHistory, not both")
+	}
+
+	if len(p.StandbyCommittee) == 0 {
+		return errors.New("configuration should include StandbyCommittee")
 	}
 	if len(p.StandbyCommittee) < int(p.ValidatorsCount) {
 		return errors.New("validators count can't exceed the size of StandbyCommittee")
