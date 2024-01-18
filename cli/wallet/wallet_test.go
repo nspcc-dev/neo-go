@@ -487,6 +487,58 @@ func TestWalletInit(t *testing.T) {
 					hex.EncodeToString(pubs[2].Bytes()),
 					hex.EncodeToString(pubs[3].Bytes()))...)
 			})
+
+			privs, pubs = testcli.GenerateKeys(t, 3)
+			script, err = smartcontract.CreateMultiSigRedeemScript(2, pubs)
+			require.NoError(t, err)
+			// Create a wallet and import a standard account
+			e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
+			e.In.WriteString("standardacc\rstdpass\rstdpass\r")
+			e.Run(t, "neo-go", "wallet", "import",
+				"--wallet", walletPath,
+				"--wif", privs[0].WIF())
+			w, err = wallet.NewWalletFromFile(walletPath)
+			require.NoError(t, err)
+			actual = w.GetAccount(privs[0].GetScriptHash())
+			require.NotNil(t, actual)
+			require.NotEqual(t, actual.Contract.Script, script)
+
+			// Test when a public key of an already imported account is present
+			t.Run("existing account public key, no WIF", func(t *testing.T) {
+				e.Run(t, "neo-go", "wallet", "import-multisig",
+					"--wallet", walletPath,
+					"--min", "2",
+					hex.EncodeToString(pubs[0].Bytes()), // Public key of the already imported account
+					hex.EncodeToString(pubs[1].Bytes()),
+					hex.EncodeToString(pubs[2].Bytes()))
+
+				w, err := wallet.NewWalletFromFile(walletPath)
+				require.NoError(t, err)
+				actual := w.GetAccount(hash.Hash160(script))
+				require.NotNil(t, actual)
+				require.Equal(t, actual.Contract.Script, script)
+				require.NoError(t, actual.Decrypt("stdpass", w.Scrypt))
+				require.NotEqual(t, actual.Address, w.GetAccount(privs[0].GetScriptHash()).Address)
+			})
+
+			// Test when no public key of an already imported account is present, and no WIF is provided
+			t.Run("no existing account public key, no WIF", func(t *testing.T) {
+				_, pubsNew := testcli.GenerateKeys(t, 3)
+				scriptNew, err := smartcontract.CreateMultiSigRedeemScript(2, pubsNew)
+				require.NoError(t, err)
+
+				e.RunWithError(t, "neo-go", "wallet", "import-multisig",
+					"--wallet", walletPath,
+					"--min", "2",
+					hex.EncodeToString(pubsNew[0].Bytes()),
+					hex.EncodeToString(pubsNew[1].Bytes()),
+					hex.EncodeToString(pubsNew[2].Bytes()))
+
+				w, err := wallet.NewWalletFromFile(walletPath)
+				require.NoError(t, err)
+				actual := w.GetAccount(hash.Hash160(scriptNew))
+				require.Nil(t, actual)
+			})
 		})
 	})
 }

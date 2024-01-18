@@ -283,8 +283,15 @@ func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
 	if a.privateKey == nil {
 		return errors.New("account key is not available (need to decrypt?)")
 	}
-	var found bool
 	accKey := a.privateKey.PublicKey()
+	return a.ConvertMultisigEncrypted(accKey, m, pubs)
+}
+
+// ConvertMultisigEncrypted sets a's contract to an encrypted multisig contract
+// with m sufficient signatures. The encrypted private key is not modified and
+// remains the same.
+func (a *Account) ConvertMultisigEncrypted(accKey *keys.PublicKey, m int, pubs []*keys.PublicKey) error {
+	var found bool
 	for i := range pubs {
 		if accKey.Equal(pubs[i]) {
 			found = true
