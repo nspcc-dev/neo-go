@@ -135,6 +135,20 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 		ValidatorsHistory: map[uint32]uint32{0: 1, 100: 4},
 	}
 	require.NoError(t, p.Validate())
+	p = &ProtocolConfiguration{
+		StandbyCommittee:  []string{},
+		CommitteeHistory:  map[uint32]uint32{0: 1, 100: 4},
+		ValidatorsHistory: map[uint32]uint32{0: 1, 100: 4},
+	}
+	err := p.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "configuration should include StandbyCommittee")
+	p = &ProtocolConfiguration{
+		StandbyCommittee: []string{"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2"},
+	}
+	err = p.Validate()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "configuration should either have one of ValidatorsCount or ValidatorsHistory, not both")
 }
 
 func TestProtocolConfigurationValidation_Hardforks(t *testing.T) {
@@ -149,13 +163,20 @@ func TestProtocolConfigurationValidation_Hardforks(t *testing.T) {
 			"Aspidochelone": 2,
 			"Basilisk":      1, // Lower height in higher hard-fork.
 		},
+		StandbyCommittee: []string{
+			"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2",
+		},
+		ValidatorsCount: 1,
 	}
 	require.Error(t, p.Validate())
 	p = &ProtocolConfiguration{
 		Hardforks: map[string]uint32{
 			"Aspidochelone": 2,
 			"Basilisk":      2, // Same height is OK.
+		}, StandbyCommittee: []string{
+			"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2",
 		},
+		ValidatorsCount: 1,
 	}
 	require.NoError(t, p.Validate())
 	p = &ProtocolConfiguration{
@@ -163,18 +184,30 @@ func TestProtocolConfigurationValidation_Hardforks(t *testing.T) {
 			"Aspidochelone": 2,
 			"Basilisk":      3, // Larger height is OK.
 		},
+		StandbyCommittee: []string{
+			"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2",
+		},
+		ValidatorsCount: 1,
 	}
 	require.NoError(t, p.Validate())
 	p = &ProtocolConfiguration{
 		Hardforks: map[string]uint32{
 			"Aspidochelone": 2,
 		},
+		StandbyCommittee: []string{
+			"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2",
+		},
+		ValidatorsCount: 1,
 	}
 	require.NoError(t, p.Validate())
 	p = &ProtocolConfiguration{
 		Hardforks: map[string]uint32{
 			"Basilisk": 2,
 		},
+		StandbyCommittee: []string{
+			"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2",
+		},
+		ValidatorsCount: 1,
 	}
 	require.NoError(t, p.Validate())
 }
