@@ -785,6 +785,14 @@ func TestParameterFromValue(t *testing.T) {
 			value: testConvertible{err: "invalid i value"},
 			err:   "invalid i value",
 		},
+		{
+			value: make(map[string]int),
+			err:   "unsupported parameter map[string]int",
+		},
+		{
+			value: []any{1, 2, make(map[string]int)},
+			err:   "unsupported parameter map[string]int",
+		},
 	}
 
 	for _, item := range items {
@@ -800,10 +808,6 @@ func TestParameterFromValue(t *testing.T) {
 			}
 		})
 	}
-	_, err := NewParameterFromValue(make(map[string]int))
-	require.Error(t, err)
-	_, err = NewParameterFromValue([]any{1, 2, make(map[string]int)})
-	require.Error(t, err)
 }
 
 func TestParametersFromValues(t *testing.T) {
