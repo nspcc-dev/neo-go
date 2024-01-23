@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"math"
 	"math/big"
 	"strings"
@@ -554,6 +555,25 @@ func TestExpandParameterToEmitableToStackitem(t *testing.T) {
 	}
 }
 
+// testConvertible implements Convertible interface and needed for NewParameterFromValue
+// test.
+type testConvertible struct {
+	i   int
+	err string
+}
+
+var _ = Convertible(testConvertible{})
+
+func (c testConvertible) ToSCParameter() (Parameter, error) {
+	if c.err != "" {
+		return Parameter{}, errors.New(c.err)
+	}
+	return Parameter{
+		Type:  IntegerType,
+		Value: c.i,
+	}, nil
+}
+
 func TestParameterFromValue(t *testing.T) {
 	pk1, _ := keys.NewPrivateKey()
 	pk2, _ := keys.NewPrivateKey()
@@ -561,6 +581,7 @@ func TestParameterFromValue(t *testing.T) {
 		value   any
 		expType ParamType
 		expVal  any
+		err     string // expected error substring
 	}{
 		{
 			value:   []byte{1, 2, 3},
@@ -741,14 +762,42 @@ func TestParameterFromValue(t *testing.T) {
 				Value: []byte{1, 2, 3},
 			}},
 		},
+		{
+			value:   testConvertible{i: 123},
+			expType: IntegerType,
+			expVal:  123,
+		},
+		{
+			value:   []any{1, testConvertible{i: 123}},
+			expType: ArrayType,
+			expVal: []Parameter{
+				{
+					Type:  IntegerType,
+					Value: big.NewInt(1),
+				},
+				{
+					Type:  IntegerType,
+					Value: 123,
+				},
+			},
+		},
+		{
+			value: testConvertible{err: "invalid i value"},
+			err:   "invalid i value",
+		},
 	}
 
 	for _, item := range items {
 		t.Run(item.expType.String()+" to stack parameter", func(t *testing.T) {
 			res, err := NewParameterFromValue(item.value)
-			require.NoError(t, err)
-			require.Equal(t, item.expType, res.Type)
-			require.Equal(t, item.expVal, res.Value)
+			if item.err != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), item.err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, item.expType, res.Type)
+				require.Equal(t, item.expVal, res.Value)
+			}
 		})
 	}
 	_, err := NewParameterFromValue(make(map[string]int))

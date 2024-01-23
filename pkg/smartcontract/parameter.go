@@ -25,6 +25,11 @@ type Parameter struct {
 	Value any `json:"value"`
 }
 
+// Convertible is something that can be converted to Parameter.
+type Convertible interface {
+	ToSCParameter() (Parameter, error)
+}
+
 // ParameterPair represents a key-value pair, a slice of which is stored in
 // MapType Parameter.
 type ParameterPair struct {
@@ -307,6 +312,12 @@ func NewParameterFromValue(value any) (Parameter, error) {
 		result = *v
 	case Parameter:
 		result = v
+	case Convertible:
+		var err error
+		result, err = v.ToSCParameter()
+		if err != nil {
+			return result, fmt.Errorf("failed to convert smartcontract.Convertible (%T) to Parameter: %w", v, err)
+		}
 	case util.Uint160:
 		result.Type = Hash160Type
 	case util.Uint256:
