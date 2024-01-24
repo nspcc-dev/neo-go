@@ -174,8 +174,8 @@ func Sum(first int, second int) int {
 	return neogointernal.CallWithToken(Hash, "sum", int(contract.All), first, second).(int)
 }
 
-// Sum_3 invokes ` + "`sum`" + ` method of contract.
-func Sum_3(first int, second int, third int) int {
+// Sum2 invokes ` + "`sum`" + ` method of contract.
+func Sum2(first int, second int, third int) int {
 	return neogointernal.CallWithToken(Hash, "sum", int(contract.All), first, second, third).(int)
 }
 

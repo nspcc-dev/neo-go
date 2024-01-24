@@ -234,16 +234,11 @@ func TemplateFromManifest(cfg Config, scTypeConverter func(string, smartcontract
 
 		// Consider `perform(a)` and `perform(a, b)` methods.
 		// First, try to export the second method with `Perform2` name.
-		// If `perform2` is already in the manifest, use `perform_2` with as many underscores
-		// as needed to eliminate name conflicts. It will produce long names in certain circumstances,
-		// but if the manifest contains lots of similar names with trailing underscores, delicate naming
-		// was probably not the goal.
+		// If `perform2` is already in the manifest, use `perform3` with uprising suffix as many times
+		// as needed to eliminate name conflicts. If `perform3` is already in the manifest, use `perform4` etc.
 		name := m.Name
-		if v, ok := seen[name]; !ok || v {
-			suffix := strconv.Itoa(len(m.Parameters))
-			for ; seen[name]; name = m.Name + suffix {
-				suffix = "_" + suffix
-			}
+		for suffix := 2; seen[name]; suffix++ {
+			name = m.Name + strconv.Itoa(suffix)
 		}
 		seen[name] = true
 
