@@ -92,3 +92,9 @@ func Bls12381Mul(x Bls12381Point, mul []byte, neg bool) Bls12381Point {
 func Bls12381Pairing(g1, g2 Bls12381Point) Bls12381Point {
 	return neogointernal.CallWithToken(Hash, "bls12381Pairing", int(contract.NoneFlag), g1, g2).(Bls12381Point)
 }
+
+// Keccak256 calls `keccak256` method of native CryptoLib contract and
+// computes Keccak256 hash of b.
+func Keccak256(b []byte) interop.Hash256 {
+	return neogointernal.CallWithToken(Hash, "keccak256", int(contract.NoneFlag), b).(interop.Hash256)
+}

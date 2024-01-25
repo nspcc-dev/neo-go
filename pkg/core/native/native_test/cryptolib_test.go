@@ -115,6 +115,25 @@ func TestCryptolib_TestBls12381Add_Compat(t *testing.T) {
 		hex.EncodeToString(arr[:]))
 }
 
+func TestKeccak256_Compat(t *testing.T) {
+	c := newCryptolibClient(t)
+
+	in := []byte("Keccak")
+
+	expected := "868c016b666c7d3698636ee1bd023f3f065621514ab61bf26f062c175fdbe7f2"
+
+	script := io.NewBufBinWriter()
+	emit.AppCall(script.BinWriter, c.Hash, "keccak256", callflag.All, in)
+	stack, err := c.TestInvokeScript(t, script.Bytes(), c.Signers)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, stack.Len())
+	itm := stack.Pop().Item()
+	require.Equal(t, stackitem.ByteArrayT, itm.Type())
+	actual := hex.EncodeToString(itm.Value().([]byte))
+	require.Equal(t, expected, actual)
+}
+
 func TestCryptolib_TestBls12381Mul_Compat(t *testing.T) {
 	c := newCryptolibClient(t)
 

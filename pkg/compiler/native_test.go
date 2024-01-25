@@ -240,6 +240,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"bls12381Add", []string{"crypto.Bls12381Point{}", "crypto.Bls12381Point{}"}},
 		{"bls12381Mul", []string{"crypto.Bls12381Point{}", "[]byte{1, 2, 3}", "true"}},
 		{"bls12381Pairing", []string{"crypto.Bls12381Point{}", "crypto.Bls12381Point{}"}},
+		{"keccak256", []string{"[]byte{1, 2, 3}"}},
 	})
 	runNativeTestCases(t, cs.Std.ContractMD, "std", []nativeTestCase{
 		{"serialize", []string{"[]byte{1, 2, 3}"}},

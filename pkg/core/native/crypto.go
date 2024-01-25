@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/twmb/murmur3"
+	"golang.org/x/crypto/sha3"
 )
 
 // Crypto represents CryptoLib contract.
@@ -101,6 +102,10 @@ func newCrypto() *Crypto {
 	md = newMethodAndPrice(c.bls12381Pairing, 1<<23, callflag.NoneFlag)
 	c.AddMethod(md, desc)
 
+	desc = newDescriptor("keccak256", smartcontract.ByteArrayType,
+		manifest.NewParameter("data", smartcontract.ByteArrayType))
+	md = newMethodAndPrice(c.keccak256, 1<<15, callflag.NoneFlag)
+	c.AddMethod(md, desc)
 	return c
 }
 
@@ -283,6 +288,20 @@ func (c *Crypto) bls12381Pairing(_ *interop.Context, args []stackitem.Item) stac
 		panic(err)
 	}
 	return stackitem.NewInterop(p)
+}
+
+func (c *Crypto) keccak256(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	bs, err := args[0].TryBytes()
+	if err != nil {
+		panic(err)
+	}
+
+	digest := sha3.NewLegacyKeccak256()
+	_, err = digest.Write(bs)
+	if err != nil {
+		panic(err)
+	}
+	return stackitem.NewByteArray(digest.Sum(nil))
 }
 
 // Metadata implements the Contract interface.
