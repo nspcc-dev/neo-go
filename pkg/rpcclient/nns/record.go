@@ -3,7 +3,9 @@ package nns
 import (
 	"errors"
 	"fmt"
+	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -16,6 +18,10 @@ type RecordState struct {
 
 // RecordType is domain name service record types.
 type RecordType byte
+
+// Ensure RecordType implements smartcontract.Convertible for proper handling as
+// a parameter to invoker.Invoker methods.
+var _ = smartcontract.Convertible(RecordType(0))
 
 // Record types are defined in [RFC 1035](https://tools.ietf.org/html/rfc1035)
 const (
@@ -32,6 +38,14 @@ const (
 	// AAAA represents IPv6 address record type.
 	AAAA RecordType = 28
 )
+
+// ToSCParameter implements smartcontract.Convertible interface.
+func (r RecordType) ToSCParameter() (smartcontract.Parameter, error) {
+	return smartcontract.Parameter{
+		Type:  smartcontract.IntegerType,
+		Value: big.NewInt(int64(r)),
+	}, nil
+}
 
 // FromStackItem fills RecordState with data from the given stack item if it can
 // be correctly converted to RecordState.
