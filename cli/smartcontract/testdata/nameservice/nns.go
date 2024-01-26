@@ -256,25 +256,25 @@ func (c *Contract) RenewUnsigned(name string) (*transaction.Transaction, error) 
 	return c.actor.MakeUnsignedCall(c.hash, "renew", nil, name)
 }
 
-// Renew_2 creates a transaction invoking `renew` method of the contract.
+// Renew2 creates a transaction invoking `renew` method of the contract.
 // This transaction is signed and immediately sent to the network.
 // The values returned are its hash, ValidUntilBlock value and error if any.
-func (c *Contract) Renew_2(name string, years *big.Int) (util.Uint256, uint32, error) {
+func (c *Contract) Renew2(name string, years *big.Int) (util.Uint256, uint32, error) {
 	return c.actor.SendCall(c.hash, "renew", name, years)
 }
 
-// Renew_2Transaction creates a transaction invoking `renew` method of the contract.
+// Renew2Transaction creates a transaction invoking `renew` method of the contract.
 // This transaction is signed, but not sent to the network, instead it's
 // returned to the caller.
-func (c *Contract) Renew_2Transaction(name string, years *big.Int) (*transaction.Transaction, error) {
+func (c *Contract) Renew2Transaction(name string, years *big.Int) (*transaction.Transaction, error) {
 	return c.actor.MakeCall(c.hash, "renew", name, years)
 }
 
-// Renew_2Unsigned creates a transaction invoking `renew` method of the contract.
+// Renew2Unsigned creates a transaction invoking `renew` method of the contract.
 // This transaction is not signed, it's simply returned to the caller.
 // Any fields of it that do not affect fees can be changed (ValidUntilBlock,
 // Nonce), fee values (NetworkFee, SystemFee) can be increased as well.
-func (c *Contract) Renew_2Unsigned(name string, years *big.Int) (*transaction.Transaction, error) {
+func (c *Contract) Renew2Unsigned(name string, years *big.Int) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(c.hash, "renew", nil, name, years)
 }
 
