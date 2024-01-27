@@ -236,8 +236,15 @@ func NewCommands() []cli.Command {
 			{
 				Name:  "import-multisig",
 				Usage: "import multisig contract",
-				UsageText: "import-multisig -w wallet [--wallet-config path] --wif <wif> [--name <account_name>] --min <n>" +
+				UsageText: "import-multisig -w wallet [--wallet-config path] [--wif <wif>] [--name <account_name>] --min <m>" +
 					" [<pubkey1> [<pubkey2> [...]]]",
+				Description: `Imports a standard multisignature contract with "m out of n" signatures required where "m" is
+       specified by --min flag and "n" is the length of provided set of public keys. If
+       --wif flag is provided, it's used to create an account with the given name (or
+       without a name if --name flag is not provided). Otherwise, the command tries to
+       find an account with one of the given public keys and convert it to multisig. If
+       no suitable account is found and no --wif flag is specified, an error is returned.
+`,
 				Action: importMultisig,
 				Flags: []cli.Flag{
 					walletPathFlag,
@@ -521,6 +528,12 @@ loop:
 }
 
 func importMultisig(ctx *cli.Context) error {
+	var (
+		label  *string
+		acc    *wallet.Account
+		accPub *keys.PublicKey
+	)
+
 	wall, pass, err := openWallet(ctx, true)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -542,12 +555,45 @@ func importMultisig(ctx *cli.Context) error {
 		}
 	}
 
-	var label *string
 	if ctx.IsSet("name") {
 		l := ctx.String("name")
 		label = &l
 	}
-	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt, label, pass)
+
+loop:
+	for _, pub := range pubs {
+		for _, wallAcc := range wall.Accounts {
+			if wallAcc.ScriptHash().Equals(pub.GetScriptHash()) {
+				if acc != nil {
+					// Multiple matching accounts found, fallback to WIF-based conversion.
+					acc = nil
+					break loop
+				}
+				acc = new(wallet.Account)
+				*acc = *wallAcc
+				accPub = pub
+			}
+		}
+	}
+
+	if acc != nil {
+		err = acc.ConvertMultisigEncrypted(accPub, m, pubs)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		if label != nil {
+			acc.Label = *label
+		}
+		if err := addAccountAndSave(wall, acc); err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		return nil
+	}
+
+	if !ctx.IsSet("wif") {
+		return cli.NewExitError(errors.New("none of the provided public keys correspond to an existing key in the wallet or multiple matching accounts found in the wallet, and no WIF is provided"), 1)
+	}
+	acc, err = newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt, label, pass)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
