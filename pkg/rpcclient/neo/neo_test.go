@@ -3,6 +3,7 @@ package neo
 import (
 	"errors"
 	"math/big"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
@@ -25,9 +26,12 @@ type testAct struct {
 	txh util.Uint256
 	vub uint32
 	inv *result.Invoke
+	sync.Mutex
 }
 
 func (t *testAct) Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error) {
+	//t.Lock()
+	//defer t.Unlock()
 	return t.res, t.err
 }
 func (t *testAct) MakeRun(script []byte) (*transaction.Transaction, error) {
@@ -49,15 +53,21 @@ func (t *testAct) SendCall(contract util.Uint160, method string, params ...any) 
 	return t.txh, t.vub, t.err
 }
 func (t *testAct) Run(script []byte) (*result.Invoke, error) {
+	//t.Lock()
+	//defer t.Unlock()
 	return t.rre, t.rer
 }
 func (t *testAct) MakeUnsignedUncheckedRun(script []byte, sysFee int64, attrs []transaction.Attribute) (*transaction.Transaction, error) {
+	//t.Lock()
+	//defer t.Unlock()
 	return t.tx, t.err
 }
 func (t *testAct) Sign(tx *transaction.Transaction) error {
 	return t.ser
 }
 func (t *testAct) SignAndSend(tx *transaction.Transaction) (util.Uint256, uint32, error) {
+	//t.Lock()
+	//defer t.Unlock()
 	return t.txh, t.vub, t.err
 }
 func (t *testAct) CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...any) (*result.Invoke, error) {
