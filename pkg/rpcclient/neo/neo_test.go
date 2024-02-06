@@ -58,6 +58,7 @@ func (t *testAct) Sign(tx *transaction.Transaction) error {
 	return t.ser
 }
 func (t *testAct) SignAndSend(tx *transaction.Transaction) (util.Uint256, uint32, error) {
+
 	return t.txh, t.vub, t.err
 }
 func (t *testAct) CallAndExpandIterator(contract util.Uint160, method string, maxItems int, params ...any) (*result.Invoke, error) {
