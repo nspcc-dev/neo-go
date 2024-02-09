@@ -1081,11 +1081,13 @@ func TestVerifyNotaryRequest(t *testing.T) {
 func TestTryInitStateSync(t *testing.T) {
 	t.Run("module inactive", func(t *testing.T) {
 		s := startTestServer(t)
+		defer s.Shutdown()
 		s.tryInitStateSync()
 	})
 
 	t.Run("module already initialized", func(t *testing.T) {
 		s := startTestServer(t)
+		defer s.Shutdown()
 		ss := &fakechain.FakeStateSync{}
 		ss.IsActiveFlag.Store(true)
 		ss.IsInitializedFlag.Store(true)
@@ -1095,6 +1097,7 @@ func TestTryInitStateSync(t *testing.T) {
 
 	t.Run("good", func(t *testing.T) {
 		s := startTestServer(t)
+		defer s.Shutdown()
 		for _, h := range []uint32{10, 8, 7, 4, 11, 4} {
 			p := newLocalPeer(t, s)
 			p.handshaked = 1
