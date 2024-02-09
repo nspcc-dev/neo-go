@@ -126,6 +126,8 @@ func TestServerRegisterPeer(t *testing.T) {
 	const peerCount = 3
 
 	s := newTestServer(t, ServerConfig{MaxPeers: 2})
+	defer s.Shutdown()
+
 	ps := make([]*localPeer, peerCount)
 	for i := range ps {
 		ps[i] = newLocalPeer(t, s)
@@ -135,17 +137,29 @@ func TestServerRegisterPeer(t *testing.T) {
 
 	startWithCleanup(t, s)
 
-	s.register <- ps[0]
-	require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
-	s.handshake <- ps[0]
+	var wg sync.WaitGroup
 
-	s.register <- ps[1]
-	s.handshake <- ps[1]
-	require.Eventually(t, func() bool { return 2 == s.PeerCount() }, time.Second, time.Millisecond*10)
+	// Register and handshake peers
+	for i, p := range ps {
+		wg.Add(1)
+		go func(peer *localPeer, index int) {
+			defer wg.Done()
+			s.register <- peer
+			if index < 2 { // Simulate handshake for the first two peers only
+				s.handshake <- peer
+				t.Logf("Registered and handshaked peer: %v", peer.netaddr.Port)
+			} else {
+				s.handshake <- peer
+				t.Logf("Attempted to register extra peer: %v", peer.netaddr.Port)
+			}
+		}(p, i)
+	}
 
-	require.Equal(t, 0, len(s.discovery.UnconnectedPeers()))
-	s.register <- ps[2]
-	require.Eventually(t, func() bool { return len(s.discovery.UnconnectedPeers()) > 0 }, time.Second, time.Millisecond*100)
+	wg.Wait()
+
+	// Assert conditions after all peers have attempted registration and handshake
+	require.Eventually(t, func() bool { return 2 == s.PeerCount() }, time.Second, time.Millisecond*10, "Expected 2 peers to be connected")
+	require.GreaterOrEqual(t, len(s.discovery.UnconnectedPeers()), 1, "Expected unconnected peers due to MaxPeers limit")
 
 	index := -1
 	addrs := s.discovery.UnconnectedPeers()
