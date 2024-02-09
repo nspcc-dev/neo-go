@@ -138,6 +138,8 @@ type (
 		stateSync StateSync
 
 		log *zap.Logger
+
+		started atomic.Bool
 	}
 
 	peerDrop struct {
@@ -264,6 +266,10 @@ func (s *Server) ID() uint32 {
 // Start will start the server and its underlying transport. Calling it twice
 // is an error.
 func (s *Server) Start() {
+	if !s.started.CompareAndSwap(false, true) {
+		s.log.Info("RPC server already started")
+		return
+	}
 	s.log.Info("node started",
 		zap.Uint32("blockHeight", s.chain.BlockHeight()),
 		zap.Uint32("headerHeight", s.chain.HeaderHeight()))
@@ -291,6 +297,9 @@ func (s *Server) Start() {
 // Shutdown disconnects all peers and stops listening. Calling it twice is an error,
 // once stopped the same intance of the Server can't be started again by calling Start.
 func (s *Server) Shutdown() {
+	if !s.started.CompareAndSwap(true, false) {
+		return
+	}
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	for _, tr := range s.transports {
 		tr.Close()
