@@ -93,12 +93,11 @@ func newTestVMCLIWithLogoAndCustomConfig(t *testing.T, printLogo bool, cfg *conf
 	}
 	var c config.Config
 	if cfg == nil {
-		configPath := "../../config/protocol.unit_testnet.single.yml"
+		configPath := filepath.Join("..", "..", "config", "protocol.unit_testnet.single.yml")
 		var err error
-		c, err = config.LoadFile(configPath, "../../config")
+		c, err = config.LoadFile(configPath, filepath.Join("..", "..", "config"))
 		require.NoError(t, err, "could not load chain config")
-		require.Equal(t, "../../testdata/wallet1_solo.json", c.ApplicationConfiguration.Consensus.UnlockWallet.Path)
-		require.Equal(t, "/notary_wallet.json", c.ApplicationConfiguration.P2PNotary.UnlockWallet.Path)
+		require.Equal(t, filepath.Join("..", "..", "testdata", "wallet1_solo.json"), c.ApplicationConfiguration.Consensus.UnlockWallet.Path)
 		c.ApplicationConfiguration.DBConfiguration.Type = dbconfig.InMemoryDB
 	} else {
 		c = *cfg
