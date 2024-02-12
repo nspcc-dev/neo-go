@@ -543,6 +543,7 @@ func (s *Server) testHandleGetData(t *testing.T, invType payload.InventoryType, 
 
 func TestGetData(t *testing.T) {
 	s := startTestServer(t)
+	defer s.Shutdown()
 	s.chain.(*fakechain.FakeChain).UtilityTokenBalance = big.NewInt(1000000)
 
 	t.Run("block", func(t *testing.T) {
