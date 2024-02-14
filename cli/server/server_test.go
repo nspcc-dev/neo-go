@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"go.uber.org/zap/zapcore"
@@ -49,7 +50,28 @@ func TestGetConfigFromContext(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, netmode.TestNet, cfg.ProtocolConfiguration.Magic)
 	})
-	t.Run("relative-path", func(t *testing.T) {
+	t.Run("relative-path windows", func(t *testing.T) {
+		if runtime.GOOS != "windows" {
+			t.Skip("skipping Windows specific test")
+		}
+
+		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
+		set.String("relative-path", "..\\..\\config", "")
+		set.Bool("testnet", true, "")
+		set.String("config-file", ".\\testdata\\protocol.testnet.windows.yml", "")
+		ctx := cli.NewContext(cli.NewApp(), set, nil)
+		cfg, err := options.GetConfigFromContext(ctx)
+		require.NoError(t, err)
+		require.Equal(t, filepath.Join("..", "..", "config", "chains", "testnet"), cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions.DataDirectoryPath)
+		require.Equal(t, "C:\\someFolder\\cn_wallet.json", cfg.ApplicationConfiguration.Consensus.UnlockWallet.Path)
+		require.Equal(t, "C:\\someFolder\\notary_wallet.json", cfg.ApplicationConfiguration.P2PNotary.UnlockWallet.Path)
+	})
+
+	t.Run("relative-path non-windows", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("skipping non-Windows specific test")
+		}
+
 		set := flag.NewFlagSet("flagSet", flag.ExitOnError)
 		set.String("relative-path", "../../config", "")
 		set.Bool("testnet", true, "")
@@ -57,7 +79,7 @@ func TestGetConfigFromContext(t *testing.T) {
 		ctx := cli.NewContext(cli.NewApp(), set, nil)
 		cfg, err := options.GetConfigFromContext(ctx)
 		require.NoError(t, err)
-		require.Equal(t, "../../config/chains/testnet", cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions.DataDirectoryPath)
+		require.Equal(t, filepath.Join("..", "..", "config", "chains", "testnet"), cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions.DataDirectoryPath)
 		require.Equal(t, "/cn_wallet.json", cfg.ApplicationConfiguration.Consensus.UnlockWallet.Path)
 		require.Equal(t, "/notary_wallet.json", cfg.ApplicationConfiguration.P2PNotary.UnlockWallet.Path)
 	})
