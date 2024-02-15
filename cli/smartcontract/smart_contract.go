@@ -374,6 +374,9 @@ func initSmartContract(ctx *cli.Context) error {
 	}
 
 	gm := []byte("module " + contractName + `
+
+go 1.19
+
 require (
 	github.com/nspcc-dev/neo-go/pkg/interop ` + ver + `
 )`)
