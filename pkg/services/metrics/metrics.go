@@ -75,4 +75,5 @@ func (ms *Service) ShutDown() {
 			ms.log.Error("can't shut service down", zap.String("endpoint", srv.Addr), zap.Error(err))
 		}
 	}
+	_ = ms.log.Sync()
 }

@@ -295,6 +295,7 @@ func (s *service) Shutdown() {
 			s.wallet.Close()
 		}
 	}
+	_ = s.log.Sync()
 }
 
 func (s *service) eventLoop() {

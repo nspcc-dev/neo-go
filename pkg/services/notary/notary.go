@@ -228,6 +228,7 @@ func (n *Notary) Shutdown() {
 	close(n.stopCh)
 	<-n.done
 	n.wallet.Close()
+	_ = n.Config.Log.Sync()
 }
 
 // IsAuthorized returns whether Notary service currently is authorized to collect

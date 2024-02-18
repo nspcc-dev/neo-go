@@ -482,6 +482,7 @@ func (s *Server) Shutdown() {
 
 	// Wait for handleSubEvents to finish.
 	<-s.subEventsToExitCh
+	_ = s.log.Sync()
 }
 
 // SetOracleHandler allows to update oracle handler used by the Server.

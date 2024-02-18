@@ -320,6 +320,8 @@ func (s *Server) Shutdown() {
 	}
 	close(s.quit)
 	<-s.relayFin
+
+	_ = s.log.Sync()
 }
 
 // AddService allows to add a service to be started/stopped by Server.

@@ -1447,6 +1447,7 @@ func (bc *Blockchain) Close() {
 	close(bc.stopCh)
 	<-bc.runToExitCh
 	bc.addLock.Unlock()
+	_ = bc.log.Sync()
 }
 
 // AddBlock accepts successive block for the Blockchain, verifies it and

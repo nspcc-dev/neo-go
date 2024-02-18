@@ -77,6 +77,7 @@ func (s *service) Shutdown() {
 	if s.wallet != nil {
 		s.wallet.Close()
 	}
+	_ = s.log.Sync()
 }
 
 func (s *service) signAndSend(r *state.MPTRoot) error {
