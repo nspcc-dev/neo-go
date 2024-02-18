@@ -96,10 +96,12 @@ func TestServerStartAndShutdown(t *testing.T) {
 		require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
 
 		assert.True(t, s.transports[0].(*fakeTransp).started.Load())
+		require.True(t, s.started.Load())
 		assert.Nil(t, s.txCallback)
 
 		s.Shutdown()
 
+		require.False(t, s.started.Load())
 		require.True(t, s.transports[0].(*fakeTransp).closed.Load())
 		err, ok := p.droppedWith.Load().(error)
 		require.True(t, ok)
@@ -115,10 +117,33 @@ func TestServerStartAndShutdown(t *testing.T) {
 		s.register <- p
 
 		assert.True(t, s.services["fake"].(*fakeConsensus).started.Load())
+		require.True(t, s.started.Load())
 
 		s.Shutdown()
 
+		require.False(t, s.started.Load())
 		require.True(t, s.services["fake"].(*fakeConsensus).stopped.Load())
+	})
+	t.Run("double start", func(t *testing.T) {
+		s := newTestServer(t, ServerConfig{})
+		startWithCleanup(t, s)
+
+		// Attempt to start the server again.
+		s.Start()
+
+		require.True(t, s.started.Load(), "server should still be marked as started after second Start call")
+	})
+	t.Run("double shutdown", func(t *testing.T) {
+		s := newTestServer(t, ServerConfig{})
+		s.Start()
+		require.True(t, s.started.Load(), "server should still be marked as started after second Start call")
+		s.Shutdown()
+
+		require.False(t, s.started.Load(), "server should be marked as not started after second Shutdown call")
+		// Attempt to shutdown the server again.
+		s.Shutdown()
+		// Verify the server state remains unchanged and is still considered shutdown.
+		require.False(t, s.started.Load(), "server should remain shutdown after second call")
 	})
 }
 

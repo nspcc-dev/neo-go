@@ -138,6 +138,9 @@ type (
 		stateSync StateSync
 
 		log *zap.Logger
+
+		// started used to Start and Shutdown server only once.
+		started atomic.Bool
 	}
 
 	peerDrop struct {
@@ -262,8 +265,12 @@ func (s *Server) ID() uint32 {
 }
 
 // Start will start the server and its underlying transport. Calling it twice
-// is an error. Caller should wait for Start to finish for normal server operation.
+// is a no-op. Caller should wait for Start to finish for normal server operation.
 func (s *Server) Start() {
+	if !s.started.CompareAndSwap(false, true) {
+		s.log.Info("node server already started")
+		return
+	}
 	s.log.Info("node started",
 		zap.Uint32("blockHeight", s.chain.BlockHeight()),
 		zap.Uint32("headerHeight", s.chain.HeaderHeight()))
@@ -288,9 +295,12 @@ func (s *Server) Start() {
 	go s.run()
 }
 
-// Shutdown disconnects all peers and stops listening. Calling it twice is an error,
+// Shutdown disconnects all peers and stops listening. Calling it twice is a no-op,
 // once stopped the same intance of the Server can't be started again by calling Start.
 func (s *Server) Shutdown() {
+	if !s.started.CompareAndSwap(true, false) {
+		return
+	}
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	for _, tr := range s.transports {
 		tr.Close()
