@@ -1,5 +1,7 @@
 module github.com/nspcc-dev/neo-go
 
+go 1.19
+
 require (
 	github.com/chzyer/readline v1.5.1
 	github.com/consensys/gnark v0.9.1
@@ -76,5 +78,3 @@ require (
 	google.golang.org/protobuf v1.31.0 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
-
-go 1.19
