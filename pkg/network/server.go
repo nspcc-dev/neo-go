@@ -296,7 +296,7 @@ func (s *Server) Start() {
 }
 
 // Shutdown disconnects all peers and stops listening. Calling it twice is a no-op,
-// once stopped the same intance of the Server can't be started again by calling Start.
+// once stopped the same instance of the Server can't be started again by calling Start.
 func (s *Server) Shutdown() {
 	if !s.started.CompareAndSwap(true, false) {
 		return
