@@ -681,6 +681,7 @@ func TestLoad_RunWithCALLT(t *testing.T) {
 		e.runProg(t,
 			"loaddeployed "+cH.StringLE()+" -- NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB:Global", // the contract's owner got from the contract's code.
 			"run destroy",
+			"exit",
 		)
 		e.checkNextLine(t, "READY: loaded \\d* instructions")
 		e.checkStack(t) // Nothing on stack, successful execution.
