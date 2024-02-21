@@ -90,7 +90,7 @@ func TestServerStartAndShutdown(t *testing.T) {
 	t.Run("no consensus", func(t *testing.T) {
 		s := newTestServer(t, ServerConfig{})
 
-		go s.Start()
+		s.Start()
 		p := newLocalPeer(t, s)
 		s.register <- p
 		require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
@@ -110,7 +110,7 @@ func TestServerStartAndShutdown(t *testing.T) {
 		cons := new(fakeConsensus)
 		s.AddConsensusService(cons, cons.OnPayload, cons.OnTransaction)
 
-		go s.Start()
+		s.Start()
 		p := newLocalPeer(t, s)
 		s.register <- p
 
@@ -312,7 +312,7 @@ func TestServerNotSendsVerack(t *testing.T) {
 	s.id = 1
 	finished := make(chan struct{})
 	go func() {
-		s.run()
+		go s.run()
 		close(finished)
 	}()
 	t.Cleanup(func() {
@@ -389,7 +389,7 @@ func startTestServer(t *testing.T, protocolCfg ...func(*config.Blockchain)) *Ser
 }
 
 func startWithCleanup(t *testing.T, s *Server) {
-	go s.Start()
+	s.Start()
 	t.Cleanup(func() {
 		s.Shutdown()
 	})

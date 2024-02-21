@@ -498,7 +498,7 @@ func startServer(ctx *cli.Context) error {
 	rpcServer := rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
 	serv.AddService(&rpcServer)
 
-	go serv.Start()
+	serv.Start()
 	if !cfg.ApplicationConfiguration.RPC.StartWhenSynchronized {
 		// Run RPC server in a separate routine. This is necessary to avoid a potential
 		// deadlock: Start() can write errors to errChan which is not yet read in the

@@ -164,7 +164,7 @@ func NewTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 	})
 	require.NoError(t, err)
 	netSrv.AddConsensusService(cons, cons.OnPayload, cons.OnTransaction)
-	go netSrv.Start()
+	netSrv.Start()
 	errCh := make(chan error, 2)
 	rpcServer := rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, netSrv, nil, logger, errCh)
 	rpcServer.Start()

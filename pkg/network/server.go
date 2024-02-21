@@ -262,7 +262,7 @@ func (s *Server) ID() uint32 {
 }
 
 // Start will start the server and its underlying transport. Calling it twice
-// is an error.
+// is an error. Caller should wait for Start to finish for normal server operation.
 func (s *Server) Start() {
 	s.log.Info("node started",
 		zap.Uint32("blockHeight", s.chain.BlockHeight()),
@@ -285,7 +285,7 @@ func (s *Server) Start() {
 	setServerAndNodeVersions(s.UserAgent, strconv.FormatUint(uint64(s.id), 10))
 	setNeoGoVersion(config.Version)
 	setSeverID(strconv.FormatUint(uint64(s.id), 10))
-	s.run()
+	go s.run()
 }
 
 // Shutdown disconnects all peers and stops listening. Calling it twice is an error,
