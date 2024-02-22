@@ -29,11 +29,11 @@ func (s *service) Start() {
 		return
 	}
 	s.log.Info("starting state validation service")
-	s.chain.SubscribeForBlocks(s.blockCh)
 	go s.run()
 }
 
 func (s *service) run() {
+	s.chain.SubscribeForBlocks(s.blockCh)
 runloop:
 	for {
 		select {

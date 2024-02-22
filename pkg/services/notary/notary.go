@@ -175,13 +175,13 @@ func (n *Notary) Start() {
 		return
 	}
 	n.Config.Log.Info("starting notary service")
-	n.Config.Chain.SubscribeForBlocks(n.blocksCh)
-	n.mp.SubscribeForTransactions(n.reqCh)
 	go n.newTxCallbackLoop()
 	go n.mainLoop()
 }
 
 func (n *Notary) mainLoop() {
+	n.Config.Chain.SubscribeForBlocks(n.blocksCh)
+	n.mp.SubscribeForTransactions(n.reqCh)
 mainloop:
 	for {
 		select {
