@@ -30,7 +30,7 @@ func Example() {
 		os.Exit(1)
 	}
 
-	addr, err := address.StringToUint160("ATySFJAbLW7QHsZGHScLhxq6EyNBxx3eFP")
+	addr, err := address.StringToUint160("NUkaBmzsZq1qdgaHfKrtRUcHNhtVJ2hTpv")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
