@@ -164,6 +164,7 @@ func (p *TCPPeer) handleConn() {
 	err = p.SendVersion()
 	if err == nil {
 		r := io.NewBinReaderFromIO(p.conn)
+	loop:
 		for {
 			msg := &Message{StateRootInHeader: p.server.config.StateRootInHeader}
 			err = msg.Decode(r)
@@ -174,7 +175,11 @@ func (p *TCPPeer) handleConn() {
 			} else if err != nil {
 				break
 			}
-			p.incoming <- msg
+			select {
+			case p.incoming <- msg:
+			case <-p.done:
+				break loop
+			}
 		}
 	}
 	p.Disconnect(err)
