@@ -10,7 +10,7 @@ import (
 )
 
 func Example() {
-	endpoint := "http://seed5.bridgeprotocol.io:10332"
+	endpoint := "https://rpc.t5.n3.nspcc.ru:20331"
 	opts := rpcclient.Options{}
 
 	c, err := rpcclient.New(context.TODO(), endpoint, opts)
