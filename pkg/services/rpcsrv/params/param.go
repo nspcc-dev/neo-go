@@ -34,6 +34,13 @@ type (
 		Type  smartcontract.ParamType `json:"type"`
 		Value Param                   `json:"value"`
 	}
+
+	// FuncParamKV represents a pair of function argument parameters
+	// a slice of which is stored in FuncParam of [smartcontract.MapType] type.
+	FuncParamKV struct {
+		Key   FuncParam `json:"key"`
+		Value FuncParam `json:"value"`
+	}
 )
 
 var (
@@ -356,6 +363,21 @@ func (p *Param) GetFuncParam() (FuncParam, error) {
 	fp := FuncParam{}
 	err := json.Unmarshal(p.RawMessage, &fp)
 	return fp, err
+}
+
+// GetFuncParamPair returns a pair of function call parameters.
+func (p *Param) GetFuncParamPair() (FuncParamKV, error) {
+	if p == nil {
+		return FuncParamKV{}, errMissingParameter
+	}
+	// This one doesn't need to be cached, it's used only once.
+	fpp := FuncParamKV{}
+	err := json.Unmarshal(p.RawMessage, &fpp)
+	if err != nil {
+		return FuncParamKV{}, err
+	}
+
+	return fpp, nil
 }
 
 // GetBytesHex returns a []byte value of the parameter if
