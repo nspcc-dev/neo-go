@@ -29,11 +29,11 @@ func (s *service) Start() {
 		return
 	}
 	s.log.Info("starting state validation service")
-	s.chain.SubscribeForBlocks(s.blockCh)
 	go s.run()
 }
 
 func (s *service) run() {
+	s.chain.SubscribeForBlocks(s.blockCh)
 runloop:
 	for {
 		select {
@@ -77,6 +77,7 @@ func (s *service) Shutdown() {
 	if s.wallet != nil {
 		s.wallet.Close()
 	}
+	_ = s.log.Sync()
 }
 
 func (s *service) signAndSend(r *state.MPTRoot) error {

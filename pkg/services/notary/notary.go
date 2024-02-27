@@ -175,13 +175,13 @@ func (n *Notary) Start() {
 		return
 	}
 	n.Config.Log.Info("starting notary service")
-	n.Config.Chain.SubscribeForBlocks(n.blocksCh)
-	n.mp.SubscribeForTransactions(n.reqCh)
 	go n.newTxCallbackLoop()
 	go n.mainLoop()
 }
 
 func (n *Notary) mainLoop() {
+	n.Config.Chain.SubscribeForBlocks(n.blocksCh)
+	n.mp.SubscribeForTransactions(n.reqCh)
 mainloop:
 	for {
 		select {
@@ -228,6 +228,7 @@ func (n *Notary) Shutdown() {
 	close(n.stopCh)
 	<-n.done
 	n.wallet.Close()
+	_ = n.Config.Log.Sync()
 }
 
 // IsAuthorized returns whether Notary service currently is authorized to collect

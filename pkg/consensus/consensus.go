@@ -281,7 +281,6 @@ func (s *service) Start() {
 		b, _ := s.Chain.GetBlock(s.Chain.CurrentBlockHash()) // Can't fail, we have some current block!
 		s.lastTimestamp = b.Timestamp
 		s.dbft.Start(s.lastTimestamp * nsInMs)
-		s.Chain.SubscribeForBlocks(s.blockEvents)
 		go s.eventLoop()
 	}
 }
@@ -296,9 +295,18 @@ func (s *service) Shutdown() {
 			s.wallet.Close()
 		}
 	}
+	_ = s.log.Sync()
 }
 
 func (s *service) eventLoop() {
+	s.Chain.SubscribeForBlocks(s.blockEvents)
+
+	// Manually sync up with potentially missed fresh blocks that may be added by blockchain
+	// before the subscription.
+	b, _ := s.Chain.GetBlock(s.Chain.CurrentBlockHash()) // Can't fail, we have some current block!
+	if b.Timestamp >= s.lastTimestamp {
+		s.handleChainBlock(b)
+	}
 events:
 	for {
 		select {
