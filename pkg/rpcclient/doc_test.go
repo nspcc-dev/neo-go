@@ -10,7 +10,7 @@ import (
 )
 
 func Example() {
-	endpoint := "http://seed5.bridgeprotocol.io:10332"
+	endpoint := "https://rpc.t5.n3.nspcc.ru:20331"
 	opts := rpcclient.Options{}
 
 	c, err := rpcclient.New(context.TODO(), endpoint, opts)
@@ -30,7 +30,7 @@ func Example() {
 		os.Exit(1)
 	}
 
-	addr, err := address.StringToUint160("ATySFJAbLW7QHsZGHScLhxq6EyNBxx3eFP")
+	addr, err := address.StringToUint160("NUkaBmzsZq1qdgaHfKrtRUcHNhtVJ2hTpv")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
