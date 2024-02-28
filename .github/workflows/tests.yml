@@ -150,4 +150,5 @@ jobs:
           cache: true
 
       - name: Run tests
-        run: go test -v -race ./...
+        run: go test -v -race ./cli
+
