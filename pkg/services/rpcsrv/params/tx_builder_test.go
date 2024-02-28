@@ -124,6 +124,17 @@ func TestExpandArrayIntoScript(t *testing.T) {
 			Input:    []Param{{RawMessage: []byte(`{"type": "Integer", "value": "` + bi.String() + `"}`)}},
 			Expected: append([]byte{byte(opcode.PUSHINT256)}, rawInt...),
 		},
+		{
+			Input: []Param{{RawMessage: []byte(`{"type": "Map", "value": [{"key": {"type": "String", "value": "a" }, "value": {"type": "Integer", "value": 1}}, {"key": {"type": "String", "value": "b"}, "value": {"type": "Integer", "value": 2}}]}`)}},
+			Expected: []byte{
+				byte(opcode.PUSH2),                   // value of element #2
+				byte(opcode.PUSHDATA1), 1, byte('b'), // key of element #2
+				byte(opcode.PUSH1),                   // value of element #1
+				byte(opcode.PUSHDATA1), 1, byte('a'), // key of element #1
+				byte(opcode.PUSH2), // map len
+				byte(opcode.PACKMAP),
+			},
+		},
 	}
 	for _, c := range testCases {
 		script := io.NewBufBinWriter()
@@ -141,6 +152,12 @@ func TestExpandArrayIntoScript(t *testing.T) {
 		{
 			{RawMessage: []byte(`{"type": "Integer", "value": "` +
 				new(big.Int).Lsh(big.NewInt(1), 255).String() + `"}`)},
+		},
+		{
+			{RawMessage: []byte(`{"type": "Map", "value": [{"key": {"type": "InvalidT", "value": "a" }, "value": {"type": "Integer", "value": 1}}]}`)},
+		},
+		{
+			{RawMessage: []byte(`{"type": "Map", "value": [{"key": {"type": "String", "value": "a" }, "value": {"type": "Integer", "value": "not-an-int"}}]}`)},
 		},
 	}
 	for _, c := range errorCases {

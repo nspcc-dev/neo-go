@@ -426,6 +426,48 @@ func TestParamGetFuncParam(t *testing.T) {
 	require.NotNil(t, err)
 }
 
+func TestParamGetFuncParamPair(t *testing.T) {
+	fp := FuncParam{
+		Type:  smartcontract.MapType,
+		Value: Param{RawMessage: []byte(`[{"key": {"type": "String", "value": "key1"}, "value": {"type": "Integer", "value": 123}}, {"key": {"type": "String", "value": "key2"}, "value": {"type": "Integer", "value": 456}}]`)},
+	}
+	p := Param{RawMessage: []byte(`{"type": "Map", "value": [{"key": {"type": "String", "value": "key1"}, "value": {"type": "Integer", "value": 123}}, {"key": {"type": "String", "value": "key2"}, "value": {"type": "Integer", "value": 456}}]}`)}
+	newfp, err := p.GetFuncParam()
+	assert.Equal(t, fp, newfp)
+	require.NoError(t, err)
+
+	kvs, err := newfp.Value.GetArray()
+	require.NoError(t, err)
+
+	p1, err := kvs[0].GetFuncParamPair()
+	require.NoError(t, err)
+
+	fp1Key := FuncParam{
+		Type:  smartcontract.StringType,
+		Value: Param{RawMessage: []byte(`"key1"`)},
+	}
+	fp1Value := FuncParam{
+		Type:  smartcontract.IntegerType,
+		Value: Param{RawMessage: []byte(`123`)},
+	}
+	assert.Equal(t, fp1Key, p1.Key)
+	assert.Equal(t, fp1Value, p1.Value)
+
+	p2, err := kvs[1].GetFuncParamPair()
+	require.NoError(t, err)
+
+	fp2Key := FuncParam{
+		Type:  smartcontract.StringType,
+		Value: Param{RawMessage: []byte(`"key2"`)},
+	}
+	fp2Value := FuncParam{
+		Type:  smartcontract.IntegerType,
+		Value: Param{RawMessage: []byte(`456`)},
+	}
+	assert.Equal(t, fp2Key, p2.Key)
+	assert.Equal(t, fp2Value, p2.Value)
+}
+
 func TestParamGetBytesHex(t *testing.T) {
 	in := "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7"
 	inb, _ := hex.DecodeString(in)
