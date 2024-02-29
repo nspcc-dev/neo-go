@@ -3,7 +3,7 @@
   "accounts": [
     {
       "address": "Nhfg3TbpwogLvDGVvAvqyThbsHgoSUKwtn",
-      "key": "6PYM8VdX2BSm7BSXKzV4Fz6S3R9cDLLWNrD9nMjxW352jEv3fsC8N3wNLY",
+      "key": "6PYM8VdX3hY4B51UJxmm8D41RQMbpJT8aYHibyQ67gjkUPmvQgu51Y5UQR",
       "label": "",
       "contract": {
         "script": "DCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcJBVuezJw==",
@@ -20,7 +20,7 @@
     },
     {
       "address": "NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq",
-      "key": "6PYM8VdX2BSm7BSXKzV4Fz6S3R9cDLLWNrD9nMjxW352jEv3fsC8N3wNLY",
+      "key": "6PYM8VdX3hY4B51UJxmm8D41RQMbpJT8aYHibyQ67gjkUPmvQgu51Y5UQR",
       "label": "",
       "contract": {
         "script": "EwwhAhA6f33QFlWFl/eWDSfFFqQ5T9loueZRVetLAT5AQEBuDCECp7xV/oaE4BGXaNEEujB5W9zIZhnoZK3SYVZyPtGFzWIMIQKzYiv0AXvf4xfFiu1fTHU/IGt9uJYEb6fXdLvEv3+NwgwhA9kMB99j5pDOd5EuEKtRrMlEtmhgI3tgjE+PgwnnHuaZFEGe0Nw6",
@@ -45,7 +45,7 @@
     },
     {
       "address": "NMUedC8TSV2rE17wGguSvPk9XcmHSaT275",
-      "key": "6PYSYoZaxqDu5vqvm7yUFT3sPJJFwyLyYDnp8zwj1YVPcBWxacz64bNX59",
+      "key": "6PYSYoZawnSyrpXJTu9aN7uXFd1HTisrtimxMs7xkEnqe2zztLrMvFZCtT",
       "label": "",
       "contract": {
         "script": "DCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG5BVuezJw==",
@@ -62,9 +62,9 @@
     }
   ],
   "scrypt": {
-    "n": 16384,
-    "r": 8,
-    "p": 8
+    "n": 2,
+    "r": 1,
+    "p": 1
   },
   "extra": {
     "Tokens": null
