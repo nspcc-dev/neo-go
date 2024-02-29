@@ -1,0 +1,64 @@
+{
+  "version": "1.0",
+  "accounts": [
+    {
+      "address": "NgHcPxgEKZQV4QBedzyASJrgiANhJqBVLw",
+      "key": "6PYTbVq2P3AJQwWU5SFMKLjHYco7QABtNRo4ZvLvXhyaYjwMcuZm6xKokT",
+      "label": "one",
+      "contract": {
+        "script": "DCECnmSGVirDOqMr57EHaYz0YMTjaHQtO9FQYu8DMTCDw6VBVuezJw==",
+        "parameters": [
+          {
+            "name": "parameter0",
+            "type": "Signature"
+          }
+        ],
+        "deployed": false
+      },
+      "lock": false,
+      "isDefault": false
+    },
+    {
+      "address": "NLvHRfKAifjio2z9HiwLo9ZnpRPHUbAHgH",
+      "key": "6PYUjQ8TgR3cduEpG5niUNuPEWi3tYiQsnC4Jha9nGAJ6tAQGUmcrZXsLF",
+      "label": "two",
+      "contract": {
+        "script": "DCECgk91c1ABAX3A1uJNnxhGlp7NwUJScwJzJhrsYrXIbgNBVuezJw==",
+        "parameters": [
+          {
+            "name": "parameter0",
+            "type": "Signature"
+          }
+        ],
+        "deployed": false
+      },
+      "lock": false,
+      "isDefault": false
+    },
+    {
+      "address": "NcDfG8foJx79XSihcDDrx1df7cHAoJBfXj",
+      "key": "6PYRkUQKWFrTovHyeQZ7X4nWoDXKohtFRKW51LiCz317pwCjmB1cVwpcxz",
+      "label": "three",
+      "contract": {
+        "script": "DCEC9v0ZqBg8f4jJX9WR891M0bazf0FYTNu7MEgpSHrb9CVBVuezJw==",
+        "parameters": [
+          {
+            "name": "parameter0",
+            "type": "Signature"
+          }
+        ],
+        "deployed": false
+      },
+      "lock": false,
+      "isDefault": false
+    }
+  ],
+  "scrypt": {
+    "n": 16384,
+    "r": 8,
+    "p": 8
+  },
+  "extra": {
+    "Tokens": null
+  }
+}

@@ -179,6 +179,30 @@ func TestRegenerateCLITestwallet(t *testing.T) {
 	createWallet(t, walletPath, acc)
 }
 
+func TestRegenerateCLITestwalletMulti(t *testing.T) {
+	if !regenerate {
+		return
+	}
+	const (
+		walletPath = "../../cli/testdata/testwallet_multi.json"
+		accWIF1    = "L2NZQ84s8SuUfyJmtjs7J5a2pZFEVQVVRYDtNsQEyB4RjHnpkorr"
+		pass1      = "one"
+		accWIF2    = "L4pSqPmvbghcM8NY14CNSUzkK92VmSFLKNwAh9TqLqFhTZkxZgsP"
+		pass2      = "two"
+		accWIF3    = "L1eNtPQA8bALqvSgGMNpNR3EYFR15WeNdCZDuiwWYcQ6Q6FfuVro"
+		pass3      = "three"
+	)
+
+	scryptParams := keys.ScryptParams{N: 2, R: 1, P: 1}
+	acc1 := getAccountWithScrypt(t, accWIF1, pass1, scryptParams)
+	acc1.Label = pass1
+	acc2 := getAccountWithScrypt(t, accWIF2, pass2, scryptParams)
+	acc2.Label = pass2
+	acc3 := getAccountWithScrypt(t, accWIF3, pass3, scryptParams)
+	acc3.Label = pass3
+	createWallet(t, walletPath, acc1, acc2, acc3)
+}
+
 func TestRegenerateCLITestwallet_NEO3(t *testing.T) {
 	if !regenerate {
 		return
