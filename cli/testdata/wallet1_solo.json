@@ -65,6 +65,7 @@
       "key": "6PYSATFztBa3CHjSR6sLAKungUEAbQUCVE16KzmaQQ38gLeYGZ9Knd5mGv",
       "label": "verify",
       "contract": {
+        "script": "VwEAEUBXAANA",
         "parameters": [],
         "deployed": true
       },

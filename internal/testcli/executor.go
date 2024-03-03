@@ -48,6 +48,11 @@ const (
 	TestWalletPath    = "../testdata/testwallet.json"
 	TestWalletAccount = "Nfyz4KcsgYepRJw1W5C2uKCi6QWKf7v6gG"
 
+	TestWalletMultiPath     = "../testdata/testwallet_multi.json"
+	TestWalletMultiAccount1 = "NgHcPxgEKZQV4QBedzyASJrgiANhJqBVLw"
+	TestWalletMultiAccount2 = "NLvHRfKAifjio2z9HiwLo9ZnpRPHUbAHgH"
+	TestWalletMultiAccount3 = "NcDfG8foJx79XSihcDDrx1df7cHAoJBfXj"
+
 	ValidatorWallet = "../testdata/wallet1_solo.json"
 	ValidatorPass   = "one"
 )
@@ -55,6 +60,10 @@ const (
 var (
 	ValidatorHash, _ = address.StringToUint160(ValidatorAddr)
 	ValidatorPriv, _ = keys.NewPrivateKeyFromWIF(ValidatorWIF)
+
+	TestWalletMultiAccount1Hash, _ = address.StringToUint160(TestWalletMultiAccount1)
+	TestWalletMultiAccount2Hash, _ = address.StringToUint160(TestWalletMultiAccount2)
+	TestWalletMultiAccount3Hash, _ = address.StringToUint160(TestWalletMultiAccount3)
 )
 
 // Executor represents context for a test instance.

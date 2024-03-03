@@ -29,6 +29,10 @@ var (
 	}
 
 	passwords = []string{"one", "two", "three", "four"}
+
+	// naiveScrypt is naive scrypt parameters used for testing wallets to save
+	// time on accounts decryption.
+	naiveScrypt = keys.ScryptParams{N: 2, R: 1, P: 1}
 )
 
 func getKeys(t *testing.T) []*keys.PublicKey {
@@ -42,8 +46,12 @@ func getKeys(t *testing.T) []*keys.PublicKey {
 	return pubs
 }
 
-func getAccount(t *testing.T, wif, pass string) *Account {
+func getNEP2Account(t *testing.T, wif, pass string) *Account {
 	return getAccountWithScrypt(t, wif, pass, keys.NEP2ScryptParams())
+}
+
+func getTestingAccount(t *testing.T, wif, pass string) *Account {
+	return getAccountWithScrypt(t, wif, pass, naiveScrypt)
 }
 
 func getAccountWithScrypt(t *testing.T, wif, pass string, scrypt keys.ScryptParams) *Account {
@@ -59,24 +67,24 @@ func TestRegenerateSoloWallet(t *testing.T) {
 	}
 	walletPath := filepath.Join(dockerWalletDir, "wallet1_solo.json")
 	wif := privnetWIFs[0]
-	acc1 := getAccount(t, wif, "one")
-	acc2 := getAccount(t, wif, "one")
+	acc1 := getNEP2Account(t, wif, "one")
+	acc2 := getNEP2Account(t, wif, "one")
 	require.NoError(t, acc2.ConvertMultisig(3, getKeys(t)))
 
-	acc3 := getAccount(t, wif, "one")
+	acc3 := getNEP2Account(t, wif, "one")
 	require.NoError(t, acc3.ConvertMultisig(1, keys.PublicKeys{getKeys(t)[0]}))
 
-	createWallet(t, walletPath, acc1, acc2, acc3)
+	createNEP2Wallet(t, walletPath, acc1, acc2, acc3)
 }
 
 func regenerateWallets(t *testing.T, dir string) {
 	pubs := getKeys(t)
 	for i := range privnetWIFs {
-		acc1 := getAccount(t, privnetWIFs[i], passwords[i])
-		acc2 := getAccount(t, privnetWIFs[i], passwords[i])
+		acc1 := getNEP2Account(t, privnetWIFs[i], passwords[i])
+		acc2 := getNEP2Account(t, privnetWIFs[i], passwords[i])
 		require.NoError(t, acc2.ConvertMultisig(3, pubs))
 
-		createWallet(t, filepath.Join(dir, fmt.Sprintf("wallet%d.json", i+1)), acc1, acc2)
+		createNEP2Wallet(t, filepath.Join(dir, fmt.Sprintf("wallet%d.json", i+1)), acc1, acc2)
 	}
 }
 
@@ -99,17 +107,17 @@ func TestRegenerateWalletTestdata(t *testing.T) {
 	}
 	const walletDir = "./testdata/"
 
-	acc1 := getAccount(t, privnetWIFs[0], "one")
-	acc2 := getAccount(t, privnetWIFs[0], "one")
+	acc1 := getTestingAccount(t, privnetWIFs[0], "one")
+	acc2 := getTestingAccount(t, privnetWIFs[0], "one")
 	pubs := getKeys(t)
 	require.NoError(t, acc2.ConvertMultisig(3, pubs))
 
-	acc3 := getAccount(t, privnetWIFs[1], "two")
+	acc3 := getTestingAccount(t, privnetWIFs[1], "two")
 	acc3.Default = true
 
-	createWallet(t, filepath.Join(walletDir, "wallet1.json"), acc1, acc2)
+	createTestingWallet(t, filepath.Join(walletDir, "wallet1.json"), acc1, acc2)
 
-	createWallet(t, filepath.Join(walletDir, "wallet2.json"), acc1, acc2, acc3)
+	createTestingWallet(t, filepath.Join(walletDir, "wallet2.json"), acc1, acc2, acc3)
 }
 
 func TestRegenerateNotaryWallets(t *testing.T) {
@@ -123,15 +131,13 @@ func TestRegenerateNotaryWallets(t *testing.T) {
 		acc4WIF = "L1ioz93TNt6Nu1aoMpZQ4zgdtgC8ZvJMC6pyHFkrovdR3SFwbn6n"
 	)
 	var walletDir = filepath.Join("..", "services", "notary", "testdata")
+	acc1 := getAccountWithScrypt(t, acc1WIF, "one", naiveScrypt)
+	acc2 := getAccountWithScrypt(t, acc2WIF, "one", naiveScrypt)
+	acc3 := getAccountWithScrypt(t, acc3WIF, "four", naiveScrypt)
+	createTestingWallet(t, filepath.Join(walletDir, "notary1.json"), acc1, acc2, acc3)
 
-	scryptParams := keys.ScryptParams{N: 2, R: 1, P: 1}
-	acc1 := getAccountWithScrypt(t, acc1WIF, "one", scryptParams)
-	acc2 := getAccountWithScrypt(t, acc2WIF, "one", scryptParams)
-	acc3 := getAccountWithScrypt(t, acc3WIF, "four", scryptParams)
-	createWallet(t, filepath.Join(walletDir, "notary1.json"), acc1, acc2, acc3)
-
-	acc4 := getAccountWithScrypt(t, acc4WIF, "two", scryptParams)
-	createWallet(t, filepath.Join(walletDir, "notary2.json"), acc4)
+	acc4 := getAccountWithScrypt(t, acc4WIF, "two", naiveScrypt)
+	createTestingWallet(t, filepath.Join(walletDir, "notary2.json"), acc4)
 }
 
 func TestRegenerateOracleWallets(t *testing.T) {
@@ -144,11 +150,11 @@ func TestRegenerateOracleWallets(t *testing.T) {
 		acc2WIF   = "KyA8z2MyLCSjJFG3F4SUp85CZ4WJm4qgWihFJZFEDYGEyw8oGcEP"
 	)
 
-	acc1 := getAccount(t, acc1WIF, "one")
-	createWallet(t, filepath.Join(walletDir, "oracle1.json"), acc1)
+	acc1 := getTestingAccount(t, acc1WIF, "one")
+	createTestingWallet(t, filepath.Join(walletDir, "oracle1.json"), acc1)
 
-	acc2 := getAccount(t, acc2WIF, "two")
-	createWallet(t, filepath.Join(walletDir, "oracle2.json"), acc2)
+	acc2 := getTestingAccount(t, acc2WIF, "two")
+	createTestingWallet(t, filepath.Join(walletDir, "oracle2.json"), acc2)
 }
 
 func TestRegenerateExamplesWallet(t *testing.T) {
@@ -160,9 +166,9 @@ func TestRegenerateExamplesWallet(t *testing.T) {
 		acc1WIF    = "L46dn46AMZY7NQGZHemAdgcMabKon85eme45hgQkAUQBiRacY8MB"
 	)
 
-	acc1 := getAccount(t, acc1WIF, "qwerty")
+	acc1 := getNEP2Account(t, acc1WIF, "qwerty")
 	acc1.Label = "my_account"
-	createWallet(t, walletPath, acc1)
+	createNEP2Wallet(t, walletPath, acc1)
 }
 
 func TestRegenerateCLITestwallet(t *testing.T) {
@@ -174,9 +180,32 @@ func TestRegenerateCLITestwallet(t *testing.T) {
 		accWIF     = "L23LrQNWELytYLvb5c6dXBDdF2DNPL9RRNWPqppv3roxacSnn8CN"
 	)
 
-	acc := getAccountWithScrypt(t, accWIF, "testpass", keys.ScryptParams{N: 2, R: 1, P: 1})
+	acc := getAccountWithScrypt(t, accWIF, "testpass", naiveScrypt)
 	acc.Label = "kek"
-	createWallet(t, walletPath, acc)
+	createTestingWallet(t, walletPath, acc)
+}
+
+func TestRegenerateCLITestwalletMulti(t *testing.T) {
+	if !regenerate {
+		return
+	}
+	const (
+		walletPath = "../../cli/testdata/testwallet_multi.json"
+		accWIF1    = "L2NZQ84s8SuUfyJmtjs7J5a2pZFEVQVVRYDtNsQEyB4RjHnpkorr"
+		pass1      = "one"
+		accWIF2    = "L4pSqPmvbghcM8NY14CNSUzkK92VmSFLKNwAh9TqLqFhTZkxZgsP"
+		pass2      = "two"
+		accWIF3    = "L1eNtPQA8bALqvSgGMNpNR3EYFR15WeNdCZDuiwWYcQ6Q6FfuVro"
+		pass3      = "three"
+	)
+
+	acc1 := getAccountWithScrypt(t, accWIF1, pass1, naiveScrypt)
+	acc1.Label = pass1
+	acc2 := getAccountWithScrypt(t, accWIF2, pass2, naiveScrypt)
+	acc2.Label = pass2
+	acc3 := getAccountWithScrypt(t, accWIF3, pass3, naiveScrypt)
+	acc3.Label = pass3
+	createTestingWallet(t, walletPath, acc1, acc2, acc3)
 }
 
 func TestRegenerateCLITestwallet_NEO3(t *testing.T) {
@@ -186,15 +215,28 @@ func TestRegenerateCLITestwallet_NEO3(t *testing.T) {
 	const walletPath = "../../cli/wallet/testdata/testwallet_NEO3.json"
 
 	pubs := getKeys(t)
-	acc1 := getAccount(t, privnetWIFs[0], passwords[0])
-	acc2 := getAccount(t, privnetWIFs[0], passwords[0])
+	acc1 := getNEP2Account(t, privnetWIFs[0], passwords[0])
+	acc2 := getNEP2Account(t, privnetWIFs[0], passwords[0])
 	require.NoError(t, acc2.ConvertMultisig(3, pubs))
-	createWallet(t, walletPath, acc1, acc2)
+	createNEP2Wallet(t, walletPath, acc1, acc2)
 }
 
-func createWallet(t *testing.T, path string, accs ...*Account) {
+// createNEP2Wallet creates wallet with provided accounts and NEP2 scrypt parameters.
+func createNEP2Wallet(t *testing.T, path string, accs ...*Account) {
+	createWallet(t, path, keys.NEP2ScryptParams(), accs...)
+}
+
+// createTestingWallet creates wallet with provided accounts and scrypt parameters with
+// low values which can be used for testing to save time on accounts decryption.
+func createTestingWallet(t *testing.T, path string, accs ...*Account) {
+	createWallet(t, path, naiveScrypt, accs...)
+}
+
+func createWallet(t *testing.T, path string, scryptParams keys.ScryptParams, accs ...*Account) {
 	w, err := NewWallet(path)
 	require.NoError(t, err)
+	w.Scrypt = scryptParams
+
 	if len(accs) == 0 {
 		t.Fatal("provide at least 1 account")
 	}
@@ -215,17 +257,16 @@ func TestRegenerateCLIWallet1_solo(t *testing.T) {
 		verifyManifestPath = "../../cli/smartcontract/testdata/verify.manifest.json"
 	)
 
-	scrypt := keys.ScryptParams{N: 2, R: 1, P: 1}
 	wif := privnetWIFs[0]
-	acc1 := getAccountWithScrypt(t, wif, "one", scrypt)
+	acc1 := getAccountWithScrypt(t, wif, "one", naiveScrypt)
 	acc1.Default = true
-	acc2 := getAccountWithScrypt(t, wif, "one", scrypt)
+	acc2 := getAccountWithScrypt(t, wif, "one", naiveScrypt)
 	require.NoError(t, acc2.ConvertMultisig(3, getKeys(t)))
 
-	acc3 := getAccountWithScrypt(t, wif, "one", scrypt)
+	acc3 := getAccountWithScrypt(t, wif, "one", naiveScrypt)
 	require.NoError(t, acc3.ConvertMultisig(1, keys.PublicKeys{getKeys(t)[0]}))
 
-	acc4 := getAccountWithScrypt(t, verifyWIF, "pass", scrypt) // deployed verify.go contract
+	acc4 := getAccountWithScrypt(t, verifyWIF, "pass", naiveScrypt) // deployed verify.go contract
 	f, err := os.ReadFile(verifyNEFPath)
 	require.NoError(t, err)
 	nefFile, err := nef.FileFromBytes(f)
@@ -242,5 +283,5 @@ func TestRegenerateCLIWallet1_solo(t *testing.T) {
 		Parameters: []ContractParam{},
 	}
 	acc4.Label = "verify"
-	createWallet(t, walletPath, acc1, acc2, acc3, acc4)
+	createTestingWallet(t, walletPath, acc1, acc2, acc3, acc4)
 }

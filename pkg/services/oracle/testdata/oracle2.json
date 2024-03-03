@@ -3,7 +3,7 @@
   "accounts": [
     {
       "address": "NUkatH1cgvBeQyDwfyEjTqZRgjmXC1d23A",
-      "key": "6PYNvsB8P7Ge5SHth9Ui9ikgkupTfED1g7Ec39gn2YDuuM4LFgQgG4j4i3",
+      "key": "6PYNvsB8NJ3RggwkVxuh8KP6fxuyf9J5bcwrKkLRNaPoea661eEHZyTeVb",
       "label": "",
       "contract": {
         "script": "DCEDEXzwIl4Jhvsj98GYIPFFiedeb1QdP8T79uSBSDNsisxBVuezJw==",
@@ -20,9 +20,9 @@
     }
   ],
   "scrypt": {
-    "n": 16384,
-    "r": 8,
-    "p": 8
+    "n": 2,
+    "r": 1,
+    "p": 1
   },
   "extra": {
     "Tokens": null
