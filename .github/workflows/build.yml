@@ -37,7 +37,7 @@ jobs:
     runs-on: ${{matrix.os.name}}
     strategy:
       matrix:
-        os: [{ name: ubuntu-20.04, bin-name: linux }, { name: windows-2022, bin-name: windows }, { name: macos-12, bin-name: darwin }]
+        os: [{ name: ubuntu-22.04, bin-name: linux }, { name: windows-2022, bin-name: windows }, { name: macos-12, bin-name: darwin }]
         arch: [amd64, arm64]
         exclude:
           - os: { name: windows-2022, bin-name: windows }
@@ -80,7 +80,7 @@ jobs:
   build_image:
     needs: build_cli
     name: Build and push docker image
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
