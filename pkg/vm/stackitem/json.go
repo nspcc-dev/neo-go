@@ -449,7 +449,7 @@ type (
 )
 
 func mkErrValue(err error) error {
-	return fmt.Errorf("%w: %v", ErrInvalidValue, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+	return fmt.Errorf("%w: %w", ErrInvalidValue, err)
 }
 
 // FromJSONWithTypes deserializes an item from typed-json representation.

@@ -109,12 +109,12 @@ func parseNeoFSURL(u *url.URL) (*oid.Address, []string, error) {
 
 	var containerID cid.ID
 	if err := containerID.DecodeString(ps[0]); err != nil {
-		return nil, nil, fmt.Errorf("%w: %v", ErrInvalidContainer, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+		return nil, nil, fmt.Errorf("%w: %w", ErrInvalidContainer, err)
 	}
 
 	var objectID oid.ID
 	if err := objectID.DecodeString(ps[1]); err != nil {
-		return nil, nil, fmt.Errorf("%w: %v", ErrInvalidObject, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+		return nil, nil, fmt.Errorf("%w: %w", ErrInvalidObject, err)
 	}
 	var objAddr = new(oid.Address)
 	objAddr.SetContainer(containerID)

@@ -2511,7 +2511,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	// really require a chain lock.
 	err := vm.IsScriptCorrect(t.Script, nil)
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrInvalidScript, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+		return fmt.Errorf("%w: %w", ErrInvalidScript, err)
 	}
 
 	height := bc.BlockHeight()
@@ -2522,7 +2522,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 	// Policying.
 	if err := bc.contracts.Policy.CheckPolicy(bc.dao, t); err != nil {
 		// Only one %w can be used.
-		return fmt.Errorf("%w: %v", ErrPolicy, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+		return fmt.Errorf("%w: %w", ErrPolicy, err)
 	}
 	if t.SystemFee > bc.config.MaxBlockSystemFee {
 		return fmt.Errorf("%w: too big system fee (%d > MaxBlockSystemFee %d)", ErrPolicy, t.SystemFee, bc.config.MaxBlockSystemFee)
@@ -2566,7 +2566,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		case errors.Is(err, mempool.ErrOOM):
 			return ErrOOM
 		case errors.Is(err, mempool.ErrConflictsAttribute):
-			return fmt.Errorf("mempool: %w: %s", ErrHasConflicts, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("mempool: %w: %w", ErrHasConflicts, err)
 		default:
 			return err
 		}
@@ -2607,7 +2607,7 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 		case transaction.OracleResponseT:
 			h, err := bc.contracts.Oracle.GetScriptHash(bc.dao)
 			if err != nil || h.Equals(util.Uint160{}) {
-				return fmt.Errorf("%w: %v", ErrInvalidAttribute, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+				return fmt.Errorf("%w: %w", ErrInvalidAttribute, err)
 			}
 			hasOracle := false
 			for i := range tx.Signers {
@@ -2627,7 +2627,7 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 			resp := tx.Attributes[i].Value.(*transaction.OracleResponse)
 			req, err := bc.contracts.Oracle.GetRequestInternal(bc.dao, resp.ID)
 			if err != nil {
-				return fmt.Errorf("%w: oracle tx points to invalid request: %v", ErrInvalidAttribute, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+				return fmt.Errorf("%w: oracle tx points to invalid request: %w", ErrInvalidAttribute, err)
 			}
 			if uint64(tx.NetworkFee+tx.SystemFee) < req.GasForResponse {
 				return fmt.Errorf("%w: oracle tx has insufficient gas", ErrInvalidAttribute)
@@ -2638,7 +2638,7 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 			if isPartialTx {
 				maxNVBDelta, err := bc.GetMaxNotValidBeforeDelta()
 				if err != nil {
-					return fmt.Errorf("%w: failed to retrieve MaxNotValidBeforeDelta value from native Notary contract: %v", ErrInvalidAttribute, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+					return fmt.Errorf("%w: failed to retrieve MaxNotValidBeforeDelta value from native Notary contract: %w", ErrInvalidAttribute, err)
 				}
 				if curHeight+maxNVBDelta < nvb {
 					return fmt.Errorf("%w: NotValidBefore (%d) bigger than MaxNVBDelta (%d) allows at height %d", ErrInvalidAttribute, nvb, maxNVBDelta, curHeight)
@@ -2873,7 +2873,7 @@ func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uin
 		}
 		err := vm.IsScriptCorrect(witness.VerificationScript, nil)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidVerificationScript, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: %w", ErrInvalidVerificationScript, err)
 		}
 		ic.VM.LoadScriptWithHash(witness.VerificationScript, hash, callflag.ReadOnly)
 	} else {
@@ -2898,7 +2898,7 @@ func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uin
 	if len(witness.InvocationScript) != 0 {
 		err := vm.IsScriptCorrect(witness.InvocationScript, nil)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidInvocationScript, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: %w", ErrInvalidInvocationScript, err)
 		}
 		ic.VM.LoadScript(witness.InvocationScript)
 	}
@@ -2930,7 +2930,7 @@ func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transa
 	}
 	err := interopCtx.Exec()
 	if vm.HasFailed() {
-		return 0, fmt.Errorf("%w: vm execution has failed: %v", ErrVerificationFailed, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+		return 0, fmt.Errorf("%w: vm execution has failed: %w", ErrVerificationFailed, err)
 	}
 	estack := vm.Estack()
 	if estack.Len() > 0 {

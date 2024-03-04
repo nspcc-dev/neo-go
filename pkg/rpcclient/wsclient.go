@@ -943,7 +943,7 @@ func (c *WSClient) UnsubscribeAll() error {
 	for _, id := range subs {
 		err := c.performUnsubscription(id)
 		if err != nil {
-			errFmt := "failed to unsubscribe from feed %d: %v"
+			errFmt := "failed to unsubscribe from feed %d: %w"
 			errArgs := []any{err}
 			if resErr != nil {
 				errFmt = "%w; " + errFmt

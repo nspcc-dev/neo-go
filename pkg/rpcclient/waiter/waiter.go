@@ -201,9 +201,9 @@ func (w *PollingBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.U
 				return nil, ErrTxNotAccepted
 			}
 		case <-w.polling.Context().Done():
-			return nil, fmt.Errorf("%w: %v", ErrContextDone, w.polling.Context().Err()) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return nil, fmt.Errorf("%w: %w", ErrContextDone, w.polling.Context().Err())
 		case <-ctx.Done():
-			return nil, fmt.Errorf("%w: %v", ErrContextDone, ctx.Err()) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return nil, fmt.Errorf("%w: %w", ErrContextDone, ctx.Err())
 		}
 	}
 }
@@ -329,9 +329,9 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 			}
 			res = aer
 		case <-w.ws.Context().Done():
-			waitErr = fmt.Errorf("%w: %v", ErrContextDone, w.ws.Context().Err()) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			waitErr = fmt.Errorf("%w: %w", ErrContextDone, w.ws.Context().Err())
 		case <-ctx.Done():
-			waitErr = fmt.Errorf("%w: %v", ErrContextDone, ctx.Err()) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			waitErr = fmt.Errorf("%w: %w", ErrContextDone, ctx.Err())
 		}
 	}
 	close(exit)
@@ -361,7 +361,7 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 				}
 			case unsubErr := <-unsubErrs:
 				if unsubErr != nil {
-					errFmt := "unsubscription error: %v"
+					errFmt := "unsubscription error: %w"
 					errArgs := []any{unsubErr}
 					if waitErr != nil {
 						errFmt = "%w; " + errFmt
@@ -393,7 +393,7 @@ func (w *EventBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.Uin
 		res, waitErr = w.polling.WaitAny(ctx, vub, hashes...)
 		if waitErr != nil {
 			// Wrap the poll-based error, it's more important.
-			waitErr = fmt.Errorf("event-based error: %v; poll-based waiter error: %w", wsWaitErr, waitErr) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			waitErr = fmt.Errorf("event-based error: %w; poll-based waiter error: %w", wsWaitErr, waitErr)
 		}
 	}
 	return
