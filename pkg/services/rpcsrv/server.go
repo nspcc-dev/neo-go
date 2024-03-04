@@ -52,7 +52,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest/standard"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -1760,7 +1759,7 @@ func (s *Server) findStorageInternal(id int32, prefix []byte, start, take int, s
 		}
 		if i < end {
 			res.Results = append(res.Results, result.KeyValue{
-				Key:   slice.Copy(append(prefix, k...)), // Don't strip prefix, as it is done in C#.
+				Key:   bytes.Clone(append(prefix, k...)), // Don't strip prefix, as it is done in C#.
 				Value: v,
 			})
 			i++

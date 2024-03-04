@@ -6,8 +6,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // MemCachedStore is a wrapper around persistent store that caches all changes
@@ -107,7 +105,7 @@ func (s *MemCachedStore) Get(key []byte) ([]byte, error) {
 // Put puts new KV pair into the store.
 func (s *MemCachedStore) Put(key, value []byte) {
 	newKey := string(key)
-	vcopy := slice.Copy(value)
+	vcopy := bytes.Clone(value)
 	s.lock()
 	put(s.chooseMap(key), newKey, vcopy)
 	s.unlock()
@@ -259,8 +257,8 @@ func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng See
 			return false
 		}
 		kvPs := KeyValue{
-			Key:   slice.Copy(k),
-			Value: slice.Copy(v),
+			Key:   bytes.Clone(k),
+			Value: bytes.Clone(v),
 		}
 		for {
 			select {

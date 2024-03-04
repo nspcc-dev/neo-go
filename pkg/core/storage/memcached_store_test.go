@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -420,7 +419,7 @@ func TestCachedSeekSorting(t *testing.T) {
 		}
 		var foundKVs []KeyValue
 		ts.Seek(SeekRange{Prefix: goodPrefix}, func(k, v []byte) bool {
-			foundKVs = append(foundKVs, KeyValue{Key: slice.Copy(k), Value: slice.Copy(v)})
+			foundKVs = append(foundKVs, KeyValue{Key: bytes.Clone(k), Value: bytes.Clone(v)})
 			return true
 		})
 		assert.Equal(t, len(foundKVs), len(lowerKVs)+len(updatedKVs))

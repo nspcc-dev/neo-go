@@ -14,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 const (
@@ -197,7 +196,7 @@ func convertPrimitive(item Item, typ Type) (Item, error) {
 			return nil, err
 		}
 		if typ == BufferT {
-			return NewBuffer(slice.Copy(b)), nil
+			return NewBuffer(bytes.Clone(b)), nil
 		}
 		// ByteArray can't really be changed, so it's OK to reuse `b`.
 		return NewByteArray(b), nil
@@ -687,7 +686,7 @@ func (i *ByteArray) equalsLimited(s Item, limit *int) bool {
 
 // Dup implements the Item interface.
 func (i *ByteArray) Dup() Item {
-	ba := slice.Copy(*i)
+	ba := bytes.Clone(*i)
 	return (*ByteArray)(&ba)
 }
 
@@ -1186,7 +1185,7 @@ func (i *Buffer) Convert(typ Type) (Item, error) {
 	case BufferT:
 		return i, nil
 	case ByteArrayT:
-		return NewByteArray(slice.Copy(*i)), nil
+		return NewByteArray(bytes.Clone(*i)), nil
 	case IntegerT:
 		if len(*i) > MaxBigIntegerSizeBits/8 {
 			return nil, errTooBigInteger
@@ -1248,12 +1247,12 @@ func deepCopy(item Item, seen map[Item]Item, asImmutable bool) Item {
 		bi := new(big.Int).Set(it.Big())
 		return (*BigInteger)(bi)
 	case *ByteArray:
-		return NewByteArray(slice.Copy(*it))
+		return NewByteArray(bytes.Clone(*it))
 	case *Buffer:
 		if asImmutable {
-			return NewByteArray(slice.Copy(*it))
+			return NewByteArray(bytes.Clone(*it))
 		}
-		return NewBuffer(slice.Copy(*it))
+		return NewBuffer(bytes.Clone(*it))
 	case Bool:
 		return it
 	case *Pointer:

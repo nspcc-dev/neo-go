@@ -1,6 +1,7 @@
 package slice
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -30,7 +31,7 @@ var testCases = []struct {
 
 func TestCopyReverse(t *testing.T) {
 	for _, tc := range testCases {
-		arg := Copy(tc.arr)
+		arg := bytes.Clone(tc.arr)
 		require.Equal(t, tc.arr, arg)
 
 		have := CopyReverse(arg)
@@ -52,7 +53,7 @@ func TestCopyReverse(t *testing.T) {
 
 func TestClean(t *testing.T) {
 	for _, tc := range testCases[1:] { // Empty one will be equal.
-		cp := Copy(tc.arr)
+		cp := bytes.Clone(tc.arr)
 		Clean(cp)
 		require.NotEqual(t, tc.arr, cp)
 	}

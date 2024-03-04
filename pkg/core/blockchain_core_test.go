@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"strings"
@@ -17,7 +18,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -175,9 +175,9 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 	bPrefix := make([]byte, 1)
 	bPrefix[0] = byte(bcSpout.dao.Version.StoragePrefix)
 	bcSpout.dao.Store.Seek(storage.SeekRange{Prefix: bPrefix}, func(k, v []byte) bool {
-		key := slice.Copy(k)
+		key := bytes.Clone(k)
 		key[0] = byte(tempPrefix)
-		value := slice.Copy(v)
+		value := bytes.Clone(v)
 		batch.Put(key, value)
 		return true
 	})

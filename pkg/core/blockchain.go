@@ -36,7 +36,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
@@ -1172,7 +1171,7 @@ func (bc *Blockchain) resetTransfers(cache *dao.Simple, height uint32) error {
 				trInfo = nil
 				removeFollowing = false
 			} else if removeFollowing {
-				cache.Store.Delete(slice.Copy(k))
+				cache.Store.Delete(bytes.Clone(k))
 				return seekErr == nil
 			}
 

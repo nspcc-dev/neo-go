@@ -1,12 +1,12 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -42,7 +42,7 @@ func NewIterator(seekCh chan storage.KeyValue, prefix []byte, opts int64) *Itera
 	return &Iterator{
 		seekCh: seekCh,
 		opts:   opts,
-		prefix: slice.Copy(prefix),
+		prefix: bytes.Clone(prefix),
 	}
 }
 
@@ -61,7 +61,7 @@ func (s *Iterator) Value() stackitem.Item {
 	}
 	key := s.curr.Key
 	if s.opts&FindRemovePrefix == 0 {
-		key = append(slice.Copy(s.prefix), key...)
+		key = append(bytes.Clone(s.prefix), key...)
 	}
 	if s.opts&FindKeysOnly != 0 {
 		return stackitem.NewByteArray(key)

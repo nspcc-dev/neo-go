@@ -1,6 +1,7 @@
 package contract_test
 
 import (
+	"bytes"
 	"math"
 	"math/big"
 	"testing"
@@ -15,7 +16,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/stretchr/testify/require"
 )
@@ -136,13 +136,13 @@ func TestCreateAccount_HFAspidochelone(t *testing.T) {
 	emit.Int(w.BinWriter, int64(2))
 	emit.Syscall(w.BinWriter, interopnames.SystemContractCreateMultisigAccount)
 	require.NoError(t, w.Err)
-	multisigScript := slice.Copy(w.Bytes())
+	multisigScript := bytes.Clone(w.Bytes())
 
 	w.Reset()
 	emit.Bytes(w.BinWriter, pub.Bytes())
 	emit.Syscall(w.BinWriter, interopnames.SystemContractCreateStandardAccount)
 	require.NoError(t, w.Err)
-	standardScript := slice.Copy(w.Bytes())
+	standardScript := bytes.Clone(w.Bytes())
 
 	createAccTx := func(t *testing.T, script []byte) *transaction.Transaction {
 		tx := e.PrepareInvocation(t, script, []neotest.Signer{e.Committee}, bc.BlockHeight()+1)

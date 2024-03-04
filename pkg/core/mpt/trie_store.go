@@ -7,7 +7,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // TrieStore is an MPT-based storage implementation for storing and retrieving
@@ -101,8 +100,8 @@ func (m *TrieStore) Seek(rng storage.SeekRange, f func(k, v []byte) bool) {
 		if leaf, ok := node.(*LeafNode); ok {
 			// (*Billet).traverse includes `from` path into the result if so. It's OK for Seek, so shouldn't be filtered out.
 			kv := storage.KeyValue{
-				Key:   append(slice.Copy(rng.Prefix), pathToNode...), // Do not cut prefix.
-				Value: slice.Copy(leaf.value),
+				Key:   append(bytes.Clone(rng.Prefix), pathToNode...), // Do not cut prefix.
+				Value: bytes.Clone(leaf.value),
 			}
 			return !f(kv.Key, kv.Value) // Should return whether to stop.
 		}

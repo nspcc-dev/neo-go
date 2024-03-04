@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -19,7 +20,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -383,7 +383,7 @@ func (dao *Simple) DeleteStorageItem(id int32, key []byte) {
 // may not be copied. Seek continues iterating until false is returned from f. A requested prefix
 // (if any non-empty) is trimmed before passing to f.
 func (dao *Simple) Seek(id int32, rng storage.SeekRange, f func(k, v []byte) bool) {
-	rng.Prefix = slice.Copy(dao.makeStorageItemKey(id, rng.Prefix)) // f() can use dao too.
+	rng.Prefix = bytes.Clone(dao.makeStorageItemKey(id, rng.Prefix)) // f() can use dao too.
 	dao.Store.Seek(rng, func(k, v []byte) bool {
 		return f(k[len(rng.Prefix):], v)
 	})
@@ -393,7 +393,7 @@ func (dao *Simple) Seek(id int32, rng storage.SeekRange, f func(k, v []byte) boo
 // starting from the point specified) to a channel and returns the channel.
 // Resulting keys and values may not be copied.
 func (dao *Simple) SeekAsync(ctx context.Context, id int32, rng storage.SeekRange) chan storage.KeyValue {
-	rng.Prefix = slice.Copy(dao.makeStorageItemKey(id, rng.Prefix))
+	rng.Prefix = bytes.Clone(dao.makeStorageItemKey(id, rng.Prefix))
 	return dao.Store.SeekAsync(ctx, rng, true)
 }
 

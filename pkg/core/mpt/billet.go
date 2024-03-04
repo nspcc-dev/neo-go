@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 var (
@@ -230,7 +229,7 @@ func (b *Billet) traverse(curr Node, path, from []byte, process func(pathToNode 
 		return b.traverse(r, path, from, process, ignoreStorageErr, backwards)
 	}
 	if len(from) == 0 {
-		bytes := slice.Copy(curr.Bytes())
+		bytes := bytes.Clone(curr.Bytes())
 		if process(fromNibbles(path), curr, bytes) {
 			return curr, errStop
 		}

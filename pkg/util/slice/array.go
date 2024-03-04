@@ -22,13 +22,6 @@ func reverse(dst []byte, src []byte) {
 	}
 }
 
-// Copy copies the byte slice into new slice (make/copy).
-func Copy(b []byte) []byte {
-	d := make([]byte, len(b))
-	copy(d, b)
-	return d
-}
-
 // Clean wipes the data in b by filling it with zeros.
 func Clean(b []byte) {
 	for i := range b {
