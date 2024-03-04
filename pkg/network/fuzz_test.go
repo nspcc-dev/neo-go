@@ -11,6 +11,7 @@ import (
 func FuzzMessageDecode(f *testing.F) {
 	for i := 0; i < 100; i++ {
 		seed := make([]byte, rand.Uint32()%1000)
+		//nolint:staticcheck
 		rand.Read(seed)
 		f.Add(seed)
 	}

@@ -50,5 +50,6 @@ func Uint160() util.Uint160 {
 }
 
 func init() {
+	//nolint:staticcheck
 	rand.Seed(time.Now().UTC().UnixNano())
 }
