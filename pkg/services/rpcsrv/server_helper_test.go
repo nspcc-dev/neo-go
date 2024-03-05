@@ -130,7 +130,7 @@ func wrapUnitTestChain(t testing.TB, chain *core.Blockchain, orc OracleHandler, 
 
 	handler := http.HandlerFunc(rpcServer.handleHTTPRequest)
 	srv := httptest.NewServer(handler)
-
+	t.Cleanup(srv.Close)
 	return chain, &rpcServer, srv
 }
 

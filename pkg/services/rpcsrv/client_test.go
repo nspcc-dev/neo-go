@@ -1701,6 +1701,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 		rpcSrv.Start()
 		handler := http.HandlerFunc(rpcSrv.handleHTTPRequest)
 		httpSrv := httptest.NewServer(handler)
+		t.Cleanup(httpSrv.Close)
 		defer rpcSrv.Shutdown()
 		for _, b := range getTestBlocks(t) {
 			require.NoError(t, chain.AddBlock(b))
