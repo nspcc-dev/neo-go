@@ -11,7 +11,7 @@ import (
 	"math/big"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -126,22 +126,18 @@ func NewPublicKeyFromString(s string) (*PublicKey, error) {
 
 // keycache is a simple lru cache for P256 keys that avoids Y calculation overhead
 // for known keys.
-var keycache *lru.Cache
+var keycache *lru.Cache[string, *PublicKey]
 
 func init() {
 	// Less than 100K, probably enough for our purposes.
-	keycache, _ = lru.New(1024)
+	keycache, _ = lru.New[string, *PublicKey](1024)
 }
 
 // NewPublicKeyFromBytes returns a public key created from b using the given EC.
 func NewPublicKeyFromBytes(b []byte, curve elliptic.Curve) (*PublicKey, error) {
-	var pubKey *PublicKey
-	cachedKey, ok := keycache.Get(string(b))
-	if ok {
-		pubKey = cachedKey.(*PublicKey)
-		if pubKey.Curve == curve {
-			return pubKey, nil
-		}
+	pubKey, ok := keycache.Get(string(b))
+	if ok && pubKey.Curve == curve {
+		return pubKey, nil
 	}
 	pubKey = new(PublicKey)
 	pubKey.Curve = curve
