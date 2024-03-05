@@ -31,6 +31,9 @@ type Iterator struct {
 	curr   storage.KeyValue
 	next   bool
 	opts   int64
+	// prefix is the storage item key prefix Find is performed with. It must be
+	// copied if no FindRemovePrefix option specified since it's shared between all
+	// iterator items.
 	prefix []byte
 }
 
@@ -58,7 +61,7 @@ func (s *Iterator) Value() stackitem.Item {
 	}
 	key := s.curr.Key
 	if s.opts&FindRemovePrefix == 0 {
-		key = append(s.prefix, key...)
+		key = append(slice.Copy(s.prefix), key...)
 	}
 	if s.opts&FindKeysOnly != 0 {
 		return stackitem.NewByteArray(key)
