@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -34,12 +34,12 @@ type HeaderHashes struct {
 	storedHeaderCount uint32
 
 	// Cache for accessed pages of header hashes.
-	cache *lru.Cache
+	cache *lru.Cache[uint32, []util.Uint256]
 }
 
 func (h *HeaderHashes) initGenesis(dao *dao.Simple, hash util.Uint256) {
 	h.dao = dao
-	h.cache, _ = lru.New(pagesCache) // Never errors for positive size.
+	h.cache, _ = lru.New[uint32, []util.Uint256](pagesCache) // Never errors for positive size.
 	h.previous = make([]util.Uint256, headerBatchCount)
 	h.latest = make([]util.Uint256, 0, headerBatchCount)
 	h.latest = append(h.latest, hash)
@@ -48,7 +48,7 @@ func (h *HeaderHashes) initGenesis(dao *dao.Simple, hash util.Uint256) {
 
 func (h *HeaderHashes) init(dao *dao.Simple) error {
 	h.dao = dao
-	h.cache, _ = lru.New(pagesCache) // Never errors for positive size.
+	h.cache, _ = lru.New[uint32, []util.Uint256](pagesCache) // Never errors for positive size.
 
 	currHeaderHeight, currHeaderHash, err := h.dao.GetCurrentHeaderHeight()
 	if err != nil {
@@ -169,9 +169,8 @@ func (h *HeaderHashes) GetHeaderHash(i uint32) util.Uint256 {
 	// If it's not in the latest/previous, then it's in the cache or DB, those
 	// need no additional locks.
 	page := (i / headerBatchCount) * headerBatchCount
-	cache, ok := h.cache.Get(page)
+	hashes, ok := h.cache.Get(page)
 	if ok {
-		hashes := cache.([]util.Uint256)
 		return hashes[i-page]
 	}
 	hashes, err := h.dao.GetHeaderHashes(page)
