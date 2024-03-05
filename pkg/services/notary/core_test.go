@@ -133,7 +133,7 @@ func TestNotary(t *testing.T) {
 			defer mtx.RUnlock()
 			completedTx = completedTxes[h]
 			return completedTx != nil
-		}, time.Second*3, time.Millisecond*50, errors.New("main transaction expected to be completed"))
+		}, time.Second*3, time.Millisecond*50, errors.New("transaction expected to be completed"))
 		return completedTx
 	}
 
