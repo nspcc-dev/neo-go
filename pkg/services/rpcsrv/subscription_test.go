@@ -96,8 +96,6 @@ func TestSubscriptions(t *testing.T) {
 	var subFeeds = []string{"block_added", "transaction_added", "notification_from_execution", "transaction_executed", "notary_request_event", "header_of_added_block"}
 
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
 
 	rpcSrv.coreServer.Start()
 	defer rpcSrv.coreServer.Shutdown()
@@ -295,10 +293,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 
 	for name, this := range cases {
 		t.Run(name, func(t *testing.T) {
-			chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
-
-			defer chain.Close()
-			defer rpcSrv.Shutdown()
+			chain, _, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 			// It's used as an end-of-event-stream, so it's always present.
 			blockSubID := callSubscribe(t, c, respMsgs, `["block_added"]`)
@@ -397,9 +392,6 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 	rpcSrv.coreServer.Start()
 
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
-
 	// blocks are needed to make GAS deposit for priv0
 	blocks := getTestBlocks(t)
 	for _, b := range blocks {
@@ -437,10 +429,7 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 	// We can't fit this into TestFilteredSubscriptions, because it uses
 	// blocks as EOF events to wait for.
 	const numBlocks = 10
-	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
-
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	blockSubID := callSubscribe(t, c, respMsgs, `["block_added", {"primary":3}]`)
 
@@ -475,10 +464,7 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 
 func TestHeaderOfAddedBlockSubscriptions(t *testing.T) {
 	const numBlocks = 10
-	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
-
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	headerSubID := callSubscribe(t, c, respMsgs, `["header_of_added_block", {"primary":3}]`)
 
@@ -513,10 +499,7 @@ func TestHeaderOfAddedBlockSubscriptions(t *testing.T) {
 
 func TestMaxSubscriptions(t *testing.T) {
 	var subIDs = make([]string, 0)
-	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
-
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	_, _, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	for i := 0; i < maxFeeds+1; i++ {
 		var s string
@@ -559,10 +542,7 @@ func TestBadSubUnsub(t *testing.T) {
 		"bad id":            `{"jsonrpc": "2.0", "method": "unsubscribe", "params": ["vasiliy"], "id": 1}`,
 		"not subscribed id": `{"jsonrpc": "2.0", "method": "unsubscribe", "params": ["7"], "id": 1}`,
 	}
-	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
-
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	_, _, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	testF := func(t *testing.T, cases map[string]string) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -602,11 +582,9 @@ func TestWSClientsLimit(t *testing.T) {
 			effectiveClients = 0
 		}
 		t.Run(tname, func(t *testing.T) {
-			chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
+			_, _, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
 				cfg.ApplicationConfiguration.RPC.MaxWebSocketClients = limit
 			})
-			defer chain.Close()
-			defer rpcSrv.Shutdown()
 
 			dialer := websocket.Dialer{HandshakeTimeout: time.Second}
 			url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
@@ -647,10 +625,7 @@ func TestSubscriptionOverflow(t *testing.T) {
 	const blockCnt = notificationBufSize * 5
 	var receivedMiss bool
 
-	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
-
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	resp := callWSGetRaw(t, c, `{"jsonrpc": "2.0","method": "subscribe","params": ["block_added"],"id": 1}`, respMsgs)
 	require.Nil(t, resp.Error)
@@ -688,9 +663,7 @@ func TestFilteredSubscriptions_InvalidFilter(t *testing.T) {
 			params: `["transaction_executed", {"state":"NOTHALT"}]`,
 		},
 	}
-	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	_, _, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 
 	for name, this := range cases {
 		t.Run(name, func(t *testing.T) {
