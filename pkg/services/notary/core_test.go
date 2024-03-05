@@ -133,7 +133,7 @@ func TestNotary(t *testing.T) {
 			defer mtx.RUnlock()
 			completedTx = completedTxes[h]
 			return completedTx != nil
-		}, time.Second*3, time.Millisecond*50, errors.New("main transaction expected to be completed"))
+		}, time.Second*3, time.Millisecond*50, errors.New("transaction expected to be completed"))
 		return completedTx
 	}
 
@@ -600,22 +600,14 @@ func TestNotary(t *testing.T) {
 	// Add block before allowing tx to finalize to exclude race condition when
 	// main transaction is finalized between `finalizeWithError` restore and adding new block.
 	e.AddNewBlock(t)
-	mtx.RLock()
-	start := len(completedTxes)
-	mtx.RUnlock()
 	setFinalizeWithError(false)
-	for i := range requests {
-		if i != 0 {
-			e.AddNewBlock(t)
-		}
-		require.Eventually(t, func() bool {
-			mtx.RLock()
-			defer mtx.RUnlock()
-			return len(completedTxes)-start >= i+1
-		}, time.Second*3, time.Millisecond)
+	for i := range requests[1:] {
+		e.AddNewBlock(t)
+
+		_ = getCompletedTx(t, true, requests[i+1].FallbackTransaction.Hash())
 		checkMainTx(t, requesters, requests, len(requests), false)
-		checkFallbackTxs(t, requests[:i+1], true)
-		checkFallbackTxs(t, requests[i+1:], false)
+		checkFallbackTxs(t, requests[:i+2], true)
+		checkFallbackTxs(t, requests[i+2:], false)
 	}
 
 	// OnRequestRemoval: missing account
