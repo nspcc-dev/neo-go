@@ -15,7 +15,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/dbft v0.0.0-20230515113611-25db6ba61d5c
-	github.com/nspcc-dev/go-ordered-json v0.0.0-20240229080849-fdcc53465446
+	github.com/nspcc-dev/go-ordered-json v0.0.0-20240301084351-0246b013f8b2
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231127165613-b35f351f0ba0
 	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.11
 	github.com/nspcc-dev/rfc6979 v0.2.1
@@ -67,7 +67,6 @@ require (
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63 // indirect
 	golang.org/x/mod v0.16.0 // indirect
 	golang.org/x/net v0.22.0 // indirect
-	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230803162519-f966b187b2e5 // indirect
 	google.golang.org/grpc v1.57.1 // indirect
