@@ -1,6 +1,7 @@
 package statesync_test
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/basicchain"
@@ -11,7 +12,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/require"
 )
 
@@ -230,7 +230,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 			alreadyRequested[unknownHashes[0]] = struct{}{}
 			var callbackCalled bool
 			err := bcSpout.GetStateSyncModule().Traverse(unknownHashes[0], func(node mpt.Node, nodeBytes []byte) bool {
-				require.NoError(t, module.AddMPTNodes([][]byte{slice.Copy(nodeBytes)}))
+				require.NoError(t, module.AddMPTNodes([][]byte{bytes.Clone(nodeBytes)}))
 				callbackCalled = true
 				return true // add nodes one-by-one
 			})
@@ -435,8 +435,8 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		fetchStorage := func(ps storage.Store, storagePrefix byte) []storage.KeyValue {
 			var kv []storage.KeyValue
 			ps.Seek(storage.SeekRange{Prefix: []byte{storagePrefix}}, func(k, v []byte) bool {
-				key := slice.Copy(k)
-				value := slice.Copy(v)
+				key := bytes.Clone(k)
+				value := bytes.Clone(v)
 				if key[0] == byte(storage.STTempStorage) {
 					key[0] = byte(storage.STStorage)
 				}

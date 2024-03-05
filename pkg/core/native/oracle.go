@@ -1,6 +1,7 @@
 package native
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -25,7 +26,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -160,7 +160,7 @@ func newOracle() *Oracle {
 
 // GetOracleResponseScript returns a script for the transaction with an oracle response.
 func (o *Oracle) GetOracleResponseScript() []byte {
-	return slice.Copy(o.oracleScript)
+	return bytes.Clone(o.oracleScript)
 }
 
 // OnPersist implements the Contract interface.
@@ -395,7 +395,7 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	if len(data) > maxUserDataLength {
 		return ErrBigArgument
 	}
-	data = slice.Copy(data) // Serialization context will be used in PutRequestInternal again.
+	data = bytes.Clone(data) // Serialization context will be used in PutRequestInternal again.
 
 	var filterNotif stackitem.Item
 	if filter != nil {

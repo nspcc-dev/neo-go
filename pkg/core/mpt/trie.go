@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // TrieMode is the storage mode of a trie, it affects the DB scheme.
@@ -84,7 +83,7 @@ func (t *Trie) Get(key []byte) ([]byte, error) {
 		return nil, err
 	}
 	t.root = r
-	return slice.Copy(leaf.(*LeafNode).value), nil
+	return bytes.Clone(leaf.(*LeafNode).value), nil
 }
 
 // getWithPath returns the current node with all hash nodes along the path replaced
@@ -221,7 +220,7 @@ func (t *Trie) putIntoExtension(curr *ExtensionNode, path []byte, val Node) (Nod
 
 	t.addRef(b.Hash(), b.bytes)
 	if lp > 0 {
-		e := NewExtensionNode(slice.Copy(pref), b)
+		e := NewExtensionNode(bytes.Clone(pref), b)
 		t.addRef(e.Hash(), e.bytes)
 		return e, nil
 	}
@@ -617,8 +616,8 @@ func (t *Trie) Find(prefix, from []byte, max int) ([]storage.KeyValue, error) {
 		if leaf, ok := node.(*LeafNode); ok {
 			if from == nil || !bytes.Equal(pathToNode, from) { // (*Billet).traverse includes `from` path into result if so. Need to filter out manually.
 				res = append(res, storage.KeyValue{
-					Key:   append(slice.Copy(prefix), pathToNode...),
-					Value: slice.Copy(leaf.value),
+					Key:   append(bytes.Clone(prefix), pathToNode...),
+					Value: bytes.Clone(leaf.value),
 				})
 				count++
 			}

@@ -1,6 +1,7 @@
 package oracle
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"sync"
@@ -16,7 +17,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/broadcaster"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"go.uber.org/zap"
 )
@@ -277,8 +277,8 @@ drain:
 
 // UpdateNativeContract updates native oracle contract info for tx verification.
 func (o *Oracle) UpdateNativeContract(script, resp []byte, h util.Uint160, verifyOffset int) {
-	o.oracleScript = slice.Copy(script)
-	o.oracleResponse = slice.Copy(resp)
+	o.oracleScript = bytes.Clone(script)
+	o.oracleResponse = bytes.Clone(resp)
 
 	o.oracleHash = h
 	o.verifyOffset = verifyOffset

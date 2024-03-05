@@ -9,7 +9,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"go.etcd.io/bbolt"
 )
 
@@ -66,7 +65,7 @@ func NewBoltDBStore(cfg dbconfig.BoltDBOptions) (*BoltDBStore, error) {
 		closeErr := db.Close()
 		err = fmt.Errorf("failed to initialize BoltDB instance: %w", err)
 		if closeErr != nil {
-			err = fmt.Errorf("%w, failed to close BoltDB instance: %v", err, closeErr) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			err = fmt.Errorf("%w, failed to close BoltDB instance: %w", err, closeErr)
 		}
 		return nil, err
 	}
@@ -81,7 +80,7 @@ func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
 		val = b.Get(key)
 		// Value from Get is only valid for the lifetime of transaction, #1482
 		if val != nil {
-			val = slice.Copy(val)
+			val = bytes.Clone(val)
 		}
 		return nil
 	})

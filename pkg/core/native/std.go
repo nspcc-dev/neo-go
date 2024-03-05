@@ -177,7 +177,7 @@ func (s *Std) serialize(ic *interop.Context, args []stackitem.Item) stackitem.It
 		panic(errors.New("too big item"))
 	}
 
-	return stackitem.NewByteArray(slice.Copy(data)) // Serialization context can be reused.
+	return stackitem.NewByteArray(bytes.Clone(data)) // Serialization context can be reused.
 }
 
 func (s *Std) deserialize(_ *interop.Context, args []stackitem.Item) stackitem.Item {

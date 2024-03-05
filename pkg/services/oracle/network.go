@@ -65,7 +65,7 @@ func getDefaultClient(cfg config.OracleConfiguration) *http.Client {
 		d.Control = func(network, address string, c syscall.RawConn) error {
 			host, _, err := net.SplitHostPort(address)
 			if err != nil {
-				return fmt.Errorf("%w: failed to split address %s: %s", ErrRestrictedRedirect, address, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+				return fmt.Errorf("%w: failed to split address %s: %w", ErrRestrictedRedirect, address, err)
 			}
 			ip := net.ParseIP(host)
 			if ip == nil {

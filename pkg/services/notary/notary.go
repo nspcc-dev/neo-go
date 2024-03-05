@@ -20,7 +20,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -354,8 +353,8 @@ func safeCopy(tx *transaction.Transaction) *transaction.Transaction {
 	cp.Scripts = make([]transaction.Witness, len(tx.Scripts))
 	for i := range cp.Scripts {
 		cp.Scripts[i] = transaction.Witness{
-			InvocationScript:   slice.Copy(tx.Scripts[i].InvocationScript),
-			VerificationScript: slice.Copy(tx.Scripts[i].VerificationScript),
+			InvocationScript:   bytes.Clone(tx.Scripts[i].InvocationScript),
+			VerificationScript: bytes.Clone(tx.Scripts[i].VerificationScript),
 		}
 	}
 	return &cp

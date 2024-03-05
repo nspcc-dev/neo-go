@@ -3,7 +3,6 @@ package vm
 import (
 	"crypto/elliptic"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -223,7 +222,7 @@ func (v *VM) PrintOps(out io.Writer) {
 					// if the parameter is a 20-byte value.
 					u, err := util.Uint160DecodeBytesBE(parameter)
 					if err == nil {
-						desc = fmt.Sprintf("%x (%q, %q)", parameter, address.Uint160ToString(u), "0x"+hex.EncodeToString(slice.CopyReverse(parameter)))
+						desc = fmt.Sprintf("%x (%q, %q)", parameter, address.Uint160ToString(u), "0x"+u.StringLE())
 					} else {
 						desc = fmt.Sprintf("%x", parameter)
 					}

@@ -30,7 +30,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/assert"
@@ -163,8 +162,8 @@ func TestOracle(t *testing.T) {
 	md := nativeOracleState.Manifest.ABI.GetMethod(manifest.MethodVerify, -1)
 	require.NotNil(t, md)
 	oracleRespScript := native.CreateOracleResponseScript(nativeOracleH)
-	orc1.UpdateNativeContract(nativeOracleState.NEF.Script, slice.Copy(oracleRespScript), nativeOracleH, md.Offset)
-	orc2.UpdateNativeContract(nativeOracleState.NEF.Script, slice.Copy(oracleRespScript), nativeOracleH, md.Offset)
+	orc1.UpdateNativeContract(nativeOracleState.NEF.Script, bytes.Clone(oracleRespScript), nativeOracleH, md.Offset)
+	orc2.UpdateNativeContract(nativeOracleState.NEF.Script, bytes.Clone(oracleRespScript), nativeOracleH, md.Offset)
 
 	cs := contracts.GetOracleContractState(t, pathToInternalContracts, validator.ScriptHash(), 0)
 	rawManifest, err := json.Marshal(cs.Manifest)

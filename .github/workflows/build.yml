@@ -37,7 +37,7 @@ jobs:
     runs-on: ${{matrix.os.name}}
     strategy:
       matrix:
-        os: [{ name: ubuntu-20.04, bin-name: linux }, { name: windows-2022, bin-name: windows }, { name: macos-12, bin-name: darwin }]
+        os: [{ name: ubuntu-22.04, bin-name: linux }, { name: windows-2022, bin-name: windows }, { name: macos-12, bin-name: darwin }]
         arch: [amd64, arm64]
         exclude:
           - os: { name: windows-2022, bin-name: windows }
@@ -53,8 +53,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
-          cache: true
+          go-version: '1.22'
 
       - name: Build CLI
         run: make build
@@ -80,7 +79,7 @@ jobs:
   build_image:
     needs: build_cli
     name: Build and push docker image
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
@@ -136,8 +135,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
-          cache: true
+          go-version: '1.22'
 
       - name: Login to DockerHub
         if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_image == 'true') }}

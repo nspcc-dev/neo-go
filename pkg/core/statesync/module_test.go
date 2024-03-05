@@ -1,6 +1,7 @@
 package statesync
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 )
@@ -33,8 +33,8 @@ func TestModule_PR2019_discussion_r689629704(t *testing.T) {
 		expectedItems []storage.KeyValue
 	)
 	expectedStorage.Seek(storage.SeekRange{Prefix: []byte{byte(storage.DataMPT)}}, func(k, v []byte) bool {
-		key := slice.Copy(k)
-		value := slice.Copy(v)
+		key := bytes.Clone(k)
+		value := bytes.Clone(v)
 		expectedItems = append(expectedItems, storage.KeyValue{
 			Key:   key,
 			Value: value,
@@ -97,8 +97,8 @@ func TestModule_PR2019_discussion_r689629704(t *testing.T) {
 	// Compare resulting storage items and refcounts.
 	var actualItems []storage.KeyValue
 	expectedStorage.Seek(storage.SeekRange{Prefix: []byte{byte(storage.DataMPT)}}, func(k, v []byte) bool {
-		key := slice.Copy(k)
-		value := slice.Copy(v)
+		key := bytes.Clone(k)
+		value := bytes.Clone(v)
 		actualItems = append(actualItems, storage.KeyValue{
 			Key:   key,
 			Value: value,

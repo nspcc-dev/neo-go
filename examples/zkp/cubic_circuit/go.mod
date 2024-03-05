@@ -1,6 +1,6 @@
 module github.com/nspcc-dev/neo-go/examples/zkp/cubic
 
-go 1.19
+go 1.20
 
 require (
 	github.com/consensys/gnark v0.9.1

@@ -7,7 +7,6 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -70,8 +69,8 @@ func testStoreSeek(t *testing.T, s Store) {
 		actual := make([]KeyValue, 0, len(goodkvs))
 		s.Seek(rng, func(k, v []byte) bool {
 			actual = append(actual, KeyValue{
-				Key:   slice.Copy(k),
-				Value: slice.Copy(v),
+				Key:   bytes.Clone(k),
+				Value: bytes.Clone(v),
 			})
 			if cont == nil {
 				return true

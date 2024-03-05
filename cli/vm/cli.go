@@ -616,7 +616,7 @@ func getInstructionParameter(c *cli.Context) (int, error) {
 	}
 	n, err := strconv.Atoi(args[0])
 	if err != nil {
-		return 0, fmt.Errorf("%w: %s", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+		return 0, fmt.Errorf("%w: %w", ErrInvalidParameter, err)
 	}
 	return n, nil
 }
@@ -736,7 +736,7 @@ func handleLoadNEF(c *cli.Context) error {
 	if signersStartOffset != 0 && len(args) > signersStartOffset {
 		signers, err = cmdargs.ParseSigners(c.Args()[signersStartOffset:])
 		if err != nil {
-			return fmt.Errorf("%w: failed to parse signers: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: failed to parse signers: %w", ErrInvalidParameter, err)
 		}
 	}
 	err = prepareVM(c, createFakeTransaction(nef.Script, signers))
@@ -767,7 +767,7 @@ func handleLoadBase64(c *cli.Context) error {
 	}
 	b, err := base64.StdEncoding.DecodeString(args[0])
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+		return fmt.Errorf("%w: %w", ErrInvalidParameter, err)
 	}
 	var signers []transaction.Signer
 	if len(args) > 1 {
@@ -779,7 +779,7 @@ func handleLoadBase64(c *cli.Context) error {
 		}
 		signers, err = cmdargs.ParseSigners(args[2:])
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: %w", ErrInvalidParameter, err)
 		}
 	}
 	err = prepareVM(c, createFakeTransaction(b, signers))
@@ -807,7 +807,7 @@ func handleLoadHex(c *cli.Context) error {
 	}
 	b, err := hex.DecodeString(args[0])
 	if err != nil {
-		return fmt.Errorf("%w: %s", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+		return fmt.Errorf("%w: %w", ErrInvalidParameter, err)
 	}
 	var signers []transaction.Signer
 	if len(args) > 1 {
@@ -819,7 +819,7 @@ func handleLoadHex(c *cli.Context) error {
 		}
 		signers, err = cmdargs.ParseSigners(args[2:])
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: %w", ErrInvalidParameter, err)
 		}
 	}
 	err = prepareVM(c, createFakeTransaction(b, signers))
@@ -859,7 +859,7 @@ func handleLoadGo(c *cli.Context) error {
 		}
 		signers, err = cmdargs.ParseSigners(args[2:])
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: %w", ErrInvalidParameter, err)
 		}
 	}
 
@@ -962,7 +962,7 @@ func handleLoadDeployed(c *cli.Context) error {
 		}
 		signers, err = cmdargs.ParseSigners(args[2:])
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: %w", ErrInvalidParameter, err)
 		}
 	}
 	err = prepareVM(c, createFakeTransaction(cs.NEF.Script, signers)) // prepare VM one more time for proper IC initialization.
@@ -1074,7 +1074,7 @@ func handleRun(c *cli.Context) error {
 
 		_, scParams, err := cmdargs.ParseParams(args[1:], true)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: %w", ErrInvalidParameter, err)
 		}
 		params = make([]stackitem.Item, len(scParams))
 		for i := range scParams {
@@ -1185,7 +1185,7 @@ func handleStep(c *cli.Context) error {
 	if len(args) > 0 {
 		n, err = strconv.Atoi(args[0])
 		if err != nil {
-			return fmt.Errorf("%w: %s", ErrInvalidParameter, err) //nolint:errorlint // errorlint: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+			return fmt.Errorf("%w: %w", ErrInvalidParameter, err)
 		}
 	}
 	v.AddBreakPointRel(n)
