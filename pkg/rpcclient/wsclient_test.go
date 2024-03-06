@@ -155,11 +155,13 @@ func TestWSClientEvents(t *testing.T) {
 		fmt.Sprintf(`{"jsonrpc":"2.0","method":"block_added","params":[%s]}`, b1Verbose),
 		`{"jsonrpc":"2.0","method":"event_missed","params":[]}`, // the last one, will trigger receiver channels closing.
 	}
+	startSending := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == "/ws" && req.Method == "GET" {
 			var upgrader = websocket.Upgrader{}
 			ws, err := upgrader.Upgrade(w, req, nil)
 			require.NoError(t, err)
+			<-startSending
 			for _, event := range events {
 				err = ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
 				require.NoError(t, err)
@@ -180,7 +182,7 @@ func TestWSClientEvents(t *testing.T) {
 	wsc.cache.initDone = true // Our server mock is restricted, so perform initialisation manually.
 	wsc.cache.network = netmode.UnitTestNet
 	wsc.cacheLock.Unlock()
-
+	close(startSending)
 	// Our server mock is restricted, so perform subscriptions manually with default notifications channel.
 	bCh1 := make(chan *block.Block)
 	bCh2 := make(chan *block.Block)
