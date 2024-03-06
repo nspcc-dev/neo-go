@@ -172,6 +172,7 @@ func TestWSClientEvents(t *testing.T) {
 			return
 		}
 	}))
+	t.Cleanup(srv.Close)
 	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 	require.NoError(t, err)
 	wsc.getNextRequestID = getTestRequestID
@@ -314,6 +315,7 @@ func TestWSClientNonBlockingEvents(t *testing.T) {
 			return
 		}
 	}))
+	t.Cleanup(srv.Close)
 	wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{CloseNotificationChannelIfFull: true})
 	require.NoError(t, err)
 	wsc.getNextRequestID = getTestRequestID
@@ -744,6 +746,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 					ws.Close()
 				}
 			}))
+			t.Cleanup(srv.Close)
 			wsc, err := NewWS(context.TODO(), httpURLtoWS(srv.URL), WSOptions{})
 			require.NoError(t, err)
 			wsc.getNextRequestID = getTestRequestID

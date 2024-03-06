@@ -2235,19 +2235,15 @@ func TestSubmitOracle(t *testing.T) {
 	rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitoracleresponse", "params": %s}`
 
 	t.Run("OracleDisabled", func(t *testing.T) {
-		chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
+		_, _, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
 			c.ApplicationConfiguration.Oracle.Enabled = false
 		})
-		defer chain.Close()
-		defer rpcSrv.Shutdown()
 		req := fmt.Sprintf(rpc, "[]")
 		body := doRPCCallOverHTTP(req, httpSrv.URL, t)
 		checkErrGetResult(t, body, true, neorpc.ErrOracleDisabledCode)
 	})
 
-	chain, rpcSrv, httpSrv := initClearServerWithServices(t, true, false, false)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	_, _, httpSrv := initClearServerWithServices(t, true, false, false)
 
 	runCase := func(t *testing.T, fail bool, errCode int64, params ...string) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -2283,11 +2279,9 @@ func TestNotaryRequestRPC(t *testing.T) {
 	rpcTx := `{"jsonrpc": "2.0", "id": 1, "method": "getrawnotarytransaction", "params": ["%s", %d]}`
 
 	t.Run("disabled P2PSigExtensions", func(t *testing.T) {
-		chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
+		_, _, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
 			c.ProtocolConfiguration.P2PSigExtensions = false
 		})
-		defer chain.Close()
-		defer rpcSrv.Shutdown()
 		t.Run("submitnotaryrequest", func(t *testing.T) {
 			body := doRPCCallOverHTTP(fmt.Sprintf(rpcSubmit, "[]"), httpSrv.URL, t)
 			checkErrGetResult(t, body, true, neorpc.InternalServerErrorCode)
@@ -2302,9 +2296,7 @@ func TestNotaryRequestRPC(t *testing.T) {
 		})
 	})
 
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
 
 	submitNotaryRequest := func(t *testing.T, fail bool, errCode int64, params ...string) func(t *testing.T) {
 		return func(t *testing.T) {
@@ -2547,9 +2539,6 @@ func runTestCasesWithExecutor(t *testing.T, e *executor, rpcCall string, method 
 // scratch here.
 func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []byte) {
 	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
 
 	e := &executor{chain: chain, httpSrv: httpSrv}
 	t.Run("single request", func(t *testing.T) {
@@ -3336,12 +3325,9 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			checkErrGetResult(t, body, true, neorpc.ErrInvalidSizeCode)
 		})
 		t.Run("mempool OOM", func(t *testing.T) {
-			chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
+			chain, _, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
 				c.ProtocolConfiguration.MemPoolSize = 1
 			})
-
-			defer chain.Close()
-			defer rpcSrv.Shutdown()
 
 			// create and push the first (prioritized) transaction with increased networkFee
 			tx := newTxWithParams(t, chain, opcode.PUSH1, 10, 1, 2, false)
@@ -3357,12 +3343,9 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		})
 	})
 	t.Run("test functions with unsupported states", func(t *testing.T) {
-		chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
+		chain, _, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
 			c.ApplicationConfiguration.Ledger.KeepOnlyLatestState = true
 		})
-
-		defer chain.Close()
-		defer rpcSrv.Shutdown()
 
 		e := &executor{chain: chain, httpSrv: httpSrv}
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "%s", "params": %s}`
@@ -4100,7 +4083,6 @@ func BenchmarkHandleIn(b *testing.B) {
 	server, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), logger)
 	require.NoError(b, err)
 	rpcServer := New(chain, cfg.ApplicationConfiguration.RPC, server, orc, logger, make(chan error))
-	defer chain.Close()
 
 	do := func(b *testing.B, req []byte) {
 		b.ReportAllocs()
@@ -4153,9 +4135,7 @@ func TestFailedPreconditionShutdown(t *testing.T) {
 }
 
 func TestErrorResponseContentType(t *testing.T) {
-	chain, rpcSrv, httpSrv := initClearServerWithServices(t, true, false, false)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	_, _, httpSrv := initClearServerWithServices(t, true, false, false)
 
 	const (
 		expectedContentType = "application/json; charset=utf-8"

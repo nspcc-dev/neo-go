@@ -65,9 +65,7 @@ import (
 )
 
 func TestClient_NEP17(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	_, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -109,9 +107,7 @@ func TestClient_NEP17(t *testing.T) {
 }
 
 func TestClientRoleManagement(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -161,9 +157,7 @@ func TestClientRoleManagement(t *testing.T) {
 }
 
 func TestClientPolicyContract(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -252,9 +246,7 @@ func TestClientPolicyContract(t *testing.T) {
 }
 
 func TestClientManagementContract(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -338,9 +330,7 @@ func TestClientManagementContract(t *testing.T) {
 }
 
 func TestClientNEOContract(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -467,9 +457,7 @@ func TestClientNEOContract(t *testing.T) {
 }
 
 func TestClientNotary(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -544,9 +532,7 @@ func TestClientNotary(t *testing.T) {
 }
 
 func TestCalculateNetworkFee_Base(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 	const extraFee = 10
 	var nonce uint32
 
@@ -734,9 +720,7 @@ func TestCalculateNetworkFee_Base(t *testing.T) {
 }
 
 func TestCalculateNetworkFee(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 	const extraFee = 10
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
@@ -862,9 +846,7 @@ func TestCalculateNetworkFee(t *testing.T) {
 }
 
 func TestNotaryActor(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	_, _, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -898,9 +880,7 @@ func TestGetRawNotaryPoolAndTransaction(t *testing.T) {
 		tx1, tx2                                           *transaction.Transaction
 	)
 
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	_, _, httpSrv := initServerWithInMemoryChainAndServices(t, false, true, false)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -1024,8 +1004,7 @@ func TestGetRawNotaryPoolAndTransaction(t *testing.T) {
 }
 
 func TestPing(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
+	_, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -1038,9 +1017,7 @@ func TestPing(t *testing.T) {
 }
 
 func TestCreateNEP17TransferTx(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -1115,9 +1092,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 }
 
 func TestInvokeVerify(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -1207,9 +1182,7 @@ func TestInvokeVerify(t *testing.T) {
 }
 
 func TestClient_GetNativeContracts(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -1221,9 +1194,7 @@ func TestClient_GetNativeContracts(t *testing.T) {
 }
 
 func TestClient_NEP11_ND(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -1306,9 +1277,7 @@ func TestClient_NEP11_ND(t *testing.T) {
 }
 
 func TestClient_NEP11_D(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	_, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -1390,9 +1359,7 @@ func TestClient_NEP11_D(t *testing.T) {
 }
 
 func TestClient_NNS(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	_, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -1456,9 +1423,7 @@ func TestClient_NNS(t *testing.T) {
 }
 
 func TestClient_IteratorSessions(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	_, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -1600,9 +1565,7 @@ func TestClient_IteratorSessions(t *testing.T) {
 }
 
 func TestClient_States(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -1627,9 +1590,7 @@ func TestClient_States(t *testing.T) {
 }
 
 func TestClientOracle(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -1700,9 +1661,8 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 		}
 	}
 	t.Run("default sessions enabled", func(t *testing.T) {
-		chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, false)
-		defer chain.Close()
-		defer rpcSrv.Shutdown()
+		chain, _, httpSrv := initClearServerWithServices(t, false, false, false)
+
 		for _, b := range getTestBlocks(t) {
 			require.NoError(t, chain.AddBlock(b))
 		}
@@ -1741,7 +1701,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 		rpcSrv.Start()
 		handler := http.HandlerFunc(rpcSrv.handleHTTPRequest)
 		httpSrv := httptest.NewServer(handler)
-		defer chain.Close()
+		t.Cleanup(httpSrv.Close)
 		defer rpcSrv.Shutdown()
 		for _, b := range getTestBlocks(t) {
 			require.NoError(t, chain.AddBlock(b))
@@ -1755,8 +1715,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 	})
 	t.Run("sessions disabled", func(t *testing.T) {
 		chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
-		defer chain.Close()
-		defer rpcSrv.Shutdown()
+
 		for _, b := range getTestBlocks(t) {
 			require.NoError(t, chain.AddBlock(b))
 		}
@@ -1785,9 +1744,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 }
 
 func TestClient_Wait(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	run := func(t *testing.T, ws bool) {
 		acc, err := wallet.NewAccount()
@@ -1904,8 +1861,6 @@ func TestSubClientWait(t *testing.T) {
 
 func testSubClientWait(t *testing.T, local bool) {
 	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
 
 	c := mkSubsClient(t, rpcSrv, httpSrv, local)
 	acc, err := wallet.NewAccount()
@@ -2007,8 +1962,6 @@ func TestSubClientWaitWithLateSubscription(t *testing.T) {
 
 func testSubClientWaitWithLateSubscription(t *testing.T, local bool) {
 	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
 
 	c := mkSubsClient(t, rpcSrv, httpSrv, local)
 	acc, err := wallet.NewAccount()
@@ -2038,11 +1991,9 @@ func testSubClientWaitWithLateSubscription(t *testing.T, local bool) {
 }
 
 func TestWSClientHandshakeError(t *testing.T) {
-	chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
+	_, _, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
 		cfg.ApplicationConfiguration.RPC.MaxWebSocketClients = -1
 	})
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
 
 	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
 	_, err := rpcclient.NewWS(context.Background(), url, rpcclient.WSOptions{})
@@ -2055,8 +2006,6 @@ func TestSubClientWaitWithMissedEvent(t *testing.T) {
 
 func testSubClientWaitWithMissedEvent(t *testing.T, local bool) {
 	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
 
 	c := mkSubsClient(t, rpcSrv, httpSrv, local)
 	acc, err := wallet.NewAccount()
@@ -2137,8 +2086,6 @@ waitloop:
 // user side.
 func TestWSClient_SubscriptionsCompat(t *testing.T) {
 	chain, rpcSrv, httpSrv := initClearServerWithServices(t, false, false, true)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
 
 	c := mkSubsClient(t, rpcSrv, httpSrv, false)
 	blocks := getTestBlocks(t)
@@ -2254,9 +2201,7 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 }
 
 func TestActor_CallWithNilParam(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -2285,9 +2230,7 @@ func TestActor_CallWithNilParam(t *testing.T) {
 }
 
 func TestClient_FindStorage(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	_, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -2347,9 +2290,7 @@ func TestClient_FindStorage(t *testing.T) {
 }
 
 func TestClient_FindStorageHistoric(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -2413,9 +2354,7 @@ func TestClient_FindStorageHistoric(t *testing.T) {
 }
 
 func TestClient_GetStorageHistoric(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
@@ -2446,9 +2385,7 @@ func TestClient_GetStorageHistoric(t *testing.T) {
 }
 
 func TestClient_GetVersion_Hardforks(t *testing.T) {
-	chain, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
-	defer chain.Close()
-	defer rpcSrv.Shutdown()
+	_, _, httpSrv := initServerWithInMemoryChain(t)
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
