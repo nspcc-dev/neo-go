@@ -90,6 +90,7 @@ jobs:
 
     env:
       CGO_ENABLED: 0
+      GOEXPERIMENT: nocoverageredesign
     steps:
       - uses: actions/checkout@v4
         with:
