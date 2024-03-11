@@ -1425,7 +1425,7 @@ func TestClient_NNS(t *testing.T) {
 func TestClient_IteratorSessions(t *testing.T) {
 	_, rpcSrv, httpSrv := initServerWithInMemoryChain(t)
 
-	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{MaxConnsPerHost: 50})
 	require.NoError(t, err)
 	require.NoError(t, c.Init())
 
@@ -1509,8 +1509,8 @@ func TestClient_IteratorSessions(t *testing.T) {
 		wg.Add(storageItemsCount)
 		check := func(t *testing.T) {
 			set, err := c.TraverseIterator(sID, iID, 1)
-			require.NoError(t, err)
-			require.Equal(t, 1, len(set))
+			assert.NoError(t, err)
+			assert.Equal(t, 1, len(set))
 			wg.Done()
 		}
 		for i := 0; i < storageItemsCount; i++ {
