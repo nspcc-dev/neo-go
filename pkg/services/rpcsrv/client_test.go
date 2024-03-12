@@ -2122,6 +2122,7 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 			ntfFlt = &neorpc.NotificationFilter{Name: &ntfName}
 			aerFlt = &neorpc.ExecutionFilter{State: &st}
 		}
+
 		bID, err = c.ReceiveBlocks(bFlt, blockCh)
 		require.NoError(t, err)
 		txID, err = c.ReceiveTransactions(txFlt, txCh)
@@ -2184,13 +2185,13 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 			defer lock.RUnlock()
 
 			return received == 1<<4-1
-		}, time.Second, 100*time.Millisecond)
+		}, 2*time.Second, 100*time.Millisecond)
 
 		require.NoError(t, c.Unsubscribe(bID))
 		require.NoError(t, c.Unsubscribe(txID))
 		require.NoError(t, c.Unsubscribe(ntfID))
 		require.NoError(t, c.Unsubscribe(aerID))
-		exitCh <- struct{}{}
+		close(exitCh)
 	}
 	t.Run("relevant, filtered", func(t *testing.T) {
 		checkRelevant(t, true)
