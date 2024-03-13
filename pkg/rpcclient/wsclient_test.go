@@ -155,11 +155,13 @@ func TestWSClientEvents(t *testing.T) {
 		fmt.Sprintf(`{"jsonrpc":"2.0","method":"block_added","params":[%s]}`, b1Verbose),
 		`{"jsonrpc":"2.0","method":"event_missed","params":[]}`, // the last one, will trigger receiver channels closing.
 	}
+	startSending := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == "/ws" && req.Method == "GET" {
 			var upgrader = websocket.Upgrader{}
 			ws, err := upgrader.Upgrade(w, req, nil)
 			require.NoError(t, err)
+			<-startSending
 			for _, event := range events {
 				err = ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
 				require.NoError(t, err)
@@ -209,6 +211,7 @@ func TestWSClientEvents(t *testing.T) {
 	// MissedEvent must close the channels above.
 
 	wsc.subscriptionsLock.Unlock()
+	close(startSending)
 
 	var (
 		b1Cnt, b2Cnt                                      int
@@ -297,11 +300,13 @@ func TestWSClientNonBlockingEvents(t *testing.T) {
 	require.True(t, chCap < len(events))
 
 	var blocksSent atomic.Bool
+	startSending := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == "/ws" && req.Method == "GET" {
 			var upgrader = websocket.Upgrader{}
 			ws, err := upgrader.Upgrade(w, req, nil)
 			require.NoError(t, err)
+			<-startSending
 			for _, event := range events {
 				err = ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
 				require.NoError(t, err)
@@ -331,6 +336,7 @@ func TestWSClientNonBlockingEvents(t *testing.T) {
 	wsc.receivers[chan<- *block.Block(bCh)] = []string{"0", "1"}
 	wsc.subscriptionsLock.Unlock()
 
+	close(startSending)
 	// Check that events are sent to WSClient.
 	require.Eventually(t, func() bool {
 		return blocksSent.Load()
