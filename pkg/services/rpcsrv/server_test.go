@@ -3464,6 +3464,7 @@ func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
 	body, err := gio.ReadAll(resp.Body)
 	resp.Body.Close()
 	assert.NoErrorf(t, err, "could not read response from the request: %s", rpcCall)
+	cl.CloseIdleConnections()
 	return bytes.TrimSpace(body)
 }
 
