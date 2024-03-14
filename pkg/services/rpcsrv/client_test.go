@@ -69,6 +69,7 @@ func TestClient_NEP17(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	h, err := util.Uint160DecodeStringLE(testContractHash)
@@ -111,6 +112,7 @@ func TestClientRoleManagement(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	act, err := actor.New(c, []actor.SignerAccount{{
@@ -161,6 +163,7 @@ func TestClientPolicyContract(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	polizei := policy.NewReader(invoker.New(c, nil))
@@ -250,6 +253,7 @@ func TestClientManagementContract(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	manReader := management.NewReader(invoker.New(c, nil))
@@ -334,6 +338,7 @@ func TestClientNEOContract(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	neoR := neo.NewReader(invoker.New(c, nil))
@@ -461,6 +466,7 @@ func TestClientNotary(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	notaReader := notary.NewReader(invoker.New(c, nil))
@@ -538,6 +544,7 @@ func TestCalculateNetworkFee_Base(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	feePerByte := chain.FeePerByte()
@@ -725,6 +732,7 @@ func TestCalculateNetworkFee(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	h, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
@@ -850,6 +858,7 @@ func TestNotaryActor(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 
 	sender := testchain.PrivateKeyByID(0) // owner of the deposit in testchain
 	acc := wallet.NewAccountFromPrivateKey(sender)
@@ -884,6 +893,7 @@ func TestGetRawNotaryPoolAndTransaction(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	t.Run("getrawnotarypool", func(t *testing.T) {
 		t.Run("empty pool", func(t *testing.T) {
 			np, err := c.GetRawNotaryPool()
@@ -1008,6 +1018,7 @@ func TestPing(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	require.NoError(t, c.Ping())
@@ -1021,6 +1032,7 @@ func TestCreateNEP17TransferTx(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	priv := testchain.PrivateKeyByID(0)
@@ -1096,6 +1108,7 @@ func TestInvokeVerify(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	contract, err := util.Uint160DecodeStringLE(verifyContractHash)
@@ -1186,6 +1199,7 @@ func TestClient_GetNativeContracts(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	cs, err := c.GetNativeContracts()
@@ -1198,6 +1212,7 @@ func TestClient_NEP11_ND(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	h, err := util.Uint160DecodeStringLE(nnsContractHash)
@@ -1281,6 +1296,7 @@ func TestClient_NEP11_D(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	pkey0 := testchain.PrivateKeyByID(0)
@@ -1363,6 +1379,7 @@ func TestClient_NNS(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 	nnc := nns.NewReader(invoker.New(c, nil), nnsHash)
 
@@ -1427,6 +1444,7 @@ func TestClient_IteratorSessions(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{MaxConnsPerHost: 50})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	storageHash, err := util.Uint160DecodeStringLE(storageContractHash)
@@ -1569,6 +1587,7 @@ func TestClient_States(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	stateheight, err := c.GetStateHeight()
@@ -1594,6 +1613,7 @@ func TestClientOracle(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	oraRe := oracle.NewReader(invoker.New(c, nil))
@@ -1669,6 +1689,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 
 		c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 		require.NoError(t, err)
+		t.Cleanup(c.Close)
 		require.NoError(t, c.Init())
 
 		// Fill in expected stackitems set during the first test.
@@ -1709,6 +1730,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 
 		c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 		require.NoError(t, err)
+		t.Cleanup(c.Close)
 		require.NoError(t, c.Init())
 
 		checkSessionEnabled(t, c)
@@ -1722,6 +1744,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 
 		c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 		require.NoError(t, err)
+		t.Cleanup(c.Close)
 		require.NoError(t, c.Init())
 
 		// We expect unpacked iterator values to be present on stack under InteropInterface cover.
@@ -1754,6 +1777,7 @@ func TestClient_Wait(t *testing.T) {
 		if ws {
 			c, err := rpcclient.NewWS(context.Background(), "ws"+strings.TrimPrefix(httpSrv.URL, "http")+"/ws", rpcclient.WSOptions{})
 			require.NoError(t, err)
+			t.Cleanup(c.Close)
 			require.NoError(t, c.Init())
 			act, err = actor.New(c, []actor.SignerAccount{
 				{
@@ -1767,6 +1791,7 @@ func TestClient_Wait(t *testing.T) {
 		} else {
 			c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 			require.NoError(t, err)
+			t.Cleanup(c.Close)
 			require.NoError(t, c.Init())
 			act, err = actor.New(c, []actor.SignerAccount{
 				{
@@ -1837,6 +1862,7 @@ func mkSubsClient(t *testing.T, rpcSrv *Server, httpSrv *httptest.Server, local 
 	} else {
 		url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
 		c, err = rpcclient.NewWS(context.Background(), url, rpcclient.WSOptions{})
+		t.Cleanup(c.Close)
 	}
 	require.NoError(t, err)
 	if local {
@@ -2205,6 +2231,7 @@ func TestActor_CallWithNilParam(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	acc, err := wallet.NewAccount()
 	require.NoError(t, err)
 	act, err := actor.New(c, []actor.SignerAccount{
@@ -2234,6 +2261,7 @@ func TestClient_FindStorage(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	h, err := util.Uint160DecodeStringLE(testContractHash)
@@ -2294,6 +2322,7 @@ func TestClient_FindStorageHistoric(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	root, err := util.Uint256DecodeStringLE(block20StateRootLE)
@@ -2358,6 +2387,7 @@ func TestClient_GetStorageHistoric(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	root, err := util.Uint256DecodeStringLE(block20StateRootLE)
@@ -2389,6 +2419,7 @@ func TestClient_GetVersion_Hardforks(t *testing.T) {
 
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
+	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
 	v, err := c.GetVersion()
