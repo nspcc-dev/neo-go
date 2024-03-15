@@ -930,6 +930,9 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	if err := n.ModifyAccountVotes(acc, ic.DAO, &acc.Balance, true); err != nil {
 		return err
 	}
+	if pub == nil {
+		acc.LastGasPerVote = *big.NewInt(0)
+	}
 	ic.DAO.PutStorageItem(n.ID, key, acc.Bytes(ic.DAO.GetItemCtx()))
 
 	ic.AddNotification(n.Hash, "Vote", stackitem.NewArray([]stackitem.Item{

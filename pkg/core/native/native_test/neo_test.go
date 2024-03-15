@@ -271,6 +271,35 @@ func TestNEO_Vote(t *testing.T) {
 		require.NotEqual(t, candidates[0], pubs[i])
 		require.NotEqual(t, candidates[len(candidates)-1], pubs[i])
 	}
+	// LastGasPerVote should be 0 after unvoting
+	getAccountState := func(t *testing.T, account util.Uint160) *state.NEOBalance {
+		stack, err := neoCommitteeInvoker.TestInvoke(t, "getAccountState", account)
+		require.NoError(t, err)
+		res := stack.Pop().Item()
+		// (s *NEOBalance) FromStackItem is able to handle both 3 and 4 subitems.
+		// The forth optional subitem is LastGasPerVote.
+		require.Equal(t, 4, len(res.Value().([]stackitem.Item)))
+		as := new(state.NEOBalance)
+		err = as.FromStackItem(res)
+		require.NoError(t, err)
+		return as
+	}
+	registerTx = neoValidatorsInvoker.WithSigners(candidates[0]).PrepareInvoke(t, "registerCandidate", candidates[0].(neotest.SingleSigner).Account().PublicKey().Bytes())
+	voteTx = neoValidatorsInvoker.WithSigners(voters[0]).PrepareInvoke(t, "vote", voters[0].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[0].(neotest.SingleSigner).Account().PublicKey().Bytes())
+	neoValidatorsInvoker.AddNewBlock(t, registerTx, voteTx)
+	e.CheckHalt(t, registerTx.Hash(), stackitem.Make(true))
+	e.CheckHalt(t, voteTx.Hash(), stackitem.Make(true))
+
+	stateBeforeUnvote := getAccountState(t, voters[0].ScriptHash())
+	require.NotEqual(t, uint64(0), stateBeforeUnvote.LastGasPerVote.Uint64())
+	// Unvote
+	unvoteTx := neoValidatorsInvoker.WithSigners(voters[0]).PrepareInvoke(t, "vote", voters[0].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), nil)
+	neoValidatorsInvoker.AddNewBlock(t, unvoteTx)
+	e.CheckHalt(t, unvoteTx.Hash(), stackitem.Make(true))
+	advanceChain(t)
+
+	stateAfterUnvote := getAccountState(t, voters[0].ScriptHash())
+	require.Equal(t, uint64(0), stateAfterUnvote.LastGasPerVote.Uint64())
 }
 
 // TestNEO_RecursiveDistribution is a test for https://github.com/nspcc-dev/neo-go/pull/2181.
