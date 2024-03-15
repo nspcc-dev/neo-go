@@ -265,6 +265,10 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 		manifest.NewParameter("to", smartcontract.PublicKeyType),
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 	)
+	n.AddEvent("CommitteeChanged",
+		manifest.NewParameter("old", smartcontract.ArrayType),
+		manifest.NewParameter("new", smartcontract.ArrayType),
+	)
 
 	return n
 }
@@ -425,6 +429,16 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 		cache := ic.DAO.GetRWCache(n.ID).(*NeoCache)
 		// Cached newEpoch* values always have proper value set (either by PostPersist
 		// during the last epoch block handling or by initialization code).
+
+		var oldCommittee, newCommittee stackitem.Item
+		for i := 0; i < len(cache.committee); i++ {
+			if cache.newEpochCommittee[i].Key != cache.committee[i].Key ||
+				(i == 0 && len(cache.newEpochCommittee) != len(cache.committee)) {
+				oldCommittee, newCommittee = cache.committee.toNotificationItem(), cache.newEpochCommittee.toNotificationItem()
+				break
+			}
+		}
+
 		cache.nextValidators = cache.newEpochNextValidators
 		cache.committee = cache.newEpochCommittee
 		cache.committeeHash = cache.newEpochCommitteeHash
@@ -432,6 +446,12 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 
 		// We need to put in storage anyway, as it affects dumps
 		ic.DAO.PutStorageItem(n.ID, prefixCommittee, cache.committee.Bytes(ic.DAO.GetItemCtx()))
+
+		if oldCommittee != nil {
+			ic.AddNotification(n.Hash, "CommitteeChanged", stackitem.NewArray([]stackitem.Item{
+				oldCommittee, newCommittee,
+			}))
+		}
 	}
 	return nil
 }

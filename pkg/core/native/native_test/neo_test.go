@@ -28,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -116,6 +117,70 @@ func TestNEO_CandidateEvents(t *testing.T) {
 	tx = cc.Invoke(t, true, "unregisterCandidate", pkb)
 	aer = e.GetTxExecResult(t, tx)
 	require.Equal(t, 0, len(aer.Events))
+}
+
+func TestNEO_CommitteeEvents(t *testing.T) {
+	neoCommitteeInvoker := newNeoCommitteeClient(t, 100_0000_0000)
+	neoValidatorsInvoker := neoCommitteeInvoker.WithSigners(neoCommitteeInvoker.Validator)
+	e := neoCommitteeInvoker.Executor
+
+	cfg := e.Chain.GetConfig()
+	committeeSize := cfg.GetCommitteeSize(0)
+
+	voters := make([]neotest.Signer, committeeSize)
+	candidates := make([]neotest.Signer, committeeSize)
+	for i := 0; i < committeeSize; i++ {
+		voters[i] = e.NewAccount(t, 10_0000_0000)
+		candidates[i] = e.NewAccount(t, 2000_0000_0000) // enough for one registration
+	}
+	txes := make([]*transaction.Transaction, 0, committeeSize*3)
+	for i := 0; i < committeeSize; i++ {
+		transferTx := neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(committeeSize-i)*1000000, nil)
+		txes = append(txes, transferTx)
+
+		registerTx := neoValidatorsInvoker.WithSigners(candidates[i]).PrepareInvoke(t, "registerCandidate", candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
+		txes = append(txes, registerTx)
+
+		voteTx := neoValidatorsInvoker.WithSigners(voters[i]).PrepareInvoke(t, "vote", voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
+		txes = append(txes, voteTx)
+	}
+	block := neoValidatorsInvoker.AddNewBlock(t, txes...)
+	for _, tx := range txes {
+		e.CheckHalt(t, tx.Hash(), stackitem.Make(true))
+	}
+
+	// Advance the chain to trigger committee recalculation and potential change.
+	for (block.Index)%uint32(committeeSize) != 0 {
+		block = neoCommitteeInvoker.AddNewBlock(t)
+	}
+
+	// Check for CommitteeChanged event in the last persisted block's AER.
+	blockHash := e.Chain.CurrentBlockHash()
+	aer, err := e.Chain.GetAppExecResults(blockHash, trigger.OnPersist)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(aer))
+
+	require.Equal(t, aer[0].Events[0].Name, "CommitteeChanged")
+	require.Equal(t, 2, len(aer[0].Events[0].Item.Value().([]stackitem.Item)))
+
+	expectedOldCommitteePublicKeys, err := keys.NewPublicKeysFromStrings(cfg.StandbyCommittee)
+	require.NoError(t, err)
+	expectedOldCommitteeStackItems := make([]stackitem.Item, len(expectedOldCommitteePublicKeys))
+	for i, pubKey := range expectedOldCommitteePublicKeys {
+		expectedOldCommitteeStackItems[i] = stackitem.NewByteArray(pubKey.Bytes())
+	}
+	oldCommitteeStackItem := aer[0].Events[0].Item.Value().([]stackitem.Item)[0].(*stackitem.Array)
+	for i, item := range oldCommitteeStackItem.Value().([]stackitem.Item) {
+		assert.Equal(t, expectedOldCommitteeStackItems[i].(*stackitem.ByteArray).Value().([]byte), item.Value().([]byte))
+	}
+	expectedNewCommitteeStackItems := make([]stackitem.Item, 0, committeeSize)
+	for _, candidate := range candidates {
+		expectedNewCommitteeStackItems = append(expectedNewCommitteeStackItems, stackitem.NewByteArray(candidate.(neotest.SingleSigner).Account().PublicKey().Bytes()))
+	}
+	newCommitteeStackItem := aer[0].Events[0].Item.Value().([]stackitem.Item)[1].(*stackitem.Array)
+	for i, item := range newCommitteeStackItem.Value().([]stackitem.Item) {
+		assert.Equal(t, expectedNewCommitteeStackItems[i].(*stackitem.ByteArray).Value().([]byte), item.Value().([]byte))
+	}
 }
 
 func TestNEO_Vote(t *testing.T) {
