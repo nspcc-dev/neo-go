@@ -3,8 +3,11 @@ package native_test
 import (
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
+	"github.com/nspcc-dev/neo-go/pkg/compiler"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
@@ -13,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/notary"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -158,6 +162,80 @@ func TestNotary_Pipeline(t *testing.T) {
 	gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, feePerKey, &notary.OnNEP17PaymentData{Account: &accHash, Till: uint32(math.MaxUint32 - 1)})
 	checkBalanceOf(t, notaryHash, 3*feePerKey)
 	notaryCommitteeInvoker.Invoke(t, 5760+e.Chain.BlockHeight()-3, "expirationOf", accHash)
+}
+
+func TestNotary_MaliciousWithdrawal(t *testing.T) {
+	const defaultDepositDeltaTill = 5760
+	notaryCommitteeInvoker := newNotaryClient(t)
+	e := notaryCommitteeInvoker.Executor
+	gasCommitteeInvoker := e.CommitteeInvoker(e.NativeHash(t, nativenames.Gas))
+
+	notaryHash := notaryCommitteeInvoker.NativeHash(t, nativenames.Notary)
+	feePerKey := e.Chain.GetNotaryServiceFeePerKey()
+	multisigHash := notaryCommitteeInvoker.Validator.ScriptHash() // matches committee's one for single chain
+
+	checkBalanceOf := func(t *testing.T, acc util.Uint160, expected int64) { // we don't have big numbers in this test, thus may use int
+		notaryCommitteeInvoker.CheckGASBalance(t, acc, big.NewInt(expected))
+	}
+
+	// Check Notary contract has no GAS on the account.
+	checkBalanceOf(t, notaryHash, 0)
+
+	// Perform several deposits to a set of different accounts.
+	count := 3
+	for i := 0; i < count; i++ {
+		h := random.Uint160()
+		gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, 2*feePerKey, &notary.OnNEP17PaymentData{Account: &h, Till: e.Chain.BlockHeight() + 2})
+	}
+	checkBalanceOf(t, notaryHash, int64(count)*2*feePerKey)
+
+	// Deploy malicious contract and make Notary deposit for it.
+	src := `package foo
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/notary"
+			"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+			"github.com/nspcc-dev/neo-go/pkg/interop"
+			"github.com/nspcc-dev/neo-go/pkg/interop/storage"
+		)
+		const (
+			prefixMaxCallDepth = 0x01
+			defaultCallDepth = 3
+		)
+		func _deploy(_ any, isUpdate bool) {
+			ctx := storage.GetContext()
+			storage.Put(ctx, prefixMaxCallDepth, defaultCallDepth)
+		}
+		func OnNEP17Payment(from interop.Hash160, amount int, data any) {
+			ctx := storage.GetContext()
+			depth := storage.Get(ctx, prefixMaxCallDepth).(int)
+			if depth > 0 {
+				storage.Put(ctx, prefixMaxCallDepth, depth-1)
+				notary.Withdraw(runtime.GetExecutingScriptHash(), runtime.GetExecutingScriptHash())
+			}
+		}
+		func Verify() bool {
+			return true
+		}`
+	ctr := neotest.CompileSource(t, e.CommitteeHash, strings.NewReader(src), &compiler.Options{Name: "Helper", Permissions: []manifest.Permission{{
+		Methods: manifest.WildStrings{},
+	}}})
+	e.DeployContract(t, ctr, nil)
+	gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, 2*feePerKey, &notary.OnNEP17PaymentData{Account: &ctr.Hash, Till: e.Chain.BlockHeight() + 2})
+	checkBalanceOf(t, notaryHash, int64(count+1)*2*feePerKey)
+	depositLock := e.Chain.BlockHeight() + defaultDepositDeltaTill
+
+	// Try to perform malicious withdrawal from Notary contract. In malicious scenario the withdrawal cycle
+	// will be triggered by the contract itself (i.e. by malicious caller of the malicious contract), but
+	// for the test simplicity we'll use committee account.
+	for e.Chain.BlockHeight() <= depositLock { // side account made Notary deposit for contract, thus, default deposit delta till is used.
+		e.AddNewBlock(t)
+	}
+	maliciousInvoker := e.NewInvoker(notaryHash, notaryCommitteeInvoker.Signers[0], neotest.NewContractSigner(ctr.Hash, func(tx *transaction.Transaction) []any {
+		return nil
+	}))
+	maliciousInvoker.Invoke(t, true, "withdraw", ctr.Hash, ctr.Hash)
+	checkBalanceOf(t, notaryHash, int64(count)*2*feePerKey)
+	gasCommitteeInvoker.CheckGASBalance(t, ctr.Hash, big.NewInt(2*feePerKey))
 }
 
 func TestNotary_NotaryNodesReward(t *testing.T) {
