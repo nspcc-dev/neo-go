@@ -2659,7 +2659,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		t.Run("insufficient funds", func(t *testing.T) {
 			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 899999999999, 1, false))
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
-			checkErrGetResult(t, body, true, neorpc.ErrInsufficientFundsCode)
+			checkErrGetResult(t, body, true, neorpc.ErrVerificationFailedCode)
 		})
 		t.Run("positive", func(t *testing.T) {
 			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 1, false))
@@ -3341,6 +3341,23 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			body2 := doRPCCall(fmt.Sprintf(rpc, rawTx2), httpSrv.URL, t)
 			checkErrGetResult(t, body2, true, neorpc.ErrMempoolCapReachedCode)
 		})
+		t.Run("mempool conflict", func(t *testing.T) {
+			chain, _, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
+				c.ProtocolConfiguration.MemPoolSize = 2
+			})
+
+			// Create and push the first transaction with large network fee.
+			tx := newTxWithParams(t, chain, opcode.PUSH1, 10, 1, 25, false)
+			rawTx := encodeBinaryToString(t, tx)
+			body := doRPCCall(fmt.Sprintf(rpc, rawTx), httpSrv.URL, t)
+			checkErrGetResult(t, body, false, 0)
+
+			// Create and push the second transaction, sender doesn't have enough balance to pay for two transactions.
+			tx2 := newTxWithParams(t, chain, opcode.PUSH1, 10, 1, 25, false)
+			rawTx2 := encodeBinaryToString(t, tx2)
+			body2 := doRPCCall(fmt.Sprintf(rpc, rawTx2), httpSrv.URL, t)
+			checkErrGetResult(t, body2, true, neorpc.ErrInsufficientFundsCode)
+		})
 	})
 	t.Run("test functions with unsupported states", func(t *testing.T) {
 		chain, _, httpSrv := initClearServerWithCustomConfig(t, func(c *config.Config) {
@@ -3380,7 +3397,7 @@ func newTxWithParams(t *testing.T, chain *core.Blockchain, code opcode.Opcode, v
 
 	height := chain.BlockHeight()
 	tx := transaction.New([]byte{byte(code)}, 0)
-	tx.Nonce = height + 1
+	tx.Nonce = uint32(random.Int(0, math.MaxUint32))
 	tx.ValidUntilBlock = height + validUntilIncr
 	tx.Signers = []transaction.Signer{{Account: acc0.PrivateKey().GetScriptHash()}}
 	tx.SystemFee = systemFee
