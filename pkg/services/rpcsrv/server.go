@@ -2657,7 +2657,7 @@ func getRelayResult(err error, hash util.Uint256) (any, *neorpc.Error) {
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrInsufficientNetworkFee, err.Error())
 	case errors.Is(err, core.ErrInvalidAttribute):
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidAttribute, err.Error())
-	case errors.Is(err, core.ErrInsufficientFunds):
+	case errors.Is(err, core.ErrMemPoolConflict):
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrInsufficientFunds, err.Error())
 	case errors.Is(err, core.ErrInvalidSignature):
 		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidSignature, err.Error())
