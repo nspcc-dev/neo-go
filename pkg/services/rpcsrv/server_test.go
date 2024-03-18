@@ -3380,7 +3380,7 @@ func newTxWithParams(t *testing.T, chain *core.Blockchain, code opcode.Opcode, v
 
 	height := chain.BlockHeight()
 	tx := transaction.New([]byte{byte(code)}, 0)
-	tx.Nonce = height + 1
+	tx.Nonce = uint32(random.Int(0, math.MaxUint32))
 	tx.ValidUntilBlock = height + validUntilIncr
 	tx.Signers = []transaction.Signer{{Account: acc0.PrivateKey().GetScriptHash()}}
 	tx.SystemFee = systemFee
