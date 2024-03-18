@@ -2659,7 +2659,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		t.Run("insufficient funds", func(t *testing.T) {
 			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 899999999999, 1, false))
 			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
-			checkErrGetResult(t, body, true, neorpc.ErrVerificationFailedCode)
+			checkErrGetResult(t, body, true, neorpc.ErrInsufficientFundsCode)
 		})
 		t.Run("positive", func(t *testing.T) {
 			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 1, false))
