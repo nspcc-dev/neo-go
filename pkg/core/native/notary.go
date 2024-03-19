@@ -305,6 +305,11 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	if err != nil {
 		panic(fmt.Errorf("failed to get GAS contract state: %w", err))
 	}
+
+	// Remove deposit before GAS transfer processing to avoid double-withdrawal.
+	// In case if Gas contract call fails, state will be rolled back.
+	n.removeDepositFor(ic.DAO, from)
+
 	transferArgs := []stackitem.Item{stackitem.NewByteArray(n.Hash.BytesBE()), stackitem.NewByteArray(to.BytesBE()), stackitem.NewBigInteger(deposit.Amount), stackitem.Null{}}
 	err = contract.CallFromNative(ic, n.Hash, cs, "transfer", transferArgs, true)
 	if err != nil {
@@ -313,7 +318,6 @@ func (n *Notary) withdraw(ic *interop.Context, args []stackitem.Item) stackitem.
 	if !ic.VM.Estack().Pop().Bool() {
 		panic("failed to transfer GAS from Notary account: `transfer` returned false")
 	}
-	n.removeDepositFor(ic.DAO, from)
 	return stackitem.NewBool(true)
 }
 
