@@ -93,12 +93,16 @@ func (c *Contract) FromStackItem(item stackitem.Item) error {
 	if err != nil {
 		return err
 	}
-	c.NEF, err = nef.FileFromBytes(bytes)
+	skipCheck := false
+	if c.UpdateCounter > 0 {
+		skipCheck = true
+	}
+	c.NEF, err = nef.FileFromBytes(bytes, skipCheck)
 	if err != nil {
 		return err
 	}
 	m := new(manifest.Manifest)
-	err = m.FromStackItem(arr[4])
+	err = m.FromStackItem(arr[4], skipCheck)
 	if err != nil {
 		return err
 	}

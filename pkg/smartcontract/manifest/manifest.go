@@ -206,13 +206,13 @@ func extraToStackItem(rawExtra []byte) stackitem.Item {
 }
 
 // FromStackItem converts stackitem.Item to Manifest.
-func (m *Manifest) FromStackItem(item stackitem.Item) error {
+func (m *Manifest) FromStackItem(item stackitem.Item, skipCheck ...bool) error {
 	var err error
 	if item.Type() != stackitem.StructT {
 		return errors.New("invalid Manifest stackitem type")
 	}
 	str := item.Value().([]stackitem.Item)
-	if len(str) != 8 {
+	if (len(skipCheck) == 0 || !skipCheck[0]) && len(str) != 8 {
 		return errors.New("invalid stackitem length")
 	}
 	m.Name, err = stackitem.ToString(str[0])

@@ -184,9 +184,9 @@ func (n File) bytes(checkSize bool) ([]byte, error) {
 }
 
 // FileFromBytes returns a NEF File deserialized from the given bytes.
-func FileFromBytes(source []byte) (File, error) {
+func FileFromBytes(source []byte, skipCheck ...bool) (File, error) {
 	result := File{}
-	if len(source) > stackitem.MaxSize {
+	if len(source) > stackitem.MaxSize && (len(skipCheck) == 0 || !skipCheck[0]) {
 		return result, fmt.Errorf("invalid NEF file size: expected %d at max, got %d", stackitem.MaxSize, len(source))
 	}
 	r := io.NewBinReaderFromBuf(source)
