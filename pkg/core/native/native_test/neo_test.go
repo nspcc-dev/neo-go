@@ -18,10 +18,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
 	"github.com/nspcc-dev/neo-go/pkg/neotest/chain"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -394,6 +396,19 @@ func TestNEO_RecursiveGASMint(t *testing.T) {
 	// shouldn't occur here, because contract's balance LastUpdated height has already been updated in
 	// this block.
 	neoValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), c.Hash, int64(1), nil)
+}
+
+func TestNEO_GetCommitteeAddress(t *testing.T) {
+	neoValidatorInvoker := newNeoValidatorsClient(t)
+	e := neoValidatorInvoker.Executor
+	standByCommitteePublicKeys, err := keys.NewPublicKeysFromStrings(e.Chain.GetConfig().StandbyCommittee)
+	require.NoError(t, err)
+	sort.Sort(standByCommitteePublicKeys)
+	expectedCommitteeAddress, err := smartcontract.CreateMajorityMultiSigRedeemScript(standByCommitteePublicKeys)
+	require.NoError(t, err)
+	stack, err := neoValidatorInvoker.TestInvoke(t, "getCommitteeAddress")
+	require.NoError(t, err)
+	require.Equal(t, hash.Hash160(expectedCommitteeAddress).BytesBE(), stack.Pop().Item().Value().([]byte))
 }
 
 func TestNEO_GetAccountState(t *testing.T) {

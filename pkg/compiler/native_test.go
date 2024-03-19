@@ -163,6 +163,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"getAllCandidates", nil},
 		{"getCandidateVote", []string{pub}},
 		{"getCommittee", nil},
+		{"getCommitteeAddress", nil},
 		{"getGasPerBlock", nil},
 		{"getNextBlockValidators", nil},
 		{"getRegisterPrice", nil},

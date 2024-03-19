@@ -126,3 +126,9 @@ func UnclaimedGAS(addr interop.Hash160, end int) int {
 func GetAccountState(addr interop.Hash160) *AccountState {
 	return neogointernal.CallWithToken(Hash, "getAccountState", int(contract.ReadStates), addr).(*AccountState)
 }
+
+// GetCommitteeAddress represents `getCommitteeAddress` method of NEO native contract.
+func GetCommitteeAddress() interop.Hash160 {
+	return neogointernal.CallWithToken(Hash, "getCommitteeAddress", int(contract.ReadStates)).(interop.Hash160)
+
+}
