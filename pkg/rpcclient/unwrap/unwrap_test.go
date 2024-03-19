@@ -1,12 +1,14 @@
 package unwrap
 
 import (
+	"encoding/json"
 	"errors"
 	"math"
 	"math/big"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -188,6 +190,27 @@ func TestBytes(t *testing.T) {
 	b, err := Bytes(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Make([]byte{1, 2, 3})}}, nil)
 	require.NoError(t, err)
 	require.Equal(t, []byte{1, 2, 3}, b)
+}
+
+func TestItemJSONError(t *testing.T) {
+	bigValidSlice := stackitem.NewByteArray(make([]byte, stackitem.MaxSize-1))
+	res := &result.Invoke{
+		State:          "HALT",
+		GasConsumed:    237626000,
+		Script:         []byte{10},
+		Stack:          []stackitem.Item{bigValidSlice, bigValidSlice},
+		FaultException: "",
+		Notifications:  []state.NotificationEvent{},
+	}
+	data, err := json.Marshal(res)
+	require.NoError(t, err)
+
+	var received result.Invoke
+	require.NoError(t, json.Unmarshal(data, &received))
+
+	_, err = Item(&received, nil)
+	require.True(t, len(received.FaultException) != 0)
+	require.Contains(t, err.Error(), received.FaultException)
 }
 
 func TestUTF8String(t *testing.T) {

@@ -401,6 +401,9 @@ func checkResOK(r *result.Invoke, err error) error {
 	if r.State != vmstate.Halt.String() {
 		return fmt.Errorf("invocation failed: %s", r.FaultException)
 	}
+	if r.FaultException != "" {
+		return fmt.Errorf("inconsistent result, HALTed with exception: %s", r.FaultException)
+	}
 	return nil
 }
 
