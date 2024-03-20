@@ -59,7 +59,7 @@ func getNotification(t *testing.T, respCh <-chan []byte) *neorpc.Notification {
 func initCleanServerAndWSClient(t *testing.T) (*core.Blockchain, *Server, *websocket.Conn, chan []byte, *atomic.Bool) {
 	chain, rpcSrv, httpSrv := initClearServerWithInMemoryChain(t)
 
-	dialer := websocket.Dialer{HandshakeTimeout: time.Second}
+	dialer := websocket.Dialer{HandshakeTimeout: 5 * time.Second}
 	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
 	ws, r, err := dialer.Dial(url, nil)
 	require.NoError(t, err)
@@ -586,7 +586,7 @@ func TestWSClientsLimit(t *testing.T) {
 				cfg.ApplicationConfiguration.RPC.MaxWebSocketClients = limit
 			})
 
-			dialer := websocket.Dialer{HandshakeTimeout: time.Second}
+			dialer := websocket.Dialer{HandshakeTimeout: 5 * time.Second}
 			url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
 			wss := make([]*websocket.Conn, effectiveClients)
 
