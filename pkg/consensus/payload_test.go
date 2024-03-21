@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -47,8 +47,8 @@ func TestConsensusPayload_Setters(t *testing.T) {
 	p.SetViewNumber(2)
 	assert.EqualValues(t, 2, p.ViewNumber())
 
-	p.SetType(payload.PrepareRequestType)
-	assert.Equal(t, payload.PrepareRequestType, p.Type())
+	p.SetType(dbft.PrepareRequestType)
+	assert.Equal(t, dbft.PrepareRequestType, p.Type())
 
 	pl := randomMessage(t, prepareRequestType)
 	p.SetPayload(pl)
@@ -290,7 +290,7 @@ func TestPayload_DecodeFromPrivnet(t *testing.T) {
 	p := NewPayload(netmode.PrivNet, false)
 	p.DecodeBinary(buf)
 	require.NoError(t, buf.Err)
-	require.Equal(t, payload.CommitType, p.Type())
+	require.Equal(t, dbft.CommitType, p.Type())
 	require.Equal(t, uint32(2), p.Height())
 	require.Equal(t, uint16(3), p.ValidatorIndex())
 	require.Equal(t, byte(0), p.ViewNumber())

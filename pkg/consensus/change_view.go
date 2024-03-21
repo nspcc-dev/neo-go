@@ -1,7 +1,7 @@
 package consensus
 
 import (
-	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
@@ -9,10 +9,10 @@ import (
 type changeView struct {
 	newViewNumber byte
 	timestamp     uint64
-	reason        payload.ChangeViewReason
+	reason        dbft.ChangeViewReason
 }
 
-var _ payload.ChangeView = (*changeView)(nil)
+var _ dbft.ChangeView = (*changeView)(nil)
 
 // EncodeBinary implements the io.Serializable interface.
 func (c *changeView) EncodeBinary(w *io.BinWriter) {
@@ -23,7 +23,7 @@ func (c *changeView) EncodeBinary(w *io.BinWriter) {
 // DecodeBinary implements the io.Serializable interface.
 func (c *changeView) DecodeBinary(r *io.BinReader) {
 	c.timestamp = r.ReadU64LE()
-	c.reason = payload.ChangeViewReason(r.ReadB())
+	c.reason = dbft.ChangeViewReason(r.ReadB())
 }
 
 // NewViewNumber implements the payload.ChangeView interface.
@@ -39,7 +39,7 @@ func (c changeView) Timestamp() uint64 { return c.timestamp * nsInMs }
 func (c *changeView) SetTimestamp(ts uint64) { c.timestamp = ts / nsInMs }
 
 // Reason implements the payload.ChangeView interface.
-func (c changeView) Reason() payload.ChangeViewReason { return c.reason }
+func (c changeView) Reason() dbft.ChangeViewReason { return c.reason }
 
 // SetReason implements the payload.ChangeView interface.
-func (c *changeView) SetReason(reason payload.ChangeViewReason) { c.reason = reason }
+func (c *changeView) SetReason(reason dbft.ChangeViewReason) { c.reason = reason }

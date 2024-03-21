@@ -4,9 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nspcc-dev/dbft/block"
-	"github.com/nspcc-dev/dbft/payload"
-	"github.com/nspcc-dev/dbft/timer"
+	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -38,7 +36,7 @@ func TestNewService(t *testing.T) {
 	signTx(t, srv.Chain, tx)
 	require.NoError(t, srv.Chain.PoolTx(tx))
 
-	var txx []block.Transaction
+	var txx []dbft.Transaction[util.Uint256]
 	require.NotPanics(t, func() { txx = srv.getVerifiedTx() })
 	require.Len(t, txx, 1)
 	require.Equal(t, tx, txx[0])
@@ -65,10 +63,10 @@ func TestNewWatchingService(t *testing.T) {
 
 func collectBlock(t *testing.T, bc *core.Blockchain, srv *service) {
 	h := bc.BlockHeight()
-	srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.Context.BlockIndex}) // Collect and add block to the chain.
+	srv.dbft.OnTimeout(srv.dbft.Context.BlockIndex, 0) // Collect and add block to the chain.
 	header, err := bc.GetHeader(bc.GetHeaderHash(h + 1))
 	require.NoError(t, err)
-	srv.dbft.InitializeConsensus(0, header.Timestamp*nsInMs) // Init consensus manually at the next height, as we don't run the consensus service.
+	srv.dbft.Reset(header.Timestamp * nsInMs) // Init consensus manually at the next height, as we don't run the consensus service.
 }
 
 func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint32) (*service, *wallet.Account) {
@@ -102,7 +100,7 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	srv.dbft.Start(0)
 	header, err := bc.GetHeader(bc.GetHeaderHash(h + 1))
 	require.NoError(t, err)
-	srv.dbft.InitializeConsensus(0, header.Timestamp*nsInMs) // Init consensus manually at the next height, as we don't run the consensus service.
+	srv.dbft.Reset(header.Timestamp * nsInMs) // Init consensus manually at the next height, as we don't run the consensus service.
 
 	// Register new candidate.
 	b.Reset()
@@ -214,10 +212,10 @@ func TestService_GetVerified(t *testing.T) {
 		p := new(Payload)
 		// One PrepareRequest and three ChangeViews.
 		if i == 1 {
-			p.SetType(payload.PrepareRequestType)
+			p.SetType(dbft.PrepareRequestType)
 			p.SetPayload(&prepareRequest{prevHash: srv.Chain.CurrentBlockHash(), transactionHashes: hashes})
 		} else {
-			p.SetType(payload.ChangeViewType)
+			p.SetType(dbft.ChangeViewType)
 			p.SetPayload(&changeView{newViewNumber: 1, timestamp: uint64(time.Now().UnixNano() / nsInMs)})
 		}
 		p.SetHeight(1)

@@ -1,7 +1,7 @@
 package consensus
 
 import (
-	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
@@ -14,7 +14,7 @@ type commit struct {
 // without a leading byte (0x04, uncompressed).
 const signatureSize = 64
 
-var _ payload.Commit = (*commit)(nil)
+var _ dbft.Commit = (*commit)(nil)
 
 // EncodeBinary implements the io.Serializable interface.
 func (c *commit) EncodeBinary(w *io.BinWriter) {

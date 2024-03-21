@@ -1,7 +1,7 @@
 package consensus
 
 import (
-	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -18,7 +18,7 @@ type prepareRequest struct {
 	stateRoot         util.Uint256
 }
 
-var _ payload.PrepareRequest = (*prepareRequest)(nil)
+var _ dbft.PrepareRequest[util.Uint256] = (*prepareRequest)(nil)
 
 // EncodeBinary implements the io.Serializable interface.
 func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {

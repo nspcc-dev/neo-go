@@ -8,9 +8,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/dbft"
-	"github.com/nspcc-dev/dbft/block"
-	"github.com/nspcc-dev/dbft/crypto"
-	"github.com/nspcc-dev/dbft/payload"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -88,7 +85,7 @@ type service struct {
 	log *zap.Logger
 	// txx is a fifo cache which stores miner transactions.
 	txx  *relayCache
-	dbft *dbft.DBFT
+	dbft *dbft.DBFT[util.Uint256]
 	// messages and transactions are channels needed to process
 	// everything in single thread.
 	messages     chan Payload
@@ -181,36 +178,33 @@ func NewService(cfg Config) (Service, error) {
 		}
 	}
 
-	srv.dbft = dbft.New(
-		dbft.WithLogger(srv.log),
-		dbft.WithSecondsPerBlock(cfg.TimePerBlock),
-		dbft.WithGetKeyPair(srv.getKeyPair),
+	srv.dbft = dbft.New[util.Uint256](
+		dbft.WithLogger[util.Uint256](srv.log),
+		dbft.WithSecondsPerBlock[util.Uint256](cfg.TimePerBlock),
+		dbft.WithGetKeyPair[util.Uint256](srv.getKeyPair),
 		dbft.WithRequestTx(cfg.RequestTx),
-		dbft.WithStopTxFlow(cfg.StopTxFlow),
-		dbft.WithGetTx(srv.getTx),
-		dbft.WithGetVerified(srv.getVerifiedTx),
-		dbft.WithBroadcast(srv.broadcast),
-		dbft.WithProcessBlock(srv.processBlock),
-		dbft.WithVerifyBlock(srv.verifyBlock),
-		dbft.WithGetBlock(srv.getBlock),
-		dbft.WithWatchOnly(func() bool { return false }),
-		dbft.WithNewBlockFromContext(srv.newBlockFromContext),
-		dbft.WithCurrentHeight(cfg.Chain.BlockHeight),
+		dbft.WithStopTxFlow[util.Uint256](cfg.StopTxFlow),
+		dbft.WithGetTx[util.Uint256](srv.getTx),
+		dbft.WithGetVerified[util.Uint256](srv.getVerifiedTx),
+		dbft.WithBroadcast[util.Uint256](srv.broadcast),
+		dbft.WithProcessBlock[util.Uint256](srv.processBlock),
+		dbft.WithVerifyBlock[util.Uint256](srv.verifyBlock),
+		dbft.WithGetBlock[util.Uint256](srv.getBlock),
+		dbft.WithWatchOnly[util.Uint256](func() bool { return false }),
+		dbft.WithNewBlockFromContext[util.Uint256](srv.newBlockFromContext),
+		dbft.WithCurrentHeight[util.Uint256](cfg.Chain.BlockHeight),
 		dbft.WithCurrentBlockHash(cfg.Chain.CurrentBlockHash),
-		dbft.WithGetValidators(srv.getValidators),
-		dbft.WithGetConsensusAddress(srv.getConsensusAddress),
+		dbft.WithGetValidators[util.Uint256](srv.getValidators),
 
-		dbft.WithNewConsensusPayload(srv.newPayload),
-		dbft.WithNewPrepareRequest(srv.newPrepareRequest),
-		dbft.WithNewPrepareResponse(func() payload.PrepareResponse { return new(prepareResponse) }),
-		dbft.WithNewChangeView(func() payload.ChangeView { return new(changeView) }),
-		dbft.WithNewCommit(func() payload.Commit { return new(commit) }),
-		dbft.WithNewRecoveryRequest(func() payload.RecoveryRequest { return new(recoveryRequest) }),
-		dbft.WithNewRecoveryMessage(func() payload.RecoveryMessage {
-			return &recoveryMessage{stateRootEnabled: srv.ProtocolConfiguration.StateRootInHeader}
-		}),
-		dbft.WithVerifyPrepareRequest(srv.verifyRequest),
-		dbft.WithVerifyPrepareResponse(func(_ payload.ConsensusPayload) error { return nil }),
+		dbft.WithNewConsensusPayload[util.Uint256](srv.newPayload),
+		dbft.WithNewPrepareRequest[util.Uint256](srv.newPrepareRequest),
+		dbft.WithNewPrepareResponse[util.Uint256](srv.newPrepareResponse),
+		dbft.WithNewChangeView[util.Uint256](srv.newChangeView),
+		dbft.WithNewCommit[util.Uint256](srv.newCommit),
+		dbft.WithNewRecoveryRequest[util.Uint256](srv.newRecoveryRequest),
+		dbft.WithNewRecoveryMessage[util.Uint256](srv.newRecoveryMessage),
+		dbft.WithVerifyPrepareRequest[util.Uint256](srv.verifyRequest),
+		dbft.WithVerifyPrepareResponse[util.Uint256](srv.verifyResponse),
 	)
 
 	if srv.dbft == nil {
@@ -221,8 +215,8 @@ func NewService(cfg Config) (Service, error) {
 }
 
 var (
-	_ block.Transaction = (*transaction.Transaction)(nil)
-	_ block.Block       = (*neoBlock)(nil)
+	_ dbft.Transaction[util.Uint256] = (*transaction.Transaction)(nil)
+	_ dbft.Block[util.Uint256]       = (*neoBlock)(nil)
 )
 
 // NewPayload creates a new consensus payload for the provided network.
@@ -238,7 +232,7 @@ func NewPayload(m netmode.Magic, stateRootEnabled bool) *Payload {
 	}
 }
 
-func (s *service) newPayload(c *dbft.Context, t payload.MessageType, msg any) payload.ConsensusPayload {
+func (s *service) newPayload(c *dbft.Context[util.Uint256], t dbft.MessageType, msg any) dbft.ConsensusPayload[util.Uint256] {
 	cp := NewPayload(s.ProtocolConfiguration.Magic, s.ProtocolConfiguration.StateRootInHeader)
 	cp.SetHeight(c.BlockIndex)
 	cp.SetValidatorIndex(uint16(c.MyIndex))
@@ -246,7 +240,7 @@ func (s *service) newPayload(c *dbft.Context, t payload.MessageType, msg any) pa
 	cp.SetType(t)
 	if pr, ok := msg.(*prepareRequest); ok {
 		pr.SetPrevHash(s.dbft.PrevHash)
-		pr.SetVersion(s.dbft.Version)
+		pr.SetVersion(coreb.VersionInitial)
 	}
 	cp.SetPayload(msg)
 
@@ -257,8 +251,12 @@ func (s *service) newPayload(c *dbft.Context, t payload.MessageType, msg any) pa
 	return cp
 }
 
-func (s *service) newPrepareRequest() payload.PrepareRequest {
-	r := new(prepareRequest)
+func (s *service) newPrepareRequest(ts uint64, nonce uint64, transactionsHashes []util.Uint256) dbft.PrepareRequest[util.Uint256] {
+	r := &prepareRequest{
+		timestamp:         ts / nsInMs,
+		nonce:             nonce,
+		transactionHashes: transactionsHashes,
+	}
 	if s.ProtocolConfiguration.StateRootInHeader {
 		r.stateRootEnabled = true
 		if sr, err := s.Chain.GetStateRoot(s.dbft.BlockIndex - 1); err == nil {
@@ -268,6 +266,38 @@ func (s *service) newPrepareRequest() payload.PrepareRequest {
 		}
 	}
 	return r
+}
+
+func (s *service) newPrepareResponse(preparationHash util.Uint256) dbft.PrepareResponse[util.Uint256] {
+	return &prepareResponse{
+		preparationHash: preparationHash,
+	}
+}
+
+func (s *service) newChangeView(newViewNumber byte, reason dbft.ChangeViewReason, ts uint64) dbft.ChangeView {
+	return &changeView{
+		newViewNumber: newViewNumber,
+		timestamp:     ts / nsInMs,
+		reason:        reason,
+	}
+}
+
+func (s *service) newCommit(signature []byte) dbft.Commit {
+	c := new(commit)
+	copy(c.signature[:], signature)
+	return c
+}
+
+func (s *service) newRecoveryRequest(ts uint64) dbft.RecoveryRequest {
+	return &recoveryRequest{
+		timestamp: ts / nsInMs,
+	}
+}
+
+func (s *service) newRecoveryMessage() dbft.RecoveryMessage[util.Uint256] {
+	return &recoveryMessage{
+		stateRootEnabled: s.ProtocolConfiguration.StateRootInHeader,
+	}
 }
 
 // Name returns service name.
@@ -315,18 +345,18 @@ events:
 			s.Chain.UnsubscribeFromBlocks(s.blockEvents)
 			break events
 		case <-s.dbft.Timer.C():
-			hv := s.dbft.Timer.HV()
+			h, v := s.dbft.Timer.Height(), s.dbft.Timer.View()
 			s.log.Debug("timer fired",
-				zap.Uint32("height", hv.Height),
-				zap.Uint("view", uint(hv.View)))
-			s.dbft.OnTimeout(hv)
+				zap.Uint32("height", h),
+				zap.Uint("view", uint(v)))
+			s.dbft.OnTimeout(h, v)
 		case msg := <-s.messages:
 			fields := []zap.Field{
 				zap.Uint8("from", msg.message.ValidatorIndex),
 				zap.Stringer("type", msg.Type()),
 			}
 
-			if msg.Type() == payload.RecoveryMessageType {
+			if msg.Type() == dbft.RecoveryMessageType {
 				rec := msg.GetRecoveryMessage().(*recoveryMessage)
 				if rec.preparationHash == nil {
 					req := rec.GetPrepareRequest(&msg, s.dbft.Validators, uint16(s.dbft.PrimaryIndex))
@@ -389,7 +419,7 @@ func (s *service) handleChainBlock(b *coreb.Block) {
 			zap.Uint32("dbft index", s.dbft.BlockIndex),
 			zap.Uint32("chain index", s.Chain.BlockHeight()))
 		s.postBlock(b)
-		s.dbft.InitializeConsensus(0, b.Timestamp*nsInMs)
+		s.dbft.Reset(b.Timestamp * nsInMs)
 	}
 }
 
@@ -404,7 +434,7 @@ func (s *service) validatePayload(p *Payload) bool {
 	return p.Sender == h
 }
 
-func (s *service) getKeyPair(pubs []crypto.PublicKey) (int, crypto.PrivateKey, crypto.PublicKey) {
+func (s *service) getKeyPair(pubs []dbft.PublicKey) (int, dbft.PrivateKey, dbft.PublicKey) {
 	if s.wallet != nil {
 		for i := range pubs {
 			sh := pubs[i].(*publicKey).GetScriptHash()
@@ -466,7 +496,7 @@ func (s *service) OnTransaction(tx *transaction.Transaction) {
 	}
 }
 
-func (s *service) broadcast(p payload.ConsensusPayload) {
+func (s *service) broadcast(p dbft.ConsensusPayload[util.Uint256]) {
 	if err := p.(*Payload).Sign(s.dbft.Priv.(*privateKey)); err != nil {
 		s.log.Warn("can't sign consensus payload", zap.Error(err))
 	}
@@ -475,7 +505,7 @@ func (s *service) broadcast(p payload.ConsensusPayload) {
 	s.Config.Broadcast(ep)
 }
 
-func (s *service) getTx(h util.Uint256) block.Transaction {
+func (s *service) getTx(h util.Uint256) dbft.Transaction[util.Uint256] {
 	if tx := s.txx.Get(h); tx != nil {
 		return tx.(*transaction.Transaction)
 	}
@@ -491,7 +521,7 @@ func (s *service) getTx(h util.Uint256) block.Transaction {
 	return nil
 }
 
-func (s *service) verifyBlock(b block.Block) bool {
+func (s *service) verifyBlock(b dbft.Block[util.Uint256]) bool {
 	coreb := &b.(*neoBlock).Block
 
 	if s.Chain.BlockHeight() >= coreb.Index {
@@ -558,12 +588,12 @@ var (
 	errInvalidTransactionsCount = errors.New("invalid transactions count")
 )
 
-func (s *service) verifyRequest(p payload.ConsensusPayload) error {
+func (s *service) verifyRequest(p dbft.ConsensusPayload[util.Uint256]) error {
 	req := p.GetPrepareRequest().(*prepareRequest)
 	if req.prevHash != s.dbft.PrevHash {
 		return errInvalidPrevHash
 	}
-	if req.version != s.dbft.Version {
+	if req.version != coreb.VersionInitial {
 		return errInvalidVersion
 	}
 	if s.ProtocolConfiguration.StateRootInHeader {
@@ -583,7 +613,11 @@ func (s *service) verifyRequest(p payload.ConsensusPayload) error {
 	return nil
 }
 
-func (s *service) processBlock(b block.Block) {
+func (s *service) verifyResponse(p dbft.ConsensusPayload[util.Uint256]) error {
+	return nil
+}
+
+func (s *service) processBlock(b dbft.Block[util.Uint256]) {
 	bb := &b.(*neoBlock).Block
 	bb.Script = *(s.getBlockWitness(bb))
 
@@ -638,7 +672,7 @@ func (s *service) getBlockWitness(b *coreb.Block) *transaction.Witness {
 	}
 }
 
-func (s *service) getBlock(h util.Uint256) block.Block {
+func (s *service) getBlock(h util.Uint256) dbft.Block[util.Uint256] {
 	b, err := s.Chain.GetBlock(h)
 	if err != nil {
 		return nil
@@ -647,7 +681,7 @@ func (s *service) getBlock(h util.Uint256) block.Block {
 	return &neoBlock{network: s.ProtocolConfiguration.Magic, Block: *b}
 }
 
-func (s *service) getVerifiedTx() []block.Transaction {
+func (s *service) getVerifiedTx() []dbft.Transaction[util.Uint256] {
 	pool := s.Config.Chain.GetMemPool()
 
 	var txx []*transaction.Transaction
@@ -671,7 +705,7 @@ func (s *service) getVerifiedTx() []block.Transaction {
 		txx = s.Config.Chain.ApplyPolicyToTxSet(txx)
 	}
 
-	res := make([]block.Transaction, len(txx))
+	res := make([]dbft.Transaction[util.Uint256], len(txx))
 	for i := range txx {
 		res[i] = txx[i]
 	}
@@ -679,7 +713,7 @@ func (s *service) getVerifiedTx() []block.Transaction {
 	return res
 }
 
-func (s *service) getValidators(txes ...block.Transaction) []crypto.PublicKey {
+func (s *service) getValidators(txes ...dbft.Transaction[util.Uint256]) []dbft.PublicKey {
 	var (
 		pKeys []*keys.PublicKey
 		err   error
@@ -699,7 +733,7 @@ func (s *service) getValidators(txes ...block.Transaction) []crypto.PublicKey {
 		s.log.Error("error while trying to get validators", zap.Error(err))
 	}
 
-	pubs := make([]crypto.PublicKey, len(pKeys))
+	pubs := make([]dbft.PublicKey, len(pKeys))
 	for i := range pKeys {
 		pubs[i] = &publicKey{PublicKey: pKeys[i]}
 	}
@@ -707,11 +741,7 @@ func (s *service) getValidators(txes ...block.Transaction) []crypto.PublicKey {
 	return pubs
 }
 
-func (s *service) getConsensusAddress(validators ...crypto.PublicKey) util.Uint160 {
-	return util.Uint160{}
-}
-
-func convertKeys(validators []crypto.PublicKey) (pubs []*keys.PublicKey) {
+func convertKeys(validators []dbft.PublicKey) (pubs []*keys.PublicKey) {
 	pubs = make([]*keys.PublicKey, len(validators))
 	for i, k := range validators {
 		pubs[i] = k.(*publicKey).PublicKey
@@ -720,7 +750,7 @@ func convertKeys(validators []crypto.PublicKey) (pubs []*keys.PublicKey) {
 	return
 }
 
-func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
+func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Block[util.Uint256] {
 	block := &neoBlock{network: s.ProtocolConfiguration.Magic}
 
 	block.Block.Timestamp = ctx.Timestamp / nsInMs
@@ -750,9 +780,9 @@ func (s *service) newBlockFromContext(ctx *dbft.Context) block.Block {
 	if err != nil {
 		s.log.Fatal(fmt.Sprintf("failed to create multisignature script: %s", err.Error()))
 	}
-	block.Block.NextConsensus = crypto.Hash160(script)
+	block.Block.NextConsensus = hash.Hash160(script)
 	block.Block.PrevHash = ctx.PrevHash
-	block.Block.Version = ctx.Version
+	block.Block.Version = coreb.VersionInitial
 
 	primaryIndex := byte(ctx.PrimaryIndex)
 	block.Block.PrimaryIndex = primaryIndex

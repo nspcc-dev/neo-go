@@ -1,7 +1,7 @@
 package consensus
 
 import (
-	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
@@ -10,7 +10,7 @@ type recoveryRequest struct {
 	timestamp uint64
 }
 
-var _ payload.RecoveryRequest = (*recoveryRequest)(nil)
+var _ dbft.RecoveryRequest = (*recoveryRequest)(nil)
 
 // DecodeBinary implements the io.Serializable interface.
 func (m *recoveryRequest) DecodeBinary(r *io.BinReader) {

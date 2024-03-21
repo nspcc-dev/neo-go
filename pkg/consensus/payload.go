@@ -3,7 +3,7 @@ package consensus
 import (
 	"fmt"
 
-	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
@@ -55,12 +55,12 @@ func (p *Payload) SetViewNumber(view byte) {
 }
 
 // Type implements the payload.ConsensusPayload interface.
-func (p Payload) Type() payload.MessageType {
-	return payload.MessageType(p.message.Type)
+func (p Payload) Type() dbft.MessageType {
+	return dbft.MessageType(p.message.Type)
 }
 
 // SetType implements the payload.ConsensusPayload interface.
-func (p *Payload) SetType(t payload.MessageType) {
+func (p *Payload) SetType(t dbft.MessageType) {
 	p.message.Type = messageType(t)
 }
 
@@ -75,29 +75,29 @@ func (p *Payload) SetPayload(pl any) {
 }
 
 // GetChangeView implements the payload.ConsensusPayload interface.
-func (p Payload) GetChangeView() payload.ChangeView { return p.payload.(payload.ChangeView) }
+func (p Payload) GetChangeView() dbft.ChangeView { return p.payload.(dbft.ChangeView) }
 
 // GetPrepareRequest implements the payload.ConsensusPayload interface.
-func (p Payload) GetPrepareRequest() payload.PrepareRequest {
-	return p.payload.(payload.PrepareRequest)
+func (p Payload) GetPrepareRequest() dbft.PrepareRequest[util.Uint256] {
+	return p.payload.(dbft.PrepareRequest[util.Uint256])
 }
 
 // GetPrepareResponse implements the payload.ConsensusPayload interface.
-func (p Payload) GetPrepareResponse() payload.PrepareResponse {
-	return p.payload.(payload.PrepareResponse)
+func (p Payload) GetPrepareResponse() dbft.PrepareResponse[util.Uint256] {
+	return p.payload.(dbft.PrepareResponse[util.Uint256])
 }
 
 // GetCommit implements the payload.ConsensusPayload interface.
-func (p Payload) GetCommit() payload.Commit { return p.payload.(payload.Commit) }
+func (p Payload) GetCommit() dbft.Commit { return p.payload.(dbft.Commit) }
 
 // GetRecoveryRequest implements the payload.ConsensusPayload interface.
-func (p Payload) GetRecoveryRequest() payload.RecoveryRequest {
-	return p.payload.(payload.RecoveryRequest)
+func (p Payload) GetRecoveryRequest() dbft.RecoveryRequest {
+	return p.payload.(dbft.RecoveryRequest)
 }
 
 // GetRecoveryMessage implements the payload.ConsensusPayload interface.
-func (p Payload) GetRecoveryMessage() payload.RecoveryMessage {
-	return p.payload.(payload.RecoveryMessage)
+func (p Payload) GetRecoveryMessage() dbft.RecoveryMessage[util.Uint256] {
+	return p.payload.(dbft.RecoveryMessage[util.Uint256])
 }
 
 // ValidatorIndex implements the payload.ConsensusPayload interface.

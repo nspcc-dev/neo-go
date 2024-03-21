@@ -3,8 +3,7 @@ package consensus
 import (
 	"testing"
 
-	"github.com/nspcc-dev/dbft/crypto"
-	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -23,7 +22,7 @@ func TestRecoveryMessageSetters(t *testing.T) {
 func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 	srv := newTestServiceWithState(t, enableStateRoot)
 	privs := make([]*privateKey, testchain.Size())
-	pubs := make([]crypto.PublicKey, testchain.Size())
+	pubs := make([]dbft.PublicKey, testchain.Size())
 	for i := 0; i < testchain.Size(); i++ {
 		privs[i], pubs[i] = getTestValidator(i)
 	}
@@ -32,7 +31,7 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 
 	r := &recoveryMessage{stateRootEnabled: enableStateRoot}
 	p := NewPayload(netmode.UnitTestNet, enableStateRoot)
-	p.SetType(payload.RecoveryMessageType)
+	p.SetType(dbft.RecoveryMessageType)
 	p.SetHeight(msgHeight)
 	p.SetPayload(r)
 	// sign payload to have verification script
@@ -44,7 +43,7 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 		stateRootEnabled:  enableStateRoot,
 	}
 	p1 := NewPayload(netmode.UnitTestNet, enableStateRoot)
-	p1.SetType(payload.PrepareRequestType)
+	p1.SetType(dbft.PrepareRequestType)
 	p1.SetHeight(msgHeight)
 	p1.SetPayload(req)
 	p1.SetValidatorIndex(0)
@@ -53,7 +52,7 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 
 	t.Run("prepare response is added", func(t *testing.T) {
 		p2 := NewPayload(netmode.UnitTestNet, enableStateRoot)
-		p2.SetType(payload.PrepareResponseType)
+		p2.SetType(dbft.PrepareResponseType)
 		p2.SetHeight(msgHeight)
 		p2.SetPayload(&prepareResponse{
 			preparationHash: p1.Hash(),
@@ -91,7 +90,7 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 
 	t.Run("change view is added", func(t *testing.T) {
 		p3 := NewPayload(netmode.UnitTestNet, enableStateRoot)
-		p3.SetType(payload.ChangeViewType)
+		p3.SetType(dbft.ChangeViewType)
 		p3.SetHeight(msgHeight)
 		p3.SetPayload(&changeView{
 			newViewNumber: 1,
@@ -115,7 +114,7 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 
 	t.Run("commit is added", func(t *testing.T) {
 		p4 := NewPayload(netmode.UnitTestNet, enableStateRoot)
-		p4.SetType(payload.CommitType)
+		p4.SetType(dbft.CommitType)
 		p4.SetHeight(msgHeight)
 		p4.SetPayload(randomMessage(t, commitType))
 		p4.SetValidatorIndex(3)

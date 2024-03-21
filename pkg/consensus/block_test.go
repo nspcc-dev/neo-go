@@ -3,7 +3,7 @@ package consensus
 import (
 	"testing"
 
-	"github.com/nspcc-dev/dbft/block"
+	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -41,7 +41,7 @@ func TestNeoBlock_Setters(t *testing.T) {
 	b.Block.PrevHash = util.Uint256{9, 8, 7}
 	require.Equal(t, util.Uint256{9, 8, 7}, b.PrevHash())
 
-	txx := []block.Transaction{transaction.New([]byte{byte(opcode.PUSH1)}, 1)}
+	txx := []dbft.Transaction[util.Uint256]{transaction.New([]byte{byte(opcode.PUSH1)}, 1)}
 	b.SetTransactions(txx)
 	require.Equal(t, txx, b.Transactions())
 }
