@@ -29,17 +29,5 @@ func (c *changeView) DecodeBinary(r *io.BinReader) {
 // NewViewNumber implements the payload.ChangeView interface.
 func (c changeView) NewViewNumber() byte { return c.newViewNumber }
 
-// SetNewViewNumber implements the payload.ChangeView interface.
-func (c *changeView) SetNewViewNumber(view byte) { c.newViewNumber = view }
-
-// Timestamp implements the payload.ChangeView interface.
-func (c changeView) Timestamp() uint64 { return c.timestamp * nsInMs }
-
-// SetTimestamp implements the payload.ChangeView interface.
-func (c *changeView) SetTimestamp(ts uint64) { c.timestamp = ts / nsInMs }
-
 // Reason implements the payload.ChangeView interface.
 func (c changeView) Reason() dbft.ChangeViewReason { return c.reason }
-
-// SetReason implements the payload.ChangeView interface.
-func (c *changeView) SetReason(reason dbft.ChangeViewReason) { c.reason = reason }

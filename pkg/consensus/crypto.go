@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 
+	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 )
 
@@ -12,6 +13,8 @@ import (
 type privateKey struct {
 	*keys.PrivateKey
 }
+
+var _ dbft.PrivateKey = &privateKey{}
 
 // Sign implements the dbft's crypto.PrivateKey interface.
 func (p *privateKey) Sign(data []byte) ([]byte, error) {
@@ -23,6 +26,8 @@ func (p *privateKey) Sign(data []byte) ([]byte, error) {
 type publicKey struct {
 	*keys.PublicKey
 }
+
+var _ dbft.PublicKey = &publicKey{}
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface.
 func (p publicKey) MarshalBinary() (data []byte, err error) {

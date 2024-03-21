@@ -3,7 +3,6 @@ package consensus
 import (
 	"testing"
 
-	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/stretchr/testify/require"
 )
@@ -52,8 +51,8 @@ func getDifferentPayloads(t *testing.T, n int) (payloads []Payload) {
 		var sign [signatureSize]byte
 		random.Fill(sign[:])
 
-		payloads[i].SetValidatorIndex(uint16(i))
-		payloads[i].SetType(dbft.MessageType(commitType))
+		payloads[i].message.ValidatorIndex = byte(i)
+		payloads[i].message.Type = commitType
 		payloads[i].payload = &commit{
 			signature: sign,
 		}

@@ -56,9 +56,6 @@ func (n *neoBlock) SetTransactions(txes []dbft.Transaction[util.Uint256]) {
 	}
 }
 
-// Version implements the block.Block interface.
-func (n *neoBlock) Version() uint32 { return n.Block.Version }
-
 // PrevHash implements the block.Block interface.
 func (n *neoBlock) PrevHash() util.Uint256 { return n.Block.PrevHash }
 
@@ -70,12 +67,6 @@ func (n *neoBlock) Timestamp() uint64 { return n.Block.Timestamp * nsInMs }
 
 // Index implements the block.Block interface.
 func (n *neoBlock) Index() uint32 { return n.Block.Index }
-
-// ConsensusData implements the block.Block interface.
-func (n *neoBlock) ConsensusData() uint64 { return n.Block.Nonce }
-
-// NextConsensus implements the block.Block interface.
-func (n *neoBlock) NextConsensus() util.Uint160 { return n.Block.NextConsensus }
 
 // Signature implements the block.Block interface.
 func (n *neoBlock) Signature() []byte { return n.signature }

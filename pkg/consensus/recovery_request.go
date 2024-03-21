@@ -24,6 +24,3 @@ func (m *recoveryRequest) EncodeBinary(w *io.BinWriter) {
 
 // Timestamp implements the payload.RecoveryRequest interface.
 func (m *recoveryRequest) Timestamp() uint64 { return m.timestamp * nsInMs }
-
-// SetTimestamp implements the payload.RecoveryRequest interface.
-func (m *recoveryRequest) SetTimestamp(ts uint64) { m.timestamp = ts / nsInMs }

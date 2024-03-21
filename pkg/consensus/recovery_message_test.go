@@ -31,9 +31,9 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 
 	r := &recoveryMessage{stateRootEnabled: enableStateRoot}
 	p := NewPayload(netmode.UnitTestNet, enableStateRoot)
-	p.SetType(dbft.RecoveryMessageType)
-	p.SetHeight(msgHeight)
-	p.SetPayload(r)
+	p.message.Type = messageType(dbft.RecoveryMessageType)
+	p.BlockIndex = msgHeight
+	p.payload = r
 	// sign payload to have verification script
 	require.NoError(t, p.Sign(privs[0]))
 
@@ -43,21 +43,21 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 		stateRootEnabled:  enableStateRoot,
 	}
 	p1 := NewPayload(netmode.UnitTestNet, enableStateRoot)
-	p1.SetType(dbft.PrepareRequestType)
-	p1.SetHeight(msgHeight)
-	p1.SetPayload(req)
-	p1.SetValidatorIndex(0)
+	p1.message.Type = messageType(dbft.PrepareRequestType)
+	p1.BlockIndex = msgHeight
+	p1.payload = req
+	p1.message.ValidatorIndex = 0
 	p1.Sender = privs[0].GetScriptHash()
 	require.NoError(t, p1.Sign(privs[0]))
 
 	t.Run("prepare response is added", func(t *testing.T) {
 		p2 := NewPayload(netmode.UnitTestNet, enableStateRoot)
-		p2.SetType(dbft.PrepareResponseType)
-		p2.SetHeight(msgHeight)
-		p2.SetPayload(&prepareResponse{
+		p2.message.Type = messageType(dbft.PrepareResponseType)
+		p2.BlockIndex = msgHeight
+		p2.payload = &prepareResponse{
 			preparationHash: p1.Hash(),
-		})
-		p2.SetValidatorIndex(1)
+		}
+		p2.message.ValidatorIndex = 1
 		p2.Sender = privs[1].GetScriptHash()
 		require.NoError(t, p2.Sign(privs[1]))
 
@@ -90,13 +90,13 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 
 	t.Run("change view is added", func(t *testing.T) {
 		p3 := NewPayload(netmode.UnitTestNet, enableStateRoot)
-		p3.SetType(dbft.ChangeViewType)
-		p3.SetHeight(msgHeight)
-		p3.SetPayload(&changeView{
+		p3.message.Type = messageType(dbft.ChangeViewType)
+		p3.BlockIndex = msgHeight
+		p3.payload = &changeView{
 			newViewNumber: 1,
 			timestamp:     12345,
-		})
-		p3.SetValidatorIndex(3)
+		}
+		p3.message.ValidatorIndex = 3
 		p3.Sender = privs[3].GetScriptHash()
 		require.NoError(t, p3.Sign(privs[3]))
 
@@ -114,10 +114,10 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 
 	t.Run("commit is added", func(t *testing.T) {
 		p4 := NewPayload(netmode.UnitTestNet, enableStateRoot)
-		p4.SetType(dbft.CommitType)
-		p4.SetHeight(msgHeight)
-		p4.SetPayload(randomMessage(t, commitType))
-		p4.SetValidatorIndex(3)
+		p4.message.Type = messageType(dbft.CommitType)
+		p4.BlockIndex = msgHeight
+		p4.payload = randomMessage(t, commitType)
+		p4.message.ValidatorIndex = 3
 		p4.Sender = privs[3].GetScriptHash()
 		require.NoError(t, p4.Sign(privs[3]))
 

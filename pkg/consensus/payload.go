@@ -44,6 +44,8 @@ const (
 	payloadGasLimit = 2000000 // 0.02 GAS
 )
 
+var _ dbft.ConsensusPayload[util.Uint256] = &Payload{}
+
 // ViewNumber implements the payload.ConsensusPayload interface.
 func (p Payload) ViewNumber() byte {
 	return p.message.ViewNumber
@@ -59,19 +61,9 @@ func (p Payload) Type() dbft.MessageType {
 	return dbft.MessageType(p.message.Type)
 }
 
-// SetType implements the payload.ConsensusPayload interface.
-func (p *Payload) SetType(t dbft.MessageType) {
-	p.message.Type = messageType(t)
-}
-
 // Payload implements the payload.ConsensusPayload interface.
 func (p Payload) Payload() any {
 	return p.payload
-}
-
-// SetPayload implements the payload.ConsensusPayload interface.
-func (p *Payload) SetPayload(pl any) {
-	p.payload = pl.(io.Serializable)
 }
 
 // GetChangeView implements the payload.ConsensusPayload interface.
@@ -113,11 +105,6 @@ func (p *Payload) SetValidatorIndex(i uint16) {
 // Height implements the payload.ConsensusPayload interface.
 func (p Payload) Height() uint32 {
 	return p.message.BlockIndex
-}
-
-// SetHeight implements the payload.ConsensusPayload interface.
-func (p *Payload) SetHeight(h uint32) {
-	p.message.BlockIndex = h
 }
 
 // EncodeBinary implements the io.Serializable interface.

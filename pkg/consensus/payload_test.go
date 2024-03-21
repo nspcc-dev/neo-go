@@ -29,50 +29,45 @@ var messageTypes = []messageType{
 	recoveryMessageType,
 }
 
-func TestConsensusPayload_Setters(t *testing.T) {
-	var p Payload
+func TestConsensusPayload_Getters(t *testing.T) {
+	var p = &Payload{
+		Extensible: npayload.Extensible{},
+		message: message{
+			Type:           prepareRequestType,
+			BlockIndex:     11,
+			ValidatorIndex: 4,
+			ViewNumber:     2,
+		},
+	}
 
-	//p.SetVersion(1)
-	//assert.EqualValues(t, 1, p.Version())
-
-	//p.SetPrevHash(util.Uint256{1, 2, 3})
-	//assert.Equal(t, util.Uint256{1, 2, 3}, p.PrevHash())
-
-	p.SetValidatorIndex(4)
 	assert.EqualValues(t, 4, p.ValidatorIndex())
-
-	p.SetHeight(11)
 	assert.EqualValues(t, 11, p.Height())
-
-	p.SetViewNumber(2)
 	assert.EqualValues(t, 2, p.ViewNumber())
-
-	p.SetType(dbft.PrepareRequestType)
 	assert.Equal(t, dbft.PrepareRequestType, p.Type())
 
 	pl := randomMessage(t, prepareRequestType)
-	p.SetPayload(pl)
+	p.payload = pl
 	require.Equal(t, pl, p.Payload())
 	require.Equal(t, pl, p.GetPrepareRequest())
 
 	pl = randomMessage(t, prepareResponseType)
-	p.SetPayload(pl)
+	p.payload = pl
 	require.Equal(t, pl, p.GetPrepareResponse())
 
 	pl = randomMessage(t, commitType)
-	p.SetPayload(pl)
+	p.payload = pl
 	require.Equal(t, pl, p.GetCommit())
 
 	pl = randomMessage(t, changeViewType)
-	p.SetPayload(pl)
+	p.payload = pl
 	require.Equal(t, pl, p.GetChangeView())
 
 	pl = randomMessage(t, recoveryRequestType)
-	p.SetPayload(pl)
+	p.payload = pl
 	require.Equal(t, pl, p.GetRecoveryRequest())
 
 	pl = randomMessage(t, recoveryMessageType)
-	p.SetPayload(pl)
+	p.payload = pl
 	require.Equal(t, pl, p.GetRecoveryMessage())
 }
 

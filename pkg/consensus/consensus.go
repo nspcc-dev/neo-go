@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/dbft"
+	"github.com/nspcc-dev/dbft/timer"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -179,6 +180,7 @@ func NewService(cfg Config) (Service, error) {
 	}
 
 	srv.dbft = dbft.New[util.Uint256](
+		dbft.WithTimer[util.Uint256](timer.New()),
 		dbft.WithLogger[util.Uint256](srv.log),
 		dbft.WithSecondsPerBlock[util.Uint256](cfg.TimePerBlock),
 		dbft.WithGetKeyPair[util.Uint256](srv.getKeyPair),
@@ -234,15 +236,15 @@ func NewPayload(m netmode.Magic, stateRootEnabled bool) *Payload {
 
 func (s *service) newPayload(c *dbft.Context[util.Uint256], t dbft.MessageType, msg any) dbft.ConsensusPayload[util.Uint256] {
 	cp := NewPayload(s.ProtocolConfiguration.Magic, s.ProtocolConfiguration.StateRootInHeader)
-	cp.SetHeight(c.BlockIndex)
-	cp.SetValidatorIndex(uint16(c.MyIndex))
-	cp.SetViewNumber(c.ViewNumber)
-	cp.SetType(t)
+	cp.BlockIndex = c.BlockIndex
+	cp.message.ValidatorIndex = byte(c.MyIndex)
+	cp.message.ViewNumber = c.ViewNumber
+	cp.message.Type = messageType(t)
 	if pr, ok := msg.(*prepareRequest); ok {
-		pr.SetPrevHash(s.dbft.PrevHash)
-		pr.SetVersion(coreb.VersionInitial)
+		pr.prevHash = s.dbft.PrevHash
+		pr.version = coreb.VersionInitial
 	}
-	cp.SetPayload(msg)
+	cp.payload = msg.(io.Serializable)
 
 	cp.Extensible.ValidBlockStart = 0
 	cp.Extensible.ValidBlockEnd = c.BlockIndex

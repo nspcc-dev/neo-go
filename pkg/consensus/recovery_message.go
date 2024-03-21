@@ -201,7 +201,7 @@ func (m *recoveryMessage) GetPrepareRequest(p dbft.ConsensusPayload[util.Uint256
 	}
 
 	req := fromPayload(prepareRequestType, p.(*Payload), m.prepareRequest.payload)
-	req.SetValidatorIndex(primary)
+	req.message.ValidatorIndex = byte(primary)
 	req.Sender = validators[primary].(*publicKey).GetScriptHash()
 	req.Witness.InvocationScript = compact.InvocationScript
 	req.Witness.VerificationScript = getVerificationScript(uint8(primary), validators)
@@ -221,7 +221,7 @@ func (m *recoveryMessage) GetPrepareResponses(p dbft.ConsensusPayload[util.Uint2
 		r := fromPayload(prepareResponseType, p.(*Payload), &prepareResponse{
 			preparationHash: *m.preparationHash,
 		})
-		r.SetValidatorIndex(uint16(resp.ValidatorIndex))
+		r.message.ValidatorIndex = resp.ValidatorIndex
 		r.Sender = validators[resp.ValidatorIndex].(*publicKey).GetScriptHash()
 		r.Witness.InvocationScript = resp.InvocationScript
 		r.Witness.VerificationScript = getVerificationScript(resp.ValidatorIndex, validators)
@@ -242,7 +242,7 @@ func (m *recoveryMessage) GetChangeViews(p dbft.ConsensusPayload[util.Uint256], 
 			timestamp:     cv.Timestamp,
 		})
 		c.message.ViewNumber = cv.OriginalViewNumber
-		c.SetValidatorIndex(uint16(cv.ValidatorIndex))
+		c.message.ValidatorIndex = cv.ValidatorIndex
 		c.Sender = validators[cv.ValidatorIndex].(*publicKey).GetScriptHash()
 		c.Witness.InvocationScript = cv.InvocationScript
 		c.Witness.VerificationScript = getVerificationScript(cv.ValidatorIndex, validators)
@@ -259,7 +259,7 @@ func (m *recoveryMessage) GetCommits(p dbft.ConsensusPayload[util.Uint256], vali
 
 	for i, c := range m.commitPayloads {
 		cc := fromPayload(commitType, p.(*Payload), &commit{signature: c.Signature})
-		cc.SetValidatorIndex(uint16(c.ValidatorIndex))
+		cc.message.ValidatorIndex = c.ValidatorIndex
 		cc.Sender = validators[c.ValidatorIndex].(*publicKey).GetScriptHash()
 		cc.Witness.InvocationScript = c.InvocationScript
 		cc.Witness.VerificationScript = getVerificationScript(c.ValidatorIndex, validators)
@@ -273,11 +273,6 @@ func (m *recoveryMessage) GetCommits(p dbft.ConsensusPayload[util.Uint256], vali
 // PreparationHash implements the payload.RecoveryMessage interface.
 func (m *recoveryMessage) PreparationHash() *util.Uint256 {
 	return m.preparationHash
-}
-
-// SetPreparationHash implements the payload.RecoveryMessage interface.
-func (m *recoveryMessage) SetPreparationHash(h *util.Uint256) {
-	m.preparationHash = h
 }
 
 func getVerificationScript(i uint8, validators []dbft.PublicKey) []byte {

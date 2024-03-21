@@ -22,9 +22,6 @@ func TestNeoBlock_Sign(t *testing.T) {
 func TestNeoBlock_Setters(t *testing.T) {
 	b := new(neoBlock)
 
-	b.Block.Version = 1
-	require.EqualValues(t, 1, b.Version())
-
 	b.Block.Index = 12
 	require.EqualValues(t, 12, b.Index())
 
@@ -34,9 +31,6 @@ func TestNeoBlock_Setters(t *testing.T) {
 
 	b.Block.MerkleRoot = util.Uint256{1, 2, 3, 4}
 	require.Equal(t, util.Uint256{1, 2, 3, 4}, b.MerkleRoot())
-
-	b.Block.NextConsensus = util.Uint160{9, 2}
-	require.Equal(t, util.Uint160{9, 2}, b.NextConsensus())
 
 	b.Block.PrevHash = util.Uint256{9, 8, 7}
 	require.Equal(t, util.Uint256{9, 8, 7}, b.PrevHash())

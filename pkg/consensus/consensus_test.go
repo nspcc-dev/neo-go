@@ -212,14 +212,14 @@ func TestService_GetVerified(t *testing.T) {
 		p := new(Payload)
 		// One PrepareRequest and three ChangeViews.
 		if i == 1 {
-			p.SetType(dbft.PrepareRequestType)
-			p.SetPayload(&prepareRequest{prevHash: srv.Chain.CurrentBlockHash(), transactionHashes: hashes})
+			p.message.Type = messageType(dbft.PrepareRequestType)
+			p.payload = &prepareRequest{prevHash: srv.Chain.CurrentBlockHash(), transactionHashes: hashes}
 		} else {
-			p.SetType(dbft.ChangeViewType)
-			p.SetPayload(&changeView{newViewNumber: 1, timestamp: uint64(time.Now().UnixNano() / nsInMs)})
+			p.message.Type = messageType(dbft.ChangeViewType)
+			p.payload = &changeView{newViewNumber: 1, timestamp: uint64(time.Now().UnixNano() / nsInMs)}
 		}
-		p.SetHeight(1)
-		p.SetValidatorIndex(uint16(i))
+		p.BlockIndex = 1
+		p.message.ValidatorIndex = byte(i)
 
 		priv, _ := getTestValidator(i)
 		require.NoError(t, p.Sign(priv))
@@ -253,10 +253,10 @@ func TestService_ValidatePayload(t *testing.T) {
 	priv, _ := getTestValidator(1)
 	p := new(Payload)
 	p.Sender = priv.GetScriptHash()
-	p.SetPayload(&prepareRequest{})
+	p.payload = &prepareRequest{}
 
 	t.Run("invalid validator index", func(t *testing.T) {
-		p.SetValidatorIndex(11)
+		p.message.ValidatorIndex = 11
 		require.NoError(t, p.Sign(priv))
 
 		var ok bool
@@ -265,20 +265,20 @@ func TestService_ValidatePayload(t *testing.T) {
 	})
 
 	t.Run("wrong validator index", func(t *testing.T) {
-		p.SetValidatorIndex(2)
+		p.message.ValidatorIndex = 2
 		require.NoError(t, p.Sign(priv))
 		require.False(t, srv.validatePayload(p))
 	})
 
 	t.Run("invalid sender", func(t *testing.T) {
-		p.SetValidatorIndex(1)
+		p.message.ValidatorIndex = 1
 		p.Sender = util.Uint160{}
 		require.NoError(t, p.Sign(priv))
 		require.False(t, srv.validatePayload(p))
 	})
 
 	t.Run("normal case", func(t *testing.T) {
-		p.SetValidatorIndex(1)
+		p.message.ValidatorIndex = 1
 		p.Sender = priv.GetScriptHash()
 		require.NoError(t, p.Sign(priv))
 		require.True(t, srv.validatePayload(p))
@@ -328,12 +328,12 @@ func TestService_PrepareRequest(t *testing.T) {
 
 	priv, _ := getTestValidator(1)
 	p := new(Payload)
-	p.SetValidatorIndex(1)
+	p.message.ValidatorIndex = 1
 
 	prevHash := srv.Chain.CurrentBlockHash()
 
 	checkRequest := func(t *testing.T, expectedErr error, req *prepareRequest) {
-		p.SetPayload(req)
+		p.payload = req
 		require.NoError(t, p.Sign(priv))
 		err := srv.verifyRequest(p)
 		if expectedErr == nil {
@@ -375,8 +375,8 @@ func TestService_OnPayload(t *testing.T) {
 
 	priv, _ := getTestValidator(1)
 	p := new(Payload)
-	p.SetValidatorIndex(1)
-	p.SetPayload(&prepareRequest{})
+	p.message.ValidatorIndex = 1
+	p.payload = &prepareRequest{}
 	p.encodeData()
 
 	// sender is invalid
@@ -384,9 +384,9 @@ func TestService_OnPayload(t *testing.T) {
 	shouldNotReceive(t, srv.messages)
 
 	p = new(Payload)
-	p.SetValidatorIndex(1)
+	p.message.ValidatorIndex = 1
 	p.Sender = priv.GetScriptHash()
-	p.SetPayload(&prepareRequest{})
+	p.payload = &prepareRequest{}
 	require.NoError(t, p.Sign(priv))
 	require.NoError(t, srv.OnPayload(&p.Extensible))
 	shouldReceive(t, srv.messages)

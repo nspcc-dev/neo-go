@@ -28,8 +28,3 @@ func (c *commit) DecodeBinary(r *io.BinReader) {
 
 // Signature implements the payload.Commit interface.
 func (c commit) Signature() []byte { return c.signature[:] }
-
-// SetSignature implements the payload.Commit interface.
-func (c *commit) SetSignature(signature []byte) {
-	copy(c.signature[:], signature)
-}
