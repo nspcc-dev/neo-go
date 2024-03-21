@@ -52,6 +52,16 @@ func (k keysWithVotes) toStackItem() stackitem.Item {
 	return stackitem.NewArray(arr)
 }
 
+// toNotificationItem converts keysWithVotes to a stackitem.Item suitable for use in a notification,
+// including public keys only.
+func (k keysWithVotes) toNotificationItem() stackitem.Item {
+	arr := make([]stackitem.Item, len(k))
+	for i := range k {
+		arr[i] = stackitem.NewByteArray([]byte(k[i].Key))
+	}
+	return stackitem.NewArray(arr)
+}
+
 func (k *keysWithVotes) fromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {

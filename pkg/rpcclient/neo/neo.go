@@ -75,6 +75,12 @@ type CandidateStateEvent struct {
 	Votes      *big.Int
 }
 
+// CommitteeChangedEvent represents a CommitteeChanged NEO event.
+type CommitteeChangedEvent struct {
+	Old []keys.PublicKey
+	New []keys.PublicKey
+}
+
 // VoteEvent represents a Vote NEO event.
 type VoteEvent struct {
 	Account util.Uint160
