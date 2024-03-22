@@ -179,7 +179,7 @@ func NewService(cfg Config) (Service, error) {
 		}
 	}
 
-	srv.dbft = dbft.New[util.Uint256](
+	srv.dbft, err = dbft.New[util.Uint256](
 		dbft.WithTimer[util.Uint256](timer.New()),
 		dbft.WithLogger[util.Uint256](srv.log),
 		dbft.WithSecondsPerBlock[util.Uint256](cfg.TimePerBlock),
@@ -209,8 +209,8 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithVerifyPrepareResponse[util.Uint256](srv.verifyResponse),
 	)
 
-	if srv.dbft == nil {
-		return nil, errors.New("can't initialize dBFT")
+	if err != nil {
+		return nil, fmt.Errorf("can't initialize dBFT: %w", err)
 	}
 
 	return srv, nil
