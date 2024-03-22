@@ -2,6 +2,7 @@ package rpcsrv
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	gio "io"
 	"math"
 	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -3458,7 +3460,15 @@ func checkErrGetBatchResult(t *testing.T, body []byte, expectingFail bool, expec
 }
 
 func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
-	dialer := websocket.Dialer{HandshakeTimeout: time.Second}
+	dialer := websocket.Dialer{
+		HandshakeTimeout: 5 * time.Second,
+		NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			dialer := net.Dialer{Timeout: 3 * time.Second,
+				KeepAlive:     30 * time.Second,
+				FallbackDelay: -1}
+			return dialer.DialContext(ctx, "tcp4", addr)
+		},
+	}
 	url = "ws" + strings.TrimPrefix(url, "http")
 	c, r, err := dialer.Dial(url+"/ws", nil)
 	require.NoError(t, err)
@@ -3475,7 +3485,18 @@ func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
 }
 
 func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
-	cl := http.Client{Timeout: time.Second}
+	cl := http.Client{Timeout: 3 * time.Second, Transport: &http.Transport{
+		MaxIdleConns:        50,
+		MaxConnsPerHost:     50,
+		MaxIdleConnsPerHost: 50,
+		IdleConnTimeout:     3 * time.Second,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			dialer := net.Dialer{Timeout: 3 * time.Second,
+				KeepAlive:     30 * time.Second,
+				FallbackDelay: -1}
+			return dialer.DialContext(ctx, "tcp4", addr)
+		},
+	}}
 	resp, err := cl.Post(url, "application/json", strings.NewReader(rpcCall))
 	require.NoErrorf(t, err, "could not make a POST request")
 	body, err := gio.ReadAll(resp.Body)
@@ -4160,7 +4181,12 @@ func TestErrorResponseContentType(t *testing.T) {
 		req                 = `{"jsonrpc":"2.0", "method":"unknown","params":[]}`
 	)
 
-	cl := http.Client{Timeout: time.Second}
+	cl := http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{MaxIdleConns: 50, MaxIdleConnsPerHost: 50, IdleConnTimeout: 5 * time.Second,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			dialer := net.Dialer{Timeout: 5 * time.Second}
+			return dialer.DialContext(ctx, "tcp4", addr)
+		},
+	}}
 	resp, err := cl.Post(httpSrv.URL, "application/json", strings.NewReader(req))
 	require.NoErrorf(t, err, "could not make a POST request")
 	resp.Body.Close()
