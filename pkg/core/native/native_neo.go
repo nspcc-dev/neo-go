@@ -232,6 +232,10 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	md = newMethodAndPrice(n.getCommittee, 1<<16, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
+	desc = newDescriptor("getCommitteeAddress", smartcontract.Hash160Type)
+	md = newMethodAndPrice(n.getCommitteeAddress, 1<<16, callflag.ReadStates)
+	n.AddMethod(md, desc)
+
 	desc = newDescriptor("getNextBlockValidators", smartcontract.ArrayType)
 	md = newMethodAndPrice(n.getNextBlockValidators, 1<<16, callflag.ReadStates)
 	n.AddMethod(md, desc)
@@ -1069,6 +1073,10 @@ func (n *NEO) getCandidatesCall(ic *interop.Context, _ []stackitem.Item) stackit
 		})
 	}
 	return stackitem.NewArray(arr)
+}
+
+func (n *NEO) getCommitteeAddress(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewByteArray(n.GetCommitteeAddress(ic.DAO).BytesBE())
 }
 
 func (n *NEO) getAllCandidatesCall(ic *interop.Context, _ []stackitem.Item) stackitem.Item {

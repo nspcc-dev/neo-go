@@ -233,6 +233,11 @@ func (c *ContractReader) GetCommittee() (keys.PublicKeys, error) {
 	return unwrap.ArrayOfPublicKeys(c.invoker.Call(Hash, "getCommittee"))
 }
 
+// GetCommitteeAddress returns the committee address.
+func (c *ContractReader) GetCommitteeAddress() (util.Uint160, error) {
+	return unwrap.Uint160(c.invoker.Call(Hash, "getCommitteeAddress"))
+}
+
 // GetNextBlockValidators returns the list of validator keys that will sign the
 // next block. This method is mostly useful for historic invocations because the
 // RPC protocol provides direct getnextblockvalidators call that provides more
