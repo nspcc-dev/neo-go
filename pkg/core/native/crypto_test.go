@@ -30,6 +30,58 @@ func TestSha256(t *testing.T) {
 	})
 }
 
+// TestKeccak256_Compat is a C# node compatibility test with data taken from https://github.com/Jim8y/neo/blob/560d35783e428d31e3681eaa7ee9ed00a8a50d09/tests/Neo.UnitTests/SmartContract/Native/UT_CryptoLib.cs#L340
+func TestKeccak256_Compat(t *testing.T) {
+	c := newCrypto()
+	ic := &interop.Context{VM: vm.New()}
+
+	t.Run("good", func(t *testing.T) {
+		testCases := []struct {
+			name         string
+			input        []byte
+			expectedHash string
+		}{
+			{"good", []byte{1, 0}, "628bf3596747d233f1e6533345700066bf458fa48daedaf04a7be6c392902476"},
+			{"hello world", []byte("Hello, World!"), "acaf3289d7b601cbd114fb36c4d29c85bbfd5e133f14cb355c3fd8d99367964f"},
+			{"keccak", []byte("Keccak"), "868c016b666c7d3698636ee1bd023f3f065621514ab61bf26f062c175fdbe7f2"},
+			{"cryptography", []byte("Cryptography"), "53d49d225dd2cfe77d8c5e2112bcc9efe77bea1c7aa5e5ede5798a36e99e2d29"},
+			{"testing123", []byte("Testing123"), "3f82db7b16b0818a1c6b2c6152e265f682d5ebcf497c9aad776ad38bc39cb6ca"},
+			{"long string", []byte("This is a longer string for Keccak256 testing purposes."), "24115e5c2359f85f6840b42acd2f7ea47bc239583e576d766fa173bf711bdd2f"},
+			{"blank string", []byte(""), "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"},
+		}
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				result := c.keccak256(ic, []stackitem.Item{stackitem.NewByteArray(tc.input)}).Value().([]byte)
+				outputHashHex := hex.EncodeToString(result)
+				require.Equal(t, tc.expectedHash, outputHashHex)
+			})
+		}
+	})
+	t.Run("errors", func(t *testing.T) {
+		errCases := []struct {
+			name string
+			item stackitem.Item
+		}{
+			{
+				name: "Null item",
+				item: stackitem.Null{},
+			},
+			{
+				name: "not a byte array",
+				item: stackitem.NewArray([]stackitem.Item{stackitem.NewBool(true)}),
+			},
+		}
+
+		for _, tc := range errCases {
+			t.Run(tc.name, func(t *testing.T) {
+				require.Panics(t, func() {
+					_ = c.keccak256(ic, []stackitem.Item{tc.item})
+				}, "keccak256 should panic with incorrect argument types")
+			})
+		}
+	})
+}
+
 func TestRIPEMD160(t *testing.T) {
 	c := newCrypto()
 	ic := &interop.Context{VM: vm.New()}
