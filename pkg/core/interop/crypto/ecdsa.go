@@ -18,14 +18,14 @@ import (
 func ECDSASecp256r1CheckMultisig(ic *interop.Context) error {
 	pkeys, err := ic.VM.Estack().PopSigElements()
 	if err != nil {
-		return fmt.Errorf("wrong parameters: %w", err)
+		return fmt.Errorf("wrong key parameters: %w", err)
 	}
 	if !ic.VM.AddGas(ic.BaseExecFee() * fee.ECDSAVerifyPrice * int64(len(pkeys))) {
 		return errors.New("gas limit exceeded")
 	}
 	sigs, err := ic.VM.Estack().PopSigElements()
 	if err != nil {
-		return fmt.Errorf("wrong parameters: %w", err)
+		return fmt.Errorf("wrong signature parameters: %w", err)
 	}
 	// It's ok to have more keys than there are signatures (it would
 	// just mean that some keys didn't sign), but not the other way around.
