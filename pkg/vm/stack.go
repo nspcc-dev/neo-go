@@ -345,7 +345,7 @@ func (s *Stack) PopSigElements() ([][]byte, error) {
 	default:
 		num = int(item.BigInt().Int64())
 		if num < 1 || num > s.Len() {
-			return nil, fmt.Errorf("wrong number of elements: %d", num)
+			return nil, fmt.Errorf("wrong number of elements: need %d, have %d", num, s.Len())
 		}
 		elems = make([][]byte, num)
 		for i := 0; i < num; i++ {
