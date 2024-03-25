@@ -4,9 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nspcc-dev/dbft/block"
-	"github.com/nspcc-dev/dbft/payload"
-	"github.com/nspcc-dev/dbft/timer"
+	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -38,7 +36,7 @@ func TestNewService(t *testing.T) {
 	signTx(t, srv.Chain, tx)
 	require.NoError(t, srv.Chain.PoolTx(tx))
 
-	var txx []block.Transaction
+	var txx []dbft.Transaction[util.Uint256]
 	require.NotPanics(t, func() { txx = srv.getVerifiedTx() })
 	require.Len(t, txx, 1)
 	require.Equal(t, tx, txx[0])
@@ -65,10 +63,10 @@ func TestNewWatchingService(t *testing.T) {
 
 func collectBlock(t *testing.T, bc *core.Blockchain, srv *service) {
 	h := bc.BlockHeight()
-	srv.dbft.OnTimeout(timer.HV{Height: srv.dbft.Context.BlockIndex}) // Collect and add block to the chain.
+	srv.dbft.OnTimeout(srv.dbft.Context.BlockIndex, 0) // Collect and add block to the chain.
 	header, err := bc.GetHeader(bc.GetHeaderHash(h + 1))
 	require.NoError(t, err)
-	srv.dbft.InitializeConsensus(0, header.Timestamp*nsInMs) // Init consensus manually at the next height, as we don't run the consensus service.
+	srv.dbft.Reset(header.Timestamp * nsInMs) // Init consensus manually at the next height, as we don't run the consensus service.
 }
 
 func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint32) (*service, *wallet.Account) {
@@ -102,7 +100,7 @@ func initServiceNextConsensus(t *testing.T, newAcc *wallet.Account, offset uint3
 	srv.dbft.Start(0)
 	header, err := bc.GetHeader(bc.GetHeaderHash(h + 1))
 	require.NoError(t, err)
-	srv.dbft.InitializeConsensus(0, header.Timestamp*nsInMs) // Init consensus manually at the next height, as we don't run the consensus service.
+	srv.dbft.Reset(header.Timestamp * nsInMs) // Init consensus manually at the next height, as we don't run the consensus service.
 
 	// Register new candidate.
 	b.Reset()
@@ -214,14 +212,14 @@ func TestService_GetVerified(t *testing.T) {
 		p := new(Payload)
 		// One PrepareRequest and three ChangeViews.
 		if i == 1 {
-			p.SetType(payload.PrepareRequestType)
-			p.SetPayload(&prepareRequest{prevHash: srv.Chain.CurrentBlockHash(), transactionHashes: hashes})
+			p.message.Type = messageType(dbft.PrepareRequestType)
+			p.payload = &prepareRequest{prevHash: srv.Chain.CurrentBlockHash(), transactionHashes: hashes}
 		} else {
-			p.SetType(payload.ChangeViewType)
-			p.SetPayload(&changeView{newViewNumber: 1, timestamp: uint64(time.Now().UnixNano() / nsInMs)})
+			p.message.Type = messageType(dbft.ChangeViewType)
+			p.payload = &changeView{newViewNumber: 1, timestamp: uint64(time.Now().UnixNano() / nsInMs)}
 		}
-		p.SetHeight(1)
-		p.SetValidatorIndex(uint16(i))
+		p.BlockIndex = 1
+		p.message.ValidatorIndex = byte(i)
 
 		priv, _ := getTestValidator(i)
 		require.NoError(t, p.Sign(priv))
@@ -255,10 +253,10 @@ func TestService_ValidatePayload(t *testing.T) {
 	priv, _ := getTestValidator(1)
 	p := new(Payload)
 	p.Sender = priv.GetScriptHash()
-	p.SetPayload(&prepareRequest{})
+	p.payload = &prepareRequest{}
 
 	t.Run("invalid validator index", func(t *testing.T) {
-		p.SetValidatorIndex(11)
+		p.message.ValidatorIndex = 11
 		require.NoError(t, p.Sign(priv))
 
 		var ok bool
@@ -267,20 +265,20 @@ func TestService_ValidatePayload(t *testing.T) {
 	})
 
 	t.Run("wrong validator index", func(t *testing.T) {
-		p.SetValidatorIndex(2)
+		p.message.ValidatorIndex = 2
 		require.NoError(t, p.Sign(priv))
 		require.False(t, srv.validatePayload(p))
 	})
 
 	t.Run("invalid sender", func(t *testing.T) {
-		p.SetValidatorIndex(1)
+		p.message.ValidatorIndex = 1
 		p.Sender = util.Uint160{}
 		require.NoError(t, p.Sign(priv))
 		require.False(t, srv.validatePayload(p))
 	})
 
 	t.Run("normal case", func(t *testing.T) {
-		p.SetValidatorIndex(1)
+		p.message.ValidatorIndex = 1
 		p.Sender = priv.GetScriptHash()
 		require.NoError(t, p.Sign(priv))
 		require.True(t, srv.validatePayload(p))
@@ -330,12 +328,12 @@ func TestService_PrepareRequest(t *testing.T) {
 
 	priv, _ := getTestValidator(1)
 	p := new(Payload)
-	p.SetValidatorIndex(1)
+	p.message.ValidatorIndex = 1
 
 	prevHash := srv.Chain.CurrentBlockHash()
 
 	checkRequest := func(t *testing.T, expectedErr error, req *prepareRequest) {
-		p.SetPayload(req)
+		p.payload = req
 		require.NoError(t, p.Sign(priv))
 		err := srv.verifyRequest(p)
 		if expectedErr == nil {
@@ -377,8 +375,8 @@ func TestService_OnPayload(t *testing.T) {
 
 	priv, _ := getTestValidator(1)
 	p := new(Payload)
-	p.SetValidatorIndex(1)
-	p.SetPayload(&prepareRequest{})
+	p.message.ValidatorIndex = 1
+	p.payload = &prepareRequest{}
 	p.encodeData()
 
 	// sender is invalid
@@ -386,9 +384,9 @@ func TestService_OnPayload(t *testing.T) {
 	shouldNotReceive(t, srv.messages)
 
 	p = new(Payload)
-	p.SetValidatorIndex(1)
+	p.message.ValidatorIndex = 1
 	p.Sender = priv.GetScriptHash()
-	p.SetPayload(&prepareRequest{})
+	p.payload = &prepareRequest{}
 	require.NoError(t, p.Sign(priv))
 	require.NoError(t, srv.OnPayload(&p.Extensible))
 	shouldReceive(t, srv.messages)

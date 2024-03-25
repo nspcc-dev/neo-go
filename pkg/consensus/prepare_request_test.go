@@ -10,24 +10,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPrepareRequest_Setters(t *testing.T) {
-	var p prepareRequest
+func TestPrepareRequest_Getters(t *testing.T) {
+	hashes := []util.Uint256{random.Uint256(), random.Uint256()}
+	var p = &prepareRequest{
+		version:           123,
+		prevHash:          util.Uint256{1, 2, 3},
+		timestamp:         123,
+		transactionHashes: hashes,
+	}
 
-	p.SetTimestamp(123)
-	// 123ns -> 0ms -> 0ns
-	require.EqualValues(t, 0, p.Timestamp())
-
-	p.SetTimestamp(1230000)
-	// 1230000ns -> 1ms -> 1000000ns
-	require.EqualValues(t, 1000000, p.Timestamp())
-
-	p.SetNextConsensus(util.Uint160{5, 6, 7})
-	require.Equal(t, util.Uint160{}, p.NextConsensus())
-
-	hashes := [2]util.Uint256{random.Uint256(), random.Uint256()}
-
-	p.SetTransactionHashes(hashes[:])
-	require.Equal(t, hashes[:], p.TransactionHashes())
+	require.EqualValues(t, 123000000, p.Timestamp())
+	require.Equal(t, hashes, p.TransactionHashes())
 }
 
 func TestPrepareRequest_EncodeDecodeBinary(t *testing.T) {

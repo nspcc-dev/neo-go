@@ -13,6 +13,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
+// VersionInitial is the default Neo block version.
+const VersionInitial uint32 = 0
+
 // Header holds the base info of a block.
 type Header struct {
 	// Version of the block.

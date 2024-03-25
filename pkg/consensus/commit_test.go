@@ -7,11 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCommit_Setters(t *testing.T) {
+func TestCommit_Getters(t *testing.T) {
 	var sign [signatureSize]byte
 	random.Fill(sign[:])
 
-	var c commit
-	c.SetSignature(sign[:])
+	var c = &commit{
+		signature: sign,
+	}
 	require.Equal(t, sign[:], c.Signature())
 }

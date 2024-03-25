@@ -1,7 +1,7 @@
 package consensus
 
 import (
-	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -18,7 +18,7 @@ type prepareRequest struct {
 	stateRoot         util.Uint256
 }
 
-var _ payload.PrepareRequest = (*prepareRequest)(nil)
+var _ dbft.PrepareRequest[util.Uint256] = (*prepareRequest)(nil)
 
 // EncodeBinary implements the io.Serializable interface.
 func (p *prepareRequest) EncodeBinary(w *io.BinWriter) {
@@ -47,46 +47,11 @@ func (p *prepareRequest) DecodeBinary(r *io.BinReader) {
 	}
 }
 
-// Version implements the payload.PrepareRequest interface.
-func (p prepareRequest) Version() uint32 {
-	return p.version
-}
-
-// SetVersion implements the payload.PrepareRequest interface.
-func (p *prepareRequest) SetVersion(v uint32) {
-	p.version = v
-}
-
-// PrevHash implements the payload.PrepareRequest interface.
-func (p prepareRequest) PrevHash() util.Uint256 {
-	return p.prevHash
-}
-
-// SetPrevHash implements the payload.PrepareRequest interface.
-func (p *prepareRequest) SetPrevHash(h util.Uint256) {
-	p.prevHash = h
-}
-
 // Timestamp implements the payload.PrepareRequest interface.
 func (p *prepareRequest) Timestamp() uint64 { return p.timestamp * nsInMs }
-
-// SetTimestamp implements the payload.PrepareRequest interface.
-func (p *prepareRequest) SetTimestamp(ts uint64) { p.timestamp = ts / nsInMs }
 
 // Nonce implements the payload.PrepareRequest interface.
 func (p *prepareRequest) Nonce() uint64 { return p.nonce }
 
-// SetNonce implements the payload.PrepareRequest interface.
-func (p *prepareRequest) SetNonce(nonce uint64) { p.nonce = nonce }
-
 // TransactionHashes implements the payload.PrepareRequest interface.
 func (p *prepareRequest) TransactionHashes() []util.Uint256 { return p.transactionHashes }
-
-// SetTransactionHashes implements the payload.PrepareRequest interface.
-func (p *prepareRequest) SetTransactionHashes(hs []util.Uint256) { p.transactionHashes = hs }
-
-// NextConsensus implements the payload.PrepareRequest interface.
-func (p *prepareRequest) NextConsensus() util.Uint160 { return util.Uint160{} }
-
-// SetNextConsensus implements the payload.PrepareRequest interface.
-func (p *prepareRequest) SetNextConsensus(_ util.Uint160) {}

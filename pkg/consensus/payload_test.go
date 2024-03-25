@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/nspcc-dev/dbft/payload"
+	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -29,50 +29,45 @@ var messageTypes = []messageType{
 	recoveryMessageType,
 }
 
-func TestConsensusPayload_Setters(t *testing.T) {
-	var p Payload
+func TestConsensusPayload_Getters(t *testing.T) {
+	var p = &Payload{
+		Extensible: npayload.Extensible{},
+		message: message{
+			Type:           prepareRequestType,
+			BlockIndex:     11,
+			ValidatorIndex: 4,
+			ViewNumber:     2,
+		},
+	}
 
-	//p.SetVersion(1)
-	//assert.EqualValues(t, 1, p.Version())
-
-	//p.SetPrevHash(util.Uint256{1, 2, 3})
-	//assert.Equal(t, util.Uint256{1, 2, 3}, p.PrevHash())
-
-	p.SetValidatorIndex(4)
 	assert.EqualValues(t, 4, p.ValidatorIndex())
-
-	p.SetHeight(11)
 	assert.EqualValues(t, 11, p.Height())
-
-	p.SetViewNumber(2)
 	assert.EqualValues(t, 2, p.ViewNumber())
-
-	p.SetType(payload.PrepareRequestType)
-	assert.Equal(t, payload.PrepareRequestType, p.Type())
+	assert.Equal(t, dbft.PrepareRequestType, p.Type())
 
 	pl := randomMessage(t, prepareRequestType)
-	p.SetPayload(pl)
+	p.payload = pl
 	require.Equal(t, pl, p.Payload())
 	require.Equal(t, pl, p.GetPrepareRequest())
 
 	pl = randomMessage(t, prepareResponseType)
-	p.SetPayload(pl)
+	p.payload = pl
 	require.Equal(t, pl, p.GetPrepareResponse())
 
 	pl = randomMessage(t, commitType)
-	p.SetPayload(pl)
+	p.payload = pl
 	require.Equal(t, pl, p.GetCommit())
 
 	pl = randomMessage(t, changeViewType)
-	p.SetPayload(pl)
+	p.payload = pl
 	require.Equal(t, pl, p.GetChangeView())
 
 	pl = randomMessage(t, recoveryRequestType)
-	p.SetPayload(pl)
+	p.payload = pl
 	require.Equal(t, pl, p.GetRecoveryRequest())
 
 	pl = randomMessage(t, recoveryMessageType)
-	p.SetPayload(pl)
+	p.payload = pl
 	require.Equal(t, pl, p.GetRecoveryMessage())
 }
 
@@ -290,7 +285,7 @@ func TestPayload_DecodeFromPrivnet(t *testing.T) {
 	p := NewPayload(netmode.PrivNet, false)
 	p.DecodeBinary(buf)
 	require.NoError(t, buf.Err)
-	require.Equal(t, payload.CommitType, p.Type())
+	require.Equal(t, dbft.CommitType, p.Type())
 	require.Equal(t, uint32(2), p.Height())
 	require.Equal(t, uint16(3), p.ValidatorIndex())
 	require.Equal(t, byte(0), p.ViewNumber())

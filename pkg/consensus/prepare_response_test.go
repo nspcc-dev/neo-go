@@ -8,8 +8,9 @@ import (
 )
 
 func TestPrepareResponse_Setters(t *testing.T) {
-	var p prepareResponse
+	var p = prepareResponse{
+		preparationHash: util.Uint256{1, 2, 3},
+	}
 
-	p.SetPreparationHash(util.Uint256{1, 2, 3})
 	require.Equal(t, util.Uint256{1, 2, 3}, p.PreparationHash())
 }
