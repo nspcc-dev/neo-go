@@ -46,7 +46,6 @@ var (
 
 func newStd() *Std {
 	s := &Std{ContractMD: *interop.NewContractMD(nativenames.StdLib, stdContractID)}
-	defer s.UpdateHash()
 
 	desc := newDescriptor("serialize", smartcontract.ByteArrayType,
 		manifest.NewParameter("item", smartcontract.AnyType))
@@ -439,7 +438,7 @@ func (s *Std) Metadata() *interop.ContractMD {
 }
 
 // Initialize implements the Contract interface.
-func (s *Std) Initialize(ic *interop.Context) error {
+func (s *Std) Initialize(ic *interop.Context, hf *config.Hardfork) error {
 	return nil
 }
 

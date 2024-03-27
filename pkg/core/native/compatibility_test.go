@@ -12,12 +12,14 @@ import (
 func TestNamesASCII(t *testing.T) {
 	cfg := config.ProtocolConfiguration{P2PSigExtensions: true}
 	cs := NewContracts(cfg)
+	latestHF := config.LatestHardfork()
 	for _, c := range cs.Contracts {
 		require.True(t, isASCII(c.Metadata().Name))
-		for _, m := range c.Metadata().Methods {
+		hfMD := c.Metadata().HFSpecificContractMD(&latestHF)
+		for _, m := range hfMD.Methods {
 			require.True(t, isASCII(m.MD.Name))
 		}
-		for _, e := range c.Metadata().Manifest.ABI.Events {
+		for _, e := range hfMD.Manifest.ABI.Events {
 			require.True(t, isASCII(e.Name))
 		}
 	}

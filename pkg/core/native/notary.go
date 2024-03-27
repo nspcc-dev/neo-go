@@ -73,7 +73,6 @@ func copyNotaryCache(src, dst *NotaryCache) {
 // newNotary returns Notary native contract.
 func newNotary() *Notary {
 	n := &Notary{ContractMD: *interop.NewContractMD(nativenames.Notary, notaryContractID)}
-	defer n.UpdateHash()
 
 	desc := newDescriptor("onNEP17Payment", smartcontract.VoidType,
 		manifest.NewParameter("from", smartcontract.Hash160Type),
@@ -127,7 +126,11 @@ func (n *Notary) Metadata() *interop.ContractMD {
 }
 
 // Initialize initializes Notary native contract and implements the Contract interface.
-func (n *Notary) Initialize(ic *interop.Context) error {
+func (n *Notary) Initialize(ic *interop.Context, hf *config.Hardfork) error {
+	if hf != n.ActiveIn() {
+		return nil
+	}
+
 	setIntWithKey(n.ID, ic.DAO, maxNotValidBeforeDeltaKey, defaultMaxNotValidBeforeDelta)
 
 	cache := &NotaryCache{

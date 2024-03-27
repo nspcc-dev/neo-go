@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -45,8 +46,9 @@ func (c *nep17TokenNative) Metadata() *interop.ContractMD {
 }
 
 func newNEP17Native(name string, id int32) *nep17TokenNative {
-	n := &nep17TokenNative{ContractMD: *interop.NewContractMD(name, id)}
-	n.Manifest.SupportedStandards = []string{manifest.NEP17StandardName}
+	n := &nep17TokenNative{ContractMD: *interop.NewContractMD(name, id, func(m *manifest.Manifest) {
+		m.SupportedStandards = []string{manifest.NEP17StandardName}
+	})}
 
 	desc := newDescriptor("symbol", smartcontract.StringType)
 	md := newMethodAndPrice(n.Symbol, 0, callflag.NoneFlag)
@@ -77,7 +79,9 @@ func newNEP17Native(name string, id int32) *nep17TokenNative {
 	md.StorageFee = 50
 	n.AddMethod(md, desc)
 
-	n.AddEvent("Transfer", transferParams...)
+	eDesc := newEventDescriptor("Transfer", transferParams...)
+	eMD := newEvent(eDesc)
+	n.AddEvent(eMD)
 
 	return n
 }
@@ -319,12 +323,40 @@ func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Para
 	}
 }
 
-func newMethodAndPrice(f interop.Method, cpuFee int64, flags callflag.CallFlag) *interop.MethodAndPrice {
-	return &interop.MethodAndPrice{
-		Func:          f,
-		CPUFee:        cpuFee,
-		RequiredFlags: flags,
+func newMethodAndPrice(f interop.Method, cpuFee int64, flags callflag.CallFlag, activeFrom ...config.Hardfork) *interop.MethodAndPrice {
+	md := &interop.MethodAndPrice{
+		HFSpecificMethodAndPrice: interop.HFSpecificMethodAndPrice{
+			Func:          f,
+			CPUFee:        cpuFee,
+			RequiredFlags: flags,
+		},
 	}
+	if len(activeFrom) != 0 {
+		md.ActiveFrom = &activeFrom[0]
+	}
+	return md
+}
+
+func newEventDescriptor(name string, ps ...manifest.Parameter) *manifest.Event {
+	if len(ps) == 0 {
+		ps = []manifest.Parameter{}
+	}
+	return &manifest.Event{
+		Name:       name,
+		Parameters: ps,
+	}
+}
+
+func newEvent(desc *manifest.Event, activeFrom ...config.Hardfork) interop.Event {
+	md := interop.Event{
+		HFSpecificEvent: interop.HFSpecificEvent{
+			MD: desc,
+		},
+	}
+	if len(activeFrom) != 0 {
+		md.ActiveFrom = &activeFrom[0]
+	}
+	return md
 }
 
 func toBigInt(s stackitem.Item) *big.Int {

@@ -32,17 +32,25 @@ func Call(ic *interop.Context) error {
 		return fmt.Errorf("native contract %s (version %d) not found", curr.StringLE(), version)
 	}
 	var (
-		meta     = c.Metadata()
-		activeIn = c.ActiveIn()
+		genericMeta = c.Metadata()
+		activeIn    = c.ActiveIn()
 	)
 	if activeIn != nil {
 		height, ok := ic.Hardforks[activeIn.String()]
 		// Persisting block must not be taken into account, native contract can be called
 		// only AFTER its initialization block persist, thus, can't use ic.IsHardforkEnabled.
 		if !ok || ic.BlockHeight() < height {
-			return fmt.Errorf("native contract %s is active after hardfork %s", meta.Name, activeIn.String())
+			return fmt.Errorf("native contract %s is active after hardfork %s", genericMeta.Name, activeIn.String())
 		}
 	}
+	var current config.Hardfork
+	for _, hf := range config.Hardforks {
+		if !ic.IsHardforkEnabled(hf) {
+			break
+		}
+		current = hf
+	}
+	meta := genericMeta.HFSpecificContractMD(&current)
 	m, ok := meta.GetMethodByOffset(ic.VM.Context().IP())
 	if !ok {
 		return fmt.Errorf("method not found")

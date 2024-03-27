@@ -41,7 +41,6 @@ const cryptoContractID = -3
 
 func newCrypto() *Crypto {
 	c := &Crypto{ContractMD: *interop.NewContractMD(nativenames.CryptoLib, cryptoContractID)}
-	defer c.UpdateHash()
 
 	desc := newDescriptor("sha256", smartcontract.ByteArrayType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
@@ -310,7 +309,7 @@ func (c *Crypto) Metadata() *interop.ContractMD {
 }
 
 // Initialize implements the Contract interface.
-func (c *Crypto) Initialize(ic *interop.Context) error {
+func (c *Crypto) Initialize(ic *interop.Context, hf *config.Hardfork) error {
 	return nil
 }
 

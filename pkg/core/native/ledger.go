@@ -31,7 +31,6 @@ func newLedger() *Ledger {
 	var l = &Ledger{
 		ContractMD: *interop.NewContractMD(nativenames.Ledger, ledgerContractID),
 	}
-	defer l.UpdateHash()
 
 	desc := newDescriptor("currentHash", smartcontract.Hash256Type)
 	md := newMethodAndPrice(l.currentHash, 1<<15, callflag.ReadStates)
@@ -81,7 +80,7 @@ func (l *Ledger) Metadata() *interop.ContractMD {
 }
 
 // Initialize implements the Contract interface.
-func (l *Ledger) Initialize(ic *interop.Context) error {
+func (l *Ledger) Initialize(ic *interop.Context, hf *config.Hardfork) error {
 	return nil
 }
 

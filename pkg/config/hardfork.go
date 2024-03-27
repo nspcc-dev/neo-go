@@ -36,9 +36,30 @@ func init() {
 	}
 }
 
+// Cmp returns the result of hardforks comparison. It returns:
+//
+//	-1 if hf <  other
+//	 0 if hf == other
+//	+1 if hf >  other
+func (hf Hardfork) Cmp(other Hardfork) int {
+	switch {
+	case hf == other:
+		return 0
+	case hf < other:
+		return -1
+	default:
+		return 1
+	}
+}
+
 // IsHardforkValid denotes whether the provided string represents a valid
 // Hardfork name.
 func IsHardforkValid(s string) bool {
 	_, ok := hardforks[s]
 	return ok
+}
+
+// LatestHardfork returns latest known hardfork.
+func LatestHardfork() Hardfork {
+	return hfLast >> 1
 }
