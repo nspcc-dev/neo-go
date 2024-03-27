@@ -75,7 +75,7 @@ func SignAndSend(ctx *cli.Context, act *actor.Actor, acc *wallet.Account, tx *tr
 			}
 			waitTime := time.Since(promptTime)
 			// Compensate for confirmation waiting.
-			tx.ValidUntilBlock += uint32((waitTime.Milliseconds() / int64(ver.Protocol.MillisecondsPerBlock))) + 1
+			tx.ValidUntilBlock += uint32(waitTime.Milliseconds()/int64(ver.Protocol.MillisecondsPerBlock)) + 2
 		}
 		var (
 			resTx util.Uint256
