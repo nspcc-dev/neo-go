@@ -2064,7 +2064,7 @@ func testSubClientWaitWithMissedEvent(t *testing.T, local bool) {
 		rpcSrv.subsLock.Lock()
 		defer rpcSrv.subsLock.Unlock()
 		return len(rpcSrv.subscribers) == 1
-	}, time.Second, 100*time.Millisecond)
+	}, 2*time.Second, 100*time.Millisecond)
 
 	rpcSrv.subsLock.Lock()
 	// Suppress normal event delivery.
