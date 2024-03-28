@@ -391,6 +391,7 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 
 	chain, rpcSrv, c, respMsgs, finishedFlag := initCleanServerAndWSClient(t)
 	rpcSrv.coreServer.Start()
+	defer rpcSrv.coreServer.Shutdown()
 
 	// blocks are needed to make GAS deposit for priv0
 	blocks := getTestBlocks(t)
