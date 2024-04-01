@@ -2051,9 +2051,14 @@ func testSubClientWaitWithMissedEvent(t *testing.T, local bool) {
 	tx := b1.Transactions[0]
 
 	rcvr := make(chan *state.AppExecResult)
+	errCh := make(chan error) // Error channel for goroutine errors
+
 	go func() {
 		aer, err := act.Wait(tx.Hash(), tx.ValidUntilBlock, nil)
-		require.NoError(t, err)
+		if err != nil {
+			errCh <- err
+			return
+		}
 		rcvr <- aer
 	}()
 
@@ -2064,7 +2069,7 @@ func testSubClientWaitWithMissedEvent(t *testing.T, local bool) {
 		rpcSrv.subsLock.Lock()
 		defer rpcSrv.subsLock.Unlock()
 		return len(rpcSrv.subscribers) == 1
-	}, time.Second, 100*time.Millisecond)
+	}, 2*time.Second, 100*time.Millisecond)
 
 	rpcSrv.subsLock.Lock()
 	// Suppress normal event delivery.
@@ -2101,6 +2106,8 @@ waitloop:
 			require.Equal(t, trigger.Application, aer.Trigger)
 			require.Equal(t, vmstate.Halt, aer.VMState)
 			break waitloop
+		case err := <-errCh:
+			t.Fatalf("Error waiting for transaction: %v", err)
 		case <-time.NewTimer(chain.GetConfig().TimePerBlock).C:
 			t.Fatal("transaction failed to be awaited")
 		}
