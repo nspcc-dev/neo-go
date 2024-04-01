@@ -1750,7 +1750,8 @@ func (s *Server) findStorageInternal(id int32, prefix []byte, start, take int, s
 	var (
 		i   int
 		end = start + take
-		res = new(result.FindStorage)
+		// Result is an empty list if a contract state is not found as it is in C# implementation.
+		res = &result.FindStorage{Results: make([]result.KeyValue, 0)}
 	)
 	seeker.SeekStorage(id, prefix, func(k, v []byte) bool {
 		if i < start {
