@@ -286,6 +286,20 @@ func (e *Executor) Run(t *testing.T, args ...string) {
 	require.NoError(t, e.run(args...))
 	checkExit(t, ch, 0)
 }
+
+// RunOrError runs command and checks that if there was an error, then its text matches the provided one.
+func (e *Executor) RunOrError(t *testing.T, errText string, args ...string) error {
+	ch := setExitFunc()
+	err := e.run(args...)
+	if err != nil {
+		require.True(t, strings.Contains(err.Error(), errText))
+		checkExit(t, ch, 1)
+	} else {
+		checkExit(t, ch, 0)
+	}
+	return err
+}
+
 func (e *Executor) run(args ...string) error {
 	e.Out.Reset()
 	e.Err.Reset()
