@@ -388,7 +388,7 @@ subpackage with an example written in Go doc.
     configuration (just a simple `RET` script by default), pack both transactions
     into a P2PNotaryRequest and submit it to the RPC node. It returns hashes of
     the main and fallback transactions as well as their `ValidUntilBlock` value.
-    If you need more control over fallback transction use `Actor` options or
+    If you need more control over fallback transaction use `Actor` options or
     [func (*Actor) SendRequest](https://pkg.go.dev/github.com/nspcc-dev/neo-go/pkg/rpcclient/notary#Actor.SendRequest)
     API.
 

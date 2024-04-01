@@ -2496,7 +2496,7 @@ Behavior changes:
  * contracts no longer have single entry point, rather they export a set of
    methods with specific offsets. Go smart contract compiler has been changed
    accordingly to add all exported (as in Go) methods to the manifest
-   (but with the first letter being lowercased to match NEP-5 expections,
+   (but with the first letter being lowercased to match NEP-5 expectations,
    #1228). Please also refer to examples changes to better see how it affects
    contracts, manifests and configuration files (#1296)
  * native contracts are now called via Neo.Native.Call syscall (#1191)
