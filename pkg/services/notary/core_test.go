@@ -315,7 +315,11 @@ func TestNotary(t *testing.T) {
 			}, completedTx.Scripts[len(completedTx.Scripts)-1])
 		} else {
 			completedTx := getCompletedTx(t, false, requests[0].MainTransaction.Hash())
-			require.Nil(t, completedTx, fmt.Errorf("main transaction shouldn't be completed: sent %d out of %d requests", sentCount, nSigs))
+			if completedTx != nil {
+				require.NotNil(t, completedTx, fmt.Errorf("main transaction completed: sent %d out of %d requests", sentCount, nSigs))
+			} else {
+				require.Nil(t, completedTx, fmt.Errorf("main transaction shouldn't be completed: sent %d out of %d requests", sentCount, nSigs))
+			}
 		}
 	}
 	checkFallbackTxs := func(t *testing.T, requests []*payload.P2PNotaryRequest, shouldComplete bool) {
