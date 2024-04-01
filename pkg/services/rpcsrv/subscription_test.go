@@ -57,7 +57,7 @@ func getNotification(t *testing.T, respCh <-chan []byte) *neorpc.Notification {
 	return resp
 }
 
-func initCleanServerAndWSClient(t *testing.T) (*core.Blockchain, *Server, *websocket.Conn, chan []byte) {
+func initCleanServerAndWSClient(t *testing.T, startNetworkServer ...bool) (*core.Blockchain, *Server, *websocket.Conn, chan []byte) {
 	chain, rpcSrv, httpSrv := initClearServerWithInMemoryChain(t)
 
 	dialer := websocket.Dialer{HandshakeTimeout: 5 * time.Second}
@@ -72,10 +72,16 @@ func initCleanServerAndWSClient(t *testing.T) (*core.Blockchain, *Server, *webso
 	finishedFlag := &atomic.Bool{}
 	readerToExitCh := make(chan struct{})
 	go wsReader(t, ws, respMsgs, finishedFlag, readerToExitCh)
+	if len(startNetworkServer) != 0 && startNetworkServer[0] {
+		rpcSrv.coreServer.Start()
+	}
 	t.Cleanup(func() {
 		finishedFlag.Store(true)
 		<-readerToExitCh
 		ws.Close()
+		if len(startNetworkServer) != 0 && startNetworkServer[0] {
+			rpcSrv.coreServer.Shutdown()
+		}
 	})
 	return chain, rpcSrv, ws, respMsgs
 }
@@ -102,9 +108,7 @@ func TestSubscriptions(t *testing.T) {
 	var subIDs = make([]string, 0)
 	var subFeeds = []string{"block_added", "transaction_added", "notification_from_execution", "transaction_executed", "notary_request_event", "header_of_added_block"}
 
-	chain, rpcSrv, c, respMsgs := initCleanServerAndWSClient(t)
-	rpcSrv.coreServer.Start()
-	defer rpcSrv.coreServer.Shutdown()
+	chain, rpcSrv, c, respMsgs := initCleanServerAndWSClient(t, true)
 
 	for _, feed := range subFeeds {
 		s := callSubscribe(t, c, respMsgs, fmt.Sprintf(`["%s"]`, feed))
@@ -391,8 +395,7 @@ func TestFilteredNotaryRequestSubscriptions(t *testing.T) {
 		},
 	}
 
-	chain, rpcSrv, c, respMsgs := initCleanServerAndWSClient(t)
-	rpcSrv.coreServer.Start()
+	chain, rpcSrv, c, respMsgs := initCleanServerAndWSClient(t, true)
 
 	// blocks are needed to make GAS deposit for priv0
 	blocks := getTestBlocks(t)
