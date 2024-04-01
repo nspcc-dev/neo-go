@@ -19,6 +19,13 @@ type (
 		Nonce     uint32   `json:"nonce"`
 		UserAgent string   `json:"useragent"`
 		Protocol  Protocol `json:"protocol"`
+		RPC       RPC      `json:"rpc"`
+	}
+
+	// RPC represents the RPC server configuration.
+	RPC struct {
+		MaxIteratorResultItems int  `json:"maxiteratorresultitems"`
+		SessionEnabled         bool `json:"sessionenabled"`
 	}
 
 	// Protocol represents network-dependent parameters.

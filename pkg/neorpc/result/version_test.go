@@ -42,6 +42,10 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
             "validatorscount": 7,
             "hardforks": [{"name": "Aspidochelone", "blockheight": 123}, {"name": "Basilisk", "blockheight": 1234}]
         },
+        "rpc": {
+            "maxiteratorresultitems": 100,
+            "sessionenabled": true
+        },
         "tcpport": 10333,
         "useragent": "/NEO-GO:0.98.6/",
         "wsport": 10334
@@ -60,6 +64,10 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
             "validatorscount": 7,
             "hardforks": [{"name": "HF_Aspidochelone", "blockheight": 123}, {"name": "HF_Basilisk", "blockheight": 1234}]
         },
+        "rpc": {
+            "maxiteratorresultitems": 100,
+            "sessionenabled": true
+        },
         "tcpport": 10333,
         "useragent": "/Neo:3.1.0/",
         "wsport": 10334
@@ -69,6 +77,10 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 		WSPort:    10334,
 		Nonce:     1677922561,
 		UserAgent: "/NEO-GO:0.98.6/",
+		RPC: RPC{
+			MaxIteratorResultItems: 100,
+			SessionEnabled:         true,
+		},
 		Protocol: Protocol{
 			AddressVersion:              53,
 			Network:                     860833102,
