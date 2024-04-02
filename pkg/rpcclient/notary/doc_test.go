@@ -54,7 +54,7 @@ func ExampleActor() {
 		panic("deposit failed")
 	}
 
-	var opts notary.ActorOptions
+	var opts = new(notary.ActorOptions)
 	// Add high priority attribute, we gonna be making committee-signed transactions anyway.
 	opts.MainAttributes = []transaction.Attribute{{Type: transaction.HighPriority}}
 

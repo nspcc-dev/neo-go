@@ -88,8 +88,8 @@ type RPCActor interface {
 
 // NewDefaultActorOptions returns the default Actor options. Internal functions
 // of it need some data from the contract, so it should be added.
-func NewDefaultActorOptions(reader *ContractReader, acc *wallet.Account) ActorOptions {
-	opts := ActorOptions{
+func NewDefaultActorOptions(reader *ContractReader, acc *wallet.Account) *ActorOptions {
+	opts := &ActorOptions{
 		FbScript: []byte{byte(opcode.RET)},
 		FbSigner: actor.SignerAccount{
 			Signer: transaction.Signer{
@@ -132,8 +132,8 @@ func NewActor(c RPCActor, signers []actor.SignerAccount, simpleAcc *wallet.Accou
 
 // NewTunedActor is the same as NewActor, but allows to override the default
 // options (see ActorOptions for details). Use with care.
-func NewTunedActor(c RPCActor, signers []actor.SignerAccount, opts ActorOptions) (*Actor, error) {
-	return newTunedActor(c, signers, opts.FbSigner.Account, &opts)
+func NewTunedActor(c RPCActor, signers []actor.SignerAccount, opts *ActorOptions) (*Actor, error) {
+	return newTunedActor(c, signers, opts.FbSigner.Account, opts)
 }
 
 func newTunedActor(c RPCActor, signers []actor.SignerAccount, simpleAcc *wallet.Account, opts *ActorOptions) (*Actor, error) {
@@ -174,7 +174,7 @@ func newTunedActor(c RPCActor, signers []actor.SignerAccount, simpleAcc *wallet.
 	reader := NewReader(invoker.New(c, nil))
 	if opts == nil {
 		defOpts := NewDefaultActorOptions(reader, simpleAcc)
-		opts = &defOpts
+		opts = defOpts
 	}
 	var notarySA = actor.SignerAccount{
 		Signer: transaction.Signer{
