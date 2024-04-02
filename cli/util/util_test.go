@@ -1,9 +1,9 @@
 package util_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -168,24 +168,13 @@ func TestAwaitUtilCancelTx(t *testing.T) {
 	_, ok := e.Chain.GetMemPool().TryGetValue(txHash)
 	require.True(t, ok)
 
+	// Allow both cases: either target or conflicting tx acceptance.
 	e.In.WriteString("one\r")
-	e.Run(t, append(args, txHash.StringLE())...)
-
-	response := e.GetNextLine(t)
-	if strings.Contains(response, "Conflicting transaction accepted") {
+	err = e.RunOrError(t, fmt.Sprintf("target transaction %s is accepted", txHash), append(args, txHash.StringLE())...)
+	if err == nil {
+		response := e.GetNextLine(t)
+		require.Equal(t, "Conflicting transaction accepted", response)
 		resHash, _ := e.CheckAwaitableTxPersisted(t)
-		require.Eventually(t, func() bool {
-			_, aerErr := e.Chain.GetAppExecResults(resHash.Hash(), trigger.Application)
-			return aerErr == nil
-		}, time.Second*2, time.Millisecond*50)
-	} else if strings.Contains(response, "Target transaction accepted") {
-		require.Eventually(t, func() bool {
-			_, _, err := e.Chain.GetTransaction(txHash)
-			require.NoError(t, err, "original transaction should be on chain")
-			_, aerErr := e.Chain.GetAppExecResults(txHash, trigger.Application)
-			return aerErr == nil
-		}, time.Second*2, time.Millisecond*50)
-	} else {
-		t.Fatalf("unexpected response: %s", response)
+		require.NotEqual(t, resHash, txHash)
 	}
 }

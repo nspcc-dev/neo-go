@@ -52,7 +52,7 @@ func cancelTx(ctx *cli.Context) error {
 
 	mainTx, _ := c.GetRawTransactionVerbose(txHash)
 	if mainTx != nil && !mainTx.Blockhash.Equals(util.Uint256{}) {
-		return cli.NewExitError(fmt.Errorf("transaction %s is already accepted at block %s", txHash, mainTx.Blockhash.StringLE()), 1)
+		return cli.NewExitError(fmt.Errorf("target transaction %s is accepted at block %s", txHash, mainTx.Blockhash.StringLE()), 1)
 	}
 
 	if mainTx != nil && !mainTx.HasSigner(acc.ScriptHash()) {
@@ -76,10 +76,7 @@ func cancelTx(ctx *cli.Context) error {
 	if err != nil {
 		return cli.NewExitError(fmt.Errorf("failed to send conflicting transaction: %w", err), 1)
 	}
-	var (
-		acceptedH = resHash
-		res       *state.AppExecResult
-	)
+	var res *state.AppExecResult
 	if ctx.Bool("await") {
 		res, err = a.WaitAny(gctx, resVub, txHash, resHash)
 		if err != nil {
@@ -93,12 +90,14 @@ func cancelTx(ctx *cli.Context) error {
 			return cli.NewExitError(fmt.Errorf("failed to await target/ conflicting transaction %s/ %s: %w", txHash.StringLE(), resHash.StringLE(), err), 1)
 		}
 		if txHash.Equals(res.Container) {
-			fmt.Fprintln(ctx.App.Writer, "Target transaction accepted")
-			acceptedH = txHash
-		} else {
-			fmt.Fprintln(ctx.App.Writer, "Conflicting transaction accepted")
+			tx, err := c.GetRawTransactionVerbose(txHash)
+			if err != nil {
+				return cli.NewExitError(fmt.Errorf("target transaction %s is accepted", txHash), 1)
+			}
+			return cli.NewExitError(fmt.Errorf("target transaction %s is accepted at block %s", txHash, tx.Blockhash.StringLE()), 1)
 		}
+		fmt.Fprintln(ctx.App.Writer, "Conflicting transaction accepted")
 	}
-	txctx.DumpTransactionInfo(ctx.App.Writer, acceptedH, res)
+	txctx.DumpTransactionInfo(ctx.App.Writer, resHash, res)
 	return nil
 }
