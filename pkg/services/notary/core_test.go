@@ -591,23 +591,27 @@ func TestNotary(t *testing.T) {
 	// PostPersist: different NVBs
 	// check OnNewRequest with finalization error and different NVBs
 	setFinalizeWithError(true)
-	requests, requesters = checkCompleteStandardRequest(t, 5, false, 1, 2, 3, 4, 5)
+	// Introduce some slippage between first and second fallback NVBs in order to avoid possible race caused by early
+	// first fallback transaction acceptance. The rest of fallbacks follow X+4 NVB pattern for testing code shortness.
+	requests, requesters = checkCompleteStandardRequest(t, 5, false, 1, 7, 11, 15, 19)
 	checkFallbackTxs(t, requests, false)
 	// generate blocks to reach the most earlier fallback's NVB
-	e.GenerateNewBlocks(t, int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback+1))
 	require.NoError(t, err)
 	// check PostPersist for valid fallbacks without finalisation error
-	// Add block before allowing tx to finalize to exclude race condition when
-	// main transaction is finalized between `finalizeWithError` restore and adding new block.
+	// Add a block before allowing tx to be finalized without error to exclude race condition when
+	// main transaction is finalized between `finalizeWithError` disabling and new block addition.
 	e.AddNewBlock(t)
 	setFinalizeWithError(false)
-	for i := range requests[1:] {
+	for i := range requests {
+		e.AddNewBlock(t)
+		e.AddNewBlock(t)
+		e.AddNewBlock(t)
 		e.AddNewBlock(t)
 
-		_ = getCompletedTx(t, true, requests[i+1].FallbackTransaction.Hash())
 		checkMainTx(t, requesters, requests, len(requests), false)
-		checkFallbackTxs(t, requests[:i+2], true)
-		checkFallbackTxs(t, requests[i+2:], false)
+		checkFallbackTxs(t, requests[:i+1], true)
+		checkFallbackTxs(t, requests[i+1:], false)
 	}
 
 	// OnRequestRemoval: missing account
