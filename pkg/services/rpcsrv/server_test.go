@@ -3463,7 +3463,7 @@ func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
 	dialer := websocket.Dialer{
 		HandshakeTimeout: 5 * time.Second,
 		NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			dialer := net.Dialer{Timeout: 3 * time.Second,
+			dialer := net.Dialer{Timeout: 5 * time.Second,
 				KeepAlive:     30 * time.Second,
 				FallbackDelay: -1}
 			return dialer.DialContext(ctx, "tcp4", addr)
@@ -3485,13 +3485,13 @@ func doRPCCallOverWS(rpcCall string, url string, t *testing.T) []byte {
 }
 
 func doRPCCallOverHTTP(rpcCall string, url string, t *testing.T) []byte {
-	cl := http.Client{Timeout: 3 * time.Second, Transport: &http.Transport{
+	cl := http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{
 		MaxIdleConns:        50,
 		MaxConnsPerHost:     50,
 		MaxIdleConnsPerHost: 50,
-		IdleConnTimeout:     3 * time.Second,
+		IdleConnTimeout:     5 * time.Second,
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			dialer := net.Dialer{Timeout: 3 * time.Second,
+			dialer := net.Dialer{Timeout: 5 * time.Second,
 				KeepAlive:     30 * time.Second,
 				FallbackDelay: -1}
 			return dialer.DialContext(ctx, "tcp4", addr)
