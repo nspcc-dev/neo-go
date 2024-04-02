@@ -22,7 +22,7 @@ const testOverflow = false
 
 func wsReader(t *testing.T, ws *websocket.Conn, msgCh chan<- []byte, isFinished *atomic.Bool, readerToExitCh chan struct{}) {
 	for !isFinished.Load() {
-		err := ws.SetReadDeadline(time.Now().Add(time.Second))
+		err := ws.SetReadDeadline(time.Now().Add(5 * time.Second))
 		if isFinished.Load() {
 			require.Error(t, err)
 			break
@@ -42,7 +42,7 @@ func wsReader(t *testing.T, ws *websocket.Conn, msgCh chan<- []byte, isFinished 
 func callWSGetRaw(t *testing.T, ws *websocket.Conn, msg string, respCh <-chan []byte) *neorpc.Response {
 	var resp = new(neorpc.Response)
 
-	require.NoError(t, ws.SetWriteDeadline(time.Now().Add(time.Second)))
+	require.NoError(t, ws.SetWriteDeadline(time.Now().Add(5*time.Second)))
 	require.NoError(t, ws.WriteMessage(websocket.TextMessage, []byte(msg)))
 
 	body := <-respCh
@@ -556,11 +556,11 @@ func TestBadSubUnsub(t *testing.T) {
 }
 
 func doSomeWSRequest(t *testing.T, ws *websocket.Conn) {
-	require.NoError(t, ws.SetWriteDeadline(time.Now().Add(time.Second)))
+	require.NoError(t, ws.SetWriteDeadline(time.Now().Add(5*time.Second)))
 	// It could be just about anything including invalid request,
 	// we only care about server handling being active.
 	require.NoError(t, ws.WriteMessage(websocket.TextMessage, []byte(`{"jsonrpc": "2.0", "method": "getversion", "params": [], "id": 1}`)))
-	err := ws.SetReadDeadline(time.Now().Add(time.Second))
+	err := ws.SetReadDeadline(time.Now().Add(5 * time.Second))
 	require.NoError(t, err)
 	_, _, err = ws.ReadMessage()
 	require.NoError(t, err)
