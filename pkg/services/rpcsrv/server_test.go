@@ -817,7 +817,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				require.True(t, ok)
 
 				expected := &result.FindStorage{
-					Results:   nil,
+					Results:   []result.KeyValue{},
 					Next:      0,
 					Truncated: false,
 				}
@@ -956,7 +956,11 @@ var rpcTestCases = map[string][]rpcTestCase{
 				actual, ok := res.(*result.FindStorage)
 				require.True(t, ok)
 
-				expected := &result.FindStorage{}
+				expected := &result.FindStorage{
+					Results:   []result.KeyValue{},
+					Next:      0,
+					Truncated: false,
+				}
 				require.Equal(t, expected, actual)
 			},
 		},

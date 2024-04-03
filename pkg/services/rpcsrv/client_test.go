@@ -2321,7 +2321,11 @@ func TestClient_FindStorage(t *testing.T) {
 	// Missing item.
 	actual, err = c.FindStorageByHash(h, []byte("unknown prefix"), nil)
 	require.NoError(t, err)
-	require.Equal(t, result.FindStorage{}, actual)
+	require.Equal(t, result.FindStorage{
+		Results:   []result.KeyValue{},
+		Next:      0,
+		Truncated: false,
+	}, actual)
 }
 
 func TestClient_FindStorageHistoric(t *testing.T) {
@@ -2386,7 +2390,11 @@ func TestClient_FindStorageHistoric(t *testing.T) {
 	require.NoError(t, err)
 	actual, err = c.FindStorageByHashHistoric(earlyRoot.Root, h, prefix, nil)
 	require.NoError(t, err)
-	require.Equal(t, result.FindStorage{}, actual)
+	require.Equal(t, result.FindStorage{
+		Results:   []result.KeyValue{},
+		Next:      0,
+		Truncated: false,
+	}, actual)
 }
 
 func TestClient_GetStorageHistoric(t *testing.T) {
