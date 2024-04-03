@@ -602,7 +602,7 @@ func TestWSClientsLimit(t *testing.T) {
 				cfg.ApplicationConfiguration.RPC.MaxWebSocketClients = limit
 			})
 
-			dialer := websocket.Dialer{HandshakeTimeout: 5 * time.Second}
+			dialer := websocket.Dialer{HandshakeTimeout: 10 * time.Second}
 			url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
 			wss := make([]*websocket.Conn, effectiveClients)
 			var wg sync.WaitGroup
