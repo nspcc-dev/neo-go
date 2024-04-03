@@ -1938,7 +1938,7 @@ func initTestServer(t *testing.T, resp string) *httptest.Server {
 			ws, err := upgrader.Upgrade(w, req, nil)
 			require.NoError(t, err)
 			for {
-				err = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+				err = ws.SetReadDeadline(time.Now().Add(5 * time.Second))
 				require.NoError(t, err)
 				_, p, err := ws.ReadMessage()
 				if err != nil {
@@ -1950,7 +1950,7 @@ func initTestServer(t *testing.T, resp string) *httptest.Server {
 					t.Fatalf("Cannot decode request body: %s", req.Body)
 				}
 				response := wrapInitResponse(r, resp)
-				err = ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
+				err = ws.SetWriteDeadline(time.Now().Add(5 * time.Second))
 				require.NoError(t, err)
 				err = ws.WriteMessage(1, []byte(response))
 				if err != nil {

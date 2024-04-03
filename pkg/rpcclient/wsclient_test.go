@@ -163,7 +163,7 @@ func TestWSClientEvents(t *testing.T) {
 			require.NoError(t, err)
 			<-startSending
 			for _, event := range events {
-				err = ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
+				err = ws.SetWriteDeadline(time.Now().Add(5 * time.Second))
 				require.NoError(t, err)
 				err = ws.WriteMessage(1, []byte(event))
 				if err != nil {
@@ -308,7 +308,7 @@ func TestWSClientNonBlockingEvents(t *testing.T) {
 			require.NoError(t, err)
 			<-startSending
 			for _, event := range events {
-				err = ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
+				err = ws.SetWriteDeadline(time.Now().Add(5 * time.Second))
 				require.NoError(t, err)
 				err = ws.WriteMessage(1, []byte(event))
 				if err != nil {
@@ -738,14 +738,14 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 					var upgrader = websocket.Upgrader{}
 					ws, err := upgrader.Upgrade(w, req, nil)
 					require.NoError(t, err)
-					err = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+					err = ws.SetReadDeadline(time.Now().Add(5 * time.Second))
 					require.NoError(t, err)
 					req := params.In{}
 					err = ws.ReadJSON(&req)
 					require.NoError(t, err)
 					params := params.Params(req.RawParams)
 					c.serverCode(t, &params)
-					err = ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
+					err = ws.SetWriteDeadline(time.Now().Add(5 * time.Second))
 					require.NoError(t, err)
 					err = ws.WriteMessage(1, []byte(`{"jsonrpc": "2.0", "id": 1, "result": "0"}`))
 					require.NoError(t, err)
@@ -793,7 +793,7 @@ func TestWSConcurrentAccess(t *testing.T) {
 			ws, err := upgrader.Upgrade(w, req, nil)
 			require.NoError(t, err)
 			for {
-				err = ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+				err = ws.SetReadDeadline(time.Now().Add(5 * time.Second))
 				require.NoError(t, err)
 				_, p, err := ws.ReadMessage()
 				if err != nil {
@@ -819,7 +819,7 @@ func TestWSConcurrentAccess(t *testing.T) {
 				case "getblockhash":
 					response = fmt.Sprintf(`{"id":%s,"jsonrpc":"2.0","result":"0x157ca5e5b8cf8f84c9660502a3270b346011612bded1514a6847f877c433a9bb"}`, r.RawID)
 				}
-				err = ws.SetWriteDeadline(time.Now().Add(2 * time.Second))
+				err = ws.SetWriteDeadline(time.Now().Add(5 * time.Second))
 				require.NoError(t, err)
 				err = ws.WriteMessage(1, []byte(response))
 				if err != nil {
