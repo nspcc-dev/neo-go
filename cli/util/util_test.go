@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/testcli"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -170,11 +172,21 @@ func TestAwaitUtilCancelTx(t *testing.T) {
 
 	// Allow both cases: either target or conflicting tx acceptance.
 	e.In.WriteString("one\r")
-	err = e.RunOrError(t, fmt.Sprintf("target transaction %s is accepted", txHash), append(args, txHash.StringLE())...)
-	if err == nil {
+	err = e.RunUnchecked(t, append(args, txHash.StringLE())...)
+	switch {
+	case err == nil:
 		response := e.GetNextLine(t)
 		require.Equal(t, "Conflicting transaction accepted", response)
 		resHash, _ := e.CheckAwaitableTxPersisted(t)
 		require.NotEqual(t, resHash, txHash)
+	case strings.Contains(err.Error(), fmt.Sprintf("target transaction %s is accepted", txHash)) ||
+		strings.Contains(err.Error(), fmt.Sprintf("failed to send conflicting transaction: Invalid transaction attribute (-507) - invalid attribute: conflicting transaction %s is already on chain", txHash)):
+		tx, _ := e.GetTransaction(t, txHash)
+		aer, err := e.Chain.GetAppExecResults(tx.Hash(), trigger.Application)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(aer))
+		require.Equal(t, vmstate.Halt, aer[0].VMState)
+	default:
+		t.Fatal(fmt.Errorf("unexpected error: %w", err))
 	}
 }
