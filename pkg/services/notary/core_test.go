@@ -493,6 +493,8 @@ func TestNotary(t *testing.T) {
 	setFinalizeWithError(false)
 
 	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, r, 1, false)
 	checkFallbackTxs(t, r, false)
 	// set account back for the next tests
@@ -504,9 +506,13 @@ func TestNotary(t *testing.T) {
 	// check PostPersist with finalisation error
 	setFinalizeWithError(true)
 	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	// check PostPersist without finalisation error
 	setFinalizeWithError(false)
+	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), true)
 
@@ -517,10 +523,14 @@ func TestNotary(t *testing.T) {
 	// check PostPersist with finalisation error
 	setFinalizeWithError(true)
 	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 	// check PostPersist without finalisation error
 	setFinalizeWithError(false)
+	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), true)
 	checkFallbackTxs(t, requests, false)
@@ -530,14 +540,18 @@ func TestNotary(t *testing.T) {
 	requests, requesters = checkCompleteStandardRequest(t, 3, false)
 	checkFallbackTxs(t, requests, false)
 	// make fallbacks valid
-	e.GenerateNewBlocks(t, int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback+1))
 	require.NoError(t, err)
 	// check PostPersist for valid fallbacks with finalisation error
+	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 	// check PostPersist for valid fallbacks without finalisation error
 	setFinalizeWithError(false)
+	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, true)
@@ -549,14 +563,18 @@ func TestNotary(t *testing.T) {
 	requests, requesters = checkCompleteMultisigRequest(t, nSigs, nKeys, false)
 	checkFallbackTxs(t, requests, false)
 	// make fallbacks valid
-	e.GenerateNewBlocks(t, int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback+1))
 	require.NoError(t, err)
 	// check PostPersist for valid fallbacks with finalisation error
+	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 	// check PostPersist for valid fallbacks without finalisation error
 	setFinalizeWithError(false)
+	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests[:nSigs], true)
@@ -568,13 +586,15 @@ func TestNotary(t *testing.T) {
 	requests, requesters = checkCompleteStandardRequest(t, 5, false)
 	checkFallbackTxs(t, requests, false)
 	// make fallbacks valid
-	e.GenerateNewBlocks(t, int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback+1))
 	require.NoError(t, err)
 	// some of fallbacks should fail finalisation
 	unluckies = []*payload.P2PNotaryRequest{requests[0], requests[4]}
 	lucky := requests[1:4]
 	setChoosy(true)
 	// check PostPersist for lucky fallbacks
+	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, lucky, true)
@@ -583,6 +603,8 @@ func TestNotary(t *testing.T) {
 	setChoosy(false)
 	setFinalizeWithError(false)
 	// check PostPersist for unlucky fallbacks
+	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, lucky, true)
@@ -596,12 +618,11 @@ func TestNotary(t *testing.T) {
 	requests, requesters = checkCompleteStandardRequest(t, 5, false, 1, 7, 11, 15, 19)
 	checkFallbackTxs(t, requests, false)
 	// generate blocks to reach the most earlier fallback's NVB
-	e.GenerateNewBlocks(t, int(nvbDiffFallback+1))
+	// Here and below add +1 slippage to ensure that PostPersist for (nvbDiffFallback+1) height is properly handled, i.e.
+	// to exclude race condition when main transaction is finalized between `finalizeWithError` disabling and new block addition.
+	e.GenerateNewBlocks(t, int((nvbDiffFallback+1)+1))
 	require.NoError(t, err)
 	// check PostPersist for valid fallbacks without finalisation error
-	// Add a block before allowing tx to be finalized without error to exclude race condition when
-	// main transaction is finalized between `finalizeWithError` disabling and new block addition.
-	e.AddNewBlock(t)
 	setFinalizeWithError(false)
 	for i := range requests {
 		e.AddNewBlock(t)
@@ -620,12 +641,14 @@ func TestNotary(t *testing.T) {
 	requests, requesters = checkCompleteStandardRequest(t, 4, false)
 	checkFallbackTxs(t, requests, false)
 	// make fallbacks valid and remove one fallback
-	e.GenerateNewBlocks(t, int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback+1))
 	require.NoError(t, err)
 	ntr1.UpdateNotaryNodes(keys.PublicKeys{randomAcc.PublicKey()})
 	ntr1.OnRequestRemoval(requests[3])
 	// non of the fallbacks should be completed
 	setFinalizeWithError(false)
+	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
@@ -638,12 +661,14 @@ func TestNotary(t *testing.T) {
 	requests, requesters = checkCompleteStandardRequest(t, 4, false)
 	checkFallbackTxs(t, requests, false)
 	// make fallbacks valid and remove one fallback
-	e.GenerateNewBlocks(t, int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback+1))
 	require.NoError(t, err)
 	unlucky := requests[3]
 	ntr1.OnRequestRemoval(unlucky)
 	// rest of the fallbacks should be completed
 	setFinalizeWithError(false)
+	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests[:3], true)
@@ -653,7 +678,7 @@ func TestNotary(t *testing.T) {
 	setFinalizeWithError(true)
 	requests, requesters = checkCompleteStandardRequest(t, 4, false)
 	// remove all fallbacks
-	e.GenerateNewBlocks(t, int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback+1))
 	require.NoError(t, err)
 	for i := range requests {
 		ntr1.OnRequestRemoval(requests[i])
@@ -661,11 +686,15 @@ func TestNotary(t *testing.T) {
 	// then the whole request should be removed, i.e. there are no completed transactions
 	setFinalizeWithError(false)
 	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 
 	// OnRequestRemoval: signature request, remove unexisting fallback
 	ntr1.OnRequestRemoval(requests[0])
+	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
@@ -678,12 +707,14 @@ func TestNotary(t *testing.T) {
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 	// make fallbacks valid and remove the last fallback
-	e.GenerateNewBlocks(t, int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback+1))
 	require.NoError(t, err)
 	unlucky = requests[nSigs-1]
 	ntr1.OnRequestRemoval(unlucky)
 	// then (m-1) out of n fallbacks should be completed
 	setFinalizeWithError(false)
+	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests[:nSigs-1], true)
@@ -695,7 +726,7 @@ func TestNotary(t *testing.T) {
 	setFinalizeWithError(true)
 	requests, requesters = checkCompleteMultisigRequest(t, nSigs, nKeys, false)
 	// make fallbacks valid and then remove all of them
-	e.GenerateNewBlocks(t, int(nvbDiffFallback))
+	e.GenerateNewBlocks(t, int(nvbDiffFallback+1))
 	require.NoError(t, err)
 	for i := range requests {
 		ntr1.OnRequestRemoval(requests[i])
@@ -703,11 +734,15 @@ func TestNotary(t *testing.T) {
 	// then the whole request should be removed, i.e. there are no completed transactions
 	setFinalizeWithError(false)
 	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
+	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
 
 	// // OnRequestRemoval: multisignature request, remove unexisting fallbac, i.e. there still shouldn't be any completed transactions after this
 	ntr1.OnRequestRemoval(requests[0])
+	e.AddNewBlock(t)
+	// Allow a single-block slippage since PostPersist is handled by Notary service via block notification routine.
 	e.AddNewBlock(t)
 	checkMainTx(t, requesters, requests, len(requests), false)
 	checkFallbackTxs(t, requests, false)
