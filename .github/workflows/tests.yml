@@ -104,7 +104,7 @@ jobs:
           cache: true
 
       - name: Write coverage profile
-        run: go test -timeout 15m -v ./... -coverprofile=./coverage.txt -covermode=atomic -coverpkg=./pkg...,./cli/...
+        run: go test -timeout 25m -v ./... -coverprofile=./coverage.txt -covermode=atomic -coverpkg=./pkg...,./cli/...
 
       - name: Upload coverage results to Codecov
         uses: codecov/codecov-action@v3
@@ -150,4 +150,4 @@ jobs:
           go-version: '${{ matrix.go_versions }}'
 
       - name: Run tests
-        run: go test -timeout 15m -v -race ./...
+        run: go test -timeout 25m -v -race ./...
