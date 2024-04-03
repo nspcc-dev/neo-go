@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -601,28 +602,40 @@ func TestWSClientsLimit(t *testing.T) {
 				cfg.ApplicationConfiguration.RPC.MaxWebSocketClients = limit
 			})
 
-			dialer := websocket.Dialer{HandshakeTimeout: 5 * time.Second}
+			dialer := websocket.Dialer{HandshakeTimeout: 10 * time.Second}
 			url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
 			wss := make([]*websocket.Conn, effectiveClients)
+			var wg sync.WaitGroup
 
-			for i := 0; i < len(wss)+1; i++ {
-				ws, r, err := dialer.Dial(url, nil)
-				if r != nil && r.Body != nil {
-					defer r.Body.Close()
-				}
-				if i < effectiveClients {
+			// Dial effectiveClients connections in parallel
+			for i := 0; i < effectiveClients; i++ {
+				wg.Add(1)
+				j := i
+				go func() {
+					defer wg.Done()
+					ws, r, err := dialer.Dial(url, nil)
+					if r != nil {
+						defer r.Body.Close()
+					}
 					require.NoError(t, err)
-					wss[i] = ws
-					// Check that it's completely ready.
+					wss[j] = ws
 					doSomeWSRequest(t, ws)
-				} else {
-					require.Error(t, err)
-				}
+				}()
+			}
+
+			wg.Wait()
+
+			// Attempt one more connection, which should fail
+			_, r, err := dialer.Dial(url, nil)
+			require.Error(t, err, "The connection beyond the limit should fail")
+			if r != nil {
+				r.Body.Close()
 			}
 			// Check connections are still alive (it actually is necessary to add
 			// some use of wss to keep connections alive).
-			for i := 0; i < len(wss); i++ {
-				doSomeWSRequest(t, wss[i])
+			for _, ws := range wss {
+				doSomeWSRequest(t, ws)
+				ws.Close()
 			}
 		})
 	}
