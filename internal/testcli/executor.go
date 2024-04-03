@@ -287,12 +287,12 @@ func (e *Executor) Run(t *testing.T, args ...string) {
 	checkExit(t, ch, 0)
 }
 
-// RunOrError runs command and checks that if there was an error, then its text matches the provided one.
-func (e *Executor) RunOrError(t *testing.T, errText string, args ...string) error {
+// RunUnchecked runs command and ensures that proper exit code is set (0 if no error is returned, 1 is an error is returned).
+// The resulting error is returned (if so).
+func (e *Executor) RunUnchecked(t *testing.T, args ...string) error {
 	ch := setExitFunc()
 	err := e.run(args...)
 	if err != nil {
-		require.True(t, strings.Contains(err.Error(), errText))
 		checkExit(t, ch, 1)
 	} else {
 		checkExit(t, ch, 0)
