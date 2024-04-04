@@ -948,14 +948,14 @@ func createAccount(wall *wallet.Wallet, pass *string) error {
 func openWallet(ctx *cli.Context, canUseWalletConfig bool) (*wallet.Wallet, *string, error) {
 	path, pass, err := getWalletPathAndPass(ctx, canUseWalletConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, cli.NewExitError(fmt.Errorf("failed to get wallet path or password: %w", err), 1)
 	}
 	if path == "-" {
 		return nil, nil, errNoStdin
 	}
 	w, err := wallet.NewWalletFromFile(path)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, cli.NewExitError(fmt.Errorf("failed to read wallet: %w", err), 1)
 	}
 	return w, pass, nil
 }
