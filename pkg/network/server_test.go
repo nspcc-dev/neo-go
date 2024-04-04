@@ -95,8 +95,10 @@ func TestServerStartAndShutdown(t *testing.T) {
 		s.register <- p
 		require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
 
-		assert.True(t, s.transports[0].(*fakeTransp).started.Load())
 		require.True(t, s.started.Load())
+		require.Eventually(t, func() bool {
+			return s.transports[0].(*fakeTransp).started.Load()
+		}, 2*time.Second, 200*time.Millisecond)
 		assert.Nil(t, s.txCallback)
 
 		s.Shutdown()
@@ -115,6 +117,7 @@ func TestServerStartAndShutdown(t *testing.T) {
 		s.Start()
 		p := newLocalPeer(t, s)
 		s.register <- p
+		require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
 
 		assert.True(t, s.services["fake"].(*fakeConsensus).started.Load())
 		require.True(t, s.started.Load())
