@@ -100,8 +100,8 @@ func initCleanServerAndWSClient(t *testing.T, startNetworkServer ...bool) (*core
 			}
 		}
 		close(readerStopCh)
-		<-readerToExitCh
 		ws.Close()
+		<-readerToExitCh
 		if len(startNetworkServer) != 0 && startNetworkServer[0] {
 			rpcSrv.coreServer.Shutdown()
 		}
