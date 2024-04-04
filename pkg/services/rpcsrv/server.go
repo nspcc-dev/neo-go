@@ -868,6 +868,10 @@ func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 		TCPPort:   port,
 		Nonce:     s.coreServer.ID(),
 		UserAgent: s.coreServer.UserAgent,
+		RPC: result.RPC{
+			MaxIteratorResultItems: s.config.MaxIteratorResultItems,
+			SessionEnabled:         s.config.SessionEnabled,
+		},
 		Protocol: result.Protocol{
 			AddressVersion:              address.NEO3Prefix,
 			Network:                     cfg.Magic,
