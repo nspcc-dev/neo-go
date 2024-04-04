@@ -2124,19 +2124,20 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 	blocks := getTestBlocks(t)
 	bCount := uint32(0)
 
-	getData := func(t *testing.T) (*block.Block, byte, util.Uint160, string, string) {
+	getData := func(t *testing.T) (*block.Block, *block.Block, byte, util.Uint160, string, string) {
 		b1 := blocks[bCount]
 		primary := b1.PrimaryIndex
 		tx := b1.Transactions[0]
 		sender := tx.Sender()
 		ntfName := "Transfer"
 		st := vmstate.Halt.String()
-		bCount++
-		return b1, primary, sender, ntfName, st
+		b2 := blocks[bCount+1]
+		bCount += 2
+		return b1, b2, primary, sender, ntfName, st
 	}
 
 	checkRelevant := func(t *testing.T, filtered bool) {
-		b, primary, sender, ntfName, st := getData(t)
+		b, bNext, primary, sender, ntfName, st := getData(t)
 		var (
 			bID, txID, ntfID, aerID string
 			blockCh                 = make(chan *block.Block)
@@ -2212,6 +2213,10 @@ func TestWSClient_SubscriptionsCompat(t *testing.T) {
 
 		// Accept the next block and wait for events.
 		require.NoError(t, chain.AddBlock(b))
+		// Blockchain's events channel is not buffered, and thus, by adding one more extra block
+		// we're ensuring that the previous block event receiving was successfully handled by Blockchain's
+		// notificationDispatcher loop. Once we're sure in that, we may start to check the actual notifications.
+		require.NoError(t, chain.AddBlock(bNext))
 		assert.Eventually(t, func() bool {
 			lock.RLock()
 			defer lock.RUnlock()
