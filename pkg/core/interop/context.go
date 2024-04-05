@@ -192,12 +192,12 @@ type ContractMD struct {
 	ID   int32
 	Hash util.Uint160
 	Name string
-	// Methods is a generic set of contract methods with activation hardforks. Any HF-dependent part of included methods
+	// methods is a generic set of contract methods with activation hardforks. Any HF-dependent part of included methods
 	// (offsets, in particular) must not be used, there's a mdCache field for that.
-	Methods []MethodAndPrice
-	// Events is a generic set of contract events with activation hardforks. Any HF-dependent part of events must not be
+	methods []MethodAndPrice
+	// events is a generic set of contract events with activation hardforks. Any HF-dependent part of events must not be
 	// used, there's a mdCache field for that.
-	Events []Event
+	events []Event
 	// ActiveHFs is a map of hardforks that contract should react to. Contract update should be called for active
 	// hardforks. Note, that unlike the C# implementation, this map doesn't include contract's activation hardfork.
 	// This map is being initialized on contract creation and used as a read-only, hence, not protected
@@ -259,14 +259,14 @@ func (c *ContractMD) HFSpecificContractMD(hf *config.Hardfork) *HFSpecificContra
 // the specified hardfork or older.
 func (c *ContractMD) buildHFSpecificMD(hf *config.Hardfork) *HFSpecificContractMD {
 	var (
-		abiMethods = make([]manifest.Method, 0, len(c.Methods))
-		methods    = make([]HFSpecificMethodAndPrice, 0, len(c.Methods))
-		abiEvents  = make([]manifest.Event, 0, len(c.Events))
-		events     = make([]HFSpecificEvent, 0, len(c.Events))
+		abiMethods = make([]manifest.Method, 0, len(c.methods))
+		methods    = make([]HFSpecificMethodAndPrice, 0, len(c.methods))
+		abiEvents  = make([]manifest.Event, 0, len(c.events))
+		events     = make([]HFSpecificEvent, 0, len(c.events))
 	)
 	w := io.NewBufBinWriter()
-	for i := range c.Methods {
-		m := c.Methods[i]
+	for i := range c.methods {
+		m := c.methods[i]
 		if !(m.ActiveFrom == nil || (hf != nil && (*m.ActiveFrom).Cmp(*hf) >= 0)) {
 			continue
 		}
@@ -287,8 +287,8 @@ func (c *ContractMD) buildHFSpecificMD(hf *config.Hardfork) *HFSpecificContractM
 	if w.Err != nil {
 		panic(fmt.Errorf("can't create native contract script: %w", w.Err))
 	}
-	for i := range c.Events {
-		e := c.Events[i]
+	for i := range c.events {
+		e := c.events[i]
 		if !(e.ActiveFrom == nil || (hf != nil && (*e.ActiveFrom).Cmp(*hf) >= 0)) {
 			continue
 		}
@@ -340,16 +340,16 @@ func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 	md.MD = desc
 	desc.Safe = md.RequiredFlags&(callflag.All^callflag.ReadOnly) == 0
 
-	index := sort.Search(len(c.Methods), func(i int) bool {
-		md := c.Methods[i].MD
+	index := sort.Search(len(c.methods), func(i int) bool {
+		md := c.methods[i].MD
 		if md.Name != desc.Name {
 			return md.Name >= desc.Name
 		}
 		return len(md.Parameters) > len(desc.Parameters)
 	})
-	c.Methods = append(c.Methods, MethodAndPrice{})
-	copy(c.Methods[index+1:], c.Methods[index:])
-	c.Methods[index] = *md
+	c.methods = append(c.methods, MethodAndPrice{})
+	copy(c.methods[index+1:], c.methods[index:])
+	c.methods[index] = *md
 
 	if md.ActiveFrom != nil {
 		c.ActiveHFs[*md.ActiveFrom] = struct{}{}
@@ -390,7 +390,7 @@ func (c *HFSpecificContractMD) GetMethod(name string, paramCount int) (HFSpecifi
 
 // AddEvent adds a new event to the native contract.
 func (c *ContractMD) AddEvent(md Event) {
-	c.Events = append(c.Events, md)
+	c.events = append(c.events, md)
 
 	if md.ActiveFrom != nil {
 		c.ActiveHFs[*md.ActiveFrom] = struct{}{}
