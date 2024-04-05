@@ -120,6 +120,19 @@ func TestNamedReturn(t *testing.T) {
 	t.Run("AnotherVariable", runCase("b, c", big.NewInt(5)))
 }
 
+func TestNamedReturnDefault(t *testing.T) {
+	src := `package foo
+	func Main() int {
+		a, b, c := f()
+		return a + b + c
+	}
+	func f() (_ int, b int, c int) {
+		b += 1
+		return
+	}`
+	eval(t, src, big.NewInt(1))
+}
+
 func TestTypeAssertReturn(t *testing.T) {
 	src := `
 		package main

@@ -522,6 +522,19 @@ func (c *codegen) convertFuncDecl(file ast.Node, decl *ast.FuncDecl, pkg *types.
 		}
 	}
 
+	// Emit defaults for named returns.
+	if decl.Type.Results.NumFields() != 0 {
+		for _, arg := range decl.Type.Results.List {
+			for _, id := range arg.Names {
+				if id.Name != "_" {
+					i := c.scope.newLocal(id.Name)
+					c.emitDefault(c.typeOf(arg.Type))
+					c.emitStoreByIndex(varLocal, i)
+				}
+			}
+		}
+	}
+
 	ast.Walk(c, decl.Body)
 
 	// If we have reached the end of the function without encountering `return` statement,
@@ -763,7 +776,11 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				for i := len(results.List) - 1; i >= 0; i-- {
 					names := results.List[i].Names
 					for j := len(names) - 1; j >= 0; j-- {
-						c.emitLoadVar("", names[j].Name)
+						if names[j].Name == "_" {
+							c.emitDefault(c.typeOf(results.List[i].Type))
+						} else {
+							c.emitLoadVar("", names[j].Name)
+						}
 					}
 				}
 			}
