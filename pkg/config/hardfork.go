@@ -22,6 +22,11 @@ const (
 	// https://github.com/neo-project/neo/pull/2883) and #3085 (ported from
 	// https://github.com/neo-project/neo/pull/2810).
 	HFBasilisk // Basilisk
+	// HFCockatrice represents hard-fork introduced in #3402 (ported from
+	// https://github.com/neo-project/neo/pull/2942), #3301 (ported from
+	// https://github.com/neo-project/neo/pull/2925) and #3362 (ported from
+	// https://github.com/neo-project/neo/pull/3154).
+	HFCockatrice // Cockatrice
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.
 	hfLast

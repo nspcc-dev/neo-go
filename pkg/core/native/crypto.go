@@ -104,7 +104,7 @@ func newCrypto() *Crypto {
 
 	desc = newDescriptor("keccak256", smartcontract.ByteArrayType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(c.keccak256, 1<<15, callflag.NoneFlag)
+	md = newMethodAndPrice(c.keccak256, 1<<15, callflag.NoneFlag, config.HFCockatrice)
 	c.AddMethod(md, desc)
 	return c
 }

@@ -233,7 +233,7 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getCommitteeAddress", smartcontract.Hash160Type)
-	md = newMethodAndPrice(n.getCommitteeAddress, 1<<16, callflag.ReadStates)
+	md = newMethodAndPrice(n.getCommitteeAddress, 1<<16, callflag.ReadStates, config.HFCockatrice)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getNextBlockValidators", smartcontract.ArrayType)

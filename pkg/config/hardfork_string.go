@@ -11,12 +11,14 @@ func _() {
 	_ = x[HFDefault-0]
 	_ = x[HFAspidochelone-1]
 	_ = x[HFBasilisk-2]
-	_ = x[hfLast-4]
+	_ = x[HFCockatrice-4]
+	_ = x[hfLast-8]
 }
 
 const (
 	_Hardfork_name_0 = "DefaultAspidocheloneBasilisk"
-	_Hardfork_name_1 = "hfLast"
+	_Hardfork_name_1 = "Cockatrice"
+	_Hardfork_name_2 = "hfLast"
 )
 
 var (
@@ -29,6 +31,8 @@ func (i Hardfork) String() string {
 		return _Hardfork_name_0[_Hardfork_index_0[i]:_Hardfork_index_0[i+1]]
 	case i == 4:
 		return _Hardfork_name_1
+	case i == 8:
+		return _Hardfork_name_2
 	default:
 		return "Hardfork(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
