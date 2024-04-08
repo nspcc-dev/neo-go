@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -204,10 +203,9 @@ type ContractMD struct {
 	// by mutex.
 	ActiveHFs map[config.Hardfork]struct{}
 
-	// mdCache contains hardfork-specific ready-to-use contract descriptors. This cache is lazy and thus, protected by
-	// mdCacheLock.
-	mdCacheLock sync.RWMutex
-	mdCache     map[config.Hardfork]*HFSpecificContractMD
+	// mdCache contains hardfork-specific ready-to-use contract descriptors. This cache is initialized in the native
+	// contracts constructors, and acts as read-only during the whole node lifetime, thus not protected by mutex.
+	mdCache map[config.Hardfork]*HFSpecificContractMD
 
 	// onManifestConstruction is a callback for manifest finalization.
 	onManifestConstruction func(*manifest.Manifest)
@@ -238,26 +236,50 @@ func NewContractMD(name string, id int32, onManifestConstruction ...func(*manife
 
 // HFSpecificContractMD returns hardfork-specific native contract metadata, i.e. with methods, events and script
 // corresponding to the specified hardfork. If hardfork is not specified, then default metadata will be returned
-// (methods, events and script that are always active).
+// (methods, events and script that are always active). Calling this method for hardforks older than the contract
+// activation hardfork is a no-op.
 func (c *ContractMD) HFSpecificContractMD(hf *config.Hardfork) *HFSpecificContractMD {
 	var key config.Hardfork
 	if hf != nil {
 		key = *hf
 	}
-	c.mdCacheLock.RLock()
-	if md, ok := c.mdCache[key]; ok {
-		c.mdCacheLock.RUnlock()
-		return md
+	md, ok := c.mdCache[key]
+	if !ok {
+		panic(fmt.Errorf("native contract descriptor cache is not initialized: contract %s, hardfork %s", c.Hash.StringLE(), key))
 	}
-	c.mdCacheLock.RUnlock()
-
-	md := c.buildHFSpecificMD(hf)
+	if md == nil {
+		panic(fmt.Errorf("native contract descriptor cache is nil: contract %s, hardfork %s", c.Hash.StringLE(), key))
+	}
 	return md
 }
 
+// BuildHFSpecificMD generates and caches contract's descriptor for every known hardfork.
+func (c *ContractMD) BuildHFSpecificMD(activeIn *config.Hardfork) {
+	var start config.Hardfork
+	if activeIn != nil {
+		start = *activeIn
+	}
+
+	for _, hf := range append([]config.Hardfork{config.HFDefault}, config.Hardforks...) {
+		switch {
+		case hf.Cmp(start) < 0:
+			continue
+		case hf.Cmp(start) == 0:
+			c.buildHFSpecificMD(hf)
+		default:
+			if _, ok := c.ActiveHFs[hf]; !ok {
+				// Intentionally omit HFSpecificContractMD structure copying since mdCache is read-only.
+				c.mdCache[hf] = c.mdCache[hf.Prev()]
+				continue
+			}
+			c.buildHFSpecificMD(hf)
+		}
+	}
+}
+
 // buildHFSpecificMD builds hardfork-specific contract descriptor that includes methods and events active starting from
-// the specified hardfork or older.
-func (c *ContractMD) buildHFSpecificMD(hf *config.Hardfork) *HFSpecificContractMD {
+// the specified hardfork or older. It also updates cache with the received value.
+func (c *ContractMD) buildHFSpecificMD(hf config.Hardfork) {
 	var (
 		abiMethods = make([]manifest.Method, 0, len(c.methods))
 		methods    = make([]HFSpecificMethodAndPrice, 0, len(c.methods))
@@ -267,7 +289,7 @@ func (c *ContractMD) buildHFSpecificMD(hf *config.Hardfork) *HFSpecificContractM
 	w := io.NewBufBinWriter()
 	for i := range c.methods {
 		m := c.methods[i]
-		if !(m.ActiveFrom == nil || (hf != nil && (*m.ActiveFrom).Cmp(*hf) >= 0)) {
+		if !(m.ActiveFrom == nil || (hf != config.HFDefault && (*m.ActiveFrom).Cmp(hf) >= 0)) {
 			continue
 		}
 
@@ -289,7 +311,7 @@ func (c *ContractMD) buildHFSpecificMD(hf *config.Hardfork) *HFSpecificContractM
 	}
 	for i := range c.events {
 		e := c.events[i]
-		if !(e.ActiveFrom == nil || (hf != nil && (*e.ActiveFrom).Cmp(*hf) >= 0)) {
+		if !(e.ActiveFrom == nil || (hf != config.HFDefault && (*e.ActiveFrom).Cmp(hf) >= 0)) {
 			continue
 		}
 
@@ -314,10 +336,6 @@ func (c *ContractMD) buildHFSpecificMD(hf *config.Hardfork) *HFSpecificContractM
 	if c.onManifestConstruction != nil {
 		c.onManifestConstruction(m)
 	}
-	var key config.Hardfork
-	if hf != nil {
-		key = *hf
-	}
 	md := &HFSpecificContractMD{
 		ContractBase: state.ContractBase{
 			ID:       c.ID,
@@ -329,10 +347,7 @@ func (c *ContractMD) buildHFSpecificMD(hf *config.Hardfork) *HFSpecificContractM
 		Events:  events,
 	}
 
-	c.mdCacheLock.Lock()
-	c.mdCache[key] = md
-	c.mdCacheLock.Unlock()
-	return md
+	c.mdCache[hf] = md
 }
 
 // AddMethod adds a new method to a native contract.

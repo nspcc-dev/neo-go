@@ -5,6 +5,13 @@ package config
 // Hardfork represents the application hard-fork identifier.
 type Hardfork byte
 
+// HFDefault is a default value of Hardfork enum. It's a special constant
+// aimed to denote the node code enabled by default starting from the
+// genesis block. HFDefault is not a hard-fork, but this constant can be used for
+// convenient hard-forks comparison and to refer to the default hard-fork-less
+// node behaviour.
+const HFDefault Hardfork = 0 // Default
+
 const (
 	// HFAspidochelone represents hard-fork introduced in #2469 (ported from
 	// https://github.com/neo-project/neo/pull/2712) and #2519 (ported from
@@ -50,6 +57,14 @@ func (hf Hardfork) Cmp(other Hardfork) int {
 	default:
 		return 1
 	}
+}
+
+// Prev returns the previous hardfork for the given one. Calling Prev for the default hardfork is a no-op.
+func (hf Hardfork) Prev() Hardfork {
+	if hf == HFDefault {
+		panic("unexpected call to Prev for the default hardfork")
+	}
+	return hf >> 1
 }
 
 // IsHardforkValid denotes whether the provided string represents a valid

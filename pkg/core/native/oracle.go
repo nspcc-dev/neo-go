@@ -118,6 +118,7 @@ func newOracle() *Oracle {
 		ContractMD:  *interop.NewContractMD(nativenames.Oracle, oracleContractID),
 		newRequests: make(map[uint64]*state.OracleRequest),
 	}
+	defer o.BuildHFSpecificMD(o.ActiveIn())
 
 	o.oracleScript = CreateOracleResponseScript(o.Hash)
 

@@ -37,6 +37,7 @@ func newGAS(init int64, p2pSigExtensionsEnabled bool) *GAS {
 		initialSupply:           init,
 		p2pSigExtensionsEnabled: p2pSigExtensionsEnabled,
 	}
+	defer g.BuildHFSpecificMD(g.ActiveIn())
 
 	nep17 := newNEP17Native(nativenames.Gas, gasContractID)
 	nep17.symbol = "GAS"

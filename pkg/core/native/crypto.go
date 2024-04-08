@@ -41,6 +41,7 @@ const cryptoContractID = -3
 
 func newCrypto() *Crypto {
 	c := &Crypto{ContractMD: *interop.NewContractMD(nativenames.CryptoLib, cryptoContractID)}
+	defer c.BuildHFSpecificMD(c.ActiveIn())
 
 	desc := newDescriptor("sha256", smartcontract.ByteArrayType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))

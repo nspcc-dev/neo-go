@@ -8,24 +8,24 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
+	_ = x[HFDefault-0]
 	_ = x[HFAspidochelone-1]
 	_ = x[HFBasilisk-2]
 	_ = x[hfLast-4]
 }
 
 const (
-	_Hardfork_name_0 = "AspidocheloneBasilisk"
+	_Hardfork_name_0 = "DefaultAspidocheloneBasilisk"
 	_Hardfork_name_1 = "hfLast"
 )
 
 var (
-	_Hardfork_index_0 = [...]uint8{0, 13, 21}
+	_Hardfork_index_0 = [...]uint8{0, 7, 20, 28}
 )
 
 func (i Hardfork) String() string {
 	switch {
-	case 1 <= i && i <= 2:
-		i -= 1
+	case i <= 2:
 		return _Hardfork_name_0[_Hardfork_index_0[i]:_Hardfork_index_0[i+1]]
 	case i == 4:
 		return _Hardfork_name_1

@@ -105,6 +105,7 @@ func newPolicy(p2pSigExtensionsEnabled bool) *Policy {
 		ContractMD:              *interop.NewContractMD(nativenames.Policy, policyContractID),
 		p2pSigExtensionsEnabled: p2pSigExtensionsEnabled,
 	}
+	defer p.BuildHFSpecificMD(p.ActiveIn())
 
 	desc := newDescriptor("getFeePerByte", smartcontract.IntegerType)
 	md := newMethodAndPrice(p.getFeePerByte, 1<<15, callflag.ReadStates)

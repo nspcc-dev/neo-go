@@ -104,6 +104,8 @@ func (s *Designate) isValidRole(r noderoles.Role) bool {
 
 func newDesignate(p2pSigExtensionsEnabled bool, initialNodeRoles map[noderoles.Role]keys.PublicKeys) *Designate {
 	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation, designateContractID)}
+	defer s.BuildHFSpecificMD(s.ActiveIn())
+
 	s.p2pSigExtensionsEnabled = p2pSigExtensionsEnabled
 	s.initialNodeRoles = initialNodeRoles
 

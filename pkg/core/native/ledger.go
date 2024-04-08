@@ -31,6 +31,7 @@ func newLedger() *Ledger {
 	var l = &Ledger{
 		ContractMD: *interop.NewContractMD(nativenames.Ledger, ledgerContractID),
 	}
+	defer l.BuildHFSpecificMD(l.ActiveIn())
 
 	desc := newDescriptor("currentHash", smartcontract.Hash256Type)
 	md := newMethodAndPrice(l.currentHash, 1<<15, callflag.ReadStates)

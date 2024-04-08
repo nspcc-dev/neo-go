@@ -46,6 +46,7 @@ var (
 
 func newStd() *Std {
 	s := &Std{ContractMD: *interop.NewContractMD(nativenames.StdLib, stdContractID)}
+	defer s.BuildHFSpecificMD(s.ActiveIn())
 
 	desc := newDescriptor("serialize", smartcontract.ByteArrayType,
 		manifest.NewParameter("item", smartcontract.AnyType))

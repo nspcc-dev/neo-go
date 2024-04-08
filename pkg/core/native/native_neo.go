@@ -172,6 +172,7 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 // newNEO returns NEO native contract.
 func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	n := &NEO{}
+	defer n.BuildHFSpecificMD(n.ActiveIn())
 
 	nep17 := newNEP17Native(nativenames.Neo, neoContractID)
 	nep17.symbol = "NEO"
