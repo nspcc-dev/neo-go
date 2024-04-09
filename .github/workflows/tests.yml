@@ -107,10 +107,12 @@ jobs:
         run: go test -timeout 15m -v ./... -coverprofile=./coverage.txt -covermode=atomic -coverpkg=./pkg...,./cli/...
 
       - name: Upload coverage results to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           fail_ci_if_error: true # if something is wrong on uploading codecov results, then this job will fail
           files: ./coverage.txt
+          slug: nspcc-dev/neo-go
+          token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
 
   tests:
