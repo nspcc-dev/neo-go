@@ -246,18 +246,28 @@ func (o *Oracle) Metadata() *interop.ContractMD {
 }
 
 // Initialize initializes an Oracle contract.
-func (o *Oracle) Initialize(ic *interop.Context, hf *config.Hardfork) error {
-	if hf != o.ActiveIn() {
-		return nil
+func (o *Oracle) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
+	switch hf {
+	case o.ActiveIn():
+		setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0)
+		setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, DefaultOracleRequestPrice)
+
+		cache := &OracleCache{
+			requestPrice: int64(DefaultOracleRequestPrice),
+		}
+		ic.DAO.SetCache(o.ID, cache)
+	default:
+		orc, _ := o.Module.Load().(*OracleService)
+		if orc != nil && *orc != nil {
+			md, ok := newMD.GetMethod(manifest.MethodVerify, -1)
+			if !ok {
+				panic(fmt.Errorf("%s method not found", manifest.MethodVerify))
+			}
+			(*orc).UpdateNativeContract(newMD.NEF.Script, o.GetOracleResponseScript(),
+				o.Hash, md.MD.Offset)
+		}
 	}
 
-	setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0)
-	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, DefaultOracleRequestPrice)
-
-	cache := &OracleCache{
-		requestPrice: int64(DefaultOracleRequestPrice),
-	}
-	ic.DAO.SetCache(o.ID, cache)
 	return nil
 }
 

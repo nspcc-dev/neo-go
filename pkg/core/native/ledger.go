@@ -81,7 +81,7 @@ func (l *Ledger) Metadata() *interop.ContractMD {
 }
 
 // Initialize implements the Contract interface.
-func (l *Ledger) Initialize(ic *interop.Context, hf *config.Hardfork) error {
+func (l *Ledger) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
 	return nil
 }
 

@@ -133,7 +133,7 @@ func newDesignate(p2pSigExtensionsEnabled bool, initialNodeRoles map[noderoles.R
 // Initialize initializes Designation contract. It is called once at native Management's OnPersist
 // at the genesis block, and we can't properly fill the cache at this point, as there are no roles
 // data in the storage.
-func (s *Designate) Initialize(ic *interop.Context, hf *config.Hardfork) error {
+func (s *Designate) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
 	if hf != s.ActiveIn() {
 		return nil
 	}

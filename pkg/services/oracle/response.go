@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -102,7 +103,12 @@ func checkUTF8(v []byte) ([]byte, error) {
 
 // CreateResponseTx creates an unsigned oracle response transaction.
 func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transaction.OracleResponse) (*transaction.Transaction, error) {
-	tx := transaction.New(o.oracleResponse, 0)
+	var respScript []byte
+	o.oracleInfoLock.RLock()
+	respScript = o.oracleResponse
+	o.oracleInfoLock.RUnlock()
+
+	tx := transaction.New(respScript, 0)
 	tx.Nonce = uint32(resp.ID)
 	tx.ValidUntilBlock = vub
 	tx.Attributes = []transaction.Attribute{{
@@ -113,7 +119,7 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transa
 	oracleSignContract := o.getOracleSignContract()
 	tx.Signers = []transaction.Signer{
 		{
-			Account: o.oracleHash,
+			Account: nativehashes.Oracle,
 			Scopes:  transaction.None,
 		},
 		{
@@ -166,8 +172,11 @@ func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool, error) {
 		return 0, false, fmt.Errorf("failed to create test VM: %w", err)
 	}
 	ic.VM.GasLimit = o.Chain.GetMaxVerificationGAS()
-	ic.VM.LoadScriptWithHash(o.oracleScript, o.oracleHash, callflag.ReadOnly)
+
+	o.oracleInfoLock.RLock()
+	ic.VM.LoadScriptWithHash(o.oracleScript, nativehashes.Oracle, callflag.ReadOnly)
 	ic.VM.Context().Jump(o.verifyOffset)
+	o.oracleInfoLock.RUnlock()
 
 	ok := isVerifyOk(ic)
 	return ic.VM.GasConsumed(), ok, nil

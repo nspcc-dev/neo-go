@@ -627,7 +627,8 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 			continue
 		}
 		md := native.Metadata()
-		base := md.HFSpecificContractMD(&latestHF).ContractBase
+		hfSpecificMD := md.HFSpecificContractMD(&latestHF)
+		base := hfSpecificMD.ContractBase
 		var cs *state.Contract
 		switch {
 		case isDeploy:
@@ -653,7 +654,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to put contract state: %w", err)
 		}
-		if err := native.Initialize(ic, activeIn); err != nil {
+		if err := native.Initialize(ic, activeIn, hfSpecificMD); err != nil {
 			return fmt.Errorf("initializing %s native contract at HF %d: %w", md.Name, activeIn, err)
 		}
 		if cache == nil {
@@ -728,7 +729,7 @@ func (m *Management) GetNEP17Contracts(d *dao.Simple) []util.Uint160 {
 }
 
 // Initialize implements the Contract interface.
-func (m *Management) Initialize(ic *interop.Context, hf *config.Hardfork) error {
+func (m *Management) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
 	if hf != m.ActiveIn() {
 		return nil
 	}

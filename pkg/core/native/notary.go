@@ -127,7 +127,7 @@ func (n *Notary) Metadata() *interop.ContractMD {
 }
 
 // Initialize initializes Notary native contract and implements the Contract interface.
-func (n *Notary) Initialize(ic *interop.Context, hf *config.Hardfork) error {
+func (n *Notary) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
 	if hf != n.ActiveIn() {
 		return nil
 	}

@@ -310,7 +310,7 @@ func (c *Crypto) Metadata() *interop.ContractMD {
 }
 
 // Initialize implements the Contract interface.
-func (c *Crypto) Initialize(ic *interop.Context, hf *config.Hardfork) error {
+func (c *Crypto) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
 	return nil
 }
 

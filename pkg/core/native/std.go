@@ -439,7 +439,7 @@ func (s *Std) Metadata() *interop.ContractMD {
 }
 
 // Initialize implements the Contract interface.
-func (s *Std) Initialize(ic *interop.Context, hf *config.Hardfork) error {
+func (s *Std) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
 	return nil
 }
 

@@ -169,7 +169,7 @@ func (p *Policy) Metadata() *interop.ContractMD {
 }
 
 // Initialize initializes Policy native contract and implements the Contract interface.
-func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork) error {
+func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
 	if hf != p.ActiveIn() {
 		return nil
 	}

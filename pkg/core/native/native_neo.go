@@ -286,7 +286,7 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 }
 
 // Initialize initializes a NEO contract.
-func (n *NEO) Initialize(ic *interop.Context, hf *config.Hardfork) error {
+func (n *NEO) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
 	if hf != n.ActiveIn() {
 		return nil
 	}

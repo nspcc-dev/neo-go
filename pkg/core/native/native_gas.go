@@ -83,7 +83,7 @@ func (g *GAS) balanceFromBytes(si *state.StorageItem) (*big.Int, error) {
 }
 
 // Initialize initializes a GAS contract.
-func (g *GAS) Initialize(ic *interop.Context, hf *config.Hardfork) error {
+func (g *GAS) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
 	if hf != g.ActiveIn() {
 		return nil
 	}

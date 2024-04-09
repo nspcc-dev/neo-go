@@ -171,7 +171,7 @@ type HFSpecificEvent struct {
 type Contract interface {
 	// Initialize performs native contract initialization on contract deploy or update.
 	// Active hardfork is passed as the second argument.
-	Initialize(*Context, *config.Hardfork) error
+	Initialize(*Context, *config.Hardfork, *HFSpecificContractMD) error
 	// ActiveIn returns the hardfork native contract is active starting from or nil in case
 	// it's always active.
 	ActiveIn() *config.Hardfork

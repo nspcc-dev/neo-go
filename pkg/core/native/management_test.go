@@ -20,9 +20,9 @@ func TestDeployGetUpdateDestroyContract(t *testing.T) {
 	mgmt.Policy = newPolicy(false)
 	d := dao.NewSimple(storage.NewMemoryStore(), false)
 	ic := &interop.Context{DAO: d}
-	err := mgmt.Initialize(ic, nil)
+	err := mgmt.Initialize(ic, nil, nil)
 	require.NoError(t, err)
-	require.NoError(t, mgmt.Policy.Initialize(&interop.Context{DAO: d}, nil))
+	require.NoError(t, mgmt.Policy.Initialize(&interop.Context{DAO: d}, nil, nil))
 	script := []byte{byte(opcode.RET)}
 	sender := util.Uint160{1, 2, 3}
 	ne, err := nef.NewFile(script)
@@ -97,9 +97,9 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 	mgmt := newManagement()
 	mgmt.Policy = newPolicy(false)
 	d := dao.NewSimple(storage.NewMemoryStore(), false)
-	err := mgmt.Initialize(&interop.Context{DAO: d}, nil)
+	err := mgmt.Initialize(&interop.Context{DAO: d}, nil, nil)
 	require.NoError(t, err)
-	require.NoError(t, mgmt.Policy.Initialize(&interop.Context{DAO: d}, nil))
+	require.NoError(t, mgmt.Policy.Initialize(&interop.Context{DAO: d}, nil, nil))
 	err = mgmt.InitializeCache(0, d)
 	require.NoError(t, err)
 
