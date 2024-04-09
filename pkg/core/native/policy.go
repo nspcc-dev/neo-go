@@ -289,7 +289,7 @@ func (p *Policy) GetExecFeeFactorInternal(d *dao.Simple) int64 {
 func (p *Policy) setExecFeeFactor(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	value := toUint32(args[0])
 	if value <= 0 || maxExecFeeFactor < value {
-		panic(fmt.Errorf("ExecFeeFactor must be between 0 and %d", maxExecFeeFactor))
+		panic(fmt.Errorf("ExecFeeFactor must be between 1 and %d", maxExecFeeFactor))
 	}
 	if !p.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
@@ -348,7 +348,7 @@ func (p *Policy) GetStoragePriceInternal(d *dao.Simple) int64 {
 func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	value := toUint32(args[0])
 	if value <= 0 || maxStoragePrice < value {
-		panic(fmt.Errorf("StoragePrice must be between 0 and %d", maxStoragePrice))
+		panic(fmt.Errorf("StoragePrice must be between 1 and %d", maxStoragePrice))
 	}
 	if !p.NEO.checkCommittee(ic) {
 		panic("invalid committee signature")
