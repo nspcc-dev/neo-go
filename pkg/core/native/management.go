@@ -659,6 +659,12 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 			cache = ic.DAO.GetRWCache(m.ID).(*ManagementCache)
 		}
 		updateContractCache(cache, cs)
+
+		ntfName := contractDeployNotificationName
+		if isUpdate {
+			ntfName = contractUpdateNotificationName
+		}
+		m.emitNotification(ic, ntfName, cs.Hash)
 	}
 
 	return nil
