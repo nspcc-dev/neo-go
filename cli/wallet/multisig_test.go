@@ -1,7 +1,6 @@
 package wallet_test
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -45,9 +44,9 @@ func TestSignMultisigTx(t *testing.T) {
 			"--wallet", w,
 			"--wif", wif,
 			"--min", "2",
-			hex.EncodeToString(pubs[0].Bytes()),
-			hex.EncodeToString(pubs[1].Bytes()),
-			hex.EncodeToString(pubs[2].Bytes()))
+			pubs[0].StringCompressed(),
+			pubs[1].StringCompressed(),
+			pubs[2].StringCompressed())
 	}
 	addAccount(wallet1Path, privs[0].WIF())
 	addAccount(wallet2Path, privs[1].WIF())

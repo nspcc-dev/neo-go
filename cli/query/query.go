@@ -3,7 +3,6 @@ package query
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"sort"
 	"strconv"
@@ -204,7 +203,7 @@ func queryCandidates(ctx *cli.Context) error {
 	var res []byte
 	res = fmt.Appendf(res, "Key\tVotes\tCommittee\tConsensus\n")
 	for _, val := range vals {
-		res = fmt.Appendf(res, "%s\t%d\t%t\t%t\n", hex.EncodeToString(val.PublicKey.Bytes()), val.Votes, comm.Contains(&val.PublicKey), val.Active)
+		res = fmt.Appendf(res, "%s\t%d\t%t\t%t\n", val.PublicKey.StringCompressed(), val.Votes, comm.Contains(&val.PublicKey), val.Active)
 	}
 	tw := tabwriter.NewWriter(ctx.App.Writer, 0, 2, 2, ' ', 0)
 	_, err = tw.Write(res)
@@ -235,7 +234,7 @@ func queryCommittee(ctx *cli.Context) error {
 	}
 
 	for _, k := range comm {
-		fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(k.Bytes()))
+		fmt.Fprintln(ctx.App.Writer, k.StringCompressed())
 	}
 	return nil
 }
@@ -306,7 +305,7 @@ func queryVoter(ctx *cli.Context) error {
 	}
 	voted := "null"
 	if st.VoteTo != nil {
-		voted = fmt.Sprintf("%s (%s)", hex.EncodeToString(st.VoteTo.Bytes()), address.Uint160ToString(st.VoteTo.GetScriptHash()))
+		voted = fmt.Sprintf("%s (%s)", st.VoteTo.StringCompressed(), address.Uint160ToString(st.VoteTo.GetScriptHash()))
 	}
 	fmt.Fprintf(ctx.App.Writer, "\tVoted: %s\n", voted)
 	fmt.Fprintf(ctx.App.Writer, "\tAmount : %s\n", fixedn.ToString(&st.Balance, int(dec)))

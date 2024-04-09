@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -320,7 +319,7 @@ func TestGenesisExtensionsMarshalYAML(t *testing.T) {
 
 	t.Run("unmarshal config", func(t *testing.T) {
 		t.Run("good", func(t *testing.T) {
-			pubStr := hex.EncodeToString(pub.Bytes())
+			pubStr := pub.StringCompressed()
 			script := []byte{1, 2, 3, 4}
 			cfgYml := fmt.Sprintf(`ProtocolConfiguration:
   Genesis:
@@ -354,7 +353,7 @@ func TestGenesisExtensionsMarshalYAML(t *testing.T) {
 		})
 
 		t.Run("unknown role", func(t *testing.T) {
-			pubStr := hex.EncodeToString(pub.Bytes())
+			pubStr := pub.StringCompressed()
 			cfgYml := fmt.Sprintf(`ProtocolConfiguration:
   Genesis:
     Roles:
@@ -367,7 +366,7 @@ func TestGenesisExtensionsMarshalYAML(t *testing.T) {
 		})
 
 		t.Run("last role", func(t *testing.T) {
-			pubStr := hex.EncodeToString(pub.Bytes())
+			pubStr := pub.StringCompressed()
 			cfgYml := fmt.Sprintf(`ProtocolConfiguration:
   Genesis:
     Roles:

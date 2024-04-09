@@ -2,7 +2,6 @@ package manifest
 
 import (
 	"crypto/elliptic"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -204,7 +203,7 @@ func (d *PermissionDesc) MarshalJSON() ([]byte, error) {
 	case PermissionHash:
 		return json.Marshal("0x" + d.Hash().StringLE())
 	case PermissionGroup:
-		return json.Marshal(hex.EncodeToString(d.Group().Bytes()))
+		return json.Marshal(d.Group().StringCompressed())
 	default:
 		return []byte(`"*"`), nil
 	}

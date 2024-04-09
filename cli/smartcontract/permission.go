@@ -1,7 +1,6 @@
 package smartcontract
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -28,10 +27,9 @@ func (p permission) MarshalYAML() (any, error) {
 			&yaml.Node{Kind: yaml.ScalarNode, Value: permHashKey},
 			&yaml.Node{Kind: yaml.ScalarNode, Value: p.Contract.Value.(util.Uint160).StringLE()})
 	case manifest.PermissionGroup:
-		bs := p.Contract.Value.(*keys.PublicKey).Bytes()
 		m.Content = append(m.Content,
 			&yaml.Node{Kind: yaml.ScalarNode, Value: permGroupKey},
-			&yaml.Node{Kind: yaml.ScalarNode, Value: hex.EncodeToString(bs)})
+			&yaml.Node{Kind: yaml.ScalarNode, Value: p.Contract.Value.(*keys.PublicKey).StringCompressed()})
 	default:
 		return nil, fmt.Errorf("invalid permission type: %d", p.Contract.Type)
 	}

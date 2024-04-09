@@ -1,8 +1,6 @@
 package context
 
 import (
-	"encoding/hex"
-
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 )
@@ -16,11 +14,11 @@ type Item struct {
 
 // GetSignature returns a signature for the pub if present.
 func (it *Item) GetSignature(pub *keys.PublicKey) []byte {
-	return it.Signatures[hex.EncodeToString(pub.Bytes())]
+	return it.Signatures[pub.StringCompressed()]
 }
 
 // AddSignature adds a signature for the pub.
 func (it *Item) AddSignature(pub *keys.PublicKey, sig []byte) {
-	pubHex := hex.EncodeToString(pub.Bytes())
+	pubHex := pub.StringCompressed()
 	it.Signatures[pubHex] = sig
 }
