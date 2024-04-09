@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativeprices"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
@@ -2460,7 +2461,7 @@ func TestBlockchain_GenesisTransactionExtension(t *testing.T) {
 	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeCheckWitness)
 	emit.Bytes(script.BinWriter, to.BytesBE())
 	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeCheckWitness)
-	emit.AppCall(script.BinWriter, state.CreateNativeContractHash(nativenames.Neo), "transfer", callflag.All, from, to, amount, nil)
+	emit.AppCall(script.BinWriter, nativehashes.Neo, "transfer", callflag.All, from, to, amount, nil)
 	emit.Opcodes(script.BinWriter, opcode.ASSERT)
 
 	var sysFee int64 = 1_0000_0000

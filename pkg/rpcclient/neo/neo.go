@@ -12,7 +12,7 @@ import (
 	"math/big"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -97,7 +97,7 @@ type ValidatorIterator struct {
 }
 
 // Hash stores the hash of the native NEOToken contract.
-var Hash = state.CreateNativeContractHash(nativenames.Neo)
+var Hash = nativehashes.Neo
 
 // NewReader creates an instance of ContractReader to get data from the NEO
 // contract.

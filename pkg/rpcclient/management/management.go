@@ -13,7 +13,7 @@ import (
 	"math/big"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -75,7 +75,7 @@ type HashesIterator struct {
 }
 
 // Hash stores the hash of the native ContractManagement contract.
-var Hash = state.CreateNativeContractHash(nativenames.Management)
+var Hash = nativehashes.Management
 
 // Event is the event emitted on contract deployment/update/destroy.
 // Even though these events are different they all have the same field inside.

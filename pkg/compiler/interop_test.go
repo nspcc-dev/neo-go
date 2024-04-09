@@ -15,7 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -610,7 +610,7 @@ func TestCallWithVersion(t *testing.T) {
 	e.DeployContract(t, ctr, nil)
 	c := e.CommitteeInvoker(ctr.Hash)
 
-	policyH := state.CreateNativeContractHash(nativenames.Policy)
+	policyH := nativehashes.Policy
 	t.Run("good", func(t *testing.T) {
 		c.Invoke(t, e.Chain.GetBaseExecFee(), "callWithVersion", policyH.BytesBE(), 0, "getExecFeeFactor")
 	})

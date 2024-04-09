@@ -7,8 +7,7 @@ various methods to perform PolicyContract state-changing calls.
 package policy
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
@@ -34,7 +33,7 @@ type Actor interface {
 }
 
 // Hash stores the hash of the native PolicyContract contract.
-var Hash = state.CreateNativeContractHash(nativenames.Policy)
+var Hash = nativehashes.Policy
 
 const (
 	execFeeSetter      = "setExecFeeFactor"
