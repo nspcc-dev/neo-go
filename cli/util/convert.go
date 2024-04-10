@@ -69,7 +69,8 @@ func NewCommands() []cli.Command {
    NetworkFee calculations are performed based on the calculatenetworkfee RPC request. If the --gas 
    flag is included, the specified value is added to the resulting conflicting transaction network fee 
    in both scenarios. When the --await flag is included, the command waits for one of the conflicting 
-   or target transactions to be included in a block.`,
+   or target transactions to be included in a block.
+`,
 					Action: cancelTx,
 					Flags:  txCancelFlags,
 				},
@@ -83,7 +84,8 @@ func NewCommands() []cli.Command {
    the output. This command expects a ContractParametersContext JSON file for input, it can't handle
    binary (or hex- or base64-encoded) transactions. If --rpc-endpoint flag is specified the result 
    of the given script after running it true the VM will be printed. Otherwise only transaction will
-   be printed.`,
+   be printed.
+`,
 				},
 				{
 					Name:      "ops",

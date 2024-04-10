@@ -137,7 +137,8 @@ func NewCommands() []cli.Command {
    then the output filenames for these flags will be guessed using the contract
    name or path provided via --in option by trimming/adding corresponding suffixes
    to the common part of the path. In the latter case the configuration filepath
-   will be guessed from the --in option using the same rule."`,
+   will be guessed from the --in option using the same rule.
+`,
 				Action: contractCompile,
 				Flags: []cli.Flag{
 					cli.StringFlag{
