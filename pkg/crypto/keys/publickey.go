@@ -115,7 +115,7 @@ func (p *PublicKey) Cmp(key *PublicKey) int {
 }
 
 // NewPublicKeyFromString returns a public key created from the
-// given hex string.
+// given hex string public key representation in compressed form.
 func NewPublicKeyFromString(s string) (*PublicKey, error) {
 	b, err := hex.DecodeString(s)
 	if err != nil {
