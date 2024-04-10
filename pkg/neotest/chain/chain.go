@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -56,6 +57,24 @@ var (
 	// standByCommittee contains a list of committee public keys to use in config.
 	standByCommittee []string
 )
+
+// Options contains parameters to customize parameters of the test chain.
+type Options struct {
+	// Logger allows to customize logging performed by the test chain.
+	// If Logger is not set, zaptest.Logger will be used with default configuration.
+	Logger *zap.Logger
+	// BlockchainConfigHook function is sort of visitor pattern for blockchain configuration.
+	// It takes in the default configuration as an argument and can perform any adjustments in it.
+	BlockchainConfigHook func(*config.Blockchain)
+	// Store allows to customize storage for blockchain data.
+	// If Store is not set, MemoryStore is used by default.
+	Store storage.Store
+	// If SkipRun is false, then the blockchain will be started (if its' construction
+	// has succeeded) and will be registered for cleanup when the test completes.
+	// If SkipRun is true, it is caller's responsibility to call Run before using
+	// the chain and to properly Close the chain when done.
+	SkipRun bool
+}
 
 func init() {
 	committeeAcc, _ = wallet.NewAccountFromWIF(singleValidatorWIF)
@@ -138,7 +157,21 @@ func NewSingleWithCustomConfig(t testing.TB, f func(*config.Blockchain)) (*core.
 // responsibility to do that before using the chain and
 // to properly Close the chain when done.
 func NewSingleWithCustomConfigAndStore(t testing.TB, f func(cfg *config.Blockchain), st storage.Store, run bool) (*core.Blockchain, neotest.Signer) {
-	var cfg = config.Blockchain{
+	return NewSingleWithOptions(t, &Options{
+		BlockchainConfigHook: f,
+		Store:                st,
+		SkipRun:              !run,
+	})
+}
+
+// NewSingleWithOptions creates a new blockchain instance with a single validator
+// using specified options.
+func NewSingleWithOptions(t testing.TB, options *Options) (*core.Blockchain, neotest.Signer) {
+	if options == nil {
+		options = &Options{}
+	}
+
+	cfg := config.Blockchain{
 		ProtocolConfiguration: config.ProtocolConfiguration{
 			Magic:              netmode.UnitTestNet,
 			MaxTraceableBlocks: MaxTraceableBlocks,
@@ -148,17 +181,23 @@ func NewSingleWithCustomConfigAndStore(t testing.TB, f func(cfg *config.Blockcha
 			VerifyTransactions: true,
 		},
 	}
+	if options.BlockchainConfigHook != nil {
+		options.BlockchainConfigHook(&cfg)
+	}
 
-	if f != nil {
-		f(&cfg)
+	store := options.Store
+	if store == nil {
+		store = storage.NewMemoryStore()
 	}
-	if st == nil {
-		st = storage.NewMemoryStore()
+
+	logger := options.Logger
+	if logger == nil {
+		logger = zaptest.NewLogger(t)
 	}
-	log := zaptest.NewLogger(t)
-	bc, err := core.NewBlockchain(st, cfg, log)
+
+	bc, err := core.NewBlockchain(store, cfg, logger)
 	require.NoError(t, err)
-	if run {
+	if !options.SkipRun {
 		go bc.Run()
 		t.Cleanup(bc.Close)
 	}
@@ -193,10 +232,33 @@ func NewMultiWithCustomConfigAndStore(t testing.TB, f func(*config.Blockchain), 
 	return bc, validator, committee
 }
 
+// NewMultiWithOptions creates a new blockchain instance with four validators and six
+// committee members. Otherwise, it does not differ much from NewSingle. The
+// second value returned contains the validators Signer, the third -- the committee one.
+func NewMultiWithOptions(t testing.TB, options *Options) (*core.Blockchain, neotest.Signer, neotest.Signer) {
+	bc, validator, committee, err := NewMultiWithOptionsNoCheck(t, options)
+	require.NoError(t, err)
+	return bc, validator, committee
+}
+
 // NewMultiWithCustomConfigAndStoreNoCheck is similar to NewMultiWithCustomConfig,
 // but do not perform Blockchain run and do not check Blockchain constructor error.
 func NewMultiWithCustomConfigAndStoreNoCheck(t testing.TB, f func(*config.Blockchain), st storage.Store) (*core.Blockchain, neotest.Signer, neotest.Signer, error) {
-	var cfg = config.Blockchain{
+	return NewMultiWithOptionsNoCheck(t, &Options{
+		BlockchainConfigHook: f,
+		Store:                st,
+		SkipRun:              true,
+	})
+}
+
+// NewMultiWithOptionsNoCheck is similar to NewMultiWithOptions, but does not verify blockchain constructor error.
+// It will start blockchain only if construction has completed successfully.
+func NewMultiWithOptionsNoCheck(t testing.TB, options *Options) (*core.Blockchain, neotest.Signer, neotest.Signer, error) {
+	if options == nil {
+		options = &Options{}
+	}
+
+	cfg := config.Blockchain{
 		ProtocolConfiguration: config.ProtocolConfiguration{
 			Magic:              netmode.UnitTestNet,
 			MaxTraceableBlocks: MaxTraceableBlocks,
@@ -206,14 +268,24 @@ func NewMultiWithCustomConfigAndStoreNoCheck(t testing.TB, f func(*config.Blockc
 			VerifyTransactions: true,
 		},
 	}
-	if f != nil {
-		f(&cfg)
-	}
-	if st == nil {
-		st = storage.NewMemoryStore()
+	if options.BlockchainConfigHook != nil {
+		options.BlockchainConfigHook(&cfg)
 	}
 
-	log := zaptest.NewLogger(t)
-	bc, err := core.NewBlockchain(st, cfg, log)
+	store := options.Store
+	if store == nil {
+		store = storage.NewMemoryStore()
+	}
+
+	logger := options.Logger
+	if logger == nil {
+		logger = zaptest.NewLogger(t)
+	}
+
+	bc, err := core.NewBlockchain(store, cfg, logger)
+	if err == nil && !options.SkipRun {
+		go bc.Run()
+		t.Cleanup(bc.Close)
+	}
 	return bc, neotest.NewMultiSigner(multiValidatorAcc...), neotest.NewMultiSigner(multiCommitteeAcc...), err
 }
