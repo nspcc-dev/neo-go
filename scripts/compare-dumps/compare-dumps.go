@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -94,14 +95,18 @@ func compare(a, b string) error {
 		fail := false
 		for j := range blockA.Storage {
 			if blockA.Storage[j].Key != blockB.Storage[j].Key {
-				return fmt.Errorf("block %d: key mismatch: %s vs %s", blockA.Block, blockA.Storage[j].Key, blockB.Storage[j].Key)
+				idA, prefixA := parseKey(blockA.Storage[j].Key)
+				idB, prefixB := parseKey(blockB.Storage[j].Key)
+				return fmt.Errorf("block %d: key mismatch:\n\tKey: %s\n\tContract ID: %d\n\tItem key (base64): %s\n\tItem key (hex): %s\n\tItem key (bytes): %v\nvs\n\tKey: %s\n\tContract ID: %d\n\tItem key (base64): %s\n\tItem key (hex): %s\n\tItem key (bytes): %v", blockA.Block, blockA.Storage[j].Key, idA, base64.StdEncoding.EncodeToString(prefixA), hex.EncodeToString(prefixA), prefixA, blockB.Storage[j].Key, idB, base64.StdEncoding.EncodeToString(prefixB), hex.EncodeToString(prefixB), prefixB)
 			}
 			if blockA.Storage[j].State != blockB.Storage[j].State {
-				return fmt.Errorf("block %d: state mismatch for key %s: %s vs %s", blockA.Block, blockA.Storage[j].Key, blockA.Storage[j].State, blockB.Storage[j].State)
+				id, prefix := parseKey(blockA.Storage[j].Key)
+				return fmt.Errorf("block %d: state mismatch for key %s:\n\tContract ID: %d\n\tItem key (base64): %s\n\tItem key (hex): %s\n\tItem key (bytes): %v\n\tDiff: %s vs %s", blockA.Block, blockA.Storage[j].Key, id, base64.StdEncoding.EncodeToString(prefix), hex.EncodeToString(prefix), prefix, blockA.Storage[j].State, blockB.Storage[j].State)
 			}
 			if blockA.Storage[j].Value != blockB.Storage[j].Value {
 				fail = true
-				fmt.Printf("block %d: value mismatch for key %s: %s vs %s\n", blockA.Block, blockA.Storage[j].Key, blockA.Storage[j].Value, blockB.Storage[j].Value)
+				id, prefix := parseKey(blockA.Storage[j].Key)
+				fmt.Printf("block %d: value mismatch for key %s:\n\tContract ID: %d\n\tItem key (base64): %s\n\tItem key (hex): %s\n\tItem key (bytes): %v\n\tDiff: %s vs %s\n", blockA.Block, blockA.Storage[j].Key, id, base64.StdEncoding.EncodeToString(prefix), hex.EncodeToString(prefix), prefix, blockA.Storage[j].Value, blockB.Storage[j].Value)
 			}
 		}
 		if fail {
@@ -109,6 +114,14 @@ func compare(a, b string) error {
 		}
 	}
 	return nil
+}
+
+// parseKey splits the provided storage item key into contract ID and contract storage item prefix.
+func parseKey(key string) (int32, []byte) {
+	keyBytes, _ := base64.StdEncoding.DecodeString(key) // ignore error, rely on proper storage dump state.
+	id := int32(binary.LittleEndian.Uint32(keyBytes[:4]))
+	prefix := keyBytes[4:]
+	return id, prefix
 }
 
 func cliMain(c *cli.Context) error {
