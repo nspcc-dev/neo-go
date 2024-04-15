@@ -30,17 +30,22 @@ var generatorFlags = []cli.Flag{
 	},
 	cli.StringFlag{
 		Name:  "hash",
-		Usage: "Smart-contract hash",
+		Usage: "Smart-contract hash. If not passed, the wrapper will be designed for dynamic hash usage",
 	},
 }
 
 var generateWrapperCmd = cli.Command{
-	Name:        "generate-wrapper",
-	Usage:       "generate wrapper to use in other contracts",
-	UsageText:   "neo-go contract generate-wrapper --manifest <file.json> --out <file.go> --hash <hash> [--config <config>]",
-	Description: ``,
-	Action:      contractGenerateWrapper,
-	Flags:       generatorFlags,
+	Name:      "generate-wrapper",
+	Usage:     "generate wrapper to use in other contracts",
+	UsageText: "neo-go contract generate-wrapper --manifest <file.json> --out <file.go> [--hash <hash>] [--config <config>]",
+	Description: `Generates a Go wrapper to use it in other smart contracts. If the
+   --hash flag is provided, CALLT instruction is used for the target contract
+   invocation as an optimization of the wrapper contract code. If omitted, the
+   generated wrapper will be designed for dynamic hash usage, allowing
+   the hash to be specified at runtime.
+`,
+	Action: contractGenerateWrapper,
+	Flags:  generatorFlags,
 }
 
 var generateRPCWrapperCmd = cli.Command{
@@ -52,15 +57,15 @@ var generateRPCWrapperCmd = cli.Command{
 }
 
 func contractGenerateWrapper(ctx *cli.Context) error {
-	return contractGenerateSomething(ctx, binding.Generate, false)
+	return contractGenerateSomething(ctx, binding.Generate)
 }
 
 func contractGenerateRPCWrapper(ctx *cli.Context) error {
-	return contractGenerateSomething(ctx, rpcbinding.Generate, true)
+	return contractGenerateSomething(ctx, rpcbinding.Generate)
 }
 
 // contractGenerateSomething reads generator parameters and calls the given callback.
-func contractGenerateSomething(ctx *cli.Context, cb func(binding.Config) error, allowEmptyHash bool) error {
+func contractGenerateSomething(ctx *cli.Context, cb func(binding.Config) error) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
@@ -73,8 +78,6 @@ func contractGenerateSomething(ctx *cli.Context, cb func(binding.Config) error, 
 		if err != nil {
 			return cli.NewExitError(fmt.Errorf("invalid contract hash: %w", err), 1)
 		}
-	} else if !allowEmptyHash {
-		return cli.NewExitError("contract hash must be provided via --hash flag", 1)
 	}
 	m, _, err := readManifest(ctx.String("manifest"), h)
 	if err != nil {

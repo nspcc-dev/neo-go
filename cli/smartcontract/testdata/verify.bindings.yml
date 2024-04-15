@@ -1,0 +1,297 @@
+package: testdata
+hash: "0x0000000000000000000000000000000000000000"
+overrides:
+    burnGas.gas: int
+    call: any
+    call.args: '[]any'
+    call.f: any
+    call.method: string
+    call.scriptHash: github.com/nspcc-dev/neo-go/pkg/interop.Hash160
+    callWithToken: any
+    callWithToken.args: '[]any'
+    callWithToken.flags: int
+    callWithToken.method: string
+    callWithToken.scriptHash: string
+    callWithTokenNoRet.args: '[]any'
+    callWithTokenNoRet.flags: int
+    callWithTokenNoRet.method: string
+    callWithTokenNoRet.scriptHash: string
+    checkWitness: bool
+    checkWitness.hashOrKey: '[]byte'
+    createMultisigAccount: '[]byte'
+    createMultisigAccount.m: int
+    createMultisigAccount.pubs: '[]github.com/nspcc-dev/neo-go/pkg/interop.PublicKey'
+    createStandardAccount: '[]byte'
+    createStandardAccount.pub: github.com/nspcc-dev/neo-go/pkg/interop.PublicKey
+    currentHash: github.com/nspcc-dev/neo-go/pkg/interop.Hash256
+    currentIndex: int
+    currentSigners: '[]github.com/nspcc-dev/neo-go/pkg/interop/native/ledger.TransactionSigner'
+    equals: bool
+    equals.b: any
+    gasLeft: int
+    getAddressVersion: int
+    getBlock: '*github.com/nspcc-dev/neo-go/pkg/interop/native/ledger.Block'
+    getBlock.indexOrHash: any
+    getCallFlags: any
+    getCallingScriptHash: github.com/nspcc-dev/neo-go/pkg/interop.Hash160
+    getEntryScriptHash: github.com/nspcc-dev/neo-go/pkg/interop.Hash160
+    getExecutingScriptHash: github.com/nspcc-dev/neo-go/pkg/interop.Hash160
+    getInvocationCounter: int
+    getNetwork: int
+    getNotifications: '[][]any'
+    getNotifications.h: github.com/nspcc-dev/neo-go/pkg/interop.Hash160
+    getRandom: int
+    getScriptContainer: '*github.com/nspcc-dev/neo-go/pkg/interop/native/ledger.Transaction'
+    getTime: int
+    getTransaction: '*github.com/nspcc-dev/neo-go/pkg/interop/native/ledger.Transaction'
+    getTransaction.hash: github.com/nspcc-dev/neo-go/pkg/interop.Hash256
+    getTransactionFromBlock: '*github.com/nspcc-dev/neo-go/pkg/interop/native/ledger.Transaction'
+    getTransactionFromBlock.indexOrHash: any
+    getTransactionFromBlock.txIndex: int
+    getTransactionHeight: int
+    getTransactionHeight.hash: github.com/nspcc-dev/neo-go/pkg/interop.Hash256
+    getTransactionSigners: '[]github.com/nspcc-dev/neo-go/pkg/interop/native/ledger.TransactionSigner'
+    getTransactionSigners.hash: github.com/nspcc-dev/neo-go/pkg/interop.Hash256
+    getTransactionVMState: int
+    getTransactionVMState.hash: github.com/nspcc-dev/neo-go/pkg/interop.Hash256
+    getTrigger: int
+    loadScript: any
+    loadScript.args: '[]any'
+    loadScript.f: any
+    loadScript.script: '[]byte'
+    log.message: string
+    notify.args: '[]any'
+    notify.name: string
+    onNEP11Payment.amount: int
+    onNEP11Payment.data: any
+    onNEP11Payment.from: github.com/nspcc-dev/neo-go/pkg/interop.Hash160
+    onNEP11Payment.token: '[]byte'
+    onNEP17Payment.amount: int
+    onNEP17Payment.data: any
+    onNEP17Payment.from: github.com/nspcc-dev/neo-go/pkg/interop.Hash160
+    opcode0NoReturn.op: string
+    opcode1: any
+    opcode1NoReturn.arg: any
+    opcode1NoReturn.op: string
+    opcode1.arg: any
+    opcode1.op: string
+    opcode2: any
+    opcode2NoReturn.arg1: any
+    opcode2NoReturn.arg2: any
+    opcode2NoReturn.op: string
+    opcode2.arg1: any
+    opcode2.arg2: any
+    opcode2.op: string
+    opcode3: any
+    opcode3.arg1: any
+    opcode3.arg2: any
+    opcode3.arg3: any
+    opcode3.op: string
+    platform: '[]byte'
+    syscall0: any
+    syscall0NoReturn.name: string
+    syscall0.name: string
+    syscall1: any
+    syscall1NoReturn.arg: any
+    syscall1NoReturn.name: string
+    syscall1.arg: any
+    syscall1.name: string
+    syscall2: any
+    syscall2NoReturn.arg1: any
+    syscall2NoReturn.arg2: any
+    syscall2NoReturn.name: string
+    syscall2.arg1: any
+    syscall2.arg2: any
+    syscall2.name: string
+    syscall3: any
+    syscall3NoReturn.arg1: any
+    syscall3NoReturn.arg2: any
+    syscall3NoReturn.arg3: any
+    syscall3NoReturn.name: string
+    syscall3.arg1: any
+    syscall3.arg2: any
+    syscall3.arg3: any
+    syscall3.name: string
+    syscall4: any
+    syscall4NoReturn.arg1: any
+    syscall4NoReturn.arg2: any
+    syscall4NoReturn.arg3: any
+    syscall4NoReturn.arg4: any
+    syscall4NoReturn.name: string
+    syscall4.arg1: any
+    syscall4.arg2: any
+    syscall4.arg3: any
+    syscall4.arg4: any
+    syscall4.name: string
+    toBlockSR: '*github.com/nspcc-dev/neo-go/pkg/interop/native/ledger.BlockSR'
+    verify: bool
+namedtypes:
+    ledger.Block:
+        base: Array
+        name: ledger.Block
+        fields:
+            - field: Hash
+              base: Hash256
+            - field: Version
+              base: Integer
+            - field: PrevHash
+              base: Hash256
+            - field: MerkleRoot
+              base: Hash256
+            - field: Timestamp
+              base: Integer
+            - field: Nonce
+              base: Integer
+            - field: Index
+              base: Integer
+            - field: NextConsensus
+              base: Hash160
+            - field: TransactionsLength
+              base: Integer
+    ledger.BlockSR:
+        base: Array
+        name: ledger.BlockSR
+        fields:
+            - field: Hash
+              base: Hash256
+            - field: Version
+              base: Integer
+            - field: PrevHash
+              base: Hash256
+            - field: MerkleRoot
+              base: Hash256
+            - field: Timestamp
+              base: Integer
+            - field: Nonce
+              base: Integer
+            - field: Index
+              base: Integer
+            - field: NextConsensus
+              base: Hash160
+            - field: TransactionsLength
+              base: Integer
+            - field: PrevStateRoot
+              base: Hash256
+    ledger.Transaction:
+        base: Array
+        name: ledger.Transaction
+        fields:
+            - field: Hash
+              base: Hash256
+            - field: Version
+              base: Integer
+            - field: Nonce
+              base: Integer
+            - field: Sender
+              base: Hash160
+            - field: SysFee
+              base: Integer
+            - field: NetFee
+              base: Integer
+            - field: ValidUntilBlock
+              base: Integer
+            - field: Script
+              base: ByteArray
+    ledger.TransactionSigner:
+        base: Array
+        name: ledger.TransactionSigner
+        fields:
+            - field: Account
+              base: Hash160
+            - field: Scopes
+              base: Integer
+            - field: AllowedContracts
+              base: Array
+              value:
+                base: Hash160
+            - field: AllowedGroups
+              base: Array
+              value:
+                base: PublicKey
+            - field: Rules
+              base: Array
+              value:
+                base: Array
+                name: ledger.WitnessRule
+    ledger.WitnessCondition:
+        base: Array
+        name: ledger.WitnessCondition
+        fields:
+            - field: Type
+              base: Integer
+            - field: Value
+              base: Any
+    ledger.WitnessRule:
+        base: Array
+        name: ledger.WitnessRule
+        fields:
+            - field: Action
+              base: Integer
+            - field: Condition
+              base: Array
+              name: ledger.WitnessCondition
+types:
+    call.args:
+        base: Array
+        value:
+            base: Any
+    call.f:
+        base: InteropInterface
+        interface: iterator
+    callWithToken.args:
+        base: Array
+        value:
+            base: Any
+    callWithTokenNoRet.args:
+        base: Array
+        value:
+            base: Any
+    createMultisigAccount.pubs:
+        base: Array
+        value:
+            base: PublicKey
+    currentSigners:
+        base: Array
+        value:
+            base: Array
+            name: ledger.TransactionSigner
+    getBlock:
+        base: Array
+        name: ledger.Block
+    getCallFlags:
+        base: InteropInterface
+        interface: iterator
+    getNotifications:
+        base: Array
+        value:
+            base: Array
+            value:
+                base: Any
+    getScriptContainer:
+        base: Array
+        name: ledger.Transaction
+    getTransaction:
+        base: Array
+        name: ledger.Transaction
+    getTransactionFromBlock:
+        base: Array
+        name: ledger.Transaction
+    getTransactionSigners:
+        base: Array
+        value:
+            base: Array
+            name: ledger.TransactionSigner
+    loadScript.args:
+        base: Array
+        value:
+            base: Any
+    loadScript.f:
+        base: InteropInterface
+        interface: iterator
+    notify.args:
+        base: Array
+        value:
+            base: Any
+    toBlockSR:
+        base: Array
+        name: ledger.BlockSR
