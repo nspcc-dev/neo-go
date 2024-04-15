@@ -1,7 +1,6 @@
 package cmdargs
 
 import (
-	"encoding/hex"
 	"strings"
 	"testing"
 
@@ -45,7 +44,7 @@ func TestParseCosigner(t *testing.T) {
 			Scopes:           transaction.CalledByEntry | transaction.CustomContracts,
 			AllowedContracts: []util.Uint160{c1, c2},
 		},
-		acc.StringLE() + ":CustomGroups:" + hex.EncodeToString(priv.PublicKey().Bytes()): {
+		acc.StringLE() + ":CustomGroups:" + priv.PublicKey().StringCompressed(): {
 			Account:       acc,
 			Scopes:        transaction.CustomGroups,
 			AllowedGroups: keys.PublicKeys{priv.PublicKey()},

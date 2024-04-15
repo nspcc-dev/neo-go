@@ -115,7 +115,7 @@ func (p *PublicKey) Cmp(key *PublicKey) int {
 }
 
 // NewPublicKeyFromString returns a public key created from the
-// given hex string.
+// given hex string public key representation in compressed form.
 func NewPublicKeyFromString(s string) (*PublicKey, error) {
 	b, err := hex.DecodeString(s)
 	if err != nil {
@@ -364,7 +364,7 @@ func (p *PublicKey) String() string {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (p PublicKey) MarshalJSON() ([]byte, error) {
-	return json.Marshal(hex.EncodeToString(p.Bytes()))
+	return json.Marshal(p.StringCompressed())
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -389,7 +389,7 @@ func (p *PublicKey) UnmarshalJSON(data []byte) error {
 
 // MarshalYAML implements the YAML marshaler interface.
 func (p *PublicKey) MarshalYAML() (any, error) {
-	return hex.EncodeToString(p.Bytes()), nil
+	return p.StringCompressed(), nil
 }
 
 // UnmarshalYAML implements the YAML unmarshaler interface.
@@ -405,4 +405,10 @@ func (p *PublicKey) UnmarshalYAML(unmarshal func(any) error) error {
 		return fmt.Errorf("failed to decode public key from hex bytes: %w", err)
 	}
 	return p.DecodeBytes(b)
+}
+
+// StringCompressed returns the hex string representation of the public key
+// in its compressed form.
+func (p *PublicKey) StringCompressed() string {
+	return hex.EncodeToString(p.Bytes())
 }

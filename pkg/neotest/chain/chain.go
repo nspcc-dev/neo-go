@@ -95,12 +95,12 @@ func init() {
 
 	// Config entry must contain validators first in a specific order.
 	standByCommittee = make([]string, len(pubs))
-	standByCommittee[0] = hex.EncodeToString(pubs[2].Bytes())
-	standByCommittee[1] = hex.EncodeToString(pubs[0].Bytes())
-	standByCommittee[2] = hex.EncodeToString(pubs[3].Bytes())
-	standByCommittee[3] = hex.EncodeToString(pubs[1].Bytes())
-	standByCommittee[4] = hex.EncodeToString(pubs[4].Bytes())
-	standByCommittee[5] = hex.EncodeToString(pubs[5].Bytes())
+	standByCommittee[0] = pubs[2].StringCompressed()
+	standByCommittee[1] = pubs[0].StringCompressed()
+	standByCommittee[2] = pubs[3].StringCompressed()
+	standByCommittee[3] = pubs[1].StringCompressed()
+	standByCommittee[4] = pubs[4].StringCompressed()
+	standByCommittee[5] = pubs[5].StringCompressed()
 
 	multiValidatorAcc = make([]*wallet.Account, 4)
 	sort.Sort(pubs[:4])

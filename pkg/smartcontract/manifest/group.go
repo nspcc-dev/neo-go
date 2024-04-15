@@ -79,7 +79,7 @@ func (g Groups) Contains(k *keys.PublicKey) bool {
 // MarshalJSON implements the json.Marshaler interface.
 func (g *Group) MarshalJSON() ([]byte, error) {
 	aux := &groupAux{
-		PublicKey: hex.EncodeToString(g.PublicKey.Bytes()),
+		PublicKey: g.PublicKey.StringCompressed(),
 		Signature: g.Signature,
 	}
 	return json.Marshal(aux)

@@ -1,7 +1,6 @@
 package oracle
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	gio "io"
@@ -45,7 +44,7 @@ func (o *Oracle) AddResponse(pub *keys.PublicKey, reqID uint64, txSig []byte) {
 			ok = pub.VerifyHashable(txSig, uint32(o.Network), incTx.backupTx)
 			if !ok {
 				o.Log.Debug("invalid response signature",
-					zap.String("pub", hex.EncodeToString(pub.Bytes())))
+					zap.String("pub", pub.StringCompressed()))
 				incTx.Unlock()
 				return
 			}

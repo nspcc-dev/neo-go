@@ -1,7 +1,6 @@
 package smartcontract
 
 import (
-	"encoding/hex"
 	"flag"
 	"os"
 	"testing"
@@ -109,7 +108,7 @@ func TestPermissionMarshal(t *testing.T) {
 		p.Methods.Add("abc")
 		p.Methods.Add("lamao")
 		testPermissionMarshal(t, p,
-			"group: "+hex.EncodeToString(priv.PublicKey().Bytes())+"\n"+
+			"group: "+priv.PublicKey().StringCompressed()+"\n"+
 				"methods:\n    - abc\n    - lamao\n")
 	})
 }
@@ -118,7 +117,7 @@ func TestPermissionUnmarshalInvalid(t *testing.T) {
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
-	pub := hex.EncodeToString(priv.PublicKey().Bytes())
+	pub := priv.PublicKey().StringCompressed()
 	u160 := random.Uint160().StringLE()
 	testCases := []string{
 		"hash: []\nmethods: '*'\n",                             // invalid hash type

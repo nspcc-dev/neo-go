@@ -1,7 +1,6 @@
 package context
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"testing"
 
@@ -185,7 +184,7 @@ func TestParameterContext_MarshalJSON(t *testing.T) {
 					Value: sign,
 				}},
 				Signatures: map[string][]byte{
-					hex.EncodeToString(priv.PublicKey().Bytes()): sign,
+					priv.PublicKey().StringCompressed(): sign,
 				},
 			},
 		},

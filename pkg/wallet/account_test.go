@@ -1,7 +1,6 @@
 package wallet
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"testing"
 
@@ -237,7 +236,7 @@ func compareFields(t *testing.T, tk keytestcases.Ktype, acc *Account) {
 	require.Equalf(t, want, have, "expected address %s got %s", want, have)
 	want, have = tk.Wif, acc.privateKey.WIF()
 	require.Equalf(t, want, have, "expected wif %s got %s", want, have)
-	want, have = tk.PublicKey, hex.EncodeToString(acc.PublicKey().Bytes())
+	want, have = tk.PublicKey, acc.PublicKey().StringCompressed()
 	require.Equalf(t, want, have, "expected pub key %s got %s", want, have)
 	want, have = tk.PrivateKey, acc.privateKey.String()
 	require.Equalf(t, want, have, "expected priv key %s got %s", want, have)

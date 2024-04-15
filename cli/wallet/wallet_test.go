@@ -1,7 +1,6 @@
 package wallet_test
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"math/big"
 	"os"
@@ -437,16 +436,16 @@ func TestWalletInit(t *testing.T) {
 				"--wallet", walletPath,
 				"--min", "2"}
 			t.Run("invalid pub encoding", func(t *testing.T) {
-				e.RunWithError(t, append(cmd, hex.EncodeToString(pubs[1].Bytes()),
-					hex.EncodeToString(pubs[1].Bytes()),
-					hex.EncodeToString(pubs[2].Bytes()),
+				e.RunWithError(t, append(cmd, pubs[1].StringCompressed(),
+					pubs[1].StringCompressed(),
+					pubs[2].StringCompressed(),
 					"not-a-pub")...)
 			})
 			t.Run("missing WIF", func(t *testing.T) {
-				e.RunWithError(t, append(cmd, hex.EncodeToString(pubs[0].Bytes()),
-					hex.EncodeToString(pubs[1].Bytes()),
-					hex.EncodeToString(pubs[2].Bytes()),
-					hex.EncodeToString(pubs[3].Bytes()))...)
+				e.RunWithError(t, append(cmd, pubs[0].StringCompressed(),
+					pubs[1].StringCompressed(),
+					pubs[2].StringCompressed(),
+					pubs[3].StringCompressed())...)
 			})
 			cmd = append(cmd, "--wif", privs[0].WIF())
 			t.Run("InvalidPublicKeys", func(t *testing.T) {
@@ -455,18 +454,18 @@ func TestWalletInit(t *testing.T) {
 				e.In.WriteString("multipass\r")
 				defer e.In.Reset()
 
-				e.RunWithError(t, append(cmd, hex.EncodeToString(pubs[1].Bytes()),
-					hex.EncodeToString(pubs[1].Bytes()),
-					hex.EncodeToString(pubs[2].Bytes()),
-					hex.EncodeToString(pubs[3].Bytes()))...)
+				e.RunWithError(t, append(cmd, pubs[1].StringCompressed(),
+					pubs[1].StringCompressed(),
+					pubs[2].StringCompressed(),
+					pubs[3].StringCompressed())...)
 			})
 			e.In.WriteString("multiacc\r")
 			e.In.WriteString("multipass\r")
 			e.In.WriteString("multipass\r")
-			e.Run(t, append(cmd, hex.EncodeToString(pubs[0].Bytes()),
-				hex.EncodeToString(pubs[1].Bytes()),
-				hex.EncodeToString(pubs[2].Bytes()),
-				hex.EncodeToString(pubs[3].Bytes()))...)
+			e.Run(t, append(cmd, pubs[0].StringCompressed(),
+				pubs[1].StringCompressed(),
+				pubs[2].StringCompressed(),
+				pubs[3].StringCompressed())...)
 
 			script, err := smartcontract.CreateMultiSigRedeemScript(2, pubs)
 			require.NoError(t, err)
@@ -482,10 +481,10 @@ func TestWalletInit(t *testing.T) {
 				e.In.WriteString("multiacc\r")
 				e.In.WriteString("multipass\r")
 				e.In.WriteString("multipass\r")
-				e.RunWithError(t, append(cmd, hex.EncodeToString(pubs[0].Bytes()),
-					hex.EncodeToString(pubs[1].Bytes()),
-					hex.EncodeToString(pubs[2].Bytes()),
-					hex.EncodeToString(pubs[3].Bytes()))...)
+				e.RunWithError(t, append(cmd, pubs[0].StringCompressed(),
+					pubs[1].StringCompressed(),
+					pubs[2].StringCompressed(),
+					pubs[3].StringCompressed())...)
 			})
 
 			privs, pubs = testcli.GenerateKeys(t, 3)
@@ -508,9 +507,9 @@ func TestWalletInit(t *testing.T) {
 				e.Run(t, "neo-go", "wallet", "import-multisig",
 					"--wallet", walletPath,
 					"--min", "2",
-					hex.EncodeToString(pubs[0].Bytes()), // Public key of the already imported account
-					hex.EncodeToString(pubs[1].Bytes()),
-					hex.EncodeToString(pubs[2].Bytes()))
+					pubs[0].StringCompressed(), // Public key of the already imported account
+					pubs[1].StringCompressed(),
+					pubs[2].StringCompressed())
 
 				w, err := wallet.NewWalletFromFile(walletPath)
 				require.NoError(t, err)
@@ -530,9 +529,9 @@ func TestWalletInit(t *testing.T) {
 				e.RunWithError(t, "neo-go", "wallet", "import-multisig",
 					"--wallet", walletPath,
 					"--min", "2",
-					hex.EncodeToString(pubsNew[0].Bytes()),
-					hex.EncodeToString(pubsNew[1].Bytes()),
-					hex.EncodeToString(pubsNew[2].Bytes()))
+					pubsNew[0].StringCompressed(),
+					pubsNew[1].StringCompressed(),
+					pubsNew[2].StringCompressed())
 
 				w, err := wallet.NewWalletFromFile(walletPath)
 				require.NoError(t, err)

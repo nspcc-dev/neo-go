@@ -1,7 +1,6 @@
 package context
 
 import (
-	"encoding/hex"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -46,8 +45,8 @@ func TestContextItem_MarshalJSON(t *testing.T) {
 			Value: random.Bytes(keys.SignatureLen),
 		}},
 		Signatures: map[string][]byte{
-			hex.EncodeToString(priv1.PublicKey().Bytes()): random.Bytes(keys.SignatureLen),
-			hex.EncodeToString(priv2.PublicKey().Bytes()): random.Bytes(keys.SignatureLen),
+			priv1.PublicKey().StringCompressed(): random.Bytes(keys.SignatureLen),
+			priv2.PublicKey().StringCompressed(): random.Bytes(keys.SignatureLen),
 		},
 	}
 

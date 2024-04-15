@@ -1,7 +1,6 @@
 package wallet_test
 
 import (
-	"encoding/hex"
 	"math/big"
 	"strconv"
 	"testing"
@@ -18,7 +17,7 @@ func TestRegisterCandidate(t *testing.T) {
 
 	validatorAddress := testcli.ValidatorPriv.Address()
 	validatorPublic := testcli.ValidatorPriv.PublicKey()
-	validatorHex := hex.EncodeToString(validatorPublic.Bytes())
+	validatorHex := validatorPublic.StringCompressed()
 
 	e.In.WriteString("one\r")
 	e.Run(t, "neo-go", "wallet", "nep17", "multitransfer",
