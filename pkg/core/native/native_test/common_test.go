@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -19,7 +20,11 @@ import (
 )
 
 func newNativeClient(t *testing.T, name string) *neotest.ContractInvoker {
-	bc, acc := chain.NewSingle(t)
+	return newCustomNativeClient(t, name, nil)
+}
+
+func newCustomNativeClient(t *testing.T, name string, f func(cfg *config.Blockchain)) *neotest.ContractInvoker {
+	bc, acc := chain.NewSingleWithCustomConfig(t, f)
 	e := neotest.NewExecutor(t, bc, acc, acc)
 
 	return e.CommitteeInvoker(e.NativeHash(t, name))
