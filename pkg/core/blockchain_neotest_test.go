@@ -2480,3 +2480,17 @@ func TestBlockchain_GenesisTransactionExtension(t *testing.T) {
 	require.Equal(t, int64(amount), actualNeo.Int64())
 	require.Equal(t, 0, int(lub))
 }
+
+// TestNativenames ensures that nativenames.All contains all expected native contract names
+// in the right order.
+func TestNativenames(t *testing.T) {
+	bc, _ := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{}
+		cfg.P2PSigExtensions = true
+	})
+	natives := bc.GetNatives()
+	require.Equal(t, len(natives), len(nativenames.All))
+	for i, cs := range natives {
+		require.Equal(t, cs.Manifest.Name, nativenames.All[i], i)
+	}
+}
