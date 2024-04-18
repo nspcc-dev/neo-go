@@ -51,4 +51,8 @@ func TestContextItem_MarshalJSON(t *testing.T) {
 	}
 
 	testserdes.MarshalUnmarshalJSON(t, expected, new(Item))
+
+	// Empty script.
+	expected.Script = nil
+	testserdes.MarshalUnmarshalJSON(t, expected, new(Item))
 }
