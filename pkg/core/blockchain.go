@@ -289,7 +289,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 			cfg.Hardforks[hf.String()] = 0
 		}
 		log.Info("Hardforks are not set, using default value")
-	} else {
+	} else if len(cfg.Hardforks) != 0 {
 		// Explicitly set the height of all old omitted hardforks to 0 for proper
 		// IsHardforkEnabled behaviour.
 		for _, hf := range config.Hardforks {
