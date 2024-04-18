@@ -26,6 +26,7 @@ jobs:
         uses: golangci/golangci-lint-action@v4
         with:
           version: latest
+          skip-pkg-cache: true # golangci-lint can't work with this cache enabled, ref. https://github.com/golangci/golangci-lint-action/issues/135.
 
   gomodcheck:
     name: Check internal dependencies
