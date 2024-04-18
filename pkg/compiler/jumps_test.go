@@ -7,16 +7,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testShortenJumps(t *testing.T, before, after []opcode.Opcode, indices []int) {
+func testShortenJumps(t *testing.T, before, after []opcode.Opcode, indices []int, spBefore, spAfter map[string][]DebugSeqPoint) {
 	prog := make([]byte, len(before))
 	for i := range before {
 		prog[i] = byte(before[i])
 	}
-	raw := removeNOPs(prog, indices)
+	raw := removeNOPs(prog, indices, spBefore)
 	actual := make([]opcode.Opcode, len(raw))
 	for i := range raw {
 		actual[i] = opcode.Opcode(raw[i])
 	}
+	require.Equal(t, spAfter, spBefore)
 	require.Equal(t, after, actual)
 }
 
@@ -45,18 +46,32 @@ func TestShortenJumps(t *testing.T) {
 				op, 3, 12, 0, 0, opcode.PUSH1, opcode.NOP,
 				sop, 249, sop, 0xFF - 2,
 			}
-			testShortenJumps(t, before, after, []int{2, 3, 4, 16, 17, 18, 21, 22, 23})
+			spBefore := map[string][]DebugSeqPoint{
+				"test": {
+					DebugSeqPoint{Opcode: 0}, DebugSeqPoint{Opcode: 5},
+					DebugSeqPoint{Opcode: 7}, DebugSeqPoint{Opcode: 12},
+					DebugSeqPoint{Opcode: 14}, DebugSeqPoint{Opcode: 19},
+				},
+			}
+			spAfter := map[string][]DebugSeqPoint{
+				"test": {
+					DebugSeqPoint{Opcode: 0}, DebugSeqPoint{Opcode: 2},
+					DebugSeqPoint{Opcode: 4}, DebugSeqPoint{Opcode: 9},
+					DebugSeqPoint{Opcode: 11}, DebugSeqPoint{Opcode: 13},
+				},
+			}
+			testShortenJumps(t, before, after, []int{2, 3, 4, 16, 17, 18, 21, 22, 23}, spBefore, spAfter)
 		})
 	}
 	t.Run("NoReplace", func(t *testing.T) {
 		b := []byte{0, 1, 2, 3, 4, 5}
 		expected := []byte{0, 1, 2, 3, 4, 5}
-		require.Equal(t, expected, removeNOPs(b, nil))
+		require.Equal(t, expected, removeNOPs(b, nil, map[string][]DebugSeqPoint{}))
 	})
 	t.Run("InvalidIndex", func(t *testing.T) {
 		before := []byte{byte(opcode.PUSH1), 0, 0, 0, 0}
 		require.Panics(t, func() {
-			removeNOPs(before, []int{0})
+			removeNOPs(before, []int{0}, map[string][]DebugSeqPoint{})
 		})
 	})
 	t.Run("SideConditions", func(t *testing.T) {
@@ -69,7 +84,19 @@ func TestShortenJumps(t *testing.T) {
 				opcode.JMP, 2,
 				opcode.JMP, 2,
 			}
-			testShortenJumps(t, before, after, []int{2, 3, 4, 7, 8, 9})
+			spBefore := map[string][]DebugSeqPoint{
+				"test": {
+					DebugSeqPoint{Opcode: 0},
+					DebugSeqPoint{Opcode: 5},
+				},
+			}
+			spAfter := map[string][]DebugSeqPoint{
+				"test": {
+					DebugSeqPoint{Opcode: 0},
+					DebugSeqPoint{Opcode: 2},
+				},
+			}
+			testShortenJumps(t, before, after, []int{2, 3, 4, 7, 8, 9}, spBefore, spAfter)
 		})
 		t.Run("Backwards", func(t *testing.T) {
 			before := []opcode.Opcode{
@@ -82,7 +109,21 @@ func TestShortenJumps(t *testing.T) {
 				opcode.JMP, 0xFF - 1,
 				opcode.JMP, 0xFF - 1,
 			}
-			testShortenJumps(t, before, after, []int{2, 3, 4, 7, 8, 9, 12, 13, 14})
+			spBefore := map[string][]DebugSeqPoint{
+				"test": {
+					DebugSeqPoint{Opcode: 0},
+					DebugSeqPoint{Opcode: 5},
+					DebugSeqPoint{Opcode: 10},
+				},
+			}
+			spAfter := map[string][]DebugSeqPoint{
+				"test": {
+					DebugSeqPoint{Opcode: 0},
+					DebugSeqPoint{Opcode: 2},
+					DebugSeqPoint{Opcode: 4},
+				},
+			}
+			testShortenJumps(t, before, after, []int{2, 3, 4, 7, 8, 9, 12, 13, 14}, spBefore, spAfter)
 		})
 	})
 }
@@ -100,6 +141,17 @@ func TestWriteJumps(t *testing.T) {
 		"main":   {rng: DebugRange{Start: 4, End: 9}},
 		"method": {rng: DebugRange{Start: 10, End: 11}},
 	}
+	c.sequencePoints = map[string][]DebugSeqPoint{
+		"init": {
+			DebugSeqPoint{Opcode: 1}, DebugSeqPoint{Opcode: 3},
+		},
+		"main": {
+			DebugSeqPoint{Opcode: 4}, DebugSeqPoint{Opcode: 9},
+		},
+		"method": {
+			DebugSeqPoint{Opcode: 10}, DebugSeqPoint{Opcode: 11},
+		},
+	}
 
 	expProg := []byte{
 		byte(opcode.NOP), byte(opcode.JMP), 2, byte(opcode.RET),
@@ -111,11 +163,23 @@ func TestWriteJumps(t *testing.T) {
 		"main":   {rng: DebugRange{Start: 4, End: 6}},
 		"method": {rng: DebugRange{Start: 7, End: 8}},
 	}
+	expSeqPoints := map[string][]DebugSeqPoint{
+		"init": {
+			DebugSeqPoint{Opcode: 1}, DebugSeqPoint{Opcode: 3},
+		},
+		"main": {
+			DebugSeqPoint{Opcode: 4}, DebugSeqPoint{Opcode: 6},
+		},
+		"method": {
+			DebugSeqPoint{Opcode: 7}, DebugSeqPoint{Opcode: 8},
+		},
+	}
 
 	buf, err := c.writeJumps(before)
 	require.NoError(t, err)
 	require.Equal(t, expProg, buf)
 	require.Equal(t, expFuncs, c.funcs)
+	require.Equal(t, expSeqPoints, c.sequencePoints)
 }
 
 func TestWriteJumpsLastJump(t *testing.T) {

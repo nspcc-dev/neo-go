@@ -2413,7 +2413,7 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 	for _, f := range c.funcs {
 		f.rng.Start, f.rng.End = correctRange(f.rng.Start, f.rng.End, nopOffsets)
 	}
-	return removeNOPs(b, nopOffsets), nil
+	return removeNOPs(b, nopOffsets, c.sequencePoints), nil
 }
 
 func correctRange(start, end uint16, offsets []int) (uint16, uint16) {
@@ -2455,9 +2455,10 @@ func (c *codegen) replaceLabelWithOffset(ip int, arg []byte) (int, error) {
 // This is done in 2 passes:
 // 1. Alter jump offsets taking into account parts to be removed.
 // 2. Perform actual removal of jump targets.
+// 3. Reevaluate debug sequence points offsets.
 // Note: after jump offsets altering, there can appear new candidates for conversion.
 // These are ignored for now.
-func removeNOPs(b []byte, nopOffsets []int) []byte {
+func removeNOPs(b []byte, nopOffsets []int, sequencePoints map[string][]DebugSeqPoint) []byte {
 	if len(nopOffsets) == 0 {
 		return b
 	}
@@ -2519,6 +2520,20 @@ func removeNOPs(b []byte, nopOffsets []int) []byte {
 		copy(b[start-copyOffset:], b[start+1:end])
 		copyOffset++
 	}
+
+	// 3. Reevaluate debug sequence points.
+	for _, seqPoints := range sequencePoints {
+		for i := range seqPoints {
+			diff := 0
+			for _, offset := range nopOffsets {
+				if offset < seqPoints[i].Opcode {
+					diff++
+				}
+			}
+			seqPoints[i].Opcode -= diff
+		}
+	}
+
 	return b[:len(b)-copyOffset]
 }
 
