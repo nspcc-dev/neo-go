@@ -272,7 +272,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 		// Avoid changes in the main transaction witnesses got from the notary request pool to
 		// keep the pooled tx valid. We will update its copy => the copy's size will be changed.
 		r = &request{
-			main:              safeCopy(payload.MainTransaction),
+			main:              payload.MainTransaction.Copy(),
 			minNotValidBefore: nvbFallback,
 		}
 		n.requests[payload.MainTransaction.Hash()] = r
@@ -285,7 +285,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 	// size won't be changed after finalisation, the witness bytes changes may
 	// affect the other users of notary pool and cause race. Avoid this by making
 	// the copy.
-	r.fallbacks = append(r.fallbacks, safeCopy(payload.FallbackTransaction))
+	r.fallbacks = append(r.fallbacks, payload.FallbackTransaction.Copy())
 	if exists && r.isMainCompleted() || validationErr != nil {
 		return
 	}
@@ -343,21 +343,6 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 				zap.Error(err))
 		}
 	}
-}
-
-// safeCopy creates a copy of provided transaction by dereferencing it and creating
-// fresh witnesses so that the tx's witnesses may be modified without affecting the
-// copy's ones.
-func safeCopy(tx *transaction.Transaction) *transaction.Transaction {
-	cp := *tx
-	cp.Scripts = make([]transaction.Witness, len(tx.Scripts))
-	for i := range cp.Scripts {
-		cp.Scripts[i] = transaction.Witness{
-			InvocationScript:   bytes.Clone(tx.Scripts[i].InvocationScript),
-			VerificationScript: bytes.Clone(tx.Scripts[i].VerificationScript),
-		}
-	}
-	return &cp
 }
 
 // OnRequestRemoval is a callback which is called after fallback transaction is removed
