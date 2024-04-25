@@ -33,7 +33,7 @@ type Actor interface {
 }
 
 // Hash stores the hash of the native PolicyContract contract.
-var Hash = nativehashes.Policy
+var Hash = nativehashes.PolicyContract
 
 const (
 	execFeeSetter      = "setExecFeeFactor"

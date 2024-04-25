@@ -826,7 +826,7 @@ func TestCalculateNetworkFee(t *testing.T) {
 		require.NoError(t, err)
 
 		// Set fee per Conflicts attribute.
-		script, err := smartcontract.CreateCallScript(nativehashes.Policy, "setAttributeFee", byte(transaction.ConflictsT), conflictsFee)
+		script, err := smartcontract.CreateCallScript(nativehashes.PolicyContract, "setAttributeFee", byte(transaction.ConflictsT), conflictsFee)
 		require.NoError(t, err)
 		txSetFee := transaction.New(script, 1_0000_0000)
 		txSetFee.ValidUntilBlock = chain.BlockHeight() + 1

@@ -31,7 +31,7 @@ type Actor interface {
 }
 
 // Hash stores the hash of the native OracleContract contract.
-var Hash = nativehashes.Oracle
+var Hash = nativehashes.OracleContract
 
 const priceSetter = "setPrice"
 
