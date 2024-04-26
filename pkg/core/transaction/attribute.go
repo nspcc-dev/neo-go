@@ -8,17 +8,20 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
+// AttrValue represents a Transaction Attribute value.
+type AttrValue interface {
+	io.Serializable
+	// toJSONMap is used for embedded json struct marshalling.
+	// Anonymous interface fields are not considered anonymous by
+	// json lib and marshaling Value together with type makes code
+	// harder to follow.
+	toJSONMap(map[string]any)
+}
+
 // Attribute represents a Transaction attribute.
 type Attribute struct {
 	Type  AttrType
-	Value interface {
-		io.Serializable
-		// toJSONMap is used for embedded json struct marshalling.
-		// Anonymous interface fields are not considered anonymous by
-		// json lib and marshaling Value together with type makes code
-		// harder to follow.
-		toJSONMap(map[string]any)
-	}
+	Value AttrValue
 }
 
 // attrJSON is used for JSON I/O of Attribute.
