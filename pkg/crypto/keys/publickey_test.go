@@ -40,6 +40,8 @@ func TestEncodeDecodePublicKey(t *testing.T) {
 }
 
 func TestPublicKeys_Copy(t *testing.T) {
+	require.Nil(t, (PublicKeys)(nil).Copy())
+
 	pubs := make(PublicKeys, 5)
 	for i := range pubs {
 		priv, err := NewPrivateKey()
