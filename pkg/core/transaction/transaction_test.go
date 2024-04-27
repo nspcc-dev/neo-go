@@ -9,6 +9,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
@@ -320,4 +321,69 @@ func BenchmarkTxHash(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_ = tx.Hash()
 	}
+}
+
+func TestTransaction_DeepCopy(t *testing.T) {
+	origTx := New([]byte{0x01, 0x02, 0x03}, 1000)
+	origTx.NetworkFee = 2000
+	origTx.SystemFee = 500
+	origTx.Nonce = 12345678
+	origTx.ValidUntilBlock = 100
+	origTx.Version = 1
+	require.Nil(t, (*Transaction)(nil).Copy())
+
+	priv, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	origTx.Signers = []Signer{
+		{Account: random.Uint160(), Scopes: Global, AllowedContracts: []util.Uint160{random.Uint160()}, AllowedGroups: keys.PublicKeys{priv.PublicKey()}, Rules: []WitnessRule{{Action: 0x01, Condition: ConditionCalledByEntry{}}}},
+		{Account: random.Uint160(), Scopes: CalledByEntry},
+	}
+	origTx.Attributes = []Attribute{
+		{Type: HighPriority, Value: &OracleResponse{
+			ID:     0,
+			Code:   Success,
+			Result: []byte{4, 8, 15, 16, 23, 42},
+		}},
+	}
+	origTx.Scripts = []Witness{
+		{
+			InvocationScript:   []byte{0x04, 0x05},
+			VerificationScript: []byte{0x06, 0x07},
+		},
+	}
+	origTxHash := origTx.Hash()
+
+	copyTx := origTx.Copy()
+
+	require.Equal(t, origTx.Hash(), copyTx.Hash())
+	require.Equal(t, origTx, copyTx)
+	require.Equal(t, origTx.Size(), copyTx.Size())
+
+	copyTx.NetworkFee = 3000
+	copyTx.Signers[0].Scopes = None
+	copyTx.Attributes[0].Type = NotaryAssistedT
+	copyTx.Scripts[0].InvocationScript[0] = 0x08
+	copyTx.hashed = false
+	modifiedCopyTxHash := copyTx.Hash()
+
+	require.NotEqual(t, origTx.NetworkFee, copyTx.NetworkFee)
+	require.NotEqual(t, origTx.Signers[0].Scopes, copyTx.Signers[0].Scopes)
+	require.NotEqual(t, origTx.Attributes, copyTx.Attributes)
+	require.NotEqual(t, origTxHash, modifiedCopyTxHash)
+
+	require.NotEqual(t, &origTx.Scripts[0].InvocationScript[0], &copyTx.Scripts[0].InvocationScript[0])
+	require.NotEqual(t, &origTx.Scripts, &copyTx.Scripts)
+	require.Equal(t, origTx.Scripts[0].VerificationScript, copyTx.Scripts[0].VerificationScript)
+	require.Equal(t, origTx.Signers[0].AllowedContracts, copyTx.Signers[0].AllowedContracts)
+	require.Equal(t, origTx.Signers[0].AllowedGroups, copyTx.Signers[0].AllowedGroups)
+	origGroup := origTx.Signers[0].AllowedGroups[0]
+	copyGroup := copyTx.Signers[0].AllowedGroups[0]
+	require.True(t, origGroup.Equal(copyGroup))
+
+	copyTx.Signers[0].AllowedGroups[0] = nil
+	require.NotEqual(t, origTx.Signers[0].AllowedGroups[0], copyTx.Signers[0].AllowedGroups[0])
+
+	require.Equal(t, origTx.Signers[0].Rules[0], copyTx.Signers[0].Rules[0])
+	copyTx.Signers[0].Rules[0].Action = 0x02
+	require.NotEqual(t, origTx.Signers[0].Rules[0].Action, copyTx.Signers[0].Rules[0].Action)
 }

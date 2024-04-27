@@ -16,6 +16,8 @@ type AttrValue interface {
 	// json lib and marshaling Value together with type makes code
 	// harder to follow.
 	toJSONMap(map[string]any)
+	// Copy returns a deep copy of the attribute value.
+	Copy() AttrValue
 }
 
 // Attribute represents a Transaction attribute.
@@ -109,4 +111,18 @@ func (attr *Attribute) UnmarshalJSON(data []byte) error {
 		return errors.New("wrong Type")
 	}
 	return json.Unmarshal(data, attr.Value)
+}
+
+// Copy creates a deep copy of the Attribute.
+func (attr *Attribute) Copy() *Attribute {
+	if attr == nil {
+		return nil
+	}
+	cp := &Attribute{
+		Type: attr.Type,
+	}
+	if attr.Value != nil {
+		cp.Value = attr.Value.Copy()
+	}
+	return cp
 }

@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"bytes"
+
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -37,4 +39,12 @@ func (w *Witness) EncodeBinary(bw *io.BinWriter) {
 // ScriptHash returns the hash of the VerificationScript.
 func (w Witness) ScriptHash() util.Uint160 {
 	return hash.Hash160(w.VerificationScript)
+}
+
+// Copy creates a deep copy of the Witness.
+func (w Witness) Copy() Witness {
+	return Witness{
+		InvocationScript:   bytes.Clone(w.InvocationScript),
+		VerificationScript: bytes.Clone(w.VerificationScript),
+	}
 }

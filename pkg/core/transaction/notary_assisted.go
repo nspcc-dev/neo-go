@@ -22,3 +22,10 @@ func (n *NotaryAssisted) EncodeBinary(w *io.BinWriter) {
 func (n *NotaryAssisted) toJSONMap(m map[string]any) {
 	m["nkeys"] = n.NKeys
 }
+
+// Copy implements the AttrValue interface.
+func (n *NotaryAssisted) Copy() AttrValue {
+	return &NotaryAssisted{
+		NKeys: n.NKeys,
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -176,4 +177,40 @@ func TestAttribute_MarshalJSON(t *testing.T) {
 		}
 		testserdes.MarshalUnmarshalJSON(t, attr, new(Attribute))
 	})
+}
+
+func TestAttribute_Copy(t *testing.T) {
+	originals := []*Attribute{
+		{Type: HighPriority},
+		{Type: OracleResponseT, Value: &OracleResponse{ID: 123, Code: Success, Result: []byte{1, 2, 3}}},
+		{Type: NotValidBeforeT, Value: &NotValidBefore{Height: 123}},
+		{Type: ConflictsT, Value: &Conflicts{Hash: random.Uint256()}},
+		{Type: NotaryAssistedT, Value: &NotaryAssisted{NKeys: 3}},
+		{Type: ReservedLowerBound, Value: &Reserved{Value: []byte{1, 2, 3, 4, 5}}},
+		{Type: ReservedUpperBound, Value: &Reserved{Value: []byte{1, 2, 3, 4, 5}}},
+		{Type: ReservedLowerBound + 5, Value: &Reserved{Value: []byte{1, 2, 3, 4, 5}}},
+	}
+	require.Nil(t, (*Attribute)(nil).Copy())
+
+	for _, original := range originals {
+		cp := original.Copy()
+		require.NotNil(t, cp)
+		assert.Equal(t, original.Type, cp.Type)
+		assert.Equal(t, original.Value, cp.Value)
+		if original.Value != nil {
+			originalValueCopy := original.Value.Copy()
+			switch originalVal := originalValueCopy.(type) {
+			case *OracleResponse:
+				originalVal.Result = append(originalVal.Result, 0xFF)
+				assert.NotEqual(t, len(original.Value.(*OracleResponse).Result), len(originalVal.Result))
+			case *Conflicts:
+				originalVal.Hash = random.Uint256()
+				assert.NotEqual(t, original.Value.(*Conflicts).Hash, originalVal.Hash)
+			case *NotaryAssisted:
+				originalVal.NKeys++
+				assert.NotEqual(t, original.Value.(*NotaryAssisted).NKeys, originalVal.NKeys)
+			}
+			assert.Equal(t, cp.Value, original.Value)
+		}
+	}
 }

@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -467,4 +468,37 @@ func (t *Transaction) ToStackItem() stackitem.Item {
 		stackitem.NewBigInteger(big.NewInt(int64(t.ValidUntilBlock))),
 		stackitem.NewByteArray(t.Script),
 	})
+}
+
+// Copy creates a deep copy of the Transaction, including all slice fields. Cached values like
+// 'hashed' and 'size' are reset to ensure the copy can be modified independently of the original.
+func (t *Transaction) Copy() *Transaction {
+	if t == nil {
+		return nil
+	}
+	cp := *t
+	if t.Attributes != nil {
+		cp.Attributes = make([]Attribute, len(t.Attributes))
+		for i, attr := range t.Attributes {
+			cp.Attributes[i] = *attr.Copy()
+		}
+	}
+	if t.Signers != nil {
+		cp.Signers = make([]Signer, len(t.Signers))
+		for i, signer := range t.Signers {
+			cp.Signers[i] = *signer.Copy()
+		}
+	}
+	if t.Scripts != nil {
+		cp.Scripts = make([]Witness, len(t.Scripts))
+		for i, script := range t.Scripts {
+			cp.Scripts[i] = script.Copy()
+		}
+	}
+	cp.Script = bytes.Clone(t.Script)
+
+	cp.hashed = false
+	cp.size = 0
+	cp.hash = util.Uint256{}
+	return &cp
 }

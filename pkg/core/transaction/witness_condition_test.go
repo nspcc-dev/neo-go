@@ -36,6 +36,11 @@ func (c InvalidCondition) ToStackItem() stackitem.Item {
 	panic("invalid")
 }
 
+// Copy implements the WitnessCondition interface and returns a deep copy of the condition.
+func (c InvalidCondition) Copy() WitnessCondition {
+	return c
+}
+
 type condCase struct {
 	condition         WitnessCondition
 	success           bool
@@ -346,4 +351,67 @@ func TestWitnessConditionMatch(t *testing.T) {
 		_, err = cBad.Match(tmc)
 		require.Error(t, err)
 	})
+}
+
+func TestWitnessConditionCopy(t *testing.T) {
+	var someBool = true
+	boolCondition := (*ConditionBoolean)(&someBool)
+	pk, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	conditions := []WitnessCondition{
+		boolCondition,
+		&ConditionNot{Condition: boolCondition},
+		&ConditionAnd{boolCondition, boolCondition},
+		&ConditionOr{boolCondition, boolCondition},
+		&ConditionScriptHash{1, 2, 3},
+		(*ConditionGroup)(pk.PublicKey()),
+		ConditionCalledByEntry{},
+		&ConditionCalledByContract{1, 2, 3},
+		(*ConditionCalledByGroup)(pk.PublicKey()),
+		&ConditionNot{Condition: &ConditionNot{Condition: &ConditionNot{Condition: boolCondition}}},
+	}
+	for _, cond := range conditions {
+		copied := cond.Copy()
+		require.Equal(t, cond, copied)
+
+		switch c := copied.(type) {
+		case *ConditionBoolean:
+			require.NotSame(t, c, cond.(*ConditionBoolean))
+		case *ConditionScriptHash:
+			c[0]++
+			require.NotEqual(t, c, cond.(*ConditionScriptHash))
+		case *ConditionGroup:
+			c = (*ConditionGroup)(pk.PublicKey())
+			require.NotSame(t, c, cond.(*ConditionGroup))
+			newPk, _ := keys.NewPrivateKey()
+			copied = (*ConditionGroup)(newPk.PublicKey())
+			require.NotEqual(t, copied, cond)
+		case *ConditionCalledByContract:
+			c[0]++
+			require.NotEqual(t, c, cond.(*ConditionCalledByContract))
+		case *ConditionCalledByGroup:
+			c = (*ConditionCalledByGroup)(pk.PublicKey())
+			require.NotSame(t, c, cond.(*ConditionCalledByGroup))
+			newPk, _ := keys.NewPrivateKey()
+			copied = (*ConditionCalledByGroup)(newPk.PublicKey())
+			require.NotEqual(t, copied, cond)
+		case *ConditionNot:
+			require.NotSame(t, copied, cond)
+			copied.(*ConditionNot).Condition = ConditionCalledByEntry{}
+			require.NotEqual(t, copied, cond)
+		case *ConditionAnd:
+			require.NotSame(t, copied, cond)
+			(*(copied.(*ConditionAnd)))[0] = ConditionCalledByEntry{}
+			require.NotEqual(t, copied, cond)
+		case *ConditionOr:
+			require.NotSame(t, copied, cond)
+			(*(copied.(*ConditionOr)))[0] = ConditionCalledByEntry{}
+			require.NotEqual(t, copied, cond)
+		case *ConditionCalledByEntry:
+			require.NotSame(t, copied, cond)
+			copied = ConditionCalledByEntry{}
+			require.NotEqual(t, copied, cond)
+		}
+	}
 }

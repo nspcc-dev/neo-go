@@ -36,3 +36,16 @@ func TestWitnessSerDes(t *testing.T) {
 	require.Error(t, testserdes.DecodeBinary(bin1, exp))
 	require.Error(t, testserdes.DecodeBinary(bin2, exp))
 }
+
+func TestWitnessCopy(t *testing.T) {
+	original := &Witness{
+		InvocationScript:   []byte{1, 2, 3},
+		VerificationScript: []byte{3, 2, 1},
+	}
+
+	cp := original.Copy()
+	require.Equal(t, *original, cp)
+
+	original.InvocationScript[0] = 0x05
+	require.NotEqual(t, *original, cp)
+}

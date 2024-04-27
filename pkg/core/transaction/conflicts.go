@@ -23,3 +23,10 @@ func (c *Conflicts) EncodeBinary(w *io.BinWriter) {
 func (c *Conflicts) toJSONMap(m map[string]any) {
 	m["hash"] = c.Hash
 }
+
+// Copy implements the AttrValue interface.
+func (c *Conflicts) Copy() AttrValue {
+	return &Conflicts{
+		Hash: c.Hash,
+	}
+}
