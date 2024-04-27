@@ -42,14 +42,18 @@ func TestEncodeDecodePublicKey(t *testing.T) {
 func TestPublicKeys_Copy(t *testing.T) {
 	require.Nil(t, (PublicKeys)(nil).Copy())
 
-	pubs := make(PublicKeys, 5)
-	for i := range pubs {
+	pubz := make([]*PublicKey, 5)
+	for i := range pubz {
 		priv, err := NewPrivateKey()
 		require.NoError(t, err)
-		pubs[i] = priv.PublicKey()
+		pubz[i] = priv.PublicKey()
 	}
+	pubs := PublicKeys(pubz)
 
 	cp := pubs.Copy()
+	var pubx = ([]*PublicKey)(cp)
+	require.Equal(t, pubz, pubx)
+
 	priv, err := NewPrivateKey()
 	require.NoError(t, err)
 	cp[0] = priv.PublicKey()
