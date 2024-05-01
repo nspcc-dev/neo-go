@@ -78,8 +78,12 @@ func (keys PublicKeys) Contains(pKey *PublicKey) bool {
 	return false
 }
 
-// Copy returns a copy of keys.
+// Copy returns a shallow copy of the PublicKeys slice. It creates a new slice with the same elements,
+// but does not perform a deep copy of the elements themselves.
 func (keys PublicKeys) Copy() PublicKeys {
+	if keys == nil {
+		return nil
+	}
 	res := make(PublicKeys, len(keys))
 	copy(res, keys)
 	return res

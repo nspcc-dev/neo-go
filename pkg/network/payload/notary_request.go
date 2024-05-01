@@ -136,3 +136,15 @@ func (r *P2PNotaryRequest) isValid() error {
 	}
 	return nil
 }
+
+// Copy creates a deep copy of P2PNotaryRequest. It creates deep copy of the MainTransaction,
+// FallbackTransaction and Witness, including all slice fields. Cached values like
+// 'hashed' and 'size' of the transactions are reset to ensure the copy can be modified
+// independently of the original.
+func (r *P2PNotaryRequest) Copy() *P2PNotaryRequest {
+	return &P2PNotaryRequest{
+		MainTransaction:     r.MainTransaction.Copy(),
+		FallbackTransaction: r.FallbackTransaction.Copy(),
+		Witness:             r.Witness.Copy(),
+	}
+}

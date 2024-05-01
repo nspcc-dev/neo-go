@@ -94,3 +94,11 @@ func (w *WitnessRule) ToStackItem() stackitem.Item {
 		w.Condition.ToStackItem(),
 	})
 }
+
+// Copy creates a deep copy of the WitnessRule.
+func (w *WitnessRule) Copy() *WitnessRule {
+	return &WitnessRule{
+		Action:    w.Action,
+		Condition: w.Condition.Copy(),
+	}
+}

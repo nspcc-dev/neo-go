@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"math"
@@ -115,4 +116,13 @@ func (r *OracleResponse) toJSONMap(m map[string]any) {
 	m["id"] = r.ID
 	m["code"] = r.Code
 	m["result"] = r.Result
+}
+
+// Copy implements the AttrValue interface.
+func (r *OracleResponse) Copy() AttrValue {
+	return &OracleResponse{
+		ID:     r.ID,
+		Code:   r.Code,
+		Result: bytes.Clone(r.Result),
+	}
 }

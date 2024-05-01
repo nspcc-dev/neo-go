@@ -22,3 +22,10 @@ func (e *Reserved) EncodeBinary(w *io.BinWriter) {
 func (e *Reserved) toJSONMap(m map[string]any) {
 	m["value"] = e.Value
 }
+
+// Copy implements the AttrValue interface.
+func (e *Reserved) Copy() AttrValue {
+	return &Reserved{
+		Value: e.Value,
+	}
+}

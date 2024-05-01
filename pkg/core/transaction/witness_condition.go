@@ -54,6 +54,8 @@ type WitnessCondition interface {
 	DecodeBinarySpecific(*io.BinReader, int)
 	// ToStackItem converts WitnessCondition to stackitem.Item.
 	ToStackItem() stackitem.Item
+	// Copy returns a deep copy of the condition.
+	Copy() WitnessCondition
 
 	json.Marshaler
 }
@@ -139,6 +141,12 @@ func (c *ConditionBoolean) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), bool(*c))
 }
 
+// Copy returns a deep copy of the condition.
+func (c *ConditionBoolean) Copy() WitnessCondition {
+	cc := *c
+	return &cc
+}
+
 // Type implements the WitnessCondition interface and returns condition type.
 func (c *ConditionNot) Type() WitnessConditionType {
 	return WitnessNot
@@ -180,6 +188,12 @@ func (c *ConditionNot) MarshalJSON() ([]byte, error) {
 // to stackitem.Item.
 func (c *ConditionNot) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), c.Condition)
+}
+
+// Copy implements the WitnessCondition interface and returns a deep copy of the condition.
+func (c *ConditionNot) Copy() WitnessCondition {
+	cp := *c
+	return &cp
 }
 
 // Type implements the WitnessCondition interface and returns condition type.
@@ -264,6 +278,15 @@ func (c *ConditionAnd) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), []WitnessCondition(*c))
 }
 
+// Copy implements the WitnessCondition interface and returns a deep copy of the condition.
+func (c *ConditionAnd) Copy() WitnessCondition {
+	cp := make(ConditionAnd, len(*c))
+	for i, cond := range *c {
+		cp[i] = cond.Copy()
+	}
+	return &cp
+}
+
 // Type implements the WitnessCondition interface and returns condition type.
 func (c *ConditionOr) Type() WitnessConditionType {
 	return WitnessOr
@@ -310,6 +333,15 @@ func (c *ConditionOr) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), []WitnessCondition(*c))
 }
 
+// Copy implements the WitnessCondition interface and returns a deep copy of the condition.
+func (c *ConditionOr) Copy() WitnessCondition {
+	cp := make(ConditionOr, len(*c))
+	for i, cond := range *c {
+		cp[i] = cond.Copy()
+	}
+	return &cp
+}
+
 // Type implements the WitnessCondition interface and returns condition type.
 func (c *ConditionScriptHash) Type() WitnessConditionType {
 	return WitnessScriptHash
@@ -346,6 +378,12 @@ func (c *ConditionScriptHash) MarshalJSON() ([]byte, error) {
 // to stackitem.Item.
 func (c *ConditionScriptHash) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), util.Uint160(*c))
+}
+
+// Copy implements the WitnessCondition interface and returns a deep copy of the condition.
+func (c *ConditionScriptHash) Copy() WitnessCondition {
+	cc := *c
+	return &cc
 }
 
 // Type implements the WitnessCondition interface and returns condition type.
@@ -386,6 +424,12 @@ func (c *ConditionGroup) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), keys.PublicKey(*c))
 }
 
+// Copy implements the WitnessCondition interface and returns a deep copy of the condition.
+func (c *ConditionGroup) Copy() WitnessCondition {
+	cp := *c
+	return &cp
+}
+
 // Type implements the WitnessCondition interface and returns condition type.
 func (c ConditionCalledByEntry) Type() WitnessConditionType {
 	return WitnessCalledByEntry
@@ -419,6 +463,11 @@ func (c ConditionCalledByEntry) MarshalJSON() ([]byte, error) {
 // to stackitem.Item.
 func (c ConditionCalledByEntry) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), nil)
+}
+
+// Copy implements the WitnessCondition interface and returns a deep copy of the condition.
+func (c ConditionCalledByEntry) Copy() WitnessCondition {
+	return ConditionCalledByEntry{}
 }
 
 // Type implements the WitnessCondition interface and returns condition type.
@@ -459,6 +508,12 @@ func (c *ConditionCalledByContract) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), util.Uint160(*c))
 }
 
+// Copy implements the WitnessCondition interface and returns a deep copy of the condition.
+func (c *ConditionCalledByContract) Copy() WitnessCondition {
+	cc := *c
+	return &cc
+}
+
 // Type implements the WitnessCondition interface and returns condition type.
 func (c *ConditionCalledByGroup) Type() WitnessConditionType {
 	return WitnessCalledByGroup
@@ -495,6 +550,12 @@ func (c *ConditionCalledByGroup) MarshalJSON() ([]byte, error) {
 // to stackitem.Item.
 func (c *ConditionCalledByGroup) ToStackItem() stackitem.Item {
 	return condToStackItem(c.Type(), keys.PublicKey(*c))
+}
+
+// Copy implements the WitnessCondition interface and returns a deep copy of the condition.
+func (c *ConditionCalledByGroup) Copy() WitnessCondition {
+	cp := *c
+	return &cp
 }
 
 // DecodeBinaryCondition decodes and returns condition from the given binary stream.

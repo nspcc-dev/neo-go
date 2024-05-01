@@ -73,3 +73,15 @@ func TestWitnessRule_ToStackItem(t *testing.T) {
 		require.Equal(t, expected, actual, act)
 	}
 }
+
+func TestWitnessRule_Copy(t *testing.T) {
+	b := true
+	wr := &WitnessRule{
+		Action:    WitnessDeny,
+		Condition: (*ConditionBoolean)(&b),
+	}
+	copied := wr.Copy()
+	require.Equal(t, wr.Action, copied.Action)
+	require.Equal(t, wr.Condition, copied.Condition)
+	require.NotSame(t, wr.Condition, copied.Condition)
+}

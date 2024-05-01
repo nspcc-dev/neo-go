@@ -86,3 +86,24 @@ func SignersToStackItem(signers []Signer) stackitem.Item {
 	}
 	return stackitem.NewArray(res)
 }
+
+// Copy creates a deep copy of the Signer.
+func (c *Signer) Copy() *Signer {
+	if c == nil {
+		return nil
+	}
+	cp := *c
+	if c.AllowedContracts != nil {
+		cp.AllowedContracts = make([]util.Uint160, len(c.AllowedContracts))
+		copy(cp.AllowedContracts, c.AllowedContracts)
+	}
+	cp.AllowedGroups = keys.PublicKeys(c.AllowedGroups).Copy()
+	if c.Rules != nil {
+		cp.Rules = make([]WitnessRule, len(c.Rules))
+		for i, rule := range c.Rules {
+			cp.Rules[i] = *rule.Copy()
+		}
+	}
+
+	return &cp
+}

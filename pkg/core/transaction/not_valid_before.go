@@ -22,3 +22,10 @@ func (n *NotValidBefore) EncodeBinary(w *io.BinWriter) {
 func (n *NotValidBefore) toJSONMap(m map[string]any) {
 	m["height"] = n.Height
 }
+
+// Copy implements the AttrValue interface.
+func (n *NotValidBefore) Copy() AttrValue {
+	return &NotValidBefore{
+		Height: n.Height,
+	}
+}
