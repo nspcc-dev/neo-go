@@ -13,13 +13,15 @@ import (
 // Hash represents CryptoLib contract hash.
 const Hash = "\x1b\xf5\x75\xab\x11\x89\x68\x84\x13\x61\x0a\x35\xa1\x28\x86\xcd\xe0\xb6\x6c\x72"
 
-// NamedCurve represents a named elliptic curve.
-type NamedCurve byte
+// NamedCurveHash represents a pair of named elliptic curve and hash function.
+type NamedCurveHash byte
 
-// Various named elliptic curves.
+// Various pairs of named elliptic curves and hash functions.
 const (
-	Secp256k1 NamedCurve = 22
-	Secp256r1 NamedCurve = 23
+	Secp256k1Sha256    NamedCurveHash = 22
+	Secp256r1Sha256    NamedCurveHash = 23
+	Secp256k1Keccak256 NamedCurveHash = 24
+	Secp256r1Keccak256 NamedCurveHash = 25
 )
 
 // Sha256 calls `sha256` method of native CryptoLib contract and computes SHA256 hash of b.
@@ -40,8 +42,8 @@ func Murmur32(b []byte, seed int) []byte {
 
 // VerifyWithECDsa calls `verifyWithECDsa` method of native CryptoLib contract and checks that sig is
 // a correct msg's signature for the given pub (serialized public key on the given curve).
-func VerifyWithECDsa(msg []byte, pub interop.PublicKey, sig interop.Signature, curve NamedCurve) bool {
-	return neogointernal.CallWithToken(Hash, "verifyWithECDsa", int(contract.NoneFlag), msg, pub, sig, curve).(bool)
+func VerifyWithECDsa(msg []byte, pub interop.PublicKey, sig interop.Signature, curveHash NamedCurveHash) bool {
+	return neogointernal.CallWithToken(Hash, "verifyWithECDsa", int(contract.NoneFlag), msg, pub, sig, curveHash).(bool)
 }
 
 // Bls12381Point represents BLS12-381 curve point (G1 or G2 in the Affine or

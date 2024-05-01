@@ -75,14 +75,13 @@ func TestCryptoLib_KoblitzVerificationScript(t *testing.T) {
 		// This transaction (along with the network magic) should be signed by the user's Koblitz private key.
 		msg := constructMsg(t, uint32(e.Chain.GetConfig().Magic), tx)
 
-		// The user has to sign the Sha256 hash of the message by his Koblitz key.
-		// Please, note that this Sha256 hash may easily be replaced by Keccaak hash via minor adjustment of
-		// CryptoLib's `verifyWithECDsa` behaviour (if needed).
-		signature := pk.SignHash(hash.Sha256(msg))
+		// The user has to sign the hash of the message by his Koblitz key.
+		// Please, note that this Keccak256 hash may easily be replaced by sha256 hash if needed.
+		signature := pk.SignHash(native.Keccak256(msg))
 
 		// Ensure that signature verification passes. This line here is just for testing purposes,
 		// it won't be present in the real code.
-		require.True(t, pk.PublicKey().Verify(signature, hash.Sha256(msg).BytesBE()))
+		require.True(t, pk.PublicKey().Verify(signature, native.Keccak256(msg).BytesBE()))
 
 		// Build invocation witness script for the user's account.
 		invBytes := buildKoblitzInvocationScript(t, signature)
@@ -105,32 +104,32 @@ func TestCryptoLib_KoblitzVerificationScript(t *testing.T) {
 
 	// The simplest witness verification script with low length and low execution cost
 	// (98 bytes, 2092530 GAS including Invocation script execution).
-	// The user has to sign the sha256([var-bytes-network-magic, txHash-bytes-BE]).
+	// The user has to sign the keccak256([var-bytes-network-magic, txHash-bytes-BE]).
 	check(t, buildKoblitzVerificationScriptSimpleSingleHash, constructMessageNoHash)
 
 	// Even more simple witness verification script with low length and low execution cost
 	// (95 bytes, 2092320 GAS including Invocation script execution).
-	// The user has to sign the sha256([var-bytes-network-magic, txHash-bytes-BE]).
+	// The user has to sign the keccak256([var-bytes-network-magic, txHash-bytes-BE]).
 	// The difference is that network magic is a static value, thus, both verification script and
 	// user address are network-specific.
 	check(t, buildKoblitzVerificationScriptSimpleSingleHashStaticMagic, constructMessageNoHash)
 
 	// More complicated verification script with higher length and higher execution cost
 	// (136 bytes, 4120620 GAS including Invocation script execution).
-	// The user has to sign the sha256(sha256([var-bytes-network-magic, txHash-bytes-BE])).
+	// The user has to sign the keccak256(sha256([var-bytes-network-magic, txHash-bytes-BE])).
 	check(t, buildKoblitzVerificationScriptSimple, constructMessageSimple)
 
 	// Witness verification script that follows the existing standard CheckSig account generation rules
 	// and has larger length and higher execution cost.
 	// (186 bytes, 5116020 GAS including Invocation script execution).
-	// The user has to sign the sha256(sha256([4-bytes-network-magic-LE, txHash-bytes-BE]))
+	// The user has to sign the keccak256(sha256([4-bytes-network-magic-LE, txHash-bytes-BE]))
 	check(t, buildKoblitzVerificationScriptCompat, constructMessageCompat)
 }
 
 // buildKoblitzVerificationScriptSimpleSingleHash builds witness verification script for Koblitz public key.
 // This method differs from buildKoblitzVerificationScriptCompat in that it checks
 //
-//	sha256([var-bytes-network-magic, txHash-bytes-BE])
+//	keccak256([var-bytes-network-magic, txHash-bytes-BE])
 //
 // instead of (comparing with N3)
 //
@@ -141,9 +140,9 @@ func buildKoblitzVerificationScriptSimpleSingleHash(t *testing.T, pub *keys.Publ
 	// vrf is witness verification script corresponding to the pub.
 	// vrf is witness verification script corresponding to the pk.
 	vrf := io.NewBufBinWriter()
-	emit.Int(vrf.BinWriter, int64(native.Secp256k1)) // push Koblitz curve identifier.
-	emit.Opcodes(vrf.BinWriter, opcode.SWAP)         // swap curve identifier with the signature.
-	emit.Bytes(vrf.BinWriter, pub.Bytes())           // emit the caller's public key.
+	emit.Int(vrf.BinWriter, int64(native.Secp256k1Keccak256)) // push Koblitz curve identifier.
+	emit.Opcodes(vrf.BinWriter, opcode.SWAP)                  // swap curve identifier with the signature.
+	emit.Bytes(vrf.BinWriter, pub.Bytes())                    // emit the caller's public key.
 	// Construct and push the signed message. The signed message is effectively the network-dependent transaction hash,
 	// i.e. msg = [network-magic-bytes, tx.Hash()]
 	// Firstly, retrieve network magic (it's uint32 wrapped into BigInteger and represented as Integer stackitem on stack).
@@ -164,7 +163,7 @@ func buildKoblitzVerificationScriptSimpleSingleHash(t *testing.T, pub *keys.Publ
 	// READY: loaded 98 instructions
 	// NEO-GO-VM 0 > ops
 	// INDEX    OPCODE       PARAMETER
-	// 0        PUSHINT8     22 (16)    <<
+	// 0        PUSHINT8     24 (18)    <<
 	// 2        SWAP
 	// 3        PUSHDATA1    0363d7a48125a76cdea6e098c9f128e82920ed428e5fb4caf1d7f81c16cad0c205
 	// 38       SYSCALL      System.Runtime.GetNetwork (c5fba0e0)
@@ -183,7 +182,7 @@ func buildKoblitzVerificationScriptSimpleSingleHash(t *testing.T, pub *keys.Publ
 // buildKoblitzVerificationScriptSimpleSingleHashStaticMagic builds witness verification script for Koblitz public key.
 // This method differs from buildKoblitzVerificationScriptCompat in that it checks
 //
-//	sha256([var-bytes-network-magic, txHash-bytes-BE])
+//	keccak256([var-bytes-network-magic, txHash-bytes-BE])
 //
 // instead of (comparing with N3)
 //
@@ -197,9 +196,9 @@ func buildKoblitzVerificationScriptSimpleSingleHashStaticMagic(t *testing.T, pub
 	// vrf is witness verification script corresponding to the pub.
 	// vrf is witness verification script corresponding to the pk.
 	vrf := io.NewBufBinWriter()
-	emit.Int(vrf.BinWriter, int64(native.Secp256k1)) // push Koblitz curve identifier.
-	emit.Opcodes(vrf.BinWriter, opcode.SWAP)         // swap curve identifier with the signature.
-	emit.Bytes(vrf.BinWriter, pub.Bytes())           // emit the caller's public key.
+	emit.Int(vrf.BinWriter, int64(native.Secp256k1Keccak256)) // push Koblitz curve identifier.
+	emit.Opcodes(vrf.BinWriter, opcode.SWAP)                  // swap curve identifier with the signature.
+	emit.Bytes(vrf.BinWriter, pub.Bytes())                    // emit the caller's public key.
 	// Construct and push the signed message. The signed message is effectively the network-dependent transaction hash,
 	// i.e. msg = [network-magic-bytes, tx.Hash()]
 	// Firstly, push static network magic (it's 42 for unit test chain).
@@ -220,7 +219,7 @@ func buildKoblitzVerificationScriptSimpleSingleHashStaticMagic(t *testing.T, pub
 	// READY: loaded 95 instructions
 	// NEO-GO-VM 0 > ops
 	// INDEX    OPCODE       PARAMETER
-	// 0        PUSHINT8     22 (16)    <<
+	// 0        PUSHINT8     24 (18)    <<
 	// 2        SWAP
 	// 3        PUSHDATA1    0296e13080ade92a2ab722338c2a249ee8d83a14f649c68321664165f06bd110bd
 	// 38       PUSHINT8     42 (2a)
@@ -239,7 +238,7 @@ func buildKoblitzVerificationScriptSimpleSingleHashStaticMagic(t *testing.T, pub
 // buildKoblitzVerificationScriptSimple builds witness verification script for Koblitz public key.
 // This method differs from buildKoblitzVerificationScriptCompat in that it checks
 //
-//	sha256(sha256([var-bytes-network-magic, txHash-bytes-BE]))
+//	keccak256(sha256([var-bytes-network-magic, txHash-bytes-BE]))
 //
 // instead of (comparing with N3)
 //
@@ -255,9 +254,9 @@ func buildKoblitzVerificationScriptSimple(t *testing.T, pub *keys.PublicKey) []b
 	// vrf is witness verification script corresponding to the pub.
 	// vrf is witness verification script corresponding to the pk.
 	vrf := io.NewBufBinWriter()
-	emit.Int(vrf.BinWriter, int64(native.Secp256k1)) // push Koblitz curve identifier.
-	emit.Opcodes(vrf.BinWriter, opcode.SWAP)         // swap curve identifier with the signature.
-	emit.Bytes(vrf.BinWriter, pub.Bytes())           // emit the caller's public key.
+	emit.Int(vrf.BinWriter, int64(native.Secp256k1Keccak256)) // push Koblitz curve identifier.
+	emit.Opcodes(vrf.BinWriter, opcode.SWAP)                  // swap curve identifier with the signature.
+	emit.Bytes(vrf.BinWriter, pub.Bytes())                    // emit the caller's public key.
 	// Construct and push the signed message. The signed message is effectively the network-dependent transaction hash,
 	// i.e. msg = Sha256([network-magic-bytes, tx.Hash()])
 	// Firstly, retrieve network magic (it's uint32 wrapped into BigInteger and represented as Integer stackitem on stack).
@@ -280,7 +279,7 @@ func buildKoblitzVerificationScriptSimple(t *testing.T, pub *keys.PublicKey) []b
 	// READY: loaded 136 instructions
 	// NEO-GO-VM 0 > ops
 	// INDEX    OPCODE       PARAMETER
-	// 0        PUSHINT8     22 (16)    <<
+	// 0        PUSHINT8     24 (18)    <<
 	// 2        SWAP
 	// 3        PUSHDATA1    03a77f137afbb4b68d7a450aa5a28fe335f804c589a808494b4b626eb98707f37d
 	// 38       SYSCALL      System.Runtime.GetNetwork (c5fba0e0)
@@ -305,7 +304,7 @@ func buildKoblitzVerificationScriptSimple(t *testing.T, pub *keys.PublicKey) []b
 // buildKoblitzVerificationScript builds custom verification script for the provided Koblitz public key.
 // It checks that the following message is signed by the provided public key:
 //
-//	sha256(sha256([4-bytes-network-magic-LE, txHash-bytes-BE]))
+//	keccak256(sha256([4-bytes-network-magic-LE, txHash-bytes-BE]))
 //
 // It produces constant-length verification script (186 bytes) independently of the network parameters.
 func buildKoblitzVerificationScriptCompat(t *testing.T, pub *keys.PublicKey) []byte {
@@ -313,9 +312,9 @@ func buildKoblitzVerificationScriptCompat(t *testing.T, pub *keys.PublicKey) []b
 
 	// vrf is witness verification script corresponding to the pub.
 	vrf := io.NewBufBinWriter()
-	emit.Int(vrf.BinWriter, int64(native.Secp256k1)) // push Koblitz curve identifier.
-	emit.Opcodes(vrf.BinWriter, opcode.SWAP)         // swap curve identifier with the signature.
-	emit.Bytes(vrf.BinWriter, pub.Bytes())           // emit the caller's public key.
+	emit.Int(vrf.BinWriter, int64(native.Secp256k1Keccak256)) // push Koblitz curve identifier.
+	emit.Opcodes(vrf.BinWriter, opcode.SWAP)                  // swap curve identifier with the signature.
+	emit.Bytes(vrf.BinWriter, pub.Bytes())                    // emit the caller's public key.
 	// Construct and push the signed message. The signed message is effectively the network-dependent transaction hash,
 	// i.e. msg = Sha256([4-bytes-network-magic-LE, tx.Hash()])
 	// Firstly, convert network magic (uint32) to LE buffer.
@@ -381,7 +380,7 @@ func buildKoblitzVerificationScriptCompat(t *testing.T, pub *keys.PublicKey) []b
 	// READY: loaded 186 instructions
 	// NEO-GO-VM 0 > ops
 	// INDEX    OPCODE       PARAMETER
-	// 0        PUSHINT8     22 (16)    <<
+	// 0        PUSHINT8     24 (18)    <<
 	// 2        SWAP
 	// 3        PUSHDATA1    02627ef9c3631e3ccb8fbc4c5b6c49e38ccede5a79afb1e1b0708fbb958a7802d7
 	// 38       SYSCALL      System.Runtime.GetNetwork (c5fba0e0)
