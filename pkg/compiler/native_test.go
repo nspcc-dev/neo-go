@@ -74,8 +74,10 @@ func TestRoleManagementRole(t *testing.T) {
 }
 
 func TestCryptoLibNamedCurve(t *testing.T) {
-	require.EqualValues(t, native.Secp256k1, crypto.Secp256k1)
-	require.EqualValues(t, native.Secp256r1, crypto.Secp256r1)
+	require.EqualValues(t, native.Secp256k1Sha256, crypto.Secp256k1Sha256)
+	require.EqualValues(t, native.Secp256r1Sha256, crypto.Secp256r1Sha256)
+	require.EqualValues(t, native.Secp256k1Keccak256, crypto.Secp256k1Keccak256)
+	require.EqualValues(t, native.Secp256r1Keccak256, crypto.Secp256r1Keccak256)
 }
 
 func TestOracleContractValues(t *testing.T) {
@@ -233,7 +235,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"sha256", []string{"[]byte{1, 2, 3}"}},
 		{"ripemd160", []string{"[]byte{1, 2, 3}"}},
 		{"murmur32", []string{"[]byte{1, 2, 3}", "123"}},
-		{"verifyWithECDsa", []string{"[]byte{1, 2, 3}", pub, sig, "crypto.Secp256k1"}},
+		{"verifyWithECDsa", []string{"[]byte{1, 2, 3}", pub, sig, "crypto.Secp256k1Sha256"}},
 		{"bls12381Serialize", []string{"crypto.Bls12381Point{}"}},
 		{"bls12381Deserialize", []string{"[]byte{1, 2, 3}"}},
 		{"bls12381Equal", []string{"crypto.Bls12381Point{}", "crypto.Bls12381Point{}"}},

@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/twmb/murmur3"
 	"golang.org/x/crypto/sha3"
@@ -28,13 +29,18 @@ type Crypto struct {
 	interop.ContractMD
 }
 
-// NamedCurve identifies named elliptic curves.
-type NamedCurve byte
+// HashFunc is a delegate representing a hasher function with 256 bytes output length.
+type HashFunc func([]byte) util.Uint256
 
-// Various named elliptic curves.
+// NamedCurveHash identifies a pair of named elliptic curve and hash function.
+type NamedCurveHash byte
+
+// Various pairs of named elliptic curves and hash functions.
 const (
-	Secp256k1 NamedCurve = 22
-	Secp256r1 NamedCurve = 23
+	Secp256k1Sha256    NamedCurveHash = 22
+	Secp256r1Sha256    NamedCurveHash = 23
+	Secp256k1Keccak256 NamedCurveHash = 24
+	Secp256r1Keccak256 NamedCurveHash = 25
 )
 
 const cryptoContractID = -3
@@ -63,7 +69,7 @@ func newCrypto() *Crypto {
 		manifest.NewParameter("message", smartcontract.ByteArrayType),
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType),
 		manifest.NewParameter("signature", smartcontract.ByteArrayType),
-		manifest.NewParameter("curve", smartcontract.IntegerType))
+		manifest.NewParameter("curveHash", smartcontract.IntegerType))
 	md = newMethodAndPrice(c.verifyWithECDsa, 1<<15, callflag.NoneFlag)
 	c.AddMethod(md, desc)
 
@@ -142,7 +148,6 @@ func (c *Crypto) verifyWithECDsa(_ *interop.Context, args []stackitem.Item) stac
 	if err != nil {
 		panic(fmt.Errorf("invalid message stackitem: %w", err))
 	}
-	hashToCheck := hash.Sha256(msg)
 	pubkey, err := args[1].TryBytes()
 	if err != nil {
 		panic(fmt.Errorf("invalid pubkey stackitem: %w", err))
@@ -151,10 +156,11 @@ func (c *Crypto) verifyWithECDsa(_ *interop.Context, args []stackitem.Item) stac
 	if err != nil {
 		panic(fmt.Errorf("invalid signature stackitem: %w", err))
 	}
-	curve, err := curveFromStackitem(args[3])
+	curve, hasher, err := curveHasherFromStackitem(args[3])
 	if err != nil {
-		panic(fmt.Errorf("invalid curve stackitem: %w", err))
+		panic(fmt.Errorf("invalid curveHash stackitem: %w", err))
 	}
+	hashToCheck := hasher(msg)
 	pkey, err := keys.NewPublicKeyFromBytes(pubkey, curve)
 	if err != nil {
 		panic(fmt.Errorf("failed to decode pubkey: %w", err))
@@ -163,22 +169,26 @@ func (c *Crypto) verifyWithECDsa(_ *interop.Context, args []stackitem.Item) stac
 	return stackitem.NewBool(res)
 }
 
-func curveFromStackitem(si stackitem.Item) (elliptic.Curve, error) {
+func curveHasherFromStackitem(si stackitem.Item) (elliptic.Curve, HashFunc, error) {
 	curve, err := si.TryInteger()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if !curve.IsInt64() {
-		return nil, errors.New("not an int64")
+		return nil, nil, errors.New("not an int64")
 	}
 	c := curve.Int64()
 	switch c {
-	case int64(Secp256k1):
-		return secp256k1.S256(), nil
-	case int64(Secp256r1):
-		return elliptic.P256(), nil
+	case int64(Secp256k1Sha256):
+		return secp256k1.S256(), hash.Sha256, nil
+	case int64(Secp256r1Sha256):
+		return elliptic.P256(), hash.Sha256, nil
+	case int64(Secp256k1Keccak256):
+		return secp256k1.S256(), Keccak256, nil
+	case int64(Secp256r1Keccak256):
+		return elliptic.P256(), Keccak256, nil
 	default:
-		return nil, errors.New("unsupported curve type")
+		return nil, nil, errors.New("unsupported curve/hash type")
 	}
 }
 
@@ -295,13 +305,7 @@ func (c *Crypto) keccak256(_ *interop.Context, args []stackitem.Item) stackitem.
 	if err != nil {
 		panic(err)
 	}
-
-	digest := sha3.NewLegacyKeccak256()
-	_, err = digest.Write(bs)
-	if err != nil {
-		panic(err)
-	}
-	return stackitem.NewByteArray(digest.Sum(nil))
+	return stackitem.NewByteArray(Keccak256(bs).BytesBE())
 }
 
 // Metadata implements the Contract interface.
@@ -332,4 +336,15 @@ func (c *Crypto) PostPersist(ic *interop.Context) error {
 // ActiveIn implements the Contract interface.
 func (c *Crypto) ActiveIn() *config.Hardfork {
 	return nil
+}
+
+// Keccak256 hashes the incoming byte slice using the
+// keccak256 algorithm.
+func Keccak256(data []byte) util.Uint256 {
+	var hash util.Uint256
+	hasher := sha3.NewLegacyKeccak256()
+	_, _ = hasher.Write(data)
+
+	hasher.Sum(hash[:0])
+	return hash
 }
