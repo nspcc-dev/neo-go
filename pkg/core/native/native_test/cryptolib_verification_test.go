@@ -102,6 +102,14 @@ func TestCryptoLib_KoblitzVerificationScript(t *testing.T) {
 		e.CheckGASBalance(t, to, big.NewInt(int64(amount)))
 	}
 
+	// The proposed preferable witness verification script
+	// (110 bytes, 2154270 GAS including Invocation script execution).
+	// The user has to sign the keccak256([4-bytes-network-magic-LE, txHash-bytes-BE]).
+	check(t, buildKoblitzVerificationScript, constructMessage)
+
+	// Below presented some variations of verification scripts that were also considered, but
+	// they are not as good as the first one.
+
 	// The simplest witness verification script with low length and low execution cost
 	// (98 bytes, 2092530 GAS including Invocation script execution).
 	// The user has to sign the keccak256([var-bytes-network-magic, txHash-bytes-BE]).
@@ -124,6 +132,66 @@ func TestCryptoLib_KoblitzVerificationScript(t *testing.T) {
 	// (186 bytes, 5116020 GAS including Invocation script execution).
 	// The user has to sign the keccak256(sha256([4-bytes-network-magic-LE, txHash-bytes-BE]))
 	check(t, buildKoblitzVerificationScriptCompat, constructMessageCompat)
+}
+
+// buildKoblitzVerificationScript builds witness verification script for Koblitz public key.
+// This method checks
+//
+//	keccak256([4-bytes-network-magic-LE, txHash-bytes-BE])
+//
+// instead of (comparing with N3)
+//
+//	sha256([4-bytes-network-magic-LE, txHash-bytes-BE]).
+func buildKoblitzVerificationScript(t *testing.T, pub *keys.PublicKey) []byte {
+	criptoLibH := state.CreateNativeContractHash(nativenames.CryptoLib)
+
+	// vrf is witness verification script corresponding to the pub.
+	vrf := io.NewBufBinWriter()
+	emit.Int(vrf.BinWriter, int64(native.Secp256k1Keccak256)) // push Koblitz curve identifier.
+	emit.Opcodes(vrf.BinWriter, opcode.SWAP)                  // swap curve identifier with the signature.
+	emit.Bytes(vrf.BinWriter, pub.Bytes())                    // emit the caller's public key.
+	// Construct and push the signed message. The signed message is effectively the network-dependent transaction hash,
+	// i.e. msg = [4-network-magic-bytes-LE, tx-hash-BE]
+	// Firstly, retrieve network magic (it's uint32 wrapped into BigInteger and represented as Integer stackitem on stack).
+	emit.Syscall(vrf.BinWriter, interopnames.SystemRuntimeGetNetwork) // push network magic (Integer stackitem), can have 0-5 bytes length serialized.
+	// Convert network magic to 4-bytes-length LE byte array representation.
+	emit.Int(vrf.BinWriter, 0x100000000)
+	emit.Opcodes(vrf.BinWriter, opcode.ADD, // some new number that is 5 bytes at least when serialized, but first 4 bytes are intact network value (LE).
+		opcode.PUSH4, opcode.LEFT) // cut the first 4 bytes out of a number that is at least 5 bytes long, the result is 4-bytes-length LE network representation.
+	// Retrieve executing transaction hash.
+	emit.Syscall(vrf.BinWriter, interopnames.SystemRuntimeGetScriptContainer) // push the script container (executing transaction, actually).
+	emit.Opcodes(vrf.BinWriter, opcode.PUSH0, opcode.PICKITEM)                // pick 0-th transaction item (the transaction hash).
+	// Concatenate network magic and transaction hash.
+	emit.Opcodes(vrf.BinWriter, opcode.CAT) // this instruction will convert network magic to bytes using BigInteger rules of conversion.
+	// Continue construction of 'verifyWithECDsa' call.
+	emit.Opcodes(vrf.BinWriter, opcode.PUSH4, opcode.PACK)                         // pack arguments for 'verifyWithECDsa' call.
+	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "verifyWithECDsa", callflag.All) // emit the call to 'verifyWithECDsa' itself.
+	require.NoError(t, vrf.Err)
+
+	return vrf.Bytes()
+	// Here's an example of the resulting witness verification script (110 bytes length, always constant length, with constant length of signed data):
+	// NEO-GO-VM > loadbase64 ABhQDCECoIi/qx5LS+3n1GJFcoYbQByyDDsU6QaHvYhiJypOYWZBxfug4AMAAAAAAQAAAJ4UjUEtUQgwEM6LFMAfDA92ZXJpZnlXaXRoRUNEc2EMFBv1dasRiWiEE2EKNaEohs3gtmxyQWJ9W1I=
+	// READY: loaded 110 instructions
+	// NEO-GO-VM 0 > ops
+	// INDEX    OPCODE       PARAMETER
+	// 0        PUSHINT8     24 (18)    <<
+	// 2        SWAP
+	// 3        PUSHDATA1    02a088bfab1e4b4bede7d4624572861b401cb20c3b14e90687bd8862272a4e6166
+	// 38       SYSCALL      System.Runtime.GetNetwork (c5fba0e0)
+	// 43       PUSHINT64    4294967296 (0000000001000000)
+	// 52       ADD
+	// 53       PUSH4
+	// 54       LEFT
+	// 55       SYSCALL      System.Runtime.GetScriptContainer (2d510830)
+	// 60       PUSH0
+	// 61       PICKITEM
+	// 62       CAT
+	// 63       PUSH4
+	// 64       PACK
+	// 65       PUSH15
+	// 66       PUSHDATA1    766572696679576974684543447361 ("verifyWithECDsa")
+	// 83       PUSHDATA1    1bf575ab1189688413610a35a12886cde0b66c72 ("NNToUmdQBe5n8o53BTzjTFAnSEcpouyy3B", "0x726cb6e0cd8628a1350a611384688911ab75f51b")
+	// 105      SYSCALL      System.Contract.Call (627d5b52)
 }
 
 // buildKoblitzVerificationScriptSimpleSingleHash builds witness verification script for Koblitz public key.
@@ -460,6 +528,14 @@ func buildKoblitzInvocationScript(t *testing.T, signature []byte) []byte {
 	// NEO-GO-VM 0 > ops
 	// INDEX    OPCODE       PARAMETER
 	// 0        PUSHDATA1    4c18a53f31d4a2ce5cda54d0d451b775ccc650278dde4da678bc10a99a427fc158754d8ac05846c5c87864aaaf9a6313c2512e3734a25d2535dabdc8c1f2c4cf    <<
+}
+
+// constructMessage constructs message for signing that consists of the
+// unhashed constant 4-bytes length LE magic and transaction hash bytes:
+//
+//	[4-bytes-network-magic-LE, txHash-bytes-BE]
+func constructMessage(t *testing.T, magic uint32, tx hash.Hashable) []byte {
+	return hash.GetSignedData(magic, tx)
 }
 
 // constructMessageNoHash constructs message for signing that consists of the
