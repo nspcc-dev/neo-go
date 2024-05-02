@@ -29,6 +29,11 @@ func Opcodes(w *io.BinWriter, ops ...opcode.Opcode) {
 	}
 }
 
+// InitSlot emits INITSLOT instruction with the specified size of locals/args slots.
+func InitSlot(w *io.BinWriter, locals, args uint8) {
+	Instruction(w, opcode.INITSLOT, []byte{locals, args})
+}
+
 // Bool emits a bool type to the given buffer.
 func Bool(w *io.BinWriter, ok bool) {
 	var opVal = opcode.PUSHT
