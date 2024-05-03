@@ -674,7 +674,7 @@ func TestCryptoLib_KoblitzMultisigVerificationScript(t *testing.T) {
 	}
 
 	// The proposed multisig verification script.
-	// (261 bytes, 8389470 GAS including Invocation script execution for 3/4 multisig).
+	// (266 bytes, 8390070 GAS including Invocation script execution for 3/4 multisig).
 	// The user has to sign the keccak256([4-bytes-network-magic-LE, txHash-bytes-BE]).
 	check(t, buildKoblitzMultisigVerificationScript, constructMessage)
 }
@@ -713,17 +713,36 @@ func buildKoblitzMultisigVerificationScript(t *testing.T, m int, pubs keys.Publi
 	// }
 	vrf := io.NewBufBinWriter()
 
+	// Start the same way as regular multisig script.
+	emit.Int(vrf.BinWriter, int64(m)) // push m.
+	for _, pub := range pubs {
+		emit.Bytes(vrf.BinWriter, pub.Bytes()) // push public keys in compressed form.
+	}
+	emit.Int(vrf.BinWriter, int64(n)) // push n.
+
 	// Initialize slots for local variables. Locals slot scheme:
 	// LOC0 -> sigs
 	// LOC1 -> pubs
 	// LOC2 -> msg (ByteString)
 	// LOC3 -> sigCnt (Integer)
 	// LOC4 -> pubCnt (Integer)
-	emit.InitSlot(vrf.BinWriter, 5, 0)
+	// LOC5 -> n
+	// LOC6 -> m
+	emit.InitSlot(vrf.BinWriter, 7, 0)
+
+	// Store n.
+	emit.Opcodes(vrf.BinWriter, opcode.STLOC5)
+
+	// Pack public keys and store at LOC1.
+	emit.Opcodes(vrf.BinWriter, opcode.LDLOC5)
+	emit.Opcodes(vrf.BinWriter, opcode.PACK, opcode.STLOC1)
+
+	// Store m.
+	emit.Opcodes(vrf.BinWriter, opcode.STLOC6)
 
 	// Check the number of signatures is m. Return false if not.
-	emit.Opcodes(vrf.BinWriter, opcode.DEPTH) // Push the number of signatures onto stack.
-	emit.Int(vrf.BinWriter, int64(m))
+	emit.Opcodes(vrf.BinWriter, opcode.DEPTH)                           // push the number of signatures onto stack.
+	emit.Opcodes(vrf.BinWriter, opcode.LDLOC6)                          // load m.
 	emit.Instruction(vrf.BinWriter, opcode.JMPEQ, []byte{0})            // here and below short jumps are sufficient.
 	sigsLenCheckEndOffset := vrf.Len()                                  // offset of the signatures count check.
 	emit.Opcodes(vrf.BinWriter, opcode.CLEAR, opcode.PUSHF, opcode.RET) // return if length of the signatures not equal to m.
@@ -732,15 +751,8 @@ func buildKoblitzMultisigVerificationScript(t *testing.T, m int, pubs keys.Publi
 	checkStartOffset := vrf.Len()
 
 	// Pack signatures and store at LOC0.
-	emit.Int(vrf.BinWriter, int64(m))
+	emit.Opcodes(vrf.BinWriter, opcode.LDLOC6) // load m.
 	emit.Opcodes(vrf.BinWriter, opcode.PACK, opcode.STLOC0)
-
-	// Pack public keys and store at LOC1.
-	for _, pub := range pubs {
-		emit.Bytes(vrf.BinWriter, pub.Bytes())
-	}
-	emit.Int(vrf.BinWriter, int64(n))
-	emit.Opcodes(vrf.BinWriter, opcode.PACK, opcode.STLOC1)
 
 	// Get message and store it at LOC2.
 	// msg = [4-network-magic-bytes-LE, tx-hash-BE]
@@ -763,11 +775,11 @@ func buildKoblitzMultisigVerificationScript(t *testing.T, m int, pubs keys.Publi
 	// Loop condition check.
 	loopStartOffset := vrf.Len()
 	emit.Opcodes(vrf.BinWriter, opcode.LDLOC3) // load sigCnt.
-	emit.Int(vrf.BinWriter, int64(m))          // push m.
+	emit.Opcodes(vrf.BinWriter, opcode.LDLOC6) // push m.
 	emit.Opcodes(vrf.BinWriter, opcode.GE,     // sigCnt >= m
 		opcode.LDLOC4) // load pubCnt
-	emit.Int(vrf.BinWriter, int64(n))      // push n.
-	emit.Opcodes(vrf.BinWriter, opcode.GE, // pubCnt >= n
+	emit.Opcodes(vrf.BinWriter, opcode.LDLOC5) // push n.
+	emit.Opcodes(vrf.BinWriter, opcode.GE,     // pubCnt >= n
 		opcode.OR) // sigCnt >= m || pubCnt >= n
 	emit.Instruction(vrf.BinWriter, opcode.JMPIF, []byte{0}) // jump to the end of the script if (sigCnt >= m || pubCnt >= n).
 	loopConditionOffset := vrf.Len()
@@ -795,7 +807,7 @@ func buildKoblitzMultisigVerificationScript(t *testing.T, m int, pubs keys.Publi
 	// Return condition: the number of valid signatures should be equal to m.
 	progRetOffset := vrf.Len()
 	emit.Opcodes(vrf.BinWriter, opcode.LDLOC3)   // load sigCnt.
-	emit.Int(vrf.BinWriter, int64(m))            // push m.
+	emit.Opcodes(vrf.BinWriter, opcode.LDLOC6)   // push m.
 	emit.Opcodes(vrf.BinWriter, opcode.NUMEQUAL) // push m == sigCnt.
 
 	require.NoError(t, vrf.Err)
@@ -808,72 +820,76 @@ func buildKoblitzMultisigVerificationScript(t *testing.T, m int, pubs keys.Publi
 	script[loopConditionOffset-1] = byte(progRetOffset - loopConditionOffset + 2)
 
 	return script
-	// Here's an example of the resulting single witness invocation script (261 bytes length, the length may vary depending on m/n):
-	// NEO-GO-VM > loadbase64 VwUAQxMoBUkJQBPAcAwhAnDdr99Ja4K3I81KURO2xs8b+dYYVIaMhbDFTYO4FCnKDCECuBwcms5bdqbWeBZ1cnMAJ8z/uUMcxnIK0CxTyxNdYqAMIQLQHl4aPx8PZOgu4EQUh0qCPaCfaZZPLNNS9ZVPcmuXpwwhA+YKTuJo6wB/u/CQdzJczfQQaMk6LHfMlSZMdBD2qCV1FMBxQcX7oOADAAAAAAEAAACeFI1BLVEIMBDOi3IQcxB0axO4bBS4kiRCABhoa85pbM5qFMAfDA92ZXJpZnlXaXRoRUNEc2EMFBv1dasRiWiEE2EKNaEohs3gtmxyQWJ9W1JrnnNsnHQiuWsTsw==
-	// READY: loaded 262 instructions
+	// Here's an example of the resulting single witness invocation script (266 bytes length, the length may vary depending on m/n):
+	// NEO-GO-VM > loadbase64 EwwhAyGrdKSa2M6xnP2HMGzk4Gu/XffuBthZSuRatmtc0xd6DCECN5etf+pJm7AeaQNlFK0dgheMB4kMEG6v20PHe8JpoYQMIQNCHZPDdLgJyE+cbsj9KPpg/8ZsVtZNtziKDdKnOIV3ggwhAoXJ9JwG0qdjg1ZC/PQCV7PqNq0i9g2nOT+sKg1rqMhzFFcHAHVtwHF2Q24oBUkJQG7AcEHF+6DgAwAAAAABAAAAnhSNQS1RCDAQzotyEHMQdGtuuGxtuJIkQgAYaGvOaWzOahTAHwwPdmVyaWZ5V2l0aEVDRHNhDBQb9XWrEYlohBNhCjWhKIbN4LZsckFifVtSa55zbJx0IrlrbrM=
+	// READY: loaded 266 instructions
 	// NEO-GO-VM 0 > ops
 	// INDEX    OPCODE       PARAMETER
-	// 0        INITSLOT     5 local, 0 arg    <<
-	// 3        DEPTH
-	// 4        PUSH3
-	// 5        JMPEQ        10 (5/05)
-	// 7        CLEAR
-	// 8        PUSHF
-	// 9        RET
-	// 10       PUSH3
-	// 11       PACK
-	// 12       STLOC0
-	// 13       PUSHDATA1    0270ddafdf496b82b723cd4a5113b6c6cf1bf9d61854868c85b0c54d83b81429ca
-	// 48       PUSHDATA1    02b81c1c9ace5b76a6d678167572730027ccffb9431cc6720ad02c53cb135d62a0
-	// 83       PUSHDATA1    02d01e5e1a3f1f0f64e82ee04414874a823da09f69964f2cd352f5954f726b97a7
-	// 118      PUSHDATA1    03e60a4ee268eb007fbbf09077325ccdf41068c93a2c77cc95264c7410f6a82575
-	// 153      PUSH4
-	// 154      PACK
-	// 155      STLOC1
-	// 156      SYSCALL      System.Runtime.GetNetwork (c5fba0e0)
-	// 161      PUSHINT64    4294967296 (0000000001000000)
-	// 170      ADD
-	// 171      PUSH4
-	// 172      LEFT
-	// 173      SYSCALL      System.Runtime.GetScriptContainer (2d510830)
-	// 178      PUSH0
-	// 179      PICKITEM
-	// 180      CAT
-	// 181      STLOC2
+	// 0        PUSH3            <<
+	// 1        PUSHDATA1    0321ab74a49ad8ceb19cfd87306ce4e06bbf5df7ee06d8594ae45ab66b5cd3177a
+	// 36       PUSHDATA1    023797ad7fea499bb01e69036514ad1d82178c07890c106eafdb43c77bc269a184
+	// 71       PUSHDATA1    03421d93c374b809c84f9c6ec8fd28fa60ffc66c56d64db7388a0dd2a738857782
+	// 106      PUSHDATA1    0285c9f49c06d2a763835642fcf40257b3ea36ad22f60da7393fac2a0d6ba8c873
+	// 141      PUSH4
+	// 142      INITSLOT     7 local, 0 arg
+	// 145      STLOC5
+	// 146      LDLOC5
+	// 147      PACK
+	// 148      STLOC1
+	// 149      STLOC6
+	// 150      DEPTH
+	// 151      LDLOC6
+	// 152      JMPEQ        157 (5/05)
+	// 154      CLEAR
+	// 155      PUSHF
+	// 156      RET
+	// 157      LDLOC6
+	// 158      PACK
+	// 159      STLOC0
+	// 160      SYSCALL      System.Runtime.GetNetwork (c5fba0e0)
+	// 165      PUSHINT64    4294967296 (0000000001000000)
+	// 174      ADD
+	// 175      PUSH4
+	// 176      LEFT
+	// 177      SYSCALL      System.Runtime.GetScriptContainer (2d510830)
 	// 182      PUSH0
-	// 183      STLOC3
-	// 184      PUSH0
-	// 185      STLOC4
-	// 186      LDLOC3
-	// 187      PUSH3
-	// 188      GE
-	// 189      LDLOC4
-	// 190      PUSH4
-	// 191      GE
-	// 192      OR
-	// 193      JMPIF        259 (66/42)
-	// 195      PUSHINT8     24 (18)
-	// 197      LDLOC0
-	// 198      LDLOC3
-	// 199      PICKITEM
-	// 200      LDLOC1
-	// 201      LDLOC4
-	// 202      PICKITEM
-	// 203      LDLOC2
-	// 204      PUSH4
-	// 205      PACK
-	// 206      PUSH15
-	// 207      PUSHDATA1    766572696679576974684543447361 ("verifyWithECDsa")
-	// 224      PUSHDATA1    1bf575ab1189688413610a35a12886cde0b66c72 ("NNToUmdQBe5n8o53BTzjTFAnSEcpouyy3B", "0x726cb6e0cd8628a1350a611384688911ab75f51b")
-	// 246      SYSCALL      System.Contract.Call (627d5b52)
-	// 251      LDLOC3
-	// 252      ADD
-	// 253      STLOC3
-	// 254      LDLOC4
-	// 255      INC
-	// 256      STLOC4
-	// 257      JMP          186 (-71/b9)
-	// 259      LDLOC3
-	// 260      PUSH3
-	// 261      NUMEQUAL
+	// 183      PICKITEM
+	// 184      CAT
+	// 185      STLOC2
+	// 186      PUSH0
+	// 187      STLOC3
+	// 188      PUSH0
+	// 189      STLOC4
+	// 190      LDLOC3
+	// 191      LDLOC6
+	// 192      GE
+	// 193      LDLOC4
+	// 194      LDLOC5
+	// 195      GE
+	// 196      OR
+	// 197      JMPIF        263 (66/42)
+	// 199      PUSHINT8     24 (18)
+	// 201      LDLOC0
+	// 202      LDLOC3
+	// 203      PICKITEM
+	// 204      LDLOC1
+	// 205      LDLOC4
+	// 206      PICKITEM
+	// 207      LDLOC2
+	// 208      PUSH4
+	// 209      PACK
+	// 210      PUSH15
+	// 211      PUSHDATA1    766572696679576974684543447361 ("verifyWithECDsa")
+	// 228      PUSHDATA1    1bf575ab1189688413610a35a12886cde0b66c72 ("NNToUmdQBe5n8o53BTzjTFAnSEcpouyy3B", "0x726cb6e0cd8628a1350a611384688911ab75f51b")
+	// 250      SYSCALL      System.Contract.Call (627d5b52)
+	// 255      LDLOC3
+	// 256      ADD
+	// 257      STLOC3
+	// 258      LDLOC4
+	// 259      INC
+	// 260      STLOC4
+	// 261      JMP          190 (-71/b9)
+	// 263      LDLOC3
+	// 264      LDLOC6
+	// 265      NUMEQUAL
 }
