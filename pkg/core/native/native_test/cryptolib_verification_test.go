@@ -674,7 +674,7 @@ func TestCryptoLib_KoblitzMultisigVerificationScript(t *testing.T) {
 	}
 
 	// The proposed multisig verification script.
-	// (266 bytes, 8390070 GAS including Invocation script execution for 3/4 multisig).
+	// (264 bytes, 8390070 GAS including Invocation script execution for 3/4 multisig).
 	// The user has to sign the keccak256([4-bytes-network-magic-LE, txHash-bytes-BE]).
 	check(t, buildKoblitzMultisigVerificationScript, constructMessage)
 }
@@ -740,12 +740,12 @@ func buildKoblitzMultisigVerificationScript(t *testing.T, m int, pubs keys.Publi
 	// Store m.
 	emit.Opcodes(vrf.BinWriter, opcode.STLOC6)
 
-	// Check the number of signatures is m. Return false if not.
-	emit.Opcodes(vrf.BinWriter, opcode.DEPTH)                           // push the number of signatures onto stack.
-	emit.Opcodes(vrf.BinWriter, opcode.LDLOC6)                          // load m.
-	emit.Instruction(vrf.BinWriter, opcode.JMPEQ, []byte{0})            // here and below short jumps are sufficient.
-	sigsLenCheckEndOffset := vrf.Len()                                  // offset of the signatures count check.
-	emit.Opcodes(vrf.BinWriter, opcode.CLEAR, opcode.PUSHF, opcode.RET) // return if length of the signatures not equal to m.
+	// Check the number of signatures is m. Abort the execution if not.
+	emit.Opcodes(vrf.BinWriter, opcode.DEPTH)                // push the number of signatures onto stack.
+	emit.Opcodes(vrf.BinWriter, opcode.LDLOC6)               // load m.
+	emit.Instruction(vrf.BinWriter, opcode.JMPEQ, []byte{0}) // here and below short jumps are sufficient.
+	sigsLenCheckEndOffset := vrf.Len()                       // offset of the signatures count check.
+	emit.Opcodes(vrf.BinWriter, opcode.ABORT)                // abort execution if length of the signatures not equal to m.
 
 	// Start the check.
 	checkStartOffset := vrf.Len()
@@ -820,16 +820,16 @@ func buildKoblitzMultisigVerificationScript(t *testing.T, m int, pubs keys.Publi
 	script[loopConditionOffset-1] = byte(progRetOffset - loopConditionOffset + 2)
 
 	return script
-	// Here's an example of the resulting single witness invocation script (266 bytes length, the length may vary depending on m/n):
-	// NEO-GO-VM > loadbase64 EwwhAyGrdKSa2M6xnP2HMGzk4Gu/XffuBthZSuRatmtc0xd6DCECN5etf+pJm7AeaQNlFK0dgheMB4kMEG6v20PHe8JpoYQMIQNCHZPDdLgJyE+cbsj9KPpg/8ZsVtZNtziKDdKnOIV3ggwhAoXJ9JwG0qdjg1ZC/PQCV7PqNq0i9g2nOT+sKg1rqMhzFFcHAHVtwHF2Q24oBUkJQG7AcEHF+6DgAwAAAAABAAAAnhSNQS1RCDAQzotyEHMQdGtuuGxtuJIkQgAYaGvOaWzOahTAHwwPdmVyaWZ5V2l0aEVDRHNhDBQb9XWrEYlohBNhCjWhKIbN4LZsckFifVtSa55zbJx0IrlrbrM=
-	// READY: loaded 266 instructions
+	// Here's an example of the resulting single witness invocation script (264 bytes length, the length may vary depending on m/n):
+	// NEO-GO-VM > loadbase64 EwwhAg1khs9yqTuG8R7dEj8/GhCqKwkL+6shSOczeaHENFo8DCECibz2wVNY1zRkRCbn+Qr87lQFjStnrQrwv1CSoea/91sMIQPiiV+wNGl5g5SVULR+BM/G2n6WO0WrGIsq+GBRqQHYwAwhAuwZz40NwnerrmSusUUgNqsZiv0WFj3KQE1BYd7lU7mDFFcHAHVtwHF2Q24oAzhuwHBBxfug4AMAAAAAAQAAAJ4UjUEtUQgwEM6LchBzEHRrbrhsbbiSJEIAGGhrzmlszmoUwB8MD3ZlcmlmeVdpdGhFQ0RzYQwUG/V1qxGJaIQTYQo1oSiGzeC2bHJBYn1bUmuec2ycdCK5a26z
+	// READY: loaded 264 instructions
 	// NEO-GO-VM 0 > ops
 	// INDEX    OPCODE       PARAMETER
 	// 0        PUSH3            <<
-	// 1        PUSHDATA1    0321ab74a49ad8ceb19cfd87306ce4e06bbf5df7ee06d8594ae45ab66b5cd3177a
-	// 36       PUSHDATA1    023797ad7fea499bb01e69036514ad1d82178c07890c106eafdb43c77bc269a184
-	// 71       PUSHDATA1    03421d93c374b809c84f9c6ec8fd28fa60ffc66c56d64db7388a0dd2a738857782
-	// 106      PUSHDATA1    0285c9f49c06d2a763835642fcf40257b3ea36ad22f60da7393fac2a0d6ba8c873
+	// 1        PUSHDATA1    020d6486cf72a93b86f11edd123f3f1a10aa2b090bfbab2148e73379a1c4345a3c
+	// 36       PUSHDATA1    0289bcf6c15358d734644426e7f90afcee54058d2b67ad0af0bf5092a1e6bff75b
+	// 71       PUSHDATA1    03e2895fb034697983949550b47e04cfc6da7e963b45ab188b2af86051a901d8c0
+	// 106      PUSHDATA1    02ec19cf8d0dc277abae64aeb1452036ab198afd16163dca404d4161dee553b983
 	// 141      PUSH4
 	// 142      INITSLOT     7 local, 0 arg
 	// 145      STLOC5
@@ -839,57 +839,55 @@ func buildKoblitzMultisigVerificationScript(t *testing.T, m int, pubs keys.Publi
 	// 149      STLOC6
 	// 150      DEPTH
 	// 151      LDLOC6
-	// 152      JMPEQ        157 (5/05)
-	// 154      CLEAR
-	// 155      PUSHF
-	// 156      RET
-	// 157      LDLOC6
-	// 158      PACK
-	// 159      STLOC0
-	// 160      SYSCALL      System.Runtime.GetNetwork (c5fba0e0)
-	// 165      PUSHINT64    4294967296 (0000000001000000)
-	// 174      ADD
-	// 175      PUSH4
-	// 176      LEFT
-	// 177      SYSCALL      System.Runtime.GetScriptContainer (2d510830)
-	// 182      PUSH0
-	// 183      PICKITEM
-	// 184      CAT
-	// 185      STLOC2
+	// 152      JMPEQ        155 (3/03)
+	// 154      ABORT
+	// 155      LDLOC6
+	// 156      PACK
+	// 157      STLOC0
+	// 158      SYSCALL      System.Runtime.GetNetwork (c5fba0e0)
+	// 163      PUSHINT64    4294967296 (0000000001000000)
+	// 172      ADD
+	// 173      PUSH4
+	// 174      LEFT
+	// 175      SYSCALL      System.Runtime.GetScriptContainer (2d510830)
+	// 180      PUSH0
+	// 181      PICKITEM
+	// 182      CAT
+	// 183      STLOC2
+	// 184      PUSH0
+	// 185      STLOC3
 	// 186      PUSH0
-	// 187      STLOC3
-	// 188      PUSH0
-	// 189      STLOC4
-	// 190      LDLOC3
-	// 191      LDLOC6
-	// 192      GE
-	// 193      LDLOC4
-	// 194      LDLOC5
-	// 195      GE
-	// 196      OR
-	// 197      JMPIF        263 (66/42)
-	// 199      PUSHINT8     24 (18)
-	// 201      LDLOC0
-	// 202      LDLOC3
-	// 203      PICKITEM
-	// 204      LDLOC1
-	// 205      LDLOC4
-	// 206      PICKITEM
-	// 207      LDLOC2
-	// 208      PUSH4
-	// 209      PACK
-	// 210      PUSH15
-	// 211      PUSHDATA1    766572696679576974684543447361 ("verifyWithECDsa")
-	// 228      PUSHDATA1    1bf575ab1189688413610a35a12886cde0b66c72 ("NNToUmdQBe5n8o53BTzjTFAnSEcpouyy3B", "0x726cb6e0cd8628a1350a611384688911ab75f51b")
-	// 250      SYSCALL      System.Contract.Call (627d5b52)
-	// 255      LDLOC3
-	// 256      ADD
-	// 257      STLOC3
-	// 258      LDLOC4
-	// 259      INC
-	// 260      STLOC4
-	// 261      JMP          190 (-71/b9)
-	// 263      LDLOC3
-	// 264      LDLOC6
-	// 265      NUMEQUAL
+	// 187      STLOC4
+	// 188      LDLOC3
+	// 189      LDLOC6
+	// 190      GE
+	// 191      LDLOC4
+	// 192      LDLOC5
+	// 193      GE
+	// 194      OR
+	// 195      JMPIF        261 (66/42)
+	// 197      PUSHINT8     24 (18)
+	// 199      LDLOC0
+	// 200      LDLOC3
+	// 201      PICKITEM
+	// 202      LDLOC1
+	// 203      LDLOC4
+	// 204      PICKITEM
+	// 205      LDLOC2
+	// 206      PUSH4
+	// 207      PACK
+	// 208      PUSH15
+	// 209      PUSHDATA1    766572696679576974684543447361 ("verifyWithECDsa")
+	// 226      PUSHDATA1    1bf575ab1189688413610a35a12886cde0b66c72 ("NNToUmdQBe5n8o53BTzjTFAnSEcpouyy3B", "0x726cb6e0cd8628a1350a611384688911ab75f51b")
+	// 248      SYSCALL      System.Contract.Call (627d5b52)
+	// 253      LDLOC3
+	// 254      ADD
+	// 255      STLOC3
+	// 256      LDLOC4
+	// 257      INC
+	// 258      STLOC4
+	// 259      JMP          188 (-71/b9)
+	// 261      LDLOC3
+	// 262      LDLOC6
+	// 263      NUMEQUAL
 }
