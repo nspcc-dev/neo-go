@@ -635,7 +635,7 @@ func TestCryptoLib_KoblitzMultisigVerificationScript(t *testing.T) {
 
 		// Add some more network fee to pay for the witness verification. This value may be calculated precisely,
 		// but let's keep some inaccurate value for the test.
-		tx.NetworkFee += 900_0000
+		tx.NetworkFee = 8995470
 
 		// This transaction (along with the network magic) should be signed by the user's Koblitz private key.
 		msg := constructMsg(t, uint32(e.Chain.GetConfig().Magic), tx)

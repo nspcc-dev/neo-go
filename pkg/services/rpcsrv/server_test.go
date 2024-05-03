@@ -3152,9 +3152,12 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			body := doRPCCall(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": ["bm90IGEgdHJhbnNhY3Rpb24K"]}"`, httpSrv.URL, t)
 			_ = checkErrGetResult(t, body, true, neorpc.InvalidParamsCode, "Invalid params")
 		})
-		calcReq := func(t *testing.T, tx *transaction.Transaction) []byte {
-			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": ["%s"]}"`, base64.StdEncoding.EncodeToString(tx.Bytes()))
+		calcReqExactly := func(t *testing.T, tx string) []byte {
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "calculatenetworkfee", "params": ["%s"]}"`, tx)
 			return doRPCCall(rpc, httpSrv.URL, t)
+		}
+		calcReq := func(t *testing.T, tx *transaction.Transaction) []byte {
+			return calcReqExactly(t, base64.StdEncoding.EncodeToString(tx.Bytes()))
 		}
 		t.Run("non-contract with zero verification", func(t *testing.T) {
 			tx := &transaction.Transaction{
@@ -3234,6 +3237,13 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				}},
 			}
 			checkCalc(t, tx, 2315100) // Perfectly matches FeeIsMultiSigContract() C# test.
+		})
+		t.Run("Koblitz custom multisignature witness", func(t *testing.T) {
+			tx := "AAIAAACWP5gAAAAAAIBniwAAAAAAAgAAAAFSPSnnAijsThGazYipphHw5ljbTgEAVgsVDBQBAgMAAAAAAAAAAAAAAAAAAAAAAAwUUj0p5wIo7E4Rms2IqaYR8OZY204UwB8MCHRyYW5zZmVyDBTPduKL0AYsSkeO41VhARMZ88+k0kFifVtSAcwMQgxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxCDEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADEIMQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD9BgFXBQBDEygFSQlAE8BwDCEDL5dNUWO0ZANmSz16KYRBbhmdzE7u8DguVYmWcRLdiF4MIQNFg/P7jBdGcTXcxgjfua/nv6taGb4rLqQXYGQ3LtfuLQwhA0hxJZ8CzRWOQpvE/60SPZ7bVYGr6Kl1MiZBLnvtDpsdDCECkTKVLY6bY2bFkIbD+dViOp7w2eZ2ZWr+1kH4qFNKkP8UwHFBxfug4AMAAAAAAQAAAJ4UjUEtUQgwEM6LchBzEHRrE7hsFLiSJEIAGGhrzmlszmoUwB8MD3ZlcmlmeVdpdGhFQ0RzYQwUG/V1qxGJaIQTYQo1oSiGzeC2bHJBYn1bUmuec2ycdCK5axOz"
+			resp := checkErrGetResult(t, calcReqExactly(t, tx), false, 0)
+			res := new(result.NetworkFee)
+			require.NoError(t, json.Unmarshal(resp, res))
+			require.Equal(t, int64(8995470), res.Value)
 		})
 		checkContract := func(t *testing.T, verAcc util.Uint160, invoc []byte, fee int64) {
 			txScript, err := smartcontract.CreateCallWithAssertScript(chain.UtilityTokenHash(), "transfer",
