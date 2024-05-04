@@ -165,8 +165,8 @@ func buildKoblitzVerificationScript(t *testing.T, pub *keys.PublicKey) []byte {
 	// Concatenate network magic and transaction hash.
 	emit.Opcodes(vrf.BinWriter, opcode.CAT) // this instruction will convert network magic to bytes using BigInteger rules of conversion.
 	// Continue construction of 'verifyWithECDsa' call.
-	emit.Opcodes(vrf.BinWriter, opcode.PUSH4, opcode.PACK)                         // pack arguments for 'verifyWithECDsa' call.
-	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "verifyWithECDsa", callflag.All) // emit the call to 'verifyWithECDsa' itself.
+	emit.Opcodes(vrf.BinWriter, opcode.PUSH4, opcode.PACK)                              // pack arguments for 'verifyWithECDsa' call.
+	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "verifyWithECDsa", callflag.NoneFlag) // emit the call to 'verifyWithECDsa' itself.
 	require.NoError(t, vrf.Err)
 
 	return vrf.Bytes()
@@ -189,7 +189,7 @@ func buildKoblitzVerificationScript(t *testing.T, pub *keys.PublicKey) []byte {
 	// 62       CAT
 	// 63       PUSH4
 	// 64       PACK
-	// 65       PUSH15
+	// 65       PUSH0
 	// 66       PUSHDATA1    766572696679576974684543447361 ("verifyWithECDsa")
 	// 83       PUSHDATA1    1bf575ab1189688413610a35a12886cde0b66c72 ("NNToUmdQBe5n8o53BTzjTFAnSEcpouyy3B", "0x726cb6e0cd8628a1350a611384688911ab75f51b")
 	// 105      SYSCALL      System.Contract.Call (627d5b52)
@@ -222,8 +222,8 @@ func buildKoblitzVerificationScriptSimpleSingleHash(t *testing.T, pub *keys.Publ
 	// Concatenate network magic and transaction hash.
 	emit.Opcodes(vrf.BinWriter, opcode.CAT) // this instruction will convert network magic to bytes using BigInteger rules of conversion.
 	// Continue construction of 'verifyWithECDsa' call.
-	emit.Opcodes(vrf.BinWriter, opcode.PUSH4, opcode.PACK)                         // pack arguments for 'verifyWithECDsa' call.
-	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "verifyWithECDsa", callflag.All) // emit the call to 'verifyWithECDsa' itself.
+	emit.Opcodes(vrf.BinWriter, opcode.PUSH4, opcode.PACK)                              // pack arguments for 'verifyWithECDsa' call.
+	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "verifyWithECDsa", callflag.NoneFlag) // emit the call to 'verifyWithECDsa' itself.
 	require.NoError(t, vrf.Err)
 
 	return vrf.Bytes()
@@ -242,7 +242,7 @@ func buildKoblitzVerificationScriptSimpleSingleHash(t *testing.T, pub *keys.Publ
 	// 50       CAT
 	// 51       PUSH4
 	// 52       PACK
-	// 53       PUSH15
+	// 53       PUSH0
 	// 54       PUSHDATA1    766572696679576974684543447361 ("verifyWithECDsa")
 	// 71       PUSHDATA1    1bf575ab1189688413610a35a12886cde0b66c72 ("NNToUmdQBe5n8o53BTzjTFAnSEcpouyy3B", "0x726cb6e0cd8628a1350a611384688911ab75f51b")
 	// 93       SYSCALL      System.Contract.Call (627d5b52)
@@ -278,8 +278,8 @@ func buildKoblitzVerificationScriptSimpleSingleHashStaticMagic(t *testing.T, pub
 	// Concatenate network magic and transaction hash.
 	emit.Opcodes(vrf.BinWriter, opcode.CAT) // this instruction will convert network magic to bytes using BigInteger rules of conversion.
 	// Continue construction of 'verifyWithECDsa' call.
-	emit.Opcodes(vrf.BinWriter, opcode.PUSH4, opcode.PACK)                         // pack arguments for 'verifyWithECDsa' call.
-	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "verifyWithECDsa", callflag.All) // emit the call to 'verifyWithECDsa' itself.
+	emit.Opcodes(vrf.BinWriter, opcode.PUSH4, opcode.PACK)                              // pack arguments for 'verifyWithECDsa' call.
+	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "verifyWithECDsa", callflag.NoneFlag) // emit the call to 'verifyWithECDsa' itself.
 	require.NoError(t, vrf.Err)
 
 	return vrf.Bytes()
@@ -298,7 +298,7 @@ func buildKoblitzVerificationScriptSimpleSingleHashStaticMagic(t *testing.T, pub
 	// 47       CAT
 	// 48       PUSH4
 	// 49       PACK
-	// 50       PUSH15
+	// 50       PUSH0
 	// 51       PUSHDATA1    766572696679576974684543447361 ("verifyWithECDsa")
 	// 68       PUSHDATA1    1bf575ab1189688413610a35a12886cde0b66c72 ("NNToUmdQBe5n8o53BTzjTFAnSEcpouyy3B", "0x726cb6e0cd8628a1350a611384688911ab75f51b")
 	// 90       SYSCALL      System.Contract.Call (627d5b52)
@@ -336,10 +336,10 @@ func buildKoblitzVerificationScriptSimple(t *testing.T, pub *keys.PublicKey) []b
 		opcode.CAT,   // concatenate network magic and transaction hash; this instruction will convert network magic to bytes using BigInteger rules of conversion.
 		opcode.PUSH1, // push 1 (the number of arguments of 'sha256' method of native CryptoLib).
 		opcode.PACK)  // pack arguments for 'sha256' call.
-	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "sha256", callflag.All) // emit the call to 'sha256' itself.
+	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "sha256", callflag.NoneFlag) // emit the call to 'sha256' itself.
 	// Continue construction of 'verifyWithECDsa' call.
-	emit.Opcodes(vrf.BinWriter, opcode.PUSH4, opcode.PACK)                         // pack arguments for 'verifyWithECDsa' call.
-	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "verifyWithECDsa", callflag.All) // emit the call to 'verifyWithECDsa' itself.
+	emit.Opcodes(vrf.BinWriter, opcode.PUSH4, opcode.PACK)                              // pack arguments for 'verifyWithECDsa' call.
+	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "verifyWithECDsa", callflag.NoneFlag) // emit the call to 'verifyWithECDsa' itself.
 	require.NoError(t, vrf.Err)
 
 	return vrf.Bytes()
@@ -358,13 +358,13 @@ func buildKoblitzVerificationScriptSimple(t *testing.T, pub *keys.PublicKey) []b
 	// 50       CAT
 	// 51       PUSH1
 	// 52       PACK
-	// 53       PUSH15
+	// 53       PUSH0
 	// 54       PUSHDATA1    736861323536 ("sha256")
 	// 62       PUSHDATA1    1bf575ab1189688413610a35a12886cde0b66c72 ("NNToUmdQBe5n8o53BTzjTFAnSEcpouyy3B", "0x726cb6e0cd8628a1350a611384688911ab75f51b")
 	// 84       SYSCALL      System.Contract.Call (627d5b52)
 	// 89       PUSH4
 	// 90       PACK
-	// 91       PUSH15
+	// 91       PUSH0
 	// 92       PUSHDATA1    766572696679576974684543447361 ("verifyWithECDsa")
 	// 109      PUSHDATA1    1bf575ab1189688413610a35a12886cde0b66c72 ("NNToUmdQBe5n8o53BTzjTFAnSEcpouyy3B", "0x726cb6e0cd8628a1350a611384688911ab75f51b")
 	// 131      SYSCALL      System.Contract.Call (627d5b52)
@@ -437,10 +437,10 @@ func buildKoblitzVerificationScriptCompat(t *testing.T, pub *keys.PublicKey) []b
 		opcode.CAT,   // concatenate network magic and transaction hash.
 		opcode.PUSH1, // push 1 (the number of arguments of 'sha256' method of native CryptoLib).
 		opcode.PACK)  // pack arguments for 'sha256' call.
-	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "sha256", callflag.All) // emit the call to 'sha256' itself.
+	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "sha256", callflag.NoneFlag) // emit the call to 'sha256' itself.
 	// Continue construction of 'verifyWithECDsa' call.
-	emit.Opcodes(vrf.BinWriter, opcode.PUSH4, opcode.PACK)                         // pack arguments for 'verifyWithECDsa' call.
-	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "verifyWithECDsa", callflag.All) // emit the call to 'verifyWithECDsa' itself.
+	emit.Opcodes(vrf.BinWriter, opcode.PUSH4, opcode.PACK)                              // pack arguments for 'verifyWithECDsa' call.
+	emit.AppCallNoArgs(vrf.BinWriter, criptoLibH, "verifyWithECDsa", callflag.NoneFlag) // emit the call to 'verifyWithECDsa' itself.
 	require.NoError(t, vrf.Err)
 
 	return vrf.Bytes()
@@ -501,13 +501,13 @@ func buildKoblitzVerificationScriptCompat(t *testing.T, pub *keys.PublicKey) []b
 	// 100      CAT
 	// 101      PUSH1
 	// 102      PACK
-	// 103      PUSH15
+	// 103      PUSH0
 	// 104      PUSHDATA1    736861323536 ("sha256")
 	// 112      PUSHDATA1    1bf575ab1189688413610a35a12886cde0b66c72 ("NNToUmdQBe5n8o53BTzjTFAnSEcpouyy3B", "0x726cb6e0cd8628a1350a611384688911ab75f51b")
 	// 134      SYSCALL      System.Contract.Call (627d5b52)
 	// 139      PUSH4
 	// 140      PACK
-	// 141      PUSH15
+	// 141      PUSH0
 	// 142      PUSHDATA1    766572696679576974684543447361 ("verifyWithECDsa")
 	// 159      PUSHDATA1    1bf575ab1189688413610a35a12886cde0b66c72 ("NNToUmdQBe5n8o53BTzjTFAnSEcpouyy3B", "0x726cb6e0cd8628a1350a611384688911ab75f51b")
 	// 181      SYSCALL      System.Contract.Call (627d5b52)
@@ -794,7 +794,7 @@ func buildKoblitzMultisigVerificationScript(t *testing.T, m int, pubs keys.Publi
 		opcode.PICKITEM,           // pick pub at index pubCnt.
 		opcode.LDLOC2,             // load msg.
 		opcode.PUSH4, opcode.PACK) // pack 4 arguments for 'verifyWithECDsa' call.
-	emit.AppCallNoArgs(vrf.BinWriter, cryptoLibH, "verifyWithECDsa", callflag.All) // emit the call to 'verifyWithECDsa' itself.
+	emit.AppCallNoArgs(vrf.BinWriter, cryptoLibH, "verifyWithECDsa", callflag.NoneFlag) // emit the call to 'verifyWithECDsa' itself.
 
 	// Update loop variables.
 	emit.Opcodes(vrf.BinWriter, opcode.LDLOC3, opcode.ADD, opcode.STLOC3, // increment sigCnt if signature is valid.
@@ -876,7 +876,7 @@ func buildKoblitzMultisigVerificationScript(t *testing.T, m int, pubs keys.Publi
 	// 205      LDLOC2
 	// 206      PUSH4
 	// 207      PACK
-	// 208      PUSH15
+	// 208      PUSH0
 	// 209      PUSHDATA1    766572696679576974684543447361 ("verifyWithECDsa")
 	// 226      PUSHDATA1    1bf575ab1189688413610a35a12886cde0b66c72 ("NNToUmdQBe5n8o53BTzjTFAnSEcpouyy3B", "0x726cb6e0cd8628a1350a611384688911ab75f51b")
 	// 248      SYSCALL      System.Contract.Call (627d5b52)
