@@ -80,6 +80,33 @@ func NewPrivateKeyFromBytes(b []byte) (*PrivateKey, error) {
 	}, nil
 }
 
+// NewPrivateKeyFromBytes returns a NEO Secp256r1 PrivateKey from the given
+// byte slice.
+func NewPrivateKoblitzKeyFromBytes(b []byte) (*PrivateKey, error) {
+	if len(b) != 32 {
+		return nil, fmt.Errorf(
+			"invalid byte length: expected %d bytes got %d", 32, len(b),
+		)
+	}
+	var (
+		c = secp256k1.S256()
+		d = new(big.Int).SetBytes(b)
+	)
+
+	x, y := c.ScalarBaseMult(b)
+
+	return &PrivateKey{
+		ecdsa.PrivateKey{
+			PublicKey: ecdsa.PublicKey{
+				Curve: c,
+				X:     x,
+				Y:     y,
+			},
+			D: d,
+		},
+	}, nil
+}
+
 // NewPrivateKeyFromASN1 returns a NEO Secp256k1 PrivateKey from the ASN.1
 // serialized key.
 func NewPrivateKeyFromASN1(b []byte) (*PrivateKey, error) {

@@ -1,7 +1,9 @@
 package native_test
 
 import (
+	"crypto/elliptic"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"sort"
@@ -16,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -578,6 +581,16 @@ func constructMessageCompat(t *testing.T, magic uint32, tx hash.Hashable) []byte
 	return hash.NetSha256(magic, tx).BytesBE()
 }
 
+func TestPubFromBytes(t *testing.T) {
+	priv, err := keys.NewSecp256k1PrivateKey() // key on Koblitz
+	require.NoError(t, err)
+	fmt.Println(hex.EncodeToString(priv.Bytes()))
+	fmt.Println(hex.EncodeToString(priv.PublicKey().UncompressedBytes()))
+	resGo, err := keys.NewPublicKeyFromBytes(priv.PublicKey().Bytes(), elliptic.P256()) // restore with Secp256r1
+	require.NoError(t, err)
+	require.NotNil(t, resGo)
+}
+
 // TestCryptoLib_KoblitzMultisigVerificationScript builds transaction with custom witness that contains
 // the Koblitz tx multisignature bytes and Koblitz multisignature verification script.
 // This test ensures that transaction signed by m out of n Koblitz keys passes verification and can
@@ -594,15 +607,24 @@ func TestCryptoLib_KoblitzMultisigVerificationScript(t *testing.T) {
 
 		// Consider 4 users willing to sign 3/4 multisignature transaction Secp256k1 private keys.
 		const (
-			n = 4
-			m = 3
+			n = 1
+			m = 1
 		)
 		pks := make([]*keys.PrivateKey, n)
-		for i := range pks {
+		// Bad key:
+		//11d82a8a4dd5a1636f8357f4d9e8c19ec41be24c951ee8413c7512d9f53a5676
+		//04535528c9a786d15bfb6c95a0699a5dbf3c991bed97a505caa89313bdb00a289e92904f29f1b41753629ae64c59d2d248b53ad7a2801121fe79baaf1c99b8355f
+		privBytes, err := hex.DecodeString("11d82a8a4dd5a1636f8357f4d9e8c19ec41be24c951ee8413c7512d9f53a5676")
+		require.NoError(t, err)
+		pks[0], err = keys.NewPrivateKoblitzKeyFromBytes(privBytes)
+		require.NoError(t, err)
+		require.Equal(t, hex.EncodeToString(pks[0].PublicKey().Bytes()), "04535528c9a786d15bfb6c95a0699a5dbf3c991bed97a505caa89313bdb00a289e92904f29f1b41753629ae64c59d2d248b53ad7a2801121fe79baaf1c99b8355f")
+		/*for i := range pks {
 			var err error
 			pks[i], err = keys.NewSecp256k1PrivateKey()
 			require.NoError(t, err)
-		}
+		}*/
+
 		// Sort private keys by their public keys.
 		sort.Slice(pks, func(i, j int) bool {
 			return pks[i].PublicKey().Cmp(pks[j].PublicKey()) < 0
@@ -614,7 +636,10 @@ func TestCryptoLib_KoblitzMultisigVerificationScript(t *testing.T) {
 		for i := range pks {
 			pubs[i] = pks[i].PublicKey()
 		}
-		vrfBytes := buildVerificationScript(t, m, pubs)
+
+		//vrfBytes := buildVerificationScript(t, m, pubs)
+		vrfBytes, err := smartcontract.CreateMultiSigRedeemScript(1, pubs)
+		require.NoError(t, err)
 
 		// Construct the user's account script hash. It's effectively a verification script hash.
 		from := hash.Hash160(vrfBytes)
