@@ -175,7 +175,7 @@ func buildKoblitzVerificationScript(t *testing.T, pub *keys.PublicKey) []byte {
 	// READY: loaded 110 instructions
 	// NEO-GO-VM 0 > ops
 	// INDEX    OPCODE       PARAMETER
-	// 0        PUSHINT8     24 (18)    <<
+	// 0        PUSHINT8     122 (7a)    <<
 	// 2        SWAP
 	// 3        PUSHDATA1    02a088bfab1e4b4bede7d4624572861b401cb20c3b14e90687bd8862272a4e6166
 	// 38       SYSCALL      System.Runtime.GetNetwork (c5fba0e0)
@@ -232,7 +232,7 @@ func buildKoblitzVerificationScriptSimpleSingleHash(t *testing.T, pub *keys.Publ
 	// READY: loaded 98 instructions
 	// NEO-GO-VM 0 > ops
 	// INDEX    OPCODE       PARAMETER
-	// 0        PUSHINT8     24 (18)    <<
+	// 0        PUSHINT8     122 (7a)    <<
 	// 2        SWAP
 	// 3        PUSHDATA1    0363d7a48125a76cdea6e098c9f128e82920ed428e5fb4caf1d7f81c16cad0c205
 	// 38       SYSCALL      System.Runtime.GetNetwork (c5fba0e0)
@@ -288,7 +288,7 @@ func buildKoblitzVerificationScriptSimpleSingleHashStaticMagic(t *testing.T, pub
 	// READY: loaded 95 instructions
 	// NEO-GO-VM 0 > ops
 	// INDEX    OPCODE       PARAMETER
-	// 0        PUSHINT8     24 (18)    <<
+	// 0        PUSHINT8     122 (7a)    <<
 	// 2        SWAP
 	// 3        PUSHDATA1    0296e13080ade92a2ab722338c2a249ee8d83a14f649c68321664165f06bd110bd
 	// 38       PUSHINT8     42 (2a)
@@ -348,7 +348,7 @@ func buildKoblitzVerificationScriptSimple(t *testing.T, pub *keys.PublicKey) []b
 	// READY: loaded 136 instructions
 	// NEO-GO-VM 0 > ops
 	// INDEX    OPCODE       PARAMETER
-	// 0        PUSHINT8     24 (18)    <<
+	// 0        PUSHINT8     122 (7a)    <<
 	// 2        SWAP
 	// 3        PUSHDATA1    03a77f137afbb4b68d7a450aa5a28fe335f804c589a808494b4b626eb98707f37d
 	// 38       SYSCALL      System.Runtime.GetNetwork (c5fba0e0)
@@ -449,7 +449,7 @@ func buildKoblitzVerificationScriptCompat(t *testing.T, pub *keys.PublicKey) []b
 	// READY: loaded 186 instructions
 	// NEO-GO-VM 0 > ops
 	// INDEX    OPCODE       PARAMETER
-	// 0        PUSHINT8     24 (18)    <<
+	// 0        PUSHINT8     122 (7a)    <<
 	// 2        SWAP
 	// 3        PUSHDATA1    02627ef9c3631e3ccb8fbc4c5b6c49e38ccede5a79afb1e1b0708fbb958a7802d7
 	// 38       SYSCALL      System.Runtime.GetNetwork (c5fba0e0)
@@ -866,7 +866,7 @@ func buildKoblitzMultisigVerificationScript(t *testing.T, m int, pubs keys.Publi
 	// 193      GE
 	// 194      OR
 	// 195      JMPIF        261 (66/42)
-	// 197      PUSHINT8     24 (18)
+	// 197      PUSHINT8     122 (7a)
 	// 199      LDLOC0
 	// 200      LDLOC3
 	// 201      PICKITEM

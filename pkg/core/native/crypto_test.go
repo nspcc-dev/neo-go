@@ -199,7 +199,7 @@ func testECDSAVerify(t *testing.T, curve NamedCurveHash) {
 		runCase(t, true, false, msg, priv.PublicKey().Bytes(), sign, new(big.Int).Add(big.NewInt(math.MaxInt64), big.NewInt(1)))
 	})
 	t.Run("unknown curve", func(t *testing.T) {
-		runCase(t, true, false, msg, priv.PublicKey().Bytes(), sign, int64(123))
+		runCase(t, true, false, msg, priv.PublicKey().Bytes(), sign, int64(124))
 	})
 	t.Run("invalid signature", func(t *testing.T) {
 		s := priv.Sign(msg)

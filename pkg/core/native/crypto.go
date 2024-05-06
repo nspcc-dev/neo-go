@@ -39,8 +39,8 @@ type NamedCurveHash byte
 const (
 	Secp256k1Sha256    NamedCurveHash = 22
 	Secp256r1Sha256    NamedCurveHash = 23
-	Secp256k1Keccak256 NamedCurveHash = 24
-	Secp256r1Keccak256 NamedCurveHash = 25
+	Secp256k1Keccak256 NamedCurveHash = 122
+	Secp256r1Keccak256 NamedCurveHash = 123
 )
 
 const cryptoContractID = -3
