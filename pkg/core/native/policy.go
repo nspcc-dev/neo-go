@@ -105,7 +105,7 @@ func newPolicy(p2pSigExtensionsEnabled bool) *Policy {
 		ContractMD:              *interop.NewContractMD(nativenames.Policy, policyContractID),
 		p2pSigExtensionsEnabled: p2pSigExtensionsEnabled,
 	}
-	defer p.UpdateHash()
+	defer p.BuildHFSpecificMD(p.ActiveIn())
 
 	desc := newDescriptor("getFeePerByte", smartcontract.IntegerType)
 	md := newMethodAndPrice(p.getFeePerByte, 1<<15, callflag.ReadStates)
@@ -169,7 +169,11 @@ func (p *Policy) Metadata() *interop.ContractMD {
 }
 
 // Initialize initializes Policy native contract and implements the Contract interface.
-func (p *Policy) Initialize(ic *interop.Context) error {
+func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
+	if hf != p.ActiveIn() {
+		return nil
+	}
+
 	setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte)
 	setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor)
 	setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice)

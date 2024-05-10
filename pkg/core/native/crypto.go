@@ -41,7 +41,7 @@ const cryptoContractID = -3
 
 func newCrypto() *Crypto {
 	c := &Crypto{ContractMD: *interop.NewContractMD(nativenames.CryptoLib, cryptoContractID)}
-	defer c.UpdateHash()
+	defer c.BuildHFSpecificMD(c.ActiveIn())
 
 	desc := newDescriptor("sha256", smartcontract.ByteArrayType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
@@ -104,7 +104,7 @@ func newCrypto() *Crypto {
 
 	desc = newDescriptor("keccak256", smartcontract.ByteArrayType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
-	md = newMethodAndPrice(c.keccak256, 1<<15, callflag.NoneFlag)
+	md = newMethodAndPrice(c.keccak256, 1<<15, callflag.NoneFlag, config.HFCockatrice)
 	c.AddMethod(md, desc)
 	return c
 }
@@ -310,7 +310,7 @@ func (c *Crypto) Metadata() *interop.ContractMD {
 }
 
 // Initialize implements the Contract interface.
-func (c *Crypto) Initialize(ic *interop.Context) error {
+func (c *Crypto) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
 	return nil
 }
 

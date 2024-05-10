@@ -288,7 +288,7 @@ func runNativeTestCases(t *testing.T, ctr interop.ContractMD, name string, nativ
 	})
 }
 
-func getMethod(t *testing.T, ctr interop.ContractMD, name string, params []string) interop.MethodAndPrice {
+func getMethod(t *testing.T, ctr interop.ContractMD, name string, params []string) interop.HFSpecificMethodAndPrice {
 	paramLen := len(params)
 
 	switch {
@@ -308,8 +308,10 @@ func getMethod(t *testing.T, ctr interop.ContractMD, name string, params []strin
 		name = strings.TrimSuffix(name, "WithData")
 	}
 
-	md, ok := ctr.GetMethod(name, paramLen)
-	require.True(t, ok, ctr.Manifest.Name, name, paramLen)
+	latestHF := config.LatestHardfork()
+	cMD := ctr.HFSpecificContractMD(&latestHF)
+	md, ok := cMD.GetMethod(name, paramLen)
+	require.True(t, ok, cMD.Manifest.Name, name, paramLen)
 	return md
 }
 

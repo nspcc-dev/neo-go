@@ -140,8 +140,14 @@ type Function struct {
 // Method is a signature for a native method.
 type Method = func(ic *Context, args []stackitem.Item) stackitem.Item
 
-// MethodAndPrice is a native-contract method descriptor.
+// MethodAndPrice is a generic hardfork-independent native contract method descriptor.
 type MethodAndPrice struct {
+	HFSpecificMethodAndPrice
+	ActiveFrom *config.Hardfork
+}
+
+// HFSpecificMethodAndPrice is a hardfork-specific native contract method descriptor.
+type HFSpecificMethodAndPrice struct {
 	Func          Method
 	MD            *manifest.Method
 	CPUFee        int64
@@ -150,10 +156,23 @@ type MethodAndPrice struct {
 	RequiredFlags callflag.CallFlag
 }
 
+// Event is a generic hardfork-independent native contract event descriptor.
+type Event struct {
+	HFSpecificEvent
+	ActiveFrom *config.Hardfork
+}
+
+// HFSpecificEvent is a hardfork-specific native contract event descriptor.
+type HFSpecificEvent struct {
+	MD *manifest.Event
+}
+
 // Contract is an interface for all native contracts.
 type Contract interface {
-	Initialize(*Context) error
-	// ActiveIn returns the hardfork native contract is active from or nil in case
+	// Initialize performs native contract initialization on contract deploy or update.
+	// Active hardfork is passed as the second argument.
+	Initialize(*Context, *config.Hardfork, *HFSpecificContractMD) error
+	// ActiveIn returns the hardfork native contract is active starting from or nil in case
 	// it's always active.
 	ActiveIn() *config.Hardfork
 	// InitializeCache aimed to initialize contract's cache when the contract has
@@ -161,53 +180,174 @@ type Contract interface {
 	// It should be called each time after node restart iff the contract was
 	// deployed and no Initialize method was called.
 	InitializeCache(blockHeight uint32, d *dao.Simple) error
+	// Metadata returns generic native contract metadata.
 	Metadata() *ContractMD
 	OnPersist(*Context) error
 	PostPersist(*Context) error
 }
 
-// ContractMD represents a native contract instance.
+// ContractMD represents a generic hardfork-independent native contract instance.
 type ContractMD struct {
-	state.NativeContract
-	Name    string
-	Methods []MethodAndPrice
+	ID   int32
+	Hash util.Uint160
+	Name string
+	// methods is a generic set of contract methods with activation hardforks. Any HF-dependent part of included methods
+	// (offsets, in particular) must not be used, there's a mdCache field for that.
+	methods []MethodAndPrice
+	// events is a generic set of contract events with activation hardforks. Any HF-dependent part of events must not be
+	// used, there's a mdCache field for that.
+	events []Event
+	// ActiveHFs is a map of hardforks that contract should react to. Contract update should be called for active
+	// hardforks. Note, that unlike the C# implementation, this map doesn't include contract's activation hardfork.
+	// This map is being initialized on contract creation and used as a read-only, hence, not protected
+	// by mutex.
+	ActiveHFs map[config.Hardfork]struct{}
+
+	// mdCache contains hardfork-specific ready-to-use contract descriptors. This cache is initialized in the native
+	// contracts constructors, and acts as read-only during the whole node lifetime, thus not protected by mutex.
+	mdCache map[config.Hardfork]*HFSpecificContractMD
+
+	// onManifestConstruction is a callback for manifest finalization.
+	onManifestConstruction func(*manifest.Manifest)
 }
 
-// NewContractMD returns Contract with the specified list of methods.
-func NewContractMD(name string, id int32) *ContractMD {
+// HFSpecificContractMD is a hardfork-specific native contract descriptor.
+type HFSpecificContractMD struct {
+	state.ContractBase
+	Methods []HFSpecificMethodAndPrice
+	Events  []HFSpecificEvent
+}
+
+// NewContractMD returns Contract with the specified fields set. onManifestConstruction callback every time
+// after hardfork-specific manifest creation and aimed to finalize the manifest.
+func NewContractMD(name string, id int32, onManifestConstruction ...func(*manifest.Manifest)) *ContractMD {
 	c := &ContractMD{Name: name}
+	if len(onManifestConstruction) != 0 {
+		c.onManifestConstruction = onManifestConstruction[0]
+	}
 
 	c.ID = id
-
-	// NEF is now stored in the contract state and affects state dump.
-	// Therefore, values are taken from C# node.
-	c.NEF.Header.Compiler = "neo-core-v3.0"
-	c.NEF.Header.Magic = nef.Magic
-	c.NEF.Tokens = []nef.MethodToken{} // avoid `nil` result during JSON marshalling
 	c.Hash = state.CreateNativeContractHash(c.Name)
-	c.Manifest = *manifest.DefaultManifest(name)
+	c.ActiveHFs = make(map[config.Hardfork]struct{})
+	c.mdCache = make(map[config.Hardfork]*HFSpecificContractMD)
 
 	return c
 }
 
-// UpdateHash creates a native contract script and updates hash.
-func (c *ContractMD) UpdateHash() {
+// HFSpecificContractMD returns hardfork-specific native contract metadata, i.e. with methods, events and script
+// corresponding to the specified hardfork. If hardfork is not specified, then default metadata will be returned
+// (methods, events and script that are always active). Calling this method for hardforks older than the contract
+// activation hardfork is a no-op.
+func (c *ContractMD) HFSpecificContractMD(hf *config.Hardfork) *HFSpecificContractMD {
+	var key config.Hardfork
+	if hf != nil {
+		key = *hf
+	}
+	md, ok := c.mdCache[key]
+	if !ok {
+		panic(fmt.Errorf("native contract descriptor cache is not initialized: contract %s, hardfork %s", c.Hash.StringLE(), key))
+	}
+	if md == nil {
+		panic(fmt.Errorf("native contract descriptor cache is nil: contract %s, hardfork %s", c.Hash.StringLE(), key))
+	}
+	return md
+}
+
+// BuildHFSpecificMD generates and caches contract's descriptor for every known hardfork.
+func (c *ContractMD) BuildHFSpecificMD(activeIn *config.Hardfork) {
+	var start config.Hardfork
+	if activeIn != nil {
+		start = *activeIn
+	}
+
+	for _, hf := range append([]config.Hardfork{config.HFDefault}, config.Hardforks...) {
+		switch {
+		case hf.Cmp(start) < 0:
+			continue
+		case hf.Cmp(start) == 0:
+			c.buildHFSpecificMD(hf)
+		default:
+			if _, ok := c.ActiveHFs[hf]; !ok {
+				// Intentionally omit HFSpecificContractMD structure copying since mdCache is read-only.
+				c.mdCache[hf] = c.mdCache[hf.Prev()]
+				continue
+			}
+			c.buildHFSpecificMD(hf)
+		}
+	}
+}
+
+// buildHFSpecificMD builds hardfork-specific contract descriptor that includes methods and events active starting from
+// the specified hardfork or older. It also updates cache with the received value.
+func (c *ContractMD) buildHFSpecificMD(hf config.Hardfork) {
+	var (
+		abiMethods = make([]manifest.Method, 0, len(c.methods))
+		methods    = make([]HFSpecificMethodAndPrice, 0, len(c.methods))
+		abiEvents  = make([]manifest.Event, 0, len(c.events))
+		events     = make([]HFSpecificEvent, 0, len(c.events))
+	)
 	w := io.NewBufBinWriter()
-	for i := range c.Methods {
-		offset := w.Len()
-		c.Methods[i].MD.Offset = offset
-		c.Manifest.ABI.Methods[i].Offset = offset
+	for i := range c.methods {
+		m := c.methods[i]
+		if !(m.ActiveFrom == nil || (hf != config.HFDefault && (*m.ActiveFrom).Cmp(hf) >= 0)) {
+			continue
+		}
+
+		// Perform method descriptor copy to support independent HF-based offset update.
+		md := *m.MD
+		m.MD = &md
+		m.MD.Offset = w.Len()
+
 		emit.Int(w.BinWriter, 0)
-		c.Methods[i].SyscallOffset = w.Len()
+		m.SyscallOffset = w.Len()
 		emit.Syscall(w.BinWriter, interopnames.SystemContractCallNative)
 		emit.Opcodes(w.BinWriter, opcode.RET)
+
+		abiMethods = append(abiMethods, *m.MD)
+		methods = append(methods, m.HFSpecificMethodAndPrice)
 	}
 	if w.Err != nil {
 		panic(fmt.Errorf("can't create native contract script: %w", w.Err))
 	}
+	for i := range c.events {
+		e := c.events[i]
+		if !(e.ActiveFrom == nil || (hf != config.HFDefault && (*e.ActiveFrom).Cmp(hf) >= 0)) {
+			continue
+		}
 
-	c.NEF.Script = w.Bytes()
-	c.NEF.Checksum = c.NEF.CalculateChecksum()
+		abiEvents = append(abiEvents, *e.MD)
+		events = append(events, e.HFSpecificEvent)
+	}
+
+	// NEF is now stored in the contract state and affects state dump.
+	// Therefore, values are taken from C# node.
+	nf := nef.File{
+		Header: nef.Header{
+			Magic:    nef.Magic,
+			Compiler: "neo-core-v3.0",
+		},
+		Tokens: []nef.MethodToken{}, // avoid `nil` result during JSON marshalling,
+		Script: w.Bytes(),
+	}
+	nf.Checksum = nf.CalculateChecksum()
+	m := manifest.DefaultManifest(c.Name)
+	m.ABI.Methods = abiMethods
+	m.ABI.Events = abiEvents
+	if c.onManifestConstruction != nil {
+		c.onManifestConstruction(m)
+	}
+	md := &HFSpecificContractMD{
+		ContractBase: state.ContractBase{
+			ID:       c.ID,
+			Hash:     c.Hash,
+			NEF:      nf,
+			Manifest: *m,
+		},
+		Methods: methods,
+		Events:  events,
+	}
+
+	c.mdCache[hf] = md
 }
 
 // AddMethod adds a new method to a native contract.
@@ -215,36 +355,35 @@ func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 	md.MD = desc
 	desc.Safe = md.RequiredFlags&(callflag.All^callflag.ReadOnly) == 0
 
-	index := sort.Search(len(c.Manifest.ABI.Methods), func(i int) bool {
-		md := c.Manifest.ABI.Methods[i]
+	index := sort.Search(len(c.methods), func(i int) bool {
+		md := c.methods[i].MD
 		if md.Name != desc.Name {
 			return md.Name >= desc.Name
 		}
 		return len(md.Parameters) > len(desc.Parameters)
 	})
-	c.Manifest.ABI.Methods = append(c.Manifest.ABI.Methods, manifest.Method{})
-	copy(c.Manifest.ABI.Methods[index+1:], c.Manifest.ABI.Methods[index:])
-	c.Manifest.ABI.Methods[index] = *desc
+	c.methods = append(c.methods, MethodAndPrice{})
+	copy(c.methods[index+1:], c.methods[index:])
+	c.methods[index] = *md
 
-	// Cache follows the same order.
-	c.Methods = append(c.Methods, MethodAndPrice{})
-	copy(c.Methods[index+1:], c.Methods[index:])
-	c.Methods[index] = *md
+	if md.ActiveFrom != nil {
+		c.ActiveHFs[*md.ActiveFrom] = struct{}{}
+	}
 }
 
 // GetMethodByOffset returns method with the provided offset.
 // Offset is offset of `System.Contract.CallNative` syscall.
-func (c *ContractMD) GetMethodByOffset(offset int) (MethodAndPrice, bool) {
+func (c *HFSpecificContractMD) GetMethodByOffset(offset int) (HFSpecificMethodAndPrice, bool) {
 	for k := range c.Methods {
 		if c.Methods[k].SyscallOffset == offset {
 			return c.Methods[k], true
 		}
 	}
-	return MethodAndPrice{}, false
+	return HFSpecificMethodAndPrice{}, false
 }
 
 // GetMethod returns method `name` with the specified number of parameters.
-func (c *ContractMD) GetMethod(name string, paramCount int) (MethodAndPrice, bool) {
+func (c *HFSpecificContractMD) GetMethod(name string, paramCount int) (HFSpecificMethodAndPrice, bool) {
 	index := sort.Search(len(c.Methods), func(i int) bool {
 		md := c.Methods[i]
 		res := strings.Compare(name, md.MD.Name)
@@ -261,15 +400,16 @@ func (c *ContractMD) GetMethod(name string, paramCount int) (MethodAndPrice, boo
 			return md, true
 		}
 	}
-	return MethodAndPrice{}, false
+	return HFSpecificMethodAndPrice{}, false
 }
 
 // AddEvent adds a new event to the native contract.
-func (c *ContractMD) AddEvent(name string, ps ...manifest.Parameter) {
-	c.Manifest.ABI.Events = append(c.Manifest.ABI.Events, manifest.Event{
-		Name:       name,
-		Parameters: ps,
-	})
+func (c *ContractMD) AddEvent(md Event) {
+	c.events = append(c.events, md)
+
+	if md.ActiveFrom != nil {
+		c.ActiveHFs[*md.ActiveFrom] = struct{}{}
+	}
 }
 
 // Sort sorts interop functions by id.

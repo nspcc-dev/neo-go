@@ -14,6 +14,20 @@ const (
 	StdLib      = "StdLib"
 )
 
+// All contains the list of all native contract names ordered by the contract ID.
+var All = []string{
+	Management,
+	StdLib,
+	CryptoLib,
+	Ledger,
+	Neo,
+	Gas,
+	Policy,
+	Designation,
+	Oracle,
+	Notary,
+}
+
 // IsValid checks if the name is a valid native contract's name.
 func IsValid(name string) bool {
 	return name == Management ||

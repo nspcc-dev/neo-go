@@ -37,7 +37,7 @@ func newGAS(init int64, p2pSigExtensionsEnabled bool) *GAS {
 		initialSupply:           init,
 		p2pSigExtensionsEnabled: p2pSigExtensionsEnabled,
 	}
-	defer g.UpdateHash()
+	defer g.BuildHFSpecificMD(g.ActiveIn())
 
 	nep17 := newNEP17Native(nativenames.Gas, gasContractID)
 	nep17.symbol = "GAS"
@@ -83,7 +83,11 @@ func (g *GAS) balanceFromBytes(si *state.StorageItem) (*big.Int, error) {
 }
 
 // Initialize initializes a GAS contract.
-func (g *GAS) Initialize(ic *interop.Context) error {
+func (g *GAS) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
+	if hf != g.ActiveIn() {
+		return nil
+	}
+
 	if err := g.nep17TokenNative.Initialize(ic); err != nil {
 		return err
 	}

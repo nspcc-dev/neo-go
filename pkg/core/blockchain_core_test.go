@@ -361,15 +361,23 @@ func TestBlockchain_IsRunning(t *testing.T) {
 }
 
 func TestNewBlockchain_InitHardforks(t *testing.T) {
-	t.Run("empty set", func(t *testing.T) {
+	t.Run("nil set", func(t *testing.T) {
 		bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
-			c.ProtocolConfiguration.Hardforks = map[string]uint32{}
+			c.ProtocolConfiguration.Hardforks = nil
 			require.NoError(t, c.ProtocolConfiguration.Validate())
 		})
 		require.Equal(t, map[string]uint32{
 			config.HFAspidochelone.String(): 0,
 			config.HFBasilisk.String():      0,
+			config.HFCockatrice.String():    0,
 		}, bc.GetConfig().Hardforks)
+	})
+	t.Run("empty set", func(t *testing.T) {
+		bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
+			c.ProtocolConfiguration.Hardforks = map[string]uint32{}
+			require.NoError(t, c.ProtocolConfiguration.Validate())
+		})
+		require.Equal(t, map[string]uint32{}, bc.GetConfig().Hardforks)
 	})
 	t.Run("missing old", func(t *testing.T) {
 		bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
@@ -392,12 +400,13 @@ func TestNewBlockchain_InitHardforks(t *testing.T) {
 	})
 	t.Run("all present", func(t *testing.T) {
 		bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
-			c.ProtocolConfiguration.Hardforks = map[string]uint32{config.HFAspidochelone.String(): 5, config.HFBasilisk.String(): 10}
+			c.ProtocolConfiguration.Hardforks = map[string]uint32{config.HFAspidochelone.String(): 5, config.HFBasilisk.String(): 10, config.HFCockatrice.String(): 15}
 			require.NoError(t, c.ProtocolConfiguration.Validate())
 		})
 		require.Equal(t, map[string]uint32{
 			config.HFAspidochelone.String(): 5,
 			config.HFBasilisk.String():      10,
+			config.HFCockatrice.String():    15,
 		}, bc.GetConfig().Hardforks)
 	})
 }

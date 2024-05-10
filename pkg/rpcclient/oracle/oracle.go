@@ -9,8 +9,7 @@ package oracle
 import (
 	"math/big"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
@@ -32,7 +31,7 @@ type Actor interface {
 }
 
 // Hash stores the hash of the native OracleContract contract.
-var Hash = state.CreateNativeContractHash(nativenames.Oracle)
+var Hash = nativehashes.Oracle
 
 const priceSetter = "setPrice"
 

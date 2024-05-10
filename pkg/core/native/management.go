@@ -101,7 +101,7 @@ func newManagement() *Management {
 	var m = &Management{
 		ContractMD: *interop.NewContractMD(nativenames.Management, ManagementContractID),
 	}
-	defer m.UpdateHash()
+	defer m.BuildHFSpecificMD(m.ActiveIn())
 
 	desc := newDescriptor("getContract", smartcontract.ArrayType,
 		manifest.NewParameter("hash", smartcontract.Hash160Type))
@@ -164,9 +164,17 @@ func newManagement() *Management {
 	m.AddMethod(md, desc)
 
 	hashParam := manifest.NewParameter("Hash", smartcontract.Hash160Type)
-	m.AddEvent(contractDeployNotificationName, hashParam)
-	m.AddEvent(contractUpdateNotificationName, hashParam)
-	m.AddEvent(contractDestroyNotificationName, hashParam)
+	eDesc := newEventDescriptor(contractDeployNotificationName, hashParam)
+	eMD := newEvent(eDesc)
+	m.AddEvent(eMD)
+
+	eDesc = newEventDescriptor(contractUpdateNotificationName, hashParam)
+	eMD = newEvent(eDesc)
+	m.AddEvent(eMD)
+
+	eDesc = newEventDescriptor(contractDestroyNotificationName, hashParam)
+	eMD = newEvent(eDesc)
+	m.AddEvent(eMD)
 	return m
 }
 
@@ -220,6 +228,11 @@ func (m *Management) getContractByID(ic *interop.Context, args []stackitem.Item)
 // GetContract returns a contract with the given hash from the given DAO.
 func GetContract(d *dao.Simple, hash util.Uint160) (*state.Contract, error) {
 	cache := d.GetROCache(ManagementContractID).(*ManagementCache)
+	return getContract(cache, hash)
+}
+
+// getContract returns a contract with the given hash from provided RO or RW cache.
+func getContract(cache *ManagementCache, hash util.Uint160) (*state.Contract, error) {
 	cs, ok := cache.contracts[hash]
 	if !ok {
 		return nil, storage.ErrKeyNotFound
@@ -583,27 +596,77 @@ func updateContractCache(cache *ManagementCache, cs *state.Contract) {
 func (m *Management) OnPersist(ic *interop.Context) error {
 	var cache *ManagementCache
 	for _, native := range ic.Natives {
-		activeIn := native.ActiveIn()
-		if !(activeIn == nil && ic.Block.Index == 0 ||
-			activeIn != nil && ic.IsHardforkActivation(*activeIn)) {
+		var (
+			activeIn = native.ActiveIn()
+			isDeploy bool
+			isUpdate bool
+			latestHF config.Hardfork
+		)
+		activeHFs := native.Metadata().ActiveHFs
+		isDeploy = activeIn == nil && ic.Block.Index == 0 ||
+			activeIn != nil && ic.IsHardforkActivation(*activeIn)
+		if !isDeploy {
+			for _, hf := range config.Hardforks {
+				if _, ok := activeHFs[hf]; ok && ic.IsHardforkActivation(hf) {
+					isUpdate = true
+					activation := hf       // avoid loop variable pointer exporting.
+					activeIn = &activation // reuse ActiveIn variable for the initialization hardfork.
+					// Break immediately since native Initialize should be called only for the first hardfork in a raw
+					// (if there are multiple hardforks with the same enabling height).
+					break
+				}
+			}
+		}
+		// Search for the latest active hardfork to properly construct manifest.
+		for _, hf := range config.Hardforks {
+			if _, ok := activeHFs[hf]; ok && ic.IsHardforkActivation(hf) {
+				latestHF = hf
+			}
+		}
+		if !(isDeploy || isUpdate) {
 			continue
 		}
-
 		md := native.Metadata()
-		cs := &state.Contract{
-			ContractBase: md.ContractBase,
-		}
-		if err := native.Initialize(ic); err != nil {
-			return fmt.Errorf("initializing %s native contract: %w", md.Name, err)
+		hfSpecificMD := md.HFSpecificContractMD(&latestHF)
+		base := hfSpecificMD.ContractBase
+		var cs *state.Contract
+		switch {
+		case isDeploy:
+			cs = &state.Contract{
+				ContractBase: base,
+			}
+		case isUpdate:
+			if cache == nil {
+				cache = ic.DAO.GetRWCache(m.ID).(*ManagementCache)
+			}
+			oldcontract, err := getContract(cache, md.Hash)
+			if err != nil {
+				return fmt.Errorf("failed to retrieve native %s from cache: %w", md.Name, err)
+			}
+
+			contract := *oldcontract // Make a copy, don't ruin cached contract and cache.
+			contract.NEF = base.NEF
+			contract.Manifest = base.Manifest
+			contract.UpdateCounter++
+			cs = &contract
 		}
 		err := putContractState(ic.DAO, cs, false) // Perform cache update manually.
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to put contract state: %w", err)
+		}
+		if err := native.Initialize(ic, activeIn, hfSpecificMD); err != nil {
+			return fmt.Errorf("initializing %s native contract at HF %d: %w", md.Name, activeIn, err)
 		}
 		if cache == nil {
 			cache = ic.DAO.GetRWCache(m.ID).(*ManagementCache)
 		}
 		updateContractCache(cache, cs)
+
+		ntfName := contractDeployNotificationName
+		if isUpdate {
+			ntfName = contractUpdateNotificationName
+		}
+		m.emitNotification(ic, ntfName, cs.Hash)
 	}
 
 	return nil
@@ -666,7 +729,11 @@ func (m *Management) GetNEP17Contracts(d *dao.Simple) []util.Uint160 {
 }
 
 // Initialize implements the Contract interface.
-func (m *Management) Initialize(ic *interop.Context) error {
+func (m *Management) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
+	if hf != m.ActiveIn() {
+		return nil
+	}
+
 	setIntWithKey(m.ID, ic.DAO, keyMinimumDeploymentFee, defaultMinimumDeploymentFee)
 	setIntWithKey(m.ID, ic.DAO, keyNextAvailableID, 1)
 

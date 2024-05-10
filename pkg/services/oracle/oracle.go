@@ -38,8 +38,9 @@ type (
 	Oracle struct {
 		Config
 
-		// This fields are readonly thus not protected by mutex.
-		oracleHash     util.Uint160
+		// Native Oracle contract related information that may be updated on Oracle contract
+		// update.
+		oracleInfoLock sync.RWMutex
 		oracleResponse []byte
 		oracleScript   []byte
 		verifyOffset   int
@@ -277,10 +278,11 @@ drain:
 
 // UpdateNativeContract updates native oracle contract info for tx verification.
 func (o *Oracle) UpdateNativeContract(script, resp []byte, h util.Uint160, verifyOffset int) {
+	o.oracleInfoLock.Lock()
+	defer o.oracleInfoLock.Unlock()
+
 	o.oracleScript = bytes.Clone(script)
 	o.oracleResponse = bytes.Clone(resp)
-
-	o.oracleHash = h
 	o.verifyOffset = verifyOffset
 }
 

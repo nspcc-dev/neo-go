@@ -118,7 +118,7 @@ func newOracle() *Oracle {
 		ContractMD:  *interop.NewContractMD(nativenames.Oracle, oracleContractID),
 		newRequests: make(map[uint64]*state.OracleRequest),
 	}
-	defer o.UpdateHash()
+	defer o.BuildHFSpecificMD(o.ActiveIn())
 
 	o.oracleScript = CreateOracleResponseScript(o.Hash)
 
@@ -139,12 +139,17 @@ func newOracle() *Oracle {
 	md = newMethodAndPrice(o.verify, 1<<15, callflag.NoneFlag)
 	o.AddMethod(md, desc)
 
-	o.AddEvent("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
+	eDesc := newEventDescriptor("OracleRequest", manifest.NewParameter("Id", smartcontract.IntegerType),
 		manifest.NewParameter("RequestContract", smartcontract.Hash160Type),
 		manifest.NewParameter("Url", smartcontract.StringType),
 		manifest.NewParameter("Filter", smartcontract.StringType))
-	o.AddEvent("OracleResponse", manifest.NewParameter("Id", smartcontract.IntegerType),
+	eMD := newEvent(eDesc)
+	o.AddEvent(eMD)
+
+	eDesc = newEventDescriptor("OracleResponse", manifest.NewParameter("Id", smartcontract.IntegerType),
 		manifest.NewParameter("OriginalTx", smartcontract.Hash256Type))
+	eMD = newEvent(eDesc)
+	o.AddEvent(eMD)
 
 	desc = newDescriptor("getPrice", smartcontract.IntegerType)
 	md = newMethodAndPrice(o.getPrice, 1<<15, callflag.ReadStates)
@@ -241,14 +246,28 @@ func (o *Oracle) Metadata() *interop.ContractMD {
 }
 
 // Initialize initializes an Oracle contract.
-func (o *Oracle) Initialize(ic *interop.Context) error {
-	setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0)
-	setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, DefaultOracleRequestPrice)
+func (o *Oracle) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
+	switch hf {
+	case o.ActiveIn():
+		setIntWithKey(o.ID, ic.DAO, prefixRequestID, 0)
+		setIntWithKey(o.ID, ic.DAO, prefixRequestPrice, DefaultOracleRequestPrice)
 
-	cache := &OracleCache{
-		requestPrice: int64(DefaultOracleRequestPrice),
+		cache := &OracleCache{
+			requestPrice: int64(DefaultOracleRequestPrice),
+		}
+		ic.DAO.SetCache(o.ID, cache)
+	default:
+		orc, _ := o.Module.Load().(*OracleService)
+		if orc != nil && *orc != nil {
+			md, ok := newMD.GetMethod(manifest.MethodVerify, -1)
+			if !ok {
+				panic(fmt.Errorf("%s method not found", manifest.MethodVerify))
+			}
+			(*orc).UpdateNativeContract(newMD.NEF.Script, o.GetOracleResponseScript(),
+				o.Hash, md.MD.Offset)
+		}
 	}
-	ic.DAO.SetCache(o.ID, cache)
+
 	return nil
 }
 

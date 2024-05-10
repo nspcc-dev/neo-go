@@ -7,9 +7,8 @@ various methods to perform the only RoleManagement state-changing call.
 package rolemgmt
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
@@ -32,7 +31,7 @@ type Actor interface {
 }
 
 // Hash stores the hash of the native RoleManagement contract.
-var Hash = state.CreateNativeContractHash(nativenames.Designation)
+var Hash = nativehashes.Designation
 
 const designateMethod = "designateAsRole"
 

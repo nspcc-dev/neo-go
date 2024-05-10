@@ -104,9 +104,10 @@ func (s *Designate) isValidRole(r noderoles.Role) bool {
 
 func newDesignate(p2pSigExtensionsEnabled bool, initialNodeRoles map[noderoles.Role]keys.PublicKeys) *Designate {
 	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation, designateContractID)}
+	defer s.BuildHFSpecificMD(s.ActiveIn())
+
 	s.p2pSigExtensionsEnabled = p2pSigExtensionsEnabled
 	s.initialNodeRoles = initialNodeRoles
-	defer s.UpdateHash()
 
 	desc := newDescriptor("getDesignatedByRole", smartcontract.ArrayType,
 		manifest.NewParameter("role", smartcontract.IntegerType),
@@ -120,9 +121,11 @@ func newDesignate(p2pSigExtensionsEnabled bool, initialNodeRoles map[noderoles.R
 	md = newMethodAndPrice(s.designateAsRole, 1<<15, callflag.States|callflag.AllowNotify)
 	s.AddMethod(md, desc)
 
-	s.AddEvent(DesignationEventName,
+	eDesc := newEventDescriptor(DesignationEventName,
 		manifest.NewParameter("Role", smartcontract.IntegerType),
 		manifest.NewParameter("BlockIndex", smartcontract.IntegerType))
+	eMD := newEvent(eDesc)
+	s.AddEvent(eMD)
 
 	return s
 }
@@ -130,7 +133,11 @@ func newDesignate(p2pSigExtensionsEnabled bool, initialNodeRoles map[noderoles.R
 // Initialize initializes Designation contract. It is called once at native Management's OnPersist
 // at the genesis block, and we can't properly fill the cache at this point, as there are no roles
 // data in the storage.
-func (s *Designate) Initialize(ic *interop.Context) error {
+func (s *Designate) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
+	if hf != s.ActiveIn() {
+		return nil
+	}
+
 	cache := &DesignationCache{}
 	ic.DAO.SetCache(s.ID, cache)
 

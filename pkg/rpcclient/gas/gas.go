@@ -8,13 +8,12 @@ package for more details on NEP-17 interface.
 package gas
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
 )
 
 // Hash stores the hash of the native GAS contract.
-var Hash = state.CreateNativeContractHash(nativenames.Gas)
+var Hash = nativehashes.Gas
 
 // NewReader creates a NEP-17 reader for the GAS contract.
 func NewReader(invoker nep17.Invoker) *nep17.TokenReader {

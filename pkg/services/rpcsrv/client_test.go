@@ -25,6 +25,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -825,7 +826,7 @@ func TestCalculateNetworkFee(t *testing.T) {
 		require.NoError(t, err)
 
 		// Set fee per Conflicts attribute.
-		script, err := smartcontract.CreateCallScript(state.CreateNativeContractHash(nativenames.Policy), "setAttributeFee", byte(transaction.ConflictsT), conflictsFee)
+		script, err := smartcontract.CreateCallScript(nativehashes.Policy, "setAttributeFee", byte(transaction.ConflictsT), conflictsFee)
 		require.NoError(t, err)
 		txSetFee := transaction.New(script, 1_0000_0000)
 		txSetFee.ValidUntilBlock = chain.BlockHeight() + 1

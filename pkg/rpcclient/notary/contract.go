@@ -13,8 +13,7 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
-	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
@@ -76,7 +75,7 @@ type OnNEP17PaymentData struct {
 var _ = stackitem.Convertible(&OnNEP17PaymentData{})
 
 // Hash stores the hash of the native Notary contract.
-var Hash = state.CreateNativeContractHash(nativenames.Notary)
+var Hash = nativehashes.Notary
 
 // NewReader creates an instance of ContractReader to get data from the Notary
 // contract.

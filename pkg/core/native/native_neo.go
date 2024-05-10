@@ -172,7 +172,7 @@ func makeValidatorKey(key *keys.PublicKey) []byte {
 // newNEO returns NEO native contract.
 func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	n := &NEO{}
-	defer n.UpdateHash()
+	defer n.BuildHFSpecificMD(n.ActiveIn())
 
 	nep17 := newNEP17Native(nativenames.Neo, neoContractID)
 	nep17.symbol = "NEO"
@@ -233,7 +233,7 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getCommitteeAddress", smartcontract.Hash160Type)
-	md = newMethodAndPrice(n.getCommitteeAddress, 1<<16, callflag.ReadStates)
+	md = newMethodAndPrice(n.getCommitteeAddress, 1<<16, callflag.ReadStates, config.HFCockatrice)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getNextBlockValidators", smartcontract.ArrayType)
@@ -258,27 +258,39 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	md = newMethodAndPrice(n.setRegisterPrice, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
 
-	n.AddEvent("CandidateStateChanged",
+	eDesc := newEventDescriptor("CandidateStateChanged",
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType),
 		manifest.NewParameter("registered", smartcontract.BoolType),
 		manifest.NewParameter("votes", smartcontract.IntegerType),
 	)
-	n.AddEvent("Vote",
+	eMD := newEvent(eDesc)
+	n.AddEvent(eMD)
+
+	eDesc = newEventDescriptor("Vote",
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("from", smartcontract.PublicKeyType),
 		manifest.NewParameter("to", smartcontract.PublicKeyType),
 		manifest.NewParameter("amount", smartcontract.IntegerType),
 	)
-	n.AddEvent("CommitteeChanged",
+	eMD = newEvent(eDesc)
+	n.AddEvent(eMD)
+
+	eDesc = newEventDescriptor("CommitteeChanged",
 		manifest.NewParameter("old", smartcontract.ArrayType),
 		manifest.NewParameter("new", smartcontract.ArrayType),
 	)
+	eMD = newEvent(eDesc)
+	n.AddEvent(eMD)
 
 	return n
 }
 
 // Initialize initializes a NEO contract.
-func (n *NEO) Initialize(ic *interop.Context) error {
+func (n *NEO) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
+	if hf != n.ActiveIn() {
+		return nil
+	}
+
 	if err := n.nep17TokenNative.Initialize(ic); err != nil {
 		return err
 	}

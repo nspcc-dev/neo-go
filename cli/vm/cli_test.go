@@ -134,6 +134,10 @@ func newTestVMClIWithState(t *testing.T) *executor {
 	}
 	bc, validators, committee, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, store)
 	require.NoError(t, err)
+
+	// Save config for future usage.
+	protoCfg := bc.GetConfig()
+
 	go bc.Run()
 	e := neotest.NewExecutor(t, bc, validators, committee)
 	basicchain.InitSimple(t, "../../", e)
@@ -145,7 +149,9 @@ func newTestVMClIWithState(t *testing.T) *executor {
 	require.NoError(t, err)
 	cfg.ApplicationConfiguration.DBConfiguration.Type = dbconfig.LevelDB
 	cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions = opts
-	cfg.ProtocolConfiguration.StateRootInHeader = true
+	cfg.ProtocolConfiguration.StateRootInHeader = protoCfg.StateRootInHeader
+	cfg.ProtocolConfiguration.P2PStateExchangeExtensions = protoCfg.P2PStateExchangeExtensions
+	cfg.ProtocolConfiguration.Hardforks = protoCfg.Hardforks
 	return newTestVMCLIWithLogoAndCustomConfig(t, false, &cfg)
 }
 
