@@ -9,6 +9,7 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -118,29 +119,44 @@ func TestMurmur32(t *testing.T) {
 }
 
 func TestCryptoLibVerifyWithECDsa(t *testing.T) {
-	t.Run("R1", func(t *testing.T) {
-		testECDSAVerify(t, Secp256r1)
+	t.Run("R1 sha256", func(t *testing.T) {
+		testECDSAVerify(t, Secp256r1Sha256)
 	})
-	t.Run("K1", func(t *testing.T) {
-		testECDSAVerify(t, Secp256k1)
+	t.Run("K1 sha256", func(t *testing.T) {
+		testECDSAVerify(t, Secp256k1Sha256)
+	})
+	t.Run("R1 keccak256", func(t *testing.T) {
+		testECDSAVerify(t, Secp256r1Keccak256)
+	})
+	t.Run("K1 keccak256", func(t *testing.T) {
+		testECDSAVerify(t, Secp256k1Keccak256)
 	})
 }
 
-func testECDSAVerify(t *testing.T, curve NamedCurve) {
+func testECDSAVerify(t *testing.T, curve NamedCurveHash) {
 	var (
 		priv   *keys.PrivateKey
 		err    error
 		c      = newCrypto()
 		ic     = &interop.Context{VM: vm.New()}
 		actual stackitem.Item
+		hasher HashFunc
 	)
 	switch curve {
-	case Secp256k1:
+	case Secp256k1Sha256:
 		priv, err = keys.NewSecp256k1PrivateKey()
-	case Secp256r1:
+		hasher = hash.Sha256
+	case Secp256r1Sha256:
 		priv, err = keys.NewPrivateKey()
+		hasher = hash.Sha256
+	case Secp256k1Keccak256:
+		priv, err = keys.NewSecp256k1PrivateKey()
+		hasher = Keccak256
+	case Secp256r1Keccak256:
+		priv, err = keys.NewPrivateKey()
+		hasher = Keccak256
 	default:
-		t.Fatal("unknown curve")
+		t.Fatal("unknown curve/hash")
 	}
 	require.NoError(t, err)
 
@@ -162,7 +178,7 @@ func testECDSAVerify(t *testing.T, curve NamedCurve) {
 	}
 
 	msg := []byte("test message")
-	sign := priv.Sign(msg)
+	sign := priv.SignHash(hasher(msg))
 
 	t.Run("bad message item", func(t *testing.T) {
 		runCase(t, true, false, stackitem.NewInterop("cheburek"), priv.PublicKey().Bytes(), sign, int64(curve))
@@ -183,7 +199,7 @@ func testECDSAVerify(t *testing.T, curve NamedCurve) {
 		runCase(t, true, false, msg, priv.PublicKey().Bytes(), sign, new(big.Int).Add(big.NewInt(math.MaxInt64), big.NewInt(1)))
 	})
 	t.Run("unknown curve", func(t *testing.T) {
-		runCase(t, true, false, msg, priv.PublicKey().Bytes(), sign, int64(123))
+		runCase(t, true, false, msg, priv.PublicKey().Bytes(), sign, int64(124))
 	})
 	t.Run("invalid signature", func(t *testing.T) {
 		s := priv.Sign(msg)
@@ -253,4 +269,14 @@ func TestCryptolib_ScalarFromBytes_Compat(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestKeccak256(t *testing.T) {
+	input := []byte("hello")
+	data := Keccak256(input)
+
+	expected := "1c8aff950685c2ed4bc3174f3472287b56d9517b9c948127319a09a7a36deac8"
+	actual := hex.EncodeToString(data.BytesBE())
+
+	require.Equal(t, expected, actual)
 }

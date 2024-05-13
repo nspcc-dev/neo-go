@@ -16,7 +16,10 @@ type Hashable interface {
 	Hash() util.Uint256
 }
 
-func getSignedData(net uint32, hh Hashable) []byte {
+// GetSignedData returns the concatenated byte slice containing of the network
+// magic in constant-length 4-bytes LE representation and hashable item hash in BE
+// representation.
+func GetSignedData(net uint32, hh Hashable) []byte {
 	var b = make([]byte, 4+util.Uint256Size)
 	binary.LittleEndian.PutUint32(b, net)
 	h := hh.Hash()
@@ -27,7 +30,7 @@ func getSignedData(net uint32, hh Hashable) []byte {
 // NetSha256 calculates a network-specific hash of the Hashable item that can then
 // be signed/verified.
 func NetSha256(net uint32, hh Hashable) util.Uint256 {
-	return Sha256(getSignedData(net, hh))
+	return Sha256(GetSignedData(net, hh))
 }
 
 // Sha256 hashes the incoming byte slice
