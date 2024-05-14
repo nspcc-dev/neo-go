@@ -118,30 +118,40 @@ func cliMain(c *cli.Context) error {
 		return err
 	}
 	fmt.Printf("state differs at %d, block %s\n", h, blk.Hash().StringLE())
+	dumpApplogDiff(true, blk.Hash(), a, b, ca, cb)
 	for _, t := range blk.Transactions {
-		fmt.Printf("transaction %s:\n", t.Hash().StringLE())
-		la, err := ca.GetApplicationLog(t.Hash(), nil)
-		if err != nil {
-			return err
-		}
-		lb, err := cb.GetApplicationLog(t.Hash(), nil)
-		if err != nil {
-			return err
-		}
-		da := spew.Sdump(la)
-		db := spew.Sdump(lb)
-		diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-			A:        difflib.SplitLines(da),
-			B:        difflib.SplitLines(db),
-			FromFile: a,
-			FromDate: "",
-			ToFile:   b,
-			ToDate:   "",
-			Context:  1,
-		})
-		fmt.Println(diff)
+		dumpApplogDiff(false, t.Hash(), a, b, ca, cb)
 	}
 	return errors.New("different state found")
+}
+
+func dumpApplogDiff(isBlock bool, container util.Uint256, a string, b string, ca *rpcclient.Client, cb *rpcclient.Client) error {
+	if isBlock {
+		fmt.Printf("block %s:\n", container.StringLE())
+	} else {
+		fmt.Printf("transaction %s:\n", container.StringLE())
+	}
+	la, err := ca.GetApplicationLog(container, nil)
+	if err != nil {
+		return err
+	}
+	lb, err := cb.GetApplicationLog(container, nil)
+	if err != nil {
+		return err
+	}
+	da := spew.Sdump(la)
+	db := spew.Sdump(lb)
+	diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+		A:        difflib.SplitLines(da),
+		B:        difflib.SplitLines(db),
+		FromFile: a,
+		FromDate: "",
+		ToFile:   b,
+		ToDate:   "",
+		Context:  1,
+	})
+	fmt.Println(diff)
+	return nil
 }
 
 func main() {
