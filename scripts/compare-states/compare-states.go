@@ -118,9 +118,15 @@ func cliMain(c *cli.Context) error {
 		return err
 	}
 	fmt.Printf("state differs at %d, block %s\n", h, blk.Hash().StringLE())
-	dumpApplogDiff(true, blk.Hash(), a, b, ca, cb)
+	err = dumpApplogDiff(true, blk.Hash(), a, b, ca, cb)
+	if err != nil {
+		return fmt.Errorf("failed to dump block application log: %w", err)
+	}
 	for _, t := range blk.Transactions {
-		dumpApplogDiff(false, t.Hash(), a, b, ca, cb)
+		err = dumpApplogDiff(false, t.Hash(), a, b, ca, cb)
+		if err != nil {
+			return fmt.Errorf("failed to dump application log for tx %s: %w", t.Hash().StringLE(), err)
+		}
 	}
 	return errors.New("different state found")
 }
