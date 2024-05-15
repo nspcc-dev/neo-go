@@ -25,11 +25,23 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 )
 
+// Exception is a type used for VM fault messages (aka exceptions). If any of
+// unwrapper functions encounters a FAULT VM state it creates an instance of
+// this type as an error using exception string. It can be used with [errors.As]
+// to get the exact message from VM and compare with known contract-specific
+// errors.
+type Exception string
+
 // ErrNoSessionID is returned from the SessionIterator when the server does not
 // have sessions enabled and does not perform automatic iterator expansion. It
 // means you have no way to get the data from returned iterators using this
 // server, other than expanding it in the VM script.
 var ErrNoSessionID = errors.New("server returned iterator ID, but no session ID")
+
+// Error implements the error interface.
+func (e Exception) Error() string {
+	return string(e)
+}
 
 // BigInt expects correct execution (HALT state) with a single stack item
 // returned. A big.Int is extracted from this item and returned.
@@ -399,10 +411,10 @@ func checkResOK(r *result.Invoke, err error) error {
 		return err
 	}
 	if r.State != vmstate.Halt.String() {
-		return fmt.Errorf("invocation failed: %s", r.FaultException)
+		return fmt.Errorf("invocation failed: %w", Exception(r.FaultException))
 	}
 	if r.FaultException != "" {
-		return fmt.Errorf("inconsistent result, HALTed with exception: %s", r.FaultException)
+		return fmt.Errorf("inconsistent result, HALTed with exception: %w", Exception(r.FaultException))
 	}
 	return nil
 }
