@@ -789,6 +789,10 @@ func (dao *Simple) DeleteBlock(h util.Uint256) error {
 			if err != nil {
 				return fmt.Errorf("failed to retrieve conflict record stub for %s (height %d, conflict %s): %w", tx.Hash().StringLE(), b.Index, hash.StringLE(), err)
 			}
+			// It might be a block since we allow transactions to have block hash in the Conflicts attribute.
+			if v[0] != storage.ExecTransaction {
+				continue
+			}
 			index := binary.LittleEndian.Uint32(v[1:])
 			// We can check for `<=` here, but use equality comparison to be more precise
 			// and do not touch earlier conflict records (if any). Their removal must be triggered
