@@ -35,6 +35,11 @@ var (
 	ErrInternalDBInconsistency = errors.New("internal DB inconsistency")
 )
 
+// conflictRecordValueLen is the length of value of transaction conflict record.
+// It consists of 1-byte [storage.ExecTransaction] prefix and 4-bytes block index
+// in the LE form.
+const conflictRecordValueLen = 1 + 4
+
 // Simple is memCached wrapper around DB, simple DAO implementation.
 type Simple struct {
 	Version Version
@@ -323,7 +328,7 @@ func (dao *Simple) GetTxExecResult(hash util.Uint256) (uint32, *transaction.Tran
 // decodeTxAndExecResult decodes transaction, its height and execution result from
 // the given executable bytes. It performs no executable prefix check.
 func decodeTxAndExecResult(buf []byte) (uint32, *transaction.Transaction, *state.AppExecResult, error) {
-	if len(buf) == 1+4 { // conflict record stub.
+	if len(buf) == conflictRecordValueLen { // conflict record stub.
 		return 0, nil, nil, storage.ErrKeyNotFound
 	}
 	r := io.NewBinReaderFromBuf(buf)
@@ -619,7 +624,7 @@ func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, 
 		// It may be a block.
 		return nil, 0, storage.ErrKeyNotFound
 	}
-	if len(b) == 1+4 { // storage.ExecTransaction + index
+	if len(b) == conflictRecordValueLen {
 		// It's a conflict record stub.
 		return nil, 0, storage.ErrKeyNotFound
 	}
@@ -699,7 +704,7 @@ func (dao *Simple) HasTransaction(hash util.Uint256, signers []transaction.Signe
 		return nil
 	}
 
-	if len(bytes) < 5 { // (storage.ExecTransaction + index) for conflict record
+	if len(bytes) < conflictRecordValueLen { // (storage.ExecTransaction + index) for conflict record
 		return nil
 	}
 	if bytes[0] != storage.ExecTransaction {
@@ -708,7 +713,7 @@ func (dao *Simple) HasTransaction(hash util.Uint256, signers []transaction.Signe
 		// we need to adjust Go behaviour post-factum. Ref. #3427 and 0x289c235dcdab8be7426d05f0fbb5e86c619f81481ea136493fa95deee5dbb7cc.
 		return nil
 	}
-	if len(bytes) != 5 {
+	if len(bytes) != conflictRecordValueLen {
 		return ErrAlreadyExists // fully-qualified transaction
 	}
 	if len(signers) == 0 {
@@ -864,7 +869,7 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 	val := buf.Bytes()
 	dao.Store.Put(key, val)
 
-	val = val[:5] // storage.ExecTransaction (1 byte) + index (4 bytes)
+	val = val[:conflictRecordValueLen] // storage.ExecTransaction (1 byte) + index (4 bytes)
 	attrs := tx.GetAttributes(transaction.ConflictsT)
 	for _, attr := range attrs {
 		// Conflict record stub.
