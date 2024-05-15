@@ -323,7 +323,7 @@ func (dao *Simple) GetTxExecResult(hash util.Uint256) (uint32, *transaction.Tran
 // decodeTxAndExecResult decodes transaction, its height and execution result from
 // the given executable bytes. It performs no executable prefix check.
 func decodeTxAndExecResult(buf []byte) (uint32, *transaction.Transaction, *state.AppExecResult, error) {
-	if len(buf) >= 6 && buf[5] == transaction.DummyVersion {
+	if len(buf) == 1+4 { // conflict record stub.
 		return 0, nil, nil, storage.ErrKeyNotFound
 	}
 	r := io.NewBinReaderFromBuf(buf)
@@ -605,7 +605,7 @@ func (dao *Simple) DeleteHeaderHashes(since uint32, batchSize int) {
 }
 
 // GetTransaction returns Transaction and its height by the given hash
-// if it exists in the store. It does not return dummy transactions.
+// if it exists in the store. It does not return conflict record stubs.
 func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
 	key := dao.makeExecutableKey(hash)
 	b, err := dao.Store.Get(key)
@@ -844,8 +844,9 @@ func (dao *Simple) StoreAsCurrentBlock(block *block.Block) {
 	dao.Store.Put(dao.mkKeyPrefix(storage.SYSCurrentBlock), buf.Bytes())
 }
 
-// StoreAsTransaction stores the given TX as DataTransaction. It also stores transactions
-// the given tx has conflicts with as DataTransaction with dummy version. It can reuse the given
+// StoreAsTransaction stores the given TX as DataTransaction. It also stores conflict records
+// (hashes of transactions the given tx has conflicts with) as DataTransaction with value containing
+// only five bytes: 1-byte [storage.ExecTransaction] executable prefix + 4-bytes-LE block index. It can reuse the given
 // buffer for the purpose of value serialization.
 func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32, aer *state.AppExecResult) error {
 	key := dao.makeExecutableKey(tx.Hash())
