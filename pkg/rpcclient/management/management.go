@@ -75,7 +75,7 @@ type HashesIterator struct {
 }
 
 // Hash stores the hash of the native ContractManagement contract.
-var Hash = nativehashes.Management
+var Hash = nativehashes.ContractManagement
 
 // Event is the event emitted on contract deployment/update/destroy.
 // Even though these events are different they all have the same field inside.

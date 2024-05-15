@@ -610,7 +610,7 @@ func TestCallWithVersion(t *testing.T) {
 	e.DeployContract(t, ctr, nil)
 	c := e.CommitteeInvoker(ctr.Hash)
 
-	policyH := nativehashes.Policy
+	policyH := nativehashes.PolicyContract
 	t.Run("good", func(t *testing.T) {
 		c.Invoke(t, e.Chain.GetBaseExecFee(), "callWithVersion", policyH.BytesBE(), 0, "getExecFeeFactor")
 	})

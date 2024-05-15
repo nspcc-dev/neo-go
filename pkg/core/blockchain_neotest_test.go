@@ -2461,7 +2461,7 @@ func TestBlockchain_GenesisTransactionExtension(t *testing.T) {
 	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeCheckWitness)
 	emit.Bytes(script.BinWriter, to.BytesBE())
 	emit.Syscall(script.BinWriter, interopnames.SystemRuntimeCheckWitness)
-	emit.AppCall(script.BinWriter, nativehashes.Neo, "transfer", callflag.All, from, to, amount, nil)
+	emit.AppCall(script.BinWriter, nativehashes.NeoToken, "transfer", callflag.All, from, to, amount, nil)
 	emit.Opcodes(script.BinWriter, opcode.ASSERT)
 
 	var sysFee int64 = 1_0000_0000

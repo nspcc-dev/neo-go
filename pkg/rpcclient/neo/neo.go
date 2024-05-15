@@ -97,7 +97,7 @@ type ValidatorIterator struct {
 }
 
 // Hash stores the hash of the native NEOToken contract.
-var Hash = nativehashes.Neo
+var Hash = nativehashes.NeoToken
 
 // NewReader creates an instance of ContractReader to get data from the NEO
 // contract.

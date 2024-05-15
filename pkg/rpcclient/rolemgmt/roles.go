@@ -31,7 +31,7 @@ type Actor interface {
 }
 
 // Hash stores the hash of the native RoleManagement contract.
-var Hash = nativehashes.Designation
+var Hash = nativehashes.RoleManagement
 
 const designateMethod = "designateAsRole"
 

@@ -119,7 +119,7 @@ func (o *Oracle) CreateResponseTx(gasForResponse int64, vub uint32, resp *transa
 	oracleSignContract := o.getOracleSignContract()
 	tx.Signers = []transaction.Signer{
 		{
-			Account: nativehashes.Oracle,
+			Account: nativehashes.OracleContract,
 			Scopes:  transaction.None,
 		},
 		{
@@ -174,7 +174,7 @@ func (o *Oracle) testVerify(tx *transaction.Transaction) (int64, bool, error) {
 	ic.VM.GasLimit = o.Chain.GetMaxVerificationGAS()
 
 	o.oracleInfoLock.RLock()
-	ic.VM.LoadScriptWithHash(o.oracleScript, nativehashes.Oracle, callflag.ReadOnly)
+	ic.VM.LoadScriptWithHash(o.oracleScript, nativehashes.OracleContract, callflag.ReadOnly)
 	ic.VM.Context().Jump(o.verifyOffset)
 	o.oracleInfoLock.RUnlock()
 

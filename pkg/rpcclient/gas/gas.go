@@ -13,7 +13,7 @@ import (
 )
 
 // Hash stores the hash of the native GAS contract.
-var Hash = nativehashes.Gas
+var Hash = nativehashes.GasToken
 
 // NewReader creates a NEP-17 reader for the GAS contract.
 func NewReader(invoker nep17.Invoker) *nep17.TokenReader {

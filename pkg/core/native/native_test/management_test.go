@@ -171,7 +171,7 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 		switch name {
 		case nativenames.Gas:
 			expected = append(expected, state.NotificationEvent{
-				ScriptHash: nativehashes.Gas,
+				ScriptHash: nativehashes.GasToken,
 				Name:       "Transfer",
 				Item: stackitem.NewArray([]stackitem.Item{
 					stackitem.Null{},
@@ -181,7 +181,7 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 			})
 		case nativenames.Neo:
 			expected = append(expected, state.NotificationEvent{
-				ScriptHash: nativehashes.Neo,
+				ScriptHash: nativehashes.NeoToken,
 				Name:       "Transfer",
 				Item: stackitem.NewArray([]stackitem.Item{
 					stackitem.Null{},
@@ -191,7 +191,7 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 			})
 		}
 		expected = append(expected, state.NotificationEvent{
-			ScriptHash: nativehashes.Management,
+			ScriptHash: nativehashes.ContractManagement,
 			Name:       "Deploy",
 			Item: stackitem.NewArray([]stackitem.Item{
 				stackitem.Make(state.CreateNativeContractHash(name)),
@@ -208,7 +208,7 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 	expected = expected[:0]
 	for _, name := range []string{nativenames.CryptoLib, nativenames.Neo} {
 		expected = append(expected, state.NotificationEvent{
-			ScriptHash: nativehashes.Management,
+			ScriptHash: nativehashes.ContractManagement,
 			Name:       "Update",
 			Item: stackitem.NewArray([]stackitem.Item{
 				stackitem.Make(state.CreateNativeContractHash(name)),
