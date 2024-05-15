@@ -2494,3 +2494,42 @@ func TestNativenames(t *testing.T) {
 		require.Equal(t, cs.Manifest.Name, nativenames.All[i], i)
 	}
 }
+
+// TestBlockchain_StoreAsTransaction_ExecutableConflict ensures that transaction conflicting with
+// some on-chain block can be properly stored and doesn't break the database.
+func TestBlockchain_StoreAsTransaction_ExecutableConflict(t *testing.T) {
+	bc, acc := chain.NewSingleWithCustomConfig(t, nil)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+	genesisH := bc.GetHeaderHash(0)
+	currHeight := bc.BlockHeight()
+
+	// Ensure AER can be retrieved for genesis block.
+	aer, err := bc.GetAppExecResults(genesisH, trigger.All)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(aer))
+
+	tx := transaction.New([]byte{byte(opcode.PUSHT)}, 0)
+	tx.Nonce = 5
+	tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
+	tx.Attributes = []transaction.Attribute{{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: genesisH}}}
+	e.SignTx(t, tx, -1, acc)
+	e.AddNewBlock(t, tx)
+	e.CheckHalt(t, tx.Hash(), stackitem.Make(true))
+
+	// Ensure original tx can be retrieved.
+	actual, actualHeight, err := bc.GetTransaction(tx.Hash())
+	require.NoError(t, err)
+	require.Equal(t, currHeight+1, actualHeight)
+	require.Equal(t, tx, actual, tx)
+
+	// Ensure conflict stub is not stored. This check doesn't give us 100% sure that
+	// there's no specific conflict record since GetTransaction doesn't return conflict records,
+	// but at least it allows to ensure that no transaction record is present.
+	_, _, err = bc.GetTransaction(genesisH)
+	require.ErrorIs(t, err, storage.ErrKeyNotFound)
+
+	// Ensure AER still can be retrieved for genesis block.
+	aer, err = bc.GetAppExecResults(genesisH, trigger.All)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(aer))
+}

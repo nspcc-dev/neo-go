@@ -702,6 +702,12 @@ func (dao *Simple) HasTransaction(hash util.Uint256, signers []transaction.Signe
 	if len(bytes) < 5 { // (storage.ExecTransaction + index) for conflict record
 		return nil
 	}
+	if bytes[0] != storage.ExecTransaction {
+		// It's a block, thus no conflict. This path is needed since there's a transaction accepted on mainnet
+		// that conflicts with block. This transaction was declined by Go nodes, but accepted by C# nodes, and hence
+		// we need to adjust Go behaviour post-factum. Ref. #3427 and 0x289c235dcdab8be7426d05f0fbb5e86c619f81481ea136493fa95deee5dbb7cc.
+		return nil
+	}
 	if len(bytes) != 5 {
 		return ErrAlreadyExists // fully-qualified transaction
 	}
@@ -863,6 +869,17 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 		// Conflict record stub.
 		hash := attr.Value.(*transaction.Conflicts).Hash
 		copy(key[1:], hash.BytesBE())
+
+		// A short path if there's a block with the matching hash. If it's there, then
+		// don't store the conflict record stub and conflict signers since it's a
+		// useless record, no transaction with the same hash is possible.
+		exec, err := dao.Store.Get(key)
+		if err == nil {
+			if len(exec) > 0 && exec[0] != storage.ExecTransaction {
+				continue
+			}
+		}
+
 		dao.Store.Put(key, val)
 
 		// Conflicting signers.

@@ -45,7 +45,7 @@ import (
 
 // Tuning parameters.
 const (
-	version = "0.2.11"
+	version = "0.2.12"
 
 	// DefaultInitialGAS is the default amount of GAS emitted to the standby validators
 	// multisignature account during native GAS contract initialization.

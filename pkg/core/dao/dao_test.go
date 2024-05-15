@@ -242,6 +242,53 @@ func TestStoreAsTransaction(t *testing.T) {
 		}
 		err = dao.StoreAsTransaction(tx2, blockIndex, aer2)
 		require.NoError(t, err)
+
+		// A special transaction that conflicts with genesis block.
+		genesis := &block.Block{
+			Header: block.Header{
+				Version:       0,
+				Timestamp:     123,
+				Nonce:         1,
+				Index:         0,
+				NextConsensus: util.Uint160{1, 2, 3},
+			},
+		}
+		genesisAer1 := &state.AppExecResult{
+			Container: genesis.Hash(),
+			Execution: state.Execution{
+				Trigger: trigger.OnPersist,
+				Events:  []state.NotificationEvent{},
+				Stack:   []stackitem.Item{},
+			},
+		}
+		genesisAer2 := &state.AppExecResult{
+			Container: genesis.Hash(),
+			Execution: state.Execution{
+				Trigger: trigger.PostPersist,
+				Events:  []state.NotificationEvent{},
+				Stack:   []stackitem.Item{},
+			},
+		}
+		require.NoError(t, dao.StoreAsBlock(genesis, genesisAer1, genesisAer2))
+		tx3 := transaction.New([]byte{byte(opcode.PUSH1)}, 1)
+		tx3.Signers = append(tx3.Signers, transaction.Signer{Account: signer1})
+		tx3.Scripts = append(tx3.Scripts, transaction.Witness{})
+		tx3.Attributes = []transaction.Attribute{
+			{
+				Type:  transaction.ConflictsT,
+				Value: &transaction.Conflicts{Hash: genesis.Hash()},
+			},
+		}
+		hash3 := tx3.Hash()
+		aer3 := &state.AppExecResult{
+			Container: hash3,
+			Execution: state.Execution{
+				Trigger: trigger.Application,
+				Events:  []state.NotificationEvent{},
+				Stack:   []stackitem.Item{},
+			},
+		}
+
 		err = dao.HasTransaction(hash1, nil, 0, 0)
 		require.ErrorIs(t, err, ErrAlreadyExists)
 		err = dao.HasTransaction(hash2, nil, 0, 0)
@@ -280,6 +327,29 @@ func TestStoreAsTransaction(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, 1, len(gotAppExecResult))
 		require.Equal(t, *aer2, gotAppExecResult[0])
+
+		// Ensure block is not treated as transaction.
+		err = dao.HasTransaction(genesis.Hash(), nil, 0, 0)
+		require.NoError(t, err)
+
+		// Store tx3 and ensure genesis executable record is not corrupted.
+		require.NoError(t, dao.StoreAsTransaction(tx3, 0, aer3))
+		err = dao.HasTransaction(hash3, nil, 0, 0)
+		require.ErrorIs(t, err, ErrAlreadyExists)
+		actualAer, err := dao.GetAppExecResults(hash3, trigger.All)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(actualAer))
+		require.Equal(t, *aer3, actualAer[0])
+		actualGenesisAer, err := dao.GetAppExecResults(genesis.Hash(), trigger.All)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(actualGenesisAer))
+		require.Equal(t, *genesisAer1, actualGenesisAer[0])
+		require.Equal(t, *genesisAer2, actualGenesisAer[1])
+
+		// A special requirement for transactions that conflict with block: they should
+		// not produce conflict record stub, ref. #3427.
+		err = dao.HasTransaction(genesis.Hash(), nil, 0, 0)
+		require.NoError(t, err)
 	})
 }
 
