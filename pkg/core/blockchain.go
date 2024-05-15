@@ -1515,8 +1515,11 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 			} else {
 				err = bc.verifyAndPoolTx(tx, mp, bc)
 			}
-			if err != nil && bc.config.VerifyTransactions {
-				return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
+			if err != nil {
+				if bc.config.VerifyTransactions {
+					return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
+				}
+				bc.log.Warn(fmt.Sprintf("transaction %s failed to verify: %s", tx.Hash().StringLE(), err))
 			}
 		}
 	}
