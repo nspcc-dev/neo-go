@@ -99,7 +99,7 @@ func (*FakeChain) IsExtensibleAllowed(uint160 util.Uint160) bool {
 }
 
 // GetNatives implements the blockchainer.Blockchainer interface.
-func (*FakeChain) GetNatives() []state.NativeContract {
+func (*FakeChain) GetNatives() []state.Contract {
 	panic("TODO")
 }
 

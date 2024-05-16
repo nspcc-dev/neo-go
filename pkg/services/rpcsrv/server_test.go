@@ -1192,13 +1192,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			params: "[]",
 			result: func(e *executor) any {
-				return new([]state.NativeContract)
+				return new([]state.Contract)
 			},
 			check: func(t *testing.T, e *executor, res any) {
-				lst := res.(*[]state.NativeContract)
+				lst := res.(*[]state.Contract)
 				for i := range *lst {
 					cs := e.chain.GetContractState((*lst)[i].Hash)
-					require.NotNil(t, cs)
+					require.Equal(t, *cs, (*lst)[i])
 					require.True(t, cs.ID <= 0)
 				}
 			},

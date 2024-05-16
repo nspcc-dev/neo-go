@@ -265,8 +265,8 @@ func (c *Client) getContractState(param any) (*state.Contract, error) {
 }
 
 // GetNativeContracts queries information about native contracts.
-func (c *Client) GetNativeContracts() ([]state.NativeContract, error) {
-	var resp []state.NativeContract
+func (c *Client) GetNativeContracts() ([]state.Contract, error) {
+	var resp []state.Contract
 	if err := c.performRequest("getnativecontracts", nil, &resp); err != nil {
 		return resp, err
 	}

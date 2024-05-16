@@ -29,11 +29,6 @@ type ContractBase struct {
 	Manifest manifest.Manifest `json:"manifest"`
 }
 
-// NativeContract holds information about the native contract.
-type NativeContract struct {
-	ContractBase
-}
-
 // ToStackItem converts state.Contract to stackitem.Item.
 func (c *Contract) ToStackItem() (stackitem.Item, error) {
 	// Do not skip the NEF size check, it won't affect native Management related
