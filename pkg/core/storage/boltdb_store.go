@@ -77,11 +77,8 @@ func NewBoltDBStore(cfg dbconfig.BoltDBOptions) (*BoltDBStore, error) {
 func (s *BoltDBStore) Get(key []byte) (val []byte, err error) {
 	err = s.db.View(func(tx *bbolt.Tx) error {
 		b := tx.Bucket(Bucket)
-		val = b.Get(key)
 		// Value from Get is only valid for the lifetime of transaction, #1482
-		if val != nil {
-			val = bytes.Clone(val)
-		}
+		val = bytes.Clone(b.Get(key))
 		return nil
 	})
 	if val == nil {
