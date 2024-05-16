@@ -45,7 +45,7 @@ import (
 
 // Tuning parameters.
 const (
-	version = "0.2.11"
+	version = "0.2.12"
 
 	// DefaultInitialGAS is the default amount of GAS emitted to the standby validators
 	// multisignature account during native GAS contract initialization.
@@ -1515,8 +1515,11 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 			} else {
 				err = bc.verifyAndPoolTx(tx, mp, bc)
 			}
-			if err != nil && bc.config.VerifyTransactions {
-				return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
+			if err != nil {
+				if bc.config.VerifyTransactions {
+					return fmt.Errorf("transaction %s failed to verify: %w", tx.Hash().StringLE(), err)
+				}
+				bc.log.Warn(fmt.Sprintf("transaction %s failed to verify: %s", tx.Hash().StringLE(), err))
 			}
 		}
 	}

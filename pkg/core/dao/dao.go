@@ -35,6 +35,11 @@ var (
 	ErrInternalDBInconsistency = errors.New("internal DB inconsistency")
 )
 
+// conflictRecordValueLen is the length of value of transaction conflict record.
+// It consists of 1-byte [storage.ExecTransaction] prefix and 4-bytes block index
+// in the LE form.
+const conflictRecordValueLen = 1 + 4
+
 // Simple is memCached wrapper around DB, simple DAO implementation.
 type Simple struct {
 	Version Version
@@ -323,7 +328,7 @@ func (dao *Simple) GetTxExecResult(hash util.Uint256) (uint32, *transaction.Tran
 // decodeTxAndExecResult decodes transaction, its height and execution result from
 // the given executable bytes. It performs no executable prefix check.
 func decodeTxAndExecResult(buf []byte) (uint32, *transaction.Transaction, *state.AppExecResult, error) {
-	if len(buf) >= 6 && buf[5] == transaction.DummyVersion {
+	if len(buf) == conflictRecordValueLen { // conflict record stub.
 		return 0, nil, nil, storage.ErrKeyNotFound
 	}
 	r := io.NewBinReaderFromBuf(buf)
@@ -605,7 +610,7 @@ func (dao *Simple) DeleteHeaderHashes(since uint32, batchSize int) {
 }
 
 // GetTransaction returns Transaction and its height by the given hash
-// if it exists in the store. It does not return dummy transactions.
+// if it exists in the store. It does not return conflict record stubs.
 func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, uint32, error) {
 	key := dao.makeExecutableKey(hash)
 	b, err := dao.Store.Get(key)
@@ -619,7 +624,7 @@ func (dao *Simple) GetTransaction(hash util.Uint256) (*transaction.Transaction, 
 		// It may be a block.
 		return nil, 0, storage.ErrKeyNotFound
 	}
-	if len(b) == 1+4 { // storage.ExecTransaction + index
+	if len(b) == conflictRecordValueLen {
 		// It's a conflict record stub.
 		return nil, 0, storage.ErrKeyNotFound
 	}
@@ -699,10 +704,16 @@ func (dao *Simple) HasTransaction(hash util.Uint256, signers []transaction.Signe
 		return nil
 	}
 
-	if len(bytes) < 5 { // (storage.ExecTransaction + index) for conflict record
+	if len(bytes) < conflictRecordValueLen { // (storage.ExecTransaction + index) for conflict record
 		return nil
 	}
-	if len(bytes) != 5 {
+	if bytes[0] != storage.ExecTransaction {
+		// It's a block, thus no conflict. This path is needed since there's a transaction accepted on mainnet
+		// that conflicts with block. This transaction was declined by Go nodes, but accepted by C# nodes, and hence
+		// we need to adjust Go behaviour post-factum. Ref. #3427 and 0x289c235dcdab8be7426d05f0fbb5e86c619f81481ea136493fa95deee5dbb7cc.
+		return nil
+	}
+	if len(bytes) != conflictRecordValueLen {
 		return ErrAlreadyExists // fully-qualified transaction
 	}
 	if len(signers) == 0 {
@@ -778,6 +789,10 @@ func (dao *Simple) DeleteBlock(h util.Uint256) error {
 			if err != nil {
 				return fmt.Errorf("failed to retrieve conflict record stub for %s (height %d, conflict %s): %w", tx.Hash().StringLE(), b.Index, hash.StringLE(), err)
 			}
+			// It might be a block since we allow transactions to have block hash in the Conflicts attribute.
+			if v[0] != storage.ExecTransaction {
+				continue
+			}
 			index := binary.LittleEndian.Uint32(v[1:])
 			// We can check for `<=` here, but use equality comparison to be more precise
 			// and do not touch earlier conflict records (if any). Their removal must be triggered
@@ -838,8 +853,9 @@ func (dao *Simple) StoreAsCurrentBlock(block *block.Block) {
 	dao.Store.Put(dao.mkKeyPrefix(storage.SYSCurrentBlock), buf.Bytes())
 }
 
-// StoreAsTransaction stores the given TX as DataTransaction. It also stores transactions
-// the given tx has conflicts with as DataTransaction with dummy version. It can reuse the given
+// StoreAsTransaction stores the given TX as DataTransaction. It also stores conflict records
+// (hashes of transactions the given tx has conflicts with) as DataTransaction with value containing
+// only five bytes: 1-byte [storage.ExecTransaction] executable prefix + 4-bytes-LE block index. It can reuse the given
 // buffer for the purpose of value serialization.
 func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32, aer *state.AppExecResult) error {
 	key := dao.makeExecutableKey(tx.Hash())
@@ -857,12 +873,23 @@ func (dao *Simple) StoreAsTransaction(tx *transaction.Transaction, index uint32,
 	val := buf.Bytes()
 	dao.Store.Put(key, val)
 
-	val = val[:5] // storage.ExecTransaction (1 byte) + index (4 bytes)
+	val = val[:conflictRecordValueLen] // storage.ExecTransaction (1 byte) + index (4 bytes)
 	attrs := tx.GetAttributes(transaction.ConflictsT)
 	for _, attr := range attrs {
 		// Conflict record stub.
 		hash := attr.Value.(*transaction.Conflicts).Hash
 		copy(key[1:], hash.BytesBE())
+
+		// A short path if there's a block with the matching hash. If it's there, then
+		// don't store the conflict record stub and conflict signers since it's a
+		// useless record, no transaction with the same hash is possible.
+		exec, err := dao.Store.Get(key)
+		if err == nil {
+			if len(exec) > 0 && exec[0] != storage.ExecTransaction {
+				continue
+			}
+		}
+
 		dao.Store.Put(key, val)
 
 		// Conflicting signers.
