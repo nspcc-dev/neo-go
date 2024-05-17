@@ -95,6 +95,20 @@ func TestStdErrors(t *testing.T) {
 		for _, f := range funcs {
 			_, err := f(&result.Invoke{State: "FAULT", Stack: []stackitem.Item{stackitem.Make(42)}}, nil)
 			require.Error(t, err)
+
+			var fault Exception
+			require.True(t, errors.As(err, &fault))
+			require.Equal(t, "", string(fault))
+		}
+	})
+	t.Run("FAULT state with exception", func(t *testing.T) {
+		for _, f := range funcs {
+			_, err := f(&result.Invoke{State: "FAULT", FaultException: "something bad", Stack: []stackitem.Item{stackitem.Make(42)}}, nil)
+			require.Error(t, err)
+
+			var fault Exception
+			require.True(t, errors.As(err, &fault))
+			require.Equal(t, "something bad", string(fault))
 		}
 	})
 	t.Run("nothing returned", func(t *testing.T) {
@@ -207,10 +221,12 @@ func TestItemJSONError(t *testing.T) {
 
 	var received result.Invoke
 	require.NoError(t, json.Unmarshal(data, &received))
+	require.True(t, len(received.FaultException) != 0)
 
 	_, err = Item(&received, nil)
-	require.True(t, len(received.FaultException) != 0)
-	require.Contains(t, err.Error(), received.FaultException)
+	var fault Exception
+	require.True(t, errors.As(err, &fault))
+	require.Equal(t, received.FaultException, string(fault))
 }
 
 func TestUTF8String(t *testing.T) {
