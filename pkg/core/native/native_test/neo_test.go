@@ -39,7 +39,7 @@ func newNeoCommitteeClient(t *testing.T, expectedGASBalance int) *neotest.Contra
 	e := neotest.NewExecutor(t, bc, validators, committee)
 
 	if expectedGASBalance > 0 {
-		e.ValidatorInvoker(e.NativeHash(t, nativenames.Gas)).Invoke(t, true, "transfer", e.Validator.ScriptHash(), e.CommitteeHash, 100_0000_0000, nil)
+		e.ValidatorInvoker(e.NativeHash(t, nativenames.Gas)).Invoke(t, true, "transfer", e.Validator.ScriptHash(), e.CommitteeHash, expectedGASBalance, nil)
 	}
 
 	return e.CommitteeInvoker(e.NativeHash(t, nativenames.Neo))
