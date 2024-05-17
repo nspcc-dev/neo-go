@@ -597,10 +597,11 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 	var cache *ManagementCache
 	for _, native := range ic.Natives {
 		var (
-			activeIn = native.ActiveIn()
-			isDeploy bool
-			isUpdate bool
-			latestHF config.Hardfork
+			activeIn         = native.ActiveIn()
+			isDeploy         bool
+			isUpdate         bool
+			latestHF         config.Hardfork
+			currentActiveHFs []config.Hardfork
 		)
 		activeHFs := native.Metadata().ActiveHFs
 		isDeploy = activeIn == nil && ic.Block.Index == 0 ||
@@ -611,16 +612,18 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 					isUpdate = true
 					activation := hf       // avoid loop variable pointer exporting.
 					activeIn = &activation // reuse ActiveIn variable for the initialization hardfork.
-					// Break immediately since native Initialize should be called only for the first hardfork in a raw
+					// Break immediately since native Initialize should be called starting from the first hardfork in a raw
 					// (if there are multiple hardforks with the same enabling height).
 					break
 				}
 			}
 		}
-		// Search for the latest active hardfork to properly construct manifest.
+		// Search for the latest active hardfork to properly construct manifest and
+		// initialize natives for the range of active hardforks.
 		for _, hf := range config.Hardforks {
 			if _, ok := activeHFs[hf]; ok && ic.IsHardforkActivation(hf) {
 				latestHF = hf
+				currentActiveHFs = append(currentActiveHFs, hf)
 			}
 		}
 		if !(isDeploy || isUpdate) {
@@ -654,9 +657,21 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to put contract state: %w", err)
 		}
-		if err := native.Initialize(ic, activeIn, hfSpecificMD); err != nil {
-			return fmt.Errorf("initializing %s native contract at HF %d: %w", md.Name, activeIn, err)
+
+		// Deploy hardfork (contract's ActiveIn) is not a part of contract's active hardforks and
+		// allowed to be nil, this, a special initialization call for it.
+		if isDeploy {
+			if err := native.Initialize(ic, activeIn, hfSpecificMD); err != nil {
+				return fmt.Errorf("initializing %s native contract at HF %v: %w", md.Name, activeIn, err)
+			}
 		}
+		// The rest of activating hardforks also require initialization.
+		for _, hf := range currentActiveHFs {
+			if err := native.Initialize(ic, &hf, hfSpecificMD); err != nil {
+				return fmt.Errorf("initializing %s native contract at HF %d: %w", md.Name, activeIn, err)
+			}
+		}
+
 		if cache == nil {
 			cache = ic.DAO.GetRWCache(m.ID).(*ManagementCache)
 		}
