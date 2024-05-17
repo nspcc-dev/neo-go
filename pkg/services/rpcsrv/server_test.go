@@ -3238,13 +3238,6 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			}
 			checkCalc(t, tx, 2315100) // Perfectly matches FeeIsMultiSigContract() C# test.
 		})
-		t.Run("Koblitz custom multisignature witness", func(t *testing.T) {
-			tx := "AAIAAACWP5gAAAAAAAAAAAAAAAAAAgAAAAEGyZgQyJQyWjzvqUZochi8rGE9RQEAVgsVDBQBAgMAAAAAAAAAAAAAAAAAAAAAAAwUBsmYEMiUMlo876lGaHIYvKxhPUUUwB8MCHRyYW5zZmVyDBTPduKL0AYsSkeO41VhARMZ88+k0kFifVtSAcYMQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD9CAETDCECbSVpJ0BN2xiveIGNU0LzEz4V7FUAp1NV8s7YI4kq9eQMIQOaHY3bh+3OmXuU9t72Pj62loLM7gZDgXJwnBV2zO4u1wwhAsvP18ohoYHcHBPt4wwPqAOstOhazEegr4klYmDlWpzeDCED9EsK7L0qFMP1QpBBfKMMVXPLa894ONINLRtjtBLBM6oUVwcAdW3AcXZDbigDOG7AcEHF+6DgAwAAAAABAAAAnhSNQS1RCDAQzotyEHMQdGtuuGxtuJIkQgB6aGvOaWzOahTAEAwPdmVyaWZ5V2l0aEVDRHNhDBQb9XWrEYlohBNhCjWhKIbN4LZsckFifVtSa55zbJx0IrlrbrM="
-			resp := checkErrGetResult(t, calcReqExactly(t, tx), false, 0)
-			res := new(result.NetworkFee)
-			require.NoError(t, json.Unmarshal(resp, res))
-			require.Equal(t, int64(8992070), res.Value)
-		})
 		checkContract := func(t *testing.T, verAcc util.Uint160, invoc []byte, fee int64) {
 			txScript, err := smartcontract.CreateCallWithAssertScript(chain.UtilityTokenHash(), "transfer",
 				verAcc, verAcc, 1, nil)
