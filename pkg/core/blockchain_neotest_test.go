@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -314,6 +315,92 @@ func TestBlockchain_InitializeNeoCache_Bug3181(t *testing.T) {
 		_, _, _, err = chain.NewMultiWithCustomConfigAndStoreNoCheck(t, nil, ps)
 		require.NoError(t, err)
 	})
+}
+
+// TestBlockchain_InitializeNeoCache_Bug3424 ensures that Neo cache (new epoch
+// committee and stand by validators) is properly initialized after node restart
+// at the dBFT epoch boundary.
+func TestBlockchain_InitializeNeoCache_Bug3424(t *testing.T) {
+	ps, path := newLevelDBForTestingWithPath(t, "")
+	bc, validators, committee, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, nil, ps)
+	require.NoError(t, err)
+	go bc.Run()
+	e := neotest.NewExecutor(t, bc, validators, committee)
+	cfg := e.Chain.GetConfig()
+	committeeSize := cfg.GetCommitteeSize(0)
+	validatorsCount := cfg.GetNumOfCNs(0)
+
+	// Stand by committee drives the chain.
+	standBySorted, err := keys.NewPublicKeysFromStrings(e.Chain.GetConfig().StandbyCommittee)
+	require.NoError(t, err)
+	standBySorted = standBySorted[:validatorsCount]
+	sort.Sort(standBySorted)
+	pubs := e.Chain.ComputeNextBlockValidators()
+	require.Equal(t, standBySorted, keys.PublicKeys(pubs))
+
+	// Move from stand by committee to the elected nodes.
+	e.ValidatorInvoker(e.NativeHash(t, nativenames.Gas)).Invoke(t, true, "transfer", e.Validator.ScriptHash(), e.CommitteeHash, 100_0000_0000, nil)
+	neoCommitteeInvoker := e.CommitteeInvoker(e.NativeHash(t, nativenames.Neo))
+	neoValidatorsInvoker := neoCommitteeInvoker.WithSigners(neoCommitteeInvoker.Validator)
+	policyInvoker := neoCommitteeInvoker.CommitteeInvoker(neoCommitteeInvoker.NativeHash(t, nativenames.Policy))
+
+	advanceChain := func(t *testing.T) {
+		for int(e.Chain.BlockHeight())%committeeSize != 0 {
+			neoCommitteeInvoker.AddNewBlock(t)
+		}
+	}
+	advanceChainToEpochBoundary := func(t *testing.T) {
+		for int(e.Chain.BlockHeight()+1)%committeeSize != 0 {
+			neoCommitteeInvoker.AddNewBlock(t)
+		}
+	}
+
+	// voters vote for candidates.
+	voters := make([]neotest.Signer, committeeSize+1)
+	candidates := make([]neotest.Signer, committeeSize+1)
+	for i := 0; i < committeeSize+1; i++ {
+		voters[i] = e.NewAccount(t, 10_0000_0000)
+		candidates[i] = e.NewAccount(t, 2000_0000_0000) // enough for one registration
+	}
+	txes := make([]*transaction.Transaction, 0, committeeSize*3)
+	for i := 0; i < committeeSize+1; i++ {
+		transferTx := neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(committeeSize+1-i)*1000000, nil)
+		txes = append(txes, transferTx)
+		registerTx := neoValidatorsInvoker.WithSigners(candidates[i]).PrepareInvoke(t, "registerCandidate", candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
+		txes = append(txes, registerTx)
+		voteTx := neoValidatorsInvoker.WithSigners(voters[i]).PrepareInvoke(t, "vote", voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
+		txes = append(txes, voteTx)
+	}
+	txes = append(txes, policyInvoker.PrepareInvoke(t, "blockAccount", candidates[len(candidates)-1].(neotest.SingleSigner).Account().ScriptHash()))
+	neoValidatorsInvoker.AddNewBlock(t, txes...)
+	for _, tx := range txes {
+		e.CheckHalt(t, tx.Hash(), stackitem.Make(true)) // luckily, both `transfer`, `registerCandidate` and `vote` return boolean values
+	}
+
+	// Ensure validators are properly updated.
+	advanceChain(t)
+	pubs = e.Chain.ComputeNextBlockValidators()
+	sortedCandidates := make(keys.PublicKeys, validatorsCount)
+	for i := range candidates[:validatorsCount] {
+		sortedCandidates[i] = candidates[i].(neotest.SingleSigner).Account().PublicKey()
+	}
+	sort.Sort(sortedCandidates)
+	require.EqualValues(t, sortedCandidates, keys.PublicKeys(pubs))
+
+	// Move to the last block in the epoch and restart the node.
+	advanceChainToEpochBoundary(t)
+	bc.Close() // Ensure persist is done and persistent store is properly closed.
+	ps, _ = newLevelDBForTestingWithPath(t, path)
+	t.Cleanup(func() { require.NoError(t, ps.Close()) })
+
+	// Start chain from the existing database that should trigger an update of native
+	// Neo newEpoch* cached values during initializaition. This update requires candidates
+	// list recalculation and caldidates policies checks.
+	bc, _, _, err = chain.NewMultiWithCustomConfigAndStoreNoCheck(t, nil, ps)
+	require.NoError(t, err)
+
+	pubs = bc.ComputeNextBlockValidators()
+	require.EqualValues(t, sortedCandidates, keys.PublicKeys(pubs))
 }
 
 // This test enables Notary native contract at non-zero height and checks that no

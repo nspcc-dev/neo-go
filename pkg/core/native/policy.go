@@ -319,7 +319,7 @@ func (p *Policy) IsBlocked(dao *dao.Simple, hash util.Uint160) bool {
 	cache := dao.GetROCache(p.ID)
 	if cache == nil {
 		key := append([]byte{blockedAccountPrefix}, hash.BytesBE()...)
-		return dao.GetStorageItem(p.ID, key) == nil
+		return dao.GetStorageItem(p.ID, key) != nil
 	}
 	_, isBlocked := p.isBlockedInternal(cache.(*PolicyCache), hash)
 	return isBlocked
