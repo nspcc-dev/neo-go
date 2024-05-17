@@ -86,7 +86,7 @@ type (
 		GetNEP11Contracts() []util.Uint160
 		GetNEP17Contracts() []util.Uint160
 		GetNativeContractScriptHash(string) (util.Uint160, error)
-		GetNatives() []state.NativeContract
+		GetNatives() []state.Contract
 		GetNextBlockValidators() ([]*keys.PublicKey, error)
 		GetNotaryContractScriptHash() util.Uint160
 		GetStateModule() core.StateRoot

@@ -2295,18 +2295,19 @@ func (bc *Blockchain) GetNativeContractScriptHash(name string) (util.Uint160, er
 }
 
 // GetNatives returns list of native contracts.
-func (bc *Blockchain) GetNatives() []state.NativeContract {
-	res := make([]state.NativeContract, 0, len(bc.contracts.Contracts))
+func (bc *Blockchain) GetNatives() []state.Contract {
+	res := make([]state.Contract, 0, len(bc.contracts.Contracts))
 	current := bc.getCurrentHF()
 	for _, c := range bc.contracts.Contracts {
 		activeIn := c.ActiveIn()
 		if !(activeIn == nil || activeIn.Cmp(current) <= 0) {
 			continue
 		}
-		md := c.Metadata().HFSpecificContractMD(&current)
-		res = append(res, state.NativeContract{
-			ContractBase: md.ContractBase,
-		})
+
+		st := bc.GetContractState(c.Metadata().Hash)
+		if st != nil { // Should never happen, but better safe than sorry.
+			res = append(res, *st)
+		}
 	}
 	return res
 }
