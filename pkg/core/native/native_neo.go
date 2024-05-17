@@ -279,7 +279,7 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 		manifest.NewParameter("old", smartcontract.ArrayType),
 		manifest.NewParameter("new", smartcontract.ArrayType),
 	)
-	eMD = newEvent(eDesc)
+	eMD = newEvent(eDesc, config.HFCockatrice)
 	n.AddEvent(eMD)
 
 	return n
