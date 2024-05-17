@@ -144,6 +144,7 @@ type Method = func(ic *Context, args []stackitem.Item) stackitem.Item
 type MethodAndPrice struct {
 	HFSpecificMethodAndPrice
 	ActiveFrom *config.Hardfork
+	ActiveTill *config.Hardfork
 }
 
 // HFSpecificMethodAndPrice is a hardfork-specific native contract method descriptor.
@@ -160,6 +161,7 @@ type HFSpecificMethodAndPrice struct {
 type Event struct {
 	HFSpecificEvent
 	ActiveFrom *config.Hardfork
+	ActiveTill *config.Hardfork
 }
 
 // HFSpecificEvent is a hardfork-specific native contract event descriptor.
@@ -289,7 +291,8 @@ func (c *ContractMD) buildHFSpecificMD(hf config.Hardfork) {
 	w := io.NewBufBinWriter()
 	for i := range c.methods {
 		m := c.methods[i]
-		if !(m.ActiveFrom == nil || (hf != config.HFDefault && (*m.ActiveFrom).Cmp(hf) >= 0)) {
+		if !(m.ActiveFrom == nil || (hf != config.HFDefault && (*m.ActiveFrom).Cmp(hf) >= 0)) ||
+			(m.ActiveTill != nil && (*m.ActiveTill).Cmp(hf) <= 0) {
 			continue
 		}
 
@@ -311,7 +314,8 @@ func (c *ContractMD) buildHFSpecificMD(hf config.Hardfork) {
 	}
 	for i := range c.events {
 		e := c.events[i]
-		if !(e.ActiveFrom == nil || (hf != config.HFDefault && (*e.ActiveFrom).Cmp(hf) >= 0)) {
+		if !(e.ActiveFrom == nil || (hf != config.HFDefault && (*e.ActiveFrom).Cmp(hf) >= 0)) ||
+			(e.ActiveTill != nil && (*e.ActiveTill).Cmp(hf) <= 0) {
 			continue
 		}
 
@@ -369,6 +373,9 @@ func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 	if md.ActiveFrom != nil {
 		c.ActiveHFs[*md.ActiveFrom] = struct{}{}
 	}
+	if md.ActiveTill != nil {
+		c.ActiveHFs[*md.ActiveTill] = struct{}{}
+	}
 }
 
 // GetMethodByOffset returns method with the provided offset.
@@ -409,6 +416,9 @@ func (c *ContractMD) AddEvent(md Event) {
 
 	if md.ActiveFrom != nil {
 		c.ActiveHFs[*md.ActiveFrom] = struct{}{}
+	}
+	if md.ActiveTill != nil {
+		c.ActiveHFs[*md.ActiveTill] = struct{}{}
 	}
 }
 
