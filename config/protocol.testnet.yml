@@ -41,6 +41,7 @@ ProtocolConfiguration:
   Hardforks:
     Aspidochelone: 210000
     Basilisk: 2680000
+    Cockatrice: 3967000
 
 ApplicationConfiguration:
   SkipBlockVerification: false
