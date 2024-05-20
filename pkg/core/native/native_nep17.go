@@ -323,7 +323,10 @@ func newDescriptor(name string, ret smartcontract.ParamType, ps ...manifest.Para
 	}
 }
 
-func newMethodAndPrice(f interop.Method, cpuFee int64, flags callflag.CallFlag, activeFrom ...config.Hardfork) *interop.MethodAndPrice {
+// newMethodAndPrice builds method with the provided descriptor and ActiveFrom/ActiveTill hardfork
+// values consequently specified via activations. [config.HFDefault] specfied as ActiveFrom is treated
+// as active starting from the genesis block.
+func newMethodAndPrice(f interop.Method, cpuFee int64, flags callflag.CallFlag, activations ...config.Hardfork) *interop.MethodAndPrice {
 	md := &interop.MethodAndPrice{
 		HFSpecificMethodAndPrice: interop.HFSpecificMethodAndPrice{
 			Func:          f,
@@ -331,8 +334,13 @@ func newMethodAndPrice(f interop.Method, cpuFee int64, flags callflag.CallFlag, 
 			RequiredFlags: flags,
 		},
 	}
-	if len(activeFrom) != 0 {
-		md.ActiveFrom = &activeFrom[0]
+	if len(activations) > 0 {
+		if activations[0] != config.HFDefault {
+			md.ActiveFrom = &activations[0]
+		}
+	}
+	if len(activations) > 1 {
+		md.ActiveTill = &activations[1]
 	}
 	return md
 }
@@ -347,14 +355,19 @@ func newEventDescriptor(name string, ps ...manifest.Parameter) *manifest.Event {
 	}
 }
 
-func newEvent(desc *manifest.Event, activeFrom ...config.Hardfork) interop.Event {
+// newEvent builds event with the provided descriptor and ActiveFrom/ActiveTill hardfork
+// values consequently specified via activations.
+func newEvent(desc *manifest.Event, activations ...config.Hardfork) interop.Event {
 	md := interop.Event{
 		HFSpecificEvent: interop.HFSpecificEvent{
 			MD: desc,
 		},
 	}
-	if len(activeFrom) != 0 {
-		md.ActiveFrom = &activeFrom[0]
+	if len(activations) > 0 {
+		md.ActiveFrom = &activations[0]
+	}
+	if len(activations) > 1 {
+		md.ActiveTill = &activations[1]
 	}
 	return md
 }

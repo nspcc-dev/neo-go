@@ -69,8 +69,16 @@ func newCrypto() *Crypto {
 		manifest.NewParameter("message", smartcontract.ByteArrayType),
 		manifest.NewParameter("pubkey", smartcontract.ByteArrayType),
 		manifest.NewParameter("signature", smartcontract.ByteArrayType),
+		manifest.NewParameter("curve", smartcontract.IntegerType))
+	md = newMethodAndPrice(c.verifyWithECDsaPreCockatrice, 1<<15, callflag.NoneFlag, config.HFDefault, config.HFCockatrice)
+	c.AddMethod(md, desc)
+
+	desc = newDescriptor("verifyWithECDsa", smartcontract.BoolType,
+		manifest.NewParameter("message", smartcontract.ByteArrayType),
+		manifest.NewParameter("pubkey", smartcontract.ByteArrayType),
+		manifest.NewParameter("signature", smartcontract.ByteArrayType),
 		manifest.NewParameter("curveHash", smartcontract.IntegerType))
-	md = newMethodAndPrice(c.verifyWithECDsa, 1<<15, callflag.NoneFlag)
+	md = newMethodAndPrice(c.verifyWithECDsa, 1<<15, callflag.NoneFlag, config.HFCockatrice)
 	c.AddMethod(md, desc)
 
 	desc = newDescriptor("bls12381Serialize", smartcontract.ByteArrayType,
@@ -143,7 +151,15 @@ func (c *Crypto) murmur32(_ *interop.Context, args []stackitem.Item) stackitem.I
 	return stackitem.NewByteArray(result)
 }
 
+func (c *Crypto) verifyWithECDsaPreCockatrice(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	return verifyWithECDsaGeneric(args, false)
+}
+
 func (c *Crypto) verifyWithECDsa(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	return verifyWithECDsaGeneric(args, true)
+}
+
+func verifyWithECDsaGeneric(args []stackitem.Item, allowKeccak bool) stackitem.Item {
 	msg, err := args[0].TryBytes()
 	if err != nil {
 		panic(fmt.Errorf("invalid message stackitem: %w", err))
@@ -156,7 +172,7 @@ func (c *Crypto) verifyWithECDsa(_ *interop.Context, args []stackitem.Item) stac
 	if err != nil {
 		panic(fmt.Errorf("invalid signature stackitem: %w", err))
 	}
-	curve, hasher, err := curveHasherFromStackitem(args[3])
+	curve, hasher, err := curveHasherFromStackitem(args[3], allowKeccak)
 	if err != nil {
 		panic(fmt.Errorf("invalid curveHash stackitem: %w", err))
 	}
@@ -169,7 +185,7 @@ func (c *Crypto) verifyWithECDsa(_ *interop.Context, args []stackitem.Item) stac
 	return stackitem.NewBool(res)
 }
 
-func curveHasherFromStackitem(si stackitem.Item) (elliptic.Curve, HashFunc, error) {
+func curveHasherFromStackitem(si stackitem.Item, allowKeccak bool) (elliptic.Curve, HashFunc, error) {
 	curve, err := si.TryInteger()
 	if err != nil {
 		return nil, nil, err
@@ -184,8 +200,14 @@ func curveHasherFromStackitem(si stackitem.Item) (elliptic.Curve, HashFunc, erro
 	case int64(Secp256r1Sha256):
 		return elliptic.P256(), hash.Sha256, nil
 	case int64(Secp256k1Keccak256):
+		if !allowKeccak {
+			return nil, nil, errors.New("unsupported hash type")
+		}
 		return secp256k1.S256(), Keccak256, nil
 	case int64(Secp256r1Keccak256):
+		if !allowKeccak {
+			return nil, nil, errors.New("unsupported hash type")
+		}
 		return elliptic.P256(), Keccak256, nil
 	default:
 		return nil, nil, errors.New("unsupported curve/hash type")
