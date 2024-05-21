@@ -88,7 +88,7 @@ func NewContracts(cfg config.ProtocolConfiguration) *Contracts {
 	cs.Policy = policy
 	cs.Contracts = append(cs.Contracts, neo, gas, policy)
 
-	desig := newDesignate(cfg.P2PSigExtensions, cfg.Genesis.Roles)
+	desig := newDesignate(cfg.Genesis.Roles)
 	desig.NEO = neo
 	cs.Designate = desig
 	cs.Contracts = append(cs.Contracts, desig)
