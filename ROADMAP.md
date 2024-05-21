@@ -7,10 +7,11 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.106.0 (~February 2023)
- * extended data types for iterators to be used by RPC wrapper generator
+## Version 0.107.0 (~Jun-Jul 2024)
  * protocol updates
- * test fixes
+ * bug fixes
+ * node resynchronisation from local DB
+ * CLI library upgrade
 
 ## Version 1.0 (2024, TBD)
  * stable version
@@ -30,15 +31,15 @@ GetPeers RPC command returns a list of Peers where the port type has changed fro
 string to uint16 to match C#. The RPC client currently supports unmarshalling both
 formats. 
 
-Removal of Peer unmarshalling with string based ports is scheduled for ~September 2023
-(~0.105.0 release).
+Removal of Peer unmarshalling with string based ports is scheduled for Jun-Jul 2024
+(~0.107.0 release).
 
 ## `NEOBalance` from stack item
  
 We check struct items count before convert LastGasPerVote to let RPC client be compatible with
 old versions.
 
-Removal of this compatiblility code is scheduled for Sep-Oct 2023.
+Removal of this compatiblility code is scheduled for Jun-Jul 2024.
 
 ## `serv_node_version` Prometheus gauge metric
 
@@ -47,7 +48,7 @@ metrics with proper version formatting. `neogo_version` contains NeoGo version
 hidden under `version` label and `server_id` contains network server ID hidden
 under `server_id` label.
 
-Removal of `serv_node_version` is scheduled for Sep-Oct 2023 (~0.105.0 release).
+Removal of `serv_node_version` is scheduled for Jun-Jul 2024 (~0.107.0 release).
 
 ## RPC error codes returned by old versions and C#-nodes 
 
@@ -55,7 +56,8 @@ NeoGo retains certain deprecated error codes: `neorpc.ErrCompatGeneric`,
 `neorpc.ErrCompatNoOpenedWallet`. They returned by nodes not compliant with the 
 neo-project/proposals#156 (NeoGo pre-0.102.0 and all known C# versions).
 
-Removal of the deprecated RPC error codes is planned once all nodes adopt the new error standard.
+Removal of the deprecated RPC error codes is planned for Jun-Jul 2024 (~0.107.0
+release).
 
 ## Block based web-socket waiter transaction awaiting
 
@@ -66,4 +68,4 @@ event-based waiter fallbacks to the old way of block monitoring with
 `block_added` notifications subscription.
 
 Removal of stale RPC server compatibility code from `waiter.EventWaiter` is
-scheduled for May-June 2024 (~0.107.0 release).
+scheduled for Jun-Jul 2024 (~0.107.0 release).
