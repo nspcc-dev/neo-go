@@ -10,7 +10,8 @@ These should run successfully:
  * unit-tests
  * lint
  * privnet with consensus nodes
- * mainnet synchronization
+ * testnet and mainnet synchronization
+ * NeoFS testnet and mainnet synchronisation and containers compatibility tests
 
 ## Update CHANGELOG and ROADMAP
 
