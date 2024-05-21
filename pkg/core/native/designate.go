@@ -32,8 +32,6 @@ type Designate struct {
 	interop.ContractMD
 	NEO *NEO
 
-	// p2pSigExtensionsEnabled defines whether the P2P signature extensions logic is relevant.
-	p2pSigExtensionsEnabled bool
 	// initialNodeRoles defines a set of node roles that should be defined at the contract
 	// deployment (initialization).
 	initialNodeRoles map[noderoles.Role]keys.PublicKeys
@@ -99,14 +97,13 @@ func copyDesignationCache(src, dst *DesignationCache) {
 
 func (s *Designate) isValidRole(r noderoles.Role) bool {
 	return r == noderoles.Oracle || r == noderoles.StateValidator ||
-		r == noderoles.NeoFSAlphabet || (s.p2pSigExtensionsEnabled && r == noderoles.P2PNotary)
+		r == noderoles.NeoFSAlphabet || r == noderoles.P2PNotary
 }
 
-func newDesignate(p2pSigExtensionsEnabled bool, initialNodeRoles map[noderoles.Role]keys.PublicKeys) *Designate {
+func newDesignate(initialNodeRoles map[noderoles.Role]keys.PublicKeys) *Designate {
 	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation, designateContractID)}
 	defer s.BuildHFSpecificMD(s.ActiveIn())
 
-	s.p2pSigExtensionsEnabled = p2pSigExtensionsEnabled
 	s.initialNodeRoles = initialNodeRoles
 
 	desc := newDescriptor("getDesignatedByRole", smartcontract.ArrayType,
@@ -160,10 +157,7 @@ func (s *Designate) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *
 // we can fetch the roles data right from the storage.
 func (s *Designate) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	cache := &DesignationCache{}
-	roles := []noderoles.Role{noderoles.Oracle, noderoles.NeoFSAlphabet, noderoles.StateValidator}
-	if s.p2pSigExtensionsEnabled {
-		roles = append(roles, noderoles.P2PNotary)
-	}
+	roles := []noderoles.Role{noderoles.Oracle, noderoles.NeoFSAlphabet, noderoles.StateValidator, noderoles.P2PNotary}
 	for _, r := range roles {
 		err := s.updateCachedRoleData(cache, d, r)
 		if err != nil {
@@ -189,9 +183,7 @@ func (s *Designate) PostPersist(ic *interop.Context) error {
 	s.notifyRoleChanged(&cache.oracles, noderoles.Oracle)
 	s.notifyRoleChanged(&cache.stateVals, noderoles.StateValidator)
 	s.notifyRoleChanged(&cache.neofsAlphabet, noderoles.NeoFSAlphabet)
-	if s.p2pSigExtensionsEnabled {
-		s.notifyRoleChanged(&cache.notaries, noderoles.P2PNotary)
-	}
+	s.notifyRoleChanged(&cache.notaries, noderoles.P2PNotary)
 
 	cache.rolesChangedFlag = false
 	return nil

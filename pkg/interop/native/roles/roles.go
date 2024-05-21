@@ -22,8 +22,7 @@ const (
 	StateValidator Role = 4
 	Oracle         Role = 8
 	NeoFSAlphabet  Role = 16
-	// P2PNotary is an extension of Neo protocol available on specifically configured NeoGo networks.
-	P2PNotary Role = 32
+	P2PNotary      Role = 32
 )
 
 // GetDesignatedByRole represents `getDesignatedByRole` method of RoleManagement native contract.
