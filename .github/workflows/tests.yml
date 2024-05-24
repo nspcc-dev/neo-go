@@ -39,6 +39,14 @@ jobs:
       - name: Check dependencies
         run: |
           ./scripts/check_deps.sh
+      - name: Check go.mod is tidy
+        run: |
+          go mod tidy
+          if [[ $(git diff --name-only go.* | grep '' -c) != 0 ]]; then
+          echo "go mod tidy should be executed before the merge, following packages are unused or out of date:";
+          git diff go.*;
+          exit 1;
+          fi
 
   codegencheck:
     name: Check code generated with 'go generate' is up-to-date
