@@ -49,6 +49,7 @@ func CompileSource(t testing.TB, sender util.Uint160, src io.Reader, opts *compi
 // CompileFile compiles a contract from the file and returns its NEF, manifest and hash.
 func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath string) *Contract {
 	if c, ok := contracts[srcPath]; ok {
+		collectCoverage(t, rawCoverage[c.Hash].debugInfo, c.Hash)
 		return c
 	}
 
