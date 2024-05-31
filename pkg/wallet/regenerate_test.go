@@ -278,7 +278,6 @@ func TestRegenerateCLIWallet1_solo(t *testing.T) {
 	hash := state.CreateContractHash(acc3.PrivateKey().GetScriptHash(), nefFile.Checksum, m.Name)
 	acc4.Address = address.Uint160ToString(hash)
 	acc4.Contract = &Contract{
-		Script:     nefFile.Script,
 		Deployed:   true,
 		Parameters: []ContractParam{},
 	}
