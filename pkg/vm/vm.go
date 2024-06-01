@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -308,14 +309,14 @@ func (v *VM) LoadScript(b []byte) {
 
 // LoadScriptWithFlags loads script and sets call flag to f.
 func (v *VM) LoadScriptWithFlags(b []byte, f callflag.CallFlag) {
-	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, nil)
+	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, nil)
 }
 
 // LoadDynamicScript loads the given script with the given flags. This script is
 // considered to be dynamic, it can either return no value at all or return
 // exactly one value.
 func (v *VM) LoadDynamicScript(b []byte, f callflag.CallFlag) {
-	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, DynamicOnUnload)
+	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), util.Uint160{}, f, -1, 0, DynamicOnUnload)
 }
 
 // LoadScriptWithHash is similar to the LoadScriptWithFlags method, but it also loads
@@ -325,19 +326,19 @@ func (v *VM) LoadDynamicScript(b []byte, f callflag.CallFlag) {
 // accordingly). It's up to the user of this function to make sure the script and hash match
 // each other.
 func (v *VM) LoadScriptWithHash(b []byte, hash util.Uint160, f callflag.CallFlag) {
-	v.loadScriptWithCallingHash(b, nil, v.GetCurrentScriptHash(), hash, f, 1, 0, nil)
+	v.loadScriptWithCallingHash(b, nil, nil, v.GetCurrentScriptHash(), hash, f, 1, 0, nil)
 }
 
 // LoadNEFMethod allows to create a context to execute a method from the NEF
 // file with the specified caller and executing hash, call flags, return value,
 // method and _initialize offsets.
-func (v *VM) LoadNEFMethod(exe *nef.File, caller util.Uint160, hash util.Uint160, f callflag.CallFlag,
+func (v *VM) LoadNEFMethod(exe *nef.File, manifest *manifest.Manifest, caller util.Uint160, hash util.Uint160, f callflag.CallFlag,
 	hasReturn bool, methodOff int, initOff int, onContextUnload ContextUnloadCallback) {
 	var rvcount int
 	if hasReturn {
 		rvcount = 1
 	}
-	v.loadScriptWithCallingHash(exe.Script, exe, caller, hash, f, rvcount, methodOff, onContextUnload)
+	v.loadScriptWithCallingHash(exe.Script, exe, manifest, caller, hash, f, rvcount, methodOff, onContextUnload)
 	if initOff >= 0 {
 		v.Call(initOff)
 	}
@@ -345,7 +346,7 @@ func (v *VM) LoadNEFMethod(exe *nef.File, caller util.Uint160, hash util.Uint160
 
 // loadScriptWithCallingHash is similar to LoadScriptWithHash but sets calling hash explicitly.
 // It should be used for calling from native contracts.
-func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint160,
+func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, manifest *manifest.Manifest, caller util.Uint160,
 	hash util.Uint160, f callflag.CallFlag, rvcount int, offset int, onContextUnload ContextUnloadCallback) {
 	v.checkInvocationStackSize()
 	ctx := NewContextWithParams(b, rvcount, offset)
@@ -363,6 +364,7 @@ func (v *VM) loadScriptWithCallingHash(b []byte, exe *nef.File, caller util.Uint
 	ctx.sc.scriptHash = hash
 	ctx.sc.callingScriptHash = caller
 	ctx.sc.NEF = exe
+	ctx.sc.Manifest = manifest
 	if v.invTree != nil {
 		curTree := v.invTree
 		if parent != nil {

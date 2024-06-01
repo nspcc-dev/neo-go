@@ -637,7 +637,7 @@ func TestNotify(t *testing.T) {
 		_, _, bc, cs := getDeployedInternal(t)
 		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
 		require.NoError(t, err)
-		ic.VM.LoadNEFMethod(&cs.NEF, caller, cs.Hash, callflag.NoneFlag, true, 0, -1, nil)
+		ic.VM.LoadNEFMethod(&cs.NEF, &cs.Manifest, caller, cs.Hash, callflag.NoneFlag, true, 0, -1, nil)
 		ic.VM.Estack().PushVal(args)
 		ic.VM.Estack().PushVal(name)
 		return ic

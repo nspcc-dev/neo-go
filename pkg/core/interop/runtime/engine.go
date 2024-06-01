@@ -80,19 +80,19 @@ func Notify(ic *interop.Context) error {
 	if len(name) > MaxEventNameLen {
 		return fmt.Errorf("event name must be less than %d", MaxEventNameLen)
 	}
-	curHash := ic.VM.GetCurrentScriptHash()
-	ctr, err := ic.GetContract(curHash)
-	if err != nil {
+	curr := ic.VM.Context().GetManifest()
+	if curr == nil {
 		return errors.New("notifications are not allowed in dynamic scripts")
 	}
 	var (
-		ev       = ctr.Manifest.ABI.GetEvent(name)
+		ev       = curr.ABI.GetEvent(name)
 		checkErr error
+		curHash  = ic.VM.GetCurrentScriptHash()
 	)
 	if ev == nil {
 		checkErr = fmt.Errorf("notification %s does not exist", name)
 	} else {
-		err = ev.CheckCompliance(args)
+		err := ev.CheckCompliance(args)
 		if err != nil {
 			checkErr = fmt.Errorf("notification %s is invalid: %w", name, err)
 		}

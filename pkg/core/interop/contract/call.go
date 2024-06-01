@@ -144,7 +144,7 @@ func callExFromNative(ic *interop.Context, caller util.Uint160, cs *state.Contra
 		}
 		return nil
 	}
-	ic.VM.LoadNEFMethod(&cs.NEF, caller, cs.Hash, f,
+	ic.VM.LoadNEFMethod(&cs.NEF, &cs.Manifest, caller, cs.Hash, f,
 		hasReturn, methodOff, initOff, onUnload)
 
 	for e, i := ic.VM.Estack(), len(args)-1; i >= 0; i-- {
