@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -77,11 +78,17 @@ func callInternal(ic *interop.Context, cs *state.Contract, name string, f callfl
 	if md.Safe {
 		f &^= (callflag.WriteStates | callflag.AllowNotify)
 	} else if ctx := ic.VM.Context(); ctx != nil && ctx.IsDeployed() {
-		curr, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
-		if err == nil {
-			if !curr.Manifest.CanCall(cs.Hash, &cs.Manifest, name) {
-				return errors.New("disallowed method call")
+		var mfst *manifest.Manifest
+		if ic.IsHardforkEnabled(config.HFDomovoi) {
+			mfst = ctx.GetManifest()
+		} else {
+			curr, err := ic.GetContract(ic.VM.GetCurrentScriptHash())
+			if err == nil {
+				mfst = &curr.Manifest
 			}
+		}
+		if mfst != nil && !mfst.CanCall(cs.Hash, &cs.Manifest, name) {
+			return errors.New("disallowed method call")
 		}
 	}
 	return callExFromNative(ic, ic.VM.GetCurrentScriptHash(), cs, name, args, f, hasReturn, isDynamic, false)
