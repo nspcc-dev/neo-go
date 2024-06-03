@@ -2,6 +2,20 @@
 
 This document outlines major changes between releases.
 
+## 0.106.1 "Implication" (3 Jun 2024)
+
+An urgent release that fixes mainnet state difference at block 5462944 which halts
+blocks processing starting from the height 5468658. This release requires full node
+DB resynchronization for mainnet nodes. T5 testnet DB state is not affected by this
+bug (at least up to the current 4087361 height). Thus, DB resynchronisation may be
+skipped for testnet nodes. No configuration changes implied.
+
+Bugs fixed:
+ * mainnet state difference at block 5462944 caused by runtime notification
+   permissions check against the updated contract state instead of executing state
+   (#3472)
+ * unused neofs-contract dependency in the node modules (#3458)
+
 ## 0.106.0 "Zephyranthes" (21 May 2024)
 
 We're rolling out a large set of updates including all of Neo 3.7.4 protocol changes:
