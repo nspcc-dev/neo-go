@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
@@ -44,6 +45,8 @@ type scriptContext struct {
 
 	// NEF represents a NEF file for the current contract.
 	NEF *nef.File
+	// Manifest represents a manifest for the current contract.
+	Manifest *manifest.Manifest
 	// invTree is an invocation tree (or a branch of it) for this context.
 	invTree *invocations.Tree
 	// onUnload is a callback that should be called after current context unloading
@@ -247,6 +250,11 @@ func (c *Context) ScriptHash() util.Uint160 {
 // GetNEF returns NEF structure used by this context if it's present.
 func (c *Context) GetNEF() *nef.File {
 	return c.sc.NEF
+}
+
+// GetManifest returns Manifest used by this context if it's present.
+func (c *Context) GetManifest() *manifest.Manifest {
+	return c.sc.Manifest
 }
 
 // NumOfReturnVals returns the number of return values expected from this context.

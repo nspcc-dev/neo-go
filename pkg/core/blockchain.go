@@ -2928,7 +2928,7 @@ func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uin
 			initOffset = md.Offset
 		}
 		ic.Invocations[cs.Hash]++
-		ic.VM.LoadNEFMethod(&cs.NEF, util.Uint160{}, hash, callflag.ReadOnly,
+		ic.VM.LoadNEFMethod(&cs.NEF, &cs.Manifest, util.Uint160{}, hash, callflag.ReadOnly,
 			true, verifyOffset, initOffset, nil)
 	}
 	if len(witness.InvocationScript) != 0 {
