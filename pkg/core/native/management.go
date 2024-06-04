@@ -619,8 +619,6 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 			for _, hf := range config.Hardforks {
 				if _, ok := activeHFs[hf]; ok && ic.IsHardforkActivation(hf) {
 					isUpdate = true
-					activation := hf       // avoid loop variable pointer exporting.
-					activeIn = &activation // reuse ActiveIn variable for the initialization hardfork.
 					// Break immediately since native Initialize should be called starting from the first hardfork in a raw
 					// (if there are multiple hardforks with the same enabling height).
 					break
@@ -634,6 +632,10 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 				latestHF = hf
 				currentActiveHFs = append(currentActiveHFs, hf)
 			}
+		}
+		// activeIn is not included into the activeHFs list.
+		if activeIn != nil && activeIn.Cmp(latestHF) > 0 {
+			latestHF = *activeIn
 		}
 		if !(isDeploy || isUpdate) {
 			continue
