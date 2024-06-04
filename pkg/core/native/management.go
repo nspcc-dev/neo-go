@@ -677,7 +677,7 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		// The rest of activating hardforks also require initialization.
 		for _, hf := range currentActiveHFs {
 			if err := native.Initialize(ic, &hf, hfSpecificMD); err != nil {
-				return fmt.Errorf("initializing %s native contract at HF %d: %w", md.Name, activeIn, err)
+				return fmt.Errorf("initializing %s native contract at HF %s: %w", md.Name, hf, err)
 			}
 		}
 
