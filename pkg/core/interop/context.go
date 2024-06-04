@@ -256,10 +256,10 @@ func (c *ContractMD) HFSpecificContractMD(hf *config.Hardfork) *HFSpecificContra
 	}
 	md, ok := c.mdCache[key]
 	if !ok {
-		panic(fmt.Errorf("native contract descriptor cache is not initialized: contract %s, hardfork %s", c.Hash.StringLE(), key))
+		panic(fmt.Errorf("native contract descriptor cache is not initialized: contract %s, hardfork %s", c.Name, key))
 	}
 	if md == nil {
-		panic(fmt.Errorf("native contract descriptor cache is nil: contract %s, hardfork %s", c.Hash.StringLE(), key))
+		panic(fmt.Errorf("native contract descriptor cache is nil: contract %s, hardfork %s", c.Name, key))
 	}
 	return md
 }
