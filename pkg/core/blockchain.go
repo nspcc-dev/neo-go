@@ -1123,7 +1123,7 @@ func (bc *Blockchain) isHardforkEnabled(hf *config.Hardfork, blockHeight uint32)
 	hfs := bc.config.Hardforks
 	if hf != nil {
 		start, ok := hfs[hf.String()]
-		if !ok || start < blockHeight {
+		if !ok || start > blockHeight {
 			return false
 		}
 	}
