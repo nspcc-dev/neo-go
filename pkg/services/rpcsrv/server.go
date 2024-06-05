@@ -90,7 +90,6 @@ type (
 		GetNativeContractScriptHash(string) (util.Uint160, error)
 		GetNatives() []state.Contract
 		GetNextBlockValidators() ([]*keys.PublicKey, error)
-		GetNotaryContractScriptHash() util.Uint160
 		GetStateModule() core.StateRoot
 		GetStorageItem(id int32, key []byte) state.StorageItem
 		GetTestHistoricVM(t trigger.Type, tx *transaction.Transaction, nextBlockHeight uint32) (*interop.Context, error)

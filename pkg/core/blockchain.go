@@ -2224,14 +2224,6 @@ func (bc *Blockchain) GetNotaryServiceFeePerKey() int64 {
 	return bc.contracts.Policy.GetAttributeFeeInternal(bc.dao, transaction.NotaryAssistedT)
 }
 
-// GetNotaryContractScriptHash returns Notary native contract hash.
-func (bc *Blockchain) GetNotaryContractScriptHash() util.Uint160 {
-	if bc.P2PSigExtensionsEnabled() {
-		return bc.contracts.Notary.Hash
-	}
-	return util.Uint160{}
-}
-
 // GetNotaryDepositExpiration returns Notary deposit expiration height for the specified account.
 func (bc *Blockchain) GetNotaryDepositExpiration(acc util.Uint160) uint32 {
 	return bc.contracts.Notary.ExpirationOf(bc.dao, acc)
@@ -2819,7 +2811,7 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 			if !bc.IsHardforkEnabled(&transaction.NotaryAssistedActivation, bc.BlockHeight()) {
 				return fmt.Errorf("%w: NotaryAssisted attribute was found, but %s is not active yet", ErrInvalidAttribute, transaction.NotaryAssistedActivation)
 			}
-			if !tx.HasSigner(bc.contracts.Notary.Hash) {
+			if !tx.HasSigner(nativehashes.Notary) {
 				return fmt.Errorf("%w: NotaryAssisted attribute was found, but transaction is not signed by the Notary native contract", ErrInvalidAttribute)
 			}
 			if tx.Sender().Equals(nativehashes.Notary) && len(tx.Signers) != 2 {

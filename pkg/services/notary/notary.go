@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -32,7 +33,6 @@ type (
 	Ledger interface {
 		BlockHeight() uint32
 		GetMaxVerificationGAS() int64
-		GetNotaryContractScriptHash() util.Uint160
 		SubscribeForBlocks(ch chan *block.Block)
 		UnsubscribeFromBlocks(ch chan *block.Block)
 		VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
@@ -408,7 +408,7 @@ func (n *Notary) finalize(acc *wallet.Account, tx *transaction.Transaction, h ut
 		VerificationScript: []byte{},
 	}
 	for i, signer := range tx.Signers {
-		if signer.Account == n.Config.Chain.GetNotaryContractScriptHash() {
+		if signer.Account == nativehashes.Notary {
 			tx.Scripts[i] = notaryWitness
 			break
 		}
@@ -511,7 +511,7 @@ func (n *Notary) verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExp
 	if len(tx.Signers) < 2 {
 		return nil, errors.New("transaction should have at least 2 signers")
 	}
-	if !tx.HasSigner(n.Config.Chain.GetNotaryContractScriptHash()) {
+	if !tx.HasSigner(nativehashes.Notary) {
 		return nil, fmt.Errorf("P2PNotary contract should be a signer of the transaction")
 	}
 	result := make([]witnessInfo, len(tx.Signers))

@@ -25,19 +25,18 @@ import (
 type FakeChain struct {
 	config.Blockchain
 	*mempool.Pool
-	blocksCh                 []chan *block.Block
-	Blockheight              atomic.Uint32
-	PoolTxF                  func(*transaction.Transaction) error
-	poolTxWithData           func(*transaction.Transaction, any, *mempool.Pool) error
-	blocks                   map[util.Uint256]*block.Block
-	hdrHashes                map[uint32]util.Uint256
-	txs                      map[util.Uint256]*transaction.Transaction
-	VerifyWitnessF           func() (int64, error)
-	MaxVerificationGAS       int64
-	NotaryContractScriptHash util.Uint160
-	NotaryDepositExpiration  uint32
-	PostBlock                []func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block)
-	UtilityTokenBalance      *big.Int
+	blocksCh                []chan *block.Block
+	Blockheight             atomic.Uint32
+	PoolTxF                 func(*transaction.Transaction) error
+	poolTxWithData          func(*transaction.Transaction, any, *mempool.Pool) error
+	blocks                  map[util.Uint256]*block.Block
+	hdrHashes               map[uint32]util.Uint256
+	txs                     map[util.Uint256]*transaction.Transaction
+	VerifyWitnessF          func() (int64, error)
+	MaxVerificationGAS      int64
+	NotaryDepositExpiration uint32
+	PostBlock               []func(func(*transaction.Transaction, *mempool.Pool, bool) bool, *mempool.Pool, *block.Block)
+	UtilityTokenBalance     *big.Int
 }
 
 // IsHardforkEnabled implements Blockchainer interface.
@@ -127,14 +126,6 @@ func (*FakeChain) GetNatives() []state.Contract {
 func (chain *FakeChain) GetNotaryDepositExpiration(acc util.Uint160) uint32 {
 	if chain.NotaryDepositExpiration != 0 {
 		return chain.NotaryDepositExpiration
-	}
-	panic("TODO")
-}
-
-// GetNotaryContractScriptHash implements the Blockchainer interface.
-func (chain *FakeChain) GetNotaryContractScriptHash() util.Uint160 {
-	if !chain.NotaryContractScriptHash.Equals(util.Uint160{}) {
-		return chain.NotaryContractScriptHash
 	}
 	panic("TODO")
 }
