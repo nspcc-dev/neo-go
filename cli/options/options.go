@@ -29,6 +29,7 @@ import (
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
 )
 
@@ -219,6 +220,7 @@ var (
 // If logPath is configured -- function creates a dir and a file for logging.
 // If logPath is configured on Windows -- function returns closer to be
 // able to close sink for the opened log output file.
+// If the program is run in TTY then logger adds timestamp to its entries.
 func HandleLoggingParams(debug bool, cfg config.ApplicationConfiguration) (*zap.Logger, *zap.AtomicLevel, func() error, error) {
 	var (
 		level = zapcore.InfoLevel
@@ -239,7 +241,11 @@ func HandleLoggingParams(debug bool, cfg config.ApplicationConfiguration) (*zap.
 	cc.DisableStacktrace = true
 	cc.EncoderConfig.EncodeDuration = zapcore.StringDurationEncoder
 	cc.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	cc.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		cc.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	} else {
+		cc.EncoderConfig.EncodeTime = func(t time.Time, encoder zapcore.PrimitiveArrayEncoder) {}
+	}
 	cc.Encoding = "console"
 	cc.Level = zap.NewAtomicLevelAt(level)
 	cc.Sampling = nil
