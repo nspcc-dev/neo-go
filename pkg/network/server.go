@@ -1353,7 +1353,7 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 	if peer.Handshaked() {
 		if inv, ok := msg.Payload.(*payload.Inventory); ok {
 			if !inv.Type.Valid(s.chain.P2PSigExtensionsEnabled()) || len(inv.Hashes) == 0 {
-				return errInvalidInvType
+				return fmt.Errorf("%w: %s", errInvalidInvType, inv.Type.String())
 			}
 		}
 		switch msg.Command {
