@@ -44,12 +44,13 @@ const (
 )
 
 var (
-	errAlreadyConnected = errors.New("already connected")
-	errIdenticalID      = errors.New("identical node id")
-	errInvalidNetwork   = errors.New("invalid network")
-	errMaxPeers         = errors.New("max peers reached")
-	errServerShutdown   = errors.New("server shutdown")
-	errInvalidInvType   = errors.New("invalid inventory type")
+	errAlreadyConnected    = errors.New("already connected")
+	errIdenticalID         = errors.New("identical node id")
+	errInvalidNetwork      = errors.New("invalid network")
+	errMaxPeers            = errors.New("max peers reached")
+	errServerShutdown      = errors.New("server shutdown")
+	errInvalidInvType      = errors.New("invalid inventory type")
+	errBlocksRequestFailed = errors.New("blocks request failed")
 )
 
 type (
@@ -512,10 +513,17 @@ func (s *Server) run() {
 			if s.peers[drop.peer] {
 				delete(s.peers, drop.peer)
 				s.lock.Unlock()
-				s.log.Warn("peer disconnected",
-					zap.Stringer("addr", drop.peer.RemoteAddr()),
-					zap.Error(drop.reason),
-					zap.Int("peerCount", s.PeerCount()))
+				if errors.Is(drop.reason, errInvalidInvType) || errors.Is(drop.reason, errStateMismatch) || errors.Is(drop.reason, errBlocksRequestFailed) {
+					s.log.Warn("peer disconnected",
+						zap.Stringer("addr", drop.peer.RemoteAddr()),
+						zap.Error(drop.reason),
+						zap.Int("peerCount", s.PeerCount()))
+				} else {
+					s.log.Info("peer disconnected",
+						zap.Stringer("addr", drop.peer.RemoteAddr()),
+						zap.Error(drop.reason),
+						zap.Int("peerCount", s.PeerCount()))
+				}
 				if errors.Is(drop.reason, errIdenticalID) {
 					s.discovery.RegisterSelf(drop.peer)
 				} else {
@@ -793,7 +801,7 @@ func (s *Server) requestBlocksOrHeaders(p Peer) error {
 	}
 	err := s.requestBlocks(bq, p)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %w", errBlocksRequestFailed, err)
 	}
 	if requestMPTNodes {
 		return s.requestMPTNodes(p, s.stateSync.GetUnknownMPTNodesBatch(payload.MaxMPTHashesCount))
