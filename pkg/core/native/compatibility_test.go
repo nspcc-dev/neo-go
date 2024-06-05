@@ -10,8 +10,7 @@ import (
 
 // "C" and "O" can easily be typed by accident.
 func TestNamesASCII(t *testing.T) {
-	cfg := config.ProtocolConfiguration{P2PSigExtensions: true}
-	cs := NewContracts(cfg)
+	cs := NewContracts(config.ProtocolConfiguration{})
 	latestHF := config.HFLatestKnown
 	for _, c := range cs.Contracts {
 		require.True(t, isASCII(c.Metadata().Name))

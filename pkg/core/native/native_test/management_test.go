@@ -49,7 +49,6 @@ var (
 		nativenames.Policy:      `{"id":-7,"hash":"0xcc5e4edd9f5f8dba8bb65734541df7a1c081c67b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0A=","checksum":1094259016},"manifest":{"name":"PolicyContract","abi":{"methods":[{"name":"blockAccount","offset":0,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false},{"name":"getAttributeFee","offset":7,"parameters":[{"name":"attributeType","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"getExecFeeFactor","offset":14,"parameters":[],"returntype":"Integer","safe":true},{"name":"getFeePerByte","offset":21,"parameters":[],"returntype":"Integer","safe":true},{"name":"getStoragePrice","offset":28,"parameters":[],"returntype":"Integer","safe":true},{"name":"isBlocked","offset":35,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":true},{"name":"setAttributeFee","offset":42,"parameters":[{"name":"attributeType","type":"Integer"},{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setExecFeeFactor","offset":49,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setFeePerByte","offset":56,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setStoragePrice","offset":63,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"unblockAccount","offset":70,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
 		nativenames.Designation: `{"id":-8,"hash":"0x49cf4e5378ffcd4dec034fd98a174c5491e395e2","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0A=","checksum":983638438},"manifest":{"name":"RoleManagement","abi":{"methods":[{"name":"designateAsRole","offset":0,"parameters":[{"name":"role","type":"Integer"},{"name":"nodes","type":"Array"}],"returntype":"Void","safe":false},{"name":"getDesignatedByRole","offset":7,"parameters":[{"name":"role","type":"Integer"},{"name":"index","type":"Integer"}],"returntype":"Array","safe":true}],"events":[{"name":"Designation","parameters":[{"name":"Role","type":"Integer"},{"name":"BlockIndex","type":"Integer"}]}]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
 		nativenames.Oracle:      `{"id":-9,"hash":"0xfe924b7cfe89ddd271abaf7210a80a7e11178758","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0A=","checksum":2663858513},"manifest":{"name":"OracleContract","abi":{"methods":[{"name":"finish","offset":0,"parameters":[],"returntype":"Void","safe":false},{"name":"getPrice","offset":7,"parameters":[],"returntype":"Integer","safe":true},{"name":"request","offset":14,"parameters":[{"name":"url","type":"String"},{"name":"filter","type":"String"},{"name":"callback","type":"String"},{"name":"userData","type":"Any"},{"name":"gasForResponse","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setPrice","offset":21,"parameters":[{"name":"price","type":"Integer"}],"returntype":"Void","safe":false},{"name":"verify","offset":28,"parameters":[],"returntype":"Boolean","safe":true}],"events":[{"name":"OracleRequest","parameters":[{"name":"Id","type":"Integer"},{"name":"RequestContract","type":"Hash160"},{"name":"Url","type":"String"},{"name":"Filter","type":"String"}]},{"name":"OracleResponse","parameters":[{"name":"Id","type":"Integer"},{"name":"OriginalTx","type":"Hash256"}]}]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
-		nativenames.Notary:      `{"id":-10,"hash":"0xc1e14f19c3e60d0b9244d06dd7ba9b113135ec3b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0A=","checksum":1110259869},"manifest":{"name":"Notary","abi":{"methods":[{"name":"balanceOf","offset":0,"parameters":[{"name":"addr","type":"Hash160"}],"returntype":"Integer","safe":true},{"name":"expirationOf","offset":7,"parameters":[{"name":"addr","type":"Hash160"}],"returntype":"Integer","safe":true},{"name":"getMaxNotValidBeforeDelta","offset":14,"parameters":[],"returntype":"Integer","safe":true},{"name":"lockDepositUntil","offset":21,"parameters":[{"name":"address","type":"Hash160"},{"name":"till","type":"Integer"}],"returntype":"Boolean","safe":false},{"name":"onNEP17Payment","offset":28,"parameters":[{"name":"from","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"data","type":"Any"}],"returntype":"Void","safe":false},{"name":"setMaxNotValidBeforeDelta","offset":35,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"verify","offset":42,"parameters":[{"name":"signature","type":"Signature"}],"returntype":"Boolean","safe":true},{"name":"withdraw","offset":49,"parameters":[{"name":"from","type":"Hash160"},{"name":"to","type":"Hash160"}],"returntype":"Boolean","safe":false}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":["NEP-27"],"trusts":[],"extra":null},"updatecounter":0}`,
 	}
 	// cockatriceCSS holds serialized native contract states built for genesis block (with UpdateCounter 0)
 	// under assumption that hardforks from Aspidochelone to Cockatrice (included) are enabled.
@@ -66,6 +65,7 @@ var (
 		nativenames.Neo:         `{"id":-5,"hash":"0xef4073a0f2b305a38ec4050e4d3d28bc40ea63f5","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dA","checksum":1991619121},"manifest":{"name":"NeoToken","abi":{"methods":[{"name":"balanceOf","offset":0,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Integer","safe":true},{"name":"decimals","offset":7,"parameters":[],"returntype":"Integer","safe":true},{"name":"getAccountState","offset":14,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Array","safe":true},{"name":"getAllCandidates","offset":21,"parameters":[],"returntype":"InteropInterface","safe":true},{"name":"getCandidateVote","offset":28,"parameters":[{"name":"pubKey","type":"PublicKey"}],"returntype":"Integer","safe":true},{"name":"getCandidates","offset":35,"parameters":[],"returntype":"Array","safe":true},{"name":"getCommittee","offset":42,"parameters":[],"returntype":"Array","safe":true},{"name":"getCommitteeAddress","offset":49,"parameters":[],"returntype":"Hash160","safe":true},{"name":"getGasPerBlock","offset":56,"parameters":[],"returntype":"Integer","safe":true},{"name":"getNextBlockValidators","offset":63,"parameters":[],"returntype":"Array","safe":true},{"name":"getRegisterPrice","offset":70,"parameters":[],"returntype":"Integer","safe":true},{"name":"onNEP17Payment","offset":77,"parameters":[{"name":"from","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"data","type":"Any"}],"returntype":"Void","safe":false},{"name":"registerCandidate","offset":84,"parameters":[{"name":"pubkey","type":"PublicKey"}],"returntype":"Boolean","safe":false},{"name":"setGasPerBlock","offset":91,"parameters":[{"name":"gasPerBlock","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setRegisterPrice","offset":98,"parameters":[{"name":"registerPrice","type":"Integer"}],"returntype":"Void","safe":false},{"name":"symbol","offset":105,"parameters":[],"returntype":"String","safe":true},{"name":"totalSupply","offset":112,"parameters":[],"returntype":"Integer","safe":true},{"name":"transfer","offset":119,"parameters":[{"name":"from","type":"Hash160"},{"name":"to","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"data","type":"Any"}],"returntype":"Boolean","safe":false},{"name":"unclaimedGas","offset":126,"parameters":[{"name":"account","type":"Hash160"},{"name":"end","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"unregisterCandidate","offset":133,"parameters":[{"name":"pubkey","type":"PublicKey"}],"returntype":"Boolean","safe":false},{"name":"vote","offset":140,"parameters":[{"name":"account","type":"Hash160"},{"name":"voteTo","type":"PublicKey"}],"returntype":"Boolean","safe":false}],"events":[{"name":"Transfer","parameters":[{"name":"from","type":"Hash160"},{"name":"to","type":"Hash160"},{"name":"amount","type":"Integer"}]},{"name":"CandidateStateChanged","parameters":[{"name":"pubkey","type":"PublicKey"},{"name":"registered","type":"Boolean"},{"name":"votes","type":"Integer"}]},{"name":"Vote","parameters":[{"name":"account","type":"Hash160"},{"name":"from","type":"PublicKey"},{"name":"to","type":"PublicKey"},{"name":"amount","type":"Integer"}]},{"name":"CommitteeChanged","parameters":[{"name":"old","type":"Array"},{"name":"new","type":"Array"}]}]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":["NEP-17","NEP-27"],"trusts":[],"extra":null},"updatecounter":0}`,
 		nativenames.Policy:      `{"id":-7,"hash":"0xcc5e4edd9f5f8dba8bb65734541df7a1c081c67b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0A=","checksum":588003825},"manifest":{"name":"PolicyContract","abi":{"methods":[{"name":"blockAccount","offset":0,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false},{"name":"getAttributeFee","offset":7,"parameters":[{"name":"attributeType","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"getExecFeeFactor","offset":14,"parameters":[],"returntype":"Integer","safe":true},{"name":"getFeePerByte","offset":21,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMaxTraceableBlocks","offset":28,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMaxValidUntilBlockIncrement","offset":35,"parameters":[],"returntype":"Integer","safe":true},{"name":"getMillisecondsPerBlock","offset":42,"parameters":[],"returntype":"Integer","safe":true},{"name":"getStoragePrice","offset":49,"parameters":[],"returntype":"Integer","safe":true},{"name":"isBlocked","offset":56,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":true},{"name":"setAttributeFee","offset":63,"parameters":[{"name":"attributeType","type":"Integer"},{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setExecFeeFactor","offset":70,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setFeePerByte","offset":77,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMaxTraceableBlocks","offset":84,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMaxValidUntilBlockIncrement","offset":91,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setMillisecondsPerBlock","offset":98,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setStoragePrice","offset":105,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"unblockAccount","offset":112,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false}],"events":[{"name":"MillisecondsPerBlockChanged","parameters":[{"name":"old","type":"Integer"},{"name":"new","type":"Integer"}]}]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
 		nativenames.Designation: `{"id":-8,"hash":"0x49cf4e5378ffcd4dec034fd98a174c5491e395e2","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0A=","checksum":983638438},"manifest":{"name":"RoleManagement","abi":{"methods":[{"name":"designateAsRole","offset":0,"parameters":[{"name":"role","type":"Integer"},{"name":"nodes","type":"Array"}],"returntype":"Void","safe":false},{"name":"getDesignatedByRole","offset":7,"parameters":[{"name":"role","type":"Integer"},{"name":"index","type":"Integer"}],"returntype":"Array","safe":true}],"events":[{"name":"Designation","parameters":[{"name":"Role","type":"Integer"},{"name":"BlockIndex","type":"Integer"},{"name":"Old","type":"Array"},{"name":"New","type":"Array"}]}]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
+		nativenames.Notary:      `{"id":-10,"hash":"0xc1e14f19c3e60d0b9244d06dd7ba9b113135ec3b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0A=","checksum":1110259869},"manifest":{"name":"Notary","abi":{"methods":[{"name":"balanceOf","offset":0,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Integer","safe":true},{"name":"expirationOf","offset":7,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Integer","safe":true},{"name":"getMaxNotValidBeforeDelta","offset":14,"parameters":[],"returntype":"Integer","safe":true},{"name":"lockDepositUntil","offset":21,"parameters":[{"name":"account","type":"Hash160"},{"name":"till","type":"Integer"}],"returntype":"Boolean","safe":false},{"name":"onNEP17Payment","offset":28,"parameters":[{"name":"from","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"data","type":"Any"}],"returntype":"Void","safe":false},{"name":"setMaxNotValidBeforeDelta","offset":35,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"verify","offset":42,"parameters":[{"name":"signature","type":"ByteArray"}],"returntype":"Boolean","safe":true},{"name":"withdraw","offset":49,"parameters":[{"name":"from","type":"Hash160"},{"name":"to","type":"Hash160"}],"returntype":"Boolean","safe":false}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":["NEP-27"],"trusts":[],"extra":null},"updatecounter":0}`,
 	}
 )
 
@@ -76,6 +76,11 @@ func init() {
 		}
 		if _, ok := echidnaCSS[k]; !ok {
 			echidnaCSS[k] = cockatriceCSS[k]
+		}
+	}
+	for k, v := range cockatriceCSS {
+		if _, ok := echidnaCSS[k]; !ok {
+			echidnaCSS[k] = v
 		}
 	}
 }
@@ -106,6 +111,10 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 			h := state.CreateNativeContractHash(name)
 			c.InvokeAndCheck(t, func(t testing.TB, stack []stackitem.Item) {
 				si := stack[0]
+				if _, ok := expected[name]; !ok {
+					require.Equal(t, stackitem.Null{}, si, fmt.Errorf("contract %s state found", name))
+					return
+				}
 				var cs = &state.Contract{}
 				require.NoError(t, cs.FromStackItem(si), name)
 				jBytes, err := ojson.Marshal(cs)
@@ -118,7 +127,6 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 	t.Run("disabled hardforks", func(t *testing.T) {
 		mgmt := newCustomManagementClient(t, func(cfg *config.Blockchain) {
 			cfg.Hardforks = map[string]uint32{}
-			cfg.P2PSigExtensions = true
 		})
 		check(t, mgmt, defaultCSS)
 	})
@@ -128,9 +136,9 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 				config.HFAspidochelone.String(): 100500,
 				config.HFBasilisk.String():      100500,
 				config.HFCockatrice.String():    100500,
+				config.HFDomovoi.String():       100500,
 				config.HFEchidna.String():       100500,
 			}
-			cfg.P2PSigExtensions = true
 		})
 		check(t, mgmt, defaultCSS)
 	})
@@ -139,7 +147,6 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 			cfg.Hardforks = map[string]uint32{
 				config.HFAspidochelone.String(): 0,
 			}
-			cfg.P2PSigExtensions = true
 		})
 		check(t, mgmt, defaultCSS)
 	})
@@ -149,7 +156,6 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 				config.HFAspidochelone.String(): 0,
 				config.HFBasilisk.String():      0,
 			}
-			cfg.P2PSigExtensions = true
 		})
 		check(t, mgmt, defaultCSS)
 	})
@@ -160,7 +166,17 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 				config.HFBasilisk.String():      0,
 				config.HFCockatrice.String():    0,
 			}
-			cfg.P2PSigExtensions = true
+		})
+		check(t, mgmt, cockatriceCSS)
+	})
+	t.Run("Cockatrice enabled", func(t *testing.T) {
+		mgmt := newCustomManagementClient(t, func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFAspidochelone.String(): 0,
+				config.HFBasilisk.String():      0,
+				config.HFCockatrice.String():    0,
+				config.HFDomovoi.String():       0,
+			}
 		})
 		check(t, mgmt, cockatriceCSS)
 	})
@@ -172,7 +188,6 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 				config.HFCockatrice.String():    0,
 				config.HFEchidna.String():       0,
 			}
-			cfg.P2PSigExtensions = true
 		})
 
 		check(t, mgmt, echidnaCSS)
@@ -193,7 +208,6 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 			config.HFDomovoi.String():       domovoiHeight,
 			config.HFEchidna.String():       echidnaHeight,
 		}
-		cfg.P2PSigExtensions = true
 	})
 	e := mgmt.Executor
 
@@ -204,6 +218,8 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 	var expected []state.NotificationEvent
 	for _, name := range nativenames.All {
 		switch name {
+		case nativenames.Notary:
+			continue
 		case nativenames.Gas:
 			expected = append(expected, state.NotificationEvent{
 				ScriptHash: nativehashes.GasToken,
@@ -235,7 +251,7 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 	}
 	require.Equal(t, expected, aer[0].Events)
 
-	// Generate some blocks and check Update notifications.
+	// Generate some blocks and check Update notifications for Cockatrice hardfork.
 	mgmt.GenerateNewBlocks(t, cockatriceHeight-int(mgmt.Chain.BlockHeight()))
 	aer, err = mgmt.Chain.GetAppExecResults(mgmt.Chain.GetHeaderHash(cockatriceHeight), trigger.OnPersist)
 	require.NoError(t, err)
@@ -267,18 +283,29 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 			}),
 		})
 	}
+	expected = append(expected, state.NotificationEvent{
+		ScriptHash: nativehashes.ContractManagement,
+		Name:       "Deploy",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(nativehashes.Notary),
+		}),
+	})
 	require.Equal(t, expected, aer[0].Events)
 }
 
 func TestManagement_NativeUpdate(t *testing.T) {
-	const cockatriceHeight = 3
+	const (
+		cockatriceHeight = 3
+		echidnaHeight    = 6
+	)
+
 	c := newCustomManagementClient(t, func(cfg *config.Blockchain) {
 		cfg.Hardforks = map[string]uint32{
 			config.HFAspidochelone.String(): 0,
 			config.HFBasilisk.String():      0,
 			config.HFCockatrice.String():    cockatriceHeight,
+			config.HFEchidna.String():       echidnaHeight,
 		}
-		cfg.P2PSigExtensions = true
 	})
 
 	// Add some blocks up to the Cockatrice enabling height and check the default natives state.
@@ -287,7 +314,12 @@ func TestManagement_NativeUpdate(t *testing.T) {
 		for _, name := range nativenames.All {
 			h := state.CreateNativeContractHash(name)
 			cs := c.Chain.GetContractState(h)
-			require.NotNil(t, cs, name)
+			if name == nativenames.Notary {
+				require.Nil(t, cs, name)
+				continue
+			} else {
+				require.NotNil(t, cs, name)
+			}
 			jBytes, err := ojson.Marshal(cs)
 			require.NoError(t, err, name)
 			require.Equal(t, defaultCSS[name], string(jBytes), fmt.Errorf("contract %s state mismatch", name))
@@ -299,15 +331,40 @@ func TestManagement_NativeUpdate(t *testing.T) {
 	for _, name := range nativenames.All {
 		h := state.CreateNativeContractHash(name)
 		cs := c.Chain.GetContractState(h)
-		require.NotNil(t, cs, name)
+		if name == nativenames.Notary {
+			require.Nil(t, cs, name)
+			continue
+		} else {
+			require.NotNil(t, cs, name)
+		}
+		var actual = cs
 		if name == nativenames.Neo || name == nativenames.CryptoLib {
 			// A tiny hack to reuse cockatriceCSS map in the check below.
 			require.Equal(t, uint16(1), cs.UpdateCounter, name)
-			cs.UpdateCounter--
+			cp := *cs
+			actual = &cp // avoid Management cache corruption.
+			actual.UpdateCounter--
 		}
-		jBytes, err := ojson.Marshal(cs)
+		jBytes, err := ojson.Marshal(actual)
 		require.NoError(t, err, name)
 		require.Equal(t, cockatriceCSS[name], string(jBytes), fmt.Errorf("contract %s state mismatch", name))
+	}
+
+	// Add some blocks up to the Echidna enabling height and check the natives state.
+	for i := c.Chain.BlockHeight(); i < echidnaHeight; i++ {
+		c.AddNewBlock(t)
+	}
+	for _, name := range nativenames.All {
+		h := state.CreateNativeContractHash(name)
+		cs := c.Chain.GetContractState(h)
+		require.NotNil(t, cs, name)
+		// A tiny hack to reuse echidnaCSS map in the check below.
+		cp := *cs
+		actual := &cp // avoid Management cache corruption.
+		actual.UpdateCounter = 0
+		jBytes, err := ojson.Marshal(actual)
+		require.NoError(t, err, name)
+		require.Equal(t, echidnaCSS[name], string(jBytes), fmt.Errorf("contract %s state mismatch", name))
 	}
 }
 
@@ -322,7 +379,6 @@ func TestManagement_NativeUpdate_Call(t *testing.T) {
 			config.HFBasilisk.String():      0,
 			config.HFCockatrice.String():    cockatriceHeight,
 		}
-		cfg.P2PSigExtensions = true
 	})
 
 	// Invoke Cockatrice-dependant method before Cockatrice should fail.
@@ -344,20 +400,25 @@ func TestManagement_NativeUpdate_Call(t *testing.T) {
 // different block heights depending on hardfork settings. This test is located here since it
 // depends on defaultCSS and cockatriceCSS.
 func TestBlockchain_GetNatives(t *testing.T) {
-	const cockatriceHeight = 3
+	const (
+		cockatriceHeight = 3
+		domovoiHeight    = 5
+		echidnaHeight    = 6
+	)
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
 		cfg.Hardforks = map[string]uint32{
 			config.HFAspidochelone.String(): 0,
 			config.HFBasilisk.String():      0,
 			config.HFCockatrice.String():    cockatriceHeight,
+			config.HFDomovoi.String():       domovoiHeight,
+			config.HFEchidna.String():       echidnaHeight,
 		}
-		cfg.P2PSigExtensions = true
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
 
 	// Check genesis-based native contract states.
 	natives := bc.GetNatives()
-	require.Equal(t, len(nativenames.All), len(natives))
+	require.Equal(t, len(nativenames.All)-1, len(natives)) // Notary is deployed starting from D hardfork.
 	for _, cs := range natives {
 		csFull := state.Contract{
 			ContractBase:  cs.ContractBase,
@@ -368,10 +429,10 @@ func TestBlockchain_GetNatives(t *testing.T) {
 		require.Equal(t, defaultCSS[cs.Manifest.Name], string(jBytes), fmt.Errorf("contract %s state mismatch", cs.Manifest.Name))
 	}
 
-	// Check native state after update.
+	// Check native state after Cockatrice.
 	e.GenerateNewBlocks(t, cockatriceHeight)
 	natives = bc.GetNatives()
-	require.Equal(t, len(nativenames.All), len(natives))
+	require.Equal(t, len(nativenames.All)-1, len(natives)) // Notary is deployed starting from D hardfork.
 	for _, cs := range natives {
 		csFull := state.Contract{
 			ContractBase:  cs.ContractBase,
@@ -380,6 +441,20 @@ func TestBlockchain_GetNatives(t *testing.T) {
 		jBytes, err := ojson.Marshal(csFull)
 		require.NoError(t, err, cs.Manifest.Name)
 		require.Equal(t, cockatriceCSS[cs.Manifest.Name], string(jBytes), fmt.Errorf("contract %s state mismatch", cs.Manifest.Name))
+	}
+
+	// Check native state after Echidna.
+	e.GenerateNewBlocks(t, echidnaHeight-cockatriceHeight)
+	natives = bc.GetNatives()
+	require.Equal(t, len(nativenames.All), len(natives))
+	for _, cs := range natives {
+		csFull := state.Contract{
+			ContractBase:  cs.ContractBase,
+			UpdateCounter: 0, // Since we're comparing only state.NativeContract part, set the update counter to 0 to match the echidnaCSS.
+		}
+		jBytes, err := ojson.Marshal(csFull)
+		require.NoError(t, err, cs.Manifest.Name)
+		require.Equal(t, echidnaCSS[cs.Manifest.Name], string(jBytes), fmt.Errorf("contract %s state mismatch", cs.Manifest.Name))
 	}
 }
 
@@ -450,12 +525,8 @@ func TestManagement_ContractCache(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, vmstate.Halt, aer[0].VMState, aer[0].FaultException)
 			cs := aer[0].Stack[0]
-			if h.Equals(nativehashes.Notary) {
-				require.True(t, cs.Equals(stackitem.Null{}))
-			} else {
-				require.False(t, cs.Equals(stackitem.Null{}))
-			}
-			managementInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(!h.Equals(nativehashes.Notary)))
+			require.False(t, cs.Equals(stackitem.Null{}))
+			managementInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(true))
 		})
 	}
 }

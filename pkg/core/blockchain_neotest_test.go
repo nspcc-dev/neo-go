@@ -69,7 +69,6 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	ps, path := newLevelDBForTestingWithPath(t, "")
 	customConfig := func(c *config.Blockchain) {
 		c.StateRootInHeader = true // Need for P2PStateExchangeExtensions check.
-		c.P2PSigExtensions = true  // Need for basic chain initializer.
 	}
 	bc, validators, committee, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, ps)
 	require.NoError(t, err)
@@ -763,9 +762,7 @@ func TestBlockchain_VerifyHashAgainstScript(t *testing.T) {
 }
 
 func TestBlockchain_IsTxStillRelevant(t *testing.T) {
-	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
-		c.P2PSigExtensions = true
-	})
+	bc, acc := chain.NewSingle(t)
 	e := neotest.NewExecutor(t, bc, acc, acc)
 
 	mp := bc.GetMemPool()
@@ -1216,7 +1213,6 @@ func TestConfig_LoadDefaultConfigs(t *testing.T) {
 
 func TestBlockchain_VerifyTx(t *testing.T) {
 	bc, validator, committee := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-		c.P2PSigExtensions = true
 		c.ReservedAttributes = true
 		c.Hardforks = map[string]uint32{
 			config.HFEchidna.String(): 0,
@@ -1639,7 +1635,6 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			}
 			t.Run("Disabled", func(t *testing.T) { // check that NVB attribute is not an extension anymore.
 				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-					c.P2PSigExtensions = false
 					c.ReservedAttributes = false
 				})
 				eBad := neotest.NewExecutor(t, bcBad, validatorBad, committeeBad)
@@ -1680,7 +1675,6 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			}
 			t.Run("Disabled", func(t *testing.T) {
 				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-					c.P2PSigExtensions = false
 					c.ReservedAttributes = false
 				})
 				eBad := neotest.NewExecutor(t, bcBad, validatorBad, committeeBad)
@@ -1724,7 +1718,6 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			}
 			t.Run("disabled", func(t *testing.T) { // check that Conflicts attribute is not an extension anymore.
 				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-					c.P2PSigExtensions = false
 					c.ReservedAttributes = false
 				})
 				eBad := neotest.NewExecutor(t, bcBad, validatorBad, committeeBad)
@@ -2063,7 +2056,6 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			}
 			t.Run("Disabled", func(t *testing.T) {
 				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-					c.P2PSigExtensions = true
 					c.Hardforks = map[string]uint32{
 						config.HFAspidochelone.String(): 0,
 						config.HFBasilisk.String():      0,
@@ -2376,9 +2368,7 @@ func TestBlockchain_ResetStateErrors(t *testing.T) {
 func TestBlockchain_ResetState(t *testing.T) {
 	// Create the DB.
 	db, path := newLevelDBForTestingWithPath(t, t.TempDir())
-	bc, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, func(cfg *config.Blockchain) {
-		cfg.P2PSigExtensions = true
-	}, db, false)
+	bc, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, nil, db, false)
 	go bc.Run()
 	e := neotest.NewExecutor(t, bc, validators, committee)
 	basicchain.Init(t, "../../", e)
@@ -2447,9 +2437,7 @@ func TestBlockchain_ResetState(t *testing.T) {
 
 	// Start new chain with existing DB, but do not run it.
 	db, _ = newLevelDBForTestingWithPath(t, path)
-	bc, _, _ = chain.NewMultiWithCustomConfigAndStore(t, func(cfg *config.Blockchain) {
-		cfg.P2PSigExtensions = true
-	}, db, false)
+	bc, _, _ = chain.NewMultiWithCustomConfigAndStore(t, nil, db, false)
 	defer db.Close()
 	require.Equal(t, topBlockHeight, bc.BlockHeight()) // ensure DB was properly initialized.
 
@@ -2583,8 +2571,13 @@ func TestBlockchain_GenesisTransactionExtension(t *testing.T) {
 // in the right order.
 func TestNativenames(t *testing.T) {
 	bc, _ := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
-		cfg.Hardforks = map[string]uint32{}
-		cfg.P2PSigExtensions = true
+		cfg.Hardforks = map[string]uint32{
+			config.HFAspidochelone.String(): 0,
+			config.HFBasilisk.String():      0,
+			config.HFCockatrice.String():    0,
+			config.HFDomovoi.String():       0,
+			config.HFEchidna.String():       0,
+		}
 	})
 	natives := bc.GetNatives()
 	require.Equal(t, len(natives), len(nativenames.All))

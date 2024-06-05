@@ -70,9 +70,7 @@ func dupNotaryRequest(t *testing.T, p *payload.P2PNotaryRequest) *payload.P2PNot
 }
 
 func TestNotary(t *testing.T) {
-	bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-		c.P2PSigExtensions = true
-	})
+	bc, validators, committee := chain.NewMulti(t)
 	e := neotest.NewExecutor(t, bc, validators, committee)
 	notaryHash := e.NativeHash(t, nativenames.Notary)
 	designationSuperInvoker := e.NewInvoker(e.NativeHash(t, nativenames.Designation), validators, committee)
@@ -793,7 +791,6 @@ func TestNotary_GenesisRoles(t *testing.T) {
 	acc := w.Accounts[0]
 
 	bc, _, _ := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-		c.P2PSigExtensions = true
 		c.Genesis.Roles = map[noderoles.Role]keys.PublicKeys{
 			noderoles.P2PNotary: {acc.PublicKey()},
 		}

@@ -101,15 +101,13 @@ func NewContracts(cfg config.ProtocolConfiguration) *Contracts {
 	cs.Oracle = oracle
 	cs.Contracts = append(cs.Contracts, oracle)
 
-	if cfg.P2PSigExtensions {
-		notary := newNotary()
-		notary.GAS = gas
-		notary.NEO = neo
-		notary.Desig = desig
-		notary.Policy = policy
-		cs.Notary = notary
-		cs.Contracts = append(cs.Contracts, notary)
-	}
+	notary := newNotary()
+	notary.GAS = gas
+	notary.NEO = neo
+	notary.Desig = desig
+	notary.Policy = policy
+	cs.Notary = notary
+	cs.Contracts = append(cs.Contracts, notary)
 
 	return cs
 }

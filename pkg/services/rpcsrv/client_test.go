@@ -468,6 +468,10 @@ func TestClientNEOContract(t *testing.T) {
 func TestClientNotary(t *testing.T) {
 	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
+	// Echidna should be enabled since this test uses Notary contract.
+	_, ok := chain.GetConfig().Hardforks[config.HFEchidna.String()]
+	require.True(t, ok)
+
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	t.Cleanup(c.Close)

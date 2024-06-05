@@ -18,23 +18,18 @@ func TestBlockchain_DumpAndRestore(t *testing.T) {
 	t.Run("no state root", func(t *testing.T) {
 		testDumpAndRestore(t, func(c *config.Blockchain) {
 			c.StateRootInHeader = false
-			c.P2PSigExtensions = true
 		}, nil)
 	})
 	t.Run("with state root", func(t *testing.T) {
 		testDumpAndRestore(t, func(c *config.Blockchain) {
 			c.StateRootInHeader = true
-			c.P2PSigExtensions = true
 		}, nil)
 	})
 	t.Run("remove untraceable", func(t *testing.T) {
 		// Dump can only be created if all blocks and transactions are present.
-		testDumpAndRestore(t, func(c *config.Blockchain) {
-			c.P2PSigExtensions = true
-		}, func(c *config.Blockchain) {
+		testDumpAndRestore(t, nil, func(c *config.Blockchain) {
 			c.MaxTraceableBlocks = 2
 			c.Ledger.RemoveUntraceableBlocks = true
-			c.P2PSigExtensions = true
 		})
 	})
 }

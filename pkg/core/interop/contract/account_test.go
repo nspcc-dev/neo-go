@@ -120,9 +120,12 @@ func TestCreateMultisigAccount(t *testing.T) {
 func TestCreateAccount_HFAspidochelone(t *testing.T) {
 	const enabledHeight = 3
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
-		c.P2PSigExtensions = true // `basicchain.Init` requires Notary enabled
 		c.Hardforks = map[string]uint32{
 			config.HFAspidochelone.String(): enabledHeight,
+			config.HFBasilisk.String():      enabledHeight,
+			config.HFCockatrice.String():    enabledHeight,
+			config.HFDomovoi.String():       enabledHeight,
+			config.HFEchidna.String():       enabledHeight,
 		}
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)

@@ -3250,9 +3250,6 @@ func (bc *Blockchain) GetMaxVerificationGAS() int64 {
 
 // GetMaxNotValidBeforeDelta returns maximum NotValidBeforeDelta Notary limit.
 func (bc *Blockchain) GetMaxNotValidBeforeDelta() (uint32, error) {
-	if !bc.config.P2PSigExtensions {
-		panic("disallowed call to Notary") // critical error, thus panic.
-	}
 	if !bc.IsHardforkEnabled(bc.contracts.Notary.ActiveIn(), bc.BlockHeight()) {
 		return 0, fmt.Errorf("native Notary is active starting from %s", bc.contracts.Notary.ActiveIn().String())
 	}

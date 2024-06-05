@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
@@ -77,9 +78,10 @@ func InitSimple(t *testing.T, rootpath string, e *neotest.Executor) {
 // Init pushes some predefined set  of transactions into the given chain, it needs a path to
 // the root project directory.
 func Init(t *testing.T, rootpath string, e *neotest.Executor) {
-	if !e.Chain.GetConfig().P2PSigExtensions {
-		t.Fatal("P2PSigExtensions should be enabled to init basic chain")
-	}
+	const notaryDepositHeight uint32 = 8
+	echidnaH, ok := e.Chain.GetConfig().Hardforks[config.HFEchidna.String()]
+	require.Truef(t, ok, "%s hardfork should be enabled since basic chain uses Notary contract", config.HFEchidna.String())
+	require.LessOrEqualf(t, echidnaH, notaryDepositHeight-1, "%s hardfork should be enabled starting from height %d, got: %d", config.HFEchidna.String(), notaryDepositHeight-1, echidnaH)
 
 	var (
 		// examplesPrefix is a prefix of the example smart-contracts.
@@ -189,6 +191,7 @@ func Init(t *testing.T, rootpath string, e *neotest.Executor) {
 	// Block #8: deposit some GAS to notary contract for priv0.
 	transferTxH = gasPriv0Invoker.Invoke(t, true, "transfer", priv0ScriptHash, notaryHash, 10_0000_0000, []any{priv0ScriptHash, int64(e.Chain.BlockHeight() + 1000)})
 	t.Logf("notaryDepositTxPriv0: %v", transferTxH.StringLE())
+	require.Equal(t, uint32(notaryDepositHeight), e.Chain.BlockHeight(), "notaryDepositHeight constant is out of date")
 
 	// Block #9: designate new Notary node.
 	ntr, err := wallet.NewWalletFromFile(path.Join(notaryModulePath, "./testdata/notary1.json"))

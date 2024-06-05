@@ -52,7 +52,10 @@ const (
 	defaultMaxNotValidBeforeDelta = 140 // 20 rounds for 7 validators, a little more than half an hour
 )
 
-var maxNotValidBeforeDeltaKey = []byte{10}
+var (
+	maxNotValidBeforeDeltaKey = []byte{10}
+	notaryActiveIn            = config.HFEchidna
+)
 
 var (
 	_ interop.Contract        = (*Notary)(nil)
@@ -85,7 +88,7 @@ func newNotary() *Notary {
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("lockDepositUntil", smartcontract.BoolType,
-		manifest.NewParameter("address", smartcontract.Hash160Type),
+		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("till", smartcontract.IntegerType))
 	md = newMethodAndPrice(n.lockDepositUntil, 1<<15, callflag.States)
 	n.AddMethod(md, desc)
@@ -97,17 +100,17 @@ func newNotary() *Notary {
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("balanceOf", smartcontract.IntegerType,
-		manifest.NewParameter("addr", smartcontract.Hash160Type))
+		manifest.NewParameter("account", smartcontract.Hash160Type))
 	md = newMethodAndPrice(n.balanceOf, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("expirationOf", smartcontract.IntegerType,
-		manifest.NewParameter("addr", smartcontract.Hash160Type))
+		manifest.NewParameter("account", smartcontract.Hash160Type))
 	md = newMethodAndPrice(n.expirationOf, 1<<15, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("verify", smartcontract.BoolType,
-		manifest.NewParameter("signature", smartcontract.SignatureType))
+		manifest.NewParameter("signature", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(n.verify, nativeprices.NotaryVerificationPrice, callflag.ReadStates)
 	n.AddMethod(md, desc)
 
@@ -202,7 +205,7 @@ func (n *Notary) PostPersist(ic *interop.Context) error {
 
 // ActiveIn implements the Contract interface.
 func (n *Notary) ActiveIn() *config.Hardfork {
-	return nil
+	return &notaryActiveIn
 }
 
 // onPayment records the deposited amount as belonging to "from" address with a lock

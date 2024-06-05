@@ -36,8 +36,7 @@ import (
 )
 
 func TestContractHashes(t *testing.T) {
-	cfg := config.ProtocolConfiguration{P2PSigExtensions: true}
-	cs := native.NewContracts(cfg)
+	cs := native.NewContracts(config.ProtocolConfiguration{})
 	require.Equalf(t, []byte(neo.Hash), cs.NEO.Hash.BytesBE(), "%q", string(cs.NEO.Hash.BytesBE()))
 	require.Equalf(t, []byte(gas.Hash), cs.GAS.Hash.BytesBE(), "%q", string(cs.GAS.Hash.BytesBE()))
 	require.Equalf(t, []byte(oracle.Hash), cs.Oracle.Hash.BytesBE(), "%q", string(cs.Oracle.Hash.BytesBE()))
@@ -147,8 +146,7 @@ type nativeTestCase struct {
 
 // Here we test that corresponding method does exist, is invoked and correct value is returned.
 func TestNativeHelpersCompile(t *testing.T) {
-	cfg := config.ProtocolConfiguration{P2PSigExtensions: true}
-	cs := native.NewContracts(cfg)
+	cs := native.NewContracts(config.ProtocolConfiguration{})
 	u160 := `interop.Hash160("aaaaaaaaaaaaaaaaaaaa")`
 	u256 := `interop.Hash256("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`
 	pub := `interop.PublicKey("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")`

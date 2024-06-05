@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/basicchain"
-	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
@@ -39,9 +38,7 @@ var (
 func TestCreateBasicChain(t *testing.T) {
 	const saveChain = false
 
-	bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(cfg *config.Blockchain) {
-		cfg.P2PSigExtensions = true
-	})
+	bc, validators, committee := chain.NewMulti(t)
 	e := neotest.NewExecutor(t, bc, validators, committee)
 
 	basicchain.Init(t, "../../", e)

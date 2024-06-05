@@ -130,7 +130,6 @@ func newTestVMClIWithState(t *testing.T) *executor {
 	require.NoError(t, err)
 	customConfig := func(c *config.Blockchain) {
 		c.StateRootInHeader = true // Need for P2PStateExchangeExtensions check.
-		c.P2PSigExtensions = true  // Need for basic chain initializer.
 	}
 	bc, validators, committee, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, store)
 	require.NoError(t, err)

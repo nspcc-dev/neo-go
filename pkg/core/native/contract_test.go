@@ -10,8 +10,7 @@ import (
 // TestNativeGetMethod is needed to ensure that methods list has the same sorting
 // rule as we expect inside the `ContractMD.GetMethod`.
 func TestNativeGetMethod(t *testing.T) {
-	cfg := config.ProtocolConfiguration{P2PSigExtensions: true}
-	cs := NewContracts(cfg)
+	cs := NewContracts(config.ProtocolConfiguration{})
 	latestHF := config.HFLatestKnown
 	for _, c := range cs.Contracts {
 		hfMD := c.Metadata().HFSpecificContractMD(&latestHF)
