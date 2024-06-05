@@ -3017,12 +3017,7 @@ func (bc *Blockchain) verifyTxWitnesses(t *transaction.Transaction, block *block
 
 // verifyHeaderWitnesses is a block-specific implementation of VerifyWitnesses logic.
 func (bc *Blockchain) verifyHeaderWitnesses(currHeader, prevHeader *block.Header) error {
-	var hash util.Uint160
-	if prevHeader == nil && currHeader.PrevHash.Equals(util.Uint256{}) {
-		hash = currHeader.Script.ScriptHash()
-	} else {
-		hash = prevHeader.NextConsensus
-	}
+	hash := prevHeader.NextConsensus
 	_, err := bc.VerifyWitness(hash, currHeader, &currHeader.Script, HeaderVerificationGasLimit)
 	return err
 }

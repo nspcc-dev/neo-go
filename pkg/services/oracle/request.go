@@ -157,6 +157,11 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 				resp.Code = transaction.Error
 			}
 		case neofs.URIScheme:
+			if len(o.MainCfg.NeoFS.Nodes) == 0 {
+				o.Log.Warn("no NeoFS nodes configured", zap.String("url", req.Req.URL))
+				resp.Code = transaction.Error
+				break
+			}
 			ctx, cancel := context.WithTimeout(context.Background(), o.MainCfg.NeoFS.Timeout)
 			defer cancel()
 			index := (int(req.ID) + incTx.attempts) % len(o.MainCfg.NeoFS.Nodes)
