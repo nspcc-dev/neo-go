@@ -67,6 +67,9 @@ func TestGAS_RewardWithP2PSigExtensionsEnabled(t *testing.T) {
 
 	bc, validator, committee := chain.NewMultiWithCustomConfig(t, func(cfg *config.Blockchain) {
 		cfg.P2PSigExtensions = true
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): 0,
+		}
 	})
 	e := neotest.NewExecutor(t, bc, validator, committee)
 	gasCommitteeInvoker := e.CommitteeInvoker(e.NativeHash(t, nativenames.Gas))

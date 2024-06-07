@@ -1,8 +1,13 @@
 package transaction
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
+
+// NotaryAssistedActivation stores the hardfork of NotaryAssisted transaction attribute
+// activation.
+var NotaryAssistedActivation = config.HFEchidna
 
 // NotaryAssisted represents attribute for notary service transactions.
 type NotaryAssisted struct {
