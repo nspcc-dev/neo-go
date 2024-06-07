@@ -2218,6 +2218,9 @@ func (bc *Blockchain) GetNotaryBalance(acc util.Uint160) *big.Int {
 // GetNotaryServiceFeePerKey returns a NotaryAssisted transaction attribute fee
 // per key which is a reward per notary request key for designated notary nodes.
 func (bc *Blockchain) GetNotaryServiceFeePerKey() int64 {
+	if !bc.IsHardforkEnabled(&transaction.NotaryAssistedActivation, bc.BlockHeight()) {
+		return 0
+	}
 	return bc.contracts.Policy.GetAttributeFeeInternal(bc.dao, transaction.NotaryAssistedT)
 }
 
