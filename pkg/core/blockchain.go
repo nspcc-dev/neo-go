@@ -2117,6 +2117,9 @@ func (bc *Blockchain) GetNotaryBalance(acc util.Uint160) *big.Int {
 // per key which is a reward per notary request key for designated notary nodes.
 // Default value is returned if Notary contract is not yet active.
 func (bc *Blockchain) GetNotaryServiceFeePerKey() int64 {
+	if !bc.isHardforkEnabled(&transaction.NotaryAssistedActivation, bc.BlockHeight()) {
+		return 0
+	}
 	return bc.contracts.Policy.GetAttributeFeeInternal(bc.dao, transaction.NotaryAssistedT)
 }
 
