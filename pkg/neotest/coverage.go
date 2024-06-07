@@ -14,7 +14,7 @@ import (
 
 var rawCoverage = make(map[scriptHash]*scriptRawCoverage)
 
-var enabled = false
+var enabled bool
 var coverProfile = ""
 
 type scriptHash = util.Uint160
