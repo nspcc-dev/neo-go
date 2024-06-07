@@ -61,7 +61,10 @@ func coverageHook() vm.OnExecHook {
 }
 
 func reportCoverage() {
-	f, _ := os.Create(coverProfile)
+	f, err := os.Create(coverProfile)
+	if err != nil {
+		panic(fmt.Sprintf("coverage: can't create file '%s' to write coverage report", coverProfile))
+	}
 	defer f.Close()
 	writeCoverageReport(f)
 }
