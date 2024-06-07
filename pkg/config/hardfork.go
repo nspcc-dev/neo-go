@@ -27,6 +27,9 @@ const (
 	// https://github.com/neo-project/neo/pull/2925) and #3362 (ported from
 	// https://github.com/neo-project/neo/pull/3154).
 	HFCockatrice // Cockatrice
+	// HFDomovoi represents hard-fork introduced in #3476 (ported from
+	// https://github.com/neo-project/neo/pull/3290).
+	HFDomovoi // Domovoi
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.
 	hfLast

@@ -25,8 +25,9 @@ ProtocolConfiguration:
   P2PSigExtensions: true
   Hardforks:
     Aspidochelone: 3000000
-    Basilisk: 4500000
-    Cockatrice: 5800000
+    Basilisk: 3500000
+    Cockatrice: 3500000
+    Domovoi: 3500000
 
 ApplicationConfiguration:
   SkipBlockVerification: false
