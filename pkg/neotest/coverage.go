@@ -67,7 +67,7 @@ func reportCoverage() {
 }
 
 func writeCoverageReport(w io.Writer) {
-	fmt.Fprintf(w, "mode: set\n") // TODO: other mods
+	fmt.Fprintf(w, "mode: set\n")
 	cover := processCover()
 	for name, blocks := range cover {
 		for _, b := range blocks {
