@@ -12,12 +12,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 )
 
-var rawCoverage = make(map[scriptHash]*scriptRawCoverage)
+var rawCoverage = make(map[util.Uint160]*scriptRawCoverage)
 
 var enabled bool
 var coverProfile = ""
-
-type scriptHash = util.Uint160
 
 type scriptRawCoverage struct {
 	debugInfo      *compiler.DebugInfo
@@ -55,8 +53,8 @@ func isCoverageEnabled() bool {
 }
 
 func coverageHook() vm.OnExecHook {
-	return func(sh scriptHash, offset int, opcode opcode.Opcode) {
-		if cov, ok := rawCoverage[sh]; ok {
+	return func(scriptHash util.Uint160, offset int, opcode opcode.Opcode) {
+		if cov, ok := rawCoverage[scriptHash]; ok {
 			cov.offsetsVisited = append(cov.offsetsVisited, offset)
 		}
 	}

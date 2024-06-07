@@ -89,7 +89,7 @@ func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath s
 	return c
 }
 
-func collectCoverage(t testing.TB, di *compiler.DebugInfo, h scriptHash) {
+func collectCoverage(t testing.TB, di *compiler.DebugInfo, h util.Uint160) {
 	if isCoverageEnabled() {
 		if _, ok := rawCoverage[h]; !ok {
 			rawCoverage[h] = &scriptRawCoverage{debugInfo: di}
