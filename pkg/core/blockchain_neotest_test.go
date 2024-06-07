@@ -2057,7 +2057,12 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			}
 			t.Run("Disabled", func(t *testing.T) {
 				bcBad, validatorBad, committeeBad := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-					c.P2PSigExtensions = false
+					c.P2PSigExtensions = true
+					c.Hardforks = map[string]uint32{
+						config.HFAspidochelone.String(): 0,
+						config.HFBasilisk.String():      0,
+						config.HFCockatrice.String():    0,
+					}
 					c.ReservedAttributes = false
 				})
 				eBad := neotest.NewExecutor(t, bcBad, validatorBad, committeeBad)
@@ -2069,7 +2074,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 				eBad.SignTx(t, tx, 1_0000_0000, eBad.Committee)
 				err := bcBad.VerifyTx(tx)
 				require.Error(t, err)
-				require.True(t, strings.Contains(err.Error(), "invalid attribute: NotaryAssisted attribute was found, but P2PSigExtensions are disabled"))
+				require.True(t, strings.Contains(err.Error(), "invalid attribute: NotaryAssisted attribute was found, but Domovoi is not active yet"))
 			})
 			t.Run("Enabled, insufficient network fee", func(t *testing.T) {
 				tx := getNotaryAssistedTx(e, 1, 0)

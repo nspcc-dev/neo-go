@@ -58,6 +58,7 @@ var (
 	// under assumption that hardforks from Aspidochelone to Domovoi (included) are enabled.
 	domovoiCSS = map[string]string{
 		nativenames.Notary: `{"id":-10,"hash":"0xc1e14f19c3e60d0b9244d06dd7ba9b113135ec3b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0A=","checksum":1110259869},"manifest":{"name":"Notary","abi":{"methods":[{"name":"balanceOf","offset":0,"parameters":[{"name":"addr","type":"Hash160"}],"returntype":"Integer","safe":true},{"name":"expirationOf","offset":7,"parameters":[{"name":"addr","type":"Hash160"}],"returntype":"Integer","safe":true},{"name":"getMaxNotValidBeforeDelta","offset":14,"parameters":[],"returntype":"Integer","safe":true},{"name":"lockDepositUntil","offset":21,"parameters":[{"name":"address","type":"Hash160"},{"name":"till","type":"Integer"}],"returntype":"Boolean","safe":false},{"name":"onNEP17Payment","offset":28,"parameters":[{"name":"from","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"data","type":"Any"}],"returntype":"Void","safe":false},{"name":"setMaxNotValidBeforeDelta","offset":35,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"verify","offset":42,"parameters":[{"name":"signature","type":"Signature"}],"returntype":"Boolean","safe":true},{"name":"withdraw","offset":49,"parameters":[{"name":"from","type":"Hash160"},{"name":"to","type":"Hash160"}],"returntype":"Boolean","safe":false}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
+		nativenames.Policy: `{"id":-7,"hash":"0xcc5e4edd9f5f8dba8bb65734541df7a1c081c67b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0A=","checksum":1094259016},"manifest":{"name":"PolicyContract","abi":{"methods":[{"name":"blockAccount","offset":0,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false},{"name":"getAttributeFee","offset":7,"parameters":[{"name":"attributeType","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"getExecFeeFactor","offset":14,"parameters":[],"returntype":"Integer","safe":true},{"name":"getFeePerByte","offset":21,"parameters":[],"returntype":"Integer","safe":true},{"name":"getStoragePrice","offset":28,"parameters":[],"returntype":"Integer","safe":true},{"name":"isBlocked","offset":35,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":true},{"name":"setAttributeFee","offset":42,"parameters":[{"name":"attributeType","type":"Integer"},{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setExecFeeFactor","offset":49,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setFeePerByte","offset":56,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setStoragePrice","offset":63,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"unblockAccount","offset":70,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Boolean","safe":false}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
 	}
 )
 
@@ -255,6 +256,13 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(aer))
 	expected = expected[:0]
+	expected = append(expected, state.NotificationEvent{
+		ScriptHash: nativehashes.ContractManagement,
+		Name:       "Update",
+		Item: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(nativehashes.PolicyContract),
+		}),
+	})
 	expected = append(expected, state.NotificationEvent{
 		ScriptHash: nativehashes.ContractManagement,
 		Name:       "Deploy",

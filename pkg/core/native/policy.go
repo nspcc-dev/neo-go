@@ -63,9 +63,6 @@ var (
 type Policy struct {
 	interop.ContractMD
 	NEO *NEO
-
-	// p2pSigExtensionsEnabled defines whether the P2P signature extensions logic is relevant.
-	p2pSigExtensionsEnabled bool
 }
 
 type PolicyCache struct {
@@ -100,11 +97,8 @@ func copyPolicyCache(src, dst *PolicyCache) {
 }
 
 // newPolicy returns Policy native contract.
-func newPolicy(p2pSigExtensionsEnabled bool) *Policy {
-	p := &Policy{
-		ContractMD:              *interop.NewContractMD(nativenames.Policy, policyContractID),
-		p2pSigExtensionsEnabled: p2pSigExtensionsEnabled,
-	}
+func newPolicy() *Policy {
+	p := &Policy{ContractMD: *interop.NewContractMD(nativenames.Policy, policyContractID)}
 	defer p.BuildHFSpecificMD(p.ActiveIn())
 
 	desc := newDescriptor("getFeePerByte", smartcontract.IntegerType)
@@ -136,13 +130,24 @@ func newPolicy(p2pSigExtensionsEnabled bool) *Policy {
 
 	desc = newDescriptor("getAttributeFee", smartcontract.IntegerType,
 		manifest.NewParameter("attributeType", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.getAttributeFee, 1<<15, callflag.ReadStates)
+	md = newMethodAndPrice(p.getAttributeFeeV0, 1<<15, callflag.ReadStates, config.HFDefault, transaction.NotaryAssistedActivation)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("getAttributeFee", smartcontract.IntegerType,
+		manifest.NewParameter("attributeType", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.getAttributeFeeV1, 1<<15, callflag.ReadStates, transaction.NotaryAssistedActivation)
 	p.AddMethod(md, desc)
 
 	desc = newDescriptor("setAttributeFee", smartcontract.VoidType,
 		manifest.NewParameter("attributeType", smartcontract.IntegerType),
 		manifest.NewParameter("value", smartcontract.IntegerType))
-	md = newMethodAndPrice(p.setAttributeFee, 1<<15, callflag.States)
+	md = newMethodAndPrice(p.setAttributeFeeV0, 1<<15, callflag.States, config.HFDefault, transaction.NotaryAssistedActivation)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("setAttributeFee", smartcontract.VoidType,
+		manifest.NewParameter("attributeType", smartcontract.IntegerType),
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.setAttributeFeeV1, 1<<15, callflag.States, transaction.NotaryAssistedActivation)
 	p.AddMethod(md, desc)
 
 	desc = newDescriptor("setFeePerByte", smartcontract.VoidType,
@@ -170,27 +175,27 @@ func (p *Policy) Metadata() *interop.ContractMD {
 
 // Initialize initializes Policy native contract and implements the Contract interface.
 func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
-	if hf != p.ActiveIn() {
-		return nil
-	}
+	if hf == p.ActiveIn() {
+		setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte)
+		setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor)
+		setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice)
 
-	setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte)
-	setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor)
-	setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice)
-
-	cache := &PolicyCache{
-		execFeeFactor:      defaultExecFeeFactor,
-		feePerByte:         defaultFeePerByte,
-		maxVerificationGas: defaultMaxVerificationGas,
-		storagePrice:       DefaultStoragePrice,
-		attributeFee:       map[transaction.AttrType]uint32{},
-		blockedAccounts:    make([]util.Uint160, 0),
+		cache := &PolicyCache{
+			execFeeFactor:      defaultExecFeeFactor,
+			feePerByte:         defaultFeePerByte,
+			maxVerificationGas: defaultMaxVerificationGas,
+			storagePrice:       DefaultStoragePrice,
+			attributeFee:       map[transaction.AttrType]uint32{},
+			blockedAccounts:    make([]util.Uint160, 0),
+		}
+		ic.DAO.SetCache(p.ID, cache)
 	}
-	if p.p2pSigExtensionsEnabled {
+	if hf != nil && *hf == transaction.NotaryAssistedActivation {
 		setIntWithKey(p.ID, ic.DAO, []byte{attributeFeePrefix, byte(transaction.NotaryAssistedT)}, defaultNotaryAssistedFee)
+
+		cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 		cache.attributeFee[transaction.NotaryAssistedT] = defaultNotaryAssistedFee
 	}
-	ic.DAO.SetCache(p.ID, cache)
 
 	return nil
 }
@@ -363,9 +368,18 @@ func (p *Policy) setStoragePrice(ic *interop.Context, args []stackitem.Item) sta
 	return stackitem.Null{}
 }
 
-func (p *Policy) getAttributeFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+func (p *Policy) getAttributeFeeV0(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	return p.getAttributeFeeGeneric(ic, args, false)
+}
+
+func (p *Policy) getAttributeFeeV1(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	return p.getAttributeFeeGeneric(ic, args, true)
+}
+
+func (p *Policy) getAttributeFeeGeneric(ic *interop.Context, args []stackitem.Item, allowNotaryAssisted bool) stackitem.Item {
 	t := transaction.AttrType(toUint8(args[0]))
-	if !transaction.IsValidAttrType(ic.Chain.GetConfig().ReservedAttributes, t) {
+	if !transaction.IsValidAttrType(ic.Chain.GetConfig().ReservedAttributes, t) ||
+		(!allowNotaryAssisted && t == transaction.NotaryAssistedT) {
 		panic(fmt.Errorf("invalid attribute type: %d", t))
 	}
 	return stackitem.NewBigInteger(big.NewInt(p.GetAttributeFeeInternal(ic.DAO, t)))
@@ -382,10 +396,19 @@ func (p *Policy) GetAttributeFeeInternal(d *dao.Simple, t transaction.AttrType) 
 	return int64(v)
 }
 
-func (p *Policy) setAttributeFee(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+func (p *Policy) setAttributeFeeV0(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	return p.setAttributeFeeGeneric(ic, args, false)
+}
+
+func (p *Policy) setAttributeFeeV1(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	return p.setAttributeFeeGeneric(ic, args, true)
+}
+
+func (p *Policy) setAttributeFeeGeneric(ic *interop.Context, args []stackitem.Item, allowNotaryAssisted bool) stackitem.Item {
 	t := transaction.AttrType(toUint8(args[0]))
 	value := toUint32(args[1])
-	if !transaction.IsValidAttrType(ic.Chain.GetConfig().ReservedAttributes, t) {
+	if !transaction.IsValidAttrType(ic.Chain.GetConfig().ReservedAttributes, t) ||
+		(!allowNotaryAssisted && t == transaction.NotaryAssistedT) {
 		panic(fmt.Errorf("invalid attribute type: %d", t))
 	}
 	if value > maxAttributeFee {
