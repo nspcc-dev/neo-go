@@ -27,6 +27,7 @@ ProtocolConfiguration:
     Aspidochelone: 3000000
     Basilisk: 4500000
     Cockatrice: 5800000
+    Domovoi: 5800000
 
 ApplicationConfiguration:
   SkipBlockVerification: false
