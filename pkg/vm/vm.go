@@ -594,7 +594,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			err = newError(ctx.ip, op, errRecover)
 		} else if v.refs > MaxStackSize {
 			v.state = vmstate.Fault
-			err = newError(ctx.ip, op, "stack is too big")
+			err = newError(ctx.ip, op, fmt.Sprintf("stack is too big: %d vs %d", int(v.refs), MaxStackSize))
 		}
 	}()
 
@@ -1995,7 +1995,7 @@ func validateMapKey(key Element) {
 
 func (v *VM) checkInvocationStackSize() {
 	if len(v.istack) >= MaxInvocationStackSize {
-		panic("invocation stack is too big")
+		panic(fmt.Sprintf("invocation stack is too big: %d", len(v.istack)))
 	}
 }
 

@@ -2620,3 +2620,78 @@ func TestBlockchain_StoreAsTransaction_ExecutableConflict(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, len(aer))
 }
+
+// TestEngineLimits ensures that MaxStackSize limit is preserved during System.Runtime.GetNotifications
+// syscall handling. This test is an adjusted port of https://github.com/lazynode/Tanya/pull/33 and makes
+// sure that NeoGo node is not affected by https://github.com/neo-project/neo/issues/3300 and does not need
+// the https://github.com/neo-project/neo/pull/3301.
+func TestEngineLimits(t *testing.T) {
+	bc, acc := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bc, acc, acc)
+
+	src := `package test
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
+		)
+		// args is an array of LargeEvent parameters containing 500 empty strings.
+		var args = []any{"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" };
+		func ProduceNumerousNotifications(count int) [][]any {
+			for i := 0; i < count; i++ {
+				runtime.Notify("LargeEvent", args...)
+			}
+			return runtime.GetNotifications(runtime.GetExecutingScriptHash())
+		}
+		func ProduceLargeObject(count int) int {
+			for i := 0; i < count; i++ {
+				runtime.Notify("LargeEvent", args...)
+			}
+			var (
+				smallObject = make([]int, 100)
+				res []int
+			)
+			for i := 0; i < count; i++ {
+				runtime.GetNotifications(runtime.GetExecutingScriptHash())
+				res = append(res, smallObject...)
+			}
+			return len(res)
+		}`
+	const eArgsCount = 500
+	eParams := make([]compiler.HybridParameter, eArgsCount)
+	for i := range eParams {
+		eParams[i].Name = fmt.Sprintf("str%d", i)
+		eParams[i].Type = smartcontract.ByteArrayType
+	}
+	c := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(src), &compiler.Options{
+		Name: "test_contract",
+		ContractEvents: []compiler.HybridEvent{
+			{
+				Name:       "LargeEvent",
+				Parameters: eParams,
+			},
+		},
+	})
+	e.DeployContract(t, c, nil)
+
+	// ProduceNumerousNotifications: 1 iteration, no limits are hit.
+	var args = make([]stackitem.Item, eArgsCount)
+	for i := range args {
+		args[i] = stackitem.Make("")
+	}
+	cInv := e.NewInvoker(c.Hash, acc)
+	cInv.Invoke(t, stackitem.Make([]stackitem.Item{
+		stackitem.Make([]stackitem.Item{
+			stackitem.Make(c.Hash),
+			stackitem.Make("LargeEvent"),
+			stackitem.Make(args),
+		}),
+	}), "produceNumerousNotifications", 1)
+
+	// ProduceNumerousNotifications: hit the limit.
+	cInv.InvokeFail(t, "stack is too big", "produceNumerousNotifications", 500)
+
+	// ProduceLargeObject: 1 iteration, no limits are hit.
+	cInv.Invoke(t, 100*1, "produceLargeObject", 1)
+
+	// ProduceLargeObject: hit the limit.
+	cInv.InvokeFail(t, "stack is too big", "produceLargeObject", 500)
+}
