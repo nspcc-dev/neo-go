@@ -32,7 +32,16 @@ const (
 	// executing contract state for the contract call permissions check instead
 	// of the state stored in the native Management. This change was introduced
 	// in [#3473](https://github.com/nspcc-dev/neo-go/pull/3473) and ported to
-	// the [reference](https://github.com/neo-project/neo/pull/3290).
+	// the [reference](https://github.com/neo-project/neo/pull/3290). Also, this
+	// hard-fork makes the System.Runtime.GetNotifications interop properly
+	// count stack references of notification parameters which prevents users
+	// from creating objects that exceed [vm.MaxStackSize] constraint. This
+	// change is implemented in the
+	// [reference](https://github.com/neo-project/neo/pull/3301), but NeoGo has
+	// never had this bug, thus proper behaviour is preserved even before
+	// HFDomovoi. It results in the fact that some T5 transactions have
+	// different ApplicationLogs comparing to the C# node, but the node states
+	// match. See #3485 for details.
 	HFDomovoi // Domovoi
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.
