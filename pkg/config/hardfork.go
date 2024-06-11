@@ -28,7 +28,11 @@ const (
 	// https://github.com/neo-project/neo/pull/3154).
 	HFCockatrice // Cockatrice
 	// HFDomovoi represents hard-fork introduced in #3476 (ported from
-	// https://github.com/neo-project/neo/pull/3290).
+	// https://github.com/neo-project/neo/pull/3290). It makes the`node use
+	// executing contract state for the contract call permissions check instead
+	// of the state stored in the native Management. This change was introduced
+	// in [#3473](https://github.com/nspcc-dev/neo-go/pull/3473) and ported to
+	// the [reference](https://github.com/neo-project/neo/pull/3290).
 	HFDomovoi // Domovoi
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.

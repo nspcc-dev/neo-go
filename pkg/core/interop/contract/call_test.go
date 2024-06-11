@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/contract"
@@ -171,6 +172,117 @@ func TestCall(t *testing.T) {
 		require.Equal(t, big.NewInt(8), ic.VM.Estack().Pop().Value())
 		require.Equal(t, big.NewInt(42), ic.VM.Estack().Pop().Value())
 	})
+}
+
+func TestSystemContractCall_Permissions(t *testing.T) {
+	check := func(t *testing.T, cfg func(*config.Blockchain), shouldUpdateFail bool) {
+		bc, acc := chain.NewSingleWithCustomConfig(t, cfg)
+		e := neotest.NewExecutor(t, bc, acc, acc)
+
+		// Contract A has an unsafe method.
+		srcA := `package contractA
+		func RetOne() int {
+			return 1
+		}`
+		ctrA := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(srcA), &compiler.Options{
+			NoEventsCheck:      true,
+			NoPermissionsCheck: true,
+			Name:               "contractA",
+		})
+		e.DeployContract(t, ctrA, nil)
+
+		var hashAStr string
+		for i := 0; i < util.Uint160Size; i++ {
+			hashAStr += fmt.Sprintf("%#x", ctrA.Hash[i])
+			if i != util.Uint160Size-1 {
+				hashAStr += ", "
+			}
+		}
+
+		// Contract B has a method that calls contract's A and another update method that
+		// calls contract's A after B's update.
+		srcB := `package contractB
+		import (
+			"github.com/nspcc-dev/neo-go/pkg/interop"
+			"github.com/nspcc-dev/neo-go/pkg/interop/contract"
+			"github.com/nspcc-dev/neo-go/pkg/interop/native/management"
+		)
+		func CallRetOne() int {
+			res := contract.Call(interop.Hash160{` + hashAStr + `}, "retOne", contract.All).(int)
+			return res
+		}
+		func Update(nef []byte, manifest []byte) int {
+			management.Update(nef, manifest)
+			res := contract.Call(interop.Hash160{` + hashAStr + `}, "retOne", contract.All).(int)
+			return res
+		}`
+		ctrB := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(srcB), &compiler.Options{
+			Name:               "contractB",
+			NoEventsCheck:      true,
+			NoPermissionsCheck: true,
+			Permissions: []manifest.Permission{
+				{
+					Contract: manifest.PermissionDesc{Type: manifest.PermissionHash, Value: ctrA.Hash},
+					Methods:  manifest.WildStrings{Value: []string{"retOne"}},
+				},
+				{
+					Methods: manifest.WildStrings{Value: []string{"update"}},
+				},
+			},
+		})
+		e.DeployContract(t, ctrB, nil)
+		ctrBInvoker := e.ValidatorInvoker(ctrB.Hash)
+
+		// ctrBUpdated differs from ctrB in that it has no permission to call retOne method of ctrA
+		ctrBUpdated := neotest.CompileSource(t, acc.ScriptHash(), strings.NewReader(srcB), &compiler.Options{
+			Name:               "contractB",
+			NoEventsCheck:      true,
+			NoPermissionsCheck: true,
+			Permissions: []manifest.Permission{
+				{
+					Contract: manifest.PermissionDesc{Type: manifest.PermissionHash, Value: ctrA.Hash},
+					Methods:  manifest.WildStrings{Value: []string{}},
+				},
+				{
+					Methods: manifest.WildStrings{Value: []string{"update"}},
+				},
+			},
+		})
+
+		// Call to A before B update should HALT.
+		ctrBInvoker.Invoke(t, stackitem.Make(1), "callRetOne")
+
+		// Call to A in the same context as B update should HALT.
+		n, err := ctrBUpdated.NEF.Bytes()
+		require.NoError(t, err)
+		m, err := json.Marshal(ctrBUpdated.Manifest)
+		require.NoError(t, err)
+		if shouldUpdateFail {
+			ctrBInvoker.InvokeFail(t, "System.Contract.Call failed: disallowed method call", "update", n, m)
+		} else {
+			ctrBInvoker.Invoke(t, stackitem.Make(1), "update", n, m)
+		}
+
+		// If contract is updated, then all to A after B update should FAULT (manifest
+		// is updated, no permission to call retOne method).
+		if !shouldUpdateFail {
+			ctrBInvoker.InvokeFail(t, "System.Contract.Call failed: disallowed method call", "callRetOne")
+		}
+	}
+
+	// Pre-Domovoi behaviour: an updated contract state is used for permissions check.
+	check(t, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFDomovoi.String(): 100500,
+		}
+	}, true)
+
+	// Post-Domovoi behaviour: an executing contract state is used for permissions check.
+	check(t, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFDomovoi.String(): 0,
+		}
+	}, false)
 }
 
 func TestLoadToken(t *testing.T) {
