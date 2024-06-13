@@ -2,6 +2,39 @@
 
 This document outlines major changes between releases.
 
+## 0.106.2 "Keratinization" (13 Jun 2024)
+
+A 3.7.5-compatible version introducing new Domovoi hardfork that brings two fixes to
+the protocol: using executing contract state to check contract call permissions
+(included into this NeoGo release) and proper VM items refcounting for
+System.Runtime.GetNotifications handler (not included into this NeoGo release because
+we've never had this bug). Since the second bug is C#-specific and does not lead to
+the state differences in mainnet/testnet, we've decided not to break the NeoGo node
+to follow pre-Domovoi C# node implementation. Thus, differences in application logs
+for several T5 transactions before Domovoi hardfork are expected and won't be fixed.
+
+Please, ensure your node configuration includes the Domovoi hardfork. No DB
+resynchronisation is required.
+
+New features:
+ * Domovoi hardfork scheduled for 5570000 block of mainnet and 4144000 block of T5
+   testnet (#3476, #3473, #3486, #3487)
+
+Behavior changes:
+ * hide node logs timestamp if the node is running not in TTY (#3468)
+ * distinguish log level for various node peer disconnection reasons (#3469)
+
+Improvements:
+ * ensure NeoFS nodes are configured when processing NeoFS oracle requests (#3455)
+ * NeoFS SDK dependency upgrade (#3483)
+ * ensure System.Runtime.GetNotifications handler can't break the MaxStackSize
+   constraint before and after Domovoi hardfork (#3485)
+
+Bugs fixed:
+ * deployed contract script is included into wallet's account (#3470)
+ * updated contract state is used to verify contract call permissions before the
+   Domovoi hardfork (#3473)
+
 ## 0.106.1 "Implication" (3 Jun 2024)
 
 An urgent release that fixes mainnet state difference at block 5462944 which halts
