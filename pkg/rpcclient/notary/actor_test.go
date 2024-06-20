@@ -565,6 +565,9 @@ func TestWait(t *testing.T) {
 	_, err = act.Wait(util.Uint256{}, util.Uint256{}, 0, someErr)
 	require.ErrorIs(t, err, someErr)
 
+	_, err = act.WaitSuccess(util.Uint256{}, util.Uint256{}, 0, someErr)
+	require.ErrorIs(t, err, someErr)
+
 	cont := util.Uint256{1, 2, 3}
 	ex := state.Execution{
 		Trigger:     trigger.Application,
@@ -579,6 +582,24 @@ func TestWait(t *testing.T) {
 	}
 	rc.applog = applog
 	res, err := act.Wait(util.Uint256{}, util.Uint256{}, 0, nil)
+	require.NoError(t, err)
+	require.Equal(t, &state.AppExecResult{
+		Container: cont,
+		Execution: ex,
+	}, res)
+
+	// Not successful since result has a different hash.
+	_, err = act.WaitSuccess(util.Uint256{}, util.Uint256{}, 0, nil)
+	require.ErrorIs(t, err, ErrFallbackAccepted)
+	_, err = act.WaitSuccess(util.Uint256{}, util.Uint256{1, 2, 3}, 0, nil)
+	require.ErrorIs(t, err, ErrFallbackAccepted)
+
+	rc.applog.Executions[0].VMState = vmstate.Fault
+	_, err = act.WaitSuccess(util.Uint256{1, 2, 3}, util.Uint256{}, 0, nil)
+	require.ErrorIs(t, err, actor.ErrExecFailed)
+
+	rc.applog.Executions[0].VMState = vmstate.Halt
+	res, err = act.WaitSuccess(util.Uint256{1, 2, 3}, util.Uint256{}, 0, nil)
 	require.NoError(t, err)
 	require.Equal(t, &state.AppExecResult{
 		Container: cont,

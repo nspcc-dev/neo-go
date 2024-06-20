@@ -8,12 +8,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/stretchr/testify/require"
 )
@@ -294,4 +296,39 @@ func TestSender(t *testing.T) {
 	a, err := NewSimple(client, acc)
 	require.NoError(t, err)
 	require.Equal(t, acc.ScriptHash(), a.Sender())
+}
+
+func TestWaitSuccess(t *testing.T) {
+	client, acc := testRPCAndAccount(t)
+	a, err := NewSimple(client, acc)
+	require.NoError(t, err)
+
+	someErr := errors.New("someErr")
+	_, err = a.WaitSuccess(util.Uint256{}, 0, someErr)
+	require.ErrorIs(t, err, someErr)
+
+	cont := util.Uint256{1, 2, 3}
+	ex := state.Execution{
+		Trigger:     trigger.Application,
+		VMState:     vmstate.Halt,
+		GasConsumed: 123,
+		Stack:       []stackitem.Item{stackitem.Null{}},
+	}
+	applog := &result.ApplicationLog{
+		Container:     cont,
+		IsTransaction: true,
+		Executions:    []state.Execution{ex},
+	}
+	client.appLog = applog
+	client.appLog.Executions[0].VMState = vmstate.Fault
+	_, err = a.WaitSuccess(util.Uint256{}, 0, nil)
+	require.ErrorIs(t, err, ErrExecFailed)
+
+	client.appLog.Executions[0].VMState = vmstate.Halt
+	res, err := a.WaitSuccess(util.Uint256{}, 0, nil)
+	require.NoError(t, err)
+	require.Equal(t, &state.AppExecResult{
+		Container: cont,
+		Execution: ex,
+	}, res)
 }
