@@ -16,7 +16,14 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
+)
+
+var (
+	// ErrFallbackAccepted is returned from [Actor.WaitSuccess] when
+	// fallback transaction enters the chain instead of the main one.
+	ErrFallbackAccepted = errors.New("fallback transaction accepted")
 )
 
 // Actor encapsulates everything needed to create proper notary requests for
@@ -331,4 +338,22 @@ func (a *Actor) Wait(mainHash, fbHash util.Uint256, vub uint32, err error) (*sta
 		return nil, err
 	}
 	return a.WaitAny(context.TODO(), vub, mainHash, fbHash)
+}
+
+// WaitSuccess works similar to [Actor.Wait], but checks that the main
+// transaction was accepted and it has a HALT VM state (executed successfully).
+// [state.AppExecResult] is still returned (if there is no error) in case you
+// need some additional event or stack checks.
+func (a *Actor) WaitSuccess(mainHash, fbHash util.Uint256, vub uint32, err error) (*state.AppExecResult, error) {
+	aer, err := a.Wait(mainHash, fbHash, vub, err)
+	if err != nil {
+		return nil, err
+	}
+	if aer.Container != mainHash {
+		return nil, ErrFallbackAccepted
+	}
+	if aer.VMState != vmstate.Halt {
+		return nil, fmt.Errorf("%w: %s", actor.ErrExecFailed, aer.FaultException)
+	}
+	return aer, nil
 }
