@@ -158,3 +158,19 @@ func TestInvoker(t *testing.T) {
 		}
 	})
 }
+
+func TestInvokerSigners(t *testing.T) {
+	resExp := &result.Invoke{State: "HALT"}
+	ri := &rpcInv{resExp, true, nil, nil}
+	inv := New(ri, nil)
+
+	require.Nil(t, inv.Signers())
+
+	s := []transaction.Signer{}
+	inv = New(ri, s)
+	require.Equal(t, s, inv.Signers())
+
+	s = append(s, transaction.Signer{Account: util.Uint160{1, 2, 3}, Scopes: transaction.CalledByEntry})
+	inv = New(ri, s)
+	require.Equal(t, s, inv.Signers())
+}

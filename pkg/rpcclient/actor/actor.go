@@ -289,6 +289,19 @@ func (a *Actor) SendUncheckedRun(script []byte, sysfee int64, attrs []transactio
 	return a.sendWrapper(a.MakeUncheckedRun(script, sysfee, attrs, txHook))
 }
 
+// SignerAccounts returns the array of actor's signers/accounts. It's useful in
+// case you need it elsewhere like for notary-related processing. Returned slice
+// is a newly allocated one with signers deeply copied, accounts however are not
+// so changing received account internals is an error.
+func (a *Actor) SignerAccounts() []SignerAccount {
+	var res = make([]SignerAccount, len(a.signers))
+	for i := range a.signers {
+		res[i].Signer = *a.signers[i].Signer.Copy()
+		res[i].Account = a.signers[i].Account
+	}
+	return res
+}
+
 // Sender return the sender address that will be used in transactions created
 // by Actor.
 func (a *Actor) Sender() util.Uint160 {

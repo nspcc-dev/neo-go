@@ -137,6 +137,20 @@ func (h *historicConverter) TraverseIterator(sessionID, iteratorID uuid.UUID, ma
 	return h.client.TraverseIterator(sessionID, iteratorID, maxItemsCount)
 }
 
+// Signers returns the set of current invoker signers which is mostly useful
+// when working with upper-layer actors. Returned slice is a newly allocated
+// one (if this invoker has them), so it's safe to modify.
+func (v *Invoker) Signers() []transaction.Signer {
+	if v.signers == nil {
+		return nil
+	}
+	var res = make([]transaction.Signer, len(v.signers))
+	for i := range v.signers {
+		res[i] = *v.signers[i].Copy()
+	}
+	return res
+}
+
 // Call invokes a method of the contract with the given parameters (and
 // Invoker-specific list of signers) and returns the result as is.
 func (v *Invoker) Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error) {
