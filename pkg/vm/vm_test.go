@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -2774,6 +2775,50 @@ func TestUninitializedSyscallHandler(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(), "SyscallHandler is not initialized"), err.Error())
 	assert.Equal(t, true, v.HasFailed())
+}
+
+func TestCannotSetOnExecHookOfStartedVm(t *testing.T) {
+	prog := makeProgram(opcode.NOP)
+	v := load(prog)
+	runVM(t, v)
+	require.Panics(t, func() {
+		v.SetOnExecHook(func(scriptHash util.Uint160, offset int, opcode opcode.Opcode) {})
+	})
+}
+
+func TestOnExecHookGivesValidTrace(t *testing.T) {
+	prog := makeProgram(opcode.NOP, opcode.NOP, opcode.NOP)
+	expectedOffsets := []int{0, 1, 2, 3}
+	expectedOpcodes := []opcode.Opcode{opcode.NOP, opcode.NOP, opcode.NOP, opcode.RET}
+
+	actualScriptHashes, actualOffsets, actualOpcodes := runWithTrace(t, prog)
+
+	require.Equal(t, expectedOffsets, actualOffsets, "Invalid offsets")
+	require.Equal(t, expectedOpcodes, actualOpcodes, "Invalid opcodes")
+
+	t.Run("Validate collected script hashes", func(t *testing.T) {
+		scriptHash := actualScriptHashes[0]
+		expectedScriptHashes := []util.Uint160{scriptHash, scriptHash, scriptHash, scriptHash}
+		require.Equal(t, expectedScriptHashes, actualScriptHashes)
+	})
+}
+
+func runWithTrace(t *testing.T, prog []byte) ([]util.Uint160, []int, []opcode.Opcode) {
+	v := load(prog)
+
+	scriptHashes := make([]util.Uint160, 0)
+	offsets := make([]int, 0)
+	opcodes := make([]opcode.Opcode, 0)
+
+	onExec := func(scriptHash util.Uint160, offset int, opcode opcode.Opcode) {
+		scriptHashes = append(scriptHashes, scriptHash)
+		offsets = append(offsets, offset)
+		opcodes = append(opcodes, opcode)
+	}
+	v.SetOnExecHook(onExec)
+	runVM(t, v)
+
+	return scriptHashes, offsets, opcodes
 }
 
 func makeProgram(opcodes ...opcode.Opcode) []byte {

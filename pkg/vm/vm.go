@@ -63,6 +63,15 @@ const (
 // SyscallHandler is a type for syscall handler.
 type SyscallHandler = func(*VM, uint32) error
 
+// OnExecHook is a type for a callback that is invoked
+// before each instruction is executed.
+type OnExecHook = func(scriptHash util.Uint160, offset int, opcode opcode.Opcode)
+
+// A struct that contains all VM hooks.
+type hooks struct {
+	onExec OnExecHook
+}
+
 // VM represents the virtual machine.
 type VM struct {
 	state vmstate.State
@@ -90,6 +99,9 @@ type VM struct {
 
 	// invTree is a top-level invocation tree (if enabled).
 	invTree *invocations.Tree
+
+	// All registered hooks.
+	hooks hooks
 }
 
 var (
@@ -114,6 +126,16 @@ func NewWithTrigger(t trigger.Type) *VM {
 	vm.istack = make([]*Context, 0, 8) // Most of invocations use one-two contracts, but they're likely to have internal calls.
 	vm.estack = newStack("evaluation", &vm.refs)
 	return vm
+}
+
+// SetOnExecHook sets the value of OnExecHook which
+// will be invoked for each executed instruction.
+// This function panics if the VM has been started.
+func (v *VM) SetOnExecHook(hook OnExecHook) {
+	if v.state != vmstate.None {
+		panic("Cannot set onExec hook of a started VM")
+	}
+	v.hooks.onExec = hook
 }
 
 // SetPriceGetter registers the given PriceGetterFunc in v.
@@ -472,7 +494,12 @@ func (v *VM) Step() error {
 
 // step executes one instruction in the given context.
 func (v *VM) step(ctx *Context) error {
+	ip := ctx.nextip
+	scriptHash := v.GetCurrentScriptHash()
 	op, param, err := ctx.Next()
+	if v.hooks.onExec != nil {
+		v.hooks.onExec(scriptHash, ip, op)
+	}
 	if err != nil {
 		v.state = vmstate.Fault
 		return newError(ctx.ip, op, err)
