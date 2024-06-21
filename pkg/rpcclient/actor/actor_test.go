@@ -101,9 +101,14 @@ func TestNew(t *testing.T) {
 	// Good simple.
 	a, err := NewSimple(client, acc)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(a.signers))
+	require.Equal(t, []SignerAccount{{
+		Signer: transaction.Signer{
+			Account: acc.ScriptHash(),
+			Scopes:  transaction.CalledByEntry,
+		},
+		Account: acc,
+	}}, a.SignerAccounts())
 	require.Equal(t, 1, len(a.txSigners))
-	require.Equal(t, transaction.CalledByEntry, a.signers[0].Signer.Scopes)
 	require.Equal(t, transaction.CalledByEntry, a.txSigners[0].Scopes)
 
 	// Contractless account.
@@ -158,7 +163,7 @@ func TestNew(t *testing.T) {
 	signers[0].Signer.Account = acc.Contract.ScriptHash()
 	a, err = New(client, signers)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(a.signers))
+	require.Equal(t, signers, a.SignerAccounts())
 	require.Equal(t, 2, len(a.txSigners))
 
 	// Good tuned
