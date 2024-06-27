@@ -201,7 +201,7 @@ func GetConfigFromContext(ctx *cli.Context) (config.Config, error) {
 	if len(configFile) != 0 {
 		return config.LoadFile(configFile, relativePath)
 	}
-	var configPath = "./config"
+	var configPath = config.DefaultConfigPath
 	if argCp := ctx.String("config-path"); argCp != "" {
 		configPath = argCp
 	}
