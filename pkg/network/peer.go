@@ -7,6 +7,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 )
 
+// PeerInfo represents the info for a connected peer.
+type PeerInfo struct {
+	Address   string
+	UserAgent string
+	Height    uint32
+}
+
 type AddressablePeer interface {
 	// ConnectionAddr returns an address-like identifier of this connection
 	// before we have a proper one (after the handshake). It's either the

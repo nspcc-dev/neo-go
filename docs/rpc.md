@@ -207,6 +207,15 @@ the error-free C# response that provides a default result.
 NeoGo can generate an error in response to an invalid proof, unlike
 the error-free C# implementation.
 
+##### `getPeers`
+
+NeoGo extends the `getpeers` RPC call to return the user agent
+(`useragent` JSON field) and last known block height
+(`lastknownheight` JSON field) for each connected peer where available.
+The last known block height field may be stale depending on the
+PingInterval node config and the time since the last ping.
+Ping behavior may also differ between node implementations.
+
 ### Unsupported methods
 
 Methods listed below are not going to be supported for various reasons

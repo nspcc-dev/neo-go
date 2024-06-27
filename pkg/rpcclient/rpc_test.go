@@ -580,8 +580,10 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					},
 					Connected: result.Peers{
 						{
-							Address: "127.0.0.1",
-							Port:    20335,
+							Address:         "127.0.0.1",
+							Port:            20335,
+							UserAgent:       "/NEO-GO:0.106.2/",
+							LastKnownHeight: 1000,
 						},
 					},
 					Bad: result.Peers{
