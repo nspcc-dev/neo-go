@@ -57,7 +57,8 @@ func TestFixed8(t *testing.T) {
 	f := flag.NewFlagSet("", flag.ContinueOnError)
 	f.SetOutput(io.Discard) // don't pollute test output
 	gas := Fixed8Flag{Name: "gas, g"}
-	gas.Apply(f)
+	err := gas.Apply(f)
+	require.NoError(t, err)
 	require.NoError(t, f.Parse([]string{"--gas", "0.123"}))
 	require.Equal(t, "0.123", f.Lookup("g").Value.String())
 	require.NoError(t, f.Parse([]string{"-g", "0.456"}))

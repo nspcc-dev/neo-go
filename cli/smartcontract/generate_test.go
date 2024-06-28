@@ -13,7 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 func TestGenerate(t *testing.T) {
@@ -125,7 +125,7 @@ func TestGenerate(t *testing.T) {
 		0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF, 0x03, 0x04,
 	}
 	app := cli.NewApp()
-	app.Commands = []cli.Command{generateWrapperCmd}
+	app.Commands = []*cli.Command{generateWrapperCmd}
 
 	rawCfg := `package: wrapper
 hash: ` + h.StringLE() + `
@@ -351,7 +351,7 @@ func TestGenerateValidPackageName(t *testing.T) {
 		0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF, 0x03, 0x04,
 	}
 	app := cli.NewApp()
-	app.Commands = []cli.Command{generateWrapperCmd, generateRPCWrapperCmd}
+	app.Commands = []*cli.Command{generateWrapperCmd, generateRPCWrapperCmd}
 	require.NoError(t, app.Run([]string{"", "generate-wrapper",
 		"--manifest", manifestFile,
 		"--out", outFile,
@@ -432,7 +432,7 @@ const rewriteExpectedOutputs = false
 func TestGenerateRPCBindings(t *testing.T) {
 	tmpDir := t.TempDir()
 	app := cli.NewApp()
-	app.Commands = []cli.Command{generateWrapperCmd, generateRPCWrapperCmd}
+	app.Commands = []*cli.Command{generateWrapperCmd, generateRPCWrapperCmd}
 
 	var checkBinding = func(manifest string, hash string, good string) {
 		t.Run(manifest, func(t *testing.T) {
@@ -549,7 +549,7 @@ func TestAssistedRPCBindings(t *testing.T) {
 
 func TestGenerate_Errors(t *testing.T) {
 	app := cli.NewApp()
-	app.Commands = []cli.Command{generateWrapperCmd}
+	app.Commands = []*cli.Command{generateWrapperCmd}
 	app.ExitErrHandler = func(*cli.Context, error) {}
 
 	checkError := func(t *testing.T, msg string, args ...string) {

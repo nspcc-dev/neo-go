@@ -10,7 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/pmezard/go-difflib/difflib"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 var errStateMatches = errors.New("state matches")
@@ -167,7 +167,7 @@ func main() {
 	ctl.Usage = "compare-states RPC_A RPC_B"
 	ctl.Action = cliMain
 	ctl.Flags = []cli.Flag{
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "ignore-height, g",
 			Usage: "ignore height difference",
 		},

@@ -13,7 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 func manifestAddGroup(ctx *cli.Context) error {
@@ -22,25 +22,25 @@ func manifestAddGroup(ctx *cli.Context) error {
 	}
 	sender, err := flags.ParseAddress(ctx.String("sender"))
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid sender: %w", err), 1)
+		return cli.Exit(fmt.Errorf("invalid sender: %w", err), 1)
 	}
 
 	nf, _, err := readNEFFile(ctx.String("nef"))
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't read NEF file: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't read NEF file: %w", err), 1)
 	}
 
 	mPath := ctx.String("manifest")
 	m, _, err := readManifest(mPath, util.Uint160{})
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't read contract manifest: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't read contract manifest: %w", err), 1)
 	}
 
 	h := state.CreateContractHash(sender, nf.Checksum, m.Name)
 
 	gAcc, w, err := options.GetAccFromContext(ctx)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't get account to sign group with: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't get account to sign group with: %w", err), 1)
 	}
 	defer w.Close()
 
@@ -64,12 +64,12 @@ func manifestAddGroup(ctx *cli.Context) error {
 
 	rawM, err := json.Marshal(m)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't marshal manifest: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't marshal manifest: %w", err), 1)
 	}
 
 	err = os.WriteFile(mPath, rawM, os.ModePerm)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't write manifest file: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't write manifest file: %w", err), 1)
 	}
 	return nil
 }
