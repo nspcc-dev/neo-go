@@ -427,13 +427,17 @@ func (s *Server) BadPeers() []string {
 }
 
 // ConnectedPeers returns a list of currently connected peers.
-func (s *Server) ConnectedPeers() []string {
+func (s *Server) ConnectedPeers() []PeerInfo {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	peers := make([]string, 0, len(s.peers))
+	peers := make([]PeerInfo, 0, len(s.peers))
 	for k := range s.peers {
-		peers = append(peers, k.PeerAddr().String())
+		peers = append(peers, PeerInfo{
+			Address:   k.PeerAddr().String(),
+			UserAgent: string(k.Version().UserAgent),
+			Height:    k.LastBlockIndex(),
+		})
 	}
 
 	return peers

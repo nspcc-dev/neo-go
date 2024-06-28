@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net"
 	"strconv"
+
+	"github.com/nspcc-dev/neo-go/pkg/network"
 )
 
 type (
@@ -19,8 +21,10 @@ type (
 
 	// Peer represents a peer.
 	Peer struct {
-		Address string `json:"address"`
-		Port    uint16 `json:"port"`
+		Address         string `json:"address"`
+		Port            uint16 `json:"port"`
+		UserAgent       string `json:"useragent,omitempty"`
+		LastKnownHeight uint32 `json:"lastknownheight,omitempty"`
 	}
 )
 
@@ -38,9 +42,9 @@ func (g *GetPeers) AddUnconnected(addrs []string) {
 	g.Unconnected.addPeers(addrs)
 }
 
-// AddConnected adds a set of peers to the connected peers slice.
-func (g *GetPeers) AddConnected(addrs []string) {
-	g.Connected.addPeers(addrs)
+// AddConnected adds a set of connected peers to the connected peers slice.
+func (g *GetPeers) AddConnected(connectedPeers []network.PeerInfo) {
+	g.Connected.addConnectedPeers(connectedPeers)
 }
 
 // AddBad adds a set of peers to the bad peers slice.
@@ -51,17 +55,31 @@ func (g *GetPeers) AddBad(addrs []string) {
 // addPeers adds a set of peers to the given peer slice.
 func (p *Peers) addPeers(addrs []string) {
 	for i := range addrs {
-		host, portStr, err := net.SplitHostPort(addrs[i])
+		host, port, err := parseHostPort(addrs[i])
 		if err != nil {
 			continue
 		}
-		port, err := strconv.ParseUint(portStr, 10, 16)
-		if err != nil {
-			port = 0
-		}
 		peer := Peer{
 			Address: host,
-			Port:    uint16(port),
+			Port:    port,
+		}
+
+		*p = append(*p, peer)
+	}
+}
+
+// addConnectedPeers adds a set of connected peers to the given peer slice.
+func (p *Peers) addConnectedPeers(connectedPeers []network.PeerInfo) {
+	for i := range connectedPeers {
+		host, port, err := parseHostPort(connectedPeers[i].Address)
+		if err != nil {
+			continue
+		}
+		peer := Peer{
+			Address:         host,
+			Port:            port,
+			UserAgent:       connectedPeers[i].UserAgent,
+			LastKnownHeight: connectedPeers[i].Height,
 		}
 
 		*p = append(*p, peer)
@@ -97,4 +115,15 @@ func (p *Peer) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return err
+}
+
+// parseHostPort parses host and port from the given address.
+// An improperly formatted port string will return zero port.
+func parseHostPort(addr string) (string, uint16, error) {
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", 0, err
+	}
+	port, _ := strconv.ParseUint(portStr, 10, 16)
+	return host, uint16(port), nil
 }
