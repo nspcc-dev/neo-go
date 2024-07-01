@@ -7,7 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // Address is a wrapper for a Uint160 with flag.Value methods.
@@ -37,7 +37,7 @@ func (a Address) String() string {
 func (a *Address) Set(s string) error {
 	addr, err := ParseAddress(s)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	a.IsSet = true
 	a.Value = addr
@@ -52,6 +52,15 @@ func (a *Address) Uint160() (u util.Uint160) {
 		panic("address was not set")
 	}
 	return a.Value
+}
+
+// Names returns the names of the flag.
+func (f AddressFlag) Names() []string {
+	var names []string
+	eachName(f.Name, func(name string) {
+		names = append(names, name)
+	})
+	return names
 }
 
 // IsSet checks if flag was set to a non-default value.
@@ -84,10 +93,11 @@ func (f AddressFlag) GetName() string {
 
 // Apply populates the flag given the flag set and environment.
 // Ignores errors.
-func (f AddressFlag) Apply(set *flag.FlagSet) {
+func (f AddressFlag) Apply(set *flag.FlagSet) error {
 	eachName(f.Name, func(name string) {
 		set.Var(&f.Value, name, f.Usage)
 	})
+	return nil
 }
 
 // ParseAddress parses a Uint160 from either an LE string or an address.

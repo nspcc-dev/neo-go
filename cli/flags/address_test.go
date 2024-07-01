@@ -121,7 +121,8 @@ func TestAddress(t *testing.T) {
 	f := flag.NewFlagSet("", flag.ContinueOnError)
 	f.SetOutput(io.Discard) // don't pollute test output
 	addr := AddressFlag{Name: "addr, a"}
-	addr.Apply(f)
+	err := addr.Apply(f)
+	require.NoError(t, err)
 	require.NoError(t, f.Parse([]string{"--addr", "NRHkiY2hLy5ypD32CKZtL6pNwhbFMqDEhR"}))
 	require.Equal(t, "NRHkiY2hLy5ypD32CKZtL6pNwhbFMqDEhR", f.Lookup("a").Value.String())
 	require.NoError(t, f.Parse([]string{"-a", "NRHkiY2hLy5ypD32CKZtL6pNwhbFMqDEhR"}))

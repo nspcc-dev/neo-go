@@ -1188,7 +1188,7 @@ func TestDumpStorage(t *testing.T) {
 		"storage "+address.Uint160ToString(h),
 		"storage 1",
 		"storage 1 "+hex.EncodeToString(expected[0].Key),
-		"storage 1 --backwards",
+		"storage --backwards 1",
 		"exit",
 	)
 	e.checkStorage(t, expected...)
@@ -1214,11 +1214,11 @@ func TestDumpStorageDiff(t *testing.T) {
 	diff := storage.KeyValue{Key: []byte{3}, Value: []byte{3}}
 	e.runProg(t,
 		"storage 1",
-		"storage 1 --diff",
+		"storage --diff 1",
 		"loadhex "+hex.EncodeToString(script.Bytes()),
 		"run",
 		"storage 1",
-		"storage 1 --diff",
+		"storage --diff 1",
 		"exit",
 	)
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // Fixed8 is a wrapper for a Uint160 with flag.Value methods.
@@ -34,7 +34,7 @@ func (a Fixed8) String() string {
 func (a *Fixed8) Set(s string) error {
 	f, err := fixedn.Fixed8FromString(s)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	a.Value = f
 	return nil
@@ -43,6 +43,19 @@ func (a *Fixed8) Set(s string) error {
 // Fixed8 casts the address to util.Fixed8.
 func (a *Fixed8) Fixed8() fixedn.Fixed8 {
 	return a.Value
+}
+
+func (f Fixed8Flag) Names() []string {
+	var names []string
+	eachName(f.Name, func(name string) {
+		names = append(names, name)
+	})
+	return names
+}
+
+// IsSet checks if flag was set to a non-default value.
+func (f Fixed8Flag) IsSet() bool {
+	return f.Value.Value != 0
 }
 
 // String returns a readable representation of this value
@@ -63,10 +76,11 @@ func (f Fixed8Flag) GetName() string {
 
 // Apply populates the flag given the flag set and environment.
 // Ignores errors.
-func (f Fixed8Flag) Apply(set *flag.FlagSet) {
+func (f Fixed8Flag) Apply(set *flag.FlagSet) error {
 	eachName(f.Name, func(name string) {
 		set.Var(&f.Value, name, f.Usage)
 	})
+	return nil
 }
 
 // Fixed8FromContext returns a parsed util.Fixed8 value provided flag name.

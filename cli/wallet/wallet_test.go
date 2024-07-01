@@ -992,7 +992,7 @@ func TestOfflineSigning(t *testing.T) {
 
 		e.Run(t, "neo-go", "util", "sendtx",
 			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
-			txPath, "--await")
+			"--await", txPath)
 		e.CheckAwaitableTxPersisted(t)
 	})
 }

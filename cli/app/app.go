@@ -12,7 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/vm"
 	"github.com/nspcc-dev/neo-go/cli/wallet"
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 func versionPrinter(c *cli.Context) {

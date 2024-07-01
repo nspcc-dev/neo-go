@@ -22,13 +22,12 @@ func TestNEP17Balance(t *testing.T) {
 
 	args := []string{
 		"neo-go", "wallet", "nep17", "multitransfer",
-		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
+		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0], "--force",
 		"--wallet", testcli.ValidatorWallet,
 		"--from", testcli.ValidatorAddr,
 		"GAS:" + testcli.TestWalletMultiAccount1 + ":1",
 		"NEO:" + testcli.TestWalletMultiAccount1 + ":10",
 		"GAS:" + testcli.TestWalletMultiAccount3 + ":3",
-		"--force",
 	}
 	e.In.WriteString("one\r")
 	e.Run(t, args...)
