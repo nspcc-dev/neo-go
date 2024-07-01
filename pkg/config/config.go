@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
+	"github.com/nspcc-dev/neo-go/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"gopkg.in/yaml.v3"
 )
@@ -38,6 +38,8 @@ const (
 	// DefaultMaxRequestHeaderBytes is the maximum permitted size of the headers
 	// in an HTTP request.
 	DefaultMaxRequestHeaderBytes = http.DefaultMaxHeaderBytes
+	// DefaultConfigPath is the default path to the config directory.
+	DefaultConfigPath = "./config"
 )
 
 // Version is the version of the node, set at the build time.
@@ -76,22 +78,21 @@ func Load(path string, netMode netmode.Magic, relativePath ...string) (Config, e
 // fixups if necessary. If relativePath is not empty, relative paths in the config will
 // be updated based on the provided relative path.
 func LoadFile(configPath string, relativePath ...string) (Config, error) {
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return Config{}, fmt.Errorf("config '%s' doesn't exist", configPath)
-	}
-
-	configData, err := os.ReadFile(configPath)
-	if err != nil {
-		return Config{}, fmt.Errorf("unable to read config: %w", err)
-	}
-
-	config := Config{
-		ApplicationConfiguration: ApplicationConfiguration{
-			P2P: P2P{
-				PingInterval: 30 * time.Second,
-				PingTimeout:  90 * time.Second,
-			},
-		},
+	var (
+		configData []byte
+		err        error
+		config     Config
+	)
+	if _, err = os.Stat(configPath); os.IsNotExist(err) {
+		configData, err = getEmbeddedConfig(configPath)
+		if err != nil {
+			return Config{}, err
+		}
+	} else {
+		configData, err = os.ReadFile(configPath)
+		if err != nil {
+			return Config{}, fmt.Errorf("unable to read config: %w", err)
+		}
 	}
 	decoder := yaml.NewDecoder(bytes.NewReader(configData))
 	decoder.KnownFields(true)
@@ -109,6 +110,24 @@ func LoadFile(configPath string, relativePath ...string) (Config, error) {
 	}
 
 	return config, nil
+}
+
+// getEmbeddedConfig returns the embedded config based on the provided config path.
+func getEmbeddedConfig(configPath string) ([]byte, error) {
+	switch configPath {
+	case fmt.Sprintf("%s/protocol.%s.yml", DefaultConfigPath, netmode.MainNet):
+		return config.MainNet, nil
+	case fmt.Sprintf("%s/protocol.%s.yml", DefaultConfigPath, netmode.TestNet):
+		return config.TestNet, nil
+	case fmt.Sprintf("%s/protocol.%s.yml", DefaultConfigPath, netmode.PrivNet):
+		return config.PrivNet, nil
+	case fmt.Sprintf("%s/protocol.mainnet.neofs.yml", DefaultConfigPath):
+		return config.MainNetNeoFS, nil
+	case fmt.Sprintf("%s/protocol.testnet.neofs.yml", DefaultConfigPath):
+		return config.TestNetNeoFS, nil
+	default:
+		return nil, fmt.Errorf("config '%s' doesn't exist and no matching embedded config was found", configPath)
+	}
 }
 
 // updateRelativePaths updates relative paths in the config structure based on the provided relative path.
