@@ -401,6 +401,10 @@ func TestInvoke(bc *core.Blockchain, tx *transaction.Transaction) (*vm.VM, error
 	ttx := *tx
 	ic, _ := bc.GetTestVM(trigger.Application, &ttx, b)
 
+	if isCoverageEnabled() {
+		ic.VM.SetOnExecHook(coverageHook())
+	}
+
 	defer ic.Finalize()
 
 	ic.VM.LoadWithFlags(tx.Script, callflag.All)
