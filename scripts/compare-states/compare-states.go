@@ -169,7 +169,7 @@ func main() {
 	ctl.Flags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "ignore-height, g",
-			Usage: "ignore height difference",
+			Usage: "Ignore height difference",
 		},
 	}
 

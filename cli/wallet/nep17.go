@@ -98,7 +98,7 @@ func newNEP17Commands() []cli.Command {
 	return []cli.Command{
 		{
 			Name:      "balance",
-			Usage:     "get address balance",
+			Usage:     "Get address balance",
 			UsageText: "balance -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>]",
 			Description: `Prints NEP-17 balances for address and tokens specified. By default (no
    address or token parameter) all tokens for all accounts in the specified wallet
@@ -118,14 +118,14 @@ func newNEP17Commands() []cli.Command {
 		},
 		{
 			Name:      "import",
-			Usage:     "import NEP-17 token to a wallet",
+			Usage:     "Import NEP-17 token to a wallet",
 			UsageText: "import -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --token <hash>",
 			Action:    importNEP17Token,
 			Flags:     importFlags,
 		},
 		{
 			Name:      "info",
-			Usage:     "print imported NEP-17 token info",
+			Usage:     "Print imported NEP-17 token info",
 			UsageText: "print -w wallet [--wallet-config path] [--token <hash-or-name>]",
 			Action:    printNEP17Info,
 			Flags: []cli.Flag{
@@ -136,7 +136,7 @@ func newNEP17Commands() []cli.Command {
 		},
 		{
 			Name:      "remove",
-			Usage:     "remove NEP-17 token from the wallet",
+			Usage:     "Remove NEP-17 token from the wallet",
 			UsageText: "remove -w wallet [--wallet-config path] --token <hash-or-name>",
 			Action:    removeNEP17Token,
 			Flags: []cli.Flag{
@@ -148,7 +148,7 @@ func newNEP17Commands() []cli.Command {
 		},
 		{
 			Name:      "transfer",
-			Usage:     "transfer NEP-17 tokens",
+			Usage:     "Transfer NEP-17 tokens",
 			UsageText: "transfer -w wallet [--wallet-config path] [--await] --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --amount string [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP17,
 			Flags:     transferFlags,
@@ -163,7 +163,7 @@ func newNEP17Commands() []cli.Command {
 		},
 		{
 			Name:  "multitransfer",
-			Usage: "transfer NEP-17 tokens to multiple recipients",
+			Usage: "Transfer NEP-17 tokens to multiple recipients",
 			UsageText: `multitransfer -w wallet [--wallet-config path] [--await] --rpc-endpoint <node> --timeout <time> --from <addr>` +
 				` <token1>:<addr1>:<amount1> [<token2>:<addr2>:<amount2> [...]] [-- <cosigner1:Scope> [<cosigner2> [...]]]`,
 			Action: multiTransferNEP17,

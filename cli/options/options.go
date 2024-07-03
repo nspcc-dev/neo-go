@@ -49,18 +49,18 @@ const RPCEndpointFlag = "rpc-endpoint"
 // Wallet is a set of flags used for wallet operations.
 var Wallet = []cli.Flag{cli.StringFlag{
 	Name:  "wallet, w",
-	Usage: "wallet to use to get the key for transaction signing; conflicts with --wallet-config flag",
+	Usage: "Wallet to use to get the key for transaction signing; conflicts with --wallet-config flag",
 }, cli.StringFlag{
 	Name:  "wallet-config",
-	Usage: "path to wallet config to use to get the key for transaction signing; conflicts with --wallet flag"},
+	Usage: "Path to wallet config to use to get the key for transaction signing; conflicts with --wallet flag"},
 }
 
 // Network is a set of flags for choosing the network to operate on
 // (privnet/mainnet/testnet).
 var Network = []cli.Flag{
-	cli.BoolFlag{Name: "privnet, p", Usage: "use private network configuration (if --config-file option is not specified)"},
-	cli.BoolFlag{Name: "mainnet, m", Usage: "use mainnet network configuration (if --config-file option is not specified)"},
-	cli.BoolFlag{Name: "testnet, t", Usage: "use testnet network configuration (if --config-file option is not specified)"},
+	cli.BoolFlag{Name: "privnet, p", Usage: "Use private network configuration (if --config-file option is not specified)"},
+	cli.BoolFlag{Name: "mainnet, m", Usage: "Use mainnet network configuration (if --config-file option is not specified)"},
+	cli.BoolFlag{Name: "testnet, t", Usage: "Use testnet network configuration (if --config-file option is not specified)"},
 	cli.BoolFlag{Name: "unittest", Hidden: true},
 }
 
@@ -86,27 +86,27 @@ var Historic = cli.StringFlag{
 // Config is a flag for commands that use node configuration.
 var Config = cli.StringFlag{
 	Name:  "config-path",
-	Usage: "path to directory with per-network configuration files (may be overridden by --config-file option for the configuration file)",
+	Usage: "Path to directory with per-network configuration files (may be overridden by --config-file option for the configuration file)",
 }
 
 // ConfigFile is a flag for commands that use node configuration and provide
 // path to the specific config file instead of config path.
 var ConfigFile = cli.StringFlag{
 	Name:  "config-file",
-	Usage: "path to the node configuration file (overrides --config-path option)",
+	Usage: "Path to the node configuration file (overrides --config-path option)",
 }
 
 // RelativePath is a flag for commands that use node configuration and provide
 // a prefix to all relative paths in config files.
 var RelativePath = cli.StringFlag{
 	Name:  "relative-path",
-	Usage: "a prefix to all relative paths in the node configuration file",
+	Usage: "Prefix to all relative paths in the node configuration file",
 }
 
 // Debug is a flag for commands that allow node in debug mode usage.
 var Debug = cli.BoolFlag{
 	Name:  "debug, d",
-	Usage: "enable debug logging (LOTS of output, overrides configuration)",
+	Usage: "Enable debug logging (LOTS of output, overrides configuration)",
 }
 
 var errNoEndpoint = errors.New("no RPC endpoint specified, use option '--" + RPCEndpointFlag + "' or '-r'")

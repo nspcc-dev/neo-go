@@ -36,7 +36,7 @@ var generatorFlags = []cli.Flag{
 
 var generateWrapperCmd = cli.Command{
 	Name:      "generate-wrapper",
-	Usage:     "generate wrapper to use in other contracts",
+	Usage:     "Generate wrapper to use in other contracts",
 	UsageText: "neo-go contract generate-wrapper --manifest <file.json> --out <file.go> [--hash <hash>] [--config <config>]",
 	Description: `Generates a Go wrapper to use it in other smart contracts. If the
    --hash flag is provided, CALLT instruction is used for the target contract
@@ -50,7 +50,7 @@ var generateWrapperCmd = cli.Command{
 
 var generateRPCWrapperCmd = cli.Command{
 	Name:      "generate-rpcwrapper",
-	Usage:     "generate RPC wrapper to use for data reads",
+	Usage:     "Generate RPC wrapper to use for data reads",
 	UsageText: "neo-go contract generate-rpcwrapper --manifest <file.json> --out <file.go> [--hash <hash>] [--config <config>]",
 	Action:    contractGenerateRPCWrapper,
 	Flags:     generatorFlags,

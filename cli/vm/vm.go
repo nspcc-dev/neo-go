@@ -17,7 +17,7 @@ func NewCommands() []cli.Command {
 	cfgFlags = append(cfgFlags, options.Network...)
 	return []cli.Command{{
 		Name:   "vm",
-		Usage:  "start the virtual machine",
+		Usage:  "Start the virtual machine",
 		Action: startVMPrompt,
 		Flags:  cfgFlags,
 	}}

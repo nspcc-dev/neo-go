@@ -65,7 +65,7 @@ var (
 	}
 	inFlag = cli.StringFlag{
 		Name:  "in",
-		Usage: "file with JSON transaction",
+		Usage: "File with JSON transaction",
 	}
 	fromAddrFlag = flags.AddressFlag{
 		Name:  "from",
@@ -107,18 +107,18 @@ func NewCommands() []cli.Command {
 	signFlags = append(signFlags, options.RPC...)
 	return []cli.Command{{
 		Name:  "wallet",
-		Usage: "create, open and manage a Neo wallet",
+		Usage: "Create, open and manage a Neo wallet",
 		Subcommands: []cli.Command{
 			{
 				Name:      "claim",
-				Usage:     "claim GAS",
+				Usage:     "Claim GAS",
 				UsageText: "neo-go wallet claim -w wallet [--wallet-config path] [-g gas] [-e sysgas] -a address -r endpoint [-s timeout] [--out file] [--force] [--await]",
 				Action:    claimGas,
 				Flags:     claimFlags,
 			},
 			{
 				Name:      "init",
-				Usage:     "create a new wallet",
+				Usage:     "Create a new wallet",
 				UsageText: "neo-go wallet init -w wallet [--wallet-config path] [-a]",
 				Action:    createWallet,
 				Flags: []cli.Flag{
@@ -132,20 +132,20 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:      "change-password",
-				Usage:     "change password for accounts",
+				Usage:     "Change password for accounts",
 				UsageText: "neo-go wallet change-password -w wallet -a address",
 				Action:    changePassword,
 				Flags: []cli.Flag{
 					walletPathFlag,
 					flags.AddressFlag{
 						Name:  "address, a",
-						Usage: "address to change password for",
+						Usage: "Address to change password for",
 					},
 				},
 			},
 			{
 				Name:      "convert",
-				Usage:     "convert addresses from existing Neo Legacy NEP6-wallet to Neo N3 format",
+				Usage:     "Convert addresses from existing Neo Legacy NEP6-wallet to Neo N3 format",
 				UsageText: "neo-go wallet convert -w legacywallet [--wallet-config path] -o n3wallet",
 				Action:    convertWallet,
 				Flags: []cli.Flag{
@@ -153,13 +153,13 @@ func NewCommands() []cli.Command {
 					walletConfigFlag,
 					cli.StringFlag{
 						Name:  "out, o",
-						Usage: "where to write converted wallet",
+						Usage: "Where to write converted wallet",
 					},
 				},
 			},
 			{
 				Name:      "create",
-				Usage:     "add an account to the existing wallet",
+				Usage:     "Add an account to the existing wallet",
 				UsageText: "neo-go wallet create -w wallet [--wallet-config path]",
 				Action:    addAccount,
 				Flags: []cli.Flag{
@@ -169,7 +169,7 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:      "dump",
-				Usage:     "check and dump an existing Neo wallet",
+				Usage:     "Check and dump an existing Neo wallet",
 				UsageText: "neo-go wallet dump -w wallet [--wallet-config path] [-d]",
 				Description: `Prints the given wallet (via -w option or via wallet configuration file) in JSON
    format to the standard output. If -d is given, private keys are unencrypted and
@@ -185,7 +185,7 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:      "dump-keys",
-				Usage:     "dump public keys for account",
+				Usage:     "Dump public keys for account",
 				UsageText: "neo-go wallet dump-keys -w wallet [--wallet-config path] [-a address]",
 				Action:    dumpKeys,
 				Flags: []cli.Flag{
@@ -193,13 +193,13 @@ func NewCommands() []cli.Command {
 					walletConfigFlag,
 					flags.AddressFlag{
 						Name:  "address, a",
-						Usage: "address to print public keys for",
+						Usage: "Address to print public keys for",
 					},
 				},
 			},
 			{
 				Name:      "export",
-				Usage:     "export keys for address",
+				Usage:     "Export keys for address",
 				UsageText: "export -w wallet [--wallet-config path] [--decrypt] [<address>]",
 				Description: `Prints the key for the given account to the standard output. It uses NEP-2
    encrypted format by default (the way NEP-6 wallets store it) or WIF format if
@@ -216,7 +216,7 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:      "import",
-				Usage:     "import WIF of a standard signature contract",
+				Usage:     "Import WIF of a standard signature contract",
 				UsageText: "import -w wallet [--wallet-config path] --wif <wif> [--name <account_name>]",
 				Action:    importWallet,
 				Flags: []cli.Flag{
@@ -235,7 +235,7 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:  "import-multisig",
-				Usage: "import multisig contract",
+				Usage: "Import multisig contract",
 				UsageText: "import-multisig -w wallet [--wallet-config path] [--wif <wif>] [--name <account_name>] --min <m>" +
 					" [<pubkey1> [<pubkey2> [...]]]",
 				Description: `Imports a standard multisignature contract with "m out of n" signatures required where "m" is
@@ -262,7 +262,7 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:      "import-deployed",
-				Usage:     "import deployed contract",
+				Usage:     "Import deployed contract",
 				UsageText: "import-deployed -w wallet [--wallet-config path] --wif <wif> --contract <hash> [--name <account_name>]",
 				Action:    importDeployed,
 				Flags: append([]cli.Flag{
@@ -281,7 +281,7 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:      "remove",
-				Usage:     "remove an account from the wallet",
+				Usage:     "Remove an account from the wallet",
 				UsageText: "remove -w wallet [--wallet-config path] [--force] --address <addr>",
 				Action:    removeAccount,
 				Flags: []cli.Flag{
@@ -296,7 +296,7 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:      "sign",
-				Usage:     "cosign transaction with multisig/contract/additional account",
+				Usage:     "Cosign transaction with multisig/contract/additional account",
 				UsageText: "sign -w wallet [--wallet-config path] --address <address> --in <file.in> [--out <file.out>] [-r <endpoint>] [--await]",
 				Description: `Signs the given (in file.in) context (which must be a transaction
    signing context) for the given address using the given wallet. This command can
@@ -312,7 +312,7 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:      "strip-keys",
-				Usage:     "remove private keys for all accounts",
+				Usage:     "Remove private keys for all accounts",
 				UsageText: "neo-go wallet strip-keys -w wallet [--wallet-config path] [--force]",
 				Description: `Removes private keys for all accounts from the given wallet. Notice,
    this is a very dangerous action (you can lose keys if you don't have a wallet
@@ -329,17 +329,17 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:        "nep17",
-				Usage:       "work with NEP-17 contracts",
+				Usage:       "Work with NEP-17 contracts",
 				Subcommands: newNEP17Commands(),
 			},
 			{
 				Name:        "nep11",
-				Usage:       "work with NEP-11 contracts",
+				Usage:       "Work with NEP-11 contracts",
 				Subcommands: newNEP11Commands(),
 			},
 			{
 				Name:        "candidate",
-				Usage:       "work with candidates",
+				Usage:       "Work with candidates",
 				Subcommands: newValidatorCommands(),
 			},
 		},

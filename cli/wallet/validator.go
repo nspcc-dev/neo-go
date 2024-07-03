@@ -19,7 +19,7 @@ func newValidatorCommands() []cli.Command {
 	return []cli.Command{
 		{
 			Name:      "register",
-			Usage:     "register as a new candidate",
+			Usage:     "Register as a new candidate",
 			UsageText: "register -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas] [--out file] [--force] [--await]",
 			Action:    handleRegister,
 			Flags: append([]cli.Flag{
@@ -38,7 +38,7 @@ func newValidatorCommands() []cli.Command {
 		},
 		{
 			Name:      "unregister",
-			Usage:     "unregister self as a candidate",
+			Usage:     "Unregister self as a candidate",
 			UsageText: "unregister -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas] [--out file] [--force] [--await]",
 			Action:    handleUnregister,
 			Flags: append([]cli.Flag{
@@ -57,7 +57,7 @@ func newValidatorCommands() []cli.Command {
 		},
 		{
 			Name:      "vote",
-			Usage:     "vote for a validator",
+			Usage:     "Vote for a validator",
 			UsageText: "vote -w <path> -r <rpc> [-s <timeout>] [-g gas] [-e sysgas] -a <addr> [-c <public key>] [--out file] [--force] [--await]",
 			Description: `Votes for a validator by calling "vote" method of a NEO native
    contract. Do not provide candidate argument to perform unvoting. If --await flag is 

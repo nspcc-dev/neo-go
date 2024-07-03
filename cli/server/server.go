@@ -43,7 +43,7 @@ func NewCommands() []cli.Command {
 	cfgWithCountFlags = append(cfgWithCountFlags,
 		cli.UintFlag{
 			Name:  "count, c",
-			Usage: "number of blocks to be processed (default or 0: all chain)",
+			Usage: "Number of blocks to be processed (default or 0: all chain)",
 		},
 	)
 	var cfgCountOutFlags = make([]cli.Flag, len(cfgWithCountFlags))
@@ -51,7 +51,7 @@ func NewCommands() []cli.Command {
 	cfgCountOutFlags = append(cfgCountOutFlags,
 		cli.UintFlag{
 			Name:  "start, s",
-			Usage: "block number to start from (default: 0)",
+			Usage: "Block number to start from (default: 0)",
 		},
 		cli.StringFlag{
 			Name:  "out, o",
@@ -67,11 +67,11 @@ func NewCommands() []cli.Command {
 		},
 		cli.StringFlag{
 			Name:  "dump",
-			Usage: "directory for storing JSON dumps",
+			Usage: "Directory for storing JSON dumps",
 		},
 		cli.BoolFlag{
 			Name:  "incremental, n",
-			Usage: "use if dump is incremental",
+			Usage: "Use if dump is incremental",
 		},
 	)
 	var cfgHeightFlags = make([]cli.Flag, len(cfgFlags)+1)
@@ -84,32 +84,32 @@ func NewCommands() []cli.Command {
 	return []cli.Command{
 		{
 			Name:      "node",
-			Usage:     "start a NeoGo node",
+			Usage:     "Start a NeoGo node",
 			UsageText: "neo-go node [--config-path path] [-d] [-p/-m/-t] [--config-file file]",
 			Action:    startServer,
 			Flags:     cfgFlags,
 		},
 		{
 			Name:  "db",
-			Usage: "database manipulations",
+			Usage: "Database manipulations",
 			Subcommands: []cli.Command{
 				{
 					Name:      "dump",
-					Usage:     "dump blocks (starting with block #1) to the file",
+					Usage:     "Dump blocks (starting with block #1) to the file",
 					UsageText: "neo-go db dump -o file [-s start] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",
 					Action:    dumpDB,
 					Flags:     cfgCountOutFlags,
 				},
 				{
 					Name:      "restore",
-					Usage:     "restore blocks from the file",
+					Usage:     "Restore blocks from the file",
 					UsageText: "neo-go db restore -i file [--dump] [-n] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",
 					Action:    restoreDB,
 					Flags:     cfgCountInFlags,
 				},
 				{
 					Name:      "reset",
-					Usage:     "reset database to the previous state",
+					Usage:     "Reset database to the previous state",
 					UsageText: "neo-go db reset --height height [--config-path path] [-p/-m/-t] [--config-file file]",
 					Action:    resetDB,
 					Flags:     cfgHeightFlags,

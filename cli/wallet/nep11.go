@@ -48,7 +48,7 @@ func newNEP11Commands() []cli.Command {
 	return []cli.Command{
 		{
 			Name:      "balance",
-			Usage:     "get address balance",
+			Usage:     "Get address balance",
 			UsageText: "balance -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>] [--id <token-id>]",
 			Description: `Prints NEP-11 balances for address and assets/IDs specified. By default (no
    address or token parameter) all tokens (NFT contracts) for all accounts in
@@ -70,14 +70,14 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "import",
-			Usage:     "import NEP-11 token to a wallet",
+			Usage:     "Import NEP-11 token to a wallet",
 			UsageText: "import -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --token <hash>",
 			Action:    importNEP11Token,
 			Flags:     importFlags,
 		},
 		{
 			Name:      "info",
-			Usage:     "print imported NEP-11 token info",
+			Usage:     "Print imported NEP-11 token info",
 			UsageText: "print -w wallet [--wallet-config path] [--token <hash-or-name>]",
 			Action:    printNEP11Info,
 			Flags: []cli.Flag{
@@ -88,7 +88,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "remove",
-			Usage:     "remove NEP-11 token from the wallet",
+			Usage:     "Remove NEP-11 token from the wallet",
 			UsageText: "remove -w wallet [--wallet-config path] --token <hash-or-name>",
 			Action:    removeNEP11Token,
 			Flags: []cli.Flag{
@@ -100,7 +100,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "transfer",
-			Usage:     "transfer NEP-11 tokens",
+			Usage:     "Transfer NEP-11 tokens",
 			UsageText: "transfer -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [--await] [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP11,
 			Flags:     transferFlags,
@@ -116,7 +116,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "properties",
-			Usage:     "print properties of NEP-11 token",
+			Usage:     "Print properties of NEP-11 token",
 			UsageText: "properties --rpc-endpoint <node> [--timeout <time>] --token <hash> --id <token-id> [--historic <block/hash>]",
 			Action:    printNEP11Properties,
 			Flags: append([]cli.Flag{
@@ -127,7 +127,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "ownerOf",
-			Usage:     "print owner of non-divisible NEP-11 token with the specified ID",
+			Usage:     "Print owner of non-divisible NEP-11 token with the specified ID",
 			UsageText: "ownerOf --rpc-endpoint <node> [--timeout <time>] --token <hash> --id <token-id> [--historic <block/hash>]",
 			Action:    printNEP11NDOwner,
 			Flags: append([]cli.Flag{
@@ -138,7 +138,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "ownerOfD",
-			Usage:     "print set of owners of divisible NEP-11 token with the specified ID (" + maxIters + " will be printed at max)",
+			Usage:     "Print set of owners of divisible NEP-11 token with the specified ID (" + maxIters + " will be printed at max)",
 			UsageText: "ownerOfD --rpc-endpoint <node> [--timeout <time>] --token <hash> --id <token-id> [--historic <block/hash>]",
 			Action:    printNEP11DOwner,
 			Flags: append([]cli.Flag{
@@ -149,7 +149,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "tokensOf",
-			Usage:     "print list of tokens IDs for the specified NFT owner (" + maxIters + " will be printed at max)",
+			Usage:     "Print list of tokens IDs for the specified NFT owner (" + maxIters + " will be printed at max)",
 			UsageText: "tokensOf --rpc-endpoint <node> [--timeout <time>] --token <hash> --address <addr> [--historic <block/hash>]",
 			Action:    printNEP11TokensOf,
 			Flags: append([]cli.Flag{
@@ -160,7 +160,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "tokens",
-			Usage:     "print list of tokens IDs minted by the specified NFT (optional method; " + maxIters + " will be printed at max)",
+			Usage:     "Print list of tokens IDs minted by the specified NFT (optional method; " + maxIters + " will be printed at max)",
 			UsageText: "tokens --rpc-endpoint <node> [--timeout <time>] --token <hash> [--historic <block/hash>]",
 			Action:    printNEP11Tokens,
 			Flags: append([]cli.Flag{

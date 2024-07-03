@@ -21,7 +21,7 @@ func NewCommands() []cli.Command {
 	txCancelFlags := append([]cli.Flag{
 		flags.AddressFlag{
 			Name:  "address, a",
-			Usage: "address to use as conflicting transaction signee (and gas source)",
+			Usage: "Address to use as conflicting transaction signee (and gas source)",
 		},
 		txctx.GasFlag,
 		txctx.AwaitFlag,
@@ -95,11 +95,11 @@ func NewCommands() []cli.Command {
 					Flags: []cli.Flag{
 						cli.StringFlag{
 							Name:  "in, i",
-							Usage: "input file containing base64- or hex- encoded script representation",
+							Usage: "Input file containing base64- or hex- encoded script representation",
 						},
 						cli.BoolFlag{
 							Name:  "hex",
-							Usage: "use hex encoding and do not check base64",
+							Usage: "Use hex encoding and do not check base64",
 						},
 					},
 				},

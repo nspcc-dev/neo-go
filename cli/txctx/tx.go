@@ -23,17 +23,17 @@ var (
 	// GasFlag is a flag used for the additional network fee.
 	GasFlag = flags.Fixed8Flag{
 		Name:  "gas, g",
-		Usage: "network fee to add to the transaction (prioritizing it)",
+		Usage: "Network fee to add to the transaction (prioritizing it)",
 	}
 	// SysGasFlag is a flag used for the additional system fee.
 	SysGasFlag = flags.Fixed8Flag{
 		Name:  "sysgas, e",
-		Usage: "system fee to add to the transaction (compensating for execution)",
+		Usage: "System fee to add to the transaction (compensating for execution)",
 	}
 	// OutFlag is a flag used for file output.
 	OutFlag = cli.StringFlag{
 		Name:  "out",
-		Usage: "file (JSON) to put signature context with a transaction to",
+		Usage: "File (JSON) to put signature context with a transaction to",
 	}
 	// ForceFlag is a flag used to force transaction send.
 	ForceFlag = cli.BoolFlag{
@@ -43,7 +43,7 @@ var (
 	// AwaitFlag is a flag used to wait for the transaction to be included in a block.
 	AwaitFlag = cli.BoolFlag{
 		Name:  "await",
-		Usage: "wait for the transaction to be included in a block",
+		Usage: "Wait for the transaction to be included in a block",
 	}
 )
 

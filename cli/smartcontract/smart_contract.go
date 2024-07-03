@@ -45,7 +45,7 @@ var (
 	errFileExist           = errors.New("A file with given smart-contract name already exists")
 	addressFlag            = flags.AddressFlag{
 		Name:  addressFlagName,
-		Usage: "address to use as transaction signee (and gas source)",
+		Usage: "Address to use as transaction signee (and gas source)",
 	}
 )
 
@@ -108,28 +108,28 @@ func NewCommands() []cli.Command {
 	manifestAddGroupFlags := append([]cli.Flag{
 		cli.StringFlag{
 			Name:  "sender, s",
-			Usage: "deploy transaction sender",
+			Usage: "Deploy transaction sender",
 		},
 		flags.AddressFlag{
 			Name:  addressFlagName, // use the same name for handler code unification.
-			Usage: "account to sign group with",
+			Usage: "Account to sign group with",
 		},
 		cli.StringFlag{
 			Name:  "nef, n",
-			Usage: "path to the NEF file",
+			Usage: "Path to the NEF file",
 		},
 		cli.StringFlag{
 			Name:  "manifest, m",
-			Usage: "path to the manifest",
+			Usage: "Path to the manifest",
 		},
 	}, options.Wallet...)
 	return []cli.Command{{
 		Name:  "contract",
-		Usage: "compile - debug - deploy smart contracts",
+		Usage: "Compile - debug - deploy smart contracts",
 		Subcommands: []cli.Command{
 			{
 				Name:      "compile",
-				Usage:     "compile a smart contract to a .nef file",
+				Usage:     "Compile a smart contract to a .nef file",
 				UsageText: "neo-go contract compile -i path [-o nef] [-v] [-d] [-m manifest] [-c yaml] [--bindings file] [--no-standards] [--no-events] [--no-permissions] [--guess-eventtypes]",
 				Description: `Compiles given smart contract to a .nef file and emits other associated
    information (manifest, bindings configuration, debug information files) if
@@ -167,29 +167,29 @@ func NewCommands() []cli.Command {
 					},
 					cli.BoolFlag{
 						Name:  "no-standards",
-						Usage: "do not check compliance with supported standards",
+						Usage: "Do not check compliance with supported standards",
 					},
 					cli.BoolFlag{
 						Name:  "no-events",
-						Usage: "do not check emitted events with the manifest",
+						Usage: "Do not check emitted events with the manifest",
 					},
 					cli.BoolFlag{
 						Name:  "no-permissions",
-						Usage: "do not check if invoked contracts are allowed in manifest",
+						Usage: "Do not check if invoked contracts are allowed in manifest",
 					},
 					cli.BoolFlag{
 						Name:  "guess-eventtypes",
-						Usage: "guess event types for smart-contract bindings configuration from the code usages",
+						Usage: "Guess event types for smart-contract bindings configuration from the code usages",
 					},
 					cli.StringFlag{
 						Name:  "bindings",
-						Usage: "output file for smart-contract bindings configuration",
+						Usage: "Output file for smart-contract bindings configuration",
 					},
 				},
 			},
 			{
 				Name:      "deploy",
-				Usage:     "deploy a smart contract (.nef with description)",
+				Usage:     "Deploy a smart contract (.nef with description)",
 				UsageText: "neo-go contract deploy -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] --in contract.nef --manifest contract.manifest.json [--out file] [--force] [--await] [data]",
 				Description: `Deploys given contract into the chain. The gas parameter is for additional
    gas to be added as a network fee to prioritize the transaction. The data 
@@ -204,7 +204,7 @@ func NewCommands() []cli.Command {
 			generateRPCWrapperCmd,
 			{
 				Name:      "invokefunction",
-				Usage:     "invoke deployed contract on the blockchain",
+				Usage:     "Invoke deployed contract on the blockchain",
 				UsageText: "neo-go contract invokefunction -r endpoint -w wallet [-a address] [-g gas] [-e sysgas] [--out file] [--force] [--await] scripthash [method] [arguments...] [--] [signers...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
    arguments and signers. Sender is included in the list of signers by default
@@ -219,7 +219,7 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:      "testinvokefunction",
-				Usage:     "invoke deployed contract on the blockchain (test mode)",
+				Usage:     "Invoke deployed contract on the blockchain (test mode)",
 				UsageText: "neo-go contract testinvokefunction -r endpoint [--historic index/hash] scripthash [method] [arguments...] [--] [signers...]",
 				Description: `Executes given (as a script hash) deployed script with the given method,
    arguments and signers (sender is not included by default). If no method is given
@@ -250,63 +250,63 @@ func NewCommands() []cli.Command {
 			},
 			{
 				Name:      "init",
-				Usage:     "initialize a new smart-contract in a directory with boiler plate code",
+				Usage:     "Initialize a new smart-contract in a directory with boiler plate code",
 				UsageText: "neo-go contract init -n name [--skip-details]",
 				Action:    initSmartContract,
 				Flags: []cli.Flag{
 					cli.StringFlag{
 						Name:  "name, n",
-						Usage: "name of the smart-contract to be initialized",
+						Usage: "Name of the smart-contract to be initialized",
 					},
 					cli.BoolFlag{
 						Name:  "skip-details, skip",
-						Usage: "skip filling in the projects and contract details",
+						Usage: "Skip filling in the projects and contract details",
 					},
 				},
 			},
 			{
 				Name:      "inspect",
-				Usage:     "creates a user readable dump of the program instructions",
+				Usage:     "Creates a user readable dump of the program instructions",
 				UsageText: "neo-go contract inspect -i file [-c]",
 				Action:    inspect,
 				Flags: []cli.Flag{
 					cli.BoolFlag{
 						Name:  "compile, c",
-						Usage: "compile input file (it should be go code then)",
+						Usage: "Compile input file (it should be go code then)",
 					},
 					cli.StringFlag{
 						Name:  "in, i",
-						Usage: "input file of the program (either .go or .nef)",
+						Usage: "Input file of the program (either .go or .nef)",
 					},
 				},
 			},
 			{
 				Name:      "calc-hash",
-				Usage:     "calculates hash of a contract after deployment",
+				Usage:     "Calculates hash of a contract after deployment",
 				UsageText: "neo-go contract calc-hash -i nef -m manifest -s address",
 				Action:    calcHash,
 				Flags: []cli.Flag{
 					flags.AddressFlag{
 						Name:  "sender, s",
-						Usage: "sender script hash or address",
+						Usage: "Sender script hash or address",
 					},
 					cli.StringFlag{
 						Name:  "in",
-						Usage: "path to NEF file",
+						Usage: "Path to NEF file",
 					},
 					cli.StringFlag{
 						Name:  "manifest, m",
-						Usage: "path to manifest file",
+						Usage: "Path to manifest file",
 					},
 				},
 			},
 			{
 				Name:  "manifest",
-				Usage: "manifest-related commands",
+				Usage: "Manifest-related commands",
 				Subcommands: []cli.Command{
 					{
 						Name:      "add-group",
-						Usage:     "adds group to the manifest",
+						Usage:     "Adds group to the manifest",
 						UsageText: "neo-go contract manifest add-group -w wallet [--wallet-config path] -n nef -m manifest -a address -s address",
 						Action:    manifestAddGroup,
 						Flags:     manifestAddGroupFlags,
