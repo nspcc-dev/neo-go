@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -249,7 +250,27 @@ func queryHeight(ctx *cli.Context) error {
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
-	c, err := options.GetRPCClient(gctx, ctx)
+	endpoint := ctx.String(options.RPCEndpointFlag)
+	if len(endpoint) == 0 {
+		return cli.NewExitError("errNoEndpoint", 1)
+	}
+	var c interface {
+		GetBlockCount() (uint32, error)
+		GetStateHeight() (*result.StateHeight, error)
+		Init() error
+	}
+	if strings.HasPrefix(endpoint, "ws://") || strings.HasPrefix(endpoint, "wss://") {
+		c, err = rpcclient.NewWS(gctx, endpoint, rpcclient.WSOptions{})
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	} else {
+		c, err = rpcclient.New(gctx, endpoint, rpcclient.Options{})
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+	}
+	err = c.Init()
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
