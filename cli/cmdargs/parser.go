@@ -348,3 +348,14 @@ func GetSignersAccounts(senderAcc *wallet.Account, wall *wallet.Wallet, signers 
 	}
 	return signersAccounts, nil
 }
+
+// EnsureNotEmpty returns a function that checks if the flag with the given name
+// is not empty.
+func EnsureNotEmpty(flagName string) func(*cli.Context, string) error {
+	return func(ctx *cli.Context, name string) error {
+		if ctx.String(flagName) == "" {
+			return cli.Exit(fmt.Errorf("required flag --%s is empty", flagName), 1)
+		}
+		return nil
+	}
+}

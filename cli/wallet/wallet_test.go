@@ -40,10 +40,10 @@ func TestWalletAccountRemove(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("missing wallet", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "wallet", "remove")
+		e.RunWithErrorCheck(t, `Required flag "address" not set`, "neo-go", "wallet", "remove")
 	})
 	t.Run("missing address", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "wallet", "remove", "--wallet", walletPath)
+		e.RunWithErrorCheck(t, `Required flag "address" not set`, "neo-go", "wallet", "remove", "--wallet", walletPath)
 	})
 	t.Run("invalid address", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "remove", "--wallet", walletPath,
@@ -109,7 +109,7 @@ func TestWalletChangePassword(t *testing.T) {
 		e.In.WriteString("pass\r")
 		e.In.WriteString("pass1\r")
 		e.In.WriteString("pass2\r")
-		e.RunWithError(t, "neo-go", "wallet", "change-password", "--wallet", walletPath)
+		e.RunWithError(t, "neo-go", "wallet", "change-password", "--wallet", walletPath, "--address", addr1)
 	})
 	t.Run("good, multiaccount", func(t *testing.T) {
 		e.In.WriteString("pass\r")
@@ -593,7 +593,7 @@ func TestWalletClaimGas(t *testing.T) {
 			"--address", testcli.TestWalletAccount)
 	})
 	t.Run("missing address", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "wallet", "claim",
+		e.RunWithErrorCheck(t, `Required flag "address" not set`, "neo-go", "wallet", "claim",
 			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.TestWalletPath)
 	})
@@ -605,7 +605,7 @@ func TestWalletClaimGas(t *testing.T) {
 	})
 	t.Run("missing endpoint", func(t *testing.T) {
 		e.In.WriteString("testpass\r")
-		e.RunWithError(t, "neo-go", "wallet", "claim",
+		e.RunWithErrorCheck(t, `Required flag "rpc-endpoint" not set`, "neo-go", "wallet", "claim",
 			"--wallet", testcli.TestWalletPath,
 			"--address", testcli.TestWalletAccount)
 	})
@@ -711,19 +711,19 @@ func TestWalletImportDeployed(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("missing wallet", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "wallet", "import-deployed")
+		e.RunWithErrorCheck(t, `Required flag "contract" not set`, "neo-go", "wallet", "import-deployed", "--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
 	})
 	t.Run("missing contract sh", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "wallet", "import-deployed",
-			"--wallet", walletPath)
+		e.RunWithErrorCheck(t, `Required flag "contract" not set`, "neo-go", "wallet", "import-deployed",
+			"--wallet", walletPath, "--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
 	})
 	t.Run("missing WIF", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "wallet", "import-deployed",
-			"--wallet", walletPath, "--contract", h.StringLE())
+			"--wallet", walletPath, "--contract", h.StringLE(), "--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
 	})
 	t.Run("missing endpoint", func(t *testing.T) {
 		e.In.WriteString("acc\rpass\rpass\r")
-		e.RunWithError(t, "neo-go", "wallet", "import-deployed",
+		e.RunWithErrorCheck(t, `Required flag "rpc-endpoint" not set`, "neo-go", "wallet", "import-deployed",
 			"--wallet", walletPath, "--contract", h.StringLE(),
 			"--wif", priv.WIF())
 	})
@@ -1107,11 +1107,11 @@ func TestWalletConvert(t *testing.T) {
 	outPath := filepath.Join(tmpDir, "wallet.json")
 	cmd := []string{"neo-go", "wallet", "convert"}
 	t.Run("missing wallet", func(t *testing.T) {
-		e.RunWithError(t, cmd...)
+		e.RunWithErrorCheck(t, `Required flag "out" not set`, cmd...)
 	})
 	cmd = append(cmd, "--wallet", "testdata/testwallet_NEO2.json")
 	t.Run("missing out path", func(t *testing.T) {
-		e.RunWithError(t, cmd...)
+		e.RunWithErrorCheck(t, `Required flag "out" not set`, cmd...)
 	})
 	t.Run("invalid out path", func(t *testing.T) {
 		dir := t.TempDir()

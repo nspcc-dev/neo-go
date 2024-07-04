@@ -16,7 +16,11 @@ import (
 
 // NewCommands returns util commands for neo-go CLI.
 func NewCommands() []*cli.Command {
-	txDumpFlags := append([]cli.Flag{}, options.RPC...)
+	// By default, RPC flag is required. sendtx and txdump may be called without provided rpc-endpoint.
+	rpcFlagOriginal, _ := options.RPC[0].(*cli.StringFlag)
+	rpcFlag := *rpcFlagOriginal
+	rpcFlag.Required = false
+	txDumpFlags := append([]cli.Flag{&rpcFlag}, options.RPC[1:]...)
 	txSendFlags := append(txDumpFlags, txctx.AwaitFlag)
 	txCancelFlags := append([]cli.Flag{
 		&flags.AddressFlag{

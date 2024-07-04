@@ -55,10 +55,13 @@ func TestNEP11Import(t *testing.T) {
 		"--wallet", walletPath,
 	}
 	// missing token hash
-	e.RunWithError(t, args...)
+	e.RunWithErrorCheck(t, `Required flag "token" not set`, args...)
 
 	// excessive parameters
 	e.RunWithError(t, append(args, "--token", nnsContractHash.StringLE(), "something")...)
+
+	// empty token hash
+	e.RunWithErrorCheck(t, `invalid value "" for flag -token: zero length string`, append(args, "--token", "")...)
 
 	// good: non-divisible
 	e.Run(t, append(args, "--token", nnsContractHash.StringLE())...)
@@ -229,7 +232,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	cmdOwnerOf := []string{"neo-go", "wallet", "nep11", "ownerOf",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
-	e.RunWithError(t, cmdOwnerOf...)
+	e.RunWithErrorCheck(t, `Required flag "token" not set`, cmdOwnerOf...)
 	cmdOwnerOf = append(cmdOwnerOf, "--token", h.StringLE())
 
 	// ownerOf: missing token ID
@@ -244,11 +247,11 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	cmdTokensOf := []string{"neo-go", "wallet", "nep11", "tokensOf",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
-	e.RunWithError(t, cmdTokensOf...)
+	e.RunWithErrorCheck(t, `Required flags "token, address" not set`, cmdTokensOf...)
 	cmdTokensOf = append(cmdTokensOf, "--token", h.StringLE())
 
 	// tokensOf: missing owner address
-	e.RunWithError(t, cmdTokensOf...)
+	e.RunWithErrorCheck(t, `Required flag "address" not set`, cmdTokensOf...)
 	cmdTokensOf = append(cmdTokensOf, "--address", nftOwnerAddr)
 
 	// tokensOf: good
@@ -260,7 +263,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		"neo-go", "wallet", "nep11", "properties",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
-	e.RunWithError(t, cmdProperties...)
+	e.RunWithErrorCheck(t, `Required flag "token" not set`, cmdProperties...)
 	cmdProperties = append(cmdProperties, "--token", h.StringLE())
 
 	// properties: no token ID
@@ -286,7 +289,7 @@ func TestNEP11_ND_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	cmdTokens := []string{"neo-go", "wallet", "nep11", "tokens",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
-	e.RunWithError(t, cmdTokens...)
+	e.RunWithErrorCheck(t, `Required flag "token" not set`, cmdTokens...)
 	cmdTokens = append(cmdTokens, "--token", h.StringLE())
 
 	// tokens: excessive parameters
@@ -514,7 +517,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	cmdOwnerOf := []string{"neo-go", "wallet", "nep11", "ownerOfD",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
-	e.RunWithError(t, cmdOwnerOf...)
+	e.RunWithErrorCheck(t, `Required flag "token" not set`, cmdOwnerOf...)
 	cmdOwnerOf = append(cmdOwnerOf, "--token", h.StringLE())
 
 	// ownerOfD: missing token ID
@@ -529,11 +532,11 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	cmdTokensOf := []string{"neo-go", "wallet", "nep11", "tokensOf",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
-	e.RunWithError(t, cmdTokensOf...)
+	e.RunWithErrorCheck(t, `Required flags "token, address" not set`, cmdTokensOf...)
 	cmdTokensOf = append(cmdTokensOf, "--token", h.StringLE())
 
 	// tokensOf: missing owner address
-	e.RunWithError(t, cmdTokensOf...)
+	e.RunWithErrorCheck(t, `Required flag "address" not set`, cmdTokensOf...)
 	cmdTokensOf = append(cmdTokensOf, "--address", testcli.ValidatorAddr)
 
 	// tokensOf: good
@@ -547,7 +550,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 		"neo-go", "wallet", "nep11", "properties",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
-	e.RunWithError(t, cmdProperties...)
+	e.RunWithErrorCheck(t, `Required flag "token" not set`, cmdProperties...)
 	cmdProperties = append(cmdProperties, "--token", h.StringLE())
 
 	// properties: no token ID
@@ -580,7 +583,7 @@ func TestNEP11_D_OwnerOf_BalanceOf_Transfer(t *testing.T) {
 	cmdTokens := []string{"neo-go", "wallet", "nep11", "tokens",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 	}
-	e.RunWithError(t, cmdTokens...)
+	e.RunWithErrorCheck(t, `Required flag "token" not set`, cmdTokens...)
 	cmdTokens = append(cmdTokens, "--token", h.StringLE())
 
 	// tokens: good, several tokens

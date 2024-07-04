@@ -40,14 +40,11 @@ const (
 )
 
 var (
-	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
-	errNoConfFile          = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
-	errNoManifestFile      = errors.New("no manifest file was found, specify manifest file with '--manifest' or '-m' flag")
-	errNoMethod            = errors.New("no method specified for function invocation command")
-	errNoScriptHash        = errors.New("no smart contract hash was provided, specify one as the first argument")
-	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
-	errFileExist           = errors.New("A file with given smart-contract name already exists")
-	addressFlag            = &flags.AddressFlag{
+	errNoConfFile   = errors.New("no config file was found, specify a config file with the '--config' or '-c' flag")
+	errNoMethod     = errors.New("no method specified for function invocation command")
+	errNoScriptHash = errors.New("no smart contract hash was provided, specify one as the first argument")
+	errFileExist    = errors.New("A file with given smart-contract name already exists")
+	addressFlag     = &flags.AddressFlag{
 		Name:    addressFlagName,
 		Aliases: []string{addressFlagAlias},
 		Usage:   "Address to use as transaction signee (and gas source)",
@@ -82,9 +79,11 @@ func RuntimeNotify(args []any) {
 func NewCommands() []*cli.Command {
 	testInvokeScriptFlags := []cli.Flag{
 		&cli.StringFlag{
-			Name:    "in",
-			Aliases: []string{"i"},
-			Usage:   "Input location of the .nef file that needs to be invoked",
+			Name:     "in",
+			Aliases:  []string{"i"},
+			Required: true,
+			Usage:    "Input location of the .nef file that needs to be invoked",
+			Action:   cmdargs.EnsureNotEmpty("in"),
 		},
 		options.Historic,
 	}
@@ -103,36 +102,47 @@ func NewCommands() []*cli.Command {
 	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
 	deployFlags := append(invokeFunctionFlags, []cli.Flag{
 		&cli.StringFlag{
-			Name:    "in",
-			Aliases: []string{"i"},
-			Usage:   "Input file for the smart contract (*.nef)",
+			Name:     "in",
+			Aliases:  []string{"i"},
+			Required: true,
+			Usage:    "Input file for the smart contract (*.nef)",
+			Action:   cmdargs.EnsureNotEmpty("in"),
 		},
 		&cli.StringFlag{
-			Name:    "manifest",
-			Aliases: []string{"m"},
-			Usage:   "Manifest input file (*.manifest.json)",
+			Name:     "manifest",
+			Aliases:  []string{"m"},
+			Required: true,
+			Usage:    "Manifest input file (*.manifest.json)",
+			Action:   cmdargs.EnsureNotEmpty("manifest"),
 		},
 	}...)
 	manifestAddGroupFlags := append([]cli.Flag{
 		&cli.StringFlag{
-			Name:    "sender",
-			Aliases: []string{"s"},
-			Usage:   "Deploy transaction sender",
+			Name:     "sender",
+			Aliases:  []string{"s"},
+			Required: true,
+			Usage:    "Deploy transaction sender",
+			Action:   cmdargs.EnsureNotEmpty("sender"),
 		},
 		&flags.AddressFlag{
-			Name:    addressFlagName, // use the same name for handler code unification.
-			Aliases: []string{addressFlagAlias},
-			Usage:   "Account to sign group with",
+			Name:     addressFlagName, // use the same name for handler code unification.
+			Aliases:  []string{addressFlagAlias},
+			Required: true,
+			Usage:    "Account to sign group with",
 		},
 		&cli.StringFlag{
-			Name:    "nef",
-			Aliases: []string{"n"},
-			Usage:   "Path to the NEF file",
+			Name:     "nef",
+			Aliases:  []string{"n"},
+			Required: true,
+			Usage:    "Path to the NEF file",
+			Action:   cmdargs.EnsureNotEmpty("nef"),
 		},
 		&cli.StringFlag{
-			Name:    "manifest",
-			Aliases: []string{"m"},
-			Usage:   "Path to the manifest",
+			Name:     "manifest",
+			Aliases:  []string{"m"},
+			Required: true,
+			Usage:    "Path to the manifest",
+			Action:   cmdargs.EnsureNotEmpty("manifest"),
 		},
 	}, options.Wallet...)
 	return []*cli.Command{{
@@ -154,9 +164,11 @@ func NewCommands() []*cli.Command {
 				Action: contractCompile,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:    "in",
-						Aliases: []string{"i"},
-						Usage:   "Input file for the smart contract to be compiled (*.go file or directory)",
+						Name:     "in",
+						Aliases:  []string{"i"},
+						Required: true,
+						Usage:    "Input file for the smart contract to be compiled (*.go file or directory)",
+						Action:   cmdargs.EnsureNotEmpty("in"),
 					},
 					&cli.StringFlag{
 						Name:    "out",
@@ -273,9 +285,11 @@ func NewCommands() []*cli.Command {
 				Action:    initSmartContract,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:    "name",
-						Aliases: []string{"n"},
-						Usage:   "Name of the smart-contract to be initialized",
+						Name:     "name",
+						Aliases:  []string{"n"},
+						Required: true,
+						Usage:    "Name of the smart-contract to be initialized",
+						Action:   cmdargs.EnsureNotEmpty("name"),
 					},
 					&cli.BoolFlag{
 						Name:    "skip-details",
@@ -296,9 +310,11 @@ func NewCommands() []*cli.Command {
 						Usage:   "Compile input file (it should be go code then)",
 					},
 					&cli.StringFlag{
-						Name:    "in",
-						Aliases: []string{"i"},
-						Usage:   "Input file of the program (either .go or .nef)",
+						Name:     "in",
+						Aliases:  []string{"i"},
+						Required: true,
+						Usage:    "Input file of the program (either .go or .nef)",
+						Action:   cmdargs.EnsureNotEmpty("in"),
 					},
 				},
 			},
@@ -309,18 +325,23 @@ func NewCommands() []*cli.Command {
 				Action:    calcHash,
 				Flags: []cli.Flag{
 					&flags.AddressFlag{
-						Name:    "sender",
-						Aliases: []string{"s"},
-						Usage:   "Sender script hash or address",
+						Name:     "sender",
+						Aliases:  []string{"s"},
+						Required: true,
+						Usage:    "Sender script hash or address",
 					},
 					&cli.StringFlag{
-						Name:  "in",
-						Usage: "Path to NEF file",
+						Name:     "in",
+						Required: true,
+						Usage:    "Path to NEF file",
+						Action:   cmdargs.EnsureNotEmpty("in"),
 					},
 					&cli.StringFlag{
-						Name:    "manifest",
-						Aliases: []string{"m"},
-						Usage:   "Path to manifest file",
+						Name:     "manifest",
+						Aliases:  []string{"m"},
+						Required: true,
+						Usage:    "Path to manifest file",
+						Action:   cmdargs.EnsureNotEmpty("manifest"),
 					},
 				},
 			},
@@ -347,9 +368,6 @@ func initSmartContract(ctx *cli.Context) error {
 		return err
 	}
 	contractName := ctx.String("name")
-	if contractName == "" {
-		return cli.Exit(errNoSmartContractName, 1)
-	}
 
 	// Check if the file already exists, if yes, exit
 	if _, err := os.Stat(contractName); err == nil {
@@ -424,9 +442,6 @@ func contractCompile(ctx *cli.Context) error {
 		return err
 	}
 	src := ctx.String("in")
-	if len(src) == 0 {
-		return cli.Exit(errNoInput, 1)
-	}
 	manifestFile := ctx.String("manifest")
 	confFile := ctx.String("config")
 	debugFile := ctx.String("debug")
@@ -508,18 +523,9 @@ func calcHash(ctx *cli.Context) error {
 		return err
 	}
 	sender := ctx.Generic("sender").(*flags.Address)
-	if !sender.IsSet {
-		return cli.Exit("sender is not set", 1)
-	}
-
 	p := ctx.String("in")
-	if p == "" {
-		return cli.Exit(errors.New("no .nef file was provided"), 1)
-	}
 	mpath := ctx.String("manifest")
-	if mpath == "" {
-		return cli.Exit(errors.New("no manifest file provided"), 1)
-	}
+
 	f, err := os.ReadFile(p)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("can't read .nef file: %w", err), 1)
@@ -680,10 +686,6 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 
 func testInvokeScript(ctx *cli.Context) error {
 	src := ctx.String("in")
-	if len(src) == 0 {
-		return cli.Exit(errNoInput, 1)
-	}
-
 	b, err := os.ReadFile(src)
 	if err != nil {
 		return cli.Exit(err, 1)
@@ -739,9 +741,6 @@ func inspect(ctx *cli.Context) error {
 	}
 	in := ctx.String("in")
 	compile := ctx.Bool("compile")
-	if len(in) == 0 {
-		return cli.Exit(errNoInput, 1)
-	}
 	var (
 		b   []byte
 		err error

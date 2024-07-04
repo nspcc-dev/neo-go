@@ -101,14 +101,14 @@ func NewCommands() []*cli.Command {
 				{
 					Name:      "dump",
 					Usage:     "Dump blocks (starting with block #1) to the file",
-					UsageText: "neo-go db dump -o file [-s start] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",
+					UsageText: "neo-go db dump [-o file] [-s start] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",
 					Action:    dumpDB,
 					Flags:     cfgCountOutFlags,
 				},
 				{
 					Name:      "restore",
 					Usage:     "Restore blocks from the file",
-					UsageText: "neo-go db restore -i file [--dump] [-n] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",
+					UsageText: "neo-go db restore [-i file] [--dump] [-n] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",
 					Action:    restoreDB,
 					Flags:     cfgCountInFlags,
 				},

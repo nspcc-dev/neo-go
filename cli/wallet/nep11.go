@@ -25,12 +25,14 @@ import (
 func newNEP11Commands() []*cli.Command {
 	maxIters := strconv.Itoa(config.DefaultMaxIteratorResultItems)
 	tokenAddressFlag := &flags.AddressFlag{
-		Name:  "token",
-		Usage: "Token contract address or hash in LE",
+		Name:     "token",
+		Usage:    "Token contract address or hash in LE",
+		Required: true,
 	}
 	ownerAddressFlag := &flags.AddressFlag{
-		Name:  "address",
-		Usage: "NFT owner address or hash in LE",
+		Name:     "address",
+		Usage:    "NFT owner address or hash in LE",
+		Required: true,
 	}
 	tokenID := &cli.StringFlag{
 		Name:  "id",
@@ -71,7 +73,7 @@ func newNEP11Commands() []*cli.Command {
 		{
 			Name:      "import",
 			Usage:     "Import NEP-11 token to a wallet",
-			UsageText: "import -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --token <hash>",
+			UsageText: "import -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] --token <hash>",
 			Action:    importNEP11Token,
 			Flags:     importFlags,
 		},
@@ -101,7 +103,7 @@ func newNEP11Commands() []*cli.Command {
 		{
 			Name:      "transfer",
 			Usage:     "Transfer NEP-11 tokens",
-			UsageText: "transfer -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [--await] [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
+			UsageText: "transfer -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [--await] [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP11,
 			Flags:     transferFlags,
 			Description: `Transfers specified NEP-11 token with optional cosigners list attached to
@@ -246,10 +248,6 @@ func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 		return err
 	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
-	if !tokenHash.IsSet {
-		return cli.Exit("token contract hash was not set", 1)
-	}
-
 	tokenID := ctx.String("id")
 	if tokenID == "" {
 		return cli.Exit(errors.New("token ID should be specified"), 1)
@@ -291,15 +289,7 @@ func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 func printNEP11TokensOf(ctx *cli.Context) error {
 	var err error
 	tokenHash := ctx.Generic("token").(*flags.Address)
-	if !tokenHash.IsSet {
-		return cli.Exit("token contract hash was not set", 1)
-	}
-
 	acc := ctx.Generic("address").(*flags.Address)
-	if !acc.IsSet {
-		return cli.Exit("owner address flag was not set", 1)
-	}
-
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
@@ -326,10 +316,6 @@ func printNEP11Tokens(ctx *cli.Context) error {
 		return err
 	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
-	if !tokenHash.IsSet {
-		return cli.Exit("token contract hash was not set", 1)
-	}
-
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
@@ -356,10 +342,6 @@ func printNEP11Properties(ctx *cli.Context) error {
 		return err
 	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
-	if !tokenHash.IsSet {
-		return cli.Exit("token contract hash was not set", 1)
-	}
-
 	tokenID := ctx.String("id")
 	if tokenID == "" {
 		return cli.Exit(errors.New("token ID should be specified"), 1)

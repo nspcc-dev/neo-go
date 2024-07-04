@@ -2,7 +2,6 @@ package smartcontract
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 
@@ -75,10 +74,6 @@ func manifestAddGroup(ctx *cli.Context) error {
 }
 
 func readNEFFile(filename string) (*nef.File, []byte, error) {
-	if len(filename) == 0 {
-		return nil, nil, errors.New("no nef file was provided")
-	}
-
 	f, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, nil, err
@@ -96,10 +91,6 @@ func readNEFFile(filename string) (*nef.File, []byte, error) {
 // it for validness against the provided contract hash. If empty hash is specified
 // then no hash-related manifest groups check is performed.
 func readManifest(filename string, hash util.Uint160) (*manifest.Manifest, []byte, error) {
-	if len(filename) == 0 {
-		return nil, nil, errNoManifestFile
-	}
-
 	manifestBytes, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, nil, err

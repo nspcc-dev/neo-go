@@ -57,8 +57,9 @@ var (
 		walletPathFlag,
 		walletConfigFlag,
 		&flags.AddressFlag{
-			Name:  "token",
-			Usage: "Token contract address or hash in LE",
+			Name:     "token",
+			Usage:    "Token contract address or hash in LE",
+			Required: true,
 		},
 	}, options.RPC...)
 	baseTransferFlags = []cli.Flag{
@@ -120,7 +121,7 @@ func newNEP17Commands() []*cli.Command {
 		{
 			Name:      "import",
 			Usage:     "Import NEP-17 token to a wallet",
-			UsageText: "import -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --token <hash>",
+			UsageText: "import -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] --token <hash>",
 			Action:    importNEP17Token,
 			Flags:     importFlags,
 		},
@@ -150,7 +151,7 @@ func newNEP17Commands() []*cli.Command {
 		{
 			Name:      "transfer",
 			Usage:     "Transfer NEP-17 tokens",
-			UsageText: "transfer -w wallet [--wallet-config path] [--await] --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --amount string [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
+			UsageText: "transfer -w wallet [--wallet-config path] [--await] --rpc-endpoint <node> [--timeout <time>] --from <addr> --to <addr> --token <hash-or-name> --amount string [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP17,
 			Flags:     transferFlags,
 			Description: `Transfers specified NEP-17 token amount with optional 'data' parameter and cosigners
@@ -394,9 +395,6 @@ func importNEPToken(ctx *cli.Context, standard string) error {
 	defer wall.Close()
 
 	tokenHashFlag := ctx.Generic("token").(*flags.Address)
-	if !tokenHashFlag.IsSet {
-		return cli.Exit("token contract hash was not set", 1)
-	}
 	tokenHash := tokenHashFlag.Uint160()
 
 	for _, t := range wall.Extra.Tokens {
@@ -648,9 +646,6 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	}
 
 	toFlag := ctx.Generic("to").(*flags.Address)
-	if !toFlag.IsSet {
-		return cli.Exit(errors.New("missing receiver address (--to)"), 1)
-	}
 	to := toFlag.Uint160()
 	token, err := getMatchingToken(ctx, wall, ctx.String("token"), standard)
 	if err != nil {

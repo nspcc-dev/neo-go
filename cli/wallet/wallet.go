@@ -66,16 +66,19 @@ var (
 		Usage:   "Decrypt encrypted keys.",
 	}
 	inFlag = &cli.StringFlag{
-		Name:  "in",
-		Usage: "File with JSON transaction",
+		Name:     "in",
+		Required: true,
+		Usage:    "File with JSON transaction",
+		Action:   cmdargs.EnsureNotEmpty("in"),
 	}
 	fromAddrFlag = &flags.AddressFlag{
 		Name:  "from",
 		Usage: "Address to send an asset from",
 	}
 	toAddrFlag = &flags.AddressFlag{
-		Name:  "to",
-		Usage: "Address to send an asset to",
+		Name:     "to",
+		Usage:    "Address to send an asset to",
+		Required: true,
 	}
 )
 
@@ -90,9 +93,10 @@ func NewCommands() []*cli.Command {
 		txctx.ForceFlag,
 		txctx.AwaitFlag,
 		&flags.AddressFlag{
-			Name:    "address",
-			Aliases: []string{"a"},
-			Usage:   "Address to claim GAS for",
+			Name:     "address",
+			Aliases:  []string{"a"},
+			Required: true,
+			Usage:    "Address to claim GAS for",
 		},
 	}
 	claimFlags = append(claimFlags, options.RPC...)
@@ -108,7 +112,12 @@ func NewCommands() []*cli.Command {
 			Usage:   "Address to use",
 		},
 	}
-	signFlags = append(signFlags, options.RPC...)
+	// By default, RPC flag is required. signtx may be called without provided rpc-endpoint.
+	rpcFlagOriginal, _ := options.RPC[0].(*cli.StringFlag)
+	rpcFlag := *rpcFlagOriginal
+	rpcFlag.Required = false
+	signFlags = append(signFlags, &rpcFlag)
+	signFlags = append(signFlags, options.RPC[1:]...)
 	return []*cli.Command{{
 		Name:  "wallet",
 		Usage: "Create, open and manage a Neo wallet",
@@ -138,7 +147,7 @@ func NewCommands() []*cli.Command {
 			{
 				Name:      "change-password",
 				Usage:     "Change password for accounts",
-				UsageText: "neo-go wallet change-password -w wallet -a address",
+				UsageText: "neo-go wallet change-password -w wallet [-a address]",
 				Action:    changePassword,
 				Flags: []cli.Flag{
 					walletPathFlag,
@@ -158,9 +167,11 @@ func NewCommands() []*cli.Command {
 					walletPathFlag,
 					walletConfigFlag,
 					&cli.StringFlag{
-						Name:    "out",
-						Aliases: []string{"o"},
-						Usage:   "Where to write converted wallet",
+						Name:     "out",
+						Aliases:  []string{"o"},
+						Required: true,
+						Usage:    "Where to write converted wallet",
+						Action:   cmdargs.EnsureNotEmpty("out"),
 					},
 				},
 			},
@@ -274,7 +285,7 @@ func NewCommands() []*cli.Command {
 			{
 				Name:      "import-deployed",
 				Usage:     "Import deployed contract",
-				UsageText: "import-deployed -w wallet [--wallet-config path] --wif <wif> --contract <hash> [--name <account_name>]",
+				UsageText: "import-deployed -w wallet [--wallet-config path] --wif <wif> --contract <hash> --rpc-endpoint <endpoint> [-s <timeout>] [--name <account_name>]",
 				Action:    importDeployed,
 				Flags: append([]cli.Flag{
 					walletPathFlag,
@@ -286,9 +297,10 @@ func NewCommands() []*cli.Command {
 						Usage:   "Optional account name",
 					},
 					&flags.AddressFlag{
-						Name:    "contract",
-						Aliases: []string{"c"},
-						Usage:   "Contract hash or address",
+						Name:     "contract",
+						Aliases:  []string{"c"},
+						Required: true,
+						Usage:    "Contract hash or address",
 					},
 				}, options.RPC...),
 			},
@@ -302,9 +314,10 @@ func NewCommands() []*cli.Command {
 					walletConfigFlag,
 					txctx.ForceFlag,
 					&flags.AddressFlag{
-						Name:    "address",
-						Aliases: []string{"a"},
-						Usage:   "Account address or hash in LE form to be removed",
+						Name:     "address",
+						Aliases:  []string{"a"},
+						Required: true,
+						Usage:    "Account address or hash in LE form to be removed",
 					},
 				},
 			},
@@ -432,9 +445,6 @@ func convertWallet(ctx *cli.Context) error {
 	}
 
 	out := ctx.String("out")
-	if len(out) == 0 {
-		return cli.Exit("missing out path", 1)
-	}
 	newWallet, err := wallet.NewWallet(out)
 	if err != nil {
 		return cli.Exit(err, 1)
@@ -634,9 +644,6 @@ func importDeployed(ctx *cli.Context) error {
 	defer wall.Close()
 
 	rawHash := ctx.Generic("contract").(*flags.Address)
-	if !rawHash.IsSet {
-		return cli.Exit("contract hash was not provided", 1)
-	}
 
 	var label *string
 	if ctx.IsSet("name") {
@@ -730,9 +737,6 @@ func removeAccount(ctx *cli.Context) error {
 	defer wall.Close()
 
 	addr := ctx.Generic("address").(*flags.Address)
-	if !addr.IsSet {
-		return cli.Exit("valid account address must be provided", 1)
-	}
 	acc := wall.GetAccount(addr.Uint160())
 	if acc == nil {
 		return cli.Exit("account wasn't found", 1)

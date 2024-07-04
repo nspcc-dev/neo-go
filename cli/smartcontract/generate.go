@@ -24,12 +24,14 @@ var generatorFlags = []cli.Flag{
 		Aliases:  []string{"m"},
 		Required: true,
 		Usage:    "Read contract manifest (*.manifest.json) file",
+		Action:   cmdargs.EnsureNotEmpty("manifest"),
 	},
 	&cli.StringFlag{
 		Name:     "out",
 		Aliases:  []string{"o"},
 		Required: true,
 		Usage:    "Output of the compiled wrapper",
+		Action:   cmdargs.EnsureNotEmpty("out"),
 	},
 	&cli.StringFlag{
 		Name:  "hash",

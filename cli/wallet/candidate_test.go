@@ -39,7 +39,7 @@ func TestRegisterCandidate(t *testing.T) {
 	e.CheckEOF(t)
 
 	// missing address
-	e.RunWithError(t, "neo-go", "wallet", "candidate", "register",
+	e.RunWithErrorCheck(t, `Required flag "address" not set`, "neo-go", "wallet", "candidate", "register",
 		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet)
 
@@ -131,7 +131,7 @@ func TestRegisterCandidate(t *testing.T) {
 	})
 
 	// missing address
-	e.RunWithError(t, "neo-go", "wallet", "candidate", "unregister",
+	e.RunWithErrorCheck(t, `Required flag "address" not set`, "neo-go", "wallet", "candidate", "unregister",
 		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet)
 	// additional argument
@@ -153,7 +153,7 @@ func TestRegisterCandidate(t *testing.T) {
 	require.Equal(t, 0, len(vs))
 
 	// query voter: missing address
-	e.RunWithError(t, "neo-go", "query", "voter")
+	e.RunWithError(t, "neo-go", "query", "voter", "--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
 	// Excessive parameters.
 	e.RunWithError(t, "neo-go", "query", "voter", "--rpc-endpoint", "http://"+e.RPC.Addresses()[0], validatorAddress, validatorAddress)
 	e.RunWithError(t, "neo-go", "query", "committee", "--rpc-endpoint", "http://"+e.RPC.Addresses()[0], "something")

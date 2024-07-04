@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/flags"
 	"github.com/nspcc-dev/neo-go/cli/input"
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -86,9 +87,11 @@ var Network = []cli.Flag{
 // RPC is a set of flags used for RPC connections (endpoint and timeout).
 var RPC = []cli.Flag{
 	&cli.StringFlag{
-		Name:    RPCEndpointFlag,
-		Aliases: []string{"r"},
-		Usage:   "RPC node address",
+		Name:     RPCEndpointFlag,
+		Aliases:  []string{"r"},
+		Usage:    "RPC node address",
+		Required: true,
+		Action:   cmdargs.EnsureNotEmpty("rpc-endpoint"),
 	},
 	&cli.DurationFlag{
 		Name:    "timeout",
@@ -131,7 +134,6 @@ var Debug = &cli.BoolFlag{
 	Usage:   "Enable debug logging (LOTS of output, overrides configuration)",
 }
 
-var errNoEndpoint = errors.New("no RPC endpoint specified, use option '--" + RPCEndpointFlag + "' or '-r'")
 var errInvalidHistoric = errors.New("invalid 'historic' parameter, neither a block number, nor a block/state hash")
 var errNoWallet = errors.New("no wallet parameter found, specify it with the '--wallet' or '-w' flag or specify wallet config file with the '--wallet-config' flag")
 var errConflictingWalletFlags = errors.New("--wallet flag conflicts with --wallet-config flag, please, provide one of them to specify wallet location")
@@ -167,9 +169,6 @@ func GetTimeoutContext(ctx *cli.Context) (context.Context, func()) {
 // GetRPCClient returns an RPC client instance for the given Context.
 func GetRPCClient(gctx context.Context, ctx *cli.Context) (*rpcclient.Client, cli.ExitCoder) {
 	endpoint := ctx.String(RPCEndpointFlag)
-	if len(endpoint) == 0 {
-		return nil, cli.Exit(errNoEndpoint, 1)
-	}
 	c, err := rpcclient.New(gctx, endpoint, rpcclient.Options{})
 	if err != nil {
 		return nil, cli.Exit(err, 1)

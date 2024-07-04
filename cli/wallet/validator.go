@@ -20,7 +20,7 @@ func newValidatorCommands() []*cli.Command {
 		{
 			Name:      "register",
 			Usage:     "Register as a new candidate",
-			UsageText: "register -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas] [--out file] [--force] [--await]",
+			UsageText: "register -w <path> -r <rpc> [-s timeout] -a <addr> [-g gas] [-e sysgas] [--out file] [--force] [--await]",
 			Action:    handleRegister,
 			Flags: append([]cli.Flag{
 				walletPathFlag,
@@ -31,16 +31,17 @@ func newValidatorCommands() []*cli.Command {
 				txctx.ForceFlag,
 				txctx.AwaitFlag,
 				&flags.AddressFlag{
-					Name:    "address",
-					Aliases: []string{"a"},
-					Usage:   "Address to register",
+					Name:     "address",
+					Aliases:  []string{"a"},
+					Required: true,
+					Usage:    "Address to register",
 				},
 			}, options.RPC...),
 		},
 		{
 			Name:      "unregister",
 			Usage:     "Unregister self as a candidate",
-			UsageText: "unregister -w <path> -r <rpc> -a <addr> [-g gas] [-e sysgas] [--out file] [--force] [--await]",
+			UsageText: "unregister -w <path> -r <rpc> [-s timeout] -a <addr> [-g gas] [-e sysgas] [--out file] [--force] [--await]",
 			Action:    handleUnregister,
 			Flags: append([]cli.Flag{
 				walletPathFlag,
@@ -51,9 +52,10 @@ func newValidatorCommands() []*cli.Command {
 				txctx.ForceFlag,
 				txctx.AwaitFlag,
 				&flags.AddressFlag{
-					Name:    "address",
-					Aliases: []string{"a"},
-					Usage:   "Address to unregister",
+					Name:     "address",
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    "Address to unregister",
 				},
 			}, options.RPC...),
 		},
@@ -75,9 +77,10 @@ func newValidatorCommands() []*cli.Command {
 				txctx.ForceFlag,
 				txctx.AwaitFlag,
 				&flags.AddressFlag{
-					Name:    "address",
-					Aliases: []string{"a"},
-					Usage:   "Address to vote from",
+					Name:     "address",
+					Required: true,
+					Aliases:  []string{"a"},
+					Usage:    "Address to vote from",
 				},
 				&cli.StringFlag{
 					Name:    "candidate",
@@ -112,9 +115,6 @@ func handleNeoAction(ctx *cli.Context, mkTx func(*neo.Contract, util.Uint160, *w
 	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
-	if !addrFlag.IsSet {
-		return cli.Exit("address was not provided", 1)
-	}
 	addr := addrFlag.Uint160()
 	acc, err := options.GetUnlockedAccount(wall, addr, pass)
 	if err != nil {
