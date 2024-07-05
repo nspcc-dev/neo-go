@@ -103,7 +103,7 @@ func GetRandom(ic *interop.Context) error {
 	}
 	res := murmur128(ic.NonceData[:], seed)
 	if !isHF {
-		copy(ic.NonceData[:], res)
+		ic.NonceData = [interop.ContextNonceDataLen]byte(res)
 	}
 	if !ic.VM.AddGas(ic.BaseExecFee() * price) {
 		return errors.New("gas limit exceeded")

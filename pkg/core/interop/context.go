@@ -32,6 +32,8 @@ import (
 const (
 	// DefaultBaseExecFee specifies the default multiplier for opcode and syscall prices.
 	DefaultBaseExecFee = 30
+	// ContextNonceDataLen is a length of [Context.NonceData] in bytes.
+	ContextNonceDataLen = 16
 )
 
 // Ledger is the interface to Blockchain required for Context functionality.
@@ -52,7 +54,7 @@ type Context struct {
 	Natives          []Contract
 	Trigger          trigger.Type
 	Block            *block.Block
-	NonceData        [16]byte
+	NonceData        [ContextNonceDataLen]byte
 	Tx               *transaction.Transaction
 	DAO              *dao.Simple
 	Notifications    []state.NotificationEvent
@@ -97,7 +99,7 @@ func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, bas
 // InitNonceData initializes nonce to be used in `GetRandom` calculations.
 func (ic *Context) InitNonceData() {
 	if tx, ok := ic.Container.(*transaction.Transaction); ok {
-		copy(ic.NonceData[:], tx.Hash().BytesBE())
+		ic.NonceData = [ContextNonceDataLen]byte(tx.Hash().BytesBE())
 	}
 	if ic.Block != nil {
 		nonce := ic.Block.Nonce
