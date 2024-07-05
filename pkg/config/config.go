@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -81,7 +82,6 @@ func LoadFile(configPath string, relativePath ...string) (Config, error) {
 	var (
 		configData []byte
 		err        error
-		config     Config
 	)
 	if _, err = os.Stat(configPath); os.IsNotExist(err) {
 		configData, err = getEmbeddedConfig(configPath)
@@ -93,6 +93,14 @@ func LoadFile(configPath string, relativePath ...string) (Config, error) {
 		if err != nil {
 			return Config{}, fmt.Errorf("unable to read config: %w", err)
 		}
+	}
+	config := Config{
+		ApplicationConfiguration: ApplicationConfiguration{
+			P2P: P2P{
+				PingInterval: 30 * time.Second,
+				PingTimeout:  90 * time.Second,
+			},
+		},
 	}
 	decoder := yaml.NewDecoder(bytes.NewReader(configData))
 	decoder.KnownFields(true)
