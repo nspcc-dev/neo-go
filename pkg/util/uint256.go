@@ -50,8 +50,7 @@ func Uint256DecodeBytesBE(b []byte) (u Uint256, err error) {
 	if len(b) != Uint256Size {
 		return u, fmt.Errorf("expected []byte of size %d got %d", Uint256Size, len(b))
 	}
-	copy(u[:], b)
-	return u, nil
+	return Uint256(b), nil
 }
 
 // Uint256DecodeBytesLE attempts to decode the given string (in LE representation) into a Uint256.
