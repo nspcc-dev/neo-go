@@ -26,7 +26,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/term"
@@ -47,66 +47,88 @@ const (
 const RPCEndpointFlag = "rpc-endpoint"
 
 // Wallet is a set of flags used for wallet operations.
-var Wallet = []cli.Flag{cli.StringFlag{
-	Name:  "wallet, w",
-	Usage: "Wallet to use to get the key for transaction signing; conflicts with --wallet-config flag",
-}, cli.StringFlag{
-	Name:  "wallet-config",
-	Usage: "Path to wallet config to use to get the key for transaction signing; conflicts with --wallet flag"},
+var Wallet = []cli.Flag{
+	&cli.StringFlag{
+		Name:    "wallet",
+		Aliases: []string{"w"},
+		Usage:   "Wallet to use to get the key for transaction signing; conflicts with --wallet-config flag",
+	},
+	&cli.StringFlag{
+		Name:  "wallet-config",
+		Usage: "Path to wallet config to use to get the key for transaction signing; conflicts with --wallet flag",
+	},
 }
 
 // Network is a set of flags for choosing the network to operate on
 // (privnet/mainnet/testnet).
 var Network = []cli.Flag{
-	cli.BoolFlag{Name: "privnet, p", Usage: "Use private network configuration (if --config-file option is not specified)"},
-	cli.BoolFlag{Name: "mainnet, m", Usage: "Use mainnet network configuration (if --config-file option is not specified)"},
-	cli.BoolFlag{Name: "testnet, t", Usage: "Use testnet network configuration (if --config-file option is not specified)"},
-	cli.BoolFlag{Name: "unittest", Hidden: true},
+	&cli.BoolFlag{
+		Name:    "privnet",
+		Aliases: []string{"p"},
+		Usage:   "Use private network configuration (if --config-file option is not specified)",
+	},
+	&cli.BoolFlag{
+		Name:    "mainnet",
+		Aliases: []string{"m"},
+		Usage:   "Use mainnet network configuration (if --config-file option is not specified)",
+	},
+	&cli.BoolFlag{
+		Name:    "testnet",
+		Aliases: []string{"t"},
+		Usage:   "Use testnet network configuration (if --config-file option is not specified)",
+	},
+	&cli.BoolFlag{
+		Name:   "unittest",
+		Hidden: true,
+	},
 }
 
 // RPC is a set of flags used for RPC connections (endpoint and timeout).
 var RPC = []cli.Flag{
-	cli.StringFlag{
-		Name:  RPCEndpointFlag + ", r",
-		Usage: "RPC node address",
+	&cli.StringFlag{
+		Name:    RPCEndpointFlag,
+		Aliases: []string{"r"},
+		Usage:   "RPC node address",
 	},
-	cli.DurationFlag{
-		Name:  "timeout, s",
-		Value: DefaultTimeout,
-		Usage: "Timeout for the operation",
+	&cli.DurationFlag{
+		Name:    "timeout",
+		Aliases: []string{"s"},
+		Value:   DefaultTimeout,
+		Usage:   "Timeout for the operation",
 	},
 }
 
 // Historic is a flag for commands that can perform historic invocations.
-var Historic = cli.StringFlag{
+var Historic = &cli.StringFlag{
 	Name:  "historic",
 	Usage: "Use historic state (height, block hash or state root hash)",
 }
 
 // Config is a flag for commands that use node configuration.
-var Config = cli.StringFlag{
+var Config = &cli.StringFlag{
 	Name:  "config-path",
 	Usage: "Path to directory with per-network configuration files (may be overridden by --config-file option for the configuration file)",
 }
 
 // ConfigFile is a flag for commands that use node configuration and provide
 // path to the specific config file instead of config path.
-var ConfigFile = cli.StringFlag{
+var ConfigFile = &cli.StringFlag{
 	Name:  "config-file",
 	Usage: "Path to the node configuration file (overrides --config-path option)",
 }
 
 // RelativePath is a flag for commands that use node configuration and provide
 // a prefix to all relative paths in config files.
-var RelativePath = cli.StringFlag{
+var RelativePath = &cli.StringFlag{
 	Name:  "relative-path",
 	Usage: "Prefix to all relative paths in the node configuration file",
 }
 
 // Debug is a flag for commands that allow node in debug mode usage.
-var Debug = cli.BoolFlag{
-	Name:  "debug, d",
-	Usage: "Enable debug logging (LOTS of output, overrides configuration)",
+var Debug = &cli.BoolFlag{
+	Name:    "debug",
+	Aliases: []string{"d"},
+	Usage:   "Enable debug logging (LOTS of output, overrides configuration)",
 }
 
 var errNoEndpoint = errors.New("no RPC endpoint specified, use option '--" + RPCEndpointFlag + "' or '-r'")
@@ -146,15 +168,15 @@ func GetTimeoutContext(ctx *cli.Context) (context.Context, func()) {
 func GetRPCClient(gctx context.Context, ctx *cli.Context) (*rpcclient.Client, cli.ExitCoder) {
 	endpoint := ctx.String(RPCEndpointFlag)
 	if len(endpoint) == 0 {
-		return nil, cli.NewExitError(errNoEndpoint, 1)
+		return nil, cli.Exit(errNoEndpoint, 1)
 	}
 	c, err := rpcclient.New(gctx, endpoint, rpcclient.Options{})
 	if err != nil {
-		return nil, cli.NewExitError(err, 1)
+		return nil, cli.Exit(err, 1)
 	}
 	err = c.Init()
 	if err != nil {
-		return nil, cli.NewExitError(err, 1)
+		return nil, cli.Exit(err, 1)
 	}
 	return c, nil
 }
@@ -173,7 +195,7 @@ func GetInvoker(c *rpcclient.Client, ctx *cli.Context, signers []transaction.Sig
 		// Might as well be a block hash, but it makes no practical difference.
 		return invoker.NewHistoricWithState(u256, c, signers), nil
 	}
-	return nil, cli.NewExitError(errInvalidHistoric, 1)
+	return nil, cli.Exit(errInvalidHistoric, 1)
 }
 
 // GetRPCWithInvoker combines GetRPCClient with GetInvoker for cases where it's
@@ -314,7 +336,7 @@ func GetRPCWithActor(gctx context.Context, ctx *cli.Context, signers []actor.Sig
 	a, actorErr := actor.New(c, signers)
 	if actorErr != nil {
 		c.Close()
-		return nil, nil, cli.NewExitError(fmt.Errorf("failed to create Actor: %w", actorErr), 1)
+		return nil, nil, cli.Exit(fmt.Errorf("failed to create Actor: %w", actorErr), 1)
 	}
 	return c, a, nil
 }

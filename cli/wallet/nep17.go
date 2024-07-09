@@ -27,7 +27,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // transferTarget represents target address, token amount and data for transfer.
@@ -39,7 +39,7 @@ type transferTarget struct {
 }
 
 var (
-	tokenFlag = cli.StringFlag{
+	tokenFlag = &cli.StringFlag{
 		Name:  "token",
 		Usage: "Token to use (hash or name (for NEO/GAS or imported tokens))",
 	}
@@ -47,15 +47,16 @@ var (
 		walletPathFlag,
 		walletConfigFlag,
 		tokenFlag,
-		flags.AddressFlag{
-			Name:  "address, a",
-			Usage: "Address to use",
+		&flags.AddressFlag{
+			Name:    "address",
+			Aliases: []string{"a"},
+			Usage:   "Address to use",
 		},
 	}
 	importFlags = append([]cli.Flag{
 		walletPathFlag,
 		walletConfigFlag,
-		flags.AddressFlag{
+		&flags.AddressFlag{
 			Name:  "token",
 			Usage: "Token contract address or hash in LE",
 		},
@@ -71,7 +72,7 @@ var (
 		txctx.SysGasFlag,
 		txctx.ForceFlag,
 		txctx.AwaitFlag,
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "amount",
 			Usage: "Amount of asset to send",
 		},
@@ -88,14 +89,14 @@ var (
 	}, options.RPC...)
 )
 
-func newNEP17Commands() []cli.Command {
+func newNEP17Commands() []*cli.Command {
 	balanceFlags := make([]cli.Flag, len(baseBalanceFlags))
 	copy(balanceFlags, baseBalanceFlags)
 	balanceFlags = append(balanceFlags, options.RPC...)
 	transferFlags := make([]cli.Flag, len(baseTransferFlags))
 	copy(transferFlags, baseTransferFlags)
 	transferFlags = append(transferFlags, options.RPC...)
-	return []cli.Command{
+	return []*cli.Command{
 		{
 			Name:      "balance",
 			Usage:     "Get address balance",
@@ -222,7 +223,7 @@ func getNEPBalance(ctx *cli.Context, standard string, accHandler func(*cli.Conte
 	}
 	wall, _, err := readWallet(ctx)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("bad wallet: %w", err), 1)
+		return cli.Exit(fmt.Errorf("bad wallet: %w", err), 1)
 	}
 	defer wall.Close()
 
@@ -231,12 +232,12 @@ func getNEPBalance(ctx *cli.Context, standard string, accHandler func(*cli.Conte
 		addrHash := addrFlag.Uint160()
 		acc := wall.GetAccount(addrHash)
 		if acc == nil {
-			return cli.NewExitError(fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addrHash)), 1)
+			return cli.Exit(fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addrHash)), 1)
 		}
 		accounts = append(accounts, acc)
 	} else {
 		if len(wall.Accounts) == 0 {
-			return cli.NewExitError(errors.New("no accounts in the wallet"), 1)
+			return cli.Exit(errors.New("no accounts in the wallet"), 1)
 		}
 		accounts = wall.Accounts
 	}
@@ -246,7 +247,7 @@ func getNEPBalance(ctx *cli.Context, standard string, accHandler func(*cli.Conte
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	name := ctx.String("token")
@@ -274,7 +275,7 @@ func getNEPBalance(ctx *cli.Context, standard string, accHandler func(*cli.Conte
 				// But if we have an exact hash, it must be correct.
 				token, err = getTokenWithStandard(c, h, standard)
 				if err != nil {
-					return cli.NewExitError(fmt.Errorf("%q is not a valid %s token: %w", name, standard, err), 1)
+					return cli.Exit(fmt.Errorf("%q is not a valid %s token: %w", name, standard, err), 1)
 				}
 			}
 		}
@@ -284,7 +285,7 @@ func getNEPBalance(ctx *cli.Context, standard string, accHandler func(*cli.Conte
 		if len(tokenID) > 0 {
 			_, err = hex.DecodeString(tokenID)
 			if err != nil {
-				return cli.NewExitError(fmt.Errorf("invalid token ID: %w", err), 1)
+				return cli.Exit(fmt.Errorf("invalid token ID: %w", err), 1)
 			}
 		}
 	}
@@ -296,7 +297,7 @@ func getNEPBalance(ctx *cli.Context, standard string, accHandler func(*cli.Conte
 
 		err = accHandler(ctx, c, acc.ScriptHash(), name, token, tokenID)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 	}
 	return nil
@@ -388,20 +389,20 @@ func importNEPToken(ctx *cli.Context, standard string) error {
 	}
 	wall, _, err := openWallet(ctx, true)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 
 	tokenHashFlag := ctx.Generic("token").(*flags.Address)
 	if !tokenHashFlag.IsSet {
-		return cli.NewExitError("token contract hash was not set", 1)
+		return cli.Exit("token contract hash was not set", 1)
 	}
 	tokenHash := tokenHashFlag.Uint160()
 
 	for _, t := range wall.Extra.Tokens {
 		if t.Hash.Equals(tokenHash) && t.Standard == standard {
 			printTokenInfo(ctx, t)
-			return cli.NewExitError(fmt.Errorf("%s token already exists", standard), 1)
+			return cli.Exit(fmt.Errorf("%s token already exists", standard), 1)
 		}
 	}
 
@@ -410,17 +411,17 @@ func importNEPToken(ctx *cli.Context, standard string) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	tok, err := getTokenWithStandard(c, tokenHash, standard)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't receive token info: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't receive token info: %w", err), 1)
 	}
 
 	wall.AddToken(tok)
 	if err := wall.Save(); err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	printTokenInfo(ctx, tok)
 	return nil
@@ -457,14 +458,14 @@ func printNEPInfo(ctx *cli.Context, standard string) error {
 	}
 	wall, _, err := readWallet(ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 
 	if name := ctx.String("token"); name != "" {
 		token, err := getMatchingToken(ctx, wall, name, standard)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 		printTokenInfo(ctx, token)
 		return nil
@@ -493,13 +494,13 @@ func removeNEPToken(ctx *cli.Context, standard string) error {
 	}
 	wall, _, err := openWallet(ctx, true)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 
 	token, err := getMatchingToken(ctx, wall, ctx.String("token"), standard)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	if !ctx.Bool("force") {
 		if ok := askForConsent(ctx.App.Writer); !ok {
@@ -507,9 +508,9 @@ func removeNEPToken(ctx *cli.Context, standard string) error {
 		}
 	}
 	if err := wall.RemoveToken(token.Hash); err != nil {
-		return cli.NewExitError(fmt.Errorf("can't remove token: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't remove token: %w", err), 1)
 	} else if err := wall.Save(); err != nil {
-		return cli.NewExitError(fmt.Errorf("error while saving wallet: %w", err), 1)
+		return cli.Exit(fmt.Errorf("error while saving wallet: %w", err), 1)
 	}
 	return nil
 }
@@ -517,25 +518,25 @@ func removeNEPToken(ctx *cli.Context, standard string) error {
 func multiTransferNEP17(ctx *cli.Context) error {
 	wall, pass, err := readWallet(ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 
 	fromFlag := ctx.Generic("from").(*flags.Address)
 	from, err := getDefaultAddress(fromFlag, wall)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	acc, err := options.GetUnlockedAccount(wall, from, pass)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
 	if ctx.NArg() == 0 {
-		return cli.NewExitError("empty recipients list", 1)
+		return cli.Exit("empty recipients list", 1)
 	}
 	var (
 		recipients      []transferTarget
@@ -554,7 +555,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	}
 	signersAccounts, err := cmdargs.GetSignersAccounts(acc, wall, cosigners, transaction.CalledByEntry)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
+		return cli.Exit(fmt.Errorf("invalid signers: %w", err), 1)
 	}
 	c, act, exitErr := options.GetRPCWithActor(gctx, ctx, signersAccounts)
 	if exitErr != nil {
@@ -566,7 +567,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		arg := ctx.Args().Get(i)
 		ss := strings.SplitN(arg, ":", 3)
 		if len(ss) != 3 {
-			return cli.NewExitError("send format must be '<token>:<addr>:<amount>", 1)
+			return cli.Exit("send format must be '<token>:<addr>:<amount>", 1)
 		}
 		token, ok := cache[ss[0]]
 		if !ok {
@@ -574,18 +575,18 @@ func multiTransferNEP17(ctx *cli.Context) error {
 			if err != nil {
 				token, err = getMatchingTokenRPC(ctx, c, from, ss[0], manifest.NEP17StandardName)
 				if err != nil {
-					return cli.NewExitError(fmt.Errorf("can't fetch matching token from RPC-node: %w", err), 1)
+					return cli.Exit(fmt.Errorf("can't fetch matching token from RPC-node: %w", err), 1)
 				}
 			}
 		}
 		cache[ss[0]] = token
 		addr, err := address.StringToUint160(ss[1])
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid address: '%s'", ss[1]), 1)
+			return cli.Exit(fmt.Errorf("invalid address: '%s'", ss[1]), 1)
 		}
 		amount, err := fixedn.FromString(ss[2], int(token.Decimals))
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
+			return cli.Exit(fmt.Errorf("invalid amount: %w", err), 1)
 		}
 		recipients = append(recipients, transferTarget{
 			Token:   token.Hash,
@@ -597,7 +598,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 
 	tx, err := makeMultiTransferNEP17(act, recipients)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't make transaction: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't make transaction: %w", err), 1)
 	}
 	return txctx.SignAndSend(ctx, act, acc, tx)
 }
@@ -611,18 +612,18 @@ func transferNEP(ctx *cli.Context, standard string) error {
 
 	wall, pass, err := readWallet(ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 
 	fromFlag := ctx.Generic("from").(*flags.Address)
 	from, err := getDefaultAddress(fromFlag, wall)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	acc, err := options.GetUnlockedAccount(wall, from, pass)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -638,7 +639,7 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	}
 	signersAccounts, err := cmdargs.GetSignersAccounts(acc, wall, cosigners, transaction.CalledByEntry)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
+		return cli.Exit(fmt.Errorf("invalid signers: %w", err), 1)
 	}
 
 	c, act, exitErr := options.GetRPCWithActor(gctx, ctx, signersAccounts)
@@ -648,14 +649,14 @@ func transferNEP(ctx *cli.Context, standard string) error {
 
 	toFlag := ctx.Generic("to").(*flags.Address)
 	if !toFlag.IsSet {
-		return cli.NewExitError(errors.New("missing receiver address (--to)"), 1)
+		return cli.Exit(errors.New("missing receiver address (--to)"), 1)
 	}
 	to := toFlag.Uint160()
 	token, err := getMatchingToken(ctx, wall, ctx.String("token"), standard)
 	if err != nil {
 		token, err = getMatchingTokenRPC(ctx, c, from, ctx.String("token"), standard)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("can't fetch matching token from RPC-node: %w", err), 1)
+			return cli.Exit(fmt.Errorf("can't fetch matching token from RPC-node: %w", err), 1)
 		}
 	}
 
@@ -663,7 +664,7 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	amount, err := fixedn.FromString(amountArg, int(token.Decimals))
 	// It's OK for NEP-11 transfer to not have amount set.
 	if err != nil && (standard == manifest.NEP17StandardName || amountArg != "") {
-		return cli.NewExitError(fmt.Errorf("invalid amount: %w", err), 1)
+		return cli.Exit(fmt.Errorf("invalid amount: %w", err), 1)
 	}
 	switch standard {
 	case manifest.NEP17StandardName:
@@ -672,11 +673,11 @@ func transferNEP(ctx *cli.Context, standard string) error {
 	case manifest.NEP11StandardName:
 		tokenID := ctx.String("id")
 		if tokenID == "" {
-			return cli.NewExitError(errors.New("token ID should be specified"), 1)
+			return cli.Exit(errors.New("token ID should be specified"), 1)
 		}
 		tokenIDBytes, terr := hex.DecodeString(tokenID)
 		if terr != nil {
-			return cli.NewExitError(fmt.Errorf("invalid token ID: %w", terr), 1)
+			return cli.Exit(fmt.Errorf("invalid token ID: %w", terr), 1)
 		}
 		if amountArg == "" {
 			n11 := nep11.NewNonDivisible(act, token.Hash)
@@ -686,10 +687,10 @@ func transferNEP(ctx *cli.Context, standard string) error {
 			tx, err = n11.TransferDUnsigned(act.Sender(), to, amount, tokenIDBytes, data)
 		}
 	default:
-		return cli.NewExitError(fmt.Errorf("unsupported token standard %s", standard), 1)
+		return cli.Exit(fmt.Errorf("unsupported token standard %s", standard), 1)
 	}
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't make transaction: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't make transaction: %w", err), 1)
 	}
 
 	return txctx.SignAndSend(ctx, act, acc, tx)

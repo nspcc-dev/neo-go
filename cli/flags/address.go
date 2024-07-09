@@ -7,7 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // Address is a wrapper for a Uint160 with flag.Value methods.
@@ -16,11 +16,15 @@ type Address struct {
 	Value util.Uint160
 }
 
-// AddressFlag is a flag with type string.
+// AddressFlag is a flag with type Uint160.
 type AddressFlag struct {
-	Name  string
-	Usage string
-	Value Address
+	Name     string
+	Usage    string
+	Value    Address
+	Aliases  []string
+	Required bool
+	Hidden   bool
+	Action   func(*cli.Context, string) error
 }
 
 var (
@@ -37,7 +41,7 @@ func (a Address) String() string {
 func (a *Address) Set(s string) error {
 	addr, err := ParseAddress(s)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	a.IsSet = true
 	a.Value = addr
@@ -63,9 +67,9 @@ func (f AddressFlag) IsSet() bool {
 // (for usage defaults).
 func (f AddressFlag) String() string {
 	var names []string
-	eachName(f.Name, func(name string) {
+	for _, name := range f.Names() {
 		names = append(names, getNameHelp(name))
-	})
+	}
 
 	return strings.Join(names, ", ") + "\t" + f.Usage
 }
@@ -77,17 +81,57 @@ func getNameHelp(name string) string {
 	return fmt.Sprintf("--%s value", name)
 }
 
-// GetName returns the name of the flag.
-func (f AddressFlag) GetName() string {
-	return f.Name
+// Names returns the names of the flag.
+func (f AddressFlag) Names() []string {
+	return cli.FlagNames(f.Name, f.Aliases)
+}
+
+// IsRequired returns whether the flag is required.
+func (f AddressFlag) IsRequired() bool {
+	return f.Required
+}
+
+// IsVisible returns true if the flag is not hidden, otherwise false.
+func (f AddressFlag) IsVisible() bool {
+	return !f.Hidden
+}
+
+// TakesValue returns true of the flag takes a value, otherwise false.
+func (f AddressFlag) TakesValue() bool {
+	return true
+}
+
+// GetUsage returns the usage string for the flag.
+func (f AddressFlag) GetUsage() string {
+	return f.Usage
 }
 
 // Apply populates the flag given the flag set and environment.
 // Ignores errors.
-func (f AddressFlag) Apply(set *flag.FlagSet) {
-	eachName(f.Name, func(name string) {
+func (f AddressFlag) Apply(set *flag.FlagSet) error {
+	for _, name := range f.Names() {
 		set.Var(&f.Value, name, f.Usage)
-	})
+	}
+	return nil
+}
+
+// RunAction executes flag action if set.
+func (f AddressFlag) RunAction(c *cli.Context) error {
+	if f.Action != nil {
+		return f.Action(c, address.Uint160ToString(f.Value.Value))
+	}
+	return nil
+}
+
+// GetValue returns the flags value as string representation.
+func (f AddressFlag) GetValue() string {
+	return address.Uint160ToString(f.Value.Value)
+}
+
+// Get returns the flag’s value in the given Context.
+func (f AddressFlag) Get(ctx *cli.Context) Address {
+	adr := ctx.Generic(f.Name).(*Address)
+	return *adr
 }
 
 // ParseAddress parses a Uint160 from either an LE string or an address.

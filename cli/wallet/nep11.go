@@ -19,20 +19,20 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-func newNEP11Commands() []cli.Command {
+func newNEP11Commands() []*cli.Command {
 	maxIters := strconv.Itoa(config.DefaultMaxIteratorResultItems)
-	tokenAddressFlag := flags.AddressFlag{
+	tokenAddressFlag := &flags.AddressFlag{
 		Name:  "token",
 		Usage: "Token contract address or hash in LE",
 	}
-	ownerAddressFlag := flags.AddressFlag{
+	ownerAddressFlag := &flags.AddressFlag{
 		Name:  "address",
 		Usage: "NFT owner address or hash in LE",
 	}
-	tokenID := cli.StringFlag{
+	tokenID := &cli.StringFlag{
 		Name:  "id",
 		Usage: "Hex-encoded token ID",
 	}
@@ -45,7 +45,7 @@ func newNEP11Commands() []cli.Command {
 	copy(transferFlags, baseTransferFlags)
 	transferFlags = append(transferFlags, tokenID)
 	transferFlags = append(transferFlags, options.RPC...)
-	return []cli.Command{
+	return []*cli.Command{
 		{
 			Name:      "balance",
 			Usage:     "Get address balance",
@@ -247,16 +247,16 @@ func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
 	if !tokenHash.IsSet {
-		return cli.NewExitError("token contract hash was not set", 1)
+		return cli.Exit("token contract hash was not set", 1)
 	}
 
 	tokenID := ctx.String("id")
 	if tokenID == "" {
-		return cli.NewExitError(errors.New("token ID should be specified"), 1)
+		return cli.Exit(errors.New("token ID should be specified"), 1)
 	}
 	tokenIDBytes, err := hex.DecodeString(tokenID)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid tokenID bytes: %w", err), 1)
+		return cli.Exit(fmt.Errorf("invalid tokenID bytes: %w", err), 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -271,7 +271,7 @@ func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 		n11 := nep11.NewDivisibleReader(inv, tokenHash.Uint160())
 		result, err := n11.OwnerOfExpanded(tokenIDBytes, config.DefaultMaxIteratorResultItems)
 		if err != nil {
-			return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 divisible `ownerOf` method: %s", err.Error()), 1)
+			return cli.Exit(fmt.Sprintf("failed to call NEP-11 divisible `ownerOf` method: %s", err.Error()), 1)
 		}
 		for _, h := range result {
 			fmt.Fprintln(ctx.App.Writer, address.Uint160ToString(h))
@@ -280,7 +280,7 @@ func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 		n11 := nep11.NewNonDivisibleReader(inv, tokenHash.Uint160())
 		result, err := n11.OwnerOf(tokenIDBytes)
 		if err != nil {
-			return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 non-divisible `ownerOf` method: %s", err.Error()), 1)
+			return cli.Exit(fmt.Sprintf("failed to call NEP-11 non-divisible `ownerOf` method: %s", err.Error()), 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, address.Uint160ToString(result))
 	}
@@ -292,12 +292,12 @@ func printNEP11TokensOf(ctx *cli.Context) error {
 	var err error
 	tokenHash := ctx.Generic("token").(*flags.Address)
 	if !tokenHash.IsSet {
-		return cli.NewExitError("token contract hash was not set", 1)
+		return cli.Exit("token contract hash was not set", 1)
 	}
 
 	acc := ctx.Generic("address").(*flags.Address)
 	if !acc.IsSet {
-		return cli.NewExitError("owner address flag was not set", 1)
+		return cli.Exit("owner address flag was not set", 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -311,7 +311,7 @@ func printNEP11TokensOf(ctx *cli.Context) error {
 	n11 := nep11.NewBaseReader(inv, tokenHash.Uint160())
 	result, err := n11.TokensOfExpanded(acc.Uint160(), config.DefaultMaxIteratorResultItems)
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 `tokensOf` method: %s", err.Error()), 1)
+		return cli.Exit(fmt.Sprintf("failed to call NEP-11 `tokensOf` method: %s", err.Error()), 1)
 	}
 
 	for i := range result {
@@ -327,7 +327,7 @@ func printNEP11Tokens(ctx *cli.Context) error {
 	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
 	if !tokenHash.IsSet {
-		return cli.NewExitError("token contract hash was not set", 1)
+		return cli.Exit("token contract hash was not set", 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -341,7 +341,7 @@ func printNEP11Tokens(ctx *cli.Context) error {
 	n11 := nep11.NewBaseReader(inv, tokenHash.Uint160())
 	result, err := n11.TokensExpanded(config.DefaultMaxIteratorResultItems)
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("failed to call optional NEP-11 `tokens` method: %s", err.Error()), 1)
+		return cli.Exit(fmt.Sprintf("failed to call optional NEP-11 `tokens` method: %s", err.Error()), 1)
 	}
 
 	for i := range result {
@@ -357,16 +357,16 @@ func printNEP11Properties(ctx *cli.Context) error {
 	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
 	if !tokenHash.IsSet {
-		return cli.NewExitError("token contract hash was not set", 1)
+		return cli.Exit("token contract hash was not set", 1)
 	}
 
 	tokenID := ctx.String("id")
 	if tokenID == "" {
-		return cli.NewExitError(errors.New("token ID should be specified"), 1)
+		return cli.Exit(errors.New("token ID should be specified"), 1)
 	}
 	tokenIDBytes, err := hex.DecodeString(tokenID)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid tokenID bytes: %w", err), 1)
+		return cli.Exit(fmt.Errorf("invalid tokenID bytes: %w", err), 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -380,12 +380,12 @@ func printNEP11Properties(ctx *cli.Context) error {
 	n11 := nep11.NewBaseReader(inv, tokenHash.Uint160())
 	result, err := n11.Properties(tokenIDBytes)
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 `properties` method: %s", err.Error()), 1)
+		return cli.Exit(fmt.Sprintf("failed to call NEP-11 `properties` method: %s", err.Error()), 1)
 	}
 
 	bytes, err := stackitem.ToJSON(result)
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("failed to convert result to JSON: %s", err), 1)
+		return cli.Exit(fmt.Sprintf("failed to convert result to JSON: %s", err), 1)
 	}
 	fmt.Fprintln(ctx.App.Writer, string(bytes))
 	return nil

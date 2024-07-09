@@ -27,13 +27,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv"
 	"github.com/nspcc-dev/neo-go/pkg/services/stateroot"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 // NewCommands returns 'node' command.
-func NewCommands() []cli.Command {
+func NewCommands() []*cli.Command {
 	cfgFlags := []cli.Flag{options.Config, options.ConfigFile, options.RelativePath}
 	cfgFlags = append(cfgFlags, options.Network...)
 	var cfgWithCountFlags = make([]cli.Flag, len(cfgFlags))
@@ -41,47 +41,52 @@ func NewCommands() []cli.Command {
 	cfgFlags = append(cfgFlags, options.Debug)
 
 	cfgWithCountFlags = append(cfgWithCountFlags,
-		cli.UintFlag{
-			Name:  "count, c",
-			Usage: "Number of blocks to be processed (default or 0: all chain)",
+		&cli.UintFlag{
+			Name:    "count",
+			Aliases: []string{"c"},
+			Usage:   "Number of blocks to be processed (default or 0: all chain)",
 		},
 	)
 	var cfgCountOutFlags = make([]cli.Flag, len(cfgWithCountFlags))
 	copy(cfgCountOutFlags, cfgWithCountFlags)
 	cfgCountOutFlags = append(cfgCountOutFlags,
-		cli.UintFlag{
-			Name:  "start, s",
-			Usage: "Block number to start from (default: 0)",
+		&cli.UintFlag{
+			Name:    "start",
+			Aliases: []string{"s"},
+			Usage:   "Block number to start from",
 		},
-		cli.StringFlag{
-			Name:  "out, o",
-			Usage: "Output file (stdout if not given)",
+		&cli.StringFlag{
+			Name:    "out",
+			Aliases: []string{"o"},
+			Usage:   "Output file (stdout if not given)",
 		},
 	)
 	var cfgCountInFlags = make([]cli.Flag, len(cfgWithCountFlags))
 	copy(cfgCountInFlags, cfgWithCountFlags)
 	cfgCountInFlags = append(cfgCountInFlags,
-		cli.StringFlag{
-			Name:  "in, i",
-			Usage: "Input file (stdin if not given)",
+		&cli.StringFlag{
+			Name:    "in",
+			Aliases: []string{"i"},
+			Usage:   "Input file (stdin if not given)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "dump",
 			Usage: "Directory for storing JSON dumps",
 		},
-		cli.BoolFlag{
-			Name:  "incremental, n",
-			Usage: "Use if dump is incremental",
+		&cli.BoolFlag{
+			Name:    "incremental",
+			Aliases: []string{"n"},
+			Usage:   "Use if dump is incremental",
 		},
 	)
 	var cfgHeightFlags = make([]cli.Flag, len(cfgFlags)+1)
 	copy(cfgHeightFlags, cfgFlags)
-	cfgHeightFlags[len(cfgHeightFlags)-1] = cli.UintFlag{
+	cfgHeightFlags[len(cfgHeightFlags)-1] = &cli.UintFlag{
 		Name:     "height",
 		Usage:    "Height of the state to reset DB to",
 		Required: true,
 	}
-	return []cli.Command{
+	return []*cli.Command{
 		{
 			Name:      "node",
 			Usage:     "Start a NeoGo node",
@@ -92,7 +97,7 @@ func NewCommands() []cli.Command {
 		{
 			Name:  "db",
 			Usage: "Database manipulations",
-			Subcommands: []cli.Command{
+			Subcommands: []*cli.Command{
 				{
 					Name:      "dump",
 					Usage:     "Dump blocks (starting with block #1) to the file",
@@ -134,7 +139,7 @@ func newGraceContext() context.Context {
 func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *metrics.Service, *metrics.Service, error) {
 	chain, _, err := initBlockChain(cfg, log)
 	if err != nil {
-		return nil, nil, nil, cli.NewExitError(err, 1)
+		return nil, nil, nil, cli.Exit(err, 1)
 	}
 	prometheus := metrics.NewPrometheusService(cfg.ApplicationConfiguration.Prometheus, log)
 	pprof := metrics.NewPprofService(cfg.ApplicationConfiguration.Pprof, log)
@@ -142,11 +147,11 @@ func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *m
 	go chain.Run()
 	err = prometheus.Start()
 	if err != nil {
-		return nil, nil, nil, cli.NewExitError(fmt.Errorf("failed to start Prometheus service: %w", err), 1)
+		return nil, nil, nil, cli.Exit(fmt.Errorf("failed to start Prometheus service: %w", err), 1)
 	}
 	err = pprof.Start()
 	if err != nil {
-		return nil, nil, nil, cli.NewExitError(fmt.Errorf("failed to start Pprof service: %w", err), 1)
+		return nil, nil, nil, cli.Exit(fmt.Errorf("failed to start Pprof service: %w", err), 1)
 	}
 
 	return chain, prometheus, pprof, nil
@@ -158,11 +163,11 @@ func dumpDB(ctx *cli.Context) error {
 	}
 	cfg, err := options.GetConfigFromContext(ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	log, _, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	if logCloser != nil {
 		defer func() { _ = logCloser() }()
@@ -174,7 +179,7 @@ func dumpDB(ctx *cli.Context) error {
 	if out := ctx.String("out"); out != "" {
 		outStream, err = os.Create(out)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 	}
 	defer outStream.Close()
@@ -192,7 +197,7 @@ func dumpDB(ctx *cli.Context) error {
 
 	chainCount := chain.BlockHeight() + 1
 	if start+count > chainCount {
-		return cli.NewExitError(fmt.Errorf("chain is not that high (%d) to dump %d blocks starting from %d", chainCount-1, count, start), 1)
+		return cli.Exit(fmt.Errorf("chain is not that high (%d) to dump %d blocks starting from %d", chainCount-1, count, start), 1)
 	}
 	if count == 0 {
 		count = chainCount - start
@@ -203,7 +208,7 @@ func dumpDB(ctx *cli.Context) error {
 	writer.WriteU32LE(count)
 	err = chaindump.Dump(chain, writer, start, count)
 	if err != nil {
-		return cli.NewExitError(err.Error(), 1)
+		return cli.Exit(err.Error(), 1)
 	}
 	return nil
 }
@@ -218,7 +223,7 @@ func restoreDB(ctx *cli.Context) error {
 	}
 	log, _, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	if logCloser != nil {
 		defer func() { _ = logCloser() }()
@@ -229,7 +234,7 @@ func restoreDB(ctx *cli.Context) error {
 	if in := ctx.String("in"); in != "" {
 		inStream, err = os.Open(in)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 	}
 	defer inStream.Close()
@@ -254,7 +259,7 @@ func restoreDB(ctx *cli.Context) error {
 	if ctx.Bool("incremental") {
 		start = reader.ReadU32LE()
 		if chain.BlockHeight()+1 < start {
-			return cli.NewExitError(fmt.Errorf("expected height: %d, dump starts at %d",
+			return cli.Exit(fmt.Errorf("expected height: %d, dump starts at %d",
 				chain.BlockHeight()+1, start), 1)
 		}
 	}
@@ -266,10 +271,10 @@ func restoreDB(ctx *cli.Context) error {
 
 	var allBlocks = reader.ReadU32LE()
 	if reader.Err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	if skip+count > allBlocks {
-		return cli.NewExitError(fmt.Errorf("input file has only %d blocks, can't read %d starting from %d", allBlocks, count, skip), 1)
+		return cli.Exit(fmt.Errorf("input file has only %d blocks, can't read %d starting from %d", allBlocks, count, skip), 1)
 	}
 	if count == 0 {
 		count = allBlocks - skip
@@ -320,7 +325,7 @@ func restoreDB(ctx *cli.Context) error {
 
 	err = chaindump.Restore(chain, reader, skip, count, f)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	return nil
 }
@@ -331,29 +336,29 @@ func resetDB(ctx *cli.Context) error {
 	}
 	cfg, err := options.GetConfigFromContext(ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	h := uint32(ctx.Uint("height"))
 
 	log, _, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	if logCloser != nil {
 		defer func() { _ = logCloser() }()
 	}
 	chain, store, err := initBlockChain(cfg, log)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create Blockchain instance: %w", err), 1)
+		return cli.Exit(fmt.Errorf("failed to create Blockchain instance: %w", err), 1)
 	}
 
 	err = chain.Reset(h)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to reset chain state to height %d: %w", h, err), 1)
+		return cli.Exit(fmt.Errorf("failed to reset chain state to height %d: %w", h, err), 1)
 	}
 	err = store.Close()
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to close the DB: %w", err), 1)
+		return cli.Exit(fmt.Errorf("failed to close the DB: %w", err), 1)
 	}
 	return nil
 }
@@ -442,12 +447,12 @@ func startServer(ctx *cli.Context) error {
 
 	cfg, err := options.GetConfigFromContext(ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	var logDebug = ctx.Bool("debug")
 	log, logLevel, logCloser, err := options.HandleLoggingParams(logDebug, cfg.ApplicationConfiguration)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	if logCloser != nil {
 		defer func() { _ = logCloser() }()
@@ -458,12 +463,12 @@ func startServer(ctx *cli.Context) error {
 
 	serverConfig, err := network.NewServerConfig(cfg)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	chain, prometheus, pprof, err := initBCWithMetrics(cfg, log)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer func() {
 		pprof.ShutDown()
@@ -473,26 +478,26 @@ func startServer(ctx *cli.Context) error {
 
 	serv, err := network.NewServer(serverConfig, chain, chain.GetStateSyncModule(), log)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create network server: %w", err), 1)
+		return cli.Exit(fmt.Errorf("failed to create network server: %w", err), 1)
 	}
 	srMod := chain.GetStateModule().(*corestate.Module) // Take full responsibility here.
 	sr, err := stateroot.New(serverConfig.StateRootCfg, srMod, log, chain, serv.BroadcastExtensible)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't initialize StateRoot service: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't initialize StateRoot service: %w", err), 1)
 	}
 	serv.AddExtensibleService(sr, stateroot.Category, sr.OnPayload)
 
 	oracleSrv, err := mkOracle(cfg.ApplicationConfiguration.Oracle, cfg.ProtocolConfiguration.Magic, chain, serv, log)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	dbftSrv, err := mkConsensus(cfg.ApplicationConfiguration.Consensus, serverConfig.TimePerBlock, chain, serv, log)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	p2pNotary, err := mkP2PNotary(cfg.ApplicationConfiguration.P2PNotary, chain, serv, log)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	errChan := make(chan error)
 	rpcServer := rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
@@ -640,7 +645,7 @@ Main:
 	}
 
 	if shutdownErr != nil {
-		return cli.NewExitError(shutdownErr, 1)
+		return cli.Exit(shutdownErr, 1)
 	}
 
 	return nil
@@ -650,7 +655,7 @@ Main:
 func initBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, storage.Store, error) {
 	store, err := storage.NewStore(cfg.ApplicationConfiguration.DBConfiguration)
 	if err != nil {
-		return nil, nil, cli.NewExitError(fmt.Errorf("could not initialize storage: %w", err), 1)
+		return nil, nil, cli.Exit(fmt.Errorf("could not initialize storage: %w", err), 1)
 	}
 
 	chain, err := core.NewBlockchain(store, cfg.Blockchain(), log)
@@ -663,7 +668,7 @@ func initBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, stora
 			errArgs = append(errArgs, closeErr)
 		}
 
-		return nil, nil, cli.NewExitError(fmt.Errorf(errText, errArgs...), 1)
+		return nil, nil, cli.Exit(fmt.Errorf(errText, errArgs...), 1)
 	}
 	return chain, store, nil
 }

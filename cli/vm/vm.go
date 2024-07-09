@@ -8,14 +8,14 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // NewCommands returns 'vm' command.
-func NewCommands() []cli.Command {
+func NewCommands() []*cli.Command {
 	cfgFlags := []cli.Flag{options.Config, options.ConfigFile, options.RelativePath}
 	cfgFlags = append(cfgFlags, options.Network...)
-	return []cli.Command{{
+	return []*cli.Command{{
 		Name:   "vm",
 		Usage:  "Start the virtual machine",
 		Action: startVMPrompt,
@@ -30,7 +30,7 @@ func startVMPrompt(ctx *cli.Context) error {
 
 	cfg, err := options.GetConfigFromContext(ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	if ctx.NumFlags() == 0 {
 		cfg.ApplicationConfiguration.DBConfiguration.Type = dbconfig.InMemoryDB
@@ -42,7 +42,7 @@ func startVMPrompt(ctx *cli.Context) error {
 
 	p, err := NewWithConfig(true, os.Exit, &readline.Config{}, cfg)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create VM CLI: %w", err), 1)
+		return cli.Exit(fmt.Errorf("failed to create VM CLI: %w", err), 1)
 	}
 	return p.Run()
 }

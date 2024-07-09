@@ -9,32 +9,35 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/rpcbinding"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v3"
 )
 
 var generatorFlags = []cli.Flag{
-	cli.StringFlag{
-		Name:  "config, c",
-		Usage: "Configuration file to use",
+	&cli.StringFlag{
+		Name:    "config",
+		Aliases: []string{"c"},
+		Usage:   "Configuration file to use",
 	},
-	cli.StringFlag{
-		Name:     "manifest, m",
+	&cli.StringFlag{
+		Name:     "manifest",
+		Aliases:  []string{"m"},
 		Required: true,
 		Usage:    "Read contract manifest (*.manifest.json) file",
 	},
-	cli.StringFlag{
-		Name:     "out, o",
+	&cli.StringFlag{
+		Name:     "out",
+		Aliases:  []string{"o"},
 		Required: true,
 		Usage:    "Output of the compiled wrapper",
 	},
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:  "hash",
 		Usage: "Smart-contract hash. If not passed, the wrapper will be designed for dynamic hash usage",
 	},
 }
 
-var generateWrapperCmd = cli.Command{
+var generateWrapperCmd = &cli.Command{
 	Name:      "generate-wrapper",
 	Usage:     "Generate wrapper to use in other contracts",
 	UsageText: "neo-go contract generate-wrapper --manifest <file.json> --out <file.go> [--hash <hash>] [--config <config>]",
@@ -48,7 +51,7 @@ var generateWrapperCmd = cli.Command{
 	Flags:  generatorFlags,
 }
 
-var generateRPCWrapperCmd = cli.Command{
+var generateRPCWrapperCmd = &cli.Command{
 	Name:      "generate-rpcwrapper",
 	Usage:     "Generate RPC wrapper to use for data reads",
 	UsageText: "neo-go contract generate-rpcwrapper --manifest <file.json> --out <file.go> [--hash <hash>] [--config <config>]",
@@ -76,23 +79,23 @@ func contractGenerateSomething(ctx *cli.Context, cb func(binding.Config) error) 
 	if hStr := ctx.String("hash"); len(hStr) != 0 {
 		h, err = util.Uint160DecodeStringLE(strings.TrimPrefix(hStr, "0x"))
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid contract hash: %w", err), 1)
+			return cli.Exit(fmt.Errorf("invalid contract hash: %w", err), 1)
 		}
 	}
 	m, _, err := readManifest(ctx.String("manifest"), h)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't read contract manifest: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't read contract manifest: %w", err), 1)
 	}
 
 	cfg := binding.NewConfig()
 	if cfgPath := ctx.String("config"); cfgPath != "" {
 		bs, err := os.ReadFile(cfgPath)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("can't read config file: %w", err), 1)
+			return cli.Exit(fmt.Errorf("can't read config file: %w", err), 1)
 		}
 		err = yaml.Unmarshal(bs, &cfg)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("can't parse config file: %w", err), 1)
+			return cli.Exit(fmt.Errorf("can't parse config file: %w", err), 1)
 		}
 	}
 	cfg.Manifest = m
@@ -100,7 +103,7 @@ func contractGenerateSomething(ctx *cli.Context, cb func(binding.Config) error) 
 
 	f, err := os.Create(ctx.String("out"))
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't create output file: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't create output file: %w", err), 1)
 	}
 	defer f.Close()
 
@@ -108,7 +111,7 @@ func contractGenerateSomething(ctx *cli.Context, cb func(binding.Config) error) 
 
 	err = cb(cfg)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("error during generation: %w", err), 1)
+		return cli.Exit(fmt.Errorf("error during generation: %w", err), 1)
 	}
 	return nil
 }

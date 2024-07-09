@@ -24,7 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -47,38 +47,40 @@ var (
 )
 
 var (
-	walletPathFlag = cli.StringFlag{
-		Name:  "wallet, w",
-		Usage: "Path to the wallet file ('-' to read from stdin); conflicts with --wallet-config flag.",
+	walletPathFlag = &cli.StringFlag{
+		Name:    "wallet",
+		Aliases: []string{"w"},
+		Usage:   "Path to the wallet file ('-' to read from stdin); conflicts with --wallet-config flag.",
 	}
-	walletConfigFlag = cli.StringFlag{
+	walletConfigFlag = &cli.StringFlag{
 		Name:  "wallet-config",
 		Usage: "Path to the wallet config file; conflicts with --wallet flag.",
 	}
-	wifFlag = cli.StringFlag{
+	wifFlag = &cli.StringFlag{
 		Name:  "wif",
 		Usage: "WIF to import",
 	}
-	decryptFlag = cli.BoolFlag{
-		Name:  "decrypt, d",
-		Usage: "Decrypt encrypted keys.",
+	decryptFlag = &cli.BoolFlag{
+		Name:    "decrypt",
+		Aliases: []string{"d"},
+		Usage:   "Decrypt encrypted keys.",
 	}
-	inFlag = cli.StringFlag{
+	inFlag = &cli.StringFlag{
 		Name:  "in",
 		Usage: "File with JSON transaction",
 	}
-	fromAddrFlag = flags.AddressFlag{
+	fromAddrFlag = &flags.AddressFlag{
 		Name:  "from",
 		Usage: "Address to send an asset from",
 	}
-	toAddrFlag = flags.AddressFlag{
+	toAddrFlag = &flags.AddressFlag{
 		Name:  "to",
 		Usage: "Address to send an asset to",
 	}
 )
 
 // NewCommands returns 'wallet' command.
-func NewCommands() []cli.Command {
+func NewCommands() []*cli.Command {
 	claimFlags := []cli.Flag{
 		walletPathFlag,
 		walletConfigFlag,
@@ -87,9 +89,10 @@ func NewCommands() []cli.Command {
 		txctx.OutFlag,
 		txctx.ForceFlag,
 		txctx.AwaitFlag,
-		flags.AddressFlag{
-			Name:  "address, a",
-			Usage: "Address to claim GAS for",
+		&flags.AddressFlag{
+			Name:    "address",
+			Aliases: []string{"a"},
+			Usage:   "Address to claim GAS for",
 		},
 	}
 	claimFlags = append(claimFlags, options.RPC...)
@@ -99,16 +102,17 @@ func NewCommands() []cli.Command {
 		txctx.OutFlag,
 		txctx.AwaitFlag,
 		inFlag,
-		flags.AddressFlag{
-			Name:  "address, a",
-			Usage: "Address to use",
+		&flags.AddressFlag{
+			Name:    "address",
+			Aliases: []string{"a"},
+			Usage:   "Address to use",
 		},
 	}
 	signFlags = append(signFlags, options.RPC...)
-	return []cli.Command{{
+	return []*cli.Command{{
 		Name:  "wallet",
 		Usage: "Create, open and manage a Neo wallet",
-		Subcommands: []cli.Command{
+		Subcommands: []*cli.Command{
 			{
 				Name:      "claim",
 				Usage:     "Claim GAS",
@@ -124,9 +128,10 @@ func NewCommands() []cli.Command {
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
-					cli.BoolFlag{
-						Name:  "account, a",
-						Usage: "Create a new account",
+					&cli.BoolFlag{
+						Name:    "account",
+						Aliases: []string{"a"},
+						Usage:   "Create a new account",
 					},
 				},
 			},
@@ -137,9 +142,10 @@ func NewCommands() []cli.Command {
 				Action:    changePassword,
 				Flags: []cli.Flag{
 					walletPathFlag,
-					flags.AddressFlag{
-						Name:  "address, a",
-						Usage: "Address to change password for",
+					&flags.AddressFlag{
+						Name:    "address",
+						Aliases: []string{"a"},
+						Usage:   "Address to change password for",
 					},
 				},
 			},
@@ -151,9 +157,10 @@ func NewCommands() []cli.Command {
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
-					cli.StringFlag{
-						Name:  "out, o",
-						Usage: "Where to write converted wallet",
+					&cli.StringFlag{
+						Name:    "out",
+						Aliases: []string{"o"},
+						Usage:   "Where to write converted wallet",
 					},
 				},
 			},
@@ -191,9 +198,10 @@ func NewCommands() []cli.Command {
 				Flags: []cli.Flag{
 					walletPathFlag,
 					walletConfigFlag,
-					flags.AddressFlag{
-						Name:  "address, a",
-						Usage: "Address to print public keys for",
+					&flags.AddressFlag{
+						Name:    "address",
+						Aliases: []string{"a"},
+						Usage:   "Address to print public keys for",
 					},
 				},
 			},
@@ -223,11 +231,12 @@ func NewCommands() []cli.Command {
 					walletPathFlag,
 					walletConfigFlag,
 					wifFlag,
-					cli.StringFlag{
-						Name:  "name, n",
-						Usage: "Optional account name",
+					&cli.StringFlag{
+						Name:    "name",
+						Aliases: []string{"n"},
+						Usage:   "Optional account name",
 					},
-					cli.StringFlag{
+					&cli.StringFlag{
 						Name:  "contract",
 						Usage: "Verification script for custom contracts",
 					},
@@ -250,13 +259,15 @@ func NewCommands() []cli.Command {
 					walletPathFlag,
 					walletConfigFlag,
 					wifFlag,
-					cli.StringFlag{
-						Name:  "name, n",
-						Usage: "Optional account name",
+					&cli.StringFlag{
+						Name:    "name",
+						Aliases: []string{"n"},
+						Usage:   "Optional account name",
 					},
-					cli.IntFlag{
-						Name:  "min, m",
-						Usage: "Minimal number of signatures",
+					&cli.IntFlag{
+						Name:    "min",
+						Aliases: []string{"m"},
+						Usage:   "Minimal number of signatures",
 					},
 				},
 			},
@@ -269,13 +280,15 @@ func NewCommands() []cli.Command {
 					walletPathFlag,
 					walletConfigFlag,
 					wifFlag,
-					cli.StringFlag{
-						Name:  "name, n",
-						Usage: "Optional account name",
+					&cli.StringFlag{
+						Name:    "name",
+						Aliases: []string{"n"},
+						Usage:   "Optional account name",
 					},
-					flags.AddressFlag{
-						Name:  "contract, c",
-						Usage: "Contract hash or address",
+					&flags.AddressFlag{
+						Name:    "contract",
+						Aliases: []string{"c"},
+						Usage:   "Contract hash or address",
 					},
 				}, options.RPC...),
 			},
@@ -288,9 +301,10 @@ func NewCommands() []cli.Command {
 					walletPathFlag,
 					walletConfigFlag,
 					txctx.ForceFlag,
-					flags.AddressFlag{
-						Name:  "address, a",
-						Usage: "Account address or hash in LE form to be removed",
+					&flags.AddressFlag{
+						Name:    "address",
+						Aliases: []string{"a"},
+						Usage:   "Account address or hash in LE form to be removed",
 					},
 				},
 			},
@@ -358,24 +372,24 @@ func changePassword(ctx *cli.Context) error {
 	}
 	wall, _, err := openWallet(ctx, false)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 	if len(wall.Accounts) == 0 {
-		return cli.NewExitError("wallet has no accounts", 1)
+		return cli.Exit("wallet has no accounts", 1)
 	}
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if addrFlag.IsSet {
 		// Check for account presence first before asking for password.
 		acc := wall.GetAccount(addrFlag.Uint160())
 		if acc == nil {
-			return cli.NewExitError("account is missing", 1)
+			return cli.Exit("account is missing", 1)
 		}
 	}
 
 	oldPass, err := input.ReadPassword(EnterOldPasswordPrompt)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("Error reading old password: %w", err), 1)
+		return cli.Exit(fmt.Errorf("Error reading old password: %w", err), 1)
 	}
 
 	for i := range wall.Accounts {
@@ -384,13 +398,13 @@ func changePassword(ctx *cli.Context) error {
 		}
 		err := wall.Accounts[i].Decrypt(oldPass, wall.Scrypt)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("unable to decrypt account %s: %w", wall.Accounts[i].Address, err), 1)
+			return cli.Exit(fmt.Errorf("unable to decrypt account %s: %w", wall.Accounts[i].Address, err), 1)
 		}
 	}
 
 	pass, err := readNewPassword()
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("Error reading new password: %w", err), 1)
+		return cli.Exit(fmt.Errorf("Error reading new password: %w", err), 1)
 	}
 	for i := range wall.Accounts {
 		if addrFlag.IsSet && wall.Accounts[i].Address != addrFlag.String() {
@@ -398,12 +412,12 @@ func changePassword(ctx *cli.Context) error {
 		}
 		err := wall.Accounts[i].Encrypt(pass, wall.Scrypt)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 	}
 	err = wall.Save()
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("Error saving the wallet: %w", err), 1)
+		return cli.Exit(fmt.Errorf("Error saving the wallet: %w", err), 1)
 	}
 	return nil
 }
@@ -414,16 +428,16 @@ func convertWallet(ctx *cli.Context) error {
 	}
 	wall, pass, err := newWalletV2FromFile(ctx.String("wallet"), ctx.String("wallet-config"))
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	out := ctx.String("out")
 	if len(out) == 0 {
-		return cli.NewExitError("missing out path", 1)
+		return cli.Exit("missing out path", 1)
 	}
 	newWallet, err := wallet.NewWallet(out)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	newWallet.Scrypt = wall.Scrypt
 
@@ -431,19 +445,19 @@ func convertWallet(ctx *cli.Context) error {
 		if len(wall.Accounts) != 1 || pass == nil {
 			password, err := input.ReadPassword(fmt.Sprintf("Enter password for account %s (label '%s') > ", acc.Address, acc.Label))
 			if err != nil {
-				return cli.NewExitError(fmt.Errorf("Error reading password: %w", err), 1)
+				return cli.Exit(fmt.Errorf("Error reading password: %w", err), 1)
 			}
 			pass = &password
 		}
 
 		newAcc, err := acc.convert(*pass, wall.Scrypt)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 		newWallet.AddAccount(newAcc)
 	}
 	if err := newWallet.Save(); err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	return nil
 }
@@ -454,12 +468,12 @@ func addAccount(ctx *cli.Context) error {
 	}
 	wall, pass, err := openWallet(ctx, true)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 
 	if err := createAccount(wall, pass); err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	return nil
@@ -468,7 +482,7 @@ func addAccount(ctx *cli.Context) error {
 func exportKeys(ctx *cli.Context) error {
 	wall, pass, err := readWallet(ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 
@@ -476,13 +490,13 @@ func exportKeys(ctx *cli.Context) error {
 
 	decrypt := ctx.Bool("decrypt")
 	if ctx.NArg() == 0 && decrypt {
-		return cli.NewExitError(errors.New("address must be provided if '--decrypt' flag is used"), 1)
+		return cli.Exit(errors.New("address must be provided if '--decrypt' flag is used"), 1)
 	} else if ctx.NArg() > 0 {
 		// check address format just to catch possible typos
 		addr = ctx.Args().First()
 		_, err := address.StringToUint160(addr)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("can't parse address: %w", err), 1)
+			return cli.Exit(fmt.Errorf("can't parse address: %w", err), 1)
 		}
 	}
 
@@ -508,14 +522,14 @@ loop:
 			if pass == nil {
 				password, err := input.ReadPassword(EnterPasswordPrompt)
 				if err != nil {
-					return cli.NewExitError(fmt.Errorf("Error reading password: %w", err), 1)
+					return cli.Exit(fmt.Errorf("Error reading password: %w", err), 1)
 				}
 				pass = &password
 			}
 
 			pk, err := keys.NEP2Decrypt(wif, *pass, wall.Scrypt)
 			if err != nil {
-				return cli.NewExitError(err, 1)
+				return cli.Exit(err, 1)
 			}
 
 			wif = pk.WIF()
@@ -536,22 +550,22 @@ func importMultisig(ctx *cli.Context) error {
 
 	wall, pass, err := openWallet(ctx, true)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 
 	m := ctx.Int("min")
 	if ctx.NArg() < m {
-		return cli.NewExitError(errors.New("insufficient number of public keys"), 1)
+		return cli.Exit(errors.New("insufficient number of public keys"), 1)
 	}
 
-	args := []string(ctx.Args())
+	args := ctx.Args().Slice()
 	pubs := make([]*keys.PublicKey, len(args))
 
 	for i := range args {
 		pubs[i], err = keys.NewPublicKeyFromString(args[i])
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("can't decode public key %d: %w", i, err), 1)
+			return cli.Exit(fmt.Errorf("can't decode public key %d: %w", i, err), 1)
 		}
 	}
 
@@ -579,31 +593,31 @@ loop:
 	if acc != nil {
 		err = acc.ConvertMultisigEncrypted(accPub, m, pubs)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 		if label != nil {
 			acc.Label = *label
 		}
 		if err := addAccountAndSave(wall, acc); err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 		return nil
 	}
 
 	if !ctx.IsSet("wif") {
-		return cli.NewExitError(errors.New("none of the provided public keys correspond to an existing key in the wallet or multiple matching accounts found in the wallet, and no WIF is provided"), 1)
+		return cli.Exit(errors.New("none of the provided public keys correspond to an existing key in the wallet or multiple matching accounts found in the wallet, and no WIF is provided"), 1)
 	}
 	acc, err = newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt, label, pass)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	if err := acc.ConvertMultisig(m, pubs); err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	if err := addAccountAndSave(wall, acc); err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	return nil
@@ -615,13 +629,13 @@ func importDeployed(ctx *cli.Context) error {
 	}
 	wall, pass, err := openWallet(ctx, true)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 
 	rawHash := ctx.Generic("contract").(*flags.Address)
 	if !rawHash.IsSet {
-		return cli.NewExitError("contract hash was not provided", 1)
+		return cli.Exit("contract hash was not provided", 1)
 	}
 
 	var label *string
@@ -631,7 +645,7 @@ func importDeployed(ctx *cli.Context) error {
 	}
 	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt, label, pass)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -639,16 +653,16 @@ func importDeployed(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	cs, err := c.GetContractStateByHash(rawHash.Uint160())
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't fetch contract info: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't fetch contract info: %w", err), 1)
 	}
 	md := cs.Manifest.ABI.GetMethod(manifest.MethodVerify, -1)
 	if md == nil || md.ReturnType != smartcontract.BoolType {
-		return cli.NewExitError("contract has no `verify` method with boolean return", 1)
+		return cli.Exit("contract has no `verify` method with boolean return", 1)
 	}
 	acc.Address = address.Uint160ToString(cs.Hash)
 	// Explicitly overwrite single signature script of the provided WIF since the contract is known to be deployed.
@@ -663,7 +677,7 @@ func importDeployed(ctx *cli.Context) error {
 	acc.Contract.Deployed = true
 
 	if err := addAccountAndSave(wall, acc); err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	return nil
@@ -675,7 +689,7 @@ func importWallet(ctx *cli.Context) error {
 	}
 	wall, pass, err := openWallet(ctx, true)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 
@@ -687,19 +701,19 @@ func importWallet(ctx *cli.Context) error {
 
 	acc, err := newAccountFromWIF(ctx.App.Writer, ctx.String("wif"), wall.Scrypt, label, pass)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	if ctrFlag := ctx.String("contract"); ctrFlag != "" {
 		ctr, err := hex.DecodeString(ctrFlag)
 		if err != nil {
-			return cli.NewExitError("invalid contract", 1)
+			return cli.Exit("invalid contract", 1)
 		}
 		acc.Contract.Script = ctr
 	}
 
 	if err := addAccountAndSave(wall, acc); err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	return nil
@@ -711,17 +725,17 @@ func removeAccount(ctx *cli.Context) error {
 	}
 	wall, _, err := openWallet(ctx, true)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 
 	addr := ctx.Generic("address").(*flags.Address)
 	if !addr.IsSet {
-		return cli.NewExitError("valid account address must be provided", 1)
+		return cli.Exit("valid account address must be provided", 1)
 	}
 	acc := wall.GetAccount(addr.Uint160())
 	if acc == nil {
-		return cli.NewExitError("account wasn't found", 1)
+		return cli.Exit("account wasn't found", 1)
 	}
 
 	if !ctx.Bool("force") {
@@ -732,10 +746,10 @@ func removeAccount(ctx *cli.Context) error {
 	}
 
 	if err := wall.RemoveAccount(acc.Address); err != nil {
-		return cli.NewExitError(fmt.Errorf("error on remove: %w", err), 1)
+		return cli.Exit(fmt.Errorf("error on remove: %w", err), 1)
 	}
 	if err := wall.Save(); err != nil {
-		return cli.NewExitError(fmt.Errorf("error while saving wallet: %w", err), 1)
+		return cli.Exit(fmt.Errorf("error while saving wallet: %w", err), 1)
 	}
 	return nil
 }
@@ -758,14 +772,14 @@ func dumpWallet(ctx *cli.Context) error {
 	}
 	wall, pass, err := readWallet(ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 	if ctx.Bool("decrypt") {
 		if pass == nil {
 			password, err := input.ReadPassword(EnterPasswordPrompt)
 			if err != nil {
-				return cli.NewExitError(fmt.Errorf("Error reading password: %w", err), 1)
+				return cli.Exit(fmt.Errorf("Error reading password: %w", err), 1)
 			}
 			pass = &password
 		}
@@ -773,7 +787,7 @@ func dumpWallet(ctx *cli.Context) error {
 			// Just testing the decryption here.
 			err := wall.Accounts[i].Decrypt(*pass, wall.Scrypt)
 			if err != nil {
-				return cli.NewExitError(err, 1)
+				return cli.Exit(err, 1)
 			}
 		}
 	}
@@ -787,7 +801,7 @@ func dumpKeys(ctx *cli.Context) error {
 	}
 	wall, _, err := readWallet(ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 	accounts := wall.Accounts
@@ -796,7 +810,7 @@ func dumpKeys(ctx *cli.Context) error {
 	if addrFlag.IsSet {
 		acc := wall.GetAccount(addrFlag.Uint160())
 		if acc == nil {
-			return cli.NewExitError("account is missing", 1)
+			return cli.Exit("account is missing", 1)
 		}
 		accounts = []*wallet.Account{acc}
 	}
@@ -826,7 +840,7 @@ func dumpKeys(ctx *cli.Context) error {
 			continue
 		}
 		if addrFlag.IsSet {
-			return cli.NewExitError(fmt.Errorf("unknown script type for address %s", address.Uint160ToString(addrFlag.Uint160())), 1)
+			return cli.Exit(fmt.Errorf("unknown script type for address %s", address.Uint160ToString(addrFlag.Uint160())), 1)
 		}
 	}
 	return nil
@@ -838,7 +852,7 @@ func stripKeys(ctx *cli.Context) error {
 	}
 	wall, _, err := readWallet(ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	defer wall.Close()
 	if !ctx.Bool("force") {
@@ -851,7 +865,7 @@ func stripKeys(ctx *cli.Context) error {
 		a.EncryptedWIF = ""
 	}
 	if err := wall.Save(); err != nil {
-		return cli.NewExitError(fmt.Errorf("error while saving wallet: %w", err), 1)
+		return cli.Exit(fmt.Errorf("error while saving wallet: %w", err), 1)
 	}
 	return nil
 }
@@ -867,28 +881,28 @@ func createWallet(ctx *cli.Context) error {
 		return errConflictingWalletFlags
 	}
 	if len(path) == 0 && len(configPath) == 0 {
-		return cli.NewExitError(errNoPath, 1)
+		return cli.Exit(errNoPath, 1)
 	}
 	var pass *string
 	if len(configPath) != 0 {
 		cfg, err := options.ReadWalletConfig(configPath)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 		path = cfg.Path
 		pass = &cfg.Password
 	}
 	wall, err := wallet.NewWallet(path)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	if err := wall.Save(); err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	if ctx.Bool("account") {
 		if err := createAccount(wall, pass); err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 		defer wall.Close()
 	}
@@ -949,14 +963,14 @@ func createAccount(wall *wallet.Wallet, pass *string) error {
 func openWallet(ctx *cli.Context, canUseWalletConfig bool) (*wallet.Wallet, *string, error) {
 	path, pass, err := getWalletPathAndPass(ctx, canUseWalletConfig)
 	if err != nil {
-		return nil, nil, cli.NewExitError(fmt.Errorf("failed to get wallet path or password: %w", err), 1)
+		return nil, nil, cli.Exit(fmt.Errorf("failed to get wallet path or password: %w", err), 1)
 	}
 	if path == "-" {
 		return nil, nil, errNoStdin
 	}
 	w, err := wallet.NewWalletFromFile(path)
 	if err != nil {
-		return nil, nil, cli.NewExitError(fmt.Errorf("failed to read wallet: %w", err), 1)
+		return nil, nil, cli.Exit(fmt.Errorf("failed to read wallet: %w", err), 1)
 	}
 	return w, pass, nil
 }

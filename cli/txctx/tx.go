@@ -16,32 +16,34 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 var (
 	// GasFlag is a flag used for the additional network fee.
-	GasFlag = flags.Fixed8Flag{
-		Name:  "gas, g",
-		Usage: "Network fee to add to the transaction (prioritizing it)",
+	GasFlag = &flags.Fixed8Flag{
+		Name:    "gas",
+		Aliases: []string{"g"},
+		Usage:   "Network fee to add to the transaction (prioritizing it)",
 	}
 	// SysGasFlag is a flag used for the additional system fee.
-	SysGasFlag = flags.Fixed8Flag{
-		Name:  "sysgas, e",
-		Usage: "System fee to add to the transaction (compensating for execution)",
+	SysGasFlag = &flags.Fixed8Flag{
+		Name:    "sysgas",
+		Aliases: []string{"e"},
+		Usage:   "System fee to add to the transaction (compensating for execution)",
 	}
 	// OutFlag is a flag used for file output.
-	OutFlag = cli.StringFlag{
+	OutFlag = &cli.StringFlag{
 		Name:  "out",
 		Usage: "File (JSON) to put signature context with a transaction to",
 	}
 	// ForceFlag is a flag used to force transaction send.
-	ForceFlag = cli.BoolFlag{
+	ForceFlag = &cli.BoolFlag{
 		Name:  "force",
 		Usage: "Do not ask for a confirmation (and ignore errors)",
 	}
 	// AwaitFlag is a flag used to wait for the transaction to be included in a block.
-	AwaitFlag = cli.BoolFlag{
+	AwaitFlag = &cli.BoolFlag{
 		Name:  "await",
 		Usage: "Wait for the transaction to be included in a block",
 	}
@@ -71,7 +73,7 @@ func SignAndSend(ctx *cli.Context, act *actor.Actor, acc *wallet.Account, tx *tr
 			promptTime := time.Now()
 			err := input.ConfirmTx(ctx.App.Writer, tx)
 			if err != nil {
-				return cli.NewExitError(err, 1)
+				return cli.Exit(err, 1)
 			}
 			waitTime := time.Since(promptTime)
 			// Compensate for confirmation waiting.
@@ -83,17 +85,17 @@ func SignAndSend(ctx *cli.Context, act *actor.Actor, acc *wallet.Account, tx *tr
 		)
 		resTx, vub, err = act.SignAndSend(tx)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 		if ctx.Bool("await") {
 			aer, err = act.Wait(resTx, vub, err)
 			if err != nil {
-				return cli.NewExitError(fmt.Errorf("failed to await transaction %s: %w", resTx.StringLE(), err), 1)
+				return cli.Exit(fmt.Errorf("failed to await transaction %s: %w", resTx.StringLE(), err), 1)
 			}
 		}
 	}
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	DumpTransactionInfo(ctx.App.Writer, tx.Hash(), aer)

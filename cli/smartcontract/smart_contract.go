@@ -27,13 +27,17 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"gopkg.in/yaml.v3"
 )
 
-// addressFlagName is a flag name used for address-related operations. It should be
-// the same within the smartcontract package, thus, use this constant.
-const addressFlagName = "address, a"
+// addressFlagName and addressFlagAlias are a flag name and its alias
+// used for address-related operations. It should be the same within
+// the smartcontract package, thus, use this constant.
+const (
+	addressFlagName  = "address"
+	addressFlagAlias = "a"
+)
 
 var (
 	errNoInput             = errors.New("no input file was found, specify an input file with the '--in or -i' flag")
@@ -43,9 +47,10 @@ var (
 	errNoScriptHash        = errors.New("no smart contract hash was provided, specify one as the first argument")
 	errNoSmartContractName = errors.New("no name was provided, specify the '--name or -n' flag")
 	errFileExist           = errors.New("A file with given smart-contract name already exists")
-	addressFlag            = flags.AddressFlag{
-		Name:  addressFlagName,
-		Usage: "Address to use as transaction signee (and gas source)",
+	addressFlag            = &flags.AddressFlag{
+		Name:    addressFlagName,
+		Aliases: []string{addressFlagAlias},
+		Usage:   "Address to use as transaction signee (and gas source)",
 	}
 )
 
@@ -74,11 +79,12 @@ func RuntimeNotify(args []any) {
 )
 
 // NewCommands returns 'contract' command.
-func NewCommands() []cli.Command {
+func NewCommands() []*cli.Command {
 	testInvokeScriptFlags := []cli.Flag{
-		cli.StringFlag{
-			Name:  "in, i",
-			Usage: "Input location of the .nef file that needs to be invoked",
+		&cli.StringFlag{
+			Name:    "in",
+			Aliases: []string{"i"},
+			Usage:   "Input location of the .nef file that needs to be invoked",
 		},
 		options.Historic,
 	}
@@ -96,37 +102,43 @@ func NewCommands() []cli.Command {
 	invokeFunctionFlags = append(invokeFunctionFlags, options.Wallet...)
 	invokeFunctionFlags = append(invokeFunctionFlags, options.RPC...)
 	deployFlags := append(invokeFunctionFlags, []cli.Flag{
-		cli.StringFlag{
-			Name:  "in, i",
-			Usage: "Input file for the smart contract (*.nef)",
+		&cli.StringFlag{
+			Name:    "in",
+			Aliases: []string{"i"},
+			Usage:   "Input file for the smart contract (*.nef)",
 		},
-		cli.StringFlag{
-			Name:  "manifest, m",
-			Usage: "Manifest input file (*.manifest.json)",
+		&cli.StringFlag{
+			Name:    "manifest",
+			Aliases: []string{"m"},
+			Usage:   "Manifest input file (*.manifest.json)",
 		},
 	}...)
 	manifestAddGroupFlags := append([]cli.Flag{
-		cli.StringFlag{
-			Name:  "sender, s",
-			Usage: "Deploy transaction sender",
+		&cli.StringFlag{
+			Name:    "sender",
+			Aliases: []string{"s"},
+			Usage:   "Deploy transaction sender",
 		},
-		flags.AddressFlag{
-			Name:  addressFlagName, // use the same name for handler code unification.
-			Usage: "Account to sign group with",
+		&flags.AddressFlag{
+			Name:    addressFlagName, // use the same name for handler code unification.
+			Aliases: []string{addressFlagAlias},
+			Usage:   "Account to sign group with",
 		},
-		cli.StringFlag{
-			Name:  "nef, n",
-			Usage: "Path to the NEF file",
+		&cli.StringFlag{
+			Name:    "nef",
+			Aliases: []string{"n"},
+			Usage:   "Path to the NEF file",
 		},
-		cli.StringFlag{
-			Name:  "manifest, m",
-			Usage: "Path to the manifest",
+		&cli.StringFlag{
+			Name:    "manifest",
+			Aliases: []string{"m"},
+			Usage:   "Path to the manifest",
 		},
 	}, options.Wallet...)
-	return []cli.Command{{
+	return []*cli.Command{{
 		Name:  "contract",
 		Usage: "Compile - debug - deploy smart contracts",
-		Subcommands: []cli.Command{
+		Subcommands: []*cli.Command{
 			{
 				Name:      "compile",
 				Usage:     "Compile a smart contract to a .nef file",
@@ -141,47 +153,53 @@ func NewCommands() []cli.Command {
 `,
 				Action: contractCompile,
 				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "in, i",
-						Usage: "Input file for the smart contract to be compiled (*.go file or directory)",
+					&cli.StringFlag{
+						Name:    "in",
+						Aliases: []string{"i"},
+						Usage:   "Input file for the smart contract to be compiled (*.go file or directory)",
 					},
-					cli.StringFlag{
-						Name:  "out, o",
-						Usage: "Output of the compiled contract",
+					&cli.StringFlag{
+						Name:    "out",
+						Aliases: []string{"o"},
+						Usage:   "Output of the compiled contract",
 					},
-					cli.BoolFlag{
-						Name:  "verbose, v",
-						Usage: "Print out additional information after a compiling",
+					&cli.BoolFlag{
+						Name:    "verbose",
+						Aliases: []string{"v"},
+						Usage:   "Print out additional information after a compiling",
 					},
-					cli.StringFlag{
-						Name:  "debug, d",
-						Usage: "Emit debug info in a separate file",
+					&cli.StringFlag{
+						Name:    "debug",
+						Aliases: []string{"d"},
+						Usage:   "Emit debug info in a separate file",
 					},
-					cli.StringFlag{
-						Name:  "manifest, m",
-						Usage: "Emit contract manifest (*.manifest.json) file into separate file using configuration input file (*.yml)",
+					&cli.StringFlag{
+						Name:    "manifest",
+						Aliases: []string{"m"},
+						Usage:   "Emit contract manifest (*.manifest.json) file into separate file using configuration input file (*.yml)",
 					},
-					cli.StringFlag{
-						Name:  "config, c",
-						Usage: "Configuration input file (*.yml)",
+					&cli.StringFlag{
+						Name:    "config",
+						Aliases: []string{"c"},
+						Usage:   "Configuration input file (*.yml)",
 					},
-					cli.BoolFlag{
+					&cli.BoolFlag{
 						Name:  "no-standards",
 						Usage: "Do not check compliance with supported standards",
 					},
-					cli.BoolFlag{
+					&cli.BoolFlag{
 						Name:  "no-events",
 						Usage: "Do not check emitted events with the manifest",
 					},
-					cli.BoolFlag{
+					&cli.BoolFlag{
 						Name:  "no-permissions",
 						Usage: "Do not check if invoked contracts are allowed in manifest",
 					},
-					cli.BoolFlag{
+					&cli.BoolFlag{
 						Name:  "guess-eventtypes",
 						Usage: "Guess event types for smart-contract bindings configuration from the code usages",
 					},
-					cli.StringFlag{
+					&cli.StringFlag{
 						Name:  "bindings",
 						Usage: "Output file for smart-contract bindings configuration",
 					},
@@ -254,13 +272,15 @@ func NewCommands() []cli.Command {
 				UsageText: "neo-go contract init -n name [--skip-details]",
 				Action:    initSmartContract,
 				Flags: []cli.Flag{
-					cli.StringFlag{
-						Name:  "name, n",
-						Usage: "Name of the smart-contract to be initialized",
+					&cli.StringFlag{
+						Name:    "name",
+						Aliases: []string{"n"},
+						Usage:   "Name of the smart-contract to be initialized",
 					},
-					cli.BoolFlag{
-						Name:  "skip-details, skip",
-						Usage: "Skip filling in the projects and contract details",
+					&cli.BoolFlag{
+						Name:    "skip-details",
+						Aliases: []string{"skip"},
+						Usage:   "Skip filling in the projects and contract details",
 					},
 				},
 			},
@@ -270,13 +290,15 @@ func NewCommands() []cli.Command {
 				UsageText: "neo-go contract inspect -i file [-c]",
 				Action:    inspect,
 				Flags: []cli.Flag{
-					cli.BoolFlag{
-						Name:  "compile, c",
-						Usage: "Compile input file (it should be go code then)",
+					&cli.BoolFlag{
+						Name:    "compile",
+						Aliases: []string{"c"},
+						Usage:   "Compile input file (it should be go code then)",
 					},
-					cli.StringFlag{
-						Name:  "in, i",
-						Usage: "Input file of the program (either .go or .nef)",
+					&cli.StringFlag{
+						Name:    "in",
+						Aliases: []string{"i"},
+						Usage:   "Input file of the program (either .go or .nef)",
 					},
 				},
 			},
@@ -286,24 +308,26 @@ func NewCommands() []cli.Command {
 				UsageText: "neo-go contract calc-hash -i nef -m manifest -s address",
 				Action:    calcHash,
 				Flags: []cli.Flag{
-					flags.AddressFlag{
-						Name:  "sender, s",
-						Usage: "Sender script hash or address",
+					&flags.AddressFlag{
+						Name:    "sender",
+						Aliases: []string{"s"},
+						Usage:   "Sender script hash or address",
 					},
-					cli.StringFlag{
+					&cli.StringFlag{
 						Name:  "in",
 						Usage: "Path to NEF file",
 					},
-					cli.StringFlag{
-						Name:  "manifest, m",
-						Usage: "Path to manifest file",
+					&cli.StringFlag{
+						Name:    "manifest",
+						Aliases: []string{"m"},
+						Usage:   "Path to manifest file",
 					},
 				},
 			},
 			{
 				Name:  "manifest",
 				Usage: "Manifest-related commands",
-				Subcommands: []cli.Command{
+				Subcommands: []*cli.Command{
 					{
 						Name:      "add-group",
 						Usage:     "Adds group to the manifest",
@@ -324,12 +348,12 @@ func initSmartContract(ctx *cli.Context) error {
 	}
 	contractName := ctx.String("name")
 	if contractName == "" {
-		return cli.NewExitError(errNoSmartContractName, 1)
+		return cli.Exit(errNoSmartContractName, 1)
 	}
 
 	// Check if the file already exists, if yes, exit
 	if _, err := os.Stat(contractName); err == nil {
-		return cli.NewExitError(errFileExist, 1)
+		return cli.Exit(errFileExist, 1)
 	}
 
 	basePath := contractName
@@ -338,7 +362,7 @@ func initSmartContract(ctx *cli.Context) error {
 
 	// create base directory
 	if err := os.Mkdir(basePath, os.ModePerm); err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	m := ProjectConfig{
@@ -363,10 +387,10 @@ func initSmartContract(ctx *cli.Context) error {
 	}
 	b, err := yaml.Marshal(m)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	if err := os.WriteFile(filepath.Join(basePath, "neo-go.yml"), b, 0644); err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	ver := ModVersion
@@ -382,12 +406,12 @@ require (
 	github.com/nspcc-dev/neo-go/pkg/interop ` + ver + `
 )`)
 	if err := os.WriteFile(filepath.Join(basePath, "go.mod"), gm, 0644); err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	data := []byte(fmt.Sprintf(smartContractTmpl, contractName))
 	if err := os.WriteFile(filepath.Join(basePath, fileName), data, 0644); err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	fmt.Fprintf(ctx.App.Writer, "Successfully initialized smart contract [%s]\n", contractName)
@@ -401,7 +425,7 @@ func contractCompile(ctx *cli.Context) error {
 	}
 	src := ctx.String("in")
 	if len(src) == 0 {
-		return cli.NewExitError(errNoInput, 1)
+		return cli.Exit(errNoInput, 1)
 	}
 	manifestFile := ctx.String("manifest")
 	confFile := ctx.String("config")
@@ -409,7 +433,7 @@ func contractCompile(ctx *cli.Context) error {
 	out := ctx.String("out")
 	bindings := ctx.String("bindings")
 	if len(confFile) == 0 && (len(manifestFile) != 0 || len(debugFile) != 0 || len(bindings) != 0) {
-		return cli.NewExitError(errNoConfFile, 1)
+		return cli.Exit(errNoConfFile, 1)
 	}
 	autocomplete := len(manifestFile) == 0 &&
 		len(confFile) == 0 &&
@@ -419,7 +443,7 @@ func contractCompile(ctx *cli.Context) error {
 		var root string
 		fileInfo, err := os.Stat(src)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to stat source file or directory: %w", err), 1)
+			return cli.Exit(fmt.Errorf("failed to stat source file or directory: %w", err), 1)
 		}
 		if fileInfo.IsDir() {
 			base := filepath.Base(fileInfo.Name())
@@ -470,7 +494,7 @@ func contractCompile(ctx *cli.Context) error {
 
 	result, err := compiler.CompileAndSave(src, o)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	if ctx.Bool("verbose") {
 		fmt.Fprintln(ctx.App.Writer, hex.EncodeToString(result))
@@ -485,33 +509,33 @@ func calcHash(ctx *cli.Context) error {
 	}
 	sender := ctx.Generic("sender").(*flags.Address)
 	if !sender.IsSet {
-		return cli.NewExitError("sender is not set", 1)
+		return cli.Exit("sender is not set", 1)
 	}
 
 	p := ctx.String("in")
 	if p == "" {
-		return cli.NewExitError(errors.New("no .nef file was provided"), 1)
+		return cli.Exit(errors.New("no .nef file was provided"), 1)
 	}
 	mpath := ctx.String("manifest")
 	if mpath == "" {
-		return cli.NewExitError(errors.New("no manifest file provided"), 1)
+		return cli.Exit(errors.New("no manifest file provided"), 1)
 	}
 	f, err := os.ReadFile(p)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't read .nef file: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't read .nef file: %w", err), 1)
 	}
 	nefFile, err := nef.FileFromBytes(f)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't unmarshal .nef file: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't unmarshal .nef file: %w", err), 1)
 	}
 	manifestBytes, err := os.ReadFile(mpath)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to read manifest file: %w", err), 1)
+		return cli.Exit(fmt.Errorf("failed to read manifest file: %w", err), 1)
 	}
 	m := &manifest.Manifest{}
 	err = json.Unmarshal(manifestBytes, m)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to restore manifest file: %w", err), 1)
+		return cli.Exit(fmt.Errorf("failed to restore manifest file: %w", err), 1)
 	}
 	fmt.Fprintln(ctx.App.Writer, "Contract hash:", state.CreateContractHash(sender.Uint160(), nefFile.Checksum, m.Name).StringLE())
 	return nil
@@ -528,7 +552,7 @@ func invokeFunction(ctx *cli.Context) error {
 func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	var (
 		err             error
-		exitErr         *cli.ExitError
+		exitErr         cli.ExitCoder
 		operation       string
 		params          []any
 		paramsStart     = 1
@@ -539,22 +563,23 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 
 	args := ctx.Args()
 	if !args.Present() {
-		return cli.NewExitError(errNoScriptHash, 1)
+		return cli.Exit(errNoScriptHash, 1)
 	}
-	script, err := flags.ParseAddress(args[0])
+	argsSlice := args.Slice()
+	script, err := flags.ParseAddress(argsSlice[0])
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("incorrect script hash: %w", err), 1)
+		return cli.Exit(fmt.Errorf("incorrect script hash: %w", err), 1)
 	}
-	if len(args) <= 1 {
-		return cli.NewExitError(errNoMethod, 1)
+	if len(argsSlice) <= 1 {
+		return cli.Exit(errNoMethod, 1)
 	}
-	operation = args[1]
+	operation = argsSlice[1]
 	paramsStart++
 
-	if len(args) > paramsStart {
-		cosignersOffset, scParams, err = cmdargs.ParseParams(args[paramsStart:], true)
+	if len(argsSlice) > paramsStart {
+		cosignersOffset, scParams, err = cmdargs.ParseParams(argsSlice[paramsStart:], true)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 		params = make([]any, len(scParams))
 		for i := range scParams {
@@ -575,7 +600,7 @@ func invokeInternal(ctx *cli.Context, signAndPush bool) error {
 	if signAndPush {
 		acc, w, err = options.GetAccFromContext(ctx)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 		defer w.Close()
 	}
@@ -595,7 +620,7 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 	if signAndPush {
 		signersAccounts, err = cmdargs.GetSignersAccounts(acc, wall, cosigners, transaction.None)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("invalid signers: %w", err), 1)
+			return cli.Exit(fmt.Errorf("invalid signers: %w", err), 1)
 		}
 	}
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -615,12 +640,12 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 	out := ctx.String("out")
 	resp, err = inv.Call(script, operation, params...)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	if resp.State != "HALT" {
 		errText := fmt.Sprintf("Warning: %s VM state returned from the RPC node: %s", resp.State, resp.FaultException)
 		if !signAndPush {
-			return cli.NewExitError(errText, 1)
+			return cli.Exit(errText, 1)
 		}
 
 		action := "send"
@@ -630,25 +655,25 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 			process = "Saving"
 		}
 		if !ctx.Bool("force") {
-			return cli.NewExitError(errText+".\nUse --force flag to "+action+" the transaction anyway.", 1)
+			return cli.Exit(errText+".\nUse --force flag to "+action+" the transaction anyway.", 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, errText+".\n"+process+" transaction...")
 	}
 	if !signAndPush {
 		b, err := json.MarshalIndent(resp, "", "  ")
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 
 		fmt.Fprintln(ctx.App.Writer, string(b))
 		return nil
 	}
 	if len(resp.Script) == 0 {
-		return cli.NewExitError(errors.New("no script returned from the RPC node"), 1)
+		return cli.Exit(errors.New("no script returned from the RPC node"), 1)
 	}
 	tx, err := act.MakeUnsignedUncheckedRun(resp.Script, resp.GasConsumed, nil)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to create tx: %w", err), 1)
+		return cli.Exit(fmt.Errorf("failed to create tx: %w", err), 1)
 	}
 	return txctx.SignAndSend(ctx, act, acc, tx)
 }
@@ -656,16 +681,16 @@ func invokeWithArgs(ctx *cli.Context, acc *wallet.Account, wall *wallet.Wallet, 
 func testInvokeScript(ctx *cli.Context) error {
 	src := ctx.String("in")
 	if len(src) == 0 {
-		return cli.NewExitError(errNoInput, 1)
+		return cli.Exit(errNoInput, 1)
 	}
 
 	b, err := os.ReadFile(src)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	nefFile, err := nef.FileFromBytes(b)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
+		return cli.Exit(fmt.Errorf("failed to restore .nef file: %w", err), 1)
 	}
 
 	signers, exitErr := cmdargs.GetSignersFromContext(ctx, 0)
@@ -683,12 +708,12 @@ func testInvokeScript(ctx *cli.Context) error {
 
 	resp, err := inv.Run(nefFile.Script)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	b, err = json.MarshalIndent(resp, "", "  ")
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	fmt.Fprintln(ctx.App.Writer, string(b))
@@ -715,7 +740,7 @@ func inspect(ctx *cli.Context) error {
 	in := ctx.String("in")
 	compile := ctx.Bool("compile")
 	if len(in) == 0 {
-		return cli.NewExitError(errNoInput, 1)
+		return cli.Exit(errNoInput, 1)
 	}
 	var (
 		b   []byte
@@ -724,16 +749,16 @@ func inspect(ctx *cli.Context) error {
 	if compile {
 		b, err = compiler.Compile(in, nil)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to compile: %w", err), 1)
+			return cli.Exit(fmt.Errorf("failed to compile: %w", err), 1)
 		}
 	} else {
 		f, err := os.ReadFile(in)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to read .nef file: %w", err), 1)
+			return cli.Exit(fmt.Errorf("failed to read .nef file: %w", err), 1)
 		}
 		nefFile, err := nef.FileFromBytes(f)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to restore .nef file: %w", err), 1)
+			return cli.Exit(fmt.Errorf("failed to restore .nef file: %w", err), 1)
 		}
 		b = nefFile.Script
 	}
@@ -748,22 +773,22 @@ func inspect(ctx *cli.Context) error {
 func contractDeploy(ctx *cli.Context) error {
 	nefFile, f, err := readNEFFile(ctx.String("in"))
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	m, manifestBytes, err := readManifest(ctx.String("manifest"), util.Uint160{})
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to read manifest file: %w", err), 1)
+		return cli.Exit(fmt.Errorf("failed to read manifest file: %w", err), 1)
 	}
 
 	var appCallParams = []any{f, manifestBytes}
 
-	signOffset, data, err := cmdargs.ParseParams(ctx.Args(), true)
+	signOffset, data, err := cmdargs.ParseParams(ctx.Args().Slice(), true)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
+		return cli.Exit(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
 	}
 	if len(data) > 1 {
-		return cli.NewExitError("'data' should be represented as a single parameter", 1)
+		return cli.Exit("'data' should be represented as a single parameter", 1)
 	}
 	if len(data) != 0 {
 		appCallParams = append(appCallParams, data[0])
@@ -771,7 +796,7 @@ func contractDeploy(ctx *cli.Context) error {
 
 	acc, w, err := options.GetAccFromContext(ctx)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't get sender address: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't get sender address: %w", err), 1)
 	}
 	defer w.Close()
 	sender := acc.ScriptHash()
@@ -801,12 +826,12 @@ func ParseContractConfig(confFile string) (ProjectConfig, error) {
 	conf := ProjectConfig{}
 	confBytes, err := os.ReadFile(confFile)
 	if err != nil {
-		return conf, cli.NewExitError(err, 1)
+		return conf, cli.Exit(err, 1)
 	}
 
 	err = yaml.Unmarshal(confBytes, &conf)
 	if err != nil {
-		return conf, cli.NewExitError(fmt.Errorf("bad config: %w", err), 1)
+		return conf, cli.Exit(fmt.Errorf("bad config: %w", err), 1)
 	}
 	return conf, nil
 }
