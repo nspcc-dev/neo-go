@@ -11,27 +11,32 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/txctx"
 	vmcli "github.com/nspcc-dev/neo-go/cli/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // NewCommands returns util commands for neo-go CLI.
-func NewCommands() []cli.Command {
-	txDumpFlags := append([]cli.Flag{}, options.RPC...)
+func NewCommands() []*cli.Command {
+	// By default, RPC flag is required. sendtx and txdump may be called without provided rpc-endpoint.
+	rpcFlagOriginal, _ := options.RPC[0].(*cli.StringFlag)
+	rpcFlag := *rpcFlagOriginal
+	rpcFlag.Required = false
+	txDumpFlags := append([]cli.Flag{&rpcFlag}, options.RPC[1:]...)
 	txSendFlags := append(txDumpFlags, txctx.AwaitFlag)
 	txCancelFlags := append([]cli.Flag{
-		flags.AddressFlag{
-			Name:  "address, a",
-			Usage: "address to use as conflicting transaction signee (and gas source)",
+		&flags.AddressFlag{
+			Name:    "address",
+			Aliases: []string{"a"},
+			Usage:   "Address to use as conflicting transaction signee (and gas source)",
 		},
 		txctx.GasFlag,
 		txctx.AwaitFlag,
 	}, options.RPC...)
 	txCancelFlags = append(txCancelFlags, options.Wallet...)
-	return []cli.Command{
+	return []*cli.Command{
 		{
 			Name:  "util",
 			Usage: "Various helper commands",
-			Subcommands: []cli.Command{
+			Subcommands: []*cli.Command{
 				{
 					Name:  "convert",
 					Usage: "Convert provided argument into other possible formats",
@@ -44,7 +49,7 @@ func NewCommands() []cli.Command {
 				{
 					Name:      "sendtx",
 					Usage:     "Send complete transaction stored in a context file",
-					UsageText: "sendtx [-r <endpoint>] <file.in> [--await]",
+					UsageText: "sendtx [-r <endpoint>] [--await] <file.in>",
 					Description: `Sends the transaction from the given context file to the given RPC node if it's
    completely signed and ready. This command expects a ContractParametersContext
    JSON file for input, it can't handle binary (or hex- or base64-encoded)
@@ -57,7 +62,7 @@ func NewCommands() []cli.Command {
 				{
 					Name:      "canceltx",
 					Usage:     "Cancel transaction by sending conflicting transaction",
-					UsageText: "canceltx <txid> -r <endpoint> --wallet <wallet> [--account <account>] [--wallet-config <path>] [--gas <gas>] [--await]",
+					UsageText: "canceltx -r <endpoint> --wallet <wallet> [--address <account>] [--wallet-config <path>] [--gas <gas>] [--await] <txid>",
 					Description: `Aims to prevent a transaction from being added to the blockchain by dispatching a more 
    prioritized conflicting transaction to the specified RPC node. The input for this command should 
    be the transaction hash. If another account is not specified, the conflicting transaction is 
@@ -90,16 +95,17 @@ func NewCommands() []cli.Command {
 				{
 					Name:      "ops",
 					Usage:     "Pretty-print VM opcodes of the given base64- or hex- encoded script (base64 is checked first). If the input file is specified, then the script is taken from the file.",
-					UsageText: "ops <base64/hex-encoded script> [-i path-to-file] [--hex]",
+					UsageText: "ops [-i path-to-file] [--hex] <base64/hex-encoded script>",
 					Action:    handleOps,
 					Flags: []cli.Flag{
-						cli.StringFlag{
-							Name:  "in, i",
-							Usage: "input file containing base64- or hex- encoded script representation",
+						&cli.StringFlag{
+							Name:    "in",
+							Aliases: []string{"i"},
+							Usage:   "Input file containing base64- or hex- encoded script representation",
 						},
-						cli.BoolFlag{
+						&cli.BoolFlag{
 							Name:  "hex",
-							Usage: "use hex encoding and do not check base64",
+							Usage: "Use hex encoding and do not check base64",
 						},
 					},
 				},
@@ -109,9 +115,9 @@ func NewCommands() []cli.Command {
 }
 
 func handleParse(ctx *cli.Context) error {
-	res, err := vmcli.Parse(ctx.Args())
+	res, err := vmcli.Parse(ctx.Args().Slice())
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	fmt.Fprint(ctx.App.Writer, res)
 	return nil
@@ -127,21 +133,21 @@ func handleOps(ctx *cli.Context) error {
 	if len(in) != 0 {
 		b, err := os.ReadFile(in)
 		if err != nil {
-			return cli.NewExitError(fmt.Errorf("failed to read file: %w", err), 1)
+			return cli.Exit(fmt.Errorf("failed to read file: %w", err), 1)
 		}
 		s = string(b)
 	} else {
 		if !ctx.Args().Present() {
-			return cli.NewExitError("missing script", 1)
+			return cli.Exit("missing script", 1)
 		}
-		s = ctx.Args()[0]
+		s = ctx.Args().Slice()[0]
 	}
 	b, err = base64.StdEncoding.DecodeString(s)
 	if err != nil || ctx.Bool("hex") {
 		b, err = hex.DecodeString(s)
 	}
 	if err != nil {
-		return cli.NewExitError("unknown encoding: base64 or hex are supported", 1)
+		return cli.Exit("unknown encoding: base64 or hex are supported", 1)
 	}
 	v := vm.New()
 	v.LoadScript(b)

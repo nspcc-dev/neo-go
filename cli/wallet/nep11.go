@@ -19,20 +19,22 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-func newNEP11Commands() []cli.Command {
+func newNEP11Commands() []*cli.Command {
 	maxIters := strconv.Itoa(config.DefaultMaxIteratorResultItems)
-	tokenAddressFlag := flags.AddressFlag{
-		Name:  "token",
-		Usage: "Token contract address or hash in LE",
+	tokenAddressFlag := &flags.AddressFlag{
+		Name:     "token",
+		Usage:    "Token contract address or hash in LE",
+		Required: true,
 	}
-	ownerAddressFlag := flags.AddressFlag{
-		Name:  "address",
-		Usage: "NFT owner address or hash in LE",
+	ownerAddressFlag := &flags.AddressFlag{
+		Name:     "address",
+		Usage:    "NFT owner address or hash in LE",
+		Required: true,
 	}
-	tokenID := cli.StringFlag{
+	tokenID := &cli.StringFlag{
 		Name:  "id",
 		Usage: "Hex-encoded token ID",
 	}
@@ -45,10 +47,10 @@ func newNEP11Commands() []cli.Command {
 	copy(transferFlags, baseTransferFlags)
 	transferFlags = append(transferFlags, tokenID)
 	transferFlags = append(transferFlags, options.RPC...)
-	return []cli.Command{
+	return []*cli.Command{
 		{
 			Name:      "balance",
-			Usage:     "get address balance",
+			Usage:     "Get address balance",
 			UsageText: "balance -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>] [--id <token-id>]",
 			Description: `Prints NEP-11 balances for address and assets/IDs specified. By default (no
    address or token parameter) all tokens (NFT contracts) for all accounts in
@@ -70,14 +72,14 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "import",
-			Usage:     "import NEP-11 token to a wallet",
-			UsageText: "import -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --token <hash>",
+			Usage:     "Import NEP-11 token to a wallet",
+			UsageText: "import -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] --token <hash>",
 			Action:    importNEP11Token,
 			Flags:     importFlags,
 		},
 		{
 			Name:      "info",
-			Usage:     "print imported NEP-11 token info",
+			Usage:     "Print imported NEP-11 token info",
 			UsageText: "print -w wallet [--wallet-config path] [--token <hash-or-name>]",
 			Action:    printNEP11Info,
 			Flags: []cli.Flag{
@@ -88,7 +90,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "remove",
-			Usage:     "remove NEP-11 token from the wallet",
+			Usage:     "Remove NEP-11 token from the wallet",
 			UsageText: "remove -w wallet [--wallet-config path] --token <hash-or-name>",
 			Action:    removeNEP11Token,
 			Flags: []cli.Flag{
@@ -100,8 +102,8 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "transfer",
-			Usage:     "transfer NEP-11 tokens",
-			UsageText: "transfer -w wallet [--wallet-config path] --rpc-endpoint <node> --timeout <time> --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [--await] [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
+			Usage:     "Transfer NEP-11 tokens",
+			UsageText: "transfer -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] --from <addr> --to <addr> --token <hash-or-name> --id <token-id> [--amount string] [--await] [data] [-- <cosigner1:Scope> [<cosigner2> [...]]]",
 			Action:    transferNEP11,
 			Flags:     transferFlags,
 			Description: `Transfers specified NEP-11 token with optional cosigners list attached to
@@ -116,7 +118,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "properties",
-			Usage:     "print properties of NEP-11 token",
+			Usage:     "Print properties of NEP-11 token",
 			UsageText: "properties --rpc-endpoint <node> [--timeout <time>] --token <hash> --id <token-id> [--historic <block/hash>]",
 			Action:    printNEP11Properties,
 			Flags: append([]cli.Flag{
@@ -127,7 +129,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "ownerOf",
-			Usage:     "print owner of non-divisible NEP-11 token with the specified ID",
+			Usage:     "Print owner of non-divisible NEP-11 token with the specified ID",
 			UsageText: "ownerOf --rpc-endpoint <node> [--timeout <time>] --token <hash> --id <token-id> [--historic <block/hash>]",
 			Action:    printNEP11NDOwner,
 			Flags: append([]cli.Flag{
@@ -138,7 +140,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "ownerOfD",
-			Usage:     "print set of owners of divisible NEP-11 token with the specified ID (" + maxIters + " will be printed at max)",
+			Usage:     "Print set of owners of divisible NEP-11 token with the specified ID (" + maxIters + " will be printed at max)",
 			UsageText: "ownerOfD --rpc-endpoint <node> [--timeout <time>] --token <hash> --id <token-id> [--historic <block/hash>]",
 			Action:    printNEP11DOwner,
 			Flags: append([]cli.Flag{
@@ -149,7 +151,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "tokensOf",
-			Usage:     "print list of tokens IDs for the specified NFT owner (" + maxIters + " will be printed at max)",
+			Usage:     "Print list of tokens IDs for the specified NFT owner (" + maxIters + " will be printed at max)",
 			UsageText: "tokensOf --rpc-endpoint <node> [--timeout <time>] --token <hash> --address <addr> [--historic <block/hash>]",
 			Action:    printNEP11TokensOf,
 			Flags: append([]cli.Flag{
@@ -160,7 +162,7 @@ func newNEP11Commands() []cli.Command {
 		},
 		{
 			Name:      "tokens",
-			Usage:     "print list of tokens IDs minted by the specified NFT (optional method; " + maxIters + " will be printed at max)",
+			Usage:     "Print list of tokens IDs minted by the specified NFT (optional method; " + maxIters + " will be printed at max)",
 			UsageText: "tokens --rpc-endpoint <node> [--timeout <time>] --token <hash> [--historic <block/hash>]",
 			Action:    printNEP11Tokens,
 			Flags: append([]cli.Flag{
@@ -246,17 +248,13 @@ func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 		return err
 	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
-	if !tokenHash.IsSet {
-		return cli.NewExitError("token contract hash was not set", 1)
-	}
-
 	tokenID := ctx.String("id")
 	if tokenID == "" {
-		return cli.NewExitError(errors.New("token ID should be specified"), 1)
+		return cli.Exit(errors.New("token ID should be specified"), 1)
 	}
 	tokenIDBytes, err := hex.DecodeString(tokenID)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid tokenID bytes: %w", err), 1)
+		return cli.Exit(fmt.Errorf("invalid tokenID bytes: %w", err), 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -271,7 +269,7 @@ func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 		n11 := nep11.NewDivisibleReader(inv, tokenHash.Uint160())
 		result, err := n11.OwnerOfExpanded(tokenIDBytes, config.DefaultMaxIteratorResultItems)
 		if err != nil {
-			return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 divisible `ownerOf` method: %s", err.Error()), 1)
+			return cli.Exit(fmt.Sprintf("failed to call NEP-11 divisible `ownerOf` method: %s", err.Error()), 1)
 		}
 		for _, h := range result {
 			fmt.Fprintln(ctx.App.Writer, address.Uint160ToString(h))
@@ -280,7 +278,7 @@ func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 		n11 := nep11.NewNonDivisibleReader(inv, tokenHash.Uint160())
 		result, err := n11.OwnerOf(tokenIDBytes)
 		if err != nil {
-			return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 non-divisible `ownerOf` method: %s", err.Error()), 1)
+			return cli.Exit(fmt.Sprintf("failed to call NEP-11 non-divisible `ownerOf` method: %s", err.Error()), 1)
 		}
 		fmt.Fprintln(ctx.App.Writer, address.Uint160ToString(result))
 	}
@@ -291,15 +289,7 @@ func printNEP11Owner(ctx *cli.Context, divisible bool) error {
 func printNEP11TokensOf(ctx *cli.Context) error {
 	var err error
 	tokenHash := ctx.Generic("token").(*flags.Address)
-	if !tokenHash.IsSet {
-		return cli.NewExitError("token contract hash was not set", 1)
-	}
-
 	acc := ctx.Generic("address").(*flags.Address)
-	if !acc.IsSet {
-		return cli.NewExitError("owner address flag was not set", 1)
-	}
-
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
@@ -311,7 +301,7 @@ func printNEP11TokensOf(ctx *cli.Context) error {
 	n11 := nep11.NewBaseReader(inv, tokenHash.Uint160())
 	result, err := n11.TokensOfExpanded(acc.Uint160(), config.DefaultMaxIteratorResultItems)
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 `tokensOf` method: %s", err.Error()), 1)
+		return cli.Exit(fmt.Sprintf("failed to call NEP-11 `tokensOf` method: %s", err.Error()), 1)
 	}
 
 	for i := range result {
@@ -326,10 +316,6 @@ func printNEP11Tokens(ctx *cli.Context) error {
 		return err
 	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
-	if !tokenHash.IsSet {
-		return cli.NewExitError("token contract hash was not set", 1)
-	}
-
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 
@@ -341,7 +327,7 @@ func printNEP11Tokens(ctx *cli.Context) error {
 	n11 := nep11.NewBaseReader(inv, tokenHash.Uint160())
 	result, err := n11.TokensExpanded(config.DefaultMaxIteratorResultItems)
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("failed to call optional NEP-11 `tokens` method: %s", err.Error()), 1)
+		return cli.Exit(fmt.Sprintf("failed to call optional NEP-11 `tokens` method: %s", err.Error()), 1)
 	}
 
 	for i := range result {
@@ -356,17 +342,13 @@ func printNEP11Properties(ctx *cli.Context) error {
 		return err
 	}
 	tokenHash := ctx.Generic("token").(*flags.Address)
-	if !tokenHash.IsSet {
-		return cli.NewExitError("token contract hash was not set", 1)
-	}
-
 	tokenID := ctx.String("id")
 	if tokenID == "" {
-		return cli.NewExitError(errors.New("token ID should be specified"), 1)
+		return cli.Exit(errors.New("token ID should be specified"), 1)
 	}
 	tokenIDBytes, err := hex.DecodeString(tokenID)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid tokenID bytes: %w", err), 1)
+		return cli.Exit(fmt.Errorf("invalid tokenID bytes: %w", err), 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -380,12 +362,12 @@ func printNEP11Properties(ctx *cli.Context) error {
 	n11 := nep11.NewBaseReader(inv, tokenHash.Uint160())
 	result, err := n11.Properties(tokenIDBytes)
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("failed to call NEP-11 `properties` method: %s", err.Error()), 1)
+		return cli.Exit(fmt.Sprintf("failed to call NEP-11 `properties` method: %s", err.Error()), 1)
 	}
 
 	bytes, err := stackitem.ToJSON(result)
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("failed to convert result to JSON: %s", err), 1)
+		return cli.Exit(fmt.Sprintf("failed to convert result to JSON: %s", err), 1)
 	}
 	fmt.Fprintln(ctx.App.Writer, string(bytes))
 	return nil

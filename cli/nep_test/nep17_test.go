@@ -21,14 +21,13 @@ func TestNEP17Balance(t *testing.T) {
 	e := testcli.NewExecutor(t, true)
 
 	args := []string{
-		"neo-go", "wallet", "nep17", "multitransfer",
+		"neo-go", "wallet", "nep17", "multitransfer", "--force",
 		"--rpc-endpoint", "http://" + e.RPC.Addresses()[0],
 		"--wallet", testcli.ValidatorWallet,
 		"--from", testcli.ValidatorAddr,
 		"GAS:" + testcli.TestWalletMultiAccount1 + ":1",
 		"NEO:" + testcli.TestWalletMultiAccount1 + ":10",
 		"GAS:" + testcli.TestWalletMultiAccount3 + ":3",
-		"--force",
 	}
 	e.In.WriteString("one\r")
 	e.Run(t, args...)
@@ -114,7 +113,7 @@ func TestNEP17Balance(t *testing.T) {
 		e.CheckEOF(t)
 	})
 	t.Run("Bad wallet", func(t *testing.T) {
-		e.RunWithError(t, append(cmdbalance, "--wallet", "/dev/null")...)
+		e.RunWithError(t, append(cmdbalance, "--wallet", "/dev/null", "-r", "test")...)
 	})
 }
 
@@ -137,7 +136,7 @@ func TestNEP17Transfer(t *testing.T) {
 		as := append([]string{}, args[:8]...)
 		as = append(as, args[10:]...)
 		e.In.WriteString("one\r")
-		e.RunWithError(t, as...)
+		e.RunWithErrorCheck(t, `Required flag "to" not set`, as...)
 		e.In.Reset()
 	})
 
@@ -327,7 +326,7 @@ func TestNEP17ImportToken(t *testing.T) {
 	e.Run(t, "neo-go", "wallet", "init", "--wallet", walletPath)
 
 	// missing token hash
-	e.RunWithError(t, "neo-go", "wallet", "nep17", "import",
+	e.RunWithErrorCheck(t, `Required flag "token" not set`, "neo-go", "wallet", "nep17", "import",
 		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 		"--wallet", walletPath)
 

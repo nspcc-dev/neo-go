@@ -12,7 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 const (
@@ -138,16 +138,16 @@ const (
 
 // GetSignersFromContext returns signers parsed from context args starting
 // from the specified offset.
-func GetSignersFromContext(ctx *cli.Context, offset int) ([]transaction.Signer, *cli.ExitError) {
+func GetSignersFromContext(ctx *cli.Context, offset int) ([]transaction.Signer, cli.ExitCoder) {
 	args := ctx.Args()
 	var (
 		signers []transaction.Signer
 		err     error
 	)
-	if args.Present() && len(args) > offset {
-		signers, err = ParseSigners(args[offset:])
+	if args.Present() && args.Len() > offset {
+		signers, err = ParseSigners(args.Slice()[offset:])
 		if err != nil {
-			return nil, cli.NewExitError(err, 1)
+			return nil, cli.Exit(err, 1)
 		}
 	}
 	return signers, nil
@@ -230,7 +230,7 @@ func parseCosigner(c string) (transaction.Signer, error) {
 }
 
 // GetDataFromContext returns data parameter from context args.
-func GetDataFromContext(ctx *cli.Context) (int, any, *cli.ExitError) {
+func GetDataFromContext(ctx *cli.Context) (int, any, cli.ExitCoder) {
 	var (
 		data   any
 		offset int
@@ -239,17 +239,17 @@ func GetDataFromContext(ctx *cli.Context) (int, any, *cli.ExitError) {
 	)
 	args := ctx.Args()
 	if args.Present() {
-		offset, params, err = ParseParams(args, true)
+		offset, params, err = ParseParams(args.Slice(), true)
 		if err != nil {
-			return offset, nil, cli.NewExitError(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
+			return offset, nil, cli.Exit(fmt.Errorf("unable to parse 'data' parameter: %w", err), 1)
 		}
 		if len(params) > 1 {
-			return offset, nil, cli.NewExitError("'data' should be represented as a single parameter", 1)
+			return offset, nil, cli.Exit("'data' should be represented as a single parameter", 1)
 		}
 		if len(params) != 0 {
 			data, err = smartcontract.ExpandParameterToEmitable(params[0])
 			if err != nil {
-				return offset, nil, cli.NewExitError(fmt.Sprintf("failed to convert 'data' to emitable type: %s", err.Error()), 1)
+				return offset, nil, cli.Exit(fmt.Sprintf("failed to convert 'data' to emitable type: %s", err.Error()), 1)
 			}
 		}
 	}
@@ -258,9 +258,9 @@ func GetDataFromContext(ctx *cli.Context) (int, any, *cli.ExitError) {
 
 // EnsureNone returns an error if there are any positional arguments present.
 // It can be used to check for them in commands that don't accept arguments.
-func EnsureNone(ctx *cli.Context) *cli.ExitError {
+func EnsureNone(ctx *cli.Context) cli.ExitCoder {
 	if ctx.Args().Present() {
-		return cli.NewExitError("additional arguments given while this command expects none", 1)
+		return cli.Exit(fmt.Errorf("additional arguments given while this command expects none"), 1)
 	}
 	return nil
 }
@@ -347,4 +347,15 @@ func GetSignersAccounts(senderAcc *wallet.Account, wall *wallet.Wallet, signers 
 		})
 	}
 	return signersAccounts, nil
+}
+
+// EnsureNotEmpty returns a function that checks if the flag with the given name
+// is not empty.
+func EnsureNotEmpty(flagName string) func(*cli.Context, string) error {
+	return func(ctx *cli.Context, name string) error {
+		if ctx.String(flagName) == "" {
+			return cli.Exit(fmt.Errorf("required flag --%s is empty", flagName), 1)
+		}
+		return nil
+	}
 }

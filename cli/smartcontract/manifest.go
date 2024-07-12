@@ -2,7 +2,6 @@ package smartcontract
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 
@@ -13,34 +12,30 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 func manifestAddGroup(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
-	sender, err := flags.ParseAddress(ctx.String("sender"))
-	if err != nil {
-		return cli.NewExitError(fmt.Errorf("invalid sender: %w", err), 1)
-	}
-
+	sender := ctx.Generic("sender").(*flags.Address)
 	nf, _, err := readNEFFile(ctx.String("nef"))
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't read NEF file: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't read NEF file: %w", err), 1)
 	}
 
 	mPath := ctx.String("manifest")
 	m, _, err := readManifest(mPath, util.Uint160{})
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't read contract manifest: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't read contract manifest: %w", err), 1)
 	}
 
-	h := state.CreateContractHash(sender, nf.Checksum, m.Name)
+	h := state.CreateContractHash(sender.Uint160(), nf.Checksum, m.Name)
 
 	gAcc, w, err := options.GetAccFromContext(ctx)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't get account to sign group with: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't get account to sign group with: %w", err), 1)
 	}
 	defer w.Close()
 
@@ -64,21 +59,17 @@ func manifestAddGroup(ctx *cli.Context) error {
 
 	rawM, err := json.Marshal(m)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't marshal manifest: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't marshal manifest: %w", err), 1)
 	}
 
 	err = os.WriteFile(mPath, rawM, os.ModePerm)
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("can't write manifest file: %w", err), 1)
+		return cli.Exit(fmt.Errorf("can't write manifest file: %w", err), 1)
 	}
 	return nil
 }
 
 func readNEFFile(filename string) (*nef.File, []byte, error) {
-	if len(filename) == 0 {
-		return nil, nil, errors.New("no nef file was provided")
-	}
-
 	f, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, nil, err
@@ -96,10 +87,6 @@ func readNEFFile(filename string) (*nef.File, []byte, error) {
 // it for validness against the provided contract hash. If empty hash is specified
 // then no hash-related manifest groups check is performed.
 func readManifest(filename string, hash util.Uint160) (*manifest.Manifest, []byte, error) {
-	if len(filename) == 0 {
-		return nil, nil, errNoManifestFile
-	}
-
 	manifestBytes, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, nil, err

@@ -22,21 +22,22 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // NewCommands returns 'query' command.
-func NewCommands() []cli.Command {
+func NewCommands() []*cli.Command {
 	queryTxFlags := append([]cli.Flag{
-		cli.BoolFlag{
-			Name:  "verbose, v",
-			Usage: "Output full tx info and execution logs",
+		&cli.BoolFlag{
+			Name:    "verbose",
+			Aliases: []string{"v"},
+			Usage:   "Output full tx info and execution logs",
 		},
 	}, options.RPC...)
-	return []cli.Command{{
+	return []*cli.Command{{
 		Name:  "query",
 		Usage: "Query data from RPC node",
-		Subcommands: []cli.Command{
+		Subcommands: []*cli.Command{
 			{
 				Name:      "candidates",
 				Usage:     "Get candidates and votes",
@@ -61,14 +62,14 @@ func NewCommands() []cli.Command {
 			{
 				Name:      "tx",
 				Usage:     "Query transaction status",
-				UsageText: "neo-go query tx <hash> -r endpoint [-s timeout] [-v]",
+				UsageText: "neo-go query tx -r endpoint [-s timeout] [-v] <hash>",
 				Action:    queryTx,
 				Flags:     queryTxFlags,
 			},
 			{
 				Name:      "voter",
 				Usage:     "Print NEO holder account state",
-				UsageText: "neo-go query voter <address> -r endpoint [-s timeout]",
+				UsageText: "neo-go query voter -r endpoint [-s timeout] <address>",
 				Action:    queryVoter,
 				Flags:     options.RPC,
 			},
@@ -77,16 +78,16 @@ func NewCommands() []cli.Command {
 }
 
 func queryTx(ctx *cli.Context) error {
-	args := ctx.Args()
+	args := ctx.Args().Slice()
 	if len(args) == 0 {
-		return cli.NewExitError("Transaction hash is missing", 1)
+		return cli.Exit("transaction hash is missing", 1)
 	} else if len(args) > 1 {
-		return cli.NewExitError("only one transaction hash is accepted", 1)
+		return cli.Exit("only one transaction hash is accepted", 1)
 	}
 
 	txHash, err := util.Uint256DecodeStringLE(strings.TrimPrefix(args[0], "0x"))
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("Invalid tx hash: %s", args[0]), 1)
+		return cli.Exit(fmt.Sprintf("invalid tx hash: %s", args[0]), 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -94,25 +95,25 @@ func queryTx(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	txOut, err := c.GetRawTransactionVerbose(txHash)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	var res *result.ApplicationLog
 	if !txOut.Blockhash.Equals(util.Uint256{}) {
 		res, err = c.GetApplicationLog(txHash, nil)
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			return cli.Exit(err, 1)
 		}
 	}
 
 	err = DumpApplicationLog(ctx, res, &txOut.Transaction, &txOut.TransactionMetadata, ctx.Bool("verbose"))
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	return nil
 }
@@ -179,16 +180,16 @@ func queryCandidates(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	vals, err := c.GetCandidates()
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	comm, err := c.GetCommittee()
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	sort.Slice(vals, func(i, j int) bool {
@@ -225,12 +226,12 @@ func queryCommittee(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	comm, err := c.GetCommittee()
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	for _, k := range comm {
@@ -251,12 +252,12 @@ func queryHeight(ctx *cli.Context) error {
 
 	c, err := options.GetRPCClient(gctx, ctx)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 
 	blockCount, err := c.GetBlockCount()
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	blockHeight := blockCount - 1 // GetBlockCount returns block count (including 0), not the highest block index.
 
@@ -271,16 +272,16 @@ func queryHeight(ctx *cli.Context) error {
 }
 
 func queryVoter(ctx *cli.Context) error {
-	args := ctx.Args()
+	args := ctx.Args().Slice()
 	if len(args) == 0 {
-		return cli.NewExitError("No address specified", 1)
+		return cli.Exit("no address specified", 1)
 	} else if len(args) > 1 {
-		return cli.NewExitError("this command only accepts one address", 1)
+		return cli.Exit("this command only accepts one address", 1)
 	}
 
 	addr, err := flags.ParseAddress(args[0])
 	if err != nil {
-		return cli.NewExitError(fmt.Sprintf("wrong address: %s", args[0]), 1)
+		return cli.Exit(fmt.Sprintf("wrong address: %s", args[0]), 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -294,14 +295,14 @@ func queryVoter(ctx *cli.Context) error {
 
 	st, err := neoToken.GetAccountState(addr)
 	if err != nil {
-		return cli.NewExitError(err, 1)
+		return cli.Exit(err, 1)
 	}
 	if st == nil {
 		st = new(state.NEOBalance)
 	}
 	dec, err := neoToken.Decimals()
 	if err != nil {
-		return cli.NewExitError(fmt.Errorf("failed to get decimals: %w", err), 1)
+		return cli.Exit(fmt.Errorf("failed to get decimals: %w", err), 1)
 	}
 	voted := "null"
 	if st.VoteTo != nil {

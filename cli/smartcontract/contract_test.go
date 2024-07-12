@@ -56,13 +56,13 @@ func TestCalcHash(t *testing.T) {
 
 	cmd := []string{"neo-go", "contract", "calc-hash"}
 	t.Run("no sender", func(t *testing.T) {
-		e.RunWithError(t, append(cmd, "--in", nefPath, "--manifest", manifestPath)...)
+		e.RunWithErrorCheck(t, `Required flag "sender" not set`, append(cmd, "--in", nefPath, "--manifest", manifestPath)...)
 	})
 	t.Run("no nef file", func(t *testing.T) {
-		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--manifest", manifestPath)...)
+		e.RunWithErrorCheck(t, `Required flag "in" not set`, append(cmd, "--sender", sender.StringLE(), "--manifest", manifestPath)...)
 	})
 	t.Run("no manifest file", func(t *testing.T) {
-		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(), "--in", nefPath)...)
+		e.RunWithErrorCheck(t, `Required flag "manifest" not set`, append(cmd, "--sender", sender.StringLE(), "--in", nefPath)...)
 	})
 	t.Run("invalid nef path", func(t *testing.T) {
 		e.RunWithError(t, append(cmd, "--sender", sender.StringLE(),
@@ -289,7 +289,7 @@ func TestContractInitAndCompile(t *testing.T) {
 	e := testcli.NewExecutor(t, false)
 
 	t.Run("no path is provided", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "contract", "init")
+		e.RunWithErrorCheck(t, `Required flag "name" not set`, "neo-go", "contract", "init")
 	})
 	t.Run("invalid path", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "init", "--name", "\x00")
@@ -313,7 +313,7 @@ func TestContractInitAndCompile(t *testing.T) {
 	manifestPath := filepath.Join(tmpDir, "testcontract.manifest.json")
 	cmd := []string{"neo-go", "contract", "compile"}
 	t.Run("missing source", func(t *testing.T) {
-		e.RunWithError(t, cmd...)
+		e.RunWithErrorCheck(t, `Required flag "in" not set`, cmd...)
 	})
 
 	cmd = append(cmd, "--in", srcPath, "--out", nefPath, "--manifest", manifestPath)
@@ -487,10 +487,10 @@ func TestDeployWithSigners(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "deploy",
 			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
-			"--in", "", "--manifest", manifestName)
+			"--in", nefName, "--manifest", manifestName)
 	})
 	t.Run("missing manifest", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "contract", "deploy",
+		e.RunWithErrorCheck(t, "required flag --manifest is empty", "neo-go", "contract", "deploy",
 			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
 			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", "")
@@ -517,7 +517,7 @@ func TestDeployWithSigners(t *testing.T) {
 			"[", "str1", "str2", "]")
 	})
 	t.Run("missing RPC", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "contract", "deploy",
+		e.RunWithErrorCheck(t, `Required flag "rpc-endpoint" not set`, "neo-go", "contract", "deploy",
 			"--wallet", testcli.ValidatorWallet, "--address", testcli.ValidatorAddr,
 			"--in", nefName, "--manifest", manifestName,
 			"[", "str1", "str2", "]")
@@ -548,28 +548,29 @@ func TestContractManifestGroups(t *testing.T) {
 		"--out", nefName, "--manifest", manifestName)
 
 	t.Run("missing wallet", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group")
+		e.RunWithErrorCheck(t, `Required flags "sender, address, nef, manifest" not set`, "neo-go", "contract", "manifest", "add-group")
 	})
 	t.Run("invalid wallet", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
-			"--wallet", t.TempDir())
+			"--wallet", t.TempDir(), "--sender", testcli.TestWalletAccount, "--address", testcli.TestWalletAccount,
+			"--nef", nefName, "--manifest", manifestName)
 	})
 	t.Run("invalid sender", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
+		e.RunWithErrorCheck(t, `invalid value "not-a-sender" for flag -sender: invalid base58 digit ('-')`, "neo-go", "contract", "manifest", "add-group",
 			"--wallet", testcli.TestWalletPath, "--address", testcli.TestWalletAccount,
-			"--sender", "not-a-sender")
+			"--sender", "not-a-sender", "--nef", nefName, "--manifest", manifestName)
 	})
 	t.Run("invalid NEF file", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
 			"--wallet", testcli.TestWalletPath, "--address", testcli.TestWalletAccount,
-			"--sender", testcli.TestWalletAccount, "--nef", tmpDir)
+			"--sender", testcli.TestWalletAccount, "--nef", tmpDir, "--manifest", manifestName)
 	})
 	t.Run("corrupted NEF file", func(t *testing.T) {
 		f := filepath.Join(tmpDir, "invalid.nef")
 		require.NoError(t, os.WriteFile(f, []byte{1, 2, 3}, os.ModePerm))
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
 			"--wallet", testcli.TestWalletPath, "--address", testcli.TestWalletAccount,
-			"--sender", testcli.TestWalletAccount, "--nef", f)
+			"--sender", testcli.TestWalletAccount, "--nef", f, "--manifest", manifestName)
 	})
 	t.Run("invalid manifest file", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
@@ -630,8 +631,16 @@ func TestContract_TestInvokeScript(t *testing.T) {
 		"--out", goodNef, "--manifest", manifestName)
 
 	t.Run("missing in", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "contract", "testinvokescript",
+		e.RunWithErrorCheck(t, `Required flag "in" not set`, "neo-go", "contract", "testinvokescript",
 			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
+	})
+	t.Run("empty in", func(t *testing.T) {
+		e.RunWithErrorCheck(t, "required flag --in is empty", "neo-go", "contract", "testinvokescript", "-i", "",
+			"--rpc-endpoint", "http://"+e.RPC.Addresses()[0])
+	})
+	t.Run("empty rpc", func(t *testing.T) {
+		e.RunWithErrorCheck(t, "required flag --rpc-endpoint is empty", "neo-go", "contract", "testinvokescript", "-i", goodNef,
+			"--rpc-endpoint", "")
 	})
 	t.Run("unexisting in", func(t *testing.T) {
 		e.RunWithError(t, "neo-go", "contract", "testinvokescript",
@@ -723,7 +732,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 
 	t.Run("check calc hash", func(t *testing.T) {
 		// missing sender
-		e.RunWithError(t, "neo-go", "contract", "calc-hash",
+		e.RunWithErrorCheck(t, `Required flag "sender" not set`, "neo-go", "contract", "calc-hash",
 			"--in", nefName,
 			"--manifest", manifestName)
 
@@ -755,7 +764,7 @@ func TestComlileAndInvokeFunction(t *testing.T) {
 		e.RunWithError(t, append(cmd, "--", "notahash")...)
 	})
 	t.Run("missing RPC address", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "contract", "testinvokefunction",
+		e.RunWithErrorCheck(t, `Required flag "rpc-endpoint" not set`, "neo-go", "contract", "testinvokefunction",
 			h.StringLE(), "getValue")
 	})
 
@@ -1038,7 +1047,7 @@ func TestContractInspect(t *testing.T) {
 
 	cmd := []string{"neo-go", "contract", "inspect"}
 	t.Run("missing input", func(t *testing.T) {
-		e.RunWithError(t, cmd...)
+		e.RunWithErrorCheck(t, `Required flag "in" not set`, cmd...)
 	})
 	t.Run("with raw '.go'", func(t *testing.T) {
 		e.RunWithError(t, append(cmd, "--in", srcPath)...)

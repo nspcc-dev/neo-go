@@ -44,7 +44,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -70,22 +70,22 @@ const (
 )
 
 var (
-	historicFlag = cli.IntFlag{
+	historicFlag = &cli.IntFlag{
 		Name: historicFlagFullName,
 		Usage: "Height for historic script invocation (for MPT-enabled blockchain configuration with KeepOnlyLatestState setting disabled). " +
 			"Assuming that block N-th is specified as an argument, the historic invocation is based on the storage state of height N and fake currently-accepting block with index N+1.",
 	}
-	gasFlag = cli.Int64Flag{
+	gasFlag = &cli.Int64Flag{
 		Name:  gasFlagFullName,
 		Usage: "GAS limit for this execution (integer number, satoshi).",
 	}
-	hashFlag = cli.StringFlag{
+	hashFlag = &flags.AddressFlag{
 		Name:  hashFlagFullName,
 		Usage: "Smart-contract hash in LE form or address",
 	}
 )
 
-var commands = []cli.Command{
+var commands = []*cli.Command{
 	{
 		Name:        "exit",
 		Usage:       "Exit the VM prompt",
@@ -339,9 +339,10 @@ Example:
 		Usage:     "Dump state of the chain that is used for VM CLI invocations (use -v for verbose node configuration)",
 		UsageText: `env [-v]`,
 		Flags: []cli.Flag{
-			cli.BoolFlag{
-				Name:  verboseFlagFullName + ",v",
-				Usage: "Print the whole blockchain node configuration.",
+			&cli.BoolFlag{
+				Name:    verboseFlagFullName,
+				Aliases: []string{"v"},
+				Usage:   "Print the whole blockchain node configuration.",
 			},
 		},
 		Description: `Dump state of the chain that is used for VM CLI invocations (use -v for verbose node configuration).
@@ -353,15 +354,17 @@ Example:
 	{
 		Name:      "storage",
 		Usage:     "Dump storage of the contract with the specified hash, address or ID as is at the current stage of script invocation",
-		UsageText: `storage <hash-or-address-or-id> [<prefix>] [--backwards] [--diff]`,
+		UsageText: `storage [--backwards] [--diff] <hash-or-address-or-id> [<prefix>]`,
 		Flags: []cli.Flag{
-			cli.BoolFlag{
-				Name:  backwardsFlagFullName + ",b",
-				Usage: "Backwards traversal direction",
+			&cli.BoolFlag{
+				Name:    backwardsFlagFullName,
+				Aliases: []string{"b"},
+				Usage:   "Backwards traversal direction",
 			},
-			cli.BoolFlag{
-				Name:  diffFlagFullName + ",d",
-				Usage: "Dump only those storage items that were added or changed during the current script invocation. Note that this call won't show removed storage items, use 'changes' command for that.",
+			&cli.BoolFlag{
+				Name:    diffFlagFullName,
+				Aliases: []string{"d"},
+				Usage:   "Dump only those storage items that were added or changed during the current script invocation. Note that this call won't show removed storage items, use 'changes' command for that.",
 			},
 		},
 		Description: `Dump storage of the contract with the specified hash, address or ID as is at the current stage of script invocation.
@@ -400,7 +403,7 @@ func init() {
 		if !c.Hidden {
 			var flagsItems []readline.PrefixCompleterInterface
 			for _, f := range c.Flags {
-				names := strings.SplitN(f.GetName(), ", ", 2) // only long name will be offered
+				names := strings.SplitN(f.Names()[0], ", ", 2) // only long name will be offered
 				flagsItems = append(flagsItems, readline.PcItem("--"+names[0]))
 			}
 			pcItems = append(pcItems, readline.PcItem(c.Name, flagsItems...))
@@ -459,7 +462,7 @@ func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg
 
 	log, _, logCloser, err := options.HandleLoggingParams(false, cfg.ApplicationConfiguration)
 	if err != nil {
-		return nil, cli.NewExitError(fmt.Errorf("failed to init logger: %w", err), 1)
+		return nil, cli.Exit(fmt.Errorf("failed to init logger: %w", err), 1)
 	}
 	filter := zap.WrapCore(func(z zapcore.Core) zapcore.Core {
 		return options.NewFilteringCore(z, func(entry zapcore.Entry) bool {
@@ -479,12 +482,12 @@ func NewWithConfig(printLogotype bool, onExit func(int), c *readline.Config, cfg
 
 	chain, err := core.NewBlockchain(store, cfg.Blockchain(), fLog)
 	if err != nil {
-		return nil, cli.NewExitError(fmt.Errorf("could not initialize blockchain: %w", err), 1)
+		return nil, cli.Exit(fmt.Errorf("could not initialize blockchain: %w", err), 1)
 	}
 	// Do not run chain, we need only state-related functionality from it.
 	ic, err := chain.GetTestVM(trigger.Application, nil, nil)
 	if err != nil {
-		return nil, cli.NewExitError(fmt.Errorf("failed to create test VM: %w", err), 1)
+		return nil, cli.Exit(fmt.Errorf("failed to create test VM: %w", err), 1)
 	}
 
 	vmcli := CLI{
@@ -610,7 +613,7 @@ func handleJump(c *cli.Context) error {
 }
 
 func getInstructionParameter(c *cli.Context) (int, error) {
-	args := c.Args()
+	args := c.Args().Slice()
 	if len(args) != 1 {
 		return 0, fmt.Errorf("%w: <ip>", ErrMissingParameter)
 	}
@@ -682,15 +685,12 @@ func getHashFlag(c *cli.Context) (util.Uint160, error) {
 	if !c.IsSet(hashFlagFullName) {
 		return util.Uint160{}, nil
 	}
-	h, err := flags.ParseAddress(c.String(hashFlagFullName))
-	if err != nil {
-		return util.Uint160{}, fmt.Errorf("failed to parse contract hash: %w", err)
-	}
-	return h, nil
+	h := c.Generic(hashFlagFullName).(*flags.Address)
+	return h.Uint160(), nil
 }
 
 func handleLoadNEF(c *cli.Context) error {
-	args := c.Args()
+	args := c.Args().Slice()
 	if len(args) < 1 {
 		return fmt.Errorf("%w: <nef> is required", ErrMissingParameter)
 	}
@@ -734,7 +734,7 @@ func handleLoadNEF(c *cli.Context) error {
 	}
 	var signers []transaction.Signer
 	if signersStartOffset != 0 && len(args) > signersStartOffset {
-		signers, err = cmdargs.ParseSigners(c.Args()[signersStartOffset:])
+		signers, err = cmdargs.ParseSigners(args[signersStartOffset:])
 		if err != nil {
 			return fmt.Errorf("%w: failed to parse signers: %w", ErrInvalidParameter, err)
 		}
@@ -761,7 +761,7 @@ func handleLoadNEF(c *cli.Context) error {
 }
 
 func handleLoadBase64(c *cli.Context) error {
-	args := c.Args()
+	args := c.Args().Slice()
 	if len(args) < 1 {
 		return fmt.Errorf("%w: <string>", ErrMissingParameter)
 	}
@@ -801,7 +801,7 @@ func createFakeTransaction(script []byte, signers []transaction.Signer) *transac
 }
 
 func handleLoadHex(c *cli.Context) error {
-	args := c.Args()
+	args := c.Args().Slice()
 	if len(args) < 1 {
 		return fmt.Errorf("%w: <string>", ErrMissingParameter)
 	}
@@ -833,7 +833,7 @@ func handleLoadHex(c *cli.Context) error {
 }
 
 func handleLoadGo(c *cli.Context) error {
-	args := c.Args()
+	args := c.Args().Slice()
 	if len(args) < 1 {
 		return fmt.Errorf("%w: <file>", ErrMissingParameter)
 	}
@@ -885,7 +885,7 @@ func handleLoadGo(c *cli.Context) error {
 }
 
 func handleLoadTx(c *cli.Context) error {
-	args := c.Args()
+	args := c.Args().Slice()
 	if len(args) < 1 {
 		return fmt.Errorf("%w: <file-or-hash>", ErrMissingParameter)
 	}
@@ -933,7 +933,7 @@ func handleLoadDeployed(c *cli.Context) error {
 	if !c.Args().Present() {
 		return errors.New("contract hash, address or ID is mandatory argument")
 	}
-	args := c.Args()
+	args := c.Args().Slice()
 	hashOrID := args[0]
 	ic := getInteropContextFromContext(c.App)
 	h, err := flags.ParseAddress(hashOrID)
@@ -1062,7 +1062,7 @@ func getManifestFromFile(name string) (*manifest.Manifest, error) {
 func handleRun(c *cli.Context) error {
 	v := getVMFromContext(c.App)
 	cs := getContractStateFromContext(c.App)
-	args := c.Args()
+	args := c.Args().Slice()
 	if len(args) != 0 {
 		var (
 			params     []stackitem.Item
@@ -1181,7 +1181,7 @@ func handleStep(c *cli.Context) error {
 		return nil
 	}
 	v := getVMFromContext(c.App)
-	args := c.Args()
+	args := c.Args().Slice()
 	if len(args) > 0 {
 		n, err = strconv.Atoi(args[0])
 		if err != nil {
@@ -1422,7 +1422,7 @@ func (c *CLI) Run() error {
 }
 
 func handleParse(c *cli.Context) error {
-	res, err := Parse(c.Args())
+	res, err := Parse(c.Args().Slice())
 	if err != nil {
 		return err
 	}

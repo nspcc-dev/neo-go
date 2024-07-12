@@ -34,7 +34,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/require"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 	"golang.org/x/term"
@@ -273,11 +273,24 @@ func checkExit(t *testing.T, ch <-chan int, code int) {
 	}
 }
 
-// RunWithError runs command and checks that is exits with error.
+// RunWithError runs command and checks that is exits with error and exit code 1.
 func (e *Executor) RunWithError(t *testing.T, args ...string) {
 	ch := setExitFunc()
 	require.Error(t, e.run(args...))
 	checkExit(t, ch, 1)
+}
+
+// RunWithErrorCheckExit runs command and checks that is exits with error and exit code 1.
+func (e *Executor) RunWithErrorCheckExit(t *testing.T, msg string, args ...string) {
+	ch := setExitFunc()
+	require.ErrorContains(t, e.run(args...), msg)
+	checkExit(t, ch, 1)
+}
+
+// RunWithErrorCheck runs command and checks that there were errors with the specified message. Exit code is not checked.
+func (e *Executor) RunWithErrorCheck(t *testing.T, msg string, args ...string) {
+	err := e.run(args...)
+	require.ErrorContains(t, err, msg)
 }
 
 // Run runs command and checks that there were no errors.
