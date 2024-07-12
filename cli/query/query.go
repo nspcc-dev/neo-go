@@ -80,14 +80,14 @@ func NewCommands() []*cli.Command {
 func queryTx(ctx *cli.Context) error {
 	args := ctx.Args().Slice()
 	if len(args) == 0 {
-		return cli.Exit("Transaction hash is missing", 1)
+		return cli.Exit("transaction hash is missing", 1)
 	} else if len(args) > 1 {
 		return cli.Exit("only one transaction hash is accepted", 1)
 	}
 
 	txHash, err := util.Uint256DecodeStringLE(strings.TrimPrefix(args[0], "0x"))
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("Invalid tx hash: %s", args[0]), 1)
+		return cli.Exit(fmt.Sprintf("invalid tx hash: %s", args[0]), 1)
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -274,7 +274,7 @@ func queryHeight(ctx *cli.Context) error {
 func queryVoter(ctx *cli.Context) error {
 	args := ctx.Args().Slice()
 	if len(args) == 0 {
-		return cli.Exit("No address specified", 1)
+		return cli.Exit("no address specified", 1)
 	} else if len(args) > 1 {
 		return cli.Exit("this command only accepts one address", 1)
 	}

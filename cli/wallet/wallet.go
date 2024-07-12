@@ -402,7 +402,7 @@ func changePassword(ctx *cli.Context) error {
 
 	oldPass, err := input.ReadPassword(EnterOldPasswordPrompt)
 	if err != nil {
-		return cli.Exit(fmt.Errorf("Error reading old password: %w", err), 1)
+		return cli.Exit(fmt.Errorf("error reading old password: %w", err), 1)
 	}
 
 	for i := range wall.Accounts {
@@ -417,7 +417,7 @@ func changePassword(ctx *cli.Context) error {
 
 	pass, err := readNewPassword()
 	if err != nil {
-		return cli.Exit(fmt.Errorf("Error reading new password: %w", err), 1)
+		return cli.Exit(fmt.Errorf("error reading new password: %w", err), 1)
 	}
 	for i := range wall.Accounts {
 		if addrFlag.IsSet && wall.Accounts[i].Address != addrFlag.String() {
@@ -430,7 +430,7 @@ func changePassword(ctx *cli.Context) error {
 	}
 	err = wall.Save()
 	if err != nil {
-		return cli.Exit(fmt.Errorf("Error saving the wallet: %w", err), 1)
+		return cli.Exit(fmt.Errorf("error saving the wallet: %w", err), 1)
 	}
 	return nil
 }
@@ -455,7 +455,7 @@ func convertWallet(ctx *cli.Context) error {
 		if len(wall.Accounts) != 1 || pass == nil {
 			password, err := input.ReadPassword(fmt.Sprintf("Enter password for account %s (label '%s') > ", acc.Address, acc.Label))
 			if err != nil {
-				return cli.Exit(fmt.Errorf("Error reading password: %w", err), 1)
+				return cli.Exit(fmt.Errorf("error reading password: %w", err), 1)
 			}
 			pass = &password
 		}
@@ -532,7 +532,7 @@ loop:
 			if pass == nil {
 				password, err := input.ReadPassword(EnterPasswordPrompt)
 				if err != nil {
-					return cli.Exit(fmt.Errorf("Error reading password: %w", err), 1)
+					return cli.Exit(fmt.Errorf("error reading password: %w", err), 1)
 				}
 				pass = &password
 			}
@@ -783,7 +783,7 @@ func dumpWallet(ctx *cli.Context) error {
 		if pass == nil {
 			password, err := input.ReadPassword(EnterPasswordPrompt)
 			if err != nil {
-				return cli.Exit(fmt.Errorf("Error reading password: %w", err), 1)
+				return cli.Exit(fmt.Errorf("error reading password: %w", err), 1)
 			}
 			pass = &password
 		}
