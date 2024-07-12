@@ -62,7 +62,7 @@ func NewCommands() []*cli.Command {
 				{
 					Name:      "canceltx",
 					Usage:     "Cancel transaction by sending conflicting transaction",
-					UsageText: "canceltx -r <endpoint> --wallet <wallet> [--account <account>] [--wallet-config <path>] [--gas <gas>] [--await] <txid>",
+					UsageText: "canceltx -r <endpoint> --wallet <wallet> [--address <account>] [--wallet-config <path>] [--gas <gas>] [--await] <txid>",
 					Description: `Aims to prevent a transaction from being added to the blockchain by dispatching a more 
    prioritized conflicting transaction to the specified RPC node. The input for this command should 
    be the transaction hash. If another account is not specified, the conflicting transaction is 
