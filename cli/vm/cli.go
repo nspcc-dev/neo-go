@@ -79,7 +79,7 @@ var (
 		Name:  gasFlagFullName,
 		Usage: "GAS limit for this execution (integer number, satoshi).",
 	}
-	hashFlag = &cli.StringFlag{
+	hashFlag = &flags.AddressFlag{
 		Name:  hashFlagFullName,
 		Usage: "Smart-contract hash in LE form or address",
 	}
@@ -685,11 +685,8 @@ func getHashFlag(c *cli.Context) (util.Uint160, error) {
 	if !c.IsSet(hashFlagFullName) {
 		return util.Uint160{}, nil
 	}
-	h, err := flags.ParseAddress(c.String(hashFlagFullName))
-	if err != nil {
-		return util.Uint160{}, fmt.Errorf("failed to parse contract hash: %w", err)
-	}
-	return h, nil
+	h := c.Generic(hashFlagFullName).(*flags.Address)
+	return h.Uint160(), nil
 }
 
 func handleLoadNEF(c *cli.Context) error {

@@ -556,7 +556,7 @@ func TestContractManifestGroups(t *testing.T) {
 			"--nef", nefName, "--manifest", manifestName)
 	})
 	t.Run("invalid sender", func(t *testing.T) {
-		e.RunWithError(t, "neo-go", "contract", "manifest", "add-group",
+		e.RunWithErrorCheck(t, `invalid value "not-a-sender" for flag -sender: invalid base58 digit ('-')`, "neo-go", "contract", "manifest", "add-group",
 			"--wallet", testcli.TestWalletPath, "--address", testcli.TestWalletAccount,
 			"--sender", "not-a-sender", "--nef", nefName, "--manifest", manifestName)
 	})

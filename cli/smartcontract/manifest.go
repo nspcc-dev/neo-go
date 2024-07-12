@@ -19,11 +19,7 @@ func manifestAddGroup(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
-	sender, err := flags.ParseAddress(ctx.String("sender"))
-	if err != nil {
-		return cli.Exit(fmt.Errorf("invalid sender: %w", err), 1)
-	}
-
+	sender := ctx.Generic("sender").(*flags.Address)
 	nf, _, err := readNEFFile(ctx.String("nef"))
 	if err != nil {
 		return cli.Exit(fmt.Errorf("can't read NEF file: %w", err), 1)
@@ -35,7 +31,7 @@ func manifestAddGroup(ctx *cli.Context) error {
 		return cli.Exit(fmt.Errorf("can't read contract manifest: %w", err), 1)
 	}
 
-	h := state.CreateContractHash(sender, nf.Checksum, m.Name)
+	h := state.CreateContractHash(sender.Uint160(), nf.Checksum, m.Name)
 
 	gAcc, w, err := options.GetAccFromContext(ctx)
 	if err != nil {

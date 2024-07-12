@@ -117,12 +117,11 @@ func NewCommands() []*cli.Command {
 		},
 	}...)
 	manifestAddGroupFlags := append([]cli.Flag{
-		&cli.StringFlag{
+		&flags.AddressFlag{
 			Name:     "sender",
 			Aliases:  []string{"s"},
 			Required: true,
 			Usage:    "Deploy transaction sender",
-			Action:   cmdargs.EnsureNotEmpty("sender"),
 		},
 		&flags.AddressFlag{
 			Name:     addressFlagName, // use the same name for handler code unification.
