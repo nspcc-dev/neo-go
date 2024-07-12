@@ -2902,7 +2902,7 @@ var (
 func (bc *Blockchain) InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error {
 	if len(witness.VerificationScript) != 0 {
 		if witness.ScriptHash() != hash {
-			return ErrWitnessHashMismatch
+			return fmt.Errorf("%w: expected %s, got %s", ErrWitnessHashMismatch, hash.StringLE(), witness.ScriptHash().StringLE())
 		}
 		if bc.contracts.ByHash(hash) != nil {
 			return ErrNativeContractWitness
