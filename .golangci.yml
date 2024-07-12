@@ -12,7 +12,8 @@ run:
 # output configuration options
 output:
   # colored-line-number|line-number|json|tab|checkstyle|code-climate, default is "colored-line-number"
-  format: tab
+  formats:
+    - format: tab
 
 # all available settings of specific linters
 linters-settings:
@@ -21,9 +22,6 @@ linters-settings:
     # 'default' case is present, even if all enum members aren't listed in the
     # switch
     default-signifies-exhaustive: true
-  govet:
-    # report about shadowed variables
-    check-shadowing: false
 
 linters:
   enable:
