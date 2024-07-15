@@ -72,9 +72,9 @@ func NewContracts(cfg config.ProtocolConfiguration) *Contracts {
 	cs.Ledger = ledger
 	cs.Contracts = append(cs.Contracts, ledger)
 
-	gas := newGAS(int64(cfg.InitialGASSupply), cfg.P2PSigExtensions)
+	gas := newGAS(int64(cfg.InitialGASSupply))
 	neo := newNEO(cfg)
-	policy := newPolicy(cfg.P2PSigExtensions)
+	policy := newPolicy()
 	neo.GAS = gas
 	neo.Policy = policy
 	gas.NEO = neo
@@ -100,15 +100,13 @@ func NewContracts(cfg config.ProtocolConfiguration) *Contracts {
 	cs.Oracle = oracle
 	cs.Contracts = append(cs.Contracts, oracle)
 
-	if cfg.P2PSigExtensions {
-		notary := newNotary()
-		notary.GAS = gas
-		notary.NEO = neo
-		notary.Desig = desig
-		notary.Policy = policy
-		cs.Notary = notary
-		cs.Contracts = append(cs.Contracts, notary)
-	}
+	notary := newNotary()
+	notary.GAS = gas
+	notary.NEO = neo
+	notary.Desig = desig
+	notary.Policy = policy
+	cs.Notary = notary
+	cs.Contracts = append(cs.Contracts, notary)
 
 	return cs
 }

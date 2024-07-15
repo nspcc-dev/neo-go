@@ -52,7 +52,10 @@ const (
 	defaultMaxNotValidBeforeDelta = 140 // 20 rounds for 7 validators, a little more than half an hour
 )
 
-var maxNotValidBeforeDeltaKey = []byte{10}
+var (
+	maxNotValidBeforeDeltaKey = []byte{10}
+	activeIn                  = config.HFEchidna
+)
 
 var (
 	_ interop.Contract        = (*Notary)(nil)
@@ -200,7 +203,7 @@ func (n *Notary) PostPersist(ic *interop.Context) error {
 
 // ActiveIn implements the Contract interface.
 func (n *Notary) ActiveIn() *config.Hardfork {
-	return nil
+	return &activeIn
 }
 
 // onPayment records the deposited amount as belonging to "from" address with a lock

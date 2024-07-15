@@ -31,6 +31,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dboper"
@@ -74,22 +75,22 @@ type rpcTestCase struct {
 }
 
 const genesisBlockHash = "0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4"
-const testContractHash = "565cff9508ebc75aadd7fe59f38dac610ab6093c"
-const deploymentTxHash = "a14390941cc3a1d87393eff720a722e9cd350bd6ed233c5fe2001326c80eb68e"
+const testContractHash = "449fe8fbd4523072f5e3a4dfa17a494c119d4c08"
+const deploymentTxHash = "af170742f0f8a2bc064bdbdb2faa2b517e3df833d4d047da8a946c0b8d581b06"
 
 const (
 	verifyContractHash                = "06ed5314c2e4cb103029a60b86d46afa2fb8f67c"
 	verifyContractAVM                 = "VwIAQS1RCDBwDBTunqIsJ+NL0BSPxBCOCPdOj1BIskrZMCQE2zBxaBPOStkoJATbKGlK2SgkBNsol0A="
-	verifyWithArgsContractHash        = "4dc916254efd2947c93b11207e8ffc0bb56161c5"
-	nnsContractHash                   = "892429fcd47c30f8451781acc627e8b20e0d64f3"
+	verifyWithArgsContractHash        = "6261b3bf753bdc3d24c1327a23fd891e1c8a7ccd"
+	nnsContractHash                   = "ebe47d5143bb8726b87b02efb5cd98e21174fd38"
 	nnsToken1ID                       = "6e656f2e636f6d"
-	nfsoContractHash                  = "730ebe719ab8e3b69d11dafc95cdb9bf409db179"
+	nfsoContractHash                  = "2f5c1826bb4da1c764a8871427e4044cf3e82dbd"
 	nfsoToken1ID                      = "7e244ffd6aa85fb1579d2ed22e9b761ab62e3486"
 	storageContractHash               = "ebc0c16a76c808cd4dde6bcc063f09e45e331ec7"
 	faultedTxHashLE                   = "82279bfe9bada282ca0f8cb8e0bb124b921af36f00c69a518320322c6f4fef60"
 	faultedTxBlock             uint32 = 23
 	invokescriptContractAVM           = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
-	block20StateRootLE                = "858c873539d6d24a70f2be13f9dafc61aef2b63c2aa16bb440676de6e44e3cf1"
+	block20StateRootLE                = "b49a35fd3a749fc2f7f4e5fe1f288ef2b6188416f65fe5b691892e8209092082"
 )
 
 var (
@@ -1381,7 +1382,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				script = append(script, 0x41, 0x62, 0x7d, 0x5b, 0x52)
 				return &result.Invoke{
 					State:       "HALT",
-					GasConsumed: 31922970,
+					GasConsumed: 31922730,
 					Script:      script,
 					Stack:       []stackitem.Item{stackitem.Make(true)},
 					Notifications: []state.NotificationEvent{{
@@ -1411,7 +1412,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				chg := []dboper.Operation{{
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0xb},
-					Value: []byte{0x54, 0xb2, 0xd2, 0xa3, 0x51, 0x79, 0x12},
+					Value: []byte{0x06, 0x44, 0xda, 0xa3, 0x51, 0x79, 0x12},
 				}, {
 					State: "Added",
 					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb},
@@ -1423,7 +1424,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
-					Value: []byte{0x41, 0x01, 0x21, 0x05, 0x0c, 0x76, 0x4f, 0xdf, 0x08},
+					Value: []byte{0x41, 0x01, 0x21, 0x05, 0xf6, 0x64, 0x58, 0xdf, 0x08},
 				}}
 				// Can be returned in any order.
 				assert.ElementsMatch(t, chg, res.Diagnostics.Changes)
@@ -1439,7 +1440,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
 				return &result.Invoke{
 					State:         "HALT",
-					GasConsumed:   13970250,
+					GasConsumed:   13969530,
 					Script:        script,
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
@@ -1532,7 +1533,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				script = append(script, 0x41, 0x62, 0x7d, 0x5b, 0x52)
 				return &result.Invoke{
 					State:       "HALT",
-					GasConsumed: 31922970,
+					GasConsumed: 31922730,
 					Script:      script,
 					Stack:       []stackitem.Item{stackitem.Make(true)},
 					Notifications: []state.NotificationEvent{{
@@ -1558,7 +1559,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
 				return &result.Invoke{
 					State:         "HALT",
-					GasConsumed:   13970250,
+					GasConsumed:   13969530,
 					Script:        script,
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
@@ -2495,7 +2496,7 @@ func createValidNotaryRequest(chain *core.Blockchain, sender *keys.PrivateKey, n
 			{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: mainTx.Hash()}},
 			{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
 		},
-		Signers: []transaction.Signer{{Account: chain.GetNotaryContractScriptHash()}, {Account: sender.GetScriptHash()}},
+		Signers: []transaction.Signer{{Account: nativehashes.Notary}, {Account: sender.GetScriptHash()}},
 		Scripts: []transaction.Witness{
 			{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: []byte{}},
 		},
@@ -3260,7 +3261,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		t.Run("contract-based verification with parameters", func(t *testing.T) {
 			verAcc, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
 			require.NoError(t, err)
-			checkContract(t, verAcc, []byte{}, 244130) // No C# match, but we believe it's OK and it differs from the one above.
+			checkContract(t, verAcc, []byte{}, 244010) // No C# match, but we believe it's OK and it differs from the one above.
 		})
 		t.Run("contract-based verification with invocation script", func(t *testing.T) {
 			verAcc, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
@@ -3270,7 +3271,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			emit.Int(invocWriter.BinWriter, 5)
 			emit.String(invocWriter.BinWriter, "")
 			invocScript := invocWriter.Bytes()
-			checkContract(t, verAcc, invocScript, 146960) // No C# match, but we believe it's OK and it has a specific invocation script overriding anything server-side.
+			checkContract(t, verAcc, invocScript, 146840) // No C# match, but we believe it's OK and it has a specific invocation script overriding anything server-side.
 		})
 		t.Run("execution limit, ok", func(t *testing.T) {
 			// 1_4000_0000 GAS with the default 1.5 allowed by Policy
@@ -3575,7 +3576,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc any) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "37106285100",
+				Amount:      "37106870550",
 				LastUpdated: 23,
 				Decimals:    8,
 				Name:        "GasToken",
@@ -3924,7 +3925,7 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc any, sent, rcvd []int
 			{
 				Timestamp:   blockDepositGAS.Timestamp,
 				Asset:       e.chain.UtilityTokenHash(),
-				Address:     address.Uint160ToString(e.chain.GetNotaryContractScriptHash()),
+				Address:     address.Uint160ToString(nativehashes.Notary),
 				Amount:      "1000000000",
 				Index:       8,
 				NotifyIndex: 0,

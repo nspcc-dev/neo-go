@@ -54,6 +54,7 @@ func getUnitTestChain(t testing.TB, enableOracle bool, enableNotary bool, disabl
 				Password: "one",
 			}
 		}
+		cfg.ProtocolConfiguration.Hardforks = nil
 	})
 }
 func getUnitTestChainWithCustomConfig(t testing.TB, enableOracle bool, enableNotary bool, customCfg func(configuration *config.Config)) (*core.Blockchain, OracleHandler, config.Config, *zap.Logger) {
