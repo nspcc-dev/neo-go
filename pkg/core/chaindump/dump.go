@@ -20,13 +20,14 @@ type DumperRestorer interface {
 // Dump writes count blocks from start to the provided writer.
 // Note: header needs to be written separately by a client.
 func Dump(bc DumperRestorer, w *io.BinWriter, start, count uint32) error {
+	var buf = io.NewBufBinWriter()
+
 	for i := start; i < start+count; i++ {
 		bh := bc.GetHeaderHash(i)
 		b, err := bc.GetBlock(bh)
 		if err != nil {
 			return err
 		}
-		buf := io.NewBufBinWriter()
 		b.EncodeBinary(buf.BinWriter)
 		bytes := buf.Bytes()
 		w.WriteU32LE(uint32(len(bytes)))
@@ -34,6 +35,7 @@ func Dump(bc DumperRestorer, w *io.BinWriter, start, count uint32) error {
 		if w.Err != nil {
 			return w.Err
 		}
+		buf.Reset()
 	}
 	return nil
 }
@@ -41,9 +43,15 @@ func Dump(bc DumperRestorer, w *io.BinWriter, start, count uint32) error {
 // Restore restores blocks from the provided reader.
 // f is called after addition of every block.
 func Restore(bc DumperRestorer, r *io.BinReader, skip, count uint32, f func(b *block.Block) error) error {
+	var buf []byte
+
 	readBlock := func(r *io.BinReader) ([]byte, error) {
 		var size = r.ReadU32LE()
-		buf := make([]byte, size)
+		if uint32(cap(buf)) < size {
+			buf = make([]byte, size)
+		} else {
+			buf = buf[:size]
+		}
 		r.ReadBytes(buf)
 		return buf, r.Err
 	}
