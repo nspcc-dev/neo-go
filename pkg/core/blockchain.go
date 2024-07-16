@@ -1833,7 +1833,7 @@ func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
 		return err
 	}
 	newList = append(newList, hash.Hash160(script))
-	bc.updateExtensibleList(&newList, bc.contracts.NEO.GetNextBlockValidatorsInternal(bc.dao))
+	bc.updateExtensibleList(&newList, nextVals)
 
 	if len(stateVals) > 0 {
 		h, err := bc.contracts.Designate.GetLastDesignatedHash(bc.dao, noderoles.StateValidator)
