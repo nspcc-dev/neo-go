@@ -1,6 +1,6 @@
 ProtocolConfiguration:
   Magic: 91414437
-  MaxTraceableBlocks: 2102400
+  MaxTraceableBlocks: 17280
   InitialGASSupply: 52000000
   TimePerBlock: 15s
   MemPoolSize: 50000
