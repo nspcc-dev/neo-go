@@ -169,7 +169,7 @@ func main() {
 	ctl.Flags = []cli.Flag{
 		&cli.BoolFlag{
 			Name:    "ignore-height",
-			Aliases: []string{"h"},
+			Aliases: []string{"g"},
 			Usage:   "Ignore height difference",
 		},
 	}
