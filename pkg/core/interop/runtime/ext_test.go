@@ -712,8 +712,9 @@ func TestSystemRuntimeNotify_HFBasilisk(t *testing.T) {
 	require.NoError(t, err)
 
 	m := &manifest.Manifest{
-		Name:   "ctr",
-		Groups: []manifest.Group{},
+		Name:     "ctr",
+		Features: json.RawMessage("{}"),
+		Groups:   []manifest.Group{},
 		ABI: manifest.ABI{
 			Methods: []manifest.Method{
 				{

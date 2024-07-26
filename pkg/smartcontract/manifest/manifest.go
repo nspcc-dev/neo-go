@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	ojson "github.com/nspcc-dev/go-ordered-json"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -24,6 +25,8 @@ const (
 	NEP11Payable = "NEP-11-Payable"
 	// NEP17Payable represents the name of contract interface which can receive NEP-17 tokens.
 	NEP17Payable = "NEP-17-Payable"
+
+	emptyFeatures = "{}"
 )
 
 // Manifest represens contract metadata.
@@ -53,7 +56,7 @@ func NewManifest(name string) *Manifest {
 			Methods: []Method{},
 			Events:  []Event{},
 		},
-		Features:           json.RawMessage("{}"),
+		Features:           json.RawMessage(emptyFeatures),
 		Groups:             []Group{},
 		Permissions:        []Permission{},
 		SupportedStandards: []string{},
@@ -106,6 +109,16 @@ func (m *Manifest) IsValid(hash util.Uint160, checkSize bool) error {
 	err = m.ABI.IsValid()
 	if err != nil {
 		return fmt.Errorf("ABI: %w", err)
+	}
+
+	if strings.Map(func(c rune) rune {
+		switch c {
+		case ' ', '\n', '\t', '\r': // Strip all JSON whitespace.
+			return -1
+		}
+		return c
+	}, string(m.Features)) != emptyFeatures { // empty struct should be left.
+		return errors.New("invalid features")
 	}
 	err = Groups(m.Groups).AreValid(hash)
 	if err != nil {
@@ -235,7 +248,7 @@ func (m *Manifest) FromStackItem(item stackitem.Item) error {
 	if str[2].Type() != stackitem.MapT || str[2].(*stackitem.Map).Len() != 0 {
 		return errors.New("invalid Features stackitem")
 	}
-	m.Features = json.RawMessage("{}")
+	m.Features = json.RawMessage(emptyFeatures)
 	if str[3].Type() != stackitem.ArrayT {
 		return errors.New("invalid SupportedStandards stackitem type")
 	}

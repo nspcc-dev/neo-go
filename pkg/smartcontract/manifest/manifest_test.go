@@ -144,6 +144,24 @@ func TestIsValid(t *testing.T) {
 		require.NoError(t, m.IsValid(contractHash, true))
 	})
 
+	t.Run("invalid, no features", func(t *testing.T) {
+		m.Features = nil
+		require.Error(t, m.IsValid(contractHash, true))
+	})
+	m.Features = json.RawMessage(emptyFeatures)
+
+	t.Run("invalid, bad features", func(t *testing.T) {
+		m.Features = json.RawMessage(`{ "v" : true}`)
+		require.Error(t, m.IsValid(contractHash, true))
+	})
+	m.Features = json.RawMessage(emptyFeatures)
+
+	t.Run("valid, features with spaces", func(t *testing.T) {
+		m.Features = json.RawMessage("{ \t\n\r }")
+		require.NoError(t, m.IsValid(contractHash, true))
+	})
+	m.Features = json.RawMessage(emptyFeatures)
+
 	m.ABI.Events = append(m.ABI.Events, Event{
 		Name:       "itHappened",
 		Parameters: []Parameter{},
