@@ -212,6 +212,13 @@ func TestIsValid(t *testing.T) {
 	})
 	m.SupportedStandards = m.SupportedStandards[:1]
 
+	t.Run("invalid, no trusts", func(t *testing.T) {
+		m.Trusts.Value = nil
+		m.Trusts.Wildcard = false
+		require.Error(t, m.IsValid(contractHash, true))
+	})
+	m.Trusts.Restrict()
+
 	d := PermissionDesc{Type: PermissionHash, Value: util.Uint160{1, 2, 3}}
 	m.Trusts.Add(d)
 	t.Run("valid, with trust", func(t *testing.T) {

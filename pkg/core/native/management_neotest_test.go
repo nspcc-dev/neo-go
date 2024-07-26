@@ -55,6 +55,7 @@ func TestManagement_DeployUpdate_HFBasilisk(t *testing.T) {
 		Name:     "ctr",
 		Features: json.RawMessage("{}"),
 		Groups:   []manifest.Group{},
+		Trusts:   manifest.WildPermissionDescs{Wildcard: true},
 		ABI: manifest.ABI{
 			Methods: []manifest.Method{
 				{
@@ -92,6 +93,7 @@ func TestManagement_CallInTheSameBlock(t *testing.T) {
 		Name:     "ctr",
 		Features: json.RawMessage("{}"),
 		Groups:   []manifest.Group{},
+		Trusts:   manifest.WildPermissionDescs{Wildcard: true},
 		ABI: manifest.ABI{
 			Methods: []manifest.Method{
 				{

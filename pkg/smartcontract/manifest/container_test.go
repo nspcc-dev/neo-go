@@ -24,6 +24,9 @@ func TestContainer_Restrict(t *testing.T) {
 	t.Run("PermissionDesc", func(t *testing.T) {
 		check := func(t *testing.T, u PermissionDesc) {
 			c := new(WildPermissionDescs)
+			require.False(t, c.IsWildcard())
+			require.False(t, c.Contains(u))
+			c.Wildcard = true
 			require.True(t, c.IsWildcard())
 			require.True(t, c.Contains(u))
 			c.Restrict()

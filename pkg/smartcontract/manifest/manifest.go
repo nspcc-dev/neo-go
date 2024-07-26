@@ -124,6 +124,9 @@ func (m *Manifest) IsValid(hash util.Uint160, checkSize bool) error {
 	if err != nil {
 		return err
 	}
+	if m.Trusts.Value == nil && !m.Trusts.Wildcard {
+		return errors.New("invalid (null?) trusts")
+	}
 	if len(m.Trusts.Value) > 1 {
 		hashes := make([]PermissionDesc, len(m.Trusts.Value))
 		copy(hashes, m.Trusts.Value)
@@ -278,7 +281,7 @@ func (m *Manifest) FromStackItem(item stackitem.Item) error {
 		m.Permissions[i] = *p
 	}
 	if _, ok := str[6].(stackitem.Null); ok {
-		m.Trusts = WildPermissionDescs{Value: nil} // wildcard by default
+		m.Trusts = WildPermissionDescs{Value: nil, Wildcard: true} // wildcard by default
 	} else {
 		if str[6].Type() != stackitem.ArrayT {
 			return errors.New("invalid Trusts stackitem type")

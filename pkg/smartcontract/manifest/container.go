@@ -16,7 +16,8 @@ type WildStrings struct {
 
 // WildPermissionDescs represents a PermissionDescriptor set which can be a wildcard.
 type WildPermissionDescs struct {
-	Value []PermissionDesc
+	Value    []PermissionDesc
+	Wildcard bool
 }
 
 // Contains checks if v is in the container.
@@ -49,13 +50,16 @@ func (c *WildPermissionDescs) Contains(v PermissionDesc) bool {
 func (c *WildStrings) IsWildcard() bool { return c.Value == nil }
 
 // IsWildcard returns true iff the container is a wildcard.
-func (c *WildPermissionDescs) IsWildcard() bool { return c.Value == nil }
+func (c *WildPermissionDescs) IsWildcard() bool { return c.Wildcard }
 
 // Restrict transforms the container into an empty one.
 func (c *WildStrings) Restrict() { c.Value = []string{} }
 
 // Restrict transforms the container into an empty one.
-func (c *WildPermissionDescs) Restrict() { c.Value = []PermissionDesc{} }
+func (c *WildPermissionDescs) Restrict() {
+	c.Value = []PermissionDesc{}
+	c.Wildcard = false
+}
 
 // Add adds v to the container.
 func (c *WildStrings) Add(v string) { c.Value = append(c.Value, v) }
@@ -93,7 +97,8 @@ func (c *WildStrings) UnmarshalJSON(data []byte) error {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (c *WildPermissionDescs) UnmarshalJSON(data []byte) error {
-	if !bytes.Equal(data, []byte(`"*"`)) {
+	c.Wildcard = bytes.Equal(data, []byte(`"*"`))
+	if !c.Wildcard {
 		us := []PermissionDesc{}
 		if err := json.Unmarshal(data, &us); err != nil {
 			return err
