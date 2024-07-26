@@ -250,8 +250,8 @@ where:
   enable `SessionBackedByMPT`, see `SessionBackedByMPT` documentation for more
   details.
 - `SessionExpirationTime` is a lifetime of iterator session in seconds. It is set
-  to `TimePerBlock` seconds by default and is relevant only if `SessionEnabled`
-  is set to `true`.
+  to `TimePerBlock` seconds (but not less than 5s) by default and is relevant
+  only if `SessionEnabled` is set to `true`.
 - `SessionBackedByMPT` is a flag forcing JSON-RPC server into using MPT-backed
   storage for delayed iterator traversal. If `true`, then iterator resources got
   after `invoke*` calls will be released immediately. Further iterator traversing
