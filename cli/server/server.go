@@ -325,7 +325,7 @@ func restoreDB(ctx *cli.Context) error {
 
 	err = chaindump.Restore(chain, reader, skip, count, f)
 	if err != nil {
-		return cli.Exit(err, 1)
+		return cli.Exit(fmt.Errorf("wrong dump file or settings mismatch: %w", err), 1)
 	}
 	return nil
 }
