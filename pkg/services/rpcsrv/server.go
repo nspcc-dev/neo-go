@@ -274,6 +274,9 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	if conf.SessionEnabled {
 		if conf.SessionExpirationTime <= 0 {
 			conf.SessionExpirationTime = int(protoCfg.TimePerBlock / time.Second)
+			if conf.SessionExpirationTime < 5 {
+				conf.SessionExpirationTime = 5
+			}
 			log.Info("SessionExpirationTime is not set or wrong, setting default value", zap.Int("SessionExpirationTime", conf.SessionExpirationTime))
 		}
 		if conf.SessionPoolSize <= 0 {
