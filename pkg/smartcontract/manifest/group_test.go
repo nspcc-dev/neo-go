@@ -19,6 +19,10 @@ func TestGroupJSONInOut(t *testing.T) {
 }
 
 func TestGroupsAreValid(t *testing.T) {
+	var gps Groups
+
+	require.Error(t, gps.AreValid(util.Uint160{})) // null
+
 	h := util.Uint160{42, 42, 42}
 	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
@@ -29,7 +33,8 @@ func TestGroupsAreValid(t *testing.T) {
 	gcorrect := Group{pub, priv.Sign(h.BytesBE())}
 	gcorrect2 := Group{pub2, priv2.Sign(h.BytesBE())}
 	gincorrect := Group{pub, priv.Sign(h.BytesLE())}
-	gps := Groups{gcorrect}
+
+	gps = Groups{gcorrect}
 	require.NoError(t, gps.AreValid(h))
 
 	gps = Groups{gincorrect}

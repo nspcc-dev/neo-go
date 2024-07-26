@@ -52,7 +52,8 @@ func TestManagement_DeployUpdate_HFBasilisk(t *testing.T) {
 	require.NoError(t, err)
 
 	m := &manifest.Manifest{
-		Name: "ctr",
+		Name:   "ctr",
+		Groups: []manifest.Group{},
 		ABI: manifest.ABI{
 			Methods: []manifest.Method{
 				{
@@ -87,7 +88,8 @@ func TestManagement_CallInTheSameBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	m := &manifest.Manifest{
-		Name: "ctr",
+		Name:   "ctr",
+		Groups: []manifest.Group{},
 		ABI: manifest.ABI{
 			Methods: []manifest.Method{
 				{
