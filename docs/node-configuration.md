@@ -403,3 +403,25 @@ where:
 
   Note that `Transaction` is a NeoGo extension that isn't supported by the NeoC#
   node and must be disabled on the public Neo N3 networks.
+
+## DB compatibility
+
+Real networks with large number of blocks require a substantial amount of time
+to synchronize. When operating a number of node instances with similar
+configurations you may want to save some resources by performing synchronization
+on one node and then copying the DB over to other instances. In general, this
+can be done and this is supported, but NeoGo has a lot of options that may
+affect this:
+- any differences in `ProtocolConfiguration` section make databases
+  incompatible, except for `Max*` settings, `MemPoolSize`,
+  `P2PNotaryRequestPayloadPoolSize`, `SeedList`, `TimePerBlock`.
+  Protocol configuration is expected to be the same on all nodes of the same
+  network, so don't touch it unless you know what you're doing.
+- DB types (Level/Bolt) must be the same
+- `GarbageCollectionPeriod` must be the same
+- `KeepOnlyLatestState` must be the same
+- `RemoveUntraceableBlocks` must be the same
+
+BotlDB is also known to be incompatible between machines with different
+endianness. Nothing is known for LevelDB wrt this, so it's not recommended
+to copy it this way too.
