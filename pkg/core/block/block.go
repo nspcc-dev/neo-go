@@ -229,6 +229,7 @@ func (b *Block) ToStackItem() stackitem.Item {
 		stackitem.NewBigInteger(big.NewInt(int64(b.Timestamp))),
 		stackitem.NewBigInteger(new(big.Int).SetUint64(b.Nonce)),
 		stackitem.NewBigInteger(big.NewInt(int64(b.Index))),
+		stackitem.NewBigInteger(big.NewInt(int64(b.PrimaryIndex))),
 		stackitem.NewByteArray(b.NextConsensus.BytesBE()),
 		stackitem.NewBigInteger(big.NewInt(int64(len(b.Transactions)))),
 	}

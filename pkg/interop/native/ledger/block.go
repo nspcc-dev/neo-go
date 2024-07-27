@@ -23,6 +23,8 @@ type Block struct {
 	Nonce int
 	// Index represents the height of the block.
 	Index int
+	// PrimaryIndex represents the index of the primary node that created this block.
+	PrimaryIndex int
 	// NextConsensus represents the contract address of the next miner (160 bit BE
 	// value in a 20 byte slice).
 	NextConsensus interop.Hash160
@@ -43,6 +45,7 @@ type BlockSR struct {
 	Timestamp          int
 	Nonce              int
 	Index              int
+	PrimaryIndex       int
 	NextConsensus      interop.Hash160
 	TransactionsLength int
 	// PrevStateRoot is a hash of the previous block's state root.
