@@ -33,7 +33,7 @@ require (
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20231123160306-3374ff1e7a3c // indirect
-	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20240521091047-78685785716d // indirect
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20240727093519-1a48f1ce43ec // indirect
 	github.com/nspcc-dev/rfc6979 v0.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.13.0 // indirect
