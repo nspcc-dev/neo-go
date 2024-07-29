@@ -100,7 +100,7 @@ func NewCommands() []*cli.Command {
 			Subcommands: []*cli.Command{
 				{
 					Name:      "dump",
-					Usage:     "Dump blocks (starting with block #1) to the file",
+					Usage:     "Dump blocks (starting with the genesis or specified block) to the file",
 					UsageText: "neo-go db dump [-o file] [-s start] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",
 					Action:    dumpDB,
 					Flags:     cfgCountOutFlags,
@@ -325,7 +325,7 @@ func restoreDB(ctx *cli.Context) error {
 
 	err = chaindump.Restore(chain, reader, skip, count, f)
 	if err != nil {
-		return cli.Exit(err, 1)
+		return cli.Exit(fmt.Errorf("wrong dump file or settings mismatch: %w", err), 1)
 	}
 	return nil
 }
