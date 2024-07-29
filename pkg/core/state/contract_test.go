@@ -58,6 +58,7 @@ func TestContractStateToFromSI(t *testing.T) {
 
 		t.Run("preserve wildcard trusts", func(t *testing.T) {
 			contract.Manifest.Trusts.Value = nil
+			contract.Manifest.Trusts.Wildcard = true
 			require.True(t, contract.Manifest.Trusts.IsWildcard())
 			actual := new(Contract)
 			item, err := contract.ToStackItem()

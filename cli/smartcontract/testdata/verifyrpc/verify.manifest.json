@@ -4,6 +4,7 @@
    "supportedstandards" : [],
    "name" : "verify",
    "trusts" : [],
+   "features": {},
    "permissions" : [
       {
          "methods" : "*",
