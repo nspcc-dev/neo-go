@@ -33,6 +33,13 @@ a dialect of Go rather than a complete port of the language:
    it's up to the programmer whether assert can be performed successfully.
  * type aliases including the built-in `any` alias are supported.
  * generics are not supported, but eventually will be (at least, partially), ref. https://github.com/nspcc-dev/neo-go/issues/2376.
+ * `~` token is not supported
+ * `comparable` is not supported
+ * arrays (`[4]byte`) are not supported (https://github.com/nspcc-dev/neo-go/issues/3524)
+ * `min()` and `max()` are not supported (https://github.com/nspcc-dev/neo-go/issues/3090)
+ * `clear()` is not supported (https://github.com/nspcc-dev/neo-go/issues/3091)
+ * ranging over integers in `for` is not supported (https://github.com/nspcc-dev/neo-go/issues/3525)
+ * `for` loop variables are treated in pre-Go 1.22 way: a single instance is created for the whole loop
 
 ## VM API (interop layer)
 Compiler translates interop function calls into Neo VM syscalls or (for custom
