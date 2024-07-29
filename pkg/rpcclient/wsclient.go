@@ -601,7 +601,13 @@ readloop:
 				connCloseErr = fmt.Errorf("unknown response channel for response %d", id)
 				break readloop // Unknown response (unexpected response ID).
 			}
-			ch <- &rr.Response
+			select {
+			case <-c.writerDone:
+				break readloop
+			case <-c.shutdown:
+				break readloop
+			case ch <- &rr.Response:
+			}
 		} else {
 			// Malformed response, neither valid request, nor valid response.
 			connCloseErr = fmt.Errorf("malformed response")
