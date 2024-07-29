@@ -2,6 +2,45 @@
 
 This document outlines major changes between releases.
 
+## 0.106.3 "Lyophilization" (29 Jul 2024)
+
+This 3.7.5-compatible version includes a number of important fixes, so please
+upgrade your nodes. Some minor extensions were also added.
+
+Resynchronization (or state reset) is required for testnet (because of a bug
+leading to state difference since 4368840), but not required for mainnet.
+
+New features:
+ * embedded mainnet/testnet/NeoFS node configuration files (#3477, #3504)
+
+Behavior changes:
+ * CLI no longer panics if error occurs (#3495)
+ * MaxTraceableBlocks is 17280 now for NeoFS networks (#3518)
+ * minimal default RPC `SessionExpirationTime` is 5s now (#3529)
+
+Improvements:
+ * RPC actor interface extension with WaitSuccess method (#3491)
+ * Signers() API for RPC invokers (#3492)
+ * SignerAccounts() API for RPC actors (#3492)
+ * getpeers RPC extension with the user agent and last known block height data
+   (#3481)
+ * OnExecHook() API for VM (#3460)
+ * more details in witness verification error message (#3508)
+ * CLI help and error string format unification (#3495, #3520)
+ * CLI library (github.com/urfave/cli) upgrade to 2.27.2 (from v1 API, #3495)
+ * microoptimization of extensible sender list calculation (#3500)
+ * microoptimization of chain dump code (#3514)
+ * documentation and error messages (#3526, #3527)
+
+Bugs fixed:
+ * RPC `SessionExpirationTime` could be zero in some configurations (#3529)
+ * panic in WSClient unsubscription code in some multithreaded cases (#3532)
+ * missing PrimaryIndex in Ledger's getBlock() result (#3534)
+ * contract manifests with null groups were accepted (#3523)
+ * contract manifests with invalid features were accepted (#3523)
+ * contract manifests with null trusts were accepted (#3523)
+ * WSClient deadlock in some disconnection cases (#3535)
+
 ## 0.106.2 "Keratinization" (13 Jun 2024)
 
 A 3.7.5-compatible version introducing new Domovoi hardfork that brings two fixes to
