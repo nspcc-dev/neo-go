@@ -28,6 +28,7 @@ type LedgerBlock struct {
 	Timestamp          *big.Int
 	Nonce              *big.Int
 	Index              *big.Int
+	PrimaryIndex       *big.Int
 	NextConsensus      util.Uint160
 	TransactionsLength *big.Int
 }
@@ -176,7 +177,7 @@ func (res *LedgerBlock) FromStackItem(item stackitem.Item) error {
 	if !ok {
 		return errors.New("not an array")
 	}
-	if len(arr) != 9 {
+	if len(arr) != 10 {
 		return errors.New("wrong number of structure elements")
 	}
 
@@ -254,6 +255,12 @@ func (res *LedgerBlock) FromStackItem(item stackitem.Item) error {
 	res.Index, err = arr[index].TryInteger()
 	if err != nil {
 		return fmt.Errorf("field Index: %w", err)
+	}
+
+	index++
+	res.PrimaryIndex, err = arr[index].TryInteger()
+	if err != nil {
+		return fmt.Errorf("field PrimaryIndex: %w", err)
 	}
 
 	index++
