@@ -119,6 +119,19 @@ func NewCommands() []*cli.Command {
 					Action:    resetDB,
 					Flags:     cfgHeightFlags,
 				},
+				{
+					Name:      "traverse",
+					Usage:     "Traverse the MPT and dump key-value pairs to a file",
+					UsageText: "neo-go db traverse [--out file] [--config-path path] [-p/-m/-t] [--config-file file]",
+					Action:    traverseMPT,
+					Flags: append(cfgFlags,
+						&cli.StringFlag{
+							Name:    "out",
+							Aliases: []string{"o"},
+							Usage:   "Output file (default: kv_pairs.json)",
+						},
+					),
+				},
 			},
 		},
 	}
