@@ -299,44 +299,46 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 func (mp *Pool) Remove(hash util.Uint256) {
 	mp.lock.Lock()
 	mp.removeInternal(hash)
+	if mp.updateMetricsCb != nil {
+		mp.updateMetricsCb(len(mp.verifiedTxes))
+	}
 	mp.lock.Unlock()
 }
 
 // removeInternal is an internal unlocked representation of Remove.
 func (mp *Pool) removeInternal(hash util.Uint256) {
-	if tx, ok := mp.verifiedMap[hash]; ok {
-		var num int
-		delete(mp.verifiedMap, hash)
-		for num = range mp.verifiedTxes {
-			if hash.Equals(mp.verifiedTxes[num].txn.Hash()) {
-				break
-			}
-		}
-		itm := mp.verifiedTxes[num]
-		if num < len(mp.verifiedTxes)-1 {
-			mp.verifiedTxes = append(mp.verifiedTxes[:num], mp.verifiedTxes[num+1:]...)
-		} else if num == len(mp.verifiedTxes)-1 {
-			mp.verifiedTxes = mp.verifiedTxes[:num]
-		}
-		payer := itm.txn.Signers[mp.payerIndex].Account
-		senderFee := mp.fees[payer]
-		senderFee.feeSum.SubUint64(&senderFee.feeSum, uint64(tx.SystemFee+tx.NetworkFee))
-		mp.fees[payer] = senderFee
-		// remove all conflicting hashes from mp.conflicts list
-		mp.removeConflictsOf(tx)
-		if attrs := tx.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
-			delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
-		}
-		if mp.subscriptionsOn.Load() {
-			mp.events <- mempoolevent.Event{
-				Type: mempoolevent.TransactionRemoved,
-				Tx:   itm.txn,
-				Data: itm.data,
-			}
+	tx, ok := mp.verifiedMap[hash]
+	if !ok {
+		return
+	}
+	var num int
+	delete(mp.verifiedMap, hash)
+	for num = range mp.verifiedTxes {
+		if hash.Equals(mp.verifiedTxes[num].txn.Hash()) {
+			break
 		}
 	}
-	if mp.updateMetricsCb != nil {
-		mp.updateMetricsCb(len(mp.verifiedTxes))
+	itm := mp.verifiedTxes[num]
+	if num < len(mp.verifiedTxes)-1 {
+		mp.verifiedTxes = append(mp.verifiedTxes[:num], mp.verifiedTxes[num+1:]...)
+	} else if num == len(mp.verifiedTxes)-1 {
+		mp.verifiedTxes = mp.verifiedTxes[:num]
+	}
+	payer := itm.txn.Signers[mp.payerIndex].Account
+	senderFee := mp.fees[payer]
+	senderFee.feeSum.SubUint64(&senderFee.feeSum, uint64(tx.SystemFee+tx.NetworkFee))
+	mp.fees[payer] = senderFee
+	// remove all conflicting hashes from mp.conflicts list
+	mp.removeConflictsOf(tx)
+	if attrs := tx.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
+		delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
+	}
+	if mp.subscriptionsOn.Load() {
+		mp.events <- mempoolevent.Event{
+			Type: mempoolevent.TransactionRemoved,
+			Tx:   itm.txn,
+			Data: itm.data,
+		}
 	}
 }
 
