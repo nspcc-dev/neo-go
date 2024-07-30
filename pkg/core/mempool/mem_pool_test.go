@@ -112,18 +112,20 @@ func TestMemPoolAddRemove(t *testing.T) {
 
 func TestOverCapacity(t *testing.T) {
 	var fs = &FeerStub{balance: 10000000}
+	var acc = util.Uint160{1, 2, 3}
 	const mempoolSize = 10
 	mp := New(mempoolSize, 0, false, nil)
 
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = uint32(i)
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+		tx.Signers = []transaction.Signer{{Account: acc}}
 		require.NoError(t, mp.Add(tx, fs))
 	}
 	txcnt := uint32(mempoolSize)
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
+	require.Equal(t, *uint256.NewInt(0), mp.fees[acc].feeSum)
 
 	bigScript := make([]byte, 64)
 	bigScript[0] = byte(opcode.PUSH1)
@@ -133,18 +135,20 @@ func TestOverCapacity(t *testing.T) {
 		tx := transaction.New(bigScript, 0)
 		tx.NetworkFee = 10000
 		tx.Nonce = txcnt
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+		tx.Signers = []transaction.Signer{{Account: acc}}
 		txcnt++
 		// size is ~90, networkFee is 10000 => feePerByte is 119
 		require.NoError(t, mp.Add(tx, fs))
 		require.Equal(t, mempoolSize, mp.Count())
 		require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 	}
+	require.Equal(t, *uint256.NewInt(10 * 10000), mp.fees[acc].feeSum)
+
 	// Less prioritized txes are not allowed anymore.
 	tx := transaction.New(bigScript, 0)
 	tx.NetworkFee = 100
 	tx.Nonce = txcnt
-	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Signers = []transaction.Signer{{Account: acc}}
 	txcnt++
 	require.Error(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
@@ -152,35 +156,38 @@ func TestOverCapacity(t *testing.T) {
 	require.Equal(t, mempoolSize, len(mp.verifiedTxes))
 	require.False(t, mp.containsKey(tx.Hash()))
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
+	require.Equal(t, *uint256.NewInt(100000), mp.fees[acc].feeSum)
 
 	// Low net fee, but higher per-byte fee is still a better combination.
 	tx = transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = txcnt
 	tx.NetworkFee = 7000
-	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Signers = []transaction.Signer{{Account: acc}}
 	txcnt++
 	// size is ~51 (small script), networkFee is 7000 (<10000)
 	// => feePerByte is 137 (>119)
 	require.NoError(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
+	require.Equal(t, *uint256.NewInt(9*10000 + 7000), mp.fees[acc].feeSum)
 
 	// High priority always wins over low priority.
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.NetworkFee = 8000
 		tx.Nonce = txcnt
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+		tx.Signers = []transaction.Signer{{Account: acc}}
 		txcnt++
 		require.NoError(t, mp.Add(tx, fs))
 		require.Equal(t, mempoolSize, mp.Count())
 		require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 	}
+	require.Equal(t, *uint256.NewInt(10 * 8000), mp.fees[acc].feeSum)
 	// Good luck with low priority now.
 	tx = transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = txcnt
 	tx.NetworkFee = 7000
-	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Signers = []transaction.Signer{{Account: acc}}
 	require.Error(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))

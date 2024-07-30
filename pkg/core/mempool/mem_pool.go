@@ -250,19 +250,8 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 		}
 		// Ditch the last one.
 		unlucky := mp.verifiedTxes[len(mp.verifiedTxes)-1]
-		delete(mp.verifiedMap, unlucky.txn.Hash())
-		mp.removeConflictsOf(unlucky.txn)
-		if attrs := unlucky.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
-			delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
-		}
 		mp.verifiedTxes[len(mp.verifiedTxes)-1] = pItem
-		if mp.subscriptionsOn.Load() {
-			mp.events <- mempoolevent.Event{
-				Type: mempoolevent.TransactionRemoved,
-				Tx:   unlucky.txn,
-				Data: unlucky.data,
-			}
-		}
+		mp.removeFromMapWithFeesAndAttrs(unlucky)
 	} else {
 		mp.verifiedTxes = append(mp.verifiedTxes, pItem)
 	}
@@ -305,14 +294,15 @@ func (mp *Pool) Remove(hash util.Uint256) {
 	mp.lock.Unlock()
 }
 
-// removeInternal is an internal unlocked representation of Remove.
+// removeInternal is an internal unlocked representation of Remove, it drops
+// transaction from verifiedMap and verifiedTxs, adjusts fees and fires a
+// "removed" event.
 func (mp *Pool) removeInternal(hash util.Uint256) {
-	tx, ok := mp.verifiedMap[hash]
+	_, ok := mp.verifiedMap[hash]
 	if !ok {
 		return
 	}
 	var num int
-	delete(mp.verifiedMap, hash)
 	for num = range mp.verifiedTxes {
 		if hash.Equals(mp.verifiedTxes[num].txn.Hash()) {
 			break
@@ -324,13 +314,23 @@ func (mp *Pool) removeInternal(hash util.Uint256) {
 	} else if num == len(mp.verifiedTxes)-1 {
 		mp.verifiedTxes = mp.verifiedTxes[:num]
 	}
+	mp.removeFromMapWithFeesAndAttrs(itm)
+}
+
+// removeFromMapWithFeesAndAttrs removes given item (with the given hash) from
+// verifiedMap, adjusts fees, handles attributes and fires an event. Notice
+// that it does not do anything to verifiedTxes (the presumption is that if
+// you have itm already, you can handle it fine for the specific case).
+// It's an internal method, locking is to be handled by the caller.
+func (mp *Pool) removeFromMapWithFeesAndAttrs(itm item) {
+	delete(mp.verifiedMap, itm.txn.Hash())
 	payer := itm.txn.Signers[mp.payerIndex].Account
 	senderFee := mp.fees[payer]
-	senderFee.feeSum.SubUint64(&senderFee.feeSum, uint64(tx.SystemFee+tx.NetworkFee))
+	senderFee.feeSum.SubUint64(&senderFee.feeSum, uint64(itm.txn.SystemFee+itm.txn.NetworkFee))
 	mp.fees[payer] = senderFee
 	// remove all conflicting hashes from mp.conflicts list
-	mp.removeConflictsOf(tx)
-	if attrs := tx.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
+	mp.removeConflictsOf(itm.txn)
+	if attrs := itm.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
 		delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
 	}
 	if mp.subscriptionsOn.Load() {
