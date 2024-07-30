@@ -222,14 +222,14 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 				mp.lock.Unlock()
 				return ErrOracleResponse
 			}
-			mp.removeInternal(h, fee)
+			mp.removeInternal(h)
 		}
 		mp.oracleResp[id] = t.Hash()
 	}
 
 	// Remove conflicting transactions.
 	for _, conflictingTx := range conflictsToBeRemoved {
-		mp.removeInternal(conflictingTx.Hash(), fee)
+		mp.removeInternal(conflictingTx.Hash())
 	}
 	// Insert into a sorted array (from max to min, that could also be done
 	// using sort.Sort(sort.Reverse()), but it incurs more overhead. Notice
@@ -296,14 +296,14 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 
 // Remove removes an item from the mempool if it exists there (and does
 // nothing if it doesn't).
-func (mp *Pool) Remove(hash util.Uint256, feer Feer) {
+func (mp *Pool) Remove(hash util.Uint256) {
 	mp.lock.Lock()
-	mp.removeInternal(hash, feer)
+	mp.removeInternal(hash)
 	mp.lock.Unlock()
 }
 
 // removeInternal is an internal unlocked representation of Remove.
-func (mp *Pool) removeInternal(hash util.Uint256, feer Feer) {
+func (mp *Pool) removeInternal(hash util.Uint256) {
 	if tx, ok := mp.verifiedMap[hash]; ok {
 		var num int
 		delete(mp.verifiedMap, hash)

@@ -53,7 +53,7 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	tx2, ok := mp.TryGetValue(tx.Hash())
 	require.Equal(t, true, ok)
 	require.Equal(t, tx, tx2)
-	mp.Remove(tx.Hash(), fs)
+	mp.Remove(tx.Hash())
 	_, ok = mp.TryGetValue(tx.Hash())
 	require.Equal(t, false, ok)
 	// Make sure nothing left in the mempool after removal.
@@ -204,7 +204,7 @@ func TestGetVerified(t *testing.T) {
 	require.Equal(t, mempoolSize, len(verTxes))
 	require.ElementsMatch(t, txes, verTxes)
 	for _, tx := range txes {
-		mp.Remove(tx.Hash(), fs)
+		mp.Remove(tx.Hash())
 	}
 	verTxes = mp.GetVerifiedTransactions()
 	require.Equal(t, 0, len(verTxes))
@@ -379,7 +379,7 @@ func TestMempoolAddRemoveOracleResponse(t *testing.T) {
 	require.ErrorIs(t, err, ErrOracleResponse)
 
 	// ok if old tx is removed
-	mp.Remove(tx1.Hash(), fs)
+	mp.Remove(tx1.Hash())
 	require.NoError(t, mp.Add(tx2, fs))
 
 	// higher network fee
@@ -526,12 +526,12 @@ func TestMempoolAddRemoveConflicts(t *testing.T) {
 	assert.Equal(t, []util.Uint256{tx3.Hash(), tx2.Hash()}, mp.conflicts[tx1.Hash()])
 
 	// manually remove tx11 with its single conflict
-	mp.Remove(tx11.Hash(), fs)
+	mp.Remove(tx11.Hash())
 	assert.Equal(t, 2, len(mp.conflicts))
 	assert.Equal(t, []util.Uint256{tx10.Hash()}, mp.conflicts[tx6.Hash()])
 
 	// manually remove last tx which conflicts with tx6 => mp.conflicts[tx6] should also be deleted
-	mp.Remove(tx10.Hash(), fs)
+	mp.Remove(tx10.Hash())
 	assert.Equal(t, 1, len(mp.conflicts))
 	assert.Equal(t, []util.Uint256{tx3.Hash(), tx2.Hash()}, mp.conflicts[tx1.Hash()])
 

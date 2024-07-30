@@ -67,7 +67,7 @@ func TestSubscriptions(t *testing.T) {
 		require.Equal(t, mempoolevent.Event{Type: mempoolevent.TransactionAdded, Tx: txs[2]}, event2)
 
 		// remove tx
-		mp.Remove(txs[1].Hash(), fs)
+		mp.Remove(txs[1].Hash())
 		require.Eventually(t, func() bool { return len(subChan1) == 1 && len(subChan2) == 1 }, time.Second, time.Millisecond*100)
 		event1 = <-subChan1
 		event2 = <-subChan2
