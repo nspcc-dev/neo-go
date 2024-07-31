@@ -287,9 +287,9 @@ func restoreDB(ctx *cli.Context) error {
 
 	gctx := newGraceContext()
 	var lastIndex uint32
-	dump := newDump()
+	dump := NewDump()
 	defer func() {
-		_ = dump.tryPersist(dumpDir, lastIndex)
+		_ = dump.TryPersist(dumpDir, lastIndex)
 	}()
 
 	var f = func(b *block.Block) error {
@@ -312,10 +312,10 @@ func restoreDB(ctx *cli.Context) error {
 			if batch == nil && b.Index == 0 {
 				return nil
 			}
-			dump.add(b.Index, batch)
+			dump.Add(b.Index, batch)
 			lastIndex = b.Index
 			if b.Index%1000 == 0 {
-				if err := dump.tryPersist(dumpDir, b.Index); err != nil {
+				if err := dump.TryPersist(dumpDir, b.Index); err != nil {
 					return fmt.Errorf("can't dump storage to file: %w", err)
 				}
 			}

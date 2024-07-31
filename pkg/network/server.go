@@ -28,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/services/blockfetcher"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/zap"
 )
@@ -107,6 +108,7 @@ type (
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
 		notaryFeer        NotaryFeer
+		blockFetcher      *blockfetcher.Service
 
 		serviceLock    sync.RWMutex
 		services       map[string]Service
@@ -295,6 +297,9 @@ func (s *Server) Start() {
 	go s.relayBlocksLoop()
 	go s.bQueue.Run()
 	go s.bSyncQueue.Run()
+	if s.OracleCfg.NeoFS.Restore {
+		s.blockFetcher.Start()
+	}
 	for _, tr := range s.transports {
 		go tr.Accept()
 	}

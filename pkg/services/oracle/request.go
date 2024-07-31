@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/neofs"
+	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"go.uber.org/zap"
 )
 
@@ -165,7 +166,11 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 			ctx, cancel := context.WithTimeout(context.Background(), o.MainCfg.NeoFS.Timeout)
 			defer cancel()
 			index := (int(req.ID) + incTx.attempts) % len(o.MainCfg.NeoFS.Nodes)
-			rc, err := neofs.Get(ctx, priv, u, o.MainCfg.NeoFS.Nodes[index])
+			neofsClient, err := client.New(client.PrmInit{})
+			if err != nil {
+				return err
+			}
+			rc, err := neofs.Get(ctx, neofsClient, priv, u, o.MainCfg.NeoFS.Nodes[index])
 			if err != nil {
 				resp.Code = transaction.Error
 				o.Log.Warn("failed to perform oracle request", zap.String("url", req.Req.URL), zap.Error(err))

@@ -22,3 +22,14 @@ type (
 		ReadOnly bool   `yaml:"ReadOnly"`
 	}
 )
+
+// FilePath returns the file path for the DB. In case "inmemory" DB is used, it returns an empty string.
+func (db DBConfiguration) FilePath() string {
+	switch db.Type {
+	case "boltdb":
+		return db.BoltDBOptions.FilePath
+	case "leveldb":
+		return db.LevelDBOptions.DataDirectoryPath
+	}
+	return ""
+}
