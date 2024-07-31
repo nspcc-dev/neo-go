@@ -129,9 +129,9 @@ func getEmbeddedConfig(configPath string) ([]byte, error) {
 		return config.TestNet, nil
 	case fmt.Sprintf("%s/protocol.%s.yml", DefaultConfigPath, netmode.PrivNet):
 		return config.PrivNet, nil
-	case fmt.Sprintf("%s/protocol.mainnet.neofs.yml", DefaultConfigPath):
+	case fmt.Sprintf("%s/protocol.%s.yml", DefaultConfigPath, netmode.MainNetNeoFS):
 		return config.MainNetNeoFS, nil
-	case fmt.Sprintf("%s/protocol.testnet.neofs.yml", DefaultConfigPath):
+	case fmt.Sprintf("%s/protocol.%s.yml", DefaultConfigPath, netmode.TestNetNeoFS):
 		return config.TestNetNeoFS, nil
 	default:
 		return nil, fmt.Errorf("config '%s' doesn't exist and no matching embedded config was found", configPath)
