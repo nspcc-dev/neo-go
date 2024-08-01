@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"crypto/sha256"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -13,24 +14,15 @@ func TestCrypt(t *testing.T) {
 
 	priv := privateKey{key}
 
-	key1, err := keys.NewPrivateKey()
-	require.NoError(t, err)
+	pub := key.PublicKey()
 
-	pub := publicKey{key.PublicKey()}
-	data, err := pub.MarshalBinary()
-	require.NoError(t, err)
-
-	pub1 := publicKey{key1.PublicKey()}
-	require.NotEqual(t, pub, pub1)
-	require.NoError(t, pub1.UnmarshalBinary(data))
-	require.Equal(t, pub, pub1)
-
-	data = []byte{1, 2, 3, 4}
+	data := []byte{1, 2, 3, 4}
+	hash := sha256.Sum256(data)
 
 	sign, err := priv.Sign(data)
 	require.NoError(t, err)
-	require.NoError(t, pub.Verify(data, sign))
+	require.True(t, pub.Verify(sign, hash[:]))
 
 	sign[0] = ^sign[0]
-	require.Error(t, pub.Verify(data, sign))
+	require.False(t, pub.Verify(sign, hash[:]))
 }

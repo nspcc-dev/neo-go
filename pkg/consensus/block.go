@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	coreb "github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -31,8 +32,8 @@ func (n *neoBlock) Sign(key dbft.PrivateKey) error {
 
 // Verify implements the block.Block interface.
 func (n *neoBlock) Verify(key dbft.PublicKey, sign []byte) error {
-	k := key.(*publicKey)
-	if k.PublicKey.VerifyHashable(sign, uint32(n.network), &n.Block) {
+	k := key.(*keys.PublicKey)
+	if k.VerifyHashable(sign, uint32(n.network), &n.Block) {
 		return nil
 	}
 	return errors.New("verification failed")

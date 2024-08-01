@@ -14,7 +14,7 @@ require (
 	github.com/holiman/uint256 v1.2.4
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/mr-tron/base58 v1.2.0
-	github.com/nspcc-dev/dbft v0.2.0
+	github.com/nspcc-dev/dbft v0.3.0
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20240301084351-0246b013f8b2
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20240727093519-1a48f1ce43ec
 	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.12
