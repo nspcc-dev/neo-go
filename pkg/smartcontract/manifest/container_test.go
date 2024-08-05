@@ -81,6 +81,17 @@ func TestContainer_Add(t *testing.T) {
 		require.False(t, c.Contains(PermissionDesc{Type: PermissionHash, Value: random.Uint160()}))
 		require.False(t, c.Contains(PermissionDesc{Type: PermissionGroup, Value: pkRand.PublicKey()}))
 	})
+
+	t.Run("from wildcard", func(t *testing.T) {
+		c := &WildPermissionDescs{
+			Value:    nil,
+			Wildcard: true,
+		}
+		require.True(t, c.IsWildcard())
+
+		c.Add(PermissionDesc{Type: PermissionHash, Value: random.Uint160()})
+		require.False(t, c.IsWildcard())
+	})
 }
 
 func TestContainer_MarshalJSON(t *testing.T) {

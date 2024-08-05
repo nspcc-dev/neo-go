@@ -64,8 +64,12 @@ func (c *WildPermissionDescs) Restrict() {
 // Add adds v to the container.
 func (c *WildStrings) Add(v string) { c.Value = append(c.Value, v) }
 
-// Add adds v to the container.
-func (c *WildPermissionDescs) Add(v PermissionDesc) { c.Value = append(c.Value, v) }
+// Add adds v to the container and converts container to non-wildcard (if it's still
+// wildcard).
+func (c *WildPermissionDescs) Add(v PermissionDesc) {
+	c.Value = append(c.Value, v)
+	c.Wildcard = false
+}
 
 // MarshalJSON implements the json.Marshaler interface.
 func (c WildStrings) MarshalJSON() ([]byte, error) {
