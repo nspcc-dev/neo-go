@@ -53,7 +53,7 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 	tx2, ok := mp.TryGetValue(tx.Hash())
 	require.Equal(t, true, ok)
 	require.Equal(t, tx, tx2)
-	mp.Remove(tx.Hash(), fs)
+	mp.Remove(tx.Hash())
 	_, ok = mp.TryGetValue(tx.Hash())
 	require.Equal(t, false, ok)
 	// Make sure nothing left in the mempool after removal.
@@ -112,18 +112,20 @@ func TestMemPoolAddRemove(t *testing.T) {
 
 func TestOverCapacity(t *testing.T) {
 	var fs = &FeerStub{balance: 10000000}
+	var acc = util.Uint160{1, 2, 3}
 	const mempoolSize = 10
 	mp := New(mempoolSize, 0, false, nil)
 
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = uint32(i)
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+		tx.Signers = []transaction.Signer{{Account: acc}}
 		require.NoError(t, mp.Add(tx, fs))
 	}
 	txcnt := uint32(mempoolSize)
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
+	require.Equal(t, *uint256.NewInt(0), mp.fees[acc].feeSum)
 
 	bigScript := make([]byte, 64)
 	bigScript[0] = byte(opcode.PUSH1)
@@ -133,18 +135,20 @@ func TestOverCapacity(t *testing.T) {
 		tx := transaction.New(bigScript, 0)
 		tx.NetworkFee = 10000
 		tx.Nonce = txcnt
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+		tx.Signers = []transaction.Signer{{Account: acc}}
 		txcnt++
 		// size is ~90, networkFee is 10000 => feePerByte is 119
 		require.NoError(t, mp.Add(tx, fs))
 		require.Equal(t, mempoolSize, mp.Count())
 		require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 	}
+	require.Equal(t, *uint256.NewInt(10 * 10000), mp.fees[acc].feeSum)
+
 	// Less prioritized txes are not allowed anymore.
 	tx := transaction.New(bigScript, 0)
 	tx.NetworkFee = 100
 	tx.Nonce = txcnt
-	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Signers = []transaction.Signer{{Account: acc}}
 	txcnt++
 	require.Error(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
@@ -152,35 +156,38 @@ func TestOverCapacity(t *testing.T) {
 	require.Equal(t, mempoolSize, len(mp.verifiedTxes))
 	require.False(t, mp.containsKey(tx.Hash()))
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
+	require.Equal(t, *uint256.NewInt(100000), mp.fees[acc].feeSum)
 
 	// Low net fee, but higher per-byte fee is still a better combination.
 	tx = transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = txcnt
 	tx.NetworkFee = 7000
-	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Signers = []transaction.Signer{{Account: acc}}
 	txcnt++
 	// size is ~51 (small script), networkFee is 7000 (<10000)
 	// => feePerByte is 137 (>119)
 	require.NoError(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
+	require.Equal(t, *uint256.NewInt(9*10000 + 7000), mp.fees[acc].feeSum)
 
 	// High priority always wins over low priority.
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.NetworkFee = 8000
 		tx.Nonce = txcnt
-		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+		tx.Signers = []transaction.Signer{{Account: acc}}
 		txcnt++
 		require.NoError(t, mp.Add(tx, fs))
 		require.Equal(t, mempoolSize, mp.Count())
 		require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
 	}
+	require.Equal(t, *uint256.NewInt(10 * 8000), mp.fees[acc].feeSum)
 	// Good luck with low priority now.
 	tx = transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = txcnt
 	tx.NetworkFee = 7000
-	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Signers = []transaction.Signer{{Account: acc}}
 	require.Error(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
 	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
@@ -204,7 +211,7 @@ func TestGetVerified(t *testing.T) {
 	require.Equal(t, mempoolSize, len(verTxes))
 	require.ElementsMatch(t, txes, verTxes)
 	for _, tx := range txes {
-		mp.Remove(tx.Hash(), fs)
+		mp.Remove(tx.Hash())
 	}
 	verTxes = mp.GetVerifiedTransactions()
 	require.Equal(t, 0, len(verTxes))
@@ -379,7 +386,7 @@ func TestMempoolAddRemoveOracleResponse(t *testing.T) {
 	require.ErrorIs(t, err, ErrOracleResponse)
 
 	// ok if old tx is removed
-	mp.Remove(tx1.Hash(), fs)
+	mp.Remove(tx1.Hash())
 	require.NoError(t, mp.Add(tx2, fs))
 
 	// higher network fee
@@ -526,12 +533,12 @@ func TestMempoolAddRemoveConflicts(t *testing.T) {
 	assert.Equal(t, []util.Uint256{tx3.Hash(), tx2.Hash()}, mp.conflicts[tx1.Hash()])
 
 	// manually remove tx11 with its single conflict
-	mp.Remove(tx11.Hash(), fs)
+	mp.Remove(tx11.Hash())
 	assert.Equal(t, 2, len(mp.conflicts))
 	assert.Equal(t, []util.Uint256{tx10.Hash()}, mp.conflicts[tx6.Hash()])
 
 	// manually remove last tx which conflicts with tx6 => mp.conflicts[tx6] should also be deleted
-	mp.Remove(tx10.Hash(), fs)
+	mp.Remove(tx10.Hash())
 	assert.Equal(t, 1, len(mp.conflicts))
 	assert.Equal(t, []util.Uint256{tx3.Hash(), tx2.Hash()}, mp.conflicts[tx1.Hash()])
 

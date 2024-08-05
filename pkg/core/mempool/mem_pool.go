@@ -222,14 +222,14 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 				mp.lock.Unlock()
 				return ErrOracleResponse
 			}
-			mp.removeInternal(h, fee)
+			mp.removeInternal(h)
 		}
 		mp.oracleResp[id] = t.Hash()
 	}
 
 	// Remove conflicting transactions.
 	for _, conflictingTx := range conflictsToBeRemoved {
-		mp.removeInternal(conflictingTx.Hash(), fee)
+		mp.removeInternal(conflictingTx.Hash())
 	}
 	// Insert into a sorted array (from max to min, that could also be done
 	// using sort.Sort(sort.Reverse()), but it incurs more overhead. Notice
@@ -250,19 +250,8 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 		}
 		// Ditch the last one.
 		unlucky := mp.verifiedTxes[len(mp.verifiedTxes)-1]
-		delete(mp.verifiedMap, unlucky.txn.Hash())
-		mp.removeConflictsOf(unlucky.txn)
-		if attrs := unlucky.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
-			delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
-		}
 		mp.verifiedTxes[len(mp.verifiedTxes)-1] = pItem
-		if mp.subscriptionsOn.Load() {
-			mp.events <- mempoolevent.Event{
-				Type: mempoolevent.TransactionRemoved,
-				Tx:   unlucky.txn,
-				Data: unlucky.data,
-			}
-		}
+		mp.removeFromMapWithFeesAndAttrs(unlucky)
 	} else {
 		mp.verifiedTxes = append(mp.verifiedTxes, pItem)
 	}
@@ -296,47 +285,60 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 
 // Remove removes an item from the mempool if it exists there (and does
 // nothing if it doesn't).
-func (mp *Pool) Remove(hash util.Uint256, feer Feer) {
+func (mp *Pool) Remove(hash util.Uint256) {
 	mp.lock.Lock()
-	mp.removeInternal(hash, feer)
+	mp.removeInternal(hash)
+	if mp.updateMetricsCb != nil {
+		mp.updateMetricsCb(len(mp.verifiedTxes))
+	}
 	mp.lock.Unlock()
 }
 
-// removeInternal is an internal unlocked representation of Remove.
-func (mp *Pool) removeInternal(hash util.Uint256, feer Feer) {
-	if tx, ok := mp.verifiedMap[hash]; ok {
-		var num int
-		delete(mp.verifiedMap, hash)
-		for num = range mp.verifiedTxes {
-			if hash.Equals(mp.verifiedTxes[num].txn.Hash()) {
-				break
-			}
-		}
-		itm := mp.verifiedTxes[num]
-		if num < len(mp.verifiedTxes)-1 {
-			mp.verifiedTxes = append(mp.verifiedTxes[:num], mp.verifiedTxes[num+1:]...)
-		} else if num == len(mp.verifiedTxes)-1 {
-			mp.verifiedTxes = mp.verifiedTxes[:num]
-		}
-		payer := itm.txn.Signers[mp.payerIndex].Account
-		senderFee := mp.fees[payer]
-		senderFee.feeSum.SubUint64(&senderFee.feeSum, uint64(tx.SystemFee+tx.NetworkFee))
-		mp.fees[payer] = senderFee
-		// remove all conflicting hashes from mp.conflicts list
-		mp.removeConflictsOf(tx)
-		if attrs := tx.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
-			delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
-		}
-		if mp.subscriptionsOn.Load() {
-			mp.events <- mempoolevent.Event{
-				Type: mempoolevent.TransactionRemoved,
-				Tx:   itm.txn,
-				Data: itm.data,
-			}
+// removeInternal is an internal unlocked representation of Remove, it drops
+// transaction from verifiedMap and verifiedTxs, adjusts fees and fires a
+// "removed" event.
+func (mp *Pool) removeInternal(hash util.Uint256) {
+	_, ok := mp.verifiedMap[hash]
+	if !ok {
+		return
+	}
+	var num int
+	for num = range mp.verifiedTxes {
+		if hash.Equals(mp.verifiedTxes[num].txn.Hash()) {
+			break
 		}
 	}
-	if mp.updateMetricsCb != nil {
-		mp.updateMetricsCb(len(mp.verifiedTxes))
+	itm := mp.verifiedTxes[num]
+	if num < len(mp.verifiedTxes)-1 {
+		mp.verifiedTxes = append(mp.verifiedTxes[:num], mp.verifiedTxes[num+1:]...)
+	} else if num == len(mp.verifiedTxes)-1 {
+		mp.verifiedTxes = mp.verifiedTxes[:num]
+	}
+	mp.removeFromMapWithFeesAndAttrs(itm)
+}
+
+// removeFromMapWithFeesAndAttrs removes given item (with the given hash) from
+// verifiedMap, adjusts fees, handles attributes and fires an event. Notice
+// that it does not do anything to verifiedTxes (the presumption is that if
+// you have itm already, you can handle it fine for the specific case).
+// It's an internal method, locking is to be handled by the caller.
+func (mp *Pool) removeFromMapWithFeesAndAttrs(itm item) {
+	delete(mp.verifiedMap, itm.txn.Hash())
+	payer := itm.txn.Signers[mp.payerIndex].Account
+	senderFee := mp.fees[payer]
+	senderFee.feeSum.SubUint64(&senderFee.feeSum, uint64(itm.txn.SystemFee+itm.txn.NetworkFee))
+	mp.fees[payer] = senderFee
+	// remove all conflicting hashes from mp.conflicts list
+	mp.removeConflictsOf(itm.txn)
+	if attrs := itm.txn.GetAttributes(transaction.OracleResponseT); len(attrs) != 0 {
+		delete(mp.oracleResp, attrs[0].Value.(*transaction.OracleResponse).ID)
+	}
+	if mp.subscriptionsOn.Load() {
+		mp.events <- mempoolevent.Event{
+			Type: mempoolevent.TransactionRemoved,
+			Tx:   itm.txn,
+			Data: itm.data,
+		}
 	}
 }
 
