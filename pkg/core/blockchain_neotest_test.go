@@ -1197,6 +1197,8 @@ func TestConfig_LoadDefaultConfigs(t *testing.T) {
 		netmode.PrivNet,
 		netmode.TestNet,
 		netmode.UnitTestNet,
+		netmode.MainNetNeoFS,
+		netmode.TestNetNeoFS,
 		"privnet.docker.one",
 		"privnet.docker.two",
 		"privnet.docker.three",
