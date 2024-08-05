@@ -412,9 +412,9 @@ configurations you may want to save some resources by performing synchronization
 on one node and then copying the DB over to other instances. In general, this
 can be done and this is supported, but NeoGo has a lot of options that may
 affect this:
-- any differences in `ProtocolConfiguration` section make databases
-  incompatible, except for `Max*` settings, `MemPoolSize`,
-  `P2PNotaryRequestPayloadPoolSize`, `SeedList`, `TimePerBlock`.
+- any differences in `ProtocolConfiguration` section make (or may make) databases
+  incompatible, except for `MemPoolSize`, `P2PNotaryRequestPayloadPoolSize`,
+  `SeedList`, `TimePerBlock`.
   Protocol configuration is expected to be the same on all nodes of the same
   network, so don't touch it unless you know what you're doing.
 - DB types (Level/Bolt) must be the same
