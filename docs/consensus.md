@@ -155,7 +155,7 @@ four-node setup.
 
 #### Prerequisites
 - `docker` of version >= 20.10.0
-- `docker-compose`
+- `docker compose` V2
 - `go` compiler
 
 #### Instructions
@@ -166,7 +166,7 @@ make env_up    # start containers, use "make env_single" for single CN
 ```
 To monitor logs:
 ```bash
-docker-compose -f .docker/docker-compose.yml logs -f
+docker compose -f .docker/docker-compose.yml logs -f
 ```
 
 To stop:

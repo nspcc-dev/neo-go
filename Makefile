@@ -131,19 +131,19 @@ env_image:
 env_up:
 	@echo "=> Bootup environment"
 	@echo "   Docker-compose file: $(DC_FILE)"
-	@docker-compose -f $(DC_FILE) up -d node_one node_two node_three node_four
+	@docker compose -f $(DC_FILE) up -d node_one node_two node_three node_four
 
 env_single:
 	@echo "=> Bootup environment"
-	@docker-compose -f $(DC_FILE) up -d node_single
+	@docker compose -f $(DC_FILE) up -d node_single
 
 env_down:
 	@echo "=> Stop environment"
-	@docker-compose -f $(DC_FILE) down
+	@docker compose -f $(DC_FILE) down
 
 env_restart:
 	@echo "=> Stop and start environment"
-	@docker-compose -f $(DC_FILE) restart
+	@docker compose -f $(DC_FILE) restart
 
 env_clean: env_down
 	@echo "=> Cleanup environment"
