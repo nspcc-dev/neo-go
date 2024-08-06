@@ -248,7 +248,7 @@ func (s *service) newPayload(c *dbft.Context[util.Uint256], t dbft.MessageType, 
 
 	cp.Extensible.ValidBlockStart = 0
 	cp.Extensible.ValidBlockEnd = c.BlockIndex
-	cp.Extensible.Sender = c.Validators[c.MyIndex].(*publicKey).GetScriptHash()
+	cp.Extensible.Sender = c.Validators[c.MyIndex].(*keys.PublicKey).GetScriptHash()
 
 	return cp
 }
@@ -432,14 +432,14 @@ func (s *service) validatePayload(p *Payload) bool {
 	}
 
 	pub := validators[p.message.ValidatorIndex]
-	h := pub.(*publicKey).GetScriptHash()
+	h := pub.(*keys.PublicKey).GetScriptHash()
 	return p.Sender == h
 }
 
 func (s *service) getKeyPair(pubs []dbft.PublicKey) (int, dbft.PrivateKey, dbft.PublicKey) {
 	if s.wallet != nil {
 		for i := range pubs {
-			sh := pubs[i].(*publicKey).GetScriptHash()
+			sh := pubs[i].(*keys.PublicKey).GetScriptHash()
 			acc := s.wallet.GetAccount(sh)
 			if acc == nil {
 				continue
@@ -453,7 +453,7 @@ func (s *service) getKeyPair(pubs []dbft.PublicKey) (int, dbft.PrivateKey, dbft.
 				}
 			}
 
-			return i, &privateKey{PrivateKey: acc.PrivateKey()}, &publicKey{PublicKey: acc.PublicKey()}
+			return i, &privateKey{PrivateKey: acc.PrivateKey()}, acc.PublicKey()
 		}
 	}
 	return -1, nil, nil
@@ -737,7 +737,7 @@ func (s *service) getValidators(txes ...dbft.Transaction[util.Uint256]) []dbft.P
 
 	pubs := make([]dbft.PublicKey, len(pKeys))
 	for i := range pKeys {
-		pubs[i] = &publicKey{PublicKey: pKeys[i]}
+		pubs[i] = pKeys[i]
 	}
 
 	return pubs
@@ -746,7 +746,7 @@ func (s *service) getValidators(txes ...dbft.Transaction[util.Uint256]) []dbft.P
 func convertKeys(validators []dbft.PublicKey) (pubs []*keys.PublicKey) {
 	pubs = make([]*keys.PublicKey, len(validators))
 	for i, k := range validators {
-		pubs[i] = k.(*publicKey).PublicKey
+		pubs[i] = k.(*keys.PublicKey)
 	}
 
 	return

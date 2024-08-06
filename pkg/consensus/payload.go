@@ -79,6 +79,10 @@ func (p Payload) GetPrepareResponse() dbft.PrepareResponse[util.Uint256] {
 	return p.payload.(dbft.PrepareResponse[util.Uint256])
 }
 
+// GetPreCommit implements the payload.ConsensusPayload interface.
+// It's a stub since PreCommits are never used on N3.
+func (p Payload) GetPreCommit() dbft.PreCommit { return nil }
+
 // GetCommit implements the payload.ConsensusPayload interface.
 func (p Payload) GetCommit() dbft.Commit { return p.payload.(dbft.Commit) }
 

@@ -85,8 +85,8 @@ github.com/mmcloughlin/addchain v0.4.0/go.mod h1:A86O+tHqZLMNO4w6ZZ4FlVQEadcoqky
 github.com/mmcloughlin/profile v0.1.1/go.mod h1:IhHD7q1ooxgwTgjxQYkACGA77oFTDdFVejUS1/tS/qU=
 github.com/mr-tron/base58 v1.2.0 h1:T/HDJBh4ZCPbU39/+c3rRvE0uKBQlU27+QI8LJ4t64o=
 github.com/mr-tron/base58 v1.2.0/go.mod h1:BinMc/sQntlIE1frQmRFPUoPA1Zkr8VRgBdjWI2mNwc=
-github.com/nspcc-dev/dbft v0.2.0 h1:sDwsQES600OSIMncV176t2SX5OvB14lzeOAyKFOkbMI=
-github.com/nspcc-dev/dbft v0.2.0/go.mod h1:oFE6paSC/yfFh9mcNU6MheMGOYXK9+sPiRk3YMoz49o=
+github.com/nspcc-dev/dbft v0.3.0 h1:P9dFQje43sabA6w89l1OqGe1BvnO7DdHcu27w6mfnOE=
+github.com/nspcc-dev/dbft v0.3.0/go.mod h1:oFE6paSC/yfFh9mcNU6MheMGOYXK9+sPiRk3YMoz49o=
 github.com/nspcc-dev/go-ordered-json v0.0.0-20240301084351-0246b013f8b2 h1:mD9hU3v+zJcnHAVmHnZKt3I++tvn30gBj2rP2PocZMk=
 github.com/nspcc-dev/go-ordered-json v0.0.0-20240301084351-0246b013f8b2/go.mod h1:U5VfmPNM88P4RORFb6KSUVBdJBDhlqggJZYGXGPxOcc=
 github.com/nspcc-dev/hrw/v2 v2.0.1 h1:CxYUkBeJvNfMEn2lHhrV6FjY8pZPceSxXUtMVq0BUOU=

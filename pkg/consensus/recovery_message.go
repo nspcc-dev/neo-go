@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/nspcc-dev/dbft"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -202,7 +203,7 @@ func (m *recoveryMessage) GetPrepareRequest(p dbft.ConsensusPayload[util.Uint256
 
 	req := fromPayload(prepareRequestType, p.(*Payload), m.prepareRequest.payload)
 	req.message.ValidatorIndex = byte(primary)
-	req.Sender = validators[primary].(*publicKey).GetScriptHash()
+	req.Sender = validators[primary].(*keys.PublicKey).GetScriptHash()
 	req.Witness.InvocationScript = compact.InvocationScript
 	req.Witness.VerificationScript = getVerificationScript(uint8(primary), validators)
 
@@ -222,7 +223,7 @@ func (m *recoveryMessage) GetPrepareResponses(p dbft.ConsensusPayload[util.Uint2
 			preparationHash: *m.preparationHash,
 		})
 		r.message.ValidatorIndex = resp.ValidatorIndex
-		r.Sender = validators[resp.ValidatorIndex].(*publicKey).GetScriptHash()
+		r.Sender = validators[resp.ValidatorIndex].(*keys.PublicKey).GetScriptHash()
 		r.Witness.InvocationScript = resp.InvocationScript
 		r.Witness.VerificationScript = getVerificationScript(resp.ValidatorIndex, validators)
 
@@ -243,7 +244,7 @@ func (m *recoveryMessage) GetChangeViews(p dbft.ConsensusPayload[util.Uint256], 
 		})
 		c.message.ViewNumber = cv.OriginalViewNumber
 		c.message.ValidatorIndex = cv.ValidatorIndex
-		c.Sender = validators[cv.ValidatorIndex].(*publicKey).GetScriptHash()
+		c.Sender = validators[cv.ValidatorIndex].(*keys.PublicKey).GetScriptHash()
 		c.Witness.InvocationScript = cv.InvocationScript
 		c.Witness.VerificationScript = getVerificationScript(cv.ValidatorIndex, validators)
 
@@ -253,6 +254,12 @@ func (m *recoveryMessage) GetChangeViews(p dbft.ConsensusPayload[util.Uint256], 
 	return ps
 }
 
+// GetPreCommits implements the payload.RecoveryMessage interface. It's a stub
+// since N3 doesn't use extension enabling them.
+func (m *recoveryMessage) GetPreCommits(p dbft.ConsensusPayload[util.Uint256], validators []dbft.PublicKey) []dbft.ConsensusPayload[util.Uint256] {
+	return nil
+}
+
 // GetCommits implements the payload.RecoveryMessage interface.
 func (m *recoveryMessage) GetCommits(p dbft.ConsensusPayload[util.Uint256], validators []dbft.PublicKey) []dbft.ConsensusPayload[util.Uint256] {
 	ps := make([]dbft.ConsensusPayload[util.Uint256], len(m.commitPayloads))
@@ -260,7 +267,7 @@ func (m *recoveryMessage) GetCommits(p dbft.ConsensusPayload[util.Uint256], vali
 	for i, c := range m.commitPayloads {
 		cc := fromPayload(commitType, p.(*Payload), &commit{signature: c.Signature})
 		cc.message.ValidatorIndex = c.ValidatorIndex
-		cc.Sender = validators[c.ValidatorIndex].(*publicKey).GetScriptHash()
+		cc.Sender = validators[c.ValidatorIndex].(*keys.PublicKey).GetScriptHash()
 		cc.Witness.InvocationScript = c.InvocationScript
 		cc.Witness.VerificationScript = getVerificationScript(c.ValidatorIndex, validators)
 
@@ -280,7 +287,7 @@ func getVerificationScript(i uint8, validators []dbft.PublicKey) []byte {
 		return nil
 	}
 
-	pub, ok := validators[i].(*publicKey)
+	pub, ok := validators[i].(*keys.PublicKey)
 	if !ok {
 		return nil
 	}
