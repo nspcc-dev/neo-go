@@ -29,11 +29,12 @@ import (
 
 // Executor is a wrapper over chain state.
 type Executor struct {
-	Chain         *core.Blockchain
-	Validator     Signer
-	Committee     Signer
-	CommitteeHash util.Uint160
-	Contracts     map[string]*Contract
+	Chain           *core.Blockchain
+	Validator       Signer
+	Committee       Signer
+	CommitteeHash   util.Uint160
+	Contracts       map[string]*Contract
+	collectCoverage bool
 }
 
 // NewExecutor creates a new executor instance from the provided blockchain and committee.
@@ -42,11 +43,12 @@ func NewExecutor(t testing.TB, bc *core.Blockchain, validator, committee Signer)
 	checkMultiSigner(t, committee)
 
 	return &Executor{
-		Chain:         bc,
-		Validator:     validator,
-		Committee:     committee,
-		CommitteeHash: committee.ScriptHash(),
-		Contracts:     make(map[string]*Contract),
+		Chain:           bc,
+		Validator:       validator,
+		Committee:       committee,
+		CommitteeHash:   committee.ScriptHash(),
+		Contracts:       make(map[string]*Contract),
+		collectCoverage: isCoverageEnabled(),
 	}
 }
 
@@ -146,6 +148,8 @@ func (e *Executor) DeployContract(t testing.TB, c *Contract, data any) util.Uint
 // data is an optional argument to `_deploy`.
 // It returns the hash of the deploy transaction.
 func (e *Executor) DeployContractBy(t testing.TB, signer Signer, c *Contract, data any) util.Uint256 {
+	e.trackCoverage(t, c)
+
 	tx := NewDeployTxBy(t, e.Chain, signer, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckHalt(t, tx.Hash())
@@ -158,16 +162,29 @@ func (e *Executor) DeployContractBy(t testing.TB, signer Signer, c *Contract, da
 			stackitem.NewByteArray(c.Hash.BytesBE()),
 		}),
 	})
-
 	return tx.Hash()
 }
 
 // DeployContractCheckFAULT compiles and deploys a contract to the bc using the validator
 // account. It checks that the deploy transaction FAULTed with the specified error.
 func (e *Executor) DeployContractCheckFAULT(t testing.TB, c *Contract, data any, errMessage string) {
+	e.trackCoverage(t, c)
+
 	tx := e.NewDeployTx(t, e.Chain, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckFault(t, tx.Hash(), errMessage)
+}
+
+// This switches on coverage tracking for provided script if `go test` is running with coverage enabled.
+func (e *Executor) trackCoverage(t testing.TB, c *Contract) {
+	if e.collectCoverage {
+		if _, ok := rawCoverage[c.Hash]; !ok {
+			rawCoverage[c.Hash] = &scriptRawCoverage{debugInfo: c.DebugInfo}
+		}
+		t.Cleanup(func() {
+			reportCoverage(t)
+		})
+	}
 }
 
 // InvokeScript adds a transaction with the specified script to the chain and
@@ -401,6 +418,10 @@ func TestInvoke(bc *core.Blockchain, tx *transaction.Transaction) (*vm.VM, error
 	ttx := *tx
 	ic, _ := bc.GetTestVM(trigger.Application, &ttx, b)
 
+	if isCoverageEnabled() {
+		ic.VM.SetOnExecHook(coverageHook)
+	}
+
 	defer ic.Finalize()
 
 	ic.VM.LoadWithFlags(tx.Script, callflag.All)
@@ -430,4 +451,14 @@ func (e *Executor) GetTxExecResult(t testing.TB, h util.Uint256) *state.AppExecR
 	require.NoError(t, err)
 	require.Equal(t, 1, len(aer))
 	return &aer[0]
+}
+
+// EnableCoverage enables coverage collection for this executor, but only when `go test` is running with coverage enabled.
+func (e *Executor) EnableCoverage() {
+	e.collectCoverage = isCoverageEnabled()
+}
+
+// DisableCoverage disables coverage collection for this executor until enabled explicitly through EnableCoverage.
+func (e *Executor) DisableCoverage() {
+	e.collectCoverage = false
 }
