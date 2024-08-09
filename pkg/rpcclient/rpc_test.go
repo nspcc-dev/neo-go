@@ -1034,8 +1034,9 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 					Nonce:     2153672787,
 					UserAgent: "/NEO-GO:0.73.1-pre-273-ge381358/",
 					Protocol: result.Protocol{
-						Network:   netmode.UnitTestNet,
-						Hardforks: map[config.Hardfork]uint32{},
+						Network:          netmode.UnitTestNet,
+						Hardforks:        map[config.Hardfork]uint32{},
+						StandbyCommittee: keys.PublicKeys{},
 					},
 					RPC: result.RPC{
 						MaxIteratorResultItems: 100,

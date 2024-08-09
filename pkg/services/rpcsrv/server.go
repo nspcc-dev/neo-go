@@ -867,6 +867,10 @@ func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 		}
 		hfs[cfgHf] = height
 	}
+	standbyCommittee, err := keys.NewPublicKeysFromStrings(cfg.StandbyCommittee)
+	if err != nil {
+		return nil, neorpc.NewInternalServerError(fmt.Sprintf("cannot fetch standbyCommittee: %s", err))
+	}
 	return &result.Version{
 		TCPPort:   port,
 		Nonce:     s.coreServer.ID(),
@@ -886,6 +890,8 @@ func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 			ValidatorsCount:             byte(cfg.GetNumOfCNs(s.chain.BlockHeight())),
 			InitialGasDistribution:      cfg.InitialGASSupply,
 			Hardforks:                   hfs,
+			StandbyCommittee:            standbyCommittee,
+			SeedList:                    cfg.SeedList,
 
 			CommitteeHistory:  cfg.CommitteeHistory,
 			P2PSigExtensions:  cfg.P2PSigExtensions,

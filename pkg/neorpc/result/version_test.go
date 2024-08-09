@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 	"github.com/stretchr/testify/require"
 )
@@ -40,7 +41,9 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
             "msperblock": 15000,
             "network": 860833102,
             "validatorscount": 7,
-            "hardforks": [{"name": "Aspidochelone", "blockheight": 123}, {"name": "Basilisk", "blockheight": 1234}]
+            "hardforks": [{"name": "Aspidochelone", "blockheight": 123}, {"name": "Basilisk", "blockheight": 1234}],
+            "seedlist": ["seed1.neo.org:10333", "seed2.neo.org:10333"],
+            "standbycommittee": ["03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c", "02df48f60e8f3e01c48ff40b9b7f1310d7a8b2a193188befe1c2e3df740e895093", "03b8d9d5771d8f513aa0869b9cc8d50986403b78c6da36890638c3d46a5adce04a"]
         },
         "rpc": {
             "maxiteratorresultitems": 100,
@@ -62,7 +65,9 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
             "msperblock": 15000,
             "network": 860833102,
             "validatorscount": 7,
-            "hardforks": [{"name": "HF_Aspidochelone", "blockheight": 123}, {"name": "HF_Basilisk", "blockheight": 1234}]
+            "hardforks": [{"name": "HF_Aspidochelone", "blockheight": 123}, {"name": "HF_Basilisk", "blockheight": 1234}],
+            "seedlist": ["seed1.neo.org:10333", "seed2.neo.org:10333"],
+            "standbycommittee": ["03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c", "02df48f60e8f3e01c48ff40b9b7f1310d7a8b2a193188befe1c2e3df740e895093", "03b8d9d5771d8f513aa0869b9cc8d50986403b78c6da36890638c3d46a5adce04a"]
         },
         "rpc": {
             "maxiteratorresultitems": 100,
@@ -72,6 +77,11 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
         "useragent": "/Neo:3.1.0/",
         "wsport": 10334
     }`
+	standbyCommittee, _ := keys.NewPublicKeysFromStrings([]string{
+		"03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c",
+		"02df48f60e8f3e01c48ff40b9b7f1310d7a8b2a193188befe1c2e3df740e895093",
+		"03b8d9d5771d8f513aa0869b9cc8d50986403b78c6da36890638c3d46a5adce04a",
+	})
 	v := &Version{
 		TCPPort:   10333,
 		WSPort:    10334,
@@ -94,6 +104,11 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 			InitialGasDistribution: fixedn.Fixed8FromInt64(52000000),
 			StateRootInHeader:      false,
 			Hardforks:              map[config.Hardfork]uint32{config.HFAspidochelone: 123, config.HFBasilisk: 1234},
+			StandbyCommittee:       standbyCommittee,
+			SeedList: []string{
+				"seed1.neo.org:10333",
+				"seed2.neo.org:10333",
+			},
 		},
 	}
 	t.Run("MarshalJSON", func(t *testing.T) {
