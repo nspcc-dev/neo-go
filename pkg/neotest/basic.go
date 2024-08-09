@@ -107,7 +107,7 @@ func (e *Executor) SignTx(t testing.TB, tx *transaction.Transaction, sysFee int6
 		})
 	}
 	AddNetworkFee(t, e.Chain, tx, signers...)
-	AddSystemFee(e.Chain, tx, sysFee)
+	e.AddSystemFee(tx, sysFee)
 
 	for _, acc := range signers {
 		require.NoError(t, acc.SignTx(e.Chain.GetConfig().Magic, tx))
@@ -287,12 +287,12 @@ func NewDeployTxBy(t testing.TB, bc *core.Blockchain, signer Signer, c *Contract
 
 // AddSystemFee adds system fee to the transaction. If negative value specified,
 // then system fee is defined by test invocation.
-func AddSystemFee(bc *core.Blockchain, tx *transaction.Transaction, sysFee int64) {
+func (e *Executor) AddSystemFee(tx *transaction.Transaction, sysFee int64) {
 	if sysFee >= 0 {
 		tx.SystemFee = sysFee
 		return
 	}
-	v, _ := TestInvoke(bc, tx) // ignore error to support failing transactions
+	v, _ := e.TestInvoke(tx) // ignore error to support failing transactions
 	tx.SystemFee = v.GasConsumed()
 }
 
@@ -384,14 +384,14 @@ func (e *Executor) AddBlockCheckHalt(t testing.TB, txs ...*transaction.Transacti
 }
 
 // TestInvoke creates a test VM with a dummy block and executes a transaction in it.
-func TestInvoke(bc *core.Blockchain, tx *transaction.Transaction) (*vm.VM, error) {
-	lastBlock, err := bc.GetBlock(bc.GetHeaderHash(bc.BlockHeight()))
+func (e *Executor) TestInvoke(tx *transaction.Transaction) (*vm.VM, error) {
+	lastBlock, err := e.Chain.GetBlock(e.Chain.GetHeaderHash(e.Chain.BlockHeight()))
 	if err != nil {
 		return nil, err
 	}
 	b := &block.Block{
 		Header: block.Header{
-			Index:     bc.BlockHeight() + 1,
+			Index:     e.Chain.BlockHeight() + 1,
 			Timestamp: lastBlock.Timestamp + 1,
 		},
 	}
@@ -399,7 +399,7 @@ func TestInvoke(bc *core.Blockchain, tx *transaction.Transaction) (*vm.VM, error
 	// `GetTestVM` as well as `Run` can use a transaction hash which will set a cached value.
 	// This is unwanted behavior, so we explicitly copy the transaction to perform execution.
 	ttx := *tx
-	ic, _ := bc.GetTestVM(trigger.Application, &ttx, b)
+	ic, _ := e.Chain.GetTestVM(trigger.Application, &ttx, b)
 
 	defer ic.Finalize()
 

@@ -67,7 +67,7 @@ func TestCryptoLib_KoblitzVerificationScript(t *testing.T) {
 			},
 		}
 		neotest.AddNetworkFee(t, e.Chain, tx)
-		neotest.AddSystemFee(e.Chain, tx, -1)
+		e.AddSystemFee(tx, -1)
 
 		// Add some more network fee to pay for the witness verification. This value may be calculated precisely,
 		// but let's keep some inaccurate value for the test.
@@ -631,7 +631,7 @@ func TestCryptoLib_KoblitzMultisigVerificationScript(t *testing.T) {
 			},
 		}
 		neotest.AddNetworkFee(t, e.Chain, tx)
-		neotest.AddSystemFee(e.Chain, tx, -1)
+		e.AddSystemFee(tx, -1)
 
 		// Add some more network fee to pay for the witness verification. This value may be calculated precisely,
 		// but let's keep some inaccurate value for the test.
