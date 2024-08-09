@@ -44,17 +44,11 @@ var (
 // Get returns a neofs object from the provided url.
 // URI scheme is "neofs:<Container-ID>/<Object-ID/<Command>/<Params>".
 // If Command is not provided, full object is requested.
-func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string) (io.ReadCloser, error) {
+func Get(ctx context.Context, c *client.Client, priv *keys.PrivateKey, u *url.URL, addr string) (io.ReadCloser, error) {
 	objectAddr, ps, err := parseNeoFSURL(u)
 	if err != nil {
 		return nil, err
 	}
-
-	c, err := client.New(client.PrmInit{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create client: %w", err)
-	}
-
 	var (
 		res  = clientCloseWrapper{c: c}
 		prmd client.PrmDial
@@ -219,4 +213,35 @@ func parseRange(s string) (*object.Range, error) {
 	r.SetOffset(offset)
 	r.SetLength(length)
 	return r, nil
+}
+
+// ObjectSearch returns a list of object IDs from the provided container.
+func ObjectSearch(ctx context.Context, c *client.Client, priv *keys.PrivateKey, containerID cid.ID, addr string, prm client.PrmObjectSearch) ([]oid.ID, error) {
+	var (
+		prmd      client.PrmDial
+		s         = user.NewAutoIDSignerRFC6979(priv.PrivateKey)
+		objectIDs []oid.ID
+	)
+
+	prmd.SetServerURI(addr)
+	prmd.SetContext(ctx)
+	err := c.Dial(prmd)
+	if err != nil {
+		return nil, err
+	}
+
+	reader, err := c.ObjectSearchInit(ctx, containerID, s, prm)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initiate object search: %w", err)
+	}
+	defer reader.Close()
+
+	err = reader.Iterate(func(oid oid.ID) bool {
+		objectIDs = append(objectIDs, oid)
+		return false
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error during object ID iteration: %w", err)
+	}
+	return objectIDs, nil
 }

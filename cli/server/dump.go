@@ -10,7 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dboper"
 )
 
-type dump []blockDump
+type Dump []blockDump
 
 type blockDump struct {
 	Block   uint32             `json:"block"`
@@ -18,11 +18,11 @@ type blockDump struct {
 	Storage []dboper.Operation `json:"storage"`
 }
 
-func newDump() *dump {
-	return new(dump)
+func NewDump() *Dump {
+	return new(Dump)
 }
 
-func (d *dump) add(index uint32, batch *storage.MemBatch) {
+func (d *Dump) Add(index uint32, batch *storage.MemBatch) {
 	ops := storage.BatchToOperations(batch)
 	*d = append(*d, blockDump{
 		Block:   index,
@@ -31,7 +31,7 @@ func (d *dump) add(index uint32, batch *storage.MemBatch) {
 	})
 }
 
-func (d *dump) tryPersist(prefix string, index uint32) error {
+func (d *Dump) TryPersist(prefix string, index uint32) error {
 	if len(*d) == 0 {
 		return nil
 	}
@@ -62,12 +62,12 @@ func (d *dump) tryPersist(prefix string, index uint32) error {
 	return nil
 }
 
-func readFile(path string) (*dump, error) {
+func readFile(path string) (*Dump, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	d := newDump()
+	d := NewDump()
 	if err := json.Unmarshal(data, d); err != nil {
 		return nil, err
 	}

@@ -1,9 +1,14 @@
 package neofs
 
 import (
+	"context"
 	"net/url"
 	"testing"
+	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neofs-sdk-go/client"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/stretchr/testify/require"
 )
@@ -71,4 +76,23 @@ func TestParseNeoFSURL(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFetchListFromNeoFS(t *testing.T) {
+	privateKey, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	cStr := "9iVfUg8aDHKjPC4LhQXEkVUM4HDkR7UCXYLs8NQwYfSG"
+	var containerID cid.ID
+	if err := containerID.DecodeString(cStr); err != nil {
+		require.NoError(t, err)
+	}
+	neofsClient, err := client.New(client.PrmInit{})
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	prm := client.PrmObjectSearch{}
+	_, err = ObjectSearch(ctx, neofsClient, privateKey, containerID, "st1.t5.fs.neo.org:8080", prm)
+	require.NoError(t, err)
 }
