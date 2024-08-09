@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
-	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -107,7 +106,7 @@ func (e *Executor) SignTx(t testing.TB, tx *transaction.Transaction, sysFee int6
 		})
 	}
 	AddNetworkFee(t, e.Chain, tx, signers...)
-	AddSystemFee(e.Chain, tx, sysFee)
+	e.AddSystemFee(tx, sysFee)
 
 	for _, acc := range signers {
 		require.NoError(t, acc.SignTx(e.Chain.GetConfig().Magic, tx))
@@ -146,7 +145,7 @@ func (e *Executor) DeployContract(t testing.TB, c *Contract, data any) util.Uint
 // data is an optional argument to `_deploy`.
 // It returns the hash of the deploy transaction.
 func (e *Executor) DeployContractBy(t testing.TB, signer Signer, c *Contract, data any) util.Uint256 {
-	tx := NewDeployTxBy(t, e.Chain, signer, c, data)
+	tx := e.NewDeployTxBy(t, signer, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckHalt(t, tx.Hash())
 
@@ -165,7 +164,7 @@ func (e *Executor) DeployContractBy(t testing.TB, signer Signer, c *Contract, da
 // DeployContractCheckFAULT compiles and deploys a contract to the bc using the validator
 // account. It checks that the deploy transaction FAULTed with the specified error.
 func (e *Executor) DeployContractCheckFAULT(t testing.TB, c *Contract, data any, errMessage string) {
-	tx := e.NewDeployTx(t, e.Chain, c, data)
+	tx := e.NewDeployTx(t, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckFault(t, tx.Hash(), errMessage)
 }
@@ -258,41 +257,42 @@ func (e *Executor) EnsureGASBalance(t testing.TB, acc util.Uint160, isOk func(ba
 }
 
 // NewDeployTx returns a new deployment tx for the contract signed by the committee.
-func (e *Executor) NewDeployTx(t testing.TB, bc *core.Blockchain, c *Contract, data any) *transaction.Transaction {
-	return NewDeployTxBy(t, bc, e.Validator, c, data)
+func (e *Executor) NewDeployTx(t testing.TB, c *Contract, data any) *transaction.Transaction {
+	return e.NewDeployTxBy(t, e.Validator, c, data)
 }
 
 // NewDeployTxBy returns a new deployment tx for the contract signed by the specified signer.
-func NewDeployTxBy(t testing.TB, bc *core.Blockchain, signer Signer, c *Contract, data any) *transaction.Transaction {
+func (e *Executor) NewDeployTxBy(t testing.TB, signer Signer, c *Contract, data any) *transaction.Transaction {
 	rawManifest, err := json.Marshal(c.Manifest)
 	require.NoError(t, err)
 
 	neb, err := c.NEF.Bytes()
 	require.NoError(t, err)
 
-	script, err := smartcontract.CreateCallScript(bc.ManagementContractHash(), "deploy", neb, rawManifest, data)
+	script, err := smartcontract.CreateCallScript(e.Chain.ManagementContractHash(), "deploy", neb, rawManifest, data)
 	require.NoError(t, err)
 
-	tx := transaction.New(script, 100*native.GASFactor)
+	tx := transaction.New(script, 0)
 	tx.Nonce = Nonce()
-	tx.ValidUntilBlock = bc.BlockHeight() + 1
+	tx.ValidUntilBlock = e.Chain.BlockHeight() + 1
 	tx.Signers = []transaction.Signer{{
 		Account: signer.ScriptHash(),
 		Scopes:  transaction.Global,
 	}}
-	AddNetworkFee(t, bc, tx, signer)
+	AddNetworkFee(t, e.Chain, tx, signer)
+	e.AddSystemFee(tx, -1)
 	require.NoError(t, signer.SignTx(netmode.UnitTestNet, tx))
 	return tx
 }
 
 // AddSystemFee adds system fee to the transaction. If negative value specified,
 // then system fee is defined by test invocation.
-func AddSystemFee(bc *core.Blockchain, tx *transaction.Transaction, sysFee int64) {
+func (e *Executor) AddSystemFee(tx *transaction.Transaction, sysFee int64) {
 	if sysFee >= 0 {
 		tx.SystemFee = sysFee
 		return
 	}
-	v, _ := TestInvoke(bc, tx) // ignore error to support failing transactions
+	v, _ := e.TestInvoke(tx) // ignore error to support failing transactions
 	tx.SystemFee = v.GasConsumed()
 }
 
@@ -384,14 +384,14 @@ func (e *Executor) AddBlockCheckHalt(t testing.TB, txs ...*transaction.Transacti
 }
 
 // TestInvoke creates a test VM with a dummy block and executes a transaction in it.
-func TestInvoke(bc *core.Blockchain, tx *transaction.Transaction) (*vm.VM, error) {
-	lastBlock, err := bc.GetBlock(bc.GetHeaderHash(bc.BlockHeight()))
+func (e *Executor) TestInvoke(tx *transaction.Transaction) (*vm.VM, error) {
+	lastBlock, err := e.Chain.GetBlock(e.Chain.GetHeaderHash(e.Chain.BlockHeight()))
 	if err != nil {
 		return nil, err
 	}
 	b := &block.Block{
 		Header: block.Header{
-			Index:     bc.BlockHeight() + 1,
+			Index:     e.Chain.BlockHeight() + 1,
 			Timestamp: lastBlock.Timestamp + 1,
 		},
 	}
@@ -399,7 +399,7 @@ func TestInvoke(bc *core.Blockchain, tx *transaction.Transaction) (*vm.VM, error
 	// `GetTestVM` as well as `Run` can use a transaction hash which will set a cached value.
 	// This is unwanted behavior, so we explicitly copy the transaction to perform execution.
 	ttx := *tx
-	ic, _ := bc.GetTestVM(trigger.Application, &ttx, b)
+	ic, _ := e.Chain.GetTestVM(trigger.Application, &ttx, b)
 
 	defer ic.Finalize()
 
