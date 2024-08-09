@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 )
 
@@ -40,7 +41,9 @@ type (
 		ValidatorsCount             byte
 		InitialGasDistribution      fixedn.Fixed8
 		// Hardforks is the map of network hardforks with the enabling height.
-		Hardforks map[config.Hardfork]uint32
+		Hardforks        map[config.Hardfork]uint32
+		StandbyCommittee keys.PublicKeys
+		SeedList         []string
 
 		// Below are NeoGo-specific extensions to the protocol that are
 		// returned by the server in case they're enabled.
@@ -67,6 +70,8 @@ type (
 		ValidatorsCount             byte          `json:"validatorscount"`
 		InitialGasDistribution      int64         `json:"initialgasdistribution"`
 		Hardforks                   []hardforkAux `json:"hardforks"`
+		StandbyCommittee            []string      `json:"standbycommittee"`
+		SeedList                    []string      `json:"seedlist"`
 
 		CommitteeHistory  map[uint32]uint32 `json:"committeehistory,omitempty"`
 		P2PSigExtensions  bool              `json:"p2psigextensions,omitempty"`
@@ -96,6 +101,11 @@ func (p Protocol) MarshalJSON() ([]byte, error) {
 			})
 		}
 	}
+	standbyCommittee := make([]string, len(p.StandbyCommittee))
+	for i, key := range p.StandbyCommittee {
+		standbyCommittee[i] = key.StringCompressed()
+	}
+
 	aux := protocolMarshallerAux{
 		AddressVersion:              p.AddressVersion,
 		Network:                     p.Network,
@@ -107,6 +117,8 @@ func (p Protocol) MarshalJSON() ([]byte, error) {
 		ValidatorsCount:             p.ValidatorsCount,
 		InitialGasDistribution:      int64(p.InitialGasDistribution),
 		Hardforks:                   hfs,
+		StandbyCommittee:            standbyCommittee,
+		SeedList:                    p.SeedList,
 
 		CommitteeHistory:  p.CommitteeHistory,
 		P2PSigExtensions:  p.P2PSigExtensions,
@@ -123,6 +135,10 @@ func (p *Protocol) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	standbyCommittee, err := keys.NewPublicKeysFromStrings(aux.StandbyCommittee)
+	if err != nil {
+		return err
+	}
 	p.AddressVersion = aux.AddressVersion
 	p.Network = aux.Network
 	p.MillisecondsPerBlock = aux.MillisecondsPerBlock
@@ -136,6 +152,8 @@ func (p *Protocol) UnmarshalJSON(data []byte) error {
 	p.StateRootInHeader = aux.StateRootInHeader
 	p.ValidatorsHistory = aux.ValidatorsHistory
 	p.InitialGasDistribution = fixedn.Fixed8(aux.InitialGasDistribution)
+	p.StandbyCommittee = standbyCommittee
+	p.SeedList = aux.SeedList
 
 	// Filter out unknown hardforks.
 	for i := range aux.Hardforks {
