@@ -127,7 +127,7 @@ func TestManagement_CallInTheSameBlock(t *testing.T) {
 		m.Name = "another contract"
 		h := state.CreateContractHash(e.Validator.ScriptHash(), ne.Checksum, m.Name)
 
-		txDeploy := e.NewDeployTx(t, e.Chain, &neotest.Contract{Hash: h, NEF: ne, Manifest: m}, nil)
+		txDeploy := e.NewDeployTx(t, &neotest.Contract{Hash: h, NEF: ne, Manifest: m}, nil)
 		txHasMethod := e.NewTx(t, []neotest.Signer{e.Validator}, bc.ManagementContractHash(), "hasMethod", h, "main", 0)
 
 		txCall := e.NewUnsignedTx(t, h, "main") // Test invocation doesn't give true GAS cost before deployment.
