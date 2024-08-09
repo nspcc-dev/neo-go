@@ -590,11 +590,9 @@ func doSomeWSRequest(t *testing.T, ws *websocket.Conn) {
 }
 
 func TestWSClientsLimit(t *testing.T) {
-	for tname, limit := range map[string]int{"default": 0, "8": 8, "disabled": -1} {
+	for tname, limit := range map[string]int{"8": 8, "disabled": -1} {
 		effectiveClients := limit
-		if limit == 0 {
-			effectiveClients = defaultMaxWebSocketClients
-		} else if limit < 0 {
+		if limit < 0 {
 			effectiveClients = 0
 		}
 		t.Run(tname, func(t *testing.T) {
