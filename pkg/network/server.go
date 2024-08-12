@@ -21,6 +21,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -66,7 +67,6 @@ type (
 		GetMaxVerificationGAS() int64
 		GetMemPool() *mempool.Pool
 		GetNotaryBalance(acc util.Uint160) *big.Int
-		GetNotaryContractScriptHash() util.Uint160
 		GetNotaryDepositExpiration(acc util.Uint160) uint32
 		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 		HasBlock(util.Uint256) bool
@@ -1240,7 +1240,7 @@ func (s *Server) verifyNotaryRequest(_ *transaction.Transaction, data any) error
 	if _, err := s.chain.VerifyWitness(payer, r, &r.Witness, s.chain.GetMaxVerificationGAS()); err != nil {
 		return fmt.Errorf("bad P2PNotaryRequest payload witness: %w", err)
 	}
-	notaryHash := s.chain.GetNotaryContractScriptHash()
+	notaryHash := nativehashes.Notary
 	if r.FallbackTransaction.Sender() != notaryHash {
 		return fmt.Errorf("P2PNotary contract should be a sender of the fallback transaction, got %s", address.Uint160ToString(r.FallbackTransaction.Sender()))
 	}

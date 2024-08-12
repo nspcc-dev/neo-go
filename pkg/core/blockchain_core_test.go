@@ -371,6 +371,7 @@ func TestNewBlockchain_InitHardforks(t *testing.T) {
 			config.HFBasilisk.String():      0,
 			config.HFCockatrice.String():    0,
 			config.HFDomovoi.String():       0,
+			config.HFEchidna.String():       0,
 		}, bc.GetConfig().Hardforks)
 	})
 	t.Run("empty set", func(t *testing.T) {
@@ -401,7 +402,7 @@ func TestNewBlockchain_InitHardforks(t *testing.T) {
 	})
 	t.Run("all present", func(t *testing.T) {
 		bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
-			c.ProtocolConfiguration.Hardforks = map[string]uint32{config.HFAspidochelone.String(): 5, config.HFBasilisk.String(): 10, config.HFCockatrice.String(): 15, config.HFDomovoi.String(): 20}
+			c.ProtocolConfiguration.Hardforks = map[string]uint32{config.HFAspidochelone.String(): 5, config.HFBasilisk.String(): 10, config.HFCockatrice.String(): 15, config.HFDomovoi.String(): 20, config.HFEchidna.String(): 25}
 			require.NoError(t, c.ProtocolConfiguration.Validate())
 		})
 		require.Equal(t, map[string]uint32{
@@ -409,6 +410,7 @@ func TestNewBlockchain_InitHardforks(t *testing.T) {
 			config.HFBasilisk.String():      10,
 			config.HFCockatrice.String():    15,
 			config.HFDomovoi.String():       20,
+			config.HFEchidna.String():       25,
 		}, bc.GetConfig().Hardforks)
 	})
 }

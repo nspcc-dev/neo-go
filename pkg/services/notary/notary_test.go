@@ -7,11 +7,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
@@ -48,8 +48,7 @@ func TestWallet(t *testing.T) {
 
 func TestVerifyIncompleteRequest(t *testing.T) {
 	bc := fakechain.NewFakeChain()
-	notaryContractHash := util.Uint160{1, 2, 3}
-	bc.NotaryContractScriptHash = notaryContractHash
+	notaryContractHash := nativehashes.Notary
 	_, ntr, _ := getTestNotary(t, bc, "./testdata/notary1.json", "one")
 	sig := append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...) // we're not interested in signature correctness
 	acc1, _ := keys.NewPrivateKey()
