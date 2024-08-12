@@ -43,6 +43,9 @@ const (
 	// different ApplicationLogs comparing to the C# node, but the node states
 	// match. See #3485 for details.
 	HFDomovoi // Domovoi
+	// HFEchidna represents hard-fork introduced in #3554 (ported from
+	// https://github.com/neo-project/neo/pull/3454).
+	HFEchidna // Echidna
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.
 	hfLast
