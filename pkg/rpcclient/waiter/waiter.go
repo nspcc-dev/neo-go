@@ -167,9 +167,6 @@ func (w *PollingBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.U
 		failedAttempt int
 		pollTime      = time.Millisecond * time.Duration(w.version.Protocol.MillisecondsPerBlock) / 2
 	)
-	if pollTime == 0 {
-		pollTime = time.Second
-	}
 	timer := time.NewTicker(pollTime)
 	defer timer.Stop()
 	for {
