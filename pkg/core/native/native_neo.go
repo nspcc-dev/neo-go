@@ -1015,7 +1015,7 @@ func (n *NEO) ModifyAccountVotes(acc *state.NEOBalance, d *dao.Simple, value *bi
 	return nil
 }
 
-func (n *NEO) getCandidates(d *dao.Simple, sortByKey bool, max int) ([]keyWithVotes, error) {
+func (n *NEO) getCandidates(d *dao.Simple, sortByKey bool, maxNum int) ([]keyWithVotes, error) {
 	arr := make([]keyWithVotes, 0)
 	buf := io.NewBufBinWriter()
 	d.Seek(n.ID, storage.SeekRange{Prefix: []byte{prefixCandidate}}, func(k, v []byte) bool {
@@ -1025,7 +1025,7 @@ func (n *NEO) getCandidates(d *dao.Simple, sortByKey bool, max int) ([]keyWithVo
 			arr = append(arr, keyWithVotes{Key: string(k), Votes: &c.Votes})
 		}
 		buf.Reset()
-		return !sortByKey || max > 0 && len(arr) < max
+		return !sortByKey || maxNum > 0 && len(arr) < maxNum
 	})
 
 	if !sortByKey {

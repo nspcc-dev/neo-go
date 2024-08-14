@@ -83,15 +83,15 @@ func Int64(r *result.Invoke, err error) (int64, error) {
 // LimitedInt64 is similar to Int64 except it allows to set minimum and maximum
 // limits to be checked, so if it doesn't return an error the value is more than
 // min and less than max.
-func LimitedInt64(r *result.Invoke, err error, min int64, max int64) (int64, error) {
+func LimitedInt64(r *result.Invoke, err error, minI int64, maxI int64) (int64, error) {
 	i, err := Int64(r, err)
 	if err != nil {
 		return 0, err
 	}
-	if i < min {
+	if i < minI {
 		return 0, errors.New("too small value")
 	}
-	if i > max {
+	if i > maxI {
 		return 0, errors.New("too big value")
 	}
 	return i, nil

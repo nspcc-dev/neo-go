@@ -50,9 +50,9 @@ func testGetSet(t *testing.T, c *neotest.ContractInvoker, name string, defaultVa
 	if maxValue != 0 {
 		t.Run("set, too large value", func(t *testing.T) {
 			// use big.Int because max can be `math.MaxInt64`
-			max := big.NewInt(maxValue)
-			max.Add(max, big.NewInt(1))
-			committeeInvoker.InvokeFail(t, "", setName, max)
+			m := big.NewInt(maxValue)
+			m.Add(m, big.NewInt(1))
+			committeeInvoker.InvokeFail(t, "", setName, m)
 		})
 	}
 

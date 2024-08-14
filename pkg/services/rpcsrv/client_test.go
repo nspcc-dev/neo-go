@@ -1478,11 +1478,11 @@ func TestClient_IteratorSessions(t *testing.T) {
 	t.Run("traverse with max constraint", func(t *testing.T) {
 		sID, iID := prepareSession(t)
 		check := func(t *testing.T, start, end int) {
-			max := end - start
-			set, err := c.TraverseIterator(sID, iID, max)
+			maxNum := end - start
+			set, err := c.TraverseIterator(sID, iID, maxNum)
 			require.NoError(t, err)
-			require.Equal(t, max, len(set))
-			for i := 0; i < max; i++ {
+			require.Equal(t, maxNum, len(set))
+			for i := 0; i < maxNum; i++ {
 				// According to the Storage contract code.
 				require.Equal(t, expected[start+i], set[i].Value().([]byte), start+i)
 			}
@@ -1672,11 +1672,11 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 		require.True(t, ok)
 		require.NotEmpty(t, iterator.ID)
 		require.Empty(t, iterator.Values)
-		max := 84
-		actual, err := c.TraverseIterator(res.Session, *iterator.ID, max)
+		maxNum := 84
+		actual, err := c.TraverseIterator(res.Session, *iterator.ID, maxNum)
 		require.NoError(t, err)
-		require.Equal(t, max, len(actual))
-		for i := 0; i < max; i++ {
+		require.Equal(t, maxNum, len(actual))
+		for i := 0; i < maxNum; i++ {
 			// According to the Storage contract code.
 			require.Equal(t, expected[i], actual[i].Value().([]byte), i)
 		}

@@ -260,7 +260,7 @@ func GetContractScriptHash(d *dao.Simple, id int32) (util.Uint160, error) {
 	return util.Uint160DecodeBytesBE(si)
 }
 
-func getLimitedSlice(arg stackitem.Item, max int) ([]byte, error) {
+func getLimitedSlice(arg stackitem.Item, maxLen int) ([]byte, error) {
 	_, isNull := arg.(stackitem.Null)
 	if isNull {
 		return nil, nil
@@ -272,8 +272,8 @@ func getLimitedSlice(arg stackitem.Item, max int) ([]byte, error) {
 	l := len(b)
 	if l == 0 {
 		return nil, errors.New("empty")
-	} else if l > max {
-		return nil, fmt.Errorf("len is %d (max %d)", l, max)
+	} else if l > maxLen {
+		return nil, fmt.Errorf("len is %d (max %d)", l, maxLen)
 	}
 
 	return b, nil

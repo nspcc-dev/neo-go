@@ -81,16 +81,16 @@ func (s *Module) GetState(root util.Uint256, key []byte) ([]byte, error) {
 }
 
 // FindStates returns a set of key-value pairs with keys matching the prefix starting
-// from the `prefix`+`start` path from MPT with the specified root. `max` is
+// from the `prefix`+`start` path from MPT with the specified root. `maxNum` is
 // the maximum number of elements to be returned. If nil `start` is specified, then the
 // item with the key equal to the prefix is included into the result; if empty `start` is specified,
 // then the item with the key equal to the prefix is not included into the result.
 // In case there are no results (prefix is unused, start is after the last available
 // element) mpt.ErrNotFound is returned.
-func (s *Module) FindStates(root util.Uint256, prefix, start []byte, max int) ([]storage.KeyValue, error) {
+func (s *Module) FindStates(root util.Uint256, prefix, start []byte, maxNum int) ([]storage.KeyValue, error) {
 	// Allow accessing old values, it's RO thing.
 	tr := mpt.NewTrie(mpt.NewHashNode(root), s.mode&^mpt.ModeGCFlag, storage.NewMemCachedStore(s.Store))
-	return tr.Find(prefix, start, max)
+	return tr.Find(prefix, start, maxNum)
 }
 
 // SeekStates traverses over contract storage with the state based on the

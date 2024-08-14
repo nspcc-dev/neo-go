@@ -196,7 +196,7 @@ type StateRoot interface {
 	CurrentLocalHeight() uint32
 	CurrentLocalStateRoot() util.Uint256
 	CurrentValidatedHeight() uint32
-	FindStates(root util.Uint256, prefix, start []byte, max int) ([]storage.KeyValue, error)
+	FindStates(root util.Uint256, prefix, start []byte, maxNum int) ([]storage.KeyValue, error)
 	SeekStates(root util.Uint256, prefix []byte, f func(k, v []byte) bool)
 	GetState(root util.Uint256, key []byte) ([]byte, error)
 	GetStateProof(root util.Uint256, key []byte) ([][]byte, error)

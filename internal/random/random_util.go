@@ -32,9 +32,9 @@ func Fill(buf []byte) {
 	r.Read(buf)
 }
 
-// Int returns a random integer in [min,max).
-func Int(min, max int) int {
-	return min + rand.Intn(max-min)
+// Int returns a random integer in [minI,maxI).
+func Int(minI, maxI int) int {
+	return minI + rand.Intn(maxI-minI)
 }
 
 // Uint256 returns a random Uint256.
