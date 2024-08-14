@@ -572,8 +572,8 @@ func collapse(depth int, node Node) Node {
 
 // Find returns a list of storage key-value pairs whose key is prefixed by the specified
 // prefix starting from the specified `prefix`+`from` path (not including the item at
-// the specified `prefix`+`from` path if so). The `max` number of elements is returned at max.
-func (t *Trie) Find(prefix, from []byte, max int) ([]storage.KeyValue, error) {
+// the specified `prefix`+`from` path if so). The `maxNum` number of elements is returned at max.
+func (t *Trie) Find(prefix, from []byte, maxNum int) ([]storage.KeyValue, error) {
 	if len(prefix) > MaxKeyLength {
 		return nil, errors.New("invalid prefix length")
 	}
@@ -622,7 +622,7 @@ func (t *Trie) Find(prefix, from []byte, max int) ([]storage.KeyValue, error) {
 				count++
 			}
 		}
-		return count >= max
+		return count >= maxNum
 	}
 	_, err = b.traverse(start, path, fromP, process, false, false)
 	if err != nil && !errors.Is(err, errStop) {
