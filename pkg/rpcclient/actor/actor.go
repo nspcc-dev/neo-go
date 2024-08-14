@@ -106,6 +106,10 @@ type Options struct {
 	// before it's signed (other methods that perform test invocations
 	// use CheckerModifier). MakeUnsigned* methods do not run it.
 	Modifier TransactionModifier
+	// waiter.PollConfig is used by [waiter.Waiter] constructor to customize
+	// [waiter.PollingBased] behaviour. This option may be kept empty for default
+	// polling behaviour.
+	waiter.PollConfig
 }
 
 // New creates an Actor instance using the specified RPC interface and the set of
@@ -183,6 +187,7 @@ func NewTuned(ra RPCActor, signers []SignerAccount, opts Options) (*Actor, error
 	if opts.Modifier != nil {
 		a.opts.Modifier = opts.Modifier
 	}
+	a.Waiter = waiter.NewCustom(ra, a.version, opts.PollConfig)
 	return a, err
 }
 

@@ -118,14 +118,26 @@ func errIsAlreadyExists(err error) bool {
 // or not an implementation of these two interfaces. It returns websocket-based
 // waiter, polling-based waiter or a stub correspondingly.
 func New(base any, v *result.Version) Waiter {
+	return NewCustom(base, v, PollConfig{})
+}
+
+// NewCustom creates Waiter instance. It can be either websocket-based or
+// polling-base, otherwise Waiter stub is returned. As a first argument
+// it accepts RPCEventBased implementation, RPCPollingBased implementation
+// or not an implementation of these two interfaces. It returns websocket-based
+// waiter, polling-based waiter or a stub correspondingly. As the second
+// argument it accepts the RPC node version necessary for awaiting behaviour
+// customisation. As a third argument it accepts the configuration of
+// [PollingBased] [Waiter].
+func NewCustom(base any, v *result.Version, pollConfig PollConfig) Waiter {
 	if eventW, ok := base.(RPCEventBased); ok {
 		return &EventBased{
 			ws:      eventW,
-			polling: newCustomPollingBased(eventW, v, PollConfig{}),
+			polling: newCustomPollingBased(eventW, v, pollConfig),
 		}
 	}
 	if pollW, ok := base.(RPCPollingBased); ok {
-		return newCustomPollingBased(pollW, v, PollConfig{})
+		return newCustomPollingBased(pollW, v, pollConfig)
 	}
 	return NewNull()
 }
