@@ -90,6 +90,12 @@ type PollingBased struct {
 	config  PollConfig
 }
 
+// Config is a unified configuration for [Waiter] implementations that allows to
+// customize awaiting behaviour.
+type Config struct {
+	PollConfig
+}
+
 // PollConfig is a configuration for PollingBased waiter.
 type PollConfig struct {
 	// PollInterval is a time interval between subsequent polls. If not set, then
@@ -118,7 +124,7 @@ func errIsAlreadyExists(err error) bool {
 // or not an implementation of these two interfaces. It returns websocket-based
 // waiter, polling-based waiter or a stub correspondingly.
 func New(base any, v *result.Version) Waiter {
-	return NewCustom(base, v, PollConfig{})
+	return NewCustom(base, v, Config{})
 }
 
 // NewCustom creates Waiter instance. It can be either websocket-based or
@@ -128,16 +134,16 @@ func New(base any, v *result.Version) Waiter {
 // waiter, polling-based waiter or a stub correspondingly. As the second
 // argument it accepts the RPC node version necessary for awaiting behaviour
 // customisation. As a third argument it accepts the configuration of
-// [PollingBased] [Waiter].
-func NewCustom(base any, v *result.Version, pollConfig PollConfig) Waiter {
+// [Waiter].
+func NewCustom(base any, v *result.Version, config Config) Waiter {
 	if eventW, ok := base.(RPCEventBased); ok {
 		return &EventBased{
 			ws:      eventW,
-			polling: newCustomPollingBased(eventW, v, pollConfig),
+			polling: newCustomPollingBased(eventW, v, config.PollConfig),
 		}
 	}
 	if pollW, ok := base.(RPCPollingBased); ok {
-		return newCustomPollingBased(pollW, v, pollConfig)
+		return newCustomPollingBased(pollW, v, config.PollConfig)
 	}
 	return NewNull()
 }
@@ -244,15 +250,15 @@ func (w *PollingBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.U
 // EventBased contains PollingBased under the hood and falls back to polling when subscription-based
 // awaiting fails.
 func NewEventBased(waiter RPCEventBased) (*EventBased, error) {
-	return NewCustomEventBased(waiter, PollConfig{})
+	return NewCustomEventBased(waiter, Config{})
 }
 
 // NewCustomEventBased creates an instance of Waiter supporting websocket event-based transaction awaiting.
 // EventBased contains PollingBased under the hood and falls back to polling when subscription-based
-// awaiting fails. PollingBased configuration options may be specified via pollConfig parameter
+// awaiting fails. Waiter configuration options may be specified via config parameter
 // (defaults are used if not specified).
-func NewCustomEventBased(waiter RPCEventBased, pollConfig PollConfig) (*EventBased, error) {
-	polling, err := NewCustomPollingBased(waiter, pollConfig)
+func NewCustomEventBased(waiter RPCEventBased, config Config) (*EventBased, error) {
+	polling, err := NewCustomPollingBased(waiter, config.PollConfig)
 	if err != nil {
 		return nil, err
 	}
