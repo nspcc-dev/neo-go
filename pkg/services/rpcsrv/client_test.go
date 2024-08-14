@@ -51,6 +51,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/oracle"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/policy"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/rolemgmt"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/waiter"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
@@ -1808,6 +1809,15 @@ func TestClient_Wait(t *testing.T) {
 		b, err := chain.GetBlock(chain.GetHeaderHash(1))
 		require.NoError(t, err)
 		require.True(t, len(b.Transactions) > 0)
+
+		// Ensure Waiter constructor works properly.
+		if ws {
+			_, ok := act.Waiter.(*waiter.EventBased)
+			require.True(t, ok)
+		} else {
+			_, ok := act.Waiter.(*waiter.PollingBased)
+			require.True(t, ok)
+		}
 
 		check := func(t *testing.T, h util.Uint256, vub uint32, errExpected bool) {
 			rcvr := make(chan struct{})
