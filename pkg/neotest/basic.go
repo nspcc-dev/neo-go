@@ -32,20 +32,23 @@ type Executor struct {
 	Validator     Signer
 	Committee     Signer
 	CommitteeHash util.Uint160
-	Contracts     map[string]*Contract
+	// collectCoverage is true if coverage is being collected when running this executor.
+	collectCoverage bool
 }
 
 // NewExecutor creates a new executor instance from the provided blockchain and committee.
+// By default coverage collection is enabled, but only when `go test` is running with coverage enabled.
+// Use DisableCoverage and EnableCoverage to stop coverage collection for this executor when not desired.
 func NewExecutor(t testing.TB, bc *core.Blockchain, validator, committee Signer) *Executor {
 	checkMultiSigner(t, validator)
 	checkMultiSigner(t, committee)
 
 	return &Executor{
-		Chain:         bc,
-		Validator:     validator,
-		Committee:     committee,
-		CommitteeHash: committee.ScriptHash(),
-		Contracts:     make(map[string]*Contract),
+		Chain:           bc,
+		Validator:       validator,
+		Committee:       committee,
+		CommitteeHash:   committee.ScriptHash(),
+		collectCoverage: isCoverageEnabled(),
 	}
 }
 
@@ -145,6 +148,7 @@ func (e *Executor) DeployContract(t testing.TB, c *Contract, data any) util.Uint
 // data is an optional argument to `_deploy`.
 // It returns the hash of the deploy transaction.
 func (e *Executor) DeployContractBy(t testing.TB, signer Signer, c *Contract, data any) util.Uint256 {
+	e.trackCoverage(t, c)
 	tx := e.NewDeployTxBy(t, signer, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckHalt(t, tx.Hash())
@@ -164,9 +168,20 @@ func (e *Executor) DeployContractBy(t testing.TB, signer Signer, c *Contract, da
 // DeployContractCheckFAULT compiles and deploys a contract to the bc using the validator
 // account. It checks that the deploy transaction FAULTed with the specified error.
 func (e *Executor) DeployContractCheckFAULT(t testing.TB, c *Contract, data any, errMessage string) {
+	e.trackCoverage(t, c)
 	tx := e.NewDeployTx(t, c, data)
 	e.AddNewBlock(t, tx)
 	e.CheckFault(t, tx.Hash(), errMessage)
+}
+
+// trackCoverage switches on coverage tracking for provided script if `go test` is running with coverage enabled.
+func (e *Executor) trackCoverage(t testing.TB, c *Contract) {
+	if e.collectCoverage {
+		addScriptToCoverage(c)
+		t.Cleanup(func() {
+			reportCoverage(t)
+		})
+	}
 }
 
 // InvokeScript adds a transaction with the specified script to the chain and
@@ -401,6 +416,10 @@ func (e *Executor) TestInvoke(tx *transaction.Transaction) (*vm.VM, error) {
 	ttx := *tx
 	ic, _ := e.Chain.GetTestVM(trigger.Application, &ttx, b)
 
+	if e.collectCoverage {
+		ic.VM.SetOnExecHook(coverageHook)
+	}
+
 	defer ic.Finalize()
 
 	ic.VM.LoadWithFlags(tx.Script, callflag.All)
@@ -430,4 +449,14 @@ func (e *Executor) GetTxExecResult(t testing.TB, h util.Uint256) *state.AppExecR
 	require.NoError(t, err)
 	require.Equal(t, 1, len(aer))
 	return &aer[0]
+}
+
+// EnableCoverage enables coverage collection for this executor, but only when `go test` is running with coverage enabled.
+func (e *Executor) EnableCoverage() {
+	e.collectCoverage = isCoverageEnabled()
+}
+
+// DisableCoverage disables coverage collection for this executor until enabled explicitly through EnableCoverage.
+func (e *Executor) DisableCoverage() {
+	e.collectCoverage = false
 }

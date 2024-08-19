@@ -22,6 +22,8 @@ BUILD_FLAGS = "-X '$(REPO)/pkg/config.Version=$(VERSION)' -X '$(REPO)/cli/smartc
 
 IMAGE_REPO=nspccdev/neo-go
 
+DISABLE_NEOTEST_COVER=1
+
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
 .PHONY: build $(BINARY) deps image docker/$(BINARY) image-latest image-push image-push-latest clean-cluster \
