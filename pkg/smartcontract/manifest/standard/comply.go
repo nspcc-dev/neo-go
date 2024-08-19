@@ -19,7 +19,7 @@ var (
 )
 
 var checks = map[string][]*Standard{
-	manifest.NEP11StandardName: {Nep11NonDivisible, Nep11Divisible},
+	manifest.NEP11StandardName: {Nep11NonDivisible, Nep11Divisible, Nep11WithRoyalty},
 	manifest.NEP17StandardName: {Nep17},
 	manifest.NEP11Payable:      {Nep11Payable},
 	manifest.NEP17Payable:      {Nep17Payable},

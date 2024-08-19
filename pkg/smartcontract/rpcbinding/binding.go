@@ -407,6 +407,9 @@ func Generate(cfg binding.Config) error {
 			} else if standard.ComplyABI(cfg.Manifest, standard.Nep11NonDivisible) == nil {
 				mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11NonDivisible)
 				ctr.IsNep11ND = true
+			} else if standard.ComplyABI(cfg.Manifest, standard.Nep11WithRoyalty) == nil {
+				mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11WithRoyalty)
+				ctr.IsNep11D = true
 			}
 			mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep11Base)
 			break // Can't be NEP-17 at the same time.
