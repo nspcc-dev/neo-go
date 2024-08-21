@@ -139,7 +139,7 @@ jobs:
           cache: true
 
       - name: Write coverage profile
-        run: go test -timeout 15m -v ./... -coverprofile=./coverage.txt -covermode=atomic -coverpkg=./pkg...,./cli/...
+        run: DISABLE_NEOTEST_COVER=1 go test -timeout 15m -v ./... -coverprofile=./coverage.txt -covermode=atomic -coverpkg=./pkg...,./cli/...
 
       - name: Upload coverage results to Codecov
         uses: codecov/codecov-action@v4

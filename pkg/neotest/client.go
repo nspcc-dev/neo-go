@@ -63,6 +63,10 @@ func (c *ContractInvoker) TestInvokeScript(t testing.TB, script []byte, signers 
 	}
 	t.Cleanup(ic.Finalize)
 
+	if c.collectCoverage {
+		ic.VM.SetOnExecHook(coverageHook)
+	}
+
 	ic.VM.LoadWithFlags(tx.Script, callflag.All)
 	err = ic.VM.Run()
 	return ic.VM.Estack(), err
@@ -77,6 +81,10 @@ func (c *ContractInvoker) TestInvoke(t testing.TB, method string, args ...any) (
 		return nil, err
 	}
 	t.Cleanup(ic.Finalize)
+
+	if c.collectCoverage {
+		ic.VM.SetOnExecHook(coverageHook)
+	}
 
 	ic.VM.LoadWithFlags(tx.Script, callflag.All)
 	err = ic.VM.Run()
