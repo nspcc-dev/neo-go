@@ -165,7 +165,7 @@ supportedstandards: []`
 	// and dependency packages version needed for smart contract compilation.
 	verifyGomod = `module verify
 
-go 1.20
+go 1.21
 
 require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231004150345-8849ccde2524
 `
