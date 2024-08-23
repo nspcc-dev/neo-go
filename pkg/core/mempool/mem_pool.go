@@ -351,8 +351,8 @@ func (mp *Pool) RemoveStale(isOK func(*transaction.Transaction) bool, feer Feer)
 	// We can reuse already allocated slice
 	// because items are iterated one-by-one in increasing order.
 	newVerifiedTxes := mp.verifiedTxes[:0]
-	mp.fees = make(map[util.Uint160]utilityBalanceAndFees) // it'd be nice to reuse existing map, but we can't easily clear it
-	mp.conflicts = make(map[util.Uint256][]util.Uint256)
+	clear(mp.fees)
+	clear(mp.conflicts)
 	height := feer.BlockHeight()
 	var (
 		staleItems []item

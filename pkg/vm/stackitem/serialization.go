@@ -133,9 +133,7 @@ func (w *SerializationContext) Serialize(item Item, protected bool) ([]byte, err
 	if w.data != nil {
 		w.data = w.data[:0]
 	}
-	for k := range w.seen {
-		delete(w.seen, k)
-	}
+	clear(w.seen)
 	err := w.serialize(item)
 	if err != nil && protected {
 		if w.data == nil {

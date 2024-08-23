@@ -543,7 +543,7 @@ func (t *Trie) Collapse(depth int) {
 		panic("negative depth")
 	}
 	t.root = collapse(depth, t.root)
-	t.refcount = make(map[util.Uint256]*cachedNode)
+	clear(t.refcount)
 }
 
 func collapse(depth int, node Node) Node {
