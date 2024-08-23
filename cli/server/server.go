@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"slices"
 	"syscall"
 	"time"
 
@@ -36,10 +37,9 @@ import (
 func NewCommands() []*cli.Command {
 	cfgFlags := []cli.Flag{options.Config, options.ConfigFile, options.RelativePath}
 	cfgFlags = append(cfgFlags, options.Network...)
-	var cfgWithCountFlags = make([]cli.Flag, len(cfgFlags))
-	copy(cfgWithCountFlags, cfgFlags)
-	cfgFlags = append(cfgFlags, options.Debug)
 
+	var cfgWithCountFlags = slices.Clone(cfgFlags)
+	cfgFlags = append(cfgFlags, options.Debug)
 	cfgWithCountFlags = append(cfgWithCountFlags,
 		&cli.UintFlag{
 			Name:    "count",
@@ -47,8 +47,7 @@ func NewCommands() []*cli.Command {
 			Usage:   "Number of blocks to be processed (default or 0: all chain)",
 		},
 	)
-	var cfgCountOutFlags = make([]cli.Flag, len(cfgWithCountFlags))
-	copy(cfgCountOutFlags, cfgWithCountFlags)
+	var cfgCountOutFlags = slices.Clone(cfgWithCountFlags)
 	cfgCountOutFlags = append(cfgCountOutFlags,
 		&cli.UintFlag{
 			Name:    "start",
@@ -61,8 +60,7 @@ func NewCommands() []*cli.Command {
 			Usage:   "Output file (stdout if not given)",
 		},
 	)
-	var cfgCountInFlags = make([]cli.Flag, len(cfgWithCountFlags))
-	copy(cfgCountInFlags, cfgWithCountFlags)
+	var cfgCountInFlags = slices.Clone(cfgWithCountFlags)
 	cfgCountInFlags = append(cfgCountInFlags,
 		&cli.StringFlag{
 			Name:    "in",
@@ -79,13 +77,12 @@ func NewCommands() []*cli.Command {
 			Usage:   "Use if dump is incremental",
 		},
 	)
-	var cfgHeightFlags = make([]cli.Flag, len(cfgFlags)+1)
-	copy(cfgHeightFlags, cfgFlags)
-	cfgHeightFlags[len(cfgHeightFlags)-1] = &cli.UintFlag{
+	var cfgHeightFlags = slices.Clone(cfgFlags)
+	cfgHeightFlags = append(cfgHeightFlags, &cli.UintFlag{
 		Name:     "height",
 		Usage:    "Height of the state to reset DB to",
 		Required: true,
-	}
+	})
 	return []*cli.Command{
 		{
 			Name:      "node",

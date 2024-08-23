@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/types"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
@@ -56,8 +57,7 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	// while stored in the new.
 	oldScope := c.scope.vars.locals
 	c.scope.vars.newScope()
-	newScope := make([]map[string]varInfo, len(c.scope.vars.locals))
-	copy(newScope, c.scope.vars.locals)
+	newScope := slices.Clone(c.scope.vars.locals)
 	defer c.scope.vars.dropScope()
 
 	if f.decl.Recv != nil {

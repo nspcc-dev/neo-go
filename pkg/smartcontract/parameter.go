@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -349,10 +350,8 @@ func NewParameterFromValue(value any) (Parameter, error) {
 		result.Type = ArrayType
 		result.Value = arr
 	case []Parameter:
-		arr := make([]Parameter, len(v))
-		copy(arr, v)
 		result.Type = ArrayType
-		result.Value = arr
+		result.Value = slices.Clone(v)
 	case []*keys.PublicKey:
 		return NewParameterFromValue(keys.PublicKeys(v))
 	case keys.PublicKeys:

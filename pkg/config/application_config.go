@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,10 +39,8 @@ func (a *ApplicationConfiguration) EqualsButServices(o *ApplicationConfiguration
 	if len(a.P2P.Addresses) != len(o.P2P.Addresses) {
 		return false
 	}
-	aCp := make([]string, len(a.P2P.Addresses))
-	oCp := make([]string, len(o.P2P.Addresses))
-	copy(aCp, a.P2P.Addresses)
-	copy(oCp, o.P2P.Addresses)
+	aCp := slices.Clone(a.P2P.Addresses)
+	oCp := slices.Clone(o.P2P.Addresses)
 	sort.Strings(aCp)
 	sort.Strings(oCp)
 	for i := range aCp {

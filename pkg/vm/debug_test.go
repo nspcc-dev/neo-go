@@ -57,5 +57,5 @@ func TestContext_BreakPoints(t *testing.T) {
 
 	// New context -> clean breakpoints.
 	v.loadScriptWithCallingHash(prog, nil, nil, util.Uint160{}, util.Uint160{}, callflag.All, 1, 3, nil)
-	require.Equal(t, []int{}, v.Context().BreakPoints())
+	require.Nil(t, v.Context().BreakPoints())
 }

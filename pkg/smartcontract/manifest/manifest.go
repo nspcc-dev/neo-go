@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 
 	ojson "github.com/nspcc-dev/go-ordered-json"
@@ -100,8 +101,7 @@ func (m *Manifest) IsValid(hash util.Uint160, checkSize bool) error {
 		}
 	}
 	if len(m.SupportedStandards) > 1 {
-		names := make([]string, len(m.SupportedStandards))
-		copy(names, m.SupportedStandards)
+		names := slices.Clone(m.SupportedStandards)
 		if stringsHaveDups(names) {
 			return errors.New("duplicate supported standards")
 		}
@@ -128,8 +128,7 @@ func (m *Manifest) IsValid(hash util.Uint160, checkSize bool) error {
 		return errors.New("invalid (null?) trusts")
 	}
 	if len(m.Trusts.Value) > 1 {
-		hashes := make([]PermissionDesc, len(m.Trusts.Value))
-		copy(hashes, m.Trusts.Value)
+		hashes := slices.Clone(m.Trusts.Value)
 		if permissionDescsHaveDups(hashes) {
 			return errors.New("duplicate trusted contracts")
 		}

@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"slices"
 	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -348,9 +349,7 @@ func (i *Struct) Convert(typ Type) (Item, error) {
 	case StructT:
 		return i, nil
 	case ArrayT:
-		arr := make([]Item, len(i.value))
-		copy(arr, i.value)
-		return NewArray(arr), nil
+		return NewArray(slices.Clone(i.value)), nil
 	case BooleanT:
 		return NewBool(true), nil
 	default:
@@ -793,9 +792,7 @@ func (i *Array) Convert(typ Type) (Item, error) {
 	case ArrayT:
 		return i, nil
 	case StructT:
-		arr := make([]Item, len(i.value))
-		copy(arr, i.value)
-		return NewStruct(arr), nil
+		return NewStruct(slices.Clone(i.value)), nil
 	case BooleanT:
 		return NewBool(true), nil
 	default:

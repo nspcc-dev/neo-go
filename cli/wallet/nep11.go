@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
@@ -39,12 +40,11 @@ func newNEP11Commands() []*cli.Command {
 		Usage: "Hex-encoded token ID",
 	}
 
-	balanceFlags := make([]cli.Flag, len(baseBalanceFlags))
-	copy(balanceFlags, baseBalanceFlags)
+	balanceFlags := slices.Clone(baseBalanceFlags)
 	balanceFlags = append(balanceFlags, tokenID)
 	balanceFlags = append(balanceFlags, options.RPC...)
-	transferFlags := make([]cli.Flag, len(baseTransferFlags))
-	copy(transferFlags, baseTransferFlags)
+
+	transferFlags := slices.Clone(baseTransferFlags)
 	transferFlags = append(transferFlags, tokenID)
 	transferFlags = append(transferFlags, options.RPC...)
 	return []*cli.Command{

@@ -2,6 +2,7 @@ package rpcbinding
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"text/template"
@@ -390,8 +391,7 @@ func NewConfig() binding.Config {
 func Generate(cfg binding.Config) error {
 	// Avoid changing *cfg.Manifest.
 	mfst := *cfg.Manifest
-	mfst.ABI.Methods = make([]manifest.Method, len(mfst.ABI.Methods))
-	copy(mfst.ABI.Methods, cfg.Manifest.ABI.Methods)
+	mfst.ABI.Methods = slices.Clone(mfst.ABI.Methods)
 	cfg.Manifest = &mfst
 
 	var imports = make(map[string]struct{})

@@ -3,6 +3,7 @@ package consensus
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"sync/atomic"
 	"time"
@@ -788,9 +789,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Bloc
 	block.Block.PrimaryIndex = primaryIndex
 
 	// it's OK to have ctx.TransactionsHashes == nil here
-	hashes := make([]util.Uint256, len(ctx.TransactionHashes))
-	copy(hashes, ctx.TransactionHashes)
-	block.Block.MerkleRoot = hash.CalcMerkleRoot(hashes)
+	block.Block.MerkleRoot = hash.CalcMerkleRoot(slices.Clone(ctx.TransactionHashes))
 
 	return block
 }

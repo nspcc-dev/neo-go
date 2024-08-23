@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
@@ -351,7 +352,5 @@ func DynamicOnUnload(v *VM, ctx *Context, commit bool) error {
 
 // BreakPoints returns the current set of Context's breakpoints.
 func (c *Context) BreakPoints() []int {
-	res := make([]int, len(c.sc.breakPoints))
-	copy(res, c.sc.breakPoints)
-	return res
+	return slices.Clone(c.sc.breakPoints)
 }

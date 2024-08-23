@@ -2,6 +2,7 @@ package statesync
 
 import (
 	"bytes"
+	"slices"
 	"sort"
 	"sync"
 
@@ -38,9 +39,7 @@ func (mp *Pool) TryGet(hash util.Uint256) ([][]byte, bool) {
 
 	paths, ok := mp.hashes[hash]
 	// need to copy here, because we can modify existing array of paths inside the pool.
-	res := make([][]byte, len(paths))
-	copy(res, paths)
-	return res, ok
+	return slices.Clone(paths), ok
 }
 
 // GetAll returns all MPT nodes with the corresponding paths from the pool.

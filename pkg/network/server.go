@@ -10,6 +10,7 @@ import (
 	mrand "math/rand"
 	"net"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"sync"
@@ -1494,8 +1495,7 @@ func (s *Server) RequestTx(hashes ...util.Uint256) {
 		return
 	}
 
-	var sorted = make([]util.Uint256, len(hashes))
-	copy(sorted, hashes)
+	var sorted = slices.Clone(hashes)
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].CompareTo(sorted[j]) < 0
 	})

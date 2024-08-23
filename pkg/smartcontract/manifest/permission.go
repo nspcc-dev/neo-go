@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -128,8 +129,7 @@ func (p *Permission) IsValid() error {
 	if len(p.Methods.Value) < 2 {
 		return nil
 	}
-	names := make([]string, len(p.Methods.Value))
-	copy(names, p.Methods.Value)
+	names := slices.Clone(p.Methods.Value)
 	if stringsHaveDups(names) {
 		return errors.New("duplicate method names")
 	}

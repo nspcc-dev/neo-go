@@ -5,6 +5,8 @@ providing only things used by neo-go.
 */
 package bitfield
 
+import "slices"
+
 // Field is a bit field represented as a slice of uint64 values.
 type Field []uint64
 
@@ -32,9 +34,7 @@ func (f Field) IsSet(i int) bool {
 
 // Copy makes a copy of the current Field.
 func (f Field) Copy() Field {
-	fn := make(Field, len(f))
-	copy(fn, f)
-	return fn
+	return slices.Clone(f)
 }
 
 // And implements logical AND between f's and m's bits saving the result into f.

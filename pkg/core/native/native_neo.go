@@ -6,7 +6,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"maps"
 	"math/big"
+	"slices"
 	"sort"
 	"strings"
 
@@ -150,13 +152,8 @@ func copyNeoCache(src, dst *NeoCache) {
 	// Can't omit copying because gasPerBlock is append-only, thus to be able to
 	// discard cache changes in case of FAULTed transaction we need a separate
 	// container for updated gasPerBlock values.
-	dst.gasPerBlock = make(gasRecord, len(src.gasPerBlock))
-	copy(dst.gasPerBlock, src.gasPerBlock)
-
-	dst.gasPerVoteCache = make(map[string]big.Int)
-	for k, v := range src.gasPerVoteCache {
-		dst.gasPerVoteCache[k] = v
-	}
+	dst.gasPerBlock = slices.Clone(src.gasPerBlock)
+	dst.gasPerVoteCache = maps.Clone(src.gasPerVoteCache)
 }
 
 // makeValidatorKey creates a key from the account script hash.
@@ -376,8 +373,7 @@ func (n *NEO) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 		// nextValidators, committee and committee hash are filled in by this moment
 		// via n.updateCache call.
 		cache.newEpochNextValidators = cache.nextValidators.Copy()
-		cache.newEpochCommittee = make(keysWithVotes, len(cache.committee))
-		copy(cache.newEpochCommittee, cache.committee)
+		cache.newEpochCommittee = slices.Clone(cache.committee)
 		cache.newEpochCommitteeHash = cache.committeeHash
 	}
 

@@ -3,7 +3,9 @@ package native
 import (
 	"encoding/hex"
 	"fmt"
+	"maps"
 	"math/big"
+	"slices"
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -91,12 +93,8 @@ func (c *PolicyCache) Copy() dao.NativeContractCache {
 
 func copyPolicyCache(src, dst *PolicyCache) {
 	*dst = *src
-	dst.attributeFee = make(map[transaction.AttrType]uint32, len(src.attributeFee))
-	for t, v := range src.attributeFee {
-		dst.attributeFee[t] = v
-	}
-	dst.blockedAccounts = make([]util.Uint160, len(src.blockedAccounts))
-	copy(dst.blockedAccounts, src.blockedAccounts)
+	dst.attributeFee = maps.Clone(src.attributeFee)
+	dst.blockedAccounts = slices.Clone(src.blockedAccounts)
 }
 
 // newPolicy returns Policy native contract.
