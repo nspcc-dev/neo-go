@@ -21,10 +21,3 @@ func reverse(dst []byte, src []byte) {
 		dst[i], dst[j] = src[j], src[i]
 	}
 }
-
-// Clean wipes the data in b by filling it with zeros.
-func Clean(b []byte) {
-	for i := range b {
-		b[i] = 0
-	}
-}

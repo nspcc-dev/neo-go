@@ -50,11 +50,3 @@ func TestCopyReverse(t *testing.T) {
 		}
 	}
 }
-
-func TestClean(t *testing.T) {
-	for _, tc := range testCases[1:] { // Empty one will be equal.
-		cp := bytes.Clone(tc.arr)
-		Clean(cp)
-		require.NotEqual(t, tc.arr, cp)
-	}
-}
