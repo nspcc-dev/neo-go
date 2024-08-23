@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"text/template"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -22,7 +23,6 @@ import (
 	curve "github.com/consensys/gnark/backend/groth16/bls12-381"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/binding"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // Config represents a configuration for Verifier Go smart contract generator.
@@ -320,7 +320,7 @@ func GetVerifyProofArgs(proof groth16.Proof, publicWitness witness.Witness) (*Ve
 	for i := range input { // firstly - public witnesses, after that - private ones (but they are missing from publicWitness anyway).
 		start := offset + i*fr.Bytes
 		end := start + fr.Bytes
-		slice.Reverse(publicWitnessBytes[start:end]) // gnark stores witnesses in the BE form, but native CryptoLib accepts LE-encoded fields elements (not a canonical form).
+		slices.Reverse(publicWitnessBytes[start:end]) // gnark stores witnesses in the BE form, but native CryptoLib accepts LE-encoded fields elements (not a canonical form).
 		input[i] = publicWitnessBytes[start:end]
 	}
 	return &VerifyProofArgs{

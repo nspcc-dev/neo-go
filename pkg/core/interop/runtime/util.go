@@ -4,12 +4,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"math/big"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -108,7 +108,9 @@ func GetRandom(ic *interop.Context) error {
 	if !ic.VM.AddGas(ic.BaseExecFee() * price) {
 		return errors.New("gas limit exceeded")
 	}
-	ic.VM.Estack().PushItem(stackitem.NewBigInteger(bigint.FromBytesUnsigned(res)))
+	// Resulting data is interpreted as an unsigned LE integer.
+	slices.Reverse(res)
+	ic.VM.Estack().PushItem(stackitem.NewBigInteger(new(big.Int).SetBytes(res)))
 	return nil
 }
 

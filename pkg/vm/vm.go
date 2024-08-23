@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/big"
 	"os"
+	"slices"
 	"text/tabwriter"
 	"unicode/utf8"
 
@@ -22,7 +23,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -1358,7 +1358,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			}
 		case *stackitem.Buffer:
 			b := t.Value().([]byte)
-			slice.Reverse(b)
+			slices.Reverse(b)
 		default:
 			panic(fmt.Sprintf("invalid item type %s", t))
 		}

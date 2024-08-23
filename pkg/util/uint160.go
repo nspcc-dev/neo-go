@@ -4,10 +4,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // Uint160Size is the size of Uint160 in bytes.
@@ -74,7 +74,8 @@ func (u Uint160) BytesBE() []byte {
 
 // BytesLE returns a little-endian byte representation of u.
 func (u Uint160) BytesLE() []byte {
-	return slice.CopyReverse(u.BytesBE())
+	slices.Reverse(u[:]) // u is a copy, can be changed.
+	return u[:]
 }
 
 // String implements the stringer interface.
@@ -134,7 +135,7 @@ func (u Uint160) MarshalJSON() ([]byte, error) {
 	r := make([]byte, 3+Uint160Size*2+1)
 	copy(r, `"0x`)
 	r[len(r)-1] = '"'
-	slice.Reverse(u[:]) // u is a copy, so we can mangle it in any way.
+	slices.Reverse(u[:]) // u is a copy, so we can mangle it in any way.
 	hex.Encode(r[3:], u[:])
 	return r, nil
 }

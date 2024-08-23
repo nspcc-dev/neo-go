@@ -3,9 +3,9 @@ package bigint
 import (
 	"math"
 	"math/big"
+	"slices"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -128,31 +128,6 @@ func TestBytesToInt(t *testing.T) {
 	})
 }
 
-var unsignedCases = []struct {
-	number int64
-	buf    []byte
-}{
-	{0xff00000000, []byte{0x00, 0x00, 0x00, 0x00, 0xff}},
-	{0xfd00000000, []byte{0x00, 0x00, 0x00, 0x00, 0xfd}},
-	{0x8000000000, []byte{0x00, 0x00, 0x00, 0x00, 0x80}},
-	{0xff0200000000, []byte{0x00, 0x00, 0x00, 0x00, 0x02, 0xff}},
-	{0xff0100000000, []byte{0x00, 0x00, 0x00, 0x00, 0x01, 0xff}},
-	{0xff0100000000, []byte{0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x00}},
-}
-
-func TestBytesToUnsigned(t *testing.T) {
-	for _, tc := range testCases {
-		if tc.number > 0 {
-			num := FromBytesUnsigned(tc.buf)
-			assert.Equal(t, tc.number, num.Int64(), "expected %x, got %x", tc.number, num.Int64())
-		}
-	}
-	for _, tc := range unsignedCases {
-		num := FromBytesUnsigned(tc.buf)
-		assert.Equal(t, tc.number, num.Int64(), "expected %x, got %x", tc.number, num.Int64())
-	}
-}
-
 func TestEquivalentRepresentations(t *testing.T) {
 	for _, tc := range testCases {
 		buf := tc.buf
@@ -210,7 +185,9 @@ func TestVeryBigInts(t *testing.T) {
 		num, ok := new(big.Int).SetString(tc.numStr, 10)
 		assert.True(t, ok)
 
-		result := FromBytes(slice.CopyReverse(tc.buf))
+		revb := slices.Clone(tc.buf)
+		slices.Reverse(revb)
+		result := FromBytes(revb)
 		assert.Equal(t, num, result, "error while converting %s from bytes", tc.numStr)
 	}
 }

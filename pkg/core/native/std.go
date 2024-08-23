@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"math/big"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -19,7 +20,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -241,7 +241,7 @@ func (s *Std) itoa(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 			break
 		}
 		bs := bigint.ToBytes(num)
-		slice.Reverse(bs)
+		slices.Reverse(bs)
 		str = hex.EncodeToString(bs)
 		if pad := bs[0] & 0xF8; pad == 0 || pad == 0xF8 {
 			str = str[1:]
@@ -288,7 +288,7 @@ func (s *Std) atoi(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 		if changed && bs[0]&0x8 != 0 {
 			bs[0] |= 0xF0
 		}
-		slice.Reverse(bs)
+		slices.Reverse(bs)
 		bi = bigint.FromBytes(bs)
 	default:
 		panic(ErrInvalidBase)

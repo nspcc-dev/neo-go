@@ -5,10 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 )
 
 // Uint256Size is the size of Uint256 in bytes.
@@ -26,7 +26,7 @@ func Uint256DecodeStringLE(s string) (u Uint256, err error) {
 	if err != nil {
 		return u, err
 	}
-	slice.Reverse(b)
+	slices.Reverse(b)
 	return Uint256DecodeBytesBE(b)
 }
 
@@ -55,8 +55,12 @@ func Uint256DecodeBytesBE(b []byte) (u Uint256, err error) {
 
 // Uint256DecodeBytesLE attempts to decode the given string (in LE representation) into a Uint256.
 func Uint256DecodeBytesLE(b []byte) (u Uint256, err error) {
-	b = slice.CopyReverse(b)
-	return Uint256DecodeBytesBE(b)
+	if len(b) != Uint256Size {
+		return u, fmt.Errorf("expected []byte of size %d got %d", Uint256Size, len(b))
+	}
+	u = Uint256(b)
+	slices.Reverse(u[:])
+	return u, nil
 }
 
 // BytesBE returns a byte slice representation of u.
@@ -72,7 +76,8 @@ func (u Uint256) Reverse() Uint256 {
 
 // BytesLE return a little-endian byte representation of u.
 func (u Uint256) BytesLE() []byte {
-	return slice.CopyReverse(u.BytesBE())
+	slices.Reverse(u[:]) // u is a copy, can be changed.
+	return u[:]
 }
 
 // Equals returns true if both Uint256 values are the same.
@@ -111,7 +116,7 @@ func (u Uint256) MarshalJSON() ([]byte, error) {
 	r := make([]byte, 3+Uint256Size*2+1)
 	copy(r, `"0x`)
 	r[len(r)-1] = '"'
-	slice.Reverse(u[:]) // u is a copy, so we can mangle it in any way.
+	slices.Reverse(u[:]) // u is a copy, so we can mangle it in any way.
 	hex.Encode(r[3:], u[:])
 	return r, nil
 }
