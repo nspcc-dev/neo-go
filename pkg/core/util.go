@@ -115,10 +115,3 @@ func getCommitteeAddress(committee []*keys.PublicKey) (val util.Uint160, err err
 	}
 	return hash.Hash160(raw), nil
 }
-
-// hashSliceReverse reverses the given slice of util.Uint256.
-func hashSliceReverse(dest []util.Uint256) {
-	for i, j := 0, len(dest)-1; i < j; i, j = i+1, j-1 {
-		dest[i], dest[j] = dest[j], dest[i]
-	}
-}

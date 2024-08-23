@@ -1352,10 +1352,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if t.(stackitem.Immutable).IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
-			a := t.Value().([]stackitem.Item)
-			for i, j := 0, len(a)-1; i < j; i, j = i+1, j-1 {
-				a[i], a[j] = a[j], a[i]
-			}
+			slices.Reverse(t.Value().([]stackitem.Item))
 		case *stackitem.Buffer:
 			b := t.Value().([]byte)
 			slices.Reverse(b)
