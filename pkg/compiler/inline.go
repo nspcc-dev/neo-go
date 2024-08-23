@@ -47,9 +47,7 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 		c.scope = &funcScope{}
 		c.scope.vars.newScope()
 		defer func() {
-			if cnt := c.scope.vars.localsCnt; cnt > c.globalInlineCount {
-				c.globalInlineCount = cnt
-			}
+			c.globalInlineCount = max(c.globalInlineCount, c.scope.vars.localsCnt)
 			c.scope = nil
 		}()
 	}

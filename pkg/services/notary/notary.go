@@ -265,9 +265,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 				return // then we already have processed this request
 			}
 		}
-		if nvbFallback < r.minNotValidBefore {
-			r.minNotValidBefore = nvbFallback
-		}
+		r.minNotValidBefore = min(r.minNotValidBefore, nvbFallback)
 	} else {
 		// Avoid changes in the main transaction witnesses got from the notary request pool to
 		// keep the pooled tx valid. We will update its copy => the copy's size will be changed.

@@ -118,9 +118,7 @@ func (c *codegen) traverseGlobals() bool {
 
 			var currMax int
 			lastCnt, currMax = c.convertInitFuncs(f, pkg.Types, lastCnt)
-			if currMax > maxCnt {
-				maxCnt = currMax
-			}
+			maxCnt = max(currMax, maxCnt)
 		}
 		// because we reuse `convertFuncDecl` for init funcs,
 		// we need to clear scope, so that global variables
@@ -128,9 +126,7 @@ func (c *codegen) traverseGlobals() bool {
 		c.scope = nil
 	})
 
-	if c.globalInlineCount > maxCnt {
-		maxCnt = c.globalInlineCount
-	}
+	maxCnt = max(c.globalInlineCount, maxCnt)
 
 	// Here we remove `INITSLOT` if no code was emitted for `init` function.
 	// Note that the `INITSSLOT` must stay in place.

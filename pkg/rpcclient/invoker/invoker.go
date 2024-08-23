@@ -229,9 +229,7 @@ func iterateNext(rpc RPCSessions, sessionID uuid.UUID, iterator *result.Iterator
 	if iterator.ID != nil {
 		return rpc.TraverseIterator(sessionID, *iterator.ID, num)
 	}
-	if num > len(iterator.Values) {
-		num = len(iterator.Values)
-	}
+	num = min(num, len(iterator.Values))
 	items := iterator.Values[:num]
 	iterator.Values = iterator.Values[num:]
 

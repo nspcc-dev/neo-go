@@ -676,11 +676,9 @@ func (i *ByteArray) equalsLimited(s Item, limit *int) bool {
 	if !ok {
 		return false
 	}
-	comparedSize = lCurr
 	lOther := len(*val)
-	if lOther > comparedSize {
-		comparedSize = lOther
-	}
+	comparedSize = max(lCurr, lOther)
+
 	if i == val {
 		return true
 	}

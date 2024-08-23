@@ -475,11 +475,7 @@ func (s *Server) run() {
 		} else if s.MinPeers > 0 && loopCnt%s.MinPeers == 0 && optimalN > peerN && optimalN < s.MaxPeers && optimalN < netSize {
 			// Having some number of peers, but probably can get some more, the network is big.
 			// It also allows to start picking up new peers proactively, before we suddenly have <s.MinPeers of them.
-			var connN = s.AttemptConnPeers
-			if connN > optimalN-peerN {
-				connN = optimalN - peerN
-			}
-			s.discovery.RequestRemote(connN)
+			s.discovery.RequestRemote(min(s.AttemptConnPeers, optimalN-peerN))
 		}
 
 		if addrCheckTimeout || s.discovery.PoolCount() < s.AttemptConnPeers {
@@ -1509,9 +1505,7 @@ func (s *Server) RequestTx(hashes ...util.Uint256) {
 	for i := 0; i <= len(hashes)/payload.MaxHashesCount; i++ {
 		start := i * payload.MaxHashesCount
 		stop := (i + 1) * payload.MaxHashesCount
-		if stop > len(hashes) {
-			stop = len(hashes)
-		}
+		stop = min(stop, len(hashes))
 		if start == stop {
 			break
 		}
@@ -1660,9 +1654,7 @@ func (s *Server) initStaleMemPools() {
 	threshold := 5
 	// Not perfect, can change over time, but should be sufficient.
 	numOfCNs := s.config.GetNumOfCNs(s.chain.BlockHeight())
-	if numOfCNs*2 > threshold {
-		threshold = numOfCNs * 2
-	}
+	threshold = max(threshold, numOfCNs*2)
 
 	s.mempool.SetResendThreshold(uint32(threshold), s.broadcastTX)
 	if s.chain.P2PSigExtensionsEnabled() {
@@ -1769,12 +1761,5 @@ func (s *Server) Port(localAddr net.Addr) (uint16, error) {
 func optimalNumOfThreads() int {
 	// Doing more won't help, mempool is still a contention point.
 	const maxThreads = 16
-	var threads = runtime.GOMAXPROCS(0)
-	if threads > runtime.NumCPU() {
-		threads = runtime.NumCPU()
-	}
-	if threads > maxThreads {
-		threads = maxThreads
-	}
-	return threads
+	return min(runtime.GOMAXPROCS(0), runtime.NumCPU(), maxThreads)
 }

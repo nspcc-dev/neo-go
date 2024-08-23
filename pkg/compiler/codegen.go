@@ -402,9 +402,7 @@ func (c *codegen) convertInitFuncs(f *ast.File, pkg *types.Package, lastCount in
 
 				f := c.convertFuncDecl(f, n, pkg)
 				lastCount = f.vars.localsCnt
-				if lastCount > maxCount {
-					maxCount = lastCount
-				}
+				maxCount = max(lastCount, maxCount)
 			}
 		case *ast.GenDecl:
 			return false
@@ -437,9 +435,7 @@ func (c *codegen) convertDeployFuncs() int {
 
 					f := c.convertFuncDecl(f, n, pkg)
 					lastCount = f.vars.localsCnt
-					if lastCount > maxCount {
-						maxCount = lastCount
-					}
+					maxCount = max(lastCount, maxCount)
 				}
 			case *ast.GenDecl:
 				return false

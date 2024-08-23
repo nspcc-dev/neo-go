@@ -273,10 +273,7 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	protoCfg := chain.GetConfig().ProtocolConfiguration
 	if conf.SessionEnabled {
 		if conf.SessionExpirationTime <= 0 {
-			conf.SessionExpirationTime = int(protoCfg.TimePerBlock / time.Second)
-			if conf.SessionExpirationTime < 5 {
-				conf.SessionExpirationTime = 5
-			}
+			conf.SessionExpirationTime = max(int(protoCfg.TimePerBlock/time.Second), 5)
 			log.Info("SessionExpirationTime is not set or wrong, setting default value", zap.Int("SessionExpirationTime", conf.SessionExpirationTime))
 		}
 		if conf.SessionPoolSize <= 0 {
@@ -958,13 +955,9 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (any, *neorpc.Erro
 	size := len(hashablePart) + io.GetVarSize(len(tx.Signers))
 	var (
 		netFee int64
-		// Verification GAS cost can't exceed this policy.
-		gasLimit = s.chain.GetMaxVerificationGAS()
+		// Verification GAS cost can't exceed chin policy, but RPC config can limit it further.
+		gasLimit = min(s.chain.GetMaxVerificationGAS(), int64(s.config.MaxGasInvoke))
 	)
-	if gasLimit > int64(s.config.MaxGasInvoke) {
-		// But we honor instance configuration as well.
-		gasLimit = int64(s.config.MaxGasInvoke)
-	}
 	for i, signer := range tx.Signers {
 		w := tx.Scripts[i]
 		if len(w.InvocationScript) == 0 { // No invocation provided, try to infer one.
@@ -1683,9 +1676,7 @@ func (s *Server) findStates(ps params.Params) (any, *neorpc.Error) {
 		if err != nil {
 			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid count: %s", err))
 		}
-		if count > s.config.MaxFindResultItems {
-			count = s.config.MaxFindResultItems
-		}
+		count = min(count, s.config.MaxFindResultItems)
 	}
 	cs, respErr := s.getHistoricalContractState(root, csHash)
 	if respErr != nil {
@@ -2379,10 +2370,7 @@ func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contrac
 	if t == trigger.Verification {
 		// We need this special case because witnesses verification is not the simple System.Contract.Call,
 		// and we need to define exactly the amount of gas consumed for a contract witness verification.
-		gasPolicy := s.chain.GetMaxVerificationGAS()
-		if ic.VM.GasLimit > gasPolicy {
-			ic.VM.GasLimit = gasPolicy
-		}
+		ic.VM.GasLimit = min(ic.VM.GasLimit, s.chain.GetMaxVerificationGAS())
 
 		err = s.chain.InitVerificationContext(ic, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})
 		if err != nil {

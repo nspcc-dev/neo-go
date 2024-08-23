@@ -634,9 +634,7 @@ func (s *service) processBlock(b dbft.Block[util.Uint256]) {
 }
 
 func (s *service) postBlock(b *coreb.Block) {
-	if s.lastTimestamp < b.Timestamp {
-		s.lastTimestamp = b.Timestamp
-	}
+	s.lastTimestamp = max(s.lastTimestamp, b.Timestamp)
 	s.lastProposal = nil
 }
 
