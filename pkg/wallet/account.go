@@ -150,14 +150,12 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 	if a.privateKey == nil {
 		return errors.New("account key is not available (need to decrypt?)")
 	}
-	sign := a.privateKey.SignHashable(uint32(net), t)
 
-	invoc := append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, sign...)
-	if len(a.Contract.Parameters) == 1 {
-		t.Scripts[pos].InvocationScript = invoc
-	} else {
-		t.Scripts[pos].InvocationScript = append(t.Scripts[pos].InvocationScript, invoc...)
+	if len(a.Contract.Parameters) == 1 && t.Scripts[pos].InvocationScript != nil {
+		t.Scripts[pos].InvocationScript = t.Scripts[pos].InvocationScript[:0]
 	}
+	t.Scripts[pos].InvocationScript = append(t.Scripts[pos].InvocationScript, byte(opcode.PUSHDATA1), keys.SignatureLen)
+	t.Scripts[pos].InvocationScript = append(t.Scripts[pos].InvocationScript, a.privateKey.SignHashable(uint32(net), t)...)
 
 	return nil
 }
