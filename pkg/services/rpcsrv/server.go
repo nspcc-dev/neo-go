@@ -909,9 +909,10 @@ func (s *Server) getPeers(_ params.Params) (any, *neorpc.Error) {
 func (s *Server) getRawMempool(reqParams params.Params) (any, *neorpc.Error) {
 	verbose, _ := reqParams.Value(0).GetBoolean()
 	mp := s.chain.GetMemPool()
-	hashList := make([]util.Uint256, 0)
-	for _, item := range mp.GetVerifiedTransactions() {
-		hashList = append(hashList, item.Hash())
+	txes := mp.GetVerifiedTransactions()
+	hashList := make([]util.Uint256, len(txes))
+	for i := range txes {
+		hashList[i] = txes[i].Hash()
 	}
 	if !verbose {
 		return hashList, nil
@@ -2089,7 +2090,7 @@ func (s *Server) getCandidates(_ params.Params) (any, *neorpc.Error) {
 	if err != nil {
 		return nil, neorpc.NewInternalServerError(fmt.Sprintf("Can't get enrollments: %s", err.Error()))
 	}
-	var res = make([]result.Candidate, 0)
+	var res = make([]result.Candidate, 0, len(enrollments))
 	for _, v := range enrollments {
 		res = append(res, result.Candidate{
 			PublicKey: *v.Key,
@@ -2112,7 +2113,7 @@ func (s *Server) getNextBlockValidators(_ params.Params) (any, *neorpc.Error) {
 	if err != nil {
 		return nil, neorpc.NewInternalServerError(fmt.Sprintf("Can't get enrollments: %s", err.Error()))
 	}
-	var res = make([]result.Validator, 0)
+	var res = make([]result.Validator, 0, len(validators))
 	for _, v := range enrollments {
 		if !validators.Contains(v.Key) {
 			continue
