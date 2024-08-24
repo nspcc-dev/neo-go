@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -111,13 +112,9 @@ func (c *ParameterContext) AddSignature(h util.Uint160, ctr *wallet.Contract, pu
 			return errors.New("signature is already added")
 		}
 		pubBytes := pub.Bytes()
-		var contained bool
-		for i := range pubs {
-			if bytes.Equal(pubBytes, pubs[i]) {
-				contained = true
-				break
-			}
-		}
+		var contained = slices.ContainsFunc(pubs, func(p []byte) bool {
+			return bytes.Equal(pubBytes, p)
+		})
 		if !contained {
 			return errors.New("public key is not present in script")
 		}

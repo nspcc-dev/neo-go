@@ -77,12 +77,9 @@ func DefaultManifest(name string) *Manifest {
 // CanCall returns true if the current contract is allowed to call
 // the method of another contract with the specified hash.
 func (m *Manifest) CanCall(hash util.Uint160, toCall *Manifest, method string) bool {
-	for i := range m.Permissions {
-		if m.Permissions[i].IsAllowed(hash, toCall, method) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(m.Permissions, func(p Permission) bool {
+		return p.IsAllowed(hash, toCall, method)
+	})
 }
 
 // IsValid checks manifest internal consistency and correctness, one of the
@@ -95,10 +92,8 @@ func (m *Manifest) IsValid(hash util.Uint160, checkSize bool) error {
 		return errors.New("no name")
 	}
 
-	for i := range m.SupportedStandards {
-		if m.SupportedStandards[i] == "" {
-			return errors.New("invalid nameless supported standard")
-		}
+	if slices.Contains(m.SupportedStandards, "") {
+		return errors.New("invalid nameless supported standard")
 	}
 	if len(m.SupportedStandards) > 1 {
 		names := slices.Clone(m.SupportedStandards)
@@ -153,12 +148,7 @@ func (m *Manifest) IsValid(hash util.Uint160, checkSize bool) error {
 
 // IsStandardSupported denotes whether the specified standard is supported by the contract.
 func (m *Manifest) IsStandardSupported(standard string) bool {
-	for _, st := range m.SupportedStandards {
-		if st == standard {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(m.SupportedStandards, standard)
 }
 
 // ToStackItem converts Manifest to stackitem.Item.

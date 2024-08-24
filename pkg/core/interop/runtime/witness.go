@@ -4,6 +4,7 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -79,10 +80,8 @@ func checkScope(ic *interop.Context, hash util.Uint160) (bool, error) {
 			}
 			if c.Scopes&transaction.CustomContracts != 0 {
 				currentScriptHash := ic.VM.GetCurrentScriptHash()
-				for _, allowedContract := range c.AllowedContracts {
-					if allowedContract == currentScriptHash {
-						return true, nil
-					}
+				if slices.Contains(c.AllowedContracts, currentScriptHash) {
+					return true, nil
 				}
 			}
 			if c.Scopes&transaction.CustomGroups != 0 {
@@ -91,10 +90,8 @@ func checkScope(ic *interop.Context, hash util.Uint160) (bool, error) {
 					return false, err
 				}
 				// check if the current group is the required one
-				for _, allowedGroup := range c.AllowedGroups {
-					if groups.Contains(allowedGroup) {
-						return true, nil
-					}
+				if slices.ContainsFunc(c.AllowedGroups, groups.Contains) {
+					return true, nil
 				}
 			}
 			if c.Scopes&transaction.Rules != 0 {

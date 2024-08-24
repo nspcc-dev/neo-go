@@ -1873,7 +1873,10 @@ func (v *VM) ContractHasTryBlock() bool {
 // CheckMultisigPar checks if the sigs contains sufficient valid signatures.
 func CheckMultisigPar(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sigs [][]byte) bool {
 	if len(sigs) == 1 {
-		return checkMultisig1(v, curve, h, pkeys, sigs[0])
+		return slices.ContainsFunc(pkeys, func(keyb []byte) bool {
+			pkey := bytesToPublicKey(keyb, curve)
+			return pkey.Verify(sigs[0], h)
+		})
 	}
 
 	k1, k2 := 0, len(pkeys)-1
@@ -1961,17 +1964,6 @@ loop:
 	close(tasks)
 
 	return sigok
-}
-
-func checkMultisig1(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sig []byte) bool {
-	for i := range pkeys {
-		pkey := bytesToPublicKey(pkeys[i], curve)
-		if pkey.Verify(sig, h) {
-			return true
-		}
-	}
-
-	return false
 }
 
 func cloneIfStruct(item stackitem.Item) stackitem.Item {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"slices"
 	"syscall"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -39,12 +40,9 @@ func isReserved(ip net.IP) bool {
 	if !ip.IsGlobalUnicast() {
 		return true
 	}
-	for i := range privateNets {
-		if privateNets[i].Contains(ip) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(privateNets, func(pn net.IPNet) bool {
+		return pn.Contains(ip)
+	})
 }
 
 func getDefaultClient(cfg config.OracleConfiguration) *http.Client {

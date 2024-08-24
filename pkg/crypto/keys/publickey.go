@@ -71,12 +71,7 @@ func (keys *PublicKeys) Bytes() []byte {
 
 // Contains checks whether the passed param is contained in PublicKeys.
 func (keys PublicKeys) Contains(pKey *PublicKey) bool {
-	for _, key := range keys {
-		if key.Equal(pKey) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(keys, pKey.Equal)
 }
 
 // Copy returns a shallow copy of the PublicKeys slice. It creates a new slice with the same elements,

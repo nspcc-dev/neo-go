@@ -6,6 +6,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -284,10 +285,5 @@ func checkMediaType(hdr string, allowed []string) bool {
 		return false
 	}
 
-	for _, ct := range allowed {
-		if ct == typ {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(allowed, typ)
 }

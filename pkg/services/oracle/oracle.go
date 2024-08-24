@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 
@@ -150,13 +151,9 @@ func NewOracle(cfg Config) (*Oracle, error) {
 		return nil, err
 	}
 
-	haveAccount := false
-	for _, acc := range o.wallet.Accounts {
-		if err := acc.Decrypt(w.Password, o.wallet.Scrypt); err == nil {
-			haveAccount = true
-			break
-		}
-	}
+	var haveAccount = slices.ContainsFunc(o.wallet.Accounts, func(acc *wallet.Account) bool {
+		return acc.Decrypt(w.Password, o.wallet.Scrypt) == nil
+	})
 	if !haveAccount {
 		return nil, errors.New("no wallet account could be unlocked")
 	}

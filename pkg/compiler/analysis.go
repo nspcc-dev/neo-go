@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"slices"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -697,12 +698,7 @@ func (c *codegen) pickVarsFromNodes(nodes []nodeContext, markAsUsed func(name st
 }
 
 func isGoBuiltin(name string) bool {
-	for i := range goBuiltins {
-		if name == goBuiltins[i] {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(goBuiltins, name)
 }
 
 func isPotentialCustomBuiltin(f *funcScope, expr ast.Expr) bool {

@@ -876,12 +876,9 @@ func (i *Map) String() string {
 
 // Index returns an index of the key in map.
 func (i *Map) Index(key Item) int {
-	for k := range i.value {
-		if i.value[k].Key.Equals(key) {
-			return k
-		}
-	}
-	return -1
+	return slices.IndexFunc(i.value, func(e MapElement) bool {
+		return e.Key.Equals(key)
+	})
 }
 
 // Has checks if the map has the specified key.

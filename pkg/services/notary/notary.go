@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -131,18 +132,14 @@ func (r request) isMainCompleted() bool {
 // NewNotary returns a new Notary module.
 func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction func(tx *transaction.Transaction) error) (*Notary, error) {
 	w := cfg.MainCfg.UnlockWallet
-	wallet, err := wallet.NewWalletFromFile(w.Path)
+	wall, err := wallet.NewWalletFromFile(w.Path)
 	if err != nil {
 		return nil, err
 	}
 
-	haveAccount := false
-	for _, acc := range wallet.Accounts {
-		if err := acc.Decrypt(w.Password, wallet.Scrypt); err == nil {
-			haveAccount = true
-			break
-		}
-	}
+	var haveAccount = slices.ContainsFunc(wall.Accounts, func(acc *wallet.Account) bool {
+		return acc.Decrypt(w.Password, wall.Scrypt) == nil
+	})
 	if !haveAccount {
 		return nil, errors.New("no wallet account could be unlocked")
 	}
@@ -151,7 +148,7 @@ func NewNotary(cfg Config, net netmode.Magic, mp *mempool.Pool, onTransaction fu
 		requests:      make(map[util.Uint256]*request),
 		Config:        cfg,
 		Network:       net,
-		wallet:        wallet,
+		wallet:        wall,
 		onTransaction: onTransaction,
 		newTxs:        make(chan txHashPair, defaultTxChannelCapacity),
 		mp:            mp,
@@ -260,10 +257,10 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 	defer n.reqMtx.Unlock()
 	r, exists := n.requests[payload.MainTransaction.Hash()]
 	if exists {
-		for _, fb := range r.fallbacks {
-			if fb.Hash().Equals(payload.FallbackTransaction.Hash()) {
-				return // then we already have processed this request
-			}
+		if slices.ContainsFunc(r.fallbacks, func(fb *transaction.Transaction) bool {
+			return fb.Hash().Equals(payload.FallbackTransaction.Hash())
+		}) {
+			return // then we already have processed this request
 		}
 		r.minNotValidBefore = min(r.minNotValidBefore, nvbFallback)
 	} else {
@@ -447,13 +444,9 @@ func (n *Notary) newTxCallbackLoop() {
 			}
 			if !isMain {
 				// Ensure that fallback was not already completed.
-				var isPending bool
-				for _, fb := range r.fallbacks {
-					if fb.Hash() == tx.tx.Hash() {
-						isPending = true
-						break
-					}
-				}
+				var isPending = slices.ContainsFunc(r.fallbacks, func(fb *transaction.Transaction) bool {
+					return fb.Hash() == tx.tx.Hash()
+				})
 				if !isPending {
 					n.reqMtx.Unlock()
 					continue

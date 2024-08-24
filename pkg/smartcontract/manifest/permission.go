@@ -121,10 +121,8 @@ func (d *PermissionDesc) Equals(v PermissionDesc) bool {
 
 // IsValid checks if Permission is correct.
 func (p *Permission) IsValid() error {
-	for i := range p.Methods.Value {
-		if p.Methods.Value[i] == "" {
-			return errors.New("empty method name")
-		}
+	if slices.Contains(p.Methods.Value, "") {
+		return errors.New("empty method name")
 	}
 	if len(p.Methods.Value) < 2 {
 		return nil
@@ -166,17 +164,10 @@ func (p *Permission) IsAllowed(hash util.Uint160, m *Manifest, method string) bo
 			return false
 		}
 	case PermissionGroup:
-		has := false
-		g := p.Contract.Group()
-		for i := range m.Groups {
-			if g.Equal(m.Groups[i].PublicKey) {
-				has = true
-				break
-			}
-		}
-		if !has {
-			return false
-		}
+		contractG := p.Contract.Group()
+		return slices.ContainsFunc(m.Groups, func(manifestG Group) bool {
+			return contractG.Equal(manifestG.PublicKey)
+		})
 	default:
 		panic(fmt.Sprintf("unexpected permission: %d", p.Contract.Type))
 	}

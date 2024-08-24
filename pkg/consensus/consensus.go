@@ -167,14 +167,9 @@ func NewService(cfg Config) (Service, error) {
 		}
 
 		// Check that the wallet password is correct for at least one account.
-		var ok bool
-		for _, acc := range srv.wallet.Accounts {
-			err := acc.Decrypt(srv.Config.Wallet.Password, srv.wallet.Scrypt)
-			if err == nil {
-				ok = true
-				break
-			}
-		}
+		var ok = slices.ContainsFunc(srv.wallet.Accounts, func(acc *wallet.Account) bool {
+			return acc.Decrypt(srv.Config.Wallet.Password, srv.wallet.Scrypt) == nil
+		})
 		if !ok {
 			return nil, errors.New("no account with provided password was found")
 		}
