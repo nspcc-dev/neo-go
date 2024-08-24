@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -61,7 +62,7 @@ func (s *Iterator) Value() stackitem.Item {
 	}
 	key := s.curr.Key
 	if s.opts&FindRemovePrefix == 0 {
-		key = append(bytes.Clone(s.prefix), key...)
+		key = slices.Concat(s.prefix, key)
 	}
 	if s.opts&FindKeysOnly != 0 {
 		return stackitem.NewByteArray(key)

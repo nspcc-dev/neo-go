@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -98,7 +99,7 @@ func (m *TrieStore) Seek(rng storage.SeekRange, f func(k, v []byte) bool) {
 		if leaf, ok := node.(*LeafNode); ok {
 			// (*Billet).traverse includes `from` path into the result if so. It's OK for Seek, so shouldn't be filtered out.
 			kv := storage.KeyValue{
-				Key:   append(bytes.Clone(rng.Prefix), pathToNode...), // Do not cut prefix.
+				Key:   slices.Concat(rng.Prefix, pathToNode), // Do not cut prefix.
 				Value: bytes.Clone(leaf.value),
 			}
 			return !f(kv.Key, kv.Value) // Should return whether to stop.
