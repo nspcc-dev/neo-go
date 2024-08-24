@@ -124,17 +124,17 @@ func Make(v any) Item {
 	case Item:
 		return val
 	case []int:
-		var a []Item
-		for _, i := range val {
-			a = append(a, Make(i))
+		var res = make([]Item, len(val))
+		for i := range val {
+			res[i] = Make(val[i])
 		}
-		return Make(a)
+		return Make(res)
 	case []string:
-		var a []Item
-		for _, i := range val {
-			a = append(a, Make(i))
+		var res = make([]Item, len(val))
+		for i := range val {
+			res[i] = Make(val[i])
 		}
-		return Make(a)
+		return Make(res)
 	case []any:
 		res := make([]Item, len(val))
 		for i := range val {
