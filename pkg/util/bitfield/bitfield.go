@@ -51,15 +51,7 @@ func (f Field) And(m Field) {
 
 // Equals compares two Fields and returns true if they're equal.
 func (f Field) Equals(o Field) bool {
-	if len(f) != len(o) {
-		return false
-	}
-	for i := range f {
-		if f[i] != o[i] {
-			return false
-		}
-	}
-	return true
+	return slices.Equal(f, o)
 }
 
 // IsSubset returns true when f is a subset of o (only has bits set that are

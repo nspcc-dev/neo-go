@@ -43,10 +43,8 @@ func (a *ApplicationConfiguration) EqualsButServices(o *ApplicationConfiguration
 	oCp := slices.Clone(o.P2P.Addresses)
 	sort.Strings(aCp)
 	sort.Strings(oCp)
-	for i := range aCp {
-		if aCp[i] != oCp[i] {
-			return false
-		}
+	if !slices.Equal(aCp, oCp) {
+		return false
 	}
 	if a.P2P.AttemptConnPeers != o.P2P.AttemptConnPeers ||
 		a.P2P.BroadcastFactor != o.P2P.BroadcastFactor ||

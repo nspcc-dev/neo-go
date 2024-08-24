@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"time"
 
@@ -231,40 +233,12 @@ func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
 		p.TimePerBlock != o.TimePerBlock ||
 		p.ValidatorsCount != o.ValidatorsCount ||
 		p.VerifyTransactions != o.VerifyTransactions ||
-		len(p.CommitteeHistory) != len(o.CommitteeHistory) ||
-		len(p.Hardforks) != len(o.Hardforks) ||
-		len(p.SeedList) != len(o.SeedList) ||
-		len(p.StandbyCommittee) != len(o.StandbyCommittee) ||
-		len(p.ValidatorsHistory) != len(o.ValidatorsHistory) {
+		!maps.Equal(p.CommitteeHistory, o.CommitteeHistory) ||
+		!maps.Equal(p.Hardforks, o.Hardforks) ||
+		!slices.Equal(p.SeedList, o.SeedList) ||
+		!slices.Equal(p.StandbyCommittee, o.StandbyCommittee) ||
+		!maps.Equal(p.ValidatorsHistory, o.ValidatorsHistory) {
 		return false
-	}
-	for k, v := range p.CommitteeHistory {
-		vo, ok := o.CommitteeHistory[k]
-		if !ok || v != vo {
-			return false
-		}
-	}
-	for k, v := range p.Hardforks {
-		vo, ok := o.Hardforks[k]
-		if !ok || v != vo {
-			return false
-		}
-	}
-	for i := range p.SeedList {
-		if p.SeedList[i] != o.SeedList[i] {
-			return false
-		}
-	}
-	for i := range p.StandbyCommittee {
-		if p.StandbyCommittee[i] != o.StandbyCommittee[i] {
-			return false
-		}
-	}
-	for k, v := range p.ValidatorsHistory {
-		vo, ok := o.ValidatorsHistory[k]
-		if !ok || v != vo {
-			return false
-		}
 	}
 	return true
 }
