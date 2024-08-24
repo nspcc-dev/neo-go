@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/util/bitfield"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
@@ -428,14 +429,14 @@ func (t *Transaction) isValid() error {
 			}
 		}
 	}
-	attrs := map[AttrType]bool{}
+	var attrBits = bitfield.New(256)
 	for i := range t.Attributes {
 		typ := t.Attributes[i].Type
 		if !typ.allowMultiple() {
-			if attrs[typ] {
+			if attrBits.IsSet(int(typ)) {
 				return fmt.Errorf("%w: multiple '%s' attributes", ErrInvalidAttribute, typ.String())
 			}
-			attrs[typ] = true
+			attrBits.Set(int(typ))
 		}
 	}
 	if len(t.Script) == 0 {
