@@ -240,6 +240,16 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 	n := sort.Search(len(mp.verifiedTxes), func(n int) bool {
 		return pItem.CompareTo(mp.verifiedTxes[n]) > 0
 	})
+	// Changing sort.Search to slices.BinarySearchFunc() is not recommended
+	// above, as of Go 1.23 this results in
+	// cpu: AMD Ryzen 7 PRO 7840U w/ Radeon 780M Graphics
+	//                        │ pool.current │              pool.new              │
+	//                        │    sec/op    │   sec/op     vs base               │
+	// Pool/one,_same_fee-16     1.742m ± 1%   1.799m ± 1%  +3.29% (p=0.000 n=10)
+	// Pool/one,_incr_fee-16     12.51m ± 1%   12.63m ± 2%  +0.92% (p=0.023 n=10)
+	// Pool/many,_same_fee-16    3.100m ± 1%   3.099m ± 1%       ~ (p=0.631 n=10)
+	// Pool/many,_incr_fee-16    14.11m ± 1%   14.20m ± 1%       ~ (p=0.315 n=10)
+	// geomean                   5.556m        5.624m       +1.22%
 
 	// We've reached our capacity already.
 	if len(mp.verifiedTxes) == mp.capacity {
@@ -255,6 +265,17 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 	} else {
 		mp.verifiedTxes = append(mp.verifiedTxes, pItem)
 	}
+	// While we're obviously doing slices.Insert here (and above a bit),
+	// code simplification is not advised since slices.Insert works
+	// slightly slower as of Go 1.23:
+	// cpu: AMD Ryzen 7 PRO 7840U w/ Radeon 780M Graphics
+	//                        │ pool.current │             pool.new2              │
+	//                        │    sec/op    │   sec/op     vs base               │
+	// Pool/one,_same_fee-16     1.742m ± 1%   1.801m ± 2%  +3.38% (p=0.000 n=10)
+	// Pool/one,_incr_fee-16     12.51m ± 1%   12.59m ± 2%       ~ (p=0.218 n=10)
+	// Pool/many,_same_fee-16    3.100m ± 1%   3.134m ± 1%  +1.11% (p=0.011 n=10)
+	// Pool/many,_incr_fee-16    14.11m ± 1%   14.09m ± 1%       ~ (p=0.393 n=10)
+	// geomean                   5.556m        5.626m       +1.25%
 	if n != len(mp.verifiedTxes)-1 {
 		copy(mp.verifiedTxes[n+1:], mp.verifiedTxes[n:])
 		mp.verifiedTxes[n] = pItem
