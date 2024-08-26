@@ -11,7 +11,8 @@ import (
 )
 
 // CreateMultiSigRedeemScript creates an "m out of n" type verification script
-// where n is the length of publicKeys.
+// where n is the length of publicKeys. It modifies passed publicKeys by
+// sorting them.
 func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, error) {
 	if m < 1 {
 		return nil, fmt.Errorf("param m cannot be smaller than 1, got %d", m)
