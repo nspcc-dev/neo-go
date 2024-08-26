@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"sync/atomic"
 	"time"
 
@@ -651,8 +650,6 @@ func (s *service) getBlockWitness(b *coreb.Block) *transaction.Witness {
 		s.log.Warn("can't create multisig redeem script", zap.Error(err))
 		return nil
 	}
-
-	sort.Sort(keys.PublicKeys(pubs))
 
 	buf := io.NewBufBinWriter()
 	for i, j := 0, 0; i < len(pubs) && j < m; i++ {
