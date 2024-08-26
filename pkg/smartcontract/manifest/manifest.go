@@ -95,11 +95,8 @@ func (m *Manifest) IsValid(hash util.Uint160, checkSize bool) error {
 	if slices.Contains(m.SupportedStandards, "") {
 		return errors.New("invalid nameless supported standard")
 	}
-	if len(m.SupportedStandards) > 1 {
-		names := slices.Clone(m.SupportedStandards)
-		if stringsHaveDups(names) {
-			return errors.New("duplicate supported standards")
-		}
+	if sliceHasDups(m.SupportedStandards, strings.Compare) {
+		return errors.New("duplicate supported standards")
 	}
 	err = m.ABI.IsValid()
 	if err != nil {
@@ -122,11 +119,8 @@ func (m *Manifest) IsValid(hash util.Uint160, checkSize bool) error {
 	if m.Trusts.Value == nil && !m.Trusts.Wildcard {
 		return errors.New("invalid (null?) trusts")
 	}
-	if len(m.Trusts.Value) > 1 {
-		hashes := slices.Clone(m.Trusts.Value)
-		if permissionDescsHaveDups(hashes) {
-			return errors.New("duplicate trusted contracts")
-		}
+	if sliceHasDups(m.Trusts.Value, PermissionDesc.Compare) {
+		return errors.New("duplicate trusted contracts")
 	}
 	err = Permissions(m.Permissions).AreValid()
 	if err != nil {

@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -63,23 +62,14 @@ func (a *ABI) IsValid() error {
 			return fmt.Errorf("method %q/%d: %w", a.Methods[i].Name, len(a.Methods[i].Parameters), err)
 		}
 	}
-	if len(a.Methods) > 1 {
-		var methods = slices.Clone(a.Methods)
-		slices.SortFunc(methods, func(a, b Method) int {
-			return cmp.Or(
-				cmp.Compare(a.Name, b.Name),
-				cmp.Compare(len(a.Parameters), len(b.Parameters)),
-			)
-		})
-		for i := range methods {
-			if i == 0 {
-				continue
-			}
-			if methods[i].Name == methods[i-1].Name &&
-				len(methods[i].Parameters) == len(methods[i-1].Parameters) {
-				return errors.New("duplicate method specifications")
-			}
+	if sliceHasDups(a.Methods, func(a, b Method) int {
+		res := cmp.Compare(a.Name, b.Name)
+		if res != 0 {
+			return res
 		}
+		return cmp.Compare(len(a.Parameters), len(b.Parameters))
+	}) {
+		return errors.New("duplicate method specifications")
 	}
 	for i := range a.Events {
 		err := a.Events[i].IsValid()
@@ -87,14 +77,10 @@ func (a *ABI) IsValid() error {
 			return fmt.Errorf("event %q/%d: %w", a.Events[i].Name, len(a.Events[i].Parameters), err)
 		}
 	}
-	if len(a.Events) > 1 {
-		names := make([]string, len(a.Events))
-		for i := range a.Events {
-			names[i] = a.Events[i].Name
-		}
-		if stringsHaveDups(names) {
-			return errors.New("duplicate event names")
-		}
+	if sliceHasDups(a.Events, func(a, b Event) int {
+		return cmp.Compare(a.Name, b.Name)
+	}) {
+		return errors.New("duplicate event names")
 	}
 	return nil
 }

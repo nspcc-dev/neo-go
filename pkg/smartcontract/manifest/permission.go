@@ -119,11 +119,7 @@ func (p *Permission) IsValid() error {
 	if slices.Contains(p.Methods.Value, "") {
 		return errors.New("empty method name")
 	}
-	if len(p.Methods.Value) < 2 {
-		return nil
-	}
-	names := slices.Clone(p.Methods.Value)
-	if stringsHaveDups(names) {
+	if sliceHasDups(p.Methods.Value, cmp.Compare) {
 		return errors.New("duplicate method names")
 	}
 	return nil
@@ -137,14 +133,9 @@ func (ps Permissions) AreValid() error {
 			return err
 		}
 	}
-	if len(ps) < 2 {
-		return nil
-	}
-	contracts := make([]PermissionDesc, 0, len(ps))
-	for i := range ps {
-		contracts = append(contracts, ps[i].Contract)
-	}
-	if permissionDescsHaveDups(contracts) {
+	if sliceHasDups(ps, func(a, b Permission) int {
+		return a.Contract.Compare(b.Contract)
+	}) {
 		return errors.New("contracts have duplicates")
 	}
 	return nil

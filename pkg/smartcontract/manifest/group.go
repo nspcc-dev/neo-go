@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"slices"
-	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -59,7 +58,7 @@ func (g Groups) AreValid(h util.Uint160) error {
 	for i := range g {
 		pkeys[i] = g[i].PublicKey
 	}
-	sort.Sort(pkeys)
+	slices.SortFunc(pkeys, (*keys.PublicKey).Cmp)
 	for i := range pkeys {
 		if i == 0 {
 			continue
