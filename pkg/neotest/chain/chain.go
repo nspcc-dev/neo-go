@@ -2,7 +2,7 @@ package chain
 
 import (
 	"encoding/hex"
-	"sort"
+	"slices"
 	"testing"
 	"time"
 
@@ -103,12 +103,12 @@ func init() {
 	standByCommittee[5] = pubs[5].StringCompressed()
 
 	multiValidatorAcc = make([]*wallet.Account, 4)
-	sort.Sort(pubs[:4])
+	slices.SortFunc(pubs[:4], (*keys.PublicKey).Cmp)
 
-	sort.Slice(accs[:4], func(i, j int) bool {
-		p1 := accs[i].PublicKey()
-		p2 := accs[j].PublicKey()
-		return p1.Cmp(p2) == -1
+	slices.SortFunc(accs[:4], func(a, b *wallet.Account) int {
+		pa := a.PublicKey()
+		pb := b.PublicKey()
+		return pa.Cmp(pb)
 	})
 	for i := range multiValidatorAcc {
 		multiValidatorAcc[i] = wallet.NewAccountFromPrivateKey(accs[i].PrivateKey())
@@ -119,12 +119,12 @@ func init() {
 	}
 
 	multiCommitteeAcc = make([]*wallet.Account, len(committeeWIFs))
-	sort.Sort(pubs)
+	slices.SortFunc(pubs, (*keys.PublicKey).Cmp)
 
-	sort.Slice(accs, func(i, j int) bool {
-		p1 := accs[i].PublicKey()
-		p2 := accs[j].PublicKey()
-		return p1.Cmp(p2) == -1
+	slices.SortFunc(accs, func(a, b *wallet.Account) int {
+		pa := a.PublicKey()
+		pb := b.PublicKey()
+		return pa.Cmp(pb)
 	})
 	for i := range multiCommitteeAcc {
 		multiCommitteeAcc[i] = wallet.NewAccountFromPrivateKey(accs[i].PrivateKey())

@@ -11,7 +11,6 @@ import (
 	"net"
 	"runtime"
 	"slices"
-	"sort"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -1170,10 +1169,8 @@ txloop:
 				var cbList = s.txCbList.Load()
 				if cbList != nil {
 					var list = cbList.([]util.Uint256)
-					var i = sort.Search(len(list), func(i int) bool {
-						return list[i].CompareTo(tx.Hash()) >= 0
-					})
-					if i < len(list) && list[i].Equals(tx.Hash()) {
+					_, found := slices.BinarySearchFunc(list, tx.Hash(), util.Uint256.CompareTo)
+					if found {
 						txCallback(tx)
 					}
 				}
@@ -1487,10 +1484,7 @@ func (s *Server) RequestTx(hashes ...util.Uint256) {
 	}
 
 	var sorted = slices.Clone(hashes)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].CompareTo(sorted[j]) < 0
-	})
-
+	slices.SortFunc(sorted, util.Uint256.CompareTo)
 	s.txCbList.Store(sorted)
 
 	for i := 0; i <= len(hashes)/payload.MaxHashesCount; i++ {

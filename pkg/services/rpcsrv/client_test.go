@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -154,7 +154,7 @@ func TestClientRoleManagement(t *testing.T) {
 	_, err = c.SubmitBlock(*bl)
 	require.NoError(t, err)
 
-	sort.Sort(testKeys)
+	slices.SortFunc(testKeys, (*keys.PublicKey).Cmp)
 	ks, err = rm.GetDesignatedByRole(noderoles.Oracle, height+1)
 	require.NoError(t, err)
 	require.Equal(t, testKeys, ks)
@@ -1458,11 +1458,11 @@ func TestClient_IteratorSessions(t *testing.T) {
 	for i := 0; i < storageItemsCount; i++ {
 		expected[i] = stackitem.NewBigInteger(big.NewInt(int64(i))).Bytes()
 	}
-	sort.Slice(expected, func(i, j int) bool {
-		if len(expected[i]) != len(expected[j]) {
-			return len(expected[i]) < len(expected[j])
+	slices.SortFunc(expected, func(a, b []byte) int {
+		if len(a) != len(b) {
+			return len(a) - len(b)
 		}
-		return bytes.Compare(expected[i], expected[j]) < 0
+		return bytes.Compare(a, b)
 	})
 
 	prepareSession := func(t *testing.T) (uuid.UUID, uuid.UUID) {
@@ -1699,11 +1699,11 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 		for i := 0; i < storageItemsCount; i++ {
 			expected[i] = stackitem.NewBigInteger(big.NewInt(int64(i))).Bytes()
 		}
-		sort.Slice(expected, func(i, j int) bool {
-			if len(expected[i]) != len(expected[j]) {
-				return len(expected[i]) < len(expected[j])
+		slices.SortFunc(expected, func(a, b []byte) int {
+			if len(a) != len(b) {
+				return len(a) - len(b)
 			}
-			return bytes.Compare(expected[i], expected[j]) < 0
+			return bytes.Compare(a, b)
 		})
 		checkSessionEnabled(t, c)
 	})

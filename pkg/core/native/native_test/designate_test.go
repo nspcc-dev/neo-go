@@ -1,7 +1,7 @@
 package native_test
 
 import (
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -157,6 +157,6 @@ func TestDesignate_GenesisRolesExtension(t *testing.T) {
 	c := e.CommitteeInvoker(e.NativeHash(t, nativenames.Designation))
 
 	// Check designated node in a separate block.
-	sort.Sort(pubs)
+	slices.SortFunc(pubs, (*keys.PublicKey).Cmp)
 	checkNodeRoles(t, c, true, noderoles.StateValidator, e.Chain.BlockHeight()+1, pubs)
 }

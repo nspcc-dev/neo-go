@@ -1,11 +1,11 @@
 package interop
 
 import (
+	"cmp"
 	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"sort"
 	"slices"
 	"strings"
 
@@ -362,12 +362,12 @@ func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 	md.MD = desc
 	desc.Safe = md.RequiredFlags&(callflag.All^callflag.ReadOnly) == 0
 
-	index := sort.Search(len(c.methods), func(i int) bool {
-		md := c.methods[i].MD
-		if md.Name != desc.Name {
-			return md.Name >= desc.Name
+	index, _ := slices.BinarySearchFunc(c.methods, *md, func(e, t MethodAndPrice) int {
+		res := cmp.Compare(e.MD.Name, t.MD.Name)
+		if res != 0 {
+			return res
 		}
-		return len(md.Parameters) > len(desc.Parameters)
+		return cmp.Compare(len(e.MD.Parameters), len(t.MD.Parameters))
 	})
 	c.methods = slices.Insert(c.methods, index, *md)
 
@@ -392,21 +392,18 @@ func (c *HFSpecificContractMD) GetMethodByOffset(offset int) (HFSpecificMethodAn
 
 // GetMethod returns method `name` with the specified number of parameters.
 func (c *HFSpecificContractMD) GetMethod(name string, paramCount int) (HFSpecificMethodAndPrice, bool) {
-	index := sort.Search(len(c.Methods), func(i int) bool {
-		md := c.Methods[i]
-		res := strings.Compare(name, md.MD.Name)
-		switch res {
-		case -1, 1:
-			return res == -1
-		default:
-			return paramCount <= len(md.MD.Parameters)
+	index, ok := slices.BinarySearchFunc(c.Methods, HFSpecificMethodAndPrice{}, func(a, _ HFSpecificMethodAndPrice) int {
+		res := strings.Compare(a.MD.Name, name)
+		if res != 0 {
+			return res
 		}
+		return cmp.Compare(len(a.MD.Parameters), paramCount)
 	})
-	if index < len(c.Methods) {
-		md := c.Methods[index]
-		if md.MD.Name == name && (paramCount == -1 || len(md.MD.Parameters) == paramCount) {
-			return md, true
-		}
+	// Exact match is possible only for specific paramCount, but if we're
+	// searching for _some_ method with this name (-1) we're taking the
+	// first one.
+	if ok || (index < len(c.Methods) && c.Methods[index].MD.Name == name && paramCount == -1) {
+		return c.Methods[index], true
 	}
 	return HFSpecificMethodAndPrice{}, false
 }
@@ -425,7 +422,7 @@ func (c *ContractMD) AddEvent(md Event) {
 
 // Sort sorts interop functions by id.
 func Sort(fs []Function) {
-	sort.Slice(fs, func(i, j int) bool { return fs[i].ID < fs[j].ID })
+	slices.SortFunc(fs, func(a, b Function) int { return cmp.Compare(a.ID, b.ID) })
 }
 
 // GetContract returns a contract by its hash in the current interop context.
@@ -435,13 +432,13 @@ func (ic *Context) GetContract(hash util.Uint160) (*state.Contract, error) {
 
 // GetFunction returns metadata for interop with the specified id.
 func (ic *Context) GetFunction(id uint32) *Function {
-	n := sort.Search(len(ic.Functions), func(i int) bool {
-		return ic.Functions[i].ID >= id
+	n, ok := slices.BinarySearchFunc(ic.Functions, Function{}, func(a, _ Function) int {
+		return cmp.Compare(a.ID, id)
 	})
-	if n < len(ic.Functions) && ic.Functions[n].ID == id {
-		return &ic.Functions[n]
+	if !ok {
+		return nil
 	}
-	return nil
+	return &ic.Functions[n]
 }
 
 // BaseExecFee represents factor to multiply syscall prices with.

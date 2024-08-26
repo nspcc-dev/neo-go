@@ -3,7 +3,7 @@ package stateroot_test
 import (
 	"crypto/elliptic"
 	"path/filepath"
-	"sort"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -63,10 +63,10 @@ func newMajorityMultisigWithGAS(t *testing.T, n int) (util.Uint160, keys.PublicK
 		require.NoError(t, err)
 		accs[i] = acc
 	}
-	sort.Slice(accs, func(i, j int) bool {
-		pi := accs[i].PublicKey()
-		pj := accs[j].PublicKey()
-		return pi.Cmp(pj) == -1
+	slices.SortFunc(accs, func(a, b *wallet.Account) int {
+		pa := a.PublicKey()
+		pb := b.PublicKey()
+		return pa.Cmp(pb)
 	})
 	pubs := make(keys.PublicKeys, n)
 	for i := range pubs {

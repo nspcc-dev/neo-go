@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"sort"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -1839,9 +1838,7 @@ func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
 		bc.updateExtensibleList(&newList, stateVals)
 	}
 
-	sort.Slice(newList, func(i, j int) bool {
-		return newList[i].Less(newList[j])
-	})
+	slices.SortFunc(newList, util.Uint160.Compare)
 	bc.extensible.Store(newList)
 	return nil
 }
@@ -2786,7 +2783,7 @@ func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data any, mp *m
 // GetCommittee returns the sorted list of public keys of nodes in committee.
 func (bc *Blockchain) GetCommittee() (keys.PublicKeys, error) {
 	pubs := bc.contracts.NEO.GetCommitteeMembers(bc.dao)
-	sort.Sort(pubs)
+	slices.SortFunc(pubs, (*keys.PublicKey).Cmp)
 	return pubs, nil
 }
 

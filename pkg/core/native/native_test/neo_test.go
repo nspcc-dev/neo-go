@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -204,7 +204,7 @@ func TestNEO_Vote(t *testing.T) {
 	standBySorted, err := keys.NewPublicKeysFromStrings(e.Chain.GetConfig().StandbyCommittee)
 	require.NoError(t, err)
 	standBySorted = standBySorted[:validatorsCount]
-	sort.Sort(standBySorted)
+	slices.SortFunc(standBySorted, (*keys.PublicKey).Cmp)
 	pubs := e.Chain.ComputeNextBlockValidators()
 	require.Equal(t, standBySorted, keys.PublicKeys(pubs))
 
@@ -269,7 +269,7 @@ func TestNEO_Vote(t *testing.T) {
 	for i := range candidates[:validatorsCount] {
 		sortedCandidates[i] = candidates[i].(neotest.SingleSigner).Account().PublicKey()
 	}
-	sort.Sort(sortedCandidates)
+	slices.SortFunc(sortedCandidates, (*keys.PublicKey).Cmp)
 	require.EqualValues(t, sortedCandidates, keys.PublicKeys(pubs))
 
 	pubs, err = neoCommitteeInvoker.Chain.GetNextBlockValidators()
@@ -403,7 +403,7 @@ func TestNEO_GetCommitteeAddress(t *testing.T) {
 	e := neoValidatorInvoker.Executor
 	standByCommitteePublicKeys, err := keys.NewPublicKeysFromStrings(e.Chain.GetConfig().StandbyCommittee)
 	require.NoError(t, err)
-	sort.Sort(standByCommitteePublicKeys)
+	slices.SortFunc(standByCommitteePublicKeys, (*keys.PublicKey).Cmp)
 	expectedCommitteeAddress, err := smartcontract.CreateMajorityMultiSigRedeemScript(standByCommitteePublicKeys)
 	require.NoError(t, err)
 	stack, err := neoValidatorInvoker.TestInvoke(t, "getCommitteeAddress")
@@ -811,8 +811,8 @@ func TestNEO_GetCandidates(t *testing.T) {
 		})
 		neoCommitteeInvoker.Invoke(t, v, "getCandidateVote", pub)
 	}
-	sort.Slice(expected, func(i, j int) bool {
-		return bytes.Compare(expected[i].Value().([]stackitem.Item)[0].Value().([]byte), expected[j].Value().([]stackitem.Item)[0].Value().([]byte)) < 0
+	slices.SortFunc(expected, func(a, b stackitem.Item) int {
+		return bytes.Compare(a.Value().([]stackitem.Item)[0].Value().([]byte), b.Value().([]stackitem.Item)[0].Value().([]byte))
 	})
 	neoCommitteeInvoker.Invoke(t, stackitem.NewArray(expected), "getCandidates")
 

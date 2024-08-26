@@ -6,7 +6,6 @@ import (
 	"maps"
 	"math/big"
 	"slices"
-	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -327,14 +326,7 @@ func (p *Policy) IsBlocked(dao *dao.Simple, hash util.Uint160) bool {
 // of the blocked account in the blocked accounts list (or the position it should be
 // put at).
 func (p *Policy) isBlockedInternal(roCache *PolicyCache, hash util.Uint160) (int, bool) {
-	length := len(roCache.blockedAccounts)
-	i := sort.Search(length, func(i int) bool {
-		return !roCache.blockedAccounts[i].Less(hash)
-	})
-	if length != 0 && i != length && roCache.blockedAccounts[i].Equals(hash) {
-		return i, true
-	}
-	return i, false
+	return slices.BinarySearchFunc(roCache.blockedAccounts, hash, util.Uint160.Compare)
 }
 
 func (p *Policy) getStoragePrice(ic *interop.Context, _ []stackitem.Item) stackitem.Item {

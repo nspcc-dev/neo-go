@@ -3,7 +3,7 @@ package mempool
 import (
 	"fmt"
 	"math/big"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -116,6 +116,10 @@ func TestOverCapacity(t *testing.T) {
 	const mempoolSize = 10
 	mp := New(mempoolSize, 0, false, nil)
 
+	var checkPoolIsSorted = func() {
+		require.True(t, slices.IsSortedFunc(mp.verifiedTxes, func(a, b item) int { return -a.CompareTo(b) }))
+	}
+
 	for i := 0; i < mempoolSize; i++ {
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = uint32(i)
@@ -124,7 +128,7 @@ func TestOverCapacity(t *testing.T) {
 	}
 	txcnt := uint32(mempoolSize)
 	require.Equal(t, mempoolSize, mp.Count())
-	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
+	checkPoolIsSorted()
 	require.Equal(t, *uint256.NewInt(0), mp.fees[acc].feeSum)
 
 	bigScript := make([]byte, 64)
@@ -140,7 +144,7 @@ func TestOverCapacity(t *testing.T) {
 		// size is ~90, networkFee is 10000 => feePerByte is 119
 		require.NoError(t, mp.Add(tx, fs))
 		require.Equal(t, mempoolSize, mp.Count())
-		require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
+		checkPoolIsSorted()
 	}
 	require.Equal(t, *uint256.NewInt(10 * 10000), mp.fees[acc].feeSum)
 
@@ -155,7 +159,7 @@ func TestOverCapacity(t *testing.T) {
 	require.Equal(t, mempoolSize, len(mp.verifiedMap))
 	require.Equal(t, mempoolSize, len(mp.verifiedTxes))
 	require.False(t, mp.containsKey(tx.Hash()))
-	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
+	checkPoolIsSorted()
 	require.Equal(t, *uint256.NewInt(100000), mp.fees[acc].feeSum)
 
 	// Low net fee, but higher per-byte fee is still a better combination.
@@ -168,7 +172,7 @@ func TestOverCapacity(t *testing.T) {
 	// => feePerByte is 137 (>119)
 	require.NoError(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
-	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
+	checkPoolIsSorted()
 	require.Equal(t, *uint256.NewInt(9*10000 + 7000), mp.fees[acc].feeSum)
 
 	// High priority always wins over low priority.
@@ -180,7 +184,7 @@ func TestOverCapacity(t *testing.T) {
 		txcnt++
 		require.NoError(t, mp.Add(tx, fs))
 		require.Equal(t, mempoolSize, mp.Count())
-		require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
+		checkPoolIsSorted()
 	}
 	require.Equal(t, *uint256.NewInt(10 * 8000), mp.fees[acc].feeSum)
 	// Good luck with low priority now.
@@ -190,7 +194,7 @@ func TestOverCapacity(t *testing.T) {
 	tx.Signers = []transaction.Signer{{Account: acc}}
 	require.Error(t, mp.Add(tx, fs))
 	require.Equal(t, mempoolSize, mp.Count())
-	require.Equal(t, true, sort.IsSorted(sort.Reverse(mp.verifiedTxes)))
+	checkPoolIsSorted()
 }
 
 func TestGetVerified(t *testing.T) {

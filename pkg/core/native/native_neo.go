@@ -9,7 +9,6 @@ import (
 	"maps"
 	"math/big"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -405,7 +404,7 @@ func (n *NEO) updateCache(cache *NeoCache, cvs keysWithVotes, blockHeight uint32
 	cache.committeeHash = hash.Hash160(script)
 
 	nextVals := committee[:n.cfg.GetNumOfCNs(blockHeight+1)].Copy()
-	sort.Sort(nextVals)
+	slices.SortFunc(nextVals, (*keys.PublicKey).Cmp)
 	cache.nextValidators = nextVals
 	return nil
 }
@@ -430,7 +429,7 @@ func (n *NEO) updateCachedNewEpochValues(d *dao.Simple, cache *NeoCache, blockHe
 	cache.newEpochCommitteeHash = hash.Hash160(script)
 
 	nextVals := committee[:numOfCNs].Copy()
-	sort.Sort(nextVals)
+	slices.SortFunc(nextVals, (*keys.PublicKey).Cmp)
 	cache.newEpochNextValidators = nextVals
 	return nil
 }
@@ -1028,23 +1027,23 @@ func (n *NEO) getCandidates(d *dao.Simple, sortByKey bool, maxNum int) ([]keyWit
 		// sortByKey assumes to sort by serialized key bytes (that's the way keys
 		// are stored and retrieved from the storage by default). Otherwise, need
 		// to sort using big.Int comparator.
-		sort.Slice(arr, func(i, j int) bool {
+		slices.SortFunc(arr, func(a, b keyWithVotes) int {
 			// The most-voted validators should end up in the front of the list.
-			cmp := arr[i].Votes.Cmp(arr[j].Votes)
+			cmp := b.Votes.Cmp(a.Votes)
 			if cmp != 0 {
-				return cmp > 0
+				return cmp
 			}
 			// Ties are broken with deserialized public keys.
 			// Sort by ECPoint's (X, Y) components: compare X first, and then compare Y.
-			cmpX := strings.Compare(arr[i].Key[1:], arr[j].Key[1:])
+			cmpX := strings.Compare(a.Key[1:], b.Key[1:])
 			if cmpX != 0 {
-				return cmpX == -1
+				return cmpX
 			}
 			// The case when X components are the same is extremely rare, thus we perform
 			// key deserialization only if needed. No error can occur.
-			ki, _ := keys.NewPublicKeyFromBytes([]byte(arr[i].Key), elliptic.P256())
-			kj, _ := keys.NewPublicKeyFromBytes([]byte(arr[j].Key), elliptic.P256())
-			return ki.Y.Cmp(kj.Y) == -1
+			ka, _ := keys.NewPublicKeyFromBytes([]byte(a.Key), elliptic.P256())
+			kb, _ := keys.NewPublicKeyFromBytes([]byte(b.Key), elliptic.P256())
+			return ka.Y.Cmp(kb.Y)
 		})
 	}
 	return arr, nil
@@ -1172,7 +1171,7 @@ func (n *NEO) ComputeNextBlockValidators(d *dao.Simple) keys.PublicKeys {
 
 func (n *NEO) getCommittee(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
 	pubs := n.GetCommitteeMembers(ic.DAO)
-	sort.Sort(pubs)
+	slices.SortFunc(pubs, (*keys.PublicKey).Cmp)
 	return pubsToArray(pubs)
 }
 

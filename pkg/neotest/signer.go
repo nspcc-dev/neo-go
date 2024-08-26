@@ -3,7 +3,7 @@ package neotest
 import (
 	"bytes"
 	"fmt"
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -106,10 +106,10 @@ func NewMultiSigner(accs ...*wallet.Account) MultiSigner {
 		panic(fmt.Sprintf("verification script requires %d signatures, "+
 			"but only %d accounts were provided", m, len(accs)))
 	}
-	sort.Slice(accs, func(i, j int) bool {
-		p1 := accs[i].PublicKey()
-		p2 := accs[j].PublicKey()
-		return p1.Cmp(p2) == -1
+	slices.SortFunc(accs, func(a, b *wallet.Account) int {
+		pa := a.PublicKey()
+		pb := b.PublicKey()
+		return pa.Cmp(pb)
 	})
 	for _, acc := range accs {
 		if !bytes.Equal(script, acc.Contract.Script) {

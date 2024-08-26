@@ -3,7 +3,6 @@ package rpcbinding
 import (
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 	"text/template"
 	"unicode"
@@ -434,9 +433,7 @@ func Generate(cfg binding.Config) error {
 	for k := range cfg.NamedTypes {
 		ctr.NamedTypes = append(ctr.NamedTypes, cfg.NamedTypes[k])
 	}
-	sort.Slice(ctr.NamedTypes, func(i, j int) bool {
-		return strings.Compare(ctr.NamedTypes[i].Name, ctr.NamedTypes[j].Name) < 0
-	})
+	slices.SortFunc(ctr.NamedTypes, func(a, b binding.ExtendedType) int { return strings.Compare(a.Name, b.Name) })
 
 	// Check resulting named types and events don't have duplicating field names.
 	for _, t := range ctr.NamedTypes {

@@ -2,7 +2,7 @@ package smartcontract
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -26,7 +26,7 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 
 	buf := io.NewBufBinWriter()
 	emit.Int(buf.BinWriter, int64(m))
-	sort.Sort(publicKeys)
+	slices.SortFunc(publicKeys, (*keys.PublicKey).Cmp)
 	for _, pubKey := range publicKeys {
 		emit.Bytes(buf.BinWriter, pubKey.Bytes())
 	}

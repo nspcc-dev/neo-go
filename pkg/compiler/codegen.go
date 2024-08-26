@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"cmp"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -10,7 +11,7 @@ import (
 	"go/types"
 	"math"
 	"math/big"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
@@ -2253,7 +2254,7 @@ func (c *codegen) compile(info *buildInfo, pkg *packages.Package) error {
 	for _, p := range info.program {
 		keys = append(keys, p.Types)
 	}
-	sort.Slice(keys, func(i, j int) bool { return keys[i].Path() < keys[j].Path() })
+	slices.SortFunc(keys, func(a, b *types.Package) int { return cmp.Compare(a.Path(), b.Path()) })
 
 	// Generate the code for the program.
 	c.ForEachFile(func(f *ast.File, pkg *types.Package) {
@@ -2535,9 +2536,7 @@ func removeNOPs(b []byte, nopOffsets []int, sequencePoints map[string][]DebugSeq
 
 func calcOffsetCorrection(ip, target int, offsets []int) int {
 	cnt := 0
-	start := sort.Search(len(offsets), func(i int) bool {
-		return offsets[i] >= ip || offsets[i] >= target
-	})
+	start, _ := slices.BinarySearch(offsets, min(ip, target))
 	for i := start; i < len(offsets) && (offsets[i] < target || offsets[i] <= ip); i++ {
 		ind := offsets[i]
 		if ip <= ind && ind < target || target <= ind && ind < ip {

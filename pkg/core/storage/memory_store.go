@@ -2,7 +2,7 @@ package storage
 
 import (
 	"bytes"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -107,10 +107,7 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool, lock func(),
 			return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) <= 0)
 		}
 	}
-	less := func(k1, k2 []byte) bool {
-		res := bytes.Compare(k1, k2)
-		return res != 0 && rng.Backwards == (res > 0)
-	}
+	var cmpFunc = getCmpFunc(rng.Backwards)
 
 	lock()
 	m := s.chooseMap(rng.Prefix)
@@ -123,14 +120,21 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool, lock func(),
 		}
 	}
 	unlock()
-	sort.Slice(memList, func(i, j int) bool {
-		return less(memList[i].Key, memList[j].Key)
+	slices.SortFunc(memList, func(a, b KeyValue) int {
+		return cmpFunc(a.Key, b.Key)
 	})
 	for _, kv := range memList {
 		if !f(kv.Key, kv.Value) {
 			break
 		}
 	}
+}
+
+func getCmpFunc(backwards bool) func(a, b []byte) int {
+	if !backwards {
+		return bytes.Compare
+	}
+	return func(a, b []byte) int { return -bytes.Compare(a, b) }
 }
 
 // Close implements Store interface and clears up memory. Never returns an

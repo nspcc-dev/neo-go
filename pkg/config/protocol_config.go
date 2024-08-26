@@ -1,11 +1,11 @@
 package config
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"maps"
 	"slices"
-	"sort"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -168,9 +168,7 @@ func (p *ProtocolConfiguration) Validate() error {
 
 // sortCheckZero sorts heightNumber array and checks for zero height presence.
 func sortCheckZero(arr []heightNumber, field string) error {
-	sort.Slice(arr, func(i, j int) bool {
-		return arr[i].h < arr[j].h
-	})
+	slices.SortFunc(arr, func(a, b heightNumber) int { return cmp.Compare(a.h, b.h) })
 	if arr[0].h != 0 {
 		return fmt.Errorf("invalid %s: no height 0 specified", field)
 	}

@@ -2,7 +2,7 @@ package native_test
 
 import (
 	"math/big"
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
@@ -602,9 +602,7 @@ func TestCryptoLib_KoblitzMultisigVerificationScript(t *testing.T) {
 			require.NoError(t, err)
 		}
 		// Sort private keys by their public keys.
-		sort.Slice(pks, func(i, j int) bool {
-			return pks[i].PublicKey().Cmp(pks[j].PublicKey()) < 0
-		})
+		slices.SortFunc(pks, func(a, b *keys.PrivateKey) int { return a.PublicKey().Cmp(b.PublicKey()) })
 
 		// Firstly, we need to build the N3 multisig account address based on the users' public keys.
 		// Pubs must be sorted, exactly like for the standard CheckMultisig.

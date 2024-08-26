@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -133,8 +132,8 @@ func (c *ParameterContext) AddSignature(h util.Uint160, ctr *wallet.Contract, pu
 					break
 				}
 			}
-			sort.Slice(sigs, func(i, j int) bool {
-				return sigs[i].index < sigs[j].index
+			slices.SortFunc(sigs, func(a, b sigWithIndex) int {
+				return a.index - b.index
 			})
 			for i := range sigs {
 				item.Parameters[i] = smartcontract.Parameter{

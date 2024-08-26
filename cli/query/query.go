@@ -2,9 +2,10 @@ package query
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/base64"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -192,14 +193,18 @@ func queryCandidates(ctx *cli.Context) error {
 		return cli.Exit(err, 1)
 	}
 
-	sort.Slice(vals, func(i, j int) bool {
-		if vals[i].Active != vals[j].Active {
-			return vals[i].Active
+	slices.SortFunc(vals, func(a, b result.Candidate) int {
+		if a.Active && !b.Active {
+			return 1
 		}
-		if vals[i].Votes != vals[j].Votes {
-			return vals[i].Votes > vals[j].Votes
+		if !a.Active && b.Active {
+			return -1
 		}
-		return vals[i].PublicKey.Cmp(&vals[j].PublicKey) == -1
+		res := cmp.Compare(a.Votes, b.Votes)
+		if res != 0 {
+			return res
+		}
+		return a.PublicKey.Cmp(&b.PublicKey)
 	})
 	var res []byte
 	res = fmt.Appendf(res, "Key\tVotes\tCommittee\tConsensus\n")
