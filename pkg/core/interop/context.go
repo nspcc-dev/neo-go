@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"slices"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -368,9 +369,7 @@ func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 		}
 		return len(md.Parameters) > len(desc.Parameters)
 	})
-	c.methods = append(c.methods, MethodAndPrice{})
-	copy(c.methods[index+1:], c.methods[index:])
-	c.methods[index] = *md
+	c.methods = slices.Insert(c.methods, index, *md)
 
 	if md.ActiveFrom != nil {
 		c.ActiveHFs[*md.ActiveFrom] = struct{}{}
