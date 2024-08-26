@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"cmp"
 	"crypto/elliptic"
 	"encoding/json"
 	"errors"
@@ -90,33 +91,27 @@ func (d *PermissionDesc) Group() *keys.PublicKey {
 
 // Less returns true if this value is less than the given PermissionDesc value.
 func (d *PermissionDesc) Less(d1 PermissionDesc) bool {
-	if d.Type < d1.Type {
-		return true
-	}
-	if d.Type != d1.Type {
-		return false
+	return d.Compare(d1) < 0
+}
+
+// Compare performs three-way comparison of two [PermissionDesc] values.
+func (d PermissionDesc) Compare(d1 PermissionDesc) int {
+	r := cmp.Compare(d.Type, d1.Type)
+	if r != 0 {
+		return r
 	}
 	switch d.Type {
 	case PermissionHash:
-		return d.Hash().Less(d1.Hash())
+		return d.Hash().Compare(d1.Hash())
 	case PermissionGroup:
-		return d.Group().Cmp(d1.Group()) < 0
+		return d.Group().Cmp(d1.Group())
 	}
-	return false
+	return 0 // wildcard or type that we can't compare.
 }
 
 // Equals returns true if both PermissionDesc values are the same.
 func (d *PermissionDesc) Equals(v PermissionDesc) bool {
-	if d.Type != v.Type {
-		return false
-	}
-	switch d.Type {
-	case PermissionHash:
-		return d.Hash().Equals(v.Hash())
-	case PermissionGroup:
-		return d.Group().Cmp(v.Group()) == 0
-	}
-	return false
+	return d.Compare(v) == 0
 }
 
 // IsValid checks if Permission is correct.

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -109,28 +108,14 @@ func stringsHaveDups(strings []string) bool {
 
 // permissionDescsHaveDups checks the given set of strings for duplicates. It modifies the slice given!
 func permissionDescsHaveDups(descs []PermissionDesc) bool {
-	sort.Slice(descs, func(i, j int) bool {
-		return descs[i].Less(descs[j])
-	})
+	slices.SortFunc(descs, PermissionDesc.Compare)
 	for i := range descs {
 		if i == 0 {
 			continue
 		}
 		j := i - 1
-		if descs[i].Type != descs[j].Type {
-			continue
-		}
-		switch descs[i].Type {
-		case PermissionWildcard:
+		if descs[i].Compare(descs[j]) == 0 {
 			return true
-		case PermissionHash:
-			if descs[i].Hash() == descs[j].Hash() {
-				return true
-			}
-		case PermissionGroup:
-			if descs[i].Group().Cmp(descs[j].Group()) == 0 {
-				return true
-			}
 		}
 	}
 	return false
