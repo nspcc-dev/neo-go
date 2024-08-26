@@ -1,6 +1,7 @@
 package util
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -117,6 +118,11 @@ func (u Uint160) Less(other Uint160) bool {
 		return u[k] < other[k]
 	}
 	return false
+}
+
+// Compare performs three-way comparison of one Uint160 to another.
+func (u Uint160) Compare(other Uint160) int {
+	return bytes.Compare(u[:], other[:])
 }
 
 // UnmarshalJSON implements the json unmarshaller interface.

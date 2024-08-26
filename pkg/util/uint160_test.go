@@ -114,6 +114,10 @@ func TestUInt160Less(t *testing.T) {
 	assert.Equal(t, true, ua.Less(ub))
 	assert.Equal(t, false, ua.Less(ua2))
 	assert.Equal(t, false, ub.Less(ua))
+	assert.Equal(t, -1, ua.Compare(ub))
+	assert.Equal(t, 1, ub.Compare(ua))
+	assert.Equal(t, 0, ua.Compare(ua))
+	assert.Equal(t, 0, ub.Compare(ub))
 }
 
 func TestUInt160String(t *testing.T) {
