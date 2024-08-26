@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/big"
 	"sort"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1854,8 +1855,8 @@ func (bc *Blockchain) updateExtensibleList(s *[]util.Uint160, pubs keys.PublicKe
 // IsExtensibleAllowed determines if script hash is allowed to send extensible payloads.
 func (bc *Blockchain) IsExtensibleAllowed(u util.Uint160) bool {
 	us := bc.extensible.Load().([]util.Uint160)
-	n := sort.Search(len(us), func(i int) bool { return !us[i].Less(u) })
-	return n < len(us)
+	_, ok := slices.BinarySearchFunc(us, u, util.Uint160.Compare)
+	return ok
 }
 
 func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Simple, trig trigger.Type, v *vm.VM) (*state.AppExecResult, *vm.VM, error) {
