@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -41,8 +40,8 @@ func (a *ApplicationConfiguration) EqualsButServices(o *ApplicationConfiguration
 	}
 	aCp := slices.Clone(a.P2P.Addresses)
 	oCp := slices.Clone(o.P2P.Addresses)
-	sort.Strings(aCp)
-	sort.Strings(oCp)
+	slices.Sort(aCp)
+	slices.Sort(oCp)
 	if !slices.Equal(aCp, oCp) {
 		return false
 	}

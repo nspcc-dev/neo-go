@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -866,7 +866,7 @@ func TestWSConcurrentAccess(t *testing.T) {
 	}
 	ids.lock.RUnlock()
 
-	sort.Ints(idsList)
+	slices.Sort(idsList)
 	require.Equal(t, 1, idsList[0])
 	require.Less(t, idsList[len(idsList)-1],
 		batchCount*3+1) // batchCount*requestsPerBatch+1

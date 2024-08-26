@@ -3,6 +3,7 @@ package manifest
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -94,7 +95,7 @@ func (p Parameters) AreValid() error {
 
 // stringsHaveDups checks the given set of strings for duplicates. It modifies the slice given!
 func stringsHaveDups(strings []string) bool {
-	sort.Strings(strings)
+	slices.Sort(strings)
 	for i := range strings {
 		if i == 0 {
 			continue

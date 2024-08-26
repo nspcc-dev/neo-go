@@ -11,7 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -362,7 +362,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 				for k := range di.EmittedEvents {
 					keys = append(keys, k)
 				}
-				sort.Strings(keys)
+				slices.Sort(keys)
 				for _, eventName := range keys {
 					var (
 						eventUsages   = di.EmittedEvents[eventName]

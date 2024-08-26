@@ -848,7 +848,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	for imp := range imports {
 		ctr.Imports = append(ctr.Imports, imp)
 	}
-	sort.Strings(ctr.Imports)
+	slices.Sort(ctr.Imports)
 	return ctr
 }
 
