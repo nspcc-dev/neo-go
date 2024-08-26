@@ -1,9 +1,10 @@
 package manifest
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -63,29 +64,19 @@ func (a *ABI) IsValid() error {
 		}
 	}
 	if len(a.Methods) > 1 {
-		methods := make([]struct {
-			name   string
-			params int
-		}, len(a.Methods))
-		for i := range methods {
-			methods[i].name = a.Methods[i].Name
-			methods[i].params = len(a.Methods[i].Parameters)
-		}
-		sort.Slice(methods, func(i, j int) bool {
-			if methods[i].name < methods[j].name {
-				return true
-			}
-			if methods[i].name == methods[j].name {
-				return methods[i].params < methods[j].params
-			}
-			return false
+		var methods = slices.Clone(a.Methods)
+		slices.SortFunc(methods, func(a, b Method) int {
+			return cmp.Or(
+				cmp.Compare(a.Name, b.Name),
+				cmp.Compare(len(a.Parameters), len(b.Parameters)),
+			)
 		})
 		for i := range methods {
 			if i == 0 {
 				continue
 			}
-			if methods[i].name == methods[i-1].name &&
-				methods[i].params == methods[i-1].params {
+			if methods[i].Name == methods[i-1].Name &&
+				len(methods[i].Parameters) == len(methods[i-1].Parameters) {
 				return errors.New("duplicate method specifications")
 			}
 		}
