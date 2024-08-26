@@ -787,11 +787,11 @@ func TestParameterFromValue(t *testing.T) {
 		},
 		{
 			value: make(map[string]int),
-			err:   "unsupported parameter map[string]int",
+			err:   "unsupported operation: map[string]int type",
 		},
 		{
 			value: []any{1, 2, make(map[string]int)},
-			err:   "unsupported parameter map[string]int",
+			err:   "unsupported operation: map[string]int type",
 		},
 	}
 

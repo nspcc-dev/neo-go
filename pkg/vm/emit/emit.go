@@ -127,6 +127,8 @@ func Array(w *io.BinWriter, es ...any) {
 //   - stackitem.Convertible, stackitem.Item
 //   - nil
 //   - []any
+//
+// [errors.ErrUnsupported] is returned for unsupported types.
 func Any(w *io.BinWriter, something any) {
 	switch e := something.(type) {
 	case []any:
@@ -181,7 +183,7 @@ func Any(w *io.BinWriter, something any) {
 		StackItem(w, e)
 	default:
 		if something != nil {
-			w.Err = fmt.Errorf("unsupported type: %T", e)
+			w.Err = fmt.Errorf("%w: %T type", errors.ErrUnsupported, e)
 			return
 		}
 		Opcodes(w, opcode.PUSHNULL)
@@ -199,14 +201,15 @@ func Convertible(w *io.BinWriter, c stackitem.Convertible) {
 	StackItem(w, si)
 }
 
-// StackItem emits provided stackitem.Item to the given buffer.
+// StackItem emits provided stackitem.Item to the given buffer. If it can't
+// be emitted [errors.ErrUnsupported] is returned.
 func StackItem(w *io.BinWriter, si stackitem.Item) {
 	switch t := si.Type(); t {
 	case stackitem.AnyT:
 		if si.Value() == nil {
 			Opcodes(w, opcode.PUSHNULL)
 		} else {
-			w.Err = fmt.Errorf("only nil value supported for %s", t)
+			w.Err = fmt.Errorf("%w: %s can only be nil", errors.ErrUnsupported, t)
 			return
 		}
 	case stackitem.BooleanT:
@@ -240,7 +243,7 @@ func StackItem(w *io.BinWriter, si stackitem.Item) {
 		Int(w, int64(len(arr)))
 		Opcodes(w, opcode.PACKMAP)
 	default:
-		w.Err = fmt.Errorf("%s is unsuppoted", t)
+		w.Err = fmt.Errorf("%w: %s type", errors.ErrUnsupported, t)
 		return
 	}
 }
