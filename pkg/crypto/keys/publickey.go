@@ -152,7 +152,7 @@ func (p *PublicKey) getBytes(compressed bool) []byte {
 	if compressed {
 		return elliptic.MarshalCompressed(p.Curve, p.X, p.Y)
 	}
-	return elliptic.Marshal(p.Curve, p.X, p.Y)
+	return elliptic.Marshal(p.Curve, p.X, p.Y) //nolint:staticcheck // We don't care about ECDH, but UncompressedBytes() should still work.
 }
 
 // Bytes returns byte array representation of the public key in compressed
