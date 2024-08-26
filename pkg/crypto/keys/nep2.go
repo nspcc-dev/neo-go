@@ -67,17 +67,13 @@ func NEP2Encrypt(priv *PrivateKey, passphrase string, params ScryptParams) (s st
 		return s, err
 	}
 
-	buf := new(bytes.Buffer)
-	buf.Write(nepHeader)
-	buf.WriteByte(nepFlag)
-	buf.Write(addrHash)
-	buf.Write(encrypted)
+	var buf = make([]byte, 0, len(nepHeader)+1+len(addrHash)+len(encrypted))
+	buf = append(buf, nepHeader...)
+	buf = append(buf, nepFlag)
+	buf = append(buf, addrHash...)
+	buf = append(buf, encrypted...)
 
-	if buf.Len() != 39 {
-		return s, fmt.Errorf("invalid buffer length: expecting 39 bytes got %d", buf.Len())
-	}
-
-	return base58.CheckEncode(buf.Bytes()), nil
+	return base58.CheckEncode(buf), nil
 }
 
 // NEP2Decrypt decrypts an encrypted key using the given passphrase

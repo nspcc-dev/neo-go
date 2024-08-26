@@ -1,7 +1,6 @@
 package keys
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/base58"
@@ -36,14 +35,14 @@ func WIFEncode(key []byte, version byte, compressed bool) (s string, err error) 
 		return s, fmt.Errorf("invalid private key length: %d", len(key))
 	}
 
-	buf := new(bytes.Buffer)
-	buf.WriteByte(version)
-	buf.Write(key)
+	var buf = make([]byte, 0, 1+len(key)+1)
+	buf = append(buf, version)
+	buf = append(buf, key...)
 	if compressed {
-		buf.WriteByte(0x01)
+		buf = append(buf, 0x01)
 	}
 
-	s = base58.CheckEncode(buf.Bytes())
+	s = base58.CheckEncode(buf)
 	return
 }
 
