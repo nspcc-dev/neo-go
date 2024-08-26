@@ -3,7 +3,6 @@ package statesync
 import (
 	"bytes"
 	"slices"
-	"sort"
 	"sync"
 
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -94,11 +93,9 @@ func (mp *Pool) Update(remove map[util.Uint256][][]byte, add map[util.Uint256][]
 	for h, paths := range remove {
 		old := mp.hashes[h]
 		for _, path := range paths {
-			i := sort.Search(len(old), func(i int) bool {
-				return bytes.Compare(old[i], path) >= 0
-			})
-			if i < len(old) && bytes.Equal(old[i], path) {
-				old = append(old[:i], old[i+1:]...)
+			i, found := slices.BinarySearchFunc(old, path, bytes.Compare)
+			if found {
+				old = slices.Delete(old, i, i+1)
 			}
 		}
 		if len(old) == 0 {
@@ -116,18 +113,12 @@ func (mp *Pool) Update(remove map[util.Uint256][][]byte, add map[util.Uint256][]
 func (mp *Pool) addPaths(nodeHash util.Uint256, paths [][]byte) {
 	old := mp.hashes[nodeHash]
 	for _, path := range paths {
-		i := sort.Search(len(old), func(i int) bool {
-			return bytes.Compare(old[i], path) >= 0
-		})
-		if i < len(old) && bytes.Equal(old[i], path) {
+		i, found := slices.BinarySearchFunc(old, path, bytes.Compare)
+		if found {
 			// then path is already added
 			continue
 		}
-		old = append(old, path)
-		if i != len(old)-1 {
-			copy(old[i+1:], old[i:])
-			old[i] = path
-		}
+		old = slices.Insert(old, i, path)
 	}
 	mp.hashes[nodeHash] = old
 }
