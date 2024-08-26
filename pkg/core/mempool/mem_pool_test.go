@@ -117,7 +117,7 @@ func TestOverCapacity(t *testing.T) {
 	mp := New(mempoolSize, 0, false, nil)
 
 	var checkPoolIsSorted = func() {
-		require.True(t, slices.IsSortedFunc(mp.verifiedTxes, func(a, b item) int { return -a.CompareTo(b) }))
+		require.True(t, slices.IsSortedFunc(mp.verifiedTxes, func(a, b item) int { return -a.Compare(b) }))
 	}
 
 	for i := 0; i < mempoolSize; i++ {
@@ -347,18 +347,18 @@ func TestMempoolItemsOrder(t *testing.T) {
 	tx4.Signers = []transaction.Signer{{Account: sender0}}
 	item4 := item{txn: tx4}
 
-	require.True(t, item1.CompareTo(item2) > 0)
-	require.True(t, item2.CompareTo(item1) < 0)
-	require.True(t, item1.CompareTo(item3) > 0)
-	require.True(t, item3.CompareTo(item1) < 0)
-	require.True(t, item1.CompareTo(item4) > 0)
-	require.True(t, item4.CompareTo(item1) < 0)
-	require.True(t, item2.CompareTo(item3) > 0)
-	require.True(t, item3.CompareTo(item2) < 0)
-	require.True(t, item2.CompareTo(item4) > 0)
-	require.True(t, item4.CompareTo(item2) < 0)
-	require.True(t, item3.CompareTo(item4) > 0)
-	require.True(t, item4.CompareTo(item3) < 0)
+	require.True(t, item1.Compare(item2) > 0)
+	require.True(t, item2.Compare(item1) < 0)
+	require.True(t, item1.Compare(item3) > 0)
+	require.True(t, item3.Compare(item1) < 0)
+	require.True(t, item1.Compare(item4) > 0)
+	require.True(t, item4.Compare(item1) < 0)
+	require.True(t, item2.Compare(item3) > 0)
+	require.True(t, item3.Compare(item2) < 0)
+	require.True(t, item2.Compare(item4) > 0)
+	require.True(t, item4.Compare(item2) < 0)
+	require.True(t, item3.Compare(item4) > 0)
+	require.True(t, item4.Compare(item3) < 0)
 }
 
 func TestMempoolAddRemoveOracleResponse(t *testing.T) {

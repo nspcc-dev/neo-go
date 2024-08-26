@@ -84,13 +84,13 @@ type Pool struct {
 
 func (p items) Len() int           { return len(p) }
 func (p items) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p items) Less(i, j int) bool { return p[i].CompareTo(p[j]) < 0 }
+func (p items) Less(i, j int) bool { return p[i].Compare(p[j]) < 0 }
 
-// CompareTo returns the difference between two items.
+// Compare returns the difference between two items.
 // difference < 0 implies p < otherP.
 // difference = 0 implies p = otherP.
 // difference > 0 implies p > otherP.
-func (p item) CompareTo(otherP item) int {
+func (p item) Compare(otherP item) int {
 	pHigh := p.txn.HasAttribute(transaction.HighPriority)
 	otherHigh := otherP.txn.HasAttribute(transaction.HighPriority)
 	if pHigh && !otherHigh {
@@ -238,7 +238,7 @@ func (mp *Pool) Add(t *transaction.Transaction, fee Feer, data ...any) error {
 	// transactions with the same priority and appending to the end of the
 	// slice is always more efficient.
 	n := sort.Search(len(mp.verifiedTxes), func(n int) bool {
-		return pItem.CompareTo(mp.verifiedTxes[n]) > 0
+		return pItem.Compare(mp.verifiedTxes[n]) > 0
 	})
 	// Changing sort.Search to slices.BinarySearchFunc() is not recommended
 	// above, as of Go 1.23 this results in
@@ -487,14 +487,14 @@ func (mp *Pool) TryGetData(hash util.Uint256) (any, bool) {
 	if tx, ok := mp.verifiedMap[hash]; ok {
 		itm := item{txn: tx}
 		n := sort.Search(len(mp.verifiedTxes), func(n int) bool {
-			return itm.CompareTo(mp.verifiedTxes[n]) >= 0
+			return itm.Compare(mp.verifiedTxes[n]) >= 0
 		})
 		if n < len(mp.verifiedTxes) {
 			for i := n; i < len(mp.verifiedTxes); i++ { // items may have equal priority, so `n` is the left bound of the items which are as prioritized as the desired `itm`.
 				if mp.verifiedTxes[i].txn.Hash() == hash {
 					return mp.verifiedTxes[i].data, ok
 				}
-				if itm.CompareTo(mp.verifiedTxes[i]) != 0 {
+				if itm.Compare(mp.verifiedTxes[i]) != 0 {
 					break
 				}
 			}

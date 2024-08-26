@@ -83,7 +83,7 @@ func TestUInt256Equals(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, ua.Equals(ub), "%s and %s cannot be equal", ua, ub)
 	assert.True(t, ua.Equals(ua), "%s and %s must be equal", ua, ua)
-	assert.Zero(t, ua.CompareTo(ua), "%s and %s must be equal", ua, ua)
+	assert.Zero(t, ua.Compare(ua), "%s and %s must be equal", ua, ua)
 }
 
 func TestUint256_Serializable(t *testing.T) {

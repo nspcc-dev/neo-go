@@ -164,8 +164,8 @@ func TestFixed8_Arith(t *testing.T) {
 	assert.True(t, u1.LessThan(u2))
 	assert.True(t, u2.GreaterThan(u1))
 	assert.True(t, u1.Equal(u1))
-	assert.NotZero(t, u1.CompareTo(u2))
-	assert.Zero(t, u1.CompareTo(u1))
+	assert.NotZero(t, u1.Compare(u2))
+	assert.Zero(t, u1.Compare(u1))
 	assert.EqualValues(t, Fixed8(2), u2.Div(3))
 }
 

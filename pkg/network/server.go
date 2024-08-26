@@ -1169,7 +1169,7 @@ txloop:
 				var cbList = s.txCbList.Load()
 				if cbList != nil {
 					var list = cbList.([]util.Uint256)
-					_, found := slices.BinarySearchFunc(list, tx.Hash(), util.Uint256.CompareTo)
+					_, found := slices.BinarySearchFunc(list, tx.Hash(), util.Uint256.Compare)
 					if found {
 						txCallback(tx)
 					}
@@ -1484,7 +1484,7 @@ func (s *Server) RequestTx(hashes ...util.Uint256) {
 	}
 
 	var sorted = slices.Clone(hashes)
-	slices.SortFunc(sorted, util.Uint256.CompareTo)
+	slices.SortFunc(sorted, util.Uint256.Compare)
 	s.txCbList.Store(sorted)
 
 	for i := 0; i <= len(hashes)/payload.MaxHashesCount; i++ {

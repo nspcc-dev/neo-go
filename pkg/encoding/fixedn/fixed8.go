@@ -1,6 +1,7 @@
 package fixedn
 
 import (
+	"cmp"
 	"strconv"
 	"strings"
 
@@ -158,10 +159,10 @@ func (f Fixed8) Equal(g Fixed8) bool {
 	return f == g
 }
 
-// CompareTo returns the difference between the f and g.
-// difference < 0 implies f < g.
-// difference = 0 implies f = g.
-// difference > 0 implies f > g.
-func (f Fixed8) CompareTo(g Fixed8) int {
-	return int(f - g)
+// Compare performs three-way comparison between f and g.
+//   - -1 implies f < g.
+//   - 0 implies f = g.
+//   - 1 implies f > g.
+func (f Fixed8) Compare(g Fixed8) int {
+	return cmp.Compare(f, g)
 }
