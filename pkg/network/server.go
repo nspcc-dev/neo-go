@@ -1440,25 +1440,16 @@ func (s *Server) tryInitStateSync() {
 		return
 	}
 
-	var peersNumber int
 	s.lock.RLock()
-	heights := make([]uint32, 0)
+	heights := make([]uint32, 0, len(s.peers))
 	for p := range s.peers {
 		if p.Handshaked() {
-			peersNumber++
-			peerLastBlock := p.LastBlockIndex()
-			i := sort.Search(len(heights), func(i int) bool {
-				return heights[i] >= peerLastBlock
-			})
-			heights = append(heights, peerLastBlock)
-			if i != len(heights)-1 {
-				copy(heights[i+1:], heights[i:])
-				heights[i] = peerLastBlock
-			}
+			heights = append(heights, p.LastBlockIndex())
 		}
 	}
 	s.lock.RUnlock()
-	if peersNumber >= s.MinPeers && len(heights) > 0 {
+	slices.Sort(heights)
+	if len(heights) >= s.MinPeers && len(heights) > 0 {
 		// choose the height of the median peer as the current chain's height
 		h := heights[len(heights)/2]
 		err := s.stateSync.Init(h)
