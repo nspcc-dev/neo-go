@@ -155,11 +155,6 @@ func checkNewBlockchainErr(t *testing.T, cfg func(c *config.Config), store stora
 }
 
 func TestNewBlockchainIncosistencies(t *testing.T) {
-	t.Run("state exchange without state root", func(t *testing.T) {
-		checkNewBlockchainErr(t, func(c *config.Config) {
-			c.ProtocolConfiguration.P2PStateExchangeExtensions = true
-		}, storage.NewMemoryStore(), "P2PStatesExchangeExtensions are enabled, but StateRootInHeader is off")
-	})
 	t.Run("trusted header without state sync extensions", func(t *testing.T) {
 		checkNewBlockchainErr(t, func(c *config.Config) {
 			c.ApplicationConfiguration.TrustedHeader = config.HashIndex{
@@ -177,7 +172,9 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 	)
 	spountCfg := func(c *config.Config) {
 		c.ApplicationConfiguration.RemoveUntraceableBlocks = true
-		c.ProtocolConfiguration.StateRootInHeader = true
+		c.ProtocolConfiguration.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
 		c.ProtocolConfiguration.P2PStateExchangeExtensions = true
 		c.ProtocolConfiguration.StateSyncInterval = stateSyncInterval
 		c.ProtocolConfiguration.MaxTraceableBlocks = maxTraceable
@@ -445,7 +442,9 @@ func (nopCloserStorage) Close() error {
 
 func TestBlockchainRestoreStateRootInHeader(t *testing.T) {
 	bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
-		c.ProtocolConfiguration.StateRootInHeader = true
+		c.ProtocolConfiguration.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
 	})
 	require.NoError(t, bc.AddBlock(bc.newBlock()))
 	require.NoError(t, bc.AddBlock(bc.newBlock()))
@@ -456,7 +455,11 @@ func TestBlockchainRestoreStateRootInHeader(t *testing.T) {
 	require.NoError(t, w.Err)
 
 	data := w.Bytes()
-	fcfg := func(c *config.Config) { c.ProtocolConfiguration.StateRootInHeader = true }
+	fcfg := func(c *config.Config) {
+		c.ProtocolConfiguration.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0,
+		}
+	}
 	initChain := func(st storage.Store) *Blockchain {
 		chain := initTestChain(t, st, fcfg)
 		go chain.Run()

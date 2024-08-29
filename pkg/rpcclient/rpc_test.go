@@ -67,7 +67,7 @@ func getResultBlock1() *result.Block {
 	if err != nil {
 		panic(err)
 	}
-	b := block.New(false)
+	b := &block.Block{}
 	err = testserdes.DecodeBinary(binB, b)
 	if err != nil {
 		panic(err)

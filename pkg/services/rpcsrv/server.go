@@ -98,6 +98,7 @@ type (
 		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 		HeaderHeight() uint32
 		InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
+		IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool
 		GetMillisecondsPerBlock() uint32
 		GetMaxValidUntilBlockIncrement() uint32
 		NativeManagementID() int32
@@ -138,16 +139,15 @@ type (
 		chain  Ledger
 		config config.RPC
 		// wsReadLimit represents web-socket message limit for a receiving side.
-		wsReadLimit      int64
-		upgrader         websocket.Upgrader
-		network          netmode.Magic
-		stateRootEnabled bool
-		coreServer       *network.Server
-		oracle           *atomic.Value
-		log              *zap.Logger
-		shutdown         chan struct{}
-		started          atomic.Bool
-		errChan          chan<- error
+		wsReadLimit int64
+		upgrader    websocket.Upgrader
+		network     netmode.Magic
+		coreServer  *network.Server
+		oracle      *atomic.Value
+		log         *zap.Logger
+		shutdown    chan struct{}
+		started     atomic.Bool
+		errChan     chan<- error
 
 		sessionsLock sync.Mutex
 		sessions     map[string]*session
@@ -365,17 +365,16 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		http:  httpServers,
 		https: tlsServers,
 
-		chain:            chain,
-		config:           conf,
-		wsReadLimit:      int64(protoCfg.MaxBlockSize*4)/3 + 1024, // Enough for Base64-encoded content of `submitblock` and `submitp2pnotaryrequest`.
-		upgrader:         websocket.Upgrader{CheckOrigin: wsOriginChecker},
-		network:          protoCfg.Magic,
-		stateRootEnabled: protoCfg.StateRootInHeader,
-		coreServer:       coreServer,
-		log:              log,
-		oracle:           oracleWrapped,
-		shutdown:         make(chan struct{}),
-		errChan:          errChan,
+		chain:       chain,
+		config:      conf,
+		wsReadLimit: int64(protoCfg.MaxBlockSize*4)/3 + 1024, // Enough for Base64-encoded content of `submitblock` and `submitp2pnotaryrequest`.
+		upgrader:    websocket.Upgrader{CheckOrigin: wsOriginChecker},
+		network:     protoCfg.Magic,
+		coreServer:  coreServer,
+		log:         log,
+		oracle:      oracleWrapped,
+		shutdown:    make(chan struct{}),
+		errChan:     errChan,
 
 		sessions: make(map[string]*session),
 
@@ -914,7 +913,6 @@ func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 
 			CommitteeHistory:  cfg.CommitteeHistory,
 			P2PSigExtensions:  cfg.P2PSigExtensions,
-			StateRootInHeader: cfg.StateRootInHeader,
 			ValidatorsHistory: cfg.ValidatorsHistory,
 		},
 		Application: result.Application{
@@ -1876,7 +1874,8 @@ func (s *Server) getHistoricalContractState(root util.Uint256, csHash util.Uint1
 func (s *Server) getStateHeight(_ params.Params) (any, *neorpc.Error) {
 	var height = s.chain.BlockHeight()
 	var stateHeight = s.chain.GetStateModule().CurrentValidatedHeight()
-	if s.chain.GetConfig().StateRootInHeader {
+	var f = config.HFFaun
+	if s.chain.IsHardforkEnabled(&f, height) {
 		stateHeight = height - 1
 	}
 	return &result.StateHeight{
@@ -2328,7 +2327,7 @@ func (s *Server) fakeBlockFromParam(p *params.Param) (*block.Block, *neorpc.Erro
 		if !h.NextConsensus.Equals(util.Uint160{}) {
 			base.NextConsensus = h.NextConsensus
 		}
-		if base.StateRootEnabled && !h.PrevStateRoot.Equals(util.Uint256{}) {
+		if base.Version == block.VersionFaun {
 			base.PrevStateRoot = h.PrevStateRoot
 		}
 	}
@@ -2750,7 +2749,7 @@ func (s *Server) submitBlock(reqParams params.Params) (any, *neorpc.Error) {
 	if err != nil {
 		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("missing parameter or not a base64: %s", err))
 	}
-	b := block.New(s.stateRootEnabled)
+	b := &block.Block{}
 	r := io.NewBinReaderFromBuf(blockBytes)
 	b.DecodeBinary(r)
 	if r.Err != nil {

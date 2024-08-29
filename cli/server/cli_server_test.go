@@ -61,13 +61,6 @@ func TestServerStart(t *testing.T) {
 		})
 		e.RunWithError(t, baseCmd...)
 	})
-	t.Run("stateroot service is on && StateRootInHeader=true", func(t *testing.T) {
-		saveCfg(t, func(cfg *config.Config) {
-			cfg.ApplicationConfiguration.StateRoot.Enabled = true
-			cfg.ProtocolConfiguration.StateRootInHeader = true
-		})
-		e.RunWithError(t, baseCmd...)
-	})
 	t.Run("invalid Oracle config", func(t *testing.T) {
 		saveCfg(t, func(cfg *config.Config) {
 			cfg.ApplicationConfiguration.Oracle.Enabled = true

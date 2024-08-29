@@ -60,7 +60,9 @@ func TestNewServer(t *testing.T) {
 	bc := &fakechain.FakeChain{Blockchain: config.Blockchain{
 		ProtocolConfiguration: config.ProtocolConfiguration{
 			P2PStateExchangeExtensions: true,
-			StateRootInHeader:          true,
+			Hardforks: map[string]uint32{
+				config.HFFaun.String(): 0,
+			},
 		}}}
 	s, err := newServerFromConstructors(ServerConfig{}, bc, new(fakechain.FakeStateSync), nil, newFakeTransp, newTestDiscovery)
 	require.Error(t, err)
@@ -428,7 +430,7 @@ func TestBlock(t *testing.T) {
 	s.chain.(*fakechain.FakeChain).Blockheight.Store(12344)
 	require.Equal(t, uint32(12344), s.chain.BlockHeight())
 
-	b := block.New(false)
+	b := &block.Block{}
 	b.Index = 12345
 	s.testHandleMessage(t, nil, CMDBlock, b)
 	require.Eventually(t, func() bool { return s.chain.BlockHeight() == 12345 }, 2*time.Second, time.Millisecond*500)

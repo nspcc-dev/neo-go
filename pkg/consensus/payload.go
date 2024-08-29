@@ -171,11 +171,7 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 		cv.newViewNumber = m.ViewNumber + 1
 		m.payload = cv
 	case prepareRequestType:
-		r := new(prepareRequest)
-		if m.stateRootEnabled {
-			r.stateRootEnabled = true
-		}
-		m.payload = r
+		m.payload = new(prepareRequest)
 	case prepareResponseType:
 		m.payload = new(prepareResponse)
 	case commitType:
@@ -183,11 +179,7 @@ func (m *message) DecodeBinary(r *io.BinReader) {
 	case recoveryRequestType:
 		m.payload = new(recoveryRequest)
 	case recoveryMessageType:
-		r := new(recoveryMessage)
-		if m.stateRootEnabled {
-			r.stateRootEnabled = true
-		}
-		m.payload = r
+		m.payload = new(recoveryMessage)
 	default:
 		r.Err = fmt.Errorf("invalid type: 0x%02x", byte(m.Type))
 		return

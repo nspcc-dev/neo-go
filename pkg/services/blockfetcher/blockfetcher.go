@@ -42,6 +42,7 @@ const (
 
 // Ledger is an interface to Blockchain sufficient for Service.
 type Ledger interface {
+	IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool
 	GetConfig() config.Blockchain
 	BlockHeight() uint32
 	HeaderHeight() uint32
@@ -64,7 +65,7 @@ type Service struct {
 
 	stateRootInHeader bool
 	// headerSizeMap is a map of height to expected header size.
-	headerSizeMap map[int]int
+	headerSizeMap map[uint32]int
 
 	chain   Ledger
 	enqueue func(obj bqueue.Indexable) error
@@ -83,8 +84,8 @@ type Service struct {
 	shutdownCallback func()
 
 	// Depends on the OperationMode, the following functions are set to the appropriate functions.
-	getFunc    func(ctx context.Context, oid string, index int) (io.ReadCloser, error)
-	readFunc   func(rc io.ReadCloser) (any, error)
+	getFunc    func(ctx context.Context, oid string, index uint32) (io.ReadCloser, error)
+	readFunc   func(index uint32, rc io.ReadCloser) (any, error)
 	heightFunc func() uint32
 
 	// stopAt is the height at which the service will stop fetching objects.
@@ -119,10 +120,10 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, put fun
 		log:           logger,
 		cfg:           cfg,
 		operationMode: opt,
-		headerSizeMap: getHeaderSizeMap(chain.GetConfig()),
+		headerSizeMap: getHeaderSizeMap(chain),
 
 		enqueue:           put,
-		stateRootInHeader: chain.GetConfig().StateRootInHeader,
+		stateRootInHeader: false,
 		shutdownCallback:  shutdownCallback,
 
 		quit:                  make(chan bool),
@@ -138,12 +139,17 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, put fun
 	}, nil
 }
 
-func getHeaderSizeMap(chain config.Blockchain) map[int]int {
-	headerSizeMap := make(map[int]int)
-	headerSizeMap[0] = block.GetExpectedHeaderSize(chain.StateRootInHeader, 0) // genesis header size.
-	headerSizeMap[1] = block.GetExpectedHeaderSize(chain.StateRootInHeader, chain.GetNumOfCNs(0))
-	for height := range chain.CommitteeHistory {
-		headerSizeMap[int(height)] = block.GetExpectedHeaderSize(chain.StateRootInHeader, chain.GetNumOfCNs(height))
+func getHeaderSizeMap(chain Ledger) map[uint32]int {
+	cfg := chain.GetConfig()
+	headerSizeMap := make(map[uint32]int)
+	f := config.HFFaun
+	headerSizeMap[0] = block.GetExpectedHeaderSize(chain.IsHardforkEnabled(&f, 0), 0) // genesis header size.
+	headerSizeMap[1] = block.GetExpectedHeaderSize(chain.IsHardforkEnabled(&f, 1), cfg.GetNumOfCNs(1))
+	if h, ok := cfg.Hardforks[f.String()]; ok && h > 1 {
+		headerSizeMap[h] = block.GetExpectedHeaderSize(true, cfg.GetNumOfCNs(h))
+	}
+	for height := range cfg.CommitteeHistory {
+		headerSizeMap[height] = block.GetExpectedHeaderSize(chain.IsHardforkEnabled(&f, height), cfg.GetNumOfCNs(height))
 	}
 	return headerSizeMap
 }
@@ -239,14 +245,14 @@ func (bfs *Service) blockDownloader() {
 			ctx, cancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
 			defer cancel()
 
-			rc, err := bfs.getFunc(ctx, blkOid.String(), int(index))
+			rc, err := bfs.getFunc(ctx, blkOid.String(), index)
 			if err != nil {
 				if neofs.IsContextCanceledErr(err) {
 					return nil
 				}
 				return err
 			}
-			obj, err = bfs.readFunc(rc)
+			obj, err = bfs.readFunc(index, rc)
 			if err != nil {
 				if neofs.IsContextCanceledErr(err) {
 					return nil
@@ -328,8 +334,15 @@ func (bfs *Service) fetchOIDsBySearch() error {
 }
 
 // readBlock decodes the block from the read closer and prepares it for adding to the blockchain.
-func (bfs *Service) readBlock(rc io.ReadCloser) (any, error) {
-	b := block.New(bfs.stateRootInHeader)
+func (bfs *Service) readBlock(index uint32, rc io.ReadCloser) (any, error) {
+	var (
+		hf = config.HFFaun
+		v  uint32
+	)
+	if bfs.chain.IsHardforkEnabled(&hf, index) {
+		v = block.VersionFaun
+	}
+	b := block.New(v)
 	r := gio.NewBinReaderFromIO(rc)
 	b.DecodeBinary(r)
 	rc.Close()
@@ -337,8 +350,15 @@ func (bfs *Service) readBlock(rc io.ReadCloser) (any, error) {
 }
 
 // readHeader decodes the header from the read closer and prepares it for adding to the blockchain.
-func (bfs *Service) readHeader(rc io.ReadCloser) (any, error) {
-	b := block.New(bfs.stateRootInHeader)
+func (bfs *Service) readHeader(index uint32, rc io.ReadCloser) (any, error) {
+	var (
+		hf = config.HFFaun
+		v  uint32
+	)
+	if bfs.chain.IsHardforkEnabled(&hf, index) {
+		v = block.VersionFaun
+	}
+	b := block.New(v)
 	r := gio.NewBinReaderFromIO(rc)
 	b.Header.DecodeBinary(r)
 	rc.Close()
@@ -417,7 +437,7 @@ func (bfs *Service) IsActive() bool {
 	return bfs.isActive.Load()
 }
 
-func (bfs *Service) objectGet(ctx context.Context, oid string, index int) (io.ReadCloser, error) {
+func (bfs *Service) objectGet(ctx context.Context, oid string, index uint32) (io.ReadCloser, error) {
 	u, err := url.Parse(fmt.Sprintf("%s:%s/%s", neofs.URIScheme, bfs.cfg.ContainerID, oid))
 	if err != nil {
 		return nil, err
@@ -430,8 +450,8 @@ func (bfs *Service) objectGet(ctx context.Context, oid string, index int) (io.Re
 	return rc, err
 }
 
-func (bfs *Service) objectGetRange(ctx context.Context, oid string, height int) (io.ReadCloser, error) {
-	nearestHeight := 0
+func (bfs *Service) objectGetRange(ctx context.Context, oid string, height uint32) (io.ReadCloser, error) {
+	var nearestHeight uint32
 	for h := range bfs.headerSizeMap {
 		if h <= height && h > nearestHeight {
 			nearestHeight = h

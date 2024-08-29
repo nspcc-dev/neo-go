@@ -604,13 +604,7 @@ readloop:
 			ntf := Notification{Type: event}
 			switch event {
 			case neorpc.BlockEventID:
-				sr, err := c.stateRootInHeader()
-				if err != nil {
-					// Client is not initialized.
-					connCloseErr = fmt.Errorf("failed to fetch StateRootInHeader: %w", err)
-					break readloop
-				}
-				ntf.Value = block.New(sr)
+				ntf.Value = &block.Block{}
 			case neorpc.TransactionEventID:
 				ntf.Value = &transaction.Transaction{}
 			case neorpc.NotificationEventID:
@@ -620,13 +614,7 @@ readloop:
 			case neorpc.NotaryRequestEventID:
 				ntf.Value = new(result.NotaryRequestEvent)
 			case neorpc.HeaderOfAddedBlockEventID:
-				sr, err := c.stateRootInHeader()
-				if err != nil {
-					// Client is not initialized.
-					connCloseErr = fmt.Errorf("failed to fetch StateRootInHeader: %w", err)
-					break readloop
-				}
-				ntf.Value = &block.New(sr).Header
+				ntf.Value = new(block.Header)
 			case neorpc.MempoolEventID:
 				ntf.Value = new(result.MempoolEvent)
 			case neorpc.MissedEventID:

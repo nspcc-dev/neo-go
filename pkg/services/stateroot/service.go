@@ -23,10 +23,12 @@ import (
 type (
 	// Ledger is an interface to Blockchain sufficient for Service.
 	Ledger interface {
+		IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool
 		GetConfig() config.Blockchain
 		GetDesignatedByRole(role noderoles.Role) (keys.PublicKeys, uint32, error)
 		GetMillisecondsPerBlock() uint32
 		HeaderHeight() uint32
+		BlockHeight() uint32
 		SubscribeForBlocks(ch chan *block.Block)
 		UnsubscribeFromBlocks(ch chan *block.Block)
 	}
@@ -102,9 +104,7 @@ func New(cfg config.StateRoot, sm *stateroot.Module, log *zap.Logger, bc Ledger,
 
 	s.MainCfg = cfg
 	if cfg.Enabled {
-		if bcConf.StateRootInHeader {
-			return nil, errors.New("`StateRootInHeader` should be disabled when state service is enabled")
-		}
+		// TODO: disable state service once transition to Faun happens.
 		var err error
 		w := cfg.UnlockWallet
 		if s.wallet, err = wallet.NewWalletFromFile(w.Path); err != nil {

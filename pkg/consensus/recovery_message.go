@@ -17,7 +17,6 @@ type (
 		preparationPayloads []*preparationCompact
 		commitPayloads      []*commitCompact
 		changeViewPayloads  []*changeViewCompact
-		stateRootEnabled    bool
 		prepareRequest      *message
 	}
 
@@ -49,7 +48,7 @@ func (m *recoveryMessage) DecodeBinary(r *io.BinReader) {
 
 	var hasReq = r.ReadBool()
 	if hasReq {
-		m.prepareRequest = &message{stateRootEnabled: m.stateRootEnabled}
+		m.prepareRequest = new(message)
 		m.prepareRequest.DecodeBinary(r)
 		if r.Err == nil && m.prepareRequest.Type != prepareRequestType {
 			r.Err = errors.New("recovery message PrepareRequest has wrong type")
@@ -145,10 +144,9 @@ func (m *recoveryMessage) AddPayload(p dbft.ConsensusPayload[util.Uint256]) {
 	switch p.Type() {
 	case dbft.PrepareRequestType:
 		m.prepareRequest = &message{
-			Type:             prepareRequestType,
-			ViewNumber:       p.ViewNumber(),
-			payload:          p.GetPrepareRequest().(*prepareRequest),
-			stateRootEnabled: m.stateRootEnabled,
+			Type:       prepareRequestType,
+			ViewNumber: p.ViewNumber(),
+			payload:    p.GetPrepareRequest().(*prepareRequest),
 		}
 		h := p.Hash()
 		m.preparationHash = &h

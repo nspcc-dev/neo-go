@@ -64,14 +64,12 @@ func Restore(bc DumperRestorer, r *io.BinReader, skip, count uint32, f func(b *b
 		}
 	}
 
-	stateRootInHeader := bc.GetConfig().StateRootInHeader
-
 	for ; i < skip+count; i++ {
 		buf, err := readBlock(r)
 		if err != nil {
 			return err
 		}
-		b := block.New(stateRootInHeader)
+		b := &block.Block{}
 		r := io.NewBinReaderFromBuf(buf)
 		b.DecodeBinary(r)
 		if r.Err != nil {

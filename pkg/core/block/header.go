@@ -14,13 +14,17 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// VersionInitial is the default Neo block version.
-const VersionInitial uint32 = 0
+const (
+	// VersionInitial is the initial Neo block version.
+	VersionInitial uint32 = iota
+	// VersionFaun is StateRoot-enabled Neo block version.
+	VersionFaun
+)
 
 // Header holds the base info of a block. Fields follow the P2P format of the
 // N3 block header unless noted specifically.
 type Header struct {
-	// Version of the block, currently only 0.
+	// Version of the block, currently either [VersionInitial] or [VersionFaun].
 	Version uint32
 
 	// hash of the previous block.
@@ -48,15 +52,9 @@ type Header struct {
 	// are not a part of a hashable field set.
 	Script transaction.Witness
 
-	// StateRootEnabled specifies if the header contains state root.
-	// It's NeoGo-specific, and is not a part of a standard Neo N3 header,
-	// it's also never serialized into P2P payload. When it's false
-	// PrevStateRoot is always zero, when true it works as intended.
-	StateRootEnabled bool
-	// PrevStateRoot is the state root of the previous block. This field
-	// is relevant only if StateRootEnabled is true which is a
-	// NeoGo-specific extension of the protocol.
+	// PrevStateRoot is the state root of the previous block.
 	PrevStateRoot util.Uint256
+
 	// PrimaryIndex is the index of the primary consensus node for this block.
 	PrimaryIndex byte
 
@@ -145,7 +143,7 @@ func (b *Header) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteU32LE(b.Index)
 	bw.WriteB(b.PrimaryIndex)
 	bw.WriteBytes(b.NextConsensus[:])
-	if b.StateRootEnabled {
+	if b.Version > 0 {
 		bw.WriteBytes(b.PrevStateRoot[:])
 	}
 }
@@ -161,7 +159,7 @@ func (b *Header) decodeHashableFields(br *io.BinReader) {
 	b.Index = br.ReadU32LE()
 	b.PrimaryIndex = br.ReadB()
 	br.ReadBytes(b.NextConsensus[:])
-	if b.StateRootEnabled {
+	if b.Version > 0 {
 		br.ReadBytes(b.PrevStateRoot[:])
 	}
 
@@ -186,7 +184,7 @@ func (b Header) MarshalJSON() ([]byte, error) {
 		NextConsensus: address.Uint160ToString(b.NextConsensus),
 		Witnesses:     []transaction.Witness{b.Script},
 	}
-	if b.StateRootEnabled {
+	if b.Version > 0 {
 		aux.PrevStateRoot = &b.PrevStateRoot
 	}
 	return json.Marshal(aux)
@@ -225,7 +223,7 @@ func (b *Header) UnmarshalJSON(data []byte) error {
 	b.PrimaryIndex = aux.PrimaryIndex
 	b.NextConsensus = nextC
 	b.Script = aux.Witnesses[0]
-	if b.StateRootEnabled {
+	if b.Version > 0 {
 		if aux.PrevStateRoot == nil {
 			return errors.New("'previousstateroot' is empty")
 		}
