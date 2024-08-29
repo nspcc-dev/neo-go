@@ -68,6 +68,9 @@ func (w *BinWriter) WriteBool(b bool) {
 // WriteArray writes a slice or an array arr into w. Note that nil slices and
 // empty slices are gonna be treated the same resulting in an equal zero-length
 // array encoded.
+//
+// Deprecated: Go doesn't support generic methods, but [WriteArray] function
+// is much faster that this method.
 func (w *BinWriter) WriteArray(arr any) {
 	switch val := reflect.ValueOf(arr); val.Kind() {
 	case reflect.Slice, reflect.Array:
@@ -91,6 +94,15 @@ func (w *BinWriter) WriteArray(arr any) {
 		}
 	default:
 		panic("not an array")
+	}
+}
+
+// WriteArray writes a slice arr into w. It is a generic-based version of
+// [BinWriter.WriteArray] which works much faster.
+func WriteArray[Slice ~[]E, E Serializable](w *BinWriter, arr Slice) {
+	w.WriteVarUint(uint64(len(arr)))
+	for i := range arr {
+		arr[i].EncodeBinary(w)
 	}
 }
 
