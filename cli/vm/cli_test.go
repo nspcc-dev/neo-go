@@ -129,7 +129,9 @@ func newTestVMClIWithState(t *testing.T) *executor {
 	store, err := storage.NewLevelDBStore(opts)
 	require.NoError(t, err)
 	customConfig := func(c *config.Blockchain) {
-		c.StateRootInHeader = true // Need for P2PStateExchangeExtensions check.
+		c.Hardforks = map[string]uint32{
+			config.HFFaun.String(): 0, // Need for P2PStateExchangeExtensions check.
+		}
 	}
 	bc, validators, committee, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, store)
 	require.NoError(t, err)
@@ -148,7 +150,6 @@ func newTestVMClIWithState(t *testing.T) *executor {
 	require.NoError(t, err)
 	cfg.ApplicationConfiguration.DBConfiguration.Type = dbconfig.LevelDB
 	cfg.ApplicationConfiguration.DBConfiguration.LevelDBOptions = opts
-	cfg.ProtocolConfiguration.StateRootInHeader = protoCfg.StateRootInHeader
 	cfg.ProtocolConfiguration.P2PStateExchangeExtensions = protoCfg.P2PStateExchangeExtensions
 	cfg.ProtocolConfiguration.Hardforks = protoCfg.Hardforks
 	return newTestVMCLIWithLogoAndCustomConfig(t, false, &cfg)

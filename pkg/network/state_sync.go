@@ -15,6 +15,7 @@ type StateSync interface {
 	Init(currChainHeight uint32) error
 	IsActive() bool
 	IsInitialized() bool
+	IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool
 	GetUnknownMPTNodesBatch(limit int) []util.Uint256
 	GetConfig() config.Blockchain
 	GetLastStoredKey() []byte

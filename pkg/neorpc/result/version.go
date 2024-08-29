@@ -60,6 +60,8 @@ type (
 		// P2PSigExtensions is true when Notary subsystem is enabled on the network.
 		P2PSigExtensions bool
 		// StateRootInHeader is true if state root is contained in block header.
+		// Deprecated: this setting is left for compatibility with old NeoGo nodes
+		// and
 		StateRootInHeader bool
 		// ValidatorsHistory stores height:size map of the validators count.
 		ValidatorsHistory map[uint32]uint32
@@ -144,7 +146,6 @@ func (p Protocol) MarshalJSON() ([]byte, error) {
 
 		CommitteeHistory:  p.CommitteeHistory,
 		P2PSigExtensions:  p.P2PSigExtensions,
-		StateRootInHeader: p.StateRootInHeader,
 		ValidatorsHistory: p.ValidatorsHistory,
 	}
 	return json.Marshal(aux)
@@ -171,7 +172,6 @@ func (p *Protocol) UnmarshalJSON(data []byte) error {
 	p.ValidatorsCount = aux.ValidatorsCount
 	p.CommitteeHistory = aux.CommitteeHistory
 	p.P2PSigExtensions = aux.P2PSigExtensions
-	p.StateRootInHeader = aux.StateRootInHeader
 	p.ValidatorsHistory = aux.ValidatorsHistory
 	p.InitialGasDistribution = fixedn.Fixed8(aux.InitialGasDistribution)
 	p.StandbyCommittee = standbyCommittee

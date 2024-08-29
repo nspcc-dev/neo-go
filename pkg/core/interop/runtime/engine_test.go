@@ -44,7 +44,7 @@ func TestPlatform(t *testing.T) {
 }
 
 func TestGetTime(t *testing.T) {
-	b := block.New(false)
+	b := &block.Block{}
 	b.Timestamp = 1725021259
 	ic := &interop.Context{VM: vm.New(), Block: b}
 	require.NoError(t, GetTime(ic))
@@ -132,7 +132,7 @@ func TestLog(t *testing.T) {
 
 func TestCurrentSigners(t *testing.T) {
 	t.Run("container is block", func(t *testing.T) {
-		b := block.New(false)
+		b := &block.Block{}
 		ic := &interop.Context{VM: vm.New(), Container: b}
 		require.NoError(t, CurrentSigners(ic))
 		checkStack(t, ic.VM, stackitem.Null{})
