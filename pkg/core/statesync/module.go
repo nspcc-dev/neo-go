@@ -449,9 +449,6 @@ func (s *Module) AddBlock(block *block.Block) error {
 	if expectedHeight != block.Index {
 		return fmt.Errorf("expected %d, got %d: invalid block index", expectedHeight, block.Index)
 	}
-	if s.bc.GetConfig().StateRootInHeader != block.StateRootEnabled {
-		return fmt.Errorf("stateroot setting mismatch: %v != %v", s.bc.GetConfig().StateRootInHeader, block.StateRootEnabled)
-	}
 	if !s.bc.GetConfig().SkipBlockVerification {
 		merkle := block.ComputeMerkleRoot()
 		if !block.MerkleRoot.Equals(merkle) {
@@ -773,4 +770,9 @@ func (s *Module) GetStateSyncPoint() uint32 {
 	defer s.lock.RUnlock()
 
 	return s.syncPoint
+}
+
+// IsHardforkEnabled returns whether specified hardfork is enabled at the given height.
+func (s *Module) IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool {
+	return s.IsHardforkEnabled(hf, blockHeight)
 }

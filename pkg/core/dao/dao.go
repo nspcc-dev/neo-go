@@ -69,16 +69,15 @@ type NativeContractCache interface {
 }
 
 // NewSimple creates a new simple dao using the provided backend store.
-func NewSimple(backend storage.Store, stateRootInHeader bool) *Simple {
+func NewSimple(backend storage.Store) *Simple {
 	st := storage.NewMemCachedStore(backend)
-	return newSimple(st, stateRootInHeader)
+	return newSimple(st)
 }
 
-func newSimple(st *storage.MemCachedStore, stateRootInHeader bool) *Simple {
+func newSimple(st *storage.MemCachedStore) *Simple {
 	return &Simple{
 		Version: Version{
-			StoragePrefix:     storage.STStorage,
-			StateRootInHeader: stateRootInHeader,
+			StoragePrefix: storage.STStorage,
 		},
 		Store:       st,
 		nativeCache: make(map[int32]NativeContractCache),
@@ -93,7 +92,7 @@ func (dao *Simple) GetBatch() *storage.MemBatch {
 // GetWrapped returns a new DAO instance with another layer of wrapped
 // MemCachedStore around the current DAO Store.
 func (dao *Simple) GetWrapped() *Simple {
-	d := NewSimple(dao.Store, dao.Version.StateRootInHeader)
+	d := NewSimple(dao.Store)
 	d.Version = dao.Version
 	d.nativeCachePS = dao
 	return d
@@ -276,7 +275,7 @@ func (dao *Simple) GetAppExecResults(hash util.Uint256, trig trigger.Type) ([]st
 	case storage.ExecBlock:
 		r := io.NewBinReaderFromBuf(bs)
 		_ = r.ReadB()
-		_, err = block.NewTrimmedFromReader(dao.Version.StateRootInHeader, r)
+		_, err = block.NewTrimmedFromReader(r)
 		if err != nil {
 			return nil, err
 		}
@@ -442,7 +441,7 @@ func (dao *Simple) getBlock(key []byte) (*block.Block, error) {
 		// It may be a transaction.
 		return nil, storage.ErrKeyNotFound
 	}
-	block, err := block.NewTrimmedFromReader(dao.Version.StateRootInHeader, r)
+	block, err := block.NewTrimmedFromReader(r)
 	if err != nil {
 		return nil, err
 	}
@@ -452,7 +451,6 @@ func (dao *Simple) getBlock(key []byte) (*block.Block, error) {
 // Version represents the current dao version.
 type Version struct {
 	StoragePrefix              storage.KeyPrefix
-	StateRootInHeader          bool
 	P2PSigExtensions           bool
 	P2PStateExchangeExtensions bool
 	KeepOnlyLatestState        bool
@@ -462,7 +460,7 @@ type Version struct {
 }
 
 const (
-	stateRootInHeaderBit = 1 << iota
+	unusedStateRootInHeaderBit = 1 << iota
 	p2pSigExtensionsBit
 	p2pStateExchangeExtensionsBit
 	keepOnlyLatestStateBit
@@ -490,7 +488,6 @@ func (v *Version) FromBytes(data []byte) error {
 
 	v.Value = string(data[:i])
 	v.StoragePrefix = storage.KeyPrefix(data[i+1])
-	v.StateRootInHeader = data[i+2]&stateRootInHeaderBit != 0
 	v.P2PSigExtensions = data[i+2]&p2pSigExtensionsBit != 0
 	v.P2PStateExchangeExtensions = data[i+2]&p2pStateExchangeExtensionsBit != 0
 	v.KeepOnlyLatestState = data[i+2]&keepOnlyLatestStateBit != 0
@@ -506,9 +503,6 @@ func (v *Version) FromBytes(data []byte) error {
 // Bytes encodes v to a byte-slice.
 func (v *Version) Bytes() []byte {
 	var mask byte
-	if v.StateRootInHeader {
-		mask |= stateRootInHeaderBit
-	}
 	if v.P2PSigExtensions {
 		mask |= p2pSigExtensionsBit
 	}

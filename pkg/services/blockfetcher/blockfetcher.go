@@ -42,6 +42,7 @@ const (
 
 // Ledger is an interface to Blockchain sufficient for Service.
 type Ledger interface {
+	IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool
 	GetConfig() config.Blockchain
 	BlockHeight() uint32
 	HeaderHeight() uint32
@@ -84,7 +85,7 @@ type Service struct {
 
 	// Depends on the OperationMode, the following functions are set to the appropriate functions.
 	getFunc    func(ctx context.Context, oid string, index int) (io.ReadCloser, error)
-	readFunc   func(rc io.ReadCloser) (any, error)
+	readFunc   func(index uint32, rc io.ReadCloser) (any, error)
 	heightFunc func() uint32
 
 	// stopAt is the height at which the service will stop fetching objects.
@@ -246,7 +247,7 @@ func (bfs *Service) blockDownloader() {
 				}
 				return err
 			}
-			obj, err = bfs.readFunc(rc)
+			obj, err = bfs.readFunc(index, rc)
 			if err != nil {
 				if neofs.IsContextCanceledErr(err) {
 					return nil
@@ -328,8 +329,15 @@ func (bfs *Service) fetchOIDsBySearch() error {
 }
 
 // readBlock decodes the block from the read closer and prepares it for adding to the blockchain.
-func (bfs *Service) readBlock(rc io.ReadCloser) (any, error) {
-	b := block.New(bfs.stateRootInHeader)
+func (bfs *Service) readBlock(index uint32, rc io.ReadCloser) (any, error) {
+	var (
+		hf = config.HFFaun
+		v  uint32
+	)
+	if bfs.chain.IsHardforkEnabled(&hf, index) {
+		v = block.VersionFaun
+	}
+	b := block.New(v)
 	r := gio.NewBinReaderFromIO(rc)
 	b.DecodeBinary(r)
 	rc.Close()
@@ -337,8 +345,15 @@ func (bfs *Service) readBlock(rc io.ReadCloser) (any, error) {
 }
 
 // readHeader decodes the header from the read closer and prepares it for adding to the blockchain.
-func (bfs *Service) readHeader(rc io.ReadCloser) (any, error) {
-	b := block.New(bfs.stateRootInHeader)
+func (bfs *Service) readHeader(index uint32, rc io.ReadCloser) (any, error) {
+	var (
+		hf = config.HFFaun
+		v  uint32
+	)
+	if bfs.chain.IsHardforkEnabled(&hf, index) {
+		v = block.VersionFaun
+	}
+	b := block.New(v)
 	r := gio.NewBinReaderFromIO(rc)
 	b.Header.DecodeBinary(r)
 	rc.Close()
