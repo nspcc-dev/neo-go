@@ -10,7 +10,7 @@ func BenchmarkToPreallocatedBytes(b *testing.B) {
 	vn := big.NewInt(-100500)
 	buf := make([]byte, 4)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = ToPreallocatedBytes(v, buf[:0])
 		_ = ToPreallocatedBytes(vn, buf[:0])
 	}

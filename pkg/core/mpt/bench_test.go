@@ -10,7 +10,7 @@ func benchmarkBytes(b *testing.B, n Node) {
 	inv := n.(interface{ invalidateCache() })
 	b.ReportAllocs()
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		inv.invalidateCache()
 		_ = n.Bytes()
 	}

@@ -41,7 +41,7 @@ func FromBytes(data []byte) *big.Int {
 
 	lw := size / wordSizeBytes
 	ws := make([]big.Word, lw+1)
-	for i := 0; i < lw; i++ {
+	for i := range lw {
 		base := i * wordSizeBytes
 		for j := base + 7; j >= base; j-- {
 			ws[i] <<= 8

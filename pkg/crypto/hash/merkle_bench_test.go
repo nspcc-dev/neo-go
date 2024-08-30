@@ -17,7 +17,7 @@ func BenchmarkMerkle(t *testing.B) {
 
 	t.Run("NewMerkleTree", func(t *testing.B) {
 		t.ResetTimer()
-		for n := 0; n < t.N; n++ {
+		for range t.N {
 			tr, err := hash.NewMerkleTree(hashes)
 			require.NoError(t, err)
 			_ = tr.Root()
@@ -25,7 +25,7 @@ func BenchmarkMerkle(t *testing.B) {
 	})
 	t.Run("CalcMerkleRoot", func(t *testing.B) {
 		t.ResetTimer()
-		for n := 0; n < t.N; n++ {
+		for range t.N {
 			_ = hash.CalcMerkleRoot(hashes)
 		}
 	})

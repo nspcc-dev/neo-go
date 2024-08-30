@@ -335,7 +335,7 @@ func (r *deserContext) decodeBinary() Item {
 			return nil
 		}
 		arr := make([]Item, size)
-		for i := 0; i < size; i++ {
+		for i := range size {
 			arr[i] = r.decodeBinary()
 		}
 
@@ -350,7 +350,7 @@ func (r *deserContext) decodeBinary() Item {
 			return nil
 		}
 		m := NewMap()
-		for i := 0; i < size; i++ {
+		for range size {
 			key := r.decodeBinary()
 			value := r.decodeBinary()
 			if r.Err != nil {

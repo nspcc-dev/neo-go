@@ -51,7 +51,7 @@ func toNibbles(path []byte) []byte {
 // ignoring the first byte (prefix).
 func strToNibbles(path string) []byte {
 	result := make([]byte, (len(path)-1)*2)
-	for i := 0; i < len(path)-1; i++ {
+	for i := range len(path) - 1 {
 		result[i*2] = path[i+1] >> 4
 		result[i*2+1] = path[i+1] & 0x0F
 	}

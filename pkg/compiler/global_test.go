@@ -883,11 +883,11 @@ func TestMultipleFuncSameName(t *testing.T) {
 func TestConstDontUseSlots(t *testing.T) {
 	const count = 256
 	buf := bytes.NewBufferString("package foo\n")
-	for i := 0; i < count; i++ {
+	for i := range count {
 		buf.WriteString(fmt.Sprintf("const n%d = 1\n", i))
 	}
 	buf.WriteString("func Main() int { sum := 0\n")
-	for i := 0; i < count; i++ {
+	for i := range count {
 		buf.WriteString(fmt.Sprintf("sum += n%d\n", i))
 	}
 	buf.WriteString("return sum }")
@@ -899,11 +899,11 @@ func TestConstDontUseSlots(t *testing.T) {
 func TestUnderscoreVarsDontUseSlots(t *testing.T) {
 	const count = 128
 	buf := bytes.NewBufferString("package foo\n")
-	for i := 0; i < count; i++ {
+	for i := range count {
 		buf.WriteString(fmt.Sprintf("var _, n%d = 1, 1\n", i))
 	}
 	buf.WriteString("func Main() int { sum := 0\n")
-	for i := 0; i < count; i++ {
+	for i := range count {
 		buf.WriteString(fmt.Sprintf("sum += n%d\n", i))
 	}
 	buf.WriteString("return sum }")

@@ -39,7 +39,7 @@ import (
 func testSignStateRoot(t *testing.T, r *state.MPTRoot, pubs keys.PublicKeys, accs ...*wallet.Account) []byte {
 	n := smartcontract.GetMajorityHonestNodeCount(len(accs))
 	w := io.NewBufBinWriter()
-	for i := 0; i < n; i++ {
+	for i := range n {
 		sig := accs[i].PrivateKey().SignHashable(uint32(netmode.UnitTestNet), r)
 		emit.Bytes(w.BinWriter, sig)
 	}
@@ -323,7 +323,7 @@ func TestStateroot_GetLatestStateHeight(t *testing.T) {
 	basicchain.Init(t, "../../../", e)
 
 	m := bc.GetStateModule()
-	for i := uint32(0); i < bc.BlockHeight(); i++ {
+	for i := range bc.BlockHeight() {
 		r, err := m.GetStateRoot(i)
 		require.NoError(t, err)
 		h, err := bc.GetStateModule().GetLatestStateHeight(r.Root)

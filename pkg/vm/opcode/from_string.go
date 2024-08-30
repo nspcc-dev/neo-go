@@ -5,7 +5,7 @@ import "errors"
 var stringToOpcode = make(map[string]Opcode)
 
 func init() {
-	for i := 0; i < 255; i++ {
+	for i := range 255 {
 		op := Opcode(i)
 		stringToOpcode[op.String()] = op
 	}

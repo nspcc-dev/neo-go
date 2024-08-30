@@ -10,7 +10,7 @@ import (
 )
 
 func FuzzMessageDecode(f *testing.F) {
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		seed := make([]byte, rand.IntN(1000))
 		random.Fill(seed)
 		f.Add(seed)

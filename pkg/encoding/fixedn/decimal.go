@@ -17,7 +17,7 @@ var _pow10 []*big.Int
 
 func init() {
 	var p = int64(1)
-	for i := 0; i <= maxAllowedPrecision; i++ {
+	for range maxAllowedPrecision + 1 {
 		_pow10 = append(_pow10, big.NewInt(p))
 		p *= 10
 	}

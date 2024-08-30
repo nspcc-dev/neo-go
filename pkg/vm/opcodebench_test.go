@@ -12,7 +12,7 @@ import (
 
 func benchOpcodeInt(t *testing.B, f func() *VM, fail bool) {
 	t.ResetTimer()
-	for n := 0; n < t.N; n++ {
+	for range t.N {
 		t.StopTimer()
 		v := f()
 		t.StartTimer()
@@ -82,11 +82,11 @@ func exceptParamPushVM(op opcode.Opcode, param []byte, ilen int, elen int, excep
 		if ilen != 0 {
 			eCtx := newExceptionHandlingContext(1, 2)
 			v.Context().tryStack.PushVal(eCtx)
-			for i := 0; i < ilen; i++ {
+			for range ilen {
 				v.call(v.Context(), 0)
 			}
 		} else if elen != 0 {
-			for i := 0; i < elen; i++ {
+			for range elen {
 				eCtx := newExceptionHandlingContext(1, 2)
 				v.Context().tryStack.PushVal(eCtx)
 			}
@@ -146,7 +146,7 @@ func arrayOfIfaces(size int) []any {
 
 func bigMap() *stackitem.Map {
 	var m = stackitem.NewMap()
-	for i := 0; i < 1024; i++ {
+	for i := range 1024 {
 		m.Add(stackitem.Make(i), stackitem.Make(i))
 	}
 	return m

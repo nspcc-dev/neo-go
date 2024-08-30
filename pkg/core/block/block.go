@@ -83,7 +83,7 @@ func NewTrimmedFromReader(stateRootEnabled bool, br *io.BinReader) (*Block, erro
 	}
 	if lenHashes > 0 {
 		block.Transactions = make([]*transaction.Transaction, lenHashes)
-		for i := 0; i < int(lenHashes); i++ {
+		for i := range lenHashes {
 			var hash util.Uint256
 			hash.DecodeBinary(br)
 			block.Transactions[i] = transaction.NewTrimmedTX(hash)
@@ -124,7 +124,7 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 		return
 	}
 	txes := make([]*transaction.Transaction, contentsCount)
-	for i := 0; i < int(contentsCount); i++ {
+	for i := range txes {
 		tx := &transaction.Transaction{}
 		tx.DecodeBinary(br)
 		txes[i] = tx
@@ -140,7 +140,7 @@ func (b *Block) DecodeBinary(br *io.BinReader) {
 func (b *Block) EncodeBinary(bw *io.BinWriter) {
 	b.Header.EncodeBinary(bw)
 	bw.WriteVarUint(uint64(len(b.Transactions)))
-	for i := 0; i < len(b.Transactions); i++ {
+	for i := range b.Transactions {
 		b.Transactions[i].EncodeBinary(bw)
 	}
 }

@@ -73,7 +73,7 @@ func BenchmarkTokenTransferLog_Append(b *testing.B) {
 	lg := new(TokenTransferLog)
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		for _, tr := range ts {
 			err := lg.Append(tr)
 			if err != nil {

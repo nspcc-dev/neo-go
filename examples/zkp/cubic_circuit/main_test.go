@@ -315,7 +315,7 @@ func setup(t *testing.T, ccs constraint.ConstraintSystem, phase1ResponsePath str
 	// receive a []byte, deserialize it, add his contribution and send back to
 	// coordinator, like it is done in https://github.com/bnb-chain/zkbnb-setup
 	// for BN254 elliptic curve.
-	for i := 0; i < nContributionsPhase2; i++ {
+	for i := range nContributionsPhase2 {
 		srs2.Contribute()
 	}
 

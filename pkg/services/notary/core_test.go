@@ -305,7 +305,7 @@ func TestNotary(t *testing.T) {
 			// check that tx size was updated
 			require.Equal(t, io.GetVarSize(completedTx), completedTx.Size())
 
-			for i := 0; i < len(completedTx.Scripts)-1; i++ {
+			for i := range len(completedTx.Scripts) - 1 {
 				_, err := bc.VerifyWitness(completedTx.Signers[i].Account, completedTx, &completedTx.Scripts[i], -1)
 				require.NoError(t, err)
 			}
@@ -393,7 +393,7 @@ func TestNotary(t *testing.T) {
 
 		var submittedRequests []*payload.P2PNotaryRequest
 		// sent only nSigs (m out of n) requests - it should be enough to complete min tx
-		for i := 0; i < nSigs; i++ {
+		for i := range nSigs {
 			submittedRequests = append(submittedRequests, requests[sendOrder[i]])
 
 			ntr1.OnNewRequest(requests[sendOrder[i]])

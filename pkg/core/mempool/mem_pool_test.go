@@ -120,7 +120,7 @@ func TestOverCapacity(t *testing.T) {
 		require.True(t, slices.IsSortedFunc(mp.verifiedTxes, func(a, b item) int { return -a.Compare(b) }))
 	}
 
-	for i := 0; i < mempoolSize; i++ {
+	for i := range mempoolSize {
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = uint32(i)
 		tx.Signers = []transaction.Signer{{Account: acc}}
@@ -135,7 +135,7 @@ func TestOverCapacity(t *testing.T) {
 	bigScript[0] = byte(opcode.PUSH1)
 	bigScript[1] = byte(opcode.RET)
 	// Fees are also prioritized.
-	for i := 0; i < mempoolSize; i++ {
+	for range mempoolSize {
 		tx := transaction.New(bigScript, 0)
 		tx.NetworkFee = 10000
 		tx.Nonce = txcnt
@@ -176,7 +176,7 @@ func TestOverCapacity(t *testing.T) {
 	require.Equal(t, *uint256.NewInt(9*10000 + 7000), mp.fees[acc].feeSum)
 
 	// High priority always wins over low priority.
-	for i := 0; i < mempoolSize; i++ {
+	for range mempoolSize {
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.NetworkFee = 8000
 		tx.Nonce = txcnt
@@ -203,7 +203,7 @@ func TestGetVerified(t *testing.T) {
 	mp := New(mempoolSize, 0, false, nil)
 
 	txes := make([]*transaction.Transaction, 0, mempoolSize)
-	for i := 0; i < mempoolSize; i++ {
+	for i := range mempoolSize {
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = uint32(i)
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
@@ -228,7 +228,7 @@ func TestRemoveStale(t *testing.T) {
 
 	txes1 := make([]*transaction.Transaction, 0, mempoolSize/2)
 	txes2 := make([]*transaction.Transaction, 0, mempoolSize/2)
-	for i := 0; i < mempoolSize; i++ {
+	for i := range mempoolSize {
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 		tx.Nonce = uint32(i)
 		tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}

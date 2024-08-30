@@ -96,7 +96,7 @@ func (u Uint160) StringLE() string {
 
 // Reverse returns a reversed representation of u.
 func (u Uint160) Reverse() (r Uint160) {
-	for i := 0; i < Uint160Size; i++ {
+	for i := range Uint160Size {
 		r[i] = u[Uint160Size-i-1]
 	}
 

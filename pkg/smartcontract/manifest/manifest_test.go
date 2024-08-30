@@ -273,7 +273,7 @@ func TestIsValid(t *testing.T) {
 	m.Groups = m.Groups[:0]
 
 	t.Run("invalid, unserializable", func(t *testing.T) {
-		for i := 0; i < stackitem.MaxSerialized; i++ {
+		for i := range stackitem.MaxSerialized {
 			m.ABI.Events = append(m.ABI.Events, Event{
 				Name:       fmt.Sprintf("Event%d", i),
 				Parameters: []Parameter{},

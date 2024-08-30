@@ -124,7 +124,7 @@ func (c *codegen) inlineCall(f *funcScope, n *ast.CallExpr) {
 	ast.Walk(c, f.decl.Body)
 	c.setLabel(c.inlineContext[offSz].returnLabel)
 	if c.scope.voidCalls[n] {
-		for i := 0; i < f.decl.Type.Results.NumFields(); i++ {
+		for range f.decl.Type.Results.NumFields() {
 			emit.Opcodes(c.prog.BinWriter, opcode.DROP)
 		}
 	}

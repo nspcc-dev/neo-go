@@ -229,7 +229,7 @@ func isExprNil(e ast.Expr) bool {
 // indexOfStruct returns the index of the given field inside that struct.
 // If the struct does not contain that field, it will return -1.
 func indexOfStruct(strct *types.Struct, fldName string) int {
-	for i := 0; i < strct.NumFields(); i++ {
+	for i := range strct.NumFields() {
 		if strct.Field(i).Name() == fldName {
 			return i
 		}

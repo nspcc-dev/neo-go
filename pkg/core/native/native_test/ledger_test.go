@@ -238,13 +238,13 @@ func TestLedger_GetTransactionSignersInteropAPI(t *testing.T) {
 		txHash  = tx.Hash().BytesBE()
 		acc     = c.Committee.ScriptHash().BytesBE()
 	)
-	for i := 0; i < util.Uint256Size; i++ {
+	for i := range util.Uint256Size {
 		hashStr += fmt.Sprintf("%#x", txHash[i])
 		if i != util.Uint256Size-1 {
 			hashStr += ", "
 		}
 	}
-	for i := 0; i < util.Uint160Size; i++ {
+	for i := range util.Uint160Size {
 		accStr += fmt.Sprintf("%#x", acc[i])
 		if i != util.Uint160Size-1 {
 			accStr += ", "

@@ -128,7 +128,7 @@ func CommitteeAddress() string {
 // Sign signs data by all consensus nodes and returns invocation script.
 func Sign(h hash.Hashable) []byte {
 	buf := io.NewBufBinWriter()
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		pKey := PrivateKey(i)
 		sig := pKey.SignHashable(uint32(Network()), h)
 		if len(sig) != 64 {

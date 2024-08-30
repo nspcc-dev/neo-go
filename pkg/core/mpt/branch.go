@@ -26,7 +26,7 @@ var _ Node = (*BranchNode)(nil)
 // NewBranchNode returns a new branch node.
 func NewBranchNode() *BranchNode {
 	b := new(BranchNode)
-	for i := 0; i < childrenCount; i++ {
+	for i := range childrenCount {
 		b.Children[i] = EmptyNode{}
 	}
 	return b
@@ -58,14 +58,14 @@ func (b *BranchNode) Size() int {
 
 // EncodeBinary implements io.Serializable.
 func (b *BranchNode) EncodeBinary(w *io.BinWriter) {
-	for i := 0; i < childrenCount; i++ {
+	for i := range childrenCount {
 		encodeBinaryAsChild(b.Children[i], w)
 	}
 }
 
 // DecodeBinary implements io.Serializable.
 func (b *BranchNode) DecodeBinary(r *io.BinReader) {
-	for i := 0; i < childrenCount; i++ {
+	for i := range childrenCount {
 		no := new(NodeObject)
 		no.DecodeBinary(r)
 		b.Children[i] = no.Node

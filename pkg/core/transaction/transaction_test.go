@@ -318,7 +318,7 @@ func BenchmarkTxHash(b *testing.B) {
 
 	// Prime cache.
 	tx.Hash()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = tx.Hash()
 	}
 }

@@ -299,7 +299,7 @@ func TestBlockchain_InitializeNeoCache_Bug3181(t *testing.T) {
 	// Put some empty blocks to reach N-1 block height, so that newEpoch cached
 	// values of native Neo contract require an update on the subsequent cache
 	// initialization.
-	for i := 0; i < len(bc.GetConfig().StandbyCommittee)-1-2; i++ {
+	for range len(bc.GetConfig().StandbyCommittee) - 1 - 2 {
 		e.AddNewBlock(t)
 	}
 	bc.Close() // Ensure persist is done and persistent store is properly closed.
@@ -358,12 +358,12 @@ func TestBlockchain_InitializeNeoCache_Bug3424(t *testing.T) {
 	// voters vote for candidates.
 	voters := make([]neotest.Signer, committeeSize+1)
 	candidates := make([]neotest.Signer, committeeSize+1)
-	for i := 0; i < committeeSize+1; i++ {
+	for i := range committeeSize + 1 {
 		voters[i] = e.NewAccount(t, 10_0000_0000)
 		candidates[i] = e.NewAccount(t, 2000_0000_0000) // enough for one registration
 	}
 	txes := make([]*transaction.Transaction, 0, committeeSize*3)
-	for i := 0; i < committeeSize+1; i++ {
+	for i := range committeeSize + 1 {
 		transferTx := neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(committeeSize+1-i)*1000000, nil)
 		txes = append(txes, transferTx)
 		registerTx := neoValidatorsInvoker.WithSigners(candidates[i]).PrepareInvoke(t, "registerCandidate", candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
@@ -458,7 +458,7 @@ func TestBlockchain_InitializeNativeCacheWrtNativeActivations(t *testing.T) {
 
 	// Ensure Notary will be properly initialized and accessing Notary cache works
 	// as expected.
-	for i := 0; i < notaryEnabledHeight; i++ {
+	for i := range notaryEnabledHeight {
 		require.NotPanics(t, func() {
 			e.AddNewBlock(t)
 		}, h+uint32(i)+1)
@@ -641,7 +641,7 @@ func TestBlockchain_GetBlock(t *testing.T) {
 	blocks := e.GenerateNewBlocks(t, 10)
 	neoValidatorInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Neo))
 
-	for i := 0; i < len(blocks); i++ {
+	for i := range blocks {
 		block, err := bc.GetBlock(blocks[i].Hash())
 		require.NoErrorf(t, err, "can't get block %d: %s", i, err)
 		assert.Equal(t, blocks[i].Index, block.Index)
@@ -881,7 +881,7 @@ func TestBlockchain_HasBlock(t *testing.T) {
 
 	blocks := e.GenerateNewBlocks(t, 10)
 
-	for i := 0; i < len(blocks); i++ {
+	for i := range blocks {
 		assert.True(t, bc.HasBlock(blocks[i].Hash()))
 	}
 	newBlock := e.NewUnsignedBlock(t)
@@ -1008,7 +1008,7 @@ func TestBlockchain_Subscriptions(t *testing.T) {
 
 	// 3 burn events for every tx and 1 mint for primary node
 	require.True(t, len(notificationCh) >= 4)
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		notif := <-notificationCh
 		require.Equal(t, nativeGASHash, notif.ScriptHash)
 	}
@@ -2327,7 +2327,7 @@ func TestBlockchain_ResetStateErrors(t *testing.T) {
 		bc, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, cfg, db, false)
 		e := neotest.NewExecutor(t, bc, validators, committee)
 		go bc.Run()
-		for i := 0; i < chainHeight; i++ {
+		for range chainHeight {
 			e.AddNewBlock(t) // get some height
 		}
 		bc.Close()

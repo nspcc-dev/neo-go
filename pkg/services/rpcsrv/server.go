@@ -978,7 +978,7 @@ func (s *Server) calculateNetworkFee(reqParams params.Params) (any, *neorpc.Erro
 					paramz = []manifest.Parameter{{Type: smartcontract.SignatureType}}
 				} else if nSigs, _, ok := vm.ParseMultiSigContract(w.VerificationScript); ok {
 					paramz = make([]manifest.Parameter, nSigs)
-					for j := 0; j < nSigs; j++ {
+					for j := range paramz {
 						paramz[j] = manifest.Parameter{Type: smartcontract.SignatureType}
 					}
 				}

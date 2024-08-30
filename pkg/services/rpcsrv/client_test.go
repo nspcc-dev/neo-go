@@ -1455,7 +1455,7 @@ func TestClient_IteratorSessions(t *testing.T) {
 	// storageItemsCount is the amount of storage items stored in Storage contract, it's hard-coded in the contract code.
 	const storageItemsCount = 255
 	expected := make([][]byte, storageItemsCount)
-	for i := 0; i < storageItemsCount; i++ {
+	for i := range storageItemsCount {
 		expected[i] = stackitem.NewBigInteger(big.NewInt(int64(i))).Bytes()
 	}
 	slices.SortFunc(expected, func(a, b []byte) int {
@@ -1483,7 +1483,7 @@ func TestClient_IteratorSessions(t *testing.T) {
 			set, err := c.TraverseIterator(sID, iID, maxNum)
 			require.NoError(t, err)
 			require.Equal(t, maxNum, len(set))
-			for i := 0; i < maxNum; i++ {
+			for i := range maxNum {
 				// According to the Storage contract code.
 				require.Equal(t, expected[start+i], set[i].Value().([]byte), start+i)
 			}
@@ -1503,7 +1503,7 @@ func TestClient_IteratorSessions(t *testing.T) {
 
 	t.Run("traverse, request more than exists", func(t *testing.T) {
 		sID, iID := prepareSession(t)
-		for i := 0; i < storageItemsCount/config.DefaultMaxIteratorResultItems; i++ {
+		for range storageItemsCount / config.DefaultMaxIteratorResultItems {
 			set, err := c.TraverseIterator(sID, iID, config.DefaultMaxIteratorResultItems)
 			require.NoError(t, err)
 			require.Equal(t, config.DefaultMaxIteratorResultItems, len(set))
@@ -1533,7 +1533,7 @@ func TestClient_IteratorSessions(t *testing.T) {
 			assert.Equal(t, 1, len(set))
 			wg.Done()
 		}
-		for i := 0; i < storageItemsCount; i++ {
+		for range storageItemsCount {
 			go check(t)
 		}
 		wg.Wait()
@@ -1677,7 +1677,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 		actual, err := c.TraverseIterator(res.Session, *iterator.ID, maxNum)
 		require.NoError(t, err)
 		require.Equal(t, maxNum, len(actual))
-		for i := 0; i < maxNum; i++ {
+		for i := range maxNum {
 			// According to the Storage contract code.
 			require.Equal(t, expected[i], actual[i].Value().([]byte), i)
 		}
@@ -1696,7 +1696,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 
 		// Fill in expected stackitems set during the first test.
 		expected = make([][]byte, storageItemsCount)
-		for i := 0; i < storageItemsCount; i++ {
+		for i := range storageItemsCount {
 			expected[i] = stackitem.NewBigInteger(big.NewInt(int64(i))).Bytes()
 		}
 		slices.SortFunc(expected, func(a, b []byte) int {
@@ -1761,7 +1761,7 @@ func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 		require.NotEmpty(t, iterator.Values)
 		require.True(t, iterator.Truncated)
 		require.Equal(t, rpcSrv.config.MaxIteratorResultItems, len(iterator.Values))
-		for i := 0; i < rpcSrv.config.MaxIteratorResultItems; i++ {
+		for i := range rpcSrv.config.MaxIteratorResultItems {
 			// According to the Storage contract code.
 			require.Equal(t, expected[i], iterator.Values[i].Value().([]byte), i)
 		}

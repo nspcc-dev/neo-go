@@ -318,7 +318,7 @@ func (b *Billet) tryCollapseExtension(curr *ExtensionNode) Node {
 
 func (b *Billet) tryCollapseBranch(curr *BranchNode) Node {
 	canCollapse := true
-	for i := 0; i < childrenCount; i++ {
+	for i := range childrenCount {
 		if curr.Children[i].Type() == EmptyT {
 			continue
 		}

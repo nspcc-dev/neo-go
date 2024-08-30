@@ -82,7 +82,7 @@ func (bs *TokenTransferInfo) DecodeBinary(r *io.BinReader) {
 	bs.NewNEP17Batch = r.ReadBool()
 	lenBalances := r.ReadVarUint()
 	m := make(map[int32]uint32, lenBalances)
-	for i := 0; i < int(lenBalances); i++ {
+	for range lenBalances {
 		key := int32(r.ReadU32LE())
 		m[key] = r.ReadU32LE()
 	}
@@ -142,7 +142,7 @@ func (lg *TokenTransferLog) ForEachNEP11(f func(*NEP11Transfer) (bool, error)) (
 	}
 	transfers := make([]NEP11Transfer, lg.Size())
 	r := io.NewBinReaderFromBuf(lg.Raw[1:])
-	for i := 0; i < lg.Size(); i++ {
+	for i := range transfers {
 		transfers[i].DecodeBinary(r)
 	}
 	if r.Err != nil {
@@ -164,7 +164,7 @@ func (lg *TokenTransferLog) ForEachNEP17(f func(*NEP17Transfer) (bool, error)) (
 	}
 	transfers := make([]NEP17Transfer, lg.Size())
 	r := io.NewBinReaderFromBuf(lg.Raw[1:])
-	for i := 0; i < lg.Size(); i++ {
+	for i := range transfers {
 		transfers[i].DecodeBinary(r)
 	}
 	if r.Err != nil {

@@ -74,7 +74,7 @@ func TestWitnessConditionSerDes(t *testing.T) {
 	}
 	var maxSubCondAnd = &ConditionAnd{}
 	var maxSubCondOr = &ConditionAnd{}
-	for i := 0; i < maxSubitems+1; i++ {
+	for range maxSubitems + 1 {
 		*maxSubCondAnd = append(*maxSubCondAnd, (*ConditionBoolean)(&someBool))
 		*maxSubCondOr = append(*maxSubCondOr, (*ConditionBoolean)(&someBool))
 	}

@@ -21,7 +21,7 @@ func BenchmarkMemorySeek(t *testing.B) {
 				badPrefix    = []byte{2}
 			)
 			ts := NewMemCachedStore(ms)
-			for i := 0; i < count; i++ {
+			for range count {
 				ts.Put(append(searchPrefix, random.Bytes(10)...), random.Bytes(10))
 				ts.Put(append(badPrefix, random.Bytes(10)...), random.Bytes(10))
 			}
@@ -30,7 +30,7 @@ func BenchmarkMemorySeek(t *testing.B) {
 
 			t.ReportAllocs()
 			t.ResetTimer()
-			for n := 0; n < t.N; n++ {
+			for range t.N {
 				ms.Seek(SeekRange{Prefix: searchPrefix}, func(k, v []byte) bool { return false })
 			}
 		})

@@ -26,7 +26,7 @@ func (d *MPTData) DecodeBinary(r *io.BinReader) {
 		r.Err = errors.New("empty MPT nodes list")
 		return
 	}
-	for i := uint64(0); i < sz; i++ {
+	for range sz {
 		d.Nodes = append(d.Nodes, r.ReadVarBytes())
 		if r.Err != nil {
 			return

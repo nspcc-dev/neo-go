@@ -144,7 +144,7 @@ func checkVMFailed(t *testing.T, vm *VM) {
 
 func TestStackLimitPUSH1Good(t *testing.T) {
 	prog := make([]byte, MaxStackSize*2)
-	for i := 0; i < MaxStackSize; i++ {
+	for i := range MaxStackSize {
 		prog[i] = byte(opcode.PUSH1)
 	}
 	for i := MaxStackSize; i < MaxStackSize*2; i++ {
@@ -165,7 +165,7 @@ func TestStackLimitPUSH1Bad(t *testing.T) {
 }
 
 func TestPUSHINT(t *testing.T) {
-	for i := byte(0); i < 5; i++ {
+	for i := range byte(5) {
 		op := opcode.PUSHINT8 + opcode.Opcode(i)
 		t.Run(op.String(), func(t *testing.T) {
 			buf := random.Bytes((8 << i) / 8)
@@ -356,7 +356,7 @@ func TestCONVERT(t *testing.T) {
 // which equals to size*2+3 elements in total.
 func appendBigStruct(size uint16) []opcode.Opcode {
 	prog := make([]opcode.Opcode, size*2)
-	for i := uint16(0); i < size; i++ {
+	for i := range size {
 		prog[i*2] = opcode.PUSH0
 		prog[i*2+1] = opcode.NEWSTRUCT
 	}
@@ -945,7 +945,7 @@ func makeRETProgram(t *testing.T, argCount, localCount int) []byte {
 	require.True(t, argCount+localCount <= 255)
 
 	fProg := []opcode.Opcode{opcode.INITSLOT, opcode.Opcode(localCount), opcode.Opcode(argCount)}
-	for i := 0; i < localCount; i++ {
+	for i := range localCount {
 		fProg = append(fProg, opcode.PUSH8, opcode.STLOC, opcode.Opcode(i))
 	}
 	fProg = append(fProg, opcode.RET)
@@ -968,7 +968,7 @@ func makeRETProgram(t *testing.T, argCount, localCount int) []byte {
 	for i := range args {
 		args[i] = opcode.PUSH7
 	}
-	for i := 0; i < callCount; i++ {
+	for range callCount {
 		ops = append(ops, args...)
 		ops = append(ops, opcode.LDSFLD0, opcode.CALLA)
 	}
@@ -1407,7 +1407,7 @@ func TestSETITEMMap(t *testing.T) {
 func TestSETITEMBigMapBad(t *testing.T) {
 	prog := makeProgram(opcode.SETITEM)
 	m := stackitem.NewMap()
-	for i := 0; i < MaxStackSize; i++ {
+	for i := range MaxStackSize {
 		m.Add(stackitem.Make(i), stackitem.Make(i))
 	}
 
@@ -1439,7 +1439,7 @@ func TestSETITEMBigMapGood(t *testing.T) {
 	vm := load(prog)
 
 	m := stackitem.NewMap()
-	for i := 0; i < MaxStackSize-3; i++ {
+	for i := range MaxStackSize - 3 {
 		m.Add(stackitem.Make(i), stackitem.Make(i))
 	}
 	vm.estack.Push(Element{value: m})
@@ -1714,7 +1714,7 @@ func TestROLLGood(t *testing.T) {
 func getCheckEStackFunc(items ...any) func(t *testing.T, v *VM) {
 	return func(t *testing.T, v *VM) {
 		require.Equal(t, len(items), v.estack.Len())
-		for i := 0; i < len(items); i++ {
+		for i := range items {
 			assert.Equal(t, stackitem.Make(items[i]), v.estack.Peek(i).Item())
 		}
 	}
@@ -1985,7 +1985,7 @@ func TestPACKGood(t *testing.T) {
 			assert.Equal(t, 2, vm.estack.Len())
 			a := vm.estack.Peek(0).Array()
 			assert.Equal(t, len(elements), len(a))
-			for i := 0; i < len(elements); i++ {
+			for i := range elements {
 				e := a[i].Value().(*big.Int)
 				assert.Equal(t, int64(elements[i]), e.Int64())
 			}
@@ -2009,7 +2009,7 @@ func TestPACK_UNPACK_MaxSize(t *testing.T) {
 	assert.Equal(t, 1+1+len(elements), int(vm.refs))
 	assert.Equal(t, 1+1+len(elements), vm.estack.Len()) // canary + length + elements
 	assert.Equal(t, int64(len(elements)), vm.estack.Peek(0).Value().(*big.Int).Int64())
-	for i := 0; i < len(elements); i++ {
+	for i := range elements {
 		e, ok := vm.estack.Peek(i + 1).Value().(*big.Int)
 		assert.True(t, ok)
 		assert.Equal(t, int64(elements[i]), e.Int64())
@@ -2033,7 +2033,7 @@ func TestPACK_UNPACK_PACK_MaxSize(t *testing.T) {
 	assert.Equal(t, 2, vm.estack.Len())
 	a := vm.estack.Peek(0).Array()
 	assert.Equal(t, len(elements), len(a))
-	for i := 0; i < len(elements); i++ {
+	for i := range elements {
 		e := a[i].Value().(*big.Int)
 		assert.Equal(t, int64(elements[i]), e.Int64())
 	}
@@ -2058,7 +2058,7 @@ func TestPACKMAP_UNPACK_PACKMAP_MaxSize(t *testing.T) {
 	assert.Equal(t, 2, vm.estack.Len())
 	m := vm.estack.Peek(0).value.(*stackitem.Map).Value().([]stackitem.MapElement)
 	assert.Equal(t, len(elements), len(m))
-	for i := 0; i < len(elements); i++ {
+	for i := range elements {
 		k := m[i].Key.Value().(*big.Int)
 		v := m[i].Value.Value().(*big.Int)
 		assert.Equal(t, int64(elements[i]), k.Int64())
@@ -2823,7 +2823,7 @@ func runWithTrace(t *testing.T, prog []byte) ([]util.Uint160, []int, []opcode.Op
 
 func makeProgram(opcodes ...opcode.Opcode) []byte {
 	prog := make([]byte, len(opcodes)+1) // RET
-	for i := 0; i < len(opcodes); i++ {
+	for i := range opcodes {
 		prog[i] = byte(opcodes[i])
 	}
 	prog[len(prog)-1] = byte(opcode.RET)

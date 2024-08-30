@@ -192,7 +192,7 @@ func TestSystemContractCall_Permissions(t *testing.T) {
 		e.DeployContract(t, ctrA, nil)
 
 		var hashAStr string
-		for i := 0; i < util.Uint160Size; i++ {
+		for i := range util.Uint160Size {
 			hashAStr += fmt.Sprintf("%#x", ctrA.Hash[i])
 			if i != util.Uint160Size-1 {
 				hashAStr += ", "
@@ -367,7 +367,7 @@ func TestSnapshotIsolation_Exceptions(t *testing.T) {
 	e.DeployContract(t, ctrA, nil)
 
 	var hashAStr string
-	for i := 0; i < util.Uint160Size; i++ {
+	for i := range util.Uint160Size {
 		hashAStr += fmt.Sprintf("%#x", ctrA.Hash[i])
 		if i != util.Uint160Size-1 {
 			hashAStr += ", "
@@ -599,7 +599,7 @@ func TestRET_after_FINALLY_PanicInsideVoidMethod(t *testing.T) {
 	e.DeployContract(t, ctrA, nil)
 
 	var hashAStr string
-	for i := 0; i < util.Uint160Size; i++ {
+	for i := range util.Uint160Size {
 		hashAStr += fmt.Sprintf("%#x", ctrA.Hash[i])
 		if i != util.Uint160Size-1 {
 			hashAStr += ", "
@@ -659,7 +659,7 @@ func TestRET_after_FINALLY_CallNonVoidAfterVoidMethod(t *testing.T) {
 	e.DeployContract(t, ctrA, nil)
 
 	var hashAStr string
-	for i := 0; i < util.Uint160Size; i++ {
+	for i := range util.Uint160Size {
 		hashAStr += fmt.Sprintf("%#x", ctrA.Hash[i])
 		if i != util.Uint160Size-1 {
 			hashAStr += ", "

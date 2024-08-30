@@ -19,7 +19,7 @@ func NewMerkleTree(hashes []util.Uint256) (*MerkleTree, error) {
 	}
 
 	nodes := make([]*MerkleTreeNode, len(hashes))
-	for i := 0; i < len(hashes); i++ {
+	for i := range hashes {
 		nodes[i] = &MerkleTreeNode{
 			hash: hashes[i],
 		}
@@ -45,7 +45,7 @@ func buildMerkleTree(leaves []*MerkleTreeNode) *MerkleTreeNode {
 	}
 
 	parents := make([]*MerkleTreeNode, (len(leaves)+1)/2)
-	for i := 0; i < len(parents); i++ {
+	for i := range parents {
 		parents[i] = &MerkleTreeNode{}
 		parents[i].leftChild = leaves[i*2]
 		leaves[i*2].parent = parents[i]
@@ -81,7 +81,7 @@ func CalcMerkleRoot(hashes []util.Uint256) util.Uint256 {
 
 	scratch := make([]byte, 64)
 	parents := hashes[:(len(hashes)+1)/2]
-	for i := 0; i < len(parents); i++ {
+	for i := range parents {
 		copy(scratch, hashes[i*2].BytesBE())
 
 		if i*2+1 == len(hashes) {

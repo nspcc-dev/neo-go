@@ -419,7 +419,7 @@ func TestNotYetRunningOracle(t *testing.T) {
 
 	var req state.OracleRequest
 	var reqs = make(map[uint64]*state.OracleRequest)
-	for i := uint64(0); i < 3; i++ {
+	for i := range uint64(3) {
 		reqs[i] = &req
 	}
 	orc.AddRequests(reqs) // 0, 1, 2 added to pending.

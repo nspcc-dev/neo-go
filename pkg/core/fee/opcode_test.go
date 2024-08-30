@@ -13,7 +13,7 @@ func BenchmarkOpcode1(t *testing.B) {
 	// Just so that we don't always test the same opcode.
 	script := []opcode.Opcode{opcode.NOP, opcode.ADD, opcode.SYSCALL, opcode.APPEND}
 	l := len(script)
-	for n := 0; n < t.N; n++ {
+	for n := range t.N {
 		_ = Opcode(feeFactor, script[n%l])
 	}
 }

@@ -28,7 +28,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 	}
 	bcSpout, validators, committee := chain.NewMultiWithCustomConfig(t, spoutCfg)
 	e := neotest.NewExecutor(t, bcSpout, validators, committee)
-	for i := 0; i <= 2*stateSyncInterval+int(maxTraceable)+1; i++ {
+	for range 2*stateSyncInterval + int(maxTraceable) + 2 {
 		e.AddNewBlock(t)
 	}
 

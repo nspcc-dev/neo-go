@@ -44,7 +44,7 @@ func TestEncodeDecodeAddress(t *testing.T) {
 }
 
 func fillAddressList(al *AddressList) {
-	for i := 0; i < len(al.Addrs); i++ {
+	for i := range al.Addrs {
 		e, _ := net.ResolveTCPAddr("tcp", fmt.Sprintf("127.0.0.1:20%d", i))
 		al.Addrs[i] = NewAddressAndTime(e, time.Now(), capability.Capabilities{
 			{

@@ -81,7 +81,7 @@ func TestNEP17Balance(t *testing.T) {
 
 		e.CheckNextLine(t, "^Account "+testcli.TestWalletMultiAccount1)
 		// The order of assets is undefined.
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			line := e.GetNextLine(t)
 			if strings.Contains(line, "GAS") {
 				e.CheckLine(t, line, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")

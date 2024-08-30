@@ -18,7 +18,7 @@ func TestPushElement(t *testing.T) {
 
 	assert.Equal(t, len(elems), s.Len())
 
-	for i := 0; i < len(elems); i++ {
+	for i := range elems {
 		assert.Equal(t, elems[len(elems)-1-i], s.Peek(i))
 	}
 }
@@ -386,7 +386,7 @@ func TestPopSigElements(t *testing.T) {
 
 func makeElements(n int) []Element {
 	elems := make([]Element, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		elems[i] = NewElement(i)
 	}
 	return elems

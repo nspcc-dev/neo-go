@@ -233,7 +233,7 @@ func readArrayOfConditions(r *io.BinReader, maxDepth int) []WitnessCondition {
 		return nil
 	}
 	a := make([]WitnessCondition, l)
-	for i := 0; i < int(l); i++ {
+	for i := range a {
 		a[i] = decodeBinaryCondition(r, maxDepth-1)
 	}
 	if r.Err != nil {
@@ -253,7 +253,7 @@ func (c *ConditionAnd) DecodeBinarySpecific(r *io.BinReader, maxDepth int) {
 
 func arrayToJSON(c WitnessCondition, a []WitnessCondition) ([]byte, error) {
 	exprs := make([]json.RawMessage, len(a))
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		b, err := a[i].MarshalJSON()
 		if err != nil {
 			return nil, err

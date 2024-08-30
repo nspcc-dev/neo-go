@@ -27,7 +27,7 @@ func BenchmarkBlockchain_VerifyWitness(t *testing.B) {
 	tx := e.NewTx(t, []neotest.Signer{acc}, e.NativeHash(t, nativenames.Gas), "transfer", acc.ScriptHash(), acc.Script(), 1, nil)
 
 	t.ResetTimer()
-	for n := 0; n < t.N; n++ {
+	for range t.N {
 		_, err := bc.VerifyWitness(tx.Signers[0].Account, tx, &tx.Scripts[0], 100000000)
 		require.NoError(t, err)
 	}
@@ -92,9 +92,9 @@ func benchmarkForEachNEP17Transfer(t *testing.B, ps storage.Store, startFromBloc
 	acc := random.Uint160()
 	from := e.Validator.ScriptHash()
 
-	for j := 0; j < chainHeight; j++ {
+	for range chainHeight {
 		b := smartcontract.NewBuilder()
-		for i := 0; i < transfersPerBlock; i++ {
+		for range transfersPerBlock {
 			b.InvokeWithAssert(gasHash, "transfer", from, acc, 1, nil)
 		}
 		script, err := b.Script()
@@ -119,7 +119,7 @@ func benchmarkForEachNEP17Transfer(t *testing.B, ps storage.Store, startFromBloc
 	t.ResetTimer()
 	t.ReportAllocs()
 	t.StartTimer()
-	for i := 0; i < t.N; i++ {
+	for range t.N {
 		require.NoError(t, bc.ForEachNEP17Transfer(acc, newestTimestamp, func(t *state.NEP17Transfer) (bool, error) {
 			if t.Timestamp < oldestTimestamp {
 				// iterating from newest to oldest, already have reached the needed height
@@ -165,7 +165,7 @@ func benchmarkGasPerVote(t *testing.B, ps storage.Store, nRewardRecords int, rew
 	voters := make([]*wallet.Account, sz)
 	candidates := make(keys.PublicKeys, sz)
 	txs := make([]*transaction.Transaction, 0, len(voters)*3)
-	for i := 0; i < sz; i++ {
+	for i := range sz {
 		priv, err := keys.NewPrivateKey()
 		require.NoError(t, err)
 		candidates[i] = priv.PublicKey()
@@ -186,7 +186,7 @@ func benchmarkGasPerVote(t *testing.B, ps storage.Store, nRewardRecords int, rew
 		e.CheckHalt(t, tx.Hash())
 	}
 	voteTxs := make([]*transaction.Transaction, 0, sz)
-	for i := 0; i < sz; i++ {
+	for i := range sz {
 		priv := voters[i].PrivateKey()
 		h := priv.GetScriptHash()
 		voteTx := e.NewTx(t, []neotest.Signer{neotest.NewSingleSigner(voters[i])}, neoHash, "vote", h, candidates[i].Bytes())
@@ -211,7 +211,7 @@ func benchmarkGasPerVote(t *testing.B, ps storage.Store, nRewardRecords int, rew
 	t.ResetTimer()
 	t.ReportAllocs()
 	t.StartTimer()
-	for i := 0; i < t.N; i++ {
+	for range t.N {
 		_, err := bc.CalculateClaimable(to, end)
 		require.NoError(t, err)
 	}

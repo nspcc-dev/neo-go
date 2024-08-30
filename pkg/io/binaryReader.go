@@ -128,7 +128,7 @@ func (r *BinReader) ReadArray(t any, maxSize ...int) {
 	l := int(lu)
 	arr := reflect.MakeSlice(sliceType, l, l)
 
-	for i := 0; i < l; i++ {
+	for i := range l {
 		var elem reflect.Value
 		if isPtr {
 			elem = reflect.New(elemType.Elem())

@@ -101,7 +101,7 @@ func getTestBlocks(t *testing.T) []*block.Block {
 	nBlocks := br.ReadU32LE()
 	require.Nil(t, br.Err)
 	blocks := make([]*block.Block, 0, int(nBlocks))
-	for i := 0; i < int(nBlocks); i++ {
+	for range nBlocks {
 		_ = br.ReadU32LE()
 		b := block.New(false)
 		b.DecodeBinary(br)
