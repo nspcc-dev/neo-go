@@ -3,7 +3,7 @@ package consensus
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -166,14 +166,9 @@ func NewService(cfg Config) (Service, error) {
 		}
 
 		// Check that the wallet password is correct for at least one account.
-		var ok bool
-		for _, acc := range srv.wallet.Accounts {
-			err := acc.Decrypt(srv.Config.Wallet.Password, srv.wallet.Scrypt)
-			if err == nil {
-				ok = true
-				break
-			}
-		}
+		var ok = slices.ContainsFunc(srv.wallet.Accounts, func(acc *wallet.Account) bool {
+			return acc.Decrypt(srv.Config.Wallet.Password, srv.wallet.Scrypt) == nil
+		})
 		if !ok {
 			return nil, errors.New("no account with provided password was found")
 		}
@@ -634,9 +629,7 @@ func (s *service) processBlock(b dbft.Block[util.Uint256]) {
 }
 
 func (s *service) postBlock(b *coreb.Block) {
-	if s.lastTimestamp < b.Timestamp {
-		s.lastTimestamp = b.Timestamp
-	}
+	s.lastTimestamp = max(s.lastTimestamp, b.Timestamp)
 	s.lastProposal = nil
 }
 
@@ -657,8 +650,6 @@ func (s *service) getBlockWitness(b *coreb.Block) *transaction.Witness {
 		s.log.Warn("can't create multisig redeem script", zap.Error(err))
 		return nil
 	}
-
-	sort.Sort(keys.PublicKeys(pubs))
 
 	buf := io.NewBufBinWriter()
 	for i, j := 0, 0; i < len(pubs) && j < m; i++ {
@@ -790,9 +781,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Bloc
 	block.Block.PrimaryIndex = primaryIndex
 
 	// it's OK to have ctx.TransactionsHashes == nil here
-	hashes := make([]util.Uint256, len(ctx.TransactionHashes))
-	copy(hashes, ctx.TransactionHashes)
-	block.Block.MerkleRoot = hash.CalcMerkleRoot(hashes)
+	block.Block.MerkleRoot = hash.CalcMerkleRoot(slices.Clone(ctx.TransactionHashes))
 
 	return block
 }

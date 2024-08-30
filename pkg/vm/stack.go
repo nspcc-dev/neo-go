@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -293,9 +294,7 @@ func (s *Stack) ReverseTop(n int) error {
 		return nil
 	}
 
-	for i, j := l-n, l-1; i <= j; i, j = i+1, j-1 {
-		s.elems[i], s.elems[j] = s.elems[j], s.elems[i]
-	}
+	slices.Reverse(s.elems[l-n : l])
 	return nil
 }
 

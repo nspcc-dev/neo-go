@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"slices"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
@@ -91,11 +92,10 @@ var (
 )
 
 func newNEP17Commands() []*cli.Command {
-	balanceFlags := make([]cli.Flag, len(baseBalanceFlags))
-	copy(balanceFlags, baseBalanceFlags)
+	balanceFlags := slices.Clone(baseBalanceFlags)
 	balanceFlags = append(balanceFlags, options.RPC...)
-	transferFlags := make([]cli.Flag, len(baseTransferFlags))
-	copy(transferFlags, baseTransferFlags)
+
+	transferFlags := slices.Clone(baseTransferFlags)
 	transferFlags = append(transferFlags, options.RPC...)
 	return []*cli.Command{
 		{

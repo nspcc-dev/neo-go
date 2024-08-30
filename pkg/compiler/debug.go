@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -210,7 +210,7 @@ func (c *codegen) emitDebugInfo(contract []byte) *DebugInfo {
 		}
 		fnames = append(fnames, name)
 	}
-	sort.Strings(fnames)
+	slices.Sort(fnames)
 	d.NamedTypes = make(map[string]binding.ExtendedType)
 	for _, name := range fnames {
 		m := c.methodInfoFromScope(name, c.funcs[name], d.NamedTypes)

@@ -64,8 +64,8 @@ func cancelTx(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		if mainTx != nil && t.NetworkFee < mainTx.NetworkFee+1 {
-			t.NetworkFee = mainTx.NetworkFee + 1
+		if mainTx != nil {
+			t.NetworkFee = max(t.NetworkFee, mainTx.NetworkFee+1)
 		}
 		t.NetworkFee += int64(flags.Fixed8FromContext(ctx, "gas"))
 		if mainTx != nil {

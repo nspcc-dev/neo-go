@@ -3,6 +3,7 @@ package wallet
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -111,24 +112,16 @@ func NewContractAccount(hash util.Uint160, args ...any) *Account {
 
 // SignTx signs transaction t and updates it's Witnesses.
 func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
-	var (
-		haveAcc bool
-		pos     int
-	)
 	if a.Locked {
 		return errors.New("account is locked")
 	}
 	if a.Contract == nil {
 		return errors.New("account has no contract")
 	}
-	for i := range t.Signers {
-		if t.Signers[i].Account.Equals(a.ScriptHash()) {
-			haveAcc = true
-			pos = i
-			break
-		}
-	}
-	if !haveAcc {
+	var pos = slices.IndexFunc(t.Signers, func(s transaction.Signer) bool {
+		return s.Account.Equals(a.ScriptHash())
+	})
+	if pos == -1 {
 		return errors.New("transaction is not signed by this account")
 	}
 	if len(t.Scripts) < pos {
@@ -150,14 +143,12 @@ func (a *Account) SignTx(net netmode.Magic, t *transaction.Transaction) error {
 	if a.privateKey == nil {
 		return errors.New("account key is not available (need to decrypt?)")
 	}
-	sign := a.privateKey.SignHashable(uint32(net), t)
 
-	invoc := append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, sign...)
-	if len(a.Contract.Parameters) == 1 {
-		t.Scripts[pos].InvocationScript = invoc
-	} else {
-		t.Scripts[pos].InvocationScript = append(t.Scripts[pos].InvocationScript, invoc...)
+	if len(a.Contract.Parameters) == 1 && t.Scripts[pos].InvocationScript != nil {
+		t.Scripts[pos].InvocationScript = t.Scripts[pos].InvocationScript[:0]
 	}
+	t.Scripts[pos].InvocationScript = append(t.Scripts[pos].InvocationScript, byte(opcode.PUSHDATA1), keys.SignatureLen)
+	t.Scripts[pos].InvocationScript = append(t.Scripts[pos].InvocationScript, a.privateKey.SignHashable(uint32(net), t)...)
 
 	return nil
 }
@@ -291,15 +282,7 @@ func (a *Account) ConvertMultisig(m int, pubs []*keys.PublicKey) error {
 // with m sufficient signatures. The encrypted private key is not modified and
 // remains the same.
 func (a *Account) ConvertMultisigEncrypted(accKey *keys.PublicKey, m int, pubs []*keys.PublicKey) error {
-	var found bool
-	for i := range pubs {
-		if accKey.Equal(pubs[i]) {
-			found = true
-			break
-		}
-	}
-
-	if !found {
+	if !slices.ContainsFunc(pubs, accKey.Equal) {
 		return errors.New("own public key was not found among multisig keys")
 	}
 

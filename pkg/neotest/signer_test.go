@@ -1,7 +1,7 @@
 package neotest
 
 import (
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -31,7 +31,7 @@ func TestMultiSigner(t *testing.T) {
 		pubs[i] = a.PublicKey()
 	}
 
-	sort.Sort(pubs)
+	slices.SortFunc(pubs, (*keys.PublicKey).Cmp)
 	m := smartcontract.GetDefaultHonestNodeCount(size)
 	for i := range accs {
 		require.NoError(t, accs[i].ConvertMultisig(m, pubs))

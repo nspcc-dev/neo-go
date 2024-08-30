@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"reflect"
 	"runtime"
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,15 +49,10 @@ func testStoreSeek(t *testing.T, s Store) {
 	kvs := pushSeekDataSet(t, s)
 	check := func(t *testing.T, goodprefix, start []byte, goodkvs []KeyValue, backwards bool, cont func(k, v []byte) bool) {
 		// Seek result expected to be sorted in an ascending (for forwards seeking) or descending (for backwards seeking) way.
-		cmpFunc := func(i, j int) bool {
-			return bytes.Compare(goodkvs[i].Key, goodkvs[j].Key) < 0
-		}
-		if backwards {
-			cmpFunc = func(i, j int) bool {
-				return bytes.Compare(goodkvs[i].Key, goodkvs[j].Key) > 0
-			}
-		}
-		sort.Slice(goodkvs, cmpFunc)
+		var cmpFunc = getCmpFunc(backwards)
+		slices.SortFunc(goodkvs, func(a, b KeyValue) int {
+			return cmpFunc(a.Key, b.Key)
+		})
 
 		rng := SeekRange{
 			Prefix: goodprefix,

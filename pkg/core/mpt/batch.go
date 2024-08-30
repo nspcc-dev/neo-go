@@ -2,7 +2,7 @@ package mpt
 
 import (
 	"bytes"
-	"sort"
+	"slices"
 )
 
 // Batch is a batch of storage changes.
@@ -25,8 +25,8 @@ func MapToMPTBatch(m map[string][]byte) Batch {
 	for k, v := range m {
 		b.kv = append(b.kv, keyValue{strToNibbles(k), v}) // Strip storage prefix.
 	}
-	sort.Slice(b.kv, func(i, j int) bool {
-		return bytes.Compare(b.kv[i].key, b.kv[j].key) < 0
+	slices.SortFunc(b.kv, func(a, b keyValue) int {
+		return bytes.Compare(a.key, b.key)
 	})
 	return b
 }

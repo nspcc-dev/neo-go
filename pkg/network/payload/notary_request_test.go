@@ -17,6 +17,7 @@ func TestNotaryRequestIsValid(t *testing.T) {
 		Script:          []byte{0, 1, 2},
 		ValidUntilBlock: 123,
 	}
+	emptySingleInvocation := append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...)
 	errorCases := map[string]*P2PNotaryRequest{
 		"main tx: missing NotaryAssisted attribute": {MainTransaction: &transaction.Transaction{}},
 		"main tx: zero NKeys":                       {MainTransaction: &transaction.Transaction{Attributes: []transaction.Attribute{{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}}}}},
@@ -53,14 +54,14 @@ func TestNotaryRequestIsValid(t *testing.T) {
 			MainTransaction: mainTx,
 			FallbackTransaction: &transaction.Transaction{
 				Signers: []transaction.Signer{{Account: random.Uint160()}, {Account: random.Uint160()}},
-				Scripts: []transaction.Witness{{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: make([]byte, 1)}, {}},
+				Scripts: []transaction.Witness{{InvocationScript: emptySingleInvocation, VerificationScript: make([]byte, 1)}, {}},
 			},
 		},
 		"fallback tx: missing NotValidBefore attribute": {
 			MainTransaction: mainTx,
 			FallbackTransaction: &transaction.Transaction{
 				Signers: []transaction.Signer{{Account: random.Uint160()}, {Account: random.Uint160()}},
-				Scripts: []transaction.Witness{{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: make([]byte, 0)}, {}},
+				Scripts: []transaction.Witness{{InvocationScript: emptySingleInvocation, VerificationScript: make([]byte, 0)}, {}},
 			},
 		},
 		"fallback tx: invalid number of Conflicts attributes": {
@@ -68,7 +69,7 @@ func TestNotaryRequestIsValid(t *testing.T) {
 			FallbackTransaction: &transaction.Transaction{
 				Attributes: []transaction.Attribute{{Type: transaction.NotValidBeforeT, Value: &transaction.NotValidBefore{Height: 123}}},
 				Signers:    []transaction.Signer{{Account: random.Uint160()}, {Account: random.Uint160()}},
-				Scripts:    []transaction.Witness{{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: make([]byte, 0)}, {}},
+				Scripts:    []transaction.Witness{{InvocationScript: emptySingleInvocation, VerificationScript: make([]byte, 0)}, {}},
 			},
 		},
 		"fallback tx: does not conflicts with main tx": {
@@ -79,7 +80,7 @@ func TestNotaryRequestIsValid(t *testing.T) {
 					{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: util.Uint256{}}},
 				},
 				Signers: []transaction.Signer{{Account: random.Uint160()}, {Account: random.Uint160()}},
-				Scripts: []transaction.Witness{{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: make([]byte, 0)}, {}},
+				Scripts: []transaction.Witness{{InvocationScript: emptySingleInvocation, VerificationScript: make([]byte, 0)}, {}},
 			},
 		},
 		"fallback tx: missing NotaryAssisted attribute": {
@@ -90,7 +91,7 @@ func TestNotaryRequestIsValid(t *testing.T) {
 					{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: mainTx.Hash()}},
 				},
 				Signers: []transaction.Signer{{Account: random.Uint160()}, {Account: random.Uint160()}},
-				Scripts: []transaction.Witness{{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: make([]byte, 0)}, {}},
+				Scripts: []transaction.Witness{{InvocationScript: emptySingleInvocation, VerificationScript: make([]byte, 0)}, {}},
 			},
 		},
 		"fallback tx: non-zero NKeys": {
@@ -102,7 +103,7 @@ func TestNotaryRequestIsValid(t *testing.T) {
 					{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 1}},
 				},
 				Signers: []transaction.Signer{{Account: random.Uint160()}, {Account: random.Uint160()}},
-				Scripts: []transaction.Witness{{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: make([]byte, 0)}, {}},
+				Scripts: []transaction.Witness{{InvocationScript: emptySingleInvocation, VerificationScript: make([]byte, 0)}, {}},
 			},
 		},
 		"fallback tx: ValidUntilBlock mismatch": {
@@ -115,7 +116,7 @@ func TestNotaryRequestIsValid(t *testing.T) {
 					{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
 				},
 				Signers: []transaction.Signer{{Account: random.Uint160()}, {Account: random.Uint160()}},
-				Scripts: []transaction.Witness{{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: make([]byte, 0)}, {}},
+				Scripts: []transaction.Witness{{InvocationScript: emptySingleInvocation, VerificationScript: make([]byte, 0)}, {}},
 			},
 		},
 	}
@@ -135,7 +136,7 @@ func TestNotaryRequestIsValid(t *testing.T) {
 					{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
 				},
 				Signers: []transaction.Signer{{Account: random.Uint160()}, {Account: random.Uint160()}},
-				Scripts: []transaction.Witness{{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: make([]byte, 0)}, {}},
+				Scripts: []transaction.Witness{{InvocationScript: emptySingleInvocation, VerificationScript: make([]byte, 0)}, {}},
 			},
 		}
 		require.NoError(t, p.isValid())

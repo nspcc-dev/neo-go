@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"sort"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -58,7 +58,7 @@ func (g Groups) AreValid(h util.Uint160) error {
 	for i := range g {
 		pkeys[i] = g[i].PublicKey
 	}
-	sort.Sort(pkeys)
+	slices.SortFunc(pkeys, (*keys.PublicKey).Cmp)
 	for i := range pkeys {
 		if i == 0 {
 			continue
@@ -71,12 +71,9 @@ func (g Groups) AreValid(h util.Uint160) error {
 }
 
 func (g Groups) Contains(k *keys.PublicKey) bool {
-	for i := range g {
-		if k.Equal(g[i].PublicKey) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(g, func(gr Group) bool {
+		return k.Equal(gr.PublicKey)
+	})
 }
 
 // MarshalJSON implements the json.Marshaler interface.

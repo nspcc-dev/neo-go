@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 
 	ojson "github.com/nspcc-dev/go-ordered-json"
@@ -76,12 +77,9 @@ func DefaultManifest(name string) *Manifest {
 // CanCall returns true if the current contract is allowed to call
 // the method of another contract with the specified hash.
 func (m *Manifest) CanCall(hash util.Uint160, toCall *Manifest, method string) bool {
-	for i := range m.Permissions {
-		if m.Permissions[i].IsAllowed(hash, toCall, method) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(m.Permissions, func(p Permission) bool {
+		return p.IsAllowed(hash, toCall, method)
+	})
 }
 
 // IsValid checks manifest internal consistency and correctness, one of the
@@ -94,17 +92,11 @@ func (m *Manifest) IsValid(hash util.Uint160, checkSize bool) error {
 		return errors.New("no name")
 	}
 
-	for i := range m.SupportedStandards {
-		if m.SupportedStandards[i] == "" {
-			return errors.New("invalid nameless supported standard")
-		}
+	if slices.Contains(m.SupportedStandards, "") {
+		return errors.New("invalid nameless supported standard")
 	}
-	if len(m.SupportedStandards) > 1 {
-		names := make([]string, len(m.SupportedStandards))
-		copy(names, m.SupportedStandards)
-		if stringsHaveDups(names) {
-			return errors.New("duplicate supported standards")
-		}
+	if sliceHasDups(m.SupportedStandards, strings.Compare) {
+		return errors.New("duplicate supported standards")
 	}
 	err = m.ABI.IsValid()
 	if err != nil {
@@ -127,12 +119,8 @@ func (m *Manifest) IsValid(hash util.Uint160, checkSize bool) error {
 	if m.Trusts.Value == nil && !m.Trusts.Wildcard {
 		return errors.New("invalid (null?) trusts")
 	}
-	if len(m.Trusts.Value) > 1 {
-		hashes := make([]PermissionDesc, len(m.Trusts.Value))
-		copy(hashes, m.Trusts.Value)
-		if permissionDescsHaveDups(hashes) {
-			return errors.New("duplicate trusted contracts")
-		}
+	if sliceHasDups(m.Trusts.Value, PermissionDesc.Compare) {
+		return errors.New("duplicate trusted contracts")
 	}
 	err = Permissions(m.Permissions).AreValid()
 	if err != nil {
@@ -154,12 +142,7 @@ func (m *Manifest) IsValid(hash util.Uint160, checkSize bool) error {
 
 // IsStandardSupported denotes whether the specified standard is supported by the contract.
 func (m *Manifest) IsStandardSupported(standard string) bool {
-	for _, st := range m.SupportedStandards {
-		if st == standard {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(m.SupportedStandards, standard)
 }
 
 // ToStackItem converts Manifest to stackitem.Item.

@@ -2,7 +2,7 @@ package smartcontract
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -11,7 +11,8 @@ import (
 )
 
 // CreateMultiSigRedeemScript creates an "m out of n" type verification script
-// where n is the length of publicKeys.
+// where n is the length of publicKeys. It modifies passed publicKeys by
+// sorting them.
 func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, error) {
 	if m < 1 {
 		return nil, fmt.Errorf("param m cannot be smaller than 1, got %d", m)
@@ -25,7 +26,7 @@ func CreateMultiSigRedeemScript(m int, publicKeys keys.PublicKeys) ([]byte, erro
 
 	buf := io.NewBufBinWriter()
 	emit.Int(buf.BinWriter, int64(m))
-	sort.Sort(publicKeys)
+	slices.SortFunc(publicKeys, (*keys.PublicKey).Cmp)
 	for _, pubKey := range publicKeys {
 		emit.Bytes(buf.BinWriter, pubKey.Bytes())
 	}

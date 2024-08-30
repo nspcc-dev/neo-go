@@ -33,9 +33,7 @@ type abstractBatch []abstract
 // RunForErrors implements abstractResult interface.
 func (ab abstractBatch) RunForErrors(f func(jsonErr *neorpc.Error)) {
 	for _, a := range ab {
-		if a.Error != nil {
-			f(a.Error)
-		}
+		a.RunForErrors(f)
 	}
 }
 

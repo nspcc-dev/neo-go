@@ -3,7 +3,7 @@ package storage
 import (
 	"bytes"
 	"context"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -230,13 +230,11 @@ func (s *MemCachedStore) prepareSeekMemSnapshot(rng SeekRange) (Store, []KeyValu
 // seeking from some point is supported with corresponding `rng` field set.
 func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng SeekRange, cutPrefix bool, f func(k, v []byte) bool) {
 	lPrefix := len(string(rng.Prefix))
-	less := func(k1, k2 []byte) bool {
-		res := bytes.Compare(k1, k2)
-		return res != 0 && rng.Backwards == (res > 0)
-	}
+	var cmpFunc = getCmpFunc(rng.Backwards)
+
 	// Sort memRes items for further comparison with ps items.
-	sort.Slice(memRes, func(i, j int) bool {
-		return less(memRes[i].Key, memRes[j].Key)
+	slices.SortFunc(memRes, func(a, b KeyValueExists) int {
+		return cmpFunc(a.Key, b.Key)
 	})
 
 	var (
@@ -266,7 +264,7 @@ func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng See
 				done = true
 				return false
 			default:
-				var isMem = haveMem && less(kvMem.Key, kvPs.Key)
+				var isMem = haveMem && cmpFunc(kvMem.Key, kvPs.Key) < 0
 				if isMem {
 					if kvMem.Exists {
 						if cutPrefix {

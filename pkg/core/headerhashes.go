@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -85,7 +86,7 @@ func (h *HeaderHashes) init(dao *dao.Simple) error {
 			headers = append(headers, blk.Hash())
 			hash = blk.PrevHash
 		}
-		hashSliceReverse(headers)
+		slices.Reverse(headers)
 		h.latest = append(h.latest, headers...)
 	}
 	return nil

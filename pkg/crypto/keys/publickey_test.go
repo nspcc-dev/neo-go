@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"math/rand"
+	"slices"
 	"sort"
 	"testing"
 
@@ -145,8 +146,7 @@ func TestSort(t *testing.T) {
 		pubs1[i] = priv.PublicKey()
 	}
 
-	pubs2 := make(PublicKeys, len(pubs1))
-	copy(pubs2, pubs1)
+	pubs2 := slices.Clone(pubs1)
 
 	sort.Sort(pubs1)
 

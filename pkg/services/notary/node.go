@@ -1,6 +1,8 @@
 package notary
 
 import (
+	"slices"
+
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -13,12 +15,8 @@ func (n *Notary) UpdateNotaryNodes(notaryNodes keys.PublicKeys) {
 	n.accMtx.Lock()
 	defer n.accMtx.Unlock()
 
-	if n.currAccount != nil {
-		for _, node := range notaryNodes {
-			if node.Equal(n.currAccount.PublicKey()) {
-				return
-			}
-		}
+	if n.currAccount != nil && slices.ContainsFunc(notaryNodes, n.currAccount.PublicKey().Equal) {
+		return
 	}
 
 	var acc *wallet.Account

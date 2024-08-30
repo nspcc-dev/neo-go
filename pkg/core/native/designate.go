@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"sort"
+	"slices"
 	"sync/atomic"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
@@ -397,7 +397,7 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 	if si != nil {
 		return ErrAlreadyDesignated
 	}
-	sort.Sort(pubs)
+	slices.SortFunc(pubs, (*keys.PublicKey).Cmp)
 	nl := NodeList(pubs)
 
 	err := putConvertibleToDAO(s.ID, ic.DAO, key, &nl)

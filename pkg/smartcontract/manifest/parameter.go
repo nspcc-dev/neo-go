@@ -1,9 +1,10 @@
 package manifest
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -79,57 +80,29 @@ func (p Parameters) AreValid() error {
 			return fmt.Errorf("parameter #%d/%q: %w", i, p[i].Name, err)
 		}
 	}
-	if len(p) < 2 {
-		return nil
-	}
-	names := make([]string, len(p))
-	for i := range p {
-		names[i] = p[i].Name
-	}
-	if stringsHaveDups(names) {
+	if sliceHasDups(p, func(a, b Parameter) int {
+		return cmp.Compare(a.Name, b.Name)
+	}) {
 		return errors.New("duplicate parameter name")
 	}
 	return nil
 }
 
-// stringsHaveDups checks the given set of strings for duplicates. It modifies the slice given!
-func stringsHaveDups(strings []string) bool {
-	sort.Strings(strings)
-	for i := range strings {
-		if i == 0 {
-			continue
-		}
-		if strings[i] == strings[i-1] {
-			return true
-		}
+// sliceHasDups checks the slice for duplicate elements.
+func sliceHasDups[S ~[]E, E any](x S, cmp func(a, b E) int) bool {
+	if len(x) < 2 {
+		return false
 	}
-	return false
-}
-
-// permissionDescsHaveDups checks the given set of strings for duplicates. It modifies the slice given!
-func permissionDescsHaveDups(descs []PermissionDesc) bool {
-	sort.Slice(descs, func(i, j int) bool {
-		return descs[i].Less(descs[j])
-	})
-	for i := range descs {
+	if len(x) > 2 {
+		x = slices.Clone(x)
+		slices.SortFunc(x, cmp)
+	}
+	for i := range x {
 		if i == 0 {
 			continue
 		}
-		j := i - 1
-		if descs[i].Type != descs[j].Type {
-			continue
-		}
-		switch descs[i].Type {
-		case PermissionWildcard:
+		if cmp(x[i-1], x[i]) == 0 {
 			return true
-		case PermissionHash:
-			if descs[i].Hash() == descs[j].Hash() {
-				return true
-			}
-		case PermissionGroup:
-			if descs[i].Group().Cmp(descs[j].Group()) == 0 {
-				return true
-			}
 		}
 	}
 	return false

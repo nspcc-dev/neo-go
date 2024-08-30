@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"sort"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1115,9 +1115,7 @@ func (bc *Blockchain) Run() {
 			}
 			nextSync = dur > persistInterval*2
 			interval := persistInterval - dur - gcDur
-			if interval <= 0 {
-				interval = time.Microsecond // Reset doesn't work with zero value
-			}
+			interval = max(interval, time.Microsecond) // Reset doesn't work with zero or negative value.
 			persistTimer.Reset(interval)
 		}
 	}
@@ -1134,9 +1132,7 @@ func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 		syncP := newHeight / uint32(bc.config.StateSyncInterval)
 		syncP--
 		syncP *= uint32(bc.config.StateSyncInterval)
-		if tgtBlock > int64(syncP) {
-			tgtBlock = int64(syncP)
-		}
+		tgtBlock = min(tgtBlock, int64(syncP))
 	}
 	// Always round to the GCP.
 	tgtBlock /= int64(bc.config.Ledger.GarbageCollectionPeriod)
@@ -1619,9 +1615,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 					block.Index >= uint32(bc.config.StateSyncInterval)+bc.config.MaxTraceableBlocks && // check this in case if MaxTraceableBlocks>StateSyncInterval
 					int(block.Index)%bc.config.StateSyncInterval == 0 {
 					stop = block.Index - uint32(bc.config.StateSyncInterval) - bc.config.MaxTraceableBlocks
-					if stop > uint32(bc.config.StateSyncInterval) {
-						start = stop - uint32(bc.config.StateSyncInterval)
-					}
+					start = stop - min(stop, uint32(bc.config.StateSyncInterval))
 				}
 			} else if block.Index > bc.config.MaxTraceableBlocks {
 				start = block.Index - bc.config.MaxTraceableBlocks // is at least 1
@@ -1844,9 +1838,7 @@ func (bc *Blockchain) updateExtensibleWhitelist(height uint32) error {
 		bc.updateExtensibleList(&newList, stateVals)
 	}
 
-	sort.Slice(newList, func(i, j int) bool {
-		return newList[i].Less(newList[j])
-	})
+	slices.SortFunc(newList, util.Uint160.Compare)
 	bc.extensible.Store(newList)
 	return nil
 }
@@ -1860,8 +1852,8 @@ func (bc *Blockchain) updateExtensibleList(s *[]util.Uint160, pubs keys.PublicKe
 // IsExtensibleAllowed determines if script hash is allowed to send extensible payloads.
 func (bc *Blockchain) IsExtensibleAllowed(u util.Uint160) bool {
 	us := bc.extensible.Load().([]util.Uint160)
-	n := sort.Search(len(us), func(i int) bool { return !us[i].Less(u) })
-	return n < len(us)
+	_, ok := slices.BinarySearchFunc(us, u, util.Uint160.Compare)
+	return ok
 }
 
 func (bc *Blockchain) runPersist(script []byte, block *block.Block, cache *dao.Simple, trig trigger.Type, v *vm.VM) (*state.AppExecResult, *vm.VM, error) {
@@ -2791,7 +2783,7 @@ func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data any, mp *m
 // GetCommittee returns the sorted list of public keys of nodes in committee.
 func (bc *Blockchain) GetCommittee() (keys.PublicKeys, error) {
 	pubs := bc.contracts.NEO.GetCommitteeMembers(bc.dao)
-	sort.Sort(pubs)
+	slices.SortFunc(pubs, (*keys.PublicKey).Cmp)
 	return pubs, nil
 }
 
@@ -2954,10 +2946,7 @@ func (bc *Blockchain) VerifyWitness(h util.Uint160, c hash.Hashable, w *transact
 
 // verifyHashAgainstScript verifies given hash against the given witness and returns the amount of GAS consumed.
 func (bc *Blockchain) verifyHashAgainstScript(hash util.Uint160, witness *transaction.Witness, interopCtx *interop.Context, gas int64) (int64, error) {
-	gasPolicy := bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO)
-	if gas > gasPolicy {
-		gas = gasPolicy
-	}
+	gas = min(gas, bc.contracts.Policy.GetMaxVerificationGas(interopCtx.DAO))
 
 	vm := interopCtx.SpawnVM()
 	vm.GasLimit = gas

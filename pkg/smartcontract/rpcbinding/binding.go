@@ -2,7 +2,7 @@ package rpcbinding
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"text/template"
 	"unicode"
@@ -390,8 +390,7 @@ func NewConfig() binding.Config {
 func Generate(cfg binding.Config) error {
 	// Avoid changing *cfg.Manifest.
 	mfst := *cfg.Manifest
-	mfst.ABI.Methods = make([]manifest.Method, len(mfst.ABI.Methods))
-	copy(mfst.ABI.Methods, cfg.Manifest.ABI.Methods)
+	mfst.ABI.Methods = slices.Clone(mfst.ABI.Methods)
 	cfg.Manifest = &mfst
 
 	var imports = make(map[string]struct{})
@@ -434,9 +433,7 @@ func Generate(cfg binding.Config) error {
 	for k := range cfg.NamedTypes {
 		ctr.NamedTypes = append(ctr.NamedTypes, cfg.NamedTypes[k])
 	}
-	sort.Slice(ctr.NamedTypes, func(i, j int) bool {
-		return strings.Compare(ctr.NamedTypes[i].Name, ctr.NamedTypes[j].Name) < 0
-	})
+	slices.SortFunc(ctr.NamedTypes, func(a, b binding.ExtendedType) int { return strings.Compare(a.Name, b.Name) })
 
 	// Check resulting named types and events don't have duplicating field names.
 	for _, t := range ctr.NamedTypes {
@@ -848,7 +845,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	for imp := range imports {
 		ctr.Imports = append(ctr.Imports, imp)
 	}
-	sort.Strings(ctr.Imports)
+	slices.Sort(ctr.Imports)
 	return ctr
 }
 

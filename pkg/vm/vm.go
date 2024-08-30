@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/big"
 	"os"
+	"slices"
 	"text/tabwriter"
 	"unicode/utf8"
 
@@ -22,7 +23,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm/invocations"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -1352,13 +1352,10 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			if t.(stackitem.Immutable).IsReadOnly() {
 				panic(stackitem.ErrReadOnly)
 			}
-			a := t.Value().([]stackitem.Item)
-			for i, j := 0, len(a)-1; i < j; i, j = i+1, j-1 {
-				a[i], a[j] = a[j], a[i]
-			}
+			slices.Reverse(t.Value().([]stackitem.Item))
 		case *stackitem.Buffer:
 			b := t.Value().([]byte)
-			slice.Reverse(b)
+			slices.Reverse(b)
 		default:
 			panic(fmt.Sprintf("invalid item type %s", t))
 		}
@@ -1876,7 +1873,10 @@ func (v *VM) ContractHasTryBlock() bool {
 // CheckMultisigPar checks if the sigs contains sufficient valid signatures.
 func CheckMultisigPar(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sigs [][]byte) bool {
 	if len(sigs) == 1 {
-		return checkMultisig1(v, curve, h, pkeys, sigs[0])
+		return slices.ContainsFunc(pkeys, func(keyb []byte) bool {
+			pkey := bytesToPublicKey(keyb, curve)
+			return pkey.Verify(sigs[0], h)
+		})
 	}
 
 	k1, k2 := 0, len(pkeys)-1
@@ -1964,17 +1964,6 @@ loop:
 	close(tasks)
 
 	return sigok
-}
-
-func checkMultisig1(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sig []byte) bool {
-	for i := range pkeys {
-		pkey := bytesToPublicKey(pkeys[i], curve)
-		if pkey.Verify(sig, h) {
-			return true
-		}
-	}
-
-	return false
 }
 
 func cloneIfStruct(item stackitem.Item) stackitem.Item {

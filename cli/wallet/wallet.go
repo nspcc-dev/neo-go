@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
@@ -512,16 +513,13 @@ func exportKeys(ctx *cli.Context) error {
 
 	var wifs []string
 
-loop:
 	for _, a := range wall.Accounts {
 		if addr != "" && a.Address != addr {
 			continue
 		}
 
-		for i := range wifs {
-			if a.EncryptedWIF == wifs[i] {
-				continue loop
-			}
+		if slices.Contains(wifs, a.EncryptedWIF) {
+			continue
 		}
 
 		wifs = append(wifs, a.EncryptedWIF)

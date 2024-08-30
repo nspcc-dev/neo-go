@@ -201,16 +201,16 @@ func curveHasherFromStackitem(si stackitem.Item, allowKeccak bool) (elliptic.Cur
 		return elliptic.P256(), hash.Sha256, nil
 	case int64(Secp256k1Keccak256):
 		if !allowKeccak {
-			return nil, nil, errors.New("unsupported hash type")
+			return nil, nil, fmt.Errorf("%w: keccak hash", errors.ErrUnsupported)
 		}
 		return secp256k1.S256(), Keccak256, nil
 	case int64(Secp256r1Keccak256):
 		if !allowKeccak {
-			return nil, nil, errors.New("unsupported hash type")
+			return nil, nil, fmt.Errorf("%w: keccak hash", errors.ErrUnsupported)
 		}
 		return elliptic.P256(), Keccak256, nil
 	default:
-		return nil, nil, errors.New("unsupported curve/hash type")
+		return nil, nil, fmt.Errorf("%w: unknown curve/hash", errors.ErrUnsupported)
 	}
 }
 

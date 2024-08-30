@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -199,7 +200,8 @@ func (p *Parameter) UnmarshalJSON(data []byte) (err error) {
 // NewParameterFromString returns a new Parameter initialized from the given
 // string in neo-go-specific format. It is intended to be used in user-facing
 // interfaces and has some heuristics in it to simplify parameter passing. The exact
-// syntax is documented in the cli documentation.
+// syntax is documented in the cli documentation. [errors.ErrUnsupported] will be
+// returned in case of unsupported parameter types.
 func NewParameterFromString(in string) (*Parameter, error) {
 	var (
 		char    rune
@@ -226,7 +228,7 @@ func NewParameterFromString(in string) (*Parameter, error) {
 			}
 			// We currently do not support following types:
 			if res.Type == ArrayType || res.Type == MapType || res.Type == InteropInterfaceType || res.Type == VoidType {
-				return nil, fmt.Errorf("unsupported parameter type %s", res.Type)
+				return nil, fmt.Errorf("%w: type %s", errors.ErrUnsupported, res.Type)
 			}
 			buf.Reset()
 			hadType = true
@@ -263,7 +265,8 @@ func NewParameterFromString(in string) (*Parameter, error) {
 // NewParameterFromValue infers Parameter type from the value given and adjusts
 // the value if needed. It does not copy the value if it can avoid doing so. All
 // regular integers, util.*, keys.PublicKey*, string and bool types are supported,
-// slice of byte slices is accepted and converted as well.
+// slice of byte slices is accepted and converted as well. [errors.ErrUnsupported]
+// will be returned for types that can't be used now.
 func NewParameterFromValue(value any) (Parameter, error) {
 	var result = Parameter{
 		Value: value,
@@ -349,10 +352,8 @@ func NewParameterFromValue(value any) (Parameter, error) {
 		result.Type = ArrayType
 		result.Value = arr
 	case []Parameter:
-		arr := make([]Parameter, len(v))
-		copy(arr, v)
 		result.Type = ArrayType
-		result.Value = arr
+		result.Value = slices.Clone(v)
 	case []*keys.PublicKey:
 		return NewParameterFromValue(keys.PublicKeys(v))
 	case keys.PublicKeys:
@@ -374,7 +375,7 @@ func NewParameterFromValue(value any) (Parameter, error) {
 	case nil:
 		result.Type = AnyType
 	default:
-		return result, fmt.Errorf("unsupported parameter %T", value)
+		return result, fmt.Errorf("%w: %T type", errors.ErrUnsupported, value)
 	}
 
 	return result, nil
@@ -397,6 +398,7 @@ func NewParametersFromValues(values ...any) ([]Parameter, error) {
 // ExpandParameterToEmitable converts a parameter to a type which can be handled as
 // an array item by emit.Array. It correlates with the way an RPC server handles
 // FuncParams for invoke* calls inside the request.ExpandArrayIntoScript function.
+// [errors.ErrUnsupported] is returned for unsupported types.
 func ExpandParameterToEmitable(param Parameter) (any, error) {
 	var err error
 	switch t := param.Type; t {
@@ -411,7 +413,7 @@ func ExpandParameterToEmitable(param Parameter) (any, error) {
 		}
 		return res, nil
 	case MapType, InteropInterfaceType, UnknownType, VoidType:
-		return nil, fmt.Errorf("unsupported parameter type: %s", t.String())
+		return nil, fmt.Errorf("%w: %s type", errors.ErrUnsupported, t.String())
 	default:
 		return param.Value, nil
 	}

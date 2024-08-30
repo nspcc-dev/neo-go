@@ -29,8 +29,8 @@ var (
 	// of transaction awaiting process and no result was received yet.
 	ErrContextDone = errors.New("waiter context done")
 	// ErrAwaitingNotSupported is returned from Wait method if Waiter instance
-	// doesn't support transaction awaiting.
-	ErrAwaitingNotSupported = errors.New("awaiting not supported")
+	// doesn't support transaction awaiting. It's compatible with [errors.ErrUnsupported].
+	ErrAwaitingNotSupported = fmt.Errorf("%w: awaiting", errors.ErrUnsupported)
 	// ErrMissedEvent is returned when RPCEventBased closes receiver channel
 	// which happens if missed event was received from the RPC server.
 	ErrMissedEvent = errors.New("some event was missed")

@@ -10,7 +10,7 @@ import (
 	mrand "math/rand"
 	"net"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -475,11 +475,7 @@ func (s *Server) run() {
 		} else if s.MinPeers > 0 && loopCnt%s.MinPeers == 0 && optimalN > peerN && optimalN < s.MaxPeers && optimalN < netSize {
 			// Having some number of peers, but probably can get some more, the network is big.
 			// It also allows to start picking up new peers proactively, before we suddenly have <s.MinPeers of them.
-			var connN = s.AttemptConnPeers
-			if connN > optimalN-peerN {
-				connN = optimalN - peerN
-			}
-			s.discovery.RequestRemote(connN)
+			s.discovery.RequestRemote(min(s.AttemptConnPeers, optimalN-peerN))
 		}
 
 		if addrCheckTimeout || s.discovery.PoolCount() < s.AttemptConnPeers {
@@ -1173,10 +1169,8 @@ txloop:
 				var cbList = s.txCbList.Load()
 				if cbList != nil {
 					var list = cbList.([]util.Uint256)
-					var i = sort.Search(len(list), func(i int) bool {
-						return list[i].CompareTo(tx.Hash()) >= 0
-					})
-					if i < len(list) && list[i].Equals(tx.Hash()) {
+					_, found := slices.BinarySearchFunc(list, tx.Hash(), util.Uint256.Compare)
+					if found {
 						txCallback(tx)
 					}
 				}
@@ -1443,25 +1437,16 @@ func (s *Server) tryInitStateSync() {
 		return
 	}
 
-	var peersNumber int
 	s.lock.RLock()
-	heights := make([]uint32, 0)
+	heights := make([]uint32, 0, len(s.peers))
 	for p := range s.peers {
 		if p.Handshaked() {
-			peersNumber++
-			peerLastBlock := p.LastBlockIndex()
-			i := sort.Search(len(heights), func(i int) bool {
-				return heights[i] >= peerLastBlock
-			})
-			heights = append(heights, peerLastBlock)
-			if i != len(heights)-1 {
-				copy(heights[i+1:], heights[i:])
-				heights[i] = peerLastBlock
-			}
+			heights = append(heights, p.LastBlockIndex())
 		}
 	}
 	s.lock.RUnlock()
-	if peersNumber >= s.MinPeers && len(heights) > 0 {
+	slices.Sort(heights)
+	if len(heights) >= s.MinPeers && len(heights) > 0 {
 		// choose the height of the median peer as the current chain's height
 		h := heights[len(heights)/2]
 		err := s.stateSync.Init(h)
@@ -1498,20 +1483,14 @@ func (s *Server) RequestTx(hashes ...util.Uint256) {
 		return
 	}
 
-	var sorted = make([]util.Uint256, len(hashes))
-	copy(sorted, hashes)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].CompareTo(sorted[j]) < 0
-	})
-
+	var sorted = slices.Clone(hashes)
+	slices.SortFunc(sorted, util.Uint256.Compare)
 	s.txCbList.Store(sorted)
 
 	for i := 0; i <= len(hashes)/payload.MaxHashesCount; i++ {
 		start := i * payload.MaxHashesCount
 		stop := (i + 1) * payload.MaxHashesCount
-		if stop > len(hashes) {
-			stop = len(hashes)
-		}
+		stop = min(stop, len(hashes))
 		if start == stop {
 			break
 		}
@@ -1660,9 +1639,7 @@ func (s *Server) initStaleMemPools() {
 	threshold := 5
 	// Not perfect, can change over time, but should be sufficient.
 	numOfCNs := s.config.GetNumOfCNs(s.chain.BlockHeight())
-	if numOfCNs*2 > threshold {
-		threshold = numOfCNs * 2
-	}
+	threshold = max(threshold, numOfCNs*2)
 
 	s.mempool.SetResendThreshold(uint32(threshold), s.broadcastTX)
 	if s.chain.P2PSigExtensionsEnabled() {
@@ -1769,12 +1746,5 @@ func (s *Server) Port(localAddr net.Addr) (uint16, error) {
 func optimalNumOfThreads() int {
 	// Doing more won't help, mempool is still a contention point.
 	const maxThreads = 16
-	var threads = runtime.GOMAXPROCS(0)
-	if threads > runtime.NumCPU() {
-		threads = runtime.NumCPU()
-	}
-	if threads > maxThreads {
-		threads = maxThreads
-	}
-	return threads
+	return min(runtime.GOMAXPROCS(0), runtime.NumCPU(), maxThreads)
 }

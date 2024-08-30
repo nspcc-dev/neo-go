@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"slices"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -118,9 +119,7 @@ func (c *codegen) traverseGlobals() bool {
 
 			var currMax int
 			lastCnt, currMax = c.convertInitFuncs(f, pkg.Types, lastCnt)
-			if currMax > maxCnt {
-				maxCnt = currMax
-			}
+			maxCnt = max(currMax, maxCnt)
 		}
 		// because we reuse `convertFuncDecl` for init funcs,
 		// we need to clear scope, so that global variables
@@ -128,9 +127,7 @@ func (c *codegen) traverseGlobals() bool {
 		c.scope = nil
 	})
 
-	if c.globalInlineCount > maxCnt {
-		maxCnt = c.globalInlineCount
-	}
+	maxCnt = max(c.globalInlineCount, maxCnt)
 
 	// Here we remove `INITSLOT` if no code was emitted for `init` function.
 	// Note that the `INITSSLOT` must stay in place.
@@ -701,12 +698,7 @@ func (c *codegen) pickVarsFromNodes(nodes []nodeContext, markAsUsed func(name st
 }
 
 func isGoBuiltin(name string) bool {
-	for i := range goBuiltins {
-		if name == goBuiltins[i] {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(goBuiltins, name)
 }
 
 func isPotentialCustomBuiltin(f *funcScope, expr ast.Expr) bool {

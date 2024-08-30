@@ -1,10 +1,12 @@
 package manifest
 
 import (
+	"cmp"
 	"crypto/elliptic"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -89,48 +91,35 @@ func (d *PermissionDesc) Group() *keys.PublicKey {
 
 // Less returns true if this value is less than the given PermissionDesc value.
 func (d *PermissionDesc) Less(d1 PermissionDesc) bool {
-	if d.Type < d1.Type {
-		return true
-	}
-	if d.Type != d1.Type {
-		return false
+	return d.Compare(d1) < 0
+}
+
+// Compare performs three-way comparison of two [PermissionDesc] values.
+func (d PermissionDesc) Compare(d1 PermissionDesc) int {
+	r := cmp.Compare(d.Type, d1.Type)
+	if r != 0 {
+		return r
 	}
 	switch d.Type {
 	case PermissionHash:
-		return d.Hash().Less(d1.Hash())
+		return d.Hash().Compare(d1.Hash())
 	case PermissionGroup:
-		return d.Group().Cmp(d1.Group()) < 0
+		return d.Group().Cmp(d1.Group())
 	}
-	return false
+	return 0 // wildcard or type that we can't compare.
 }
 
 // Equals returns true if both PermissionDesc values are the same.
 func (d *PermissionDesc) Equals(v PermissionDesc) bool {
-	if d.Type != v.Type {
-		return false
-	}
-	switch d.Type {
-	case PermissionHash:
-		return d.Hash().Equals(v.Hash())
-	case PermissionGroup:
-		return d.Group().Cmp(v.Group()) == 0
-	}
-	return false
+	return d.Compare(v) == 0
 }
 
 // IsValid checks if Permission is correct.
 func (p *Permission) IsValid() error {
-	for i := range p.Methods.Value {
-		if p.Methods.Value[i] == "" {
-			return errors.New("empty method name")
-		}
+	if slices.Contains(p.Methods.Value, "") {
+		return errors.New("empty method name")
 	}
-	if len(p.Methods.Value) < 2 {
-		return nil
-	}
-	names := make([]string, len(p.Methods.Value))
-	copy(names, p.Methods.Value)
-	if stringsHaveDups(names) {
+	if sliceHasDups(p.Methods.Value, cmp.Compare) {
 		return errors.New("duplicate method names")
 	}
 	return nil
@@ -144,14 +133,9 @@ func (ps Permissions) AreValid() error {
 			return err
 		}
 	}
-	if len(ps) < 2 {
-		return nil
-	}
-	contracts := make([]PermissionDesc, 0, len(ps))
-	for i := range ps {
-		contracts = append(contracts, ps[i].Contract)
-	}
-	if permissionDescsHaveDups(contracts) {
+	if sliceHasDups(ps, func(a, b Permission) int {
+		return a.Contract.Compare(b.Contract)
+	}) {
 		return errors.New("contracts have duplicates")
 	}
 	return nil
@@ -166,17 +150,10 @@ func (p *Permission) IsAllowed(hash util.Uint160, m *Manifest, method string) bo
 			return false
 		}
 	case PermissionGroup:
-		has := false
-		g := p.Contract.Group()
-		for i := range m.Groups {
-			if g.Equal(m.Groups[i].PublicKey) {
-				has = true
-				break
-			}
-		}
-		if !has {
-			return false
-		}
+		contractG := p.Contract.Group()
+		return slices.ContainsFunc(m.Groups, func(manifestG Group) bool {
+			return contractG.Equal(manifestG.PublicKey)
+		})
 	default:
 		panic(fmt.Sprintf("unexpected permission: %d", p.Contract.Type))
 	}

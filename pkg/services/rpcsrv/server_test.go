@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -1174,7 +1174,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 			params: "[]",
 			result: func(e *executor) any {
 				expected, _ := e.chain.GetCommittee()
-				sort.Sort(expected)
+				slices.SortFunc(expected, (*keys.PublicKey).Cmp)
 				return &expected
 			},
 		},

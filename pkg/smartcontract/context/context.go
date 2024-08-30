@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -111,13 +111,9 @@ func (c *ParameterContext) AddSignature(h util.Uint160, ctr *wallet.Contract, pu
 			return errors.New("signature is already added")
 		}
 		pubBytes := pub.Bytes()
-		var contained bool
-		for i := range pubs {
-			if bytes.Equal(pubBytes, pubs[i]) {
-				contained = true
-				break
-			}
-		}
+		var contained = slices.ContainsFunc(pubs, func(p []byte) bool {
+			return bytes.Equal(pubBytes, p)
+		})
 		if !contained {
 			return errors.New("public key is not present in script")
 		}
@@ -136,8 +132,8 @@ func (c *ParameterContext) AddSignature(h util.Uint160, ctr *wallet.Contract, pu
 					break
 				}
 			}
-			sort.Slice(sigs, func(i, j int) bool {
-				return sigs[i].index < sigs[j].index
+			slices.SortFunc(sigs, func(a, b sigWithIndex) int {
+				return a.index - b.index
 			})
 			for i := range sigs {
 				item.Parameters[i] = smartcontract.Parameter{

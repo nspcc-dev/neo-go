@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"slices"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -70,23 +71,13 @@ func (keys *PublicKeys) Bytes() []byte {
 
 // Contains checks whether the passed param is contained in PublicKeys.
 func (keys PublicKeys) Contains(pKey *PublicKey) bool {
-	for _, key := range keys {
-		if key.Equal(pKey) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(keys, pKey.Equal)
 }
 
 // Copy returns a shallow copy of the PublicKeys slice. It creates a new slice with the same elements,
 // but does not perform a deep copy of the elements themselves.
 func (keys PublicKeys) Copy() PublicKeys {
-	if keys == nil {
-		return nil
-	}
-	res := make(PublicKeys, len(keys))
-	copy(res, keys)
-	return res
+	return slices.Clone(keys)
 }
 
 // Unique returns a set of public keys.
@@ -161,7 +152,7 @@ func (p *PublicKey) getBytes(compressed bool) []byte {
 	if compressed {
 		return elliptic.MarshalCompressed(p.Curve, p.X, p.Y)
 	}
-	return elliptic.Marshal(p.Curve, p.X, p.Y)
+	return elliptic.Marshal(p.Curve, p.X, p.Y) //nolint:staticcheck // We don't care about ECDH, but UncompressedBytes() should still work.
 }
 
 // Bytes returns byte array representation of the public key in compressed

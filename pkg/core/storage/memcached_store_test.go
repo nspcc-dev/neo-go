@@ -3,7 +3,7 @@ package storage
 import (
 	"bytes"
 	"fmt"
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -424,8 +424,8 @@ func TestCachedSeekSorting(t *testing.T) {
 		})
 		assert.Equal(t, len(foundKVs), len(lowerKVs)+len(updatedKVs))
 		expected := append(lowerKVs, updatedKVs...)
-		sort.Slice(expected, func(i, j int) bool {
-			return bytes.Compare(expected[i].Key, expected[j].Key) < 0
+		slices.SortFunc(expected, func(a, b KeyValue) int {
+			return bytes.Compare(a.Key, b.Key)
 		})
 		require.Equal(t, expected, foundKVs)
 	}

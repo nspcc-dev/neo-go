@@ -7,7 +7,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/base58"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"golang.org/x/crypto/scrypt"
 	"golang.org/x/text/unicode/norm"
 )
@@ -53,32 +52,28 @@ func NEP2Encrypt(priv *PrivateKey, passphrase string, params ScryptParams) (s st
 	if err != nil {
 		return s, err
 	}
-	defer slice.Clean(derivedKey)
+	defer clear(derivedKey)
 
 	derivedKey1 := derivedKey[:32]
 	derivedKey2 := derivedKey[32:]
 
 	privBytes := priv.Bytes()
-	defer slice.Clean(privBytes)
+	defer clear(privBytes)
 	xr := xor(privBytes, derivedKey1)
-	defer slice.Clean(xr)
+	defer clear(xr)
 
 	encrypted, err := aesEncrypt(xr, derivedKey2)
 	if err != nil {
 		return s, err
 	}
 
-	buf := new(bytes.Buffer)
-	buf.Write(nepHeader)
-	buf.WriteByte(nepFlag)
-	buf.Write(addrHash)
-	buf.Write(encrypted)
+	var buf = make([]byte, 0, len(nepHeader)+1+len(addrHash)+len(encrypted))
+	buf = append(buf, nepHeader...)
+	buf = append(buf, nepFlag)
+	buf = append(buf, addrHash...)
+	buf = append(buf, encrypted...)
 
-	if buf.Len() != 39 {
-		return s, fmt.Errorf("invalid buffer length: expecting 39 bytes got %d", buf.Len())
-	}
-
-	return base58.CheckEncode(buf.Bytes()), nil
+	return base58.CheckEncode(buf), nil
 }
 
 // NEP2Decrypt decrypts an encrypted key using the given passphrase
@@ -99,7 +94,7 @@ func NEP2Decrypt(key, passphrase string, params ScryptParams) (*PrivateKey, erro
 	if err != nil {
 		return nil, err
 	}
-	defer slice.Clean(derivedKey)
+	defer clear(derivedKey)
 
 	derivedKey1 := derivedKey[:32]
 	derivedKey2 := derivedKey[32:]
@@ -109,10 +104,10 @@ func NEP2Decrypt(key, passphrase string, params ScryptParams) (*PrivateKey, erro
 	if err != nil {
 		return nil, err
 	}
-	defer slice.Clean(decrypted)
+	defer clear(decrypted)
 
 	privBytes := xor(decrypted, derivedKey1)
-	defer slice.Clean(privBytes)
+	defer clear(privBytes)
 
 	// Rebuild the private key.
 	privKey, err := NewPrivateKeyFromBytes(privBytes)

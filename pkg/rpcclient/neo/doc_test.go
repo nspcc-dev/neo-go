@@ -1,11 +1,13 @@
 package neo_test
 
 import (
+	"cmp"
 	"context"
 	"math/big"
-	"sort"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
@@ -76,7 +78,7 @@ func ExampleContract() {
 	cands, _ := neoToken.GetCandidates()
 
 	// Sort by votes.
-	sort.Slice(cands, func(i, j int) bool { return cands[i].Votes < cands[j].Votes })
+	slices.SortFunc(cands, func(a, b result.Validator) int { return cmp.Compare(a.Votes, b.Votes) })
 
 	// Get the extended NEO-specific balance data.
 	bNeo, _ := neoToken.GetAccountState(a.Sender())

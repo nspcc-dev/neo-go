@@ -3,8 +3,9 @@ package native
 import (
 	"encoding/hex"
 	"fmt"
+	"maps"
 	"math/big"
-	"sort"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -91,12 +92,8 @@ func (c *PolicyCache) Copy() dao.NativeContractCache {
 
 func copyPolicyCache(src, dst *PolicyCache) {
 	*dst = *src
-	dst.attributeFee = make(map[transaction.AttrType]uint32, len(src.attributeFee))
-	for t, v := range src.attributeFee {
-		dst.attributeFee[t] = v
-	}
-	dst.blockedAccounts = make([]util.Uint160, len(src.blockedAccounts))
-	copy(dst.blockedAccounts, src.blockedAccounts)
+	dst.attributeFee = maps.Clone(src.attributeFee)
+	dst.blockedAccounts = slices.Clone(src.blockedAccounts)
 }
 
 // newPolicy returns Policy native contract.
@@ -329,14 +326,7 @@ func (p *Policy) IsBlocked(dao *dao.Simple, hash util.Uint160) bool {
 // of the blocked account in the blocked accounts list (or the position it should be
 // put at).
 func (p *Policy) isBlockedInternal(roCache *PolicyCache, hash util.Uint160) (int, bool) {
-	length := len(roCache.blockedAccounts)
-	i := sort.Search(length, func(i int) bool {
-		return !roCache.blockedAccounts[i].Less(hash)
-	})
-	if length != 0 && i != length && roCache.blockedAccounts[i].Equals(hash) {
-		return i, true
-	}
-	return i, false
+	return slices.BinarySearchFunc(roCache.blockedAccounts, hash, util.Uint160.Compare)
 }
 
 func (p *Policy) getStoragePrice(ic *interop.Context, _ []stackitem.Item) stackitem.Item {

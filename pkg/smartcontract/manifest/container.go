@@ -7,6 +7,7 @@ package manifest
 import (
 	"bytes"
 	"encoding/json"
+	"slices"
 )
 
 // WildStrings represents a string set which can be a wildcard.
@@ -25,12 +26,7 @@ func (c *WildStrings) Contains(v string) bool {
 	if c.IsWildcard() {
 		return true
 	}
-	for _, s := range c.Value {
-		if v == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.Value, v)
 }
 
 // Contains checks if v is in the container.
@@ -38,12 +34,7 @@ func (c *WildPermissionDescs) Contains(v PermissionDesc) bool {
 	if c.IsWildcard() {
 		return true
 	}
-	for _, u := range c.Value {
-		if u.Equals(v) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(c.Value, v.Equals)
 }
 
 // IsWildcard returns true iff the container is a wildcard.

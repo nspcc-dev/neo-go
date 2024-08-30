@@ -14,7 +14,8 @@ import (
 )
 
 // ExpandFuncParameterIntoScript pushes provided FuncParam parameter
-// into the given buffer.
+// into the given buffer. Returns [errors.ErrUnsupported] for types it can't
+// process.
 func ExpandFuncParameterIntoScript(script *io.BinWriter, fp FuncParam) error {
 	switch fp.Type {
 	case smartcontract.ByteArrayType:
@@ -92,7 +93,7 @@ func ExpandFuncParameterIntoScript(script *io.BinWriter, fp FuncParam) error {
 			emit.Opcodes(script, opcode.PUSHNULL)
 		}
 	default:
-		return fmt.Errorf("parameter type %v is not supported", fp.Type)
+		return fmt.Errorf("%w: parameter type %v", errors.ErrUnsupported, fp.Type)
 	}
 	return script.Err
 }

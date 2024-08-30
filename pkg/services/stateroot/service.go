@@ -3,6 +3,7 @@ package stateroot
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -112,13 +113,9 @@ func New(cfg config.StateRoot, sm *stateroot.Module, log *zap.Logger, bc Ledger,
 			return nil, err
 		}
 
-		haveAccount := false
-		for _, acc := range s.wallet.Accounts {
-			if err := acc.Decrypt(w.Password, s.wallet.Scrypt); err == nil {
-				haveAccount = true
-				break
-			}
-		}
+		var haveAccount = slices.ContainsFunc(s.wallet.Accounts, func(acc *wallet.Account) bool {
+			return acc.Decrypt(w.Password, s.wallet.Scrypt) == nil
+		})
 		if !haveAccount {
 			return nil, errors.New("no wallet account could be unlocked")
 		}

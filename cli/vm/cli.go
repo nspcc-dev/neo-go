@@ -12,6 +12,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -41,7 +42,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/urfave/cli/v2"
@@ -1456,7 +1456,9 @@ func Parse(args []string) (string, error) {
 		}
 		buf = fmt.Appendf(buf, "Hex to String\t%s\n", fmt.Sprintf("%q", string(rawStr)))
 		buf = fmt.Appendf(buf, "Hex to Integer\t%s\n", bigint.FromBytes(rawStr))
-		buf = fmt.Appendf(buf, "Swap Endianness\t%s\n", hex.EncodeToString(slice.CopyReverse(rawStr)))
+		var clonedStr = slices.Clone(rawStr)
+		slices.Reverse(clonedStr)
+		buf = fmt.Appendf(buf, "Swap Endianness\t%s\n", hex.EncodeToString(clonedStr))
 	}
 	if addr, err := address.StringToUint160(arg); err == nil {
 		buf = fmt.Appendf(buf, "Address to BE ScriptHash\t%s\n", addr)

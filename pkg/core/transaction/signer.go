@@ -3,6 +3,7 @@ package transaction
 import (
 	"errors"
 	"math/big"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -93,10 +94,7 @@ func (c *Signer) Copy() *Signer {
 		return nil
 	}
 	cp := *c
-	if c.AllowedContracts != nil {
-		cp.AllowedContracts = make([]util.Uint160, len(c.AllowedContracts))
-		copy(cp.AllowedContracts, c.AllowedContracts)
-	}
+	cp.AllowedContracts = slices.Clone(c.AllowedContracts)
 	cp.AllowedGroups = keys.PublicKeys(c.AllowedGroups).Copy()
 	if c.Rules != nil {
 		cp.Rules = make([]WitnessRule, len(c.Rules))

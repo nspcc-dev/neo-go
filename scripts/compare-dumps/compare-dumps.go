@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -10,7 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 
 	"github.com/urfave/cli/v2"
 )
@@ -61,9 +62,7 @@ func (d dump) normalize() {
 			}
 			newStorage = append(newStorage, d[i].Storage[j])
 		}
-		sort.Slice(newStorage, func(k, l int) bool {
-			return newStorage[k].Key < newStorage[l].Key
-		})
+		slices.SortFunc(newStorage, func(a, b storageOp) int { return cmp.Compare(a.Key, b.Key) })
 		d[i].Storage = newStorage
 	}
 	// assume that d is already sorted by Block

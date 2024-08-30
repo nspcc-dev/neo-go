@@ -135,7 +135,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.23'
           cache: true
 
       - name: Write coverage profile
@@ -156,24 +156,24 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04, windows-2022, macos-12, macos-14]
-        go_versions: [ '1.20', '1.21', '1.22' ]
+        go_versions: [ '1.21', '1.22', '1.23' ]
         exclude:
           # Only latest Go version for Windows and MacOS.
           - os: windows-2022
-            go_versions: '1.20'
+            go_versions: '1.21'
           - os: windows-2022
-            go_versions: '1.21'
-          - os: macos-12
-            go_versions: '1.20'
+            go_versions: '1.22'
           - os: macos-12
             go_versions: '1.21'
-          - os: macos-14
-            go_versions: '1.20'
+          - os: macos-12
+            go_versions: '1.22'
           - os: macos-14
             go_versions: '1.21'
+          - os: macos-14
+            go_versions: '1.22'
           # Exclude latest Go version for Ubuntu as Coverage uses it.
           - os: ubuntu-22.04
-            go_versions: '1.22'
+            go_versions: '1.23'
       fail-fast: false
     steps:
       - uses: actions/checkout@v4

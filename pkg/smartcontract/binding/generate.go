@@ -6,7 +6,7 @@ import (
 	"go/format"
 	"go/token"
 	"io"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"text/template"
@@ -159,7 +159,7 @@ func Generate(cfg Config) error {
 	if ctr.Hash != "" {
 		ctr.Imports = append(ctr.Imports, "github.com/nspcc-dev/neo-go/pkg/interop/neogointernal")
 	}
-	sort.Strings(ctr.Imports)
+	slices.Sort(ctr.Imports)
 
 	return FExecute(srcTemplate, cfg.Output, ctr)
 }

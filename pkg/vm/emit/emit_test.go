@@ -547,7 +547,7 @@ func TestEmitStackitem(t *testing.T) {
 		for _, si := range itms {
 			buf := io.NewBufBinWriter()
 			StackItem(buf.BinWriter, si)
-			require.Error(t, buf.Err)
+			require.ErrorIs(t, buf.Err, errors.ErrUnsupported)
 		}
 	})
 
@@ -555,8 +555,8 @@ func TestEmitStackitem(t *testing.T) {
 		buf := io.NewBufBinWriter()
 		StackItem(buf.BinWriter, StrangeStackItem{})
 		actualErr := buf.Err
-		require.Error(t, actualErr)
-		require.True(t, strings.Contains(actualErr.Error(), "only nil value supported"), actualErr.Error())
+		require.ErrorIs(t, actualErr, errors.ErrUnsupported)
+		require.True(t, strings.Contains(actualErr.Error(), "Any can only be nil"), actualErr.Error())
 	})
 }
 

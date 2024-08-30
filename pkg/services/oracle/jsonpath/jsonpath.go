@@ -449,9 +449,7 @@ func (p *pathParser) descendByRange(objs []any, start, end int) ([]any, bool) {
 			subEnd += len(arr)
 		}
 
-		if subEnd > len(arr) {
-			subEnd = len(arr)
-		}
+		subEnd = min(subEnd, len(arr))
 
 		if subEnd <= subStart {
 			continue

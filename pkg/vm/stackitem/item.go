@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"slices"
 	"unicode/utf8"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
@@ -123,17 +124,17 @@ func Make(v any) Item {
 	case Item:
 		return val
 	case []int:
-		var a []Item
-		for _, i := range val {
-			a = append(a, Make(i))
+		var res = make([]Item, len(val))
+		for i := range val {
+			res[i] = Make(val[i])
 		}
-		return Make(a)
+		return Make(res)
 	case []string:
-		var a []Item
-		for _, i := range val {
-			a = append(a, Make(i))
+		var res = make([]Item, len(val))
+		for i := range val {
+			res[i] = Make(val[i])
 		}
-		return Make(a)
+		return Make(res)
 	case []any:
 		res := make([]Item, len(val))
 		for i := range val {
@@ -348,9 +349,7 @@ func (i *Struct) Convert(typ Type) (Item, error) {
 	case StructT:
 		return i, nil
 	case ArrayT:
-		arr := make([]Item, len(i.value))
-		copy(arr, i.value)
-		return NewArray(arr), nil
+		return NewArray(slices.Clone(i.value)), nil
 	case BooleanT:
 		return NewBool(true), nil
 	default:
@@ -676,11 +675,9 @@ func (i *ByteArray) equalsLimited(s Item, limit *int) bool {
 	if !ok {
 		return false
 	}
-	comparedSize = lCurr
 	lOther := len(*val)
-	if lOther > comparedSize {
-		comparedSize = lOther
-	}
+	comparedSize = max(lCurr, lOther)
+
 	if i == val {
 		return true
 	}
@@ -795,9 +792,7 @@ func (i *Array) Convert(typ Type) (Item, error) {
 	case ArrayT:
 		return i, nil
 	case StructT:
-		arr := make([]Item, len(i.value))
-		copy(arr, i.value)
-		return NewStruct(arr), nil
+		return NewStruct(slices.Clone(i.value)), nil
 	case BooleanT:
 		return NewBool(true), nil
 	default:
@@ -881,12 +876,9 @@ func (i *Map) String() string {
 
 // Index returns an index of the key in map.
 func (i *Map) Index(key Item) int {
-	for k := range i.value {
-		if i.value[k].Key.Equals(key) {
-			return k
-		}
-	}
-	return -1
+	return slices.IndexFunc(i.value, func(e MapElement) bool {
+		return e.Key.Equals(key)
+	})
 }
 
 // Has checks if the map has the specified key.

@@ -2,6 +2,7 @@ package vm
 
 import (
 	"encoding/binary"
+	"slices"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -143,54 +144,48 @@ func TestIsScriptCorrect(t *testing.T) {
 
 	good := w.Bytes()
 
-	getScript := func() []byte {
-		s := make([]byte, len(good))
-		copy(s, good)
-		return s
-	}
-
 	t.Run("good", func(t *testing.T) {
 		require.NoError(t, IsScriptCorrect(good, nil))
 	})
 
 	t.Run("bad instruction", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[retOff] = 0xff
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("out of bounds JMP 1", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[jmpOff+1] = 0x80 // -128
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("out of bounds JMP 2", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[jmpOff+1] = 0x7f
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("bad JMP offset 1", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[jmpOff+1] = 0xff // into "something"
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("bad JMP offset 2", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[jmpOff+1] = byte(pushOff - jmpOff + 1)
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("out of bounds JMPL 1", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[jmplOff+1] = byte(-jmplOff - 1)
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("out of bounds JMPL 1", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[jmplOff+1] = byte(len(bad)-jmplOff) + 1
 		bad[jmplOff+2] = 0
 		bad[jmplOff+3] = 0
@@ -206,25 +201,25 @@ func TestIsScriptCorrect(t *testing.T) {
 	})
 
 	t.Run("bad JMPL offset", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[jmplOff+1] = 0xfe // into JMP
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("out of bounds TRY 1", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[tryOff+1] = byte(-tryOff - 1)
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("out of bounds TRY 2", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[tryOff+1] = byte(len(bad)-tryOff) + 1
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("out of bounds TRY 2", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[tryOff+2] = byte(len(bad)-tryOff) + 1
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
@@ -239,31 +234,31 @@ func TestIsScriptCorrect(t *testing.T) {
 	})
 
 	t.Run("bad TRYL offset 1", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[trylOff+1] = byte(-(trylOff - jmpOff) - 1) // into "something"
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("bad TRYL offset 2", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[trylOff+5] = byte(len(bad) - trylOff - 1)
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("bad ISTYPE type", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[istypeOff+1] = byte(0xff)
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("bad ISTYPE type (Any)", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[istypeOff+1] = byte(stackitem.AnyT)
 		require.Error(t, IsScriptCorrect(bad, nil))
 	})
 
 	t.Run("good NEWARRAY_T type", func(t *testing.T) {
-		bad := getScript()
+		bad := slices.Clone(good)
 		bad[istypeOff] = byte(opcode.NEWARRAYT)
 		bad[istypeOff+1] = byte(stackitem.AnyT)
 		require.NoError(t, IsScriptCorrect(bad, nil))

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -334,7 +334,7 @@ func TestBlockchain_InitializeNeoCache_Bug3424(t *testing.T) {
 	standBySorted, err := keys.NewPublicKeysFromStrings(e.Chain.GetConfig().StandbyCommittee)
 	require.NoError(t, err)
 	standBySorted = standBySorted[:validatorsCount]
-	sort.Sort(standBySorted)
+	slices.SortFunc(standBySorted, (*keys.PublicKey).Cmp)
 	pubs := e.Chain.ComputeNextBlockValidators()
 	require.Equal(t, standBySorted, keys.PublicKeys(pubs))
 
@@ -384,7 +384,7 @@ func TestBlockchain_InitializeNeoCache_Bug3424(t *testing.T) {
 	for i := range candidates[:validatorsCount] {
 		sortedCandidates[i] = candidates[i].(neotest.SingleSigner).Account().PublicKey()
 	}
-	sort.Sort(sortedCandidates)
+	slices.SortFunc(sortedCandidates, (*keys.PublicKey).Cmp)
 	require.EqualValues(t, sortedCandidates, keys.PublicKeys(pubs))
 
 	// Move to the last block in the epoch and restart the node.

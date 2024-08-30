@@ -1,6 +1,8 @@
 package oracle
 
 import (
+	"slices"
+
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -13,17 +15,8 @@ func (o *Oracle) UpdateOracleNodes(oracleNodes keys.PublicKeys) {
 	o.accMtx.Lock()
 	defer o.accMtx.Unlock()
 
-	old := o.oracleNodes
-	if isEqual := len(old) == len(oracleNodes); isEqual {
-		for i := range old {
-			if !old[i].Equal(oracleNodes[i]) {
-				isEqual = false
-				break
-			}
-		}
-		if isEqual {
-			return
-		}
+	if slices.EqualFunc(o.oracleNodes, oracleNodes, (*keys.PublicKey).Equal) {
+		return
 	}
 
 	var acc *wallet.Account

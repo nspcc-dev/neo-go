@@ -1,9 +1,11 @@
 package config
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -166,9 +168,7 @@ func (p *ProtocolConfiguration) Validate() error {
 
 // sortCheckZero sorts heightNumber array and checks for zero height presence.
 func sortCheckZero(arr []heightNumber, field string) error {
-	sort.Slice(arr, func(i, j int) bool {
-		return arr[i].h < arr[j].h
-	})
+	slices.SortFunc(arr, func(a, b heightNumber) int { return cmp.Compare(a.h, b.h) })
 	if arr[0].h != 0 {
 		return fmt.Errorf("invalid %s: no height 0 specified", field)
 	}
@@ -231,40 +231,12 @@ func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
 		p.TimePerBlock != o.TimePerBlock ||
 		p.ValidatorsCount != o.ValidatorsCount ||
 		p.VerifyTransactions != o.VerifyTransactions ||
-		len(p.CommitteeHistory) != len(o.CommitteeHistory) ||
-		len(p.Hardforks) != len(o.Hardforks) ||
-		len(p.SeedList) != len(o.SeedList) ||
-		len(p.StandbyCommittee) != len(o.StandbyCommittee) ||
-		len(p.ValidatorsHistory) != len(o.ValidatorsHistory) {
+		!maps.Equal(p.CommitteeHistory, o.CommitteeHistory) ||
+		!maps.Equal(p.Hardforks, o.Hardforks) ||
+		!slices.Equal(p.SeedList, o.SeedList) ||
+		!slices.Equal(p.StandbyCommittee, o.StandbyCommittee) ||
+		!maps.Equal(p.ValidatorsHistory, o.ValidatorsHistory) {
 		return false
-	}
-	for k, v := range p.CommitteeHistory {
-		vo, ok := o.CommitteeHistory[k]
-		if !ok || v != vo {
-			return false
-		}
-	}
-	for k, v := range p.Hardforks {
-		vo, ok := o.Hardforks[k]
-		if !ok || v != vo {
-			return false
-		}
-	}
-	for i := range p.SeedList {
-		if p.SeedList[i] != o.SeedList[i] {
-			return false
-		}
-	}
-	for i := range p.StandbyCommittee {
-		if p.StandbyCommittee[i] != o.StandbyCommittee[i] {
-			return false
-		}
-	}
-	for k, v := range p.ValidatorsHistory {
-		vo, ok := o.ValidatorsHistory[k]
-		if !ok || v != vo {
-			return false
-		}
 	}
 	return true
 }

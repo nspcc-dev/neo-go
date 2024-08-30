@@ -3,6 +3,7 @@ package compiler
 import (
 	"go/ast"
 	"go/types"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -45,11 +46,7 @@ func (c *codegen) typeOf(e ast.Expr) types.Type {
 func isBasicTypeOfKind(typ types.Type, ks ...types.BasicKind) bool {
 	if t, ok := typ.Underlying().(*types.Basic); ok {
 		k := t.Kind()
-		for i := range ks {
-			if k == ks[i] {
-				return true
-			}
-		}
+		return slices.Contains(ks, k)
 	}
 	return false
 }

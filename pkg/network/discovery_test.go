@@ -3,7 +3,7 @@ package network
 import (
 	"errors"
 	"net"
-	"sort"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -91,7 +91,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 
 	tryMaxWait = 1 // Don't waste time.
 	var set1 = []string{"1.1.1.1:10333", "2.2.2.2:10333"}
-	sort.Strings(set1)
+	slices.Sort(set1)
 
 	// Added addresses should end up in the pool and in the unconnected set.
 	// Done twice to check re-adding unconnected addresses, which should be
@@ -100,7 +100,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 		d.BackFill(set1...)
 		assert.Equal(t, len(set1), d.PoolCount())
 		set1D := d.UnconnectedPeers()
-		sort.Strings(set1D)
+		slices.Sort(set1D)
 		assert.Equal(t, 0, len(d.GoodPeers()))
 		assert.Equal(t, 0, len(d.BadPeers()))
 		require.Equal(t, set1, set1D)
@@ -120,7 +120,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 		}
 	}
 	require.Eventually(t, func() bool { return len(d.UnconnectedPeers()) == 0 }, 2*time.Second, 50*time.Millisecond)
-	sort.Strings(dialled)
+	slices.Sort(dialled)
 	assert.Equal(t, 0, d.PoolCount())
 	assert.Equal(t, 0, len(d.BadPeers()))
 	assert.Equal(t, 0, len(d.GoodPeers()))
@@ -150,7 +150,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 		}, addr.Capabilities)
 		gAddrs[i] = addr.Address
 	}
-	sort.Strings(gAddrs)
+	slices.Sort(gAddrs)
 	assert.Equal(t, 0, d.PoolCount())
 	assert.Equal(t, 0, len(d.UnconnectedPeers()))
 	assert.Equal(t, 0, len(d.BadPeers()))
@@ -176,7 +176,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 	ts.retFalse.Store(1)
 	assert.Equal(t, len(set1), d.PoolCount())
 	set1D := d.UnconnectedPeers()
-	sort.Strings(set1D)
+	slices.Sort(set1D)
 	assert.Equal(t, 0, len(d.BadPeers()))
 	require.Equal(t, set1, set1D)
 
@@ -193,7 +193,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 		}
 	}
 	require.Eventually(t, func() bool { return d.PoolCount() == 0 }, 2*time.Second, 50*time.Millisecond)
-	sort.Strings(dialledBad)
+	slices.Sort(dialledBad)
 	for i := 0; i < len(set1); i++ {
 		for j := 0; j < connRetries; j++ {
 			assert.Equal(t, set1[i], dialledBad[i*connRetries+j])
@@ -216,7 +216,7 @@ func TestSeedDiscovery(t *testing.T) {
 	ts := &fakeTransp{}
 	ts.dialCh = make(chan string)
 	ts.retFalse.Store(1) // Fail all dial requests.
-	sort.Strings(seeds)
+	slices.Sort(seeds)
 
 	d := NewDefaultDiscovery(seeds, time.Second/10, ts)
 	tryMaxWait = 1 // Don't waste time.
