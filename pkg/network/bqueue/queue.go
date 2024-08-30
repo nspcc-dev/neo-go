@@ -157,9 +157,7 @@ func (bq *Queue) Discard() {
 		close(bq.checkBlocks)
 		// Technically we could bq.queue = nil, but this would cost
 		// another if in Run().
-		for i := 0; i < len(bq.queue); i++ {
-			bq.queue[i] = nil
-		}
+		clear(bq.queue)
 		bq.len = 0
 		bq.queueLock.Unlock()
 	}
