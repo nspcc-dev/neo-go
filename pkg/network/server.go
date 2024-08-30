@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	mrand "math/rand"
+	mrand "math/rand/v2"
 	"net"
 	"runtime"
 	"slices"
@@ -1331,7 +1331,7 @@ func getRequestBlocksPayload(p Peer, currHeight uint32, lastRequestedHeight *ato
 				}
 			}
 		} else {
-			index := mrand.Intn(bqueue.CacheSize / payload.MaxHashesCount)
+			index := mrand.IntN(bqueue.CacheSize / payload.MaxHashesCount)
 			needHeight = currHeight + 1 + uint32(index*payload.MaxHashesCount)
 		}
 		break

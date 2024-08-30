@@ -2,7 +2,7 @@ package network
 
 import (
 	"errors"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 	"time"
 

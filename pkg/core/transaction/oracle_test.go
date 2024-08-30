@@ -2,7 +2,7 @@ package transaction
 
 import (
 	"encoding/json"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testserdes"

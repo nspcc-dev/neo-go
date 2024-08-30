@@ -1,18 +1,18 @@
 package network
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/stretchr/testify/require"
 )
 
 func FuzzMessageDecode(f *testing.F) {
 	for i := 0; i < 100; i++ {
-		seed := make([]byte, rand.Uint32()%1000)
-		//nolint:staticcheck
-		rand.Read(seed)
+		seed := make([]byte, rand.IntN(1000))
+		random.Fill(seed)
 		f.Add(seed)
 	}
 

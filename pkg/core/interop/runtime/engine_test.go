@@ -3,7 +3,6 @@ package runtime
 import (
 	"encoding/json"
 	"math/big"
-	"math/rand"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
@@ -46,10 +45,10 @@ func TestPlatform(t *testing.T) {
 
 func TestGetTime(t *testing.T) {
 	b := block.New(false)
-	b.Timestamp = rand.Uint64()
+	b.Timestamp = 1725021259
 	ic := &interop.Context{VM: vm.New(), Block: b}
 	require.NoError(t, GetTime(ic))
-	checkStack(t, ic.VM, new(big.Int).SetUint64(b.Timestamp))
+	checkStack(t, ic.VM, new(big.Int).SetUint64(1725021259))
 }
 
 func TestGetScriptHash(t *testing.T) {

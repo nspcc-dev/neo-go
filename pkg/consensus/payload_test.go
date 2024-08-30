@@ -3,7 +3,7 @@ package consensus
 import (
 	"encoding/hex"
 	gio "io"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/nspcc-dev/dbft"

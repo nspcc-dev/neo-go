@@ -2,9 +2,8 @@ package state
 
 import (
 	"math/big"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
-	"time"
 
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/internal/testserdes"
@@ -13,7 +12,7 @@ import (
 )
 
 func TestTokenTransferLog_Append17(t *testing.T) {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewPCG(42, 100500))
 	expected := []*NEP17Transfer{
 		random17Transfer(r),
 		random17Transfer(r),
@@ -39,7 +38,7 @@ func TestTokenTransferLog_Append17(t *testing.T) {
 }
 
 func TestTokenTransferLog_Append(t *testing.T) {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewPCG(42, 100500))
 	expected := []*NEP11Transfer{
 		random11Transfer(r),
 		random11Transfer(r),
@@ -65,7 +64,7 @@ func TestTokenTransferLog_Append(t *testing.T) {
 }
 
 func BenchmarkTokenTransferLog_Append(b *testing.B) {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := rand.New(rand.NewPCG(42, 100500))
 	ts := make([]*NEP17Transfer, TokenTransferBatchSize)
 	for i := range ts {
 		ts[i] = random17Transfer(r)
