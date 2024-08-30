@@ -1871,7 +1871,7 @@ func (v *VM) ContractHasTryBlock() bool {
 }
 
 // CheckMultisigPar checks if the sigs contains sufficient valid signatures.
-func CheckMultisigPar(v *VM, curve elliptic.Curve, h []byte, pkeys [][]byte, sigs [][]byte) bool {
+func CheckMultisigPar(curve elliptic.Curve, h []byte, pkeys [][]byte, sigs [][]byte) bool {
 	if len(sigs) == 1 {
 		return slices.ContainsFunc(pkeys, func(keyb []byte) bool {
 			pkey := bytesToPublicKey(keyb, curve)
