@@ -744,17 +744,23 @@ func convertKeys(validators []dbft.PublicKey) (pubs []*keys.PublicKey) {
 }
 
 func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Block[util.Uint256] {
-	block := &neoBlock{network: s.ProtocolConfiguration.Magic}
+	var (
+		blockVersion = uint32(coreb.VersionInitial)
+		block        = &neoBlock{network: s.ProtocolConfiguration.Magic}
+	)
 
+	hfe, ok := s.ProtocolConfiguration.Hardforks[config.HFEchidna.String()]
+	if ok && hfe <= ctx.BlockIndex {
+		blockVersion = coreb.VersionEchidna
+	}
 	block.Block.Timestamp = ctx.Timestamp / nsInMs
 	block.Block.Nonce = ctx.Nonce
 	block.Block.Index = ctx.BlockIndex
-	if s.ProtocolConfiguration.StateRootInHeader {
+	if blockVersion > coreb.VersionInitial {
 		sr, err := s.Chain.GetStateRoot(ctx.BlockIndex - 1)
 		if err != nil {
 			s.log.Fatal(fmt.Sprintf("failed to get state root: %s", err.Error()))
 		}
-		block.StateRootEnabled = true
 		block.PrevStateRoot = sr.Root
 	}
 
@@ -775,7 +781,7 @@ func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Bloc
 	}
 	block.Block.NextConsensus = hash.Hash160(script)
 	block.Block.PrevHash = ctx.PrevHash
-	block.Block.Version = coreb.VersionInitial
+	block.Block.Version = blockVersion
 
 	primaryIndex := byte(ctx.PrimaryIndex)
 	block.Block.PrimaryIndex = primaryIndex

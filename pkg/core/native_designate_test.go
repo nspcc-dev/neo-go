@@ -22,7 +22,7 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 
 	des := bc.contracts.Designate
 	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
-	bl := block.New(bc.config.StateRootInHeader)
+	bl := &block.Block{}
 	bl.Index = bc.BlockHeight() + 1
 	ic := bc.newInteropContext(trigger.Application, bc.dao, bl, tx)
 	ic.SpawnVM()

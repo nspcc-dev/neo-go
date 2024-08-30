@@ -11,8 +11,6 @@ import (
 // Headers payload.
 type Headers struct {
 	Hdrs []*block.Header
-	// StateRootInHeader specifies whether the header contains a state root.
-	StateRootInHeader bool
 }
 
 // Users can at most request 2k headers.
@@ -46,7 +44,6 @@ func (p *Headers) DecodeBinary(br *io.BinReader) {
 
 	for i := 0; i < int(lenHeaders); i++ {
 		header := &block.Header{}
-		header.StateRootEnabled = p.StateRootInHeader
 		header.DecodeBinary(br)
 		p.Hdrs[i] = header
 	}

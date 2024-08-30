@@ -26,12 +26,12 @@ func testHeaderEncodeDecode(t *testing.T, stateRootEnabled bool) {
 		},
 	}
 	if stateRootEnabled {
-		header.StateRootEnabled = stateRootEnabled
+		header.Version = VersionEchidna
 		header.PrevStateRoot = random.Uint256()
 	}
 
 	_ = header.Hash()
-	headerDecode := &Header{StateRootEnabled: stateRootEnabled}
+	headerDecode := &Header{}
 	testserdes.EncodeDecodeBinary(t, &header, headerDecode)
 
 	assert.Equal(t, header.Version, headerDecode.Version, "expected both versions to be equal")

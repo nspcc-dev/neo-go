@@ -31,7 +31,7 @@ func TestDecodeBlock1(t *testing.T) {
 	b, err := hex.DecodeString(data["raw"].(string))
 	require.NoError(t, err)
 
-	block := New(false)
+	block := &Block{}
 	assert.NoError(t, testserdes.DecodeBinary(b, block))
 
 	assert.Equal(t, uint32(data["index"].(float64)), block.Index)
@@ -60,7 +60,7 @@ func TestTrimmedBlock(t *testing.T) {
 	require.NoError(t, buf.Err)
 
 	r := io.NewBinReaderFromBuf(buf.Bytes())
-	trimmedBlock, err := NewTrimmedFromReader(false, r)
+	trimmedBlock, err := NewTrimmedFromReader(r)
 	require.NoError(t, err)
 
 	assert.True(t, trimmedBlock.Trimmed)
@@ -110,7 +110,7 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 	rawblock := "AAAAAAwIVa2D6Yha3tArd5XnwkAf7deJBsdyyvpYb2xMZGBbkOUNHAsfre0rKA/F+Ox05/bQSXmcRZnzK3M6Z+/TxJUh0MNFeAEAAAAAAAAAAAAAAQAAAADe7nnBifMAmLC6ai65CzqSWKbH/wHGDEDgwCcXkcaFw5MGOp1cpkgApzDTX2/RxKlmPeXTgWYtfEA8g9svUSbZA4TeoGyWvX8LiN0tJKrzajdMGvTVGqVmDEDp6PBmZmRx9CxswtLht6oWa2Uq4rl5diPsLtqXZeZepMlxUSbaCdlFTB7iWQG9yKXWR5hc0sScevvuVwwsUYdlDEDwlhwZrP07E5fEQKttVMYAiL7edd/eW2yoMGZe6Q95g7yXQ69edVHfQb61fBw3DjCpMDZ5lsxp3BgzXglJwMSKkxMMIQIQOn990BZVhZf3lg0nxRakOU/ZaLnmUVXrSwE+QEBAbgwhAqe8Vf6GhOARl2jRBLoweVvcyGYZ6GSt0mFWcj7Rhc1iDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIMIQPZDAffY+aQzneRLhCrUazJRLZoYCN7YIxPj4MJ5x7mmRRBe85spQIAWNC7C8DYpwAAAAAAIKpEAAAAAADoAwAAAd7uecGJ8wCYsLpqLrkLOpJYpsf/AQBbCwIA4fUFDBSAzse29bVvUFePc38WLTqxTUZlDQwU3u55wYnzAJiwumouuQs6klimx/8UwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQHGDEC4UIzT61GYPx0LdksrF6C2ioYai6fbwpjv3BGAqiyagxiomYGZRLeXZyD67O5FJ86pXRFtSbVYu2YDG+T5ICIgDEDzm/wl+BnHvQXaHQ1rGLtdUMc41wN6I48kPPM7F23gL9sVxGziQIMRLnpTbWHrnzaU9Sy0fXkvIrdJy1KABkSQDEDBwuBuVK+nsZvn1oAscPj6d3FJiUGK9xiHpX9Ipp/5jTnXRBAyzyGc8IZMBVql4WS8kwFe6ojA/9BvFb5eWXnEkxMMIQIQOn990BZVhZf3lg0nxRakOU/ZaLnmUVXrSwE+QEBAbgwhAqe8Vf6GhOARl2jRBLoweVvcyGYZ6GSt0mFWcj7Rhc1iDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIMIQPZDAffY+aQzneRLhCrUazJRLZoYCN7YIxPj4MJ5x7mmRRBe85spQDYJLwZwNinAAAAAAAgqkQAAAAAAOgDAAAB3u55wYnzAJiwumouuQs6klimx/8BAF8LAwBA2d2ITQoADBSAzse29bVvUFePc38WLTqxTUZlDQwU3u55wYnzAJiwumouuQs6klimx/8UwB8MCHRyYW5zZmVyDBTPduKL0AYsSkeO41VhARMZ88+k0kFifVtSOQHGDEDWn0D7z2ELqpN8ghcM/PtfFwo56/BfEasfHuSKECJMYxvU47r2ZtSihg59lGxSZzHsvxTy6nsyvJ22ycNhINdJDECl61cg937N/HujKsLMu2wJMS7C54bzJ3q22Czqllvw3Yp809USgKDs+W+3QD7rI+SFs0OhIn0gooCUU6f/13WjDEDr9XdeT5CGTO8CL0JigzcTcucs0GBcqHs8fToO6zPuuCfS7Wh6dyxSCijT4A4S+7BUdW3dsO7828ke1fj8oNxmkxMMIQIQOn990BZVhZf3lg0nxRakOU/ZaLnmUVXrSwE+QEBAbgwhAqe8Vf6GhOARl2jRBLoweVvcyGYZ6GSt0mFWcj7Rhc1iDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIMIQPZDAffY+aQzneRLhCrUazJRLZoYCN7YIxPj4MJ5x7mmRRBe85spQ=="
 	rawblockBytes, _ := base64.StdEncoding.DecodeString(rawblock)
 
-	b := New(false)
+	b := &Block{}
 
 	assert.NoError(t, testserdes.DecodeBinary(rawblockBytes, b))
 	expected := map[string]bool{ // 1 trans
@@ -144,12 +144,12 @@ func TestBinBlockDecodeEncode(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, rawblock, base64.StdEncoding.EncodeToString(data))
 
-	testserdes.MarshalUnmarshalJSON(t, b, New(false))
+	testserdes.MarshalUnmarshalJSON(t, b, &Block{})
 }
 
 func TestJSONEmptyTx(t *testing.T) {
 	jblock := `{"hash":"0x5f3fbb43d1e516fe07771e2e873ebc9e2810662401acf603a775aace486220bd","version":0,"previousblockhash":"0x1f4d1defa46faa5e7b9b8d3f79a06bec777d7c26c4aa5f6f5899a291daa87c15","merkleroot":"0x0000000000000000000000000000000000000000000000000000000000000000","time":1627894840919,"nonce":"BA8E021F1AEEA3F6","index":1,"nextconsensus":"NVg7LjGcUSrgxgjX3zEgqaksfMaiS8Z6e1","primary":0,"witnesses":[{"invocation":"DEAq7W/jUhpMon1t9muqXKfBvNyGwLfFFM1vAxrMKvUl6MqK+LL/lJAJP9uAk/cberIWWhSsdcxUtltkBLemg/VuDECQZGuvP93JlZga2ml8cnbe5cNiGgO0EMrbGYyzvgr8calP5SwMNPSYms10gIHxlsuXDU++EQpZu/vKxfHoxdC5DEDgsA3POVZdfN+i5+ekvtsaIvif42n0GC+dZi3Rp37ETmt4NtkoK2I2UXi+WIjm5yXLJsPhAvEV6cJSrvqBdsQBDEDTS6NU+kB+tgeBe9lWv+6y0L2qcUBIaUxiTCaNWZtLPghQICBvjDz1/9ttJRXG3I5N9CFDjjLKCpdIY842HW4/DEC+wlWjkCzVqzKslvpCKZbEPUGIf87CFAD88xqzl26m/TpTUcT0+D5oI2bVzAk0mcdBTPnyjcNbv17BFmr63+09","verification":"FQwhAkhv0VcCxEkKJnAxEqXMHQkj/Wl6M0Br1aHADgATsJpwDCECTHt/tsMQ/M8bozsIJRnYKWTqk4aNZ2Zi1KWa1UjfDn0MIQKq7DhHD2qtAELG6HfP2Ah9Jnaw9Rb93TYoAbm9OTY5ngwhA7IJ/U9TpxcOpERODLCmu2pTwr0BaSaYnPhfmw+6F6cMDCEDuNnVdx2PUTqghpucyNUJhkA7eMbaNokGOMPUalrc4EoMIQLKDidpe5wkj28W4IX9AGHib0TahbWO6DXBEMql7DulVAwhAt9I9g6PPgHEj/QLm38TENeosqGTGIvv4cLj33QOiVCTF0Ge0Nw6"}],"tx":[]}`
-	b := New(false)
+	b := &Block{}
 	require.NoError(t, json.Unmarshal([]byte(jblock), b))
 	s, err := json.Marshal(b)
 	require.NoError(t, err)
@@ -166,7 +166,7 @@ func TestBlockSizeCalculation(t *testing.T) {
 	rawBlock := "AAAAAAwIVa2D6Yha3tArd5XnwkAf7deJBsdyyvpYb2xMZGBbkOUNHAsfre0rKA/F+Ox05/bQSXmcRZnzK3M6Z+/TxJUh0MNFeAEAAAAAAAAAAAAAAQAAAADe7nnBifMAmLC6ai65CzqSWKbH/wHGDEDgwCcXkcaFw5MGOp1cpkgApzDTX2/RxKlmPeXTgWYtfEA8g9svUSbZA4TeoGyWvX8LiN0tJKrzajdMGvTVGqVmDEDp6PBmZmRx9CxswtLht6oWa2Uq4rl5diPsLtqXZeZepMlxUSbaCdlFTB7iWQG9yKXWR5hc0sScevvuVwwsUYdlDEDwlhwZrP07E5fEQKttVMYAiL7edd/eW2yoMGZe6Q95g7yXQ69edVHfQb61fBw3DjCpMDZ5lsxp3BgzXglJwMSKkxMMIQIQOn990BZVhZf3lg0nxRakOU/ZaLnmUVXrSwE+QEBAbgwhAqe8Vf6GhOARl2jRBLoweVvcyGYZ6GSt0mFWcj7Rhc1iDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIMIQPZDAffY+aQzneRLhCrUazJRLZoYCN7YIxPj4MJ5x7mmRRBe85spQIAWNC7C8DYpwAAAAAAIKpEAAAAAADoAwAAAd7uecGJ8wCYsLpqLrkLOpJYpsf/AQBbCwIA4fUFDBSAzse29bVvUFePc38WLTqxTUZlDQwU3u55wYnzAJiwumouuQs6klimx/8UwB8MCHRyYW5zZmVyDBT1Y+pAvCg9TQ4FxI6jBbPyoHNA70FifVtSOQHGDEC4UIzT61GYPx0LdksrF6C2ioYai6fbwpjv3BGAqiyagxiomYGZRLeXZyD67O5FJ86pXRFtSbVYu2YDG+T5ICIgDEDzm/wl+BnHvQXaHQ1rGLtdUMc41wN6I48kPPM7F23gL9sVxGziQIMRLnpTbWHrnzaU9Sy0fXkvIrdJy1KABkSQDEDBwuBuVK+nsZvn1oAscPj6d3FJiUGK9xiHpX9Ipp/5jTnXRBAyzyGc8IZMBVql4WS8kwFe6ojA/9BvFb5eWXnEkxMMIQIQOn990BZVhZf3lg0nxRakOU/ZaLnmUVXrSwE+QEBAbgwhAqe8Vf6GhOARl2jRBLoweVvcyGYZ6GSt0mFWcj7Rhc1iDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIMIQPZDAffY+aQzneRLhCrUazJRLZoYCN7YIxPj4MJ5x7mmRRBe85spQDYJLwZwNinAAAAAAAgqkQAAAAAAOgDAAAB3u55wYnzAJiwumouuQs6klimx/8BAF8LAwBA2d2ITQoADBSAzse29bVvUFePc38WLTqxTUZlDQwU3u55wYnzAJiwumouuQs6klimx/8UwB8MCHRyYW5zZmVyDBTPduKL0AYsSkeO41VhARMZ88+k0kFifVtSOQHGDEDWn0D7z2ELqpN8ghcM/PtfFwo56/BfEasfHuSKECJMYxvU47r2ZtSihg59lGxSZzHsvxTy6nsyvJ22ycNhINdJDECl61cg937N/HujKsLMu2wJMS7C54bzJ3q22Czqllvw3Yp809USgKDs+W+3QD7rI+SFs0OhIn0gooCUU6f/13WjDEDr9XdeT5CGTO8CL0JigzcTcucs0GBcqHs8fToO6zPuuCfS7Wh6dyxSCijT4A4S+7BUdW3dsO7828ke1fj8oNxmkxMMIQIQOn990BZVhZf3lg0nxRakOU/ZaLnmUVXrSwE+QEBAbgwhAqe8Vf6GhOARl2jRBLoweVvcyGYZ6GSt0mFWcj7Rhc1iDCECs2Ir9AF73+MXxYrtX0x1PyBrfbiWBG+n13S7xL9/jcIMIQPZDAffY+aQzneRLhCrUazJRLZoYCN7YIxPj4MJ5x7mmRRBe85spQ=="
 	rawBlockBytes, _ := base64.StdEncoding.DecodeString(rawBlock)
 
-	b := New(false)
+	b := &Block{}
 	assert.NoError(t, testserdes.DecodeBinary(rawBlockBytes, b))
 
 	expected := []struct {
@@ -243,21 +243,27 @@ func TestGetExpectedBlockSize(t *testing.T) {
 	check := func(t *testing.T, stateRootEnabled bool) {
 		t.Run("without transactions", func(t *testing.T) {
 			b := newDumbBlock()
-			b.StateRootEnabled = stateRootEnabled
+			if stateRootEnabled {
+				b.Version = VersionEchidna
+			}
 			b.Transactions = []*transaction.Transaction{}
 			require.Equal(t, io.GetVarSize(b), b.GetExpectedBlockSize())
 			require.Equal(t, io.GetVarSize(b), b.GetExpectedBlockSizeWithoutTransactions(0))
 		})
 		t.Run("with one transaction", func(t *testing.T) {
 			b := newDumbBlock()
-			b.StateRootEnabled = stateRootEnabled
+			if stateRootEnabled {
+				b.Version = VersionEchidna
+			}
 			expected := io.GetVarSize(b)
 			require.Equal(t, expected, b.GetExpectedBlockSize())
 			require.Equal(t, expected-b.Transactions[0].Size(), b.GetExpectedBlockSizeWithoutTransactions(len(b.Transactions)))
 		})
 		t.Run("with multiple transactions", func(t *testing.T) {
 			b := newDumbBlock()
-			b.StateRootEnabled = stateRootEnabled
+			if stateRootEnabled {
+				b.Version = VersionEchidna
+			}
 			b.Transactions = make([]*transaction.Transaction, 123)
 			for i := range b.Transactions {
 				tx := transaction.New([]byte{byte(opcode.RET)}, int64(i))

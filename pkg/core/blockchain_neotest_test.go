@@ -98,7 +98,7 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	t.Run("mismatch storage version", func(t *testing.T) {
 		ps = newPS(t)
 		cache := storage.NewMemCachedStore(ps) // Extra wrapper to avoid good DB corruption.
-		d := dao.NewSimple(cache, bc.GetConfig().StateRootInHeader)
+		d := dao.NewSimple(cache)
 		d.PutVersion(dao.Version{
 			Value: "0.0.0",
 		})
@@ -107,15 +107,6 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 		_, _, _, err = chain.NewMultiWithCustomConfigAndStoreNoCheck(t, customConfig, cache)
 		require.Error(t, err)
 		require.True(t, strings.Contains(err.Error(), "storage version mismatch"), err)
-	})
-	t.Run("mismatch StateRootInHeader", func(t *testing.T) {
-		ps = newPS(t)
-		_, _, _, err := chain.NewMultiWithCustomConfigAndStoreNoCheck(t, func(c *config.Blockchain) {
-			customConfig(c)
-			c.StateRootInHeader = false
-		}, ps)
-		require.Error(t, err)
-		require.True(t, strings.Contains(err.Error(), "StateRootInHeader setting mismatch"), err)
 	})
 	t.Run("mismatch P2PSigExtensions", func(t *testing.T) {
 		ps = newPS(t)
@@ -528,16 +519,10 @@ func TestBlockchain_AddBlockStateRoot(t *testing.T) {
 	sr, err := bc.GetStateModule().GetStateRoot(bc.BlockHeight())
 	require.NoError(t, err)
 
-	b := e.NewUnsignedBlock(t)
-	b.StateRootEnabled = false
-	b.PrevStateRoot = util.Uint256{}
-	e.SignBlock(b)
-	err = bc.AddBlock(b)
-	require.ErrorIs(t, err, core.ErrHdrStateRootSetting)
-
 	u := sr.Root
 	u[0] ^= 0xFF
-	b = e.NewUnsignedBlock(t)
+	b := e.NewUnsignedBlock(t)
+	b.Version = block.VersionEchidna
 	b.PrevStateRoot = u
 	e.SignBlock(b)
 	err = bc.AddBlock(b)

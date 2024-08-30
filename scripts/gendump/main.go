@@ -170,12 +170,15 @@ func newBlock(bc *core.Blockchain, lastBlock *block.Block, script []byte, txs ..
 		},
 		Transactions: txs,
 	}
-	if bc.GetConfig().StateRootInHeader {
+	hfe, ok := bc.GetConfig().Hardforks[config.HFEchidna.String()]
+	if ok && hfe <= b.Index {
+		b.Version = block.VersionEchidna
+	}
+	if b.Version > block.VersionInitial {
 		sr, err := bc.GetStateModule().GetStateRoot(bc.BlockHeight())
 		if err != nil {
 			return nil, err
 		}
-		b.StateRootEnabled = true
 		b.PrevStateRoot = sr.Root
 	}
 	b.RebuildMerkleRoot()

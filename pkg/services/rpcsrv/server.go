@@ -2609,7 +2609,7 @@ func (s *Server) submitBlock(reqParams params.Params) (any, *neorpc.Error) {
 	if err != nil {
 		return nil, neorpc.NewInvalidParamsError(fmt.Sprintf("missing parameter or not a base64: %s", err))
 	}
-	b := block.New(s.stateRootEnabled)
+	b := &block.Block{}
 	r := io.NewBinReaderFromBuf(blockBytes)
 	b.DecodeBinary(r)
 	if r.Err != nil {

@@ -10,6 +10,12 @@ ProtocolConfiguration:
     - node_single:20333
   VerifyTransactions: true
   P2PSigExtensions: false
+  Hardforks:
+    Aspidochelone: 5
+    Basilisk: 10
+    Cockatrice: 15
+    Domovoi: 20
+    Echidna: 50
 
 ApplicationConfiguration:
   SkipBlockVerification: false

@@ -107,7 +107,7 @@ func newBlockWithState(cfg config.ProtocolConfiguration, index uint32, prev util
 		b.Index = index
 
 		if prevState != nil {
-			b.StateRootEnabled = true
+			b.Version = block.VersionEchidna
 			b.PrevStateRoot = *prevState
 		}
 	}, txs...)

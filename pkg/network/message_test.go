@@ -163,12 +163,6 @@ func TestEncodeDecodeBlock(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		testEncodeDecode(t, CMDBlock, newDummyBlock(12, 1))
 	})
-	t.Run("invalid state root enabled setting", func(t *testing.T) {
-		expected := NewMessage(CMDBlock, newDummyBlock(31, 1))
-		data, err := testserdes.Encode(expected)
-		require.NoError(t, err)
-		require.Error(t, testserdes.Decode(data, &Message{StateRootInHeader: true}))
-	})
 }
 
 func TestEncodeDecodeGetBlock(t *testing.T) {
@@ -334,7 +328,7 @@ func (f failSer) EncodeBinary(r *io.BinWriter) {
 func (failSer) DecodeBinary(w *io.BinReader) {}
 
 func newDummyBlock(height uint32, txCount int) *block.Block {
-	b := block.New(false)
+	b := &block.Block{}
 	b.Index = height
 	b.PrevHash = random.Uint256()
 	b.Timestamp = rand.Uint64()

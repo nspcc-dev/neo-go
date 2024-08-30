@@ -69,9 +69,17 @@ func CreateGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 		})
 	}
 
+	var genesisVersion = uint32(block.VersionInitial)
+
+	height, ok := cfg.Hardforks[config.HFEchidna.String()]
+	if ok && height == 0 {
+		genesisVersion = block.VersionEchidna
+	}
+
 	base := block.Header{
-		Version:       0,
+		Version:       genesisVersion,
 		PrevHash:      util.Uint256{},
+		PrevStateRoot: util.Uint256{},
 		Timestamp:     uint64(time.Date(2016, 7, 15, 15, 8, 21, 0, time.UTC).Unix()) * 1000, // Milliseconds.
 		Nonce:         2083236893,
 		Index:         0,
@@ -80,7 +88,6 @@ func CreateGenesisBlock(cfg config.ProtocolConfiguration) (*block.Block, error) 
 			InvocationScript:   []byte{},
 			VerificationScript: []byte{byte(opcode.PUSH1)},
 		},
-		StateRootEnabled: cfg.StateRootInHeader,
 	}
 
 	b := &block.Block{

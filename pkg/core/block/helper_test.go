@@ -18,7 +18,7 @@ func getDecodedBlock(t *testing.T, i int) *Block {
 	b, err := hex.DecodeString(data["raw"].(string))
 	require.NoError(t, err)
 
-	block := New(false)
+	block := &Block{}
 	require.NoError(t, testserdes.DecodeBinary(b, block))
 
 	return block

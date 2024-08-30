@@ -95,11 +95,7 @@ func (c *Client) getBlock(param any) (*block.Block, error) {
 		return nil, err
 	}
 	r := io.NewBinReaderFromBuf(resp)
-	sr, err := c.stateRootInHeader()
-	if err != nil {
-		return nil, err
-	}
-	b = block.New(sr)
+	b = &block.Block{}
 	b.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -128,11 +124,6 @@ func (c *Client) getBlockVerbose(param any) (*result.Block, error) {
 		resp   = &result.Block{}
 		err    error
 	)
-	sr, err := c.stateRootInHeader()
-	if err != nil {
-		return nil, err
-	}
-	resp.Header.StateRootEnabled = sr
 	if err = c.performRequest("getblock", params, resp); err != nil {
 		return nil, err
 	}
@@ -163,13 +154,8 @@ func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
 	if err := c.performRequest("getblockheader", params, &resp); err != nil {
 		return nil, err
 	}
-	sr, err := c.stateRootInHeader()
-	if err != nil {
-		return nil, err
-	}
 	r := io.NewBinReaderFromBuf(resp)
 	h = new(block.Header)
-	h.StateRootEnabled = sr
 	h.DecodeBinary(r)
 	if r.Err != nil {
 		return nil, r.Err
@@ -872,18 +858,6 @@ func (c *Client) ValidateAddress(address string) error {
 		return errors.New("validateaddress returned false")
 	}
 	return nil
-}
-
-// stateRootInHeader returns true if the state root is contained in the block header.
-// Requires Init() before use.
-func (c *Client) stateRootInHeader() (bool, error) {
-	c.cacheLock.RLock()
-	defer c.cacheLock.RUnlock()
-
-	if !c.cache.initDone {
-		return false, errNetworkNotInitialized
-	}
-	return c.cache.stateRootInHeader, nil
 }
 
 // TraverseIterator returns a set of iterator values (maxItemsCount at max) for

@@ -13,8 +13,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
-// VersionInitial is the default Neo block version.
-const VersionInitial uint32 = 0
+const (
+	// VersionInitial is the initial Neo block version.
+	VersionInitial = iota
+	// VersionEchidna is StateRoot-enabled Neo block version
+	VersionEchidna
+)
 
 // Header holds the base info of a block.
 type Header struct {
@@ -45,8 +49,6 @@ type Header struct {
 	// Script used to validate the block
 	Script transaction.Witness
 
-	// StateRootEnabled specifies if the header contains state root.
-	StateRootEnabled bool
 	// PrevStateRoot is the state root of the previous block.
 	PrevStateRoot util.Uint256
 	// PrimaryIndex is the index of the primary consensus node for this block.
@@ -126,7 +128,7 @@ func (b *Header) encodeHashableFields(bw *io.BinWriter) {
 	bw.WriteU32LE(b.Index)
 	bw.WriteB(b.PrimaryIndex)
 	bw.WriteBytes(b.NextConsensus[:])
-	if b.StateRootEnabled {
+	if b.Version > 0 {
 		bw.WriteBytes(b.PrevStateRoot[:])
 	}
 }
@@ -142,7 +144,7 @@ func (b *Header) decodeHashableFields(br *io.BinReader) {
 	b.Index = br.ReadU32LE()
 	b.PrimaryIndex = br.ReadB()
 	br.ReadBytes(b.NextConsensus[:])
-	if b.StateRootEnabled {
+	if b.Version > 0 {
 		br.ReadBytes(b.PrevStateRoot[:])
 	}
 
@@ -167,7 +169,7 @@ func (b Header) MarshalJSON() ([]byte, error) {
 		NextConsensus: address.Uint160ToString(b.NextConsensus),
 		Witnesses:     []transaction.Witness{b.Script},
 	}
-	if b.StateRootEnabled {
+	if b.Version > 0 {
 		aux.PrevStateRoot = &b.PrevStateRoot
 	}
 	return json.Marshal(aux)
@@ -206,7 +208,7 @@ func (b *Header) UnmarshalJSON(data []byte) error {
 	b.PrimaryIndex = aux.PrimaryIndex
 	b.NextConsensus = nextC
 	b.Script = aux.Witnesses[0]
-	if b.StateRootEnabled {
+	if b.Version > 0 {
 		if aux.PrevStateRoot == nil {
 			return errors.New("'previousstateroot' is empty")
 		}

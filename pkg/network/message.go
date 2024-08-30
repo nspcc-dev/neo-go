@@ -28,10 +28,6 @@ type Message struct {
 
 	// Compressed message payload.
 	compressedPayload []byte
-
-	// StateRootInHeader specifies if the state root is included in the block header.
-	// This is needed for correct decoding.
-	StateRootInHeader bool
 }
 
 // MessageFlag represents compression level of a message payload.
@@ -145,7 +141,7 @@ func (m *Message) decodePayload() error {
 	case CMDAddr:
 		p = &payload.AddressList{}
 	case CMDBlock:
-		p = block.New(m.StateRootInHeader)
+		p = &block.Block{}
 	case CMDExtensible:
 		p = payload.NewExtensible()
 	case CMDP2PNotaryRequest:
@@ -157,7 +153,7 @@ func (m *Message) decodePayload() error {
 	case CMDGetBlockByIndex:
 		p = &payload.GetBlockByIndex{}
 	case CMDHeaders:
-		p = &payload.Headers{StateRootInHeader: m.StateRootInHeader}
+		p = &payload.Headers{}
 	case CMDTX:
 		p, err := transaction.NewTransactionFromBytes(buf)
 		if err != nil {

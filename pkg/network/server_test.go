@@ -420,7 +420,7 @@ func TestBlock(t *testing.T) {
 	s.chain.(*fakechain.FakeChain).Blockheight.Store(12344)
 	require.Equal(t, uint32(12344), s.chain.BlockHeight())
 
-	b := block.New(false)
+	b := &block.Block{}
 	b.Index = 12345
 	s.testHandleMessage(t, nil, CMDBlock, b)
 	require.Eventually(t, func() bool { return s.chain.BlockHeight() == 12345 }, 2*time.Second, time.Millisecond*500)

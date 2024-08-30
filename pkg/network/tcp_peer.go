@@ -166,7 +166,7 @@ func (p *TCPPeer) handleConn() {
 		r := io.NewBinReaderFromIO(p.conn)
 	loop:
 		for {
-			msg := &Message{StateRootInHeader: p.server.config.StateRootInHeader}
+			msg := &Message{}
 			err = msg.Decode(r)
 
 			if errors.Is(err, payload.ErrTooManyHeaders) {

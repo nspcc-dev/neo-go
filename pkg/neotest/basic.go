@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -347,6 +348,7 @@ func (e *Executor) NewUnsignedBlock(t testing.TB, txs ...*transaction.Transactio
 	lastBlock := e.TopBlock(t)
 	b := &block.Block{
 		Header: block.Header{
+			Index:         e.Chain.BlockHeight() + 1,
 			NextConsensus: e.Validator.ScriptHash(),
 			Script: transaction.Witness{
 				VerificationScript: e.Validator.Script(),
@@ -355,12 +357,12 @@ func (e *Executor) NewUnsignedBlock(t testing.TB, txs ...*transaction.Transactio
 		},
 		Transactions: txs,
 	}
-	if e.Chain.GetConfig().StateRootInHeader {
-		b.StateRootEnabled = true
+	hfe, ok := e.Chain.GetConfig().Hardforks[config.HFEchidna.String()]
+	if ok && hfe <= b.Index {
+		b.Version = block.VersionEchidna
 		b.PrevStateRoot = e.Chain.GetStateModule().CurrentLocalStateRoot()
 	}
 	b.PrevHash = lastBlock.Hash()
-	b.Index = e.Chain.BlockHeight() + 1
 	b.RebuildMerkleRoot()
 	return b
 }

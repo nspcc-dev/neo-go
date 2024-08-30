@@ -68,11 +68,8 @@ func (b *Block) RebuildMerkleRoot() {
 // This is commonly used to create a block from stored data.
 // Blocks created from trimmed data will have their Trimmed field
 // set to true.
-func NewTrimmedFromReader(stateRootEnabled bool, br *io.BinReader) (*Block, error) {
+func NewTrimmedFromReader(br *io.BinReader) (*Block, error) {
 	block := &Block{
-		Header: Header{
-			StateRootEnabled: stateRootEnabled,
-		},
 		Trimmed: true,
 	}
 
@@ -93,11 +90,11 @@ func NewTrimmedFromReader(stateRootEnabled bool, br *io.BinReader) (*Block, erro
 	return block, br.Err
 }
 
-// New creates a new blank block with proper state root setting.
-func New(stateRootEnabled bool) *Block {
+// New creates a new blank block of appropriate version.
+func New(version uint32) *Block {
 	return &Block{
 		Header: Header{
-			StateRootEnabled: stateRootEnabled,
+			Version: version,
 		},
 	}
 }
@@ -213,7 +210,7 @@ func (b *Block) GetExpectedBlockSizeWithoutTransactions(txCount int) int {
 	size := expectedHeaderSizeWithEmptyWitness - 1 - 1 + // 1 is for the zero-length (new(Header)).Script.Invocation/Verification
 		io.GetVarSize(&b.Script) +
 		io.GetVarSize(txCount)
-	if b.StateRootEnabled {
+	if b.Version > 0 {
 		size += util.Uint256Size
 	}
 	return size
@@ -233,7 +230,7 @@ func (b *Block) ToStackItem() stackitem.Item {
 		stackitem.NewByteArray(b.NextConsensus.BytesBE()),
 		stackitem.NewBigInteger(big.NewInt(int64(len(b.Transactions)))),
 	}
-	if b.StateRootEnabled {
+	if b.Version > 0 {
 		items = append(items, stackitem.NewByteArray(b.PrevStateRoot.BytesBE()))
 	}
 
