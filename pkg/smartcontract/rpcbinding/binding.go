@@ -1,6 +1,7 @@
 package rpcbinding
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -473,27 +474,25 @@ func Generate(cfg binding.Config) error {
 }
 
 func dropManifestMethods(meths []manifest.Method, manifested []manifest.Method) []manifest.Method {
-	for _, m := range manifested {
-		for i := 0; i < len(meths); i++ {
-			if meths[i].Name == m.Name && len(meths[i].Parameters) == len(m.Parameters) {
-				meths = append(meths[:i], meths[i+1:]...)
-				i--
-			}
-		}
-	}
-	return meths
+	return slices.DeleteFunc(meths, func(m manifest.Method) bool {
+		return slices.ContainsFunc(manifested, func(e manifest.Method) bool {
+			return 0 == cmp.Or(
+				cmp.Compare(m.Name, e.Name),
+				cmp.Compare(len(m.Parameters), len(e.Parameters)),
+			)
+		})
+	})
 }
 
 func dropManifestEvents(events []manifest.Event, manifested []manifest.Event) []manifest.Event {
-	for _, e := range manifested {
-		for i := 0; i < len(events); i++ {
-			if events[i].Name == e.Name && len(events[i].Parameters) == len(e.Parameters) {
-				events = append(events[:i], events[i+1:]...)
-				i--
-			}
-		}
-	}
-	return events
+	return slices.DeleteFunc(events, func(e manifest.Event) bool {
+		return slices.ContainsFunc(manifested, func(v manifest.Event) bool {
+			return 0 == cmp.Or(
+				cmp.Compare(e.Name, v.Name),
+				cmp.Compare(len(e.Parameters), len(v.Parameters)),
+			)
+		})
+	})
 }
 
 func dropStdMethods(meths []manifest.Method, std *standard.Standard) []manifest.Method {
@@ -712,7 +711,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 					ctr.SafeMethods[len(ctr.SafeMethods)-1].ItemTo = cutPointer(ctr.Methods[i].ReturnType)
 				}
 			}
-			ctr.Methods = append(ctr.Methods[:i], ctr.Methods[i+1:]...)
+			ctr.Methods = slices.Delete(ctr.Methods, i, i+1)
 			i--
 		} else {
 			ctr.Methods[i].Comment = fmt.Sprintf("creates a transaction invoking `%s` method of the contract.", ctr.Methods[i].NameABI)
