@@ -218,7 +218,6 @@ func testGetBlocksByIndex(t *testing.T, cmd CommandType) {
 	expectsCmd := make([]CommandType, 10)
 	expectedHeight := make([][]uint32, 10)
 	for i := range ps {
-		i := i
 		ps[i] = newLocalPeer(t, s)
 		ps[i].messageHandler = func(t *testing.T, msg *Message) {
 			require.Equal(t, expectsCmd[i], msg.Command)

@@ -594,7 +594,6 @@ func TestJMPs(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		i := i
 		t.Run(tc.name, func(t *testing.T) {
 			for op := opcode.JMP; op < opcode.JMPLEL; op++ {
 				resOp := op
