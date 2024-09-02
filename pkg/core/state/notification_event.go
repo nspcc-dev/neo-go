@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -20,30 +21,30 @@ type NotificationEvent struct {
 }
 
 type ContractInvocation struct {
-	Hash   util.Uint160     `json:"contract_hash"`
-	Method string           `json:"method"`
-	Params *stackitem.Array `json:"parameters"`
+	Hash      util.Uint160     `json:"contract_hash"`
+	Method    string           `json:"method"`
+	Arguments *stackitem.Array `json:"arguments"`
 }
 
 func (ci *ContractInvocation) DecodeBinary(r *io.BinReader) {
 	ci.Hash.DecodeBinary(r)
 	ci.Method = r.ReadString()
-	params := stackitem.DecodeBinary(r)
+	args := stackitem.DecodeBinary(r)
 	if r.Err != nil {
 		return
 	}
-	arr, ok := params.Value().([]stackitem.Item)
+	arr, ok := args.Value().([]stackitem.Item)
 	if !ok {
-		r.Err = errors.New("Array or Struct expected")
+		r.Err = errors.New("array or Struct expected")
 		return
 	}
-	ci.Params = stackitem.NewArray(arr)
+	ci.Arguments = stackitem.NewArray(arr)
 }
 
 func (ci *ContractInvocation) EncodeBinaryWithContext(w *io.BinWriter, sc *stackitem.SerializationContext) {
 	ci.Hash.EncodeBinary(w)
 	w.WriteString(ci.Method)
-	b, err := sc.Serialize(ci.Params, false)
+	b, err := sc.Serialize(ci.Arguments, false)
 	if err != nil {
 		w.Err = err
 		return
@@ -53,14 +54,14 @@ func (ci *ContractInvocation) EncodeBinaryWithContext(w *io.BinWriter, sc *stack
 
 // MarshalJSON implements the json.Marshaler interface.
 func (ci ContractInvocation) MarshalJSON() ([]byte, error) {
-	item, err := stackitem.ToJSONWithTypes(ci.Params)
+	item, err := stackitem.ToJSONWithTypes(ci.Arguments)
 	if err != nil {
 		item = []byte(fmt.Sprintf(`"error: %v"`, err))
 	}
 	return json.Marshal(ContractInvocationAux{
-		Hash:   ci.Hash,
-		Method: ci.Method,
-		Params: item,
+		Hash:      ci.Hash,
+		Method:    ci.Method,
+		Arguments: item,
 	})
 }
 
@@ -70,14 +71,14 @@ func (ci *ContractInvocation) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}
-	params, err := stackitem.FromJSONWithTypes(aux.Params)
+	params, err := stackitem.FromJSONWithTypes(aux.Arguments)
 	if err != nil {
 		return err
 	}
 	if t := params.Type(); t != stackitem.ArrayT {
 		return fmt.Errorf("failed to convert invocation state of type %s to array", t.String())
 	}
-	ci.Params = params.(*stackitem.Array)
+	ci.Arguments = params.(*stackitem.Array)
 	ci.Method = aux.Method
 	ci.Hash = aux.Hash
 	return nil
@@ -285,9 +286,9 @@ type Execution struct {
 }
 
 type ContractInvocationAux struct {
-	Hash   util.Uint160    `json:"contract_hash"`
-	Method string          `json:"method"`
-	Params json.RawMessage `json:"parameters"`
+	Hash      util.Uint160    `json:"contract_hash"`
+	Method    string          `json:"method"`
+	Arguments json.RawMessage `json:"arguments"`
 }
 
 // executionAux represents an auxiliary struct for Execution JSON marshalling.

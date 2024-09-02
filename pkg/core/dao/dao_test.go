@@ -193,7 +193,7 @@ func TestStoreAsTransaction(t *testing.T) {
 				Invocations: []state.ContractInvocation{{
 					Hash:   util.Uint160{},
 					Method: "fakeMethodCall",
-					Params: stackitem.NewArray([]stackitem.Item{
+					Arguments: stackitem.NewArray([]stackitem.Item{
 						stackitem.NewBool(false),
 					}),
 				}},
