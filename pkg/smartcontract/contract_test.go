@@ -24,7 +24,7 @@ func TestCreateMultiSigRedeemScript(t *testing.T) {
 	br := io.NewBinReaderFromBuf(out)
 	assert.Equal(t, opcode.PUSH3, opcode.Opcode(br.ReadB()))
 
-	for i := 0; i < len(validators); i++ {
+	for i := range validators {
 		assert.EqualValues(t, opcode.PUSHDATA1, br.ReadB())
 		bb := br.ReadVarBytes()
 		require.NoError(t, br.Err)
@@ -61,13 +61,13 @@ func TestCreateDefaultMultiSigRedeemScript(t *testing.T) {
 	checkM(2)
 
 	// 3 out of 4
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		addKey()
 	}
 	checkM(3)
 
 	// 5 out of 6
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		addKey()
 	}
 	checkM(5)
@@ -77,7 +77,7 @@ func TestCreateDefaultMultiSigRedeemScript(t *testing.T) {
 	checkM(5)
 
 	// 7 out of 10
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		addKey()
 	}
 	checkM(7)

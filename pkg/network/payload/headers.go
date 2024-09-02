@@ -44,7 +44,7 @@ func (p *Headers) DecodeBinary(br *io.BinReader) {
 
 	p.Hdrs = make([]*block.Header, lenHeaders)
 
-	for i := 0; i < int(lenHeaders); i++ {
+	for i := range p.Hdrs {
 		header := &block.Header{}
 		header.StateRootEnabled = p.StateRootInHeader
 		header.DecodeBinary(br)

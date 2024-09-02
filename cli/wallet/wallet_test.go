@@ -1062,7 +1062,7 @@ func TestWalletDumpKeys(t *testing.T) {
 		e.CheckNextLine(t, pubRegex)
 		e.CheckNextLine(t, "^\\s*$")
 		e.CheckNextLine(t, "NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq")
-		for i := 0; i < 4; i++ {
+		for range 4 {
 			e.CheckNextLine(t, pubRegex)
 		}
 		e.CheckNextLine(t, "^\\s*$")
@@ -1085,7 +1085,7 @@ func TestWalletDumpKeys(t *testing.T) {
 		cmd := append(cmd, "-a", "NVTiAjNgagDkTr5HTzDmQP9kPwPHN5BgVq")
 		e.Run(t, cmd...)
 		e.CheckNextLine(t, "3 out of 4 multisig contract")
-		for i := 0; i < 4; i++ {
+		for range 4 {
 			e.CheckNextLine(t, pubRegex)
 		}
 		e.CheckEOF(t)

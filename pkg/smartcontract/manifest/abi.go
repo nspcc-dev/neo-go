@@ -63,11 +63,10 @@ func (a *ABI) IsValid() error {
 		}
 	}
 	if sliceHasDups(a.Methods, func(a, b Method) int {
-		res := cmp.Compare(a.Name, b.Name)
-		if res != 0 {
-			return res
-		}
-		return cmp.Compare(len(a.Parameters), len(b.Parameters))
+		return cmp.Or(
+			cmp.Compare(a.Name, b.Name),
+			cmp.Compare(len(a.Parameters), len(b.Parameters)),
+		)
 	}) {
 		return errors.New("duplicate method specifications")
 	}

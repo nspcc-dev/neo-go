@@ -49,7 +49,7 @@ func (p *ProofWithKey) EncodeBinary(w *io.BinWriter) {
 func (p *ProofWithKey) DecodeBinary(r *io.BinReader) {
 	p.Key = r.ReadVarBytes()
 	sz := r.ReadVarUint()
-	for i := uint64(0); i < sz; i++ {
+	for range sz {
 		p.Proof = append(p.Proof, r.ReadVarBytes())
 	}
 }

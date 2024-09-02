@@ -51,7 +51,7 @@ func BenchmarkRefCounter_Add(b *testing.B) {
 	rc := newRefCounter()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		rc.Add(a)
 	}
 }
@@ -61,7 +61,7 @@ func BenchmarkRefCounter_AddRemove(b *testing.B) {
 	rc := newRefCounter()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		rc.Add(a)
 		rc.Remove(a)
 	}

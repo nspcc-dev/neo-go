@@ -361,7 +361,7 @@ func runNativeTestCase(t *testing.T, b *nef.File, di *compiler.DebugInfo, ctr in
 		if t.CallFlag != md.RequiredFlags {
 			return fmt.Errorf("wrong flags %v", t.CallFlag)
 		}
-		for i := 0; i < int(t.ParamCount); i++ {
+		for range t.ParamCount {
 			_ = v.Estack().Pop()
 		}
 		if v.Estack().Len() != 0 {

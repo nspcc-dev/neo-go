@@ -218,7 +218,7 @@ func TestBufBinWriterErr(t *testing.T) {
 
 func TestBufBinWriterReset(t *testing.T) {
 	bw := NewBufBinWriter()
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		bw.WriteU32LE(uint32(i))
 		assert.Nil(t, bw.Err)
 		_ = bw.Bytes()

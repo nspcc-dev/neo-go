@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	mrand "math/rand"
+	mrand "math/rand/v2"
 	"net"
 	"runtime"
 	"slices"
@@ -288,7 +288,7 @@ func (s *Server) Start() {
 
 	var txThreads = optimalNumOfThreads()
 	s.txHandlerLoopWG.Add(txThreads)
-	for i := 0; i < txThreads; i++ {
+	for range txThreads {
 		go s.txHandlerLoop()
 	}
 	go s.broadcastTxLoop()
@@ -1331,7 +1331,7 @@ func getRequestBlocksPayload(p Peer, currHeight uint32, lastRequestedHeight *ato
 				}
 			}
 		} else {
-			index := mrand.Intn(bqueue.CacheSize / payload.MaxHashesCount)
+			index := mrand.IntN(bqueue.CacheSize / payload.MaxHashesCount)
 			needHeight = currHeight + 1 + uint32(index*payload.MaxHashesCount)
 		}
 		break
@@ -1487,7 +1487,7 @@ func (s *Server) RequestTx(hashes ...util.Uint256) {
 	slices.SortFunc(sorted, util.Uint256.Compare)
 	s.txCbList.Store(sorted)
 
-	for i := 0; i <= len(hashes)/payload.MaxHashesCount; i++ {
+	for i := range len(hashes)/payload.MaxHashesCount + 1 {
 		start := i * payload.MaxHashesCount
 		stop := (i + 1) * payload.MaxHashesCount
 		stop = min(stop, len(hashes))

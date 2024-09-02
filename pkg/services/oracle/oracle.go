@@ -218,7 +218,7 @@ func (o *Oracle) start() {
 	o.running = true
 	o.respMtx.Unlock()
 
-	for i := 0; i < o.MainCfg.MaxConcurrentRequests; i++ {
+	for range o.MainCfg.MaxConcurrentRequests {
 		go o.runRequestWorker()
 	}
 	go o.ResponseHandler.Run()

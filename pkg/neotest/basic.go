@@ -376,7 +376,7 @@ func (e *Executor) AddNewBlock(t testing.TB, txs ...*transaction.Transaction) *b
 // GenerateNewBlocks adds the specified number of empty blocks to the chain.
 func (e *Executor) GenerateNewBlocks(t testing.TB, count int) []*block.Block {
 	blocks := make([]*block.Block, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		blocks[i] = e.AddNewBlock(t)
 	}
 	return blocks

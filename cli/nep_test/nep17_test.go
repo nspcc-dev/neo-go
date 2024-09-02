@@ -4,6 +4,7 @@ import (
 	"io"
 	"math/big"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -80,7 +81,7 @@ func TestNEP17Balance(t *testing.T) {
 
 		e.CheckNextLine(t, "^Account "+testcli.TestWalletMultiAccount1)
 		// The order of assets is undefined.
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			line := e.GetNextLine(t)
 			if strings.Contains(line, "GAS") {
 				e.CheckLine(t, line, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
@@ -133,8 +134,7 @@ func TestNEP17Transfer(t *testing.T) {
 	}
 
 	t.Run("missing receiver", func(t *testing.T) {
-		as := append([]string{}, args[:8]...)
-		as = append(as, args[10:]...)
+		as := slices.Concat(args[:8], args[10:])
 		e.In.WriteString("one\r")
 		e.RunWithErrorCheck(t, `Required flag "to" not set`, as...)
 		e.In.Reset()

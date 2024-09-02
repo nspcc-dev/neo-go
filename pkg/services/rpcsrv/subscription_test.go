@@ -148,7 +148,7 @@ func TestSubscriptions(t *testing.T) {
 				break
 			}
 		}
-		for i := 0; i < len(b.Transactions); i++ {
+		for i := range b.Transactions {
 			if i > 0 {
 				resp = getNotification(t, respMsgs)
 			}
@@ -460,7 +460,7 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 	blockSubID := callSubscribe(t, c, respMsgs, `["block_added", {"primary":3}]`)
 
 	var expectedCnt int
-	for i := 0; i < numBlocks; i++ {
+	for i := range numBlocks {
 		primary := uint32(i % 4)
 		if primary == 3 {
 			expectedCnt++
@@ -469,7 +469,7 @@ func TestFilteredBlockSubscriptions(t *testing.T) {
 		require.NoError(t, chain.AddBlock(b))
 	}
 
-	for i := 0; i < expectedCnt; i++ {
+	for range expectedCnt {
 		var resp = new(neorpc.Notification)
 		select {
 		case body := <-respMsgs:
@@ -493,7 +493,7 @@ func TestHeaderOfAddedBlockSubscriptions(t *testing.T) {
 	headerSubID := callSubscribe(t, c, respMsgs, `["header_of_added_block", {"primary":3}]`)
 
 	var expectedCnt int
-	for i := 0; i < numBlocks; i++ {
+	for i := range numBlocks {
 		primary := uint32(i % 4)
 		if primary == 3 {
 			expectedCnt++
@@ -502,7 +502,7 @@ func TestHeaderOfAddedBlockSubscriptions(t *testing.T) {
 		require.NoError(t, chain.AddBlock(b))
 	}
 
-	for i := 0; i < expectedCnt; i++ {
+	for range expectedCnt {
 		var resp = new(neorpc.Notification)
 		select {
 		case body := <-respMsgs:
@@ -523,7 +523,7 @@ func TestMaxSubscriptions(t *testing.T) {
 	var subIDs = make([]string, 0)
 	_, _, c, respMsgs := initCleanServerAndWSClient(t)
 
-	for i := 0; i < maxFeeds+1; i++ {
+	for i := range maxFeeds + 1 {
 		var s string
 		resp := callWSGetRaw(t, c, `{"jsonrpc": "2.0", "method": "subscribe", "params": ["block_added"], "id": 1}`, respMsgs)
 		if i < maxFeeds {
@@ -606,7 +606,7 @@ func TestWSClientsLimit(t *testing.T) {
 			var wg sync.WaitGroup
 
 			// Dial effectiveClients connections in parallel
-			for i := 0; i < effectiveClients; i++ {
+			for i := range effectiveClients {
 				wg.Add(1)
 				j := i
 				go func() {
@@ -658,11 +658,11 @@ func TestSubscriptionOverflow(t *testing.T) {
 	require.NotNil(t, resp.Result)
 
 	// Push a lot of new blocks, but don't read events for them.
-	for i := 0; i < blockCnt; i++ {
+	for range blockCnt {
 		b := testchain.NewBlock(t, chain, 1, 0)
 		require.NoError(t, chain.AddBlock(b))
 	}
-	for i := 0; i < blockCnt; i++ {
+	for range blockCnt {
 		resp := getNotification(t, respMsgs)
 		if resp.Event != neorpc.BlockEventID {
 			require.Equal(t, neorpc.MissedEventID, resp.Event)

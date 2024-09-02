@@ -133,7 +133,7 @@ func (m multiSigner) Script() []byte {
 // SignHashable implements Signer interface.
 func (m multiSigner) SignHashable(magic uint32, item hash.Hashable) []byte {
 	var script []byte
-	for i := 0; i < m.m; i++ {
+	for i := range m.m {
 		sign := m.accounts[i].SignHashable(netmode.Magic(magic), item)
 		script = append(script, byte(opcode.PUSHDATA1), keys.SignatureLen)
 		script = append(script, sign...)

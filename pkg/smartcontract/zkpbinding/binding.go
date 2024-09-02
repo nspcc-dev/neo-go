@@ -133,11 +133,11 @@ func VerifyProof(a []byte, b []byte, c []byte, publicInput [][]byte) bool {
 		panic("error: inputlen or iclen")
 	}
 	icPoints := make([]crypto.Bls12381Point, iclen)
-	for i := 0; i < iclen; i++ {
+	for i := range iclen {
 		icPoints[i] = crypto.Bls12381Deserialize(ic[i])
 	}
 	acc := icPoints[0]
-	for i := 0; i < inputlen; i++ {
+	for i := range inputlen {
 		scalar := publicInput[i] // 32-bytes LE field element.
 		temp := crypto.Bls12381Mul(icPoints[i+1], scalar, false)
 		acc = crypto.Bls12381Add(acc, temp)
@@ -165,7 +165,7 @@ supportedstandards: []`
 	// and dependency packages version needed for smart contract compilation.
 	verifyGomod = `module verify
 
-go 1.21
+go 1.22
 
 require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231004150345-8849ccde2524
 `

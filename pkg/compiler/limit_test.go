@@ -15,7 +15,7 @@ func TestManyVariables(t *testing.T) {
 	const count = 155
 
 	buf := bytes.NewBufferString("package main\n")
-	for i := 0; i < count; i++ {
+	for i := range count {
 		buf.WriteString(fmt.Sprintf("var a%d = %d\n", i, i))
 	}
 	buf.WriteString("func Main() int {\nreturn 7\n}\n")

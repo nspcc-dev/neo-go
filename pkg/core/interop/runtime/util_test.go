@@ -84,7 +84,7 @@ func TestRuntimeGetNotifications(t *testing.T) {
 			require.Error(t, GetNotifications(ic))
 		})
 		t.Run("too many notifications", func(t *testing.T) {
-			for i := 0; i <= vm.MaxStackSize; i++ {
+			for range vm.MaxStackSize + 1 {
 				ic.Notifications = append(ic.Notifications, state.NotificationEvent{
 					ScriptHash: util.Uint160{3},
 					Name:       "Event3",

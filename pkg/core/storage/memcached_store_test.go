@@ -229,7 +229,7 @@ func benchmarkCachedSeek(t *testing.B, ps Store, psElementsCount, tsElementsCoun
 
 		ts = NewMemCachedStore(ps)
 	)
-	for i := 0; i < psElementsCount; i++ {
+	for i := range psElementsCount {
 		// lower KVs with matching prefix that should be found
 		ts.Put(append(lowerPrefixGood, random.Bytes(10)...), []byte("value"))
 		// lower KVs with non-matching prefix that shouldn't be found
@@ -266,7 +266,7 @@ func benchmarkCachedSeek(t *testing.B, ps Store, psElementsCount, tsElementsCoun
 
 	t.ReportAllocs()
 	t.ResetTimer()
-	for n := 0; n < t.N; n++ {
+	for range t.N {
 		ts.Seek(SeekRange{Prefix: searchPrefix}, func(k, v []byte) bool { return true })
 	}
 	t.StopTimer()

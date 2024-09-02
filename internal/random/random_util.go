@@ -1,8 +1,7 @@
 package random
 
 import (
-	"math/rand"
-	"time"
+	"math/rand/v2"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -27,14 +26,14 @@ func Bytes(n int) []byte {
 
 // Fill fills buffer with random bytes.
 func Fill(buf []byte) {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	// Rand reader returns no errors
-	r.Read(buf)
+	for i := range buf {
+		buf[i] = byte(rand.Int())
+	}
 }
 
 // Int returns a random integer in [minI,maxI).
 func Int(minI, maxI int) int {
-	return minI + rand.Intn(maxI-minI)
+	return minI + rand.IntN(maxI-minI)
 }
 
 // Uint256 returns a random Uint256.
@@ -47,9 +46,4 @@ func Uint256() util.Uint256 {
 func Uint160() util.Uint160 {
 	str := String(20)
 	return hash.RipeMD160([]byte(str))
-}
-
-func init() {
-	//nolint:staticcheck
-	rand.Seed(time.Now().UTC().UnixNano())
 }

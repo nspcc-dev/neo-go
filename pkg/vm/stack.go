@@ -265,7 +265,7 @@ func (s *Stack) Iter(f func(Element)) {
 //		// do something with the element.
 //	})
 func (s *Stack) IterBack(f func(Element)) {
-	for i := 0; i < len(s.elems); i++ {
+	for i := range s.elems {
 		f(s.elems[i])
 	}
 }
@@ -347,7 +347,7 @@ func (s *Stack) PopSigElements() ([][]byte, error) {
 			return nil, fmt.Errorf("wrong number of elements: need %d, have %d", num, s.Len())
 		}
 		elems = make([][]byte, num)
-		for i := 0; i < num; i++ {
+		for i := range num {
 			elems[i] = s.Pop().Bytes()
 		}
 	}

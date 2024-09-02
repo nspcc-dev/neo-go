@@ -96,7 +96,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 	// Added addresses should end up in the pool and in the unconnected set.
 	// Done twice to check re-adding unconnected addresses, which should be
 	// a no-op.
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		d.BackFill(set1...)
 		assert.Equal(t, len(set1), d.PoolCount())
 		set1D := d.UnconnectedPeers()
@@ -110,7 +110,7 @@ func TestDefaultDiscoverer(t *testing.T) {
 	// Request should make goroutines dial our addresses draining the pool.
 	d.RequestRemote(len(set1))
 	dialled := make([]string, 0)
-	for i := 0; i < len(set1); i++ {
+	for range set1 {
 		select {
 		case a := <-ts.dialCh:
 			dialled = append(dialled, a)
@@ -182,8 +182,8 @@ func TestDefaultDiscoverer(t *testing.T) {
 
 	dialledBad := make([]string, 0)
 	d.RequestRemote(len(set1))
-	for i := 0; i < connRetries; i++ {
-		for j := 0; j < len(set1); j++ {
+	for i := range connRetries {
+		for j := range set1 {
 			select {
 			case a := <-ts.dialCh:
 				dialledBad = append(dialledBad, a)
@@ -194,8 +194,8 @@ func TestDefaultDiscoverer(t *testing.T) {
 	}
 	require.Eventually(t, func() bool { return d.PoolCount() == 0 }, 2*time.Second, 50*time.Millisecond)
 	slices.Sort(dialledBad)
-	for i := 0; i < len(set1); i++ {
-		for j := 0; j < connRetries; j++ {
+	for i := range set1 {
+		for j := range connRetries {
 			assert.Equal(t, set1[i], dialledBad[i*connRetries+j])
 		}
 	}
@@ -222,7 +222,7 @@ func TestSeedDiscovery(t *testing.T) {
 	tryMaxWait = 1 // Don't waste time.
 
 	d.RequestRemote(len(seeds))
-	for i := 0; i < connRetries*2; i++ {
+	for range connRetries * 2 {
 		for range seeds {
 			select {
 			case <-ts.dialCh:

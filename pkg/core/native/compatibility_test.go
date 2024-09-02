@@ -27,7 +27,7 @@ func TestNamesASCII(t *testing.T) {
 
 func isASCII(s string) bool {
 	ok := true
-	for i := 0; i < len(s); i++ {
+	for i := range s {
 		ok = ok && s[i] <= unicode.MaxASCII
 	}
 	return ok

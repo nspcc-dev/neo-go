@@ -10,7 +10,7 @@ import (
 )
 
 func benchScript(t *testing.B, script []byte) {
-	for n := 0; n < t.N; n++ {
+	for range t.N {
 		t.StopTimer()
 		vm := load(script)
 		t.StartTimer()
@@ -40,7 +40,7 @@ func BenchmarkScriptPushPop(t *testing.B) {
 	for _, i := range []int{4, 16, 128, 1024} {
 		t.Run(strconv.Itoa(i), func(t *testing.B) {
 			var script = make([]byte, i*2)
-			for p := 0; p < i; p++ {
+			for p := range i {
 				script[p] = byte(opcode.PUSH1)
 				script[i+p] = byte(opcode.DROP)
 			}
@@ -53,7 +53,7 @@ func BenchmarkIsSignatureContract(t *testing.B) {
 	b64script := "DCED2eixa9myLTNF1tTN4xvhw+HRYVMuPQzOy5Xs4utYM25BVuezJw=="
 	script, err := base64.StdEncoding.DecodeString(b64script)
 	require.NoError(t, err)
-	for n := 0; n < t.N; n++ {
+	for range t.N {
 		_ = IsSignatureContract(script)
 	}
 }

@@ -183,7 +183,7 @@ func TestNotary_MaliciousWithdrawal(t *testing.T) {
 
 	// Perform several deposits to a set of different accounts.
 	count := 3
-	for i := 0; i < count; i++ {
+	for range count {
 		h := random.Uint160()
 		gasCommitteeInvoker.Invoke(t, true, "transfer", multisigHash, notaryHash, 2*feePerKey, &notary.OnNEP17PaymentData{Account: &h, Till: e.Chain.BlockHeight() + 2})
 	}

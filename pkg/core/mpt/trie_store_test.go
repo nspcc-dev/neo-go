@@ -50,7 +50,7 @@ func TestTrieStore_TestTrieOperations(t *testing.T) {
 				return true
 			})
 			require.Equal(t, 4, len(res))
-			for i := 0; i < len(res); i++ {
+			for i := range res {
 				require.Equal(t, byte(storage.STStorage), res[i][0])
 				if i < len(res)-1 {
 					cmp := bytes.Compare(res[i], res[i+1])

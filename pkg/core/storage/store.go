@@ -3,6 +3,7 @@ package storage
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dboper"
@@ -105,10 +106,8 @@ type (
 func seekRangeToPrefixes(sr SeekRange) *util.Range {
 	var (
 		rang  *util.Range
-		start = make([]byte, len(sr.Prefix)+len(sr.Start))
+		start = slices.Concat(sr.Prefix, sr.Start)
 	)
-	copy(start, sr.Prefix)
-	copy(start[len(sr.Prefix):], sr.Start)
 
 	if !sr.Backwards {
 		rang = util.BytesPrefix(sr.Prefix)

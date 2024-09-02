@@ -20,7 +20,7 @@ func BenchmarkStorageFind(b *testing.B) {
 			require.NoError(b, native.PutContractState(context.DAO, contractState))
 
 			items := make(map[string]state.StorageItem)
-			for i := 0; i < count; i++ {
+			for range count {
 				items["abc"+random.String(10)] = random.Bytes(10)
 			}
 			for k, v := range items {
@@ -33,7 +33,7 @@ func BenchmarkStorageFind(b *testing.B) {
 
 			b.ResetTimer()
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				b.StopTimer()
 				v.Estack().PushVal(istorage.FindDefault)
 				v.Estack().PushVal("abc")
@@ -64,7 +64,7 @@ func BenchmarkStorageFindIteratorNext(b *testing.B) {
 					require.NoError(b, native.PutContractState(context.DAO, contractState))
 
 					items := make(map[string]state.StorageItem)
-					for i := 0; i < count; i++ {
+					for range count {
 						items["abc"+random.String(10)] = random.Bytes(10)
 					}
 					for k, v := range items {
@@ -76,7 +76,7 @@ func BenchmarkStorageFindIteratorNext(b *testing.B) {
 					require.NotEqual(b, 0, changes)
 					b.ReportAllocs()
 					b.ResetTimer()
-					for i := 0; i < b.N; i++ {
+					for range b.N {
 						b.StopTimer()
 						v.Estack().PushVal(istorage.FindDefault)
 						v.Estack().PushVal("abc")
@@ -88,7 +88,7 @@ func BenchmarkStorageFindIteratorNext(b *testing.B) {
 							b.FailNow()
 						}
 						res := context.VM.Estack().Pop().Item()
-						for i := 0; i < last; i++ {
+						for range last {
 							context.VM.Estack().PushVal(res)
 							b.StartTimer()
 							require.NoError(b, iterator.Next(context))

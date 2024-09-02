@@ -200,11 +200,10 @@ func queryCandidates(ctx *cli.Context) error {
 		if !a.Active && b.Active {
 			return -1
 		}
-		res := cmp.Compare(a.Votes, b.Votes)
-		if res != 0 {
-			return res
-		}
-		return a.PublicKey.Cmp(&b.PublicKey)
+		return cmp.Or(
+			cmp.Compare(a.Votes, b.Votes),
+			a.PublicKey.Cmp(&b.PublicKey),
+		)
 	})
 	var res []byte
 	res = fmt.Appendf(res, "Key\tVotes\tCommittee\tConsensus\n")

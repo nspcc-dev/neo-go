@@ -32,7 +32,7 @@ func ECDSASecp256r1CheckMultisig(ic *interop.Context) error {
 	if len(pkeys) < len(sigs) {
 		return errors.New("more signatures than there are keys")
 	}
-	sigok := vm.CheckMultisigPar(ic.VM, elliptic.P256(), hash.NetSha256(ic.Network, ic.Container).BytesBE(), pkeys, sigs)
+	sigok := vm.CheckMultisigPar(elliptic.P256(), hash.NetSha256(ic.Network, ic.Container).BytesBE(), pkeys, sigs)
 	ic.VM.Estack().PushItem(stackitem.Bool(sigok))
 	return nil
 }

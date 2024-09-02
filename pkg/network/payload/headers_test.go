@@ -56,7 +56,7 @@ func testHeadersEncodeDecode(t *testing.T, headers *Headers, expected int, retEr
 	assert.Equal(t, retErr, rErr)
 	assert.Equal(t, expected, len(headersDecode.Hdrs))
 
-	for i := 0; i < len(headersDecode.Hdrs); i++ {
+	for i := range headersDecode.Hdrs {
 		assert.Equal(t, headers.Hdrs[i].Version, headersDecode.Hdrs[i].Version)
 		assert.Equal(t, headers.Hdrs[i].Index, headersDecode.Hdrs[i].Index)
 		assert.Equal(t, headers.Hdrs[i].Script, headersDecode.Hdrs[i].Script)

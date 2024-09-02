@@ -111,7 +111,7 @@ func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 		return
 	}
 	arr := make([]stackitem.Item, sz)
-	for i := 0; i < int(sz); i++ {
+	for i := range arr {
 		arr[i] = stackitem.DecodeBinaryProtected(r)
 		if r.Err != nil {
 			return

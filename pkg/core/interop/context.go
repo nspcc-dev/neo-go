@@ -363,11 +363,10 @@ func (c *ContractMD) AddMethod(md *MethodAndPrice, desc *manifest.Method) {
 	desc.Safe = md.RequiredFlags&(callflag.All^callflag.ReadOnly) == 0
 
 	index, _ := slices.BinarySearchFunc(c.methods, *md, func(e, t MethodAndPrice) int {
-		res := cmp.Compare(e.MD.Name, t.MD.Name)
-		if res != 0 {
-			return res
-		}
-		return cmp.Compare(len(e.MD.Parameters), len(t.MD.Parameters))
+		return cmp.Or(
+			cmp.Compare(e.MD.Name, t.MD.Name),
+			cmp.Compare(len(e.MD.Parameters), len(t.MD.Parameters)),
+		)
 	})
 	c.methods = slices.Insert(c.methods, index, *md)
 

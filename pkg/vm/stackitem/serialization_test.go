@@ -65,7 +65,7 @@ func TestSerialize(t *testing.T) {
 		testSerialize(t, ErrRecursive, arr)
 
 		items := make([]Item, 0, MaxDeserialized-1)
-		for i := 0; i < MaxDeserialized-1; i++ {
+		for range MaxDeserialized - 1 {
 			items = append(items, zeroByteArray)
 		}
 		testSerialize(t, nil, newItem(items))
@@ -172,12 +172,12 @@ func TestSerialize(t *testing.T) {
 		testSerialize(t, ErrTooBig, m)
 
 		m = NewMap()
-		for i := 0; i < MaxDeserialized/2-1; i++ {
+		for i := range MaxDeserialized/2 - 1 {
 			m.Add(Make(i), zeroByteArray)
 		}
 		testSerialize(t, nil, m)
 
-		for i := 0; i <= MaxDeserialized; i++ {
+		for i := range MaxDeserialized + 1 {
 			m.Add(Make(i), zeroByteArray)
 		}
 		_, err := Serialize(m)
@@ -265,7 +265,7 @@ func TestMapDeserializationError(t *testing.T) {
 
 func TestDeserializeTooManyElements(t *testing.T) {
 	item := Make(0)
-	for i := 0; i < MaxDeserialized-1; i++ { // 1 for zero inner element.
+	for range MaxDeserialized - 1 { // 1 for zero inner element.
 		item = Make([]Item{item})
 	}
 	data, err := Serialize(item)
@@ -283,7 +283,7 @@ func TestDeserializeTooManyElements(t *testing.T) {
 func TestDeserializeLimited(t *testing.T) {
 	customLimit := MaxDeserialized + 1
 	item := Make(0)
-	for i := 0; i < customLimit-1; i++ { // 1 for zero inner element.
+	for range customLimit - 1 { // 1 for zero inner element.
 		item = Make([]Item{item})
 	}
 	data, err := SerializeLimited(item, customLimit) // tiny hack to avoid serialization error.
@@ -307,7 +307,7 @@ func BenchmarkEncodeBinary(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		w.Reset()
 		EncodeBinary(arr, w.BinWriter)
 		if w.Err != nil {
@@ -320,7 +320,7 @@ func BenchmarkSerializeSimple(b *testing.B) {
 	s := NewStruct(nil)
 	s.Append(Make(100500))
 	s.Append(Make("1aada0032aba1ef6d1f0")) // Mimicking uint160.
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := Serialize(s)
 		if err != nil {
 			b.FailNow()

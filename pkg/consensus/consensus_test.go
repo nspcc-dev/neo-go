@@ -195,7 +195,7 @@ func TestService_GetVerified(t *testing.T) {
 	srv := newTestService(t)
 	srv.dbft.Start(0)
 	var txs []*transaction.Transaction
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		tx := transaction.New([]byte{byte(opcode.PUSH1)}, 100000)
 		tx.Nonce = 123 + uint32(i)
 		tx.ValidUntilBlock = 1
@@ -208,7 +208,7 @@ func TestService_GetVerified(t *testing.T) {
 	hashes := []util.Uint256{txs[0].Hash(), txs[1].Hash(), txs[2].Hash()}
 
 	// Everyone sends a message.
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		p := new(Payload)
 		// One PrepareRequest and three ChangeViews.
 		if i == 1 {
@@ -578,7 +578,7 @@ func addSender(t *testing.T, txs ...*transaction.Transaction) {
 func signTx(t *testing.T, bc Ledger, txs ...*transaction.Transaction) {
 	validators := make([]*keys.PublicKey, 4)
 	privNetKeys := make([]*keys.PrivateKey, 4)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		privNetKeys[i] = testchain.PrivateKey(i)
 		validators[i] = privNetKeys[i].PublicKey()
 	}

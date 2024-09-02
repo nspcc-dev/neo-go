@@ -3,7 +3,7 @@ package consensus
 import (
 	"encoding/hex"
 	gio "io"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/nspcc-dev/dbft"
@@ -200,7 +200,7 @@ func randomPrepareRequest(t *testing.T) *prepareRequest {
 		transactionHashes: make([]util.Uint256, txCount),
 	}
 
-	for i := 0; i < txCount; i++ {
+	for i := range txCount {
 		req.transactionHashes[i] = random.Uint256()
 	}
 

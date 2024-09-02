@@ -2,7 +2,7 @@ package network
 
 import (
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -300,7 +300,7 @@ func (d *DefaultDiscovery) updateNetSize() {
 }
 
 func (d *DefaultDiscovery) tryAddress(addr string) {
-	var tout = rand.Int63n(int64(tryMaxWait))
+	var tout = rand.Int64N(int64(tryMaxWait))
 	time.Sleep(time.Duration(tout)) // Have a sleep before working hard.
 	p, err := d.transport.Dial(addr, d.dialTimeout)
 	atomic.AddInt32(&d.outstanding, -1)

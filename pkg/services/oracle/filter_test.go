@@ -54,7 +54,7 @@ func TestFilter(t *testing.T) {
 func TestFilterOOM(t *testing.T) {
 	construct := func(depth, width int) string {
 		data := `$`
-		for i := 0; i < depth; i++ {
+		for range depth {
 			data = data + `[0`
 			for j := 1; j < width; j++ {
 				data = data + `,0`

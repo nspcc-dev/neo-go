@@ -101,7 +101,7 @@ func BenchmarkUint256DecodeStringLE(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := util.Uint256DecodeStringLE(a)
 		if err != nil {
 			b.FailNow()

@@ -383,7 +383,7 @@ func (c *codegen) isVerifyFunc(decl *ast.FuncDecl) bool {
 }
 
 func (c *codegen) clearSlots(n int) {
-	for i := 0; i < n; i++ {
+	for i := range n {
 		emit.Opcodes(c.prog.BinWriter, opcode.PUSHNULL)
 		c.emitStoreByIndex(varLocal, i)
 	}
@@ -680,7 +680,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 			ast.Walk(c, n.Rhs[0])
 			c.emitToken(n.Tok, c.typeOf(n.Rhs[0]))
 		}
-		for i := 0; i < len(n.Lhs); i++ {
+		for i := range n.Lhs {
 			switch t := n.Lhs[i].(type) {
 			case *ast.Ident:
 				if n.Tok == token.DEFINE {
@@ -1099,7 +1099,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 				f := c.typeOf(n.Fun).Underlying().(*types.Signature)
 				sz = f.Results().Len()
 			}
-			for i := 0; i < sz; i++ {
+			for range sz {
 				emit.Opcodes(c.prog.BinWriter, opcode.DROP)
 			}
 		}
@@ -1662,7 +1662,7 @@ func (c *codegen) dropStackLabel() {
 
 func (c *codegen) dropItems(n int) {
 	if n < 4 {
-		for i := 0; i < n; i++ {
+		for range n {
 			emit.Opcodes(c.prog.BinWriter, opcode.DROP)
 		}
 		return
@@ -1930,7 +1930,7 @@ func (c *codegen) convertBuiltin(expr *ast.CallExpr) {
 					opcode.INC)      // x y cnt+1
 				emit.Jmp(c.prog.BinWriter, opcode.JMPL, start)
 				c.setLabel(after)
-				for i := 0; i < 4; i++ { // leave x on stack
+				for range 4 { // leave x on stack
 					emit.Opcodes(c.prog.BinWriter, opcode.DROP)
 				}
 			} else {
@@ -2012,7 +2012,7 @@ func (c *codegen) emitConvert(typ stackitem.Type) {
 func (c *codegen) convertByteArray(elems []ast.Expr) {
 	buf := make([]byte, len(elems))
 	varIndices := []int{}
-	for i := 0; i < len(elems); i++ {
+	for i := range elems {
 		t := c.typeAndValueOf(elems[i])
 		if t.Value != nil {
 			val, _ := constant.Int64Val(t.Value)
@@ -2508,7 +2508,7 @@ func removeNOPs(b []byte, nopOffsets []int, sequencePoints map[string][]DebugSeq
 	// 2. Convert instructions.
 	copyOffset := 0
 	l := len(nopOffsets)
-	for i := 0; i < l; i++ {
+	for i := range l {
 		start := nopOffsets[i]
 		end := len(b)
 		if i != l-1 {

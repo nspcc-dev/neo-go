@@ -377,7 +377,7 @@ func (e *Executor) CheckTxTestInvokeOutput(t *testing.T, scriptSize int) {
 
 func (e *Executor) CheckScriptDump(t *testing.T, scriptSize int) {
 	e.CheckNextLine(t, `INDEX\s+`)
-	for i := 0; i < scriptSize; i++ {
+	for range scriptSize {
 		e.CheckNextLine(t, `\d+\s+\w+`)
 	}
 }

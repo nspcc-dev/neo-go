@@ -151,7 +151,7 @@ func runSyscallTestCase(t *testing.T, ic *interop.Context, realName string,
 		if ic.VM.Estack().Len() < f.ParamCount {
 			return errors.New("not enough parameters")
 		}
-		for i := 0; i < f.ParamCount; i++ {
+		for range f.ParamCount {
 			ic.VM.Estack().Pop()
 		}
 		if !tc.isVoid {
@@ -385,7 +385,7 @@ func TestInteropTypesComparison(t *testing.T) {
 	typeCheck := func(t *testing.T, typeName string, typeLen int) {
 		t.Run(typeName, func(t *testing.T) {
 			var ha, hb string
-			for i := 0; i < typeLen; i++ {
+			for i := range typeLen {
 				if i == typeLen-1 {
 					ha += "2"
 					hb += "3"

@@ -1203,7 +1203,7 @@ func (bc *Blockchain) resetTransfers(cache *dao.Simple, height uint32) error {
 				oldBatchSize = v[0]
 				newBatchSize byte
 			)
-			for i := byte(0); i < v[0]; i++ { // From oldest to newest transfer of the batch.
+			for range v[0] { // From oldest to newest transfer of the batch.
 				var t *state.NEP17Transfer
 				if k[0] == byte(storage.STNEP11Transfers) {
 					tr := new(state.NEP11Transfer)

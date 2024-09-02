@@ -90,7 +90,7 @@ func main() {
 	txNum := int(*txPerBlock)
 	for i := bc.BlockHeight(); i < blocksNum; i++ {
 		txs := make([]*transaction.Transaction, txNum)
-		for j := 0; j < txNum; j++ {
+		for j := range txNum {
 			nonce++
 			_, err = rand.Read(key)
 			handleError("can't get random data for key", err)

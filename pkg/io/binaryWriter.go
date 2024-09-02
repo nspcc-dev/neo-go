@@ -78,7 +78,7 @@ func (w *BinWriter) WriteArray(arr any) {
 		typ := val.Type().Elem()
 
 		w.WriteVarUint(uint64(val.Len()))
-		for i := 0; i < val.Len(); i++ {
+		for i := range val.Len() {
 			el, ok := val.Index(i).Interface().(encodable)
 			if !ok {
 				el, ok = val.Index(i).Addr().Interface().(encodable)

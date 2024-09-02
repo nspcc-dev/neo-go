@@ -75,7 +75,7 @@ func GetVarSize(value any) int {
 		if valueLength != 0 {
 			switch reflect.ValueOf(value).Index(0).Interface().(type) {
 			case Serializable:
-				for i := 0; i < valueLength; i++ {
+				for i := range valueLength {
 					valueSize += GetVarSize(v.Index(i).Interface())
 				}
 			case uint8, int8:

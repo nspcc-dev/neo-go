@@ -231,7 +231,7 @@ func TestManagement_NativeUpdate(t *testing.T) {
 	})
 
 	// Add some blocks up to the Cockatrice enabling height and check the default natives state.
-	for i := 0; i < cockatriceHeight-1; i++ {
+	for range cockatriceHeight - 1 {
 		c.AddNewBlock(t)
 		for _, name := range nativenames.All {
 			h := state.CreateNativeContractHash(name)
@@ -275,7 +275,7 @@ func TestManagement_NativeUpdate_Call(t *testing.T) {
 	})
 
 	// Invoke Cockatrice-dependant method before Cockatrice should fail.
-	for i := 0; i < cockatriceHeight-1; i++ {
+	for range cockatriceHeight - 1 {
 		c.InvokeFail(t, "at instruction 45 (SYSCALL): System.Contract.Call failed: method not found: getCommitteeAddress/0", method)
 	}
 

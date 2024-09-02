@@ -82,7 +82,7 @@ func TestPool_AddRemoveUpdate(t *testing.T) {
 func TestPool_GetBatch(t *testing.T) {
 	check := func(t *testing.T, limit int, itemsCount int) {
 		mp := NewPool()
-		for i := 0; i < itemsCount; i++ {
+		for range itemsCount {
 			mp.Add(random.Uint256(), []byte{0x01})
 		}
 		batch := mp.GetBatch(limit)

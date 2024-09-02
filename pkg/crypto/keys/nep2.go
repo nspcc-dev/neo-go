@@ -149,7 +149,7 @@ func xor(a, b []byte) []byte {
 		panic("cannot XOR non equal length arrays")
 	}
 	dst := make([]byte, len(a))
-	for i := 0; i < len(dst); i++ {
+	for i := range dst {
 		dst[i] = a[i] ^ b[i]
 	}
 	return dst

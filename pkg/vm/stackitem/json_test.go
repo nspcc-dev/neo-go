@@ -208,7 +208,7 @@ func TestToJSONCornerCases(t *testing.T) {
 // getBigArray returns array takes up a lot of storage when serialized.
 func getBigArray(depth int) *Array {
 	arr := NewArray([]Item{})
-	for i := 0; i < depth; i++ {
+	for range depth {
 		arr = NewArray([]Item{arr, arr})
 	}
 	return arr
@@ -219,7 +219,7 @@ func BenchmarkToJSON(b *testing.B) {
 
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := ToJSON(arr)
 		if err != nil {
 			b.FailNow()

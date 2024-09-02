@@ -131,12 +131,12 @@ func TestNEO_CommitteeEvents(t *testing.T) {
 
 	voters := make([]neotest.Signer, committeeSize)
 	candidates := make([]neotest.Signer, committeeSize)
-	for i := 0; i < committeeSize; i++ {
+	for i := range committeeSize {
 		voters[i] = e.NewAccount(t, 10_0000_0000)
 		candidates[i] = e.NewAccount(t, 2000_0000_0000) // enough for one registration
 	}
 	txes := make([]*transaction.Transaction, 0, committeeSize*3)
-	for i := 0; i < committeeSize; i++ {
+	for i := range committeeSize {
 		transferTx := neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(committeeSize-i)*1000000, nil)
 		txes = append(txes, transferTx)
 
@@ -196,7 +196,7 @@ func TestNEO_Vote(t *testing.T) {
 	validatorsCount := cfg.GetNumOfCNs(0)
 	freq := validatorsCount + committeeSize
 	advanceChain := func(t *testing.T) {
-		for i := 0; i < freq; i++ {
+		for range freq {
 			neoCommitteeInvoker.AddNewBlock(t)
 		}
 	}
@@ -217,13 +217,13 @@ func TestNEO_Vote(t *testing.T) {
 	// how much GAS voters receive for NEO ownership.
 	referenceAccounts := make([]neotest.Signer, committeeSize+1)
 	candidates := make([]neotest.Signer, committeeSize+1)
-	for i := 0; i < committeeSize+1; i++ {
+	for i := range committeeSize + 1 {
 		voters[i] = e.NewAccount(t, 10_0000_0000)
 		referenceAccounts[i] = e.NewAccount(t, 10_0000_0000)
 		candidates[i] = e.NewAccount(t, 2000_0000_0000) // enough for one registration
 	}
 	txes := make([]*transaction.Transaction, 0, committeeSize*4-2)
-	for i := 0; i < committeeSize+1; i++ {
+	for i := range committeeSize + 1 {
 		transferTx := neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(committeeSize+1-i)*1000000, nil)
 		txes = append(txes, transferTx)
 		transferTx = neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), referenceAccounts[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(committeeSize+1-i)*1000000, nil)
@@ -419,7 +419,7 @@ func TestNEO_GetAccountState(t *testing.T) {
 	committeeSize := cfg.GetCommitteeSize(0)
 	validatorSize := cfg.GetNumOfCNs(0)
 	advanceChain := func(t *testing.T) {
-		for i := 0; i < committeeSize; i++ {
+		for range committeeSize {
 			neoValidatorInvoker.AddNewBlock(t)
 		}
 	}
@@ -485,7 +485,7 @@ func TestNEO_GetAccountStateInteropAPI(t *testing.T) {
 	committeeSize := cfg.GetCommitteeSize(0)
 	validatorSize := cfg.GetNumOfCNs(0)
 	advanceChain := func(t *testing.T) {
-		for i := 0; i < committeeSize; i++ {
+		for range committeeSize {
 			neoValidatorInvoker.AddNewBlock(t)
 		}
 	}
@@ -500,7 +500,7 @@ func TestNEO_GetAccountStateInteropAPI(t *testing.T) {
 	neoValidatorInvoker.WithSigners(acc).Invoke(t, true, "transfer", acc.ScriptHash(), acc.ScriptHash(), amount, nil)
 
 	var hashAStr string
-	for i := 0; i < util.Uint160Size; i++ {
+	for i := range util.Uint160Size {
 		hashAStr += fmt.Sprintf("%#x", acc.ScriptHash()[i])
 		if i != util.Uint160Size-1 {
 			hashAStr += ", "
@@ -544,11 +544,11 @@ func TestNEO_CommitteeBountyOnPersist(t *testing.T) {
 	const singleBounty = 50000000
 	bs := map[int]int64{0: singleBounty}
 	checkBalances := func() {
-		for i := 0; i < committeeSize; i++ {
+		for i := range committeeSize {
 			require.EqualValues(t, bs[i], e.Chain.GetUtilityTokenBalance(hs[i].GetScriptHash()).Int64(), i)
 		}
 	}
-	for i := 0; i < committeeSize*2; i++ {
+	for i := range committeeSize * 2 {
 		e.AddNewBlock(t)
 		bs[(i+1)%committeeSize] += singleBounty
 		checkBalances()
@@ -731,7 +731,7 @@ func TestNEO_CalculateBonus(t *testing.T) {
 
 	t.Run("Zero", func(t *testing.T) {
 		initialGASBalance := e.Chain.GetUtilityTokenBalance(accH)
-		for i := 0; i < rewardDistance; i++ {
+		for range rewardDistance {
 			e.AddNewBlock(t)
 		}
 		// Claim GAS, but there's no NEO on the account, so no GAS should be earned.
@@ -750,13 +750,13 @@ func TestNEO_CalculateBonus(t *testing.T) {
 
 		// Five blocks of NEO owning with default GasPerBlockValue.
 		neoValidatorsInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), accH, amount, nil)
-		for i := 0; i < rewardDistance/2-2; i++ {
+		for range rewardDistance/2 - 2 {
 			e.AddNewBlock(t)
 		}
 		neoCommitteeInvoker.Invoke(t, stackitem.Null{}, "setGasPerBlock", newGASPerBlock*native.GASFactor)
 
 		// Five blocks more with modified GasPerBlock value.
-		for i := 0; i < rewardDistance/2; i++ {
+		for range rewardDistance / 2 {
 			e.AddNewBlock(t)
 		}
 
@@ -783,12 +783,12 @@ func TestNEO_GetCandidates(t *testing.T) {
 	// Register a set of candidates and vote for them.
 	voters := make([]neotest.Signer, candidatesCount)
 	candidates := make([]neotest.Signer, candidatesCount)
-	for i := 0; i < candidatesCount; i++ {
+	for i := range candidatesCount {
 		voters[i] = e.NewAccount(t, 10_0000_0000)
 		candidates[i] = e.NewAccount(t, 2000_0000_0000) // enough for one registration
 	}
 	txes := make([]*transaction.Transaction, 0, candidatesCount*3)
-	for i := 0; i < candidatesCount; i++ {
+	for i := range candidatesCount {
 		transferTx := neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(candidatesCount+1-i)*1000000, nil)
 		txes = append(txes, transferTx)
 		registerTx := neoValidatorsInvoker.WithSigners(candidates[i]).PrepareInvoke(t, "registerCandidate", candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
@@ -818,7 +818,7 @@ func TestNEO_GetCandidates(t *testing.T) {
 
 	// Check that GetAllCandidates works the same way as GetCandidates.
 	checkGetAllCandidates := func(t *testing.T, expected []stackitem.Item) {
-		for i := 0; i < len(expected)+1; i++ {
+		for i := range len(expected) + 1 {
 			w := io.NewBufBinWriter()
 			emit.AppCall(w.BinWriter, neoCommitteeInvoker.Hash, "getAllCandidates", callflag.All)
 			for j := 0; j < i+1; j++ {

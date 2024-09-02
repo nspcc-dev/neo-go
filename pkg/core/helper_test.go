@@ -117,7 +117,7 @@ func (bc *Blockchain) genBlocks(n int) ([]*block.Block, error) {
 	blocks := make([]*block.Block, n)
 	lastHash := bc.topBlock.Load().(*block.Block).Hash()
 	lastIndex := bc.topBlock.Load().(*block.Block).Index
-	for i := 0; i < n; i++ {
+	for i := range n {
 		blocks[i] = newBlock(bc.config.ProtocolConfiguration, uint32(i)+lastIndex+1, lastHash)
 		if err := bc.AddBlock(blocks[i]); err != nil {
 			return blocks, err

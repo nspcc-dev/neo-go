@@ -13,7 +13,7 @@ func FuzzFromBytes(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc.buf)
 	}
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		for j := 1; j < MaxBytesLen; j++ {
 			b := make([]byte, j)
 			_, err := rand.Read(b)

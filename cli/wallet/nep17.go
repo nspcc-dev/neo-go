@@ -362,7 +362,7 @@ func getMatchingTokenRPC(ctx *cli.Context, c *rpcclient.Client, addr util.Uint16
 func getMatchingTokenAux(ctx *cli.Context, get func(i int) *wallet.Token, n int, name string, standard string) (*wallet.Token, error) {
 	var token *wallet.Token
 	var count int
-	for i := 0; i < n; i++ {
+	for i := range n {
 		t := get(i)
 		if t != nil && (t.Hash.StringLE() == name || t.Address() == name || t.Symbol == name || t.Name == name) && t.Standard == standard {
 			if count == 1 {
@@ -540,7 +540,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 		recipients      []transferTarget
 		cosignersSepPos = ctx.NArg() // `--` position.
 	)
-	for i := 0; i < ctx.NArg(); i++ {
+	for i := range ctx.NArg() {
 		arg := ctx.Args().Get(i)
 		if arg == cmdargs.CosignersSeparator {
 			cosignersSepPos = i
@@ -561,7 +561,7 @@ func multiTransferNEP17(ctx *cli.Context) error {
 	}
 
 	cache := make(map[string]*wallet.Token)
-	for i := 0; i < cosignersSepPos; i++ {
+	for i := range cosignersSepPos {
 		arg := ctx.Args().Get(i)
 		ss := strings.SplitN(arg, ":", 3)
 		if len(ss) != 3 {

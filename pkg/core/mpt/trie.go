@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -616,7 +617,7 @@ func (t *Trie) Find(prefix, from []byte, maxNum int) ([]storage.KeyValue, error)
 		if leaf, ok := node.(*LeafNode); ok {
 			if from == nil || !bytes.Equal(pathToNode, from) { // (*Billet).traverse includes `from` path into result if so. Need to filter out manually.
 				res = append(res, storage.KeyValue{
-					Key:   append(bytes.Clone(prefix), pathToNode...),
+					Key:   slices.Concat(prefix, pathToNode),
 					Value: bytes.Clone(leaf.value),
 				})
 				count++

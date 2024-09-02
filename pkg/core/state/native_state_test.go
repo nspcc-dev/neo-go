@@ -85,13 +85,13 @@ func BenchmarkNEP17BalanceBytes(b *testing.B) {
 
 	b.Run("stackitem", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, _ = stackitem.SerializeConvertible(&bl)
 		}
 	})
 	b.Run("bytes", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = bl.Bytes(nil)
 		}
 	})
@@ -100,7 +100,7 @@ func BenchmarkNEP17BalanceBytes(b *testing.B) {
 
 		b.ResetTimer()
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = bl.Bytes(bs[:0])
 		}
 	})
@@ -114,13 +114,13 @@ func BenchmarkNEP17BalanceFromBytes(b *testing.B) {
 
 	b.Run("stackitem", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = stackitem.DeserializeConvertible(buf, new(NEP17Balance))
 		}
 	})
 	b.Run("from bytes", func(b *testing.B) {
 		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, _ = NEP17BalanceFromBytes(buf)
 		}
 	})

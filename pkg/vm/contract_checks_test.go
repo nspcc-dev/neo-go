@@ -65,7 +65,7 @@ func TestIsSignatureContract(t *testing.T) {
 
 func testMultisigContract(t *testing.T, n, m int) []byte {
 	pubs := make(keys.PublicKeys, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		priv, err := keys.NewPrivateKey()
 		require.NoError(t, err)
 		pubs[i] = priv.PublicKey()

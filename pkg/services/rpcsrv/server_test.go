@@ -2974,7 +2974,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		for _, tx := range mp.GetVerifiedTransactions() {
 			expected = append(expected, tx.Hash())
 		}
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 			tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
 			assert.NoError(t, mp.Add(tx, &FeerStub{}))
@@ -4138,7 +4138,7 @@ func BenchmarkHandleIn(b *testing.B) {
 	do := func(b *testing.B, req []byte) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			b.StopTimer()
 			in := new(params.In)
 			b.StartTimer()

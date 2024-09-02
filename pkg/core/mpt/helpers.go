@@ -1,6 +1,10 @@
 package mpt
 
-import "github.com/nspcc-dev/neo-go/pkg/util"
+import (
+	"slices"
+
+	"github.com/nspcc-dev/neo-go/pkg/util"
+)
 
 // lcp returns the longest common prefix of a and b.
 // Note: it does no allocations.
@@ -47,7 +51,7 @@ func toNibbles(path []byte) []byte {
 // ignoring the first byte (prefix).
 func strToNibbles(path string) []byte {
 	result := make([]byte, (len(path)-1)*2)
-	for i := 0; i < len(path)-1; i++ {
+	for i := range len(path) - 1 {
 		result[i*2] = path[i+1] >> 4
 		result[i*2+1] = path[i+1] & 0x0F
 	}
@@ -85,9 +89,7 @@ func GetChildrenPaths(path []byte, node Node) map[util.Uint256][][]byte {
 		}
 	case *ExtensionNode:
 		if n.next.Type() == HashT {
-			cPath := make([]byte, len(path)+len(n.key))
-			copy(cPath, path)
-			copy(cPath[len(path):], n.key)
+			cPath := slices.Concat(path, n.key)
 			res[n.next.Hash()] = [][]byte{cPath}
 		}
 	default:

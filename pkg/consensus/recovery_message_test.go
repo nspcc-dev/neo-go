@@ -23,7 +23,7 @@ func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 	srv := newTestServiceWithState(t, enableStateRoot)
 	privs := make([]*privateKey, testchain.Size())
 	pubs := make([]dbft.PublicKey, testchain.Size())
-	for i := 0; i < testchain.Size(); i++ {
+	for i := range testchain.Size() {
 		privs[i], pubs[i] = getTestValidator(i)
 	}
 
