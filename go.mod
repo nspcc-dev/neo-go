@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/chzyer/readline v1.5.1
 	github.com/consensys/gnark v0.10.0
-	github.com/consensys/gnark-crypto v0.12.2-0.20240215234832-d72fcb379d3e
+	github.com/consensys/gnark-crypto v0.13.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0
 	github.com/google/uuid v1.6.0

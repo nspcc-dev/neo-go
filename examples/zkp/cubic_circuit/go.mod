@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/consensys/gnark v0.10.0
-	github.com/consensys/gnark-crypto v0.12.2-0.20240215234832-d72fcb379d3e
+	github.com/consensys/gnark-crypto v0.13.0
 	github.com/nspcc-dev/neo-go v0.103.1
 	github.com/stretchr/testify v1.8.4
 )
