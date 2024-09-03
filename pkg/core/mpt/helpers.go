@@ -14,6 +14,9 @@ func lcp(a, b []byte) []byte {
 	}
 
 	var i int
+	//nolint:intrange // if slices are the same (or one is a prefix for another
+	// one), `range` loop does not assign the latest index to the `i` var, and
+	// the func loses the latest element
 	for i = 0; i < len(b); i++ {
 		if a[i] != b[i] {
 			break

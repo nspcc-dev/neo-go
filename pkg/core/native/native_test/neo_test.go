@@ -821,7 +821,7 @@ func TestNEO_GetCandidates(t *testing.T) {
 		for i := range len(expected) + 1 {
 			w := io.NewBufBinWriter()
 			emit.AppCall(w.BinWriter, neoCommitteeInvoker.Hash, "getAllCandidates", callflag.All)
-			for j := 0; j < i+1; j++ {
+			for range i + 1 {
 				emit.Opcodes(w.BinWriter, opcode.DUP)
 				emit.Syscall(w.BinWriter, interopnames.SystemIteratorNext)
 				emit.Opcodes(w.BinWriter, opcode.DROP) // drop the value returned from Next.
