@@ -13,17 +13,13 @@ func lcp(a, b []byte) []byte {
 		return lcp(b, a)
 	}
 
-	var i int
-	//nolint:intrange // if slices are the same (or one is a prefix for another
-	// one), `range` loop does not assign the latest index to the `i` var, and
-	// the func loses the latest element
-	for i = 0; i < len(b); i++ {
+	for i := range b {
 		if a[i] != b[i] {
-			break
+			return b[:i]
 		}
 	}
 
-	return a[:i]
+	return b
 }
 
 func lcpMany(kv []keyValue) []byte {
