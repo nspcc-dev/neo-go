@@ -6,7 +6,6 @@ require (
 	github.com/chzyer/readline v1.5.1
 	github.com/consensys/gnark v0.10.0
 	github.com/consensys/gnark-crypto v0.13.0
-	github.com/davecgh/go-spew v1.1.1
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
@@ -20,7 +19,6 @@ require (
 	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.12
 	github.com/nspcc-dev/rfc6979 v0.2.3
 	github.com/pierrec/lz4 v2.6.1+incompatible
-	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.20.2
 	github.com/stretchr/testify v1.9.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210305035536-64b5b1c73954
@@ -43,6 +41,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/frankban/quicktest v1.14.5 // indirect
 	github.com/fxamacker/cbor/v2 v2.5.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
@@ -58,6 +57,7 @@ require (
 	github.com/nspcc-dev/hrw/v2 v2.0.1 // indirect
 	github.com/nspcc-dev/neofs-api-go/v2 v2.14.1-0.20240305074711-35bc78d84dc4 // indirect
 	github.com/nspcc-dev/tzhash v1.7.2 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.55.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
