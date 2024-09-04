@@ -26,6 +26,9 @@ for dir in examples/*/; do
 
 	if [ -z "${dir#*nft-nd-nns/}" ]; then
 		NEO_GO_COMMIT="$(sed -E -n -e 's/.*neo-go\s.+-.+-(\w+)/\1/ p' "$dir/go.mod")"
+		if [ -z "$NEO_GO_COMMIT" ]; then
+			NEO_GO_COMMIT="$(sed -E -n -e 's/.*neo-go\s(\w+)/\1/ p' "$dir/go.mod")"
+		fi
 		git merge-base --is-ancestor "$NEO_GO_COMMIT" HEAD ||
 			die "$dir: neo-go commit $NEO_GO_COMMIT was not found in git"
 	fi
