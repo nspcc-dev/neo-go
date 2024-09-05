@@ -28,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/services/blockfetcher"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/zap"
 )
@@ -103,10 +104,12 @@ type (
 		chain             Ledger
 		bQueue            *bqueue.Queue
 		bSyncQueue        *bqueue.Queue
+		bFetcherQueue     *bqueue.Queue
 		mempool           *mempool.Pool
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
 		notaryFeer        NotaryFeer
+		blockFetcher      *blockfetcher.Service
 
 		serviceLock    sync.RWMutex
 		services       map[string]Service
@@ -133,6 +136,7 @@ type (
 		runFin              chan struct{}
 		broadcastTxFin      chan struct{}
 		runProtoFin         chan struct{}
+		blockFetcherFin     chan struct{}
 
 		transactions chan *transaction.Transaction
 
@@ -182,28 +186,29 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	}
 
 	s := &Server{
-		ServerConfig:   config,
-		chain:          chain,
-		id:             randomID(),
-		config:         chain.GetConfig().ProtocolConfiguration,
-		quit:           make(chan struct{}),
-		relayFin:       make(chan struct{}),
-		runFin:         make(chan struct{}),
-		broadcastTxFin: make(chan struct{}),
-		runProtoFin:    make(chan struct{}),
-		register:       make(chan Peer),
-		unregister:     make(chan peerDrop),
-		handshake:      make(chan Peer),
-		txInMap:        make(map[util.Uint256]struct{}),
-		peers:          make(map[Peer]bool),
-		mempool:        chain.GetMemPool(),
-		extensiblePool: extpool.New(chain, config.ExtensiblePoolSize),
-		log:            log,
-		txin:           make(chan *transaction.Transaction, 64),
-		transactions:   make(chan *transaction.Transaction, 64),
-		services:       make(map[string]Service),
-		extensHandlers: make(map[string]func(*payload.Extensible) error),
-		stateSync:      stSync,
+		ServerConfig:    config,
+		chain:           chain,
+		id:              randomID(),
+		config:          chain.GetConfig().ProtocolConfiguration,
+		quit:            make(chan struct{}),
+		relayFin:        make(chan struct{}),
+		runFin:          make(chan struct{}),
+		broadcastTxFin:  make(chan struct{}),
+		runProtoFin:     make(chan struct{}),
+		blockFetcherFin: make(chan struct{}),
+		register:        make(chan Peer),
+		unregister:      make(chan peerDrop),
+		handshake:       make(chan Peer),
+		txInMap:         make(map[util.Uint256]struct{}),
+		peers:           make(map[Peer]bool),
+		mempool:         chain.GetMemPool(),
+		extensiblePool:  extpool.New(chain, config.ExtensiblePoolSize),
+		log:             log,
+		txin:            make(chan *transaction.Transaction, 64),
+		transactions:    make(chan *transaction.Transaction, 64),
+		services:        make(map[string]Service),
+		extensHandlers:  make(map[string]func(*payload.Extensible) error),
+		stateSync:       stSync,
 	}
 	if chain.P2PSigExtensionsEnabled() {
 		s.notaryFeer = NewNotaryFeer(chain)
@@ -219,6 +224,14 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	}, bqueue.DefaultCacheSize, updateBlockQueueLenMetric, bqueue.NonBlocking)
 
 	s.bSyncQueue = bqueue.New(s.stateSync, log, nil, bqueue.DefaultCacheSize, updateBlockQueueLenMetric, bqueue.NonBlocking)
+	s.bFetcherQueue = bqueue.New(chain, log, nil, s.NeoFSBlockFetcherCfg.BQueueSize, updateBlockQueueLenMetric, bqueue.Blocking)
+	var err error
+	s.blockFetcher, err = blockfetcher.New(chain, s.NeoFSBlockFetcherCfg, log, s.bFetcherQueue.PutBlock, func() {
+		close(s.blockFetcherFin)
+	})
+	if err != nil && config.NeoFSBlockFetcherCfg.Enabled {
+		return nil, fmt.Errorf("failed to create NeoFS BlockFetcher: %w", err)
+	}
 
 	if s.MinPeers < 0 {
 		s.log.Info("bad MinPeers configured, using the default value",
@@ -295,6 +308,13 @@ func (s *Server) Start() {
 	go s.relayBlocksLoop()
 	go s.bQueue.Run()
 	go s.bSyncQueue.Run()
+	go s.bFetcherQueue.Run()
+	if s.ServerConfig.NeoFSBlockFetcherCfg.Enabled {
+		err := s.blockFetcher.Start()
+		if err != nil {
+			s.log.Error("skipping NeoFS BlockFetcher", zap.Error(err))
+		}
+	}
 	for _, tr := range s.transports {
 		go tr.Accept()
 	}
@@ -311,6 +331,9 @@ func (s *Server) Shutdown() {
 		return
 	}
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
+	if s.ServerConfig.NeoFSBlockFetcherCfg.Enabled {
+		s.blockFetcher.Shutdown()
+	}
 	for _, tr := range s.transports {
 		tr.Close()
 	}
@@ -319,6 +342,7 @@ func (s *Server) Shutdown() {
 	}
 	s.bQueue.Discard()
 	s.bSyncQueue.Discard()
+	s.bFetcherQueue.Discard()
 	s.serviceLock.RLock()
 	for _, svc := range s.services {
 		svc.Shutdown()
@@ -548,6 +572,11 @@ func (s *Server) run() {
 
 			s.tryInitStateSync()
 			s.tryStartServices()
+		case <-s.blockFetcherFin:
+			if s.started.Load() {
+				s.tryInitStateSync()
+				s.tryStartServices()
+			}
 		}
 	}
 }
@@ -702,7 +731,7 @@ func (s *Server) IsInSync() bool {
 	var peersNumber int
 	var notHigher int
 
-	if s.stateSync.IsActive() {
+	if s.stateSync.IsActive() || s.blockFetcher.IsActive() {
 		return false
 	}
 
@@ -762,6 +791,9 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 
 // handleBlockCmd processes the block received from its peer.
 func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
+	if s.blockFetcher.IsActive() {
+		return nil
+	}
 	if s.stateSync.IsActive() {
 		return s.bSyncQueue.PutBlock(block)
 	}
@@ -782,6 +814,9 @@ func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
 }
 
 func (s *Server) requestBlocksOrHeaders(p Peer) error {
+	if s.blockFetcher.IsActive() {
+		return nil
+	}
 	if s.stateSync.NeedHeaders() {
 		if s.chain.HeaderHeight() < p.LastBlockIndex() {
 			return s.requestHeaders(p)
@@ -1100,6 +1135,9 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlockByIndex) error 
 
 // handleHeadersCmd processes headers payload.
 func (s *Server) handleHeadersCmd(p Peer, h *payload.Headers) error {
+	if s.blockFetcher.IsActive() {
+		return nil
+	}
 	return s.stateSync.AddHeaders(h.Hdrs...)
 }
 
@@ -1428,6 +1466,9 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 }
 
 func (s *Server) tryInitStateSync() {
+	if s.blockFetcher.IsActive() {
+		return
+	}
 	if !s.stateSync.IsActive() {
 		s.bSyncQueue.Discard()
 		return

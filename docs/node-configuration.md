@@ -21,6 +21,7 @@ node-related settings described in the table below.
 | GarbageCollectionPeriod | `uint32` | 10000 | Controls MPT garbage collection interval (in blocks) for configurations with `RemoveUntraceableBlocks` enabled and `KeepOnlyLatestState` disabled. In this mode the node stores a number of MPT trees (corresponding to `MaxTraceableBlocks` and `StateSyncInterval`), but the DB needs to be clean from old entries from time to time. Doing it too often will cause too much processing overhead, doing it too rarely will leave more useless data in the DB. |
 | KeepOnlyLatestState | `bool` | `false` | Specifies if MPT should only store the latest state (or a set of latest states, see `P2PStateExchangeExtensions` section in the ProtocolConfiguration for details). If true, DB size will be smaller, but older roots won't be accessible. This value should remain the same for the same database. |  |
 | LogPath | `string` | "", so only console logging | File path where to store node logs. |
+| NeoFSBlockFetcher | [NeoFS BlockFetcher Configuration](#NeoFS-BlockFetcher-Configuration) | | NeoFS BlockFetcher module configuration. See the [NeoFS BlockFetcher Configuration](#NeoFS-BlockFetcher-Configuration) section for details. |
 | Oracle | [Oracle Configuration](#Oracle-Configuration) | | Oracle module configuration. See the [Oracle Configuration](#Oracle-Configuration) section for details. |
 | P2P | [P2P Configuration](#P2P-Configuration) | | Configuration values for P2P network interaction. See the [P2P Configuration](#P2P-Configuration) section for details. |
 | P2PNotary | [P2P Notary Configuration](#P2P-Notary-Configuration) | | P2P Notary module configuration. See the [P2P Notary Configuration](#P2P-Notary-Configuration) section for details. |
@@ -152,6 +153,55 @@ where:
 
 Please, refer to the [Notary module documentation](./notary.md#Notary node module) for
 details on module features.
+
+### NeoFS BlockFetcher Configuration
+
+`NeoFSBlockFetcher` configuration section contains settings for NeoFS
+BlockFetcher module and has the following structure:
+```
+  NeoFSBlockFetcher:
+    Enabled: true
+    UnlockWallet:
+      Path: "./wallet.json"
+      Password: "pass"
+    Addresses:
+      - st1.storage.fs.neo.org:8080
+    Timeout: 10m
+    DownloaderWorkersCount: 500
+    OIDBatchSize: 8000
+    BQueueSize: 16000
+    SkipIndexFilesSearch: false
+    ContainerID: "EPGuD26wYgQJbmDdVBoYoNZiMKHwFMJT3A5WqPjdUHxH"
+    BlockAttribute: "block"
+    IndexFileAttribute: "oid"
+    IndexFileSize: 128000
+```
+where:
+- `Enabled` enables NeoFS BlockFetcher module.
+- `UnlockWallet` contains wallet settings to retrieve account to sign requests to
+  NeoFS. Without this setting, the module will use randomly generated private key.
+  For configuration details see [Unlock Wallet Configuration](#Unlock-Wallet-Configuration)
+- `Addresses` is a list of NeoFS storage nodes addresses.
+- `Timeout` is a timeout for a single request to NeoFS storage node.
+- `ContainerID` is a container ID to fetch blocks from.
+- `BlockAttribute` is an attribute name of NeoFS object that contains block
+  data.
+- `IndexFileAttribute` is an attribute name of NeoFS index object that contains block
+  object IDs.
+- `DownloaderWorkersCount` is a number of workers that download blocks from
+  NeoFS in parallel.
+- `OIDBatchSize` is the number of blocks to search per a single request to NeoFS
+  in case of disabled index files search. Also, for both modes of BlockFetcher
+  operation this setting manages the buffer size of OIDs and blocks transferring
+  channels.
+- `BQueueSize` is a size of the block queue used to manage consecutive blocks
+  addition to the chain. It must be larger than `OIDBatchSize` and highly recommended
+  to be `2*OIDBatchSize` or `3*OIDBatchSize`.
+- `SkipIndexFilesSearch` is a flag that allows to skip index files search and search
+  for blocks directly. It is set to `false` by default.
+- `IndexFileSize` is the number of OID objects stored in the index files. This
+  setting depends on the NeoFS block storage configuration and is applicable only if
+  `SkipIndexFilesSearch` is set to `false`.
 
 ### Metrics Services Configuration
 
