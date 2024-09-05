@@ -13,7 +13,7 @@ import (
 func TestBlockQueue(t *testing.T) {
 	chain := fakechain.NewFakeChain()
 	// notice, it's not yet running
-	bq := New(chain, zaptest.NewLogger(t), nil, 0, nil)
+	bq := New(chain, zaptest.NewLogger(t), nil, 0, nil, NonBlocking)
 	blocks := make([]*block.Block, 11)
 	for i := 1; i < 11; i++ {
 		blocks[i] = &block.Block{Header: block.Header{Index: uint32(i)}}
