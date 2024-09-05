@@ -116,7 +116,7 @@ func TestRemoveOldTransfers(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, 0, len(log.Raw))
 
-	for i := uint32(0); i < 3; i++ {
+	for i := range uint32(3) {
 		log, err = bc.dao.GetTokenTransferLog(acc2, newer, i, false)
 		require.NoError(t, err)
 		require.NotEqual(t, 0, len(log.Raw))
@@ -130,7 +130,7 @@ func TestRemoveOldTransfers(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, 0, len(log.Raw))
 
-	for i := uint32(0); i < 2; i++ {
+	for i := range uint32(2) {
 		log, err = bc.dao.GetTokenTransferLog(acc3, newer, i, true)
 		require.NoError(t, err)
 		require.NotEqual(t, 0, len(log.Raw))

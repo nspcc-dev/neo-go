@@ -51,6 +51,7 @@ linters:
     - decorder
     - durationcheck
     - errorlint
+    - intrange
     - copyloopvar
     - gofmt
     - misspell

@@ -142,7 +142,7 @@ func Sign(h hash.Hashable) []byte {
 // SignCommittee signs data by a majority of committee members.
 func SignCommittee(h hash.Hashable) []byte {
 	buf := io.NewBufBinWriter()
-	for i := 0; i < CommitteeSize()/2+1; i++ {
+	for i := range CommitteeSize()/2 + 1 {
 		pKey := PrivateKey(i)
 		sig := pKey.SignHashable(uint32(Network()), h)
 		if len(sig) != 64 {

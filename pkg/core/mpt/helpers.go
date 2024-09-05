@@ -13,14 +13,13 @@ func lcp(a, b []byte) []byte {
 		return lcp(b, a)
 	}
 
-	var i int
-	for i = 0; i < len(b); i++ {
+	for i := range b {
 		if a[i] != b[i] {
-			break
+			return b[:i]
 		}
 	}
 
-	return a[:i]
+	return b
 }
 
 func lcpMany(kv []keyValue) []byte {

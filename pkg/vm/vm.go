@@ -1860,7 +1860,7 @@ func (v *VM) ContractHasTryBlock() bool {
 		if ictx.sc != topctx.sc {
 			return false // Different contract -> no one cares.
 		}
-		for j := 0; j < ictx.tryStack.Len(); j++ {
+		for j := range ictx.tryStack.Len() {
 			eCtx := ictx.tryStack.Peek(j).Value().(*exceptionHandlingContext)
 			if eCtx.State == eTry {
 				return true
