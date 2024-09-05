@@ -216,9 +216,9 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	}
 	s.bQueue = bqueue.New(chain, log, func(b *block.Block) {
 		s.tryStartServices()
-	}, updateBlockQueueLenMetric)
+	}, bqueue.DefaultCacheSize, updateBlockQueueLenMetric)
 
-	s.bSyncQueue = bqueue.New(s.stateSync, log, nil, updateBlockQueueLenMetric)
+	s.bSyncQueue = bqueue.New(s.stateSync, log, nil, bqueue.DefaultCacheSize, updateBlockQueueLenMetric)
 
 	if s.MinPeers < 0 {
 		s.log.Info("bad MinPeers configured, using the default value",
@@ -1322,7 +1322,7 @@ func getRequestBlocksPayload(p Peer, currHeight uint32, lastRequestedHeight *ato
 			if !lastRequestedHeight.CompareAndSwap(old, needHeight) {
 				continue
 			}
-		} else if old < currHeight+(bqueue.CacheSize-payload.MaxHashesCount) {
+		} else if old < currHeight+(bqueue.DefaultCacheSize-payload.MaxHashesCount) {
 			needHeight = currHeight + 1
 			if peerHeight > old+payload.MaxHashesCount {
 				needHeight = old + payload.MaxHashesCount
@@ -1331,7 +1331,7 @@ func getRequestBlocksPayload(p Peer, currHeight uint32, lastRequestedHeight *ato
 				}
 			}
 		} else {
-			index := mrand.IntN(bqueue.CacheSize / payload.MaxHashesCount)
+			index := mrand.IntN(bqueue.DefaultCacheSize / payload.MaxHashesCount)
 			needHeight = currHeight + 1 + uint32(index*payload.MaxHashesCount)
 		}
 		break
