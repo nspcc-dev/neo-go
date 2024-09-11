@@ -342,11 +342,49 @@ func NewParameterFromValue(value any) (Parameter, error) {
 	case *keys.PublicKey:
 		result.Type = PublicKeyType
 		result.Value = v.Bytes()
-	case [][]byte:
-		return newArrayParameter(v)
 	case []Parameter:
 		result.Type = ArrayType
 		result.Value = slices.Clone(v)
+	case [][]byte:
+		return newArrayParameter(v)
+	case []string:
+		return newArrayParameter(v)
+	case []bool:
+		return newArrayParameter(v)
+	case []*big.Int:
+		return newArrayParameter(v)
+	case []int8:
+		return newArrayParameter(v)
+	case []int16:
+		return newArrayParameter(v)
+	case []uint16:
+		return newArrayParameter(v)
+	case []int32:
+		return newArrayParameter(v)
+	case []uint32:
+		return newArrayParameter(v)
+	case []int:
+		return newArrayParameter(v)
+	case []uint:
+		return newArrayParameter(v)
+	case []int64:
+		return newArrayParameter(v)
+	case []uint64:
+		return newArrayParameter(v)
+	case []*Parameter:
+		return newArrayParameter(v)
+	case []Convertible:
+		return newArrayParameter(v)
+	case []util.Uint160:
+		return newArrayParameter(v)
+	case []util.Uint256:
+		return newArrayParameter(v)
+	case []*util.Uint160:
+		return newArrayParameter(v)
+	case []*util.Uint256:
+		return newArrayParameter(v)
+	case []keys.PublicKey:
+		return newArrayParameter(v)
 	case []*keys.PublicKey:
 		return newArrayParameter(v)
 	case keys.PublicKeys:
