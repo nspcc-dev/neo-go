@@ -157,9 +157,14 @@ func (c *ContractReader) Transaction(t *LedgerTransaction) (*LedgerTransaction, 
 }
 
 // itemToLedgerBlock converts stack item into *LedgerBlock.
+// NULL item is returned as nil pointer without error.
 func itemToLedgerBlock(item stackitem.Item, err error) (*LedgerBlock, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(LedgerBlock)
 	err = res.FromStackItem(item)
@@ -285,9 +290,14 @@ func (res *LedgerBlock) FromStackItem(item stackitem.Item) error {
 }
 
 // itemToLedgerTransaction converts stack item into *LedgerTransaction.
+// NULL item is returned as nil pointer without error.
 func itemToLedgerTransaction(item stackitem.Item, err error) (*LedgerTransaction, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(LedgerTransaction)
 	err = res.FromStackItem(item)
@@ -381,9 +391,14 @@ func (res *LedgerTransaction) FromStackItem(item stackitem.Item) error {
 }
 
 // itemToManagementABI converts stack item into *ManagementABI.
+// NULL item is returned as nil pointer without error.
 func itemToManagementABI(item stackitem.Item, err error) (*ManagementABI, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(ManagementABI)
 	err = res.FromStackItem(item)
@@ -447,9 +462,14 @@ func (res *ManagementABI) FromStackItem(item stackitem.Item) error {
 }
 
 // itemToManagementContract converts stack item into *ManagementContract.
+// NULL item is returned as nil pointer without error.
 func itemToManagementContract(item stackitem.Item, err error) (*ManagementContract, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(ManagementContract)
 	err = res.FromStackItem(item)
@@ -515,9 +535,14 @@ func (res *ManagementContract) FromStackItem(item stackitem.Item) error {
 }
 
 // itemToManagementEvent converts stack item into *ManagementEvent.
+// NULL item is returned as nil pointer without error.
 func itemToManagementEvent(item stackitem.Item, err error) (*ManagementEvent, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(ManagementEvent)
 	err = res.FromStackItem(item)
@@ -577,9 +602,14 @@ func (res *ManagementEvent) FromStackItem(item stackitem.Item) error {
 }
 
 // itemToManagementGroup converts stack item into *ManagementGroup.
+// NULL item is returned as nil pointer without error.
 func itemToManagementGroup(item stackitem.Item, err error) (*ManagementGroup, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(ManagementGroup)
 	err = res.FromStackItem(item)
@@ -627,9 +657,14 @@ func (res *ManagementGroup) FromStackItem(item stackitem.Item) error {
 }
 
 // itemToManagementManifest converts stack item into *ManagementManifest.
+// NULL item is returned as nil pointer without error.
 func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManifest, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(ManagementManifest)
 	err = res.FromStackItem(item)
@@ -819,9 +854,14 @@ func (res *ManagementManifest) FromStackItem(item stackitem.Item) error {
 }
 
 // itemToManagementMethod converts stack item into *ManagementMethod.
+// NULL item is returned as nil pointer without error.
 func itemToManagementMethod(item stackitem.Item, err error) (*ManagementMethod, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(ManagementMethod)
 	err = res.FromStackItem(item)
@@ -899,9 +939,14 @@ func (res *ManagementMethod) FromStackItem(item stackitem.Item) error {
 }
 
 // itemToManagementParameter converts stack item into *ManagementParameter.
+// NULL item is returned as nil pointer without error.
 func itemToManagementParameter(item stackitem.Item, err error) (*ManagementParameter, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(ManagementParameter)
 	err = res.FromStackItem(item)
@@ -948,9 +993,14 @@ func (res *ManagementParameter) FromStackItem(item stackitem.Item) error {
 }
 
 // itemToManagementPermission converts stack item into *ManagementPermission.
+// NULL item is returned as nil pointer without error.
 func itemToManagementPermission(item stackitem.Item, err error) (*ManagementPermission, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(ManagementPermission)
 	err = res.FromStackItem(item)
@@ -1020,9 +1070,14 @@ func (res *ManagementPermission) FromStackItem(item stackitem.Item) error {
 }
 
 // itemToStructsInternal converts stack item into *StructsInternal.
+// NULL item is returned as nil pointer without error.
 func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(StructsInternal)
 	err = res.FromStackItem(item)

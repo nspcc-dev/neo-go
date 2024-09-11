@@ -239,9 +239,14 @@ func New(actor Actor{{- if not (len .Hash) -}}, hash util.Uint160{{- end -}}) *C
 {{- range $m := .Methods -}}{{template "METHOD" $m }}{{ end -}}
 {{- range $index, $typ := .NamedTypes }}
 // itemTo{{toTypeName $typ.Name}} converts stack item into *{{toTypeName $typ.Name}}.
+// NULL item is returned as nil pointer without error.
 func itemTo{{toTypeName $typ.Name}}(item stackitem.Item, err error) (*{{toTypeName $typ.Name}}, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new({{toTypeName $typ.Name}})
 	err = res.FromStackItem(item)

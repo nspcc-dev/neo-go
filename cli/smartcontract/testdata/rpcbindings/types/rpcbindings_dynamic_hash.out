@@ -366,9 +366,14 @@ func (c *ContractReader) UnnamedStructsX() (*UnnamedX, error) {
 }
 
 // itemToUnnamed converts stack item into *Unnamed.
+// NULL item is returned as nil pointer without error.
 func itemToUnnamed(item stackitem.Item, err error) (*Unnamed, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(Unnamed)
 	err = res.FromStackItem(item)
@@ -400,9 +405,14 @@ func (res *Unnamed) FromStackItem(item stackitem.Item) error {
 }
 
 // itemToUnnamedX converts stack item into *UnnamedX.
+// NULL item is returned as nil pointer without error.
 func itemToUnnamedX(item stackitem.Item, err error) (*UnnamedX, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(UnnamedX)
 	err = res.FromStackItem(item)

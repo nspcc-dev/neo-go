@@ -186,9 +186,14 @@ func (c *Contract) UnexportedFieldUnsigned() (*transaction.Transaction, error) {
 }
 
 // itemToCrazyStruct converts stack item into *CrazyStruct.
+// NULL item is returned as nil pointer without error.
 func itemToCrazyStruct(item stackitem.Item, err error) (*CrazyStruct, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(CrazyStruct)
 	err = res.FromStackItem(item)
@@ -226,9 +231,14 @@ func (res *CrazyStruct) FromStackItem(item stackitem.Item) error {
 }
 
 // itemToSimpleStruct converts stack item into *SimpleStruct.
+// NULL item is returned as nil pointer without error.
 func itemToSimpleStruct(item stackitem.Item, err error) (*SimpleStruct, error) {
 	if err != nil {
 		return nil, err
+	}
+	_, null := item.(stackitem.Null)
+	if null {
+		return nil, nil
 	}
 	var res = new(SimpleStruct)
 	err = res.FromStackItem(item)
