@@ -116,6 +116,10 @@ func LoadFile(configPath string, relativePath ...string) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	err = config.ApplicationConfiguration.Validate()
+	if err != nil {
+		return Config{}, err
+	}
 
 	return config, nil
 }

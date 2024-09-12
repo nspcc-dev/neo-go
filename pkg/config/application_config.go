@@ -23,12 +23,13 @@ type ApplicationConfiguration struct {
 	Pprof      BasicService `yaml:"Pprof"`
 	Prometheus BasicService `yaml:"Prometheus"`
 
-	Relay     bool                `yaml:"Relay"`
-	Consensus Consensus           `yaml:"Consensus"`
-	RPC       RPC                 `yaml:"RPC"`
-	Oracle    OracleConfiguration `yaml:"Oracle"`
-	P2PNotary P2PNotary           `yaml:"P2PNotary"`
-	StateRoot StateRoot           `yaml:"StateRoot"`
+	Relay             bool                `yaml:"Relay"`
+	Consensus         Consensus           `yaml:"Consensus"`
+	RPC               RPC                 `yaml:"RPC"`
+	Oracle            OracleConfiguration `yaml:"Oracle"`
+	P2PNotary         P2PNotary           `yaml:"P2PNotary"`
+	StateRoot         StateRoot           `yaml:"StateRoot"`
+	NeoFSBlockFetcher NeoFSBlockFetcher   `yaml:"NeoFSBlockFetcher"`
 }
 
 // EqualsButServices returns true when the o is the same as a except for services
@@ -140,4 +141,14 @@ func (a *ApplicationConfiguration) GetAddresses() ([]AnnounceableAddress, error)
 		})
 	}
 	return addrs, nil
+}
+
+// Validate checks ApplicationConfiguration for internal consistency and returns
+// an error if any invalid settings are found. This ensures that the application
+// configuration is valid and safe to use for further operations.
+func (a *ApplicationConfiguration) Validate() error {
+	if err := a.NeoFSBlockFetcher.Validate(); err != nil {
+		return fmt.Errorf("invalid NeoFSBlockFetcher config: %w", err)
+	}
+	return nil
 }

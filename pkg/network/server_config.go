@@ -76,6 +76,8 @@ type (
 
 		// BroadcastFactor is the factor (0-100) for fan-out optimization.
 		BroadcastFactor int
+
+		NeoFSBlockFetcherCfg config.NeoFSBlockFetcher
 	}
 )
 
@@ -89,24 +91,25 @@ func NewServerConfig(cfg config.Config) (ServerConfig, error) {
 		return ServerConfig{}, fmt.Errorf("failed to parse addresses: %w", err)
 	}
 	c := ServerConfig{
-		UserAgent:          cfg.GenerateUserAgent(),
-		Addresses:          addrs,
-		Net:                protoConfig.Magic,
-		Relay:              appConfig.Relay,
-		Seeds:              protoConfig.SeedList,
-		DialTimeout:        appConfig.P2P.DialTimeout,
-		ProtoTickInterval:  appConfig.P2P.ProtoTickInterval,
-		PingInterval:       appConfig.P2P.PingInterval,
-		PingTimeout:        appConfig.P2P.PingTimeout,
-		MaxPeers:           appConfig.P2P.MaxPeers,
-		AttemptConnPeers:   appConfig.P2P.AttemptConnPeers,
-		MinPeers:           appConfig.P2P.MinPeers,
-		TimePerBlock:       protoConfig.TimePerBlock,
-		OracleCfg:          appConfig.Oracle,
-		P2PNotaryCfg:       appConfig.P2PNotary,
-		StateRootCfg:       appConfig.StateRoot,
-		ExtensiblePoolSize: appConfig.P2P.ExtensiblePoolSize,
-		BroadcastFactor:    appConfig.P2P.BroadcastFactor,
+		UserAgent:            cfg.GenerateUserAgent(),
+		Addresses:            addrs,
+		Net:                  protoConfig.Magic,
+		Relay:                appConfig.Relay,
+		Seeds:                protoConfig.SeedList,
+		DialTimeout:          appConfig.P2P.DialTimeout,
+		ProtoTickInterval:    appConfig.P2P.ProtoTickInterval,
+		PingInterval:         appConfig.P2P.PingInterval,
+		PingTimeout:          appConfig.P2P.PingTimeout,
+		MaxPeers:             appConfig.P2P.MaxPeers,
+		AttemptConnPeers:     appConfig.P2P.AttemptConnPeers,
+		MinPeers:             appConfig.P2P.MinPeers,
+		TimePerBlock:         protoConfig.TimePerBlock,
+		OracleCfg:            appConfig.Oracle,
+		P2PNotaryCfg:         appConfig.P2PNotary,
+		StateRootCfg:         appConfig.StateRoot,
+		ExtensiblePoolSize:   appConfig.P2P.ExtensiblePoolSize,
+		BroadcastFactor:      appConfig.P2P.BroadcastFactor,
+		NeoFSBlockFetcherCfg: appConfig.NeoFSBlockFetcher,
 	}
 	return c, nil
 }

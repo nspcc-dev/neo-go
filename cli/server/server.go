@@ -103,6 +103,13 @@ func NewCommands() []*cli.Command {
 					Flags:     cfgCountOutFlags,
 				},
 				{
+					Name:      "dump-bin",
+					Usage:     "Dump blocks (starting with the genesis or specified block) to the directory in binary format",
+					UsageText: "neo-go db dump-bin -o directory [-s start] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",
+					Action:    dumpBin,
+					Flags:     cfgCountOutFlags,
+				},
+				{
 					Name:      "restore",
 					Usage:     "Restore blocks from the file",
 					UsageText: "neo-go db restore [-i file] [--dump] [-n] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",

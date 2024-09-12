@@ -3,6 +3,7 @@ package config
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -130,6 +131,104 @@ func TestGetAddresses(t *testing.T) {
 		} else {
 			require.NoError(t, err)
 			require.Equal(t, c.expected, actual, i)
+		}
+	}
+}
+
+func TestNeoFSBlockFetcherValidation(t *testing.T) {
+	type testcase struct {
+		cfg        NeoFSBlockFetcher
+		shouldFail bool
+		errMsg     string
+	}
+	validContainerID := "9iVfUg8aDHKjPC4LhQXEkVUM4HDkR7UCXYLs8NQwYfSG"
+	invalidContainerID := "invalid-container-id"
+
+	cases := []testcase{
+		{
+			cfg: NeoFSBlockFetcher{
+				InternalService:        InternalService{Enabled: true},
+				Timeout:                time.Second,
+				ContainerID:            validContainerID,
+				Addresses:              []string{"127.0.0.1"},
+				OIDBatchSize:           10,
+				BQueueSize:             20,
+				SkipIndexFilesSearch:   true,
+				DownloaderWorkersCount: 4,
+			},
+			shouldFail: false,
+		},
+		{
+			cfg: NeoFSBlockFetcher{
+				InternalService: InternalService{Enabled: true},
+				Timeout:         time.Second,
+				ContainerID:     "",
+				Addresses:       []string{"127.0.0.1"},
+				OIDBatchSize:    10,
+				BQueueSize:      20,
+			},
+			shouldFail: true,
+			errMsg:     "container ID is not set",
+		},
+		{
+			cfg: NeoFSBlockFetcher{
+				InternalService: InternalService{Enabled: true},
+				Timeout:         time.Second,
+				ContainerID:     invalidContainerID,
+				Addresses:       []string{"127.0.0.1"},
+				OIDBatchSize:    10,
+				BQueueSize:      20,
+			},
+			shouldFail: true,
+			errMsg:     "invalid container ID",
+		},
+		{
+			cfg: NeoFSBlockFetcher{
+				InternalService: InternalService{Enabled: true},
+				Timeout:         time.Second,
+				ContainerID:     validContainerID,
+				Addresses:       []string{},
+				OIDBatchSize:    10,
+				BQueueSize:      20,
+			},
+			shouldFail: true,
+			errMsg:     "addresses are not set",
+		},
+		{
+			cfg: NeoFSBlockFetcher{
+				InternalService: InternalService{Enabled: true},
+				Timeout:         time.Second,
+				ContainerID:     validContainerID,
+				Addresses:       []string{"127.0.0.1"},
+				OIDBatchSize:    10,
+				BQueueSize:      5,
+			},
+			shouldFail: true,
+			errMsg:     "BQueueSize (5) is lower than OIDBatchSize (10)",
+		},
+		{
+			cfg: NeoFSBlockFetcher{
+				InternalService:      InternalService{Enabled: true},
+				Timeout:              time.Second,
+				ContainerID:          validContainerID,
+				Addresses:            []string{"127.0.0.1"},
+				OIDBatchSize:         10,
+				BQueueSize:           20,
+				SkipIndexFilesSearch: false,
+				IndexFileSize:        0,
+			},
+			shouldFail: true,
+			errMsg:     "IndexFileSize is not set",
+		},
+	}
+
+	for _, c := range cases {
+		err := c.cfg.Validate()
+		if c.shouldFail {
+			require.Error(t, err)
+			require.Contains(t, err.Error(), c.errMsg)
+		} else {
+			require.NoError(t, err)
 		}
 	}
 }

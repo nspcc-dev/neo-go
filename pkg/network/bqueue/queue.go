@@ -3,6 +3,7 @@ package bqueue
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"go.uber.org/zap"
@@ -14,6 +15,17 @@ type Blockqueuer interface {
 	AddHeaders(...*block.Header) error
 	BlockHeight() uint32
 }
+
+// OperationMode is the mode of operation for the block queue.
+// Could be either Blocking or NonBlocking.
+type OperationMode byte
+
+const (
+	// NonBlocking means that PutBlock will return immediately if the queue is full.
+	NonBlocking OperationMode = 0
+	// Blocking means that PutBlock will wait until there is enough space in the queue.
+	Blocking OperationMode = 1
+)
 
 // Queue is the block queue.
 type Queue struct {
@@ -27,29 +39,36 @@ type Queue struct {
 	discarded   atomic.Bool
 	len         int
 	lenUpdateF  func(int)
+	cacheSize   int
+	mode        OperationMode
 }
 
-// CacheSize is the amount of blocks above the current height
+// DefaultCacheSize is the default amount of blocks above the current height
 // which are stored in the queue.
-const CacheSize = 2000
+const DefaultCacheSize = 2000
 
-func indexToPosition(i uint32) int {
-	return int(i) % CacheSize
+func (bq *Queue) indexToPosition(i uint32) int {
+	return int(i) % bq.cacheSize
 }
 
 // New creates an instance of BlockQueue.
-func New(bc Blockqueuer, log *zap.Logger, relayer func(*block.Block), lenMetricsUpdater func(l int)) *Queue {
+func New(bc Blockqueuer, log *zap.Logger, relayer func(*block.Block), cacheSize int, lenMetricsUpdater func(l int), mode OperationMode) *Queue {
 	if log == nil {
 		return nil
+	}
+	if cacheSize <= 0 {
+		cacheSize = DefaultCacheSize
 	}
 
 	return &Queue{
 		log:         log,
-		queue:       make([]*block.Block, CacheSize),
+		queue:       make([]*block.Block, cacheSize),
 		checkBlocks: make(chan struct{}, 1),
 		chain:       bc,
 		relayF:      relayer,
 		lenUpdateF:  lenMetricsUpdater,
+		cacheSize:   cacheSize,
+		mode:        mode,
 	}
 }
 
@@ -63,12 +82,12 @@ func (bq *Queue) Run() {
 		}
 		for {
 			h := bq.chain.BlockHeight()
-			pos := indexToPosition(h + 1)
+			pos := bq.indexToPosition(h + 1)
 			bq.queueLock.Lock()
 			b := bq.queue[pos]
 			// The chain moved forward using blocks from other sources (consensus).
 			for i := lastHeight; i < h; i++ {
-				old := indexToPosition(i + 1)
+				old := bq.indexToPosition(i + 1)
 				if bq.queue[old] != nil && bq.queue[old].Index == i {
 					bq.len--
 					bq.queue[old] = nil
@@ -114,17 +133,38 @@ func (bq *Queue) PutBlock(block *block.Block) error {
 	if bq.discarded.Load() {
 		return nil
 	}
-	if block.Index <= h || h+CacheSize < block.Index {
-		// can easily happen when fetching the same blocks from
-		// different peers, thus not considered as error
+	// Can easily happen when fetching the same blocks from
+	// different peers, thus not considered as error.
+	if block.Index <= h {
 		return nil
 	}
-	pos := indexToPosition(block.Index)
+	if h+uint32(bq.cacheSize) < block.Index {
+		switch bq.mode {
+		case NonBlocking:
+			return nil
+		case Blocking:
+			bq.queueLock.Unlock()
+			t := time.NewTicker(time.Second)
+			defer t.Stop()
+			for range t.C {
+				if bq.discarded.Load() {
+					bq.queueLock.Lock()
+					return nil
+				}
+				h = bq.chain.BlockHeight()
+				if h+uint32(bq.cacheSize) >= block.Index {
+					bq.queueLock.Lock()
+					break
+				}
+			}
+		}
+	}
+	pos := bq.indexToPosition(block.Index)
 	// If we already have it, keep the old block, throw away the new one.
 	if bq.queue[pos] == nil || bq.queue[pos].Index < block.Index {
 		bq.len++
 		bq.queue[pos] = block
-		for pos < CacheSize && bq.queue[pos] != nil && bq.lastQ+1 == bq.queue[pos].Index {
+		for pos < bq.cacheSize && bq.queue[pos] != nil && bq.lastQ+1 == bq.queue[pos].Index {
 			bq.lastQ = bq.queue[pos].Index
 			pos++
 		}
@@ -147,7 +187,7 @@ func (bq *Queue) PutBlock(block *block.Block) error {
 func (bq *Queue) LastQueued() (uint32, int) {
 	bq.queueLock.RLock()
 	defer bq.queueLock.RUnlock()
-	return bq.lastQ, CacheSize - bq.len
+	return bq.lastQ, bq.cacheSize - bq.len
 }
 
 // Discard stops the queue and prevents it from accepting more blocks to enqueue.
