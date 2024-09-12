@@ -342,36 +342,55 @@ func NewParameterFromValue(value any) (Parameter, error) {
 	case *keys.PublicKey:
 		result.Type = PublicKeyType
 		result.Value = v.Bytes()
-	case [][]byte:
-		arr := make([]Parameter, 0, len(v))
-		for i := range v {
-			// We know the type exactly, so error is not possible.
-			elem, _ := NewParameterFromValue(v[i])
-			arr = append(arr, elem)
-		}
-		result.Type = ArrayType
-		result.Value = arr
 	case []Parameter:
 		result.Type = ArrayType
 		result.Value = slices.Clone(v)
+	case [][]byte:
+		return newArrayParameter(v)
+	case []string:
+		return newArrayParameter(v)
+	case []bool:
+		return newArrayParameter(v)
+	case []*big.Int:
+		return newArrayParameter(v)
+	case []int8:
+		return newArrayParameter(v)
+	case []int16:
+		return newArrayParameter(v)
+	case []uint16:
+		return newArrayParameter(v)
+	case []int32:
+		return newArrayParameter(v)
+	case []uint32:
+		return newArrayParameter(v)
+	case []int:
+		return newArrayParameter(v)
+	case []uint:
+		return newArrayParameter(v)
+	case []int64:
+		return newArrayParameter(v)
+	case []uint64:
+		return newArrayParameter(v)
+	case []*Parameter:
+		return newArrayParameter(v)
+	case []Convertible:
+		return newArrayParameter(v)
+	case []util.Uint160:
+		return newArrayParameter(v)
+	case []util.Uint256:
+		return newArrayParameter(v)
+	case []*util.Uint160:
+		return newArrayParameter(v)
+	case []*util.Uint256:
+		return newArrayParameter(v)
+	case []keys.PublicKey:
+		return newArrayParameter(v)
 	case []*keys.PublicKey:
-		return NewParameterFromValue(keys.PublicKeys(v))
+		return newArrayParameter(v)
 	case keys.PublicKeys:
-		arr := make([]Parameter, 0, len(v))
-		for i := range v {
-			// We know the type exactly, so error is not possible.
-			elem, _ := NewParameterFromValue(v[i])
-			arr = append(arr, elem)
-		}
-		result.Type = ArrayType
-		result.Value = arr
+		return newArrayParameter(v)
 	case []any:
-		arr, err := NewParametersFromValues(v...)
-		if err != nil {
-			return result, err
-		}
-		result.Type = ArrayType
-		result.Value = arr
+		return newArrayParameter(v)
 	case nil:
 		result.Type = AnyType
 	default:
@@ -381,9 +400,15 @@ func NewParameterFromValue(value any) (Parameter, error) {
 	return result, nil
 }
 
-// NewParametersFromValues is similar to NewParameterFromValue except that it
-// works with multiple values and returns a simple slice of Parameter.
-func NewParametersFromValues(values ...any) ([]Parameter, error) {
+func newArrayParameter[E any, S ~[]E](values S) (Parameter, error) {
+	arr, err := newArrayOfParameters(values)
+	if err != nil {
+		return Parameter{}, err
+	}
+	return Parameter{Type: ArrayType, Value: arr}, nil
+}
+
+func newArrayOfParameters[E any, S ~[]E](values S) ([]Parameter, error) {
 	res := make([]Parameter, 0, len(values))
 	for i := range values {
 		elem, err := NewParameterFromValue(values[i])
@@ -393,6 +418,12 @@ func NewParametersFromValues(values ...any) ([]Parameter, error) {
 		res = append(res, elem)
 	}
 	return res, nil
+}
+
+// NewParametersFromValues is similar to NewParameterFromValue except that it
+// works with multiple values and returns a simple slice of Parameter.
+func NewParametersFromValues(values ...any) ([]Parameter, error) {
+	return newArrayOfParameters(values)
 }
 
 // ExpandParameterToEmitable converts a parameter to a type which can be handled as

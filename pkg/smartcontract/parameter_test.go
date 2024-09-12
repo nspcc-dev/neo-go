@@ -674,6 +674,11 @@ func TestParameterFromValue(t *testing.T) {
 			expVal:  []byte{1, 2, 3},
 		},
 		{
+			value:   testConvertible{i: 123},
+			expType: IntegerType,
+			expVal:  123,
+		},
+		{
 			value:   util.Uint160{1, 2, 3},
 			expType: Hash160Type,
 			expVal:  util.Uint160{1, 2, 3},
@@ -712,9 +717,9 @@ func TestParameterFromValue(t *testing.T) {
 			expVal:  pk2.PublicKey().Bytes(),
 		},
 		{
-			value:   nil,
-			expType: AnyType,
-			expVal:  nil,
+			value:   []Parameter{{ByteArrayType, []byte{1, 2, 3}}, {ByteArrayType, []byte{3, 2, 1}}},
+			expType: ArrayType,
+			expVal:  []Parameter{{ByteArrayType, []byte{1, 2, 3}}, {ByteArrayType, []byte{3, 2, 1}}},
 		},
 		{
 			value:   [][]byte{{1, 2, 3}, {3, 2, 1}},
@@ -722,12 +727,97 @@ func TestParameterFromValue(t *testing.T) {
 			expVal:  []Parameter{{ByteArrayType, []byte{1, 2, 3}}, {ByteArrayType, []byte{3, 2, 1}}},
 		},
 		{
-			value:   []Parameter{{ByteArrayType, []byte{1, 2, 3}}, {ByteArrayType, []byte{3, 2, 1}}},
+			value:   []string{"qwe", "asd"},
+			expType: ArrayType,
+			expVal:  []Parameter{{StringType, "qwe"}, {StringType, "asd"}},
+		},
+		{
+			value:   []bool{false, true},
+			expType: ArrayType,
+			expVal:  []Parameter{{BoolType, false}, {BoolType, true}},
+		},
+		{
+			value:   []*big.Int{big.NewInt(100), big.NewInt(42)},
+			expType: ArrayType,
+			expVal:  []Parameter{{IntegerType, big.NewInt(100)}, {IntegerType, big.NewInt(42)}},
+		},
+		{
+			value:   []int8{100, 42},
+			expType: ArrayType,
+			expVal:  []Parameter{{IntegerType, big.NewInt(100)}, {IntegerType, big.NewInt(42)}},
+		},
+		{
+			value:   []int16{100, 42},
+			expType: ArrayType,
+			expVal:  []Parameter{{IntegerType, big.NewInt(100)}, {IntegerType, big.NewInt(42)}},
+		},
+		{
+			value:   []uint16{100, 42},
+			expType: ArrayType,
+			expVal:  []Parameter{{IntegerType, big.NewInt(100)}, {IntegerType, big.NewInt(42)}},
+		},
+		{
+			value:   []int32{100, 42},
+			expType: ArrayType,
+			expVal:  []Parameter{{IntegerType, big.NewInt(100)}, {IntegerType, big.NewInt(42)}},
+		},
+		{
+			value:   []uint32{100, 42},
+			expType: ArrayType,
+			expVal:  []Parameter{{IntegerType, big.NewInt(100)}, {IntegerType, big.NewInt(42)}},
+		},
+		{
+			value:   []int{100, 42},
+			expType: ArrayType,
+			expVal:  []Parameter{{IntegerType, big.NewInt(100)}, {IntegerType, big.NewInt(42)}},
+		},
+		{
+			value:   []uint{100, 42},
+			expType: ArrayType,
+			expVal:  []Parameter{{IntegerType, big.NewInt(100)}, {IntegerType, big.NewInt(42)}},
+		},
+		{
+			value:   []int64{100, 42},
+			expType: ArrayType,
+			expVal:  []Parameter{{IntegerType, big.NewInt(100)}, {IntegerType, big.NewInt(42)}},
+		},
+		{
+			value:   []uint64{100, 42},
+			expType: ArrayType,
+			expVal:  []Parameter{{IntegerType, big.NewInt(100)}, {IntegerType, big.NewInt(42)}},
+		},
+		{
+			value:   []*Parameter{{ByteArrayType, []byte{1, 2, 3}}, {ByteArrayType, []byte{3, 2, 1}}},
 			expType: ArrayType,
 			expVal:  []Parameter{{ByteArrayType, []byte{1, 2, 3}}, {ByteArrayType, []byte{3, 2, 1}}},
 		},
 		{
-			value:   []*keys.PublicKey{pk1.PublicKey(), pk2.PublicKey()},
+			value:   []Convertible{testConvertible{i: 123}, testConvertible{i: 321}},
+			expType: ArrayType,
+			expVal:  []Parameter{{IntegerType, 123}, {IntegerType, 321}},
+		},
+		{
+			value:   []util.Uint160{{1, 2, 3}, {3, 2, 1}},
+			expType: ArrayType,
+			expVal:  []Parameter{{Hash160Type, util.Uint160{1, 2, 3}}, {Hash160Type, util.Uint160{3, 2, 1}}},
+		},
+		{
+			value:   []util.Uint256{{1, 2, 3}, {3, 2, 1}},
+			expType: ArrayType,
+			expVal:  []Parameter{{Hash256Type, util.Uint256{1, 2, 3}}, {Hash256Type, util.Uint256{3, 2, 1}}},
+		},
+		{
+			value:   []*util.Uint160{{1, 2, 3}, nil, {3, 2, 1}},
+			expType: ArrayType,
+			expVal:  []Parameter{{Hash160Type, util.Uint160{1, 2, 3}}, {AnyType, nil}, {Hash160Type, util.Uint160{3, 2, 1}}},
+		},
+		{
+			value:   []*util.Uint256{{1, 2, 3}, nil, {3, 2, 1}},
+			expType: ArrayType,
+			expVal:  []Parameter{{Hash256Type, util.Uint256{1, 2, 3}}, {AnyType, nil}, {Hash256Type, util.Uint256{3, 2, 1}}},
+		},
+		{
+			value:   []keys.PublicKey{*pk1.PublicKey(), *pk2.PublicKey()},
 			expType: ArrayType,
 			expVal: []Parameter{{
 				Type:  PublicKeyType,
@@ -739,6 +829,17 @@ func TestParameterFromValue(t *testing.T) {
 		},
 		{
 			value:   keys.PublicKeys{pk1.PublicKey(), pk2.PublicKey()},
+			expType: ArrayType,
+			expVal: []Parameter{{
+				Type:  PublicKeyType,
+				Value: pk1.PublicKey().Bytes(),
+			}, {
+				Type:  PublicKeyType,
+				Value: pk2.PublicKey().Bytes(),
+			}},
+		},
+		{
+			value:   []*keys.PublicKey{pk1.PublicKey(), pk2.PublicKey()},
 			expType: ArrayType,
 			expVal: []Parameter{{
 				Type:  PublicKeyType,
@@ -763,11 +864,6 @@ func TestParameterFromValue(t *testing.T) {
 			}},
 		},
 		{
-			value:   testConvertible{i: 123},
-			expType: IntegerType,
-			expVal:  123,
-		},
-		{
 			value:   []any{1, testConvertible{i: 123}},
 			expType: ArrayType,
 			expVal: []Parameter{
@@ -780,6 +876,11 @@ func TestParameterFromValue(t *testing.T) {
 					Value: 123,
 				},
 			},
+		},
+		{
+			value:   nil,
+			expType: AnyType,
+			expVal:  nil,
 		},
 		{
 			value: testConvertible{err: "invalid i value"},
