@@ -59,6 +59,11 @@ type coverBlock struct {
 // documentName makes it clear when a `string` maps path to the script file.
 type documentName = string
 
+type interval struct {
+	compiler.DebugSeqPoint
+	remove bool
+}
+
 func isCoverageEnabled() bool {
 	coverageLock.Lock()
 	defer coverageLock.Unlock()
@@ -150,31 +155,33 @@ func processCover() map[documentName][]coverBlock {
 	for documentName := range documents {
 		mappedBlocks := make(map[int]*coverBlock)
 
+		var allDocumentSeqPoints []compiler.DebugSeqPoint
 		for _, scriptRawCoverage := range rawCoverage {
-			di := scriptRawCoverage.debugInfo
-			documentSeqPoints := documentSeqPoints(di, documentName)
+			documentSeqPoints := documentSeqPoints(scriptRawCoverage.debugInfo, documentName)
+			allDocumentSeqPoints = append(allDocumentSeqPoints, documentSeqPoints...)
+		}
+		allDocumentSeqPoints = resolveOverlaps(allDocumentSeqPoints)
 
-			for _, point := range documentSeqPoints {
-				b := coverBlock{
-					startLine: uint(point.StartLine),
-					startCol:  uint(point.StartCol),
-					endLine:   uint(point.EndLine),
-					endCol:    uint(point.EndCol),
-					stmts:     1 + uint(point.EndLine) - uint(point.StartLine),
-					counts:    0,
-				}
-				mappedBlocks[point.Opcode] = &b
+		for _, point := range allDocumentSeqPoints {
+			b := coverBlock{
+				startLine: uint(point.StartLine),
+				startCol:  uint(point.StartCol),
+				endLine:   uint(point.EndLine),
+				endCol:    uint(point.EndCol),
+				stmts:     1 + uint(point.EndLine) - uint(point.StartLine),
+				counts:    0,
 			}
+			mappedBlocks[point.Opcode] = &b
 		}
 
 		for _, scriptRawCoverage := range rawCoverage {
-			di := scriptRawCoverage.debugInfo
-			documentSeqPoints := documentSeqPoints(di, documentName)
-
+			documentSeqPoints := documentSeqPoints(scriptRawCoverage.debugInfo, documentName)
 			for _, offset := range scriptRawCoverage.offsetsVisited {
 				for _, point := range documentSeqPoints {
 					if point.Opcode == offset {
-						mappedBlocks[point.Opcode].counts++
+						if _, ok := mappedBlocks[offset]; ok {
+							mappedBlocks[offset].counts++
+						}
 					}
 				}
 			}
@@ -197,6 +204,42 @@ func documentSeqPoints(di *compiler.DebugInfo, doc documentName) []compiler.Debu
 			if di.Documents[p.Document] == doc {
 				res = append(res, p)
 			}
+		}
+	}
+	return res
+}
+
+// resolveOverlaps removes overlaps from debug points.
+// Its assumed that intervals can never overlap partially.
+func resolveOverlaps(points []compiler.DebugSeqPoint) []compiler.DebugSeqPoint {
+	var intervals []interval
+	for _, p := range points {
+		intervals = append(intervals, interval{DebugSeqPoint: p})
+	}
+	for i := range intervals {
+		for j := range intervals {
+			inner := &intervals[i]
+			outer := &intervals[j]
+			// If interval 'i' is already removed than there exists an even smaller interval that is also included by 'j'.
+			// This also ensures that if there are 2 equal intervals then at least 1 will remain.
+			if i == j || inner.remove {
+				continue
+			}
+			// Outer interval start can't be after inner interval start.
+			if !(outer.StartLine < inner.StartLine || outer.StartLine == inner.StartLine && outer.StartCol <= inner.StartCol) {
+				continue
+			}
+			// Outer interval end can't be before inner interval end.
+			if !(outer.EndLine > inner.EndLine || outer.EndLine == inner.EndLine && outer.EndCol >= inner.EndCol) {
+				continue
+			}
+			outer.remove = true
+		}
+	}
+	var res []compiler.DebugSeqPoint
+	for i, v := range intervals {
+		if !v.remove {
+			res = append(res, points[i])
 		}
 	}
 	return res
