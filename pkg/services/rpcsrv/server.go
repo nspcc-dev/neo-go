@@ -2758,6 +2758,7 @@ func (s *Server) subscribe(reqParams params.Params, sub *subscriber) (any, *neor
 			flt := new(neorpc.ExecutionFilter)
 			err = jd.Decode(flt)
 			filter = *flt
+		default:
 		}
 		if err != nil {
 			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, err.Error())
@@ -2832,6 +2833,7 @@ func (s *Server) subscribeToChannel(event neorpc.EventID) {
 			s.chain.SubscribeForHeadersOfAddedBlocks(s.blockHeaderCh)
 		}
 		s.blockHeaderSubs++
+	default:
 	}
 }
 
@@ -2892,6 +2894,7 @@ func (s *Server) unsubscribeFromChannel(event neorpc.EventID) {
 		if s.blockHeaderSubs == 0 {
 			s.chain.UnsubscribeFromHeadersOfAddedBlocks(s.blockHeaderCh)
 		}
+	default:
 	}
 }
 

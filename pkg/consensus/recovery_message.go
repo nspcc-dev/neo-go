@@ -180,6 +180,7 @@ func (m *recoveryMessage) AddPayload(p dbft.ConsensusPayload[util.Uint256]) {
 			Signature:        p.GetCommit().(*commit).signature,
 			InvocationScript: p.(*Payload).Witness.InvocationScript,
 		})
+	default:
 	}
 }
 

@@ -64,6 +64,7 @@ func Get(path string, value any) ([]any, bool) {
 			objs, ok = p.processDot(objs)
 		case pathLeftBracket:
 			objs, ok = p.processLeftBracket(objs)
+		default:
 		}
 
 		if !ok || maxObjects < len(objs) {

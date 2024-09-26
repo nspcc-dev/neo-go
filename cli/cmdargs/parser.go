@@ -224,6 +224,7 @@ func parseCosigner(c string) (transaction.Signer, error) {
 
 				res.AllowedGroups = append(res.AllowedGroups, pub)
 			}
+		default:
 		}
 	}
 	return res, nil

@@ -190,6 +190,7 @@ func IsScriptCorrect(script []byte, methods bitfield.Field) error {
 			if typ == stackitem.AnyT && op != opcode.NEWARRAYT {
 				return fmt.Errorf("using type ANY is incorrect at offset %d", ctx.ip)
 			}
+		default:
 		}
 	}
 	if !jumps.IsSubset(instrs) {

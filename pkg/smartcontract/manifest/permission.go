@@ -105,8 +105,9 @@ func (d PermissionDesc) Compare(d1 PermissionDesc) int {
 		return d.Hash().Compare(d1.Hash())
 	case PermissionGroup:
 		return d.Group().Cmp(d1.Group())
+	default:
+		return 0 // wildcard or type that we can't compare.
 	}
-	return 0 // wildcard or type that we can't compare.
 }
 
 // Equals returns true if both PermissionDesc values are the same.

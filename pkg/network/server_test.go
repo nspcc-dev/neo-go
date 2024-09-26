@@ -536,6 +536,7 @@ func (s *Server) testHandleGetData(t *testing.T, invType payload.InventoryType, 
 		case CMDNotFound:
 			require.Equal(t, notFound, msg.Payload.(*payload.Inventory).Hashes)
 			recvNotFound.Store(true)
+		default:
 		}
 	}
 
@@ -818,6 +819,7 @@ func TestHandleGetMPTData(t *testing.T) {
 			case CMDMPTData:
 				require.Equal(t, found, msg.Payload)
 				recvResponse.Store(true)
+			default:
 			}
 		}
 		hs := []util.Uint256{r1, r2}

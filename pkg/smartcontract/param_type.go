@@ -175,7 +175,7 @@ func (pt ParamType) EncodeDefaultValue(w *io.BinWriter) {
 		emit.Bytes(w, b[:Hash256Len])
 	case PublicKeyType:
 		emit.Bytes(w, b[:PublicKeyLen])
-	case ArrayType, MapType, InteropInterfaceType, VoidType:
+	case ArrayType, MapType, InteropInterfaceType, VoidType, UnknownType:
 	}
 }
 
