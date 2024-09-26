@@ -105,13 +105,13 @@ READY: loaded 36 instructions
 To make it even more complete, you can directly load hex or base64 strings into the VM:
 
 ```
-NEO-GO-VM > loadhex 54c56b006c766b00527ac46c766b00c391640b006203005a616c756662030000616c7566
-READY: loaded 36 instructions
-NEO-GO-VM > run
+NEO-GO-VM > loadhex 0c0c48656c6c6f20776f726c6421
+READY: loaded 14 instructions
+NEO-GO-VM 0 > run
 [
     {
-        "value": 10,
-        "type": "BigInteger"
+        "type": "ByteString",
+        "value": "SGVsbG8gd29ybGQh"
     }
 ]
 
