@@ -914,6 +914,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			n = 4
 		case opcode.REVERSEN:
 			n = toInt(v.estack.Pop().BigInt())
+		default:
 		}
 		if err := v.estack.ReverseTop(n); err != nil {
 			panic(err.Error())
@@ -1122,6 +1123,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				res = cmp == 1
 			case opcode.GE:
 				res = cmp >= 0
+			default:
 			}
 		}
 		v.estack.PushItem(stackitem.Bool(res))

@@ -272,6 +272,7 @@ func (s *Designate) notifyRoleChanged(v *roleData, r noderoles.Role) {
 		if s.StateRootService != nil {
 			s.StateRootService.UpdateStateValidators(v.height, v.nodes.Copy())
 		}
+	default:
 	}
 }
 

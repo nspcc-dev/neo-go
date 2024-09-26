@@ -564,8 +564,9 @@ func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.Extended
 		return "any", ""
 	case smartcontract.VoidType:
 		return "", ""
+	default:
+		panic("unreachable")
 	}
-	panic("unreachable")
 }
 
 func etTypeConverter(et binding.ExtendedType, v string) string {
@@ -686,8 +687,9 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		return "item.Value(), nil"
 	case smartcontract.VoidType:
 		return ""
+	default:
+		panic("unreachable")
 	}
-	panic("unreachable")
 }
 
 func scTypeToGo(name string, typ smartcontract.ParamType, cfg *binding.Config) (string, string) {
@@ -870,6 +872,7 @@ func addETImports(et binding.ExtendedType, named map[string]binding.ExtendedType
 	case smartcontract.ArrayType:
 		imports["errors"] = struct{}{}
 		imports["fmt"] = struct{}{}
+	default:
 	}
 	if et.Value != nil {
 		addETImports(*et.Value, named, imports)

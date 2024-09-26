@@ -89,6 +89,7 @@ func Matches(f Comparator, r Container) bool {
 			}
 		}
 		return senderOk && signerOK && typeOk
+	default:
+		return false
 	}
-	return false
 }

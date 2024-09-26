@@ -109,7 +109,10 @@ test:
 vet:
 	@go vet ./...
 
-lint:
+.golangci.yml:
+	curl -L -o $@ https://github.com/nspcc-dev/.github/raw/master/.golangci.yml
+
+lint: .golangci.yml
 	@golangci-lint run
 
 fmt:

@@ -946,6 +946,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 					expectedLen = 20
 				case smartcontract.Hash256Type:
 					expectedLen = 32
+				default:
 				}
 				if expectedLen != -1 && expectedLen != len(n.Elts) {
 					c.prog.Err = fmt.Errorf("%s type must have size %d", tn.Obj().Name(), expectedLen)
@@ -1225,9 +1226,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		case token.CONTINUE:
 			post := c.getLabelOffset(labelPost, label)
 			emit.Jmp(c.prog.BinWriter, opcode.JMPL, post)
+		default:
+			return nil
 		}
-
-		return nil
 
 	case *ast.LabeledStmt:
 		c.nextLabel = n.Label.Name
@@ -1722,6 +1723,7 @@ func getJumpForToken(tok token.Token, typ types.Type) (opcode.Opcode, bool) {
 			}
 			return opcode.JMPNEL, true
 		}
+	default:
 	}
 	return 0, false
 }
@@ -2393,6 +2395,7 @@ func (c *codegen) writeJumps(b []byte) ([]byte, error) {
 				return nil, fmt.Errorf("func '%s' has %d local variables (maximum is 255)", info.name, info.count)
 			}
 			b[nextIP-2] = byte(info.count)
+		default:
 		}
 	}
 
@@ -2502,6 +2505,7 @@ func removeNOPs(b []byte, nopOffsets []int, sequencePoints map[string][]DebugSeq
 			finallyOffset := int(int32(binary.LittleEndian.Uint32(arg)))
 			finallyOffset += calcOffsetCorrection(ip, ip+finallyOffset, nopOffsets)
 			binary.LittleEndian.PutUint32(arg, uint32(finallyOffset))
+		default:
 		}
 	}
 

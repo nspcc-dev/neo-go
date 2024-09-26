@@ -47,6 +47,7 @@ func checkInstrCount(t *testing.T, src string, expectedSSlotCount, expectedCall,
 			if ctx.IP() == mainStart && expectedLocalsMain >= 0 {
 				require.Equal(t, expectedLocalsMain, int(param[0]))
 			}
+		default:
 		}
 		if ctx.IP() == ctx.LenInstr() {
 			break

@@ -55,3 +55,6 @@ testdata/
 pkg/vm/testdata/fuzz
 !pkg/vm/testdata
 !pkg/wallet/testdata
+
+# Linter
+.golangci.yml

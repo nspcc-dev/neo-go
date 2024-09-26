@@ -1446,6 +1446,7 @@ func (s *Server) handleMessage(peer Peer, msg *Message) error {
 			return s.handlePong(peer, pong)
 		case CMDVersion, CMDVerack:
 			return fmt.Errorf("received '%s' after the handshake", msg.Command.String())
+		default:
 		}
 	} else {
 		switch msg.Command {

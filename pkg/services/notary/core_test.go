@@ -232,6 +232,7 @@ func TestNotary(t *testing.T) {
 				script, err = smartcontract.CreateMultiSigRedeemScript(requesters[i].m, pubs)
 				require.NoError(t, err)
 				nKeys += uint8(len(requesters[i].accounts))
+			default:
 			}
 			signers[i] = transaction.Signer{
 				Account: hash.Hash160(script),
@@ -294,6 +295,7 @@ func TestNotary(t *testing.T) {
 				nSigs++
 			case notary.MultiSignature:
 				nSigs += r.m
+			default:
 			}
 		}
 		nSigners := len(requesters) + 1
