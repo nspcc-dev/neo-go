@@ -582,8 +582,8 @@ func TestSetAdmin(t *testing.T) {
 	testCases := []struct {
 		name     string
 		setup    func()
-		testFunc func() (interface{}, error)
-		want     interface{}
+		testFunc func() (any, error)
+		want     any
 		wantErr  bool
 	}{
 		{
@@ -591,9 +591,9 @@ func TestSetAdmin(t *testing.T) {
 			setup: func() {
 				ta.err = errors.New("test error")
 			},
-			testFunc: func() (interface{}, error) {
+			testFunc: func() (any, error) {
 				txh, vub, err := c.SetAdmin(name, admin)
-				return []interface{}{txh, vub}, err
+				return []any{txh, vub}, err
 			},
 			wantErr: true,
 		},
@@ -604,11 +604,11 @@ func TestSetAdmin(t *testing.T) {
 				ta.txh = txhMock
 				ta.vub = 42
 			},
-			testFunc: func() (interface{}, error) {
+			testFunc: func() (any, error) {
 				txh, vub, err := c.SetAdmin(name, admin)
-				return []interface{}{txh, vub}, err
+				return []any{txh, vub}, err
 			},
-			want: []interface{}{txhMock, uint32(42)},
+			want: []any{txhMock, uint32(42)},
 		},
 		{
 			name: "SetAdminTransaction - Success",
@@ -616,7 +616,7 @@ func TestSetAdmin(t *testing.T) {
 				ta.err = nil
 				ta.tx = txMock
 			},
-			testFunc: func() (interface{}, error) {
+			testFunc: func() (any, error) {
 				return c.SetAdminTransaction(name, admin)
 			},
 			want: txMock,
@@ -626,7 +626,7 @@ func TestSetAdmin(t *testing.T) {
 			setup: func() {
 				ta.err = errors.New("test error")
 			},
-			testFunc: func() (interface{}, error) {
+			testFunc: func() (any, error) {
 				return c.SetAdminTransaction(name, admin)
 			},
 			wantErr: true,
@@ -637,7 +637,7 @@ func TestSetAdmin(t *testing.T) {
 				ta.err = nil
 				ta.tx = txMock
 			},
-			testFunc: func() (interface{}, error) {
+			testFunc: func() (any, error) {
 				return c.SetAdminUnsigned(name, admin)
 			},
 			want: txMock,
@@ -647,7 +647,7 @@ func TestSetAdmin(t *testing.T) {
 			setup: func() {
 				ta.err = errors.New("test error")
 			},
-			testFunc: func() (interface{}, error) {
+			testFunc: func() (any, error) {
 				return c.SetAdminUnsigned(name, admin)
 			},
 			wantErr: true,
@@ -681,8 +681,8 @@ func TestSetRecord(t *testing.T) {
 	testCases := []struct {
 		name     string
 		setup    func()
-		testFunc func() (interface{}, error)
-		want     interface{}
+		testFunc func() (any, error)
+		want     any
 		wantErr  bool
 	}{
 		{
@@ -690,9 +690,9 @@ func TestSetRecord(t *testing.T) {
 			setup: func() {
 				ta.err = errors.New("test error")
 			},
-			testFunc: func() (interface{}, error) {
+			testFunc: func() (any, error) {
 				txh, vub, err := c.SetRecord(name, typev, data)
-				return []interface{}{txh, vub}, err
+				return []any{txh, vub}, err
 			},
 			wantErr: true,
 		},
@@ -703,11 +703,11 @@ func TestSetRecord(t *testing.T) {
 				ta.txh = txhMock
 				ta.vub = 42
 			},
-			testFunc: func() (interface{}, error) {
+			testFunc: func() (any, error) {
 				txh, vub, err := c.SetRecord(name, typev, data)
-				return []interface{}{txh, vub}, err
+				return []any{txh, vub}, err
 			},
-			want: []interface{}{txhMock, uint32(42)},
+			want: []any{txhMock, uint32(42)},
 		},
 		{
 			name: "SetRecordTransaction - Success",
@@ -715,7 +715,7 @@ func TestSetRecord(t *testing.T) {
 				ta.err = nil
 				ta.tx = txMock
 			},
-			testFunc: func() (interface{}, error) {
+			testFunc: func() (any, error) {
 				return c.SetRecordTransaction(name, typev, data)
 			},
 			want: txMock,
@@ -725,7 +725,7 @@ func TestSetRecord(t *testing.T) {
 			setup: func() {
 				ta.err = errors.New("test error")
 			},
-			testFunc: func() (interface{}, error) {
+			testFunc: func() (any, error) {
 				return c.SetRecordTransaction(name, typev, data)
 			},
 			wantErr: true,
@@ -736,7 +736,7 @@ func TestSetRecord(t *testing.T) {
 				ta.err = nil
 				ta.tx = txMock
 			},
-			testFunc: func() (interface{}, error) {
+			testFunc: func() (any, error) {
 				return c.SetRecordUnsigned(name, typev, data)
 			},
 			want: txMock,
@@ -746,7 +746,7 @@ func TestSetRecord(t *testing.T) {
 			setup: func() {
 				ta.err = errors.New("test error")
 			},
-			testFunc: func() (interface{}, error) {
+			testFunc: func() (any, error) {
 				return c.SetRecordUnsigned(name, typev, data)
 			},
 			wantErr: true,

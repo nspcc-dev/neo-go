@@ -8,11 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func getTestDecodeFunc(js string, expected ...interface{}) func(t *testing.T) {
+func getTestDecodeFunc(js string, expected ...any) func(t *testing.T) {
 	return getTestDecodeEncodeFunc(js, true, expected...)
 }
 
-func getTestDecodeEncodeFunc(js string, needEncode bool, expected ...interface{}) func(t *testing.T) {
+func getTestDecodeEncodeFunc(js string, needEncode bool, expected ...any) func(t *testing.T) {
 	return func(t *testing.T) {
 		actual, err := FromJSON([]byte(js), 20, true)
 		if expected[0] == nil {

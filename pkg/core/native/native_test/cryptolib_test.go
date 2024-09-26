@@ -468,5 +468,5 @@ func TestVerifyGroth16Proof(t *testing.T) {
 	publicWitness := make([]byte, fr.Bytes)
 
 	// Verify.
-	validatorInvoker.Invoke(t, true, "verifyProof", argA, argB, argC, []interface{}{publicWitness})
+	validatorInvoker.Invoke(t, true, "verifyProof", argA, argB, argC, []any{publicWitness})
 }
