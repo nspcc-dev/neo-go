@@ -750,17 +750,20 @@ func makeVoterKey(pub []byte, prealloc ...[]byte) []byte {
 // CalculateBonus calculates amount of gas generated for holding value NEO from start to end block
 // and having voted for active committee member.
 func (n *NEO) CalculateBonus(ic *interop.Context, acc util.Uint160, end uint32) (*big.Int, error) {
-	if ic.Block == nil || end != ic.Block.Index {
-		return nil, errors.New("can't calculate bonus of height unequal (BlockHeight + 1)")
-	}
 	key := makeAccountKey(acc)
 	si := ic.DAO.GetStorageItem(n.ID, key)
 	if si == nil {
-		return nil, storage.ErrKeyNotFound
+		return big.NewInt(0), nil
 	}
 	st, err := state.NEOBalanceFromBytes(si)
 	if err != nil {
 		return nil, err
+	}
+	if st.Balance.Sign() == 0 {
+		return big.NewInt(0), nil
+	}
+	if ic.Block == nil || end != ic.Block.Index {
+		return nil, errors.New("can't calculate bonus of height unequal (BlockHeight + 1)")
 	}
 	return n.calculateBonus(ic.DAO, st, end)
 }
