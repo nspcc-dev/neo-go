@@ -102,9 +102,9 @@ const (
 	effectiveVoterTurnout = 5
 	// neoHolderRewardRatio is a percent of generated GAS that is distributed to NEO holders.
 	neoHolderRewardRatio = 10
-	// neoHolderRewardRatio is a percent of generated GAS that is distributed to committee.
+	// committeeRewardRatio is a percent of generated GAS that is distributed to committee.
 	committeeRewardRatio = 10
-	// neoHolderRewardRatio is a percent of generated GAS that is distributed to voters.
+	// voterRewardRatio is a percent of generated GAS that is distributed to voters.
 	voterRewardRatio = 80
 
 	// maxGetCandidatesRespLen is the maximum number of candidates to return from the
