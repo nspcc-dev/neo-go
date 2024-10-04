@@ -776,6 +776,35 @@ func TestNEO_CalculateBonus(t *testing.T) {
 	})
 }
 
+func TestNEO_UnclaimedGas(t *testing.T) {
+	neoValidatorsInvoker := newNeoValidatorsClient(t)
+	e := neoValidatorsInvoker.Executor
+
+	acc := neoValidatorsInvoker.WithSigners(e.NewAccount(t))
+	accH := acc.Signers[0].ScriptHash()
+
+	t.Run("non-existing account", func(t *testing.T) {
+		// non-existing account, should return zero unclaimed GAS.
+		acc.Invoke(t, 0, "unclaimedGas", util.Uint160{}, 1)
+	})
+
+	t.Run("non-zero balance", func(t *testing.T) {
+		amount := 100
+		defaultGASPerBlock := 5
+		neoHolderRewardRatio := 10
+		rewardDistance := 10
+		neoValidatorsInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), accH, amount, nil)
+
+		for range rewardDistance - 1 {
+			e.AddNewBlock(t)
+		}
+		expectedGas := int64(amount * neoHolderRewardRatio / 100 * defaultGASPerBlock * rewardDistance)
+		acc.Invoke(t, expectedGas, "unclaimedGas", accH, e.Chain.BlockHeight()+1)
+
+		acc.InvokeFail(t, "can't calculate bonus of height unequal (BlockHeight + 1)", "unclaimedGas", accH, e.Chain.BlockHeight())
+	})
+}
+
 func TestNEO_GetCandidates(t *testing.T) {
 	neoCommitteeInvoker := newNeoCommitteeClient(t, 100_0000_0000)
 	neoValidatorsInvoker := neoCommitteeInvoker.WithSigners(neoCommitteeInvoker.Validator)
