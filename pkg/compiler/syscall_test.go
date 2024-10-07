@@ -343,20 +343,22 @@ func TestOpcode(t *testing.T) {
 		src := `package foo
 		import "github.com/nspcc-dev/neo-go/pkg/interop/math"
 		func Main() []int {
-			r := make([]int, 5)
+			r := make([]int, 6)
 			r[0] = math.ModMul(3, 4, 5)
 			r[1] = math.ModMul(-3, 4, 5)
 			r[2] = math.ModMul(3, 4, -5)
 			r[3] = math.ModMul(-3, 4, -5)
 			r[4] = math.ModMul(0, 4, 5)
+			r[5] = math.ModMul(100, -1, -91)
 			return r
 		}`
 		eval(t, src, []stackitem.Item{
 			stackitem.Make(2),
-			stackitem.Make(3),
+			stackitem.Make(-2),
 			stackitem.Make(2),
-			stackitem.Make(3),
+			stackitem.Make(-2),
 			stackitem.Make(0),
+			stackitem.Make(-9),
 		})
 	})
 	t.Run("MODPOW", func(t *testing.T) {

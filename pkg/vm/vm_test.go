@@ -738,9 +738,10 @@ func TestMODMUL(t *testing.T) {
 	t.Run("bad, zero mod", getTestFuncForVM(prog, nil, 1, 2, 0))
 	t.Run("good, positive base", getTestFuncForVM(prog, 2, 3, 4, 5))
 	t.Run("good, zero base", getTestFuncForVM(prog, 0, 0, 4, 5))
-	t.Run("good, negative base", getTestFuncForVM(prog, 3, -3, 4, 5))
+	t.Run("good, negative base", getTestFuncForVM(prog, -2, -3, 4, 5))
 	t.Run("good, positive base, negative mod", getTestFuncForVM(prog, 2, 3, 4, -5))
-	t.Run("good, negative base, negative mod", getTestFuncForVM(prog, 3, -3, 4, -5))
+	t.Run("good, negative base, negative mod", getTestFuncForVM(prog, -2, -3, 4, -5))
+	t.Run("good, positive base, negative multiplier, negative mod", getTestFuncForVM(prog, -9, 100, -1, -91))
 }
 
 func TestMODPOW(t *testing.T) {

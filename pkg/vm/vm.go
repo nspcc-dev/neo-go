@@ -1030,7 +1030,7 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		x1 := v.estack.Pop().BigInt()
 
 		res := new(big.Int).Mul(x1, x2)
-		v.estack.PushItem(stackitem.NewBigInteger(res.Mod(res, modulus)))
+		v.estack.PushItem(stackitem.NewBigInteger(res.Rem(res, modulus)))
 
 	case opcode.MODPOW:
 		modulus := v.estack.Pop().BigInt()
