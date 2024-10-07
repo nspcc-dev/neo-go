@@ -203,6 +203,11 @@ func documentSeqPoints(di *compiler.DebugInfo, doc documentName) []compiler.Debu
 }
 
 func addScriptToCoverage(c *Contract) {
+	// Any garbage may be passed to deployment methods, filter out useless contracts
+	// to avoid misleading behaviour during coverage collection.
+	if c.DebugInfo == nil || c.Hash.Equals(util.Uint160{}) {
+		return
+	}
 	coverageLock.Lock()
 	defer coverageLock.Unlock()
 	if _, ok := rawCoverage[c.Hash]; !ok {
