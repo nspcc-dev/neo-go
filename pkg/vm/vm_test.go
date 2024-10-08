@@ -2832,6 +2832,16 @@ func makeProgram(opcodes ...opcode.Opcode) []byte {
 
 func load(prog []byte) *VM {
 	vm := newTestVM()
+	vm.SyscallHandler = func(v *VM, id uint32) error {
+		switch id {
+		case interopnames.ToID([]byte(interopnames.SystemRuntimeGetScriptContainer)):
+			// We're OK with dummy script container.
+			v.Estack().PushItem(stackitem.Null{})
+		default:
+			return fmt.Errorf("unexpected syscall: %d", id)
+		}
+		return nil
+	}
 	if len(prog) != 0 {
 		vm.LoadScript(prog)
 	}
