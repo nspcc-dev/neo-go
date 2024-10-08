@@ -112,4 +112,4 @@ ApplicationConfiguration:
     IndexFileSize: 128000
     ContainerID: "EPGuD26wYgQJbmDdVBoYoNZiMKHwFMJT3A5WqPjdUHxH"
     BlockAttribute: "block"
-    IndexFileAttribute: "oid"
+    IndexFileAttribute: "index"
