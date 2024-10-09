@@ -158,7 +158,7 @@ func TestRegisterAndRenew(t *testing.T) {
 	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceSysfee, "register", "neo.org", e.CommitteeHash)
 	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceDomainPrice, "register", "neo.com", e.CommitteeHash)
 	var maxLenFragment string
-	for i := range maxDomainNameFragmentLength {
+	for range maxDomainNameFragmentLength {
 		maxLenFragment += "q"
 	}
 	c.Invoke(t, true, "isAvailable", maxLenFragment+".com")
@@ -365,6 +365,7 @@ func TestTransfer(t *testing.T) {
 	cFrom.Invoke(t, 1, "totalSupply")
 	cFrom.Invoke(t, to.ScriptHash().BytesBE(), "ownerOf", "neo.com")
 
+	e.DisableCoverage() // contracts below have no source files which leads to unprocessable coverage data
 	// without onNEP11Transfer
 	ctr := neotest.CompileSource(t, e.CommitteeHash,
 		strings.NewReader(`package foo
@@ -380,6 +381,7 @@ func TestTransfer(t *testing.T) {
 			func OnNEP11Payment(from interop.Hash160, amount int, token []byte, data any) {}`),
 		&compiler.Options{Name: "foo"})
 	e.DeployContract(t, ctr, nil)
+	e.EnableCoverage() // contracts above have no source files which leads to unprocessable coverage data
 	cTo.Invoke(t, true, "transfer", ctr.Hash, []byte("neo.com"), nil)
 	cFrom.Invoke(t, 1, "totalSupply")
 	cFrom.Invoke(t, ctr.Hash.BytesBE(), "ownerOf", []byte("neo.com"))

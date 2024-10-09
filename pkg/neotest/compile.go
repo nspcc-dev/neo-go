@@ -26,6 +26,10 @@ type Contract struct {
 var contracts = make(map[string]*Contract)
 
 // CompileSource compiles a contract from the reader and returns its NEF, manifest and hash.
+// Compiled contract will have "contract.go" used for its file name and coverage
+// data collection can give wrong results for it, so it's recommended to disable
+// coverage ([*Executor.DisableCoverage]) when you're deploying contracts
+// compiled via this function.
 func CompileSource(t testing.TB, sender util.Uint160, src io.Reader, opts *compiler.Options) *Contract {
 	// nef.NewFile() cares about version a lot.
 	config.Version = "neotest"
