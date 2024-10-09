@@ -158,7 +158,7 @@ func TestRegisterAndRenew(t *testing.T) {
 	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceSysfee, "register", "neo.org", e.CommitteeHash)
 	c.InvokeWithFeeFail(t, "GAS limit exceeded", defaultNameServiceDomainPrice, "register", "neo.com", e.CommitteeHash)
 	var maxLenFragment string
-	for i := range maxDomainNameFragmentLength {
+	for range maxDomainNameFragmentLength {
 		maxLenFragment += "q"
 	}
 	c.Invoke(t, true, "isAvailable", maxLenFragment+".com")
