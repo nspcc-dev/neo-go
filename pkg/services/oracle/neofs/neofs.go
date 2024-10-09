@@ -236,8 +236,13 @@ func parseRange(s string) (*object.Range, error) {
 	return r, nil
 }
 
+// ObjectSearchInitter defines the interface for initializing object search.
+type ObjectSearchInitter interface {
+	ObjectSearchInit(ctx context.Context, containerID cid.ID, s user.Signer, prm client.PrmObjectSearch) (*client.ObjectListReader, error)
+}
+
 // ObjectSearch returns a list of object IDs from the provided container.
-func ObjectSearch(ctx context.Context, c *client.Client, priv *keys.PrivateKey, containerIDStr string, prm client.PrmObjectSearch) ([]oid.ID, error) {
+func ObjectSearch(ctx context.Context, initter ObjectSearchInitter, priv *keys.PrivateKey, containerIDStr string, prm client.PrmObjectSearch) ([]oid.ID, error) {
 	var (
 		s           = user.NewAutoIDSignerRFC6979(priv.PrivateKey)
 		objectIDs   []oid.ID
@@ -247,7 +252,7 @@ func ObjectSearch(ctx context.Context, c *client.Client, priv *keys.PrivateKey, 
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidContainer, err)
 	}
-	reader, err := c.ObjectSearchInit(ctx, containerID, s, prm)
+	reader, err := initter.ObjectSearchInit(ctx, containerID, s, prm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initiate object search: %w", err)
 	}
