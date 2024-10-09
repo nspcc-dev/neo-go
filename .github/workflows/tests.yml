@@ -29,6 +29,12 @@ jobs:
     with:
       workdir: examples/${{ matrix.contract }}
 
+  lint_scripts:
+    name: 'Lint: scripts'
+    uses: nspcc-dev/.github/.github/workflows/go-linter.yml@master
+    with:
+      workdir: scripts
+
   gomodcheck:
     name: Check internal dependencies
     runs-on: ubuntu-latest
