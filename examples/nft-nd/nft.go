@@ -26,7 +26,7 @@ const (
 	totalSupplyPrefix = "s"
 	// balancePrefix contains map from addresses to balances.
 	balancePrefix = "b"
-	// accountPrefix contains map from address + token id to tokens
+	// accountPrefix contains map from address + token id to tokens.
 	accountPrefix = "a"
 	// tokenPrefix contains map from token id to it's owner.
 	tokenPrefix = "t"

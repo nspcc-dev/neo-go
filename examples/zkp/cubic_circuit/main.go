@@ -51,7 +51,7 @@ func (circuit *CubicCircuit) Define(api frontend.API) error {
 
 // main demonstrates how to build the proof and verify it with the help of gnark
 // library. Error handling omitted intentionally to simplify the example.
-func main() {
+func main() { // nolint: unused
 	var (
 		circuit    CubicCircuit
 		assignment = CubicCircuit{X: 3, Y: 35}
