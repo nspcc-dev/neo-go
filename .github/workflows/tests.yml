@@ -35,6 +35,12 @@ jobs:
     with:
       workdir: scripts
 
+  lint_interops:
+    name: 'Lint: interop'
+    uses: nspcc-dev/.github/.github/workflows/go-linter.yml@master
+    with:
+      workdir: pkg/interop
+
   gomodcheck:
     name: Check internal dependencies
     runs-on: ubuntu-latest
