@@ -9,15 +9,15 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 )
 
-const defaultTicks = 3
+const defaultTicks = 3 // nolint: unused
 const mgmtKey = "mgmt"
 
 var (
-	// ctx holds storage context for contract methods
+	// ctx holds storage context for contract methods.
 	ctx storage.Context
-	// Check if the invoker of the contract is the specified owner
+	// Check if the invoker of the contract is the specified owner.
 	owner = address.ToHash160("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
-	// ticksKey is a storage key for ticks counter
+	// ticksKey is a storage key for ticks counter.
 	ticksKey = []byte("ticks")
 )
 
@@ -25,7 +25,7 @@ func init() {
 	ctx = storage.GetContext()
 }
 
-func _deploy(_ any, isUpdate bool) {
+func _deploy(_ any, isUpdate bool) { // nolint: unused
 	if isUpdate {
 		ticksLeft := storage.Get(ctx, ticksKey).(int) + 1
 		storage.Put(ctx, ticksKey, ticksLeft)

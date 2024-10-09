@@ -19,7 +19,7 @@ var (
 )
 
 // init initializes Token Interface and storage context for the Smart
-// Contract to operate with
+// Contract to operate with.
 func init() {
 	token = nep17.Token{
 		Name:           "Awesome NEO Token",
@@ -32,32 +32,32 @@ func init() {
 	ctx = storage.GetContext()
 }
 
-// Symbol returns the token symbol
+// Symbol returns the token symbol.
 func Symbol() string {
 	return token.Symbol
 }
 
-// Decimals returns the token decimals
+// Decimals returns the token decimals.
 func Decimals() int {
 	return token.Decimals
 }
 
-// TotalSupply returns the token total supply value
+// TotalSupply returns the token total supply value.
 func TotalSupply() int {
 	return token.GetSupply(ctx)
 }
 
-// BalanceOf returns the amount of token on the specified address
+// BalanceOf returns the amount of token on the specified address.
 func BalanceOf(holder interop.Hash160) int {
 	return token.BalanceOf(ctx, holder)
 }
 
-// Transfer token from one user to another
+// Transfer token from one user to another.
 func Transfer(from interop.Hash160, to interop.Hash160, amount int, data any) bool {
 	return token.Transfer(ctx, from, to, amount, data)
 }
 
-// Mint initial supply of tokens
+// Mint initial supply of tokens.
 func Mint(to interop.Hash160) bool {
 	return token.Mint(ctx, to)
 }

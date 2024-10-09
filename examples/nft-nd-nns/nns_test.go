@@ -418,11 +418,9 @@ func testTokensOf(t *testing.T, c *neotest.ContractInvoker, result [][]byte, arg
 	}
 	require.NoError(t, err)
 	iter := s.Pop().Interop().Value().(*storage.Iterator)
-	arr := make([]stackitem.Item, 0, len(result))
 	for i := range result {
 		require.True(t, iter.Next())
 		require.Equal(t, result[i], iter.Value().Value())
-		arr = append(arr, stackitem.Make(result[i]))
 	}
 	require.False(t, iter.Next())
 }

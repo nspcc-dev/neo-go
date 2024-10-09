@@ -5,13 +5,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 )
 
-// ctx holds storage context for contract methods
+// ctx holds storage context for contract methods.
 var ctx storage.Context
 
 // defaultKey represents the default key.
 var defaultKey = []byte("default")
 
-// init inits storage context before any other contract method is called
+// init inits storage context before any other contract method is called.
 func init() {
 	ctx = storage.GetContext()
 }
