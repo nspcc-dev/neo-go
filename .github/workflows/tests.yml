@@ -14,8 +14,21 @@ on:
 
 jobs:
   lint:
-    name: Lint
+    name: 'Lint: NeoGo'
     uses: nspcc-dev/.github/.github/workflows/go-linter.yml@master
+
+  lint_examples:
+    name: 'Lint: examples (${{ matrix.contract }})'
+    uses: nspcc-dev/.github/.github/workflows/go-linter.yml@master
+
+    strategy:
+      fail-fast: false
+      matrix:
+        contract: [ 'engine', 'events', 'iterator', 'nft-d', 'nft-nd', 'nft-nd-nns', 'oracle',
+                    'runtime', 'storage', 'timer', 'token', 'zkp/cubic_circuit', 'zkp/xor_compat']
+    with:
+      workdir: examples/${{ matrix.contract }}
+
   gomodcheck:
     name: Check internal dependencies
     runs-on: ubuntu-latest
