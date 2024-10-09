@@ -180,8 +180,23 @@ func TestStoreAsTransaction(t *testing.T) {
 			Container: hash,
 			Execution: state.Execution{
 				Trigger: trigger.Application,
-				Events:  []state.NotificationEvent{},
-				Stack:   []stackitem.Item{},
+				Events: []state.NotificationEvent{
+					{
+						ScriptHash: util.Uint160{},
+						Name:       "fakeTransferEvent",
+						Item: stackitem.NewArray([]stackitem.Item{
+							stackitem.NewBool(false),
+						}),
+					},
+				},
+				Stack: []stackitem.Item{},
+				Invocations: []state.ContractInvocation{{
+					Hash:   util.Uint160{},
+					Method: "fakeMethodCall",
+					Arguments: stackitem.NewArray([]stackitem.Item{
+						stackitem.NewBool(false),
+					}),
+				}},
 			},
 		}
 		err := dao.StoreAsTransaction(tx, 0, aer)
