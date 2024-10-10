@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	// Check if the invoker of the contract is the specified owner
+	// Check if the invoker of the contract is the specified owner.
 	owner = address.ToHash160("NbrUYaZgyhSkNoRo9ugRyEMdUZxrhkNaWB")
 )
 
@@ -22,7 +22,7 @@ func init() {
 
 // _deploy is called after contract deployment or update, it'll be called
 // in deployment transaction and if call update method of this contract.
-func _deploy(_ any, isUpdate bool) {
+func _deploy(_ any, isUpdate bool) { // nolint: unused
 	if isUpdate {
 		Log("_deploy method called after contract update")
 		return

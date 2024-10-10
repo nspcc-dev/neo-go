@@ -113,7 +113,22 @@ vet:
 	curl -L -o $@ https://github.com/nspcc-dev/.github/raw/master/.golangci.yml
 
 lint: .golangci.yml
-	@golangci-lint run
+	-@golangci-lint run ./...
+	-@cd ./examples/engine/ && golangci-lint run
+	-@cd ./examples/events/ && golangci-lint run
+	-@cd ./examples/iterator/ && golangci-lint run
+	-@cd ./examples/nft-d/ && golangci-lint run
+	-@cd ./examples/nft-nd/ && golangci-lint run
+	-@cd ./examples/nft-nd-nns/ && golangci-lint run
+	-@cd ./examples/oracle/ && golangci-lint run
+	-@cd ./examples/runtime/ && golangci-lint run
+	-@cd ./examples/storage/ && golangci-lint run
+	-@cd ./examples/timer/ && golangci-lint run
+	-@cd ./examples/token/ && golangci-lint run
+	-@cd ./examples/zkp/cubic_circuit/ && golangci-lint run
+	-@cd ./examples/zkp/xor_compat/ && golangci-lint run
+	-@cd ./scripts/ && golangci-lint run ./...
+	-@cd ./pkg/interop/ && golangci-lint run ./...
 
 fmt:
 	@gofmt -l -w -s $$(find . -type f -name '*.go'| grep -v "/vendor/")

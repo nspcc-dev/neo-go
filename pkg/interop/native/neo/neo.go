@@ -130,5 +130,4 @@ func GetAccountState(addr interop.Hash160) *AccountState {
 // GetCommitteeAddress represents `getCommitteeAddress` method of NEO native contract.
 func GetCommitteeAddress() interop.Hash160 {
 	return neogointernal.CallWithToken(Hash, "getCommitteeAddress", int(contract.ReadStates)).(interop.Hash160)
-
 }

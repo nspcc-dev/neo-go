@@ -88,7 +88,7 @@ type WitnessCondition struct {
 // WitnessConditionType represents the type of rule-based witness condition.
 type WitnessConditionType byte
 
-// Various witness condition types
+// Various witness condition types.
 const (
 	// WitnessBoolean is a generic boolean condition.
 	WitnessBoolean WitnessConditionType = 0x00
