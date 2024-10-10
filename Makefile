@@ -24,6 +24,9 @@ IMAGE_REPO=nspccdev/neo-go
 
 DISABLE_NEOTEST_COVER=1
 
+ROOT_DIR:=$(dir $(realpath $(firstword $(MAKEFILE_LIST))))
+GOMODDIRS=$(dir $(shell find $(ROOT_DIR) -name go.mod))
+
 # All of the targets are phony here because we don't really use make dependency
 # tracking for files
 .PHONY: build $(BINARY) deps image docker/$(BINARY) image-latest image-push image-push-latest clean-cluster \
@@ -113,7 +116,9 @@ vet:
 	curl -L -o $@ https://github.com/nspcc-dev/.github/raw/master/.golangci.yml
 
 lint: .golangci.yml
-	@golangci-lint run
+	@for dir in $(GOMODDIRS); do \
+		(cd "$$dir" && golangci-lint run --config $(ROOT_DIR)/$< | sed -r "s,^,$$dir," | sed -r "s,^$(ROOT_DIR),,") \
+	done
 
 fmt:
 	@gofmt -l -w -s $$(find . -type f -name '*.go'| grep -v "/vendor/")
