@@ -60,7 +60,7 @@ const (
 // Other constants.
 const (
 	// defaultRegisterPrice is the default price for new domain registration.
-	defaultRegisterPrice = 10_0000_0000
+	defaultRegisterPrice = 10_0000_0000 // nolint: unused
 	// millisecondsInYear is amount of milliseconds per year.
 	millisecondsInYear = 365 * 24 * 3600 * 1000
 )
@@ -79,7 +79,7 @@ func Update(nef []byte, manifest string) {
 }
 
 // _deploy initializes defaults (total supply and registration price) on contract deploy.
-func _deploy(data any, isUpdate bool) {
+func _deploy(data any, isUpdate bool) { // nolint: unused
 	if isUpdate {
 		return
 	}
@@ -491,7 +491,7 @@ func getRecordKey(tokenId []byte, name string, typ RecordType) []byte {
 
 // isValid returns true if the provided address is a valid Uint160.
 func isValid(address interop.Hash160) bool {
-	return address != nil && len(address) == 20
+	return address != nil && len(address) == 20 // nolint: gosimple
 }
 
 // checkCommittee panics if the script container is not signed by the committee.
@@ -555,7 +555,7 @@ func splitAndCheck(name string, allowMultipleFragments bool) []string {
 	if l > 2 && !allowMultipleFragments {
 		return nil
 	}
-	for i := 0; i < l; i++ {
+	for i := range fragments {
 		if !checkFragment(fragments[i], i == l-1) {
 			return nil
 		}

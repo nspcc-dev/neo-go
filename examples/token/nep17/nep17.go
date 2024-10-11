@@ -8,7 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 )
 
-// Token holds all token info
+// Token holds all token info.
 type Token struct {
 	// Token name
 	Name string
@@ -35,17 +35,17 @@ func getIntFromDB(ctx storage.Context, key []byte) int {
 	return res
 }
 
-// GetSupply gets the token totalSupply value from VM storage
+// GetSupply gets the token totalSupply value from VM storage.
 func (t Token) GetSupply(ctx storage.Context) int {
 	return getIntFromDB(ctx, []byte(t.CirculationKey))
 }
 
-// BalanceOf gets the token balance of a specific address
+// BalanceOf gets the token balance of a specific address.
 func (t Token) BalanceOf(ctx storage.Context, holder []byte) int {
 	return getIntFromDB(ctx, holder)
 }
 
-// Transfer token from one user to another
+// Transfer token from one user to another.
 func (t Token) Transfer(ctx storage.Context, from, to interop.Hash160, amount int, data any) bool {
 	amountFrom := t.CanTransfer(ctx, from, to, amount)
 	if amountFrom == -1 {
@@ -74,7 +74,7 @@ func (t Token) Transfer(ctx storage.Context, from, to interop.Hash160, amount in
 	return true
 }
 
-// CanTransfer returns the amount it can transfer
+// CanTransfer returns the amount it can transfer.
 func (t Token) CanTransfer(ctx storage.Context, from []byte, to []byte, amount int) int {
 	if len(to) != 20 || !IsUsableAddress(from) {
 		return -1
@@ -94,10 +94,9 @@ func (t Token) CanTransfer(ctx storage.Context, from []byte, to []byte, amount i
 	return amountFrom
 }
 
-// IsUsableAddress checks if the sender is either the correct Neo address or SC address
+// IsUsableAddress checks if the sender is either the correct Neo address or SC address.
 func IsUsableAddress(addr []byte) bool {
 	if len(addr) == 20 {
-
 		if runtime.CheckWitness(addr) {
 			return true
 		}
@@ -112,13 +111,13 @@ func IsUsableAddress(addr []byte) bool {
 	return false
 }
 
-// Mint initial supply of tokens
+// Mint initial supply of tokens.
 func (t Token) Mint(ctx storage.Context, to interop.Hash160) bool {
 	if !IsUsableAddress(t.Owner) {
 		return false
 	}
 	minted := storage.Get(ctx, []byte("minted"))
-	if minted != nil && minted.(bool) == true {
+	if minted != nil && minted.(bool) {
 		return false
 	}
 

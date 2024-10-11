@@ -43,7 +43,7 @@ var (
 // proving system and is taken from the
 // https://github.com/neo-project/neo/issues/2647#issuecomment-1002893109 without
 // changes. The verification process checks the following equality:
-// A * B = alpha * beta + sum(pub_input[i] * (beta * u_i(x) + alpha * v_i(x) + w_i(x)) / gamma) * gamma + C * delta
+// A * B = alpha * beta + sum(pub_input[i] * (beta * u_i(x) + alpha * v_i(x) + w_i(x)) / gamma) * gamma + C * delta.
 func VerifyProof(a []byte, b []byte, c []byte, publicInput [][]byte) bool {
 	alphaPoint := crypto.Bls12381Deserialize(alpha)
 	betaPoint := crypto.Bls12381Deserialize(beta)
@@ -68,11 +68,11 @@ func VerifyProof(a []byte, b []byte, c []byte, publicInput [][]byte) bool {
 		panic("error: inputlen or iclen")
 	}
 	icPoints := make([]crypto.Bls12381Point, iclen)
-	for i := 0; i < iclen; i++ {
+	for i := range icPoints {
 		icPoints[i] = crypto.Bls12381Deserialize(ic[i])
 	}
 	acc := icPoints[0]
-	for i := 0; i < inputlen; i++ {
+	for i := range publicInput {
 		scalar := publicInput[i] // 32-bytes LE field element.
 		temp := crypto.Bls12381Mul(icPoints[i+1], scalar, false)
 		acc = crypto.Bls12381Add(acc, temp)
