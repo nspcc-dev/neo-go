@@ -16,11 +16,20 @@ import (
 )
 
 const (
-	// goCoverProfileFlag specifies the name of `go test` flag that tells it where to save coverage data.
-	// Neotest coverage can be enabled only when this flag is set.
+	// goCoverProfileFlag specifies the name of `go test` command flag `coverprofile`
+	// that tells it where to save coverage data. Neotest coverage can be enabled
+	// only when this flag is set.
 	goCoverProfileFlag = "test.coverprofile"
+	// goCoverModeFlag specifies the name of `go test` command flag `covermode` that
+	// specifies the coverage calculation mode.
+	goCoverModeFlag = "test.covermode"
 	// disableNeotestCover is name of the environmental variable used to explicitly disable neotest coverage.
 	disableNeotestCover = "DISABLE_NEOTEST_COVER"
+)
+
+const (
+	// goCoverModeSet is the name of "set" go test coverage mode.
+	goCoverModeSet = "set"
 )
 
 var (
@@ -34,6 +43,8 @@ var (
 	coverageEnabled bool
 	// coverProfile specifies the file all coverage data is written to, unless empty.
 	coverProfile = ""
+	// coverMode is the mode of go coverage collection.
+	coverMode = goCoverModeSet
 )
 
 type scriptRawCoverage struct {
@@ -83,11 +94,17 @@ func isCoverageEnabled() bool {
 			goToolCoverageEnabled = true
 			coverProfile = f.Value.String()
 		}
+		if f.Name == goCoverModeFlag && f.Value != nil && f.Value.String() != "" {
+			coverMode = f.Value.String()
+		}
 	})
 
 	coverageEnabled = !disabledByEnvironment && goToolCoverageEnabled
 
 	if coverageEnabled {
+		if coverMode != goCoverModeSet {
+			t.Fatalf("coverage: only '%s' cover mode is currently supported (#3587), got '%s'", goCoverModeSet, coverMode)
+		}
 		// This is needed so go cover tool doesn't overwrite
 		// the file with our coverage when all tests are done.
 		err := flag.Set(goCoverProfileFlag, "")
@@ -119,19 +136,19 @@ func reportCoverage(t testing.TB) {
 }
 
 func writeCoverageReport(w io.Writer) {
-	fmt.Fprintf(w, "mode: set\n")
+	fmt.Fprintf(w, "mode: %s\n", coverMode)
 	cover := processCover()
 	for name, blocks := range cover {
 		for _, b := range blocks {
-			c := 0
-			if b.counts > 0 {
-				c = 1
+			var counts = b.counts
+			if coverMode == goCoverModeSet && counts > 0 {
+				counts = 1
 			}
 			fmt.Fprintf(w, "%s:%d.%d,%d.%d %d %d\n", name,
 				b.startLine, b.startCol,
 				b.endLine, b.endCol,
 				b.stmts,
-				c,
+				counts,
 			)
 		}
 	}
