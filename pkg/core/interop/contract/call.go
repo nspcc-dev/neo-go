@@ -69,6 +69,12 @@ func Call(ic *interop.Context) error {
 		return fmt.Errorf("method not found: %s/%d", method, len(args))
 	}
 	hasReturn := md.ReturnType != smartcontract.VoidType
+
+	ic.InvocationCalls = append(ic.InvocationCalls, state.ContractInvocation{
+		Hash:      u,
+		Method:    method,
+		Arguments: stackitem.NewArray(args),
+	})
 	return callInternal(ic, cs, method, fs, hasReturn, args, true)
 }
 
