@@ -1,10 +1,12 @@
 package neotest
 
 import (
+	"cmp"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -201,6 +203,15 @@ func processCover() map[documentName][]*coverBlock {
 		for _, b := range mappedBlocks {
 			blocks = append(blocks, b)
 		}
+		slices.SortFunc(blocks, func(a, b *coverBlock) int {
+			return cmp.Or(
+				cmp.Compare(a.startLine, b.startLine),
+				cmp.Compare(a.endLine, b.endLine),
+				cmp.Compare(a.startCol, b.startCol),
+				cmp.Compare(a.endCol, b.endCol),
+				cmp.Compare(a.stmts, b.stmts),
+				cmp.Compare(a.counts, b.counts))
+		})
 		cover[documentName] = blocks
 	}
 
