@@ -249,7 +249,7 @@ func (bfs *Service) blockQueuer() {
 // fetchOIDsFromIndexFiles fetches block OIDs from NeoFS by searching index files first.
 func (bfs *Service) fetchOIDsFromIndexFiles() error {
 	h := bfs.chain.BlockHeight()
-	startIndex := h/bfs.cfg.IndexFileSize + 1
+	startIndex := h / bfs.cfg.IndexFileSize
 	skip := h % bfs.cfg.IndexFileSize
 
 	for {
