@@ -48,7 +48,7 @@ func NewExecutor(t testing.TB, bc *core.Blockchain, validator, committee Signer)
 		Validator:       validator,
 		Committee:       committee,
 		CommitteeHash:   committee.ScriptHash(),
-		collectCoverage: isCoverageEnabled(),
+		collectCoverage: isCoverageEnabled(t),
 	}
 }
 
@@ -452,8 +452,8 @@ func (e *Executor) GetTxExecResult(t testing.TB, h util.Uint256) *state.AppExecR
 }
 
 // EnableCoverage enables coverage collection for this executor, but only when `go test` is running with coverage enabled.
-func (e *Executor) EnableCoverage() {
-	e.collectCoverage = isCoverageEnabled()
+func (e *Executor) EnableCoverage(t testing.TB) {
+	e.collectCoverage = isCoverageEnabled(t)
 }
 
 // DisableCoverage disables coverage collection for this executor until enabled explicitly through EnableCoverage.

@@ -70,7 +70,7 @@ type coverBlock struct {
 // documentName makes it clear when a `string` maps path to the script file.
 type documentName = string
 
-func isCoverageEnabled() bool {
+func isCoverageEnabled(t testing.TB) bool {
 	coverageLock.Lock()
 	defer coverageLock.Unlock()
 
@@ -83,7 +83,7 @@ func isCoverageEnabled() bool {
 	if v, ok := os.LookupEnv(disableNeotestCover); ok {
 		disabled, err := strconv.ParseBool(v)
 		if err != nil {
-			panic(fmt.Sprintf("coverage: error when parsing environment variable '%s', expected bool, but got '%s'", disableNeotestCover, v))
+			t.Fatalf("coverage: error when parsing environment variable '%s', expected bool, but got '%s'", disableNeotestCover, v)
 		}
 		disabledByEnvironment = disabled
 	}
@@ -109,7 +109,7 @@ func isCoverageEnabled() bool {
 		// the file with our coverage when all tests are done.
 		err := flag.Set(goCoverProfileFlag, "")
 		if err != nil {
-			panic(err)
+			t.Fatalf("coverage: failed to overwrite coverprofile flag: %v", err)
 		}
 	}
 
