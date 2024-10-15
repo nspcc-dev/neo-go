@@ -154,7 +154,7 @@ func writeCoverageReport(w io.Writer) {
 	}
 }
 
-func processCover() map[documentName][]coverBlock {
+func processCover() map[documentName][]*coverBlock {
 	documents := make(map[documentName]struct{})
 	for _, scriptRawCoverage := range rawCoverage {
 		for _, documentName := range scriptRawCoverage.debugInfo.Documents {
@@ -162,7 +162,7 @@ func processCover() map[documentName][]coverBlock {
 		}
 	}
 
-	cover := make(map[documentName][]coverBlock)
+	cover := make(map[documentName][]*coverBlock)
 
 	for documentName := range documents {
 		mappedBlocks := make(map[int]*coverBlock)
@@ -197,9 +197,9 @@ func processCover() map[documentName][]coverBlock {
 			}
 		}
 
-		var blocks []coverBlock
+		var blocks = make([]*coverBlock, 0, len(mappedBlocks))
 		for _, b := range mappedBlocks {
-			blocks = append(blocks, *b)
+			blocks = append(blocks, b)
 		}
 		cover[documentName] = blocks
 	}
