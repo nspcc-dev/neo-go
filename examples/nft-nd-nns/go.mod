@@ -3,7 +3,7 @@ module github.com/nspcc-dev/neo-go/examples/nft-nd-nns
 go 1.22
 
 require (
-	github.com/nspcc-dev/neo-go v0.106.4-0.20241007161539-0968c3a81fb0
+	github.com/nspcc-dev/neo-go v0.106.4-0.20241016130346-d8e945978af6
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20240727093519-1a48f1ce43ec
 	github.com/stretchr/testify v1.9.0
 )

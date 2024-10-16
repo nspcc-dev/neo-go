@@ -1,10 +1,12 @@
 package neotest
 
 import (
+	"cmp"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -16,11 +18,20 @@ import (
 )
 
 const (
-	// goCoverProfileFlag specifies the name of `go test` flag that tells it where to save coverage data.
-	// Neotest coverage can be enabled only when this flag is set.
+	// goCoverProfileFlag specifies the name of `go test` command flag `coverprofile`
+	// that tells it where to save coverage data. Neotest coverage can be enabled
+	// only when this flag is set.
 	goCoverProfileFlag = "test.coverprofile"
+	// goCoverModeFlag specifies the name of `go test` command flag `covermode` that
+	// specifies the coverage calculation mode.
+	goCoverModeFlag = "test.covermode"
 	// disableNeotestCover is name of the environmental variable used to explicitly disable neotest coverage.
 	disableNeotestCover = "DISABLE_NEOTEST_COVER"
+)
+
+const (
+	// goCoverModeSet is the name of "set" go test coverage mode.
+	goCoverModeSet = "set"
 )
 
 var (
@@ -34,6 +45,8 @@ var (
 	coverageEnabled bool
 	// coverProfile specifies the file all coverage data is written to, unless empty.
 	coverProfile = ""
+	// coverMode is the mode of go coverage collection.
+	coverMode = goCoverModeSet
 )
 
 type scriptRawCoverage struct {
@@ -59,7 +72,7 @@ type coverBlock struct {
 // documentName makes it clear when a `string` maps path to the script file.
 type documentName = string
 
-func isCoverageEnabled() bool {
+func isCoverageEnabled(t testing.TB) bool {
 	coverageLock.Lock()
 	defer coverageLock.Unlock()
 
@@ -72,7 +85,7 @@ func isCoverageEnabled() bool {
 	if v, ok := os.LookupEnv(disableNeotestCover); ok {
 		disabled, err := strconv.ParseBool(v)
 		if err != nil {
-			panic(fmt.Sprintf("coverage: error when parsing environment variable '%s', expected bool, but got '%s'", disableNeotestCover, v))
+			t.Fatalf("coverage: error when parsing environment variable '%s', expected bool, but got '%s'", disableNeotestCover, v)
 		}
 		disabledByEnvironment = disabled
 	}
@@ -83,16 +96,22 @@ func isCoverageEnabled() bool {
 			goToolCoverageEnabled = true
 			coverProfile = f.Value.String()
 		}
+		if f.Name == goCoverModeFlag && f.Value != nil && f.Value.String() != "" {
+			coverMode = f.Value.String()
+		}
 	})
 
 	coverageEnabled = !disabledByEnvironment && goToolCoverageEnabled
 
 	if coverageEnabled {
+		if coverMode != goCoverModeSet {
+			t.Fatalf("coverage: only '%s' cover mode is currently supported (#3587), got '%s'", goCoverModeSet, coverMode)
+		}
 		// This is needed so go cover tool doesn't overwrite
 		// the file with our coverage when all tests are done.
 		err := flag.Set(goCoverProfileFlag, "")
 		if err != nil {
-			panic(err)
+			t.Fatalf("coverage: failed to overwrite coverprofile flag: %v", err)
 		}
 	}
 
@@ -119,25 +138,25 @@ func reportCoverage(t testing.TB) {
 }
 
 func writeCoverageReport(w io.Writer) {
-	fmt.Fprintf(w, "mode: set\n")
+	fmt.Fprintf(w, "mode: %s\n", coverMode)
 	cover := processCover()
 	for name, blocks := range cover {
 		for _, b := range blocks {
-			c := 0
-			if b.counts > 0 {
-				c = 1
+			var counts = b.counts
+			if coverMode == goCoverModeSet && counts > 0 {
+				counts = 1
 			}
 			fmt.Fprintf(w, "%s:%d.%d,%d.%d %d %d\n", name,
 				b.startLine, b.startCol,
 				b.endLine, b.endCol,
 				b.stmts,
-				c,
+				counts,
 			)
 		}
 	}
 }
 
-func processCover() map[documentName][]coverBlock {
+func processCover() map[documentName][]*coverBlock {
 	documents := make(map[documentName]struct{})
 	for _, scriptRawCoverage := range rawCoverage {
 		for _, documentName := range scriptRawCoverage.debugInfo.Documents {
@@ -145,7 +164,7 @@ func processCover() map[documentName][]coverBlock {
 		}
 	}
 
-	cover := make(map[documentName][]coverBlock)
+	cover := make(map[documentName][]*coverBlock)
 
 	for documentName := range documents {
 		mappedBlocks := make(map[int]*coverBlock)
@@ -180,10 +199,19 @@ func processCover() map[documentName][]coverBlock {
 			}
 		}
 
-		var blocks []coverBlock
+		var blocks = make([]*coverBlock, 0, len(mappedBlocks))
 		for _, b := range mappedBlocks {
-			blocks = append(blocks, *b)
+			blocks = append(blocks, b)
 		}
+		slices.SortFunc(blocks, func(a, b *coverBlock) int {
+			return cmp.Or(
+				cmp.Compare(a.startLine, b.startLine),
+				cmp.Compare(a.endLine, b.endLine),
+				cmp.Compare(a.startCol, b.startCol),
+				cmp.Compare(a.endCol, b.endCol),
+				cmp.Compare(a.stmts, b.stmts),
+				cmp.Compare(a.counts, b.counts))
+		})
 		cover[documentName] = blocks
 	}
 
