@@ -50,8 +50,14 @@ var (
 )
 
 type scriptRawCoverage struct {
-	debugInfo      *compiler.DebugInfo
-	offsetsVisited []int
+	debugInfo *compiler.DebugInfo
+	// methodStartOffsets holds the set of script offsets that correspond to method
+	// declaration start.
+	methodStartOffsets map[uint16]struct{}
+	// methodStartOffsets holds the set of script offsets that correspond to method
+	// declaration end.
+	methodEndOffsets map[uint16]struct{}
+	offsetsVisited   []int
 }
 
 type coverBlock struct {
@@ -174,6 +180,12 @@ func processCover() map[documentName][]*coverBlock {
 			documentSeqPoints := documentSeqPoints(di, documentName)
 
 			for _, point := range documentSeqPoints {
+				// Don't track RET statements since their bounds overlap the whole function
+				// which break the resulting coverage report.
+				_, isRET := scriptRawCoverage.methodEndOffsets[uint16(point.Opcode)]
+				if isRET {
+					continue
+				}
 				b := coverBlock{
 					startLine: uint(point.StartLine),
 					startCol:  uint(point.StartCol),
@@ -193,6 +205,10 @@ func processCover() map[documentName][]*coverBlock {
 			for _, offset := range scriptRawCoverage.offsetsVisited {
 				for _, point := range documentSeqPoints {
 					if point.Opcode == offset {
+						_, ok := mappedBlocks[point.Opcode]
+						if !ok {
+							continue
+						}
 						mappedBlocks[point.Opcode].counts++
 					}
 				}
@@ -239,6 +255,16 @@ func addScriptToCoverage(c *Contract) {
 	coverageLock.Lock()
 	defer coverageLock.Unlock()
 	if _, ok := rawCoverage[c.Hash]; !ok {
-		rawCoverage[c.Hash] = &scriptRawCoverage{debugInfo: c.DebugInfo}
+		startOffsets := make(map[uint16]struct{})
+		endOffsets := make(map[uint16]struct{})
+		for _, m := range c.DebugInfo.Methods {
+			startOffsets[m.Range.Start] = struct{}{}
+			endOffsets[m.Range.End] = struct{}{}
+		}
+		rawCoverage[c.Hash] = &scriptRawCoverage{
+			debugInfo:          c.DebugInfo,
+			methodStartOffsets: startOffsets,
+			methodEndOffsets:   endOffsets,
+		}
 	}
 }
