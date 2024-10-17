@@ -42,13 +42,21 @@ const (
 // Constants related to retry mechanism.
 const (
 	// Maximum number of retries.
-	maxRetries = 3
+	maxRetries = 5
 	// Initial backoff duration.
 	initialBackoff = 500 * time.Millisecond
 	// Backoff multiplier.
 	backoffFactor = 2
 	// Maximum backoff duration.
-	maxBackoff = 10 * time.Second
+	maxBackoff = 20 * time.Second
+)
+
+// Constants related to NeoFS pool request timeouts.
+// Such big values are used to avoid NeoFS pool timeouts during block search and upload.
+const (
+	defaultDialTimeout        = 10 * time.Minute
+	defaultStreamTimeout      = 10 * time.Minute
+	defaultHealthcheckTimeout = 10 * time.Second
 )
 
 func uploadBin(ctx *cli.Context) error {
@@ -82,7 +90,12 @@ func uploadBin(ctx *cli.Context) error {
 	fmt.Fprintln(ctx.App.Writer, "Chain block height:", currentBlockHeight)
 
 	signer := user.NewAutoIDSignerRFC6979(acc.PrivateKey().PrivateKey)
-	p, err := pool.New(pool.NewFlatNodeParams(rpcNeoFS), signer, pool.DefaultOptions())
+
+	params := pool.DefaultOptions()
+	params.SetHealthcheckTimeout(defaultHealthcheckTimeout)
+	params.SetNodeDialTimeout(defaultDialTimeout)
+	params.SetNodeStreamTimeout(defaultStreamTimeout)
+	p, err := pool.New(pool.NewFlatNodeParams(rpcNeoFS), signer, params)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to create NeoFS pool: %v", err), 1)
 	}
