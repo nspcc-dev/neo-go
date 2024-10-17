@@ -255,7 +255,7 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 
 		for i := len(results) - 1; i >= 0; i-- {
 			if results[i].err != nil {
-				return 0, fmt.Errorf("search of index files failed for batch with indexes from %d to %d: %w", batch*searchBatchSize, (batch+1)*searchBatchSize, results[i].err)
+				return 0, fmt.Errorf("search of index files failed for batch with indexes from %d to %d: %w", results[i].startIndex, results[i].startIndex+searchBatchSize, results[i].err)
 			}
 			if results[i].numOIDs < searchBatchSize {
 				emptyBatchFound = true
