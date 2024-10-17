@@ -51,6 +51,12 @@ const (
 	maxBackoff = 10 * time.Second
 )
 
+// Constants related to NeoFS pool request timeouts.
+const (
+	defaultDialTimeout   = 10 * time.Minute
+	defaultStreamTimeout = 10 * time.Minute
+)
+
 func uploadBin(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
@@ -82,7 +88,11 @@ func uploadBin(ctx *cli.Context) error {
 	fmt.Fprintln(ctx.App.Writer, "Chain block height:", currentBlockHeight)
 
 	signer := user.NewAutoIDSignerRFC6979(acc.PrivateKey().PrivateKey)
-	p, err := pool.New(pool.NewFlatNodeParams(rpcNeoFS), signer, pool.DefaultOptions())
+
+	params := pool.DefaultOptions()
+	params.SetNodeDialTimeout(defaultDialTimeout)
+	params.SetNodeStreamTimeout(defaultStreamTimeout)
+	p, err := pool.New(pool.NewFlatNodeParams(rpcNeoFS), signer, params)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to create NeoFS pool: %v", err), 1)
 	}
