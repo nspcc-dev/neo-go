@@ -190,3 +190,25 @@ func TestAwaitUtilCancelTx(t *testing.T) {
 		t.Fatal(fmt.Errorf("unexpected error: %w", err))
 	}
 }
+
+func TestUploadBin(t *testing.T) {
+	e := testcli.NewExecutor(t, true)
+	args := []string{
+		"neo-go", "util", "upload-bin",
+		"--cid", "test",
+		"--wallet", "./not-exist.json",
+		"--block-attribute", "block",
+		"--index-attribute", "oid-index",
+		"--fsr", "st1.local.fs.neo.org:8080",
+	}
+	e.In.WriteString("one\r")
+	e.RunWithErrorCheckExit(t, "failed to load account", append(args, "--cid", "test", "--wallet", "./not-exist.json", "--rpc-endpoint", "https://test")...)
+	e.In.WriteString("one\r")
+	e.RunWithErrorCheckExit(t, "failed to decode container ID", append(args, "--cid", "test", "--wallet", testcli.ValidatorWallet, "--rpc-endpoint", "https://test")...)
+	e.In.WriteString("one\r")
+	e.RunWithErrorCheckExit(t, "failed to create RPC client", append(args, "--cid", "9iVfUg8aDHKjPC4LhQXEkVUM4HDkR7UCXYLs8NQwYfSG", "--wallet", testcli.ValidatorWallet, "--rpc-endpoint", "https://test")...)
+	e.In.WriteString("one\r")
+	e.RunWithErrorCheck(t, "failed to dial NeoFS pool", append(args, "--cid", "9iVfUg8aDHKjPC4LhQXEkVUM4HDkR7UCXYLs8NQwYfSG", "--wallet", testcli.ValidatorWallet, "--rpc-endpoint", "http://"+e.RPC.Addresses()[0])...)
+	e.CheckNextLine(t, "Chain block height:")
+	e.CheckEOF(t)
+}

@@ -16,12 +16,12 @@ attributes:
  - primary node index (`primary:0`)
  - block hash in the LE form (`hash:5412a781caf278c0736556c0e544c7cfdbb6e3c62ae221ef53646be89364566b`)
  - previous block hash in the LE form (`prevHash:3654a054d82a8178c7dfacecc2c57282e23468a42ee407f14506368afe22d929`)
- - millisecond-precision block timestamp (`time:1627894840919`)
+ - millisecond-precision block timestamp (`timestamp:1627894840919`)
 
 Each index file is an object containing a constant-sized batch of raw block object
 IDs in binary form ordered by block index. Each index file is marked with the
 following attributes:
- - index file identifier with consecutive file index value (`oid:0`)
+ - index file identifier with consecutive file index value (`index:0`)
  - the number of OIDs included into index file (`size:128000`)
 
 ### NeoFS BlockFetcher
@@ -72,3 +72,44 @@ parameter.
 
 Once all blocks available in the NeoFS container are processed, the service
 shuts down automatically.
+
+### NeoFS Upload Command
+The `upload-bin` command is designed to fetch blocks from the RPC node and upload 
+them to the NeoFS container.
+It also creates and uploads index files. Below is an example usage of the command:
+
+```shell
+./bin/neo-go util upload-bin --cid 9iVfUg8aDHKjPC4LhQXEkVUM4HDkR7UCXYLs8NQwYfSG --wallet-config ./wallet-config.yml --block-attribute block --index-attribute index --rpc-endpoint https://rpc.t5.n3.nspcc.ru:20331 -fsr st1.t5.fs.neo.org:8080 -fsr st2.t5.fs.neo.org:8080 -fsr st3.t5.fs.neo.org:8080
+```
+The command supports the following options:
+```
+NAME:
+neo-go util upload-bin - Fetch blocks from RPC node and upload them to the NeoFS container
+
+USAGE:
+neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>]
+
+OPTIONS:
+--fs-rpc-endpoint value, --fsr value [ --fs-rpc-endpoint value, --fsr value ]  List of NeoFS storage node RPC addresses (comma-separated or multiple --fs-rpc-endpoint flags)
+--container value, --cid value                                                 NeoFS container ID to upload blocks to
+--block-attribute value                                                        Attribute key of the block object
+--index-attribute value                                                        Attribute key of the index file object
+--address value                                                                Address to use for signing the uploading and searching transactions in NeoFS
+--index-file-size value                                                        Size of index file (default: 128000)
+--rpc-endpoint value, -r value                                                 RPC node address
+--timeout value, -s value                                                      Timeout for the operation (default: 10s)
+--wallet value, -w value                                                       Wallet to use to get the key for transaction signing; conflicts with --wallet-config flag
+--wallet-config value                                                          Path to wallet config to use to get the key for transaction signing; conflicts with --wallet flag
+--help, -h                                                                     show help
+```
+
+This command works as follows:
+1. Fetches the current block height from the RPC node.
+2. Searches for the oldest half-filled batch of block objects stored in NeoFS. 
+3. Fetches missing blocks from the RPC node and uploads them to the NeoFS container 
+starting from the oldest half-filled batch.
+4. After uploading the blocks, it creates index files for the newly uploaded blocks. 
+5. Uploads the created index files to the NeoFS container.
+
+If the command is interrupted, it can be resumed. It starts the uploading process
+from the oldest half-filled batch of blocks.
