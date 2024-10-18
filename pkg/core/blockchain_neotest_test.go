@@ -2629,15 +2629,18 @@ func TestBlockchain_StoreAsTransaction_ExecutableConflict(t *testing.T) {
 // sure that NeoGo node is not affected by https://github.com/neo-project/neo/issues/3300 and does not need
 // the https://github.com/neo-project/neo/pull/3301.
 func TestEngineLimits(t *testing.T) {
+	const eArgsCount = 500
+
 	bc, acc := chain.NewSingle(t)
 	e := neotest.NewExecutor(t, bc, acc, acc)
 
-	src := `package test
+	args, _ := strings.CutSuffix(strings.Repeat(`"", `, eArgsCount), `, `)
+	src := fmt.Sprintf(`package test
 		import (
 			"github.com/nspcc-dev/neo-go/pkg/interop/runtime"
 		)
 		// args is an array of LargeEvent parameters containing 500 empty strings.
-		var args = []any{"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "" };
+		var args = []any{%s};
 		func ProduceNumerousNotifications(count int) [][]any {
 			for i := 0; i < count; i++ {
 				runtime.Notify("LargeEvent", args...)
@@ -2657,8 +2660,7 @@ func TestEngineLimits(t *testing.T) {
 				res = append(res, smallObject...)
 			}
 			return len(res)
-		}`
-	const eArgsCount = 500
+		}`, args)
 	eParams := make([]compiler.HybridParameter, eArgsCount)
 	for i := range eParams {
 		eParams[i].Name = fmt.Sprintf("str%d", i)
@@ -2676,16 +2678,16 @@ func TestEngineLimits(t *testing.T) {
 	e.DeployContract(t, c, nil)
 
 	// ProduceNumerousNotifications: 1 iteration, no limits are hit.
-	var args = make([]stackitem.Item, eArgsCount)
-	for i := range args {
-		args[i] = stackitem.Make("")
+	var params = make([]stackitem.Item, eArgsCount)
+	for i := range params {
+		params[i] = stackitem.Make("")
 	}
 	cInv := e.NewInvoker(c.Hash, acc)
 	cInv.Invoke(t, stackitem.Make([]stackitem.Item{
 		stackitem.Make([]stackitem.Item{
 			stackitem.Make(c.Hash),
 			stackitem.Make("LargeEvent"),
-			stackitem.Make(args),
+			stackitem.Make(params),
 		}),
 	}), "produceNumerousNotifications", 1)
 
