@@ -205,6 +205,7 @@ func retry(action func() error) error {
 
 type searchResult struct {
 	startIndex int
+	endIndex   int
 	numOIDs    int
 	err        error
 }
@@ -248,14 +249,14 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 					objectIDs, err = neofs.ObjectSearch(ctx, p, priv, containerID.String(), prm)
 					return err
 				})
-				results[i] = searchResult{startIndex: startIndex, numOIDs: len(objectIDs), err: err}
+				results[i] = searchResult{startIndex: startIndex, endIndex: endIndex, numOIDs: len(objectIDs), err: err}
 			}(i, startIndex, endIndex)
 		}
 		wg.Wait()
 
 		for i := len(results) - 1; i >= 0; i-- {
 			if results[i].err != nil {
-				return 0, fmt.Errorf("search of index files failed for batch with indexes from %d to %d: %w", batch*searchBatchSize, (batch+1)*searchBatchSize, results[i].err)
+				return 0, fmt.Errorf("search of index files failed for batch with indexes from %d to %d: %w", results[i].startIndex, results[i].endIndex-1, results[i].err)
 			}
 			if results[i].numOIDs < searchBatchSize {
 				emptyBatchFound = true
