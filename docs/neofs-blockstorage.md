@@ -9,20 +9,20 @@ efficiency and reduce node storage size.
 
 ### Block storage schema
 
-A single NeoFS container is used to store blocks and index files. Each block
-is stored in a binary form as a separate object with a unique OID and a set of
-attributes:
- - block object identifier with block index value (`block:1`)
- - primary node index (`primary:0`)
- - block hash in the LE form (`hash:5412a781caf278c0736556c0e544c7cfdbb6e3c62ae221ef53646be89364566b`)
- - previous block hash in the LE form (`prevHash:3654a054d82a8178c7dfacecc2c57282e23468a42ee407f14506368afe22d929`)
- - millisecond-precision block timestamp (`timestamp:1627894840919`)
+A single NeoFS container is used to store blocks and index files. Each container
+has network magic attribute (`Magic:56753`). Each block is stored in a binary 
+form as a separate object with a unique OID and a set of attributes:
+ - block object identifier with block index value (`Block:1`)
+ - primary node index (`Primary:0`)
+ - block hash in the LE form (`Hash:5412a781caf278c0736556c0e544c7cfdbb6e3c62ae221ef53646be89364566b`)
+ - previous block hash in the LE form (`PrevHash:3654a054d82a8178c7dfacecc2c57282e23468a42ee407f14506368afe22d929`)
+ - millisecond-precision block timestamp (`Timestamp:1627894840919`)
 
 Each index file is an object containing a constant-sized batch of raw block object
 IDs in binary form ordered by block index. Each index file is marked with the
 following attributes:
- - index file identifier with consecutive file index value (`index:0`)
- - the number of OIDs included into index file (`size:128000`)
+ - index file identifier with consecutive file index value (`Index:0`)
+ - the number of OIDs included into index file (`IndexSize:128000`)
 
 ### NeoFS BlockFetcher
 
@@ -79,7 +79,7 @@ them to the NeoFS container.
 It also creates and uploads index files. Below is an example usage of the command:
 
 ```shell
-./bin/neo-go util upload-bin --cid 9iVfUg8aDHKjPC4LhQXEkVUM4HDkR7UCXYLs8NQwYfSG --wallet-config ./wallet-config.yml --block-attribute block --index-attribute index --rpc-endpoint https://rpc.t5.n3.nspcc.ru:20331 -fsr st1.t5.fs.neo.org:8080 -fsr st2.t5.fs.neo.org:8080 -fsr st3.t5.fs.neo.org:8080
+./bin/neo-go util upload-bin --cid 9iVfUg8aDHKjPC4LhQXEkVUM4HDkR7UCXYLs8NQwYfSG --wallet-config ./wallet-config.yml --block-attribute Block --index-attribute Index --rpc-endpoint https://rpc.t5.n3.nspcc.ru:20331 -fsr st1.t5.fs.neo.org:8080 -fsr st2.t5.fs.neo.org:8080 -fsr st3.t5.fs.neo.org:8080
 ```
 The command supports the following options:
 ```
