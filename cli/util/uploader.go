@@ -276,7 +276,7 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 				continue
 			}
 			if emptyBatchFound || (batch == numBatches && i == len(results)-1) {
-				return results[i].startIndex + searchBatchSize, nil
+				return results[i].endIndex, nil
 			}
 		}
 	}
