@@ -164,8 +164,9 @@ func uploadBin(ctx *cli.Context) error {
 						*object.NewAttribute("timestamp", strconv.FormatUint(blk.Timestamp, 10)),
 					}
 
+					objBytes := bw.Bytes()
 					err = retry(func() error {
-						return uploadObj(ctx.Context, p, signer, acc.PrivateKey().GetScriptHash(), containerID, bw.Bytes(), attrs, homomorphicHashingDisabled)
+						return uploadObj(ctx.Context, p, signer, acc.PrivateKey().GetScriptHash(), containerID, objBytes, attrs, homomorphicHashingDisabled)
 					})
 					if err != nil {
 						select {
