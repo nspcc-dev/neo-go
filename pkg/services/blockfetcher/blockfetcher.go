@@ -205,7 +205,7 @@ func (bfs *Service) blockDownloader() {
 			if isContextCanceledErr(err) {
 				return
 			}
-			bfs.log.Error("failed to objectGet block", zap.Error(err))
+			bfs.log.Error("failed to objectGet block", zap.String("oid", blkOid.String()), zap.Error(err))
 			bfs.stopService(true)
 			return
 		}
@@ -215,7 +215,7 @@ func (bfs *Service) blockDownloader() {
 			if isContextCanceledErr(err) {
 				return
 			}
-			bfs.log.Error("failed to read block", zap.Error(err))
+			bfs.log.Error("failed to decode block from stream", zap.String("oid", blkOid.String()), zap.Error(err))
 			bfs.stopService(true)
 			return
 		}
@@ -238,7 +238,7 @@ func (bfs *Service) blockQueuer() {
 		default:
 			err := bfs.enqueueBlock(b)
 			if err != nil {
-				bfs.log.Error("failed to enqueue block", zap.Error(err))
+				bfs.log.Error("failed to enqueue block", zap.Uint32("index", b.Index), zap.Error(err))
 				bfs.stopService(true)
 				return
 			}
