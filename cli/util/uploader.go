@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
+	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -83,12 +84,6 @@ func uploadBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Sprintf("failed to create RPC client: %v", err), 1)
 	}
 
-	currentBlockHeight, err := rpc.GetBlockCount()
-	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to get current block height from RPC: %v", err), 1)
-	}
-	fmt.Fprintln(ctx.App.Writer, "Chain block height:", currentBlockHeight)
-
 	signer := user.NewAutoIDSignerRFC6979(acc.PrivateKey().PrivateKey)
 
 	params := pool.DefaultOptions()
@@ -109,6 +104,31 @@ func uploadBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Errorf("failed to get network info: %w", err), 1)
 	}
 	homomorphicHashingDisabled := net.HomomorphicHashingDisabled()
+	var containerObj container.Container
+	err = retry(func() error {
+		containerObj, err = p.ContainerGet(ctx.Context, containerID, client.PrmContainerGet{})
+		return err
+	})
+	if err != nil {
+		return cli.Exit(fmt.Errorf("failed to get container with ID %s: %w", containerID, err), 1)
+	}
+	containerMagic := containerObj.Attribute("Magic")
+
+	v, err := rpc.GetVersion()
+	if err != nil {
+		return cli.Exit(fmt.Sprintf("failed to get version from RPC: %v", err), 1)
+	}
+	magic := strconv.Itoa(int(v.Protocol.Network))
+	if containerMagic != magic {
+		return cli.Exit(fmt.Sprintf("Container magic %s does not match the network magic %s", containerMagic, magic), 1)
+	}
+
+	currentBlockHeight, err := rpc.GetBlockCount()
+	if err != nil {
+		return cli.Exit(fmt.Sprintf("failed to get current block height from RPC: %v", err), 1)
+	}
+	fmt.Fprintln(ctx.App.Writer, "Chain block height:", currentBlockHeight)
+
 	lastMissingBlockIndex, err := fetchLatestMissingBlockIndex(ctx.Context, p, containerID, acc.PrivateKey(), attr, int(currentBlockHeight))
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to fetch the latest missing block index from container: %w", err), 1)
@@ -158,10 +178,10 @@ func uploadBin(ctx *cli.Context) error {
 					}
 					attrs := []object.Attribute{
 						*object.NewAttribute(attr, strconv.Itoa(int(blk.Index))),
-						*object.NewAttribute("primary", strconv.Itoa(int(blk.PrimaryIndex))),
-						*object.NewAttribute("hash", blk.Hash().StringLE()),
-						*object.NewAttribute("prevHash", blk.PrevHash.StringLE()),
-						*object.NewAttribute("timestamp", strconv.FormatUint(blk.Timestamp, 10)),
+						*object.NewAttribute("Primary", strconv.Itoa(int(blk.PrimaryIndex))),
+						*object.NewAttribute("Hash", blk.Hash().StringLE()),
+						*object.NewAttribute("PrevHash", blk.PrevHash.StringLE()),
+						*object.NewAttribute("Timestamp", strconv.FormatUint(blk.Timestamp, 10)),
 					}
 
 					objBytes := bw.Bytes()
@@ -293,7 +313,7 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 	prm := client.PrmObjectSearch{}
 	filters := object.NewSearchFilters()
 	filters.AddFilter(attributeKey, fmt.Sprintf("%d", 0), object.MatchNumGE)
-	filters.AddFilter("size", fmt.Sprintf("%d", indexFileSize), object.MatchStringEqual)
+	filters.AddFilter("IndexSize", fmt.Sprintf("%d", indexFileSize), object.MatchStringEqual)
 	prm.SetFilters(filters)
 	var (
 		objectIDs []oid.ID
@@ -395,7 +415,7 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 		}
 		attrs := []object.Attribute{
 			*object.NewAttribute(attributeKey, strconv.Itoa(int(i))),
-			*object.NewAttribute("size", strconv.Itoa(int(indexFileSize))),
+			*object.NewAttribute("IndexSize", strconv.Itoa(int(indexFileSize))),
 		}
 		err = uploadObj(ctx.Context, p, signer, account.PrivateKey().GetScriptHash(), containerID, buffer, attrs, homomorphicHashingDisabled)
 		if err != nil {

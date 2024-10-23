@@ -111,5 +111,5 @@ ApplicationConfiguration:
     SkipIndexFilesSearch: false
     IndexFileSize: 128000
     ContainerID: "EPGuD26wYgQJbmDdVBoYoNZiMKHwFMJT3A5WqPjdUHxH"
-    BlockAttribute: "block"
-    IndexFileAttribute: "index"
+    BlockAttribute: "Block"
+    IndexFileAttribute: "Index"
