@@ -26,6 +26,8 @@ const (
 	NEP11Payable = "NEP-11-Payable"
 	// NEP17Payable represents the name of contract interface which can receive NEP-17 tokens.
 	NEP17Payable = "NEP-17-Payable"
+	// NEP24StandardName represents the name of the NEP-24 smart contract standard for NFT royalties.
+	NEP24StandardName = "NEP-24"
 
 	emptyFeatures = "{}"
 )
