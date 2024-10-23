@@ -662,6 +662,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.AssignStmt:
+		c.saveSequencePoint(n)
 		// Filter out type assertion with two return values: i, ok = v.(int)
 		if len(n.Lhs) == 2 && len(n.Rhs) == 1 && (n.Tok == token.DEFINE || n.Tok == token.ASSIGN) {
 			err := checkTypeAssertWithOK(n.Rhs[0])
@@ -753,6 +754,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.ReturnStmt:
+		c.saveSequencePoint(n)
 		l := c.newLabel()
 		c.setLabel(l)
 
@@ -799,6 +801,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.IfStmt:
+		c.saveSequencePoint(n)
 		c.scope.vars.newScope()
 		defer c.scope.vars.dropScope()
 
@@ -827,6 +830,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.SwitchStmt:
+		c.saveSequencePoint(n)
 		eqOpcode := opcode.EQUAL
 		if n.Tag != nil {
 			ast.Walk(c, n.Tag)
@@ -973,6 +977,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.CallExpr:
+		c.saveSequencePoint(n)
 		var (
 			f         *funcScope
 			ok        bool
@@ -1108,6 +1113,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.DeferStmt:
+		c.saveSequencePoint(n)
 		catch := c.newLabel()
 		finally := c.newLabel()
 		param := make([]byte, 8)
@@ -1183,6 +1189,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.IncDecStmt:
+		c.saveSequencePoint(n)
 		ast.Walk(c, n.X)
 		c.emitToken(n.Tok, c.typeOf(n.X))
 
@@ -1204,6 +1211,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.BranchStmt:
+		c.saveSequencePoint(n)
 		var label string
 		if n.Label != nil {
 			label = n.Label.Name
@@ -1238,6 +1246,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.BlockStmt:
+		c.saveSequencePoint(n)
 		c.scope.vars.newScope()
 		defer c.scope.vars.dropScope()
 
@@ -1248,6 +1257,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.ForStmt:
+		c.saveSequencePoint(n)
 		c.scope.vars.newScope()
 		defer c.scope.vars.dropScope()
 
@@ -1293,6 +1303,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		return nil
 
 	case *ast.RangeStmt:
+		c.saveSequencePoint(n)
 		c.scope.vars.newScope()
 		defer c.scope.vars.dropScope()
 
@@ -1403,6 +1414,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 	// For this to work properly, we only need to walk the expression
 	// which is not the assertion type.
 	case *ast.TypeAssertExpr:
+		c.saveSequencePoint(n)
 		ast.Walk(c, n.X)
 		if c.isCallExprSyscall(n.X) {
 			return nil
