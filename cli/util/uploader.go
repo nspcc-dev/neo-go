@@ -20,6 +20,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/pool"
@@ -99,7 +100,13 @@ func uploadBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Sprintf("failed to dial NeoFS pool: %v", err), 1)
 	}
 	defer p.Close()
-	net, err := p.NetworkInfo(ctx.Context, client.PrmNetworkInfo{})
+
+	var net netmap.NetworkInfo
+	err = retry(func() error {
+		var errNet error
+		net, errNet = p.NetworkInfo(ctx.Context, client.PrmNetworkInfo{})
+		return errNet
+	})
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to get network info: %w", err), 1)
 	}
@@ -423,7 +430,9 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 			*object.NewAttribute(attributeKey, strconv.Itoa(int(i))),
 			*object.NewAttribute("IndexSize", strconv.Itoa(int(indexFileSize))),
 		}
-		err := uploadObj(ctx.Context, p, signer, account.PrivateKey().GetScriptHash(), containerID, buffer, attrs, homomorphicHashingDisabled)
+		err := retry(func() error {
+			return uploadObj(ctx.Context, p, signer, account.PrivateKey().GetScriptHash(), containerID, buffer, attrs, homomorphicHashingDisabled)
+		})
 		if err != nil {
 			return fmt.Errorf("failed to upload index file %d: %w", i, err)
 		}
