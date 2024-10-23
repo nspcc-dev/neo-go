@@ -35,6 +35,9 @@ const (
 	DefaultBaseExecFee = 30
 	// ContextNonceDataLen is a length of [Context.NonceData] in bytes.
 	ContextNonceDataLen = 16
+	// MaxNotificationCount is the maximum number of notifications per single
+	// application execution.
+	MaxNotificationCount = 512
 )
 
 // Ledger is the interface to Blockchain required for Context functionality.
@@ -565,10 +568,18 @@ func (ic *Context) IsHardforkActivation(hf config.Hardfork) bool {
 }
 
 // AddNotification creates notification event and appends it to the notification list.
-func (ic *Context) AddNotification(hash util.Uint160, name string, item *stackitem.Array) {
+func (ic *Context) AddNotification(hash util.Uint160, name string, item *stackitem.Array) error {
+	if ic.IsHardforkEnabled(config.HFEchidna) {
+		// Do not check persisting triggers to avoid native persist failure. Do not check
+		// verification trigger since verification context is loaded with ReadOnly flag.
+		if ic.Trigger == trigger.Application && len(ic.Notifications) == MaxNotificationCount {
+			return fmt.Errorf("notification count shouldn't exceed %d", MaxNotificationCount)
+		}
+	}
 	ic.Notifications = append(ic.Notifications, state.NotificationEvent{
 		ScriptHash: hash,
 		Name:       name,
 		Item:       item,
 	})
+	return nil
 }

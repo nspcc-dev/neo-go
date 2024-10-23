@@ -316,10 +316,13 @@ func (o *Oracle) FinishInternal(ic *interop.Context) error {
 	if err != nil {
 		return ErrRequestNotFound
 	}
-	ic.AddNotification(o.Hash, "OracleResponse", stackitem.NewArray([]stackitem.Item{
+	err = ic.AddNotification(o.Hash, "OracleResponse", stackitem.NewArray([]stackitem.Item{
 		stackitem.Make(resp.ID),
 		stackitem.Make(req.OriginalTxID.BytesBE()),
 	}))
+	if err != nil {
+		return err
+	}
 
 	origTx, _, err := ic.DAO.GetTransaction(req.OriginalTxID)
 	if err != nil {
@@ -422,12 +425,15 @@ func (o *Oracle) RequestInternal(ic *interop.Context, url string, filter *string
 	} else {
 		filterNotif = stackitem.Null{}
 	}
-	ic.AddNotification(o.Hash, "OracleRequest", stackitem.NewArray([]stackitem.Item{
+	err = ic.AddNotification(o.Hash, "OracleRequest", stackitem.NewArray([]stackitem.Item{
 		stackitem.Make(id),
 		stackitem.Make(ic.VM.GetCallingScriptHash().BytesBE()),
 		stackitem.Make(url),
 		filterNotif,
 	}))
+	if err != nil {
+		return err
+	}
 	req := &state.OracleRequest{
 		OriginalTxID:     o.getOriginalTxID(ic.DAO, ic.Tx),
 		GasForResponse:   gas.Uint64(),

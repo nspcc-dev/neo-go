@@ -146,7 +146,11 @@ func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint
 			}
 		}
 	}()
-	c.emitTransfer(ic, from, to, amount)
+	err := c.emitTransfer(ic, from, to, amount)
+	if err != nil {
+		skipPostCalls = true
+		panic(err)
+	}
 	if to == nil || !callOnPayment {
 		return
 	}
@@ -170,8 +174,8 @@ func (c *nep17TokenNative) postTransfer(ic *interop.Context, from, to *util.Uint
 	}
 }
 
-func (c *nep17TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint160, amount *big.Int) {
-	ic.AddNotification(c.Hash, "Transfer", stackitem.NewArray([]stackitem.Item{
+func (c *nep17TokenNative) emitTransfer(ic *interop.Context, from, to *util.Uint160, amount *big.Int) error {
+	return ic.AddNotification(c.Hash, "Transfer", stackitem.NewArray([]stackitem.Item{
 		addrToStackItem(from),
 		addrToStackItem(to),
 		stackitem.NewBigInteger(amount),
