@@ -76,6 +76,16 @@ func NewCommands() []*cli.Command {
 			Usage: "Size of index file",
 			Value: 128000,
 		},
+		&cli.UintFlag{
+			Name:  "workers",
+			Usage: "Number of workers to fetch and upload blocks concurrently",
+			Value: 50,
+		},
+		&cli.UintFlag{
+			Name:  "searchers",
+			Usage: "Number of concurrent searches for blocks",
+			Value: 20,
+		},
 	}, options.RPC...)
 	uploadBinFlags = append(uploadBinFlags, options.Wallet...)
 	return []*cli.Command{
@@ -158,7 +168,7 @@ func NewCommands() []*cli.Command {
 				{
 					Name:      "upload-bin",
 					Usage:     "Fetch blocks from RPC node and upload them to the NeoFS container",
-					UsageText: "neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>]",
+					UsageText: "neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>]",
 					Action:    uploadBin,
 					Flags:     uploadBinFlags,
 				},
