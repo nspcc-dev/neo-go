@@ -483,7 +483,12 @@ func uploadObj(ctx context.Context, p *pool.Pool, signer user.Signer, owner util
 func getBlockIndex(header *object.Object, attribute string) (int, error) {
 	for _, attr := range header.UserAttributes() {
 		if attr.Key() == attribute {
-			return strconv.Atoi(attr.Value())
+			value := attr.Value()
+			blockIndex, err := strconv.Atoi(value)
+			if err != nil {
+				return -1, fmt.Errorf("attribute %s has invalid value: %s, error: %w", attribute, value, err)
+			}
+			return blockIndex, nil
 		}
 	}
 	return -1, fmt.Errorf("attribute %s not found", attribute)
