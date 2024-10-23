@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -346,6 +347,8 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 		buffer                = make([]byte, indexFileSize*oidSize)
 		oidCh                 = make(chan oid.ID, indexFileSize)
 		oidFetcherToProcessor = make(chan struct{}, indexFileSize)
+
+		emptyOid = make([]byte, oidSize)
 	)
 	defer close(oidCh)
 	for range maxParallelSearches {
@@ -424,6 +427,14 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 				if completed == int(indexFileSize) {
 					break waitLoop
 				}
+			}
+		}
+		// Check if there are any empty oids in the created index file.
+		// This could happen if object payload is empty ->
+		// attribute is not set correctly -> empty oid is added to the index file.
+		for k := 0; k < len(buffer); k += oidSize {
+			if slices.Compare(buffer[k:k+oidSize], emptyOid) == 0 {
+				return fmt.Errorf("empty oid found in index file %d at position %d (block index %d)", i, k/oidSize, i+uint(k/oidSize))
 			}
 		}
 		attrs := []object.Attribute{
