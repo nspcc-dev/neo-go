@@ -155,16 +155,17 @@ func uploadBin(ctx *cli.Context) error {
 				defer wg.Done()
 				for blockIndex := batchStart + i; blockIndex < batchEnd; blockIndex += numWorkers {
 					var blk *block.Block
-					err = retry(func() error {
-						blk, err = rpc.GetBlockByIndex(uint32(blockIndex))
-						if err != nil {
-							return fmt.Errorf("failed to fetch block %d: %w", blockIndex, err)
+					errGet := retry(func() error {
+						var errGetBlock error
+						blk, errGetBlock = rpc.GetBlockByIndex(uint32(blockIndex))
+						if errGetBlock != nil {
+							return fmt.Errorf("failed to fetch block %d: %w", blockIndex, errGetBlock)
 						}
 						return nil
 					})
-					if err != nil {
+					if errGet != nil {
 						select {
-						case errorCh <- err:
+						case errorCh <- errGet:
 						default:
 						}
 						return
@@ -185,12 +186,12 @@ func uploadBin(ctx *cli.Context) error {
 					}
 
 					objBytes := bw.Bytes()
-					err = retry(func() error {
+					errRetr := retry(func() error {
 						return uploadObj(ctx.Context, p, signer, acc.PrivateKey().GetScriptHash(), containerID, objBytes, attrs, homomorphicHashingDisabled)
 					})
-					if err != nil {
+					if errRetr != nil {
 						select {
-						case errorCh <- err:
+						case errorCh <- errRetr:
 						default:
 						}
 						return
@@ -205,7 +206,7 @@ func uploadBin(ctx *cli.Context) error {
 		}()
 
 		select {
-		case err := <-errorCh:
+		case err = <-errorCh:
 			return cli.Exit(fmt.Errorf("upload error: %w", err), 1)
 		case <-doneCh:
 		}
@@ -315,16 +316,14 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 	filters.AddFilter(attributeKey, fmt.Sprintf("%d", 0), object.MatchNumGE)
 	filters.AddFilter("IndexSize", fmt.Sprintf("%d", indexFileSize), object.MatchStringEqual)
 	prm.SetFilters(filters)
-	var (
-		objectIDs []oid.ID
-		err       error
-	)
-	err = retry(func() error {
-		objectIDs, err = neofs.ObjectSearch(ctx.Context, p, account.PrivateKey(), containerID.String(), prm)
-		return err
+	var objectIDs []oid.ID
+	errSearch := retry(func() error {
+		var errSearchIndex error
+		objectIDs, errSearchIndex = neofs.ObjectSearch(ctx.Context, p, account.PrivateKey(), containerID.String(), prm)
+		return errSearchIndex
 	})
-	if err != nil {
-		return fmt.Errorf("search of index files failed: %w", err)
+	if errSearch != nil {
+		return fmt.Errorf("search of index files failed: %w", errSearch)
 	}
 
 	existingIndexCount := uint(len(objectIDs))
@@ -346,13 +345,14 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 		go func() {
 			for id := range oidCh {
 				var obj *object.Object
-				err = retry(func() error {
-					obj, err = p.ObjectHead(context.Background(), containerID, id, signer, client.PrmObjectHead{})
-					return err
+				errRetr := retry(func() error {
+					var errGetHead error
+					obj, errGetHead = p.ObjectHead(context.Background(), containerID, id, signer, client.PrmObjectHead{})
+					return errGetHead
 				})
-				if err != nil {
+				if errRetr != nil {
 					select {
-					case errCh <- fmt.Errorf("failed to fetch object %s: %w", id.String(), err):
+					case errCh <- fmt.Errorf("failed to fetch object %s: %w", id.String(), errRetr):
 					default:
 					}
 				}
@@ -384,9 +384,10 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 				filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", end), object.MatchNumLT)
 				prm.SetFilters(filters)
 				var objIDs []oid.ID
-				err = retry(func() error {
-					objIDs, err = neofs.ObjectSearch(ctx.Context, p, account.PrivateKey(), containerID.String(), prm)
-					return err
+				err := retry(func() error {
+					var errSearchIndex error
+					objIDs, errSearchIndex = neofs.ObjectSearch(ctx.Context, p, account.PrivateKey(), containerID.String(), prm)
+					return errSearchIndex
 				})
 
 				if err != nil {
@@ -417,7 +418,7 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 			*object.NewAttribute(attributeKey, strconv.Itoa(int(i))),
 			*object.NewAttribute("IndexSize", strconv.Itoa(int(indexFileSize))),
 		}
-		err = uploadObj(ctx.Context, p, signer, account.PrivateKey().GetScriptHash(), containerID, buffer, attrs, homomorphicHashingDisabled)
+		err := uploadObj(ctx.Context, p, signer, account.PrivateKey().GetScriptHash(), containerID, buffer, attrs, homomorphicHashingDisabled)
 		if err != nil {
 			return fmt.Errorf("failed to upload index file %d: %w", i, err)
 		}
