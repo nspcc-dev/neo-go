@@ -355,6 +355,7 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 					case errCh <- fmt.Errorf("failed to fetch object %s: %w", id.String(), errRetr):
 					default:
 					}
+					return
 				}
 				blockIndex, err := getBlockIndex(obj, blockAttributeKey)
 				if err != nil {
@@ -362,6 +363,7 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 					case errCh <- fmt.Errorf("failed to get block index from object %s: %w", id.String(), err):
 					default:
 					}
+					return
 				}
 				offset := (uint(blockIndex) % indexFileSize) * oidSize
 				id.Encode(buffer[offset:])
@@ -391,7 +393,10 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 				})
 
 				if err != nil {
-					errCh <- fmt.Errorf("failed to search for objects from %d to %d for index file %d: %w", j, end, i, err)
+					select {
+					case errCh <- fmt.Errorf("failed to search for objects from %d to %d for index file %d: %w", j, end, i, err):
+					default:
+					}
 					return
 				}
 
