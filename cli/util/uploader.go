@@ -33,13 +33,8 @@ import (
 const (
 	// Number of objects to search in a batch for finding max block in container.
 	searchBatchSize = 10000
-	// Control the number of concurrent searches.
-	maxParallelSearches = 40
 	// Size of object ID.
 	oidSize = sha256.Size
-
-	// Number of workers to fetch and upload blocks concurrently.
-	numWorkers = 100
 )
 
 // Constants related to retry mechanism.
@@ -69,6 +64,8 @@ func uploadBin(ctx *cli.Context) error {
 	rpcNeoFS := ctx.StringSlice("fs-rpc-endpoint")
 	containerIDStr := ctx.String("container")
 	attr := ctx.String("block-attribute")
+	numWorkers := ctx.Int("workers")
+	maxParallelSearches := ctx.Int("searchers")
 	acc, _, err := options.GetAccFromContext(ctx)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to load account: %v", err), 1)
@@ -137,7 +134,7 @@ func uploadBin(ctx *cli.Context) error {
 	}
 	fmt.Fprintln(ctx.App.Writer, "Chain block height:", currentBlockHeight)
 
-	lastMissingBlockIndex, err := fetchLatestMissingBlockIndex(ctx.Context, p, containerID, acc.PrivateKey(), attr, int(currentBlockHeight))
+	lastMissingBlockIndex, err := fetchLatestMissingBlockIndex(ctx.Context, p, containerID, acc.PrivateKey(), attr, int(currentBlockHeight), maxParallelSearches)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to fetch the latest missing block index from container: %w", err), 1)
 	}
@@ -222,7 +219,7 @@ func uploadBin(ctx *cli.Context) error {
 		fmt.Fprintf(ctx.App.Writer, "Successfully uploaded batch of blocks: from %d to %d\n", batchStart, batchEnd-1)
 	}
 
-	err = updateIndexFiles(ctx, p, containerID, *acc, signer, uint(currentBlockHeight), attr, homomorphicHashingDisabled)
+	err = updateIndexFiles(ctx, p, containerID, *acc, signer, uint(currentBlockHeight), attr, homomorphicHashingDisabled, maxParallelSearches)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to update index files after upload: %w", err), 1)
 	}
@@ -255,7 +252,7 @@ type searchResult struct {
 
 // fetchLatestMissingBlockIndex searches the container for the last full block batch,
 // starting from the currentHeight and going backwards.
-func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID cid.ID, priv *keys.PrivateKey, attributeKey string, currentHeight int) (int, error) {
+func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID cid.ID, priv *keys.PrivateKey, attributeKey string, currentHeight int, maxParallelSearches int) (int, error) {
 	var (
 		wg              sync.WaitGroup
 		numBatches      = currentHeight/searchBatchSize + 1
@@ -314,7 +311,7 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 }
 
 // updateIndexFiles updates the index files in the container.
-func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, account wallet.Account, signer user.Signer, currentHeight uint, blockAttributeKey string, homomorphicHashingDisabled bool) error {
+func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, account wallet.Account, signer user.Signer, currentHeight uint, blockAttributeKey string, homomorphicHashingDisabled bool, maxParallelSearches int) error {
 	attributeKey := ctx.String("index-attribute")
 	indexFileSize := ctx.Uint("index-file-size")
 	fmt.Fprintln(ctx.App.Writer, "Updating index files...")
