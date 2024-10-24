@@ -87,7 +87,7 @@ NAME:
 neo-go util upload-bin - Fetch blocks from RPC node and upload them to the NeoFS container
 
 USAGE:
-neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>]
+neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--index-file-size <size>]
 
 OPTIONS:
 --fs-rpc-endpoint value, --fsr value [ --fs-rpc-endpoint value, --fsr value ]  List of NeoFS storage node RPC addresses (comma-separated or multiple --fs-rpc-endpoint flags)
