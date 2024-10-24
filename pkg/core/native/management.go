@@ -372,7 +372,10 @@ func (m *Management) deployWithData(ic *interop.Context, args []stackitem.Item) 
 		panic(err)
 	}
 	m.callDeploy(ic, newcontract, args[2], false)
-	m.emitNotification(ic, contractDeployNotificationName, newcontract.Hash)
+	err = m.emitNotification(ic, contractDeployNotificationName, newcontract.Hash)
+	if err != nil {
+		panic(err)
+	}
 	return contractToStack(newcontract)
 }
 
@@ -444,7 +447,10 @@ func (m *Management) updateWithData(ic *interop.Context, args []stackitem.Item) 
 		panic(err)
 	}
 	m.callDeploy(ic, contract, args[2], true)
-	m.emitNotification(ic, contractUpdateNotificationName, contract.Hash)
+	err = m.emitNotification(ic, contractUpdateNotificationName, contract.Hash)
+	if err != nil {
+		panic(err)
+	}
 	return stackitem.Null{}
 }
 
@@ -497,7 +503,10 @@ func (m *Management) destroy(ic *interop.Context, sis []stackitem.Item) stackite
 	if err != nil {
 		panic(err)
 	}
-	m.emitNotification(ic, contractDestroyNotificationName, hash)
+	err = m.emitNotification(ic, contractDestroyNotificationName, hash)
+	if err != nil {
+		panic(err)
+	}
 	return stackitem.Null{}
 }
 
@@ -681,7 +690,10 @@ func (m *Management) OnPersist(ic *interop.Context) error {
 		if isUpdate {
 			ntfName = contractUpdateNotificationName
 		}
-		m.emitNotification(ic, ntfName, cs.Hash)
+		err = m.emitNotification(ic, ntfName, cs.Hash)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -806,8 +818,8 @@ func (m *Management) getNextContractID(d *dao.Simple) (int32, error) {
 	return ret, nil
 }
 
-func (m *Management) emitNotification(ic *interop.Context, name string, hash util.Uint160) {
-	ic.AddNotification(m.Hash, name, stackitem.NewArray([]stackitem.Item{addrToStackItem(&hash)}))
+func (m *Management) emitNotification(ic *interop.Context, name string, hash util.Uint160) error {
+	return ic.AddNotification(m.Hash, name, stackitem.NewArray([]stackitem.Item{addrToStackItem(&hash)}))
 }
 
 func checkScriptAndMethods(ic *interop.Context, script []byte, methods []manifest.Method) error {

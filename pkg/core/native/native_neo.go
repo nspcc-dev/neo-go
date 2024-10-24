@@ -459,9 +459,12 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 		ic.DAO.PutStorageItem(n.ID, prefixCommittee, cache.committee.Bytes(ic.DAO.GetItemCtx()))
 
 		if oldCommittee != nil {
-			ic.AddNotification(n.Hash, "CommitteeChanged", stackitem.NewArray([]stackitem.Item{
+			err := ic.AddNotification(n.Hash, "CommitteeChanged", stackitem.NewArray([]stackitem.Item{
 				oldCommittee, newCommittee,
 			}))
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -828,7 +831,8 @@ func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stac
 	return stackitem.NewBool(err == nil)
 }
 
-// RegisterCandidateInternal registers pub as a new candidate.
+// RegisterCandidateInternal registers pub as a new candidate. This method must not be
+// called outside of VM since it panics on critical errors.
 func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey) error {
 	var emitEvent = true
 
@@ -843,16 +847,23 @@ func (n *NEO) RegisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey
 		c.Registered = true
 	}
 	err := putConvertibleToDAO(n.ID, ic.DAO, key, c)
+	if err != nil {
+		return err
+	}
 	if emitEvent {
 		cache := ic.DAO.GetRWCache(n.ID).(*NeoCache)
 		cache.votesChanged = true
-		ic.AddNotification(n.Hash, "CandidateStateChanged", stackitem.NewArray([]stackitem.Item{
+		err = ic.AddNotification(n.Hash, "CandidateStateChanged", stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(pub.Bytes()),
 			stackitem.NewBool(c.Registered),
 			stackitem.NewBigInteger(&c.Votes),
 		}))
+		if err != nil {
+			// Panic since it's a critical error that must abort execution.
+			panic(err)
+		}
 	}
-	return err
+	return nil
 }
 
 func (n *NEO) unregisterCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -867,7 +878,8 @@ func (n *NEO) unregisterCandidate(ic *interop.Context, args []stackitem.Item) st
 	return stackitem.NewBool(err == nil)
 }
 
-// UnregisterCandidateInternal unregisters pub as a candidate.
+// UnregisterCandidateInternal unregisters pub as a candidate. This method must not be
+// called outside of VM since it panics on critical errors.
 func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicKey) error {
 	var err error
 
@@ -887,14 +899,21 @@ func (n *NEO) UnregisterCandidateInternal(ic *interop.Context, pub *keys.PublicK
 	if !ok {
 		err = putConvertibleToDAO(n.ID, ic.DAO, key, c)
 	}
+	if err != nil {
+		return err
+	}
 	if emitEvent {
-		ic.AddNotification(n.Hash, "CandidateStateChanged", stackitem.NewArray([]stackitem.Item{
+		err := ic.AddNotification(n.Hash, "CandidateStateChanged", stackitem.NewArray([]stackitem.Item{
 			stackitem.NewByteArray(pub.Bytes()),
 			stackitem.NewBool(c.Registered),
 			stackitem.NewBigInteger(&c.Votes),
 		}))
+		if err != nil {
+			// Panic since it's a critical error that must abort execution.
+			panic(err)
+		}
 	}
-	return err
+	return nil
 }
 
 func (n *NEO) vote(ic *interop.Context, args []stackitem.Item) stackitem.Item {
@@ -907,7 +926,8 @@ func (n *NEO) vote(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	return stackitem.NewBool(err == nil)
 }
 
-// VoteInternal votes from account h for validarors specified in pubs.
+// VoteInternal votes from account h for validarors specified in pubs. This method
+// must not be called outside of VM since it panics on critical errors.
 func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.PublicKey) error {
 	ok, err := runtime.CheckHashedWitness(ic, h)
 	if err != nil {
@@ -969,12 +989,16 @@ func (n *NEO) VoteInternal(ic *interop.Context, h util.Uint160, pub *keys.Public
 	}
 	ic.DAO.PutStorageItem(n.ID, key, acc.Bytes(ic.DAO.GetItemCtx()))
 
-	ic.AddNotification(n.Hash, "Vote", stackitem.NewArray([]stackitem.Item{
+	err = ic.AddNotification(n.Hash, "Vote", stackitem.NewArray([]stackitem.Item{
 		stackitem.NewByteArray(h.BytesBE()),
 		keyToStackItem(oldVote),
 		keyToStackItem(pub),
 		stackitem.NewBigInteger(&acc.Balance),
 	}))
+	if err != nil {
+		// Panic since it's a critical error that must abort execution.
+		panic(err)
+	}
 
 	if newGas != nil { // Can be if it was already distributed in the same block.
 		n.GAS.mint(ic, h, newGas, true)
