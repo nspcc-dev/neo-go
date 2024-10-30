@@ -203,6 +203,18 @@ func TestToJSONCornerCases(t *testing.T) {
 		m.Add(Make([]byte{0xe9}), Make(true))
 		testToJSON(t, ErrInvalidValue, m)
 	})
+	t.Run("circular reference", func(t *testing.T) {
+		m := NewMap()
+		m.Add(Make("one"), Make(true))
+
+		// No circular reference, ensure it can be properly serialized.
+		arr := NewArray([]Item{m, m})
+		testToJSON(t, nil, arr)
+
+		// With circular reference, error expected.
+		m.Add(Make("two"), arr)
+		testToJSON(t, ErrTooBig, arr)
+	})
 }
 
 // getBigArray returns array takes up a lot of storage when serialized.
