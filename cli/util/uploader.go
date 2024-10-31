@@ -110,6 +110,7 @@ func uploadBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Errorf("failed to get network info: %w", err), 1)
 	}
 	homomorphicHashingDisabled := net.HomomorphicHashingDisabled()
+
 	var containerObj container.Container
 	err = retry(func() error {
 		containerObj, err = p.ContainerGet(ctx.Context, containerID, client.PrmContainerGet{})
@@ -126,7 +127,7 @@ func uploadBin(ctx *cli.Context) error {
 	}
 	magic := strconv.Itoa(int(v.Protocol.Network))
 	if containerMagic != magic {
-		return cli.Exit(fmt.Sprintf("Container magic %s does not match the network magic %s", containerMagic, magic), 1)
+		return cli.Exit(fmt.Sprintf("container magic %s does not match the network magic %s", containerMagic, magic), 1)
 	}
 
 	currentBlockHeight, err := rpc.GetBlockCount()
@@ -148,9 +149,9 @@ func uploadBin(ctx *cli.Context) error {
 		}
 	}
 
-	err = updateIndexFiles(ctx, p, containerID, *acc, signer, uint(currentBlockHeight), attr, homomorphicHashingDisabled, maxParallelSearches)
+	err = uploadIndexFiles(ctx, p, containerID, acc, signer, uint(currentBlockHeight), attr, homomorphicHashingDisabled, maxParallelSearches)
 	if err != nil {
-		return cli.Exit(fmt.Errorf("failed to update index files after upload: %w", err), 1)
+		return cli.Exit(fmt.Errorf("failed to upload index files: %w", err), 1)
 	}
 	return nil
 }
@@ -179,8 +180,9 @@ type searchResult struct {
 	err        error
 }
 
-// fetchLatestMissingBlockIndex searches the container for the last full block batch,
-// starting from the currentHeight and going backwards.
+// fetchLatestMissingBlockIndex searches the container for the latest full batch of blocks
+// starting from the currentHeight and going backwards. It returns the index of first block
+// in the next batch.
 func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID cid.ID, priv *keys.PrivateKey, attributeKey string, currentHeight int, maxParallelSearches int) (int, error) {
 	var (
 		wg              sync.WaitGroup
@@ -225,7 +227,7 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 
 		for i := len(results) - 1; i >= 0; i-- {
 			if results[i].err != nil {
-				return 0, fmt.Errorf("search of index files failed for batch with indexes from %d to %d: %w", results[i].startIndex, results[i].endIndex-1, results[i].err)
+				return 0, fmt.Errorf("blocks search failed for batch with indexes from %d to %d: %w", results[i].startIndex, results[i].endIndex-1, results[i].err)
 			}
 			if results[i].numOIDs < searchBatchSize {
 				emptyBatchFound = true
@@ -323,11 +325,11 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 	return nil
 }
 
-// updateIndexFiles updates the index files in the container.
-func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, account wallet.Account, signer user.Signer, currentHeight uint, blockAttributeKey string, homomorphicHashingDisabled bool, maxParallelSearches int) error {
+// uploadIndexFiles uploads missing index files to the container.
+func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, account *wallet.Account, signer user.Signer, currentHeight uint, blockAttributeKey string, homomorphicHashingDisabled bool, maxParallelSearches int) error {
 	attributeKey := ctx.String("index-attribute")
 	indexFileSize := ctx.Uint("index-file-size")
-	fmt.Fprintln(ctx.App.Writer, "Updating index files...")
+	fmt.Fprintln(ctx.App.Writer, "Uploading index files...")
 
 	prm := client.PrmObjectSearch{}
 	filters := object.NewSearchFilters()
@@ -341,12 +343,11 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 		return errSearchIndex
 	})
 	if errSearch != nil {
-		return fmt.Errorf("search of index files failed: %w", errSearch)
+		return fmt.Errorf("index files search failed: %w", errSearch)
 	}
 
 	existingIndexCount := uint(len(objectIDs))
 	expectedIndexCount := currentHeight / indexFileSize
-
 	if existingIndexCount >= expectedIndexCount {
 		fmt.Fprintf(ctx.App.Writer, "Index files are up to date. Existing: %d, expected: %d\n", existingIndexCount, expectedIndexCount)
 		return nil
@@ -439,12 +440,11 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 				}
 			}
 		}
-		// Check if there are any empty oids in the created index file.
-		// This could happen if object payload is empty ->
-		// attribute is not set correctly -> empty oid is added to the index file.
+		// Check if there are empty OIDs in the generated index file. If it happens at
+		// this stage, then there's a bug in the code.
 		for k := 0; k < len(buffer); k += oidSize {
 			if slices.Compare(buffer[k:k+oidSize], emptyOid) == 0 {
-				return fmt.Errorf("empty oid found in index file %d at position %d (block index %d)", i, k/oidSize, i+uint(k/oidSize))
+				return fmt.Errorf("empty OID found in index file %d at position %d (block index %d)", i, k/oidSize, i+uint(k/oidSize))
 			}
 		}
 		attrs := []object.Attribute{
@@ -459,11 +459,12 @@ func updateIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 		}
 		fmt.Fprintf(ctx.App.Writer, "Uploaded index file %d\n", i)
 	}
+
 	return nil
 }
 
-// uploadObj uploads the block to the container using the pool.
-func uploadObj(ctx context.Context, p *pool.Pool, signer user.Signer, owner util.Uint160, containerID cid.ID, objData []byte, attrs []object.Attribute, HomomorphicHashingDisabled bool) error {
+// uploadObj uploads object to the container using provided settings.
+func uploadObj(ctx context.Context, p *pool.Pool, signer user.Signer, owner util.Uint160, containerID cid.ID, objData []byte, attrs []object.Attribute, homomorphicHashingDisabled bool) error {
 	var (
 		ownerID          user.ID
 		hdr              object.Object
@@ -482,7 +483,7 @@ func uploadObj(ctx context.Context, p *pool.Pool, signer user.Signer, owner util
 	hdr.SetCreationEpoch(1)
 	v.SetMajor(1)
 	hdr.SetVersion(v)
-	if !HomomorphicHashingDisabled {
+	if !homomorphicHashingDisabled {
 		checksum.Calculate(&chHomomorphic, checksum.TZ, objData)
 		hdr.SetPayloadHomomorphicHash(chHomomorphic)
 	}
