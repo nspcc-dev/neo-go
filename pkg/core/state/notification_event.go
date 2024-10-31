@@ -24,6 +24,7 @@ type ContractInvocation struct {
 	Hash           util.Uint160     `json:"contract_hash"`
 	Method         string           `json:"method"`
 	Arguments      *stackitem.Array `json:"arguments"`
+	ArgumentsBytes []byte           `json:"arguments_bytes"`
 	ArgumentsCount uint32           `json:"arguments_count"`
 	IsValid        bool             `json:"is_valid"`
 }
@@ -31,16 +32,12 @@ type ContractInvocation struct {
 func (ci *ContractInvocation) DecodeBinary(r *io.BinReader) {
 	ci.Hash.DecodeBinary(r)
 	ci.Method = r.ReadString()
-	args := stackitem.DecodeBinary(r)
-	if r.Err != nil {
+	ci.ArgumentsBytes = r.ReadVarBytes()
+	si, err := stackitem.Deserialize(ci.ArgumentsBytes)
+	if err != nil {
 		return
 	}
-	arr, ok := args.Value().([]stackitem.Item)
-	if !ok {
-		r.Err = errors.New("array or Struct expected")
-		return
-	}
-	ci.Arguments = stackitem.NewArray(arr)
+	ci.Arguments = si.(*stackitem.Array)
 	ci.ArgumentsCount = r.ReadU32LE()
 	ci.IsValid = r.ReadBool()
 }
@@ -48,12 +45,7 @@ func (ci *ContractInvocation) DecodeBinary(r *io.BinReader) {
 func (ci *ContractInvocation) EncodeBinaryWithContext(w *io.BinWriter, sc *stackitem.SerializationContext) {
 	ci.Hash.EncodeBinary(w)
 	w.WriteString(ci.Method)
-	b, err := sc.Serialize(ci.Arguments, false)
-	if err != nil {
-		w.Err = err
-		return
-	}
-	w.WriteBytes(b)
+	w.WriteVarBytes(ci.ArgumentsBytes)
 	w.WriteU32LE(ci.ArgumentsCount)
 	w.WriteBool(ci.IsValid)
 }

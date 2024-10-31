@@ -74,7 +74,8 @@ func Call(ic *interop.Context) error {
 		arr := stackitem.NewArray(args)
 		arrCount := len(args)
 		valid := true
-		if _, err = ic.DAO.GetItemCtx().Serialize(arr, false); err != nil {
+		argBytes := []byte{}
+		if argBytes, err = ic.DAO.GetItemCtx().Serialize(arr, false); err != nil {
 			arr = stackitem.NewArray([]stackitem.Item{})
 			valid = false
 		}
@@ -83,6 +84,7 @@ func Call(ic *interop.Context) error {
 			Hash:           u,
 			Method:         method,
 			Arguments:      arr,
+			ArgumentsBytes: argBytes,
 			ArgumentsCount: uint32(arrCount),
 			IsValid:        valid,
 		})
