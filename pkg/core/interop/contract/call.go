@@ -70,11 +70,23 @@ func Call(ic *interop.Context) error {
 	}
 	hasReturn := md.ReturnType != smartcontract.VoidType
 
-	ic.InvocationCalls = append(ic.InvocationCalls, state.ContractInvocation{
-		Hash:      u,
-		Method:    method,
-		Arguments: stackitem.NewArray(args),
-	})
+	if ic.Chain.GetConfig().Ledger.SaveInvocations {
+		arr := stackitem.NewArray(args)
+		arrCount := len(args)
+		valid := true
+		if _, err = ic.DAO.GetItemCtx().Serialize(arr, false); err != nil {
+			arr = stackitem.NewArray([]stackitem.Item{})
+			valid = false
+		}
+
+		ic.InvocationCalls = append(ic.InvocationCalls, state.ContractInvocation{
+			Hash:           u,
+			Method:         method,
+			Arguments:      arr,
+			ArgumentsCount: uint32(arrCount),
+			IsValid:        valid,
+		})
+	}
 	return callInternal(ic, cs, method, fs, hasReturn, args, true)
 }
 

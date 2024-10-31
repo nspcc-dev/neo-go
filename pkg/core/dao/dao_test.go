@@ -196,6 +196,8 @@ func TestStoreAsTransaction(t *testing.T) {
 					Arguments: stackitem.NewArray([]stackitem.Item{
 						stackitem.NewBool(false),
 					}),
+					ArgumentsCount: 1,
+					IsValid:        true,
 				}},
 			},
 		}

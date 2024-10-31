@@ -21,9 +21,11 @@ type NotificationEvent struct {
 }
 
 type ContractInvocation struct {
-	Hash      util.Uint160     `json:"contract_hash"`
-	Method    string           `json:"method"`
-	Arguments *stackitem.Array `json:"arguments"`
+	Hash           util.Uint160     `json:"contract_hash"`
+	Method         string           `json:"method"`
+	Arguments      *stackitem.Array `json:"arguments"`
+	ArgumentsCount uint32           `json:"arguments_count"`
+	IsValid        bool             `json:"is_valid"`
 }
 
 func (ci *ContractInvocation) DecodeBinary(r *io.BinReader) {
@@ -39,6 +41,8 @@ func (ci *ContractInvocation) DecodeBinary(r *io.BinReader) {
 		return
 	}
 	ci.Arguments = stackitem.NewArray(arr)
+	ci.ArgumentsCount = r.ReadU32LE()
+	ci.IsValid = r.ReadBool()
 }
 
 func (ci *ContractInvocation) EncodeBinaryWithContext(w *io.BinWriter, sc *stackitem.SerializationContext) {
@@ -50,6 +54,8 @@ func (ci *ContractInvocation) EncodeBinaryWithContext(w *io.BinWriter, sc *stack
 		return
 	}
 	w.WriteBytes(b)
+	w.WriteU32LE(ci.ArgumentsCount)
+	w.WriteBool(ci.IsValid)
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -59,9 +65,11 @@ func (ci ContractInvocation) MarshalJSON() ([]byte, error) {
 		item = []byte(fmt.Sprintf(`"error: %v"`, err))
 	}
 	return json.Marshal(ContractInvocationAux{
-		Hash:      ci.Hash,
-		Method:    ci.Method,
-		Arguments: item,
+		Hash:           ci.Hash,
+		Method:         ci.Method,
+		Arguments:      item,
+		ArgumentsCount: ci.ArgumentsCount,
+		IsValid:        ci.IsValid,
 	})
 }
 
@@ -81,6 +89,8 @@ func (ci *ContractInvocation) UnmarshalJSON(data []byte) error {
 	ci.Arguments = params.(*stackitem.Array)
 	ci.Method = aux.Method
 	ci.Hash = aux.Hash
+	ci.ArgumentsCount = aux.ArgumentsCount
+	ci.IsValid = aux.IsValid
 	return nil
 }
 
@@ -286,9 +296,11 @@ type Execution struct {
 }
 
 type ContractInvocationAux struct {
-	Hash      util.Uint160    `json:"contract_hash"`
-	Method    string          `json:"method"`
-	Arguments json.RawMessage `json:"arguments"`
+	Hash           util.Uint160    `json:"contract_hash"`
+	Method         string          `json:"method"`
+	Arguments      json.RawMessage `json:"arguments"`
+	ArgumentsCount uint32          `json:"arguments_count"`
+	IsValid        bool            `json:"is_valid"`
 }
 
 // executionAux represents an auxiliary struct for Execution JSON marshalling.
