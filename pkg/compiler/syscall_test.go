@@ -375,9 +375,9 @@ func TestOpcode(t *testing.T) {
 		}`
 		eval(t, src, []stackitem.Item{
 			stackitem.Make(1),
-			stackitem.Make(2),
+			stackitem.Make(-3),
 			stackitem.Make(1),
-			stackitem.Make(2),
+			stackitem.Make(-3),
 			stackitem.Make(52),
 		})
 	})

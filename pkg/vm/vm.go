@@ -1055,6 +1055,12 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 				panic("zero modulus") // https://docs.microsoft.com/en-us/dotnet/api/system.numerics.biginteger.modpow?view=net-6.0#exceptions
 			}
 			res.Exp(base, exponent, modulus)
+
+			// https://github.com/nspcc-dev/neo-go/issues/3612
+			if base.Sign() < 0 && exponent.Bit(0) == 1 && res.Sign() != 0 {
+				absModulus := new(big.Int).Abs(modulus)
+				res.Sub(res, absModulus)
+			}
 		}
 
 		v.estack.PushItem(stackitem.NewBigInteger(res))

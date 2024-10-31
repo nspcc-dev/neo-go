@@ -747,11 +747,12 @@ func TestMODMUL(t *testing.T) {
 func TestMODPOW(t *testing.T) {
 	prog := makeProgram(opcode.MODPOW)
 	t.Run("good, positive base", getTestFuncForVM(prog, 1, 3, 4, 5))
-	t.Run("good, negative base", getTestFuncForVM(prog, 2, -3, 5, 5))
+	t.Run("good, negative base", getTestFuncForVM(prog, -3, -3, 5, 5))
 	t.Run("good, positive base, negative mod", getTestFuncForVM(prog, 1, 3, 4, -5))
-	t.Run("good, negative base, negative mod", getTestFuncForVM(prog, 2, -3, 5, -5))
+	t.Run("good, negative base, negative mod", getTestFuncForVM(prog, -3, -3, 5, -5))
 	t.Run("bad, big negative exponent", getTestFuncForVM(prog, nil, 3, -2, 5))
 	t.Run("bad, zero modulus", getTestFuncForVM(prog, nil, 3, 4, 0))
+	t.Run("zero result, negative base, even exponent", getTestFuncForVM(prog, 0, -2, 3, 8))
 
 	t.Run("inverse compatibility", func(t *testing.T) { // Tests are taken from C# node.
 		t.Run("bad mod", getTestFuncForVM(prog, nil, 1, -1, 0))
@@ -760,6 +761,7 @@ func TestMODPOW(t *testing.T) {
 		t.Run("bad base", getTestFuncForVM(prog, nil, 0, -1, 1))
 		t.Run("no inverse exists", getTestFuncForVM(prog, nil, math.MaxUint16, -1, math.MaxUint8))
 		t.Run("good", getTestFuncForVM(prog, 52, 19, -1, 141))
+		t.Run("good", getTestFuncForVM(prog, 1, 5, -1, 4))
 	})
 }
 
