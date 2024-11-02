@@ -86,6 +86,10 @@ func NewCommands() []*cli.Command {
 			Usage: "Number of concurrent searches for blocks",
 			Value: 20,
 		},
+		&cli.BoolFlag{
+			Name:  "skip-blocks-uploading",
+			Usage: "Skip blocks uploading and upload only index files",
+		},
 	}, options.RPC...)
 	uploadBinFlags = append(uploadBinFlags, options.Wallet...)
 	return []*cli.Command{
@@ -168,7 +172,7 @@ func NewCommands() []*cli.Command {
 				{
 					Name:      "upload-bin",
 					Usage:     "Fetch blocks from RPC node and upload them to the NeoFS container",
-					UsageText: "neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--index-file-size <size>]",
+					UsageText: "neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--index-file-size <size>] [--skip-blocks-uploading]",
 					Action:    uploadBin,
 					Flags:     uploadBinFlags,
 				},
