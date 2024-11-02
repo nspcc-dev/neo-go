@@ -82,3 +82,19 @@ ApplicationConfiguration:
     Enabled: false
     Addresses:
       - ":2113"
+  NeoFSBlockFetcher:
+    Enabled: false
+    Addresses:
+      - st1.storage.fs.neo.org:8080
+      - st2.storage.fs.neo.org:8080
+      - st3.storage.fs.neo.org:8080
+      - st4.storage.fs.neo.org:8080
+    Timeout: 10m
+    DownloaderWorkersCount: 500
+    OIDBatchSize: 8000
+    BQueueSize: 16000 # must be larger than OIDBatchSize; recommended to be 2*OIDBatchSize or 3*OIDBatchSize
+    SkipIndexFilesSearch: false
+    IndexFileSize: 128000
+    ContainerID: "FidCcVzUxzY3PeUksCnnpUQ8h8PJeYPessX8FRMuveSy"
+    BlockAttribute: "Block"
+    IndexFileAttribute: "Index"
