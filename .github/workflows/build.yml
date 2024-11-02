@@ -37,7 +37,7 @@ jobs:
     runs-on: ${{matrix.os.name}}
     strategy:
       matrix:
-        os: [{ name: ubuntu-22.04, bin-name: linux }, { name: windows-2022, bin-name: windows }, { name: macos-12, bin-name: darwin }]
+        os: [{ name: ubuntu-22.04, bin-name: linux }, { name: windows-2022, bin-name: windows }, { name: macos-14, bin-name: darwin }]
         arch: [amd64, arm64]
         exclude:
           - os: { name: windows-2022, bin-name: windows }
