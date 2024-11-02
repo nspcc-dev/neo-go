@@ -377,11 +377,11 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 				go func() {
 					defer wg.Done()
 					for id := range oidCh {
-						var obj *object.Object
+						var obj object.Object
 						errRetr := retry(func() error {
-							var errGetHead error
-							obj, errGetHead = p.ObjectHead(context.Background(), containerID, id, signer, client.PrmObjectHead{})
-							return errGetHead
+							var errGet error
+							obj, _, errGet = p.ObjectGetInit(ctx.Context, containerID, id, signer, client.PrmObjectGet{})
+							return errGet
 						})
 						if errRetr != nil {
 							select {
@@ -589,7 +589,7 @@ func uploadObj(ctx context.Context, p *pool.Pool, signer user.Signer, owner util
 	return nil
 }
 
-func getBlockIndex(header *object.Object, attribute string) (int, error) {
+func getBlockIndex(header object.Object, attribute string) (int, error) {
 	for _, attr := range header.UserAttributes() {
 		if attr.Key() == attribute {
 			value := attr.Value()
