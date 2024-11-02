@@ -581,10 +581,18 @@ func uploadObj(ctx context.Context, p *pool.Pool, signer user.Signer, owner util
 	if err != nil {
 		return fmt.Errorf("failed to initiate object upload: %w", err)
 	}
-	defer writer.Close()
 	_, err = writer.Write(objData)
 	if err != nil {
+		_ = writer.Close()
 		return fmt.Errorf("failed to write object data: %w", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close object writer: %w", err)
+	}
+	res := writer.GetResult()
+	if res.StoredObjectID().Equals(oid.ID{}) {
+		return fmt.Errorf("object ID is empty")
 	}
 	return nil
 }
