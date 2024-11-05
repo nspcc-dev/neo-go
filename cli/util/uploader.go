@@ -421,7 +421,6 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 			// if searchObjects has returned not all blocks within the requested range, ref.
 			// #3645. In this case, retry the search for every missing object.
 			var count int
-
 			for idx := range indexFileSize {
 				if _, ok := processedIndices.Load(idx); !ok {
 					count++
