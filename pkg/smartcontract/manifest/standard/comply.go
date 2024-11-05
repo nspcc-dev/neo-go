@@ -66,6 +66,11 @@ func ComplyABI(m *manifest.Manifest, st *Standard) error {
 }
 
 func comply(m *manifest.Manifest, checkNames bool, st *Standard) error {
+	if len(st.Required) > 0 {
+		if err := check(m, checkNames, st.Required...); err != nil {
+			return fmt.Errorf("required standard '%s' is not supported: %w", st.Name, err)
+		}
+	}
 	if st.Base != nil {
 		if err := comply(m, checkNames, st.Base); err != nil {
 			return err
