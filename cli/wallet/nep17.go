@@ -101,10 +101,11 @@ func newNEP17Commands() []*cli.Command {
 		{
 			Name:      "balance",
 			Usage:     "Get address balance",
-			UsageText: "balance -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>]",
-			Description: `Prints NEP-17 balances for address and tokens specified. By default (no
-   address or token parameter) all tokens for all accounts in the specified wallet
-   are listed. A single account can be chosen with the address option and/or a
+			UsageText: "balance [-w wallet] [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>]",
+			Description: `Prints NEP-17 balances for address and tokens specified. One of wallet
+   or address must be specified, passing both is valid too. If a wallet is
+   given without an address all tokens for all accounts in this wallet are
+   listed. A single account can be chosen with the address option and/or a
    single token can be selected with the token option. Tokens can be specified
    by hash, address, name or symbol. Hashes and addresses always work (as long
    as they belong to a correct NEP-17 contract), while names or symbols (if
@@ -217,30 +218,40 @@ func getNEP17Balance(ctx *cli.Context) error {
 }
 
 func getNEPBalance(ctx *cli.Context, standard string, accHandler func(*cli.Context, *rpcclient.Client, util.Uint160, string, *wallet.Token, string) error) error {
-	var accounts []*wallet.Account
+	var addresses []util.Uint160
 
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
 	wall, _, err := readWallet(ctx)
 	if err != nil {
-		return cli.Exit(fmt.Errorf("bad wallet: %w", err), 1)
+		if !errors.Is(err, errNoPath) {
+			return cli.Exit(fmt.Errorf("bad wallet: %w", err), 1)
+		}
+	} else {
+		defer wall.Close()
 	}
-	defer wall.Close()
 
 	addrFlag := ctx.Generic("address").(*flags.Address)
 	if addrFlag.IsSet {
 		addrHash := addrFlag.Uint160()
-		acc := wall.GetAccount(addrHash)
-		if acc == nil {
-			return cli.Exit(fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addrHash)), 1)
+		if wall != nil {
+			acc := wall.GetAccount(addrHash)
+			if acc == nil {
+				return cli.Exit(fmt.Errorf("can't find account for the address: %s", address.Uint160ToString(addrHash)), 1)
+			}
 		}
-		accounts = append(accounts, acc)
+		addresses = append(addresses, addrHash)
 	} else {
+		if wall == nil {
+			return cli.Exit(errors.New("neither wallet nor address specified"), 1)
+		}
 		if len(wall.Accounts) == 0 {
 			return cli.Exit(errors.New("no accounts in the wallet"), 1)
 		}
-		accounts = wall.Accounts
+		for _, acc := range wall.Accounts {
+			addresses = append(addresses, acc.ScriptHash())
+		}
 	}
 
 	gctx, cancel := options.GetTimeoutContext(ctx)
@@ -290,13 +301,13 @@ func getNEPBalance(ctx *cli.Context, standard string, accHandler func(*cli.Conte
 			}
 		}
 	}
-	for k, acc := range accounts {
+	for k, addr := range addresses {
 		if k != 0 {
 			fmt.Fprintln(ctx.App.Writer)
 		}
-		fmt.Fprintf(ctx.App.Writer, "Account %s\n", acc.Address)
+		fmt.Fprintf(ctx.App.Writer, "Account %s\n", address.Uint160ToString(addr))
 
-		err = accHandler(ctx, c, acc.ScriptHash(), name, token, tokenID)
+		err = accHandler(ctx, c, addr, name, token, tokenID)
 		if err != nil {
 			return cli.Exit(err, 1)
 		}
@@ -321,6 +332,9 @@ func printAssetBalance(ctx *cli.Context, balance result.NEP17Balance) {
 }
 
 func getMatchingToken(ctx *cli.Context, w *wallet.Wallet, name string, standard string) (*wallet.Token, error) {
+	if w == nil {
+		return getMatchingTokenAux(ctx, nil, 0, name, standard)
+	}
 	return getMatchingTokenAux(ctx, func(i int) *wallet.Token {
 		return w.Extra.Tokens[i]
 	}, len(w.Extra.Tokens), name, standard)

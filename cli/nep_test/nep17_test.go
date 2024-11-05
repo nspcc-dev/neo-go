@@ -3,6 +3,7 @@ package nep_test
 import (
 	"io"
 	"math/big"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -34,39 +35,99 @@ func TestNEP17Balance(t *testing.T) {
 	e.Run(t, args...)
 	e.CheckTxPersisted(t)
 
-	cmdbalance := []string{"neo-go", "wallet", "nep17", "balance"}
-	cmdbase := append(cmdbalance,
-		"--rpc-endpoint", "http://"+e.RPC.Addresses()[0],
-		"--wallet", testcli.TestWalletMultiPath,
-	)
-	cmd := append(cmdbase, "--address", testcli.TestWalletMultiAccount1)
-	t.Run("excessive parameters", func(t *testing.T) {
-		e.RunWithError(t, append(cmd, "--token", "NEO", "gas")...)
-	})
-	t.Run("NEO", func(t *testing.T) {
-		b, index := e.Chain.GetGoverningTokenBalance(testcli.TestWalletMultiAccount1Hash)
-		checkResult := func(t *testing.T) {
-			e.CheckNextLine(t, "^\\s*Account\\s+"+testcli.TestWalletMultiAccount1)
-			e.CheckNextLine(t, "^\\s*NEO:\\s+NeoToken \\("+e.Chain.GoverningTokenHash().StringLE()+"\\)")
-			e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+b.String()+"$")
-			e.CheckNextLine(t, "^\\s*Updated\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
-			e.CheckEOF(t)
+	var checkAcc1NEO = func(t *testing.T, e *testcli.Executor, line string) {
+		if line == "" {
+			line = e.GetNextLine(t)
 		}
-		t.Run("Alias", func(t *testing.T) {
-			e.Run(t, append(cmd, "--token", "NEO")...)
-			checkResult(t)
-		})
-		t.Run("Hash", func(t *testing.T) {
-			e.Run(t, append(cmd, "--token", e.Chain.GoverningTokenHash().StringLE())...)
-			checkResult(t)
-		})
+		balance, index := e.Chain.GetGoverningTokenBalance(testcli.TestWalletMultiAccount1Hash)
+		e.CheckLine(t, line, "^\\s*NEO:\\s+NeoToken \\("+e.Chain.GoverningTokenHash().StringLE()+"\\)")
+		e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+balance.String()+"$")
+		e.CheckNextLine(t, "^\\s*Updated\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
+	}
+	var checkAcc1GAS = func(t *testing.T, e *testcli.Executor, line string) {
+		if line == "" {
+			line = e.GetNextLine(t)
+		}
+		e.CheckLine(t, line, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
+		balance := e.Chain.GetUtilityTokenBalance(testcli.TestWalletMultiAccount1Hash)
+		e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(balance.Int64()).String()+"$")
+		e.CheckNextLine(t, "^\\s*Updated:")
+	}
+	var checkAcc1Assets = func(t *testing.T, e *testcli.Executor) {
+		e.CheckNextLine(t, "^Account "+testcli.TestWalletMultiAccount1)
+		// The order of assets is undefined.
+		for range 2 {
+			line := e.GetNextLine(t)
+			if strings.Contains(line, "GAS") {
+				checkAcc1GAS(t, e, line)
+			} else {
+				checkAcc1NEO(t, e, line)
+			}
+		}
+	}
+
+	var (
+		cmdbase      = []string{"neo-go", "wallet", "nep17", "balance", "--rpc-endpoint", "http://" + e.RPC.Addresses()[0]}
+		addrparams   = []string{"--address", testcli.TestWalletMultiAccount1}
+		walletparams = []string{"--wallet", testcli.TestWalletMultiPath}
+	)
+	t.Run("Bad wallet", func(t *testing.T) {
+		e.RunWithError(t, append(cmdbase, "--wallet", "/dev/null")...)
 	})
-	t.Run("GAS", func(t *testing.T) {
-		e.Run(t, append(cmd, "--token", "GAS")...)
-		e.CheckNextLine(t, "^\\s*Account\\s+"+testcli.TestWalletMultiAccount1)
-		e.CheckNextLine(t, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
-		b := e.Chain.GetUtilityTokenBalance(testcli.TestWalletMultiAccount1Hash)
-		e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(b.Int64()).String()+"$")
+	t.Run("empty wallet", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		walletPath := filepath.Join(tmpDir, "emptywallet.json")
+		require.NoError(t, os.WriteFile(walletPath, []byte("{}"), 0o644))
+		e.RunWithError(t, append(cmdbase, "--wallet", walletPath)...)
+	})
+	t.Run("no wallet or address", func(t *testing.T) {
+		e.RunWithError(t, cmdbase...)
+	})
+	for name, params := range map[string][]string{
+		"address only":        addrparams,
+		"address with wallet": slices.Concat(walletparams, addrparams),
+	} {
+		var cmd = append(cmdbase, params...)
+		t.Run(name, func(t *testing.T) {
+			t.Run("all tokens", func(t *testing.T) {
+				e.Run(t, cmd...)
+				checkAcc1Assets(t, e)
+				e.CheckEOF(t)
+			})
+			t.Run("excessive parameters", func(t *testing.T) {
+				e.RunWithError(t, append(cmd, "--token", "NEO", "gas")...)
+			})
+		})
+		t.Run("NEO", func(t *testing.T) {
+			checkResult := func(t *testing.T) {
+				e.CheckNextLine(t, "^\\s*Account\\s+"+testcli.TestWalletMultiAccount1)
+				checkAcc1NEO(t, e, "")
+				e.CheckEOF(t)
+			}
+			t.Run("Alias", func(t *testing.T) {
+				e.Run(t, append(cmd, "--token", "NEO")...)
+				checkResult(t)
+			})
+			t.Run("Hash", func(t *testing.T) {
+				e.Run(t, append(cmd, "--token", e.Chain.GoverningTokenHash().StringLE())...)
+				checkResult(t)
+			})
+		})
+		t.Run("GAS", func(t *testing.T) {
+			e.Run(t, append(cmd, "--token", "GAS")...)
+			e.CheckNextLine(t, "^\\s*Account\\s+"+testcli.TestWalletMultiAccount1)
+			checkAcc1GAS(t, e, "")
+		})
+		t.Run("Bad token", func(t *testing.T) {
+			e.Run(t, append(cmd, "--token", "kek")...)
+			e.CheckNextLine(t, "^\\s*Account\\s+"+testcli.TestWalletMultiAccount1)
+			e.CheckNextLine(t, `^\s*Can't find data for "kek" token\s*`)
+			e.CheckEOF(t)
+		})
+	}
+	t.Run("inexistent wallet account", func(t *testing.T) {
+		var cmd = append(cmdbase, walletparams...)
+		e.RunWithError(t, append(cmd, "--address", "NSPCCpw8YmgNDYWiBfXJHRfz38NDjv6WW3")...)
 	})
 	t.Run("zero balance of known token", func(t *testing.T) {
 		e.Run(t, append(cmdbase, []string{"--token", "NEO", "--address", testcli.TestWalletMultiAccount2}...)...)
@@ -77,24 +138,9 @@ func TestNEP17Balance(t *testing.T) {
 		e.CheckEOF(t)
 	})
 	t.Run("all accounts", func(t *testing.T) {
-		e.Run(t, cmdbase...)
+		e.Run(t, append(cmdbase, walletparams...)...)
 
-		e.CheckNextLine(t, "^Account "+testcli.TestWalletMultiAccount1)
-		// The order of assets is undefined.
-		for range 2 {
-			line := e.GetNextLine(t)
-			if strings.Contains(line, "GAS") {
-				e.CheckLine(t, line, "^\\s*GAS:\\s+GasToken \\("+e.Chain.UtilityTokenHash().StringLE()+"\\)")
-				balance := e.Chain.GetUtilityTokenBalance(testcli.TestWalletMultiAccount1Hash)
-				e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(balance.Int64()).String()+"$")
-				e.CheckNextLine(t, "^\\s*Updated:")
-			} else {
-				balance, index := e.Chain.GetGoverningTokenBalance(testcli.TestWalletMultiAccount1Hash)
-				e.CheckLine(t, line, "^\\s*NEO:\\s+NeoToken \\("+e.Chain.GoverningTokenHash().StringLE()+"\\)")
-				e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+balance.String()+"$")
-				e.CheckNextLine(t, "^\\s*Updated\\s*:\\s*"+strconv.FormatUint(uint64(index), 10))
-			}
-		}
+		checkAcc1Assets(t, e)
 		e.CheckNextLine(t, "^\\s*$")
 
 		e.CheckNextLine(t, "^Account "+testcli.TestWalletMultiAccount2)
@@ -106,15 +152,6 @@ func TestNEP17Balance(t *testing.T) {
 		e.CheckNextLine(t, "^\\s*Amount\\s*:\\s*"+fixedn.Fixed8(balance.Int64()).String()+"$")
 		e.CheckNextLine(t, "^\\s*Updated:")
 		e.CheckEOF(t)
-	})
-	t.Run("Bad token", func(t *testing.T) {
-		e.Run(t, append(cmd, "--token", "kek")...)
-		e.CheckNextLine(t, "^\\s*Account\\s+"+testcli.TestWalletMultiAccount1)
-		e.CheckNextLine(t, `^\s*Can't find data for "kek" token\s*`)
-		e.CheckEOF(t)
-	})
-	t.Run("Bad wallet", func(t *testing.T) {
-		e.RunWithError(t, append(cmdbalance, "--wallet", "/dev/null", "-r", "test")...)
 	})
 }
 

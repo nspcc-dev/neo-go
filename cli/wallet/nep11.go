@@ -51,9 +51,10 @@ func newNEP11Commands() []*cli.Command {
 		{
 			Name:      "balance",
 			Usage:     "Get address balance",
-			UsageText: "balance -w wallet [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>] [--id <token-id>]",
-			Description: `Prints NEP-11 balances for address and assets/IDs specified. By default (no
-   address or token parameter) all tokens (NFT contracts) for all accounts in
+			UsageText: "balance [-w wallet] [--wallet-config path] --rpc-endpoint <node> [--timeout <time>] [--address <address>] [--token <hash-or-name>] [--id <token-id>]",
+			Description: `Prints NEP-11 balances for address and assets/IDs specified. One of wallet
+   or address must be specified, passing both is valid too. If a wallet is
+   given without an address all tokens (NFT contracts) for all accounts in
    the specified wallet are listed with all tokens (actual NFTs) insied. A
    single account can be chosen with the address option and/or a single NFT
    contract can be selected with the token option. Further, you can specify a
