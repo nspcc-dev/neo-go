@@ -29,6 +29,8 @@ func (bw *BufBinWriter) Len() int {
 }
 
 // Bytes returns the resulting buffer and makes future writes return an error.
+// Subsequent calls to it will return nil. You can reuse this instance of
+// [BufBinWriter] after [BufBinWriter.Reset].
 func (bw *BufBinWriter) Bytes() []byte {
 	if bw.Err != nil {
 		return nil
