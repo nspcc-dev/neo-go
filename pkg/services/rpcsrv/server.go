@@ -269,7 +269,7 @@ var rpcWsHandlers = map[string]func(*Server, params.Params, *subscriber) (any, *
 // New creates a new Server struct. Pay attention that orc is expected to be either
 // untyped nil or non-nil structure implementing OracleHandler interface.
 func New(chain Ledger, conf config.RPC, coreServer *network.Server,
-	orc OracleHandler, log *zap.Logger, errChan chan<- error) Server {
+	orc OracleHandler, log *zap.Logger, errChan chan<- error) *Server {
 	protoCfg := chain.GetConfig().ProtocolConfiguration
 	if conf.SessionEnabled {
 		if conf.SessionExpirationTime <= 0 {
@@ -339,7 +339,7 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		}
 	}
 
-	return Server{
+	return &Server{
 		http:  httpServers,
 		https: tlsServers,
 

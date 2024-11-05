@@ -505,7 +505,7 @@ func startServer(ctx *cli.Context) error {
 	}
 	errChan := make(chan error)
 	rpcServer := rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
-	serv.AddService(&rpcServer)
+	serv.AddService(rpcServer)
 
 	serv.Start()
 	if !cfg.ApplicationConfiguration.RPC.StartWhenSynchronized {
@@ -561,10 +561,10 @@ Main:
 					logLevel.SetLevel(newLogLevel)
 					log.Warn("using new logging level", zap.Stringer("level", newLogLevel))
 				}
-				serv.DelService(&rpcServer)
+				serv.DelService(rpcServer)
 				rpcServer.Shutdown()
 				rpcServer = rpcsrv.New(chain, cfgnew.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
-				serv.AddService(&rpcServer)
+				serv.AddService(rpcServer)
 				if !cfgnew.ApplicationConfiguration.RPC.StartWhenSynchronized || serv.IsInSync() {
 					// Here similar to the initial run (see above for-loop), so async.
 					go rpcServer.Start()
