@@ -178,7 +178,7 @@ func NewTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 	rpcServer := rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, netSrv, nil, logger, errCh)
 	rpcServer.Start()
 
-	return chain, &rpcServer, netSrv
+	return chain, rpcServer, netSrv
 }
 
 func NewExecutor(t *testing.T, needChain bool) *Executor {
