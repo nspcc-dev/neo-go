@@ -3100,12 +3100,6 @@ func (s *Server) writeHTTPServerResponse(r *params.Request, w http.ResponseWrite
 	if s.config.EnableCORSWorkaround {
 		setCORSOriginHeaders(w.Header())
 	}
-	if r.In != nil {
-		resp := resp.(abstract)
-		if resp.Error != nil {
-			w.WriteHeader(getHTTPCodeForError(resp.Error))
-		}
-	}
 
 	encoder := json.NewEncoder(w)
 	err := encoder.Encode(resp)
