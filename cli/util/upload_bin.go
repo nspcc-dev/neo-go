@@ -421,10 +421,10 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 			// if searchObjects has returned not all blocks within the requested range, ref.
 			// #3645. In this case, retry the search for every missing object.
 			var count int
-
 			for idx := range indexFileSize {
 				if _, ok := processedIndices.Load(idx); !ok {
 					count++
+					fmt.Fprintf(ctx.App.Writer, "Index file %d: fetching missing block %d\n", i, i*indexFileSize+idx)
 					objIDs = searchObjects(ctx.Context, p, containerID, account, blockAttributeKey, i*indexFileSize+idx, i*indexFileSize+idx+1, 1, errCh)
 					// Block object duplicates are allowed, we're OK with the first found result.
 					id, ok := <-objIDs
@@ -432,7 +432,7 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 					}
 					if !ok {
 						select {
-						case errCh <- fmt.Errorf("block %d is missing from the storage", i*indexFileSize+idx):
+						case errCh <- fmt.Errorf("index file %d: block %d is missing from the storage", i, i*indexFileSize+idx):
 						default:
 						}
 						return
