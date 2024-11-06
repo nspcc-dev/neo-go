@@ -87,7 +87,7 @@ NAME:
 neo-go util upload-bin - Fetch blocks from RPC node and upload them to the NeoFS container
 
 USAGE:
-neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--index-file-size <size>] [--skip-blocks-uploading]
+neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--index-file-size <size>] [--skip-blocks-uploading] [--retries <num>]
 
 OPTIONS:
 --fs-rpc-endpoint value, --fsr value [ --fs-rpc-endpoint value, --fsr value ]  List of NeoFS storage node RPC addresses (comma-separated or multiple --fs-rpc-endpoint flags)
@@ -99,6 +99,7 @@ OPTIONS:
 --workers value                                                                Number of workers to fetch, upload and search blocks concurrently (default: 50)
 --searchers value                                                              Number of concurrent searches for blocks (default: 20)
 --skip-blocks-uploading                                                        Skip blocks uploading and upload only index files (default: false)
+--retries value                                                                Maximum number of Neo/NeoFS node request retries (default: 5)
 --rpc-endpoint value, -r value                                                 RPC node address
 --timeout value, -s value                                                      Timeout for the operation (default: 10s)
 --wallet value, -w value                                                       Wallet to use to get the key for transaction signing; conflicts with --wallet-config flag

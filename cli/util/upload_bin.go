@@ -40,8 +40,6 @@ const (
 
 // Constants related to retry mechanism.
 const (
-	// Maximum number of retries.
-	maxRetries = 5
 	// Initial backoff duration.
 	initialBackoff = 500 * time.Millisecond
 	// Backoff multiplier.
@@ -67,6 +65,7 @@ func uploadBin(ctx *cli.Context) error {
 	attr := ctx.String("block-attribute")
 	numWorkers := ctx.Int("workers")
 	maxParallelSearches := ctx.Int("searchers")
+	maxRetries := int(ctx.Uint("retries"))
 	acc, _, err := options.GetAccFromContext(ctx)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to load account: %v", err), 1)
@@ -105,7 +104,7 @@ func uploadBin(ctx *cli.Context) error {
 		var errNet error
 		net, errNet = p.NetworkInfo(ctx.Context, client.PrmNetworkInfo{})
 		return errNet
-	})
+	}, maxRetries)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to get network info: %w", err), 1)
 	}
@@ -115,7 +114,7 @@ func uploadBin(ctx *cli.Context) error {
 	err = retry(func() error {
 		containerObj, err = p.ContainerGet(ctx.Context, containerID, client.PrmContainerGet{})
 		return err
-	})
+	}, maxRetries)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to get container with ID %s: %w", containerID, err), 1)
 	}
@@ -136,20 +135,20 @@ func uploadBin(ctx *cli.Context) error {
 	}
 	fmt.Fprintln(ctx.App.Writer, "Chain block height:", currentBlockHeight)
 
-	oldestMissingBlockIndex, errBlock := fetchLatestMissingBlockIndex(ctx.Context, p, containerID, acc.PrivateKey(), attr, int(currentBlockHeight), maxParallelSearches)
+	oldestMissingBlockIndex, errBlock := fetchLatestMissingBlockIndex(ctx.Context, p, containerID, acc.PrivateKey(), attr, int(currentBlockHeight), maxParallelSearches, maxRetries)
 	if errBlock != nil {
 		return cli.Exit(fmt.Errorf("failed to fetch the oldest missing block index from container: %w", err), 1)
 	}
 	fmt.Fprintln(ctx.App.Writer, "First block of latest incomplete batch uploaded to NeoFS container:", oldestMissingBlockIndex)
 
 	if !ctx.Bool("skip-blocks-uploading") {
-		err = uploadBlocks(ctx, p, rpc, signer, containerID, acc, attr, oldestMissingBlockIndex, uint(currentBlockHeight), homomorphicHashingDisabled, numWorkers)
+		err = uploadBlocks(ctx, p, rpc, signer, containerID, acc, attr, oldestMissingBlockIndex, uint(currentBlockHeight), homomorphicHashingDisabled, numWorkers, maxRetries)
 		if err != nil {
 			return cli.Exit(fmt.Errorf("failed to upload blocks: %w", err), 1)
 		}
 	}
 
-	err = uploadIndexFiles(ctx, p, containerID, acc, signer, uint(currentBlockHeight), attr, homomorphicHashingDisabled, maxParallelSearches)
+	err = uploadIndexFiles(ctx, p, containerID, acc, signer, uint(currentBlockHeight), attr, homomorphicHashingDisabled, maxParallelSearches, maxRetries)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to upload index files: %w", err), 1)
 	}
@@ -157,7 +156,7 @@ func uploadBin(ctx *cli.Context) error {
 }
 
 // retry function with exponential backoff.
-func retry(action func() error) error {
+func retry(action func() error, maxRetries int) error {
 	var err error
 	backoff := initialBackoff
 	for range maxRetries {
@@ -183,7 +182,7 @@ type searchResult struct {
 // fetchLatestMissingBlockIndex searches the container for the latest full batch of blocks
 // starting from the currentHeight and going backwards. It returns the index of first block
 // in the next batch.
-func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID cid.ID, priv *keys.PrivateKey, attributeKey string, currentHeight int, maxParallelSearches int) (int, error) {
+func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID cid.ID, priv *keys.PrivateKey, attributeKey string, currentHeight int, maxParallelSearches, maxRetries int) (int, error) {
 	var (
 		wg              sync.WaitGroup
 		numBatches      = currentHeight/searchBatchSize + 1
@@ -219,7 +218,7 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 				err = retry(func() error {
 					objectIDs, err = neofs.ObjectSearch(ctx, p, priv, containerID.String(), prm)
 					return err
-				})
+				}, maxRetries)
 				results[i] = searchResult{startIndex: startIndex, endIndex: endIndex, numOIDs: len(objectIDs), err: err}
 			}(i, startIndex, endIndex)
 		}
@@ -242,7 +241,7 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 }
 
 // uploadBlocks uploads the blocks to the container using the pool.
-func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, acc *wallet.Account, attr string, oldestMissingBlockIndex int, currentBlockHeight uint, homomorphicHashingDisabled bool, numWorkers int) error {
+func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, acc *wallet.Account, attr string, oldestMissingBlockIndex int, currentBlockHeight uint, homomorphicHashingDisabled bool, numWorkers, maxRetries int) error {
 	if oldestMissingBlockIndex > int(currentBlockHeight) {
 		fmt.Fprintf(ctx.App.Writer, "No new blocks to upload. Need to upload starting from %d, current height %d\n", oldestMissingBlockIndex, currentBlockHeight)
 		return nil
@@ -268,7 +267,7 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 							return fmt.Errorf("failed to fetch block %d: %w", blockIndex, errGetBlock)
 						}
 						return nil
-					})
+					}, maxRetries)
 					if errGet != nil {
 						select {
 						case errCh <- errGet:
@@ -297,7 +296,7 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 					objBytes := bw.Bytes()
 					errRetr := retry(func() error {
 						return uploadObj(ctx.Context, p, signer, acc.PrivateKey().GetScriptHash(), containerID, objBytes, attrs, homomorphicHashingDisabled)
-					})
+					}, maxRetries)
 					if errRetr != nil {
 						select {
 						case errCh <- errRetr:
@@ -326,7 +325,7 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 }
 
 // uploadIndexFiles uploads missing index files to the container.
-func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, account *wallet.Account, signer user.Signer, currentHeight uint, blockAttributeKey string, homomorphicHashingDisabled bool, maxParallelSearches int) error {
+func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, account *wallet.Account, signer user.Signer, currentHeight uint, blockAttributeKey string, homomorphicHashingDisabled bool, maxParallelSearches, maxRetries int) error {
 	attributeKey := ctx.String("index-attribute")
 	indexFileSize := ctx.Uint("index-file-size")
 	fmt.Fprintln(ctx.App.Writer, "Uploading index files...")
@@ -341,7 +340,7 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 		var errSearchIndex error
 		objectIDs, errSearchIndex = neofs.ObjectSearch(ctx.Context, p, account.PrivateKey(), containerID.String(), prm)
 		return errSearchIndex
-	})
+	}, maxRetries)
 	if errSearch != nil {
 		return fmt.Errorf("index files search failed: %w", errSearch)
 	}
@@ -382,7 +381,7 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 							var errGet error
 							obj, _, errGet = p.ObjectGetInit(ctx.Context, containerID, id, signer, client.PrmObjectGet{})
 							return errGet
-						})
+						}, maxRetries)
 						if errRetr != nil {
 							select {
 							case errCh <- fmt.Errorf("failed to fetch object %s: %w", id.String(), errRetr):
@@ -409,7 +408,7 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 			// Search for blocks within the index file range.
 			startIndex := i * indexFileSize
 			endIndex := startIndex + indexFileSize
-			objIDs := searchObjects(ctx.Context, p, containerID, account, blockAttributeKey, startIndex, endIndex, maxParallelSearches, errCh)
+			objIDs := searchObjects(ctx.Context, p, containerID, account, blockAttributeKey, startIndex, endIndex, maxParallelSearches, maxRetries, errCh)
 			for id := range objIDs {
 				oidCh <- id
 			}
@@ -425,7 +424,7 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 				if _, ok := processedIndices.Load(idx); !ok {
 					count++
 					fmt.Fprintf(ctx.App.Writer, "Index file %d: fetching missing block %d\n", i, i*indexFileSize+idx)
-					objIDs = searchObjects(ctx.Context, p, containerID, account, blockAttributeKey, i*indexFileSize+idx, i*indexFileSize+idx+1, 1, errCh)
+					objIDs = searchObjects(ctx.Context, p, containerID, account, blockAttributeKey, i*indexFileSize+idx, i*indexFileSize+idx+1, 1, maxRetries, errCh)
 					// Block object duplicates are allowed, we're OK with the first found result.
 					id, ok := <-objIDs
 					for range objIDs {
@@ -462,7 +461,7 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 			}
 			err := retry(func() error {
 				return uploadObj(ctx.Context, p, signer, account.PrivateKey().GetScriptHash(), containerID, buffer, attrs, homomorphicHashingDisabled)
-			})
+			}, maxRetries)
 			if err != nil {
 				select {
 				case errCh <- fmt.Errorf("failed to upload index file %d: %w", i, err):
@@ -487,7 +486,7 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 // searchObjects searches in parallel for objects with attribute GE startIndex and LT
 // endIndex. It returns a buffered channel of resulting object IDs and closes it once
 // OID search is finished. Errors are sent to errCh in a non-blocking way.
-func searchObjects(ctx context.Context, p *pool.Pool, containerID cid.ID, account *wallet.Account, blockAttributeKey string, startIndex, endIndex uint, maxParallelSearches int, errCh chan error) chan oid.ID {
+func searchObjects(ctx context.Context, p *pool.Pool, containerID cid.ID, account *wallet.Account, blockAttributeKey string, startIndex, endIndex uint, maxParallelSearches, maxRetries int, errCh chan error) chan oid.ID {
 	var res = make(chan oid.ID, 2*searchBatchSize)
 	go func() {
 		var wg sync.WaitGroup
@@ -520,7 +519,7 @@ func searchObjects(ctx context.Context, p *pool.Pool, containerID cid.ID, accoun
 						var errBlockSearch error
 						objIDs, errBlockSearch = neofs.ObjectSearch(ctx, p, account.PrivateKey(), containerID.String(), prm)
 						return errBlockSearch
-					})
+					}, maxRetries)
 					if err != nil {
 						select {
 						case errCh <- fmt.Errorf("failed to search for block(s) from %d to %d: %w", start, end, err):
@@ -581,10 +580,18 @@ func uploadObj(ctx context.Context, p *pool.Pool, signer user.Signer, owner util
 	if err != nil {
 		return fmt.Errorf("failed to initiate object upload: %w", err)
 	}
-	defer writer.Close()
 	_, err = writer.Write(objData)
 	if err != nil {
+		_ = writer.Close()
 		return fmt.Errorf("failed to write object data: %w", err)
+	}
+	err = writer.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close object writer: %w", err)
+	}
+	res := writer.GetResult()
+	if res.StoredObjectID().Equals(oid.ID{}) {
+		return fmt.Errorf("object ID is empty")
 	}
 	return nil
 }
