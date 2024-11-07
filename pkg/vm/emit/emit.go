@@ -1,3 +1,11 @@
+/*
+Package emit implements low-level functions for Neo VM script creation.
+
+This package is not intended to be used by applications directly, see
+smartcontract package for more convenient ways to create standard and
+well-known scripts. Use this package only if you can't create the script
+you need in any other way.
+*/
 package emit
 
 import (
