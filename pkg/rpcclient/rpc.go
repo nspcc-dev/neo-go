@@ -333,8 +333,10 @@ func (c *Client) GetNEP11Properties(asset util.Uint160, token []byte) (map[strin
 }
 
 // GetNEP11Transfers is a wrapper for getnep11transfers RPC. Address parameter
-// is mandatory, while all others are optional. Limit and page parameters are
-// only supported by NeoGo servers and can only be specified with start and stop.
+// is mandatory, while all others are optional. start and stop parameters are
+// timestamps in milliseconds (just like block timestamps are). limit and page
+// parameters are only supported by NeoGo servers and can only be specified
+// with start and stop (since they're positional in the protocol).
 func (c *Client) GetNEP11Transfers(address util.Uint160, start, stop *uint64, limit, page *int) (*result.NEP11Transfers, error) {
 	params, err := packTransfersParams(address, start, stop, limit, page)
 	if err != nil {
@@ -371,10 +373,10 @@ func packTransfersParams(address util.Uint160, start, stop *uint64, limit, page 
 }
 
 // GetNEP17Transfers is a wrapper for getnep17transfers RPC. Address parameter
-// is mandatory while all the others are optional. Start and stop parameters
-// are supported since neo-go 0.77.0 and limit and page since neo-go 0.78.0.
-// These parameters are positional in the JSON-RPC call. For example, you can't specify the limit
-// without specifying start/stop first.
+// is mandatory while all the others are optional. start and stop parameters
+// are timestamps in milliseconds (just like block timestamps are). limit and page
+// parameters are only supported by NeoGo servers and can only be specified
+// with start and stop (since they're positional in the protocol).
 func (c *Client) GetNEP17Transfers(address util.Uint160, start, stop *uint64, limit, page *int) (*result.NEP17Transfers, error) {
 	params, err := packTransfersParams(address, start, stop, limit, page)
 	if err != nil {
