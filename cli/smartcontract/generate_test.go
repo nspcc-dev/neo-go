@@ -476,7 +476,7 @@ func TestAssistedRPCBindings(t *testing.T) {
 	tmpDir := t.TempDir()
 	e := testcli.NewExecutor(t, false)
 
-	var checkBinding = func(source string, hasDefinedHash bool, guessEventTypes bool, suffix ...string) {
+	var checkBinding = func(source, configFile, expectedFile string, hasDefinedHash, guessEventTypes bool, suffix ...string) {
 		testName := source
 		if len(suffix) != 0 {
 			testName += suffix[0]
@@ -484,13 +484,20 @@ func TestAssistedRPCBindings(t *testing.T) {
 		testName += fmt.Sprintf(", predefined hash: %t", hasDefinedHash)
 		t.Run(testName, func(t *testing.T) {
 			outFile := filepath.Join(tmpDir, "out.go")
-			configFile := filepath.Join(source, "config.yml")
-			expectedFile := filepath.Join(source, "rpcbindings.out")
-			if len(suffix) != 0 {
-				configFile = filepath.Join(source, "config"+suffix[0]+".yml")
-				expectedFile = filepath.Join(source, "rpcbindings"+suffix[0]+".out")
-			} else if !hasDefinedHash {
-				expectedFile = filepath.Join(source, "rpcbindings_dynamic_hash.out")
+			if configFile == "" {
+				if len(suffix) != 0 {
+					configFile = filepath.Join(source, "config"+suffix[0]+".yml")
+				} else {
+					configFile = filepath.Join(source, "config.yml")
+				}
+			}
+			if expectedFile == "" {
+				expectedFile = filepath.Join(source, "rpcbindings.out")
+				if len(suffix) != 0 {
+					expectedFile = filepath.Join(source, "rpcbindings"+suffix[0]+".out")
+				} else if !hasDefinedHash {
+					expectedFile = filepath.Join(source, "rpcbindings_dynamic_hash.out")
+				}
 			}
 			manifestF := filepath.Join(tmpDir, "manifest.json")
 			bindingF := filepath.Join(tmpDir, "binding.yml")
@@ -532,12 +539,18 @@ func TestAssistedRPCBindings(t *testing.T) {
 	}
 
 	for _, hasDefinedHash := range []bool{true, false} {
-		checkBinding(filepath.Join("testdata", "rpcbindings", "types"), hasDefinedHash, false)
-		checkBinding(filepath.Join("testdata", "rpcbindings", "structs"), hasDefinedHash, false)
+		checkBinding(filepath.Join("testdata", "rpcbindings", "types"), "", "", hasDefinedHash, false)
+		checkBinding(filepath.Join("testdata", "rpcbindings", "structs"), "", "", hasDefinedHash, false)
+		checkBinding(filepath.Join("testdata", "rpcbindings", "royalty"), "", "", hasDefinedHash, false)
 	}
-	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), true, false)
-	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), true, false, "_extended")
-	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), true, true, "_guessed")
+	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), "", "", true, false)
+	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), "", "", true, false, "_extended")
+	checkBinding(filepath.Join("testdata", "rpcbindings", "notifications"), "", "", true, true, "_guessed")
+
+	checkBinding(filepath.Join("..", "..", "examples", "nft-d"), filepath.Join("..", "..", "examples", "nft-d", "nft.yml"), filepath.Join("testdata", "rpcbindings", "nft-d", "rpcbindings_dynamic_hash.out"), false, false)
+	checkBinding(filepath.Join("..", "..", "examples", "nft-d"), filepath.Join("..", "..", "examples", "nft-d", "nft.yml"), filepath.Join("testdata", "rpcbindings", "nft-d", "rpcbindings.out"), true, true)
+	checkBinding(filepath.Join("..", "..", "examples", "nft-nd"), filepath.Join("..", "..", "examples", "nft-nd", "nft.yml"), filepath.Join("testdata", "rpcbindings", "nft-nd", "rpcbindings_dynamic_hash.out"), false, false)
+	checkBinding(filepath.Join("..", "..", "examples", "nft-nd"), filepath.Join("..", "..", "examples", "nft-nd", "nft.yml"), filepath.Join("testdata", "rpcbindings", "nft-nd", "rpcbindings.out"), true, true)
 
 	require.False(t, rewriteExpectedOutputs)
 }

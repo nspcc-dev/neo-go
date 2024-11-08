@@ -425,3 +425,43 @@ func Update(nef, manifest []byte) {
 	}
 	management.Update(nef, manifest)
 }
+
+// RoyaltyRecipient contains information about the recipient and the royalty amount.
+type RoyaltyRecipient struct {
+	Address interop.Hash160
+	Amount  int
+}
+
+// RoyaltyInfo returns a list of royalty recipients and the corresponding royalty amounts.
+func RoyaltyInfo(tokenID []byte, royaltyToken interop.Hash160, salePrice int) []RoyaltyRecipient {
+	if salePrice <= 0 {
+		panic("sale price must be positive")
+	}
+
+	executingHash := runtime.GetExecutingScriptHash()
+	if !royaltyToken.Equals(executingHash) {
+		panic("invalid royalty token")
+	}
+
+	ctx := storage.GetReadOnlyContext()
+	if !isTokenValid(ctx, tokenID) {
+		panic("unknown token")
+	}
+	ownerIter := ownersOf(ctx, tokenID)
+	var owners []interop.Hash160
+	for iterator.Next(ownerIter) {
+		owners = append(owners, iterator.Value(ownerIter).(interop.Hash160))
+	}
+
+	var (
+		recipients []RoyaltyRecipient
+		amount     = salePrice / 10 / len(owners)
+	)
+	for _, owner := range owners {
+		recipients = append(recipients, RoyaltyRecipient{
+			Address: owner,
+			Amount:  amount,
+		})
+	}
+	return recipients
+}

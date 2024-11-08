@@ -179,6 +179,8 @@ type ContractReader struct {
 	{{end -}}
 	{{if .IsNep17}}nep17.TokenReader
 	{{end -}}
+	{{if .IsNep24}}nep24.RoyaltyReader
+	{{end -}}
 	invoker Invoker
 	hash util.Uint160
 }
@@ -208,6 +210,7 @@ func NewReader(invoker Invoker{{- if not (len .Hash) -}}, hash util.Uint160{{- e
 		{{- if .IsNep11D}}*nep11.NewDivisibleReader(invoker, hash), {{end}}
 		{{- if .IsNep11ND}}*nep11.NewNonDivisibleReader(invoker, hash), {{end}}
 		{{- if .IsNep17}}*nep17.NewReader(invoker, hash), {{end -}}
+		{{- if .IsNep24}}*nep24.NewRoyaltyReader(invoker, hash), {{end -}}
 		invoker, hash}
 }
 {{end -}}
@@ -223,11 +226,14 @@ func New(actor Actor{{- if not (len .Hash) -}}, hash util.Uint160{{- end -}}) *C
 	{{end -}}
 	{{if .IsNep17}}var nep17t = nep17.New(actor, hash)
 	{{end -}}
+	{{if .IsNep24}}var nep24t = nep24.NewRoyaltyReader(actor, hash)
+	{{end -}}
 	return &Contract{
 		{{- if .HasReader}}ContractReader{
 		{{- if .IsNep11D}}nep11dt.DivisibleReader, {{end -}}
 		{{- if .IsNep11ND}}nep11ndt.NonDivisibleReader, {{end -}}
 		{{- if .IsNep17}}nep17t.TokenReader, {{end -}}
+		{{- if .IsNep24}}*nep24t, {{end -}}
 		actor, hash}, {{end -}}
 		{{- if .IsNep11D}}nep11dt.DivisibleWriter, {{end -}}
 		{{- if .IsNep11ND}}nep11ndt.BaseWriter, {{end -}}
@@ -349,9 +355,11 @@ type (
 		CustomEvents []CustomEventTemplate
 		NamedTypes   []binding.ExtendedType
 
-		IsNep11D  bool
-		IsNep11ND bool
-		IsNep17   bool
+		IsNep11D       bool
+		IsNep11ND      bool
+		IsNep17        bool
+		IsNep24        bool
+		IsNep24Payable bool
 
 		HasReader   bool
 		HasWriter   bool
@@ -404,25 +412,50 @@ func Generate(cfg binding.Config) error {
 
 	// Strip standard methods from NEP-XX packages.
 	for _, std := range cfg.Manifest.SupportedStandards {
-		if std == manifest.NEP11StandardName {
+		switch std {
+		case manifest.NEP11StandardName:
 			imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"] = struct{}{}
 			if standard.ComplyABI(cfg.Manifest, standard.Nep11Divisible) == nil {
-				mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11Divisible)
 				ctr.IsNep11D = true
 			} else if standard.ComplyABI(cfg.Manifest, standard.Nep11NonDivisible) == nil {
-				mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11NonDivisible)
 				ctr.IsNep11ND = true
 			}
-			mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep11Base)
-			break // Can't be NEP-17 at the same time.
+		case manifest.NEP17StandardName:
+			if standard.ComplyABI(cfg.Manifest, standard.Nep17) == nil {
+				imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"] = struct{}{}
+				ctr.IsNep17 = true
+			}
+		case manifest.NEP24StandardName:
+			if standard.ComplyABI(cfg.Manifest, standard.Nep24) == nil {
+				imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep24"] = struct{}{}
+				ctr.IsNep24 = true
+			}
+		case manifest.NEP24Payable:
+			if standard.ComplyABI(cfg.Manifest, standard.Nep24Payable) == nil {
+				ctr.IsNep24Payable = true
+			}
 		}
-		if std == manifest.NEP17StandardName && standard.ComplyABI(cfg.Manifest, standard.Nep17) == nil {
-			mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep17)
-			imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"] = struct{}{}
-			ctr.IsNep17 = true
-			mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep17)
-			break // Can't be NEP-11 at the same time.
-		}
+	}
+
+	if ctr.IsNep11D {
+		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11Divisible)
+	}
+	if ctr.IsNep11ND {
+		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep11NonDivisible)
+	}
+	if ctr.IsNep11D || ctr.IsNep11ND {
+		mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep11Base)
+	}
+	if ctr.IsNep17 {
+		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep17)
+		mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep17)
+	}
+	if ctr.IsNep24 {
+		mfst.ABI.Methods = dropStdMethods(mfst.ABI.Methods, standard.Nep24)
+		cfg = dropNep24Types(cfg)
+	}
+	if ctr.IsNep24Payable {
+		mfst.ABI.Events = dropStdEvents(mfst.ABI.Events, standard.Nep24Payable)
 	}
 
 	// OnNepXXPayment handlers normally can't be called directly.
@@ -517,6 +550,38 @@ func dropStdEvents(events []manifest.Event, std *standard.Standard) []manifest.E
 		return dropStdEvents(events, std.Base)
 	}
 	return events
+}
+
+// dropNep24Types removes NamedTypes of NEP-24 from the config if they are used only from the methods of the standard.
+func dropNep24Types(cfg binding.Config) binding.Config {
+	var targetTypeName string
+	// Find structure returned by standard.MethodRoyaltyInfo method
+	// and remove it from binding.Config.NamedTypes as it will be imported from nep24 package.
+	if royaltyInfo, ok := cfg.Types[standard.MethodRoyaltyInfo]; ok && royaltyInfo.Value != nil {
+		returnType, exists := cfg.NamedTypes[royaltyInfo.Value.Name]
+		if !exists || returnType.Fields == nil || len(returnType.Fields) != 2 ||
+			returnType.Fields[0].ExtendedType.Base != smartcontract.Hash160Type ||
+			returnType.Fields[1].ExtendedType.Base != smartcontract.IntegerType {
+			return cfg
+		}
+		targetTypeName = royaltyInfo.Value.Name
+	} else {
+		return cfg
+	}
+	found := false
+	for _, typeDef := range cfg.Types {
+		if typeDef.Value != nil && typeDef.Value.Name == targetTypeName {
+			if found {
+				return cfg
+			}
+			found = true
+		}
+	}
+
+	if found {
+		delete(cfg.NamedTypes, targetTypeName)
+	}
+	return cfg
 }
 
 func extendedTypeToGo(et binding.ExtendedType, named map[string]binding.ExtendedType) (string, string) {
@@ -834,7 +899,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	imports["github.com/nspcc-dev/neo-go/pkg/util"] = struct{}{}
 	if len(ctr.SafeMethods) > 0 {
 		imports["github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"] = struct{}{}
-		if !(ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND) {
+		if !(ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND || ctr.IsNep24) {
 			imports["github.com/nspcc-dev/neo-go/pkg/neorpc/result"] = struct{}{}
 		}
 	}
@@ -844,7 +909,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	if len(ctr.Methods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND {
 		ctr.HasWriter = true
 	}
-	if len(ctr.SafeMethods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND {
+	if len(ctr.SafeMethods) > 0 || ctr.IsNep17 || ctr.IsNep11D || ctr.IsNep11ND || ctr.IsNep24 {
 		ctr.HasReader = true
 	}
 	ctr.Imports = ctr.Imports[:0]
