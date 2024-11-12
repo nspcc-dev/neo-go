@@ -1,8 +1,6 @@
 package rpcsrv
 
 import (
-	"net/http"
-
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 )
 
@@ -35,19 +33,4 @@ func (ab abstractBatch) RunForErrors(f func(jsonErr *neorpc.Error)) {
 	for _, a := range ab {
 		a.RunForErrors(f)
 	}
-}
-
-func getHTTPCodeForError(respErr *neorpc.Error) int {
-	var httpCode int
-	switch respErr.Code {
-	case neorpc.BadRequestCode:
-		httpCode = http.StatusBadRequest
-	case neorpc.MethodNotFoundCode:
-		httpCode = http.StatusMethodNotAllowed
-	case neorpc.InternalServerErrorCode:
-		httpCode = http.StatusInternalServerError
-	default:
-		httpCode = http.StatusUnprocessableEntity
-	}
-	return httpCode
 }
