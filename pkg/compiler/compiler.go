@@ -448,7 +448,7 @@ func CompileAndSave(src string, o *Options) ([]byte, error) {
 	return f.Script, nil
 }
 
-// CreateManifest creates manifest and checks that is is valid.
+// CreateManifest creates manifest and checks that is valid.
 func CreateManifest(di *DebugInfo, o *Options) (*manifest.Manifest, error) {
 	m, err := di.ConvertToManifest(o)
 	if err != nil {

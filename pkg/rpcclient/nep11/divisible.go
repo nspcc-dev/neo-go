@@ -48,7 +48,7 @@ func NewDivisible(actor Actor, hash util.Uint160) *Divisible {
 	return &Divisible{*NewDivisibleReader(actor, hash), DivisibleWriter{BaseWriter{hash, actor}}}
 }
 
-// OwnerOf returns returns an iterator that allows to walk through all owners of
+// OwnerOf returns an iterator that allows to walk through all owners of
 // the given token. It depends on the server to provide proper session-based
 // iterator, but can also work with expanded one.
 func (t *DivisibleReader) OwnerOf(token []byte) (*OwnerIterator, error) {

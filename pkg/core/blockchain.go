@@ -76,7 +76,7 @@ const (
 	// newStorageItemsAdded means that contract storage items are up-to-date with the current
 	// state.
 	newStorageItemsAdded
-	// staleBlocksRemoved means that state corresponding to the stale blocks (genesis block in
+	// staleBlocksRemoved means that state corresponding to the stale blocks (genesis block
 	// in case of state jump) was removed from the storage.
 	staleBlocksRemoved
 	// headersReset denotes stale SYS-prefixed and IX-prefixed information was removed from
