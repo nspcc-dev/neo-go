@@ -16,7 +16,8 @@ import (
 // VersionInitial is the default Neo block version.
 const VersionInitial uint32 = 0
 
-// Header holds the base info of a block.
+// Header holds the base info of a block. Fields follow the P2P format of the
+// N3 block header unless noted specifically.
 type Header struct {
 	// Version of the block.
 	Version uint32
@@ -46,8 +47,13 @@ type Header struct {
 	Script transaction.Witness
 
 	// StateRootEnabled specifies if the header contains state root.
+	// It's NeoGo-specific, and is not a part of a standard Neo N3 header,
+	// it's also never serialized into P2P payload. When it's false
+	// PrevStateRoot is always zero, when true it works as intended.
 	StateRootEnabled bool
-	// PrevStateRoot is the state root of the previous block.
+	// PrevStateRoot is the state root of the previous block. This field
+	// is relevant only if StateRootEnabled is true which is a
+	// NeoGo-specific extension of the protocol.
 	PrevStateRoot util.Uint256
 	// PrimaryIndex is the index of the primary consensus node for this block.
 	PrimaryIndex byte
