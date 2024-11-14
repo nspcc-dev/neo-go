@@ -185,7 +185,7 @@ type searchResult struct {
 func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID cid.ID, priv *keys.PrivateKey, attributeKey string, currentHeight int, maxParallelSearches, maxRetries int) (int, error) {
 	var (
 		wg              sync.WaitGroup
-		numBatches      = currentHeight/searchBatchSize + 1
+		numBatches      = currentHeight / searchBatchSize
 		emptyBatchFound bool
 	)
 
@@ -228,12 +228,12 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 			if results[i].err != nil {
 				return 0, fmt.Errorf("blocks search failed for batch with indexes from %d to %d: %w", results[i].startIndex, results[i].endIndex-1, results[i].err)
 			}
-			if results[i].numOIDs < searchBatchSize {
+			if results[i].numOIDs == 0 {
 				emptyBatchFound = true
 				continue
 			}
 			if emptyBatchFound || (batch == numBatches && i == len(results)-1) {
-				return results[i].startIndex + searchBatchSize, nil
+				return results[i].startIndex, nil
 			}
 		}
 	}
