@@ -19,7 +19,7 @@ const VersionInitial uint32 = 0
 // Header holds the base info of a block. Fields follow the P2P format of the
 // N3 block header unless noted specifically.
 type Header struct {
-	// Version of the block.
+	// Version of the block, currently only 0.
 	Version uint32
 
 	// hash of the previous block.
@@ -43,7 +43,8 @@ type Header struct {
 	// Contract address of the next miner
 	NextConsensus util.Uint160
 
-	// Script used to validate the block
+	// Witness scripts used for block validation. These scripts
+	// are not a part of a hashable field set.
 	Script transaction.Witness
 
 	// StateRootEnabled specifies if the header contains state root.

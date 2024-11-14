@@ -34,13 +34,13 @@ var ErrInvalidWitnessNum = errors.New("number of signers doesn't match witnesses
 
 // Transaction is a process recorded in the Neo blockchain.
 type Transaction struct {
-	// The trading version which is currently 0.
+	// Version of the binary transaction format, currently only 0.
 	Version uint8
 
 	// Random number to avoid hash collision.
 	Nonce uint32
 
-	// Fee to be burned.
+	// Fee to be used for script execution and burned.
 	SystemFee int64
 
 	// Fee to be distributed to consensus nodes.
