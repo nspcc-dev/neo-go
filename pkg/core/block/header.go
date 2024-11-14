@@ -73,7 +73,10 @@ type baseAux struct {
 	Witnesses     []transaction.Witness `json:"witnesses"`
 }
 
-// Hash returns the hash of the block.
+// Hash returns the hash of the block. Notice that it is cached internally,
+// so no matter how you change the [Header] after the first invocation of this
+// method it won't change. To get an updated hash in case you're changing
+// the [Header] please encode/decode it.
 func (b *Header) Hash() util.Uint256 {
 	if b.hash.Equals(util.Uint256{}) {
 		b.createHash()
@@ -81,7 +84,8 @@ func (b *Header) Hash() util.Uint256 {
 	return b.hash
 }
 
-// DecodeBinary implements the Serializable interface.
+// DecodeBinary implements the [io.Serializable] interface. Notice that it
+// also automatically updates the internal hash cache, see [Header.Hash].
 func (b *Header) DecodeBinary(br *io.BinReader) {
 	b.decodeHashableFields(br)
 	witnessCount := br.ReadVarUint()
