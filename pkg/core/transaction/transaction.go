@@ -75,7 +75,7 @@ type Transaction struct {
 	hashed bool
 
 	// Trimmed indicates this is a transaction from trimmed
-	// data.
+	// data, meaning it doesn't have anything but hash.
 	Trimmed bool
 }
 
