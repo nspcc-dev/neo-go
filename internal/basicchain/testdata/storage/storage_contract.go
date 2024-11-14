@@ -19,7 +19,7 @@ var valuesPrefix = []byte{0x01}
 func _deploy(data any, isUpdate bool) {
 	if !isUpdate {
 		ctx := storage.GetContext()
-		for i := range valuesCount {
+		for i := 0; i < valuesCount; i++ {
 			key := append(valuesPrefix, byte(i))
 			storage.Put(ctx, key, i)
 		}
