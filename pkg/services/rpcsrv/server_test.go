@@ -83,13 +83,13 @@ const (
 	verifyWithArgsContractHash        = "6261b3bf753bdc3d24c1327a23fd891e1c8a7ccd"
 	nnsContractHash                   = "450d1918a72fef97b48096bfec8d749961deef55"
 	nnsToken1ID                       = "6e656f2e636f6d"
-	nfsoContractHash                  = "2f5c1826bb4da1c764a8871427e4044cf3e82dbd"
+	nfsoContractHash                  = "914246ab7888ba4eb3ddebc9cb5433c2edcc1671"
 	nfsoToken1ID                      = "7e244ffd6aa85fb1579d2ed22e9b761ab62e3486"
 	storageContractHash               = "ebc0c16a76c808cd4dde6bcc063f09e45e331ec7"
 	faultedTxHashLE                   = "82279bfe9bada282ca0f8cb8e0bb124b921af36f00c69a518320322c6f4fef60"
 	faultedTxBlock             uint32 = 23
 	invokescriptContractAVM           = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
-	block20StateRootLE                = "7e411d227a41b760e3c0309e12eb35c01064ffec59d237fcc495a69e97d8c033"
+	block20StateRootLE                = "394e20adf99a6ba160df7351770dfb193ee8af174b7b3ed45f4e2ae8c43694e8"
 )
 
 var (
@@ -1428,7 +1428,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
-					Value: []byte{0x41, 0x01, 0x21, 0x05, 0x52, 0xb0, 0xbb, 0x54, 0x15},
+					Value: []byte{0x41, 0x01, 0x21, 0x05, 0x12, 0xbb, 0xb4, 0x54, 0x15},
 				}}
 				// Can be returned in any order.
 				assert.ElementsMatch(t, chg, res.Diagnostics.Changes)
@@ -3580,7 +3580,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc any) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "90615919730",
+				Amount:      "90615463730",
 				LastUpdated: 23,
 				Decimals:    8,
 				Name:        "GasToken",
