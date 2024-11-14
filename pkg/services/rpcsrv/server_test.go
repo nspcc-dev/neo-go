@@ -74,22 +74,22 @@ type rpcTestCase struct {
 }
 
 const genesisBlockHash = "0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4"
-const testContractHash = "565cff9508ebc75aadd7fe59f38dac610ab6093c"
-const deploymentTxHash = "a14390941cc3a1d87393eff720a722e9cd350bd6ed233c5fe2001326c80eb68e"
+const testContractHash = "449fe8fbd4523072f5e3a4dfa17a494c119d4c08"
+const deploymentTxHash = "bbb8ec059dd320dc9de5a8fb8c75351d8e369fca0256f7a6bdb623dcf71861ed"
 
 const (
 	verifyContractHash                = "06ed5314c2e4cb103029a60b86d46afa2fb8f67c"
 	verifyContractAVM                 = "VwIAQS1RCDBwDBTunqIsJ+NL0BSPxBCOCPdOj1BIskrZMCQE2zBxaBPOStkoJATbKGlK2SgkBNsol0A="
-	verifyWithArgsContractHash        = "4dc916254efd2947c93b11207e8ffc0bb56161c5"
-	nnsContractHash                   = "892429fcd47c30f8451781acc627e8b20e0d64f3"
+	verifyWithArgsContractHash        = "6261b3bf753bdc3d24c1327a23fd891e1c8a7ccd"
+	nnsContractHash                   = "450d1918a72fef97b48096bfec8d749961deef55"
 	nnsToken1ID                       = "6e656f2e636f6d"
-	nfsoContractHash                  = "730ebe719ab8e3b69d11dafc95cdb9bf409db179"
+	nfsoContractHash                  = "2f5c1826bb4da1c764a8871427e4044cf3e82dbd"
 	nfsoToken1ID                      = "7e244ffd6aa85fb1579d2ed22e9b761ab62e3486"
 	storageContractHash               = "ebc0c16a76c808cd4dde6bcc063f09e45e331ec7"
 	faultedTxHashLE                   = "82279bfe9bada282ca0f8cb8e0bb124b921af36f00c69a518320322c6f4fef60"
 	faultedTxBlock             uint32 = 23
 	invokescriptContractAVM           = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
-	block20StateRootLE                = "858c873539d6d24a70f2be13f9dafc61aef2b63c2aa16bb440676de6e44e3cf1"
+	block20StateRootLE                = "7e411d227a41b760e3c0309e12eb35c01064ffec59d237fcc495a69e97d8c033"
 )
 
 var (
@@ -1386,7 +1386,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				script = append(script, 0x41, 0x62, 0x7d, 0x5b, 0x52)
 				return &result.Invoke{
 					State:       "HALT",
-					GasConsumed: 31922970,
+					GasConsumed: 31922730,
 					Script:      script,
 					Stack:       []stackitem.Item{stackitem.Make(true)},
 					Notifications: []state.NotificationEvent{{
@@ -1416,7 +1416,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				chg := []dboper.Operation{{
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0xb},
-					Value: []byte{0x54, 0xb2, 0xd2, 0xa3, 0x51, 0x79, 0x12},
+					Value: []byte{0xba, 0xaa, 0x3d, 0x19, 0x5e, 0x79, 0x12},
 				}, {
 					State: "Added",
 					Key:   []byte{0xfb, 0xff, 0xff, 0xff, 0x14, 0xd6, 0x24, 0x87, 0x12, 0xff, 0x97, 0x22, 0x80, 0xa0, 0xae, 0xf5, 0x24, 0x1c, 0x96, 0x4d, 0x63, 0x78, 0x29, 0xcd, 0xb},
@@ -1428,7 +1428,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
-					Value: []byte{0x41, 0x01, 0x21, 0x05, 0x0c, 0x76, 0x4f, 0xdf, 0x08},
+					Value: []byte{0x41, 0x01, 0x21, 0x05, 0x52, 0xb0, 0xbb, 0x54, 0x15},
 				}}
 				// Can be returned in any order.
 				assert.ElementsMatch(t, chg, res.Diagnostics.Changes)
@@ -1444,7 +1444,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
 				return &result.Invoke{
 					State:         "HALT",
-					GasConsumed:   13970250,
+					GasConsumed:   13969170,
 					Script:        script,
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
@@ -1537,7 +1537,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				script = append(script, 0x41, 0x62, 0x7d, 0x5b, 0x52)
 				return &result.Invoke{
 					State:       "HALT",
-					GasConsumed: 31922970,
+					GasConsumed: 31922730,
 					Script:      script,
 					Stack:       []stackitem.Item{stackitem.Make(true)},
 					Notifications: []state.NotificationEvent{{
@@ -1563,7 +1563,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				cryptoHash, _ := e.chain.GetNativeContractScriptHash(nativenames.CryptoLib)
 				return &result.Invoke{
 					State:         "HALT",
-					GasConsumed:   13970250,
+					GasConsumed:   13969170,
 					Script:        script,
 					Stack:         []stackitem.Item{stackitem.Make("1.2.3.4")},
 					Notifications: []state.NotificationEvent{},
@@ -3265,7 +3265,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		t.Run("contract-based verification with parameters", func(t *testing.T) {
 			verAcc, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
 			require.NoError(t, err)
-			checkContract(t, verAcc, []byte{}, 244130) // No C# match, but we believe it's OK and it differs from the one above.
+			checkContract(t, verAcc, []byte{}, 244010) // No C# match, but we believe it's OK and it differs from the one above.
 		})
 		t.Run("contract-based verification with invocation script", func(t *testing.T) {
 			verAcc, err := util.Uint160DecodeStringLE(verifyWithArgsContractHash)
@@ -3275,7 +3275,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			emit.Int(invocWriter.BinWriter, 5)
 			emit.String(invocWriter.BinWriter, "")
 			invocScript := invocWriter.Bytes()
-			checkContract(t, verAcc, invocScript, 146960) // No C# match, but we believe it's OK and it has a specific invocation script overriding anything server-side.
+			checkContract(t, verAcc, invocScript, 146840) // No C# match, but we believe it's OK and it has a specific invocation script overriding anything server-side.
 		})
 		t.Run("execution limit, ok", func(t *testing.T) {
 			// 1_4000_0000 GAS with the default 1.5 allowed by Policy
@@ -3580,7 +3580,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc any) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "37106285100",
+				Amount:      "90615919730",
 				LastUpdated: 23,
 				Decimals:    8,
 				Name:        "GasToken",
