@@ -84,8 +84,7 @@ func (r *Request) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// DecodeData decodes the given reader into the the request
-// struct.
+// DecodeData decodes the given reader into the request struct.
 func (r *Request) DecodeData(data io.ReadCloser) error {
 	defer data.Close()
 

@@ -1124,7 +1124,7 @@ func (p *Pointer) Position() int {
 	return p.pos
 }
 
-// Buffer represents represents a Buffer stack item.
+// Buffer represents a Buffer stack item.
 type Buffer []byte
 
 // NewBuffer returns a new Buffer object.

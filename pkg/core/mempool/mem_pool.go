@@ -37,7 +37,7 @@ var (
 	ErrOracleResponse = errors.New("conflicts with memory pool due to OracleResponse attribute")
 )
 
-// item represents a transaction in the the Memory pool.
+// item represents a transaction in the Memory pool.
 type item struct {
 	txn        *transaction.Transaction
 	blockStamp uint32
