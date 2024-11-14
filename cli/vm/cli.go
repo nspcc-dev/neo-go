@@ -111,6 +111,26 @@ Example:
 		Action: handleBreak,
 	},
 	{
+		Name:      "delete",
+		Usage:     "Remove a breakpoint",
+		UsageText: `delete <ip>`,
+		Description: `<ip> is mandatory parameter.
+
+Example:
+> delete 12`,
+		Action: handleRemoveBreak,
+	},
+	{
+		Name:      "ib",
+		Usage:     "List breakpoints",
+		UsageText: `ib`,
+		Description: `List breakpoints. 
+
+Example:
+> ib`,
+		Action: handleListBreak,
+	},
+	{
 		Name:      "jump",
 		Usage:     "Jump to the specified instruction (absolute IP value)",
 		UsageText: `jump <ip>`,
@@ -594,6 +614,33 @@ func handleBreak(c *cli.Context) error {
 	v := getVMFromContext(c.App)
 	v.AddBreakPoint(n)
 	fmt.Fprintf(c.App.Writer, "breakpoint added at instruction %d\n", n)
+	return nil
+}
+
+func handleRemoveBreak(c *cli.Context) error {
+	if !checkVMIsReady(c.App) {
+		return nil
+	}
+	n, err := getInstructionParameter(c)
+	if err != nil {
+		return err
+	}
+
+	v := getVMFromContext(c.App)
+	v.RemoveBreakPoint(n)
+	fmt.Fprintf(c.App.Writer, "breakpoint removed at instruction %d\n", n)
+	return nil
+}
+
+func handleListBreak(c *cli.Context) error {
+	if !checkVMIsReady(c.App) {
+		return nil
+	}
+
+	v := getVMFromContext(c.App)
+	for _, bp := range v.Context().BreakPoints() {
+		fmt.Fprintf(c.App.Writer, "%d\n", bp)
+	}
 	return nil
 }
 

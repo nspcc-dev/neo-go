@@ -275,6 +275,14 @@ func (v *VM) AddBreakPoint(n int) {
 	ctx.sc.breakPoints = append(ctx.sc.breakPoints, n)
 }
 
+// RemoveBreakPoint removes the breakpoint in the current context.
+func (v *VM) RemoveBreakPoint(n int) {
+	ctx := v.Context()
+	ctx.sc.breakPoints = slices.DeleteFunc(ctx.sc.breakPoints, func(i int) bool {
+		return i == n
+	})
+}
+
 // AddBreakPointRel adds a breakpoint relative to the current
 // instruction pointer.
 func (v *VM) AddBreakPointRel(n int) {

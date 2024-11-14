@@ -339,6 +339,31 @@ func TestRun_WithNewVMContextAndBreakpoints(t *testing.T) {
 		e.checkNextLine(t, "at breakpoint 10 (ADD)*")
 		e.checkStack(t, 13)
 	})
+	t.Run("contract breakpoints", func(t *testing.T) {
+		src := `package kek
+		func Main(a, b int) int {
+			var c = a + b
+			return c + 5
+		}`
+		tmpDir := t.TempDir()
+		filename := prepareLoadgoSrc(t, tmpDir, src)
+
+		e := newTestVMCLI(t)
+		e.runProgWithTimeout(t, 10*time.Second,
+			"loadgo "+filename,
+			"break 7",
+			"break 8",
+			"ib",
+			"delete 7",
+		)
+
+		e.checkNextLine(t, "READY: loaded \\d* instructions")
+		e.checkNextLine(t, "breakpoint added at instruction 7")
+		e.checkNextLine(t, "breakpoint added at instruction 8")
+		e.checkNextLine(t, "7")
+		e.checkNextLine(t, "8")
+		e.checkNextLine(t, "breakpoint removed at instruction 7")
+	})
 }
 
 // prepareLoadgoSrc prepares provided SC source file for loading into VM via `loadgo` command.
