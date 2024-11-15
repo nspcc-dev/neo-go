@@ -147,6 +147,7 @@ func uploadBin(ctx *cli.Context) error {
 		if err != nil {
 			return cli.Exit(fmt.Errorf("failed to upload blocks: %w", err), 1)
 		}
+		oldestMissingBlockIndex = int(currentBlockHeight) + 1
 	}
 
 	err = uploadIndexFiles(ctx, p, containerID, acc, signer, uint(oldestMissingBlockIndex), attr, homomorphicHashingDisabled, maxParallelSearches, maxRetries, debug)
