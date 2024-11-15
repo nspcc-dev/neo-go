@@ -35,7 +35,9 @@ type Block struct {
 	// Transaction list.
 	Transactions []*transaction.Transaction
 
-	// True if this block is created from trimmed data.
+	// True if this block is created from trimmed data (with a proper
+	// header and hashes-only transactions). Not a part of a real
+	// block and is used only by internal packages.
 	Trimmed bool
 }
 

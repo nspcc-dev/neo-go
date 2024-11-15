@@ -16,9 +16,10 @@ import (
 // VersionInitial is the default Neo block version.
 const VersionInitial uint32 = 0
 
-// Header holds the base info of a block.
+// Header holds the base info of a block. Fields follow the P2P format of the
+// N3 block header unless noted specifically.
 type Header struct {
-	// Version of the block.
+	// Version of the block, currently only 0.
 	Version uint32
 
 	// hash of the previous block.
@@ -42,12 +43,18 @@ type Header struct {
 	// Contract address of the next miner
 	NextConsensus util.Uint160
 
-	// Script used to validate the block
+	// Witness scripts used for block validation. These scripts
+	// are not a part of a hashable field set.
 	Script transaction.Witness
 
 	// StateRootEnabled specifies if the header contains state root.
+	// It's NeoGo-specific, and is not a part of a standard Neo N3 header,
+	// it's also never serialized into P2P payload. When it's false
+	// PrevStateRoot is always zero, when true it works as intended.
 	StateRootEnabled bool
-	// PrevStateRoot is the state root of the previous block.
+	// PrevStateRoot is the state root of the previous block. This field
+	// is relevant only if StateRootEnabled is true which is a
+	// NeoGo-specific extension of the protocol.
 	PrevStateRoot util.Uint256
 	// PrimaryIndex is the index of the primary consensus node for this block.
 	PrimaryIndex byte
@@ -73,7 +80,10 @@ type baseAux struct {
 	Witnesses     []transaction.Witness `json:"witnesses"`
 }
 
-// Hash returns the hash of the block.
+// Hash returns the hash of the block. Notice that it is cached internally,
+// so no matter how you change the [Header] after the first invocation of this
+// method it won't change. To get an updated hash in case you're changing
+// the [Header] please encode/decode it.
 func (b *Header) Hash() util.Uint256 {
 	if b.hash.Equals(util.Uint256{}) {
 		b.createHash()
@@ -81,7 +91,8 @@ func (b *Header) Hash() util.Uint256 {
 	return b.hash
 }
 
-// DecodeBinary implements the Serializable interface.
+// DecodeBinary implements the [io.Serializable] interface. Notice that it
+// also automatically updates the internal hash cache, see [Header.Hash].
 func (b *Header) DecodeBinary(br *io.BinReader) {
 	b.decodeHashableFields(br)
 	witnessCount := br.ReadVarUint()

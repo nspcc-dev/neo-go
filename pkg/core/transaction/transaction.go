@@ -34,13 +34,13 @@ var ErrInvalidWitnessNum = errors.New("number of signers doesn't match witnesses
 
 // Transaction is a process recorded in the Neo blockchain.
 type Transaction struct {
-	// The trading version which is currently 0.
+	// Version of the binary transaction format, currently only 0.
 	Version uint8
 
 	// Random number to avoid hash collision.
 	Nonce uint32
 
-	// Fee to be burned.
+	// Fee to be used for script execution and burned.
 	SystemFee int64
 
 	// Fee to be distributed to consensus nodes.
@@ -75,7 +75,7 @@ type Transaction struct {
 	hashed bool
 
 	// Trimmed indicates this is a transaction from trimmed
-	// data.
+	// data, meaning it doesn't have anything but hash.
 	Trimmed bool
 }
 
@@ -103,7 +103,11 @@ func New(script []byte, gas int64) *Transaction {
 	}
 }
 
-// Hash returns the hash of the transaction.
+// Hash returns the hash of the transaction which is based on serialized
+// representation of its fields. Notice that this hash is cached internally
+// in [Transaction] for efficiency, so once you call this method it will not
+// change even if you change any structure fields. If you need to update the
+// hash use encoding/decoding or [Transaction.Copy].
 func (t *Transaction) Hash() util.Uint256 {
 	if !t.hashed {
 		if t.createHash() != nil {
@@ -208,7 +212,9 @@ func (t *Transaction) decodeBinaryNoSize(br *io.BinReader, buf []byte) {
 	}
 }
 
-// DecodeBinary implements the Serializable interface.
+// DecodeBinary implements the [io.Serializable] interface. It also
+// computes and caches transaction hash and size (see [Transaction.Hash] and
+// [Transaction.Size]).
 func (t *Transaction) DecodeBinary(br *io.BinReader) {
 	t.decodeBinaryNoSize(br, nil)
 
@@ -294,7 +300,9 @@ func (t *Transaction) Bytes() []byte {
 	return buf.Bytes()
 }
 
-// NewTransactionFromBytes decodes byte array into *Transaction.
+// NewTransactionFromBytes decodes byte array into [*Transaction]. It also
+// computes and caches transaction hash and size (see [Transaction.Hash] and
+// [Transaction.Size]).
 func NewTransactionFromBytes(b []byte) (*Transaction, error) {
 	tx := &Transaction{}
 	r := io.NewBinReaderFromBuf(b)
@@ -315,7 +323,10 @@ func (t *Transaction) FeePerByte() int64 {
 	return t.NetworkFee / int64(t.Size())
 }
 
-// Size returns size of the serialized transaction.
+// Size returns size of the serialized transaction. This value is cached
+// in the [Transaction], so once you obtain it no changes to fields will be
+// reflected in value returned from this method, use encoding/decoding or
+// [Transaction.Copy] if needed.
 func (t *Transaction) Size() int {
 	if t.size == 0 {
 		t.size = io.GetVarSize(t)
@@ -469,8 +480,10 @@ func (t *Transaction) ToStackItem() stackitem.Item {
 	})
 }
 
-// Copy creates a deep copy of the Transaction, including all slice fields. Cached values like
-// 'hashed' and 'size' are reset to ensure the copy can be modified independently of the original.
+// Copy creates a deep copy of the Transaction, including all slice fields.
+// Cached values like hash and size are reset to ensure the copy can be
+// modified independently of the original (see [Transaction.Hash] and
+// [Transaction.Size]).
 func (t *Transaction) Copy() *Transaction {
 	if t == nil {
 		return nil
