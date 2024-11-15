@@ -66,6 +66,7 @@ func uploadBin(ctx *cli.Context) error {
 	numWorkers := ctx.Int("workers")
 	maxParallelSearches := ctx.Int("searchers")
 	maxRetries := int(ctx.Uint("retries"))
+	debug := ctx.Bool("debug")
 	acc, _, err := options.GetAccFromContext(ctx)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to load account: %v", err), 1)
@@ -142,13 +143,13 @@ func uploadBin(ctx *cli.Context) error {
 	fmt.Fprintln(ctx.App.Writer, "First block of latest incomplete batch uploaded to NeoFS container:", oldestMissingBlockIndex)
 
 	if !ctx.Bool("skip-blocks-uploading") {
-		err = uploadBlocks(ctx, p, rpc, signer, containerID, acc, attr, oldestMissingBlockIndex, uint(currentBlockHeight), homomorphicHashingDisabled, numWorkers, maxRetries)
+		err = uploadBlocks(ctx, p, rpc, signer, containerID, acc, attr, oldestMissingBlockIndex, uint(currentBlockHeight), homomorphicHashingDisabled, numWorkers, maxRetries, debug)
 		if err != nil {
 			return cli.Exit(fmt.Errorf("failed to upload blocks: %w", err), 1)
 		}
 	}
 
-	err = uploadIndexFiles(ctx, p, containerID, acc, signer, uint(oldestMissingBlockIndex), attr, homomorphicHashingDisabled, maxParallelSearches, maxRetries)
+	err = uploadIndexFiles(ctx, p, containerID, acc, signer, uint(oldestMissingBlockIndex), attr, homomorphicHashingDisabled, maxParallelSearches, maxRetries, debug)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to upload index files: %w", err), 1)
 	}
@@ -241,7 +242,7 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 }
 
 // uploadBlocks uploads the blocks to the container using the pool.
-func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, acc *wallet.Account, attr string, oldestMissingBlockIndex int, currentBlockHeight uint, homomorphicHashingDisabled bool, numWorkers, maxRetries int) error {
+func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, acc *wallet.Account, attr string, oldestMissingBlockIndex int, currentBlockHeight uint, homomorphicHashingDisabled bool, numWorkers, maxRetries int, debug bool) error {
 	if oldestMissingBlockIndex > int(currentBlockHeight) {
 		fmt.Fprintf(ctx.App.Writer, "No new blocks to upload. Need to upload starting from %d, current height %d\n", oldestMissingBlockIndex, currentBlockHeight)
 		return nil
@@ -295,7 +296,14 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 
 					objBytes := bw.Bytes()
 					errRetr := retry(func() error {
-						return uploadObj(ctx.Context, p, signer, acc.PrivateKey().GetScriptHash(), containerID, objBytes, attrs, homomorphicHashingDisabled)
+						resOid, errUpload := uploadObj(ctx.Context, p, signer, acc.PrivateKey().GetScriptHash(), containerID, objBytes, attrs, homomorphicHashingDisabled)
+						if errUpload != nil {
+							return errUpload
+						}
+						if debug {
+							fmt.Fprintf(ctx.App.Writer, "Uploaded block %d with object ID: %s\n", blockIndex, resOid.String())
+						}
+						return errUpload
 					}, maxRetries)
 					if errRetr != nil {
 						select {
@@ -325,7 +333,7 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 }
 
 // uploadIndexFiles uploads missing index files to the container.
-func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, account *wallet.Account, signer user.Signer, oldestMissingBlockIndex uint, blockAttributeKey string, homomorphicHashingDisabled bool, maxParallelSearches, maxRetries int) error {
+func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, account *wallet.Account, signer user.Signer, oldestMissingBlockIndex uint, blockAttributeKey string, homomorphicHashingDisabled bool, maxParallelSearches, maxRetries int, debug bool) error {
 	attributeKey := ctx.String("index-attribute")
 	indexFileSize := ctx.Uint("index-file-size")
 	fmt.Fprintln(ctx.App.Writer, "Uploading index files...")
@@ -460,7 +468,14 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 				*object.NewAttribute("IndexSize", strconv.Itoa(int(indexFileSize))),
 			}
 			err := retry(func() error {
-				return uploadObj(ctx.Context, p, signer, account.PrivateKey().GetScriptHash(), containerID, buffer, attrs, homomorphicHashingDisabled)
+				resOid, errUpload := uploadObj(ctx.Context, p, signer, account.PrivateKey().GetScriptHash(), containerID, buffer, attrs, homomorphicHashingDisabled)
+				if errUpload != nil {
+					return errUpload
+				}
+				if debug {
+					fmt.Fprintf(ctx.App.Writer, "Uploaded idex file %d with object ID: %s\n", i, resOid.String())
+				}
+				return errUpload
 			}, maxRetries)
 			if err != nil {
 				select {
@@ -541,7 +556,7 @@ func searchObjects(ctx context.Context, p *pool.Pool, containerID cid.ID, accoun
 }
 
 // uploadObj uploads object to the container using provided settings.
-func uploadObj(ctx context.Context, p *pool.Pool, signer user.Signer, owner util.Uint160, containerID cid.ID, objData []byte, attrs []object.Attribute, homomorphicHashingDisabled bool) error {
+func uploadObj(ctx context.Context, p *pool.Pool, signer user.Signer, owner util.Uint160, containerID cid.ID, objData []byte, attrs []object.Attribute, homomorphicHashingDisabled bool) (oid.ID, error) {
 	var (
 		ownerID          user.ID
 		hdr              object.Object
@@ -549,6 +564,7 @@ func uploadObj(ctx context.Context, p *pool.Pool, signer user.Signer, owner util
 		chHomomorphic    checksum.Checksum
 		v                = new(version.Version)
 		prmObjectPutInit client.PrmObjectPutInit
+		resOID           = oid.ID{}
 	)
 
 	ownerID.SetScriptHash(owner)
@@ -569,31 +585,32 @@ func uploadObj(ctx context.Context, p *pool.Pool, signer user.Signer, owner util
 
 	err := hdr.SetIDWithSignature(signer)
 	if err != nil {
-		return err
+		return resOID, err
 	}
 	err = hdr.CheckHeaderVerificationFields()
 	if err != nil {
-		return err
+		return resOID, err
 	}
 
 	writer, err := p.ObjectPutInit(ctx, hdr, signer, prmObjectPutInit)
 	if err != nil {
-		return fmt.Errorf("failed to initiate object upload: %w", err)
+		return resOID, fmt.Errorf("failed to initiate object upload: %w", err)
 	}
 	_, err = writer.Write(objData)
 	if err != nil {
 		_ = writer.Close()
-		return fmt.Errorf("failed to write object data: %w", err)
+		return resOID, fmt.Errorf("failed to write object data: %w", err)
 	}
 	err = writer.Close()
 	if err != nil {
-		return fmt.Errorf("failed to close object writer: %w", err)
+		return resOID, fmt.Errorf("failed to close object writer: %w", err)
 	}
 	res := writer.GetResult()
-	if res.StoredObjectID().Equals(oid.ID{}) {
-		return fmt.Errorf("object ID is empty")
+	resOID = res.StoredObjectID()
+	if resOID.Equals(oid.ID{}) {
+		return resOID, fmt.Errorf("object ID is empty")
 	}
-	return nil
+	return resOID, nil
 }
 
 func getBlockIndex(header object.Object, attribute string) (int, error) {
