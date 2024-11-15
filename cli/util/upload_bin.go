@@ -351,7 +351,7 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 		fmt.Fprintf(ctx.App.Writer, "Index files are up to date. Existing: %d, expected: %d\n", existingIndexCount, expectedIndexCount)
 		return nil
 	}
-
+	fmt.Fprintf(ctx.App.Writer, "Current index files count: %d, expected: %d\n", existingIndexCount, expectedIndexCount)
 	var (
 		buffer   = make([]byte, indexFileSize*oidSize)
 		doneCh   = make(chan struct{})
