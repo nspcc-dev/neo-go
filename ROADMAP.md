@@ -69,3 +69,13 @@ event-based waiter fallbacks to the old way of block monitoring with
 
 Removal of stale RPC server compatibility code from `waiter.EventWaiter` is
 scheduled for Jun-Jul 2024 (~0.107.0 release).
+
+## Dump*Slot() methods of `vm.Context`
+
+The following new methods have been exposed to give access to VM context slot contents
+with greater flexibility:
+- `ArgumentsSlot`
+- `LocalsSlot`
+- `StaticsSlot`.
+
+Removal of the `Dump*Slot()` methods are scheduled for the 0.108.0 release.
