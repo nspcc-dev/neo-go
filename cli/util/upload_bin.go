@@ -148,7 +148,7 @@ func uploadBin(ctx *cli.Context) error {
 		}
 	}
 
-	err = uploadIndexFiles(ctx, p, containerID, acc, signer, uint(currentBlockHeight), attr, homomorphicHashingDisabled, maxParallelSearches, maxRetries)
+	err = uploadIndexFiles(ctx, p, containerID, acc, signer, uint(oldestMissingBlockIndex), attr, homomorphicHashingDisabled, maxParallelSearches, maxRetries)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to upload index files: %w", err), 1)
 	}
@@ -325,7 +325,7 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 }
 
 // uploadIndexFiles uploads missing index files to the container.
-func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, account *wallet.Account, signer user.Signer, currentHeight uint, blockAttributeKey string, homomorphicHashingDisabled bool, maxParallelSearches, maxRetries int) error {
+func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, account *wallet.Account, signer user.Signer, oldestMissingBlockIndex uint, blockAttributeKey string, homomorphicHashingDisabled bool, maxParallelSearches, maxRetries int) error {
 	attributeKey := ctx.String("index-attribute")
 	indexFileSize := ctx.Uint("index-file-size")
 	fmt.Fprintln(ctx.App.Writer, "Uploading index files...")
@@ -346,7 +346,7 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 	}
 
 	existingIndexCount := uint(len(objectIDs))
-	expectedIndexCount := currentHeight / indexFileSize
+	expectedIndexCount := (oldestMissingBlockIndex - 1) / indexFileSize
 	if existingIndexCount >= expectedIndexCount {
 		fmt.Fprintf(ctx.App.Writer, "Index files are up to date. Existing: %d, expected: %d\n", existingIndexCount, expectedIndexCount)
 		return nil
