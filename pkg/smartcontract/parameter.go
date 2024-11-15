@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -265,7 +266,7 @@ func NewParameterFromString(in string) (*Parameter, error) {
 // NewParameterFromValue infers Parameter type from the value given and adjusts
 // the value if needed. It does not copy the value if it can avoid doing so. All
 // regular integers, util.*, keys.PublicKey*, string and bool types are supported,
-// slice of byte slices is accepted and converted as well. [errors.ErrUnsupported]
+// slices of various kinds are converted as well. [errors.ErrUnsupported]
 // will be returned for types that can't be used now.
 func NewParameterFromValue(value any) (Parameter, error) {
 	var result = Parameter{
@@ -345,67 +346,28 @@ func NewParameterFromValue(value any) (Parameter, error) {
 	case []Parameter:
 		result.Type = ArrayType
 		result.Value = slices.Clone(v)
-	case [][]byte:
-		return newArrayParameter(v)
-	case []string:
-		return newArrayParameter(v)
-	case []bool:
-		return newArrayParameter(v)
-	case []*big.Int:
-		return newArrayParameter(v)
-	case []int8:
-		return newArrayParameter(v)
-	case []int16:
-		return newArrayParameter(v)
-	case []uint16:
-		return newArrayParameter(v)
-	case []int32:
-		return newArrayParameter(v)
-	case []uint32:
-		return newArrayParameter(v)
-	case []int:
-		return newArrayParameter(v)
-	case []uint:
-		return newArrayParameter(v)
-	case []int64:
-		return newArrayParameter(v)
-	case []uint64:
-		return newArrayParameter(v)
-	case []*Parameter:
-		return newArrayParameter(v)
-	case []Convertible:
-		return newArrayParameter(v)
-	case []util.Uint160:
-		return newArrayParameter(v)
-	case []util.Uint256:
-		return newArrayParameter(v)
-	case []*util.Uint160:
-		return newArrayParameter(v)
-	case []*util.Uint256:
-		return newArrayParameter(v)
-	case []keys.PublicKey:
-		return newArrayParameter(v)
-	case []*keys.PublicKey:
-		return newArrayParameter(v)
-	case keys.PublicKeys:
-		return newArrayParameter(v)
-	case []any:
-		return newArrayParameter(v)
 	case nil:
 		result.Type = AnyType
 	default:
-		return result, fmt.Errorf("%w: %T type", errors.ErrUnsupported, value)
+		rv := reflect.ValueOf(value)
+		switch rv.Kind() {
+		case reflect.Slice, reflect.Array:
+			res := make([]Parameter, 0, rv.Len())
+			for i := range rv.Len() {
+				elem, err := NewParameterFromValue(rv.Index(i).Interface())
+				if err != nil {
+					return result, fmt.Errorf("array index %d: %w", i, err)
+				}
+				res = append(res, elem)
+			}
+			result.Type = ArrayType
+			result.Value = res
+		default:
+			return result, fmt.Errorf("%w: %T type", errors.ErrUnsupported, value)
+		}
 	}
 
 	return result, nil
-}
-
-func newArrayParameter[E any, S ~[]E](values S) (Parameter, error) {
-	arr, err := newArrayOfParameters(values)
-	if err != nil {
-		return Parameter{}, err
-	}
-	return Parameter{Type: ArrayType, Value: arr}, nil
 }
 
 func newArrayOfParameters[E any, S ~[]E](values S) ([]Parameter, error) {
