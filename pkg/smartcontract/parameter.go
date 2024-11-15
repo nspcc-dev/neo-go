@@ -362,6 +362,22 @@ func NewParameterFromValue(value any) (Parameter, error) {
 			}
 			result.Type = ArrayType
 			result.Value = res
+		case reflect.Map:
+			res := make([]ParameterPair, 0, rv.Len())
+			iter := rv.MapRange()
+			for iter.Next() {
+				k, err := NewParameterFromValue(iter.Key().Interface())
+				if err != nil {
+					return result, fmt.Errorf("map key: %w", err)
+				}
+				v, err := NewParameterFromValue(iter.Value().Interface())
+				if err != nil {
+					return result, fmt.Errorf("map value: %w", err)
+				}
+				res = append(res, ParameterPair{Key: k, Value: v})
+			}
+			result.Type = MapType
+			result.Value = res
 		default:
 			return result, fmt.Errorf("%w: %T type", errors.ErrUnsupported, value)
 		}
