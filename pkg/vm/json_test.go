@@ -240,7 +240,7 @@ func compareStacks(t *testing.T, expected []vmUTStackItem, actual *Stack) {
 	compareItemArrays(t, expected, actual.Len(), func(i int) stackitem.Item { return actual.Peek(i).Item() })
 }
 
-func compareSlots(t *testing.T, expected []vmUTStackItem, actual slot) {
+func compareSlots(t *testing.T, expected []vmUTStackItem, actual Slot) {
 	if actual == nil && len(expected) == 0 {
 		return
 	}

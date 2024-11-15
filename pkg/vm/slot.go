@@ -6,11 +6,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
-// slot is a fixed-size slice of stack items.
-type slot []stackitem.Item
+// Slot is a fixed-size slice of stack items.
+type Slot []stackitem.Item
 
 // init sets static slot size to n. It is intended to be used only by INITSSLOT.
-func (s *slot) init(n int, rc *refCounter) {
+func (s *Slot) init(n int, rc *refCounter) {
 	if *s != nil {
 		panic("already initialized")
 	}
@@ -18,8 +18,8 @@ func (s *slot) init(n int, rc *refCounter) {
 	*rc += refCounter(n) // Virtual "Null" elements.
 }
 
-// Set sets i-th storage slot.
-func (s slot) Set(i int, item stackitem.Item, refs *refCounter) {
+// set sets i-th storage slot.
+func (s Slot) set(i int, item stackitem.Item, refs *refCounter) {
 	if s[i] == item {
 		return
 	}
@@ -29,30 +29,30 @@ func (s slot) Set(i int, item stackitem.Item, refs *refCounter) {
 }
 
 // Get returns the item contained in the i-th slot.
-func (s slot) Get(i int) stackitem.Item {
+func (s Slot) Get(i int) stackitem.Item {
 	if item := s[i]; item != nil {
 		return item
 	}
 	return stackitem.Null{}
 }
 
-// ClearRefs removes all slot variables from the reference counter.
-func (s slot) ClearRefs(refs *refCounter) {
+// clearRefs removes all slot variables from the reference counter.
+func (s Slot) clearRefs(refs *refCounter) {
 	for _, item := range s {
 		refs.Remove(item)
 	}
 }
 
 // Size returns the slot size.
-func (s slot) Size() int {
+func (s Slot) Size() int {
 	if s == nil {
-		panic("not initialized")
+		return 0
 	}
 	return len(s)
 }
 
 // MarshalJSON implements the JSON marshalling interface.
-func (s slot) MarshalJSON() ([]byte, error) {
+func (s Slot) MarshalJSON() ([]byte, error) {
 	arr := make([]json.RawMessage, len(s))
 	for i := range s {
 		data, err := stackitem.ToJSONWithTypes(s[i])

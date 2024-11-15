@@ -648,16 +648,24 @@ func handleSlots(c *cli.Context) error {
 	var rawSlot string
 	switch c.Command.Name {
 	case "sslot":
-		rawSlot = vmCtx.DumpStaticSlot()
+		rawSlot = dumpSlot(vmCtx.StaticsSlot())
 	case "lslot":
-		rawSlot = vmCtx.DumpLocalSlot()
+		rawSlot = dumpSlot(vmCtx.LocalsSlot())
 	case "aslot":
-		rawSlot = vmCtx.DumpArgumentsSlot()
+		rawSlot = dumpSlot(vmCtx.ArgumentsSlot())
 	default:
 		return errors.New("unknown slot")
 	}
 	fmt.Fprintln(c.App.Writer, rawSlot)
 	return nil
+}
+
+func dumpSlot(s *vm.Slot) string {
+	if s == nil {
+		return "[]"
+	}
+	b, _ := json.MarshalIndent(s, "", "    ")
+	return string(b)
 }
 
 // prepareVM retrieves --historic flag from context (if set) and resets app state

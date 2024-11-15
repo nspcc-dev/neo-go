@@ -30,7 +30,7 @@ type scriptContext struct {
 	// Evaluation stack pointer.
 	estack *Stack
 
-	static slot
+	static Slot
 
 	// Script hash of the prog.
 	scriptHash util.Uint160
@@ -65,8 +65,8 @@ type Context struct {
 
 	sc *scriptContext
 
-	local     slot
-	arguments slot
+	local     Slot
+	arguments Slot
 
 	// Exception context stack.
 	tryStack Stack
@@ -278,22 +278,26 @@ func (c *Context) IsDeployed() bool {
 }
 
 // DumpStaticSlot returns json formatted representation of the given slot.
+// Deprecated: to be removed in next version. Use [Context.StaticsSlot] instead.
 func (c *Context) DumpStaticSlot() string {
 	return dumpSlot(&c.sc.static)
 }
 
 // DumpLocalSlot returns json formatted representation of the given slot.
+// Deprecated: to be removed in next version. Use [Context.LocalsSlot] instead.
 func (c *Context) DumpLocalSlot() string {
 	return dumpSlot(&c.local)
 }
 
 // DumpArgumentsSlot returns json formatted representation of the given slot.
+// Deprecated: to be removed in next version. Use [Context.ArgumentsSlot] instead.
 func (c *Context) DumpArgumentsSlot() string {
 	return dumpSlot(&c.arguments)
 }
 
 // dumpSlot returns json formatted representation of the given slot.
-func dumpSlot(s *slot) string {
+// Deprecated: to be removed in next version.
+func dumpSlot(s *Slot) string {
 	if s == nil || *s == nil {
 		return "[]"
 	}
@@ -353,4 +357,19 @@ func DynamicOnUnload(v *VM, ctx *Context, commit bool) error {
 // BreakPoints returns the current set of Context's breakpoints.
 func (c *Context) BreakPoints() []int {
 	return slices.Clone(c.sc.breakPoints)
+}
+
+// ArgumentsSlot returns the arguments slot of Context.
+func (c *Context) ArgumentsSlot() *Slot {
+	return &c.arguments
+}
+
+// LocalsSlot returns the local slot of Context.
+func (c *Context) LocalsSlot() *Slot {
+	return &c.local
+}
+
+// StaticsSlot returns the static slot of Context.
+func (c *Context) StaticsSlot() *Slot {
+	return &c.sc.static
 }
