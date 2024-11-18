@@ -3,6 +3,7 @@ package vm
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
 )
@@ -44,6 +45,19 @@ func TestRefCounter_Add(t *testing.T) {
 
 	r.Remove(m)
 	require.Equal(t, 2, int(*r))
+}
+
+func TestRefCounterPopItem(t *testing.T) {
+	prog := makeProgram(opcode.POPITEM)
+	v := load(prog)
+	v.estack.PushVal(stackitem.NewArray([]stackitem.Item{stackitem.Make(42)}))
+	require.Equal(t, 2, int(v.refs))
+	runVM(t, v)
+	require.Equal(t, 1, v.estack.Len())
+	require.Equal(t, 1, int(v.refs))
+	_ = v.estack.Pop()
+	require.Equal(t, 0, v.estack.Len())
+	require.Equal(t, 0, int(v.refs))
 }
 
 func BenchmarkRefCounter_Add(b *testing.B) {

@@ -1459,7 +1459,6 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 		case *stackitem.Struct:
 			item.Remove(index)
 		}
-		v.refs.Remove(elem)
 
 	case opcode.SIZE:
 		elem := v.estack.Pop()
