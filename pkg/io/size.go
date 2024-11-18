@@ -73,7 +73,7 @@ func GetVarSize(value any) int {
 		valueSize := 0
 
 		if valueLength != 0 {
-			switch reflect.ValueOf(value).Index(0).Interface().(type) {
+			switch v.Index(0).Interface().(type) {
 			case Serializable:
 				for i := range valueLength {
 					valueSize += GetVarSize(v.Index(i).Interface())

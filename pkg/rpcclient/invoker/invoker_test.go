@@ -83,17 +83,17 @@ func TestInvoker(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, resExp, res)
 
-		_, err = inv.Verify(util.Uint160{}, nil, make(map[int]int))
+		_, err = inv.Verify(util.Uint160{}, nil, make(chan struct{}))
 		require.Error(t, err)
 
-		_, err = inv.Call(util.Uint160{}, "method", make(map[int]int))
+		_, err = inv.Call(util.Uint160{}, "method", make(chan struct{}))
 		require.Error(t, err)
 
 		res, err = inv.CallAndExpandIterator(util.Uint160{}, "method", 10, 42)
 		require.NoError(t, err)
 		require.Equal(t, resExp, res)
 
-		_, err = inv.CallAndExpandIterator(util.Uint160{}, "method", 10, make(map[int]int))
+		_, err = inv.CallAndExpandIterator(util.Uint160{}, "method", 10, make(chan struct{}))
 		require.Error(t, err)
 	}
 	t.Run("standard", func(t *testing.T) {

@@ -887,12 +887,58 @@ func TestParameterFromValue(t *testing.T) {
 			err:   "invalid i value",
 		},
 		{
-			value: make(map[string]int),
-			err:   "unsupported operation: map[string]int type",
+			value:   make(map[string]int),
+			expType: MapType,
+			expVal:  []ParameterPair{},
 		},
 		{
-			value: []any{1, 2, make(map[string]int)},
-			err:   "unsupported operation: map[string]int type",
+			value:   make(map[string]int),
+			expType: MapType,
+			expVal:  []ParameterPair{},
+		},
+		{
+			value:   map[string]string{"key": "value"},
+			expType: MapType,
+			expVal: []ParameterPair{{
+				Key: Parameter{
+					Type:  StringType,
+					Value: "key",
+				},
+				Value: Parameter{
+					Type:  StringType,
+					Value: "value",
+				},
+			}},
+		},
+		{
+			value:   map[int]int64{42: 100500},
+			expType: MapType,
+			expVal: []ParameterPair{{
+				Key: Parameter{
+					Type:  IntegerType,
+					Value: big.NewInt(42),
+				},
+				Value: Parameter{
+					Type:  IntegerType,
+					Value: big.NewInt(100500),
+				},
+			}},
+		},
+		{
+			value: make(chan int),
+			err:   "unsupported operation: chan int type",
+		},
+		{
+			value: []any{1, 2, make(chan int)},
+			err:   "unsupported operation: chan int type",
+		},
+		{
+			value: map[string]chan int{"aaa": make(chan int)},
+			err:   "unsupported operation: chan int type",
+		},
+		{
+			value: map[error]string{errors.New("some"): "value"},
+			err:   "unsupported operation: *errors.errorString type",
 		},
 	}
 
@@ -924,6 +970,6 @@ func TestParametersFromValues(t *testing.T) {
 		Type:  ByteArrayType,
 		Value: []byte{3, 2, 1},
 	}}, res)
-	_, err = NewParametersFromValues(42, make(map[int]int), []byte{3, 2, 1})
+	_, err = NewParametersFromValues(42, make(chan int), []byte{3, 2, 1})
 	require.Error(t, err)
 }
