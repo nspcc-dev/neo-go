@@ -2083,6 +2083,45 @@ func TestUNPACKBadNotArray(t *testing.T) {
 	runWithArgs(t, prog, nil, 1)
 }
 
+func TestPACKMAPDuplicateKeys(t *testing.T) {
+	prog := makeProgram(opcode.PACKMAP)
+	vm := load(prog)
+
+	keys := []string{"duplicateKey", "uniqueKey", "duplicateKey", "anotherUniqueKey"}
+	values := []string{"value1", "value2", "value3", "value4"}
+
+	for i := range keys {
+		vm.estack.PushVal(values[i])
+		vm.estack.PushVal(keys[i])
+	}
+
+	vm.estack.PushVal(len(keys))
+	runVM(t, vm)
+
+	require.Equal(t, 1, vm.estack.Len())
+	packedItem := vm.estack.Pop().Item()
+	require.Equal(t, stackitem.MapT, packedItem.Type())
+
+	packedMap := packedItem.(*stackitem.Map)
+	require.Equal(t, 3, packedMap.Len())
+
+	expected := []stackitem.MapElement{
+		{
+			Key:   stackitem.NewByteArray([]byte("anotherUniqueKey")),
+			Value: stackitem.NewByteArray([]byte("value4")),
+		},
+		{
+			Key:   stackitem.NewByteArray([]byte("duplicateKey")),
+			Value: stackitem.NewByteArray([]byte("value1")),
+		},
+		{
+			Key:   stackitem.NewByteArray([]byte("uniqueKey")),
+			Value: stackitem.NewByteArray([]byte("value2")),
+		},
+	}
+	require.Equal(t, expected, packedMap.Value())
+}
+
 func TestUNPACKGood(t *testing.T) {
 	prog := makeProgram(opcode.UNPACK)
 	elements := []int{55, 34, 42}

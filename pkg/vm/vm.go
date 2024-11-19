@@ -1214,15 +1214,16 @@ func (v *VM) execute(ctx *Context, op opcode.Opcode, parameter []byte) (err erro
 			panic("invalid length")
 		}
 
-		items := make([]stackitem.MapElement, n)
-		for i := range n {
+		m := stackitem.NewMap()
+		for range n {
 			key := v.estack.Pop()
-			validateMapKey(key)
 			val := v.estack.Pop().value
-			items[i].Key = key.value
-			items[i].Value = val
+			if key.Item() == nil {
+				panic("no key found")
+			}
+			m.Add(key.value, val)
 		}
-		v.estack.PushItem(stackitem.NewMapWithValue(items))
+		v.estack.PushItem(m)
 
 	case opcode.PACKSTRUCT, opcode.PACK:
 		n := toInt(v.estack.Pop().BigInt())
