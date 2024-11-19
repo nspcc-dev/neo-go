@@ -45,6 +45,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neo"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep11"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep17"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nep24"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/neptoken"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/nns"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/notary"
@@ -2459,4 +2460,27 @@ func TestClient_GetVersion_Hardforks(t *testing.T) {
 		config.HFAspidochelone: 25,
 	}
 	require.InDeltaMapValues(t, expected, v.Protocol.Hardforks, 0)
+}
+
+func TestClient_NEP24(t *testing.T) {
+	_, _, httpSrv := initServerWithInMemoryChain(t)
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	t.Cleanup(c.Close)
+	require.NoError(t, c.Init())
+
+	h, err := util.Uint160DecodeStringLE(nfsoContractHash)
+	require.NoError(t, err)
+	reader := nep24.NewRoyaltyReader(invoker.New(c, nil), h)
+
+	t.Run("RoyaltyInfo", func(t *testing.T) {
+		id, err := util.Uint160DecodeStringLE(nfsoToken1ID)
+		require.NoError(t, err)
+		info, err := reader.RoyaltyInfo(id.BytesLE(), h, big.NewInt(1000))
+		require.NoError(t, err)
+		for _, r := range info {
+			require.Equal(t, big.NewInt(50), r.Amount)
+		}
+	})
 }
