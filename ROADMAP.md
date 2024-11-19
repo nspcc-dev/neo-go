@@ -25,15 +25,6 @@ APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
 
-## RPC error codes returned by old versions and C#-nodes 
-
-NeoGo retains certain deprecated error codes: `neorpc.ErrCompatGeneric`, 
-`neorpc.ErrCompatNoOpenedWallet`. They returned by nodes not compliant with the 
-neo-project/proposals#156 (NeoGo pre-0.102.0 and all known C# versions).
-
-Removal of the deprecated RPC error codes is planned for Jun-Jul 2024 (~0.107.0
-release).
-
 ## Block based web-socket waiter transaction awaiting
 
 Web-socket RPC based `waiter.EventWaiter` uses `header_of_added_block` notifications
