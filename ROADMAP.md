@@ -25,15 +25,6 @@ APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
 
-## `serv_node_version` Prometheus gauge metric
-
-This metric is replaced by the new `neogo_version` and `server_id` Prometheus gauge
-metrics with proper version formatting. `neogo_version` contains NeoGo version
-hidden under `version` label and `server_id` contains network server ID hidden
-under `server_id` label.
-
-Removal of `serv_node_version` is scheduled for Jun-Jul 2024 (~0.107.0 release).
-
 ## RPC error codes returned by old versions and C#-nodes 
 
 NeoGo retains certain deprecated error codes: `neorpc.ErrCompatGeneric`, 
