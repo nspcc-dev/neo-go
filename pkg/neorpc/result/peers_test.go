@@ -37,11 +37,8 @@ func TestGetPeers(t *testing.T) {
 	require.Equal(t, uint16(20333), gp.Bad[0].Port)
 
 	gps := GetPeers{}
-	oldPeerFormat := `{"unconnected": [{"address": "20.109.188.128","port": "10333"},{"address": "27.188.182.47","port": "10333"}],"connected": [{"address": "54.227.43.72","port": "10333"},{"address": "157.90.177.38","port": "10333"}],"bad": [{"address": "5.226.142.226","port": "10333"}]}`
-	err := json.Unmarshal([]byte(oldPeerFormat), &gps)
-	require.NoError(t, err)
 	newPeerFormat := `{"unconnected": [{"address": "20.109.188.128","port": 10333},{"address": "27.188.182.47","port": 10333}],"connected": [{"address": "54.227.43.72","port": 10333},{"address": "157.90.177.38","port": 10333}],"bad": [{"address": "5.226.142.226","port": 10333},{"address": "54.208.117.178","port": 10333}]}`
-	err = json.Unmarshal([]byte(newPeerFormat), &gps)
+	err := json.Unmarshal([]byte(newPeerFormat), &gps)
 	require.NoError(t, err)
 	badIntFormat := `{"unconnected": [{"address": "20.109.188.128","port": 65536}],"connected": [],"bad": []}`
 	err = json.Unmarshal([]byte(badIntFormat), &gps)

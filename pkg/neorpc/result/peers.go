@@ -1,7 +1,6 @@
 package result
 
 import (
-	"encoding/json"
 	"net"
 	"strconv"
 
@@ -84,37 +83,6 @@ func (p *Peers) addConnectedPeers(connectedPeers []network.PeerInfo) {
 
 		*p = append(*p, peer)
 	}
-}
-
-func (p *Peer) UnmarshalJSON(data []byte) error {
-	type NewPeer Peer
-	var np NewPeer
-
-	err := json.Unmarshal(data, &np)
-	if err == nil {
-		*p = Peer(np)
-		return nil
-	}
-
-	type OldPeer struct {
-		Address string `json:"address"`
-		Port    string `json:"port"`
-	}
-	var op OldPeer
-
-	err = json.Unmarshal(data, &op)
-	if err == nil {
-		port, err := strconv.ParseUint(op.Port, 10, 16)
-		if err != nil {
-			return err
-		}
-
-		*p = Peer{
-			Address: op.Address,
-			Port:    uint16(port),
-		}
-	}
-	return err
 }
 
 // parseHostPort parses host and port from the given address.

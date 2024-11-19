@@ -25,15 +25,6 @@ APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
 
-## GetPeers RPC server response type changes and RPC client support
-
-GetPeers RPC command returns a list of Peers where the port type has changed from 
-string to uint16 to match C#. The RPC client currently supports unmarshalling both
-formats. 
-
-Removal of Peer unmarshalling with string based ports is scheduled for Jun-Jul 2024
-(~0.107.0 release).
-
 ## `NEOBalance` from stack item
  
 We check struct items count before convert LastGasPerVote to let RPC client be compatible with
