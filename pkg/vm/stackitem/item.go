@@ -824,7 +824,8 @@ func NewMap() *Map {
 	}
 }
 
-// NewMapWithValue returns a new Map object filled with the specified value.
+// NewMapWithValue returns a new Map object filled with the specified value
+// without value validation.
 func NewMapWithValue(value []MapElement) *Map {
 	if value != nil {
 		return &Map{

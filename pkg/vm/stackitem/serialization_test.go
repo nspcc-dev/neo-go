@@ -219,7 +219,7 @@ func TestSerializeLimited(t *testing.T) {
 		bigMap := make([]MapElement, customLimit/2)
 		for i := range bigMap {
 			bigMap[i] = MapElement{
-				Key:   NewByteArray([]byte("key")),
+				Key:   NewByteArray([]byte("key" + strconv.Itoa(i))),
 				Value: NewBool(true),
 			}
 		}
