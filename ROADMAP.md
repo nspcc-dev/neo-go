@@ -25,17 +25,6 @@ APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
 
-## Block based web-socket waiter transaction awaiting
-
-Web-socket RPC based `waiter.EventWaiter` uses `header_of_added_block` notifications
-subscription to manage transaction awaiting. To support old NeoGo RPC servers
-(older than 0.105.0) that do not have block headers subscription ability,
-event-based waiter fallbacks to the old way of block monitoring with
-`block_added` notifications subscription.
-
-Removal of stale RPC server compatibility code from `waiter.EventWaiter` is
-scheduled for Jun-Jul 2024 (~0.107.0 release).
-
 ## Dump*Slot() methods of `vm.Context`
 
 The following new methods have been exposed to give access to VM context slot contents
