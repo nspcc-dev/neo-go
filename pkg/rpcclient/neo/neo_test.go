@@ -105,6 +105,7 @@ func TestGetAccountState(t *testing.T) {
 				stackitem.Make(100500),
 				stackitem.Make(42),
 				stackitem.Null{},
+				stackitem.Make(0),
 			}),
 		},
 	}

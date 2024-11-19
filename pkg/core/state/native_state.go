@@ -133,7 +133,7 @@ func (s *NEOBalance) ToStackItem() (stackitem.Item, error) {
 // FromStackItem converts stackitem.Item to NEOBalance.
 func (s *NEOBalance) FromStackItem(item stackitem.Item) error {
 	structItem, ok := item.Value().([]stackitem.Item)
-	if !ok || len(structItem) < 3 {
+	if !ok || len(structItem) < 4 {
 		return errors.New("invalid stackitem length")
 	}
 	balance, err := structItem[0].TryInteger()
@@ -159,12 +159,10 @@ func (s *NEOBalance) FromStackItem(item stackitem.Item) error {
 		}
 		s.VoteTo = pub
 	}
-	if len(structItem) >= 4 {
-		lastGasPerVote, err := structItem[3].TryInteger()
-		if err != nil {
-			return fmt.Errorf("invalid last vote reward per neo stackitem: %w", err)
-		}
-		s.LastGasPerVote = *lastGasPerVote
+	lastGasPerVote, err := structItem[3].TryInteger()
+	if err != nil {
+		return fmt.Errorf("invalid last vote reward per neo stackitem: %w", err)
 	}
+	s.LastGasPerVote = *lastGasPerVote
 	return nil
 }

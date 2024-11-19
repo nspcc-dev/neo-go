@@ -25,13 +25,6 @@ APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
 
-## `NEOBalance` from stack item
- 
-We check struct items count before convert LastGasPerVote to let RPC client be compatible with
-old versions.
-
-Removal of this compatiblility code is scheduled for Jun-Jul 2024.
-
 ## `serv_node_version` Prometheus gauge metric
 
 This metric is replaced by the new `neogo_version` and `server_id` Prometheus gauge
