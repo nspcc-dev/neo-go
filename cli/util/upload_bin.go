@@ -32,8 +32,12 @@ import (
 )
 
 const (
-	// Number of objects to search in a batch for finding max block in container.
-	searchBatchSize = 10000
+	// Number of objects to upload in a batch. All batches of uploadBatchSize size
+	// except the most recent one are guaranteed to be completed and don't contain gaps.
+	uploadBatchSize = 10000
+	// Number of objects to search in a batch. If it is larger than uploadBatchSize,
+	// it may lead to many duplicate uploads.
+	searchBatchSize = uploadBatchSize
 	// Size of object ID.
 	oidSize = sha256.Size
 )
@@ -235,7 +239,7 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 				continue
 			}
 			if emptyBatchFound || (batch == numBatches && i == len(results)-1) {
-				return results[i].startIndex, nil
+				return results[i].startIndex / uploadBatchSize * uploadBatchSize, nil
 			}
 		}
 	}
@@ -248,9 +252,9 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 		fmt.Fprintf(ctx.App.Writer, "No new blocks to upload. Need to upload starting from %d, current height %d\n", oldestMissingBlockIndex, currentBlockHeight)
 		return nil
 	}
-	for batchStart := oldestMissingBlockIndex; batchStart <= int(currentBlockHeight); batchStart += searchBatchSize {
+	for batchStart := oldestMissingBlockIndex; batchStart <= int(currentBlockHeight); batchStart += uploadBatchSize {
 		var (
-			batchEnd = min(batchStart+searchBatchSize, int(currentBlockHeight)+1)
+			batchEnd = min(batchStart+uploadBatchSize, int(currentBlockHeight)+1)
 			errCh    = make(chan error)
 			doneCh   = make(chan struct{})
 			wg       sync.WaitGroup
