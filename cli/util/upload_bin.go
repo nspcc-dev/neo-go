@@ -138,7 +138,7 @@ func uploadBin(ctx *cli.Context) error {
 
 	oldestMissingBlockIndex, errBlock := fetchLatestMissingBlockIndex(ctx.Context, p, containerID, acc.PrivateKey(), attr, int(currentBlockHeight), maxParallelSearches, maxRetries)
 	if errBlock != nil {
-		return cli.Exit(fmt.Errorf("failed to fetch the oldest missing block index from container: %w", err), 1)
+		return cli.Exit(fmt.Errorf("failed to fetch the oldest missing block index from container: %w", errBlock), 1)
 	}
 	fmt.Fprintln(ctx.App.Writer, "First block of latest incomplete batch uploaded to NeoFS container:", oldestMissingBlockIndex)
 
