@@ -29,11 +29,13 @@ var (
 	pathToInternalContracts = filepath.Join("..", "..", "internal", "contracts")
 )
 
-// TestCreateBasicChain generates "../rpc/testdata/testblocks.acc" file which
+// TestCreateBasicChain generates "pkg/services/rpcsrv/testdata/testblocks.acc" file which
 // contains data for RPC unit tests. It also is a nice integration test.
-// To generate new "../rpc/testdata/testblocks.acc", follow the steps:
+// To generate new "pkg/services/rpcsrv/testdata/testblocks.acc", follow the steps:
 //  1. Set saveChain down below to true
 //  2. Run tests with `$ make test`
+//  3. Update relevant constants and variables used by RPC server unit tests
+//     in "pkg/services/rpcsrv/server_test.go".
 func TestCreateBasicChain(t *testing.T) {
 	const saveChain = false
 
