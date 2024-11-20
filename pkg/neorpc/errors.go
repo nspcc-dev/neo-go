@@ -139,21 +139,6 @@ const (
 )
 
 var (
-	// ErrCompatGeneric is an error returned by nodes not compliant with the neo-project/proposals#156
-	// (NeoGo pre-0.102.0 and all known C# versions).
-	// It can be returned for any call and doesn't have any specific meaning.
-	//
-	// Deprecated: to be removed after all nodes adopt new error standard.
-	ErrCompatGeneric = NewErrorWithCode(-100, "RPC error")
-
-	// ErrCompatNoOpenedWallet is an error code returned by nodes not compliant with the neo-project/proposals#156
-	// (all known C# versions, NeoGo never used this code). It can be returned for wallet-related operations.
-	//
-	// Deprecated: to be removed after all nodes adopt new error standard.
-	ErrCompatNoOpenedWallet = NewErrorWithCode(-400, "No opened wallet")
-)
-
-var (
 	// ErrInvalidParams represents a generic "Invalid params" error.
 	ErrInvalidParams = NewInvalidParamsError("Invalid params")
 
