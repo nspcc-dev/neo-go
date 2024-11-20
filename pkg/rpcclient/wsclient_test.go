@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/rpcsrv/params"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/assert"
@@ -591,6 +592,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, *filt.Contract)
 				require.Nil(t, filt.Name)
+				require.Empty(t, filt.Parameters)
 			},
 		},
 		{"notifications name",
@@ -605,6 +607,7 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, "my_pretty_notification", *filt.Name)
 				require.Nil(t, filt.Contract)
+				require.Empty(t, filt.Parameters)
 			},
 		},
 		{"notifications contract hash and name",
@@ -620,6 +623,27 @@ func TestWSFilteredSubscriptions(t *testing.T) {
 				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
 				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, *filt.Contract)
 				require.Equal(t, "my_pretty_notification", *filt.Name)
+				require.Empty(t, filt.Parameters)
+			},
+		},
+		{"notifications parameters",
+			func(t *testing.T, wsc *WSClient) {
+				contract := util.Uint160{1, 2, 3, 4, 5}
+				name := "my_pretty_notification"
+				prms, err := smartcontract.NewParametersFromValues(1, "2", []byte{3})
+				require.NoError(t, err)
+				_, err = wsc.ReceiveExecutionNotifications(&neorpc.NotificationFilter{Contract: &contract, Name: &name, Parameters: prms}, make(chan *state.ContainedNotificationEvent))
+				require.NoError(t, err)
+			},
+			func(t *testing.T, p *params.Params) {
+				param := p.Value(1)
+				filt := new(neorpc.NotificationFilter)
+				prms, err := smartcontract.NewParametersFromValues(1, "2", []byte{3})
+				require.NoError(t, err)
+				require.NoError(t, json.Unmarshal(param.RawMessage, filt))
+				require.Equal(t, util.Uint160{1, 2, 3, 4, 5}, *filt.Contract)
+				require.Equal(t, "my_pretty_notification", *filt.Name)
+				require.Equal(t, prms, filt.Parameters)
 			},
 		},
 		{"executions state",

@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 type (
@@ -66,7 +67,27 @@ func Matches(f Comparator, r Container) bool {
 		notification := r.EventPayload().(*state.ContainedNotificationEvent)
 		hashOk := filt.Contract == nil || notification.ScriptHash.Equals(*filt.Contract)
 		nameOk := filt.Name == nil || notification.Name == *filt.Name
-		return hashOk && nameOk
+		parametersOk := true
+		if len(filt.Parameters) > 0 {
+			stackItems := notification.Item.Value().([]stackitem.Item)
+			parameters, err := filt.ParametersAsStackItems()
+			if err != nil {
+				return false
+			}
+			if len(parameters) > len(stackItems) {
+				return false
+			}
+			for i, p := range parameters {
+				if p.Type() == stackitem.AnyT && p.Value() == nil {
+					continue
+				}
+				if !p.Equals(stackItems[i]) {
+					parametersOk = false
+					break
+				}
+			}
+		}
+		return hashOk && nameOk && parametersOk
 	case neorpc.ExecutionEventID:
 		filt := filter.(neorpc.ExecutionFilter)
 		applog := r.EventPayload().(*state.AppExecResult)
