@@ -30,6 +30,8 @@ const (
 	accountPrefix = "a"
 	// tokenPrefix contains map from token id to it's owner.
 	tokenPrefix = "t"
+	// royaltyInfoPrefix contains map from token id to its royalty information.
+	royaltyInfoPrefix = "r"
 )
 
 var (
@@ -284,4 +286,69 @@ func Properties(id []byte) map[string]string {
 		"name": "HASHY " + std.Base64Encode(id), // Not a hex for contract simplicity.
 	}
 	return result
+}
+
+// RoyaltyRecipient contains information about the recipient and the royalty amount.
+type RoyaltyRecipient struct {
+	Address interop.Hash160
+	Amount  int
+}
+
+// RoyaltyInfo returns a list of royalty recipients and the corresponding royalty amounts.
+func RoyaltyInfo(tokenID []byte, royaltyToken interop.Hash160, salePrice int) []RoyaltyRecipient {
+	if salePrice <= 0 {
+		panic("sale price must be positive")
+	}
+
+	executingHash := runtime.GetExecutingScriptHash()
+	if !royaltyToken.Equals(executingHash) {
+		panic("invalid royalty token")
+	}
+
+	ctx := storage.GetReadOnlyContext()
+	owner := getOwnerOf(ctx, tokenID)
+	if owner == nil {
+		panic("invalid token ID")
+	}
+
+	royaltyInfoKey := append([]byte(royaltyInfoPrefix), tokenID...)
+	val := storage.Get(ctx, royaltyInfoKey)
+
+	var recipients []RoyaltyRecipient
+	if val == nil {
+		recipients = []RoyaltyRecipient{
+			{
+				Address: owner,
+				Amount:  salePrice / 10,
+			},
+		}
+	} else {
+		bval := val.([]byte)
+		storedRecipients := std.Deserialize(bval)
+		st := storedRecipients.([]RoyaltyRecipientShare)
+		for _, r := range st {
+			recipients = append(recipients, RoyaltyRecipient{
+				Address: r.Address,
+				Amount:  salePrice * r.Share / 100,
+			})
+		}
+	}
+	return recipients
+}
+
+// RoyaltyRecipientShare contains information about the recipient and the royalty share in percents.
+type RoyaltyRecipientShare struct {
+	Address interop.Hash160
+	Share   int
+}
+
+// SetRoyaltyInfo sets the royalty share for specified recipients on a given token ID.
+// Only the token owner can set the royalty information.
+func SetRoyaltyInfo(ctx storage.Context, tokenID []byte, recipients []RoyaltyRecipientShare) bool {
+	if !runtime.CheckWitness(getOwnerOf(ctx, tokenID)) {
+		return false
+	}
+	putKey := append([]byte(royaltyInfoPrefix), tokenID...)
+	storage.Put(ctx, putKey, std.Serialize(recipients))
+	return true
 }

@@ -12,4 +12,6 @@ type Standard struct {
 	// If contract contains method with the same name and parameter count,
 	// it must have signature declared by this contract.
 	Optional []manifest.Method
+	// Required contains standards that are required for this standard.
+	Required []string
 }

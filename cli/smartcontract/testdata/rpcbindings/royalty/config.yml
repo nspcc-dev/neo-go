@@ -1,0 +1,16 @@
+name: Test royalty
+sourceurl: https://github.com/nspcc-dev/neo-go/
+supportedstandards: ["NEP-24-Payable"]
+events:
+  - name: RoyaltiesTransferred
+    parameters:
+      - name: royaltyToken
+        type: Hash160
+      - name: royaltyRecipient
+        type: Hash160
+      - name: buyer
+        type: Hash160
+      - name: tokenId
+        type: ByteArray
+      - name: amount
+        type: Integer

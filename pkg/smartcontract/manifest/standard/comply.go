@@ -23,6 +23,8 @@ var checks = map[string][]*Standard{
 	manifest.NEP17StandardName: {Nep17},
 	manifest.NEP11Payable:      {Nep11Payable},
 	manifest.NEP17Payable:      {Nep17Payable},
+	manifest.NEP24StandardName: {Nep24},
+	manifest.NEP24Payable:      {Nep24Payable},
 }
 
 // Check checks if the manifest complies with all provided standards.
@@ -66,6 +68,11 @@ func ComplyABI(m *manifest.Manifest, st *Standard) error {
 }
 
 func comply(m *manifest.Manifest, checkNames bool, st *Standard) error {
+	if len(st.Required) > 0 {
+		if err := check(m, checkNames, st.Required...); err != nil {
+			return fmt.Errorf("required standard '%s' is not supported: %w", st.Name, err)
+		}
+	}
 	if st.Base != nil {
 		if err := comply(m, checkNames, st.Base); err != nil {
 			return err
