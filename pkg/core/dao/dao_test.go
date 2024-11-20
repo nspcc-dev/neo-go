@@ -197,7 +197,7 @@ func TestStoreAsTransaction(t *testing.T) {
 						stackitem.NewBool(false),
 					}),
 					ArgumentsCount: 1,
-					IsValid:        true,
+					Truncated:      false,
 				}},
 			},
 		}

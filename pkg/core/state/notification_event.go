@@ -20,13 +20,16 @@ type NotificationEvent struct {
 	Item       *stackitem.Array `json:"state"`
 }
 
+// ContractInvocation contains method call information.
+// The Arguments field will be nil if serialization of the arguments exceeds a predefined limit
+// (for security reasons). In that case Truncated will be set to true.
 type ContractInvocation struct {
-	Hash           util.Uint160     `json:"contract_hash"`
+	Hash           util.Uint160     `json:"contracthash"`
 	Method         string           `json:"method"`
 	Arguments      *stackitem.Array `json:"arguments"`
-	ArgumentsBytes []byte           `json:"arguments_bytes"`
-	ArgumentsCount uint32           `json:"arguments_count"`
-	IsValid        bool             `json:"is_valid"`
+	ArgumentsBytes []byte
+	ArgumentsCount uint32 `json:"argumentscount"`
+	Truncated      bool   `json:"truncated"`
 }
 
 func (ci *ContractInvocation) DecodeBinary(r *io.BinReader) {
@@ -39,7 +42,7 @@ func (ci *ContractInvocation) DecodeBinary(r *io.BinReader) {
 	}
 	ci.Arguments = si.(*stackitem.Array)
 	ci.ArgumentsCount = r.ReadU32LE()
-	ci.IsValid = r.ReadBool()
+	ci.Truncated = r.ReadBool()
 }
 
 func (ci *ContractInvocation) EncodeBinaryWithContext(w *io.BinWriter, sc *stackitem.SerializationContext) {
@@ -47,7 +50,7 @@ func (ci *ContractInvocation) EncodeBinaryWithContext(w *io.BinWriter, sc *stack
 	w.WriteString(ci.Method)
 	w.WriteVarBytes(ci.ArgumentsBytes)
 	w.WriteU32LE(ci.ArgumentsCount)
-	w.WriteBool(ci.IsValid)
+	w.WriteBool(ci.Truncated)
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -61,7 +64,7 @@ func (ci ContractInvocation) MarshalJSON() ([]byte, error) {
 		Method:         ci.Method,
 		Arguments:      item,
 		ArgumentsCount: ci.ArgumentsCount,
-		IsValid:        ci.IsValid,
+		Truncated:      ci.Truncated,
 	})
 }
 
@@ -82,7 +85,7 @@ func (ci *ContractInvocation) UnmarshalJSON(data []byte) error {
 	ci.Method = aux.Method
 	ci.Hash = aux.Hash
 	ci.ArgumentsCount = aux.ArgumentsCount
-	ci.IsValid = aux.IsValid
+	ci.Truncated = aux.Truncated
 	return nil
 }
 
@@ -194,7 +197,9 @@ func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 	aer.Stack = arr
 	r.ReadArray(&aer.Events)
 	aer.FaultException = r.ReadString()
-	r.ReadArray(&aer.Invocations)
+	if r.Len() > 0 {
+		r.ReadArray(&aer.Invocations)
+	}
 }
 
 // notificationEventAux is an auxiliary struct for NotificationEvent JSON marshalling.
@@ -288,11 +293,11 @@ type Execution struct {
 }
 
 type ContractInvocationAux struct {
-	Hash           util.Uint160    `json:"contract_hash"`
+	Hash           util.Uint160    `json:"contracthash"`
 	Method         string          `json:"method"`
 	Arguments      json.RawMessage `json:"arguments"`
-	ArgumentsCount uint32          `json:"arguments_count"`
-	IsValid        bool            `json:"is_valid"`
+	ArgumentsCount uint32          `json:"argumentscount"`
+	Truncated      bool            `json:"truncated"`
 }
 
 // executionAux represents an auxiliary struct for Execution JSON marshalling.
