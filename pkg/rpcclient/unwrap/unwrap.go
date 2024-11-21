@@ -38,6 +38,18 @@ type Exception string
 // server, other than expanding it in the VM script.
 var ErrNoSessionID = errors.New("server returned iterator ID, but no session ID")
 
+// ErrNull is returned when Null item is present on the stack instead of the
+// expected one (like integer, array, string or whatever else contract is
+// supposed to return). The semantics of this error is entirely
+// contract-specific, in most cases it's normal contract behavior which means
+// that contract has no value to return. In some cases though returning Null is
+// not expected and it's a violation of API from the contract side. Since many
+// types returned from this package methods can't be nil this error lets package
+// user to differentiate between Null and zero value (like an empty string)
+// returned and handle both cases in a way appropriate for a particular
+// contract/backend interaction.
+var ErrNull = errors.New("Null result")
+
 // Error implements the error interface.
 func (e Exception) Error() string {
 	return string(e)
@@ -46,7 +58,7 @@ func (e Exception) Error() string {
 // BigInt expects correct execution (HALT state) with a single stack item
 // returned. A big.Int is extracted from this item and returned.
 func BigInt(r *result.Invoke, err error) (*big.Int, error) {
-	itm, err := Item(r, err)
+	itm, err := nonNullItem(r, err)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +68,7 @@ func BigInt(r *result.Invoke, err error) (*big.Int, error) {
 // Bool expects correct execution (HALT state) with a single stack item
 // returned. A bool is extracted from this item and returned.
 func Bool(r *result.Invoke, err error) (bool, error) {
-	itm, err := Item(r, err)
+	itm, err := nonNullItem(r, err)
 	if err != nil {
 		return false, err
 	}
@@ -66,7 +78,7 @@ func Bool(r *result.Invoke, err error) (bool, error) {
 // Int64 expects correct execution (HALT state) with a single stack item
 // returned. An int64 is extracted from this item and returned.
 func Int64(r *result.Invoke, err error) (int64, error) {
-	itm, err := Item(r, err)
+	itm, err := nonNullItem(r, err)
 	if err != nil {
 		return 0, err
 	}
@@ -100,7 +112,7 @@ func LimitedInt64(r *result.Invoke, err error, minI int64, maxI int64) (int64, e
 // Bytes expects correct execution (HALT state) with a single stack item
 // returned. A slice of bytes is extracted from this item and returned.
 func Bytes(r *result.Invoke, err error) ([]byte, error) {
-	itm, err := Item(r, err)
+	itm, err := nonNullItem(r, err)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +187,7 @@ func PublicKey(r *result.Invoke, err error) (*keys.PublicKey, error) {
 // received) when RPC server performs (limited) iterator expansion which is the
 // default behavior for NeoGo servers with SessionEnabled set to false.
 func SessionIterator(r *result.Invoke, err error) (uuid.UUID, result.Iterator, error) {
-	itm, err := Item(r, err)
+	itm, err := nonNullItem(r, err)
 	if err != nil {
 		return uuid.UUID{}, result.Iterator{}, err
 	}
@@ -208,6 +220,9 @@ func ArrayAndSessionIterator(r *result.Invoke, err error) ([]stackitem.Item, uui
 	itm := r.Stack[0]
 	arr, ok := itm.Value().([]stackitem.Item)
 	if !ok {
+		if itm.Type() == stackitem.AnyT {
+			return nil, uuid.UUID{}, result.Iterator{}, ErrNull
+		}
 		return nil, uuid.UUID{}, result.Iterator{}, errors.New("not an array")
 	}
 
@@ -242,7 +257,7 @@ func itemToSessionIterator(itm stackitem.Item) (result.Iterator, error) {
 // be used for structures as well since they're also represented as slices of
 // stack items (the number of them and their types are structure-specific).
 func Array(r *result.Invoke, err error) ([]stackitem.Item, error) {
-	itm, err := Item(r, err)
+	itm, err := nonNullItem(r, err)
 	if err != nil {
 		return nil, err
 	}
@@ -396,7 +411,7 @@ func ArrayOfPublicKeys(r *result.Invoke, err error) (keys.PublicKeys, error) {
 // Map expects correct execution (HALT state) with a single stack item
 // returned. A stackitem.Map is extracted from this item and returned.
 func Map(r *result.Invoke, err error) (*stackitem.Map, error) {
-	itm, err := Item(r, err)
+	itm, err := nonNullItem(r, err)
 	if err != nil {
 		return nil, err
 	}
@@ -420,7 +435,9 @@ func checkResOK(r *result.Invoke, err error) error {
 }
 
 // Item returns a stack item from the result if execution was successful (HALT
-// state) and if it's the only element on the result stack.
+// state) and if it's the only element on the result stack. It returns items
+// as is, so it never returns [ErrNull], a proper [stackitem.Null] is returned
+// in this case.
 func Item(r *result.Invoke, err error) (stackitem.Item, error) {
 	err = checkResOK(r, err)
 	if err != nil {
@@ -433,6 +450,18 @@ func Item(r *result.Invoke, err error) (stackitem.Item, error) {
 		return nil, fmt.Errorf("too many (%d) result items", len(r.Stack))
 	}
 	return r.Stack[0], nil
+}
+
+// nonNullItem is similar to Item, but returns ErrNull if the item is Null.
+func nonNullItem(r *result.Invoke, err error) (stackitem.Item, error) {
+	itm, err := Item(r, err)
+	if err != nil {
+		return nil, err
+	}
+	if itm.Type() == stackitem.AnyT {
+		return nil, ErrNull
+	}
+	return itm, err
 }
 
 // Nothing expects zero stack items and a successful invocation (HALT state).

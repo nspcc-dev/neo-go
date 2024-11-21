@@ -129,6 +129,12 @@ func TestStdErrors(t *testing.T) {
 			require.Error(t, err)
 		}
 	})
+	t.Run("Null returned", func(t *testing.T) {
+		for _, f := range funcs {
+			_, err := f(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.Null{}}}, nil)
+			require.ErrorIs(t, err, ErrNull)
+		}
+	})
 }
 
 func TestBigInt(t *testing.T) {
