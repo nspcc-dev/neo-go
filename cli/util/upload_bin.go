@@ -36,8 +36,9 @@ const (
 	// except the most recent one are guaranteed to be completed and don't contain gaps.
 	uploadBatchSize = 10000
 	// Number of objects to search in a batch. If it is larger than uploadBatchSize,
-	// it may lead to many duplicate uploads.
-	searchBatchSize = uploadBatchSize
+	// it may lead to many duplicate uploads. We need to search with EQ filter to
+	// avoid partially-completed SEARCH responses.
+	searchBatchSize = 1
 	// Size of object ID.
 	oidSize = sha256.Size
 )
@@ -214,8 +215,12 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 
 				prm := client.PrmObjectSearch{}
 				filters := object.NewSearchFilters()
-				filters.AddFilter(attributeKey, fmt.Sprintf("%d", startIndex), object.MatchNumGE)
-				filters.AddFilter(attributeKey, fmt.Sprintf("%d", endIndex), object.MatchNumLT)
+				if endIndex == startIndex+1 {
+					filters.AddFilter(attributeKey, fmt.Sprintf("%d", startIndex), object.MatchStringEqual)
+				} else {
+					filters.AddFilter(attributeKey, fmt.Sprintf("%d", startIndex), object.MatchNumGE)
+					filters.AddFilter(attributeKey, fmt.Sprintf("%d", endIndex), object.MatchNumLT)
+				}
 				prm.SetFilters(filters)
 				var (
 					objectIDs []oid.ID
@@ -527,8 +532,12 @@ func searchObjects(ctx context.Context, p *pool.Pool, containerID cid.ID, accoun
 					if len(additionalFilters) != 0 {
 						filters = additionalFilters[0]
 					}
-					filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", start), object.MatchNumGE)
-					filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", end), object.MatchNumLT)
+					if end == start+1 {
+						filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", start), object.MatchStringEqual)
+					} else {
+						filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", start), object.MatchNumGE)
+						filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", end), object.MatchNumLT)
+					}
 					prm.SetFilters(filters)
 
 					var objIDs []oid.ID

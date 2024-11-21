@@ -47,8 +47,7 @@ parameter.
     Depending on the mode, the service either:
    - Searches for index files by index file attribute and reads block OIDs from index
      file object-by-object.
-   - Searches batches of blocks directly by block attribute (the batch size is
-     configured via `OIDBatchSize` parameter).
+   - Searches blocks one by one directly by block attribute.
 
    Once the OIDs are retrieved, they are immediately redirected to the 
    block downloading routines for further processing. The channel that 
