@@ -12,9 +12,11 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/core/chaindump"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -412,5 +414,74 @@ func TestNewBlockchain_InitHardforks(t *testing.T) {
 			config.HFDomovoi.String():       20,
 			config.HFEchidna.String():       25,
 		}, bc.GetConfig().Hardforks)
+	})
+}
+
+type nopCloserStorage struct {
+	storage.Store
+}
+
+func (nopCloserStorage) Close() error {
+	return nil
+}
+
+func TestBlockchainRestoreStateRootInHeader(t *testing.T) {
+	bc := newTestChainWithCustomCfg(t, func(c *config.Config) {
+		c.ProtocolConfiguration.StateRootInHeader = true
+	})
+	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	require.NoError(t, bc.AddBlock(bc.newBlock()))
+	require.NoError(t, bc.AddBlock(bc.newBlock()))
+
+	w := io.NewBufBinWriter()
+	require.NoError(t, chaindump.Dump(bc, w.BinWriter, 0, 4))
+	require.NoError(t, w.Err)
+
+	data := w.Bytes()
+	fcfg := func(c *config.Config) { c.ProtocolConfiguration.StateRootInHeader = true }
+	initChain := func(st storage.Store) *Blockchain {
+		chain := initTestChain(t, st, fcfg)
+		go chain.Run()
+		return chain
+	}
+
+	t.Run("empty MemoryStore", func(t *testing.T) {
+		bc := initChain(storage.NewMemoryStore())
+		r := io.NewBinReaderFromBuf(data)
+		require.NoError(t, chaindump.Restore(bc, r, 0, 4, nil))
+		bc.Close()
+	})
+	t.Run("not empty MemoryStore, one block", func(t *testing.T) {
+		st := nopCloserStorage{Store: storage.NewMemoryStore()}
+
+		bc := initChain(st)
+		r := io.NewBinReaderFromBuf(data)
+		require.NoError(t, chaindump.Restore(bc, r, 0, 1, nil))
+		expected := bc.stateRoot.CurrentLocalStateRoot()
+		bc.Close()
+
+		bc = initChain(st)
+		actual := bc.stateRoot.CurrentLocalStateRoot()
+		require.Equal(t, expected, actual)
+		r = io.NewBinReaderFromBuf(data)
+		require.NoError(t, chaindump.Restore(bc, r, 1, 1, nil))
+		bc.Close()
+	})
+	t.Run("not empty MemoryStore, multiple blocks", func(t *testing.T) {
+		st := nopCloserStorage{Store: storage.NewMemoryStore()}
+		{
+			bc := initChain(st)
+			r := io.NewBinReaderFromBuf(data)
+			require.NoError(t, chaindump.Restore(bc, r, 0, 2, nil))
+			expected := bc.stateRoot.CurrentLocalStateRoot()
+			bc.Close()
+
+			bc = initChain(st)
+			actual := bc.stateRoot.CurrentLocalStateRoot()
+			require.Equal(t, expected, actual)
+			r = io.NewBinReaderFromBuf(data)
+			require.NoError(t, chaindump.Restore(bc, r, 2, 1, nil))
+			bc.Close()
+		}
 	})
 }
