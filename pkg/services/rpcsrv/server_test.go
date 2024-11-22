@@ -80,9 +80,9 @@ type rpcTestCase struct {
 const (
 	// genesisBlockHash is an LE hash of genesis block in basic testing chain.
 	genesisBlockHash = "0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4"
-	// testContractHash is an LE hash of NEP-17 "Rubl" contract deployed at block #2
+	// testContractHashLE is an LE hash of NEP-17 "Rubl" contract deployed at block #2
 	// of basic testing chain.
-	testContractHash = "449fe8fbd4523072f5e3a4dfa17a494c119d4c08"
+	testContractHashLE = "449fe8fbd4523072f5e3a4dfa17a494c119d4c08"
 	// deploymentTxHash is an LE hash of transaction that deploys NEP-17 "Rubl"
 	// contract at block #2 of basic testing chain.
 	deploymentTxHash = "bbb8ec059dd320dc9de5a8fb8c75351d8e369fca0256f7a6bdb623dcf71861ed"
@@ -125,6 +125,10 @@ const (
 )
 
 var (
+	// testContractHashLE is a hash of NEP-11 divisible "Rubl" contract
+	// placed in "internal/basicchain/testdata/test_contract.go" and
+	// deployed at block #2 of basic testing chain.
+	testContractHash, _ = util.Uint160DecodeStringLE(testContractHashLE)
 	// nnsHash is a hash of NEP-11 non-divisible "examples/nft-nd-nns" contract
 	// deployed at block #11 of basic testing chain.
 	nnsHash, _ = util.Uint160DecodeStringLE(nnsContractHash)
@@ -159,7 +163,7 @@ var rpcFunctionsWithUnsupportedStatesTestCases = map[string][]rpcTestCase{
 	"getstate": {
 		{
 			name:    "unsupported state",
-			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "QQ=="]`,
+			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHashLE + `", "QQ=="]`,
 			fail:    true,
 			errCode: neorpc.ErrUnsupportedStateCode,
 		},
@@ -275,12 +279,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getcontractstate": {
 		{
 			name:   "positive, by hash",
-			params: fmt.Sprintf(`["%s"]`, testContractHash),
+			params: fmt.Sprintf(`["%s"]`, testContractHashLE),
 			result: func(e *executor) any { return &state.Contract{} },
 			check: func(t *testing.T, e *executor, cs any) {
 				res, ok := cs.(*state.Contract)
 				require.True(t, ok)
-				assert.Equal(t, testContractHash, res.Hash.StringLE())
+				assert.Equal(t, testContractHashLE, res.Hash.StringLE())
 			},
 		},
 		{
@@ -554,7 +558,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "invalid key",
-			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "notahex"]`,
+			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHashLE + `", "notahex"]`,
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
@@ -580,7 +584,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "invalid key",
-			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "notabase64%"]`,
+			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHashLE + `", "notabase64%"]`,
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
@@ -592,7 +596,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "unknown root/item",
-			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHash + `", "QQ=="]`,
+			params:  `["0000000000000000000000000000000000000000000000000000000000000000", "` + testContractHashLE + `", "QQ=="]`,
 			fail:    true,
 			errCode: neorpc.ErrUnknownContractCode,
 		},
@@ -618,13 +622,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "invalid prefix",
-			params:  `["` + block20StateRootLE + `", "` + testContractHash + `", "notabase64%"]`,
+			params:  `["` + block20StateRootLE + `", "` + testContractHashLE + `", "notabase64%"]`,
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
 		{
 			name:    "invalid key",
-			params:  `["` + block20StateRootLE + `", "` + testContractHash + `", "QQ==", "notabase64%"]`,
+			params:  `["` + block20StateRootLE + `", "` + testContractHashLE + `", "QQ==", "notabase64%"]`,
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
@@ -666,7 +670,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getstorage": {
 		{
 			name:   "positive",
-			params: fmt.Sprintf(`["%s", "dGVzdGtleQ=="]`, testContractHash),
+			params: fmt.Sprintf(`["%s", "dGVzdGtleQ=="]`, testContractHashLE),
 			result: func(e *executor) any {
 				v := base64.StdEncoding.EncodeToString([]byte("newtestvalue"))
 				return &v
@@ -674,7 +678,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "missing key",
-			params:  fmt.Sprintf(`["%s", "dGU="]`, testContractHash),
+			params:  fmt.Sprintf(`["%s", "dGU="]`, testContractHashLE),
 			fail:    true,
 			errCode: neorpc.ErrUnknownStorageItemCode,
 		},
@@ -686,7 +690,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "no second parameter",
-			params:  fmt.Sprintf(`["%s"]`, testContractHash),
+			params:  fmt.Sprintf(`["%s"]`, testContractHashLE),
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
@@ -698,7 +702,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "invalid key",
-			params:  fmt.Sprintf(`["%s", "notabase64$"]`, testContractHash),
+			params:  fmt.Sprintf(`["%s", "notabase64$"]`, testContractHashLE),
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
@@ -706,7 +710,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"getstoragehistoric": {
 		{
 			name:   "positive",
-			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa10"))),
+			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa10"))),
 			result: func(e *executor) any {
 				v := base64.StdEncoding.EncodeToString([]byte("v2"))
 				return &v
@@ -714,7 +718,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "missing key",
-			params:  fmt.Sprintf(`["%s", "%s", "dGU="]`, block20StateRootLE, testContractHash),
+			params:  fmt.Sprintf(`["%s", "%s", "dGU="]`, block20StateRootLE, testContractHashLE),
 			fail:    true,
 			errCode: neorpc.ErrUnknownStorageItemCode,
 		},
@@ -732,7 +736,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "no third parameter",
-			params:  fmt.Sprintf(`["%s", "%s"]`, block20StateRootLE, testContractHash),
+			params:  fmt.Sprintf(`["%s", "%s"]`, block20StateRootLE, testContractHashLE),
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
@@ -750,7 +754,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "invalid key",
-			params:  fmt.Sprintf(`["%s", "%s", "notabase64$"]`, block20StateRootLE, testContractHash),
+			params:  fmt.Sprintf(`["%s", "%s", "notabase64$"]`, block20StateRootLE, testContractHashLE),
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
@@ -758,7 +762,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"findstorage": {
 		{
 			name:   "not truncated",
-			params: fmt.Sprintf(`["%s", "%s"]`, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa1"))),
+			params: fmt.Sprintf(`["%s", "%s"]`, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa1"))),
 			result: func(_ *executor) any { return new(result.FindStorage) },
 			check: func(t *testing.T, e *executor, res any) {
 				actual, ok := res.(*result.FindStorage)
@@ -779,7 +783,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "truncated first page",
-			params: fmt.Sprintf(`["%s", "%s"]`, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa"))),
+			params: fmt.Sprintf(`["%s", "%s"]`, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa"))),
 			result: func(_ *executor) any { return new(result.FindStorage) },
 			check: func(t *testing.T, e *executor, res any) {
 				actual, ok := res.(*result.FindStorage)
@@ -804,7 +808,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "truncated second page",
-			params: fmt.Sprintf(`["%s", "%s", 2]`, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa"))),
+			params: fmt.Sprintf(`["%s", "%s", 2]`, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa"))),
 			result: func(_ *executor) any { return new(result.FindStorage) },
 			check: func(t *testing.T, e *executor, res any) {
 				actual, ok := res.(*result.FindStorage)
@@ -850,7 +854,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "unknown key",
-			params: fmt.Sprintf(`["%s", "%s"]`, testContractHash, base64.StdEncoding.EncodeToString([]byte("unknown-key"))),
+			params: fmt.Sprintf(`["%s", "%s"]`, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("unknown-key"))),
 			result: func(_ *executor) any { return new(result.FindStorage) },
 			check: func(t *testing.T, e *executor, res any) {
 				actual, ok := res.(*result.FindStorage)
@@ -872,7 +876,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "no second parameter",
-			params:  fmt.Sprintf(`["%s"]`, testContractHash),
+			params:  fmt.Sprintf(`["%s"]`, testContractHashLE),
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
@@ -884,13 +888,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "invalid key",
-			params:  fmt.Sprintf(`["%s", "notabase64$"]`, testContractHash),
+			params:  fmt.Sprintf(`["%s", "notabase64$"]`, testContractHashLE),
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
 		{
 			name:    "invalid page",
-			params:  fmt.Sprintf(`["%s", "", "not-an-int"]`, testContractHash),
+			params:  fmt.Sprintf(`["%s", "", "not-an-int"]`, testContractHashLE),
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
@@ -898,7 +902,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 	"findstoragehistoric": {
 		{
 			name:   "not truncated",
-			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa1"))),
+			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa1"))),
 			result: func(_ *executor) any { return new(result.FindStorage) },
 			check: func(t *testing.T, e *executor, res any) {
 				actual, ok := res.(*result.FindStorage)
@@ -919,7 +923,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "truncated first page",
-			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa"))),
+			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa"))),
 			result: func(_ *executor) any { return new(result.FindStorage) },
 			check: func(t *testing.T, e *executor, res any) {
 				actual, ok := res.(*result.FindStorage)
@@ -944,7 +948,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "truncated second page",
-			params: fmt.Sprintf(`["%s","%s", "%s", 2]`, block20StateRootLE, testContractHash, base64.StdEncoding.EncodeToString([]byte("aa"))),
+			params: fmt.Sprintf(`["%s","%s", "%s", 2]`, block20StateRootLE, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa"))),
 			result: func(_ *executor) any { return new(result.FindStorage) },
 			check: func(t *testing.T, e *executor, res any) {
 				actual, ok := res.(*result.FindStorage)
@@ -990,7 +994,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:   "unknown key",
-			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHash, base64.StdEncoding.EncodeToString([]byte("unknown-key"))),
+			params: fmt.Sprintf(`["%s", "%s", "%s"]`, block20StateRootLE, testContractHashLE, base64.StdEncoding.EncodeToString([]byte("unknown-key"))),
 			result: func(_ *executor) any { return new(result.FindStorage) },
 			check: func(t *testing.T, e *executor, res any) {
 				actual, ok := res.(*result.FindStorage)
@@ -1024,7 +1028,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "no third parameter",
-			params:  fmt.Sprintf(`["%s", "%s"]`, block20StateRootLE, testContractHash),
+			params:  fmt.Sprintf(`["%s", "%s"]`, block20StateRootLE, testContractHashLE),
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
@@ -1036,13 +1040,13 @@ var rpcTestCases = map[string][]rpcTestCase{
 		},
 		{
 			name:    "invalid key",
-			params:  fmt.Sprintf(`["%s", "%s", "notabase64$"]`, block20StateRootLE, testContractHash),
+			params:  fmt.Sprintf(`["%s", "%s", "notabase64$"]`, block20StateRootLE, testContractHashLE),
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
 		{
 			name:    "invalid page",
-			params:  fmt.Sprintf(`["%s", "%s", "", "not-an-int"]`, block20StateRootLE, testContractHash),
+			params:  fmt.Sprintf(`["%s", "%s", "", "not-an-int"]`, block20StateRootLE, testContractHashLE),
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
@@ -2726,12 +2730,12 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoError(t, err)
 
 		rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "getproof", "params": ["%s", "%s", "%s"]}`,
-			r.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("testkey")))
+			r.Root.StringLE(), testContractHashLE, base64.StdEncoding.EncodeToString([]byte("testkey")))
 		body := doRPCCall(rpc, httpSrv.URL, t)
 		rawRes := checkErrGetResult(t, body, false, 0)
 		res := new(result.ProofWithKey)
 		require.NoError(t, json.Unmarshal(rawRes, res))
-		h, _ := util.Uint160DecodeStringLE(testContractHash)
+		h, _ := util.Uint160DecodeStringLE(testContractHashLE)
 		skey := makeStorageKey(chain.GetContractState(h).ID, []byte("testkey"))
 		require.Equal(t, skey, res.Key)
 		require.True(t, len(res.Proof) > 0)
@@ -2784,14 +2788,14 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			root, err := e.chain.GetStateModule().GetStateRoot(4)
 			require.NoError(t, err)
 			// `testkey`-`testvalue` pair was put to the contract storage at block #3
-			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("testkey")))
+			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHashLE, base64.StdEncoding.EncodeToString([]byte("testkey")))
 			testGetState(t, params, base64.StdEncoding.EncodeToString([]byte("testvalue")))
 		})
 		t.Run("negative: invalid key", func(t *testing.T) {
 			root, err := e.chain.GetStateModule().GetStateRoot(4)
 			require.NoError(t, err)
 			// `testkey`-`testvalue` pair was put to the contract storage at block #3
-			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("invalidkey")))
+			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHashLE, base64.StdEncoding.EncodeToString([]byte("invalidkey")))
 			body := doRPCCall(fmt.Sprintf(rpc, params), httpSrv.URL, t)
 			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode)
 		})
@@ -2799,7 +2803,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			root, err := e.chain.GetStateModule().GetStateRoot(16)
 			require.NoError(t, err)
 			// `testkey`-`newtestvalue` pair was put to the contract storage at block #16
-			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("testkey")))
+			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHashLE, base64.StdEncoding.EncodeToString([]byte("testkey")))
 			testGetState(t, params, base64.StdEncoding.EncodeToString([]byte("newtestvalue")))
 		})
 	})
@@ -2834,7 +2838,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			// pairs for this test where put to the contract storage at block #16
 			root, err := e.chain.GetStateModule().GetStateRoot(16)
 			require.NoError(t, err)
-			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("aa")))
+			params := fmt.Sprintf(`"%s", "%s", "%s"`, root.Root.StringLE(), testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa")))
 			testFindStates(t, params, root.Root, result.FindStates{
 				Results: []result.KeyValue{
 					{Key: []byte("aa10"), Value: []byte("v2")},
@@ -2848,7 +2852,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			// empty prefix should be considered as no prefix specified.
 			root, err := e.chain.GetStateModule().GetStateRoot(16)
 			require.NoError(t, err)
-			params := fmt.Sprintf(`"%s", "%s", "%s", ""`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("aa")))
+			params := fmt.Sprintf(`"%s", "%s", "%s", ""`, root.Root.StringLE(), testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa")))
 			testFindStates(t, params, root.Root, result.FindStates{
 				Results: []result.KeyValue{
 					{Key: []byte("aa10"), Value: []byte("v2")},
@@ -2873,7 +2877,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			// pairs for this test where put to the contract storage at block #16
 			root, err := e.chain.GetStateModule().GetStateRoot(16)
 			require.NoError(t, err)
-			params := fmt.Sprintf(`"%s", "%s", "%s", "%s"`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("aa")), base64.StdEncoding.EncodeToString([]byte("aa10")))
+			params := fmt.Sprintf(`"%s", "%s", "%s", "%s"`, root.Root.StringLE(), testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa")), base64.StdEncoding.EncodeToString([]byte("aa10")))
 			testFindStates(t, params, root.Root, result.FindStates{
 				Results: []result.KeyValue{
 					{Key: []byte("aa50"), Value: []byte("v3")},
@@ -2886,7 +2890,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				// pairs for this test where put to the contract storage at block #16
 				root, err := e.chain.GetStateModule().GetStateRoot(16)
 				require.NoError(t, err)
-				params := fmt.Sprintf(`"%s", "%s", "%s", "", %d`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("aa")), limit)
+				params := fmt.Sprintf(`"%s", "%s", "%s", "", %d`, root.Root.StringLE(), testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa")), limit)
 				expected := result.FindStates{
 					Results: []result.KeyValue{
 						{Key: []byte("aa10"), Value: []byte("v2")},
@@ -2904,7 +2908,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			// pairs for this test where put to the contract storage at block #16
 			root, err := e.chain.GetStateModule().GetStateRoot(16)
 			require.NoError(t, err)
-			params := fmt.Sprintf(`"%s", "%s", "%s", "%s", %d`, root.Root.StringLE(), testContractHash, base64.StdEncoding.EncodeToString([]byte("aa")), base64.StdEncoding.EncodeToString([]byte("aa00")), 1)
+			params := fmt.Sprintf(`"%s", "%s", "%s", "%s", %d`, root.Root.StringLE(), testContractHashLE, base64.StdEncoding.EncodeToString([]byte("aa")), base64.StdEncoding.EncodeToString([]byte("aa00")), 1)
 			testFindStates(t, params, root.Root, result.FindStates{
 				Results: []result.KeyValue{
 					{Key: []byte("aa10"), Value: []byte("v2")},
@@ -3599,7 +3603,7 @@ func checkNep11Balances(t *testing.T, e *executor, acc any) {
 func checkNep17Balances(t *testing.T, e *executor, acc any) {
 	res, ok := acc.(*result.NEP17Balances)
 	require.True(t, ok)
-	rubles, err := util.Uint160DecodeStringLE(testContractHash)
+	rubles, err := util.Uint160DecodeStringLE(testContractHashLE)
 	require.NoError(t, err)
 	expected := result.NEP17Balances{
 		Balances: []result.NEP17Balance{
@@ -3741,7 +3745,7 @@ func checkNep17Transfers(t *testing.T, e *executor, acc any) {
 func checkNep17TransfersAux(t *testing.T, e *executor, acc any, sent, rcvd []int) {
 	res, ok := acc.(*result.NEP17Transfers)
 	require.True(t, ok)
-	rublesHash, err := util.Uint160DecodeStringLE(testContractHash)
+	rublesHash, err := util.Uint160DecodeStringLE(testContractHashLE)
 	require.NoError(t, err)
 
 	blockWithFAULTedTx, err := e.chain.GetBlock(e.chain.GetHeaderHash(faultedTxBlock)) // Transaction with ABORT inside.

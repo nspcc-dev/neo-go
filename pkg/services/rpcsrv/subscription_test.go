@@ -2,10 +2,8 @@ package rpcsrv
 
 import (
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -237,12 +235,12 @@ func TestFilteredSubscriptions(t *testing.T) {
 			},
 		},
 		"notification matching contract hash": {
-			params: `["notification_from_execution", {"contract":"` + testContractHash + `"}]`,
+			params: `["notification_from_execution", {"contract":"` + testContractHashLE + `"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotificationEventID, resp.Event)
 				c := rmap["contract"].(string)
-				require.Equal(t, "0x"+testContractHash, c)
+				require.Equal(t, "0x"+testContractHashLE, c)
 			},
 		},
 		"notification matching name": {
@@ -255,23 +253,23 @@ func TestFilteredSubscriptions(t *testing.T) {
 			},
 		},
 		"notification matching contract hash and name": {
-			params: `["notification_from_execution", {"contract":"` + testContractHash + `", "name":"my_pretty_notification"}]`,
+			params: `["notification_from_execution", {"contract":"` + testContractHashLE + `", "name":"my_pretty_notification"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotificationEventID, resp.Event)
 				c := rmap["contract"].(string)
-				require.Equal(t, "0x"+testContractHash, c)
+				require.Equal(t, "0x"+testContractHashLE, c)
 				n := rmap["name"].(string)
 				require.Equal(t, "my_pretty_notification", n)
 			},
 		},
 		"notification matching contract hash and parameter": {
-			params: `["notification_from_execution", {"contract":"` + testContractHash + `", "parameters":[{"type":"Any","value":null},{"type":"Hash160","value":"` + testContractHash + `"}]}]`,
+			params: `["notification_from_execution", {"contract":"` + testContractHashLE + `", "parameters":[{"type":"Any","value":null},{"type":"Hash160","value":"` + testContractHashLE + `"}]}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotificationEventID, resp.Event)
 				c := rmap["contract"].(string)
-				require.Equal(t, "0x"+testContractHash, c)
+				require.Equal(t, "0x"+testContractHashLE, c)
 				// It should be exact unique "Init" call sending all the tokens to the contract itself.
 				parameters := rmap["state"].(map[string]any)["value"].([]any)
 				require.Len(t, parameters, 3)
@@ -279,12 +277,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 				toType := parameters[1].(map[string]any)["type"].(string)
 				require.Equal(t, smartcontract.Hash160Type.ConvertToStackitemType().String(), toType)
 				to := parameters[1].(map[string]any)["value"].(string)
-				hashExp, err := hex.DecodeString(testContractHash)
-				require.NoError(t, err)
-				slices.Reverse(hashExp)
-				hashGot, err := base64.StdEncoding.DecodeString(to)
-				require.NoError(t, err)
-				require.Equal(t, hashExp, hashGot)
+				require.Equal(t, base64.StdEncoding.EncodeToString(testContractHash.BytesBE()), to)
 				// This amount happens only for initial token distribution.
 				amountType := parameters[2].(map[string]any)["type"].(string)
 				require.Equal(t, smartcontract.IntegerType.ConvertToStackitemType().String(), amountType)
@@ -293,7 +286,7 @@ func TestFilteredSubscriptions(t *testing.T) {
 			},
 		},
 		"notification matching contract hash but unknown parameter": {
-			params: `["notification_from_execution", {"contract":"` + testContractHash + `", "parameters":[{"type":"Any","value":null},{"type":"Hash160","value":"ffffffffffffffffffffffffffffffffffffffff"}]}]`,
+			params: `["notification_from_execution", {"contract":"` + testContractHashLE + `", "parameters":[{"type":"Any","value":null},{"type":"Hash160","value":"ffffffffffffffffffffffffffffffffffffffff"}]}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				t.Fatal("this filter should not return any notification from test contract")
 			},
