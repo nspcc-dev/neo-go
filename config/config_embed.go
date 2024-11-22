@@ -30,3 +30,8 @@ var MainNetNeoFS []byte
 //
 //go:embed protocol.testnet.neofs.yml
 var TestNetNeoFS []byte
+
+// UnitTestNet is the unit test network configuration.
+//
+//go:embed protocol.unit_testnet.yml
+var UnitTestNet []byte
