@@ -266,18 +266,16 @@ func (c *ContractMD) BuildHFSpecificMD(activeIn *config.Hardfork) {
 	}
 
 	for _, hf := range append([]config.Hardfork{config.HFDefault}, config.Hardforks...) {
-		switch {
-		case hf.Cmp(start) < 0:
+		if hf.Cmp(start) < 0 {
 			continue
-		case hf.Cmp(start) == 0:
+		}
+		_, contractHasChanges := c.ActiveHFs[hf]
+		if hf.Cmp(start) == 0 || contractHasChanges {
 			c.buildHFSpecificMD(hf)
-		default:
-			if _, ok := c.ActiveHFs[hf]; !ok {
-				// Intentionally omit HFSpecificContractMD structure copying since mdCache is read-only.
-				c.mdCache[hf] = c.mdCache[hf.Prev()]
-				continue
-			}
-			c.buildHFSpecificMD(hf)
+		} else {
+			// Optimize out MD rebuild, the contract is the same.
+			// Intentionally omit HFSpecificContractMD structure copying since mdCache is read-only.
+			c.mdCache[hf] = c.mdCache[hf.Prev()]
 		}
 	}
 }
