@@ -294,7 +294,7 @@ func (c *ContractMD) buildHFSpecificMD(hf config.Hardfork) {
 	w := io.NewBufBinWriter()
 	for i := range c.methods {
 		m := c.methods[i]
-		if !(m.ActiveFrom == nil || (hf != config.HFDefault && (*m.ActiveFrom).Cmp(hf) >= 0)) ||
+		if (m.ActiveFrom != nil && (*m.ActiveFrom).Cmp(hf) > 0) ||
 			(m.ActiveTill != nil && (*m.ActiveTill).Cmp(hf) <= 0) {
 			continue
 		}
@@ -317,7 +317,7 @@ func (c *ContractMD) buildHFSpecificMD(hf config.Hardfork) {
 	}
 	for i := range c.events {
 		e := c.events[i]
-		if !(e.ActiveFrom == nil || (hf != config.HFDefault && (*e.ActiveFrom).Cmp(hf) >= 0)) ||
+		if (e.ActiveFrom != nil && (*e.ActiveFrom).Cmp(hf) > 0) ||
 			(e.ActiveTill != nil && (*e.ActiveTill).Cmp(hf) <= 0) {
 			continue
 		}
