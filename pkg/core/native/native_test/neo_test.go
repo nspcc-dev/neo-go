@@ -907,3 +907,86 @@ func TestNEO_GetCandidates(t *testing.T) {
 	neoCommitteeInvoker.Invoke(t, expected, "getCandidates")
 	checkGetAllCandidates(t, expected)
 }
+
+func TestNEO_RegisterViaNEP27(t *testing.T) {
+	neoCommitteeInvoker := newNeoCommitteeClient(t, 100_0000_0000)
+	neoValidatorsInvoker := neoCommitteeInvoker.WithSigners(neoCommitteeInvoker.Validator)
+	e := neoCommitteeInvoker.Executor
+	neoHash := e.NativeHash(t, nativenames.Neo)
+
+	cfg := e.Chain.GetConfig()
+	candidatesCount := cfg.GetCommitteeSize(0) - 1
+
+	// Register a set of candidates and vote for them.
+	voters := make([]neotest.Signer, candidatesCount)
+	candidates := make([]neotest.Signer, candidatesCount)
+	for i := range candidatesCount {
+		voters[i] = e.NewAccount(t, 2000_0000_0000) // enough for one registration
+		candidates[i] = e.NewAccount(t, 2000_0000_0000)
+	}
+
+	stack, err := neoCommitteeInvoker.TestInvoke(t, "getRegisterPrice")
+	require.NoError(t, err)
+	registrationPrice, err := stack.Pop().Item().TryInteger()
+	require.NoError(t, err)
+
+	// We have 11 blocks made by transactions above and we need block 13 to get Echidna.
+	for range 3 {
+		e.AddNewBlock(t)
+	}
+
+	gasValidatorsInvoker := e.CommitteeInvoker(e.NativeHash(t, nativenames.Gas))
+	txes := make([]*transaction.Transaction, 0, candidatesCount*3)
+	for i := range candidatesCount {
+		transferTx := neoValidatorsInvoker.PrepareInvoke(t, "transfer", e.Validator.ScriptHash(), voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), int64(candidatesCount+1-i)*1000000, nil)
+		txes = append(txes, transferTx)
+		registerTx := gasValidatorsInvoker.WithSigners(candidates[i]).PrepareInvoke(t, "transfer", candidates[i].(neotest.SingleSigner).Account().ScriptHash(), neoHash, registrationPrice, candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
+		txes = append(txes, registerTx)
+		voteTx := neoValidatorsInvoker.WithSigners(voters[i]).PrepareInvoke(t, "vote", voters[i].(neotest.SingleSigner).Account().PrivateKey().GetScriptHash(), candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes())
+		txes = append(txes, voteTx)
+	}
+
+	neoValidatorsInvoker.AddNewBlock(t, txes...)
+	for _, tx := range txes {
+		e.CheckHalt(t, tx.Hash(), stackitem.Make(true)) // luckily, both `transfer` and `vote` return boolean values
+	}
+
+	// Ensure NEO holds no GAS.
+	stack, err = gasValidatorsInvoker.TestInvoke(t, "balanceOf", neoHash)
+	require.NoError(t, err)
+	balance, err := stack.Pop().Item().TryInteger()
+	require.NoError(t, err)
+	require.Equal(t, 0, balance.Sign())
+
+	var expected = make([]stackitem.Item, candidatesCount)
+	for i := range expected {
+		pub := candidates[i].(neotest.SingleSigner).Account().PublicKey().Bytes()
+		v := stackitem.NewBigInteger(big.NewInt(int64(candidatesCount-i+1) * 1000000))
+		expected[i] = stackitem.NewStruct([]stackitem.Item{
+			stackitem.NewByteArray(pub),
+			v,
+		})
+		neoCommitteeInvoker.Invoke(t, v, "getCandidateVote", pub)
+	}
+
+	slices.SortFunc(expected, func(a, b stackitem.Item) int {
+		return bytes.Compare(a.Value().([]stackitem.Item)[0].Value().([]byte), b.Value().([]stackitem.Item)[0].Value().([]byte))
+	})
+
+	neoCommitteeInvoker.Invoke(t, stackitem.NewArray(expected), "getCandidates")
+
+	// Invalid cases.
+	var newCand = voters[0]
+
+	// Missing data.
+	gasValidatorsInvoker.WithSigners(newCand).InvokeFail(t, "invalid conversion", "transfer", newCand.(neotest.SingleSigner).Account().ScriptHash(), neoHash, registrationPrice, nil)
+	// Invalid data.
+	gasValidatorsInvoker.WithSigners(newCand).InvokeFail(t, "unexpected EOF", "transfer", newCand.(neotest.SingleSigner).Account().ScriptHash(), neoHash, registrationPrice, []byte{2, 2, 2})
+	// NEO transfer.
+	neoValidatorsInvoker.WithSigners(newCand).InvokeFail(t, "only GAS is accepted", "transfer", newCand.(neotest.SingleSigner).Account().ScriptHash(), neoHash, 1, newCand.(neotest.SingleSigner).Account().PublicKey().Bytes())
+	// Incorrect amount.
+	gasValidatorsInvoker.WithSigners(newCand).InvokeFail(t, "incorrect GAS amount", "transfer", newCand.(neotest.SingleSigner).Account().ScriptHash(), neoHash, 1, newCand.(neotest.SingleSigner).Account().PublicKey().Bytes())
+	// Incorrect witness.
+	var anotherAcc = e.NewAccount(t, 2000_0000_0000)
+	gasValidatorsInvoker.WithSigners(newCand).InvokeFail(t, "not witnessed by the key owner", "transfer", newCand.(neotest.SingleSigner).Account().ScriptHash(), neoHash, registrationPrice, anotherAcc.(neotest.SingleSigner).Account().PublicKey().Bytes())
+}
