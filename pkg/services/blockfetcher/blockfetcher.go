@@ -342,7 +342,8 @@ func (bfs *Service) streamBlockOIDs(rc io.ReadCloser, skip int) error {
 // fetchOIDsBySearch fetches block OIDs from NeoFS by searching through the Block objects.
 func (bfs *Service) fetchOIDsBySearch() error {
 	startIndex := bfs.chain.BlockHeight()
-	batchSize := uint32(bfs.cfg.OIDBatchSize)
+	//We need to search with EQ filter to avoid partially-completed SEARCH responses.
+	batchSize := uint32(1)
 
 	for {
 		select {
@@ -351,8 +352,12 @@ func (bfs *Service) fetchOIDsBySearch() error {
 		default:
 			prm := client.PrmObjectSearch{}
 			filters := object.NewSearchFilters()
-			filters.AddFilter(bfs.cfg.BlockAttribute, fmt.Sprintf("%d", startIndex), object.MatchNumGE)
-			filters.AddFilter(bfs.cfg.BlockAttribute, fmt.Sprintf("%d", startIndex+batchSize-1), object.MatchNumLE)
+			if startIndex == startIndex+batchSize-1 {
+				filters.AddFilter(bfs.cfg.BlockAttribute, fmt.Sprintf("%d", startIndex), object.MatchStringEqual)
+			} else {
+				filters.AddFilter(bfs.cfg.BlockAttribute, fmt.Sprintf("%d", startIndex), object.MatchNumGE)
+				filters.AddFilter(bfs.cfg.BlockAttribute, fmt.Sprintf("%d", startIndex+batchSize-1), object.MatchNumLE)
+			}
 			prm.SetFilters(filters)
 			ctx, cancel := context.WithTimeout(bfs.ctx, bfs.cfg.Timeout)
 			blockOids, err := bfs.objectSearch(ctx, prm)
