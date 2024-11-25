@@ -183,13 +183,15 @@ func (s *Module) Init(height uint32) error {
 		updateStateHeightMetric(h)
 	}
 
-	if height == 0 {
+	if s.mpt == nil {
 		s.mpt = mpt.NewTrie(nil, s.mode, s.Store)
-		s.currentLocal.Store(util.Uint256{})
-		return nil
 	}
 	r, err := s.getStateRoot(makeStateRootKey(height))
 	if err != nil {
+		if height == 0 {
+			s.currentLocal.Store(util.Uint256{})
+			return nil
+		}
 		return err
 	}
 	s.currentLocal.Store(r.Root)
