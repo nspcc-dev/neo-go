@@ -16,7 +16,8 @@ Currently supported events:
    Contents: transaction. Filters: sender and signer.
  * notification generated during execution
 
-   Contents: container hash, contract hash, notification name, stack item. Filters: contract hash, notification name.
+   Contents: container hash, contract hash, notification name, stack item.
+   Filters: contract hash, notification name, notification parameters.
  * transaction/persisting script executed
 
    Contents: application execution result. Filters: VM state, script container hash.
@@ -84,9 +85,15 @@ Recognized stream names:
    format for one of transaction's `Signers`.
  * `notification_from_execution`
    Filter: `contract` field containing a string with hex-encoded Uint160 (LE
-   representation) and/or `name` field containing a string with execution 
+   representation), `name` field containing a string with execution 
    notification name which should be a valid UTF-8 string not longer than 
-   32 bytes.
+   32 bytes and/or `parameters` field containing an ordered array of structs
+   with `type` and `value` fields. Not more than 16 parameters are accepted. 
+   Parameter's `type` must be not-a-complex type from the list: `Any`,
+   `Boolean`, `Integer`, `ByteArray`, `String`, `Hash160`, `Hash256`, `PublicKey`
+   or `Signature`. Filter that allows any parameter must be omitted or must
+   be `Any` typed with zero value. It is prohibited to have `parameters` be
+   filled with `Any` types only.
  * `transaction_executed`
    Filter: `state` field containing `HALT` or `FAULT` string for successful
    and failed executions respectively and/or `container` field containing

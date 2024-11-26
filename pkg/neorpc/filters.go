@@ -3,12 +3,20 @@ package neorpc
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/runtime"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempoolevent"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 )
+
+// MaxNotificationFilterParametersCount is a reasonable filter's parameter limit
+// that does not allow attackers to increase node resources usage but that
+// also should be enough for real applications.
+const MaxNotificationFilterParametersCount = 16
 
 type (
 	// BlockFilter is a wrapper structure for the block event filter. It allows
@@ -29,11 +37,27 @@ type (
 	}
 	// NotificationFilter is a wrapper structure representing a filter used for
 	// notifications generated during transaction execution. Notifications can
-	// be filtered by contract hash and/or by name. nil value treated as missing
-	// filter.
+	// be filtered by contract hash, by event name and/or by notification
+	// parameters. Notification parameter filters will be applied in the order
+	// corresponding to a produced notification's parameters. Not more than
+	// [MaxNotificationFilterParametersCount] parameters are accepted (see also
+	// [NotificationFilter.IsValid]). `Any`-typed parameter with zero value
+	// allows any notification parameter. Supported parameter types:
+	// - [smartcontract.AnyType]
+	// - [smartcontract.BoolType]
+	// - [smartcontract.IntegerType]
+	// - [smartcontract.ByteArrayType]
+	// - [smartcontract.StringType]
+	// - [smartcontract.Hash160Type]
+	// - [smartcontract.Hash256Type]
+	// - [smartcontract.PublicKeyType]
+	// - [smartcontract.SignatureType]
+	// nil value treated as missing filter.
 	NotificationFilter struct {
-		Contract *util.Uint160 `json:"contract,omitempty"`
-		Name     *string       `json:"name,omitempty"`
+		Contract        *util.Uint160             `json:"contract,omitempty"`
+		Name            *string                   `json:"name,omitempty"`
+		Parameters      []smartcontract.Parameter `json:"parameters,omitempty"`
+		parametersCache []stackitem.Item
 	}
 	// ExecutionFilter is a wrapper structure used for transaction and persisting
 	// scripts execution events. It allows to choose failing or successful
@@ -112,7 +136,8 @@ func (f TxFilter) IsValid() error {
 	return nil
 }
 
-// Copy creates a deep copy of the NotificationFilter. It handles nil NotificationFilter correctly.
+// Copy creates a deep copy of the NotificationFilter. It handles nil
+// NotificationFilter correctly.
 func (f *NotificationFilter) Copy() *NotificationFilter {
 	if f == nil {
 		return nil
@@ -126,13 +151,70 @@ func (f *NotificationFilter) Copy() *NotificationFilter {
 		res.Name = new(string)
 		*res.Name = *f.Name
 	}
+	if len(f.Parameters) != 0 {
+		res.Parameters = slices.Clone(f.Parameters)
+	}
 	return res
+}
+
+// ParametersAsStackItems returns [stackitem.Item] version of [NotificationFilter.Parameters]
+// according to [smartcontract.Parameter.ToStackItem]; Notice that the result is cached
+// internally in [NotificationFilter] for efficiency, so once you call this method it will
+// not change even if you change any structure fields. If you need to update parameters, use
+// [NotificationFilter.Copy]. It mainly should be used by server code. Must not be used
+// concurrently.
+func (f *NotificationFilter) ParametersAsStackItems() ([]stackitem.Item, error) {
+	if len(f.Parameters) == 0 {
+		return nil, nil
+	}
+	if f.parametersCache == nil {
+		f.parametersCache = make([]stackitem.Item, 0, len(f.Parameters))
+		for i, p := range f.Parameters {
+			si, err := p.ToStackItem()
+			if err != nil {
+				f.parametersCache = nil
+				return nil, fmt.Errorf("converting %d parameter to stack item: %w", i, err)
+			}
+			f.parametersCache = append(f.parametersCache, si)
+		}
+	}
+
+	return f.parametersCache, nil
 }
 
 // IsValid implements SubscriptionFilter interface.
 func (f NotificationFilter) IsValid() error {
 	if f.Name != nil && len(*f.Name) > runtime.MaxEventNameLen {
 		return fmt.Errorf("%w: NotificationFilter name parameter must be less than %d", ErrInvalidSubscriptionFilter, runtime.MaxEventNameLen)
+	}
+	l := len(f.Parameters)
+	noopFilter := l > 0
+	if l > 0 {
+		if l > MaxNotificationFilterParametersCount {
+			return fmt.Errorf("%w: NotificationFilter's parameters number exceeded: %d > %d", ErrInvalidSubscriptionFilter, l, MaxNotificationFilterParametersCount)
+		}
+		for i, parameter := range f.Parameters {
+			switch parameter.Type {
+			case smartcontract.BoolType,
+				smartcontract.IntegerType,
+				smartcontract.ByteArrayType,
+				smartcontract.StringType,
+				smartcontract.Hash160Type,
+				smartcontract.Hash256Type,
+				smartcontract.PublicKeyType,
+				smartcontract.SignatureType:
+				noopFilter = false
+			case smartcontract.AnyType:
+			default:
+				return fmt.Errorf("%w: NotificationFilter type parameter %d is unsupported: %s", ErrInvalidSubscriptionFilter, i, parameter.Type)
+			}
+			if _, err := parameter.ToStackItem(); err != nil {
+				return fmt.Errorf("%w: NotificationFilter %d filter parameter does not correspond to any stack item: %w", ErrInvalidSubscriptionFilter, i, err)
+			}
+		}
+	}
+	if noopFilter {
+		return fmt.Errorf("%w: NotificationFilter cannot have all parameters of type %s", ErrInvalidSubscriptionFilter, smartcontract.AnyType)
 	}
 	return nil
 }

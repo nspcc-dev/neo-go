@@ -10,7 +10,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/stretchr/testify/require"
 )
@@ -55,6 +57,10 @@ func TestMatches(t *testing.T) {
 	name := "ntf name"
 	badName := "bad name"
 	badType := mempoolevent.TransactionRemoved
+	parameters, err := smartcontract.NewParametersFromValues(1, "2", []byte{3})
+	require.NoError(t, err)
+	badParameters, err := smartcontract.NewParametersFromValues([]byte{3}, "2", []byte{1})
+	require.NoError(t, err)
 	bContainer := testContainer{
 		id: neorpc.BlockEventID,
 		pld: &block.Block{
@@ -75,6 +81,16 @@ func TestMatches(t *testing.T) {
 	ntfContainer := testContainer{
 		id:  neorpc.NotificationEventID,
 		pld: &state.ContainedNotificationEvent{NotificationEvent: state.NotificationEvent{ScriptHash: contract, Name: name}},
+	}
+	ntfContainerParameters := testContainer{
+		id: neorpc.NotificationEventID,
+		pld: &state.ContainedNotificationEvent{
+			NotificationEvent: state.NotificationEvent{
+				ScriptHash: contract,
+				Name:       name,
+				Item:       stackitem.NewArray(prmsToStack(t, parameters)),
+			},
+		},
 	}
 	exContainer := testContainer{
 		id:  neorpc.ExecutionEventID,
@@ -262,6 +278,24 @@ func TestMatches(t *testing.T) {
 			expected:  true,
 		},
 		{
+			name: "notification, parameters match",
+			comparator: testComparator{
+				id:     neorpc.NotificationEventID,
+				filter: neorpc.NotificationFilter{Name: &name, Contract: &contract, Parameters: parameters},
+			},
+			container: ntfContainerParameters,
+			expected:  true,
+		},
+		{
+			name: "notification, parameters mismatch",
+			comparator: testComparator{
+				id:     neorpc.NotificationEventID,
+				filter: neorpc.NotificationFilter{Name: &name, Contract: &contract, Parameters: badParameters},
+			},
+			container: ntfContainerParameters,
+			expected:  false,
+		},
+		{
 			name:       "execution, no filter",
 			comparator: testComparator{id: neorpc.ExecutionEventID},
 			container:  exContainer,
@@ -342,4 +376,14 @@ func TestMatches(t *testing.T) {
 			require.Equal(t, tc.expected, Matches(tc.comparator, tc.container))
 		})
 	}
+}
+
+func prmsToStack(t *testing.T, pp []smartcontract.Parameter) []stackitem.Item {
+	res := make([]stackitem.Item, 0, len(pp))
+	for _, p := range pp {
+		s, err := p.ToStackItem()
+		require.NoError(t, err)
+		res = append(res, s)
+	}
+	return res
 }

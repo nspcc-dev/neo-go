@@ -3,6 +3,7 @@ package neorpc
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
@@ -87,6 +88,15 @@ func TestNotificationFilterCopy(t *testing.T) {
 	tf = bf.Copy()
 	require.Equal(t, bf, tf)
 	*bf.Name = "azaza"
+	require.NotEqual(t, bf, tf)
+
+	var err error
+	bf.Parameters, err = smartcontract.NewParametersFromValues(1, "2", []byte{3})
+	require.NoError(t, err)
+
+	tf = bf.Copy()
+	require.Equal(t, bf, tf)
+	bf.Parameters[0], bf.Parameters[1] = bf.Parameters[1], bf.Parameters[0]
 	require.NotEqual(t, bf, tf)
 }
 

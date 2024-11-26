@@ -75,7 +75,7 @@ func TestClient_NEP17(t *testing.T) {
 	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
-	h, err := util.Uint160DecodeStringLE(testContractHash)
+	h, err := util.Uint160DecodeStringLE(testContractHashLE)
 	require.NoError(t, err)
 	rub := nep17.NewReader(invoker.New(c, nil), h)
 
@@ -295,7 +295,7 @@ func TestClientManagementContract(t *testing.T) {
 	ids, err := manReader.GetContractHashesExpanded(10)
 	require.NoError(t, err)
 	ctrs := make([]management.IDHash, 0)
-	for i, s := range []string{testContractHash, verifyContractHash, verifyWithArgsContractHash, nnsContractHash, nfsoContractHash, storageContractHash} {
+	for i, s := range []string{testContractHashLE, verifyContractHash, verifyWithArgsContractHash, nnsContractHash, nfsoContractHash, storageContractHash} {
 		h, err := util.Uint160DecodeStringLE(s)
 		require.NoError(t, err)
 		ctrs = append(ctrs, management.IDHash{ID: int32(i) + 1, Hash: h})
@@ -2288,7 +2288,7 @@ func TestClient_FindStorage(t *testing.T) {
 	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
-	h, err := util.Uint160DecodeStringLE(testContractHash)
+	h, err := util.Uint160DecodeStringLE(testContractHashLE)
 	require.NoError(t, err)
 	prefix := []byte("aa")
 	expected := result.FindStorage{
@@ -2355,7 +2355,7 @@ func TestClient_FindStorageHistoric(t *testing.T) {
 
 	root, err := util.Uint256DecodeStringLE(block20StateRootLE)
 	require.NoError(t, err)
-	h, err := util.Uint160DecodeStringLE(testContractHash)
+	h, err := util.Uint160DecodeStringLE(testContractHashLE)
 	require.NoError(t, err)
 	prefix := []byte("aa")
 	expected := result.FindStorage{
@@ -2424,7 +2424,7 @@ func TestClient_GetStorageHistoric(t *testing.T) {
 
 	root, err := util.Uint256DecodeStringLE(block20StateRootLE)
 	require.NoError(t, err)
-	h, err := util.Uint160DecodeStringLE(testContractHash)
+	h, err := util.Uint160DecodeStringLE(testContractHashLE)
 	require.NoError(t, err)
 	key := []byte("aa10")
 	expected := []byte("v2")
