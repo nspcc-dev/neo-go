@@ -266,18 +266,16 @@ func (c *ContractMD) BuildHFSpecificMD(activeIn *config.Hardfork) {
 	}
 
 	for _, hf := range append([]config.Hardfork{config.HFDefault}, config.Hardforks...) {
-		switch {
-		case hf.Cmp(start) < 0:
+		if hf.Cmp(start) < 0 {
 			continue
-		case hf.Cmp(start) == 0:
+		}
+		_, contractHasChanges := c.ActiveHFs[hf]
+		if hf.Cmp(start) == 0 || contractHasChanges {
 			c.buildHFSpecificMD(hf)
-		default:
-			if _, ok := c.ActiveHFs[hf]; !ok {
-				// Intentionally omit HFSpecificContractMD structure copying since mdCache is read-only.
-				c.mdCache[hf] = c.mdCache[hf.Prev()]
-				continue
-			}
-			c.buildHFSpecificMD(hf)
+		} else {
+			// Optimize out MD rebuild, the contract is the same.
+			// Intentionally omit HFSpecificContractMD structure copying since mdCache is read-only.
+			c.mdCache[hf] = c.mdCache[hf.Prev()]
 		}
 	}
 }
@@ -294,7 +292,7 @@ func (c *ContractMD) buildHFSpecificMD(hf config.Hardfork) {
 	w := io.NewBufBinWriter()
 	for i := range c.methods {
 		m := c.methods[i]
-		if !(m.ActiveFrom == nil || (hf != config.HFDefault && (*m.ActiveFrom).Cmp(hf) >= 0)) ||
+		if (m.ActiveFrom != nil && (*m.ActiveFrom).Cmp(hf) > 0) ||
 			(m.ActiveTill != nil && (*m.ActiveTill).Cmp(hf) <= 0) {
 			continue
 		}
@@ -317,7 +315,7 @@ func (c *ContractMD) buildHFSpecificMD(hf config.Hardfork) {
 	}
 	for i := range c.events {
 		e := c.events[i]
-		if !(e.ActiveFrom == nil || (hf != config.HFDefault && (*e.ActiveFrom).Cmp(hf) >= 0)) ||
+		if (e.ActiveFrom != nil && (*e.ActiveFrom).Cmp(hf) > 0) ||
 			(e.ActiveTill != nil && (*e.ActiveTill).Cmp(hf) <= 0) {
 			continue
 		}
