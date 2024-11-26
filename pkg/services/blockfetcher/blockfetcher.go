@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,6 +19,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/neofs"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
+	"github.com/nspcc-dev/neofs-sdk-go/container"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/pool"
@@ -189,14 +192,36 @@ func (bfs *Service) Start() error {
 		return nil
 	}
 	bfs.log.Info("starting NeoFS BlockFetcher service")
-
-	var err error
+	var (
+		containerID  cid.ID
+		containerObj container.Container
+		err          error
+	)
 	bfs.ctx, bfs.ctxCancel = context.WithCancel(context.Background())
 	if err = bfs.pool.Dial(context.Background()); err != nil {
 		bfs.isActive.CompareAndSwap(true, false)
 		return fmt.Errorf("failed to dial NeoFS pool: %w", err)
 	}
 
+	err = containerID.DecodeString(bfs.cfg.ContainerID)
+	if err != nil {
+		bfs.isActive.CompareAndSwap(true, false)
+		return fmt.Errorf("failed to decode container ID: %w", err)
+	}
+
+	err = bfs.retry(func() error {
+		containerObj, err = bfs.pool.ContainerGet(bfs.ctx, containerID, client.PrmContainerGet{})
+		return err
+	})
+	if err != nil {
+		bfs.isActive.CompareAndSwap(true, false)
+		return fmt.Errorf("failed to get container: %w", err)
+	}
+	containerMagic := containerObj.Attribute("Magic")
+	if containerMagic != strconv.Itoa(int(bfs.chain.GetConfig().Magic)) {
+		bfs.isActive.CompareAndSwap(true, false)
+		return fmt.Errorf("container magic mismatch: expected %d, got %s", bfs.chain.GetConfig().Magic, containerMagic)
+	}
 	// Start routine that manages Service shutdown process.
 	go bfs.exiter()
 
