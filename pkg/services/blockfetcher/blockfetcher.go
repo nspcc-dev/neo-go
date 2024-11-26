@@ -20,6 +20,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/pool"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"go.uber.org/zap"
 )
 
@@ -34,10 +36,29 @@ const (
 	defaultDownloaderWorkersCount = 100
 )
 
+// Constants related to NeoFS pool request timeouts. Such big values are used to avoid
+// NeoFS pool timeouts during block search and download.
+const (
+	defaultDialTimeout        = 10 * time.Minute
+	defaultStreamTimeout      = 10 * time.Minute
+	defaultHealthcheckTimeout = 10 * time.Second
+)
+
 // Ledger is an interface to Blockchain sufficient for Service.
 type Ledger interface {
 	GetConfig() config.Blockchain
 	BlockHeight() uint32
+}
+
+// poolWrapper wraps a NeoFS pool to adapt its Close method to return an error.
+type poolWrapper struct {
+	*pool.Pool
+}
+
+// Close closes the pool and returns nil.
+func (p poolWrapper) Close() error {
+	p.Pool.Close()
+	return nil
 }
 
 // Service is a service that fetches blocks from NeoFS.
@@ -49,7 +70,7 @@ type Service struct {
 	stateRootInHeader bool
 
 	chain        Ledger
-	client       *client.Client
+	pool         poolWrapper
 	enqueueBlock func(*block.Block) error
 	account      *wallet.Account
 
@@ -112,8 +133,18 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 	if len(cfg.Addresses) == 0 {
 		return &Service{}, errors.New("no addresses provided")
 	}
+
+	params := pool.DefaultOptions()
+	params.SetHealthcheckTimeout(defaultHealthcheckTimeout)
+	params.SetNodeDialTimeout(defaultDialTimeout)
+	params.SetNodeStreamTimeout(defaultStreamTimeout)
+	p, err := pool.New(pool.NewFlatNodeParams(cfg.Addresses), user.NewAutoIDSignerRFC6979(account.PrivateKey().PrivateKey), params)
+	if err != nil {
+		return &Service{}, err
+	}
 	return &Service{
 		chain: chain,
+		pool:  poolWrapper{Pool: p},
 		log:   logger,
 		cfg:   cfg,
 
@@ -149,10 +180,9 @@ func (bfs *Service) Start() error {
 
 	var err error
 	bfs.ctx, bfs.ctxCancel = context.WithCancel(context.Background())
-	bfs.client, err = neofs.GetSDKClient(bfs.ctx, bfs.cfg.Addresses[0], 10*time.Minute)
-	if err != nil {
+	if err = bfs.pool.Dial(context.Background()); err != nil {
 		bfs.isActive.CompareAndSwap(true, false)
-		return fmt.Errorf("create SDK client: %w", err)
+		return fmt.Errorf("failed to dial NeoFS pool: %w", err)
 	}
 
 	// Start routine that manages Service shutdown process.
@@ -445,7 +475,7 @@ func (bfs *Service) exiter() {
 
 	// Everything is done, release resources, turn off the activity marker and let
 	// the server know about it.
-	_ = bfs.client.Close()
+	_ = bfs.pool.Close()
 	_ = bfs.log.Sync()
 	bfs.isActive.CompareAndSwap(true, false)
 	bfs.shutdownCallback()
@@ -464,7 +494,7 @@ func (bfs *Service) objectGet(ctx context.Context, oid string) (io.ReadCloser, e
 	if err != nil {
 		return nil, err
 	}
-	rc, err := neofs.GetWithClient(ctx, bfs.client, bfs.account.PrivateKey(), u, false)
+	rc, err := neofs.GetWithClient(ctx, bfs.pool, bfs.account.PrivateKey(), u, false)
 	if err != nil {
 		return nil, err
 	}
@@ -473,7 +503,7 @@ func (bfs *Service) objectGet(ctx context.Context, oid string) (io.ReadCloser, e
 }
 
 func (bfs *Service) objectSearch(ctx context.Context, prm client.PrmObjectSearch) ([]oid.ID, error) {
-	return neofs.ObjectSearch(ctx, bfs.client, bfs.account.PrivateKey(), bfs.cfg.ContainerID, prm)
+	return neofs.ObjectSearch(ctx, bfs.pool, bfs.account.PrivateKey(), bfs.cfg.ContainerID, prm)
 }
 
 // isContextCanceledErr returns whether error is a wrapped [context.Canceled].

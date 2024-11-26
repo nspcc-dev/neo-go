@@ -56,7 +56,7 @@ func TestServiceConstructor(t *testing.T) {
 
 	t.Run("default values", func(t *testing.T) {
 		cfg := config.NeoFSBlockFetcher{
-			Addresses: []string{"http://localhost:8080"},
+			Addresses: []string{"localhost:8080"},
 		}
 		service, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
 		require.NoError(t, err)
@@ -71,13 +71,13 @@ func TestServiceConstructor(t *testing.T) {
 
 	t.Run("SDK client", func(t *testing.T) {
 		cfg := config.NeoFSBlockFetcher{
-			Addresses: []string{"http://localhost:8080"},
+			Addresses: []string{"localhost:8080"},
 		}
 		service, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
 		require.NoError(t, err)
 		err = service.Start()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "create SDK client")
+		require.Contains(t, err.Error(), "failed to dial NeoFS pool:")
 		require.Equal(t, service.IsActive(), false)
 	})
 
