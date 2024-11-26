@@ -412,11 +412,10 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 		return fmt.Errorf("failed to update Designation role data cache: %w", err)
 	}
 
-	ic.AddNotification(s.Hash, DesignationEventName, stackitem.NewArray([]stackitem.Item{
+	return ic.AddNotification(s.Hash, DesignationEventName, stackitem.NewArray([]stackitem.Item{
 		stackitem.NewBigInteger(big.NewInt(int64(r))),
 		stackitem.NewBigInteger(big.NewInt(int64(ic.Block.Index))),
 	}))
-	return nil
 }
 
 func (s *Designate) getRole(item stackitem.Item) (noderoles.Role, bool) {
