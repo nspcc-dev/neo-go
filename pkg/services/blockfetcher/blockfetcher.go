@@ -89,8 +89,7 @@ type Service struct {
 	enqueueBlock func(*block.Block) error
 	account      *wallet.Account
 
-	oidsCh   chan oid.ID
-	blocksCh chan *block.Block
+	oidsCh chan oid.ID
 	// wg is a wait group for block downloaders.
 	wg sync.WaitGroup
 
@@ -104,7 +103,6 @@ type Service struct {
 	exiterToOIDDownloader chan struct{}
 	exiterToShutdown      chan struct{}
 	oidDownloaderToExiter chan struct{}
-	blockQueuerToExiter   chan struct{}
 
 	shutdownCallback func()
 }
@@ -172,17 +170,12 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 		exiterToOIDDownloader: make(chan struct{}),
 		exiterToShutdown:      make(chan struct{}),
 		oidDownloaderToExiter: make(chan struct{}),
-		blockQueuerToExiter:   make(chan struct{}),
 
 		// Use buffer of two batch sizes to load OIDs in advance:
 		//  * first full block of OIDs is processing by Downloader
 		//  * second full block of OIDs is available to be fetched by Downloader immediately
 		//  * third half-filled block of OIDs is being collected by OIDsFetcher.
 		oidsCh: make(chan oid.ID, 2*cfg.OIDBatchSize),
-
-		// Use buffer of a single OIDs batch size to provide smooth downloading and
-		// avoid pauses during blockqueue insertion.
-		blocksCh: make(chan *block.Block, cfg.OIDBatchSize),
 	}, nil
 }
 
@@ -233,10 +226,6 @@ func (bfs *Service) Start() error {
 		bfs.wg.Add(1)
 		go bfs.blockDownloader()
 	}
-
-	// Start routine that puts blocks into bQueue.
-	go bfs.blockQueuer()
-
 	return nil
 }
 
@@ -291,21 +280,8 @@ func (bfs *Service) blockDownloader() {
 		select {
 		case <-bfs.ctx.Done():
 			return
-		case bfs.blocksCh <- b:
-		}
-	}
-}
-
-// blockQueuer puts the block into the bqueue.
-func (bfs *Service) blockQueuer() {
-	defer close(bfs.blockQueuerToExiter)
-
-	for b := range bfs.blocksCh {
-		select {
-		case <-bfs.ctx.Done():
-			return
 		default:
-			err := bfs.enqueueBlock(b)
+			err = bfs.enqueueBlock(b)
 			if err != nil {
 				bfs.log.Error("failed to enqueue block", zap.Uint32("index", b.Index), zap.Error(err))
 				bfs.stopService(true)
@@ -508,10 +484,6 @@ func (bfs *Service) exiter() {
 	// expected. Wait until all downloaders finish their work.
 	close(bfs.oidsCh)
 	bfs.wg.Wait()
-
-	// Send signal to block putter to finish his work. Wait until it's finished.
-	close(bfs.blocksCh)
-	<-bfs.blockQueuerToExiter
 
 	// Everything is done, release resources, turn off the activity marker and let
 	// the server know about it.
