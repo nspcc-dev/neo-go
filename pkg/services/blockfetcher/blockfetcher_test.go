@@ -94,5 +94,6 @@ func TestServiceConstructor(t *testing.T) {
 		}
 		_, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
 		require.Error(t, err)
+		require.Contains(t, err.Error(), "open wallet: open invalid/path/to/wallet.json:")
 	})
 }
