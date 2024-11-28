@@ -307,6 +307,7 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 			prm := client.PrmObjectSearch{}
 			filters := object.NewSearchFilters()
 			filters.AddFilter(bfs.cfg.IndexFileAttribute, fmt.Sprintf("%d", startIndex), object.MatchStringEqual)
+			filters.AddFilter("IndexSize", fmt.Sprintf("%d", bfs.cfg.IndexFileSize), object.MatchStringEqual)
 			prm.SetFilters(filters)
 
 			ctx, cancel := context.WithTimeout(bfs.ctx, bfs.cfg.Timeout)
