@@ -331,6 +331,7 @@ func (s *Server) Shutdown() {
 	}
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	if s.ServerConfig.NeoFSBlockFetcherCfg.Enabled {
+		s.bFetcherQueue.Discard()
 		s.blockFetcher.Shutdown()
 	}
 	for _, tr := range s.transports {
@@ -341,7 +342,6 @@ func (s *Server) Shutdown() {
 	}
 	s.bQueue.Discard()
 	s.bSyncQueue.Discard()
-	s.bFetcherQueue.Discard()
 	s.serviceLock.RLock()
 	for _, svc := range s.services {
 		svc.Shutdown()
