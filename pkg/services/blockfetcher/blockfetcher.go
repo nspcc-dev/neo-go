@@ -113,11 +113,13 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 		account *wallet.Account
 		err     error
 	)
-
+	if !cfg.Enabled {
+		return &Service{}, nil
+	}
 	if cfg.UnlockWallet.Path != "" {
 		walletFromFile, err := wallet.NewWalletFromFile(cfg.UnlockWallet.Path)
 		if err != nil {
-			return &Service{}, err
+			return nil, err
 		}
 		for _, acc := range walletFromFile.Accounts {
 			if err := acc.Decrypt(cfg.UnlockWallet.Password, walletFromFile.Scrypt); err == nil {
@@ -126,12 +128,12 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 			}
 		}
 		if account == nil {
-			return &Service{}, errors.New("failed to decrypt any account in the wallet")
+			return nil, errors.New("failed to decrypt any account in the wallet")
 		}
 	} else {
 		account, err = wallet.NewAccount()
 		if err != nil {
-			return &Service{}, err
+			return nil, err
 		}
 	}
 	if cfg.Timeout <= 0 {
@@ -144,7 +146,7 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 		cfg.DownloaderWorkersCount = defaultDownloaderWorkersCount
 	}
 	if len(cfg.Addresses) == 0 {
-		return &Service{}, errors.New("no addresses provided")
+		return nil, errors.New("no addresses provided")
 	}
 
 	params := pool.DefaultOptions()
@@ -153,7 +155,7 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 	params.SetNodeStreamTimeout(defaultStreamTimeout)
 	p, err := pool.New(pool.NewFlatNodeParams(cfg.Addresses), user.NewAutoIDSignerRFC6979(account.PrivateKey().PrivateKey), params)
 	if err != nil {
-		return &Service{}, err
+		return nil, err
 	}
 	return &Service{
 		chain: chain,

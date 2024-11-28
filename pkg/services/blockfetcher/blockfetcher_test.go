@@ -38,6 +38,9 @@ func TestServiceConstructor(t *testing.T) {
 
 	t.Run("empty configuration", func(t *testing.T) {
 		cfg := config.NeoFSBlockFetcher{
+			InternalService: config.InternalService{
+				Enabled: true,
+			},
 			Timeout:                0,
 			OIDBatchSize:           0,
 			DownloaderWorkersCount: 0,
@@ -48,6 +51,9 @@ func TestServiceConstructor(t *testing.T) {
 
 	t.Run("no addresses", func(t *testing.T) {
 		cfg := config.NeoFSBlockFetcher{
+			InternalService: config.InternalService{
+				Enabled: true,
+			},
 			Addresses: []string{},
 		}
 		_, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
@@ -56,6 +62,9 @@ func TestServiceConstructor(t *testing.T) {
 
 	t.Run("default values", func(t *testing.T) {
 		cfg := config.NeoFSBlockFetcher{
+			InternalService: config.InternalService{
+				Enabled: true,
+			},
 			Addresses: []string{"localhost:8080"},
 		}
 		service, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
@@ -71,6 +80,9 @@ func TestServiceConstructor(t *testing.T) {
 
 	t.Run("SDK client", func(t *testing.T) {
 		cfg := config.NeoFSBlockFetcher{
+			InternalService: config.InternalService{
+				Enabled: true,
+			},
 			Addresses: []string{"localhost:8080"},
 		}
 		service, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)

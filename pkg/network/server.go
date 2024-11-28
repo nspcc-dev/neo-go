@@ -229,7 +229,7 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	s.blockFetcher, err = blockfetcher.New(chain, s.NeoFSBlockFetcherCfg, log, s.bFetcherQueue.PutBlock, func() {
 		close(s.blockFetcherFin)
 	})
-	if err != nil && config.NeoFSBlockFetcherCfg.Enabled {
+	if err != nil {
 		return nil, fmt.Errorf("failed to create NeoFS BlockFetcher: %w", err)
 	}
 
