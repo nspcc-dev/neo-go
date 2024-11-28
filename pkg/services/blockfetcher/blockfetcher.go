@@ -492,6 +492,7 @@ func (bfs *Service) exiter() {
 		zap.Bool("force", force),
 	)
 
+	bfs.isActive.CompareAndSwap(true, false)
 	// Cansel all pending OIDs/blocks downloads in case if shutdown requested by user
 	// or caused by downloading error.
 	if force {
@@ -516,7 +517,6 @@ func (bfs *Service) exiter() {
 	// the server know about it.
 	_ = bfs.pool.Close()
 	_ = bfs.log.Sync()
-	bfs.isActive.CompareAndSwap(true, false)
 	bfs.shutdownCallback()
 
 	// Notify Shutdown routine in case if it's user-triggered shutdown.
