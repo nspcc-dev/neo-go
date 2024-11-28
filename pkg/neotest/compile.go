@@ -22,7 +22,8 @@ type Contract struct {
 	DebugInfo *compiler.DebugInfo
 }
 
-// contracts caches the compiled contracts from FS across multiple tests.
+// contracts caches the compiled contracts from FS across multiple tests. The key is a
+// concatenation of the source file path and the config file path split by | symbol.
 var contracts = make(map[string]*Contract)
 
 // CompileSource compiles a contract from the reader and returns its NEF, manifest and hash.
@@ -49,8 +50,10 @@ func CompileSource(t testing.TB, sender util.Uint160, src io.Reader, opts *compi
 }
 
 // CompileFile compiles a contract from the file and returns its NEF, manifest and hash.
+// It uses contracts cashes.
 func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath string) *Contract {
-	if c, ok := contracts[srcPath]; ok {
+	cacheKey := srcPath + "|" + configPath
+	if c, ok := contracts[cacheKey]; ok {
 		return c
 	}
 
@@ -84,6 +87,6 @@ func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath s
 		Manifest:  m,
 		DebugInfo: di,
 	}
-	contracts[srcPath] = c
+	contracts[cacheKey] = c
 	return c
 }
