@@ -249,10 +249,8 @@ func randomRecoveryMessage(t *testing.T) *recoveryMessage {
 }
 
 func TestPayload_Sign(t *testing.T) {
-	key, err := keys.NewPrivateKey()
+	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
-
-	priv := &privateKey{key}
 
 	p := randomPayload(t, prepareRequestType)
 	h := priv.PublicKey().GetScriptHash()

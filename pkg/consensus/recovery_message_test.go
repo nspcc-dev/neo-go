@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/internal/testchain"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +22,7 @@ func TestRecoveryMessageSetters(t *testing.T) {
 
 func testRecoveryMessageSetters(t *testing.T, enableStateRoot bool) {
 	srv := newTestServiceWithState(t, enableStateRoot)
-	privs := make([]*privateKey, testchain.Size())
+	privs := make([]*keys.PrivateKey, testchain.Size())
 	pubs := make([]dbft.PublicKey, testchain.Size())
 	for i := range testchain.Size() {
 		privs[i], pubs[i] = getTestValidator(i)
