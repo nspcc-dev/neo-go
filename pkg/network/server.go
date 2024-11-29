@@ -318,7 +318,6 @@ func (s *Server) Start() {
 	for _, tr := range s.transports {
 		go tr.Accept()
 	}
-	setNeoGoVersion(config.Version)
 	setSeverID(strconv.FormatUint(uint64(s.id), 10))
 	go s.run()
 }

@@ -24,15 +24,6 @@ var (
 			Namespace: "neogo",
 		},
 	)
-
-	neogoVersion = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Help:      "NeoGo version",
-			Name:      "version",
-			Namespace: "neogo",
-		},
-		[]string{"version"})
-
 	serverID = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Help:      "network server ID",
@@ -72,7 +63,6 @@ func init() {
 	prometheus.MustRegister(
 		estimatedNetworkSize,
 		peersConnected,
-		neogoVersion,
 		serverID,
 		poolCount,
 		blockQueueLength,
@@ -109,10 +99,6 @@ func updatePoolCountMetric(pCount int) {
 
 func updatePeersConnectedMetric(pConnected int) {
 	peersConnected.Set(float64(pConnected))
-}
-
-func setNeoGoVersion(nodeVer string) {
-	neogoVersion.WithLabelValues(nodeVer).Add(1)
 }
 
 func setSeverID(id string) {

@@ -506,7 +506,7 @@ func startServer(ctx *cli.Context) error {
 	errChan := make(chan error)
 	rpcServer := rpcsrv.New(chain, cfg.ApplicationConfiguration.RPC, serv, oracleSrv, log, errChan)
 	serv.AddService(rpcServer)
-
+	setNeoGoVersion(config.Version)
 	serv.Start()
 	if !cfg.ApplicationConfiguration.RPC.StartWhenSynchronized {
 		// Run RPC server in a separate routine. This is necessary to avoid a potential
