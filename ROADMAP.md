@@ -7,11 +7,10 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.107.0 (~Jun-Jul 2024)
+## Version 0.108.0 (~Jan-Feb 2025)
  * protocol updates
  * bug fixes
  * node resynchronisation from local DB
- * CLI library upgrade
 
 ## Version 1.0 (2024, TBD)
  * stable version
