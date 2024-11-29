@@ -15,7 +15,7 @@ func TestNeoBlock_Sign(t *testing.T) {
 	b := new(neoBlock)
 	priv, _ := keys.NewPrivateKey()
 
-	require.NoError(t, b.Sign(&privateKey{PrivateKey: priv}))
+	require.NoError(t, b.Sign(priv))
 	require.NoError(t, b.Verify(priv.PublicKey(), b.Signature()))
 }
 

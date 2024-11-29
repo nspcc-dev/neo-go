@@ -532,9 +532,9 @@ func (bq testBlockQueuer) PutBlock(b *coreb.Block) error {
 	return bq.bc.AddBlock(b)
 }
 
-func getTestValidator(i int) (*privateKey, *keys.PublicKey) {
+func getTestValidator(i int) (*keys.PrivateKey, *keys.PublicKey) {
 	key := testchain.PrivateKey(i)
-	return &privateKey{PrivateKey: key}, key.PublicKey()
+	return key, key.PublicKey()
 }
 
 func newSingleTestChain(t *testing.T) *core.Blockchain {

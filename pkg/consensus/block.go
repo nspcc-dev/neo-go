@@ -24,8 +24,8 @@ var _ dbft.Block[util.Uint256] = (*neoBlock)(nil)
 
 // Sign implements the block.Block interface.
 func (n *neoBlock) Sign(key dbft.PrivateKey) error {
-	k := key.(*privateKey)
-	sig := k.PrivateKey.SignHashable(uint32(n.network), &n.Block)
+	k := key.(*keys.PrivateKey)
+	sig := k.SignHashable(uint32(n.network), &n.Block)
 	n.signature = sig
 	return nil
 }

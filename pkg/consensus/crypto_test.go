@@ -9,18 +9,15 @@ import (
 )
 
 func TestCrypt(t *testing.T) {
-	key, err := keys.NewPrivateKey()
+	priv, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
-	priv := privateKey{key}
-
-	pub := key.PublicKey()
+	pub := priv.PublicKey()
 
 	data := []byte{1, 2, 3, 4}
 	hash := sha256.Sum256(data)
 
-	sign, err := priv.Sign(data)
-	require.NoError(t, err)
+	sign := priv.Sign(data)
 	require.True(t, pub.Verify(sign, hash[:]))
 
 	sign[0] = ^sign[0]

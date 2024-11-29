@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/dbft"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	npayload "github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -119,9 +120,9 @@ func (p *Payload) EncodeBinary(w *io.BinWriter) {
 
 // Sign signs payload using the private key.
 // It also sets corresponding verification and invocation scripts.
-func (p *Payload) Sign(key *privateKey) error {
+func (p *Payload) Sign(key *keys.PrivateKey) error {
 	p.encodeData()
-	sig := key.PrivateKey.SignHashable(uint32(p.network), &p.Extensible)
+	sig := key.SignHashable(uint32(p.network), &p.Extensible)
 
 	buf := io.NewBufBinWriter()
 	emit.Bytes(buf.BinWriter, sig)

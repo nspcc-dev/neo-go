@@ -202,6 +202,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithNewRecoveryMessage[util.Uint256](srv.newRecoveryMessage),
 		dbft.WithVerifyPrepareRequest[util.Uint256](srv.verifyRequest),
 		dbft.WithVerifyPrepareResponse[util.Uint256](srv.verifyResponse),
+		dbft.WithVerifyCommit[util.Uint256](srv.verifyCommit),
 	)
 
 	if err != nil {
@@ -448,7 +449,7 @@ func (s *service) getKeyPair(pubs []dbft.PublicKey) (int, dbft.PrivateKey, dbft.
 				}
 			}
 
-			return i, &privateKey{PrivateKey: acc.PrivateKey()}, acc.PublicKey()
+			return i, acc.PrivateKey(), acc.PublicKey()
 		}
 	}
 	return -1, nil, nil
@@ -494,7 +495,7 @@ func (s *service) OnTransaction(tx *transaction.Transaction) {
 }
 
 func (s *service) broadcast(p dbft.ConsensusPayload[util.Uint256]) {
-	if err := p.(*Payload).Sign(s.dbft.Priv.(*privateKey)); err != nil {
+	if err := p.(*Payload).Sign(s.dbft.Priv.(*keys.PrivateKey)); err != nil {
 		s.log.Warn("can't sign consensus payload", zap.Error(err))
 	}
 
@@ -614,7 +615,11 @@ func (s *service) verifyResponse(p dbft.ConsensusPayload[util.Uint256]) error {
 	return nil
 }
 
-func (s *service) processBlock(b dbft.Block[util.Uint256]) {
+func (s *service) verifyCommit(p dbft.ConsensusPayload[util.Uint256]) error {
+	return nil
+}
+
+func (s *service) processBlock(b dbft.Block[util.Uint256]) error {
 	bb := &b.(*neoBlock).Block
 	bb.Script = *(s.getBlockWitness(bb))
 
@@ -626,6 +631,7 @@ func (s *service) processBlock(b dbft.Block[util.Uint256]) {
 		}
 	}
 	s.postBlock(bb)
+	return nil
 }
 
 func (s *service) postBlock(b *coreb.Block) {
