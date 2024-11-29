@@ -58,9 +58,8 @@ parameter.
    The number of downloading routines can be configured via 
    `DownloaderWorkersCount` parameter. It's up to the user to find the 
    balance between the downloading speed and blocks persist speed for every 
-   node that uses NeoFS BlockFetcher. Downloaded blocks are placed into a 
-   buffered channel of size `IDBatchSize` with further redirection to the
-   block queue.
+   node that uses NeoFS BlockFetcher. Downloaded blocks are placed to the
+   block queue directly.
 3. **Block Insertion**:
    Downloaded blocks are inserted into the blockchain using the same logic
    as in the P2P synchronisation protocol. The block queue is used to order 

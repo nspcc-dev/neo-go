@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,8 +19,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/neofs"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
+	"github.com/nspcc-dev/neofs-sdk-go/container"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/pool"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"go.uber.org/zap"
 )
 
@@ -34,10 +39,41 @@ const (
 	defaultDownloaderWorkersCount = 100
 )
 
+// Constants related to NeoFS pool request timeouts. Such big values are used to avoid
+// NeoFS pool timeouts during block search and download.
+const (
+	defaultDialTimeout        = 10 * time.Minute
+	defaultStreamTimeout      = 10 * time.Minute
+	defaultHealthcheckTimeout = 10 * time.Second
+)
+
+// Constants related to retry mechanism.
+const (
+	// maxRetries is the maximum number of retries for a single operation.
+	maxRetries = 5
+	// initialBackoff is the initial backoff duration.
+	initialBackoff = 500 * time.Millisecond
+	// backoffFactor is the factor by which the backoff duration is multiplied.
+	backoffFactor = 2
+	// maxBackoff is the maximum backoff duration.
+	maxBackoff = 20 * time.Second
+)
+
 // Ledger is an interface to Blockchain sufficient for Service.
 type Ledger interface {
 	GetConfig() config.Blockchain
 	BlockHeight() uint32
+}
+
+// poolWrapper wraps a NeoFS pool to adapt its Close method to return an error.
+type poolWrapper struct {
+	*pool.Pool
+}
+
+// Close closes the pool and returns nil.
+func (p poolWrapper) Close() error {
+	p.Pool.Close()
+	return nil
 }
 
 // Service is a service that fetches blocks from NeoFS.
@@ -49,12 +85,11 @@ type Service struct {
 	stateRootInHeader bool
 
 	chain        Ledger
-	client       *client.Client
+	pool         poolWrapper
 	enqueueBlock func(*block.Block) error
 	account      *wallet.Account
 
-	oidsCh   chan oid.ID
-	blocksCh chan *block.Block
+	oidsCh chan oid.ID
 	// wg is a wait group for block downloaders.
 	wg sync.WaitGroup
 
@@ -68,7 +103,6 @@ type Service struct {
 	exiterToOIDDownloader chan struct{}
 	exiterToShutdown      chan struct{}
 	oidDownloaderToExiter chan struct{}
-	blockQueuerToExiter   chan struct{}
 
 	shutdownCallback func()
 }
@@ -79,11 +113,13 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 		account *wallet.Account
 		err     error
 	)
-
+	if !cfg.Enabled {
+		return &Service{}, nil
+	}
 	if cfg.UnlockWallet.Path != "" {
 		walletFromFile, err := wallet.NewWalletFromFile(cfg.UnlockWallet.Path)
 		if err != nil {
-			return &Service{}, err
+			return nil, err
 		}
 		for _, acc := range walletFromFile.Accounts {
 			if err := acc.Decrypt(cfg.UnlockWallet.Password, walletFromFile.Scrypt); err == nil {
@@ -92,12 +128,12 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 			}
 		}
 		if account == nil {
-			return &Service{}, errors.New("failed to decrypt any account in the wallet")
+			return nil, errors.New("failed to decrypt any account in the wallet")
 		}
 	} else {
 		account, err = wallet.NewAccount()
 		if err != nil {
-			return &Service{}, err
+			return nil, err
 		}
 	}
 	if cfg.Timeout <= 0 {
@@ -110,10 +146,20 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 		cfg.DownloaderWorkersCount = defaultDownloaderWorkersCount
 	}
 	if len(cfg.Addresses) == 0 {
-		return &Service{}, errors.New("no addresses provided")
+		return nil, errors.New("no addresses provided")
+	}
+
+	params := pool.DefaultOptions()
+	params.SetHealthcheckTimeout(defaultHealthcheckTimeout)
+	params.SetNodeDialTimeout(defaultDialTimeout)
+	params.SetNodeStreamTimeout(defaultStreamTimeout)
+	p, err := pool.New(pool.NewFlatNodeParams(cfg.Addresses), user.NewAutoIDSignerRFC6979(account.PrivateKey().PrivateKey), params)
+	if err != nil {
+		return nil, err
 	}
 	return &Service{
 		chain: chain,
+		pool:  poolWrapper{Pool: p},
 		log:   logger,
 		cfg:   cfg,
 
@@ -126,17 +172,12 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 		exiterToOIDDownloader: make(chan struct{}),
 		exiterToShutdown:      make(chan struct{}),
 		oidDownloaderToExiter: make(chan struct{}),
-		blockQueuerToExiter:   make(chan struct{}),
 
 		// Use buffer of two batch sizes to load OIDs in advance:
 		//  * first full block of OIDs is processing by Downloader
 		//  * second full block of OIDs is available to be fetched by Downloader immediately
 		//  * third half-filled block of OIDs is being collected by OIDsFetcher.
 		oidsCh: make(chan oid.ID, 2*cfg.OIDBatchSize),
-
-		// Use buffer of a single OIDs batch size to provide smooth downloading and
-		// avoid pauses during blockqueue insertion.
-		blocksCh: make(chan *block.Block, cfg.OIDBatchSize),
 	}, nil
 }
 
@@ -146,15 +187,36 @@ func (bfs *Service) Start() error {
 		return nil
 	}
 	bfs.log.Info("starting NeoFS BlockFetcher service")
-
-	var err error
+	var (
+		containerID  cid.ID
+		containerObj container.Container
+		err          error
+	)
 	bfs.ctx, bfs.ctxCancel = context.WithCancel(context.Background())
-	bfs.client, err = neofs.GetSDKClient(bfs.ctx, bfs.cfg.Addresses[0], 10*time.Minute)
-	if err != nil {
+	if err = bfs.pool.Dial(context.Background()); err != nil {
 		bfs.isActive.CompareAndSwap(true, false)
-		return fmt.Errorf("create SDK client: %w", err)
+		return fmt.Errorf("failed to dial NeoFS pool: %w", err)
 	}
 
+	err = containerID.DecodeString(bfs.cfg.ContainerID)
+	if err != nil {
+		bfs.isActive.CompareAndSwap(true, false)
+		return fmt.Errorf("failed to decode container ID: %w", err)
+	}
+
+	err = bfs.retry(func() error {
+		containerObj, err = bfs.pool.ContainerGet(bfs.ctx, containerID, client.PrmContainerGet{})
+		return err
+	})
+	if err != nil {
+		bfs.isActive.CompareAndSwap(true, false)
+		return fmt.Errorf("failed to get container: %w", err)
+	}
+	containerMagic := containerObj.Attribute("Magic")
+	if containerMagic != strconv.Itoa(int(bfs.chain.GetConfig().Magic)) {
+		bfs.isActive.CompareAndSwap(true, false)
+		return fmt.Errorf("container magic mismatch: expected %d, got %s", bfs.chain.GetConfig().Magic, containerMagic)
+	}
 	// Start routine that manages Service shutdown process.
 	go bfs.exiter()
 
@@ -166,10 +228,6 @@ func (bfs *Service) Start() error {
 		bfs.wg.Add(1)
 		go bfs.blockDownloader()
 	}
-
-	// Start routine that puts blocks into bQueue.
-	go bfs.blockQueuer()
-
 	return nil
 }
 
@@ -185,7 +243,9 @@ func (bfs *Service) oidDownloader() {
 	}
 	var force bool
 	if err != nil {
-		bfs.log.Error("NeoFS BlockFetcher service: OID downloading routine failed", zap.Error(err))
+		if !isContextCanceledErr(err) {
+			bfs.log.Error("NeoFS BlockFetcher service: OID downloading routine failed", zap.Error(err))
+		}
 		force = true
 	}
 	// Stop the service since there's nothing to do anymore.
@@ -222,21 +282,8 @@ func (bfs *Service) blockDownloader() {
 		select {
 		case <-bfs.ctx.Done():
 			return
-		case bfs.blocksCh <- b:
-		}
-	}
-}
-
-// blockQueuer puts the block into the bqueue.
-func (bfs *Service) blockQueuer() {
-	defer close(bfs.blockQueuerToExiter)
-
-	for b := range bfs.blocksCh {
-		select {
-		case <-bfs.ctx.Done():
-			return
 		default:
-			err := bfs.enqueueBlock(b)
+			err = bfs.enqueueBlock(b)
 			if err != nil {
 				bfs.log.Error("failed to enqueue block", zap.Uint32("index", b.Index), zap.Error(err))
 				bfs.stopService(true)
@@ -260,6 +307,7 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 			prm := client.PrmObjectSearch{}
 			filters := object.NewSearchFilters()
 			filters.AddFilter(bfs.cfg.IndexFileAttribute, fmt.Sprintf("%d", startIndex), object.MatchStringEqual)
+			filters.AddFilter("IndexSize", fmt.Sprintf("%d", bfs.cfg.IndexFileSize), object.MatchStringEqual)
 			prm.SetFilters(filters)
 
 			ctx, cancel := context.WithTimeout(bfs.ctx, bfs.cfg.Timeout)
@@ -423,6 +471,7 @@ func (bfs *Service) exiter() {
 		zap.Bool("force", force),
 	)
 
+	bfs.isActive.CompareAndSwap(true, false)
 	// Cansel all pending OIDs/blocks downloads in case if shutdown requested by user
 	// or caused by downloading error.
 	if force {
@@ -439,15 +488,10 @@ func (bfs *Service) exiter() {
 	close(bfs.oidsCh)
 	bfs.wg.Wait()
 
-	// Send signal to block putter to finish his work. Wait until it's finished.
-	close(bfs.blocksCh)
-	<-bfs.blockQueuerToExiter
-
 	// Everything is done, release resources, turn off the activity marker and let
 	// the server know about it.
-	_ = bfs.client.Close()
+	_ = bfs.pool.Close()
 	_ = bfs.log.Sync()
-	bfs.isActive.CompareAndSwap(true, false)
 	bfs.shutdownCallback()
 
 	// Notify Shutdown routine in case if it's user-triggered shutdown.
@@ -459,21 +503,64 @@ func (bfs *Service) IsActive() bool {
 	return bfs.isActive.Load()
 }
 
+// retry function with exponential backoff.
+func (bfs *Service) retry(action func() error) error {
+	var (
+		err     error
+		backoff = initialBackoff
+		timer   = time.NewTimer(0)
+	)
+	defer func() {
+		if !timer.Stop() {
+			<-timer.C
+		}
+	}()
+
+	for i := range maxRetries {
+		if err = action(); err == nil {
+			return nil
+		}
+		if i == maxRetries-1 {
+			break
+		}
+		timer.Reset(backoff)
+
+		select {
+		case <-timer.C:
+		case <-bfs.ctx.Done():
+			return bfs.ctx.Err()
+		}
+		backoff *= time.Duration(backoffFactor)
+		if backoff > maxBackoff {
+			backoff = maxBackoff
+		}
+	}
+	return err
+}
+
 func (bfs *Service) objectGet(ctx context.Context, oid string) (io.ReadCloser, error) {
 	u, err := url.Parse(fmt.Sprintf("neofs:%s/%s", bfs.cfg.ContainerID, oid))
 	if err != nil {
 		return nil, err
 	}
-	rc, err := neofs.GetWithClient(ctx, bfs.client, bfs.account.PrivateKey(), u, false)
-	if err != nil {
-		return nil, err
-	}
-
-	return rc, nil
+	var rc io.ReadCloser
+	err = bfs.retry(func() error {
+		rc, err = neofs.GetWithClient(ctx, bfs.pool, bfs.account.PrivateKey(), u, false)
+		return err
+	})
+	return rc, err
 }
 
 func (bfs *Service) objectSearch(ctx context.Context, prm client.PrmObjectSearch) ([]oid.ID, error) {
-	return neofs.ObjectSearch(ctx, bfs.client, bfs.account.PrivateKey(), bfs.cfg.ContainerID, prm)
+	var (
+		oids []oid.ID
+		err  error
+	)
+	err = bfs.retry(func() error {
+		oids, err = neofs.ObjectSearch(ctx, bfs.pool, bfs.account.PrivateKey(), bfs.cfg.ContainerID, prm)
+		return err
+	})
+	return oids, err
 }
 
 // isContextCanceledErr returns whether error is a wrapped [context.Canceled].

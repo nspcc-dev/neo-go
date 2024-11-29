@@ -38,6 +38,9 @@ func TestServiceConstructor(t *testing.T) {
 
 	t.Run("empty configuration", func(t *testing.T) {
 		cfg := config.NeoFSBlockFetcher{
+			InternalService: config.InternalService{
+				Enabled: true,
+			},
 			Timeout:                0,
 			OIDBatchSize:           0,
 			DownloaderWorkersCount: 0,
@@ -48,6 +51,9 @@ func TestServiceConstructor(t *testing.T) {
 
 	t.Run("no addresses", func(t *testing.T) {
 		cfg := config.NeoFSBlockFetcher{
+			InternalService: config.InternalService{
+				Enabled: true,
+			},
 			Addresses: []string{},
 		}
 		_, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
@@ -56,7 +62,10 @@ func TestServiceConstructor(t *testing.T) {
 
 	t.Run("default values", func(t *testing.T) {
 		cfg := config.NeoFSBlockFetcher{
-			Addresses: []string{"http://localhost:8080"},
+			InternalService: config.InternalService{
+				Enabled: true,
+			},
+			Addresses: []string{"localhost:8080"},
 		}
 		service, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
 		require.NoError(t, err)
@@ -71,13 +80,16 @@ func TestServiceConstructor(t *testing.T) {
 
 	t.Run("SDK client", func(t *testing.T) {
 		cfg := config.NeoFSBlockFetcher{
-			Addresses: []string{"http://localhost:8080"},
+			InternalService: config.InternalService{
+				Enabled: true,
+			},
+			Addresses: []string{"localhost:8080"},
 		}
 		service, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
 		require.NoError(t, err)
 		err = service.Start()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "create SDK client")
+		require.Contains(t, err.Error(), "failed to dial NeoFS pool:")
 		require.Equal(t, service.IsActive(), false)
 	})
 
@@ -94,5 +106,6 @@ func TestServiceConstructor(t *testing.T) {
 		}
 		_, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
 		require.Error(t, err)
+		require.Contains(t, err.Error(), "open wallet: open invalid/path/to/wallet.json:")
 	})
 }

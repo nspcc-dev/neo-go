@@ -61,6 +61,17 @@ const (
 	defaultHealthcheckTimeout = 10 * time.Second
 )
 
+// poolWrapper wraps a NeoFS pool to adapt its Close method to return an error.
+type poolWrapper struct {
+	*pool.Pool
+}
+
+// Close closes the pool and returns nil.
+func (p poolWrapper) Close() error {
+	p.Pool.Close()
+	return nil
+}
+
 func uploadBin(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
@@ -99,8 +110,8 @@ func uploadBin(ctx *cli.Context) error {
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to create NeoFS pool: %v", err), 1)
 	}
-
-	if err = p.Dial(context.Background()); err != nil {
+	pWrapper := poolWrapper{p}
+	if err = pWrapper.Dial(context.Background()); err != nil {
 		return cli.Exit(fmt.Sprintf("failed to dial NeoFS pool: %v", err), 1)
 	}
 	defer p.Close()
@@ -148,14 +159,14 @@ func uploadBin(ctx *cli.Context) error {
 	fmt.Fprintln(ctx.App.Writer, "First block of latest incomplete batch uploaded to NeoFS container:", oldestMissingBlockIndex)
 
 	if !ctx.Bool("skip-blocks-uploading") {
-		err = uploadBlocks(ctx, p, rpc, signer, containerID, acc, attr, oldestMissingBlockIndex, uint(currentBlockHeight), homomorphicHashingDisabled, numWorkers, maxRetries, debug)
+		err = uploadBlocks(ctx, pWrapper, rpc, signer, containerID, acc, attr, oldestMissingBlockIndex, uint(currentBlockHeight), homomorphicHashingDisabled, numWorkers, maxRetries, debug)
 		if err != nil {
 			return cli.Exit(fmt.Errorf("failed to upload blocks: %w", err), 1)
 		}
 		oldestMissingBlockIndex = int(currentBlockHeight) + 1
 	}
 
-	err = uploadIndexFiles(ctx, p, containerID, acc, signer, uint(oldestMissingBlockIndex), attr, homomorphicHashingDisabled, maxParallelSearches, maxRetries, debug)
+	err = uploadIndexFiles(ctx, pWrapper, containerID, acc, signer, uint(oldestMissingBlockIndex), attr, homomorphicHashingDisabled, maxParallelSearches, maxRetries, debug)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to upload index files: %w", err), 1)
 	}
@@ -194,6 +205,7 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 		wg              sync.WaitGroup
 		numBatches      = currentHeight / searchBatchSize
 		emptyBatchFound bool
+		pWrapper        = poolWrapper{p}
 	)
 
 	for batch := numBatches; batch > -maxParallelSearches; batch -= maxParallelSearches {
@@ -227,7 +239,7 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 					err       error
 				)
 				err = retry(func() error {
-					objectIDs, err = neofs.ObjectSearch(ctx, p, priv, containerID.String(), prm)
+					objectIDs, err = neofs.ObjectSearch(ctx, pWrapper, priv, containerID.String(), prm)
 					return err
 				}, maxRetries)
 				results[i] = searchResult{startIndex: startIndex, endIndex: endIndex, numOIDs: len(objectIDs), err: err}
@@ -252,7 +264,7 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 }
 
 // uploadBlocks uploads the blocks to the container using the pool.
-func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, acc *wallet.Account, attr string, oldestMissingBlockIndex int, currentBlockHeight uint, homomorphicHashingDisabled bool, numWorkers, maxRetries int, debug bool) error {
+func uploadBlocks(ctx *cli.Context, p poolWrapper, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, acc *wallet.Account, attr string, oldestMissingBlockIndex int, currentBlockHeight uint, homomorphicHashingDisabled bool, numWorkers, maxRetries int, debug bool) error {
 	if oldestMissingBlockIndex > int(currentBlockHeight) {
 		fmt.Fprintf(ctx.App.Writer, "No new blocks to upload. Need to upload starting from %d, current height %d\n", oldestMissingBlockIndex, currentBlockHeight)
 		return nil
@@ -343,7 +355,7 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 }
 
 // uploadIndexFiles uploads missing index files to the container.
-func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, account *wallet.Account, signer user.Signer, oldestMissingBlockIndex uint, blockAttributeKey string, homomorphicHashingDisabled bool, maxParallelSearches, maxRetries int, debug bool) error {
+func uploadIndexFiles(ctx *cli.Context, p poolWrapper, containerID cid.ID, account *wallet.Account, signer user.Signer, oldestMissingBlockIndex uint, blockAttributeKey string, homomorphicHashingDisabled bool, maxParallelSearches, maxRetries int, debug bool) error {
 	var (
 		attributeKey  = ctx.String("index-attribute")
 		indexFileSize = ctx.Uint("index-file-size")
@@ -505,7 +517,7 @@ func uploadIndexFiles(ctx *cli.Context, p *pool.Pool, containerID cid.ID, accoun
 // searchObjects searches in parallel for objects with attribute GE startIndex and LT
 // endIndex. It returns a buffered channel of resulting object IDs and closes it once
 // OID search is finished. Errors are sent to errCh in a non-blocking way.
-func searchObjects(ctx context.Context, p *pool.Pool, containerID cid.ID, account *wallet.Account, blockAttributeKey string, startIndex, endIndex uint, maxParallelSearches, maxRetries int, errCh chan error, additionalFilters ...object.SearchFilters) chan oid.ID {
+func searchObjects(ctx context.Context, p poolWrapper, containerID cid.ID, account *wallet.Account, blockAttributeKey string, startIndex, endIndex uint, maxParallelSearches, maxRetries int, errCh chan error, additionalFilters ...object.SearchFilters) chan oid.ID {
 	var res = make(chan oid.ID, 2*searchBatchSize)
 	go func() {
 		var wg sync.WaitGroup
@@ -567,7 +579,7 @@ func searchObjects(ctx context.Context, p *pool.Pool, containerID cid.ID, accoun
 }
 
 // uploadObj uploads object to the container using provided settings.
-func uploadObj(ctx context.Context, p *pool.Pool, signer user.Signer, owner util.Uint160, containerID cid.ID, objData []byte, attrs []object.Attribute, homomorphicHashingDisabled bool) (oid.ID, error) {
+func uploadObj(ctx context.Context, p poolWrapper, signer user.Signer, owner util.Uint160, containerID cid.ID, objData []byte, attrs []object.Attribute, homomorphicHashingDisabled bool) (oid.ID, error) {
 	var (
 		ownerID          user.ID
 		hdr              object.Object

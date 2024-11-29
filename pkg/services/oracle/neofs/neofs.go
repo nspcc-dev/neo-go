@@ -44,6 +44,16 @@ var (
 	ErrInvalidCommand   = errors.New("invalid command")
 )
 
+// Client is a NeoFS client interface.
+type Client interface {
+	ObjectSearchInit(ctx context.Context, containerID cid.ID, s user.Signer, prm client.PrmObjectSearch) (*client.ObjectListReader, error)
+	ObjectGetInit(ctx context.Context, container cid.ID, id oid.ID, s user.Signer, get client.PrmObjectGet) (object.Object, *client.PayloadReader, error)
+	ObjectRangeInit(ctx context.Context, container cid.ID, id oid.ID, offset uint64, length uint64, s user.Signer, objectRange client.PrmObjectRange) (*client.ObjectRangeReader, error)
+	ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHead) (*object.Object, error)
+	ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHash) ([][]byte, error)
+	Close() error
+}
+
 // Get returns a neofs object from the provided url.
 // URI scheme is "neofs:<Container-ID>/<Object-ID/<Command>/<Params>".
 // If Command is not provided, full object is requested.
@@ -59,7 +69,7 @@ func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string) (i
 // URI scheme is "neofs:<Container-ID>/<Object-ID/<Command>/<Params>".
 // If Command is not provided, full object is requested. If wrapClientCloser is true,
 // the client will be closed when the returned ReadCloser is closed.
-func GetWithClient(ctx context.Context, c *client.Client, priv *keys.PrivateKey, u *url.URL, wrapClientCloser bool) (io.ReadCloser, error) {
+func GetWithClient(ctx context.Context, c Client, priv *keys.PrivateKey, u *url.URL, wrapClientCloser bool) (io.ReadCloser, error) {
 	objectAddr, ps, err := parseNeoFSURL(u)
 	if err != nil {
 		return nil, err
@@ -94,7 +104,7 @@ func GetWithClient(ctx context.Context, c *client.Client, priv *keys.PrivateKey,
 
 type clientCloseWrapper struct {
 	io.ReadCloser
-	c *client.Client
+	c Client
 }
 
 func (w clientCloseWrapper) Close() error {
@@ -137,7 +147,7 @@ func parseNeoFSURL(u *url.URL) (*oid.Address, []string, error) {
 	return objAddr, ps[2:], nil
 }
 
-func getPayload(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Address) (io.ReadCloser, error) {
+func getPayload(ctx context.Context, s user.Signer, c Client, addr *oid.Address) (io.ReadCloser, error) {
 	var iorc io.ReadCloser
 	_, rc, err := c.ObjectGetInit(ctx, addr.Container(), addr.Object(), s, client.PrmObjectGet{})
 	if rc != nil {
@@ -146,7 +156,7 @@ func getPayload(ctx context.Context, s user.Signer, c *client.Client, addr *oid.
 	return iorc, err
 }
 
-func getRange(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Address, ps ...string) (io.ReadCloser, error) {
+func getRange(ctx context.Context, s user.Signer, c Client, addr *oid.Address, ps ...string) (io.ReadCloser, error) {
 	var iorc io.ReadCloser
 	if len(ps) == 0 {
 		return nil, ErrInvalidRange
@@ -163,11 +173,11 @@ func getRange(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Ad
 	return iorc, err
 }
 
-func getObjHeader(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Address) (*object.Object, error) {
+func getObjHeader(ctx context.Context, s user.Signer, c Client, addr *oid.Address) (*object.Object, error) {
 	return c.ObjectHead(ctx, addr.Container(), addr.Object(), s, client.PrmObjectHead{})
 }
 
-func getHeader(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Address) (io.ReadCloser, error) {
+func getHeader(ctx context.Context, s user.Signer, c Client, addr *oid.Address) (io.ReadCloser, error) {
 	obj, err := getObjHeader(ctx, s, c, addr)
 	if err != nil {
 		return nil, err
@@ -179,7 +189,7 @@ func getHeader(ctx context.Context, s user.Signer, c *client.Client, addr *oid.A
 	return io.NopCloser(bytes.NewReader(res)), nil
 }
 
-func getHash(ctx context.Context, s user.Signer, c *client.Client, addr *oid.Address, ps ...string) (io.ReadCloser, error) {
+func getHash(ctx context.Context, s user.Signer, c Client, addr *oid.Address, ps ...string) (io.ReadCloser, error) {
 	if len(ps) == 0 || ps[0] == "" { // hash of the full payload
 		obj, err := getObjHeader(ctx, s, c, addr)
 		if err != nil {
@@ -236,13 +246,8 @@ func parseRange(s string) (*object.Range, error) {
 	return r, nil
 }
 
-// ObjectSearchInitter defines the interface for initializing object search.
-type ObjectSearchInitter interface {
-	ObjectSearchInit(ctx context.Context, containerID cid.ID, s user.Signer, prm client.PrmObjectSearch) (*client.ObjectListReader, error)
-}
-
 // ObjectSearch returns a list of object IDs from the provided container.
-func ObjectSearch(ctx context.Context, initter ObjectSearchInitter, priv *keys.PrivateKey, containerIDStr string, prm client.PrmObjectSearch) ([]oid.ID, error) {
+func ObjectSearch(ctx context.Context, c Client, priv *keys.PrivateKey, containerIDStr string, prm client.PrmObjectSearch) ([]oid.ID, error) {
 	var (
 		s           = user.NewAutoIDSignerRFC6979(priv.PrivateKey)
 		objectIDs   []oid.ID
@@ -252,7 +257,7 @@ func ObjectSearch(ctx context.Context, initter ObjectSearchInitter, priv *keys.P
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidContainer, err)
 	}
-	reader, err := initter.ObjectSearchInit(ctx, containerID, s, prm)
+	reader, err := c.ObjectSearchInit(ctx, containerID, s, prm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initiate object search: %w", err)
 	}

@@ -229,7 +229,7 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	s.blockFetcher, err = blockfetcher.New(chain, s.NeoFSBlockFetcherCfg, log, s.bFetcherQueue.PutBlock, func() {
 		close(s.blockFetcherFin)
 	})
-	if err != nil && config.NeoFSBlockFetcherCfg.Enabled {
+	if err != nil {
 		return nil, fmt.Errorf("failed to create NeoFS BlockFetcher: %w", err)
 	}
 
@@ -331,6 +331,7 @@ func (s *Server) Shutdown() {
 	}
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
 	if s.ServerConfig.NeoFSBlockFetcherCfg.Enabled {
+		s.bFetcherQueue.Discard()
 		s.blockFetcher.Shutdown()
 	}
 	for _, tr := range s.transports {
@@ -341,7 +342,6 @@ func (s *Server) Shutdown() {
 	}
 	s.bQueue.Discard()
 	s.bSyncQueue.Discard()
-	s.bFetcherQueue.Discard()
 	s.serviceLock.RLock()
 	for _, svc := range s.services {
 		svc.Shutdown()
