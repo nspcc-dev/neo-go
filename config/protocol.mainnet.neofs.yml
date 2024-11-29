@@ -81,7 +81,7 @@ ApplicationConfiguration:
     Addresses:
       - ":2113"
   NeoFSBlockFetcher:
-    Enabled: false
+    Enabled: true
     Addresses:
       - st1.storage.fs.neo.org:8080
       - st2.storage.fs.neo.org:8080
