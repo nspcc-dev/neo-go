@@ -61,6 +61,7 @@ func getUnitTestChainWithCustomConfig(t testing.TB, enableOracle bool, enableNot
 	configPath := "../../../config"
 	cfg, err := config.Load(configPath, net)
 	require.NoError(t, err, "could not load config")
+	cfg.ProtocolConfiguration.Hardforks = nil
 	if customCfg != nil {
 		customCfg(&cfg)
 	}
