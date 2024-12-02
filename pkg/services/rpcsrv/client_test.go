@@ -2447,8 +2447,11 @@ func TestClient_GetStorageHistoric(t *testing.T) {
 }
 
 func TestClient_GetVersion_Hardforks(t *testing.T) {
-	_, _, httpSrv := initServerWithInMemoryChain(t)
-
+	_, _, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
+		cfg.ProtocolConfiguration.Hardforks = map[string]uint32{
+			"Aspidochelone": 25,
+		}
+	})
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	t.Cleanup(c.Close)
