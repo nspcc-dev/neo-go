@@ -198,11 +198,13 @@ func TestFilteredSubscriptions(t *testing.T) {
 	var goodSender = priv0.GetScriptHash()
 
 	var cases = map[string]struct {
-		params string
-		check  func(*testing.T, *neorpc.Notification)
+		params      string
+		check       func(*testing.T, *neorpc.Notification)
+		shouldCheck bool
 	}{
 		"tx matching sender": {
-			params: `["transaction_added", {"sender":"` + goodSender.StringLE() + `"}]`,
+			params:      `["transaction_added", {"sender":"` + goodSender.StringLE() + `"}]`,
+			shouldCheck: true,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.TransactionEventID, resp.Event)
@@ -211,7 +213,8 @@ func TestFilteredSubscriptions(t *testing.T) {
 			},
 		},
 		"tx matching signer": {
-			params: `["transaction_added", {"signer":"` + goodSender.StringLE() + `"}]`,
+			params:      `["transaction_added", {"signer":"` + goodSender.StringLE() + `"}]`,
+			shouldCheck: true,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.TransactionEventID, resp.Event)
@@ -222,7 +225,8 @@ func TestFilteredSubscriptions(t *testing.T) {
 			},
 		},
 		"tx matching sender and signer": {
-			params: `["transaction_added", {"sender":"` + goodSender.StringLE() + `", "signer":"` + goodSender.StringLE() + `"}]`,
+			params:      `["transaction_added", {"sender":"` + goodSender.StringLE() + `", "signer":"` + goodSender.StringLE() + `"}]`,
+			shouldCheck: true,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.TransactionEventID, resp.Event)
@@ -235,7 +239,8 @@ func TestFilteredSubscriptions(t *testing.T) {
 			},
 		},
 		"notification matching contract hash": {
-			params: `["notification_from_execution", {"contract":"` + testContractHashLE + `"}]`,
+			params:      `["notification_from_execution", {"contract":"` + testContractHashLE + `"}]`,
+			shouldCheck: true,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotificationEventID, resp.Event)
@@ -244,27 +249,30 @@ func TestFilteredSubscriptions(t *testing.T) {
 			},
 		},
 		"notification matching name": {
-			params: `["notification_from_execution", {"name":"my_pretty_notification"}]`,
+			params:      `["notification_from_execution", {"name":"Transfer"}]`,
+			shouldCheck: true,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotificationEventID, resp.Event)
-				n := rmap["name"].(string)
-				require.Equal(t, "my_pretty_notification", n)
+				n := rmap["eventname"].(string)
+				require.Equal(t, "Transfer", n)
 			},
 		},
 		"notification matching contract hash and name": {
-			params: `["notification_from_execution", {"contract":"` + testContractHashLE + `", "name":"my_pretty_notification"}]`,
+			params:      `["notification_from_execution", {"contract":"` + testContractHashLE + `", "name":"Transfer"}]`,
+			shouldCheck: true,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotificationEventID, resp.Event)
 				c := rmap["contract"].(string)
 				require.Equal(t, "0x"+testContractHashLE, c)
-				n := rmap["name"].(string)
-				require.Equal(t, "my_pretty_notification", n)
+				n := rmap["eventname"].(string)
+				require.Equal(t, "Transfer", n)
 			},
 		},
 		"notification matching contract hash and parameter": {
-			params: `["notification_from_execution", {"contract":"` + testContractHashLE + `", "parameters":[{"type":"Any","value":null},{"type":"Hash160","value":"` + testContractHashLE + `"}]}]`,
+			params:      `["notification_from_execution", {"contract":"` + testContractHashLE + `", "parameters":[{"type":"Any","value":null},{"type":"Hash160","value":"` + testContractHashLE + `"}]}]`,
+			shouldCheck: true,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotificationEventID, resp.Event)
@@ -286,13 +294,15 @@ func TestFilteredSubscriptions(t *testing.T) {
 			},
 		},
 		"notification matching contract hash but unknown parameter": {
-			params: `["notification_from_execution", {"contract":"` + testContractHashLE + `", "parameters":[{"type":"Any","value":null},{"type":"Hash160","value":"ffffffffffffffffffffffffffffffffffffffff"}]}]`,
+			params:      `["notification_from_execution", {"contract":"` + testContractHashLE + `", "parameters":[{"type":"Any","value":null},{"type":"Hash160","value":"ffffffffffffffffffffffffffffffffffffffff"}]}]`,
+			shouldCheck: false,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				t.Fatal("this filter should not return any notification from test contract")
 			},
 		},
 		"execution matching state": {
-			params: `["transaction_executed", {"state":"HALT"}]`,
+			params:      `["transaction_executed", {"state":"HALT"}]`,
+			shouldCheck: true,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.ExecutionEventID, resp.Event)
@@ -301,7 +311,8 @@ func TestFilteredSubscriptions(t *testing.T) {
 			},
 		},
 		"execution matching container": {
-			params: `["transaction_executed", {"container":"` + deploymentTxHash + `"}]`,
+			params:      `["transaction_executed", {"container":"` + deploymentTxHash + `"}]`,
+			shouldCheck: true,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.ExecutionEventID, resp.Event)
@@ -310,7 +321,8 @@ func TestFilteredSubscriptions(t *testing.T) {
 			},
 		},
 		"execution matching state and container": {
-			params: `["transaction_executed", {"state":"HALT", "container":"` + deploymentTxHash + `"}]`,
+			params:      `["transaction_executed", {"state":"HALT", "container":"` + deploymentTxHash + `"}]`,
+			shouldCheck: true,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.ExecutionEventID, resp.Event)
@@ -321,26 +333,30 @@ func TestFilteredSubscriptions(t *testing.T) {
 			},
 		},
 		"tx non-matching": {
-			params: `["transaction_added", {"sender":"00112233445566778899aabbccddeeff00112233"}]`,
+			params:      `["transaction_added", {"sender":"00112233445566778899aabbccddeeff00112233"}]`,
+			shouldCheck: false,
 			check: func(t *testing.T, _ *neorpc.Notification) {
 				t.Fatal("unexpected match for EnrollmentTransaction")
 			},
 		},
 		"notification non-matching": {
-			params: `["notification_from_execution", {"contract":"00112233445566778899aabbccddeeff00112233"}]`,
+			params:      `["notification_from_execution", {"contract":"00112233445566778899aabbccddeeff00112233"}]`,
+			shouldCheck: false,
 			check: func(t *testing.T, _ *neorpc.Notification) {
 				t.Fatal("unexpected match for contract 00112233445566778899aabbccddeeff00112233")
 			},
 		},
 		"execution non-matching": {
 			// We have single FAULTed transaction in chain, this, use the wrong hash for this test instead of FAULT state.
-			params: `["transaction_executed", {"container":"0x` + util.Uint256{}.StringLE() + `"}]`,
+			params:      `["transaction_executed", {"container":"0x` + util.Uint256{}.StringLE() + `"}]`,
+			shouldCheck: false,
 			check: func(t *testing.T, n *neorpc.Notification) {
 				t.Fatal("unexpected match for faulted execution")
 			},
 		},
 		"header of added block": {
-			params: `["header_of_added_block", {"primary": 0, "since": 5}]`,
+			params:      `["header_of_added_block", {"primary": 0, "since": 5}]`,
+			shouldCheck: true,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.HeaderOfAddedBlockEventID, resp.Event)
@@ -360,7 +376,10 @@ func TestFilteredSubscriptions(t *testing.T) {
 			blockSubID := callSubscribe(t, c, respMsgs, `["block_added"]`)
 			subID := callSubscribe(t, c, respMsgs, this.params)
 
-			var lastBlock uint32
+			var (
+				lastBlock uint32
+				checked   = false
+			)
 			for _, b := range getTestBlocks(t) {
 				require.NoError(t, chain.AddBlock(b))
 				lastBlock = b.Index
@@ -376,7 +395,16 @@ func TestFilteredSubscriptions(t *testing.T) {
 					}
 					continue
 				}
-				this.check(t, resp)
+				if this.shouldCheck {
+					checked = true
+					this.check(t, resp)
+				} else {
+					t.Fatalf("unexpected notification: %s", resp.EventID())
+				}
+			}
+
+			if this.shouldCheck && !checked {
+				t.Fatal("expected check is not performed")
 			}
 
 			callUnsubscribe(t, c, respMsgs, subID)
