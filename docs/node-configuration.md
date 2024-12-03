@@ -166,14 +166,17 @@ BlockFetcher module and has the following structure:
       Password: "pass"
     Addresses:
       - st1.storage.fs.neo.org:8080
+      - st2.storage.fs.neo.org:8080
+      - st3.storage.fs.neo.org:8080
+      - st4.storage.fs.neo.org:8080
     Timeout: 10m
     DownloaderWorkersCount: 500
     OIDBatchSize: 8000
     BQueueSize: 16000
     SkipIndexFilesSearch: false
-    ContainerID: "EPGuD26wYgQJbmDdVBoYoNZiMKHwFMJT3A5WqPjdUHxH"
-    BlockAttribute: "block"
-    IndexFileAttribute: "oid"
+    ContainerID: "7a1cn9LNmAcHjESKWxRGG7RSZ55YHJF6z2xDLTCuTZ6c"
+    BlockAttribute: "Block"
+    IndexFileAttribute: "Index"
     IndexFileSize: 128000
 ```
 where:
