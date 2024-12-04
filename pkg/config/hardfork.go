@@ -51,20 +51,33 @@ const (
 	hfLast
 )
 
+// HFLatestStable is the latest known stable hardfork that is enabled by
+// default. The set above can contain other hardforks and even some name
+// placeholders, but they need to be enabled manually then. It can change
+// between releases even if the set of known hardforks is the same.
+const HFLatestStable = HFDomovoi
+
+// StableHardforks is an ordered slice of all stable hardforks (before or
+// equal [HFLatestStable]).
+var StableHardforks []Hardfork
+
 // Hardforks represents the ordered slice of all possible hardforks.
 var Hardforks []Hardfork
 
 // hardforks holds a map of Hardfork string representation to its type.
-var hardforks map[string]Hardfork
+var hardforks = make(map[string]Hardfork)
 
 func init() {
+	var stableIndex int
+
 	for i := HFAspidochelone; i < hfLast; i = i << 1 {
+		if i <= HFLatestStable {
+			stableIndex++
+		}
 		Hardforks = append(Hardforks, i)
+		hardforks[i.String()] = i
 	}
-	hardforks = make(map[string]Hardfork, len(Hardforks))
-	for _, hf := range Hardforks {
-		hardforks[hf.String()] = hf
-	}
+	StableHardforks = Hardforks[:stableIndex]
 }
 
 // Cmp returns the result of hardforks comparison. It returns:
