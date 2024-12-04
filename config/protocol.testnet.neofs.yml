@@ -24,6 +24,11 @@ ProtocolConfiguration:
   - morph7.t5.fs.neo.org:50333
   VerifyTransactions: true
   P2PSigExtensions: true
+  Hardforks:
+    Aspidochelone: 0
+    Basilisk: 0
+    Cockatrice: 0
+    Domovoi: 0
 
 ApplicationConfiguration:
   SkipBlockVerification: false
