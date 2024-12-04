@@ -12,7 +12,7 @@ import (
 func TestNativeGetMethod(t *testing.T) {
 	cfg := config.ProtocolConfiguration{P2PSigExtensions: true}
 	cs := NewContracts(cfg)
-	latestHF := config.LatestHardfork()
+	latestHF := config.HFLatestKnown
 	for _, c := range cs.Contracts {
 		hfMD := c.Metadata().HFSpecificContractMD(&latestHF)
 		t.Run(c.Metadata().Name, func(t *testing.T) {

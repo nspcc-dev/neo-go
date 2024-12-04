@@ -57,6 +57,9 @@ const (
 // between releases even if the set of known hardforks is the same.
 const HFLatestStable = HFDomovoi
 
+// HFLatestKnown is the latest known hardfork.
+const HFLatestKnown = hfLast >> 1
+
 // StableHardforks is an ordered slice of all stable hardforks (before or
 // equal [HFLatestStable]).
 var StableHardforks []Hardfork
@@ -109,9 +112,4 @@ func (hf Hardfork) Prev() Hardfork {
 func IsHardforkValid(s string) bool {
 	_, ok := hardforks[s]
 	return ok
-}
-
-// LatestHardfork returns latest known hardfork.
-func LatestHardfork() Hardfork {
-	return hfLast >> 1
 }
