@@ -39,11 +39,17 @@ const (
 	defaultDownloaderWorkersCount = 100
 )
 
-// Constants related to NeoFS pool request timeouts. Such big values are used to avoid
-// NeoFS pool timeouts during block search and download.
+// Constants related to NeoFS pool request timeouts.
 const (
-	defaultDialTimeout        = 10 * time.Minute
-	defaultStreamTimeout      = 10 * time.Minute
+	// defaultDialTimeout is a default timeout used to establish connection with
+	// NeoFS storage nodes.
+	defaultDialTimeout = 30 * time.Second
+	// defaultStreamTimeout is a default timeout used for NeoFS streams processing.
+	// It has significantly large value to reliably avoid timeout problems with heavy
+	// SEARCH requests.
+	defaultStreamTimeout = 10 * time.Minute
+	// defaultHealthcheckTimeout is a timeout for request to NeoFS storage node to
+	// decide if it is alive.
 	defaultHealthcheckTimeout = 10 * time.Second
 )
 
