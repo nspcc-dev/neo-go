@@ -99,6 +99,9 @@ func (m *Message) Decode(br *io.BinReader) error {
 	m.Flags = MessageFlag(br.ReadB())
 	m.Command = CommandType(br.ReadB())
 	l := br.ReadVarUint()
+	if br.Err != nil {
+		return br.Err
+	}
 	// check the length first in order not to allocate memory
 	// for an empty compressed payload
 	if l == 0 {
