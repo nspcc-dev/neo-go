@@ -200,6 +200,13 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	md = newMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States)
 	n.AddMethod(md, desc)
 
+	desc = newDescriptor("onNEP17Payment", smartcontract.VoidType,
+		manifest.NewParameter("from", smartcontract.Hash160Type),
+		manifest.NewParameter("amount", smartcontract.IntegerType),
+		manifest.NewParameter("data", smartcontract.AnyType))
+	md = newMethodAndPrice(n.onNEP17Payment, 1<<15, callflag.States|callflag.AllowCall|callflag.AllowNotify, config.HFEchidna)
+	n.AddMethod(md, desc)
+
 	desc = newDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("voteTo", smartcontract.PublicKeyType))
@@ -826,6 +833,34 @@ func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stac
 	}
 	err = n.RegisterCandidateInternal(ic, pub)
 	return stackitem.NewBool(err == nil)
+}
+
+func (n *NEO) onNEP17Payment(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	var (
+		caller = ic.VM.GetCallingScriptHash()
+		_      = toUint160(args[0])
+		amount = toBigInt(args[1])
+		pub    = toPublicKey(args[2])
+	)
+
+	if caller != n.GAS.Hash {
+		panic("only GAS is accepted")
+	}
+	if !amount.IsInt64() || amount.Int64() != n.getRegisterPriceInternal(ic.DAO) {
+		panic(fmt.Errorf("incorrect GAS amount for registration (expected %d)", n.getRegisterPriceInternal(ic.DAO)))
+	}
+	ok, err := runtime.CheckKeyedWitness(ic, pub)
+	if err != nil {
+		panic(err)
+	} else if !ok {
+		panic("not witnessed by the key owner")
+	}
+	n.GAS.burn(ic, n.Hash, amount)
+	err = n.RegisterCandidateInternal(ic, pub)
+	if err != nil {
+		panic(err)
+	}
+	return stackitem.Null{}
 }
 
 // RegisterCandidateInternal registers pub as a new candidate.
