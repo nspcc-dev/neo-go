@@ -482,7 +482,7 @@ func (s *Server) run() {
 		var (
 			netSize = s.discovery.NetworkSize()
 			// "Optimal" number of peers.
-			optimalN = s.discovery.GetFanOut() * 2
+			optimalN = min(s.discovery.GetFanOut()*2, netSize-1)
 			// Real number of peers.
 			peerN = s.HandshakedPeersCount()
 			// Timeout value for the next peerTimer, long one by default.
@@ -494,7 +494,7 @@ func (s *Server) run() {
 			s.discovery.RequestRemote(s.AttemptConnPeers)
 			// Check/retry new connections soon.
 			peerT = s.ProtoTickInterval
-		} else if s.MinPeers > 0 && loopCnt%s.MinPeers == 0 && optimalN > peerN && optimalN < s.MaxPeers && optimalN < netSize {
+		} else if s.MinPeers > 0 && loopCnt%s.MinPeers == 0 && optimalN > peerN && optimalN < s.MaxPeers {
 			// Having some number of peers, but probably can get some more, the network is big.
 			// It also allows to start picking up new peers proactively, before we suddenly have <s.MinPeers of them.
 			s.discovery.RequestRemote(min(s.AttemptConnPeers, optimalN-peerN))
