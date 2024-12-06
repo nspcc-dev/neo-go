@@ -499,7 +499,7 @@ func (s *Server) run() {
 			s.discovery.RequestRemote(min(s.AttemptConnPeers, optimalN-peerN))
 		}
 
-		if addrCheckTimeout || s.discovery.PoolCount() < s.AttemptConnPeers {
+		if addrCheckTimeout || s.discovery.PoolCount()+peerN < s.AttemptConnPeers {
 			s.broadcastHPMessage(NewMessage(CMDGetAddr, payload.NewNullPayload()))
 			addrCheckTimeout = false
 		}
