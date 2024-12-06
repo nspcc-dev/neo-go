@@ -18,7 +18,7 @@ ProtocolConfiguration:
   VerifyTransactions: true
   P2PSigExtensions: true
   Hardforks:
-    Aspidochelone: 25
+#    Aspidochelone: 25
 
 ApplicationConfiguration:
   SkipBlockVerification: false
