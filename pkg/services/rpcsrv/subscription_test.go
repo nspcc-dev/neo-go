@@ -244,23 +244,23 @@ func TestFilteredSubscriptions(t *testing.T) {
 			},
 		},
 		"notification matching name": {
-			params: `["notification_from_execution", {"name":"my_pretty_notification"}]`,
+			params: `["notification_from_execution", {"name":"Transfer"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotificationEventID, resp.Event)
-				n := rmap["name"].(string)
-				require.Equal(t, "my_pretty_notification", n)
+				n := rmap["eventname"].(string)
+				require.Equal(t, "Transfer", n)
 			},
 		},
 		"notification matching contract hash and name": {
-			params: `["notification_from_execution", {"contract":"` + testContractHashLE + `", "name":"my_pretty_notification"}]`,
+			params: `["notification_from_execution", {"contract":"` + testContractHashLE + `", "name":"Transfer"}]`,
 			check: func(t *testing.T, resp *neorpc.Notification) {
 				rmap := resp.Payload[0].(map[string]any)
 				require.Equal(t, neorpc.NotificationEventID, resp.Event)
 				c := rmap["contract"].(string)
 				require.Equal(t, "0x"+testContractHashLE, c)
-				n := rmap["name"].(string)
-				require.Equal(t, "my_pretty_notification", n)
+				n := rmap["eventname"].(string)
+				require.Equal(t, "Transfer", n)
 			},
 		},
 		"notification matching contract hash and parameter": {
