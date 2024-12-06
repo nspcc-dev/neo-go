@@ -575,6 +575,7 @@ func (s *Server) run() {
 				s.tryInitStateSync()
 				s.tryStartServices()
 			}
+			s.blockFetcherFin = nil
 		}
 	}
 }
