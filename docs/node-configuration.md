@@ -459,12 +459,16 @@ where:
 
 ### Hardforks
 
+The latest stable hardfork as per 0.107.1 release is Domovoi. Echidna is still
+in development and can change in an incompatible way.
+
 | Name            | Changes | References |
 | --- | --- | --- |
 | `Aspidochelone` | Adjusts the price of `System.Contract.CreateStandardAccount` and `System.Contract.CreateMultisigAccount` interops so that the resulting prices are in accordance with `sha256` method of native `CryptoLib` contract. Also adjusts the price of `System.Runtime.GetRandom` interop and fixes its vulnerability. A special NeoGo-specific change is included as well for ContractManagement's update/deploy call flags behaviour to be compatible with pre-0.99.0 behaviour that was changed because of the 3.2.0 protocol change | https://github.com/nspcc-dev/neo-go/pull/2469 <br> https://github.com/neo-project/neo/pull/2712 <br> https://github.com/nspcc-dev/neo-go/pull/2519 <br> https://github.com/neo-project/neo/pull/2749 <br> https://github.com/neo-project/neo/pull/2653 |
 | `Basilisk`      | Enables strict smart contract script check against a set of JMP instructions and against method boundaries enabled on contract deploy or update. Increases `stackitem.Integer` JSON parsing precision up to the maximum value supported by the NeoVM. Enables strict check for notifications emitted by a contract to precisely match the events specified in the contract manifest. | https://github.com/nspcc-dev/neo-go/pull/3056 <br> https://github.com/neo-project/neo/pull/2881 <br> https://github.com/nspcc-dev/neo-go/pull/3080 <br> https://github.com/neo-project/neo/pull/2883 <br> https://github.com/nspcc-dev/neo-go/pull/3085 <br> https://github.com/neo-project/neo/pull/2810 |
 | `Cockatrice`    | Introduces the ability to update native contracts. Includes a couple of new native smart contract APIs: `keccak256` of native CryptoLib contract and `getCommitteeAddress` of native NeoToken contract. | https://github.com/nspcc-dev/neo-go/pull/3402 <br> https://github.com/neo-project/neo/pull/2942 <br> https://github.com/nspcc-dev/neo-go/pull/3301 <br> https://github.com/neo-project/neo/pull/2925 <br> https://github.com/nspcc-dev/neo-go/pull/3362 <br> https://github.com/neo-project/neo/pull/3154 |
 | `Domovoi`       | Makes node use executing contract state for the contract call permissions check instead of the state stored in the native Management contract. In C# also makes System.Runtime.GetNotifications interop properly count stack references of notification parameters which prevents users from creating objects that exceed MaxStackSize constraint, but NeoGo has never had this bug, thus proper behaviour is preserved even before HFDomovoi. It results in the fact that some T5 testnet transactions have different ApplicationLogs compared to the C# node, but the node states match. | https://github.com/nspcc-dev/neo-go/pull/3476 <br> https://github.com/neo-project/neo/pull/3290 <br> https://github.com/nspcc-dev/neo-go/pull/3473 <br> https://github.com/neo-project/neo/pull/3290 <br> https://github.com/neo-project/neo/pull/3301 <br> https://github.com/nspcc-dev/neo-go/pull/3485 |
+| `Echidna`       | No changes for now | https://github.com/nspcc-dev/neo-go/pull/3554 |
 
 
 ## DB compatibility
