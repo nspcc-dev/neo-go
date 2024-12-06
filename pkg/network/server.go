@@ -226,9 +226,8 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	s.bSyncQueue = bqueue.New(s.stateSync, log, nil, bqueue.DefaultCacheSize, updateBlockQueueLenMetric, bqueue.NonBlocking)
 	s.bFetcherQueue = bqueue.New(chain, log, nil, s.NeoFSBlockFetcherCfg.BQueueSize, updateBlockQueueLenMetric, bqueue.Blocking)
 	var err error
-	s.blockFetcher, err = blockfetcher.New(chain, s.NeoFSBlockFetcherCfg, log, s.bFetcherQueue.PutBlock, func() {
-		close(s.blockFetcherFin)
-	})
+	s.blockFetcher, err = blockfetcher.New(chain, s.NeoFSBlockFetcherCfg, log, s.bFetcherQueue.PutBlock,
+		sync.OnceFunc(func() { close(s.blockFetcherFin) }))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create NeoFS BlockFetcher: %w", err)
 	}
@@ -575,6 +574,7 @@ func (s *Server) run() {
 				s.tryInitStateSync()
 				s.tryStartServices()
 			}
+			s.blockFetcherFin = nil
 		}
 	}
 }
