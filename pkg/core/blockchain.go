@@ -285,10 +285,10 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 	}
 	if cfg.Hardforks == nil {
 		cfg.Hardforks = map[string]uint32{}
-		for _, hf := range config.Hardforks {
+		for _, hf := range config.StableHardforks {
 			cfg.Hardforks[hf.String()] = 0
 		}
-		log.Info("Hardforks are not set, using default value")
+		log.Info("Hardforks are not set, enabling all stable ones", zap.Stringer("latest", config.HFLatestStable))
 	} else if len(cfg.Hardforks) != 0 {
 		// Explicitly set the height of all old omitted hardforks to 0 for proper
 		// IsHardforkEnabled behaviour.

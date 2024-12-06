@@ -373,7 +373,6 @@ func TestNewBlockchain_InitHardforks(t *testing.T) {
 			config.HFBasilisk.String():      0,
 			config.HFCockatrice.String():    0,
 			config.HFDomovoi.String():       0,
-			config.HFEchidna.String():       0,
 		}, bc.GetConfig().Hardforks)
 	})
 	t.Run("empty set", func(t *testing.T) {
