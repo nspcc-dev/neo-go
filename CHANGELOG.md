@@ -2,6 +2,31 @@
 
 This document outlines major changes between releases.
 
+## 0.107.1 "Narrativization" (06 Dec 2024)
+
+An urgent version that fixes the problem of intensive CPU usage caused by improper
+NeoFS BlockFetcher shutdown on the node's sync process completion and magnified by
+additional bug at the peer discovery level.
+
+No configuration changes or DB resync is required. It is highly recommended to update
+from 0.107.0 as soon as possible since described problems affect the speed of blocks
+processing and the overall node functionality.
+
+Behavior changes:
+ * explicitly enable the list of stable hardforks in default NeoFS testnet
+   configuration (#3722)
+
+Improvements:
+ * decrease NeoFS storage nodes deal timeout for NeoFS BlockFetcher (#3723)
+ * adjust optimal number of peers for networks with small peer count (#3727)
+ * don't enable unstable hardforks by default (#3724)
+
+Bugs fixed:
+ * "unexpected empty payload: CMDVersion" error on peer disconnection (#3726)
+ * NeoFS BlockFetcher shutdown (#3728)
+ * connected peers count is not respected on attempt to gather more node addresses
+   (#3730)
+
 ## 0.107.0 "Mongrelization" (03 Dec 2024)
 
 A large update that introduces a major node extension: NeoFS BlockFetcher service and
