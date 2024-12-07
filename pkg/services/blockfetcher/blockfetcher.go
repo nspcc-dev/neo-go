@@ -518,7 +518,10 @@ func (bfs *Service) retry(action func() error) error {
 	)
 	defer func() {
 		if !timer.Stop() {
-			<-timer.C
+			select {
+			case <-timer.C:
+			default:
+			}
 		}
 	}()
 
