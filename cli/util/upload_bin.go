@@ -61,6 +61,9 @@ const (
 	defaultHealthcheckTimeout = 10 * time.Second
 )
 
+// emptyOID is a zeroed object ID.
+var emptyOID = make([]byte, oidSize)
+
 // poolWrapper wraps a NeoFS pool to adapt its Close method to return an error.
 type poolWrapper struct {
 	*pool.Pool
@@ -83,6 +86,8 @@ func uploadBin(ctx *cli.Context) error {
 	maxParallelSearches := ctx.Int("searchers")
 	maxRetries := int(ctx.Uint("retries"))
 	debug := ctx.Bool("debug")
+	indexFileSize := ctx.Uint("index-file-size")
+	indexAttrKey := ctx.String("index-attribute")
 	acc, _, err := options.GetAccFromContext(ctx)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to load account: %v", err), 1)
@@ -158,17 +163,16 @@ func uploadBin(ctx *cli.Context) error {
 	}
 	fmt.Fprintln(ctx.App.Writer, "First block of latest incomplete batch uploaded to NeoFS container:", oldestMissingBlockIndex)
 
+	index, partUploadedBlocks, err := uploadIndexFiles(ctx, pWrapper, containerID, acc, signer, uint(oldestMissingBlockIndex), indexFileSize, attr, indexAttrKey, homomorphicHashingDisabled, maxParallelSearches, maxRetries, debug)
+	if err != nil {
+		return cli.Exit(fmt.Errorf("failed to upload index files: %w", err), 1)
+	}
+
 	if !ctx.Bool("skip-blocks-uploading") {
-		err = uploadBlocks(ctx, pWrapper, rpc, signer, containerID, acc, attr, oldestMissingBlockIndex, uint(currentBlockHeight), homomorphicHashingDisabled, numWorkers, maxRetries, debug)
+		err = uploadBlocks(ctx, pWrapper, rpc, signer, containerID, acc, attr, indexAttrKey, partUploadedBlocks, int(index*indexFileSize), indexFileSize, uint(currentBlockHeight), homomorphicHashingDisabled, numWorkers, maxRetries, debug)
 		if err != nil {
 			return cli.Exit(fmt.Errorf("failed to upload blocks: %w", err), 1)
 		}
-		oldestMissingBlockIndex = int(currentBlockHeight) + 1
-	}
-
-	err = uploadIndexFiles(ctx, pWrapper, containerID, acc, signer, uint(oldestMissingBlockIndex), attr, homomorphicHashingDisabled, maxParallelSearches, maxRetries, debug)
-	if err != nil {
-		return cli.Exit(fmt.Errorf("failed to upload index files: %w", err), 1)
 	}
 	return nil
 }
@@ -263,131 +267,190 @@ func fetchLatestMissingBlockIndex(ctx context.Context, p *pool.Pool, containerID
 	return 0, nil
 }
 
-// uploadBlocks uploads the blocks to the container using the pool.
-func uploadBlocks(ctx *cli.Context, p poolWrapper, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, acc *wallet.Account, attr string, oldestMissingBlockIndex int, currentBlockHeight uint, homomorphicHashingDisabled bool, numWorkers, maxRetries int, debug bool) error {
+// uploadBlocks uploads the blocks and index files to the container using the pool.
+func uploadBlocks(ctx *cli.Context, p poolWrapper, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, acc *wallet.Account, attr, indexAttributeKey string, buffer []byte, oldestMissingBlockIndex int, indexFileSize, currentBlockHeight uint, homomorphicHashingDisabled bool, numWorkers, maxRetries int, debug bool) error {
 	if oldestMissingBlockIndex > int(currentBlockHeight) {
 		fmt.Fprintf(ctx.App.Writer, "No new blocks to upload. Need to upload starting from %d, current height %d\n", oldestMissingBlockIndex, currentBlockHeight)
 		return nil
 	}
-	for batchStart := oldestMissingBlockIndex; batchStart <= int(currentBlockHeight); batchStart += uploadBatchSize {
-		var (
-			batchEnd = min(batchStart+uploadBatchSize, int(currentBlockHeight)+1)
-			errCh    = make(chan error)
-			doneCh   = make(chan struct{})
-			wg       sync.WaitGroup
-		)
-		fmt.Fprintf(ctx.App.Writer, "Processing batch from %d to %d\n", batchStart, batchEnd-1)
-		wg.Add(numWorkers)
-		for i := range numWorkers {
-			go func(i int) {
-				defer wg.Done()
-				for blockIndex := batchStart + i; blockIndex < batchEnd; blockIndex += numWorkers {
-					var blk *block.Block
-					errGet := retry(func() error {
-						var errGetBlock error
-						blk, errGetBlock = rpc.GetBlockByIndex(uint32(blockIndex))
-						if errGetBlock != nil {
-							return fmt.Errorf("failed to fetch block %d: %w", blockIndex, errGetBlock)
+	for indexFileStart := oldestMissingBlockIndex / int(indexFileSize) * int(indexFileSize); indexFileStart < int(currentBlockHeight); indexFileStart += int(indexFileSize) {
+		indexFileEnd := min(indexFileStart+int(indexFileSize), int(currentBlockHeight))
+		batchStart := indexFileStart
+		for batchStart < indexFileEnd {
+			var (
+				batchEnd = min((batchStart+uploadBatchSize)/uploadBatchSize*uploadBatchSize, indexFileEnd)
+				errCh    = make(chan error)
+				doneCh   = make(chan struct{})
+				wg       sync.WaitGroup
+			)
+			fmt.Fprintf(ctx.App.Writer, "Processing batch from %d to %d\n", batchStart, batchEnd-1)
+			wg.Add(numWorkers)
+			for i := range numWorkers {
+				go func(i int) {
+					defer wg.Done()
+					for blockIndex := batchStart + i; blockIndex < batchEnd; blockIndex += numWorkers {
+						if slices.Compare(buffer[blockIndex%int(indexFileSize)*oidSize:blockIndex%int(indexFileSize)*oidSize+oidSize], emptyOID) != 0 {
+							if debug {
+								fmt.Fprintf(ctx.App.Writer, "Block %d is already uploaded\n", blockIndex)
+							}
+							continue
 						}
-						return nil
-					}, maxRetries)
-					if errGet != nil {
-						select {
-						case errCh <- errGet:
-						default:
+						var blk *block.Block
+						errGet := retry(func() error {
+							var errGetBlock error
+							blk, errGetBlock = rpc.GetBlockByIndex(uint32(blockIndex))
+							if errGetBlock != nil {
+								return fmt.Errorf("failed to fetch block %d: %w", blockIndex, errGetBlock)
+							}
+							return nil
+						}, maxRetries)
+						if errGet != nil {
+							select {
+							case errCh <- errGet:
+							default:
+							}
+							return
 						}
-						return
-					}
 
-					bw := io.NewBufBinWriter()
-					blk.EncodeBinary(bw.BinWriter)
-					if bw.Err != nil {
-						select {
-						case errCh <- fmt.Errorf("failed to encode block %d: %w", blockIndex, bw.Err):
-						default:
+						bw := io.NewBufBinWriter()
+						blk.EncodeBinary(bw.BinWriter)
+						if bw.Err != nil {
+							select {
+							case errCh <- fmt.Errorf("failed to encode block %d: %w", blockIndex, bw.Err):
+							default:
+							}
+							return
 						}
-						return
-					}
-					attrs := []object.Attribute{
-						*object.NewAttribute(attr, strconv.Itoa(int(blk.Index))),
-						*object.NewAttribute("Primary", strconv.Itoa(int(blk.PrimaryIndex))),
-						*object.NewAttribute("Hash", blk.Hash().StringLE()),
-						*object.NewAttribute("PrevHash", blk.PrevHash.StringLE()),
-						*object.NewAttribute("Timestamp", strconv.FormatUint(blk.Timestamp, 10)),
-					}
+						attrs := []object.Attribute{
+							*object.NewAttribute(attr, strconv.Itoa(int(blk.Index))),
+							*object.NewAttribute("Primary", strconv.Itoa(int(blk.PrimaryIndex))),
+							*object.NewAttribute("Hash", blk.Hash().StringLE()),
+							*object.NewAttribute("PrevHash", blk.PrevHash.StringLE()),
+							*object.NewAttribute("Timestamp", strconv.FormatUint(blk.Timestamp, 10)),
+						}
 
-					objBytes := bw.Bytes()
-					errRetr := retry(func() error {
-						resOid, errUpload := uploadObj(ctx.Context, p, signer, acc.PrivateKey().GetScriptHash(), containerID, objBytes, attrs, homomorphicHashingDisabled)
-						if errUpload != nil {
+						var (
+							objBytes = bw.Bytes()
+							resOid   oid.ID
+						)
+						errRetr := retry(func() error {
+							var errUpload error
+							resOid, errUpload = uploadObj(ctx.Context, p, signer, acc.PrivateKey().GetScriptHash(), containerID, objBytes, attrs, homomorphicHashingDisabled)
+							if errUpload != nil {
+								return errUpload
+							}
+							if debug {
+								fmt.Fprintf(ctx.App.Writer, "Uploaded block %d with object ID: %s\n", blockIndex, resOid.String())
+							}
 							return errUpload
+						}, maxRetries)
+						if errRetr != nil {
+							select {
+							case errCh <- errRetr:
+							default:
+							}
+							return
 						}
-						if debug {
-							fmt.Fprintf(ctx.App.Writer, "Uploaded block %d with object ID: %s\n", blockIndex, resOid.String())
-						}
-						return errUpload
-					}, maxRetries)
-					if errRetr != nil {
-						select {
-						case errCh <- errRetr:
-						default:
-						}
-						return
+						resOid.Encode(buffer[blockIndex%int(indexFileSize)*oidSize:])
 					}
-				}
-			}(i)
+				}(i)
+			}
+
+			go func() {
+				wg.Wait()
+				close(doneCh)
+			}()
+
+			select {
+			case err := <-errCh:
+				return fmt.Errorf("upload error: %w", err)
+			case <-doneCh:
+			}
+
+			fmt.Fprintf(ctx.App.Writer, "Successfully processed batch of blocks: from %d to %d\n", batchStart, batchEnd-1)
+			batchStart = batchEnd
 		}
-
-		go func() {
-			wg.Wait()
-			close(doneCh)
-		}()
-
-		select {
-		case err := <-errCh:
-			return fmt.Errorf("upload error: %w", err)
-		case <-doneCh:
+		err := checkBuffer(buffer, uint(indexFileStart/int(indexFileSize)), uint(indexFileEnd-indexFileStart), indexFileSize)
+		if err != nil {
+			return err
 		}
-
-		fmt.Fprintf(ctx.App.Writer, "Successfully uploaded batch of blocks: from %d to %d\n", batchStart, batchEnd-1)
+		if indexFileEnd-indexFileStart == int(indexFileSize) {
+			attrs := []object.Attribute{
+				*object.NewAttribute(indexAttributeKey, strconv.Itoa(indexFileStart/int(indexFileSize))),
+				*object.NewAttribute("IndexSize", strconv.Itoa(int(indexFileSize))),
+			}
+			err = retry(func() error {
+				var errUpload error
+				_, errUpload = uploadObj(ctx.Context, p, signer, acc.PrivateKey().GetScriptHash(), containerID, buffer, attrs, homomorphicHashingDisabled)
+				return errUpload
+			}, maxRetries)
+			if err != nil {
+				return fmt.Errorf("failed to upload index file: %w", err)
+			}
+			fmt.Println("Successfully uploaded index file ", indexFileStart/int(indexFileSize))
+		}
+		clear(buffer)
 	}
 	return nil
 }
 
 // uploadIndexFiles uploads missing index files to the container.
-func uploadIndexFiles(ctx *cli.Context, p poolWrapper, containerID cid.ID, account *wallet.Account, signer user.Signer, oldestMissingBlockIndex uint, blockAttributeKey string, homomorphicHashingDisabled bool, maxParallelSearches, maxRetries int, debug bool) error {
+// It returns the number of uploaded index files and the buffer of  with the uploaded OIDs.
+func uploadIndexFiles(ctx *cli.Context, p poolWrapper, containerID cid.ID, account *wallet.Account, signer user.Signer, oldestMissingBlockIndex, indexFileSize uint, blockAttributeKey, attributeKey string, homomorphicHashingDisabled bool, maxParallelSearches, maxRetries int, debug bool) (uint, []byte, error) {
 	var (
-		attributeKey  = ctx.String("index-attribute")
-		indexFileSize = ctx.Uint("index-file-size")
+		// buffer is used to store OIDs of the uploaded blocks.
+		buffer = make([]byte, indexFileSize*oidSize)
+		doneCh = make(chan []byte, indexFileSize*oidSize)
+		errCh  = make(chan error)
 
-		buffer   = make([]byte, indexFileSize*oidSize)
-		doneCh   = make(chan struct{})
-		errCh    = make(chan error)
-		emptyOid = make([]byte, oidSize)
-
-		expectedIndexCount = (oldestMissingBlockIndex - 1) / indexFileSize
+		expectedIndexCount = uint(0)
 		existingIndexCount = uint(0)
-		filters            = object.NewSearchFilters()
+		// tail is surely uploaded blocks count (that should be checked - if not all of them preset it is a bug).
+		// oldestMissingBlockIndex + uploadBatchSize - number of possible uploaded blocks
+		// count (that should not be checked because they can be not sequential).
+		// But if EQ search haven't found all blocks in range -we will have
+		// duplicates. We will have a risk of duplicates until #3645 is resolved (NeoFS guarantees search results).
+		tail    = oldestMissingBlockIndex % indexFileSize
+		filters = object.NewSearchFilters()
 	)
+	if oldestMissingBlockIndex > 0 {
+		expectedIndexCount = (oldestMissingBlockIndex - 1) / indexFileSize
+	}
 	fmt.Fprintln(ctx.App.Writer, "Uploading index files...")
 
 	go func() {
 		defer close(doneCh)
 		// Search for existing index files.
 		filters.AddFilter("IndexSize", fmt.Sprintf("%d", indexFileSize), object.MatchStringEqual)
-		indexIDs := searchObjects(ctx.Context, p, containerID, account, attributeKey, 0, expectedIndexCount, maxParallelSearches, maxRetries, errCh, filters)
-		for range indexIDs {
-			existingIndexCount++
+		//+1 for cases when indexFileSize%uploadBatchSize!=0
+		for i := uint(0); i <= expectedIndexCount; i++ {
+			indexIDs := searchObjects(ctx.Context, p, containerID, account, attributeKey, i, i+1, 1, maxRetries, errCh, filters)
+			found := false
+			for range indexIDs {
+				if !found {
+					existingIndexCount++
+					found = true
+				} else {
+					select {
+					case errCh <- fmt.Errorf("duplicate index file %d found", i):
+					default:
+					}
+					return
+				}
+			}
+			if !found {
+				break
+			}
 		}
 
-		if existingIndexCount >= expectedIndexCount {
-			fmt.Fprintf(ctx.App.Writer, "Index files are up to date. Existing: %d, expected: %d\n", existingIndexCount, expectedIndexCount)
-			return
+		if existingIndexCount > expectedIndexCount {
+			expectedIndexCount += 1
+			tail = 0
 		}
 		fmt.Fprintf(ctx.App.Writer, "Current index files count: %d, expected: %d\n", existingIndexCount, expectedIndexCount)
 
-		// Main processing loop for each index file.
-		for i := existingIndexCount; i < expectedIndexCount; i++ {
+		// Main processing loop for each index file. One more loop is needed for tail search.
+		for i := existingIndexCount; i <= expectedIndexCount; i++ {
 			// Start block parsing goroutines.
 			var (
 				// processedIndices is a mapping from position in buffer to the block index.
@@ -439,12 +502,16 @@ func uploadIndexFiles(ctx *cli.Context, p poolWrapper, containerID cid.ID, accou
 			close(oidCh)
 			wg.Wait()
 			fmt.Fprintf(ctx.App.Writer, "Index file %d generated, checking for the missing blocks...\n", i)
+			bufferLength := indexFileSize
+			if i == expectedIndexCount {
+				bufferLength = tail
+			}
 
 			// Check if there are empty OIDs in the generated index file. This may happen
 			// if searchObjects has returned not all blocks within the requested range, ref.
 			// #3645. In this case, retry the search for every missing object.
 			var count int
-			for idx := range indexFileSize {
+			for idx := range bufferLength {
 				if _, ok := processedIndices.Load(idx); !ok {
 					count++
 					fmt.Fprintf(ctx.App.Writer, "Index file %d: fetching missing block %d\n", i, i*indexFileSize+idx)
@@ -468,14 +535,20 @@ func uploadIndexFiles(ctx *cli.Context, p poolWrapper, containerID cid.ID, accou
 
 			// Check if there are empty OIDs in the generated index file. If it happens at
 			// this stage, then there's a bug in the code.
-			for k := 0; k < len(buffer); k += oidSize {
-				if slices.Compare(buffer[k:k+oidSize], emptyOid) == 0 {
-					select {
-					case errCh <- fmt.Errorf("empty OID found in index file %d at position %d (block index %d)", i, k/oidSize, i*indexFileSize+uint(k/oidSize)):
-					default:
-					}
-					return
+			err := checkBuffer(buffer, i, bufferLength, indexFileSize)
+			if err != nil {
+				select {
+				case errCh <- err:
+				default:
 				}
+				return
+			}
+			if i == expectedIndexCount {
+				select {
+				case doneCh <- buffer:
+				default:
+				}
+				return
 			}
 
 			// Upload index file.
@@ -483,7 +556,7 @@ func uploadIndexFiles(ctx *cli.Context, p poolWrapper, containerID cid.ID, accou
 				*object.NewAttribute(attributeKey, strconv.Itoa(int(i))),
 				*object.NewAttribute("IndexSize", strconv.Itoa(int(indexFileSize))),
 			}
-			err := retry(func() error {
+			err = retry(func() error {
 				resOid, errUpload := uploadObj(ctx.Context, p, signer, account.PrivateKey().GetScriptHash(), containerID, buffer, attrs, homomorphicHashingDisabled)
 				if errUpload != nil {
 					return errUpload
@@ -507,11 +580,10 @@ func uploadIndexFiles(ctx *cli.Context, p poolWrapper, containerID cid.ID, accou
 
 	select {
 	case err := <-errCh:
-		return err
-	case <-doneCh:
+		return expectedIndexCount, nil, err
+	case res := <-doneCh:
+		return expectedIndexCount, res, nil
 	}
-
-	return nil
 }
 
 // searchObjects searches in parallel for objects with attribute GE startIndex and LT
@@ -648,4 +720,16 @@ func getBlockIndex(header object.Object, attribute string) (int, error) {
 		}
 	}
 	return -1, fmt.Errorf("attribute %s not found", attribute)
+}
+
+// checkBuffer checks if there are empty OIDs in the buffer. index is the index of the index file
+// in the container, checkLength is the length of the buffer to check, indexFileSize is the size of
+// the index file.
+func checkBuffer(buffer []byte, index uint, checkLength uint, indexFileSize uint) error {
+	for k := 0; uint(k) < checkLength*oidSize; k += oidSize {
+		if slices.Compare(buffer[k:k+oidSize], emptyOID) == 0 {
+			return fmt.Errorf("empty OID found in index file %d at position %d (block index %d)", index, k/oidSize, index*indexFileSize+uint(k/oidSize))
+		}
+	}
+	return nil
 }
