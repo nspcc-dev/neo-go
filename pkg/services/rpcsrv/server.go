@@ -471,7 +471,10 @@ func (s *Server) Shutdown() {
 			session.iteratorsLock.Lock()
 			session.finalize()
 			if !session.timer.Stop() {
-				<-session.timer.C
+				select {
+				case <-session.timer.C:
+				default:
+				}
 			}
 			session.iteratorsLock.Unlock()
 		}
@@ -2596,7 +2599,10 @@ func (s *Server) terminateSession(reqParams params.Params) (any, *neorpc.Error) 
 	session.iteratorsLock.Lock()
 	session.finalize()
 	if !session.timer.Stop() {
-		<-session.timer.C
+		select {
+		case <-session.timer.C:
+		default:
+		}
 	}
 	delete(s.sessions, strSID)
 	session.iteratorsLock.Unlock()
