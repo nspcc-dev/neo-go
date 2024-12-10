@@ -38,14 +38,8 @@ func (cfg *NeoFSBlockFetcher) Validate() error {
 	if err != nil {
 		return fmt.Errorf("invalid container ID: %w", err)
 	}
-	if cfg.BQueueSize < cfg.OIDBatchSize {
-		return fmt.Errorf("BQueueSize (%d) is lower than OIDBatchSize (%d)", cfg.BQueueSize, cfg.OIDBatchSize)
-	}
 	if len(cfg.Addresses) == 0 {
 		return errors.New("addresses are not set")
-	}
-	if !cfg.SkipIndexFilesSearch && cfg.IndexFileSize == 0 {
-		return errors.New("IndexFileSize is not set")
 	}
 	return nil
 }
