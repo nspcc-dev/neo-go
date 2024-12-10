@@ -194,32 +194,6 @@ func TestNeoFSBlockFetcherValidation(t *testing.T) {
 			shouldFail: true,
 			errMsg:     "addresses are not set",
 		},
-		{
-			cfg: NeoFSBlockFetcher{
-				InternalService: InternalService{Enabled: true},
-				Timeout:         time.Second,
-				ContainerID:     validContainerID,
-				Addresses:       []string{"127.0.0.1"},
-				OIDBatchSize:    10,
-				BQueueSize:      5,
-			},
-			shouldFail: true,
-			errMsg:     "BQueueSize (5) is lower than OIDBatchSize (10)",
-		},
-		{
-			cfg: NeoFSBlockFetcher{
-				InternalService:      InternalService{Enabled: true},
-				Timeout:              time.Second,
-				ContainerID:          validContainerID,
-				Addresses:            []string{"127.0.0.1"},
-				OIDBatchSize:         10,
-				BQueueSize:           20,
-				SkipIndexFilesSearch: false,
-				IndexFileSize:        0,
-			},
-			shouldFail: true,
-			errMsg:     "IndexFileSize is not set",
-		},
 	}
 
 	for _, c := range cases {

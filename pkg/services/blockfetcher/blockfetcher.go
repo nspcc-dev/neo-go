@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	gio "github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/network/bqueue"
 	"github.com/nspcc-dev/neo-go/pkg/services/oracle/neofs"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
@@ -34,9 +35,15 @@ const (
 	// defaultTimeout is the default timeout for NeoFS requests.
 	defaultTimeout = 5 * time.Minute
 	// defaultOIDBatchSize is the default number of OIDs to search and fetch at once.
-	defaultOIDBatchSize = 8000
+	defaultOIDBatchSize = bqueue.DefaultCacheSize
 	// defaultDownloaderWorkersCount is the default number of workers downloading blocks.
 	defaultDownloaderWorkersCount = 100
+	// defaultIndexFileSize is the default size of the index file.
+	defaultIndexFileSize = 128000
+	// defaultBlockAttribute is the default attribute name for block objects.
+	defaultBlockAttribute = "Block"
+	// defaultIndexFileAttribute is the default attribute name for index file objects.
+	defaultIndexFileAttribute = "Index"
 )
 
 // Constants related to NeoFS pool request timeouts.
@@ -151,8 +158,14 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 	if cfg.DownloaderWorkersCount <= 0 {
 		cfg.DownloaderWorkersCount = defaultDownloaderWorkersCount
 	}
-	if len(cfg.Addresses) == 0 {
-		return nil, errors.New("no addresses provided")
+	if cfg.IndexFileSize <= 0 {
+		cfg.IndexFileSize = defaultIndexFileSize
+	}
+	if cfg.BlockAttribute == "" {
+		cfg.BlockAttribute = defaultBlockAttribute
+	}
+	if cfg.IndexFileAttribute == "" {
+		cfg.IndexFileAttribute = defaultIndexFileAttribute
 	}
 
 	params := pool.DefaultOptions()
