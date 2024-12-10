@@ -69,6 +69,25 @@ func Call(ic *interop.Context) error {
 		return fmt.Errorf("method not found: %s/%d", method, len(args))
 	}
 	hasReturn := md.ReturnType != smartcontract.VoidType
+
+	if ic.SaveInvocations {
+		var (
+			arrCount  = len(args)
+			truncated = false
+			argBytes  []byte
+		)
+		if argBytes, err = ic.DAO.GetItemCtx().Serialize(stackitem.NewArray(args), false); err != nil {
+			truncated = true
+		}
+
+		ic.InvocationCalls = append(ic.InvocationCalls, state.ContractInvocation{
+			Hash:           u,
+			Method:         method,
+			ArgumentsBytes: argBytes,
+			ArgumentsCount: uint32(arrCount),
+			Truncated:      truncated,
+		})
+	}
 	return callInternal(ic, cs, method, fs, hasReturn, args, true)
 }
 

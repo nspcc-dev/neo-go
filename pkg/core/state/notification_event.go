@@ -20,6 +20,79 @@ type NotificationEvent struct {
 	Item       *stackitem.Array `json:"state"`
 }
 
+// ContractInvocation contains method call information.
+// The Arguments field will be nil if serialization of the arguments exceeds a predefined limit
+// (for security reasons). In that case Truncated will be set to true.
+type ContractInvocation struct {
+	Hash           util.Uint160     `json:"contracthash"`
+	Method         string           `json:"method"`
+	Arguments      *stackitem.Array `json:"arguments"`
+	ArgumentsBytes []byte
+	ArgumentsCount uint32 `json:"argumentscount"`
+	Truncated      bool   `json:"truncated"`
+}
+
+func (ci *ContractInvocation) DecodeBinary(r *io.BinReader) {
+	ci.Hash.DecodeBinary(r)
+	ci.Method = r.ReadString()
+	ci.ArgumentsBytes = r.ReadVarBytes()
+	si, err := stackitem.Deserialize(ci.ArgumentsBytes)
+	if err != nil {
+		return
+	}
+	ci.Arguments = si.(*stackitem.Array)
+	ci.ArgumentsCount = r.ReadU32LE()
+	ci.Truncated = r.ReadBool()
+}
+
+func (ci *ContractInvocation) EncodeBinaryWithContext(w *io.BinWriter, sc *stackitem.SerializationContext) {
+	ci.Hash.EncodeBinary(w)
+	w.WriteString(ci.Method)
+	w.WriteVarBytes(ci.ArgumentsBytes)
+	w.WriteU32LE(ci.ArgumentsCount)
+	w.WriteBool(ci.Truncated)
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (ci ContractInvocation) MarshalJSON() ([]byte, error) {
+	item, err := stackitem.ToJSONWithTypes(ci.Arguments)
+	if err != nil {
+		item = []byte(fmt.Sprintf(`"error: %v"`, err))
+	}
+	return json.Marshal(ContractInvocationAux{
+		Hash:           ci.Hash,
+		Method:         ci.Method,
+		Arguments:      item,
+		ArgumentsCount: ci.ArgumentsCount,
+		Truncated:      ci.Truncated,
+	})
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (ci *ContractInvocation) UnmarshalJSON(data []byte) error {
+	aux := new(ContractInvocationAux)
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	params, err := stackitem.FromJSONWithTypes(aux.Arguments)
+	if err != nil {
+		return err
+	}
+	if t := params.Type(); t != stackitem.ArrayT {
+		return fmt.Errorf("failed to convert invocation state of type %s to array", t.String())
+	}
+	ci.Arguments = params.(*stackitem.Array)
+	ci.Method = aux.Method
+	ci.Hash = aux.Hash
+	ci.ArgumentsCount = aux.ArgumentsCount
+	ci.Truncated = aux.Truncated
+	return nil
+}
+
+func (ci *ContractInvocation) EncodeBinary(w *io.BinWriter) {
+	ci.EncodeBinaryWithContext(w, stackitem.NewSerializationContext())
+}
+
 // AppExecResult represents the result of the script execution, gathering together
 // all resulting notifications, state, stack and other metadata.
 type AppExecResult struct {
@@ -95,6 +168,10 @@ func (aer *AppExecResult) EncodeBinaryWithContext(w *io.BinWriter, sc *stackitem
 		aer.Events[i].EncodeBinaryWithContext(w, sc)
 	}
 	w.WriteVarBytes([]byte(aer.FaultException))
+	w.WriteVarUint(uint64(len(aer.Invocations)))
+	for i := range aer.Invocations {
+		aer.Invocations[i].EncodeBinaryWithContext(w, sc)
+	}
 }
 
 // DecodeBinary implements the Serializable interface.
@@ -120,6 +197,9 @@ func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 	aer.Stack = arr
 	r.ReadArray(&aer.Events)
 	aer.FaultException = r.ReadString()
+	if r.Len() > 0 {
+		r.ReadArray(&aer.Invocations)
+	}
 }
 
 // notificationEventAux is an auxiliary struct for NotificationEvent JSON marshalling.
@@ -209,16 +289,26 @@ type Execution struct {
 	Stack          []stackitem.Item
 	Events         []NotificationEvent
 	FaultException string
+	Invocations    []ContractInvocation
+}
+
+type ContractInvocationAux struct {
+	Hash           util.Uint160    `json:"contracthash"`
+	Method         string          `json:"method"`
+	Arguments      json.RawMessage `json:"arguments"`
+	ArgumentsCount uint32          `json:"argumentscount"`
+	Truncated      bool            `json:"truncated"`
 }
 
 // executionAux represents an auxiliary struct for Execution JSON marshalling.
 type executionAux struct {
-	Trigger        string              `json:"trigger"`
-	VMState        string              `json:"vmstate"`
-	GasConsumed    int64               `json:"gasconsumed,string"`
-	Stack          json.RawMessage     `json:"stack"`
-	Events         []NotificationEvent `json:"notifications"`
-	FaultException *string             `json:"exception"`
+	Trigger        string               `json:"trigger"`
+	VMState        string               `json:"vmstate"`
+	GasConsumed    int64                `json:"gasconsumed,string"`
+	Stack          json.RawMessage      `json:"stack"`
+	Events         []NotificationEvent  `json:"notifications"`
+	FaultException *string              `json:"exception"`
+	Invocations    []ContractInvocation `json:"invocations"`
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -246,6 +336,7 @@ func (e Execution) MarshalJSON() ([]byte, error) {
 		Stack:          st,
 		Events:         e.Events,
 		FaultException: exception,
+		Invocations:    e.Invocations,
 	})
 }
 
@@ -287,6 +378,7 @@ func (e *Execution) UnmarshalJSON(data []byte) error {
 	if aux.FaultException != nil {
 		e.FaultException = *aux.FaultException
 	}
+	e.Invocations = aux.Invocations
 	return nil
 }
 
