@@ -139,6 +139,9 @@ func TestNativeContract_InvokeInternal(t *testing.T) {
 	mdDeploy := manState.Manifest.ABI.GetMethod("deploy", 2)
 	require.NotNil(t, mdDeploy)
 	t.Run("fail, bad call flag", func(t *testing.T) {
+		bc, _, _ := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
+			c.Hardforks = nil
+		})
 		ic, err := bc.GetTestVM(trigger.Application, nil, nil)
 		require.NoError(t, err)
 		v := ic.SpawnVM()
