@@ -401,6 +401,17 @@ func TestNEO_RecursiveGASMint(t *testing.T) {
 func TestNEO_GetCommitteeAddress(t *testing.T) {
 	neoValidatorInvoker := newNeoValidatorsClient(t)
 	e := neoValidatorInvoker.Executor
+	cfg := neoValidatorInvoker.Chain.GetConfig()
+
+	maxHardforkHeight := uint32(0)
+	for _, height := range cfg.Hardforks {
+		if height > maxHardforkHeight {
+			maxHardforkHeight = height
+		}
+	}
+	for range maxHardforkHeight {
+		neoValidatorInvoker.AddNewBlock(t)
+	}
 	standByCommitteePublicKeys, err := keys.NewPublicKeysFromStrings(e.Chain.GetConfig().StandbyCommittee)
 	require.NoError(t, err)
 	slices.SortFunc(standByCommitteePublicKeys, (*keys.PublicKey).Cmp)

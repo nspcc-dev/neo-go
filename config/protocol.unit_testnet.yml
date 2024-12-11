@@ -18,7 +18,10 @@ ProtocolConfiguration:
   VerifyTransactions: true
   P2PSigExtensions: true
   Hardforks:
-    Aspidochelone: 25
+    Aspidochelone: 3
+    Basilisk: 6
+    Cockatrice: 9
+    Domovoi: 12
 
 ApplicationConfiguration:
   SkipBlockVerification: false
