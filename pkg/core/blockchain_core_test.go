@@ -159,6 +159,11 @@ func TestNewBlockchainIncosistencies(t *testing.T) {
 			c.ApplicationConfiguration.RemoveUntraceableHeaders = true
 		}, storage.NewMemoryStore(), "RemoveUntraceableHeaders is enabled, but RemoveUntraceableBlocks is not")
 	})
+	t.Run("state exchange without state root", func(t *testing.T) {
+		checkNewBlockchainErr(t, func(c *config.Config) {
+			c.ProtocolConfiguration.P2PStateExchangeExtensions = true
+		}, storage.NewMemoryStore(), "P2PStatesExchangeExtensions are enabled, but StateRootInHeader is off")
+	})
 }
 
 func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
