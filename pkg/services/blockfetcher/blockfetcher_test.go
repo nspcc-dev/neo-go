@@ -65,7 +65,8 @@ func TestServiceConstructor(t *testing.T) {
 			InternalService: config.InternalService{
 				Enabled: true,
 			},
-			Addresses: []string{"localhost:8080"},
+			Addresses:  []string{"localhost:8080"},
+			BQueueSize: DefaultQueueCacheSize,
 		}
 		service, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
 		require.NoError(t, err)
@@ -73,7 +74,7 @@ func TestServiceConstructor(t *testing.T) {
 
 		require.Equal(t, service.IsActive(), false)
 		require.Equal(t, service.cfg.Timeout, defaultTimeout)
-		require.Equal(t, service.cfg.OIDBatchSize, defaultOIDBatchSize)
+		require.Equal(t, service.cfg.OIDBatchSize, DefaultQueueCacheSize/2)
 		require.Equal(t, service.cfg.DownloaderWorkersCount, defaultDownloaderWorkersCount)
 		require.Equal(t, service.IsActive(), false)
 	})

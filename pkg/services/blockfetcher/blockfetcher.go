@@ -32,11 +32,17 @@ const (
 	// oidSize is the size of the object ID in NeoFS.
 	oidSize = sha256.Size
 	// defaultTimeout is the default timeout for NeoFS requests.
-	defaultTimeout = 5 * time.Minute
-	// defaultOIDBatchSize is the default number of OIDs to search and fetch at once.
-	defaultOIDBatchSize = 8000
+	defaultTimeout = 10 * time.Minute
+	// DefaultQueueCacheSize is the default size of the queue cache.
+	DefaultQueueCacheSize = 16000
 	// defaultDownloaderWorkersCount is the default number of workers downloading blocks.
-	defaultDownloaderWorkersCount = 100
+	defaultDownloaderWorkersCount = 500
+	// defaultIndexFileSize is the default size of the index file.
+	defaultIndexFileSize = 128000
+	// DefaultBlockAttribute is the default attribute name for block objects.
+	defaultBlockAttribute = "Block"
+	// defaultIndexFileAttribute is the default attribute name for index file objects.
+	defaultIndexFileAttribute = "Index"
 )
 
 // Constants related to NeoFS pool request timeouts.
@@ -146,13 +152,19 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 		cfg.Timeout = defaultTimeout
 	}
 	if cfg.OIDBatchSize <= 0 {
-		cfg.OIDBatchSize = defaultOIDBatchSize
+		cfg.OIDBatchSize = cfg.BQueueSize / 2
 	}
 	if cfg.DownloaderWorkersCount <= 0 {
 		cfg.DownloaderWorkersCount = defaultDownloaderWorkersCount
 	}
-	if len(cfg.Addresses) == 0 {
-		return nil, errors.New("no addresses provided")
+	if cfg.IndexFileSize <= 0 {
+		cfg.IndexFileSize = defaultIndexFileSize
+	}
+	if cfg.BlockAttribute == "" {
+		cfg.BlockAttribute = defaultBlockAttribute
+	}
+	if cfg.IndexFileAttribute == "" {
+		cfg.IndexFileAttribute = defaultIndexFileAttribute
 	}
 
 	params := pool.DefaultOptions()
