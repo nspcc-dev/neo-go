@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
@@ -73,9 +74,9 @@ func TestServiceConstructor(t *testing.T) {
 		require.NotNil(t, service)
 
 		require.Equal(t, service.IsActive(), false)
-		require.Equal(t, service.cfg.Timeout, defaultTimeout)
+		require.Equal(t, service.cfg.Timeout, neofs.DefaultTimeout)
 		require.Equal(t, service.cfg.OIDBatchSize, DefaultQueueCacheSize/2)
-		require.Equal(t, service.cfg.DownloaderWorkersCount, defaultDownloaderWorkersCount)
+		require.Equal(t, service.cfg.DownloaderWorkersCount, neofs.DefaultDownloaderWorkersCount)
 		require.Equal(t, service.IsActive(), false)
 	})
 

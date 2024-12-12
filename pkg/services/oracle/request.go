@@ -13,7 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/services/oracle/neofs"
+	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"go.uber.org/zap"
 )
 

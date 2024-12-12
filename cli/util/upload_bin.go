@@ -2,7 +2,6 @@ package util
 
 import (
 	"context"
-	"crypto/sha256"
 	"fmt"
 	"slices"
 	"strconv"
@@ -14,7 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
-	"github.com/nspcc-dev/neo-go/pkg/services/oracle/neofs"
+	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
@@ -28,35 +27,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/urfave/cli/v2"
-)
-
-const (
-	// Number of objects to search in a batch. We need to search with EQ filter to
-	// avoid partially-completed SEARCH responses. If EQ search haven't found object
-	// the object will be uploaded one more time which may lead to duplicating objects.
-	// We will have a risk of duplicates until #3645 is resolved (NeoFS guarantees
-	// search results).
-	searchBatchSize = 1
-	// Size of object ID.
-	oidSize = sha256.Size
-)
-
-// Constants related to retry mechanism.
-const (
-	// Initial backoff duration.
-	initialBackoff = 500 * time.Millisecond
-	// Backoff multiplier.
-	backoffFactor = 2
-	// Maximum backoff duration.
-	maxBackoff = 20 * time.Second
-)
-
-// Constants related to NeoFS pool request timeouts.
-// Such big values are used to avoid NeoFS pool timeouts during block search and upload.
-const (
-	defaultDialTimeout        = 10 * time.Minute
-	defaultStreamTimeout      = 10 * time.Minute
-	defaultHealthcheckTimeout = 10 * time.Second
 )
 
 // poolWrapper wraps a NeoFS pool to adapt its Close method to return an error.
@@ -103,9 +73,9 @@ func uploadBin(ctx *cli.Context) error {
 	signer := user.NewAutoIDSignerRFC6979(acc.PrivateKey().PrivateKey)
 
 	params := pool.DefaultOptions()
-	params.SetHealthcheckTimeout(defaultHealthcheckTimeout)
-	params.SetNodeDialTimeout(defaultDialTimeout)
-	params.SetNodeStreamTimeout(defaultStreamTimeout)
+	params.SetHealthcheckTimeout(neofs.DefaultHealthcheckTimeout)
+	params.SetNodeDialTimeout(neofs.DefaultDialTimeout)
+	params.SetNodeStreamTimeout(neofs.DefaultStreamTimeout)
 	p, err := pool.New(pool.NewFlatNodeParams(rpcNeoFS), signer, params)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to create NeoFS pool: %v", err), 1)
@@ -166,15 +136,15 @@ func uploadBin(ctx *cli.Context) error {
 // retry function with exponential backoff.
 func retry(action func() error, maxRetries uint) error {
 	var err error
-	backoff := initialBackoff
+	backoff := neofs.InitialBackoff
 	for range maxRetries {
 		if err = action(); err == nil {
 			return nil // Success, no retry needed.
 		}
 		time.Sleep(backoff) // Backoff before retrying.
-		backoff *= time.Duration(backoffFactor)
-		if backoff > maxBackoff {
-			backoff = maxBackoff
+		backoff *= time.Duration(neofs.BackoffFactor)
+		if backoff > neofs.MaxBackoff {
+			backoff = neofs.MaxBackoff
 		}
 	}
 	return err // Return the last error after exhausting retries.
@@ -193,7 +163,7 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 			errCh        = make(chan error)
 			doneCh       = make(chan struct{})
 			wg           sync.WaitGroup
-			emptyOID     = make([]byte, oidSize)
+			emptyOID     = make([]byte, neofs.OIDSize)
 		)
 		fmt.Fprintf(ctx.App.Writer, "Processing batch from %d to %d\n", indexFileStart, indexFileEnd-1)
 		wg.Add(int(numWorkers))
@@ -201,7 +171,7 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 			go func(i uint) {
 				defer wg.Done()
 				for blockIndex := indexFileStart + i; blockIndex < indexFileEnd; blockIndex += numWorkers {
-					if slices.Compare(buf[blockIndex%indexFileSize*oidSize:blockIndex%indexFileSize*oidSize+oidSize], emptyOID) != 0 {
+					if slices.Compare(buf[blockIndex%indexFileSize*neofs.OIDSize:blockIndex%indexFileSize*neofs.OIDSize+neofs.OIDSize], emptyOID) != 0 {
 						if debug {
 							fmt.Fprintf(ctx.App.Writer, "Block %d is already uploaded\n", blockIndex)
 						}
@@ -263,7 +233,7 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 						}
 						return
 					}
-					resOid.Encode(buf[blockIndex%indexFileSize*oidSize:])
+					resOid.Encode(buf[blockIndex%indexFileSize*neofs.OIDSize:])
 				}
 			}(i)
 		}
@@ -281,9 +251,9 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 		fmt.Fprintf(ctx.App.Writer, "Successfully processed batch of blocks: from %d to %d\n", indexFileStart, indexFileEnd-1)
 
 		// Additional check for empty OIDs in the buffer.
-		for k := uint(0); k < (indexFileEnd-indexFileStart)*oidSize; k += oidSize {
-			if slices.Compare(buf[k:k+oidSize], emptyOID) == 0 {
-				return fmt.Errorf("empty OID found in index file %d at position %d (block index %d)", indexFileStart/indexFileSize, k/oidSize, indexFileStart/indexFileSize*indexFileSize+k/oidSize)
+		for k := uint(0); k < (indexFileEnd-indexFileStart)*neofs.OIDSize; k += neofs.OIDSize {
+			if slices.Compare(buf[k:k+neofs.OIDSize], emptyOID) == 0 {
+				return fmt.Errorf("empty OID found in index file %d at position %d (block index %d)", indexFileStart/indexFileSize, k/neofs.OIDSize, indexFileStart/indexFileSize*indexFileSize+k/neofs.OIDSize)
 			}
 		}
 		if indexFileEnd-indexFileStart == indexFileSize {
@@ -310,7 +280,7 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 func searchIndexFile(ctx *cli.Context, p poolWrapper, containerID cid.ID, account *wallet.Account, signer user.Signer, indexFileSize uint, blockAttributeKey, attributeKey string, maxParallelSearches, maxRetries uint) (uint, []byte, error) {
 	var (
 		// buf is used to store OIDs of the uploaded blocks.
-		buf    = make([]byte, indexFileSize*oidSize)
+		buf    = make([]byte, indexFileSize*neofs.OIDSize)
 		doneCh = make(chan struct{})
 		errCh  = make(chan error)
 
@@ -377,7 +347,7 @@ func searchIndexFile(ctx *cli.Context, p poolWrapper, containerID cid.ID, accoun
 					}
 					pos := uint(blockIndex) % indexFileSize
 					if _, ok := processedIndices.LoadOrStore(pos, blockIndex); !ok {
-						id.Encode(buf[pos*oidSize:])
+						id.Encode(buf[pos*neofs.OIDSize:])
 					}
 				}
 			}()
@@ -404,15 +374,15 @@ func searchIndexFile(ctx *cli.Context, p poolWrapper, containerID cid.ID, accoun
 // endIndex. It returns a buffered channel of resulting object IDs and closes it once
 // OID search is finished. Errors are sent to errCh in a non-blocking way.
 func searchObjects(ctx context.Context, p poolWrapper, containerID cid.ID, account *wallet.Account, blockAttributeKey string, startIndex, endIndex, maxParallelSearches, maxRetries uint, errCh chan error, additionalFilters ...object.SearchFilters) chan oid.ID {
-	var res = make(chan oid.ID, 2*searchBatchSize)
+	var res = make(chan oid.ID, 2*neofs.DefaultSearchBatchSize)
 	go func() {
 		var wg sync.WaitGroup
 		defer close(res)
 
-		for i := startIndex; i < endIndex; i += searchBatchSize * maxParallelSearches {
+		for i := startIndex; i < endIndex; i += neofs.DefaultSearchBatchSize * maxParallelSearches {
 			for j := range maxParallelSearches {
-				start := i + j*searchBatchSize
-				end := start + searchBatchSize
+				start := i + j*neofs.DefaultSearchBatchSize
+				end := start + neofs.DefaultSearchBatchSize
 
 				if start >= endIndex {
 					break
