@@ -85,7 +85,7 @@ NAME:
 neo-go util upload-bin - Fetch blocks from RPC node and upload them to the NeoFS container
 
 USAGE:
-neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--index-file-size <size>] [--skip-blocks-uploading] [--retries <num>] [--debug]
+neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--index-file-size <size>] [--retries <num>] [--debug]
 
 OPTIONS:
 --fs-rpc-endpoint value, --fsr value [ --fs-rpc-endpoint value, --fsr value ]  List of NeoFS storage node RPC addresses (comma-separated or multiple --fs-rpc-endpoint flags)
@@ -96,7 +96,6 @@ OPTIONS:
 --index-file-size value                                                        Size of index file (default: 128000)
 --workers value                                                                Number of workers to fetch, upload and search blocks concurrently (default: 50)
 --searchers value                                                              Number of concurrent searches for blocks (default: 20)
---skip-blocks-uploading                                                        Skip blocks uploading and upload only index files (default: false)
 --retries value                                                                Maximum number of Neo/NeoFS node request retries (default: 5)
 --debug, -d                                                                    Enable debug logging (LOTS of output, overrides configuration) (default: false)
 --rpc-endpoint value, -r value                                                 RPC node address
@@ -108,11 +107,18 @@ OPTIONS:
 
 This command works as follows:
 1. Fetches the current block height from the RPC node.
-2. Searches for the oldest half-filled batch of block objects stored in NeoFS. 
-3. Fetches missing blocks from the RPC node and uploads them to the NeoFS container 
-starting from the oldest half-filled batch.
-4. After uploading the blocks, it creates index files for the newly uploaded blocks. 
-5. Uploads the created index files to the NeoFS container.
+2. Searches for the index files stored in NeoFS.
+3. Searches for the stored blocks from the latest incomplete index file. 
+4. Fetches missing blocks from the RPC node and uploads them to the NeoFS container.
+5. After uploading the blocks, it creates index file based on the uploaded block OIDs. 
+6. Uploads the created index file to the NeoFS container.
+7. Repeats steps 4-6 until the current block height is reached.
 
 If the command is interrupted, it can be resumed. It starts the uploading process
-from the oldest half-filled batch of blocks.
+from the last uploaded index file. 
+
+For a given block sequence, only one type of index file is supported. If new index 
+files are needed (different `index-file-size` or `index-attribute`), the entire 
+block sequence must be uploaded from the beginning. Please, add a comment to the 
+[#3744](https://github.com/nspcc-dev/neo-go/issues/3744) issue if you need this
+functionality.
