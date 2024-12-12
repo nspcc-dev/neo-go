@@ -258,18 +258,13 @@ func NewMultiWithOptionsNoCheck(t testing.TB, options *Options) (*core.Blockchai
 		options = &Options{}
 	}
 
-	cfg := config.Blockchain{
-		ProtocolConfiguration: config.ProtocolConfiguration{
-			Magic:              netmode.UnitTestNet,
-			MaxTraceableBlocks: MaxTraceableBlocks,
-			TimePerBlock:       TimePerBlock,
-			StandbyCommittee:   standByCommittee,
-			ValidatorsCount:    4,
-			VerifyTransactions: true,
-		},
+	cfg, err := config.Load(config.DefaultConfigPath, netmode.UnitTestNet)
+	if err != nil {
+		return nil, nil, nil, err
 	}
+	bcfg := cfg.Blockchain()
 	if options.BlockchainConfigHook != nil {
-		options.BlockchainConfigHook(&cfg)
+		options.BlockchainConfigHook(&bcfg)
 	}
 
 	store := options.Store
@@ -282,7 +277,7 @@ func NewMultiWithOptionsNoCheck(t testing.TB, options *Options) (*core.Blockchai
 		logger = zaptest.NewLogger(t)
 	}
 
-	bc, err := core.NewBlockchain(store, cfg, logger)
+	bc, err := core.NewBlockchain(store, bcfg, logger)
 	if err == nil && !options.SkipRun {
 		go bc.Run()
 		t.Cleanup(bc.Close)

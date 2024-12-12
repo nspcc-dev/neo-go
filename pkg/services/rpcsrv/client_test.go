@@ -2457,7 +2457,10 @@ func TestClient_GetVersion_Hardforks(t *testing.T) {
 	v, err := c.GetVersion()
 	require.NoError(t, err)
 	expected := map[config.Hardfork]uint32{
-		config.HFAspidochelone: 25,
+		config.HFAspidochelone: 3,
+		config.HFBasilisk:      6,
+		config.HFCockatrice:    9,
+		config.HFDomovoi:       12,
 	}
 	require.InDeltaMapValues(t, expected, v.Protocol.Hardforks, 0)
 }
