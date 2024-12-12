@@ -16,13 +16,15 @@ form as a separate object with a unique OID and a set of attributes:
  - primary node index (`Primary:0`)
  - block hash in the LE form (`Hash:5412a781caf278c0736556c0e544c7cfdbb6e3c62ae221ef53646be89364566b`)
  - previous block hash in the LE form (`PrevHash:3654a054d82a8178c7dfacecc2c57282e23468a42ee407f14506368afe22d929`)
- - millisecond-precision block timestamp (`Timestamp:1627894840919`)
+ - millisecond-precision block creation timestamp (`BlockTime:1627894840919`)
+ - second-precision block uploading timestamp (`Timestamp:1627894840`)
 
 Each index file is an object containing a constant-sized batch of raw block object
 IDs in binary form ordered by block index. Each index file is marked with the
 following attributes:
  - index file identifier with consecutive file index value (`Index:0`)
  - the number of OIDs included into index file (`IndexSize:128000`)
+ - second-precision index file uploading timestamp (`Timestamp:1627894840`)
 
 ### NeoFS BlockFetcher
 

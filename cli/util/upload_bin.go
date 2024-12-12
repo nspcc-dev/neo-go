@@ -211,7 +211,8 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 						*object.NewAttribute("Primary", strconv.Itoa(int(blk.PrimaryIndex))),
 						*object.NewAttribute("Hash", blk.Hash().StringLE()),
 						*object.NewAttribute("PrevHash", blk.PrevHash.StringLE()),
-						*object.NewAttribute("Timestamp", strconv.FormatUint(blk.Timestamp, 10)),
+						*object.NewAttribute("BlockTime", strconv.FormatUint(blk.Timestamp, 10)),
+						*object.NewAttribute("Timestamp", strconv.FormatInt(time.Now().Unix(), 10)),
 					}
 
 					var (
@@ -263,6 +264,7 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 			attrs := []object.Attribute{
 				*object.NewAttribute(indexAttributeKey, strconv.Itoa(int(indexFileStart/indexFileSize))),
 				*object.NewAttribute("IndexSize", strconv.Itoa(int(indexFileSize))),
+				*object.NewAttribute("Timestamp", strconv.FormatInt(time.Now().Unix(), 10)),
 			}
 			err := retry(func() error {
 				var errUpload error
