@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/nspcc-dev/neo-go v0.106.4-0.20241016130346-d8e945978af6
-	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20240727093519-1a48f1ce43ec
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20241212130705-ea0a6114d2d6
 	github.com/stretchr/testify v1.9.0
 )
 
