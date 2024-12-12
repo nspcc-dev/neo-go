@@ -139,6 +139,28 @@ func TestRemoveOldTransfers(t *testing.T) {
 	}
 }
 
+func checkNewBlockchainErr(t *testing.T, cfg func(c *config.Config), store storage.Store, errText string) {
+	unitTestNetCfg, err := config.Load("../../config", testchain.Network())
+	require.NoError(t, err)
+	cfg(&unitTestNetCfg)
+	log := zaptest.NewLogger(t)
+	_, err = NewBlockchain(store, unitTestNetCfg.Blockchain(), log)
+	if len(errText) != 0 {
+		require.Error(t, err)
+		require.True(t, strings.Contains(err.Error(), errText))
+	} else {
+		require.NoError(t, err)
+	}
+}
+
+func TestNewBlockchainIncosistencies(t *testing.T) {
+	t.Run("untraceable blocks/headers", func(t *testing.T) {
+		checkNewBlockchainErr(t, func(c *config.Config) {
+			c.ApplicationConfiguration.RemoveUntraceableHeaders = true
+		}, storage.NewMemoryStore(), "RemoveUntraceableHeaders is enabled, but RemoveUntraceableBlocks is not")
+	})
+}
+
 func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 	var (
 		stateSyncInterval        = 4
@@ -186,19 +208,6 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 	_, err := batch.Persist()
 	require.NoError(t, err)
 
-	checkNewBlockchainErr := func(t *testing.T, cfg func(c *config.Config), store storage.Store, errText string) {
-		unitTestNetCfg, err := config.Load("../../config", testchain.Network())
-		require.NoError(t, err)
-		cfg(&unitTestNetCfg)
-		log := zaptest.NewLogger(t)
-		_, err = NewBlockchain(store, unitTestNetCfg.Blockchain(), log)
-		if len(errText) != 0 {
-			require.Error(t, err)
-			require.True(t, strings.Contains(err.Error(), errText))
-		} else {
-			require.NoError(t, err)
-		}
-	}
 	boltCfg := func(c *config.Config) {
 		spountCfg(c)
 		c.ApplicationConfiguration.KeepOnlyLatestState = true

@@ -766,16 +766,20 @@ func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, a
 
 // DeleteBlock removes the block from dao. It's not atomic, so make sure you're
 // using private MemCached instance here.
-func (dao *Simple) DeleteBlock(h util.Uint256) error {
+func (dao *Simple) DeleteBlock(h util.Uint256, dropHeader bool) error {
 	key := dao.makeExecutableKey(h)
 
 	b, err := dao.getBlock(key)
 	if err != nil {
 		return err
 	}
-	err = dao.storeHeader(key, &b.Header)
-	if err != nil {
-		return err
+	if !dropHeader {
+		err = dao.storeHeader(key, &b.Header)
+		if err != nil {
+			return err
+		}
+	} else {
+		dao.Store.Delete(key)
 	}
 
 	for _, tx := range b.Transactions {

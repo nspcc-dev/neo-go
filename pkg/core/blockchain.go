@@ -283,6 +283,9 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 				zap.Int("StateSyncInterval", cfg.StateSyncInterval))
 		}
 	}
+	if cfg.RemoveUntraceableHeaders && !cfg.RemoveUntraceableBlocks {
+		return nil, errors.New("RemoveUntraceableHeaders is enabled, but RemoveUntraceableBlocks is not")
+	}
 	if cfg.Hardforks == nil {
 		cfg.Hardforks = map[string]uint32{}
 		for _, hf := range config.StableHardforks {
@@ -603,7 +606,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
 		if p-bc.config.MaxTraceableBlocks > 0 {
-			err := cache.DeleteBlock(bc.GetHeaderHash(0))
+			err := cache.DeleteBlock(bc.GetHeaderHash(0), false)
 			if err != nil {
 				return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
 			}
@@ -797,7 +800,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 			keysCnt             = new(int)
 		)
 		for i := height + 1; i <= currHeight; i++ {
-			err := upperCache.DeleteBlock(bc.GetHeaderHash(i))
+			err := upperCache.DeleteBlock(bc.GetHeaderHash(i), false)
 			if err != nil {
 				return fmt.Errorf("error while removing block %d: %w", i, err)
 			}
@@ -1622,7 +1625,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				stop = start + 1
 			}
 			for index := start; index < stop; index++ {
-				err := kvcache.DeleteBlock(bc.GetHeaderHash(index))
+				err := kvcache.DeleteBlock(bc.GetHeaderHash(index), bc.config.Ledger.RemoveUntraceableHeaders)
 				if err != nil {
 					bc.log.Warn("error while removing old block",
 						zap.Uint32("index", index),

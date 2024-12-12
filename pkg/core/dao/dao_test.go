@@ -107,6 +107,15 @@ func TestPutGetBlock(t *testing.T) {
 	require.Equal(t, 2, len(gotAppExecResult))
 	require.Equal(t, *appExecResult1, gotAppExecResult[0])
 	require.Equal(t, *appExecResult2, gotAppExecResult[1])
+
+	require.NoError(t, dao.DeleteBlock(hash, false))
+	gotBlock, err = dao.GetBlock(hash) // It's just a header, but it's still there.
+	require.NoError(t, err)
+	require.NotNil(t, gotBlock)
+
+	require.NoError(t, dao.DeleteBlock(hash, true))
+	_, err = dao.GetBlock(hash)
+	require.Error(t, err)
 }
 
 func TestGetVersion_NoVersion(t *testing.T) {
