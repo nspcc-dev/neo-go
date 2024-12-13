@@ -2,6 +2,43 @@
 
 This document outlines major changes between releases.
 
+## 0.107.2 "Obliteration" (13 Dec 2024)
+
+One more compatible patch-release that introduces `RemoveUntraceableHeaders`
+application-level extension allowing to remove untraceable block headers from the DB.
+This feature significantly reduces the database size, but for now it is supported in
+an experimental mode, use it with care. Other than that, this release includes a fix
+of BlockFetcher service that may hang on retry of NeoFS requests preventing the node
+from syncing. Also, an improved algorithm of blocks uploading and extended list of
+block and index file attributes are supported for `upload-bin` CLI command.
+
+No configuration update or DB resync is required. However, starting from this release
+`NeoFSBlockFetcher` application configuration section is backed by default values for
+every parameter except `Addresses` and `ContainerID`, hence if you don't like too
+chatty configuration files, feel free to remove all optional parameters.
+
+New features:
+ * untraceable headers removal (#3750)
+
+Behavior changes:
+ * add `BlockTime` attribute to block objects stored in NeoFS block storage (#3749)
+ * use `Timestamp` attribute to hold object creation time for block and index objects
+   stored in NeoFS block storage (#3749)
+ * extended debug logs for `upload-bin` CLI command (#3751)
+
+Improvements:
+ * embed default UnitTestNet node configuration (#3696)
+ * NeoFS SDK dependency upgrade (#3725, #3756)
+ * dependent packages updates (#3746, #3747, #3748)
+ * refactor and speed up `upload-bin` CLI command (#3735)
+ * backup NeoFS BlockFetcher configuration with default values (#3742)
+ * reuse more of built-in NeoFS SDK functionality in `upload-bin` CLI handler (#3749)
+
+Bugs fixed:
+ * NeoFS BlockFetcher sometimes is hanging during the node startup (#3736)
+ * RPC server timers are improperly drained (#3737)
+ * basic unit test chain restore configuration (#3696)
+
 ## 0.107.1 "Narrativization" (06 Dec 2024)
 
 An urgent version that fixes the problem of intensive CPU usage caused by improper
