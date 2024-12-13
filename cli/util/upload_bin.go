@@ -110,7 +110,7 @@ func uploadBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Errorf("failed to find objects: %w", err), 1)
 	}
 
-	err = uploadBlocksAndIndexFiles(ctx, pWrapper, rpc, signer, containerID, user.NewFromScriptHash(acc.ScriptHash()), attr, indexAttrKey, buf, i, indexFileSize, uint(currentBlockHeight), numWorkers, maxRetries, debug)
+	err = uploadBlocksAndIndexFiles(ctx, pWrapper, rpc, signer, containerID, attr, indexAttrKey, buf, i, indexFileSize, uint(currentBlockHeight), numWorkers, maxRetries, debug)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to upload objects: %w", err), 1)
 	}
@@ -138,7 +138,7 @@ func retry(action func() error, maxRetries uint, debug bool) error {
 }
 
 // uploadBlocksAndIndexFiles uploads the blocks and index files to the container using the pool.
-func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, ownerID user.ID, attr, indexAttributeKey string, buf []byte, currentIndexFileID, indexFileSize, currentBlockHeight uint, numWorkers, maxRetries uint, debug bool) error {
+func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, attr, indexAttributeKey string, buf []byte, currentIndexFileID, indexFileSize, currentBlockHeight uint, numWorkers, maxRetries uint, debug bool) error {
 	if currentIndexFileID*indexFileSize >= currentBlockHeight {
 		fmt.Fprintf(ctx.App.Writer, "No new blocks to upload. Need to upload starting from %d, current height %d\n", currentIndexFileID*indexFileSize, currentBlockHeight)
 		return nil
@@ -204,7 +204,7 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 					)
 					errRetr := retry(func() error {
 						var errUpload error
-						resOid, errUpload = uploadObj(ctx.Context, p, signer, ownerID, containerID, objBytes, attrs)
+						resOid, errUpload = uploadObj(ctx.Context, p, signer, containerID, objBytes, attrs)
 						if errUpload != nil {
 							return errUpload
 						}
@@ -251,7 +251,7 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 			}
 			err := retry(func() error {
 				var errUpload error
-				_, errUpload = uploadObj(ctx.Context, p, signer, ownerID, containerID, buf, attrs)
+				_, errUpload = uploadObj(ctx.Context, p, signer, containerID, buf, attrs)
 				return errUpload
 			}, maxRetries, debug)
 			if err != nil {
@@ -423,16 +423,15 @@ func searchObjects(ctx context.Context, p poolWrapper, containerID cid.ID, privK
 }
 
 // uploadObj uploads object to the container using provided settings.
-func uploadObj(ctx context.Context, p poolWrapper, signer user.Signer, ownerID user.ID, containerID cid.ID, objData []byte, attrs []object.Attribute) (oid.ID, error) {
+func uploadObj(ctx context.Context, p poolWrapper, signer user.Signer, containerID cid.ID, objData []byte, attrs []object.Attribute) (oid.ID, error) {
 	var (
 		hdr              object.Object
 		prmObjectPutInit client.PrmObjectPutInit
 		resOID           = oid.ID{}
 	)
 
-	hdr.SetPayload(objData)
 	hdr.SetContainerID(containerID)
-	hdr.SetOwner(ownerID)
+	hdr.SetOwner(signer.UserID())
 	hdr.SetAttributes(attrs...)
 
 	writer, err := p.ObjectPutInit(ctx, hdr, signer, prmObjectPutInit)
@@ -450,9 +449,6 @@ func uploadObj(ctx context.Context, p poolWrapper, signer user.Signer, ownerID u
 	}
 	res := writer.GetResult()
 	resOID = res.StoredObjectID()
-	if resOID.IsZero() {
-		return resOID, fmt.Errorf("object ID is empty")
-	}
 	return resOID, nil
 }
 
