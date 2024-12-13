@@ -16,16 +16,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/pool"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/urfave/cli/v2"
 )
 
@@ -86,17 +83,6 @@ func uploadBin(ctx *cli.Context) error {
 	}
 	defer p.Close()
 
-	var net netmap.NetworkInfo
-	err = retry(func() error {
-		var errNet error
-		net, errNet = p.NetworkInfo(ctx.Context, client.PrmNetworkInfo{})
-		return errNet
-	}, maxRetries, debug)
-	if err != nil {
-		return cli.Exit(fmt.Errorf("failed to get network info: %w", err), 1)
-	}
-	homomorphicHashingDisabled := net.HomomorphicHashingDisabled()
-
 	var containerObj container.Container
 	err = retry(func() error {
 		containerObj, err = p.ContainerGet(ctx.Context, containerID, client.PrmContainerGet{})
@@ -126,7 +112,7 @@ func uploadBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Errorf("failed to find objects: %w", err), 1)
 	}
 
-	err = uploadBlocksAndIndexFiles(ctx, pWrapper, rpc, signer, containerID, acc, attr, indexAttrKey, buf, i, indexFileSize, uint(currentBlockHeight), homomorphicHashingDisabled, numWorkers, maxRetries, debug)
+	err = uploadBlocksAndIndexFiles(ctx, pWrapper, rpc, signer, containerID, acc, attr, indexAttrKey, buf, i, indexFileSize, uint(currentBlockHeight), numWorkers, maxRetries, debug)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to upload objects: %w", err), 1)
 	}
@@ -154,7 +140,7 @@ func retry(action func() error, maxRetries uint, debug bool) error {
 }
 
 // uploadBlocksAndIndexFiles uploads the blocks and index files to the container using the pool.
-func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, acc *wallet.Account, attr, indexAttributeKey string, buf []byte, currentIndexFileID, indexFileSize, currentBlockHeight uint, homomorphicHashingDisabled bool, numWorkers, maxRetries uint, debug bool) error {
+func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, acc *wallet.Account, attr, indexAttributeKey string, buf []byte, currentIndexFileID, indexFileSize, currentBlockHeight uint, numWorkers, maxRetries uint, debug bool) error {
 	if currentIndexFileID*indexFileSize >= currentBlockHeight {
 		fmt.Fprintf(ctx.App.Writer, "No new blocks to upload. Need to upload starting from %d, current height %d\n", currentIndexFileID*indexFileSize, currentBlockHeight)
 		return nil
@@ -211,7 +197,8 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 						*object.NewAttribute("Primary", strconv.Itoa(int(blk.PrimaryIndex))),
 						*object.NewAttribute("Hash", blk.Hash().StringLE()),
 						*object.NewAttribute("PrevHash", blk.PrevHash.StringLE()),
-						*object.NewAttribute("Timestamp", strconv.FormatUint(blk.Timestamp, 10)),
+						*object.NewAttribute("BlockTime", strconv.FormatUint(blk.Timestamp, 10)),
+						*object.NewAttribute("Timestamp", strconv.FormatInt(time.Now().Unix(), 10)),
 					}
 
 					var (
@@ -220,7 +207,7 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 					)
 					errRetr := retry(func() error {
 						var errUpload error
-						resOid, errUpload = uploadObj(ctx.Context, p, signer, acc.PrivateKey().GetScriptHash(), containerID, objBytes, attrs, homomorphicHashingDisabled)
+						resOid, errUpload = uploadObj(ctx.Context, p, signer, acc.PrivateKey().GetScriptHash(), containerID, objBytes, attrs)
 						if errUpload != nil {
 							return errUpload
 						}
@@ -263,10 +250,11 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 			attrs := []object.Attribute{
 				*object.NewAttribute(indexAttributeKey, strconv.Itoa(int(indexFileStart/indexFileSize))),
 				*object.NewAttribute("IndexSize", strconv.Itoa(int(indexFileSize))),
+				*object.NewAttribute("Timestamp", strconv.FormatInt(time.Now().Unix(), 10)),
 			}
 			err := retry(func() error {
 				var errUpload error
-				_, errUpload = uploadObj(ctx.Context, p, signer, acc.PrivateKey().GetScriptHash(), containerID, buf, attrs, homomorphicHashingDisabled)
+				_, errUpload = uploadObj(ctx.Context, p, signer, acc.PrivateKey().GetScriptHash(), containerID, buf, attrs)
 				return errUpload
 			}, maxRetries, debug)
 			if err != nil {
@@ -438,41 +426,19 @@ func searchObjects(ctx context.Context, p poolWrapper, containerID cid.ID, accou
 }
 
 // uploadObj uploads object to the container using provided settings.
-func uploadObj(ctx context.Context, p poolWrapper, signer user.Signer, owner util.Uint160, containerID cid.ID, objData []byte, attrs []object.Attribute, homomorphicHashingDisabled bool) (oid.ID, error) {
+func uploadObj(ctx context.Context, p poolWrapper, signer user.Signer, owner util.Uint160, containerID cid.ID, objData []byte, attrs []object.Attribute) (oid.ID, error) {
 	var (
 		ownerID          user.ID
 		hdr              object.Object
-		chSHA256         checksum.Checksum
-		chHomomorphic    checksum.Checksum
-		v                = new(version.Version)
 		prmObjectPutInit client.PrmObjectPutInit
 		resOID           = oid.ID{}
 	)
 
 	ownerID.SetScriptHash(owner)
 	hdr.SetPayload(objData)
-	hdr.SetPayloadSize(uint64(len(objData)))
 	hdr.SetContainerID(containerID)
 	hdr.SetOwnerID(&ownerID)
 	hdr.SetAttributes(attrs...)
-	hdr.SetCreationEpoch(1)
-	v.SetMajor(1)
-	hdr.SetVersion(v)
-	if !homomorphicHashingDisabled {
-		checksum.Calculate(&chHomomorphic, checksum.TZ, objData)
-		hdr.SetPayloadHomomorphicHash(chHomomorphic)
-	}
-	checksum.Calculate(&chSHA256, checksum.SHA256, objData)
-	hdr.SetPayloadChecksum(chSHA256)
-
-	err := hdr.SetIDWithSignature(signer)
-	if err != nil {
-		return resOID, err
-	}
-	err = hdr.CheckHeaderVerificationFields()
-	if err != nil {
-		return resOID, err
-	}
 
 	writer, err := p.ObjectPutInit(ctx, hdr, signer, prmObjectPutInit)
 	if err != nil {
