@@ -185,27 +185,28 @@ where:
 - `UnlockWallet` contains wallet settings to retrieve account to sign requests to
   NeoFS. Without this setting, the module will use randomly generated private key.
   For configuration details see [Unlock Wallet Configuration](#Unlock-Wallet-Configuration)
-- `Addresses` is a list of NeoFS storage nodes addresses.
-- `Timeout` is a timeout for a single request to NeoFS storage node.
-- `ContainerID` is a container ID to fetch blocks from.
+- `Addresses` is a list of NeoFS storage nodes addresses. This parameter is required.
+- `Timeout` is a timeout for a single request to NeoFS storage node (10 minutes by
+  default).
+- `ContainerID` is a container ID to fetch blocks from. This parameter is required.
 - `BlockAttribute` is an attribute name of NeoFS object that contains block
-  data.
+  data. It's set to `Block` by default.
 - `IndexFileAttribute` is an attribute name of NeoFS index object that contains block
-  object IDs.
+  object IDs. It's set to `Index` by default.
 - `DownloaderWorkersCount` is a number of workers that download blocks from
-  NeoFS in parallel.
+  NeoFS in parallel (500 by default).
 - `OIDBatchSize` is the number of blocks to search per a single request to NeoFS
   in case of disabled index files search. Also, for both modes of BlockFetcher
   operation this setting manages the buffer size of OIDs and blocks transferring
-  channels.
+  channels. By default, it's set to a half of `BQueueSize` parameter.
 - `BQueueSize` is a size of the block queue used to manage consecutive blocks
   addition to the chain. It must be larger than `OIDBatchSize` and highly recommended
-  to be `2*OIDBatchSize` or `3*OIDBatchSize`.
+  to be `2*OIDBatchSize` or `3*OIDBatchSize`. By default, it's set to 16000.
 - `SkipIndexFilesSearch` is a flag that allows to skip index files search and search
   for blocks directly. It is set to `false` by default.
 - `IndexFileSize` is the number of OID objects stored in the index files. This
   setting depends on the NeoFS block storage configuration and is applicable only if
-  `SkipIndexFilesSearch` is set to `false`.
+  `SkipIndexFilesSearch` is set to `false`. It's set to 128000 by default.
 
 ### Metrics Services Configuration
 
