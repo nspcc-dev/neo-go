@@ -106,6 +106,7 @@ func TestRemoveOldTransfers(t *testing.T) {
 
 	_, err = bc.dao.Persist()
 	require.NoError(t, err)
+	_ = bc.gcBlockTimes.Add(0, h.Timestamp)
 	_ = bc.removeOldTransfers(0)
 
 	for i := range uint32(2) {

@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	lru "github.com/hashicorp/golang-lru/v2"
 	json "github.com/nspcc-dev/go-ordered-json"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/limits"
@@ -61,6 +62,14 @@ const (
 	// HeaderVerificationGasLimit is the maximum amount of GAS for block header verification.
 	HeaderVerificationGasLimit = 3_00000000 // 3 GAS
 	defaultStateSyncInterval   = 40000
+
+	// defaultBlockTimesCache should be sufficient for tryRunGC() to get in
+	// sync with storeBlock(). Most of the time they differ by some thousands of
+	// blocks and GC interval is more like 10K, so this is sufficient for 80K
+	// deviation and should be sufficient. If it's not, it's not a big issue
+	// either, the next cycle will still do the job (only transfers need this,
+	// MPT won't notice at all).
+	defaultBlockTimesCache = 8
 )
 
 // stateChangeStage denotes the stage of state modification process.
@@ -155,6 +164,11 @@ type Blockchain struct {
 
 	// Current persisted block count.
 	persistedHeight uint32
+
+	// Index->Timestamp cache for garbage collector. Headers can be gone
+	// by the time it runs, so we use a tiny little cache to sync block
+	// removal (performed in storeBlock()) with transfer/MPT GC (tryRunGC())
+	gcBlockTimes *lru.Cache[uint32, uint64]
 
 	// Stop synchronization mechanisms.
 	stopCh      chan struct{}
@@ -324,6 +338,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		contracts:   *native.NewContracts(cfg.ProtocolConfiguration),
 	}
 
+	bc.gcBlockTimes, _ = lru.New[uint32, uint64](defaultBlockTimesCache) // Never errors for positive size
 	bc.stateRoot = stateroot.NewModule(cfg, bc.VerifyWitness, bc.log, bc.dao.Store)
 	bc.contracts.Designate.StateRootService = bc.stateRoot
 
@@ -606,7 +621,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
 		if p-bc.config.MaxTraceableBlocks > 0 {
-			err := cache.DeleteBlock(bc.GetHeaderHash(0), false)
+			_, err := cache.DeleteBlock(bc.GetHeaderHash(0), false)
 			if err != nil {
 				return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
 			}
@@ -800,7 +815,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 			keysCnt             = new(int)
 		)
 		for i := height + 1; i <= currHeight; i++ {
-			err := upperCache.DeleteBlock(bc.GetHeaderHash(i), false)
+			_, err := upperCache.DeleteBlock(bc.GetHeaderHash(i), false)
 			if err != nil {
 				return fmt.Errorf("error while removing block %d: %w", i, err)
 			}
@@ -1289,15 +1304,20 @@ func appendTokenTransferInfo(transferData *state.TokenTransferInfo,
 
 func (bc *Blockchain) removeOldTransfers(index uint32) time.Duration {
 	bc.log.Info("starting transfer data garbage collection", zap.Uint32("index", index))
-	start := time.Now()
-	h, err := bc.GetHeader(bc.GetHeaderHash(index))
-	if err != nil {
+	var (
+		err     error
+		kept    int64
+		removed int64
+		start   = time.Now()
+		ts, ok  = bc.gcBlockTimes.Get(index)
+	)
+
+	if !ok {
 		dur := time.Since(start)
-		bc.log.Error("failed to find block header for transfer GC", zap.Duration("time", dur), zap.Error(err))
+		bc.log.Error("failed to get block timestamp transfer GC", zap.Duration("time", dur), zap.Uint32("index", index))
 		return dur
 	}
-	var removed, kept int64
-	var ts = h.Timestamp
+
 	prefixes := []byte{byte(storage.STNEP11Transfers), byte(storage.STNEP17Transfers)}
 
 	for i := range prefixes {
@@ -1623,7 +1643,10 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				stop = start + 1
 			}
 			for index := start; index < stop; index++ {
-				err := kvcache.DeleteBlock(bc.GetHeaderHash(index), bc.config.Ledger.RemoveUntraceableHeaders)
+				ts, err := kvcache.DeleteBlock(bc.GetHeaderHash(index), bc.config.Ledger.RemoveUntraceableHeaders)
+				if bc.config.Ledger.RemoveUntraceableHeaders && index%bc.config.Ledger.GarbageCollectionPeriod == 0 {
+					_ = bc.gcBlockTimes.Add(index, ts)
+				}
 				if err != nil {
 					bc.log.Warn("error while removing old block",
 						zap.Uint32("index", index),

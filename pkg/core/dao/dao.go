@@ -765,18 +765,19 @@ func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, a
 }
 
 // DeleteBlock removes the block from dao. It's not atomic, so make sure you're
-// using private MemCached instance here.
-func (dao *Simple) DeleteBlock(h util.Uint256, dropHeader bool) error {
+// using private MemCached instance here. It returns block timestamp for GC
+// convenience.
+func (dao *Simple) DeleteBlock(h util.Uint256, dropHeader bool) (uint64, error) {
 	key := dao.makeExecutableKey(h)
 
 	b, err := dao.getBlock(key)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if !dropHeader {
 		err = dao.storeHeader(key, &b.Header)
 		if err != nil {
-			return err
+			return 0, err
 		}
 	} else {
 		dao.Store.Delete(key)
@@ -791,7 +792,7 @@ func (dao *Simple) DeleteBlock(h util.Uint256, dropHeader bool) error {
 
 			v, err := dao.Store.Get(key)
 			if err != nil {
-				return fmt.Errorf("failed to retrieve conflict record stub for %s (height %d, conflict %s): %w", tx.Hash().StringLE(), b.Index, hash.StringLE(), err)
+				return 0, fmt.Errorf("failed to retrieve conflict record stub for %s (height %d, conflict %s): %w", tx.Hash().StringLE(), b.Index, hash.StringLE(), err)
 			}
 			// It might be a block since we allow transactions to have block hash in the Conflicts attribute.
 			if v[0] != storage.ExecTransaction {
@@ -809,7 +810,7 @@ func (dao *Simple) DeleteBlock(h util.Uint256, dropHeader bool) error {
 				sKey := append(key, s.Account.BytesBE()...)
 				v, err := dao.Store.Get(sKey)
 				if err != nil {
-					return fmt.Errorf("failed to retrieve conflict record for %s (height %d, conflict %s, signer %s): %w", tx.Hash().StringLE(), b.Index, hash.StringLE(), address.Uint160ToString(s.Account), err)
+					return 0, fmt.Errorf("failed to retrieve conflict record for %s (height %d, conflict %s, signer %s): %w", tx.Hash().StringLE(), b.Index, hash.StringLE(), address.Uint160ToString(s.Account), err)
 				}
 				index = binary.LittleEndian.Uint32(v[1:])
 				if index == b.Index {
@@ -819,7 +820,7 @@ func (dao *Simple) DeleteBlock(h util.Uint256, dropHeader bool) error {
 		}
 	}
 
-	return nil
+	return b.Timestamp, nil
 }
 
 // PurgeHeader completely removes specified header from dao. It differs from
