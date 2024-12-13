@@ -330,7 +330,7 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 // streamBlockOIDs reads block OIDs from the read closer and sends them to the OIDs channel.
 func (bfs *Service) streamBlockOIDs(rc io.ReadCloser, skip int) error {
 	defer rc.Close()
-	oidBytes := make([]byte, neofs.OIDSize)
+	oidBytes := make([]byte, oid.Size)
 	oidsProcessed := 0
 
 	for {

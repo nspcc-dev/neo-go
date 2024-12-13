@@ -16,7 +16,7 @@ require (
 	github.com/nspcc-dev/dbft v0.3.1
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20240830112754-291b000d1f3b
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20241212130705-ea0a6114d2d6
-	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.12
+	github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.12.0.20241205083504-335d9fe90f24
 	github.com/nspcc-dev/rfc6979 v0.2.3
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/prometheus/client_golang v1.20.2
@@ -30,12 +30,12 @@ require (
 	golang.org/x/term v0.27.0
 	golang.org/x/text v0.21.0
 	golang.org/x/tools v0.24.0
-	google.golang.org/grpc v1.62.0
+	google.golang.org/grpc v1.65.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
-	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20221202181307-76fa05c21b12 // indirect
+	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.14.2 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
@@ -45,7 +45,6 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/frankban/quicktest v1.14.5 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
-	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 // indirect
 	github.com/ingonyama-zk/icicle v1.1.0 // indirect
@@ -55,9 +54,9 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/nspcc-dev/hrw/v2 v2.0.1 // indirect
-	github.com/nspcc-dev/neofs-api-go/v2 v2.14.1-0.20240305074711-35bc78d84dc4 // indirect
-	github.com/nspcc-dev/tzhash v1.7.2 // indirect
+	github.com/nspcc-dev/hrw/v2 v2.0.2 // indirect
+	github.com/nspcc-dev/neofs-api-go/v2 v2.14.1-0.20240827150555-5ce597aa14ea // indirect
+	github.com/nspcc-dev/tzhash v1.8.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.55.0 // indirect
@@ -73,7 +72,7 @@ require (
 	golang.org/x/net v0.28.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240221002015-b0ce06bbee7c // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20240528184218-531527333157 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )

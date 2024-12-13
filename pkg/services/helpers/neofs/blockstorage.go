@@ -1,14 +1,11 @@
 package neofs
 
 import (
-	"crypto/sha256"
 	"time"
 )
 
 // Constants related to NeoFS block storage.
 const (
-	// OIDSize is the size of the object ID in NeoFS.
-	OIDSize = sha256.Size
 	// DefaultTimeout is the default timeout for NeoFS requests.
 	DefaultTimeout = 10 * time.Minute
 	// DefaultDownloaderWorkersCount is the default number of workers downloading blocks.
