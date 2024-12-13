@@ -224,6 +224,9 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	}, bqueue.DefaultCacheSize, updateBlockQueueLenMetric, bqueue.NonBlocking)
 
 	s.bSyncQueue = bqueue.New(s.stateSync, log, nil, bqueue.DefaultCacheSize, updateBlockQueueLenMetric, bqueue.NonBlocking)
+	if s.NeoFSBlockFetcherCfg.BQueueSize <= 0 {
+		s.NeoFSBlockFetcherCfg.BQueueSize = blockfetcher.DefaultQueueCacheSize
+	}
 	s.bFetcherQueue = bqueue.New(chain, log, nil, s.NeoFSBlockFetcherCfg.BQueueSize, updateBlockQueueLenMetric, bqueue.Blocking)
 	var err error
 	s.blockFetcher, err = blockfetcher.New(chain, s.NeoFSBlockFetcherCfg, log, s.bFetcherQueue.PutBlock,

@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/txctx"
 	vmcli "github.com/nspcc-dev/neo-go/cli/vm"
+	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/urfave/cli/v2"
 )
@@ -74,7 +75,7 @@ func NewCommands() []*cli.Command {
 		&cli.UintFlag{
 			Name:  "index-file-size",
 			Usage: "Size of index file",
-			Value: 128000,
+			Value: neofs.DefaultIndexFileSize,
 		},
 		&cli.UintFlag{
 			Name:  "workers",
@@ -89,7 +90,7 @@ func NewCommands() []*cli.Command {
 		&cli.UintFlag{
 			Name:  "retries",
 			Usage: "Maximum number of Neo/NeoFS node request retries",
-			Value: 5,
+			Value: neofs.MaxRetries,
 			Action: func(context *cli.Context, u uint) error {
 				if u < 1 {
 					return cli.Exit("retries should be greater than 0", 1)

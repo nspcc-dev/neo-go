@@ -2,7 +2,6 @@ package blockfetcher
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -16,7 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	gio "github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/services/oracle/neofs"
+	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -29,40 +28,8 @@ import (
 )
 
 const (
-	// oidSize is the size of the object ID in NeoFS.
-	oidSize = sha256.Size
-	// defaultTimeout is the default timeout for NeoFS requests.
-	defaultTimeout = 5 * time.Minute
-	// defaultOIDBatchSize is the default number of OIDs to search and fetch at once.
-	defaultOIDBatchSize = 8000
-	// defaultDownloaderWorkersCount is the default number of workers downloading blocks.
-	defaultDownloaderWorkersCount = 100
-)
-
-// Constants related to NeoFS pool request timeouts.
-const (
-	// defaultDialTimeout is a default timeout used to establish connection with
-	// NeoFS storage nodes.
-	defaultDialTimeout = 30 * time.Second
-	// defaultStreamTimeout is a default timeout used for NeoFS streams processing.
-	// It has significantly large value to reliably avoid timeout problems with heavy
-	// SEARCH requests.
-	defaultStreamTimeout = 10 * time.Minute
-	// defaultHealthcheckTimeout is a timeout for request to NeoFS storage node to
-	// decide if it is alive.
-	defaultHealthcheckTimeout = 10 * time.Second
-)
-
-// Constants related to retry mechanism.
-const (
-	// maxRetries is the maximum number of retries for a single operation.
-	maxRetries = 5
-	// initialBackoff is the initial backoff duration.
-	initialBackoff = 500 * time.Millisecond
-	// backoffFactor is the factor by which the backoff duration is multiplied.
-	backoffFactor = 2
-	// maxBackoff is the maximum backoff duration.
-	maxBackoff = 20 * time.Second
+	// DefaultQueueCacheSize is the default size of the queue cache.
+	DefaultQueueCacheSize = 16000
 )
 
 // Ledger is an interface to Blockchain sufficient for Service.
@@ -143,22 +110,28 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 		}
 	}
 	if cfg.Timeout <= 0 {
-		cfg.Timeout = defaultTimeout
+		cfg.Timeout = neofs.DefaultTimeout
 	}
 	if cfg.OIDBatchSize <= 0 {
-		cfg.OIDBatchSize = defaultOIDBatchSize
+		cfg.OIDBatchSize = cfg.BQueueSize / 2
 	}
 	if cfg.DownloaderWorkersCount <= 0 {
-		cfg.DownloaderWorkersCount = defaultDownloaderWorkersCount
+		cfg.DownloaderWorkersCount = neofs.DefaultDownloaderWorkersCount
 	}
-	if len(cfg.Addresses) == 0 {
-		return nil, errors.New("no addresses provided")
+	if cfg.IndexFileSize <= 0 {
+		cfg.IndexFileSize = neofs.DefaultIndexFileSize
+	}
+	if cfg.BlockAttribute == "" {
+		cfg.BlockAttribute = neofs.DefaultBlockAttribute
+	}
+	if cfg.IndexFileAttribute == "" {
+		cfg.IndexFileAttribute = neofs.DefaultIndexFileAttribute
 	}
 
 	params := pool.DefaultOptions()
-	params.SetHealthcheckTimeout(defaultHealthcheckTimeout)
-	params.SetNodeDialTimeout(defaultDialTimeout)
-	params.SetNodeStreamTimeout(defaultStreamTimeout)
+	params.SetHealthcheckTimeout(neofs.DefaultHealthcheckTimeout)
+	params.SetNodeDialTimeout(neofs.DefaultDialTimeout)
+	params.SetNodeStreamTimeout(neofs.DefaultStreamTimeout)
 	p, err := pool.New(pool.NewFlatNodeParams(cfg.Addresses), user.NewAutoIDSignerRFC6979(account.PrivateKey().PrivateKey), params)
 	if err != nil {
 		return nil, err
@@ -357,7 +330,7 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 // streamBlockOIDs reads block OIDs from the read closer and sends them to the OIDs channel.
 func (bfs *Service) streamBlockOIDs(rc io.ReadCloser, skip int) error {
 	defer rc.Close()
-	oidBytes := make([]byte, oidSize)
+	oidBytes := make([]byte, neofs.OIDSize)
 	oidsProcessed := 0
 
 	for {
@@ -397,7 +370,7 @@ func (bfs *Service) streamBlockOIDs(rc io.ReadCloser, skip int) error {
 func (bfs *Service) fetchOIDsBySearch() error {
 	startIndex := bfs.chain.BlockHeight()
 	//We need to search with EQ filter to avoid partially-completed SEARCH responses.
-	batchSize := uint32(1)
+	batchSize := uint32(neofs.DefaultSearchBatchSize)
 
 	for {
 		select {
@@ -513,7 +486,7 @@ func (bfs *Service) IsActive() bool {
 func (bfs *Service) retry(action func() error) error {
 	var (
 		err     error
-		backoff = initialBackoff
+		backoff = neofs.InitialBackoff
 		timer   = time.NewTimer(0)
 	)
 	defer func() {
@@ -525,11 +498,11 @@ func (bfs *Service) retry(action func() error) error {
 		}
 	}()
 
-	for i := range maxRetries {
+	for i := range neofs.MaxRetries {
 		if err = action(); err == nil {
 			return nil
 		}
-		if i == maxRetries-1 {
+		if i == neofs.MaxRetries-1 {
 			break
 		}
 		timer.Reset(backoff)
@@ -539,16 +512,16 @@ func (bfs *Service) retry(action func() error) error {
 		case <-bfs.ctx.Done():
 			return bfs.ctx.Err()
 		}
-		backoff *= time.Duration(backoffFactor)
-		if backoff > maxBackoff {
-			backoff = maxBackoff
+		backoff *= time.Duration(neofs.BackoffFactor)
+		if backoff > neofs.MaxBackoff {
+			backoff = neofs.MaxBackoff
 		}
 	}
 	return err
 }
 
 func (bfs *Service) objectGet(ctx context.Context, oid string) (io.ReadCloser, error) {
-	u, err := url.Parse(fmt.Sprintf("neofs:%s/%s", bfs.cfg.ContainerID, oid))
+	u, err := url.Parse(fmt.Sprintf("%s:%s/%s", neofs.URIScheme, bfs.cfg.ContainerID, oid))
 	if err != nil {
 		return nil, err
 	}
