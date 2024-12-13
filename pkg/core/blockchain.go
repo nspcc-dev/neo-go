@@ -1144,8 +1144,6 @@ func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 	oldHeight /= bc.config.Ledger.GarbageCollectionPeriod
 	newHeight /= bc.config.Ledger.GarbageCollectionPeriod
 	if tgtBlock > int64(bc.config.Ledger.GarbageCollectionPeriod) && newHeight != oldHeight {
-		tgtBlock /= int64(bc.config.Ledger.GarbageCollectionPeriod)
-		tgtBlock *= int64(bc.config.Ledger.GarbageCollectionPeriod)
 		dur = bc.stateRoot.GC(uint32(tgtBlock), bc.store)
 		dur += bc.removeOldTransfers(uint32(tgtBlock))
 	}
