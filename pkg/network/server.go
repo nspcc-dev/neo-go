@@ -1123,7 +1123,7 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlockByIndex) error 
 		}
 		header, err := s.chain.GetHeader(hash)
 		if err != nil {
-			break
+			continue
 		}
 		resp.Hdrs = append(resp.Hdrs, header)
 	}

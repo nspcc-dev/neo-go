@@ -74,6 +74,7 @@ func TestPutGetBlock(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), false)
 	b := &block.Block{
 		Header: block.Header{
+			Timestamp: 42,
 			Script: transaction.Witness{
 				VerificationScript: []byte{byte(opcode.PUSH1)},
 				InvocationScript:   []byte{byte(opcode.NOP)},
@@ -107,6 +108,19 @@ func TestPutGetBlock(t *testing.T) {
 	require.Equal(t, 2, len(gotAppExecResult))
 	require.Equal(t, *appExecResult1, gotAppExecResult[0])
 	require.Equal(t, *appExecResult2, gotAppExecResult[1])
+
+	ts, err := dao.DeleteBlock(hash, false)
+	require.NoError(t, err)
+	require.Equal(t, uint64(42), ts)
+	gotBlock, err = dao.GetBlock(hash) // It's just a header, but it's still there.
+	require.NoError(t, err)
+	require.NotNil(t, gotBlock)
+
+	ts, err = dao.DeleteBlock(hash, true)
+	require.NoError(t, err)
+	require.Equal(t, uint64(42), ts)
+	_, err = dao.GetBlock(hash)
+	require.Error(t, err)
 }
 
 func TestGetVersion_NoVersion(t *testing.T) {
