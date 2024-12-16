@@ -18,8 +18,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const (
@@ -292,9 +290,6 @@ func GetSDKClient(ctx context.Context, addr string, timeout time.Duration) (*cli
 	}
 
 	if err := c.Dial(prmDial); err != nil {
-		if status.Code(err) == codes.Unimplemented {
-			return c, nil
-		}
 		return nil, fmt.Errorf("can't init SDK client: %w", err)
 	}
 
