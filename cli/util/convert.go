@@ -57,16 +57,16 @@ func NewCommands() []*cli.Command {
 			Action:   cmdargs.EnsureNotEmpty("container"),
 		},
 		&cli.StringFlag{
-			Name:     "block-attribute",
-			Usage:    "Attribute key of the block object",
-			Required: true,
-			Action:   cmdargs.EnsureNotEmpty("block-attribute"),
+			Name:   "block-attribute",
+			Usage:  "Attribute key of the block object",
+			Value:  neofs.DefaultBlockAttribute,
+			Action: cmdargs.EnsureNotEmpty("block-attribute"),
 		},
 		&cli.StringFlag{
-			Name:     "index-attribute",
-			Usage:    "Attribute key of the index file object",
-			Required: true,
-			Action:   cmdargs.EnsureNotEmpty("index-attribute"),
+			Name:   "index-attribute",
+			Usage:  "Attribute key of the index file object",
+			Value:  neofs.DefaultIndexFileAttribute,
+			Action: cmdargs.EnsureNotEmpty("index-attribute"),
 		},
 		&flags.AddressFlag{
 			Name:  "address",
@@ -80,12 +80,12 @@ func NewCommands() []*cli.Command {
 		&cli.UintFlag{
 			Name:  "workers",
 			Usage: "Number of workers to fetch and upload blocks concurrently",
-			Value: 50,
+			Value: 20,
 		},
 		&cli.UintFlag{
 			Name:  "searchers",
 			Usage: "Number of concurrent searches for blocks",
-			Value: 20,
+			Value: 100,
 		},
 		&cli.UintFlag{
 			Name:  "retries",
