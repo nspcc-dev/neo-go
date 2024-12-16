@@ -56,7 +56,7 @@ type Client interface {
 // URI scheme is "neofs:<Container-ID>/<Object-ID/<Command>/<Params>".
 // If Command is not provided, full object is requested.
 func Get(ctx context.Context, priv *keys.PrivateKey, u *url.URL, addr string) (io.ReadCloser, error) {
-	c, err := GetSDKClient(ctx, addr, 0)
+	c, err := GetClient(ctx, addr, 0)
 	if err != nil {
 		return clientCloseWrapper{c: c}, fmt.Errorf("failed to create client: %w", err)
 	}
@@ -271,9 +271,9 @@ func ObjectSearch(ctx context.Context, c Client, priv *keys.PrivateKey, containe
 	return objectIDs, nil
 }
 
-// GetSDKClient returns a NeoFS SDK client configured with the specified address and context.
+// GetClient returns a NeoFS client configured with the specified address and context.
 // If timeout is 0, the default timeout will be used.
-func GetSDKClient(ctx context.Context, addr string, timeout time.Duration) (*client.Client, error) {
+func GetClient(ctx context.Context, addr string, timeout time.Duration) (*client.Client, error) {
 	var prmDial client.PrmDial
 	if addr == "" {
 		return nil, errors.New("address is empty")
@@ -286,11 +286,11 @@ func GetSDKClient(ctx context.Context, addr string, timeout time.Duration) (*cli
 	}
 	c, err := client.New(client.PrmInit{})
 	if err != nil {
-		return nil, fmt.Errorf("can't create SDK client: %w", err)
+		return nil, fmt.Errorf("can't create NeoFS client: %w", err)
 	}
 
 	if err := c.Dial(prmDial); err != nil {
-		return nil, fmt.Errorf("can't init SDK client: %w", err)
+		return nil, fmt.Errorf("can't init NeoFS client: %w", err)
 	}
 
 	return c, nil
