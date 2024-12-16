@@ -80,7 +80,7 @@ func TestServiceConstructor(t *testing.T) {
 		require.Equal(t, service.IsActive(), false)
 	})
 
-	t.Run("SDK client", func(t *testing.T) {
+	t.Run("NeoFS client", func(t *testing.T) {
 		cfg := config.NeoFSBlockFetcher{
 			InternalService: config.InternalService{
 				Enabled: true,
