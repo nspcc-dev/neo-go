@@ -75,37 +75,14 @@ shuts down automatically.
 
 ### NeoFS Upload Command
 The `upload-bin` command is designed to fetch blocks from the RPC node and upload 
-them to the NeoFS container.
-It also creates and uploads index files. Below is an example usage of the command:
+them to the NeoFS container. It also creates and uploads index files. Below is an
+example usage of the command:
 
 ```shell
 ./bin/neo-go util upload-bin --cid 9iVfUg8aDHKjPC4LhQXEkVUM4HDkR7UCXYLs8NQwYfSG --wallet-config ./wallet-config.yml --block-attribute Block --index-attribute Index --rpc-endpoint https://rpc.t5.n3.nspcc.ru:20331 -fsr st1.t5.fs.neo.org:8080 -fsr st2.t5.fs.neo.org:8080 -fsr st3.t5.fs.neo.org:8080
 ```
-The command supports the following options:
-```
-NAME:
-neo-go util upload-bin - Fetch blocks from RPC node and upload them to the NeoFS container
 
-USAGE:
-neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--index-file-size <size>] [--retries <num>] [--debug]
-
-OPTIONS:
---fs-rpc-endpoint value, --fsr value [ --fs-rpc-endpoint value, --fsr value ]  List of NeoFS storage node RPC addresses (comma-separated or multiple --fs-rpc-endpoint flags)
---container value, --cid value                                                 NeoFS container ID to upload blocks to
---block-attribute value                                                        Attribute key of the block object
---index-attribute value                                                        Attribute key of the index file object
---address value                                                                Address to use for signing the uploading and searching transactions in NeoFS
---index-file-size value                                                        Size of index file (default: 128000)
---workers value                                                                Number of workers to fetch, upload and search blocks concurrently (default: 50)
---searchers value                                                              Number of concurrent searches for blocks (default: 20)
---retries value                                                                Maximum number of Neo/NeoFS node request retries (default: 5)
---debug, -d                                                                    Enable debug logging (LOTS of output, overrides configuration) (default: false)
---rpc-endpoint value, -r value                                                 RPC node address
---timeout value, -s value                                                      Timeout for the operation (default: 10s)
---wallet value, -w value                                                       Wallet to use to get the key for transaction signing; conflicts with --wallet-config flag
---wallet-config value                                                          Path to wallet config to use to get the key for transaction signing; conflicts with --wallet flag
---help, -h                                                                     show help
-```
+Run `./bin/neo-go util upload-bin --help` to see the full list of supported options.
 
 This command works as follows:
 1. Fetches the current block height from the RPC node.
@@ -117,10 +94,11 @@ This command works as follows:
 7. Repeats steps 4-6 until the current block height is reached.
 
 If the command is interrupted, it can be resumed. It starts the uploading process
-from the last uploaded index file. 
+from the last uploaded index file.
 
 For a given block sequence, only one type of index file is supported. If new index 
-files are needed (different `index-file-size` or `index-attribute`), the entire 
-block sequence must be uploaded from the beginning. Please, add a comment to the 
+files are needed (different `index-file-size` or `index-attribute`), `upload-bin`
+will upload the entire block sequence starting from genesis since no migration is
+supported yet by this command. Please, add a comment to the
 [#3744](https://github.com/nspcc-dev/neo-go/issues/3744) issue if you need this
 functionality.
