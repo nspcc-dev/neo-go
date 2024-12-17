@@ -113,6 +113,6 @@ ApplicationConfiguration:
     BQueueSize: 16000 # must be larger than OIDBatchSize; recommended to be 2*OIDBatchSize or 3*OIDBatchSize
     SkipIndexFilesSearch: false
     IndexFileSize: 128000
-    ContainerID: "87JRc7vyWcjW8uS32LMoLTAj4ckCzFZWfKbacjU3sAob"
+    ContainerID: "A8nGtDemWrm2SjfcGAG6wvrxmXwqc5fwr8ezNDm6FraT"
     BlockAttribute: "Block"
     IndexFileAttribute: "Index"
