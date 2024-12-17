@@ -281,19 +281,15 @@ func searchIndexFile(ctx *cli.Context, p poolWrapper, containerID cid.ID, privKe
 		filters.AddFilter("IndexSize", fmt.Sprintf("%d", indexFileSize), object.MatchStringEqual)
 		for i := 0; ; i++ {
 			indexIDs := searchObjects(ctx.Context, p, containerID, privKeys, attributeKey, uint(i), uint(i+1), 1, maxRetries, debug, errCh, filters)
-			count := 0
-			for range indexIDs {
-				count++
-				if count > 1 {
-					select {
-					case errCh <- fmt.Errorf("duplicated index file %d found", i):
-					default:
-					}
-					return
-				}
+			resOIDs := make([]oid.ID, 0, 1)
+			for id := range indexIDs {
+				resOIDs = append(resOIDs, id)
 			}
-			if count == 0 {
+			if len(resOIDs) == 0 {
 				break
+			}
+			if len(resOIDs) > 1 {
+				fmt.Fprintf(ctx.App.Writer, "WARN: %d duplicated index files with index %d found: %s\n", len(resOIDs), i, resOIDs)
 			}
 			existingIndexCount++
 		}
