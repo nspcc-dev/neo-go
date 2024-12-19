@@ -2334,6 +2334,7 @@ func codeGen(info *buildInfo) (*nef.File, *DebugInfo, error) {
 	if c.callTokens != nil {
 		f.Tokens = c.callTokens
 	}
+	fmt.Println(f.Tokens)
 	f.Checksum = f.CalculateChecksum()
 	return f, di, vm.IsScriptCorrect(buf, methods)
 }

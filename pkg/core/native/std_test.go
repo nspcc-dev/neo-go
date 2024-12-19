@@ -170,7 +170,9 @@ func TestStdLibJSON(t *testing.T) {
 func TestStdLibEncodeDecode(t *testing.T) {
 	s := newStd()
 	original := []byte("my pretty string")
+	originalUrl := []byte("Subject=test@example.com&Issuer=https://example.com")
 	encoded64 := base64.StdEncoding.EncodeToString(original)
+	encoded64Url := "U3ViamVjdD10ZXN0QGV4YW1wbGUuY29tJklzc3Vlcj1odHRwczovL2V4YW1wbGUuY29t"
 	encoded58 := base58.Encode(original)
 	encoded58Check := base58neogo.CheckEncode(original)
 	ic := &interop.Context{VM: vm.New()}
@@ -187,6 +189,16 @@ func TestStdLibEncodeDecode(t *testing.T) {
 	t.Run("Encode64/error", func(t *testing.T) {
 		require.PanicsWithError(t, ErrTooBigInput.Error(),
 			func() { s.base64Encode(ic, bigInputArgs) })
+	})
+	t.Run("Encode64Url", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			actual = s.base64UrlEncode(ic, []stackitem.Item{stackitem.Make(originalUrl)})
+		})
+		require.Equal(t, stackitem.Make(encoded64Url), actual)
+	})
+	t.Run("Encode64Url/error", func(t *testing.T) {
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.base64UrlEncode(ic, bigInputArgs) })
 	})
 	t.Run("Encode58", func(t *testing.T) {
 		require.NotPanics(t, func() {
@@ -223,6 +235,22 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		})
 		require.PanicsWithError(t, ErrTooBigInput.Error(),
 			func() { s.base64Decode(ic, bigInputArgs) })
+	})
+	t.Run("Decode64Url/positive", func(t *testing.T) {
+		require.NotPanics(t, func() {
+			actual = s.base64UrlDecode(ic, []stackitem.Item{stackitem.Make(encoded64Url)})
+		})
+		require.Equal(t, stackitem.Make(originalUrl), actual)
+	})
+	t.Run("Decode64Url/error", func(t *testing.T) {
+		require.Panics(t, func() {
+			_ = s.base64UrlDecode(ic, []stackitem.Item{stackitem.Make(encoded64Url + "%")})
+		})
+		require.Panics(t, func() {
+			_ = s.base64UrlDecode(ic, []stackitem.Item{stackitem.NewInterop(nil)})
+		})
+		require.PanicsWithError(t, ErrTooBigInput.Error(),
+			func() { s.base64UrlDecode(ic, bigInputArgs) })
 	})
 	t.Run("Decode58/positive", func(t *testing.T) {
 		require.NotPanics(t, func() {

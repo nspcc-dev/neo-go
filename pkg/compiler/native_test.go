@@ -28,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/interop/native/std"
 	"github.com/nspcc-dev/neo-go/pkg/interop/storage"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/callflag"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -277,7 +278,7 @@ func runNativeTestCases(t *testing.T, ctr interop.ContractMD, name string, nativ
 	for i, tc := range nativeTestCases {
 		addNativeTestCase(t, srcBuilder, ctr, i, name, tc.method, tc.params...)
 	}
-
+	fmt.Printf("srcBuilder: %v\n", srcBuilder)
 	ne, di, err := compiler.CompileWithOptions("file.go", strings.NewReader(srcBuilder.String()), nil)
 	require.NoError(t, err)
 
@@ -342,7 +343,8 @@ func runNativeTestCase(t *testing.T, b *nef.File, di *compiler.DebugInfo, ctr in
 	md := getMethod(t, ctr, method, params)
 	result := getTestStackItem(md.MD.ReturnType)
 	isVoid := md.MD.ReturnType == smartcontract.VoidType
-
+	b2 := md.RequiredFlags == callflag.States|callflag.AllowNotify
+	fmt.Printf("b2: %v\n", b2)
 	v := vm.New()
 	v.LoadToken = func(id int32) error {
 		t := b.Tokens[id]
@@ -359,6 +361,7 @@ func runNativeTestCase(t *testing.T, b *nef.File, di *compiler.DebugInfo, ctr in
 			return fmt.Errorf("wrong hasReturn %v", t.HasReturn)
 		}
 		if t.CallFlag != md.RequiredFlags {
+			fmt.Printf("t.CallFlag: %v\n", t.CallFlag)
 			return fmt.Errorf("wrong flags %v", t.CallFlag)
 		}
 		for range t.ParamCount {
