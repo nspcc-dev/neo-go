@@ -104,17 +104,17 @@ func SetRegisterPrice(amount int) {
 
 // RegisterCandidate represents `registerCandidate` method of NEO native contract.
 func RegisterCandidate(pub interop.PublicKey) bool {
-	return neogointernal.CallWithToken(Hash, "registerCandidate", int(contract.States), pub).(bool)
+	return neogointernal.CallWithToken(Hash, "registerCandidate", int(contract.States|contract.AllowNotify), pub).(bool)
 }
 
 // UnregisterCandidate represents `unregisterCandidate` method of NEO native contract.
 func UnregisterCandidate(pub interop.PublicKey) bool {
-	return neogointernal.CallWithToken(Hash, "unregisterCandidate", int(contract.States), pub).(bool)
+	return neogointernal.CallWithToken(Hash, "unregisterCandidate", int(contract.States|contract.AllowNotify), pub).(bool)
 }
 
 // Vote represents `vote` method of NEO native contract.
 func Vote(addr interop.Hash160, pub interop.PublicKey) bool {
-	return neogointernal.CallWithToken(Hash, "vote", int(contract.States), addr, pub).(bool)
+	return neogointernal.CallWithToken(Hash, "vote", int(contract.States|contract.AllowNotify), addr, pub).(bool)
 }
 
 // UnclaimedGAS represents `unclaimedGas` method of NEO native contract.
