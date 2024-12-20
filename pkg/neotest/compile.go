@@ -1,7 +1,9 @@
 package neotest
 
 import (
+	"encoding/json"
 	"io"
+	"os"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/cli/smartcontract"
@@ -87,6 +89,40 @@ func CompileFile(t testing.TB, sender util.Uint160, srcPath string, configPath s
 		Manifest:  m,
 		DebugInfo: di,
 	}
+	contracts[cacheKey] = c
+	return c
+}
+
+// ReadNEF loads a contract from the specified NEF and manifest files.
+func ReadNEF(t testing.TB, sender util.Uint160, nefPath, manifestPath string) *Contract {
+	cacheKey := sender.StringLE() + "|" + nefPath + "|" + manifestPath
+	if c, ok := contracts[cacheKey]; ok {
+		return c
+	}
+
+	nefBytes, err := os.ReadFile(nefPath)
+	require.NoError(t, err)
+
+	ne, err := nef.FileFromBytes(nefBytes)
+	require.NoError(t, err)
+
+	manifestBytes, err := os.ReadFile(manifestPath)
+	require.NoError(t, err)
+
+	m := new(manifest.Manifest)
+	err = json.Unmarshal(manifestBytes, m)
+	require.NoError(t, err)
+
+	hash := state.CreateContractHash(sender, ne.Checksum, m.Name)
+	err = m.IsValid(hash, true)
+	require.NoError(t, err)
+
+	c := &Contract{
+		Hash:     hash,
+		NEF:      &ne,
+		Manifest: m,
+	}
+
 	contracts[cacheKey] = c
 	return c
 }
