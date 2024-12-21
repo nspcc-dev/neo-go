@@ -100,6 +100,16 @@ func newStd() *Std {
 	md = newMethodAndPrice(s.base64Decode, 1<<5, callflag.NoneFlag)
 	s.AddMethod(md, desc)
 
+	desc = newDescriptor("base64UrlEncode", smartcontract.StringType,
+		manifest.NewParameter("data", smartcontract.ByteArrayType))
+	md = newMethodAndPrice(s.base64UrlEncode, 1<<5, callflag.NoneFlag, config.HFEchidna)
+	s.AddMethod(md, desc)
+
+	desc = newDescriptor("base64UrlDecode", smartcontract.ByteArrayType,
+		manifest.NewParameter("s", smartcontract.StringType))
+	md = newMethodAndPrice(s.base64UrlDecode, 1<<5, callflag.NoneFlag, config.HFEchidna)
+	s.AddMethod(md, desc)
+
 	desc = newDescriptor("base58Encode", smartcontract.StringType,
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(s.base58Encode, 1<<13, callflag.NoneFlag)
@@ -307,6 +317,23 @@ func (s *Std) base64Encode(_ *interop.Context, args []stackitem.Item) stackitem.
 func (s *Std) base64Decode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 	src := s.toLimitedString(args[0])
 	result, err := base64.StdEncoding.DecodeString(src)
+	if err != nil {
+		panic(err)
+	}
+
+	return stackitem.NewByteArray(result)
+}
+
+func (s *Std) base64UrlEncode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	src := s.toLimitedBytes(args[0])
+	result := base64.URLEncoding.EncodeToString(src)
+
+	return stackitem.NewByteArray([]byte(result))
+}
+
+func (s *Std) base64UrlDecode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	src := s.toLimitedString(args[0])
+	result, err := base64.URLEncoding.DecodeString(src)
 	if err != nil {
 		panic(err)
 	}
