@@ -63,6 +63,7 @@ type Context struct {
 	VM               *vm.VM
 	Functions        []Function
 	Invocations      map[util.Uint160]int
+	InvocationCalls  []state.ContractInvocation
 	cancelFuncs      []context.CancelFunc
 	getContract      func(*dao.Simple, util.Uint160) (*state.Contract, error)
 	baseExecFee      int64
@@ -70,6 +71,7 @@ type Context struct {
 	loadToken        func(ic *Context, id int32) error
 	GetRandomCounter uint32
 	signers          []transaction.Signer
+	SaveInvocations  bool
 }
 
 // NewContext returns new interop context.
@@ -80,20 +82,21 @@ func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, bas
 	dao := d.GetPrivate()
 	cfg := bc.GetConfig().ProtocolConfiguration
 	return &Context{
-		Chain:          bc,
-		Network:        uint32(cfg.Magic),
-		Hardforks:      cfg.Hardforks,
-		Natives:        natives,
-		Trigger:        trigger,
-		Block:          block,
-		Tx:             tx,
-		DAO:            dao,
-		Log:            log,
-		Invocations:    make(map[util.Uint160]int),
-		getContract:    getContract,
-		baseExecFee:    baseExecFee,
-		baseStorageFee: baseStorageFee,
-		loadToken:      loadTokenFunc,
+		Chain:           bc,
+		Network:         uint32(cfg.Magic),
+		Hardforks:       cfg.Hardforks,
+		Natives:         natives,
+		Trigger:         trigger,
+		Block:           block,
+		Tx:              tx,
+		DAO:             dao,
+		Log:             log,
+		Invocations:     make(map[util.Uint160]int),
+		getContract:     getContract,
+		baseExecFee:     baseExecFee,
+		baseStorageFee:  baseStorageFee,
+		loadToken:       loadTokenFunc,
+		SaveInvocations: bc.GetConfig().SaveInvocations,
 	}
 }
 

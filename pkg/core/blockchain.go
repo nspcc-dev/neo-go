@@ -1741,6 +1741,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				Stack:          v.Estack().ToArray(),
 				Events:         systemInterop.Notifications,
 				FaultException: faultException,
+				Invocations:    systemInterop.InvocationCalls,
 			},
 		}
 		appExecResults = append(appExecResults, aer)
