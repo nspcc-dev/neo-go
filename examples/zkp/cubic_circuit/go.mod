@@ -32,7 +32,7 @@ require (
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20240301084351-0246b013f8b2 // indirect
-	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20241212130705-ea0a6114d2d6 // indirect
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20241223145456-80e18222bca2 // indirect
 	github.com/nspcc-dev/rfc6979 v0.2.1 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
