@@ -121,7 +121,15 @@ func newDesignate(initialNodeRoles map[noderoles.Role]keys.PublicKeys) *Designat
 	eDesc := newEventDescriptor(DesignationEventName,
 		manifest.NewParameter("Role", smartcontract.IntegerType),
 		manifest.NewParameter("BlockIndex", smartcontract.IntegerType))
-	eMD := newEvent(eDesc)
+	eMD := newEvent(eDesc, config.HFDefault, config.HFEchidna)
+	s.AddEvent(eMD)
+
+	eDesc = newEventDescriptor(DesignationEventName,
+		manifest.NewParameter("Role", smartcontract.IntegerType),
+		manifest.NewParameter("BlockIndex", smartcontract.IntegerType),
+		manifest.NewParameter("Old", smartcontract.ArrayType),
+		manifest.NewParameter("New", smartcontract.ArrayType))
+	eMD = newEvent(eDesc, config.HFEchidna)
 	s.AddEvent(eMD)
 
 	return s
@@ -412,10 +420,19 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 		return fmt.Errorf("failed to update Designation role data cache: %w", err)
 	}
 
-	ic.AddNotification(s.Hash, DesignationEventName, stackitem.NewArray([]stackitem.Item{
+	ntf := stackitem.NewArray([]stackitem.Item{
 		stackitem.NewBigInteger(big.NewInt(int64(r))),
 		stackitem.NewBigInteger(big.NewInt(int64(ic.Block.Index))),
-	}))
+	})
+	if ic.IsHardforkEnabled(config.HFEchidna) {
+		old, _, err := s.GetDesignatedByRole(ic.DAO, r, ic.Block.Index)
+		if err != nil {
+			return fmt.Errorf("failed to get old nodes for role %d: %w", r, err)
+		}
+		ntf.Append(pubsToArray(old))
+		ntf.Append(pubsToArray(pubs))
+	}
+	ic.AddNotification(s.Hash, DesignationEventName, ntf)
 	return nil
 }
 
