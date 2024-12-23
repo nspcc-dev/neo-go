@@ -192,18 +192,27 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 
 	desc = newDescriptor("registerCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.registerCandidate, 0, callflag.States)
+	md = newMethodAndPrice(n.registerCandidate, 0, callflag.States, config.HFDefault, config.HFEchidna)
+	n.AddMethod(md, desc)
+
+	md = newMethodAndPrice(n.registerCandidate, 0, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("unregisterCandidate", smartcontract.BoolType,
 		manifest.NewParameter("pubkey", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States)
+	md = newMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States, config.HFDefault, config.HFEchidna)
+	n.AddMethod(md, desc)
+
+	md = newMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("voteTo", smartcontract.PublicKeyType))
-	md = newMethodAndPrice(n.vote, 1<<16, callflag.States)
+	md = newMethodAndPrice(n.vote, 1<<16, callflag.States, config.HFDefault, config.HFEchidna)
+	n.AddMethod(md, desc)
+
+	md = newMethodAndPrice(n.vote, 1<<16, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	n.AddMethod(md, desc)
 
 	desc = newDescriptor("getCandidates", smartcontract.ArrayType)
