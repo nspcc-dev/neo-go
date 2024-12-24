@@ -740,6 +740,13 @@ func TestNEO_CalculateBonus(t *testing.T) {
 	accH := acc.Signers[0].ScriptHash()
 	rewardDistance := 10
 
+	// We have 11 blocks made by transactions above and we need block 13 to get Echidna.
+	// Otherwise this happens:
+	//    logger.go:146: 2024-12-24T17:52:18.160+0300 WARN    contract invocation failed      {"tx": "603d1b0e29e7aaf50513689be9d5bb946c7f7fec8836f0e90897c825fb762c13", "block": 13, "error": "at instruction 120 (SYSCALL): System.Contract.CallNative failed: gas limit exceeded"}
+	for range 3 {
+		e.AddNewBlock(t)
+	}
+
 	t.Run("Zero", func(t *testing.T) {
 		initialGASBalance := e.Chain.GetUtilityTokenBalance(accH)
 		for range rewardDistance {

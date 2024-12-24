@@ -2461,6 +2461,7 @@ func TestClient_GetVersion_Hardforks(t *testing.T) {
 		config.HFBasilisk:      6,
 		config.HFCockatrice:    9,
 		config.HFDomovoi:       12,
+		config.HFEchidna:       13,
 	}
 	require.InDeltaMapValues(t, expected, v.Protocol.Hardforks, 0)
 }
