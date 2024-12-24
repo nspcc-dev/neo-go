@@ -22,6 +22,7 @@ ProtocolConfiguration:
     Basilisk: 6
     Cockatrice: 9
     Domovoi: 12
+    Echidna: 13
 
 ApplicationConfiguration:
   SkipBlockVerification: false

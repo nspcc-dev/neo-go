@@ -85,7 +85,7 @@ func TestServiceConstructor(t *testing.T) {
 			InternalService: config.InternalService{
 				Enabled: true,
 			},
-			Addresses: []string{"localhost:8080"},
+			Addresses: []string{"localhost:1"},
 		}
 		service, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
 		require.NoError(t, err)

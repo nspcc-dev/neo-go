@@ -206,6 +206,13 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	md = newMethodAndPrice(n.unregisterCandidate, 1<<16, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	n.AddMethod(md, desc)
 
+	desc = newDescriptor("onNEP17Payment", smartcontract.VoidType,
+		manifest.NewParameter("from", smartcontract.Hash160Type),
+		manifest.NewParameter("amount", smartcontract.IntegerType),
+		manifest.NewParameter("data", smartcontract.AnyType))
+	md = newMethodAndPrice(n.onNEP17Payment, 1<<15, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	n.AddMethod(md, desc)
+
 	desc = newDescriptor("vote", smartcontract.BoolType,
 		manifest.NewParameter("account", smartcontract.Hash160Type),
 		manifest.NewParameter("voteTo", smartcontract.PublicKeyType))
@@ -824,17 +831,52 @@ func (n *NEO) CalculateNEOHolderReward(d *dao.Simple, value *big.Int, start, end
 
 func (n *NEO) registerCandidate(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	pub := toPublicKey(args[0])
-	ok, err := runtime.CheckKeyedWitness(ic, pub)
-	if err != nil {
-		panic(err)
-	} else if !ok {
-		return stackitem.NewBool(false)
+	if !ic.IsHardforkEnabled(config.HFEchidna) {
+		ok, err := runtime.CheckKeyedWitness(ic, pub)
+		if err != nil {
+			panic(err)
+		} else if !ok {
+			return stackitem.NewBool(false)
+		}
 	}
 	if !ic.VM.AddGas(n.getRegisterPriceInternal(ic.DAO)) {
 		panic("insufficient gas")
 	}
-	err = n.RegisterCandidateInternal(ic, pub)
+	var err = n.RegisterCandidateInternal(ic, pub)
 	return stackitem.NewBool(err == nil)
+}
+
+func (n *NEO) checkRegisterCandidate(ic *interop.Context, pub *keys.PublicKey) error {
+	ok, err := runtime.CheckKeyedWitness(ic, pub)
+	if err != nil {
+		panic(err)
+	} else if !ok {
+		return errors.New("not witnessed by the key owner")
+	}
+	return n.RegisterCandidateInternal(ic, pub)
+}
+
+func (n *NEO) onNEP17Payment(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	var (
+		caller   = ic.VM.GetCallingScriptHash()
+		_        = toUint160(args[0])
+		amount   = toBigInt(args[1])
+		pub      = toPublicKey(args[2])
+		regPrice = n.getRegisterPriceInternal(ic.DAO)
+	)
+
+	if caller != n.GAS.Hash {
+		panic("only GAS is accepted")
+	}
+	if !amount.IsInt64() || amount.Int64() != regPrice {
+		panic(fmt.Errorf("incorrect GAS amount for registration (expected %d)", regPrice))
+	}
+	var err = n.checkRegisterCandidate(ic, pub)
+	if err != nil {
+		panic(err)
+	}
+	n.GAS.burn(ic, n.Hash, amount)
+	return stackitem.Null{}
 }
 
 // RegisterCandidateInternal registers pub as a new candidate.
