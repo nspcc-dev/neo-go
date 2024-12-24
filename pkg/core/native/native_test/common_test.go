@@ -117,20 +117,33 @@ func testGetSetCache(t *testing.T, c *neotest.ContractInvoker, name string, defa
 	}
 }
 
-func setNodesByRole(t *testing.T, designateInvoker *neotest.ContractInvoker, ok bool, r noderoles.Role, nodes keys.PublicKeys) {
+func setNodesByRole(t *testing.T, designateInvoker *neotest.ContractInvoker, ok bool, r noderoles.Role, nodes keys.PublicKeys, oldKeys ...keys.PublicKeys) {
 	pubs := make([]any, len(nodes))
 	for i := range nodes {
 		pubs[i] = nodes[i].Bytes()
 	}
 	if ok {
 		h := designateInvoker.Invoke(t, stackitem.Null{}, "designateAsRole", int64(r), pubs)
+		ntf := stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(int64(r)),
+			stackitem.Make(designateInvoker.Chain.BlockHeight()),
+		})
+		if len(oldKeys) > 0 {
+			old := stackitem.NewArray([]stackitem.Item{})
+			for _, key := range oldKeys[0] {
+				old.Append(stackitem.NewByteArray(key.Bytes()))
+			}
+			newKeys := stackitem.NewArray([]stackitem.Item{})
+			for _, key := range nodes {
+				newKeys.Append(stackitem.NewByteArray(key.Bytes()))
+			}
+			ntf.Append(old)
+			ntf.Append(newKeys)
+		}
 		designateInvoker.CheckTxNotificationEvent(t, h, 0, state.NotificationEvent{
 			ScriptHash: designateInvoker.Hash,
 			Name:       native.DesignationEventName,
-			Item: stackitem.NewArray([]stackitem.Item{
-				stackitem.Make(int64(r)),
-				stackitem.Make(designateInvoker.Chain.BlockHeight()),
-			}),
+			Item:       ntf,
 		})
 	} else {
 		designateInvoker.InvokeFail(t, "", "designateAsRole", int64(r), pubs)

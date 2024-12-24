@@ -56,6 +56,29 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	})
 }
 
+func TestDesignate_DesignateAsRole_Echidna(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.Designation, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): 3,
+		}
+	})
+	designateInvoker := c.WithSigners(c.Committee)
+
+	priv, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	oldPubs := keys.PublicKeys{priv.PublicKey()}
+
+	checkNodeRoles(t, designateInvoker, true, noderoles.Oracle, 0, keys.PublicKeys{})                            // BlockHeight is 1.
+	setNodesByRole(t, designateInvoker, true, noderoles.Oracle, oldPubs)                                         // BlockHeight is 2.
+	checkNodeRoles(t, designateInvoker, true, noderoles.Oracle, designateInvoker.Chain.BlockHeight()+1, oldPubs) // BlockHeight is 3.
+
+	priv, err = keys.NewPrivateKey()
+	require.NoError(t, err)
+	pubs := keys.PublicKeys{priv.PublicKey()}
+	setNodesByRole(t, designateInvoker, true, noderoles.Oracle, pubs, oldPubs)                                // BlockHeight is 4.
+	checkNodeRoles(t, designateInvoker, true, noderoles.Oracle, designateInvoker.Chain.BlockHeight()+1, pubs) // BlockHeight is 5.
+}
+
 type dummyOracle struct {
 	updateNodes func(k keys.PublicKeys)
 }
