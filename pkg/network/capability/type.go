@@ -10,4 +10,8 @@ const (
 	WSServer Type = 0x02
 	// FullNode represents a node that has complete current state.
 	FullNode Type = 0x10
+
+	// 0xf0-0xff are reserved for private experiments.
+	ReservedFirst Type = 0xf0
+	ReservedLast  Type = 0xff
 )

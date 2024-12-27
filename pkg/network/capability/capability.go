@@ -44,6 +44,7 @@ func (cs Capabilities) checkUniqueCapabilities() error {
 				return err
 			}
 			isWS = true
+		default: /* OK to have duplicates */
 		}
 	}
 	return nil
