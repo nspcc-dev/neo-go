@@ -10,6 +10,11 @@ const (
 	WSServer Type = 0x02
 	// FullNode represents a node that has complete current state.
 	FullNode Type = 0x10
+	// ArchivalNode represents a node that stores full block history.
+	// These nodes can be used for P2P synchronization from genesis
+	// (FullNode can cut the tail and may not respond to requests for
+	// old (wrt MaxTraceableBlocks) blocks).
+	ArchivalNode Type = 0x11
 
 	// 0xf0-0xff are reserved for private experiments.
 	ReservedFirst Type = 0xf0

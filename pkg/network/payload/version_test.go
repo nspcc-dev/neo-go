@@ -30,6 +30,10 @@ func TestVersionEncodeDecode(t *testing.T) {
 			},
 		},
 		{
+			Type: capability.ArchivalNode,
+			Data: &capability.Archival{},
+		},
+		{
 			Type: 0xff,
 			Data: &capability.Unknown{},
 		},

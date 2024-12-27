@@ -31,9 +31,14 @@ func (cs *Capabilities) EncodeBinary(br *io.BinWriter) {
 // checkUniqueCapabilities checks whether payload capabilities have a unique type.
 func (cs Capabilities) checkUniqueCapabilities() error {
 	err := errors.New("capabilities with the same type are not allowed")
-	var isFullNode, isTCP, isWS bool
+	var isFullNode, isArchived, isTCP, isWS bool
 	for _, cap := range cs {
 		switch cap.Type {
+		case ArchivalNode:
+			if isArchived {
+				return err
+			}
+			isArchived = true
 		case FullNode:
 			if isFullNode {
 				return err
@@ -65,6 +70,8 @@ type Capability struct {
 func (c *Capability) DecodeBinary(br *io.BinReader) {
 	c.Type = Type(br.ReadB())
 	switch c.Type {
+	case ArchivalNode:
+		c.Data = &Archival{}
 	case FullNode:
 		c.Data = &Node{}
 	case TCPServer, WSServer:
@@ -114,6 +121,22 @@ func (s *Server) DecodeBinary(br *io.BinReader) {
 // EncodeBinary implements io.Serializable.
 func (s *Server) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteU16LE(s.Port)
+}
+
+// Archival represents an archival node that stores all blocks.
+type Archival struct{}
+
+// DecodeBinary implements io.Serializable.
+func (a *Archival) DecodeBinary(br *io.BinReader) {
+	var zero = br.ReadB() // Zero-length byte array as per Unknown.
+	if zero != 0 {
+		br.Err = errors.New("archival capability with non-zero data")
+	}
+}
+
+// EncodeBinary implements io.Serializable.
+func (a *Archival) EncodeBinary(bw *io.BinWriter) {
+	bw.WriteB(0)
 }
 
 // Unknown represents an unknown capability with some data. Other nodes can
