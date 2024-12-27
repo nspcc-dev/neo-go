@@ -8,6 +8,6 @@ const (
 	TCPServer Type = 0x01
 	// WSServer represents WebSocket node capability type.
 	WSServer Type = 0x02
-	// FullNode represents full node capability type.
+	// FullNode represents a node that has complete current state.
 	FullNode Type = 0x10
 )
