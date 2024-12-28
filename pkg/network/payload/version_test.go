@@ -30,10 +30,22 @@ func TestVersionEncodeDecode(t *testing.T) {
 			},
 		},
 		{
+			Type: capability.ArchivalNode,
+			Data: &capability.Archival{},
+		},
+		{
+			Type: 0xff,
+			Data: &capability.Unknown{},
+		},
+		{
 			Type: capability.FullNode,
 			Data: &capability.Node{
 				StartHeight: height,
 			},
+		},
+		{
+			Type: 0xf0,
+			Data: &capability.Unknown{0x55, 0xaa},
 		},
 	}
 

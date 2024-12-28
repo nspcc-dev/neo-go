@@ -6,8 +6,13 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 )
 
-// MaxCapabilities is the maximum number of capabilities per payload.
-const MaxCapabilities = 32
+const (
+	// MaxCapabilities is the maximum number of capabilities per payload.
+	MaxCapabilities = 32
+
+	// MaxDataSize is the maximum size of capability payload.
+	MaxDataSize = 1024
+)
 
 // Capabilities is a list of Capability.
 type Capabilities []Capability
@@ -26,9 +31,14 @@ func (cs *Capabilities) EncodeBinary(br *io.BinWriter) {
 // checkUniqueCapabilities checks whether payload capabilities have a unique type.
 func (cs Capabilities) checkUniqueCapabilities() error {
 	err := errors.New("capabilities with the same type are not allowed")
-	var isFullNode, isTCP, isWS bool
+	var isFullNode, isArchived, isTCP, isWS bool
 	for _, cap := range cs {
 		switch cap.Type {
+		case ArchivalNode:
+			if isArchived {
+				return err
+			}
+			isArchived = true
 		case FullNode:
 			if isFullNode {
 				return err
@@ -44,6 +54,7 @@ func (cs Capabilities) checkUniqueCapabilities() error {
 				return err
 			}
 			isWS = true
+		default: /* OK to have duplicates */
 		}
 	}
 	return nil
@@ -59,13 +70,14 @@ type Capability struct {
 func (c *Capability) DecodeBinary(br *io.BinReader) {
 	c.Type = Type(br.ReadB())
 	switch c.Type {
+	case ArchivalNode:
+		c.Data = &Archival{}
 	case FullNode:
 		c.Data = &Node{}
 	case TCPServer, WSServer:
 		c.Data = &Server{}
 	default:
-		br.Err = errors.New("unknown node capability type")
-		return
+		c.Data = &Unknown{}
 	}
 	c.Data.DecodeBinary(br)
 }
@@ -109,4 +121,36 @@ func (s *Server) DecodeBinary(br *io.BinReader) {
 // EncodeBinary implements io.Serializable.
 func (s *Server) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteU16LE(s.Port)
+}
+
+// Archival represents an archival node that stores all blocks.
+type Archival struct{}
+
+// DecodeBinary implements io.Serializable.
+func (a *Archival) DecodeBinary(br *io.BinReader) {
+	var zero = br.ReadB() // Zero-length byte array as per Unknown.
+	if zero != 0 {
+		br.Err = errors.New("archival capability with non-zero data")
+	}
+}
+
+// EncodeBinary implements io.Serializable.
+func (a *Archival) EncodeBinary(bw *io.BinWriter) {
+	bw.WriteB(0)
+}
+
+// Unknown represents an unknown capability with some data. Other nodes can
+// decode it even if they can't interpret it. This is not expected to be used
+// for sending data directly (proper new types should be used), but it allows
+// for easier protocol extensibility (old nodes won't reject new capabilities).
+type Unknown []byte
+
+// DecodeBinary implements io.Serializable.
+func (u *Unknown) DecodeBinary(br *io.BinReader) {
+	*u = br.ReadVarBytes()
+}
+
+// EncodeBinary implements io.Serializable.
+func (u *Unknown) EncodeBinary(bw *io.BinWriter) {
+	bw.WriteVarBytes(*u)
 }
