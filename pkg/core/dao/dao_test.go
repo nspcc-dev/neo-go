@@ -190,15 +190,26 @@ func TestStoreAsTransaction(t *testing.T) {
 		tx.Signers = append(tx.Signers, transaction.Signer{})
 		tx.Scripts = append(tx.Scripts, transaction.Witness{})
 		hash := tx.Hash()
+		si := stackitem.NewArray([]stackitem.Item{stackitem.NewBool(false)})
+		argBytes, err := dao.GetItemCtx().Serialize(si, false)
+		require.NoError(t, err)
+		ci := state.NewContractInvocation(util.Uint160{}, "fakeMethodCall", argBytes, 1, false)
 		aer := &state.AppExecResult{
 			Container: hash,
 			Execution: state.Execution{
 				Trigger: trigger.Application,
-				Events:  []state.NotificationEvent{},
-				Stack:   []stackitem.Item{},
+				Events: []state.NotificationEvent{
+					{
+						ScriptHash: util.Uint160{},
+						Name:       "fakeTransferEvent",
+						Item:       si,
+					},
+				},
+				Stack:       []stackitem.Item{},
+				Invocations: []state.ContractInvocation{*ci},
 			},
 		}
-		err := dao.StoreAsTransaction(tx, 0, aer)
+		err = dao.StoreAsTransaction(tx, 0, aer)
 		require.NoError(t, err)
 		err = dao.HasTransaction(hash, nil, 0, 0)
 		require.ErrorIs(t, err, ErrAlreadyExists)

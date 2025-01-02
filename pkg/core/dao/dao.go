@@ -448,6 +448,7 @@ type Version struct {
 	KeepOnlyLatestState        bool
 	Magic                      uint32
 	Value                      string
+	SaveInvocations            bool
 }
 
 const (
@@ -455,6 +456,7 @@ const (
 	p2pSigExtensionsBit
 	p2pStateExchangeExtensionsBit
 	keepOnlyLatestStateBit
+	saveInvocationsBit
 )
 
 // FromBytes decodes v from a byte-slice.
@@ -482,6 +484,7 @@ func (v *Version) FromBytes(data []byte) error {
 	v.P2PSigExtensions = data[i+2]&p2pSigExtensionsBit != 0
 	v.P2PStateExchangeExtensions = data[i+2]&p2pStateExchangeExtensionsBit != 0
 	v.KeepOnlyLatestState = data[i+2]&keepOnlyLatestStateBit != 0
+	v.SaveInvocations = data[i+2]&saveInvocationsBit != 0
 
 	m := i + 3
 	if len(data) == m+4 {
@@ -504,6 +507,9 @@ func (v *Version) Bytes() []byte {
 	}
 	if v.KeepOnlyLatestState {
 		mask |= keepOnlyLatestStateBit
+	}
+	if v.SaveInvocations {
+		mask |= saveInvocationsBit
 	}
 	res := append([]byte(v.Value), '\x00', byte(v.StoragePrefix), mask)
 	res = binary.LittleEndian.AppendUint32(res, v.Magic)
