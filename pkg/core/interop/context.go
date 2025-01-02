@@ -80,7 +80,7 @@ func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, bas
 	loadTokenFunc func(ic *Context, id int32) error,
 	block *block.Block, tx *transaction.Transaction, log *zap.Logger) *Context {
 	dao := d.GetPrivate()
-	cfg := bc.GetConfig().ProtocolConfiguration
+	cfg := bc.GetConfig()
 	return &Context{
 		Chain:           bc,
 		Network:         uint32(cfg.Magic),
@@ -96,7 +96,7 @@ func NewContext(trigger trigger.Type, bc Ledger, d *dao.Simple, baseExecFee, bas
 		baseExecFee:     baseExecFee,
 		baseStorageFee:  baseStorageFee,
 		loadToken:       loadTokenFunc,
-		SaveInvocations: bc.GetConfig().SaveInvocations,
+		SaveInvocations: cfg.SaveInvocations,
 	}
 }
 

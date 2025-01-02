@@ -79,14 +79,8 @@ func Call(ic *interop.Context) error {
 		if argBytes, err = ic.DAO.GetItemCtx().Serialize(stackitem.NewArray(args), false); err != nil {
 			truncated = true
 		}
-
-		ic.InvocationCalls = append(ic.InvocationCalls, state.ContractInvocation{
-			Hash:           u,
-			Method:         method,
-			ArgumentsBytes: argBytes,
-			ArgumentsCount: uint32(arrCount),
-			Truncated:      truncated,
-		})
+		ci := state.NewContractInvocation(u, method, argBytes, uint32(arrCount), truncated)
+		ic.InvocationCalls = append(ic.InvocationCalls, *ci)
 	}
 	return callInternal(ic, cs, method, fs, hasReturn, args, true)
 }
