@@ -51,6 +51,20 @@ type auxBlockIn struct {
 	Transactions []json.RawMessage `json:"tx"`
 }
 
+type TrimmedBlock struct {
+	Header
+	TxHashes []util.Uint256
+}
+
+type auxTrimmedBlockOut struct {
+	TxHashes []util.Uint256 `json:"tx"`
+}
+
+// auxTrimmedBlockIn é usado para JSON i/o.
+type auxTrimmedBlockIn struct {
+	TxHashes []json.RawMessage `json:"tx"`
+}
+
 // ComputeMerkleRoot computes Merkle tree root hash based on actual block's data.
 func (b *Block) ComputeMerkleRoot() util.Uint256 {
 	hashes := make([]util.Uint256, len(b.Transactions))
@@ -234,6 +248,100 @@ func (b *Block) ToStackItem() stackitem.Item {
 		stackitem.NewBigInteger(big.NewInt(int64(b.PrimaryIndex))),
 		stackitem.NewByteArray(b.NextConsensus.BytesBE()),
 		stackitem.NewBigInteger(big.NewInt(int64(len(b.Transactions)))),
+	}
+	if b.StateRootEnabled {
+		items = append(items, stackitem.NewByteArray(b.PrevStateRoot.BytesBE()))
+	}
+
+	return stackitem.NewArray(items)
+}
+
+// NewTrimmedBlockFromReader creates a block with only the header and transaction hashes
+func NewTrimmedBlockFromReader(stateRootEnabled bool, br *io.BinReader) (*TrimmedBlock, error) {
+	block := &TrimmedBlock{
+		Header: Header{
+			StateRootEnabled: stateRootEnabled,
+		},
+	}
+
+	block.Header.DecodeBinary(br)
+	lenHashes := br.ReadVarUint()
+	if lenHashes > MaxTransactionsPerBlock {
+		return nil, ErrMaxContentsPerBlock
+	}
+	if lenHashes > 0 {
+		block.TxHashes = make([]util.Uint256, lenHashes)
+		for i := range lenHashes {
+			block.TxHashes[i].DecodeBinary(br)
+		}
+	}
+
+	return block, br.Err
+}
+
+func (b TrimmedBlock) MarshalJSON() ([]byte, error) {
+	abo := auxTrimmedBlockOut{
+		TxHashes: b.TxHashes,
+	}
+
+	if abo.TxHashes == nil {
+		abo.TxHashes = []util.Uint256{}
+	}
+	auxb, err := json.Marshal(abo)
+	if err != nil {
+		return nil, err
+	}
+	baseBytes, err := json.Marshal(b.Header)
+	if err != nil {
+		return nil, err
+	}
+
+	// Does as the 'normal' block does
+	if baseBytes[len(baseBytes)-1] != '}' || auxb[0] != '{' {
+		return nil, errors.New("can't merge internal jsons")
+	}
+	baseBytes[len(baseBytes)-1] = ','
+	baseBytes = append(baseBytes, auxb[1:]...)
+	return baseBytes, nil
+}
+
+// UnmarshalJSON implementa a interface json.Unmarshaler.
+func (b *TrimmedBlock) UnmarshalJSON(data []byte) error {
+	// Similar ao Block normal, faz unmarshalling separado para Header e hashes
+	auxb := new(auxTrimmedBlockIn)
+	err := json.Unmarshal(data, auxb)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(data, &b.Header)
+	if err != nil {
+		return err
+	}
+	if len(auxb.TxHashes) != 0 {
+		b.TxHashes = make([]util.Uint256, len(auxb.TxHashes))
+		for i, hashBytes := range auxb.TxHashes {
+			err = json.Unmarshal(hashBytes, &b.TxHashes[i])
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// ToStackItem converte TrimmedBlock para stackitem.Item.
+func (b *TrimmedBlock) ToStackItem() stackitem.Item {
+	items := []stackitem.Item{
+		stackitem.NewByteArray(b.Hash().BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(b.Version))),
+		stackitem.NewByteArray(b.PrevHash.BytesBE()),
+		stackitem.NewByteArray(b.MerkleRoot.BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(b.Timestamp))),
+		stackitem.NewBigInteger(new(big.Int).SetUint64(b.Nonce)),
+		stackitem.NewBigInteger(big.NewInt(int64(b.Index))),
+		stackitem.NewBigInteger(big.NewInt(int64(b.PrimaryIndex))),
+		stackitem.NewByteArray(b.NextConsensus.BytesBE()),
+		stackitem.NewBigInteger(big.NewInt(int64(len(b.TxHashes)))),
 	}
 	if b.StateRootEnabled {
 		items = append(items, stackitem.NewByteArray(b.PrevStateRoot.BytesBE()))

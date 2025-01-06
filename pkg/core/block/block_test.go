@@ -79,6 +79,47 @@ func TestTrimmedBlock(t *testing.T) {
 	}
 }
 
+func TestNewTrimmedBlockFromReader(t *testing.T) {
+	block := getDecodedBlock(t, 1)
+
+	buf := io.NewBufBinWriter()
+	block.EncodeTrimmed(buf.BinWriter)
+	require.NoError(t, buf.Err)
+
+	r := io.NewBinReaderFromBuf(buf.Bytes())
+	trimmedBlock, err := NewTrimmedBlockFromReader(false, r)
+	require.NoError(t, err)
+
+	assert.Equal(t, block.Version, trimmedBlock.Version)
+	assert.Equal(t, block.PrevHash, trimmedBlock.PrevHash)
+	assert.Equal(t, block.MerkleRoot, trimmedBlock.MerkleRoot)
+	assert.Equal(t, block.Timestamp, trimmedBlock.Timestamp)
+	assert.Equal(t, block.Index, trimmedBlock.Index)
+	assert.Equal(t, block.NextConsensus, trimmedBlock.NextConsensus)
+
+	assert.Equal(t, block.Script, trimmedBlock.Script)
+	assert.Equal(t, len(block.Transactions), len(trimmedBlock.TxHashes))
+	for i := range block.Transactions {
+		assert.Equal(t, block.Transactions[i].Hash(), trimmedBlock.TxHashes[i])
+	}
+
+	data, err := json.Marshal(trimmedBlock)
+	require.NoError(t, err)
+
+	var decoded TrimmedBlock
+	err = json.Unmarshal(data, &decoded)
+	require.NoError(t, err)
+
+	assert.Equal(t, trimmedBlock.Version, decoded.Version)
+	assert.Equal(t, trimmedBlock.PrevHash, decoded.PrevHash)
+	assert.Equal(t, trimmedBlock.MerkleRoot, decoded.MerkleRoot)
+	assert.Equal(t, trimmedBlock.Timestamp, decoded.Timestamp)
+	assert.Equal(t, trimmedBlock.Index, decoded.Index)
+	assert.Equal(t, trimmedBlock.NextConsensus, decoded.NextConsensus)
+	assert.Equal(t, trimmedBlock.Script, decoded.Script)
+	assert.Equal(t, trimmedBlock.TxHashes, decoded.TxHashes)
+}
+
 func newDumbBlock() *Block {
 	return &Block{
 		Header: Header{

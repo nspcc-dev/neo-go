@@ -122,6 +122,8 @@ const (
 	invokescriptContractAVM = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
 	// block20StateRootLE is an LE stateroot of block #20 of basic testing chain.
 	block20StateRootLE = "310acac4fd692ab7a90dbd7fcf6feaf1ac33aabeedf6592c4ddd08ff1dac15de"
+
+	neoTokenHash = "ef4073a0f2b305a38ec4050e4d3d28bc40ea63f5"
 )
 
 var (
@@ -2270,6 +2272,50 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:    "no params",
 			params:  "[]",
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+	},
+	"getblocknotifications": {
+		{
+			name:   "positive",
+			params: `["` + genesisBlockHash + `"]`,
+			result: func(e *executor) any { return &result.BlockNotifications{} },
+			check: func(t *testing.T, e *executor, acc any) {
+				res, ok := acc.(*result.BlockNotifications)
+				require.True(t, ok)
+				require.NotNil(t, res)
+			},
+		},
+		{
+			name:   "positive with filter",
+			params: `["` + genesisBlockHash + `", {"contract":"` + neoTokenHash + `", "name":"Transfer"}]`,
+			result: func(e *executor) any { return &result.BlockNotifications{} },
+			check: func(t *testing.T, e *executor, acc any) {
+				res, ok := acc.(*result.BlockNotifications)
+				require.True(t, ok)
+				require.NotNil(t, res)
+				for _, ne := range res.TxNotifications {
+					require.Equal(t, neoTokenHash, ne.ScriptHash)
+					require.Equal(t, "Transfer", ne.Name)
+				}
+			},
+		},
+		{
+			name:    "invalid hash",
+			params:  `["invalid"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "unknown block",
+			params:  `["` + util.Uint256{}.StringLE() + `"]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownBlockCode,
+		},
+		{
+			name:    "invalid filter",
+			params:  `["invalid", {"invalid":"filter"}]`,
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
