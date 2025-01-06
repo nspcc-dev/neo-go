@@ -248,6 +248,11 @@ block. It can be removed in future versions, but at the moment you can use it
 to see how much GAS is burned with a particular block (because system fees are
 burned).
 
+#### `getblocknotifications` call
+
+This method returns notifications from a block organized by trigger type.
+Supports filtering by contract and event name.
+
 #### Historic calls
 
 A set of `*historic` extension methods provide the ability of interacting with
