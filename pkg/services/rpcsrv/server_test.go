@@ -2274,6 +2274,43 @@ var rpcTestCases = map[string][]rpcTestCase{
 			errCode: neorpc.InvalidParamsCode,
 		},
 	},
+	"getblocknotifications": {
+		{
+			name:   "positive",
+			params: `["` + genesisBlockHash + `"]`,
+			result: func(e *executor) any { return []state.ContainedNotificationEvent{} },
+			check: func(t *testing.T, e *executor, acc any) {
+				res, ok := acc.([]state.ContainedNotificationEvent)
+				require.True(t, ok)
+				require.NotNil(t, res)
+			},
+		},
+		{
+			name:   "positive with filter",
+			params: `["` + genesisBlockHash + `", {"contract":"` + testContractHashLE + `", "name":"Transfer"}]`,
+			result: func(e *executor) any { return []state.ContainedNotificationEvent{} },
+			check: func(t *testing.T, e *executor, acc any) {
+				res, ok := acc.([]state.ContainedNotificationEvent)
+				require.True(t, ok)
+				require.NotNil(t, res)
+			},
+		},
+		{
+			name:   "invalid hash",
+			params: `["invalid"]`,
+			fail:   true,
+		},
+		{
+			name:   "unknown block",
+			params: `["` + util.Uint256{}.StringLE() + `"]`,
+			fail:   true,
+		},
+		{
+			name:   "invalid filter",
+			params: `["` + genesisBlockHash + `", {"invalid":"filter"}]`,
+			fail:   true,
+		},
+	},
 }
 
 func TestRPC(t *testing.T) {
