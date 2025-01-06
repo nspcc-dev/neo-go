@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -120,6 +121,55 @@ func TestPutGetBlock(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint64(42), ts)
 	_, err = dao.GetBlock(hash)
+	require.Error(t, err)
+}
+
+func TestGetTrimmedBlock(t *testing.T) {
+	dao := NewSimple(storage.NewMemoryStore(), false)
+	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
+	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
+	tx.Scripts = []transaction.Witness{{}}
+
+	b := &block.Block{
+		Header: block.Header{
+			Timestamp: 42,
+			Script: transaction.Witness{
+				VerificationScript: []byte{byte(opcode.PUSH1)},
+				InvocationScript:   []byte{byte(opcode.NOP)},
+			},
+		},
+		Transactions: []*transaction.Transaction{tx},
+	}
+	hash := b.Hash()
+	appExecResult1 := &state.AppExecResult{
+		Container: hash,
+		Execution: state.Execution{
+			Trigger: trigger.OnPersist,
+			Events:  []state.NotificationEvent{},
+			Stack:   []stackitem.Item{},
+		},
+	}
+	err := dao.StoreAsBlock(b, appExecResult1, nil)
+	require.NoError(t, err)
+
+	trimmedBlock, err := dao.GetTrimmedBlock(hash)
+	require.NoError(t, err)
+	require.NotNil(t, trimmedBlock)
+
+	assert.Equal(t, b.Version, trimmedBlock.Version)
+	assert.Equal(t, b.PrevHash, trimmedBlock.PrevHash)
+	assert.Equal(t, b.MerkleRoot, trimmedBlock.MerkleRoot)
+	assert.Equal(t, b.Timestamp, trimmedBlock.Timestamp)
+	assert.Equal(t, b.Index, trimmedBlock.Index)
+	assert.Equal(t, b.NextConsensus, trimmedBlock.NextConsensus)
+	assert.Equal(t, b.Script, trimmedBlock.Script)
+
+	assert.Equal(t, len(b.Transactions), len(trimmedBlock.TxHashes))
+	for i := range b.Transactions {
+		assert.Equal(t, b.Transactions[i].Hash(), trimmedBlock.TxHashes[i])
+	}
+
+	_, err = dao.GetTrimmedBlock(util.Uint256{1, 2, 3})
 	require.Error(t, err)
 }
 

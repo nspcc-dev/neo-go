@@ -228,7 +228,7 @@ func (b *Block) GetExpectedBlockSizeWithoutTransactions(txCount int) int {
 	return size
 }
 
-// ToStackItem converts Block to stackitem.Item.
+// ToStackItem converts Block to stackitem.Item
 func (b *Block) ToStackItem() stackitem.Item {
 	items := []stackitem.Item{
 		stackitem.NewByteArray(b.Hash().BytesBE()),
