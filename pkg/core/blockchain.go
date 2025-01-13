@@ -1119,7 +1119,6 @@ func (bc *Blockchain) Run() {
 			return
 		case <-persistTimer.C:
 			var oldPersisted uint32
-			var gcDur time.Duration
 
 			if bc.config.Ledger.RemoveUntraceableBlocks {
 				oldPersisted = atomic.LoadUint32(&bc.persistedHeight)
@@ -1129,10 +1128,10 @@ func (bc *Blockchain) Run() {
 				bc.log.Warn("failed to persist blockchain", zap.Error(err))
 			}
 			if bc.config.Ledger.RemoveUntraceableBlocks {
-				gcDur = bc.tryRunGC(oldPersisted)
+				dur += bc.tryRunGC(oldPersisted)
 			}
 			nextSync = dur > persistInterval*2
-			interval := persistInterval - dur - gcDur
+			interval := persistInterval - dur
 			interval = max(interval, time.Microsecond) // Reset doesn't work with zero or negative value.
 			persistTimer.Reset(interval)
 		}
