@@ -1643,7 +1643,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			}
 			for index := start; index < stop; index++ {
 				ts, err := kvcache.DeleteBlock(bc.GetHeaderHash(index), bc.config.Ledger.RemoveUntraceableHeaders)
-				if bc.config.Ledger.RemoveUntraceableHeaders && index%bc.config.Ledger.GarbageCollectionPeriod == 0 {
+				if index%bc.config.Ledger.GarbageCollectionPeriod == 0 {
 					_ = bc.gcBlockTimes.Add(index, ts)
 				}
 				if err != nil {
