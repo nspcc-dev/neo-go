@@ -1125,7 +1125,7 @@ func (bc *Blockchain) Run() {
 			}
 			dur, err := bc.persist(nextSync)
 			if err != nil {
-				bc.log.Warn("failed to persist blockchain", zap.Error(err))
+				bc.log.Error("failed to persist blockchain", zap.Error(err))
 			}
 			if bc.config.Ledger.RemoveUntraceableBlocks {
 				dur += bc.tryRunGC(oldPersisted)
