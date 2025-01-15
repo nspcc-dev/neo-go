@@ -63,7 +63,7 @@ func TestAddBlock(t *testing.T) {
 	assert.Equal(t, lastBlock.Hash(), bc.CurrentHeaderHash())
 
 	// This one tests persisting blocks, so it does need to persist()
-	_, err = bc.persist(false)
+	_, err = bc.persist()
 	require.NoError(t, err)
 
 	key := make([]byte, 1+util.Uint256Size)

@@ -19,12 +19,14 @@ func TestMemCachedPutGetDelete(t *testing.T) {
 
 	s.Put(key, value)
 
+	require.Equal(t, 1, s.Len())
 	result, err := s.Get(key)
 	assert.Nil(t, err)
 	require.Equal(t, value, result)
 
 	s.Delete(key)
 
+	require.Equal(t, 1, s.Len()) // deletion marker
 	_, err = s.Get(key)
 	assert.NotNil(t, err)
 	assert.Equal(t, err, ErrKeyNotFound)
