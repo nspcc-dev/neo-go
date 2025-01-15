@@ -100,7 +100,12 @@ DBConfiguration:
 ```
 where:
 - `Type` is the database type (string value). Supported types: `leveldb`, `boltdb` and
-  `inmemory` (not recommended for production usage).
+  `inmemory` (not recommended for production usage). LevelDB is better for archive nodes
+  that store all data, it better deals with writes in general, but any tail-cutting node
+  options seriously degrade its performance. BoltDB works much better in various
+  performance tests, however it can seriously degrade GC in case the DB size is bigger
+  than the amount of available memory. BoltDB is also more memory-demanding for some
+  operations, so GC can be problematic from that angle as well.
 - `LevelDBOptions` are settings for LevelDB. Includes the DB files path and ReadOnly mode toggle.
   If ReadOnly mode is on, then an error will be returned on attempt to connect to unexisting or empty
   database. Database doesn't allow changes in this mode, a warning will be logged on DB persist attempts.
