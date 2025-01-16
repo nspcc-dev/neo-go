@@ -56,6 +56,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"go.uber.org/zap"
 )
 
@@ -219,6 +220,7 @@ var rpcHandlers = map[string]func(*Server, params.Params) (any, *neorpc.Error){
 	"getblockhash":                 (*Server).getBlockHash,
 	"getblockheader":               (*Server).getBlockHeader,
 	"getblockheadercount":          (*Server).getBlockHeaderCount,
+	"getblocknotifications":        (*Server).getBlockNotifications,
 	"getblocksysfee":               (*Server).getBlockSysFee,
 	"getcandidates":                (*Server).getCandidates,
 	"getcommittee":                 (*Server).getCommittee,
@@ -3201,4 +3203,103 @@ func (s *Server) getRawNotaryTransaction(reqParams params.Params) (any, *neorpc.
 		return tx, nil
 	}
 	return tx.Bytes(), nil
+}
+
+// getBlockNotifications returns notifications from a specific block with optional filtering.
+func (s *Server) getBlockNotifications(reqParams params.Params) (any, *neorpc.Error) {
+	param := reqParams.Value(0)
+	hash, respErr := s.blockHashFromParam(param)
+	if respErr != nil {
+		return nil, respErr
+	}
+
+	block, err := s.chain.GetBlock(hash)
+	if err != nil {
+		return nil, neorpc.ErrUnknownBlock
+	}
+
+	var filter *neorpc.NotificationFilter
+	if len(reqParams) > 1 {
+		filter = new(neorpc.NotificationFilter)
+		err := json.Unmarshal(reqParams[1].RawMessage, filter)
+		if err != nil {
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid filter: %s", err))
+		}
+		if err := filter.IsValid(); err != nil {
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid filter: %s", err))
+		}
+	}
+
+	var notifications []state.ContainedNotificationEvent
+	for _, tx := range block.Transactions {
+		aers, err := s.chain.GetAppExecResults(tx.Hash(), trigger.Application)
+		if err != nil {
+			continue
+		}
+		for _, aer := range aers {
+			if aer.VMState == vmstate.Halt {
+				for _, evt := range aer.Events {
+					ntf := state.ContainedNotificationEvent{
+						Container:         aer.Container,
+						NotificationEvent: evt,
+					}
+					if filter == nil || rpcevent.Matches(&testComparator{
+						id:     neorpc.NotificationEventID,
+						filter: *filter,
+					}, &testContainer{ntf: &ntf}) {
+						notifications = append(notifications, ntf)
+					}
+				}
+			}
+		}
+	}
+
+	// Also check for notifications from the block itself (PostPersist)
+	aers, err := s.chain.GetAppExecResults(block.Hash(), trigger.Application)
+	if err == nil && len(aers) > 0 {
+		aer := aers[0]
+		if aer.VMState == vmstate.Halt {
+			for _, evt := range aer.Events {
+				ntf := state.ContainedNotificationEvent{
+					Container:         aer.Container,
+					NotificationEvent: evt,
+				}
+				if filter == nil || rpcevent.Matches(&testComparator{
+					id:     neorpc.NotificationEventID,
+					filter: *filter,
+				}, &testContainer{ntf: &ntf}) {
+					notifications = append(notifications, ntf)
+				}
+			}
+		}
+	}
+
+	return notifications, nil
+}
+
+// testComparator is a helper type for notification filtering
+type testComparator struct {
+	id     neorpc.EventID
+	filter neorpc.NotificationFilter
+}
+
+func (t *testComparator) EventID() neorpc.EventID {
+	return t.id
+}
+
+func (t *testComparator) Filter() neorpc.SubscriptionFilter {
+	return t.filter
+}
+
+// testContainer is a helper type for notification filtering
+type testContainer struct {
+	ntf *state.ContainedNotificationEvent
+}
+
+func (n *testContainer) EventID() neorpc.EventID {
+	return neorpc.NotificationEventID
+}
+
+func (n *testContainer) EventPayload() any {
+	return n.ntf
 }
