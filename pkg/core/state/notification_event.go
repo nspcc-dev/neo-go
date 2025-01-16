@@ -95,6 +95,12 @@ func (aer *AppExecResult) EncodeBinaryWithContext(w *io.BinWriter, sc *stackitem
 		aer.Events[i].EncodeBinaryWithContext(w, sc)
 	}
 	w.WriteVarBytes([]byte(aer.FaultException))
+	if invocLen := len(aer.Invocations); invocLen > 0 {
+		w.WriteVarUint(uint64(invocLen))
+		for i := range aer.Invocations {
+			aer.Invocations[i].EncodeBinaryWithContext(w, sc)
+		}
+	}
 }
 
 // DecodeBinary implements the Serializable interface.
@@ -120,6 +126,9 @@ func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 	aer.Stack = arr
 	r.ReadArray(&aer.Events)
 	aer.FaultException = r.ReadString()
+	if r.Len() > 0 {
+		r.ReadArray(&aer.Invocations)
+	}
 }
 
 // notificationEventAux is an auxiliary struct for NotificationEvent JSON marshalling.
@@ -209,16 +218,18 @@ type Execution struct {
 	Stack          []stackitem.Item
 	Events         []NotificationEvent
 	FaultException string
+	Invocations    []ContractInvocation
 }
 
 // executionAux represents an auxiliary struct for Execution JSON marshalling.
 type executionAux struct {
-	Trigger        string              `json:"trigger"`
-	VMState        string              `json:"vmstate"`
-	GasConsumed    int64               `json:"gasconsumed,string"`
-	Stack          json.RawMessage     `json:"stack"`
-	Events         []NotificationEvent `json:"notifications"`
-	FaultException *string             `json:"exception"`
+	Trigger        string               `json:"trigger"`
+	VMState        string               `json:"vmstate"`
+	GasConsumed    int64                `json:"gasconsumed,string"`
+	Stack          json.RawMessage      `json:"stack"`
+	Events         []NotificationEvent  `json:"notifications"`
+	FaultException *string              `json:"exception"`
+	Invocations    []ContractInvocation `json:"invocations"`
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -246,6 +257,7 @@ func (e Execution) MarshalJSON() ([]byte, error) {
 		Stack:          st,
 		Events:         e.Events,
 		FaultException: exception,
+		Invocations:    e.Invocations,
 	})
 }
 
@@ -287,6 +299,7 @@ func (e *Execution) UnmarshalJSON(data []byte) error {
 	if aux.FaultException != nil {
 		e.FaultException = *aux.FaultException
 	}
+	e.Invocations = aux.Invocations
 	return nil
 }
 

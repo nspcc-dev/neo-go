@@ -356,6 +356,52 @@ to various blockchain events (with simple event filtering) and receive them on
 the client as JSON-RPC notifications. More details on that are written in the
 [notifications specification](notifications.md).
 
+#### Applicationlog invocations
+
+The `SaveInvocations` node configuration setting stores smart contract invocation
+details into the application logs under the `invocations` key. This feature is
+specifically useful to capture information in the absence of `System.Runtime.Notify`
+calls for the given smart contract method. Other use-cases are described in 
+[this issue](https://github.com/neo-project/neo/issues/3386).
+
+Example:
+```json
+"invocations": [
+                    {
+                        "hash": "0xd2a4cff31913016155e38e474a2c06d08be276cf",
+                        "method": "transfer",
+                        "arguments": {
+                            "type": "Array",
+                            "value": [
+                                {
+                                    "type": "ByteString",
+                                    "value": "krOcd6pg8ptXwXPO2Rfxf9Mhpus="
+                                },
+                                {
+                                    "type": "ByteString",
+                                    "value": "AZelPVEEY0csq+FRLl/HJ9cW+Qs="
+                                },
+                                {
+                                    "type": "Integer",
+                                    "value": "1000000000000"
+                                },
+                                {
+                                    "type": "Any"
+                                }
+                            ]
+                        },
+                        "argumentscount": 4,
+                        "truncated": false
+                    }
+                ]
+```
+
+For security reasons the `arguments` field data may result in `null`. In such case the
+`Truncated` field will be set to `true`.
+
+Note that invocation records for faulted transactions are kept and are present in the 
+applicationlog. This behaviour differs from notifications which are omitted for faulted transactions.
+
 ## Reference
 
 * [JSON-RPC 2.0 Specification](http://www.jsonrpc.org/specification)

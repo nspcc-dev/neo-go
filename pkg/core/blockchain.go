@@ -451,6 +451,7 @@ func (bc *Blockchain) init() error {
 			KeepOnlyLatestState:        bc.config.Ledger.KeepOnlyLatestState,
 			Magic:                      uint32(bc.config.Magic),
 			Value:                      version,
+			SaveInvocations:            bc.config.SaveInvocations,
 		}
 		bc.dao.PutVersion(ver)
 		bc.dao.Version = ver
@@ -487,6 +488,10 @@ func (bc *Blockchain) init() error {
 	if ver.Magic != uint32(bc.config.Magic) {
 		return fmt.Errorf("protocol configuration Magic mismatch (old=%v, new=%v)",
 			ver.Magic, bc.config.Magic)
+	}
+	if ver.SaveInvocations != bc.config.SaveInvocations {
+		return fmt.Errorf("SaveInvocations setting mismatch (old=%v, new=%v)",
+			ver.SaveInvocations, bc.config.SaveInvocations)
 	}
 	bc.dao.Version = ver
 	bc.persistent.Version = ver
@@ -1754,6 +1759,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 				Stack:          v.Estack().ToArray(),
 				Events:         systemInterop.Notifications,
 				FaultException: faultException,
+				Invocations:    systemInterop.InvocationCalls,
 			},
 		}
 		appExecResults = append(appExecResults, aer)

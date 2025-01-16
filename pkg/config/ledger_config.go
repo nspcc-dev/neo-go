@@ -22,6 +22,8 @@ type Ledger struct {
 	// SkipBlockVerification allows to disable verification of received
 	// blocks (including cryptographic checks).
 	SkipBlockVerification bool `yaml:"SkipBlockVerification"`
+	// SaveInvocations enables smart contract invocation data saving.
+	SaveInvocations bool `yaml:"SaveInvocations"`
 }
 
 // Blockchain is a set of settings for core.Blockchain to use, it includes protocol
