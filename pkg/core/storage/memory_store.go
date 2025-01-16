@@ -66,6 +66,13 @@ func (s *MemoryStore) putChangeSet(puts map[string][]byte, stores map[string][]b
 	}
 }
 
+// Len returns the number of keys stored.
+func (s *MemoryStore) Len() int {
+	s.mut.RLock()
+	defer s.mut.RUnlock()
+	return len(s.mem) + len(s.stor)
+}
+
 // Seek implements the Store interface.
 func (s *MemoryStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 	s.seek(rng, f, s.mut.RLock, s.mut.RUnlock)

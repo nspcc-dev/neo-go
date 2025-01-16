@@ -18,7 +18,7 @@ node-related settings described in the table below.
 | --- | --- | --- | --- |
 | DBConfiguration | [DB Configuration](#DB-Configuration) |  | Describes configuration for database. See the [DB Configuration](#DB-Configuration) section for details. |
 | LogLevel | `string` | "info" | Minimal logged messages level (can be "debug", "info", "warn", "error", "dpanic", "panic" or "fatal"). |
-| GarbageCollectionPeriod | `uint32` | 10000 | Controls MPT garbage collection interval (in blocks) for configurations with `RemoveUntraceableBlocks` enabled and `KeepOnlyLatestState` disabled. In this mode the node stores a number of MPT trees (corresponding to `MaxTraceableBlocks` and `StateSyncInterval`), but the DB needs to be clean from old entries from time to time. Doing it too often will cause too much processing overhead, doing it too rarely will leave more useless data in the DB. |
+| GarbageCollectionPeriod | `uint32` | 10000 | Controls MPT garbage collection interval (in blocks) for configurations with `RemoveUntraceableBlocks` enabled and `KeepOnlyLatestState` disabled. In this mode the node stores a number of MPT trees (corresponding to `MaxTraceableBlocks` and `StateSyncInterval`), but the DB needs to be clean from old entries from time to time. Doing it too often will cause too much processing overhead (it requires going through the whole DB which can take minutes), doing it too rarely will leave more useless data in the DB. Always compare this to `MaxTraceableBlocks`, values lower than 10% of it are likely too low, values higher than 50% are likely to leave more garbage than is possible to collect. The default value is more aligned with NeoFS networks that have low MTB values, but for N3 mainnet it's too low. |
 | KeepOnlyLatestState | `bool` | `false` | Specifies if MPT should only store the latest state (or a set of latest states, see `P2PStateExchangeExtensions` section in the ProtocolConfiguration for details). If true, DB size will be smaller, but older roots won't be accessible. This value should remain the same for the same database. |  |
 | LogPath | `string` | "", so only console logging | File path where to store node logs. |
 | NeoFSBlockFetcher | [NeoFS BlockFetcher Configuration](#NeoFS-BlockFetcher-Configuration) | | NeoFS BlockFetcher module configuration. See the [NeoFS BlockFetcher Configuration](#NeoFS-BlockFetcher-Configuration) section for details. |
@@ -100,7 +100,12 @@ DBConfiguration:
 ```
 where:
 - `Type` is the database type (string value). Supported types: `leveldb`, `boltdb` and
-  `inmemory` (not recommended for production usage).
+  `inmemory` (not recommended for production usage). LevelDB is better for archive nodes
+  that store all data, it better deals with writes in general, but any tail-cutting node
+  options seriously degrade its performance. BoltDB works much better in various
+  performance tests, however it can seriously degrade GC in case the DB size is bigger
+  than the amount of available memory. BoltDB is also more memory-demanding for some
+  operations, so GC can be problematic from that angle as well.
 - `LevelDBOptions` are settings for LevelDB. Includes the DB files path and ReadOnly mode toggle.
   If ReadOnly mode is on, then an error will be returned on attempt to connect to unexisting or empty
   database. Database doesn't allow changes in this mode, a warning will be logged on DB persist attempts.

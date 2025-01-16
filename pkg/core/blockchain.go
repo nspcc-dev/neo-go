@@ -70,6 +70,13 @@ const (
 	// either, the next cycle will still do the job (only transfers need this,
 	// MPT won't notice at all).
 	defaultBlockTimesCache = 8
+
+	// persistSamples is the number of persist velocity samples to use for
+	// storeBlock limit.
+	persistSamples = 10
+	// persistMinForSampling is the minimal number of keys to take persist
+	// time into account wrt persist velocity.
+	persistMinForSampling = 100
 )
 
 // stateChangeStage denotes the stage of state modification process.
@@ -164,6 +171,14 @@ type Blockchain struct {
 
 	// Current persisted block count.
 	persistedHeight uint32
+
+	// keysPerPersist is the average number of persisted keys per persist
+	// time limit.
+	keysPerPersist uint32
+
+	// persistCond is signaled each time persist cycle ends, this wakes
+	// storeBlock if needed (when it has too many queued blocks)
+	persistCond *sync.Cond
 
 	// Index->Timestamp cache for garbage collector. Headers can be gone
 	// by the time it runs, so we use a tiny little cache to sync block
@@ -338,6 +353,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		contracts:   *native.NewContracts(cfg.ProtocolConfiguration),
 	}
 
+	bc.persistCond = sync.NewCond(&bc.lock)
 	bc.gcBlockTimes, _ = lru.New[uint32, uint64](defaultBlockTimesCache) // Never errors for positive size
 	bc.stateRoot = stateroot.NewModule(cfg, bc.VerifyWitness, bc.log, bc.dao.Store)
 	bc.contracts.Designate.StateRootService = bc.stateRoot
@@ -1102,7 +1118,7 @@ func (bc *Blockchain) Run() {
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
 		persistTimer.Stop()
-		if _, err := bc.persist(true); err != nil {
+		if _, err := bc.persist(); err != nil {
 			bc.log.Warn("failed to persist", zap.Error(err))
 		}
 		if err := bc.dao.Store.Close(); err != nil {
@@ -1112,27 +1128,24 @@ func (bc *Blockchain) Run() {
 		close(bc.runToExitCh)
 	}()
 	go bc.notificationDispatcher()
-	var nextSync bool
 	for {
 		select {
 		case <-bc.stopCh:
 			return
 		case <-persistTimer.C:
 			var oldPersisted uint32
-			var gcDur time.Duration
 
 			if bc.config.Ledger.RemoveUntraceableBlocks {
 				oldPersisted = atomic.LoadUint32(&bc.persistedHeight)
 			}
-			dur, err := bc.persist(nextSync)
+			dur, err := bc.persist()
 			if err != nil {
-				bc.log.Warn("failed to persist blockchain", zap.Error(err))
+				bc.log.Error("failed to persist blockchain", zap.Error(err))
 			}
 			if bc.config.Ledger.RemoveUntraceableBlocks {
-				gcDur = bc.tryRunGC(oldPersisted)
+				dur += bc.tryRunGC(oldPersisted)
 			}
-			nextSync = dur > persistInterval*2
-			interval := persistInterval - dur - gcDur
+			interval := persistInterval - dur
 			interval = max(interval, time.Microsecond) // Reset doesn't work with zero or negative value.
 			persistTimer.Reset(interval)
 		}
@@ -1159,8 +1172,8 @@ func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 	oldHeight /= bc.config.Ledger.GarbageCollectionPeriod
 	newHeight /= bc.config.Ledger.GarbageCollectionPeriod
 	if tgtBlock > int64(bc.config.Ledger.GarbageCollectionPeriod) && newHeight != oldHeight {
-		dur = bc.stateRoot.GC(uint32(tgtBlock), bc.store)
-		dur += bc.removeOldTransfers(uint32(tgtBlock))
+		dur = bc.removeOldTransfers(uint32(tgtBlock))
+		dur += bc.stateRoot.GC(uint32(tgtBlock), bc.store)
 	}
 	return dur
 }
@@ -1644,7 +1657,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			}
 			for index := start; index < stop; index++ {
 				ts, err := kvcache.DeleteBlock(bc.GetHeaderHash(index), bc.config.Ledger.RemoveUntraceableHeaders)
-				if bc.config.Ledger.RemoveUntraceableHeaders && index%bc.config.Ledger.GarbageCollectionPeriod == 0 {
+				if index%bc.config.Ledger.GarbageCollectionPeriod == 0 {
 					_ = bc.gcBlockTimes.Add(index, ts)
 				}
 				if err != nil {
@@ -1798,6 +1811,14 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	}
 
 	bc.lock.Lock()
+	// Wait for a while if we're lagging behind the persistence routine,
+	// it's too easy to OOM otherwise. Keep in mind that this check can't
+	// be perfect, so some tolerance (accepting more) is OK to have.
+	var persistVelocity = atomic.LoadUint32(&bc.keysPerPersist)
+	for persistVelocity != 0 && uint32(bc.dao.Store.Len()) > persistVelocity*4 {
+		bc.persistCond.Wait()
+	}
+
 	_, err = aerCache.Persist()
 	if err != nil {
 		bc.lock.Unlock()
@@ -2149,7 +2170,7 @@ func (bc *Blockchain) LastBatch() *storage.MemBatch {
 }
 
 // persist flushes current in-memory Store contents to the persistent storage.
-func (bc *Blockchain) persist(isSync bool) (time.Duration, error) {
+func (bc *Blockchain) persist() (time.Duration, error) {
 	var (
 		start     = time.Now()
 		duration  time.Duration
@@ -2157,11 +2178,7 @@ func (bc *Blockchain) persist(isSync bool) (time.Duration, error) {
 		err       error
 	)
 
-	if isSync {
-		persisted, err = bc.dao.PersistSync()
-	} else {
-		persisted, err = bc.dao.Persist()
-	}
+	persisted, err = bc.dao.Persist()
 	if err != nil {
 		return 0, err
 	}
@@ -2178,6 +2195,20 @@ func (bc *Blockchain) persist(isSync bool) (time.Duration, error) {
 			return 0, err
 		}
 		duration = time.Since(start)
+		// Low number of keys is not representative and duration _can_
+		// be zero in tests on strange platforms like Windows.
+		if duration > 0 && persisted > persistMinForSampling {
+			var (
+				currentVelocity = uint32(int64(persisted) * int64(persistInterval) / int64(duration))
+				persistVelocity = atomic.LoadUint32(&bc.keysPerPersist)
+			)
+			if persistVelocity != 0 {
+				currentVelocity = min(currentVelocity, 2*persistVelocity) // Normalize sudden spikes.
+				currentVelocity = (persistVelocity*(persistSamples-1) + currentVelocity) / persistSamples
+			} // Otherwise it's the first sample and we take it as is.
+			atomic.StoreUint32(&bc.keysPerPersist, currentVelocity)
+			updateEstimatedPersistVelocityMetric(currentVelocity)
+		}
 		bc.log.Info("persisted to disk",
 			zap.Uint32("blocks", diff),
 			zap.Int("keys", persisted),
@@ -2188,6 +2219,7 @@ func (bc *Blockchain) persist(isSync bool) (time.Duration, error) {
 		// update monitoring metrics.
 		updatePersistedHeightMetric(bHeight)
 	}
+	bc.persistCond.Signal()
 
 	return duration, nil
 }

@@ -22,6 +22,14 @@ var (
 			Namespace: "neogo",
 		},
 	)
+	// estimatedPersistVelocity prometheus metric.
+	estimatedPersistVelocity = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Help:      "Estimation of persist velocity per cycle (1s by default)",
+			Name:      "estimated_persist_velocity",
+			Namespace: "neogo",
+		},
+	)
 	// headerHeight prometheus metric.
 	headerHeight = prometheus.NewGauge(
 		prometheus.GaugeOpts{
@@ -44,6 +52,7 @@ func init() {
 	prometheus.MustRegister(
 		blockHeight,
 		persistedHeight,
+		estimatedPersistVelocity,
 		headerHeight,
 		mempoolUnsortedTx,
 	)
@@ -51,6 +60,10 @@ func init() {
 
 func updatePersistedHeightMetric(pHeight uint32) {
 	persistedHeight.Set(float64(pHeight))
+}
+
+func updateEstimatedPersistVelocityMetric(v uint32) {
+	estimatedPersistVelocity.Set(float64(v))
 }
 
 func updateHeaderHeightMetric(hHeight uint32) {
