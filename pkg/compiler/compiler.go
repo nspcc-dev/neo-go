@@ -468,12 +468,12 @@ func CreateManifest(di *DebugInfo, o *Options) (*manifest.Manifest, error) {
 			return m, err
 		}
 		if m.ABI.GetMethod(manifest.MethodOnNEP11Payment, -1) != nil {
-			if err := standard.CheckABI(m, manifest.NEP11Payable); err != nil {
+			if err := standard.CheckABI(m, manifest.NEP26StandardName); err != nil {
 				return m, err
 			}
 		}
 		if m.ABI.GetMethod(manifest.MethodOnNEP17Payment, -1) != nil {
-			if err := standard.CheckABI(m, manifest.NEP17Payable); err != nil {
+			if err := standard.CheckABI(m, manifest.NEP27StandardName); err != nil {
 				return m, err
 			}
 		}

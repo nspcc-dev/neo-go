@@ -22,17 +22,29 @@ const (
 	NEP11StandardName = "NEP-11"
 	// NEP17StandardName represents the name of NEP-17 smartcontract standard.
 	NEP17StandardName = "NEP-17"
-	// NEP11Payable represents the name of contract interface which can receive NEP-11 tokens.
-	NEP11Payable = "NEP-11-Payable"
-	// NEP17Payable represents the name of contract interface which can receive NEP-17 tokens.
-	NEP17Payable = "NEP-17-Payable"
 	// NEP24StandardName represents the name of the NEP-24 smart contract standard for NFT royalties.
 	NEP24StandardName = "NEP-24"
 	// NEP24Payable represents the name of the contract interface for handling royalty payments in accordance
 	// with the NEP-24 standard.
 	NEP24Payable = "NEP-24-Payable"
+	// NEP26StandardName represents the name of NEP-26 smartcontract standard.
+	NEP26StandardName = "NEP-26"
+	// NEP27StandardName represents the name of NEP-27 smartcontract standard.
+	NEP27StandardName = "NEP-27"
 
 	emptyFeatures = "{}"
+)
+
+// Aliases of Standard names.
+const (
+	// NEP11Payable represents the name of NEP-26 smartcontract standard
+	// (contract interface which can receive NEP-11 tokens).
+	// Deprecated: to be removed in next version; use NEP26StandardName.
+	NEP11Payable = NEP26StandardName
+	// NEP17Payable represents the name of NEP-27 smartcontract standard
+	// (contract interface which can receive NEP-17 tokens).
+	// Deprecated: to be removed in next version; use NEP27StandardName.
+	NEP17Payable = NEP27StandardName
 )
 
 // Manifest represens contract metadata.
