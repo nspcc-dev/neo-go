@@ -235,7 +235,6 @@ func (b *Block) GetExpectedBlockSizeWithoutTransactions(txCount int) int {
 	return size
 }
 
-// ToStackItem converts Block to stackitem.Item.
 func (b *Block) ToStackItem() stackitem.Item {
 	items := []stackitem.Item{
 		stackitem.NewByteArray(b.Hash().BytesBE()),
@@ -305,9 +304,7 @@ func (b TrimmedBlock) MarshalJSON() ([]byte, error) {
 	return baseBytes, nil
 }
 
-// UnmarshalJSON implementa a interface json.Unmarshaler.
 func (b *TrimmedBlock) UnmarshalJSON(data []byte) error {
-	// Similar ao Block normal, faz unmarshalling separado para Header e hashes
 	auxb := new(auxTrimmedBlockIn)
 	err := json.Unmarshal(data, auxb)
 	if err != nil {
@@ -329,7 +326,6 @@ func (b *TrimmedBlock) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// ToStackItem converte TrimmedBlock para stackitem.Item.
 func (b *TrimmedBlock) ToStackItem() stackitem.Item {
 	items := []stackitem.Item{
 		stackitem.NewByteArray(b.Hash().BytesBE()),
