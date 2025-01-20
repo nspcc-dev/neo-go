@@ -439,7 +439,7 @@ func (dao *Simple) getBlock(key []byte) (*block.Block, error) {
 	return block, nil
 }
 
-// GetTrimmedBlock returns a block with only the header and transaction hashes
+// GetTrimmedBlock returns a block with only the header and transaction hashes.
 func (dao *Simple) GetTrimmedBlock(hash util.Uint256) (*block.TrimmedBlock, error) {
 	key := dao.makeExecutableKey(hash)
 	b, err := dao.Store.Get(key)

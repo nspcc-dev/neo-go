@@ -3150,7 +3150,7 @@ func (bc *Blockchain) GetStoragePrice() int64 {
 	return bc.contracts.Policy.GetStoragePriceInternal(bc.dao)
 }
 
-// GetTrimmedBlock returns a block with only the header and transaction hashes
+// GetTrimmedBlock returns a block with only the header and transaction hashes.
 func (bc *Blockchain) GetTrimmedBlock(hash util.Uint256) (*block.TrimmedBlock, error) {
 	return bc.dao.GetTrimmedBlock(hash)
 }

@@ -60,7 +60,7 @@ type auxTrimmedBlockOut struct {
 	TxHashes []util.Uint256 `json:"tx"`
 }
 
-// auxTrimmedBlockIn é usado para JSON i/o.
+// auxTrimmedBlockIn is used for JSON i/o.
 type auxTrimmedBlockIn struct {
 	TxHashes []json.RawMessage `json:"tx"`
 }
@@ -256,7 +256,7 @@ func (b *Block) ToStackItem() stackitem.Item {
 	return stackitem.NewArray(items)
 }
 
-// NewTrimmedBlockFromReader creates a block with only the header and transaction hashes
+// NewTrimmedBlockFromReader creates a block with only the header and transaction hashes.
 func NewTrimmedBlockFromReader(stateRootEnabled bool, br *io.BinReader) (*TrimmedBlock, error) {
 	block := &TrimmedBlock{
 		Header: Header{
