@@ -439,6 +439,21 @@ func (dao *Simple) getBlock(key []byte) (*block.Block, error) {
 	return block, nil
 }
 
+// GetTrimmedBlock returns a block with only the header and transaction hashes.
+func (dao *Simple) GetTrimmedBlock(hash util.Uint256) (*block.TrimmedBlock, error) {
+	key := dao.makeExecutableKey(hash)
+	b, err := dao.Store.Get(key)
+	if err != nil {
+		return nil, err
+	}
+
+	r := io.NewBinReaderFromBuf(b)
+	if r.ReadB() != storage.ExecBlock {
+		return nil, storage.ErrKeyNotFound
+	}
+	return block.NewTrimmedBlockFromReader(dao.Version.StateRootInHeader, r)
+}
+
 // Version represents the current dao version.
 type Version struct {
 	StoragePrefix              storage.KeyPrefix
