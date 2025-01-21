@@ -21,8 +21,8 @@ var (
 var checks = map[string][]*Standard{
 	manifest.NEP11StandardName: {Nep11NonDivisible, Nep11Divisible},
 	manifest.NEP17StandardName: {Nep17},
-	manifest.NEP11Payable:      {Nep11Payable},
-	manifest.NEP17Payable:      {Nep17Payable},
+	manifest.NEP26StandardName: {Nep26},
+	manifest.NEP27StandardName: {Nep27},
 	manifest.NEP24StandardName: {Nep24},
 	manifest.NEP24Payable:      {Nep24Payable},
 }

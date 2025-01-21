@@ -121,7 +121,7 @@ const (
 	// not yet deployed to the testing basic chain.
 	invokescriptContractAVM = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
 	// block20StateRootLE is an LE stateroot of block #20 of basic testing chain.
-	block20StateRootLE = "310acac4fd692ab7a90dbd7fcf6feaf1ac33aabeedf6592c4ddd08ff1dac15de"
+	block20StateRootLE = "c090acedbf27087977b2b59add034055562f26cba1dc95e3d25ae2774ab86204"
 )
 
 var (

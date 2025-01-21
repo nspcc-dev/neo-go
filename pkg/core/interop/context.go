@@ -213,7 +213,7 @@ type ContractMD struct {
 	mdCache map[config.Hardfork]*HFSpecificContractMD
 
 	// onManifestConstruction is a callback for manifest finalization.
-	onManifestConstruction func(*manifest.Manifest)
+	onManifestConstruction func(*manifest.Manifest, config.Hardfork)
 }
 
 // HFSpecificContractMD is a hardfork-specific native contract descriptor.
@@ -225,7 +225,7 @@ type HFSpecificContractMD struct {
 
 // NewContractMD returns Contract with the specified fields set. onManifestConstruction callback every time
 // after hardfork-specific manifest creation and aimed to finalize the manifest.
-func NewContractMD(name string, id int32, onManifestConstruction ...func(*manifest.Manifest)) *ContractMD {
+func NewContractMD(name string, id int32, onManifestConstruction ...func(*manifest.Manifest, config.Hardfork)) *ContractMD {
 	c := &ContractMD{Name: name}
 	if len(onManifestConstruction) != 0 {
 		c.onManifestConstruction = onManifestConstruction[0]
@@ -339,7 +339,7 @@ func (c *ContractMD) buildHFSpecificMD(hf config.Hardfork) {
 	m.ABI.Methods = abiMethods
 	m.ABI.Events = abiEvents
 	if c.onManifestConstruction != nil {
-		c.onManifestConstruction(m)
+		c.onManifestConstruction(m, hf)
 	}
 	md := &HFSpecificContractMD{
 		ContractBase: state.ContractBase{

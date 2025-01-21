@@ -170,7 +170,11 @@ func newNEO(cfg config.ProtocolConfiguration) *NEO {
 	n := &NEO{}
 	defer n.BuildHFSpecificMD(n.ActiveIn())
 
-	nep17 := newNEP17Native(nativenames.Neo, neoContractID)
+	nep17 := newNEP17Native(nativenames.Neo, neoContractID, func(m *manifest.Manifest, hf config.Hardfork) {
+		if hf.Cmp(config.HFEchidna) >= 0 {
+			m.SupportedStandards = append(m.SupportedStandards, manifest.NEP27StandardName)
+		}
+	})
 	nep17.symbol = "NEO"
 	nep17.decimals = 0
 	nep17.factor = 1
