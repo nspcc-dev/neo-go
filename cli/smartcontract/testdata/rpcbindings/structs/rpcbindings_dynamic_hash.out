@@ -171,8 +171,12 @@ func itemToLedgerBlock(item stackitem.Item, err error) (*LedgerBlock, error) {
 	return res, err
 }
 
+// Ensure *LedgerBlock is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&LedgerBlock{})
+
 // FromStackItem retrieves fields of LedgerBlock from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *LedgerBlock) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -289,6 +293,81 @@ func (res *LedgerBlock) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
+// ToStackItem creates [stackitem.Item] representing LedgerBlock.
+// It implements [stackitem.Convertible] interface.
+func (res *LedgerBlock) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 10)
+	)
+	itm, err = stackitem.NewByteArray(res.Hash.BytesBE()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Hash: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.Version), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Version: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.PrevHash.BytesBE()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field PrevHash: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.MerkleRoot.BytesBE()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field MerkleRoot: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.Timestamp), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Timestamp: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.Nonce), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Nonce: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.Index), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Index: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.PrimaryIndex), error(nil)
+	if err != nil {
+		return fmt.Errorf("field PrimaryIndex: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.NextConsensus.BytesBE()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field NextConsensus: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.TransactionsLength), error(nil)
+	if err != nil {
+		return fmt.Errorf("field TransactionsLength: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
+}
+
 // itemToLedgerTransaction converts stack item into *LedgerTransaction.
 // NULL item is returned as nil pointer without error.
 func itemToLedgerTransaction(item stackitem.Item, err error) (*LedgerTransaction, error) {
@@ -304,8 +383,12 @@ func itemToLedgerTransaction(item stackitem.Item, err error) (*LedgerTransaction
 	return res, err
 }
 
+// Ensure *LedgerTransaction is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&LedgerTransaction{})
+
 // FromStackItem retrieves fields of LedgerTransaction from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *LedgerTransaction) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -390,6 +473,69 @@ func (res *LedgerTransaction) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
+// ToStackItem creates [stackitem.Item] representing LedgerTransaction.
+// It implements [stackitem.Convertible] interface.
+func (res *LedgerTransaction) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 8)
+	)
+	itm, err = stackitem.NewByteArray(res.Hash.BytesBE()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Hash: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.Version), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Version: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.Nonce), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Nonce: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.Sender.BytesBE()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Sender: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.SysFee), error(nil)
+	if err != nil {
+		return fmt.Errorf("field SysFee: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.NetFee), error(nil)
+	if err != nil {
+		return fmt.Errorf("field NetFee: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.ValidUntilBlock), error(nil)
+	if err != nil {
+		return fmt.Errorf("field ValidUntilBlock: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.Script), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Script: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
+}
+
 // itemToManagementABI converts stack item into *ManagementABI.
 // NULL item is returned as nil pointer without error.
 func itemToManagementABI(item stackitem.Item, err error) (*ManagementABI, error) {
@@ -405,8 +551,12 @@ func itemToManagementABI(item stackitem.Item, err error) (*ManagementABI, error)
 	return res, err
 }
 
+// Ensure *ManagementABI is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&ManagementABI{})
+
 // FromStackItem retrieves fields of ManagementABI from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *ManagementABI) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -461,6 +611,61 @@ func (res *ManagementABI) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
+// ToStackItem creates [stackitem.Item] representing ManagementABI.
+// It implements [stackitem.Convertible] interface.
+func (res *ManagementABI) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 2)
+	)
+	itm, err = func(in []*ManagementMethod) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var items = make([]stackitem.Item, 0, len(in))
+		for i, v := range in {
+			itm, err := v.ToStackItem()
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+			items = append(items, itm)
+		}
+		return stackitem.NewArray(items), nil
+	}(res.Methods)
+	if err != nil {
+		return fmt.Errorf("field Methods: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = func(in []*ManagementEvent) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var items = make([]stackitem.Item, 0, len(in))
+		for i, v := range in {
+			itm, err := v.ToStackItem()
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+			items = append(items, itm)
+		}
+		return stackitem.NewArray(items), nil
+	}(res.Events)
+	if err != nil {
+		return fmt.Errorf("field Events: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
+}
+
 // itemToManagementContract converts stack item into *ManagementContract.
 // NULL item is returned as nil pointer without error.
 func itemToManagementContract(item stackitem.Item, err error) (*ManagementContract, error) {
@@ -476,8 +681,12 @@ func itemToManagementContract(item stackitem.Item, err error) (*ManagementContra
 	return res, err
 }
 
+// Ensure *ManagementContract is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&ManagementContract{})
+
 // FromStackItem retrieves fields of ManagementContract from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *ManagementContract) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -534,6 +743,51 @@ func (res *ManagementContract) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
+// ToStackItem creates [stackitem.Item] representing ManagementContract.
+// It implements [stackitem.Convertible] interface.
+func (res *ManagementContract) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 5)
+	)
+	itm, err = (*stackitem.BigInteger)(res.ID), error(nil)
+	if err != nil {
+		return fmt.Errorf("field ID: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.UpdateCounter), error(nil)
+	if err != nil {
+		return fmt.Errorf("field UpdateCounter: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.Hash.BytesBE()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Hash: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.NEF), error(nil)
+	if err != nil {
+		return fmt.Errorf("field NEF: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = res.Manifest.ToStackItem()
+	if err != nil {
+		return fmt.Errorf("field Manifest: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
+}
+
 // itemToManagementEvent converts stack item into *ManagementEvent.
 // NULL item is returned as nil pointer without error.
 func itemToManagementEvent(item stackitem.Item, err error) (*ManagementEvent, error) {
@@ -549,8 +803,12 @@ func itemToManagementEvent(item stackitem.Item, err error) (*ManagementEvent, er
 	return res, err
 }
 
+// Ensure *ManagementEvent is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&ManagementEvent{})
+
 // FromStackItem retrieves fields of ManagementEvent from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *ManagementEvent) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -601,6 +859,47 @@ func (res *ManagementEvent) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
+// ToStackItem creates [stackitem.Item] representing ManagementEvent.
+// It implements [stackitem.Convertible] interface.
+func (res *ManagementEvent) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 2)
+	)
+	itm, err = stackitem.NewByteArray([]byte(res.Name)), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Name: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = func(in []*ManagementParameter) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var items = make([]stackitem.Item, 0, len(in))
+		for i, v := range in {
+			itm, err := v.ToStackItem()
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+			items = append(items, itm)
+		}
+		return stackitem.NewArray(items), nil
+	}(res.Params)
+	if err != nil {
+		return fmt.Errorf("field Params: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
+}
+
 // itemToManagementGroup converts stack item into *ManagementGroup.
 // NULL item is returned as nil pointer without error.
 func itemToManagementGroup(item stackitem.Item, err error) (*ManagementGroup, error) {
@@ -616,8 +915,12 @@ func itemToManagementGroup(item stackitem.Item, err error) (*ManagementGroup, er
 	return res, err
 }
 
+// Ensure *ManagementGroup is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&ManagementGroup{})
+
 // FromStackItem retrieves fields of ManagementGroup from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *ManagementGroup) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -656,6 +959,33 @@ func (res *ManagementGroup) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
+// ToStackItem creates [stackitem.Item] representing ManagementGroup.
+// It implements [stackitem.Convertible] interface.
+func (res *ManagementGroup) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 2)
+	)
+	itm, err = stackitem.NewByteArray(res.PublicKey.Bytes()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field PublicKey: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.Signature), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Signature: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
+}
+
 // itemToManagementManifest converts stack item into *ManagementManifest.
 // NULL item is returned as nil pointer without error.
 func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManifest, error) {
@@ -671,8 +1001,12 @@ func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManife
 	return res, err
 }
 
+// Ensure *ManagementManifest is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&ManagementManifest{})
+
 // FromStackItem retrieves fields of ManagementManifest from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *ManagementManifest) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -853,6 +1187,143 @@ func (res *ManagementManifest) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
+// ToStackItem creates [stackitem.Item] representing ManagementManifest.
+// It implements [stackitem.Convertible] interface.
+func (res *ManagementManifest) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 8)
+	)
+	itm, err = stackitem.NewByteArray([]byte(res.Name)), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Name: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = func(in []*ManagementGroup) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var items = make([]stackitem.Item, 0, len(in))
+		for i, v := range in {
+			itm, err := v.ToStackItem()
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+			items = append(items, itm)
+		}
+		return stackitem.NewArray(items), nil
+	}(res.Groups)
+	if err != nil {
+		return fmt.Errorf("field Groups: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = func(in map[string]string) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var m = stackitem.NewMap()
+		for k, v := range in {
+			iKey, err := stackitem.NewByteArray([]byte(k)), error(nil)
+			if err != nil {
+				return nil, fmt.Errorf("key %v: %w", k, err)
+			}
+			iVal, err := stackitem.NewByteArray([]byte(v)), error(nil)
+			if err != nil {
+				return nil, fmt.Errorf("key %v, wrong value: %w", k, err)
+			}
+			m.Add(iKey, iVal)
+		}
+		return m, nil
+	}(res.Features)
+	if err != nil {
+		return fmt.Errorf("field Features: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = func(in []string) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var items = make([]stackitem.Item, 0, len(in))
+		for i, v := range in {
+			itm, err := stackitem.NewByteArray([]byte(v)), error(nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+			items = append(items, itm)
+		}
+		return stackitem.NewArray(items), nil
+	}(res.SupportedStandards)
+	if err != nil {
+		return fmt.Errorf("field SupportedStandards: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = res.ABI.ToStackItem()
+	if err != nil {
+		return fmt.Errorf("field ABI: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = func(in []*ManagementPermission) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var items = make([]stackitem.Item, 0, len(in))
+		for i, v := range in {
+			itm, err := v.ToStackItem()
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+			items = append(items, itm)
+		}
+		return stackitem.NewArray(items), nil
+	}(res.Permissions)
+	if err != nil {
+		return fmt.Errorf("field Permissions: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = func(in []util.Uint160) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var items = make([]stackitem.Item, 0, len(in))
+		for i, v := range in {
+			itm, err := stackitem.NewByteArray(v.BytesBE()), error(nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+			items = append(items, itm)
+		}
+		return stackitem.NewArray(items), nil
+	}(res.Trusts)
+	if err != nil {
+		return fmt.Errorf("field Trusts: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.TryMake(res.Extra)
+	if err != nil {
+		return fmt.Errorf("field Extra: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
+}
+
 // itemToManagementMethod converts stack item into *ManagementMethod.
 // NULL item is returned as nil pointer without error.
 func itemToManagementMethod(item stackitem.Item, err error) (*ManagementMethod, error) {
@@ -868,8 +1339,12 @@ func itemToManagementMethod(item stackitem.Item, err error) (*ManagementMethod, 
 	return res, err
 }
 
+// Ensure *ManagementMethod is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&ManagementMethod{})
+
 // FromStackItem retrieves fields of ManagementMethod from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *ManagementMethod) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -938,6 +1413,65 @@ func (res *ManagementMethod) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
+// ToStackItem creates [stackitem.Item] representing ManagementMethod.
+// It implements [stackitem.Convertible] interface.
+func (res *ManagementMethod) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 5)
+	)
+	itm, err = stackitem.NewByteArray([]byte(res.Name)), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Name: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = func(in []*ManagementParameter) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var items = make([]stackitem.Item, 0, len(in))
+		for i, v := range in {
+			itm, err := v.ToStackItem()
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+			items = append(items, itm)
+		}
+		return stackitem.NewArray(items), nil
+	}(res.Params)
+	if err != nil {
+		return fmt.Errorf("field Params: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.ReturnType), error(nil)
+	if err != nil {
+		return fmt.Errorf("field ReturnType: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.Offset), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Offset: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewBool(res.Safe), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Safe: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
+}
+
 // itemToManagementParameter converts stack item into *ManagementParameter.
 // NULL item is returned as nil pointer without error.
 func itemToManagementParameter(item stackitem.Item, err error) (*ManagementParameter, error) {
@@ -953,8 +1487,12 @@ func itemToManagementParameter(item stackitem.Item, err error) (*ManagementParam
 	return res, err
 }
 
+// Ensure *ManagementParameter is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&ManagementParameter{})
+
 // FromStackItem retrieves fields of ManagementParameter from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *ManagementParameter) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -992,6 +1530,33 @@ func (res *ManagementParameter) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
+// ToStackItem creates [stackitem.Item] representing ManagementParameter.
+// It implements [stackitem.Convertible] interface.
+func (res *ManagementParameter) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 2)
+	)
+	itm, err = stackitem.NewByteArray([]byte(res.Name)), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Name: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.Type), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Type: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
+}
+
 // itemToManagementPermission converts stack item into *ManagementPermission.
 // NULL item is returned as nil pointer without error.
 func itemToManagementPermission(item stackitem.Item, err error) (*ManagementPermission, error) {
@@ -1007,8 +1572,12 @@ func itemToManagementPermission(item stackitem.Item, err error) (*ManagementPerm
 	return res, err
 }
 
+// Ensure *ManagementPermission is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&ManagementPermission{})
+
 // FromStackItem retrieves fields of ManagementPermission from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *ManagementPermission) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -1069,6 +1638,47 @@ func (res *ManagementPermission) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
+// ToStackItem creates [stackitem.Item] representing ManagementPermission.
+// It implements [stackitem.Convertible] interface.
+func (res *ManagementPermission) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 2)
+	)
+	itm, err = stackitem.NewByteArray(res.Contract.BytesBE()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Contract: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = func(in []string) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var items = make([]stackitem.Item, 0, len(in))
+		for i, v := range in {
+			itm, err := stackitem.NewByteArray([]byte(v)), error(nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+			items = append(items, itm)
+		}
+		return stackitem.NewArray(items), nil
+	}(res.Methods)
+	if err != nil {
+		return fmt.Errorf("field Methods: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
+}
+
 // itemToStructsInternal converts stack item into *StructsInternal.
 // NULL item is returned as nil pointer without error.
 func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, error) {
@@ -1084,8 +1694,12 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 	return res, err
 }
 
+// Ensure *StructsInternal is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&StructsInternal{})
+
 // FromStackItem retrieves fields of StructsInternal from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *StructsInternal) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -1310,4 +1924,163 @@ func (res *StructsInternal) FromStackItem(item stackitem.Item) error {
 	}
 
 	return nil
+}
+
+// ToStackItem creates [stackitem.Item] representing StructsInternal.
+// It implements [stackitem.Convertible] interface.
+func (res *StructsInternal) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 14)
+	)
+	itm, err = stackitem.NewBool(res.Bool), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Bool: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.Int), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Int: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.Bytes), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Bytes: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray([]byte(res.String)), error(nil)
+	if err != nil {
+		return fmt.Errorf("field String: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.H160.BytesBE()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field H160: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.H256.BytesBE()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field H256: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.PK.Bytes()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field PK: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.PubKey.Bytes()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field PubKey: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewByteArray(res.Sign), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Sign: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = func(in [][]byte) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var items = make([]stackitem.Item, 0, len(in))
+		for i, v := range in {
+			itm, err := stackitem.NewByteArray(v), error(nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+			items = append(items, itm)
+		}
+		return stackitem.NewArray(items), nil
+	}(res.ArrOfBytes)
+	if err != nil {
+		return fmt.Errorf("field ArrOfBytes: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = func(in []util.Uint160) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var items = make([]stackitem.Item, 0, len(in))
+		for i, v := range in {
+			itm, err := stackitem.NewByteArray(v.BytesBE()), error(nil)
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+			items = append(items, itm)
+		}
+		return stackitem.NewArray(items), nil
+	}(res.ArrOfH160)
+	if err != nil {
+		return fmt.Errorf("field ArrOfH160: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = func(in map[*big.Int]keys.PublicKeys) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var m = stackitem.NewMap()
+		for k, v := range in {
+			iKey, err := (*stackitem.BigInteger)(k), error(nil)
+			if err != nil {
+				return nil, fmt.Errorf("key %v: %w", k, err)
+			}
+			iVal, err := func(in keys.PublicKeys) (stackitem.Item, error) {
+				if in == nil {
+					return stackitem.Null{}, nil
+				}
+
+				var items = make([]stackitem.Item, 0, len(in))
+				for i, v := range in {
+					itm, err := stackitem.NewByteArray(v.Bytes()), error(nil)
+					if err != nil {
+						return nil, fmt.Errorf("item %d: %w", i, err)
+					}
+					items = append(items, itm)
+				}
+				return stackitem.NewArray(items), nil
+			}(v)
+			if err != nil {
+				return nil, fmt.Errorf("key %v, wrong value: %w", k, err)
+			}
+			m.Add(iKey, iVal)
+		}
+		return m, nil
+	}(res.Map)
+	if err != nil {
+		return fmt.Errorf("field Map: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = res.Struct.ToStackItem()
+	if err != nil {
+		return fmt.Errorf("field Struct: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.UnexportedField), error(nil)
+	if err != nil {
+		return fmt.Errorf("field UnexportedField: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
 }

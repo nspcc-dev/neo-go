@@ -203,8 +203,12 @@ func itemToNftRoyaltyRecipientShare(item stackitem.Item, err error) (*NftRoyalty
 	return res, err
 }
 
+// Ensure *NftRoyaltyRecipientShare is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&NftRoyaltyRecipientShare{})
+
 // FromStackItem retrieves fields of NftRoyaltyRecipientShare from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *NftRoyaltyRecipientShare) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -241,4 +245,31 @@ func (res *NftRoyaltyRecipientShare) FromStackItem(item stackitem.Item) error {
 	}
 
 	return nil
+}
+
+// ToStackItem creates [stackitem.Item] representing NftRoyaltyRecipientShare.
+// It implements [stackitem.Convertible] interface.
+func (res *NftRoyaltyRecipientShare) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 2)
+	)
+	itm, err = stackitem.NewByteArray(res.Address.BytesBE()), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Address: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = (*stackitem.BigInteger)(res.Share), error(nil)
+	if err != nil {
+		return fmt.Errorf("field Share: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
 }
