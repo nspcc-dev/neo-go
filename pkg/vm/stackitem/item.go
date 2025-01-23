@@ -93,84 +93,92 @@ func mkInvConversion(from Item, to Type) error {
 	return fmt.Errorf("%w: %s/%s", ErrInvalidConversion, from, to)
 }
 
-// Make tries to make an appropriate stack item from the provided value.
-// It will panic if it's not possible.
-func Make(v any) Item {
+// TryMake tries to make an appropriate stack item from the provided value.
+func TryMake(v any) (Item, error) {
 	switch val := v.(type) {
 	case int:
-		return (*BigInteger)(big.NewInt(int64(val)))
+		return (*BigInteger)(big.NewInt(int64(val))), nil
 	case int64:
-		return (*BigInteger)(big.NewInt(val))
+		return (*BigInteger)(big.NewInt(val)), nil
 	case uint8:
-		return (*BigInteger)(big.NewInt(int64(val)))
+		return (*BigInteger)(big.NewInt(int64(val))), nil
 	case uint16:
-		return (*BigInteger)(big.NewInt(int64(val)))
+		return (*BigInteger)(big.NewInt(int64(val))), nil
 	case uint32:
-		return (*BigInteger)(big.NewInt(int64(val)))
+		return (*BigInteger)(big.NewInt(int64(val))), nil
 	case uint64:
-		return (*BigInteger)(new(big.Int).SetUint64(val))
+		return (*BigInteger)(new(big.Int).SetUint64(val)), nil
 	case []byte:
-		return NewByteArray(val)
+		return NewByteArray(val), nil
 	case string:
-		return NewByteArray([]byte(val))
+		return NewByteArray([]byte(val)), nil
 	case bool:
-		return Bool(val)
+		return Bool(val), nil
 	case []Item:
 		return &Array{
 			value: val,
-		}
+		}, nil
 	case *big.Int:
-		return NewBigInteger(val)
+		return NewBigInteger(val), nil
 	case Item:
-		return val
+		return val, nil
 	case []int:
 		var res = make([]Item, len(val))
 		for i := range val {
-			res[i] = Make(val[i])
+			res[i], _ = TryMake(val[i]) // Can't fail for int
 		}
-		return Make(res)
+		return TryMake(res)
 	case []string:
 		var res = make([]Item, len(val))
 		for i := range val {
-			res[i] = Make(val[i])
+			res[i], _ = TryMake(val[i]) // Can't fail for string
 		}
-		return Make(res)
+		return TryMake(res)
 	case []any:
 		res := make([]Item, len(val))
 		for i := range val {
-			res[i] = Make(val[i])
+			var err error
+
+			res[i], err = TryMake(val[i])
+			if err != nil {
+				return nil, err
+			}
 		}
-		return Make(res)
+		return TryMake(res)
 	case util.Uint160:
-		return Make(val.BytesBE())
+		return TryMake(val.BytesBE())
 	case util.Uint256:
-		return Make(val.BytesBE())
+		return TryMake(val.BytesBE())
 	case *util.Uint160:
 		if val == nil {
-			return Null{}
+			return Null{}, nil
 		}
-		return Make(*val)
+		return TryMake(*val)
 	case *util.Uint256:
 		if val == nil {
-			return Null{}
+			return Null{}, nil
 		}
-		return Make(*val)
+		return TryMake(*val)
 	case nil:
-		return Null{}
+		return Null{}, nil
 	default:
 		i64T := reflect.TypeOf(int64(0))
 		if reflect.TypeOf(val).ConvertibleTo(i64T) {
 			i64Val := reflect.ValueOf(val).Convert(i64T).Interface()
-			return Make(i64Val)
+			return TryMake(i64Val)
 		}
-		panic(
-			fmt.Sprintf(
-				"invalid stack item type: %v (%v)",
-				val,
-				reflect.TypeOf(val),
-			),
-		)
+		return nil, fmt.Errorf("%w: item %v of type %v",
+			errors.ErrUnsupported, val, reflect.TypeOf(val))
 	}
+}
+
+// Make is like TryMake, but panics if conversion isn't possible.
+func Make(v any) Item {
+	itm, err := TryMake(v)
+	if err != nil {
+		panic(err)
+	}
+	return itm
 }
 
 // ToString converts an Item to a string if it is a valid UTF-8.
