@@ -200,8 +200,12 @@ func itemToUnnamed(item stackitem.Item, err error) (*Unnamed, error) {
 	return res, err
 }
 
+// Ensure *Unnamed is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&Unnamed{})
+
 // FromStackItem retrieves fields of Unnamed from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *Unnamed) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -230,6 +234,33 @@ func (res *Unnamed) FromStackItem(item stackitem.Item) error {
 	return nil
 }
 
+// ToStackItem creates [stackitem.Item] representing Unnamed.
+// It implements [stackitem.Convertible] interface.
+func (res *Unnamed) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 2)
+	)
+	itm, err = (*stackitem.BigInteger)(res.I), error(nil)
+	if err != nil {
+		return fmt.Errorf("field I: %w", err)
+	}
+	items = append(items, itm)
+
+	itm, err = stackitem.NewBool(res.B), error(nil)
+	if err != nil {
+		return fmt.Errorf("field B: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
+}
+
 // itemToUnnamedX converts stack item into *UnnamedX.
 // NULL item is returned as nil pointer without error.
 func itemToUnnamedX(item stackitem.Item, err error) (*UnnamedX, error) {
@@ -245,8 +276,12 @@ func itemToUnnamedX(item stackitem.Item, err error) (*UnnamedX, error) {
 	return res, err
 }
 
+// Ensure *UnnamedX is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&UnnamedX{})
+
 // FromStackItem retrieves fields of UnnamedX from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *UnnamedX) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -267,6 +302,27 @@ func (res *UnnamedX) FromStackItem(item stackitem.Item) error {
 	}
 
 	return nil
+}
+
+// ToStackItem creates [stackitem.Item] representing UnnamedX.
+// It implements [stackitem.Convertible] interface.
+func (res *UnnamedX) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err   error
+		itm   stackitem.Item
+		items = make([]stackitem.Item, 0, 1)
+	)
+	itm, err = (*stackitem.BigInteger)(res.I), error(nil)
+	if err != nil {
+		return fmt.Errorf("field I: %w", err)
+	}
+	items = append(items, itm)
+
+	return stackitem.NewStruct(items), nil
 }
 
 // ComplicatedNameEventsFromApplicationLog retrieves a set of all emitted events

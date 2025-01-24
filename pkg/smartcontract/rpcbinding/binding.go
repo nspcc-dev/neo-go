@@ -259,8 +259,12 @@ func itemTo{{toTypeName $typ.Name}}(item stackitem.Item, err error) (*{{toTypeNa
 	return res, err
 }
 
+// Ensure *{{toTypeName $typ.Name}} is a proper [stackitem.Convertible].
+var _ = stackitem.Convertible(&{{toTypeName $typ.Name}}{})
+
 // FromStackItem retrieves fields of {{toTypeName $typ.Name}} from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
+// It implements [stackitem.Convertible] interface.
 func (res *{{toTypeName $typ.Name}}) FromStackItem(item stackitem.Item) error {
 	arr, ok := item.Value().([]stackitem.Item)
 	if !ok {
@@ -283,6 +287,29 @@ func (res *{{toTypeName $typ.Name}}) FromStackItem(item stackitem.Item) error {
 {{end}}
 {{- end}}
 	return nil
+}
+
+// ToStackItem creates [stackitem.Item] representing {{toTypeName $typ.Name}}.
+// It implements [stackitem.Convertible] interface.
+func (res *{{toTypeName $typ.Name}}) ToStackItem() (stackitem.Item, error) {
+	if res == nil {
+		return stackitem.Null{}, nil
+	}
+
+	var (
+		err    error
+		itm    stackitem.Item
+		items = make([]stackitem.Item, 0, {{len .Fields}})
+	)
+
+{{- range $m := $typ.Fields}}
+	itm, err = {{goTypeConverter .ExtendedType (print "res." (upperFirst .Field))}}
+	if err != nil {
+		return fmt.Errorf("field {{ upperFirst .Field}}: %w", err)
+	}
+	items = append(items, itm)
+{{end}}
+	return stackitem.NewStruct(items), nil
 }
 {{ end -}}
 {{- range $e := .CustomEvents }}
@@ -503,9 +530,10 @@ func Generate(cfg binding.Config) error {
 			r, _ := extendedTypeToGo(et, cfg.NamedTypes)
 			return r
 		},
-		"toTypeName": toTypeName,
-		"cutPointer": cutPointer,
-		"upperFirst": upperFirst,
+		"goTypeConverter": goTypeConverter,
+		"toTypeName":      toTypeName,
+		"cutPointer":      cutPointer,
+		"upperFirst":      upperFirst,
 	}).Parse(srcTmpl))
 
 	return binding.FExecute(srcTemplate, cfg.Output, ctr)
@@ -752,6 +780,92 @@ func etTypeConverter(et binding.ExtendedType, v string) string {
 		return "item.Value(), nil"
 	case smartcontract.VoidType:
 		return ""
+	default:
+		panic("unreachable")
+	}
+}
+
+func goTypeConverter(et binding.ExtendedType, v string) string {
+	switch et.Base {
+	case smartcontract.AnyType:
+		return "stackitem.TryMake(" + v + ")"
+	case smartcontract.BoolType:
+		return "stackitem.NewBool(" + v + "), error(nil)"
+	case smartcontract.IntegerType:
+		return "(*stackitem.BigInteger)(" + v + "), error(nil)"
+	case smartcontract.ByteArrayType, smartcontract.SignatureType:
+		return "stackitem.NewByteArray(" + v + "), error(nil)"
+	case smartcontract.StringType:
+		return "stackitem.NewByteArray([]byte(" + v + ")), error(nil)"
+	case smartcontract.Hash160Type:
+		return "stackitem.NewByteArray(" + v + ".BytesBE()), error(nil)"
+	case smartcontract.Hash256Type:
+		return "stackitem.NewByteArray(" + v + ".BytesBE()), error(nil)"
+	case smartcontract.PublicKeyType:
+		return "stackitem.NewByteArray(" + v + ".Bytes()), error(nil)"
+	case smartcontract.ArrayType:
+		if len(et.Name) > 0 {
+			return v + ".ToStackItem()"
+		} else if et.Value != nil {
+			at, _ := extendedTypeToGo(et, nil)
+			return `func(in ` + at + `) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var items = make([]stackitem.Item, 0, len(in))
+		for i, v := range in {
+			itm, err := ` + goTypeConverter(*et.Value, "v") + `
+			if err != nil {
+				return nil, fmt.Errorf("item %d: %w", i, err)
+			}
+			items = append(items, itm)
+		}
+		return stackitem.NewArray(items), nil
+	}(` + v + `)`
+		}
+		return goTypeConverter(binding.ExtendedType{
+			Base: smartcontract.ArrayType,
+			Value: &binding.ExtendedType{
+				Base: smartcontract.AnyType,
+			},
+		}, v)
+
+	case smartcontract.MapType:
+		if et.Value != nil {
+			at, _ := extendedTypeToGo(et, nil)
+			return `func(in ` + at + `) (stackitem.Item, error) {
+		if in == nil {
+			return stackitem.Null{}, nil
+		}
+
+		var m = stackitem.NewMap()
+		for k, v := range in {
+			iKey, err := ` + goTypeConverter(binding.ExtendedType{Base: et.Key}, "k") + `
+			if err != nil {
+				return nil, fmt.Errorf("key %v: %w", k, err)
+			}
+			iVal, err := ` + goTypeConverter(*et.Value, "v") + `
+			if err != nil {
+				return nil, fmt.Errorf("key %v, wrong value: %w", k, err)
+			}
+			m.Add(iKey, iVal)
+		}
+		return m, nil
+	}(` + v + `)`
+		}
+
+		return goTypeConverter(binding.ExtendedType{
+			Base: smartcontract.MapType,
+			Key:  et.Key,
+			Value: &binding.ExtendedType{
+				Base: smartcontract.AnyType,
+			},
+		}, v)
+	case smartcontract.InteropInterfaceType:
+		return "stackitem.TryMake(" + v + ")"
+	case smartcontract.VoidType:
+		return "stackitem.TryMake(" + v + ")"
 	default:
 		panic("unreachable")
 	}
