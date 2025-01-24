@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
@@ -69,6 +70,18 @@ func Call(ic *interop.Context) error {
 		return fmt.Errorf("method not found: %s/%d", method, len(args))
 	}
 	hasReturn := md.ReturnType != smartcontract.VoidType
+
+	if ic.SaveInvocations {
+		var (
+			arrCount = len(args)
+			argBytes []byte
+		)
+		if argBytes, err = ic.DAO.GetItemCtx().Serialize(stackitem.NewArray(args), false); err != nil {
+			argBytes = nil
+		}
+		ci := state.NewContractInvocation(u, method, bytes.Clone(argBytes), uint32(arrCount))
+		ic.InvocationCalls = append(ic.InvocationCalls, *ci)
+	}
 	return callInternal(ic, cs, method, fs, hasReturn, args, true)
 }
 

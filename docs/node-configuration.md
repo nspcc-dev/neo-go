@@ -35,6 +35,7 @@ node-related settings described in the table below.
 | SaveStorageBatch | `bool` | `false` | Enables storage batch saving before every persist. It is similar to StorageDump plugin for C# node. |
 | SkipBlockVerification | `bool` | `false` | Allows to disable verification of received/processed blocks (including cryptographic checks). |
 | StateRoot | [State Root Configuration](#State-Root-Configuration) |  | State root module configuration. See the [State Root Configuration](#State-Root-Configuration) section for details. |
+| SaveInvocations | `bool` | `false` | Determines if additional smart contract invocation details are stored. If enabled, the `getapplicationlog` RPC method will return a new field with invocation details for the transaction. See the [RPC](rpc.md#applicationlog-invocations) documentation for more information. |
 
 ### P2P Configuration
 
@@ -495,6 +496,7 @@ affect this:
 - `GarbageCollectionPeriod` must be the same
 - `KeepOnlyLatestState` must be the same
 - `RemoveUntraceableBlocks` must be the same
+- `SaveInvocations` must be the same
 
 BotlDB is also known to be incompatible between machines with different
 endianness. Nothing is known for LevelDB wrt this, so it's not recommended

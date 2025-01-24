@@ -12,6 +12,18 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 )
 
+const (
+	// saveInvocationsBit acts as a marker using the VMState to indicate whether contract
+	// invocations (tracked by the VM) have been stored into the DB and thus whether they
+	// should be deserialized upon retrieval. This approach saves 1 byte for all
+	// applicationlogs over	using WriteVarBytes. The original discussion can be found here
+	// https://github.com/nspcc-dev/neo-go/pull/3569#discussion_r1909357541
+	saveInvocationsBit = 0x80
+	// cleanSaveInvocationsBitMask is used to remove the save invocations marker bit from
+	// the VMState.
+	cleanSaveInvocationsBitMask = saveInvocationsBit ^ 0xFF
+)
+
 // NotificationEvent is a tuple of the scripthash that has emitted the Item as a
 // notification and the item itself.
 type NotificationEvent struct {
@@ -78,6 +90,10 @@ func (aer *AppExecResult) EncodeBinary(w *io.BinWriter) {
 func (aer *AppExecResult) EncodeBinaryWithContext(w *io.BinWriter, sc *stackitem.SerializationContext) {
 	w.WriteBytes(aer.Container[:])
 	w.WriteB(byte(aer.Trigger))
+	invocLen := len(aer.Invocations)
+	if invocLen > 0 {
+		aer.VMState |= saveInvocationsBit
+	}
 	w.WriteB(byte(aer.VMState))
 	w.WriteU64LE(uint64(aer.GasConsumed))
 	// Stack items are expected to be marshaled one by one.
@@ -95,6 +111,12 @@ func (aer *AppExecResult) EncodeBinaryWithContext(w *io.BinWriter, sc *stackitem
 		aer.Events[i].EncodeBinaryWithContext(w, sc)
 	}
 	w.WriteVarBytes([]byte(aer.FaultException))
+	if invocLen > 0 {
+		w.WriteVarUint(uint64(invocLen))
+		for i := range aer.Invocations {
+			aer.Invocations[i].EncodeBinaryWithContext(w, sc)
+		}
+	}
 }
 
 // DecodeBinary implements the Serializable interface.
@@ -120,6 +142,10 @@ func (aer *AppExecResult) DecodeBinary(r *io.BinReader) {
 	aer.Stack = arr
 	r.ReadArray(&aer.Events)
 	aer.FaultException = r.ReadString()
+	if aer.VMState&saveInvocationsBit != 0 {
+		r.ReadArray(&aer.Invocations)
+		aer.VMState &= cleanSaveInvocationsBitMask
+	}
 }
 
 // notificationEventAux is an auxiliary struct for NotificationEvent JSON marshalling.
@@ -209,16 +235,18 @@ type Execution struct {
 	Stack          []stackitem.Item
 	Events         []NotificationEvent
 	FaultException string
+	Invocations    []ContractInvocation
 }
 
 // executionAux represents an auxiliary struct for Execution JSON marshalling.
 type executionAux struct {
-	Trigger        string              `json:"trigger"`
-	VMState        string              `json:"vmstate"`
-	GasConsumed    int64               `json:"gasconsumed,string"`
-	Stack          json.RawMessage     `json:"stack"`
-	Events         []NotificationEvent `json:"notifications"`
-	FaultException *string             `json:"exception"`
+	Trigger        string               `json:"trigger"`
+	VMState        string               `json:"vmstate"`
+	GasConsumed    int64                `json:"gasconsumed,string"`
+	Stack          json.RawMessage      `json:"stack"`
+	Events         []NotificationEvent  `json:"notifications"`
+	FaultException *string              `json:"exception"`
+	Invocations    []ContractInvocation `json:"invocations"`
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -246,6 +274,7 @@ func (e Execution) MarshalJSON() ([]byte, error) {
 		Stack:          st,
 		Events:         e.Events,
 		FaultException: exception,
+		Invocations:    e.Invocations,
 	})
 }
 
@@ -287,6 +316,7 @@ func (e *Execution) UnmarshalJSON(data []byte) error {
 	if aux.FaultException != nil {
 		e.FaultException = *aux.FaultException
 	}
+	e.Invocations = aux.Invocations
 	return nil
 }
 
