@@ -356,6 +356,62 @@ to various blockchain events (with simple event filtering) and receive them on
 the client as JSON-RPC notifications. More details on that are written in the
 [notifications specification](notifications.md).
 
+#### `applicationlog` call invocations
+
+The `SaveInvocations` configuration setting causes the RPC server to store smart contract
+invocation details as part of the application logs. This feature is specifically useful to
+capture information in the absence of `System.Runtime.Notify` calls for the given smart 
+contract method. Other use-cases are described in [this issue](https://github.com/neo-project/neo/issues/3386).
+
+Example transaction on Testnet which interacts with the native PolicyContract:
+```json
+{
+  "id": 1,
+  "jsonrpc": "2.0",
+  "result": {
+    "txid": "0xd6fe5f61d9cb34d6324db1be42c056d02ba1f1f6cd0bd3f3c6bb24faaaeef2a9",
+    "executions": [
+      {
+        "trigger": "Application",
+        "vmstate": "HALT",
+        "gasconsumed": "2028120",
+        "stack": [
+          {
+            "type": "Any"
+          }
+        ],
+        "notifications": [],
+        "exception": null,
+        "invocations": [
+          {
+            "hash": "0xcc5e4edd9f5f8dba8bb65734541df7a1c081c67b",
+            "method": "setFeePerByte",
+            "arguments": {
+              "type": "Array",
+              "value": [
+                {
+                  "type": "Integer",
+                  "value": "100"
+                }
+              ]
+            },
+            "argumentscount": 1,
+            "truncated": false
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+For security reasons the `arguments` field data may result in `null` if the count exceeds 2048. 
+In such case the `Truncated` field will be set to `true`.
+
+The invocation records are presented in a flat structure in the order as how they were executed.
+Note that invocation records for faulted transactions are kept and are present in the 
+applicationlog. This behaviour differs from notifications which are omitted for faulted transactions.
+
 ## Reference
 
 * [JSON-RPC 2.0 Specification](http://www.jsonrpc.org/specification)
