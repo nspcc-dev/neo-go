@@ -305,7 +305,7 @@ func (res *{{toTypeName $typ.Name}}) ToStackItem() (stackitem.Item, error) {
 {{- range $m := $typ.Fields}}
 	itm, err = {{goTypeConverter .ExtendedType (print "res." (upperFirst .Field))}}
 	if err != nil {
-		return fmt.Errorf("field {{ upperFirst .Field}}: %w", err)
+		return nil, fmt.Errorf("field {{ upperFirst .Field}}: %w", err)
 	}
 	items = append(items, itm)
 {{end}}
