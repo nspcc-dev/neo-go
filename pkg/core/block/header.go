@@ -80,6 +80,13 @@ type baseAux struct {
 	Witnesses     []transaction.Witness `json:"witnesses"`
 }
 
+// GetIndex returns the index of the block. This method should be used
+// for interfaces only. As generics don't support structural types
+// ref. golang/go#51259.
+func (b *Header) GetIndex() uint32 {
+	return b.Index
+}
+
 // Hash returns the hash of the block. Notice that it is cached internally,
 // so no matter how you change the [Header] after the first invocation of this
 // method it won't change. To get an updated hash in case you're changing

@@ -5,108 +5,115 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"go.uber.org/zap"
 )
 
-// Blockqueuer is an interface for a block queue.
-type Blockqueuer interface {
-	AddBlock(block *block.Block) error
-	AddHeaders(...*block.Header) error
-	BlockHeight() uint32
+// Queuer is an interface for a queue.
+type Queuer[Q Queueable] interface {
+	AddItem(Q) error
+	AddItems(...Q) error
+	Height() uint32
 }
 
-// OperationMode is the mode of operation for the block queue.
+// OperationMode is the mode of operation for the queue.
 // Could be either Blocking or NonBlocking.
 type OperationMode byte
 
 const (
-	// NonBlocking means that PutBlock will return immediately if the queue is full.
+	// NonBlocking means that Put will return immediately if the queue is full.
 	NonBlocking OperationMode = 0
-	// Blocking means that PutBlock will wait until there is enough space in the queue.
+	// Blocking means that Put will wait until there is enough space in the queue.
 	Blocking OperationMode = 1
 )
 
-// Queue is the block queue.
-type Queue struct {
+// Queueable is an interface for a queue element.
+type Queueable interface {
+	GetIndex() uint32
+	comparable
+}
+
+// Queue is the queue of queueable elements.
+type Queue[Q Queueable] struct {
 	log         *zap.Logger
 	queueLock   sync.RWMutex
-	queue       []*block.Block
+	queue       []Q
 	lastQ       uint32
 	checkBlocks chan struct{}
-	chain       Blockqueuer
-	relayF      func(*block.Block)
+	chain       Queuer[Q]
+	relayF      func(Q)
 	discarded   atomic.Bool
 	len         int
 	lenUpdateF  func(int)
 	cacheSize   int
 	mode        OperationMode
+	nilQ        Q
 }
 
-// DefaultCacheSize is the default amount of blocks above the current height
+// DefaultCacheSize is the default amount of Queueable elements above the current height
 // which are stored in the queue.
 const DefaultCacheSize = 2000
 
-func (bq *Queue) indexToPosition(i uint32) int {
+func (bq *Queue[Q]) indexToPosition(i uint32) int {
 	return int(i) % bq.cacheSize
 }
 
-// New creates an instance of BlockQueue.
-func New(bc Blockqueuer, log *zap.Logger, relayer func(*block.Block), cacheSize int, lenMetricsUpdater func(l int), mode OperationMode) *Queue {
+// New creates an instance of Queue that handles Queueable elements.
+func New[Q Queueable](bc Queuer[Q], log *zap.Logger, relayer func(Q), cacheSize int, lenMetricsUpdater func(l int), mode OperationMode) *Queue[Q] {
 	if log == nil {
 		return nil
 	}
 	if cacheSize <= 0 {
 		cacheSize = DefaultCacheSize
 	}
-
-	return &Queue{
+	var nilQ Q
+	return &Queue[Q]{
 		log:         log,
-		queue:       make([]*block.Block, cacheSize),
+		queue:       make([]Q, cacheSize),
 		checkBlocks: make(chan struct{}, 1),
 		chain:       bc,
 		relayF:      relayer,
 		lenUpdateF:  lenMetricsUpdater,
 		cacheSize:   cacheSize,
 		mode:        mode,
+		nilQ:        nilQ,
 	}
 }
 
-// Run runs the BlockQueue queueing loop. It must be called in a separate routine.
-func (bq *Queue) Run() {
-	var lastHeight = bq.chain.BlockHeight()
+// Run runs the Queue queueing loop. It must be called in a separate routine.
+func (bq *Queue[Q]) Run() {
+	var lastHeight = bq.chain.Height()
 	for {
 		_, ok := <-bq.checkBlocks
 		if !ok {
 			break
 		}
 		for {
-			h := bq.chain.BlockHeight()
+			h := bq.chain.Height()
 			pos := bq.indexToPosition(h + 1)
 			bq.queueLock.Lock()
 			b := bq.queue[pos]
-			// The chain moved forward using blocks from other sources (consensus).
+			// The chain moved forward using elements from other sources (consensus).
 			for i := lastHeight; i < h; i++ {
 				old := bq.indexToPosition(i + 1)
-				if bq.queue[old] != nil && bq.queue[old].Index == i {
+				if bq.queue[old] != bq.nilQ && bq.queue[old].GetIndex() == i {
 					bq.len--
-					bq.queue[old] = nil
+					bq.queue[old] = bq.nilQ
 				}
 			}
 			bq.queueLock.Unlock()
 			lastHeight = h
-			if b == nil {
+			if b == bq.nilQ {
 				break
 			}
 
-			err := bq.chain.AddBlock(b)
+			err := bq.chain.AddItem(b)
 			if err != nil {
-				// The block might already be added by the consensus.
-				if bq.chain.BlockHeight() < b.Index {
-					bq.log.Warn("blockQueue: failed adding block into the blockchain",
+				// The element might already be added by the consensus.
+				if bq.chain.Height() < b.GetIndex() {
+					bq.log.Warn("Queue: failed adding item into the blockchain",
 						zap.String("error", err.Error()),
-						zap.Uint32("blockHeight", bq.chain.BlockHeight()),
-						zap.Uint32("nextIndex", b.Index))
+						zap.Uint32("height", bq.chain.Height()),
+						zap.Uint32("nextIndex", b.GetIndex()))
 				}
 			} else if bq.relayF != nil {
 				bq.relayF(b)
@@ -115,7 +122,7 @@ func (bq *Queue) Run() {
 			bq.len--
 			l := bq.len
 			if bq.queue[pos] == b {
-				bq.queue[pos] = nil
+				bq.queue[pos] = bq.nilQ
 			}
 			bq.queueLock.Unlock()
 			if bq.lenUpdateF != nil {
@@ -125,9 +132,9 @@ func (bq *Queue) Run() {
 	}
 }
 
-// PutBlock enqueues block to be added to the chain.
-func (bq *Queue) PutBlock(block *block.Block) error {
-	h := bq.chain.BlockHeight()
+// Put enqueues Queueable element to be added to the chain.
+func (bq *Queue[Q]) Put(element Q) error {
+	h := bq.chain.Height()
 	bq.queueLock.Lock()
 	defer bq.queueLock.Unlock()
 	if bq.discarded.Load() {
@@ -135,10 +142,10 @@ func (bq *Queue) PutBlock(block *block.Block) error {
 	}
 	// Can easily happen when fetching the same blocks from
 	// different peers, thus not considered as error.
-	if block.Index <= h {
+	if element.GetIndex() <= h {
 		return nil
 	}
-	if h+uint32(bq.cacheSize) < block.Index {
+	if h+uint32(bq.cacheSize) < element.GetIndex() {
 		switch bq.mode {
 		case NonBlocking:
 			return nil
@@ -151,21 +158,21 @@ func (bq *Queue) PutBlock(block *block.Block) error {
 					bq.queueLock.Lock()
 					return nil
 				}
-				h = bq.chain.BlockHeight()
-				if h+uint32(bq.cacheSize) >= block.Index {
+				h = bq.chain.Height()
+				if h+uint32(bq.cacheSize) >= element.GetIndex() {
 					bq.queueLock.Lock()
 					break
 				}
 			}
 		}
 	}
-	pos := bq.indexToPosition(block.Index)
-	// If we already have it, keep the old block, throw away the new one.
-	if bq.queue[pos] == nil || bq.queue[pos].Index < block.Index {
+	pos := bq.indexToPosition(element.GetIndex())
+	// If we already have it, keep the old element, throw away the new one.
+	if bq.queue[pos] == bq.nilQ || bq.queue[pos].GetIndex() < element.GetIndex() {
 		bq.len++
-		bq.queue[pos] = block
-		for pos < bq.cacheSize && bq.queue[pos] != nil && bq.lastQ+1 == bq.queue[pos].Index {
-			bq.lastQ = bq.queue[pos].Index
+		bq.queue[pos] = element
+		for pos < bq.cacheSize && bq.queue[pos] != bq.nilQ && bq.lastQ+1 == bq.queue[pos].GetIndex() {
+			bq.lastQ = bq.queue[pos].GetIndex()
 			pos++
 		}
 	}
@@ -177,21 +184,21 @@ func (bq *Queue) PutBlock(block *block.Block) error {
 	case bq.checkBlocks <- struct{}{}:
 		// ok, signalled to goroutine processing queue
 	default:
-		// it's already busy processing blocks
+		// it's already busy processing elements
 	}
 	return nil
 }
 
-// LastQueued returns the index of the last queued block and the queue's capacity
+// LastQueued returns the index of the last queued element and the queue's capacity
 // left.
-func (bq *Queue) LastQueued() (uint32, int) {
+func (bq *Queue[Q]) LastQueued() (uint32, int) {
 	bq.queueLock.RLock()
 	defer bq.queueLock.RUnlock()
 	return bq.lastQ, bq.cacheSize - bq.len
 }
 
-// Discard stops the queue and prevents it from accepting more blocks to enqueue.
-func (bq *Queue) Discard() {
+// Discard stops the queue and prevents it from accepting more elements to enqueue.
+func (bq *Queue[Q]) Discard() {
 	if bq.discarded.CompareAndSwap(false, true) {
 		bq.queueLock.Lock()
 		close(bq.checkBlocks)

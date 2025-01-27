@@ -49,6 +49,11 @@ type FakeStateSync struct {
 	AddMPTNodesFunc   func(nodes [][]byte) error
 }
 
+// HeaderHeight returns the height of the latest stored header.
+func (s *FakeStateSync) HeaderHeight() uint32 {
+	return 0
+}
+
 // NewFakeChain returns a new FakeChain structure.
 func NewFakeChain() *FakeChain {
 	return NewFakeChainWithCustomCfg(nil)

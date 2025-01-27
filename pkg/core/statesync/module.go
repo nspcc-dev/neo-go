@@ -508,3 +508,8 @@ func (s *Module) GetUnknownMPTNodesBatch(limit int) []util.Uint256 {
 
 	return s.mptpool.GetBatch(limit)
 }
+
+// HeaderHeight returns the height of the latest stored header.
+func (s *Module) HeaderHeight() uint32 {
+	return s.bc.HeaderHeight()
+}

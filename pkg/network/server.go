@@ -57,9 +57,9 @@ var (
 type (
 	// Ledger is everything Server needs from the blockchain.
 	Ledger interface {
+		blockHeaderQueuer
 		extpool.Ledger
 		mempool.Feer
-		bqueue.Blockqueuer
 		GetBlock(hash util.Uint256) (*block.Block, error)
 		GetConfig() config.Blockchain
 		GetHeader(hash util.Uint256) (*block.Header, error)
@@ -87,6 +87,13 @@ type (
 		Shutdown()
 	}
 
+	// blockHeaderQueuer is a minimal subset of Ledger interface.
+	blockHeaderQueuer interface {
+		AddBlock(*block.Block) error
+		AddHeaders(...*block.Header) error
+		BlockHeight() uint32
+		HeaderHeight() uint32
+	}
 	// Server represents the local Node in the network. Its transport could
 	// be of any kind.
 	Server struct {
@@ -102,9 +109,9 @@ type (
 		transports        []Transporter
 		discovery         Discoverer
 		chain             Ledger
-		bQueue            *bqueue.Queue
-		bSyncQueue        *bqueue.Queue
-		bFetcherQueue     *bqueue.Queue
+		bQueue            *bqueue.Queue[*block.Block]
+		bSyncQueue        *bqueue.Queue[*block.Block]
+		bFetcherQueue     *bqueue.Queue[*block.Block]
 		mempool           *mempool.Pool
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
@@ -219,18 +226,15 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 			}, s.notaryFeer)
 		})
 	}
-	s.bQueue = bqueue.New(chain, log, func(b *block.Block) {
-		s.tryStartServices()
-	}, bqueue.DefaultCacheSize, updateBlockQueueLenMetric, bqueue.NonBlocking)
+	s.bQueue = bqueue.New[*block.Block](chainBlockQueueAdapter{chain}, log, func(b *block.Block) { s.tryStartServices() }, bqueue.DefaultCacheSize, updateBlockQueueLenMetric, bqueue.NonBlocking)
 
-	s.bSyncQueue = bqueue.New(s.stateSync, log, nil, bqueue.DefaultCacheSize, updateBlockQueueLenMetric, bqueue.NonBlocking)
+	s.bSyncQueue = bqueue.New[*block.Block](stateSyncBlockQueueAdapter{s.stateSync}, log, nil, bqueue.DefaultCacheSize, updateBlockQueueLenMetric, bqueue.NonBlocking)
 	if s.NeoFSBlockFetcherCfg.BQueueSize <= 0 {
 		s.NeoFSBlockFetcherCfg.BQueueSize = blockfetcher.DefaultQueueCacheSize
 	}
-	s.bFetcherQueue = bqueue.New(chain, log, nil, s.NeoFSBlockFetcherCfg.BQueueSize, updateBlockQueueLenMetric, bqueue.Blocking)
+	s.bFetcherQueue = bqueue.New[*block.Block](chainBlockQueueAdapter{chain}, log, nil, s.NeoFSBlockFetcherCfg.BQueueSize, updateBlockQueueLenMetric, bqueue.Blocking)
 	var err error
-	s.blockFetcher, err = blockfetcher.New(chain, s.NeoFSBlockFetcherCfg, log, s.bFetcherQueue.PutBlock,
-		sync.OnceFunc(func() { close(s.blockFetcherFin) }))
+	s.blockFetcher, err = blockfetcher.New(chain, s.NeoFSBlockFetcherCfg, log, s.bFetcherQueue.Put, sync.OnceFunc(func() { close(s.blockFetcherFin) }))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create NeoFS BlockFetcher: %w", err)
 	}
@@ -374,7 +378,7 @@ func (s *Server) addService(svc Service) {
 }
 
 // GetBlockQueue returns the block queue instance managed by Server.
-func (s *Server) GetBlockQueue() *bqueue.Queue {
+func (s *Server) GetBlockQueue() *bqueue.Queue[*block.Block] {
 	return s.bQueue
 }
 
@@ -796,9 +800,9 @@ func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
 		return nil
 	}
 	if s.stateSync.IsActive() {
-		return s.bSyncQueue.PutBlock(block)
+		return s.bSyncQueue.Put(block)
 	}
-	return s.bQueue.PutBlock(block)
+	return s.bQueue.Put(block)
 }
 
 // handlePing processes a ping request.
@@ -825,7 +829,7 @@ func (s *Server) requestBlocksOrHeaders(p Peer) error {
 		return nil
 	}
 	var (
-		bq              bqueue.Blockqueuer = s.chain
+		bq              blockHeaderQueuer = s.chain
 		requestMPTNodes bool
 	)
 	if s.stateSync.IsActive() {
@@ -1334,7 +1338,7 @@ func (s *Server) handleGetAddrCmd(p Peer) error {
 // 1. Block range is divided into chunks of payload.MaxHashesCount.
 // 2. Send requests for chunk in increasing order.
 // 3. After all requests have been sent, request random height.
-func (s *Server) requestBlocks(bq bqueue.Blockqueuer, p Peer) error {
+func (s *Server) requestBlocks(bq blockHeaderQueuer, p Peer) error {
 	pl := getRequestBlocksPayload(p, bq.BlockHeight(), &s.lastRequestedBlock)
 	lq, capLeft := s.bQueue.LastQueued()
 	if capLeft == 0 {
