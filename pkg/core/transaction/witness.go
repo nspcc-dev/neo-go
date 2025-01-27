@@ -16,6 +16,10 @@ const (
 	// MaxVerificationScript is the maximum allowed length of verification
 	// script. It should be appropriate for 11/21 multisignature committee.
 	MaxVerificationScript = 1024
+
+	// DefaultInvocationScriptSize is the default length of invocation
+	// script with one signature.
+	DefaultInvocationScriptSize = 66
 )
 
 // Witness contains 2 scripts.

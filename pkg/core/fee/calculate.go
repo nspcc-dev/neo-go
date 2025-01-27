@@ -1,6 +1,7 @@
 package fee
 
 import (
+	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
@@ -21,7 +22,7 @@ func Calculate(base int64, script []byte) (int64, int) {
 		netFee += Opcode(base, opcode.PUSHDATA1, opcode.PUSHDATA1) + base*ECDSAVerifyPrice
 	} else if m, pubs, ok := vm.ParseMultiSigContract(script); ok {
 		n := len(pubs)
-		sizeInv := 66 * m
+		sizeInv := transaction.DefaultInvocationScriptSize * m
 		size += io.GetVarSize(sizeInv) + sizeInv + io.GetVarSize(script)
 		netFee += calculateMultisig(base, m) + calculateMultisig(base, n)
 		netFee += base * ECDSAVerifyPrice * int64(n)

@@ -2531,7 +2531,7 @@ func (bc *Blockchain) ApplyPolicyToTxSet(txes []*transaction.Transaction) []*tra
 		m := smartcontract.GetDefaultHonestNodeCount(curVC)
 		verification, _ := smartcontract.CreateDefaultMultiSigRedeemScript(bc.contracts.NEO.GetNextBlockValidatorsInternal(bc.dao))
 		defaultWitness = transaction.Witness{
-			InvocationScript:   make([]byte, 66*m),
+			InvocationScript:   make([]byte, transaction.DefaultInvocationScriptSize*m),
 			VerificationScript: verification,
 		}
 		bc.knownValidatorsCount.Store(curVC)

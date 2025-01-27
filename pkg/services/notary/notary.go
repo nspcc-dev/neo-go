@@ -520,7 +520,7 @@ func (n *Notary) verifyIncompleteWitnesses(tx *transaction.Transaction, nKeysExp
 		}
 		// Each verification script is allowed to have either one signature or zero signatures. If signature is provided, then need to verify it.
 		if len(w.InvocationScript) != 0 {
-			if len(w.InvocationScript) != 66 || !bytes.HasPrefix(w.InvocationScript, []byte{byte(opcode.PUSHDATA1), keys.SignatureLen}) {
+			if len(w.InvocationScript) != transaction.DefaultInvocationScriptSize || !bytes.HasPrefix(w.InvocationScript, []byte{byte(opcode.PUSHDATA1), keys.SignatureLen}) {
 				return nil, fmt.Errorf("witness #%d: invocation script should have length = 66 and be of the form [PUSHDATA1, 64, signatureBytes...]", i)
 			}
 		}

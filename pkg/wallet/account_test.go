@@ -131,11 +131,11 @@ func TestContractSignTx(t *testing.T) {
 
 	require.NoError(t, acc2.SignTx(0, tx)) // Append script for acc2.
 	require.Equal(t, 1, len(tx.Scripts))
-	require.Equal(t, 66, len(tx.Scripts[0].InvocationScript))
+	require.Equal(t, transaction.DefaultInvocationScriptSize, len(tx.Scripts[0].InvocationScript))
 
 	require.NoError(t, acc2.SignTx(0, tx)) // Sign again, effectively a no-op.
 	require.Equal(t, 1, len(tx.Scripts))
-	require.Equal(t, 66, len(tx.Scripts[0].InvocationScript))
+	require.Equal(t, transaction.DefaultInvocationScriptSize, len(tx.Scripts[0].InvocationScript))
 
 	acc2.Locked = true
 	require.False(t, acc2.CanSign())
@@ -154,12 +154,12 @@ func TestContractSignTx(t *testing.T) {
 		VerificationScript: acc.Contract.Script,
 	})
 	require.NoError(t, acc.SignTx(0, tx)) // Add invocation script for existing witness.
-	require.Equal(t, 66, len(tx.Scripts[1].InvocationScript))
+	require.Equal(t, transaction.DefaultInvocationScriptSize, len(tx.Scripts[1].InvocationScript))
 	require.NotNil(t, acc.SignHashable(0, tx)) // Works via Hashable too.
 
 	require.NoError(t, multiAcc.SignTx(0, tx))
 	require.Equal(t, 3, len(tx.Scripts))
-	require.Equal(t, 66, len(tx.Scripts[2].InvocationScript))
+	require.Equal(t, transaction.DefaultInvocationScriptSize, len(tx.Scripts[2].InvocationScript))
 
 	require.NoError(t, multiAcc2.SignTx(0, tx)) // Append to existing script.
 	require.Equal(t, 3, len(tx.Scripts))

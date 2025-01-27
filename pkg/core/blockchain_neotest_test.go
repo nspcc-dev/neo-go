@@ -2241,7 +2241,7 @@ func TestBlockchain_VerifyTx(t *testing.T) {
 			tx.NetworkFee = netFee + // multisig witness verification price
 				int64(size)*bc.FeePerByte() + // fee for unsigned size
 				int64(sizeDelta)*bc.FeePerByte() + // fee for multisig size
-				66*bc.FeePerByte() + // fee for Notary signature size (66 bytes for Invocation script and 0 bytes for Verification script)
+				transaction.DefaultInvocationScriptSize*bc.FeePerByte() + // fee for Notary signature size (66 bytes for Invocation script and 0 bytes for Verification script)
 				2*bc.FeePerByte() + // fee for the length of each script in Notary witness (they are nil, so we did not take them into account during `size` calculation)
 				notaryServiceFeePerKey + // fee for Notary attribute
 				fee.Opcode(bc.GetBaseExecFee(), // Notary verification script

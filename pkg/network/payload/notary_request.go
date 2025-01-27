@@ -109,7 +109,7 @@ func (r *P2PNotaryRequest) isValid() error {
 	if len(r.FallbackTransaction.Signers) != 2 {
 		return errors.New("fallback transaction should have two signers")
 	}
-	if len(r.FallbackTransaction.Scripts[0].InvocationScript) != 66 ||
+	if len(r.FallbackTransaction.Scripts[0].InvocationScript) != transaction.DefaultInvocationScriptSize ||
 		len(r.FallbackTransaction.Scripts[0].VerificationScript) != 0 ||
 		!bytes.HasPrefix(r.FallbackTransaction.Scripts[0].InvocationScript, []byte{byte(opcode.PUSHDATA1), keys.SignatureLen}) {
 		return errors.New("fallback transaction has invalid dummy Notary witness")
