@@ -248,13 +248,13 @@ func (res *CrazyStruct) ToStackItem() (stackitem.Item, error) {
 	)
 	itm, err = (*stackitem.BigInteger)(res.I), error(nil)
 	if err != nil {
-		return fmt.Errorf("field I: %w", err)
+		return nil, fmt.Errorf("field I: %w", err)
 	}
 	items = append(items, itm)
 
 	itm, err = stackitem.NewBool(res.B), error(nil)
 	if err != nil {
-		return fmt.Errorf("field B: %w", err)
+		return nil, fmt.Errorf("field B: %w", err)
 	}
 	items = append(items, itm)
 
@@ -318,7 +318,7 @@ func (res *SimpleStruct) ToStackItem() (stackitem.Item, error) {
 	)
 	itm, err = (*stackitem.BigInteger)(res.I), error(nil)
 	if err != nil {
-		return fmt.Errorf("field I: %w", err)
+		return nil, fmt.Errorf("field I: %w", err)
 	}
 	items = append(items, itm)
 

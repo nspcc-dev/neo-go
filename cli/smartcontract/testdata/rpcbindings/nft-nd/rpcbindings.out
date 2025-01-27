@@ -266,13 +266,13 @@ func (res *NftRoyaltyRecipientShare) ToStackItem() (stackitem.Item, error) {
 	)
 	itm, err = stackitem.NewByteArray(res.Address.BytesBE()), error(nil)
 	if err != nil {
-		return fmt.Errorf("field Address: %w", err)
+		return nil, fmt.Errorf("field Address: %w", err)
 	}
 	items = append(items, itm)
 
 	itm, err = (*stackitem.BigInteger)(res.Share), error(nil)
 	if err != nil {
-		return fmt.Errorf("field Share: %w", err)
+		return nil, fmt.Errorf("field Share: %w", err)
 	}
 	items = append(items, itm)
 
