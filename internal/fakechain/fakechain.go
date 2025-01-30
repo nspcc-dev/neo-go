@@ -452,6 +452,9 @@ func (s *FakeStateSync) Init(currChainHeight uint32) error {
 // NeedHeaders implements the StateSync interface.
 func (s *FakeStateSync) NeedHeaders() bool { return s.RequestHeaders.Load() }
 
+// NeedBlocks implements the StateSync interface.
+func (s *FakeStateSync) NeedBlocks() bool { return false }
+
 // NeedMPTNodes implements the StateSync interface.
 func (s *FakeStateSync) NeedMPTNodes() bool {
 	panic("TODO")
@@ -467,5 +470,15 @@ func (s *FakeStateSync) Traverse(root util.Uint256, process func(node mpt.Node, 
 
 // GetUnknownMPTNodesBatch implements the StateSync interface.
 func (s *FakeStateSync) GetUnknownMPTNodesBatch(limit int) []util.Uint256 {
+	panic("TODO")
+}
+
+// GetConfig implements the StateSync interface.
+func (s *FakeStateSync) GetConfig() config.Blockchain {
+	panic("TODO")
+}
+
+// SetOnStageChanged implements the StateSync interface.
+func (s *FakeStateSync) SetOnStageChanged(func()) {
 	panic("TODO")
 }
