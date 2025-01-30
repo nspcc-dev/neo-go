@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	gio "github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/network/bqueue"
 	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
@@ -27,6 +28,17 @@ import (
 	"go.uber.org/zap"
 )
 
+// OperationMode is an enum that denotes the operation mode of the Fetcher.
+// It can be either Blocks or Headers.
+type OperationMode byte
+
+const (
+	// Blocks denotes that the Fetcher is working with blocks.
+	Blocks OperationMode = iota
+	// Headers denotes that the Fetcher is working with headers.
+	Headers
+)
+
 const (
 	// DefaultQueueCacheSize is the default size of the queue cache.
 	DefaultQueueCacheSize = 16000
@@ -36,6 +48,7 @@ const (
 type Ledger interface {
 	GetConfig() config.Blockchain
 	BlockHeight() uint32
+	HeaderHeight() uint32
 }
 
 // poolWrapper wraps a NeoFS pool to adapt its Close method to return an error.
@@ -52,15 +65,20 @@ func (p poolWrapper) Close() error {
 // Service is a service that fetches blocks from NeoFS.
 type Service struct {
 	// isActive denotes whether the service is working or in the process of shutdown.
-	isActive          atomic.Bool
-	log               *zap.Logger
-	cfg               config.NeoFSBlockFetcher
-	stateRootInHeader bool
+	isActive      atomic.Bool
+	isShutdown    atomic.Bool
+	log           *zap.Logger
+	cfg           config.NeoFSBlockFetcher
+	operationMode OperationMode
 
-	chain        Ledger
-	pool         poolWrapper
-	enqueueBlock func(*block.Block) error
-	account      *wallet.Account
+	stateRootInHeader bool
+	// headerSize is the size of the header in bytes.
+	headerSize int
+
+	chain   Ledger
+	pool    poolWrapper
+	enqueue func(obj bqueue.Indexable) error
+	account *wallet.Account
 
 	oidsCh chan oid.ID
 	// wg is a wait group for block downloaders.
@@ -78,10 +96,15 @@ type Service struct {
 	oidDownloaderToExiter chan struct{}
 
 	shutdownCallback func()
+
+	// Depends on the OperationMode, the following functions are set to the appropriate functions.
+	getFunc    func(ctx context.Context, oid string) (io.ReadCloser, error)
+	readFunc   func(rc io.ReadCloser) (any, error)
+	heightFunc func() uint32
 }
 
 // New creates a new BlockFetcher Service.
-func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBlock func(*block.Block) error, shutdownCallback func()) (*Service, error) {
+func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, put func(item bqueue.Indexable) error, shutdownCallback func(), opt OperationMode) (*Service, error) {
 	var (
 		account *wallet.Account
 		err     error
@@ -137,12 +160,14 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 		return nil, err
 	}
 	return &Service{
-		chain: chain,
-		pool:  poolWrapper{Pool: p},
-		log:   logger,
-		cfg:   cfg,
+		chain:         chain,
+		pool:          poolWrapper{Pool: p},
+		log:           logger,
+		cfg:           cfg,
+		operationMode: opt,
+		headerSize:    getHeaderSize(chain.GetConfig()),
 
-		enqueueBlock:      putBlock,
+		enqueue:           put,
 		account:           account,
 		stateRootInHeader: chain.GetConfig().StateRootInHeader,
 		shutdownCallback:  shutdownCallback,
@@ -160,8 +185,15 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, putBloc
 	}, nil
 }
 
+func getHeaderSize(chain config.Blockchain) int {
+	return block.GetExpectedHeaderSize(chain.StateRootInHeader, chain.GetNumOfCNs(0))
+}
+
 // Start runs the NeoFS BlockFetcher service.
 func (bfs *Service) Start() error {
+	if bfs.IsShutdown() {
+		return errors.New("service is already shut down")
+	}
 	if !bfs.isActive.CompareAndSwap(false, true) {
 		return nil
 	}
@@ -196,6 +228,16 @@ func (bfs *Service) Start() error {
 		bfs.isActive.CompareAndSwap(true, false)
 		return fmt.Errorf("container magic mismatch: expected %d, got %s", bfs.chain.GetConfig().Magic, containerMagic)
 	}
+
+	bfs.getFunc = bfs.objectGet
+	bfs.readFunc = bfs.readBlock
+	bfs.heightFunc = bfs.chain.BlockHeight
+	if bfs.operationMode == Headers {
+		bfs.getFunc = bfs.objectGetRange
+		bfs.readFunc = bfs.readHeader
+		bfs.heightFunc = bfs.chain.HeaderHeight
+	}
+
 	// Start routine that manages Service shutdown process.
 	go bfs.exiter()
 
@@ -239,22 +281,22 @@ func (bfs *Service) blockDownloader() {
 		ctx, cancel := context.WithTimeout(bfs.ctx, bfs.cfg.Timeout)
 		defer cancel()
 
-		rc, err := bfs.objectGet(ctx, blkOid.String())
+		rc, err := bfs.getFunc(ctx, blkOid.String())
 		if err != nil {
 			if isContextCanceledErr(err) {
 				return
 			}
-			bfs.log.Error("failed to objectGet block", zap.String("oid", blkOid.String()), zap.Error(err))
+			bfs.log.Error("failed to get object", zap.String("oid", blkOid.String()), zap.Error(err))
 			bfs.stopService(true)
 			return
 		}
 
-		b, err := bfs.readBlock(rc)
+		obj, err := bfs.readFunc(rc)
 		if err != nil {
 			if isContextCanceledErr(err) {
 				return
 			}
-			bfs.log.Error("failed to decode block from stream", zap.String("oid", blkOid.String()), zap.Error(err))
+			bfs.log.Error("failed to decode object from stream", zap.String("oid", blkOid.String()), zap.Error(err))
 			bfs.stopService(true)
 			return
 		}
@@ -262,9 +304,9 @@ func (bfs *Service) blockDownloader() {
 		case <-bfs.ctx.Done():
 			return
 		default:
-			err = bfs.enqueueBlock(b)
+			err = bfs.enqueue(obj.(bqueue.Indexable))
 			if err != nil {
-				bfs.log.Error("failed to enqueue block", zap.Uint32("index", b.Index), zap.Error(err))
+				bfs.log.Error("failed to enqueue object", zap.String("oid", blkOid.String()), zap.Error(err))
 				bfs.stopService(true)
 				return
 			}
@@ -274,7 +316,7 @@ func (bfs *Service) blockDownloader() {
 
 // fetchOIDsFromIndexFiles fetches block OIDs from NeoFS by searching index files first.
 func (bfs *Service) fetchOIDsFromIndexFiles() error {
-	h := bfs.chain.BlockHeight()
+	h := bfs.heightFunc()
 	startIndex := h / bfs.cfg.IndexFileSize
 	skip := h % bfs.cfg.IndexFileSize
 
@@ -368,7 +410,7 @@ func (bfs *Service) streamBlockOIDs(rc io.ReadCloser, skip int) error {
 
 // fetchOIDsBySearch fetches block OIDs from NeoFS by searching through the Block objects.
 func (bfs *Service) fetchOIDsBySearch() error {
-	startIndex := bfs.chain.BlockHeight()
+	startIndex := bfs.heightFunc()
 	//We need to search with EQ filter to avoid partially-completed SEARCH responses.
 	batchSize := uint32(neofs.DefaultSearchBatchSize)
 
@@ -413,7 +455,7 @@ func (bfs *Service) fetchOIDsBySearch() error {
 }
 
 // readBlock decodes the block from the read closer and prepares it for adding to the blockchain.
-func (bfs *Service) readBlock(rc io.ReadCloser) (*block.Block, error) {
+func (bfs *Service) readBlock(rc io.ReadCloser) (any, error) {
 	b := block.New(bfs.stateRootInHeader)
 	r := gio.NewBinReaderFromIO(rc)
 	b.DecodeBinary(r)
@@ -421,11 +463,20 @@ func (bfs *Service) readBlock(rc io.ReadCloser) (*block.Block, error) {
 	return b, r.Err
 }
 
+// readHeader decodes the header from the read closer and prepares it for adding to the blockchain.
+func (bfs *Service) readHeader(rc io.ReadCloser) (any, error) {
+	b := block.New(bfs.stateRootInHeader)
+	r := gio.NewBinReaderFromIO(rc)
+	b.Header.DecodeBinary(r)
+	rc.Close()
+	return &b.Header, r.Err
+}
+
 // Shutdown stops the NeoFS BlockFetcher service. It prevents service from new
 // block OIDs search, cancels all in-progress downloading operations and waits
 // until all service routines finish their work.
 func (bfs *Service) Shutdown() {
-	if !bfs.IsActive() {
+	if !bfs.IsActive() || bfs.IsShutdown() {
 		return
 	}
 	bfs.stopService(true)
@@ -444,6 +495,9 @@ func (bfs *Service) stopService(force bool) {
 // exiter is a routine that is listening to a quitting signal and manages graceful
 // Service shutdown process.
 func (bfs *Service) exiter() {
+	if !bfs.isActive.Load() {
+		return
+	}
 	// Closing signal may come from anyone, but only once.
 	force := <-bfs.quit
 	bfs.log.Info("shutting down NeoFS BlockFetcher service",
@@ -451,6 +505,7 @@ func (bfs *Service) exiter() {
 	)
 
 	bfs.isActive.CompareAndSwap(true, false)
+	bfs.isShutdown.CompareAndSwap(false, true)
 	// Cansel all pending OIDs/blocks downloads in case if shutdown requested by user
 	// or caused by downloading error.
 	if force {
@@ -475,6 +530,12 @@ func (bfs *Service) exiter() {
 
 	// Notify Shutdown routine in case if it's user-triggered shutdown.
 	close(bfs.exiterToShutdown)
+}
+
+// IsShutdown returns true if the NeoFS BlockFetcher service is completely shutdown.
+// The service can not be started again.
+func (bfs *Service) IsShutdown() bool {
+	return bfs.isShutdown.Load()
 }
 
 // IsActive returns true if the NeoFS BlockFetcher service is running.
@@ -522,6 +583,19 @@ func (bfs *Service) retry(action func() error) error {
 
 func (bfs *Service) objectGet(ctx context.Context, oid string) (io.ReadCloser, error) {
 	u, err := url.Parse(fmt.Sprintf("%s:%s/%s", neofs.URIScheme, bfs.cfg.ContainerID, oid))
+	if err != nil {
+		return nil, err
+	}
+	var rc io.ReadCloser
+	err = bfs.retry(func() error {
+		rc, err = neofs.GetWithClient(ctx, bfs.pool, bfs.account.PrivateKey(), u, false)
+		return err
+	})
+	return rc, err
+}
+
+func (bfs *Service) objectGetRange(ctx context.Context, oid string) (io.ReadCloser, error) {
+	u, err := url.Parse(fmt.Sprintf("%s:%s/%s/%s/%d|%d", neofs.URIScheme, bfs.cfg.ContainerID, oid, "range", 0, bfs.headerSize))
 	if err != nil {
 		return nil, err
 	}

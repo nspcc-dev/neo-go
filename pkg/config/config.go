@@ -64,6 +64,7 @@ func (c Config) Blockchain() Blockchain {
 	return Blockchain{
 		ProtocolConfiguration: c.ProtocolConfiguration,
 		Ledger:                c.ApplicationConfiguration.Ledger,
+		NeoFSBlockFetcher:     c.ApplicationConfiguration.NeoFSBlockFetcher,
 	}
 }
 

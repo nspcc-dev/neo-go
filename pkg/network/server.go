@@ -111,11 +111,15 @@ type (
 		chain             Ledger
 		bQueue            *bqueue.Queue[*block.Block]
 		bSyncQueue        *bqueue.Queue[*block.Block]
+		syncHFetcherQueue *bqueue.Queue[*block.Header]
+		syncBFetcherQueue *bqueue.Queue[*block.Block]
 		bFetcherQueue     *bqueue.Queue[*block.Block]
 		mempool           *mempool.Pool
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
 		notaryFeer        NotaryFeer
+		syncHeaderFetcher *blockfetcher.Service
+		syncBlockFetcher  *blockfetcher.Service
 		blockFetcher      *blockfetcher.Service
 
 		serviceLock    sync.RWMutex
@@ -234,9 +238,28 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	}
 	s.bFetcherQueue = bqueue.New[*block.Block](chainBlockQueueAdapter{chain}, log, nil, s.NeoFSBlockFetcherCfg.BQueueSize, updateBlockQueueLenMetric, bqueue.Blocking)
 	var err error
-	s.blockFetcher, err = blockfetcher.New(chain, s.NeoFSBlockFetcherCfg, log, s.bFetcherQueue.Put, sync.OnceFunc(func() { close(s.blockFetcherFin) }))
+	s.blockFetcher, err = blockfetcher.New(chain, s.NeoFSBlockFetcherCfg, log, func(item bqueue.Indexable) error { return s.bFetcherQueue.Put(item.(*block.Block)) }, sync.OnceFunc(func() { close(s.blockFetcherFin) }), blockfetcher.Blocks)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create NeoFS BlockFetcher: %w", err)
+	}
+	s.syncHFetcherQueue = bqueue.New[*block.Header](stateSyncHeaderQueueAdapter{s.stateSync}, log, nil, s.NeoFSBlockFetcherCfg.BQueueSize, updateBlockQueueLenMetric, bqueue.Blocking)
+	s.syncHeaderFetcher, err = blockfetcher.New(s.stateSync, s.NeoFSBlockFetcherCfg, log, func(item bqueue.Indexable) error { return s.syncHFetcherQueue.Put(item.(*block.Header)) },
+		func() {
+			s.log.Info("NeoFS HeaderFetcher finished state sync headers downloading")
+		}, blockfetcher.Headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Sync NeoFS HeaderFetcher: %w", err)
+	}
+	s.syncBFetcherQueue = bqueue.New[*block.Block](stateSyncBlockQueueAdapter{s.stateSync}, log, nil, s.NeoFSBlockFetcherCfg.BQueueSize, updateBlockQueueLenMetric, bqueue.Blocking)
+	s.syncBlockFetcher, err = blockfetcher.New(s.stateSync, s.NeoFSBlockFetcherCfg, log, func(item bqueue.Indexable) error { return s.syncBFetcherQueue.Put(item.(*block.Block)) },
+		sync.OnceFunc(func() {
+			s.log.Info("NeoFS BlockFetcher finished state sync block downloading")
+		}), blockfetcher.Blocks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Sync NeoFS BlockFetcher: %w", err)
+	}
+	if s.config.NeoFSStateSyncExtensions {
+		s.stateSync.SetOnStageChanged(s.stateSyncCallBack)
 	}
 
 	if s.MinPeers < 0 {
@@ -314,10 +337,11 @@ func (s *Server) Start() {
 	go s.relayBlocksLoop()
 	go s.bQueue.Run()
 	go s.bSyncQueue.Run()
+	go s.syncBFetcherQueue.Run()
+	go s.syncHFetcherQueue.Run()
 	go s.bFetcherQueue.Run()
-	if s.ServerConfig.NeoFSBlockFetcherCfg.Enabled {
-		err := s.blockFetcher.Start()
-		if err != nil {
+	if s.ServerConfig.NeoFSBlockFetcherCfg.Enabled && !s.config.NeoFSStateSyncExtensions && !s.config.P2PStateExchangeExtensions {
+		if err := s.blockFetcher.Start(); err != nil {
 			s.log.Error("skipping NeoFS BlockFetcher", zap.Error(err))
 		}
 	}
@@ -335,10 +359,12 @@ func (s *Server) Shutdown() {
 		return
 	}
 	s.log.Info("shutting down server", zap.Int("peers", s.PeerCount()))
-	if s.ServerConfig.NeoFSBlockFetcherCfg.Enabled {
-		s.bFetcherQueue.Discard()
-		s.blockFetcher.Shutdown()
-	}
+	s.syncHFetcherQueue.Discard()
+	s.syncBFetcherQueue.Discard()
+	s.bFetcherQueue.Discard()
+	s.syncHeaderFetcher.Shutdown()
+	s.syncBlockFetcher.Shutdown()
+	s.blockFetcher.Shutdown()
 	for _, tr := range s.transports {
 		tr.Close()
 	}
@@ -363,6 +389,38 @@ func (s *Server) Shutdown() {
 	s.txHandlerLoopWG.Wait()
 
 	_ = s.log.Sync()
+}
+
+func (s *Server) stateSyncCallBack() {
+	needHeaders := s.stateSync.NeedHeaders()
+	needBlocks := s.stateSync.NeedBlocks()
+	isActive := s.stateSync.IsActive()
+	if needHeaders {
+		if !s.syncHeaderFetcher.IsShutdown() {
+			err := s.syncHeaderFetcher.Start()
+			if err != nil {
+				s.log.Error("skipping NeoFS Sync HeaderFetcher", zap.Error(err))
+			}
+		}
+	}
+	if needBlocks {
+		s.syncHeaderFetcher.Shutdown()
+		if !s.syncBlockFetcher.IsShutdown() {
+			if err := s.syncBlockFetcher.Start(); err != nil {
+				s.log.Error("skipping NeoFS Sync BlockFetcher", zap.Error(err))
+			}
+		}
+	}
+	if !needHeaders && !needBlocks {
+		s.syncBlockFetcher.Shutdown()
+	}
+	if !isActive {
+		if s.ServerConfig.NeoFSBlockFetcherCfg.Enabled {
+			if err := s.blockFetcher.Start(); err != nil {
+				s.log.Error("skipping NeoFS BlockFetcher", zap.Error(err))
+			}
+		}
+	}
 }
 
 // AddService allows to add a service to be started/stopped by Server.
@@ -796,7 +854,7 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 
 // handleBlockCmd processes the block received from its peer.
 func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
-	if s.blockFetcher.IsActive() {
+	if s.syncHeaderFetcher.IsActive() || s.syncBlockFetcher.IsActive() || s.blockFetcher.IsActive() {
 		return nil
 	}
 	if s.stateSync.IsActive() {
@@ -819,7 +877,7 @@ func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
 }
 
 func (s *Server) requestBlocksOrHeaders(p Peer) error {
-	if s.blockFetcher.IsActive() {
+	if s.syncHeaderFetcher.IsActive() || s.syncBlockFetcher.IsActive() || s.blockFetcher.IsActive() {
 		return nil
 	}
 	if s.stateSync.NeedHeaders() {
@@ -1140,7 +1198,7 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlockByIndex) error 
 
 // handleHeadersCmd processes headers payload.
 func (s *Server) handleHeadersCmd(p Peer, h *payload.Headers) error {
-	if s.blockFetcher.IsActive() {
+	if s.syncHeaderFetcher.IsActive() || s.syncBlockFetcher.IsActive() || s.blockFetcher.IsActive() {
 		return nil
 	}
 	return s.stateSync.AddHeaders(h.Hdrs...)
@@ -1477,6 +1535,8 @@ func (s *Server) tryInitStateSync() {
 	}
 	if !s.stateSync.IsActive() {
 		s.bSyncQueue.Discard()
+		s.syncBFetcherQueue.Discard()
+		s.syncHFetcherQueue.Discard()
 		return
 	}
 
@@ -1508,6 +1568,8 @@ func (s *Server) tryInitStateSync() {
 		// module can be inactive after init (i.e. full state is collected and ordinary block processing is needed)
 		if !s.stateSync.IsActive() {
 			s.bSyncQueue.Discard()
+			s.syncBFetcherQueue.Discard()
+			s.syncHFetcherQueue.Discard()
 		}
 	}
 }

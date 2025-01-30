@@ -49,6 +49,8 @@ type (
 		P2PSigExtensions bool `yaml:"P2PSigExtensions"`
 		// P2PStateExchangeExtensions enables additional P2P MPT state data exchange logic.
 		P2PStateExchangeExtensions bool `yaml:"P2PStateExchangeExtensions"`
+		// NeoFSStateSyncExtensions enables state data exchange logic via NeoFS.
+		NeoFSStateSyncExtensions bool `yaml:"NeoFSStateSyncExtensions"`
 		// ReservedAttributes allows to have reserved attributes range for experimental or private purposes.
 		ReservedAttributes bool `yaml:"ReservedAttributes"`
 

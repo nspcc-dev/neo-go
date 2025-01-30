@@ -28,8 +28,13 @@ const (
 
 // Queueable is an interface for a queue element.
 type Queueable interface {
-	GetIndex() uint32
+	Indexable
 	comparable
+}
+
+// Indexable is an interface for an element that has an index.
+type Indexable interface {
+	GetIndex() uint32
 }
 
 // Queue is the queue of queueable elements.
