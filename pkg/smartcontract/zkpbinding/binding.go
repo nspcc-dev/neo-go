@@ -133,11 +133,11 @@ func VerifyProof(a []byte, b []byte, c []byte, publicInput [][]byte) bool {
 		panic("error: inputlen or iclen")
 	}
 	icPoints := make([]crypto.Bls12381Point, iclen)
-	for i := range iclen {
+	for i := range icPoints {
 		icPoints[i] = crypto.Bls12381Deserialize(ic[i])
 	}
 	acc := icPoints[0]
-	for i := range inputlen {
+	for i := range publicInput {
 		scalar := publicInput[i] // 32-bytes LE field element.
 		temp := crypto.Bls12381Mul(icPoints[i+1], scalar, false)
 		acc = crypto.Bls12381Add(acc, temp)
@@ -167,12 +167,12 @@ supportedstandards: []`
 
 go 1.22
 
-require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231004150345-8849ccde2524
+require github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20241223145456-80e18222bca2
 `
 
 	// verifyGosum is a standard go.sum file needed for contract compilation.
-	verifyGosum = `github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231004150345-8849ccde2524 h1:LKp/89ftf+MwMExKgnbwjQp5zQTUZ3lDCc+DZ4VeSRc=
-github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20231004150345-8849ccde2524/go.mod h1:ZUuXOkdtHZgaC13za/zMgXfQFncZ0jLzfQTe+OsDOtg=
+	verifyGosum = `github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20241223145456-80e18222bca2 h1:4Bfi6A1kPpaTDuwbDVc6x+R4WXgoNN9wIq6XobDlXHs=
+github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20241223145456-80e18222bca2/go.mod h1:kVLzmbeJJdbIPF2bUYhD8YppIiLXnRQj5yqNZvzbOL0=
 `
 )
 
