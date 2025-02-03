@@ -133,11 +133,11 @@ func VerifyProof(a []byte, b []byte, c []byte, publicInput [][]byte) bool {
 		panic("error: inputlen or iclen")
 	}
 	icPoints := make([]crypto.Bls12381Point, iclen)
-	for i := range iclen {
+	for i := range icPoints {
 		icPoints[i] = crypto.Bls12381Deserialize(ic[i])
 	}
 	acc := icPoints[0]
-	for i := range inputlen {
+	for i := range publicInput {
 		scalar := publicInput[i] // 32-bytes LE field element.
 		temp := crypto.Bls12381Mul(icPoints[i+1], scalar, false)
 		acc = crypto.Bls12381Add(acc, temp)
