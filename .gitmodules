@@ -1,4 +1,4 @@
 [submodule "pkg/vm/testdata/neo-vm"]
 	path = pkg/vm/testdata/neo-vm
-	url = https://github.com/neo-project/neo-vm.git
+	url = https://github.com/neo-project/neo.git
 	branch = master
