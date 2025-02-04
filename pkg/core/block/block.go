@@ -51,6 +51,13 @@ type auxBlockIn struct {
 	Transactions []json.RawMessage `json:"tx"`
 }
 
+// GetIndex returns the index of the block. This method should be used
+// for interfaces only. As generics don't support structural types
+// ref. golang/go#51259.
+func (b *Block) GetIndex() uint32 {
+	return b.Index
+}
+
 // ComputeMerkleRoot computes Merkle tree root hash based on actual block's data.
 func (b *Block) ComputeMerkleRoot() util.Uint256 {
 	hashes := make([]util.Uint256, len(b.Transactions))
