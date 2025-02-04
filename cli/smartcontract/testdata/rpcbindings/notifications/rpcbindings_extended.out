@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"math/big"
@@ -203,6 +204,9 @@ func itemToCrazyStruct(item stackitem.Item, err error) (*CrazyStruct, error) {
 // Ensure *CrazyStruct is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&CrazyStruct{})
 
+// Ensure *CrazyStruct is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&CrazyStruct{})
+
 // FromStackItem retrieves fields of CrazyStruct from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
 // It implements [stackitem.Convertible] interface.
@@ -261,6 +265,34 @@ func (res *CrazyStruct) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct(items), nil
 }
 
+// ToSCParameter creates [smartcontract.Parameter] representing CrazyStruct.
+// It implements [smartcontract.Convertible] interface so that CrazyStruct
+// could be used with invokers.
+func (res *CrazyStruct) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 2)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.I)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field I: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.B)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field B: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+}
+
 // itemToSimpleStruct converts stack item into *SimpleStruct.
 // NULL item is returned as nil pointer without error.
 func itemToSimpleStruct(item stackitem.Item, err error) (*SimpleStruct, error) {
@@ -278,6 +310,9 @@ func itemToSimpleStruct(item stackitem.Item, err error) (*SimpleStruct, error) {
 
 // Ensure *SimpleStruct is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&SimpleStruct{})
+
+// Ensure *SimpleStruct is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&SimpleStruct{})
 
 // FromStackItem retrieves fields of SimpleStruct from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
@@ -323,6 +358,28 @@ func (res *SimpleStruct) ToStackItem() (stackitem.Item, error) {
 	items = append(items, itm)
 
 	return stackitem.NewStruct(items), nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing SimpleStruct.
+// It implements [smartcontract.Convertible] interface so that SimpleStruct
+// could be used with invokers.
+func (res *SimpleStruct) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 1)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.I)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field I: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
 }
 
 // ComplicatedNameEventsFromApplicationLog retrieves a set of all emitted events

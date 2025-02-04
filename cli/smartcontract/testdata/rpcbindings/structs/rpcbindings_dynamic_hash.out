@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"math/big"
@@ -173,6 +174,9 @@ func itemToLedgerBlock(item stackitem.Item, err error) (*LedgerBlock, error) {
 
 // Ensure *LedgerBlock is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&LedgerBlock{})
+
+// Ensure *LedgerBlock is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&LedgerBlock{})
 
 // FromStackItem retrieves fields of LedgerBlock from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
@@ -368,6 +372,82 @@ func (res *LedgerBlock) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct(items), nil
 }
 
+// ToSCParameter creates [smartcontract.Parameter] representing LedgerBlock.
+// It implements [smartcontract.Convertible] interface so that LedgerBlock
+// could be used with invokers.
+func (res *LedgerBlock) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 10)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.Hash)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Hash: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Version)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Version: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.PrevHash)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field PrevHash: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.MerkleRoot)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field MerkleRoot: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Timestamp)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Timestamp: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Nonce)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Nonce: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Index)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Index: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.PrimaryIndex)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field PrimaryIndex: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.NextConsensus)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field NextConsensus: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.TransactionsLength)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field TransactionsLength: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+}
+
 // itemToLedgerTransaction converts stack item into *LedgerTransaction.
 // NULL item is returned as nil pointer without error.
 func itemToLedgerTransaction(item stackitem.Item, err error) (*LedgerTransaction, error) {
@@ -385,6 +465,9 @@ func itemToLedgerTransaction(item stackitem.Item, err error) (*LedgerTransaction
 
 // Ensure *LedgerTransaction is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&LedgerTransaction{})
+
+// Ensure *LedgerTransaction is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&LedgerTransaction{})
 
 // FromStackItem retrieves fields of LedgerTransaction from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
@@ -536,6 +619,70 @@ func (res *LedgerTransaction) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct(items), nil
 }
 
+// ToSCParameter creates [smartcontract.Parameter] representing LedgerTransaction.
+// It implements [smartcontract.Convertible] interface so that LedgerTransaction
+// could be used with invokers.
+func (res *LedgerTransaction) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 8)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.Hash)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Hash: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Version)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Version: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Nonce)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Nonce: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Sender)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Sender: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.SysFee)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field SysFee: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.NetFee)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field NetFee: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.ValidUntilBlock)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field ValidUntilBlock: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Script)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Script: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+}
+
 // itemToManagementABI converts stack item into *ManagementABI.
 // NULL item is returned as nil pointer without error.
 func itemToManagementABI(item stackitem.Item, err error) (*ManagementABI, error) {
@@ -553,6 +700,9 @@ func itemToManagementABI(item stackitem.Item, err error) (*ManagementABI, error)
 
 // Ensure *ManagementABI is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&ManagementABI{})
+
+// Ensure *ManagementABI is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&ManagementABI{})
 
 // FromStackItem retrieves fields of ManagementABI from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
@@ -666,6 +816,62 @@ func (res *ManagementABI) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct(items), nil
 }
 
+// ToSCParameter creates [smartcontract.Parameter] representing ManagementABI.
+// It implements [smartcontract.Convertible] interface so that ManagementABI
+// could be used with invokers.
+func (res *ManagementABI) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 2)
+	)
+	prm, err = func(in []*ManagementMethod) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.Parameter, 0, len(in))
+		for i, v := range in {
+			prm, err := v.ToSCParameter()
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("item %d: %w", i, err)
+			}
+			prms = append(prms, prm)
+		}
+		return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+	}(res.Methods)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Methods: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = func(in []*ManagementEvent) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.Parameter, 0, len(in))
+		for i, v := range in {
+			prm, err := v.ToSCParameter()
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("item %d: %w", i, err)
+			}
+			prms = append(prms, prm)
+		}
+		return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+	}(res.Events)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Events: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+}
+
 // itemToManagementContract converts stack item into *ManagementContract.
 // NULL item is returned as nil pointer without error.
 func itemToManagementContract(item stackitem.Item, err error) (*ManagementContract, error) {
@@ -683,6 +889,9 @@ func itemToManagementContract(item stackitem.Item, err error) (*ManagementContra
 
 // Ensure *ManagementContract is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&ManagementContract{})
+
+// Ensure *ManagementContract is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&ManagementContract{})
 
 // FromStackItem retrieves fields of ManagementContract from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
@@ -788,6 +997,52 @@ func (res *ManagementContract) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct(items), nil
 }
 
+// ToSCParameter creates [smartcontract.Parameter] representing ManagementContract.
+// It implements [smartcontract.Convertible] interface so that ManagementContract
+// could be used with invokers.
+func (res *ManagementContract) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 5)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.ID)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field ID: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.UpdateCounter)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field UpdateCounter: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Hash)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Hash: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.NEF)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field NEF: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = res.Manifest.ToSCParameter()
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Manifest: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+}
+
 // itemToManagementEvent converts stack item into *ManagementEvent.
 // NULL item is returned as nil pointer without error.
 func itemToManagementEvent(item stackitem.Item, err error) (*ManagementEvent, error) {
@@ -805,6 +1060,9 @@ func itemToManagementEvent(item stackitem.Item, err error) (*ManagementEvent, er
 
 // Ensure *ManagementEvent is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&ManagementEvent{})
+
+// Ensure *ManagementEvent is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&ManagementEvent{})
 
 // FromStackItem retrieves fields of ManagementEvent from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
@@ -900,6 +1158,48 @@ func (res *ManagementEvent) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct(items), nil
 }
 
+// ToSCParameter creates [smartcontract.Parameter] representing ManagementEvent.
+// It implements [smartcontract.Convertible] interface so that ManagementEvent
+// could be used with invokers.
+func (res *ManagementEvent) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 2)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.Name)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Name: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = func(in []*ManagementParameter) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.Parameter, 0, len(in))
+		for i, v := range in {
+			prm, err := v.ToSCParameter()
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("item %d: %w", i, err)
+			}
+			prms = append(prms, prm)
+		}
+		return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+	}(res.Params)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Params: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+}
+
 // itemToManagementGroup converts stack item into *ManagementGroup.
 // NULL item is returned as nil pointer without error.
 func itemToManagementGroup(item stackitem.Item, err error) (*ManagementGroup, error) {
@@ -917,6 +1217,9 @@ func itemToManagementGroup(item stackitem.Item, err error) (*ManagementGroup, er
 
 // Ensure *ManagementGroup is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&ManagementGroup{})
+
+// Ensure *ManagementGroup is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&ManagementGroup{})
 
 // FromStackItem retrieves fields of ManagementGroup from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
@@ -986,6 +1289,34 @@ func (res *ManagementGroup) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct(items), nil
 }
 
+// ToSCParameter creates [smartcontract.Parameter] representing ManagementGroup.
+// It implements [smartcontract.Convertible] interface so that ManagementGroup
+// could be used with invokers.
+func (res *ManagementGroup) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 2)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.PublicKey)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field PublicKey: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Signature)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Signature: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+}
+
 // itemToManagementManifest converts stack item into *ManagementManifest.
 // NULL item is returned as nil pointer without error.
 func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManifest, error) {
@@ -1003,6 +1334,9 @@ func itemToManagementManifest(item stackitem.Item, err error) (*ManagementManife
 
 // Ensure *ManagementManifest is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&ManagementManifest{})
+
+// Ensure *ManagementManifest is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&ManagementManifest{})
 
 // FromStackItem retrieves fields of ManagementManifest from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
@@ -1324,6 +1658,144 @@ func (res *ManagementManifest) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct(items), nil
 }
 
+// ToSCParameter creates [smartcontract.Parameter] representing ManagementManifest.
+// It implements [smartcontract.Convertible] interface so that ManagementManifest
+// could be used with invokers.
+func (res *ManagementManifest) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 8)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.Name)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Name: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = func(in []*ManagementGroup) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.Parameter, 0, len(in))
+		for i, v := range in {
+			prm, err := v.ToSCParameter()
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("item %d: %w", i, err)
+			}
+			prms = append(prms, prm)
+		}
+		return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+	}(res.Groups)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Groups: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = func(in map[string]string) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.ParameterPair, 0, len(in))
+		for k, v := range in {
+			iKey, err := smartcontract.NewParameterFromValue(k)
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("key %v: %w", k, err)
+			}
+			iVal, err := smartcontract.NewParameterFromValue(v)
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("key %v, wrong value: %w", k, err)
+			}
+			prms = append(prms, smartcontract.ParameterPair{Key: iKey, Value: iVal})
+		}
+		return smartcontract.Parameter{Type: smartcontract.MapType, Value: prms}, nil
+	}(res.Features)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Features: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = func(in []string) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.Parameter, 0, len(in))
+		for i, v := range in {
+			prm, err := smartcontract.NewParameterFromValue(v)
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("item %d: %w", i, err)
+			}
+			prms = append(prms, prm)
+		}
+		return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+	}(res.SupportedStandards)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field SupportedStandards: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = res.ABI.ToSCParameter()
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field ABI: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = func(in []*ManagementPermission) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.Parameter, 0, len(in))
+		for i, v := range in {
+			prm, err := v.ToSCParameter()
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("item %d: %w", i, err)
+			}
+			prms = append(prms, prm)
+		}
+		return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+	}(res.Permissions)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Permissions: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = func(in []util.Uint160) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.Parameter, 0, len(in))
+		for i, v := range in {
+			prm, err := smartcontract.NewParameterFromValue(v)
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("item %d: %w", i, err)
+			}
+			prms = append(prms, prm)
+		}
+		return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+	}(res.Trusts)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Trusts: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Extra)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Extra: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+}
+
 // itemToManagementMethod converts stack item into *ManagementMethod.
 // NULL item is returned as nil pointer without error.
 func itemToManagementMethod(item stackitem.Item, err error) (*ManagementMethod, error) {
@@ -1341,6 +1813,9 @@ func itemToManagementMethod(item stackitem.Item, err error) (*ManagementMethod, 
 
 // Ensure *ManagementMethod is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&ManagementMethod{})
+
+// Ensure *ManagementMethod is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&ManagementMethod{})
 
 // FromStackItem retrieves fields of ManagementMethod from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
@@ -1472,6 +1947,66 @@ func (res *ManagementMethod) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct(items), nil
 }
 
+// ToSCParameter creates [smartcontract.Parameter] representing ManagementMethod.
+// It implements [smartcontract.Convertible] interface so that ManagementMethod
+// could be used with invokers.
+func (res *ManagementMethod) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 5)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.Name)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Name: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = func(in []*ManagementParameter) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.Parameter, 0, len(in))
+		for i, v := range in {
+			prm, err := v.ToSCParameter()
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("item %d: %w", i, err)
+			}
+			prms = append(prms, prm)
+		}
+		return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+	}(res.Params)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Params: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.ReturnType)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field ReturnType: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Offset)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Offset: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Safe)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Safe: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+}
+
 // itemToManagementParameter converts stack item into *ManagementParameter.
 // NULL item is returned as nil pointer without error.
 func itemToManagementParameter(item stackitem.Item, err error) (*ManagementParameter, error) {
@@ -1489,6 +2024,9 @@ func itemToManagementParameter(item stackitem.Item, err error) (*ManagementParam
 
 // Ensure *ManagementParameter is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&ManagementParameter{})
+
+// Ensure *ManagementParameter is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&ManagementParameter{})
 
 // FromStackItem retrieves fields of ManagementParameter from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
@@ -1557,6 +2095,34 @@ func (res *ManagementParameter) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct(items), nil
 }
 
+// ToSCParameter creates [smartcontract.Parameter] representing ManagementParameter.
+// It implements [smartcontract.Convertible] interface so that ManagementParameter
+// could be used with invokers.
+func (res *ManagementParameter) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 2)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.Name)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Name: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Type)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Type: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+}
+
 // itemToManagementPermission converts stack item into *ManagementPermission.
 // NULL item is returned as nil pointer without error.
 func itemToManagementPermission(item stackitem.Item, err error) (*ManagementPermission, error) {
@@ -1574,6 +2140,9 @@ func itemToManagementPermission(item stackitem.Item, err error) (*ManagementPerm
 
 // Ensure *ManagementPermission is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&ManagementPermission{})
+
+// Ensure *ManagementPermission is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&ManagementPermission{})
 
 // FromStackItem retrieves fields of ManagementPermission from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
@@ -1679,6 +2248,48 @@ func (res *ManagementPermission) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct(items), nil
 }
 
+// ToSCParameter creates [smartcontract.Parameter] representing ManagementPermission.
+// It implements [smartcontract.Convertible] interface so that ManagementPermission
+// could be used with invokers.
+func (res *ManagementPermission) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 2)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.Contract)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Contract: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = func(in []string) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.Parameter, 0, len(in))
+		for i, v := range in {
+			prm, err := smartcontract.NewParameterFromValue(v)
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("item %d: %w", i, err)
+			}
+			prms = append(prms, prm)
+		}
+		return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+	}(res.Methods)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Methods: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+}
+
 // itemToStructsInternal converts stack item into *StructsInternal.
 // NULL item is returned as nil pointer without error.
 func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, error) {
@@ -1696,6 +2307,9 @@ func itemToStructsInternal(item stackitem.Item, err error) (*StructsInternal, er
 
 // Ensure *StructsInternal is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&StructsInternal{})
+
+// Ensure *StructsInternal is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&StructsInternal{})
 
 // FromStackItem retrieves fields of StructsInternal from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
@@ -2083,4 +2697,164 @@ func (res *StructsInternal) ToStackItem() (stackitem.Item, error) {
 	items = append(items, itm)
 
 	return stackitem.NewStruct(items), nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing StructsInternal.
+// It implements [smartcontract.Convertible] interface so that StructsInternal
+// could be used with invokers.
+func (res *StructsInternal) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 14)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.Bool)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Bool: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Int)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Int: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Bytes)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Bytes: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.String)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field String: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.H160)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field H160: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.H256)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field H256: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.PK)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field PK: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.PubKey)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field PubKey: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Sign)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Sign: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = func(in [][]byte) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.Parameter, 0, len(in))
+		for i, v := range in {
+			prm, err := smartcontract.NewParameterFromValue(v)
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("item %d: %w", i, err)
+			}
+			prms = append(prms, prm)
+		}
+		return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+	}(res.ArrOfBytes)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field ArrOfBytes: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = func(in []util.Uint160) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.Parameter, 0, len(in))
+		for i, v := range in {
+			prm, err := smartcontract.NewParameterFromValue(v)
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("item %d: %w", i, err)
+			}
+			prms = append(prms, prm)
+		}
+		return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+	}(res.ArrOfH160)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field ArrOfH160: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = func(in map[*big.Int]keys.PublicKeys) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.ParameterPair, 0, len(in))
+		for k, v := range in {
+			iKey, err := smartcontract.NewParameterFromValue(k)
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("key %v: %w", k, err)
+			}
+			iVal, err := func(in keys.PublicKeys) (smartcontract.Parameter, error) {
+				if in == nil {
+					return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+				}
+
+				var prms = make([]smartcontract.Parameter, 0, len(in))
+				for i, v := range in {
+					prm, err := smartcontract.NewParameterFromValue(v)
+					if err != nil {
+						return smartcontract.Parameter{}, fmt.Errorf("item %d: %w", i, err)
+					}
+					prms = append(prms, prm)
+				}
+				return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+			}(v)
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("key %v, wrong value: %w", k, err)
+			}
+			prms = append(prms, smartcontract.ParameterPair{Key: iKey, Value: iVal})
+		}
+		return smartcontract.Parameter{Type: smartcontract.MapType, Value: prms}, nil
+	}(res.Map)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Map: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = res.Struct.ToSCParameter()
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Struct: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.UnexportedField)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field UnexportedField: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
 }

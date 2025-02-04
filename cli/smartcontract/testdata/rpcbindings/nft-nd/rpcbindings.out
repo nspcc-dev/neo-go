@@ -211,6 +211,9 @@ func itemToNftRoyaltyRecipientShare(item stackitem.Item, err error) (*NftRoyalty
 // Ensure *NftRoyaltyRecipientShare is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&NftRoyaltyRecipientShare{})
 
+// Ensure *NftRoyaltyRecipientShare is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&NftRoyaltyRecipientShare{})
+
 // FromStackItem retrieves fields of NftRoyaltyRecipientShare from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
 // It implements [stackitem.Convertible] interface.
@@ -277,4 +280,32 @@ func (res *NftRoyaltyRecipientShare) ToStackItem() (stackitem.Item, error) {
 	items = append(items, itm)
 
 	return stackitem.NewStruct(items), nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing NftRoyaltyRecipientShare.
+// It implements [smartcontract.Convertible] interface so that NftRoyaltyRecipientShare
+// could be used with invokers.
+func (res *NftRoyaltyRecipientShare) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 2)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.Address)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Address: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.Share)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field Share: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
 }

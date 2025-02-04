@@ -262,6 +262,9 @@ func itemTo{{toTypeName $typ.Name}}(item stackitem.Item, err error) (*{{toTypeNa
 // Ensure *{{toTypeName $typ.Name}} is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&{{toTypeName $typ.Name}}{})
 
+// Ensure *{{toTypeName $typ.Name}} is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&{{toTypeName $typ.Name}}{})
+
 // FromStackItem retrieves fields of {{toTypeName $typ.Name}} from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
 // It implements [stackitem.Convertible] interface.
@@ -310,6 +313,30 @@ func (res *{{toTypeName $typ.Name}}) ToStackItem() (stackitem.Item, error) {
 	items = append(items, itm)
 {{end}}
 	return stackitem.NewStruct(items), nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing {{toTypeName $typ.Name}}.
+// It implements [smartcontract.Convertible] interface so that {{toTypeName $typ.Name}}
+// could be used with invokers.
+func (res *{{toTypeName $typ.Name}}) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err    error
+		prm    smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, {{len .Fields}})
+	)
+
+{{- range $m := $typ.Fields}}
+	prm, err = {{scTypeConverter .ExtendedType (print "res." (upperFirst .Field))}}
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field {{ upperFirst .Field}}: %w", err)
+	}
+	prms = append(prms, prm)
+{{end}}
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
 }
 {{ end -}}
 {{- range $e := .CustomEvents }}
@@ -531,6 +558,7 @@ func Generate(cfg binding.Config) error {
 			return r
 		},
 		"goTypeConverter": goTypeConverter,
+		"scTypeConverter": scTypeConverter,
 		"toTypeName":      toTypeName,
 		"cutPointer":      cutPointer,
 		"upperFirst":      upperFirst,
@@ -871,6 +899,77 @@ func goTypeConverter(et binding.ExtendedType, v string) string {
 	}
 }
 
+func scTypeConverter(et binding.ExtendedType, v string) string {
+	switch et.Base {
+	case smartcontract.AnyType, smartcontract.BoolType, smartcontract.IntegerType,
+		smartcontract.ByteArrayType, smartcontract.SignatureType, smartcontract.StringType,
+		smartcontract.Hash160Type, smartcontract.Hash256Type, smartcontract.PublicKeyType,
+		smartcontract.InteropInterfaceType, smartcontract.VoidType:
+		return "smartcontract.NewParameterFromValue(" + v + ")"
+	case smartcontract.ArrayType:
+		if len(et.Name) > 0 {
+			return v + ".ToSCParameter()"
+		} else if et.Value != nil {
+			at, _ := extendedTypeToGo(et, nil)
+			return `func(in ` + at + `) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.Parameter, 0, len(in))
+		for i, v := range in {
+			prm, err := ` + scTypeConverter(*et.Value, "v") + `
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("item %d: %w", i, err)
+			}
+			prms = append(prms, prm)
+		}
+		return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+	}(` + v + `)`
+		}
+		return scTypeConverter(binding.ExtendedType{
+			Base: smartcontract.ArrayType,
+			Value: &binding.ExtendedType{
+				Base: smartcontract.AnyType,
+			},
+		}, v)
+
+	case smartcontract.MapType:
+		if et.Value != nil {
+			at, _ := extendedTypeToGo(et, nil)
+			return `func(in ` + at + `) (smartcontract.Parameter, error) {
+		if in == nil {
+			return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+		}
+
+		var prms = make([]smartcontract.ParameterPair, 0, len(in))
+		for k, v := range in {
+			iKey, err := ` + scTypeConverter(binding.ExtendedType{Base: et.Key}, "k") + `
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("key %v: %w", k, err)
+			}
+			iVal, err := ` + scTypeConverter(*et.Value, "v") + `
+			if err != nil {
+				return smartcontract.Parameter{}, fmt.Errorf("key %v, wrong value: %w", k, err)
+			}
+			prms = append(prms, smartcontract.ParameterPair{Key: iKey, Value: iVal})
+		}
+		return smartcontract.Parameter{Type: smartcontract.MapType, Value: prms}, nil
+	}(` + v + `)`
+		}
+
+		return goTypeConverter(binding.ExtendedType{
+			Base: smartcontract.MapType,
+			Key:  et.Key,
+			Value: &binding.ExtendedType{
+				Base: smartcontract.AnyType,
+			},
+		}, v)
+	default:
+		panic("unreachable")
+	}
+}
+
 func scTypeToGo(name string, typ smartcontract.ParamType, cfg *binding.Config) (string, string) {
 	et, ok := cfg.Types[name]
 	if !ok {
@@ -911,6 +1010,7 @@ func scTemplateToRPC(cfg binding.Config, ctr ContractTmpl, imports map[string]st
 	}
 	if len(cfg.NamedTypes) > 0 {
 		imports["errors"] = struct{}{}
+		imports["github.com/nspcc-dev/neo-go/pkg/smartcontract"] = struct{}{}
 	}
 	for _, abiEvent := range cfg.Manifest.ABI.Events {
 		eBindingName := ToEventBindingName(abiEvent.Name)
