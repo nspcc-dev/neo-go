@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"math/big"
@@ -203,6 +204,9 @@ func itemToUnnamed(item stackitem.Item, err error) (*Unnamed, error) {
 // Ensure *Unnamed is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&Unnamed{})
 
+// Ensure *Unnamed is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&Unnamed{})
+
 // FromStackItem retrieves fields of Unnamed from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
 // It implements [stackitem.Convertible] interface.
@@ -261,6 +265,34 @@ func (res *Unnamed) ToStackItem() (stackitem.Item, error) {
 	return stackitem.NewStruct(items), nil
 }
 
+// ToSCParameter creates [smartcontract.Parameter] representing Unnamed.
+// It implements [smartcontract.Convertible] interface so that Unnamed
+// could be used with invokers.
+func (res *Unnamed) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 2)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.I)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field I: %w", err)
+	}
+	prms = append(prms, prm)
+
+	prm, err = smartcontract.NewParameterFromValue(res.B)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field B: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
+}
+
 // itemToUnnamedX converts stack item into *UnnamedX.
 // NULL item is returned as nil pointer without error.
 func itemToUnnamedX(item stackitem.Item, err error) (*UnnamedX, error) {
@@ -278,6 +310,9 @@ func itemToUnnamedX(item stackitem.Item, err error) (*UnnamedX, error) {
 
 // Ensure *UnnamedX is a proper [stackitem.Convertible].
 var _ = stackitem.Convertible(&UnnamedX{})
+
+// Ensure *UnnamedX is a proper [smartcontract.Convertible].
+var _ = smartcontract.Convertible(&UnnamedX{})
 
 // FromStackItem retrieves fields of UnnamedX from the given
 // [stackitem.Item] or returns an error if it's not possible to do to so.
@@ -323,6 +358,28 @@ func (res *UnnamedX) ToStackItem() (stackitem.Item, error) {
 	items = append(items, itm)
 
 	return stackitem.NewStruct(items), nil
+}
+
+// ToSCParameter creates [smartcontract.Parameter] representing UnnamedX.
+// It implements [smartcontract.Convertible] interface so that UnnamedX
+// could be used with invokers.
+func (res *UnnamedX) ToSCParameter() (smartcontract.Parameter, error) {
+	if res == nil {
+		return smartcontract.Parameter{Type: smartcontract.AnyType}, nil
+	}
+
+	var (
+		err  error
+		prm  smartcontract.Parameter
+		prms = make([]smartcontract.Parameter, 0, 1)
+	)
+	prm, err = smartcontract.NewParameterFromValue(res.I)
+	if err != nil {
+		return smartcontract.Parameter{}, fmt.Errorf("field I: %w", err)
+	}
+	prms = append(prms, prm)
+
+	return smartcontract.Parameter{Type: smartcontract.ArrayType, Value: prms}, nil
 }
 
 // ComplicatedNameEventsFromApplicationLog retrieves a set of all emitted events
