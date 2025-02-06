@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
@@ -78,6 +79,13 @@ type baseAux struct {
 	PrimaryIndex  byte                  `json:"primary"`
 	PrevStateRoot *util.Uint256         `json:"previousstateroot,omitempty"`
 	Witnesses     []transaction.Witness `json:"witnesses"`
+}
+
+// GetIndex returns the index of the block. This method should be used
+// for interfaces only. As generics don't support structural types
+// ref. golang/go#51259.
+func (b *Header) GetIndex() uint32 {
+	return b.Index
 }
 
 // Hash returns the hash of the block. Notice that it is cached internally,
@@ -227,4 +235,24 @@ func (b *Header) UnmarshalJSON(data []byte) error {
 		return errors.New("json 'hash' doesn't match block hash")
 	}
 	return nil
+}
+
+// GetExpectedHeaderSize returns the expected Header size with the given number of validators.
+func GetExpectedHeaderSize(stateRootInHeader bool, numOfValidators int) int {
+	m := smartcontract.GetDefaultHonestNodeCount(numOfValidators)
+	// expectedHeaderSizeWithEmptyWitness contains 2 bytes for zero-length (new(Header)).Script.Invocation/Verification
+	// InvocationScript:
+	// 64 is the size of the default signature length + 2 bytes length and opcode
+	// 2 = 1 push opcode + 1 length
+	// VerifcationScript:
+	// m = 1 bytes
+	// 33 =  1 push opcode + 1 length + 33 bytes for public key
+	// n = 1 bytes
+	// 5 for SYSCALL
+	size := expectedHeaderSizeWithEmptyWitness + (1+1+64)*m + 2 + numOfValidators*(1+1+33) + 2 + 5
+
+	if stateRootInHeader {
+		size += util.Uint256Size
+	}
+	return size
 }

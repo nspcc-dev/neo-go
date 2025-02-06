@@ -93,11 +93,15 @@ type Module struct {
 	billet *mpt.Billet
 
 	jumpCallback func(p uint32) error
+
+	// stageChangedCallback is an optional callback that is triggered whenever
+	// the sync stage changes.
+	stageChangedCallback func()
 }
 
 // NewModule returns new instance of statesync module.
 func NewModule(bc Ledger, stateMod *stateroot.Module, log *zap.Logger, s *dao.Simple, jumpCallback func(p uint32) error) *Module {
-	if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().Ledger.RemoveUntraceableBlocks) {
+	if !(bc.GetConfig().P2PStateExchangeExtensions && bc.GetConfig().Ledger.RemoveUntraceableBlocks) && !bc.GetConfig().NeoFSStateSyncExtensions {
 		return &Module{
 			dao:       s,
 			bc:        bc,
@@ -120,7 +124,13 @@ func NewModule(bc Ledger, stateMod *stateroot.Module, log *zap.Logger, s *dao.Si
 // Init initializes state sync module for the current chain's height with given
 // callback for MPT nodes requests.
 func (s *Module) Init(currChainHeight uint32) error {
+	oldStage := s.syncStage
 	s.lock.Lock()
+	defer func() {
+		if s.syncStage != oldStage {
+			s.notifyStageChanged()
+		}
+	}()
 	defer s.lock.Unlock()
 
 	if s.syncStage != none {
@@ -174,6 +184,20 @@ func (s *Module) Init(currChainHeight uint32) error {
 		zap.Uint32("evaluated chain's blockHeight", currChainHeight))
 
 	return s.defineSyncStage()
+}
+
+// SetOnStageChanged sets callback that is triggered whenever the sync stage changes.
+func (s *Module) SetOnStageChanged(cb func()) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.stageChangedCallback = cb
+}
+
+// notifyStageChanged triggers stage change callback if it's set.
+func (s *Module) notifyStageChanged() {
+	if s.stageChangedCallback != nil {
+		s.stageChangedCallback()
+	}
 }
 
 // TemporaryPrefix accepts current storage prefix and returns prefix
@@ -287,7 +311,13 @@ func (s *Module) getLatestSavedBlock(p uint32) uint32 {
 
 // AddHeaders validates and adds specified headers to the chain.
 func (s *Module) AddHeaders(hdrs ...*block.Header) error {
+	oldStage := s.syncStage
 	s.lock.Lock()
+	defer func() {
+		if s.syncStage != oldStage {
+			s.notifyStageChanged()
+		}
+	}()
 	defer s.lock.Unlock()
 
 	if s.syncStage != initialized {
@@ -306,7 +336,13 @@ func (s *Module) AddHeaders(hdrs ...*block.Header) error {
 
 // AddBlock verifies and saves block skipping executable scripts.
 func (s *Module) AddBlock(block *block.Block) error {
+	oldStage := s.syncStage
 	s.lock.Lock()
+	defer func() {
+		if s.syncStage != oldStage {
+			s.notifyStageChanged()
+		}
+	}()
 	defer s.lock.Unlock()
 
 	if s.syncStage&headersSynced == 0 || s.syncStage&blocksSynced != 0 {
@@ -359,7 +395,13 @@ func (s *Module) AddBlock(block *block.Block) error {
 // AddMPTNodes tries to add provided set of MPT nodes to the MPT billet if they are
 // not yet collected.
 func (s *Module) AddMPTNodes(nodes [][]byte) error {
+	oldStage := s.syncStage
 	s.lock.Lock()
+	defer func() {
+		if s.syncStage != oldStage {
+			s.notifyStageChanged()
+		}
+	}()
 	defer s.lock.Unlock()
 
 	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced != 0 {
@@ -425,6 +467,12 @@ func (s *Module) restoreNode(n mpt.Node) error {
 // If so, then jumping to P state sync point occurs. It is not protected by lock, thus caller
 // should take care of it.
 func (s *Module) checkSyncIsCompleted() {
+	oldStage := s.syncStage
+	defer func() {
+		if s.syncStage != oldStage {
+			s.notifyStageChanged()
+		}
+	}()
 	if s.syncStage != headersSynced|mptSynced|blocksSynced {
 		return
 	}
@@ -484,6 +532,14 @@ func (s *Module) NeedMPTNodes() bool {
 	return s.syncStage&headersSynced != 0 && s.syncStage&mptSynced == 0
 }
 
+// NeedBlocks returns whether the module hasn't completed blocks synchronisation.
+func (s *Module) NeedBlocks() bool {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.syncStage&headersSynced != 0 && s.syncStage&blocksSynced == 0
+}
+
 // Traverse traverses local MPT nodes starting from the specified root down to its
 // children calling `process` for each serialised node until stop condition is satisfied.
 func (s *Module) Traverse(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error {
@@ -507,4 +563,14 @@ func (s *Module) GetUnknownMPTNodesBatch(limit int) []util.Uint256 {
 	defer s.lock.RUnlock()
 
 	return s.mptpool.GetBatch(limit)
+}
+
+// HeaderHeight returns the height of the latest stored header.
+func (s *Module) HeaderHeight() uint32 {
+	return s.bc.HeaderHeight()
+}
+
+// GetConfig returns current blockchain configuration.
+func (s *Module) GetConfig() config.Blockchain {
+	return s.bc.GetConfig()
 }

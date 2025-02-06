@@ -299,12 +299,25 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		log.Info("MaxValidUntilBlockIncrement is not set or wrong, using default value",
 			zap.Uint32("MaxValidUntilBlockIncrement", cfg.MaxValidUntilBlockIncrement))
 	}
+	if cfg.P2PStateExchangeExtensions && cfg.NeoFSStateSyncExtensions {
+		return nil, errors.New("P2PStateExchangeExtensions and NeoFSStateSyncExtensions cannot be enabled simultaneously")
+	}
 	if cfg.P2PStateExchangeExtensions {
 		if !cfg.StateRootInHeader {
 			return nil, errors.New("P2PStatesExchangeExtensions are enabled, but StateRootInHeader is off")
 		}
 		if cfg.KeepOnlyLatestState && !cfg.RemoveUntraceableBlocks {
 			return nil, errors.New("P2PStateExchangeExtensions can be enabled either on MPT-complete node (KeepOnlyLatestState=false) or on light GC-enabled node (RemoveUntraceableBlocks=true)")
+		}
+		if cfg.StateSyncInterval <= 0 {
+			cfg.StateSyncInterval = defaultStateSyncInterval
+			log.Info("StateSyncInterval is not set or wrong, using default value",
+				zap.Int("StateSyncInterval", cfg.StateSyncInterval))
+		}
+	}
+	if cfg.NeoFSStateSyncExtensions {
+		if !cfg.NeoFSBlockFetcher.Enabled {
+			return nil, errors.New("NeoFSStateSyncExtensions are enabled, but NeoFSBlockFetcher is off")
 		}
 		if cfg.StateSyncInterval <= 0 {
 			cfg.StateSyncInterval = defaultStateSyncInterval

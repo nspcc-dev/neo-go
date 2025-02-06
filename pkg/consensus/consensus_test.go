@@ -528,7 +528,7 @@ type testBlockQueuer struct {
 var _ = BlockQueuer(testBlockQueuer{})
 
 // PutBlock implements BlockQueuer interface.
-func (bq testBlockQueuer) PutBlock(b *coreb.Block) error {
+func (bq testBlockQueuer) Put(b *coreb.Block) error {
 	return bq.bc.AddBlock(b)
 }
 

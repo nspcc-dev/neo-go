@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
-	"github.com/nspcc-dev/neo-go/pkg/core/block"
+	"github.com/nspcc-dev/neo-go/pkg/network/bqueue"
 	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -12,6 +12,10 @@ import (
 
 type mockLedger struct {
 	height uint32
+}
+
+func (m *mockLedger) HeaderHeight() uint32 {
+	return m.height
 }
 
 func (m *mockLedger) GetConfig() config.Blockchain {
@@ -26,7 +30,7 @@ type mockPutBlockFunc struct {
 	putCalled bool
 }
 
-func (m *mockPutBlockFunc) putBlock(b *block.Block) error {
+func (m *mockPutBlockFunc) putBlock(b bqueue.Indexable) error {
 	m.putCalled = true
 	return nil
 }
@@ -46,7 +50,7 @@ func TestServiceConstructor(t *testing.T) {
 			OIDBatchSize:           0,
 			DownloaderWorkersCount: 0,
 		}
-		_, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
+		_, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback, Blocks)
 		require.Error(t, err)
 	})
 
@@ -57,7 +61,7 @@ func TestServiceConstructor(t *testing.T) {
 			},
 			Addresses: []string{},
 		}
-		_, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
+		_, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback, Blocks)
 		require.Error(t, err)
 	})
 
@@ -69,7 +73,7 @@ func TestServiceConstructor(t *testing.T) {
 			Addresses:  []string{"localhost:8080"},
 			BQueueSize: DefaultQueueCacheSize,
 		}
-		service, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
+		service, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback, Blocks)
 		require.NoError(t, err)
 		require.NotNil(t, service)
 
@@ -87,7 +91,7 @@ func TestServiceConstructor(t *testing.T) {
 			},
 			Addresses: []string{"localhost:1"},
 		}
-		service, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
+		service, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback, Blocks)
 		require.NoError(t, err)
 		err = service.Start()
 		require.Error(t, err)
@@ -106,7 +110,7 @@ func TestServiceConstructor(t *testing.T) {
 				},
 			},
 		}
-		_, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback)
+		_, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback, Blocks)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "open wallet: open invalid/path/to/wallet.json:")
 	})

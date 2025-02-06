@@ -31,4 +31,5 @@ type Ledger struct {
 type Blockchain struct {
 	ProtocolConfiguration
 	Ledger
+	NeoFSBlockFetcher
 }

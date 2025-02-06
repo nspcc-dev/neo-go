@@ -58,7 +58,7 @@ type Ledger interface {
 
 // BlockQueuer is an interface to the block queue manager sufficient for Service.
 type BlockQueuer interface {
-	PutBlock(block *coreb.Block) error
+	Put(queueable *coreb.Block) error
 }
 
 // Service represents a consensus instance.
@@ -623,7 +623,7 @@ func (s *service) processBlock(b dbft.Block[util.Uint256]) error {
 	bb := &b.(*neoBlock).Block
 	bb.Script = *(s.getBlockWitness(bb))
 
-	if err := s.BlockQueue.PutBlock(bb); err != nil {
+	if err := s.BlockQueue.Put(bb); err != nil {
 		// The block might already be added via the regular network
 		// interaction.
 		if _, errget := s.Chain.GetBlock(bb.Hash()); errget != nil {
