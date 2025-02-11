@@ -24,12 +24,3 @@ APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
 
-## Dump*Slot() methods of `vm.Context`
-
-The following new methods have been exposed to give access to VM context slot contents
-with greater flexibility:
-- `ArgumentsSlot`
-- `LocalsSlot`
-- `StaticsSlot`.
-
-Removal of the `Dump*Slot()` methods are scheduled for the 0.108.0 release.
