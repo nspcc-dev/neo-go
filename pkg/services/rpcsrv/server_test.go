@@ -2318,6 +2318,12 @@ var rpcTestCases = map[string][]rpcTestCase{
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
+		{
+			name:    "filter with unknown fields",
+			params:  `["` + genesisBlockHash + `", {"invalid":"something"}]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
 	},
 }
 

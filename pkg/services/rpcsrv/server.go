@@ -3220,8 +3220,14 @@ func (s *Server) getBlockNotifications(reqParams params.Params) (any, *neorpc.Er
 
 	var filter *neorpc.NotificationFilter
 	if len(reqParams) > 1 {
+		var (
+			reader  = bytes.NewBuffer([]byte(reqParams[1].RawMessage))
+			decoder = json.NewDecoder(reader)
+		)
+		decoder.DisallowUnknownFields()
 		filter = new(neorpc.NotificationFilter)
-		err := json.Unmarshal(reqParams[1].RawMessage, filter)
+
+		err := decoder.Decode(filter)
 		if err != nil {
 			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid filter: %s", err))
 		}
