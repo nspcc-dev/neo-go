@@ -277,34 +277,6 @@ func (c *Context) IsDeployed() bool {
 	return c.sc.NEF != nil
 }
 
-// DumpStaticSlot returns json formatted representation of the given slot.
-// Deprecated: to be removed in next version. Use [Context.StaticsSlot] instead.
-func (c *Context) DumpStaticSlot() string {
-	return dumpSlot(&c.sc.static)
-}
-
-// DumpLocalSlot returns json formatted representation of the given slot.
-// Deprecated: to be removed in next version. Use [Context.LocalsSlot] instead.
-func (c *Context) DumpLocalSlot() string {
-	return dumpSlot(&c.local)
-}
-
-// DumpArgumentsSlot returns json formatted representation of the given slot.
-// Deprecated: to be removed in next version. Use [Context.ArgumentsSlot] instead.
-func (c *Context) DumpArgumentsSlot() string {
-	return dumpSlot(&c.arguments)
-}
-
-// dumpSlot returns json formatted representation of the given slot.
-// Deprecated: to be removed in next version.
-func dumpSlot(s *Slot) string {
-	if s == nil || *s == nil {
-		return "[]"
-	}
-	b, _ := json.MarshalIndent(s, "", "    ")
-	return string(b)
-}
-
 // getContextScriptHash returns script hash of the invocation stack element
 // number n.
 func (v *VM) getContextScriptHash(n int) util.Uint160 {

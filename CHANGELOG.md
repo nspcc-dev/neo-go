@@ -2,6 +2,56 @@
 
 This document outlines major changes between releases.
 
+## 0.108.0 "Participation" (11 Feb 2025)
+
+This version is compatible with the C# node 3.7.6, but also contains some
+Echidna changes preview. Additional RPC extensions are introduced with this
+release as well as some important fixes and improvements.
+
+We recommend to check your configurations wrt NeoFS synchronization options,
+a new set of containers was introduced recently, old ones will eventually be
+deleted (which won't break syncrhonization, but can delay it a bit). No DB
+resync is required unless you want to use the new "SaveInvocations" option.
+
+New features:
+ * "Designation" event in RoleManagement native contract starting from Echidna
+   HF (#3761)
+ * base64Url encoding and decoding support in StdLib native contract starting
+   from Echidna HF (#3761)
+ * NEO candidate registration via NEP-27 payment starting from Echidna HF (#3700)
+ * ArchivalNode P2P capability (#3778)
+ * NEP-26 and NEP-27 support everywhere (#3792)
+ * "SaveInvocations" node parameter that allows to store more detailed
+   contract invocation data and retrieve it via RPC (#3569)
+ * "getblocknotifications" RPC API allowing to fetch filtered notifications
+   from all block execution contexts (#3805)
+
+Behavior changes:
+ * updated "upload-bin" command defaults (#3760)
+ * updated NeoFS containers for all networks (#3759)
+ * additional AllowNotify call flag for some NEO methods starting from Echidna
+   HF (#3761)
+ * Dump*Slot methods removed from vm.Context (#3806)
+
+Improvements:
+ * golang.org/x/crypto update from 0.26.0 to 0.31.0 (#3765)
+ * neotest can load contracts from NEF/manifest files now (#3771)
+ * more accurate memory management in persisting/processing cycles preventing
+   OOM conditions in most cases (#3787)
+ * RPC bindings now have ToStackItem and ToSCParameter methods for structures
+   (#3794, #3796, #3804)
+ * dBFT 0.3.2 with improved timers (#3799)
+ * github.com/consensys/gnark update from 0.11.0 to 0.12.0 (#3800)
+ * ability to fetch headers from NeoFS (#3789)
+
+Bugs fixed:
+ * potentially incorrect handling of misconfigured NeoFS endpoints (#3758)
+ * duplicate index objects are no longer an error for "upload-bin" (#3763)
+ * old transfer data removal problem in RemoveUntraceableBlocks configuration,
+   0.107.2 regression (#3787)
+ * zkpbinding module producing code that can't be compiled, 0.107.0 regression
+   (#3802)
+
 ## 0.107.2 "Obliteration" (13 Dec 2024)
 
 One more compatible patch-release that introduces `RemoveUntraceableHeaders`
