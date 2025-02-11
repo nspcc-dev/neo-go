@@ -112,6 +112,7 @@ type (
 		VerifyWitness(util.Uint160, hash.Hashable, *transaction.Witness, int64) (int64, error)
 		mempool.Feer // fee interface
 		ContractStorageSeeker
+		GetTrimmedBlock(hash util.Uint256) (*block.Block, error)
 	}
 
 	// ContractStorageSeeker is the interface `findstorage*` handlers need to be able to
@@ -219,6 +220,7 @@ var rpcHandlers = map[string]func(*Server, params.Params) (any, *neorpc.Error){
 	"getblockhash":                 (*Server).getBlockHash,
 	"getblockheader":               (*Server).getBlockHeader,
 	"getblockheadercount":          (*Server).getBlockHeaderCount,
+	"getblocknotifications":        (*Server).getBlockNotifications,
 	"getblocksysfee":               (*Server).getBlockSysFee,
 	"getcandidates":                (*Server).getCandidates,
 	"getcommittee":                 (*Server).getCommittee,
@@ -3201,4 +3203,60 @@ func (s *Server) getRawNotaryTransaction(reqParams params.Params) (any, *neorpc.
 		return tx, nil
 	}
 	return tx.Bytes(), nil
+}
+
+// getBlockNotifications returns notifications from a specific block with optional filtering.
+func (s *Server) getBlockNotifications(reqParams params.Params) (any, *neorpc.Error) {
+	param := reqParams.Value(0)
+	hash, respErr := s.blockHashFromParam(param)
+	if respErr != nil {
+		return nil, respErr
+	}
+
+	var filter *neorpc.NotificationFilter
+	if len(reqParams) > 1 {
+		var (
+			reader  = bytes.NewBuffer([]byte(reqParams[1].RawMessage))
+			decoder = json.NewDecoder(reader)
+		)
+		decoder.DisallowUnknownFields()
+		filter = new(neorpc.NotificationFilter)
+
+		err := decoder.Decode(filter)
+		if err != nil {
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid filter: %s", err))
+		}
+		if err := filter.IsValid(); err != nil {
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid filter: %s", err))
+		}
+	}
+
+	block, err := s.chain.GetTrimmedBlock(hash)
+	if err != nil {
+		return nil, neorpc.ErrUnknownBlock
+	}
+
+	notifications := &result.BlockNotifications{}
+
+	aers, err := s.chain.GetAppExecResults(block.Hash(), trigger.OnPersist)
+	if err != nil {
+		return nil, neorpc.NewInternalServerError("failed to get app exec results for onpersist")
+	}
+	notifications.OnPersist = processAppExecResults([]state.AppExecResult{aers[0]}, filter)
+
+	for _, txHash := range block.Transactions {
+		aers, err := s.chain.GetAppExecResults(txHash.Hash(), trigger.Application)
+		if err != nil {
+			return nil, neorpc.NewInternalServerError("failed to get app exec results")
+		}
+		notifications.Application = append(notifications.Application, processAppExecResults(aers, filter)...)
+	}
+
+	aers, err = s.chain.GetAppExecResults(block.Hash(), trigger.PostPersist)
+	if err != nil {
+		return nil, neorpc.NewInternalServerError("failed to get app exec results for postpersist")
+	}
+	notifications.PostPersist = processAppExecResults([]state.AppExecResult{aers[0]}, filter)
+
+	return notifications, nil
 }

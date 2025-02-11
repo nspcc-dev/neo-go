@@ -31,6 +31,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dboper"
@@ -2270,6 +2271,56 @@ var rpcTestCases = map[string][]rpcTestCase{
 		{
 			name:    "no params",
 			params:  "[]",
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+	},
+	"getblocknotifications": {
+		{
+			name:   "positive",
+			params: `["` + genesisBlockHash + `"]`,
+			result: func(e *executor) any { return &result.BlockNotifications{} },
+			check: func(t *testing.T, e *executor, acc any) {
+				res, ok := acc.(*result.BlockNotifications)
+				require.True(t, ok)
+				require.NotNil(t, res)
+			},
+		},
+		{
+			name:   "positive with filter",
+			params: `["` + genesisBlockHash + `", {"contract":"` + nativehashes.NeoToken.StringLE() + `", "name":"Transfer"}]`,
+			result: func(e *executor) any { return &result.BlockNotifications{} },
+			check: func(t *testing.T, e *executor, acc any) {
+				res, ok := acc.(*result.BlockNotifications)
+				require.True(t, ok)
+				require.NotNil(t, res)
+				for _, ne := range res.Application {
+					require.Equal(t, nativehashes.NeoToken, ne.ScriptHash)
+					require.Equal(t, "Transfer", ne.Name)
+				}
+			},
+		},
+		{
+			name:    "invalid hash",
+			params:  `["invalid"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "unknown block",
+			params:  `["` + util.Uint256{}.StringLE() + `"]`,
+			fail:    true,
+			errCode: neorpc.ErrUnknownBlockCode,
+		},
+		{
+			name:    "invalid filter",
+			params:  `["` + genesisBlockHash + `", {"contract":"invalid"}]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "filter with unknown fields",
+			params:  `["` + genesisBlockHash + `", {"invalid":"something"}]`,
 			fail:    true,
 			errCode: neorpc.InvalidParamsCode,
 		},
