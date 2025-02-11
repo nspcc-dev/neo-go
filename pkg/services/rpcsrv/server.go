@@ -3242,21 +3242,21 @@ func (s *Server) getBlockNotifications(reqParams params.Params) (any, *neorpc.Er
 	if err != nil {
 		return nil, neorpc.NewInternalServerError("failed to get app exec results for onpersist")
 	}
-	notifications.PrePersistNotifications = processAppExecResults([]state.AppExecResult{aers[0]}, filter)
+	notifications.OnPersist = processAppExecResults([]state.AppExecResult{aers[0]}, filter)
 
 	for _, txHash := range block.Transactions {
 		aers, err := s.chain.GetAppExecResults(txHash.Hash(), trigger.Application)
 		if err != nil {
 			return nil, neorpc.NewInternalServerError("failed to get app exec results")
 		}
-		notifications.TxNotifications = append(notifications.TxNotifications, processAppExecResults(aers, filter)...)
+		notifications.Application = append(notifications.Application, processAppExecResults(aers, filter)...)
 	}
 
 	aers, err = s.chain.GetAppExecResults(block.Hash(), trigger.PostPersist)
 	if err != nil {
 		return nil, neorpc.NewInternalServerError("failed to get app exec results for postpersist")
 	}
-	notifications.PostPersistNotifications = processAppExecResults([]state.AppExecResult{aers[0]}, filter)
+	notifications.PostPersist = processAppExecResults([]state.AppExecResult{aers[0]}, filter)
 
 	return notifications, nil
 }

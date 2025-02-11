@@ -2294,7 +2294,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				res, ok := acc.(*result.BlockNotifications)
 				require.True(t, ok)
 				require.NotNil(t, res)
-				for _, ne := range res.TxNotifications {
+				for _, ne := range res.Application {
 					require.Equal(t, nativehashes.NeoToken, ne.ScriptHash)
 					require.Equal(t, "Transfer", ne.Name)
 				}

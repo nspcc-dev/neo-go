@@ -251,7 +251,11 @@ burned).
 #### `getblocknotifications` call
 
 This method returns notifications from a block organized by trigger type.
-Supports filtering by contract and event name.
+Supports filtering by contract and event name (the same filter as provided
+for subscriptions to execution results, see [notifications specification](notifications.md).
+The resulting JSON is an object with three (if matched) field: "onpersist",
+"application" and "postpersist" containing arrays of notifications (same JSON
+as used in notification service) for the respective triggers.
 
 #### Historic calls
 
