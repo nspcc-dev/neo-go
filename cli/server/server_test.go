@@ -360,12 +360,12 @@ func TestRestoreDB(t *testing.T) {
 
 func TestInitBlockChain(t *testing.T) {
 	t.Run("bad storage", func(t *testing.T) {
-		_, _, err := initBlockChain(config.Config{}, nil)
+		_, _, err := InitBlockChain(config.Config{}, nil)
 		require.Error(t, err)
 	})
 
 	t.Run("empty logger", func(t *testing.T) {
-		_, _, err := initBlockChain(config.Config{
+		_, _, err := InitBlockChain(config.Config{
 			ApplicationConfiguration: config.ApplicationConfiguration{
 				DBConfiguration: dbconfig.DBConfiguration{
 					Type: dbconfig.InMemoryDB,
