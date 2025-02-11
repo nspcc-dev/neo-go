@@ -3213,11 +3213,6 @@ func (s *Server) getBlockNotifications(reqParams params.Params) (any, *neorpc.Er
 		return nil, respErr
 	}
 
-	block, err := s.chain.GetTrimmedBlock(hash)
-	if err != nil {
-		return nil, neorpc.ErrUnknownBlock
-	}
-
 	var filter *neorpc.NotificationFilter
 	if len(reqParams) > 1 {
 		var (
@@ -3234,6 +3229,11 @@ func (s *Server) getBlockNotifications(reqParams params.Params) (any, *neorpc.Er
 		if err := filter.IsValid(); err != nil {
 			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid filter: %s", err))
 		}
+	}
+
+	block, err := s.chain.GetTrimmedBlock(hash)
+	if err != nil {
+		return nil, neorpc.ErrUnknownBlock
 	}
 
 	notifications := &result.BlockNotifications{}
