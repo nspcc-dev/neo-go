@@ -2,6 +2,16 @@
 
 This document outlines major changes between releases.
 
+## 0.108.1 "Revalidation" (13 Feb 2025)
+
+An urgent fix for a very old behavior difference with C# node in Rules witness
+condition parsing. It suddenly affected testnet compatibility at block 5450030
+and made the chain unprocessable by NeoGo. Please upgrade to fix it, DB is
+compatible, no resynchronization required.
+
+Bugs fixed:
+ * incorrect rule depth limit for Rules witness conditions (#3810)
+
 ## 0.108.0 "Participation" (11 Feb 2025)
 
 This version is compatible with the C# node 3.7.6, but also contains some
