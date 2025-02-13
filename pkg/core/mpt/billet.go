@@ -350,7 +350,7 @@ func (b *Billet) GetFromStore(h util.Uint256) (Node, error) {
 		return nil, r.Err
 	}
 
-	if b.mode.RC() {
+	if b.mode.RC() && len(data) >= 5 {
 		data = data[:len(data)-5]
 	}
 	n.Node.(flushedNode).setCache(data, h)

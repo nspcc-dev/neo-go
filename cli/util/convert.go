@@ -101,6 +101,62 @@ func NewCommands() []*cli.Command {
 		options.Debug,
 	}, options.RPC...)
 	uploadBinFlags = append(uploadBinFlags, options.Wallet...)
+
+	uploadStateFlags := append([]cli.Flag{
+		&cli.StringSliceFlag{
+			Name:     "fs-rpc-endpoint",
+			Aliases:  []string{"fsr"},
+			Usage:    "List of NeoFS storage node RPC addresses (comma-separated or multiple --fs-rpc-endpoint flags)",
+			Required: true,
+			Action: func(ctx *cli.Context, fsRpcEndpoints []string) error {
+				for _, endpoint := range fsRpcEndpoints {
+					if endpoint == "" {
+						return cli.Exit("NeoFS RPC endpoint cannot contain empty values", 1)
+					}
+				}
+				return nil
+			},
+		},
+		&cli.StringFlag{
+			Name:     "container",
+			Aliases:  []string{"cid"},
+			Usage:    "NeoFS container ID to upload blocks to",
+			Required: true,
+			Action:   cmdargs.EnsureNotEmpty("container"),
+		},
+		&cli.StringFlag{
+			Name:   "state-attribute",
+			Usage:  "Attribute key of the state object",
+			Value:  neofs.DefaultStateAttribute,
+			Action: cmdargs.EnsureNotEmpty("state-attribute"),
+		}, &cli.UintFlag{
+			Name:  "workers",
+			Usage: "Number of workers to traverse and upload objects concurrently",
+			Value: 20,
+		},
+		&cli.UintFlag{
+			Name:  "searchers",
+			Usage: "Number of concurrent searches for objects",
+			Value: 100,
+		},
+		&cli.UintFlag{
+			Name:  "retries",
+			Usage: "Maximum number of Neo/NeoFS node request retries",
+			Value: neofs.MaxRetries,
+			Action: func(context *cli.Context, u uint) error {
+				if u < 1 {
+					return cli.Exit("retries should be greater than 0", 1)
+				}
+				return nil
+			},
+		},
+		&flags.AddressFlag{
+			Name:  "address",
+			Usage: "Address to use for signing the uploading and searching transactions in NeoFS",
+		},
+		options.Debug, options.Config, options.ConfigFile, options.RelativePath,
+	}, options.Wallet...)
+	uploadStateFlags = append(uploadStateFlags, options.Network...)
 	return []*cli.Command{
 		{
 			Name:  "util",
@@ -184,6 +240,13 @@ func NewCommands() []*cli.Command {
 					UsageText: "neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--index-file-size <size>] [--retries <num>] [--debug]",
 					Action:    uploadBin,
 					Flags:     uploadBinFlags,
+				},
+				{
+					Name:      "upload-state",
+					Usage:     "Traverse the MPT and upload them to the NeoFS container",
+					UsageText: "neo-go util upload-state --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --state-attribute state --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>][--retries <num>] [--debug]",
+					Action:    traverseMPT,
+					Flags:     uploadStateFlags,
 				},
 			},
 		},

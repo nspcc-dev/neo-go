@@ -141,7 +141,7 @@ func newGraceContext() context.Context {
 }
 
 func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *metrics.Service, *metrics.Service, error) {
-	chain, _, err := initBlockChain(cfg, log)
+	chain, _, err := InitBlockChain(cfg, log)
 	if err != nil {
 		return nil, nil, nil, cli.Exit(err, 1)
 	}
@@ -351,7 +351,7 @@ func resetDB(ctx *cli.Context) error {
 	if logCloser != nil {
 		defer func() { _ = logCloser() }()
 	}
-	chain, store, err := initBlockChain(cfg, log)
+	chain, store, err := InitBlockChain(cfg, log)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to create Blockchain instance: %w", err), 1)
 	}
@@ -655,8 +655,8 @@ Main:
 	return nil
 }
 
-// initBlockChain initializes BlockChain with preselected DB.
-func initBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, storage.Store, error) {
+// InitBlockChain initializes BlockChain with preselected DB.
+func InitBlockChain(cfg config.Config, log *zap.Logger) (*core.Blockchain, storage.Store, error) {
 	store, err := storage.NewStore(cfg.ApplicationConfiguration.DBConfiguration)
 	if err != nil {
 		return nil, nil, cli.Exit(fmt.Errorf("could not initialize storage: %w", err), 1)
