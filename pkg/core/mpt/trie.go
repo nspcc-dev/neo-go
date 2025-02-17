@@ -35,6 +35,7 @@ type Trie struct {
 	root     Node
 	mode     TrieMode
 	refcount map[util.Uint256]*cachedNode
+	batch    *BatchReader
 }
 
 type cachedNode struct {
@@ -64,13 +65,18 @@ func NewTrie(root Node, mode TrieMode, store *storage.MemCachedStore) *Trie {
 		root = EmptyNode{}
 	}
 
-	return &Trie{
-		Store: store,
-		root:  root,
-
+	t := &Trie{
+		Store:    store,
+		root:     root,
 		mode:     mode,
 		refcount: make(map[util.Uint256]*cachedNode),
 	}
+
+	batch, err := NewBatchReader(t, 10000)
+	if err == nil {
+		t.batch = batch
+	}
+	return t
 }
 
 // Get returns the value for the provided key in t.
@@ -78,6 +84,20 @@ func (t *Trie) Get(key []byte) ([]byte, error) {
 	if len(key) > MaxKeyLength {
 		return nil, errors.New("key is too big")
 	}
+
+	if t.batch != nil {
+		if value, ok := t.batch.Get(key); ok {
+			return value, nil
+		}
+		t.batch.Add(key)
+		if err := t.batch.Execute(); err != nil {
+			return nil, err
+		}
+		if value, ok := t.batch.Get(key); ok {
+			return value, nil
+		}
+	}
+
 	path := toNibbles(key)
 	r, leaf, _, err := t.getWithPath(t.root, path, true)
 	if err != nil {

@@ -286,3 +286,67 @@ func getLastIndex(kv []keyValue) (byte, int) {
 	}
 	return c, len(kv)
 }
+
+type BatchReader struct {
+	trie    *Trie
+	cache   *MPTCache
+	pending [][]byte
+	results map[string][]byte
+}
+
+func NewBatchReader(trie *Trie, cacheSize int) (*BatchReader, error) {
+	cache, err := NewMPTCache(cacheSize)
+	if err != nil {
+		return nil, err
+	}
+	return &BatchReader{
+		trie:    trie,
+		cache:   cache,
+		results: make(map[string][]byte),
+	}, nil
+}
+
+func (br *BatchReader) Add(key []byte) {
+	br.pending = append(br.pending, key)
+}
+
+func (br *BatchReader) Execute() error {
+	slices.SortFunc(br.pending, func(a, b []byte) int {
+		return bytes.Compare(a, b)
+	})
+
+	for _, key := range br.pending {
+		keyStr := string(key)
+		if value, ok := br.cache.Get(keyStr); ok {
+			if leaf, ok := value.(*LeafNode); ok {
+				br.results[keyStr] = bytes.Clone(leaf.value)
+				continue
+			}
+		}
+
+		path := toNibbles(key)
+		r, leaf, _, err := br.trie.getWithPath(br.trie.root, path, true)
+		if err != nil {
+			continue
+		}
+
+		br.trie.root = r
+		if leafNode, ok := leaf.(*LeafNode); ok {
+			value := bytes.Clone(leafNode.value)
+			br.results[keyStr] = value
+			br.cache.Add(keyStr, leafNode)
+		}
+	}
+
+	br.pending = br.pending[:0]
+	return nil
+}
+
+func (br *BatchReader) Get(key []byte) ([]byte, bool) {
+	value, ok := br.results[string(key)]
+	return value, ok
+}
+
+func (br *BatchReader) Stats() (hits, misses int64) {
+	return br.cache.Stats()
+}
