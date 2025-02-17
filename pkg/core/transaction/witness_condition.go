@@ -37,7 +37,7 @@ const (
 	WitnessCalledByGroup WitnessConditionType = 0x29 // CalledByGroup
 
 	// MaxConditionNesting limits the maximum allowed level of condition nesting.
-	MaxConditionNesting = 2
+	MaxConditionNesting = 3
 )
 
 // WitnessCondition is a condition of WitnessRule.
@@ -564,7 +564,7 @@ func DecodeBinaryCondition(r *io.BinReader) WitnessCondition {
 }
 
 func decodeBinaryCondition(r *io.BinReader, maxDepth int) WitnessCondition {
-	if maxDepth < 0 {
+	if maxDepth <= 0 {
 		r.Err = errors.New("too many nesting levels")
 		return nil
 	}
@@ -629,7 +629,7 @@ func UnmarshalConditionJSON(data []byte) (WitnessCondition, error) {
 }
 
 func unmarshalConditionJSON(data []byte, maxDepth int) (WitnessCondition, error) {
-	if maxDepth < 0 {
+	if maxDepth <= 0 {
 		return nil, errors.New("too many nesting levels")
 	}
 	aux := &conditionAux{}
