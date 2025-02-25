@@ -192,7 +192,8 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, put fun
 
 func getHeaderSizeMap(chain config.Blockchain) map[int]int {
 	headerSizeMap := make(map[int]int)
-	headerSizeMap[0] = block.GetExpectedHeaderSize(chain.StateRootInHeader, chain.GetNumOfCNs(0))
+	headerSizeMap[0] = block.GetExpectedHeaderSize(chain.StateRootInHeader, 0) // genesis header size.
+	headerSizeMap[1] = block.GetExpectedHeaderSize(chain.StateRootInHeader, chain.GetNumOfCNs(0))
 	for height := range chain.CommitteeHistory {
 		headerSizeMap[int(height)] = block.GetExpectedHeaderSize(chain.StateRootInHeader, chain.GetNumOfCNs(height))
 	}
