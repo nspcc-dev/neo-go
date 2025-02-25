@@ -2488,3 +2488,38 @@ func TestClient_NEP24(t *testing.T) {
 		}
 	})
 }
+
+func TestGetBlockNotifications(t *testing.T) {
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	t.Cleanup(c.Close)
+	require.NoError(t, c.Init())
+
+	t.Run("nil filter", func(t *testing.T) {
+		bn, err := c.GetBlockNotifications(chain.GetHeaderHash(1), nil)
+		require.NoError(t, err)
+		require.NotEmpty(t, bn)
+	})
+	t.Run("empty filter", func(t *testing.T) {
+		bn, err := c.GetBlockNotifications(chain.GetHeaderHash(1), &neorpc.NotificationFilter{})
+		require.NoError(t, err)
+		require.NotEmpty(t, bn)
+	})
+	t.Run("bad filter", func(t *testing.T) {
+		badName := "Transfer1"
+		bn, err := c.GetBlockNotifications(chain.GetHeaderHash(1), &neorpc.NotificationFilter{
+			Name: &badName,
+		})
+		require.NoError(t, err)
+		require.Empty(t, bn)
+	})
+	t.Run("good", func(t *testing.T) {
+		name := "Transfer"
+		bn, err := c.GetBlockNotifications(chain.GetHeaderHash(1), &neorpc.NotificationFilter{
+			Name: &name,
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, bn)
+	})
+}
