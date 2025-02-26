@@ -5,7 +5,9 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,4 +40,15 @@ func TestGetConsensusAddressMainNet(t *testing.T) {
 
 	assert.Equal(t, consensusScript, script.String())
 	assert.Equal(t, consensusAddr, address.Uint160ToString(script))
+}
+
+func TestGetExpectedHeaderSize(t *testing.T) {
+	cfg, err := config.Load("../../config", netmode.MainNet)
+	require.NoError(t, err)
+	blk, err := CreateGenesisBlock(cfg.ProtocolConfiguration)
+	require.NoError(t, err)
+	w := io.NewBufBinWriter()
+	blk.Header.EncodeBinary(w.BinWriter)
+	require.NoError(t, w.Err)
+	require.Equal(t, block.GetExpectedHeaderSize(false, 0), w.Len())
 }
