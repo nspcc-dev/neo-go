@@ -974,9 +974,15 @@ func (c *Client) GetRawNotaryPool() (*result.RawNotaryPool, error) {
 }
 
 // GetBlockNotifications returns notifications from a block organized by trigger type.
-func (c *Client) GetBlockNotifications(blockHash util.Uint256, filters ...*neorpc.NotificationFilter) (*result.BlockNotifications, error) {
-	var resp = &result.BlockNotifications{}
-	if err := c.performRequest("getblocknotifications", []any{blockHash.StringLE(), filters}, resp); err != nil {
+func (c *Client) GetBlockNotifications(blockHash util.Uint256, filter *neorpc.NotificationFilter) (*result.BlockNotifications, error) {
+	var (
+		resp   = &result.BlockNotifications{}
+		params = []any{blockHash.StringLE()}
+	)
+	if filter != nil {
+		params = append(params, *filter)
+	}
+	if err := c.performRequest("getblocknotifications", params, resp); err != nil {
 		return nil, err
 	}
 	return resp, nil

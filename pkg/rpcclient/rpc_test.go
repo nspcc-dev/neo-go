@@ -1335,6 +1335,72 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"getblocknotifications": {
+		{
+			name: "positive, nil filter",
+			invoke: func(c *Client) (any, error) {
+				hash, err := util.Uint256DecodeStringLE("0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4")
+				if err != nil {
+					return nil, err
+				}
+				return c.GetBlockNotifications(hash, nil)
+			},
+			serverResponse: `{
+			"jsonrpc": "2.0",
+			"id": 1,
+			"result": {
+				"onpersist": [],
+				"application": [
+					{
+						"container": "0x0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4",
+						"contract": "0xfffdc93764dbaddd97c48f252a53ea4643faa3fd",
+						"eventname": "Deploy",
+						"state": {
+							"type": "Array",
+							"value": [
+								{
+									"type": "ByteString",
+									"value": "/aP6Q0bqUyolj8SX3a3bZDfJ/f8="
+								}
+							]
+						}
+					}
+				],
+				"postpersist": []
+			}
+		}`,
+			result: func(c *Client) any {
+				blockHash, _ := util.Uint256DecodeStringLE("0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4")
+				contract, _ := util.Uint160DecodeStringBE("fffdc93764dbaddd97c48f252a53ea4643faa3fd")
+				expectedBytes, _ := base64.StdEncoding.DecodeString("/aP6Q0bqUyolj8SX3a3bZDfJ/f8=")
+				return &result.BlockNotifications{
+					OnPersist: []state.ContainedNotificationEvent{},
+					Application: []state.ContainedNotificationEvent{
+						{
+							Container: blockHash,
+							NotificationEvent: state.NotificationEvent{
+								ScriptHash: contract,
+								Name:       "Deploy",
+								Item:       stackitem.NewArray([]stackitem.Item{stackitem.NewByteArray(expectedBytes)}),
+							},
+						},
+					},
+					PostPersist: []state.ContainedNotificationEvent{},
+				}
+			},
+			check: func(t *testing.T, c *Client, res any) {
+				bn, ok := res.(*result.BlockNotifications)
+				require.True(t, ok)
+				require.NotEmpty(t, bn)
+				require.Len(t, bn.Application, 1)
+				n := bn.Application[0]
+				require.Equal(t, "Deploy", n.Name)
+				require.Equal(t, "0f8fb4e17d2ab9f3097af75ca7fd16064160fb8043db94909e00dd4e257b9dc4", n.Container.StringLE())
+				require.Equal(t, "fffdc93764dbaddd97c48f252a53ea4643faa3fd", n.ScriptHash.StringLE())
+				require.Len(t, n.Item.Value().([]stackitem.Item), 1)
+			},
+		},
+	},
 }
 
 type rpcClientErrorCase struct {
@@ -1857,6 +1923,12 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 			name: "validateaddress_unmarshalling_error",
 			invoke: func(c *Client) (any, error) {
 				return nil, c.ValidateAddress("")
+			},
+		},
+		{
+			name: "getblocknotifications_unmarshalling_error",
+			invoke: func(c *Client) (any, error) {
+				return c.GetBlockNotifications(util.Uint256{}, nil)
 			},
 		},
 	},
