@@ -30,7 +30,7 @@ func dumpBin(ctx *cli.Context) error {
 	count := uint32(ctx.Uint("count"))
 	start := uint32(ctx.Uint("start"))
 
-	chain, prometheus, pprof, err := initBCWithMetrics(cfg, log)
+	chain, _, prometheus, pprof, err := InitBCWithMetrics(cfg, log)
 	if err != nil {
 		return err
 	}

@@ -140,10 +140,11 @@ func newGraceContext() context.Context {
 	return ctx
 }
 
-func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *metrics.Service, *metrics.Service, error) {
-	chain, _, err := initBlockChain(cfg, log)
+// InitBCWithMetrics initializes the blockchain with metrics with the given configuration.
+func InitBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, storage.Store, *metrics.Service, *metrics.Service, error) {
+	chain, store, err := initBlockChain(cfg, log)
 	if err != nil {
-		return nil, nil, nil, cli.Exit(err, 1)
+		return nil, nil, nil, nil, cli.Exit(err, 1)
 	}
 	prometheus := metrics.NewPrometheusService(cfg.ApplicationConfiguration.Prometheus, log)
 	pprof := metrics.NewPprofService(cfg.ApplicationConfiguration.Pprof, log)
@@ -151,14 +152,14 @@ func initBCWithMetrics(cfg config.Config, log *zap.Logger) (*core.Blockchain, *m
 	go chain.Run()
 	err = prometheus.Start()
 	if err != nil {
-		return nil, nil, nil, cli.Exit(fmt.Errorf("failed to start Prometheus service: %w", err), 1)
+		return nil, nil, nil, nil, cli.Exit(fmt.Errorf("failed to start Prometheus service: %w", err), 1)
 	}
 	err = pprof.Start()
 	if err != nil {
-		return nil, nil, nil, cli.Exit(fmt.Errorf("failed to start Pprof service: %w", err), 1)
+		return nil, nil, nil, nil, cli.Exit(fmt.Errorf("failed to start Pprof service: %w", err), 1)
 	}
 
-	return chain, prometheus, pprof, nil
+	return chain, store, prometheus, pprof, nil
 }
 
 func dumpDB(ctx *cli.Context) error {
@@ -189,7 +190,7 @@ func dumpDB(ctx *cli.Context) error {
 	defer outStream.Close()
 	writer := io.NewBinWriterFromIO(outStream)
 
-	chain, prometheus, pprof, err := initBCWithMetrics(cfg, log)
+	chain, _, prometheus, pprof, err := InitBCWithMetrics(cfg, log)
 	if err != nil {
 		return err
 	}
@@ -249,7 +250,7 @@ func restoreDB(ctx *cli.Context) error {
 		cfg.ApplicationConfiguration.SaveStorageBatch = true
 	}
 
-	chain, prometheus, pprof, err := initBCWithMetrics(cfg, log)
+	chain, _, prometheus, pprof, err := InitBCWithMetrics(cfg, log)
 	if err != nil {
 		return err
 	}
@@ -470,7 +471,7 @@ func startServer(ctx *cli.Context) error {
 		return cli.Exit(err, 1)
 	}
 
-	chain, prometheus, pprof, err := initBCWithMetrics(cfg, log)
+	chain, _, prometheus, pprof, err := InitBCWithMetrics(cfg, log)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}

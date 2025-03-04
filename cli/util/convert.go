@@ -90,6 +90,18 @@ func NewCommands() []*cli.Command {
 	}, options.RPC...)
 	uploadBinFlags = append(uploadBinFlags, options.Wallet...)
 	uploadBinFlags = append(uploadBinFlags, neoFSFlags...)
+
+	uploadStateFlags := append([]cli.Flag{
+		&cli.StringFlag{
+			Name:   "state-attribute",
+			Usage:  "Attribute key of the state object",
+			Value:  neofs.DefaultStateAttribute,
+			Action: cmdargs.EnsureNotEmpty("state-attribute"),
+		},
+		options.Debug, options.Config, options.ConfigFile, options.RelativePath,
+	}, options.Wallet...)
+	uploadStateFlags = append(uploadStateFlags, options.Network...)
+	uploadStateFlags = append(uploadStateFlags, neoFSFlags...)
 	return []*cli.Command{
 		{
 			Name:  "util",
@@ -173,6 +185,13 @@ func NewCommands() []*cli.Command {
 					UsageText: "neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--index-file-size <size>] [--retries <num>] [--debug]",
 					Action:    uploadBin,
 					Flags:     uploadBinFlags,
+				},
+				{
+					Name:      "upload-state",
+					Usage:     "Traverse the MPT and upload it to the NeoFS container at every StateSyncInterval",
+					UsageText: "neo-go util upload-state --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --state-attribute state --wallet <wallet> [--wallet-config <config>] [--address <address>] [--searchers <num>][--retries <num>] [--debug]",
+					Action:    uploadState,
+					Flags:     uploadStateFlags,
 				},
 			},
 		},
