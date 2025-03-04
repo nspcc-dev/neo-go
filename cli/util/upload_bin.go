@@ -15,32 +15,17 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
-	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/pool"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/urfave/cli/v2"
 )
-
-// poolWrapper wraps a NeoFS pool to adapt its Close method to return an error.
-type poolWrapper struct {
-	*pool.Pool
-}
-
-// Close closes the pool and returns nil.
-func (p poolWrapper) Close() error {
-	p.Pool.Close()
-	return nil
-}
 
 func uploadBin(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
-	rpcNeoFS := ctx.StringSlice("fs-rpc-endpoint")
-	containerIDStr := ctx.String("container")
 	attr := ctx.String("block-attribute")
 	numWorkers := ctx.Uint("workers")
 	maxParallelSearches := ctx.Uint("searchers")
@@ -52,12 +37,6 @@ func uploadBin(ctx *cli.Context) error {
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to load account: %v", err), 1)
 	}
-
-	var containerID cid.ID
-	if err = containerID.DecodeString(containerIDStr); err != nil {
-		return cli.Exit(fmt.Sprintf("failed to decode container ID: %v", err), 1)
-	}
-
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 	rpc, err := options.GetRPCClient(gctx, ctx)
@@ -65,39 +44,20 @@ func uploadBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Sprintf("failed to create RPC client: %v", err), 1)
 	}
 
-	signer := user.NewAutoIDSignerRFC6979(acc.PrivateKey().PrivateKey)
-
-	params := pool.DefaultOptions()
-	params.SetHealthcheckTimeout(neofs.DefaultHealthcheckTimeout)
-	params.SetNodeDialTimeout(neofs.DefaultDialTimeout)
-	params.SetNodeStreamTimeout(neofs.DefaultStreamTimeout)
-	p, err := pool.New(pool.NewFlatNodeParams(rpcNeoFS), signer, params)
+	signer, pWrapper, err := initNeoFSPool(ctx, acc)
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to create NeoFS pool: %v", err), 1)
+		return cli.Exit(err, 1)
 	}
-	pWrapper := poolWrapper{p}
-	if err = pWrapper.Dial(context.Background()); err != nil {
-		return cli.Exit(fmt.Sprintf("failed to dial NeoFS pool: %v", err), 1)
-	}
-	defer p.Close()
-
-	var containerObj container.Container
-	err = retry(func() error {
-		containerObj, err = p.ContainerGet(ctx.Context, containerID, client.PrmContainerGet{})
-		return err
-	}, maxRetries, debug)
-	if err != nil {
-		return cli.Exit(fmt.Errorf("failed to get container with ID %s: %w", containerID, err), 1)
-	}
-	containerMagic := containerObj.Attribute("Magic")
+	defer pWrapper.Close()
 
 	v, err := rpc.GetVersion()
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to get version from RPC: %v", err), 1)
 	}
 	magic := strconv.Itoa(int(v.Protocol.Network))
-	if containerMagic != magic {
-		return cli.Exit(fmt.Sprintf("container magic %s does not match the network magic %s", containerMagic, magic), 1)
+	containerID, err := getContainer(ctx, pWrapper, magic, maxRetries, debug)
+	if err != nil {
+		return cli.Exit(err, 1)
 	}
 
 	currentBlockHeight, err := rpc.GetBlockCount()
