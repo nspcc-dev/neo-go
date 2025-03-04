@@ -43,9 +43,13 @@ const (
 	DefaultAwaitableTimeout = 3 * 15 * time.Second
 )
 
-// RPCEndpointFlag is a long flag name for an RPC endpoint. It can be used to
-// check for flag presence in the context.
-const RPCEndpointFlag = "rpc-endpoint"
+const (
+	// RPCEndpointFlag is a long flag name for an RPC endpoint. It can be used to
+	// check for flag presence in the context.
+	RPCEndpointFlag = "rpc-endpoint"
+	// NeoFSRPCEndpointFlag is a long flag name for a NeoFS RPC endpoint.
+	NeoFSRPCEndpointFlag = "fs-rpc-endpoint"
+)
 
 // Wallet is a set of flags used for wallet operations.
 var Wallet = []cli.Flag{
@@ -98,6 +102,22 @@ var RPC = []cli.Flag{
 		Aliases: []string{"s"},
 		Value:   DefaultTimeout,
 		Usage:   "Timeout for the operation",
+	},
+}
+
+// NeoFSRPC is a flag used for NeoFS RPC connections.
+var NeoFSRPC = &cli.StringSliceFlag{
+	Name:     NeoFSRPCEndpointFlag,
+	Aliases:  []string{"fsr"},
+	Usage:    "List of NeoFS storage node RPC addresses (comma-separated or multiple --fs-rpc-endpoint flags)",
+	Required: true,
+	Action: func(ctx *cli.Context, fsRpcEndpoints []string) error {
+		for _, endpoint := range fsRpcEndpoints {
+			if endpoint == "" {
+				return cli.Exit("NeoFS RPC endpoint cannot contain empty values", 1)
+			}
+		}
+		return nil
 	},
 }
 
