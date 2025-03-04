@@ -2,6 +2,8 @@ package neofs
 
 import (
 	"time"
+
+	"github.com/nspcc-dev/neofs-sdk-go/pool"
 )
 
 // Constants related to NeoFS block storage.
@@ -50,3 +52,14 @@ const (
 	// MaxBackoff is the maximum backoff duration.
 	MaxBackoff = 20 * time.Second
 )
+
+// PoolWrapper wraps a NeoFS pool to adapt its Close method to return an error.
+type PoolWrapper struct {
+	*pool.Pool
+}
+
+// Close closes the pool and returns nil.
+func (p PoolWrapper) Close() error {
+	p.Pool.Close()
+	return nil
+}
