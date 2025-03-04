@@ -18,6 +18,8 @@ const (
 	DefaultBlockAttribute = "Block"
 	// DefaultIndexFileAttribute is the default attribute name for index file objects.
 	DefaultIndexFileAttribute = "Index"
+	// DefaultStateAttribute is the default attribute name for state objects.
+	DefaultStateAttribute = "State"
 
 	// DefaultSearchBatchSize is a number of objects to search in a batch. We need to
 	// search with EQ filter to avoid partially-completed SEARCH responses. If EQ search
