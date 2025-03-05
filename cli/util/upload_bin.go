@@ -257,7 +257,7 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 			if err != nil {
 				return fmt.Errorf("failed to upload index file: %w", err)
 			}
-			fmt.Println("Successfully uploaded index file ", indexFileStart/indexFileSize)
+			fmt.Fprintln(ctx.App.Writer, "Successfully uploaded index file ", indexFileStart/indexFileSize)
 		}
 		clear(buf)
 	}
