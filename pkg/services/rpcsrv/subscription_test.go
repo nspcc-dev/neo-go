@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
@@ -76,7 +77,11 @@ func getNotification(t *testing.T, respCh <-chan []byte) *neorpc.Notification {
 
 func initCleanServerAndWSClient(t *testing.T, startNetworkServer ...bool) (*core.Blockchain, *Server, *websocket.Conn, chan []byte) {
 	chain, rpcSrv, httpSrv := initClearServerWithInMemoryChain(t)
+	ws, respMsgs := initWSClient(t, httpSrv, rpcSrv, startNetworkServer...)
+	return chain, rpcSrv, ws, respMsgs
+}
 
+func initWSClient(t *testing.T, httpSrv *httptest.Server, rpcSrv *Server, startNetworkServer ...bool) (*websocket.Conn, chan []byte) {
 	dialer := websocket.Dialer{HandshakeTimeout: 5 * time.Second}
 	url := "ws" + strings.TrimPrefix(httpSrv.URL, "http") + "/ws"
 	ws, r, err := dialer.Dial(url, nil)
@@ -108,7 +113,7 @@ func initCleanServerAndWSClient(t *testing.T, startNetworkServer ...bool) (*core
 			rpcSrv.coreServer.Shutdown()
 		}
 	})
-	return chain, rpcSrv, ws, respMsgs
+	return ws, respMsgs
 }
 
 func callSubscribe(t *testing.T, ws *websocket.Conn, msgs <-chan []byte, params string) string {
@@ -577,9 +582,10 @@ func TestHeaderOfAddedBlockSubscriptions(t *testing.T) {
 	callUnsubscribe(t, c, respMsgs, headerSubID)
 }
 
-func TestMaxSubscriptions(t *testing.T) {
+func testMaxSubscriptions(t *testing.T, f func(*config.Config), maxFeeds int) {
 	var subIDs = make([]string, 0)
-	_, _, c, respMsgs := initCleanServerAndWSClient(t)
+	_, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, f)
+	c, respMsgs := initWSClient(t, httpSrv, rpcSrv)
 
 	for i := range maxFeeds + 1 {
 		var s string
@@ -598,6 +604,17 @@ func TestMaxSubscriptions(t *testing.T) {
 			require.Nil(t, resp.Result)
 		}
 	}
+}
+
+func TestMaxSubscriptions(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		testMaxSubscriptions(t, nil, defaultMaxFeeds)
+	})
+	t.Run("maxfeeds=x2", func(t *testing.T) {
+		testMaxSubscriptions(t, func(c *config.Config) {
+			c.ApplicationConfiguration.RPC.MaxWebSocketFeeds = defaultMaxFeeds * 2
+		}, defaultMaxFeeds*2)
+	})
 }
 
 func TestBadSubUnsub(t *testing.T) {
