@@ -25,8 +25,9 @@ type (
 
 	// RPC represents the RPC server configuration.
 	RPC struct {
-		MaxIteratorResultItems int  `json:"maxiteratorresultitems"`
-		SessionEnabled         bool `json:"sessionenabled"`
+		MaxIteratorResultItems  int  `json:"maxiteratorresultitems"`
+		SessionEnabled          bool `json:"sessionenabled"`
+		SessionExpansionEnabled bool `json:"sessionexpansionenabled"`
 	}
 
 	// Protocol represents network-dependent parameters.

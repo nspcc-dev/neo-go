@@ -878,8 +878,9 @@ func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 		Nonce:     s.coreServer.ID(),
 		UserAgent: s.coreServer.UserAgent,
 		RPC: result.RPC{
-			MaxIteratorResultItems: s.config.MaxIteratorResultItems,
-			SessionEnabled:         s.config.SessionEnabled,
+			MaxIteratorResultItems:  s.config.MaxIteratorResultItems,
+			SessionEnabled:          s.config.SessionEnabled,
+			SessionExpansionEnabled: s.config.SessionExpansionEnabled,
 		},
 		Protocol: result.Protocol{
 			AddressVersion:              address.NEO3Prefix,
@@ -2510,11 +2511,19 @@ func (s *Server) registerOrDumpIterator(item stackitem.Item) (stackitem.Item, uu
 	}
 	var resIterator result.Iterator
 
-	if s.config.SessionEnabled {
-		iterID = uuid.New()
-		resIterator.ID = &iterID
-	} else {
+	if s.config.SessionExpansionEnabled {
 		resIterator.Values, resIterator.Truncated = iterator.ValuesTruncated(item, s.config.MaxIteratorResultItems)
+		if resIterator.Truncated && s.config.SessionEnabled {
+			iterID = uuid.New()
+			resIterator.ID = &iterID
+		}
+	} else {
+		if s.config.SessionEnabled {
+			iterID = uuid.New()
+			resIterator.ID = &iterID
+		} else {
+			resIterator.Values, resIterator.Truncated = iterator.ValuesTruncated(item, s.config.MaxIteratorResultItems)
+		}
 	}
 	return stackitem.NewInterop(resIterator), iterID
 }

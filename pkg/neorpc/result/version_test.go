@@ -47,7 +47,8 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
         },
         "rpc": {
             "maxiteratorresultitems": 100,
-            "sessionenabled": true
+            "sessionenabled": true,
+			"sessionexpansionenabled": false
         },
         "tcpport": 10333,
         "useragent": "/NEO-GO:0.98.6/",
@@ -88,8 +89,9 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 		Nonce:     1677922561,
 		UserAgent: "/NEO-GO:0.98.6/",
 		RPC: RPC{
-			MaxIteratorResultItems: 100,
-			SessionEnabled:         true,
+			MaxIteratorResultItems:  100,
+			SessionEnabled:          true,
+			SessionExpansionEnabled: false,
 		},
 		Protocol: Protocol{
 			AddressVersion:              53,
