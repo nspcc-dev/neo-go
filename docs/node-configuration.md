@@ -251,6 +251,7 @@ RPC:
   MaxRequestBodyBytes: 5242880
   MaxRequestHeaderBytes: 1048576
   MaxWebSocketClients: 64
+  MaxWebSocketFeeds: 16
   SessionEnabled: false
   SessionExpirationTime: 15
   SessionBackedByMPT: false
@@ -296,6 +297,9 @@ where:
   number (64 by default). Attempts to establish additional connections will
   lead to websocket handshake failures. Use "-1" to disable websocket
   connections (0 will lead to using the default value).
+- `MaxWebSocketFeeds` -- the maximum simultaneous event subscriptions number
+  for a single client (16 by default). Attemps to create additional subscriptions
+  will lead to error.
 - `SessionEnabled` denotes whether session-based iterator JSON-RPC API is enabled.
   If true, then all iterators got from `invoke*` calls will be stored as sessions
   on the server side available for further traverse. `traverseiterator` and

@@ -19,6 +19,7 @@ type (
 		MaxRequestBodyBytes       int           `yaml:"MaxRequestBodyBytes"`
 		MaxRequestHeaderBytes     int           `yaml:"MaxRequestHeaderBytes"`
 		MaxWebSocketClients       int           `yaml:"MaxWebSocketClients"`
+		MaxWebSocketFeeds         int           `yaml:"MaxWebSocketFeeds"`
 		SessionEnabled            bool          `yaml:"SessionEnabled"`
 		SessionExpirationTime     int           `yaml:"SessionExpirationTime"`
 		SessionBackedByMPT        bool          `yaml:"SessionBackedByMPT"`
