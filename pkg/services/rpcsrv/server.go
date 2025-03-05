@@ -311,6 +311,10 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 		conf.MaxWebSocketClients = defaultMaxWebSocketClients
 		log.Info("MaxWebSocketClients is not set or wrong, setting default value", zap.Int("MaxWebSocketClients", defaultMaxWebSocketClients))
 	}
+	if conf.MaxWebSocketFeeds == 0 {
+		conf.MaxWebSocketFeeds = defaultMaxFeeds
+		log.Info("MaxWebSocketFeeds is not set or wrong, setting default value", zap.Int("MaxWebSocketFeeds", defaultMaxFeeds))
+	}
 	var oracleWrapped = new(atomic.Value)
 	if orc != nil {
 		oracleWrapped.Store(orc)
@@ -522,7 +526,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 		}
 		resChan := make(chan abstractResult) // response.abstract or response.abstractBatch
 		subChan := make(chan intEvent, notificationBufSize)
-		subscr := &subscriber{writer: subChan}
+		subscr := &subscriber{writer: subChan, feeds: make([]feed, s.config.MaxWebSocketFeeds)}
 		s.subsLock.Lock()
 		s.subscribers[subscr] = true
 		s.subsLock.Unlock()
@@ -560,7 +564,7 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 // RegisterLocal performs local client registration.
 func (s *Server) RegisterLocal(ctx context.Context, events chan<- neorpc.Notification) func(*neorpc.Request) (*neorpc.Response, error) {
 	subChan := make(chan intEvent, notificationBufSize)
-	subscr := &subscriber{writer: subChan}
+	subscr := &subscriber{writer: subChan, feeds: make([]feed, s.config.MaxWebSocketFeeds)}
 	s.subsLock.Lock()
 	s.subscribers[subscr] = true
 	s.subsLock.Unlock()
