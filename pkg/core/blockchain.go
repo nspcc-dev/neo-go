@@ -2849,7 +2849,7 @@ func (bc *Blockchain) PoolTxWithData(t *transaction.Transaction, data any, mp *m
 	if verificationFunction != nil {
 		err := verificationFunction(t, data)
 		if err != nil {
-			return err
+			return fmt.Errorf("data verification failed: %w", err)
 		}
 	}
 	return bc.verifyAndPoolTx(t, mp, feer, data)

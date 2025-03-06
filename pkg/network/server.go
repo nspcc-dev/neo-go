@@ -1325,7 +1325,11 @@ func (s *Server) RelayP2PNotaryRequest(r *payload.P2PNotaryRequest) error {
 
 // verifyAndPoolNotaryRequest verifies NotaryRequest payload and adds it to the payload mempool.
 func (s *Server) verifyAndPoolNotaryRequest(r *payload.P2PNotaryRequest) error {
-	return s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.notaryFeer, s.verifyNotaryRequest)
+	err := s.chain.PoolTxWithData(r.FallbackTransaction, r, s.notaryRequestPool, s.notaryFeer, s.verifyNotaryRequest)
+	if err != nil {
+		return fmt.Errorf("failed to add fallback transaction to the notary pool: %w", err)
+	}
+	return nil
 }
 
 // verifyNotaryRequest is a function for state-dependant P2PNotaryRequest payload verification which is executed before ordinary blockchain's verification.
