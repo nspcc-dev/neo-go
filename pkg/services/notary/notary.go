@@ -333,7 +333,7 @@ func (n *Notary) OnNewRequest(payload *payload.P2PNotaryRequest) {
 	}
 	if r.isMainCompleted() && r.minNotValidBefore > n.Config.Chain.BlockHeight() {
 		if err := n.finalize(acc, r.main, payload.MainTransaction.Hash()); err != nil {
-			n.Config.Log.Error("failed to finalize main transaction",
+			n.Config.Log.Error("failed to finalize main transaction, waiting for the next block to retry",
 				zap.String("hash", r.main.Hash().StringLE()),
 				zap.Error(err))
 		}
@@ -381,7 +381,9 @@ func (n *Notary) PostPersist() {
 	for h, r := range n.requests {
 		if !r.isSent && r.isMainCompleted() && r.minNotValidBefore > currHeight {
 			if err := n.finalize(acc, r.main, h); err != nil {
-				n.Config.Log.Error("failed to finalize main transaction", zap.Error(err))
+				n.Config.Log.Error("failed to finalize main transaction after PostPersist, waiting for the next block to retry",
+					zap.String("hash", r.main.Hash().StringLE()),
+					zap.Error(err))
 			}
 			continue
 		}
@@ -389,7 +391,10 @@ func (n *Notary) PostPersist() {
 			for _, fb := range r.fallbacks {
 				if nvb := fb.GetAttributes(transaction.NotValidBeforeT)[0].Value.(*transaction.NotValidBefore).Height; nvb <= currHeight {
 					// Ignore the error, wait for the next block to resend them
-					_ = n.finalize(acc, fb, h)
+					err := n.finalize(acc, fb, h)
+					n.Config.Log.Error("failed to finalize fallback transaction, waiting for the next block to retry",
+						zap.String("hash", fb.Hash().StringLE()),
+						zap.Error(err))
 				}
 			}
 		}
@@ -413,7 +418,10 @@ func (n *Notary) finalize(acc *wallet.Account, tx *transaction.Transaction, h ut
 		return fmt.Errorf("failed to update completed transaction's size: %w", err)
 	}
 
-	n.pushNewTx(newTx, h)
+	err = n.pushNewTx(newTx, h)
+	if err != nil {
+		return fmt.Errorf("failed to enqueue completed transaction: %w", err)
+	}
 
 	return nil
 }
@@ -423,11 +431,13 @@ type txHashPair struct {
 	mainHash util.Uint256
 }
 
-func (n *Notary) pushNewTx(tx *transaction.Transaction, h util.Uint256) {
+func (n *Notary) pushNewTx(tx *transaction.Transaction, h util.Uint256) error {
 	select {
 	case n.newTxs <- txHashPair{tx, h}:
 	default:
+		return errors.New("transaction queue is full")
 	}
+	return nil
 }
 
 func (n *Notary) newTxCallbackLoop() {
