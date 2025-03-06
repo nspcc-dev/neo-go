@@ -37,7 +37,10 @@ type Billet struct {
 // NewBillet returns a new billet for MPT trie restoring. It accepts a MemCachedStore
 // to decouple storage errors from logic errors so that all storage errors are
 // processed during `store.Persist()` at the caller. Another benefit is
-// that every `Put` can be considered an atomic operation.
+// that every `Put` can be considered an atomic operation. Note that mode
+// parameter must match precisely the Trie mode that is used in the underlying
+// DB to store the MPT nodes. Using wrong mode will lead to improper MPT nodes
+// decoding and even runtime panic.
 func NewBillet(rootHash util.Uint256, mode TrieMode, prefix storage.KeyPrefix, store *storage.MemCachedStore) *Billet {
 	return &Billet{
 		TempStoragePrefix: prefix,
