@@ -94,7 +94,7 @@ func (m *TrieStore) Seek(rng storage.SeekRange, f func(k, v []byte) bool) {
 		}
 	}
 
-	b := NewBillet(m.trie.root.Hash(), m.trie.mode, 0, m.trie.Store)
+	b := NewBillet(m.trie.root.Hash(), m.trie.mode, DummySTTempStoragePrefix, m.trie.Store)
 	process := func(pathToNode []byte, node Node, _ []byte) bool {
 		if leaf, ok := node.(*LeafNode); ok {
 			// (*Billet).traverse includes `from` path into the result if so. It's OK for Seek, so shouldn't be filtered out.

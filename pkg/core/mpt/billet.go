@@ -11,6 +11,14 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 )
 
+// DummySTTempStoragePrefix is a dummy contract storage item prefix that may be
+// passed to Billet constructor when Billet's restoring functionality is not
+// used, i.e. for those situations when only traversal functionality is used.
+// Note that using this prefix for MPT restoring is an error which will lead to
+// a panic since Billet must have the ability to save contract storage items to
+// the underlying DB during MPT restore process.
+const DummySTTempStoragePrefix = 0x00
+
 var (
 	// ErrRestoreFailed is returned when replacing HashNode by its "unhashed"
 	// candidate fails.
@@ -37,7 +45,10 @@ type Billet struct {
 // NewBillet returns a new billet for MPT trie restoring. It accepts a MemCachedStore
 // to decouple storage errors from logic errors so that all storage errors are
 // processed during `store.Persist()` at the caller. Another benefit is
-// that every `Put` can be considered an atomic operation.
+// that every `Put` can be considered an atomic operation. Note that mode
+// parameter must match precisely the Trie mode that is used in the underlying
+// DB to store the MPT nodes. Using wrong mode will lead to improper MPT nodes
+// decoding and even runtime panic.
 func NewBillet(rootHash util.Uint256, mode TrieMode, prefix storage.KeyPrefix, store *storage.MemCachedStore) *Billet {
 	return &Billet{
 		TempStoragePrefix: prefix,
@@ -65,7 +76,7 @@ func (b *Billet) RestoreHashNode(path []byte, node Node) error {
 
 	// If it's a leaf, then put into temporary contract storage.
 	if leaf, ok := node.(*LeafNode); ok {
-		if b.TempStoragePrefix == 0 {
+		if b.TempStoragePrefix == DummySTTempStoragePrefix {
 			panic("invalid storage prefix")
 		}
 		k := append([]byte{byte(b.TempStoragePrefix)}, fromNibbles(path)...)

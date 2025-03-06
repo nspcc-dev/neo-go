@@ -551,7 +551,7 @@ func (s *Module) Traverse(root util.Uint256, process func(node mpt.Node, nodeByt
 	if s.bc.GetConfig().Ledger.KeepOnlyLatestState || s.bc.GetConfig().Ledger.RemoveUntraceableBlocks {
 		mode |= mpt.ModeLatest
 	}
-	b := mpt.NewBillet(root, mode, 0, storage.NewMemCachedStore(s.dao.Store))
+	b := mpt.NewBillet(root, mode, mpt.DummySTTempStoragePrefix, storage.NewMemCachedStore(s.dao.Store))
 	return b.Traverse(func(pathToNode []byte, node mpt.Node, nodeBytes []byte) bool {
 		return process(node, nodeBytes)
 	}, false)

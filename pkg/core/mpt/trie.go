@@ -612,7 +612,7 @@ func (t *Trie) Find(prefix, from []byte, maxNum int) ([]storage.KeyValue, error)
 		res   []storage.KeyValue
 		count int
 	)
-	b := NewBillet(t.root.Hash(), t.mode, 0, t.Store)
+	b := NewBillet(t.root.Hash(), t.mode, DummySTTempStoragePrefix, t.Store)
 	process := func(pathToNode []byte, node Node, _ []byte) bool {
 		if leaf, ok := node.(*LeafNode); ok {
 			if from == nil || !bytes.Equal(pathToNode, from) { // (*Billet).traverse includes `from` path into result if so. Need to filter out manually.
