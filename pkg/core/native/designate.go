@@ -432,8 +432,8 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 		ntf.Append(pubsToArray(old))
 		ntf.Append(pubsToArray(pubs))
 	}
-	ic.AddNotification(s.Hash, DesignationEventName, ntf)
-	return nil
+
+	return ic.AddNotification(s.Hash, DesignationEventName, ntf)
 }
 
 func (s *Designate) getRole(item stackitem.Item) (noderoles.Role, bool) {
