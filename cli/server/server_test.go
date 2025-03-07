@@ -185,11 +185,11 @@ func TestInitBCWithMetrics(t *testing.T) {
 	})
 
 	t.Run("bad store", func(t *testing.T) {
-		_, _, _, err = initBCWithMetrics(config.Config{}, logger)
+		_, _, _, _, err = InitBCWithMetrics(config.Config{}, logger)
 		require.Error(t, err)
 	})
 
-	chain, prometheus, pprof, err := initBCWithMetrics(cfg, logger)
+	chain, _, prometheus, pprof, err := InitBCWithMetrics(cfg, logger)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		chain.Close()

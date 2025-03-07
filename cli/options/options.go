@@ -25,8 +25,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/actor"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
+	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
+	"github.com/nspcc-dev/neofs-sdk-go/pool"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -43,9 +46,13 @@ const (
 	DefaultAwaitableTimeout = 3 * 15 * time.Second
 )
 
-// RPCEndpointFlag is a long flag name for an RPC endpoint. It can be used to
-// check for flag presence in the context.
-const RPCEndpointFlag = "rpc-endpoint"
+const (
+	// RPCEndpointFlag is a long flag name for an RPC endpoint. It can be used to
+	// check for flag presence in the context.
+	RPCEndpointFlag = "rpc-endpoint"
+	// NeoFSRPCEndpointFlag is a long flag name for a NeoFS RPC endpoint.
+	NeoFSRPCEndpointFlag = "fs-rpc-endpoint"
+)
 
 // Wallet is a set of flags used for wallet operations.
 var Wallet = []cli.Flag{
@@ -100,6 +107,22 @@ var RPC = []cli.Flag{
 		Usage:   "Timeout for the operation",
 	},
 }
+
+// NeoFSRPC is a set of flags used for NeoFS RPC connections (endpoint).
+var NeoFSRPC = []cli.Flag{&cli.StringSliceFlag{
+	Name:     NeoFSRPCEndpointFlag,
+	Aliases:  []string{"fsr"},
+	Usage:    "List of NeoFS storage node RPC addresses (comma-separated or multiple --fs-rpc-endpoint flags)",
+	Required: true,
+	Action: func(ctx *cli.Context, fsRpcEndpoints []string) error {
+		for _, endpoint := range fsRpcEndpoints {
+			if endpoint == "" {
+				return cli.Exit("NeoFS RPC endpoint cannot contain empty values", 1)
+			}
+		}
+		return nil
+	},
+}}
 
 // Historic is a flag for commands that can perform historic invocations.
 var Historic = &cli.StringFlag{
@@ -178,6 +201,26 @@ func GetRPCClient(gctx context.Context, ctx *cli.Context) (*rpcclient.Client, cl
 		return nil, cli.Exit(err, 1)
 	}
 	return c, nil
+}
+
+// GetNeoFSClientPool returns a NeoFS pool and a signer for the given Context.
+func GetNeoFSClientPool(ctx *cli.Context, acc *wallet.Account) (user.Signer, neofs.PoolWrapper, error) {
+	rpcNeoFS := ctx.StringSlice(NeoFSRPCEndpointFlag)
+	signer := user.NewAutoIDSignerRFC6979(acc.PrivateKey().PrivateKey)
+
+	params := pool.DefaultOptions()
+	params.SetHealthcheckTimeout(neofs.DefaultHealthcheckTimeout)
+	params.SetNodeDialTimeout(neofs.DefaultDialTimeout)
+	params.SetNodeStreamTimeout(neofs.DefaultStreamTimeout)
+	p, err := pool.New(pool.NewFlatNodeParams(rpcNeoFS), signer, params)
+	if err != nil {
+		return nil, neofs.PoolWrapper{}, fmt.Errorf("failed to create NeoFS pool: %w", err)
+	}
+	pWrapper := neofs.PoolWrapper{Pool: p}
+	if err = pWrapper.Dial(context.Background()); err != nil {
+		return nil, neofs.PoolWrapper{}, fmt.Errorf("failed to dial NeoFS pool: %w", err)
+	}
+	return signer, pWrapper, nil
 }
 
 // GetInvoker returns an invoker using the given RPC client, context and signers.

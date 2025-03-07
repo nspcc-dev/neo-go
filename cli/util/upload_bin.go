@@ -19,28 +19,14 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/pool"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/urfave/cli/v2"
 )
-
-// poolWrapper wraps a NeoFS pool to adapt its Close method to return an error.
-type poolWrapper struct {
-	*pool.Pool
-}
-
-// Close closes the pool and returns nil.
-func (p poolWrapper) Close() error {
-	p.Pool.Close()
-	return nil
-}
 
 func uploadBin(ctx *cli.Context) error {
 	if err := cmdargs.EnsureNone(ctx); err != nil {
 		return err
 	}
-	rpcNeoFS := ctx.StringSlice("fs-rpc-endpoint")
-	containerIDStr := ctx.String("container")
 	attr := ctx.String("block-attribute")
 	numWorkers := ctx.Uint("workers")
 	maxParallelSearches := ctx.Uint("searchers")
@@ -52,12 +38,6 @@ func uploadBin(ctx *cli.Context) error {
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to load account: %v", err), 1)
 	}
-
-	var containerID cid.ID
-	if err = containerID.DecodeString(containerIDStr); err != nil {
-		return cli.Exit(fmt.Sprintf("failed to decode container ID: %v", err), 1)
-	}
-
 	gctx, cancel := options.GetTimeoutContext(ctx)
 	defer cancel()
 	rpc, err := options.GetRPCClient(gctx, ctx)
@@ -65,39 +45,20 @@ func uploadBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Sprintf("failed to create RPC client: %v", err), 1)
 	}
 
-	signer := user.NewAutoIDSignerRFC6979(acc.PrivateKey().PrivateKey)
-
-	params := pool.DefaultOptions()
-	params.SetHealthcheckTimeout(neofs.DefaultHealthcheckTimeout)
-	params.SetNodeDialTimeout(neofs.DefaultDialTimeout)
-	params.SetNodeStreamTimeout(neofs.DefaultStreamTimeout)
-	p, err := pool.New(pool.NewFlatNodeParams(rpcNeoFS), signer, params)
+	signer, pWrapper, err := options.GetNeoFSClientPool(ctx, acc)
 	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed to create NeoFS pool: %v", err), 1)
+		return cli.Exit(err, 1)
 	}
-	pWrapper := poolWrapper{p}
-	if err = pWrapper.Dial(context.Background()); err != nil {
-		return cli.Exit(fmt.Sprintf("failed to dial NeoFS pool: %v", err), 1)
-	}
-	defer p.Close()
-
-	var containerObj container.Container
-	err = retry(func() error {
-		containerObj, err = p.ContainerGet(ctx.Context, containerID, client.PrmContainerGet{})
-		return err
-	}, maxRetries, debug)
-	if err != nil {
-		return cli.Exit(fmt.Errorf("failed to get container with ID %s: %w", containerID, err), 1)
-	}
-	containerMagic := containerObj.Attribute("Magic")
+	defer pWrapper.Close()
 
 	v, err := rpc.GetVersion()
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to get version from RPC: %v", err), 1)
 	}
 	magic := strconv.Itoa(int(v.Protocol.Network))
-	if containerMagic != magic {
-		return cli.Exit(fmt.Sprintf("container magic %s does not match the network magic %s", containerMagic, magic), 1)
+	containerID, err := getContainer(ctx, pWrapper, magic, maxRetries, debug)
+	if err != nil {
+		return cli.Exit(err, 1)
 	}
 
 	currentBlockHeight, err := rpc.GetBlockCount()
@@ -138,7 +99,7 @@ func retry(action func() error, maxRetries uint, debug bool) error {
 }
 
 // uploadBlocksAndIndexFiles uploads the blocks and index files to the container using the pool.
-func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, attr, indexAttributeKey string, buf []byte, currentIndexFileID, indexFileSize, currentBlockHeight uint, numWorkers, maxRetries uint, debug bool) error {
+func uploadBlocksAndIndexFiles(ctx *cli.Context, p neofs.PoolWrapper, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, attr, indexAttributeKey string, buf []byte, currentIndexFileID, indexFileSize, currentBlockHeight uint, numWorkers, maxRetries uint, debug bool) error {
 	if currentIndexFileID*indexFileSize >= currentBlockHeight {
 		fmt.Fprintf(ctx.App.Writer, "No new blocks to upload. Need to upload starting from %d, current height %d\n", currentIndexFileID*indexFileSize, currentBlockHeight)
 		return nil
@@ -265,7 +226,7 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p poolWrapper, rpc *rpcclient.C
 }
 
 // searchIndexFile returns the ID and buffer for the next index file to be uploaded.
-func searchIndexFile(ctx *cli.Context, p poolWrapper, containerID cid.ID, privKeys *keys.PrivateKey, signer user.Signer, indexFileSize uint, blockAttributeKey, attributeKey string, maxParallelSearches, maxRetries uint, debug bool) (uint, []byte, error) {
+func searchIndexFile(ctx *cli.Context, p neofs.PoolWrapper, containerID cid.ID, privKeys *keys.PrivateKey, signer user.Signer, indexFileSize uint, blockAttributeKey, attributeKey string, maxParallelSearches, maxRetries uint, debug bool) (uint, []byte, error) {
 	var (
 		// buf is used to store OIDs of the uploaded blocks.
 		buf    = make([]byte, indexFileSize*oid.Size)
@@ -357,7 +318,7 @@ func searchIndexFile(ctx *cli.Context, p poolWrapper, containerID cid.ID, privKe
 // searchObjects searches in parallel for objects with attribute GE startIndex and LT
 // endIndex. It returns a buffered channel of resulting object IDs and closes it once
 // OID search is finished. Errors are sent to errCh in a non-blocking way.
-func searchObjects(ctx context.Context, p poolWrapper, containerID cid.ID, privKeys *keys.PrivateKey, blockAttributeKey string, startIndex, endIndex, maxParallelSearches, maxRetries uint, debug bool, errCh chan error, additionalFilters ...object.SearchFilters) chan oid.ID {
+func searchObjects(ctx context.Context, p neofs.PoolWrapper, containerID cid.ID, privKeys *keys.PrivateKey, blockAttributeKey string, startIndex, endIndex, maxParallelSearches, maxRetries uint, debug bool, errCh chan error, additionalFilters ...object.SearchFilters) chan oid.ID {
 	var res = make(chan oid.ID, 2*neofs.DefaultSearchBatchSize)
 	go func() {
 		var wg sync.WaitGroup
@@ -419,7 +380,7 @@ func searchObjects(ctx context.Context, p poolWrapper, containerID cid.ID, privK
 }
 
 // uploadObj uploads object to the container using provided settings.
-func uploadObj(ctx context.Context, p poolWrapper, signer user.Signer, containerID cid.ID, objData []byte, attrs []object.Attribute) (oid.ID, error) {
+func uploadObj(ctx context.Context, p neofs.PoolWrapper, signer user.Signer, containerID cid.ID, objData []byte, attrs []object.Attribute) (oid.ID, error) {
 	var (
 		hdr              object.Object
 		prmObjectPutInit client.PrmObjectPutInit
@@ -460,4 +421,29 @@ func getBlockIndex(header object.Object, attribute string) (int, error) {
 		}
 	}
 	return -1, fmt.Errorf("attribute %s not found", attribute)
+}
+
+// getContainer gets container by ID and checks its magic.
+func getContainer(ctx *cli.Context, p neofs.PoolWrapper, expectedMagic string, maxRetries uint, debug bool) (cid.ID, error) {
+	var (
+		containerObj   container.Container
+		err            error
+		containerIDStr = ctx.String("container")
+	)
+	var containerID cid.ID
+	if err = containerID.DecodeString(containerIDStr); err != nil {
+		return containerID, fmt.Errorf("failed to decode container ID: %w", err)
+	}
+	err = retry(func() error {
+		containerObj, err = p.ContainerGet(ctx.Context, containerID, client.PrmContainerGet{})
+		return err
+	}, maxRetries, debug)
+	if err != nil {
+		return containerID, fmt.Errorf("failed to get container: %w", err)
+	}
+	containerMagic := containerObj.Attribute("Magic")
+	if containerMagic != expectedMagic {
+		return containerID, fmt.Errorf("container magic mismatch: expected %s, got %s", expectedMagic, containerMagic)
+	}
+	return containerID, nil
 }

@@ -2,6 +2,8 @@ package neofs
 
 import (
 	"time"
+
+	"github.com/nspcc-dev/neofs-sdk-go/pool"
 )
 
 // Constants related to NeoFS block storage.
@@ -16,6 +18,8 @@ const (
 	DefaultBlockAttribute = "Block"
 	// DefaultIndexFileAttribute is the default attribute name for index file objects.
 	DefaultIndexFileAttribute = "Index"
+	// DefaultStateAttribute is the default attribute name for state objects.
+	DefaultStateAttribute = "State"
 
 	// DefaultSearchBatchSize is a number of objects to search in a batch. We need to
 	// search with EQ filter to avoid partially-completed SEARCH responses. If EQ search
@@ -50,3 +54,14 @@ const (
 	// MaxBackoff is the maximum backoff duration.
 	MaxBackoff = 20 * time.Second
 )
+
+// PoolWrapper wraps a NeoFS pool to adapt its Close method to return an error.
+type PoolWrapper struct {
+	*pool.Pool
+}
+
+// Close closes the pool and returns nil.
+func (p PoolWrapper) Close() error {
+	p.Pool.Close()
+	return nil
+}

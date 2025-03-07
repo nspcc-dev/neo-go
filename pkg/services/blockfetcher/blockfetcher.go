@@ -51,17 +51,6 @@ type Ledger interface {
 	HeaderHeight() uint32
 }
 
-// poolWrapper wraps a NeoFS pool to adapt its Close method to return an error.
-type poolWrapper struct {
-	*pool.Pool
-}
-
-// Close closes the pool and returns nil.
-func (p poolWrapper) Close() error {
-	p.Pool.Close()
-	return nil
-}
-
 type indexedOID struct {
 	Index int
 	OID   oid.ID
@@ -81,7 +70,7 @@ type Service struct {
 	headerSizeMap map[int]int
 
 	chain   Ledger
-	pool    poolWrapper
+	pool    neofs.PoolWrapper
 	enqueue func(obj bqueue.Indexable) error
 	account *wallet.Account
 
@@ -166,7 +155,7 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, put fun
 	}
 	return &Service{
 		chain:         chain,
-		pool:          poolWrapper{Pool: p},
+		pool:          neofs.PoolWrapper{Pool: p},
 		log:           logger,
 		cfg:           cfg,
 		operationMode: opt,

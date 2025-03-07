@@ -73,8 +73,8 @@ parameter.
 Once all blocks available in the NeoFS container are processed, the service
 shuts down automatically.
 
-### NeoFS Upload Command
-The `upload-bin` command is designed to fetch blocks from the RPC node and upload 
+### NeoFS block uploading command
+The `util upload-bin` command is designed to fetch blocks from the RPC node and upload 
 them to the NeoFS container. It also creates and uploads index files. Below is an
 example usage of the command:
 
@@ -102,3 +102,25 @@ will upload the entire block sequence starting from genesis since no migration i
 supported yet by this command. Please, add a comment to the
 [#3744](https://github.com/nspcc-dev/neo-go/issues/3744) issue if you need this
 functionality.
+
+### NeoFS state uploading command
+The `util upload-state` command is used to start a node, traverse the MPT over the 
+smart contract storage, and upload MPT nodes to a NeoFS container at every 
+`StateSyncInterval` number of blocks. Below is an example usage of the command:
+
+```shell
+./bin/neo-go util upload-state --cid 9iVfUg8aDHKjPC4LhQXEkVUM4HDkR7UCXYLs8NQwYfSG --wallet-config ./wallet-config.yml --state-attribute State -m -fsr st1.t5.fs.neo.org:8080 -fsr st2.t5.fs.neo.org:8080 -fsr st3.t5.fs.neo.org:8080
+```
+
+Run `./bin/neo-go util upload-state --help` to see the full list of supported options.
+
+This command works as follows:
+1. Searches for the state objects stored in NeoFS to find the latest uploaded object.
+2. Checks if new state objects could be uploaded given the current local state height. 
+3. Traverses the MPT nodes (pre-order) starting from the stateroot at the height of the 
+   latest uploaded state object down to its children.
+4. Uploads the MPT nodes to the NeoFS container.
+5. Repeats steps 3-4 with a step equal to the `StateSyncInterval` number of blocks.
+
+If the command is interrupted, it can be resumed. It starts the uploading process
+from the last uploaded state object.
