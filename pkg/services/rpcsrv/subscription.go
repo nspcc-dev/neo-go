@@ -23,7 +23,7 @@ type (
 		// cheaper doing it this way rather than creating a map),
 		// pointing to an EventID is an obvious overkill at the moment, but
 		// that's not for long.
-		feeds [maxFeeds]feed
+		feeds []feed
 	}
 	// feed stores subscriber's desired event ID with filter.
 	feed struct {
@@ -43,8 +43,8 @@ func (f feed) Filter() neorpc.SubscriptionFilter {
 }
 
 const (
-	// Maximum number of subscriptions per one client.
-	maxFeeds = 16
+	// The default maximum number of subscriptions per one client.
+	defaultMaxFeeds = 16
 
 	// This sets notification messages buffer depth. It may seem to be quite
 	// big, but there is a big gap in speed between internal event processing

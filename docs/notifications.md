@@ -58,6 +58,9 @@ method. Upon successful subscription, clients receive subscription ID for
 subsequent management of this subscription. Subscription is only valid for
 connection lifetime, no long-term client identification is being made.
 
+The maximum number of simultaneous subscriptions can be set server-side
+via `MaxWebSocketFeeds` setting.
+
 Errors are not described down below, but they can be returned as standard
 JSON-RPC errors (most often caused by invalid parameters).
 
