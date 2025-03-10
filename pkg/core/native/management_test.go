@@ -3,6 +3,7 @@ package native
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -83,13 +84,13 @@ func TestManagement_Initialize(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		d := dao.NewSimple(storage.NewMemoryStore(), false)
 		mgmt := newManagement()
-		require.NoError(t, mgmt.InitializeCache(0, d))
+		require.NoError(t, mgmt.InitializeCache(func(hf *config.Hardfork, blockHeight uint32) bool { return false }, 0, d))
 	})
 	t.Run("invalid contract state", func(t *testing.T) {
 		d := dao.NewSimple(storage.NewMemoryStore(), false)
 		mgmt := newManagement()
 		d.PutStorageItem(mgmt.ID, []byte{PrefixContract}, state.StorageItem{0xFF})
-		require.Error(t, mgmt.InitializeCache(0, d))
+		require.Error(t, mgmt.InitializeCache(func(hf *config.Hardfork, blockHeight uint32) bool { return false }, 0, d))
 	})
 }
 
@@ -100,7 +101,7 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 	err := mgmt.Initialize(&interop.Context{DAO: d}, nil, nil)
 	require.NoError(t, err)
 	require.NoError(t, mgmt.Policy.Initialize(&interop.Context{DAO: d}, nil, nil))
-	err = mgmt.InitializeCache(0, d)
+	err = mgmt.InitializeCache(func(hf *config.Hardfork, blockHeight uint32) bool { return false }, 0, d)
 	require.NoError(t, err)
 
 	require.Empty(t, mgmt.GetNEP17Contracts(d))

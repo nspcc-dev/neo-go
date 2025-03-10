@@ -104,7 +104,7 @@ func (g *GAS) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *intero
 }
 
 // InitializeCache implements the Contract interface.
-func (g *GAS) InitializeCache(blockHeight uint32, d *dao.Simple) error {
+func (g *GAS) InitializeCache(_ interop.IsHardforkEnabled, blockHeight uint32, d *dao.Simple) error {
 	return nil
 }
 
