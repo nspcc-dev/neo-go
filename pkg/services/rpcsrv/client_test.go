@@ -2523,3 +2523,105 @@ func TestGetBlockNotifications(t *testing.T) {
 		require.NotEmpty(t, bn)
 	})
 }
+
+func TestSessionExpansionExtension_SessionDisabled(t *testing.T) {
+	chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
+		cfg.ApplicationConfiguration.RPC.Enabled = true
+		cfg.ApplicationConfiguration.RPC.SessionEnabled = false
+		cfg.ApplicationConfiguration.RPC.SessionExpansionEnabled = true
+		cfg.ApplicationConfiguration.RPC.MaxIteratorResultItems = 5
+	})
+	t.Cleanup(rpcSrv.Shutdown)
+	t.Cleanup(httpSrv.Close)
+
+	for _, b := range getTestBlocks(t) {
+		require.NoError(t, chain.AddBlock(b))
+	}
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+	t.Cleanup(c.Close)
+
+	storageHash, err := util.Uint160DecodeStringLE(storageContractHash)
+	require.NoError(t, err)
+
+	invokeRes, err := c.InvokeFunction(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
+	require.NoError(t, err)
+	require.Equal(t, vmstate.Halt.String(), invokeRes.State)
+	require.NotEmpty(t, invokeRes.Script)
+
+	require.Len(t, invokeRes.Stack, 1)
+	stackItem := invokeRes.Stack[0]
+	require.Equal(t, stackitem.InteropT, stackItem.Type())
+
+	iterVal, ok := stackItem.Value().(result.Iterator)
+	require.True(t, ok)
+
+	require.Equal(t, len(iterVal.Values), 5)
+	require.True(t, iterVal.Truncated)
+}
+
+func TestSessionExpansionExtension_E2E2(t *testing.T) {
+	chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, func(cfg *config.Config) {
+		cfg.ApplicationConfiguration.RPC.Enabled = true
+		cfg.ApplicationConfiguration.RPC.SessionEnabled = true
+		cfg.ApplicationConfiguration.RPC.SessionExpansionEnabled = true
+		cfg.ApplicationConfiguration.RPC.MaxIteratorResultItems = 50
+	})
+	t.Cleanup(rpcSrv.Shutdown)
+	t.Cleanup(httpSrv.Close)
+
+	for _, b := range getTestBlocks(t) {
+		require.NoError(t, chain.AddBlock(b))
+	}
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	require.NoError(t, c.Init())
+	t.Cleanup(c.Close)
+
+	storageHash, err := util.Uint160DecodeStringLE(storageContractHash)
+	require.NoError(t, err)
+
+	prepareSession := func(t *testing.T) (uuid.UUID, uuid.UUID, []stackitem.Item) {
+		res, err := c.InvokeFunction(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
+		require.NoError(t, err)
+		require.NotEmpty(t, res.Session)
+		require.Equal(t, 1, len(res.Stack))
+		require.Equal(t, stackitem.InteropT, res.Stack[0].Type())
+		iterator, ok := res.Stack[0].Value().(result.Iterator)
+		require.True(t, ok)
+		require.NotEmpty(t, iterator.ID)
+		return res.Session, *iterator.ID, iterator.Values
+	}
+
+	sID, iID, leftover := prepareSession(t)
+	batchSize := 30
+	allItems := make([]stackitem.Item, 0, 256)
+	allItems = append(allItems, leftover...)
+	for {
+		batch, err := c.TraverseIterator(sID, iID, batchSize)
+		require.NoError(t, err)
+
+		if len(batch) == 0 {
+			break
+		}
+		allItems = append(allItems, batch...)
+	}
+	const storageItemsCount = 255
+	expected := make([][]byte, storageItemsCount)
+	for i := range storageItemsCount {
+		expected[i] = stackitem.NewBigInteger(big.NewInt(int64(i))).Bytes()
+	}
+	slices.SortFunc(expected, func(a, b []byte) int {
+		if len(a) != len(b) {
+			return len(a) - len(b)
+		}
+		return bytes.Compare(a, b)
+	})
+
+	for i := range len(allItems) {
+		require.Equal(t, expected[i], allItems[i].Value().([]byte), i)
+	}
+}

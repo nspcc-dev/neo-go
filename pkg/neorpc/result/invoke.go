@@ -89,6 +89,18 @@ func (r Iterator) MarshalJSON() ([]byte, error) {
 		iaux.Value = value
 		iaux.Truncated = r.Truncated
 	}
+	if len(r.Values) != 0 {
+		value := make([]json.RawMessage, len(r.Values))
+		for i := range r.Values {
+			var err error
+			value[i], err = stackitem.ToJSONWithTypes(r.Values[i])
+			if err != nil {
+				return nil, err
+			}
+		}
+		iaux.Value = value
+		iaux.Truncated = r.Truncated
+	}
 	return json.Marshal(iaux)
 }
 
@@ -110,6 +122,17 @@ func (r *Iterator) UnmarshalJSON(data []byte) error {
 		}
 		r.ID = &iID
 	} else {
+		r.Values = make([]stackitem.Item, len(iteratorAux.Value))
+		for j := range r.Values {
+			r.Values[j], err = stackitem.FromJSONWithTypes(iteratorAux.Value[j])
+			if err != nil {
+				return fmt.Errorf("failed to unmarshal iterator values: %w", err)
+			}
+		}
+		r.Truncated = iteratorAux.Truncated
+	}
+	if len(iteratorAux.Value) != 0 {
+		fmt.Println("AAAA")
 		r.Values = make([]stackitem.Item, len(iteratorAux.Value))
 		for j := range r.Values {
 			r.Values[j], err = stackitem.FromJSONWithTypes(iteratorAux.Value[j])
