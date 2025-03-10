@@ -43,6 +43,8 @@ const (
 	maxStoragePrice = 10000000
 	// maxAttributeFee is the maximum allowed value for a transaction attribute fee.
 	maxAttributeFee = 10_00000000
+	// maxMillisecondsPerBlock is the maximum allowed value (in milliseconds) for a block generation time.
+	maxMillisecondsPerBlock = 30_000
 	// maxMaxVUBIncrement the maximum value for upper increment size of blockchain
 	// height (in blocks) exceeding that a transaction should fail validation.
 	maxMaxVUBIncrement = 86400
@@ -61,6 +63,8 @@ var (
 	feePerByteKey = []byte{10}
 	// storagePriceKey is a key used to store storage price.
 	storagePriceKey = []byte{19}
+	// msPerBlockKey is a key used to store block generation time.
+	msPerBlockKey = []byte{21}
 	// maxVUBIncrementKey is a key used to store maximum ValidUntilBlock increment.
 	maxVUBIncrementKey = []byte{22}
 )
@@ -79,6 +83,7 @@ type PolicyCache struct {
 	feePerByte         int64
 	maxVerificationGas int64
 	storagePrice       uint32
+	msPerBlock         uint32
 	maxVUBIncrement    uint32
 	attributeFee       map[transaction.AttrType]uint32
 	blockedAccounts    []util.Uint160
@@ -172,6 +177,22 @@ func newPolicy(p2pSigExtensionsEnabled bool) *Policy {
 	md = newMethodAndPrice(p.setMaxValidUntilBlockIncrement, 1<<15, callflag.States, config.HFEchidna)
 	p.AddMethod(md, desc)
 
+	desc = newDescriptor("getMillisecondsPerBlock", smartcontract.IntegerType)
+	md = newMethodAndPrice(p.getMillisecondsPerBlock, 1<<15, callflag.ReadStates, config.HFEchidna)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("setMillisecondsPerBlock", smartcontract.VoidType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.setMillisecondsPerBlock, 1<<15, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	p.AddMethod(md, desc)
+
+	eDesc := newEventDescriptor("MillisecondsPerBlockChanged",
+		manifest.NewParameter("old", smartcontract.IntegerType),
+		manifest.NewParameter("new", smartcontract.IntegerType),
+	)
+	eMD := newEvent(eDesc, config.HFEchidna)
+	p.AddEvent(eMD)
+
 	return p
 }
 
@@ -208,6 +229,10 @@ func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 		maxVUBIncrement := ic.Chain.GetConfig().Genesis.MaxValidUntilBlockIncrement
 		setIntWithKey(p.ID, ic.DAO, maxVUBIncrementKey, int64(maxVUBIncrement))
 		cache.maxVUBIncrement = maxVUBIncrement
+
+		msPerBlock := ic.Chain.GetConfig().Genesis.TimePerBlock.Milliseconds()
+		setIntWithKey(p.ID, ic.DAO, msPerBlockKey, msPerBlock)
+		cache.msPerBlock = uint32(msPerBlock)
 	}
 
 	return nil
@@ -266,6 +291,7 @@ func (p *Policy) fillCacheFromDAO(cache *PolicyCache, d *dao.Simple, isHardforkE
 	var echidna = config.HFEchidna
 	if isHardforkEnabled(&echidna, blockHeight) {
 		cache.maxVUBIncrement = uint32(getIntWithKey(p.ID, d, maxVUBIncrementKey))
+		cache.msPerBlock = uint32(getIntWithKey(p.ID, d, msPerBlockKey))
 	}
 
 	return nil
@@ -513,6 +539,40 @@ func (p *Policy) setMaxValidUntilBlockIncrement(ic *interop.Context, args []stac
 	setIntWithKey(p.ID, ic.DAO, maxVUBIncrementKey, int64(value))
 	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	cache.maxVUBIncrement = value
+
+	return stackitem.Null{}
+}
+
+func (p *Policy) getMillisecondsPerBlock(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(int64(p.GetMillisecondsPerBlockInternal(ic.DAO))))
+}
+
+// GetMillisecondsPerBlockInternal returns current block generation time in milliseconds.
+func (p *Policy) GetMillisecondsPerBlockInternal(d *dao.Simple) uint32 {
+	cache := d.GetROCache(p.ID).(*PolicyCache)
+	return cache.msPerBlock
+}
+
+func (p *Policy) setMillisecondsPerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toUint32(args[0])
+	if value <= 0 || maxMillisecondsPerBlock < value {
+		panic(fmt.Errorf("MillisecondsPerBlock should be positive and not greater than %d, got %d", maxMillisecondsPerBlock, value))
+	}
+	if !p.NEO.checkCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	setIntWithKey(p.ID, ic.DAO, msPerBlockKey, int64(value))
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	old := cache.msPerBlock
+	cache.msPerBlock = value
+
+	err := ic.AddNotification(p.Hash, "MillisecondsPerBlockChanged", stackitem.NewArray([]stackitem.Item{
+		stackitem.NewBigInteger(big.NewInt(int64(old))),
+		stackitem.NewBigInteger(big.NewInt(int64(value))),
+	}))
+	if err != nil {
+		panic(err)
+	}
 
 	return stackitem.Null{}
 }

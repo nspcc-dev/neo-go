@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -21,6 +22,12 @@ type Genesis struct {
 	// Designation contract initialization. It is NeoGo extension and must be
 	// disabled on the public Neo N3 networks.
 	Roles map[noderoles.Role]keys.PublicKeys
+	// TimePerBlock is the time interval between blocks that consensus
+	// nodes work with. It must be an integer number of milliseconds. It differs
+	// from Protocol level configuration in that this value is used starting
+	// from HFEchidna to initialize MillisecondsPerBlock value of native Policy
+	// contract.
+	TimePerBlock time.Duration
 	// Transaction contains transaction script that should be deployed in the
 	// genesis block. It is NeoGo extension and must be disabled on the public
 	// Neo N3 networks.
@@ -41,6 +48,7 @@ type (
 	genesisAux struct {
 		MaxValidUntilBlockIncrement uint32                     `yaml:"MaxValidUntilBlockIncrement"`
 		Roles                       map[string]keys.PublicKeys `yaml:"Roles"`
+		TimePerBlock                time.Duration              `yaml:"TimePerBlock"`
 		Transaction                 *genesisTransactionAux     `yaml:"Transaction"`
 	}
 	// genesisTransactionAux is an auxiliary structure for GenesisTransaction YAML
@@ -65,6 +73,7 @@ func (e Genesis) MarshalYAML() (any, error) {
 		}
 	}
 	aux.MaxValidUntilBlockIncrement = e.MaxValidUntilBlockIncrement
+	aux.TimePerBlock = e.TimePerBlock
 	return aux, nil
 }
 
@@ -96,6 +105,7 @@ func (e *Genesis) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 
 	e.MaxValidUntilBlockIncrement = aux.MaxValidUntilBlockIncrement
+	e.TimePerBlock = aux.TimePerBlock
 
 	return nil
 }

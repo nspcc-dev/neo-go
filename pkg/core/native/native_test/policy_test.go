@@ -76,6 +76,36 @@ func TestPolicy_MaxVUBIncrementCache(t *testing.T) {
 	testGetSetCache(t, c, "MaxValidUntilBlockIncrement", int64(c.Chain.GetConfig().Genesis.MaxValidUntilBlockIncrement))
 }
 
+func TestPolicy_MillisecondsPerBlock(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): 3,
+		}
+	})
+	committeeInvoker := c.WithSigners(c.Committee)
+	name := "MillisecondsPerBlock"
+
+	t.Run("set, before Echidna", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "method not found: setMillisecondsPerBlock/1", "set"+name, 123)
+	})
+	t.Run("get, before Echidna", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "method not found: getMillisecondsPerBlock/0", "get"+name)
+	})
+
+	c.AddNewBlock(t) // enable Echidna.
+	testGetSet(t, c, name, c.Chain.GetConfig().Genesis.TimePerBlock.Milliseconds(), 1, 30_000)
+}
+
+func TestPolicy_MillisecondsPerBlockCache(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): 1,
+		}
+	})
+	c.AddNewBlock(t) // enable Echidna.
+	testGetSetCache(t, c, "MillisecondsPerBlock", c.Chain.GetConfig().Genesis.TimePerBlock.Milliseconds())
+}
+
 func TestPolicy_AttributeFee(t *testing.T) {
 	c := newPolicyClient(t)
 	getName := "getAttributeFee"

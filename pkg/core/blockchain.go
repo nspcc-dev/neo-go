@@ -294,6 +294,11 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		log.Info("TimePerBlock is not set or wrong, using default value",
 			zap.Duration("TimePerBlock", cfg.TimePerBlock))
 	}
+	if cfg.Genesis.TimePerBlock <= 0 {
+		cfg.Genesis.TimePerBlock = cfg.TimePerBlock
+		log.Info("Genesis TimePerBlock is not set or wrong, using default value",
+			zap.Duration("Genesis TimePerBlock", cfg.Genesis.TimePerBlock))
+	}
 	if cfg.MaxValidUntilBlockIncrement == 0 {
 		const timePerDay = 24 * time.Hour
 

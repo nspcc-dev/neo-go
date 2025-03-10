@@ -6,6 +6,7 @@ ProtocolConfiguration:
   TimePerBlock: 1s
   Genesis:
     MaxValidUntilBlockIncrement: 8640
+    TimePerBlock: 1s
   MemPoolSize: 50000
   StandbyCommittee:
   - 0337f5f45e5be5aeae4a919d0787fcb743656560949061d5b8b05509b85ffbfd53
