@@ -21,6 +21,7 @@ type (
 		MaxWebSocketClients       int           `yaml:"MaxWebSocketClients"`
 		MaxWebSocketFeeds         int           `yaml:"MaxWebSocketFeeds"`
 		SessionEnabled            bool          `yaml:"SessionEnabled"`
+		SessionExpansionEnabled   bool          `yaml:"SessionExpansionEnabled"`
 		SessionExpirationTime     int           `yaml:"SessionExpirationTime"`
 		SessionBackedByMPT        bool          `yaml:"SessionBackedByMPT"`
 		SessionPoolSize           int           `yaml:"SessionPoolSize"`

@@ -27,6 +27,13 @@ type (
 	RPC struct {
 		MaxIteratorResultItems int  `json:"maxiteratorresultitems"`
 		SessionEnabled         bool `json:"sessionenabled"`
+
+		// Below are NeoGo-specific extensions to the rpc that are
+		// returned by the server in case they're enabled.
+
+		// SessionExpansionEnabled is true if the server supports
+		// iterator expansion for up to MaxIteratorResultItems.
+		SessionExpansionEnabled bool `json:"sessionexpansionenabled"`
 	}
 
 	// Protocol represents network-dependent parameters.

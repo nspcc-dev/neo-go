@@ -46,6 +46,25 @@ func ValuesTruncated(item stackitem.Item, maxNum int) ([]stackitem.Item, bool) {
 	return result, arr.Next()
 }
 
+func PartialExpand(item stackitem.Item, maxNum int) ([]stackitem.Item, bool, stackitem.Item) {
+	arr, ok := item.Value().(iterator)
+	if !ok {
+		return nil, false, nil
+	}
+	var result []stackitem.Item
+	for range maxNum {
+		if !arr.Next() {
+			return result, false, nil
+		}
+		result = append(result, arr.Value())
+	}
+	if arr.Next() {
+		leftover := arr.Value()
+		return result, true, leftover
+	}
+	return result, false, nil
+}
+
 // Values returns an array of up to `maxNum` iterator values. The provided
 // iterator can safely be reused to retrieve the rest of its values in the
 // subsequent calls to Values and to ValuesTruncated.
