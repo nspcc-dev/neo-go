@@ -43,6 +43,10 @@ const (
 	maxStoragePrice = 10000000
 	// maxAttributeFee is the maximum allowed value for a transaction attribute fee.
 	maxAttributeFee = 10_00000000
+	// minBlockGenTime is the minimum allowed value (in milliseconds) for a block generation time.
+	minBlockGetTime = 50
+	// maxBlockGenTime is the maximum allowed value (in milliseconds) for a block generation time.
+	maxBlockGenTime = 15_000 // TODO: need to decide about bounds, I'd suggest from 0 to 20_000.
 
 	// blockedAccountPrefix is a prefix used to store blocked account.
 	blockedAccountPrefix = 15
@@ -58,6 +62,8 @@ var (
 	feePerByteKey = []byte{10}
 	// storagePriceKey is a key used to store storage price.
 	storagePriceKey = []byte{19}
+	// blockGenTimeKey is a key used to store block generation time.
+	blockGenTimeKey = []byte{21}
 )
 
 // Policy represents Policy native contract.
@@ -74,6 +80,7 @@ type PolicyCache struct {
 	feePerByte         int64
 	maxVerificationGas int64
 	storagePrice       uint32
+	blockGenTime       uint32
 	attributeFee       map[transaction.AttrType]uint32
 	blockedAccounts    []util.Uint160
 }
@@ -157,6 +164,22 @@ func newPolicy(p2pSigExtensionsEnabled bool) *Policy {
 	md = newMethodAndPrice(p.unblockAccount, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
+	desc = newDescriptor("getBlockGenTime", smartcontract.IntegerType)
+	md = newMethodAndPrice(p.getBlockGenTime, 1<<15, callflag.ReadStates, config.HFEchidna)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("setBlockGenTime", smartcontract.VoidType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.setBlockGenTime, 1<<15, callflag.States, config.HFEchidna)
+	p.AddMethod(md, desc)
+
+	eDesc := newEventDescriptor("BlockGenTimeChanged",
+		manifest.NewParameter("old", smartcontract.IntegerType),
+		manifest.NewParameter("new", smartcontract.IntegerType),
+	)
+	eMD := newEvent(eDesc, config.HFEchidna)
+	p.AddEvent(eMD)
+
 	return p
 }
 
@@ -167,34 +190,39 @@ func (p *Policy) Metadata() *interop.ContractMD {
 
 // Initialize initializes Policy native contract and implements the Contract interface.
 func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
-	if hf != p.ActiveIn() {
-		return nil
+	if hf == p.ActiveIn() {
+		setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte)
+		setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor)
+		setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice)
+
+		cache := &PolicyCache{
+			execFeeFactor:      defaultExecFeeFactor,
+			feePerByte:         defaultFeePerByte,
+			maxVerificationGas: defaultMaxVerificationGas,
+			storagePrice:       DefaultStoragePrice,
+			attributeFee:       map[transaction.AttrType]uint32{},
+			blockedAccounts:    make([]util.Uint160, 0),
+		}
+		if p.p2pSigExtensionsEnabled {
+			setIntWithKey(p.ID, ic.DAO, []byte{attributeFeePrefix, byte(transaction.NotaryAssistedT)}, defaultNotaryAssistedFee)
+			cache.attributeFee[transaction.NotaryAssistedT] = defaultNotaryAssistedFee
+		}
+		ic.DAO.SetCache(p.ID, cache)
 	}
 
-	setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte)
-	setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor)
-	setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice)
-
-	cache := &PolicyCache{
-		execFeeFactor:      defaultExecFeeFactor,
-		feePerByte:         defaultFeePerByte,
-		maxVerificationGas: defaultMaxVerificationGas,
-		storagePrice:       DefaultStoragePrice,
-		attributeFee:       map[transaction.AttrType]uint32{},
-		blockedAccounts:    make([]util.Uint160, 0),
+	if hf != nil && *hf == config.HFEchidna {
+		msPerBlock := ic.Chain.GetConfig().Genesis.DefaultTimePerBlock.Milliseconds()
+		setIntWithKey(p.ID, ic.DAO, blockGenTimeKey, msPerBlock)
+		cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+		cache.blockGenTime = uint32(msPerBlock)
 	}
-	if p.p2pSigExtensionsEnabled {
-		setIntWithKey(p.ID, ic.DAO, []byte{attributeFeePrefix, byte(transaction.NotaryAssistedT)}, defaultNotaryAssistedFee)
-		cache.attributeFee[transaction.NotaryAssistedT] = defaultNotaryAssistedFee
-	}
-	ic.DAO.SetCache(p.ID, cache)
 
 	return nil
 }
 
-func (p *Policy) InitializeCache(blockHeight uint32, d *dao.Simple) error {
+func (p *Policy) InitializeCache(isHardforkEnabled interop.IsHardforkEnabled, blockHeight uint32, d *dao.Simple) error {
 	cache := &PolicyCache{}
-	err := p.fillCacheFromDAO(cache, d)
+	err := p.fillCacheFromDAO(isHardforkEnabled, blockHeight, cache, d)
 	if err != nil {
 		return err
 	}
@@ -202,7 +230,7 @@ func (p *Policy) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	return nil
 }
 
-func (p *Policy) fillCacheFromDAO(cache *PolicyCache, d *dao.Simple) error {
+func (p *Policy) fillCacheFromDAO(isHardforkEnabled interop.IsHardforkEnabled, blockHeight uint32, cache *PolicyCache, d *dao.Simple) error {
 	cache.execFeeFactor = uint32(getIntWithKey(p.ID, d, execFeeFactorKey))
 	cache.feePerByte = getIntWithKey(p.ID, d, feePerByteKey)
 	cache.maxVerificationGas = defaultMaxVerificationGas
@@ -241,6 +269,12 @@ func (p *Policy) fillCacheFromDAO(cache *PolicyCache, d *dao.Simple) error {
 	if fErr != nil {
 		return fmt.Errorf("failed to initialize attribute fees: %w", fErr)
 	}
+
+	var echidna = config.HFEchidna
+	if isHardforkEnabled(&echidna, blockHeight) {
+		cache.blockGenTime = uint32(getIntWithKey(p.ID, d, blockGenTimeKey))
+	}
+
 	return nil
 }
 
@@ -452,6 +486,30 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	cache.blockedAccounts = append(cache.blockedAccounts[:i], cache.blockedAccounts[i+1:]...)
 	return stackitem.NewBool(true)
+}
+
+func (p *Policy) getBlockGenTime(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(p.GetBlockGenTimeInternal(ic.DAO)))
+}
+
+// GetBlockGenTimeInternal returns current block generation time in milliseconds.
+func (p *Policy) GetBlockGenTimeInternal(d *dao.Simple) int64 {
+	cache := d.GetROCache(p.ID).(*PolicyCache)
+	return int64(cache.blockGenTime)
+}
+
+func (p *Policy) setBlockGenTime(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toUint32(args[0])
+	if value < minBlockGetTime || maxBlockGenTime < value {
+		panic(fmt.Errorf("BlockGenTime must be between %d and %d", minBlockGetTime, maxBlockGenTime))
+	}
+	if !p.NEO.checkCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	setIntWithKey(p.ID, ic.DAO, blockGenTimeKey, int64(value))
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	cache.blockGenTime = value
+	return stackitem.Null{}
 }
 
 // CheckPolicy checks whether a transaction conforms to the current policy restrictions,

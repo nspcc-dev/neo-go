@@ -163,7 +163,7 @@ func (s *Designate) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *
 
 // InitializeCache fills native Designate cache from DAO. It is called at non-zero height, thus
 // we can fetch the roles data right from the storage.
-func (s *Designate) InitializeCache(blockHeight uint32, d *dao.Simple) error {
+func (s *Designate) InitializeCache(_ interop.IsHardforkEnabled, blockHeight uint32, d *dao.Simple) error {
 	cache := &DesignationCache{}
 	roles := []noderoles.Role{noderoles.Oracle, noderoles.NeoFSAlphabet, noderoles.StateValidator, noderoles.P2PNotary}
 	for _, r := range roles {
