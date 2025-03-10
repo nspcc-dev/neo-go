@@ -293,6 +293,11 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		log.Info("TimePerBlock is not set or wrong, using default value",
 			zap.Duration("TimePerBlock", cfg.TimePerBlock))
 	}
+	if cfg.Genesis.DefaultTimePerBlock <= 0 {
+		cfg.Genesis.DefaultTimePerBlock = defaultTimePerBlock
+		log.Info("Genesis DefaultTimePerBlock is not set or wrong, using default value",
+			zap.Duration("DefaultTimePerBlock", cfg.Genesis.DefaultTimePerBlock))
+	}
 	if cfg.MaxValidUntilBlockIncrement == 0 {
 		const timePerDay = 24 * time.Hour
 
@@ -1109,7 +1114,7 @@ func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) e
 		if !bc.isHardforkEnabled(c.ActiveIn(), blockHeight) {
 			continue
 		}
-		err := c.InitializeCache(blockHeight, d)
+		err := c.InitializeCache(bc.isHardforkEnabled, blockHeight, d)
 		if err != nil {
 			return fmt.Errorf("failed to initialize cache for %s: %w", c.Metadata().Name, err)
 		}

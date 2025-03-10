@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -43,6 +44,36 @@ func TestPolicy_StoragePrice(t *testing.T) {
 
 func TestPolicy_StoragePriceCache(t *testing.T) {
 	testGetSetCache(t, newPolicyClient(t), "StoragePrice", native.DefaultStoragePrice)
+}
+
+func TestPolicy_MSPerBlock(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): 3,
+		}
+	})
+	committeeInvoker := c.WithSigners(c.Committee)
+	name := "MSPerBlock"
+
+	t.Run("set, before Echidna", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "method not found: setMSPerBlock/1", "set"+name, 123)
+	})
+	t.Run("get, before Echidna", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "method not found: getMSPerBlock/0", "get"+name)
+	})
+
+	c.AddNewBlock(t) // enable Echidna.
+	testGetSet(t, c, name, 15_000, 1, 30_000)
+}
+
+func TestPolicy_MSPerBlockCache(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): 1,
+		}
+	})
+	c.AddNewBlock(t) // enable Echidna.
+	testGetSetCache(t, c, "MSPerBlock", 15_000)
 }
 
 func TestPolicy_AttributeFee(t *testing.T) {
