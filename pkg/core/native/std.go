@@ -471,7 +471,7 @@ func (s *Std) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *intero
 }
 
 // InitializeCache implements the Contract interface.
-func (s *Std) InitializeCache(blockHeight uint32, d *dao.Simple) error {
+func (s *Std) InitializeCache(_ interop.IsHardforkEnabled, blockHeight uint32, d *dao.Simple) error {
 	return nil
 }
 

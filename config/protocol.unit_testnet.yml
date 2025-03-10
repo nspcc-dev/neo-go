@@ -2,6 +2,8 @@ ProtocolConfiguration:
   Magic: 42
   MaxTraceableBlocks: 200000
   TimePerBlock: 15s
+  Genesis:
+    TimePerBlock: 15s
   MemPoolSize: 50000
   StandbyCommittee:
     - 02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2
