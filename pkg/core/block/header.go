@@ -99,6 +99,16 @@ func (b *Header) Hash() util.Uint256 {
 	return b.hash
 }
 
+// SetHash updates Header hash. This method directly modifies Header's hash
+// without any respect to the Header's content. The resulting hash is being
+// cached, hence subsequent calls to Hash will return exactly the same value
+// without an attempt to serialize Header. This method is designated for
+// `invokecontainedscript` RPC API users only and MUST NOT be used for other
+// purposes.
+func (b *Header) SetHash(hash util.Uint256) {
+	b.hash = hash
+}
+
 // DecodeBinary implements the [io.Serializable] interface. Notice that it
 // also automatically updates the internal hash cache, see [Header.Hash].
 func (b *Header) DecodeBinary(br *io.BinReader) {
@@ -194,27 +204,50 @@ func (b Header) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (b *Header) UnmarshalJSON(data []byte) error {
+	h, stateRootFilled, err := b.UnmarshalJSONUnsafe(data)
+	if err != nil {
+		return err
+	}
+	if b.StateRootEnabled {
+		if !stateRootFilled {
+			return errors.New("'previousstateroot' is empty")
+		}
+	} else {
+		b.PrevStateRoot = util.Uint256{}
+	}
+	if !h.Equals(b.Hash()) {
+		return errors.New("json 'hash' doesn't match block hash")
+	}
+	return nil
+}
+
+// UnmarshalJSONUnsafe unmarshalls the given slice into Header. It does NOT
+// perform any validity checks and return the declared block hash and stateroot
+// presence marker or an error if so. This method is designated for
+// `invokecontainedscript` RPC API users only and MUST NOT be used for Header
+// unmarshalling in normal usage scenarios.
+func (b *Header) UnmarshalJSONUnsafe(data []byte) (util.Uint256, bool, error) {
 	var aux = new(baseAux)
 	var nextC util.Uint160
 
 	err := json.Unmarshal(data, aux)
 	if err != nil {
-		return err
+		return util.Uint256{}, false, err
 	}
 
 	var nonce uint64
 	if len(aux.Nonce) != 0 {
 		nonce, err = strconv.ParseUint(aux.Nonce, 16, 64)
 		if err != nil {
-			return err
+			return util.Uint256{}, false, err
 		}
 	}
 	nextC, err = address.StringToUint160(aux.NextConsensus)
 	if err != nil {
-		return err
+		return util.Uint256{}, false, err
 	}
 	if len(aux.Witnesses) != 1 {
-		return errors.New("wrong number of witnesses")
+		return util.Uint256{}, false, errors.New("wrong number of witnesses")
 	}
 	b.Version = aux.Version
 	b.PrevHash = aux.PrevHash
@@ -225,16 +258,11 @@ func (b *Header) UnmarshalJSON(data []byte) error {
 	b.PrimaryIndex = aux.PrimaryIndex
 	b.NextConsensus = nextC
 	b.Script = aux.Witnesses[0]
-	if b.StateRootEnabled {
-		if aux.PrevStateRoot == nil {
-			return errors.New("'previousstateroot' is empty")
-		}
+	if aux.PrevStateRoot != nil {
 		b.PrevStateRoot = *aux.PrevStateRoot
 	}
-	if !aux.Hash.Equals(b.Hash()) {
-		return errors.New("json 'hash' doesn't match block hash")
-	}
-	return nil
+
+	return aux.Hash, aux.PrevStateRoot != nil, nil
 }
 
 // GetExpectedHeaderSize returns the expected Header size with the given number of validators.

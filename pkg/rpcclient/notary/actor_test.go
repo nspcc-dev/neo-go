@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -45,6 +46,9 @@ func (r *RPCClient) InvokeFunction(contract util.Uint160, operation string, para
 	return r.invRes, r.err
 }
 func (r *RPCClient) InvokeScript(script []byte, signers []transaction.Signer) (*result.Invoke, error) {
+	return r.invRes, r.err
+}
+func (r *RPCClient) InvokeContainedScript(tx *transaction.Transaction, header *block.Header, t *trigger.Type, verbose *bool) (*result.Invoke, error) {
 	return r.invRes, r.err
 }
 func (r *RPCClient) CalculateNetworkFee(tx *transaction.Transaction) (int64, error) {

@@ -5,9 +5,11 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/stretchr/testify/require"
@@ -27,6 +29,9 @@ func (r *rpcInv) InvokeFunction(contract util.Uint160, operation string, params 
 	return r.resInv, r.err
 }
 func (r *rpcInv) InvokeScript(script []byte, signers []transaction.Signer) (*result.Invoke, error) {
+	return r.resInv, r.err
+}
+func (r *rpcInv) InvokeContainedScript(tx *transaction.Transaction, header *block.Header, t *trigger.Type, verbose *bool) (*result.Invoke, error) {
 	return r.resInv, r.err
 }
 func (r *rpcInv) InvokeContractVerifyAtHeight(height uint32, contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error) {

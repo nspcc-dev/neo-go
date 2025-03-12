@@ -117,6 +117,17 @@ func (t *Transaction) Hash() util.Uint256 {
 	return t.hash
 }
 
+// SetHash updates Transaction hash. This method directly modifies Transaction's
+// hash without any respect to the Transaction's content. The resulting hash is
+// being cached, hence subsequent calls to Hash will return exactly the same
+// value without an attempt to serialize Transaction. This method is designated
+// for `invokecontainedscript` RPC API users only and MUST NOT be used for other
+// purposes.
+func (t *Transaction) SetHash(hash util.Uint256) {
+	t.hashed = true
+	t.hash = hash
+}
+
 // HasAttribute returns true iff t has an attribute of type typ.
 func (t *Transaction) HasAttribute(typ AttrType) bool {
 	for i := range t.Attributes {
@@ -334,6 +345,15 @@ func (t *Transaction) Size() int {
 	return t.size
 }
 
+// SetSize updates Transaction size. This method directly modifies Transaction's
+// size without any respect to the Transaction's content. The resulting size (if
+// non-zero) is being cached, hence subsequent calls to Size will return exactly
+// the same value without an attempt to serialize Transaction. This method is
+// designated for RPC server use only and MUST NOT be used for other purposes.
+func (t *Transaction) SetSize(size int) {
+	t.size = size
+}
+
 // Sender returns the sender of the transaction which is always on the first place
 // in the transaction's signers list.
 func (t *Transaction) Sender() util.Uint160 {
@@ -381,9 +401,29 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (t *Transaction) UnmarshalJSON(data []byte) error {
+	h, size, err := t.UnmarshalJSONUnsafe(data)
+	if err != nil {
+		return err
+	}
+	if t.Hash() != h {
+		return errors.New("txid doesn't match transaction hash")
+	}
+	if t.Size() != size {
+		return errors.New("'size' doesn't match transaction size")
+	}
+
+	return t.isValid()
+}
+
+// UnmarshalJSONUnsafe unmarshalls the given slice into Transaction. It does NOT
+// perform any validity checks and return the declared transaction hash and size
+// or an error if so. This method is designated for `invokecontainedscript` RPC
+// API users only and MUST NOT be used for Transaction unmarshalling in normal
+// usage scenarios.
+func (t *Transaction) UnmarshalJSONUnsafe(data []byte) (util.Uint256, int, error) {
 	tx := new(transactionJSON)
 	if err := json.Unmarshal(data, tx); err != nil {
-		return err
+		return util.Uint256{}, 0, err
 	}
 	t.Version = tx.Version
 	t.Nonce = tx.Nonce
@@ -394,14 +434,8 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	t.SystemFee = tx.SystemFee
 	t.NetworkFee = tx.NetworkFee
 	t.Script = tx.Script
-	if t.Hash() != tx.TxID {
-		return errors.New("txid doesn't match transaction hash")
-	}
-	if t.Size() != tx.Size {
-		return errors.New("'size' doesn't match transaction size")
-	}
 
-	return t.isValid()
+	return tx.TxID, tx.Size, nil
 }
 
 // Various errors for transaction validation.
