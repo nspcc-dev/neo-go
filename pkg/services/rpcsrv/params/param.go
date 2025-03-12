@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc"
@@ -48,6 +49,7 @@ var (
 	jsonFalseBytes      = []byte("false")
 	jsonTrueBytes       = []byte("true")
 	errMissingParameter = errors.New("parameter is missing")
+	errNullParameter    = errors.New("parameter is null")
 	errNotAString       = errors.New("not a string")
 	errNotAnInt         = errors.New("not an integer")
 	errNotABool         = errors.New("not a boolean")
@@ -467,4 +469,41 @@ func (p *Param) GetUUID() (uuid.UUID, error) {
 		return uuid.UUID{}, fmt.Errorf("not a valid UUID: %w", err)
 	}
 	return id, nil
+}
+
+// GetFakeTx returns [transaction.Transaction] from parameter. The resulting
+// transaction has overridden hash and size fields (if specified).
+func (p *Param) GetFakeTx() (*transaction.Transaction, error) {
+	if p == nil {
+		return nil, errMissingParameter
+	}
+	if p.IsNull() {
+		return nil, errNullParameter
+	}
+	var tx = new(transaction.Transaction)
+	err := tx.UnmarshalJSONUnsafe(p.RawMessage) // this field is accessed only once, hence doesn't need to be cached.
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal fake transaction: %w", err)
+	}
+
+	return tx, nil
+}
+
+// GetFakeHeader returns [block.Header] from parameter. The resulting header
+// always has StateRoot filled irrespectively of StateRootEnabled setting
+// (if provided).
+func (p *Param) GetFakeHeader() (*block.Header, error) {
+	if p == nil {
+		return nil, errMissingParameter
+	}
+	if p.IsNull() {
+		return nil, errNullParameter
+	}
+	var b = new(block.Header)
+	err := b.UnmarshalJSON(p.RawMessage) // this field is accessed only once, hence doesn't need to be cached.
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal fake header: %w", err)
+	}
+
+	return b, nil
 }

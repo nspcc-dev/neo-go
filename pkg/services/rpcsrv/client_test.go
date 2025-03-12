@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/fee"
+	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -2700,4 +2701,106 @@ func TestClient_SessionExpasionExtension(t *testing.T) {
 		}
 		require.Equal(t, storageItemsCount, idx)
 	})
+}
+
+func TestClient_InvokeContainedScript(t *testing.T) {
+	chain, _, httpSrv := initServerWithInMemoryChain(t)
+
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	t.Cleanup(c.Close)
+
+	var (
+		trig    = trigger.Application
+		verbose = true
+		h       = &block.Header{
+			Version:       1,
+			PrevHash:      util.Uint256{1, 2, 3},
+			MerkleRoot:    util.Uint256{3, 2, 1},
+			Timestamp:     2,
+			Nonce:         3,
+			Index:         4,
+			NextConsensus: util.Uint160{4, 5, 6},
+			PrimaryIndex:  5,
+		}
+		txH    = util.Uint256{9, 8, 7}
+		txSize = 123
+	)
+	tx := transaction.NewFakeTX([]byte{1, 2, 3}, transaction.Signer{
+		Account: util.Uint160{1, 2, 3},
+		Scopes:  transaction.CalledByEntry,
+	}, txH, txSize)
+	tx.Version = 1
+	tx.Nonce = 2
+	tx.SystemFee = 3
+	tx.NetworkFee = 4
+	tx.ValidUntilBlock = 5
+
+	type testCase struct {
+		name     string
+		script   []byte
+		expected any
+	}
+	var (
+		testCases []testCase
+		src       = io.NewBufBinWriter()
+	)
+
+	emit.AppCall(src.BinWriter, nativehashes.LedgerContract, "currentIndex", callflag.All)
+	testCases = append(testCases, testCase{
+		name:     "Ledger.currentIndex",
+		script:   slices.Clone(src.Bytes()),
+		expected: h.Index - 1, // index of persisted block.
+	})
+
+	src.Reset()
+	emit.AppCall(src.BinWriter, nativehashes.LedgerContract, "currentHash", callflag.All)
+	testCases = append(testCases, testCase{
+		name:     "Ledger.currentHash",
+		script:   slices.Clone(src.Bytes()),
+		expected: chain.GetHeaderHash(h.Index - 1), // hash of persisted block.
+	})
+
+	src.Reset()
+	emit.Syscall(src.BinWriter, interopnames.SystemRuntimeGetTrigger)
+	testCases = append(testCases, testCase{
+		name:     interopnames.SystemRuntimeGetTrigger,
+		script:   slices.Clone(src.Bytes()),
+		expected: trig,
+	})
+
+	src.Reset()
+	emit.Syscall(src.BinWriter, interopnames.SystemRuntimeGetTime)
+	testCases = append(testCases, testCase{
+		name:     interopnames.SystemRuntimeGetTime,
+		script:   slices.Clone(src.Bytes()),
+		expected: h.Timestamp,
+	})
+
+	src.Reset()
+	emit.Syscall(src.BinWriter, interopnames.SystemRuntimeGetScriptContainer)
+	s := slices.Clone(src.Bytes())
+	testCases = append(testCases, testCase{
+		name:   interopnames.SystemRuntimeGetScriptContainer,
+		script: s,
+		expected: stackitem.NewArray([]stackitem.Item{
+			stackitem.Make(txH),
+			stackitem.Make(tx.Version),
+			stackitem.Make(tx.Nonce),
+			stackitem.Make(tx.Sender()),
+			stackitem.Make(tx.SystemFee),
+			stackitem.Make(tx.NetworkFee),
+			stackitem.Make(tx.ValidUntilBlock),
+			stackitem.Make(s),
+		}),
+	})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tx.Script = tc.script
+			res, err := c.InvokeContainedScript(tx, h, &trig, &verbose)
+			require.NoError(t, err)
+			require.Equal(t, stackitem.Make(tc.expected), res.Stack[0])
+		})
+	}
 }

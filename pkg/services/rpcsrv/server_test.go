@@ -1924,6 +1924,26 @@ var rpcTestCases = map[string][]rpcTestCase{
 			errCode: neorpc.InvalidParamsCode,
 		},
 	},
+	"invokecontainedscript": {
+		{
+			name:    "no params",
+			params:  `[]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "null tx",
+			params:  `[null]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+		{
+			name:    "invalid tx",
+			params:  `["notatx"]`,
+			fail:    true,
+			errCode: neorpc.InvalidParamsCode,
+		},
+	},
 	"invokecontractverify": {
 		{
 			name:   "positive",
@@ -3518,6 +3538,101 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			runTestCasesWithExecutor(t, e, rpc, method, cases, doRPCCall, checkErrGetResult)
 		}
 	})
+	t.Run("invokecontainedscript", func(t *testing.T) {
+		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "invokecontainedscript", "params": [%s]}`
+		tx := &transaction.Transaction{
+			Version:         1,
+			Nonce:           2,
+			SystemFee:       3,
+			NetworkFee:      4,
+			ValidUntilBlock: 5,
+			Script:          []byte{byte(opcode.PUSH1)},
+			Signers: []transaction.Signer{
+				{
+					Account: util.Uint160{1, 2, 3},
+					Scopes:  transaction.CalledByEntry,
+				},
+			},
+		}
+		txStr := encodeBinaryToJSON(t, tx)
+		h := &block.Header{
+			Version:       1,
+			PrevHash:      util.Uint256{1, 2, 3},
+			MerkleRoot:    util.Uint256{3, 2, 1},
+			Timestamp:     2,
+			Nonce:         3,
+			Index:         4,
+			NextConsensus: util.Uint160{4, 5, 6},
+			PrimaryIndex:  5,
+		}
+		hStr := encodeBinaryToJSON(t, h)
+		t.Run("empty tx script", func(t *testing.T) {
+			tx := &transaction.Transaction{
+				Signers: []transaction.Signer{{Account: util.Uint160{1, 2, 3}}},
+			}
+			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToJSON(t, tx)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode)
+		})
+		t.Run("invalid header", func(t *testing.T) {
+			body := doRPCCall(fmt.Sprintf(rpc, fmt.Sprintf(`%s, %s`, txStr, txStr)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode)
+		})
+		t.Run("invalid trigger parameter", func(t *testing.T) {
+			body := doRPCCall(fmt.Sprintf(rpc, fmt.Sprintf(`%s, %s, null`, txStr, hStr)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode)
+		})
+		t.Run("invalid trigger", func(t *testing.T) {
+			body := doRPCCall(fmt.Sprintf(rpc, fmt.Sprintf(`%s, %s, 123`, txStr, hStr)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode)
+		})
+		t.Run("unsupported trigger", func(t *testing.T) {
+			body := doRPCCall(fmt.Sprintf(rpc, fmt.Sprintf(`%s, %s, "%s"`, txStr, hStr, trigger.OnPersist)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode)
+		})
+		t.Run("invalid verbose", func(t *testing.T) {
+			body := doRPCCall(fmt.Sprintf(rpc, fmt.Sprintf(`%s, %s, "%s", null`, txStr, hStr, trigger.Application)), httpSrv.URL, t)
+			checkErrGetResult(t, body, true, neorpc.InvalidParamsCode)
+		})
+		t.Run("good, tx", func(t *testing.T) {
+			body := doRPCCall(fmt.Sprintf(rpc, txStr), httpSrv.URL, t)
+			data := checkErrGetResult(t, body, false, 0)
+			var res = new(result.Invoke)
+			require.NoError(t, json.Unmarshal(data, res))
+			require.Equal(t, &result.Invoke{
+				State:         vmstate.Halt.String(),
+				GasConsumed:   30,
+				Script:        []byte{byte(opcode.PUSH1)},
+				Stack:         []stackitem.Item{stackitem.Make(1)},
+				Notifications: []state.NotificationEvent{},
+			}, res)
+		})
+		t.Run("good, tx and block", func(t *testing.T) {
+			body := doRPCCall(fmt.Sprintf(rpc, fmt.Sprintf(`%s, %s`, txStr, hStr)), httpSrv.URL, t)
+			data := checkErrGetResult(t, body, false, 0)
+			var res = new(result.Invoke)
+			require.NoError(t, json.Unmarshal(data, res))
+			require.Equal(t, &result.Invoke{
+				State:         vmstate.Halt.String(),
+				GasConsumed:   30,
+				Script:        []byte{byte(opcode.PUSH1)},
+				Stack:         []stackitem.Item{stackitem.Make(1)},
+				Notifications: []state.NotificationEvent{},
+			}, res)
+		})
+		t.Run("good, all args", func(t *testing.T) {
+			body := doRPCCall(fmt.Sprintf(rpc, fmt.Sprintf(`%s, %s, "%s"`, txStr, hStr, trigger.Application)), httpSrv.URL, t)
+			data := checkErrGetResult(t, body, false, 0)
+			var res = new(result.Invoke)
+			require.NoError(t, json.Unmarshal(data, res))
+			require.Equal(t, &result.Invoke{
+				State:         vmstate.Halt.String(),
+				GasConsumed:   30,
+				Script:        []byte{byte(opcode.PUSH1)},
+				Stack:         []stackitem.Item{stackitem.Make(1)},
+				Notifications: []state.NotificationEvent{},
+			}, res)
+		})
+	})
 }
 
 func (e *executor) getHeader(s string) *block.Header {
@@ -3536,6 +3651,12 @@ func encodeBinaryToString(t *testing.T, a io.Serializable) string {
 	bytes, err := testserdes.EncodeBinary(a)
 	require.NoError(t, err)
 	return base64.StdEncoding.EncodeToString(bytes)
+}
+
+func encodeBinaryToJSON(t *testing.T, a json.Marshaler) string {
+	b, err := json.Marshal(a)
+	require.NoError(t, err)
+	return string(b)
 }
 
 func newTxWithParams(t *testing.T, chain *core.Blockchain, code opcode.Opcode, validUntilIncr uint32, systemFee int64,

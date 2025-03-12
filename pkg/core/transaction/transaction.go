@@ -89,6 +89,19 @@ func NewTrimmedTX(hash util.Uint256) *Transaction {
 	}
 }
 
+// NewFakeTX returns a transaction with specified script and sender (these
+// parameters are mandatory). If hash/size is non-empty, then its value will be
+// cached and won't change on further transaction modification.
+func NewFakeTX(script []byte, sender Signer, hash util.Uint256, size int) *Transaction {
+	return &Transaction{
+		hash:    hash,
+		hashed:  !hash.Equals(util.Uint256{}),
+		Script:  script,
+		size:    size,
+		Signers: []Signer{sender},
+	}
+}
+
 // New returns a new transaction to execute given script and pay given system
 // fee.
 func New(script []byte, gas int64) *Transaction {
@@ -381,9 +394,46 @@ func (t *Transaction) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (t *Transaction) UnmarshalJSON(data []byte) error {
+	h, size, err := t.unmarshalJSONUnchecked(data)
+	if err != nil {
+		return err
+	}
+	if t.Hash() != h {
+		return errors.New("txid doesn't match transaction hash")
+	}
+	if t.Size() != size {
+		return errors.New("'size' doesn't match transaction size")
+	}
+
+	return t.isValid()
+}
+
+// UnmarshalJSONUnsafe unmarshalls the given slice into Transaction. It does NOT
+// perform any validity checks and directly sets declared transaction hash and
+// size. This method is designated for `invokecontainedscript` RPC API users
+// only and MUST NOT be used for Transaction unmarshalling in normal usage
+// scenarios.
+func (t *Transaction) UnmarshalJSONUnsafe(data []byte) error {
+	h, s, err := t.unmarshalJSONUnchecked(data)
+	if err != nil {
+		return err
+	}
+
+	t.hash = h
+	t.hashed = true
+	t.size = s
+	return nil
+}
+
+// unmarshalJSONUnchecked unmarshalls the given slice into Transaction. It does NOT
+// perform any validity checks and return the declared transaction hash and size
+// or an error if so. This method is designated for `invokecontainedscript` RPC
+// API users only and MUST NOT be used for Transaction unmarshalling in normal
+// usage scenarios.
+func (t *Transaction) unmarshalJSONUnchecked(data []byte) (util.Uint256, int, error) {
 	tx := new(transactionJSON)
 	if err := json.Unmarshal(data, tx); err != nil {
-		return err
+		return util.Uint256{}, 0, err
 	}
 	t.Version = tx.Version
 	t.Nonce = tx.Nonce
@@ -394,14 +444,8 @@ func (t *Transaction) UnmarshalJSON(data []byte) error {
 	t.SystemFee = tx.SystemFee
 	t.NetworkFee = tx.NetworkFee
 	t.Script = tx.Script
-	if t.Hash() != tx.TxID {
-		return errors.New("txid doesn't match transaction hash")
-	}
-	if t.Size() != tx.Size {
-		return errors.New("'size' doesn't match transaction size")
-	}
 
-	return t.isValid()
+	return tx.TxID, tx.Size, nil
 }
 
 // Various errors for transaction validation.

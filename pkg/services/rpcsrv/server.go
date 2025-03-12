@@ -78,6 +78,7 @@ type (
 		GetContractScriptHash(id int32) (util.Uint160, error)
 		GetContractState(hash util.Uint160) *state.Contract
 		GetEnrollments() ([]state.Validator, error)
+		GetFakeNextBlock(nextBlockHeight uint32) (*block.Block, error)
 		GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32)
 		GetHeader(hash util.Uint256) (*block.Header, error)
 		GetHeaderHash(uint32) util.Uint256
@@ -255,6 +256,7 @@ var rpcHandlers = map[string]func(*Server, params.Params) (any, *neorpc.Error){
 	"invokefunctionhistoric":       (*Server).invokeFunctionHistoric,
 	"invokescript":                 (*Server).invokescript,
 	"invokescripthistoric":         (*Server).invokescripthistoric,
+	"invokecontainedscript":        (*Server).invokeContainedScript,
 	"invokecontractverify":         (*Server).invokeContractVerify,
 	"invokecontractverifyhistoric": (*Server).invokeContractVerifyHistoric,
 	"sendrawtransaction":           (*Server).sendrawtransaction,
@@ -2155,7 +2157,7 @@ func (s *Server) invokeFunction(reqParams params.Params) (any, *neorpc.Error) {
 	if respErr != nil {
 		return nil, respErr
 	}
-	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, nil, verbose)
+	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, nil, nil, verbose)
 }
 
 // invokeFunctionHistoric implements the `invokeFunctionHistoric` RPC call.
@@ -2171,7 +2173,7 @@ func (s *Server) invokeFunctionHistoric(reqParams params.Params) (any, *neorpc.E
 	if respErr != nil {
 		return nil, respErr
 	}
-	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, &nextH, verbose)
+	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, nil, &nextH, verbose)
 }
 
 func (s *Server) getInvokeFunctionParams(reqParams params.Params) (*transaction.Transaction, bool, *neorpc.Error) {
@@ -2222,7 +2224,7 @@ func (s *Server) invokescript(reqParams params.Params) (any, *neorpc.Error) {
 	if respErr != nil {
 		return nil, respErr
 	}
-	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, nil, verbose)
+	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, nil, nil, verbose)
 }
 
 // invokescripthistoric implements the `invokescripthistoric` RPC call.
@@ -2238,7 +2240,7 @@ func (s *Server) invokescripthistoric(reqParams params.Params) (any, *neorpc.Err
 	if respErr != nil {
 		return nil, respErr
 	}
-	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, &nextH, verbose)
+	return s.runScriptInVM(trigger.Application, tx.Script, util.Uint160{}, tx, nil, &nextH, verbose)
 }
 
 func (s *Server) getInvokeScriptParams(reqParams params.Params) (*transaction.Transaction, bool, *neorpc.Error) {
@@ -2270,13 +2272,107 @@ func (s *Server) getInvokeScriptParams(reqParams params.Params) (*transaction.Tr
 	return tx, verbose, nil
 }
 
+func (s *Server) fakeTxFromParam(p *params.Param) (*transaction.Transaction, *neorpc.Error) {
+	tx, err := p.GetFakeTx()
+	if err != nil {
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("failed to unmarshal fake transaction: %s", err))
+	}
+	if len(tx.Script) == 0 {
+		return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, "transaction script is mandatory")
+	}
+	return tx, nil
+}
+
+func (s *Server) fakeBlockFromParam(p *params.Param) (*block.Block, *neorpc.Error) {
+	base, err := s.chain.GetFakeNextBlock(s.chain.BlockHeight() + 1)
+	if err != nil {
+		return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to mock block execution container: %s", err))
+	}
+	if p != nil && !p.IsNull() {
+		h, err := p.GetFakeHeader()
+		if err != nil {
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("failed to unmarshal fake block: %s", err))
+		}
+
+		// Override allowed base parameters with some sanity checks.
+		if h.Version != 0 {
+			base.Version = h.Version
+		}
+		if !h.PrevHash.Equals(util.Uint256{}) {
+			base.PrevHash = h.PrevHash
+		}
+		if !h.MerkleRoot.Equals(util.Uint256{}) {
+			base.MerkleRoot = h.MerkleRoot
+		}
+		if h.Timestamp != 0 {
+			base.Timestamp = h.Timestamp
+		}
+		if h.Nonce != 0 {
+			base.Nonce = h.Nonce
+		}
+		if h.Index != 0 {
+			base.Index = h.Index
+		}
+		base.PrimaryIndex = h.PrimaryIndex
+		if !h.NextConsensus.Equals(util.Uint160{}) {
+			base.NextConsensus = h.NextConsensus
+		}
+		if base.StateRootEnabled && !h.PrevStateRoot.Equals(util.Uint256{}) {
+			base.PrevStateRoot = h.PrevStateRoot
+		}
+	}
+
+	return base, nil
+}
+
+// invokeContainedScript implements the `invokecontainedscript` RPC call.
+func (s *Server) invokeContainedScript(reqParams params.Params) (any, *neorpc.Error) {
+	if len(reqParams) < 1 {
+		return nil, neorpc.ErrInvalidParams
+	}
+	tx, respErr := s.fakeTxFromParam(reqParams.Value(0))
+	if respErr != nil {
+		return nil, respErr
+	}
+	b, respErr := s.fakeBlockFromParam(reqParams.Value(1))
+	if respErr != nil {
+		return nil, respErr
+	}
+	var (
+		trig    = trigger.Application
+		verbose bool
+	)
+	if len(reqParams) > 2 {
+		t, err := reqParams[2].GetString()
+		if err != nil {
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid trigger parameter: %s", err))
+		}
+		trig, err = trigger.FromString(t)
+		if err != nil {
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("failed to parse trigger: %s", err))
+		}
+		if trig != trigger.Application && trig != trigger.Verification {
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("unsupported trigger: expected %s or %s, got %s", trigger.Application, trigger.Verification, trig))
+		}
+	}
+	if len(reqParams) > 3 {
+		var err error
+		verbose, err = reqParams[3].GetBoolean()
+		if err != nil {
+			return nil, neorpc.WrapErrorWithData(neorpc.ErrInvalidParams, fmt.Sprintf("invalid verbose parameter: %s", err))
+		}
+	}
+
+	return s.runScriptInVM(trig, tx.Script, util.Uint160{}, tx, b, nil, verbose)
+}
+
 // invokeContractVerify implements the `invokecontractverify` RPC call.
 func (s *Server) invokeContractVerify(reqParams params.Params) (any, *neorpc.Error) {
 	scriptHash, tx, invocationScript, respErr := s.getInvokeContractVerifyParams(reqParams)
 	if respErr != nil {
 		return nil, respErr
 	}
-	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx, nil, false)
+	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx, nil, nil, false)
 }
 
 // invokeContractVerifyHistoric implements the `invokecontractverifyhistoric` RPC call.
@@ -2292,7 +2388,7 @@ func (s *Server) invokeContractVerifyHistoric(reqParams params.Params) (any, *ne
 	if respErr != nil {
 		return nil, respErr
 	}
-	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx, &nextH, false)
+	return s.runScriptInVM(trigger.Verification, invocationScript, scriptHash, tx, nil, &nextH, false)
 }
 
 func (s *Server) getInvokeContractVerifyParams(reqParams params.Params) (util.Uint160, *transaction.Transaction, []byte, *neorpc.Error) {
@@ -2362,13 +2458,13 @@ func (s *Server) getHistoricParams(reqParams params.Params) (uint32, *neorpc.Err
 	return height + 1, nil
 }
 
-func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, nextH *uint32, verbose bool) (*interop.Context, *neorpc.Error) {
+func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, b *block.Block, nextH *uint32, verbose bool) (*interop.Context, *neorpc.Error) {
 	var (
 		err error
 		ic  *interop.Context
 	)
 	if nextH == nil {
-		ic, err = s.chain.GetTestVM(t, tx, nil)
+		ic, err = s.chain.GetTestVM(t, tx, b)
 		if err != nil {
 			return nil, neorpc.NewInternalServerError(fmt.Sprintf("failed to create test VM: %s", err))
 		}
@@ -2386,7 +2482,9 @@ func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contrac
 		// We need this special case because witnesses verification is not the simple System.Contract.Call,
 		// and we need to define exactly the amount of gas consumed for a contract witness verification.
 		ic.VM.GasLimit = min(ic.VM.GasLimit, s.chain.GetMaxVerificationGAS())
+	}
 
+	if t == trigger.Verification && b == nil { // don't initialize verification context for contained invocations.
 		err = s.chain.InitVerificationContext(ic, contractScriptHash, &transaction.Witness{InvocationScript: script, VerificationScript: []byte{}})
 		if err != nil {
 			switch {
@@ -2405,12 +2503,13 @@ func (s *Server) prepareInvocationContext(t trigger.Type, script []byte, contrac
 }
 
 // runScriptInVM runs the given script in a new test VM and returns the invocation
-// result. The script is either a simple script in case of `application` trigger,
-// witness invocation script in case of `verification` trigger (it pushes `verify`
-// arguments on stack before verification). In case of contract verification
-// contractScriptHash should be specified.
-func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, nextH *uint32, verbose bool) (*result.Invoke, *neorpc.Error) {
-	ic, respErr := s.prepareInvocationContext(t, script, contractScriptHash, tx, nextH, verbose)
+// result. The script is either a simple transaction's script in case of
+// `application` trigger or witness invocation script in case of `verification`
+// trigger (it pushes `verify` arguments on stack before verification). If block
+// is specified, it will be used to set up execution container parameters. In case
+// of contract verification contractScriptHash should be specified.
+func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash util.Uint160, tx *transaction.Transaction, b *block.Block, nextH *uint32, verbose bool) (*result.Invoke, *neorpc.Error) {
+	ic, respErr := s.prepareInvocationContext(t, script, contractScriptHash, tx, b, nextH, verbose)
 	if respErr != nil {
 		return nil, respErr
 	}
@@ -2429,7 +2528,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 		if s.config.SessionBackedByMPT && nextH == nil {
 			ic.Finalize()
 			// Rerun with MPT-backed storage.
-			return s.runScriptInVM(t, script, contractScriptHash, tx, &ic.Block.Index, verbose)
+			return s.runScriptInVM(t, script, contractScriptHash, tx, b, &ic.Block.Index, verbose)
 		}
 		id = uuid.New()
 		sessionID := id.String()
