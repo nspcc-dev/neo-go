@@ -235,7 +235,7 @@ func ArrayAndSessionIterator(r *result.Invoke, err error) ([]stackitem.Item, uui
 	if err != nil {
 		return nil, uuid.UUID{}, result.Iterator{}, err
 	}
-	if (r.Session == uuid.UUID{}) {
+	if (r.Session == uuid.UUID{}) && iter.ID != nil {
 		return nil, uuid.UUID{}, result.Iterator{}, ErrNoSessionID
 	}
 	return arr, r.Session, iter, nil

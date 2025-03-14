@@ -157,6 +157,40 @@ func TestInvoker(t *testing.T) {
 			require.Equal(t, []stackitem.Item{stackitem.Make(42)}, res)
 		}
 	})
+	t.Run("traverse iterator with session expansion", func(t *testing.T) {
+		mockClient := &rpcInv{
+			resItm: []stackitem.Item{
+				stackitem.Make(1),
+				stackitem.Make(2),
+				stackitem.Make(3),
+			},
+			err: nil,
+		}
+		inv := New(mockClient, nil)
+
+		sessionID := uuid.New()
+		iteratorID := uuid.New()
+		iter := &result.Iterator{
+			ID:     &iteratorID,
+			Values: []stackitem.Item{stackitem.Make(10), stackitem.Make(20)}, // Curr
+		}
+		res, err := inv.TraverseIterator(sessionID, iter, 2)
+		require.NoError(t, err)
+		require.Equal(t, []stackitem.Item{stackitem.Make(10), stackitem.Make(20)}, res)
+
+		res, err = inv.TraverseIterator(sessionID, iter, 2)
+		require.NoError(t, err)
+		require.Equal(t, []stackitem.Item{stackitem.Make(1), stackitem.Make(2)}, res)
+
+		res, err = inv.TraverseIterator(sessionID, iter, 2)
+		require.NoError(t, err)
+		require.Equal(t, []stackitem.Item{stackitem.Make(3)}, res)
+
+		mockClient.resItm = nil
+		res, err = inv.TraverseIterator(sessionID, iter, 2)
+		require.NoError(t, err)
+		require.Empty(t, res)
+	})
 }
 
 func TestInvokerSigners(t *testing.T) {

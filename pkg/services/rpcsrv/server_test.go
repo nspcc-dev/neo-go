@@ -136,6 +136,9 @@ var (
 	// nfsoHash is a hash of NEP-11 divisible "examples/nft-d" ("NeoFS
 	// Object") contract deployed at block #17 of basic testing chain.
 	nfsoHash, _ = util.Uint160DecodeStringLE(nfsoContractHash)
+	// storageHash is a hash of "Storage" contract deployed at block #22 of
+	// basic testing chain.
+	storageHash, _ = util.Uint160DecodeStringLE(storageContractHash)
 	// nfsoToken1ContainerID contains data used to mint the first NFSO token in the
 	// basic testing chain (see [nfsoToken1ID] documentation).
 	nfsoToken1ContainerID = util.Uint256{1, 2, 3}
