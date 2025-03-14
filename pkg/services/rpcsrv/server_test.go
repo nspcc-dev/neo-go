@@ -133,6 +133,10 @@ var (
 	// nnsHash is a hash of NEP-11 non-divisible "examples/nft-nd-nns" contract
 	// deployed at block #11 of basic testing chain.
 	nnsHash, _ = util.Uint160DecodeStringLE(nnsContractHash)
+	// storageHash is a hash of "Storage" contract
+	// placed in "internal/basicchain/testdata/storage/storage_contract.go"
+	// deployed at block #22 of basic testing chain.
+	storageHash, _ = util.Uint160DecodeStringLE(storageContractHash)
 	// nfsoHash is a hash of NEP-11 divisible "examples/nft-d" ("NeoFS
 	// Object") contract deployed at block #17 of basic testing chain.
 	nfsoHash, _ = util.Uint160DecodeStringLE(nfsoContractHash)

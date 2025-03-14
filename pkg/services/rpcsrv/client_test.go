@@ -1450,9 +1450,6 @@ func TestClient_IteratorSessions(t *testing.T) {
 	t.Cleanup(c.Close)
 	require.NoError(t, c.Init())
 
-	storageHash, err := util.Uint160DecodeStringLE(storageContractHash)
-	require.NoError(t, err)
-
 	// storageItemsCount is the amount of storage items stored in Storage contract, it's hard-coded in the contract code.
 	const storageItemsCount = 255
 	expected := make([][]byte, storageItemsCount)
@@ -1658,8 +1655,6 @@ func TestClientOracle(t *testing.T) {
 
 func TestClient_Iterator_SessionConfigVariations(t *testing.T) {
 	var expected [][]byte
-	storageHash, err := util.Uint160DecodeStringLE(storageContractHash)
-	require.NoError(t, err)
 	// storageItemsCount is the amount of storage items stored in Storage contract, it's hard-coded in the contract code.
 	const storageItemsCount = 255
 
