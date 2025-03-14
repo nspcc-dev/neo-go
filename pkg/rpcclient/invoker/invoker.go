@@ -217,21 +217,32 @@ func termSession(rpc RPCSessions, sessionID uuid.UUID) error {
 // process. If num <= 0 then DefaultIteratorResultItems number of elements is
 // requested. If result contains no elements, then either Iterator has no
 // elements or session was expired and terminated by the server.
+// If server has SessionExpansionEnabled, then it's possible to have both
+// session-backed and expanded iterators. In this case, the iterator will
+// first serve the expanded items and only then request more from the server.
+// If the server doesn't support sessions, then the iterator will only contain
+// expanded items and will not make any additional requests to the server.
+// In this case, the iterator will be empty after the first call to TraverseIterator.
 func (v *Invoker) TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error) {
-	return iterateNext(v.client, sessionID, iterator, num)
-}
-
-func iterateNext(rpc RPCSessions, sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error) {
 	if num <= 0 {
 		num = DefaultIteratorResultItems
 	}
-
-	if iterator.ID != nil {
-		return rpc.TraverseIterator(sessionID, *iterator.ID, num)
+	if len(iterator.Values) > 0 {
+		count := min(num, len(iterator.Values))
+		batch := iterator.Values[:count]
+		iterator.Values = iterator.Values[count:]
+		return batch, nil
 	}
-	num = min(num, len(iterator.Values))
-	items := iterator.Values[:num]
-	iterator.Values = iterator.Values[num:]
-
-	return items, nil
+	if iterator.ID != nil {
+		newBatch, err := v.client.TraverseIterator(sessionID, *iterator.ID, num)
+		if err != nil {
+			return nil, err
+		}
+		iterator.Values = newBatch
+		count := min(num, len(iterator.Values))
+		batch := iterator.Values[:count]
+		iterator.Values = iterator.Values[count:]
+		return batch, nil
+	}
+	return nil, nil
 }
