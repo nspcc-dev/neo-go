@@ -304,7 +304,7 @@ func (v *VM) LoadFileWithFlags(path string, f callflag.CallFlag) error {
 	return nil
 }
 
-// CollectInvocationTree enables collecting invocation tree data.
+// EnableInvocationTree enables collecting invocation tree data.
 func (v *VM) EnableInvocationTree() {
 	v.invTree = &invocations.Tree{}
 }
