@@ -14,9 +14,11 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -42,6 +44,7 @@ type RPCInvoke interface {
 	InvokeContractVerify(contract util.Uint160, params []smartcontract.Parameter, signers []transaction.Signer, witnesses ...transaction.Witness) (*result.Invoke, error)
 	InvokeFunction(contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error)
 	InvokeScript(script []byte, signers []transaction.Signer) (*result.Invoke, error)
+	InvokeContainedScript(tx *transaction.Transaction, header *block.Header, t *trigger.Type, verbose *bool) (*result.Invoke, error)
 }
 
 // RPCInvokeHistoric is a set of RPC methods needed to execute things at some
@@ -107,6 +110,10 @@ func (h *historicConverter) InvokeScript(script []byte, signers []transaction.Si
 		return h.client.InvokeScriptWithState(*h.root, script, signers)
 	}
 	panic("uninitialized historicConverter")
+}
+
+func (h *historicConverter) InvokeContainedScript(tx *transaction.Transaction, header *block.Header, t *trigger.Type, verbose *bool) (*result.Invoke, error) {
+	panic("invokecontainedscript is not available in historic mode")
 }
 
 func (h *historicConverter) InvokeFunction(contract util.Uint160, operation string, params []smartcontract.Parameter, signers []transaction.Signer) (*result.Invoke, error) {
@@ -190,6 +197,18 @@ func (v *Invoker) Verify(contract util.Uint160, witnesses []transaction.Witness,
 // Run executes given bytecode with Invoker-specific list of signers.
 func (v *Invoker) Run(script []byte) (*result.Invoke, error) {
 	return v.client.InvokeScript(script, v.signers)
+}
+
+// RunContained executes the script of the given transaction using provided
+// transaction as a script container and provided header to mock persisting
+// block of execution environment. See the documentation of
+// [RPCInvoke.InvokeContainedScript] for more details. If provided transaction
+// doesn't have signers then Invoker-specific list of signers will be used.
+func (v *Invoker) RunContained(tx *transaction.Transaction, header *block.Header, t *trigger.Type) (*result.Invoke, error) {
+	if len(tx.Signers) == 0 {
+		tx.Signers = v.signers
+	}
+	return v.client.InvokeContainedScript(tx, header, t, nil)
 }
 
 // TerminateSession closes the given session, returning an error if anything

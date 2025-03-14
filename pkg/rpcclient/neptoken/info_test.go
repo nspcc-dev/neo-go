@@ -5,11 +5,13 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
+	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
@@ -33,6 +35,9 @@ func (r *rpcClient) InvokeFunction(contract util.Uint160, operation string, para
 	return i, e
 }
 func (r *rpcClient) InvokeScript(script []byte, signers []transaction.Signer) (*result.Invoke, error) {
+	panic("not implemented")
+}
+func (r *rpcClient) InvokeContainedScript(tx *transaction.Transaction, header *block.Header, t *trigger.Type, verbose *bool) (*result.Invoke, error) {
 	panic("not implemented")
 }
 func (r *rpcClient) TerminateSession(sessionID uuid.UUID) (bool, error) {
