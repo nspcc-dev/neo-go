@@ -913,7 +913,7 @@ func (s *Server) requestHeaders(p Peer) error {
 	return p.EnqueueP2PMessage(NewMessage(CMDGetHeaders, pl))
 }
 
-// handlePing processes a pong request.
+// handlePong processes a pong request.
 func (s *Server) handlePong(p Peer, pong *payload.Ping) error {
 	err := p.HandlePong(pong)
 	if err != nil {
