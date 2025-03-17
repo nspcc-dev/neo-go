@@ -110,7 +110,7 @@ func (p *TCPPeer) BroadcastHPPacket(ctx context.Context, msg []byte) error {
 	return p.putPacketIntoQueue(ctx, p.hpSendQ, msg)
 }
 
-// putMessageIntoQueue serializes the given Message and puts it into given queue if
+// putMsgIntoQueue serializes the given Message and puts it into given queue if
 // the peer has done handshaking.
 func (p *TCPPeer) putMsgIntoQueue(queue chan<- []byte, msg *Message) error {
 	b, err := msg.Bytes()

@@ -322,7 +322,7 @@ func ArrayOfBytes(r *result.Invoke, err error) ([][]byte, error) {
 	return res, nil
 }
 
-// ArrayOfUTB8Strings checks the result for correct state (HALT) and then extracts a
+// ArrayOfUTF8Strings checks the result for correct state (HALT) and then extracts a
 // slice of UTF-8 strings from the returned stack item.
 func ArrayOfUTF8Strings(r *result.Invoke, err error) ([]string, error) {
 	a, err := Array(r, err)
