@@ -150,5 +150,8 @@ func (a *ApplicationConfiguration) Validate() error {
 	if err := a.NeoFSBlockFetcher.Validate(); err != nil {
 		return fmt.Errorf("invalid NeoFSBlockFetcher config: %w", err)
 	}
+	if err := a.RPC.Validate(); err != nil {
+		return fmt.Errorf("invalid RPC config: %w", err)
+	}
 	return nil
 }

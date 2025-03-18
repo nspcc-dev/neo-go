@@ -55,17 +55,21 @@ type iteratorAux struct {
 	Truncated bool              `json:"truncated,omitempty"`
 }
 
-// Iterator represents VM iterator identifier. It either has ID set (for those JSON-RPC servers
-// that support sessions) or non-nil Values and Truncated set (for those JSON-RPC servers that
-// doesn't support sessions but perform in-place iterator traversing) or doesn't have ID, Values
-// and Truncated set at all (for those JSON-RPC servers that doesn't support iterator sessions
-// and doesn't perform in-place iterator traversing).
+// Iterator represents a VM iterator identifier. It can be in one of three
+// states: 1. If the JSON-RPC server supports session-based iterators, the
+// ID field is set, and the Values field may contain a partial expansion of
+// the iterator if session expansion is enabled. 2. If the JSON-RPC server
+// does not support sessions but allows in-place iteration, the Values field
+// will be populated, and Truncated will indicate whether more items exist.
+// 3. If the JSON-RPC server neither supports sessions nor in-place iteration,
+// all fields will be unset.
 type Iterator struct {
 	// ID represents iterator ID. It is non-nil iff JSON-RPC server support session mechanism.
 	ID *uuid.UUID
 
-	// Values contains deserialized VM iterator values with a truncated flag. It is non-nil
-	// iff JSON-RPC server does not support sessions mechanism and able to traverse iterator.
+	// Values contains deserialized VM iterator values with a truncated flag. It may be non-nil
+	// if session expansion is enabled (even when ID is set), or if the JSON-RPC server does not
+	// support sessions but allows in-place iterator traversal.
 	Values    []stackitem.Item
 	Truncated bool
 }
@@ -77,7 +81,8 @@ func (r Iterator) MarshalJSON() ([]byte, error) {
 	if r.ID != nil {
 		iaux.Interface = iteratorInterfaceName
 		iaux.ID = r.ID.String()
-	} else {
+	}
+	if r.Values != nil {
 		value := make([]json.RawMessage, len(r.Values))
 		for i := range r.Values {
 			var err error
@@ -87,8 +92,8 @@ func (r Iterator) MarshalJSON() ([]byte, error) {
 			}
 		}
 		iaux.Value = value
-		iaux.Truncated = r.Truncated
 	}
+	iaux.Truncated = r.Truncated
 	return json.Marshal(iaux)
 }
 
@@ -109,7 +114,8 @@ func (r *Iterator) UnmarshalJSON(data []byte) error {
 			return fmt.Errorf("failed to unmarshal iterator ID: %w", err)
 		}
 		r.ID = &iID
-	} else {
+	}
+	if iteratorAux.Value != nil {
 		r.Values = make([]stackitem.Item, len(iteratorAux.Value))
 		for j := range r.Values {
 			r.Values[j], err = stackitem.FromJSONWithTypes(iteratorAux.Value[j])
@@ -117,8 +123,8 @@ func (r *Iterator) UnmarshalJSON(data []byte) error {
 				return fmt.Errorf("failed to unmarshal iterator values: %w", err)
 			}
 		}
-		r.Truncated = iteratorAux.Truncated
 	}
+	r.Truncated = iteratorAux.Truncated
 	return nil
 }
 

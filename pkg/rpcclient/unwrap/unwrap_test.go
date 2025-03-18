@@ -309,6 +309,12 @@ func TestSessionIterator(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, sid, rs)
 	require.Equal(t, iter, ri)
+
+	iterExpanded := result.Iterator{Values: []stackitem.Item{stackitem.Make(1), stackitem.Make(2)}, Truncated: true}
+	rs, ri, err = SessionIterator(&result.Invoke{State: "HALT", Stack: []stackitem.Item{stackitem.NewInterop(iterExpanded)}}, nil)
+	require.NoError(t, err)
+	require.Empty(t, rs)
+	require.Equal(t, iterExpanded, ri)
 }
 
 func TestArraySessionIterator(t *testing.T) {

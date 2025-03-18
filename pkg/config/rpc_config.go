@@ -1,6 +1,8 @@
 package config
 
 import (
+	"fmt"
+
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 )
 
@@ -21,6 +23,7 @@ type (
 		MaxWebSocketClients       int           `yaml:"MaxWebSocketClients"`
 		MaxWebSocketFeeds         int           `yaml:"MaxWebSocketFeeds"`
 		SessionEnabled            bool          `yaml:"SessionEnabled"`
+		SessionExpansionEnabled   bool          `yaml:"SessionExpansionEnabled"`
 		SessionExpirationTime     int           `yaml:"SessionExpirationTime"`
 		SessionBackedByMPT        bool          `yaml:"SessionBackedByMPT"`
 		SessionPoolSize           int           `yaml:"SessionPoolSize"`
@@ -35,3 +38,12 @@ type (
 		KeyFile      string `yaml:"KeyFile"`
 	}
 )
+
+// Validate checks RPC for internal consistency. It returns an error if the
+// configuration is invalid.
+func (cfg *RPC) Validate() error {
+	if cfg.SessionExpansionEnabled && !cfg.SessionEnabled {
+		return fmt.Errorf("SessionExpansionEnabled requires SessionEnabled")
+	}
+	return nil
+}

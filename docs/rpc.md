@@ -421,6 +421,17 @@ The invocation records are presented in a flat structure in the order as how the
 Note that invocation records for faulted transactions are kept and are present in the 
 applicationlog. This behaviour differs from notifications which are omitted for faulted transactions.
 
+#### Iterator sessions expansion
+
+The `SessionExpansionEnabled` configuration setting enforces RPC server to expand any iterator
+returned by `invoke*` calls. Specifically, up to `MaxIteratorResultItems` elements are 
+returned in the initial response, and the returned iterator is marked as `Truncated` if the 
+iterator contains more elements beyond the returned batch. In this case, if `SessionEnabled`
+is also `true`, an iterator `ID` and session `ID` is provided allowing clients to retrieve additional elements via
+`traverseiterator`. If SessionExpansionEnabled is false, the iterator behavior depends on 
+`SessionEnabled`: if `SessionEnabled` is `true`, a full iterator object with an ID is returned.
+If `SessionEnabled` is `false`, the iterator is expanded up to `MaxIteratorResultItems`.
+
 ## Reference
 
 * [JSON-RPC 2.0 Specification](http://www.jsonrpc.org/specification)

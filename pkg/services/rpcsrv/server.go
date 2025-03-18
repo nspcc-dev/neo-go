@@ -185,6 +185,10 @@ type (
 		ID string
 		// Item represents Iterator stackitem.
 		Item stackitem.Item
+		// Curr represents current Iterator value got after initial iterator traversal if in-place iterator
+		// traversal is performed. This value must be used to prepend to the resulting items list during
+		// the subsequent iterator traversal.
+		Curr stackitem.Item
 	}
 )
 
@@ -882,8 +886,9 @@ func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 		Nonce:     s.coreServer.ID(),
 		UserAgent: s.coreServer.UserAgent,
 		RPC: result.RPC{
-			MaxIteratorResultItems: s.config.MaxIteratorResultItems,
-			SessionEnabled:         s.config.SessionEnabled,
+			MaxIteratorResultItems:  s.config.MaxIteratorResultItems,
+			SessionEnabled:          s.config.SessionEnabled,
+			SessionExpansionEnabled: s.config.SessionExpansionEnabled,
 		},
 		Protocol: result.Protocol{
 			AddressVersion:              address.NEO3Prefix,
@@ -2487,13 +2492,17 @@ func (s *Server) postProcessExecStack(stack []stackitem.Item) *session {
 	var sess session
 
 	for i, v := range stack {
-		var id uuid.UUID
+		var (
+			id   uuid.UUID
+			curr stackitem.Item
+		)
 
-		stack[i], id = s.registerOrDumpIterator(v)
+		stack[i], id, curr = s.registerOrDumpIterator(v)
 		if id != (uuid.UUID{}) {
 			sess.iteratorIdentifiers = append(sess.iteratorIdentifiers, &iteratorIdentifier{
 				ID:   id.String(),
 				Item: v,
+				Curr: curr,
 			})
 		}
 	}
@@ -2505,22 +2514,29 @@ func (s *Server) postProcessExecStack(stack []stackitem.Item) *session {
 
 // registerOrDumpIterator changes iterator interop stack items into result.Iterator
 // interop stack items and returns a uuid for it if sessions are enabled. All the other stack
-// items are not changed.
-func (s *Server) registerOrDumpIterator(item stackitem.Item) (stackitem.Item, uuid.UUID) {
+// items are not changed. The third return value is the current iterator value if it's not nil.
+func (s *Server) registerOrDumpIterator(item stackitem.Item) (stackitem.Item, uuid.UUID, stackitem.Item) {
 	var iterID uuid.UUID
 
 	if (item.Type() != stackitem.InteropT) || !iterator.IsIterator(item) {
-		return item, iterID
+		return item, iterID, nil
 	}
-	var resIterator result.Iterator
+
+	var (
+		resIterator result.Iterator
+		curr        stackitem.Item
+	)
 
 	if s.config.SessionEnabled {
 		iterID = uuid.New()
 		resIterator.ID = &iterID
+		if s.config.SessionExpansionEnabled {
+			resIterator.Values, resIterator.Truncated, curr = iterator.ValuesTruncated(item, s.config.MaxIteratorResultItems)
+		}
 	} else {
-		resIterator.Values, resIterator.Truncated = iterator.ValuesTruncated(item, s.config.MaxIteratorResultItems)
+		resIterator.Values, resIterator.Truncated, curr = iterator.ValuesTruncated(item, s.config.MaxIteratorResultItems)
 	}
-	return stackitem.NewInterop(resIterator), iterID
+	return stackitem.NewInterop(resIterator), iterID, curr
 }
 
 func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) {
@@ -2565,8 +2581,16 @@ func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) 
 	)
 	for _, it := range session.iteratorIdentifiers {
 		if iIDStr == it.ID {
-			iVals = iterator.Values(it.Item, count)
 			found = true
+			if it.Curr != nil {
+				if count <= 0 {
+					break
+				}
+				iVals = append(iVals, it.Curr)
+				it.Curr = nil
+				count--
+			}
+			iVals = append(iVals, iterator.Values(it.Item, count)...)
 			break
 		}
 	}
