@@ -2518,3 +2518,186 @@ func TestGetBlockNotifications(t *testing.T) {
 		require.NotEmpty(t, bn)
 	})
 }
+
+func TestClient_SessionExpasionExtension(t *testing.T) {
+	const (
+		// storageItemsCount is the amount of storage items stored in Storage contract,
+		// it's hard-coded in the contract code.
+		storageItemsCount              = 255
+		expectedMaxIteratorResultItems = 50
+		batchSize                      = 33
+	)
+
+	expected := make([][]byte, storageItemsCount)
+	for i := range storageItemsCount {
+		expected[i] = stackitem.NewBigInteger(big.NewInt(int64(i))).Bytes()
+	}
+	slices.SortFunc(expected, func(a, b []byte) int {
+		if len(a) != len(b) {
+			return len(a) - len(b)
+		}
+		return bytes.Compare(a, b)
+	})
+	setup := func(t *testing.T, cfgMod func(*config.Config)) *rpcclient.Client {
+		chain, rpcSrv, httpSrv := initClearServerWithCustomConfig(t, cfgMod)
+		t.Cleanup(rpcSrv.Shutdown)
+		t.Cleanup(httpSrv.Close)
+
+		for _, b := range getTestBlocks(t) {
+			require.NoError(t, chain.AddBlock(b))
+		}
+
+		c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+		require.NoError(t, err)
+		require.NoError(t, c.Init())
+		t.Cleanup(c.Close)
+
+		return c
+	}
+	prepareSession := func(t *testing.T, c *rpcclient.Client) (uuid.UUID, uuid.UUID, []stackitem.Item) {
+		res, err := c.InvokeFunction(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
+		require.NoError(t, err)
+		require.NotEmpty(t, res.Session)
+		require.Equal(t, 1, len(res.Stack))
+		require.Equal(t, stackitem.InteropT, res.Stack[0].Type())
+		iterator, ok := res.Stack[0].Value().(result.Iterator)
+		require.True(t, ok)
+		require.NotEmpty(t, iterator.ID)
+		return res.Session, *iterator.ID, iterator.Values
+	}
+	t.Run("session disabled", func(t *testing.T) {
+		c := setup(t, func(cfg *config.Config) {
+			cfg.ApplicationConfiguration.RPC.Enabled = true
+			cfg.ApplicationConfiguration.RPC.SessionEnabled = false
+			cfg.ApplicationConfiguration.RPC.SessionExpansionEnabled = true
+			cfg.ApplicationConfiguration.RPC.MaxIteratorResultItems = expectedMaxIteratorResultItems
+		})
+		invokeRes, err := c.InvokeFunction(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, vmstate.Halt.String(), invokeRes.State)
+		require.NotEmpty(t, invokeRes.Script)
+		require.Empty(t, invokeRes.Session)
+
+		require.Len(t, invokeRes.Stack, 1)
+		stackItem := invokeRes.Stack[0]
+		require.Equal(t, stackitem.InteropT, stackItem.Type())
+
+		iterVal, ok := stackItem.Value().(result.Iterator)
+		require.True(t, ok)
+
+		require.Equal(t, expectedMaxIteratorResultItems, len(iterVal.Values))
+		for i := range len(iterVal.Values) {
+			require.Equal(t, expected[i], iterVal.Values[i].Value().([]byte), i)
+		}
+		require.True(t, iterVal.Truncated)
+		require.Empty(t, iterVal.ID)
+	})
+	t.Run("session disabled and session expansion disabled", func(t *testing.T) {
+		c := setup(t, func(cfg *config.Config) {
+			cfg.ApplicationConfiguration.RPC.Enabled = true
+			cfg.ApplicationConfiguration.RPC.SessionEnabled = false
+			cfg.ApplicationConfiguration.RPC.SessionExpansionEnabled = false
+			cfg.ApplicationConfiguration.RPC.MaxIteratorResultItems = expectedMaxIteratorResultItems
+		})
+
+		invokeRes, err := c.InvokeFunction(storageHash, "iterateOverValues", []smartcontract.Parameter{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, vmstate.Halt.String(), invokeRes.State)
+		require.NotEmpty(t, invokeRes.Script)
+		require.Empty(t, invokeRes.Session)
+
+		require.Len(t, invokeRes.Stack, 1)
+		stackItem := invokeRes.Stack[0]
+		require.Equal(t, stackitem.InteropT, stackItem.Type())
+
+		iterVal, ok := stackItem.Value().(result.Iterator)
+		require.True(t, ok)
+
+		require.Equal(t, expectedMaxIteratorResultItems, len(iterVal.Values))
+		for i := range len(iterVal.Values) {
+			require.Equal(t, expected[i], iterVal.Values[i].Value().([]byte), i)
+		}
+		require.True(t, iterVal.Truncated)
+		require.Empty(t, iterVal.ID)
+	})
+	t.Run("session enabled and SessionBackedByMPT", func(t *testing.T) {
+		c := setup(t, func(cfg *config.Config) {
+			cfg.ApplicationConfiguration.RPC.Enabled = true
+			cfg.ApplicationConfiguration.RPC.SessionEnabled = true
+			cfg.ApplicationConfiguration.RPC.SessionBackedByMPT = true
+			cfg.ApplicationConfiguration.RPC.SessionExpansionEnabled = true
+			cfg.ApplicationConfiguration.RPC.MaxIteratorResultItems = expectedMaxIteratorResultItems
+		})
+
+		sID, iID, curr := prepareSession(t, c)
+		require.Equal(t, len(curr), expectedMaxIteratorResultItems)
+		for i := range curr {
+			require.Equal(t, expected[i], curr[i].Value().([]byte), i)
+		}
+
+		var batchCount int
+		for {
+			batch, err := c.TraverseIterator(sID, iID, batchSize)
+			require.NoError(t, err)
+
+			if len(batch) == 0 {
+				break
+			}
+			for i := range batch {
+				require.Equal(t, expected[expectedMaxIteratorResultItems+batchCount*batchSize+i], batch[i].Value().([]byte), i)
+			}
+			batchCount++
+		}
+		require.Equal(t, (storageItemsCount-expectedMaxIteratorResultItems)/batchSize+1, batchCount)
+	})
+
+	t.Run("session enabled", func(t *testing.T) {
+		c := setup(t, func(cfg *config.Config) {
+			cfg.ApplicationConfiguration.RPC.Enabled = true
+			cfg.ApplicationConfiguration.RPC.SessionEnabled = true
+			cfg.ApplicationConfiguration.RPC.SessionExpansionEnabled = true
+			cfg.ApplicationConfiguration.RPC.MaxIteratorResultItems = expectedMaxIteratorResultItems
+		})
+
+		sID, iID, localItems := prepareSession(t, c)
+		require.Equal(t, expectedMaxIteratorResultItems, len(localItems))
+		for i := range localItems {
+			require.Equal(t, expected[i], localItems[i].Value().([]byte))
+		}
+
+		firstBatch, err := c.TraverseIterator(sID, iID, 20)
+		require.NoError(t, err)
+		require.Len(t, firstBatch, 20)
+		for i := range firstBatch {
+			require.Equal(t, expected[expectedMaxIteratorResultItems+i], firstBatch[i].Value().([]byte))
+		}
+
+		secondBatch, err := c.TraverseIterator(sID, iID, 20)
+		require.NoError(t, err)
+		require.Len(t, secondBatch, 20)
+		for i := range secondBatch {
+			require.Equal(t, expected[expectedMaxIteratorResultItems+20+i], secondBatch[i].Value().([]byte))
+		}
+
+		thirdBatch, err := c.TraverseIterator(sID, iID, 25)
+		require.NoError(t, err)
+		require.Len(t, thirdBatch, 25)
+		for i := range thirdBatch {
+			require.Equal(t, expected[expectedMaxIteratorResultItems+20+20+i], thirdBatch[i].Value().([]byte))
+		}
+
+		idx := expectedMaxIteratorResultItems + 20 + 20 + 25
+		for {
+			batch, err := c.TraverseIterator(sID, iID, batchSize)
+			require.NoError(t, err)
+			if len(batch) == 0 {
+				break
+			}
+			for i := range batch {
+				require.Equal(t, expected[idx+i], batch[i].Value().([]byte))
+			}
+			idx += len(batch)
+		}
+		require.Equal(t, storageItemsCount, idx)
+	})
+}

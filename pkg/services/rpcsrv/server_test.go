@@ -3217,6 +3217,35 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 			body := doRPCCall(rpc, httpSrv.URL, t)
 			checkErrGetResult(t, body, true, neorpc.ErrUnknownIteratorCode)
 		})
+		t.Run("sessions expansion enabled", func(t *testing.T) {
+			chain2, _, httpSrv2 := initClearServerWithCustomConfig(t, func(c *config.Config) {
+				c.ApplicationConfiguration.RPC.SessionEnabled = true
+				c.ApplicationConfiguration.RPC.SessionExpansionEnabled = true
+			})
+			for _, b := range getTestBlocks(t) {
+				require.NoError(t, chain2.AddBlock(b))
+			}
+			rpc := fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "invokefunction", "params": ["%s", "iterateOverValues"]}"`, storageContractHash)
+			body := doRPCCall(rpc, httpSrv2.URL, t)
+			resp := checkErrGetResult(t, body, false, 0)
+			res := new(result.Invoke)
+			err := json.Unmarshal(resp, &res)
+			require.NoErrorf(t, err, "could not parse response: %s", resp)
+			require.NotEmpty(t, res.Session)
+			require.Equal(t, 1, len(res.Stack))
+			require.Equal(t, stackitem.InteropT, res.Stack[0].Type())
+			iterator, ok := res.Stack[0].Value().(result.Iterator)
+			require.True(t, ok)
+			require.NotEmpty(t, iterator.ID)
+
+			expectedCount := 0
+			rpc = fmt.Sprintf(`{"jsonrpc": "2.0", "id": 1, "method": "traverseiterator", "params": ["%s", "%s", %d]}"`, res.Session.String(), iterator.ID.String(), expectedCount)
+			body = doRPCCall(rpc, httpSrv2.URL, t)
+			resp = checkErrGetResult(t, body, false, 0)
+			resResp := new([]json.RawMessage)
+			require.NoError(t, json.Unmarshal(resp, resResp))
+			require.Equal(t, expectedCount, len(*resResp))
+		})
 	})
 	t.Run("terminatesession", func(t *testing.T) {
 		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "terminatesession", "params": ["%s"]}"`

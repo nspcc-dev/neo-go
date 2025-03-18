@@ -217,6 +217,8 @@ func termSession(rpc RPCSessions, sessionID uuid.UUID) error {
 // process. If num <= 0 then DefaultIteratorResultItems number of elements is
 // requested. If result contains no elements, then either Iterator has no
 // elements or session was expired and terminated by the server.
+// If server has SessionExpansionEnabled, then it's possible to have both
+// session-backed and expanded ones.
 func (v *Invoker) TraverseIterator(sessionID uuid.UUID, iterator *result.Iterator, num int) ([]stackitem.Item, error) {
 	return iterateNext(v.client, sessionID, iterator, num)
 }
@@ -226,12 +228,22 @@ func iterateNext(rpc RPCSessions, sessionID uuid.UUID, iterator *result.Iterator
 		num = DefaultIteratorResultItems
 	}
 
-	if iterator.ID != nil {
-		return rpc.TraverseIterator(sessionID, *iterator.ID, num)
-	}
-	num = min(num, len(iterator.Values))
-	items := iterator.Values[:num]
-	iterator.Values = iterator.Values[num:]
+	var result []stackitem.Item
 
-	return items, nil
+	if iterator.Values != nil {
+		count := min(num, len(iterator.Values))
+		result = append(result, iterator.Values[:count]...)
+		iterator.Values = iterator.Values[count:]
+		num -= count
+	}
+
+	if num > 0 && iterator.ID != nil {
+		batch, err := rpc.TraverseIterator(sessionID, *iterator.ID, num)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, batch...)
+	}
+
+	return result, nil
 }

@@ -253,6 +253,7 @@ RPC:
   MaxWebSocketClients: 64
   MaxWebSocketFeeds: 16
   SessionEnabled: false
+  SessionExpansionEnabled: false
   SessionExpirationTime: 15
   SessionBackedByMPT: false
   SessionPoolSize: 20
@@ -314,6 +315,14 @@ where:
   requirement, then we recommend either to decrease `SessionExpirationTime` or to
   enable `SessionBackedByMPT`, see `SessionBackedByMPT` documentation for more
   details.
+- `SessionExpansionEnabled` enables partial expansion of iterators returned by 
+  `invoke*` calls. When enabled, the server returns up to `MaxIteratorResultItems`
+  values from the iterator in the initial response. If more items are available, 
+  the result is marked as truncated. When `SessionEnabled` is also true, the 
+  remaining iterator state is stored in a session, allowing further traversal 
+  via `traverseiterator`. If disabled, iterators are either expanded up to 
+  `MaxIteratorResultItems` or require explicit traversal via session-based calls.
+  By default, `SessionExpansionEnabled` is set to `false`.
 - `SessionExpirationTime` is a lifetime of iterator session in seconds. It is set
   to `TimePerBlock` seconds (but not less than 5s) by default and is relevant
   only if `SessionEnabled` is set to `true`.
