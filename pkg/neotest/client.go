@@ -117,6 +117,15 @@ func (c *ContractInvoker) Invoke(t testing.TB, result any, method string, args .
 	return tx.Hash()
 }
 
+// InvokeWithFee is like Invoke but sets the custom system fee for the transaction.
+func (c *ContractInvoker) InvokeWithFee(t testing.TB, result any, sysFee int64, method string, args ...any) util.Uint256 {
+	tx := c.PrepareInvokeNoSign(t, method, args...)
+	c.Executor.SignTx(t, tx, sysFee, c.Signers...)
+	c.AddNewBlock(t, tx)
+	c.CheckHalt(t, tx.Hash(), stackitem.Make(result))
+	return tx.Hash()
+}
+
 // InvokeAndCheck invokes the method with the args, persists the transaction and checks the result
 // using the provided function. It returns the transaction hash.
 func (c *ContractInvoker) InvokeAndCheck(t testing.TB, checkResult func(t testing.TB, stack []stackitem.Item), method string, args ...any) util.Uint256 {

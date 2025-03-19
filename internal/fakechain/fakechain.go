@@ -252,6 +252,11 @@ func (chain *FakeChain) GetHeader(hash util.Uint256) (*block.Header, error) {
 	return &b.Header, nil
 }
 
+// MSPerBlock implements the Blockchainer interface.
+func (chain *FakeChain) MSPerBlock() uint32 {
+	return uint32(chain.Blockchain.TimePerBlock.Milliseconds())
+}
+
 // GetNextBlockValidators implements the Blockchainer interface.
 func (chain *FakeChain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
 	panic("TODO")
