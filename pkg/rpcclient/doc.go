@@ -99,6 +99,9 @@ Extensions:
 	getrawnotarypool
 	getrawnotarytransaction
 	invokecontainedscript
+	invokecontractverifyhistoric
+	invokefunctionhistoric
+	invokescripthistoric
 	submitnotaryrequest
 
 Unsupported methods
