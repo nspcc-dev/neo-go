@@ -72,6 +72,7 @@ type (
 		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 		HasBlock(util.Uint256) bool
 		HeaderHeight() uint32
+		MSPerBlock() uint32
 		P2PSigExtensionsEnabled() bool
 		PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
 		PoolTxWithData(t *transaction.Transaction, data any, mp *mempool.Pool, feer mempool.Feer, verificationFunction func(t *transaction.Transaction, data any) error) error
@@ -533,7 +534,7 @@ func (s *Server) ConnectedPeers() []PeerInfo {
 // while itself dealing with peers management (handling connects/disconnects).
 func (s *Server) run() {
 	var (
-		peerCheckTime    = s.TimePerBlock * peerTimeFactor
+		peerCheckTime    = time.Duration(s.chain.MSPerBlock()) * time.Millisecond * peerTimeFactor
 		addrCheckTimeout bool
 		addrTimer        = time.NewTimer(peerCheckTime)
 		peerTimer        = time.NewTimer(s.ProtoTickInterval)
@@ -1639,7 +1640,7 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.C
 		// Optimal number of recipients.
 		enoughN     = s.discovery.GetFanOut()
 		replies     = make(chan error, peerN) // Cache is there just to make goroutines exit faster.
-		ctx, cancel = context.WithTimeout(context.Background(), s.TimePerBlock/2)
+		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(s.chain.MSPerBlock())*time.Millisecond/2)
 	)
 	enoughN = (enoughN*(100-s.BroadcastFactor) + peerN*s.BroadcastFactor) / 100
 	for _, peer := range peers {
