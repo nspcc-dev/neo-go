@@ -2955,8 +2955,19 @@ func (bc *Blockchain) getFakeNextBlock(nextBlockHeight uint32) (*block.Block, er
 	if err != nil {
 		return nil, err
 	}
-	b.Timestamp = hdr.Timestamp + uint64(bc.config.TimePerBlock/time.Millisecond)
+	b.Timestamp = hdr.Timestamp + uint64(bc.MSPerBlock())
 	return b, nil
+}
+
+// MSPerBlock returns the time interval between blocks that consensus nodes work
+// with (in milliseconds). This method performs access to native Policy storage
+// hence Policy is expected to be initialized by this moment.
+func (bc *Blockchain) MSPerBlock() uint32 {
+	var hf = config.HFEchidna
+	if bc.isHardforkEnabled(&hf, bc.BlockHeight()) {
+		return bc.contracts.Policy.GetMSPerBlockInternal(bc.dao)
+	}
+	return uint32(bc.GetConfig().TimePerBlock.Milliseconds())
 }
 
 // Various witness verification errors.

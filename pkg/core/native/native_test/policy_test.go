@@ -63,7 +63,7 @@ func TestPolicy_MSPerBlock(t *testing.T) {
 	})
 
 	c.AddNewBlock(t) // enable Echidna.
-	testGetSet(t, c, name, 15_000, 1, 30_000)
+	testGetSet(t, c, name, c.Chain.GetConfig().Genesis.TimePerBlock.Milliseconds(), 1, 30_000)
 }
 
 func TestPolicy_MSPerBlockCache(t *testing.T) {
@@ -73,7 +73,7 @@ func TestPolicy_MSPerBlockCache(t *testing.T) {
 		}
 	})
 	c.AddNewBlock(t) // enable Echidna.
-	testGetSetCache(t, c, "MSPerBlock", 15_000)
+	testGetSetCache(t, c, "MSPerBlock", c.Chain.GetConfig().Genesis.TimePerBlock.Milliseconds())
 }
 
 func TestPolicy_AttributeFee(t *testing.T) {
