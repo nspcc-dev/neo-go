@@ -2520,7 +2520,7 @@ func TestGetBlockNotifications(t *testing.T) {
 	})
 }
 
-func TestClient_SessionExpasionExtension(t *testing.T) {
+func TestClient_SessionExpansionExtension(t *testing.T) {
 	const (
 		// storageItemsCount is the amount of storage items stored in Storage contract,
 		// it's hard-coded in the contract code.
