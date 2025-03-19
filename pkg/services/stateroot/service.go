@@ -6,7 +6,6 @@ import (
 	"slices"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -26,6 +25,7 @@ type (
 	Ledger interface {
 		GetConfig() config.Blockchain
 		GetDesignatedByRole(role noderoles.Role) (keys.PublicKeys, uint32, error)
+		GetMillisecondsPerBlock() uint32
 		HeaderHeight() uint32
 		SubscribeForBlocks(ch chan *block.Block)
 		UnsubscribeFromBlocks(ch chan *block.Block)
@@ -68,7 +68,6 @@ type (
 		srMtx           sync.Mutex
 		incompleteRoots map[uint32]*incompleteRoot
 
-		timePerBlock    time.Duration
 		maxRetries      int
 		relayExtensible RelayCallback
 		// blockCh is a channel used to receive block notifications from the
@@ -97,7 +96,6 @@ func New(cfg config.StateRoot, sm *stateroot.Module, log *zap.Logger, bc Ledger,
 		blockCh:         make(chan *block.Block, 1),
 		stopCh:          make(chan struct{}),
 		done:            make(chan struct{}),
-		timePerBlock:    bcConf.TimePerBlock,
 		maxRetries:      voteValidEndInc,
 		relayExtensible: cb,
 	}

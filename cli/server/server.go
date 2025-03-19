@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"slices"
 	"syscall"
-	"time"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/options"
@@ -395,7 +394,7 @@ func mkOracle(config config.OracleConfiguration, magic netmode.Magic, chain *cor
 	return orc, nil
 }
 
-func mkConsensus(config config.Consensus, tpb time.Duration, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (consensus.Service, error) {
+func mkConsensus(config config.Consensus, chain *core.Blockchain, serv *network.Server, log *zap.Logger) (consensus.Service, error) {
 	if !config.Enabled {
 		return nil, nil
 	}
@@ -408,7 +407,6 @@ func mkConsensus(config config.Consensus, tpb time.Duration, chain *core.Blockch
 		RequestTx:             serv.RequestTx,
 		StopTxFlow:            serv.StopTxFlow,
 		Wallet:                config.UnlockWallet,
-		TimePerBlock:          tpb,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't initialize Consensus module: %w", err)
@@ -496,7 +494,7 @@ func startServer(ctx *cli.Context) error {
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
-	dbftSrv, err := mkConsensus(cfg.ApplicationConfiguration.Consensus, serverConfig.TimePerBlock, chain, serv, log)
+	dbftSrv, err := mkConsensus(cfg.ApplicationConfiguration.Consensus, chain, serv, log)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
@@ -632,7 +630,7 @@ Main:
 					serv.DelConsensusService(dbftSrv)
 					dbftSrv.Shutdown()
 				}
-				dbftSrv, err = mkConsensus(cfgnew.ApplicationConfiguration.Consensus, serverConfig.TimePerBlock, chain, serv, log)
+				dbftSrv, err = mkConsensus(cfgnew.ApplicationConfiguration.Consensus, chain, serv, log)
 				if err != nil {
 					log.Error("failed to create consensus service", zap.Error(err))
 					break // Whatever happens, I'll leave it all to chance.
