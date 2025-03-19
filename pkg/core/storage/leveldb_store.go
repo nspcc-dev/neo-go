@@ -21,12 +21,64 @@ type LevelDBStore struct {
 // NewLevelDBStore returns a new LevelDBStore object that will
 // initialize the database found at the given path.
 func NewLevelDBStore(cfg dbconfig.LevelDBOptions) (*LevelDBStore, error) {
-	var opts = new(opt.Options) // should be exposed via LevelDBOptions if anything needed
+	var opts = new(opt.Options)
 	if cfg.ReadOnly {
 		opts.ReadOnly = true
 		opts.ErrorIfMissing = true
 	}
+
+	// Set filter
 	opts.Filter = filter.NewBloomFilter(10)
+
+	// Apply custom options if set
+	if cfg.WriteBufferSize != "" {
+		val, err := dbconfig.EvaluateExpression(cfg.WriteBufferSize)
+		if err != nil {
+			return nil, fmt.Errorf("invalid WriteBufferSize: %w", err)
+		}
+		if val > 0 {
+			opts.WriteBuffer = val
+		}
+	}
+
+	if cfg.BlockSize != "" {
+		val, err := dbconfig.EvaluateExpression(cfg.BlockSize)
+		if err != nil {
+			return nil, fmt.Errorf("invalid BlockSize: %w", err)
+		}
+		if val > 0 {
+			opts.BlockSize = val
+		}
+	}
+
+	if cfg.BlockCacheCapacity != "" {
+		val, err := dbconfig.EvaluateExpression(cfg.BlockCacheCapacity)
+		if err != nil {
+			return nil, fmt.Errorf("invalid BlockCacheCapacity: %w", err)
+		}
+		if val > 0 {
+			opts.BlockCacheCapacity = val
+		}
+	}
+
+	if cfg.CompactionTableSize != "" {
+		val, err := dbconfig.EvaluateExpression(cfg.CompactionTableSize)
+		if err != nil {
+			return nil, fmt.Errorf("invalid CompactionTableSize: %w", err)
+		}
+		if val > 0 {
+			opts.CompactionTableSize = val
+		}
+	}
+
+	if cfg.CompactionL0Trigger > 0 {
+		opts.CompactionL0Trigger = cfg.CompactionL0Trigger
+	}
+
+	if cfg.OpenFilesCacheCapacity > 0 {
+		opts.OpenFilesCacheCapacity = cfg.OpenFilesCacheCapacity
+	}
+
 	db, err := leveldb.OpenFile(cfg.DataDirectoryPath, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open LevelDB instance: %w", err)
