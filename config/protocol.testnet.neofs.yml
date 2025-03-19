@@ -1,8 +1,9 @@
 ProtocolConfiguration:
   Magic: 735783775
   MaxTraceableBlocks: 17280
+  MaxValidUntilBlockIncrement: 8640
   InitialGASSupply: 52000000
-  TimePerBlock: 15s
+  TimePerBlock: 1s
   MemPoolSize: 50000
   StandbyCommittee:
   - 0337f5f45e5be5aeae4a919d0787fcb743656560949061d5b8b05509b85ffbfd53
