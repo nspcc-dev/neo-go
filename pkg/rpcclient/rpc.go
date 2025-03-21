@@ -727,6 +727,59 @@ func (c *Client) InvokeScriptWithState(stateOrBlock util.Uint256, script []byte,
 	return c.invokeSomething("invokescripthistoric", p, signers)
 }
 
+// InvokeContainedScript invokes the script of the given transaction in a
+// testing VM using provided transaction as an execution container. Header
+// (if provided) is used to mock execution environment (in particular,
+// persisting block)so that interops like System.Runtime.GetTime and native
+// Ledger contract's APIs like `currentHash` or `currentIndex` work properly.
+// Note that native Ledger contract's APIs can retrieve data related to already
+// persisted blocks only. It's up to the caller to decide which fields of
+// transaction and header should be filled in, but at least transaction's
+// script is required to be filled for successful request processing. If needed,
+// use [transaction.NewFakeTX] constructor to mock transaction's hash/size;
+// other transaction's and header's fields may be mocked directly via value
+// assignment. If trigger is specified then it will be used to run the
+// transaction's script. OnPersist and PostPersist triggers are not supported.
+// If verbose is specified then invocation tree data will be attached to the
+// result. All parameters are positional.
+// NOTE: This is a test invoke and will not affect the blockchain.
+func (c *Client) InvokeContainedScript(tx *transaction.Transaction, header *block.Header, t *trigger.Type, verbose *bool) (*result.Invoke, error) {
+	if tx == nil {
+		return nil, errors.New("transaction is nil")
+	}
+	if len(tx.Script) == 0 {
+		return nil, errors.New("transaction script is empty")
+	}
+	if len(tx.Signers) == 0 {
+		// Sender is required for proper transaction marshalling.
+		return nil, errors.New("at least one transaction signer must be specified")
+	}
+
+	var (
+		p    = []any{tx}
+		resp = new(result.Invoke)
+	)
+	if header != nil {
+		p = append(p, header)
+		if t != nil {
+			p = append(p, t.String())
+			if verbose != nil {
+				p = append(p, *verbose)
+			}
+		} else if verbose != nil {
+			return nil, errors.New("bad parameters")
+		}
+	} else if t != nil || verbose != nil {
+		return nil, errors.New("bad parameters")
+	}
+
+	err := c.performRequest("invokecontainedscript", p, resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // InvokeFunction returns the results after calling the smart contract scripthash
 // with the given operation and parameters.
 // NOTE: this is test invoke and will not affect the blockchain.

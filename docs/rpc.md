@@ -303,6 +303,37 @@ state has all its values got from MPT with the specified stateroot. This allows
 to track the contract storage scheme using the specified past chain state. These
 methods may be useful for debugging purposes.
 
+#### `invokecontainedscript` call
+
+This method accepts transaction (serialized JSON representation), block header
+(serialized JSON representation), execution trigger (string representation) and
+verbose parameter (boolean value). This method invokes the script of the given
+transaction in a testing VM using provided transaction as an execution container.
+Header is used to mock the execution environment (in particular, to mock the
+persisting block) so that interops like `System.Runtime.GetTime` and native
+Ledger contract's APIs like `currentHash` or `currentIndex` work properly. Note
+that native Ledger contract's APIs can retrieve data related to already persisted
+blocks only. It's up to the caller to decide which fields of transaction and header
+should be filled in, but at least transaction's script is required for successful
+request processing. If header is not specified, then "fake" header will be
+generated on the server side based on the current chain's height. If needed,
+transaction's hash and size may be overridden via `transaction.NewFakeTX`
+constructor to mock transaction's hash/size respectively, no hash/size check is
+performed on the server side during deserialization. If trigger parameter is
+specified then it will be used to run the transaction's script (`Application` is
+used by default). If `Verification` trigger is used then execution GAS limit will
+be restricted by the current `MaxVerificationGAS` Policy value. `OnPersist` and
+`PostPersist` triggers are not supported. If verbose parameter is specified then
+invocation tree data will be attached to the result (similar to `invokefunction`
+behaviour, `false` is used as the default value). All parameters are positional.
+Note that similar to `invokefunction`, this method performs a test invocation and
+will not affect the blockchain state.
+
+This method is designated for more precise execution environment setup during
+testing invocations, so that transaction-sensitive, block-sensitive and
+trigger-sensitive interops and native contract APIs work as expected during test
+execution.
+
 #### P2PNotary extensions
 
 The following P2PNotary extensions can be used on P2P Notary enabled networks

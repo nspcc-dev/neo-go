@@ -98,6 +98,10 @@ Extensions:
 	getblocksysfee
 	getrawnotarypool
 	getrawnotarytransaction
+	invokecontainedscript
+	invokecontractverifyhistoric
+	invokefunctionhistoric
+	invokescripthistoric
 	submitnotaryrequest
 
 Unsupported methods

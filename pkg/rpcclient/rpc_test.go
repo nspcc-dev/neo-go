@@ -1163,6 +1163,112 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 	},
+	"invokecontainedscript": {
+		{
+			name: "positive, tx",
+			invoke: func(c *Client) (any, error) {
+				return c.InvokeContainedScript(&transaction.Transaction{Script: []byte{byte(opcode.PUSH1)}, Signers: []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}}, nil, nil, nil)
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"state":"HALT","gasconsumed":"30","script":"EQ==","stack":[{"type":"Integer","value":"1"}],"exception":null,"notifications":[]}}`,
+			result: func(c *Client) any {
+				return &result.Invoke{
+					State:         "HALT",
+					GasConsumed:   30,
+					Script:        []byte{byte(opcode.PUSH1)},
+					Stack:         []stackitem.Item{stackitem.Make(1)},
+					Notifications: []state.NotificationEvent{},
+				}
+			},
+		},
+		{
+			name: "positive, tx and block",
+			invoke: func(c *Client) (any, error) {
+				return c.InvokeContainedScript(&transaction.Transaction{Script: []byte{byte(opcode.PUSH1)}, Signers: []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}}, &block.Header{Index: 2}, nil, nil)
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"state":"HALT","gasconsumed":"30","script":"EQ==","stack":[{"type":"Integer","value":"1"}],"exception":null,"notifications":[]}}`,
+			result: func(c *Client) any {
+				return &result.Invoke{
+					State:         "HALT",
+					GasConsumed:   30,
+					Script:        []byte{byte(opcode.PUSH1)},
+					Stack:         []stackitem.Item{stackitem.Make(1)},
+					Notifications: []state.NotificationEvent{},
+				}
+			},
+		},
+		{
+			name: "positive, tx, block and trigger",
+			invoke: func(c *Client) (any, error) {
+				trig := trigger.Application
+				return c.InvokeContainedScript(&transaction.Transaction{Script: []byte{byte(opcode.PUSH1)}, Signers: []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}}, &block.Header{Index: 2}, &trig, nil)
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"state":"HALT","gasconsumed":"30","script":"EQ==","stack":[{"type":"Integer","value":"1"}],"exception":null,"notifications":[]}}`,
+			result: func(c *Client) any {
+				return &result.Invoke{
+					State:         "HALT",
+					GasConsumed:   30,
+					Script:        []byte{byte(opcode.PUSH1)},
+					Stack:         []stackitem.Item{stackitem.Make(1)},
+					Notifications: []state.NotificationEvent{},
+				}
+			},
+		},
+		{
+			name: "positive, all params",
+			invoke: func(c *Client) (any, error) {
+				trig := trigger.Application
+				v := true
+				return c.InvokeContainedScript(&transaction.Transaction{Script: []byte{byte(opcode.PUSH1)}, Signers: []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}}, &block.Header{Index: 2}, &trig, &v)
+			},
+			serverResponse: `{"jsonrpc":"2.0","id":1,"result":{"state":"HALT","gasconsumed":"30","script":"EQ==","stack":[{"type":"Integer","value":"1"}],"exception":null,"notifications":[]}}`,
+			result: func(c *Client) any {
+				return &result.Invoke{
+					State:         "HALT",
+					GasConsumed:   30,
+					Script:        []byte{byte(opcode.PUSH1)},
+					Stack:         []stackitem.Item{stackitem.Make(1)},
+					Notifications: []state.NotificationEvent{},
+				}
+			},
+		},
+		{
+			name: "missing tx",
+			invoke: func(c *Client) (any, error) {
+				return c.InvokeContainedScript(nil, nil, nil, nil)
+			},
+			fails: true,
+		},
+		{
+			name: "empty script",
+			invoke: func(c *Client) (any, error) {
+				return c.InvokeContainedScript(&transaction.Transaction{}, nil, nil, nil)
+			},
+			fails: true,
+		},
+		{
+			name: "empty signers",
+			invoke: func(c *Client) (any, error) {
+				return c.InvokeContainedScript(&transaction.Transaction{Script: []byte{byte(opcode.PUSH1)}}, nil, nil, nil)
+			},
+			fails: true,
+		},
+		{
+			name: "invalid positional trigger",
+			invoke: func(c *Client) (any, error) {
+				trig := trigger.Application
+				return c.InvokeContainedScript(&transaction.Transaction{Script: []byte{byte(opcode.PUSH1)}, Signers: []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}}, nil, &trig, nil)
+			},
+			fails: true,
+		},
+		{
+			name: "invalid positional verbose",
+			invoke: func(c *Client) (any, error) {
+				v := true
+				return c.InvokeContainedScript(&transaction.Transaction{Script: []byte{byte(opcode.PUSH1)}, Signers: []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}}, &block.Header{}, nil, &v)
+			},
+			fails: true,
+		},
+	},
 	"invokecontractverify": {
 		{
 			name: "positive",
