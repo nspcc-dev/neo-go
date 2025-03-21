@@ -83,10 +83,10 @@ func uploadState(ctx *cli.Context) error {
 	stateModule := chain.GetStateModule()
 	currentHeight := int(stateModule.CurrentLocalHeight())
 	currentStateIndex := currentHeight / syncInterval
-	if currentStateIndex <= stateObjCount {
+	if currentStateIndex < stateObjCount {
 		log.Info("no new states to upload",
 			zap.Int("number of uploaded state objects", stateObjCount),
-			zap.Int("latest state is uploaded for block", stateObjCount*syncInterval),
+			zap.Int("latest state is uploaded for block", (stateObjCount-1)*syncInterval),
 			zap.Int("current height", currentHeight),
 			zap.Int("StateSyncInterval", syncInterval))
 		return nil
@@ -97,7 +97,7 @@ func uploadState(ctx *cli.Context) error {
 		zap.Int("current height", currentHeight),
 		zap.Int("StateSyncInterval", syncInterval),
 		zap.Int("number of states to upload", currentStateIndex-stateObjCount))
-	for state := stateObjCount; state < currentStateIndex; state++ {
+	for state := stateObjCount; state <= currentStateIndex; state++ {
 		height := uint32(state * syncInterval)
 		stateRoot, err := stateModule.GetStateRoot(height)
 		if err != nil {
