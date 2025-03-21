@@ -648,7 +648,6 @@ func (c *WSClient) dropSubCh(rcvrCh any, id string, ignoreCloseNotificationChann
 func (c *WSClient) wsWriter() {
 	pingTicker := time.NewTicker(wsPingPeriod)
 	defer c.ws.Close()
-	defer pingTicker.Stop()
 	defer close(c.writerDone)
 	var connCloseErr error
 writeloop:

@@ -260,7 +260,6 @@ main:
 			}
 		}
 	}
-	tick.Stop()
 drain:
 	for {
 		select {

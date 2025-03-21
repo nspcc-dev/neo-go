@@ -157,7 +157,6 @@ func (bq *Queue[Q]) Put(element Q) error {
 		case Blocking:
 			bq.queueLock.Unlock()
 			t := time.NewTicker(time.Second)
-			defer t.Stop()
 			for range t.C {
 				if bq.discarded.Load() {
 					bq.queueLock.Lock()

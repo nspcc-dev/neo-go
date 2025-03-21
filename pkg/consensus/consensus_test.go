@@ -324,7 +324,6 @@ func TestService_getTx(t *testing.T) {
 func TestService_PrepareRequest(t *testing.T) {
 	srv := newTestServiceWithState(t, true)
 	srv.dbft.Start(0)
-	t.Cleanup(srv.dbft.Timer.Stop)
 
 	priv, _ := getTestValidator(1)
 	p := new(Payload)
