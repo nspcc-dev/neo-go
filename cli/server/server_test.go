@@ -96,7 +96,9 @@ func TestHandleLoggingParams(t *testing.T) {
 		logfile := filepath.Join(d, "logdir")
 		require.NoError(t, os.WriteFile(logfile, []byte{1, 2, 3}, os.ModePerm))
 		cfg := config.ApplicationConfiguration{
-			LogPath: filepath.Join(logfile, "file.log"),
+			Logger: config.Logger{
+				LogPath: filepath.Join(logfile, "file.log"),
+			},
 		}
 		_, lvl, closer, err := options.HandleLoggingParams(ctx, cfg)
 		require.Error(t, err)
@@ -106,8 +108,10 @@ func TestHandleLoggingParams(t *testing.T) {
 
 	t.Run("broken level", func(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
-			LogPath:  testLog,
-			LogLevel: "qwerty",
+			Logger: config.Logger{
+				LogPath:  testLog,
+				LogLevel: "qwerty",
+			},
 		}
 		_, lvl, closer, err := options.HandleLoggingParams(ctx, cfg)
 		require.Error(t, err)
@@ -117,7 +121,9 @@ func TestHandleLoggingParams(t *testing.T) {
 
 	t.Run("default", func(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
-			LogPath: testLog,
+			Logger: config.Logger{
+				LogPath: testLog,
+			},
 		}
 		logger, lvl, closer, err := options.HandleLoggingParams(ctx, cfg)
 		require.NotNil(t, lvl)
@@ -134,8 +140,10 @@ func TestHandleLoggingParams(t *testing.T) {
 
 	t.Run("warn", func(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
-			LogPath:  testLog,
-			LogLevel: "warn",
+			Logger: config.Logger{
+				LogPath:  testLog,
+				LogLevel: "warn",
+			},
 		}
 		logger, lvl, closer, err := options.HandleLoggingParams(ctx, cfg)
 		require.NoError(t, err)
@@ -151,7 +159,9 @@ func TestHandleLoggingParams(t *testing.T) {
 
 	t.Run("debug", func(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
-			LogPath: testLog,
+			Logger: config.Logger{
+				LogPath: testLog,
+			},
 		}
 		*debug = true
 		t.Cleanup(func() { *debug = false })
