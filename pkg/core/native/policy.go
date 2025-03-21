@@ -45,6 +45,9 @@ const (
 	maxAttributeFee = 10_00000000
 	// maxMSPerBlock is the maximum allowed value (in milliseconds) for a block generation time.
 	maxMSPerBlock = 30_000
+	// maxMaxValidUntilBlockIncrement the maximum value for upper increment size of blockchain
+	// height (in blocks) exceeding that a transaction should fail validation.
+	maxMaxValidUntilBlockIncrement = 100500 // TODO
 
 	// blockedAccountPrefix is a prefix used to store blocked account.
 	blockedAccountPrefix = 15
@@ -169,6 +172,15 @@ func newPolicy(p2pSigExtensionsEnabled bool) *Policy {
 	desc = newDescriptor("setMSPerBlock", smartcontract.VoidType,
 		manifest.NewParameter("value", smartcontract.IntegerType))
 	md = newMethodAndPrice(p.setMSPerBlock, 1<<15, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("getMaxValidUntilBlockIncrement", smartcontract.IntegerType)
+	md = newMethodAndPrice(p.getMaxValidUntilBlockIncrement, 1<<15, callflag.ReadStates, config.HFEchidna)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("setMaxValidUntilBlockIncrement", smartcontract.VoidType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.setMaxValidUntilBlockIncrement, 1<<15, callflag.States, config.HFEchidna)
 	p.AddMethod(md, desc)
 
 	eDesc := newEventDescriptor("MSPerBlockChanged",
@@ -497,6 +509,40 @@ func (p *Policy) GetMSPerBlockInternal(d *dao.Simple) uint32 {
 }
 
 func (p *Policy) setMSPerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toUint32(args[0])
+	if value <= 0 || maxMSPerBlock < value {
+		panic(fmt.Errorf("MSPerBlock should be positive and not greater than %d, got %d", maxMSPerBlock, value))
+	}
+	if !p.NEO.checkCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	setIntWithKey(p.ID, ic.DAO, msPerBlockKey, int64(value))
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	old := cache.msPerBlock
+	cache.msPerBlock = value
+
+	err := ic.AddNotification(p.Hash, "MSPerBlockChanged", stackitem.NewArray([]stackitem.Item{
+		stackitem.NewBigInteger(big.NewInt(int64(old))),
+		stackitem.NewBigInteger(big.NewInt(int64(value))),
+	}))
+	if err != nil {
+		panic(err)
+	}
+
+	return stackitem.Null{}
+}
+
+func (p *Policy) getMaxValidUntilBlockIncrement(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(int64(p.GetMaxValidUntilBlockIncrementInternal(ic.DAO))))
+}
+
+// GetMaxValidUntilBlockIncrementInternal returns current MaxValidUntilBlockIncrement.
+func (p *Policy) GetMaxValidUntilBlockIncrementInternal(d *dao.Simple) uint32 {
+	cache := d.GetROCache(p.ID).(*PolicyCache)
+	return cache.msPerBlock
+}
+
+func (p *Policy) setMaxValidUntilBlockIncrement(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	value := toUint32(args[0])
 	if value <= 0 || maxMSPerBlock < value {
 		panic(fmt.Errorf("MSPerBlock should be positive and not greater than %d, got %d", maxMSPerBlock, value))
