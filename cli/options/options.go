@@ -295,14 +295,18 @@ var (
 // If the program is run in TTY then logger adds timestamp to its entries.
 func HandleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) (*zap.Logger, *zap.AtomicLevel, func() error, error) {
 	var (
-		level = zapcore.InfoLevel
-		err   error
+		level    = zapcore.InfoLevel
+		encoding = "console"
+		err      error
 	)
 	if len(cfg.LogLevel) > 0 {
 		level, err = zapcore.ParseLevel(cfg.LogLevel)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("log setting: %w", err)
 		}
+	}
+	if len(cfg.LogEncoding) > 0 {
+		encoding = cfg.LogEncoding
 	}
 	if ctx != nil && ctx.Bool("debug") {
 		level = zapcore.DebugLevel
@@ -318,7 +322,7 @@ func HandleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) 
 	} else {
 		cc.EncoderConfig.EncodeTime = func(t time.Time, encoder zapcore.PrimitiveArrayEncoder) {}
 	}
-	cc.Encoding = "console"
+	cc.Encoding = encoding
 	cc.Level = zap.NewAtomicLevelAt(level)
 	cc.Sampling = nil
 

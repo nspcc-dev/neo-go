@@ -135,9 +135,9 @@ func TestGetAddresses(t *testing.T) {
 	}
 }
 
-func TestNeoFSBlockFetcherValidation(t *testing.T) {
+func TestApplicationConfiguration_Validate(t *testing.T) {
 	type testcase struct {
-		cfg        NeoFSBlockFetcher
+		cfg        ApplicationConfiguration
 		shouldFail bool
 		errMsg     string
 	}
@@ -146,26 +146,30 @@ func TestNeoFSBlockFetcherValidation(t *testing.T) {
 
 	cases := []testcase{
 		{
-			cfg: NeoFSBlockFetcher{
-				InternalService:        InternalService{Enabled: true},
-				Timeout:                time.Second,
-				ContainerID:            validContainerID,
-				Addresses:              []string{"127.0.0.1"},
-				OIDBatchSize:           10,
-				BQueueSize:             20,
-				SkipIndexFilesSearch:   true,
-				DownloaderWorkersCount: 4,
+			cfg: ApplicationConfiguration{
+				NeoFSBlockFetcher: NeoFSBlockFetcher{
+					InternalService:        InternalService{Enabled: true},
+					Timeout:                time.Second,
+					ContainerID:            validContainerID,
+					Addresses:              []string{"127.0.0.1"},
+					OIDBatchSize:           10,
+					BQueueSize:             20,
+					SkipIndexFilesSearch:   true,
+					DownloaderWorkersCount: 4,
+				},
 			},
 			shouldFail: false,
 		},
 		{
-			cfg: NeoFSBlockFetcher{
-				InternalService: InternalService{Enabled: true},
-				Timeout:         time.Second,
-				ContainerID:     "",
-				Addresses:       []string{"127.0.0.1"},
-				OIDBatchSize:    10,
-				BQueueSize:      20,
+			cfg: ApplicationConfiguration{
+				NeoFSBlockFetcher: NeoFSBlockFetcher{
+					InternalService: InternalService{Enabled: true},
+					Timeout:         time.Second,
+					ContainerID:     "",
+					Addresses:       []string{"127.0.0.1"},
+					OIDBatchSize:    10,
+					BQueueSize:      20,
+				},
 			},
 			shouldFail: true,
 			errMsg:     "container ID is not set",
