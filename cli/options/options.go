@@ -157,6 +157,14 @@ var Debug = &cli.BoolFlag{
 	Usage:   "Enable debug logging (LOTS of output, overrides configuration)",
 }
 
+// ForceTimestampLogs is a flag for commands that run the node. This flag
+// enables timestamp logging for every log record even if program is running
+// not in terminal.
+var ForceTimestampLogs = &cli.BoolFlag{
+	Name:  "force-timestamp-logs",
+	Usage: "Enable timestamps for log entries",
+}
+
 var errInvalidHistoric = errors.New("invalid 'historic' parameter, neither a block number, nor a block/state hash")
 var errNoWallet = errors.New("no wallet parameter found, specify it with the '--wallet' or '-w' flag or specify wallet config file with the '--wallet-config' flag")
 var errConflictingWalletFlags = errors.New("--wallet flag conflicts with --wallet-config flag, please, provide one of them to specify wallet location")
@@ -285,7 +293,7 @@ var (
 // If logPath is configured on Windows -- function returns closer to be
 // able to close sink for the opened log output file.
 // If the program is run in TTY then logger adds timestamp to its entries.
-func HandleLoggingParams(debug bool, cfg config.ApplicationConfiguration) (*zap.Logger, *zap.AtomicLevel, func() error, error) {
+func HandleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) (*zap.Logger, *zap.AtomicLevel, func() error, error) {
 	var (
 		level = zapcore.InfoLevel
 		err   error
@@ -296,7 +304,7 @@ func HandleLoggingParams(debug bool, cfg config.ApplicationConfiguration) (*zap.
 			return nil, nil, nil, fmt.Errorf("log setting: %w", err)
 		}
 	}
-	if debug {
+	if ctx != nil && ctx.Bool("debug") {
 		level = zapcore.DebugLevel
 	}
 
@@ -305,7 +313,7 @@ func HandleLoggingParams(debug bool, cfg config.ApplicationConfiguration) (*zap.
 	cc.DisableStacktrace = true
 	cc.EncoderConfig.EncodeDuration = zapcore.StringDurationEncoder
 	cc.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	if term.IsTerminal(int(os.Stdout.Fd())) {
+	if term.IsTerminal(int(os.Stdout.Fd())) || (ctx != nil && ctx.Bool("force-timestamp-logs")) {
 		cc.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	} else {
 		cc.EncoderConfig.EncodeTime = func(t time.Time, encoder zapcore.PrimitiveArrayEncoder) {}

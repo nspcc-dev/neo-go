@@ -39,7 +39,7 @@ func NewCommands() []*cli.Command {
 	cfgFlags = append(cfgFlags, options.Network...)
 
 	var cfgWithCountFlags = slices.Clone(cfgFlags)
-	cfgFlags = append(cfgFlags, options.Debug)
+	cfgFlags = append(cfgFlags, options.Debug, options.ForceTimestampLogs)
 	cfgWithCountFlags = append(cfgWithCountFlags,
 		&cli.UintFlag{
 			Name:    "count",
@@ -87,7 +87,7 @@ func NewCommands() []*cli.Command {
 		{
 			Name:      "node",
 			Usage:     "Start a NeoGo node",
-			UsageText: "neo-go node [--config-path path] [-d] [-p/-m/-t] [--config-file file]",
+			UsageText: "neo-go node [--config-path path] [-d] [-p/-m/-t] [--config-file file] [--force-timestamp-logs]",
 			Action:    startServer,
 			Flags:     cfgFlags,
 		},
@@ -98,28 +98,28 @@ func NewCommands() []*cli.Command {
 				{
 					Name:      "dump",
 					Usage:     "Dump blocks (starting with the genesis or specified block) to the file",
-					UsageText: "neo-go db dump [-o file] [-s start] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",
+					UsageText: "neo-go db dump [-o file] [-s start] [-c count] [--config-path path] [-p/-m/-t] [--config-file file] [--force-timestamp-logs]",
 					Action:    dumpDB,
 					Flags:     cfgCountOutFlags,
 				},
 				{
 					Name:      "dump-bin",
 					Usage:     "Dump blocks (starting with the genesis or specified block) to the directory in binary format",
-					UsageText: "neo-go db dump-bin -o directory [-s start] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",
+					UsageText: "neo-go db dump-bin -o directory [-s start] [-c count] [--config-path path] [-p/-m/-t] [--config-file file] [--force-timestamp-logs]",
 					Action:    dumpBin,
 					Flags:     cfgCountOutFlags,
 				},
 				{
 					Name:      "restore",
 					Usage:     "Restore blocks from the file",
-					UsageText: "neo-go db restore [-i file] [--dump] [-n] [-c count] [--config-path path] [-p/-m/-t] [--config-file file]",
+					UsageText: "neo-go db restore [-i file] [--dump] [-n] [-c count] [--config-path path] [-p/-m/-t] [--config-file file] [--force-timestamp-logs]",
 					Action:    restoreDB,
 					Flags:     cfgCountInFlags,
 				},
 				{
 					Name:      "reset",
 					Usage:     "Reset database to the previous state",
-					UsageText: "neo-go db reset --height height [--config-path path] [-p/-m/-t] [--config-file file]",
+					UsageText: "neo-go db reset --height height [--config-path path] [-p/-m/-t] [--config-file file] [--force-timestamp-logs]",
 					Action:    resetDB,
 					Flags:     cfgHeightFlags,
 				},
@@ -170,7 +170,7 @@ func dumpDB(ctx *cli.Context) error {
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
-	log, _, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
+	log, _, logCloser, err := options.HandleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
@@ -226,7 +226,7 @@ func restoreDB(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	log, _, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
+	log, _, logCloser, err := options.HandleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
@@ -345,7 +345,7 @@ func resetDB(ctx *cli.Context) error {
 	}
 	h := uint32(ctx.Uint("height"))
 
-	log, _, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
+	log, _, logCloser, err := options.HandleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
@@ -455,7 +455,7 @@ func startServer(ctx *cli.Context) error {
 		return cli.Exit(err, 1)
 	}
 	var logDebug = ctx.Bool("debug")
-	log, logLevel, logCloser, err := options.HandleLoggingParams(logDebug, cfg.ApplicationConfiguration)
+	log, logLevel, logCloser, err := options.HandleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
