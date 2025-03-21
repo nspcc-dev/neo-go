@@ -88,6 +88,9 @@ func TestGetConfigFromContext(t *testing.T) {
 func TestHandleLoggingParams(t *testing.T) {
 	d := t.TempDir()
 	testLog := filepath.Join(d, "file.log")
+	set := flag.NewFlagSet("flagSet", flag.ExitOnError)
+	debug := set.Bool("debug", false, "")
+	ctx := cli.NewContext(cli.NewApp(), set, nil)
 
 	t.Run("logdir is a file", func(t *testing.T) {
 		logfile := filepath.Join(d, "logdir")
@@ -95,7 +98,7 @@ func TestHandleLoggingParams(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
 			LogPath: filepath.Join(logfile, "file.log"),
 		}
-		_, lvl, closer, err := options.HandleLoggingParams(false, cfg)
+		_, lvl, closer, err := options.HandleLoggingParams(ctx, cfg)
 		require.Error(t, err)
 		require.Nil(t, lvl)
 		require.Nil(t, closer)
@@ -106,7 +109,7 @@ func TestHandleLoggingParams(t *testing.T) {
 			LogPath:  testLog,
 			LogLevel: "qwerty",
 		}
-		_, lvl, closer, err := options.HandleLoggingParams(false, cfg)
+		_, lvl, closer, err := options.HandleLoggingParams(ctx, cfg)
 		require.Error(t, err)
 		require.Nil(t, lvl)
 		require.Nil(t, closer)
@@ -116,7 +119,7 @@ func TestHandleLoggingParams(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
 			LogPath: testLog,
 		}
-		logger, lvl, closer, err := options.HandleLoggingParams(false, cfg)
+		logger, lvl, closer, err := options.HandleLoggingParams(ctx, cfg)
 		require.NotNil(t, lvl)
 		require.NoError(t, err)
 		t.Cleanup(func() {
@@ -134,7 +137,7 @@ func TestHandleLoggingParams(t *testing.T) {
 			LogPath:  testLog,
 			LogLevel: "warn",
 		}
-		logger, lvl, closer, err := options.HandleLoggingParams(false, cfg)
+		logger, lvl, closer, err := options.HandleLoggingParams(ctx, cfg)
 		require.NoError(t, err)
 		t.Cleanup(func() {
 			if closer != nil {
@@ -150,7 +153,9 @@ func TestHandleLoggingParams(t *testing.T) {
 		cfg := config.ApplicationConfiguration{
 			LogPath: testLog,
 		}
-		logger, lvl, closer, err := options.HandleLoggingParams(true, cfg)
+		*debug = true
+		t.Cleanup(func() { *debug = false })
+		logger, lvl, closer, err := options.HandleLoggingParams(ctx, cfg)
 		require.NoError(t, err)
 		t.Cleanup(func() {
 			if closer != nil {
@@ -176,7 +181,7 @@ func TestInitBCWithMetrics(t *testing.T) {
 	ctx := cli.NewContext(cli.NewApp(), set, nil)
 	cfg, err := options.GetConfigFromContext(ctx)
 	require.NoError(t, err)
-	logger, _, closer, err := options.HandleLoggingParams(true, cfg.ApplicationConfiguration)
+	logger, _, closer, err := options.HandleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		if closer != nil {

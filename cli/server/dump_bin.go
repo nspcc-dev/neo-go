@@ -20,7 +20,7 @@ func dumpBin(ctx *cli.Context) error {
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
-	log, _, logCloser, err := options.HandleLoggingParams(ctx.Bool("debug"), cfg.ApplicationConfiguration)
+	log, _, logCloser, err := options.HandleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
