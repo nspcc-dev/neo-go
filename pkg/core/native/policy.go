@@ -45,6 +45,9 @@ const (
 	maxAttributeFee = 10_00000000
 	// maxMSPerBlock is the maximum allowed value (in milliseconds) for a block generation time.
 	maxMSPerBlock = 30_000
+	// maxMaxVUBIncrement the maximum value for upper increment size of blockchain
+	// height (in blocks) exceeding that a transaction should fail validation.
+	maxMaxVUBIncrement = 100500 // TODO: a week of 1-ms blocks is proposed.
 
 	// blockedAccountPrefix is a prefix used to store blocked account.
 	blockedAccountPrefix = 15
@@ -62,6 +65,8 @@ var (
 	storagePriceKey = []byte{19}
 	// msPerBlockKey is a key used to store block generation time.
 	msPerBlockKey = []byte{21}
+	// maxVUBIncrementKey is a key used to store maximum ValidUntilBlock increment.
+	maxVUBIncrementKey = []byte{22}
 )
 
 // Policy represents Policy native contract.
@@ -79,6 +84,7 @@ type PolicyCache struct {
 	maxVerificationGas int64
 	storagePrice       uint32
 	msPerBlock         uint32
+	maxVUBIncrement    uint32
 	attributeFee       map[transaction.AttrType]uint32
 	blockedAccounts    []util.Uint160
 }
@@ -171,6 +177,15 @@ func newPolicy(p2pSigExtensionsEnabled bool) *Policy {
 	md = newMethodAndPrice(p.setMSPerBlock, 1<<15, callflag.States|callflag.AllowNotify, config.HFEchidna)
 	p.AddMethod(md, desc)
 
+	desc = newDescriptor("getMaxValidUntilBlockIncrement", smartcontract.IntegerType)
+	md = newMethodAndPrice(p.getMaxValidUntilBlockIncrement, 1<<15, callflag.ReadStates, config.HFEchidna)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("setMaxValidUntilBlockIncrement", smartcontract.VoidType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.setMaxValidUntilBlockIncrement, 1<<15, callflag.States, config.HFEchidna)
+	p.AddMethod(md, desc)
+
 	eDesc := newEventDescriptor("MSPerBlockChanged",
 		manifest.NewParameter("old", smartcontract.IntegerType),
 		manifest.NewParameter("new", smartcontract.IntegerType),
@@ -213,6 +228,10 @@ func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 		setIntWithKey(p.ID, ic.DAO, msPerBlockKey, msPerBlock)
 		cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 		cache.msPerBlock = uint32(msPerBlock)
+
+		maxVUBIncrement := ic.Chain.GetConfig().Genesis.MaxValidUntilBlockIncrement
+		setIntWithKey(p.ID, ic.DAO, maxVUBIncrementKey, int64(maxVUBIncrement))
+		cache.maxVUBIncrement = maxVUBIncrement
 	}
 
 	return nil
@@ -271,6 +290,7 @@ func (p *Policy) fillCacheFromDAO(isHardforkEnabled interop.IsHardforkEnabled, b
 	var echidna = config.HFEchidna
 	if isHardforkEnabled(&echidna, blockHeight) {
 		cache.msPerBlock = uint32(getIntWithKey(p.ID, d, msPerBlockKey))
+		cache.maxVUBIncrement = uint32(getIntWithKey(p.ID, d, maxVUBIncrementKey))
 	}
 
 	return nil
@@ -516,6 +536,42 @@ func (p *Policy) setMSPerBlock(ic *interop.Context, args []stackitem.Item) stack
 	if err != nil {
 		panic(err)
 	}
+
+	return stackitem.Null{}
+}
+
+func (p *Policy) getMaxValidUntilBlockIncrement(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(int64(p.GetMaxValidUntilBlockIncrementFromCache(ic.DAO))))
+}
+
+// GetMaxValidUntilBlockIncrementInternal returns current MaxValidUntilBlockIncrement.
+// It respects Echidna enabling height.
+func (p *Policy) GetMaxValidUntilBlockIncrementInternal(ic *interop.Context) uint32 {
+	if ic.IsHardforkEnabled(config.HFEchidna) {
+		return p.GetMaxValidUntilBlockIncrementFromCache(ic.DAO)
+	}
+	return ic.Chain.GetConfig().MaxValidUntilBlockIncrement
+}
+
+// GetMaxValidUntilBlockIncrementFromCache returns current MaxValidUntilBlockIncrement.
+// It doesn't check neither Echidna enabling height nor cache initialization, so it's
+// the caller's duty to ensure that Echidna is enabled before a call to this method.
+func (p *Policy) GetMaxValidUntilBlockIncrementFromCache(d *dao.Simple) uint32 {
+	cache := d.GetROCache(p.ID).(*PolicyCache)
+	return cache.maxVUBIncrement
+}
+
+func (p *Policy) setMaxValidUntilBlockIncrement(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toUint32(args[0])
+	if value <= 0 || maxMaxVUBIncrement < value {
+		panic(fmt.Errorf("MaxValidUntilBlockIncrement should be positive and not greater than %d, got %d", maxMaxVUBIncrement, value))
+	}
+	if !p.NEO.checkCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	setIntWithKey(p.ID, ic.DAO, maxVUBIncrementKey, int64(value))
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	cache.maxVUBIncrement = value
 
 	return stackitem.Null{}
 }

@@ -421,7 +421,7 @@ func (n *Notary) GetMaxNotValidBeforeDelta(dao *dao.Simple) uint32 {
 func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	value := toUint32(args[0])
 	cfg := ic.Chain.GetConfig()
-	maxInc := cfg.MaxValidUntilBlockIncrement
+	maxInc := n.Policy.GetMaxValidUntilBlockIncrementInternal(ic)
 	if value > maxInc/2 || value < uint32(cfg.GetNumOfCNs(ic.BlockHeight())) {
 		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", maxInc/2, cfg.GetNumOfCNs(ic.BlockHeight())))
 	}
