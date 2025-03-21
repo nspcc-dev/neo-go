@@ -210,7 +210,9 @@ func (p *TCPPeer) handleQueues() {
 	var p2pSkipCounter uint32
 	const p2pSkipDivisor = 4
 
-	var writeTimeout = p.server.TimePerBlock
+	// TODO: @roman-khimov, this one is controversial a bit, because time per block may be changed during the node's lifetime.
+	// Do we need to keep writeTimeout aligned with these changes?
+	var writeTimeout = time.Duration(p.server.chain.MSPerBlock()) * time.Millisecond
 	for {
 		var msg []byte
 

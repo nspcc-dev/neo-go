@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -19,6 +20,12 @@ type Genesis struct {
 	// genesis block. It is NeoGo extension and must be disabled on the public
 	// Neo N3 networks.
 	Transaction *GenesisTransaction
+	// TimePerBlock is the time interval between blocks that consensus
+	// nodes work with. It must be an integer number of milliseconds. It differs
+	// from Protocol level configuration in that this value is used starting
+	// from HFEchidna to initialize MSPerBlock value of native Policy
+	// contract.
+	TimePerBlock time.Duration
 }
 
 // GenesisTransaction is a placeholder for script that should be included into genesis
@@ -33,8 +40,9 @@ type GenesisTransaction struct {
 type (
 	// genesisAux is an auxiliary structure for Genesis YAML marshalling.
 	genesisAux struct {
-		Roles       map[string]keys.PublicKeys `yaml:"Roles"`
-		Transaction *genesisTransactionAux     `yaml:"Transaction"`
+		Roles        map[string]keys.PublicKeys `yaml:"Roles"`
+		Transaction  *genesisTransactionAux     `yaml:"Transaction"`
+		TimePerBlock time.Duration              `yaml:"TimePerBlock"`
 	}
 	// genesisTransactionAux is an auxiliary structure for GenesisTransaction YAML
 	// marshalling.
@@ -57,6 +65,7 @@ func (e Genesis) MarshalYAML() (any, error) {
 			SystemFee: e.Transaction.SystemFee,
 		}
 	}
+	aux.TimePerBlock = e.TimePerBlock
 	return aux, nil
 }
 
@@ -86,6 +95,8 @@ func (e *Genesis) UnmarshalYAML(unmarshal func(any) error) error {
 			SystemFee: aux.Transaction.SystemFee,
 		}
 	}
+
+	e.TimePerBlock = aux.TimePerBlock
 
 	return nil
 }

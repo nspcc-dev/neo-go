@@ -143,7 +143,7 @@ func (n *Notary) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 	return nil
 }
 
-func (n *Notary) InitializeCache(blockHeight uint32, d *dao.Simple) error {
+func (n *Notary) InitializeCache(_ interop.IsHardforkEnabled, blockHeight uint32, d *dao.Simple) error {
 	cache := &NotaryCache{
 		maxNotValidBeforeDelta: uint32(getIntWithKey(n.ID, d, maxNotValidBeforeDeltaKey)),
 	}

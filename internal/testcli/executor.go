@@ -169,7 +169,6 @@ func NewTestChain(t *testing.T, f func(*config.Config), run bool) (*core.Blockch
 		RequestTx:             netSrv.RequestTx,
 		StopTxFlow:            netSrv.StopTxFlow,
 		Wallet:                cfg.ApplicationConfiguration.Consensus.UnlockWallet,
-		TimePerBlock:          serverConfig.TimePerBlock,
 	})
 	require.NoError(t, err)
 	netSrv.AddConsensusService(cons, cons.OnPayload, cons.OnTransaction)
