@@ -378,7 +378,7 @@ require (
 	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0
 )
 replace github.com/nspcc-dev/neo-go/pkg/interop => ` + filepath.Join(wd, "../../pkg/interop") + `
-go 1.22`)
+go 1.23`)
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "go.mod"), goMod, os.ModePerm))
 	return filename
 }
