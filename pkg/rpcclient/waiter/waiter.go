@@ -208,7 +208,6 @@ func (w *PollingBased) WaitAny(ctx context.Context, vub uint32, hashes ...util.U
 		failedAttempt int
 	)
 	timer := time.NewTicker(w.config.PollInterval)
-	defer timer.Stop()
 	for {
 		select {
 		case <-timer.C:

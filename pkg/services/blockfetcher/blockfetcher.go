@@ -554,14 +554,6 @@ func (bfs *Service) retry(action func() error) error {
 		backoff = neofs.InitialBackoff
 		timer   = time.NewTimer(0)
 	)
-	defer func() {
-		if !timer.Stop() {
-			select {
-			case <-timer.C:
-			default:
-			}
-		}
-	}()
 
 	for i := range neofs.MaxRetries {
 		if err = action(); err == nil {

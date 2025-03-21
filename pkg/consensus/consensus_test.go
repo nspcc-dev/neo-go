@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -206,9 +207,9 @@ func TestService_GetVerified(t *testing.T) {
 	require.NoError(t, srv.Chain.PoolTx(txs[3]))
 
 	hashes := []util.Uint256{txs[0].Hash(), txs[1].Hash(), txs[2].Hash()}
-
 	// Everyone sends a message.
 	for i := range 4 {
+		fmt.Println(i)
 		p := new(Payload)
 		// One PrepareRequest and three ChangeViews.
 		if i == 1 {
@@ -225,6 +226,8 @@ func TestService_GetVerified(t *testing.T) {
 		require.NoError(t, p.Sign(priv))
 
 		// Skip srv.OnPayload, because the service is not really started.
+		// OnReceive is hanging here since ChangeView requires timer reset with 0 delta, whereas
+		// no one is reading from the dBFT's timer channel.
 		srv.dbft.OnReceive(p)
 	}
 	require.Equal(t, uint8(1), srv.dbft.ViewNumber)
@@ -324,7 +327,6 @@ func TestService_getTx(t *testing.T) {
 func TestService_PrepareRequest(t *testing.T) {
 	srv := newTestServiceWithState(t, true)
 	srv.dbft.Start(0)
-	t.Cleanup(srv.dbft.Timer.Stop)
 
 	priv, _ := getTestValidator(1)
 	p := new(Payload)

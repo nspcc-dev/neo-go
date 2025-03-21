@@ -1,6 +1,6 @@
 module github.com/nspcc-dev/neo-go/scripts
 
-go 1.22
+go 1.23
 
 replace github.com/nspcc-dev/neo-go => ../
 

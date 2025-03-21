@@ -1136,7 +1136,6 @@ func (bc *Blockchain) Run() {
 	bc.isRunning.Store(true)
 	persistTimer := time.NewTimer(persistInterval)
 	defer func() {
-		persistTimer.Stop()
 		if _, err := bc.persist(); err != nil {
 			bc.log.Warn("failed to persist", zap.Error(err))
 		}

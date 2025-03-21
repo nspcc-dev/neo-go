@@ -481,13 +481,8 @@ func (s *Server) Shutdown() {
 		for _, session := range s.sessions {
 			// Concurrent iterator traversal may still be in process, thus need to protect iteratorIdentifiers access.
 			session.iteratorsLock.Lock()
+			session.timer.Stop() // cancel session's finalizer.
 			session.finalize()
-			if !session.timer.Stop() {
-				select {
-				case <-session.timer.C:
-				default:
-				}
-			}
 			session.iteratorsLock.Unlock()
 		}
 		s.sessions = nil
@@ -728,7 +723,6 @@ eventloop:
 		}
 	}
 	ws.Close()
-	pingTicker.Stop()
 	// Drain notification channel as there might be some goroutines blocked
 	// on it.
 drainloop:
@@ -2726,13 +2720,8 @@ func (s *Server) terminateSession(reqParams params.Params) (any, *neorpc.Error) 
 	// Iterators access Seek channel under the hood; finalizer closes this channel, thus,
 	// we need to perform finalisation under iteratorsLock.
 	session.iteratorsLock.Lock()
+	session.timer.Stop() // cancel session's finalizer.
 	session.finalize()
-	if !session.timer.Stop() {
-		select {
-		case <-session.timer.C:
-		default:
-		}
-	}
 	delete(s.sessions, strSID)
 	session.iteratorsLock.Unlock()
 	return ok, nil

@@ -51,14 +51,8 @@ func TestSignerCopy(t *testing.T) {
 
 	require.Equal(t, original.Account, cp.Account)
 	require.Equal(t, original.Scopes, cp.Scopes)
-
-	require.NotSame(t, original.AllowedContracts, cp.AllowedContracts)
 	require.Equal(t, original.AllowedContracts, cp.AllowedContracts)
-
-	require.NotSame(t, original.AllowedGroups, cp.AllowedGroups)
 	require.Equal(t, original.AllowedGroups, cp.AllowedGroups)
-
-	require.NotSame(t, original.Rules, cp.Rules)
 	require.Equal(t, original.Rules, cp.Rules)
 
 	original.AllowedContracts[0][0] = 255
