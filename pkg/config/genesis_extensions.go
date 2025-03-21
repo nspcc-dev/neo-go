@@ -12,6 +12,12 @@ import (
 // Genesis represents a set of genesis block settings including the extensions
 // enabled in the genesis block or during native contracts initialization.
 type Genesis struct {
+	// MaxValidUntilBlockIncrement is the upper increment size of blockchain
+	// height (in blocks) exceeding that a transaction should fail validation.
+	// It differs from Protocol level configuration in that this value is used
+	// starting from HFEchidna to initialize MaxValidUntilBlockIncrement value
+	// of native Policy contract.
+	MaxValidUntilBlockIncrement uint32
 	// Roles contains the set of roles that should be designated during native
 	// Designation contract initialization. It is NeoGo extension and must be
 	// disabled on the public Neo N3 networks.
@@ -40,9 +46,10 @@ type GenesisTransaction struct {
 type (
 	// genesisAux is an auxiliary structure for Genesis YAML marshalling.
 	genesisAux struct {
-		Roles        map[string]keys.PublicKeys `yaml:"Roles"`
-		TimePerBlock time.Duration              `yaml:"TimePerBlock"`
-		Transaction  *genesisTransactionAux     `yaml:"Transaction"`
+		MaxValidUntilBlockIncrement uint32                     `yaml:"MaxValidUntilBlockIncrement"`
+		Roles                       map[string]keys.PublicKeys `yaml:"Roles"`
+		TimePerBlock                time.Duration              `yaml:"TimePerBlock"`
+		Transaction                 *genesisTransactionAux     `yaml:"Transaction"`
 	}
 	// genesisTransactionAux is an auxiliary structure for GenesisTransaction YAML
 	// marshalling.
@@ -66,6 +73,7 @@ func (e Genesis) MarshalYAML() (any, error) {
 		}
 	}
 	aux.TimePerBlock = e.TimePerBlock
+	aux.MaxValidUntilBlockIncrement = e.MaxValidUntilBlockIncrement
 	return aux, nil
 }
 
@@ -97,6 +105,7 @@ func (e *Genesis) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 
 	e.TimePerBlock = aux.TimePerBlock
+	e.MaxValidUntilBlockIncrement = aux.MaxValidUntilBlockIncrement
 
 	return nil
 }
