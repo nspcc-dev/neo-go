@@ -17,6 +17,7 @@ import (
 	gio "github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/network/bqueue"
 	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -67,7 +68,8 @@ type Service struct {
 
 	stateRootInHeader bool
 	// headerSizeMap is a map of height to expected header size.
-	headerSizeMap map[int]int
+	headerSizeMap       map[int]int
+	neofsContainerHeght uint32
 
 	chain   Ledger
 	pool    neofs.PoolWrapper
@@ -153,7 +155,8 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, put fun
 	if err != nil {
 		return nil, err
 	}
-	return &Service{
+
+	bfs := Service{
 		chain:         chain,
 		pool:          neofs.PoolWrapper{Pool: p},
 		log:           logger,
@@ -176,7 +179,43 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, put fun
 		//  * second full block of OIDs is available to be fetched by Downloader immediately
 		//  * third half-filled block of OIDs is being collected by OIDsFetcher.
 		oidsCh: make(chan indexedOID, 2*cfg.OIDBatchSize),
-	}, nil
+	}
+
+	var (
+		containerID  cid.ID
+		containerObj container.Container
+	)
+	bfs.ctx, bfs.ctxCancel = context.WithCancel(context.Background())
+	if err = bfs.pool.Dial(context.Background()); err != nil {
+		return nil, fmt.Errorf("failed to dial NeoFS pool: %w", err)
+	}
+
+	err = containerID.DecodeString(bfs.cfg.ContainerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode container ID: %w", err)
+	}
+
+	err = bfs.retry(func() error {
+		containerObj, err = bfs.pool.ContainerGet(bfs.ctx, containerID, client.PrmContainerGet{})
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get container: %w", err)
+	}
+	containerMagic := containerObj.Attribute("Magic")
+	if containerMagic != strconv.Itoa(int(bfs.chain.GetConfig().Magic)) {
+		return nil, fmt.Errorf("container magic mismatch: expected %d, got %s", bfs.chain.GetConfig().Magic, containerMagic)
+	}
+
+	bfs.getFunc = bfs.objectGet
+	bfs.readFunc = bfs.readBlock
+	bfs.heightFunc = bfs.chain.BlockHeight
+	if bfs.operationMode == Headers {
+		bfs.getFunc = bfs.objectGetRange
+		bfs.readFunc = bfs.readHeader
+		bfs.heightFunc = bfs.chain.HeaderHeight
+	}
+	return &bfs, nil
 }
 
 func getHeaderSizeMap(chain config.Blockchain) map[int]int {
@@ -187,6 +226,68 @@ func getHeaderSizeMap(chain config.Blockchain) map[int]int {
 		headerSizeMap[int(height)] = block.GetExpectedHeaderSize(chain.StateRootInHeader, chain.GetNumOfCNs(height))
 	}
 	return headerSizeMap
+}
+
+func (bfs *Service) getContainerHeight() (uint32, error) {
+	startIndex := bfs.heightFunc()/bfs.cfg.IndexFileSize + 1
+	for {
+		prm := client.PrmObjectSearch{}
+		filters := object.NewSearchFilters()
+		filters.AddFilter(bfs.cfg.IndexFileAttribute, fmt.Sprintf("%d", startIndex), object.MatchStringEqual)
+		filters.AddFilter("IndexSize", fmt.Sprintf("%d", bfs.cfg.IndexFileSize), object.MatchStringEqual)
+		prm.SetFilters(filters)
+
+		ctx, cancel := context.WithTimeout(bfs.ctx, bfs.cfg.Timeout)
+		blockOidsObject, err := bfs.objectSearch(ctx, prm)
+		cancel()
+		if err != nil {
+			return 0, fmt.Errorf("failed to find '%s' object with index %d: %w", bfs.cfg.IndexFileAttribute, startIndex, err)
+		}
+		if len(blockOidsObject) == 0 {
+			return startIndex * bfs.cfg.IndexFileSize, nil
+		}
+		startIndex++
+	}
+}
+
+// GetMPTNodes search for the state object and returns MPT nodes.
+func (bfs *Service) GetMPTNodes() ([][]byte, error) {
+	headerHeight := bfs.heightFunc() - 1
+	var stateOidsObject []oid.ID
+	var err error
+	for i := range headerHeight {
+		prm := client.PrmObjectSearch{}
+		filters := object.NewSearchFilters()
+		filters.AddFilter(neofs.DefaultStateAttribute, fmt.Sprintf("%d", i), object.MatchStringEqual)
+		prm.SetFilters(filters)
+
+		ctx, cancel := context.WithTimeout(bfs.ctx, bfs.cfg.Timeout)
+		defer cancel()
+
+		stateOidsObject, err = bfs.objectSearch(ctx, prm)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find '%s' object with index %d: %w", neofs.DefaultStateAttribute, bfs.heightFunc(), err)
+		}
+
+		if len(stateOidsObject) != 0 {
+			break
+		}
+	}
+	if len(stateOidsObject) == 0 {
+		return nil, fmt.Errorf("failed to find '%s' objects: %w", neofs.DefaultStateAttribute, err)
+	}
+	ctx, cancel := context.WithTimeout(bfs.ctx, bfs.cfg.Timeout)
+	defer cancel()
+	rc, err := bfs.objectGet(ctx, stateOidsObject[0].String(), -1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object: %w", err)
+	}
+	defer rc.Close()
+	nodes, err := bfs.readState(rc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read state object: %w", err)
+	}
+	return nodes.([][]byte), nil
 }
 
 // Start runs the NeoFS BlockFetcher service.
@@ -476,6 +577,31 @@ func (bfs *Service) readHeader(rc io.ReadCloser) (any, error) {
 	return &b.Header, r.Err
 }
 
+func (bfs *Service) readState(rc io.ReadCloser) (any, error) {
+	r := gio.NewBinReaderFromIO(rc)
+	_ = r.ReadB()
+	_ = r.ReadU32LE()
+	_ = r.ReadU32LE()
+	var stateRoot util.Uint256
+	r.ReadBytes(stateRoot[:])
+	if r.Err != nil {
+		return nil, fmt.Errorf("failed to read state header: %w", r.Err)
+	}
+
+	var nodes [][]byte
+	for r.Err == nil {
+		nodeBytes := r.ReadVarBytes()
+		if r.Err != nil {
+			break
+		}
+		nodes = append(nodes, nodeBytes)
+	}
+	if r.Err != nil && !errors.Is(r.Err, io.EOF) {
+		return nil, fmt.Errorf("failed to read MPT nodes: %w", r.Err)
+	}
+	return nodes, nil
+}
+
 // Shutdown stops the NeoFS BlockFetcher service. It prevents service from new
 // block OIDs search, cancels all in-progress downloading operations and waits
 // until all service routines finish their work.
@@ -545,6 +671,18 @@ func (bfs *Service) IsShutdown() bool {
 // IsActive returns true if the NeoFS BlockFetcher service is running.
 func (bfs *Service) IsActive() bool {
 	return bfs.isActive.Load()
+}
+
+// LastBlockIndex returns the index of the last stored block in the NeoFS container.
+func (bfs *Service) LastBlockIndex() uint32 {
+	if bfs.neofsContainerHeght == 0 {
+		var err error
+		bfs.neofsContainerHeght, err = bfs.getContainerHeight()
+		if err != nil {
+			bfs.log.Warn("failed to get container last uploaded block index", zap.Error(err))
+		}
+	}
+	return bfs.neofsContainerHeght
 }
 
 // retry function with exponential backoff.
