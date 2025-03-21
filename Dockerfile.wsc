@@ -1,6 +1,6 @@
 # Builder image
 # Keep go version in sync with Build GA job.
-FROM golang:1.23.0-windowsservercore-ltsc2022 AS builder
+FROM golang:1.24.0-windowsservercore-ltsc2022 AS builder
 
 COPY . /neo-go
 
