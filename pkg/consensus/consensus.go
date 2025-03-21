@@ -177,7 +177,7 @@ func NewService(cfg Config) (Service, error) {
 	srv.dbft, err = dbft.New[util.Uint256](
 		dbft.WithTimer[util.Uint256](timer.New()),
 		dbft.WithLogger[util.Uint256](srv.log),
-		dbft.WithSecondsPerBlock[util.Uint256](cfg.TimePerBlock),
+		dbft.WithTimePerBlock[util.Uint256](func() time.Duration { return cfg.TimePerBlock }),
 		dbft.WithGetKeyPair[util.Uint256](srv.getKeyPair),
 		dbft.WithRequestTx(cfg.RequestTx),
 		dbft.WithStopTxFlow[util.Uint256](cfg.StopTxFlow),
