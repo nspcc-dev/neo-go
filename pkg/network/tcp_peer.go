@@ -294,7 +294,6 @@ func (p *TCPPeer) StartProtocol() {
 			}
 		}
 		if err != nil {
-			timer.Stop()
 			p.Disconnect(err)
 			return
 		}

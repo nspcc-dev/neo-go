@@ -539,8 +539,6 @@ func (s *Server) run() {
 		peerTimer        = time.NewTimer(s.ProtoTickInterval)
 	)
 	defer close(s.runFin)
-	defer addrTimer.Stop()
-	defer peerTimer.Stop()
 	go s.runProto()
 	for loopCnt := 0; ; loopCnt++ {
 		var (

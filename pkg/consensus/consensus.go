@@ -339,7 +339,6 @@ events:
 	for {
 		select {
 		case <-s.quit:
-			s.dbft.Timer.Stop()
 			s.Chain.UnsubscribeFromBlocks(s.blockEvents)
 			break events
 		case <-s.dbft.Timer.C():
