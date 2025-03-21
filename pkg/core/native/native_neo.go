@@ -362,7 +362,7 @@ func (n *NEO) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *intero
 // Cache initialization should be done apart from Initialize because Initialize is
 // called only when deploying native contracts. InitializeCache implements the Contract
 // interface.
-func (n *NEO) InitializeCache(blockHeight uint32, d *dao.Simple) error {
+func (n *NEO) InitializeCache(_ interop.IsHardforkEnabled, blockHeight uint32, d *dao.Simple) error {
 	cache := &NeoCache{
 		gasPerVoteCache: make(map[string]big.Int),
 		votesChanged:    true,

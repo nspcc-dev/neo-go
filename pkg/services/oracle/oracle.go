@@ -32,6 +32,7 @@ type (
 		GetMaxVerificationGAS() int64
 		GetTestVM(t trigger.Type, tx *transaction.Transaction, b *block.Block) (*interop.Context, error)
 		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
+		GetMaxValidUntilBlockIncrement() uint32
 	}
 
 	// Oracle represents an oracle module capable of talking

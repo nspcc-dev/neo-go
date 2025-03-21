@@ -192,7 +192,7 @@ func (o *Oracle) processRequest(priv *keys.PrivateKey, req request) error {
 	o.Log.Debug("oracle request processed", zap.String("url", req.Req.URL), zap.Int("code", int(resp.Code)), zap.String("result", string(resp.Result)))
 
 	currentHeight := o.Chain.BlockHeight()
-	vubInc := o.Chain.GetConfig().MaxValidUntilBlockIncrement
+	vubInc := o.Chain.GetMaxValidUntilBlockIncrement()
 	_, h, err := o.Chain.GetTransaction(req.Req.OriginalTxID)
 	if err != nil {
 		if !errors.Is(err, storage.ErrKeyNotFound) {

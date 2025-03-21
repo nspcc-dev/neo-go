@@ -67,3 +67,15 @@ func BlockAccount(addr interop.Hash160) bool {
 func UnblockAccount(addr interop.Hash160) bool {
 	return neogointernal.CallWithToken(Hash, "unblockAccount", int(contract.States), addr).(bool)
 }
+
+// GetMaxValidUntilBlockIncrement represents `getMaxValidUntilBlockIncrement` method of Policy native contract.
+// Note that this method is available starting from [config.HFEchidna] hardfork.
+func GetMaxValidUntilBlockIncrement() int {
+	return neogointernal.CallWithToken(Hash, "getMaxValidUntilBlockIncrement", int(contract.ReadStates)).(int)
+}
+
+// SetMaxValidUntilBlockIncrement represents `setMaxValidUntilBlockIncrement` method of Policy native contract.
+// Note that this method is available starting from [config.HFEchidna] hardfork.
+func SetMaxValidUntilBlockIncrement(value int) {
+	neogointernal.CallWithTokenNoRet(Hash, "setMaxValidUntilBlockIncrement", int(contract.States), value)
+}

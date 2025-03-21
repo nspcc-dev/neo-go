@@ -86,7 +86,7 @@ func (l *Ledger) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 }
 
 // InitializeCache implements the Contract interface.
-func (l *Ledger) InitializeCache(blockHeight uint32, d *dao.Simple) error {
+func (l *Ledger) InitializeCache(_ interop.IsHardforkEnabled, blockHeight uint32, d *dao.Simple) error {
 	return nil
 }
 

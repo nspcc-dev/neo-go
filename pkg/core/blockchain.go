@@ -300,6 +300,11 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		log.Info("MaxValidUntilBlockIncrement is not set or wrong, using default value",
 			zap.Uint32("MaxValidUntilBlockIncrement", cfg.MaxValidUntilBlockIncrement))
 	}
+	if cfg.Genesis.MaxValidUntilBlockIncrement == 0 {
+		cfg.Genesis.MaxValidUntilBlockIncrement = cfg.MaxValidUntilBlockIncrement
+		log.Info("Genesis MaxValidUntilBlockIncrement is not set or wrong, using default value",
+			zap.Uint32("Genesis MaxValidUntilBlockIncrement", cfg.Genesis.MaxValidUntilBlockIncrement))
+	}
 	if cfg.P2PStateExchangeExtensions && cfg.NeoFSStateSyncExtensions {
 		return nil, errors.New("P2PStateExchangeExtensions and NeoFSStateSyncExtensions cannot be enabled simultaneously")
 	}
@@ -1109,7 +1114,7 @@ func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) e
 		if !bc.isHardforkEnabled(c.ActiveIn(), blockHeight) {
 			continue
 		}
-		err := c.InitializeCache(blockHeight, d)
+		err := c.InitializeCache(bc.isHardforkEnabled, blockHeight, d)
 		if err != nil {
 			return fmt.Errorf("failed to initialize cache for %s: %w", c.Metadata().Name, err)
 		}
@@ -2619,7 +2624,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 
 	height := bc.BlockHeight()
 	isPartialTx := data != nil
-	if t.ValidUntilBlock <= height || !isPartialTx && t.ValidUntilBlock > height+bc.config.MaxValidUntilBlockIncrement {
+	if t.ValidUntilBlock <= height || !isPartialTx && t.ValidUntilBlock > height+bc.GetMaxValidUntilBlockIncrement() {
 		return fmt.Errorf("%w: ValidUntilBlock = %d, current height = %d", ErrTxExpired, t.ValidUntilBlock, height)
 	}
 	// Policying.
@@ -2951,6 +2956,18 @@ func (bc *Blockchain) GetFakeNextBlock(nextBlockHeight uint32) (*block.Block, er
 	}
 	b.Timestamp = hdr.Timestamp + uint64(bc.config.TimePerBlock/time.Millisecond)
 	return b, nil
+}
+
+// GetMaxValidUntilBlockIncrement returns the maximum value for upper increment size
+// of blockchain height (in blocks) exceeding that a transaction should fail
+// validation. This method performs access to native Policy storage hence Policy is
+// expected to be initialized by this moment.
+func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
+	var hf = config.HFEchidna
+	if bc.isHardforkEnabled(&hf, bc.BlockHeight()) {
+		return bc.contracts.Policy.GetMaxValidUntilBlockIncrementFromCache(bc.dao)
+	}
+	return bc.GetConfig().MaxValidUntilBlockIncrement
 }
 
 // Various witness verification errors.

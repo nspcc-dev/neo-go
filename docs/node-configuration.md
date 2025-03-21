@@ -414,7 +414,7 @@ protocol-related settings described in the table below.
 | MaxBlockSystemFee | `int64` | `900000000000` | Maximum overall transactions system fee per block. |
 | MaxTraceableBlocks | `uint32` | `2102400` | Length of the chain accessible to smart contracts. | `RemoveUntraceableBlocks` should be enabled to use this setting. |
 | MaxTransactionsPerBlock | `uint16` | `512` | Maximum number of transactions per block. |
-| MaxValidUntilBlockIncrement | `uint32` | `5760` | Upper height increment limit for transaction's ValidUntilBlock field value relative to the current blockchain height, exceeding which a transaction will fail validation. It is set to estimated daily number of blocks with 15s interval by default. |
+| MaxValidUntilBlockIncrement | `uint32` | `5760` | Upper height increment limit for transaction's ValidUntilBlock field value relative to the current blockchain height, exceeding which a transaction will fail validation. It is set to estimated daily number of blocks with 15s interval by default. This setting is replaced by [`Genesis`-level](#Genesis-Configuration) `MaxValidUntilBlockIncrement` protocol configuration setting and corresponding Policy value starting from `Echidna` hardfork. |
 | MemPoolSize | `int` | `50000` | Size of the node's memory pool where transactions are stored before they are added to block. |
 | P2PNotaryRequestPayloadPoolSize | `int` | `1000` | Size of the node's P2P Notary request payloads memory pool where P2P Notary requests are stored before main or fallback transaction is completed and added to the chain.<br>This option is valid only if `P2PSigExtensions` are enabled. | Not supported by the C# node, thus may affect heterogeneous networks functionality. |
 | P2PSigExtensions | `bool` | `false` | Enables following additional Notary service related logic:<br>• Transaction attribute `NotaryAssisted`<br>• Network payload of the `P2PNotaryRequest` type<br>• Native `Notary` contract<br>• Notary node module | Not supported by the C# node, thus may affect heterogeneous networks functionality. |
@@ -437,6 +437,7 @@ during genesis block persist or at the moment of native contracts initialisation
 `Genesis` has the following structure:
 ```
 Genesis:
+  MaxValidUntilBlockIncrement: 5760
   Roles:
     NeoFSAlphabet:
       - 033238fa63bd08115ebf442d4af897eea2f6866e4c2001cd1f6e7656acdd91a5d3
@@ -451,6 +452,17 @@ Genesis:
     SystemFee: 100000000
 ```
 where:
+- `MaxValidUntilBlockIncrement` is an upper height increment limit for transaction's
+  ValidUntilBlock field value relative to the current blockchain height, exceeding
+  which a transaction will fail validation. This setting is used to initialize
+  `MaxValidUntilBlockIncrement` value of native Policy contract at `Echidna`
+  hardfork. If not set, then `ProtocolConfiguration`-level
+  `MaxValidUntilBlockIncrement` setting is used as the default value.
+
+  Note that this value is stored directly in the Policy contract storage, i.e. it
+  affects the chain's state, so it's important to keep it the same on all nodes
+  in frames of a single network.
+
 - `Roles` is a map from node roles that should be set at the moment of native
   RoleManagement contract initialisation to the list of hex-encoded public keys
   corresponding to this role. The set of valid roles includes:
