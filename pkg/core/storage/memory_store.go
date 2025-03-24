@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"cmp"
 	"slices"
 	"strings"
 	"sync"
@@ -107,11 +108,11 @@ func (s *MemoryStore) seek(rng SeekRange, f func(k, v []byte) bool, lock func(),
 	var memList []KeyValue
 
 	isKeyOK := func(key string) bool {
-		return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) >= 0)
+		return strings.HasPrefix(key, sPrefix) && (lStart == 0 || cmp.Compare(key[lPrefix:], sStart) >= 0)
 	}
 	if rng.Backwards {
 		isKeyOK = func(key string) bool {
-			return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) <= 0)
+			return strings.HasPrefix(key, sPrefix) && (lStart == 0 || cmp.Compare(key[lPrefix:], sStart) <= 0)
 		}
 	}
 	var cmpFunc = getCmpFunc(rng.Backwards)

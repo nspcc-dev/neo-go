@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"slices"
 	"strings"
@@ -195,11 +196,11 @@ func (s *MemCachedStore) prepareSeekMemSnapshot(rng SeekRange) (Store, []KeyValu
 	sStart := string(rng.Start)
 	lStart := len(sStart)
 	isKeyOK := func(key string) bool {
-		return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) >= 0)
+		return strings.HasPrefix(key, sPrefix) && (lStart == 0 || cmp.Compare(key[lPrefix:], sStart) >= 0)
 	}
 	if rng.Backwards {
 		isKeyOK = func(key string) bool {
-			return strings.HasPrefix(key, sPrefix) && (lStart == 0 || strings.Compare(key[lPrefix:], sStart) <= 0)
+			return strings.HasPrefix(key, sPrefix) && (lStart == 0 || cmp.Compare(key[lPrefix:], sStart) <= 0)
 		}
 	}
 	s.rlock()
