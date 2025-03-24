@@ -317,7 +317,9 @@ func HandleLoggingParams(ctx *cli.Context, cfg config.ApplicationConfiguration) 
 	cc.DisableStacktrace = true
 	cc.EncoderConfig.EncodeDuration = zapcore.StringDurationEncoder
 	cc.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	if term.IsTerminal(int(os.Stdout.Fd())) || (ctx != nil && ctx.Bool("force-timestamp-logs")) {
+	if cfg.LogTimestamp == nil && term.IsTerminal(int(os.Stdout.Fd())) ||
+		cfg.LogTimestamp != nil && *cfg.LogTimestamp ||
+		ctx != nil && ctx.Bool("force-timestamp-logs") {
 		cc.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	} else {
 		cc.EncoderConfig.EncodeTime = func(t time.Time, encoder zapcore.PrimitiveArrayEncoder) {}

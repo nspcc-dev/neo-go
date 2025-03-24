@@ -6,9 +6,10 @@ import (
 
 // Logger contains node logger configuration.
 type Logger struct {
-	LogEncoding string `yaml:"LogEncoding"`
-	LogLevel    string `yaml:"LogLevel"`
-	LogPath     string `yaml:"LogPath"`
+	LogEncoding  string `yaml:"LogEncoding"`
+	LogLevel     string `yaml:"LogLevel"`
+	LogPath      string `yaml:"LogPath"`
+	LogTimestamp *bool  `yaml:"LogTimestamp,omitempty"`
 }
 
 // Validate returns an error if Logger configuration is not valid.

@@ -22,6 +22,7 @@ node-related settings described in the table below.
 | LogEncoding | `string` | "console" | Logs output format (can be "console" or "json"). |
 | LogLevel | `string` | "info" | Minimal logged messages level (can be "debug", "info", "warn", "error", "dpanic", "panic" or "fatal"). |
 | LogPath | `string` | "", so only console logging | File path where to store node logs. |
+| LogTimestamp | `bool` | Defined by TTY probe on stdout channel.  | Defines whether to enable timestamp logging. If not set, then timestamp logging enabled iff the program is running in TTY (but this behaviour may be overriden by `--force-timestamp-logs` CLI flag if specified). Note that this option, if combined with `LogEncoding: "json"`, can't completely disable timestamp logging. |
 | NeoFSBlockFetcher | [NeoFS BlockFetcher Configuration](#NeoFS-BlockFetcher-Configuration) | | NeoFS BlockFetcher module configuration. See the [NeoFS BlockFetcher Configuration](#NeoFS-BlockFetcher-Configuration) section for details. |
 | Oracle | [Oracle Configuration](#Oracle-Configuration) | | Oracle module configuration. See the [Oracle Configuration](#Oracle-Configuration) section for details. |
 | P2P | [P2P Configuration](#P2P-Configuration) | | Configuration values for P2P network interaction. See the [P2P Configuration](#P2P-Configuration) section for details. |
