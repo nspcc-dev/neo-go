@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
@@ -396,7 +395,7 @@ func (c *HFSpecificContractMD) GetMethodByOffset(offset int) (HFSpecificMethodAn
 // GetMethod returns method `name` with the specified number of parameters.
 func (c *HFSpecificContractMD) GetMethod(name string, paramCount int) (HFSpecificMethodAndPrice, bool) {
 	index, ok := slices.BinarySearchFunc(c.Methods, HFSpecificMethodAndPrice{}, func(a, _ HFSpecificMethodAndPrice) int {
-		res := strings.Compare(a.MD.Name, name)
+		res := cmp.Compare(a.MD.Name, name)
 		if res != 0 {
 			return res
 		}

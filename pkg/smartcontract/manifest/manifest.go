@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -112,7 +113,7 @@ func (m *Manifest) IsValid(hash util.Uint160, checkSize bool) error {
 	if slices.Contains(m.SupportedStandards, "") {
 		return errors.New("invalid nameless supported standard")
 	}
-	if sliceHasDups(m.SupportedStandards, strings.Compare) {
+	if sliceHasDups(m.SupportedStandards, cmp.Compare) {
 		return errors.New("duplicate supported standards")
 	}
 	err = m.ABI.IsValid()

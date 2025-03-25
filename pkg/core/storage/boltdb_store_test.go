@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/storage/dbconfig"
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/bbolt"
+	"go.etcd.io/bbolt/errors"
 )
 
 func newBoltStoreForTesting(t testing.TB) Store {
@@ -42,7 +43,7 @@ func TestROBoltDB(t *testing.T) {
 	require.NoError(t, err)
 	// Changes must be prohibited.
 	putErr := store.PutChangeSet(map[string][]byte{"one": []byte("one")}, nil)
-	require.ErrorIs(t, putErr, bbolt.ErrDatabaseReadOnly)
+	require.ErrorIs(t, putErr, errors.ErrDatabaseReadOnly)
 	require.NoError(t, store.Close())
 
 	// Create the DB without buckets and try to open it in RO mode, an error is expected.

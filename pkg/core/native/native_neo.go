@@ -1,6 +1,7 @@
 package native
 
 import (
+	"cmp"
 	"context"
 	"crypto/elliptic"
 	"encoding/binary"
@@ -9,7 +10,6 @@ import (
 	"maps"
 	"math/big"
 	"slices"
-	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
@@ -1111,13 +1111,13 @@ func (n *NEO) getCandidates(d *dao.Simple, sortByKey bool, maxNum int) ([]keyWit
 		// to sort using big.Int comparator.
 		slices.SortFunc(arr, func(a, b keyWithVotes) int {
 			// The most-voted validators should end up in the front of the list.
-			cmp := b.Votes.Cmp(a.Votes)
-			if cmp != 0 {
-				return cmp
+			cmpVotes := b.Votes.Cmp(a.Votes)
+			if cmpVotes != 0 {
+				return cmpVotes
 			}
 			// Ties are broken with deserialized public keys.
 			// Sort by ECPoint's (X, Y) components: compare X first, and then compare Y.
-			cmpX := strings.Compare(a.Key[1:], b.Key[1:])
+			cmpX := cmp.Compare(a.Key[1:], b.Key[1:])
 			if cmpX != 0 {
 				return cmpX
 			}

@@ -526,7 +526,7 @@ func Generate(cfg binding.Config) error {
 	for k := range cfg.NamedTypes {
 		ctr.NamedTypes = append(ctr.NamedTypes, cfg.NamedTypes[k])
 	}
-	slices.SortFunc(ctr.NamedTypes, func(a, b binding.ExtendedType) int { return strings.Compare(a.Name, b.Name) })
+	slices.SortFunc(ctr.NamedTypes, func(a, b binding.ExtendedType) int { return cmp.Compare(a.Name, b.Name) })
 
 	// Check resulting named types and events don't have duplicating field names.
 	for _, t := range ctr.NamedTypes {
