@@ -4,8 +4,8 @@ go 1.23
 
 require (
 	github.com/chzyer/readline v1.5.1
-	github.com/consensys/gnark v0.11.0
-	github.com/consensys/gnark-crypto v0.14.0
+	github.com/consensys/gnark v0.12.0
+	github.com/consensys/gnark-crypto v0.15.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
@@ -36,18 +36,17 @@ require (
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bits-and-blooms/bitset v1.14.2 // indirect
+	github.com/bits-and-blooms/bitset v1.20.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/consensys/bavard v0.1.13 // indirect
+	github.com/consensys/bavard v0.1.27 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/frankban/quicktest v1.14.5 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 // indirect
-	github.com/ingonyama-zk/icicle v1.1.0 // indirect
-	github.com/ingonyama-zk/iciclegnark v0.1.0 // indirect
+	github.com/ingonyama-zk/icicle/v3 v3.1.1-0.20241118092657-fccdb2f0921b // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
