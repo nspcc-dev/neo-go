@@ -221,7 +221,8 @@ func (p *ProtocolConfiguration) ShouldUpdateCommitteeAt(height uint32) bool {
 // Equals allows to compare two ProtocolConfiguration instances, returns true if
 // they're equal.
 func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
-	if p.InitialGASSupply != o.InitialGASSupply ||
+	if p.Genesis.MaxTraceableBlocks != o.Genesis.MaxTraceableBlocks ||
+		p.InitialGASSupply != o.InitialGASSupply ||
 		p.Magic != o.Magic ||
 		p.MaxBlockSize != o.MaxBlockSize ||
 		p.MaxBlockSystemFee != o.MaxBlockSystemFee ||

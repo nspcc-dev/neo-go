@@ -144,6 +144,11 @@ func (chain *FakeChain) GetStoragePrice() int64 {
 	return native.DefaultStoragePrice
 }
 
+// GetMaxTraceableBlocks implements the Ledger interface.
+func (chain *FakeChain) GetMaxTraceableBlocks() uint32 {
+	return chain.ProtocolConfiguration.MaxTraceableBlocks
+}
+
 // GetMaxVerificationGAS implements the Policer interface.
 func (chain *FakeChain) GetMaxVerificationGAS() int64 {
 	if chain.MaxVerificationGAS != 0 {

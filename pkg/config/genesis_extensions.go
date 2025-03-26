@@ -12,6 +12,11 @@ import (
 // Genesis represents a set of genesis block settings including the extensions
 // enabled in the genesis block or during native contracts initialization.
 type Genesis struct {
+	// MaxTraceableBlocks is a length of the chain accessible to smart
+	// contracts. It differs from Protocol level configuration in that this
+	// value is used starting from HFEchidna to initialize MaxTraceableBlocks
+	// value of native Policy contract.
+	MaxTraceableBlocks uint32
 	// MaxValidUntilBlockIncrement is the upper increment size of blockchain
 	// height (in blocks) exceeding that a transaction should fail validation.
 	// It differs from Protocol level configuration in that this value is used
@@ -46,6 +51,7 @@ type GenesisTransaction struct {
 type (
 	// genesisAux is an auxiliary structure for Genesis YAML marshalling.
 	genesisAux struct {
+		MaxTraceableBlocks          uint32                     `yaml:"MaxTraceableBlocks"`
 		MaxValidUntilBlockIncrement uint32                     `yaml:"MaxValidUntilBlockIncrement"`
 		Roles                       map[string]keys.PublicKeys `yaml:"Roles"`
 		TimePerBlock                time.Duration              `yaml:"TimePerBlock"`
@@ -74,6 +80,7 @@ func (e Genesis) MarshalYAML() (any, error) {
 	}
 	aux.TimePerBlock = e.TimePerBlock
 	aux.MaxValidUntilBlockIncrement = e.MaxValidUntilBlockIncrement
+	aux.MaxTraceableBlocks = e.MaxTraceableBlocks
 	return aux, nil
 }
 
@@ -106,6 +113,7 @@ func (e *Genesis) UnmarshalYAML(unmarshal func(any) error) error {
 
 	e.TimePerBlock = aux.TimePerBlock
 	e.MaxValidUntilBlockIncrement = aux.MaxValidUntilBlockIncrement
+	e.MaxTraceableBlocks = aux.MaxTraceableBlocks
 
 	return nil
 }
