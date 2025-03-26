@@ -66,6 +66,11 @@ func TestPolicy_MaxVUBIncrement(t *testing.T) {
 
 	c.AddNewBlock(t) // enable Echidna.
 	testGetSet(t, c, name, int64(c.Chain.GetConfig().Genesis.MaxValidUntilBlockIncrement), 1, 86400)
+
+	t.Run("set, higher than MaxTraceableBlocks", func(t *testing.T) {
+		mtb := committeeInvoker.Chain.GetMaxTraceableBlocks()
+		committeeInvoker.InvokeFail(t, fmt.Sprintf("MaxValidUntilBlockIncrement should be less than MaxTraceableBlocks %d", mtb), "set"+name, mtb+1)
+	})
 }
 
 func TestPolicy_MaxVUBIncrementCache(t *testing.T) {
@@ -201,6 +206,47 @@ func TestPolicy_MillisecondsPerBlockCache(t *testing.T) {
 	})
 	c.AddNewBlock(t) // enable Echidna.
 	testGetSetCache(t, c, "MillisecondsPerBlock", c.Chain.GetConfig().Genesis.TimePerBlock.Milliseconds())
+}
+
+func TestPolicy_MaxTraceableBlocks(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): 3,
+		}
+	})
+	committeeInvoker := c.WithSigners(c.Committee)
+	name := "MaxTraceableBlocks"
+
+	t.Run("set, before Echidna", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "method not found: setMaxTraceableBlocks/1", "set"+name, 123)
+	})
+	t.Run("get, before Echidna", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "method not found: getMaxTraceableBlocks/0", "get"+name)
+	})
+
+	c.AddNewBlock(t) // enable Echidna.
+	testGetSet(t, c, name, int64(c.Chain.GetConfig().Genesis.MaxTraceableBlocks), int64(c.Chain.GetConfig().MaxValidUntilBlockIncrement)+1, 2102400)
+
+	t.Run("set, increase", func(t *testing.T) {
+		mtb := committeeInvoker.Chain.GetMaxTraceableBlocks()
+		committeeInvoker.InvokeFail(t, fmt.Sprintf("MaxTraceableBlocks should not be greater than previous value %d", mtb), "set"+name, mtb+1)
+	})
+
+	t.Run("set, lower than MaxValidUntilBlockIncrement", func(t *testing.T) {
+		mtb := committeeInvoker.Chain.GetMaxTraceableBlocks()
+		committeeInvoker.Invoke(t, stackitem.Null{}, "setMaxValidUntilBlockIncrement", mtb-1)
+		committeeInvoker.InvokeFail(t, fmt.Sprintf("MaxTraceableBlocks should be larger than MaxValidUntilBlockIncrement %d", mtb-1), "set"+name, mtb-1)
+	})
+}
+
+func TestPolicy_MaxTraceableBlocksCache(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): 1,
+		}
+	})
+	c.AddNewBlock(t) // enable Echidna.
+	testGetSetCache(t, c, "MaxTraceableBlocks", int64(c.Chain.GetConfig().Genesis.MaxTraceableBlocks))
 }
 
 func TestPolicy_AttributeFee(t *testing.T) {

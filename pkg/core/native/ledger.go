@@ -22,6 +22,7 @@ import (
 // proxy between regular Blockchain/DAO interface and smart contracts.
 type Ledger struct {
 	interop.ContractMD
+	Policy *Policy
 }
 
 const ledgerContractID = -4
@@ -123,7 +124,7 @@ func (l *Ledger) currentIndex(ic *interop.Context, _ []stackitem.Item) stackitem
 func (l *Ledger) getBlock(ic *interop.Context, params []stackitem.Item) stackitem.Item {
 	hash := getBlockHashFromItem(ic, params[0])
 	block, err := ic.GetBlock(hash)
-	if err != nil || !isTraceableBlock(ic, block.Index) {
+	if err != nil || !l.isTraceableBlock(ic, block.Index) {
 		return stackitem.Null{}
 	}
 	return block.ToStackItem()
@@ -132,7 +133,7 @@ func (l *Ledger) getBlock(ic *interop.Context, params []stackitem.Item) stackite
 // getTransaction returns transaction to the SC.
 func (l *Ledger) getTransaction(ic *interop.Context, params []stackitem.Item) stackitem.Item {
 	tx, h, err := getTransactionAndHeight(ic.DAO, params[0])
-	if err != nil || !isTraceableBlock(ic, h) {
+	if err != nil || !l.isTraceableBlock(ic, h) {
 		return stackitem.Null{}
 	}
 	return tx.ToStackItem()
@@ -141,7 +142,7 @@ func (l *Ledger) getTransaction(ic *interop.Context, params []stackitem.Item) st
 // getTransactionHeight returns transaction height to the SC.
 func (l *Ledger) getTransactionHeight(ic *interop.Context, params []stackitem.Item) stackitem.Item {
 	_, h, err := getTransactionAndHeight(ic.DAO, params[0])
-	if err != nil || !isTraceableBlock(ic, h) {
+	if err != nil || !l.isTraceableBlock(ic, h) {
 		return stackitem.Make(-1)
 	}
 	return stackitem.Make(h)
@@ -153,7 +154,7 @@ func (l *Ledger) getTransactionFromBlock(ic *interop.Context, params []stackitem
 	hash := getBlockHashFromItem(ic, params[0])
 	index := toUint32(params[1])
 	block, err := ic.GetBlock(hash)
-	if err != nil || !isTraceableBlock(ic, block.Index) {
+	if err != nil || !l.isTraceableBlock(ic, block.Index) {
 		return stackitem.Null{}
 	}
 	if index >= uint32(len(block.Transactions)) {
@@ -165,7 +166,7 @@ func (l *Ledger) getTransactionFromBlock(ic *interop.Context, params []stackitem
 // getTransactionSigners returns transaction signers to the SC.
 func (l *Ledger) getTransactionSigners(ic *interop.Context, params []stackitem.Item) stackitem.Item {
 	tx, h, err := getTransactionAndHeight(ic.DAO, params[0])
-	if err != nil || !isTraceableBlock(ic, h) {
+	if err != nil || !l.isTraceableBlock(ic, h) {
 		return stackitem.Null{}
 	}
 	return transaction.SignersToStackItem(tx.Signers)
@@ -178,7 +179,7 @@ func (l *Ledger) getTransactionVMState(ic *interop.Context, params []stackitem.I
 		panic(err)
 	}
 	h, _, aer, err := ic.DAO.GetTxExecResult(hash)
-	if err != nil || !isTraceableBlock(ic, h) {
+	if err != nil || !l.isTraceableBlock(ic, h) {
 		return stackitem.Make(vmstate.None)
 	}
 	return stackitem.Make(aer.VMState)
@@ -186,10 +187,13 @@ func (l *Ledger) getTransactionVMState(ic *interop.Context, params []stackitem.I
 
 // isTraceableBlock defines whether we're able to give information about
 // the block with the index specified.
-func isTraceableBlock(ic *interop.Context, index uint32) bool {
+func (l *Ledger) isTraceableBlock(ic *interop.Context, index uint32) bool {
 	height := ic.BlockHeight()
-	MaxTraceableBlocks := ic.Chain.GetConfig().MaxTraceableBlocks
-	return index <= height && index+MaxTraceableBlocks > height
+	maxTraceableBlocks := ic.Chain.GetConfig().MaxTraceableBlocks
+	if ic.IsHardforkEnabled(config.HFEchidna) {
+		maxTraceableBlocks = l.Policy.GetMaxTraceableBlocksInternal(ic.DAO)
+	}
+	return index <= height && index+maxTraceableBlocks > height
 }
 
 // getBlockHashFromItem converts the given stackitem.Item to a block hash using the given

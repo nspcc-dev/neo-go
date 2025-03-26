@@ -899,17 +899,23 @@ func (s *Server) requestBlocksOrHeaders(p Peer) error {
 	var (
 		bq              blockHeaderQueuer = s.chain
 		requestMPTNodes bool
+		requestBlocks   = true // request blocks by default, skip iff statesync.Module is active and doesn't need new blocks.
 	)
 	if s.stateSync.IsActive() {
-		bq = s.stateSync
 		requestMPTNodes = s.stateSync.NeedMPTNodes()
+		requestBlocks = s.stateSync.NeedBlocks()
+		if requestBlocks {
+			bq = s.stateSync
+		}
 	}
 	if bq.BlockHeight() >= p.LastBlockIndex() {
 		return nil
 	}
-	err := s.requestBlocks(bq, p)
-	if err != nil {
-		return fmt.Errorf("%w: %w", errBlocksRequestFailed, err)
+	if requestBlocks {
+		err := s.requestBlocks(bq, p)
+		if err != nil {
+			return fmt.Errorf("%w: %w", errBlocksRequestFailed, err)
+		}
 	}
 	if requestMPTNodes {
 		return s.requestMPTNodes(p, s.stateSync.GetUnknownMPTNodesBatch(payload.MaxMPTHashesCount))

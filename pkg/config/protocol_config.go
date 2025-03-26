@@ -37,7 +37,7 @@ type (
 		MaxBlockSize uint32 `yaml:"MaxBlockSize"`
 		// MaxBlockSystemFee is the maximum overall system fee per block.
 		MaxBlockSystemFee int64 `yaml:"MaxBlockSystemFee"`
-		// MaxTraceableBlocks is the length of the chain accessible to smart contracts.
+		// MaxTraceableBlocks is the length of the chain tail accessible to smart contracts.
 		MaxTraceableBlocks uint32 `yaml:"MaxTraceableBlocks"`
 		// MaxTransactionsPerBlock is the maximum amount of transactions per block.
 		MaxTransactionsPerBlock uint16 `yaml:"MaxTransactionsPerBlock"`
@@ -224,7 +224,8 @@ func (p *ProtocolConfiguration) ShouldUpdateCommitteeAt(height uint32) bool {
 // Equals allows to compare two ProtocolConfiguration instances, returns true if
 // they're equal.
 func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
-	if p.InitialGASSupply != o.InitialGASSupply ||
+	if p.Genesis.MaxTraceableBlocks != o.Genesis.MaxTraceableBlocks ||
+		p.InitialGASSupply != o.InitialGASSupply ||
 		p.Magic != o.Magic ||
 		p.MaxBlockSize != o.MaxBlockSize ||
 		p.MaxBlockSystemFee != o.MaxBlockSystemFee ||

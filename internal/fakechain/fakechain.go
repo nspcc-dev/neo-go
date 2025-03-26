@@ -40,6 +40,11 @@ type FakeChain struct {
 	UtilityTokenBalance      *big.Int
 }
 
+// IsHardforkEnabled implements Blockchainer interface.
+func (chain *FakeChain) IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool {
+	return false
+}
+
 // FakeStateSync implements the StateSync interface.
 type FakeStateSync struct {
 	IsActiveFlag      atomic.Bool
@@ -152,6 +157,11 @@ func (chain *FakeChain) GetBaseExecFee() int64 {
 // GetStoragePrice implements the Policer interface.
 func (chain *FakeChain) GetStoragePrice() int64 {
 	return native.DefaultStoragePrice
+}
+
+// GetMaxTraceableBlocks implements the Ledger interface.
+func (chain *FakeChain) GetMaxTraceableBlocks() uint32 {
+	return chain.ProtocolConfiguration.MaxTraceableBlocks
 }
 
 // GetMaxVerificationGAS implements the Policer interface.

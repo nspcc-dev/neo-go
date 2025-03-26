@@ -58,7 +58,8 @@ func testGetSet(t *testing.T, c *neotest.ContractInvoker, name string, defaultVa
 
 	t.Run("set, success", func(t *testing.T) {
 		v := defaultValue + 1
-		if v > maxValue { // sanitize default value that is equal to max value.
+		if v > maxValue || // sanitize default value that is equal to max value.
+			name == "MaxTraceableBlocks" { // sanitize MaxTraceableBlocks that can only be decreased.
 			v = defaultValue - 1
 		}
 		// Set and get in the same block.
