@@ -188,8 +188,9 @@ func (l *Ledger) getTransactionVMState(ic *interop.Context, params []stackitem.I
 // the block with the index specified.
 func isTraceableBlock(ic *interop.Context, index uint32) bool {
 	height := ic.BlockHeight()
-	MaxTraceableBlocks := ic.Chain.GetConfig().MaxTraceableBlocks
-	return index <= height && index+MaxTraceableBlocks > height
+	// TODO: @roman-khimov, need your ACK for this, I think it's the most proper way:
+	maxTraceableBlocks := ic.Chain.GetMaxTraceableBlocks() // don't access Policy directly  with ic's DAO since we need persisted value.
+	return index <= height && index+maxTraceableBlocks > height
 }
 
 // getBlockHashFromItem converts the given stackitem.Item to a block hash using the given
