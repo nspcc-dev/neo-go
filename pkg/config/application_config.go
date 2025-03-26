@@ -15,8 +15,7 @@ type ApplicationConfiguration struct {
 
 	DBConfiguration dbconfig.DBConfiguration `yaml:"DBConfiguration"`
 
-	LogLevel string `yaml:"LogLevel"`
-	LogPath  string `yaml:"LogPath"`
+	Logger `yaml:",inline"`
 
 	P2P P2P `yaml:"P2P"`
 
@@ -152,6 +151,9 @@ func (a *ApplicationConfiguration) Validate() error {
 	}
 	if err := a.RPC.Validate(); err != nil {
 		return fmt.Errorf("invalid RPC config: %w", err)
+	}
+	if err := a.Logger.Validate(); err != nil {
+		return fmt.Errorf("invalid logger config: %w", err)
 	}
 	return nil
 }

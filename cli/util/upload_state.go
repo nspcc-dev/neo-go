@@ -45,7 +45,7 @@ func uploadState(ctx *cli.Context) error {
 		return cli.Exit(err, 1)
 	}
 	defer p.Close()
-	log, _, logCloser, err := options.HandleLoggingParams(debug, cfg.ApplicationConfiguration)
+	log, _, logCloser, err := options.HandleLoggingParams(ctx, cfg.ApplicationConfiguration)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
