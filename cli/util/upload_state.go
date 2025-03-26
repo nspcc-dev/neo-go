@@ -9,8 +9,6 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/server"
 	"github.com/nspcc-dev/neo-go/pkg/core"
-	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
-	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	gio "github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
@@ -53,7 +51,7 @@ func uploadState(ctx *cli.Context) error {
 		defer func() { _ = logCloser() }()
 	}
 
-	chain, store, prometheus, pprof, err := server.InitBCWithMetrics(cfg, log)
+	chain, prometheus, pprof, err := server.InitBCWithMetrics(cfg, log)
 	if err != nil {
 		return err
 	}
@@ -133,7 +131,7 @@ func uploadState(ctx *cli.Context) error {
 			wrt.WriteU32LE(uint32(chain.GetConfig().Magic))
 			wrt.WriteU32LE(height)
 			wrt.WriteBytes(stateRoot.Root[:])
-			err = traverseMPT(stateRoot.Root, store, wrt)
+			err = traverseMPT(stateRoot.Root, stateModule, wrt)
 			if err != nil {
 				_ = writer.Close()
 				return err
@@ -192,15 +190,11 @@ func searchStateIndex(ctx *cli.Context, p neofs.PoolWrapper, containerID cid.ID,
 	}
 }
 
-func traverseMPT(root util.Uint256, store storage.Store, writer *gio.BinWriter) error {
-	cache := storage.NewMemCachedStore(store)
-	billet := mpt.NewBillet(root, mpt.ModeAll, mpt.DummySTTempStoragePrefix, cache)
-	err := billet.Traverse(func(pathToNode []byte, node mpt.Node, nodeBytes []byte) bool {
-		writer.WriteVarBytes(nodeBytes)
-		return writer.Err != nil
-	}, false)
-	if err != nil {
-		return fmt.Errorf("billet traversal error: %w", err)
-	}
-	return nil
+func traverseMPT(root util.Uint256, stateModule core.StateRoot, writer *gio.BinWriter) error {
+	stateModule.SeekStates(root, []byte{}, func(k, v []byte) bool {
+		writer.WriteVarBytes(k)
+		writer.WriteVarBytes(v)
+		return writer.Err == nil
+	})
+	return writer.Err
 }
