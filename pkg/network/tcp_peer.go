@@ -210,7 +210,7 @@ func (p *TCPPeer) handleQueues() {
 	var p2pSkipCounter uint32
 	const p2pSkipDivisor = 4
 
-	var writeTimeout = time.Duration(p.server.chain.GetMillisecondsPerBlock()) * time.Millisecond
+	var writeTimeout = max(time.Duration(p.server.chain.GetMillisecondsPerBlock())*time.Millisecond, time.Second)
 	for {
 		var msg []byte
 
