@@ -59,7 +59,7 @@ const (
 // default. The set above can contain other hardforks and even some name
 // placeholders, but they need to be enabled manually then. It can change
 // between releases even if the set of known hardforks is the same.
-const HFLatestStable = HFDomovoi
+const HFLatestStable = HFEchidna
 
 // HFLatestKnown is the latest known hardfork.
 const HFLatestKnown = hfLast >> 1
