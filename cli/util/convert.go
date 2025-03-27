@@ -189,7 +189,7 @@ func NewCommands() []*cli.Command {
 				},
 				{
 					Name:      "upload-state",
-					Usage:     "Start the node, traverse MPT and upload MPT nodes to the NeoFS container at every StateSyncInterval number of blocks",
+					Usage:     "Start the node, traverse contract storage key-value pairs and upload them to the NeoFS container at every StateSyncInterval number of blocks",
 					UsageText: "neo-go util upload-state --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --state-attribute state --wallet <wallet> [--wallet-config <config>] [--address <address>] [--searchers <num>] [--retries <num>] [--debug] [--config-path path] [-p/-m/-t] [--config-file file] [--force-timestamp-logs]",
 					Action:    uploadState,
 					Flags:     uploadStateFlags,
