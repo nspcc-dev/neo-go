@@ -271,7 +271,7 @@ func (o *Oracle) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 	return nil
 }
 
-func (o *Oracle) InitializeCache(blockHeight uint32, d *dao.Simple) error {
+func (o *Oracle) InitializeCache(_ interop.IsHardforkEnabled, blockHeight uint32, d *dao.Simple) error {
 	cache := &OracleCache{}
 	cache.requestPrice = getIntWithKey(o.ID, d, prefixRequestPrice)
 	d.SetCache(o.ID, cache)
