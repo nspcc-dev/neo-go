@@ -8,6 +8,7 @@ import (
 
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
@@ -469,4 +470,22 @@ func TestVerifyGroth16Proof(t *testing.T) {
 
 	// Verify.
 	validatorInvoker.Invoke(t, true, "verifyProof", argA, argB, argC, []any{publicWitness})
+}
+
+// TestCryptoLib_VerifyWithED25519_Compat is a C# node compatibility test, ref.
+// https://github.com/Jim8y/neo/blob/4d4f883027e9d29b99b466635e1c1a4ec47d8d08/tests/Neo.UnitTests/SmartContract/Native/UT_CryptoLib.cs#L916
+func TestCryptoLib_VerifyWithED25519_Compat(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.CryptoLib, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): uint32(0),
+		}
+	})
+	committeeInvoker := c.WithSigners(c.Committee)
+	pub, err := hex.DecodeString("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a")
+	require.NoError(t, err)
+	msg := []byte{}
+	sig, err := hex.DecodeString("e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b")
+	require.NoError(t, err)
+
+	committeeInvoker.Invoke(t, true, "verifyWithEd25519", msg, pub, sig)
 }

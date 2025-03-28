@@ -1,6 +1,7 @@
 package native
 
 import (
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"encoding/binary"
 	"errors"
@@ -120,6 +121,13 @@ func newCrypto() *Crypto {
 		manifest.NewParameter("data", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(c.keccak256, 1<<15, callflag.NoneFlag, config.HFCockatrice)
 	c.AddMethod(md, desc)
+
+	desc = newDescriptor("verifyWithEd25519", smartcontract.BoolType,
+		manifest.NewParameter("message", smartcontract.ByteArrayType),
+		manifest.NewParameter("publicKey", smartcontract.ByteArrayType),
+		manifest.NewParameter("signature", smartcontract.ByteArrayType))
+	md = newMethodAndPrice(c.verifyWithEd25519, 1<<15, callflag.NoneFlag, config.HFEchidna)
+	c.AddMethod(md, desc)
 	return c
 }
 
@@ -212,6 +220,28 @@ func curveHasherFromStackitem(si stackitem.Item, allowKeccak bool) (elliptic.Cur
 	default:
 		return nil, nil, fmt.Errorf("%w: unknown curve/hash", errors.ErrUnsupported)
 	}
+}
+
+func (c *Crypto) verifyWithEd25519(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	msg, err := args[0].TryBytes()
+	if err != nil {
+		panic(fmt.Errorf("invalid message stackitem: %w", err))
+	}
+	pubkey, err := args[1].TryBytes()
+	if err != nil {
+		panic(fmt.Errorf("invalid pubkey stackitem: %w", err))
+	}
+	signature, err := args[2].TryBytes()
+	if err != nil {
+		panic(fmt.Errorf("invalid signature stackitem: %w", err))
+	}
+	if len(signature) != ed25519.SignatureSize {
+		return stackitem.NewBool(false)
+	}
+	if len(pubkey) != ed25519.PublicKeySize {
+		return stackitem.NewBool(false)
+	}
+	return stackitem.NewBool(ed25519.Verify(pubkey, msg, signature))
 }
 
 func (c *Crypto) bls12381Serialize(_ *interop.Context, args []stackitem.Item) stackitem.Item {
