@@ -236,6 +236,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"ripemd160", []string{"[]byte{1, 2, 3}"}},
 		{"murmur32", []string{"[]byte{1, 2, 3}", "123"}},
 		{"verifyWithECDsa", []string{"[]byte{1, 2, 3}", pub, sig, "crypto.Secp256k1Sha256"}},
+		{"verifyWithEd25519", []string{"[]byte{1, 2, 3}", "[]byte{1, 2, 3}", "[]byte{1, 2, 3}"}},
 		{"bls12381Serialize", []string{"crypto.Bls12381Point{}"}},
 		{"bls12381Deserialize", []string{"[]byte{1, 2, 3}"}},
 		{"bls12381Equal", []string{"crypto.Bls12381Point{}", "crypto.Bls12381Point{}"}},
