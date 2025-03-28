@@ -82,6 +82,7 @@ type (
 		GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32)
 		GetHeader(hash util.Uint256) (*block.Header, error)
 		GetHeaderHash(uint32) util.Uint256
+		GetMaxTraceableBlocks() uint32
 		GetMaxVerificationGAS() int64
 		GetMemPool() *mempool.Pool
 		GetNEP11Contracts() []util.Uint160
@@ -98,6 +99,7 @@ type (
 		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 		HeaderHeight() uint32
 		InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
+		GetMaxValidUntilBlockIncrement() uint32
 		P2PSigExtensionsEnabled() bool
 		SubscribeForBlocks(ch chan *block.Block)
 		SubscribeForHeadersOfAddedBlocks(ch chan *block.Header)
@@ -890,8 +892,8 @@ func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 			AddressVersion:              address.NEO3Prefix,
 			Network:                     cfg.Magic,
 			MillisecondsPerBlock:        int(cfg.TimePerBlock / time.Millisecond),
-			MaxTraceableBlocks:          cfg.MaxTraceableBlocks,
-			MaxValidUntilBlockIncrement: cfg.MaxValidUntilBlockIncrement,
+			MaxTraceableBlocks:          s.chain.GetMaxTraceableBlocks(),          // TODO: ditto as below
+			MaxValidUntilBlockIncrement: s.chain.GetMaxValidUntilBlockIncrement(), // TODO: @roman-khimov, I'm not sure about this one. Startign from Echidna it doesn't look appropriate to include this settign in the node version.
 			MaxTransactionsPerBlock:     cfg.MaxTransactionsPerBlock,
 			MemoryPoolMaxTransactions:   cfg.MemPoolSize,
 			ValidatorsCount:             byte(cfg.GetNumOfCNs(s.chain.BlockHeight())),

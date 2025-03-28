@@ -283,6 +283,11 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		cfg.MaxTraceableBlocks = defaultMaxTraceableBlocks
 		log.Info("MaxTraceableBlocks is not set or wrong, using default value", zap.Uint32("MaxTraceableBlocks", cfg.MaxTraceableBlocks))
 	}
+	if cfg.Genesis.MaxTraceableBlocks == 0 {
+		cfg.Genesis.MaxTraceableBlocks = cfg.MaxTraceableBlocks
+		log.Info("Genesis MaxTraceableBlocks is not set or wrong, using default value",
+			zap.Uint32("Genesis MaxTraceableBlocks", cfg.Genesis.MaxTraceableBlocks))
+	}
 	if cfg.MaxTransactionsPerBlock == 0 {
 		cfg.MaxTransactionsPerBlock = defaultMaxTransactionsPerBlock
 		log.Info("MaxTransactionsPerBlock is not set or wrong, using default value",
@@ -293,12 +298,22 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		log.Info("TimePerBlock is not set or wrong, using default value",
 			zap.Duration("TimePerBlock", cfg.TimePerBlock))
 	}
+	if cfg.Genesis.TimePerBlock <= 0 {
+		cfg.Genesis.TimePerBlock = cfg.TimePerBlock
+		log.Info("Genesis TimePerBlock is not set or wrong, using default value",
+			zap.Duration("Genesis TimePerBlock", cfg.Genesis.TimePerBlock))
+	}
 	if cfg.MaxValidUntilBlockIncrement == 0 {
 		const timePerDay = 24 * time.Hour
 
-		cfg.MaxValidUntilBlockIncrement = uint32(timePerDay / cfg.TimePerBlock)
+		cfg.MaxValidUntilBlockIncrement = uint32(timePerDay / cfg.Genesis.TimePerBlock)
 		log.Info("MaxValidUntilBlockIncrement is not set or wrong, using default value",
 			zap.Uint32("MaxValidUntilBlockIncrement", cfg.MaxValidUntilBlockIncrement))
+	}
+	if cfg.Genesis.MaxValidUntilBlockIncrement == 0 {
+		cfg.Genesis.MaxValidUntilBlockIncrement = cfg.MaxValidUntilBlockIncrement
+		log.Info("Genesis MaxValidUntilBlockIncrement is not set or wrong, using default value",
+			zap.Uint32("Genesis MaxValidUntilBlockIncrement", cfg.Genesis.MaxValidUntilBlockIncrement))
 	}
 	if cfg.P2PStateExchangeExtensions && cfg.NeoFSStateSyncExtensions {
 		return nil, errors.New("P2PStateExchangeExtensions and NeoFSStateSyncExtensions cannot be enabled simultaneously")
@@ -655,6 +670,9 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
+		// TODO: @roman-khimov, native cache is not yet initialized, but we already have all storage items stored
+		// by the new prefix, so the only solution I can suggest is to retrieve MTB value directly from DB by
+		// the "magic" key that we use in Policy to store this constant. It's a hack, but will work. ACK?
 		if p-bc.config.MaxTraceableBlocks > 0 {
 			_, err := cache.DeleteBlock(bc.GetHeaderHash(0), false)
 			if err != nil {
@@ -764,6 +782,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		if bc.config.Ledger.KeepOnlyLatestState {
 			return fmt.Errorf("KeepOnlyLatestState is enabled, state for height %d is outdated and removed from the storage", height)
 		}
+		// TODO: @roman-khimov, ditto for this usage of MTB.
 		if bc.config.Ledger.RemoveUntraceableBlocks && currHeight >= bc.config.MaxTraceableBlocks {
 			return fmt.Errorf("RemoveUntraceableBlocks is enabled, a necessary batch of traceable blocks has already been removed")
 		}
@@ -1109,7 +1128,7 @@ func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) e
 		if !bc.isHardforkEnabled(c.ActiveIn(), blockHeight) {
 			continue
 		}
-		err := c.InitializeCache(blockHeight, d)
+		err := c.InitializeCache(bc.isHardforkEnabled, blockHeight, d)
 		if err != nil {
 			return fmt.Errorf("failed to initialize cache for %s: %w", c.Metadata().Name, err)
 		}
@@ -1174,9 +1193,19 @@ func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 	var dur time.Duration
 
 	newHeight := atomic.LoadUint32(&bc.persistedHeight)
+	// TODO: @roman-khimov, here we need to retrieve MTB value exactly for newHeight,
+	// so technically there may be a race between GC routine and storeBlock (MTB value update).
+	// Practically, I'd say it's not that important because MTB can only be decreased,
+	// and it won't hurt to remove a couple of extra blocks if MTB is already decreased
+	// at the current height.
+	//
+	// One more issue is: this GC logic doesn't allow to increase MTB value, so I'd say that
+	// it should be a part of `setMaxTraceableBlocks` method (currently it's not). From the
+	// other hand, for those nodes that doesn't have GC, nothing prevents from increasing MTB value.
+	mtb := bc.GetMaxTraceableBlocks()
 	var tgtBlock = int64(newHeight)
 
-	tgtBlock -= int64(bc.config.MaxTraceableBlocks)
+	tgtBlock -= int64(mtb)
 	if bc.config.P2PStateExchangeExtensions {
 		syncP := newHeight / uint32(bc.config.StateSyncInterval)
 		syncP--
@@ -1649,6 +1678,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		appExecResults = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
 		aerchan        = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
 		aerdone        = make(chan error)
+		mtb            = bc.GetMaxTraceableBlocks()
 	)
 	go func() {
 		var (
@@ -1664,13 +1694,13 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			if bc.config.P2PStateExchangeExtensions {
 				// remove batch of old blocks starting from P2-MaxTraceableBlocks-StateSyncInterval up to P2-MaxTraceableBlocks
 				if block.Index >= 2*uint32(bc.config.StateSyncInterval) &&
-					block.Index >= uint32(bc.config.StateSyncInterval)+bc.config.MaxTraceableBlocks && // check this in case if MaxTraceableBlocks>StateSyncInterval
+					block.Index >= uint32(bc.config.StateSyncInterval)+mtb && // check this in case if MaxTraceableBlocks>StateSyncInterval
 					int(block.Index)%bc.config.StateSyncInterval == 0 {
-					stop = block.Index - uint32(bc.config.StateSyncInterval) - bc.config.MaxTraceableBlocks
+					stop = block.Index - uint32(bc.config.StateSyncInterval) - mtb
 					start = stop - min(stop, uint32(bc.config.StateSyncInterval))
 				}
-			} else if block.Index > bc.config.MaxTraceableBlocks {
-				start = block.Index - bc.config.MaxTraceableBlocks // is at least 1
+			} else if block.Index > mtb {
+				start = block.Index - mtb // is at least 1
 				stop = start + 1
 			}
 			for index := start; index < stop; index++ {
@@ -2619,7 +2649,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 
 	height := bc.BlockHeight()
 	isPartialTx := data != nil
-	if t.ValidUntilBlock <= height || !isPartialTx && t.ValidUntilBlock > height+bc.config.MaxValidUntilBlockIncrement {
+	if t.ValidUntilBlock <= height || !isPartialTx && t.ValidUntilBlock > height+bc.GetMaxValidUntilBlockIncrement() {
 		return fmt.Errorf("%w: ValidUntilBlock = %d, current height = %d", ErrTxExpired, t.ValidUntilBlock, height)
 	}
 	// Policying.
@@ -2640,7 +2670,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		return fmt.Errorf("%w: net fee is %v, need %v", ErrTxSmallNetworkFee, t.NetworkFee, needNetworkFee)
 	}
 	// check that current tx wasn't included in the conflicts attributes of some other transaction which is already in the chain
-	if err := bc.dao.HasTransaction(t.Hash(), t.Signers, height, bc.config.MaxTraceableBlocks); err != nil {
+	if err := bc.dao.HasTransaction(t.Hash(), t.Signers, height, bc.GetMaxTraceableBlocks()); err != nil {
 		switch {
 		case errors.Is(err, dao.ErrAlreadyExists):
 			return ErrAlreadyExists
@@ -2793,7 +2823,7 @@ func (bc *Blockchain) IsTxStillRelevant(t *transaction.Transaction, txpool *memp
 		return false
 	}
 	if txpool == nil {
-		if bc.dao.HasTransaction(t.Hash(), t.Signers, curheight, bc.config.MaxTraceableBlocks) != nil {
+		if bc.dao.HasTransaction(t.Hash(), t.Signers, curheight, bc.GetMaxTraceableBlocks()) != nil { // TODO: move to a function parameter, otherwise there's a lot of calls to Policy cache
 			return false
 		}
 	} else if txpool.HasConflicts(t, bc) {
@@ -2914,7 +2944,7 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 	}
 	var mode = mpt.ModeAll
 	if bc.config.Ledger.RemoveUntraceableBlocks {
-		if b.Index < bc.BlockHeight()-bc.config.MaxTraceableBlocks {
+		if b.Index < bc.BlockHeight()-bc.GetMaxTraceableBlocks() {
 			return nil, fmt.Errorf("state for height %d is outdated and removed from the storage", b.Index)
 		}
 		mode |= mpt.ModeGCFlag
@@ -2949,8 +2979,47 @@ func (bc *Blockchain) GetFakeNextBlock(nextBlockHeight uint32) (*block.Block, er
 	if err != nil {
 		return nil, err
 	}
-	b.Timestamp = hdr.Timestamp + uint64(bc.config.TimePerBlock/time.Millisecond)
+	b.Timestamp = hdr.Timestamp + uint64(bc.MSPerBlock())
 	return b, nil
+}
+
+// MSPerBlock returns the time interval between blocks that consensus nodes work
+// with (in milliseconds). This method performs access to native Policy storage
+// hence Policy is expected to be initialized by this moment.
+func (bc *Blockchain) MSPerBlock() uint32 {
+	var hf = config.HFEchidna
+	if bc.isHardforkEnabled(&hf, bc.BlockHeight()) {
+		return bc.contracts.Policy.GetMSPerBlockInternal(bc.dao)
+	}
+	return uint32(bc.GetConfig().TimePerBlock.Milliseconds())
+}
+
+// GetMaxValidUntilBlockIncrement returns the maximum value for upper increment size
+// of blockchain height (in blocks) exceeding that a transaction should fail
+// validation. This method performs access to native Policy storage hence Policy is
+// expected to be initialized by this moment.
+func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
+	var hf = config.HFEchidna
+	if bc.isHardforkEnabled(&hf, bc.BlockHeight()) {
+		return bc.contracts.Policy.GetMaxValidUntilBlockIncrementFromCache(bc.dao)
+	}
+	return bc.GetConfig().MaxValidUntilBlockIncrement
+}
+
+// GetMaxTraceableBlocks returns the length of the chain accessible to smart contracts.
+func (bc *Blockchain) GetMaxTraceableBlocks() uint32 {
+	var (
+		hf = config.HFEchidna
+		h  = bc.BlockHeight()
+	)
+	if bc.isHardforkEnabled(&hf, h) {
+		// A special case for Genesis block since Policy storage might not yet be initialized.
+		if h == 0 {
+			return bc.GetConfig().Genesis.MaxTraceableBlocks
+		}
+		return bc.contracts.Policy.GetMaxTraceableBlocksInternal(bc.dao)
+	}
+	return bc.GetConfig().MaxTraceableBlocks
 }
 
 // Various witness verification errors.

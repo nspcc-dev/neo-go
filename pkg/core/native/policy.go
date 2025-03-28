@@ -43,6 +43,13 @@ const (
 	maxStoragePrice = 10000000
 	// maxAttributeFee is the maximum allowed value for a transaction attribute fee.
 	maxAttributeFee = 10_00000000
+	// maxMSPerBlock is the maximum allowed value (in milliseconds) for a block generation time.
+	maxMSPerBlock = 30_000
+	// maxMaxVUBIncrement the maximum value for upper increment size of blockchain
+	// height (in blocks) exceeding that a transaction should fail validation.
+	maxMaxVUBIncrement = 100500 // TODO: a week of 1-ms blocks is proposed.
+	// maxMaxTraceableBlocks is the maximum allowed number of traceable blocks.
+	maxMaxTraceableBlocks = 100500 // TODO
 
 	// blockedAccountPrefix is a prefix used to store blocked account.
 	blockedAccountPrefix = 15
@@ -58,6 +65,12 @@ var (
 	feePerByteKey = []byte{10}
 	// storagePriceKey is a key used to store storage price.
 	storagePriceKey = []byte{19}
+	// msPerBlockKey is a key used to store block generation time.
+	msPerBlockKey = []byte{21}
+	// maxVUBIncrementKey is a key used to store maximum ValidUntilBlock increment.
+	maxVUBIncrementKey = []byte{22}
+	// maxVUBIncrementKey is a key used to store maximum traceable blocks number.
+	maxTraceableBlocksKey = []byte{23}
 )
 
 // Policy represents Policy native contract.
@@ -74,6 +87,9 @@ type PolicyCache struct {
 	feePerByte         int64
 	maxVerificationGas int64
 	storagePrice       uint32
+	msPerBlock         uint32
+	maxVUBIncrement    uint32
+	maxTraceableBlocks uint32
 	attributeFee       map[transaction.AttrType]uint32
 	blockedAccounts    []util.Uint160
 }
@@ -157,6 +173,40 @@ func newPolicy(p2pSigExtensionsEnabled bool) *Policy {
 	md = newMethodAndPrice(p.unblockAccount, 1<<15, callflag.States)
 	p.AddMethod(md, desc)
 
+	desc = newDescriptor("getMSPerBlock", smartcontract.IntegerType)
+	md = newMethodAndPrice(p.getMSPerBlock, 1<<15, callflag.ReadStates, config.HFEchidna)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("setMSPerBlock", smartcontract.VoidType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.setMSPerBlock, 1<<15, callflag.States|callflag.AllowNotify, config.HFEchidna)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("getMaxValidUntilBlockIncrement", smartcontract.IntegerType)
+	md = newMethodAndPrice(p.getMaxValidUntilBlockIncrement, 1<<15, callflag.ReadStates, config.HFEchidna)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("setMaxValidUntilBlockIncrement", smartcontract.VoidType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.setMaxValidUntilBlockIncrement, 1<<15, callflag.States, config.HFEchidna)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("getMaxTraceableBlocks", smartcontract.IntegerType)
+	md = newMethodAndPrice(p.getMaxTraceableBlocks, 1<<15, callflag.ReadStates, config.HFEchidna)
+	p.AddMethod(md, desc)
+
+	desc = newDescriptor("setMaxTraceableBlocks", smartcontract.VoidType,
+		manifest.NewParameter("value", smartcontract.IntegerType))
+	md = newMethodAndPrice(p.setMaxTraceableBlocks, 1<<15, callflag.States, config.HFEchidna)
+	p.AddMethod(md, desc)
+
+	eDesc := newEventDescriptor("MSPerBlockChanged",
+		manifest.NewParameter("old", smartcontract.IntegerType),
+		manifest.NewParameter("new", smartcontract.IntegerType),
+	)
+	eMD := newEvent(eDesc, config.HFEchidna)
+	p.AddEvent(eMD)
+
 	return p
 }
 
@@ -167,34 +217,47 @@ func (p *Policy) Metadata() *interop.ContractMD {
 
 // Initialize initializes Policy native contract and implements the Contract interface.
 func (p *Policy) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *interop.HFSpecificContractMD) error {
-	if hf != p.ActiveIn() {
-		return nil
+	if hf == p.ActiveIn() {
+		setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte)
+		setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor)
+		setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice)
+
+		cache := &PolicyCache{
+			execFeeFactor:      defaultExecFeeFactor,
+			feePerByte:         defaultFeePerByte,
+			maxVerificationGas: defaultMaxVerificationGas,
+			storagePrice:       DefaultStoragePrice,
+			attributeFee:       map[transaction.AttrType]uint32{},
+			blockedAccounts:    make([]util.Uint160, 0),
+		}
+		if p.p2pSigExtensionsEnabled {
+			setIntWithKey(p.ID, ic.DAO, []byte{attributeFeePrefix, byte(transaction.NotaryAssistedT)}, defaultNotaryAssistedFee)
+			cache.attributeFee[transaction.NotaryAssistedT] = defaultNotaryAssistedFee
+		}
+		ic.DAO.SetCache(p.ID, cache)
 	}
 
-	setIntWithKey(p.ID, ic.DAO, feePerByteKey, defaultFeePerByte)
-	setIntWithKey(p.ID, ic.DAO, execFeeFactorKey, defaultExecFeeFactor)
-	setIntWithKey(p.ID, ic.DAO, storagePriceKey, DefaultStoragePrice)
+	if hf != nil && *hf == config.HFEchidna {
+		msPerBlock := ic.Chain.GetConfig().Genesis.TimePerBlock.Milliseconds()
+		setIntWithKey(p.ID, ic.DAO, msPerBlockKey, msPerBlock)
+		cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+		cache.msPerBlock = uint32(msPerBlock)
 
-	cache := &PolicyCache{
-		execFeeFactor:      defaultExecFeeFactor,
-		feePerByte:         defaultFeePerByte,
-		maxVerificationGas: defaultMaxVerificationGas,
-		storagePrice:       DefaultStoragePrice,
-		attributeFee:       map[transaction.AttrType]uint32{},
-		blockedAccounts:    make([]util.Uint160, 0),
+		maxVUBIncrement := ic.Chain.GetConfig().Genesis.MaxValidUntilBlockIncrement
+		setIntWithKey(p.ID, ic.DAO, maxVUBIncrementKey, int64(maxVUBIncrement))
+		cache.maxVUBIncrement = maxVUBIncrement
+
+		maxTraceableBlocks := ic.Chain.GetConfig().Genesis.MaxTraceableBlocks
+		setIntWithKey(p.ID, ic.DAO, maxTraceableBlocksKey, int64(maxTraceableBlocks))
+		cache.maxTraceableBlocks = maxTraceableBlocks
 	}
-	if p.p2pSigExtensionsEnabled {
-		setIntWithKey(p.ID, ic.DAO, []byte{attributeFeePrefix, byte(transaction.NotaryAssistedT)}, defaultNotaryAssistedFee)
-		cache.attributeFee[transaction.NotaryAssistedT] = defaultNotaryAssistedFee
-	}
-	ic.DAO.SetCache(p.ID, cache)
 
 	return nil
 }
 
-func (p *Policy) InitializeCache(blockHeight uint32, d *dao.Simple) error {
+func (p *Policy) InitializeCache(isHardforkEnabled interop.IsHardforkEnabled, blockHeight uint32, d *dao.Simple) error {
 	cache := &PolicyCache{}
-	err := p.fillCacheFromDAO(cache, d)
+	err := p.fillCacheFromDAO(isHardforkEnabled, blockHeight, cache, d)
 	if err != nil {
 		return err
 	}
@@ -202,7 +265,7 @@ func (p *Policy) InitializeCache(blockHeight uint32, d *dao.Simple) error {
 	return nil
 }
 
-func (p *Policy) fillCacheFromDAO(cache *PolicyCache, d *dao.Simple) error {
+func (p *Policy) fillCacheFromDAO(isHardforkEnabled interop.IsHardforkEnabled, blockHeight uint32, cache *PolicyCache, d *dao.Simple) error {
 	cache.execFeeFactor = uint32(getIntWithKey(p.ID, d, execFeeFactorKey))
 	cache.feePerByte = getIntWithKey(p.ID, d, feePerByteKey)
 	cache.maxVerificationGas = defaultMaxVerificationGas
@@ -241,6 +304,14 @@ func (p *Policy) fillCacheFromDAO(cache *PolicyCache, d *dao.Simple) error {
 	if fErr != nil {
 		return fmt.Errorf("failed to initialize attribute fees: %w", fErr)
 	}
+
+	var echidna = config.HFEchidna
+	if isHardforkEnabled(&echidna, blockHeight) {
+		cache.msPerBlock = uint32(getIntWithKey(p.ID, d, msPerBlockKey))
+		cache.maxVUBIncrement = uint32(getIntWithKey(p.ID, d, maxVUBIncrementKey))
+		cache.maxTraceableBlocks = uint32(getIntWithKey(p.ID, d, maxTraceableBlocksKey))
+	}
+
 	return nil
 }
 
@@ -452,6 +523,101 @@ func (p *Policy) unblockAccount(ic *interop.Context, args []stackitem.Item) stac
 	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
 	cache.blockedAccounts = append(cache.blockedAccounts[:i], cache.blockedAccounts[i+1:]...)
 	return stackitem.NewBool(true)
+}
+
+func (p *Policy) getMSPerBlock(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(int64(p.GetMSPerBlockInternal(ic.DAO))))
+}
+
+// GetMSPerBlockInternal returns current block generation time in milliseconds.
+func (p *Policy) GetMSPerBlockInternal(d *dao.Simple) uint32 {
+	cache := d.GetROCache(p.ID).(*PolicyCache)
+	return cache.msPerBlock
+}
+
+func (p *Policy) setMSPerBlock(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toUint32(args[0])
+	if value <= 0 || maxMSPerBlock < value {
+		panic(fmt.Errorf("MSPerBlock should be positive and not greater than %d, got %d", maxMSPerBlock, value))
+	}
+	if !p.NEO.checkCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	setIntWithKey(p.ID, ic.DAO, msPerBlockKey, int64(value))
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	old := cache.msPerBlock
+	cache.msPerBlock = value
+
+	err := ic.AddNotification(p.Hash, "MSPerBlockChanged", stackitem.NewArray([]stackitem.Item{
+		stackitem.NewBigInteger(big.NewInt(int64(old))),
+		stackitem.NewBigInteger(big.NewInt(int64(value))),
+	}))
+	if err != nil {
+		panic(err)
+	}
+
+	return stackitem.Null{}
+}
+
+func (p *Policy) getMaxValidUntilBlockIncrement(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(int64(p.GetMaxValidUntilBlockIncrementFromCache(ic.DAO))))
+}
+
+// GetMaxValidUntilBlockIncrementInternal returns current MaxValidUntilBlockIncrement.
+// It respects Echidna enabling height.
+func (p *Policy) GetMaxValidUntilBlockIncrementInternal(ic *interop.Context) uint32 {
+	if ic.IsHardforkEnabled(config.HFEchidna) {
+		return p.GetMaxValidUntilBlockIncrementFromCache(ic.DAO)
+	}
+	return ic.Chain.GetConfig().MaxValidUntilBlockIncrement
+}
+
+// GetMaxValidUntilBlockIncrementFromCache returns current MaxValidUntilBlockIncrement.
+// It doesn't check neither Echidna enabling height nor cache initialization, so it's
+// the caller's duty to ensure that Echidna is enabled before a call to this method.
+func (p *Policy) GetMaxValidUntilBlockIncrementFromCache(d *dao.Simple) uint32 {
+	cache := d.GetROCache(p.ID).(*PolicyCache)
+	return cache.maxVUBIncrement
+}
+
+func (p *Policy) setMaxValidUntilBlockIncrement(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toUint32(args[0])
+	if value <= 0 || maxMaxVUBIncrement < value {
+		panic(fmt.Errorf("MaxValidUntilBlockIncrement should be positive and not greater than %d, got %d", maxMaxVUBIncrement, value))
+	}
+	if !p.NEO.checkCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	setIntWithKey(p.ID, ic.DAO, maxVUBIncrementKey, int64(value))
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	cache.maxVUBIncrement = value
+
+	return stackitem.Null{}
+}
+
+func (p *Policy) getMaxTraceableBlocks(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
+	return stackitem.NewBigInteger(big.NewInt(int64(p.GetMaxTraceableBlocksInternal(ic.DAO))))
+}
+
+// GetMaxTraceableBlocksInternal returns current MaxValidUntilBlockIncrement.
+func (p *Policy) GetMaxTraceableBlocksInternal(d *dao.Simple) uint32 {
+	cache := d.GetROCache(p.ID).(*PolicyCache)
+	return cache.maxTraceableBlocks
+}
+
+func (p *Policy) setMaxTraceableBlocks(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	value := toUint32(args[0])
+	if value <= 0 || maxMaxTraceableBlocks < value {
+		panic(fmt.Errorf("MaxTraceableBlocks should be positive and not greater than %d, got %d", maxMaxTraceableBlocks, value))
+	}
+	if !p.NEO.checkCommittee(ic) {
+		panic("invalid committee signature")
+	}
+	setIntWithKey(p.ID, ic.DAO, maxTraceableBlocksKey, int64(value))
+	cache := ic.DAO.GetRWCache(p.ID).(*PolicyCache)
+	cache.maxTraceableBlocks = value
+
+	return stackitem.Null{}
 }
 
 // CheckPolicy checks whether a transaction conforms to the current policy restrictions,

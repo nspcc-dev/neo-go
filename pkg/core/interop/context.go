@@ -46,6 +46,7 @@ type Ledger interface {
 	GetBlock(hash util.Uint256) (*block.Block, error)
 	GetConfig() config.Blockchain
 	GetHeaderHash(uint32) util.Uint256
+	GetMaxTraceableBlocks() uint32
 }
 
 // Context represents context in which interops are executed.
@@ -189,12 +190,16 @@ type Contract interface {
 	// been deployed, but in-memory cached data were lost due to the node reset.
 	// It should be called each time after node restart iff the contract was
 	// deployed and no Initialize method was called.
-	InitializeCache(blockHeight uint32, d *dao.Simple) error
+	InitializeCache(isHardforkEnabled IsHardforkEnabled, blockHeight uint32, d *dao.Simple) error
 	// Metadata returns generic native contract metadata.
 	Metadata() *ContractMD
 	OnPersist(*Context) error
 	PostPersist(*Context) error
 }
+
+// IsHardforkEnabled is a delegate denoting whether specific hardfork is enabled
+// at the given height.
+type IsHardforkEnabled func(hf *config.Hardfork, blockHeight uint32) bool
 
 // ContractMD represents a generic hardfork-independent native contract instance.
 type ContractMD struct {

@@ -52,7 +52,6 @@ func TestNewWatchingService(t *testing.T) {
 		ProtocolConfiguration: bc.GetConfig().ProtocolConfiguration,
 		RequestTx:             func(...util.Uint256) {},
 		StopTxFlow:            func() {},
-		TimePerBlock:          bc.GetConfig().TimePerBlock,
 		// No wallet provided.
 	})
 	require.NoError(t, err)
@@ -509,7 +508,6 @@ func newTestServiceWithChain(t *testing.T, bc *core.Blockchain) *service {
 		ProtocolConfiguration: bc.GetConfig().ProtocolConfiguration,
 		RequestTx:             func(...util.Uint256) {},
 		StopTxFlow:            func() {},
-		TimePerBlock:          bc.GetConfig().TimePerBlock,
 		Wallet: config.Wallet{
 			Path:     "./testdata/wallet1.json",
 			Password: "one",
