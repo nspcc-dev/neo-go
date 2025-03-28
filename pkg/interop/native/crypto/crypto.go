@@ -46,6 +46,13 @@ func VerifyWithECDsa(msg []byte, pub interop.PublicKey, sig interop.Signature, c
 	return neogointernal.CallWithToken(Hash, "verifyWithECDsa", int(contract.NoneFlag), msg, pub, sig, curveHash).(bool)
 }
 
+// VerifyWithEd25519 calls `verifyWithEd25519` method of native CryptoLib contract and checks that sig is
+// a correct msg's signature for the given pub. Note that this method is available staritng from
+// [config.HFEchidna] hardfork.
+func VerifyWithEd25519(msg []byte, pub []byte, sig []byte) bool {
+	return neogointernal.CallWithToken(Hash, "verifyWithEd25519", int(contract.NoneFlag), msg, pub, sig).(bool)
+}
+
 // Bls12381Point represents BLS12-381 curve point (G1 or G2 in the Affine or
 // Jacobian form or GT). Bls12381Point structure is needed for the operations
 // with the curve's points (serialization, addition, multiplication, pairing and

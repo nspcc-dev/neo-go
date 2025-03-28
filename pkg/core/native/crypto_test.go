@@ -1,10 +1,12 @@
 package native
 
 import (
+	"crypto/ed25519"
 	"encoding/binary"
 	"encoding/hex"
 	"math"
 	"math/big"
+	"slices"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
@@ -208,6 +210,62 @@ func testECDSAVerify(t *testing.T, curve NamedCurveHash) {
 	})
 	t.Run("success", func(t *testing.T) {
 		runCase(t, false, true, msg, priv.PublicKey().Bytes(), sign, int64(curve))
+	})
+}
+
+func TestCryptoLib_VerifyWithED25519(t *testing.T) {
+	var (
+		c      = newCrypto()
+		ic     = &interop.Context{VM: vm.New()}
+		actual stackitem.Item
+		msg    = []byte("The quick brown fox jumps over the lazy dog")
+	)
+
+	pub, priv, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+
+	sig, err := priv.Sign(nil, msg, &ed25519.Options{})
+	require.NoError(t, err)
+
+	runCase := func(t *testing.T, isErr bool, expected any, args ...any) {
+		argsArr := make([]stackitem.Item, len(args))
+		for i := range args {
+			argsArr[i] = stackitem.Make(args[i])
+		}
+		if isErr {
+			require.Panics(t, func() {
+				_ = c.verifyWithEd25519(ic, argsArr)
+			})
+		} else {
+			require.NotPanics(t, func() {
+				actual = c.verifyWithEd25519(ic, argsArr)
+			})
+			require.Equal(t, stackitem.Make(expected), actual)
+		}
+	}
+
+	t.Run("bad message item", func(t *testing.T) {
+		runCase(t, true, false, stackitem.NewInterop("cheburek"), []byte(pub), sig)
+	})
+	t.Run("bad pubkey item", func(t *testing.T) {
+		runCase(t, true, false, msg, stackitem.NewInterop("cheburek"), sig)
+	})
+	t.Run("bad pubkey bytes", func(t *testing.T) {
+		runCase(t, false, false, msg, []byte{1, 2, 3}, sig)
+	})
+	t.Run("bad signature item", func(t *testing.T) {
+		runCase(t, true, false, msg, []byte(pub), stackitem.NewInterop("cheburek"))
+	})
+	t.Run("bad signature bytes", func(t *testing.T) {
+		runCase(t, false, false, msg, []byte(pub), []byte{1, 2, 3})
+	})
+	t.Run("invalid signature", func(t *testing.T) {
+		cp := slices.Clone(sig)
+		cp[0] = ^cp[0]
+		runCase(t, false, false, cp, []byte(pub), msg)
+	})
+	t.Run("success", func(t *testing.T) {
+		runCase(t, false, true, msg, []byte(pub), sig)
 	})
 }
 
