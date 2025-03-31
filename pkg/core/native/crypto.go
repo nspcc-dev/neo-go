@@ -124,7 +124,7 @@ func newCrypto() *Crypto {
 
 	desc = newDescriptor("verifyWithEd25519", smartcontract.BoolType,
 		manifest.NewParameter("message", smartcontract.ByteArrayType),
-		manifest.NewParameter("publicKey", smartcontract.ByteArrayType),
+		manifest.NewParameter("pubkey", smartcontract.ByteArrayType),
 		manifest.NewParameter("signature", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(c.verifyWithEd25519, 1<<15, callflag.NoneFlag, config.HFEchidna)
 	c.AddMethod(md, desc)
