@@ -505,9 +505,9 @@ func (v *VM) Step() error {
 // step executes one instruction in the given context.
 func (v *VM) step(ctx *Context) error {
 	ip := ctx.nextip
-	scriptHash := v.GetCurrentScriptHash()
 	op, param, err := ctx.Next()
 	if v.hooks.onExec != nil {
+		scriptHash := v.GetCurrentScriptHash()
 		v.hooks.onExec(scriptHash, ip, op)
 	}
 	if err != nil {
