@@ -22,8 +22,7 @@ type GAS struct {
 	NEO    *NEO
 	Policy *Policy
 
-	initialSupply           int64
-	p2pSigExtensionsEnabled bool
+	initialSupply int64
 }
 
 const gasContractID = -6
@@ -32,10 +31,9 @@ const gasContractID = -6
 const GASFactor = NEOTotalSupply
 
 // newGAS returns GAS native contract.
-func newGAS(init int64, p2pSigExtensionsEnabled bool) *GAS {
+func newGAS(init int64) *GAS {
 	g := &GAS{
-		initialSupply:           init,
-		p2pSigExtensionsEnabled: p2pSigExtensionsEnabled,
+		initialSupply: init,
 	}
 	defer g.BuildHFSpecificMD(g.ActiveIn())
 
@@ -122,14 +120,12 @@ func (g *GAS) OnPersist(ic *interop.Context) error {
 	var netFee int64
 	for _, tx := range ic.Block.Transactions {
 		netFee += tx.NetworkFee
-		if g.p2pSigExtensionsEnabled {
-			// Reward for NotaryAssisted attribute will be minted to designated notary nodes
-			// by Notary contract.
-			attrs := tx.GetAttributes(transaction.NotaryAssistedT)
-			if len(attrs) != 0 {
-				na := attrs[0].Value.(*transaction.NotaryAssisted)
-				netFee -= (int64(na.NKeys) + 1) * g.Policy.GetAttributeFeeInternal(ic.DAO, transaction.NotaryAssistedT)
-			}
+		// Reward for NotaryAssisted attribute will be minted to designated notary nodes
+		// by Notary contract.
+		attrs := tx.GetAttributes(transaction.NotaryAssistedT)
+		if len(attrs) != 0 {
+			na := attrs[0].Value.(*transaction.NotaryAssisted)
+			netFee -= (int64(na.NKeys) + 1) * g.Policy.GetAttributeFeeInternal(ic.DAO, transaction.NotaryAssistedT)
 		}
 	}
 	g.mint(ic, primary, big.NewInt(int64(netFee)), false)
