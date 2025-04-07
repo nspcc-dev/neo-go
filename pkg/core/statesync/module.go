@@ -67,6 +67,7 @@ type Ledger interface {
 	GetConfig() config.Blockchain
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	GetHeaderHash(uint32) util.Uint256
+	GetMaxTraceableBlocks() uint32
 	HeaderHeight() uint32
 }
 
@@ -294,7 +295,7 @@ func (s *Module) defineSyncStage() error {
 // block that should be saved next.
 func (s *Module) getLatestSavedBlock(p uint32) uint32 {
 	var result uint32
-	mtb := s.bc.GetConfig().MaxTraceableBlocks
+	mtb := s.bc.GetMaxTraceableBlocks()
 	if p > mtb {
 		result = p - mtb
 	}

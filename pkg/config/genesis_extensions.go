@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/base64"
 	"fmt"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -11,10 +12,27 @@ import (
 // Genesis represents a set of genesis block settings including the extensions
 // enabled in the genesis block or during native contracts initialization.
 type Genesis struct {
+	// MaxTraceableBlocks is a length of the chain accessible to smart
+	// contracts. It differs from Protocol level configuration in that this
+	// value is used starting from HFEchidna to initialize MaxTraceableBlocks
+	// value of native Policy contract.
+	MaxTraceableBlocks uint32
+	// MaxValidUntilBlockIncrement is the upper increment size of blockchain
+	// height (in blocks) exceeding that a transaction should fail validation.
+	// It differs from Protocol level configuration in that this value is used
+	// starting from HFEchidna to initialize MaxValidUntilBlockIncrement value
+	// of native Policy contract.
+	MaxValidUntilBlockIncrement uint32
 	// Roles contains the set of roles that should be designated during native
 	// Designation contract initialization. It is NeoGo extension and must be
 	// disabled on the public Neo N3 networks.
 	Roles map[noderoles.Role]keys.PublicKeys
+	// TimePerBlock is the time interval between blocks that consensus
+	// nodes work with. It must be an integer number of milliseconds. It differs
+	// from Protocol level configuration in that this value is used starting
+	// from HFEchidna to initialize MSPerBlock value of native Policy
+	// contract.
+	TimePerBlock time.Duration
 	// Transaction contains transaction script that should be deployed in the
 	// genesis block. It is NeoGo extension and must be disabled on the public
 	// Neo N3 networks.
@@ -33,8 +51,11 @@ type GenesisTransaction struct {
 type (
 	// genesisAux is an auxiliary structure for Genesis YAML marshalling.
 	genesisAux struct {
-		Roles       map[string]keys.PublicKeys `yaml:"Roles"`
-		Transaction *genesisTransactionAux     `yaml:"Transaction"`
+		MaxTraceableBlocks          uint32                     `yaml:"MaxTraceableBlocks"`
+		MaxValidUntilBlockIncrement uint32                     `yaml:"MaxValidUntilBlockIncrement"`
+		Roles                       map[string]keys.PublicKeys `yaml:"Roles"`
+		TimePerBlock                time.Duration              `yaml:"TimePerBlock"`
+		Transaction                 *genesisTransactionAux     `yaml:"Transaction"`
 	}
 	// genesisTransactionAux is an auxiliary structure for GenesisTransaction YAML
 	// marshalling.
@@ -57,6 +78,9 @@ func (e Genesis) MarshalYAML() (any, error) {
 			SystemFee: e.Transaction.SystemFee,
 		}
 	}
+	aux.TimePerBlock = e.TimePerBlock
+	aux.MaxValidUntilBlockIncrement = e.MaxValidUntilBlockIncrement
+	aux.MaxTraceableBlocks = e.MaxTraceableBlocks
 	return aux, nil
 }
 
@@ -86,6 +110,10 @@ func (e *Genesis) UnmarshalYAML(unmarshal func(any) error) error {
 			SystemFee: aux.Transaction.SystemFee,
 		}
 	}
+
+	e.TimePerBlock = aux.TimePerBlock
+	e.MaxValidUntilBlockIncrement = aux.MaxValidUntilBlockIncrement
+	e.MaxTraceableBlocks = aux.MaxTraceableBlocks
 
 	return nil
 }
