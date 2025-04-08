@@ -550,7 +550,7 @@ func (s *Server) run() {
 	var (
 		peerCheckTime    = s.TimePerBlock * peerTimeFactor
 		addrCheckTimeout bool
-		addrTimer        = time.NewTimer(peerCheckTime)
+		addrTicker       = time.NewTicker(peerCheckTime)
 		peerTimer        = time.NewTimer(s.ProtoTickInterval)
 	)
 	defer close(s.runFin)
@@ -584,9 +584,8 @@ func (s *Server) run() {
 		select {
 		case <-s.quit:
 			return
-		case <-addrTimer.C:
+		case <-addrTicker.C:
 			addrCheckTimeout = true
-			addrTimer.Reset(peerCheckTime)
 		case <-peerTimer.C:
 			peerTimer.Reset(peerT)
 		case p := <-s.register:
@@ -660,17 +659,16 @@ func (s *Server) run() {
 // runProto is a goroutine that manages server-wide protocol events.
 func (s *Server) runProto() {
 	defer close(s.runProtoFin)
-	pingTimer := time.NewTimer(s.PingInterval)
+	var pingTicker = time.NewTicker(s.PingInterval)
 	for {
 		prevHeight := s.chain.BlockHeight()
 		select {
 		case <-s.quit:
 			return
-		case <-pingTimer.C:
+		case <-pingTicker.C:
 			if s.chain.BlockHeight() == prevHeight {
 				s.broadcastMessage(NewMessage(CMDPing, payload.NewPing(s.chain.BlockHeight(), s.id)))
 			}
-			pingTimer.Reset(s.PingInterval)
 		}
 	}
 }
