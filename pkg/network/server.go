@@ -40,6 +40,8 @@ const (
 	defaultMaxPeers           = 100
 	defaultExtensiblePoolSize = 20
 	defaultBroadcastFactor    = 0
+	defaultPingInterval       = 3 * time.Second
+	defaultTimePerBlock       = time.Second
 	maxBlockBatch             = 200
 	peerTimeFactor            = 1000
 )
@@ -288,6 +290,19 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 			zap.Int("configured", s.BroadcastFactor),
 			zap.Int("actual", defaultBroadcastFactor))
 		s.BroadcastFactor = defaultBroadcastFactor
+	}
+
+	if s.TimePerBlock <= 0 {
+		s.log.Info("bad TimePerBlock configured, using the default value",
+			zap.Int64("configured", int64(s.TimePerBlock)),
+			zap.Int64("actual", int64(defaultTimePerBlock)))
+		s.TimePerBlock = defaultTimePerBlock
+	}
+	if s.PingInterval <= 0 {
+		s.log.Info("bad PingInterval configured, using the default value",
+			zap.Int64("configured", int64(s.PingInterval)),
+			zap.Int64("actual", int64(defaultPingInterval)))
+		s.PingInterval = defaultPingInterval
 	}
 
 	if len(s.ServerConfig.Addresses) == 0 {
