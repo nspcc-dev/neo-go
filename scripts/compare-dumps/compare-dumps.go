@@ -9,9 +9,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/urfave/cli/v2"
 )
@@ -35,13 +37,20 @@ type storageOp struct {
 func readFile(path string) (dump, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		if !errors.Is(err, fs.ErrNotExist) {
+			return nil, err
+		}
+		var dErr error
+		data, dErr = os.ReadFile(strings.TrimSuffix(path, ".json") + ".dump")
+		if dErr != nil {
+			return nil, fmt.Errorf("%w; %w", err, dErr)
+		}
 	}
 	d := make(dump, 0)
 	if err := json.Unmarshal(data, &d); err != nil {
 		return nil, err
 	}
-	return d, err
+	return d, nil
 }
 
 func (d dump) normalize() {
