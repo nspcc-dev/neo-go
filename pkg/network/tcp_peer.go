@@ -281,17 +281,14 @@ func (p *TCPPeer) StartProtocol() {
 		return
 	}
 
-	timer := time.NewTimer(p.server.ProtoTickInterval)
+	var ticker = time.NewTicker(p.server.ProtoTickInterval)
 	for {
 		select {
 		case <-p.done:
 			return
-		case <-timer.C:
+		case <-ticker.C:
 			// Try to sync in headers and block with the peer if his block height is higher than ours.
 			err = p.server.requestBlocksOrHeaders(p)
-			if err == nil {
-				timer.Reset(p.server.ProtoTickInterval)
-			}
 		}
 		if err != nil {
 			p.Disconnect(err)
