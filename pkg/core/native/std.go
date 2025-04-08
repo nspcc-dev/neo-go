@@ -101,11 +101,11 @@ func newStd() *Std {
 	s.AddMethod(md, desc)
 
 	desc = newDescriptor("base64UrlEncode", smartcontract.StringType,
-		manifest.NewParameter("data", smartcontract.ByteArrayType))
+		manifest.NewParameter("data", smartcontract.StringType))
 	md = newMethodAndPrice(s.base64UrlEncode, 1<<5, callflag.NoneFlag, config.HFEchidna)
 	s.AddMethod(md, desc)
 
-	desc = newDescriptor("base64UrlDecode", smartcontract.ByteArrayType,
+	desc = newDescriptor("base64UrlDecode", smartcontract.StringType,
 		manifest.NewParameter("s", smartcontract.StringType))
 	md = newMethodAndPrice(s.base64UrlDecode, 1<<5, callflag.NoneFlag, config.HFEchidna)
 	s.AddMethod(md, desc)
