@@ -26,6 +26,9 @@ import (
 func newNotaryClient(t *testing.T) *neotest.ContractInvoker {
 	bc, acc := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
 		cfg.P2PSigExtensions = true
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): 0,
+		}
 	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
 
