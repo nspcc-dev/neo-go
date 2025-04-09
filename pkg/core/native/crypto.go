@@ -10,6 +10,7 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -128,6 +129,12 @@ func newCrypto() *Crypto {
 		manifest.NewParameter("signature", smartcontract.ByteArrayType))
 	md = newMethodAndPrice(c.verifyWithEd25519, 1<<15, callflag.NoneFlag, config.HFEchidna)
 	c.AddMethod(md, desc)
+
+	desc = newDescriptor("recoverSecp256K1", smartcontract.ByteArrayType,
+		manifest.NewParameter("messageHash", smartcontract.ByteArrayType),
+		manifest.NewParameter("signature", smartcontract.ByteArrayType))
+	md = newMethodAndPrice(c.recoverSecp256K1, 1<<15, callflag.NoneFlag, config.HFEchidna)
+	c.AddMethod(md, desc)
 	return c
 }
 
@@ -242,6 +249,70 @@ func (c *Crypto) verifyWithEd25519(_ *interop.Context, args []stackitem.Item) st
 		return stackitem.NewBool(false)
 	}
 	return stackitem.NewBool(ed25519.Verify(pubkey, msg, signature))
+}
+
+func (c *Crypto) recoverSecp256K1(_ *interop.Context, args []stackitem.Item) stackitem.Item {
+	msgH, err := args[0].TryBytes()
+	if err != nil {
+		panic(fmt.Errorf("invalid message hash stackitem: %w", err))
+	}
+	if len(msgH) != 32 {
+		return stackitem.Null{}
+	}
+	signature, err := args[1].TryBytes()
+	if err != nil {
+		panic(fmt.Errorf("invalid signature stackitem: %w", err))
+	}
+	if len(signature) != 64 && len(signature) != 65 {
+		return stackitem.Null{}
+	}
+
+	// ecdsa library (as most other general purpose crypto libraries) work only with
+	// canonical representation, compact representation is a pure Ethereum feature (ref.
+	// https://eips.ethereum.org/EIPS/eip-2098#specification). Also, ecdsa expects
+	// leading signature byte to be a key recovery ID.
+	canonical := koblitzSigToCanonical(signature)
+	pub, _, err := ecdsa.RecoverCompact(canonical, msgH)
+	if err != nil {
+		return stackitem.Null{}
+	}
+	return stackitem.NewByteArray(pub.SerializeCompressed())
+}
+
+// koblitzSigToCanonical converts compact Secp256K1 signature representation
+// (https://eips.ethereum.org/EIPS/eip-2098#specification) to canonical
+// form (https://www.secg.org/sec1-v2.pdf, section 4.1.6) and moves key recovery
+// ID from the last byte to the first byte of the resulting signature (for both
+// compact and non-compact forms), as it is required by ecdsa package.
+func koblitzSigToCanonical(signature []byte) []byte {
+	var res = make([]byte, 65) // don't modify the original slice.
+
+	if len(signature) == 64 {
+		// Convert from compact input format `r[32] || yParityAndS[32]` (where yParity
+		// is fused into the top bit of s) to a canonical form `v[1] || r[32] || s[32]`.
+		copy(res[1:], signature)
+		s := res[33:]
+		yParity := s[0] >> 7
+		s[0] = s[0] & ((1 << 7) - 1)
+		if yParity == 0 {
+			res[0] = 27 // compact key recovery code for uncompressed public key inherited from Bitcoin.
+		} else {
+			res[0] = 28 // compact key recovery code for compressed public key inherited from Bitcoin.
+		}
+	} else {
+		// Convert from `r[32] || s[32] || v[1]` form to a canonical `v[1] || r[32] || s[32]` form since
+		// dcrd uses format with 'recovery id' v at the beginning.
+		res[0] = signature[64]
+		copy(res[1:], signature)
+
+		// Denormalize key recovery code (if needed) to match the original Bitcoin form since
+		// dcrd requires canonical format.
+		if res[0] < 27 {
+			res[0] += 27
+		}
+	}
+
+	return res
 }
 
 func (c *Crypto) bls12381Serialize(_ *interop.Context, args []stackitem.Item) stackitem.Item {

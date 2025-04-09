@@ -2,13 +2,16 @@ package native_test
 
 import (
 	"encoding/hex"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
 
 	bls12381 "github.com/consensys/gnark-crypto/ecc/bls12-381"
 	"github.com/consensys/gnark-crypto/ecc/bls12-381/fr"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/neotest"
@@ -488,4 +491,107 @@ func TestCryptoLib_VerifyWithED25519_Compat(t *testing.T) {
 	require.NoError(t, err)
 
 	committeeInvoker.Invoke(t, true, "verifyWithEd25519", msg, pub, sig)
+}
+
+// TestCryptoLib_RecoverSecp256K1_Compat is a C# node compatibility test, ref.
+// https://github.com/neo-project/neo/blob/76a968b6620f6cdaba461f482f9e84bd3a5953ac/tests/Neo.UnitTests/Cryptography/UT_Crypto.cs#L97.
+func TestCryptoLib_RecoverSecp256K1_Compat(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.CryptoLib, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): uint32(0),
+		}
+	})
+	committeeInvoker := c.WithSigners(c.Committee)
+
+	type testCase struct {
+		msgH     string
+		sig      string
+		expected string
+	}
+	for _, tc := range []testCase{
+		{
+			msgH:     "586052916fb6f746e1d417766cceffbe1baf95579bab67ad49addaaa6e798862",
+			sig:      "4e0ea79d4a476276e4b067facdec7460d2c98c8a65326a6e5c998fd7c65061140e45aea5034af973410e65cf97651b3f2b976e3fc79c6a93065ed7cb69a2ab5a01",
+			expected: "02dbf1f4092deb3cfd4246b2011f7b24840bc5dbedae02f28471ce5b3bfbf06e71",
+		},
+		{
+			msgH:     "c36d0ecf4bfd178835c97aae7585f6a87de7dfa23cc927944f99a8d60feff68b",
+			sig:      "f25b86e1d8a11d72475b3ed273b0781c7d7f6f9e1dae0dd5d3ee9b84f3fab89163d9c4e1391de077244583e9a6e3d8e8e1f236a3bf5963735353b93b1a3ba93500",
+			expected: "03414549fd05bfb7803ae507ff86b99becd36f8d66037a7f5ba612792841d42eb9",
+		},
+	} {
+		msgH, err := hex.DecodeString(tc.msgH)
+		require.NoError(t, err)
+		sig, err := hex.DecodeString(tc.sig)
+		require.NoError(t, err)
+		expected, err := hex.DecodeString(tc.expected)
+		require.NoError(t, err)
+		committeeInvoker.Invoke(t, expected, "recoverSecp256K1", msgH, sig)
+	}
+}
+
+// TestCryptoLib_RecoverSecp256K1_EIP2098Compat is EIP-2098 compatibility test, ref.
+// https://eips.ethereum.org/EIPS/eip-2098#test-cases and
+// https://github.com/neo-project/neo/blob/76a968b6620f6cdaba461f482f9e84bd3a5953ac/tests/Neo.UnitTests/Cryptography/UT_Crypto.cs#L141.
+func TestCryptoLib_RecoverSecp256K1_EIP2098Compat(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.CryptoLib, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): uint32(0),
+		}
+	})
+	committeeInvoker := c.WithSigners(c.Committee)
+
+	type testCase struct {
+		msg            string
+		priv           string
+		sigR           string
+		sigS           string
+		sigV           byte
+		sigYParityAndS string
+	}
+	for _, tc := range []testCase{
+		{
+			msg:            "Hello World",
+			priv:           "1234567890123456789012345678901234567890123456789012345678901234",
+			sigR:           "68a020a209d3d56c46f38cc50a33f704f4a9a10a59377f8dd762ac66910e9b90",
+			sigS:           "7e865ad05c4035ab5792787d4a0297a43617ae897930a6fe4d822b8faea52064",
+			sigV:           27,
+			sigYParityAndS: "7e865ad05c4035ab5792787d4a0297a43617ae897930a6fe4d822b8faea52064",
+		},
+		{
+			msg:            "It's a small(er) world",
+			priv:           "1234567890123456789012345678901234567890123456789012345678901234",
+			sigR:           "9328da16089fcba9bececa81663203989f2df5fe1faa6291a45381c81bd17f76",
+			sigS:           "139c6d6b623b42da56557e5e734a43dc83345ddfadec52cbe24d0cc64f550793",
+			sigV:           28,
+			sigYParityAndS: "939c6d6b623b42da56557e5e734a43dc83345ddfadec52cbe24d0cc64f550793",
+		},
+	} {
+		msg := append([]byte{0x19}, []byte(fmt.Sprintf("Ethereum Signed Message:\n%d%s", len(tc.msg), tc.msg))...) // rules of Ethereum message hashing.
+		msgH := native.Keccak256(msg)
+		privBytes, err := hex.DecodeString(tc.priv)
+		require.NoError(t, err)
+		priv := secp256k1.PrivKeyFromBytes(privBytes)
+		require.NotNil(t, priv)
+		r, err := hex.DecodeString(tc.sigR)
+		require.NoError(t, err)
+		s, err := hex.DecodeString(tc.sigS)
+		require.NoError(t, err)
+		yParityAndS, err := hex.DecodeString(tc.sigYParityAndS)
+		require.NoError(t, err)
+
+		sigExpanded := make([]byte, 65)
+		copy(sigExpanded, r)
+		copy(sigExpanded[32:], s)
+		sigExpanded[64] = tc.sigV
+
+		sigCompact := make([]byte, 64)
+		copy(sigCompact, r)
+		copy(sigCompact[32:], yParityAndS)
+
+		pubBytes := priv.PubKey().SerializeCompressed()
+
+		committeeInvoker.Invoke(t, pubBytes, "recoverSecp256K1", msgH, sigExpanded)
+		committeeInvoker.Invoke(t, pubBytes, "recoverSecp256K1", msgH, sigCompact)
+	}
 }

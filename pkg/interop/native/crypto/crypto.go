@@ -47,10 +47,18 @@ func VerifyWithECDsa(msg []byte, pub interop.PublicKey, sig interop.Signature, c
 }
 
 // VerifyWithEd25519 calls `verifyWithEd25519` method of native CryptoLib contract and checks that sig is
-// a correct msg's signature for the given pub. Note that this method is available staritng from
+// a correct msg's signature for the given pub. Note that this method is available starting from
 // [config.HFEchidna] hardfork.
 func VerifyWithEd25519(msg []byte, pub []byte, sig []byte) bool {
 	return neogointernal.CallWithToken(Hash, "verifyWithEd25519", int(contract.NoneFlag), msg, pub, sig).(bool)
+}
+
+// RecoverSecp256K1 calls `recoverSecp256K1` method of native CryptoLib contract and returns Secp256K1
+// public key recovered from the provided message hash and signature (in compressed 65-byte [r,s,v] form
+// or in form of https://eips.ethereum.org/EIPS/eip-2098#specification). Note that this method is available
+// starting from [config.HFEchidna] hardfork.
+func RecoverSecp256K1(msgHash []byte, sig []byte) []byte {
+	return neogointernal.CallWithToken(Hash, "recoverSecp256K1", int(contract.NoneFlag), msgHash, sig).([]byte)
 }
 
 // Bls12381Point represents BLS12-381 curve point (G1 or G2 in the Affine or

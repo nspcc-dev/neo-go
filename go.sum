@@ -42,6 +42,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.5/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46t
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/decred/dcrd/crypto/blake256 v1.1.0 h1:zPMNGQCm0g4QTY27fOCorQW7EryeQ/U0x++OzVrdms8=
+github.com/decred/dcrd/crypto/blake256 v1.1.0/go.mod h1:2OfgNZ5wDpcsFmHmCK5gZTPcCXqlm2ArzUIkw9czNJo=
 github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 h1:NMZiJj8QnKe1LgsbDayM4UoHwbvwDRwnI3hwNaAHRnc=
 github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0/go.mod h1:ZXNYxsqcloTdSy/rNShjYzMhyjf0LaoftYK0p+A3h40=
 github.com/distribution/reference v0.6.0 h1:0IXCQ5g4/QMHHkarYzh5l+u8T3t73zM5QvfrDyIgxBk=
@@ -148,8 +150,8 @@ github.com/nspcc-dev/go-ordered-json v0.0.0-20250226190835-fb3f82b1f468 h1:qOd9/
 github.com/nspcc-dev/go-ordered-json v0.0.0-20250226190835-fb3f82b1f468/go.mod h1:d3cUseu4Asxfo9/QA/w4TtGjM0AbC9ynyab+PfH+Bso=
 github.com/nspcc-dev/hrw/v2 v2.0.3 h1:GUIitIiDpAaQat9SZccp7XVAuwtqaM40+uZ9D8Q4A84=
 github.com/nspcc-dev/hrw/v2 v2.0.3/go.mod h1:VWlFSGGPcHG1abuIDJb5u83tIF2EqOatC8Z7svZmgWQ=
-github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20250328142159-c1a89c1380ad h1:+S4kYi9EQzPda7t4lDJHdOy8wc01UWUt0lj3ffMkPS8=
-github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20250328142159-c1a89c1380ad/go.mod h1:3byneDNT60tiD8MSyGSyjpI1uVp9v+coySegJoQPF8c=
+github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20250409155823-eb2238a18167 h1:qakU0s/xyLhEgZI5Uinw1xNIAhn9z/ugznYCXJv6cWA=
+github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20250409155823-eb2238a18167/go.mod h1:3byneDNT60tiD8MSyGSyjpI1uVp9v+coySegJoQPF8c=
 github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.13 h1:q1ne/4d10NuHSqs+fA5XVVBRJ9jSap4cjrsxYzNvYZA=
 github.com/nspcc-dev/neofs-sdk-go v1.0.0-rc.13/go.mod h1:ycdDlPq8Wy+w5ePCmCfbHuEWQXbP7ZjBL5rj3QDiiM0=
 github.com/nspcc-dev/rfc6979 v0.2.3 h1:QNVykGZ3XjFwM/88rGfV3oj4rKNBy+nYI6jM7q19hDI=
