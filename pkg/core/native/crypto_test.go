@@ -269,6 +269,61 @@ func TestCryptoLib_VerifyWithED25519(t *testing.T) {
 	})
 }
 
+// TestCryptoLib_RecoverSecp256K1 uses raw test data from
+// https://github.com/neo-project/neo/blob/76a968b6620f6cdaba461f482f9e84bd3a5953ac/tests/Neo.UnitTests/Cryptography/UT_Crypto.cs#L97.
+func TestCryptoLib_RecoverSecp256K1(t *testing.T) {
+	var (
+		c      = newCrypto()
+		ic     = &interop.Context{VM: vm.New()}
+		actual stackitem.Item
+	)
+
+	msgH, err := hex.DecodeString("5ae8317d34d1e595e3fa7247db80c0af4320cce1116de187f8f7e2e099c0d8d0")
+	require.NoError(t, err)
+	sig, err := hex.DecodeString("45c0b7f8c09a9e1f1cea0c25785594427b6bf8f9f878a8af0b1abbb48e16d0920d8becd0c220f67c51217eecfd7184ef0732481c843857e6bc7fc095c4f6b78801")
+	require.NoError(t, err)
+	pub, err := hex.DecodeString("034a071e8a6e10aada2b8cf39fa3b5fb3400b04e99ea8ae64ceea1a977dbeaf5d5")
+	require.NoError(t, err)
+
+	runCase := func(t *testing.T, isErr bool, expected any, args ...any) {
+		argsArr := make([]stackitem.Item, len(args))
+		for i := range args {
+			argsArr[i] = stackitem.Make(args[i])
+		}
+		if isErr {
+			require.Panics(t, func() {
+				_ = c.recoverSecp256K1(ic, argsArr)
+			})
+		} else {
+			require.NotPanics(t, func() {
+				actual = c.recoverSecp256K1(ic, argsArr)
+			})
+			require.Equal(t, stackitem.Make(expected), actual)
+		}
+	}
+
+	t.Run("bad message hash item", func(t *testing.T) {
+		runCase(t, true, false, stackitem.NewInterop("cheburek"), sig)
+	})
+	t.Run("bad signature item", func(t *testing.T) {
+		runCase(t, true, false, msgH, stackitem.NewInterop("cheburek"))
+	})
+	t.Run("invalid message hash len", func(t *testing.T) {
+		runCase(t, false, stackitem.Null{}, []byte{1, 2, 3}, sig)
+	})
+	t.Run("bad signature len", func(t *testing.T) {
+		runCase(t, false, stackitem.Null{}, msgH, []byte{1, 2, 3})
+	})
+	t.Run("invalid signature", func(t *testing.T) {
+		cp := slices.Clone(sig)
+		cp[1] = ^cp[1]
+		runCase(t, false, stackitem.Null{}, cp, msgH, sig)
+	})
+	t.Run("success", func(t *testing.T) {
+		runCase(t, false, pub, msgH, sig)
+	})
+}
+
 func TestCryptolib_ScalarFromBytes_Compat(t *testing.T) {
 	r2Ref := &fr.Element{
 		0xc999_e990_f3f2_9c6d,
