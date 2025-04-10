@@ -199,6 +199,8 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"unblockAccount", []string{u160}},
 		{"getAttributeFee", []string{"1"}},
 		{"setAttributeFee", []string{"1", "123"}},
+		{"getMaxValidUntilBlockIncrement", nil},
+		{"setMaxValidUntilBlockIncrement", []string{"10"}},
 	})
 	runNativeTestCases(t, cs.Ledger.ContractMD, "ledger", []nativeTestCase{
 		{"currentHash", nil},
