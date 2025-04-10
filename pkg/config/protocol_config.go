@@ -231,6 +231,7 @@ func (p *ProtocolConfiguration) Equals(o *ProtocolConfiguration) bool {
 		p.StateRootInHeader != o.StateRootInHeader ||
 		p.StateSyncInterval != o.StateSyncInterval ||
 		p.TimePerBlock != o.TimePerBlock ||
+		p.Genesis.MaxValidUntilBlockIncrement != o.Genesis.MaxValidUntilBlockIncrement ||
 		p.ValidatorsCount != o.ValidatorsCount ||
 		p.VerifyTransactions != o.VerifyTransactions ||
 		!maps.Equal(p.CommitteeHistory, o.CommitteeHistory) ||

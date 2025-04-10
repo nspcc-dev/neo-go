@@ -143,7 +143,7 @@ func (n *Notary) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 	return nil
 }
 
-func (n *Notary) InitializeCache(blockHeight uint32, d *dao.Simple) error {
+func (n *Notary) InitializeCache(_ interop.IsHardforkEnabled, blockHeight uint32, d *dao.Simple) error {
 	cache := &NotaryCache{
 		maxNotValidBeforeDelta: uint32(getIntWithKey(n.ID, d, maxNotValidBeforeDeltaKey)),
 	}
@@ -421,7 +421,7 @@ func (n *Notary) GetMaxNotValidBeforeDelta(dao *dao.Simple) uint32 {
 func (n *Notary) setMaxNotValidBeforeDelta(ic *interop.Context, args []stackitem.Item) stackitem.Item {
 	value := toUint32(args[0])
 	cfg := ic.Chain.GetConfig()
-	maxInc := cfg.MaxValidUntilBlockIncrement
+	maxInc := n.Policy.GetMaxValidUntilBlockIncrementInternal(ic)
 	if value > maxInc/2 || value < uint32(cfg.GetNumOfCNs(ic.BlockHeight())) {
 		panic(fmt.Errorf("MaxNotValidBeforeDelta cannot be more than %d or less than %d", maxInc/2, cfg.GetNumOfCNs(ic.BlockHeight())))
 	}

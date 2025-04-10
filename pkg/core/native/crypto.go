@@ -442,7 +442,7 @@ func (c *Crypto) Initialize(ic *interop.Context, hf *config.Hardfork, newMD *int
 }
 
 // InitializeCache implements the Contract interface.
-func (c *Crypto) InitializeCache(blockHeight uint32, d *dao.Simple) error {
+func (c *Crypto) InitializeCache(_ interop.IsHardforkEnabled, blockHeight uint32, d *dao.Simple) error {
 	return nil
 }
 
