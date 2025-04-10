@@ -23,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
@@ -2767,6 +2768,9 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 			}
 			if !tx.HasSigner(bc.contracts.Notary.Hash) {
 				return fmt.Errorf("%w: NotaryAssisted attribute was found, but transaction is not signed by the Notary native contract", ErrInvalidAttribute)
+			}
+			if tx.Sender().Equals(nativehashes.Notary) && len(tx.Signers) != 2 {
+				return fmt.Errorf("%w: NotaryAssisted attribute was found, Notary native contract is the sender, transaction should have 2 signers (got %d)", ErrInvalidAttribute, len(tx.Signers))
 			}
 		default:
 			if !bc.config.ReservedAttributes && attrType >= transaction.ReservedLowerBound && attrType <= transaction.ReservedUpperBound {
