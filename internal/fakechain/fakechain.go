@@ -257,7 +257,7 @@ func (chain *FakeChain) GetNextBlockValidators() ([]*keys.PublicKey, error) {
 	panic("TODO")
 }
 
-// GetNEP17Contracts implements the Blockchainer interface.
+// GetNEP11Contracts implements the Blockchainer interface.
 func (chain *FakeChain) GetNEP11Contracts() []util.Uint160 {
 	panic("TODO")
 }
@@ -267,12 +267,12 @@ func (chain *FakeChain) GetNEP17Contracts() []util.Uint160 {
 	panic("TODO")
 }
 
-// GetNEP17LastUpdated implements the Blockchainer interface.
+// GetTokenLastUpdated implements the Blockchainer interface.
 func (chain *FakeChain) GetTokenLastUpdated(acc util.Uint160) (map[int32]uint32, error) {
 	panic("TODO")
 }
 
-// ForEachNEP17Transfer implements the Blockchainer interface.
+// ForEachNEP11Transfer implements the Blockchainer interface.
 func (chain *FakeChain) ForEachNEP11Transfer(util.Uint160, uint64, func(*state.NEP11Transfer) (bool, error)) error {
 	panic("TODO")
 }
