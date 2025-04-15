@@ -442,11 +442,14 @@ var ErrNilNotificationReceiver = errors.New("nil notification receiver")
 
 // ErrWSConnLost is a WSClient-specific error that will be returned for any
 // requests after disconnection (including intentional ones via
-// (*WSClient).Close).
+// (*WSClient).Close). Use errors.Is(err, ErrConnClosedByUser) check to
+// distinguish the latter case from a side reason of lost connection.
 var ErrWSConnLost = errors.New("connection lost")
 
-// errConnClosedByUser is a WSClient error used iff the user calls (*WSClient).Close method by himself.
-var errConnClosedByUser = errors.New("connection closed by user")
+// ErrConnClosedByUser is a WSClient error returned iff RPC request is sent after
+// the user calls (*WSClient).Close method by himself. Note that this error won't
+// be returned from (*WSClient).GetError method.
+var ErrConnClosedByUser = errors.New("closed by user")
 
 // NewWS returns a new WSClient ready to use (with established websocket
 // connection). You need to use websocket URL for it like `ws://1.2.3.4/ws`.
@@ -500,7 +503,7 @@ func NewWS(ctx context.Context, endpoint string, opts WSOptions) (*WSClient, err
 // unusable.
 func (c *WSClient) Close() {
 	if c.closeCalled.CompareAndSwap(false, true) {
-		c.setCloseErr(errConnClosedByUser)
+		c.setCloseErr(ErrConnClosedByUser)
 		// Closing shutdown channel sends a signal to wsWriter to break out of the
 		// loop. In doing so it does ws.Close() closing the network connection
 		// which in turn makes wsReader receive an err from ws.ReadJSON() and also
@@ -730,8 +733,12 @@ func (c *WSClient) getResponseChannel(id uint64) chan *neorpc.Response {
 // If wsReader or wsWriter do not set the error, it returns ErrWSConnLost.
 func (c *WSClient) closeErrOrConnLost() (err error) {
 	err = ErrWSConnLost
-	if closeErr := c.GetError(); closeErr != nil {
-		err = closeErr
+	if closeErr := c.getErrorOrClosedByUser(); closeErr != nil {
+		if errors.Is(closeErr, ErrConnClosedByUser) {
+			err = fmt.Errorf("%w: %w", err, closeErr)
+		} else {
+			err = closeErr
+		}
 	}
 	return
 }
@@ -1027,14 +1034,21 @@ func (c *WSClient) setCloseErr(err error) {
 }
 
 // GetError returns the reason of WS connection closing. It returns nil in case if connection
-// was closed by the use via Close() method calling.
+// was closed by the user via Close() method.
 func (c *WSClient) GetError() error {
+	err := c.getErrorOrClosedByUser()
+	if err != nil && errors.Is(err, ErrConnClosedByUser) {
+		return nil
+	}
+	return err
+}
+
+// getErrorOrClosedByUser returns the reason of WS connection closing. An error is returned
+// even if connection was closed by the user via Close() method.
+func (c *WSClient) getErrorOrClosedByUser() error {
 	c.closeErrLock.RLock()
 	defer c.closeErrLock.RUnlock()
 
-	if c.closeErr != nil && errors.Is(c.closeErr, errConnClosedByUser) {
-		return nil
-	}
 	return c.closeErr
 }
 

@@ -922,6 +922,7 @@ func TestWS_RequestAfterClose(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrWSConnLost)
+	require.ErrorIs(t, err, ErrConnClosedByUser)
 }
 
 func TestWSClient_ConnClosedError(t *testing.T) {
