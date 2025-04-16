@@ -151,12 +151,12 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p neofs.PoolWrapper, rpc *rpccl
 						return
 					}
 					attrs := []object.Attribute{
-						*object.NewAttribute(attr, strconv.Itoa(int(blk.Index))),
-						*object.NewAttribute("Primary", strconv.Itoa(int(blk.PrimaryIndex))),
-						*object.NewAttribute("Hash", blk.Hash().StringLE()),
-						*object.NewAttribute("PrevHash", blk.PrevHash.StringLE()),
-						*object.NewAttribute("BlockTime", strconv.FormatUint(blk.Timestamp, 10)),
-						*object.NewAttribute("Timestamp", strconv.FormatInt(time.Now().Unix(), 10)),
+						object.NewAttribute(attr, strconv.Itoa(int(blk.Index))),
+						object.NewAttribute("Primary", strconv.Itoa(int(blk.PrimaryIndex))),
+						object.NewAttribute("Hash", blk.Hash().StringLE()),
+						object.NewAttribute("PrevHash", blk.PrevHash.StringLE()),
+						object.NewAttribute("BlockTime", strconv.FormatUint(blk.Timestamp, 10)),
+						object.NewAttribute("Timestamp", strconv.FormatInt(time.Now().Unix(), 10)),
 					}
 
 					var (
@@ -206,9 +206,9 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p neofs.PoolWrapper, rpc *rpccl
 		}
 		if indexFileEnd-indexFileStart == indexFileSize {
 			attrs := []object.Attribute{
-				*object.NewAttribute(indexAttributeKey, strconv.Itoa(int(indexFileStart/indexFileSize))),
-				*object.NewAttribute("IndexSize", strconv.Itoa(int(indexFileSize))),
-				*object.NewAttribute("Timestamp", strconv.FormatInt(time.Now().Unix(), 10)),
+				object.NewAttribute(indexAttributeKey, strconv.Itoa(int(indexFileStart/indexFileSize))),
+				object.NewAttribute("IndexSize", strconv.Itoa(int(indexFileSize))),
+				object.NewAttribute("Timestamp", strconv.FormatInt(time.Now().Unix(), 10)),
 			}
 			err := retry(func() error {
 				var errUpload error

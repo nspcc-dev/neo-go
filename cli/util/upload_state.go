@@ -110,11 +110,11 @@ func uploadState(ctx *cli.Context) error {
 			hdr              object.Object
 			prmObjectPutInit client.PrmObjectPutInit
 			attrs            = []object.Attribute{
-				*object.NewAttribute(attr, strconv.Itoa(int(height))),
-				*object.NewAttribute("Timestamp", strconv.FormatInt(time.Now().Unix(), 10)),
-				*object.NewAttribute("StateRoot", stateRoot.Root.StringLE()),
-				*object.NewAttribute("StateSyncInterval", strconv.Itoa(syncInterval)),
-				*object.NewAttribute("BlockTime", strconv.FormatUint(h.Timestamp, 10)),
+				object.NewAttribute(attr, strconv.Itoa(int(height))),
+				object.NewAttribute("Timestamp", strconv.FormatInt(time.Now().Unix(), 10)),
+				object.NewAttribute("StateRoot", stateRoot.Root.StringLE()),
+				object.NewAttribute("StateSyncInterval", strconv.Itoa(syncInterval)),
+				object.NewAttribute("BlockTime", strconv.FormatUint(h.Timestamp, 10)),
 			}
 		)
 		hdr.SetContainerID(containerID)
