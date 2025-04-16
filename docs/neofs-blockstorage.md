@@ -26,6 +26,29 @@ following attributes:
  - the number of OIDs included into index file (`IndexSize:128000`)
  - second-precision index file uploading timestamp (`Timestamp:1627894840`)
 
+### State storage schema
+
+A single NeoFS container is used to store state objects. Each container
+has network magic attribute (`Magic:56753`). Each state is stored in a binary
+form as a separate object with a unique OID and a set of attributes:
+- state object identifier with state index value (`State:1`)
+- block hash in the LE form (`StateSyncInterval:5412a781caf278c0736556c0e544c7cfdbb6e3c62ae221ef53646be89364566b`)
+- previous block hash in the LE form (`StateRoot:3654a054d82a8178c7dfacecc2c57282e23468a42ee407f14506368afe22d929`)
+- millisecond-precision block creation timestamp (`BlockTime:1627894840919`)
+- second-precision block uploading timestamp (`Timestamp:1627894840`)
+
+The binary form of the state object contains:
+
+```
+1 byte: Version (0)
+4 bytes: Network magic (uint32)
+4 bytes: Block height (uint32)
+32 bytes: State root (Uint256)
+Variable-length sequence of contract storage key-value pairs, each encoded as:
+    Variable-length key (varbytes)
+    Variable-length value (varbytes)
+```
+
 ### NeoFS BlockFetcher
 
 NeoFS BlockFetcher service is designed as an alternative to P2P synchronisation
@@ -102,6 +125,35 @@ will upload the entire block sequence starting from genesis since no migration i
 supported yet by this command. Please, add a comment to the
 [#3744](https://github.com/nspcc-dev/neo-go/issues/3744) issue if you need this
 functionality.
+
+### NeoFS StateFetcher
+
+NeoFS StateFetcher service enables state synchronization for non-archival nodes
+by fetching contract storage key-value pairs from a trusted NeoFS container. 
+It serves as an alternative to P2P-based MPT node synchronization, integrating 
+with the `statesync` module. If storage-based synchronization fails to complete
+(e.g., due to an incorrect state root or insufficient data), the `statesync` 
+module falls back to requesting MPT nodes via P2P to ensure synchronization.
+
+#### Operation flow
+
+1. **State Object Search**:
+   Searches the NeoFS container for objects with the configured `StateAttribute`
+   (e.g., `State`), filtering by block height aligned with `StateInterval`
+   (e.g., heights 0, 40000, 80000).
+2. **Storage Data Fetching**:
+   Fetches contract storage key-value pairs from the identified state object.
+3. **State Synchronization**:
+   Passes key-value pairs to the `statesync` module, along with the synchronization
+   height and expected state root. The `statesync` module builds a local MPT trie,
+   flushing batches of up to 1000 pairs to storage. If the trie’s state root matches
+   the expected root at height P, synchronization completes, and an atomic state 
+   jump occurs. If synchronization fails (e.g., wrong state root or incomplete data),
+   `statesync` requests MPT nodes via P2P to complete the process.
+
+Once state object available in the NeoFS container are processed, the service
+shuts down automatically.
+
 
 ### NeoFS state uploading command
 The `util upload-state` command is used to start a node, traverse the MPT over the 

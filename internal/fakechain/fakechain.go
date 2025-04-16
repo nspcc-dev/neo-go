@@ -428,6 +428,11 @@ func (s *FakeStateSync) AddMPTNodes(nodes [][]byte) error {
 	panic("TODO")
 }
 
+// AddContractStorageData implements the StateSync interface.
+func (s *FakeStateSync) AddContractStorageData(key string, value []byte, syncHeight uint32, expectedRoot util.Uint256) error {
+	panic("TODO")
+}
+
 // BlockHeight implements the StateSync interface.
 func (s *FakeStateSync) BlockHeight() uint32 {
 	return 0
@@ -457,6 +462,11 @@ func (s *FakeStateSync) NeedBlocks() bool { return false }
 
 // NeedMPTNodes implements the StateSync interface.
 func (s *FakeStateSync) NeedMPTNodes() bool {
+	panic("TODO")
+}
+
+// NeedContractStorageData implements the StateSync interface.
+func (s *FakeStateSync) NeedContractStorageData() bool {
 	panic("TODO")
 }
 

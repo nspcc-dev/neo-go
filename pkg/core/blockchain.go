@@ -317,8 +317,8 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		}
 	}
 	if cfg.NeoFSStateSyncExtensions {
-		if !cfg.NeoFSBlockFetcher.Enabled {
-			return nil, errors.New("NeoFSStateSyncExtensions are enabled, but NeoFSBlockFetcher is off")
+		if !cfg.NeoFSBlockFetcher.Enabled && !cfg.NeoFSStateFetcher.Enabled {
+			return nil, errors.New("NeoFSStateSyncExtensions are enabled, but NeoFSBlockFetcher and NeoFSStateFetcher are off")
 		}
 		if cfg.StateSyncInterval <= 0 {
 			cfg.StateSyncInterval = DefaultStateSyncInterval

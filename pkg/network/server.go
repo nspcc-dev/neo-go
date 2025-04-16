@@ -29,6 +29,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/blockfetcher"
+	"github.com/nspcc-dev/neo-go/pkg/services/statefetcher"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/zap"
 )
@@ -118,6 +119,7 @@ type (
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
 		notaryFeer        NotaryFeer
+		syncStateFetcher  *statefetcher.Service
 		syncHeaderFetcher *blockfetcher.Service
 		syncBlockFetcher  *blockfetcher.Service
 		blockFetcher      *blockfetcher.Service
@@ -250,6 +252,10 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Sync NeoFS HeaderFetcher: %w", err)
 	}
+	s.syncStateFetcher, err = statefetcher.New(s.stateSync, s.NeoFSStateFetcherCfg, log, s.stateSyncCallBack)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create NeoFS StateFetcher: %w", err)
+	}
 	s.syncBFetcherQueue = bqueue.New[*block.Block](stateSyncBlockQueueAdapter{s.stateSync}, log, nil, s.NeoFSBlockFetcherCfg.BQueueSize, updateBlockQueueLenMetric, bqueue.Blocking)
 	s.syncBlockFetcher, err = blockfetcher.New(s.stateSync, s.NeoFSBlockFetcherCfg, log, func(item bqueue.Indexable) error { return s.syncBFetcherQueue.Put(item.(*block.Block)) },
 		sync.OnceFunc(func() {
@@ -345,6 +351,9 @@ func (s *Server) Start() {
 			s.log.Error("skipping NeoFS BlockFetcher", zap.Error(err))
 		}
 	}
+	if s.config.NeoFSStateSyncExtensions {
+		s.tryInitStateSync()
+	}
 	for _, tr := range s.transports {
 		go tr.Accept()
 	}
@@ -365,6 +374,7 @@ func (s *Server) Shutdown() {
 	s.syncHeaderFetcher.Shutdown()
 	s.syncBlockFetcher.Shutdown()
 	s.blockFetcher.Shutdown()
+	s.syncStateFetcher.Shutdown()
 	for _, tr := range s.transports {
 		tr.Close()
 	}
@@ -394,12 +404,13 @@ func (s *Server) Shutdown() {
 func (s *Server) stateSyncCallBack() {
 	needHeaders := s.stateSync.NeedHeaders()
 	needBlocks := s.stateSync.NeedBlocks()
+	needMPTs := s.stateSync.NeedMPTNodes()
+	needStorage := s.stateSync.NeedContractStorageData()
 	isActive := s.stateSync.IsActive()
 	if needHeaders {
 		if !s.syncHeaderFetcher.IsShutdown() {
-			err := s.syncHeaderFetcher.Start()
-			if err != nil {
-				s.log.Error("skipping NeoFS Sync HeaderFetcher", zap.Error(err))
+			if err := s.syncHeaderFetcher.Start(); err != nil {
+				s.log.Error("failed to start header fetcher", zap.Error(err))
 			}
 		}
 	}
@@ -411,6 +422,20 @@ func (s *Server) stateSyncCallBack() {
 			}
 		}
 	}
+
+	if needMPTs {
+		s.log.Debug("MPT-based state sync required")
+	}
+
+	if needStorage {
+		if !s.syncStateFetcher.IsShutdown() {
+			if err := s.syncStateFetcher.Start(); err != nil {
+				s.log.Error("failed to start state fetcher", zap.Error(err))
+				return
+			}
+		}
+	}
+
 	if !needHeaders && !needBlocks {
 		s.syncBlockFetcher.Shutdown()
 	}
@@ -899,7 +924,7 @@ func (s *Server) requestBlocksOrHeaders(p Peer) error {
 	if err != nil {
 		return fmt.Errorf("%w: %w", errBlocksRequestFailed, err)
 	}
-	if requestMPTNodes {
+	if requestMPTNodes && s.syncStateFetcher.IsShutdown() {
 		return s.requestMPTNodes(p, s.stateSync.GetUnknownMPTNodesBatch(payload.MaxMPTHashesCount))
 	}
 	return nil
@@ -1545,20 +1570,40 @@ func (s *Server) tryInitStateSync() {
 	if s.stateSync.IsInitialized() {
 		return
 	}
-
-	s.lock.RLock()
-	heights := make([]uint32, 0, len(s.peers))
-	for p := range s.peers {
-		if p.Handshaked() {
-			heights = append(heights, p.LastBlockIndex())
+	if !s.ServerConfig.NeoFSStateFetcherCfg.Enabled || s.syncStateFetcher.IsShutdown() {
+		s.lock.RLock()
+		heights := make([]uint32, 0, len(s.peers))
+		for p := range s.peers {
+			if p.Handshaked() {
+				heights = append(heights, p.LastBlockIndex())
+			}
 		}
-	}
-	s.lock.RUnlock()
-	slices.Sort(heights)
-	if len(heights) >= s.MinPeers && len(heights) > 0 {
-		// choose the height of the median peer as the current chain's height
-		h := heights[len(heights)/2]
-		err := s.stateSync.Init(h)
+		s.lock.RUnlock()
+		slices.Sort(heights)
+		if len(heights) >= s.MinPeers && len(heights) > 0 {
+			// choose the height of the median peer as the current chain's height
+			h := heights[len(heights)/2]
+			err := s.stateSync.Init(h)
+			if err != nil {
+				s.log.Fatal("failed to init state sync module",
+					zap.Uint32("evaluated chain's blockHeight", h),
+					zap.Uint32("blockHeight", s.chain.BlockHeight()),
+					zap.Uint32("headerHeight", s.chain.HeaderHeight()),
+					zap.Error(err))
+			}
+		}
+	} else {
+		s.log.Info("state sync is initializing based on the NeoFS container")
+		s.lock.RLock()
+		h, err := s.syncStateFetcher.LastStateIndex()
+		s.lock.RUnlock()
+		if err != nil {
+			s.log.Fatal("failed to get the last state index",
+				zap.Uint32("blockHeight", s.chain.BlockHeight()),
+				zap.Uint32("headerHeight", s.chain.HeaderHeight()),
+				zap.Error(err))
+		}
+		err = s.stateSync.Init(h)
 		if err != nil {
 			s.log.Fatal("failed to init state sync module",
 				zap.Uint32("evaluated chain's blockHeight", h),
@@ -1566,13 +1611,13 @@ func (s *Server) tryInitStateSync() {
 				zap.Uint32("headerHeight", s.chain.HeaderHeight()),
 				zap.Error(err))
 		}
+	}
 
-		// module can be inactive after init (i.e. full state is collected and ordinary block processing is needed)
-		if !s.stateSync.IsActive() {
-			s.bSyncQueue.Discard()
-			s.syncBFetcherQueue.Discard()
-			s.syncHFetcherQueue.Discard()
-		}
+	// module can be inactive after init (i.e. full state is collected and ordinary block processing is needed)
+	if !s.stateSync.IsActive() {
+		s.bSyncQueue.Discard()
+		s.syncBFetcherQueue.Discard()
+		s.syncHFetcherQueue.Discard()
 	}
 }
 
