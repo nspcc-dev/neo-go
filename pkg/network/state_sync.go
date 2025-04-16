@@ -10,6 +10,7 @@ import (
 type StateSync interface {
 	blockHeaderQueuer
 	AddMPTNodes([][]byte) error
+	AddContractStorageData(key string, value []byte, syncHeight uint32, expectedRoot util.Uint256) error
 	Init(currChainHeight uint32) error
 	IsActive() bool
 	IsInitialized() bool
@@ -18,6 +19,7 @@ type StateSync interface {
 	NeedHeaders() bool
 	NeedBlocks() bool
 	NeedMPTNodes() bool
+	NeedContractStorageData() bool
 	SetOnStageChanged(func())
 	Traverse(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error
 }

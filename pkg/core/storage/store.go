@@ -18,7 +18,9 @@ const (
 	// DataMPTAux is used to store additional MPT data like height-root
 	// mappings and local/validated heights.
 	DataMPTAux KeyPrefix = 0x04
-	STStorage  KeyPrefix = 0x70
+	// SYSTempStateCheckpoint is used to store the temporary state data during state sync.
+	SYSTempStateCheckpoint KeyPrefix = 0x05
+	STStorage              KeyPrefix = 0x70
 	// STTempStorage is used to store contract storage items during state sync process
 	// in order not to mess up the previous state which has its own items stored by
 	// STStorage prefix. Once state exchange process is completed, all items with

@@ -148,10 +148,11 @@ func TestApplicationConfiguration_Validate(t *testing.T) {
 		{
 			cfg: ApplicationConfiguration{
 				NeoFSBlockFetcher: NeoFSBlockFetcher{
-					InternalService:        InternalService{Enabled: true},
-					Timeout:                time.Second,
-					ContainerID:            validContainerID,
-					Addresses:              []string{"127.0.0.1"},
+					NeoFSService: NeoFSService{
+						InternalService: InternalService{Enabled: true},
+						Timeout:         time.Second,
+						ContainerID:     validContainerID,
+						Addresses:       []string{"127.0.0.1"}},
 					OIDBatchSize:           10,
 					BQueueSize:             20,
 					SkipIndexFilesSearch:   true,
@@ -163,12 +164,13 @@ func TestApplicationConfiguration_Validate(t *testing.T) {
 		{
 			cfg: ApplicationConfiguration{
 				NeoFSBlockFetcher: NeoFSBlockFetcher{
-					InternalService: InternalService{Enabled: true},
-					Timeout:         time.Second,
-					ContainerID:     "",
-					Addresses:       []string{"127.0.0.1"},
-					OIDBatchSize:    10,
-					BQueueSize:      20,
+					NeoFSService: NeoFSService{
+						InternalService: InternalService{Enabled: true},
+						Timeout:         time.Second,
+						ContainerID:     "",
+						Addresses:       []string{"127.0.0.1"}},
+					OIDBatchSize: 10,
+					BQueueSize:   20,
 				},
 			},
 			shouldFail: true,
@@ -177,12 +179,13 @@ func TestApplicationConfiguration_Validate(t *testing.T) {
 		{
 			cfg: ApplicationConfiguration{
 				NeoFSBlockFetcher: NeoFSBlockFetcher{
-					InternalService: InternalService{Enabled: true},
-					Timeout:         time.Second,
-					ContainerID:     invalidContainerID,
-					Addresses:       []string{"127.0.0.1"},
-					OIDBatchSize:    10,
-					BQueueSize:      20,
+					NeoFSService: NeoFSService{
+						InternalService: InternalService{Enabled: true},
+						Timeout:         time.Second,
+						ContainerID:     invalidContainerID,
+						Addresses:       []string{"127.0.0.1"}},
+					OIDBatchSize: 10,
+					BQueueSize:   20,
 				},
 			},
 			shouldFail: true,
@@ -191,12 +194,13 @@ func TestApplicationConfiguration_Validate(t *testing.T) {
 		{
 			cfg: ApplicationConfiguration{
 				NeoFSBlockFetcher: NeoFSBlockFetcher{
-					InternalService: InternalService{Enabled: true},
-					Timeout:         time.Second,
-					ContainerID:     validContainerID,
-					Addresses:       []string{},
-					OIDBatchSize:    10,
-					BQueueSize:      20,
+					NeoFSService: NeoFSService{
+						InternalService: InternalService{Enabled: true},
+						Timeout:         time.Second,
+						ContainerID:     validContainerID,
+						Addresses:       []string{}},
+					OIDBatchSize: 10,
+					BQueueSize:   20,
 				},
 			},
 			shouldFail: true,
@@ -205,12 +209,13 @@ func TestApplicationConfiguration_Validate(t *testing.T) {
 		{
 			cfg: ApplicationConfiguration{
 				NeoFSBlockFetcher: NeoFSBlockFetcher{
-					InternalService: InternalService{Enabled: true},
-					Timeout:         time.Second,
-					ContainerID:     validContainerID,
-					Addresses:       []string{"127.0.0.1"},
-					OIDBatchSize:    10,
-					BQueueSize:      5,
+					NeoFSService: NeoFSService{
+						InternalService: InternalService{Enabled: true},
+						Timeout:         time.Second,
+						ContainerID:     validContainerID,
+						Addresses:       []string{"127.0.0.1"}},
+					OIDBatchSize: 10,
+					BQueueSize:   5,
 				},
 			},
 			shouldFail: true,

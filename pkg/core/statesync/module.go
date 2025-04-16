@@ -3,17 +3,20 @@ Package statesync implements module for the P2P state synchronisation process. T
 module manages state synchronisation for non-archival nodes which are joining the
 network and don't have the ability to resync from the genesis block.
 
-Given the currently available state synchronisation point P, sate sync process
+Given the currently available state synchronisation point P, the state sync process
 includes the following stages:
 
-1. Fetching headers starting from height 0 up to P+1.
-2. Fetching MPT nodes for height P stating from the corresponding state root.
-3. Fetching blocks starting from height P-MaxTraceableBlocks (or 0) up to P.
+1. Fetching headers from height 0 to P+1.
+2. Fetching state data for height P, starting from the corresponding state root.
+This uses contract storage items from an external source (e.g., NeoFS) when
+enabled, or MPT nodes via P2P. If storage-based sync fails to reach P with the
+expected state root, MPT nodes are requested to complete synchronisation.
+3. Fetching blocks from height P-MaxTraceableBlocks (or 0) to P.
 
-Steps 2 and 3 are being performed in parallel. Once all the data are collected
-and stored in the db, an atomic state jump is occurred to the state sync point P.
-Further node operation process is performed using standard sync mechanism until
-the node reaches synchronised state.
+Steps 2 and 3 are performed in parallel. Once all data are collected and stored
+in the db, an atomic state jump occurs to the state sync point P. Further node
+operations use the standard sync mechanism until the node reaches a synchronised
+state.
 */
 package statesync
 
@@ -27,6 +30,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/io"
@@ -60,6 +64,11 @@ const (
 	blocksSynced
 )
 
+const (
+	// maxPendingPairs is the maximum number of key-value pairs before flushing.
+	maxPendingPairs = 1000
+)
+
 // Ledger is the interface required from Blockchain for Module to operate.
 type Ledger interface {
 	AddHeaders(...*block.Header) error
@@ -68,6 +77,14 @@ type Ledger interface {
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	GetHeaderHash(uint32) util.Uint256
 	HeaderHeight() uint32
+}
+
+// checkpointMetadata stores the state of an interrupted storage-based sync.
+type checkpointMetadata struct {
+	SyncHeight   uint32
+	MPTRoot      util.Uint256 // Computed MPT root at checkpoint.
+	ExpectedRoot util.Uint256 // Expected state root for validation.
+	LastKey      []byte       // Last processed storage key.
 }
 
 // Module represents state sync module and aimed to gather state-related data to
@@ -84,6 +101,18 @@ type Module struct {
 	syncInterval uint32
 	// blockHeight is the index of the latest stored block.
 	blockHeight uint32
+	// storageSync indicates whether the module is in storage-based sync mode.
+	storageSync bool
+	// needMPTAfterStorage indicates MPT nodes are needed after incomplete storage sync.
+	needMPTAfterStorage bool
+	// pendingPairs holds key-value pairs before flushing.
+	pendingPairs map[string][]byte
+	// currentSyncHeight tracks the sync height of pending pairs.
+	currentSyncHeight uint32
+	// currentExpectedRoot tracks the expected root of pending pairs.
+	currentExpectedRoot util.Uint256
+	// lastCheckpointHeight caches the latest checkpoint SyncHeight.
+	lastCheckpointHeight uint32
 
 	dao      *dao.Simple
 	bc       Ledger
@@ -91,6 +120,8 @@ type Module struct {
 	mptpool  *Pool
 
 	billet *mpt.Billet
+	// localTrie is used for storage-based state synchronization.
+	localTrie *mpt.Trie
 
 	jumpCallback func(p uint32) error
 
@@ -110,14 +141,18 @@ func NewModule(bc Ledger, stateMod *stateroot.Module, log *zap.Logger, s *dao.Si
 		}
 	}
 	return &Module{
-		dao:          s,
-		bc:           bc,
-		stateMod:     stateMod,
-		log:          log,
-		syncInterval: uint32(bc.GetConfig().StateSyncInterval),
-		mptpool:      NewPool(),
-		syncStage:    none,
-		jumpCallback: jumpCallback,
+		dao:                 s,
+		bc:                  bc,
+		stateMod:            stateMod,
+		log:                 log,
+		syncInterval:        uint32(bc.GetConfig().StateSyncInterval),
+		mptpool:             NewPool(),
+		syncStage:           none,
+		jumpCallback:        jumpCallback,
+		storageSync:         bc.GetConfig().NeoFSStateSyncExtensions,
+		pendingPairs:        make(map[string][]byte),
+		currentSyncHeight:   0,
+		currentExpectedRoot: util.Uint256{},
 	}
 }
 
@@ -183,6 +218,23 @@ func (s *Module) Init(currChainHeight uint32) error {
 		zap.Uint32("point", p),
 		zap.Uint32("evaluated chain's blockHeight", currChainHeight))
 
+	// Initialize localTrie for storage-based sync.
+	if s.storageSync {
+		metadata, err := s.loadCheckpointMetadata()
+		if err == nil {
+			s.localTrie = mpt.NewTrie(mpt.NewHashNode(metadata.MPTRoot), mpt.ModeAll, s.dao.Store)
+			if computedRoot := s.localTrie.StateRoot(); !computedRoot.Equals(metadata.MPTRoot) {
+				s.log.Warn("checkpointed state is invalid, starting from scratch",
+					zap.String("computed_root", computedRoot.String()),
+					zap.String("expected_root", metadata.MPTRoot.String()))
+				s.localTrie = mpt.NewTrie(mpt.EmptyNode{}, mpt.ModeAll, s.dao.Store)
+			}
+			s.lastCheckpointHeight = metadata.SyncHeight
+		} else {
+			s.localTrie = mpt.NewTrie(mpt.EmptyNode{}, mpt.ModeAll, s.dao.Store)
+		}
+	}
+
 	return s.defineSyncStage()
 }
 
@@ -238,47 +290,64 @@ func (s *Module) defineSyncStage() error {
 		s.log.Info("MPT is in sync",
 			zap.Uint32("stateroot height", s.stateMod.CurrentLocalHeight()))
 	} else if s.syncStage&headersSynced != 0 {
-		header, err := s.bc.GetHeader(s.bc.GetHeaderHash(s.syncPoint + 1))
-		if err != nil {
-			return fmt.Errorf("failed to get header to initialize MPT billet: %w", err)
-		}
-		var mode mpt.TrieMode
-		// No need to enable GC here, it only has latest things.
-		if s.bc.GetConfig().Ledger.KeepOnlyLatestState || s.bc.GetConfig().Ledger.RemoveUntraceableBlocks {
-			mode |= mpt.ModeLatest
-		}
-		s.billet = mpt.NewBillet(header.PrevStateRoot, mode,
-			TemporaryPrefix(s.dao.Version.StoragePrefix), s.dao.Store)
-		s.log.Info("MPT billet initialized",
-			zap.Uint32("height", s.syncPoint),
-			zap.String("state root", header.PrevStateRoot.StringBE()))
-		pool := NewPool()
-		pool.Add(header.PrevStateRoot, []byte{})
-		err = s.billet.Traverse(func(_ []byte, n mpt.Node, _ []byte) bool {
-			nPaths, ok := pool.TryGet(n.Hash())
-			if !ok {
-				// if this situation occurs, then it's a bug in MPT pool or Traverse.
-				panic("failed to get MPT node from the pool")
-			}
-			pool.Remove(n.Hash())
-			childrenPaths := make(map[util.Uint256][][]byte)
-			for _, path := range nPaths {
-				nChildrenPaths := mpt.GetChildrenPaths(path, n)
-				for hash, paths := range nChildrenPaths {
-					childrenPaths[hash] = append(childrenPaths[hash], paths...) // it's OK to have duplicates, they'll be handled by mempool
+		if s.storageSync {
+			// Check if storage-based sync is complete.
+			metadata, err := s.loadCheckpointMetadata()
+			if err == nil && metadata.SyncHeight == s.syncPoint {
+				sr, err := s.stateMod.GetStateRoot(s.syncPoint)
+				if err == nil && sr.Root.Equals(metadata.MPTRoot) && metadata.MPTRoot.Equals(metadata.ExpectedRoot) {
+					s.syncStage |= mptSynced
+					s.log.Info("storage-based state is in sync",
+						zap.Uint32("height", s.syncPoint),
+						zap.String("root", metadata.MPTRoot.String()))
 				}
 			}
-			pool.Update(nil, childrenPaths)
-			return false
-		}, true)
-		if err != nil {
-			return fmt.Errorf("failed to traverse MPT during initialization: %w", err)
-		}
-		s.mptpool.Update(nil, pool.GetAll())
-		if s.mptpool.Count() == 0 {
-			s.syncStage |= mptSynced
-			s.log.Info("MPT is in sync",
-				zap.Uint32("stateroot height", s.syncPoint))
+			if err == nil {
+				s.lastCheckpointHeight = metadata.SyncHeight
+			}
+		} else {
+			// Initialize MPT-based sync.
+			header, err := s.bc.GetHeader(s.bc.GetHeaderHash(s.syncPoint + 1))
+			if err != nil {
+				return fmt.Errorf("failed to get header to initialize MPT billet: %w", err)
+			}
+			var mode mpt.TrieMode
+			if s.bc.GetConfig().Ledger.KeepOnlyLatestState || s.bc.GetConfig().Ledger.RemoveUntraceableBlocks {
+				mode |= mpt.ModeLatest
+			}
+			s.billet = mpt.NewBillet(header.PrevStateRoot, mode,
+				TemporaryPrefix(s.dao.Version.StoragePrefix), s.dao.Store)
+			s.log.Info("MPT billet initialized",
+				zap.Uint32("height", s.syncPoint),
+				zap.String("state root", header.PrevStateRoot.StringBE()))
+			pool := NewPool()
+			pool.Add(header.PrevStateRoot, []byte{})
+			err = s.billet.Traverse(func(_ []byte, n mpt.Node, _ []byte) bool {
+				nPaths, ok := pool.TryGet(n.Hash())
+				if !ok {
+					// if this situation occurs, then it's a bug in MPT pool or Traverse.
+					panic("failed to get MPT node from the pool")
+				}
+				pool.Remove(n.Hash())
+				childrenPaths := make(map[util.Uint256][][]byte)
+				for _, path := range nPaths {
+					nChildrenPaths := mpt.GetChildrenPaths(path, n)
+					for hash, paths := range nChildrenPaths {
+						childrenPaths[hash] = append(childrenPaths[hash], paths...)
+					}
+				}
+				pool.Update(nil, childrenPaths)
+				return false
+			}, true)
+			if err != nil {
+				return fmt.Errorf("failed to traverse MPT during initialization: %w", err)
+			}
+			s.mptpool.Update(nil, pool.GetAll())
+			if s.mptpool.Count() == 0 {
+				s.syncStage |= mptSynced
+				s.log.Info("MPT is in sync",
+					zap.Uint32("stateroot height", s.syncPoint))
+			}
 		}
 	}
 
@@ -395,6 +464,9 @@ func (s *Module) AddBlock(block *block.Block) error {
 // AddMPTNodes tries to add provided set of MPT nodes to the MPT billet if they are
 // not yet collected.
 func (s *Module) AddMPTNodes(nodes [][]byte) error {
+	if s.storageSync && !s.needMPTAfterStorage {
+		return errors.New("MPT nodes not expected in storage-based sync mode")
+	}
 	oldStage := s.syncStage
 	s.lock.Lock()
 	defer func() {
@@ -429,6 +501,200 @@ func (s *Module) AddMPTNodes(nodes [][]byte) error {
 	return nil
 }
 
+// AddContractStorageData adds a single key-value pair for storage-based sync.
+func (s *Module) AddContractStorageData(key string, value []byte, syncHeight uint32, expectedRoot util.Uint256) error {
+	if !s.storageSync {
+		return errors.New("storage pair not expected in MPT-based mode")
+	}
+	oldStage := s.syncStage
+	s.lock.Lock()
+	defer func() {
+		if s.syncStage != oldStage {
+			s.notifyStageChanged()
+		}
+	}()
+	defer s.lock.Unlock()
+
+	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced != 0 {
+		return errors.New("storage pair not requested")
+	}
+
+	if s.localTrie == nil {
+		return errors.New("local trie not initialized")
+	}
+
+	if len(key) == 0 || len(key) > mpt.MaxKeyLength {
+		return fmt.Errorf("invalid storage key length: %d", len(key))
+	}
+
+	// Check if syncHeight is outdated.
+	if syncHeight < s.lastCheckpointHeight {
+		s.log.Debug("skipping storage pair due to higher checkpoint",
+			zap.Uint32("syncHeight", syncHeight),
+			zap.Uint32("checkpointHeight", s.lastCheckpointHeight))
+		return nil
+	}
+
+	// Check if key already exists.
+	storeKey := append([]byte{byte(TemporaryPrefix(s.dao.Version.StoragePrefix))}, []byte(key)...)
+	if _, err := s.dao.Store.Get(storeKey); err == nil {
+		s.log.Debug("skipping storage pair, key already exists",
+			zap.String("key", hex.EncodeToString([]byte(key))))
+		return nil
+	}
+	if s.currentSyncHeight != 0 && (syncHeight != s.currentSyncHeight || len(s.pendingPairs) >= maxPendingPairs) {
+		if err := s.flushPendingPairs(); err != nil {
+			return fmt.Errorf("failed to flush pending pairs: %w", err)
+		}
+	}
+
+	if s.currentSyncHeight == 0 {
+		s.currentSyncHeight = syncHeight
+		s.currentExpectedRoot = expectedRoot
+	}
+
+	s.pendingPairs[key] = append([]byte{}, value...)
+	if len(s.pendingPairs) >= maxPendingPairs {
+		if err := s.flushPendingPairs(); err != nil {
+			return fmt.Errorf("failed to flush pending pairs: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// flushPendingPairs persists pending key-value pairs and updates state.
+func (s *Module) flushPendingPairs() error {
+	if len(s.pendingPairs) == 0 {
+		return nil
+	}
+
+	prefix := TemporaryPrefix(s.dao.Version.StoragePrefix)
+	var lastKey []byte
+	for key, value := range s.pendingPairs {
+		s.dao.Store.Put(append([]byte{byte(prefix)}, []byte(key)...), value)
+		if err := s.localTrie.Put([]byte(key), value); err != nil {
+			return fmt.Errorf("failed to put key %s into trie: %w", hex.EncodeToString([]byte(key)), err)
+		}
+		lastKey = append([]byte{}, key...)
+	}
+	s.localTrie.Flush(s.currentSyncHeight)
+	if _, err := s.dao.PersistSync(); err != nil {
+		return fmt.Errorf("failed to persist storage batch: %w", err)
+	}
+
+	metadata := checkpointMetadata{
+		SyncHeight:   s.currentSyncHeight,
+		MPTRoot:      s.localTrie.StateRoot(),
+		ExpectedRoot: s.currentExpectedRoot,
+		LastKey:      lastKey,
+	}
+	if err := s.saveCheckpointMetadata(metadata); err != nil {
+		return fmt.Errorf("failed to save checkpoint: %w", err)
+	}
+	s.lastCheckpointHeight = s.currentSyncHeight
+
+	s.log.Debug("flushed storage batch",
+		zap.Int("items", len(s.pendingPairs)),
+		zap.String("new_root", s.localTrie.StateRoot().String()),
+		zap.Uint32("syncHeight", s.currentSyncHeight))
+
+	// Check if syncHeight is sufficient to complete sync.
+	if s.currentSyncHeight < s.syncPoint || s.localTrie.StateRoot() != s.currentExpectedRoot {
+		s.needMPTAfterStorage = true
+		s.log.Debug("storage sync incomplete, requesting MPT nodes",
+			zap.Uint32("syncHeight", s.currentSyncHeight),
+			zap.Uint32("targetPoint", s.syncPoint),
+			zap.String("stateRoot", s.localTrie.StateRoot().StringLE()),
+			zap.String("currentExpectedRoot", s.currentExpectedRoot.StringLE()))
+	} else {
+		s.tryJumpToState(s.currentSyncHeight, s.currentExpectedRoot)
+	}
+
+	s.pendingPairs = make(map[string][]byte)
+	s.currentSyncHeight = 0
+	s.currentExpectedRoot = util.Uint256{}
+
+	return nil
+}
+
+// tryJumpToState attempts a state jump if all storage items are synced.
+func (s *Module) tryJumpToState(syncHeight uint32, expectedRoot util.Uint256) {
+	if s.localTrie == nil {
+		s.log.Error("local trie not initialized")
+		return
+	}
+
+	computedRoot := s.localTrie.StateRoot()
+	if !computedRoot.Equals(expectedRoot) {
+		s.log.Debug("state jump not ready",
+			zap.String("computed_root", computedRoot.String()),
+			zap.String("expected_root", expectedRoot.String()))
+		return
+	}
+
+	sr := &state.MPTRoot{
+		Index: syncHeight,
+		Root:  computedRoot,
+	}
+	s.stateMod.JumpToState(sr)
+
+	if n, err := s.dao.PersistSync(); err != nil {
+		s.log.Error("failed to persist final state",
+			zap.Error(err),
+			zap.Int("items", n))
+		return
+	}
+
+	s.dao.Store.Delete([]byte{byte(storage.SYSTempStateCheckpoint)})
+	s.lastCheckpointHeight = 0
+
+	s.log.Info("completed storage-based state sync",
+		zap.Uint32("height", syncHeight),
+		zap.String("root", computedRoot.String()))
+
+	s.syncStage |= mptSynced
+	s.checkSyncIsCompleted()
+}
+
+// saveCheckpointMetadata stores checkpoint metadata.
+func (s *Module) saveCheckpointMetadata(metadata checkpointMetadata) error {
+	if metadata.MPTRoot == (util.Uint256{}) {
+		return errors.New("invalid MPT root")
+	}
+	data := io.NewBufBinWriter()
+	data.WriteU32LE(metadata.SyncHeight)
+	data.WriteBytes(metadata.MPTRoot[:])
+	data.WriteBytes(metadata.ExpectedRoot[:])
+	data.WriteVarBytes(metadata.LastKey)
+	if data.Err != nil {
+		return fmt.Errorf("failed to encode checkpoint metadata: %w", data.Err)
+	}
+	s.dao.Store.Put([]byte{byte(storage.SYSTempStateCheckpoint)}, data.Bytes())
+	return nil
+}
+
+// loadCheckpointMetadata retrieves checkpoint metadata.
+func (s *Module) loadCheckpointMetadata() (checkpointMetadata, error) {
+	var metadata checkpointMetadata
+	data, err := s.dao.Store.Get([]byte{byte(storage.SYSTempStateCheckpoint)})
+	if err != nil {
+		return metadata, fmt.Errorf("no checkpoint found: %w", err)
+	}
+	br := io.NewBinReaderFromBuf(data)
+	metadata.SyncHeight = br.ReadU32LE()
+	br.ReadBytes(metadata.MPTRoot[:])
+	br.ReadBytes(metadata.ExpectedRoot[:])
+	metadata.LastKey = br.ReadVarBytes()
+	if br.Err != nil {
+		return metadata, fmt.Errorf("failed to decode checkpoint metadata: %w", br.Err)
+	}
+	if metadata.MPTRoot == (util.Uint256{}) {
+		return metadata, errors.New("invalid checkpoint metadata")
+	}
+	return metadata, nil
+}
+
 func (s *Module) restoreNode(n mpt.Node) error {
 	nPaths, ok := s.mptpool.TryGet(n.Hash())
 	if !ok {
@@ -444,7 +710,7 @@ func (s *Module) restoreNode(n mpt.Node) error {
 			return fmt.Errorf("failed to restore MPT node with hash %s and path %s: %w", n.Hash().StringBE(), hex.EncodeToString(path), err)
 		}
 		for h, paths := range mpt.GetChildrenPaths(path, n) {
-			childrenPaths[h] = append(childrenPaths[h], paths...) // it's OK to have duplicates, they'll be handled by mempool
+			childrenPaths[h] = append(childrenPaths[h], paths...)
 		}
 	}
 
@@ -486,8 +752,14 @@ func (s *Module) checkSyncIsCompleted() {
 	s.dispose()
 }
 
+// dispose cleans up resources.
 func (s *Module) dispose() {
 	s.billet = nil
+	s.localTrie = nil
+	s.pendingPairs = make(map[string][]byte)
+	s.currentSyncHeight = 0
+	s.currentExpectedRoot = util.Uint256{}
+	s.lastCheckpointHeight = 0
 }
 
 // BlockHeight returns index of the last stored block.
@@ -524,12 +796,20 @@ func (s *Module) NeedHeaders() bool {
 	return s.syncStage == initialized
 }
 
-// NeedMPTNodes returns whether the module hasn't completed MPT synchronisation.
+// NeedMPTNodes returns whether the module hasn't completed MPT-based state synchronisation.
 func (s *Module) NeedMPTNodes() bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
+	return (s.syncStage&headersSynced != 0 && s.syncStage&mptSynced == 0) &&
+		(!s.storageSync || s.needMPTAfterStorage)
+}
 
-	return s.syncStage&headersSynced != 0 && s.syncStage&mptSynced == 0
+// NeedContractStorageData checks if storage-based state sync is incomplete.
+func (s *Module) NeedContractStorageData() bool {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+	return s.storageSync && !s.needMPTAfterStorage &&
+		s.syncStage&headersSynced != 0 && s.syncStage&mptSynced == 0
 }
 
 // NeedBlocks returns whether the module hasn't completed blocks synchronisation.

@@ -64,9 +64,9 @@ func uploadState(ctx *cli.Context) error {
 	if chain.GetConfig().Ledger.KeepOnlyLatestState || chain.GetConfig().Ledger.RemoveUntraceableBlocks {
 		return cli.Exit("only full-state node is supported: disable KeepOnlyLatestState and RemoveUntraceableBlocks", 1)
 	}
-	syncInterval := cfg.ProtocolConfiguration.StateSyncInterval
-	if syncInterval == 0 {
-		syncInterval = core.DefaultStateSyncInterval
+	syncInterval := cfg.ApplicationConfiguration.NeoFSStateFetcher.StateInterval
+	if syncInterval <= 0 {
+		syncInterval = uint32(neofs.DefaultStateInterval)
 	}
 
 	containerID, err := getContainer(ctx, p, strconv.Itoa(int(chain.GetConfig().Magic)), maxRetries, debug)
@@ -74,29 +74,29 @@ func uploadState(ctx *cli.Context) error {
 		return cli.Exit(err, 1)
 	}
 
-	stateObjCount, err := searchStateIndex(ctx, p, containerID, acc.PrivateKey(), attr, syncInterval, maxRetries, debug)
+	stateObjCount, err := searchStateIndex(ctx, p, containerID, acc.PrivateKey(), attr, int(syncInterval), maxRetries, debug)
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed searching existing states: %v", err), 1)
 	}
 	stateModule := chain.GetStateModule()
-	currentHeight := int(stateModule.CurrentLocalHeight())
+	currentHeight := stateModule.CurrentLocalHeight()
 	currentStateIndex := currentHeight / syncInterval
 	if currentStateIndex < stateObjCount {
 		log.Info("no new states to upload",
-			zap.Int("number of uploaded state objects", stateObjCount),
-			zap.Int("latest state is uploaded for block", (stateObjCount-1)*syncInterval),
-			zap.Int("current height", currentHeight),
-			zap.Int("StateSyncInterval", syncInterval))
+			zap.Uint32("number of uploaded state objects", stateObjCount),
+			zap.Uint32("latest state is uploaded for block", (stateObjCount-1)*syncInterval),
+			zap.Uint32("current height", currentHeight),
+			zap.Uint32("StateSyncInterval", syncInterval))
 		return nil
 	}
 	log.Info("starting uploading",
-		zap.Int("number of uploaded state objects", stateObjCount),
-		zap.Int("next state to upload for block", stateObjCount*syncInterval),
-		zap.Int("current height", currentHeight),
-		zap.Int("StateSyncInterval", syncInterval),
-		zap.Int("number of states to upload", currentStateIndex-stateObjCount))
+		zap.Uint32("number of uploaded state objects", stateObjCount),
+		zap.Uint32("next state to upload for block", stateObjCount*syncInterval),
+		zap.Uint32("current height", currentHeight),
+		zap.Uint32("StateSyncInterval", syncInterval),
+		zap.Uint32("number of states to upload", currentStateIndex-stateObjCount))
 	for state := stateObjCount; state <= currentStateIndex; state++ {
-		height := uint32(state * syncInterval)
+		height := state * syncInterval
 		stateRoot, err := stateModule.GetStateRoot(height)
 		if err != nil {
 			return cli.Exit(fmt.Sprintf("failed to get state root for height %d: %v", height, err), 1)
@@ -113,7 +113,7 @@ func uploadState(ctx *cli.Context) error {
 				*object.NewAttribute(attr, strconv.Itoa(int(height))),
 				*object.NewAttribute("Timestamp", strconv.FormatInt(time.Now().Unix(), 10)),
 				*object.NewAttribute("StateRoot", stateRoot.Root.StringLE()),
-				*object.NewAttribute("StateSyncInterval", strconv.Itoa(syncInterval)),
+				*object.NewAttribute("StateSyncInterval", strconv.Itoa(int(syncInterval))),
 				*object.NewAttribute("BlockTime", strconv.FormatUint(h.Timestamp, 10)),
 			}
 		)
@@ -157,11 +157,11 @@ func uploadState(ctx *cli.Context) error {
 
 func searchStateIndex(ctx *cli.Context, p neofs.PoolWrapper, containerID cid.ID, privKeys *keys.PrivateKey,
 	attributeKey string, syncInterval int, maxRetries uint, debug bool,
-) (int, error) {
+) (uint32, error) {
 	var (
 		doneCh   = make(chan struct{})
 		errCh    = make(chan error)
-		objCount = 0
+		objCount = uint32(0)
 	)
 
 	go func() {
