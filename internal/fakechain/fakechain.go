@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math/big"
 	"sync/atomic"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/config/netmode"
@@ -61,7 +62,16 @@ func NewFakeChain() *FakeChain {
 
 // NewFakeChainWithCustomCfg returns a new FakeChain structure with the specified protocol configuration.
 func NewFakeChainWithCustomCfg(protocolCfg func(c *config.Blockchain)) *FakeChain {
-	cfg := config.Blockchain{ProtocolConfiguration: config.ProtocolConfiguration{Magic: netmode.UnitTestNet, P2PNotaryRequestPayloadPoolSize: 10}}
+	cfg := config.Blockchain{
+		ProtocolConfiguration: config.ProtocolConfiguration{
+			Magic:                           netmode.UnitTestNet,
+			P2PNotaryRequestPayloadPoolSize: 10,
+			Genesis: config.Genesis{
+				TimePerBlock: time.Second,
+			},
+			TimePerBlock: time.Second,
+		},
+	}
 	if protocolCfg != nil {
 		protocolCfg(&cfg)
 	}
@@ -250,6 +260,11 @@ func (chain *FakeChain) GetHeader(hash util.Uint256) (*block.Header, error) {
 		return nil, err
 	}
 	return &b.Header, nil
+}
+
+// GetMillisecondsPerBlock implements the Blockchainer interface.
+func (chain *FakeChain) GetMillisecondsPerBlock() uint32 {
+	return uint32(chain.Blockchain.TimePerBlock.Milliseconds())
 }
 
 // GetNextBlockValidators implements the Blockchainer interface.

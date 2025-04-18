@@ -41,7 +41,6 @@ const (
 	defaultExtensiblePoolSize = 20
 	defaultBroadcastFactor    = 0
 	defaultPingInterval       = 3 * time.Second
-	defaultTimePerBlock       = time.Second
 	maxBlockBatch             = 200
 	peerTimeFactor            = 1000
 )
@@ -68,6 +67,7 @@ type (
 		GetHeaderHash(uint32) util.Uint256
 		GetMaxVerificationGAS() int64
 		GetMemPool() *mempool.Pool
+		GetMillisecondsPerBlock() uint32
 		GetNotaryBalance(acc util.Uint160) *big.Int
 		GetNotaryContractScriptHash() util.Uint160
 		GetNotaryDepositExpiration(acc util.Uint160) uint32
@@ -292,12 +292,6 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		s.BroadcastFactor = defaultBroadcastFactor
 	}
 
-	if s.TimePerBlock <= 0 {
-		s.log.Info("bad TimePerBlock configured, using the default value",
-			zap.Int64("configured", int64(s.TimePerBlock)),
-			zap.Int64("actual", int64(defaultTimePerBlock)))
-		s.TimePerBlock = defaultTimePerBlock
-	}
 	if s.PingInterval <= 0 {
 		s.log.Info("bad PingInterval configured, using the default value",
 			zap.Int64("configured", int64(s.PingInterval)),
@@ -548,7 +542,7 @@ func (s *Server) ConnectedPeers() []PeerInfo {
 // while itself dealing with peers management (handling connects/disconnects).
 func (s *Server) run() {
 	var (
-		peerCheckTime    = s.TimePerBlock * peerTimeFactor
+		peerCheckTime    = time.Duration(s.chain.GetMillisecondsPerBlock()) * time.Millisecond * peerTimeFactor
 		addrCheckTimeout bool
 		addrTicker       = time.NewTicker(peerCheckTime)
 		peerTimer        = time.NewTimer(s.ProtoTickInterval)
@@ -1652,7 +1646,7 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.C
 		// Optimal number of recipients.
 		enoughN     = s.discovery.GetFanOut()
 		replies     = make(chan error, peerN) // Cache is there just to make goroutines exit faster.
-		ctx, cancel = context.WithTimeout(context.Background(), s.TimePerBlock/2)
+		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(s.chain.GetMillisecondsPerBlock())*time.Millisecond/2)
 	)
 	enoughN = (enoughN*(100-s.BroadcastFactor) + peerN*s.BroadcastFactor) / 100
 	for _, peer := range peers {

@@ -3,6 +3,7 @@ package native_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
@@ -16,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/stretchr/testify/require"
 )
 
 func newPolicyClient(t *testing.T) *neotest.ContractInvoker {
@@ -74,6 +76,131 @@ func TestPolicy_MaxVUBIncrementCache(t *testing.T) {
 	})
 	c.AddNewBlock(t) // enable Echidna.
 	testGetSetCache(t, c, "MaxValidUntilBlockIncrement", int64(c.Chain.GetConfig().Genesis.MaxValidUntilBlockIncrement))
+}
+
+func TestPolicy_MillisecondsPerBlock(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): 3,
+		}
+	})
+	committeeInvoker := c.WithSigners(c.Committee)
+	name := "MillisecondsPerBlock"
+
+	t.Run("set, before Echidna", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "method not found: setMillisecondsPerBlock/1", "set"+name, 123)
+	})
+	t.Run("get, before Echidna", func(t *testing.T) {
+		committeeInvoker.InvokeFail(t, "method not found: getMillisecondsPerBlock/0", "get"+name)
+	})
+
+	c.AddNewBlock(t) // enable Echidna.
+	testGetSet(t, c, name, c.Chain.GetConfig().Genesis.TimePerBlock.Milliseconds(), 1, 30_000)
+}
+
+// TestPolicy_Initialize ensures that native Policy storage/cache initialization is
+// performed properly at Echidna fork.
+func TestPolicy_InitializeAtEchidna(t *testing.T) {
+	check := func(t *testing.T, f func(cfg *config.Blockchain), echidnaH int32) {
+		c := newCustomNativeClient(t, nativenames.Policy, f)
+		committeeInvoker := c.WithSigners(c.Committee)
+		defaultTimePerBlock := uint32(c.Chain.GetConfig().TimePerBlock.Milliseconds())
+		genesisTimePerBlock := uint32(c.Chain.GetConfig().Genesis.TimePerBlock.Milliseconds())
+
+		// Pre-Echidna blocks.
+		for range int(echidnaH) - 1 {
+			require.Equal(t, defaultTimePerBlock, c.Chain.GetMillisecondsPerBlock())
+			committeeInvoker.InvokeFail(t, "method not found: getMillisecondsPerBlock/0", "getMillisecondsPerBlock")
+			require.Equal(t, defaultTimePerBlock, c.Chain.GetMillisecondsPerBlock())
+		}
+
+		// Echidna block.
+		if echidnaH > 0 {
+			require.Equal(t, defaultTimePerBlock, c.Chain.GetMillisecondsPerBlock())
+			committeeInvoker.InvokeWithFee(t, genesisTimePerBlock, 1_0000_0000, "getMillisecondsPerBlock") // use custom fee because test invocation will fail since Echidna is not yet enabled.
+			require.Equal(t, genesisTimePerBlock, c.Chain.GetMillisecondsPerBlock())
+		}
+
+		// A couple of Post-Echidna blocks.
+		for range 2 {
+			// Negative echidnaH corresponds to disabled Echidna.
+			expected := defaultTimePerBlock
+			if echidnaH >= 0 {
+				expected = genesisTimePerBlock
+			}
+			require.Equal(t, expected, c.Chain.GetMillisecondsPerBlock())
+			if echidnaH >= 0 {
+				committeeInvoker.Invoke(t, expected, "getMillisecondsPerBlock")
+			} else {
+				committeeInvoker.InvokeFail(t, "method not found: getMillisecondsPerBlock/0", "getMillisecondsPerBlock")
+			}
+			require.Equal(t, expected, c.Chain.GetMillisecondsPerBlock())
+		}
+	}
+	t.Run("empty hardforks section", func(t *testing.T) {
+		check(t, func(cfg *config.Blockchain) {
+			cfg.Hardforks = nil
+			cfg.Genesis.TimePerBlock = 123 * time.Millisecond
+		}, -1) // Echidna is not a stable fork for now.
+	})
+	t.Run("all hardforks explicitly enabled from genesis", func(t *testing.T) {
+		check(t, func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFAspidochelone.String(): 0,
+				config.HFBasilisk.String():      0,
+				config.HFCockatrice.String():    0,
+				config.HFDomovoi.String():       0,
+				config.HFEchidna.String():       0,
+			}
+			cfg.Genesis.TimePerBlock = 123 * time.Millisecond
+		}, 0)
+	})
+	t.Run("Echidna enabled from 2", func(t *testing.T) {
+		check(t, func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFAspidochelone.String(): 0,
+				config.HFBasilisk.String():      0,
+				config.HFCockatrice.String():    0,
+				config.HFDomovoi.String():       0,
+				config.HFEchidna.String():       2,
+			}
+			cfg.Genesis.TimePerBlock = 123 * time.Millisecond
+		}, 2)
+	})
+	t.Run("Domovoi and Echidna enabled from 2", func(t *testing.T) {
+		check(t, func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFAspidochelone.String(): 0,
+				config.HFBasilisk.String():      0,
+				config.HFCockatrice.String():    0,
+				config.HFDomovoi.String():       2,
+				config.HFEchidna.String():       2,
+			}
+			cfg.Genesis.TimePerBlock = 123 * time.Millisecond
+		}, 2)
+	})
+	t.Run("Echidna enabled from 4", func(t *testing.T) {
+		check(t, func(cfg *config.Blockchain) {
+			cfg.Hardforks = map[string]uint32{
+				config.HFAspidochelone.String(): 0,
+				config.HFBasilisk.String():      0,
+				config.HFCockatrice.String():    0,
+				config.HFDomovoi.String():       2,
+				config.HFEchidna.String():       4,
+			}
+			cfg.Genesis.TimePerBlock = 123 * time.Millisecond
+		}, 4)
+	})
+}
+
+func TestPolicy_MillisecondsPerBlockCache(t *testing.T) {
+	c := newCustomNativeClient(t, nativenames.Policy, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): 1,
+		}
+	})
+	c.AddNewBlock(t) // enable Echidna.
+	testGetSetCache(t, c, "MillisecondsPerBlock", c.Chain.GetConfig().Genesis.TimePerBlock.Milliseconds())
 }
 
 func TestPolicy_AttributeFee(t *testing.T) {

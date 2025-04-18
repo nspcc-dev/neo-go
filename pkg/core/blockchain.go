@@ -293,6 +293,15 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		cfg.TimePerBlock = defaultTimePerBlock
 		log.Info("TimePerBlock is not set or wrong, using default value",
 			zap.Duration("TimePerBlock", cfg.TimePerBlock))
+	} else if cfg.TimePerBlock%time.Millisecond != 0 {
+		return nil, errors.New("TimePerBlock must be an integer number of milliseconds")
+	}
+	if cfg.Genesis.TimePerBlock <= 0 {
+		cfg.Genesis.TimePerBlock = cfg.TimePerBlock
+		log.Info("Genesis TimePerBlock is not set or wrong, using default value",
+			zap.Duration("Genesis TimePerBlock", cfg.Genesis.TimePerBlock))
+	} else if cfg.Genesis.TimePerBlock%time.Millisecond != 0 {
+		return nil, errors.New("Genesis TimePerBlock must be an integer number of milliseconds")
 	}
 	if cfg.MaxValidUntilBlockIncrement == 0 {
 		const timePerDay = 24 * time.Hour
@@ -2958,7 +2967,7 @@ func (bc *Blockchain) GetFakeNextBlock(nextBlockHeight uint32) (*block.Block, er
 	if err != nil {
 		return nil, err
 	}
-	b.Timestamp = hdr.Timestamp + uint64(bc.config.TimePerBlock/time.Millisecond)
+	b.Timestamp = hdr.Timestamp + uint64(bc.GetMillisecondsPerBlock())
 	return b, nil
 }
 
@@ -2972,6 +2981,17 @@ func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
 		return bc.contracts.Policy.GetMaxValidUntilBlockIncrementFromCache(bc.dao)
 	}
 	return bc.GetConfig().MaxValidUntilBlockIncrement
+}
+
+// GetMillisecondsPerBlock returns the time interval between blocks that consensus
+// nodes work with (in milliseconds). This method performs access to native Policy
+// cache hence Policy is expected to be initialized by this moment.
+func (bc *Blockchain) GetMillisecondsPerBlock() uint32 {
+	var hf = config.HFEchidna
+	if bc.isHardforkEnabled(&hf, bc.BlockHeight()) {
+		return bc.contracts.Policy.GetMillisecondsPerBlockInternal(bc.dao)
+	}
+	return uint32(bc.GetConfig().TimePerBlock.Milliseconds())
 }
 
 // Various witness verification errors.

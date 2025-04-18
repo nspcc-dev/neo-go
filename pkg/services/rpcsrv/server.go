@@ -98,6 +98,7 @@ type (
 		GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 		HeaderHeight() uint32
 		InitVerificationContext(ic *interop.Context, hash util.Uint160, witness *transaction.Witness) error
+		GetMillisecondsPerBlock() uint32
 		GetMaxValidUntilBlockIncrement() uint32
 		P2PSigExtensionsEnabled() bool
 		SubscribeForBlocks(ch chan *block.Block)
@@ -890,7 +891,7 @@ func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 		Protocol: result.Protocol{
 			AddressVersion:              address.NEO3Prefix,
 			Network:                     cfg.Magic,
-			MillisecondsPerBlock:        int(cfg.TimePerBlock / time.Millisecond),
+			MillisecondsPerBlock:        int(s.chain.GetMillisecondsPerBlock()),
 			MaxTraceableBlocks:          cfg.MaxTraceableBlocks,
 			MaxValidUntilBlockIncrement: s.chain.GetMaxValidUntilBlockIncrement(),
 			MaxTransactionsPerBlock:     cfg.MaxTransactionsPerBlock,

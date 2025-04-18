@@ -122,7 +122,7 @@ const (
 	// not yet deployed to the testing basic chain.
 	invokescriptContractAVM = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
 	// block20StateRootLE is an LE stateroot of block #20 of basic testing chain.
-	block20StateRootLE = "672da91ae5489fa065bfdd7d0b8f918ac735389446ea5f5cad4392713e19791f"
+	block20StateRootLE = "4477f36616c83ef7ec0d80b71081e04239dd9f2ae0e14eb1864efd6b08061825"
 )
 
 var (
@@ -1477,7 +1477,7 @@ var rpcTestCases = map[string][]rpcTestCase{
 				}, {
 					State: "Changed",
 					Key:   []byte{0xfa, 0xff, 0xff, 0xff, 0x14, 0xee, 0x9e, 0xa2, 0x2c, 0x27, 0xe3, 0x4b, 0xd0, 0x14, 0x8f, 0xc4, 0x10, 0x8e, 0x8, 0xf7, 0x4e, 0x8f, 0x50, 0x48, 0xb2},
-					Value: []byte{0x41, 0x01, 0x21, 0x05, 0x12, 0xbb, 0xb4, 0x54, 0x15},
+					Value: []byte{0x41, 0x01, 0x21, 0x05, 0xea, 0x97, 0xb4, 0x54, 0x15},
 				}}
 				// Can be returned in any order.
 				assert.ElementsMatch(t, chg, res.Diagnostics.Changes)
@@ -3835,7 +3835,7 @@ func checkNep17Balances(t *testing.T, e *executor, acc any) {
 			},
 			{
 				Asset:       e.chain.UtilityTokenHash(),
-				Amount:      "90615463730",
+				Amount:      "90615454730",
 				LastUpdated: 23,
 				Decimals:    8,
 				Name:        "GasToken",

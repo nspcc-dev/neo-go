@@ -424,7 +424,7 @@ protocol-related settings described in the table below.
 | StandbyCommittee | `[]string` | [] | List of public keys of standby committee validators are chosen from. | The list of keys is not required to be sorted, but it must be exactly the same within the configuration files of all the nodes in the network. |
 | StateRootInHeader | `bool` | `false` | Enables storing state root in block header. | Experimental protocol extension! |
 | StateSyncInterval | `int` | `40000` | The number of blocks between state heights available for MPT state data synchronization. | `P2PStateExchangeExtensions` should be enabled to use this setting. |
-| TimePerBlock | `Duration` | `15s` | Minimal (and targeted for) time interval between blocks. Must be an integer number of milliseconds. |
+| TimePerBlock | `Duration` | `15s` | Minimal (and targeted for) time interval between blocks. Must be an integer number of milliseconds. This setting is replaced by [`Genesis`-level](#Genesis-Configuration) `TimePerBlock` protocol configuration setting and corresponding Policy value starting from `Echidna` hardfork. |
 | ValidatorsCount | `uint32` | `0` | Number of validators set for the whole network lifetime, can't be set if `ValidatorsHistory` setting is used. |
 | ValidatorsHistory | map[uint32]uint32 | none | Number of consensus nodes to use after given height (see `CommitteeHistory` also). Heights where the change occurs must be divisible by the number of committee members at that height. Can't be used with `ValidatorsCount` not equal to zero. Initial validators count for genesis block must always be specified. |
 | VerifyTransactions | `bool` | `false` | Denotes whether to verify transactions in the received blocks. |
@@ -434,7 +434,8 @@ protocol-related settings described in the table below.
 `Genesis` subsection of protocol configuration section contains a set of settings
 specific for genesis block including NeoGo node extensions that should be enabled
 during genesis block persist or at the moment of native contracts initialisation.
-`Genesis` has the following structure:
+This subsection also contains initial values used for native Policy contract storage
+initialisation at Echidna hardfork. `Genesis` has the following structure:
 ```
 Genesis:
   MaxValidUntilBlockIncrement: 5760
@@ -447,6 +448,7 @@ Genesis:
     Oracle:
       - 03409f31f0d66bdc2f70a9730b66fe186658f84a8018204db01c106edc36553cd0
       - 0222038884bbd1d8ff109ed3bdef3542e768eef76c1247aea8bc8171f532928c30
+  TimePerBlock: 15s
   Transaction:
     Script: "DCECEDp/fdAWVYWX95YNJ8UWpDlP2Wi55lFV60sBPkBAQG5BVuezJw=="
     SystemFee: 100000000
@@ -480,6 +482,16 @@ where:
   only during native RoleManagement contract initialisation (which may be
   performed in some non-genesis hardfork). By default, no roles are designated.
 
+- `TimePerBlock` is a minimal (and targeted for) time interval between blocks.
+  It has the `Duration` type and must be an integer number of milliseconds. This
+  setting is used to initialize `MillisecondsPerBlock` value of native Policy contract at
+  `Echidna` hardfork. If not set, then `ProtocolConfiguration`-level `TimePerBlock`
+  setting is used as the default value.
+
+  Note that this value is stored directly in the Policy contract storage, i.e. it
+  affects the chain's state, so it's important to keep it the same on all nodes
+  in frames of a single network.
+
 - `Transaction` is a container for transaction script that should be deployed in
   the genesis block if provided. `Transaction` includes `Script` which is a
   base64-encoded transaction script and `SystemFee` which is a transaction's
@@ -503,7 +515,7 @@ in development and can change in an incompatible way.
 | `Basilisk`      | Enables strict smart contract script check against a set of JMP instructions and against method boundaries enabled on contract deploy or update. Increases `stackitem.Integer` JSON parsing precision up to the maximum value supported by the NeoVM. Enables strict check for notifications emitted by a contract to precisely match the events specified in the contract manifest. | https://github.com/nspcc-dev/neo-go/pull/3056 <br> https://github.com/neo-project/neo/pull/2881 <br> https://github.com/nspcc-dev/neo-go/pull/3080 <br> https://github.com/neo-project/neo/pull/2883 <br> https://github.com/nspcc-dev/neo-go/pull/3085 <br> https://github.com/neo-project/neo/pull/2810 |
 | `Cockatrice`    | Introduces the ability to update native contracts. Includes a couple of new native smart contract APIs: `keccak256` of native CryptoLib contract and `getCommitteeAddress` of native NeoToken contract. | https://github.com/nspcc-dev/neo-go/pull/3402 <br> https://github.com/neo-project/neo/pull/2942 <br> https://github.com/nspcc-dev/neo-go/pull/3301 <br> https://github.com/neo-project/neo/pull/2925 <br> https://github.com/nspcc-dev/neo-go/pull/3362 <br> https://github.com/neo-project/neo/pull/3154 |
 | `Domovoi`       | Makes node use executing contract state for the contract call permissions check instead of the state stored in the native Management contract. In C# also makes System.Runtime.GetNotifications interop properly count stack references of notification parameters which prevents users from creating objects that exceed MaxStackSize constraint, but NeoGo has never had this bug, thus proper behaviour is preserved even before HFDomovoi. It results in the fact that some T5 testnet transactions have different ApplicationLogs compared to the C# node, but the node states match. | https://github.com/nspcc-dev/neo-go/pull/3476 <br> https://github.com/neo-project/neo/pull/3290 <br> https://github.com/nspcc-dev/neo-go/pull/3473 <br> https://github.com/neo-project/neo/pull/3290 <br> https://github.com/neo-project/neo/pull/3301 <br> https://github.com/nspcc-dev/neo-go/pull/3485 |
-| `Echidna`       | Introduces `Designation` event extension with `Old` and `New` roles data to native RoleManagement contract. Adds support for `base64UrlEncode` and `base64UrlDecode` methods to native StdLib contract. Extends the list of required call flags for `registerCandidate`, `unregisterCandidate`and `vote` methods of native NeoToken contract with AllowNotify flag. Enables `onNEP17Payment` method of NEO contract for candidate registration. Introduces constraint for maximum number of execution notifications. Adds support for `recoverSecp256K1` method of native CryptoLib contract.  | https://github.com/nspcc-dev/neo-go/pull/3554 <br> https://github.com/nspcc-dev/neo-go/pull/3761 <br> https://github.com/nspcc-dev/neo-go/pull/3554 <br> https://github.com/neo-project/neo/pull/3597 <br> https://github.com/nspcc-dev/neo-go/pull/3700 <br> https://github.com/nspcc-dev/neo-go/pull/3640 <br> https://github.com/neo-project/neo/pull/3548 <br> https://github.com/nspcc-dev/neo-go/pull/3863 <br> https://github.com/neo-project/neo/pull/3696 |
+| `Echidna`       | Introduces `Designation` event extension with `Old` and `New` roles data to native RoleManagement contract. Adds support for `base64UrlEncode` and `base64UrlDecode` methods to native StdLib contract. Extends the list of required call flags for `registerCandidate`, `unregisterCandidate`and `vote` methods of native NeoToken contract with AllowNotify flag. Enables `onNEP17Payment` method of NEO contract for candidate registration. Introduces constraint for maximum number of execution notifications. Adds support for `recoverSecp256K1` method of native CryptoLib contract. Introduces `setMillisecondsPerBlock` and `getMillisecondsPerBlock` methods of native Policy contract.  | https://github.com/nspcc-dev/neo-go/pull/3554 <br> https://github.com/nspcc-dev/neo-go/pull/3761 <br> https://github.com/nspcc-dev/neo-go/pull/3554 <br> https://github.com/neo-project/neo/pull/3597 <br> https://github.com/nspcc-dev/neo-go/pull/3700 <br> https://github.com/nspcc-dev/neo-go/pull/3640 <br> https://github.com/neo-project/neo/pull/3548 <br> https://github.com/nspcc-dev/neo-go/pull/3863 <br> https://github.com/neo-project/neo/pull/3696 <br> https://github.com/neo-project/neo/pull/3895 <br> https://github.com/nspcc-dev/neo-go/pull/3835 |
 
 
 ## DB compatibility

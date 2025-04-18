@@ -176,6 +176,9 @@ func NewSingleWithOptions(t testing.TB, options *Options) (*core.Blockchain, neo
 			Magic:              netmode.UnitTestNet,
 			MaxTraceableBlocks: MaxTraceableBlocks,
 			TimePerBlock:       TimePerBlock,
+			Genesis: config.Genesis{
+				TimePerBlock: TimePerBlock,
+			},
 			StandbyCommittee:   []string{hex.EncodeToString(committeeAcc.PublicKey().Bytes())},
 			ValidatorsCount:    1,
 			VerifyTransactions: true,

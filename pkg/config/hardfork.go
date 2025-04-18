@@ -46,7 +46,8 @@ const (
 	// HFEchidna represents hard-fork introduced in #3554 (ported from
 	// https://github.com/neo-project/neo/pull/3454), #3640 (ported from
 	// https://github.com/neo-project/neo/pull/3548), #3863 (ported from
-	// https://github.com/neo-project/neo/pull/3696).
+	// https://github.com/neo-project/neo/pull/3696), #3835 (ported from
+	// https://github.com/neo-project/neo/pull/3895).
 	HFEchidna // Echidna
 	// hfLast denotes the end of hardforks enum. Consider adding new hardforks
 	// before hfLast.

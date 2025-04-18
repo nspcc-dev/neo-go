@@ -24,6 +24,16 @@ func TestProtocolConfigurationValidation(t *testing.T) {
 	}
 	require.Error(t, p.Validate())
 	p = &ProtocolConfiguration{
+		StandbyCommittee: []string{
+			"02b3622bf4017bdfe317c58aed5f4c753f206b7db896046fa7d774bbc4bf7f8dc2",
+		},
+		ValidatorsCount: 1,
+		Genesis: Genesis{
+			TimePerBlock: time.Microsecond,
+		},
+	}
+	require.Error(t, p.Validate())
+	p = &ProtocolConfiguration{
 		ValidatorsCount: 1,
 	}
 	require.Error(t, p.Validate())

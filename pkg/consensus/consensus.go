@@ -32,9 +32,6 @@ import (
 // from C# implementation https://github.com/neo-project/neo/blob/master/neo/Ledger/Blockchain.cs#L64
 const cacheMaxCapacity = 100
 
-// defaultTimePerBlock is a period between blocks which is used in Neo.
-const defaultTimePerBlock = 15 * time.Second
-
 // Number of nanoseconds in millisecond.
 const nsInMs = 1000000
 
@@ -47,6 +44,7 @@ type Ledger interface {
 	GetStateRoot(height uint32) (*state.MPTRoot, error)
 	GetTransaction(util.Uint256) (*transaction.Transaction, uint32, error)
 	ComputeNextBlockValidators() []*keys.PublicKey
+	GetMillisecondsPerBlock() uint32
 	PoolTx(t *transaction.Transaction, pools ...*mempool.Pool) error
 	SubscribeForBlocks(ch chan *coreb.Block)
 	UnsubscribeFromBlocks(ch chan *coreb.Block)
@@ -128,8 +126,6 @@ type Config struct {
 	// StopTxFlow is a callback that is called after the consensus
 	// process stops accepting incoming transactions.
 	StopTxFlow func()
-	// TimePerBlock is minimal time that should pass before the next block is accepted.
-	TimePerBlock time.Duration
 	// Wallet is a local-node wallet configuration. If the path is empty, then
 	// no wallet will be initialized and the service will be in watch-only mode.
 	Wallet config.Wallet
@@ -137,10 +133,6 @@ type Config struct {
 
 // NewService returns a new consensus.Service instance.
 func NewService(cfg Config) (Service, error) {
-	if cfg.TimePerBlock <= 0 {
-		cfg.TimePerBlock = defaultTimePerBlock
-	}
-
 	if cfg.Logger == nil {
 		return nil, errors.New("empty logger")
 	}
@@ -177,9 +169,9 @@ func NewService(cfg Config) (Service, error) {
 	srv.dbft, err = dbft.New[util.Uint256](
 		dbft.WithTimer[util.Uint256](timer.New()),
 		dbft.WithLogger[util.Uint256](srv.log),
-		dbft.WithTimePerBlock[util.Uint256](func() time.Duration { return cfg.TimePerBlock }),
+		dbft.WithTimePerBlock[util.Uint256](srv.timePerBlock),
 		dbft.WithGetKeyPair[util.Uint256](srv.getKeyPair),
-		dbft.WithRequestTx(cfg.RequestTx),
+		dbft.WithRequestTx[util.Uint256](cfg.RequestTx),
 		dbft.WithStopTxFlow[util.Uint256](cfg.StopTxFlow),
 		dbft.WithGetTx[util.Uint256](srv.getTx),
 		dbft.WithGetVerified[util.Uint256](srv.getVerifiedTx),
@@ -190,7 +182,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithWatchOnly[util.Uint256](func() bool { return false }),
 		dbft.WithNewBlockFromContext[util.Uint256](srv.newBlockFromContext),
 		dbft.WithCurrentHeight[util.Uint256](cfg.Chain.BlockHeight),
-		dbft.WithCurrentBlockHash(cfg.Chain.CurrentBlockHash),
+		dbft.WithCurrentBlockHash[util.Uint256](cfg.Chain.CurrentBlockHash),
 		dbft.WithGetValidators[util.Uint256](srv.getValidators),
 
 		dbft.WithNewConsensusPayload[util.Uint256](srv.newPayload),
@@ -789,4 +781,8 @@ func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Bloc
 	block.Block.MerkleRoot = hash.CalcMerkleRoot(slices.Clone(ctx.TransactionHashes))
 
 	return block
+}
+
+func (s *service) timePerBlock() time.Duration {
+	return time.Duration(s.Config.Chain.GetMillisecondsPerBlock()) * time.Millisecond
 }
