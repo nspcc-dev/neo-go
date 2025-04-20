@@ -49,7 +49,7 @@ func (w *WitnessRule) DecodeBinary(br *io.BinReader) {
 	w.Condition = DecodeBinaryCondition(br)
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
+// MarshalJSON implements the json.Marshaler interface.
 func (w *WitnessRule) MarshalJSON() ([]byte, error) {
 	cond, err := w.Condition.MarshalJSON()
 	if err != nil {
