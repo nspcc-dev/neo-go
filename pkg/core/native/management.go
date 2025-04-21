@@ -175,6 +175,12 @@ func newManagement() *Management {
 	eDesc = newEventDescriptor(contractDestroyNotificationName, hashParam)
 	eMD = newEvent(eDesc)
 	m.AddEvent(eMD)
+
+	desc = newDescriptor("isContract", smartcontract.BoolType,
+		manifest.NewParameter("hash", smartcontract.Hash160Type))
+	md = newMethodAndPrice(m.isContract, 1<<14, callflag.ReadStates, config.HFEchidna)
+	m.AddMethod(md, desc)
+
 	return m
 }
 
@@ -582,6 +588,12 @@ func (m *Management) hasMethod(ic *interop.Context, args []stackitem.Item) stack
 		return stackitem.NewBool(false)
 	}
 	return stackitem.NewBool(cs.Manifest.ABI.GetMethod(method, pcount) != nil)
+}
+
+func (m *Management) isContract(ic *interop.Context, args []stackitem.Item) stackitem.Item {
+	h := toHash160(args[0])
+	_, err := GetContract(ic.DAO, h)
+	return stackitem.NewBool(err == nil)
 }
 
 // Metadata implements the Contract interface.

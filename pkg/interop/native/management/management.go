@@ -84,3 +84,10 @@ func UpdateWithData(script, manifest []byte, data any) {
 	neogointernal.CallWithTokenNoRet(Hash, "update",
 		int(contract.All), script, manifest, data)
 }
+
+// IsContract represents `isContract` method of Management native contract. It allows to check
+// if contract with the specified hash is deployed. Note that this method is available starting
+// from [config.HFEchidna] hardfork.
+func IsContract(hash interop.Hash160) bool {
+	return neogointernal.CallWithToken(Hash, "isContract", int(contract.ReadStates), hash).(bool)
+}

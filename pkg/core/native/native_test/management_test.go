@@ -28,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/manifest"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/nef"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract/trigger"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -59,6 +60,7 @@ var (
 	// echidnaCSS holds serialized native contract states built for genesis block (with UpdateCounter 0)
 	// under assumption that hardforks from Aspidochelone to Echidna (included) are enabled.
 	echidnaCSS = map[string]string{
+		nativenames.Management:  `{"id":-1,"hash":"0xfffdc93764dbaddd97c48f252a53ea4643faa3fd","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dA","checksum":3581846399},"manifest":{"name":"ContractManagement","abi":{"methods":[{"name":"deploy","offset":0,"parameters":[{"name":"nefFile","type":"ByteArray"},{"name":"manifest","type":"ByteArray"}],"returntype":"Array","safe":false},{"name":"deploy","offset":7,"parameters":[{"name":"nefFile","type":"ByteArray"},{"name":"manifest","type":"ByteArray"},{"name":"data","type":"Any"}],"returntype":"Array","safe":false},{"name":"destroy","offset":14,"parameters":[],"returntype":"Void","safe":false},{"name":"getContract","offset":21,"parameters":[{"name":"hash","type":"Hash160"}],"returntype":"Array","safe":true},{"name":"getContractById","offset":28,"parameters":[{"name":"id","type":"Integer"}],"returntype":"Array","safe":true},{"name":"getContractHashes","offset":35,"parameters":[],"returntype":"InteropInterface","safe":true},{"name":"getMinimumDeploymentFee","offset":42,"parameters":[],"returntype":"Integer","safe":true},{"name":"hasMethod","offset":49,"parameters":[{"name":"hash","type":"Hash160"},{"name":"method","type":"String"},{"name":"pcount","type":"Integer"}],"returntype":"Boolean","safe":true},{"name":"isContract","offset":56,"parameters":[{"name":"hash","type":"Hash160"}],"returntype":"Boolean","safe":true},{"name":"setMinimumDeploymentFee","offset":63,"parameters":[{"name":"value","type":"Integer"}],"returntype":"Void","safe":false},{"name":"update","offset":70,"parameters":[{"name":"nefFile","type":"ByteArray"},{"name":"manifest","type":"ByteArray"}],"returntype":"Void","safe":false},{"name":"update","offset":77,"parameters":[{"name":"nefFile","type":"ByteArray"},{"name":"manifest","type":"ByteArray"},{"name":"data","type":"Any"}],"returntype":"Void","safe":false}],"events":[{"name":"Deploy","parameters":[{"name":"Hash","type":"Hash160"}]},{"name":"Update","parameters":[{"name":"Hash","type":"Hash160"}]},{"name":"Destroy","parameters":[{"name":"Hash","type":"Hash160"}]}]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
 		nativenames.StdLib:      `{"id":-2,"hash":"0xacce6fd80d44e1796aa0c2c625e9e4e0ce39efc0","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0A=","checksum":2681632925},"manifest":{"name":"StdLib","abi":{"methods":[{"name":"atoi","offset":0,"parameters":[{"name":"value","type":"String"}],"returntype":"Integer","safe":true},{"name":"atoi","offset":7,"parameters":[{"name":"value","type":"String"},{"name":"base","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"base58CheckDecode","offset":14,"parameters":[{"name":"s","type":"String"}],"returntype":"ByteArray","safe":true},{"name":"base58CheckEncode","offset":21,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"String","safe":true},{"name":"base58Decode","offset":28,"parameters":[{"name":"s","type":"String"}],"returntype":"ByteArray","safe":true},{"name":"base58Encode","offset":35,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"String","safe":true},{"name":"base64Decode","offset":42,"parameters":[{"name":"s","type":"String"}],"returntype":"ByteArray","safe":true},{"name":"base64Encode","offset":49,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"String","safe":true},{"name":"base64UrlDecode","offset":56,"parameters":[{"name":"s","type":"String"}],"returntype":"String","safe":true},{"name":"base64UrlEncode","offset":63,"parameters":[{"name":"data","type":"String"}],"returntype":"String","safe":true},{"name":"deserialize","offset":70,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"Any","safe":true},{"name":"itoa","offset":77,"parameters":[{"name":"value","type":"Integer"}],"returntype":"String","safe":true},{"name":"itoa","offset":84,"parameters":[{"name":"value","type":"Integer"},{"name":"base","type":"Integer"}],"returntype":"String","safe":true},{"name":"jsonDeserialize","offset":91,"parameters":[{"name":"json","type":"ByteArray"}],"returntype":"Any","safe":true},{"name":"jsonSerialize","offset":98,"parameters":[{"name":"item","type":"Any"}],"returntype":"ByteArray","safe":true},{"name":"memoryCompare","offset":105,"parameters":[{"name":"str1","type":"ByteArray"},{"name":"str2","type":"ByteArray"}],"returntype":"Integer","safe":true},{"name":"memorySearch","offset":112,"parameters":[{"name":"mem","type":"ByteArray"},{"name":"value","type":"ByteArray"}],"returntype":"Integer","safe":true},{"name":"memorySearch","offset":119,"parameters":[{"name":"mem","type":"ByteArray"},{"name":"value","type":"ByteArray"},{"name":"start","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"memorySearch","offset":126,"parameters":[{"name":"mem","type":"ByteArray"},{"name":"value","type":"ByteArray"},{"name":"start","type":"Integer"},{"name":"backward","type":"Boolean"}],"returntype":"Integer","safe":true},{"name":"serialize","offset":133,"parameters":[{"name":"item","type":"Any"}],"returntype":"ByteArray","safe":true},{"name":"strLen","offset":140,"parameters":[{"name":"str","type":"String"}],"returntype":"Integer","safe":true},{"name":"stringSplit","offset":147,"parameters":[{"name":"str","type":"String"},{"name":"separator","type":"String"}],"returntype":"Array","safe":true},{"name":"stringSplit","offset":154,"parameters":[{"name":"str","type":"String"},{"name":"separator","type":"String"},{"name":"removeEmptyEntries","type":"Boolean"}],"returntype":"Array","safe":true}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
 		nativenames.CryptoLib:   `{"id":-3,"hash":"0x726cb6e0cd8628a1350a611384688911ab75f51b","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQA==","checksum":174904780},"manifest":{"name":"CryptoLib","abi":{"methods":[{"name":"bls12381Add","offset":0,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"y","type":"InteropInterface"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Deserialize","offset":7,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Equal","offset":14,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"y","type":"InteropInterface"}],"returntype":"Boolean","safe":true},{"name":"bls12381Mul","offset":21,"parameters":[{"name":"x","type":"InteropInterface"},{"name":"mul","type":"ByteArray"},{"name":"neg","type":"Boolean"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Pairing","offset":28,"parameters":[{"name":"g1","type":"InteropInterface"},{"name":"g2","type":"InteropInterface"}],"returntype":"InteropInterface","safe":true},{"name":"bls12381Serialize","offset":35,"parameters":[{"name":"g","type":"InteropInterface"}],"returntype":"ByteArray","safe":true},{"name":"keccak256","offset":42,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"murmur32","offset":49,"parameters":[{"name":"data","type":"ByteArray"},{"name":"seed","type":"Integer"}],"returntype":"ByteArray","safe":true},{"name":"recoverSecp256K1","offset":56,"parameters":[{"name":"messageHash","type":"ByteArray"},{"name":"signature","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"ripemd160","offset":63,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"sha256","offset":70,"parameters":[{"name":"data","type":"ByteArray"}],"returntype":"ByteArray","safe":true},{"name":"verifyWithECDsa","offset":77,"parameters":[{"name":"message","type":"ByteArray"},{"name":"pubkey","type":"ByteArray"},{"name":"signature","type":"ByteArray"},{"name":"curveHash","type":"Integer"}],"returntype":"Boolean","safe":true},{"name":"verifyWithEd25519","offset":84,"parameters":[{"name":"message","type":"ByteArray"},{"name":"pubkey","type":"ByteArray"},{"name":"signature","type":"ByteArray"}],"returntype":"Boolean","safe":true}],"events":[]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":[],"trusts":[],"extra":null},"updatecounter":0}`,
 		nativenames.Neo:         `{"id":-5,"hash":"0xef4073a0f2b305a38ec4050e4d3d28bc40ea63f5","nef":{"magic":860243278,"compiler":"neo-core-v3.0","source":"","tokens":[],"script":"EEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dAEEEa93tnQBBBGvd7Z0AQQRr3e2dA","checksum":1991619121},"manifest":{"name":"NeoToken","abi":{"methods":[{"name":"balanceOf","offset":0,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Integer","safe":true},{"name":"decimals","offset":7,"parameters":[],"returntype":"Integer","safe":true},{"name":"getAccountState","offset":14,"parameters":[{"name":"account","type":"Hash160"}],"returntype":"Array","safe":true},{"name":"getAllCandidates","offset":21,"parameters":[],"returntype":"InteropInterface","safe":true},{"name":"getCandidateVote","offset":28,"parameters":[{"name":"pubKey","type":"PublicKey"}],"returntype":"Integer","safe":true},{"name":"getCandidates","offset":35,"parameters":[],"returntype":"Array","safe":true},{"name":"getCommittee","offset":42,"parameters":[],"returntype":"Array","safe":true},{"name":"getCommitteeAddress","offset":49,"parameters":[],"returntype":"Hash160","safe":true},{"name":"getGasPerBlock","offset":56,"parameters":[],"returntype":"Integer","safe":true},{"name":"getNextBlockValidators","offset":63,"parameters":[],"returntype":"Array","safe":true},{"name":"getRegisterPrice","offset":70,"parameters":[],"returntype":"Integer","safe":true},{"name":"onNEP17Payment","offset":77,"parameters":[{"name":"from","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"data","type":"Any"}],"returntype":"Void","safe":false},{"name":"registerCandidate","offset":84,"parameters":[{"name":"pubkey","type":"PublicKey"}],"returntype":"Boolean","safe":false},{"name":"setGasPerBlock","offset":91,"parameters":[{"name":"gasPerBlock","type":"Integer"}],"returntype":"Void","safe":false},{"name":"setRegisterPrice","offset":98,"parameters":[{"name":"registerPrice","type":"Integer"}],"returntype":"Void","safe":false},{"name":"symbol","offset":105,"parameters":[],"returntype":"String","safe":true},{"name":"totalSupply","offset":112,"parameters":[],"returntype":"Integer","safe":true},{"name":"transfer","offset":119,"parameters":[{"name":"from","type":"Hash160"},{"name":"to","type":"Hash160"},{"name":"amount","type":"Integer"},{"name":"data","type":"Any"}],"returntype":"Boolean","safe":false},{"name":"unclaimedGas","offset":126,"parameters":[{"name":"account","type":"Hash160"},{"name":"end","type":"Integer"}],"returntype":"Integer","safe":true},{"name":"unregisterCandidate","offset":133,"parameters":[{"name":"pubkey","type":"PublicKey"}],"returntype":"Boolean","safe":false},{"name":"vote","offset":140,"parameters":[{"name":"account","type":"Hash160"},{"name":"voteTo","type":"PublicKey"}],"returntype":"Boolean","safe":false}],"events":[{"name":"Transfer","parameters":[{"name":"from","type":"Hash160"},{"name":"to","type":"Hash160"},{"name":"amount","type":"Integer"}]},{"name":"CandidateStateChanged","parameters":[{"name":"pubkey","type":"PublicKey"},{"name":"registered","type":"Boolean"},{"name":"votes","type":"Integer"}]},{"name":"Vote","parameters":[{"name":"account","type":"Hash160"},{"name":"from","type":"PublicKey"},{"name":"to","type":"PublicKey"},{"name":"amount","type":"Integer"}]},{"name":"CommitteeChanged","parameters":[{"name":"old","type":"Array"},{"name":"new","type":"Array"}]}]},"features":{},"groups":[],"permissions":[{"contract":"*","methods":"*"}],"supportedstandards":["NEP-17","NEP-27"],"trusts":[],"extra":null},"updatecounter":0}`,
@@ -359,7 +361,15 @@ func TestBlockchain_GetNatives(t *testing.T) {
 }
 
 func TestManagement_ContractCache(t *testing.T) {
-	c := newManagementClient(t)
+	c := newCustomNativeClient(t, nativenames.Management, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFAspidochelone.String(): 0,
+			config.HFBasilisk.String():      0,
+			config.HFCockatrice.String():    0,
+			config.HFDomovoi.String():       0,
+			config.HFEchidna.String():       0,
+		}
+	})
 	managementInvoker := c.WithSigners(c.Committee)
 
 	cs1, _ := contracts.GetTestContractState(t, pathToInternalContracts, 1, 2, c.Committee.ScriptHash())
@@ -375,19 +385,56 @@ func TestManagement_ContractCache(t *testing.T) {
 	emit.Opcodes(w.BinWriter, opcode.ABORT)
 	tx1 := managementInvoker.PrepareInvocation(t, w.Bytes(), managementInvoker.Signers)
 	tx2 := managementInvoker.PrepareInvoke(t, "getContract", cs1.Hash.BytesBE())
-	managementInvoker.AddNewBlock(t, tx1, tx2)
+	tx3 := managementInvoker.PrepareInvoke(t, "isContract", cs1.Hash.BytesBE())
+	managementInvoker.AddNewBlock(t, tx1, tx2, tx3)
 	managementInvoker.CheckFault(t, tx1.Hash(), "ABORT")
 	managementInvoker.CheckHalt(t, tx2.Hash(), stackitem.Null{})
+	managementInvoker.CheckHalt(t, tx3.Hash(), stackitem.Make(false)) // here
 
 	// Deploy the contract and check that cache was persisted for HALTed transaction at the same block.
 	tx1 = managementInvoker.PrepareInvoke(t, "deploy", nefBytes, manifestBytes)
 	tx2 = managementInvoker.PrepareInvoke(t, "getContract", cs1.Hash.BytesBE())
-	managementInvoker.AddNewBlock(t, tx1, tx2)
+	tx3 = managementInvoker.PrepareInvoke(t, "isContract", cs1.Hash.BytesBE())
+	managementInvoker.AddNewBlock(t, tx1, tx2, tx3)
 	managementInvoker.CheckHalt(t, tx1.Hash())
 	aer, err := managementInvoker.Chain.GetAppExecResults(tx2.Hash(), trigger.Application)
 	require.NoError(t, err)
 	require.Equal(t, vmstate.Halt, aer[0].VMState, aer[0].FaultException)
-	require.NotEqual(t, stackitem.Null{}, aer[0].Stack)
+	require.False(t, aer[0].Stack[0].Equals(stackitem.Null{}))
+	managementInvoker.CheckHalt(t, tx3.Hash(), stackitem.Make(true))
+
+	// Check that persisted contract is reachable from the next block and native contracts
+	// are cached poperly.
+	for _, h := range []util.Uint160{
+		cs1.Hash,
+		nativehashes.ContractManagement,
+		nativehashes.StdLib,
+		nativehashes.CryptoLib,
+		nativehashes.LedgerContract,
+		nativehashes.NeoToken,
+		nativehashes.GasToken,
+		nativehashes.PolicyContract,
+		nativehashes.RoleManagement,
+		nativehashes.OracleContract,
+		nativehashes.Notary,
+	} {
+		t.Run(h.StringLE(), func(t *testing.T) {
+			tx1 = managementInvoker.PrepareInvoke(t, "getContract", h.BytesBE())
+			tx2 = managementInvoker.PrepareInvoke(t, "isContract", h.BytesBE())
+			managementInvoker.AddNewBlock(t, tx1, tx2)
+			managementInvoker.CheckHalt(t, tx1.Hash())
+			aer, err = managementInvoker.Chain.GetAppExecResults(tx1.Hash(), trigger.Application)
+			require.NoError(t, err)
+			require.Equal(t, vmstate.Halt, aer[0].VMState, aer[0].FaultException)
+			cs := aer[0].Stack[0]
+			if h.Equals(nativehashes.Notary) {
+				require.True(t, cs.Equals(stackitem.Null{}))
+			} else {
+				require.False(t, cs.Equals(stackitem.Null{}))
+			}
+			managementInvoker.CheckHalt(t, tx2.Hash(), stackitem.Make(!h.Equals(nativehashes.Notary)))
+		})
+	}
 }
 
 func TestManagement_ContractDeploy(t *testing.T) {
