@@ -175,6 +175,9 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 			if tx.Sender() == n.Hash {
 				payer := tx.Signers[1]
 				balance := n.GetDepositFor(ic.DAO, payer.Account)
+				if balance == nil {
+					continue
+				}
 				balance.Amount.Sub(balance.Amount, big.NewInt(tx.SystemFee+tx.NetworkFee))
 				if balance.Amount.Sign() == 0 {
 					n.removeDepositFor(ic.DAO, payer.Account)
@@ -188,6 +191,9 @@ func (n *Notary) OnPersist(ic *interop.Context) error {
 		}
 	}
 	if nFees == 0 {
+		return nil
+	}
+	if len(notaries) == 0 {
 		return nil
 	}
 	feePerKey := n.Policy.GetAttributeFeeInternal(ic.DAO, transaction.NotaryAssistedT)
