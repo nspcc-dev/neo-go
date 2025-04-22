@@ -908,7 +908,7 @@ func (s *Server) requestBlocksOrHeaders(p Peer) error {
 		requestBlocks   = true // request blocks by default, skip iff statesync.Module is active and doesn't need new blocks.
 	)
 	if s.stateSync.IsActive() {
-		requestMPTNodes = s.stateSync.NeedMPTNodes()
+		requestMPTNodes = s.stateSync.NeedStorageData()
 		requestBlocks = s.stateSync.NeedBlocks()
 		if requestBlocks {
 			bq = s.stateSync
