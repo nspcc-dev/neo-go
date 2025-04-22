@@ -1,9 +1,14 @@
 package neofs
 
 import (
+	"context"
+	"errors"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/config"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-sdk-go/pool"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // Constants related to NeoFS block storage.
@@ -64,4 +69,82 @@ type PoolWrapper struct {
 func (p PoolWrapper) Close() error {
 	p.Pool.Close()
 	return nil
+}
+
+// BasicService is a minimal service structure for NeoFS fetchers.
+type BasicService struct {
+	Pool      PoolWrapper
+	Account   *wallet.Account
+	Ctx       context.Context
+	CtxCancel context.CancelFunc
+}
+
+// NewBasicService creates a new BasicService instance.
+func NewBasicService(cfg config.NeoFSService) (BasicService, error) {
+	var (
+		account *wallet.Account
+		err     error
+	)
+	if cfg.UnlockWallet.Path != "" {
+		walletFromFile, err := wallet.NewWalletFromFile(cfg.UnlockWallet.Path)
+		if err != nil {
+			return BasicService{}, err
+		}
+		for _, acc := range walletFromFile.Accounts {
+			if err = acc.Decrypt(cfg.UnlockWallet.Password, walletFromFile.Scrypt); err == nil {
+				account = acc
+				break
+			}
+		}
+		if account == nil {
+			return BasicService{}, errors.New("failed to decrypt any account in the wallet")
+		}
+	} else {
+		account, err = wallet.NewAccount()
+		if err != nil {
+			return BasicService{}, err
+		}
+	}
+	params := pool.DefaultOptions()
+	params.SetHealthcheckTimeout(DefaultHealthcheckTimeout)
+	params.SetNodeDialTimeout(DefaultDialTimeout)
+	params.SetNodeStreamTimeout(DefaultStreamTimeout)
+	p, err := pool.New(pool.NewFlatNodeParams(cfg.Addresses), user.NewAutoIDSignerRFC6979(account.PrivateKey().PrivateKey), params)
+	if err != nil {
+		return BasicService{}, err
+	}
+	return BasicService{
+		Account: account,
+		Pool:    PoolWrapper{p},
+	}, nil
+}
+
+// Retry is a retry mechanism for executing an action with exponential backoff.
+func (sfs *BasicService) Retry(action func() error) error {
+	var (
+		err     error
+		backoff = InitialBackoff
+		timer   = time.NewTimer(0)
+	)
+
+	for i := range MaxRetries {
+		if err = action(); err == nil {
+			return nil
+		}
+		if i == MaxRetries-1 {
+			break
+		}
+		timer.Reset(backoff)
+
+		select {
+		case <-timer.C:
+		case <-sfs.Ctx.Done():
+			return sfs.Ctx.Err()
+		}
+		backoff *= time.Duration(BackoffFactor)
+		if backoff > MaxBackoff {
+			backoff = MaxBackoff
+		}
+	}
+	return err
 }
