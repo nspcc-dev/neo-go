@@ -170,9 +170,6 @@ func (p *ProtocolConfiguration) Validate() error {
 			}
 		}
 	}
-	if p.NeoFSStateSyncExtensions {
-		return fmt.Errorf("NeoFSStateSyncExtensions implementation is not finished yet, please disable this option")
-	}
 	return nil
 }
 

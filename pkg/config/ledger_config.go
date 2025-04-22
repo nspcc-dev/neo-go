@@ -32,4 +32,5 @@ type Blockchain struct {
 	ProtocolConfiguration
 	Ledger
 	NeoFSBlockFetcher
+	NeoFSStateFetcher
 }

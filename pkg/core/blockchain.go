@@ -335,8 +335,8 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		}
 	}
 	if cfg.NeoFSStateSyncExtensions {
-		if !cfg.NeoFSBlockFetcher.Enabled {
-			return nil, errors.New("NeoFSStateSyncExtensions are enabled, but NeoFSBlockFetcher is off")
+		if !(cfg.NeoFSBlockFetcher.Enabled && cfg.NeoFSStateFetcher.Enabled) {
+			return nil, errors.New("NeoFSStateSyncExtensions are enabled, but NeoFSBlockFetcher or NeoFSStateFetcher are off")
 		}
 		if cfg.StateSyncInterval <= 0 {
 			cfg.StateSyncInterval = config.DefaultStateSyncInterval
@@ -552,8 +552,9 @@ func (bc *Blockchain) init() error {
 		if (stateChStage[0] & stateResetBit) != 0 {
 			return bc.resetStateInternal(stateSyncPoint, stateChangeStage(stateChStage[0]&(^stateResetBit)))
 		}
-		if !(bc.config.P2PStateExchangeExtensions && bc.config.Ledger.RemoveUntraceableBlocks) {
-			return errors.New("state jump was not completed, but P2PStateExchangeExtensions are disabled or archival node capability is on. " +
+		if !(bc.config.P2PStateExchangeExtensions && bc.config.Ledger.RemoveUntraceableBlocks || bc.config.NeoFSStateSyncExtensions) {
+			return errors.New("state jump was not completed, P2PStateExchangeExtensions (with RemoveUntraceableBlocks) " +
+				"or NeoFSStateSyncExtensions must be enabled. " +
 				"To start an archival node drop the database manually and restart the node")
 		}
 		return bc.jumpToStateInternal(stateSyncPoint, stateChangeStage(stateChStage[0]))
@@ -729,17 +730,28 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 	default:
 		return fmt.Errorf("unknown state jump stage: %d", stage)
 	}
-	block, err := bc.dao.GetBlock(bc.GetHeaderHash(p + 1))
-	if err != nil {
-		return fmt.Errorf("failed to get block to init MPT: %w", err)
+	var root util.Uint256
+	if bc.config.NeoFSStateSyncExtensions {
+		ckpt, err := bc.dao.GetStateSyncCheckpoint()
+		if err != nil {
+			return fmt.Errorf("failed to get checkpoint metadata: %w", err)
+		}
+		root = ckpt.MPTRoot
+	} else {
+		blk, err := bc.dao.GetBlock(bc.GetHeaderHash(p + 1))
+		if err != nil {
+			return fmt.Errorf("failed to get block to init MPT: %w", err)
+		}
+		root = blk.PrevStateRoot
 	}
 	bc.stateRoot.JumpToState(&state.MPTRoot{
 		Index: p,
-		Root:  block.PrevStateRoot,
+		Root:  root,
 	})
 
 	bc.dao.Store.Delete(jumpStageKey)
-	_, err = bc.dao.Store.Persist()
+	bc.dao.Store.Delete([]byte{byte(storage.SYSStateSyncCheckpoint)})
+	_, err := bc.dao.Store.Persist()
 	if err != nil {
 		return fmt.Errorf("failed to persist %d stage of state jump: %w", staleBlocksRemoved, err)
 	}
