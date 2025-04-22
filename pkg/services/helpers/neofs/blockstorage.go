@@ -25,7 +25,9 @@ const (
 	DefaultIndexFileAttribute = "Index"
 	// DefaultStateAttribute is the default attribute name for state objects.
 	DefaultStateAttribute = "State"
-
+	// DefaultKVBatchSize is a number of contract storage key-value objects to
+	// flush to the node's DB in a batch.
+	DefaultKVBatchSize = 1000
 	// DefaultSearchBatchSize is a number of objects to search in a batch. We need to
 	// search with EQ filter to avoid partially-completed SEARCH responses. If EQ search
 	// hasn't found object the object will be uploaded one more time which may lead to
