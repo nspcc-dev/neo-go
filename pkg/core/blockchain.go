@@ -62,8 +62,6 @@ const (
 	defaultTimePerBlock                    = 15 * time.Second
 	// HeaderVerificationGasLimit is the maximum amount of GAS for block header verification.
 	HeaderVerificationGasLimit = 3_00000000 // 3 GAS
-	// DefaultStateSyncInterval is the default interval for state sync.
-	DefaultStateSyncInterval = 40000
 
 	// defaultBlockTimesCache should be sufficient for tryRunGC() to get in
 	// sync with storeBlock(). Most of the time they differ by some thousands of
@@ -331,7 +329,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 			return nil, errors.New("P2PStateExchangeExtensions can be enabled either on MPT-complete node (KeepOnlyLatestState=false) or on light GC-enabled node (RemoveUntraceableBlocks=true)")
 		}
 		if cfg.StateSyncInterval <= 0 {
-			cfg.StateSyncInterval = DefaultStateSyncInterval
+			cfg.StateSyncInterval = config.DefaultStateSyncInterval
 			log.Info("StateSyncInterval is not set or wrong, using default value",
 				zap.Int("StateSyncInterval", cfg.StateSyncInterval))
 		}
@@ -341,7 +339,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 			return nil, errors.New("NeoFSStateSyncExtensions are enabled, but NeoFSBlockFetcher is off")
 		}
 		if cfg.StateSyncInterval <= 0 {
-			cfg.StateSyncInterval = DefaultStateSyncInterval
+			cfg.StateSyncInterval = config.DefaultStateSyncInterval
 			log.Info("StateSyncInterval is not set or wrong, using default value",
 				zap.Int("StateSyncInterval", cfg.StateSyncInterval))
 		}

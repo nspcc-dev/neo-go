@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/options"
 	"github.com/nspcc-dev/neo-go/cli/server"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	gio "github.com/nspcc-dev/neo-go/pkg/io"
@@ -66,7 +67,7 @@ func uploadState(ctx *cli.Context) error {
 	}
 	syncInterval := cfg.ProtocolConfiguration.StateSyncInterval
 	if syncInterval == 0 {
-		syncInterval = core.DefaultStateSyncInterval
+		syncInterval = config.DefaultStateSyncInterval
 	}
 
 	containerID, err := getContainer(ctx, p, strconv.Itoa(int(chain.GetConfig().Magic)), maxRetries, debug)
