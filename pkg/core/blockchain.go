@@ -335,8 +335,8 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		}
 	}
 	if cfg.NeoFSStateSyncExtensions {
-		if !cfg.NeoFSBlockFetcher.Enabled {
-			return nil, errors.New("NeoFSStateSyncExtensions are enabled, but NeoFSBlockFetcher is off")
+		if !(cfg.NeoFSBlockFetcher.Enabled && cfg.NeoFSStateFetcher.Enabled) {
+			return nil, errors.New("NeoFSStateSyncExtensions are enabled, but NeoFSBlockFetcher or NeoFSStateFetcher are off")
 		}
 		if cfg.StateSyncInterval <= 0 {
 			cfg.StateSyncInterval = config.DefaultStateSyncInterval
@@ -552,7 +552,7 @@ func (bc *Blockchain) init() error {
 		if (stateChStage[0] & stateResetBit) != 0 {
 			return bc.resetStateInternal(stateSyncPoint, stateChangeStage(stateChStage[0]&(^stateResetBit)))
 		}
-		if !(bc.config.P2PStateExchangeExtensions && bc.config.Ledger.RemoveUntraceableBlocks) {
+		if !(bc.config.P2PStateExchangeExtensions && bc.config.Ledger.RemoveUntraceableBlocks || bc.config.NeoFSStateSyncExtensions) {
 			return errors.New("state jump was not completed, but P2PStateExchangeExtensions are disabled or archival node capability is on. " +
 				"To start an archival node drop the database manually and restart the node")
 		}
@@ -716,18 +716,34 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 	default:
 		return fmt.Errorf("unknown state jump stage: %d", stage)
 	}
-	block, err := bc.dao.GetBlock(bc.GetHeaderHash(p + 1))
-	if err != nil {
-		return fmt.Errorf("failed to get block to init MPT: %w", err)
+	var root util.Uint256
+	if bc.config.NeoFSStateSyncExtensions {
+		var chkp statesync.Checkpoint
+		data, err := bc.dao.Store.Get([]byte{byte(storage.SYSStateSyncCheckpoint)})
+		if err == nil {
+			br := io.NewBinReaderFromBuf(data)
+			chkp.DecodeBinary(br)
+			if br.Err != nil {
+				return fmt.Errorf("failed to decode checkpoint metadata: %w", br.Err)
+			}
+		}
+		root = chkp.MptRoot
+	} else {
+		blk, err := bc.dao.GetBlock(bc.GetHeaderHash(p + 1))
+		if err != nil {
+			return fmt.Errorf("failed to get block to init MPT: %w", err)
+		}
+		root = blk.PrevStateRoot
 	}
 	bc.stateRoot.JumpToState(&state.MPTRoot{
 		Index: p,
-		Root:  block.PrevStateRoot,
+		Root:  root,
 	})
 
 	bc.dao.Store.Delete(jumpStageKey)
+	bc.dao.Store.Delete([]byte{byte(storage.SYSStateSyncCheckpoint)})
 
-	err = bc.resetRAMState(p, false)
+	err := bc.resetRAMState(p, false)
 	if err != nil {
 		return fmt.Errorf("failed to update in-memory blockchain data: %w", err)
 	}

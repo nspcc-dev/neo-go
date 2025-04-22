@@ -88,24 +88,24 @@ type Ledger interface {
 	HeaderHeight() uint32
 }
 
-// checkpoint stores the state of an interrupted contract storage state sync in
+// Checkpoint stores the state of an interrupted contract storage state sync in
 // ContractStorageBased mode.
-type checkpoint struct {
-	// mptRoot is a computed intermediate MPT root at the checkpoint.
-	mptRoot util.Uint256
+type Checkpoint struct {
+	// MptRoot is a computed intermediate MPT root at the Checkpoint.
+	MptRoot util.Uint256
 	// lastKey is the last processed storage key.
 	lastKey []byte
 }
 
-// EncodeBinary encodes checkpoint to binary format.
-func (s *checkpoint) EncodeBinary(w *io.BinWriter) {
-	w.WriteBytes(s.mptRoot[:])
+// EncodeBinary encodes Checkpoint to binary format.
+func (s *Checkpoint) EncodeBinary(w *io.BinWriter) {
+	w.WriteBytes(s.MptRoot[:])
 	w.WriteVarBytes(s.lastKey)
 }
 
-// DecodeBinary decodes checkpoint from binary format.
-func (s *checkpoint) DecodeBinary(br *io.BinReader) {
-	br.ReadBytes(s.mptRoot[:])
+// DecodeBinary decodes Checkpoint from binary format.
+func (s *Checkpoint) DecodeBinary(br *io.BinReader) {
+	br.ReadBytes(s.MptRoot[:])
 	s.lastKey = br.ReadVarBytes()
 }
 
@@ -326,7 +326,7 @@ func (s *Module) defineSyncStage() error {
 					zap.Uint32("stateroot height", s.syncPoint))
 			}
 		} else {
-			var p checkpoint
+			var p Checkpoint
 			data, err := s.dao.Store.Get([]byte{byte(storage.SYSStateSyncCheckpoint)})
 			if err == nil {
 				br := io.NewBinReaderFromBuf(data)
@@ -334,7 +334,7 @@ func (s *Module) defineSyncStage() error {
 				if br.Err != nil {
 					return fmt.Errorf("failed to decode checkpoint metadata: %w", br.Err)
 				}
-				s.localTrie = mpt.NewTrie(mpt.NewHashNode(p.mptRoot), mode, s.dao.Store)
+				s.localTrie = mpt.NewTrie(mpt.NewHashNode(p.MptRoot), mode, s.dao.Store)
 				s.lastStoredKey = p.lastKey
 			} else {
 				s.localTrie = mpt.NewTrie(nil, mode, s.dao.Store)
@@ -344,7 +344,7 @@ func (s *Module) defineSyncStage() error {
 				s.syncStage |= mptSynced
 				s.log.Info("MPT and contract storage are in sync",
 					zap.Uint32("stateroot height", s.syncPoint),
-					zap.String("root", p.mptRoot.StringLE()))
+					zap.String("root", p.MptRoot.StringLE()))
 			}
 		}
 	}
@@ -551,7 +551,15 @@ func (s *Module) AddContractStorageData(kvs []storage.KeyValue, syncHeight uint3
 	}()
 	defer s.lock.Unlock()
 
-	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced != 0 || expectedRoot.Equals(s.localTrie.StateRoot()) {
+	if expectedRoot.Equals(s.localTrie.StateRoot()) {
+		s.syncStage |= mptSynced
+		s.log.Info("MPT and contract storage are in sync",
+			zap.Uint32("stateroot height", s.syncPoint),
+			zap.String("root", s.localTrie.StateRoot().StringLE()))
+		s.checkSyncIsCompleted()
+		return nil
+	}
+	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced != 0 {
 		return errors.New("contract storage items were not requested")
 	}
 	if syncHeight != s.syncPoint {
@@ -567,7 +575,7 @@ func (s *Module) AddContractStorageData(kvs []storage.KeyValue, syncHeight uint3
 	)
 	for _, kv := range kvs {
 		s.dao.Store.Put(append([]byte{byte(prefix)}, kv.Key...), kv.Value)
-		batch[string(kv.Key)] = kv.Value
+		batch[string(append([]byte{byte(prefix)}, kv.Key...))] = kv.Value
 	}
 	mptBatch := mpt.MapToMPTBatch(batch)
 	if _, err := s.localTrie.PutBatch(mptBatch); err != nil {
@@ -576,29 +584,22 @@ func (s *Module) AddContractStorageData(kvs []storage.KeyValue, syncHeight uint3
 	s.localTrie.Flush(syncHeight)
 	s.lastStoredKey = kvs[len(kvs)-1].Key
 	computedRoot := s.localTrie.StateRoot()
+	ckpt := Checkpoint{
+		MptRoot: s.localTrie.StateRoot(),
+		lastKey: kvs[len(kvs)-1].Key,
+	}
+	bw := io.NewBufBinWriter()
+	ckpt.EncodeBinary(bw.BinWriter)
+	if bw.Err != nil {
+		return fmt.Errorf("failed to encode checkpoint metadata: %w", bw.Err)
+	}
+	s.dao.Store.Put([]byte{byte(storage.SYSStateSyncCheckpoint)}, bw.Bytes())
+	if _, err := s.dao.Store.PersistSync(); err != nil {
+		return fmt.Errorf("failed to persist checkpoint metadata: %w", err)
+	}
 	if !computedRoot.Equals(expectedRoot) {
-		ckpt := checkpoint{
-			mptRoot: s.localTrie.StateRoot(),
-			lastKey: kvs[len(kvs)-1].Key,
-		}
-
-		bw := io.NewBufBinWriter()
-		ckpt.EncodeBinary(bw.BinWriter)
-		if bw.Err != nil {
-			return fmt.Errorf("failed to encode checkpoint metadata: %w", bw.Err)
-		}
-		s.dao.Store.Put([]byte{byte(storage.SYSStateSyncCheckpoint)}, bw.Bytes())
-		if _, err := s.dao.Store.PersistSync(); err != nil {
-			return fmt.Errorf("failed to persist checkpoint metadata: %w", err)
-		}
 		return nil
 	}
-
-	s.dao.Store.Delete([]byte{byte(storage.SYSStateSyncCheckpoint)})
-	if _, err := s.dao.Store.PersistSync(); err != nil {
-		return fmt.Errorf("failed to persist removal of checkpoint metadata: %w", err)
-	}
-
 	s.syncStage |= mptSynced
 	s.log.Info("MPT and contract storage are in sync",
 		zap.Uint32("stateroot height", s.syncPoint),
