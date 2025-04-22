@@ -20,6 +20,8 @@ const (
 	UserAgentPrefix = "NEO-GO:"
 	// UserAgentFormat is a formatted string used to generate user agent string.
 	UserAgentFormat = UserAgentWrapper + UserAgentPrefix + "%s" + UserAgentWrapper
+	// DefaultStateSyncInterval is the default interval for state sync.
+	DefaultStateSyncInterval = 40000
 	// DefaultMaxIteratorResultItems is the default upper bound of traversed
 	// iterator items per JSON-RPC response. It covers both session-based and
 	// naive iterators.
