@@ -60,3 +60,20 @@ func (cfg *NeoFSBlockFetcher) Validate() error {
 	}
 	return nil
 }
+
+// NeoFSStateFetcher represents the configuration for the NeoFS StateFetcher service.
+type NeoFSStateFetcher struct {
+	NeoFSService      `yaml:",inline"`
+	StateAttribute    string `yaml:"StateAttribute"`
+	KeyValueBatchSize int    `yaml:"KeyValueBatchSize"`
+}
+
+// Validate checks NeoFSStateFetcher for internal consistency and ensures
+// that all required fields are properly set. It returns an error if the
+// configuration is invalid or if the ContainerID cannot be properly decoded.
+func (cfg *NeoFSStateFetcher) Validate() error {
+	if err := cfg.NeoFSService.Validate(); err != nil {
+		return err
+	}
+	return nil
+}

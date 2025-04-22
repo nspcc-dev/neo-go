@@ -29,6 +29,7 @@ type ApplicationConfiguration struct {
 	P2PNotary         P2PNotary           `yaml:"P2PNotary"`
 	StateRoot         StateRoot           `yaml:"StateRoot"`
 	NeoFSBlockFetcher NeoFSBlockFetcher   `yaml:"NeoFSBlockFetcher"`
+	NeoFSStateFetcher NeoFSStateFetcher   `yaml:"NeoFSStateFetcher"`
 }
 
 // EqualsButServices returns true when the o is the same as a except for services
@@ -148,6 +149,13 @@ func (a *ApplicationConfiguration) GetAddresses() ([]AnnounceableAddress, error)
 func (a *ApplicationConfiguration) Validate() error {
 	if err := a.NeoFSBlockFetcher.Validate(); err != nil {
 		return fmt.Errorf("invalid NeoFSBlockFetcher config: %w", err)
+	}
+	// If NeoFSService configuration is omitted the NeoFSBlockFetcher.NeoFSService will be used.
+	if a.NeoFSStateFetcher.Enabled && a.NeoFSBlockFetcher.Enabled && a.NeoFSStateFetcher.ContainerID == "" {
+		a.NeoFSStateFetcher.NeoFSService = a.NeoFSBlockFetcher.NeoFSService
+	}
+	if err := a.NeoFSStateFetcher.Validate(); err != nil {
+		return fmt.Errorf("invalid NeoFSStateFetcher config: %w", err)
 	}
 	if err := a.RPC.Validate(); err != nil {
 		return fmt.Errorf("invalid RPC config: %w", err)
