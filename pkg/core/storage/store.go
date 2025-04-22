@@ -38,7 +38,10 @@ const (
 	// and the last bit reserved for the state reset process marker (set to 1 on
 	// unfinished state reset and to 0 on unfinished state jump).
 	SYSStateChangeStage KeyPrefix = 0xc4
-	SYSVersion          KeyPrefix = 0xf0
+	// SYSStateSyncCheckpoint is used to store checkpoint of state synchronization
+	// process performed by `statesync.Module`.
+	SYSStateSyncCheckpoint KeyPrefix = 0xc5
+	SYSVersion             KeyPrefix = 0xf0
 )
 
 // Executable subtypes.

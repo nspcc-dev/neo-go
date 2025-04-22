@@ -890,7 +890,7 @@ func (s *Server) requestBlocksOrHeaders(p Peer) error {
 	)
 	if s.stateSync.IsActive() {
 		bq = s.stateSync
-		requestMPTNodes = s.stateSync.NeedMPTNodes()
+		requestMPTNodes = s.stateSync.NeedStorageData()
 	}
 	if bq.BlockHeight() >= p.LastBlockIndex() {
 		return nil
