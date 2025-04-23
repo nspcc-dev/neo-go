@@ -224,6 +224,11 @@ func (c *ContractReader) HasMethod(hash util.Uint160, method string, pcount int)
 	return unwrap.Bool(c.invoker.Call(Hash, "hasMethod", hash, method, pcount))
 }
 
+// IsContract checks if a contract with the specified hash is deployed.
+func (c *ContractReader) IsContract(hash util.Uint160) (bool, error) {
+	return unwrap.Bool(c.invoker.Call(Hash, "isContract", hash))
+}
+
 // Deploy creates and sends to the network a transaction that deploys the given
 // contract (with the manifest provided), if data is not nil then it also added
 // to the invocation and will be used for "_deploy" method invocation done by

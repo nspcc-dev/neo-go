@@ -79,3 +79,15 @@ func GetMaxValidUntilBlockIncrement() int {
 func SetMaxValidUntilBlockIncrement(value int) {
 	neogointernal.CallWithTokenNoRet(Hash, "setMaxValidUntilBlockIncrement", int(contract.States), value)
 }
+
+// GetMillisecondsPerBlock represents `getMillisecondsPerBlock` method of Policy native contract.
+// Note that this method is available starting from [config.HFEchidna] hardfork.
+func GetMillisecondsPerBlock() int {
+	return neogointernal.CallWithToken(Hash, "getMillisecondsPerBlock", int(contract.ReadStates)).(int)
+}
+
+// SetMillisecondsPerBlock represents `setMaxValidUntilBlockIncrement` method of Policy native contract.
+// Note that this method is available starting from [config.HFEchidna] hardfork.
+func SetMillisecondsPerBlock(value int) {
+	neogointernal.CallWithTokenNoRet(Hash, "setMillisecondsPerBlock", int(contract.States|contract.AllowNotify), value)
+}

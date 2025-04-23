@@ -49,6 +49,8 @@ func TestReader(t *testing.T) {
 		pc.GetExecFeeFactor,
 		pc.GetFeePerByte,
 		pc.GetStoragePrice,
+		pc.GetMaxValidUntilBlockIncrement,
+		pc.GetMillisecondsPerBlock,
 	}
 
 	ta.err = errors.New("")
@@ -95,6 +97,8 @@ func TestIntSetters(t *testing.T) {
 		pc.SetExecFeeFactor,
 		pc.SetFeePerByte,
 		pc.SetStoragePrice,
+		pc.SetMaxValidUntilBlockIncrement,
+		pc.SetMillisecondsPerBlock,
 	}
 
 	ta.err = errors.New("")
@@ -157,6 +161,10 @@ func TestIntTransactions(t *testing.T) {
 		pc.SetFeePerByteUnsigned,
 		pc.SetStoragePriceTransaction,
 		pc.SetStoragePriceUnsigned,
+		pc.SetMaxValidUntilBlockIncrementTransaction,
+		pc.SetMaxValidUntilBlockIncrementUnsigned,
+		pc.SetMillisecondsPerBlockTransaction,
+		pc.SetMillisecondsPerBlockUnsigned,
 	} {
 		ta.err = errors.New("")
 		_, err := fun(1)

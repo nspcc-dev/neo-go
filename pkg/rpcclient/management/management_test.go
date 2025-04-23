@@ -67,6 +67,8 @@ func TestReader(t *testing.T) {
 	require.Error(t, err)
 	_, err = man.HasMethod(util.Uint160{1, 2, 3}, "method", 0)
 	require.Error(t, err)
+	_, err = man.IsContract(util.Uint160{1, 2, 3})
+	require.Error(t, err)
 
 	ta.err = nil
 	ta.res = &result.Invoke{
@@ -85,6 +87,9 @@ func TestReader(t *testing.T) {
 	hm, err := man.HasMethod(util.Uint160{1, 2, 3}, "method", 0)
 	require.NoError(t, err)
 	require.True(t, hm)
+	ic, err := man.IsContract(util.Uint160{1, 2, 3})
+	require.NoError(t, err)
+	require.True(t, ic)
 
 	ta.res = &result.Invoke{
 		State: "HALT",
@@ -99,6 +104,9 @@ func TestReader(t *testing.T) {
 	hm, err = man.HasMethod(util.Uint160{1, 2, 3}, "method", 0)
 	require.NoError(t, err)
 	require.False(t, hm)
+	ic, err = man.IsContract(util.Uint160{1, 2, 3})
+	require.NoError(t, err)
+	require.False(t, ic)
 
 	ta.res = &result.Invoke{
 		State: "HALT",

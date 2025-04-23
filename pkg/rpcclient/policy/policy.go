@@ -36,10 +36,12 @@ type Actor interface {
 var Hash = nativehashes.PolicyContract
 
 const (
-	execFeeSetter      = "setExecFeeFactor"
-	feePerByteSetter   = "setFeePerByte"
-	storagePriceSetter = "setStoragePrice"
-	attributeFeeSetter = "setAttributeFee"
+	execFeeSetter                     = "setExecFeeFactor"
+	feePerByteSetter                  = "setFeePerByte"
+	storagePriceSetter                = "setStoragePrice"
+	attributeFeeSetter                = "setAttributeFee"
+	maxValidUntilBlockIncrementSetter = "setMaxValidUntilBlockIncrement"
+	millisecondsPerBlockSetter        = "setMillisecondsPerBlock"
 )
 
 // ContractReader provides an interface to call read-only PolicyContract
@@ -92,6 +94,18 @@ func (c *ContractReader) GetStoragePrice() (int64, error) {
 // contract saving data to the storage pays for it according to this value.
 func (c *ContractReader) GetAttributeFee(t transaction.AttrType) (int64, error) {
 	return unwrap.Int64(c.invoker.Call(Hash, "getAttributeFee", byte(t)))
+}
+
+// GetMaxValidUntilBlockIncrement returns current MaxValidUntilBlockIncrement
+// setting. Note that this method is available starting from Echidna hardfork.
+func (c *ContractReader) GetMaxValidUntilBlockIncrement() (int64, error) {
+	return unwrap.Int64(c.invoker.Call(Hash, "getMaxValidUntilBlockIncrement"))
+}
+
+// GetMillisecondsPerBlock returns current MillisecondsPerBlock setting. Note
+// that this method is available starting from Echidna hardfork.
+func (c *ContractReader) GetMillisecondsPerBlock() (int64, error) {
+	return unwrap.Int64(c.invoker.Call(Hash, "getMillisecondsPerBlock"))
 }
 
 // IsBlocked checks if the given account is blocked in the PolicyContract.
@@ -184,6 +198,56 @@ func (c *Contract) SetAttributeFeeTransaction(t transaction.AttrType, value int6
 // returned to the caller.
 func (c *Contract) SetAttributeFeeUnsigned(t transaction.AttrType, value int64) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, attributeFeeSetter, nil, byte(t), value)
+}
+
+// SetMaxValidUntilBlockIncrement creates and sends a transaction that sets the
+// MaxValidUntilBlockIncrement protocol setting. The action is successful when
+// transaction ends in HALT state. The returned values are transaction hash,
+// its ValidUntilBlock value and an error if any. Note that this method is available
+// starting from Echidna hardfork.
+func (c *Contract) SetMaxValidUntilBlockIncrement(value int64) (util.Uint256, uint32, error) {
+	return c.actor.SendCall(Hash, maxValidUntilBlockIncrementSetter, value)
+}
+
+// SetMaxValidUntilBlockIncrementTransaction creates a transaction that sets the
+// MaxValidUntilBlockIncrement value. This transaction is signed, but not sent to
+// the network, instead it's returned to the caller. Note that this method is available
+// starting from Echidna hardfork.
+func (c *Contract) SetMaxValidUntilBlockIncrementTransaction(value int64) (*transaction.Transaction, error) {
+	return c.actor.MakeCall(Hash, maxValidUntilBlockIncrementSetter, value)
+}
+
+// SetMaxValidUntilBlockIncrementUnsigned creates a transaction that sets the
+// MaxValidUntilBlockIncrement value. This transaction is not signed and just
+// returned to the caller. Note that this method is available starting from
+// Echidna hardfork.
+func (c *Contract) SetMaxValidUntilBlockIncrementUnsigned(value int64) (*transaction.Transaction, error) {
+	return c.actor.MakeUnsignedCall(Hash, maxValidUntilBlockIncrementSetter, nil, value)
+}
+
+// SetMillisecondsPerBlock creates and sends a transaction that sets the
+// block generation time in milliseconds. The action is successful when
+// transaction ends in HALT state. The returned values are transaction hash,
+// its ValidUntilBlock value and an error if any. Note that this method is
+// available starting from Echidna hardfork.
+func (c *Contract) SetMillisecondsPerBlock(value int64) (util.Uint256, uint32, error) {
+	return c.actor.SendCall(Hash, millisecondsPerBlockSetter, value)
+}
+
+// SetMillisecondsPerBlockTransaction creates a transaction that sets the
+// block generation time in milliseconds. This transaction is signed, but not
+// sent to the network, instead it's returned to the caller. Note that this
+// method is available starting from Echidna hardfork.
+func (c *Contract) SetMillisecondsPerBlockTransaction(value int64) (*transaction.Transaction, error) {
+	return c.actor.MakeCall(Hash, millisecondsPerBlockSetter, value)
+}
+
+// SetMillisecondsPerBlockUnsigned creates a transaction that sets the
+// block generation time in milliseconds. This transaction is not signed and
+// just returned to the caller. Note that this method is available starting
+// from Echidna hardfork.
+func (c *Contract) SetMillisecondsPerBlockUnsigned(value int64) (*transaction.Transaction, error) {
+	return c.actor.MakeUnsignedCall(Hash, millisecondsPerBlockSetter, nil, value)
 }
 
 // BlockAccount creates and sends a transaction that blocks an account on the
