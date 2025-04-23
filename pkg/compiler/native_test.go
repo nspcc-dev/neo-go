@@ -201,6 +201,8 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"setAttributeFee", []string{"1", "123"}},
 		{"getMaxValidUntilBlockIncrement", nil},
 		{"setMaxValidUntilBlockIncrement", []string{"10"}},
+		{"getMillisecondsPerBlock", nil},
+		{"setMillisecondsPerBlock", []string{"10"}},
 	})
 	runNativeTestCases(t, cs.Ledger.ContractMD, "ledger", []nativeTestCase{
 		{"currentHash", nil},
@@ -232,6 +234,7 @@ func TestNativeHelpersCompile(t *testing.T) {
 		{"setMinimumDeploymentFee", []string{"42"}},
 		{"update", []string{"nil", "nil"}},
 		{"updateWithData", []string{"nil", "nil", "123"}},
+		{"isContract", []string{u160}},
 	})
 	runNativeTestCases(t, cs.Crypto.ContractMD, "crypto", []nativeTestCase{
 		{"sha256", []string{"[]byte{1, 2, 3}"}},
