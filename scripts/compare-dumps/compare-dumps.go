@@ -155,7 +155,7 @@ func cliMain(c *cli.Context) error {
 		return compare(a, b)
 	}
 	if astat.Mode().IsDir() && bstat.Mode().IsDir() {
-		for i := 0; i <= 6000000; i += 100000 {
+		for i := 0; i <= 20_000_000; i += 100000 {
 			dir := fmt.Sprintf("BlockStorage_%d", i)
 			fmt.Println("Processing directory", dir)
 			for j := i - 99000; j <= i; j += 1000 {
