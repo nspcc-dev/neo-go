@@ -12,12 +12,12 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	gio "github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/pool"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 )
@@ -156,7 +156,7 @@ func uploadState(ctx *cli.Context) error {
 	return nil
 }
 
-func searchStateIndex(ctx *cli.Context, p neofs.PoolWrapper, containerID cid.ID, privKeys *keys.PrivateKey,
+func searchStateIndex(ctx *cli.Context, p *pool.Pool, containerID cid.ID, privKeys *keys.PrivateKey,
 	attributeKey string, syncInterval int, maxRetries uint, debug bool,
 ) (int, error) {
 	var (
