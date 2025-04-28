@@ -444,6 +444,8 @@ func (p *TCPPeer) Disconnect(err error) {
 
 // Version implements the Peer interface.
 func (p *TCPPeer) Version() *payload.Version {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
 	return p.version
 }
 

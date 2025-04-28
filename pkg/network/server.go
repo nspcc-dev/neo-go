@@ -528,11 +528,16 @@ func (s *Server) ConnectedPeers() []PeerInfo {
 
 	peers := make([]PeerInfo, 0, len(s.peers))
 	for k := range s.peers {
-		peers = append(peers, PeerInfo{
-			Address:   k.PeerAddr().String(),
-			UserAgent: string(k.Version().UserAgent),
-			Height:    k.LastBlockIndex(),
-		})
+		p := PeerInfo{
+			Address: k.PeerAddr().String(),
+			Height:  k.LastBlockIndex(),
+		}
+		v := k.Version()
+		if v != nil {
+			p.UserAgent = string(v.UserAgent)
+		}
+
+		peers = append(peers, p)
 	}
 
 	return peers
