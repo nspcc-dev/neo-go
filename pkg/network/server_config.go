@@ -75,6 +75,8 @@ type (
 		BroadcastFactor int
 
 		NeoFSBlockFetcherCfg config.NeoFSBlockFetcher
+		// NeoFSStateFetcherCfg is the statefetcher module configuration.
+		NeoFSStateFetcherCfg config.NeoFSStateFetcher
 	}
 )
 
@@ -106,6 +108,7 @@ func NewServerConfig(cfg config.Config) (ServerConfig, error) {
 		ExtensiblePoolSize:   appConfig.P2P.ExtensiblePoolSize,
 		BroadcastFactor:      appConfig.P2P.BroadcastFactor,
 		NeoFSBlockFetcherCfg: appConfig.NeoFSBlockFetcher,
+		NeoFSStateFetcherCfg: appConfig.NeoFSStateFetcher,
 	}
 	return c, nil
 }

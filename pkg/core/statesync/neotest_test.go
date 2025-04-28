@@ -74,7 +74,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.True(t, module.NeedHeaders())
-		require.False(t, module.NeedMPTNodes())
+		require.False(t, module.NeedStorageData())
 	})
 
 	t.Run("error: outdated state sync point in the storage", func(t *testing.T) {
@@ -96,7 +96,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.True(t, module.NeedHeaders())
-		require.False(t, module.NeedMPTNodes())
+		require.False(t, module.NeedStorageData())
 	})
 
 	t.Run("initialization from headers/blocks/mpt synced stages", func(t *testing.T) {
@@ -119,7 +119,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
+		require.True(t, module.NeedStorageData())
 
 		// then create new statesync module with the same DB and check that state is proper
 		// (headers are in sync)
@@ -128,7 +128,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
+		require.True(t, module.NeedStorageData())
 		unknownNodes := module.GetUnknownMPTNodesBatch(2)
 		require.Equal(t, 1, len(unknownNodes))
 		require.Equal(t, expectedHeader.PrevStateRoot, unknownNodes[0])
@@ -142,7 +142,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
+		require.True(t, module.NeedStorageData())
 		require.Equal(t, uint32(stateSyncPoint-stateSyncInterval-1), module.BlockHeight())
 
 		// then create new statesync module with the same DB and check that state is proper
@@ -152,7 +152,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
+		require.True(t, module.NeedStorageData())
 		unknownNodes = module.GetUnknownMPTNodesBatch(2)
 		require.Equal(t, 1, len(unknownNodes))
 		require.Equal(t, expectedHeader.PrevStateRoot, unknownNodes[0])
@@ -167,7 +167,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
+		require.True(t, module.NeedStorageData())
 		lastBlock, err := bcBolt.GetBlock(expectedHeader.PrevHash)
 		require.NoError(t, err)
 		require.Equal(t, uint32(stateSyncPoint), lastBlock.Index)
@@ -180,7 +180,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
+		require.True(t, module.NeedStorageData())
 		unknownNodes = module.GetUnknownMPTNodesBatch(2)
 		require.Equal(t, 1, len(unknownNodes))
 		require.Equal(t, expectedHeader.PrevStateRoot, unknownNodes[0])
@@ -211,7 +211,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
+		require.True(t, module.NeedStorageData())
 		unknownNodes = module.GetUnknownMPTNodesBatch(100)
 		require.True(t, len(unknownNodes) > 0)
 		require.NotContains(t, unknownNodes, expectedHeader.PrevStateRoot)
@@ -241,7 +241,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		// check that module is inactive and statejump is completed
 		require.False(t, module.IsActive())
 		require.False(t, module.NeedHeaders())
-		require.False(t, module.NeedMPTNodes())
+		require.False(t, module.NeedStorageData())
 		unknownNodes = module.GetUnknownMPTNodesBatch(1)
 		require.True(t, len(unknownNodes) == 0)
 		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
@@ -252,7 +252,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.NoError(t, module.Init(bcSpout.BlockHeight()))
 		require.False(t, module.IsActive())
 		require.False(t, module.NeedHeaders())
-		require.False(t, module.NeedMPTNodes())
+		require.False(t, module.NeedStorageData())
 		unknownNodes = module.GetUnknownMPTNodesBatch(1)
 		require.True(t, len(unknownNodes) == 0)
 		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
@@ -265,7 +265,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.NoError(t, module.Init(bcSpout.BlockHeight()))
 		require.False(t, module.IsActive())
 		require.False(t, module.NeedHeaders())
-		require.False(t, module.NeedMPTNodes())
+		require.False(t, module.NeedStorageData())
 		unknownNodes = module.GetUnknownMPTNodesBatch(1)
 		require.True(t, len(unknownNodes) == 0)
 		require.Equal(t, uint32(stateSyncPoint)+1, module.BlockHeight())
@@ -329,7 +329,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.True(t, module.NeedHeaders())
-		require.False(t, module.NeedMPTNodes())
+		require.False(t, module.NeedStorageData())
 
 		// add headers to module
 		headers := make([]*block.Header, 0, bcSpout.HeaderHeight())
@@ -342,7 +342,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
+		require.True(t, module.NeedStorageData())
 		require.Equal(t, bcSpout.HeaderHeight(), bcBolt.HeaderHeight())
 
 		// add blocks
@@ -379,7 +379,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
+		require.True(t, module.NeedStorageData())
 		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
 
 		// add MPT nodes in batches
@@ -417,7 +417,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		}
 		require.False(t, module.IsActive())
 		require.False(t, module.NeedHeaders())
-		require.False(t, module.NeedMPTNodes())
+		require.False(t, module.NeedStorageData())
 		unknownNodes := module.GetUnknownMPTNodesBatch(1)
 		require.True(t, len(unknownNodes) == 0)
 		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
