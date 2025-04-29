@@ -1,13 +1,10 @@
 package native
 
 import (
-	"encoding/hex"
-	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
-	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
@@ -41,11 +38,11 @@ func setIntWithKey(id int32, dao *dao.Simple, key []byte, value int64) {
 }
 
 func getIntWithKey(id int32, dao *dao.Simple, key []byte) int64 {
-	si := dao.GetStorageItem(id, key)
-	if si == nil {
-		panic(fmt.Errorf("item with id = %d and key = %s is not initialized", id, hex.EncodeToString(key)))
+	res, err := dao.GetInt(id, key)
+	if err != nil {
+		panic(err)
 	}
-	return bigint.FromBytes(si).Int64()
+	return res
 }
 
 // makeUint160Key creates a key from the account script hash.

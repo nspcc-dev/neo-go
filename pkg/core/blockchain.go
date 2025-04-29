@@ -284,6 +284,11 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		cfg.MaxTraceableBlocks = defaultMaxTraceableBlocks
 		log.Info("MaxTraceableBlocks is not set or wrong, using default value", zap.Uint32("MaxTraceableBlocks", cfg.MaxTraceableBlocks))
 	}
+	if cfg.Genesis.MaxTraceableBlocks == 0 {
+		cfg.Genesis.MaxTraceableBlocks = cfg.MaxTraceableBlocks
+		log.Info("Genesis MaxTraceableBlocks is not set or wrong, using default value",
+			zap.Uint32("Genesis MaxTraceableBlocks", cfg.Genesis.MaxTraceableBlocks))
+	}
 	if cfg.MaxTransactionsPerBlock == 0 {
 		cfg.MaxTransactionsPerBlock = defaultMaxTransactionsPerBlock
 		log.Info("MaxTransactionsPerBlock is not set or wrong, using default value",
@@ -581,7 +586,7 @@ func (bc *Blockchain) init() error {
 		md := c.Metadata()
 		storedCS := bc.GetContractState(md.Hash)
 		// Check that contract was deployed.
-		if !bc.isHardforkEnabled(c.ActiveIn(), bHeight) {
+		if !bc.IsHardforkEnabled(c.ActiveIn(), bHeight) {
 			if storedCS != nil {
 				return fmt.Errorf("native contract %s is already stored, but marked as inactive for height %d in config", md.Name, bHeight)
 			}
@@ -668,9 +673,22 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 			return true
 		})
 
+		var (
+			mtb = int64(bc.config.MaxTraceableBlocks)
+			hf  = config.HFEchidna
+			err error
+		)
+		if bc.IsHardforkEnabled(&hf, p) {
+			// Native cache is not yet initialized, retrieve MaxTraceableBlocks from DAO directly using
+			// new storage prefix since we already have up-to-date storage.
+			mtb, err = bc.dao.GetInt(native.PolicyContractID, native.MaxTraceableBlocksKey)
+			if err != nil {
+				return fmt.Errorf("failed to get MaxTraceableBlocks from DAO: %w", err)
+			}
+		}
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
-		if p-bc.config.MaxTraceableBlocks > 0 {
+		if int(p)-int(mtb) > 0 {
 			_, err := cache.DeleteBlock(bc.GetHeaderHash(0), false)
 			if err != nil {
 				return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
@@ -779,7 +797,18 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		if bc.config.Ledger.KeepOnlyLatestState {
 			return fmt.Errorf("KeepOnlyLatestState is enabled, state for height %d is outdated and removed from the storage", height)
 		}
-		if bc.config.Ledger.RemoveUntraceableBlocks && currHeight >= bc.config.MaxTraceableBlocks {
+		var (
+			mtb = int64(bc.config.MaxTraceableBlocks)
+			hf  = config.HFEchidna
+		)
+		if bc.IsHardforkEnabled(&hf, currHeight) {
+			// Cache isn't yet initialized, so retrieve MaxTraceableBlocks directly from DAO.
+			mtb, err = bc.dao.GetInt(native.PolicyContractID, native.MaxTraceableBlocksKey)
+			if err != nil {
+				return fmt.Errorf("failed to get MaxTraceableBlocks from DAO: %w", err)
+			}
+		}
+		if bc.config.Ledger.RemoveUntraceableBlocks && currHeight >= uint32(mtb) {
 			return fmt.Errorf("RemoveUntraceableBlocks is enabled, a necessary batch of traceable blocks has already been removed")
 		}
 	}
@@ -1121,10 +1150,10 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) error {
 	for _, c := range bc.contracts.Contracts {
 		// Check that contract was deployed.
-		if !bc.isHardforkEnabled(c.ActiveIn(), blockHeight) {
+		if !bc.IsHardforkEnabled(c.ActiveIn(), blockHeight) {
 			continue
 		}
-		err := c.InitializeCache(bc.isHardforkEnabled, blockHeight, d)
+		err := c.InitializeCache(bc.IsHardforkEnabled, blockHeight, d)
 		if err != nil {
 			return fmt.Errorf("failed to initialize cache for %s: %w", c.Metadata().Name, err)
 		}
@@ -1132,9 +1161,10 @@ func (bc *Blockchain) initializeNativeCache(blockHeight uint32, d *dao.Simple) e
 	return nil
 }
 
-// isHardforkEnabled returns true if the specified hardfork is enabled at the
-// given height. nil hardfork is treated as always enabled.
-func (bc *Blockchain) isHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool {
+// IsHardforkEnabled returns true if the specified hardfork is enabled at the
+// given height. nil hardfork is treated as always enabled. This method relies on fact that
+// heights of all omitted hardforks are sanitized by Blockchain constructor.
+func (bc *Blockchain) IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool {
 	hfs := bc.config.Hardforks
 	if hf != nil {
 		start, ok := hfs[hf.String()]
@@ -1189,9 +1219,14 @@ func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 	var dur time.Duration
 
 	newHeight := atomic.LoadUint32(&bc.persistedHeight)
+	// Technically there may be a race between GC routine and storeBlock (MaxTraceableBlocks
+	// value update). Practically, it's not that important because MTB can only be decreased,
+	// so the "worst" situation we may end up here is that `MTBOld-MTBNew` number of "extra"
+	// blocks are kept in the storage until the next GC run with updated MTB value.
+	mtb := bc.GetMaxTraceableBlocks()
 	var tgtBlock = int64(newHeight)
 
-	tgtBlock -= int64(bc.config.MaxTraceableBlocks)
+	tgtBlock -= int64(mtb)
 	if bc.config.P2PStateExchangeExtensions {
 		syncP := newHeight / uint32(bc.config.StateSyncInterval)
 		syncP--
@@ -1664,6 +1699,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		appExecResults = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
 		aerchan        = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
 		aerdone        = make(chan error)
+		mtb            = bc.GetMaxTraceableBlocks()
 	)
 	go func() {
 		var (
@@ -1679,13 +1715,13 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			if bc.config.P2PStateExchangeExtensions {
 				// remove batch of old blocks starting from P2-MaxTraceableBlocks-StateSyncInterval up to P2-MaxTraceableBlocks
 				if block.Index >= 2*uint32(bc.config.StateSyncInterval) &&
-					block.Index >= uint32(bc.config.StateSyncInterval)+bc.config.MaxTraceableBlocks && // check this in case if MaxTraceableBlocks>StateSyncInterval
+					block.Index >= uint32(bc.config.StateSyncInterval)+mtb && // check this in case if MaxTraceableBlocks>StateSyncInterval
 					int(block.Index)%bc.config.StateSyncInterval == 0 {
-					stop = block.Index - uint32(bc.config.StateSyncInterval) - bc.config.MaxTraceableBlocks
+					stop = block.Index - uint32(bc.config.StateSyncInterval) - mtb
 					start = stop - min(stop, uint32(bc.config.StateSyncInterval))
 				}
-			} else if block.Index > bc.config.MaxTraceableBlocks {
-				start = block.Index - bc.config.MaxTraceableBlocks // is at least 1
+			} else if block.Index > mtb {
+				start = block.Index - mtb // is at least 1
 				stop = start + 1
 			}
 			for index := start; index < stop; index++ {
@@ -2655,7 +2691,7 @@ func (bc *Blockchain) verifyAndPoolTx(t *transaction.Transaction, pool *mempool.
 		return fmt.Errorf("%w: net fee is %v, need %v", ErrTxSmallNetworkFee, t.NetworkFee, needNetworkFee)
 	}
 	// check that current tx wasn't included in the conflicts attributes of some other transaction which is already in the chain
-	if err := bc.dao.HasTransaction(t.Hash(), t.Signers, height, bc.config.MaxTraceableBlocks); err != nil {
+	if err := bc.dao.HasTransaction(t.Hash(), t.Signers, height, bc.GetMaxTraceableBlocks()); err != nil {
 		switch {
 		case errors.Is(err, dao.ErrAlreadyExists):
 			return ErrAlreadyExists
@@ -2811,7 +2847,7 @@ func (bc *Blockchain) IsTxStillRelevant(t *transaction.Transaction, txpool *memp
 		return false
 	}
 	if txpool == nil {
-		if bc.dao.HasTransaction(t.Hash(), t.Signers, curheight, bc.config.MaxTraceableBlocks) != nil {
+		if bc.dao.HasTransaction(t.Hash(), t.Signers, curheight, bc.GetMaxTraceableBlocks()) != nil {
 			return false
 		}
 	} else if txpool.HasConflicts(t, bc) {
@@ -2932,7 +2968,7 @@ func (bc *Blockchain) GetTestHistoricVM(t trigger.Type, tx *transaction.Transact
 	}
 	var mode = mpt.ModeAll
 	if bc.config.Ledger.RemoveUntraceableBlocks {
-		if b.Index < bc.BlockHeight()-bc.config.MaxTraceableBlocks {
+		if b.Index < bc.BlockHeight()-bc.GetMaxTraceableBlocks() {
 			return nil, fmt.Errorf("state for height %d is outdated and removed from the storage", b.Index)
 		}
 		mode |= mpt.ModeGCFlag
@@ -2977,7 +3013,7 @@ func (bc *Blockchain) GetFakeNextBlock(nextBlockHeight uint32) (*block.Block, er
 // expected to be initialized by this moment.
 func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
 	var hf = config.HFEchidna
-	if bc.isHardforkEnabled(&hf, bc.BlockHeight()) {
+	if bc.IsHardforkEnabled(&hf, bc.BlockHeight()) {
 		return bc.contracts.Policy.GetMaxValidUntilBlockIncrementFromCache(bc.dao)
 	}
 	return bc.GetConfig().MaxValidUntilBlockIncrement
@@ -2988,10 +3024,28 @@ func (bc *Blockchain) GetMaxValidUntilBlockIncrement() uint32 {
 // cache hence Policy is expected to be initialized by this moment.
 func (bc *Blockchain) GetMillisecondsPerBlock() uint32 {
 	var hf = config.HFEchidna
-	if bc.isHardforkEnabled(&hf, bc.BlockHeight()) {
+	if bc.IsHardforkEnabled(&hf, bc.BlockHeight()) {
 		return bc.contracts.Policy.GetMillisecondsPerBlockInternal(bc.dao)
 	}
 	return uint32(bc.GetConfig().TimePerBlock.Milliseconds())
+}
+
+// GetMaxTraceableBlocks returns the length of the chain tail accessible to smart contracts.
+// This method performs access to native Policy storage hence Policy is expected to be
+// initialized by this moment.
+func (bc *Blockchain) GetMaxTraceableBlocks() uint32 {
+	var (
+		hf = config.HFEchidna
+		h  = bc.BlockHeight()
+	)
+	if bc.IsHardforkEnabled(&hf, h) {
+		// A special case for Genesis block since Policy storage might not yet be initialized.
+		if h == 0 {
+			return bc.GetConfig().Genesis.MaxTraceableBlocks
+		}
+		return bc.contracts.Policy.GetMaxTraceableBlocksInternal(bc.dao)
+	}
+	return bc.GetConfig().MaxTraceableBlocks
 }
 
 // Various witness verification errors.
@@ -3196,7 +3250,7 @@ func (bc *Blockchain) GetMaxNotValidBeforeDelta() (uint32, error) {
 	if !bc.config.P2PSigExtensions {
 		panic("disallowed call to Notary") // critical error, thus panic.
 	}
-	if !bc.isHardforkEnabled(bc.contracts.Notary.ActiveIn(), bc.BlockHeight()) {
+	if !bc.IsHardforkEnabled(bc.contracts.Notary.ActiveIn(), bc.BlockHeight()) {
 		return 0, fmt.Errorf("native Notary is active starting from %s", bc.contracts.Notary.ActiveIn().String())
 	}
 	return bc.contracts.Notary.GetMaxNotValidBeforeDelta(bc.dao), nil

@@ -412,7 +412,7 @@ protocol-related settings described in the table below.
 | Magic | `uint32` | `0` | Magic number which uniquely identifies Neo network. |
 | MaxBlockSize | `uint32` | `262144` | Maximum block size in bytes. |
 | MaxBlockSystemFee | `int64` | `900000000000` | Maximum overall transactions system fee per block. |
-| MaxTraceableBlocks | `uint32` | `2102400` | Length of the chain accessible to smart contracts. | `RemoveUntraceableBlocks` should be enabled to use this setting. |
+| MaxTraceableBlocks | `uint32` | `2102400` | Length of the chain accessible to smart contracts. This setting is replaced by [`Genesis`-level](#Genesis-Configuration) `MaxTraceableBlocks` protocol configuration setting and corresponding Policy value starting from `Echidna` hardfork. |
 | MaxTransactionsPerBlock | `uint16` | `512` | Maximum number of transactions per block. |
 | MaxValidUntilBlockIncrement | `uint32` | `5760` | Upper height increment limit for transaction's ValidUntilBlock field value relative to the current blockchain height, exceeding which a transaction will fail validation. It is set to estimated daily number of blocks with 15s interval by default. This setting is replaced by [`Genesis`-level](#Genesis-Configuration) `MaxValidUntilBlockIncrement` protocol configuration setting and corresponding Policy value starting from `Echidna` hardfork. |
 | MemPoolSize | `int` | `50000` | Size of the node's memory pool where transactions are stored before they are added to block. |
@@ -438,6 +438,7 @@ This subsection also contains initial values used for native Policy contract sto
 initialisation at Echidna hardfork. `Genesis` has the following structure:
 ```
 Genesis:
+  MaxTraceableBlocks: 2102400
   MaxValidUntilBlockIncrement: 5760
   Roles:
     NeoFSAlphabet:
@@ -454,6 +455,15 @@ Genesis:
     SystemFee: 100000000
 ```
 where:
+- `MaxTraceableBlocks` is the length of the chain tail accessible to smart contracts.
+  This setting is used to initialize `MaxTraceableBlocks` value of native Policy contract
+  at `Echidna` hardfork. If not set, then `ProtocolConfiguration`-level
+  `MaxTraceableBlocks` setting is used as the default value.
+
+  Note that this value is stored directly in the Policy contract storage, i.e. it
+  affects the chain's state, so it's important to keep it the same on all nodes
+  in frames of a single network.
+
 - `MaxValidUntilBlockIncrement` is an upper height increment limit for transaction's
   ValidUntilBlock field value relative to the current blockchain height, exceeding
   which a transaction will fail validation. This setting is used to initialize

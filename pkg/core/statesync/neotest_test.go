@@ -2,6 +2,7 @@ package statesync_test
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/basicchain"
@@ -133,59 +134,6 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.Equal(t, 1, len(unknownNodes))
 		require.Equal(t, expectedHeader.PrevStateRoot, unknownNodes[0])
 
-		// add several blocks to create DB state where blocks are not in sync yet, but it's not a genesis.
-		for i := stateSyncPoint - maxTraceable + 1; i <= stateSyncPoint-stateSyncInterval-1; i++ {
-			block, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
-			require.NoError(t, err)
-			require.NoError(t, module.AddBlock(block))
-		}
-		require.True(t, module.IsActive())
-		require.True(t, module.IsInitialized())
-		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
-		require.Equal(t, uint32(stateSyncPoint-stateSyncInterval-1), module.BlockHeight())
-
-		// then create new statesync module with the same DB and check that state is proper
-		// (blocks are not in sync yet)
-		module = bcBolt.GetStateSyncModule()
-		require.NoError(t, module.Init(bcSpout.BlockHeight()))
-		require.True(t, module.IsActive())
-		require.True(t, module.IsInitialized())
-		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
-		unknownNodes = module.GetUnknownMPTNodesBatch(2)
-		require.Equal(t, 1, len(unknownNodes))
-		require.Equal(t, expectedHeader.PrevStateRoot, unknownNodes[0])
-		require.Equal(t, uint32(stateSyncPoint-stateSyncInterval-1), module.BlockHeight())
-
-		// add rest of blocks to create DB state where blocks are in sync
-		for i := stateSyncPoint - stateSyncInterval; i <= stateSyncPoint; i++ {
-			block, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
-			require.NoError(t, err)
-			require.NoError(t, module.AddBlock(block))
-		}
-		require.True(t, module.IsActive())
-		require.True(t, module.IsInitialized())
-		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
-		lastBlock, err := bcBolt.GetBlock(expectedHeader.PrevHash)
-		require.NoError(t, err)
-		require.Equal(t, uint32(stateSyncPoint), lastBlock.Index)
-		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
-
-		// then create new statesync module with the same DB and check that state is proper
-		// (headers and blocks are in sync)
-		module = bcBolt.GetStateSyncModule()
-		require.NoError(t, module.Init(bcSpout.BlockHeight()))
-		require.True(t, module.IsActive())
-		require.True(t, module.IsInitialized())
-		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
-		unknownNodes = module.GetUnknownMPTNodesBatch(2)
-		require.Equal(t, 1, len(unknownNodes))
-		require.Equal(t, expectedHeader.PrevStateRoot, unknownNodes[0])
-		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
-
 		// add a few MPT nodes to create DB state where some of MPT nodes are missing
 		count := 5
 		for {
@@ -205,19 +153,20 @@ func TestStateSyncModule_Init(t *testing.T) {
 		}
 
 		// then create new statesync module with the same DB and check that state is proper
-		// (headers and blocks are in sync, mpt is not yet synced)
+		// (headers are in sync, mpt is not yet synced)
 		module = bcBolt.GetStateSyncModule()
 		require.NoError(t, module.Init(bcSpout.BlockHeight()))
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.False(t, module.NeedHeaders())
 		require.True(t, module.NeedMPTNodes())
+		require.False(t, module.NeedBlocks())
 		unknownNodes = module.GetUnknownMPTNodesBatch(100)
 		require.True(t, len(unknownNodes) > 0)
 		require.NotContains(t, unknownNodes, expectedHeader.PrevStateRoot)
-		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
+		require.Panicsf(t, func() { module.BlockHeight() }, "block height is not yet initialized since MPT is not in sync")
 
-		// add the rest of MPT nodes and jump to state
+		// add the rest of MPT nodes and check that MPT is in sync
 		alreadyRequested := make(map[util.Uint256]struct{})
 		for {
 			unknownHashes := module.GetUnknownMPTNodesBatch(1) // restore nodes one-by-one
@@ -237,11 +186,66 @@ func TestStateSyncModule_Init(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, callbackCalled)
 		}
+		unknownNodes = module.GetUnknownMPTNodesBatch(2)
+		require.Equal(t, 0, len(unknownNodes))
+
+		// add several blocks to create DB state where blocks are not in sync yet, but it's not a genesis.
+		for i := stateSyncPoint - maxTraceable + 1; i <= stateSyncPoint-stateSyncInterval-1; i++ {
+			block, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
+			require.NoError(t, err)
+			require.NoError(t, module.AddBlock(block))
+		}
+		require.True(t, module.IsActive())
+		require.True(t, module.IsInitialized())
+		require.False(t, module.NeedHeaders())
+		require.False(t, module.NeedMPTNodes())
+		require.True(t, module.NeedBlocks())
+		require.Equal(t, uint32(stateSyncPoint-stateSyncInterval-1), module.BlockHeight())
+
+		// then create new statesync module with the same DB and check that state is proper
+		// (blocks are not in sync yet, headers and MPT is in sync)
+		module = bcBolt.GetStateSyncModule()
+		require.NoError(t, module.Init(bcSpout.BlockHeight()))
+		require.True(t, module.IsActive())
+		require.True(t, module.IsInitialized())
+		require.False(t, module.NeedHeaders())
+		require.False(t, module.NeedMPTNodes())
+		require.True(t, module.NeedBlocks())
+		unknownNodes = module.GetUnknownMPTNodesBatch(2)
+		require.Equal(t, 0, len(unknownNodes))
+		require.Equal(t, uint32(stateSyncPoint-stateSyncInterval-1), module.BlockHeight())
+
+		// add rest of blocks to create DB state where blocks are in sync and check state jump is performed
+		for i := stateSyncPoint - stateSyncInterval; i <= stateSyncPoint; i++ {
+			block, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
+			require.NoError(t, err)
+			require.NoError(t, module.AddBlock(block))
+		}
+		require.False(t, module.IsActive())
+		require.True(t, module.IsInitialized())
+		require.False(t, module.NeedHeaders())
+		require.False(t, module.NeedMPTNodes())
+		require.False(t, module.NeedBlocks())
+		lastBlock, err := bcBolt.GetBlock(expectedHeader.PrevHash)
+		require.NoError(t, err)
+		require.Equal(t, uint32(stateSyncPoint), lastBlock.Index)
+		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
+
+		// then create new statesync module with the same DB and check that state is proper
+		// (headers, blocks and MPT are in sync)
+		module = bcBolt.GetStateSyncModule()
+		require.NoError(t, module.Init(bcSpout.BlockHeight()))
+		require.False(t, module.IsActive())
+		require.True(t, module.IsInitialized())
+		require.False(t, module.NeedHeaders())
+		require.False(t, module.NeedMPTNodes())
+		require.False(t, module.NeedBlocks())
 
 		// check that module is inactive and statejump is completed
 		require.False(t, module.IsActive())
 		require.False(t, module.NeedHeaders())
 		require.False(t, module.NeedMPTNodes())
+		require.False(t, module.NeedBlocks())
 		unknownNodes = module.GetUnknownMPTNodesBatch(1)
 		require.True(t, len(unknownNodes) == 0)
 		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
@@ -274,12 +278,22 @@ func TestStateSyncModule_Init(t *testing.T) {
 }
 
 func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
-	check := func(t *testing.T, spoutEnableGC bool) {
+	check := func(t *testing.T, spoutEnableGC bool, enableEchidna bool) {
 		const (
 			stateSyncInterval = 4
 			maxTraceable      = 6
 			stateSyncPoint    = 24
 		)
+		var hfs = map[string]uint32{}
+		if enableEchidna {
+			hfs = map[string]uint32{
+				config.HFAspidochelone.String(): 0,
+				config.HFBasilisk.String():      0,
+				config.HFCockatrice.String():    0,
+				config.HFDomovoi.String():       0,
+				config.HFEchidna.String():       0,
+			}
+		}
 		spoutCfg := func(c *config.Blockchain) {
 			c.Ledger.KeepOnlyLatestState = spoutEnableGC
 			c.Ledger.RemoveUntraceableBlocks = spoutEnableGC
@@ -288,6 +302,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			c.StateSyncInterval = stateSyncInterval
 			c.MaxTraceableBlocks = maxTraceable
 			c.P2PSigExtensions = true // `basicchain.Init` assumes Notary is enabled.
+			c.Hardforks = hfs
 		}
 		bcSpoutStore := storage.NewMemoryStore()
 		bcSpout, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, spoutCfg, bcSpoutStore, false)
@@ -343,44 +358,8 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		require.True(t, module.IsInitialized())
 		require.False(t, module.NeedHeaders())
 		require.True(t, module.NeedMPTNodes())
+		require.False(t, module.NeedBlocks())
 		require.Equal(t, bcSpout.HeaderHeight(), bcBolt.HeaderHeight())
-
-		// add blocks
-		t.Run("error: unexpected block index", func(t *testing.T) {
-			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(stateSyncPoint - maxTraceable))
-			require.NoError(t, err)
-			require.Error(t, module.AddBlock(b))
-		})
-		t.Run("error: missing state root in block header", func(t *testing.T) {
-			b := &block.Block{
-				Header: block.Header{
-					Index:            uint32(stateSyncPoint) - maxTraceable + 1,
-					StateRootEnabled: false,
-				},
-			}
-			require.Error(t, module.AddBlock(b))
-		})
-		t.Run("error: invalid block merkle root", func(t *testing.T) {
-			b := &block.Block{
-				Header: block.Header{
-					Index:            uint32(stateSyncPoint) - maxTraceable + 1,
-					StateRootEnabled: true,
-					MerkleRoot:       util.Uint256{1, 2, 3},
-				},
-			}
-			require.Error(t, module.AddBlock(b))
-		})
-
-		for i := uint32(stateSyncPoint - maxTraceable + 1); i <= stateSyncPoint; i++ {
-			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
-			require.NoError(t, err)
-			require.NoError(t, module.AddBlock(b))
-		}
-		require.True(t, module.IsActive())
-		require.True(t, module.IsInitialized())
-		require.False(t, module.NeedHeaders())
-		require.True(t, module.NeedMPTNodes())
-		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
 
 		// add MPT nodes in batches
 		h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(stateSyncPoint + 1))
@@ -415,11 +394,48 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			}
 			require.NoError(t, module.AddMPTNodes(add))
 		}
-		require.False(t, module.IsActive())
+		require.True(t, module.IsActive())
 		require.False(t, module.NeedHeaders())
 		require.False(t, module.NeedMPTNodes())
 		unknownNodes := module.GetUnknownMPTNodesBatch(1)
 		require.True(t, len(unknownNodes) == 0)
+
+		// add blocks
+		t.Run("error: unexpected block index", func(t *testing.T) {
+			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(stateSyncPoint - maxTraceable))
+			require.NoError(t, err)
+			require.Error(t, module.AddBlock(b))
+		})
+		t.Run("error: missing state root in block header", func(t *testing.T) {
+			b := &block.Block{
+				Header: block.Header{
+					Index:            uint32(stateSyncPoint) - maxTraceable + 1,
+					StateRootEnabled: false,
+				},
+			}
+			require.Error(t, module.AddBlock(b))
+		})
+		t.Run("error: invalid block merkle root", func(t *testing.T) {
+			b := &block.Block{
+				Header: block.Header{
+					Index:            uint32(stateSyncPoint) - maxTraceable + 1,
+					StateRootEnabled: true,
+					MerkleRoot:       util.Uint256{1, 2, 3},
+				},
+			}
+			require.Error(t, module.AddBlock(b))
+		})
+
+		for i := uint32(stateSyncPoint - maxTraceable + 1); i <= stateSyncPoint; i++ {
+			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
+			require.NoError(t, err)
+			require.NoError(t, module.AddBlock(b))
+		}
+		require.False(t, module.IsActive())
+		require.True(t, module.IsInitialized())
+		require.False(t, module.NeedHeaders())
+		require.False(t, module.NeedMPTNodes())
+		require.False(t, module.NeedBlocks())
 		require.Equal(t, uint32(stateSyncPoint), module.BlockHeight())
 		require.Equal(t, uint32(stateSyncPoint), bcBolt.BlockHeight())
 
@@ -464,10 +480,14 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		})
 		require.False(t, haveItems)
 	}
-	t.Run("source node is archive", func(t *testing.T) {
-		check(t, false)
-	})
-	t.Run("source node is light with GC", func(t *testing.T) {
-		check(t, true)
-	})
+	for _, mtb := range []bool{true, false} {
+		t.Run(fmt.Sprintf("MaxTraceableBlocks in Policy: %t", mtb), func(t *testing.T) {
+			t.Run("source node is archive", func(t *testing.T) {
+				check(t, false, mtb)
+			})
+			t.Run("source node is light with GC", func(t *testing.T) {
+				check(t, true, mtb)
+			})
+		})
+	}
 }

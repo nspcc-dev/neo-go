@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/internal/fakechain"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
@@ -56,6 +57,7 @@ func TestModule_PR2019_discussion_r689629704(t *testing.T) {
 		syncInterval: 100500,
 		dao:          dao.NewSimple(actualStorage, true),
 		mptpool:      NewPool(),
+		bc:           fakechain.NewFakeChain(),
 	}
 	stateSync.billet = mpt.NewBillet(sr, mpt.ModeLatest,
 		TemporaryPrefix(stateSync.dao.Version.StoragePrefix), actualStorage)

@@ -82,6 +82,7 @@ func NewContracts(cfg config.ProtocolConfiguration) *Contracts {
 	mgmt.NEO = neo
 	mgmt.Policy = policy
 	policy.NEO = neo
+	ledger.Policy = policy
 
 	cs.GAS = gas
 	cs.NEO = neo

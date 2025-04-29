@@ -82,6 +82,7 @@ type (
 		GetGoverningTokenBalance(acc util.Uint160) (*big.Int, uint32)
 		GetHeader(hash util.Uint256) (*block.Header, error)
 		GetHeaderHash(uint32) util.Uint256
+		GetMaxTraceableBlocks() uint32
 		GetMaxVerificationGAS() int64
 		GetMemPool() *mempool.Pool
 		GetNEP11Contracts() []util.Uint160
@@ -892,7 +893,7 @@ func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 			AddressVersion:              address.NEO3Prefix,
 			Network:                     cfg.Magic,
 			MillisecondsPerBlock:        int(s.chain.GetMillisecondsPerBlock()),
-			MaxTraceableBlocks:          cfg.MaxTraceableBlocks,
+			MaxTraceableBlocks:          s.chain.GetMaxTraceableBlocks(),
 			MaxValidUntilBlockIncrement: s.chain.GetMaxValidUntilBlockIncrement(),
 			MaxTransactionsPerBlock:     cfg.MaxTransactionsPerBlock,
 			MemoryPoolMaxTransactions:   cfg.MemPoolSize,

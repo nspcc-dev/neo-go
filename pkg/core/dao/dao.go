@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	iocore "io"
@@ -374,6 +375,15 @@ func (dao *Simple) PutBigInt(id int32, key []byte, n *big.Int) {
 	var buf [bigint.MaxBytesLen]byte
 	stData := bigint.ToPreallocatedBytes(n, buf[:])
 	dao.PutStorageItem(id, key, stData)
+}
+
+// GetInt retrieves integer by the specified contract ID and key.
+func (dao *Simple) GetInt(id int32, key []byte) (int64, error) {
+	si := dao.GetStorageItem(id, key)
+	if si == nil {
+		return 0, fmt.Errorf("item with id = %d and key = %s is not initialized", id, hex.EncodeToString(key))
+	}
+	return bigint.FromBytes(si).Int64(), nil
 }
 
 // DeleteStorageItem drops a storage item for the given id with the

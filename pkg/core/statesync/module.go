@@ -8,9 +8,9 @@ includes the following stages:
 
 1. Fetching headers starting from height 0 up to P+1.
 2. Fetching MPT nodes for height P stating from the corresponding state root.
-3. Fetching blocks starting from height P-MaxTraceableBlocks (or 0) up to P.
+3. Fetching blocks starting from height P-MaxTraceableBlocks(P) (or 0) up to P.
 
-Steps 2 and 3 are being performed in parallel. Once all the data are collected
+All steps are being performed sequentially. Once all the data are collected
 and stored in the db, an atomic state jump is occurred to the state sync point P.
 Further node operation process is performed using standard sync mechanism until
 the node reaches synchronised state.
@@ -18,6 +18,7 @@ the node reaches synchronised state.
 package statesync
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -27,8 +28,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
+	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/stateroot"
 	"github.com/nspcc-dev/neo-go/pkg/core/storage"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/bigint"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/zap"
@@ -56,7 +59,7 @@ const (
 	// Always combined with headersSynced; may be combined with blocksSynced.
 	mptSynced
 	// blocksSynced means that blocks up to the current state sync point are stored.
-	// Always combined with headersSynced; may be combined with mptSynced.
+	// Always combined with headersSynced and always combined with mptSynced.
 	blocksSynced
 )
 
@@ -64,6 +67,7 @@ const (
 type Ledger interface {
 	AddHeaders(...*block.Header) error
 	BlockHeight() uint32
+	IsHardforkEnabled(hf *config.Hardfork, blockHeight uint32) bool
 	GetConfig() config.Blockchain
 	GetHeader(hash util.Uint256) (*block.Header, error)
 	GetHeaderHash(uint32) util.Uint256
@@ -224,20 +228,8 @@ func (s *Module) defineSyncStage() error {
 			zap.Uint32("headerHeight", s.bc.HeaderHeight()))
 	}
 
-	// check blocks sync stage
-	s.blockHeight = s.getLatestSavedBlock(s.syncPoint)
-	if s.blockHeight >= s.syncPoint {
-		s.syncStage |= blocksSynced
-		s.log.Info("blocks are in sync",
-			zap.Uint32("blockHeight", s.blockHeight))
-	}
-
 	// check MPT sync stage
-	if s.blockHeight > s.syncPoint {
-		s.syncStage |= mptSynced
-		s.log.Info("MPT is in sync",
-			zap.Uint32("stateroot height", s.stateMod.CurrentLocalHeight()))
-	} else if s.syncStage&headersSynced != 0 {
+	if s.syncStage&headersSynced != 0 {
 		header, err := s.bc.GetHeader(s.bc.GetHeaderHash(s.syncPoint + 1))
 		if err != nil {
 			return fmt.Errorf("failed to get header to initialize MPT billet: %w", err)
@@ -282,6 +274,16 @@ func (s *Module) defineSyncStage() error {
 		}
 	}
 
+	// Check blocks sync stage. mptSynced is required since MaxTraceableBlocks is a part of the state.
+	if s.syncStage&mptSynced != 0 {
+		s.blockHeight = s.getLatestSavedBlock(s.syncPoint)
+		if s.blockHeight >= s.syncPoint {
+			s.syncStage |= blocksSynced
+			s.log.Info("blocks are in sync",
+				zap.Uint32("blockHeight", s.blockHeight))
+		}
+	}
+
 	if s.syncStage == headersSynced|blocksSynced|mptSynced {
 		s.log.Info("state is in sync, starting regular blocks processing")
 		s.syncStage = inactive
@@ -291,10 +293,28 @@ func (s *Module) defineSyncStage() error {
 
 // getLatestSavedBlock returns either current block index (if it's still relevant
 // to continue state sync process) or H-1 where H is the index of the earliest
-// block that should be saved next.
+// block that should be saved next. It performs access to native Policy storage
+// by temporary storage key hence it's a no-op to call this method if contract storage
+// is not yet initialized.
 func (s *Module) getLatestSavedBlock(p uint32) uint32 {
-	var result uint32
-	mtb := s.bc.GetConfig().MaxTraceableBlocks
+	var (
+		result uint32
+		mtb    = s.bc.GetConfig().MaxTraceableBlocks
+		hf     = config.HFEchidna
+	)
+	if s.bc.IsHardforkEnabled(&hf, p) {
+		// Retrieve MaxTraceableBlocks from DAO directly using temporary storage prefix.
+		policyID := native.PolicyContractID
+		key := make([]byte, 1+4+1)
+		key[0] = byte(TemporaryPrefix(s.dao.Version.StoragePrefix))
+		binary.LittleEndian.PutUint32(key[1:], uint32(policyID))
+		copy(key[5:], native.MaxTraceableBlocksKey)
+		si, err := s.dao.Store.Get(key)
+		if err != nil {
+			panic(fmt.Errorf("failed to retrieve MaxTraceableBlock storage item from Policy contract storage by key %s at height %d: %w", hex.EncodeToString(key), p, err))
+		}
+		mtb = uint32(bigint.FromBytes(si).Int64())
+	}
 	if p > mtb {
 		result = p - mtb
 	}
@@ -345,7 +365,7 @@ func (s *Module) AddBlock(block *block.Block) error {
 	}()
 	defer s.lock.Unlock()
 
-	if s.syncStage&headersSynced == 0 || s.syncStage&blocksSynced != 0 {
+	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced == 0 || s.syncStage&blocksSynced != 0 {
 		return nil
 	}
 
@@ -405,7 +425,7 @@ func (s *Module) AddMPTNodes(nodes [][]byte) error {
 	defer s.lock.Unlock()
 
 	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced != 0 {
-		return errors.New("MPT nodes were not requested")
+		return fmt.Errorf("MPT nodes were not requested: current state sync stage is %d", s.syncStage)
 	}
 
 	for _, nBytes := range nodes {
@@ -424,7 +444,7 @@ func (s *Module) AddMPTNodes(nodes [][]byte) error {
 		s.syncStage |= mptSynced
 		s.log.Info("MPT is in sync",
 			zap.Uint32("height", s.syncPoint))
-		s.checkSyncIsCompleted()
+		s.blockHeight = s.getLatestSavedBlock(s.syncPoint)
 	}
 	return nil
 }
@@ -490,10 +510,16 @@ func (s *Module) dispose() {
 	s.billet = nil
 }
 
-// BlockHeight returns index of the last stored block.
+// BlockHeight returns index of the last stored block. It's a no-op to call this method until MPT is in sync
+// since block height initialization requires access to the node state at state synchronisation point.
 func (s *Module) BlockHeight() uint32 {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
+
+	if s.syncStage != inactive && s.syncStage&mptSynced == 0 {
+		// It's a program bug.
+		panic("block height is not yet initialized since MPT is not in sync")
+	}
 
 	return s.blockHeight
 }
@@ -537,7 +563,7 @@ func (s *Module) NeedBlocks() bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	return s.syncStage&headersSynced != 0 && s.syncStage&blocksSynced == 0
+	return s.syncStage&headersSynced != 0 && s.syncStage&mptSynced != 0 && s.syncStage&blocksSynced == 0
 }
 
 // Traverse traverses local MPT nodes starting from the specified root down to its
