@@ -2218,6 +2218,9 @@ func (bc *Blockchain) GetNotaryBalance(acc util.Uint160) *big.Int {
 // GetNotaryServiceFeePerKey returns a NotaryAssisted transaction attribute fee
 // per key which is a reward per notary request key for designated notary nodes.
 func (bc *Blockchain) GetNotaryServiceFeePerKey() int64 {
+	if !bc.IsHardforkEnabled(&transaction.NotaryAssistedActivation, bc.BlockHeight()) {
+		return 0
+	}
 	return bc.contracts.Policy.GetAttributeFeeInternal(bc.dao, transaction.NotaryAssistedT)
 }
 
@@ -2813,8 +2816,8 @@ func (bc *Blockchain) verifyTxAttributes(d *dao.Simple, tx *transaction.Transact
 				return fmt.Errorf("%w: conflicting transaction %s is already on chain", ErrInvalidAttribute, conflicts.Hash.StringLE())
 			}
 		case transaction.NotaryAssistedT:
-			if !bc.config.P2PSigExtensions {
-				return fmt.Errorf("%w: NotaryAssisted attribute was found, but P2PSigExtensions are disabled", ErrInvalidAttribute)
+			if !bc.IsHardforkEnabled(&transaction.NotaryAssistedActivation, bc.BlockHeight()) {
+				return fmt.Errorf("%w: NotaryAssisted attribute was found, but %s is not active yet", ErrInvalidAttribute, transaction.NotaryAssistedActivation)
 			}
 			if !tx.HasSigner(bc.contracts.Notary.Hash) {
 				return fmt.Errorf("%w: NotaryAssisted attribute was found, but transaction is not signed by the Notary native contract", ErrInvalidAttribute)

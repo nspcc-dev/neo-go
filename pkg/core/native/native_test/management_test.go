@@ -180,12 +180,18 @@ func TestManagement_GenesisNativeState(t *testing.T) {
 }
 
 func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
-	const cockatriceHeight = 3
+	const (
+		cockatriceHeight = 3
+		domovoiHeight    = 4
+		echidnaHeight    = 5
+	)
 	mgmt := newCustomManagementClient(t, func(cfg *config.Blockchain) {
 		cfg.Hardforks = map[string]uint32{
 			config.HFAspidochelone.String(): 0,
 			config.HFBasilisk.String():      0,
 			config.HFCockatrice.String():    cockatriceHeight,
+			config.HFDomovoi.String():       domovoiHeight,
+			config.HFEchidna.String():       echidnaHeight,
 		}
 		cfg.P2PSigExtensions = true
 	})
@@ -230,8 +236,8 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 	require.Equal(t, expected, aer[0].Events)
 
 	// Generate some blocks and check Update notifications.
-	cockatriceBlock := mgmt.GenerateNewBlocks(t, cockatriceHeight)[cockatriceHeight-1]
-	aer, err = mgmt.Chain.GetAppExecResults(cockatriceBlock.Hash(), trigger.OnPersist)
+	mgmt.GenerateNewBlocks(t, cockatriceHeight-int(mgmt.Chain.BlockHeight()))
+	aer, err = mgmt.Chain.GetAppExecResults(mgmt.Chain.GetHeaderHash(cockatriceHeight), trigger.OnPersist)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(aer))
 	expected = expected[:0]
@@ -241,6 +247,23 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 			Name:       "Update",
 			Item: stackitem.NewArray([]stackitem.Item{
 				stackitem.Make(state.CreateNativeContractHash(name)),
+			}),
+		})
+	}
+	require.Equal(t, expected, aer[0].Events)
+
+	// Generate some blocks and check notifications for Echidna hardfork.
+	mgmt.GenerateNewBlocks(t, echidnaHeight-int(mgmt.Chain.BlockHeight()))
+	aer, err = mgmt.Chain.GetAppExecResults(mgmt.Chain.GetHeaderHash(echidnaHeight), trigger.OnPersist)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(aer))
+	expected = expected[:0]
+	for _, h := range []util.Uint160{nativehashes.ContractManagement, nativehashes.StdLib, nativehashes.CryptoLib, nativehashes.NeoToken, nativehashes.PolicyContract, nativehashes.RoleManagement} {
+		expected = append(expected, state.NotificationEvent{
+			ScriptHash: nativehashes.ContractManagement,
+			Name:       "Update",
+			Item: stackitem.NewArray([]stackitem.Item{
+				stackitem.Make(h),
 			}),
 		})
 	}
