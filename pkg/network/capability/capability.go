@@ -31,7 +31,7 @@ func (cs *Capabilities) EncodeBinary(br *io.BinWriter) {
 // checkUniqueCapabilities checks whether payload capabilities have a unique type.
 func (cs Capabilities) checkUniqueCapabilities() error {
 	err := errors.New("capabilities with the same type are not allowed")
-	var isFullNode, isArchived, isTCP, isWS bool
+	var isFullNode, isArchived, isTCP, isWS, isDisabledCompression bool
 	for _, cap := range cs {
 		switch cap.Type {
 		case ArchivalNode:
@@ -44,6 +44,11 @@ func (cs Capabilities) checkUniqueCapabilities() error {
 				return err
 			}
 			isFullNode = true
+		case DisableCompressionNode:
+			if isDisabledCompression {
+				return err
+			}
+			isDisabledCompression = true
 		case TCPServer:
 			if isTCP {
 				return err
@@ -74,6 +79,8 @@ func (c *Capability) DecodeBinary(br *io.BinReader) {
 		c.Data = &Archival{}
 	case FullNode:
 		c.Data = &Node{}
+	case DisableCompressionNode:
+		c.Data = &DisableCompression{}
 	case TCPServer, WSServer:
 		c.Data = &Server{}
 	default:
@@ -136,6 +143,22 @@ func (a *Archival) DecodeBinary(br *io.BinReader) {
 
 // EncodeBinary implements io.Serializable.
 func (a *Archival) EncodeBinary(bw *io.BinWriter) {
+	bw.WriteB(0)
+}
+
+// DisableCompression represents the node that doesn't compress any P2P payloads.
+type DisableCompression struct{}
+
+// DecodeBinary implements io.Serializable.
+func (d *DisableCompression) DecodeBinary(br *io.BinReader) {
+	var zero = br.ReadB() // Zero-length byte array as per Unknown.
+	if zero != 0 {
+		br.Err = errors.New("DisableCompression capability with non-zero data")
+	}
+}
+
+// EncodeBinary implements io.Serializable.
+func (d *DisableCompression) EncodeBinary(bw *io.BinWriter) {
 	bw.WriteB(0)
 }
 

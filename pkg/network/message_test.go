@@ -47,7 +47,7 @@ func TestEncodeDecodeVersion(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, len(expected.compressedPayload), len(uncompressed))
 
-	// large payload should be compressed
+	// large payload should be compressed...
 	largeArray := make([]byte, CompressionMinSize)
 	for i := range largeArray {
 		largeArray[i] = byte(i)
@@ -56,7 +56,18 @@ func TestEncodeDecodeVersion(t *testing.T) {
 	testserdes.EncodeDecode(t, expected, &Message{})
 	uncompressed, err = testserdes.EncodeBinary(expected.Payload)
 	require.NoError(t, err)
+	require.True(t, expected.Flags&Compressed != 0)
 	require.NotEqual(t, len(expected.compressedPayload), len(uncompressed))
+
+	// ... only if compression is not prohibited.
+	expected.Flags ^= Compressed // reset compression state
+	compressedBytes, err := testserdes.Encode(expected)
+	require.NoError(t, err)
+	expected.Flags = 0 // reset compression state
+	buf := io.NewBufBinWriter()
+	require.NoError(t, expected.EncodeCompressed(buf.BinWriter, false))
+	require.True(t, expected.Flags&Compressed == 0)
+	require.NotEqual(t, compressedBytes, buf.Bytes())
 }
 
 func BenchmarkMessageBytes(b *testing.B) {
@@ -133,7 +144,7 @@ func TestEncodeDecodeInventory(t *testing.T) {
 }
 
 func TestEncodeDecodeAddr(t *testing.T) {
-	const count = 3
+	const count = 4
 	p := payload.NewAddressList(count)
 	p.Addrs[0] = &payload.AddressAndTime{
 		Timestamp: rand.Uint32(),
@@ -154,6 +165,13 @@ func TestEncodeDecodeAddr(t *testing.T) {
 		Capabilities: capability.Capabilities{{
 			Type: capability.WSServer,
 			Data: &capability.Server{Port: uint16(rand.Uint32())},
+		}},
+	}
+	p.Addrs[3] = &payload.AddressAndTime{
+		Timestamp: rand.Uint32(),
+		Capabilities: capability.Capabilities{{
+			Type: capability.DisableCompressionNode,
+			Data: &capability.DisableCompression{},
 		}},
 	}
 	testEncodeDecode(t, CMDAddr, p)

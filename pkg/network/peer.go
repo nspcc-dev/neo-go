@@ -71,6 +71,7 @@ type Peer interface {
 	LastBlockIndex() uint32
 	Handshaked() bool
 	IsFullNode() bool
+	SupportsCompression() bool
 
 	// SetPingTimer adds an outgoing ping to the counter and sets a PingTimeout
 	// timer that will shut the connection down in case of no response.

@@ -50,6 +50,7 @@ P2P:
   AttemptConnPeers: 20
   BroadcastFactor: 0
   DialTimeout: 0s
+  DisableCompression: false
   MaxPeers: 100
   MinPeers: 5
   PingInterval: 30s
@@ -74,6 +75,8 @@ where:
    to all peers, any value in-between 0 and 100 is used for weighted calculation, for example
    if it's 30 then 13 neighbors will be used in the previous case.
 - `DialTimeout` (`Duration`) is the maximum duration a single dial may take.
+- `DisableCompression` (`bool`) denotes whether the node should disable P2P payloads
+   compression.
 - `ExtensiblePoolSize` (`int`) is the maximum amount of the extensible payloads from a single
    sender stored in a local pool.
 - `MaxPeers` (`int`) is the maximum numbers of peers that can be connected to the server.

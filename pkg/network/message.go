@@ -188,7 +188,13 @@ func (m *Message) decodePayload() error {
 
 // Encode encodes a Message to any given BinWriter.
 func (m *Message) Encode(br *io.BinWriter) error {
-	if err := m.tryCompressPayload(); err != nil {
+	return m.EncodeCompressed(br, true)
+}
+
+// EncodeCompressed encodes a Message to any given BinWriter with possible
+// compression for large payloads if allowCompression is set.
+func (m *Message) EncodeCompressed(br *io.BinWriter, allowCompression bool) error {
+	if err := m.tryCompressPayload(allowCompression); err != nil {
 		return err
 	}
 	growSize := 2 + 1 // header + empty payload
@@ -208,8 +214,15 @@ func (m *Message) Encode(br *io.BinWriter) error {
 
 // Bytes serializes a Message into the new allocated buffer and returns it.
 func (m *Message) Bytes() ([]byte, error) {
+	return m.BytesCompressed(true)
+}
+
+// BytesCompressed serializes a Message into the new allocated buffer with possible
+// compression for large payloads if allowCompression is set and returns serialized
+// Message.
+func (m *Message) BytesCompressed(allowCompression bool) ([]byte, error) {
 	w := io.NewBufBinWriter()
-	if err := m.Encode(w.BinWriter); err != nil {
+	if err := m.EncodeCompressed(w.BinWriter, allowCompression); err != nil {
 		return nil, err
 	}
 	return w.Bytes(), nil
@@ -217,7 +230,7 @@ func (m *Message) Bytes() ([]byte, error) {
 
 // tryCompressPayload sets the message's compressed payload to a serialized
 // payload and compresses it in case its size exceeds CompressionMinSize.
-func (m *Message) tryCompressPayload() error {
+func (m *Message) tryCompressPayload(enableCompression bool) error {
 	if m.Payload == nil {
 		return nil
 	}
@@ -227,7 +240,7 @@ func (m *Message) tryCompressPayload() error {
 		return buf.Err
 	}
 	compressedPayload := buf.Bytes()
-	if m.Flags&Compressed == 0 {
+	if m.Flags&Compressed == 0 && enableCompression {
 		switch m.Payload.(type) {
 		case *payload.Headers, *payload.MerkleBlock, payload.NullPayload,
 			*payload.Inventory, *payload.MPTInventory:

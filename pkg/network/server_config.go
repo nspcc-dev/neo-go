@@ -41,6 +41,10 @@ type (
 		// Relay determines whether the server is forwarding its inventory.
 		Relay bool
 
+		// DisableCompression determines whether the server should disable P2P
+		// payloads compression.
+		DisableCompression bool
+
 		// Seeds is a list of initial nodes used to establish connectivity.
 		Seeds []string
 
@@ -92,6 +96,7 @@ func NewServerConfig(cfg config.Config) (ServerConfig, error) {
 		Addresses:            addrs,
 		Net:                  protoConfig.Magic,
 		Relay:                appConfig.Relay,
+		DisableCompression:   appConfig.P2P.DisableCompression,
 		Seeds:                protoConfig.SeedList,
 		DialTimeout:          appConfig.P2P.DialTimeout,
 		ProtoTickInterval:    appConfig.P2P.ProtoTickInterval,
