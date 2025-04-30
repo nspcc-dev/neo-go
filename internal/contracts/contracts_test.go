@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -65,9 +64,7 @@ func generateOracleContract(t *testing.T, saveState bool) {
 // native hashes and saves the generated NEF and manifest to `management_contract` folder.
 // Set `saveState` flag to true and run the test to rewrite NEF and manifest files.
 func generateManagementHelperContracts(t *testing.T, saveState bool) {
-	bc, validator, committee := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-		c.P2PSigExtensions = true
-	})
+	bc, validator, committee := chain.NewMulti(t)
 	e := neotest.NewExecutor(t, bc, validator, committee)
 
 	mgmtHash := e.NativeHash(t, nativenames.Management)

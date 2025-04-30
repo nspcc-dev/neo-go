@@ -468,6 +468,10 @@ func TestClientNEOContract(t *testing.T) {
 func TestClientNotary(t *testing.T) {
 	chain, _, httpSrv := initServerWithInMemoryChain(t)
 
+	// Echidna should be enabled since this test uses Notary contract.
+	_, ok := chain.GetConfig().Hardforks[config.HFEchidna.String()]
+	require.True(t, ok)
+
 	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
 	require.NoError(t, err)
 	t.Cleanup(c.Close)
@@ -2453,11 +2457,11 @@ func TestClient_GetVersion_Hardforks(t *testing.T) {
 	v, err := c.GetVersion()
 	require.NoError(t, err)
 	expected := map[config.Hardfork]uint32{
-		config.HFAspidochelone: 3,
-		config.HFBasilisk:      6,
-		config.HFCockatrice:    9,
-		config.HFDomovoi:       12,
-		config.HFEchidna:       13,
+		config.HFAspidochelone: 1,
+		config.HFBasilisk:      2,
+		config.HFCockatrice:    3,
+		config.HFDomovoi:       4,
+		config.HFEchidna:       5,
 	}
 	require.InDeltaMapValues(t, expected, v.Protocol.Hardforks, 0)
 }

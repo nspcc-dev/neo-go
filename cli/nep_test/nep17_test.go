@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/testcli"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
@@ -273,7 +274,7 @@ func TestNEP17Transfer(t *testing.T) {
 		e.CheckAwaitableTxPersisted(t)
 	})
 
-	cmd = append(cmd, "--to", address.Uint160ToString(e.Chain.GetNotaryContractScriptHash()),
+	cmd = append(cmd, "--to", address.Uint160ToString(nativehashes.Notary),
 		"[", testcli.ValidatorAddr, strconv.Itoa(int(validTil)), "]")
 
 	t.Run("with data", func(t *testing.T) {

@@ -29,9 +29,7 @@ func TestManagement_GetNEP17Contracts(t *testing.T) {
 	})
 
 	t.Run("basic chain", func(t *testing.T) {
-		bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-			c.P2PSigExtensions = true // `basicchain.Init` requires Notary enabled
-		})
+		bc, validators, committee := chain.NewMulti(t)
 		e := neotest.NewExecutor(t, bc, validators, committee)
 		basicchain.Init(t, "../../../", e)
 

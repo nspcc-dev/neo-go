@@ -311,7 +311,17 @@ func (s *Module) getLatestSavedBlock(p uint32) uint32 {
 		copy(key[5:], native.MaxTraceableBlocksKey)
 		si, err := s.dao.Store.Get(key)
 		if err != nil {
-			panic(fmt.Errorf("failed to retrieve MaxTraceableBlock storage item from Policy contract storage by key %s at height %d: %w", hex.EncodeToString(key), p, err))
+			if errors.Is(err, storage.ErrKeyNotFound) {
+				// The only situation when it's possible is when state sync was already completed,
+				// DB storage prefix was swapped with temporary storage prefix and old storage items
+				// were already removed during state jump. Hence, we need to use the current DB
+				// prefix to retrieve MaxTraceableBlocks value.
+				key[0] = byte(TemporaryPrefix(storage.KeyPrefix(key[0])))
+				si, err = s.dao.Store.Get(key)
+			}
+			if err != nil {
+				panic(fmt.Errorf("failed to retrieve MaxTraceableBlock storage item from Policy contract storage by key %s at height %d: %w", hex.EncodeToString(key), p, err))
+			}
 		}
 		mtb = uint32(bigint.FromBytes(si).Int64())
 	}

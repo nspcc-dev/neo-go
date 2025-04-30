@@ -122,7 +122,7 @@ const (
 	// not yet deployed to the testing basic chain.
 	invokescriptContractAVM = "VwIADBQBDAMOBQYMDQIODw0DDgcJAAAAAErZMCQE2zBwaEH4J+yMqiYEEUAMFA0PAwIJAAIBAwcDBAUCAQAOBgwJStkwJATbMHFpQfgn7IyqJgQSQBNA"
 	// block20StateRootLE is an LE stateroot of block #20 of basic testing chain.
-	block20StateRootLE = "501589598f1ea6d043070d7bbf77c8a7813a69cc280b1284571a2051fd88ee4f"
+	block20StateRootLE = "c4317d7941e5d4d072bc7e6672c78b9bd7aa217fc19ee779e02968dd43cc9927"
 )
 
 var (
@@ -2625,7 +2625,7 @@ func createValidNotaryRequest(chain *core.Blockchain, sender *keys.PrivateKey, n
 			{Type: transaction.ConflictsT, Value: &transaction.Conflicts{Hash: mainTx.Hash()}},
 			{Type: transaction.NotaryAssistedT, Value: &transaction.NotaryAssisted{NKeys: 0}},
 		},
-		Signers: []transaction.Signer{{Account: chain.GetNotaryContractScriptHash()}, {Account: sender.GetScriptHash()}},
+		Signers: []transaction.Signer{{Account: nativehashes.Notary}, {Account: sender.GetScriptHash()}},
 		Scripts: []transaction.Witness{
 			{InvocationScript: append([]byte{byte(opcode.PUSHDATA1), keys.SignatureLen}, make([]byte, keys.SignatureLen)...), VerificationScript: []byte{}},
 		},
@@ -4184,7 +4184,7 @@ func checkNep17TransfersAux(t *testing.T, e *executor, acc any, sent, rcvd []int
 			{
 				Timestamp:   blockDepositGAS.Timestamp,
 				Asset:       e.chain.UtilityTokenHash(),
-				Address:     address.Uint160ToString(e.chain.GetNotaryContractScriptHash()),
+				Address:     address.Uint160ToString(nativehashes.Notary),
 				Amount:      "1000000000",
 				Index:       8,
 				NotifyIndex: 0,

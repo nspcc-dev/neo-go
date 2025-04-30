@@ -2,7 +2,6 @@ package statesync_test
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/internal/basicchain"
@@ -278,22 +277,12 @@ func TestStateSyncModule_Init(t *testing.T) {
 }
 
 func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
-	check := func(t *testing.T, spoutEnableGC bool, enableEchidna bool) {
+	check := func(t *testing.T, spoutEnableGC bool) {
 		const (
 			stateSyncInterval = 4
 			maxTraceable      = 6
 			stateSyncPoint    = 24
 		)
-		var hfs = map[string]uint32{}
-		if enableEchidna {
-			hfs = map[string]uint32{
-				config.HFAspidochelone.String(): 0,
-				config.HFBasilisk.String():      0,
-				config.HFCockatrice.String():    0,
-				config.HFDomovoi.String():       0,
-				config.HFEchidna.String():       0,
-			}
-		}
 		spoutCfg := func(c *config.Blockchain) {
 			c.Ledger.KeepOnlyLatestState = spoutEnableGC
 			c.Ledger.RemoveUntraceableBlocks = spoutEnableGC
@@ -301,8 +290,13 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			c.P2PStateExchangeExtensions = true
 			c.StateSyncInterval = stateSyncInterval
 			c.MaxTraceableBlocks = maxTraceable
-			c.P2PSigExtensions = true // `basicchain.Init` assumes Notary is enabled.
-			c.Hardforks = hfs
+			c.Hardforks = map[string]uint32{
+				config.HFAspidochelone.String(): 0,
+				config.HFBasilisk.String():      0,
+				config.HFCockatrice.String():    0,
+				config.HFDomovoi.String():       0,
+				config.HFEchidna.String():       0,
+			}
 		}
 		bcSpoutStore := storage.NewMemoryStore()
 		bcSpout, validators, committee := chain.NewMultiWithCustomConfigAndStore(t, spoutCfg, bcSpoutStore, false)
@@ -480,14 +474,10 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		})
 		require.False(t, haveItems)
 	}
-	for _, mtb := range []bool{true, false} {
-		t.Run(fmt.Sprintf("MaxTraceableBlocks in Policy: %t", mtb), func(t *testing.T) {
-			t.Run("source node is archive", func(t *testing.T) {
-				check(t, false, mtb)
-			})
-			t.Run("source node is light with GC", func(t *testing.T) {
-				check(t, true, mtb)
-			})
-		})
-	}
+	t.Run("source node is archive", func(t *testing.T) {
+		check(t, false)
+	})
+	t.Run("source node is light with GC", func(t *testing.T) {
+		check(t, true)
+	})
 }

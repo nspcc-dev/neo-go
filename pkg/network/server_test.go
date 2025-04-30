@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop"
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/network/capability"
@@ -1049,7 +1050,6 @@ func TestMemPool(t *testing.T) {
 func TestVerifyNotaryRequest(t *testing.T) {
 	bc := fakechain.NewFakeChain()
 	bc.MaxVerificationGAS = 10
-	bc.NotaryContractScriptHash = util.Uint160{1, 2, 3}
 	s, err := newServerFromConstructors(ServerConfig{Addresses: []config.AnnounceableAddress{{Address: ":0"}}}, bc, new(fakechain.FakeStateSync), zaptest.NewLogger(t), newFakeTransp, newTestDiscovery)
 	require.NoError(t, err)
 	newNotaryRequest := func() *payload.P2PNotaryRequest {
@@ -1060,7 +1060,7 @@ func TestVerifyNotaryRequest(t *testing.T) {
 			},
 			FallbackTransaction: &transaction.Transaction{
 				ValidUntilBlock: 321,
-				Signers:         []transaction.Signer{{Account: bc.NotaryContractScriptHash}, {Account: random.Uint160()}},
+				Signers:         []transaction.Signer{{Account: nativehashes.Notary}, {Account: random.Uint160()}},
 			},
 			Witness: transaction.Witness{},
 		}
@@ -1081,7 +1081,7 @@ func TestVerifyNotaryRequest(t *testing.T) {
 	t.Run("bad main sender", func(t *testing.T) {
 		bc.VerifyWitnessF = func() (int64, error) { return 0, nil }
 		r := newNotaryRequest()
-		r.MainTransaction.Signers[0] = transaction.Signer{Account: bc.NotaryContractScriptHash}
+		r.MainTransaction.Signers[0] = transaction.Signer{Account: nativehashes.Notary}
 		require.Error(t, s.verifyNotaryRequest(nil, r))
 	})
 

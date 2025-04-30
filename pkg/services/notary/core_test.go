@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/mempool"
+	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -70,9 +71,7 @@ func dupNotaryRequest(t *testing.T, p *payload.P2PNotaryRequest) *payload.P2PNot
 }
 
 func TestNotary(t *testing.T) {
-	bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-		c.P2PSigExtensions = true
-	})
+	bc, validators, committee := chain.NewMulti(t)
 	e := neotest.NewExecutor(t, bc, validators, committee)
 	notaryHash := e.NativeHash(t, nativenames.Notary)
 	designationSuperInvoker := e.NewInvoker(e.NativeHash(t, nativenames.Designation), validators, committee)
@@ -171,7 +170,7 @@ func TestNotary(t *testing.T) {
 		fallback.ValidUntilBlock = bc.BlockHeight() + 2*nvbDiffFallback
 		fallback.Signers = []transaction.Signer{
 			{
-				Account: bc.GetNotaryContractScriptHash(),
+				Account: nativehashes.Notary,
 				Scopes:  transaction.None,
 			},
 			{
@@ -241,7 +240,7 @@ func TestNotary(t *testing.T) {
 			verificationScripts = append(verificationScripts, script)
 		}
 		signers[len(signers)-1] = transaction.Signer{
-			Account: bc.GetNotaryContractScriptHash(),
+			Account: nativehashes.Notary,
 			Scopes:  transaction.None,
 		}
 		mainTx.Signers = signers
@@ -754,9 +753,9 @@ func TestNotary(t *testing.T) {
 	requester1, _ := wallet.NewAccount()
 	requester2, _ := wallet.NewAccount()
 	amount := int64(100_0000_0000)
-	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), bc.GetNotaryContractScriptHash(), amount, []any{requester1.ScriptHash(), int64(bc.BlockHeight() + 50)})
+	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), nativehashes.Notary, amount, []any{requester1.ScriptHash(), int64(bc.BlockHeight() + 50)})
 	e.CheckGASBalance(t, notaryHash, big.NewInt(amount))
-	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), bc.GetNotaryContractScriptHash(), amount, []any{requester2.ScriptHash(), int64(bc.BlockHeight() + 50)})
+	gasValidatorInvoker.Invoke(t, true, "transfer", e.Validator.ScriptHash(), nativehashes.Notary, amount, []any{requester2.ScriptHash(), int64(bc.BlockHeight() + 50)})
 	e.CheckGASBalance(t, notaryHash, big.NewInt(2*amount))
 
 	// create request for 2 standard signatures => main tx should be completed after the second request is added to the pool
@@ -793,7 +792,6 @@ func TestNotary_GenesisRoles(t *testing.T) {
 	acc := w.Accounts[0]
 
 	bc, _, _ := chain.NewMultiWithCustomConfig(t, func(c *config.Blockchain) {
-		c.P2PSigExtensions = true
 		c.Genesis.Roles = map[noderoles.Role]keys.PublicKeys{
 			noderoles.P2PNotary: {acc.PublicKey()},
 		}
