@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/internal/contracts"
 	"github.com/nspcc-dev/neo-go/internal/random"
 	"github.com/nspcc-dev/neo-go/pkg/compiler"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/interop/interopnames"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativenames"
@@ -35,7 +36,15 @@ import (
 )
 
 func newNeoCommitteeClient(t *testing.T, expectedGASBalance int) *neotest.ContractInvoker {
-	bc, validators, committee := chain.NewMulti(t)
+	bc, validators, committee := chain.NewMultiWithCustomConfig(t, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFAspidochelone.String(): 0,
+			config.HFBasilisk.String():      0,
+			config.HFCockatrice.String():    0,
+			config.HFDomovoi.String():       0,
+			config.HFEchidna.String():       0,
+		}
+	})
 	e := neotest.NewExecutor(t, bc, validators, committee)
 
 	if expectedGASBalance > 0 {

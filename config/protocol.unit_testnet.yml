@@ -20,11 +20,11 @@ ProtocolConfiguration:
   VerifyTransactions: true
   P2PSigExtensions: true
   Hardforks:
-    Aspidochelone: 3
-    Basilisk: 6
-    Cockatrice: 9
-    Domovoi: 12
-    Echidna: 13
+    Aspidochelone: 1
+    Basilisk: 2
+    Cockatrice: 3
+    Domovoi: 4
+    Echidna: 5
 
 ApplicationConfiguration:
   SkipBlockVerification: false
