@@ -10,6 +10,7 @@ type P2P struct {
 	// BroadcastFactor is the factor (0-100) controlling gossip fan-out number optimization.
 	BroadcastFactor    int           `yaml:"BroadcastFactor"`
 	DialTimeout        time.Duration `yaml:"DialTimeout"`
+	DisableCompression bool          `yaml:"DisableCompression"`
 	ExtensiblePoolSize int           `yaml:"ExtensiblePoolSize"`
 	MaxPeers           int           `yaml:"MaxPeers"`
 	MinPeers           int           `yaml:"MinPeers"`

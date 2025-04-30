@@ -76,26 +76,28 @@ func (d *testDiscovery) GoodPeers() []AddressWithCapabilities { return []Address
 var defaultMessageHandler = func(t *testing.T, msg *Message) {}
 
 type localPeer struct {
-	netaddr        net.TCPAddr
-	server         *Server
-	version        *payload.Version
-	lastBlockIndex uint32
-	handshaked     int32 // TODO: use atomic.Bool after #2626.
-	isFullNode     bool
-	t              *testing.T
-	messageHandler func(t *testing.T, msg *Message)
-	pingSent       int
-	getAddrSent    int
-	droppedWith    atomic.Value
+	netaddr             net.TCPAddr
+	server              *Server
+	version             *payload.Version
+	lastBlockIndex      uint32
+	handshaked          atomic.Bool
+	isFullNode          bool
+	supportsCompression bool
+	t                   *testing.T
+	messageHandler      func(t *testing.T, msg *Message)
+	pingSent            int
+	getAddrSent         int
+	droppedWith         atomic.Value
 }
 
 func newLocalPeer(t *testing.T, s *Server) *localPeer {
 	naddr, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:0")
 	return &localPeer{
-		t:              t,
-		server:         s,
-		netaddr:        *naddr,
-		messageHandler: defaultMessageHandler,
+		t:                   t,
+		server:              s,
+		netaddr:             *naddr,
+		messageHandler:      defaultMessageHandler,
+		supportsCompression: true,
 	}
 }
 
@@ -170,7 +172,7 @@ func (p *localPeer) SendVersionAck(m *Message) error {
 	return nil
 }
 func (p *localPeer) HandleVersionAck() error {
-	atomic.StoreInt32(&p.handshaked, 1)
+	p.handshaked.Store(true)
 	return nil
 }
 func (p *localPeer) SetPingTimer() {
@@ -188,12 +190,14 @@ func (p *localPeer) HandlePong(pong *payload.Ping) error {
 }
 
 func (p *localPeer) Handshaked() bool {
-	return atomic.LoadInt32(&p.handshaked) != 0
+	return p.handshaked.Load()
 }
 
 func (p *localPeer) IsFullNode() bool {
 	return p.isFullNode
 }
+
+func (p *localPeer) SupportsCompression() bool { return p.supportsCompression }
 
 func (p *localPeer) AddGetAddrSent() {
 	p.getAddrSent++

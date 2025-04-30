@@ -50,10 +50,11 @@ type TCPPeer struct {
 	// pre-handshake non-canonical connection address.
 	addr string
 
-	lock       sync.RWMutex
-	finale     sync.Once
-	handShake  handShakeStage
-	isFullNode bool
+	lock                  sync.RWMutex
+	finale                sync.Once
+	handShake             handShakeStage
+	isFullNode            bool
+	isCompressionDisabled bool
 
 	done     chan struct{}
 	sendQ    chan []byte
@@ -72,14 +73,15 @@ type TCPPeer struct {
 // NewTCPPeer returns a TCPPeer structure based on the given connection.
 func NewTCPPeer(conn net.Conn, addr string, s *Server) *TCPPeer {
 	return &TCPPeer{
-		conn:     conn,
-		server:   s,
-		addr:     addr,
-		done:     make(chan struct{}),
-		sendQ:    make(chan []byte, requestQueueSize),
-		p2pSendQ: make(chan []byte, p2pMsgQueueSize),
-		hpSendQ:  make(chan []byte, hpRequestQueueSize),
-		incoming: make(chan *Message, incomingQueueSize),
+		conn:                  conn,
+		server:                s,
+		addr:                  addr,
+		isCompressionDisabled: true, // disabled until peer capabilities are received
+		done:                  make(chan struct{}),
+		sendQ:                 make(chan []byte, requestQueueSize),
+		p2pSendQ:              make(chan []byte, p2pMsgQueueSize),
+		hpSendQ:               make(chan []byte, hpRequestQueueSize),
+		incoming:              make(chan *Message, incomingQueueSize),
 	}
 }
 
@@ -113,7 +115,7 @@ func (p *TCPPeer) BroadcastHPPacket(ctx context.Context, msg []byte) error {
 // putMsgIntoQueue serializes the given Message and puts it into given queue if
 // the peer has done handshaking.
 func (p *TCPPeer) putMsgIntoQueue(queue chan<- []byte, msg *Message) error {
-	b, err := msg.Bytes()
+	b, err := msg.BytesCompressed(p.SupportsCompression())
 	if err != nil {
 		return err
 	}
@@ -141,7 +143,7 @@ func (p *TCPPeer) EnqueueHPPacket(b []byte) error {
 }
 
 func (p *TCPPeer) writeMsg(msg *Message) error {
-	b, err := msg.Bytes()
+	b, err := msg.BytesCompressed(p.supportsCompression())
 	if err != nil {
 		return err
 	}
@@ -316,6 +318,19 @@ func (p *TCPPeer) IsFullNode() bool {
 	return p.handshaked() && p.isFullNode
 }
 
+// SupportsCompression returns whether the node supports compressed P2P payloads
+// decoding.
+func (p *TCPPeer) SupportsCompression() bool {
+	p.lock.RLock()
+	defer p.lock.RUnlock()
+
+	return p.supportsCompression()
+}
+
+func (p *TCPPeer) supportsCompression() bool {
+	return !p.isCompressionDisabled
+}
+
 // SendVersion checks for the handshake state and sends a message to the peer.
 func (p *TCPPeer) SendVersion() error {
 	msg, err := p.server.getVersionMsg(p.conn.LocalAddr())
@@ -342,11 +357,16 @@ func (p *TCPPeer) HandleVersion(version *payload.Version) error {
 		return errors.New("invalid handshake: already received Version")
 	}
 	p.version = version
+	p.isCompressionDisabled = false
 	for _, cap := range version.Capabilities {
-		if cap.Type == capability.FullNode {
+		switch cap.Type {
+		case capability.FullNode:
 			p.isFullNode = true
 			p.lastBlockIndex = cap.Data.(*capability.Node).StartHeight
-			break
+		case capability.DisableCompressionNode:
+			p.isCompressionDisabled = true
+		default:
+			continue
 		}
 	}
 

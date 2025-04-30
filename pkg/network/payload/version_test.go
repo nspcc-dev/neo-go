@@ -47,6 +47,10 @@ func TestVersionEncodeDecode(t *testing.T) {
 			Type: 0xf0,
 			Data: &capability.Unknown{0x55, 0xaa},
 		},
+		{
+			Type: capability.DisableCompressionNode,
+			Data: &capability.DisableCompression{},
+		},
 	}
 
 	version := NewVersion(magic, id, useragent, capabilities)

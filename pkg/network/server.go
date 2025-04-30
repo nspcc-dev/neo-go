@@ -780,6 +780,12 @@ func (s *Server) getVersionMsg(localAddr net.Addr) (*Message, error) {
 			},
 		})
 	}
+	if s.DisableCompression {
+		capabilities = append(capabilities, capability.Capability{
+			Type: capability.DisableCompressionNode,
+			Data: &capability.DisableCompression{},
+		})
+	}
 	payload := payload.NewVersion(
 		s.Net,
 		s.id,
@@ -1648,19 +1654,30 @@ func (s *Server) iteratePeersWithSendMsg(msg *Message, send func(Peer, context.C
 	if peerN == 0 {
 		return
 	}
-	pkt, err := msg.Bytes()
+	pktCompressed, err := msg.BytesCompressed(true)
 	if err != nil {
 		return
 	}
 
 	var (
 		// Optimal number of recipients.
-		enoughN     = s.discovery.GetFanOut()
-		replies     = make(chan error, peerN) // Cache is there just to make goroutines exit faster.
-		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(s.chain.GetMillisecondsPerBlock())*time.Millisecond/2)
+		enoughN         = s.discovery.GetFanOut()
+		replies         = make(chan error, peerN) // Cache is there just to make goroutines exit faster.
+		ctx, cancel     = context.WithTimeout(context.Background(), time.Duration(s.chain.GetMillisecondsPerBlock())*time.Millisecond/2)
+		pktUncompressed []byte
 	)
 	enoughN = (enoughN*(100-s.BroadcastFactor) + peerN*s.BroadcastFactor) / 100
 	for _, peer := range peers {
+		pkt := pktCompressed
+		if !peer.SupportsCompression() {
+			if len(pktUncompressed) == 0 {
+				pktUncompressed, err = msg.BytesCompressed(false)
+				if err != nil {
+					continue // try our best and send compressed version to those peers that support compression.
+				}
+			}
+			pkt = pktUncompressed
+		}
 		go func(p Peer, ctx context.Context, pkt []byte) {
 			// Do this before packet is sent, reader thread can get the reply before this routine wakes up.
 			if msg.Command == CMDGetAddr {

@@ -8,6 +8,9 @@ const (
 	TCPServer Type = 0x01
 	// WSServer represents WebSocket node capability type.
 	WSServer Type = 0x02
+	// DisableCompressionNode represents node capability that disables P2P
+	// payloads compression.
+	DisableCompressionNode Type = 0x03
 	// FullNode represents a node that has complete current state.
 	FullNode Type = 0x10
 	// ArchivalNode represents a node that stores full block history.
