@@ -20,7 +20,9 @@ type Capabilities []Capability
 // DecodeBinary implements io.Serializable.
 func (cs *Capabilities) DecodeBinary(br *io.BinReader) {
 	br.ReadArray(cs, MaxCapabilities)
-	br.Err = cs.checkUniqueCapabilities()
+	if br.Err == nil {
+		br.Err = cs.checkUniqueCapabilities()
+	}
 }
 
 // EncodeBinary implements io.Serializable.

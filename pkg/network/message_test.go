@@ -3,6 +3,7 @@ package network
 import (
 	"errors"
 	"math/rand/v2"
+	"strings"
 	"testing"
 	"time"
 
@@ -68,6 +69,14 @@ func TestEncodeDecodeVersion(t *testing.T) {
 	require.NoError(t, expected.EncodeCompressed(buf.BinWriter, false))
 	require.True(t, expected.Flags&Compressed == 0)
 	require.NotEqual(t, compressedBytes, buf.Bytes())
+
+	// large UserAgent is not allowed
+	expected.Payload.(*payload.Version).UserAgent = append(largeArray, 1)
+	data, err := testserdes.Encode(expected)
+	require.NoError(t, err)
+	err = testserdes.Decode(data, &Message{})
+	require.Error(t, err)
+	require.True(t, strings.Contains(err.Error(), "byte-slice is too big"), err)
 }
 
 func BenchmarkMessageBytes(b *testing.B) {
