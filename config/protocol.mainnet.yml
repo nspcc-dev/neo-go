@@ -42,6 +42,7 @@ ProtocolConfiguration:
     Basilisk: 4120000
     Cockatrice: 5450000
     Domovoi: 5570000
+    Echidna: 7300000
 
 ApplicationConfiguration:
   SkipBlockVerification: false

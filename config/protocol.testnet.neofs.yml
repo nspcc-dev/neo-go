@@ -33,6 +33,7 @@ ProtocolConfiguration:
     Basilisk: 0
     Cockatrice: 0
     Domovoi: 0
+    Echidna: 0
 
 ApplicationConfiguration:
   SkipBlockVerification: false
