@@ -387,7 +387,7 @@ func TestServerNotSendsVerack(t *testing.T) {
 func (s *Server) testHandleMessage(t *testing.T, p Peer, cmd CommandType, pl payload.Payload) *Server {
 	if p == nil {
 		p = newLocalPeer(t, s)
-		p.(*localPeer).handshaked = 1
+		p.(*localPeer).handshaked.Store(true)
 	}
 	msg := NewMessage(cmd, pl)
 	require.NoError(t, s.handleMessage(p, msg))
@@ -433,7 +433,7 @@ func TestConsensus(t *testing.T) {
 
 	s.chain.(*fakechain.FakeChain).Blockheight.Store(4)
 	p := newLocalPeer(t, s)
-	p.handshaked = 1
+	p.handshaked.Store(true)
 	s.register <- p
 	require.Eventually(t, func() bool { return 1 == s.PeerCount() }, time.Second, time.Millisecond*10)
 
@@ -527,7 +527,7 @@ func (s *Server) testHandleGetData(t *testing.T, invType payload.InventoryType, 
 	var recvNotFound atomic.Bool
 
 	p := newLocalPeer(t, s)
-	p.handshaked = 1
+	p.handshaked.Store(true)
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		switch msg.Command {
 		case CMDTX, CMDBlock, CMDExtensible, CMDP2PNotaryRequest:
@@ -624,7 +624,7 @@ func TestGetBlocks(t *testing.T) {
 	}
 	var actual []util.Uint256
 	p := newLocalPeer(t, s)
-	p.handshaked = 1
+	p.handshaked.Store(true)
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		if msg.Command == CMDInv {
 			actual = msg.Payload.(*payload.Inventory).Hashes
@@ -651,7 +651,7 @@ func TestGetBlockByIndex(t *testing.T) {
 	var expected []*block.Block
 	var actual []*block.Block
 	p := newLocalPeer(t, s)
-	p.handshaked = 1
+	p.handshaked.Store(true)
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		if msg.Command == CMDBlock {
 			actual = append(actual, msg.Payload.(*block.Block))
@@ -689,7 +689,7 @@ func TestGetHeaders(t *testing.T) {
 
 	var actual *payload.Headers
 	p := newLocalPeer(t, s)
-	p.handshaked = 1
+	p.handshaked.Store(true)
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		if msg.Command == CMDHeaders {
 			actual = msg.Payload.(*payload.Headers)
@@ -727,7 +727,7 @@ func TestInv(t *testing.T) {
 
 	var actual []util.Uint256
 	p := newLocalPeer(t, s)
-	p.handshaked = 1
+	p.handshaked.Store(true)
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		if msg.Command == CMDGetData {
 			actual = msg.Payload.(*payload.Inventory).Hashes
@@ -789,7 +789,7 @@ func TestHandleGetMPTData(t *testing.T) {
 	t.Run("P2PStateExchange extensions off", func(t *testing.T) {
 		s := startTestServer(t)
 		p := newLocalPeer(t, s)
-		p.handshaked = 1
+		p.handshaked.Store(true)
 		msg := NewMessage(CMDGetMPTData, &payload.MPTInventory{
 			Hashes: []util.Uint256{{1, 2, 3}},
 		})
@@ -813,7 +813,7 @@ func TestHandleGetMPTData(t *testing.T) {
 			Nodes: [][]byte{node}, // no duplicates expected
 		}
 		p := newLocalPeer(t, s)
-		p.handshaked = 1
+		p.handshaked.Store(true)
 		p.messageHandler = func(t *testing.T, msg *Message) {
 			switch msg.Command {
 			case CMDMPTData:
@@ -847,7 +847,7 @@ func TestHandleMPTData(t *testing.T) {
 	t.Run("P2PStateExchange extensions off", func(t *testing.T) {
 		s := startTestServer(t)
 		p := newLocalPeer(t, s)
-		p.handshaked = 1
+		p.handshaked.Store(true)
 		msg := NewMessage(CMDMPTData, &payload.MPTData{
 			Nodes: [][]byte{{1, 2, 3}},
 		})
@@ -867,7 +867,7 @@ func TestHandleMPTData(t *testing.T) {
 		startWithCleanup(t, s)
 
 		p := newLocalPeer(t, s)
-		p.handshaked = 1
+		p.handshaked.Store(true)
 		msg := NewMessage(CMDMPTData, &payload.MPTData{
 			Nodes: expected,
 		})
@@ -880,7 +880,7 @@ func TestRequestMPTNodes(t *testing.T) {
 
 	var actual []util.Uint256
 	p := newLocalPeer(t, s)
-	p.handshaked = 1
+	p.handshaked.Store(true)
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		if msg.Command == CMDGetMPTData {
 			actual = append(actual, msg.Payload.(*payload.MPTInventory).Hashes...)
@@ -925,7 +925,7 @@ func TestRequestTx(t *testing.T) {
 
 	var actual []util.Uint256
 	p := newLocalPeer(t, s)
-	p.handshaked = 1
+	p.handshaked.Store(true)
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		if msg.Command == CMDGetData {
 			actual = append(actual, msg.Payload.(*payload.Inventory).Hashes...)
@@ -976,7 +976,7 @@ func TestAddrs(t *testing.T) {
 	}
 
 	p := newLocalPeer(t, s)
-	p.handshaked = 1
+	p.handshaked.Store(true)
 	p.getAddrSent = 1
 	pl := &payload.AddressList{
 		Addrs: []*payload.AddressAndTime{
@@ -1027,7 +1027,7 @@ func TestMemPool(t *testing.T) {
 
 	var actual []util.Uint256
 	p := newLocalPeer(t, s)
-	p.handshaked = 1
+	p.handshaked.Store(true)
 	p.messageHandler = func(t *testing.T, msg *Message) {
 		if msg.Command == CMDInv {
 			actual = append(actual, msg.Payload.(*payload.Inventory).Hashes...)
@@ -1117,12 +1117,12 @@ func TestTryInitStateSync(t *testing.T) {
 		s := startTestServer(t)
 		for _, h := range []uint32{10, 8, 7, 4, 11, 4} {
 			p := newLocalPeer(t, s)
-			p.handshaked = 1
+			p.handshaked.Store(true)
 			p.lastBlockIndex = h
 			s.register <- p
 		}
 		p := newLocalPeer(t, s)
-		p.handshaked = 0 // one disconnected peer to check it won't be taken into attention
+		p.handshaked.Store(false) // one disconnected peer to check it won't be taken into attention
 		p.lastBlockIndex = 5
 		s.register <- p
 		require.Eventually(t, func() bool { return 7 == s.PeerCount() }, time.Second, time.Millisecond*10)
