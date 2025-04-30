@@ -210,6 +210,7 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 		}
 	})
 	e := mgmt.Executor
+	mgmt.GenerateNewBlocks(t, echidnaHeight)
 
 	// Check Deploy notifications.
 	aer, err := mgmt.Chain.GetAppExecResults(e.GetBlockByIndex(t, 0).Hash(), trigger.OnPersist)
@@ -251,8 +252,7 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 	}
 	require.Equal(t, expected, aer[0].Events)
 
-	// Generate some blocks and check Update notifications for Cockatrice hardfork.
-	mgmt.GenerateNewBlocks(t, cockatriceHeight-int(mgmt.Chain.BlockHeight()))
+	// Check Update notifications for Cockatrice hardfork.
 	aer, err = mgmt.Chain.GetAppExecResults(mgmt.Chain.GetHeaderHash(cockatriceHeight), trigger.OnPersist)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(aer))
@@ -268,8 +268,14 @@ func TestManagement_NativeDeployUpdateNotifications(t *testing.T) {
 	}
 	require.Equal(t, expected, aer[0].Events)
 
-	// Generate some blocks and check notifications for Echidna hardfork.
-	mgmt.GenerateNewBlocks(t, echidnaHeight-int(mgmt.Chain.BlockHeight()))
+	// Check that there's no native contract updates in Domovoi hardfork.
+	aer, err = mgmt.Chain.GetAppExecResults(mgmt.Chain.GetHeaderHash(domovoiHeight), trigger.OnPersist)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(aer))
+	expected = expected[:0]
+	require.Equal(t, expected, aer[0].Events)
+
+	// Check notifications for Echidna hardfork.
 	aer, err = mgmt.Chain.GetAppExecResults(mgmt.Chain.GetHeaderHash(echidnaHeight), trigger.OnPersist)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(aer))
