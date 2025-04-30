@@ -24,6 +24,8 @@ const (
 	NotaryRequestEventID
 	// HeaderOfAddedBlockEventID is used for the `header_of_added_block` event.
 	HeaderOfAddedBlockEventID
+	// MempoolTransactionEventID is used for the `mempool_transaction` event.
+	MempoolTransactionEventID
 	// MissedEventID notifies user of missed events.
 	MissedEventID EventID = 255
 )
@@ -43,6 +45,8 @@ func (e EventID) String() string {
 		return "notary_request_event"
 	case HeaderOfAddedBlockEventID:
 		return "header_of_added_block"
+	case MempoolTransactionEventID:
+		return "mempool_transaction"
 	case MissedEventID:
 		return "event_missed"
 	default:
@@ -65,6 +69,8 @@ func GetEventIDFromString(s string) (EventID, error) {
 		return NotaryRequestEventID, nil
 	case "header_of_added_block":
 		return HeaderOfAddedBlockEventID, nil
+	case "mempool_transaction":
+		return MempoolTransactionEventID, nil
 	case "event_missed":
 		return MissedEventID, nil
 	default:
