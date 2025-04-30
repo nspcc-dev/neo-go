@@ -2,6 +2,77 @@
 
 This document outlines major changes between releases.
 
+## 0.109.0 "Separation" (01 May 2025)
+
+Long-awaited version that is fully compatible with the C# node 3.8.0. It extends
+and enables Echidna hardfork, introduces a set of RPC extensions and new node
+configuration settings and fixes a couple of critical bugs. 
+
+Node operators should review and update node configuration. For N3 chains Echidna
+hardfork is enabled at block `7300000` of Mainnet and `5870000` block of Testnet;
+NeoFS Mainnet hardforks schedule is changed, see the updated node configuration
+for reference; for NeoFS Testnet Echidna is enabled starting from the genesis
+block. N3 Mainnet/Testnet nodes DB resynchronization is not needed, NeoFS chains
+resynchronization is required.
+
+New features:
+ * block generation time is a part of native Policy contract
+   (`setMillisecondsPerBlock` and `getMillisecondsPerBlock` APIs) starting
+   from Echidna HF (#3835)
+ * `util upload-state` CLI command allowing to upload contract storage items
+   to NeoFS (#3808, #3845)
+ * `verifyWithEd25519` method support in CryptoLib native contract starting
+   from Echidna HF (#3852, #3853)
+ * `MaxWebSocketFeeds` node parameter allowing to configure maximum number
+   of RPC server subscriptions (#3828)
+ * `invokecontainedscript` RPC API allowing to invoke script in a
+   customizable execution environment (#3839)
+ * `LogEncoding` and `LogTimestamp` node parameters allowing to customize logs
+   output format and timestamps (#3846)
+ * `MaxValidUntilBlockIncrement` setting is a part of native Policy contract
+   (`setMaxValidUntilBlockIncrement` and `getMaxValidUntilBlockIncrement` APIs)
+   starting from Echidna HF (#3849)
+ * `MaxTraceableBlocks` setting is a part of native Policy contract
+   (`setMaxTraceableBlocks` and `getMaxTraceableBlocks` APIs) starting from
+   Echidna HF (#3858)
+ * `recoverSecp256K1` method support in CryptoLib native contract starting
+   from Echidna HF (#3863)
+ * `isContract` method support in ContractManagement native contract starting
+   from Echidna HF (#3867)
+ * `DisableCompression` node parameter allowing to disable P2P payloads
+   compression (#3881)
+ * `NotaryAssisted` attribute support is moved from `P2PSignatureExtensions`
+   under Echidna HF (#3854)
+ * Notary native contract activation is moved from `P2PSignatureExtensions`
+   under Echidna HF (#3478)
+ * Echidna HF is stable now (#3851)
+
+Behavior changes:
+ * restricted number of allowed contract notifications starting from Echidna
+   HF (#3640)
+ * NeoFS networks configuration update and forks reschedule (#3833, #3851)
+
+Improvements:
+ * RPC session iterator expansion extension (#3827)
+ * optimize VM script execution in case of disabled coverage (#3855)
+ * replace timers with tickers (#3861)
+ * extend NotaryAssisted attribute verification logic (#3865)
+ * `ErrConnClosedByUser` error designated to distinguish case when connection
+   is closed by RPC client user (#3868)
+ * Go 1.23 upgrade (#3847)
+ * NeoFS SDK Go update to RC13+ (#3847, #3870)
+
+Bugs fixed:
+ * NPE on `getpeers` RPC request serving (#3880)
+ * inability to decode genesis block header fetched from NeoFS (#3819)
+ * insufficient nesting depth restriction of transaction witness condition
+   (#3815)
+ * improper handling of empty filter for `getblocknotifications` RPC API
+   on the RPC client side (#3820)
+ * native contracts can't be initialized from non-genesis block (#3837)
+ * invalid signature of `base64UrlEncode` and `base64UrlDecode` (#3862)
+ * NPE on NeoFS BlockFetcher service shutdown (#3870)
+
 ## 0.108.1 "Revalidation" (13 Feb 2025)
 
 An urgent fix for a very old behavior difference with C# node in Rules witness
