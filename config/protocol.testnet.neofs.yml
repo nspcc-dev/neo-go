@@ -5,6 +5,7 @@ ProtocolConfiguration:
   InitialGASSupply: 52000000
   TimePerBlock: 1s
   Genesis:
+    MaxTraceableBlocks: 17280
     MaxValidUntilBlockIncrement: 8640
     TimePerBlock: 1s
   MemPoolSize: 50000
