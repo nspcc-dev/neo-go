@@ -2704,9 +2704,16 @@ func TestEngineLimits(t *testing.T) {
 
 // TestRuntimeNotifyRefcounting tries to emit more than MaxStackSize notifications.
 func TestRuntimeNotifyRefcounting(t *testing.T) {
-	const eArgsCount = 500
+	const (
+		eArgsCount    = 500
+		echidnaHeight = 6
+	)
 
-	bc, acc := chain.NewSingle(t)
+	bc, acc := chain.NewSingleWithCustomConfig(t, func(cfg *config.Blockchain) {
+		cfg.Hardforks = map[string]uint32{
+			config.HFEchidna.String(): echidnaHeight,
+		}
+	})
 	e := neotest.NewExecutor(t, bc, acc, acc)
 
 	args, _ := strings.CutSuffix(strings.Repeat(`"", `, eArgsCount), `, `)
@@ -2753,7 +2760,7 @@ func TestRuntimeNotifyRefcounting(t *testing.T) {
 	h := cInv.Invoke(t, stackitem.Null{}, "produceNumerousNotifications", 1)
 	cInv.CheckTxNotificationEvent(t, h, 0, expected)
 
-	// ProduceNumerousNotifications: vm.MaxStackSize + 1 iterations.
+	// ProduceNumerousNotifications: vm.MaxStackSize + 1 iterations before Echidna.
 	count := vm.MaxStackSize + 1
 	h = cInv.Invoke(t, stackitem.Null{}, "produceNumerousNotifications", count)
 	aer, err := e.Chain.GetAppExecResults(h, trigger.Application)
@@ -2762,4 +2769,10 @@ func TestRuntimeNotifyRefcounting(t *testing.T) {
 	for i := range count {
 		require.Equal(t, expected, aer[0].Events[i])
 	}
+
+	// ProduceNumerousNotifications: vm.MaxStackSize + 1 iterations after Echidna.
+	for e.Chain.BlockHeight() < echidnaHeight {
+		e.AddNewBlock(t)
+	}
+	cInv.InvokeFail(t, "System.Runtime.Notify failed: notification count shouldn't exceed 512", "produceNumerousNotifications", count)
 }

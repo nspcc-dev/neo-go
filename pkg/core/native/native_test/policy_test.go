@@ -106,12 +106,13 @@ func TestPolicy_MillisecondsPerBlock(t *testing.T) {
 // TestPolicy_Initialize ensures that native Policy storage/cache initialization is
 // performed properly at Echidna fork.
 func TestPolicy_InitializeAtEchidna(t *testing.T) {
-	check := func(t *testing.T, f func(cfg *config.Blockchain), echidnaH int32) {
+	check := func(t *testing.T, f func(cfg *config.Blockchain)) {
 		c := newCustomNativeClient(t, nativenames.Policy, f)
 		committeeInvoker := c.WithSigners(c.Committee)
 		defaultTimePerBlock := uint32(c.Chain.GetConfig().TimePerBlock.Milliseconds())
 		genesisTimePerBlock := uint32(c.Chain.GetConfig().Genesis.TimePerBlock.Milliseconds())
 
+		echidnaH := int(c.Chain.GetConfig().Hardforks[config.HFEchidna.String()])
 		// Pre-Echidna blocks.
 		for range int(echidnaH) - 1 {
 			require.Equal(t, defaultTimePerBlock, c.Chain.GetMillisecondsPerBlock())
@@ -146,7 +147,7 @@ func TestPolicy_InitializeAtEchidna(t *testing.T) {
 		check(t, func(cfg *config.Blockchain) {
 			cfg.Hardforks = nil
 			cfg.Genesis.TimePerBlock = 123 * time.Millisecond
-		}, -1) // Echidna is not a stable fork for now.
+		})
 	})
 	t.Run("all hardforks explicitly enabled from genesis", func(t *testing.T) {
 		check(t, func(cfg *config.Blockchain) {
@@ -158,7 +159,7 @@ func TestPolicy_InitializeAtEchidna(t *testing.T) {
 				config.HFEchidna.String():       0,
 			}
 			cfg.Genesis.TimePerBlock = 123 * time.Millisecond
-		}, 0)
+		})
 	})
 	t.Run("Echidna enabled from 2", func(t *testing.T) {
 		check(t, func(cfg *config.Blockchain) {
@@ -170,7 +171,7 @@ func TestPolicy_InitializeAtEchidna(t *testing.T) {
 				config.HFEchidna.String():       2,
 			}
 			cfg.Genesis.TimePerBlock = 123 * time.Millisecond
-		}, 2)
+		})
 	})
 	t.Run("Domovoi and Echidna enabled from 2", func(t *testing.T) {
 		check(t, func(cfg *config.Blockchain) {
@@ -182,7 +183,7 @@ func TestPolicy_InitializeAtEchidna(t *testing.T) {
 				config.HFEchidna.String():       2,
 			}
 			cfg.Genesis.TimePerBlock = 123 * time.Millisecond
-		}, 2)
+		})
 	})
 	t.Run("Echidna enabled from 4", func(t *testing.T) {
 		check(t, func(cfg *config.Blockchain) {
@@ -194,7 +195,7 @@ func TestPolicy_InitializeAtEchidna(t *testing.T) {
 				config.HFEchidna.String():       4,
 			}
 			cfg.Genesis.TimePerBlock = 123 * time.Millisecond
-		}, 4)
+		})
 	})
 }
 
