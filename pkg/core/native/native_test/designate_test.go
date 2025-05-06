@@ -34,7 +34,7 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	pubs := keys.PublicKeys{priv.PublicKey()}
 
 	setNodesByRole(t, designateInvoker, false, 0xFF, pubs)
-	setNodesByRole(t, designateInvoker, true, noderoles.Oracle, pubs)
+	setNodesByRole(t, designateInvoker, true, noderoles.Oracle, pubs, nil)
 	index := e.Chain.BlockHeight() + 1
 	checkNodeRoles(t, designateInvoker, false, 0xFF, 0, nil)
 	checkNodeRoles(t, designateInvoker, false, noderoles.Oracle, 100500, nil)
@@ -44,14 +44,14 @@ func TestDesignate_DesignateAsRole(t *testing.T) {
 	priv1, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 	pubs = keys.PublicKeys{priv1.PublicKey()}
-	setNodesByRole(t, designateInvoker, true, noderoles.StateValidator, pubs)
+	setNodesByRole(t, designateInvoker, true, noderoles.StateValidator, pubs, nil)
 	checkNodeRoles(t, designateInvoker, true, noderoles.StateValidator, e.Chain.BlockHeight()+1, pubs)
 
 	t.Run("neofs", func(t *testing.T) {
 		priv, err := keys.NewPrivateKey()
 		require.NoError(t, err)
 		pubs = keys.PublicKeys{priv.PublicKey()}
-		setNodesByRole(t, designateInvoker, true, noderoles.NeoFSAlphabet, pubs)
+		setNodesByRole(t, designateInvoker, true, noderoles.NeoFSAlphabet, pubs, nil)
 		checkNodeRoles(t, designateInvoker, true, noderoles.NeoFSAlphabet, e.Chain.BlockHeight()+1, pubs)
 	})
 }
