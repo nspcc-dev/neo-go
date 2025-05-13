@@ -102,6 +102,7 @@ func (l *Ledger) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements the Contract interface.
 func (l *Ledger) PostPersist(ic *interop.Context) error {
+	ic.IsBlockPersisted = true
 	return nil // Actual block/tx processing is done in Blockchain.storeBlock().
 }
 
