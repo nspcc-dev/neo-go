@@ -462,11 +462,13 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 		// during the last epoch block handling or by initialization code).
 
 		var oldCommittee, newCommittee stackitem.Item
-		for i := range cache.committee {
-			if cache.newEpochCommittee[i].Key != cache.committee[i].Key ||
-				(i == 0 && len(cache.newEpochCommittee) != len(cache.committee)) {
-				oldCommittee, newCommittee = cache.committee.toNotificationItem(), cache.newEpochCommittee.toNotificationItem()
-				break
+		if ic.IsHardforkEnabled(config.HFCockatrice) {
+			for i := range cache.committee {
+				if cache.newEpochCommittee[i].Key != cache.committee[i].Key ||
+					(i == 0 && len(cache.newEpochCommittee) != len(cache.committee)) {
+					oldCommittee, newCommittee = cache.committee.toNotificationItem(), cache.newEpochCommittee.toNotificationItem()
+					break
+				}
 			}
 		}
 
