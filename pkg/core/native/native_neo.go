@@ -492,7 +492,7 @@ func (n *NEO) OnPersist(ic *interop.Context) error {
 
 // PostPersist implements the Contract interface.
 func (n *NEO) PostPersist(ic *interop.Context) error {
-	gas := n.GetGASPerBlock(ic.DAO, ic.Block.Index)
+	gas := n.GetGASPerBlock(ic.DAO, ic.BlockHeight()+1)
 	cache := ic.DAO.GetROCache(n.ID).(*NeoCache)
 	pubs := getCommitteeMembers(cache.committee)
 	committeeSize := n.cfg.GetCommitteeSize(ic.Block.Index)
@@ -652,7 +652,7 @@ func (n *NEO) unclaimedGas(ic *interop.Context, args []stackitem.Item) stackitem
 }
 
 func (n *NEO) getGASPerBlock(ic *interop.Context, _ []stackitem.Item) stackitem.Item {
-	gas := n.GetGASPerBlock(ic.DAO, ic.Block.Index)
+	gas := n.GetGASPerBlock(ic.DAO, ic.BlockHeight()+1)
 	return stackitem.NewBigInteger(gas)
 }
 
@@ -785,7 +785,7 @@ func (n *NEO) CalculateBonus(ic *interop.Context, acc util.Uint160, end uint32) 
 	if st.Balance.Sign() == 0 {
 		return big.NewInt(0), nil
 	}
-	if ic.Block == nil || end != ic.Block.Index {
+	if ic.Block == nil || end != ic.BlockHeight()+1 {
 		return nil, errors.New("can't calculate bonus of height unequal (BlockHeight + 1)")
 	}
 	return n.calculateBonus(ic.DAO, st, end)

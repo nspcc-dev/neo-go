@@ -999,3 +999,14 @@ func TestNEO_RegisterViaNEP27(t *testing.T) {
 	var anotherAcc = e.NewAccount(t, 2000_0000_0000)
 	gasValidatorsInvoker.WithSigners(newCand).InvokeFail(t, "not witnessed by the key owner", "transfer", newCand.(neotest.SingleSigner).Account().ScriptHash(), neoHash, registrationPrice, anotherAcc.(neotest.SingleSigner).Account().PublicKey().Bytes())
 }
+
+func TestNeo_GasPerBlockUpdate(t *testing.T) {
+	c := newNeoCommitteeClient(t, 100_0000_0000)
+	c.Invoke(t, stackitem.Null{}, "setGasPerBlock", 0)
+
+	// No GAS should be generated for this block since GasPerBlock changes are
+	// applied starting from the same block, ref. #3889.
+	aer, err := c.Chain.GetAppExecResults(c.TopBlock(t).Hash(), trigger.PostPersist)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(aer[0].Events))
+}

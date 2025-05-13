@@ -50,13 +50,16 @@ type Ledger interface {
 
 // Context represents context in which interops are executed.
 type Context struct {
-	Chain            Ledger
-	Container        hash.Hashable
-	Network          uint32
-	Hardforks        map[string]uint32
-	Natives          []Contract
-	Trigger          trigger.Type
-	Block            *block.Block
+	Chain     Ledger
+	Container hash.Hashable
+	Network   uint32
+	Hardforks map[string]uint32
+	Natives   []Contract
+	Trigger   trigger.Type
+	Block     *block.Block
+	// IsBlockPersisted denotes whether current Block was persisted by native
+	// Ledger contract via PostPersist method.
+	IsBlockPersisted bool
 	NonceData        [ContextNonceDataLen]byte
 	Tx               *transaction.Transaction
 	DAO              *dao.Simple
@@ -523,19 +526,36 @@ func (ic *Context) Exec() error {
 }
 
 // BlockHeight returns the latest persisted and stored block height/index.
-// Persisting block index is not taken into account. If Context's block is set,
-// then BlockHeight calculations relies on persisting block index.
+// The latest persisted block is updated by native Ledger's PostPersist, hence
+// persisting block index is not taken into account until the call to Ledger's
+// PostPersist. If Context's block is set, then BlockHeight calculations rely
+// on index of this block.
 func (ic *Context) BlockHeight() uint32 {
 	if ic.Block != nil {
-		return ic.Block.Index - 1 // Persisting block is not yet stored.
+		if ic.IsBlockPersisted {
+			return ic.Block.Index // Persisting block is already processed by native Ledger.
+		}
+		return ic.Block.Index - 1 // Persisting block is not yet processed.
+	}
+	if ic.IsBlockPersisted {
+		return ic.Chain.BlockHeight() + 1
 	}
 	return ic.Chain.BlockHeight()
+}
+
+// persistingBlockHeight returns the height/index of persisting block irrespectively
+// of native Ledger's PostPersist call.
+func (ic *Context) persistingBlockHeight() uint32 {
+	if ic.Block != nil {
+		return ic.Block.Index
+	}
+	return ic.Chain.BlockHeight() + 1
 }
 
 // CurrentBlockHash returns current block hash got from Context's block if it's set.
 func (ic *Context) CurrentBlockHash() util.Uint256 {
 	if ic.Block != nil {
-		return ic.Chain.GetHeaderHash(ic.Block.Index - 1) // Persisting block is not yet stored.
+		return ic.Chain.GetHeaderHash(ic.BlockHeight())
 	}
 	return ic.Chain.CurrentBlockHash()
 }
@@ -556,7 +576,7 @@ func (ic *Context) GetBlock(hash util.Uint256) (*block.Block, error) {
 func (ic *Context) IsHardforkEnabled(hf config.Hardfork) bool {
 	height, ok := ic.Hardforks[hf.String()]
 	if ok {
-		return (ic.BlockHeight() + 1) >= height // persisting block should be taken into account.
+		return ic.persistingBlockHeight() >= height // persisting block should be taken into account.
 	}
 	// Completely rely on proper hardforks initialisation made by core.NewBlockchain.
 	return false
