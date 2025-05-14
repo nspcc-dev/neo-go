@@ -78,6 +78,9 @@ type WSClient struct {
 	// notifications, if channel is not in the receivers list and corresponding subscription
 	// still exists, notification must not be sent.
 	receivers map[any][]string
+	// subscriptionsOrderLock manages sequential order of "subscribe" and "unsubscribe" WS
+	// requests processing in order to avoid server-side subscription ID conflicts.
+	subscriptionsOrderLock sync.Mutex
 
 	respLock     sync.RWMutex
 	respChannels map[uint64]chan *neorpc.Response
@@ -783,6 +786,10 @@ func (c *WSClient) performSubscription(params []any, rcvr notificationReceiver) 
 			return "", err
 		}
 	}
+
+	// Protect from concurrent subscribe/ubsubscribe requests, ref. #3093.
+	c.subscriptionsOrderLock.Lock()
+	defer c.subscriptionsOrderLock.Unlock()
 	if err := c.performRequest("subscribe", params, &resp); err != nil {
 		return "", err
 	}
@@ -972,8 +979,12 @@ func (c *WSClient) UnsubscribeAll() error {
 // after WS RPC unsubscription request is completed. Until then the subscriber channel
 // may still receive WS notifications.
 func (c *WSClient) performUnsubscription(id string) error {
+	// Protect from concurrent subscribe/ubsubscribe requests, ref. #3093.
+	c.subscriptionsOrderLock.Lock()
+	defer c.subscriptionsOrderLock.Unlock()
+
 	c.subscriptionsLock.RLock()
-	rcvrWas, ok := c.subscriptions[id]
+	rcvr, ok := c.subscriptions[id]
 	c.subscriptionsLock.RUnlock()
 
 	if !ok {
@@ -991,19 +1002,11 @@ func (c *WSClient) performUnsubscription(id string) error {
 	c.subscriptionsLock.Lock()
 	defer c.subscriptionsLock.Unlock()
 
-	rcvr, ok := c.subscriptions[id]
-	if !ok {
-		return errors.New("no subscription with this ID")
-	}
-
-	cleanUpSubscriptions := true
-	if rcvrWas.Receiver() != rcvr.Receiver() {
-		// concurrent subscription has been done and been overwritten; this
-		// is not this routine's subscription, cleanup only receivers map
-		rcvr = rcvrWas
-		cleanUpSubscriptions = false
-	}
-
+	// Rely on fact that rcvr is still in the c.subscriptions map since only
+	// performUnsubscription (protected by subscriptionsOrderLock) is authorized
+	// to remove rcvr from this map, although the rcvr channel itself may be
+	// closed by this moment by notifySubscribers due to channel overflow or
+	// missed event receival.
 	ch := rcvr.Receiver()
 	ids := c.receivers[ch]
 	for i, rcvrID := range ids {
@@ -1017,9 +1020,7 @@ func (c *WSClient) performUnsubscription(id string) error {
 	} else {
 		c.receivers[ch] = ids
 	}
-	if cleanUpSubscriptions {
-		delete(c.subscriptions, id)
-	}
+	delete(c.subscriptions, id)
 	return nil
 }
 
