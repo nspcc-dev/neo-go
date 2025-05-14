@@ -2,6 +2,28 @@
 
 This document outlines major changes between releases.
 
+## 0.109.1 "Transformation" (14 May 2025)
+
+An urgent patch version that fixes state difference at block 5894663 of testnet.
+It also contains a couple of other bug fixes including CommitteeChanged events 
+emission (that affects application execution results compatibility with C# node,
+but likely not critical for anyone).
+
+DB resynchronisation for testnet nodes is required (operators of full node may
+use `neo-go db reset` command to reset the node's state to height 5894662 and
+avoid full chain resynchronisation). Mainnet DB resynchronisation is not
+needed.
+
+Behavior changes:
+ * `subscribe` and `unsubscribe` requests will be served sequentially by web-socket
+   RPC client (#3893)
+
+Bugs fixed:
+ * CommitteeChanged event of native NeoToken is emitted irrespective of
+   Cockatrice fork (#3892)
+ * GasPerBlock update is applied starting from the next block (#3891)
+ * panic in subscriptions module of web-socket RPC client (#3893)
+
 ## 0.109.0 "Separation" (01 May 2025)
 
 Long-awaited version that is fully compatible with the C# node 3.8.0. It extends
