@@ -270,10 +270,10 @@ func searchIndexFile(ctx *cli.Context, p pool.Pool, containerID cid.ID, privKeys
 			go func() {
 				defer wg.Done()
 				for id := range oidCh {
-					var obj object.Object
+					var obj *object.Object
 					errRetr := retry(func() error {
 						var errGet error
-						obj, _, errGet = p.ObjectGetInit(ctx.Context, containerID, id, signer, client.PrmObjectGet{})
+						obj, errGet = p.ObjectHead(ctx.Context, containerID, id, signer, client.PrmObjectHead{})
 						return errGet
 					}, maxRetries, debug)
 					if errRetr != nil {
@@ -410,7 +410,7 @@ func uploadObj(ctx context.Context, p pool.Pool, signer user.Signer, containerID
 	return resOID, nil
 }
 
-func getBlockIndex(header object.Object, attribute string) (int, error) {
+func getBlockIndex(header *object.Object, attribute string) (int, error) {
 	for _, attr := range header.UserAttributes() {
 		if attr.Key() == attribute {
 			value := attr.Value()
