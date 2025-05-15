@@ -392,9 +392,11 @@ func (n *Notary) PostPersist() {
 				if nvb := fb.GetAttributes(transaction.NotValidBeforeT)[0].Value.(*transaction.NotValidBefore).Height; nvb <= currHeight {
 					// Ignore the error, wait for the next block to resend them
 					err := n.finalize(acc, fb, h)
-					n.Config.Log.Error("failed to finalize fallback transaction, waiting for the next block to retry",
-						zap.String("hash", fb.Hash().StringLE()),
-						zap.Error(err))
+					if err != nil {
+						n.Config.Log.Error("failed to finalize fallback transaction, waiting for the next block to retry",
+							zap.String("hash", fb.Hash().StringLE()),
+							zap.Error(err))
+					}
 				}
 			}
 		}
