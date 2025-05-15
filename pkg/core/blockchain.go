@@ -645,11 +645,16 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 	}
 
 	bc.log.Info("jumping to state sync point", zap.Uint32("state sync point", p))
+	start := time.Now()
 
 	jumpStageKey := []byte{byte(storage.SYSStateChangeStage)}
 	switch stage {
 	case none:
 		bc.dao.Store.Put(jumpStageKey, []byte{byte(stateJumpStarted)})
+		_, err := bc.dao.Store.Persist()
+		if err != nil {
+			return fmt.Errorf("failed to persist %d stage of state jump: %w", none, err)
+		}
 		fallthrough
 	case stateJumpStarted:
 		newPrefix := statesync.TemporaryPrefix(bc.dao.Version.StoragePrefix)
@@ -662,6 +667,10 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 		bc.persistent.Version = v
 
 		bc.dao.Store.Put(jumpStageKey, []byte{byte(newStorageItemsAdded)})
+		_, err = bc.dao.Store.Persist()
+		if err != nil {
+			return fmt.Errorf("failed to persist %d stage of state jump: %w", stateJumpStarted, err)
+		}
 
 		fallthrough
 	case newStorageItemsAdded:
@@ -712,6 +721,10 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 		if err != nil {
 			return fmt.Errorf("failed to persist old items removal: %w", err)
 		}
+		_, err = bc.dao.Store.Persist()
+		if err != nil {
+			return fmt.Errorf("failed to persist %d stage of state jump: %w", newStorageItemsAdded, err)
+		}
 	case staleBlocksRemoved:
 		// there's nothing to do after that, so just continue with common operations
 		// and remove state jump stage in the end.
@@ -728,11 +741,20 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 	})
 
 	bc.dao.Store.Delete(jumpStageKey)
+	_, err = bc.dao.Store.Persist()
+	if err != nil {
+		return fmt.Errorf("failed to persist %d stage of state jump: %w", staleBlocksRemoved, err)
+	}
 
 	err = bc.resetRAMState(p, false)
 	if err != nil {
 		return fmt.Errorf("failed to update in-memory blockchain data: %w", err)
 	}
+
+	bc.log.Info("state jump is completed",
+		zap.Uint32("state sync point", p),
+		zap.Duration("took", time.Since(start)),
+	)
 	return nil
 }
 
