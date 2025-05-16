@@ -248,9 +248,7 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	}
 	s.syncHFetcherQueue = bqueue.New[*block.Header](stateSyncHeaderQueueAdapter{s.stateSync}, log, nil, s.NeoFSBlockFetcherCfg.BQueueSize, updateBlockQueueLenMetric, bqueue.Blocking)
 	s.syncHeaderFetcher, err = blockfetcher.New(s.stateSync, s.NeoFSBlockFetcherCfg, log, func(item bqueue.Indexable) error { return s.syncHFetcherQueue.Put(item.(*block.Header)) },
-		func() {
-			s.log.Info("NeoFS HeaderFetcher finished state sync headers downloading")
-		}, blockfetcher.Headers)
+		nil, blockfetcher.Headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Sync NeoFS HeaderFetcher: %w", err)
 	}
@@ -259,10 +257,7 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		return nil, fmt.Errorf("failed to create NeoFS StateFetcher: %w", err)
 	}
 	s.syncBFetcherQueue = bqueue.New[*block.Block](stateSyncBlockQueueAdapter{s.stateSync}, log, nil, s.NeoFSBlockFetcherCfg.BQueueSize, updateBlockQueueLenMetric, bqueue.Blocking)
-	s.syncBlockFetcher, err = blockfetcher.New(s.stateSync, s.NeoFSBlockFetcherCfg, log, func(item bqueue.Indexable) error { return s.syncBFetcherQueue.Put(item.(*block.Block)) },
-		sync.OnceFunc(func() {
-			s.log.Info("NeoFS BlockFetcher finished state sync block downloading")
-		}), blockfetcher.Blocks)
+	s.syncBlockFetcher, err = blockfetcher.New(s.stateSync, s.NeoFSBlockFetcherCfg, log, func(item bqueue.Indexable) error { return s.syncBFetcherQueue.Put(item.(*block.Block)) }, nil, blockfetcher.Blocks)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Sync NeoFS BlockFetcher: %w", err)
 	}

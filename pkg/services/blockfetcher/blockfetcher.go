@@ -1,5 +1,7 @@
 package blockfetcher
 
+//go:generate stringer -type=OperationMode
+
 import (
 	"context"
 	"errors"
@@ -159,7 +161,7 @@ func (bfs *Service) Start() error {
 	if !bfs.isActive.CompareAndSwap(false, true) {
 		return nil
 	}
-	bfs.log.Info("starting NeoFS BlockFetcher service")
+	bfs.log.Info("starting NeoFS BlockFetcher service", zap.String("mode", bfs.operationMode.String()))
 	var (
 		containerID  cid.ID
 		containerObj container.Container
@@ -467,8 +469,7 @@ func (bfs *Service) exiter() {
 	// Closing signal may come from anyone, but only once.
 	force := <-bfs.quit
 	bfs.log.Info("shutting down NeoFS BlockFetcher service",
-		zap.Bool("force", force),
-	)
+		zap.Bool("force", force), zap.String("mode", bfs.operationMode.String()))
 
 	bfs.isActive.CompareAndSwap(true, false)
 	bfs.isShutdown.CompareAndSwap(false, true)
@@ -492,7 +493,9 @@ func (bfs *Service) exiter() {
 	// the server know about it.
 	_ = bfs.Pool.Close()
 	_ = bfs.log.Sync()
-	bfs.shutdownCallback()
+	if bfs.shutdownCallback != nil {
+		bfs.shutdownCallback()
+	}
 
 	// Notify Shutdown routine in case if it's user-triggered shutdown.
 	close(bfs.exiterToShutdown)
