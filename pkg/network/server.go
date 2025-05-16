@@ -415,7 +415,11 @@ func (s *Server) stateSyncCallBack() {
 	if needHeaders {
 		go s.syncHFetcherQueue.Run()
 		if !s.syncHeaderFetcher.IsShutdown() {
-			err := s.syncHeaderFetcher.Start()
+			height, err := s.syncStateFetcher.LatestStateObjectHeight()
+			if err != nil {
+				return
+			}
+			err = s.syncHeaderFetcher.Start(height)
 			if err != nil {
 				s.log.Error("skipping NeoFS Sync HeaderFetcher", zap.Error(err))
 			}
@@ -425,7 +429,11 @@ func (s *Server) stateSyncCallBack() {
 		go s.bSyncQueue.Run()
 		go s.syncBFetcherQueue.Run()
 		if !s.syncBlockFetcher.IsShutdown() {
-			if err := s.syncBlockFetcher.Start(); err != nil {
+			height, err := s.syncStateFetcher.LatestStateObjectHeight()
+			if err != nil {
+				return
+			}
+			if err = s.syncBlockFetcher.Start(height); err != nil {
 				s.log.Error("skipping NeoFS Sync BlockFetcher", zap.Error(err))
 			}
 		}

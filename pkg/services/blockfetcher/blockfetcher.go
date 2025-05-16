@@ -65,6 +65,8 @@ type Service struct {
 	stateRootInHeader bool
 	// headerSizeMap is a map of height to expected header size.
 	headerSizeMap map[int]int
+	// finalHeight is the height where service should be stopped.
+	finalHeight uint32
 
 	chain   Ledger
 	enqueue func(obj bqueue.Indexable) error
@@ -152,7 +154,7 @@ func getHeaderSizeMap(chain config.Blockchain) map[int]int {
 }
 
 // Start runs the NeoFS BlockFetcher service.
-func (bfs *Service) Start() error {
+func (bfs *Service) Start(h ...uint32) error {
 	if bfs.IsShutdown() {
 		return errors.New("service is already shut down")
 	}
@@ -198,6 +200,9 @@ func (bfs *Service) Start() error {
 		bfs.getFunc = bfs.objectGetRange
 		bfs.readFunc = bfs.readHeader
 		bfs.heightFunc = bfs.chain.HeaderHeight
+	}
+	if len(h) > 0 {
+		bfs.finalHeight = h[0]
 	}
 
 	// Start routine that manages Service shutdown process.
@@ -283,7 +288,13 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 	h := bfs.heightFunc()
 	startIndex := h / bfs.cfg.IndexFileSize
 	skip := h % bfs.cfg.IndexFileSize
-
+	var endIndex uint32
+	if bfs.finalHeight > 0 {
+		endIndex = bfs.finalHeight / bfs.cfg.IndexFileSize
+		if bfs.finalHeight%bfs.cfg.IndexFileSize != 0 {
+			endIndex++
+		}
+	}
 	for {
 		select {
 		case <-bfs.exiterToOIDDownloader:
@@ -326,7 +337,9 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 				}
 				return fmt.Errorf("failed to stream block OIDs with index %d: %w", startIndex, err)
 			}
-
+			if endIndex > 0 && startIndex == endIndex {
+				return nil
+			}
 			startIndex++
 			skip = 0
 		}
@@ -351,6 +364,9 @@ func (bfs *Service) streamBlockOIDs(rc io.ReadCloser, startIndex, skip int) erro
 		if oidsProcessed < skip {
 			oidsProcessed++
 			continue
+		}
+		if oidsProcessed+startIndex*int(bfs.cfg.IndexFileSize) >= int(bfs.finalHeight) {
+			return nil
 		}
 
 		var oidBlock oid.ID
@@ -414,6 +430,14 @@ func (bfs *Service) fetchOIDsBySearch() error {
 				case bfs.oidsCh <- indexedOID{Index: index, OID: oid}:
 				}
 				index++ //Won't work properly if neofs.ObjectSearch results are not ordered.
+			}
+			if bfs.finalHeight > 0 {
+				if startIndex == bfs.finalHeight {
+					return nil
+				} else if startIndex+batchSize >= bfs.finalHeight {
+					startIndex += bfs.finalHeight - startIndex + 1
+					continue
+				}
 			}
 			startIndex += batchSize
 		}
