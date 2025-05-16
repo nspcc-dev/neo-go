@@ -356,7 +356,11 @@ func (s *Module) AddHeaders(hdrs ...*block.Header) error {
 
 	hdrsErr := s.bc.AddHeaders(hdrs...)
 	if s.bc.HeaderHeight() > s.syncPoint {
-		err := s.defineSyncStage()
+		_, err := s.dao.PersistSync()
+		if err != nil {
+			return fmt.Errorf("failed to persist last batch of headers: %w", err)
+		}
+		err = s.defineSyncStage()
 		if err != nil {
 			return fmt.Errorf("failed to define current sync stage: %w", err)
 		}
@@ -414,6 +418,10 @@ func (s *Module) AddBlock(block *block.Block) error {
 	}
 	s.blockHeight = block.Index
 	if s.blockHeight == s.syncPoint {
+		_, err := s.dao.Store.PersistSync()
+		if err != nil {
+			return fmt.Errorf("failed to persist last batch of blocks: %w", err)
+		}
 		s.syncStage |= blocksSynced
 		s.log.Info("blocks are in sync",
 			zap.Uint32("blockHeight", s.blockHeight))
@@ -451,6 +459,10 @@ func (s *Module) AddMPTNodes(nodes [][]byte) error {
 		}
 	}
 	if s.mptpool.Count() == 0 {
+		_, err := s.dao.Store.PersistSync()
+		if err != nil {
+			return fmt.Errorf("failed to persist last batch of MPT nodes: %w", err)
+		}
 		s.syncStage |= mptSynced
 		s.log.Info("MPT is in sync",
 			zap.Uint32("height", s.syncPoint))
