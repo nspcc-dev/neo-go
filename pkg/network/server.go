@@ -30,6 +30,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/network/extpool"
 	"github.com/nspcc-dev/neo-go/pkg/network/payload"
 	"github.com/nspcc-dev/neo-go/pkg/services/blockfetcher"
+	"github.com/nspcc-dev/neo-go/pkg/services/statefetcher"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"go.uber.org/zap"
 )
@@ -120,6 +121,7 @@ type (
 		notaryRequestPool *mempool.Pool
 		extensiblePool    *extpool.Pool
 		notaryFeer        NotaryFeer
+		syncStateFetcher  *statefetcher.Service
 		syncHeaderFetcher *blockfetcher.Service
 		syncBlockFetcher  *blockfetcher.Service
 		blockFetcher      *blockfetcher.Service
@@ -252,6 +254,10 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Sync NeoFS HeaderFetcher: %w", err)
 	}
+	s.syncStateFetcher, err = statefetcher.New(s.stateSync, s.NeoFSStateFetcherCfg, chain.GetConfig().StateSyncInterval, log, s.stateSyncCallBack)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create NeoFS StateFetcher: %w", err)
+	}
 	s.syncBFetcherQueue = bqueue.New[*block.Block](stateSyncBlockQueueAdapter{s.stateSync}, log, nil, s.NeoFSBlockFetcherCfg.BQueueSize, updateBlockQueueLenMetric, bqueue.Blocking)
 	s.syncBlockFetcher, err = blockfetcher.New(s.stateSync, s.NeoFSBlockFetcherCfg, log, func(item bqueue.Indexable) error { return s.syncBFetcherQueue.Put(item.(*block.Block)) },
 		sync.OnceFunc(func() {
@@ -345,14 +351,14 @@ func (s *Server) Start() {
 	go s.broadcastTxLoop()
 	go s.relayBlocksLoop()
 	go s.bQueue.Run()
-	go s.bSyncQueue.Run()
-	go s.syncBFetcherQueue.Run()
-	go s.syncHFetcherQueue.Run()
 	go s.bFetcherQueue.Run()
 	if s.ServerConfig.NeoFSBlockFetcherCfg.Enabled && !s.config.NeoFSStateSyncExtensions && !s.config.P2PStateExchangeExtensions {
 		if err := s.blockFetcher.Start(); err != nil {
 			s.log.Error("skipping NeoFS BlockFetcher", zap.Error(err))
 		}
+	}
+	if s.config.NeoFSStateSyncExtensions {
+		s.tryInitStateSync()
 	}
 	for _, tr := range s.transports {
 		go tr.Accept()
@@ -374,6 +380,7 @@ func (s *Server) Shutdown() {
 	s.syncHeaderFetcher.Shutdown()
 	s.syncBlockFetcher.Shutdown()
 	s.blockFetcher.Shutdown()
+	s.syncStateFetcher.Shutdown()
 	for _, tr := range s.transports {
 		tr.Close()
 	}
@@ -403,8 +410,10 @@ func (s *Server) Shutdown() {
 func (s *Server) stateSyncCallBack() {
 	needHeaders := s.stateSync.NeedHeaders()
 	needBlocks := s.stateSync.NeedBlocks()
+	needStorage := s.stateSync.NeedStorageData()
 	isActive := s.stateSync.IsActive()
 	if needHeaders {
+		go s.syncHFetcherQueue.Run()
 		if !s.syncHeaderFetcher.IsShutdown() {
 			err := s.syncHeaderFetcher.Start()
 			if err != nil {
@@ -413,11 +422,24 @@ func (s *Server) stateSyncCallBack() {
 		}
 	}
 	if needBlocks {
+		go s.bSyncQueue.Run()
+		go s.syncBFetcherQueue.Run()
 		s.syncHeaderFetcher.Shutdown()
 		if !s.syncBlockFetcher.IsShutdown() {
 			if err := s.syncBlockFetcher.Start(); err != nil {
 				s.log.Error("skipping NeoFS Sync BlockFetcher", zap.Error(err))
 			}
+		}
+	}
+	if needStorage {
+		if !s.syncStateFetcher.IsShutdown() {
+			if err := s.syncStateFetcher.Start(); err != nil {
+				s.log.Error("skipping NeoFS Sync StateFetcher", zap.Error(err))
+				return
+			}
+		} else if s.stateSync.IsActive() {
+			s.log.Warn("NeoFS Sync StateFetcher is already shutdown, but the state sync is active")
+			s.Shutdown()
 		}
 	}
 	if !needHeaders && !needBlocks {
@@ -893,7 +915,7 @@ func (s *Server) handlePing(p Peer, ping *payload.Ping) error {
 }
 
 func (s *Server) requestBlocksOrHeaders(p Peer) error {
-	if s.syncHeaderFetcher.IsActive() || s.syncBlockFetcher.IsActive() || s.blockFetcher.IsActive() {
+	if s.syncHeaderFetcher.IsActive() || s.syncBlockFetcher.IsActive() || s.blockFetcher.IsActive() || s.syncStateFetcher.IsActive() {
 		return nil
 	}
 	if s.stateSync.NeedHeaders() {
@@ -908,7 +930,7 @@ func (s *Server) requestBlocksOrHeaders(p Peer) error {
 		requestBlocks   = true // request blocks by default, skip iff statesync.Module is active and doesn't need new blocks.
 	)
 	if s.stateSync.IsActive() {
-		requestMPTNodes = s.stateSync.NeedMPTNodes()
+		requestMPTNodes = s.stateSync.NeedStorageData()
 		requestBlocks = s.stateSync.NeedBlocks()
 		if requestBlocks {
 			bq = s.stateSync
@@ -1569,20 +1591,37 @@ func (s *Server) tryInitStateSync() {
 	if s.stateSync.IsInitialized() {
 		return
 	}
-
-	s.lock.RLock()
-	heights := make([]uint32, 0, len(s.peers))
-	for p := range s.peers {
-		if p.Handshaked() {
-			heights = append(heights, p.LastBlockIndex())
+	if !s.ServerConfig.NeoFSStateFetcherCfg.Enabled {
+		s.lock.RLock()
+		heights := make([]uint32, 0, len(s.peers))
+		for p := range s.peers {
+			if p.Handshaked() {
+				heights = append(heights, p.LastBlockIndex())
+			}
 		}
-	}
-	s.lock.RUnlock()
-	slices.Sort(heights)
-	if len(heights) >= s.MinPeers && len(heights) > 0 {
-		// choose the height of the median peer as the current chain's height
-		h := heights[len(heights)/2]
-		err := s.stateSync.Init(h)
+		s.lock.RUnlock()
+		slices.Sort(heights)
+		if len(heights) >= s.MinPeers && len(heights) > 0 {
+			// choose the height of the median peer as the current chain's height
+			h := heights[len(heights)/2]
+			err := s.stateSync.Init(h)
+			if err != nil {
+				s.log.Fatal("failed to init state sync module",
+					zap.Uint32("evaluated chain's blockHeight", h),
+					zap.Uint32("blockHeight", s.chain.BlockHeight()),
+					zap.Uint32("headerHeight", s.chain.HeaderHeight()),
+					zap.Error(err))
+			}
+		}
+	} else {
+		h, err := s.syncStateFetcher.LatestStateObjectHeight()
+		if err != nil {
+			s.log.Fatal("failed to get the last state index",
+				zap.Uint32("blockHeight", s.chain.BlockHeight()),
+				zap.Uint32("headerHeight", s.chain.HeaderHeight()),
+				zap.Error(err))
+		}
+		err = s.stateSync.Init(h)
 		if err != nil {
 			s.log.Fatal("failed to init state sync module",
 				zap.Uint32("evaluated chain's blockHeight", h),
@@ -1590,13 +1629,13 @@ func (s *Server) tryInitStateSync() {
 				zap.Uint32("headerHeight", s.chain.HeaderHeight()),
 				zap.Error(err))
 		}
+	}
 
-		// module can be inactive after init (i.e. full state is collected and ordinary block processing is needed)
-		if !s.stateSync.IsActive() {
-			s.bSyncQueue.Discard()
-			s.syncBFetcherQueue.Discard()
-			s.syncHFetcherQueue.Discard()
-		}
+	// module can be inactive after init (i.e. full state is collected and ordinary block processing is needed)
+	if !s.stateSync.IsActive() {
+		s.bSyncQueue.Discard()
+		s.syncBFetcherQueue.Discard()
+		s.syncHFetcherQueue.Discard()
 	}
 }
 
