@@ -22,7 +22,9 @@ type ApplicationConfiguration struct {
 	Pprof      BasicService `yaml:"Pprof"`
 	Prometheus BasicService `yaml:"Prometheus"`
 
-	Relay             bool                `yaml:"Relay"`
+	Relay             bool `yaml:"Relay"`
+	ArchivalNodesSync bool `yaml:"ArchivalNodesSync"`
+
 	Consensus         Consensus           `yaml:"Consensus"`
 	RPC               RPC                 `yaml:"RPC"`
 	Oracle            OracleConfiguration `yaml:"Oracle"`
