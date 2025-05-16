@@ -54,11 +54,8 @@ func (mp *Pool) GetBatch(limit int) []util.Uint256 {
 	mp.lock.RLock()
 	defer mp.lock.RUnlock()
 
-	count := len(mp.hashes)
-	if count > limit {
-		count = limit
-	}
-	result := make([]util.Uint256, 0, limit)
+	count := min(len(mp.hashes), limit)
+	result := make([]util.Uint256, 0, count)
 	for h := range mp.hashes {
 		if count == 0 {
 			break
