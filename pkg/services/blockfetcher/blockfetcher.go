@@ -161,7 +161,11 @@ func (bfs *Service) Start(h ...uint32) error {
 	if !bfs.isActive.CompareAndSwap(false, true) {
 		return nil
 	}
-	bfs.log.Info("starting NeoFS BlockFetcher service")
+	modeStr := "Blocks"
+	if bfs.operationMode == Headers {
+		modeStr = "Headers"
+	}
+	bfs.log.Info("starting NeoFS BlockFetcher service", zap.String("mode", modeStr))
 	var (
 		containerID  cid.ID
 		containerObj container.Container
@@ -490,9 +494,12 @@ func (bfs *Service) exiter() {
 	}
 	// Closing signal may come from anyone, but only once.
 	force := <-bfs.quit
+	modeStr := "Blocks"
+	if bfs.operationMode == Headers {
+		modeStr = "Headers"
+	}
 	bfs.log.Info("shutting down NeoFS BlockFetcher service",
-		zap.Bool("force", force),
-	)
+		zap.Bool("force", force), zap.String("mode", modeStr))
 
 	bfs.isActive.CompareAndSwap(true, false)
 	bfs.isShutdown.CompareAndSwap(false, true)
