@@ -62,10 +62,7 @@ func (r *incompleteRoot) isSenderNow() bool {
 	if r.root == nil || r.isSent || len(r.svList) == 0 {
 		return false
 	}
-	retries := r.retries
-	if retries < 0 {
-		retries = 0
-	}
+	retries := max(r.retries, 0)
 	ind := (int(r.root.Index) - retries) % len(r.svList)
 	if ind < 0 {
 		ind += len(r.svList)
