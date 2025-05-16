@@ -780,6 +780,13 @@ func (s *Server) getVersionMsg(localAddr net.Addr) (*Message, error) {
 			},
 		})
 	}
+	cfg := s.chain.GetConfig()
+	if !cfg.RemoveUntraceableBlocks && !cfg.RemoveUntraceableHeaders {
+		capabilities = append(capabilities, capability.Capability{
+			Type: capability.ArchivalNode,
+			Data: &capability.Archival{},
+		})
+	}
 	if s.DisableCompression {
 		capabilities = append(capabilities, capability.Capability{
 			Type: capability.DisableCompressionNode,
