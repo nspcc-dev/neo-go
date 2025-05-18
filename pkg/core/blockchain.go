@@ -338,6 +338,9 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		if !(cfg.NeoFSBlockFetcher.Enabled && cfg.NeoFSStateFetcher.Enabled) {
 			return nil, errors.New("NeoFSStateSyncExtensions are enabled, but NeoFSBlockFetcher or NeoFSStateFetcher are off")
 		}
+		if !cfg.Ledger.RemoveUntraceableBlocks {
+			return nil, errors.New("NeoFSStateFetcher cannot be used on archival nodes; set RemoveUntraceableBlocks=true")
+		}
 		if cfg.StateSyncInterval <= 0 {
 			cfg.StateSyncInterval = config.DefaultStateSyncInterval
 			log.Info("StateSyncInterval is not set or wrong, using default value",
