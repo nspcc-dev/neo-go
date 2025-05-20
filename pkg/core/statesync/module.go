@@ -497,12 +497,6 @@ func (s *Module) restoreNode(n mpt.Node) error {
 // If so, then jumping to P state sync point occurs. It is not protected by lock, thus caller
 // should take care of it.
 func (s *Module) checkSyncIsCompleted() {
-	oldStage := s.syncStage
-	defer func() {
-		if s.syncStage != oldStage {
-			s.notifyStageChanged()
-		}
-	}()
 	if s.syncStage != headersSynced|mptSynced|blocksSynced {
 		return
 	}
