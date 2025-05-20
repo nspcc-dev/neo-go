@@ -234,6 +234,7 @@ func (d *DefaultDiscovery) RegisterGood(p AddressablePeer) {
 	d.handshakedAddrs[s] = true
 	d.goodAddrs[s] = p.Version().Capabilities
 	delete(d.badAddrs, s)
+	delete(d.unconnectedAddrs, s)
 	d.lock.Unlock()
 }
 
