@@ -576,6 +576,43 @@ func (dao *Simple) GetStateSyncPoint() (uint32, error) {
 	return binary.LittleEndian.Uint32(b), nil
 }
 
+// StateSyncCheckpoint stores the state of an interrupted contract storage state sync in
+// ContractStorageBased mode.
+type StateSyncCheckpoint struct {
+	// MPTRoot is a computed intermediate MPT root at the StateSyncCheckpoint.
+	MPTRoot util.Uint256
+	// IsMPTSynced indicates whether sync process is completed.
+	IsMPTSynced bool
+	// LastStoredKey is the last processed storage key.
+	LastStoredKey []byte
+}
+
+// EncodeBinary encodes StateSyncCheckpoint to binary format.
+func (s *StateSyncCheckpoint) EncodeBinary(w *io.BinWriter) {
+	w.WriteBytes(s.MPTRoot[:])
+	w.WriteBool(s.IsMPTSynced)
+	w.WriteVarBytes(s.LastStoredKey)
+}
+
+// DecodeBinary decodes StateSyncCheckpoint from binary format.
+func (s *StateSyncCheckpoint) DecodeBinary(br *io.BinReader) {
+	br.ReadBytes(s.MPTRoot[:])
+	s.IsMPTSynced = br.ReadBool()
+	s.LastStoredKey = br.ReadVarBytes()
+}
+
+// GetStateSyncCheckpoint returns the current StateSyncCheckpoint.
+func (dao *Simple) GetStateSyncCheckpoint() (StateSyncCheckpoint, error) {
+	var ckpt StateSyncCheckpoint
+	data, err := dao.Store.Get([]byte{byte(storage.SYSStateSyncCheckpoint)})
+	if err != nil {
+		return ckpt, err
+	}
+	br := io.NewBinReaderFromBuf(data)
+	ckpt.DecodeBinary(br)
+	return ckpt, nil
+}
+
 // GetStateSyncCurrentBlockHeight returns the current block height stored during state
 // synchronization process.
 func (dao *Simple) GetStateSyncCurrentBlockHeight() (uint32, error) {
@@ -677,6 +714,16 @@ func (dao *Simple) PutStateSyncPoint(p uint32) {
 	buf := dao.getDataBuf()
 	buf.WriteU32LE(p)
 	dao.Store.Put(dao.mkKeyPrefix(storage.SYSStateSyncPoint), buf.Bytes())
+}
+
+// PutStateSyncCheckpoint stores the current StateSyncCheckpoint.
+func (dao *Simple) PutStateSyncCheckpoint(checkpoint StateSyncCheckpoint) {
+	buf := dao.getDataBuf()
+	checkpoint.EncodeBinary(buf.BinWriter)
+	if buf.Err != nil {
+		return
+	}
+	dao.Store.Put([]byte{byte(storage.SYSStateSyncCheckpoint)}, buf.Bytes())
 }
 
 // PutStateSyncCurrentBlockHeight stores the current block height during state synchronization process.
