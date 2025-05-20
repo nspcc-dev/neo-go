@@ -66,7 +66,7 @@ func uploadState(ctx *cli.Context) error {
 		return cli.Exit("only full-state node is supported: disable KeepOnlyLatestState and RemoveUntraceableBlocks", 1)
 	}
 	syncInterval := cfg.ProtocolConfiguration.StateSyncInterval
-	if syncInterval == 0 {
+	if syncInterval <= 0 {
 		syncInterval = config.DefaultStateSyncInterval
 	}
 
