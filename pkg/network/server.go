@@ -186,7 +186,7 @@ func NewServer(config ServerConfig, chain Ledger, stSync StateSync, log *zap.Log
 
 func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSync, log *zap.Logger,
 	newTransport func(*Server, string) Transporter,
-	newDiscovery func([]string, time.Duration, Transporter) Discoverer,
+	newDiscovery func([]string, time.Duration, Transporter, *zap.Logger) Discoverer,
 ) (*Server, error) {
 	if log == nil {
 		return nil, errors.New("logger is a required parameter")
@@ -313,6 +313,7 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 		// Here we need to pick up a single transporter, it will be used to
 		// dial, and it doesn't matter which one.
 		s.transports[0],
+		log,
 	)
 
 	return s, nil
@@ -565,6 +566,14 @@ func (s *Server) run() {
 			peerT = peerCheckTime
 		)
 
+		s.log.Info("proto loop",
+			zap.Int("loopCnt", loopCnt),
+			zap.Int("netSize", netSize),
+			zap.Int("optimalN", optimalN),
+			zap.Int("peerN", peerN),
+			zap.Int("minPeers", s.MinPeers),
+			zap.Int("maxPeers", s.MaxPeers),
+			zap.Duration("peerT", peerT))
 		if peerN < s.MinPeers {
 			// Starting up or going below the minimum -> quickly get many new peers.
 			s.discovery.RequestRemote(s.AttemptConnPeers)
@@ -586,6 +595,7 @@ func (s *Server) run() {
 		case <-addrTicker.C:
 			addrCheckTimeout = true
 		case <-peerTimer.C:
+			s.log.Info("reset peer timer", zap.Duration("peerT", peerT))
 			peerTimer.Reset(peerT)
 		case p := <-s.register:
 			s.lock.Lock()
