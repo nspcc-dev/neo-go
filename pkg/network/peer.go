@@ -20,6 +20,11 @@ type AddressablePeer interface {
 	// address from discoverer (if initiated from node) or one from socket
 	// (if connected to node from outside).
 	ConnectionAddr() string
+	// RemoteAddr returns the address of underlying connection which remains
+	// the same throughout the peer's lifetime. It can differ from both
+	// ConnectionAddr (if initiated from node) and PeerAddr (see the PeerAddr
+	// documentation).
+	RemoteAddr() net.Addr
 	// PeerAddr returns the remote address that should be used to establish
 	// a new connection to the node. It can differ from the RemoteAddr
 	// address in case the remote node is a client and its current

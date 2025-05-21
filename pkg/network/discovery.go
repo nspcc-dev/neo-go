@@ -241,14 +241,15 @@ func (d *DefaultDiscovery) RegisterGood(p AddressablePeer) {
 // connected, but it is still considered a good one.
 func (d *DefaultDiscovery) UnregisterConnected(p AddressablePeer, duplicate bool) {
 	var (
-		peeraddr = p.PeerAddr().String()
-		connaddr = p.ConnectionAddr()
+		peeraddr   = p.PeerAddr().String()
+		connaddr   = p.ConnectionAddr()
+		remoteAddr = p.RemoteAddr().String()
 	)
 	d.lock.Lock()
 	delete(d.connectedAddrs, connaddr)
 	if !duplicate {
 		for addr, ip := range d.seeds {
-			if ip == peeraddr {
+			if ip == peeraddr || ip == connaddr || ip == remoteAddr {
 				d.seeds[addr] = ""
 				break
 			}

@@ -41,6 +41,14 @@ func (f *fakeAPeer) PeerAddr() net.Addr {
 	return tcpAddr
 }
 
+func (f *fakeAPeer) RemoteAddr() net.Addr {
+	connAddr, err := net.ResolveTCPAddr("tcp", f.addr)
+	if err != nil {
+		panic(err)
+	}
+	return connAddr
+}
+
 func (f *fakeAPeer) Version() *payload.Version {
 	return f.version
 }
