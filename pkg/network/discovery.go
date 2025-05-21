@@ -287,9 +287,9 @@ func (d *DefaultDiscovery) NetworkSize() int {
 
 // updateNetSize updates network size estimation metric. Must be called under read lock.
 func (d *DefaultDiscovery) updateNetSize() {
-	var netsize = len(d.handshakedAddrs) + len(d.unconnectedAddrs) + 1 // 1 for the node itself.
-	var fanOut = 2.5 * math.Log(float64(netsize-1))                    // -1 for the number of potential peers.
-	if netsize == 2 {                                                  // log(1) == 0.
+	var netsize = max(len(d.seeds) /*can't be less than number of seeds*/, len(d.handshakedAddrs)+len(d.unconnectedAddrs)+1 /* 1 for the node itself*/)
+	var fanOut = 2.5 * math.Log(float64(netsize-1)) // -1 for the number of potential peers.
+	if netsize == 2 {                               // log(1) == 0.
 		fanOut = 1 // But we still want to push messages to the peer.
 	}
 
