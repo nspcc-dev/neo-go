@@ -241,14 +241,15 @@ func (d *DefaultDiscovery) RegisterGood(p AddressablePeer) {
 // connected, but it is still considered a good one.
 func (d *DefaultDiscovery) UnregisterConnected(p AddressablePeer, duplicate bool) {
 	var (
-		peeraddr = p.PeerAddr().String()
-		connaddr = p.ConnectionAddr()
+		peeraddr   = p.PeerAddr().String()
+		connaddr   = p.ConnectionAddr()
+		remoteAddr = p.RemoteAddr().String()
 	)
 	d.lock.Lock()
 	delete(d.connectedAddrs, connaddr)
 	if !duplicate {
 		for addr, ip := range d.seeds {
-			if ip == peeraddr {
+			if ip == peeraddr || ip == connaddr || ip == remoteAddr {
 				d.seeds[addr] = ""
 				break
 			}
@@ -287,11 +288,8 @@ func (d *DefaultDiscovery) NetworkSize() int {
 
 // updateNetSize updates network size estimation metric. Must be called under read lock.
 func (d *DefaultDiscovery) updateNetSize() {
-	var netsize = len(d.handshakedAddrs) + len(d.unconnectedAddrs) + 1 // 1 for the node itself.
-	var fanOut = 2.5 * math.Log(float64(netsize-1))                    // -1 for the number of potential peers.
-	if netsize == 2 {                                                  // log(1) == 0.
-		fanOut = 1 // But we still want to push messages to the peer.
-	}
+	var netsize = max(len(d.seeds) /*can't be less than number of seeds*/, len(d.handshakedAddrs)+len(d.unconnectedAddrs)+1 /* 1 for the node itself*/)
+	var fanOut = max(1 /*we still want to push messages to the peer*/, 2.5*math.Log(float64(netsize-1 /*-1 for the number of potential peers.*/)))
 
 	atomic.StoreInt32(&d.optimalFanOut, int32(fanOut+0.5)) // Truncating conversion, hence +0.5.
 	atomic.StoreInt32(&d.networkSize, int32(netsize))
