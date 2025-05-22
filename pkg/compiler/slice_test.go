@@ -132,6 +132,15 @@ var sliceTestCases = []testCase{
 		[]byte{2, 3},
 	},
 	{
+		"sub-slice of string is supported",
+		`func F%d() bool {
+			a := "oh my god"
+			return a[:2] == "oh"
+		}
+		`,
+		true,
+	},
+	{
 		"declare byte slice",
 		`func F%d() []byte {
 			var a []byte
