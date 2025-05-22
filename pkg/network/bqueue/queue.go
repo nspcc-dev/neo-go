@@ -214,3 +214,8 @@ func (bq *Queue[Q]) Discard() {
 		bq.queueLock.Unlock()
 	}
 }
+
+// Cap returns capacity of the block queue.
+func (bq *Queue[Q]) Cap() int {
+	return bq.cacheSize
+}

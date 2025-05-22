@@ -231,6 +231,12 @@ func testGetBlocksByIndex(t *testing.T, cmd CommandType) {
 				expectsCmd[i] = cmd
 			}
 		}
+		ps[i].version = &payload.Version{Nonce: uint32(i), UserAgent: []byte("fake"), Capabilities: []capability.Capability{
+			{
+				Type: capability.ArchivalNode,
+				Data: &capability.Archival{},
+			},
+		}}
 		expectsCmd[i] = cmd
 		expectedHeight[i] = []uint32{start + 1}
 	}
@@ -281,13 +287,17 @@ func TestSendVersion(t *testing.T) {
 		assert.IsType(t, msg.Payload, &payload.Version{})
 		version := msg.Payload.(*payload.Version)
 		assert.NotZero(t, version.Nonce)
-		assert.Equal(t, 1, len(version.Capabilities))
+		assert.Equal(t, 2, len(version.Capabilities))
 		assert.ElementsMatch(t, []capability.Capability{
 			{
 				Type: capability.TCPServer,
 				Data: &capability.Server{
 					Port: uint16(port),
 				},
+			},
+			{
+				Type: capability.ArchivalNode,
+				Data: &capability.Archival{},
 			},
 		}, version.Capabilities)
 		assert.Equal(t, uint32(0), version.Version)

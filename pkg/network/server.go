@@ -67,6 +67,7 @@ type (
 		GetConfig() config.Blockchain
 		GetHeader(hash util.Uint256) (*block.Header, error)
 		GetHeaderHash(uint32) util.Uint256
+		GetMaxTraceableBlocks() uint32
 		GetMaxVerificationGAS() int64
 		GetMemPool() *mempool.Pool
 		GetMillisecondsPerBlock() uint32
@@ -791,6 +792,13 @@ func (s *Server) getVersionMsg(localAddr net.Addr) (*Message, error) {
 			},
 		})
 	}
+	cfg := s.chain.GetConfig()
+	if !cfg.RemoveUntraceableBlocks && !cfg.RemoveUntraceableHeaders {
+		capabilities = append(capabilities, capability.Capability{
+			Type: capability.ArchivalNode,
+			Data: &capability.Archival{},
+		})
+	}
 	if s.DisableCompression {
 		capabilities = append(capabilities, capability.Capability{
 			Type: capability.DisableCompressionNode,
@@ -925,10 +933,16 @@ func (s *Server) requestBlocksOrHeaders(p Peer) error {
 			bq = s.stateSync
 		}
 	}
-	if bq.BlockHeight() >= p.LastBlockIndex() {
+	peerH := p.LastBlockIndex()
+	bqH := bq.BlockHeight()
+	if bqH >= peerH {
 		return nil
 	}
 	if requestBlocks {
+		if !p.Version().Capabilities.IsArchivalNode() &&
+			s.ArchivalNodesSync && peerH-s.chain.GetMaxTraceableBlocks() > bqH+uint32(s.bQueue.Cap()) {
+			return nil
+		}
 		err := s.requestBlocks(bq, p)
 		if err != nil {
 			return fmt.Errorf("%w: %w", errBlocksRequestFailed, err)

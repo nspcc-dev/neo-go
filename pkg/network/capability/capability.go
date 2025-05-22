@@ -17,6 +17,16 @@ const (
 // Capabilities is a list of Capability.
 type Capabilities []Capability
 
+// IsArchivalNode denotes whether the node has Archival capability.
+func (cs *Capabilities) IsArchivalNode() bool {
+	for _, c := range *cs {
+		if c.Type == ArchivalNode {
+			return true
+		}
+	}
+	return false
+}
+
 // DecodeBinary implements io.Serializable.
 func (cs *Capabilities) DecodeBinary(br *io.BinReader) {
 	br.ReadArray(cs, MaxCapabilities)

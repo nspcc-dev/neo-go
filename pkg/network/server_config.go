@@ -41,6 +41,10 @@ type (
 		// Relay determines whether the server is forwarding its inventory.
 		Relay bool
 
+		// ArchivalNodesSync determines whether the server is asking for old
+		// blocks from archival nodes only (if syncing via P2P).
+		ArchivalNodesSync bool
+
 		// DisableCompression determines whether the server should disable P2P
 		// payloads compression.
 		DisableCompression bool
@@ -98,6 +102,7 @@ func NewServerConfig(cfg config.Config) (ServerConfig, error) {
 		Addresses:            addrs,
 		Net:                  protoConfig.Magic,
 		Relay:                appConfig.Relay,
+		ArchivalNodesSync:    appConfig.ArchivalNodesSync,
 		DisableCompression:   appConfig.P2P.DisableCompression,
 		Seeds:                protoConfig.SeedList,
 		DialTimeout:          appConfig.P2P.DialTimeout,
