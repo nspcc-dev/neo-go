@@ -24,6 +24,7 @@ node-related settings described in the table below.
 | LogPath | `string` | "", so only console logging | File path where to store node logs. |
 | LogTimestamp | `bool` | Defined by TTY probe on stdout channel.  | Defines whether to enable timestamp logging. If not set, then timestamp logging enabled iff the program is running in TTY (but this behaviour may be overriden by `--force-timestamp-logs` CLI flag if specified). Note that this option, if combined with `LogEncoding: "json"`, can't completely disable timestamp logging. |
 | NeoFSBlockFetcher | [NeoFS BlockFetcher Configuration](#NeoFS-BlockFetcher-Configuration) | | NeoFS BlockFetcher module configuration. See the [NeoFS BlockFetcher Configuration](#NeoFS-BlockFetcher-Configuration) section for details. |
+| NeoFSStateFetcher | [NeoFS StateFetcher Configuration](#NeoFS-StateFetcher-Configuration) | | NeoFS StateFetcher module configuration.  It requires both `NeoFSStateSyncExtensions` and `NeoFSBlockFetcher` to be enabled to use `NeoFSStateFetcher` for node synchronisation. See the [NeoFS StateFetcher Configuration](#NeoFS-StateFetcher-Configuration) section for details. |
 | Oracle | [Oracle Configuration](#Oracle-Configuration) | | Oracle module configuration. See the [Oracle Configuration](#Oracle-Configuration) section for details. |
 | P2P | [P2P Configuration](#P2P-Configuration) | | Configuration values for P2P network interaction. See the [P2P Configuration](#P2P-Configuration) section for details. |
 | P2PNotary | [P2P Notary Configuration](#P2P-Notary-Configuration) | | P2P Notary module configuration. See the [P2P Notary Configuration](#P2P-Notary-Configuration) section for details. |
@@ -218,6 +219,51 @@ where:
 - `IndexFileSize` is the number of OID objects stored in the index files. This
   setting depends on the NeoFS block storage configuration and is applicable only if
   `SkipIndexFilesSearch` is set to `false`. It's set to 128000 by default.
+
+### NeoFS StateFetcher Configuration
+
+`NeoFSStateFetcher` configuration section contains settings for NeoFS
+StateFetcher module and has the following structure:
+```
+  NeoFSStateFetcher:
+    Enabled: true
+    UnlockWallet:
+      Path: "./wallet.json"
+      Password: "pass"
+    Addresses:
+      - st1.storage.fs.neo.org:8080
+      - st2.storage.fs.neo.org:8080
+      - st3.storage.fs.neo.org:8080
+      - st4.storage.fs.neo.org:8080
+    Timeout: 10m
+    ContainerID: "7a1cn9LNmAcHjESKWxRGG7RSZ55YHJF6z2xDLTCuTZ6c"
+    StateAttribute: "State"
+    KeyValueBatchSize: 1000
+```
+where:
+- `Enabled` enables NeoFS StateFetcher module.
+- `UnlockWallet` contains wallet settings to retrieve account to sign requests to
+  NeoFS. Without this setting, the module will use randomly generated private key.
+  For configuration details see [Unlock Wallet Configuration](#Unlock-Wallet-Configuration).
+- `Addresses` is a list of NeoFS storage nodes addresses. If not specified, the
+  `Addresses` will be taken from the `NeoFSBlockFetcher` configuration section.
+- `Timeout` is a timeout for a single request to NeoFS storage node (10 minutes by
+  default).
+- `ContainerID` is a container ID to fetch contract storage data from. If not 
+  specified, the container ID will be taken from the `NeoFSBlockFetcher` 
+  configuration section.
+- `StateAttribute` is an attribute name of NeoFS object that contains state
+  data. It's set to `State` by default.
+- `KeyValueBatchSize` is the number of key value pairs to be processed and flushed 
+  to the storage at once. By default, it's set to 1000.
+
+`StateSyncInterval` protocol configuration value specifies the block height interval 
+between consecutive state objects in the NeoFS container. By default, it's set to 
+40000, see the [StateSyncInterval configuration section](#Protocol-Configuration).
+
+If `NeoFSStateFetcher` section is not specified and `NeoFSStateSyncExtensions` is
+`true`, then [NeoFS StateFetcher Configuration](#NeoFS-StateFetcher-Configuration)
+module configuration will be used.
 
 ### Metrics Services Configuration
 
@@ -422,6 +468,7 @@ protocol-related settings described in the table below.
 | P2PNotaryRequestPayloadPoolSize | `int` | `1000` | Size of the node's P2P Notary request payloads memory pool where P2P Notary requests are stored before main or fallback transaction is completed and added to the chain.<br>This option is valid only if `P2PSigExtensions` are enabled. | Not supported by the C# node, thus may affect heterogeneous networks functionality. |
 | P2PSigExtensions | `bool` | `false` | Enables following additional Notary service related logic:<br>• Network payload of the `P2PNotaryRequest` type<br>• Notary node module | Not supported by the C# node, thus may affect heterogeneous networks functionality. |
 | P2PStateExchangeExtensions | `bool` | `false` | Enables the following P2P MPT state data exchange logic: <br>• `StateSyncInterval` protocol setting <br>• P2P commands `GetMPTDataCMD` and `MPTDataCMD` | Not supported by the C# node, thus may affect heterogeneous networks functionality. Can be supported either on MPT-complete node (`KeepOnlyLatestState`=`false`) or on light GC-enabled node (`RemoveUntraceableBlocks=true`) in which case `KeepOnlyLatestState` setting doesn't change the behavior, an appropriate set of MPTs is always stored (see `RemoveUntraceableBlocks`). |
+| NeoFSStateSyncExtensions | `bool` | `false` | Enables light node synchronization based on snapshots stored in NeoFS | Not supported by the C# node, thus may affect heterogeneous networks functionality. Can be supported either on MPT-complete node (`KeepOnlyLatestState`=`false`) or on light GC-enabled node (`RemoveUntraceableBlocks=true`) in which case `KeepOnlyLatestState` setting doesn't change the behavior, an appropriate set of MPTs is always stored (see `RemoveUntraceableBlocks`). If `NeoFSStateSyncExtensions` is enabled, it is required to configure the NeoFSBlockFetcher and NeoFSStateFetcher services, which are responsible for fetching blocks and state data for NeoFS-based synchronization. If `StateRootInHeader` is enabled the container can be fully trusted. |
 | ReservedAttributes | `bool` | `false` | Allows to have reserved attributes range for experimental or private purposes. |
 | SeedList | `[]string` | [] | List of initial nodes addresses used to establish connectivity. |
 | StandbyCommittee | `[]string` | [] | List of public keys of standby committee validators are chosen from. | The list of keys is not required to be sorted, but it must be exactly the same within the configuration files of all the nodes in the network. |

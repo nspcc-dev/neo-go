@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/core/mpt"
 	"github.com/nspcc-dev/neo-go/pkg/core/native"
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
+	"github.com/nspcc-dev/neo-go/pkg/core/storage"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -444,6 +445,11 @@ func (s *FakeStateSync) AddMPTNodes(nodes [][]byte) error {
 	panic("TODO")
 }
 
+// AddContractStorageItems implements the StateSync interface.
+func (s *FakeStateSync) AddContractStorageItems(kv []storage.KeyValue, syncHeight uint32, expectedRoot util.Uint256) error {
+	panic("TODO")
+}
+
 // BlockHeight implements the StateSync interface.
 func (s *FakeStateSync) BlockHeight() uint32 {
 	return 0
@@ -471,8 +477,8 @@ func (s *FakeStateSync) NeedHeaders() bool { return s.RequestHeaders.Load() }
 // NeedBlocks implements the StateSync interface.
 func (s *FakeStateSync) NeedBlocks() bool { return false }
 
-// NeedMPTNodes implements the StateSync interface.
-func (s *FakeStateSync) NeedMPTNodes() bool {
+// NeedStorageData implements the StateSync interface.
+func (s *FakeStateSync) NeedStorageData() bool {
 	panic("TODO")
 }
 
@@ -496,5 +502,10 @@ func (s *FakeStateSync) GetConfig() config.Blockchain {
 
 // SetOnStageChanged implements the StateSync interface.
 func (s *FakeStateSync) SetOnStageChanged(func()) {
+	panic("TODO")
+}
+
+// GetLastStoredKey implements the StateSync interface.
+func (s *FakeStateSync) GetLastStoredKey() []byte {
 	panic("TODO")
 }

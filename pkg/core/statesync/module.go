@@ -3,11 +3,12 @@ Package statesync implements module for the P2P state synchronisation process. T
 module manages state synchronisation for non-archival nodes which are joining the
 network and don't have the ability to resync from the genesis block.
 
-Given the currently available state synchronisation point P, sate sync process
+Given the currently available state synchronisation point P, the state sync process
 includes the following stages:
 
 1. Fetching headers starting from height 0 up to P+1.
-2. Fetching MPT nodes for height P stating from the corresponding state root.
+2. Fetching state data for height P, starting from the corresponding state root.
+It can either be raw contract storage items or MPT nodes depending on the StorageSyncMode.
 3. Fetching blocks starting from height P-MaxTraceableBlocks(P) (or 0) up to P.
 
 All steps are being performed sequentially. Once all the data are collected
@@ -16,6 +17,8 @@ Further node operation process is performed using standard sync mechanism until
 the node reaches synchronised state.
 */
 package statesync
+
+//go:generate stringer -type=StorageSyncMode
 
 import (
 	"encoding/binary"
@@ -63,6 +66,19 @@ const (
 	blocksSynced
 )
 
+// StorageSyncMode is an enum that denotes the operation mode of contract storage
+// synchronisation. It can be either ContractStorageBased or MPTBased.
+type StorageSyncMode byte
+
+const (
+	// MPTBased denotes that the Module recovers contract storage state based on
+	// the MPT state at the state synchronisation point.
+	MPTBased StorageSyncMode = iota
+	// ContractStorageBased denotes that the Module recovers contract storage state
+	// based on the raw contract storage items at the state synchronisation point.
+	ContractStorageBased
+)
+
 // Ledger is the interface required from Blockchain for Module to operate.
 type Ledger interface {
 	AddHeaders(...*block.Header) error
@@ -79,6 +95,7 @@ type Ledger interface {
 type Module struct {
 	lock sync.RWMutex
 	log  *zap.Logger
+	mode StorageSyncMode
 
 	// syncPoint is the state synchronisation point P we're currently working against.
 	syncPoint uint32
@@ -88,13 +105,20 @@ type Module struct {
 	syncInterval uint32
 	// blockHeight is the index of the latest stored block.
 	blockHeight uint32
+	// lastStoredKey is the last processed storage key in case of ContractStorageBased
+	// state synchronisation.
+	lastStoredKey []byte
 
 	dao      *dao.Simple
 	bc       Ledger
 	stateMod *stateroot.Module
 	mptpool  *Pool
 
+	// billet is used for synchronisation of MPT nodes in MPTBased mode.
 	billet *mpt.Billet
+	// localTrie is used for synchronisation of contract storage items in
+	// ContractStorageBased mode.
+	localTrie *mpt.Trie
 
 	jumpCallback func(p uint32) error
 
@@ -113,6 +137,10 @@ func NewModule(bc Ledger, stateMod *stateroot.Module, log *zap.Logger, s *dao.Si
 			syncStage: inactive,
 		}
 	}
+	mode := MPTBased
+	if bc.GetConfig().NeoFSStateSyncExtensions {
+		mode = ContractStorageBased
+	}
 	return &Module{
 		dao:          s,
 		bc:           bc,
@@ -122,6 +150,7 @@ func NewModule(bc Ledger, stateMod *stateroot.Module, log *zap.Logger, s *dao.Si
 		mptpool:      NewPool(),
 		syncStage:    none,
 		jumpCallback: jumpCallback,
+		mode:         mode,
 	}
 }
 
@@ -147,17 +176,17 @@ func (s *Module) Init(currChainHeight uint32) error {
 		s.syncStage = inactive
 		return nil
 	}
+	if s.bc.BlockHeight() > p-2*s.syncInterval {
+		// chain has already been synchronised up to old state sync point and regular blocks processing was started.
+		// Current block height is enough to start regular blocks processing.
+		s.syncStage = inactive
+		return nil
+	}
 	pOld, err := s.dao.GetStateSyncPoint()
 	if err == nil && pOld >= p-s.syncInterval {
 		// old point is still valid, so try to resync states for this point.
 		p = pOld
 	} else {
-		if s.bc.BlockHeight() > p-2*s.syncInterval {
-			// chain has already been synchronised up to old state sync point and regular blocks processing was started.
-			// Current block height is enough to start regular blocks processing.
-			s.syncStage = inactive
-			return nil
-		}
 		if err == nil {
 			// pOld was found, it is outdated, and chain wasn't completely synchronised for pOld. Need to drop the db.
 			return fmt.Errorf("state sync point %d is found in the storage, "+
@@ -185,8 +214,8 @@ func (s *Module) Init(currChainHeight uint32) error {
 	s.syncStage = initialized
 	s.log.Info("try to sync state for the latest state synchronisation point",
 		zap.Uint32("point", p),
-		zap.Uint32("evaluated chain's blockHeight", currChainHeight))
-
+		zap.Uint32("evaluated chain's blockHeight", currChainHeight),
+		zap.String("mode", s.mode.String()))
 	return s.defineSyncStage()
 }
 
@@ -235,42 +264,63 @@ func (s *Module) defineSyncStage() error {
 			return fmt.Errorf("failed to get header to initialize MPT billet: %w", err)
 		}
 		var mode mpt.TrieMode
-		// No need to enable GC here, it only has latest things.
+		// No need to enable GC here, it only has the latest things.
 		if s.bc.GetConfig().Ledger.KeepOnlyLatestState || s.bc.GetConfig().Ledger.RemoveUntraceableBlocks {
 			mode |= mpt.ModeLatest
 		}
-		s.billet = mpt.NewBillet(header.PrevStateRoot, mode,
-			TemporaryPrefix(s.dao.Version.StoragePrefix), s.dao.Store)
-		s.log.Info("MPT billet initialized",
-			zap.Uint32("height", s.syncPoint),
-			zap.String("state root", header.PrevStateRoot.StringBE()))
-		pool := NewPool()
-		pool.Add(header.PrevStateRoot, []byte{})
-		err = s.billet.Traverse(func(_ []byte, n mpt.Node, _ []byte) bool {
-			nPaths, ok := pool.TryGet(n.Hash())
-			if !ok {
-				// if this situation occurs, then it's a bug in MPT pool or Traverse.
-				panic("failed to get MPT node from the pool")
+		if s.mode == MPTBased {
+			s.billet = mpt.NewBillet(header.PrevStateRoot, mode,
+				TemporaryPrefix(s.dao.Version.StoragePrefix), s.dao.Store)
+			s.log.Info("MPT billet initialized",
+				zap.Uint32("height", s.syncPoint),
+				zap.String("state root", header.PrevStateRoot.StringBE()))
+			pool := NewPool()
+			pool.Add(header.PrevStateRoot, []byte{})
+			err = s.billet.Traverse(func(_ []byte, n mpt.Node, _ []byte) bool {
+				nPaths, ok := pool.TryGet(n.Hash())
+				if !ok {
+					// if this situation occurs, then it's a bug in MPT pool or Traverse.
+					panic("failed to get MPT node from the pool")
+				}
+				pool.Remove(n.Hash())
+				childrenPaths := make(map[util.Uint256][][]byte)
+				for _, path := range nPaths {
+					nChildrenPaths := mpt.GetChildrenPaths(path, n)
+					for hash, paths := range nChildrenPaths {
+						childrenPaths[hash] = append(childrenPaths[hash], paths...)
+					}
+				}
+				pool.Update(nil, childrenPaths)
+				return false
+			}, true)
+			if err != nil {
+				return fmt.Errorf("failed to traverse MPT during initialization: %w", err)
 			}
-			pool.Remove(n.Hash())
-			childrenPaths := make(map[util.Uint256][][]byte)
-			for _, path := range nPaths {
-				nChildrenPaths := mpt.GetChildrenPaths(path, n)
-				for hash, paths := range nChildrenPaths {
-					childrenPaths[hash] = append(childrenPaths[hash], paths...) // it's OK to have duplicates, they'll be handled by mempool
+			s.mptpool.Update(nil, pool.GetAll())
+			if s.mptpool.Count() == 0 {
+				s.syncStage |= mptSynced
+				s.log.Info("MPT is in sync",
+					zap.Uint32("stateroot height", s.syncPoint))
+			}
+		} else {
+			ckpt, err := s.dao.GetStateSyncCheckpoint()
+			if err != nil {
+				if errors.Is(err, storage.ErrKeyNotFound) {
+					s.localTrie = mpt.NewTrie(nil, mode, s.dao.Store)
+				} else {
+					return fmt.Errorf("failed to load checkpoint: %w", err)
+				}
+			} else {
+				s.localTrie = mpt.NewTrie(mpt.NewHashNode(ckpt.MPTRoot), mode, s.dao.Store)
+				s.lastStoredKey = ckpt.LastStoredKey
+
+				if ckpt.IsMPTSynced {
+					s.syncStage |= mptSynced
+					s.log.Info("MPT and contract storage are in sync",
+						zap.Uint32("stateroot height", s.syncPoint),
+						zap.String("root", ckpt.MPTRoot.StringLE()))
 				}
 			}
-			pool.Update(nil, childrenPaths)
-			return false
-		}, true)
-		if err != nil {
-			return fmt.Errorf("failed to traverse MPT during initialization: %w", err)
-		}
-		s.mptpool.Update(nil, pool.GetAll())
-		if s.mptpool.Count() == 0 {
-			s.syncStage |= mptSynced
-			s.log.Info("MPT is in sync",
-				zap.Uint32("stateroot height", s.syncPoint))
 		}
 	}
 
@@ -433,6 +483,9 @@ func (s *Module) AddBlock(block *block.Block) error {
 // AddMPTNodes tries to add provided set of MPT nodes to the MPT billet if they are
 // not yet collected.
 func (s *Module) AddMPTNodes(nodes [][]byte) error {
+	if s.mode == ContractStorageBased {
+		panic("MPT nodes are not expected in storage-based sync mode")
+	}
 	oldStage := s.syncStage
 	s.lock.Lock()
 	defer func() {
@@ -468,6 +521,75 @@ func (s *Module) AddMPTNodes(nodes [][]byte) error {
 			zap.Uint32("height", s.syncPoint))
 		s.blockHeight = s.getLatestSavedBlock(s.syncPoint)
 	}
+	return nil
+}
+
+// AddContractStorageItems adds a batch of key-value pairs for storage-based sync.
+func (s *Module) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint32, expectedRoot util.Uint256) error {
+	if s.mode == MPTBased {
+		panic("contract storage items are not expected in MPT-based mode")
+	}
+	oldStage := s.syncStage
+	s.lock.Lock()
+	defer func() {
+		if s.syncStage != oldStage {
+			s.notifyStageChanged()
+		}
+	}()
+	defer s.lock.Unlock()
+
+	if s.syncStage&headersSynced == 0 || s.syncStage&mptSynced != 0 || expectedRoot.Equals(s.localTrie.StateRoot()) {
+		return errors.New("contract storage items were not requested")
+	}
+	if syncHeight != s.syncPoint {
+		return fmt.Errorf("invalid sync height: expected %d, got %d", s.syncPoint, syncHeight)
+	}
+	if len(kvs) == 0 {
+		return fmt.Errorf("key-value pairs are empty")
+	}
+
+	var (
+		prefix = TemporaryPrefix(s.dao.Version.StoragePrefix)
+		batch  = make(map[string][]byte, len(kvs))
+	)
+	for _, kv := range kvs {
+		batch[string(append([]byte{byte(prefix)}, kv.Key...))] = kv.Value
+	}
+	_ = s.dao.Store.PutChangeSet(nil, batch)
+	mptBatch := mpt.MapToMPTBatch(batch)
+	if _, err := s.localTrie.PutBatch(mptBatch); err != nil {
+		return fmt.Errorf("failed to apply MPT batch at height %d: %w", syncHeight, err)
+	}
+	s.localTrie.Flush(syncHeight)
+	s.lastStoredKey = kvs[len(kvs)-1].Key
+	computedRoot := s.localTrie.StateRoot()
+	ckpt := dao.StateSyncCheckpoint{
+		MPTRoot:       s.localTrie.StateRoot(),
+		LastStoredKey: kvs[len(kvs)-1].Key,
+		IsMPTSynced:   computedRoot.Equals(expectedRoot),
+	}
+	s.dao.PutStateSyncCheckpoint(ckpt)
+	if _, err := s.dao.Store.PersistSync(); err != nil {
+		return fmt.Errorf("failed to persist checkpoint metadata: %w", err)
+	}
+	if !computedRoot.Equals(expectedRoot) {
+		return nil
+	}
+
+	if s.bc.GetConfig().StateRootInHeader {
+		header, err := s.bc.GetHeader(s.bc.GetHeaderHash(s.syncPoint + 1))
+		if err != nil {
+			return fmt.Errorf("failed to get header to check state root: %w", err)
+		}
+		if !header.PrevStateRoot.Equals(expectedRoot) {
+			return fmt.Errorf("state root mismatch: %s != %s", header.PrevStateRoot.StringLE(), expectedRoot.StringLE())
+		}
+	}
+	s.syncStage |= mptSynced
+	s.log.Info("MPT and contract storage are in sync",
+		zap.Uint32("stateroot height", s.syncPoint),
+		zap.String("root", computedRoot.StringLE()))
+	s.checkSyncIsCompleted()
 	return nil
 }
 
@@ -509,12 +631,6 @@ func (s *Module) restoreNode(n mpt.Node) error {
 // If so, then jumping to P state sync point occurs. It is not protected by lock, thus caller
 // should take care of it.
 func (s *Module) checkSyncIsCompleted() {
-	oldStage := s.syncStage
-	defer func() {
-		if s.syncStage != oldStage {
-			s.notifyStageChanged()
-		}
-	}()
 	if s.syncStage != headersSynced|mptSynced|blocksSynced {
 		return
 	}
@@ -530,6 +646,7 @@ func (s *Module) checkSyncIsCompleted() {
 
 func (s *Module) dispose() {
 	s.billet = nil
+	s.localTrie = nil
 }
 
 // BlockHeight returns index of the last stored block. It's a no-op to call this method until MPT is in sync
@@ -544,6 +661,15 @@ func (s *Module) BlockHeight() uint32 {
 	}
 
 	return s.blockHeight
+}
+
+// GetLastStoredKey returns the last processed storage key
+// iff operating in ContractStorageBased mode.
+func (s *Module) GetLastStoredKey() []byte {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.lastStoredKey
 }
 
 // IsActive tells whether state sync module is on and still gathering state
@@ -572,8 +698,9 @@ func (s *Module) NeedHeaders() bool {
 	return s.syncStage == initialized
 }
 
-// NeedMPTNodes returns whether the module hasn't completed MPT synchronisation.
-func (s *Module) NeedMPTNodes() bool {
+// NeedStorageData returns whether the module hasn't completed contract
+// storage state synchronization.
+func (s *Module) NeedStorageData() bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
