@@ -375,7 +375,6 @@ func (bfs *Service) streamBlockOIDs(rc io.ReadCloser, startIndex, skip int) erro
 // fetchOIDsBySearch fetches block OIDs from NeoFS by searching through the Block objects.
 func (bfs *Service) fetchOIDsBySearch() error {
 	startIndex := bfs.heightFunc()
-	//We need to search with EQ filter to avoid partially-completed SEARCH responses.
 	batchSize := uint32(neofs.DefaultSearchBatchSize)
 
 	for {
