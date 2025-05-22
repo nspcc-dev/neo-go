@@ -291,14 +291,12 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 		case <-bfs.exiterToOIDDownloader:
 			return nil
 		default:
-			prm := client.PrmObjectSearch{}
 			filters := object.NewSearchFilters()
 			filters.AddFilter(bfs.cfg.IndexFileAttribute, fmt.Sprintf("%d", startIndex), object.MatchStringEqual)
 			filters.AddFilter("IndexSize", fmt.Sprintf("%d", bfs.cfg.IndexFileSize), object.MatchStringEqual)
-			prm.SetFilters(filters)
 
 			ctx, cancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
-			blockOidsObject, err := bfs.objectSearch(ctx, prm)
+			blockOidsObject, err := bfs.objectSearch(ctx, filters, []string{bfs.cfg.IndexFileAttribute})
 			cancel()
 			if err != nil {
 				if isContextCanceledErr(err) {
@@ -313,7 +311,7 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 
 			blockCtx, blockCancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
 			defer blockCancel()
-			oidsRC, err := bfs.objectGet(blockCtx, blockOidsObject[0].String(), -1)
+			oidsRC, err := bfs.objectGet(blockCtx, blockOidsObject[0].ID.String(), -1)
 			if err != nil {
 				if isContextCanceledErr(err) {
 					return nil
@@ -377,7 +375,6 @@ func (bfs *Service) streamBlockOIDs(rc io.ReadCloser, startIndex, skip int) erro
 // fetchOIDsBySearch fetches block OIDs from NeoFS by searching through the Block objects.
 func (bfs *Service) fetchOIDsBySearch() error {
 	startIndex := bfs.heightFunc()
-	//We need to search with EQ filter to avoid partially-completed SEARCH responses.
 	batchSize := uint32(neofs.DefaultSearchBatchSize)
 
 	for {
@@ -385,7 +382,6 @@ func (bfs *Service) fetchOIDsBySearch() error {
 		case <-bfs.exiterToOIDDownloader:
 			return nil
 		default:
-			prm := client.PrmObjectSearch{}
 			filters := object.NewSearchFilters()
 			if startIndex == startIndex+batchSize-1 {
 				filters.AddFilter(bfs.cfg.BlockAttribute, fmt.Sprintf("%d", startIndex), object.MatchStringEqual)
@@ -393,9 +389,8 @@ func (bfs *Service) fetchOIDsBySearch() error {
 				filters.AddFilter(bfs.cfg.BlockAttribute, fmt.Sprintf("%d", startIndex), object.MatchNumGE)
 				filters.AddFilter(bfs.cfg.BlockAttribute, fmt.Sprintf("%d", startIndex+batchSize-1), object.MatchNumLE)
 			}
-			prm.SetFilters(filters)
 			ctx, cancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
-			blockOids, err := bfs.objectSearch(ctx, prm)
+			blockObjs, err := bfs.objectSearch(ctx, filters, []string{bfs.cfg.BlockAttribute})
 			cancel()
 			if err != nil {
 				if isContextCanceledErr(err) {
@@ -404,18 +399,21 @@ func (bfs *Service) fetchOIDsBySearch() error {
 				return err
 			}
 
-			if len(blockOids) == 0 {
+			if len(blockObjs) == 0 {
 				bfs.log.Info(fmt.Sprintf("NeoFS BlockFetcher service: no block found with index %d, stopping", startIndex))
 				return nil
 			}
-			index := int(startIndex)
-			for _, oid := range blockOids {
+			var index int
+			for _, obj := range blockObjs {
+				index, err = strconv.Atoi(obj.Attributes[0])
+				if err != nil {
+					return fmt.Errorf("failed to parse block index: %w", err)
+				}
 				select {
 				case <-bfs.exiterToOIDDownloader:
 					return nil
-				case bfs.oidsCh <- indexedOID{Index: index, OID: oid}:
+				case bfs.oidsCh <- indexedOID{Index: index, OID: obj.ID}:
 				}
-				index++ //Won't work properly if neofs.ObjectSearch results are not ordered.
 			}
 			startIndex += batchSize
 		}
@@ -549,16 +547,16 @@ func (bfs *Service) objectGetRange(ctx context.Context, oid string, height int) 
 	return rc, err
 }
 
-func (bfs *Service) objectSearch(ctx context.Context, prm client.PrmObjectSearch) ([]oid.ID, error) {
+func (bfs *Service) objectSearch(ctx context.Context, filters object.SearchFilters, attrs []string) ([]client.SearchResultItem, error) {
 	var (
-		oids []oid.ID
-		err  error
+		items []client.SearchResultItem
+		err   error
 	)
 	err = bfs.Retry(func() error {
-		oids, err = neofs.ObjectSearch(ctx, bfs.Pool, bfs.Account.PrivateKey(), bfs.cfg.ContainerID, prm)
+		items, err = neofs.ObjectSearch(ctx, bfs.Pool, bfs.Account.PrivateKey(), bfs.cfg.ContainerID, filters, attrs)
 		return err
 	})
-	return oids, err
+	return items, err
 }
 
 // isContextCanceledErr returns whether error is a wrapped [context.Canceled].

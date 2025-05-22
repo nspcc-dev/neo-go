@@ -126,6 +126,7 @@ func New(chain Ledger, cfg config.NeoFSStateFetcher, stateSyncInterval int, logg
 	return s, nil
 }
 
+// LatestStateObjectHeight returns the height of the most recent state object found in the container.
 func (s *Service) LatestStateObjectHeight(h ...uint32) (uint32, error) {
 	s.lock.RLock()
 	if s.lastStateObjectIndex != 0 {
@@ -135,56 +136,48 @@ func (s *Service) LatestStateObjectHeight(h ...uint32) (uint32, error) {
 	}
 	s.lock.RUnlock()
 	var (
-		lastFoundIdx uint32
-		lastFoundOID oid.ID
+		height       uint32
+		items        []client.SearchResultItem
+		lastFoundIdx int
+		err          error
 	)
 
-searchLoop:
-	for height := s.stateSyncInterval; ; height += s.stateSyncInterval {
-		select {
-		case <-s.Ctx.Done():
-			return 0, s.Ctx.Err()
-		default:
-		}
-		if len(h) > 0 {
-			height = h[0]
-		}
-		prm := client.PrmObjectSearch{}
-		filters := object.NewSearchFilters()
-		filters.AddFilter(s.cfg.StateAttribute, fmt.Sprintf("%d", height), object.MatchStringEqual)
-		prm.SetFilters(filters)
-
-		ctx, cancel := context.WithTimeout(s.Ctx, s.cfg.Timeout)
-		var (
-			oids []oid.ID
-			err  error
-		)
-		err = s.Retry(func() error {
-			oids, err = neofs.ObjectSearch(ctx, s.Pool, s.Account.PrivateKey(), s.cfg.ContainerID, prm)
-			return err
-		})
-		cancel()
-		if err != nil {
-			s.isActive.CompareAndSwap(true, false)
-			return 0, fmt.Errorf("failed to search state object at height %d: %w", height, err)
-		}
-
-		if len(oids) == 0 {
-			break searchLoop
-		}
-		lastFoundIdx = height
-		lastFoundOID = oids[0]
+	if len(h) > 0 {
+		height = h[0]
 	}
-	if lastFoundIdx == 0 || lastFoundOID.IsZero() {
+	filters := object.NewSearchFilters()
+	filters.AddFilter(s.cfg.StateAttribute, fmt.Sprintf("%d", height), object.MatchNumGE)
+	ctx, cancel := context.WithTimeout(s.Ctx, s.cfg.Timeout)
+
+	err = s.Retry(func() error {
+		items, err = neofs.ObjectSearch(ctx, s.Pool, s.Account.PrivateKey(), s.cfg.ContainerID, filters, []string{s.cfg.StateAttribute})
+		return err
+	})
+	cancel()
+	if err != nil {
+		s.isActive.CompareAndSwap(true, false)
+		return 0, fmt.Errorf("failed to search state object at height %d: %w", height, err)
+	}
+
+	if len(items) == 0 {
+		s.isActive.CompareAndSwap(true, false)
+		return 0, fmt.Errorf("no state object found at height %d", height)
+	}
+	lastFoundIdx, err = strconv.Atoi(items[len(items)-1].Attributes[0])
+	if err != nil {
+		s.isActive.CompareAndSwap(true, false)
+		return 0, fmt.Errorf("failed to parse state object index: %w", err)
+	}
+	if lastFoundIdx == 0 || items[len(items)-1].ID.IsZero() {
 		s.isActive.CompareAndSwap(true, false)
 		return 0, fmt.Errorf("no state object found")
 	}
 	s.lock.Lock()
-	s.lastStateObjectIndex = lastFoundIdx
-	s.lastStateOID = lastFoundOID
+	s.lastStateObjectIndex = uint32(lastFoundIdx)
+	s.lastStateOID = items[len(items)-1].ID
 	s.lock.Unlock()
 
-	return lastFoundIdx, nil
+	return s.lastStateObjectIndex, nil
 }
 
 // Start begins state fetching.
