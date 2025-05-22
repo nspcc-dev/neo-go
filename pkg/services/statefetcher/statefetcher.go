@@ -117,6 +117,7 @@ func New(chain Ledger, cfg config.NeoFSStateFetcher, stateSyncInterval int, logg
 	return s, nil
 }
 
+// LatestStateObjectHeight returns the height of the most recent state object found in the container.
 func (s *Service) LatestStateObjectHeight(h ...uint32) (uint32, error) {
 	s.lock.RLock()
 	if s.lastStateObjectIndex != 0 {
