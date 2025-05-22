@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -44,7 +45,7 @@ var (
 
 // Client is a NeoFS client interface.
 type Client interface {
-	ObjectSearchInit(ctx context.Context, containerID cid.ID, s user.Signer, prm client.PrmObjectSearch) (*client.ObjectListReader, error)
+	SearchObjects(ctx context.Context, cnr cid.ID, filters object.SearchFilters, attrs []string, cursor string, signer neofscrypto.Signer, opts client.SearchObjectsOptions) ([]client.SearchResultItem, string, error)
 	ObjectGetInit(ctx context.Context, container cid.ID, id oid.ID, s user.Signer, get client.PrmObjectGet) (object.Object, *client.PayloadReader, error)
 	ObjectRangeInit(ctx context.Context, container cid.ID, id oid.ID, offset uint64, length uint64, s user.Signer, objectRange client.PrmObjectRange) (*client.ObjectRangeReader, error)
 	ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHead) (*object.Object, error)
@@ -244,31 +245,34 @@ func parseRange(s string) (*object.Range, error) {
 	return r, nil
 }
 
-// ObjectSearch returns a list of object IDs from the provided container.
-func ObjectSearch(ctx context.Context, c Client, priv *keys.PrivateKey, containerIDStr string, prm client.PrmObjectSearch) ([]oid.ID, error) {
+// ObjectSearch returns a list of object IDs with attributes from the provided container.
+func ObjectSearch(ctx context.Context, c Client, priv *keys.PrivateKey, containerIDStr string, filters object.SearchFilters, attrs []string) ([]client.SearchResultItem, error) {
 	var (
 		s           = user.NewAutoIDSignerRFC6979(priv.PrivateKey)
-		objectIDs   []oid.ID
 		containerID cid.ID
+		allResults  []client.SearchResultItem
+		cursor      string
 	)
-	err := containerID.DecodeString(containerIDStr)
-	if err != nil {
+
+	if err := containerID.DecodeString(containerIDStr); err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalidContainer, err)
 	}
-	reader, err := c.ObjectSearchInit(ctx, containerID, s, prm)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initiate object search: %w", err)
-	}
-	defer reader.Close()
 
-	err = reader.Iterate(func(oid oid.ID) bool {
-		objectIDs = append(objectIDs, oid)
-		return false
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error during object IDs iteration: %w", err)
+	opts := client.SearchObjectsOptions{}
+	opts.SetCount(1000)
+
+	for {
+		results, nextCursor, err := c.SearchObjects(ctx, containerID, filters, attrs, cursor, s, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to search objects: %w", err)
+		}
+		allResults = append(allResults, results...)
+		if nextCursor == "" {
+			break
+		}
+		cursor = nextCursor
 	}
-	return objectIDs, nil
+	return allResults, nil
 }
 
 // GetClient returns a NeoFS client configured with the specified address and context.
