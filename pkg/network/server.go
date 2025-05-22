@@ -870,7 +870,6 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 	if s.Net != version.Magic {
 		return errInvalidNetwork
 	}
-	peerAddr := p.PeerAddr().String()
 	s.lock.RLock()
 	for peer := range s.peers {
 		if p == peer {
@@ -878,7 +877,7 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 		}
 		ver := peer.Version()
 		// Already connected, drop this connection.
-		if ver != nil && ver.Nonce == version.Nonce && peer.PeerAddr().String() == peerAddr {
+		if ver != nil && ver.Nonce == version.Nonce {
 			s.lock.RUnlock()
 			return errAlreadyConnected
 		}
