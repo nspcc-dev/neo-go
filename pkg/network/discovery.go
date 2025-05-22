@@ -229,12 +229,17 @@ func (d *DefaultDiscovery) GoodPeers() []AddressWithCapabilities {
 // RegisterGood registers a known good connected peer that has passed
 // handshake successfully.
 func (d *DefaultDiscovery) RegisterGood(p AddressablePeer) {
-	var s = p.PeerAddr().String()
+	var (
+		s        = p.PeerAddr().String()
+		connAddr = p.ConnectionAddr()
+	)
 	d.lock.Lock()
 	d.handshakedAddrs[s] = true
 	d.goodAddrs[s] = p.Version().Capabilities
 	delete(d.badAddrs, s)
 	delete(d.unconnectedAddrs, s)
+	delete(d.badAddrs, connAddr)
+	delete(d.unconnectedAddrs, connAddr)
 	d.lock.Unlock()
 }
 
