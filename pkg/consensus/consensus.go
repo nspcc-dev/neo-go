@@ -171,7 +171,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithLogger[util.Uint256](srv.log),
 		dbft.WithTimePerBlock[util.Uint256](srv.timePerBlock),
 		dbft.WithGetKeyPair[util.Uint256](srv.getKeyPair),
-		dbft.WithRequestTx[util.Uint256](cfg.RequestTx),
+		dbft.WithRequestTx[util.Uint256](srv.withRequestTx),
 		dbft.WithStopTxFlow[util.Uint256](cfg.StopTxFlow),
 		dbft.WithGetTx[util.Uint256](srv.getTx),
 		dbft.WithGetVerified[util.Uint256](srv.getVerifiedTx),
@@ -202,6 +202,17 @@ func NewService(cfg Config) (Service, error) {
 	}
 
 	return srv, nil
+}
+
+func (s *service) withRequestTx(h ...util.Uint256) {
+	m := len(h)
+	n := len(s.dbft.Context.Transactions)
+	s.log.Info("requesting tx",
+		zap.Uint32("height", s.dbft.Context.BlockIndex),
+		zap.Int("requested", m),
+		zap.Int("proposed", n),
+		zap.Float32("m/n", float32(m)/float32(n)))
+	s.Config.RequestTx(h...)
 }
 
 var (

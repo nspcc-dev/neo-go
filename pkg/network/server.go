@@ -1836,7 +1836,7 @@ func (s *Server) initStaleMemPools() {
 // transactions hashes in an INV payload.
 func (s *Server) broadcastTxLoop() {
 	const (
-		batchTime = time.Millisecond * 50
+		batchTime = time.Millisecond
 		batchSize = 42
 	)
 
