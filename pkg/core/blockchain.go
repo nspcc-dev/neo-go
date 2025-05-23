@@ -1728,6 +1728,7 @@ func (bc *Blockchain) GetStateSyncModule() *statesync.Module {
 // transactions with all appropriate side-effects and updates Blockchain state.
 // This is the only way to change Blockchain state.
 func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error {
+	start := time.Now()
 	var (
 		cache          = bc.dao.GetPrivate()
 		aerCache       = bc.dao.GetPrivate()
@@ -1950,12 +1951,14 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 	bc.lock.Unlock()
 
 	updateBlockHeightMetric(block.Index)
+	bc.log.Info("processed block", zap.Duration("took", time.Since(start)))
 	// Genesis block is stored when Blockchain is not yet running, so there
 	// is no one to read this event. And it doesn't make much sense as event
 	// anyway.
 	if block.Index != 0 {
 		bc.events <- bcEvent{block, appExecResults}
 	}
+	bc.log.Info("block notification sent", zap.Duration("took", time.Since(start)))
 	return nil
 }
 
