@@ -433,7 +433,7 @@ func TestSubsliceCompound(t *testing.T) {
 		b := a[1:3]
 		return b
 	}`
-	_, err := compiler.Compile("", strings.NewReader(src))
+	_, err := compiler.Compile("foo.go", strings.NewReader(src))
 	require.Error(t, err)
 }
 
@@ -470,7 +470,7 @@ func TestRemove(t *testing.T) {
 			util.Remove(a, 1)
 			return len(a)
 		}`
-		_, err := compiler.Compile("", strings.NewReader(src))
+		_, err := compiler.Compile("foo.go", strings.NewReader(src))
 		require.Error(t, err)
 	})
 }
