@@ -434,7 +434,7 @@ func TestSubsliceCompound(t *testing.T) {
 		return b
 	}`
 	_, err := compiler.Compile("foo.go", strings.NewReader(src))
-	require.Error(t, err)
+	require.ErrorContains(t, err, "subslices are supported only for []byte and string")
 }
 
 func TestSubsliceFromStructField(t *testing.T) {
