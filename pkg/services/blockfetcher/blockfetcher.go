@@ -239,27 +239,36 @@ func (bfs *Service) blockDownloader() {
 	defer bfs.wg.Done()
 
 	for indexedOid := range bfs.oidsCh {
-		index := indexedOid.Index
-		blkOid := indexedOid.OID
-		ctx, cancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
-		defer cancel()
+		var (
+			blkOid = indexedOid.OID
+			index  = indexedOid.Index
+			obj    any
+		)
+		err := bfs.Retry(func() error {
+			ctx, cancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
+			defer cancel()
 
-		rc, err := bfs.getFunc(ctx, blkOid.String(), int(index))
+			rc, err := bfs.getFunc(ctx, blkOid.String(), int(index))
+			if err != nil {
+				if neofs.IsContextCanceledErr(err) {
+					return nil
+				}
+				return err
+			}
+			obj, err = bfs.readFunc(rc)
+			if err != nil {
+				if neofs.IsContextCanceledErr(err) {
+					return nil
+				}
+				return err
+			}
+			return nil
+		})
 		if err != nil {
 			if neofs.IsContextCanceledErr(err) {
 				return
 			}
 			bfs.log.Error("failed to get object", zap.String("oid", blkOid.String()), zap.Error(err))
-			bfs.stopService(true)
-			return
-		}
-
-		obj, err := bfs.readFunc(rc)
-		if err != nil {
-			if neofs.IsContextCanceledErr(err) {
-				return
-			}
-			bfs.log.Error("failed to decode object from stream", zap.String("oid", blkOid.String()), zap.Error(err))
 			bfs.stopService(true)
 			return
 		}
