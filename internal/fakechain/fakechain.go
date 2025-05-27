@@ -505,6 +505,11 @@ func (s *FakeStateSync) SetOnStageChanged(func()) {
 	panic("TODO")
 }
 
+// GetStateSyncPoint implements the StateSync interface.
+func (s *FakeStateSync) GetStateSyncPoint() uint32 {
+	panic("TODO")
+}
+
 // GetLastStoredKey implements the StateSync interface.
 func (s *FakeStateSync) GetLastStoredKey() []byte {
 	panic("TODO")

@@ -21,6 +21,7 @@ type StateSync interface {
 	NeedHeaders() bool
 	NeedBlocks() bool
 	NeedStorageData() bool
+	GetStateSyncPoint() uint32
 	SetOnStageChanged(func())
 	Traverse(root util.Uint256, process func(node mpt.Node, nodeBytes []byte) bool) error
 }
