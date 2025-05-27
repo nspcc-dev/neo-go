@@ -338,9 +338,9 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 			}
 
 			blockCtx, blockCancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
-			defer blockCancel()
 			oidsRC, err := bfs.objectGet(blockCtx, obj.ID.String(), -1)
 			if err != nil {
+				blockCancel()
 				if neofs.IsContextCanceledErr(err) {
 					return nil
 				}
@@ -348,6 +348,7 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 			}
 
 			err = bfs.streamBlockOIDs(oidsRC, int(startIndex), int(skip))
+			blockCancel()
 			if err != nil {
 				if neofs.IsContextCanceledErr(err) {
 					return nil
