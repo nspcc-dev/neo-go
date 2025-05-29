@@ -730,7 +730,7 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.SliceExpr:
 		if isCompoundSlice(c.typeOf(n.X).Underlying()) {
-			c.prog.Err = errors.New("subslices are supported only for []byte")
+			c.prog.Err = errors.New("subslices are supported only for []byte and string")
 			return nil
 		}
 
@@ -749,6 +749,9 @@ func (c *codegen) Visit(node ast.Node) ast.Visitor {
 		}
 
 		emit.Opcodes(c.prog.BinWriter, opcode.OVER, opcode.SUB, opcode.SUBSTR)
+		if isString(c.typeOf(n.X)) {
+			c.emitConvert(stackitem.ByteArrayT)
+		}
 
 		return nil
 

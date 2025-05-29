@@ -132,6 +132,15 @@ var sliceTestCases = []testCase{
 		[]byte{2, 3},
 	},
 	{
+		"sub-slice of string is supported",
+		`func F%d() bool {
+			a := "oh my god"
+			return a[:2] == "oh"
+		}
+		`,
+		true,
+	},
+	{
 		"declare byte slice",
 		`func F%d() []byte {
 			var a []byte
@@ -424,8 +433,8 @@ func TestSubsliceCompound(t *testing.T) {
 		b := a[1:3]
 		return b
 	}`
-	_, err := compiler.Compile("", strings.NewReader(src))
-	require.Error(t, err)
+	_, err := compiler.Compile("foo.go", strings.NewReader(src))
+	require.ErrorContains(t, err, "subslices are supported only for []byte and string")
 }
 
 func TestSubsliceFromStructField(t *testing.T) {
@@ -461,7 +470,7 @@ func TestRemove(t *testing.T) {
 			util.Remove(a, 1)
 			return len(a)
 		}`
-		_, err := compiler.Compile("", strings.NewReader(src))
+		_, err := compiler.Compile("foo.go", strings.NewReader(src))
 		require.Error(t, err)
 	})
 }
