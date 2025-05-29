@@ -10,14 +10,11 @@ import (
 	"github.com/nspcc-dev/neo-go/cli/server"
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	gio "github.com/nspcc-dev/neo-go/pkg/io"
+	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
-	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/pool"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 )
@@ -75,28 +72,56 @@ func uploadState(ctx *cli.Context) error {
 		return cli.Exit(err, 1)
 	}
 
-	stateObjCount, err := searchStateIndex(ctx, p, containerID, acc.PrivateKey(), attr, syncInterval, maxRetries, debug)
-	if err != nil {
-		return cli.Exit(fmt.Sprintf("failed searching existing states: %v", err), 1)
+	filters := object.NewSearchFilters()
+	filters.AddFilter(attr, "0", object.MatchNumGE)
+	results, errs := neofs.ObjectSearch(ctx.Context, p, acc.PrivateKey(), containerID, filters, []string{attr})
+
+	var lastItem *client.SearchResultItem
+
+loop:
+	for {
+		select {
+		case item, ok := <-results:
+			if !ok {
+				break loop
+			}
+			lastItem = &item
+
+		case err = <-errs:
+			if err != nil {
+				return cli.Exit(fmt.Sprintf("failed searching existing states: %v", err), 1)
+			}
+			break loop
+		}
 	}
+
+	stateObjIndex := 0
+	if lastItem != nil {
+		height, err := strconv.ParseUint(lastItem.Attributes[0], 10, 32)
+		if err != nil {
+			return cli.Exit(fmt.Sprintf("failed to parse state object height: %v", err), 1)
+		}
+		stateObjIndex = int(height) / syncInterval
+	}
+
 	stateModule := chain.GetStateModule()
 	currentHeight := int(stateModule.CurrentLocalHeight())
 	currentStateIndex := currentHeight / syncInterval
-	if currentStateIndex <= stateObjCount {
+	if currentStateIndex <= stateObjIndex {
 		log.Info("no new states to upload",
-			zap.Int("number of uploaded state objects", stateObjCount),
-			zap.Int("latest state is uploaded for block", (stateObjCount-1)*syncInterval),
+			zap.Int("number of uploaded state objects", stateObjIndex),
+			zap.Int("latest state is uploaded for block", (stateObjIndex-1)*syncInterval),
 			zap.Int("current height", currentHeight),
 			zap.Int("StateSyncInterval", syncInterval))
 		return nil
 	}
 	log.Info("starting uploading",
-		zap.Int("number of uploaded state objects", stateObjCount),
-		zap.Int("next state to upload for block", stateObjCount*syncInterval),
+		zap.Int("number of uploaded state objects", stateObjIndex),
+		zap.Int("next state to upload for block", stateObjIndex*syncInterval),
 		zap.Int("current height", currentHeight),
 		zap.Int("StateSyncInterval", syncInterval),
-		zap.Int("number of states to upload", currentStateIndex-stateObjCount))
-	for state := stateObjCount + 1; state <= currentStateIndex; state++ {
+		zap.Int("number of states to upload", currentStateIndex-stateObjIndex))
+	for state := stateObjIndex + 1; state <= currentStateIndex; state++ {
 		height := uint32(state * syncInterval)
 		stateRoot, err := stateModule.GetStateRoot(height)
 		if err != nil {
@@ -154,41 +179,6 @@ func uploadState(ctx *cli.Context) error {
 		}
 	}
 	return nil
-}
-
-func searchStateIndex(ctx *cli.Context, p *pool.Pool, containerID cid.ID, privKeys *keys.PrivateKey,
-	attributeKey string, syncInterval int, maxRetries uint, debug bool,
-) (int, error) {
-	var (
-		doneCh   = make(chan struct{})
-		errCh    = make(chan error)
-		objCount = 0
-	)
-
-	go func() {
-		defer close(doneCh)
-		for i := 0; ; i++ {
-			indexIDs := searchObjects(ctx.Context, p, containerID, privKeys,
-				attributeKey, uint(i*syncInterval), uint(i*syncInterval)+1, 1, maxRetries, debug, errCh)
-			resOIDs := make([]oid.ID, 0, 1)
-			for id := range indexIDs {
-				resOIDs = append(resOIDs, id)
-			}
-			if len(resOIDs) == 0 {
-				break
-			}
-			if len(resOIDs) > 1 {
-				fmt.Fprintf(ctx.App.Writer, "WARN: %d duplicated state objects with %s: %d found: %s\n", len(resOIDs), attributeKey, i, resOIDs)
-			}
-			objCount++
-		}
-	}()
-	select {
-	case err := <-errCh:
-		return objCount, err
-	case <-doneCh:
-		return objCount, nil
-	}
 }
 
 func traverseMPT(root util.Uint256, stateModule core.StateRoot, writer *gio.BinWriter) error {

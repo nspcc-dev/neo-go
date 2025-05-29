@@ -3,10 +3,12 @@ package neofs
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/pool"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -64,17 +66,19 @@ const (
 
 // BasicService is a minimal service structure for NeoFS fetchers.
 type BasicService struct {
-	Pool      *pool.Pool
-	Account   *wallet.Account
-	Ctx       context.Context
-	CtxCancel context.CancelFunc
+	Pool        *pool.Pool
+	Account     *wallet.Account
+	ContainerID cid.ID
+	Ctx         context.Context
+	CtxCancel   context.CancelFunc
 }
 
 // NewBasicService creates a new BasicService instance.
 func NewBasicService(cfg config.NeoFSService) (BasicService, error) {
 	var (
-		account *wallet.Account
-		err     error
+		account     *wallet.Account
+		containerID cid.ID
+		err         error
 	)
 	if cfg.UnlockWallet.Path != "" {
 		walletFromFile, err := wallet.NewWalletFromFile(cfg.UnlockWallet.Path)
@@ -104,9 +108,15 @@ func NewBasicService(cfg config.NeoFSService) (BasicService, error) {
 	if err != nil {
 		return BasicService{}, err
 	}
+
+	err = containerID.DecodeString(cfg.ContainerID)
+	if err != nil {
+		return BasicService{}, errors.New("failed to decode container ID: " + err.Error())
+	}
 	return BasicService{
-		Account: account,
-		Pool:    p,
+		Account:     account,
+		ContainerID: containerID,
+		Pool:        p,
 	}, nil
 }
 
@@ -138,4 +148,11 @@ func (sfs *BasicService) Retry(action func() error) error {
 		}
 	}
 	return err
+}
+
+// IsContextCanceledErr returns whether error is a wrapped [context.Canceled].
+// Ref. https://github.com/nspcc-dev/neofs-sdk-go/issues/624.
+func IsContextCanceledErr(err error) bool {
+	return errors.Is(err, context.Canceled) ||
+		strings.Contains(err.Error(), "context canceled")
 }

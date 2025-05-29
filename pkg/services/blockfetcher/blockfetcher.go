@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/url"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
-	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"go.uber.org/zap"
@@ -163,7 +161,6 @@ func (bfs *Service) Start() error {
 	}
 	bfs.log.Info("starting NeoFS BlockFetcher service", zap.String("mode", bfs.operationMode.String()))
 	var (
-		containerID  cid.ID
 		containerObj container.Container
 		err          error
 	)
@@ -173,14 +170,8 @@ func (bfs *Service) Start() error {
 		return fmt.Errorf("failed to dial NeoFS pool: %w", err)
 	}
 
-	err = containerID.DecodeString(bfs.cfg.ContainerID)
-	if err != nil {
-		bfs.isActive.CompareAndSwap(true, false)
-		return fmt.Errorf("failed to decode container ID: %w", err)
-	}
-
 	err = bfs.Retry(func() error {
-		containerObj, err = bfs.Pool.ContainerGet(bfs.Ctx, containerID, client.PrmContainerGet{})
+		containerObj, err = bfs.Pool.ContainerGet(bfs.Ctx, bfs.ContainerID, client.PrmContainerGet{})
 		return err
 	})
 	if err != nil {
@@ -228,7 +219,7 @@ func (bfs *Service) oidDownloader() {
 	}
 	var force bool
 	if err != nil {
-		if !isContextCanceledErr(err) {
+		if !neofs.IsContextCanceledErr(err) {
 			bfs.log.Error("NeoFS BlockFetcher service: OID downloading routine failed", zap.Error(err))
 		}
 		force = true
@@ -249,7 +240,7 @@ func (bfs *Service) blockDownloader() {
 
 		rc, err := bfs.getFunc(ctx, blkOid.String(), index)
 		if err != nil {
-			if isContextCanceledErr(err) {
+			if neofs.IsContextCanceledErr(err) {
 				return
 			}
 			bfs.log.Error("failed to get object", zap.String("oid", blkOid.String()), zap.Error(err))
@@ -259,7 +250,7 @@ func (bfs *Service) blockDownloader() {
 
 		obj, err := bfs.readFunc(rc)
 		if err != nil {
-			if isContextCanceledErr(err) {
+			if neofs.IsContextCanceledErr(err) {
 				return
 			}
 			bfs.log.Error("failed to decode object from stream", zap.String("oid", blkOid.String()), zap.Error(err))
@@ -291,31 +282,47 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 		case <-bfs.exiterToOIDDownloader:
 			return nil
 		default:
-			prm := client.PrmObjectSearch{}
 			filters := object.NewSearchFilters()
 			filters.AddFilter(bfs.cfg.IndexFileAttribute, fmt.Sprintf("%d", startIndex), object.MatchStringEqual)
 			filters.AddFilter("IndexSize", fmt.Sprintf("%d", bfs.cfg.IndexFileSize), object.MatchStringEqual)
-			prm.SetFilters(filters)
 
 			ctx, cancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
-			blockOidsObject, err := bfs.objectSearch(ctx, prm)
-			cancel()
-			if err != nil {
-				if isContextCanceledErr(err) {
+			resultsChan, errChan := neofs.ObjectSearch(ctx, bfs.Pool, bfs.Account.PrivateKey(), bfs.ContainerID, filters, []string{bfs.cfg.IndexFileAttribute})
+
+			var obj *client.SearchResultItem
+
+		loop:
+			for {
+				select {
+				case item, ok := <-resultsChan:
+					if !ok {
+						break loop
+					}
+					obj = &item
+					break loop
+				case err := <-errChan:
+					if err != nil && !neofs.IsContextCanceledErr(err) {
+						cancel()
+						return fmt.Errorf("failed to find '%s' object with index %d: %w", bfs.cfg.IndexFileAttribute, startIndex, err)
+					}
+					break loop
+				case <-bfs.exiterToOIDDownloader:
+					cancel()
 					return nil
 				}
-				return fmt.Errorf("failed to find '%s' object with index %d: %w", bfs.cfg.IndexFileAttribute, startIndex, err)
 			}
-			if len(blockOidsObject) == 0 {
+			cancel()
+
+			if obj == nil {
 				bfs.log.Info(fmt.Sprintf("NeoFS BlockFetcher service: no '%s' object found with index %d, stopping", bfs.cfg.IndexFileAttribute, startIndex))
 				return nil
 			}
 
 			blockCtx, blockCancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
 			defer blockCancel()
-			oidsRC, err := bfs.objectGet(blockCtx, blockOidsObject[0].String(), -1)
+			oidsRC, err := bfs.objectGet(blockCtx, obj.ID.String(), -1)
 			if err != nil {
-				if isContextCanceledErr(err) {
+				if neofs.IsContextCanceledErr(err) {
 					return nil
 				}
 				return fmt.Errorf("failed to fetch '%s' object with index %d: %w", bfs.cfg.IndexFileAttribute, startIndex, err)
@@ -323,7 +330,7 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 
 			err = bfs.streamBlockOIDs(oidsRC, int(startIndex), int(skip))
 			if err != nil {
-				if isContextCanceledErr(err) {
+				if neofs.IsContextCanceledErr(err) {
 					return nil
 				}
 				return fmt.Errorf("failed to stream block OIDs with index %d: %w", startIndex, err)
@@ -377,47 +384,44 @@ func (bfs *Service) streamBlockOIDs(rc io.ReadCloser, startIndex, skip int) erro
 // fetchOIDsBySearch fetches block OIDs from NeoFS by searching through the Block objects.
 func (bfs *Service) fetchOIDsBySearch() error {
 	startIndex := bfs.heightFunc()
-	//We need to search with EQ filter to avoid partially-completed SEARCH responses.
-	batchSize := uint32(neofs.DefaultSearchBatchSize)
 
+	filters := object.NewSearchFilters()
+	filters.AddFilter(bfs.cfg.BlockAttribute, fmt.Sprintf("%d", startIndex), object.MatchNumGE)
+
+	ctx, cancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
+	defer cancel()
+
+	results, errs := neofs.ObjectSearch(ctx, bfs.Pool, bfs.Account.PrivateKey(), bfs.ContainerID, filters, []string{bfs.cfg.BlockAttribute})
+	var lastIndex uint64
 	for {
 		select {
 		case <-bfs.exiterToOIDDownloader:
 			return nil
-		default:
-			prm := client.PrmObjectSearch{}
-			filters := object.NewSearchFilters()
-			if startIndex == startIndex+batchSize-1 {
-				filters.AddFilter(bfs.cfg.BlockAttribute, fmt.Sprintf("%d", startIndex), object.MatchStringEqual)
-			} else {
-				filters.AddFilter(bfs.cfg.BlockAttribute, fmt.Sprintf("%d", startIndex), object.MatchNumGE)
-				filters.AddFilter(bfs.cfg.BlockAttribute, fmt.Sprintf("%d", startIndex+batchSize-1), object.MatchNumLE)
-			}
-			prm.SetFilters(filters)
-			ctx, cancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
-			blockOids, err := bfs.objectSearch(ctx, prm)
-			cancel()
-			if err != nil {
-				if isContextCanceledErr(err) {
-					return nil
+		case item, ok := <-results:
+			if !ok {
+				if err, ok := <-errs; ok && err != nil && !neofs.IsContextCanceledErr(err) {
+					return err
 				}
-				return err
-			}
-
-			if len(blockOids) == 0 {
-				bfs.log.Info(fmt.Sprintf("NeoFS BlockFetcher service: no block found with index %d, stopping", startIndex))
 				return nil
 			}
-			index := int(startIndex)
-			for _, oid := range blockOids {
-				select {
-				case <-bfs.exiterToOIDDownloader:
-					return nil
-				case bfs.oidsCh <- indexedOID{Index: index, OID: oid}:
-				}
-				index++ //Won't work properly if neofs.ObjectSearch results are not ordered.
+			if len(item.Attributes) == 0 {
+				return fmt.Errorf("search result item %s has no attributes %s", item.ID, bfs.cfg.BlockAttribute)
 			}
-			startIndex += batchSize
+			indexStr := item.Attributes[0]
+			index, err := strconv.ParseUint(indexStr, 10, 32)
+			if err != nil {
+				return fmt.Errorf("failed to parse block index %q: %w", indexStr, err)
+			}
+			if index <= lastIndex {
+				continue
+			}
+			lastIndex = index
+
+			select {
+			case <-bfs.exiterToOIDDownloader:
+				return nil
+			case bfs.oidsCh <- indexedOID{Index: int(index), OID: item.ID}:
+			}
 		}
 	}
 }
@@ -547,23 +551,4 @@ func (bfs *Service) objectGetRange(ctx context.Context, oid string, height int) 
 		return err
 	})
 	return rc, err
-}
-
-func (bfs *Service) objectSearch(ctx context.Context, prm client.PrmObjectSearch) ([]oid.ID, error) {
-	var (
-		oids []oid.ID
-		err  error
-	)
-	err = bfs.Retry(func() error {
-		oids, err = neofs.ObjectSearch(ctx, bfs.Pool, bfs.Account.PrivateKey(), bfs.cfg.ContainerID, prm)
-		return err
-	})
-	return oids, err
-}
-
-// isContextCanceledErr returns whether error is a wrapped [context.Canceled].
-// Ref. https://github.com/nspcc-dev/neofs-sdk-go/issues/624.
-func isContextCanceledErr(err error) bool {
-	return errors.Is(err, context.Canceled) ||
-		strings.Contains(err.Error(), "context canceled")
 }

@@ -75,7 +75,8 @@ func TestServiceConstructor(t *testing.T) {
 				InternalService: config.InternalService{
 					Enabled: true,
 				},
-				Addresses: []string{"localhost:8080"},
+				Addresses:   []string{"localhost:8080"},
+				ContainerID: "BP71MqY7nJhpuHfdQU3infRSjMgVmSFFt9GfG2GGMZJj",
 			},
 			BQueueSize: DefaultQueueCacheSize,
 		}
@@ -96,7 +97,8 @@ func TestServiceConstructor(t *testing.T) {
 				InternalService: config.InternalService{
 					Enabled: true,
 				},
-				Addresses: []string{"localhost:1"},
+				Addresses:   []string{"localhost:1"},
+				ContainerID: "BP71MqY7nJhpuHfdQU3infRSjMgVmSFFt9GfG2GGMZJj",
 			},
 		}
 		service, err := New(ledger, cfg, logger, mockPut.putBlock, shutdownCallback, Blocks)
