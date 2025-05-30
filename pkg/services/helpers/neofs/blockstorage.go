@@ -30,12 +30,8 @@ const (
 	// DefaultKVBatchSize is a number of contract storage key-value objects to
 	// flush to the node's DB in a batch.
 	DefaultKVBatchSize = 1000
-	// DefaultSearchBatchSize is a number of objects to search in a batch. We need to
-	// search with EQ filter to avoid partially-completed SEARCH responses. If EQ search
-	// hasn't found object the object will be uploaded one more time which may lead to
-	// duplicating objects. We will have a risk of duplicates until #3645 is resolved
-	// (NeoFS guarantees search results).
-	DefaultSearchBatchSize = 1
+	// DefaultSearchBatchSize is a number of objects to search in a batch.
+	DefaultSearchBatchSize = 1000
 )
 
 // Constants related to NeoFS pool request timeouts.

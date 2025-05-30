@@ -349,12 +349,8 @@ func searchObjects(ctx context.Context, p *pool.Pool, containerID cid.ID, privKe
 					defer wg.Done()
 
 					filters := object.NewSearchFilters()
-					if end == start+1 {
-						filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", start), object.MatchStringEqual)
-					} else {
-						filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", start), object.MatchNumGE)
-						filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", end), object.MatchNumLT)
-					}
+					filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", start), object.MatchNumGE)
+					filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", end), object.MatchNumLT)
 
 					results, errs := neofs.ObjectSearch(ctx, p, privKeys, containerID, filters, []string{blockAttributeKey})
 					for {
