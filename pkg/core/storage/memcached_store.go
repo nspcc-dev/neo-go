@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -338,6 +339,39 @@ func (s *MemCachedStore) Persist() (int, error) {
 // while flushing things from memory to persistent store.
 func (s *MemCachedStore) PersistSync() (int, error) {
 	return s.persist(true)
+}
+
+// PersistPrivate flushes the content of every private into MemCachedStore s
+// supposedly that s is an underlying persistent store of every private.
+// MemCachedStore remains accessible for the most part of this action
+// (any new changes will be cached in memory) as far as every private.
+// However, PersistPrivate relies on fact that every private is a private
+// wrapper around s and every private will be disposed after persist, so further
+// usages of private is no-op.
+func (s *MemCachedStore) PersistPrivate(private ...*MemCachedStore) int {
+	var keys int
+	for i, p := range private {
+		if !p.private {
+			panic(fmt.Sprintf("memcached store %d is not private", i)) // program bug
+		}
+		if p.ps.(*MemCachedStore) != s {
+			panic(fmt.Sprintf("persistent layer mismatch for memcached store %d", i)) // program bug
+		}
+		keys += len(p.mem) + len(p.stor)
+	}
+	if keys == 0 {
+		return 0
+	}
+
+	s.lock()
+	for _, p := range private {
+		s.MemoryStore.putChangeSet(p.mem, p.stor)
+		p.mem = nil
+		p.stor = nil
+	}
+	s.unlock()
+
+	return keys
 }
 
 func (s *MemCachedStore) persist(isSync bool) (int, error) {

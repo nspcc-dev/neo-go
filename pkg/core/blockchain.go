@@ -1924,16 +1924,7 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		bc.persistCond.Wait()
 	}
 
-	_, err = aerCache.Persist()
-	if err != nil {
-		bc.lock.Unlock()
-		return err
-	}
-	_, err = cache.Persist()
-	if err != nil {
-		bc.lock.Unlock()
-		return err
-	}
+	_ = bc.dao.PersistPrivate(aerCache, cache)
 
 	mpt.Store = bc.dao.Store
 	bc.stateRoot.UpdateCurrentLocal(mpt, sr)
