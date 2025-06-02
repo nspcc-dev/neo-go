@@ -801,7 +801,7 @@ func (s *Server) getVersionMsg(localAddr net.Addr) (*Message, error) {
 		})
 	}
 	cfg := s.chain.GetConfig()
-	if !cfg.RemoveUntraceableBlocks && !cfg.RemoveUntraceableHeaders {
+	if !cfg.RemoveUntraceableBlocks {
 		capabilities = append(capabilities, capability.Capability{
 			Type: capability.ArchivalNode,
 			Data: &capability.Archival{},
