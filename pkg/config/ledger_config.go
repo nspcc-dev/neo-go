@@ -12,11 +12,10 @@ type Ledger struct {
 	// If true, DB size will be smaller, but older roots won't be accessible.
 	// This value should remain the same for the same database.
 	KeepOnlyLatestState bool `yaml:"KeepOnlyLatestState"`
-	// RemoveUntraceableBlocks specifies if old data should be removed.
+	// RemoveUntraceableBlocks specifies if old data (blocks, headers,
+	// transactions, execution results, transfer logs and MPT data) should be
+	// removed.
 	RemoveUntraceableBlocks bool `yaml:"RemoveUntraceableBlocks"`
-	// RemoveUntraceableHeaders is used in addition to RemoveUntraceableBlocks
-	// when headers need to be removed as well.
-	RemoveUntraceableHeaders bool `yaml:"RemoveUntraceableHeaders"`
 	// SaveStorageBatch enables storage batch saving before every persist.
 	SaveStorageBatch bool `yaml:"SaveStorageBatch"`
 	// SkipBlockVerification allows to disable verification of received

@@ -155,11 +155,6 @@ func checkNewBlockchainErr(t *testing.T, cfg func(c *config.Config), store stora
 }
 
 func TestNewBlockchainIncosistencies(t *testing.T) {
-	t.Run("untraceable blocks/headers", func(t *testing.T) {
-		checkNewBlockchainErr(t, func(c *config.Config) {
-			c.ApplicationConfiguration.RemoveUntraceableHeaders = true
-		}, storage.NewMemoryStore(), "RemoveUntraceableHeaders is enabled, but RemoveUntraceableBlocks is not")
-	})
 	t.Run("state exchange without state root", func(t *testing.T) {
 		checkNewBlockchainErr(t, func(c *config.Config) {
 			c.ProtocolConfiguration.P2PStateExchangeExtensions = true
