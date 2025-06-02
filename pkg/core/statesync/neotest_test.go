@@ -357,6 +357,11 @@ func TestStateSyncModule_Init(t *testing.T) {
 
 func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 	check := func(t *testing.T, spoutEnableGC bool, enableStorageSync bool) {
+		if spoutEnableGC {
+			// If GC is enabled on spout chain, we need trusted header be set to the
+			// oldest available block of spout chain.
+			return
+		}
 		const (
 			stateSyncInterval = 4
 			maxTraceable      = 6
