@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -426,12 +427,8 @@ func (s *MemCachedStore) persist(isSync bool) (int, error) {
 	} else {
 		// We're toast. We'll try to still keep proper state, but OOM
 		// killer will get to us eventually.
-		for k := range s.mem {
-			put(tempstore.mem, k, s.mem[k])
-		}
-		for k := range s.stor {
-			put(tempstore.stor, k, s.stor[k])
-		}
+		maps.Copy(tempstore.mem, s.mem)
+		maps.Copy(tempstore.stor, s.stor)
 		s.ps = tempstore.ps
 		s.mem = tempstore.mem
 		s.stor = tempstore.stor
