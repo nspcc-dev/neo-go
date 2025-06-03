@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"cmp"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -59,12 +60,8 @@ func (s *MemoryStore) PutChangeSet(puts map[string][]byte, stores map[string][]b
 }
 
 func (s *MemoryStore) putChangeSet(puts map[string][]byte, stores map[string][]byte) {
-	for k := range puts {
-		put(s.mem, k, puts[k])
-	}
-	for k := range stores {
-		put(s.stor, k, stores[k])
-	}
+	maps.Copy(s.mem, puts)
+	maps.Copy(s.stor, stores)
 }
 
 // Len returns the number of keys stored.
