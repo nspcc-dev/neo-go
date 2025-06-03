@@ -1002,6 +1002,32 @@ func (dao *Simple) GetItemCtx() *stackitem.SerializationContext {
 	return stackitem.NewSerializationContext()
 }
 
+// PersistPrivate flushes all the changes made in the provided set of private
+// Simple to the DAO. It assumes that every private is a private wrapper around
+// method receiver. It relies on fact that method receiver is used as a
+// persistent storage for native cache of every private. It doesn't block
+// accesses to DAO from other threads for the most time. Every private must
+// not be used during PersistPrivate since PersistPrivate doesn't lock native
+// cache of every private.
+func (dao *Simple) PersistPrivate(private ...*Simple) int {
+	cache := make([]*storage.MemCachedStore, len(private))
+
+	// Rely on fact that all private share the same nativeCachePS and it's dao. Lock dao's
+	// native cache for the whole time of private's persist instead of locking lower native
+	// cache for every private. Here we rely on internal knowledge of private's constructor.
+	dao.nativeCacheLock.Lock()
+	defer dao.nativeCacheLock.Unlock()
+
+	for i, p := range private {
+		cache[i] = p.Store
+		if p.nativeCachePS != nil {
+			// Don't hold p.nativeCacheLock since p is a private Simple, no one must use it now.
+			p.persistNativeCache()
+		}
+	}
+	return dao.Store.PersistPrivate(cache...)
+}
+
 // Persist flushes all the changes made into the (supposedly) persistent
 // underlying store. It doesn't block accesses to DAO from other threads.
 func (dao *Simple) Persist() (int, error) {
