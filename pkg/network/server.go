@@ -1023,7 +1023,7 @@ func (s *Server) handleMempoolCmd(p Peer) error {
 	return nil
 }
 
-// handleInvCmd processes the received inventory.
+// handleGetDataCmd processes the received inventory.
 func (s *Server) handleGetDataCmd(p Peer, inv *payload.Inventory) error {
 	var (
 		err      error
