@@ -1524,7 +1524,7 @@ func (s *Server) contractIDFromParam(param *params.Param, root ...util.Uint256) 
 	return result, nil
 }
 
-// getContractScriptHashFromParam returns the contract script hash by hex contract hash, address, id or native contract name.
+// contractScriptHashFromParam returns the contract script hash by hex contract hash, address, id or native contract name.
 func (s *Server) contractScriptHashFromParam(param *params.Param) (util.Uint160, *neorpc.Error) {
 	var result util.Uint160
 	if param == nil {

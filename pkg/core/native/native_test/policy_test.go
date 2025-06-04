@@ -103,7 +103,7 @@ func TestPolicy_MillisecondsPerBlock(t *testing.T) {
 	testGetSet(t, c, name, c.Chain.GetConfig().Genesis.TimePerBlock.Milliseconds(), 1, 30_000)
 }
 
-// TestPolicy_Initialize ensures that native Policy storage/cache initialization is
+// TestPolicy_InitializeAtEchidna ensures that native Policy storage/cache initialization is
 // performed properly at Echidna fork.
 func TestPolicy_InitializeAtEchidna(t *testing.T) {
 	check := func(t *testing.T, f func(cfg *config.Blockchain)) {
