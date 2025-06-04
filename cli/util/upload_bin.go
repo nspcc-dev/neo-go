@@ -19,6 +19,7 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/pool"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/urfave/cli/v2"
 )
@@ -45,18 +46,18 @@ func uploadBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Sprintf("failed to create RPC client: %v", err), 1)
 	}
 
-	signer, pWrapper, err := options.GetNeoFSClientPool(ctx, acc)
+	signer, p, err := options.GetNeoFSClientPool(ctx, acc)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
-	defer pWrapper.Close()
+	defer p.Close()
 
 	v, err := rpc.GetVersion()
 	if err != nil {
 		return cli.Exit(fmt.Sprintf("failed to get version from RPC: %v", err), 1)
 	}
 	magic := strconv.Itoa(int(v.Protocol.Network))
-	containerID, err := getContainer(ctx, pWrapper, magic, maxRetries, debug)
+	containerID, err := getContainer(ctx, p, magic, maxRetries, debug)
 	if err != nil {
 		return cli.Exit(err, 1)
 	}
@@ -66,12 +67,12 @@ func uploadBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Sprintf("failed to get current block height from RPC: %v", err), 1)
 	}
 	fmt.Fprintln(ctx.App.Writer, "Chain block height:", currentBlockHeight)
-	i, buf, err := searchIndexFile(ctx, pWrapper, containerID, acc.PrivateKey(), signer, indexFileSize, attr, indexAttrKey, maxParallelSearches, maxRetries, debug)
+	i, buf, err := searchIndexFile(ctx, p, containerID, acc.PrivateKey(), indexFileSize, attr, indexAttrKey, maxParallelSearches)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to find objects: %w", err), 1)
 	}
 
-	err = uploadBlocksAndIndexFiles(ctx, pWrapper, rpc, signer, containerID, attr, indexAttrKey, buf, i, indexFileSize, uint(currentBlockHeight), numWorkers, maxRetries, debug)
+	err = uploadBlocksAndIndexFiles(ctx, p, rpc, signer, containerID, attr, indexAttrKey, buf, i, indexFileSize, uint(currentBlockHeight), numWorkers, maxRetries, debug)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to upload objects: %w", err), 1)
 	}
@@ -99,7 +100,7 @@ func retry(action func() error, maxRetries uint, debug bool) error {
 }
 
 // uploadBlocksAndIndexFiles uploads the blocks and index files to the container using the pool.
-func uploadBlocksAndIndexFiles(ctx *cli.Context, p neofs.PoolWrapper, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, attr, indexAttributeKey string, buf []byte, currentIndexFileID, indexFileSize, currentBlockHeight uint, numWorkers, maxRetries uint, debug bool) error {
+func uploadBlocksAndIndexFiles(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, attr, indexAttributeKey string, buf []byte, currentIndexFileID, indexFileSize, currentBlockHeight uint, numWorkers, maxRetries uint, debug bool) error {
 	if currentIndexFileID*indexFileSize >= currentBlockHeight {
 		fmt.Fprintf(ctx.App.Writer, "No new blocks to upload. Need to upload starting from %d, current height %d\n", currentIndexFileID*indexFileSize, currentBlockHeight)
 		return nil
@@ -226,35 +227,55 @@ func uploadBlocksAndIndexFiles(ctx *cli.Context, p neofs.PoolWrapper, rpc *rpccl
 }
 
 // searchIndexFile returns the ID and buffer for the next index file to be uploaded.
-func searchIndexFile(ctx *cli.Context, p neofs.PoolWrapper, containerID cid.ID, privKeys *keys.PrivateKey, signer user.Signer, indexFileSize uint, blockAttributeKey, attributeKey string, maxParallelSearches, maxRetries uint, debug bool) (uint, []byte, error) {
+func searchIndexFile(ctx *cli.Context, p *pool.Pool, containerID cid.ID, privKeys *keys.PrivateKey, indexFileSize uint, blockAttributeKey, attributeKey string, maxParallelSearches uint) (uint, []byte, error) {
 	var (
 		// buf is used to store OIDs of the uploaded blocks.
 		buf    = make([]byte, indexFileSize*oid.Size)
 		doneCh = make(chan struct{})
 		errCh  = make(chan error)
 
-		existingIndexCount = uint(0)
-		filters            = object.NewSearchFilters()
+		existingIndex = uint64(0)
 	)
 	go func() {
 		defer close(doneCh)
-		// Search for existing index files.
+		// Search for existing index files
+		filters := object.NewSearchFilters()
+		filters.AddFilter(attributeKey, fmt.Sprintf("%d", existingIndex), object.MatchNumGE)
 		filters.AddFilter("IndexSize", fmt.Sprintf("%d", indexFileSize), object.MatchStringEqual)
-		for i := 0; ; i++ {
-			indexIDs := searchObjects(ctx.Context, p, containerID, privKeys, attributeKey, uint(i), uint(i+1), 1, maxRetries, debug, errCh, filters)
-			resOIDs := make([]oid.ID, 0, 1)
-			for id := range indexIDs {
-				resOIDs = append(resOIDs, id)
+
+		results, errs := neofs.ObjectSearch(ctx.Context, p, privKeys, containerID, filters, []string{attributeKey})
+
+		var lastItem *client.SearchResultItem
+	loop:
+		for {
+			select {
+			case itm, ok := <-results:
+				if !ok {
+					break loop
+				}
+				lastItem = &itm
+			case err := <-errs:
+				if err != nil {
+					select {
+					case errCh <- fmt.Errorf("failed to search for index file: %w", err):
+					default:
+					}
+				}
+				break loop
 			}
-			if len(resOIDs) == 0 {
-				break
-			}
-			if len(resOIDs) > 1 {
-				fmt.Fprintf(ctx.App.Writer, "WARN: %d duplicated index files with index %d found: %s\n", len(resOIDs), i, resOIDs)
-			}
-			existingIndexCount++
 		}
-		fmt.Fprintf(ctx.App.Writer, "Current index files count: %d\n", existingIndexCount)
+		if lastItem != nil {
+			parsed, err := strconv.ParseUint(lastItem.Attributes[0], 10, 32)
+			if err != nil {
+				select {
+				case errCh <- fmt.Errorf("failed to parse index file ID: %w", err):
+				default:
+				}
+				return
+			}
+			existingIndex = parsed
+		}
+		fmt.Fprintf(ctx.App.Writer, "Current index files count: %d\n", existingIndex+1)
 
 		// Start block parsing goroutines.
 		var (
@@ -262,64 +283,51 @@ func searchIndexFile(ctx *cli.Context, p neofs.PoolWrapper, containerID cid.ID, 
 			// It prevents duplicates.
 			processedIndices sync.Map
 			wg               sync.WaitGroup
-			oidCh            = make(chan oid.ID, 2*maxParallelSearches)
+			objCh            = make(chan client.SearchResultItem, 2*maxParallelSearches)
 		)
 		wg.Add(int(maxParallelSearches))
 		for range maxParallelSearches {
 			go func() {
 				defer wg.Done()
-				for id := range oidCh {
-					var obj object.Object
-					errRetr := retry(func() error {
-						var errGet error
-						obj, _, errGet = p.ObjectGetInit(ctx.Context, containerID, id, signer, client.PrmObjectGet{})
-						return errGet
-					}, maxRetries, debug)
-					if errRetr != nil {
-						select {
-						case errCh <- fmt.Errorf("failed to fetch object %s: %w", id.String(), errRetr):
-						default:
-						}
-						return
-					}
-					blockIndex, err := getBlockIndex(obj, blockAttributeKey)
+				for obj := range objCh {
+					blockIndex, err := strconv.ParseUint(obj.Attributes[0], 10, 32)
 					if err != nil {
 						select {
-						case errCh <- fmt.Errorf("failed to get block index from object %s: %w", id.String(), err):
+						case errCh <- fmt.Errorf("failed to get block index from object %s with attributes %s: %w", obj.ID, obj.Attributes, err):
 						default:
 						}
 						return
 					}
 					pos := uint(blockIndex) % indexFileSize
 					if _, ok := processedIndices.LoadOrStore(pos, blockIndex); !ok {
-						copy(buf[pos*oid.Size:], id[:])
+						copy(buf[pos*oid.Size:], obj.ID[:])
 					}
 				}
 			}()
 		}
 
 		// Search for blocks within the index file range.
-		objIDs := searchObjects(ctx.Context, p, containerID, privKeys, blockAttributeKey, existingIndexCount*indexFileSize, (existingIndexCount+1)*indexFileSize, maxParallelSearches, maxRetries, debug, errCh)
-		for id := range objIDs {
-			oidCh <- id
+		blkObjs := searchObjects(ctx.Context, p, containerID, privKeys, blockAttributeKey, uint(existingIndex)*indexFileSize, uint(existingIndex+1)*indexFileSize, maxParallelSearches, errCh)
+		for id := range blkObjs {
+			objCh <- id
 		}
-		close(oidCh)
+		close(objCh)
 		wg.Wait()
 	}()
 
 	select {
 	case err := <-errCh:
-		return existingIndexCount, nil, err
+		return uint(existingIndex), nil, err
 	case <-doneCh:
-		return existingIndexCount, buf, nil
+		return uint(existingIndex), buf, nil
 	}
 }
 
 // searchObjects searches in parallel for objects with attribute GE startIndex and LT
 // endIndex. It returns a buffered channel of resulting object IDs and closes it once
 // OID search is finished. Errors are sent to errCh in a non-blocking way.
-func searchObjects(ctx context.Context, p neofs.PoolWrapper, containerID cid.ID, privKeys *keys.PrivateKey, blockAttributeKey string, startIndex, endIndex, maxParallelSearches, maxRetries uint, debug bool, errCh chan error, additionalFilters ...object.SearchFilters) chan oid.ID {
-	var res = make(chan oid.ID, 2*neofs.DefaultSearchBatchSize)
+func searchObjects(ctx context.Context, p *pool.Pool, containerID cid.ID, privKeys *keys.PrivateKey, blockAttributeKey string, startIndex, endIndex, maxParallelSearches uint, errCh chan error) chan client.SearchResultItem {
+	var res = make(chan client.SearchResultItem, 2*neofs.DefaultSearchBatchSize)
 	go func() {
 		var wg sync.WaitGroup
 		defer close(res)
@@ -340,35 +348,34 @@ func searchObjects(ctx context.Context, p neofs.PoolWrapper, containerID cid.ID,
 				go func(start, end uint) {
 					defer wg.Done()
 
-					prm := client.PrmObjectSearch{}
 					filters := object.NewSearchFilters()
-					if len(additionalFilters) != 0 {
-						filters = additionalFilters[0]
-					}
-					if end == start+1 {
-						filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", start), object.MatchStringEqual)
-					} else {
-						filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", start), object.MatchNumGE)
-						filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", end), object.MatchNumLT)
-					}
-					prm.SetFilters(filters)
+					filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", start), object.MatchNumGE)
+					filters.AddFilter(blockAttributeKey, fmt.Sprintf("%d", end), object.MatchNumLT)
 
-					var objIDs []oid.ID
-					err := retry(func() error {
-						var errBlockSearch error
-						objIDs, errBlockSearch = neofs.ObjectSearch(ctx, p, privKeys, containerID.String(), prm)
-						return errBlockSearch
-					}, maxRetries, debug)
-					if err != nil {
+					results, errs := neofs.ObjectSearch(ctx, p, privKeys, containerID, filters, []string{blockAttributeKey})
+					for {
 						select {
-						case errCh <- fmt.Errorf("failed to search for block(s) from %d to %d: %w", start, end, err):
-						default:
-						}
-						return
-					}
+						case <-ctx.Done():
+							return
+						case item, ok := <-results:
+							if !ok {
+								return
+							}
+							select {
+							case <-ctx.Done():
+								return
+							case res <- item:
+							}
 
-					for _, id := range objIDs {
-						res <- id
+						case err := <-errs:
+							if err != nil {
+								select {
+								case errCh <- fmt.Errorf("failed to search objects from %d to %d: %w", start, end, err):
+								default:
+								}
+							}
+							return
+						}
 					}
 				}(start, end)
 			}
@@ -380,7 +387,7 @@ func searchObjects(ctx context.Context, p neofs.PoolWrapper, containerID cid.ID,
 }
 
 // uploadObj uploads object to the container using provided settings.
-func uploadObj(ctx context.Context, p neofs.PoolWrapper, signer user.Signer, containerID cid.ID, objData []byte, attrs []object.Attribute) (oid.ID, error) {
+func uploadObj(ctx context.Context, p *pool.Pool, signer user.Signer, containerID cid.ID, objData []byte, attrs []object.Attribute) (oid.ID, error) {
 	var (
 		hdr              object.Object
 		prmObjectPutInit client.PrmObjectPutInit
@@ -409,22 +416,8 @@ func uploadObj(ctx context.Context, p neofs.PoolWrapper, signer user.Signer, con
 	return resOID, nil
 }
 
-func getBlockIndex(header object.Object, attribute string) (int, error) {
-	for _, attr := range header.UserAttributes() {
-		if attr.Key() == attribute {
-			value := attr.Value()
-			blockIndex, err := strconv.Atoi(value)
-			if err != nil {
-				return -1, fmt.Errorf("attribute %s has invalid value: %s, error: %w", attribute, value, err)
-			}
-			return blockIndex, nil
-		}
-	}
-	return -1, fmt.Errorf("attribute %s not found", attribute)
-}
-
 // getContainer gets container by ID and checks its magic.
-func getContainer(ctx *cli.Context, p neofs.PoolWrapper, expectedMagic string, maxRetries uint, debug bool) (cid.ID, error) {
+func getContainer(ctx *cli.Context, p *pool.Pool, expectedMagic string, maxRetries uint, debug bool) (cid.ID, error) {
 	var (
 		containerObj   container.Container
 		err            error

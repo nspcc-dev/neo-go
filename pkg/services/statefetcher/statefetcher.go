@@ -18,7 +18,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
-	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"go.uber.org/zap"
@@ -93,23 +92,15 @@ func New(chain Ledger, cfg config.NeoFSStateFetcher, stateSyncInterval int, logg
 	if s.stateSyncInterval == 0 {
 		s.stateSyncInterval = config.DefaultStateSyncInterval
 	}
-	var (
-		containerID  cid.ID
-		containerObj container.Container
-	)
+	var containerObj container.Container
 	s.Ctx, s.CtxCancel = context.WithCancel(context.Background())
 	if err = s.Pool.Dial(context.Background()); err != nil {
 		s.isActive.CompareAndSwap(true, false)
 		return nil, fmt.Errorf("failed to dial NeoFS pool: %w", err)
 	}
 
-	if err = containerID.DecodeString(s.cfg.ContainerID); err != nil {
-		s.isActive.CompareAndSwap(true, false)
-		return nil, fmt.Errorf("failed to decode container ID: %w", err)
-	}
-
 	err = s.Retry(func() error {
-		containerObj, err = s.Pool.ContainerGet(s.Ctx, containerID, client.PrmContainerGet{})
+		containerObj, err = s.Pool.ContainerGet(s.Ctx, s.ContainerID, client.PrmContainerGet{})
 		return err
 	})
 	if err != nil {
@@ -126,6 +117,7 @@ func New(chain Ledger, cfg config.NeoFSStateFetcher, stateSyncInterval int, logg
 	return s, nil
 }
 
+// LatestStateObjectHeight returns the height of the most recent state object found in the container.
 func (s *Service) LatestStateObjectHeight(h ...uint32) (uint32, error) {
 	s.lock.RLock()
 	if s.lastStateObjectIndex != 0 {
@@ -134,57 +126,53 @@ func (s *Service) LatestStateObjectHeight(h ...uint32) (uint32, error) {
 		return idx, nil
 	}
 	s.lock.RUnlock()
+
+	var height uint32
+	if len(h) > 0 {
+		height = h[0]
+	}
+	filters := object.NewSearchFilters()
+	filters.AddFilter(s.cfg.StateAttribute, fmt.Sprintf("%d", height), object.MatchNumGE)
+	ctx, cancel := context.WithTimeout(s.Ctx, s.cfg.Timeout)
+	defer cancel()
+
+	results, errs := neofs.ObjectSearch(ctx, s.Pool, s.Account.PrivateKey(), s.ContainerID, filters, []string{s.cfg.StateAttribute})
+
 	var (
-		lastFoundIdx uint32
-		lastFoundOID oid.ID
+		lastItem     *client.SearchResultItem
+		lastFoundIdx uint64
 	)
 
-searchLoop:
-	for height := s.stateSyncInterval; ; height += s.stateSyncInterval {
+loop:
+	for {
 		select {
-		case <-s.Ctx.Done():
-			return 0, s.Ctx.Err()
-		default:
-		}
-		if len(h) > 0 {
-			height = h[0]
-		}
-		prm := client.PrmObjectSearch{}
-		filters := object.NewSearchFilters()
-		filters.AddFilter(s.cfg.StateAttribute, fmt.Sprintf("%d", height), object.MatchStringEqual)
-		prm.SetFilters(filters)
+		case item, ok := <-results:
+			if !ok {
+				break loop
+			}
+			lastItem = &item
 
-		ctx, cancel := context.WithTimeout(s.Ctx, s.cfg.Timeout)
-		var (
-			oids []oid.ID
-			err  error
-		)
-		err = s.Retry(func() error {
-			oids, err = neofs.ObjectSearch(ctx, s.Pool, s.Account.PrivateKey(), s.cfg.ContainerID, prm)
-			return err
-		})
-		cancel()
-		if err != nil {
-			s.isActive.CompareAndSwap(true, false)
-			return 0, fmt.Errorf("failed to search state object at height %d: %w", height, err)
+		case err := <-errs:
+			if err != nil && !neofs.IsContextCanceledErr(err) {
+				s.isActive.CompareAndSwap(true, false)
+				return 0, fmt.Errorf("failed to search state object at height %d: %w", height, err)
+			}
+			break loop
 		}
-
-		if len(oids) == 0 {
-			break searchLoop
-		}
-		lastFoundIdx = height
-		lastFoundOID = oids[0]
 	}
-	if lastFoundIdx == 0 || lastFoundOID.IsZero() {
+
+	lastFoundIdx, err := strconv.ParseUint(lastItem.Attributes[0], 10, 32)
+	if err != nil || lastFoundIdx == 0 {
 		s.isActive.CompareAndSwap(true, false)
-		return 0, fmt.Errorf("no state object found")
+		return 0, fmt.Errorf("failed to parse state object index: %w", err)
 	}
+
 	s.lock.Lock()
-	s.lastStateObjectIndex = lastFoundIdx
-	s.lastStateOID = lastFoundOID
+	s.lastStateObjectIndex = uint32(lastFoundIdx)
+	s.lastStateOID = lastItem.ID
 	s.lock.Unlock()
 
-	return lastFoundIdx, nil
+	return s.lastStateObjectIndex, nil
 }
 
 // Start begins state fetching.

@@ -212,7 +212,7 @@ func GetRPCClient(gctx context.Context, ctx *cli.Context) (*rpcclient.Client, cl
 }
 
 // GetNeoFSClientPool returns a NeoFS pool and a signer for the given Context.
-func GetNeoFSClientPool(ctx *cli.Context, acc *wallet.Account) (user.Signer, neofs.PoolWrapper, error) {
+func GetNeoFSClientPool(ctx *cli.Context, acc *wallet.Account) (user.Signer, *pool.Pool, error) {
 	rpcNeoFS := ctx.StringSlice(NeoFSRPCEndpointFlag)
 	signer := user.NewAutoIDSignerRFC6979(acc.PrivateKey().PrivateKey)
 
@@ -222,13 +222,12 @@ func GetNeoFSClientPool(ctx *cli.Context, acc *wallet.Account) (user.Signer, neo
 	params.SetNodeStreamTimeout(neofs.DefaultStreamTimeout)
 	p, err := pool.New(pool.NewFlatNodeParams(rpcNeoFS), signer, params)
 	if err != nil {
-		return nil, neofs.PoolWrapper{}, fmt.Errorf("failed to create NeoFS pool: %w", err)
+		return nil, nil, fmt.Errorf("failed to create NeoFS pool: %w", err)
 	}
-	pWrapper := neofs.PoolWrapper{Pool: p}
-	if err = pWrapper.Dial(context.Background()); err != nil {
-		return nil, neofs.PoolWrapper{}, fmt.Errorf("failed to dial NeoFS pool: %w", err)
+	if err = p.Dial(context.Background()); err != nil {
+		return nil, nil, fmt.Errorf("failed to dial NeoFS pool: %w", err)
 	}
-	return signer, pWrapper, nil
+	return signer, p, nil
 }
 
 // GetInvoker returns an invoker using the given RPC client, context and signers.

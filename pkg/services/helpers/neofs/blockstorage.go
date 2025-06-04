@@ -3,10 +3,12 @@ package neofs
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/pool"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -28,12 +30,8 @@ const (
 	// DefaultKVBatchSize is a number of contract storage key-value objects to
 	// flush to the node's DB in a batch.
 	DefaultKVBatchSize = 1000
-	// DefaultSearchBatchSize is a number of objects to search in a batch. We need to
-	// search with EQ filter to avoid partially-completed SEARCH responses. If EQ search
-	// hasn't found object the object will be uploaded one more time which may lead to
-	// duplicating objects. We will have a risk of duplicates until #3645 is resolved
-	// (NeoFS guarantees search results).
-	DefaultSearchBatchSize = 1
+	// DefaultSearchBatchSize is a number of objects to search in a batch.
+	DefaultSearchBatchSize = 1000
 )
 
 // Constants related to NeoFS pool request timeouts.
@@ -62,30 +60,21 @@ const (
 	MaxBackoff = 20 * time.Second
 )
 
-// PoolWrapper wraps a NeoFS pool to adapt its Close method to return an error.
-type PoolWrapper struct {
-	*pool.Pool
-}
-
-// Close closes the pool and returns nil.
-func (p PoolWrapper) Close() error {
-	p.Pool.Close()
-	return nil
-}
-
 // BasicService is a minimal service structure for NeoFS fetchers.
 type BasicService struct {
-	Pool      PoolWrapper
-	Account   *wallet.Account
-	Ctx       context.Context
-	CtxCancel context.CancelFunc
+	Pool        *pool.Pool
+	Account     *wallet.Account
+	ContainerID cid.ID
+	Ctx         context.Context
+	CtxCancel   context.CancelFunc
 }
 
 // NewBasicService creates a new BasicService instance.
 func NewBasicService(cfg config.NeoFSService) (BasicService, error) {
 	var (
-		account *wallet.Account
-		err     error
+		account     *wallet.Account
+		containerID cid.ID
+		err         error
 	)
 	if cfg.UnlockWallet.Path != "" {
 		walletFromFile, err := wallet.NewWalletFromFile(cfg.UnlockWallet.Path)
@@ -115,9 +104,15 @@ func NewBasicService(cfg config.NeoFSService) (BasicService, error) {
 	if err != nil {
 		return BasicService{}, err
 	}
+
+	err = containerID.DecodeString(cfg.ContainerID)
+	if err != nil {
+		return BasicService{}, errors.New("failed to decode container ID: " + err.Error())
+	}
 	return BasicService{
-		Account: account,
-		Pool:    PoolWrapper{p},
+		Account:     account,
+		ContainerID: containerID,
+		Pool:        p,
 	}, nil
 }
 
@@ -149,4 +144,11 @@ func (sfs *BasicService) Retry(action func() error) error {
 		}
 	}
 	return err
+}
+
+// IsContextCanceledErr returns whether error is a wrapped [context.Canceled].
+// Ref. https://github.com/nspcc-dev/neofs-sdk-go/issues/624.
+func IsContextCanceledErr(err error) bool {
+	return errors.Is(err, context.Canceled) ||
+		strings.Contains(err.Error(), "context canceled")
 }
