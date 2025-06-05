@@ -110,14 +110,15 @@ func (s *BoltDBStore) PutChangeSet(puts map[string][]byte, stores map[string][]b
 }
 
 // SeekGC implements the Store interface.
-func (s *BoltDBStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
+func (s *BoltDBStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, bool)) error {
 	return boltSeek(s.db.Update, rng, func(c *bbolt.Cursor, k, v []byte) (bool, error) {
-		if !keep(k, v) {
+		keep, cont := keepCont(k, v)
+		if !keep {
 			if err := c.Delete(); err != nil {
 				return false, err
 			}
 		}
-		return true, nil
+		return cont, nil
 	})
 }
 

@@ -1142,9 +1142,9 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 	keys := 0
 	err = bc.store.SeekGC(storage.SeekRange{
 		Prefix: []byte{byte(statesync.TemporaryPrefix(v.StoragePrefix))},
-	}, func(_, _ []byte) bool {
+	}, func(_, _ []byte) (bool, bool) {
 		keys++
-		return false
+		return false, true
 	})
 	if err != nil {
 		return fmt.Errorf("faield to remove stale storage items from DB: %w", err)
@@ -1440,7 +1440,7 @@ func (bc *Blockchain) removeOldTransfers(index uint32) time.Duration {
 		err = bc.store.SeekGC(storage.SeekRange{
 			Prefix:    prefixes[i : i+1],
 			Backwards: true, // From new to old.
-		}, func(k, v []byte) bool {
+		}, func(k, v []byte) (bool, bool) {
 			// We don't look inside of the batches, it requires too much effort, instead
 			// we drop batches that are confirmed to contain outdated entries.
 			var batchAcc util.Uint160
@@ -1451,13 +1451,13 @@ func (bc *Blockchain) removeOldTransfers(index uint32) time.Duration {
 				acc = batchAcc
 			} else if canDrop { // We've seen this account and all entries in this batch are guaranteed to be outdated.
 				removed++
-				return false
+				return false, true
 			}
 			// We don't know what's inside, so keep the current
 			// batch anyway, but allow to drop older ones.
 			canDrop = batchTs <= ts
 			kept++
-			return true
+			return true, true
 		})
 		if err != nil {
 			break
