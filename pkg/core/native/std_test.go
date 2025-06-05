@@ -18,6 +18,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestBase64(t *testing.T) {
+	s := newStd()
+	ic := &interop.Context{VM: vm.New(), DAO: &dao.Simple{}}
+	res := s.base64Encode(ic, []stackitem.Item{stackitem.Make("'")})
+	require.Equal(t, res.Value().([]byte), []byte(base64.StdEncoding.EncodeToString([]byte{'\''})))
+}
+
 func TestStdLibItoaAtoi(t *testing.T) {
 	s := newStd()
 	ic := &interop.Context{VM: vm.New(), DAO: &dao.Simple{}}

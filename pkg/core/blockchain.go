@@ -492,7 +492,14 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
-		bc.HeaderHashes.initGenesis(bc.dao, genesisBlock.Hash())
+		var trusted = config.HashIndex{
+			Hash:  genesisBlock.Hash(),
+			Index: 0,
+		}
+		if bc.config.TrustedHeader.Index > 0 {
+			trusted = bc.config.TrustedHeader
+		}
+		bc.HeaderHashes.initGenesis(bc.dao, trusted)
 		if err := bc.stateRoot.Init(0); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
@@ -533,7 +540,7 @@ func (bc *Blockchain) init() error {
 	// and the genesis block as first block.
 	bc.log.Info("restoring blockchain", zap.String("version", version))
 
-	err = bc.HeaderHashes.init(bc.dao)
+	err = bc.HeaderHashes.init(bc.dao, bc.config.TrustedHeader)
 	if err != nil {
 		return err
 	}
@@ -697,7 +704,12 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
 		if int(p)-int(mtb) > 0 {
-			_, err := cache.DeleteBlock(bc.GetHeaderHash(0))
+			// bc.HeaderHashes does not contain genesis hash since old hashes are removed with RUB.
+			genesisBlock, err := CreateGenesisBlock(bc.config.ProtocolConfiguration)
+			if err != nil {
+				return fmt.Errorf("failed to retrieve genesis block hash: %w", err)
+			}
+			_, err = cache.DeleteBlock(genesisBlock.Hash())
 			if err != nil {
 				return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
 			}
@@ -771,7 +783,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 // resetRAMState resets in-memory cached info.
 func (bc *Blockchain) resetRAMState(height uint32, resetHeaders bool) error {
 	if resetHeaders {
-		err := bc.HeaderHashes.init(bc.dao)
+		err := bc.HeaderHashes.init(bc.dao, config.HashIndex{})
 		if err != nil {
 			return err
 		}
@@ -1722,6 +1734,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 	} else if verify {
 		// Verify that the chain of the headers is consistent.
 		var lastHeader *block.Header
+		// TODO: we need to get trusted header anyway either from P2P or from NeoFS.
 		if lastHeader, err = bc.GetHeader(headers[0].PrevHash); err != nil {
 			return fmt.Errorf("previous header was not found: %w", err)
 		}

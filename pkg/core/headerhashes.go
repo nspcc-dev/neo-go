@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/nspcc-dev/neo-go/pkg/config"
 	"github.com/nspcc-dev/neo-go/pkg/core/block"
 	"github.com/nspcc-dev/neo-go/pkg/core/dao"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -38,29 +39,42 @@ type HeaderHashes struct {
 	cache *lru.Cache[uint32, []util.Uint256]
 }
 
-func (h *HeaderHashes) initGenesis(dao *dao.Simple, hash util.Uint256) {
+func (h *HeaderHashes) initGenesis(dao *dao.Simple, trusted config.HashIndex) {
 	h.dao = dao
 	h.cache, _ = lru.New[uint32, []util.Uint256](pagesCache) // Never errors for positive size.
 	h.previous = make([]util.Uint256, headerBatchCount)
 	h.latest = make([]util.Uint256, 0, headerBatchCount)
-	h.latest = append(h.latest, hash)
-	dao.PutCurrentHeader(hash, 0)
+
+	for range trusted.Index % headerBatchCount {
+		h.latest = append(h.latest, util.Uint256{})
+	}
+	h.latest = append(h.latest, trusted.Hash)
+	dao.PutCurrentHeader(trusted.Hash, trusted.Index)
+	h.storedHeaderCount = (trusted.Index /*trusted header is not yet stored*/ / headerBatchCount) * headerBatchCount
+
+	_ = h.tryStoreBatch(dao) // ignore serialization error.
 }
 
-func (h *HeaderHashes) init(dao *dao.Simple) error {
-	h.dao = dao
-	h.cache, _ = lru.New[uint32, []util.Uint256](pagesCache) // Never errors for positive size.
-
-	currHeaderHeight, currHeaderHash, err := h.dao.GetCurrentHeaderHeight()
+func (h *HeaderHashes) init(dao *dao.Simple, trusted config.HashIndex) error {
+	currHeaderHeight, currHeaderHash, err := dao.GetCurrentHeaderHeight()
 	if err != nil {
 		return fmt.Errorf("failed to retrieve current header info: %w", err)
 	}
-	h.storedHeaderCount = ((currHeaderHeight + 1) / headerBatchCount) * headerBatchCount
+	if currHeaderHeight < trusted.Index {
+		h.initGenesis(dao, trusted)
+		return nil
+	}
 
-	if h.storedHeaderCount >= headerBatchCount {
+	h.dao = dao
+	h.cache, _ = lru.New[uint32, []util.Uint256](pagesCache) // Never errors for positive size.
+	h.storedHeaderCount = ((currHeaderHeight + 1) / headerBatchCount) * headerBatchCount
+	missingHeaderCount := ((trusted.Index + 1) / headerBatchCount) * headerBatchCount
+
+	if h.storedHeaderCount-missingHeaderCount >= headerBatchCount ||
+		currHeaderHeight%headerBatchCount != trusted.Index%headerBatchCount {
 		h.previous, err = h.dao.GetHeaderHashes(h.storedHeaderCount - headerBatchCount)
 		if err != nil {
-			return fmt.Errorf("failed to retrieve header hash page %d: %w", h.storedHeaderCount-headerBatchCount, err)
+			return fmt.Errorf("failed to get batch of header hashes at %d: %w", h.storedHeaderCount-headerBatchCount, err)
 		}
 	} else {
 		h.previous = make([]util.Uint256, headerBatchCount)
@@ -76,6 +90,9 @@ func (h *HeaderHashes) init(dao *dao.Simple) error {
 		if h.storedHeaderCount >= headerBatchCount {
 			targetHash = h.previous[len(h.previous)-1]
 		}
+		if targetHash.Equals(util.Uint256{}) {
+			targetHash = trusted.Hash
+		}
 		headers := make([]util.Uint256, 0, headerBatchCount)
 
 		for hash != targetHash {
@@ -87,6 +104,12 @@ func (h *HeaderHashes) init(dao *dao.Simple) error {
 			hash = blk.PrevHash
 		}
 		slices.Reverse(headers)
+		if !trusted.Hash.Equals(util.Uint256{}) && currHeaderHeight%headerBatchCount == trusted.Index%headerBatchCount {
+			for range trusted.Index % headerBatchCount {
+				h.latest = append(h.latest, util.Uint256{})
+			}
+			h.latest = append(h.latest, trusted.Hash)
+		}
 		h.latest = append(h.latest, headers...)
 	}
 	return nil
@@ -124,14 +147,9 @@ func (h *HeaderHashes) addHeaders(headers ...*block.Header) error {
 		}
 		lastHeader = head
 		h.latest = append(h.latest, head.Hash())
-		if len(h.latest) == headerBatchCount {
-			err = batch.StoreHeaderHashes(h.latest, h.storedHeaderCount)
-			if err != nil {
-				return err
-			}
-			copy(h.previous, h.latest)
-			h.latest = h.latest[:0]
-			h.storedHeaderCount += headerBatchCount
+		err = h.tryStoreBatch(batch)
+		if err != nil {
+			return fmt.Errorf("failed to store batch of header hashes: %w", err)
 		}
 	}
 	if lastHeader != nil {
@@ -140,6 +158,22 @@ func (h *HeaderHashes) addHeaders(headers ...*block.Header) error {
 		if _, err = batch.Persist(); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// tryStoreBatch stores the current batch of header hashes to the storage in
+// case if batch is full. It also initializes HeaderHashes for the next batch
+// processing. It does not persist dao.
+func (h *HeaderHashes) tryStoreBatch(d *dao.Simple) error {
+	if len(h.latest) == headerBatchCount {
+		err := d.StoreHeaderHashes(h.latest, h.storedHeaderCount)
+		if err != nil {
+			return err
+		}
+		copy(h.previous, h.latest)
+		h.latest = h.latest[:0]
+		h.storedHeaderCount += headerBatchCount
 	}
 	return nil
 }
