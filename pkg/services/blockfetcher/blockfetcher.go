@@ -423,11 +423,13 @@ func (bfs *Service) fetchOIDsBySearch() error {
 		select {
 		case <-bfs.exiterToOIDDownloader:
 			return nil
+		case err := <-errs:
+			if err != nil && !neofs.IsContextCanceledErr(err) {
+				return fmt.Errorf("failed to search objects: %w", err)
+			}
+			return nil
 		case item, ok := <-results:
 			if !ok {
-				if err, ok := <-errs; ok && err != nil && !neofs.IsContextCanceledErr(err) {
-					return err
-				}
 				return nil
 			}
 			if len(item.Attributes) == 0 {
