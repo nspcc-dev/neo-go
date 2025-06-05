@@ -166,5 +166,8 @@ func (a *ApplicationConfiguration) Validate() error {
 	if err := a.Logger.Validate(); err != nil {
 		return fmt.Errorf("invalid logger config: %w", err)
 	}
+	if err := a.Ledger.Validate(); err != nil {
+		return fmt.Errorf("invalid ledger config: %w", err)
+	}
 	return nil
 }

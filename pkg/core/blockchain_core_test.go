@@ -160,10 +160,17 @@ func TestNewBlockchainIncosistencies(t *testing.T) {
 			c.ProtocolConfiguration.P2PStateExchangeExtensions = true
 		}, storage.NewMemoryStore(), "P2PStatesExchangeExtensions are enabled, but StateRootInHeader is off")
 	})
+	t.Run("trusted header without state sync extensions", func(t *testing.T) {
+		checkNewBlockchainErr(t, func(c *config.Config) {
+			c.ApplicationConfiguration.TrustedHeader = config.HashIndex{
+				Hash:  util.Uint256{1, 2, 3},
+				Index: 1,
+			}
+		}, storage.NewMemoryStore(), "TrustedHeader can not be used without P2PStateExchangeExtensions or NeoFSStateSyncExtensions")
+	})
 }
 
 func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
-	t.Skip()
 	var (
 		stateSyncInterval        = 4
 		maxTraceable      uint32 = 6
@@ -251,7 +258,7 @@ func TestBlockchain_InitWithIncompleteStateJump(t *testing.T) {
 			if stage == 0x03 {
 				errText = "unknown state jump stage"
 			}
-			checkNewBlockchainErr(t, spountCfg, bcSpout.dao.Store, errText)
+			checkNewBlockchainErr(t, spountCfg, bcSpout.dao.GetPrivate().Store, errText) // don't persist changes since bcSpout.dao.Store will be reused by subsequent tests.
 		})
 	}
 }

@@ -177,6 +177,12 @@ func (s *Module) Init(currChainHeight uint32) error {
 		return nil
 	}
 	if s.bc.BlockHeight() > p-2*s.syncInterval {
+		trustedH := s.bc.GetConfig().TrustedHeader.Index
+		if trustedH > s.bc.BlockHeight() {
+			return fmt.Errorf("misconfigured trusted header height: chain is alread in sync (block height is %d, lower bound of latest sync interval is %d), but trusted height %d is upper than block height; reset trusted header to proper height",
+				s.bc.BlockHeight(), p-2*s.syncInterval, trustedH)
+		}
+
 		// chain has already been synchronised up to old state sync point and regular blocks processing was started.
 		// Current block height is enough to start regular blocks processing.
 		s.syncStage = inactive

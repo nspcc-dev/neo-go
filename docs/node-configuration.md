@@ -39,6 +39,7 @@ node-related settings described in the table below.
 | SkipBlockVerification | `bool` | `false` | Allows to disable verification of received/processed blocks (including cryptographic checks). |
 | StateRoot | [State Root Configuration](#State-Root-Configuration) |  | State root module configuration. See the [State Root Configuration](#State-Root-Configuration) section for details. |
 | SaveInvocations | `bool` | `false` | Determines if additional smart contract invocation details are stored. If enabled, the `getapplicationlog` RPC method will return a new field with invocation details for the transaction. See the [RPC](rpc.md#applicationlog-invocations) documentation for more information. |
+| TrustedHeader | `map[uint32]Hash256` | `nil` | Determines header (height and hash in the LE form) to start light node synchronization from. Headers below trusted height won't be fetched and processed at all. Requires `RemoveUntraceableBlocks` to be enabled along with one of `P2PStateExchangeExtensions` or `NeoFSStateSyncExtensions`. |
 
 ### P2P Configuration
 
