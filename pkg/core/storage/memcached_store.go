@@ -153,9 +153,9 @@ func (s *MemCachedStore) PutChangeSet(puts map[string][]byte, stores map[string]
 }
 
 // Seek implements the Store interface.
-func (s *MemCachedStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
+func (s *MemCachedStore) Seek(rng SeekRange, cont func(k, v []byte) bool) {
 	ps, memRes := s.prepareSeekMemSnapshot(rng)
-	performSeek(context.Background(), ps, memRes, rng, false, f)
+	performSeek(context.Background(), ps, memRes, rng, false, cont)
 }
 
 // GetStorageChanges returns all current storage changes. It can only be done for private
@@ -231,7 +231,7 @@ func (s *MemCachedStore) prepareSeekMemSnapshot(rng SeekRange) (Store, []KeyValu
 // `cutPrefix` denotes whether provided key needs to be cut off the resulting keys.
 // `rng` specifies prefix items must match and point to start seeking from. Backwards
 // seeking from some point is supported with corresponding `rng` field set.
-func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng SeekRange, cutPrefix bool, f func(k, v []byte) bool) {
+func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng SeekRange, cutPrefix bool, cont func(k, v []byte) bool) {
 	lPrefix := len(string(rng.Prefix))
 	var cmpFunc = getCmpFunc(rng.Backwards)
 
@@ -273,7 +273,7 @@ func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng See
 						if cutPrefix {
 							kvMem.Key = kvMem.Key[lPrefix:]
 						}
-						if !f(kvMem.Key, kvMem.Value) {
+						if !cont(kvMem.Key, kvMem.Value) {
 							done = true
 							return false
 						}
@@ -290,7 +290,7 @@ func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng See
 						if cutPrefix {
 							kvPs.Key = kvPs.Key[lPrefix:]
 						}
-						if !f(kvPs.Key, kvPs.Value) {
+						if !cont(kvPs.Key, kvPs.Value) {
 							done = true
 							return false
 						}
@@ -319,7 +319,7 @@ func performSeek(ctx context.Context, ps Store, memRes []KeyValueExists, rng See
 					if cutPrefix {
 						kvMem.Key = kvMem.Key[lPrefix:]
 					}
-					if !f(kvMem.Key, kvMem.Value) {
+					if !cont(kvMem.Key, kvMem.Value) {
 						break loop
 					}
 				}
