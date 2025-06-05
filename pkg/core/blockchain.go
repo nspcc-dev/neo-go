@@ -321,6 +321,12 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 	if cfg.P2PStateExchangeExtensions && cfg.NeoFSStateSyncExtensions {
 		return nil, errors.New("P2PStateExchangeExtensions and NeoFSStateSyncExtensions cannot be enabled simultaneously")
 	}
+	if cfg.TrustedHeader.Index > 0 && !(cfg.P2PStateExchangeExtensions || cfg.NeoFSStateSyncExtensions) {
+		return nil, errors.New("TrustedHeader can not be used without P2PStateExchangeExtensions or NeoFSStateSyncExtensions")
+	}
+	if cfg.TrustedHeader.Index == 0 && (cfg.P2PStateExchangeExtensions || cfg.NeoFSStateSyncExtensions) {
+		log.Info("TrustedHeader is not set, headers synchronisation will start from latest stored header")
+	}
 	if cfg.P2PStateExchangeExtensions {
 		if !cfg.StateRootInHeader {
 			return nil, errors.New("P2PStatesExchangeExtensions are enabled, but StateRootInHeader is off")
@@ -492,7 +498,14 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
-		bc.HeaderHashes.initGenesis(bc.dao, genesisBlock.Hash())
+		var trusted = config.HashIndex{
+			Hash:  genesisBlock.Hash(),
+			Index: 0,
+		}
+		if bc.config.TrustedHeader.Index > 0 {
+			trusted = bc.config.TrustedHeader
+		}
+		bc.HeaderHashes.initGenesis(bc.dao, trusted)
 		if err := bc.stateRoot.Init(0); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
@@ -533,7 +546,7 @@ func (bc *Blockchain) init() error {
 	// and the genesis block as first block.
 	bc.log.Info("restoring blockchain", zap.String("version", version))
 
-	err = bc.HeaderHashes.init(bc.dao)
+	err = bc.HeaderHashes.init(bc.dao, bc.config.TrustedHeader)
 	if err != nil {
 		return err
 	}
@@ -697,7 +710,12 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
 		if int(p)-int(mtb) > 0 {
-			_, err := cache.DeleteBlock(bc.GetHeaderHash(0))
+			// bc.HeaderHashes does not contain genesis hash since old hashes are removed with RUB.
+			genesisBlock, err := CreateGenesisBlock(bc.config.ProtocolConfiguration)
+			if err != nil {
+				return fmt.Errorf("failed to retrieve genesis block hash: %w", err)
+			}
+			_, err = cache.DeleteBlock(genesisBlock.Hash())
 			if err != nil {
 				return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
 			}
@@ -771,7 +789,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 // resetRAMState resets in-memory cached info.
 func (bc *Blockchain) resetRAMState(height uint32, resetHeaders bool) error {
 	if resetHeaders {
-		err := bc.HeaderHashes.init(bc.dao)
+		err := bc.HeaderHashes.init(bc.dao, config.HashIndex{})
 		if err != nil {
 			return err
 		}
@@ -1761,17 +1779,33 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 
 	if len(headers) == 0 {
 		return nil
-	} else if verify {
+	}
+	// If it's a trusted header, verify its hash against configuration.
+	if headers[0].Index == bc.config.TrustedHeader.Index && !headers[0].Hash().Equals(bc.config.TrustedHeader.Hash) {
+		return fmt.Errorf("trusted header hash mismatch at %d: expected %s, got %s", headers[0].Index, bc.config.TrustedHeader.Hash.StringLE(), headers[0].Hash().StringLE())
+	}
+	if verify {
 		// Verify that the chain of the headers is consistent.
-		var lastHeader *block.Header
-		if lastHeader, err = bc.GetHeader(headers[0].PrevHash); err != nil {
-			return fmt.Errorf("previous header was not found: %w", err)
+		var (
+			lastHeader *block.Header
+			verifyFrom uint32
+		)
+		if headers[0].Index == bc.config.TrustedHeader.Index {
+			verifyFrom++
+			lastHeader = headers[0]
 		}
-		for _, h := range headers {
-			if err = bc.verifyHeader(h, lastHeader); err != nil {
-				return err
+		if len(headers) > int(verifyFrom) {
+			if lastHeader == nil {
+				if lastHeader, err = bc.GetHeader(headers[verifyFrom].PrevHash); err != nil {
+					return fmt.Errorf("previous header %d (%s) was not found: %w", headers[verifyFrom].Index, headers[verifyFrom].PrevHash.StringLE(), err)
+				}
 			}
-			lastHeader = h
+			for _, h := range headers[verifyFrom:] {
+				if err = bc.verifyHeader(h, lastHeader); err != nil {
+					return err
+				}
+				lastHeader = h
+			}
 		}
 	}
 	res := bc.HeaderHashes.addHeaders(headers...)
@@ -1936,10 +1970,10 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		// because changes applied are the ones from HALTed transactions.
 		return fmt.Errorf("error while trying to apply MPT changes: %w", err)
 	}
-	if bc.config.StateRootInHeader && bc.HeaderHeight() > sr.Index {
+	if bc.config.StateRootInHeader && bc.HeaderHeight() > sr.Index && sr.Index > bc.config.TrustedHeader.Index {
 		h, err := bc.GetHeader(bc.GetHeaderHash(sr.Index + 1))
 		if err != nil {
-			err = fmt.Errorf("failed to get next header: %w", err)
+			err = fmt.Errorf("failed to get next header %d to verify stateroot: %w", sr.Index+1, err)
 		} else if h.PrevStateRoot != sr.Root {
 			err = fmt.Errorf("local stateroot and next header's PrevStateRoot mismatch: %s vs %s", sr.Root.StringBE(), h.PrevStateRoot.StringBE())
 		}

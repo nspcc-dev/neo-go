@@ -177,6 +177,11 @@ func (s *Module) Init(currChainHeight uint32) error {
 		return nil
 	}
 	if s.bc.BlockHeight() > p-2*s.syncInterval {
+		// TODO: it's a problem because HeaderHashes are already initialized by blockchain during
+		// init() call at the trusted block. We either need to move HeaderHashes state reset callback to
+		// (Module).Init or need to add some verification so that user can't set TrustedHeader
+		// for small chains.
+
 		// chain has already been synchronised up to old state sync point and regular blocks processing was started.
 		// Current block height is enough to start regular blocks processing.
 		s.syncStage = inactive
