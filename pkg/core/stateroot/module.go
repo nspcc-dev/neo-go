@@ -308,17 +308,17 @@ func (s *Module) GC(index uint32, store storage.Store) time.Duration {
 	start := time.Now()
 	err := store.SeekGC(storage.SeekRange{
 		Prefix: []byte{byte(storage.DataMPT)},
-	}, func(k, v []byte) bool {
+	}, func(k, v []byte) (bool, bool) {
 		stored++
 		if !mpt.IsActiveValue(v) {
 			h := binary.LittleEndian.Uint32(v[len(v)-4:])
 			if h <= index {
 				removed++
 				stored--
-				return false
+				return false, true
 			}
 		}
-		return true
+		return true, true
 	})
 	dur := time.Since(start)
 	if err != nil {
