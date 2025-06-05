@@ -411,7 +411,7 @@ func (s *Server) stateSyncCallBack() {
 	if needHeaders {
 		go s.syncHFetcherQueue.Run()
 		if !s.syncHeaderFetcher.IsShutdown() {
-			err := s.syncHeaderFetcher.Start()
+			err := s.syncHeaderFetcher.Start(s.stateSync.GetStateSyncPoint() + 1)
 			if err != nil {
 				s.log.Error("skipping NeoFS Sync HeaderFetcher", zap.Error(err))
 			}
@@ -421,7 +421,7 @@ func (s *Server) stateSyncCallBack() {
 		go s.bSyncQueue.Run()
 		go s.syncBFetcherQueue.Run()
 		if !s.syncBlockFetcher.IsShutdown() {
-			if err := s.syncBlockFetcher.Start(); err != nil {
+			if err := s.syncBlockFetcher.Start(s.stateSync.GetStateSyncPoint()); err != nil {
 				s.log.Error("skipping NeoFS Sync BlockFetcher", zap.Error(err))
 			}
 		}
@@ -888,7 +888,7 @@ func (s *Server) handleVersionCmd(p Peer, version *payload.Version) error {
 
 // handleBlockCmd processes the block received from its peer.
 func (s *Server) handleBlockCmd(p Peer, block *block.Block) error {
-	if s.syncHeaderFetcher.IsActive() || s.syncBlockFetcher.IsActive() || s.blockFetcher.IsActive() || s.syncStateFetcher.IsActive() {
+	if s.blockFetcher.IsActive() || s.config.NeoFSStateSyncExtensions && s.stateSync.IsActive() {
 		return nil
 	}
 	if s.stateSync.IsActive() {
@@ -1244,7 +1244,7 @@ func (s *Server) handleGetHeadersCmd(p Peer, gh *payload.GetBlockByIndex) error 
 
 // handleHeadersCmd processes headers payload.
 func (s *Server) handleHeadersCmd(p Peer, h *payload.Headers) error {
-	if s.syncHeaderFetcher.IsActive() || s.syncBlockFetcher.IsActive() || s.blockFetcher.IsActive() {
+	if s.blockFetcher.IsActive() || s.config.NeoFSStateSyncExtensions && s.stateSync.IsActive() {
 		return nil
 	}
 	return s.stateSync.AddHeaders(h.Hdrs...)

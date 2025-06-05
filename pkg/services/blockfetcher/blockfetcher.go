@@ -48,7 +48,7 @@ type Ledger interface {
 }
 
 type indexedOID struct {
-	Index int
+	Index uint32
 	OID   oid.ID
 }
 
@@ -86,6 +86,9 @@ type Service struct {
 	getFunc    func(ctx context.Context, oid string, index int) (io.ReadCloser, error)
 	readFunc   func(rc io.ReadCloser) (any, error)
 	heightFunc func() uint32
+
+	// stopAt is the height at which the service will stop fetching objects.
+	stopAt uint32
 }
 
 // New creates a new BlockFetcher Service.
@@ -152,7 +155,7 @@ func getHeaderSizeMap(chain config.Blockchain) map[int]int {
 }
 
 // Start runs the NeoFS BlockFetcher service.
-func (bfs *Service) Start() error {
+func (bfs *Service) Start(stopAt ...uint32) error {
 	if bfs.IsShutdown() {
 		return errors.New("service is already shut down")
 	}
@@ -191,6 +194,9 @@ func (bfs *Service) Start() error {
 		bfs.getFunc = bfs.objectGetRange
 		bfs.readFunc = bfs.readHeader
 		bfs.heightFunc = bfs.chain.HeaderHeight
+	}
+	if len(stopAt) > 0 {
+		bfs.stopAt = stopAt[0]
 	}
 
 	// Start routine that manages Service shutdown process.
@@ -233,27 +239,36 @@ func (bfs *Service) blockDownloader() {
 	defer bfs.wg.Done()
 
 	for indexedOid := range bfs.oidsCh {
-		index := indexedOid.Index
-		blkOid := indexedOid.OID
-		ctx, cancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
-		defer cancel()
+		var (
+			blkOid = indexedOid.OID
+			index  = indexedOid.Index
+			obj    any
+		)
+		err := bfs.Retry(func() error {
+			ctx, cancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
+			defer cancel()
 
-		rc, err := bfs.getFunc(ctx, blkOid.String(), index)
+			rc, err := bfs.getFunc(ctx, blkOid.String(), int(index))
+			if err != nil {
+				if neofs.IsContextCanceledErr(err) {
+					return nil
+				}
+				return err
+			}
+			obj, err = bfs.readFunc(rc)
+			if err != nil {
+				if neofs.IsContextCanceledErr(err) {
+					return nil
+				}
+				return err
+			}
+			return nil
+		})
 		if err != nil {
 			if neofs.IsContextCanceledErr(err) {
 				return
 			}
 			bfs.log.Error("failed to get object", zap.String("oid", blkOid.String()), zap.Error(err))
-			bfs.stopService(true)
-			return
-		}
-
-		obj, err := bfs.readFunc(rc)
-		if err != nil {
-			if neofs.IsContextCanceledErr(err) {
-				return
-			}
-			bfs.log.Error("failed to decode object from stream", zap.String("oid", blkOid.String()), zap.Error(err))
 			bfs.stopService(true)
 			return
 		}
@@ -276,6 +291,10 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 	h := bfs.heightFunc()
 	startIndex := h / bfs.cfg.IndexFileSize
 	skip := h % bfs.cfg.IndexFileSize
+
+	if bfs.stopAt > 0 && h >= bfs.stopAt {
+		return nil
+	}
 
 	for {
 		select {
@@ -319,9 +338,9 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 			}
 
 			blockCtx, blockCancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
-			defer blockCancel()
 			oidsRC, err := bfs.objectGet(blockCtx, obj.ID.String(), -1)
 			if err != nil {
+				blockCancel()
 				if neofs.IsContextCanceledErr(err) {
 					return nil
 				}
@@ -329,13 +348,16 @@ func (bfs *Service) fetchOIDsFromIndexFiles() error {
 			}
 
 			err = bfs.streamBlockOIDs(oidsRC, int(startIndex), int(skip))
+			blockCancel()
 			if err != nil {
 				if neofs.IsContextCanceledErr(err) {
 					return nil
 				}
 				return fmt.Errorf("failed to stream block OIDs with index %d: %w", startIndex, err)
 			}
-
+			if bfs.stopAt > 0 && startIndex >= bfs.stopAt/bfs.cfg.IndexFileSize {
+				return nil
+			}
 			startIndex++
 			skip = 0
 		}
@@ -366,11 +388,15 @@ func (bfs *Service) streamBlockOIDs(rc io.ReadCloser, startIndex, skip int) erro
 		if err := oidBlock.Decode(oidBytes); err != nil {
 			return fmt.Errorf("failed to decode OID: %w", err)
 		}
-
+		index := uint32(startIndex*int(bfs.cfg.IndexFileSize) + oidsProcessed)
 		select {
 		case <-bfs.exiterToOIDDownloader:
 			return nil
-		case bfs.oidsCh <- indexedOID{Index: startIndex*int(bfs.cfg.IndexFileSize) + oidsProcessed, OID: oidBlock}:
+		case bfs.oidsCh <- indexedOID{Index: index, OID: oidBlock}:
+		}
+
+		if bfs.stopAt > 0 && index == bfs.stopAt {
+			return nil
 		}
 
 		oidsProcessed++
@@ -397,11 +423,13 @@ func (bfs *Service) fetchOIDsBySearch() error {
 		select {
 		case <-bfs.exiterToOIDDownloader:
 			return nil
+		case err := <-errs:
+			if err != nil && !neofs.IsContextCanceledErr(err) {
+				return fmt.Errorf("failed to search objects: %w", err)
+			}
+			return nil
 		case item, ok := <-results:
 			if !ok {
-				if err, ok := <-errs; ok && err != nil && !neofs.IsContextCanceledErr(err) {
-					return err
-				}
 				return nil
 			}
 			if len(item.Attributes) == 0 {
@@ -412,6 +440,9 @@ func (bfs *Service) fetchOIDsBySearch() error {
 			if err != nil {
 				return fmt.Errorf("failed to parse block index %q: %w", indexStr, err)
 			}
+			if index > uint64(bfs.stopAt) && bfs.stopAt > 0 {
+				return nil
+			}
 			if index <= lastIndex {
 				continue
 			}
@@ -420,7 +451,7 @@ func (bfs *Service) fetchOIDsBySearch() error {
 			select {
 			case <-bfs.exiterToOIDDownloader:
 				return nil
-			case bfs.oidsCh <- indexedOID{Index: int(index), OID: item.ID}:
+			case bfs.oidsCh <- indexedOID{Index: uint32(index), OID: item.ID}:
 			}
 		}
 	}

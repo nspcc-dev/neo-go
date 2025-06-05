@@ -749,3 +749,11 @@ func (s *Module) HeaderHeight() uint32 {
 func (s *Module) GetConfig() config.Blockchain {
 	return s.bc.GetConfig()
 }
+
+// GetStateSyncPoint returns the current state synchronisation point P.
+func (s *Module) GetStateSyncPoint() uint32 {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.syncPoint
+}
