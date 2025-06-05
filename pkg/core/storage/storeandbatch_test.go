@@ -201,16 +201,16 @@ func testStoreSeek(t *testing.T, s Store) {
 
 func testStoreSeekGC(t *testing.T, s Store) {
 	kvs := pushSeekDataSet(t, s)
-	err := s.SeekGC(SeekRange{Prefix: []byte("1")}, func(k, v []byte) bool {
-		return true
+	err := s.SeekGC(SeekRange{Prefix: []byte("1")}, func(k, v []byte) (bool, bool) {
+		return true, true
 	})
 	require.NoError(t, err)
 	for i := range kvs {
 		_, err = s.Get(kvs[i].Key)
 		require.NoError(t, err)
 	}
-	err = s.SeekGC(SeekRange{Prefix: []byte("3")}, func(k, v []byte) bool {
-		return false
+	err = s.SeekGC(SeekRange{Prefix: []byte("3")}, func(k, v []byte) (bool, bool) {
+		return false, true
 	})
 	require.NoError(t, err)
 	for i := range kvs[:5] {
