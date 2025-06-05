@@ -642,23 +642,17 @@ func (dao *Simple) GetHeaderHashes(height uint32) ([]util.Uint256, error) {
 	return hashes, nil
 }
 
-// DeleteHeaderHashes removes batches of header hashes starting from the one that
+// DeleteHeaderHashesHead removes batches of header hashes starting from the one that
 // contains header with index `since` up to the most recent batch. It assumes that
 // all stored batches contain `batchSize` hashes.
-func (dao *Simple) DeleteHeaderHashes(since uint32, batchSize int) {
+func (dao *Simple) DeleteHeaderHashesHead(since uint32, batchSize int) {
+	first := dao.mkHeaderHashKey(since / uint32(batchSize) * uint32(batchSize))
 	dao.Store.Seek(storage.SeekRange{
-		Prefix:    dao.mkKeyPrefix(storage.IXHeaderHashList),
-		Backwards: true,
+		Prefix: first[0:1],
+		Start:  first[1:],
 	}, func(k, _ []byte) bool {
-		first := binary.BigEndian.Uint32(k[1:])
-		if first >= since {
-			dao.Store.Delete(k)
-			return first != since
-		}
-		if first+uint32(batchSize)-1 >= since {
-			dao.Store.Delete(k)
-		}
-		return false
+		dao.Store.Delete(k)
+		return true
 	})
 }
 

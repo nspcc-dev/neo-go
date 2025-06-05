@@ -1067,7 +1067,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		for i := height + 1; i <= hHeight; i++ {
 			upperCache.PurgeHeader(bc.GetHeaderHash(i))
 		}
-		upperCache.DeleteHeaderHashes(height+1, headerBatchCount)
+		upperCache.DeleteHeaderHashesHead(height+1, headerBatchCount)
 		upperCache.StoreAsCurrentBlock(b)
 		upperCache.PutCurrentHeader(b.Hash(), height)
 		v.StoragePrefix = statesync.TemporaryPrefix(v.StoragePrefix)
