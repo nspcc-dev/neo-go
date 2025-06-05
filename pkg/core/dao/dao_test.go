@@ -446,6 +446,25 @@ func TestPutGetStateSyncPoint(t *testing.T) {
 	require.Equal(t, expected, actual)
 }
 
+func TestPutGetStateSyncCheckPoint(t *testing.T) {
+	dao := NewSimple(storage.NewMemoryStore(), true)
+
+	// empty store
+	_, err := dao.GetStateSyncCheckpoint()
+	require.Error(t, err)
+
+	// non-empty store
+	expected := StateSyncCheckpoint{
+		MPTRoot:       util.Uint256{1, 2, 3},
+		IsMPTSynced:   true,
+		LastStoredKey: []byte{1, 2, 3},
+	}
+	dao.PutStateSyncCheckpoint(expected)
+	actual, err := dao.GetStateSyncCheckpoint()
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
+}
+
 func TestPutGetStateSyncCurrentBlockHeight(t *testing.T) {
 	dao := NewSimple(storage.NewMemoryStore(), true)
 
