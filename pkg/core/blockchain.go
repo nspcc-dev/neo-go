@@ -697,7 +697,12 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
 		if int(p)-int(mtb) > 0 {
-			_, err := cache.DeleteBlock(bc.GetHeaderHash(0))
+			// bc.HeaderHashes does not contain genesis hash since old hashes are removed with RUB.
+			genesisBlock, err := CreateGenesisBlock(bc.config.ProtocolConfiguration)
+			if err != nil {
+				return fmt.Errorf("failed to retrieve genesis block hash: %w", err)
+			}
+			_, err = cache.DeleteBlock(genesisBlock.Hash())
 			if err != nil {
 				return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
 			}
@@ -1274,6 +1279,7 @@ func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 	if tgtBlock > int64(bc.config.Ledger.GarbageCollectionPeriod) && newHeight != oldHeight {
 		dur = bc.removeOldTransfers(uint32(tgtBlock))
 		dur += bc.stateRoot.GC(uint32(tgtBlock), bc.store)
+		dur += bc.removeOldHeaderHashes(uint32(tgtBlock))
 	}
 	return dur
 }
@@ -1470,6 +1476,41 @@ func (bc *Blockchain) removeOldTransfers(index uint32) time.Duration {
 		bc.log.Info("finished transfer data garbage collection",
 			zap.Int64("removed", removed),
 			zap.Int64("kept", kept),
+			zap.Duration("time", dur))
+	}
+	return dur
+}
+
+// removeOldHeaderHashes removes batches of header hashes starting from genesis up
+// to the batch with header with the specified index (excluding this batch if some
+// headers from this batch should not be removed).
+func (bc *Blockchain) removeOldHeaderHashes(index uint32) time.Duration {
+	bc.log.Info("starting header hashes garbage collection", zap.Uint32("index", index))
+	var (
+		err     error
+		removed int64
+		start   = time.Now()
+		till    = ((int32(index)+1)/headerBatchCount - 1) * headerBatchCount
+	)
+	if till > 0 {
+		err = bc.store.SeekGC(storage.SeekRange{
+			Prefix: []byte{byte(storage.IXHeaderHashList)},
+		}, func(k, _ []byte) (bool, bool) {
+			first := binary.BigEndian.Uint32(k[1:])
+			if first <= uint32(till) {
+				removed += headerBatchCount
+				return false, first != uint32(till)
+			}
+			return true, false
+		})
+	}
+
+	dur := time.Since(start)
+	if err != nil {
+		bc.log.Error("failed to flush header hashes GC changeset", zap.Duration("time", dur), zap.Error(err))
+	} else {
+		bc.log.Info("finished header hashes garbage collection",
+			zap.Int64("removed", removed),
 			zap.Duration("time", dur))
 	}
 	return dur
