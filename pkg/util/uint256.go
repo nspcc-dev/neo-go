@@ -121,6 +121,25 @@ func (u Uint256) MarshalJSON() ([]byte, error) {
 	return r, nil
 }
 
+// UnmarshalYAML implements the YAML Unmarshaler interface.
+func (u *Uint256) UnmarshalYAML(unmarshal func(any) error) error {
+	var s string
+
+	err := unmarshal(&s)
+	if err != nil {
+		return err
+	}
+
+	s = strings.TrimPrefix(s, "0x")
+	*u, err = Uint256DecodeStringLE(s)
+	return err
+}
+
+// MarshalYAML implements the YAML marshaller interface.
+func (u Uint256) MarshalYAML() (any, error) {
+	return "0x" + u.StringLE(), nil
+}
+
 // Compare performs three-way comparison of two Uint256. Possible output: 1, -1, 0
 //
 // 1 implies u > other.
