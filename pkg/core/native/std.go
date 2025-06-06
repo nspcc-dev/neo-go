@@ -263,7 +263,7 @@ func (s *Std) itoa(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 }
 
 func (s *Std) atoi10(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	num := s.toLimitedString(args[0])
+	num := toLimitedString(args[0])
 	res := s.atoi10Aux(num)
 	return stackitem.NewBigInteger(res)
 }
@@ -277,7 +277,7 @@ func (s *Std) atoi10Aux(num string) *big.Int {
 }
 
 func (s *Std) atoi(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	num := s.toLimitedString(args[0])
+	num := toLimitedString(args[0])
 	base := toBigInt(args[1])
 	if !base.IsInt64() {
 		panic(ErrInvalidBase)
@@ -308,14 +308,14 @@ func (s *Std) atoi(_ *interop.Context, args []stackitem.Item) stackitem.Item {
 }
 
 func (s *Std) base64Encode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src := s.toLimitedBytes(args[0])
+	src := toLimitedBytes(args[0])
 	result := base64.StdEncoding.EncodeToString(src)
 
 	return stackitem.NewByteArray([]byte(result))
 }
 
 func (s *Std) base64Decode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src := s.toLimitedString(args[0])
+	src := stripSpaces(toLimitedString(args[0]))
 	result, err := base64.StdEncoding.DecodeString(src)
 	if err != nil {
 		panic(err)
@@ -325,14 +325,14 @@ func (s *Std) base64Decode(_ *interop.Context, args []stackitem.Item) stackitem.
 }
 
 func (s *Std) base64UrlEncode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src := s.toLimitedBytes(args[0])
+	src := toLimitedBytes(args[0])
 	result := base64.URLEncoding.EncodeToString(src)
 
 	return stackitem.NewByteArray([]byte(result))
 }
 
 func (s *Std) base64UrlDecode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src := s.toLimitedString(args[0])
+	src := stripSpaces(toLimitedString(args[0]))
 	result, err := base64.URLEncoding.DecodeString(src)
 	if err != nil {
 		panic(err)
@@ -342,14 +342,14 @@ func (s *Std) base64UrlDecode(_ *interop.Context, args []stackitem.Item) stackit
 }
 
 func (s *Std) base58Encode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src := s.toLimitedBytes(args[0])
+	src := toLimitedBytes(args[0])
 	result := base58.Encode(src)
 
 	return stackitem.NewByteArray([]byte(result))
 }
 
 func (s *Std) base58Decode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src := s.toLimitedString(args[0])
+	src := toLimitedString(args[0])
 	result, err := base58.Decode(src)
 	if err != nil {
 		panic(err)
@@ -359,14 +359,14 @@ func (s *Std) base58Decode(_ *interop.Context, args []stackitem.Item) stackitem.
 }
 
 func (s *Std) base58CheckEncode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src := s.toLimitedBytes(args[0])
+	src := toLimitedBytes(args[0])
 	result := base58neogo.CheckEncode(src)
 
 	return stackitem.NewByteArray([]byte(result))
 }
 
 func (s *Std) base58CheckDecode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src := s.toLimitedString(args[0])
+	src := toLimitedString(args[0])
 	result, err := base58neogo.CheckDecode(src)
 	if err != nil {
 		panic(err)
@@ -376,29 +376,29 @@ func (s *Std) base58CheckDecode(_ *interop.Context, args []stackitem.Item) stack
 }
 
 func (s *Std) memoryCompare(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	s1 := s.toLimitedBytes(args[0])
-	s2 := s.toLimitedBytes(args[1])
+	s1 := toLimitedBytes(args[0])
+	s2 := toLimitedBytes(args[1])
 	return stackitem.NewBigInteger(big.NewInt(int64(bytes.Compare(s1, s2))))
 }
 
 func (s *Std) memorySearch2(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	mem := s.toLimitedBytes(args[0])
-	val := s.toLimitedBytes(args[1])
+	mem := toLimitedBytes(args[0])
+	val := toLimitedBytes(args[1])
 	index := s.memorySearchAux(mem, val, 0, false)
 	return stackitem.NewBigInteger(big.NewInt(int64(index)))
 }
 
 func (s *Std) memorySearch3(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	mem := s.toLimitedBytes(args[0])
-	val := s.toLimitedBytes(args[1])
+	mem := toLimitedBytes(args[0])
+	val := toLimitedBytes(args[1])
 	start := toUint32(args[2])
 	index := s.memorySearchAux(mem, val, int(start), false)
 	return stackitem.NewBigInteger(big.NewInt(int64(index)))
 }
 
 func (s *Std) memorySearch4(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	mem := s.toLimitedBytes(args[0])
-	val := s.toLimitedBytes(args[1])
+	mem := toLimitedBytes(args[0])
+	val := toLimitedBytes(args[1])
 	start := toUint32(args[2])
 	backward, err := args[3].TryBool()
 	if err != nil {
@@ -425,13 +425,13 @@ func (s *Std) memorySearchAux(mem, val []byte, start int, backward bool) int {
 }
 
 func (s *Std) stringSplit2(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	str := s.toLimitedString(args[0])
+	str := toLimitedString(args[0])
 	sep := toString(args[1])
 	return stackitem.NewArray(s.stringSplitAux(str, sep, false))
 }
 
 func (s *Std) stringSplit3(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	str := s.toLimitedString(args[0])
+	str := toLimitedString(args[0])
 	sep := toString(args[1])
 	removeEmpty, err := args[2].TryBool()
 	if err != nil {
@@ -455,7 +455,7 @@ func (s *Std) stringSplitAux(str, sep string, removeEmpty bool) []stackitem.Item
 }
 
 func (s *Std) strLen(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	str := s.toLimitedString(args[0])
+	str := toLimitedString(args[0])
 
 	return stackitem.NewBigInteger(big.NewInt(int64(utf8.RuneCountInString(str))))
 }
@@ -490,7 +490,7 @@ func (s *Std) ActiveIn() *config.Hardfork {
 	return nil
 }
 
-func (s *Std) toLimitedBytes(item stackitem.Item) []byte {
+func toLimitedBytes(item stackitem.Item) []byte {
 	src, err := item.TryBytes()
 	if err != nil {
 		panic(err)
@@ -501,10 +501,23 @@ func (s *Std) toLimitedBytes(item stackitem.Item) []byte {
 	return src
 }
 
-func (s *Std) toLimitedString(item stackitem.Item) string {
+func toLimitedString(item stackitem.Item) string {
 	src := toString(item)
 	if len(src) > stdMaxInputLength {
 		panic(ErrTooBigInput)
 	}
 	return src
+}
+
+// stripSpace removes all whitespace characters and tabulation characters from
+// string, ref. https://learn.microsoft.com/ru-ru/dotnet/api/system.convert.frombase64string?view=net-8.0#remarks.
+func stripSpaces(str string) string {
+	return strings.Map(func(r rune) rune {
+		switch r {
+		case ' ', '\t':
+			return -1
+		default:
+			return r
+		}
+	}, str)
 }

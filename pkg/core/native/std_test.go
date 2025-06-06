@@ -227,6 +227,27 @@ func TestStdLibEncodeDecode(t *testing.T) {
 		})
 		require.Equal(t, stackitem.Make(original), actual)
 	})
+	t.Run("Decode64/compat", func(t *testing.T) {
+		t.Run("tx 9891b55c43a6e5054c59d9966a48b55084a9d8839b5bac2aeb6fd11df2910aa4", func(t *testing.T) {
+			// Ref. #3926, input with space:
+			in := " enIC6PJKUGGHR56RZ4PXXJizdmIHXDWlU75cQkOMK0pdQenvQphcuL/u0Borm4hecvZX3lNRxqxcnAjfU7HhVQ=="
+			expected, err := base64.StdEncoding.DecodeString(in[1:])
+			require.NoError(t, err)
+			require.NotPanics(t, func() {
+				actual = s.base64Decode(ic, []stackitem.Item{stackitem.Make(in)})
+			})
+			require.Equal(t, stackitem.Make(expected), actual)
+		})
+		t.Run("custom example", func(t *testing.T) {
+			in := "A \r Q \t I \n D"
+			expected, err := base64.StdEncoding.DecodeString("AQID")
+			require.NoError(t, err)
+			require.NotPanics(t, func() {
+				actual = s.base64Decode(ic, []stackitem.Item{stackitem.Make(in)})
+			})
+			require.Equal(t, stackitem.Make(expected), actual)
+		})
+	})
 	t.Run("Decode64/error", func(t *testing.T) {
 		require.Panics(t, func() {
 			_ = s.base64Decode(ic, []stackitem.Item{stackitem.Make(encoded64 + "%")})
@@ -242,6 +263,15 @@ func TestStdLibEncodeDecode(t *testing.T) {
 			actual = s.base64UrlDecode(ic, []stackitem.Item{stackitem.Make(encoded64Url)})
 		})
 		require.Equal(t, stackitem.Make(originalUrl), actual)
+	})
+	t.Run("Decode64Url/compat", func(t *testing.T) {
+		in := "U 3 \t V \n \riamVjdD10ZXN0QGV4YW1wbGUuY29tJklzc3Vlcj1odHRwczovL2V4YW1wbGUuY29t"
+		expected, err := base64.URLEncoding.DecodeString("U3ViamVjdD10ZXN0QGV4YW1wbGUuY29tJklzc3Vlcj1odHRwczovL2V4YW1wbGUuY29t")
+		require.NoError(t, err)
+		require.NotPanics(t, func() {
+			actual = s.base64UrlDecode(ic, []stackitem.Item{stackitem.Make(in)})
+		})
+		require.Equal(t, stackitem.Make(expected), actual)
 	})
 	t.Run("Decode64Url/error", func(t *testing.T) {
 		require.Panics(t, func() {
