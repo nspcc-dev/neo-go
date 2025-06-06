@@ -315,7 +315,7 @@ func (s *Std) base64Encode(_ *interop.Context, args []stackitem.Item) stackitem.
 }
 
 func (s *Std) base64Decode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src := s.toLimitedString(args[0])
+	src := stripSpaces(s.toLimitedString(args[0]))
 	result, err := base64.StdEncoding.DecodeString(src)
 	if err != nil {
 		panic(err)
@@ -332,7 +332,7 @@ func (s *Std) base64UrlEncode(_ *interop.Context, args []stackitem.Item) stackit
 }
 
 func (s *Std) base64UrlDecode(_ *interop.Context, args []stackitem.Item) stackitem.Item {
-	src := s.toLimitedString(args[0])
+	src := stripSpaces(s.toLimitedString(args[0]))
 	result, err := base64.URLEncoding.DecodeString(src)
 	if err != nil {
 		panic(err)
@@ -507,4 +507,17 @@ func (s *Std) toLimitedString(item stackitem.Item) string {
 		panic(ErrTooBigInput)
 	}
 	return src
+}
+
+// stripSpace removes all whitespace characters and tabulation characters from
+// string, ref. https://learn.microsoft.com/ru-ru/dotnet/api/system.convert.frombase64string?view=net-8.0#remarks.
+func stripSpaces(str string) string {
+	return strings.Map(func(r rune) rune {
+		switch r {
+		case ' ', '\t':
+			return -1
+		default:
+			return r
+		}
+	}, str)
 }
