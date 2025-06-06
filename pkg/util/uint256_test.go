@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestUint256UnmarshalJSON(t *testing.T) {
@@ -24,6 +25,29 @@ func TestUint256UnmarshalJSON(t *testing.T) {
 	testserdes.MarshalUnmarshalJSON(t, &expected, &u2)
 
 	// UnmarshalJSON does not accepts numbers
+	assert.Error(t, u2.UnmarshalJSON([]byte("123")))
+}
+
+func TestUint256UnmarshalYAML(t *testing.T) {
+	str := "f037308fa0ab18155bccfc08485468c112409ea5064595699e98c545f245f32d"
+	expected, err := util.Uint256DecodeStringLE(str)
+	require.NoError(t, err)
+
+	// UnmarshalYAML decodes hex-strings.
+	var u1, u2 util.Uint256
+	require.NoError(t, yaml.Unmarshal([]byte(str), &u1))
+	require.Equal(t, expected, u1)
+
+	testserdes.MarshalUnmarshalYAML(t, &expected, &u2)
+
+	// Check 0x-prefixed marshalling.
+	require.NoError(t, yaml.Unmarshal([]byte("0x"+str), &u1))
+	require.Equal(t, expected, u1)
+	actual, err := yaml.Marshal(expected)
+	require.NoError(t, err)
+	require.Equal(t, "0x"+str+"\n", string(actual))
+
+	// Invalid input.
 	assert.Error(t, u2.UnmarshalJSON([]byte("123")))
 }
 
