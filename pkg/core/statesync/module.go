@@ -160,11 +160,11 @@ func (s *Module) Init(currChainHeight uint32) error {
 	oldStage := s.syncStage
 	s.lock.Lock()
 	defer func() {
+		s.lock.Unlock()
 		if s.syncStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
-	defer s.lock.Unlock()
 
 	if s.syncStage != none {
 		return errors.New("already initialized or inactive")
@@ -394,11 +394,11 @@ func (s *Module) AddHeaders(hdrs ...*block.Header) error {
 	oldStage := s.syncStage
 	s.lock.Lock()
 	defer func() {
+		s.lock.Unlock()
 		if s.syncStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
-	defer s.lock.Unlock()
 
 	if s.syncStage != initialized {
 		return errors.New("headers were not requested")

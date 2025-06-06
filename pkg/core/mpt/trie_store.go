@@ -114,7 +114,7 @@ func (m *TrieStore) Seek(rng storage.SeekRange, f func(k, v []byte) bool) {
 
 // SeekGC implements the Store interface. It's not supported, so it always
 // returns [errors.ErrUnsupported].
-func (m *TrieStore) SeekGC(rng storage.SeekRange, keep func(k, v []byte) bool) error {
+func (m *TrieStore) SeekGC(rng storage.SeekRange, keep func(k, v []byte) (bool, bool)) error {
 	return fmt.Errorf("%w: SeekGC is not supported", errors.ErrUnsupported)
 }
 
