@@ -517,9 +517,11 @@ func (s *Module) AddMPTNodes(nodes [][]byte) error {
 			return fmt.Errorf("failed to persist last batch of MPT nodes: %w", err)
 		}
 		s.syncStage |= mptSynced
-		s.log.Info("MPT is in sync",
-			zap.Uint32("height", s.syncPoint))
 		s.blockHeight = s.getLatestSavedBlock(s.syncPoint)
+		s.log.Info("MPT is in sync",
+			zap.Uint32("syncPoint", s.syncPoint),
+			zap.Uint32("blockHeight", s.blockHeight),
+		)
 	}
 	return nil
 }
@@ -586,10 +588,12 @@ func (s *Module) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint
 		}
 	}
 	s.syncStage |= mptSynced
+	s.blockHeight = s.getLatestSavedBlock(s.syncPoint)
 	s.log.Info("MPT and contract storage are in sync",
-		zap.Uint32("stateroot height", s.syncPoint),
-		zap.String("root", computedRoot.StringLE()))
-	s.checkSyncIsCompleted()
+		zap.Uint32("syncPoint", s.syncPoint),
+		zap.String("stateRoot", computedRoot.StringLE()),
+		zap.Uint32("blockHeight", s.blockHeight))
+
 	return nil
 }
 
