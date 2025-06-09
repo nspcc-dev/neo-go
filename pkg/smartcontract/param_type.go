@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
 	"github.com/nspcc-dev/neo-go/pkg/vm/opcode"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"gopkg.in/yaml.v3"
 )
 
 // ParamType represents the Type of the smart contract parameter.
@@ -129,10 +130,10 @@ func (pt ParamType) MarshalYAML() (any, error) {
 }
 
 // UnmarshalYAML implements the YAML Unmarshaler interface.
-func (pt *ParamType) UnmarshalYAML(unmarshal func(any) error) error {
+func (pt *ParamType) UnmarshalYAML(node *yaml.Node) error {
 	var name string
 
-	err := unmarshal(&name)
+	err := node.Decode(&name)
 	if err != nil {
 		return err
 	}
