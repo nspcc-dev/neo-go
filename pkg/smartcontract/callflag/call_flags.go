@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // CallFlag represents a call flag.
@@ -124,10 +126,10 @@ func (f CallFlag) MarshalYAML() (any, error) {
 }
 
 // UnmarshalYAML implements the YAML unmarshaler interface.
-func (f *CallFlag) UnmarshalYAML(unmarshal func(any) error) error {
+func (f *CallFlag) UnmarshalYAML(node *yaml.Node) error {
 	var s string
 
-	err := unmarshal(&s)
+	err := node.Decode(&s)
 	if err != nil {
 		return err
 	}

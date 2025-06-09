@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/emit"
+	"gopkg.in/yaml.v3"
 )
 
 // coordLen is the number of bytes in serialized X or Y coordinate.
@@ -388,9 +389,9 @@ func (p *PublicKey) MarshalYAML() (any, error) {
 }
 
 // UnmarshalYAML implements the YAML unmarshaler interface.
-func (p *PublicKey) UnmarshalYAML(unmarshal func(any) error) error {
+func (p *PublicKey) UnmarshalYAML(node *yaml.Node) error {
 	var s string
-	err := unmarshal(&s)
+	err := node.Decode(&s)
 	if err != nil {
 		return err
 	}
