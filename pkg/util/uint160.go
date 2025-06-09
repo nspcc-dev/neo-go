@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"gopkg.in/yaml.v3"
 )
 
 // Uint160Size is the size of Uint160 in bytes.
@@ -147,10 +148,10 @@ func (u Uint160) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalYAML implements the YAML Unmarshaler interface.
-func (u *Uint160) UnmarshalYAML(unmarshal func(any) error) error {
+func (u *Uint160) UnmarshalYAML(node *yaml.Node) error {
 	var s string
 
-	err := unmarshal(&s)
+	err := node.Decode(&s)
 	if err != nil {
 		return err
 	}
