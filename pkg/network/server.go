@@ -1624,7 +1624,7 @@ func (s *Server) tryInitStateSync() {
 	err := s.stateSync.Init(h)
 	if err != nil {
 		s.log.Fatal("failed to init state sync module",
-			zap.Uint32("evaluated chain's blockHeight", h),
+			zap.Uint32("remoteHeight", h),
 			zap.Uint32("blockHeight", s.chain.BlockHeight()),
 			zap.Uint32("headerHeight", s.chain.HeaderHeight()),
 			zap.Error(err))

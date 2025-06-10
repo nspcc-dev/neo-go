@@ -213,8 +213,8 @@ func (s *Module) Init(currChainHeight uint32) error {
 	s.dao.PutStateSyncPoint(p)
 	s.syncStage = initialized
 	s.log.Info("try to sync state for the latest state synchronisation point",
-		zap.Uint32("point", p),
-		zap.Uint32("evaluated chain's blockHeight", currChainHeight),
+		zap.Uint32("syncPoint", p),
+		zap.Uint32("remoteBlockHeight", currChainHeight),
 		zap.String("mode", s.mode.String()))
 	return s.defineSyncStage()
 }
@@ -273,7 +273,7 @@ func (s *Module) defineSyncStage() error {
 				TemporaryPrefix(s.dao.Version.StoragePrefix), s.dao.Store)
 			s.log.Info("MPT billet initialized",
 				zap.Uint32("height", s.syncPoint),
-				zap.String("state root", header.PrevStateRoot.StringBE()))
+				zap.String("stateRoot", header.PrevStateRoot.StringBE()))
 			pool := NewPool()
 			pool.Add(header.PrevStateRoot, []byte{})
 			err = s.billet.Traverse(func(_ []byte, n mpt.Node, _ []byte) bool {
@@ -300,7 +300,7 @@ func (s *Module) defineSyncStage() error {
 			if s.mptpool.Count() == 0 {
 				s.syncStage |= mptSynced
 				s.log.Info("MPT is in sync",
-					zap.Uint32("stateroot height", s.syncPoint))
+					zap.Uint32("syncPoint", s.syncPoint))
 			}
 		} else {
 			ckpt, err := s.dao.GetStateSyncCheckpoint()
@@ -317,8 +317,8 @@ func (s *Module) defineSyncStage() error {
 				if ckpt.IsMPTSynced {
 					s.syncStage |= mptSynced
 					s.log.Info("MPT and contract storage are in sync",
-						zap.Uint32("stateroot height", s.syncPoint),
-						zap.String("root", ckpt.MPTRoot.StringLE()))
+						zap.Uint32("syncPoint", s.syncPoint),
+						zap.String("stateRoot", ckpt.MPTRoot.StringLE()))
 				}
 			}
 		}
@@ -639,7 +639,7 @@ func (s *Module) checkSyncIsCompleted() {
 		return
 	}
 	s.log.Info("state is in sync",
-		zap.Uint32("state sync point", s.syncPoint))
+		zap.Uint32("syncPoint", s.syncPoint))
 	err := s.jumpCallback(s.syncPoint)
 	if err != nil {
 		s.log.Fatal("failed to jump to the latest state sync point", zap.Error(err))
