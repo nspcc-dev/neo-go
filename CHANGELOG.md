@@ -2,6 +2,48 @@
 
 This document outlines major changes between releases.
 
+## 0.110.0 "Utilization" (10 Jun 2025)
+
+This version fixes state difference at block 6701925 of testnet. It also introduces
+NeoFSStateFetcher service that allows to synchronize contract storage state at
+particular height based on checkpoint data stored in NeoFS. Moreover, for smooth
+RPC client upgrade experience, the next Faun hardfork is added in a preview mode
+(although it doesn't contain any changes yet). Also, new `BroadcastTxsBatchDelay`
+P2P application configuration setting is introduced preliminary for custom networks
+setup to be able to customize the maximum transaction batch broadcast delay.
+
+T5 nodes require DB resynchronisation (or state reset to 6701924 block for full nodes),
+mainnet nodes DB resync is not required at the moment of release. No configuration
+changes required.
+
+New features:
+ * ability to synchronize contract storage from NeoFS snapshot (#3844)
+ * Faun hardfork is introduced in a preview mode, but doesn't include
+   any changes yet (#3931)
+
+Improvements:
+ * migration to NeoFS SearchV2 API (#3913)
+ * support for graceful stop at given height for NeoFSBlockFetcher service (#3901)
+ * support slice expressions for string in compiler (#3916)
+ * integrate ArchivalNode capability (#3899)
+ * refactor code to use Go built-ins (#3897, #3923)
+ * update documentation (#3924)
+ * `BroadcastTxsBatchDelay` application setting that allows to customize the time
+   limit for transaction batch collection before its broadcast (#3930)
+
+Bugs fixed:
+ * race in cache persistence logic (#3931)
+ * whitespaces in argument of StdLib's `base64Decode` and `base64UrlDecode`
+   methods lead to decoding error (#3928)
+ * multiple simultaneous connections to a single peer (#3911)
+ * node peer state unambiguity (#3911)
+ * failed MPT initialization after node restart (#3919)
+ * bugs in seed discovery logic (#3912)
+ * intermediate state synchronisation stages are not persisted to the DB (#3900)
+ * intermediate state jump stages are not persisted to the DB (#3895)
+ * excessive logging in Notary service (#3896)
+ * missing block height initialization for statesync module (#3933) 
+
 ## 0.109.1 "Transformation" (14 May 2025)
 
 An urgent patch version that fixes state difference at block 5894663 of testnet.
