@@ -2,7 +2,7 @@ module github.com/nspcc-dev/neo-go
 
 go 1.23
 
-replace go.etcd.io/bbolt v1.4.0 => github.com/nspcc-dev/bbolt v0.0.0-20250610155116-c4c85b166abf
+replace go.etcd.io/bbolt v1.4.0 => github.com/nspcc-dev/bbolt v0.0.0-20250530080703-e26843850e45
 
 require (
 	github.com/chzyer/readline v1.5.1
