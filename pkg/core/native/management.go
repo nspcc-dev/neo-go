@@ -291,9 +291,14 @@ func (m *Management) getContractHashes(ic *interop.Context, _ []stackitem.Item) 
 	seekres := ic.DAO.SeekAsync(ctx, ManagementContractID, storage.SeekRange{Prefix: prefix})
 	filteredRes := make(chan storage.KeyValue)
 	go func() {
+	loop:
 		for kv := range seekres {
 			if len(kv.Key) == 4 && binary.BigEndian.Uint32(kv.Key) < math.MaxInt32 {
-				filteredRes <- kv
+				select {
+				case <-ctx.Done():
+					break loop
+				case filteredRes <- kv:
+				}
 			}
 		}
 		close(filteredRes)
@@ -302,7 +307,7 @@ func (m *Management) getContractHashes(ic *interop.Context, _ []stackitem.Item) 
 	item := istorage.NewIterator(filteredRes, prefix, int64(opts))
 	ic.RegisterCancelFunc(func() {
 		cancel()
-		for range seekres { //nolint:revive //empty-block
+		for range filteredRes { //nolint:revive //empty-block
 		}
 	})
 	return stackitem.NewInterop(item)
