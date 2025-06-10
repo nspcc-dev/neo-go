@@ -261,7 +261,7 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Sync NeoFS HeaderFetcher: %w", err)
 	}
-	s.syncStateFetcher, err = statefetcher.New(s.stateSync, s.NeoFSStateFetcherCfg, chain.GetConfig().StateSyncInterval, log, s.stateSyncCallBack)
+	s.syncStateFetcher, err = statefetcher.New(s.stateSync, s.NeoFSStateFetcherCfg, chain.GetConfig().StateSyncInterval, log, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create NeoFS StateFetcher: %w", err)
 	}
@@ -1632,7 +1632,7 @@ func (s *Server) tryInitStateSync() {
 	err := s.stateSync.Init(h)
 	if err != nil {
 		s.log.Fatal("failed to init state sync module",
-			zap.Uint32("evaluated chain's blockHeight", h),
+			zap.Uint32("remoteHeight", h),
 			zap.Uint32("blockHeight", s.chain.BlockHeight()),
 			zap.Uint32("headerHeight", s.chain.HeaderHeight()),
 			zap.Error(err))
