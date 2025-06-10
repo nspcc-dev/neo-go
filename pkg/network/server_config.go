@@ -81,6 +81,9 @@ type (
 
 		// BroadcastFactor is the factor (0-100) for fan-out optimization.
 		BroadcastFactor int
+		// BroadcastTxsBatchDelay is a time for txs batch collection before
+		// broadcasting them.
+		BroadcastTxsBatchDelay time.Duration
 
 		NeoFSBlockFetcherCfg config.NeoFSBlockFetcher
 		// NeoFSStateFetcherCfg is the statefetcher module configuration.
@@ -98,27 +101,28 @@ func NewServerConfig(cfg config.Config) (ServerConfig, error) {
 		return ServerConfig{}, fmt.Errorf("failed to parse addresses: %w", err)
 	}
 	c := ServerConfig{
-		UserAgent:            cfg.GenerateUserAgent(),
-		Addresses:            addrs,
-		Net:                  protoConfig.Magic,
-		Relay:                appConfig.Relay,
-		ArchivalNodesSync:    appConfig.ArchivalNodesSync,
-		DisableCompression:   appConfig.P2P.DisableCompression,
-		Seeds:                protoConfig.SeedList,
-		DialTimeout:          appConfig.P2P.DialTimeout,
-		ProtoTickInterval:    appConfig.P2P.ProtoTickInterval,
-		PingInterval:         appConfig.P2P.PingInterval,
-		PingTimeout:          appConfig.P2P.PingTimeout,
-		MaxPeers:             appConfig.P2P.MaxPeers,
-		AttemptConnPeers:     appConfig.P2P.AttemptConnPeers,
-		MinPeers:             appConfig.P2P.MinPeers,
-		OracleCfg:            appConfig.Oracle,
-		P2PNotaryCfg:         appConfig.P2PNotary,
-		StateRootCfg:         appConfig.StateRoot,
-		ExtensiblePoolSize:   appConfig.P2P.ExtensiblePoolSize,
-		BroadcastFactor:      appConfig.P2P.BroadcastFactor,
-		NeoFSBlockFetcherCfg: appConfig.NeoFSBlockFetcher,
-		NeoFSStateFetcherCfg: appConfig.NeoFSStateFetcher,
+		UserAgent:              cfg.GenerateUserAgent(),
+		Addresses:              addrs,
+		Net:                    protoConfig.Magic,
+		Relay:                  appConfig.Relay,
+		ArchivalNodesSync:      appConfig.ArchivalNodesSync,
+		DisableCompression:     appConfig.P2P.DisableCompression,
+		Seeds:                  protoConfig.SeedList,
+		DialTimeout:            appConfig.P2P.DialTimeout,
+		ProtoTickInterval:      appConfig.P2P.ProtoTickInterval,
+		PingInterval:           appConfig.P2P.PingInterval,
+		PingTimeout:            appConfig.P2P.PingTimeout,
+		MaxPeers:               appConfig.P2P.MaxPeers,
+		AttemptConnPeers:       appConfig.P2P.AttemptConnPeers,
+		MinPeers:               appConfig.P2P.MinPeers,
+		OracleCfg:              appConfig.Oracle,
+		P2PNotaryCfg:           appConfig.P2PNotary,
+		StateRootCfg:           appConfig.StateRoot,
+		ExtensiblePoolSize:     appConfig.P2P.ExtensiblePoolSize,
+		BroadcastFactor:        appConfig.P2P.BroadcastFactor,
+		BroadcastTxsBatchDelay: appConfig.P2P.BroadcastTxsBatchDelay,
+		NeoFSBlockFetcherCfg:   appConfig.NeoFSBlockFetcher,
+		NeoFSStateFetcherCfg:   appConfig.NeoFSStateFetcher,
 	}
 	return c, nil
 }

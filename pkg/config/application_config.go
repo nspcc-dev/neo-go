@@ -50,6 +50,7 @@ func (a *ApplicationConfiguration) EqualsButServices(o *ApplicationConfiguration
 	}
 	if a.P2P.AttemptConnPeers != o.P2P.AttemptConnPeers ||
 		a.P2P.BroadcastFactor != o.P2P.BroadcastFactor ||
+		a.P2P.BroadcastTxsBatchDelay != o.P2P.BroadcastTxsBatchDelay ||
 		a.DBConfiguration != o.DBConfiguration ||
 		a.P2P.DialTimeout != o.P2P.DialTimeout ||
 		a.P2P.ExtensiblePoolSize != o.P2P.ExtensiblePoolSize ||
