@@ -1187,9 +1187,14 @@ func (n *NEO) getAllCandidatesCall(ic *interop.Context, _ []stackitem.Item) stac
 	seekres := ic.DAO.SeekAsync(ctx, n.ID, storage.SeekRange{Prefix: prefix})
 	filteredRes := make(chan storage.KeyValue)
 	go func() {
+	loop:
 		for kv := range seekres {
 			if keep(kv) {
-				filteredRes <- kv
+				select {
+				case <-ctx.Done():
+					break loop
+				case filteredRes <- kv:
+				}
 			}
 		}
 		close(filteredRes)
@@ -1199,7 +1204,7 @@ func (n *NEO) getAllCandidatesCall(ic *interop.Context, _ []stackitem.Item) stac
 	item := istorage.NewIterator(filteredRes, prefix, int64(opts))
 	ic.RegisterCancelFunc(func() {
 		cancel()
-		for range seekres { //nolint:revive //empty-block
+		for range filteredRes { //nolint:revive //empty-block
 		}
 	})
 	return stackitem.NewInterop(item)
