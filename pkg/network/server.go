@@ -253,7 +253,7 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Sync NeoFS HeaderFetcher: %w", err)
 	}
-	s.syncStateFetcher, err = statefetcher.New(s.stateSync, s.NeoFSStateFetcherCfg, chain.GetConfig().StateSyncInterval, log, s.stateSyncCallBack)
+	s.syncStateFetcher, err = statefetcher.New(s.stateSync, s.NeoFSStateFetcherCfg, chain.GetConfig().StateSyncInterval, log, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create NeoFS StateFetcher: %w", err)
 	}
@@ -793,7 +793,7 @@ func (s *Server) getVersionMsg(localAddr net.Addr) (*Message, error) {
 		})
 	}
 	cfg := s.chain.GetConfig()
-	if !cfg.RemoveUntraceableBlocks && !cfg.RemoveUntraceableHeaders {
+	if !cfg.RemoveUntraceableBlocks {
 		capabilities = append(capabilities, capability.Capability{
 			Type: capability.ArchivalNode,
 			Data: &capability.Archival{},

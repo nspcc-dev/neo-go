@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -86,9 +87,9 @@ func (f *Fixed8) UnmarshalJSON(data []byte) error {
 }
 
 // UnmarshalYAML implements the yaml unmarshaler interface.
-func (f *Fixed8) UnmarshalYAML(unmarshal func(any) error) error {
+func (f *Fixed8) UnmarshalYAML(node *yaml.Node) error {
 	var s string
-	err := unmarshal(&s)
+	err := node.Decode(&s)
 	if err != nil {
 		return err
 	}

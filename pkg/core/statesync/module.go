@@ -160,11 +160,11 @@ func (s *Module) Init(currChainHeight uint32) error {
 	oldStage := s.syncStage
 	s.lock.Lock()
 	defer func() {
+		s.lock.Unlock()
 		if s.syncStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
-	defer s.lock.Unlock()
 
 	if s.syncStage != none {
 		return errors.New("already initialized or inactive")
@@ -177,6 +177,11 @@ func (s *Module) Init(currChainHeight uint32) error {
 		return nil
 	}
 	if s.bc.BlockHeight() > p-2*s.syncInterval {
+		// TODO: it's a problem because HeaderHashes are already initialized by blockchain during
+		// init() call at the trusted block. We either need to move HeaderHashes state reset callback to
+		// (Module).Init or need to add some verification so that user can't set TrustedHeader
+		// for small chains.
+
 		// chain has already been synchronised up to old state sync point and regular blocks processing was started.
 		// Current block height is enough to start regular blocks processing.
 		s.syncStage = inactive
@@ -394,11 +399,11 @@ func (s *Module) AddHeaders(hdrs ...*block.Header) error {
 	oldStage := s.syncStage
 	s.lock.Lock()
 	defer func() {
+		s.lock.Unlock()
 		if s.syncStage != oldStage {
 			s.notifyStageChanged()
 		}
 	}()
-	defer s.lock.Unlock()
 
 	if s.syncStage != initialized {
 		return errors.New("headers were not requested")
@@ -517,9 +522,11 @@ func (s *Module) AddMPTNodes(nodes [][]byte) error {
 			return fmt.Errorf("failed to persist last batch of MPT nodes: %w", err)
 		}
 		s.syncStage |= mptSynced
-		s.log.Info("MPT is in sync",
-			zap.Uint32("height", s.syncPoint))
 		s.blockHeight = s.getLatestSavedBlock(s.syncPoint)
+		s.log.Info("MPT is in sync",
+			zap.Uint32("height", s.syncPoint),
+			zap.Uint32("block sync start height", s.blockHeight),
+		)
 	}
 	return nil
 }
@@ -586,10 +593,12 @@ func (s *Module) AddContractStorageItems(kvs []storage.KeyValue, syncHeight uint
 		}
 	}
 	s.syncStage |= mptSynced
+	s.blockHeight = s.getLatestSavedBlock(s.syncPoint)
 	s.log.Info("MPT and contract storage are in sync",
 		zap.Uint32("stateroot height", s.syncPoint),
-		zap.String("root", computedRoot.StringLE()))
-	s.checkSyncIsCompleted()
+		zap.String("root", computedRoot.StringLE()),
+		zap.Uint32("block sync start height", s.blockHeight))
+
 	return nil
 }
 

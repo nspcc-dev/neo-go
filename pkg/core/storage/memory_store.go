@@ -77,7 +77,7 @@ func (s *MemoryStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 }
 
 // SeekGC implements the Store interface.
-func (s *MemoryStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
+func (s *MemoryStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, bool)) error {
 	noop := func() {}
 	// Keep RW lock for the whole Seek time, state must be consistent across whole
 	// operation and we call delete in the handler.
@@ -85,10 +85,11 @@ func (s *MemoryStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
 	// We still need to perform normal seek, some GC operations can be
 	// sensitive to the order of KV pairs.
 	s.seek(rng, func(k, v []byte) bool {
-		if !keep(k, v) {
+		keep, cont := keepCont(k, v)
+		if !keep {
 			delete(s.chooseMap(k), string(k))
 		}
-		return true
+		return cont
 	}, noop, noop)
 	s.mut.Unlock()
 	return nil

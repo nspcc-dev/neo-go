@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"gopkg.in/yaml.v3"
 )
 
 // Genesis represents a set of genesis block settings including the extensions
@@ -85,9 +86,9 @@ func (e Genesis) MarshalYAML() (any, error) {
 }
 
 // UnmarshalYAML implements the YAML unmarshaler interface.
-func (e *Genesis) UnmarshalYAML(unmarshal func(any) error) error {
+func (e *Genesis) UnmarshalYAML(node *yaml.Node) error {
 	var aux genesisAux
-	if err := unmarshal(&aux); err != nil {
+	if err := node.Decode(&aux); err != nil {
 		return err
 	}
 
