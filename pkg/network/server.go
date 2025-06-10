@@ -201,6 +201,14 @@ func newServerFromConstructors(config ServerConfig, chain Ledger, stSync StateSy
 			zap.Int("ExtensiblePoolSize", config.ExtensiblePoolSize))
 	}
 
+	if config.BroadcastTxsBatchDelay == 0 {
+		// default to 5% of block time but not longer than 50ms
+		blockTime := time.Duration(chain.GetMillisecondsPerBlock()) * time.Millisecond
+		config.BroadcastTxsBatchDelay = min(50*time.Millisecond, blockTime/20)
+		log.Info("BroadcastTxsBatchDelay is not set or wrong, using default value",
+			zap.Duration("BroadcastTxsBatchDelay", config.BroadcastTxsBatchDelay))
+	}
+
 	s := &Server{
 		ServerConfig:    config,
 		chain:           chain,
@@ -1834,10 +1842,7 @@ func (s *Server) initStaleMemPools() {
 // broadcastTxLoop is a loop for batching and sending
 // transactions hashes in an INV payload.
 func (s *Server) broadcastTxLoop() {
-	const (
-		batchTime = time.Millisecond * 50
-		batchSize = 42
-	)
+	const batchSize = 42
 
 	defer close(s.broadcastTxFin)
 	txs := make([]util.Uint256, 0, batchSize)
@@ -1876,7 +1881,7 @@ func (s *Server) broadcastTxLoop() {
 			}
 		case tx := <-s.transactions:
 			if len(txs) == 0 {
-				timer = time.NewTimer(batchTime)
+				timer = time.NewTimer(s.BroadcastTxsBatchDelay)
 			}
 
 			txs = append(txs, tx.Hash())

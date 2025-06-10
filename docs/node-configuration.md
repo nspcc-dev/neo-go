@@ -51,6 +51,7 @@ P2P:
     - "0.0.0.0:0" # any free port on all available addresses (in form of "[host]:[port][:announcedPort]")
   AttemptConnPeers: 20
   BroadcastFactor: 0
+  BroadcastTxsBatchDelay: 50ms
   DialTimeout: 0s
   DisableCompression: false
   MaxPeers: 100
@@ -76,6 +77,9 @@ where:
    messages to just 10 of them. With BroadcastFactor set to 100 it will always send messages
    to all peers, any value in-between 0 and 100 is used for weighted calculation, for example
    if it's 30 then 13 neighbors will be used in the previous case.
+- `BroadcastTxsBatchDelay` (`Duration`) is the time limit for collecting batch of transactions
+   for subsequent P2P broadcast. By default, 5% of block time is used but not longer than 
+   50 milliseconds.
 - `DialTimeout` (`Duration`) is the maximum duration a single dial may take.
 - `DisableCompression` (`bool`) denotes whether the node should disable P2P payloads
    compression.

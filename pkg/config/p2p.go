@@ -8,13 +8,15 @@ type P2P struct {
 	Addresses        []string `yaml:"Addresses"`
 	AttemptConnPeers int      `yaml:"AttemptConnPeers"`
 	// BroadcastFactor is the factor (0-100) controlling gossip fan-out number optimization.
-	BroadcastFactor    int           `yaml:"BroadcastFactor"`
-	DialTimeout        time.Duration `yaml:"DialTimeout"`
-	DisableCompression bool          `yaml:"DisableCompression"`
-	ExtensiblePoolSize int           `yaml:"ExtensiblePoolSize"`
-	MaxPeers           int           `yaml:"MaxPeers"`
-	MinPeers           int           `yaml:"MinPeers"`
-	PingInterval       time.Duration `yaml:"PingInterval"`
-	PingTimeout        time.Duration `yaml:"PingTimeout"`
-	ProtoTickInterval  time.Duration `yaml:"ProtoTickInterval"`
+	BroadcastFactor int `yaml:"BroadcastFactor"`
+	// BroadcastTxsBatchDelay is a time for txs batch collection before broadcasting them.
+	BroadcastTxsBatchDelay time.Duration `yaml:"BroadcastTxsBatchDelay"`
+	DialTimeout            time.Duration `yaml:"DialTimeout"`
+	DisableCompression     bool          `yaml:"DisableCompression"`
+	ExtensiblePoolSize     int           `yaml:"ExtensiblePoolSize"`
+	MaxPeers               int           `yaml:"MaxPeers"`
+	MinPeers               int           `yaml:"MinPeers"`
+	PingInterval           time.Duration `yaml:"PingInterval"`
+	PingTimeout            time.Duration `yaml:"PingTimeout"`
+	ProtoTickInterval      time.Duration `yaml:"ProtoTickInterval"`
 }
