@@ -154,9 +154,28 @@ func (c *Client) GetBlockHash(index uint32) (util.Uint256, error) {
 // GetBlockHeader returns the corresponding block header information from a serialized hex string
 // according to the specified script hash. In-header stateroot option must be
 // initialized with Init before calling this method.
+// Deprecated: Use GetBlockHeaderByHash instead.
 func (c *Client) GetBlockHeader(hash util.Uint256) (*block.Header, error) {
+	return c.GetBlockHeaderByHash(hash)
+}
+
+// GetBlockHeaderByHash returns the corresponding block header information from
+// a serialized base64 string according to the specified script hash. In-header
+// stateroot option must be initialized with Init before calling this method.
+func (c *Client) GetBlockHeaderByHash(hash util.Uint256) (*block.Header, error) {
+	return c.getHeader(hash.StringLE())
+}
+
+// GetBlockHeaderByIndex returns the corresponding block header information from
+// a serialized base64 string according to the specified index. In-header
+// stateroot option must be initialized with Init before calling this method.
+func (c *Client) GetBlockHeaderByIndex(index uint32) (*block.Header, error) {
+	return c.getHeader(index)
+}
+
+func (c *Client) getHeader(param any) (*block.Header, error) {
 	var (
-		params = []any{hash.StringLE()}
+		params = []any{param}
 		resp   []byte
 		h      *block.Header
 	)
@@ -189,9 +208,29 @@ func (c *Client) GetBlockHeaderCount() (uint32, error) {
 // GetBlockHeaderVerbose returns the corresponding block header information from a Json format string
 // according to the specified script hash. In-header stateroot option must be
 // initialized with Init before calling this method.
+// Deprecated: Use GetBlockHeaderByHashVerbose instead.
 func (c *Client) GetBlockHeaderVerbose(hash util.Uint256) (*result.Header, error) {
+	return c.GetBlockHeaderByHashVerbose(hash)
+}
+
+// GetBlockHeaderByHashVerbose returns the corresponding block header information from
+// a JSON format string according to the specified script hash. In-header
+// stateroot option must be initialized with Init before calling this method.
+func (c *Client) GetBlockHeaderByHashVerbose(hash util.Uint256) (*result.Header, error) {
+	return c.getHeaderVerbose(hash.StringLE())
+}
+
+// GetBlockHeaderByIndexVerbose returns the corresponding block header
+// information from a JSON format string according to the specified index.
+// In-header stateroot option must be initialized with Init before calling this
+// method.
+func (c *Client) GetBlockHeaderByIndexVerbose(index uint32) (*result.Header, error) {
+	return c.getHeaderVerbose(index)
+}
+
+func (c *Client) getHeaderVerbose(param any) (*result.Header, error) {
 	var (
-		params = []any{hash.StringLE(), 1}
+		params = []any{param, 1}
 		resp   = &result.Header{}
 	)
 	if err := c.performRequest("getblockheader", params, resp); err != nil {

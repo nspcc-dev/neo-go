@@ -2808,3 +2808,47 @@ func TestClient_InvokeContainedScript(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_GetBlockHeader(t *testing.T) {
+	chain, _, httpSrv := initClearServerWithInMemoryChain(t)
+	c, err := rpcclient.New(context.Background(), httpSrv.URL, rpcclient.Options{})
+	require.NoError(t, err)
+	t.Cleanup(c.Close)
+	require.NoError(t, c.Init())
+
+	expected, err := chain.GetHeader(chain.GetHeaderHash(0))
+	require.NoError(t, err)
+	w := io.NewBufBinWriter()
+	expected.EncodeBinary(w.BinWriter)
+	require.NoError(t, w.Err)
+	size := len(w.Bytes())
+	expectedRes := &result.Header{
+		Header: *expected,
+		BlockMetadata: result.BlockMetadata{
+			Size:          size,
+			NextBlockHash: nil,
+			Confirmations: 1,
+		},
+	}
+
+	t.Run("by hash", func(t *testing.T) {
+		h, err := c.GetBlockHeaderByHash(expected.Hash())
+		require.NoError(t, err)
+		require.Equal(t, expected, h)
+	})
+	t.Run("by hash verbose", func(t *testing.T) {
+		h, err := c.GetBlockHeaderByHashVerbose(expected.Hash())
+		require.NoError(t, err)
+		require.Equal(t, expectedRes, h)
+	})
+	t.Run("by index", func(t *testing.T) {
+		h, err := c.GetBlockHeaderByIndex(0)
+		require.NoError(t, err)
+		require.Equal(t, expected, h)
+	})
+	t.Run("by index verbose", func(t *testing.T) {
+		h, err := c.GetBlockHeaderByIndexVerbose(0)
+		require.NoError(t, err)
+		require.Equal(t, expectedRes, h)
+	})
+}
