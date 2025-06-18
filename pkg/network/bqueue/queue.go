@@ -118,10 +118,10 @@ func (bq *Queue[Q]) Run() {
 				// The element might already be added by the consensus.
 				if bq.chain.Height() < b.GetIndex() {
 					bq.log.Warn("queue: failed to add item into the blockchain",
-						zap.Int("mode", int(bq.mode)),
-						zap.String("error", err.Error()),
-						zap.Uint32("height", bq.chain.Height()),
-						zap.Uint32("nextIndex", b.GetIndex()))
+						zap.Uint32("index", b.GetIndex()),
+						zap.Uint32("chainHeight", bq.chain.Height()),
+						zap.Stringer("mode", bq.mode),
+						zap.Error(err))
 				}
 			} else if bq.relayF != nil {
 				bq.relayF(b)
