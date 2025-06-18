@@ -340,9 +340,14 @@ func (s *Server) Start() {
 		s.log.Info("node server already started")
 		return
 	}
-	s.log.Info("node started",
+	logFields := []zap.Field{
 		zap.Uint32("blockHeight", s.chain.BlockHeight()),
-		zap.Uint32("headerHeight", s.chain.HeaderHeight()))
+		zap.Uint32("headerHeight", s.chain.HeaderHeight()),
+	}
+	if s.chain.GetConfig().TrustedHeader.Index > 0 {
+		logFields = append(logFields, zap.Uint32("trustedHeader", s.chain.GetConfig().TrustedHeader.Index))
+	}
+	s.log.Info("node started", logFields...)
 
 	s.tryStartServices()
 	s.initStaleMemPools()
