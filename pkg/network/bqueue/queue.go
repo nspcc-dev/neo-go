@@ -15,6 +15,8 @@ type Queuer[Q Queueable] interface {
 	Height() uint32
 }
 
+//go:generate stringer -type=OperationMode
+
 // OperationMode is the mode of operation for the queue.
 // Could be either Blocking or NonBlocking.
 type OperationMode byte
