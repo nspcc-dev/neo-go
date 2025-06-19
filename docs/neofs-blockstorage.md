@@ -61,23 +61,13 @@ and persist them to database using standard verification flow. NeoFS BlockFetche
 service primarily used during the node's bootstrap, providing a fast alternative to
 P2P blocks synchronisation.
 
-NeoFS BlockFetcher service has two modes of operation:
-- Index File Search: Search for index files, which contain batches of block object
-  IDs and fetch blocks from NeoFS by retrieved OIDs.
-- Direct Block Search: Search and fetch blocks directly from NeoFS container via
-  built-in NeoFS object search mechanism.
-
-Operation mode of BlockFetcher can be configured via `SkipIndexFilesSearch`
-parameter.
+NeoFS BlockFetcher service search and fetch blocks directly from NeoFS container via
+built-in NeoFS object search mechanism.
 
 #### Operation flow
 
 1. **OID Fetching**:
-    Depending on the mode, the service either:
-   - Searches for index files by index file attribute and reads block OIDs from index
-     file object-by-object.
-   - Searches blocks one by one directly by block attribute.
-
+   Searches blocks one by one directly by block attribute.
    Once the OIDs are retrieved, they are immediately redirected to the 
    block downloading routines for further processing. The channel that 
    is used to redirect block OIDs to downloading routines is buffered 
@@ -102,33 +92,26 @@ shuts down automatically.
 
 ### NeoFS block uploading command
 The `util upload-bin` command is designed to fetch blocks from the RPC node and upload 
-them to the NeoFS container. It also creates and uploads index files. Below is an
-example usage of the command:
+them to the NeoFS container. The batch size should be consistent from run to run, 
+otherwise gaps in the uploaded blocks may occur. Below is an example usage of the command:
 
 ```shell
-./bin/neo-go util upload-bin --cid 9iVfUg8aDHKjPC4LhQXEkVUM4HDkR7UCXYLs8NQwYfSG --wallet-config ./wallet-config.yml --block-attribute Block --index-attribute Index --rpc-endpoint https://rpc.t5.n3.nspcc.ru:20331 -fsr st1.t5.fs.neo.org:8080 -fsr st2.t5.fs.neo.org:8080 -fsr st3.t5.fs.neo.org:8080
+./bin/neo-go util upload-bin --cid 9iVfUg8aDHKjPC4LhQXEkVUM4HDkR7UCXYLs8NQwYfSG --wallet-config ./wallet-config.yml --block-attribute Block --rpc-endpoint https://rpc.t5.n3.nspcc.ru:20331 -fsr st1.t5.fs.neo.org:8080 -fsr st2.t5.fs.neo.org:8080 -fsr st3.t5.fs.neo.org:8080
 ```
 
 Run `./bin/neo-go util upload-bin --help` to see the full list of supported options.
 
 This command works as follows:
 1. Fetches the current block height from the RPC node.
-2. Searches for the index files stored in NeoFS.
-3. Searches for the stored blocks from the latest incomplete index file. 
-4. Fetches missing blocks from the RPC node and uploads them to the NeoFS container.
-5. After uploading the blocks, it creates index file based on the uploaded block OIDs. 
-6. Uploads the created index file to the NeoFS container.
-7. Repeats steps 4-6 until the current block height is reached.
+2. Searches in batches for the blocks stored in NeoFS.
+3. In batches fetches missing blocks from the RPC node and uploads them to the NeoFS container.
 
 If the command is interrupted, it can be resumed. It starts the uploading process
-from the last uploaded index file.
+from the last fully uploaded batch.
 
-For a given block sequence, only one type of index file is supported. If new index 
-files are needed (different `index-file-size` or `index-attribute`), `upload-bin`
-will upload the entire block sequence starting from genesis since no migration is
-supported yet by this command. Please, add a comment to the
-[#3744](https://github.com/nspcc-dev/neo-go/issues/3744) issue if you need this
-functionality.
+For a given block sequence, it is strictly prohibited to change the batch size. 
+The batch size can be changed only if uploading has successfully completed up to 
+the current chain block height, otherwise it can lead to gaps in the sequence. 
 
 ### NeoFS StateFetcher
 

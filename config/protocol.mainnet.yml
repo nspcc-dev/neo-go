@@ -112,8 +112,5 @@ ApplicationConfiguration:
     DownloaderWorkersCount: 500
     OIDBatchSize: 8000
     BQueueSize: 16000 # must be larger than OIDBatchSize; recommended to be 2*OIDBatchSize or 3*OIDBatchSize
-    SkipIndexFilesSearch: false
-    IndexFileSize: 128000
     ContainerID: "3RCdP3ZubyKyo8qFeo7EJPryidTZaGCMdUjqFJaaEKBV"
     BlockAttribute: "Block"
-    IndexFileAttribute: "Index"
