@@ -238,7 +238,7 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 	},
 	"getblockheader": {
 		{
-			name: "positive",
+			name: "byHash_positive",
 			invoke: func(c *Client) (any, error) {
 				hash, err := util.Uint256DecodeStringLE("68e4bd688b852e807eef13a0ff7da7b02223e359a35153667e88f9cb4a3b0801")
 				if err != nil {
@@ -253,13 +253,42 @@ var rpcClientTestCases = map[string][]rpcClientTestCase{
 			},
 		},
 		{
-			name: "verbose_positive",
+			name: "byHash_verbose_positive",
 			invoke: func(c *Client) (i any, err error) {
 				hash, err := util.Uint256DecodeStringLE("cbb73ed9e31dc41a8a222749de475e6ebc2a73b99f73b091a72e0b146110fe86")
 				if err != nil {
 					panic(err)
 				}
-				return c.GetBlockHeaderVerbose(hash)
+				return c.GetBlockHeaderByHashVerbose(hash)
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":` + header1Verbose + `}`,
+			result: func(c *Client) any {
+				b := getResultBlock1()
+				return &result.Header{
+					Header: b.Header,
+					BlockMetadata: result.BlockMetadata{
+						Size:          457,
+						NextBlockHash: b.NextBlockHash,
+						Confirmations: b.Confirmations,
+					},
+				}
+			},
+		},
+		{
+			name: "byIndex_positive",
+			invoke: func(c *Client) (any, error) {
+				return c.GetBlockHeaderByIndex(1)
+			},
+			serverResponse: `{"id":1,"jsonrpc":"2.0","result":"` + base64Header1 + `"}`,
+			result: func(c *Client) any {
+				b := getResultBlock1()
+				return &b.Header
+			},
+		},
+		{
+			name: "byIndex_verbose_positive",
+			invoke: func(c *Client) (i any, err error) {
+				return c.GetBlockHeaderByIndexVerbose(1)
 			},
 			serverResponse: `{"id":1,"jsonrpc":"2.0","result":` + header1Verbose + `}`,
 			result: func(c *Client) any {
@@ -1545,7 +1574,7 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 				if err != nil {
 					panic(err)
 				}
-				return c.GetBlockHeader(hash)
+				return c.GetBlockHeaderByHash(hash)
 			},
 		},
 		{
@@ -1597,7 +1626,13 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 				if err != nil {
 					panic(err)
 				}
-				return c.GetBlockHeader(hash)
+				return c.GetBlockHeaderByHash(hash)
+			},
+		},
+		{
+			name: "getheaderbyindex_decodebin_err",
+			invoke: func(c *Client) (any, error) {
+				return c.GetBlockHeaderByIndex(1)
 			},
 		},
 		{
@@ -1681,13 +1716,25 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "getblockheader_invalid_params_error",
 			invoke: func(c *Client) (any, error) {
-				return c.GetBlockHeader(util.Uint256{})
+				return c.GetBlockHeaderByHash(util.Uint256{})
+			},
+		},
+		{
+			name: "getblockheaderbyindex_invalid_params_error",
+			invoke: func(c *Client) (any, error) {
+				return c.GetBlockHeaderByIndex(1)
 			},
 		},
 		{
 			name: "getblockheader_verbose_invalid_params_error",
 			invoke: func(c *Client) (any, error) {
-				return c.GetBlockHeaderVerbose(util.Uint256{})
+				return c.GetBlockHeaderByHashVerbose(util.Uint256{})
+			},
+		},
+		{
+			name: "getblockheaderbyindex_verbose_invalid_params_error",
+			invoke: func(c *Client) (any, error) {
+				return c.GetBlockHeaderByIndexVerbose(1)
 			},
 		},
 		{
@@ -1880,13 +1927,25 @@ var rpcClientErrorCases = map[string][]rpcClientErrorCase{
 		{
 			name: "getblockheader_unmarshalling_error",
 			invoke: func(c *Client) (any, error) {
-				return c.GetBlockHeader(util.Uint256{})
+				return c.GetBlockHeaderByHash(util.Uint256{})
+			},
+		},
+		{
+			name: "getblockheaderbyindex_unmarshalling_error",
+			invoke: func(c *Client) (any, error) {
+				return c.GetBlockHeaderByIndex(1)
 			},
 		},
 		{
 			name: "getblockheader_verbose_unmarshalling_error",
 			invoke: func(c *Client) (any, error) {
-				return c.GetBlockHeaderVerbose(util.Uint256{})
+				return c.GetBlockHeaderByHashVerbose(util.Uint256{})
+			},
+		},
+		{
+			name: "getblockheaderbyindex_verbose_unmarshalling_error",
+			invoke: func(c *Client) (any, error) {
+				return c.GetBlockHeaderByIndexVerbose(1)
 			},
 		},
 		{
@@ -2213,7 +2272,13 @@ func TestUninitedClient(t *testing.T) {
 	require.Error(t, err)
 	_, err = c.GetBlockByIndexVerbose(0)
 	require.Error(t, err)
-	_, err = c.GetBlockHeader(util.Uint256{})
+	_, err = c.GetBlockHeaderByHash(util.Uint256{})
+	require.Error(t, err)
+	_, err = c.GetBlockHeaderByHashVerbose(util.Uint256{})
+	require.Error(t, err)
+	_, err = c.GetBlockHeaderByIndex(1)
+	require.Error(t, err)
+	_, err = c.GetBlockHeaderByIndexVerbose(1)
 	require.Error(t, err)
 	_, err = c.GetRawTransaction(util.Uint256{})
 	require.Error(t, err)

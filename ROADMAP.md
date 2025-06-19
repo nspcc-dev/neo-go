@@ -7,12 +7,12 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.109.0 (~April 2025)
+## Version 0.111.0 (~Aug 2025)
  * protocol updates
  * bug fixes
  * NeoFS-based synchronization
 
-## Version 1.0 (2024, TBD)
+## Version 1.0 (2025, TBD)
  * stable version
 
 # Deprecated functionality
@@ -24,3 +24,11 @@ APIs/commands/configurations will be removed and here is a list of scheduled
 breaking changes. Consider changing your code/scripts/configurations if you're
 using anything mentioned here.
 
+## GetBlockHeader and GetBlockHeaderVerbose methods of RPCClient
+
+GetBlockHeader and GetBlockHeaderVerbose were replaced by GetBlockHeaderByHash
+and GetBlockHeaderByHashVerbose methods respectively to follow RPCClient
+naming convention. No functional changes implied.
+
+Removal of GetBlockHeader and GetBlockHeaderVerbose methods is scheduled for
+0.112.0 release.
