@@ -156,7 +156,6 @@ func TestApplicationConfiguration_Validate(t *testing.T) {
 					},
 					OIDBatchSize:           10,
 					BQueueSize:             20,
-					SkipIndexFilesSearch:   true,
 					DownloaderWorkersCount: 4,
 				},
 			},

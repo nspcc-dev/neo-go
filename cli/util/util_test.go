@@ -198,7 +198,6 @@ func TestUploadBin(t *testing.T) {
 		"--cid", "test",
 		"--wallet", "./not-exist.json",
 		"--block-attribute", "block",
-		"--index-attribute", "oid-index",
 		"--fsr", "st1.local.fs.neo.org:8080",
 	}
 	e.In.WriteString("one\r")
