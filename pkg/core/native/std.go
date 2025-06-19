@@ -509,7 +509,7 @@ func toLimitedString(item stackitem.Item) string {
 	return src
 }
 
-// stripSpace removes all whitespace characters and tabulation characters from
+// stripSpaces removes all whitespace characters and tabulation characters from
 // string, ref. https://learn.microsoft.com/ru-ru/dotnet/api/system.convert.frombase64string?view=net-8.0#remarks.
 func stripSpaces(str string) string {
 	return strings.Map(func(r rune) rune {

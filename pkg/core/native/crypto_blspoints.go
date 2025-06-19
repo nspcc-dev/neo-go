@@ -212,7 +212,7 @@ func blsPointAdd(a, b blsPoint) (blsPoint, error) {
 	return blsPoint{point: res}, err
 }
 
-// blsPointAdd performs scalar multiplication of two BLS12-381 points.
+// blsPointMul performs scalar multiplication of two BLS12-381 points.
 func blsPointMul(a blsPoint, alphaBi *big.Int) (blsPoint, error) {
 	var (
 		res any
