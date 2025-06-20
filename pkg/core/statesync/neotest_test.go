@@ -22,7 +22,6 @@ func TestStateSyncModule_Init(t *testing.T) {
 	)
 	spoutCfg := func(c *config.Blockchain) {
 		c.StateRootInHeader = true
-		c.P2PStateExchangeExtensions = true
 		c.StateSyncInterval = stateSyncInterval
 		c.MaxTraceableBlocks = maxTraceable
 	}
@@ -34,8 +33,18 @@ func TestStateSyncModule_Init(t *testing.T) {
 
 	boltCfg := func(c *config.Blockchain) {
 		spoutCfg(c)
+		c.P2PStateExchangeExtensions = true
 		c.Ledger.KeepOnlyLatestState = true
 		c.Ledger.RemoveUntraceableBlocks = true
+	}
+
+	boltCfgStorage := func(c *config.Blockchain) {
+		spoutCfg(c)
+		c.Ledger.KeepOnlyLatestState = true
+		c.Ledger.RemoveUntraceableBlocks = true
+		c.NeoFSStateSyncExtensions = true
+		c.NeoFSStateFetcher.Enabled = true
+		c.NeoFSBlockFetcher.Enabled = true
 	}
 
 	t.Run("inactive: spout chain is too low to start state sync process", func(t *testing.T) {
@@ -99,7 +108,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.False(t, module.NeedStorageData())
 	})
 
-	t.Run("initialization from headers/blocks/mpt synced stages", func(t *testing.T) {
+	check := func(t *testing.T, boltCfg func(c *config.Blockchain), storageEnabled bool) {
 		bcBolt, validatorsBolt, committeeBolt := chain.NewMultiWithCustomConfig(t, boltCfg)
 		eBolt := neotest.NewExecutor(t, bcBolt, validatorsBolt, committeeBolt)
 		module := bcBolt.GetStateSyncModule()
@@ -107,6 +116,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 
 		// firstly, fetch all headers to create proper DB state (where headers are in sync)
 		stateSyncPoint := (bcSpout.BlockHeight() / stateSyncInterval) * stateSyncInterval
+		require.Equal(t, stateSyncPoint, module.GetStateSyncPoint())
 		var expectedHeader *block.Header
 		for i := uint32(1); i <= bcSpout.HeaderHeight(); i++ {
 			header, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(i))
@@ -120,6 +130,7 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.True(t, module.IsInitialized())
 		require.False(t, module.NeedHeaders())
 		require.True(t, module.NeedStorageData())
+		require.Equal(t, bcSpout.HeaderHeight(), module.HeaderHeight())
 
 		// then create new statesync module with the same DB and check that state is proper
 		// (headers are in sync)
@@ -129,26 +140,48 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.True(t, module.IsInitialized())
 		require.False(t, module.NeedHeaders())
 		require.True(t, module.NeedStorageData())
-		unknownNodes := module.GetUnknownMPTNodesBatch(2)
-		require.Equal(t, 1, len(unknownNodes))
-		require.Equal(t, expectedHeader.PrevStateRoot, unknownNodes[0])
 
-		// add a few MPT nodes to create DB state where some of MPT nodes are missing
-		count := 5
-		for {
-			unknownHashes := module.GetUnknownMPTNodesBatch(1) // restore nodes one-by-one
-			if len(unknownHashes) == 0 {
-				break
+		sm := bcSpout.GetStateModule()
+		sroot, err := sm.GetStateRoot(stateSyncPoint)
+		require.NoError(t, err)
+		var lastKey []byte
+		// add a few MPT nodes or contract storage items to create DB state where some of the elements are missing
+		if !storageEnabled {
+			unknownNodes := module.GetUnknownMPTNodesBatch(2)
+			require.Equal(t, 1, len(unknownNodes))
+			require.Equal(t, expectedHeader.PrevStateRoot, unknownNodes[0])
+
+			count := 5
+			for {
+				unknownHashes := module.GetUnknownMPTNodesBatch(1) // restore nodes one-by-one
+				if len(unknownHashes) == 0 {
+					break
+				}
+				err := bcSpout.GetStateSyncModule().Traverse(unknownHashes[0], func(node mpt.Node, nodeBytes []byte) bool {
+					require.NoError(t, module.AddMPTNodes([][]byte{nodeBytes}))
+					return true // add nodes one-by-one
+				})
+				require.NoError(t, err)
+				count--
+				if count < 0 {
+					break
+				}
 			}
-			err := bcSpout.GetStateSyncModule().Traverse(unknownHashes[0], func(node mpt.Node, nodeBytes []byte) bool {
-				require.NoError(t, module.AddMPTNodes([][]byte{nodeBytes}))
-				return true // add nodes one-by-one
+		} else {
+			// check AddContractStorageItems parameters
+			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{}, stateSyncPoint-3, sroot.Root), "invalid sync height:")
+			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{}, stateSyncPoint, sroot.Root), "key-value pairs are empty")
+			var batch []storage.KeyValue
+			sm.SeekStates(sroot.Root, nil, func(k, v []byte) bool {
+				batch = append(batch, storage.KeyValue{Key: k, Value: v})
+				if len(batch) == 2 {
+					require.NoError(t, module.AddContractStorageItems(batch, stateSyncPoint, sroot.Root))
+					lastKey = batch[len(batch)-1].Key
+					return false // stop seeking
+				}
+				return true
 			})
-			require.NoError(t, err)
-			count--
-			if count < 0 {
-				break
-			}
+			require.Equal(t, batch[len(batch)-1].Key, module.GetLastStoredKey())
 		}
 
 		// then create new statesync module with the same DB and check that state is proper
@@ -160,33 +193,55 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.False(t, module.NeedHeaders())
 		require.True(t, module.NeedStorageData())
 		require.False(t, module.NeedBlocks())
-		unknownNodes = module.GetUnknownMPTNodesBatch(100)
-		require.True(t, len(unknownNodes) > 0)
-		require.NotContains(t, unknownNodes, expectedHeader.PrevStateRoot)
-		require.Panicsf(t, func() { module.BlockHeight() }, "block height is not yet initialized since MPT is not in sync")
+		if !storageEnabled {
+			unknownNodes := module.GetUnknownMPTNodesBatch(100)
+			require.True(t, len(unknownNodes) > 0)
+			require.NotContains(t, unknownNodes, expectedHeader.PrevStateRoot)
+			require.Panicsf(t, func() { module.BlockHeight() }, "block height is not yet initialized since MPT is not in sync")
 
-		// add the rest of MPT nodes and check that MPT is in sync
-		alreadyRequested := make(map[util.Uint256]struct{})
-		for {
-			unknownHashes := module.GetUnknownMPTNodesBatch(1) // restore nodes one-by-one
-			if len(unknownHashes) == 0 {
-				break
+			// add the rest of MPT nodes and check that MPT is in sync
+			alreadyRequested := make(map[util.Uint256]struct{})
+			for {
+				unknownHashes := module.GetUnknownMPTNodesBatch(1) // restore nodes one-by-one
+				if len(unknownHashes) == 0 {
+					break
+				}
+				if _, ok := alreadyRequested[unknownHashes[0]]; ok {
+					t.Fatal("bug: node was requested twice")
+				}
+				alreadyRequested[unknownHashes[0]] = struct{}{}
+				var callbackCalled bool
+				err := bcSpout.GetStateSyncModule().Traverse(unknownHashes[0], func(node mpt.Node, nodeBytes []byte) bool {
+					require.NoError(t, module.AddMPTNodes([][]byte{bytes.Clone(nodeBytes)}))
+					callbackCalled = true
+					return true // add nodes one-by-one
+				})
+				require.NoError(t, err)
+				require.True(t, callbackCalled)
 			}
-			if _, ok := alreadyRequested[unknownHashes[0]]; ok {
-				t.Fatal("bug: node was requested twice")
-			}
-			alreadyRequested[unknownHashes[0]] = struct{}{}
-			var callbackCalled bool
-			err := bcSpout.GetStateSyncModule().Traverse(unknownHashes[0], func(node mpt.Node, nodeBytes []byte) bool {
-				require.NoError(t, module.AddMPTNodes([][]byte{bytes.Clone(nodeBytes)}))
-				callbackCalled = true
-				return true // add nodes one-by-one
+			unknownNodes = module.GetUnknownMPTNodesBatch(2)
+			require.Equal(t, 0, len(unknownNodes))
+		} else {
+			require.Equal(t, lastKey, module.GetLastStoredKey())
+			var skip bool
+			sm.SeekStates(sroot.Root, nil, func(k, v []byte) bool {
+				if skip {
+					if bytes.Equal(k, lastKey) {
+						skip = false
+					}
+					return true // skip this key
+				}
+				require.NoError(t, module.AddContractStorageItems([]storage.KeyValue{{Key: k, Value: v}}, stateSyncPoint, sroot.Root))
+				return true
 			})
-			require.NoError(t, err)
-			require.True(t, callbackCalled)
+			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}, stateSyncPoint, sroot.Root), "contract storage items were not requested")
 		}
-		unknownNodes = module.GetUnknownMPTNodesBatch(2)
-		require.Equal(t, 0, len(unknownNodes))
+		// check that module is active and storage data is in sync
+		require.True(t, module.IsActive())
+		require.True(t, module.IsInitialized())
+		require.False(t, module.NeedHeaders())
+		require.False(t, module.NeedStorageData())
+		require.True(t, module.NeedBlocks())
 
 		// add several blocks to create DB state where blocks are not in sync yet, but it's not a genesis.
 		for i := stateSyncPoint - maxTraceable + 1; i <= stateSyncPoint-stateSyncInterval-1; i++ {
@@ -210,8 +265,12 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.False(t, module.NeedHeaders())
 		require.False(t, module.NeedStorageData())
 		require.True(t, module.NeedBlocks())
-		unknownNodes = module.GetUnknownMPTNodesBatch(2)
-		require.Equal(t, 0, len(unknownNodes))
+		if !storageEnabled {
+			unknownNodes := module.GetUnknownMPTNodesBatch(2)
+			require.Equal(t, 0, len(unknownNodes))
+		} else {
+			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}, stateSyncPoint, sroot.Root), "contract storage items were not requested")
+		}
 		require.Equal(t, uint32(stateSyncPoint-stateSyncInterval-1), module.BlockHeight())
 
 		// add rest of blocks to create DB state where blocks are in sync and check state jump is performed
@@ -245,8 +304,12 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.False(t, module.NeedHeaders())
 		require.False(t, module.NeedStorageData())
 		require.False(t, module.NeedBlocks())
-		unknownNodes = module.GetUnknownMPTNodesBatch(1)
-		require.True(t, len(unknownNodes) == 0)
+		if !storageEnabled {
+			unknownNodes := module.GetUnknownMPTNodesBatch(1)
+			require.True(t, len(unknownNodes) == 0)
+		} else {
+			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}, stateSyncPoint, sroot.Root), "contract storage items were not requested")
+		}
 		require.Equal(t, uint32(0), module.BlockHeight()) // inactive -> 0
 		require.Equal(t, uint32(stateSyncPoint), bcBolt.BlockHeight())
 
@@ -256,8 +319,12 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.False(t, module.IsActive())
 		require.False(t, module.NeedHeaders())
 		require.False(t, module.NeedStorageData())
-		unknownNodes = module.GetUnknownMPTNodesBatch(1)
-		require.True(t, len(unknownNodes) == 0)
+		if !storageEnabled {
+			unknownNodes := module.GetUnknownMPTNodesBatch(1)
+			require.True(t, len(unknownNodes) == 0)
+		} else {
+			require.Error(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}, stateSyncPoint, sroot.Root), "contract storage items were not requested")
+		}
 		require.Equal(t, uint32(0), module.BlockHeight()) // inactive -> 0
 		require.Equal(t, uint32(stateSyncPoint), bcBolt.BlockHeight())
 
@@ -269,15 +336,27 @@ func TestStateSyncModule_Init(t *testing.T) {
 		require.False(t, module.IsActive())
 		require.False(t, module.NeedHeaders())
 		require.False(t, module.NeedStorageData())
-		unknownNodes = module.GetUnknownMPTNodesBatch(1)
-		require.True(t, len(unknownNodes) == 0)
+		if !storageEnabled {
+			unknownNodes := module.GetUnknownMPTNodesBatch(1)
+			require.True(t, len(unknownNodes) == 0)
+		} else {
+			require.ErrorContains(t, module.AddContractStorageItems([]storage.KeyValue{{Key: []byte{1}, Value: []byte{1}}}, stateSyncPoint, sroot.Root), "contract storage items were not requested")
+		}
 		require.Equal(t, uint32(0), module.BlockHeight()) // inactive -> 0
 		require.Equal(t, uint32(stateSyncPoint)+1, bcBolt.BlockHeight())
+	}
+
+	t.Run("initialization from headers/blocks/mpt synced stages", func(t *testing.T) {
+		check(t, boltCfg, false)
+	})
+
+	t.Run("initialization from headers/blocks/storage synced stages", func(t *testing.T) {
+		check(t, boltCfgStorage, true)
 	})
 }
 
 func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
-	check := func(t *testing.T, spoutEnableGC bool) {
+	check := func(t *testing.T, spoutEnableGC bool, enableStorageSync bool) {
 		const (
 			stateSyncInterval = 4
 			maxTraceable      = 6
@@ -287,7 +366,6 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			c.Ledger.KeepOnlyLatestState = spoutEnableGC
 			c.Ledger.RemoveUntraceableBlocks = spoutEnableGC
 			c.StateRootInHeader = true
-			c.P2PStateExchangeExtensions = true
 			c.StateSyncInterval = stateSyncInterval
 			c.MaxTraceableBlocks = maxTraceable
 			c.Hardforks = map[string]uint32{
@@ -296,6 +374,9 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 				config.HFCockatrice.String():    0,
 				config.HFDomovoi.String():       0,
 				config.HFEchidna.String():       0,
+			}
+			if !enableStorageSync {
+				c.P2PStateExchangeExtensions = true
 			}
 		}
 		bcSpoutStore := storage.NewMemoryStore()
@@ -314,6 +395,12 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			spoutCfg(c)
 			c.Ledger.KeepOnlyLatestState = true
 			c.Ledger.RemoveUntraceableBlocks = true
+
+			if enableStorageSync {
+				c.NeoFSStateSyncExtensions = true
+				c.NeoFSStateFetcher.Enabled = true
+				c.NeoFSBlockFetcher.Enabled = true
+			}
 		}
 		bcBoltStore := storage.NewMemoryStore()
 		bcBolt, _, _ := chain.NewMultiWithCustomConfigAndStore(t, boltCfg, bcBoltStore, false)
@@ -330,15 +417,38 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, module.AddBlock(b))
 		})
-		t.Run("error: add MPT nodes without initialisation", func(t *testing.T) {
-			require.Error(t, module.AddMPTNodes([][]byte{}))
-		})
+		if enableStorageSync {
+			t.Run("panic: add MPT nodes in ContractStorageBased mode", func(t *testing.T) {
+				require.Panics(t, func() {
+					err := module.AddMPTNodes([][]byte{})
+					if err != nil {
+						return
+					}
+				})
+			})
+			t.Run("error: add ContractStorage items without initialisation", func(t *testing.T) {
+				require.Error(t, module.AddContractStorageItems([]storage.KeyValue{}, 123, util.Uint256{}))
+			})
+		} else {
+			t.Run("panic: add contract storage items in MPTBased mode", func(t *testing.T) {
+				require.Panics(t, func() {
+					err := module.AddContractStorageItems([]storage.KeyValue{}, 123, util.Uint256{})
+					if err != nil {
+						return
+					}
+				})
+			})
+			t.Run("error: add MPT nodes without initialisation", func(t *testing.T) {
+				require.Error(t, module.AddMPTNodes([][]byte{}))
+			})
+		}
 
 		require.NoError(t, module.Init(bcSpout.BlockHeight()))
 		require.True(t, module.IsActive())
 		require.True(t, module.IsInitialized())
 		require.True(t, module.NeedHeaders())
 		require.False(t, module.NeedStorageData())
+		require.Panics(t, func() { module.BlockHeight() })
 
 		// add headers to module
 		headers := make([]*block.Header, 0, bcSpout.HeaderHeight())
@@ -355,44 +465,66 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		require.False(t, module.NeedBlocks())
 		require.Equal(t, bcSpout.HeaderHeight(), bcBolt.HeaderHeight())
 
-		// add MPT nodes in batches
-		h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(stateSyncPoint + 1))
-		require.NoError(t, err)
-		unknownHashes := module.GetUnknownMPTNodesBatch(100)
-		require.Equal(t, 1, len(unknownHashes))
-		require.Equal(t, h.PrevStateRoot, unknownHashes[0])
-		nodesMap := make(map[util.Uint256][]byte)
+		// add MPT nodes or storage items in batches
+		if enableStorageSync {
+			sm := bcSpout.GetStateModule()
+			sroot, err := bcSpout.GetStateModule().GetStateRoot(uint32(stateSyncPoint))
+			require.NoError(t, err)
 
-		sm := bcSpout.GetStateModule()
-		sroo, err := sm.GetStateRoot(uint32(stateSyncPoint))
-		require.NoError(t, err)
-		require.Equal(t, sroo.Root, h.PrevStateRoot)
-		err = bcSpout.GetStateSyncModule().Traverse(h.PrevStateRoot, func(n mpt.Node, nodeBytes []byte) bool {
-			nodesMap[n.Hash()] = nodeBytes
-			return false
-		})
-		require.NoError(t, err)
-		for {
-			need := module.GetUnknownMPTNodesBatch(10)
-			if len(need) == 0 {
-				break
-			}
-			add := make([][]byte, len(need))
-			for i, h := range need {
-				nodeBytes, ok := nodesMap[h]
-				if !ok {
-					t.Fatal("unknown or restored node requested")
+			var batch []storage.KeyValue
+			sm.SeekStates(sroot.Root, nil, func(k, v []byte) bool {
+				batch = append(batch, storage.KeyValue{Key: k, Value: v})
+				if len(batch) >= 3 {
+					err = module.AddContractStorageItems(batch, uint32(stateSyncPoint), sroot.Root)
+					require.NoError(t, err)
+					batch = batch[:0]
 				}
-				add[i] = nodeBytes
-				delete(nodesMap, h)
+				return true
+			})
+			if len(batch) > 0 {
+				err = module.AddContractStorageItems(batch, uint32(stateSyncPoint), sroot.Root)
+				require.NoError(t, err)
 			}
-			require.NoError(t, module.AddMPTNodes(add))
+			require.NoError(t, err)
+		} else {
+			h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(stateSyncPoint + 1))
+			require.NoError(t, err)
+			unknownHashes := module.GetUnknownMPTNodesBatch(100)
+			require.Equal(t, 1, len(unknownHashes))
+			require.Equal(t, h.PrevStateRoot, unknownHashes[0])
+			nodesMap := make(map[util.Uint256][]byte)
+			sm := bcSpout.GetStateModule()
+			sroo, err := sm.GetStateRoot(uint32(stateSyncPoint))
+			require.NoError(t, err)
+			require.Equal(t, sroo.Root, h.PrevStateRoot)
+			err = bcSpout.GetStateSyncModule().Traverse(h.PrevStateRoot, func(n mpt.Node, nodeBytes []byte) bool {
+				nodesMap[n.Hash()] = nodeBytes
+				return false
+			})
+			require.NoError(t, err)
+			for {
+				need := module.GetUnknownMPTNodesBatch(10)
+				if len(need) == 0 {
+					break
+				}
+				add := make([][]byte, len(need))
+				for i, h := range need {
+					nodeBytes, ok := nodesMap[h]
+					if !ok {
+						t.Fatal("unknown or restored node requested")
+					}
+					add[i] = nodeBytes
+					delete(nodesMap, h)
+				}
+				require.NoError(t, module.AddMPTNodes(add))
+			}
+			unknownNodes := module.GetUnknownMPTNodesBatch(1)
+			require.True(t, len(unknownNodes) == 0)
 		}
 		require.True(t, module.IsActive())
 		require.False(t, module.NeedHeaders())
 		require.False(t, module.NeedStorageData())
-		unknownNodes := module.GetUnknownMPTNodesBatch(1)
-		require.True(t, len(unknownNodes) == 0)
+		require.Equal(t, uint32(stateSyncPoint-maxTraceable), module.BlockHeight())
 
 		// add blocks
 		t.Run("error: unexpected block index", func(t *testing.T) {
@@ -475,9 +607,108 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		require.False(t, haveItems)
 	}
 	t.Run("source node is archive", func(t *testing.T) {
-		check(t, false)
+		check(t, false, false)
 	})
 	t.Run("source node is light with GC", func(t *testing.T) {
-		check(t, true)
+		check(t, true, false)
+	})
+	t.Run("ContractStorageBased mode", func(t *testing.T) {
+		check(t, false, true)
+	})
+}
+
+func TestStateSyncModule_SetOnStageChanged(t *testing.T) {
+	const (
+		stateSyncInterval = 2
+		maxTraceable      = 3
+	)
+	spoutCfg := func(c *config.Blockchain) {
+		c.StateRootInHeader = true
+		c.StateSyncInterval = stateSyncInterval
+		c.MaxTraceableBlocks = maxTraceable
+	}
+	bcSpout, vals, comm := chain.NewMultiWithCustomConfig(t, spoutCfg)
+	e := neotest.NewExecutor(t, bcSpout, vals, comm)
+	for range 2*stateSyncInterval + maxTraceable + 2 {
+		e.AddNewBlock(t)
+	}
+
+	mptCfg := func(c *config.Blockchain) {
+		spoutCfg(c)
+		c.P2PStateExchangeExtensions = true
+		c.Ledger.KeepOnlyLatestState = true
+		c.Ledger.RemoveUntraceableBlocks = true
+	}
+	storageCfg := func(c *config.Blockchain) {
+		spoutCfg(c)
+		c.Ledger.KeepOnlyLatestState = true
+		c.Ledger.RemoveUntraceableBlocks = true
+		c.NeoFSStateSyncExtensions = true
+		c.NeoFSStateFetcher.Enabled = true
+		c.NeoFSBlockFetcher.Enabled = true
+	}
+
+	check := func(t *testing.T, cfg func(*config.Blockchain), storageEnabled bool) {
+		bcBolt, _, _ := chain.NewMultiWithCustomConfig(t, cfg)
+		module := bcBolt.GetStateSyncModule()
+
+		var calls int
+		module.SetOnStageChanged(func() { calls++ })
+
+		require.NoError(t, module.Init(bcSpout.BlockHeight()))
+		require.Equal(t, 1, calls)
+
+		syncPoint := module.GetStateSyncPoint()
+		// AddHeaders up to P → headersSynced → active
+		for i := uint32(1); i <= bcSpout.HeaderHeight(); i++ {
+			h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(i))
+			require.NoError(t, err)
+			require.NoError(t, module.AddHeaders(h))
+		}
+		require.Equal(t, 2, calls)
+		require.True(t, module.IsActive())
+		// AddMPTNodes or AddContractStorageItems up to P → storageSynced
+		if !storageEnabled {
+			for {
+				unknown := module.GetUnknownMPTNodesBatch(3)
+				if len(unknown) == 0 {
+					break
+				}
+				require.NoError(t, bcSpout.GetStateSyncModule().Traverse(
+					unknown[0],
+					func(_ mpt.Node, nodeBytes []byte) bool {
+						require.NoError(t, module.AddMPTNodes([][]byte{nodeBytes}))
+						return true
+					},
+				))
+			}
+		} else {
+			sm := bcSpout.GetStateModule()
+			sroot, err := sm.GetStateRoot(syncPoint)
+			require.NoError(t, err)
+			var all []storage.KeyValue
+			sm.SeekStates(sroot.Root, nil, func(k, v []byte) bool {
+				all = append(all, storage.KeyValue{Key: k, Value: v})
+				return true
+			})
+			require.NoError(t, module.AddContractStorageItems(all, syncPoint, sroot.Root))
+		}
+		require.Equal(t, 3, calls)
+
+		// AddBlock up to P → blocksSynced → inactive
+		for i := syncPoint - maxTraceable + 1; i <= syncPoint; i++ {
+			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(i))
+			require.NoError(t, err)
+			require.NoError(t, module.AddBlock(b))
+		}
+		require.Equal(t, 4, calls)
+	}
+
+	t.Run("MPT based ", func(t *testing.T) {
+		check(t, mptCfg, false)
+	})
+
+	t.Run("ContractStorage based ", func(t *testing.T) {
+		check(t, storageCfg, true)
 	})
 }
