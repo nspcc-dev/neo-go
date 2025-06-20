@@ -19,12 +19,11 @@ const (
 	DefaultTimeout = 10 * time.Minute
 	// DefaultDownloaderWorkersCount is the default number of workers downloading blocks.
 	DefaultDownloaderWorkersCount = 500
-	// DefaultIndexFileSize is the default size of the index file.
-	DefaultIndexFileSize = 128000
+	// DefaultBatchSize is the default size of the batch to upload in parallel
+	// and search latest fully uploaded batch.
+	DefaultBatchSize = 128000
 	// DefaultBlockAttribute is the default attribute name for block objects.
 	DefaultBlockAttribute = "Block"
-	// DefaultIndexFileAttribute is the default attribute name for index file objects.
-	DefaultIndexFileAttribute = "Index"
 	// DefaultStateAttribute is the default attribute name for state objects.
 	DefaultStateAttribute = "State"
 	// DefaultKVBatchSize is a number of contract storage key-value objects to

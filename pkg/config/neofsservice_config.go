@@ -41,11 +41,8 @@ type NeoFSBlockFetcher struct {
 	NeoFSService           `yaml:",inline"`
 	OIDBatchSize           int    `yaml:"OIDBatchSize"`
 	BlockAttribute         string `yaml:"BlockAttribute"`
-	IndexFileAttribute     string `yaml:"IndexFileAttribute"`
 	DownloaderWorkersCount int    `yaml:"DownloaderWorkersCount"`
 	BQueueSize             int    `yaml:"BQueueSize"`
-	SkipIndexFilesSearch   bool   `yaml:"SkipIndexFilesSearch"`
-	IndexFileSize          uint32 `yaml:"IndexFileSize"`
 }
 
 // Validate checks NeoFSBlockFetcher for internal consistency and ensures
