@@ -105,14 +105,8 @@ func New(chain Ledger, cfg config.NeoFSBlockFetcher, logger *zap.Logger, put fun
 	if cfg.DownloaderWorkersCount <= 0 {
 		cfg.DownloaderWorkersCount = neofs.DefaultDownloaderWorkersCount
 	}
-	if cfg.IndexFileSize <= 0 {
-		cfg.IndexFileSize = neofs.DefaultIndexFileSize
-	}
 	if cfg.BlockAttribute == "" {
 		cfg.BlockAttribute = neofs.DefaultBlockAttribute
-	}
-	if cfg.IndexFileAttribute == "" {
-		cfg.IndexFileAttribute = neofs.DefaultIndexFileAttribute
 	}
 
 	basic, err := neofs.NewBasicService(cfg.NeoFSService)
@@ -216,14 +210,11 @@ func (bfs *Service) Start(stopAt ...uint32) error {
 // oidDownloader runs the appropriate blocks OID fetching method based on the configuration.
 func (bfs *Service) oidDownloader() {
 	defer close(bfs.oidDownloaderToExiter)
-
-	var err error
-	if bfs.cfg.SkipIndexFilesSearch {
-		err = bfs.fetchOIDsBySearch()
-	} else {
-		err = bfs.fetchOIDsFromIndexFiles()
-	}
-	var force bool
+	var (
+		err   error
+		force bool
+	)
+	err = bfs.fetchOIDsBySearch()
 	if err != nil {
 		if !neofs.IsContextCanceledErr(err) {
 			bfs.log.Error("NeoFS BlockFetcher service: OID downloading routine failed", zap.Error(err))
@@ -284,127 +275,6 @@ func (bfs *Service) blockDownloader() {
 			}
 		}
 	}
-}
-
-// fetchOIDsFromIndexFiles fetches block OIDs from NeoFS by searching index files first.
-func (bfs *Service) fetchOIDsFromIndexFiles() error {
-	h := bfs.heightFunc()
-	startIndex := h / bfs.cfg.IndexFileSize
-	skip := h % bfs.cfg.IndexFileSize
-
-	if bfs.stopAt > 0 && h >= bfs.stopAt {
-		return nil
-	}
-
-	for {
-		select {
-		case <-bfs.exiterToOIDDownloader:
-			return nil
-		default:
-			filters := object.NewSearchFilters()
-			filters.AddFilter(bfs.cfg.IndexFileAttribute, fmt.Sprintf("%d", startIndex), object.MatchStringEqual)
-			filters.AddFilter("IndexSize", fmt.Sprintf("%d", bfs.cfg.IndexFileSize), object.MatchStringEqual)
-
-			ctx, cancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
-			resultsChan, errChan := neofs.ObjectSearch(ctx, bfs.Pool, bfs.Account.PrivateKey(), bfs.ContainerID, filters, []string{bfs.cfg.IndexFileAttribute})
-
-			var obj *client.SearchResultItem
-
-		loop:
-			for {
-				select {
-				case item, ok := <-resultsChan:
-					if !ok {
-						break loop
-					}
-					obj = &item
-					break loop
-				case err := <-errChan:
-					if err != nil && !neofs.IsContextCanceledErr(err) {
-						cancel()
-						return fmt.Errorf("failed to find '%s' object with index %d: %w", bfs.cfg.IndexFileAttribute, startIndex, err)
-					}
-					break loop
-				case <-bfs.exiterToOIDDownloader:
-					cancel()
-					return nil
-				}
-			}
-			cancel()
-
-			if obj == nil {
-				bfs.log.Info(fmt.Sprintf("NeoFS BlockFetcher service: no '%s' object found with index %d, stopping", bfs.cfg.IndexFileAttribute, startIndex))
-				return nil
-			}
-
-			blockCtx, blockCancel := context.WithTimeout(bfs.Ctx, bfs.cfg.Timeout)
-			oidsRC, err := bfs.objectGet(blockCtx, obj.ID.String(), -1)
-			if err != nil {
-				blockCancel()
-				if neofs.IsContextCanceledErr(err) {
-					return nil
-				}
-				return fmt.Errorf("failed to fetch '%s' object with index %d: %w", bfs.cfg.IndexFileAttribute, startIndex, err)
-			}
-
-			err = bfs.streamBlockOIDs(oidsRC, int(startIndex), int(skip))
-			blockCancel()
-			if err != nil {
-				if neofs.IsContextCanceledErr(err) {
-					return nil
-				}
-				return fmt.Errorf("failed to stream block OIDs with index %d: %w", startIndex, err)
-			}
-			if bfs.stopAt > 0 && startIndex >= bfs.stopAt/bfs.cfg.IndexFileSize {
-				return nil
-			}
-			startIndex++
-			skip = 0
-		}
-	}
-}
-
-// streamBlockOIDs reads block OIDs from the read closer and sends them to the OIDs channel.
-func (bfs *Service) streamBlockOIDs(rc io.ReadCloser, startIndex, skip int) error {
-	defer rc.Close()
-	oidBytes := make([]byte, oid.Size)
-	oidsProcessed := 0
-
-	for {
-		_, err := io.ReadFull(rc, oidBytes)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("failed to read OID: %w", err)
-		}
-
-		if oidsProcessed < skip {
-			oidsProcessed++
-			continue
-		}
-
-		var oidBlock oid.ID
-		if err := oidBlock.Decode(oidBytes); err != nil {
-			return fmt.Errorf("failed to decode OID: %w", err)
-		}
-		index := uint32(startIndex*int(bfs.cfg.IndexFileSize) + oidsProcessed)
-		select {
-		case <-bfs.exiterToOIDDownloader:
-			return nil
-		case bfs.oidsCh <- indexedOID{Index: index, OID: oidBlock}:
-		}
-
-		if bfs.stopAt > 0 && index == bfs.stopAt {
-			return nil
-		}
-
-		oidsProcessed++
-	}
-	if oidsProcessed != int(bfs.cfg.IndexFileSize) {
-		return fmt.Errorf("block OIDs count mismatch: expected %d, processed %d", bfs.cfg.IndexFileSize, oidsProcessed)
-	}
-	return nil
 }
 
 // fetchOIDsBySearch fetches block OIDs from NeoFS by searching through the Block objects.

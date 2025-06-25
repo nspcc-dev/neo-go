@@ -70,16 +70,10 @@ func NewCommands() []*cli.Command {
 			Value:  neofs.DefaultBlockAttribute,
 			Action: cmdargs.EnsureNotEmpty("block-attribute"),
 		},
-		&cli.StringFlag{
-			Name:   "index-attribute",
-			Usage:  "Attribute key of the index file object",
-			Value:  neofs.DefaultIndexFileAttribute,
-			Action: cmdargs.EnsureNotEmpty("index-attribute"),
-		},
 		&cli.UintFlag{
-			Name:  "index-file-size",
-			Usage: "Size of index file",
-			Value: neofs.DefaultIndexFileSize,
+			Name:  "batch-size",
+			Usage: "Size of the batch of blocks to upload in parallel. The batch size should be consistent from run to run, otherwise gaps in the uploaded blocks may occur.",
+			Value: neofs.DefaultBatchSize,
 		},
 		&cli.UintFlag{
 			Name:  "workers",
@@ -183,7 +177,7 @@ func NewCommands() []*cli.Command {
 				{
 					Name:      "upload-bin",
 					Usage:     "Fetch blocks from RPC node and upload them to the NeoFS container",
-					UsageText: "neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --index-attribute index --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--index-file-size <size>] [--retries <num>] [--debug]",
+					UsageText: "neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--batch-size <size>] [--retries <num>] [--debug]",
 					Action:    uploadBin,
 					Flags:     uploadBinFlags,
 				},
