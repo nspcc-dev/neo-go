@@ -117,7 +117,7 @@ func (h *HeaderHashes) init(dao *dao.Simple, trusted config.HashIndex) error {
 		for hash != targetHash {
 			blk, err := h.dao.GetBlock(hash)
 			if err != nil {
-				return fmt.Errorf("could not get header %s: %w", hash, err)
+				return fmt.Errorf("could not get header %s: %w", hash.StringLE(), err)
 			}
 			headers = append(headers, blk.Hash())
 			hash = blk.PrevHash
