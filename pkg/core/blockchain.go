@@ -185,6 +185,12 @@ type Blockchain struct {
 	// removal (performed in storeBlock()) with transfer/MPT GC (tryRunGC())
 	gcBlockTimes *lru.Cache[uint32, uint64]
 
+	// gcLastUntraceableBlockHeight is the height of the latest untraceable block
+	// that was removed by GC. Storing this value is cheaper than performing Seek
+	// through all blocks every time we need to define the next header to be
+	// removed.
+	gcLastUntraceableBlockHeight uint32
+
 	// Stop synchronization mechanisms.
 	stopCh      chan struct{}
 	runToExitCh chan struct{}
@@ -566,6 +572,13 @@ func (bc *Blockchain) init() error {
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
+
+	bc.dao.Store.Seek(storage.SeekRange{
+		Prefix: []byte{byte(storage.IXHeaderHashList)},
+	}, func(k, _ []byte) bool {
+		bc.gcLastUntraceableBlockHeight = binary.BigEndian.Uint32(k[1:])
+		return false
+	})
 
 	bc.log.Debug("initializing caches", zap.Uint32("blockHeight", bHeight))
 	if err = bc.stateRoot.Init(bHeight); err != nil {
@@ -1265,10 +1278,13 @@ func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 
 	tgtBlock -= int64(mtb)
 	if bc.config.P2PStateExchangeExtensions {
+		// Old blocks should be removed up to P2-MaxTraceableBlocks which is required for
+		// proper P2P state synchronization, hence align removal of transfers, MPT entries,
+		// blocks and header hashes with this value.
 		syncP := newHeight / uint32(bc.config.StateSyncInterval)
 		syncP--
 		syncP *= uint32(bc.config.StateSyncInterval)
-		tgtBlock = min(tgtBlock, int64(syncP))
+		tgtBlock = min(tgtBlock, int64(syncP-mtb))
 	}
 	// Always round to the GCP.
 	tgtBlock /= int64(bc.config.Ledger.GarbageCollectionPeriod)
@@ -1279,6 +1295,7 @@ func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 	if tgtBlock > int64(bc.config.Ledger.GarbageCollectionPeriod) && newHeight != oldHeight {
 		dur = bc.removeOldTransfers(uint32(tgtBlock))
 		dur += bc.stateRoot.GC(uint32(tgtBlock), bc.store)
+		dur += bc.removeUntraceableBlocks(newHeight, uint32(tgtBlock))
 		dur += bc.removeOldHeaderHashes(uint32(tgtBlock))
 	}
 	return dur
@@ -1513,6 +1530,51 @@ func (bc *Blockchain) removeOldHeaderHashes(index uint32) time.Duration {
 			zap.Int64("removed", removed),
 			zap.Duration("time", dur))
 	}
+	return dur
+}
+
+func (bc *Blockchain) removeUntraceableBlocks(newPeriod, tgtHeight uint32) time.Duration {
+	if newPeriod*bc.config.GarbageCollectionPeriod/headerBatchCount == tgtHeight/headerBatchCount { // current batch of header hashes is not stored yet.
+		tgtHeight = uint32(max(0, (int(tgtHeight)/headerBatchCount-1)*headerBatchCount))
+	}
+	if tgtHeight == 0 {
+		return 0
+	}
+	oldTgtHeight := bc.gcLastUntraceableBlockHeight
+
+	bc.log.Info("starting untraceable blocks garbage collection", zap.Uint32("from", oldTgtHeight), zap.Uint32("to", tgtHeight))
+	var (
+		start   = time.Now()
+		kvcache = bc.dao.GetPrivate()
+		removed int
+	)
+	for index := oldTgtHeight; index < tgtHeight; index++ {
+		hh := bc.GetHeaderHash(index)
+		if hh.Equals(util.Uint256{}) {
+			// Empty hashes are allowed if recovering from trusted height.
+			continue
+		}
+		_, err := kvcache.DeleteBlock(hh)
+		if err != nil {
+			bc.log.Warn("error while removing old block",
+				zap.Uint32("index", index),
+				zap.Error(err))
+		} else {
+			removed++
+		}
+	}
+	bc.gcLastUntraceableBlockHeight = tgtHeight
+
+	dur := time.Since(start)
+	_, err := kvcache.Persist()
+	if err != nil {
+		bc.log.Error("failed to flush untraceable blocks GC changeset", zap.Duration("time", dur), zap.Error(err))
+	} else {
+		bc.log.Info("finished untraceable blocks garbage collection",
+			zap.Int("removed", removed),
+			zap.Duration("time", dur))
+	}
+
 	return dur
 }
 
@@ -1772,7 +1834,6 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		appExecResults = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
 		aerchan        = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
 		aerdone        = make(chan error)
-		mtb            = bc.GetMaxTraceableBlocks()
 	)
 	go func() {
 		var (
@@ -1783,31 +1844,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			transCache   = make(map[util.Uint160]transferData)
 		)
 		kvcache.StoreAsCurrentBlock(block)
-		if bc.config.Ledger.RemoveUntraceableBlocks {
-			var start, stop uint32
-			if bc.config.P2PStateExchangeExtensions {
-				// remove batch of old blocks starting from P2-MaxTraceableBlocks-StateSyncInterval up to P2-MaxTraceableBlocks
-				if block.Index >= 2*uint32(bc.config.StateSyncInterval) &&
-					block.Index >= uint32(bc.config.StateSyncInterval)+mtb && // check this in case if MaxTraceableBlocks>StateSyncInterval
-					int(block.Index)%bc.config.StateSyncInterval == 0 {
-					stop = block.Index - uint32(bc.config.StateSyncInterval) - mtb
-					start = stop - min(stop, uint32(bc.config.StateSyncInterval))
-				}
-			} else if block.Index > mtb {
-				start = block.Index - mtb // is at least 1
-				stop = start + 1
-			}
-			for index := start; index < stop; index++ {
-				ts, err := kvcache.DeleteBlock(bc.GetHeaderHash(index))
-				if index%bc.config.Ledger.GarbageCollectionPeriod == 0 {
-					_ = bc.gcBlockTimes.Add(index, ts)
-				}
-				if err != nil {
-					bc.log.Warn("error while removing old block",
-						zap.Uint32("index", index),
-						zap.Error(err))
-				}
-			}
+		if bc.config.Ledger.RemoveUntraceableBlocks && block.Index%bc.config.Ledger.GarbageCollectionPeriod == 0 {
+			_ = bc.gcBlockTimes.Add(block.Index, block.Timestamp)
 		}
 		for aer := range aerchan {
 			if aer.Container == block.Hash() {
