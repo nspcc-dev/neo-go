@@ -1734,7 +1734,10 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 	var mp *mempool.Pool
 	expectedHeight := bc.BlockHeight() + 1
 	if expectedHeight != block.Index {
-		return fmt.Errorf("expected %d, got %d: %w", expectedHeight, block.Index, ErrInvalidBlockIndex)
+		if block.Index > expectedHeight {
+			return fmt.Errorf("expected %d, got %d: %w", expectedHeight, block.Index, ErrInvalidBlockIndex)
+		}
+		return fmt.Errorf("%w: block with index %d is already on chain", ErrAlreadyExists, block.Index)
 	}
 	if bc.config.StateRootInHeader != block.StateRootEnabled {
 		return fmt.Errorf("%w: %v != %v",

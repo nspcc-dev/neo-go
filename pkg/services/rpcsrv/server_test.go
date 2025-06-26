@@ -3600,10 +3600,15 @@ func TestRPC_SubmitBlock(t *testing.T) {
 			return b
 		}, neorpc.ErrVerificationFailedCode)
 	})
+	t.Run("already exists", func(t *testing.T) {
+		check(t, func(chain *core.Blockchain) *block.Block {
+			return testchain.NewBlock(t, chain, 0, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 1, false))
+		}, neorpc.ErrAlreadyExistsCode)
+	})
 	t.Run("invalid height", func(t *testing.T) {
 		check(t, func(chain *core.Blockchain) *block.Block {
 			return testchain.NewBlock(t, chain, 2, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 1, false))
-		}, neorpc.ErrAlreadyExistsCode)
+		}, neorpc.ErrVerificationFailedCode)
 	})
 	t.Run("invalid script", func(t *testing.T) {
 		check(t, func(chain *core.Blockchain) *block.Block {
