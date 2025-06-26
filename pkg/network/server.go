@@ -1260,7 +1260,10 @@ func (s *Server) handleHeadersCmd(p Peer, h *payload.Headers) error {
 	if s.blockFetcher.IsActive() || s.config.NeoFSStateSyncExtensions && s.stateSync.IsActive() {
 		return nil
 	}
-	return s.stateSync.AddHeaders(h.Hdrs...)
+	if s.stateSync.NeedHeaders() {
+		return s.stateSync.AddHeaders(h.Hdrs...)
+	}
+	return nil
 }
 
 // handleExtensibleCmd processes the received extensible payload.
