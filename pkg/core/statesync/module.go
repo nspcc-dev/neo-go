@@ -452,7 +452,7 @@ func (s *Module) AddBlock(block *block.Block) error {
 	if !s.bc.GetConfig().SkipBlockVerification {
 		merkle := block.ComputeMerkleRoot()
 		if !block.MerkleRoot.Equals(merkle) {
-			return errors.New("invalid block: MerkleRoot mismatch")
+			return fmt.Errorf("invalid block: MerkleRoot mismatch: expected %s, got %s", merkle.StringLE(), block.MerkleRoot.StringLE())
 		}
 	}
 	cache := s.dao.GetPrivate()
