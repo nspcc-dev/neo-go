@@ -1746,6 +1746,11 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		expectedH := bc.GetHeaderHash(block.Index)
+		if expectedH != block.Hash() {
+			return fmt.Errorf("invalid block: hash mismatch: expected %s, got %s", expectedH.StringLE(), block.Hash().StringLE())
+		}
 	}
 	if !bc.config.SkipBlockVerification {
 		merkle := block.ComputeMerkleRoot()

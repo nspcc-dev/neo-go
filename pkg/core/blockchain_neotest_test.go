@@ -795,6 +795,20 @@ func TestBlockchain_AddBadBlock(t *testing.T) {
 		c.VerifyTransactions = true
 		c.SkipBlockVerification = false
 	})
+
+	// Add proper header, then try to add malicious block that doesn't match this header.
+	tx = e.NewUnsignedTx(t, neoHash, "transfer", acc.ScriptHash(), util.Uint160{1, 2, 3}, 1, nil)
+	e.SignTx(t, tx, -1, acc)
+	b = e.NewUnsignedBlock(t, tx)
+	e.SignBlock(b)
+	bc1, _ := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.VerifyTransactions = true
+		c.SkipBlockVerification = false
+	})
+	require.NoError(t, bc1.AddHeaders(&b.Header))
+	b = e.NewUnsignedBlock(t, tx) // construct malicious block which is not even signed.
+	b.Timestamp++
+	require.ErrorContains(t, bc1.AddBlock(b), "invalid block: hash mismatch")
 }
 
 func TestBlockchain_GetHeader(t *testing.T) {

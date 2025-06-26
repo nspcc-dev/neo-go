@@ -2753,59 +2753,6 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.Equal(t, trigger.PostPersist, res.Executions[1].Trigger)
 		require.Equal(t, vmstate.Halt, res.Executions[1].VMState)
 	})
-	t.Run("submitblock", func(t *testing.T) {
-		rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitblock", "params": ["%s"]}`
-		t.Run("invalid signature", func(t *testing.T) {
-			s := testchain.NewBlock(t, chain, 1, 0)
-			s.Script.VerificationScript[8] ^= 0xff
-			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, s)), httpSrv.URL, t)
-			checkErrGetResult(t, body, true, neorpc.ErrVerificationFailedCode)
-		})
-
-		t.Run("invalid height", func(t *testing.T) {
-			b := testchain.NewBlock(t, chain, 2, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 1, false))
-			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
-			checkErrGetResult(t, body, true, neorpc.ErrAlreadyExistsCode)
-		})
-		t.Run("invalid script", func(t *testing.T) {
-			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, 0xDD, 10, 0, 1, false))
-			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
-			checkErrGetResult(t, body, true, neorpc.ErrInvalidScriptCode)
-		})
-		t.Run("invalid ValidUntilBlock", func(t *testing.T) {
-			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 0, 0, 1, false))
-			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
-			checkErrGetResult(t, body, true, neorpc.ErrExpiredTransactionCode)
-		})
-		t.Run("invalid SystemFee", func(t *testing.T) {
-			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 999999999999, 1, false))
-			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
-			checkErrGetResult(t, body, true, neorpc.ErrPolicyFailedCode)
-		})
-		t.Run("invalid NetworkFee", func(t *testing.T) {
-			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 0, false))
-			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
-			checkErrGetResult(t, body, true, neorpc.ErrInsufficientNetworkFeeCode)
-		})
-		t.Run("invalid attribute", func(t *testing.T) {
-			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 2, true))
-			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
-			checkErrGetResult(t, body, true, neorpc.ErrInvalidAttributeCode)
-		})
-		t.Run("insufficient funds", func(t *testing.T) {
-			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 899999999999, 1, false))
-			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
-			checkErrGetResult(t, body, true, neorpc.ErrInsufficientFundsCode)
-		})
-		t.Run("positive", func(t *testing.T) {
-			b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 1, false))
-			body := doRPCCall(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
-			data := checkErrGetResult(t, body, false, 0)
-			var res = new(result.RelayResult)
-			require.NoError(t, json.Unmarshal(data, res))
-			require.Equal(t, b.Hash(), res.Hash)
-		})
-	})
 	t.Run("getproof", func(t *testing.T) {
 		r, err := chain.GetStateModule().GetStateRoot(3)
 		require.NoError(t, err)
@@ -3041,7 +2988,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 		require.NoErrorf(t, err, "could not parse response: %s", txOut)
 
 		assert.Equal(t, *block.Transactions[0], actual.Transaction)
-		assert.Equal(t, 24, actual.Confirmations)
+		assert.Equal(t, 23, actual.Confirmations)
 		assert.Equal(t, TXHash, actual.Transaction.Hash())
 	})
 
@@ -3632,6 +3579,70 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				Notifications: []state.NotificationEvent{},
 			}, res)
 		})
+	})
+}
+
+// TestRPC_SubmitBlock is a special one since every test-case corrupts chain with
+// improperly constructed header making it impossible to add further blocks.
+func TestRPC_SubmitBlock(t *testing.T) {
+	rpc := `{"jsonrpc": "2.0", "id": 1, "method": "submitblock", "params": ["%s"]}`
+	check := func(t *testing.T, newBlock func(chain *core.Blockchain) *block.Block, errCode int64) {
+		chain, _, httpSrv := initClearServerWithInMemoryChain(t)
+		b := newBlock(chain)
+		body := doRPCCallOverHTTP(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
+		checkErrGetResult(t, body, true, errCode)
+	}
+
+	t.Run("invalid signature", func(t *testing.T) {
+		check(t, func(chain *core.Blockchain) *block.Block {
+			b := testchain.NewBlock(t, chain, 1, 0)
+			b.Script.VerificationScript[8] ^= 0xff
+			return b
+		}, neorpc.ErrVerificationFailedCode)
+	})
+	t.Run("invalid height", func(t *testing.T) {
+		check(t, func(chain *core.Blockchain) *block.Block {
+			return testchain.NewBlock(t, chain, 2, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 1, false))
+		}, neorpc.ErrAlreadyExistsCode)
+	})
+	t.Run("invalid script", func(t *testing.T) {
+		check(t, func(chain *core.Blockchain) *block.Block {
+			return testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, 0xDD, 10, 0, 1, false))
+		}, neorpc.ErrInvalidScriptCode)
+	})
+	t.Run("invalid ValidUntilBlock", func(t *testing.T) {
+		check(t, func(chain *core.Blockchain) *block.Block {
+			return testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 0, 0, 1, false))
+		}, neorpc.ErrExpiredTransactionCode)
+	})
+	t.Run("invalid SystemFee", func(t *testing.T) {
+		check(t, func(chain *core.Blockchain) *block.Block {
+			return testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 999999999999, 1, false))
+		}, neorpc.ErrPolicyFailedCode)
+	})
+	t.Run("invalid NetworkFee", func(t *testing.T) {
+		check(t, func(chain *core.Blockchain) *block.Block {
+			return testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 0, false))
+		}, neorpc.ErrInsufficientNetworkFeeCode)
+	})
+	t.Run("invalid attribute", func(t *testing.T) {
+		check(t, func(chain *core.Blockchain) *block.Block {
+			return testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 2, true))
+		}, neorpc.ErrInvalidAttributeCode)
+	})
+	t.Run("insufficient funds", func(t *testing.T) {
+		check(t, func(chain *core.Blockchain) *block.Block {
+			return testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 899999999999, 1, false))
+		}, neorpc.ErrInsufficientFundsCode)
+	})
+	t.Run("positive", func(t *testing.T) {
+		chain, _, httpSrv := initClearServerWithInMemoryChain(t)
+		b := testchain.NewBlock(t, chain, 1, 0, newTxWithParams(t, chain, opcode.PUSH1, 10, 0, 1, false))
+		body := doRPCCallOverHTTP(fmt.Sprintf(rpc, encodeBinaryToString(t, b)), httpSrv.URL, t)
+		data := checkErrGetResult(t, body, false, 0)
+		var res = new(result.RelayResult)
+		require.NoError(t, json.Unmarshal(data, res))
+		require.Equal(t, b.Hash(), res.Hash)
 	})
 }
 

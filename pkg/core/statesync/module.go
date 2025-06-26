@@ -455,6 +455,10 @@ func (s *Module) AddBlock(block *block.Block) error {
 			return fmt.Errorf("invalid block: MerkleRoot mismatch: expected %s, got %s", merkle.StringLE(), block.MerkleRoot.StringLE())
 		}
 	}
+	expectedH := s.bc.GetHeaderHash(block.Index)
+	if !block.Hash().Equals(expectedH) {
+		return fmt.Errorf("invalid block: hash mismatch: expected %s, got %s", expectedH, block.Hash().StringLE())
+	}
 	cache := s.dao.GetPrivate()
 	if err := cache.StoreAsBlock(block, nil, nil); err != nil {
 		return err
