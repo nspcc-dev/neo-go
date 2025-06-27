@@ -66,7 +66,7 @@ func uploadBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Sprintf("failed to get current block height from RPC: %v", err), 1)
 	}
 	fmt.Fprintln(ctx.App.Writer, "Chain block height:", currentBlockHeight)
-	batchID, existing, err := searchLastBatch(ctx, p, containerID, acc.PrivateKey(), batchSize, attr, maxParallelSearches, uint(currentBlockHeight))
+	batchID, existing, err := searchLastBatch(ctx, p, containerID, acc.PrivateKey(), batchSize, attr, maxParallelSearches, uint(currentBlockHeight), debug)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to find objects: %w", err), 1)
 	}
@@ -212,7 +212,7 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 
 // searchLastBatch scans batches backwards to find the last fully-uploaded batch;
 // Returns next batch ID and a map of already uploaded object IDs in that batch.
-func searchLastBatch(ctx *cli.Context, p *pool.Pool, containerID cid.ID, privKeys *keys.PrivateKey, batchSize uint, blockAttributeKey string, maxParallelSearches uint, currentBlockHeight uint) (uint, map[uint]oid.ID, error) {
+func searchLastBatch(ctx *cli.Context, p *pool.Pool, containerID cid.ID, privKeys *keys.PrivateKey, batchSize uint, blockAttributeKey string, maxParallelSearches uint, currentBlockHeight uint, debug bool) (uint, map[uint]oid.ID, error) {
 	totalBatches := (currentBlockHeight + batchSize - 1) / batchSize
 	var (
 		nextExisting = make(map[uint]oid.ID, batchSize)
@@ -239,6 +239,14 @@ func searchLastBatch(ctx *cli.Context, p *pool.Pool, containerID cid.ID, privKey
 				idx, err := strconv.ParseUint(itm.Attributes[0], 10, 32)
 				if err != nil {
 					return 0, nil, fmt.Errorf("failed to parse block index: %w", err)
+				}
+				if duplicate, exists := existing[uint(idx)]; exists {
+					if debug {
+						fmt.Fprintf(ctx.App.Writer,
+							"Duplicate object found for block %d: %s, already exists as %s\n",
+							idx, itm.ID, duplicate)
+					}
+					continue
 				}
 				existing[uint(idx)] = itm.ID
 			case err := <-blkErr:
