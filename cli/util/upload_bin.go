@@ -188,9 +188,9 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 						return
 					}
 
-					mu.RLock()
+					mu.Lock()
 					existing[blockIndex] = resOid
-					mu.RUnlock()
+					mu.Unlock()
 				}
 			}(i)
 		}
