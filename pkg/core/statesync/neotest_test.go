@@ -361,6 +361,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			stateSyncInterval = 4
 			maxTraceable      = 6
 			stateSyncPoint    = 24
+			trustedHeader     = stateSyncPoint - 2*maxTraceable + 2
 		)
 		spoutCfg := func(c *config.Blockchain) {
 			c.Ledger.KeepOnlyLatestState = spoutEnableGC
@@ -368,6 +369,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 			c.StateRootInHeader = true
 			c.StateSyncInterval = stateSyncInterval
 			c.MaxTraceableBlocks = maxTraceable
+			c.P2PStateExchangeExtensions = true // a tiny hack to avoid removal of untraceable headers from spout chain.
 			c.Hardforks = map[string]uint32{
 				config.HFAspidochelone.String(): 0,
 				config.HFBasilisk.String():      0,
@@ -385,7 +387,8 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		e := neotest.NewExecutor(t, bcSpout, validators, committee)
 		basicchain.Init(t, "../../../", e)
 
-		// make spout chain higher than latest state sync point (add several blocks up to stateSyncPoint+2)
+		// make spout chain higher than latest state sync point (add several blocks up to stateSyncPoint+2),
+		// consider keeping in sync with trustedHeader.
 		e.AddNewBlock(t)
 		e.AddNewBlock(t) // This block is stateSyncPoint-th block.
 		e.AddNewBlock(t)
@@ -393,13 +396,22 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 
 		boltCfg := func(c *config.Blockchain) {
 			spoutCfg(c)
+			c.P2PStateExchangeExtensions = true
 			c.Ledger.KeepOnlyLatestState = true
 			c.Ledger.RemoveUntraceableBlocks = true
-
 			if enableStorageSync {
+				c.P2PStateExchangeExtensions = false
 				c.NeoFSStateSyncExtensions = true
 				c.NeoFSStateFetcher.Enabled = true
 				c.NeoFSBlockFetcher.Enabled = true
+			}
+			if spoutEnableGC {
+				// Use trusted header because spout chain doesn't have full header hashes chain
+				// (they are removed along with old blocks/headers).
+				c.TrustedHeader = config.HashIndex{
+					Hash:  bcSpout.GetHeaderHash(trustedHeader),
+					Index: trustedHeader,
+				}
 			}
 		}
 		bcBoltStore := storage.NewMemoryStore()
@@ -408,9 +420,9 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		module := bcBolt.GetStateSyncModule()
 
 		t.Run("error: add headers before initialisation", func(t *testing.T) {
-			h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(1))
+			h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(bcSpout.HeaderHeight() - maxTraceable + 1))
 			require.NoError(t, err)
-			require.Error(t, module.AddHeaders(h))
+			require.ErrorContains(t, module.AddHeaders(h), "headers were not requested")
 		})
 		t.Run("no error: add blocks before initialisation", func(t *testing.T) {
 			b, err := bcSpout.GetBlock(bcSpout.GetHeaderHash(bcSpout.BlockHeight()))
@@ -439,7 +451,7 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 				})
 			})
 			t.Run("error: add MPT nodes without initialisation", func(t *testing.T) {
-				require.Error(t, module.AddMPTNodes([][]byte{}))
+				require.ErrorContains(t, module.AddMPTNodes([][]byte{}), "MPT nodes were not requested")
 			})
 		}
 
@@ -450,11 +462,15 @@ func TestStateSyncModule_RestoreBasicChain(t *testing.T) {
 		require.False(t, module.NeedStorageData())
 		require.Panics(t, func() { module.BlockHeight() })
 
-		// add headers to module
+		// add headers to module starting from trusted height
 		headers := make([]*block.Header, 0, bcSpout.HeaderHeight())
-		for i := uint32(1); i <= bcSpout.HeaderHeight(); i++ {
+		start := 1
+		if spoutEnableGC {
+			start = trustedHeader
+		}
+		for i := uint32(start); i <= bcSpout.HeaderHeight(); i++ {
 			h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(i))
-			require.NoError(t, err)
+			require.NoError(t, err, i)
 			headers = append(headers, h)
 		}
 		require.NoError(t, module.AddHeaders(headers...))

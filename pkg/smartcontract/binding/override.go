@@ -2,6 +2,8 @@ package binding
 
 import (
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // Override contains a package and a type to replace manifest method parameter type with.
@@ -48,10 +50,10 @@ func NewOverrideFromString(s string) Override {
 }
 
 // UnmarshalYAML implements the YAML Unmarshaler interface.
-func (o *Override) UnmarshalYAML(unmarshal func(any) error) error {
+func (o *Override) UnmarshalYAML(node *yaml.Node) error {
 	var s string
 
-	err := unmarshal(&s)
+	err := node.Decode(&s)
 	if err != nil {
 		return err
 	}

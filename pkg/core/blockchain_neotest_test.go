@@ -281,6 +281,63 @@ func TestBlockchain_StartFromExistingDB(t *testing.T) {
 	})
 }
 
+func TestBlockchain_InitHeaderHashes(t *testing.T) {
+	var (
+		//	stateSyncInterval        = 4
+		//	maxTraceable      uint32 = 6
+		headerBatchCount = 2000
+	)
+
+	// Create source chain, fill it with blocks: 2 full batches are stored, 1/2 batch is left in memory.
+	bcSpout, validators := chain.NewSingle(t)
+	e := neotest.NewExecutor(t, bcSpout, validators, validators)
+	e.GenerateNewBlocks(t, 2*headerBatchCount+headerBatchCount/2)
+
+	t.Run("header height is below trusted point", func(t *testing.T) {
+		// Create secondary node, add some headers and try to start from existing DB.
+		ps, _ := newLevelDBForTestingWithPath(t, "")
+		bc, _ := chain.NewSingleWithCustomConfigAndStore(t, func(cfg *config.Blockchain) {
+			cfg.RemoveUntraceableBlocks = true // required for NeoFSStateSyncExtensions.
+		}, ps, false)
+		go bc.Run()
+
+		// Add some headers to the DB and close chain.
+		for i := 1; i < 3; i++ {
+			h, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(uint32(i)))
+			require.NoError(t, err)
+			require.NoError(t, bc.AddHeaders(h))
+		}
+		bc.Close()
+
+		// Open the chain one more time and start with some trusted header.
+		trusted, err := bcSpout.GetHeader(bcSpout.GetHeaderHash(8))
+		require.NoError(t, err)
+		bc, _ = chain.NewSingleWithCustomConfigAndStore(t, func(cfg *config.Blockchain) {
+			cfg.RemoveUntraceableBlocks = true
+			cfg.NeoFSStateSyncExtensions = true
+			cfg.NeoFSBlockFetcher.Enabled = true
+			cfg.NeoFSStateFetcher.Enabled = true
+			cfg.TrustedHeader = config.HashIndex{
+				Hash:  trusted.Hash(),
+				Index: trusted.Index,
+			}
+		}, ps, false)
+		go bc.Run()
+
+		// Check the height and headers are in the proper state.
+		require.Equal(t, trusted.Index-1, bc.HeaderHeight()) // one block below trusted header.
+		for i := range bc.HeaderHeight() {
+			// Don't even try to fetch headers below trusted index if they are not stored.
+			if i < trusted.Index {
+				require.Equal(t, util.Uint256{}, bc.GetHeaderHash(i))
+			}
+		}
+		bc.Close()
+	})
+
+	// TODO: handle the rest of cases.
+}
+
 // TestBlockchain_InitializeNeoCache_Bug3181 is aimed to reproduce and check situation
 // when panic occures on native Neo cache initialization due to access to native Policy
 // cache when it's not yet initialized to recalculate candidates.
@@ -618,6 +675,20 @@ func TestBlockchain_AddBadBlock(t *testing.T) {
 		c.VerifyTransactions = true
 		c.SkipBlockVerification = false
 	})
+
+	// Add proper header, then try to add malicious block that doesn't match this header.
+	tx = e.NewUnsignedTx(t, neoHash, "transfer", acc.ScriptHash(), util.Uint160{1, 2, 3}, 1, nil)
+	e.SignTx(t, tx, -1, acc)
+	b = e.NewUnsignedBlock(t, tx)
+	e.SignBlock(b)
+	bc1, _ := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
+		c.VerifyTransactions = true
+		c.SkipBlockVerification = false
+	})
+	require.NoError(t, bc1.AddHeaders(&b.Header))
+	b = e.NewUnsignedBlock(t, tx) // construct malicious block which is not even signed.
+	b.Timestamp++
+	require.ErrorContains(t, bc1.AddBlock(b), "invalid block: hash mismatch")
 }
 
 func TestBlockchain_GetHeader(t *testing.T) {
@@ -1043,6 +1114,11 @@ func TestBlockchain_Subscriptions(t *testing.T) {
 }
 
 func TestBlockchain_RemoveUntraceable(t *testing.T) {
+	const (
+		headerBatchCount = 2000 // nested from HeaderHashes.
+		mtb              = 3    // use small value to fit within the size of blockTimesCache in GC mode with short GCP.
+		gcp              = 1    // use small value to check precisely removal of untraceable blocks.
+	)
 	neoCommitteeKey := []byte{0xfb, 0xff, 0xff, 0xff, 0x0e}
 	check := func(t *testing.T, bc *core.Blockchain, tHash, bHash, sHash util.Uint256, errorExpected bool) {
 		_, _, err := bc.GetTransaction(tHash)
@@ -1064,7 +1140,11 @@ func TestBlockchain_RemoveUntraceable(t *testing.T) {
 			require.NoError(t, err)
 		}
 		_, err = bc.GetHeader(bHash)
-		require.NoError(t, err)
+		if errorExpected {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+		}
 		if !sHash.Equals(util.Uint256{}) {
 			sm := bc.GetStateModule()
 			_, err = sm.GetState(sHash, neoCommitteeKey)
@@ -1077,46 +1157,57 @@ func TestBlockchain_RemoveUntraceable(t *testing.T) {
 	}
 	t.Run("P2PStateExchangeExtensions off", func(t *testing.T) {
 		bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
-			c.MaxTraceableBlocks = 2
-			c.Ledger.GarbageCollectionPeriod = 2
+			c.MaxTraceableBlocks = mtb
+			c.Ledger.GarbageCollectionPeriod = gcp
 			c.Ledger.RemoveUntraceableBlocks = true
 		})
 		e := neotest.NewExecutor(t, bc, acc, acc)
 		neoValidatorInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Neo))
 
+		// Fill in the first batch of header hashes up to 2000 so that they are persisted to disk
+		// to enable untraceable blocks removal.
+		e.GenerateNewBlocks(t, headerBatchCount-mtb)
 		tx1Hash := neoValidatorInvoker.Invoke(t, true, "transfer", acc.ScriptHash(), util.Uint160{1, 2, 3}, 1, nil)
 		tx1Height := bc.BlockHeight()
 		b1 := e.TopBlock(t)
 		sRoot, err := bc.GetStateModule().GetStateRoot(tx1Height)
 		require.NoError(t, err)
-
-		neoValidatorInvoker.Invoke(t, true, "transfer", acc.ScriptHash(), util.Uint160{1, 2, 3}, 1, nil)
+		for e.Chain.BlockHeight() < tx1Height+mtb {
+			e.AddNewBlock(t)
+		}
 
 		_, h1, err := bc.GetTransaction(tx1Hash)
 		require.NoError(t, err)
 		require.Equal(t, tx1Height, h1)
 
 		check(t, bc, tx1Hash, b1.Hash(), sRoot.Root, false)
-		e.GenerateNewBlocks(t, 4)
 
-		sm := bc.GetStateModule()
+		// Add one more block to make tx1 untraceable.
+		e.AddNewBlock(t)
+
 		require.Eventually(t, func() bool {
-			_, err = sm.GetState(sRoot.Root, neoCommitteeKey)
+			// Use block removal as a reliable trigger since it's the last thing that GC does.
+			_, err = bc.GetBlock(b1.Hash())
 			return err != nil
 		}, 2*bcPersistInterval, 10*time.Millisecond)
 		check(t, bc, tx1Hash, b1.Hash(), sRoot.Root, true)
 	})
 	t.Run("P2PStateExchangeExtensions on", func(t *testing.T) {
+		const stateSyncInterval = 2 // use small value to fit within the size of blockTimesCache in GC mode with short GCP.
 		bc, acc := chain.NewSingleWithCustomConfig(t, func(c *config.Blockchain) {
-			c.MaxTraceableBlocks = 2
-			c.Ledger.GarbageCollectionPeriod = 2
+			c.MaxTraceableBlocks = mtb
+			c.Ledger.GarbageCollectionPeriod = gcp
 			c.Ledger.RemoveUntraceableBlocks = true
 			c.P2PStateExchangeExtensions = true
-			c.StateSyncInterval = 2
+			c.StateSyncInterval = stateSyncInterval
 			c.StateRootInHeader = true
 		})
 		e := neotest.NewExecutor(t, bc, acc, acc)
 		neoValidatorInvoker := e.ValidatorInvoker(e.NativeHash(t, nativenames.Neo))
+
+		// Fill in the first batch of header hashes up to 2000 so that they are persisted to disk
+		// to enable untraceable blocks removal.
+		e.GenerateNewBlocks(t, headerBatchCount-headerBatchCount%stateSyncInterval-stateSyncInterval-mtb)
 
 		tx1Hash := neoValidatorInvoker.Invoke(t, true, "transfer", acc.ScriptHash(), util.Uint160{1, 2, 3}, 1, nil)
 		tx1Height := bc.BlockHeight()
@@ -1132,12 +1223,20 @@ func TestBlockchain_RemoveUntraceable(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, tx1Height, h1)
 
-		e.GenerateNewBlocks(t, 3)
+		for e.Chain.BlockHeight() < tx1Height+2*stateSyncInterval+mtb-1 {
+			e.AddNewBlock(t)
+		}
 
 		check(t, bc, tx1Hash, b1.Hash(), sRoot.Root, false)
 		check(t, bc, tx2Hash, b2.Hash(), sRoot.Root, false)
 
 		e.AddNewBlock(t)
+
+		require.Eventually(t, func() bool {
+			// Use block removal as a reliable trigger since it's the last thing that GC does.
+			_, err = bc.GetBlock(b1.Hash())
+			return err != nil
+		}, 2*bcPersistInterval, 10*time.Millisecond)
 
 		check(t, bc, tx1Hash, b1.Hash(), util.Uint256{}, true)
 		check(t, bc, tx2Hash, b2.Hash(), util.Uint256{}, false)

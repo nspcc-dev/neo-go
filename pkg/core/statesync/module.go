@@ -177,6 +177,11 @@ func (s *Module) Init(currChainHeight uint32) error {
 		return nil
 	}
 	if s.bc.BlockHeight() > p-2*s.syncInterval {
+		// TODO: it's a problem because HeaderHashes are already initialized by blockchain during
+		// init() call at the trusted block. We either need to move HeaderHashes state reset callback to
+		// (Module).Init or need to add some verification so that user can't set TrustedHeader
+		// for small chains.
+
 		// chain has already been synchronised up to old state sync point and regular blocks processing was started.
 		// Current block height is enough to start regular blocks processing.
 		s.syncStage = inactive
@@ -446,8 +451,12 @@ func (s *Module) AddBlock(block *block.Block) error {
 	if !s.bc.GetConfig().SkipBlockVerification {
 		merkle := block.ComputeMerkleRoot()
 		if !block.MerkleRoot.Equals(merkle) {
-			return errors.New("invalid block: MerkleRoot mismatch")
+			return fmt.Errorf("invalid block: MerkleRoot mismatch: expected %s, got %s", merkle.StringLE(), block.MerkleRoot.StringLE())
 		}
+	}
+	expectedH := s.bc.GetHeaderHash(block.Index)
+	if !block.Hash().Equals(expectedH) {
+		return fmt.Errorf("invalid block: hash mismatch: expected %s, got %s", expectedH, block.Hash().StringLE())
 	}
 	cache := s.dao.GetPrivate()
 	if err := cache.StoreAsBlock(block, nil, nil); err != nil {

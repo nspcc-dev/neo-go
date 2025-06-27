@@ -340,9 +340,14 @@ func (s *Server) Start() {
 		s.log.Info("node server already started")
 		return
 	}
-	s.log.Info("node started",
+	logFields := []zap.Field{
 		zap.Uint32("blockHeight", s.chain.BlockHeight()),
-		zap.Uint32("headerHeight", s.chain.HeaderHeight()))
+		zap.Uint32("headerHeight", s.chain.HeaderHeight()),
+	}
+	if s.chain.GetConfig().TrustedHeader.Index > 0 {
+		logFields = append(logFields, zap.Uint32("trustedHeader", s.chain.GetConfig().TrustedHeader.Index))
+	}
+	s.log.Info("node started", logFields...)
 
 	s.tryStartServices()
 	s.initStaleMemPools()
@@ -801,7 +806,7 @@ func (s *Server) getVersionMsg(localAddr net.Addr) (*Message, error) {
 		})
 	}
 	cfg := s.chain.GetConfig()
-	if !cfg.RemoveUntraceableBlocks && !cfg.RemoveUntraceableHeaders {
+	if !cfg.RemoveUntraceableBlocks {
 		capabilities = append(capabilities, capability.Capability{
 			Type: capability.ArchivalNode,
 			Data: &capability.Archival{},
@@ -1255,7 +1260,10 @@ func (s *Server) handleHeadersCmd(p Peer, h *payload.Headers) error {
 	if s.blockFetcher.IsActive() || s.config.NeoFSStateSyncExtensions && s.stateSync.IsActive() {
 		return nil
 	}
-	return s.stateSync.AddHeaders(h.Hdrs...)
+	if s.stateSync.NeedHeaders() {
+		return s.stateSync.AddHeaders(h.Hdrs...)
+	}
+	return nil
 }
 
 // handleExtensibleCmd processes the received extensible payload.

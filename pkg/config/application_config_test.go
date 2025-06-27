@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -233,13 +234,24 @@ func TestApplicationConfiguration_Validate(t *testing.T) {
 			shouldFail: true,
 			errMsg:     "invalid logger config: invalid LogEncoding: unknown",
 		},
+		{
+			cfg: ApplicationConfiguration{
+				Ledger: Ledger{
+					TrustedHeader: HashIndex{
+						Hash:  util.Uint256{1, 2, 3},
+						Index: 4,
+					},
+				},
+			},
+			shouldFail: true,
+			errMsg:     "TrustedHeader is set, but RemoveUntraceableBlocks is disabled",
+		},
 	}
 
 	for _, c := range cases {
 		err := c.cfg.Validate()
 		if c.shouldFail {
-			require.Error(t, err)
-			require.Contains(t, err.Error(), c.errMsg)
+			require.ErrorContains(t, err, c.errMsg)
 		} else {
 			require.NoError(t, err)
 		}

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
+	"gopkg.in/yaml.v3"
 )
 
 // Uint256Size is the size of Uint256 in bytes.
@@ -119,6 +120,25 @@ func (u Uint256) MarshalJSON() ([]byte, error) {
 	slices.Reverse(u[:]) // u is a copy, so we can mangle it in any way.
 	hex.Encode(r[3:], u[:])
 	return r, nil
+}
+
+// UnmarshalYAML implements the YAML Unmarshaler interface.
+func (u *Uint256) UnmarshalYAML(node *yaml.Node) error {
+	var s string
+
+	err := node.Decode(&s)
+	if err != nil {
+		return err
+	}
+
+	s = strings.TrimPrefix(s, "0x")
+	*u, err = Uint256DecodeStringLE(s)
+	return err
+}
+
+// MarshalYAML implements the YAML marshaller interface.
+func (u Uint256) MarshalYAML() (any, error) {
+	return "0x" + u.StringLE(), nil
 }
 
 // Compare performs three-way comparison of two Uint256. Possible output: 1, -1, 0
