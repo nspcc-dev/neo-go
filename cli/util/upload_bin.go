@@ -66,7 +66,7 @@ func uploadBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Sprintf("failed to get current block height from RPC: %v", err), 1)
 	}
 	fmt.Fprintln(ctx.App.Writer, "Chain block height:", currentBlockHeight)
-	batchID, existing, err := searchLastBatch(ctx, p, containerID, acc.PrivateKey(), batchSize, attr, maxParallelSearches, uint(currentBlockHeight))
+	batchID, existing, err := searchLastBatch(ctx, p, containerID, acc.PrivateKey(), batchSize, attr, maxParallelSearches, uint(currentBlockHeight), debug)
 	if err != nil {
 		return cli.Exit(fmt.Errorf("failed to find objects: %w", err), 1)
 	}
@@ -100,11 +100,11 @@ func retry(action func() error, maxRetries uint, debug bool) error {
 
 // uploadBlocks uploads missing blocks in batches.
 func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer user.Signer, containerID cid.ID, attr string, existing map[uint]oid.ID, currentBatchID, batchSize, currentBlockHeight uint, numWorkers, maxRetries uint, debug bool) error {
-	if currentBatchID*batchSize >= currentBlockHeight {
-		fmt.Fprintf(ctx.App.Writer, "No new blocks to upload. Need to upload starting from %d, current height %d\n", currentBatchID*batchSize, currentBlockHeight)
+	if currentBatchID*batchSize+uint(len(existing)) >= currentBlockHeight {
+		fmt.Fprintf(ctx.App.Writer, "No new blocks to upload. Need to upload starting from %d, current height %d\n", currentBatchID*batchSize+uint(len(existing)), currentBlockHeight)
 		return nil
 	}
-	fmt.Fprintln(ctx.App.Writer, "Uploading blocks and index files...")
+	fmt.Fprintln(ctx.App.Writer, "Uploading blocks...")
 
 	var mu sync.RWMutex
 	for batchStart := currentBatchID * batchSize; batchStart < currentBlockHeight; batchStart += batchSize {
@@ -188,9 +188,9 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 						return
 					}
 
-					mu.RLock()
+					mu.Lock()
 					existing[blockIndex] = resOid
-					mu.RUnlock()
+					mu.Unlock()
 				}
 			}(i)
 		}
@@ -212,12 +212,11 @@ func uploadBlocks(ctx *cli.Context, p *pool.Pool, rpc *rpcclient.Client, signer 
 
 // searchLastBatch scans batches backwards to find the last fully-uploaded batch;
 // Returns next batch ID and a map of already uploaded object IDs in that batch.
-func searchLastBatch(ctx *cli.Context, p *pool.Pool, containerID cid.ID, privKeys *keys.PrivateKey, batchSize uint, blockAttributeKey string, maxParallelSearches uint, currentBlockHeight uint) (uint, map[uint]oid.ID, error) {
+func searchLastBatch(ctx *cli.Context, p *pool.Pool, containerID cid.ID, privKeys *keys.PrivateKey, batchSize uint, blockAttributeKey string, maxParallelSearches uint, currentBlockHeight uint, debug bool) (uint, map[uint]oid.ID, error) {
 	totalBatches := (currentBlockHeight + batchSize - 1) / batchSize
 	var (
-		lastFullFound bool
-		lastFull      uint
-		nextExisting  = make(map[uint]oid.ID, batchSize)
+		nextExisting = make(map[uint]oid.ID, batchSize)
+		nextBatch    uint
 	)
 
 	for b := int(totalBatches) - 1; b >= 0; b-- {
@@ -241,29 +240,36 @@ func searchLastBatch(ctx *cli.Context, p *pool.Pool, containerID cid.ID, privKey
 				if err != nil {
 					return 0, nil, fmt.Errorf("failed to parse block index: %w", err)
 				}
+				if duplicate, exists := existing[uint(idx)]; exists {
+					if debug {
+						fmt.Fprintf(ctx.App.Writer,
+							"Duplicate object found for block %d: %s, already exists as %s\n",
+							idx, itm.ID, duplicate)
+					}
+					continue
+				}
 				existing[uint(idx)] = itm.ID
 			case err := <-blkErr:
 				return 0, nil, err
 			}
 		}
 
-		// If this batch is not full, mark it as the next.
-		if uint(len(existing)) < end-start {
-			nextExisting = existing
+		if len(existing) == 0 {
+			// completely empty → keep scanning earlier batches
 			continue
 		}
-
-		// Found a full batch.
-		lastFullFound = true
-		lastFull = uint(b)
+		if uint(len(existing)) < batchSize {
+			// non-empty and incomplete  →  resume here
+			nextExisting = existing
+			nextBatch = uint(b)
+			break
+		}
+		// otherwise: full batch  →  resume after it
+		nextBatch = uint(b) + 1
 		break
 	}
+	fmt.Fprintf(ctx.App.Writer, "Last fully uploaded batch: %d, next to upload: %d\n", int(nextBatch)-1, nextBatch)
 
-	nextBatch := uint(0)
-	if lastFullFound {
-		nextBatch = lastFull + 1
-	}
-	fmt.Fprintf(ctx.App.Writer, "Last fully uploaded batch: %d, next to upload: %d\n", lastFull, nextBatch)
 	return nextBatch, nextExisting, nil
 }
 
