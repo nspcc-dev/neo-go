@@ -1776,7 +1776,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 	if len(headers) > 0 {
 		var i int
 		curHeight := bc.HeaderHeight()
-		for i = range headers {
+		for ; i < len(headers); i++ {
 			if headers[i].Index > curHeight {
 				break
 			}
