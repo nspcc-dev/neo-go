@@ -94,10 +94,11 @@ type (
 		// Seek can guarantee that key-value items are sorted by key in ascending way.
 		Seek(rng SeekRange, f func(k, v []byte) bool)
 		// SeekGC is similar to Seek, but the function should return true if current
-		// KV pair should be kept and false if it's to be deleted; there is no way to
-		// do an early exit here. SeekGC only works with the current Store, it won't
-		// go down to layers below and it takes a full write lock, so use it carefully.
-		SeekGC(rng SeekRange, keep func(k, v []byte) bool) error
+		// KV pair should be kept and false if it's to be deleted; the second return
+		// value denotes whether to continue iteration. SeekGC only works with the
+		// current Store, it won't go down to layers below and it takes a full write
+		// lock, so use it carefully.
+		SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, bool)) error
 		Close() error
 	}
 

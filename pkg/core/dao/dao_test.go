@@ -109,14 +109,7 @@ func TestPutGetBlock(t *testing.T) {
 	require.Equal(t, *appExecResult1, gotAppExecResult[0])
 	require.Equal(t, *appExecResult2, gotAppExecResult[1])
 
-	ts, err := dao.DeleteBlock(hash, false)
-	require.NoError(t, err)
-	require.Equal(t, uint64(42), ts)
-	gotBlock, err = dao.GetBlock(hash) // It's just a header, but it's still there.
-	require.NoError(t, err)
-	require.NotNil(t, gotBlock)
-
-	ts, err = dao.DeleteBlock(hash, true)
+	ts, err := dao.DeleteBlock(hash)
 	require.NoError(t, err)
 	require.Equal(t, uint64(42), ts)
 	_, err = dao.GetBlock(hash)

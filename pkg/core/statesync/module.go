@@ -177,6 +177,12 @@ func (s *Module) Init(currChainHeight uint32) error {
 		return nil
 	}
 	if s.bc.BlockHeight() > p-2*s.syncInterval {
+		trustedH := s.bc.GetConfig().TrustedHeader.Index
+		if trustedH > s.bc.BlockHeight() {
+			return fmt.Errorf("misconfigured trusted header height: chain is alread in sync (block height is %d, lower bound of latest sync interval is %d), but trusted height %d is upper than block height; reset trusted header to proper height",
+				s.bc.BlockHeight(), p-2*s.syncInterval, trustedH)
+		}
+
 		// chain has already been synchronised up to old state sync point and regular blocks processing was started.
 		// Current block height is enough to start regular blocks processing.
 		s.syncStage = inactive
@@ -446,8 +452,12 @@ func (s *Module) AddBlock(block *block.Block) error {
 	if !s.bc.GetConfig().SkipBlockVerification {
 		merkle := block.ComputeMerkleRoot()
 		if !block.MerkleRoot.Equals(merkle) {
-			return errors.New("invalid block: MerkleRoot mismatch")
+			return fmt.Errorf("invalid block: MerkleRoot mismatch: expected %s, got %s", merkle.StringLE(), block.MerkleRoot.StringLE())
 		}
+	}
+	expectedH := s.bc.GetHeaderHash(block.Index)
+	if !block.Hash().Equals(expectedH) {
+		return fmt.Errorf("invalid block: hash mismatch: expected %s, got %s", expectedH, block.Hash().StringLE())
 	}
 	cache := s.dao.GetPrivate()
 	if err := cache.StoreAsBlock(block, nil, nil); err != nil {

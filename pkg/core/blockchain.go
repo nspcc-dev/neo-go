@@ -185,6 +185,12 @@ type Blockchain struct {
 	// removal (performed in storeBlock()) with transfer/MPT GC (tryRunGC())
 	gcBlockTimes *lru.Cache[uint32, uint64]
 
+	// gcLastUntraceableBlockHeight is the height of the latest untraceable block
+	// that was removed by GC. Storing this value is cheaper than performing Seek
+	// through all blocks every time we need to define the next header to be
+	// removed.
+	gcLastUntraceableBlockHeight uint32
+
 	// Stop synchronization mechanisms.
 	stopCh      chan struct{}
 	runToExitCh chan struct{}
@@ -321,6 +327,12 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 	if cfg.P2PStateExchangeExtensions && cfg.NeoFSStateSyncExtensions {
 		return nil, errors.New("P2PStateExchangeExtensions and NeoFSStateSyncExtensions cannot be enabled simultaneously")
 	}
+	if cfg.TrustedHeader.Index > 0 && !(cfg.P2PStateExchangeExtensions || cfg.NeoFSStateSyncExtensions) {
+		return nil, errors.New("TrustedHeader can not be used without P2PStateExchangeExtensions or NeoFSStateSyncExtensions")
+	}
+	if cfg.TrustedHeader.Index == 0 && (cfg.P2PStateExchangeExtensions || cfg.NeoFSStateSyncExtensions) {
+		log.Info("TrustedHeader is not set, headers synchronisation will start from latest stored header")
+	}
 	if cfg.P2PStateExchangeExtensions {
 		if !cfg.StateRootInHeader {
 			return nil, errors.New("P2PStatesExchangeExtensions are enabled, but StateRootInHeader is off")
@@ -346,9 +358,6 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 			log.Info("StateSyncInterval is not set or wrong, using default value",
 				zap.Int("StateSyncInterval", cfg.StateSyncInterval))
 		}
-	}
-	if cfg.RemoveUntraceableHeaders && !cfg.RemoveUntraceableBlocks {
-		return nil, errors.New("RemoveUntraceableHeaders is enabled, but RemoveUntraceableBlocks is not")
 	}
 	if cfg.Hardforks == nil {
 		cfg.Hardforks = map[string]uint32{}
@@ -495,7 +504,19 @@ func (bc *Blockchain) init() error {
 		if err != nil {
 			return err
 		}
-		bc.HeaderHashes.initGenesis(bc.dao, genesisBlock.Hash())
+		var trusted = config.HashIndex{
+			Hash:  genesisBlock.Hash(),
+			Index: 0,
+		}
+		if bc.config.TrustedHeader.Index > 0 {
+			minTrustedHeight := max(uint32(2*bc.config.StateSyncInterval), bc.GetMaxTraceableBlocks())
+			if (bc.config.P2PStateExchangeExtensions || bc.config.NeoFSStateSyncExtensions) &&
+				bc.config.TrustedHeader.Index <= minTrustedHeight {
+				return fmt.Errorf("trusted header is too low to start state synchronization: need at least %d, got %d", minTrustedHeight, bc.config.TrustedHeader.Index)
+			}
+			trusted = bc.config.TrustedHeader
+		}
+		bc.HeaderHashes.initMinTrustedHeader(bc.dao, trusted)
 		if err := bc.stateRoot.Init(0); err != nil {
 			return fmt.Errorf("can't init MPT: %w", err)
 		}
@@ -536,7 +557,7 @@ func (bc *Blockchain) init() error {
 	// and the genesis block as first block.
 	bc.log.Info("restoring blockchain", zap.String("version", version))
 
-	err = bc.HeaderHashes.init(bc.dao)
+	err = bc.HeaderHashes.init(bc.dao, bc.config.TrustedHeader)
 	if err != nil {
 		return err
 	}
@@ -569,6 +590,13 @@ func (bc *Blockchain) init() error {
 	}
 	bc.blockHeight = bHeight
 	bc.persistedHeight = bHeight
+
+	bc.dao.Store.Seek(storage.SeekRange{
+		Prefix: []byte{byte(storage.IXHeaderHashList)},
+	}, func(k, _ []byte) bool {
+		bc.gcLastUntraceableBlockHeight = binary.BigEndian.Uint32(k[1:])
+		return false
+	})
 
 	bc.log.Debug("initializing caches", zap.Uint32("blockHeight", bHeight))
 	if err = bc.stateRoot.Init(bHeight); err != nil {
@@ -700,7 +728,12 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 		// After current state is updated, we need to remove outdated state-related data if so.
 		// The only outdated data we might have is genesis-related data, so check it.
 		if int(p)-int(mtb) > 0 {
-			_, err := cache.DeleteBlock(bc.GetHeaderHash(0), false)
+			// bc.HeaderHashes does not contain genesis hash since old hashes are removed with RUB.
+			genesisBlock, err := CreateGenesisBlock(bc.config.ProtocolConfiguration)
+			if err != nil {
+				return fmt.Errorf("failed to retrieve genesis block hash: %w", err)
+			}
+			_, err = cache.DeleteBlock(genesisBlock.Hash())
 			if err != nil {
 				return fmt.Errorf("failed to remove outdated state data for the genesis block: %w", err)
 			}
@@ -774,7 +807,7 @@ func (bc *Blockchain) jumpToStateInternal(p uint32, stage stateChangeStage) erro
 // resetRAMState resets in-memory cached info.
 func (bc *Blockchain) resetRAMState(height uint32, resetHeaders bool) error {
 	if resetHeaders {
-		err := bc.HeaderHashes.init(bc.dao)
+		err := bc.HeaderHashes.init(bc.dao, config.HashIndex{})
 		if err != nil {
 			return err
 		}
@@ -929,7 +962,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 			keysCnt             = new(int)
 		)
 		for i := height + 1; i <= currHeight; i++ {
-			_, err := upperCache.DeleteBlock(bc.GetHeaderHash(i), false)
+			_, err := upperCache.DeleteBlock(bc.GetHeaderHash(i))
 			if err != nil {
 				return fmt.Errorf("error while removing block %d: %w", i, err)
 			}
@@ -1070,7 +1103,7 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 		for i := height + 1; i <= hHeight; i++ {
 			upperCache.PurgeHeader(bc.GetHeaderHash(i))
 		}
-		upperCache.DeleteHeaderHashes(height+1, headerBatchCount)
+		upperCache.DeleteHeaderHashesHead(height+1, headerBatchCount)
 		upperCache.StoreAsCurrentBlock(b)
 		upperCache.PutCurrentHeader(b.Hash(), height)
 		v.StoragePrefix = statesync.TemporaryPrefix(v.StoragePrefix)
@@ -1145,9 +1178,9 @@ func (bc *Blockchain) resetStateInternal(height uint32, stage stateChangeStage) 
 	keys := 0
 	err = bc.store.SeekGC(storage.SeekRange{
 		Prefix: []byte{byte(statesync.TemporaryPrefix(v.StoragePrefix))},
-	}, func(_, _ []byte) bool {
+	}, func(_, _ []byte) (bool, bool) {
 		keys++
-		return false
+		return false, true
 	})
 	if err != nil {
 		return fmt.Errorf("faield to remove stale storage items from DB: %w", err)
@@ -1263,10 +1296,13 @@ func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 
 	tgtBlock -= int64(mtb)
 	if bc.config.P2PStateExchangeExtensions {
+		// Old blocks should be removed up to P2-MaxTraceableBlocks which is required for
+		// proper P2P state synchronization, hence align removal of transfers, MPT entries,
+		// blocks and header hashes with this value.
 		syncP := newHeight / uint32(bc.config.StateSyncInterval)
 		syncP--
 		syncP *= uint32(bc.config.StateSyncInterval)
-		tgtBlock = min(tgtBlock, int64(syncP))
+		tgtBlock = min(tgtBlock, int64(syncP-mtb))
 	}
 	// Always round to the GCP.
 	tgtBlock /= int64(bc.config.Ledger.GarbageCollectionPeriod)
@@ -1277,6 +1313,8 @@ func (bc *Blockchain) tryRunGC(oldHeight uint32) time.Duration {
 	if tgtBlock > int64(bc.config.Ledger.GarbageCollectionPeriod) && newHeight != oldHeight {
 		dur = bc.removeOldTransfers(uint32(tgtBlock))
 		dur += bc.stateRoot.GC(uint32(tgtBlock), bc.store)
+		dur += bc.removeUntraceableBlocks(newHeight, uint32(tgtBlock))
+		dur += bc.removeOldHeaderHashes(uint32(tgtBlock))
 	}
 	return dur
 }
@@ -1443,7 +1481,7 @@ func (bc *Blockchain) removeOldTransfers(index uint32) time.Duration {
 		err = bc.store.SeekGC(storage.SeekRange{
 			Prefix:    prefixes[i : i+1],
 			Backwards: true, // From new to old.
-		}, func(k, v []byte) bool {
+		}, func(k, v []byte) (bool, bool) {
 			// We don't look inside of the batches, it requires too much effort, instead
 			// we drop batches that are confirmed to contain outdated entries.
 			var batchAcc util.Uint160
@@ -1454,13 +1492,13 @@ func (bc *Blockchain) removeOldTransfers(index uint32) time.Duration {
 				acc = batchAcc
 			} else if canDrop { // We've seen this account and all entries in this batch are guaranteed to be outdated.
 				removed++
-				return false
+				return false, true
 			}
 			// We don't know what's inside, so keep the current
 			// batch anyway, but allow to drop older ones.
 			canDrop = batchTs <= ts
 			kept++
-			return true
+			return true, true
 		})
 		if err != nil {
 			break
@@ -1475,6 +1513,86 @@ func (bc *Blockchain) removeOldTransfers(index uint32) time.Duration {
 			zap.Int64("kept", kept),
 			zap.Duration("time", dur))
 	}
+	return dur
+}
+
+// removeOldHeaderHashes removes batches of header hashes starting from genesis up
+// to the batch with header with the specified index (excluding this batch if some
+// headers from this batch should not be removed).
+func (bc *Blockchain) removeOldHeaderHashes(index uint32) time.Duration {
+	bc.log.Info("starting header hashes garbage collection", zap.Uint32("index", index))
+	var (
+		err     error
+		removed int64
+		start   = time.Now()
+		till    = ((int32(index)+1)/headerBatchCount - 1) * headerBatchCount
+	)
+	if till > 0 {
+		err = bc.store.SeekGC(storage.SeekRange{
+			Prefix: []byte{byte(storage.IXHeaderHashList)},
+		}, func(k, _ []byte) (bool, bool) {
+			first := binary.BigEndian.Uint32(k[1:])
+			if first <= uint32(till) {
+				removed += headerBatchCount
+				return false, first != uint32(till)
+			}
+			return true, false
+		})
+	}
+
+	dur := time.Since(start)
+	if err != nil {
+		bc.log.Error("failed to flush header hashes GC changeset", zap.Duration("time", dur), zap.Error(err))
+	} else {
+		bc.log.Info("finished header hashes garbage collection",
+			zap.Int64("removed", removed),
+			zap.Duration("time", dur))
+	}
+	return dur
+}
+
+func (bc *Blockchain) removeUntraceableBlocks(newPeriod, tgtHeight uint32) time.Duration {
+	if newPeriod*bc.config.GarbageCollectionPeriod/headerBatchCount == tgtHeight/headerBatchCount { // current batch of header hashes is not stored yet.
+		tgtHeight = uint32(max(0, (int(tgtHeight)/headerBatchCount-1)*headerBatchCount))
+	}
+	if tgtHeight == 0 {
+		return 0
+	}
+	oldTgtHeight := bc.gcLastUntraceableBlockHeight
+
+	bc.log.Info("starting untraceable blocks garbage collection", zap.Uint32("from", oldTgtHeight), zap.Uint32("to", tgtHeight))
+	var (
+		start   = time.Now()
+		kvcache = bc.dao.GetPrivate()
+		removed int
+	)
+	for index := oldTgtHeight; index < tgtHeight; index++ {
+		hh := bc.GetHeaderHash(index)
+		if hh.Equals(util.Uint256{}) {
+			// Empty hashes are allowed if recovering from trusted height.
+			continue
+		}
+		_, err := kvcache.DeleteBlock(hh)
+		if err != nil {
+			bc.log.Warn("error while removing old block",
+				zap.Uint32("index", index),
+				zap.Error(err))
+		} else {
+			removed++
+		}
+	}
+	bc.gcLastUntraceableBlockHeight = tgtHeight
+
+	dur := time.Since(start)
+	_, err := kvcache.Persist()
+	if err != nil {
+		bc.log.Error("failed to flush untraceable blocks GC changeset", zap.Duration("time", dur), zap.Error(err))
+	} else {
+		bc.log.Info("finished untraceable blocks garbage collection",
+			zap.Int("removed", removed),
+			zap.Duration("time", dur))
+	}
+
 	return dur
 }
 
@@ -1616,7 +1734,10 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 	var mp *mempool.Pool
 	expectedHeight := bc.BlockHeight() + 1
 	if expectedHeight != block.Index {
-		return fmt.Errorf("expected %d, got %d: %w", expectedHeight, block.Index, ErrInvalidBlockIndex)
+		if block.Index > expectedHeight {
+			return fmt.Errorf("expected %d, got %d: %w", expectedHeight, block.Index, ErrInvalidBlockIndex)
+		}
+		return fmt.Errorf("%w: block with index %d is already on chain", ErrAlreadyExists, block.Index)
 	}
 	if bc.config.StateRootInHeader != block.StateRootEnabled {
 		return fmt.Errorf("%w: %v != %v",
@@ -1627,6 +1748,11 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		err := bc.addHeaders(!bc.config.SkipBlockVerification, &block.Header)
 		if err != nil {
 			return err
+		}
+	} else {
+		expectedH := bc.GetHeaderHash(block.Index)
+		if expectedH != block.Hash() {
+			return fmt.Errorf("invalid block: hash mismatch: expected %s, got %s", expectedH.StringLE(), block.Hash().StringLE())
 		}
 	}
 	if !bc.config.SkipBlockVerification {
@@ -1676,7 +1802,7 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 	if len(headers) > 0 {
 		var i int
 		curHeight := bc.HeaderHeight()
-		for i = range headers {
+		for ; i < len(headers); i++ {
 			if headers[i].Index > curHeight {
 				break
 			}
@@ -1686,17 +1812,33 @@ func (bc *Blockchain) addHeaders(verify bool, headers ...*block.Header) error {
 
 	if len(headers) == 0 {
 		return nil
-	} else if verify {
+	}
+	// If it's a trusted header, verify its hash against configuration.
+	if headers[0].Index == bc.config.TrustedHeader.Index && !headers[0].Hash().Equals(bc.config.TrustedHeader.Hash) {
+		return fmt.Errorf("trusted header hash mismatch at %d: expected %s, got %s", headers[0].Index, bc.config.TrustedHeader.Hash.StringLE(), headers[0].Hash().StringLE())
+	}
+	if verify {
 		// Verify that the chain of the headers is consistent.
-		var lastHeader *block.Header
-		if lastHeader, err = bc.GetHeader(headers[0].PrevHash); err != nil {
-			return fmt.Errorf("previous header was not found: %w", err)
+		var (
+			lastHeader *block.Header
+			verifyFrom uint32
+		)
+		if headers[0].Index == bc.config.TrustedHeader.Index {
+			verifyFrom++
+			lastHeader = headers[0]
 		}
-		for _, h := range headers {
-			if err = bc.verifyHeader(h, lastHeader); err != nil {
-				return err
+		if len(headers) > int(verifyFrom) {
+			if lastHeader == nil {
+				if lastHeader, err = bc.GetHeader(headers[verifyFrom].PrevHash); err != nil {
+					return fmt.Errorf("previous header %d (%s) was not found: %w", headers[verifyFrom].Index, headers[verifyFrom].PrevHash.StringLE(), err)
+				}
 			}
-			lastHeader = h
+			for _, h := range headers[verifyFrom:] {
+				if err = bc.verifyHeader(h, lastHeader); err != nil {
+					return err
+				}
+				lastHeader = h
+			}
 		}
 	}
 	res := bc.HeaderHashes.addHeaders(headers...)
@@ -1734,7 +1876,6 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		appExecResults = make([]*state.AppExecResult, 0, 2+len(block.Transactions))
 		aerchan        = make(chan *state.AppExecResult, len(block.Transactions)/8) // Tested 8 and 4 with no practical difference, but feel free to test more and tune.
 		aerdone        = make(chan error)
-		mtb            = bc.GetMaxTraceableBlocks()
 	)
 	go func() {
 		var (
@@ -1745,31 +1886,8 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 			transCache   = make(map[util.Uint160]transferData)
 		)
 		kvcache.StoreAsCurrentBlock(block)
-		if bc.config.Ledger.RemoveUntraceableBlocks {
-			var start, stop uint32
-			if bc.config.P2PStateExchangeExtensions {
-				// remove batch of old blocks starting from P2-MaxTraceableBlocks-StateSyncInterval up to P2-MaxTraceableBlocks
-				if block.Index >= 2*uint32(bc.config.StateSyncInterval) &&
-					block.Index >= uint32(bc.config.StateSyncInterval)+mtb && // check this in case if MaxTraceableBlocks>StateSyncInterval
-					int(block.Index)%bc.config.StateSyncInterval == 0 {
-					stop = block.Index - uint32(bc.config.StateSyncInterval) - mtb
-					start = stop - min(stop, uint32(bc.config.StateSyncInterval))
-				}
-			} else if block.Index > mtb {
-				start = block.Index - mtb // is at least 1
-				stop = start + 1
-			}
-			for index := start; index < stop; index++ {
-				ts, err := kvcache.DeleteBlock(bc.GetHeaderHash(index), bc.config.Ledger.RemoveUntraceableHeaders)
-				if index%bc.config.Ledger.GarbageCollectionPeriod == 0 {
-					_ = bc.gcBlockTimes.Add(index, ts)
-				}
-				if err != nil {
-					bc.log.Warn("error while removing old block",
-						zap.Uint32("index", index),
-						zap.Error(err))
-				}
-			}
+		if bc.config.Ledger.RemoveUntraceableBlocks && block.Index%bc.config.Ledger.GarbageCollectionPeriod == 0 {
+			_ = bc.gcBlockTimes.Add(block.Index, block.Timestamp)
 		}
 		for aer := range aerchan {
 			if aer.Container == block.Hash() {
@@ -1885,10 +2003,10 @@ func (bc *Blockchain) storeBlock(block *block.Block, txpool *mempool.Pool) error
 		// because changes applied are the ones from HALTed transactions.
 		return fmt.Errorf("error while trying to apply MPT changes: %w", err)
 	}
-	if bc.config.StateRootInHeader && bc.HeaderHeight() > sr.Index {
+	if bc.config.StateRootInHeader && bc.HeaderHeight() > sr.Index && sr.Index > bc.config.TrustedHeader.Index {
 		h, err := bc.GetHeader(bc.GetHeaderHash(sr.Index + 1))
 		if err != nil {
-			err = fmt.Errorf("failed to get next header: %w", err)
+			err = fmt.Errorf("failed to get next header %d to verify stateroot: %w", sr.Index+1, err)
 		} else if h.PrevStateRoot != sr.Root {
 			err = fmt.Errorf("local stateroot and next header's PrevStateRoot mismatch: %s vs %s", sr.Root.StringBE(), h.PrevStateRoot.StringBE())
 		}

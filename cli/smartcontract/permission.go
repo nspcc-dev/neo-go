@@ -51,9 +51,9 @@ func (p permission) MarshalYAML() (any, error) {
 	return m, nil
 }
 
-func (p *permission) UnmarshalYAML(unmarshal func(any) error) error {
+func (p *permission) UnmarshalYAML(node *yaml.Node) error {
 	var m map[string]any
-	if err := unmarshal(&m); err != nil {
+	if err := node.Decode(&m); err != nil {
 		return err
 	}
 

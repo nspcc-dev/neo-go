@@ -642,23 +642,17 @@ func (dao *Simple) GetHeaderHashes(height uint32) ([]util.Uint256, error) {
 	return hashes, nil
 }
 
-// DeleteHeaderHashes removes batches of header hashes starting from the one that
+// DeleteHeaderHashesHead removes batches of header hashes starting from the one that
 // contains header with index `since` up to the most recent batch. It assumes that
 // all stored batches contain `batchSize` hashes.
-func (dao *Simple) DeleteHeaderHashes(since uint32, batchSize int) {
+func (dao *Simple) DeleteHeaderHashesHead(since uint32, batchSize int) {
+	first := dao.mkHeaderHashKey(since / uint32(batchSize) * uint32(batchSize))
 	dao.Store.Seek(storage.SeekRange{
-		Prefix:    dao.mkKeyPrefix(storage.IXHeaderHashList),
-		Backwards: true,
+		Prefix: first[0:1],
+		Start:  first[1:],
 	}, func(k, _ []byte) bool {
-		first := binary.BigEndian.Uint32(k[1:])
-		if first >= since {
-			dao.Store.Delete(k)
-			return first != since
-		}
-		if first+uint32(batchSize)-1 >= since {
-			dao.Store.Delete(k)
-		}
-		return false
+		dao.Store.Delete(k)
+		return true
 	})
 }
 
@@ -830,21 +824,14 @@ func (dao *Simple) StoreAsBlock(block *block.Block, aer1 *state.AppExecResult, a
 // DeleteBlock removes the block from dao. It's not atomic, so make sure you're
 // using private MemCached instance here. It returns block timestamp for GC
 // convenience.
-func (dao *Simple) DeleteBlock(h util.Uint256, dropHeader bool) (uint64, error) {
+func (dao *Simple) DeleteBlock(h util.Uint256) (uint64, error) {
 	key := dao.makeExecutableKey(h)
 
 	b, err := dao.getBlock(key)
 	if err != nil {
 		return 0, err
 	}
-	if !dropHeader {
-		err = dao.storeHeader(key, &b.Header)
-		if err != nil {
-			return 0, err
-		}
-	} else {
-		dao.Store.Delete(key)
-	}
+	dao.Store.Delete(key)
 
 	for _, tx := range b.Transactions {
 		copy(key[1:], tx.Hash().BytesBE())

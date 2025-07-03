@@ -33,13 +33,13 @@ node-related settings described in the table below.
 | Prometheus | [Metrics Services Configuration](#Metrics-Services-Configuration) | | Configuration for Prometheus (monitoring system). See the [Metrics Services Configuration](#Metrics-Services-Configuration) section for details |
 | Relay | `bool` | `true` | Determines whether the server is forwarding its inventory. |
 | Consensus | [Consensus Configuration](#Consensus-Configuration) |  | Describes consensus (dBFT) configuration. See the [Consensus Configuration](#Consensus-Configuration) for details. |
-| RemoveUntraceableBlocks | `bool`| `false` | Denotes whether old blocks should be removed from cache and database. If enabled, then only the last `MaxTraceableBlocks` are stored and accessible to smart contracts. Old MPT data is also deleted in accordance with `GarbageCollectionPeriod` setting. If enabled along with `P2PStateExchangeExtensions` protocol extension, then old blocks and MPT states will be removed up to the second latest state synchronisation point (see `StateSyncInterval`). |
-| RemoveUntraceableHeaders | `bool`| `false` | Used only with RemoveUntraceableBlocks and makes node delete untraceable block headers as well. Notice that this is an experimental option, not recommended for production use. |
+| RemoveUntraceableBlocks | `bool`| `false` | Denotes whether old blocks, headers, transactions, execution results and transfer logs should be removed from cache and database. If enabled, then only the last `MaxTraceableBlocks` are stored and accessible to smart contracts. Old MPT data is also deleted in accordance with `GarbageCollectionPeriod` setting. If enabled along with `P2PStateExchangeExtensions` protocol extension, then old blocks and MPT states will be removed up to the second latest state synchronisation point (see `StateSyncInterval`). |
 | RPC | [RPC Configuration](#RPC-Configuration) |  | Describes [RPC subsystem](rpc.md) configuration. See the [RPC Configuration](#RPC-Configuration) for details. |
 | SaveStorageBatch | `bool` | `false` | Enables storage batch saving before every persist. It is similar to StorageDump plugin for C# node. |
 | SkipBlockVerification | `bool` | `false` | Allows to disable verification of received/processed blocks (including cryptographic checks). |
 | StateRoot | [State Root Configuration](#State-Root-Configuration) |  | State root module configuration. See the [State Root Configuration](#State-Root-Configuration) section for details. |
 | SaveInvocations | `bool` | `false` | Determines if additional smart contract invocation details are stored. If enabled, the `getapplicationlog` RPC method will return a new field with invocation details for the transaction. See the [RPC](rpc.md#applicationlog-invocations) documentation for more information. |
+| TrustedHeader | `map[uint32]Hash256` | `nil` | Determines header (height and hash in the LE form) to start light node synchronization from. Headers below trusted height won't be fetched and processed at all. Requires `RemoveUntraceableBlocks` to be enabled along with one of `P2PStateExchangeExtensions` or `NeoFSStateSyncExtensions`. |
 
 ### P2P Configuration
 

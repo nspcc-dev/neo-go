@@ -76,20 +76,21 @@ func (s *LevelDBStore) Seek(rng SeekRange, f func(k, v []byte) bool) {
 }
 
 // SeekGC implements the Store interface.
-func (s *LevelDBStore) SeekGC(rng SeekRange, keep func(k, v []byte) bool) error {
+func (s *LevelDBStore) SeekGC(rng SeekRange, keepCont func(k, v []byte) (bool, bool)) error {
 	tx, err := s.db.OpenTransaction()
 	if err != nil {
 		return err
 	}
 	iter := tx.NewIterator(seekRangeToPrefixes(rng), nil)
 	s.seek(iter, rng.Backwards, func(k, v []byte) bool {
-		if !keep(k, v) {
+		keep, cont := keepCont(k, v)
+		if !keep {
 			err = tx.Delete(k, nil)
 			if err != nil {
 				return false
 			}
 		}
-		return true
+		return cont
 	})
 	if err != nil {
 		return err
