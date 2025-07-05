@@ -97,6 +97,34 @@ func NewCommands() []*cli.Command {
 	}, options.Wallet...)
 	uploadStateFlags = append(uploadStateFlags, options.Network...)
 	uploadStateFlags = append(uploadStateFlags, neoFSFlags...)
+
+	auditBinFlags := append([]cli.Flag{
+		&cli.StringFlag{
+			Name:   "block-attribute",
+			Usage:  "Attribute key of the block object",
+			Value:  neofs.DefaultBlockAttribute,
+			Action: cmdargs.EnsureNotEmpty("block-attribute"),
+		},
+		&cli.StringFlag{
+			Name:   "index-attribute",
+			Usage:  "Attribute key of the index object",
+			Value:  "Index",
+			Action: cmdargs.EnsureNotEmpty("index-attribute"),
+		},
+		&cli.UintFlag{
+			Name:  "index-file-size",
+			Usage: "Number of blocks OIDs in the index file",
+			Value: neofs.DefaultBatchSize,
+		},
+		&cli.BoolFlag{
+			Name:  "dry-run",
+			Usage: "If set, the command will not delete any objects, but will print the list of objects to be deleted",
+			Value: false,
+		},
+		options.Debug,
+		options.ForceTimestampLogs,
+	}, neoFSFlags...)
+	auditBinFlags = append(auditBinFlags, options.Wallet...)
 	return []*cli.Command{
 		{
 			Name:  "util",
@@ -180,6 +208,19 @@ func NewCommands() []*cli.Command {
 					UsageText: "neo-go util upload-bin --fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> --block-attribute block --rpc-endpoint <node> [--timeout <time>] --wallet <wallet> [--wallet-config <config>] [--address <address>] [--workers <num>] [--searchers <num>] [--batch-size <size>] [--retries <num>] [--debug]",
 					Action:    uploadBin,
 					Flags:     uploadBinFlags,
+				},
+				{
+					Name:      "audit-bin",
+					Usage:     "Audit NeoFS container for duplicating block or index file objects",
+					UsageText: "neo-go util audit-bin -fs-rpc-endpoint <address1>[,<address2>[...]] --container <cid> [--block-attribute Block] [--index-attribute Index] [--wallet <wallet>] [--wallet-config <config>] [--address <address>] [--searchers <num>] [--retries <num>] [--debug] [--dry-run]",
+					Action:    auditBin,
+					Flags:     auditBinFlags,
+					Description: `Searches for the duplicating index files or blocks. Logs duplicating
+   index files OIDs without removal if --dry-run is enabled. If --debug is enabled, then duplicating
+   block OIDs are also printed. Preserves index files consistency: the first index file returned by
+   SEARCH for the given height considered to be the original one, all duplicating blocks that are not
+   mentioned in this file will be removed.
+`,
 				},
 				{
 					Name:      "upload-state",

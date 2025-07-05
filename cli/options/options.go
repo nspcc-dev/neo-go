@@ -166,7 +166,7 @@ var ForceTimestampLogs = &cli.BoolFlag{
 }
 
 var errInvalidHistoric = errors.New("invalid 'historic' parameter, neither a block number, nor a block/state hash")
-var errNoWallet = errors.New("no wallet parameter found, specify it with the '--wallet' or '-w' flag or specify wallet config file with the '--wallet-config' flag")
+var ErrNoWallet = errors.New("no wallet parameter found, specify it with the '--wallet' or '-w' flag or specify wallet config file with the '--wallet-config' flag")
 var errConflictingWalletFlags = errors.New("--wallet flag conflicts with --wallet-config flag, please, provide one of them to specify wallet location")
 
 // GetNetwork examines Context's flags and returns the appropriate network. It
@@ -406,7 +406,7 @@ func GetAccFromContext(ctx *cli.Context) (*wallet.Account, *wallet.Wallet, error
 		return nil, nil, errConflictingWalletFlags
 	}
 	if len(wPath) == 0 && len(walletConfigPath) == 0 {
-		return nil, nil, errNoWallet
+		return nil, nil, ErrNoWallet
 	}
 	var pass *string
 	if len(walletConfigPath) != 0 {
