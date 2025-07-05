@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"strconv"
 	"sync"
 
@@ -105,7 +104,7 @@ loop:
 			originalOID = itm.ID
 			fmt.Fprintf(ctx.App.Writer, "Processing index file %d (%s)\n", originalID, originalOID)
 
-			originalOIDs, err := getBlockIDs(ctx, neoFSPool, containerID, originalOID, indexFileSize, acc.PrivateKey(), retries, debug)
+			originalOIDs, err := getBlockIDs(ctx, neoFSPool, containerID, originalOID, indexFileSize, signer, retries, debug)
 			if err != nil {
 				return cli.Exit(fmt.Errorf("failed to retrieve block OIDs for index file %d (%s): %w", originalID, originalOID, err), 1)
 			}
@@ -123,20 +122,16 @@ loop:
 	return nil
 }
 
-func getBlockIDs(ctx *cli.Context, p *pool.Pool, containerID cid.ID, indexFileID oid.ID, indexFileSize uint, priv *keys.PrivateKey, maxRetries uint, debug bool) ([]oid.ID, error) {
-	u, err := url.Parse(fmt.Sprintf("%s:%s/%s", neofs.URIScheme, containerID, indexFileID))
-	if err != nil {
-		return nil, err
-	}
+func getBlockIDs(ctx *cli.Context, p *pool.Pool, containerID cid.ID, indexFileID oid.ID, indexFileSize uint, signer user.Signer, maxRetries uint, debug bool) ([]oid.ID, error) {
 	var rc io.ReadCloser
 
-	err = retry(func() error {
+	err := retry(func() error {
 		var e error
-		rc, e = neofs.GetWithClient(ctx.Context, p, priv, u, false)
+		_, rc, e = p.ObjectGetInit(ctx.Context, containerID, indexFileID, signer, client.PrmObjectGet{})
 		return e
 	}, maxRetries, debug)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get index file %s: %w", u, err)
+		return nil, fmt.Errorf("failed to get index file %s: %w", indexFileID, err)
 	}
 	defer rc.Close()
 
