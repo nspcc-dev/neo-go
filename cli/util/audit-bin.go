@@ -4,13 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 	"strconv"
-	"sync"
 
 	"github.com/nspcc-dev/neo-go/cli/cmdargs"
 	"github.com/nspcc-dev/neo-go/cli/options"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/services/helpers/neofs"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
@@ -33,7 +30,6 @@ func auditBin(ctx *cli.Context) error {
 	debug := ctx.Bool("debug")
 	dryRun := ctx.Bool("dry-run")
 	blockAttr := ctx.String("block-attribute")
-	searchers := ctx.Uint("searchers")
 
 	acc, _, err := options.GetAccFromContext(ctx)
 	if err != nil {
@@ -105,15 +101,15 @@ loop:
 			originalOID = itm.ID
 			fmt.Fprintf(ctx.App.Writer, "Processing index file %d (%s)\n", originalID, originalOID)
 
-			originalOIDs, err := getBlockIDs(ctx, neoFSPool, containerID, originalOID, indexFileSize, acc.PrivateKey(), retries, debug)
+			originalOIDs, err := getBlockIDs(ctx, neoFSPool, containerID, originalOID, indexFileSize, signer, retries, debug)
 			if err != nil {
 				return cli.Exit(fmt.Errorf("failed to retrieve block OIDs for index file %d (%s): %w", originalID, originalOID, err), 1)
 			}
 
 			startHeight := uint32(duplicateID) * uint32(indexFileSize)
 			endHeight := startHeight + uint32(indexFileSize)
-			err = deleteOrphans(ctx, neoFSPool, acc.PrivateKey(), containerID, blockAttr, originalOIDs,
-				int(startHeight), int(endHeight), int(searchers), int(retries), debug, dryRun)
+			err = deleteOrphans(ctx, neoFSPool, signer, containerID, blockAttr, originalOIDs,
+				int(startHeight), int(endHeight), int(retries), debug, dryRun)
 			if err != nil {
 				return cli.Exit(fmt.Errorf("failed to remove block duplicates: %w", err), 1)
 			}
@@ -123,20 +119,16 @@ loop:
 	return nil
 }
 
-func getBlockIDs(ctx *cli.Context, p *pool.Pool, containerID cid.ID, indexFileID oid.ID, indexFileSize uint, priv *keys.PrivateKey, maxRetries uint, debug bool) ([]oid.ID, error) {
-	u, err := url.Parse(fmt.Sprintf("%s:%s/%s", neofs.URIScheme, containerID, indexFileID))
-	if err != nil {
-		return nil, err
-	}
+func getBlockIDs(ctx *cli.Context, p *pool.Pool, containerID cid.ID, indexFileID oid.ID, indexFileSize uint, signer user.Signer, maxRetries uint, debug bool) ([]oid.ID, error) {
 	var rc io.ReadCloser
 
-	err = retry(func() error {
+	err := retry(func() error {
 		var e error
-		rc, e = neofs.GetWithClient(ctx.Context, p, priv, u, false)
+		_, rc, e = p.ObjectGetInit(ctx.Context, containerID, indexFileID, signer, client.PrmObjectGet{})
 		return e
 	}, maxRetries, debug)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get index file %s: %w", u, err)
+		return nil, fmt.Errorf("failed to get index file %s: %w", indexFileID, err)
 	}
 	defer rc.Close()
 
@@ -159,88 +151,82 @@ func getBlockIDs(ctx *cli.Context, p *pool.Pool, containerID cid.ID, indexFileID
 // specified in the index file for the given height. It prints a WARN if the
 // expected object is missing. If dryRun is enabled, it prints duplicate OIDs
 // instead of removing them.
-func deleteOrphans(ctx *cli.Context, p *pool.Pool, priv *keys.PrivateKey, containerID cid.ID, blockAttr string, originalOIDs []oid.ID, start, end, workersCnt, maxRetries int, debug, dryRun bool) error {
+func deleteOrphans(ctx *cli.Context, p *pool.Pool, signer user.Signer, containerID cid.ID, blockAttr string, originalOIDs []oid.ID, start, end, maxRetries int, debug, dryRun bool) error {
 	var (
-		wg      sync.WaitGroup
-		printMu sync.Mutex
-		s       = user.NewAutoIDSignerRFC6979(priv.PrivateKey)
+		cursor   string
+		oidIndex int
 	)
 
-	wg.Add(workersCnt)
-	for w := range workersCnt {
-		go func(offset int) {
-			defer wg.Done()
+	// Search for block objects with height matching the expected one.
+	f := object.NewSearchFilters()
+	f.AddFilter(blockAttr, strconv.Itoa(start), object.MatchNumGE)
+	f.AddFilter(blockAttr, strconv.Itoa(end), object.MatchNumLT)
 
-			for height := start + offset; height < end; height += workersCnt {
-				var (
-					orphans    []oid.ID
-					original   = originalOIDs[height-start]
-					originalOK bool
-				)
+	for {
+		var (
+			err        error
+			nextCursor string
+			page       []client.SearchResultItem
+		)
 
-				// Search for block objects with height matching the expected one.
-				f := object.NewSearchFilters()
-				f.AddFilter(blockAttr, strconv.Itoa(height), object.MatchStringEqual)
-				results, errs := neofs.ObjectSearch(ctx.Context, p, priv,
-					containerID, f, []string{blockAttr})
+		err = retry(func() error {
+			page, nextCursor, err = p.SearchObjects(ctx.Context, containerID, f, []string{blockAttr}, cursor, signer, client.SearchObjectsOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to search objects: %w", err)
+			}
+			return nil
+		}, uint(maxRetries), debug)
+		if err != nil {
+			return err
+		}
+		for _, itm := range page {
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+			}
+			foundID := itm.ID
+			foundIndex, err := strconv.Atoi(itm.Attributes[0])
+			if err != nil {
+				return fmt.Errorf("incorrect index in result: %q", itm.Attributes[0])
+			}
+			if debug {
+				fmt.Fprintf(ctx.App.Writer, "found block %d (%s), expected %d (%s)\n", foundIndex, foundID, oidIndex, originalOIDs[oidIndex])
+			}
+			if foundIndex == start+oidIndex && foundID == originalOIDs[oidIndex] {
+				oidIndex++
+				continue
+			}
 
-			loop:
-				for {
-					select {
-					case itm, ok := <-results:
-						if !ok {
-							break loop
-						}
-						if itm.ID == original {
-							originalOK = true
-						} else {
-							orphans = append(orphans, itm.ID)
-						}
-					case err, ok := <-errs:
-						if !ok {
-							break loop
-						}
-						if err != nil {
-							printMu.Lock()
-							fmt.Fprintf(ctx.App.Writer, "WARN: failed to search for block duplicates at %d: %s\n", height, err)
-							printMu.Unlock()
-						}
-					}
+			if foundIndex > start+oidIndex {
+				for start+oidIndex < foundIndex {
+					fmt.Fprintf(ctx.App.Writer, "WARN: block %d (%s) is listed in the index file but missing from the storage\n", start+oidIndex, originalOIDs[oidIndex])
+					oidIndex++
 				}
-
-				// Warn if the index entry is missing.
-				if !originalOK {
-					printMu.Lock()
-					fmt.Fprintf(ctx.App.Writer, "WARN: block %d (%s) is listed in the index file but missing from the storage\n", height, original)
-					printMu.Unlock()
-				}
-
-				// Delete orphans.
-				for _, orphan := range orphans {
-					if dryRun {
-						printMu.Lock()
-						fmt.Fprintf(ctx.App.Writer, "[dry-run] block duplicate %s / %s (%d)\n", orphan, original, height)
-						printMu.Unlock()
-						continue
-					}
-
-					err := retry(func() error {
-						_, errDelete := p.ObjectDelete(ctx.Context, containerID, orphan, s, client.PrmObjectDelete{})
-						return errDelete
-					}, uint(maxRetries), debug)
-
-					printMu.Lock()
-					if err != nil {
-						fmt.Fprintf(ctx.App.Writer, "WARN: failed to remove block %s / %s (%d): %s\n", orphan, original, height, err)
-					} else if debug {
-						fmt.Fprintf(ctx.App.Writer, "Block duplicate %s / %s (%d) is removed\n", orphan, original, height)
-					}
-					printMu.Unlock()
+				if foundID == originalOIDs[oidIndex] {
+					continue
 				}
 			}
-		}(w)
+			if dryRun {
+				fmt.Fprintf(ctx.App.Writer, "[dry-run] block duplicate %s / %s (%d)\n", foundID, originalOIDs[oidIndex], foundIndex)
+			} else {
+				err := retry(func() error {
+					_, errDelete := p.ObjectDelete(ctx.Context, containerID, foundID, signer, client.PrmObjectDelete{})
+					return errDelete
+				}, uint(maxRetries), debug)
+
+				if err != nil {
+					fmt.Fprintf(ctx.App.Writer, "WARN: failed to remove block %s / %s (%d): %s\n", foundID, originalOIDs[foundIndex-start], foundIndex, err)
+				} else if debug {
+					fmt.Fprintf(ctx.App.Writer, "Block duplicate %s / %s (%d) is removed\n", foundID, originalOIDs[foundIndex-start], foundIndex)
+				}
+			}
+		}
+		if nextCursor == "" {
+			break
+		}
+		cursor = nextCursor
 	}
 
-	wg.Wait()
 	return nil
 }
