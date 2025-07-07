@@ -121,6 +121,17 @@ func NewCommands() []*cli.Command {
 			Usage: "If set, the command will not delete any objects, but will print the list of objects to be deleted",
 			Value: false,
 		},
+		&cli.IntFlag{
+			Name:  "skip",
+			Usage: "Number of index files to skip audit for",
+			Value: 0,
+			Action: func(context *cli.Context, i int) error {
+				if i < 0 {
+					return cli.Exit("negative --skip", 1)
+				}
+				return nil
+			},
+		},
 		options.Debug,
 		options.ForceTimestampLogs,
 	}, neoFSFlags...)
