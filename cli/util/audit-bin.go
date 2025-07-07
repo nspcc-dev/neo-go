@@ -30,6 +30,7 @@ func auditBin(ctx *cli.Context) error {
 	debug := ctx.Bool("debug")
 	dryRun := ctx.Bool("dry-run")
 	blockAttr := ctx.String("block-attribute")
+	skip := ctx.Int("skip")
 
 	acc, _, err := options.GetAccFromContext(ctx)
 	if err != nil {
@@ -56,8 +57,11 @@ func auditBin(ctx *cli.Context) error {
 		return cli.Exit(fmt.Errorf("failed to get container %s: %w", containerID, err), 1)
 	}
 
+	if skip > 0 {
+		fmt.Fprintf(ctx.App.Writer, "Skipping %d index files\n", skip)
+	}
 	filters := object.NewSearchFilters()
-	filters.AddFilter(indexAttrKey, fmt.Sprintf("%d", 0), object.MatchNumGE)
+	filters.AddFilter(indexAttrKey, fmt.Sprintf("%d", skip), object.MatchNumGE)
 	results, errs := neofs.ObjectSearch(ctx.Context, neoFSPool, acc.PrivateKey(), containerID, filters, []string{indexAttrKey})
 
 	var (
