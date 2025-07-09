@@ -389,7 +389,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		store:       s,
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
-		memPool:     mempool.New(cfg.MemPoolSize, 0, false, updateMempoolMetrics),
+		memPool:     mempool.New(cfg.MemPoolSize, 0, false, false, updateMempoolMetrics),
 		log:         log,
 		events:      make(chan bcEvent),
 		subCh:       make(chan any),
@@ -1760,7 +1760,7 @@ func (bc *Blockchain) AddBlock(block *block.Block) error {
 		if !block.MerkleRoot.Equals(merkle) {
 			return errors.New("invalid block: MerkleRoot mismatch")
 		}
-		mp = mempool.New(len(block.Transactions), 0, false, nil)
+		mp = mempool.New(len(block.Transactions), 0, false, false, nil)
 		for _, tx := range block.Transactions {
 			var err error
 			// Transactions are verified before adding them
@@ -3020,7 +3020,7 @@ func (bc *Blockchain) IsTxStillRelevant(t *transaction.Transaction, txpool *memp
 // current blockchain state. Note that this verification is completely isolated
 // from the main node's mempool.
 func (bc *Blockchain) VerifyTx(t *transaction.Transaction) error {
-	var mp = mempool.New(1, 0, false, nil)
+	var mp = mempool.New(1, 0, false, false, nil)
 	bc.lock.RLock()
 	defer bc.lock.RUnlock()
 	return bc.verifyAndPoolTx(t, mp, bc)

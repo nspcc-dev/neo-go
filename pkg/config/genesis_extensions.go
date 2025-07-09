@@ -28,7 +28,7 @@ type Genesis struct {
 	// Designation contract initialization. It is NeoGo extension and must be
 	// disabled on the public Neo N3 networks.
 	Roles map[noderoles.Role]keys.PublicKeys
-	// TimePerBlock is the time interval between blocks that consensus
+	// TimePerBlock is the minimum time interval between blocks that consensus
 	// nodes work with. It must be an integer number of milliseconds. It differs
 	// from Protocol level configuration in that this value is used starting
 	// from HFEchidna to initialize MillisecondsPerBlock value of native Policy
