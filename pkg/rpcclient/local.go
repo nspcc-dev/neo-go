@@ -66,14 +66,11 @@ eventloop:
 	}
 	close(c.readerDone)
 	c.ctxCancel()
-	// ctx is cancelled, server is notified and will finish soon.
-drainloop:
+	// ctx is cancelled, server is notified and will close c.events soon.
 	for {
-		select {
-		case <-c.events:
-		default:
-			break drainloop
+		_, ok := <-c.events
+		if !ok {
+			break
 		}
 	}
-	close(c.events)
 }

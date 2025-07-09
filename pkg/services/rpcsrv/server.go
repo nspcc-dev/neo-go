@@ -564,7 +564,8 @@ func (s *Server) handleHTTPRequest(w http.ResponseWriter, httpRequest *http.Requ
 	s.writeHTTPServerResponse(req, w, resp)
 }
 
-// RegisterLocal performs local client registration.
+// RegisterLocal performs local client registration. Events channel will be
+// closed by server once context is done or server is closed.
 func (s *Server) RegisterLocal(ctx context.Context, events chan<- neorpc.Notification) func(*neorpc.Request) (*neorpc.Response, error) {
 	subChan := make(chan intEvent, notificationBufSize)
 	subscr := &subscriber{writer: subChan, feeds: make([]feed, s.config.MaxWebSocketFeeds)}
