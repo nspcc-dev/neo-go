@@ -93,6 +93,7 @@ type service struct {
 	// process. It has a tiny buffer in order to avoid Blockchain blocking
 	// on block addition under the high load.
 	blockEvents  chan *coreb.Block
+	poolEvents   chan struct{}
 	lastProposal []util.Uint256
 	wallet       *wallet.Wallet
 	// started is a flag set with Start method that runs an event handling
@@ -170,6 +171,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithTimer[util.Uint256](timer.New()),
 		dbft.WithLogger[util.Uint256](srv.log),
 		dbft.WithTimePerBlock[util.Uint256](srv.timePerBlock),
+		dbft.WithMaxTimePerBlock[util.Uint256](srv.maxTimePerBlock),
 		dbft.WithGetKeyPair[util.Uint256](srv.getKeyPair),
 		dbft.WithRequestTx[util.Uint256](cfg.RequestTx),
 		dbft.WithStopTxFlow[util.Uint256](cfg.StopTxFlow),
@@ -184,6 +186,7 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithCurrentHeight[util.Uint256](cfg.Chain.BlockHeight),
 		dbft.WithCurrentBlockHash[util.Uint256](cfg.Chain.CurrentBlockHash),
 		dbft.WithGetValidators[util.Uint256](srv.getValidators),
+		dbft.WithSubscribeForTxs[util.Uint256](srv.subscribeForTxs),
 
 		dbft.WithNewConsensusPayload[util.Uint256](srv.newPayload),
 		dbft.WithNewPrepareRequest[util.Uint256](srv.newPrepareRequest),
@@ -318,6 +321,11 @@ func (s *service) Shutdown() {
 	_ = s.log.Sync()
 }
 
+func (s *service) subscribeForTxs() {
+	s.poolEvents = make(chan struct{})
+	s.Chain.GetMemPool().RegisterTransactionAddedSubscriber(s.poolEvents)
+}
+
 func (s *service) eventLoop() {
 	s.Chain.SubscribeForBlocks(s.blockEvents)
 
@@ -333,6 +341,10 @@ events:
 		case <-s.quit:
 			s.Chain.UnsubscribeFromBlocks(s.blockEvents)
 			break events
+		case <-s.poolEvents:
+			s.poolEvents = nil
+			s.dbft.OnNewTransaction()
+			// TODO: detect CV/new block and unsubscribe.
 		case <-s.dbft.Timer.C():
 			h, v := s.dbft.Timer.Height(), s.dbft.Timer.View()
 			s.log.Debug("timer fired",
@@ -391,6 +403,7 @@ drainLoop:
 		case <-s.messages:
 		case <-s.transactions:
 		case <-s.blockEvents:
+		case <-s.poolEvents:
 		default:
 			break drainLoop
 		}
@@ -785,4 +798,8 @@ func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Bloc
 
 func (s *service) timePerBlock() time.Duration {
 	return time.Duration(s.Config.Chain.GetMillisecondsPerBlock()) * time.Millisecond
+}
+
+func (s *service) maxTimePerBlock() time.Duration {
+	return s.Config.ProtocolConfiguration.MaxTimePerBlock
 }

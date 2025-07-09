@@ -389,7 +389,7 @@ func NewBlockchain(s storage.Store, cfg config.Blockchain, log *zap.Logger) (*Bl
 		store:       s,
 		stopCh:      make(chan struct{}),
 		runToExitCh: make(chan struct{}),
-		memPool:     mempool.New(cfg.MemPoolSize, 0, false, updateMempoolMetrics),
+		memPool:     mempool.New(cfg.MemPoolSize, 0, cfg.MaxTimePerBlock > 0, updateMempoolMetrics),
 		log:         log,
 		events:      make(chan bcEvent),
 		subCh:       make(chan any),

@@ -25,6 +25,14 @@ func (mp *Pool) StopSubscriptions() {
 	}
 }
 
+// RegisterTransactionAddedSubscriber registers single-use channel that will be
+// closed by the Pool once TransactionAdded event is emitted and relayed.
+func (mp *Pool) RegisterTransactionAddedSubscriber(ch chan struct{}) {
+	if mp.subscriptionsOn.Load() {
+		mp.transactionAddedCh.Store(ch) // don't care about existing channel, it will be disposed by GC.
+	}
+}
+
 // SubscribeForTransactions adds the given channel to the new mempool event broadcasting, so when
 // there is a new transactions added to the mempool or an existing transaction removed from
 // the mempool, you'll receive it via this channel. Make sure you're not changing the received
@@ -62,6 +70,15 @@ func (mp *Pool) notificationDispatcher() {
 		case event := <-mp.events:
 			for ch := range txFeed {
 				ch <- event
+			}
+			if event.Type == mempoolevent.TransactionAdded {
+				sub := mp.transactionAddedCh.Load()
+				if sub != nil && sub != chan struct{}(nil) {
+					close(sub.(chan struct{}))
+					// @roman-khimov, technically there's a race between Load and Store, but we can't
+					// use CompareAndSwap with channels in this case.
+					mp.transactionAddedCh.Store(chan struct{}(nil))
+				}
 			}
 		}
 	}

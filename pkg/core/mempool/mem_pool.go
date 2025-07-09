@@ -80,6 +80,7 @@ type Pool struct {
 	events               chan mempoolevent.Event
 	subCh                chan chan<- mempoolevent.Event // there are no other events in mempool except Event, so no need in generic subscribers type
 	unsubCh              chan chan<- mempoolevent.Event
+	transactionAddedCh   atomic.Value // stores single-use chan struct{}, which is closed when new transaction is arrived.
 }
 
 func (p items) Len() int           { return len(p) }

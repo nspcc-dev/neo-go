@@ -398,6 +398,9 @@ func (s *Server) Shutdown() {
 		svc.Shutdown()
 	}
 	s.serviceLock.RUnlock()
+	if s.chain.GetConfig().MaxTimePerBlock > 0 {
+		s.chain.GetMemPool().StopSubscriptions()
+	}
 	if s.chain.P2PSigExtensionsEnabled() {
 		s.notaryRequestPool.StopSubscriptions()
 	}
@@ -699,6 +702,9 @@ func (s *Server) tryStartServices() {
 
 	if s.IsInSync() && s.syncReached.CompareAndSwap(false, true) {
 		s.log.Info("node reached synchronized state, starting services")
+		if s.chain.GetConfig().MaxTimePerBlock > 0 {
+			s.chain.GetMemPool().RunSubscriptions()
+		}
 		if s.chain.P2PSigExtensionsEnabled() {
 			s.notaryRequestPool.RunSubscriptions() // WSClient is also a subscriber.
 		}
