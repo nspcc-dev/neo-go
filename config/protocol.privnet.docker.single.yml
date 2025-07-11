@@ -2,6 +2,7 @@ ProtocolConfiguration:
   Magic: 56753
   MaxTraceableBlocks: 200000
   TimePerBlock: 1s
+  MaxTimePerBlock: 5s
   Genesis:
     TimePerBlock: 1s
   MemPoolSize: 50000

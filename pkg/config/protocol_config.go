@@ -61,11 +61,14 @@ type (
 		// StateSyncInterval is the number of blocks between state heights available for MPT state data synchronization.
 		// It is valid only if P2PStateExchangeExtensions are enabled.
 		StateSyncInterval int `yaml:"StateSyncInterval"`
-		// TimePerBlock is the time interval between blocks that consensus nodes work with.
+		// TimePerBlock is the minimum time interval between blocks that consensus nodes work with.
 		// It must be an integer number of milliseconds. This value is applicable till
 		// HFEchidna; use Genesis-level configuration to set up further block acceptance
 		// interval.
-		TimePerBlock    time.Duration `yaml:"TimePerBlock"`
+		TimePerBlock time.Duration `yaml:"TimePerBlock"`
+		// MaxTimePerBlock is the maximum time interval between blocks that will pass if there is
+		// no pending transactions in the node's pool. It must be an integer number of milliseconds.
+		MaxTimePerBlock time.Duration `yaml:"MaxTimePerBlock"`
 		ValidatorsCount uint32        `yaml:"ValidatorsCount"`
 		// Validators stores history of changes to consensus node number (height: number).
 		ValidatorsHistory map[uint32]uint32 `yaml:"ValidatorsHistory"`
@@ -91,6 +94,12 @@ func (p *ProtocolConfiguration) Validate() error {
 	}
 	if p.Genesis.TimePerBlock%time.Millisecond != 0 {
 		return errors.New("Genesis TimePerBlock must be an integer number of milliseconds")
+	}
+	if p.MaxTimePerBlock%time.Millisecond != 0 {
+		return errors.New("MaxTimePerBlock must be an integer number of milliseconds")
+	}
+	if p.MaxTimePerBlock > 0 && (p.MaxTimePerBlock <= p.TimePerBlock || p.MaxTimePerBlock <= p.Genesis.TimePerBlock) {
+		return errors.New("MaxTimePerBlock is not larger than TimePerBlock")
 	}
 	for name := range p.Hardforks {
 		if !IsHardforkValid(name) {
