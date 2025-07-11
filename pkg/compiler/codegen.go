@@ -319,7 +319,7 @@ func (c *codegen) emitStoreVar(pkg string, name string) {
 	c.emitStoreByIndex(vi.refType, vi.index)
 }
 
-// emitLoadByIndex stores top value in the specified variable type with index i.
+// emitStoreByIndex stores top value in the specified variable type with index i.
 func (c *codegen) emitStoreByIndex(t varType, i int) {
 	_, base := getBaseOpcode(t)
 	if i < 7 {

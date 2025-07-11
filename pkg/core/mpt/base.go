@@ -61,7 +61,7 @@ func (b *BaseNode) updateHash(n Node) {
 	b.hashValid = true
 }
 
-// updateCache updates the hash and bytes fields for this BaseNode.
+// updateBytes updates the hash and bytes fields for this BaseNode.
 func (b *BaseNode) updateBytes(n Node) {
 	bw := io.NewBufBinWriter()
 	bw.Grow(1 + n.Size())
