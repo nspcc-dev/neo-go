@@ -370,7 +370,7 @@ func buildKoblitzVerificationScriptSimple(t *testing.T, pub *keys.PublicKey) []b
 	// 131      SYSCALL      System.Contract.Call (627d5b52)
 }
 
-// buildKoblitzVerificationScript builds custom verification script for the provided Koblitz public key.
+// buildKoblitzVerificationScriptCompat builds custom verification script for the provided Koblitz public key.
 // It checks that the following message is signed by the provided public key:
 //
 //	keccak256(sha256([4-bytes-network-magic-LE, txHash-bytes-BE]))
