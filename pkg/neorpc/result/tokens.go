@@ -10,7 +10,7 @@ type NEP11Balances struct {
 	Address  string              `json:"address"`
 }
 
-// NEP11Balance is a structure holding balance of a NEP-11 asset.
+// NEP11AssetBalance is a structure holding balance of a NEP-11 asset.
 type NEP11AssetBalance struct {
 	Asset    util.Uint160        `json:"assethash"`
 	Decimals int                 `json:"decimals,string"`
