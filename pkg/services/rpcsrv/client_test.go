@@ -1574,10 +1574,10 @@ func TestClient_IteratorSessions(t *testing.T) {
 
 				_, ok := rpcSrv.sessions[sID.String()]
 				return !ok
-			}, time.Duration(rpcSrv.config.SessionExpirationTime)*time.Second*3,
-				// Sessions list is updated once per SessionExpirationTime, thus, no need to ask for update more frequently than
+			}, rpcSrv.config.SessionLifetime*3,
+				// Sessions list is updated once per SessionLifetime, thus, no need to ask for update more frequently than
 				// sessions cleaning occurs.
-				time.Duration(rpcSrv.config.SessionExpirationTime)*time.Second/4)
+				rpcSrv.config.SessionLifetime/4)
 
 			ok, err := c.TerminateSession(sID)
 			require.Error(t, err)

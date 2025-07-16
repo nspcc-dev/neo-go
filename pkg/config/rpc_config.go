@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/encoding/fixedn"
 )
@@ -24,11 +25,13 @@ type (
 		MaxWebSocketFeeds         int           `yaml:"MaxWebSocketFeeds"`
 		SessionEnabled            bool          `yaml:"SessionEnabled"`
 		SessionExpansionEnabled   bool          `yaml:"SessionExpansionEnabled"`
-		SessionExpirationTime     int           `yaml:"SessionExpirationTime"`
-		SessionBackedByMPT        bool          `yaml:"SessionBackedByMPT"`
-		SessionPoolSize           int           `yaml:"SessionPoolSize"`
-		StartWhenSynchronized     bool          `yaml:"StartWhenSynchronized"`
-		TLSConfig                 TLS           `yaml:"TLSConfig"`
+		// Deprecated: Use SessionLifetime instead.
+		SessionExpirationTime int           `yaml:"SessionExpirationTime"`
+		SessionLifetime       time.Duration `yaml:"SessionLifetime"`
+		SessionBackedByMPT    bool          `yaml:"SessionBackedByMPT"`
+		SessionPoolSize       int           `yaml:"SessionPoolSize"`
+		StartWhenSynchronized bool          `yaml:"StartWhenSynchronized"`
+		TLSConfig             TLS           `yaml:"TLSConfig"`
 	}
 
 	// TLS describes SSL/TLS configuration.
@@ -44,6 +47,9 @@ type (
 func (cfg *RPC) Validate() error {
 	if cfg.SessionExpansionEnabled && !cfg.SessionEnabled {
 		return fmt.Errorf("SessionExpansionEnabled requires SessionEnabled")
+	}
+	if cfg.SessionExpirationTime > 0 && cfg.SessionLifetime > 0 {
+		return fmt.Errorf("only one of SessionExpirationTime or SessionLifetime can be set")
 	}
 	return nil
 }
