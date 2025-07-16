@@ -3242,7 +3242,7 @@ func testRPCProtocol(t *testing.T, doRPCCall func(string, string, *testing.T) []
 				rpcSrv.sessionsLock.Lock()
 				defer rpcSrv.sessionsLock.Unlock()
 				return len(rpcSrv.sessions) == 0
-			}, 2*time.Duration(rpcSrv.config.SessionExpirationTime)*time.Second, 10*time.Millisecond)
+			}, 2*rpcSrv.config.SessionLifetime, 10*time.Millisecond)
 		})
 	})
 	t.Run("calculatenetworkfee", func(t *testing.T) {

@@ -282,9 +282,14 @@ func New(chain Ledger, conf config.RPC, coreServer *network.Server,
 	orc OracleHandler, log *zap.Logger, errChan chan<- error) *Server {
 	protoCfg := chain.GetConfig().ProtocolConfiguration
 	if conf.SessionEnabled {
+		//nolint:staticcheck // SessionExpirationTime will not be used since version 0.113.0 release.
 		if conf.SessionExpirationTime <= 0 {
-			conf.SessionExpirationTime = max(int(protoCfg.TimePerBlock/time.Second), 5)
-			log.Info("SessionExpirationTime is not set or wrong, setting default value", zap.Int("SessionExpirationTime", conf.SessionExpirationTime))
+			conf.SessionExpirationTime = int(max(protoCfg.TimePerBlock, 5*time.Second))
+		}
+		if conf.SessionLifetime <= 0 {
+			//nolint:staticcheck // SessionExpirationTime will not be used since version 0.113.0 release.
+			conf.SessionLifetime = time.Duration(conf.SessionExpirationTime)
+			log.Info("SessionLifetime is not set or wrong, setting default value", zap.Duration("SessionLifetime", conf.SessionLifetime))
 		}
 		if conf.SessionPoolSize <= 0 {
 			conf.SessionPoolSize = defaultSessionPoolSize
@@ -2530,7 +2535,7 @@ func (s *Server) runScriptInVM(t trigger.Type, script []byte, contractScriptHash
 		id = uuid.New()
 		sessionID := id.String()
 		sess.finalize = ic.Finalize
-		sess.timer = time.AfterFunc(time.Second*time.Duration(s.config.SessionExpirationTime), func() {
+		sess.timer = time.AfterFunc(s.config.SessionLifetime, func() {
 			s.sessionsLock.Lock()
 			defer s.sessionsLock.Unlock()
 			if len(s.sessions) == 0 {
@@ -2667,7 +2672,7 @@ func (s *Server) traverseIterator(reqParams params.Params) (any, *neorpc.Error) 
 	session.iteratorsLock.Lock()
 	// Perform `till` update only after session.iteratorsLock is taken in order to have more
 	// precise session lifetime.
-	session.timer.Reset(time.Second * time.Duration(s.config.SessionExpirationTime))
+	session.timer.Reset(s.config.SessionLifetime)
 	s.sessionsLock.Unlock()
 
 	var (
