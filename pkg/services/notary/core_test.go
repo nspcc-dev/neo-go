@@ -48,7 +48,7 @@ func getTestNotary(t *testing.T, bc *core.Blockchain, walletPath, pass string, o
 		Chain:   bc,
 		Log:     zaptest.NewLogger(t),
 	}
-	mp := mempool.New(10, 1, true, nil)
+	mp := mempool.New(10, 1, true, false, nil)
 	ntr, err := notary.NewNotary(cfg, netmode.UnitTestNet, mp, onTx)
 	require.NoError(t, err)
 

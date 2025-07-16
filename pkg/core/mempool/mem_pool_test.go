@@ -41,7 +41,7 @@ func (fs *FeerStub) GetUtilityTokenBalance(uint160 util.Uint160) *big.Int {
 }
 
 func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
-	mp := New(10, 0, false, nil)
+	mp := New(10, 0, false, false, nil)
 	tx := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
 	tx.Nonce = 0
 	tx.Signers = []transaction.Signer{{Account: util.Uint160{1, 2, 3}}}
@@ -62,7 +62,7 @@ func testMemPoolAddRemoveWithFeer(t *testing.T, fs Feer) {
 }
 
 func TestMemPoolRemoveStale(t *testing.T) {
-	mp := New(5, 0, false, nil)
+	mp := New(5, 0, false, false, nil)
 	txs := make([]*transaction.Transaction, 5)
 	for i := range txs {
 		txs[i] = transaction.New([]byte{byte(opcode.PUSH1)}, 0)
@@ -114,7 +114,7 @@ func TestOverCapacity(t *testing.T) {
 	var fs = &FeerStub{balance: 10000000}
 	var acc = util.Uint160{1, 2, 3}
 	const mempoolSize = 10
-	mp := New(mempoolSize, 0, false, nil)
+	mp := New(mempoolSize, 0, false, false, nil)
 
 	var checkPoolIsSorted = func() {
 		require.True(t, slices.IsSortedFunc(mp.verifiedTxes, func(a, b item) int { return -a.Compare(b) }))
@@ -200,7 +200,7 @@ func TestOverCapacity(t *testing.T) {
 func TestGetVerified(t *testing.T) {
 	var fs = &FeerStub{}
 	const mempoolSize = 10
-	mp := New(mempoolSize, 0, false, nil)
+	mp := New(mempoolSize, 0, false, false, nil)
 
 	txes := make([]*transaction.Transaction, 0, mempoolSize)
 	for i := range mempoolSize {
@@ -224,7 +224,7 @@ func TestGetVerified(t *testing.T) {
 func TestRemoveStale(t *testing.T) {
 	var fs = &FeerStub{}
 	const mempoolSize = 10
-	mp := New(mempoolSize, 0, false, nil)
+	mp := New(mempoolSize, 0, false, false, nil)
 
 	txes1 := make([]*transaction.Transaction, 0, mempoolSize/2)
 	txes2 := make([]*transaction.Transaction, 0, mempoolSize/2)
@@ -257,7 +257,7 @@ func TestRemoveStale(t *testing.T) {
 }
 
 func TestMemPoolFees(t *testing.T) {
-	mp := New(10, 0, false, nil)
+	mp := New(10, 0, false, false, nil)
 	fs := &FeerStub{balance: 10000000}
 	sender0 := util.Uint160{1, 2, 3}
 	tx0 := transaction.New([]byte{byte(opcode.PUSH1)}, 0)
@@ -362,7 +362,7 @@ func TestMempoolItemsOrder(t *testing.T) {
 }
 
 func TestMempoolAddRemoveOracleResponse(t *testing.T) {
-	mp := New(3, 0, false, nil)
+	mp := New(3, 0, false, false, nil)
 	nonce := uint32(0)
 	fs := &FeerStub{balance: 10000}
 	newTx := func(netFee int64, id uint64) *transaction.Transaction {
@@ -433,7 +433,7 @@ func TestMempoolAddRemoveOracleResponse(t *testing.T) {
 func TestMempoolAddRemoveConflicts(t *testing.T) {
 	var (
 		capacity        = 6
-		mp              = New(capacity, 0, false, nil)
+		mp              = New(capacity, 0, false, false, nil)
 		sender          = transaction.Signer{Account: util.Uint160{1, 2, 3}}
 		maliciousSender = transaction.Signer{Account: util.Uint160{4, 5, 6}}
 	)
@@ -643,7 +643,7 @@ func TestMempoolAddWithDataGetData(t *testing.T) {
 		blockHeight: 5,
 		balance:     100,
 	}
-	mp := New(10, 1, false, nil)
+	mp := New(10, 1, false, false, nil)
 
 	// bad, insufficient deposit
 	r1 := &payload.P2PNotaryRequest{
@@ -758,7 +758,7 @@ func TestMempoolIterateVerifiedTransactions(t *testing.T) {
 		blockHeight: 5,
 		balance:     100,
 	}
-	mp := New(10, 1, false, nil)
+	mp := New(10, 1, false, false, nil)
 
 	checkRequestsOrder := func(orderedRequests []*payload.P2PNotaryRequest) {
 		var pooledRequests []*payload.P2PNotaryRequest

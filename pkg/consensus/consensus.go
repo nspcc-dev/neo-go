@@ -93,6 +93,7 @@ type service struct {
 	// process. It has a tiny buffer in order to avoid Blockchain blocking
 	// on block addition under the high load.
 	blockEvents  chan *coreb.Block
+	poolEvents   chan struct{}
 	lastProposal []util.Uint256
 	wallet       *wallet.Wallet
 	// started is a flag set with Start method that runs an event handling
@@ -166,8 +167,7 @@ func NewService(cfg Config) (Service, error) {
 		}
 	}
 
-	srv.dbft, err = dbft.New[util.Uint256](
-		dbft.WithTimer[util.Uint256](timer.New()),
+	opts := []func(config *dbft.Config[util.Uint256]){dbft.WithTimer[util.Uint256](timer.New()),
 		dbft.WithLogger[util.Uint256](srv.log),
 		dbft.WithTimePerBlock[util.Uint256](srv.timePerBlock),
 		dbft.WithGetKeyPair[util.Uint256](srv.getKeyPair),
@@ -195,8 +195,14 @@ func NewService(cfg Config) (Service, error) {
 		dbft.WithVerifyPrepareRequest[util.Uint256](srv.verifyRequest),
 		dbft.WithVerifyPrepareResponse[util.Uint256](srv.verifyResponse),
 		dbft.WithVerifyCommit[util.Uint256](srv.verifyCommit),
-	)
+	}
+	if srv.Chain.GetConfig().MaxTimePerBlock > 0 {
+		opts = append(opts,
+			dbft.WithMaxTimePerBlock[util.Uint256](srv.maxTimePerBlock),
+			dbft.WithSubscribeForTxs[util.Uint256](srv.subscribeForTxs))
+	}
 
+	srv.dbft, err = dbft.New[util.Uint256](opts...)
 	if err != nil {
 		return nil, fmt.Errorf("can't initialize dBFT: %w", err)
 	}
@@ -318,6 +324,11 @@ func (s *service) Shutdown() {
 	_ = s.log.Sync()
 }
 
+func (s *service) subscribeForTxs() {
+	s.poolEvents = make(chan struct{})
+	s.Chain.GetMemPool().RegisterTransactionAddedSubscriber(s.poolEvents)
+}
+
 func (s *service) eventLoop() {
 	s.Chain.SubscribeForBlocks(s.blockEvents)
 
@@ -333,6 +344,9 @@ events:
 		case <-s.quit:
 			s.Chain.UnsubscribeFromBlocks(s.blockEvents)
 			break events
+		case <-s.poolEvents:
+			s.poolEvents = nil
+			s.dbft.OnNewTransaction()
 		case <-s.dbft.Timer.C():
 			h, v := s.dbft.Timer.Height(), s.dbft.Timer.View()
 			s.log.Debug("timer fired",
@@ -391,6 +405,7 @@ drainLoop:
 		case <-s.messages:
 		case <-s.transactions:
 		case <-s.blockEvents:
+		case <-s.poolEvents:
 		default:
 			break drainLoop
 		}
@@ -533,7 +548,7 @@ func (s *service) verifyBlock(b dbft.Block[util.Uint256]) bool {
 	}
 
 	var fee int64
-	var pool = mempool.New(len(coreb.Transactions), 0, false, nil)
+	var pool = mempool.New(len(coreb.Transactions), 0, false, s.Chain.GetConfig().MaxTimePerBlock > 0, nil)
 	var mainPool = s.Chain.GetMemPool()
 	for _, tx := range coreb.Transactions {
 		var err error
@@ -785,4 +800,8 @@ func (s *service) newBlockFromContext(ctx *dbft.Context[util.Uint256]) dbft.Bloc
 
 func (s *service) timePerBlock() time.Duration {
 	return time.Duration(s.Config.Chain.GetMillisecondsPerBlock()) * time.Millisecond
+}
+
+func (s *service) maxTimePerBlock() time.Duration {
+	return s.Config.ProtocolConfiguration.MaxTimePerBlock
 }

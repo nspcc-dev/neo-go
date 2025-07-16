@@ -21,7 +21,7 @@ func getTestNotary(t *testing.T, bc Ledger, walletPath, pass string) (*wallet.Ac
 			Password: pass,
 		},
 	}
-	mp := mempool.New(10, 1, true, nil)
+	mp := mempool.New(10, 1, true, false, nil)
 	cfg := Config{
 		MainCfg: mainCfg,
 		Chain:   bc,
