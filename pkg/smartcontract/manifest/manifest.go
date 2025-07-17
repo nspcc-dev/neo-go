@@ -36,18 +36,6 @@ const (
 	emptyFeatures = "{}"
 )
 
-// Aliases of Standard names.
-const (
-	// NEP11Payable represents the name of NEP-26 smartcontract standard
-	// (contract interface which can receive NEP-11 tokens).
-	// Deprecated: to be removed in next version; use NEP26StandardName.
-	NEP11Payable = NEP26StandardName
-	// NEP17Payable represents the name of NEP-27 smartcontract standard
-	// (contract interface which can receive NEP-17 tokens).
-	// Deprecated: to be removed in next version; use NEP27StandardName.
-	NEP17Payable = NEP27StandardName
-)
-
 // Manifest represens contract metadata.
 type Manifest struct {
 	// Name is a contract's name.

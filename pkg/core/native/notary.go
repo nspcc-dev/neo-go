@@ -76,7 +76,7 @@ func copyNotaryCache(src, dst *NotaryCache) {
 // newNotary returns Notary native contract.
 func newNotary() *Notary {
 	n := &Notary{ContractMD: *interop.NewContractMD(nativenames.Notary, notaryContractID, func(m *manifest.Manifest, hf config.Hardfork) {
-		m.SupportedStandards = []string{manifest.NEP17Payable}
+		m.SupportedStandards = []string{manifest.NEP27StandardName}
 	})}
 	defer n.BuildHFSpecificMD(n.ActiveIn())
 
