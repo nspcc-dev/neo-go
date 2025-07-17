@@ -45,6 +45,10 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
             "seedlist": ["seed1.neo.org:10333", "seed2.neo.org:10333"],
             "standbycommittee": ["03b209fd4f53a7170ea4444e0cb0a6bb6a53c2bd016926989cf85f9b0fba17a70c", "02df48f60e8f3e01c48ff40b9b7f1310d7a8b2a193188befe1c2e3df740e895093", "03b8d9d5771d8f513aa0869b9cc8d50986403b78c6da36890638c3d46a5adce04a"]
         },
+		"application" : {
+			"saveinvocations" : true,
+			"keeponlylateststate" : true
+		},
         "rpc": {
             "maxiteratorresultitems": 100,
             "sessionenabled": true
@@ -111,6 +115,10 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 				"seed2.neo.org:10333",
 			},
 		},
+		Application: Application{
+			SaveInvocations:     true,
+			KeepOnlyLatestState: true,
+		},
 	}
 	t.Run("MarshalJSON", func(t *testing.T) {
 		actual, err := json.Marshal(v)
@@ -135,6 +143,10 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 			expected := new(Version)
 			*expected = *v
 			expected.UserAgent = "/Neo:3.1.0/"
+			// We set SaveInvocations and KeepOnlyLatestState to false
+			// because these are NeoGo node extensions.
+			expected.Application.SaveInvocations = false
+			expected.Application.KeepOnlyLatestState = false
 			require.Equal(t, expected, actual)
 		})
 	})

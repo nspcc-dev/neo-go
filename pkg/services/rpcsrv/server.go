@@ -908,6 +908,10 @@ func (s *Server) getVersion(_ params.Params) (any, *neorpc.Error) {
 			StateRootInHeader: cfg.StateRootInHeader,
 			ValidatorsHistory: cfg.ValidatorsHistory,
 		},
+		Application: result.Application{
+			KeepOnlyLatestState: cfg.KeepOnlyLatestState,
+			SaveInvocations:     cfg.SaveInvocations,
+		},
 	}, nil
 }
 
