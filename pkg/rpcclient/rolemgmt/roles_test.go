@@ -2,6 +2,9 @@ package rolemgmt
 
 import (
 	"errors"
+	"fmt"
+	"math"
+	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
@@ -147,5 +150,55 @@ func TestDesignateAsRoleTransaction(t *testing.T) {
 		tx, err := fun(noderoles.P2PNotary, ks)
 		require.NoError(t, err)
 		require.Equal(t, ta.tx, tx)
+	}
+}
+
+func TestDesignationEvent_FromStackItem(t *testing.T) {
+	tests := []struct {
+		name      string
+		items     []stackitem.Item
+		wantErr   string
+		wantRole  noderoles.Role
+		wantIndex uint32
+	}{
+		{
+			name:    "role overflow",
+			items:   []stackitem.Item{stackitem.NewBigInteger(big.NewInt(256)), stackitem.NewBigInteger(big.NewInt(1))},
+			wantErr: fmt.Sprintf("role overflow: %d > %d", 256, math.MaxUint8),
+		},
+		{
+			name:    "blockIndex overflow",
+			items:   []stackitem.Item{stackitem.NewBigInteger(big.NewInt(1)), stackitem.NewBigInteger(big.NewInt(int64(math.MaxUint32) + 1))},
+			wantErr: fmt.Sprintf("blockIndex overflow: %d > %d", int64(math.MaxUint32)+1, math.MaxUint32),
+		},
+		{
+			name:      "success",
+			items:     []stackitem.Item{stackitem.NewBigInteger(big.NewInt(4)), stackitem.NewBigInteger(big.NewInt(123))},
+			wantRole:  noderoles.Role(4),
+			wantIndex: 123,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := stackitem.NewArray(tt.items)
+			var event DesignationEvent
+			err := event.FromStackItem(item)
+			if tt.wantErr != "" {
+				if err == nil || tt.wantErr != err.Error() {
+					t.Fatalf("expected %s error, got %v", tt.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tt.wantRole != event.Role {
+				t.Fatalf("expected role = %v, got %v", tt.wantRole, event.Role)
+			}
+			if tt.wantIndex != event.BlockIndex {
+				t.Fatalf("expected blockindex = %v, got %v", tt.wantIndex, event.BlockIndex)
+			}
+		})
 	}
 }
