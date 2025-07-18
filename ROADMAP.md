@@ -34,7 +34,7 @@ Removal of GetBlockHeader and GetBlockHeaderVerbose methods is scheduled for
 
 ## SessionExpirationTime of RPC server configuration
 
-RPC server configuration setting SessionExpiratoinTime of `int` type has been
+RPC server configuration setting SessionExpirationTime of `int` type has been
 replaced by SessionLifetime of `Duration` type.
 
 Removal of SessionExpirationTime is scheduled for 0.113.0 release.
