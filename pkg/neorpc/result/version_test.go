@@ -47,7 +47,8 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
         },
 		"application" : {
 			"saveinvocations" : true,
-			"keeponlylateststate" : true
+			"keeponlylateststate" : true,
+			"removeuntraceableblocks" : true
 		},
         "rpc": {
             "maxiteratorresultitems": 100,
@@ -116,8 +117,9 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 			},
 		},
 		Application: Application{
-			SaveInvocations:     true,
-			KeepOnlyLatestState: true,
+			SaveInvocations:         true,
+			KeepOnlyLatestState:     true,
+			RemoveUntraceableBlocks: true,
 		},
 	}
 	t.Run("MarshalJSON", func(t *testing.T) {
@@ -143,10 +145,12 @@ func TestVersion_MarshalUnmarshalJSON(t *testing.T) {
 			expected := new(Version)
 			*expected = *v
 			expected.UserAgent = "/Neo:3.1.0/"
-			// We set SaveInvocations and KeepOnlyLatestState to false
-			// because these are NeoGo node extensions.
+			// We set SaveInvocations, KeepOnlyLatestState and
+			// RemoveUntraceableBlocks to false because these are NeoGo node
+			// extensions.
 			expected.Application.SaveInvocations = false
 			expected.Application.KeepOnlyLatestState = false
+			expected.Application.RemoveUntraceableBlocks = false
 			require.Equal(t, expected, actual)
 		})
 	})

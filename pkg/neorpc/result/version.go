@@ -65,15 +65,18 @@ type (
 		ValidatorsHistory map[uint32]uint32
 	}
 
-	// Application represents the node configuration.
+	// Application represents the node application configuration.
+	// Application is a NeoGo-specific extension to the node that is
+	// returned by the server if it is enabled.
 	Application struct {
-		// Below are NeoGo-specific extensions to the node that are
-		// returned by the server in case they're enabled.
-
 		// SaveInvocations enables smart contract invocation data saving.
 		SaveInvocations bool `json:"saveinvocations,omitempty"`
 		// KeepOnlyLatestState specifies if MPT should only store the latest state.
 		KeepOnlyLatestState bool `json:"keeponlylateststate,omitempty"`
+		// RemoveUntraceableBlocks specifies if old data (blocks, headers,
+		// transactions, execution results, transfer logs and MPT data) should be
+		// removed.
+		RemoveUntraceableBlocks bool `json:"removeuntraceableblocks,omitempty"`
 	}
 
 	// protocolMarshallerAux is an auxiliary struct used for Protocol JSON marshalling.
