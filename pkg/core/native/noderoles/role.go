@@ -37,3 +37,8 @@ func FromString(s string) (Role, bool) {
 	r, ok := roles[s]
 	return r, ok
 }
+
+// IsValid checks that the Role is within the range of acceptable roles.
+func IsValid(r Role) bool {
+	return r >= StateValidator && r < last
+}

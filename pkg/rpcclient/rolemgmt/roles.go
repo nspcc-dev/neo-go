@@ -7,6 +7,10 @@ various methods to perform the only RoleManagement state-changing call.
 package rolemgmt
 
 import (
+	"errors"
+	"fmt"
+	"math"
+
 	"github.com/nspcc-dev/neo-go/pkg/core/native/nativehashes"
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
 	"github.com/nspcc-dev/neo-go/pkg/core/transaction"
@@ -14,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 )
 
 // Invoker is used by ContractReader to call various methods.
@@ -97,4 +102,51 @@ func (c *Contract) DesignateAsRoleTransaction(role noderoles.Role, pubs keys.Pub
 // caller.
 func (c *Contract) DesignateAsRoleUnsigned(role noderoles.Role, pubs keys.PublicKeys) (*transaction.Transaction, error) {
 	return c.actor.MakeUnsignedCall(Hash, designateMethod, nil, int(role), pubs)
+}
+
+// FromStackItem converts provided [stackitem.Array] to DesignationEvent or returns an
+// error if it's not possible to do to so.
+func (e *DesignationEvent) FromStackItem(item *stackitem.Array) error {
+	if item == nil {
+		return errors.New("nil item")
+	}
+
+	arr, ok := item.Value().([]stackitem.Item)
+	if !ok {
+		return errors.New("not an array")
+	}
+	if len(arr) != 2 {
+		return errors.New("wrong number of event parameters")
+	}
+
+	roleBigInt, err := arr[0].TryInteger()
+	if err != nil {
+		return fmt.Errorf("invalid role: %w", err)
+	}
+	if !roleBigInt.IsUint64() {
+		return fmt.Errorf("role overflow: %s", roleBigInt.String())
+	}
+	role := roleBigInt.Uint64()
+	if role > math.MaxUint8 {
+		return fmt.Errorf("role overflow: %d > %d", role, math.MaxUint8)
+	}
+	e.Role = noderoles.Role(byte(role))
+	if !noderoles.IsValid(e.Role) {
+		return fmt.Errorf("invalid role: %d", role)
+	}
+
+	blockIndexBigInt, err := arr[1].TryInteger()
+	if err != nil {
+		return fmt.Errorf("invalid blockIndex: %w", err)
+	}
+	if !blockIndexBigInt.IsUint64() {
+		return fmt.Errorf("blockIndex overflow: %s", blockIndexBigInt.String())
+	}
+	blockIndex := blockIndexBigInt.Uint64()
+	if blockIndex > math.MaxUint32 {
+		return fmt.Errorf("blockIndex overflow: %d > %d", blockIndex, math.MaxUint32)
+	}
+	e.BlockIndex = uint32(blockIndex)
+
+	return nil
 }

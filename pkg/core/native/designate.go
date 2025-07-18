@@ -95,11 +95,6 @@ func copyDesignationCache(src, dst *DesignationCache) {
 	*dst = *src
 }
 
-func (s *Designate) isValidRole(r noderoles.Role) bool {
-	return r == noderoles.Oracle || r == noderoles.StateValidator ||
-		r == noderoles.NeoFSAlphabet || r == noderoles.P2PNotary
-}
-
 func newDesignate(initialNodeRoles map[noderoles.Role]keys.PublicKeys) *Designate {
 	s := &Designate{ContractMD: *interop.NewContractMD(nativenames.Designation, designateContractID)}
 	defer s.BuildHFSpecificMD(s.ActiveIn())
@@ -300,7 +295,7 @@ func getCachedRoleData(cache *DesignationCache, r noderoles.Role) *roleData {
 
 // GetLastDesignatedHash returns the last designated hash of the given role.
 func (s *Designate) GetLastDesignatedHash(d *dao.Simple, r noderoles.Role) (util.Uint160, error) {
-	if !s.isValidRole(r) {
+	if !noderoles.IsValid(r) {
 		return util.Uint160{}, ErrInvalidRole
 	}
 	cache := d.GetROCache(s.ID).(*DesignationCache)
@@ -312,7 +307,7 @@ func (s *Designate) GetLastDesignatedHash(d *dao.Simple, r noderoles.Role) (util
 
 // GetDesignatedByRole returns nodes for role r.
 func (s *Designate) GetDesignatedByRole(d *dao.Simple, r noderoles.Role, index uint32) (keys.PublicKeys, uint32, error) {
-	if !s.isValidRole(r) {
+	if !noderoles.IsValid(r) {
 		return nil, 0, ErrInvalidRole
 	}
 	cache := d.GetROCache(s.ID).(*DesignationCache)
@@ -384,7 +379,7 @@ func (s *Designate) DesignateAsRole(ic *interop.Context, r noderoles.Role, pubs 
 	if length > maxNodeCount {
 		return ErrLargeNodeList
 	}
-	if !s.isValidRole(r) {
+	if !noderoles.IsValid(r) {
 		return ErrInvalidRole
 	}
 
@@ -445,5 +440,5 @@ func (s *Designate) getRole(item stackitem.Item) (noderoles.Role, bool) {
 		return 0, false
 	}
 	u := bi.Uint64()
-	return noderoles.Role(u), u <= math.MaxUint8 && s.isValidRole(noderoles.Role(u))
+	return noderoles.Role(u), u <= math.MaxUint8 && noderoles.IsValid(noderoles.Role(u))
 }

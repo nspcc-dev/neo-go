@@ -2,6 +2,8 @@ package rolemgmt
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/native/noderoles"
@@ -147,5 +149,46 @@ func TestDesignateAsRoleTransaction(t *testing.T) {
 		tx, err := fun(noderoles.P2PNotary, ks)
 		require.NoError(t, err)
 		require.Equal(t, ta.tx, tx)
+	}
+}
+
+func TestDesignationEvent_FromStackItem(t *testing.T) {
+	tests := []struct {
+		name        string
+		items       []stackitem.Item
+		expectedErr error
+		expected    DesignationEvent
+	}{
+		{
+			name:        "role overflow",
+			items:       []stackitem.Item{stackitem.Make(256), stackitem.Make(1)},
+			expectedErr: fmt.Errorf("role overflow: %d > %d", 256, math.MaxUint8),
+		},
+		{
+			name:        "blockIndex overflow",
+			items:       []stackitem.Item{stackitem.Make(4), stackitem.Make(math.MaxUint32 + 1)},
+			expectedErr: fmt.Errorf("blockIndex overflow: %d > %d", int64(math.MaxUint32)+1, math.MaxUint32),
+		},
+		{
+			name:  "success",
+			items: []stackitem.Item{stackitem.Make(4), stackitem.Make(123)},
+			expected: DesignationEvent{
+				Role:       4,
+				BlockIndex: 123,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var event DesignationEvent
+			err := event.FromStackItem(stackitem.NewArray(tc.items))
+			if tc.expectedErr != nil {
+				require.ErrorContains(t, tc.expectedErr, err.Error())
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, event)
+			}
+		})
 	}
 }
