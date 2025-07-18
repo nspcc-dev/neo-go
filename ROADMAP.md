@@ -7,10 +7,9 @@ functionality.
 ## Versions 0.7X.Y (as needed)
 * Neo 2.0 support (bug fixes, minor functionality additions)
 
-## Version 0.111.0 (~Aug 2025)
+## Version 0.112.0 (~Aug 2025)
  * protocol updates
  * bug fixes
- * NeoFS-based synchronization
 
 ## Version 1.0 (2025, TBD)
  * stable version
@@ -35,7 +34,7 @@ Removal of GetBlockHeader and GetBlockHeaderVerbose methods is scheduled for
 
 ## SessionExpirationTime of RPC server configuration
 
-RPC server configuration setting SessionExpiratoinTime of `int` type has been
+RPC server configuration setting SessionExpirationTime of `int` type has been
 replaced by SessionLifetime of `Duration` type.
 
 Removal of SessionExpirationTime is scheduled for 0.113.0 release.
