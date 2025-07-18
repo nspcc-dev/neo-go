@@ -2,17 +2,13 @@
 
 This document outlines major changes between releases.
 
-## 0.111.0 "Facilitation" (17 Jul 2025)
+## 0.111.0 "Facilitation" (18 Jul 2025)
 
 We've decided to release one more v3.8.0-compatible version since the current
 set of changes includes adaptive block time extension allowing to vary block
-generation time from `TimePerBlock` to `MaxTimePerBlock`. This change is
-important for custom networks with small `TimePerBlock` setting, like those used
-by NeoFS metadata subsystem. It allows to fit the block producing interval up to
-the network activity, effectively preventing chain's database size growth. In
-addition to that, this version includes new audit module for NeoFS block
-storage, an optimisation of light node synchronisation process, enhanced version
-of BoltDB and a couple of other improvements and bug fixes.
+generation time from `TimePerBlock` to `MaxTimePerBlock`. In addition to that,
+this version includes new audit module for NeoFS block storage, an optimisation
+of light node synchronisation process, enhanced version of BoltDB and more.
 
 Some deprecated functionality has been removed according to the schedule, see
 more details in the `Behaviour changes` section. Also, for those node operators
